@@ -26,7 +26,7 @@ public readonly record struct DestroyedEvent(TargetRef Target, string Key, int G
     Quaternion Rotation, Vector3 Direction, DestroyCause Cause, bool Open, uint Attacker, ItemDef? Item, double ClientSeconds);
 
 // What the damage pipeline destroyed in range (GROUND.md §6.4.2), for the visual layer and sound.
-public sealed partial class GameClient
+public sealed class DamageModule : ClientModule
 {
     private readonly List<DestroyedEvent> _destroyed = new();
 
@@ -39,23 +39,19 @@ public sealed partial class GameClient
     /// </summary>
     public event Action<DestroyedEvent>? Destroyed;
 
-    private void UpdateDestroyed()
+    protected internal override void Init(MessageHandlers<GameClient> handlers)
+    {
+        handlers.On<ThingDestroyed>((_, in m) => OnThingDestroyed(m));
+    }
+
+    protected internal override void Update(double delta)
     {
         double now = ClockSeconds;
         _destroyed.RemoveAll(d => now - d.ClientSeconds > 2);
     }
 
-    private bool ReceiveDestroyed(uint type)
+    private void OnThingDestroyed(in ThingDestroyed m)
     {
-        if (type != ThingDestroyed.TypeId)
-        {
-            return false;
-        }
-        ThingDestroyed m = ThingDestroyed.Read(_reader);
-        if (_reader.Failed)
-        {
-            return true;
-        }
         var rotation = new Quaternion(m.RotationX, m.RotationY, m.RotationZ, m.RotationW);
         var direction = new Vector3(m.DirectionX, m.DirectionY, m.DirectionZ);
         var e = new DestroyedEvent(new TargetRef(m.Target.Family, m.Target.Id, m.Target.Part), m.Key ?? "", m.Grade, new Vector3(m.X, m.Y, m.Z),
@@ -64,6 +60,11 @@ public sealed partial class GameClient
             Content.Item((int)Math.Min(m.Item, ushort.MaxValue)), ClockSeconds);
         _destroyed.Add(e);
         Destroyed?.Invoke(e);
-        return true;
     }
+}
+
+/// <summary>The accessor on the client (GROUND_SYSTEMS.md §12.5, K11).</summary>
+public static class DamageModuleAccess
+{
+    public static DamageModule Damage(this GameClient client) => client.Require<DamageModule>();
 }

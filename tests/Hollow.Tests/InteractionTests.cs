@@ -407,9 +407,9 @@ public static class InteractionTests
             SpentArrow stuck = z.Arrows().StickArrow(new Projectile { Id = 7, Ammo = c.ItemByKey("arrow"), Velocity = Vector3.Normalize(aim - eye) * 50 }, hit)!;
             return (d.Id.Value, dropped.Id.Value, stuck.Id.Value);
         });
-        RunUntil(rig, () => ada.ThingOf(new EntityId(box)) != null && ada.ThingOf(new EntityId(bag)) != null && ada.ArrowOf(new EntityId(arrow)) is { Placed: true },
+        RunUntil(rig, () => ada.Survival().ThingOf(new EntityId(box)) != null && ada.Survival().ThingOf(new EntityId(bag)) != null && ada.Arrows().ArrowOf(new EntityId(arrow)) is { Placed: true },
             "the box, the bag and the arrow");
-        RemoteArrow remote = ada.ArrowOf(new EntityId(arrow))!;
+        RemoteArrow remote = ada.Arrows().ArrowOf(new EntityId(arrow))!;
         TargetPose served = rig.Server.Inspect(sv => sv.Zone.Targets().TryPose(new TargetRef(TargetFamily.Arrow, arrow), out TargetPose pose) ? pose : default);
         Assert.True(Vector3.Distance(remote.Pose.Position, served.Position) < 0.01f &&
             Vector3.Dot(Vector3.Transform(Vector3.UnitX, remote.Pose.Rotation), Vector3.Transform(Vector3.UnitX, served.Rotation)) > 0.999f,
@@ -443,10 +443,10 @@ public static class InteractionTests
         var families = new HashSet<TargetFamily>();
         for (int i = 0; i < views.Count; i++)
         {
-            AimHit here = ada.Aim(eye, views[i]);
+            AimHit here = ada.Interaction().Aim(eye, views[i]);
             Assert.True(here.Target == there[i].Hit.Target && MathF.Abs(here.Distance - there[i].Hit.Distance) < 0.05f,
                 $"view {i}: the client met {here.Target} at {here.Distance:0.00}, the server {there[i].Hit.Target} at {there[i].Hit.Distance:0.00}");
-            if (here.Hit && ada.Options(here.Target, eye, mine, out _) && mine.Count > 0)
+            if (here.Hit && ada.Interaction().Options(here.Target, eye, mine, out _) && mine.Count > 0)
             {
                 met++;
                 families.Add(here.Target.Family);
@@ -460,7 +460,7 @@ public static class InteractionTests
         {
             foreach (Vector3 view in views)
             {
-                ada.AimInteraction(eye, view);
+                ada.Interaction().AimInteraction(eye, view);
             }
         }
         double frame = clock.Elapsed.TotalMilliseconds / (10 * views.Count);
@@ -469,10 +469,10 @@ public static class InteractionTests
         Assert.True(families.IsSupersetOf(new[] { TargetFamily.Thing, TargetFamily.Arrow }), "the box, the bag and the arrow among them");
 
         // Ada's tap on the arrow: taken on the server, gone from her client, in her slots.
-        InteractAim? aim = ada.AimInteraction(eye, Vector3.Normalize(remote.Pose.Position - Vector3.Transform(Vector3.UnitX, remote.Pose.Rotation) * 0.3f - eye));
+        InteractAim? aim = ada.Interaction().AimInteraction(eye, Vector3.Normalize(remote.Pose.Position - Vector3.Transform(Vector3.UnitX, remote.Pose.Rotation) * 0.3f - eye));
         Assert.True(aim is { Primary: >= 0 } && aim.Target == new TargetRef(TargetFamily.Arrow, arrow), $"aimed at the arrow ({aim?.Target})");
         ada.Local.Interact(aim!.Target, aim.Options[aim.Primary].Verb);
-        RunUntil(rig, () => ada.ArrowOf(new EntityId(arrow)) == null && ada.Local.Inventory.Count(c.ItemByKey("arrow")) == 1, "the arrow taken");
+        RunUntil(rig, () => ada.Arrows().ArrowOf(new EntityId(arrow)) == null && ada.Local.Inventory.Count(c.ItemByKey("arrow")) == 1, "the arrow taken");
     }
 
     // ---------------------------------------------------------------- helpers

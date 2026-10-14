@@ -92,7 +92,7 @@ public sealed class BotSwarm : IDisposable
 
     /// <summary>What the flying bots did: boardings, bots flying now, seconds flown in all, their ships' corrections (G6).</summary>
     public (int Boardings, int Flying, double Seconds, long Corrections) Flights =>
-        (_pilots.Values.Sum(p => p.Boardings), _pilots.Keys.Count(c => c.Piloting), _pilots.Values.Sum(p => p.Airborne),
+        (_pilots.Values.Sum(p => p.Boardings), _pilots.Keys.Count(c => c.Ships().Piloting), _pilots.Values.Sum(p => p.Airborne),
             _pilots.Keys.Sum(c => c.Stats.ShipCorrections));
 
     /// <summary>What the raiding bots did: charges placed, things thrown, rockets, bursts of explosive rounds; raid alerts heard.</summary>

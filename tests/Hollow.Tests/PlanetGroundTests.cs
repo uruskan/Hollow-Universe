@@ -195,7 +195,7 @@ public static class PlanetGroundTests
         var mine = new List<NaturalObject>();
         var servers = new List<NaturalObject>();
         Vector3 at = ada.Character.Position;
-        ada.Nature!.Query(at.X - 60, at.Z - 60, at.X + 60, at.Z + 60, mine);
+        ada.Survival().Nature!.Query(at.X - 60, at.Z - 60, at.X + 60, at.Z + 60, mine);
         rig.Server.Zone.Nature!.Query(at.X - 60, at.Z - 60, at.X + 60, at.Z + 60, servers);
         Assert.True(mine.Select(o => o.Id).SequenceEqual(servers.Select(o => o.Id)), $"the same natural objects ({mine.Count})");
         Fixtures.Report($"arrived {arrived.Length():0} m from the landing site; {mine.Count} natural objects within 60 m; {ada.Stats.Corrections} corrections");

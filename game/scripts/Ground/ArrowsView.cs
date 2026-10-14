@@ -61,7 +61,7 @@ public partial class ArrowsView : Node3D
         }
         Num.Vector3 me = Client.Character.Position;
         int shown = 0;
-        foreach (RemoteArrow arrow in Client.Arrows)
+        foreach (RemoteArrow arrow in Client.Arrows().All)
         {
             if (shown == Most)
             {

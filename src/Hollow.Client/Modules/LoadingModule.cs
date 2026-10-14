@@ -6,13 +6,18 @@ namespace Hollow.Client;
 // The client's part of the loading pipeline (GROUND.md §4.3.1): the connection (connected, welcomed, the character
 // placed), and the world around the player as the server sends it (things, building pieces, natural states), which
 // streams again whenever the player arrives somewhere new.
-public sealed partial class GameClient
+public sealed class LoadingModule : ClientModule
 {
     public const string ConnectStage = "connect";
     public const string WorldStage = "world";
 
     // How far the connection is in each state (Idle, Connecting, Joining, Playing, Disconnected); placed is all of it.
     private static readonly double[] ConnectShare = { 0, 0.25, 0.5, 0.75, 0 };
+
+    private SurvivalModule? _survivalModule;
+    private SurvivalModule Survival => _survivalModule ??= Client.Require<SurvivalModule>();
+    private BuildingModule? _buildingModule;
+    private BuildingModule Building => _buildingModule ??= Client.Require<BuildingModule>();
 
     /// <summary>
     /// The client's loading stages: <c>connect</c> (done when the character is placed), and <c>world</c> (done once the
@@ -32,7 +37,7 @@ public sealed partial class GameClient
     }
 
     // What the server has sent of the world around the player: a count of each kind of part, compared every frame.
-    private sealed class Backlog(GameClient client, QuietStream stream)
+    private sealed class Backlog(LoadingModule client, QuietStream stream)
     {
         private (int Things, long Pieces, int Natural) _seen;
         private bool _arrived;
@@ -60,7 +65,7 @@ public sealed partial class GameClient
                 return;
             }
             double now = client.ClockSeconds;
-            (int, long, int) seen = (client._things.Count, client._buildingReplica?.PiecesReceived ?? 0, client.Natural?.Count ?? 0);
+            (int, long, int) seen = (client.Survival.Things.Count, client.Building.Replica?.PiecesReceived ?? 0, client.Survival.Natural?.Count ?? 0);
             if (!_arrived)
             {
                 _arrived = true;
@@ -74,4 +79,10 @@ public sealed partial class GameClient
             }
         }
     }
+}
+
+/// <summary>The accessor on the client (GROUND_SYSTEMS.md §12.5, K11).</summary>
+public static class LoadingModuleAccess
+{
+    public static LoadingModule Loading(this GameClient client) => client.Require<LoadingModule>();
 }

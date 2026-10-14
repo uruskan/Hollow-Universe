@@ -30,7 +30,7 @@ public static class LoadingTests
     public static void TheGamesPlanNamesEveryStage()
     {
         LoadingPlan plan = LoadingPlan.Load(Data);
-        string[] keys = { "server", GameClient.ConnectStage, GameClient.WorldStage, "land", "forest", "renderer", SteadyFrames.Key };
+        string[] keys = { "server", LoadingModule.ConnectStage, LoadingModule.WorldStage, "land", "forest", "renderer", SteadyFrames.Key };
         foreach (string key in keys)
         {
             StagePlan stage = plan.Stage(key);
@@ -210,7 +210,7 @@ public static class LoadingTests
         using var rig = new LoopbackRig();
         GameClient client = rig.Join("Loada");
         var pipeline = new LoadingPipeline(LoadingPlan.Load(Data));
-        pipeline.Add(client.LoadStages(pipeline.Plan));
+        pipeline.Add(client.Loading().LoadStages(pipeline.Plan));
         var watch = System.Diagnostics.Stopwatch.StartNew();
         void Run(Func<bool> until, string what)
         {
@@ -231,8 +231,8 @@ public static class LoadingTests
         Assert.True(pipeline.Stages.All(s => s.Done), "connected, placed and the world received");
         rig.Server.Execute("teleport Loada 400 300");
         Run(() => pipeline.Phase == LoadPhase.Arriving, "the teleport seen");
-        Assert.True(!pipeline.Stages.First(s => s.Key == GameClient.WorldStage).Done, "the world streams again");
-        Assert.True(pipeline.Stages.First(s => s.Key == GameClient.ConnectStage).Done, "still connected");
+        Assert.True(!pipeline.Stages.First(s => s.Key == LoadingModule.WorldStage).Done, "the world streams again");
+        Assert.True(pipeline.Stages.First(s => s.Key == LoadingModule.ConnectStage).Done, "still connected");
         Run(() => pipeline.Playing, "the arrival");
         Fixtures.Report(pipeline.Timeline());
     }

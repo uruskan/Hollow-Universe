@@ -1,44 +1,54 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Hollow.Client.Map;
 using Hollow.Net.Protocol;
-using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.World;
-using LiteNetLib;
 
 namespace Hollow.Client;
 
 // The world in the client (GROUND.md §6.8, G7): the world's props in range (barrels, crates, recyclers: things of kind
 // Prop, with the deployables' public state), the player's own world state (LocalPlayer.World.cs), team chat, and the
 // zone's map.
-public sealed partial class GameClient
+public sealed class WorldModule : ClientModule
 {
     // Who holds each solid thing's body, per prediction physics world (clients sharing one, the bots, count together).
     private static readonly ConditionalWeakTable<PhysicsWorld, Dictionary<ulong, int>> ThingBodies = new();
     private ZoneMap? _map;
+    private SurvivalModule? _survivalModule;
+    private SurvivalModule Survival => _survivalModule ??= Client.Require<SurvivalModule>();
 
     /// <summary>
     /// The zone's map (GROUND.md §6.8): its square and grid, conversions between zone metres and the map, and the
     /// picture, rendered from the surface on demand (<see cref="ZoneMap.Render"/>); null before joining.
     /// </summary>
-    public ZoneMap? Map => _map ??= Zone != null && _surface != null ? new ZoneMap(Zone, _surface, Frame, Content.World) : null;
+    public ZoneMap? Map => _map ??= Zone != null && Surface != null ? new ZoneMap(Zone, Surface, Frame, Content.World) : null;
 
     /// <summary>The world props in range: barrels, crates, recyclers.</summary>
-    public IEnumerable<RemoteThing> Props => _things.Values.Where(t => t.Kind == StaticKind.Prop);
+    public IEnumerable<RemoteThing> Props => Survival.Things.Where(t => t.Kind == StaticKind.Prop);
 
     /// <summary>Whether a player is in the local player's team (for name tags and the map; not the player themself).</summary>
     public bool IsTeammate(EntityId player) => player != EntityId && Local.Team?.Has(player) == true;
+
+    protected internal override void Init(MessageHandlers<GameClient> handlers)
+    {
+        handlers
+            .On<BlueprintList>((_, in m) => Local.OnBlueprints(m))
+            .On<TeamState>((_, in m) => Local.OnTeam(m))
+            .On<TeamInvites>((_, in m) => OnTeamInvites(m))
+            .On<TeamPositions>((_, in m) => Local.OnTeamPositions(m))
+            .On<MapState>((_, in m) => Local.OnMap(m))
+            .On<MachineState>((_, in m) => Local.OnMachine(m));
+    }
 
     // Solid deployables and the world's props stand in the prediction physics as on the server (the same box from the
     // same place, up and yaw), so walking into a barrel, a crate or a box stops the character here too instead of
     // pulling the prediction back. Clients sharing a physics world count who holds each body: one moving out of range
     // leaves it for the others.
-    private void ThingBodyAdded(RemoteThing thing)
+    internal void ThingBodyAdded(RemoteThing thing)
     {
         if (Physics is not { } physics || thing.Deployable(Content) is not { Solid: true } def)
         {
@@ -50,7 +60,7 @@ public sealed partial class GameClient
         physics.AddProp(PropLayer.Deployable, thing.Id.Value, PropShape.Box(thing.Position + up * def.HalfExtents.Y, def.HalfExtents, up, thing.Yaw));
     }
 
-    private void ThingBodyRemoved(RemoteThing thing)
+    internal void ThingBodyRemoved(RemoteThing thing)
     {
         if (Physics is not { } physics || !ThingBodies.TryGetValue(physics, out Dictionary<ulong, int>? held) ||
             !held.TryGetValue(thing.Id.Value, out int count))
@@ -69,76 +79,22 @@ public sealed partial class GameClient
     /// <summary>A chat line to the player's team alone.</summary>
     public void SendTeamChat(string text)
     {
-        if (_peer == null || State != ClientState.Playing || string.IsNullOrWhiteSpace(text))
+        if (string.IsNullOrWhiteSpace(text))
         {
             return;
         }
-        _writer.Reset();
-        new TeamChatSend { Text = text.Trim() }.WriteMessage(_writer);
-        _peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+        SendReliable(new TeamChatSend { Text = text.Trim() });
     }
 
-    private bool ReceiveWorld(uint type)
+    private void OnTeamInvites(in TeamInvites m)
     {
-        switch (type)
-        {
-            case BlueprintList.TypeId:
-            {
-                BlueprintList m = BlueprintList.Read(_reader);
-                if (!_reader.Failed)
-                {
-                    Local.OnBlueprints(m);
-                }
-                return true;
-            }
-            case TeamState.TypeId:
-            {
-                TeamState m = TeamState.Read(_reader);
-                if (!_reader.Failed)
-                {
-                    Local.OnTeam(m);
-                }
-                return true;
-            }
-            case TeamInvites.TypeId:
-            {
-                TeamInvites m = TeamInvites.Read(_reader);
-                if (!_reader.Failed)
-                {
-                    Local.ClockSeconds = ClockSeconds;
-                    Local.OnInvites(m);
-                }
-                return true;
-            }
-            case TeamPositions.TypeId:
-            {
-                TeamPositions m = TeamPositions.Read(_reader);
-                if (!_reader.Failed)
-                {
-                    Local.OnTeamPositions(m);
-                }
-                return true;
-            }
-            case MapState.TypeId:
-            {
-                MapState m = MapState.Read(_reader);
-                if (!_reader.Failed)
-                {
-                    Local.OnMap(m);
-                }
-                return true;
-            }
-            case MachineState.TypeId:
-            {
-                MachineState m = MachineState.Read(_reader);
-                if (!_reader.Failed)
-                {
-                    Local.OnMachine(m);
-                }
-                return true;
-            }
-            default:
-                return false;
-        }
+        Local.ClockSeconds = ClockSeconds;
+        Local.OnInvites(m);
     }
+}
+
+/// <summary>The accessor on the client (GROUND_SYSTEMS.md §12.5, K11).</summary>
+public static class WorldModuleAccess
+{
+    public static WorldModule World(this GameClient client) => client.Require<WorldModule>();
 }

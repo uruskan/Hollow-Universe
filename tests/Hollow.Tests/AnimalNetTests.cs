@@ -66,8 +66,8 @@ public static class AnimalNetTests
             sv.Zone.Teleport(e, ground + sv.Zone.Frame.UpAt(ground) * 0.05f);
             return 0;
         });
-        RunUntil(rig, () => ada.Animals.Count > 0, "animals in her view", 10);
-        Assert.True(ada.Animals.All(a => a.Species != null), "of species her data knows: " + string.Join(", ", ada.Animals.Select(a => a.SpeciesKey)));
+        RunUntil(rig, () => ada.Animals().All.Count > 0, "animals in her view", 10);
+        Assert.True(ada.Animals().All.All(a => a.Species != null), "of species her data knows: " + string.Join(", ", ada.Animals().All.Select(a => a.SpeciesKey)));
     }
 
     /// <summary>
@@ -83,24 +83,24 @@ public static class AnimalNetTests
         GameClient ada = rig.Join("Ada");
         rig.WaitUntilPlaying();
         var events = new List<AnimalEvent>();
-        ada.AnimalEvent += events.Add;
+        ada.Animals().AnimalEvent += events.Add;
         int characters = ada.Entities.Count();
 
         rig.Server.Execute("spawn deer Ada 3 35");
-        RunUntil(rig, () => ada.Animals.Count == 3, "three deer in view");
-        Assert.True(ada.Animals.All(a => a.SpeciesKey == "deer" && a.Species?.Key == "deer" && !a.Dead), "deer, alive");
+        RunUntil(rig, () => ada.Animals().All.Count == 3, "three deer in view");
+        Assert.True(ada.Animals().All.All(a => a.SpeciesKey == "deer" && a.Species?.Key == "deer" && !a.Dead), "deer, alive");
         Assert.Equal(characters, ada.Entities.Count(), "animals aren't characters");
         Assert.Equal(3, events.Count(e => e.Kind == AnimalEventKind.Appeared), "each appeared once");
         rig.Run(0.5, (_, _) => default);
         Dictionary<EntityId, Vector3> server = rig.Server.Inspect(sv => sv.Zone.Animals().World!.All.ToDictionary(a => a.Id, a => a.Position));
-        foreach (ClientAnimal a in ada.Animals)
+        foreach (ClientAnimal a in ada.Animals().All)
         {
             float off = Vector3.Distance(a.Position, server[a.Id]);
             Assert.True(off < 1.5f, $"{a} drawn {off:0.00} m from the server's (100 ms behind)");
         }
 
         // A hit: it flinches, the herd runs.
-        ClientAnimal target = ada.Animals.First();
+        ClientAnimal target = ada.Animals().All.First();
         rig.Server.Inspect(sv =>
         {
             sv.Zone.Players().TryFindPlayer(new EntityId(ada.EntityId.Value), out _, out Player p);
@@ -108,10 +108,10 @@ public static class AnimalNetTests
             return sv.Zone.Animals().DamageAnimal(deer, 40, HitRegion.Body, deer.Position + new Vector3(0, 1, 30), p, p.Id, p.Name);
         });
         RunUntil(rig, () => events.Any(e => e.Kind == AnimalEventKind.Hurt && e.Animal == target), "the flinch");
-        RunUntil(rig, () => ada.Animals.Count(a => a.State == AnimalState.Flee) == 3, "the herd's flight");
+        RunUntil(rig, () => ada.Animals().All.Count(a => a.State == AnimalState.Flee) == 3, "the herd's flight");
         Assert.True(events.Count(e => e.Kind == AnimalEventKind.Fled) >= 3, "each one's fright");
         Assert.Near(110 / 150.0, target.Health, 0.01, "its health as the server has it");
-        RunUntil(rig, () => ada.Animals.Max(a => a.Speed) > 7, "running");
+        RunUntil(rig, () => ada.Animals().All.Max(a => a.Speed) > 7, "running");
 
         // A kill: a corpse in view, then gone with its timer.
         rig.Server.Inspect(sv =>
@@ -128,7 +128,7 @@ public static class AnimalNetTests
             corpse.DespawnTick = sv.Zone.Tick + 3;
             return 0;
         });
-        RunUntil(rig, () => ada.AnimalOf(target.NetId) == null, "the corpse leaving");
+        RunUntil(rig, () => ada.Animals().AnimalOf(target.NetId) == null, "the corpse leaving");
         Assert.True(events.Any(e => e.Kind == AnimalEventKind.Gone && e.Animal == target), "the gone event");
         Fixtures.Report($"{events.Count} events: " + string.Join(", ", events.GroupBy(e => e.Kind).Select(g => $"{g.Count()} {g.Key}")));
     }
@@ -149,7 +149,7 @@ public static class AnimalNetTests
             GameClient ada = rig.Join("Ada");
             rig.WaitUntilPlaying();
             rig.Server.Execute("spawn wolf Ada 2 20");
-            RunUntil(rig, () => ada.Animals.Count == 2, "two wolves");
+            RunUntil(rig, () => ada.Animals().All.Count == 2, "two wolves");
             (corpseId, ticksLeft, left) = rig.Server.Inspect(sv =>
             {
                 Animal wolf = sv.Zone.Animals().World!.All.First();

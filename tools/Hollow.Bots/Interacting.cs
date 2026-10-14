@@ -21,7 +21,7 @@ internal static class Interacting
     public static uint Tap(GameClient client, in TargetRef target)
     {
         List<InteractOption> options = _options ??= new List<InteractOption>();
-        if (!client.Options(target, Eye(client), options, out _) || InteractionRules.Primary(options) is not (>= 0 and var primary) || !options[primary].Enabled)
+        if (!client.Interaction().Options(target, Eye(client), options, out _) || InteractionRules.Primary(options) is not (>= 0 and var primary) || !options[primary].Enabled)
         {
             return 0;
         }

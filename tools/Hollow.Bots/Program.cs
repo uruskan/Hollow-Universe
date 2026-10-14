@@ -93,7 +93,7 @@ public static class Program
                 $"{all.Average(c => c.Stats.SnapshotsPerSecond):R} {swarm.Playing} {swarm.Disconnected} {all.Average(c => c.Stats.SnapshotLossPercent):R} " +
                 $"{all.Sum(c => c.Stats.ClockJumps)} {swarm.Survival.Crafts} {swarm.Survival.Picks} {swarm.Survival.Fights} {all.Sum(c => c.Stats.Teleports)} " +
                 $"{swarm.Fights.Bursts} {swarm.Fights.Reloads} {swarm.Fights.Assists} {all.Sum(c => c.Local.Gun.PendingCount)} " +
-                $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building?.PieceCount ?? 0)} " +
+                $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building().World?.PieceCount ?? 0)} " +
                 $"{swarm.Raids.Placed} {swarm.Raids.Thrown} {swarm.Raids.Rockets} {swarm.Raids.Bursts} {swarm.Raids.Alerts} " +
                 $"{swarm.Flights.Boardings} {swarm.Flights.Flying} {swarm.Flights.Seconds:R} {swarm.Flights.Corrections} " +
                 $"{swarm.World.Broken} {swarm.World.Emptied} {swarm.World.Picked} {swarm.World.Recycled} {swarm.World.Researched} {swarm.World.Learnt} {swarm.World.Teamed}"));

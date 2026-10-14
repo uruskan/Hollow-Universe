@@ -23,17 +23,31 @@ namespace Hollow.Client;
 // part: a door's leaf, a body's bone, a ship's hatch) is, its nearest surface, what lies along the interact key's ray, and
 // what the interaction rules know of it, with the same shapes and rules the server's families use; so this client aims
 // at, measures and offers what the server will.
-public sealed partial class GameClient
+public sealed class TargetModule : ClientModule
 {
     private Registry<ITargetView>? _targetRegistry;
     private ITargetView[] _targetViews = Array.Empty<ITargetView>();
     private readonly List<NaturalObject> _aimNature = new();
     private readonly List<Piece> _aimPieces = new();
+    private SurvivalModule? _survivalModule;
+    private SurvivalModule Survival => _survivalModule ??= Client.Require<SurvivalModule>();
+    private WorldModule? _worldModule;
+    private WorldModule World => _worldModule ??= Client.Require<WorldModule>();
+    private BuildingModule? _buildingModule;
+    private BuildingModule Building => _buildingModule ??= Client.Require<BuildingModule>();
+    private RaidModule? _raidModule;
+    private RaidModule Raid => _raidModule ??= Client.Require<RaidModule>();
+    private ShipModule? _shipModule;
+    private ShipModule Ships => _shipModule ??= Client.Require<ShipModule>();
+    private AnimalModule? _animalModule;
+    private AnimalModule Animals => _animalModule ??= Client.Require<AnimalModule>();
+    private ArrowModule? _arrowModule;
+    private ArrowModule Arrows => _arrowModule ??= Client.Require<ArrowModule>();
 
     /// <summary>The families as this client aims through them, in their numbers' order (every family has one: checked).</summary>
     public IReadOnlyList<ITargetView> TargetViews => _targetViews;
 
-    private void StartTargets()
+    protected internal override void Welcome()
     {
         var registry = Registry<ITargetView>.ForEnum<TargetFamily>("client target families", complete: true, TargetFamily.None);
         foreach (ITargetView view in new ITargetView[]
@@ -96,7 +110,7 @@ public sealed partial class GameClient
 
     private RemoteEntity? CharacterOf(ulong id)
     {
-        foreach (RemoteEntity r in _remotes.Values)
+        foreach (RemoteEntity r in Remotes.Values)
         {
             if (r.Id.Value == id && r.Kind == Net.Protocol.EntityKind.Character && r.Spawned && r.HasState && (r.Flags & MoveFlags.Dead) == 0)
             {
@@ -108,7 +122,7 @@ public sealed partial class GameClient
 
     private ClientAnimal? AnimalById(ulong id)
     {
-        foreach (ClientAnimal a in _animals.Values)
+        foreach (ClientAnimal a in Animals.All)
         {
             if (a.Id.Value == id)
             {
@@ -120,7 +134,7 @@ public sealed partial class GameClient
 
     private RemoteShip? ShipById(ulong id)
     {
-        foreach (RemoteShip s in _ships.Values)
+        foreach (RemoteShip s in Ships.Known)
         {
             if (s.Id.Value == id && s.Spawned && s.HasState && s.Def != null)
             {
@@ -136,7 +150,7 @@ public sealed partial class GameClient
 
     // ---------------------------------------------------------------- the families
 
-    private sealed class GroundView(GameClient c) : ITargetView
+    private sealed class GroundView(TargetModule c) : ITargetView
     {
         public TargetFamily Family => TargetFamily.Ground;
 
@@ -154,9 +168,9 @@ public sealed partial class GameClient
 
         public void Aim(in AimRay ray, ref AimHit best)
         {
-            if (c._surface != null && c.Zone != null)
+            if (c.Surface != null && c.Zone != null)
             {
-                ray.Consider(ref best, new GroundProbe(c._surface, c.Frame).Crossing(ray.Origin, ray.Direction, ray.Upto(best)), TargetRef.Ground,
+                ray.Consider(ref best, new GroundProbe(c.Surface, c.Frame).Crossing(ray.Origin, ray.Direction, ray.Upto(best)), TargetRef.Ground,
                     AimKind.Backdrop);
             }
         }
@@ -168,7 +182,7 @@ public sealed partial class GameClient
         }
     }
 
-    private sealed class CharacterView(GameClient c) : ITargetView
+    private sealed class CharacterView(TargetModule c) : ITargetView
     {
         public TargetFamily Family => TargetFamily.Character;
 
@@ -200,7 +214,7 @@ public sealed partial class GameClient
         public void Aim(in AimRay ray, ref AimHit best)
         {
             float length = ray.Upto(best);
-            foreach (RemoteEntity r in c._remotes.Values)
+            foreach (RemoteEntity r in c.Remotes.Values)
             {
                 if (r.Kind != Net.Protocol.EntityKind.Character || !r.Spawned || !r.HasState || (r.Flags & MoveFlags.Dead) != 0 || r.Id.Value == ray.Ignore ||
                     Vector3.DistanceSquared(r.Position, ray.Origin) > (length + 2.5f) * (length + 2.5f))
@@ -223,14 +237,14 @@ public sealed partial class GameClient
             facts = new TargetFacts
             {
                 Capabilities = r.Sleeping ? data.Sleeper : r.Wounded ? data.Down : data.Awake,
-                Flags = c.IsTeammate(r.Id) ? ViewerFlags.Teammate : ViewerFlags.None, Name = r.Sleeping ? $"{r.Name} (asleep)" : r.Name, Body = true,
+                Flags = c.World.IsTeammate(r.Id) ? ViewerFlags.Teammate : ViewerFlags.None, Name = r.Sleeping ? $"{r.Name} (asleep)" : r.Name, Body = true,
                 Position = r.Position,
             };
             return true;
         }
     }
 
-    private sealed class AnimalView(GameClient c) : ITargetView
+    private sealed class AnimalView(TargetModule c) : ITargetView
     {
         public TargetFamily Family => TargetFamily.Animal;
 
@@ -262,7 +276,7 @@ public sealed partial class GameClient
         public void Aim(in AimRay ray, ref AimHit best)
         {
             float length = ray.Upto(best);
-            foreach (ClientAnimal a in c._animals.Values)
+            foreach (ClientAnimal a in c.Animals.All)
             {
                 if (a.Species is { } species && Vector3.DistanceSquared(a.Position, ray.Origin) <= (length + 4) * (length + 4))
                 {
@@ -287,14 +301,14 @@ public sealed partial class GameClient
         }
     }
 
-    private sealed class NaturalView(GameClient c) : ITargetView
+    private sealed class NaturalView(TargetModule c) : ITargetView
     {
         public TargetFamily Family => TargetFamily.Natural;
 
         private bool Find(ulong id, out NaturalObject o, out NaturalKind? kind)
         {
             kind = null;
-            if (c.Nature == null || c.Natural == null || !c.Nature.TryGet(id, out o) || c.Natural.IsDepleted(id))
+            if (c.Survival.Nature == null || c.Survival.Natural == null || !c.Survival.Nature.TryGet(id, out o) || c.Survival.Natural.IsDepleted(id))
             {
                 o = default;
                 return false;
@@ -327,9 +341,9 @@ public sealed partial class GameClient
 
         public void Aim(in AimRay ray, ref AimHit best)
         {
-            if (c.Nature != null && c.Natural != null)
+            if (c.Survival.Nature != null && c.Survival.Natural != null)
             {
-                NaturalAim.Aim(c.Nature, c.Natural, c.Content, ray, ref best, c._aimNature);
+                NaturalAim.Aim(c.Survival.Nature, c.Survival.Natural, c.Content, ray, ref best, c._aimNature);
             }
         }
 
@@ -349,7 +363,7 @@ public sealed partial class GameClient
         }
     }
 
-    private sealed class ThingView(GameClient c) : ITargetView
+    private sealed class ThingView(TargetModule c) : ITargetView
     {
         public TargetFamily Family => TargetFamily.Thing;
 
@@ -363,7 +377,7 @@ public sealed partial class GameClient
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
             pose = default;
-            if (c.ThingOf(new EntityId(target.Id)) is not { } thing)
+            if (c.Survival.ThingOf(new EntityId(target.Id)) is not { } thing)
             {
                 return false;
             }
@@ -374,7 +388,7 @@ public sealed partial class GameClient
         public bool TryNearest(in TargetRef target, Vector3 from, out Vector3 point)
         {
             point = from;
-            if (c.ThingOf(new EntityId(target.Id)) is not { } thing)
+            if (c.Survival.ThingOf(new EntityId(target.Id)) is not { } thing)
             {
                 return false;
             }
@@ -388,7 +402,7 @@ public sealed partial class GameClient
         {
             float length = ray.Upto(best);
             ushort cupboard = c.Content.ClaimDeployable.Id;
-            foreach (RemoteThing thing in c._things.Values)
+            foreach (RemoteThing thing in c.Survival.Things)
             {
                 if (thing.Look == cupboard && thing.Kind == StaticKind.Deployable ||
                     Vector3.DistanceSquared(thing.Position, ray.Origin) > (length + 2) * (length + 2))
@@ -404,7 +418,7 @@ public sealed partial class GameClient
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (c.ThingOf(new EntityId(target.Id)) is not { } thing)
+            if (c.Survival.ThingOf(new EntityId(target.Id)) is not { } thing)
             {
                 return false;
             }
@@ -418,11 +432,11 @@ public sealed partial class GameClient
         }
     }
 
-    private sealed class PieceView(GameClient c) : ITargetView
+    private sealed class PieceView(TargetModule c) : ITargetView
     {
         public TargetFamily Family => TargetFamily.Piece;
 
-        private Piece? Find(ulong id) => c.Building?.PieceOf(new EntityId(id)) is { Gone: false } piece ? piece : null;
+        private Piece? Find(ulong id) => c.Building.World?.PieceOf(new EntityId(id)) is { Gone: false } piece ? piece : null;
 
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
@@ -439,7 +453,7 @@ public sealed partial class GameClient
         public bool TryNearest(in TargetRef target, Vector3 from, out Vector3 point)
         {
             point = from;
-            if (Find(target.Id) is not { } piece || c.Building is not { } building)
+            if (Find(target.Id) is not { } piece || c.Building.World is not { } building)
             {
                 return false;
             }
@@ -451,7 +465,7 @@ public sealed partial class GameClient
 
         public void Aim(in AimRay ray, ref AimHit best)
         {
-            if (c.Building is { } building)
+            if (c.Building.World is { } building)
             {
                 BuildingAim.Bodies(building, ray, ref best);
             }
@@ -469,11 +483,11 @@ public sealed partial class GameClient
         }
     }
 
-    private sealed class DoorView(GameClient c) : ITargetView
+    private sealed class DoorView(TargetModule c) : ITargetView
     {
         public TargetFamily Family => TargetFamily.Door;
 
-        private Door? Find(ulong id) => c.Building?.DoorOf(new EntityId(id)) is { Gone: false } door ? door : null;
+        private Door? Find(ulong id) => c.Building.World?.DoorOf(new EntityId(id)) is { Gone: false } door ? door : null;
 
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
@@ -493,7 +507,7 @@ public sealed partial class GameClient
         public bool TryNearest(in TargetRef target, Vector3 from, out Vector3 point)
         {
             point = from;
-            if (Find(target.Id) is not { } door || c.Building is not { } building)
+            if (Find(target.Id) is not { } door || c.Building.World is not { } building)
             {
                 return false;
             }
@@ -508,7 +522,7 @@ public sealed partial class GameClient
 
         public void Aim(in AimRay ray, ref AimHit best)
         {
-            if (c.Building is { } building)
+            if (c.Building.World is { } building)
             {
                 BuildingAim.Openings(building, ray, ref best, c._aimPieces);
             }
@@ -517,7 +531,7 @@ public sealed partial class GameClient
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (Find(target.Id) is not { } door || c.BuildingReplica is not { } replica)
+            if (Find(target.Id) is not { } door || c.Building.Replica is not { } replica)
             {
                 return false;
             }
@@ -532,11 +546,11 @@ public sealed partial class GameClient
         }
     }
 
-    private sealed class CupboardView(GameClient c) : ITargetView
+    private sealed class CupboardView(TargetModule c) : ITargetView
     {
         public TargetFamily Family => TargetFamily.Cupboard;
 
-        private ClaimDevice? Find(ulong id) => c.Building?.ClaimOf(new EntityId(id)) is { Gone: false } claim ? claim : null;
+        private ClaimDevice? Find(ulong id) => c.Building.World?.ClaimOf(new EntityId(id)) is { Gone: false } claim ? claim : null;
 
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
@@ -572,11 +586,11 @@ public sealed partial class GameClient
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (Find(target.Id) is not { } claim || c.BuildingReplica is not { } replica)
+            if (Find(target.Id) is not { } claim || c.Building.Replica is not { } replica)
             {
                 return false;
             }
-            ViewerFlags box = c.ThingOf(claim.Id)?.Flags ?? ViewerFlags.None;
+            ViewerFlags box = c.Survival.ThingOf(claim.Id)?.Flags ?? ViewerFlags.None;
             facts = new TargetFacts
             {
                 Capabilities = c.Content.Capabilities.Cupboard, Flags = replica.StateOf(claim).Flags | box, Name = c.Content.ClaimDeployable.Item.Name,
@@ -586,14 +600,14 @@ public sealed partial class GameClient
         }
     }
 
-    private sealed class ExplosiveView(GameClient c) : ITargetView
+    private sealed class ExplosiveView(TargetModule c) : ITargetView
     {
         public TargetFamily Family => TargetFamily.Explosive;
 
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
             pose = default;
-            if (c.ExplosiveOf(new EntityId(target.Id)) is not { } e)
+            if (c.Raid.ExplosiveOf(new EntityId(target.Id)) is not { } e)
             {
                 return false;
             }
@@ -604,7 +618,7 @@ public sealed partial class GameClient
         public bool TryNearest(in TargetRef target, Vector3 from, out Vector3 point)
         {
             point = from;
-            if (c.ExplosiveOf(new EntityId(target.Id)) is not { } e)
+            if (c.Raid.ExplosiveOf(new EntityId(target.Id)) is not { } e)
             {
                 return false;
             }
@@ -615,7 +629,7 @@ public sealed partial class GameClient
         public void Aim(in AimRay ray, ref AimHit best)
         {
             float length = ray.Upto(best);
-            foreach (ClientExplosive e in c._explosives.Values)
+            foreach (ClientExplosive e in c.Raid.Explosives)
             {
                 Vector3 at = e.PositionAt(c.ServerTickNow);
                 if (Vector3.DistanceSquared(at, ray.Origin) <= (length + 1) * (length + 1))
@@ -628,7 +642,7 @@ public sealed partial class GameClient
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (c.ExplosiveOf(new EntityId(target.Id)) is not { } e)
+            if (c.Raid.ExplosiveOf(new EntityId(target.Id)) is not { } e)
             {
                 return false;
             }
@@ -638,7 +652,7 @@ public sealed partial class GameClient
         }
     }
 
-    private sealed class ShipView(GameClient c) : ITargetView
+    private sealed class ShipView(TargetModule c) : ITargetView
     {
         public TargetFamily Family => TargetFamily.Ship;
 
@@ -666,7 +680,7 @@ public sealed partial class GameClient
 
         public void Aim(in AimRay ray, ref AimHit best)
         {
-            foreach (RemoteShip ship in c._ships.Values)
+            foreach (RemoteShip ship in c.Ships.Known)
             {
                 if (ship is { Spawned: true, HasState: true, Def: { } def } && !ship.Has(ShipNetFlags.Destroyed) && !ship.Has(ShipNetFlags.InOrbit))
                 {
@@ -694,14 +708,14 @@ public sealed partial class GameClient
         }
     }
 
-    private sealed class ArrowView(GameClient c) : ITargetView
+    private sealed class ArrowView(TargetModule c) : ITargetView
     {
         public TargetFamily Family => TargetFamily.Arrow;
 
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
             pose = default;
-            if (c.ArrowOf(new EntityId(target.Id)) is not { Placed: true } arrow)
+            if (c.Arrows.ArrowOf(new EntityId(target.Id)) is not { Placed: true } arrow)
             {
                 return false;
             }
@@ -724,7 +738,7 @@ public sealed partial class GameClient
         public void Aim(in AimRay ray, ref AimHit best)
         {
             float reach = ray.Upto(best) + SpentArrow.Length;
-            foreach (RemoteArrow arrow in c._arrows.Values)
+            foreach (RemoteArrow arrow in c.Arrows.All)
             {
                 if (arrow.Placed && Vector3.DistanceSquared(arrow.Pose.Position, ray.Origin) <= (reach + 2) * (reach + 2))
                 {
@@ -737,7 +751,7 @@ public sealed partial class GameClient
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (c.ArrowOf(new EntityId(target.Id)) is not { Placed: true } arrow)
+            if (c.Arrows.ArrowOf(new EntityId(target.Id)) is not { Placed: true } arrow)
             {
                 return false;
             }
@@ -745,4 +759,10 @@ public sealed partial class GameClient
             return true;
         }
     }
+}
+
+/// <summary>The accessor on the client (GROUND_SYSTEMS.md §12.5, K11).</summary>
+public static class TargetModuleAccess
+{
+    public static TargetModule Targets(this GameClient client) => client.Require<TargetModule>();
 }

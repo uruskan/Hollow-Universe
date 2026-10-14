@@ -190,6 +190,10 @@ Godot.
     snapshots on either side; if snapshots stop they carry on for up to 4 ticks along their last motion, then hold.
   - **Statistics:** round trip (measured by echo), snapshot rate and loss, bandwidth both ways with UDP and IP
     headers, prediction error (last, mean and worst), input margin, clock rate.
+  - **Modules** (GROUND_SYSTEMS.md §12.5): the client is a host of modules, one `ClientModule` per concern (survival,
+    targets, world, building, placement, interaction, raid, ships, animals, arrows, console, damage, loading), each with
+    its message handlers in the host's one table and its hooks called in a fixed order; the presentation reads a module
+    through its accessor (`client.Raid().Explosives`, `client.Ships().Piloting`, `client.Building().World`).
 - **The ground mode in Godot** (`game/scripts/Ground/`), one game on the real planet:
   - **Starting:** `--view ground` alone opens the main menu over the landing site (PLAY hosts a game on this
     computer, CONNECT joins one by address and port, the name is remembered, QUIT). `--host` or `--connect host:port`

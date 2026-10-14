@@ -41,10 +41,18 @@ public sealed class InteractAim
 // Interaction in the client (GROUND_SYSTEMS.md §5): the one targeting query over this client's target families, and the
 // options a target offers this player from the same rules (the capabilities' handlers) the server checks a verb with, so
 // the prompt and the radial show what the server will do. The intent is LocalPlayer's Interact.
-public sealed partial class GameClient
+public sealed class InteractionModule : ClientModule
 {
     private InteractionRules? _interactions;
     private readonly InteractAim _aim = new();
+    private TargetModule? _targetModule;
+    private TargetModule Targets => _targetModule ??= Client.Require<TargetModule>();
+    private SurvivalModule? _survivalModule;
+    private SurvivalModule Survival => _survivalModule ??= Client.Require<SurvivalModule>();
+    private BuildingModule? _buildingModule;
+    private BuildingModule Building => _buildingModule ??= Client.Require<BuildingModule>();
+    private ShipModule? _shipModule;
+    private ShipModule Ships => _shipModule ??= Client.Require<ShipModule>();
 
     /// <summary>The interaction rules: the verbs' handlers and the options a target offers (GROUND_SYSTEMS.md §5).</summary>
     public InteractionRules Interactions => _interactions ??= new InteractionRules(Content, CapabilityHandlers.Create(Content));
@@ -54,14 +62,14 @@ public sealed partial class GameClient
     /// as far as the farthest verb reaches, past this player (the server's own query, on what this client was told).
     /// </summary>
     public AimHit Aim(Vector3 eye, Vector3 direction) =>
-        Targeting.Aim(_targetViews, new AimRay(eye, Vector3.Normalize(direction), Interactions.Verbs.LongestReach, EntityId.Value));
+        Targeting.Aim(Targets.TargetViews, new AimRay(eye, Vector3.Normalize(direction), Interactions.Verbs.LongestReach, EntityId.Value));
 
     /// <summary>This player as the doer of a verb: their state for its gates, and their team.</summary>
     public Doer Doer
     {
         get
         {
-            DoerState state = (Local.IsDead ? DoerState.Dead : 0) | (Local.IsWounded ? DoerState.Wounded : 0) | (Piloting ? DoerState.Seated : 0);
+            DoerState state = (Local.IsDead ? DoerState.Dead : 0) | (Local.IsWounded ? DoerState.Wounded : 0) | (Ships.Piloting ? DoerState.Seated : 0);
             TeamView? team = Local.Team;
             return new Doer(EntityId, state, team != null, Local.LeadsTeam, team != null && team.Members.Count >= Content.World.TeamSize);
         }
@@ -75,11 +83,11 @@ public sealed partial class GameClient
     {
         into.Clear();
         facts = default;
-        if (TargetViewOf(target.Family) is not { } view || !view.TryFacts(target, new Viewer(EntityId, null, null), out facts))
+        if (Targets.TargetViewOf(target.Family) is not { } view || !view.TryFacts(target, new Viewer(EntityId, null, null), out facts))
         {
             return false;
         }
-        var ctx = new InteractContext { Content = Content, Target = target, Facts = facts, Doer = Doer, Building = Building };
+        var ctx = new InteractContext { Content = Content, Target = target, Facts = facts, Doer = Doer, Building = Building.World };
         Interactions.Options(ctx, into);
         float distance = view.TryNearest(target, eye, out Vector3 nearest) ? Vector3.Distance(eye, nearest) : float.PositiveInfinity;
         for (int i = into.Count - 1; i >= 0; i--)
@@ -120,11 +128,11 @@ public sealed partial class GameClient
         {
             return TargetRef.None;
         }
-        Vector3 eye = StationEye;
+        Vector3 eye = Survival.StationEye;
         float reach = Content.Survival.StationReach;
         int best = 0;
         TargetRef bench = TargetRef.None;
-        foreach (RemoteThing thing in _things.Values)
+        foreach (RemoteThing thing in Survival.Things)
         {
             if (thing.Deployable(Content) is { Workbench: > 0 } d && d.Workbench > best &&
                 Vector3.DistanceSquared(Geometry.NearestOnBox(thing.Position, Frame.UpAt(thing.Position), thing.Yaw, d.HalfExtents, eye), eye) <= reach * reach)
@@ -135,4 +143,10 @@ public sealed partial class GameClient
         }
         return bench;
     }
+}
+
+/// <summary>The accessor on the client (GROUND_SYSTEMS.md §12.5, K11).</summary>
+public static class InteractionModuleAccess
+{
+    public static InteractionModule Interaction(this GameClient client) => client.Require<InteractionModule>();
 }

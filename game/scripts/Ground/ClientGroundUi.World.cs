@@ -57,7 +57,7 @@ public sealed partial class ClientGroundUi
     {
         get
         {
-            if (_mapView == null && _client.Map is { } map)
+            if (_mapView == null && _client.World().Map is { } map)
             {
                 _mapView = new MapView(map.CacheKey, MapPixels, () => map.Render(MapPixels).Rgba, (float)map.Metres, map.Cells);
             }
@@ -76,7 +76,7 @@ public sealed partial class ClientGroundUi
             }
             _mapMarkersAt = now;
             _mapMarkers.Clear();
-            if (_client.Map is not { } map)
+            if (_client.World().Map is not { } map)
             {
                 return _mapMarkers;
             }
@@ -122,11 +122,11 @@ public sealed partial class ClientGroundUi
             }
             if (_client.HasCharacter && !Me.IsDead)
             {
-                if (_client.Piloting && _client.OwnShipDef != null)
+                if (_client.Ships().Piloting && _client.Ships().OwnShipDef != null)
                 {
                     // Flying: the ship, its nose.
-                    Num.Vector3 nose = _client.OwnShip.Forward;
-                    _mapMarkers.Add(At(MapMarkerKind.Me, _client.OwnShipRenderPosition, facing: Degrees(MathF.Atan2(nose.X, -nose.Z))));
+                    Num.Vector3 nose = _client.Ships().OwnShip.Forward;
+                    _mapMarkers.Add(At(MapMarkerKind.Me, _client.Ships().OwnShipRenderPosition, facing: Degrees(MathF.Atan2(nose.X, -nose.Z))));
                 }
                 else
                 {
@@ -141,7 +141,7 @@ public sealed partial class ClientGroundUi
 
     public void PlaceMarker(float x, float y, int colour, string label)
     {
-        if (_client.Map is { } map)
+        if (_client.World().Map is { } map)
         {
             Me.PlaceMarker(map.ToZone(new Num.Vector2(Math.Clamp(x, 0, 1), Math.Clamp(y, 0, 1))), (byte)Math.Clamp(colour, 0, 5), label);
             _mapMarkersAt = double.MinValue;
@@ -162,7 +162,7 @@ public sealed partial class ClientGroundUi
     // A zone point on the map (0–1 across and down), for the death screen's body and bags.
     private (float X, float Y) OnMap(Num.Vector3 zone)
     {
-        if (_client.Map is not { } map)
+        if (_client.World().Map is not { } map)
         {
             return (0.5f, 0.5f);
         }
@@ -213,7 +213,7 @@ public sealed partial class ClientGroundUi
             Notice?.Invoke(C.Texts.Line(can));
             return;
         }
-        Me.Unlock(_client.BenchNear(), node.Recipe.Id);
+        Me.Unlock(_client.Interaction().BenchNear(), node.Recipe.Id);
     }
 
     // What the player has learnt, as one number (the same set gives the same number, in any order).
@@ -311,7 +311,7 @@ public sealed partial class ClientGroundUi
             Notice?.Invoke("You're not in a team.");
             return;
         }
-        _client.SendTeamChat(text);
+        _client.World().SendTeamChat(text);
     }
 
     private static string Id(ulong id) => id.ToString(CultureInfo.InvariantCulture);

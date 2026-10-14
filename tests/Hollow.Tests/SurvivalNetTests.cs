@@ -126,18 +126,18 @@ public static class SurvivalNetTests
             return found.Where(o => c.Natural(o.Kind)!.Class == NaturalClass.Tree).MinBy(o => o.Position.Length());
         });
         Hit(atSpot: false);
-        RunUntil(rig, () => ada.Natural!.TryGetOverride(tree.Id, out NaturalOverride o) && o.SeenHits == 1, "the first hit");
+        RunUntil(rig, () => ada.Survival().Natural!.TryGetOverride(tree.Id, out NaturalOverride o) && o.SeenHits == 1, "the first hit");
         Vector3 point = Hit(atSpot: true);
-        RunUntil(rig, () => ada.Natural!.TryGetOverride(tree.Id, out NaturalOverride o) && o.SeenHits == 2, "the second");
-        ada.Natural!.TryGetOverride(tree.Id, out NaturalOverride seen);
+        RunUntil(rig, () => ada.Survival().Natural!.TryGetOverride(tree.Id, out NaturalOverride o) && o.SeenHits == 2, "the second");
+        ada.Survival().Natural!.TryGetOverride(tree.Id, out NaturalOverride seen);
         Fixtures.Report($"the X hit met the trunk {point.Length():0.00} m from the base; the client has it {Vector3.Distance(seen.LastHit, point) * 100:0.0} cm off");
         Assert.True(seen.Streak == 1 && Vector3.Distance(seen.LastHit, point) < 0.05f, "with the run and where it landed");
         rig.Run(1.5, (_, _) => default);
         GameClient bo = rig.Join("Bo");
         rig.WaitUntilPlaying();
         rig.Server.Execute("teleport Bo 0 0");
-        RunUntil(rig, () => bo.Natural!.TryGetOverride(tree.Id, out NaturalOverride o) && o.HasWeakSpot, "Bo sees the hit tree");
-        Assert.True(bo.Natural!.TryGetOverride(tree.Id, out NaturalOverride late) && late.SeenHits == 0, "but no hits to play");
+        RunUntil(rig, () => bo.Survival().Natural!.TryGetOverride(tree.Id, out NaturalOverride o) && o.HasWeakSpot, "Bo sees the hit tree");
+        Assert.True(bo.Survival().Natural!.TryGetOverride(tree.Id, out NaturalOverride late) && late.SeenHits == 0, "but no hits to play");
     }
 
     /// <summary>
@@ -160,13 +160,13 @@ public static class SurvivalNetTests
         RunUntil(rig, () => ada.Local.Inventory.Count(ContentFixture.Item("stone")) == 50 && ada.Local.Inventory.Count(ContentFixture.Item("bandage")) == 2, "the gifts");
         ada.Local.Drop(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "stone"));
         ada.Local.Drop(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "bandage"));
-        RunUntil(rig, () => bo.Things.Any(t => t.Kind == StaticKind.DroppedBag && t.Count == 2), "Bo to see a bag of two stacks");
-        RemoteThing bag = bo.Things.Single(t => t.Kind == StaticKind.DroppedBag);
+        RunUntil(rig, () => bo.Survival().Things.Any(t => t.Kind == StaticKind.DroppedBag && t.Count == 2), "Bo to see a bag of two stacks");
+        RemoteThing bag = bo.Survival().Things.Single(t => t.Kind == StaticKind.DroppedBag);
         Assert.Equal(0, (int)bag.Look, "a bag, not what is in it");
         Assert.True(bo.Local.Loot == null, "nothing of its contents yet");
 
         Vector3 eye = bo.Character.Position + bo.Frame.UpAt(bo.Character.Position) * bo.EyeHeight;
-        InteractAim? aim = bo.AimInteraction(eye, Vector3.Normalize(bag.Position - eye));
+        InteractAim? aim = bo.Interaction().AimInteraction(eye, Vector3.Normalize(bag.Position - eye));
         string? verb = aim is { Primary: >= 0 } ? bo.Content.Interactions.Verb(aim.Options[aim.Primary].Verb)?.Key : null;
         Assert.True(aim != null && aim.Target.Id == bag.Id.Value && verb == "open", $"E opens it ({verb} {aim?.Facts.Name})");
         bo.Local.Interact(aim!.Target, aim.Options[aim.Primary].Verb);
@@ -216,12 +216,12 @@ public static class SurvivalNetTests
             // Each where its ghost shows it on the ground (GROUND_SYSTEMS.md §6).
             foreach ((string key, Vector3 at) in new[] { ("small-box", boxAt), ("sleeping-bag", bagAt) })
             {
-                Simulation.Placement.PlacementCandidate? ghost = ada.PlanAt(c.ItemByKey(key).Places!, ada.Ground!.Value.Settle(at), 0);
+                Simulation.Placement.PlacementCandidate? ghost = ada.Placement().PlanAt(c.ItemByKey(key).Places!, ada.Placement().Ground!.Value.Settle(at), 0);
                 Assert.True(ghost is { Valid: true }, $"the {key}'s ghost fits ({ghost})");
                 ada.Local.Place(ghost!, ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, key));
             }
-            RunUntil(rig, () => ada.Things.Count(t => t.Kind == StaticKind.Deployable) == 2, "both placed");
-            RemoteThing box = ada.Things.Single(t => t.Look == c.ItemByKey("small-box").Id);
+            RunUntil(rig, () => ada.Survival().Things.Count(t => t.Kind == StaticKind.Deployable) == 2, "both placed");
+            RemoteThing box = ada.Survival().Things.Single(t => t.Look == c.ItemByKey("small-box").Id);
             ada.Local.Interact(new Hollow.Simulation.Targets.TargetRef(Hollow.Simulation.Targets.TargetFamily.Thing, box.Id.Value), "open");
             RunUntil(rig, () => ada.Local.LootKind == LootKind.Box && ada.Local.Loot != null, "the box open");
             ada.Local.MoveItem(ContainerRef.Main, SlotOf(ada.Local.Inventory.Main, "wood"), ContainerRef.Loot, 5, 250);

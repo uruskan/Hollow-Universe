@@ -130,7 +130,7 @@ public sealed class WorldBrain
         switch (_goal)
         {
             case Goal.Barrel:
-                if (client.ThingOf(_target) is not { } barrel)
+                if (client.Survival().ThingOf(_target) is not { } barrel)
                 {
                     Broken += _hit ? 1 : 0;
                     Done();
@@ -173,7 +173,7 @@ public sealed class WorldBrain
         GameContent c = client.Content;
         Vector3 feet = client.Character.Position;
         // A bag shows what it holds only once opened: every bag near is worth one look.
-        RemoteThing? near = client.Things
+        RemoteThing? near = client.Survival().Things
             .Where(t => t.Kind == StaticKind.DroppedBag && !_skip.Contains(t.Id) && Vector3.Distance(t.Position, feet) < 12)
             .OrderBy(t => Vector3.Distance(t.Position, feet)).FirstOrDefault();
         if (near != null)
@@ -182,7 +182,7 @@ public sealed class WorldBrain
             return;
         }
         // Any of the recyclers in range, so a crowd spreads over them.
-        List<RemoteThing> recyclers = client.Props.Where(p => p.Prop(c)!.Kind == WorldPropKind.Recycler && Vector3.Distance(p.Position, feet) < 400).ToList();
+        List<RemoteThing> recyclers = client.World().Props.Where(p => p.Prop(c)!.Kind == WorldPropKind.Recycler && Vector3.Distance(p.Position, feet) < 400).ToList();
         if (Components(c, me) >= 3 && recyclers.Count > 0 && _rng.Chance(0.35))
         {
             Begin(Goal.Recycle, recyclers[_rng.NextInt(recyclers.Count)].Id, time, 60);
@@ -193,7 +193,7 @@ public sealed class WorldBrain
             Begin(Goal.Research, default, time, 45);
             return;
         }
-        List<RemoteThing> loot = client.Props
+        List<RemoteThing> loot = client.World().Props
             .Where(p => p.Prop(c)!.Kind is WorldPropKind.Barrel or WorldPropKind.Crate && !_skip.Contains(p.Id) &&
                         new Vector2(p.Position.X, p.Position.Z).Length() < Roam)
             .OrderBy(p => Vector3.Distance(p.Position, feet)).Take(5).ToList();
@@ -249,7 +249,7 @@ public sealed class WorldBrain
     // time, then closes it and leaves the rest (perhaps the bot's own junk) alone. A bag emptied goes by itself.
     private void PickFromBag(ref InputFrame input, double time, double delta, GameClient client, LocalPlayer me, Vector3 feet, Vector3 eye, Vector3 up)
     {
-        if (client.ThingOf(_target) is not { Kind: StaticKind.DroppedBag } bag)
+        if (client.Survival().ThingOf(_target) is not { Kind: StaticKind.DroppedBag } bag)
         {
             Picked += _hit ? 1 : 0;
             if (me.Loot != null)
@@ -297,7 +297,7 @@ public sealed class WorldBrain
     // Opens the crate, takes everything a slot at a time; the crate goes once emptied.
     private void Crate(ref InputFrame input, double time, double delta, GameClient client, LocalPlayer me, Vector3 feet, Vector3 eye, Vector3 up)
     {
-        if (client.ThingOf(_target) is not { } crate)
+        if (client.Survival().ThingOf(_target) is not { } crate)
         {
             Emptied += _phase > 1 ? 1 : 0;
             if (me.Loot != null)
@@ -345,7 +345,7 @@ public sealed class WorldBrain
     private void Recycle(ref InputFrame input, double time, double delta, GameClient client, LocalPlayer me, Vector3 feet, Vector3 eye, Vector3 up)
     {
         GameContent c = client.Content;
-        if (client.ThingOf(_target) is not { } recycler)
+        if (client.Survival().ThingOf(_target) is not { } recycler)
         {
             Done();
             return;
@@ -422,7 +422,7 @@ public sealed class WorldBrain
         ResearchStats stats = c.World.Research;
         if (_phase < 2)
         {
-            RemoteThing? mine = client.Things.Where(t => t.Kind == StaticKind.Deployable && t.Look == tableItem && t.Mine)
+            RemoteThing? mine = client.Survival().Things.Where(t => t.Kind == StaticKind.Deployable && t.Look == tableItem && t.Mine)
                 .OrderBy(t => Vector3.Distance(t.Position, feet)).FirstOrDefault();
             if (mine != null && Vector3.Distance(mine.Position, feet) < 30)
             {
@@ -439,8 +439,8 @@ public sealed class WorldBrain
             if (_phase == 0 && time >= _nextStep && me.PendingCount == 0 && Slot(me, c, c.World.Research.TableKey) is { } slot)
             {
                 (Vector3 forward, _) = CharacterMotor.HorizontalBasis(_yaw, up);
-                if (client.Ground?.Settle(feet + forward * 2.2f) is { } at && c.Item(c.World.Research.TableKey)?.Places is { } placeable &&
-                    client.PlanAt(placeable, at, _yaw) is { Valid: true } ghost)
+                if (client.Placement().Ground?.Settle(feet + forward * 2.2f) is { } at && c.Item(c.World.Research.TableKey)?.Places is { } placeable &&
+                    client.Placement().PlanAt(placeable, at, _yaw) is { Valid: true } ghost)
                 {
                     Note(me.Place(ghost, slot.Which, slot.Slot), "Place");
                     _phase = 1;
@@ -450,7 +450,7 @@ public sealed class WorldBrain
             }
             return;
         }
-        if (client.ThingOf(_target) is not { } table)
+        if (client.Survival().ThingOf(_target) is not { } table)
         {
             GiveUp(me);
             return;
@@ -571,7 +571,7 @@ public sealed class WorldBrain
         if (me.LeadsTeam && me.Team!.Members.Count > 1 && !_said)
         {
             _said = true;
-            client.SendTeamChat("Barrels by the coast, recycler at the landing site.");
+            client.World().SendTeamChat("Barrels by the coast, recycler at the landing site.");
             return;
         }
         if (!_marked)

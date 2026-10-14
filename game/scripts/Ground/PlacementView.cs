@@ -41,7 +41,7 @@ public partial class PlacementView : Node3D, IPlacement
     /// <summary>The verdict's line under the crosshair: why it doesn't fit, or what the aim lacks; null when it fits.</summary>
     public string? Reason =>
         Placeable == null ? null
-        : Current == null ? Line(Client.PlacementNothing(Placeable)) is { Length: > 0 } nothing ? nothing : null
+        : Current == null ? Line(Client.Placement().PlacementNothing(Placeable)) is { Length: > 0 } nothing ? nothing : null
         : Current.Valid ? null
         : Line(Current.Outcome);
 
@@ -76,7 +76,7 @@ public partial class PlacementView : Node3D, IPlacement
             Turns = 0;
         }
         _aimed = true;
-        Current = Client.Plan(placeable, eye, forward, viewYaw, Turns);
+        Current = Client.Placement().Plan(placeable, eye, forward, viewYaw, Turns);
         _ghost.Show(Current);
     }
 

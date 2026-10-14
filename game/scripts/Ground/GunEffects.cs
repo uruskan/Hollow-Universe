@@ -138,7 +138,7 @@ public static class GunEffects
             {
                 RemoteThing? thing = null;
                 float best = 2.5f;
-                foreach (RemoteThing t in client.Things)
+                foreach (RemoteThing t in client.Survival().Things)
                 {
                     float d = Num.Vector3.Distance(t.Position, end);
                     if (d < best && t.Kind is StaticKind.Deployable or StaticKind.Prop)
@@ -156,7 +156,7 @@ public static class GunEffects
                 };
             }
             case TargetFamily.Piece or TargetFamily.Door or TargetFamily.Cupboard:
-                return client.AimBuilding(end - dir * 0.4f, dir) switch
+                return client.Building().AimBuilding(end - dir * 0.4f, dir) switch
                 {
                     Piece piece => FxSurfaces.OfGrade(client.Content.Building.Grades[Math.Clamp(piece.Grade, 0, client.Content.Building.Grades.Count - 1)].Key),
                     Door door => door.Def.Key.Contains("wood", StringComparison.Ordinal) ? FxSurface.Wood : FxSurface.Metal,
@@ -171,12 +171,12 @@ public static class GunEffects
     /// <summary>The class of the natural object nearest a point within 3 m (a tree, an outcrop, a bush), if any.</summary>
     public static NaturalClass? NaturalAt(GameClient client, Num.Vector3 point)
     {
-        if (client.Nature == null)
+        if (client.Survival().Nature == null)
         {
             return null;
         }
         var near = new List<NaturalObject>();
-        client.Nature.Query(point.X - 3, point.Z - 3, point.X + 3, point.Z + 3, near);
+        client.Survival().Nature.Query(point.X - 3, point.Z - 3, point.X + 3, point.Z + 3, near);
         NaturalObject? best = null;
         float bestDistance = float.MaxValue;
         foreach (NaturalObject o in near)

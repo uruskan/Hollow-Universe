@@ -204,7 +204,7 @@ public partial class BuildView : Node3D, IHammerActions
 
     private void Attach()
     {
-        if (_world != null || Client.Building is not { } world)
+        if (_world != null || Client.Building().World is not { } world)
         {
             return;
         }
@@ -323,13 +323,13 @@ public partial class BuildView : Node3D, IHammerActions
         Door d => $"{d.Def.Name.ToUpperInvariant()}  ·  {Math.Ceiling(d.Health):0} / {d.Def.Health:0}  ·  {(d.Open ? "OPEN" : "SHUT")}" +
             (d.Lock is CodeLock ? "  ·  CODE LOCK" : d.Lock is KeyLock ? "  ·  KEY LOCK" : ""),
         ClaimDevice c => $"{Data.ClaimName.ToUpperInvariant()}  ·  PROTECTED {Protected(c)}" +
-            (Client.BuildingReplica?.StateOf(c).Authorised == true ? "  ·  AUTHORISED" : ""),
+            (Client.Building().Replica?.StateOf(c).Authorised == true ? "  ·  AUTHORISED" : ""),
         _ => "",
     };
 
     private string Protected(ClaimDevice claim)
     {
-        double hours = Client.BuildingReplica?.StateOf(claim).ProtectedHours ?? 0;
+        double hours = Client.Building().Replica?.StateOf(claim).ProtectedHours ?? 0;
         return double.IsInfinity(hours) ? "FOREVER" : hours < 1 ? $"{hours * 60:0} MIN" : $"{hours:0.#} H";
     }
 

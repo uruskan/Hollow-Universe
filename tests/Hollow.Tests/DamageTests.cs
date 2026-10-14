@@ -125,15 +125,15 @@ public static class DamageTests
         });
         Vector3 stand = at + Vector3.Normalize(new Vector3(-at.X, 0, -at.Z)) * 2f;
         rig.Server.Execute(FormattableString.Invariant($"teleport Ada {stand.X} {stand.Z}"));
-        RunUntil(rig, () => ada.ThingOf(barrel) != null, "the barrel in range");
+        RunUntil(rig, () => ada.Survival().ThingOf(barrel) != null, "the barrel in range");
         string key = rig.Server.Inspect(sv =>
         {
             var prop = (WorldProp)sv.Zone.Things().StaticOf(barrel)!;
             sv.Zone.Things().DamageDeployable(prop, 1_000);
             return prop.Prop.Key;
         });
-        RunUntil(rig, () => ada.Destructions.Any(e => e.Target.Id == barrel.Value), "the barrel's breaking");
-        DestroyedEvent e = ada.Destructions.Single(x => x.Target.Id == barrel.Value);
+        RunUntil(rig, () => ada.Damage().Destructions.Any(e => e.Target.Id == barrel.Value), "the barrel's breaking");
+        DestroyedEvent e = ada.Damage().Destructions.Single(x => x.Target.Id == barrel.Value);
         Assert.True(e.Target == new TargetRef(TargetFamily.Thing, barrel.Value) && e.Key == key && e.Cause == DestroyCause.Melee,
             $"a prop, by its key ({e.Target} {e.Key} {e.Cause})");
         Assert.True(Vector3.Distance(e.Position, at) < 1e-3f && MathF.Abs(e.Rotation.Length() - 1) < 1e-4f, "where it stood");

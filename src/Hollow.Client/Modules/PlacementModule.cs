@@ -13,17 +13,23 @@ namespace Hollow.Client;
 // with the ground, trees, rocks and solid deployables, its mirror of the building, the natural objects as the server
 // says, the things, characters and ships in range, what stands on what), so the ghost is the server's own pipeline run on
 // the replicated world. Local.Place sends what it shows.
-public sealed partial class GameClient
+public sealed class PlacementModule : ClientModule
 {
     private readonly Dictionary<ulong, int> _thingsOn = new();
     private PlacementWorld? _placement;
     private ItemWallet? _placementWallet;
+    private SurvivalModule? _survivalModule;
+    private SurvivalModule Survival => _survivalModule ??= Client.Require<SurvivalModule>();
+    private BuildingModule? _buildingModule;
+    private BuildingModule Building => _buildingModule ??= Client.Require<BuildingModule>();
+    private ShipModule? _shipModule;
+    private ShipModule Ships => _shipModule ??= Client.Require<ShipModule>();
 
     /// <summary>The placement world on this client (null before joining).</summary>
-    public PlacementWorld? Placement =>
-        _placement ??= _predictor != null && _surface != null && _buildingReplica != null
-            ? new PlacementWorld(Content, Frame, _surface, _predictor.World, _buildingReplica.World, new ClientSurroundings(this), Nature, Natural,
-                _shipCollider)
+    public PlacementWorld? World =>
+        _placement ??= Prediction is { } predictor && Surface is { } surface && Building.Replica is { } replica
+            ? new PlacementWorld(Content, Frame, surface, predictor.World, replica.World, new ClientSurroundings(this), Survival.Nature, Survival.Natural,
+                Ships.Collider)
             : null;
 
     /// <summary>
@@ -34,7 +40,7 @@ public sealed partial class GameClient
     /// </summary>
     public PlacementCandidate? Plan(Placeable placeable, Vector3 eye, Vector3 direction, float viewYaw, int turns = 0)
     {
-        if (Placement is not { } world || !HasCharacter)
+        if (World is not { } world || !HasCharacter)
         {
             return null;
         }
@@ -64,7 +70,7 @@ public sealed partial class GameClient
     public PlacementCandidate? Settle(Placeable placeable, in PlacementClaim claim, out Simulation.Outcome refused)
     {
         refused = Simulation.OutcomeCode.Invalid;
-        if (Placement is not { } world || !HasCharacter)
+        if (World is not { } world || !HasCharacter)
         {
             return null;
         }
@@ -74,20 +80,20 @@ public sealed partial class GameClient
     }
 
     /// <summary>The surface's own ground, asked as the zone asks it (<see cref="Simulation.GroundProbe"/>); null before joining.</summary>
-    public Simulation.GroundProbe? Ground => _surface != null && _predictor != null ? new Simulation.GroundProbe(_surface, Frame) : null;
+    public Simulation.GroundProbe? Ground => Surface != null && Prediction != null ? new Simulation.GroundProbe(Surface, Frame) : null;
 
     /// <summary>What to tell the player when the aim finds nothing to place (a door: aim at a doorway; none: nothing).</summary>
     public Simulation.Outcome PlacementNothing(Placeable placeable) =>
-        Placement is { } world ? Placer.Nothing(world, placeable) : Simulation.Outcome.Done;
+        World is { } world ? Placer.Nothing(world, placeable) : Simulation.Outcome.Done;
 
-    private void ResetPlacement()
+    public override void Dispose()
     {
         _placement = null;
         _thingsOn.Clear();
     }
 
     // What stands on what: a thing's support, counted for the structure limits.
-    private void ThingSupportAdded(RemoteThing thing)
+    internal void ThingSupportAdded(RemoteThing thing)
     {
         if (thing.Support.Family == TargetFamily.Piece)
         {
@@ -95,7 +101,7 @@ public sealed partial class GameClient
         }
     }
 
-    private void ThingSupportRemoved(RemoteThing thing)
+    internal void ThingSupportRemoved(RemoteThing thing)
     {
         if (thing.Support.Family == TargetFamily.Piece && _thingsOn.TryGetValue(thing.Support.Id, out int count))
         {
@@ -111,11 +117,11 @@ public sealed partial class GameClient
     }
 
     /// <summary>A client's surroundings for placement: the things, characters and ships it was sent, and what it knows of them.</summary>
-    private sealed class ClientSurroundings(GameClient client) : IPlacementSurroundings
+    private sealed class ClientSurroundings(PlacementModule client) : IPlacementSurroundings
     {
         public void ThingsNear(Vector3 point, float radius, List<PlacedThing> into)
         {
-            foreach (RemoteThing thing in client._things.Values)
+            foreach (RemoteThing thing in client.Survival.Things)
             {
                 if (Vector3.DistanceSquared(thing.Position, point) <= radius * radius && thing.Deployable(client.Content) is { } def)
                 {
@@ -126,7 +132,7 @@ public sealed partial class GameClient
 
         public void CharactersNear(Vector3 point, float radius, List<Capsule> into)
         {
-            MovementTuning tuning = client._predictor?.Tuning ?? MovementTuning.Default;
+            MovementTuning tuning = client.Prediction?.Tuning ?? MovementTuning.Default;
             void Add(Vector3 feet)
             {
                 if (Vector3.DistanceSquared(feet, point) <= radius * radius)
@@ -138,7 +144,7 @@ public sealed partial class GameClient
             {
                 Add(client.Character.Position);
             }
-            foreach (RemoteEntity remote in client._remotes.Values)
+            foreach (RemoteEntity remote in client.Remotes.Values)
             {
                 if (remote.Spawned && remote.HasState && remote.Kind == EntityKind.Character && (remote.Flags & MoveFlags.Dead) == 0)
                 {
@@ -149,7 +155,7 @@ public sealed partial class GameClient
 
         public void ShipsNear(Vector3 point, float radius, List<PlacedShip> into)
         {
-            foreach (RemoteShip ship in client.Ships)
+            foreach (RemoteShip ship in client.Ships.All)
             {
                 if (ship.Def != null && Vector3.DistanceSquared(ship.Position, point) <= radius * radius)
                 {
@@ -163,11 +169,17 @@ public sealed partial class GameClient
         public int ThingsOwned(ulong player, DeployableDef def)
         {
             int count = 0;
-            foreach (RemoteThing thing in client._things.Values)
+            foreach (RemoteThing thing in client.Survival.Things)
             {
                 count += thing.Mine && thing.Deployable(client.Content) == def ? 1 : 0;
             }
             return count;
         }
     }
+}
+
+/// <summary>The accessor on the client (GROUND_SYSTEMS.md §12.5, K11).</summary>
+public static class PlacementModuleAccess
+{
+    public static PlacementModule Placement(this GameClient client) => client.Require<PlacementModule>();
 }
