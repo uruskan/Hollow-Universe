@@ -1511,10 +1511,10 @@ def _iw_loader(m):
     loader("loader.arm.swing", "loader_arm_swing", 4, lambda k: [
         Seg(m.servo("arm_%d" % k, seconds=0.78, seed=531 + k, top_hz=(132.0, 144.0, 126.0, 150.0)[k],
                     gear=(11, 12, 11, 13)[k])),
-        _creak(8 + k, 0.4, pitch=1.4, gain=-26, at=0.2, fade_in=0.1, fade_out=0.1, fx="highpass=f=400")], 0.80, -3.0)
+        _creak(8 + k, 0.4, pitch=1.4, gain=-26, at=0.2, fade_in=0.1, fade_out=0.1, fx="highpass=f=400")], 0.80, -6.0)
     loader("loader.arm.swing.short", "loader_arm_swing_short", 3, lambda k: [
         Seg(m.servo("arm_short_%d" % k, seconds=0.53, seed=541 + k, top_hz=(128.0, 140.0, 134.0)[k], gear=11,
-                    up=0.14, down=0.17))], 0.55, -3.0)
+                    up=0.14, down=0.17))], 0.55, -6.0)
     # The rack's index (in the fetch's 0.80 s): solenoid, the pawl over the ratchet, the detent.
     loader("loader.rack.index", "loader_rack_index", 4, lambda k: [
         Seg(m.ratchet_run("rack_%d" % k, clicks=(5, 4, 6, 5)[k], spacing=(0.045, 0.05, 0.04, 0.048)[k],
@@ -1537,7 +1537,7 @@ def _iw_loader(m):
     loader("loader.retract", "loader_retract", 4, lambda k: [
         Seg(m.chain_run("retract_%d" % k, seconds=0.34, seed=581 + k, rate=(62.0, 36.0), size=0.9, motor=0.8,
                         seat=0.0)),
-        Seg(rpg("metalClick.ogg"), 0.2, 0.2, pitch=0.8, gain=-6, at=0.35)], 0.40, -2.0)
+        Seg(rpg("metalClick.ogg"), 0.2, 0.2, pitch=0.8, gain=-6, at=0.35)], 0.40, -4.0)
     # Breech close (0.35 s): pushed up, locked with a clank.
     loader("loader.breech.close", "loader_breech_close", 4, lambda k: [
         Seg(m.hiss("breech_c%d" % k, seconds=0.3, seed=591 + k, attack=0.015, hold=0.12, decay_s=0.12, lo=900.0,
@@ -1568,7 +1568,7 @@ def _iw_loader(m):
         Seg(m.chain_run("hoist_%d" % k, seconds=0.62, seed=631 + k, rate=(30.0, 40.0), size=1.2, motor=1.5)),
         Seg(m.servo("hoist_motor_%d" % k, seconds=0.62, seed=641 + k, top_hz=(95.0, 102.0, 90.0)[k], gear=7,
                     brake=0.0), gain=-4),
-        Seg(kenney(impp[k + 1]), pitch=0.7, gain=-5, at=0.63)], 0.70)
+        Seg(kenney(impp[k + 1]), pitch=0.7, gain=-5, at=0.63)], 0.70, -3.0)
     loader("loader.cassette.seat", "loader_cassette_seat", 4, lambda k: [
         _slide(k, (0.3, 0.6), pitch=1.05, gain=-5, fade_in=0.03, fade_out=0.04, fx="highpass=f=150")] + [
         Seg(m.strike("tube_%d_%d" % (k, j), seconds=0.25, seed=651 + 10 * k + j, f0=(700.0, 760.0, 730.0)[j],
