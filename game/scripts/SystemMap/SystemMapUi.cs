@@ -30,16 +30,12 @@ public partial class SystemMapUi : Control
     private Label _time = null!;
     private Label _speed = null!;
     private Button _pause = null!;
-    private Button _compressed = null!;
-    private Button _trueScale = null!;
-    private bool _logScale = true;
     private readonly List<Control> _panels = new();
 
     public event Action<int>? BodyChosen;
     public event Action? BackRequested;
     public event Action<int>? SpeedStep;
     public event Action? PauseToggled;
-    public event Action? ScaleToggled;
 
     public MapOverlay Overlay { get; private set; } = null!;
 
@@ -174,7 +170,7 @@ public partial class SystemMapUi : Control
         _panels.Add(_info);
     }
 
-    // Top centre: time travel and the distance scale.
+    // Top centre: time travel. (Distances are always compressed; the true-scale switch was removed on 14 October 2026.)
     private void BuildTimeBar()
     {
         var bar = new PanelContainer();
@@ -209,27 +205,6 @@ public partial class SystemMapUi : Control
         clock.AddChild(_speed);
         row.AddChild(clock);
 
-        var divider = new VSeparator();
-        Ui.Track(divider, c =>
-        {
-            c.AddThemeConstantOverride("separation", Ui.Px(14));
-            c.AddThemeStyleboxOverride("separator", new StyleBoxLine
-            {
-                Color = Ui.Divider,
-                Thickness = Math.Max(1, (int)MathF.Round(Ui.Scale)),
-                Vertical = true,
-            });
-        });
-        row.AddChild(divider);
-
-        var segments = new ButtonGroup();
-        _compressed = Segment("Compressed", segments);
-        _trueScale = Segment("True scale", segments);
-        _compressed.Pressed += () => ChooseScale(true);
-        _trueScale.Pressed += () => ChooseScale(false);
-        row.AddChild(_compressed);
-        row.AddChild(_trueScale);
-
         bar.AddChild(row);
         AddChild(bar);
         Ui.Place(bar, LayoutPreset.CenterTop);
@@ -245,7 +220,7 @@ public partial class SystemMapUi : Control
         foreach ((string keys, string action) in new[]
                  {
                      ("Drag", "Rotate"), ("Wheel", "Zoom"), ("Click", "Select"), ("Double-click", "Focus"),
-                     ("Space", "Pause"), (",|.", "Time speed"), ("L", "Scale"), ("Esc", "Galaxy map"),
+                     ("Space", "Pause"), (",|.", "Time speed"), ("Esc", "Galaxy map"),
                  })
         {
             line.AddChild(Ui.KeyHint(keys, action));
@@ -272,22 +247,6 @@ public partial class SystemMapUi : Control
         TooltipText = tooltip,
         IconAlignment = HorizontalAlignment.Center,
     };
-
-    private static Button Segment(string text, ButtonGroup group) => new()
-    {
-        Text = text,
-        ThemeTypeVariation = "SegmentButton",
-        ToggleMode = true,
-        ButtonGroup = group,
-    };
-
-    private void ChooseScale(bool logScale)
-    {
-        if (logScale != _logScale)
-        {
-            ScaleToggled?.Invoke();
-        }
-    }
 
     public void ShowSystem(StarSystem system, double distanceFromSol)
     {
@@ -502,15 +461,12 @@ public partial class SystemMapUi : Control
         }
     }
 
-    public void SetTime(DateTime utc, string speed, bool paused, bool logScale)
+    public void SetTime(DateTime utc, string speed, bool paused)
     {
         _time.Text = utc.ToString("d MMM yyyy  HH:mm", CultureInfo.InvariantCulture) + " UTC";
         _speed.Text = paused ? "Paused" : speed;
         _pause.Icon = UiIcons.Get(paused ? UiIcon.Play : UiIcon.Pause, 18);
         _pause.TooltipText = paused ? "Play  (Space)" : "Pause  (Space)";
-        _logScale = logScale;
-        _compressed.SetPressedNoSignal(logScale);
-        _trueScale.SetPressedNoSignal(!logScale);
     }
 
     private static UiIcon IconOf(Body body) => body.Kind switch

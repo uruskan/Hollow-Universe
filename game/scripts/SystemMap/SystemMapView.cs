@@ -37,7 +37,6 @@ public partial class SystemMapView : Node3D
     private double _time;
     private int _speedIndex = 3;
     private bool _paused;
-    private bool _logScale = true;
     private double _referenceA;
     private double _scaleK;
     private double _maxA;
@@ -87,7 +86,6 @@ public partial class SystemMapView : Node3D
         };
         _ui.SpeedStep += step => _speedIndex = Math.Clamp(_speedIndex + step, 0, Speeds.Length - 1);
         _ui.PauseToggled += () => _paused = !_paused;
-        _ui.ScaleToggled += ToggleScale;
     }
 
     public void SetActive(bool active)
@@ -146,15 +144,6 @@ public partial class SystemMapView : Node3D
         _distance = _targetDistance = distance;
         _yaw = yawDegrees * Math.PI / 180;
         _pitch = pitchDegrees * Math.PI / 180;
-    }
-
-    private void ToggleScale()
-    {
-        _logScale = !_logScale;
-        if (_system != null)
-        {
-            Rebuild();
-        }
     }
 
     // ---------------------------------------------------------------- building
@@ -405,9 +394,9 @@ public partial class SystemMapView : Node3D
 
     // ---------------------------------------------------------------- positions
 
-    private double MapRoot(double metres) => _logScale
-        ? _scaleK * Math.Log10(1 + metres / _referenceA)
-        : SystemRadius * metres / _maxA;
+    // Distances are always compressed (logarithmic). A true-scale mode existed until 14 October 2026; the owner had it
+    // removed because proportional distances cram the inner planets into the star.
+    private double MapRoot(double metres) => _scaleK * Math.Log10(1 + metres / _referenceA);
 
     private double MapMoon(BodyView planet, double metres)
     {
@@ -489,7 +478,7 @@ public partial class SystemMapView : Node3D
         _camera.LookAtFromPosition(_focusPosition + back * (float)_distance, _focusPosition, Vector3.Up);
         _camera.Near = (float)Math.Clamp(_distance * 0.002, 0.002, 1);
 
-        _ui.SetTime(UniverseTime.ToUtc(_time), SpeedNames[_speedIndex], _paused, _logScale);
+        _ui.SetTime(UniverseTime.ToUtc(_time), SpeedNames[_speedIndex], _paused);
         DrawOverlay();
     }
 
@@ -641,9 +630,6 @@ public partial class SystemMapView : Node3D
                         break;
                     case Key.Period:
                         _speedIndex = Math.Min(Speeds.Length - 1, _speedIndex + 1);
-                        break;
-                    case Key.L:
-                        ToggleScale();
                         break;
                 }
                 break;
