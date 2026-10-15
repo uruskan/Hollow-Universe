@@ -532,6 +532,12 @@ The dedicated server: the host and its modules, sessions, admin commands, notifi
 |---|---|---|---|
 | `Notifications.cs` | 369 | RaidAlert, INotificationService, IPlayerPresence, INotificationStore, IPushChannel, NoPush, NotificationCounters, NotificationService, MemoryNotificationStore, DatabaseNotificationStore, RaidAlertCodec [BaseState, Window] | A raid alert as a player gets it (GROUND.md §6.6): which base (its claim device), where it stands (zone frame), when |
 
+### src/Hollow.Server/Diagnostics (1 file, 355 lines)
+
+| File | Lines | Types | What |
+|---|---|---|---|
+| `CrashLog.cs` | 355 | CrashLog, CrashLogWriter | Crash reports (GROUND.md §4.3), for the game and the dedicated server alike, without the engine: the last 200 log lines, a report per unhandled exception, a still-running marker per process |
+
 ## src/Hollow.Client
 
 The client without graphics: the host and its modules, prediction, the local player, the map, sounds' rules.
@@ -625,11 +631,12 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `AnimalWarm.cs` | 15 | AnimalWarm | The animals' part of the renderer's warm-up (GROUND.md §4.3.1, §6.9): every species' model, skinned, as drawn. |
 | `AnimalsView.cs` | 198 | AnimalsView | The animals in view (GROUND.md §6.9): one AnimalView per animal, made when it appears, given its frame |
 
-### game/scripts/App (4 files, 582 lines)
+### game/scripts/App (5 files, 715 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Checkout.cs` | 60 | Checkout | The repository this game runs from (the folder above game/): its branch and commit, read from git's own files. For bug |
+| `CrashReporter.cs` | 124 | CrashReporter, CrashLogger | The game's crash reports (GROUND.md §4.3), in user://crashes: .NET's and Godot's exceptions, the marker, the menu's notice |
 | `GalaxyService.cs` | 43 | GalaxyService | Owns the one Galaxy of the client: loads the real-star catalogue and builds the model. |
 | `Main.cs` | 379 | Main | Entry point. Loads the galaxy and switches between the galaxy map and the system map. |
 | `UiScaler.cs` | 100 | UiScaler | Keeps Ui.Scale matched to the window (see Automatic), times the player's own |
@@ -816,6 +823,14 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 |---|---|---|---|
 | `MonumentViewer.cs` | 624 | MonumentViewer [Monument] | The monument viewer (--view monuments, MONUMENTS.md §8.5): every monument in data/monuments laid out |
 
+### game/scripts/Settings (3 files, 682 lines)
+
+| File | Lines | Types | What |
+|---|---|---|---|
+| `GraphicsNode.cs` | 60 | GraphicsNode | Applies the graphics settings to the window and everything global whenever they change (GROUND.md §8.6), and draws the sharpening pass |
+| `GraphicsSettings.cs` | 470 | QualityPreset, AntiAliasingMode, GraphicsValues, GraphicsSettings [FogLook] | The game's graphics settings (GROUND.md §8.6): the values shown and saved, the presets, one function per thing they reach |
+| `SettingRows.cs` | 152 | SettingKind, SettingRow, SettingRows | One row of the settings panel (GROUND.md §8.6): its name, a one-line explanation, and how it reads and changes the values |
+
 ### game/scripts/Ships (8 files, 2,748 lines)
 
 | File | Lines | Types | What |
@@ -875,7 +890,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `SystemMapUi.cs` | 566 | SystemMapUi | The system map's interface: system summary, body list, selected body, time and scale controls. |
 | `SystemMapView.cs` | 686 | SystemMapView [BodyView] | The system map (GALAXY.md §12): an orrery of one star system, animated by universe time. Distances are |
 
-### game/scripts/UI (19 files, 5,897 lines)
+### game/scripts/UI (20 files, 6,114 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -889,9 +904,10 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GroundUi.Machines.cs` | 69 | GroundUi | The loot panels of G7's machines (GROUND.md §6.8), in the furnace's manner: the recycler's six inputs and six outputs |
 | `GroundUi.Globe.cs` | 797 | GroundUi [Globe, GlobeFrame] | The map control (docs/WHOLE_WORLD.md §11), one for the G screen and the death screen: the whole world as a globe seen |
 | `GroundUi.Map.cs` | 273 | GroundUi | The map (G7, GROUND.md §6.8; the whole world since S3d, docs/WHOLE_WORLD.md §11), on G as in Rust: the map control |
-| `GroundUi.Menu.cs` | 100 | GroundUi | A small main menu for playtests, in RustMVP's menu style: the title and a column of big condensed items on the |
+| `GroundUi.Menu.cs` | 132 | GroundUi | A small main menu for playtests, in RustMVP's menu style: the title and a column of big condensed items on the |
 | `GroundUi.Paint.cs` | 381 | GroundUi | Immediate-mode painting on the design canvas, as RustMVP's SBareRoot painted: rectangles, text, icons and lines at |
 | `GroundUi.Radial.cs` | 355 | GroundUi [Trigger] | The radial menu (GROUND_SYSTEMS.md §4; RustMVP's wheels, from SBareRoot.cpp): one control for every source of options. |
+| `GroundUi.Settings.cs` | 217 | GroundUi | The settings panel (GROUND.md §8.6), opened by the menu's SETTINGS: GRAPHICS and INTERFACE tabs, a row per setting with its value and a line saying what it does |
 | `GroundUi.TechTree.cs` | 214 | GroundUi | The tech tree of the workbench in reach (G7, GROUND.md §6.8), in RustMVP's manner: the tree laid out from its roots |
 | `GroundUi.cs` | 692 | GroundScreen, GroundUi [HitKind, Hit, Pickup] | The ground interface's screens; the HUD shows under the inventory and crafting screens too. |
 | `ItemIcons.cs` | 216 | IItemIconProvider, ItemIcons, PlaceholderItemIcons, GroundGlyphs | Where item icons come from. The icon package will render them from our models; until then, placeholders. |

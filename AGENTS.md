@@ -238,6 +238,10 @@ Client options (after `--`):
   ∓ 6 h), T day speed (1×, 60×, 600×, 3600×), P pause time, H hide the interface, Esc back.
 - Interface: `--ui-scale <factor>` (preference for this run), `--rescale <factor>` (change it after half a second,
   to test live rescaling).
+- Graphics (GROUND.md §8.6): `--quality low|medium|high|ultra|maximum` shows a preset for this run without saving it
+  (the settings are otherwise `user://graphics.cfg`, set in the menu's SETTINGS; Maximum by default on a discrete
+  graphics card). Crash reports (GROUND.md §4.3) go to `user://crashes`; the server's to `crashes/` beside its save
+  (`--crash-dir <path>`).
 - Character viewer: `--view character`; `--body <male|female>`, `--outfit <0–8>`, `--seed <n>` or `--player <name>` (the
   look `Looks.ForPlayer` gives that ID; N / Shift+N the next or previous seed), `--lineup <n>` (n players in a row
   facing the camera, looks from `--seed` on, `--spacing <m>`), `--item <key>` (any item key with a held pose in `data/ground/models.json`, e.g. `stone-hatchet`, `rock`, `pistol`, `rifle`, `bow`),
