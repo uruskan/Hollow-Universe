@@ -26,8 +26,10 @@ public sealed partial class TerrainLod : Node3D
     public int MaxLevel { get; private set; } = PlanetSurface.CollisionLevel;
 
     /// <summary>A tile splits when the camera is closer than this many tile edges.</summary>
-    private const double SplitFactor = 1.6;
-    private const double MergeFactor = 1.8;
+    // A tile splits within 1.6 of its edges and merges back beyond 1.8, times the graphics settings' terrain detail
+    // (GROUND.md §8.6, 0.6–1.6).
+    private static double SplitFactor => 1.6 * Math.Clamp(HollowUniverse.Settings.GraphicsSettings.Current.TerrainDetail, 0.5f, 2f);
+    private static double MergeFactor => SplitFactor * 1.125;
     private const int MeshesPerFrame = 10;
 
     private sealed class Node

@@ -28,6 +28,13 @@ public sealed partial class GrassField : Node3D
     private const float ShrinkStart = 22;
     private const float LitterRadius = 26;
     private const float LitterShrink = 14;
+
+    // The reaches at the graphics settings' grass distance (GROUND.md §8.6), taken when the field is set up: the
+    // surface view builds a new field when the setting changes.
+    private float _far = FarRadius, _shrink = ShrinkStart, _litterFar = LitterRadius, _litterShrink = LitterShrink;
+
+    /// <summary>The grass distance and density this field was built with.</summary>
+    public (float Distance, float Density) BuiltWith { get; private set; }
     private const double Recentre = 14;
     private const int CoarseStep = 8; // lattice nodes between climate samples
 
@@ -94,13 +101,21 @@ public sealed partial class GrassField : Node3D
         _faceCells = 1L << _level;
         _cellMetres = TileKey.EdgeLength(_level, surface.Radius);
         _heightShift = finestLevel + TileCellsLog2;
-        _gridWidth = (int)Math.Ceiling(2 * FarRadius / _cellMetres) + 2;
-        _litterWidth = (int)Math.Ceiling(2 * LitterRadius / _cellMetres) + 2;
-        _latticeSize = (int)Math.Ceiling(2 * (FarRadius + Recentre) / _cellMetres) + 4;
+        HollowUniverse.Settings.GraphicsValues graphics = HollowUniverse.Settings.GraphicsSettings.Current;
+        BuiltWith = (graphics.GrassDistance, graphics.GrassDensity);
+        float reach = Math.Clamp(graphics.GrassDistance, 0.5f, 2f);
+        _far = FarRadius * reach;
+        _shrink = ShrinkStart * reach;
+        _litterFar = LitterRadius * reach;
+        _litterShrink = LitterShrink * reach;
+        _gridWidth = (int)Math.Ceiling(2 * _far / _cellMetres) + 2;
+        _litterWidth = (int)Math.Ceiling(2 * _litterFar / _cellMetres) + 2;
+        _latticeSize = (int)Math.Ceiling(2 * (_far + Recentre) / _cellMetres) + 4;
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_grass.gdshader") };
         material.SetShaderParameter("grid_width", _gridWidth);
-        material.SetShaderParameter("far_radius", FarRadius);
-        material.SetShaderParameter("shrink_start", ShrinkStart);
+        material.SetShaderParameter("far_radius", _far);
+        material.SetShaderParameter("shrink_start", _shrink);
+        material.SetShaderParameter("density_scale", Math.Clamp(graphics.GrassDensity, 0.1f, 1f));
         material.SetShaderParameter("lattice_size", _latticeSize);
         material.SetShaderParameter("face_cells", (int)Math.Min(_faceCells, int.MaxValue));
         material.SetShaderParameter("cell_metres", (float)(_cellMetres));
@@ -130,8 +145,8 @@ public sealed partial class GrassField : Node3D
             grid.LitterMaterial = (ShaderMaterial)material.Duplicate();
             grid.LitterMaterial.SetShaderParameter("layer", 1);
             grid.LitterMaterial.SetShaderParameter("grid_width", _litterWidth);
-            grid.LitterMaterial.SetShaderParameter("far_radius", LitterRadius);
-            grid.LitterMaterial.SetShaderParameter("shrink_start", LitterShrink);
+            grid.LitterMaterial.SetShaderParameter("far_radius", _litterFar);
+            grid.LitterMaterial.SetShaderParameter("shrink_start", _litterShrink);
             grid.Litter = Instance(litter, grid.LitterMaterial, _litterWidth);
             _grids[g] = grid;
         }
@@ -289,7 +304,7 @@ public sealed partial class GrassField : Node3D
     /// </summary>
     public void UpdateGrass(Vector3D camera, double altitude, bool walking)
     {
-        bool near = altitude < FarRadius;
+        bool near = altitude < _far;
         _near = near;
         if (_job != null && _job.IsCompleted)
         {

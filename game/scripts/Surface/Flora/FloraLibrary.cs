@@ -90,7 +90,8 @@ public sealed class FloraLibrary
         (data.Bark, data.BarkNormal) = FloraTextures.Bark(false, seed + 1);
         (data.Birch, data.BirchNormal) = FloraTextures.Bark(true, seed + 2);
 
-        var trees = new Bands(Vegetation.TreeNear, Vegetation.ImpostorStart + 20, impostor: true);
+        // The trees' bands at plant distance 1: the vegetation scales every band by the setting as it draws.
+        var trees = new Bands(50, 190, impostor: true);
         Add(data, "fir", ScatterKind.Fir, 1.4f, trees, true, "bark", 3, (s, lod) =>
         {
             var r = new Rng(Hash64.Of((ulong)s, 0x46495220)); // "FIR "

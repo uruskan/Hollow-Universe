@@ -52,6 +52,9 @@ public partial class Main : Node
             GroundChecks.RunPhysicsCheck(this);
             return;
         }
+        // The graphics settings (GROUND.md §8.6), saved or this computer's defaults; --quality <preset> for this run.
+        HollowUniverse.Settings.GraphicsSettings.Load(HollowUniverse.Settings.GraphicsSettings.ParsePreset(Option("quality", "")));
+        AddChild(new HollowUniverse.Settings.GraphicsNode { Name = "Graphics" });
         // The interface scale has to be known before any interface is built.
         _scaler = new UiScaler { Name = "UiScaler" };
         if (_options.ContainsKey("ui-scale"))

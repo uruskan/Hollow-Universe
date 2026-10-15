@@ -193,6 +193,8 @@ public static class ModelCatalog
     public static void SetLodRanges(Node root, float[] distances)
     {
         int last = LastLod(root);
+        // The graphics settings' model detail (GROUND.md §8.6) moves every hand-over farther or nearer.
+        float detail = Math.Clamp(HollowUniverse.Settings.GraphicsSettings.Current.ModelDetail, 0.5f, 2f);
         foreach (MeshInstance3D mesh in Meshes(root))
         {
             int lod = LodOf(mesh);
@@ -200,8 +202,8 @@ public static class ModelCatalog
             {
                 continue;
             }
-            float begin = lod == 0 ? 0 : distances[Math.Min(lod - 1, distances.Length - 1)];
-            float end = lod >= last ? distances[^1] : distances[Math.Min(lod, distances.Length - 1)];
+            float begin = lod == 0 ? 0 : distances[Math.Min(lod - 1, distances.Length - 1)] * detail;
+            float end = (lod >= last ? distances[^1] : distances[Math.Min(lod, distances.Length - 1)]) * detail;
             // No margins: with fading off they act as hysteresis, and a model created inside a margin band would show
             // no level at all until the camera moved across it.
             mesh.VisibilityRangeBegin = begin;

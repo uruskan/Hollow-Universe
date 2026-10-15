@@ -24,8 +24,13 @@ namespace HollowUniverse.Surface;
 /// </summary>
 public sealed partial class Vegetation : Node3D
 {
-    public const float ImpostorStart = 170; // trees' second meshes end here, impostors begin
-    public const float TreeNear = 50;       // trees' full meshes end here
+    // Trees' second meshes end at 170 m (impostors begin) and their full meshes at 50 m, times the graphics settings'
+    // plant distance (GROUND.md §8.6: 0.6–1.4, so the impostors' start stays inside the near set's 290 m).
+    public static float ImpostorStart => 170 * Detail;
+    public static float TreeNear => 50 * Detail;
+
+    /// <summary>The graphics settings' trees-and-plants distance: every species' detail bands times this.</summary>
+    public static float Detail => Math.Clamp(HollowUniverse.Settings.GraphicsSettings.Current.PlantDistance, 0.5f, 1.4f);
     public const float ImpostorEnd = 2200;
     private const float NearImpostorEnd = 290; // the near set's impostors hand over to the far blocks here
     private const double NearSetRadius = 300;
@@ -413,7 +418,7 @@ public sealed partial class Vegetation : Node3D
                 Vector3D body = item.Position(_surface.Radius);
                 double d = Vector3D.Distance(body, camera);
                 bool tree = species.Tree && _impostors != null;
-                if (d > (tree ? NearImpostorEnd : species.Bands.Far) + margin)
+                if (d > (tree ? NearImpostorEnd : species.Bands.Far * Detail) + margin)
                 {
                     continue;
                 }
@@ -496,7 +501,7 @@ public sealed partial class Vegetation : Node3D
             double mid = ImpostorStart + (previous is 0 or 1 ? 6 : -6);
             return d < mid ? 1 : 2;
         }
-        double n = species.Bands.Near + (previous == 0 ? 2 : -2);
+        double n = species.Bands.Near * Detail + (previous == 0 ? 2 : -2);
         return d < n ? 0 : 1;
     }
 
@@ -595,7 +600,8 @@ public sealed partial class Vegetation : Node3D
                 GIMode = GeometryInstance3D.GIModeEnum.Disabled,
             };
             // Levels change by cross-fades over time; only the last level of small things shrinks away with distance.
-            set.Instance.SetInstanceShaderParameter("lod_band", shrinks ? new Vector4(0, 0, b.Far * 0.82f, b.Far) : new Vector4(0, 0, 1e6f, 2e6f));
+            float far = b.Far * Detail;
+            set.Instance.SetInstanceShaderParameter("lod_band", shrinks ? new Vector4(0, 0, far * 0.82f, far) : new Vector4(0, 0, 1e6f, 2e6f));
             set.Instance.SetInstanceShaderParameter("shrink", shrinks ? 1.0f : 0.0f);
             AddChild(set.Instance);
         }
