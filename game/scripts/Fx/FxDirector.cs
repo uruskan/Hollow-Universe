@@ -262,28 +262,13 @@ public partial class FxDirector : Node3D
 
     /// <summary>
     /// A shot's muzzle effect on <paramref name="muzzle"/> (a gun's muzzle socket, +X along the barrel), first or third
-    /// person. <paramref name="key"/> is muzzle.rifle, muzzle.rifle.brake, muzzle.pistol, muzzle.pistol.brake,
-    /// muzzle.silenced or muzzle.rocket; <see cref="MuzzleKey"/> picks it from the gun and its attachments.
+    /// person. <paramref name="key"/> is the gun's own (fx.json items: muzzle.rifle, muzzle.pistol, muzzle.rocket...), or the
+    /// one for the part on its muzzle (a brake's, a silencer's): <c>GunEffects.MuzzleKey</c> picks it.
     /// </summary>
     public static bool Muzzle(string key, Node3D muzzle, bool firstPerson)
     {
         Transform3D t = muzzle.GlobalTransform.Orthonormalized();
         return Play(key, t.Origin, t.Basis.X, new FxParams { Follow = muzzle, FirstPerson = firstPerson, Direction = t.Basis.X });
-    }
-
-    /// <summary>The muzzle effect for a gun: silenced, braked or plain, rifle-sized or pistol-sized.</summary>
-    public static string MuzzleKey(string weaponKey, bool silenced, bool brake)
-    {
-        if (silenced)
-        {
-            return "muzzle.silenced";
-        }
-        if (weaponKey == "rocket-launcher")
-        {
-            return "muzzle.rocket";
-        }
-        string size = weaponKey == "pistol" ? "pistol" : "rifle";
-        return brake ? $"muzzle.{size}.brake" : $"muzzle.{size}";
     }
 
     /// <summary>Whether this shot draws a tracer: some do, as in Rust (every <c>tracerEvery</c>-th per shooter).</summary>

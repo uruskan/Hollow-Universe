@@ -287,6 +287,11 @@ public sealed class ThingSystem : ZoneSystem
             {
                 return default;
             }
+            // A fire burns only what its data says burns (IW4: wood and cloth; stone and metal don't).
+            if (r.Channel == DamageType.Heat && !d.Def.Burns)
+            {
+                return default;
+            }
             float amount = r.Amounts.Structure;
             float before = d.Health;
             bool broke = zone.Things().HurtDeployable(d, amount);

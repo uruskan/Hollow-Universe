@@ -321,7 +321,7 @@ public partial class FxViewer
         int tracer = 0;
         if (on)
         {
-            FxDirector.Muzzle(FxDirector.MuzzleKey(s.Pistol ? "pistol" : "rifle", false, false), s.Muzzle, s.FirstPerson);
+            FxDirector.Muzzle(FxCatalog.ItemEffect(s.Pistol ? "pistol" : "rifle", "muzzle") ?? "muzzle.rifle", s.Muzzle, s.FirstPerson);
             if (FxDirector.WantsTracer(s.Id, s.Seq))
             {
                 tracer = FxDirector.Tracer("tracer.bullet", from, dir * 300f, new Vector3(0, -9f, 0), 0.3f);

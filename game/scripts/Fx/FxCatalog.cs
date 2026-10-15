@@ -150,6 +150,7 @@ public static class FxCatalog
 
     private static List<FxDef>? _defs;
     private static Dictionary<string, FxDef>? _byKey;
+    private static Dictionary<string, Dictionary<string, string>>? _items;
 
     /// <summary>Every how many shots a bullet draws a tracer (per shooter; Rust shows some, not all).</summary>
     public static int TracerEvery { get; private set; } = 3;
@@ -172,11 +173,25 @@ public static class FxCatalog
         return _byKey!.TryGetValue(key, out FxDef? def) ? def : null;
     }
 
+    /// <summary>
+    /// An item's effect for a role (fx.json <c>items</c>, IW4: so a new gun, round or explosive needs data, not code): a gun's
+    /// <c>muzzle</c> (and <c>muzzle:&lt;attachment&gt;</c> with that part on its muzzle) and <c>backblast</c>; an attachment's
+    /// own <c>muzzle</c> (a silencer's, on any gun); a round's <c>flight</c> (a loop on the round drawn as its model: a
+    /// rocket's trail) and its or an explosive's <c>explode</c>; a fire's (by the item that left it) <c>fire</c> and
+    /// <c>fireOut</c>; a deployable's <c>fire</c> while it burns. Null when the item has none for the role.
+    /// </summary>
+    public static string? ItemEffect(string itemKey, string role)
+    {
+        Load();
+        return _items!.TryGetValue(itemKey, out Dictionary<string, string>? roles) && roles.TryGetValue(role, out string? key) ? key : null;
+    }
+
     /// <summary>Reads the catalogue again (the viewer's R key, while tuning).</summary>
     public static void Reload()
     {
         _defs = null;
         _byKey = null;
+        _items = null;
         Load();
     }
 
@@ -188,6 +203,7 @@ public static class FxCatalog
         }
         _defs = new List<FxDef>();
         _byKey = new Dictionary<string, FxDef>(StringComparer.Ordinal);
+        _items = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
         if (!FileAccess.FileExists(DataPath))
         {
             GD.PushWarning($"FxCatalog: {DataPath} is missing.");
@@ -214,6 +230,25 @@ public static class FxCatalog
             FxDef def = ParseDef(e);
             _defs.Add(def);
             _byKey[def.Key] = def;
+        }
+        if (root.TryGetProperty("items", out JsonElement items))
+        {
+            foreach (JsonProperty item in items.EnumerateObject())
+            {
+                if (item.Value.ValueKind != JsonValueKind.Object)
+                {
+                    continue; // the note
+                }
+                var roles = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (JsonProperty role in item.Value.EnumerateObject())
+                {
+                    if (role.Value.ValueKind == JsonValueKind.String)
+                    {
+                        roles[role.Name] = role.Value.GetString()!;
+                    }
+                }
+                _items[item.Name] = roles;
+            }
         }
     }
 

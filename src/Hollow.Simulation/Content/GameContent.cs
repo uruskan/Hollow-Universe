@@ -59,6 +59,8 @@ public sealed partial class GameContent
         Ships = loaded.Ships;
         Blasts = loaded.Blasts;
         Throwables = loaded.Throwables;
+        Fires = loaded.Fires;
+        FireRules = loaded.FireRules;
         RaidAlerts = loaded.RaidAlerts;
         World = loaded.World ?? new WorldData();
         Animals = loaded.Animals;
@@ -122,6 +124,11 @@ public sealed partial class GameContent
 
     public IReadOnlyList<ThrowableStats> Throwables { get; }
 
+    /// <summary>IW4 (explosives.json fires, IRON_WAKE.md §7): the kinds of fire blasts leave, and the rules every fire follows.</summary>
+    public IReadOnlyList<FireDef> Fires { get; }
+
+    public FireRules FireRules { get; }
+
     public RaidAlertSettings RaidAlerts { get; }
 
     /// <summary>G7 (world.json): salvage, world props and their loot, the recycler, research, tech trees, teams and the map.</summary>
@@ -172,6 +179,19 @@ public sealed partial class GameContent
             if (b.Key == key)
             {
                 return b;
+            }
+        }
+        return null;
+    }
+
+    /// <summary>A kind of fire by key, or null.</summary>
+    public FireDef? Fire(string key)
+    {
+        foreach (FireDef f in Fires)
+        {
+            if (f.Key == key)
+            {
+                return f;
             }
         }
         return null;
@@ -397,6 +417,8 @@ public sealed partial class GameContent
         public List<Ships.ShipDef> Ships = new();
         public List<BlastStats> Blasts = new();
         public List<ThrowableStats> Throwables = new();
+        public List<FireDef> Fires = new();
+        public FireRules FireRules = new();
         public RaidAlertSettings RaidAlerts = new();
         public WorldData? World;
         public List<AnimalSpecies> Animals = new();

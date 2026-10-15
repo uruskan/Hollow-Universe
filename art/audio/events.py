@@ -1845,8 +1845,13 @@ ITEMS = {
     "rocket-launcher": {"shot": "rifle.shot", "magOut": "reload.rifle.magout", "magIn": "reload.rifle.magin",
                         "rack": "reload.rifle.bolt", "dryFire": "gun.dryfire", "hitMarker": "hit.marker",
                         "kill": "hit.kill"},
-    "rocket": {"flight": "arrow.flight", "explode": "explosion", "debris": "explosion.debris"},
-    "rocket-hv": {"flight": "arrow.flight", "explode": "explosion", "debris": "explosion.debris"},
+    # IW4 (IRON_WAKE.md §10.1): every rocket's motor catching where it leaves and its roar on it until it stops (the
+    # rockets' view loops "flight" on the rocket); the incendiary rocket's burst, its fuel catching and its fire (a
+    # 3.5 m pool: the large loop).
+    "rocket": {"ignite": "rocket.ignite", "flight": "rocket.flight", "explode": "explosion", "debris": "explosion.debris"},
+    "rocket-hv": {"ignite": "rocket.ignite", "flight": "rocket.flight", "explode": "explosion", "debris": "explosion.debris"},
+    "rocket-incendiary": {"ignite": "rocket.ignite", "flight": "rocket.flight", "explode": "rocket.incendiary.burst",
+                          "fireStart": "fire.ignite", "fire": "fire.patch.large"},
     "rifle-ammo-explosive": {"explode": "impact.metal"},
     # Door items (models.json) and door kinds (building.json).
     # Ships (G6): the Tin Finch's engines, boost, hatch, touchdown, crash and wreck.

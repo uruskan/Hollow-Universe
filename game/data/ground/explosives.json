@@ -10,9 +10,15 @@
     { "key": "rocket", "radius": 3.0, "inner": 0.4, "splash": 0.3, "flesh": 210, "deployable": 300,
       "pieces": { "twig": 500, "wood": 137.5, "stone": 137.5, "metal": 137.5, "armoured": 137.5 },
       "doors": { "wood": 250, "metal": 220, "armoured": 275 } },
-    { "key": "rocket-hv", "radius": 2.0, "inner": 0.4, "splash": 0.3, "flesh": 175, "deployable": 120,
+    { "key": "rocket-hv", "radius": 2.0, "inner": 0.4, "splash": 0.3, "flesh": 175, "direct": 600, "deployable": 120,
       "pieces": { "twig": 500, "wood": 52, "stone": 45, "metal": 45, "armoured": 45 },
-      "doors": { "wood": 80, "metal": 70, "armoured": 90 } },
+      "doors": { "wood": 80, "metal": 70, "armoured": 90 },
+      "note": "IW4 (KNOWN_PROBLEMS.md finding 26, the owner's direction): whoever it strikes dies, a bear (400) too: 600 to the person or animal struck, so even 80% protection leaves 120 of a player's 100; the rest in reach take its blast's 175 as before." },
+    { "key": "rocket-incendiary", "radius": 2.5, "inner": 0.4, "splash": 0.3, "flesh": 60, "deployable": 60,
+      "pieces": { "twig": 500, "wood": 20, "stone": 5, "metal": 2, "armoured": 1 },
+      "doors": { "wood": 30, "metal": 5, "armoured": 2 },
+      "fire": "incendiary",
+      "note": "IW4 (IRON_WAKE.md §7, the owner's proposals): a small burst, the fuel thrown out; the fire it leaves does the work." },
     { "key": "bag-charge", "radius": 3.0, "inner": 0.4, "splash": 0.3, "flesh": 120, "deployable": 150,
       "pieces": { "twig": 500, "wood": 75, "stone": 51, "metal": 44, "armoured": 44 },
       "doors": { "wood": 110, "metal": 70, "armoured": 85 } },
@@ -23,6 +29,16 @@
       "pieces": { "twig": 10, "wood": 4.12, "stone": 2.71, "metal": 2.505, "armoured": 2.505 },
       "doors": { "wood": 10.6, "metal": 4.01, "armoured": 5.01 } }
   ],
+
+  "fires": {
+    "most": 64, "runsDown": 12, "steepest": 50,
+    "note": "IW4 (IRON_WAKE.md §7): the fires a blast leaves (a blast's \"fire\" names its kind). Burning fuel rests on what the blast hit when that faces up within 'steepest' degrees; on anything steeper (a wall, a hull's side, a trunk, a body) or in the air it runs and falls straight down to the first surface that does, at most 'runsDown' metres below (none: no fire). A fire on water or in the sea goes out at once; at most 'most' burn in a zone, the oldest going first; fires don't spread. A kind: its radius, the share of it it does all its damage within ('inner', as a blast's), how long it burns, how often it hurts ('every', seconds), and what it does a second at its middle, nothing at its edge: to people and animals ('flesh', less what people wear on the body), the burning it sets in people while they are in it ('burning', survival.json's vital: 2 a second until it runs out or they swim), to deployables that burn ('deployables'; deployables.json 'burns') and to the building through its rules' heat channel ('building'; building.json gives twig and wood 1, stone and up 0).",
+    "kinds": [
+      { "key": "incendiary", "radius": 3.5, "inner": 0.4, "seconds": 18, "every": 0.5,
+        "flesh": 8, "burning": 6, "deployables": 5, "building": 6,
+        "note": "The incendiary rocket's: a 3.5 m pool of burning fuel for 18 s. A wooden wall (200) in it loses 108, two fires break it; a small box (150) struck takes the burst's 60 and the fire's 90." }
+    ]
+  },
 
   "throwables": [
     { "item": "timed-charge", "blast": "timed-charge", "fuse": [10, 10], "dud": 0, "sticky": true,

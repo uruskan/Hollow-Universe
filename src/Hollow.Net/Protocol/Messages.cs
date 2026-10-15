@@ -1064,6 +1064,46 @@ public partial struct Detonation
     public bool Round;
 }
 
+/// <summary>
+/// A fire (IW4, IRON_WAKE.md §7), to everyone within range (reliable), when it is lit or comes into range, and again when it
+/// falls onto something else (what held it went): its ID; what left it (the round or explosive: its looks and sounds) and
+/// whose; its middle (zone frame, now) and the surface's normal there; its radius; what holds it, and its middle's place and
+/// turn in that holder's frame (+Y the surface's normal), so a client draws it riding a ship's deck; the server ticks it was
+/// lit at and burns out at.
+/// </summary>
+[NetMessage(118)]
+public partial struct FireStarted
+{
+    public ulong Id;
+    [VarInt] public uint Item;
+    [VarInt] public uint Owner;
+    public float X;
+    public float Y;
+    public float Z;
+    [Quantize(-1, 1, 12)] public float NormalX;
+    [Quantize(-1, 1, 12)] public float NormalY;
+    [Quantize(-1, 1, 12)] public float NormalZ;
+    [Quantize(0, 20, 10)] public float Radius;
+    public TargetNet Support;
+    public float LocalX;
+    public float LocalY;
+    public float LocalZ;
+    [Quantize(-1, 1, 16)] public float RotationX;
+    [Quantize(-1, 1, 16)] public float RotationY;
+    [Quantize(-1, 1, 16)] public float RotationZ;
+    [Quantize(-1, 1, 16)] public float RotationW;
+    public uint StartTick;
+    public uint EndTick;
+}
+
+/// <summary>A fire went out (Out: burnt out, doused, replaced, fell to nothing; its scorch is left) or left the player's range.</summary>
+[NetMessage(119)]
+public partial struct FireEnded
+{
+    public ulong Id;
+    public bool Out;
+}
+
 /// <summary>A raid alert: which base (its claim device), where it is (zone frame), when it was hit (Unix ms), how often, what broke and with what.</summary>
 [NetStruct]
 public partial struct RaidAlertNet
@@ -1373,7 +1413,7 @@ public partial struct ThingDestroyed
     [Quantize(-1, 1, 12)] public float DirectionX;
     [Quantize(-1, 1, 12)] public float DirectionY;
     [Quantize(-1, 1, 12)] public float DirectionZ;
-    [Bits(3)] public DestroyCause Cause;
+    [Bits(4)] public DestroyCause Cause;
     public bool Open;
     [VarInt] public uint Attacker;
     [VarInt] public uint Item;

@@ -32,6 +32,9 @@ public enum DamageDelivery : byte
 
     /// <summary>An animal's bite, charge or swipe.</summary>
     Bite,
+
+    /// <summary>A fire's heat (IW4, IRON_WAKE.md §7): what is in a burning pool, every so often, on the building rules' heat channel.</summary>
+    Heat,
 }
 
 /// <summary>Why something was destroyed (the <see cref="ZoneEventKind.Destroyed"/> event): the blow, or the building's own reasons.</summary>
@@ -53,6 +56,9 @@ public enum DestroyCause : byte
 
     /// <summary>A ship that crashed hard enough to wreck.</summary>
     Crash,
+
+    /// <summary>Burnt down in a fire (IW4: a fire's heat took the last of its health).</summary>
+    Fire,
 }
 
 /// <summary>Target families, as a set (those that give the attacker a hit marker).</summary>
@@ -119,7 +125,10 @@ public struct DamageRequest
 
     public DamageDelivery Delivery;
 
-    /// <summary>The kind of damage (the building rules' channels): melee for blows and bites, bullet for arrows and bullets, explosive for blasts.</summary>
+    /// <summary>
+    /// The kind of damage (the building rules' channels): melee for blows and bites, bullet for arrows and bullets, explosive
+    /// for blasts, heat for fires.
+    /// </summary>
     public DamageType Channel;
 
     public DamageAmounts Amounts;
@@ -129,8 +138,11 @@ public struct DamageRequest
 
     public float Burn;
 
-    /// <summary>How a character dies of it ("Shot", "Struck down", "Blown up", "Bitten").</summary>
+    /// <summary>How a character dies of it ("Shot", "Struck down", "Blown up", "Bitten", "Burned").</summary>
     public string Cause;
+
+    /// <summary>A lethal blow kills outright rather than knocking down (a fire's, as the burning vital's: GROUND.md §6.4).</summary>
+    public bool Outright;
 
     /// <summary>
     /// A blast's own table by grade and door (explosives.json): what a building piece or door takes of it, times the

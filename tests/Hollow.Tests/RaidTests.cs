@@ -358,9 +358,10 @@ public static class RaidTests
     }
 
     /// <summary>
-    /// GROUND.md §6.6, rockets: a rocket flies at 18 m/s with a little drop (so 20 m takes 1.1 s), explodes on the wall it
-    /// hits (137 or 138 of a stone wall's 500) and hurts someone standing beside the impact; the launcher holds one and
-    /// reloads in 5 s; a high-velocity rocket flies faster and flatter but hardly scratches stone.
+    /// GROUND.md §6.6, rockets: a rocket flies at 18 m/s and drops (0.3 of the planet's gravity since IW4, the owner's
+    /// direction: 1.7 m over 20 m, so it is aimed that much high), so 20 m takes 1.1 s; it explodes on the wall it hits (137
+    /// or 138 of a stone wall's 500) and hurts someone standing beside the impact; the launcher holds one and reloads in 5 s;
+    /// a high-velocity rocket flies faster and flatter but hardly scratches stone.
     /// </summary>
     [Test]
     public static void RocketsFlyDropAndBlastWalls()
@@ -377,7 +378,7 @@ public static class RaidTests
         Guns.Arm(rig, ada, "rocket-launcher", "rocket", 1);
         rig.Give(ada, "rocket-hv", 1);
         rig.Step(20);
-        rig.Look(ada, face);
+        FireRig.Aim(rig, ada, "rocket", face);
         Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1), "fired");
         float boBefore = rig.P(bo).Vitals.Health;
         int flight = Raids.StepUntil(rig, () => rig.Zone.Explosives().RaidStats.Detonations == 1, 90, "the rocket's blast");
@@ -393,7 +394,7 @@ public static class RaidTests
         rig.Step(151);
         Assert.Equal(1, (int)rig.P(ada).Inventory.Belt[0].Loaded, "loaded after 5 s");
         double before = east.Health;
-        rig.Look(ada, face);
+        FireRig.Aim(rig, ada, "rocket-hv", face);
         Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 4), "fired the high-velocity rocket");
         int fast = Raids.StepUntil(rig, () => rig.Zone.Explosives().RaidStats.Detonations == 2, 60, "the high-velocity rocket's blast");
         Assert.InRange(13, 18, fast, "20 m at 40 m/s: about 15 ticks");

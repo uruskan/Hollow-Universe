@@ -16,8 +16,9 @@ internal sealed class ExplosivesReader : IContentReader
         JsonElement root = r.Documents[File];
         if (root.ValueKind == JsonValueKind.Object)
         {
-            f.OnlyKnown(root, File, "source", "note", "alerts", "blasts", "throwables");
+            f.OnlyKnown(root, File, "source", "note", "alerts", "blasts", "fires", "throwables");
         }
+        ReadFires(f, root, loaded);
         if (f.TryChild(root, "alerts", out JsonElement alerts))
         {
             string where = $"{File}: alerts";
@@ -35,7 +36,8 @@ internal sealed class ExplosivesReader : IContentReader
             JsonElement e = blasts[i];
             string key = f.Text(e, "key", $"{File}: blasts[{i}]");
             string where = $"{File}: blast {JsonFields.Quote(key)}";
-            f.OnlyKnown(e, where, "key", "radius", "inner", "splash", "flesh", "deployable", "pieces", "doors", "note");
+            f.OnlyKnown(e, where, "key", "radius", "inner", "splash", "flesh", "direct", "deployable", "pieces", "doors", "fire", "note");
+            string? fireKey = f.Has(e, "fire") ? f.Text(e, "fire", where) : null;
             var blast = new BlastStats
             {
                 Key = key,
@@ -43,8 +45,15 @@ internal sealed class ExplosivesReader : IContentReader
                 Inner = f.Double(e, "inner", where, 0.4),
                 Splash = f.Double(e, "splash", where, 0),
                 Flesh = f.Double(e, "flesh", where, 0),
+                Direct = f.Double(e, "direct", where, 0),
                 Deployable = f.Double(e, "deployable", where, 0),
+                FireKey = fireKey,
+                Fire = fireKey == null ? null : loaded.Fires.FirstOrDefault(x => x.Key == fireKey),
             };
+            if (fireKey != null && blast.Fire == null)
+            {
+                f.Problem(where, $"no fire \"{fireKey}\" in {File}'s fires");
+            }
             if (f.TryChild(e, "pieces", out JsonElement pieces))
             {
                 foreach (JsonProperty grade in pieces.EnumerateObject())
@@ -150,11 +159,65 @@ internal sealed class ExplosivesReader : IContentReader
         }
     }
 
+    // The fires blasts leave (IW4, IRON_WAKE.md §7): the rules every fire follows, and the kinds blasts name.
+    private void ReadFires(JsonFields f, JsonElement root, GameContent.Loaded loaded)
+    {
+        if (!f.TryChild(root, "fires", out JsonElement fires))
+        {
+            return;
+        }
+        string where = $"{File}: fires";
+        f.OnlyKnown(fires, where, "most", "runsDown", "steepest", "kinds", "note");
+        loaded.FireRules = new FireRules
+        {
+            Most = f.Integer(fires, "most", where, 64),
+            RunsDown = f.Double(fires, "runsDown", where, 12),
+            SteepestDegrees = f.Double(fires, "steepest", where, 50),
+        };
+        JsonElement[] kinds = f.List(fires, "kinds", where);
+        for (int i = 0; i < kinds.Length; i++)
+        {
+            JsonElement e = kinds[i];
+            string key = f.Text(e, "key", $"{where}.kinds[{i}]");
+            string kw = $"{where}: kind {JsonFields.Quote(key)}";
+            f.OnlyKnown(e, kw, "key", "radius", "inner", "seconds", "every", "flesh", "burning", "deployables", "building", "note");
+            loaded.Fires.Add(new FireDef
+            {
+                Key = key,
+                Radius = f.Double(e, "radius", kw),
+                Inner = f.Double(e, "inner", kw, 0.4),
+                Seconds = f.Double(e, "seconds", kw),
+                Every = f.Double(e, "every", kw, 0.5),
+                Flesh = f.Double(e, "flesh", kw, 0),
+                Burning = f.Double(e, "burning", kw, 0),
+                Deployables = f.Double(e, "deployables", kw, 0),
+                Building = f.Double(e, "building", kw, 0),
+            });
+        }
+    }
+
     /// <summary>The checks across explosives.json, weapons.json and building.json (GROUND.md §7).</summary>
     public void Check(ContentChecking c)
     {
         GameContent.Loaded loaded = c.Loaded;
         BuildingData? building = loaded.Building;
+        foreach (IGrouping<string, FireDef> g in loaded.Fires.GroupBy(x => x.Key).Where(g => g.Count() > 1))
+        {
+            c.Problem($"{File}: fires", $"kind \"{g.Key}\" is listed twice");
+        }
+        foreach (FireDef fire in loaded.Fires)
+        {
+            if (fire.Radius is <= 0 or > 20 || fire.Inner is < 0 or > 1 || fire.Seconds is <= 0 or > 300 || fire.Every is < 0.1 or > 5 ||
+                fire.Flesh < 0 || fire.Burning < 0 || fire.Deployables < 0 || fire.Building < 0)
+            {
+                c.Problem($"{File}: fires: kind \"{fire.Key}\"", "radius 0 … 20 m, inner 0 … 1, 0 … 300 s, every 0.1 … 5 s, damage not negative");
+            }
+        }
+        FireRules rules = loaded.FireRules;
+        if (rules.Most is < 1 or > 1024 || rules.RunsDown is < 0 or > 50 || rules.SteepestDegrees is < 0 or > 90)
+        {
+            c.Problem($"{File}: fires", "most 1 … 1024, runsDown 0 … 50 m, steepest 0 … 90°");
+        }
         foreach (IGrouping<string, BlastStats> g in loaded.Blasts.GroupBy(b => b.Key).Where(g => g.Count() > 1))
         {
             c.Problem(File, $"blast \"{g.Key}\" is listed twice");
@@ -162,7 +225,7 @@ internal sealed class ExplosivesReader : IContentReader
         foreach (BlastStats b in loaded.Blasts)
         {
             string where = $"{File}: blast \"{b.Key}\"";
-            if (b.Radius is <= 0 or > 20 || b.Inner is < 0 or > 1 || b.Splash is < 0 or > 1 || b.Flesh < 0 || b.Deployable < 0)
+            if (b.Radius is <= 0 or > 20 || b.Inner is < 0 or > 1 || b.Splash is < 0 or > 1 || b.Flesh < 0 || b.Direct < 0 || b.Deployable < 0)
             {
                 c.Problem(where, "radius 0 … 20 m, inner and splash 0 … 1, damage not negative");
             }

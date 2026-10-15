@@ -55,6 +55,7 @@ public partial class GroundView : Node3D
     private BuildView _build = null!;
     private PlacementView _placing = null!;
     private RaidView _raid = null!;
+    private FiresView _fires = null!;
     private ShipsView _ships = null!;
     private HollowUniverse.Ships.ShipHud _shipHud = null!;
     private readonly HollowUniverse.Ships.ShipControls _shipControls = new();
@@ -242,6 +243,9 @@ public partial class GroundView : Node3D
         layer.AddChild(alerts);
         _raid = new RaidView { Name = "Raid", Client = Client, Alerts = alerts };
         AddChild(_raid);
+        // Fires (IW4): the pools of burning fuel incendiary rockets leave, riding what they burn on.
+        _fires = new FiresView { Name = "Fires", Client = Client };
+        AddChild(_fires);
         // Ships (G6): every ship drawn and heard; the flight HUD in place of the belt while piloting.
         _ships = new ShipsView { Name = "Ships", Client = Client };
         AddChild(_ships);
@@ -588,6 +592,8 @@ public partial class GroundView : Node3D
         _ships.Refresh(delta, _world?.Sky?.Exposure ?? 1);
         FillShipHud(piloting);
         Time("ships", ref t0);
+        _fires.Refresh(delta);
+        Time("fires", ref t0);
         _audio?.Refresh(delta, input.Sprint);
         Time("audio", ref t0);
         _firstPerson.Refresh(delta, input, _yaw, _pitch);

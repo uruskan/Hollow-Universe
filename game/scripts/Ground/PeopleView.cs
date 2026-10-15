@@ -403,11 +403,11 @@ public partial class PeopleView : Node3D
             Vector3 direction = GroundView.ToGodot(CharacterMotor.ViewDirection(e.Yaw, e.Pitch, up));
             FxDirector.Play(key, at, direction, new FxParams { Direction = direction });
         }
-        if (GunEffects.Socket(held, "exhaust") is { } exhaust)
+        if (FxCatalog.ItemEffect(gun.Key, "backblast") is { } backblast && GunEffects.Socket(held, "exhaust") is { } exhaust)
         {
-            // The launcher's back blast out of its venturi (+X of the socket points backwards).
+            // A launcher's back blast out of its venturi (+X of the socket points backwards): the gun's own (fx.json items).
             Vector3 back = exhaust.GlobalBasis.X.Normalized();
-            FxDirector.Play("backblast.rocket", exhaust.GlobalPosition, back, new FxParams { Direction = back });
+            FxDirector.Play(backblast, exhaust.GlobalPosition, back, new FxParams { Direction = back });
         }
     }
 

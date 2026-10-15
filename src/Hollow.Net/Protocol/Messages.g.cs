@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x8708B158DCCB4222UL;
+    public const ulong SchemaHash = 0x1F7118EBD41DC739UL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -3028,6 +3028,98 @@ partial struct Detonation : INetMessage<Detonation>
     }
 }
 
+partial struct FireStarted : INetMessage<FireStarted>
+{
+    public const byte TypeId = 118;
+
+    static byte INetMessage<FireStarted>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteVarUInt(Item);
+        w.WriteVarUInt(Owner);
+        w.WriteFloat(X);
+        w.WriteFloat(Y);
+        w.WriteFloat(Z);
+        w.WriteQuantized(NormalX, -1f, 1f, 12);
+        w.WriteQuantized(NormalY, -1f, 1f, 12);
+        w.WriteQuantized(NormalZ, -1f, 1f, 12);
+        w.WriteQuantized(Radius, 0f, 20f, 10);
+        Support.Write(w);
+        w.WriteFloat(LocalX);
+        w.WriteFloat(LocalY);
+        w.WriteFloat(LocalZ);
+        w.WriteQuantized(RotationX, -1f, 1f, 16);
+        w.WriteQuantized(RotationY, -1f, 1f, 16);
+        w.WriteQuantized(RotationZ, -1f, 1f, 16);
+        w.WriteQuantized(RotationW, -1f, 1f, 16);
+        w.WriteBits((uint)StartTick, 32);
+        w.WriteBits((uint)EndTick, 32);
+    }
+
+    public static FireStarted Read(BitReader r)
+    {
+        var v = new FireStarted();
+        v.Id = r.ReadBits64(64);
+        v.Item = r.ReadVarUInt();
+        v.Owner = r.ReadVarUInt();
+        v.X = r.ReadFloat();
+        v.Y = r.ReadFloat();
+        v.Z = r.ReadFloat();
+        v.NormalX = r.ReadQuantized(-1f, 1f, 12);
+        v.NormalY = r.ReadQuantized(-1f, 1f, 12);
+        v.NormalZ = r.ReadQuantized(-1f, 1f, 12);
+        v.Radius = r.ReadQuantized(0f, 20f, 10);
+        v.Support = TargetNet.Read(r);
+        v.LocalX = r.ReadFloat();
+        v.LocalY = r.ReadFloat();
+        v.LocalZ = r.ReadFloat();
+        v.RotationX = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationY = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationZ = r.ReadQuantized(-1f, 1f, 16);
+        v.RotationW = r.ReadQuantized(-1f, 1f, 16);
+        v.StartTick = (uint)r.ReadBits(32);
+        v.EndTick = (uint)r.ReadBits(32);
+        return v;
+    }
+}
+
+partial struct FireEnded : INetMessage<FireEnded>
+{
+    public const byte TypeId = 119;
+
+    static byte INetMessage<FireEnded>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits64(Id, 64);
+        w.WriteBool(Out);
+    }
+
+    public static FireEnded Read(BitReader r)
+    {
+        var v = new FireEnded();
+        v.Id = r.ReadBits64(64);
+        v.Out = r.ReadBool();
+        return v;
+    }
+}
+
 partial struct RaidAlertNet
 {
     public readonly void Write(BitWriter w)
@@ -3955,7 +4047,7 @@ partial struct ThingDestroyed : INetMessage<ThingDestroyed>
         w.WriteQuantized(DirectionX, -1f, 1f, 12);
         w.WriteQuantized(DirectionY, -1f, 1f, 12);
         w.WriteQuantized(DirectionZ, -1f, 1f, 12);
-        w.WriteBits((uint)Cause, 3);
+        w.WriteBits((uint)Cause, 4);
         w.WriteBool(Open);
         w.WriteVarUInt(Attacker);
         w.WriteVarUInt(Item);
@@ -3977,7 +4069,7 @@ partial struct ThingDestroyed : INetMessage<ThingDestroyed>
         v.DirectionX = r.ReadQuantized(-1f, 1f, 12);
         v.DirectionY = r.ReadQuantized(-1f, 1f, 12);
         v.DirectionZ = r.ReadQuantized(-1f, 1f, 12);
-        v.Cause = (DestroyCause)r.ReadBits(3);
+        v.Cause = (DestroyCause)r.ReadBits(4);
         v.Open = r.ReadBool();
         v.Attacker = r.ReadVarUInt();
         v.Item = r.ReadVarUInt();

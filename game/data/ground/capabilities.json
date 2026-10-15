@@ -19,6 +19,7 @@
     { "key": "wounded", "note": "A player down (the wounded state): another helps them up." },
     { "key": "character", "note": "A player awake: the leader of a team invites them into it." },
     { "key": "dud", "note": "An explosive whose fuse went out: anyone lights it again." },
-    { "key": "arrow", "note": "A spent arrow stuck where it hit (GROUND_SYSTEMS.md §5), held by what it hit: when that goes it falls to the ground below." }
+    { "key": "arrow", "note": "A spent arrow stuck where it hit (GROUND_SYSTEMS.md §5), held by what it hit: when that goes it falls to the ground below." },
+    { "key": "fire", "note": "A fire a blast left (explosives.json fires, IW4, IRON_WAKE.md §7), held by what it burns on: when that goes, the burning fuel falls to what is below and burns on, or goes out with nothing near enough below." }
   ]
 }

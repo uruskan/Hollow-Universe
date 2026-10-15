@@ -399,8 +399,26 @@ public static class ItemRows
             }
             if (b.Blast is { } blast)
             {
-                into.Add(new ItemRow("Explodes", $"{Metres(blast.Radius)} across, {N(blast.Flesh)} damage"));
+                BlastRows(blast, into);
             }
+        }
+    }
+
+    // A blast (explosives.json), as its throwable or round shows it: how far it reaches and what it does to people, what it
+    // does to whoever it strikes when that is more (IW4), to deployables, and the fire it leaves (IW4, IRON_WAKE.md §7).
+    private static void BlastRows(BlastStats blast, List<ItemRow> into)
+    {
+        into.Add(new ItemRow("Blast", $"{Metres(blast.Radius)}, {N(blast.Flesh)} damage"));
+        if (blast.Direct > blast.Flesh)
+        {
+            into.Add(new ItemRow("Direct hit", $"{N(blast.Direct)} damage"));
+        }
+        into.Add(new ItemRow("Deployables", N(blast.Deployable)));
+        if (blast.Fire is { } fire)
+        {
+            into.Add(new ItemRow("Fire", $"{Metres(fire.Radius)} for {Seconds(fire.Seconds)}"));
+            into.Add(new ItemRow("Burns", $"{N(fire.Flesh)} a second, and sets people alight"));
+            into.Add(new ItemRow("Burns down", "wooden things, twig and wood"));
         }
     }
 
@@ -448,8 +466,7 @@ public static class ItemRows
             BlastStats blast = t.Blast;
             string fuse = t.FuseLeast == t.FuseMost ? Seconds(t.FuseLeast) : $"{N(t.FuseLeast, "0.#")}–{Seconds(t.FuseMost)}";
             into.Add(new ItemRow("Fuse", t.DudChance > 0 ? $"{fuse}, {Percent(t.DudChance)} duds" : fuse, t.DudChance <= 0));
-            into.Add(new ItemRow("Blast", $"{Metres(blast.Radius)}, {N(blast.Flesh)} damage"));
-            into.Add(new ItemRow("Deployables", N(blast.Deployable)));
+            BlastRows(blast, into);
             // How many it takes to break a wall of each grade (building.json's order; from its hard side) and a door.
             BuildingData b = d.Content.Building;
             foreach (GradeDef grade in b.Grades)

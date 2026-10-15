@@ -284,13 +284,15 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
                     continue;
                 }
                 Vector3 middle = AnimalHitboxes.Middle(a.Species, zone.Animals().PoseOf(a));
-                float distance = MathF.Max(0, Vector3.Distance(middle, blast.At) - a.Species.Radius);
+                // An animal a round struck takes the blast at its middle (IW4: a direct hit, wherever it landed).
+                bool struck = blast.IsStuckTo(a.Ref);
+                float distance = struck ? 0 : MathF.Max(0, Vector3.Distance(middle, blast.At) - a.Species.Radius);
                 if (distance <= blast.Radius)
                 {
                     into.Add(new BlastTarget
                     {
                         Hit = new TraceHit { Target = a.Ref, Region = HitRegion.Body, Point = middle }, Thing = a, Sight = middle,
-                        Sight2 = middle, Distance = distance,
+                        Sight2 = middle, Distance = distance, Stuck = struck,
                     });
                 }
             }

@@ -163,6 +163,13 @@ public sealed class FirearmStats
         return false;
     }
 
+    /// <summary>
+    /// What a round fired from this gun falls by, in m/s² on a world of <paramref name="surfaceGravityG"/> g: the planet's
+    /// gravity times the gun's and the round's (IW4: a rocket's drop is the rocket's own). The server's bullets and every
+    /// client's drawing of them use this one rule.
+    /// </summary>
+    public double GravityOf(BulletStats? round, double surfaceGravityG) => surfaceGravityG * 9.80665 * Gravity * (round?.Gravity ?? 1);
+
     /// <summary>Damage for a distance flown: full, then falling linearly to the least.</summary>
     public double Falloff(double metres)
     {
@@ -195,6 +202,12 @@ public sealed class BulletStats
     public double Damage { get; init; } = 1;
 
     public double Speed { get; init; } = 1;
+
+    /// <summary>
+    /// A multiplier on the gun's gravity (IW4): how much this round drops is its own, so the slow, heavy rocket drops more
+    /// per metre than the high-velocity one (KNOWN_PROBLEMS.md finding 26). 1 for bullets.
+    /// </summary>
+    public double Gravity { get; init; } = 1;
 
     /// <summary>Bleeding a hit starts, as a fraction of its damage.</summary>
     public double Bleed { get; init; }

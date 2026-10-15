@@ -44,6 +44,9 @@ public enum TargetFamily : byte
 
     /// <summary>Spent arrows stuck where they hit (GROUND_SYSTEMS.md §5), held by what they hit.</summary>
     Arrow = 11,
+
+    /// <summary>Fires burning where a blast left them (IW4, IRON_WAKE.md §7), held by what they burn on.</summary>
+    Fire = 12,
 }
 
 /// <summary>

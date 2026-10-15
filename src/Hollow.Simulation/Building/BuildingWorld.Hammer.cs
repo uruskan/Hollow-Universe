@@ -7,6 +7,15 @@ namespace Hollow.Simulation.Building;
 /// <summary>A hit on a piece or a door: the attack's direction in the zone (from the attacker toward the target) and its damage by type.</summary>
 public readonly record struct DamageHit(Vector3 Direction, double Bullet = 0, double Melee = 0, double Explosive = 0, double Heat = 0)
 {
+    /// <summary>A hit of one channel's damage.</summary>
+    public static DamageHit Of(DamageType type, double amount, Vector3 direction) => type switch
+    {
+        DamageType.Bullet => new DamageHit(direction, Bullet: amount),
+        DamageType.Melee => new DamageHit(direction, Melee: amount),
+        DamageType.Explosive => new DamageHit(direction, Explosive: amount),
+        _ => new DamageHit(direction, Heat: amount),
+    };
+
     public double this[DamageType type] => type switch
     {
         DamageType.Bullet => Bullet,

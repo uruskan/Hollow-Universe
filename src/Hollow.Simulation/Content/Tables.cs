@@ -179,6 +179,12 @@ public sealed class DeployableDef
     /// </summary>
     public bool Pickup { get; init; }
 
+    /// <summary>
+    /// An incendiary fire burns it (deployables.json <c>burns</c>, IW4, IRON_WAKE.md §7): wooden and cloth things (bags, beds,
+    /// boxes, the wooden workbench) take a fire's damage to deployables; stone and metal ones take none.
+    /// </summary>
+    public bool Burns { get; init; }
+
     /// <summary>A recycler (G7): its input and output slots and pace (world.json); null for anything else.</summary>
     public RecyclerStats? Recycler { get; internal set; }
 

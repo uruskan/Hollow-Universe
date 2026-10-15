@@ -50,6 +50,7 @@ public sealed class CapabilityData
         Awake = Set("character");
         Pickup = Set("pickup");
         Arrow = Set("pickup", "lifetime", "arrow");
+        Fire = Set("owned", "fire");
     }
 
     /// <summary>The list's keys, by index.</summary>
@@ -106,6 +107,9 @@ public sealed class CapabilityData
 
     /// <summary>A spent arrow stuck where it hit: taken with E, gone after a while, falls when what holds it goes.</summary>
     public CapabilitySet Arrow { get; }
+
+    /// <summary>A fire a blast left (IW4): its owner's, and it falls to what is below when what holds it goes.</summary>
+    public CapabilitySet Fire { get; }
 
     /// <summary>A lock's, by its kind (none for none).</summary>
     public CapabilitySet Lock(LockKind kind) => (uint)kind < (uint)_locks.Length ? _locks[(int)kind] : CapabilitySet.Empty;

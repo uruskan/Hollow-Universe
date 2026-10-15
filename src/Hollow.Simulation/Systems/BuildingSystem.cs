@@ -319,6 +319,8 @@ public sealed class BuildingSystem : ZoneSystem
             }
             ClaimDevice? claim = part.Base;
             bool explosive = r.Channel == DamageType.Explosive;
+            // A blast's and a fire's many small hits (IW4: heat every half second) keep their fractions of a point for the next.
+            bool fractions = explosive || r.Channel == DamageType.Heat;
             double amount = r.Amounts.Building;
             if (r.Blast is { } table && part is Piece or Door)
             {
@@ -332,12 +334,12 @@ public sealed class BuildingSystem : ZoneSystem
                     ? table.Piece(building.Data.Grades[p.Grade].Key, p.Def.Family == PieceFamily.Wall && BuildingWorld.SoftSide(p, r.Direction)) * share
                     : table.Door(((Door)part).Def.Protection.Key) * share;
             }
-            else if (explosive && amount <= 0)
+            else if (fractions && amount <= 0)
             {
                 return default;
             }
-            (double lost, bool destroyed) = explosive
-                ? zone.Blasts().DamageStructure(part, amount, r.Direction, zone.Building().BuildingNow)
+            (double lost, bool destroyed) = fractions
+                ? zone.Blasts().DamageStructure(part, amount, r.Direction, zone.Building().BuildingNow, r.Channel)
                 : (zone.Building().DamageBuilding(part, r.Direction, (float)amount, projectile: r.Channel != DamageType.Melee), part.Gone);
             zone.Explosives().RaidStats.StructureDamage += (long)Math.Round(lost);
             if (destroyed)
@@ -358,7 +360,7 @@ public sealed class BuildingSystem : ZoneSystem
                 raids.Add(claim, zone.Blasts().RaidName(part), destroyed, r.Direct);
                 if (r.Raids == null)
                 {
-                    raids.Report(zone, r.By?.Id ?? EntityId.None, r.By?.Name ?? "", r.Weapon);
+                    raids.Report(zone, r.By?.Id ?? r.Attacker, r.By?.Name ?? r.AttackerName ?? "", r.Weapon);
                 }
             }
             return new DamageOutcome(true, (float)lost, (float)lost, destroyed, false, part.Id);

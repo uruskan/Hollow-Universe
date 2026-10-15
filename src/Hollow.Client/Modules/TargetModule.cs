@@ -43,6 +43,8 @@ public sealed class TargetModule : ClientModule
     private AnimalModule Animals => _animalModule ??= Client.Require<AnimalModule>();
     private ArrowModule? _arrowModule;
     private ArrowModule Arrows => _arrowModule ??= Client.Require<ArrowModule>();
+    private FireModule? _fireModule;
+    private FireModule Fires => _fireModule ??= Client.Require<FireModule>();
 
     /// <summary>The families as this client aims through them, in their numbers' order (every family has one: checked).</summary>
     public IReadOnlyList<ITargetView> TargetViews => _targetViews;
@@ -54,7 +56,7 @@ public sealed class TargetModule : ClientModule
                  {
                      new GroundView(this), new CharacterView(this), new AnimalView(this), new NaturalView(this), new ThingView(this),
                      new PieceView(this), new DoorView(this), new CupboardView(this), new ExplosiveView(this), new ShipView(this),
-                     new ArrowView(this),
+                     new ArrowView(this), new FireView(this),
                  })
         {
             registry.Add((int)view.Family, view);
@@ -767,6 +769,50 @@ public sealed class TargetModule : ClientModule
                 return false;
             }
             facts = new TargetFacts { Capabilities = c.Content.Capabilities.Arrow, Name = arrow.Item.Name, Count = 1, Position = arrow.Pose.Position };
+            return true;
+        }
+    }
+
+    // Fires (IW4) where they burn now (riding a ship's deck): the pool's nearest point; flames hide nothing from the aim and
+    // offer nothing, as the server's family says.
+    private sealed class FireView(TargetModule c) : ITargetView
+    {
+        public TargetFamily Family => TargetFamily.Fire;
+
+        public bool TryPose(in TargetRef target, out TargetPose pose)
+        {
+            pose = default;
+            if (c.Fires.FireOf(new EntityId(target.Id)) is not { } fire)
+            {
+                return false;
+            }
+            pose = fire.Pose;
+            return true;
+        }
+
+        public bool TryNearest(in TargetRef target, Vector3 from, out Vector3 point)
+        {
+            point = from;
+            if (c.Fires.FireOf(new EntityId(target.Id)) is not { } fire)
+            {
+                return false;
+            }
+            point = Simulation.Raid.Fire.NearestOnPool(fire.Pose, fire.Radius, from);
+            return true;
+        }
+
+        public void Aim(in AimRay ray, ref AimHit best)
+        {
+        }
+
+        public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
+        {
+            facts = default;
+            if (c.Fires.FireOf(new EntityId(target.Id)) is not { } fire)
+            {
+                return false;
+            }
+            facts = new TargetFacts { Capabilities = c.Content.Capabilities.Fire, Name = "Fire", Position = fire.Position };
             return true;
         }
     }

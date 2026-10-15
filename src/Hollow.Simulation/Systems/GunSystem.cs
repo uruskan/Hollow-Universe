@@ -31,7 +31,7 @@ public sealed class Bullet
     public Vector3 Position;
     public Vector3 Velocity;
 
-    /// <summary>Speed lost a second (a fraction), the per-step factor that gives, and gravity in m/s².</summary>
+    /// <summary>Speed lost a second (a fraction), the per-step factor that gives, and gravity in m/s² (the gun's times the round's).</summary>
     public double Drag;
     public double Decay;
     public float Gravity;
@@ -360,7 +360,7 @@ public sealed class GunSystem : ZoneSystem
             Velocity = shot.Direction * shot.Speed + shipVelocity,
             Drag = gun.Drag,
             Decay = Ballistics.Decay(gun.Drag, BulletStepSeconds),
-            Gravity = (float)(Spec.SurfaceGravity * 9.80665 * gun.Gravity),
+            Gravity = (float)gun.GravityOf(shot.Round.Bullet, Spec.SurfaceGravity),
             Damage = shot.Damage,
             Range = (float)gun.Range,
             LifetimeTicks = Math.Max(1, CharacterTicks.From(gun.LifetimeSeconds)),

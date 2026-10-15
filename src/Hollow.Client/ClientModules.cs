@@ -17,6 +17,7 @@ public static class ClientModules
         new PlacementModule(),
         new InteractionModule(),
         new RaidModule(),
+        new FireModule(),
         new ShipModule(),
         new AnimalModule(),
         new ArrowModule(),

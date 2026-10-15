@@ -30,8 +30,8 @@ public static class ModelCatalogueTests
         // G4: attachments and ammunition types.
         "holo-sight", "scope", "silencer", "weapon-light", "muzzle-brake", "pistol-ammo-hv", "rifle-ammo-hv",
         "rifle-ammo-incendiary", "pistol-ammo-incendiary", "gunpowder", "metal-mask",
-        // G5: the raid package's keys.
-        "bag-charge", "tin-grenade", "rocket-launcher", "rocket", "rocket-hv", "rifle-ammo-explosive",
+        // G5: the raid package's keys; IW4's incendiary rocket.
+        "bag-charge", "tin-grenade", "rocket-launcher", "rocket", "rocket-hv", "rifle-ammo-explosive", "rocket-incendiary",
     };
 
     // Models that replaced stand-ins: none of them may be marked as a stand-in again.

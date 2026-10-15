@@ -60,7 +60,7 @@ public sealed class ExplosiveSystem : ZoneSystem
 
     private readonly List<LiveExplosive> _explosives = new();
     private readonly Dictionary<EntityId, LiveExplosive> _explosiveIds = new();
-    internal readonly Dictionary<object, double> _blastResidue = new(ReferenceEqualityComparer.Instance);
+    internal readonly Dictionary<object, double[]> _blastResidue = new(ReferenceEqualityComparer.Instance);
     private readonly Dictionary<EntityId, long> _nextThrowTick = new();
     internal readonly List<Piece> _blastPieces = new();
     internal readonly List<Deployable> _blastThings = new();

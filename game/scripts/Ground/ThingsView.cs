@@ -142,7 +142,8 @@ public partial class ThingsView : Node3D
             Node3D? model = node.GetChildCount() > 0 ? node.GetChild(0) as Node3D : null;
             Vector3 local = model != null && Socket(model, "socket_fire") is { } at ? at : new Vector3(0, 0.12f, 0);
             Transform3D t = node.Transform;
-            _fires[thing.NetId] = FxDirector.Start(def.Key == "furnace" ? "fire.furnace" : "fire.campfire", t * local, t.Basis.Y.Normalized());
+            // Its own fire (fx.json items: the campfire's flames, the furnace's firebox).
+            _fires[thing.NetId] = FxDirector.Start(FxCatalog.ItemEffect(def.Key, "fire") ?? "fire.campfire", t * local, t.Basis.Y.Normalized());
         }
         else if (def == null && burning)
         {
@@ -280,7 +281,7 @@ public partial class ThingsView : Node3D
     {
         foreach (ClientProjectile p in Client.Survival().Projectiles)
         {
-            if (!p.IsBullet || RaidView.IsRocket(Client, p))
+            if (!p.IsBullet || RaidView.FliesAsModel(Client, p))
             {
                 continue;
             }

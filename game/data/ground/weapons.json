@@ -1,5 +1,5 @@
 {
-  "source": "GROUND.md §6.4. Every field RustMVP's weapon definitions have (unreal/Bare/Source/Bare/Rules/weapon_definition.hpp: the Service Pistol, ID 28, and the AK, ID 30) is used exactly: magazines, fire mode and interval, reload and equip times, muzzle speed, gravity (980 cm/s², here 1.0 x the planet's), range, lifetime, damage and the head/body/limb multipliers, hip and aimed spread with bloom, the recoil (a straight 3° kick for the pistol, the 30-step AK pattern for the rifle, its limits, kick, hold, recovery and reset), and the aimed field of view (65° at 90°: 1.57x). Recoil is RustMVP's too in what it leaves out: no random part and no change aimed or crouched (the owner chose fixed, repeatable, learnable patterns; aiming narrows the spread only); only a muzzle attachment scales it. Where RustMVP has nothing: damage falloff and the spread when moving, airborne or crouched are hollow-orbit's (js/game/combat.js: falloff, _spread). Drag, the rounds' modifiers, burning and the attachments are ours, in the direction of Rust's. G5 adds the rocket launcher and its two rockets and explosive rifle rounds (ours in the direction of Rust's; their speeds in Rust's ratios); a round with a \"blast\" explodes where it stops, with that blast of explosives.json. Angles in degrees (recoil yaw + is to the right), times in seconds, distances in metres.",
+  "source": "GROUND.md §6.4. Every field RustMVP's weapon definitions have (unreal/Bare/Source/Bare/Rules/weapon_definition.hpp: the Service Pistol, ID 28, and the AK, ID 30) is used exactly: magazines, fire mode and interval, reload and equip times, muzzle speed, gravity (980 cm/s², here 1.0 x the planet's), range, lifetime, damage and the head/body/limb multipliers, hip and aimed spread with bloom, the recoil (a straight 3° kick for the pistol, the 30-step AK pattern for the rifle, its limits, kick, hold, recovery and reset), and the aimed field of view (65° at 90°: 1.57x). Recoil is RustMVP's too in what it leaves out: no random part and no change aimed or crouched (the owner chose fixed, repeatable, learnable patterns; aiming narrows the spread only); only a muzzle attachment scales it. Where RustMVP has nothing: damage falloff and the spread when moving, airborne or crouched are hollow-orbit's (js/game/combat.js: falloff, _spread). Drag, the rounds' modifiers, burning and the attachments are ours, in the direction of Rust's. G5 adds the rocket launcher and its two rockets and explosive rifle rounds (ours in the direction of Rust's; their speeds in Rust's ratios); a round with a \"blast\" explodes where it stops, with that blast of explosives.json. A round's \"gravity\" multiplies its gun's (1 when not given): the rockets' drop is each rocket's own (IW4). Angles in degrees (recoil yaw + is to the right), times in seconds, distances in metres.",
   "weapons": [
     {
       "item": "pistol",
@@ -91,7 +91,7 @@
     },
     {
       "item": "rocket-launcher",
-      "note": "G5, ours in the direction of Rust's: one rocket at a time, a slow reload, rockets that fly 18 m/s and fall a little (Rust's rockets are slow and drop); no damage of its own: the rocket's blast (explosives.json) does it all.",
+      "note": "G5, ours in the direction of Rust's: one rocket at a time, a slow reload, rockets launched at 18 m/s; no damage of its own: the rocket's blast (explosives.json) does it all. How far a rocket drops is its own (each round's gravity, IW4: the owner's direction of 14 October 2026, KNOWN_PROBLEMS.md finding 26), so the launcher's gravity is 1.",
       "calibre": "rocket",
       "magazine": 1,
       "fire": "semi",
@@ -100,7 +100,7 @@
       "equip": 1.0,
       "speed": 18,
       "drag": 0,
-      "gravity": 0.15,
+      "gravity": 1.0,
       "range": 200,
       "lifetime": 5,
       "damage": 0,
@@ -132,10 +132,12 @@
     { "item": "rifle-ammo-explosive", "calibre": "rifle", "damage": 0.6, "speed": 0.6, "bleed": 0.1, "burn": 0, "structure": 0,
       "blast": "rifle-ammo-explosive",
       "note": "G5: Rust's explosive rifle rounds fly 225 m/s against 375 and hit people softer; each bursts where it lands (explosives.json), which is all the damage it does to walls, doors and deployables." },
-    { "item": "rocket", "calibre": "rocket", "damage": 1.0, "speed": 1.0, "bleed": 0, "burn": 0, "structure": 0,
-      "blast": "rocket", "note": "G5: explodes where it hits, or at the end of its flight." },
-    { "item": "rocket-hv", "calibre": "rocket", "damage": 1.0, "speed": 2.22, "bleed": 0, "burn": 0, "structure": 0,
-      "blast": "rocket-hv", "note": "G5: Rust's high-velocity rocket flies about 40 m/s against 18, with a smaller blast that does little to buildings." }
+    { "item": "rocket", "calibre": "rocket", "damage": 1.0, "speed": 1.0, "gravity": 0.3, "bleed": 0, "burn": 0, "structure": 0,
+      "blast": "rocket", "note": "G5: explodes where it hits, or at the end of its flight. IW4 (finding 26): slow and heavy, it falls 0.3 of the planet's gravity, twice what the launcher gave every rocket before: 10.4 m over 50 m on the first world (9.0 m/s²), 5.2 m before." },
+    { "item": "rocket-hv", "calibre": "rocket", "damage": 1.0, "speed": 2.22, "gravity": 0.1, "bleed": 0, "burn": 0, "structure": 0,
+      "blast": "rocket-hv", "note": "G5: Rust's high-velocity rocket flies about 40 m/s against 18, with a smaller blast that does little to buildings. IW4 (finding 26): flatter (0.1 of the planet's gravity: 0.7 m over 50 m), and whoever it strikes takes its blast's direct damage (explosives.json)." },
+    { "item": "rocket-incendiary", "calibre": "rocket", "damage": 1.0, "speed": 1.0, "gravity": 0.3, "bleed": 0, "burn": 0, "structure": 0,
+      "blast": "rocket-incendiary", "note": "IW4 (IRON_WAKE.md §7): the rocket's motor and body with a fuel canister for a warhead, so it flies and drops as the rocket does; a small burst, and the fire its blast leaves (explosives.json fires) does the rest." }
   ],
   "attachments": [
     { "item": "holo-sight", "slot": "sight", "zoom": 2.0, "aimedSpread": 0.7 },

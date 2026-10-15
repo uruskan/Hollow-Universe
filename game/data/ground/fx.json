@@ -2,6 +2,22 @@
   "source": "GROUND.md §9.3. The effects library's catalogue, read by game/scripts/Fx/FxCatalog.cs. Sizes in metres (a billboard's full width; a streak's base length), speeds in m/s, lives and delays in seconds, cones in degrees; [a, b] is a range picked per particle; colours are linear [r, g, b]. Batches: spark, ember, flash, fire, dust, smoke, smoke_hero, haze, haze_rise, ring, droplet, chunk_stone, chunk_wood, chunk_metal (FxBatch.cs). dir: normal, up, down, along (the effect's direction), back, reflect, sphere, ring (outward along the surface). cap: how many may play at once; cull: metres from the camera past which it is skipped; hero: the moment the viewer's contact sheet shows; stage: what the viewer plays it on.",
   "tracerEvery": 3,
   "families": ["muzzle", "tracer", "impact", "blood", "gather", "explosion", "fire", "world", "gibs", "ship"],
+  "items": {
+    "note": "IW4 (GROUND.md §9.3): each item's effects by role, so a new gun, round or explosive is data, not code. A gun: muzzle (its shot's flash), muzzle:<attachment> (its shot with that part on its muzzle), backblast (out of its exhaust socket). An attachment: muzzle (its shot on any gun that takes it: the silencer's). A round drawn as its own model in flight: flight (a loop on it: a rocket's trail). An explosive, or a round with a blast: explode (where it goes off). What leaves a fire (explosives.json fires): fire (the loop it burns with, scaled to its radius over 3.5 m) and fireOut (the burnt patch it leaves). A deployable that burns fuel: fire (while it is lit).",
+    "pistol": { "muzzle": "muzzle.pistol", "muzzle:muzzle-brake": "muzzle.pistol.brake" },
+    "rifle": { "muzzle": "muzzle.rifle", "muzzle:muzzle-brake": "muzzle.rifle.brake" },
+    "rocket-launcher": { "muzzle": "muzzle.rocket", "backblast": "backblast.rocket" },
+    "silencer": { "muzzle": "muzzle.silenced" },
+    "rocket": { "flight": "trail.rocket", "explode": "explosion.rocket" },
+    "rocket-hv": { "flight": "trail.rocket", "explode": "explosion.rocket" },
+    "rocket-incendiary": { "flight": "trail.rocket", "explode": "explosion.incendiary", "fire": "fire.patch", "fireOut": "fire.patch.out" },
+    "rifle-ammo-explosive": { "explode": "explosion.ammo" },
+    "timed-charge": { "explode": "explosion.timed-charge" },
+    "bag-charge": { "explode": "explosion.bag-charge" },
+    "tin-grenade": { "explode": "explosion.grenade" },
+    "campfire": { "fire": "fire.campfire" },
+    "furnace": { "fire": "fire.furnace" }
+  },
   "effects": [
     { "key": "muzzle.rifle", "family": "muzzle", "about": "Rifle shot: a long flame, a flicker of light, a wisp of smoke, now and then a spark.",
       "cap": 24, "cull": 250, "duration": 0.1, "hero": 0.0, "stage": "gun",

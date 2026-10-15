@@ -55,7 +55,7 @@ public sealed class TargetSystem : ZoneSystem
                  {
                      new GroundTargets(Zone), new CharacterTargets(Zone), new AnimalTargets(Zone), new NaturalTargets(Zone), new ThingTargets(Zone),
                      new PieceTargets(Zone), new DoorTargets(Zone), new CupboardTargets(Zone), new ExplosiveTargets(Zone), new ShipTargets(Zone),
-                     new ArrowSystem.ArrowTargets(Zone),
+                     new ArrowSystem.ArrowTargets(Zone), new FireSystem.FireTargets(Zone),
                  })
         {
             families.Add((int)family.Family, family);

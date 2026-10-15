@@ -56,7 +56,8 @@
       { "item": "explosives", "cost": 250, "after": ["garage-door"] },
       { "item": "rocket-launcher", "cost": 500, "after": ["explosives"] },
       { "item": "rocket", "cost": 250, "after": ["rocket-launcher"] },
-      { "item": "rocket-hv", "cost": 125, "after": ["rocket-launcher"] }
+      { "item": "rocket-hv", "cost": 125, "after": ["rocket-launcher"] },
+      { "item": "rocket-incendiary", "cost": 125, "after": ["rocket-launcher"] }
     ] },
     { "workbench": 3, "nodes": [
       { "item": "rifle", "cost": 500 },

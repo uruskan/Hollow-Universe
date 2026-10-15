@@ -209,7 +209,10 @@ public sealed class SurvivalModule : ClientModule
             return;
         }
         FirearmStats? gun = ammo?.Bullet is { } round ? Content.Firearms.FirstOrDefault(g => g.Calibre == round.Calibre) : null;
-        float gravity = (float)(Zone.SurfaceGravity * 9.80665) * (float)(ammo?.Ammo?.Gravity ?? gun?.Gravity ?? 1);
+        // An arrow's own, a round's its gun's times its own (IW4), as the server flies them.
+        float gravity = ammo?.Ammo is { } arrow ? (float)(Zone.SurfaceGravity * 9.80665 * arrow.Gravity)
+            : gun != null ? (float)gun.GravityOf(ammo?.Bullet, Zone.SurfaceGravity)
+            : (float)(Zone.SurfaceGravity * 9.80665);
         _projectiles.Add(new ClientProjectile
         {
             Id = m.Id,
@@ -282,7 +285,7 @@ public sealed class SurvivalModule : ClientModule
             Ammo = shot.Round.Id,
             Origin = shot.Origin,
             Velocity = shot.Direction * shot.Speed + shot.Carried,
-            Gravity = -Frame.UpAt(shot.Origin) * (float)(Zone.SurfaceGravity * 9.80665 * gun.Gravity),
+            Gravity = -Frame.UpAt(shot.Origin) * (float)gun.GravityOf(shot.Round.Bullet, Zone.SurfaceGravity),
             Drag = (float)gun.Drag,
             Seq = shot.Seq,
             Own = true,

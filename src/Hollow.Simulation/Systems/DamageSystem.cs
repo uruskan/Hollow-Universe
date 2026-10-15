@@ -190,6 +190,7 @@ public sealed class DamageSystem : ZoneSystem
                 DamageDelivery.Arrow => DestroyCause.Arrow,
                 DamageDelivery.Bullet => DestroyCause.Bullet,
                 DamageDelivery.Blast => DestroyCause.Explosion,
+                DamageDelivery.Heat => DestroyCause.Fire,
                 _ => DestroyCause.Melee,
             },
             Direction = r.Direction,
@@ -302,7 +303,8 @@ public sealed class DamageSystem : ZoneSystem
                 Channel = DamageType.Explosive,
                 Amounts = new DamageAmounts
                 {
-                    Flesh = (float)(blast.Flesh * falloff),
+                    // The person or animal the round struck takes the blast's direct damage, where it has one (IW4).
+                    Flesh = (float)(t.Stuck && blast.Direct > 0 ? blast.Direct : blast.Flesh * falloff),
                     Structure = (float)(blast.Deployable * falloff),
                     Building = (float)(blast.Deployable * falloff),
                     Hull = (float)(blast.Deployable * falloff),
@@ -328,8 +330,22 @@ public sealed class DamageSystem : ZoneSystem
         // Claimed bases: one report each for the notification service.
         raids.Report(Zone, attacker, attackerName, item);
         Explosives.RaidStats.Detonations++;
-        Events.Add(new Detonated(Player: attacker, Explosive: explosive, Position: at, Normal: normal, Item: item, Radius: radius, On: new TargetRef(on, 0), Round: round));
+        Events.Add(new Detonated(Player: attacker, Explosive: explosive, Position: at, Normal: normal, Item: item, Radius: radius, On: new TargetRef(on, 0), Round: round,
+            PlayerName: attackerName, Blast: blast));
         return report;
+    }
+
+    /// <summary>
+    /// Every receiver's things within a reach of a point (what a blast looks at, without the blast): a fire's (IW4), which
+    /// then measures each by the one reach and sight rule (<see cref="TargetSystem.Reach"/>) and hurts it by a request.
+    /// </summary>
+    internal void InReach(in BlastQuery reach, List<BlastTarget> into)
+    {
+        into.Clear();
+        foreach (IDamageReceiver receiver in _receiverOrder)
+        {
+            receiver.InReach(reach, into);
+        }
     }
 
     public override int InitOrder => 70;
