@@ -439,7 +439,8 @@ public static class WorldTests
 
     /// <summary>
     /// GROUND.md §4.7 with G6 and G7 together: a database at schema 4 migrates through 5 (the ships) to 6 (teams and
-    /// props), and player records of older versions still read (3 without the world's tail, 2 without the body too).
+    /// props), and on to the newest; one at schema 6 through S3's wipe (7) and IW1's frame (8: characters stored outside
+    /// any ship); and player records of older versions still read (3 without the world's tail, 2 without the body too).
     /// </summary>
     [Test]
     public static void OldDatabasesAndPlayerRecordsStillRead()
@@ -452,7 +453,8 @@ public static class WorldTests
         {
             raw.Open();
             using var command = raw.CreateCommand();
-            command.CommandText = "DROP TABLE prop_overrides; DROP TABLE teams; DROP TABLE ships; PRAGMA user_version = 4;";
+            // Schema 4's layout: no ships, teams or props, and characters without IW1's frame (schema 8).
+            command.CommandText = "DROP TABLE prop_overrides; DROP TABLE teams; DROP TABLE ships; ALTER TABLE characters DROP COLUMN frame; PRAGMA user_version = 4;";
             command.ExecuteNonQuery();
         }
         using (GameDatabase db = GameDatabase.Open(file.Path))
@@ -487,7 +489,7 @@ public static class WorldTests
             {
                 raw.Open();
                 using var command = raw.CreateCommand();
-                command.CommandText = "PRAGMA user_version = 6;";
+                command.CommandText = "ALTER TABLE characters DROP COLUMN frame; PRAGMA user_version = 6;";
                 command.ExecuteNonQuery();
             }
             using (GameDatabase db = GameDatabase.Open(wiped.Path))
@@ -495,6 +497,7 @@ public static class WorldTests
                 CharacterRecord? ada = db.LoadCharacter(account);
                 Assert.True(db.ThingCount == 0 && db.NotificationCount == 0 && db.TeamCount == 1, "the world's rows gone, the team kept");
                 Assert.True(ada is { State: null, BodyX: 0, BodyY: 0, BodyZ: 0, Dead: false } && ada.Id == p.Id, "Ada kept, with no place and no state: a new life");
+                Assert.True(ada!.Frame == 0, "and aboard no ship (schema 8's frame, IRON_WAKE.md §4.11)");
             }
         }
 

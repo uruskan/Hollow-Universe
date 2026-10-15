@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using Hollow.Core;
 using Hollow.Net.Protocol;
 using Hollow.Net.Replication;
 using Hollow.Persistence;
@@ -81,12 +82,53 @@ public sealed class ShipModule : ServerModule
         }
     }
 
-    // A pilot's controls for this tick go to their ship (none while on foot: hands off the stick).
+    // A pilot's controls for this tick go to their ship (none while on foot: hands off the stick). The view's frame comes
+    // as a ship's net ID: the zone knows its ships by their IDs (IRON_WAKE.md §4.11); a frame it doesn't know is taken
+    // for the one the character is in.
     protected internal override void Input(PlayerSession session, in InputCommand input)
     {
         if (Zone.Ships().SeatOf(session.Entity) is { } ship && ship.Pilot == session.EntityId)
         {
             ship.Input = ShipConvert.ToShipInput(input);
+        }
+        ref Character c = ref Zone.Entities.Get<Character>(session.Entity);
+        c.Input.Frame = input.Frame == 0 ? 0 : _shipsByNet.TryGetValue(input.Frame, out Ship? frame) ? frame.Id.Value : c.State.Frame;
+    }
+
+    /// <summary>A frame's key in the zone (a ship's ID) from the wire's (its net ID); 0 for the zone's, or one not known.</summary>
+    public ulong FrameKey(uint netId) => netId != 0 && _shipsByNet.TryGetValue(netId, out Ship? ship) ? ship.Id.Value : 0;
+
+    /// <summary>A frame's net ID (the wire's) from the zone's key (a ship's ID); 0 for the zone's.</summary>
+    public uint NetIdOfFrame(ulong key) => key != 0 && Zone.Ships().ShipOf(new EntityId(key)) is { } ship ? NetIdOf(ship) : 0;
+
+    // A ship's net ID, given the first time it is asked for (kept while it lives).
+    private uint NetIdOf(Ship ship)
+    {
+        if (!_shipNetIds.TryGetValue(ship.Id, out uint netId))
+        {
+            netId = NextNetId();
+            _shipNetIds.Add(ship.Id, netId);
+            _shipsByNet[netId] = ship;
+        }
+        return netId;
+    }
+
+    // After the step: every character's frame as the wire names it, and its view as others see it turned into that frame
+    // when the input gave it in another (the tick of a hand-over).
+    protected internal override void AfterStep()
+    {
+        AnnounceShips();
+        ComponentPool<NetPresence> presences = Zone.Entities.Pool<NetPresence>();
+        for (int i = 0; i < presences.Count; i++)
+        {
+            ref NetPresence presence = ref presences.Values[i];
+            ref Character c = ref Zone.Entities.Get<Character>(Zone.Entities.AtSlot(presences.Slots[i]));
+            presence.Frame = NetIdOfFrame(c.State.Frame);
+            if (c.Input.Frame != c.State.Frame && presence.Owner != null)
+            {
+                Vector3 view = Zone.Frames.ViewIn(Quantize.FromOctahedral(presence.ViewU, presence.ViewV), c.Input.Frame, c.State.Frame, Zone.Tick);
+                (presence.ViewU, presence.ViewV) = Quantize.Octahedral(view);
+            }
         }
     }
 
@@ -101,11 +143,7 @@ public sealed class ShipModule : ServerModule
         _shipsPresent.Clear();
         foreach (Ship ship in Zone.Ships().All)
         {
-            if (!_shipNetIds.TryGetValue(ship.Id, out uint netId))
-            {
-                netId = NextNetId();
-                _shipNetIds.Add(ship.Id, netId);
-            }
+            uint netId = NetIdOf(ship);
             _shipsByNet[netId] = ship;
             _shipsPresent.Add(netId);
             _shipGrid.Add(netId, ship.State.Position);
@@ -125,11 +163,15 @@ public sealed class ShipModule : ServerModule
         }
     }
 
-    /// <summary>The ships for this player's snapshot: their spawns and despawns first (reliable), then the pilot's own ship in the header and the ships offered by nearness.</summary>
+    /// <summary>
+    /// The ships for this player's snapshot: their spawns and despawns first (reliable), then the pilot's own ship in the
+    /// header and the ships offered by nearness; and the frame of the player's own state, as the wire names it.
+    /// </summary>
     protected internal override void Snapshot(PlayerSession session, Vector3 centre, ref SnapshotHeader header, List<ShipCandidate> ships)
     {
         ReplicateShips(session, centre, ships);
         header.OwnShip = OwnShip(session)!;
+        header.Own.Frame = NetIdOfFrame(Zone.Entities.Get<Character>(session.Entity).State.Frame);
     }
 
     // The ships near a player: spawned and despawned (reliable), offered to their snapshot by nearness.
@@ -227,6 +269,21 @@ public sealed class ShipModule : ServerModule
         {
             Log($"loaded {loaded} ships");
         }
+        // Sleepers stored aboard a ship that didn't come back (IRON_WAKE.md §4.11) wake ashore, round the landing site.
+        ComponentPool<Character> characters = Zone.Entities.Pool<Character>();
+        for (int i = 0; i < characters.Count; i++)
+        {
+            ref Character c = ref characters.Values[i];
+            if (c.State.Frame != 0 && Zone.Frames.Ship(c.State.Frame) == null)
+            {
+                EntityId id = Zone.Entities.IdOf(Zone.Entities.AtSlot(characters.Slots[i]));
+                Log($"{NameOf(id)} slept aboard a ship that is gone; ashore at the landing site");
+                byte health = c.State.Health;
+                c.State = Zone.NewCharacter(Zone.SpawnPoint(id.Value));
+                c.State.Health = health;
+                c.Input = new MoveInput { View = Facing.View(0, 0, Zone.Frame.UpAt(c.State.Position)) };
+            }
+        }
     }
 
     // Every ship now (they move), and those gone since the last save.
@@ -256,7 +313,7 @@ public sealed class ShipModule : ServerModule
     // ---------------------------------------------------------------- events
 
     // What happened to ships this tick: the builder hears theirs rolled out; crashes and wrecks go in the log.
-    protected internal override void AfterStep()
+    private void AnnounceShips()
     {
         foreach (ShipEvent e in Zone.Ships().ShipEvents)
         {
@@ -297,7 +354,7 @@ public sealed class ShipModule : ServerModule
             return null;
         }
         ShipDef def = Content.Ships[0];
-        Vector3 feet = Zone.Entities.Get<Character>(session.Entity).State.Position;
+        Vector3 feet = Zone.WorldOf(Zone.Entities.Get<Character>(session.Entity).State);
         Vector3 up = Zone.Frame.UpAt(feet);
         // Beside the player, its hatch (its right side) toward them: rings of spots round them, nearest first.
         (Vector3 north, Vector3 east) = CharacterMotor.HorizontalBasis(0, up);

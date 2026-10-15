@@ -52,7 +52,7 @@ public sealed class RaidModule : ServerModule, IPlayerPresence
         {
             ThrowIntent m = message;
             Entity me = session.Entity;
-            (float yaw, float pitch) = ViewAt(session, Quantize.FromOctahedral(m.ViewU, m.ViewV));
+            (float yaw, float pitch) = ViewAt(session, Quantize.FromOctahedral(m.ViewU, m.ViewV), m.Frame);
             Intent(session, m.Seq, () => Zone.Explosives().ThrowExplosive(me, m.Slot, Expected(m.Expected), yaw, pitch, m.Lob));
         });
         Zone.Events.On<Detonated>((in Detonated e) => SendDetonation(e));
@@ -170,7 +170,7 @@ public sealed class RaidModule : ServerModule, IPlayerPresence
         DeliveryMethod method = e.Round ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered;
         foreach (PlayerSession session in Players)
         {
-            if (session.Playing && Vector3.DistanceSquared(Zone.Entities.Get<Character>(session.Entity).State.Position, e.Position) <= hearing * hearing)
+            if (session.Playing && Vector3.DistanceSquared(Zone.WorldOf(Zone.Entities.Get<Character>(session.Entity).State), e.Position) <= hearing * hearing)
             {
                 session.Peer.Send(Writer.Data, method);
             }

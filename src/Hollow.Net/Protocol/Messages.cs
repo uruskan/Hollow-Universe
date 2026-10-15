@@ -120,6 +120,12 @@ public partial struct InputCommand
 
     /// <summary>A pilot's controls (G6): one entry while flying a ship, none on foot (a bit).</summary>
     [MaxCount(1)] public ShipControls[] Ship;
+
+    /// <summary>
+    /// The frame the view is in (IRON_WAKE.md §4.11): the one the client believed its character was in, a ship's net ID
+    /// (0 the zone's). On the tick of a hand-over it is the other: the server turns the view through the ship's pose.
+    /// </summary>
+    [VarInt] public uint Frame;
 }
 
 /// <summary>One tick of a pilot's controls (G6), each −127 … 127: stick, throttle lever, strafe, up and down.</summary>
@@ -172,6 +178,9 @@ public partial struct OwnState
 
     /// <summary>An admin's god mode and noclip (GROUND.md §8.2), which the prediction runs with too.</summary>
     [Bits(2)] public MoveCheats Cheats;
+
+    /// <summary>The frame the state is in (IRON_WAKE.md §4.2): aboard, the ship's net ID, and the position and velocity are its frame's; 0 the zone's.</summary>
+    [VarInt] public uint Frame;
 }
 
 /// <summary>
@@ -287,6 +296,12 @@ public partial struct CharacterNetState
     /// <summary>G4: aiming a gun down its sights, and the held gun's attachments (bit i: weapons.json's attachment i).</summary>
     public bool Aiming;
     public byte HeldMods;
+
+    /// <summary>
+    /// The frame it moves in (IRON_WAKE.md §4.11): aboard, its ship's net ID, and the position and view above are that
+    /// ship's frame's (the client places it on the ship as it draws it); 0 the zone's.
+    /// </summary>
+    [VarInt] public uint Frame;
 }
 
 // ---------------------------------------------------------------- reliable events
@@ -745,6 +760,9 @@ public partial struct FireIntent
     public ushort ViewV;
     public bool Aimed;
     public byte ViewDelay;
+
+    /// <summary>The frame the view is in: the ship the client believed its character aboard (its net ID), 0 the zone's (IRON_WAKE.md §4.11).</summary>
+    [VarInt] public uint Frame;
 }
 
 /// <summary>A reload begun on a tick (its gun action sequence number): which rounds (0: the loaded kind, else any).</summary>
@@ -957,6 +975,9 @@ public partial struct ThrowIntent
     public ushort ViewU;
     public ushort ViewV;
     public bool Lob;
+
+    /// <summary>The frame the view is in: the ship the client believed its character aboard (its net ID), 0 the zone's (IRON_WAKE.md §4.11).</summary>
+    [VarInt] public uint Frame;
 }
 
 /// <summary>

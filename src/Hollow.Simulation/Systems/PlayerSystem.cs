@@ -246,11 +246,13 @@ public sealed class PlayerSystem : ZoneSystem
         }
         bool any = stacks.Exists(s => !s.IsEmpty);
         p.Inventory.Clear();
+        // Where the body is in the world (aboard a ship, where it carried it; IRON_WAKE.md §4.10 links bodies to ships later).
+        Vector3 fell = WorldOf(c.State);
         if (any)
         {
-            Vector3 at = Settle(c.State.Position);
+            Vector3 at = Settle(fell);
             var corpse = new Corpse(NextId(), p.Name, p.Id, stacks.Count,
-                at, Frame.UpAt(at), c.Input.YawAt(Frame.UpAt(at)), content.Survival.BodyLifetime, Tick + content.Survival.BodyLifetime.Ticks);
+                at, Frame.UpAt(at), Facing.YawOf(ViewOf(c), Frame.UpAt(at)), content.Survival.BodyLifetime, Tick + content.Survival.BodyLifetime.Ticks);
             for (int i = 0; i < stacks.Count; i++)
             {
                 corpse.Loot.Set(i, stacks[i]);
@@ -260,7 +262,7 @@ public sealed class PlayerSystem : ZoneSystem
         p.Dead = true;
         p.Wounded = false;
         GunSystem.ResetGun(p);
-        p.DeathPoint = c.State.Position;
+        p.DeathPoint = fell;
         p.MapRevision++;
         p.DeathCause = cause;
         p.KilledBy = byName;
@@ -275,7 +277,7 @@ public sealed class PlayerSystem : ZoneSystem
         c.State.Flags = MoveFlags.Dead;
         History.Forget(p.Id);
         Supports.SupportGone(p.Ref);
-        Events.Add(new Died(Player: p.Id, By: by, Cause: cause, Position: c.State.Position));
+        Events.Add(new Died(Player: p.Id, By: by, Cause: cause, Position: fell));
     }
 
     /// <summary>

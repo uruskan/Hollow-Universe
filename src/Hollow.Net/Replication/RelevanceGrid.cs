@@ -9,19 +9,29 @@ namespace Hollow.Net.Replication;
 /// world's own, docs/WHOLE_WORLD.md §3.3), rebuilt once per snapshot tick, queried for the entities within a straight-line
 /// radius of a point. Per client, an entity becomes relevant inside <see cref="Radius"/> and stops being relevant beyond
 /// <see cref="Radius"/> + <see cref="Hysteresis"/>, so one walking along the edge doesn't spawn and despawn over and over.
+/// An entity carried by something seen from farther (a character aboard a ship, IRON_WAKE.md §4.11) is relevant when
+/// its carrier is: within <see cref="FarRadius"/> of the carrier's anchor, with its own hysteresis.
 /// </summary>
 public sealed class RelevanceGrid
 {
     private readonly Dictionary<(int X, int Y, int Z), List<int>> _cells = new();
     private readonly Stack<List<int>> _spare = new();
     private readonly List<(uint NetId, Vector3 Position)> _entities = new();
+    private readonly List<(int Index, Vector3 Anchor)> _far = new();
 
-    public RelevanceGrid(float radius = 300f, float cellSize = 64f, float hysteresis = 20f)
+    public RelevanceGrid(float radius = 300f, float cellSize = 64f, float hysteresis = 20f, float farRadius = 0f, float farHysteresis = 0f)
     {
         Radius = radius;
         CellSize = cellSize;
         Hysteresis = hysteresis;
+        FarRadius = farRadius;
+        FarHysteresis = farHysteresis;
     }
+
+    /// <summary>How far an entity added with an anchor (a ship's) is heard about, and its hysteresis.</summary>
+    public float FarRadius { get; }
+
+    public float FarHysteresis { get; }
 
     public float Radius { get; }
 
@@ -41,6 +51,22 @@ public sealed class RelevanceGrid
         }
         _cells.Clear();
         _entities.Clear();
+        _far.Clear();
+    }
+
+    /// <summary>
+    /// An entity at a point; with an <paramref name="anchor"/> (its carrier's point: the ship a character is aboard), it is
+    /// relevant when the anchor is within <see cref="FarRadius"/>, wherever the entity itself is.
+    /// </summary>
+    public void Add(uint netId, Vector3 position, Vector3? anchor)
+    {
+        if (anchor is { } at && FarRadius > 0)
+        {
+            _far.Add((_entities.Count, at));
+            _entities.Add((netId, position));
+            return;
+        }
+        Add(netId, position);
     }
 
     public void Add(uint netId, Vector3 position)
@@ -93,6 +119,15 @@ public sealed class RelevanceGrid
                 {
                     Take(cell, centre, outer, wasRelevant, result);
                 }
+            }
+        }
+        float farOuter = FarRadius + FarHysteresis;
+        foreach ((int index, Vector3 anchor) in _far)
+        {
+            float distanceSquared = Vector3.DistanceSquared(anchor, centre);
+            if (distanceSquared <= FarRadius * FarRadius || (distanceSquared <= farOuter * farOuter && wasRelevant.Contains(_entities[index].NetId)))
+            {
+                result.Add(index);
             }
         }
         result.Sort();

@@ -247,12 +247,12 @@ public sealed class TargetSystem : ZoneSystem
             facts = new TargetFacts
             {
                 Capabilities = Of(p), Flags = zone.Targets().FlagsFor(target, viewer), Name = p.Name, Body = true,
-                Position = zone.Entities.Get<Character>(e).State.Position,
+                Position = zone.WorldOf(zone.Entities.Get<Character>(e).State),
             };
             return true;
         }
 
-        // The body as it is now: standing, crouching, or lying asleep or down.
+        // The body as it is now: standing, crouching, or lying asleep or down; aboard a ship, where it carries it.
         private bool Body(ulong id, out HitPose pose)
         {
             pose = default;
@@ -261,11 +261,12 @@ public sealed class TargetSystem : ZoneSystem
                 return false;
             }
             ref Character c = ref zone.Entities.Get<Character>(e);
+            Vector3 up = zone.UpOf(c.State);
             pose = new HitPose
             {
-                Feet = c.State.Position,
-                Up = zone.Frame.UpAt(c.State.Position),
-                Yaw = c.Input.YawAt(zone.Frame.UpAt(c.State.Position)),
+                Feet = zone.WorldOf(c.State),
+                Up = up,
+                Yaw = Facing.YawOf(zone.ViewOf(c), up),
                 Pose = p.Sleeping || p.Wounded ? Simulation.Combat.Pose.Lying : c.State.Stance == Stance.Crouching ? Simulation.Combat.Pose.Crouching : Simulation.Combat.Pose.Standing,
             };
             return true;
@@ -866,9 +867,16 @@ public sealed class TargetSystem : ZoneSystem
 
         public CapabilitySet Capabilities(ulong id) => zone.Ships().ShipOf(new EntityId(id)) != null ? zone.Content!.Capabilities.Ship : CapabilitySet.Empty;
 
-        // Its parts, round their points: the hatch, the fuel cap and, through the open hatch, the cargo.
+        // Its parts, round their points: the hatch, the fuel cap and, through the open hatch, the cargo; a ship people walk
+        // in hides what is behind its pieces (IRON_WAKE.md §4.9: the view goes on through its open ramp, not its hull).
         public void Aim(in AimRay ray, ref AimHit best)
         {
+            if (zone.Frames.Ships.Count > 0 &&
+                ShipQueries.Ray(zone.Frames.Ships, ray.Origin, ray.Direction, ray.Upto(best), zone.Tick, out ShipQueryHit hit) &&
+                zone.Ships().ShipOf(new EntityId(hit.Key)) is { Destroyed: false, InOrbit: false } walked)
+            {
+                ray.Consider(ref best, hit.Distance, walked.Ref, AimKind.Backdrop);
+            }
             foreach (Ship ship in zone.Ships().All)
             {
                 if (!ship.Destroyed && !ship.InOrbit)
@@ -891,7 +899,7 @@ public sealed class TargetSystem : ZoneSystem
             bool still = zone.Ships().ShipStill(ship);
             facts = new TargetFacts
             {
-                Capabilities = target.Part == ShipParts.Cargo && ship.HatchOpen && still ? data.Ship : data.ShipPart,
+                Capabilities = target.Part == ShipParts.Cargo && ship.Def.CargoSlots > 0 && ship.HatchOpen && still ? data.Ship : data.ShipPart,
                 Flags = zone.Targets().FlagsFor(target, viewer), Name = ship.Def.Name, Open = ship.HatchOpen, Busy = ship.Piloted, Still = still,
                 Position = ship.State.Position,
             };
@@ -931,7 +939,8 @@ public sealed class TargetSystem : ZoneSystem
 
     /// <summary>
     /// Whether the eye sees a thing at one of its points: from the eye to just in front of the point, no building body but
-    /// the thing's own (by its ID: the claim device's body is its box's too), and no ground short of the thing.
+    /// the thing's own (by its ID: the claim device's body is its box's too), no ship's piece (IRON_WAKE.md §4.9: aboard,
+    /// the hull hides the shore; ashore, the inside), and no ground short of the thing.
     /// </summary>
     public bool InSight(Vector3 eye, Vector3 point, in TargetRef target)
     {
@@ -944,6 +953,10 @@ public sealed class TargetSystem : ZoneSystem
         Vector3 direction = d / distance;
         if (Building.World?.Physics is { } physics && physics.Ray(eye, direction, length, out RayHit hit, buildingOnly: true) &&
             (physics.OwnerOf(hit.Body) is not ITargetable owner || owner.Ref.Id != target.Id))
+        {
+            return false;
+        }
+        if (Zone.Frames.Ships.Count > 0 && ShipQueries.Ray(Zone.Frames.Ships, eye, direction, length, Tick, out _))
         {
             return false;
         }

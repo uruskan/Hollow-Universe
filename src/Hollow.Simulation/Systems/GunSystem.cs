@@ -225,20 +225,25 @@ public sealed class GunSystem : ZoneSystem
             return OutcomeCode.Lowered;
         }
         // On its tick the shot leaves from where the shooter is; a late one (its intent was resent) from where they were.
-        Vector3 up = Frame.UpAt(c.State.Position);
-        Vector3 eye = EyeOf(c.State);
-        if (a.Tick < Tick && History.Sample(p.Id, a.Tick, out HitPose pose))
+        // Aboard a ship (IRON_WAKE.md §4.9) it is worked out in the ship's frame, as the shooter's client predicted it, and
+        // leaves where the shooter saw the ship, with the ship's velocity added.
+        ulong frame = c.State.Frame;
+        Vector3 up = frame == 0 ? Frame.UpAt(c.State.Position) : Vector3.UnitY;
+        Vector3 eye = c.State.Position + up * Tuning.EyeHeight(c.State.Stance);
+        if (a.Tick < Tick && History.SampleLocal(p.Id, a.Tick, out HitPose pose, out ulong then))
         {
+            frame = then;
             up = pose.Up;
             eye = pose.Feet + pose.Up * (pose.Pose == Pose.Crouching ? Tuning.CrouchingEyeHeight : Tuning.StandingEyeHeight);
         }
+        Vector3 view = Zone.Frames.ViewIn(a.View, a.Frame, frame, Tick);
         var context = new ShotContext
         {
             Shooter = p.Id,
             Seq = a.Seq,
             Tick = a.Tick,
-            Yaw = Facing.YawOf(a.View, up),
-            Pitch = Facing.PitchOf(a.View, up),
+            Yaw = Facing.YawOf(view, up),
+            Pitch = Facing.PitchOf(view, up),
             Aimed = a.Aimed,
             Eye = eye,
             Up = up,
@@ -252,7 +257,15 @@ public sealed class GunSystem : ZoneSystem
             return result;
         }
         p.Inventory.Belt.Set(p.HeldSlot, weapon);
-        LaunchBullet(p, gun, shot, a);
+        Vector3 shipVelocity = Vector3.Zero;
+        float rewind = Math.Min(a.ViewDelay / 4f + Math.Max(0, Tick - a.Tick), Combat.MaxRewindTicks);
+        if (frame != 0 && Zone.SeenPose(frame, Tick - rewind, out ShipPose seen))
+        {
+            Vector3 origin = seen.ToWorld(shot.Origin);
+            shipVelocity = seen.VelocityAt(origin);
+            shot = shot with { Origin = origin, Direction = seen.DirectionToWorld(shot.Direction) };
+        }
+        LaunchBullet(p, gun, shot, a, shipVelocity);
         p.ActionCount++;
         p.LastAction = ActionKind.Shoot;
         Combat.Wear(entity, p, p.HeldSlot);
@@ -331,7 +344,7 @@ public sealed class GunSystem : ZoneSystem
 
     // ---------------------------------------------------------------- bullets
 
-    private void LaunchBullet(Player p, FirearmStats gun, in Shot shot, in GunAction a)
+    private void LaunchBullet(Player p, FirearmStats gun, in Shot shot, in GunAction a, Vector3 shipVelocity)
     {
         var bullet = new Bullet
         {
@@ -344,7 +357,7 @@ public sealed class GunSystem : ZoneSystem
             Ammo = shot.Round,
             Origin = shot.Origin,
             Position = shot.Origin,
-            Velocity = shot.Direction * shot.Speed,
+            Velocity = shot.Direction * shot.Speed + shipVelocity,
             Drag = gun.Drag,
             Decay = Ballistics.Decay(gun.Drag, BulletStepSeconds),
             Gravity = (float)(Spec.SurfaceGravity * 9.80665 * gun.Gravity),

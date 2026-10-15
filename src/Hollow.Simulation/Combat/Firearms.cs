@@ -238,6 +238,9 @@ public struct GunAction
     /// as a heading and pitch where the shooter stands on that tick, on the server and in the client's prediction alike.
     /// </summary>
     public Vector3 View;
+
+    /// <summary>The frame <see cref="View"/> is in: the one the shooter's client believed it was in (IRON_WAKE.md §4.11; 0 the zone's).</summary>
+    public ulong Frame;
     public bool Aimed;
     public byte ViewDelay;
     public ushort Ammo;

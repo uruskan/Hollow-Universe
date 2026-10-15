@@ -125,7 +125,7 @@ public sealed class SpillSystem : ZoneSystem
     private (Vector3 At, float Yaw) DropPoint(Entity by)
     {
         ref Character c = ref Entities.Get<Character>(by);
-        Vector3 feet = c.State.Position;
+        Vector3 feet = WorldOf(c.State);
         Vector3 up = Frame.UpAt(feet);
         (Vector3 forward, _) = Facing.Basis(c.Input.View, up);
         float ahead = DropAhead;

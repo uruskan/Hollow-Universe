@@ -154,7 +154,9 @@ public static class Hitboxes
 /// <summary>
 /// One second of every character's poses, a sample a tick (ARCHITECTURE.md §11.5): hits are tested against where
 /// others were at the moment the attacker saw them, interpolated between ticks as the client draws them. Built to be
-/// reused by guns (G4).
+/// reused by guns (G4). Aboard a ship (IRON_WAKE.md §4.9) a character's pose is kept in the ship's frame, and every
+/// ship's pose is kept too, so a pose sampled at a moment is where the ship was then carrying the character as it stood
+/// on the deck then: a late shot is judged where the shooter saw both the ship and the people on it.
 /// </summary>
 public sealed class HitboxHistory
 {
@@ -162,36 +164,78 @@ public sealed class HitboxHistory
     public const int Length = 36;
 
     private readonly Dictionary<EntityId, Track> _tracks = new();
+    private readonly Dictionary<ulong, ShipTrack> _ships = new();
 
-    public void Record(EntityId id, long tick, in HitPose pose)
+    /// <summary>A pose at a tick, in the zone's frame, or aboard the ship <paramref name="frame"/> names, in its frame.</summary>
+    public void Record(EntityId id, long tick, in HitPose pose, ulong frame = 0)
     {
         if (!_tracks.TryGetValue(id, out Track? track))
         {
             track = new Track();
             _tracks.Add(id, track);
         }
-        track.Add(tick, pose);
+        track.Add(tick, pose, frame);
     }
 
     public void Forget(EntityId id) => _tracks.Remove(id);
 
+    /// <summary>A ship's pose at a tick (its frame's key: the ship's ID), for the poses aboard it and for its own hull.</summary>
+    public void RecordShip(ulong ship, long tick, in ShipPose pose)
+    {
+        if (!_ships.TryGetValue(ship, out ShipTrack? track))
+        {
+            track = new ShipTrack();
+            _ships.Add(ship, track);
+        }
+        track.Add(tick, pose);
+    }
+
+    public void ForgetShip(ulong ship) => _ships.Remove(ship);
+
+    /// <summary>A ship's pose at a (fractional) tick, between the samples either side; false if it has none.</summary>
+    public bool SampleShip(ulong ship, double tick, out ShipPose pose)
+    {
+        pose = default;
+        return _ships.TryGetValue(ship, out ShipTrack? track) && track.Sample(tick, out pose);
+    }
+
     /// <summary>
-    /// A character's pose at a (fractional) tick, between the samples on either side; the oldest or newest kept when
-    /// outside them. False if the character has no samples.
+    /// A character's pose at a (fractional) tick, in the zone's frame: between the samples on either side (in one frame;
+    /// across a hand-over the nearer), carried by its ship as the ship was then; the oldest or newest kept when outside
+    /// them. False if the character has no samples, or its ship none.
     /// </summary>
     public bool Sample(EntityId id, double tick, out HitPose pose)
     {
         pose = default;
-        return _tracks.TryGetValue(id, out Track? track) && track.Sample(tick, out pose);
+        if (!_tracks.TryGetValue(id, out Track? track) || !track.Sample(tick, out pose, out ulong frame))
+        {
+            return false;
+        }
+        return frame == 0 || Carry(frame, tick, ref pose);
+    }
+
+    /// <summary>
+    /// A character's pose at a (fractional) tick in the frame it was in then (a ship's, or the zone's: <paramref name="frame"/>),
+    /// not carried: where a shooter aboard stood on the deck when they fired (IRON_WAKE.md §4.9).
+    /// </summary>
+    public bool SampleLocal(EntityId id, double tick, out HitPose pose, out ulong frame)
+    {
+        pose = default;
+        frame = 0;
+        return _tracks.TryGetValue(id, out Track? track) && track.Sample(tick, out pose, out frame);
     }
 
     public IEnumerable<EntityId> Characters => _tracks.Keys;
 
-    /// <summary>A character's newest recorded feet (a cheap first test before sampling); false with no samples.</summary>
+    /// <summary>A character's newest recorded feet in the zone's frame (a cheap first test before sampling); false with no samples.</summary>
     public bool TryNewest(EntityId id, out Vector3 feet)
     {
         feet = default;
-        if (!_tracks.TryGetValue(id, out Track? track) || !track.TryNewest(out HitPose pose))
+        if (!_tracks.TryGetValue(id, out Track? track) || !track.TryNewest(out HitPose pose, out long tick, out ulong frame))
+        {
+            return false;
+        }
+        if (frame != 0 && !Carry(frame, tick, ref pose))
         {
             return false;
         }
@@ -199,14 +243,103 @@ public sealed class HitboxHistory
         return true;
     }
 
+    // A pose of a ship's frame at a tick, carried into the zone's frame by the ship's pose then.
+    private bool Carry(ulong frame, double tick, ref HitPose pose)
+    {
+        if (!SampleShip(frame, tick, out ShipPose ship))
+        {
+            return false;
+        }
+        Vector3 forward = Movement.Facing.Basis(pose.Yaw, pose.Up).Forward;
+        Vector3 up = ship.DirectionToWorld(pose.Up);
+        pose.Feet = ship.ToWorld(pose.Feet);
+        pose.Up = up;
+        pose.Yaw = Movement.Facing.YawOf(ship.DirectionToWorld(forward), up);
+        return true;
+    }
+
     private sealed class Track
     {
         private readonly long[] _ticks = new long[Length];
         private readonly HitPose[] _poses = new HitPose[Length];
+        private readonly ulong[] _frames = new ulong[Length];
         private int _count;
         private int _newest = -1;
 
-        public void Add(long tick, in HitPose pose)
+        public void Add(long tick, in HitPose pose, ulong frame)
+        {
+            if (_count > 0 && tick <= _ticks[_newest])
+            {
+                _poses[_newest] = pose;
+                _frames[_newest] = frame;
+                return;
+            }
+            _newest = (_newest + 1) % Length;
+            _ticks[_newest] = tick;
+            _poses[_newest] = pose;
+            _frames[_newest] = frame;
+            _count = Math.Min(Length, _count + 1);
+        }
+
+        public bool TryNewest(out HitPose pose, out long tick, out ulong frame)
+        {
+            pose = _count > 0 ? _poses[_newest] : default;
+            tick = _count > 0 ? _ticks[_newest] : 0;
+            frame = _count > 0 ? _frames[_newest] : 0;
+            return _count > 0;
+        }
+
+        public bool Sample(double tick, out HitPose pose, out ulong frame)
+        {
+            pose = default;
+            frame = 0;
+            if (_count == 0)
+            {
+                return false;
+            }
+            int after = -1;
+            for (int i = 0; i < _count; i++)
+            {
+                int index = (_newest - i + Length) % Length;
+                if (_ticks[index] <= tick)
+                {
+                    if (after < 0 || _ticks[index] == tick)
+                    {
+                        pose = _poses[index];
+                        frame = _frames[index];
+                        return true;
+                    }
+                    double t = (tick - _ticks[index]) / (_ticks[after] - _ticks[index]);
+                    if (_frames[index] != _frames[after])
+                    {
+                        // A hand-over between the two: the nearer, in its own frame.
+                        int nearer = t < 0.5 ? index : after;
+                        pose = _poses[nearer];
+                        frame = _frames[nearer];
+                        return true;
+                    }
+                    HitPose a = _poses[index], b = _poses[after];
+                    pose = b;
+                    pose.Feet = Vector3.Lerp(a.Feet, b.Feet, (float)t);
+                    frame = _frames[after];
+                    return true;
+                }
+                after = index;
+            }
+            pose = _poses[after];
+            frame = _frames[after];
+            return true;
+        }
+    }
+
+    private sealed class ShipTrack
+    {
+        private readonly long[] _ticks = new long[Length];
+        private readonly ShipPose[] _poses = new ShipPose[Length];
+        private int _count;
+        private int _newest = -1;
+
+        public void Add(long tick, in ShipPose pose)
         {
             if (_count > 0 && tick <= _ticks[_newest])
             {
@@ -219,13 +352,7 @@ public sealed class HitboxHistory
             _count = Math.Min(Length, _count + 1);
         }
 
-        public bool TryNewest(out HitPose pose)
-        {
-            pose = _count > 0 ? _poses[_newest] : default;
-            return _count > 0;
-        }
-
-        public bool Sample(double tick, out HitPose pose)
+        public bool Sample(double tick, out ShipPose pose)
         {
             pose = default;
             if (_count == 0)
@@ -243,10 +370,13 @@ public sealed class HitboxHistory
                         pose = _poses[index];
                         return true;
                     }
-                    double t = (tick - _ticks[index]) / (_ticks[after] - _ticks[index]);
-                    HitPose a = _poses[index], b = _poses[after];
-                    pose = b;
-                    pose.Feet = Vector3.Lerp(a.Feet, b.Feet, (float)t);
+                    float t = (float)((tick - _ticks[index]) / (_ticks[after] - _ticks[index]));
+                    ShipPose a = _poses[index], b = _poses[after];
+                    pose = b with
+                    {
+                        Position = Vector3.Lerp(a.Position, b.Position, t),
+                        Rotation = Quaternion.Slerp(a.Rotation, b.Rotation, t),
+                    };
                     return true;
                 }
                 after = index;

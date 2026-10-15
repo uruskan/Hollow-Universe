@@ -115,6 +115,15 @@ public abstract class ZoneSystem : IDisposable
 
     protected Vector3 EyeOf(in CharacterState state) => Zone.EyeOf(state);
 
+    /// <summary>A character's feet, up, velocity and view in the zone's frame (aboard a ship, where it carries them: IRON_WAKE.md §4.2).</summary>
+    protected Vector3 WorldOf(in CharacterState state) => Zone.WorldOf(state);
+
+    protected Vector3 UpOf(in CharacterState state) => Zone.UpOf(state);
+
+    protected Vector3 VelocityOf(in CharacterState state) => Zone.VelocityOf(state);
+
+    protected Vector3 ViewOf(in Character c) => Zone.ViewOf(c);
+
     protected CharacterState NewCharacter(Vector3 position) => Zone.NewCharacter(position);
 
     protected Vector3 SpawnPoint(ulong salt) => Zone.SpawnPoint(salt);

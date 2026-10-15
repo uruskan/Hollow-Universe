@@ -100,7 +100,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             UnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             NewEntityId = _ids.Next,
         };
-        _grid = new RelevanceGrid(options.RelevanceRadius);
+        _grid = new RelevanceGrid(options.RelevanceRadius, farRadius: ShipModule.ShipRelevanceRadius, farHysteresis: 100f);
         if (options.DatabasePath != null)
         {
             _persistence = new PersistenceWorker(options.DatabasePath, () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), Log);
@@ -521,7 +521,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         {
             return null;
         }
-        return record != null && CharacterRecords.Restorable(Zone, Spec, record, out Vector3 local) ? local : ArrivalOf(session.Name);
+        return record != null && CharacterRecords.Restorable(Zone, Spec, record, out CharacterState stored) ? Zone.WorldOf(stored) : ArrivalOf(session.Name);
     }
 
     /// <summary>
@@ -540,20 +540,18 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             id = record.Id;
             Zone.Players().Wake(entity);
             ref Character woken = ref Zone.Entities.Get<Character>(entity);
-            view = Facing.View(woken.Input.YawAt(Zone.Frame.UpAt(woken.State.Position)), record.Pitch, Zone.Frame.UpAt(woken.State.Position));
+            view = CharacterRecords.WokenView(Zone, woken, record.Pitch);
             how = "woke";
         }
         else
         {
             CharacterState state;
             Player? player = null;
-            if (record != null && CharacterRecords.Restorable(Zone, Spec, record, out Vector3 local))
+            if (record != null && CharacterRecords.Restorable(Zone, Spec, record, out state))
             {
                 id = record.Id;
-                state = Zone.NewCharacter(local + Zone.Frame.UpAt(local) * 0.02f);
-                state.Stance = (Stance)Math.Min(record.Stance, (byte)Stance.Crouching);
                 player = CharacterRecords.Decode(record, Content, Log);
-                view = Facing.View(record.Yaw, record.Pitch, Zone.Frame.UpAt(state.Position));
+                view = CharacterRecords.ViewOf(Zone, record, state);
                 how = "restored";
             }
             else
@@ -568,7 +566,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 id = _ids.Next();
             }
             entity = Zone.Players().AddPlayer(id, session.Name, state, player);
-            Zone.Entities.Get<Character>(entity).Input.View = view;
+            Zone.Entities.Get<Character>(entity).Input = new MoveInput { View = view, Frame = state.Frame };
         }
         if (Zone.Players().PlayerOf(entity) is { } chosen)
         {
@@ -601,7 +599,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             ViewV = presence.ViewV,
         }.WriteMessage(_writer);
         session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
-        Log($"{session.Name} joined from {session.Peer} as {id} ({how}) at {Format(Zone.Entities.Get<Character>(entity).State.Position)}" +
+        Log($"{session.Name} joined from {session.Peer} as {id} ({how}) at {Format(Zone.WorldOf(Zone.Entities.Get<Character>(entity).State))}" +
             (this.Console().IsAdmin(session) ? " (admin)" : ""));
         foreach (ServerModule module in _modules)
         {
@@ -762,8 +760,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         {
             Entity entity = Zone.Entities.AtSlot(slots[i]);
             ref Character character = ref Zone.Entities.Get<Character>(entity);
-            _grid.Add(values[i].NetId, character.State.Position);
+            // Aboard a ship (IRON_WAKE.md §4.11): in its frame, heard of wherever the ship is.
+            _grid.Add(values[i].NetId, Zone.WorldOf(character.State), Zone.AnchorOf(character.State));
             CharacterNetState state = NetConvert.ToNet(character.State, values[i].ViewU, values[i].ViewV, values[i].LookYaw, values[i].LookPitch);
+            state.Frame = values[i].Frame;
             if (Zone.Players().PlayerOf(entity) is { } p)
             {
                 state.Held = p.IsAwakeAndAlive ? p.HeldItem : (ushort)0;
@@ -791,7 +791,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 continue;
             }
             ref Character own = ref Zone.Entities.Get<Character>(session.Entity);
-            Vector3 centre = own.State.Position;
+            Vector3 centre = Zone.WorldOf(own.State);
             ViewAs(session);
 
             // Relevance: who this player should hear about now, and the spawns and despawns that changes.
@@ -927,15 +927,14 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         int sleepers = 0;
         foreach (CharacterRecord r in stored.Characters)
         {
-            if (!CharacterRecords.Restorable(Zone, Spec, r, out Vector3 local) || Zone.Entities.TryFind(r.Id, out _))
+            // Aboard a ship, in its frame: the ship comes back with the modules below (IRON_WAKE.md §4.11).
+            if (!CharacterRecords.Restorable(Zone, Spec, r, out CharacterState state, pending: true) || Zone.Entities.TryFind(r.Id, out _))
             {
                 continue;
             }
-            CharacterState state = Zone.NewCharacter(local + Zone.Frame.UpAt(local) * 0.02f);
-            state.Stance = (Stance)Math.Min(r.Stance, (byte)Stance.Crouching);
             Entity entity = Zone.Players().AddPlayer(r.Id, r.Name, state, CharacterRecords.Decode(r, Content, Log));
-            Vector3 sleeperView = Facing.View(r.Yaw, r.Pitch, Zone.Frame.UpAt(state.Position));
-            Zone.Entities.Get<Character>(entity).Input.View = sleeperView;
+            Vector3 sleeperView = CharacterRecords.ViewOf(Zone, r, state);
+            Zone.Entities.Get<Character>(entity).Input = new MoveInput { View = sleeperView, Frame = state.Frame };
             Zone.Players().Sleep(entity);
             (ushort su, ushort sv) = Quantize.Octahedral(sleeperView);
             Zone.Entities.Add(entity, new NetPresence { NetId = _nextNetId++, ViewU = su, ViewV = sv });

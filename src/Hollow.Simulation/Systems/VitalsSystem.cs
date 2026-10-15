@@ -47,8 +47,9 @@ public sealed class VitalsSystem : ZoneSystem
             {
                 v.WetSeconds = Math.Max(0, v.WetSeconds - 1);
             }
-            float air = Climate?.TemperatureAt(c.State.Position, now) ?? s.ClimateMeanCelsius;
-            float warmth = Things.Warmth(c.State.Position);
+            System.Numerics.Vector3 where = WorldOf(c.State);
+            float air = Climate?.TemperatureAt(where, now) ?? s.ClimateMeanCelsius;
+            float warmth = Things.Warmth(where);
             v.Comfort = warmth > 0;
             float warmed = warmth > 0 ? Math.Max(air, Math.Min(air + warmth, s.FireWarmsTo)) : air;
             v.Temperature = warmed - (v.WetSeconds > 0 ? s.WetCooling : 0);

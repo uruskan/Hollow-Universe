@@ -24,12 +24,18 @@ public sealed record CharacterRecord
 
     public uint BodyPath { get; init; }
 
-    /// <summary>Feet, in the body frame (metres).</summary>
+    /// <summary>Feet, in the body frame (metres); aboard a ship (<see cref="Frame"/>), in the ship's frame.</summary>
     public double BodyX { get; init; }
 
     public double BodyY { get; init; }
 
     public double BodyZ { get; init; }
+
+    /// <summary>
+    /// The ship the character was aboard (its entity ID; 0: none, in the body frame), schema 8 (IRON_WAKE.md §4.11): it
+    /// logged off aboard, sleeps aboard, and comes back with the ship. Its feet and view are then the ship's frame's.
+    /// </summary>
+    public ulong Frame { get; init; }
 
     /// <summary>View angles in radians (yaw about the zone's up).</summary>
     public float Yaw { get; init; }
@@ -51,7 +57,7 @@ public sealed record CharacterRecord
     // Records compare by value, the state's bytes included.
     public bool Equals(CharacterRecord? other) =>
         other is not null && Id == other.Id && AccountId == other.AccountId && Name == other.Name && SystemAddress == other.SystemAddress &&
-        BodyPath == other.BodyPath && BodyX.Equals(other.BodyX) && BodyY.Equals(other.BodyY) && BodyZ.Equals(other.BodyZ) &&
+        BodyPath == other.BodyPath && BodyX.Equals(other.BodyX) && BodyY.Equals(other.BodyY) && BodyZ.Equals(other.BodyZ) && Frame == other.Frame &&
         Yaw.Equals(other.Yaw) && Pitch.Equals(other.Pitch) && Stance == other.Stance && Health == other.Health &&
         SavedAtUnixMilliseconds == other.SavedAtUnixMilliseconds && Dead == other.Dead &&
         (State == null ? other.State == null : other.State != null && State.AsSpan().SequenceEqual(other.State));
@@ -162,7 +168,7 @@ public sealed record ShipRecord(EntityId Id, byte[] Data);
 public sealed class GameDatabase : IDisposable
 {
     /// <summary>The schema this build writes. Each step up is a migration in <see cref="Migrations"/>.</summary>
-    public const int SchemaVersion = 7;
+    public const int SchemaVersion = 8;
 
     private static readonly string[] Migrations =
     {
@@ -285,10 +291,15 @@ public sealed class GameDatabase : IDisposable
         DELETE FROM notifications;
         UPDATE characters SET body_x = 0, body_y = 0, body_z = 0, yaw = 0, pitch = 0, stance = 0, dead = 0, state = NULL;
         """,
+        // 7 → 8 (IW1, IRON_WAKE.md §4.11): a character logged off aboard a ship sleeps aboard: the ship's ID, its feet and
+        // view in the ship's frame (0: in the body frame, as before).
+        """
+        ALTER TABLE characters ADD COLUMN frame INTEGER NOT NULL DEFAULT 0;
+        """,
     };
 
     private const string CharacterColumns =
-        "id, account_id, name, system_address, body_path, body_x, body_y, body_z, yaw, pitch, stance, health, saved_at, dead, state";
+        "id, account_id, name, system_address, body_path, body_x, body_y, body_z, yaw, pitch, stance, health, saved_at, dead, state, frame";
 
     private readonly SqliteConnection _connection;
 
@@ -399,6 +410,7 @@ public sealed class GameDatabase : IDisposable
         SavedAtUnixMilliseconds = reader.GetInt64(12),
         Dead = reader.GetInt64(13) != 0,
         State = reader.IsDBNull(14) ? null : (byte[])reader.GetValue(14),
+        Frame = unchecked((ulong)reader.GetInt64(15)),
     };
 
     /// <summary>Writes characters (insert or replace by ID) in one transaction.</summary>
@@ -418,13 +430,13 @@ public sealed class GameDatabase : IDisposable
         using SqliteCommand command = _connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
-            INSERT INTO characters (id, account_id, name, system_address, body_path, body_x, body_y, body_z, yaw, pitch, stance, health, saved_at, dead, state)
-            VALUES ($id, $account, $name, $system, $body, $x, $y, $z, $yaw, $pitch, $stance, $health, $saved, $dead, $state)
+            INSERT INTO characters (id, account_id, name, system_address, body_path, body_x, body_y, body_z, yaw, pitch, stance, health, saved_at, dead, state, frame)
+            VALUES ($id, $account, $name, $system, $body, $x, $y, $z, $yaw, $pitch, $stance, $health, $saved, $dead, $state, $frame)
             ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name, system_address = excluded.system_address, body_path = excluded.body_path,
                 body_x = excluded.body_x, body_y = excluded.body_y, body_z = excluded.body_z, yaw = excluded.yaw,
                 pitch = excluded.pitch, stance = excluded.stance, health = excluded.health, saved_at = excluded.saved_at,
-                dead = excluded.dead, state = excluded.state
+                dead = excluded.dead, state = excluded.state, frame = excluded.frame
             """;
         SqliteParameter id = command.Parameters.Add("$id", SqliteType.Integer);
         SqliteParameter account = command.Parameters.Add("$account", SqliteType.Integer);
@@ -441,6 +453,7 @@ public sealed class GameDatabase : IDisposable
         SqliteParameter saved = command.Parameters.Add("$saved", SqliteType.Integer);
         SqliteParameter dead = command.Parameters.Add("$dead", SqliteType.Integer);
         SqliteParameter state = command.Parameters.Add("$state", SqliteType.Blob);
+        SqliteParameter frame = command.Parameters.Add("$frame", SqliteType.Integer);
         foreach (CharacterRecord r in records)
         {
             id.Value = unchecked((long)r.Id.Value);
@@ -458,6 +471,7 @@ public sealed class GameDatabase : IDisposable
             saved.Value = r.SavedAtUnixMilliseconds;
             dead.Value = r.Dead ? 1L : 0L;
             state.Value = (object?)r.State ?? DBNull.Value;
+            frame.Value = unchecked((long)r.Frame);
             command.ExecuteNonQuery();
         }
     }

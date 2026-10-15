@@ -269,7 +269,7 @@ public sealed class WorldSystem : ZoneSystem
         for (int i = 0; i < characters.Count; i++)
         {
             ref Character c = ref characters.Values[i];
-            if (!c.State.IsDead && Combat.Geometry.BoxCylinderOverlap(centre, def.HalfExtents, spot.Yaw, c.State.Position, Tuning.Radius, Tuning.StandingHeight, spot.Up))
+            if (!c.State.IsDead && Combat.Geometry.BoxCylinderOverlap(centre, def.HalfExtents, spot.Yaw, WorldOf(c.State), Tuning.Radius, Tuning.StandingHeight, spot.Up))
             {
                 return false;
             }

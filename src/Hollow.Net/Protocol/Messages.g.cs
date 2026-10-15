@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x0221B1DE90EAEE9DUL;
+    public const ulong SchemaHash = 0xAB32B27925911268UL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -186,6 +186,7 @@ partial struct InputCommand
         {
             Ship![i].Write(w);
         }
+        w.WriteVarUInt(Frame);
     }
 
     public static InputCommand Read(BitReader r)
@@ -212,6 +213,7 @@ partial struct InputCommand
         {
             v.Ship[i] = ShipControls.Read(r);
         }
+        v.Frame = r.ReadVarUInt();
         return v;
     }
 }
@@ -306,6 +308,7 @@ partial struct OwnState
         w.WriteBits((uint)Health, 8);
         w.WriteBits((uint)Flags, 4);
         w.WriteBits((uint)Cheats, 2);
+        w.WriteVarUInt(Frame);
     }
 
     public static OwnState Read(BitReader r)
@@ -321,6 +324,7 @@ partial struct OwnState
         v.Health = (byte)r.ReadBits(8);
         v.Flags = (MoveFlags)r.ReadBits(4);
         v.Cheats = (MoveCheats)r.ReadBits(2);
+        v.Frame = r.ReadVarUInt();
         return v;
     }
 }
@@ -722,6 +726,7 @@ partial struct CharacterNetState
         w.WriteBool(Sleeping);
         w.WriteBool(Aiming);
         w.WriteBits((uint)HeldMods, 8);
+        w.WriteVarUInt(Frame);
     }
 
     public static CharacterNetState Read(BitReader r)
@@ -743,6 +748,7 @@ partial struct CharacterNetState
         v.Sleeping = r.ReadBool();
         v.Aiming = r.ReadBool();
         v.HeldMods = (byte)r.ReadBits(8);
+        v.Frame = r.ReadVarUInt();
         return v;
     }
 
@@ -877,6 +883,15 @@ partial struct CharacterNetState
         {
             w.WriteBool(false);
         }
+        if (Frame != b.Frame)
+        {
+            w.WriteBool(true);
+            w.WriteVarUInt(Frame);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
     }
 
     public static CharacterNetState ReadDelta(BitReader r, in CharacterNetState b)
@@ -940,10 +955,14 @@ partial struct CharacterNetState
         {
             v.HeldMods = (byte)r.ReadBits(8);
         }
+        if (r.ReadBool())
+        {
+            v.Frame = r.ReadVarUInt();
+        }
         return v;
     }
 
-    public readonly bool SameAs(in CharacterNetState o) => X == o.X && Y == o.Y && Z == o.Z && ViewU == o.ViewU && ViewV == o.ViewV && LookYaw == o.LookYaw && LookPitch == o.LookPitch && Flags == o.Flags && Stance == o.Stance && Health == o.Health && Held == o.Held && ActionCount == o.ActionCount && Action == o.Action && Sleeping == o.Sleeping && Aiming == o.Aiming && HeldMods == o.HeldMods;
+    public readonly bool SameAs(in CharacterNetState o) => X == o.X && Y == o.Y && Z == o.Z && ViewU == o.ViewU && ViewV == o.ViewV && LookYaw == o.LookYaw && LookPitch == o.LookPitch && Flags == o.Flags && Stance == o.Stance && Health == o.Health && Held == o.Held && ActionCount == o.ActionCount && Action == o.Action && Sleeping == o.Sleeping && Aiming == o.Aiming && HeldMods == o.HeldMods && Frame == o.Frame;
 
     /// <summary>The bits <see cref="WriteDelta"/> takes, without writing.</summary>
     public readonly int DeltaBits(in CharacterNetState b)
@@ -965,11 +984,12 @@ partial struct CharacterNetState
         bits += 1;
         bits += 1;
         bits += HeldMods == b.HeldMods ? 1 : 9;
+        bits += Frame == b.Frame ? 1 : 41;
         return bits;
     }
 
     /// <summary>The bits <see cref="Write"/> takes.</summary>
-    public const int FullBits = 191;
+    public const int FullBits = 231;
 }
 
 partial struct Spawn : INetMessage<Spawn>
@@ -2211,6 +2231,7 @@ partial struct FireIntent : INetMessage<FireIntent>
         w.WriteBits((uint)ViewV, 16);
         w.WriteBool(Aimed);
         w.WriteBits((uint)ViewDelay, 8);
+        w.WriteVarUInt(Frame);
     }
 
     public static FireIntent Read(BitReader r)
@@ -2224,6 +2245,7 @@ partial struct FireIntent : INetMessage<FireIntent>
         v.ViewV = (ushort)r.ReadBits(16);
         v.Aimed = r.ReadBool();
         v.ViewDelay = (byte)r.ReadBits(8);
+        v.Frame = r.ReadVarUInt();
         return v;
     }
 }
@@ -2781,6 +2803,7 @@ partial struct ThrowIntent : INetMessage<ThrowIntent>
         w.WriteBits((uint)ViewU, 16);
         w.WriteBits((uint)ViewV, 16);
         w.WriteBool(Lob);
+        w.WriteVarUInt(Frame);
     }
 
     public static ThrowIntent Read(BitReader r)
@@ -2792,6 +2815,7 @@ partial struct ThrowIntent : INetMessage<ThrowIntent>
         v.ViewU = (ushort)r.ReadBits(16);
         v.ViewV = (ushort)r.ReadBits(16);
         v.Lob = r.ReadBool();
+        v.Frame = r.ReadVarUInt();
         return v;
     }
 }

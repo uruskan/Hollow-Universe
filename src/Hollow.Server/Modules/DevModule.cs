@@ -141,7 +141,7 @@ public sealed class DevModule : ServerModule
             {
                 continue;
             }
-            Vector3 at = Zone.Entities.Get<Character>(s.Entity).State.Position;
+            Vector3 at = Zone.WorldOf(Zone.Entities.Get<Character>(s.Entity).State);
             if (w.Nav && tick - w.LastNav >= NavEveryTicks)
             {
                 w.LastNav = tick;
@@ -242,7 +242,7 @@ public sealed class DevModule : ServerModule
             Vector3 at = default;
             if (s.Playing)
             {
-                at = zone.Entities.Get<Character>(s.Entity).State.Position;
+                at = zone.WorldOf(zone.Entities.Get<Character>(s.Entity).State);
                 state = zone.Players().PlayerOf(s.Entity) is { } p ? (byte)(p.Dead ? 3 : p.Wounded ? 2 : 1) : (byte)1;
             }
             long applied = s.InputsApplied, missing = s.InputsMissing;

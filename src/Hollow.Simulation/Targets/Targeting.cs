@@ -239,7 +239,7 @@ public static class ShipAim
         }
         for (byte part = Ships.ShipParts.Hatch; part < Ships.ShipParts.Count; part++)
         {
-            if (part == Ships.ShipParts.Cargo && !hatchOpen)
+            if (part == Ships.ShipParts.Cargo && (!hatchOpen || def.CargoSlots == 0))
             {
                 continue;
             }

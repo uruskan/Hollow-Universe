@@ -233,7 +233,7 @@ public sealed class ConsoleModule : ServerModule
     // Where a command's clock is read and set (docs/WHOLE_WORLD.md decision 11): where the caller stands, or at the
     // server's console the landing site.
     private Vector3D ClockPoint(CommandContext ctx) => ctx.Caller is { Playing: true } me
-        ? Zone.Frame.ToBody(Zone.Entities.Get<Character>(me.Entity).State.Position).Normalized
+        ? Zone.Frame.ToBody(Zone.WorldOf(Zone.Entities.Get<Character>(me.Entity).State)).Normalized
         : Spec.LandingDirection;
 
     private static string ClockPlace(CommandContext ctx) => ctx.Caller is { Playing: true } ? "where you stand" : "at the landing site";
@@ -306,7 +306,7 @@ public sealed class ConsoleModule : ServerModule
         string line = $"It is {Hours(Sky!.LocalSolarHours(Spec.LandingDirection, Sky.Sun.Index, now))} at the landing site";
         if (ctx.Caller is { Playing: true } me)
         {
-            Vector3D here = Zone.Frame.ToBody(Zone.Entities.Get<Character>(me.Entity).State.Position).Normalized;
+            Vector3D here = Zone.Frame.ToBody(Zone.WorldOf(Zone.Entities.Get<Character>(me.Entity).State)).Normalized;
             line += $", {Hours(Sky.LocalSolarHours(here, Sky.Sun.Index, now))} where you stand";
         }
         double factor = Sky.RotationTimeScale / Spec.RotationTimeScale;
@@ -410,8 +410,9 @@ public sealed class ConsoleModule : ServerModule
             return;
         }
         ref Character c = ref Zone.Entities.Get<Character>(me.Entity);
-        Vector3 up = Zone.Frame.UpAt(c.State.Position);
-        Vector3 at = c.State.Position + Facing.Basis(c.Input.View, up).Forward * 2;
+        Vector3 feet = Zone.WorldOf(c.State);
+        Vector3 up = Zone.Frame.UpAt(feet);
+        Vector3 at = feet + Facing.Basis(Zone.ViewOf(c), up).Forward * 2;
         MoveTo(ctx, whom, Zone.Settle(at), "you");
     }
 
@@ -452,9 +453,9 @@ public sealed class ConsoleModule : ServerModule
             return null;
         }
         ref Character beside = ref Zone.Entities.Get<Character>(target.Entity);
-        Vector3 to = beside.State.Position;
+        Vector3 to = Zone.WorldOf(beside.State);
         // 1.5 m to their right.
-        return Zone.Settle(to + Facing.Basis(beside.Input.View, Zone.Frame.UpAt(to)).Right * 1.5f);
+        return Zone.Settle(to + Facing.Basis(Zone.ViewOf(beside), Zone.Frame.UpAt(to)).Right * 1.5f);
     }
 
     // A point of the world from two words: a latitude and longitude, marked with N, S, E or W (or a degree sign), or both
@@ -553,9 +554,9 @@ public sealed class ConsoleModule : ServerModule
             return;
         }
         ref Character c = ref Zone.Entities.Get<Character>(whom!.Entity);
-        Vector3 feet = c.State.Position;
+        Vector3 feet = Zone.WorldOf(c.State);
         Vector3 up = Zone.Frame.UpAt(feet);
-        float yaw = c.Input.YawAt(up);
+        float yaw = Facing.YawOf(Zone.ViewOf(c), up);
         (Vector3 forward, Vector3 right) = CharacterMotor.HorizontalBasis(yaw, up);
         string front = GameServer.IsMe(ctx, whom) ? "you" : whom.Name;
 
@@ -651,10 +652,11 @@ public sealed class ConsoleModule : ServerModule
             return;
         }
         ref Character c = ref Zone.Entities.Get<Character>(whom!.Entity);
-        Vector3 up = Zone.Frame.UpAt(c.State.Position);
-        Vector3 ahead = Zone.Settle(c.State.Position + Facing.Basis(c.Input.View, up).Forward * 8);
+        Vector3 feet = Zone.WorldOf(c.State);
+        Vector3 up = Zone.Frame.UpAt(feet);
+        Vector3 ahead = Zone.Settle(feet + Facing.Basis(Zone.ViewOf(c), up).Forward * 8);
         // Its doorway toward the player.
-        Vector3 aheadUp = Zone.Frame.UpAt(ahead), back = c.State.Position - ahead;
+        Vector3 aheadUp = Zone.Frame.UpAt(ahead), back = feet - ahead;
         back -= aheadUp * Vector3.Dot(back, aheadUp);
         TestBases.Hut? hut = TestBases.Build(Zone, ahead,
             BuildingFrame.HeadingOf(new Vector3D(back.X, back.Y, back.Z), new Vector3D(aheadUp.X, aheadUp.Y, aheadUp.Z)), grade, owner.Id.Value);
@@ -737,7 +739,7 @@ public sealed class ConsoleModule : ServerModule
             ctx.Error("Only a player in the world is somewhere.");
             return;
         }
-        Vector3 at = Zone.Entities.Get<Character>(me.Entity).State.Position;
+        Vector3 at = Zone.WorldOf(Zone.Entities.Get<Character>(me.Entity).State);
         Vector3D body = Zone.Frame.ToBody(at);
         Vector3D direction = body.Normalized;
         double latitude = DMath.Asin(direction.Y) * DMath.RadToDeg, longitude = DMath.Atan2(-direction.Z, direction.X) * DMath.RadToDeg;

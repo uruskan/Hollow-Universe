@@ -524,7 +524,7 @@ public sealed partial class GameServer
         foreach (PlayerSession s in _sessions.Values)
         {
             NetStatistics stats = s.Peer.Statistics;
-            string where = s.Playing ? Format(Zone.Entities.Get<Character>(s.Entity).State.Position) : "logging in";
+            string where = s.Playing ? Format(Zone.WorldOf(Zone.Entities.Get<Character>(s.Entity).State)) : "logging in";
             double onTime = s.InputsApplied + s.InputsMissing == 0 ? 100 : 100.0 * s.InputsApplied / (s.InputsApplied + s.InputsMissing);
             text.Append(CultureInfo.InvariantCulture,
                 $"\n  {s.Name,-16} ping {s.Peer.RoundTripTime,4} ms  at {where}  sent {stats.BytesSent / 1024.0:0} KiB  " +

@@ -30,8 +30,15 @@ public static class NetConvert
             ViewU = u,
             ViewV = v,
             Buttons = input.Buttons,
+            Frame = FrameOnWire(input.Frame),
         };
     }
+
+    /// <summary>
+    /// A frame's key on the wire: a ship's net ID (a client's prediction keys its frames by them, IRON_WAKE.md §4.11; the
+    /// server turns its own keys, the ships' IDs, into them), 0 the zone's.
+    /// </summary>
+    public static uint FrameOnWire(ulong key) => key <= uint.MaxValue ? (uint)key : 0;
 
     /// <summary>A view direction from the wire (octahedral: always a unit direction, docs/WHOLE_WORLD.md §5).</summary>
     public static Vector3 View(ushort u, ushort v) => Quantize.FromOctahedral(u, v);
@@ -57,12 +64,14 @@ public static class NetConvert
         ViewDelay = command.ViewDelay,
     };
 
+    /// <summary>A command's movement; its view's frame is the wire's (a ship's net ID: the server maps it to the ship's own key).</summary>
     public static MoveInput ToMoveInput(in InputCommand command) => new()
     {
         Forward = Math.Clamp(command.Forward / 127f, -1f, 1f),
         Right = Math.Clamp(command.Right / 127f, -1f, 1f),
         View = Quantize.FromOctahedral(command.ViewU, command.ViewV),
         Buttons = command.Buttons & (MoveButtons.Jump | MoveButtons.JumpPressed | MoveButtons.Crouch | MoveButtons.Sprint),
+        Frame = command.Frame,
     };
 
     /// <summary>The exact state, for the player's own reconciliation.</summary>
@@ -78,8 +87,10 @@ public static class NetConvert
         Health = s.Health,
         Flags = s.Flags,
         Cheats = s.Cheats,
+        Frame = FrameOnWire(s.Frame),
     };
 
+    /// <summary>The state an own-state message carries; its frame is the wire's, a ship's net ID (a client's prediction's key).</summary>
     public static CharacterState FromOwn(in OwnState o) => new()
     {
         Position = new Vector3(o.PositionX, o.PositionY, o.PositionZ),
@@ -88,6 +99,7 @@ public static class NetConvert
         Health = o.Health,
         Flags = o.Flags,
         Cheats = o.Cheats & (MoveCheats.God | MoveCheats.Noclip),
+        Frame = o.Frame,
     };
 
     /// <summary>

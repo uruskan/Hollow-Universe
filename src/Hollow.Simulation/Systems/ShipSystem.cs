@@ -154,6 +154,7 @@ public sealed class ShipSystem : ZoneSystem
         }
         ship.Space?.Dispose();
         ship.Space = null;
+        History.ForgetShip(ship.Id.Value);
         if (Entities.TryFind(ship.Id, out Entity entity))
         {
             Entities.Destroy(entity);
@@ -351,10 +352,10 @@ public sealed class ShipSystem : ZoneSystem
         else
         {
             ref Character c = ref Entities.Get<Character>(builder);
-            Vector3 standing = Frame.UpAt(c.State.Position);
-            (Vector3 forward, _) = Facing.Basis(c.Input.View, standing);
-            at = c.State.Position + forward * 6f;
-            yaw = c.Input.YawAt(standing);
+            Vector3 standing = Frame.UpAt(WorldOf(c.State));
+            (Vector3 forward, _) = Facing.Basis(ViewOf(c), standing);
+            at = WorldOf(c.State) + forward * 6f;
+            yaw = Facing.YawOf(ViewOf(c), standing);
             maxSlope = 20 * MathF.PI / 180;
         }
         Vector3 ground = Settle(at);
@@ -750,10 +751,12 @@ public sealed class ShipSystem : ZoneSystem
     // ---------------------------------------------------------------- damage and wrecks
 
     /// <summary>
-    /// Ships' hulls (GROUND.md §6.4.2, §6.7): found by their hull boxes along a ray and by their nearest points in a
-    /// blast's reach (seen from a point just off the hull toward the blast: the hull never hides its own side); a ship in
-    /// orbit or wrecked is out of reach. Its defence: the hull's share by how the blow came (ships.json). Its consequences:
-    /// the hull's health and last attacker; at 0 the ship is wrecked (the pilot dies in it, a wreck to loot) and reported
+    /// Ships' hulls (GROUND.md §6.4.2, §6.7): a ship people walk in is met by its space's pieces along a ray (IRON_WAKE.md
+    /// §4.9: through its open ramp a shot goes on to whoever stands inside; through the hull it meets the hull), any other
+    /// by its hull boxes, each where the attacker saw it (the pose history); and by their nearest points in a blast's reach
+    /// (seen from a point just off the hull toward the blast: the hull never hides its own side); a ship in orbit or
+    /// wrecked is out of reach. Its defence: the hull's share by how the blow came (ships.json). Its consequences: the
+    /// hull's health and last attacker; at 0 the ship is wrecked (the pilot dies in it, a wreck to loot) and reported
     /// destroyed. The pilot inside is the cabin's to protect.
     /// </summary>
     internal sealed class ShipReceiver(Zone zone) : DamageSystem.IDamageReceiver
@@ -762,13 +765,21 @@ public sealed class ShipSystem : ZoneSystem
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
-            if (zone.Ships()._ships.Count > 0)
+            ShipSystem ships = zone.Ships();
+            if (ships._ships.Count == 0)
             {
-                float t = zone.Ships().TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship);
-                if (ship != null)
-                {
-                    ray.Consider(ref best, t, ship.Ref);
-                }
+                return;
+            }
+            if (zone.Frames.Ships.Count > 0 &&
+                ShipQueries.Ray(zone.Frames.Ships, ray.Origin, ray.Direction, ray.Upto(best), zone.Tick, out ShipQueryHit hit, zone.History, ray.ViewTick) &&
+                ships.ShipOf(new EntityId(hit.Key)) is { Destroyed: false, InOrbit: false } walked)
+            {
+                ray.Consider(ref best, hit.Distance, walked.Ref);
+            }
+            float t = ships.TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship, ray.ViewTick);
+            if (ship != null)
+            {
+                ray.Consider(ref best, t, ship.Ref);
             }
         }
 
@@ -780,7 +791,20 @@ public sealed class ShipSystem : ZoneSystem
                 {
                     continue;
                 }
-                Vector3 point = ShipClosestPoint(ship, blast.At);
+                Vector3 point;
+                if (ship.Frame != null)
+                {
+                    // Its pieces' nearest point, within the blast's reach.
+                    if (!ShipQueries.Nearest(ship.Frame, ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass), blast.At, blast.Radius, out point, out _, out _) &&
+                        !blast.IsStuckTo(ship.Ref))
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    point = ShipClosestPoint(ship, blast.At);
+                }
                 bool stuck = blast.IsStuckTo(ship.Ref);
                 float distance = stuck ? 0 : Vector3.Distance(point, blast.At);
                 if (distance > blast.Radius)
@@ -808,8 +832,19 @@ public sealed class ShipSystem : ZoneSystem
         }
     }
 
-    /// <summary>The point of a ship's hull (its boxes) nearest to a point.</summary>
-    public static Vector3 ShipClosestPoint(Ship ship, Vector3 at) => ShipShapes.NearestOnHull(ship.Def, ship.State.Position, ship.State.Rotation, at);
+    /// <summary>The point of a ship's hull nearest to a point: its pieces for a ship people walk in, else its boxes.</summary>
+    public static Vector3 ShipClosestPoint(Ship ship, Vector3 at)
+    {
+        if (ship.Frame != null)
+        {
+            ShipPose pose = ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass);
+            if (ShipQueries.Nearest(ship.Frame, pose, at, Vector3.Distance(at, pose.Position) + 1, out Vector3 point, out _, out _))
+            {
+                return point;
+            }
+        }
+        return ShipShapes.NearestOnHull(ship.Def, ship.State.Position, ship.State.Rotation, at);
+    }
 
     /// <summary>
     /// Damage to a ship's hull from a weapon of a kind (tests): a request through the ships' receiver, with no hit marker.
@@ -968,24 +1003,32 @@ public sealed class ShipSystem : ZoneSystem
         ShipEvents.Add(new ShipEvent(ShipEventKind.Destroyed, ship, 0, ship.LastAttacker));
     }
 
-    /// <summary>The ship a ray (thickened) meets first: the distance along it (−1 for none) and the ship.</summary>
-    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit)
+    /// <summary>
+    /// The ship people only sit in that a ray (thickened) meets first, by its hull boxes where the attacker saw it (the
+    /// pose history at <paramref name="viewTick"/>): the distance along it (−1 for none) and the ship. One people walk in
+    /// is met by its space (<see cref="ShipQueries"/>).
+    /// </summary>
+    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit, double viewTick = double.MaxValue)
     {
         hit = null;
         float best = -1;
         foreach (Ship ship in _ships)
         {
-            if (ship.Destroyed || ship.InOrbit ||
-                Geometry.RaySphere(origin, direction, length, ship.State.Position, ship.Def.BoundingRadius + thickness) < 0)
+            if (ship.Frame != null || ship.Destroyed || ship.InOrbit)
             {
                 continue;
             }
-            Vector3 x = Vector3.Transform(Vector3.UnitX, ship.State.Rotation);
-            Vector3 y = Vector3.Transform(Vector3.UnitY, ship.State.Rotation);
-            Vector3 z = Vector3.Transform(Vector3.UnitZ, ship.State.Rotation);
+            ShipPose pose = viewTick < Tick && History.SampleShip(ship.Id.Value, viewTick, out ShipPose then) ? then : ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass);
+            if (Geometry.RaySphere(origin, direction, length, pose.Position, ship.Def.BoundingRadius + thickness) < 0)
+            {
+                continue;
+            }
+            Vector3 x = Vector3.Transform(Vector3.UnitX, pose.Rotation);
+            Vector3 y = Vector3.Transform(Vector3.UnitY, pose.Rotation);
+            Vector3 z = Vector3.Transform(Vector3.UnitZ, pose.Rotation);
             foreach (HullBox box in ship.Def.Hull)
             {
-                float t = Geometry.RayBox(origin, direction, length, ship.PointOf(box.Centre), box.HalfExtents + new Vector3(thickness), x, y, z);
+                float t = Geometry.RayBox(origin, direction, length, pose.ToWorld(box.Centre), box.HalfExtents + new Vector3(thickness), x, y, z);
                 if (t >= 0 && (best < 0 || t < best))
                 {
                     best = t;

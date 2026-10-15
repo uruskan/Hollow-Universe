@@ -351,13 +351,14 @@ public sealed class WorldModule : ServerModule
                 Vector3 view = Zone.Entities.Has<NetPresence>(e)
                     ? Quantize.FromOctahedral(Zone.Entities.Get<NetPresence>(e).ViewU, Zone.Entities.Get<NetPresence>(e).ViewV)
                     : c.Input.View;
-                ushort yaw = Quantize.Angle16(Facing.YawOf(view, Zone.Frame.UpAt(c.State.Position)));
+                Vector3 at = Zone.WorldOf(c.State);
+                ushort yaw = Quantize.Angle16(Facing.YawOf(Zone.Frames.DirectionToWorld(view, c.State.Frame, Zone.Tick), Zone.Frame.UpAt(at)));
                 _mates.Add(new TeammateNet
                 {
                     Id = m.Value,
-                    X = c.State.Position.X,
-                    Y = c.State.Position.Y,
-                    Z = c.State.Position.Z,
+                    X = at.X,
+                    Y = at.Y,
+                    Z = at.Z,
                     Yaw = yaw,
                     State = p.Dead ? TeammateState.Dead : p.Wounded ? TeammateState.Down : p.Sleeping ? TeammateState.Asleep : TeammateState.Awake,
                 });

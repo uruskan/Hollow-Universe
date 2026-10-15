@@ -116,7 +116,7 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
         }
         ref Character c = ref Entities.Get<Character>(entity);
         var ctx = new PlacementContext(p.Id.Value, EyeOf(c.State), placeable, new ItemWallet(Content, p.Inventory.Carried));
-        return Placer.Plan(World, ctx, new PlacementAim(direction, c.Input.YawAt(Frame.UpAt(c.State.Position)), turns));
+        return Placer.Plan(World, ctx, new PlacementAim(direction, Facing.YawOf(ViewOf(c), UpOf(c.State)), turns));
     }
 
     /// <summary>Places from a slot what a candidate (a ghost) says: the intent a client sends for it.</summary>

@@ -12,6 +12,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
 using Hollow.Surface;
 
@@ -233,7 +234,7 @@ public sealed class Zone : IDisposable
         if ((cheats & MoveCheats.Noclip) != 0 && c.State.Frame != 0)
         {
             // Noclip flies in the zone's frame: off the ship first, where it is in the world.
-            ToZoneFrame(ref c.State);
+            this.ToZoneFrame(ref c.State);
         }
         if (c.State.Has(MoveCheats.Noclip) && (cheats & MoveCheats.Noclip) == 0)
         {
@@ -274,28 +275,6 @@ public sealed class Zone : IDisposable
     public Vector3 EyeOf(in CharacterState state) => state.Frame == 0
         ? state.Position + Frame.UpAt(state.Position) * Tuning.EyeHeight(state.Stance)
         : Frames.ToWorld(state.Position + Vector3.UnitY * Tuning.EyeHeight(state.Stance), state.Frame, Tick);
-
-    /// <summary>A character's feet in the zone's frame (aboard a ship, where the ship carries them).</summary>
-    public Vector3 WorldOf(in CharacterState state) => Frames.ToWorld(state.Position, state.Frame, Tick);
-
-    /// <summary>Up at a character in the zone's frame: away from the planet's centre, aboard the ship's up.</summary>
-    public Vector3 UpOf(in CharacterState state) =>
-        state.Frame == 0 ? Frame.UpAt(state.Position) : Frames.DirectionToWorld(Vector3.UnitY, state.Frame, Tick);
-
-    /// <summary>A character's view in the zone's frame: its input's, turned out of the frame it was given in.</summary>
-    public Vector3 ViewOf(in Character c) => Frames.DirectionToWorld(c.Input.View, c.Input.Frame, Tick);
-
-    /// <summary>Takes a character off its ship into the zone's frame where it is, with the ship's velocity there (§4.5).</summary>
-    public void ToZoneFrame(ref CharacterState state)
-    {
-        if (state.Frame != 0 && Frames.Ship(state.Frame) is { } ship && ship.TryPose(Tick, out ShipPose pose))
-        {
-            Vector3 world = pose.ToWorld(state.Position);
-            state.Velocity = pose.DirectionToWorld(state.Velocity) + pose.VelocityAt(world);
-            state.Position = world;
-        }
-        state.Frame = 0;
-    }
 
     /// <summary>
     /// Where a new character appears: on a ring of 3–8 m around the landing site, at a place fixed by

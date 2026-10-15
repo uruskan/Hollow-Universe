@@ -21,7 +21,7 @@ public sealed class GunModule : ServerModule
         handlers.On<FireIntent>((PlayerSession session, in FireIntent m) => GunIntent(session, new GunAction
         {
             Seq = m.Seq, Tick = m.Tick, Kind = GunActionKind.Fire, Slot = m.Slot, Item = Expected(m.Item),
-            View = Quantize.FromOctahedral(m.ViewU, m.ViewV), Aimed = m.Aimed, ViewDelay = m.ViewDelay,
+            View = Quantize.FromOctahedral(m.ViewU, m.ViewV), Aimed = m.Aimed, ViewDelay = m.ViewDelay, Frame = Server.Ships().FrameKey(m.Frame),
         }));
         handlers.On<ReloadIntent>((PlayerSession session, in ReloadIntent m) => GunIntent(session, new GunAction
         {

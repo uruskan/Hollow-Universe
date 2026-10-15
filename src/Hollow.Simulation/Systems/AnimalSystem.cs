@@ -85,8 +85,9 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
                 continue;
             }
             ref Character c = ref Entities.Get<Character>(Entities.AtSlot(players.Slots[i]));
+            // Its noise is its walk (on a ship's deck, its walk there); where it is and goes, the world's.
             Vector3 v = c.State.Velocity;
-            Vector3 up = Frame.UpAt(c.State.Position);
+            Vector3 up = c.State.Frame == 0 ? Frame.UpAt(c.State.Position) : Vector3.UnitY;
             float speed = (v - up * Vector3.Dot(v, up)).Length();
             bool crouching = c.State.Stance == Stance.Crouching;
             float noise = (c.State.Flags & MoveFlags.Swimming) != 0 ? senses.Swim
@@ -96,8 +97,8 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
             animals.Observers.Add(new AnimalObserver
             {
                 Id = p.Id,
-                Position = c.State.Position,
-                Velocity = v,
+                Position = WorldOf(c.State),
+                Velocity = VelocityOf(c.State),
                 Noise = noise,
                 Crouching = crouching,
                 Lying = p.Sleeping || p.Wounded,
@@ -164,7 +165,7 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
             Hit = new TraceHit
             {
                 Target = new TargetRef(TargetFamily.Character, Entities.IdOf(entity).Value), Region = attack.Region,
-                Point = Entities.Get<Character>(entity).State.Position,
+                Point = WorldOf(Entities.Get<Character>(entity).State),
             },
             From = AnimalHitboxes.Head(animal.Species, PoseOf(animal)),
             Markers = TargetFamilies.None,
