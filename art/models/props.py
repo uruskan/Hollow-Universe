@@ -175,12 +175,17 @@ def recycler(seed=405):
 
 
 ALL = {
-    "loot-barrel-1": lambda: loot_barrel("loot-barrel-1", TEAL, (0.62, 0.86, 1.0), 0.0, None, 407),
     "loot-barrel-2": lambda: loot_barrel("loot-barrel-2", OCHRE, (1.0, 0.95, 0.9), 0.06, (0.2, 0.2, 0.2), 409),
-    "loot-crate": loot_crate,
-    "military-crate": military_crate,
     "recycler": recycler,
 }
 
+# Replaced on 15 October 2026 by the production package's models (art/import/production_kits.py); named on the command
+# line they are still built, as stand-ins, but a plain run leaves the installed files alone.
+OLD = {
+    "loot-barrel-1": lambda: loot_barrel("loot-barrel-1", TEAL, (0.62, 0.86, 1.0), 0.0, None, 407),
+    "loot-crate": loot_crate,
+    "military-crate": military_crate,
+}
+
 for key in script_args() or list(ALL):
-    ALL[key]()
+    (ALL.get(key) or OLD[key])()

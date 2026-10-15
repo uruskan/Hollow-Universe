@@ -751,3 +751,15 @@ the merge, the developer panel's five missing Godot `.uid` files were committed 
 whitespace-only re-indent of `building.json` left in the old worktree was stashed (`git stash list`). The `scale`
 worktree and branch were then removed; the old `ground` worktree is unused and goes once the Godot editor open on it is
 closed. The merged checkout builds, its assets were imported, and the tests pass.
+
+## 15 October 2026, evening: the production packages' models in the game
+
+The owner noticed the game still drew the old models: the assets sessions (`D:\GameDev\Assets\Hollow_*_R01`, made
+and reviewed separately) had delivered their packages, but nothing had installed them. Installed now, by
+`art/import/production_kits.py` (plain Python; `docs/GROUND.md` §9.1): the six salvage pickups (gears, springs,
+metal pipe, sheet metal, tech scrap, rope, with icons) in place of their refined-metal, fibre and metal-fragments
+stand-ins, and the loot crate, military crate and first drum in place of `props.py`'s, with their gibs rebuilt from
+them. Pictures taken in the model viewer. Not installed: the power kit, wreck modules and ruin dressing (parts of
+monuments, for `art/monuments/monkit`), and the held tools, workstations and waterworks, which were never made. The
+packages' last art revisions (sheet corrosion, the drum lid's lip) were taken as delivered; the coordinator's review
+of them was still open.

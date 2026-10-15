@@ -57,12 +57,15 @@ MATS = {
     "M_Hollow_Rock": (MATERIALS / "hollow_rock.tres", 0, 1.1),
     "M_Hollow_Glossy": (MATERIALS / "hollow_glossy.tres", 0, 1.0),
     "Door_garage": (MATERIALS / "door_garage.tres", 1, 3.0),
+    # The loot containers' (art/import/production_kits.py): tiling timber at 2 m a repeat, the sheet's panel atlas as one tile.
+    "LC_Wood": (MATERIALS / "loot_wood.tres", 0, 2.0),
+    "LC_Metal": (MATERIALS / "loot_metal.tres", 0, 1.0),
 }
 for _g in GRADES:
     MATS[f"Building_{_g}"] = (MATERIALS / f"building_{_g}.tres", 2, 4.0)
 
 # Materials whose Godot material ignores vertex colours: their gibs carry none.
-NO_COLOUR = {f"Building_{g}" for g in GRADES} | {"Door_garage"}
+NO_COLOUR = {f"Building_{g}" for g in GRADES} | {"Door_garage", "LC_Wood", "LC_Metal"}
 
 INSIDE_SHADE = 0.68  # a cut's colour against its island's
 WELD = 1e-5  # metres: vertices this close are one

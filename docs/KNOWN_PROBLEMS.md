@@ -98,7 +98,7 @@ These are written in GROUND.md as decisions of the form "left for later" and wer
 | GROUND.md §4.9 | No burning sound (nothing in the protocol says a player burns), no sand footsteps. | open |
 | GROUND.md 75, 78 | Sleepers stay ragdolls; others' aiming pose, crawling and sleeping poses are not drawn, because the character contract has no flag or stance for them. | P7 (wave 2) |
 | GROUND.md §5.11 | Replication is 2 to 3 ms of the tick on one thread; writing each player's snapshot on worker threads is the next step if a zone needs 200 players. The risks of doing it are listed in the handoff of 14 October. | open (not needed for one server yet) |
-| handoff | Night bloom on some glowing models; two Jolt crashes under low memory (unconfirmed); the 40 to 60 ms ragdoll hitch; stand-in models (`standIn` flags in `models.json`); sound mixing by ear; cheap-looking effects; Linux server testing. | open |
+| handoff | Night bloom on some glowing models; two Jolt crashes under low memory (unconfirmed); the 40 to 60 ms ragdoll hitch; stand-in models (`standIn` flags in `models.json`; the salvage pickups and three containers got theirs on 15 October); sound mixing by ear; cheap-looking effects; Linux server testing. | open |
 | handoff | The wardrobe hookup: looks for every remote player and the inventory preview; sleep and crawl stances; aiming for bows; the help-up, eat, bandage and inject events. | P7 (wave 2) |
 
 ### Found by reading the code (14 October 2026, the surveys for S3)
