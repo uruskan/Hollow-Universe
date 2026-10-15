@@ -349,9 +349,27 @@ public sealed class ConsoleModule : ServerModule
 
     // ---------------------------------------------------------------- moving
 
-    // teleport <player> | <x> <z> | <latitude> <longitude> | <player> <target> | <player> <x> <z> | <player> <lat> <lon>.
+    // teleport <player> | <cell> | <x> <z> | <latitude> <longitude> | <player> <target> | <player> <cell> | <player> <x> <z> |
+    // <player> <lat> <lon>. A cell is the map's grid name, "C K12" (docs/WHOLE_WORLD.md §11); a player of that name wins.
     internal void Teleport(CommandContext ctx, IReadOnlyList<string> args)
     {
+        if (CellPoint(args, 0) is var (cellGround, cellName) && !(args.Count == 1 && Server.Target(ctx, args[0], quiet: true) != null))
+        {
+            if (ctx.Caller == null)
+            {
+                ctx.Error("Name a player: the server's console has no 'me'.");
+            }
+            else
+            {
+                MoveTo(ctx, ctx.Caller, cellGround, cellName);
+            }
+            return;
+        }
+        if (args.Count >= 2 && CellPoint(args, 1) is var (theirCell, theirCellName) && Server.Target(ctx, args[0], quiet: true) is { } whom)
+        {
+            MoveTo(ctx, whom, theirCell, theirCellName);
+            return;
+        }
         switch (args.Count)
         {
             case 1:
@@ -387,7 +405,7 @@ public sealed class ConsoleModule : ServerModule
                 }
                 return;
             default:
-                ctx.Error("Usage: teleport <player> | <x> <z> | <latitude> <longitude> | <player> <target> | <player> <x> <z>");
+                ctx.Error("Usage: teleport <player> | <cell> | <x> <z> | <latitude> <longitude> | <player> <target> | <player> <cell> | <player> <x> <z>");
                 return;
         }
     }
@@ -444,7 +462,22 @@ public sealed class ConsoleModule : ServerModule
             $"marker {index + 1}" + (string.IsNullOrWhiteSpace(marker.Label) ? "" : $" ({marker.Label})"));
     }
 
-    // Beside a player (1.5 m east of them), on the ground.
+    // The middle of a map cell named by the words from 'from' on ("C K12", "CK12"), on the ground; null when they name none.
+    private (Vector3 Ground, string Where)? CellPoint(IReadOnlyList<string> words, int from)
+    {
+        if (from >= words.Count || words.Count - from > 2)
+        {
+            return null;
+        }
+        int cells = WorldGrid.CellsPerFace(Zone.Surface.Radius, Content.World.MapCell);
+        if (!WorldGrid.TryParse(string.Join(' ', words.Skip(from)), cells, out WorldGrid.Cell cell))
+        {
+            return null;
+        }
+        return (Zone.Ground.On(WorldGrid.Centre(cell, cells)), "the middle of map cell " + WorldGrid.Name(cell));
+    }
+
+    // Beside a player (1.5 m to their right), on the ground.
     private Vector3? Beside(CommandContext ctx, PlayerSession target)
     {
         if (!target.Playing)
@@ -731,7 +764,8 @@ public sealed class ConsoleModule : ServerModule
         }
     }
 
-    // whereami: latitude and longitude, the zone position and map cell, the biome, the local time, the air.
+    // whereami: latitude and longitude, the height, the map cell (WorldGrid, the map's own naming), the way along the ground
+    // from the landing site, the biome, the local time, the air.
     internal void WhereAmI(CommandContext ctx)
     {
         if (ctx.Caller is not { Playing: true } me)
@@ -747,29 +781,16 @@ public sealed class ConsoleModule : ServerModule
             $"{Math.Abs(latitude):0.00000}° {(latitude >= 0 ? 'N' : 'S')}, {Math.Abs(longitude):0.00000}° {(longitude >= 0 ? 'E' : 'W')} " +
             $"(teleport {latitude:0.00000} {longitude:0.00000})"));
         double sea = Zone.Surface.SeaRadius > 0 ? body.Length - Zone.Surface.SeaRadius : body.Length - Zone.Surface.Radius;
+        string cell = WorldGrid.Name(direction, WorldGrid.CellsPerFace(Zone.Surface.Radius, Content.World.MapCell));
         (float east, float south) = Zone.OffsetOf(at);
         ctx.Out(string.Create(CultureInfo.InvariantCulture,
-            $"{east:0.0} m east, {-south:0.0} m north of the landing site along the ground (teleport {east:0.0} {south:0.0}); " +
-            $"{sea:0} m above the sea; map cell {MapCell(east, south)}."));
+            $"{sea:0} m above the sea; map cell {cell} (teleport {cell}); " +
+            $"{east:0.0} m east, {-south:0.0} m north of the landing site along the ground (teleport {east:0.0} {south:0.0})."));
         string biome = Words(Zone.Surface.BiomeAt(direction).ToString());
         string time = Sky != null ? $"{Hours(Sky.LocalSolarHours(direction, Sky.Sun.Index, UniverseSeconds))} local solar time" : "no sky here";
         float air = Zone.Climate?.TemperatureAt(at, Zone.UnixMilliseconds / 1000.0) ?? float.NaN;
         ctx.Out(string.Create(CultureInfo.InvariantCulture, $"{biome}; {time}; the air {air:0} °C."));
     }
-
-    // A map cell's name, as the map draws its grid round the landing site: columns lettered from the west, rows numbered
-    // from the north.
-    private string MapCell(float east, float south)
-    {
-        double metres = Content.World.MapMetres;
-        int cells = Math.Max(1, (int)Math.Round(metres / Content.World.MapCell));
-        int column = Math.Clamp((int)Math.Floor((east + metres / 2) / metres * cells), 0, cells - 1);
-        int row = Math.Clamp((int)Math.Floor((south + metres / 2) / metres * cells), 0, cells - 1);
-        return Column(column) + row.ToString(CultureInfo.InvariantCulture);
-    }
-
-    private static string Column(int index) =>
-        index < 26 ? ((char)('A' + Math.Max(0, index))).ToString() : Column(index / 26 - 1) + (char)('A' + index % 26);
 
     // "TemperateForest" → "temperate forest".
     private static string Words(string name) =>

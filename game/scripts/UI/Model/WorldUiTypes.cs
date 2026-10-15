@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
 namespace HollowUniverse.UI.Model;
 
@@ -7,12 +8,13 @@ namespace HollowUniverse.UI.Model;
 // client adapter fills them from the client API (LocalPlayer.World, GameClient.Map), MockGroundUi fakes them.
 
 /// <summary>
-/// The zone's map picture: a square of <see cref="Pixels"/> RGBA rows from the north edge down, made by
-/// <see cref="Render"/> (slow the first time; the interface calls it off the main thread and caches the picture on disk
-/// under <see cref="CacheKey"/>), <see cref="Metres"/> across, with a grid of <see cref="Cells"/> × <see cref="Cells"/>
-/// lettered from the west and numbered from the north.
+/// The map of the zone's whole world (docs/WHOLE_WORLD.md §11): its picture, six cube faces of <see cref="Pixels"/> ×
+/// <see cref="Pixels"/> RGBA stacked in <c>CubeSphere</c>'s order, made by <see cref="Render"/> (slow the first time; the
+/// interface calls it off the main thread and caches the picture on disk under <see cref="CacheKey"/>); the world's
+/// <see cref="Radius"/> in metres; and its grid of <see cref="Cells"/> × <see cref="Cells"/> cells a face, named by
+/// <c>WorldGrid</c> ("C K12").
 /// </summary>
-public sealed record MapView(string CacheKey, int Pixels, Func<byte[]> Render, float Metres, int Cells);
+public sealed record MapView(string CacheKey, int Pixels, Func<byte[]> Render, double Radius, int Cells);
 
 /// <summary>What a map marker is.</summary>
 public enum MapMarkerKind : byte
@@ -33,11 +35,12 @@ public enum MapMarkerKind : byte
 }
 
 /// <summary>
-/// Something on the map at a point (0–1 across from the west, 0–1 down from the north): its kind, a label, a facing
-/// (degrees clockwise from north, for <see cref="MapMarkerKind.Me"/> and teammates), a colour (0–5, markers), the
-/// index that removes it (markers) and whether it is dim (an asleep teammate).
+/// Something on the map where a direction from the world's centre meets the ground (<see cref="At"/>, the body frame;
+/// its length doesn't matter): its kind, a label, a facing (degrees clockwise from local north, for
+/// <see cref="MapMarkerKind.Me"/> and teammates), a colour (0–5, markers), the index that removes it (markers) and
+/// whether it is dim (an asleep teammate).
 /// </summary>
-public sealed record MapMarkerView(MapMarkerKind Kind, float X, float Y, string Label = "", float Facing = 0, int Colour = 0, int Index = -1,
+public sealed record MapMarkerView(MapMarkerKind Kind, Vector3 At, string Label = "", float Facing = 0, int Colour = 0, int Index = -1,
     bool Dim = false);
 
 /// <summary>How a tech tree node stands for the player.</summary>

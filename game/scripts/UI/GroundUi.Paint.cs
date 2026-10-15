@@ -39,8 +39,8 @@ public partial class GroundUi
                 PaintDeath();
                 return;
             case GroundScreen.Map:
+                // The toast is the overlay's here, over the map.
                 PaintMap();
-                PaintToast();
                 return;
             case GroundScreen.Console:
                 // The F1 panel hangs from the top; the belt stays in sight below it (what is given lands there).
@@ -99,6 +99,16 @@ public partial class GroundUi
         if (Screen is GroundScreen.Inventory or GroundScreen.Crafting)
         {
             PaintDragAndTooltip();
+        }
+        // The map control's grid, markers and names, over its picture (GroundUi.Globe.cs).
+        else if (Screen == GroundScreen.Map)
+        {
+            PaintMapOverlay();
+            PaintToast();
+        }
+        else if (Screen == GroundScreen.Death)
+        {
+            PaintDeathOverlay();
         }
     }
 

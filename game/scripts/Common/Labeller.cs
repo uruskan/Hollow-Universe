@@ -48,9 +48,11 @@ public sealed class Labeller
     }
 
     /// <summary>Takes the label's spot if it is on screen and touches nothing taken.</summary>
-    public bool TryPlace(in MapOverlay.Text text)
+    public bool TryPlace(in MapOverlay.Text text) => TryPlace(MapOverlay.Bounds(text));
+
+    /// <summary>Takes a spot its owner measured (a label in another font) if it is on screen and touches nothing taken.</summary>
+    public bool TryPlace(Rect2 bounds)
     {
-        Rect2 bounds = MapOverlay.Bounds(text);
         if (!_screen.Encloses(bounds))
         {
             return false;

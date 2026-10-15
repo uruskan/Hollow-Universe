@@ -67,7 +67,7 @@ public partial class GroundTour : Node
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
             ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("f2", F2), ("look", Look),
-            ("foundations", Foundations), ("held", Held), ("place", Place), ("interact", Interaction),
+            ("foundations", Foundations), ("held", Held), ("place", Place), ("interact", Interaction), ("map", Map),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -1621,6 +1621,19 @@ public partial class GroundTour : Node
         await Until(() => Me.IsDead, 5);
         await Seconds(1.5);
         await Shot("death");
+    }
+
+    // docs/WHOLE_WORLD.md §11: the map of the whole world as G opens it, following the player, local north up.
+    private async Task Map()
+    {
+        GroundUi ui = View.Interface;
+        ui.HoldPointer(new Vector2(-10000, -10000));
+        ui.ToggleMap();
+        await Until(() => ui.MapReady, 120);
+        await Seconds(1.0);
+        await Shot("map-open");
+        ui.Open(GroundScreen.Hud);
+        await Seconds(0.3);
     }
 
     // Back on the beach, then the meadow at night by a campfire.

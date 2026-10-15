@@ -275,9 +275,8 @@ internal sealed class WorldReader : IContentReader
         }
         if (f.TryChild(root, "map", out JsonElement map))
         {
-            f.OnlyKnown(map, File + ": map", "markers", "metres", "cell", "note");
+            f.OnlyKnown(map, File + ": map", "markers", "cell", "note");
             world.MaxMarkers = f.Integer(map, "markers", File + ": map", 5);
-            world.MapMetres = f.Double(map, "metres", File + ": map", 3900);
             world.MapCell = f.Double(map, "cell", File + ": map", 150);
         }
     }
@@ -427,9 +426,9 @@ internal sealed class WorldReader : IContentReader
         {
             c.Problem(File + ": teams", "2 … 16 members, invites last a while");
         }
-        if (w.MaxMarkers is < 1 or > 10 || w.MapMetres is < 500 or > 16000 || w.MapCell < 25 || w.MapMetres / w.MapCell > 52)
+        if (w.MaxMarkers is < 1 or > 10 || w.MapCell is < 25 or > 5000)
         {
-            c.Problem(File + ": map", "1 … 10 markers, 500 … 16,000 m across, cells of 25 m or more and at most 52 a side");
+            c.Problem(File + ": map", "1 … 10 markers, cells of 25 … 5,000 m");
         }
     }
 }
