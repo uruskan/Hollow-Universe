@@ -307,18 +307,46 @@ public partial class ShipView : Node3D
 
     private int _liftNozzles;
 
+    /// <summary>How many lift nozzles it has (ships.json <c>nozzles.lift</c>).</summary>
+    public int LiftNozzles => _liftNozzles;
+
+    /// <summary>A lift nozzle where it is drawn (render space) and how hard its plume blows now (0 out, 1 full lift).</summary>
+    public (Vector3 At, float Shown) LiftNozzle(int index)
+    {
+        foreach (Plume p in _plumes)
+        {
+            if (p.Drive == Drive.Lift && index-- == 0)
+            {
+                return (_model.GlobalTransform * p.Nozzle, p.Shown);
+            }
+        }
+        return (GlobalPosition, 0);
+    }
+
     private void BuildLights()
     {
-        // The lift nozzles' light on the ground below, and a landing light under the nose looking ahead and down.
+        // The lift nozzles' light on the ground below: between them, reaching eight times their plumes' length (ships.json).
         float scale = Scale;
+        Vector3 liftAt = Vector3.Zero;
+        float liftLength = 0, liftWidth = 0;
+        foreach (Plume p in _plumes)
+        {
+            if (p.Drive == Drive.Lift)
+            {
+                liftAt += p.Nozzle;
+                liftLength += p.Length;
+                liftWidth += p.Width;
+            }
+        }
+        int lifts = Math.Max(1, _liftNozzles);
         _belly = new OmniLight3D
         {
             Name = "Belly",
             LightColor = new Color(1f, 0.62f, 0.32f),
-            OmniRange = 14 * scale,
+            OmniRange = _liftNozzles > 0 ? 8 * liftLength / lifts : 14 * scale,
             OmniAttenuation = 1.6f,
             ShadowEnabled = false,
-            Position = new Vector3(0, 0.2f, -0.5f) * scale,
+            Position = _liftNozzles > 0 ? liftAt / lifts - Vector3.Up * (liftWidth / lifts) : new Vector3(0, 0.2f, -0.5f) * scale,
             Visible = false,
         };
         _model.AddChild(_belly);

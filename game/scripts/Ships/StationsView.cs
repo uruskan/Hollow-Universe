@@ -287,7 +287,8 @@ public sealed class StationsView
         }
         BatteryDef battery = def.Stations[shot.Station].Battery;
         Vector3 at = GroundView.ToGodot(shot.Origin), way = GroundView.ToGodot(shot.Direction);
-        var p = new FxParams { Direction = way };
+        Num.Vector3 moving = Client.Ships().ShipByNetId(shot.Ship)?.Velocity ?? default;
+        var p = new FxParams { Direction = way, Velocity = new Vector3(moving.X, moving.Y, moving.Z) };
         FxDirector.Play("muzzle." + battery.Key, at, way, p);
         if (FxCatalog.Find("muzzle." + battery.Key + ".dust") != null)
         {

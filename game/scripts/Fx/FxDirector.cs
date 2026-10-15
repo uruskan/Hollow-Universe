@@ -947,6 +947,16 @@ public static class FxSurfaces
         _ => FxSurface.Dirt,
     };
 
+    /// <summary>The colour of the dust a surface throws up (a lift engine's wash, a muzzle's blast on the ground).</summary>
+    public static Color Dust(FxSurface s) => s switch
+    {
+        FxSurface.Sand => new Color(0.86f, 0.78f, 0.62f),
+        FxSurface.Rock => new Color(0.66f, 0.64f, 0.6f),
+        FxSurface.Grass => new Color(0.62f, 0.58f, 0.46f),
+        FxSurface.Water => new Color(0.85f, 0.9f, 0.95f),
+        _ => new Color(0.6f, 0.5f, 0.4f),
+    };
+
     /// <summary>The surface of a building grade (building.json: twig, wood, stone, metal, armoured).</summary>
     public static FxSurface OfGrade(string grade) => grade switch
     {

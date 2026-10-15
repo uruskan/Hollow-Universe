@@ -4,6 +4,7 @@ using Godot;
 using Hollow.Client;
 using Hollow.Client.Audio;
 using Hollow.Net.Protocol;
+using Hollow.Simulation;
 using Hollow.Simulation.Ships;
 using HollowUniverse.Audio;
 using HollowUniverse.Fx;
@@ -32,6 +33,12 @@ public partial class ShipsView : Node3D
         // A ship people walk in: its parts' states as last shown.
         public float[]? Parts;
         public float[]? Shown;
+
+        // Its effects (IRON_WAKE.md §11): the wash under each lift nozzle, smoke from each disabled battery and the hull.
+        public FxHandle[]? Wash;
+        public FxHandle[]? Smoke;
+        public FxHandle HullSmoke;
+        public Node3D? HullSmokeAt;
     }
 
     private readonly Dictionary<uint, Drawn> _drawn = new();
@@ -132,6 +139,7 @@ public partial class ShipsView : Node3D
             }
             Num.Vector3 velocity = mine ? Client.Ships().OwnShip.Velocity : ship.Velocity;
             Hear(d, ship, def, look, velocity, mine ? Client.ServerTickNow : Client.RenderTick);
+            Effects(d, ship, def, look);
         }
         _gone.Clear();
         foreach (uint id in _drawn.Keys)
@@ -145,6 +153,7 @@ public partial class ShipsView : Node3D
         {
             Drawn d = _drawn[id];
             d.Sounds?.StopAll();
+            StopEffects(d);
             if (d.Fire.IsValid)
             {
                 FxDirector.Stop(d.Fire);
@@ -175,6 +184,100 @@ public partial class ShipsView : Node3D
         }
         d.Known = true;
         d.Flags = ship.Flags;
+    }
+
+    /// <summary>The wash ends past this height over the ground (IRON_WAKE.md §11).</summary>
+    private const float WashReach = 25f;
+
+    /// <summary>Full wash at this height and under.</summary>
+    private const float WashFull = 4f;
+
+    // The ship's own effects (IRON_WAKE.md §11): dust under each lift nozzle within 25 m of the ground, by its plume and
+    // nearness; smoke pouring from each disabled battery's gun house and from the hull below a quarter, until mended.
+    private void Effects(Drawn d, RemoteShip ship, ShipDef def, in ShipLook look)
+    {
+        bool shown = d.View.Visible && !look.Destroyed;
+        d.Wash ??= new FxHandle[d.View.LiftNozzles];
+        GroundProbe? ground = Client.Surface is { } world ? new GroundProbe(world, Client.Frame) : null;
+        for (int i = 0; i < d.Wash.Length; i++)
+        {
+            (Vector3 at, float blow) = d.View.LiftNozzle(i);
+            Num.Vector3 nozzle = new(at.X, at.Y, at.Z);
+            float height = ground?.HeightAbove(nozzle) ?? float.PositiveInfinity;
+            float near = Math.Clamp((WashReach - height) / (WashReach - WashFull), 0f, 1f);
+            float k = Math.Min(blow, 1f) * near;
+            if (!shown || ground == null || k < 0.02f)
+            {
+                if (d.Wash[i].IsValid)
+                {
+                    FxDirector.Stop(d.Wash[i]);
+                    d.Wash[i] = default;
+                }
+                continue;
+            }
+            Num.Vector3 up = Client.Frame.UpAt(nozzle);
+            Num.Vector3 under = nozzle - up * Math.Max(height, 0);
+            Vector3 point = GroundView.ToGodot(under), normal = GroundView.ToGodot(ground.Value.Normal(under).Normal);
+            if (!d.Wash[i].IsValid)
+            {
+                FxSurface surface = GroundAudio.WaterDepth(Client, under) > 0.05 ? FxSurface.Water : FxSurfaces.Of(GroundAudio.MaterialAt(Client, under));
+                d.Wash[i] = FxDirector.Start("wash.lift", point, normal, new FxParams { Tint = FxSurfaces.Dust(surface) });
+            }
+            FxDirector.Move(d.Wash[i], point);
+            FxDirector.SetIntensity(d.Wash[i], k);
+        }
+
+        // Smoke from a battery whose health ran out (its gun house: the yaw part), and from the hull under a quarter.
+        if (def.Interior is { } interior && def.Stations.Count > 0)
+        {
+            d.Smoke ??= new FxHandle[def.Stations.Count];
+            for (int i = 0; i < def.Stations.Count; i++)
+            {
+                ShipStationDef s = def.Stations[i];
+                bool disabled = shown && s.Part < ship.PartHealth.Length && def.Parts[s.Part].Health != null && ship.PartHealth[s.Part] <= 0;
+                if (disabled && !d.Smoke[i].IsValid)
+                {
+                    Node3D? house = s.YawPart > 0 ? d.View.NodeNamed(interior.Parts[s.YawPart].Name) : null;
+                    Vector3 at = GroundView.ToGodot(ship.PointOf(def.PartPoint(s.Part)));
+                    d.Smoke[i] = FxDirector.Start("smoke.damaged", at, GroundView.ToGodot(Client.Frame.UpAt(ship.Position)), new FxParams { Follow = house ?? d.View });
+                }
+                else if (!disabled && d.Smoke[i].IsValid)
+                {
+                    FxDirector.Stop(d.Smoke[i]);
+                    d.Smoke[i] = default;
+                }
+            }
+        }
+        bool hurt = shown && ship.Health < 0.25f;
+        if (hurt && !d.HullSmoke.IsValid)
+        {
+            // Over the hull's top, at its middle (the ship's bounds, ships.json and its data file).
+            if (d.HullSmokeAt == null)
+            {
+                Num.Vector3 top = def.BoundsCentre + new Num.Vector3(0, def.BoundsHalf.Y * 0.6f, 0);
+                d.HullSmokeAt = new Node3D { Name = "HullSmoke", Position = GroundView.ToGodot(top) };
+                d.View.AddChild(d.HullSmokeAt);
+            }
+            d.HullSmoke = FxDirector.Start("smoke.damaged", d.HullSmokeAt.GlobalPosition, Vector3.Up, new FxParams { Follow = d.HullSmokeAt });
+        }
+        else if (!hurt && d.HullSmoke.IsValid)
+        {
+            FxDirector.Stop(d.HullSmoke);
+            d.HullSmoke = default;
+        }
+    }
+
+    private static void StopEffects(Drawn d)
+    {
+        foreach (FxHandle h in d.Wash ?? Array.Empty<FxHandle>())
+        {
+            FxDirector.Stop(h);
+        }
+        foreach (FxHandle h in d.Smoke ?? Array.Empty<FxHandle>())
+        {
+            FxDirector.Stop(h);
+        }
+        FxDirector.Stop(d.HullSmoke);
     }
 
     // The listener's space (IRON_WAKE.md §10.1): aboard a ship, the space of the room the player stands in (sounds.json's
