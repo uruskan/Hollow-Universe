@@ -1,6 +1,6 @@
 {
   "source": "GROUND_SYSTEMS.md §6 (package P2, 13 October 2026). RustMVP's placement of deployables (docs/architecture/legacy/inventory_survival.md §9.2, Survival/BareSurvivalWorld.cpp:520-591): the floor under the aim must be the ground or a building piece within reach of the aim point (foundations and floors, never walls), no steeper than the thing allows, dry (5 cm over the sea), in reach and in sight of the eye, in no one else's claim, overlapping nothing, every footprint corner supported (a normal of 0.75 or more within 15 cm), at most 20 deployables standing on one structure, one claim device per structure and 128 sleeping bags a player. The building's numbers are its own (building.json; reach 8 m to a piece's nearest logical surface, 35 cm of sight slack, 2.25 m of claim padding: RustMVP's). Charges are placed on any surface the view meets within 3 m, without building rights (RustMVP's raiding rule). The Tin Finch's rule is ours (ships.json).",
-  "note": "One rule per placeable (GROUND_SYSTEMS.md §6): every field of 'defaults', overridden by its kind's block in 'kinds', overridden by the placeable's own 'placement' block next to its definition (deployables.json, building.json's pieces, doors, locks and claim, explosives.json's throwables, ships.json). 'placeables' is the wire's list (PlaceIntent.Placeable is an index into it): append only. 'checks' is the pipeline's fixed order; every name in it, every solver and every kind has exactly one handler in Hollow.Simulation (Placement/), and the content check refuses one more or one fewer. Surfaces: terrain, floor (tops of foundations, floors and stairs' landings), wall, roof, opening (a doorway or wall frame), door (a door's leaf), thing (deployables and props), natural (trees and rocks), ship, any. 'pieceSurfaces' says which surface each family of building piece offers.",
+  "note": "One rule per placeable (GROUND_SYSTEMS.md §6): every field of 'defaults', overridden by its kind's block in 'kinds', overridden by the placeable's own 'placement' block next to its definition (deployables.json, building.json's pieces, doors, locks and claim, explosives.json's throwables, ships.json). 'placeables' is the wire's list (PlaceIntent.Placeable is an index into it): append only. 'checks' is the pipeline's fixed order; every name in it, every solver and every kind has exactly one handler in Hollow.Simulation (Placement/), and the content check refuses one more or one fewer. Surfaces: terrain, floor (tops of foundations, floors and stairs' landings), wall, roof, opening (a doorway or wall frame), door (a door's leaf), thing (deployables and props), natural (trees and rocks), ship, any. 'pieceSurfaces' says which surface each family of building piece offers. Aboard a ship (IRON_WAKE.md §8): a deployable may stand on a ship's deck ('ship' among its surfaces; 'aboard': false keeps one off), in the ship's frame, inside its data file's build zones and outside its exclusions ('aboard', the check), at most 'limits.ship' to a ship, keeping 'headroom' clear under its zone's ceiling.",
   "defaults": {
     "surfaces": ["terrain", "floor"],
     "solver": "free",
@@ -18,21 +18,22 @@
     "privilege": "blocked",
     "padding": 0,
     "limits": { "structure": 0, "player": 0 },
-    "tolerance": 0.3
+    "tolerance": 0.3,
+    "headroom": 0.2
   },
   "kinds": {
-    "deployable": { "limits": { "structure": 20 } },
+    "deployable": { "surfaces": ["terrain", "floor", "ship"], "limits": { "structure": 20, "ship": 80 } },
     "piece": { "solver": "socket", "surfaces": ["any"], "support": "centre", "maxSlope": 90, "water": true, "rotation": "fixed", "reach": 8, "sight": 0.35, "padding": 2.25 },
     "door": { "solver": "opening", "surfaces": ["opening"], "support": "centre", "maxSlope": 90, "water": true, "rotation": "flip", "turn": 180, "reach": 8, "sight": 0.35 },
     "lock": { "solver": "attach", "surfaces": ["door"], "support": "centre", "maxSlope": 90, "water": true, "rotation": "fixed", "reach": 3.5 },
-    "cupboard": { "surfaces": ["floor"], "rotation": "support", "reach": 8, "sight": 0.35, "limits": { "structure": 1 } },
+    "cupboard": { "surfaces": ["floor"], "aboard": false, "rotation": "support", "reach": 8, "sight": 0.35, "limits": { "structure": 1 } },
     "charge": { "solver": "sweep", "surfaces": ["any"], "support": "centre", "maxSlope": 180, "water": true, "align": "normal", "privilege": "ignored", "sight": 0.1 },
     "ship": { "footprint": "hull", "supportStep": 0.4 }
   },
   "pieceSurfaces": { "foundation": "floor", "floor": "floor", "stairs": "floor", "wall": "wall", "roof": "roof" },
   "solvers": ["free", "socket", "opening", "attach", "sweep"],
   "rotations": ["free", "steps", "support", "flip", "fixed"],
-  "checks": ["reach", "surface", "step", "slope", "water", "overlap", "support", "sight", "privilege", "limits", "own"],
+  "checks": ["reach", "surface", "aboard", "step", "slope", "water", "overlap", "support", "sight", "privilege", "limits", "own"],
   "placeables": [
     { "kind": "deployable", "key": "sleeping-bag" },
     { "kind": "deployable", "key": "bed" },

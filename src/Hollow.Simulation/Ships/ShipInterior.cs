@@ -78,6 +78,23 @@ public readonly record struct BoardingBox(Vector3 Min, Vector3 Max, int Part, in
 /// <summary>A named point of a ship's model, with its orientation, and the part that carries it (−1 the hull).</summary>
 public readonly record struct ShipSocket(Vector3 Position, Vector3 Forward, Vector3 Up, int Part);
 
+/// <summary>
+/// Where things may be built aboard (IRON_WAKE.md §8, the data file's <c>buildZones</c>): a box of the ship's frame over a
+/// deck (the fabrication bay, the lower decks, the mezzanine), its floor's height and the headroom over it.
+/// </summary>
+public sealed record ShipBuildZone(string Id, string Name, Vector3 Min, Vector3 Max, float Floor, float Headroom)
+{
+    /// <summary>The height of its ceiling in the ship's frame.</summary>
+    public float Ceiling => Floor + Headroom;
+}
+
+/// <summary>
+/// A box of a ship's frame kept clear of anything built aboard (IRON_WAKE.md §8, the data file's <c>exclusions</c>): the
+/// ramp's top and its swing, the airlock's approach, the stairs and their landings, the bridge, the lanes to the stations
+/// and the stations' own room; <see cref="Why"/> says what it keeps clear.
+/// </summary>
+public sealed record ShipExclusion(string Name, string Why, Vector3 Min, Vector3 Max);
+
 /// <summary>A lamp fixture of a ship's data file (IRON_WAKE.md §9.4): its name, where it is, which way it shines (a spot), its room.</summary>
 public sealed record ShipFixture(string Name, Vector3 Position, Vector3 Direction, bool Spot, string Room);
 
@@ -133,6 +150,12 @@ public sealed class ShipInterior
 
     /// <summary>The data file's lamp fixtures, its drive glows left out (IRON_WAKE.md §9.4): what ships.json's lights light.</summary>
     public IReadOnlyList<ShipFixture> Fixtures { get; init; } = Array.Empty<ShipFixture>();
+
+    /// <summary>Where things may be built aboard (IRON_WAKE.md §8), in the data file's order.</summary>
+    public IReadOnlyList<ShipBuildZone> BuildZones { get; init; } = Array.Empty<ShipBuildZone>();
+
+    /// <summary>What is kept clear of anything built aboard (IRON_WAKE.md §8), in the data file's order.</summary>
+    public IReadOnlyList<ShipExclusion> Exclusions { get; init; } = Array.Empty<ShipExclusion>();
 
     /// <summary>How far outside the boarding volume, with nothing of the ship under the feet, a character leaves (IRON_WAKE.md §4.5: 0.3 m).</summary>
     public float Margin { get; init; } = 0.3f;

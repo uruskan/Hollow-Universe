@@ -108,6 +108,10 @@
     "Jammed": "Jammed open: mend it with a hammer",
     "Disabled": "Disabled: mend it with a hammer",
     "TooFast": "Too fast or too high: slow down near the ground",
-    "NotCrew": "Its crew only: authorise at its helm"
+    "NotCrew": "Its crew only: authorise at its helm",
+    "NotInBuildZone": "Not here: build aboard in its bays and on its decks",
+    "KeepClear": "Keep this clear: a way through the ship",
+    "TooTall": "Too tall for this deck: only the high bay has the headroom",
+    "ShipFull": "The ship can't hold another {item|one of these}"
   }
 }

@@ -74,7 +74,16 @@ internal sealed class FreeSolver : IPlacementSolver
 
     public void Aim(PlacementWorld world, in PlacementContext ctx, in PlacementAim aim, List<PlacementCandidate> into)
     {
-        if (!world.Ray(ctx.Eye, aim.Direction, ctx.Rule.Reach + Solvers.AimSlack, out PlacementHit hit))
+        float reach = ctx.Rule.Reach + Solvers.AimSlack;
+        bool met = world.Ray(ctx.Eye, aim.Direction, reach, out PlacementHit hit);
+        // A ship's pieces first (a parked one's body in the zone is the same hull): the candidate is the ship's frame's,
+        // with its down (IRON_WAKE.md §8).
+        if (Aboard.Ray(world, ctx.Eye, aim.Direction, met ? hit.Distance + 0.05f : reach, out AboardHit aboard))
+        {
+            into.Add(Aboard.Aim(world, ctx, aim, aboard));
+            return;
+        }
+        if (!met)
         {
             return;
         }
@@ -89,6 +98,10 @@ internal sealed class FreeSolver : IPlacementSolver
     public PlacementCandidate? Settle(PlacementWorld world, in PlacementContext ctx, in PlacementClaim claim, out Outcome refused)
     {
         refused = OutcomeCode.Invalid;
+        if (claim.Support.Family == TargetFamily.Ship)
+        {
+            return Aboard.Settle(world, ctx, claim, out refused);
+        }
         if (!Solvers.Finite(claim.Position))
         {
             return null;

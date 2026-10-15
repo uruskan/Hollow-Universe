@@ -123,12 +123,16 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
     public Outcome Place(Entity entity, ContainerRef from, int slot, PlacementCandidate candidate, ushort expected = 0) =>
         Place(entity, new PlaceRequest(from, slot, expected, candidate.Placeable.Index, candidate.Claim));
 
-    /// <summary>A deployable put where a checked candidate says, its owner the player; standing on a piece, it goes with it.</summary>
+    /// <summary>
+    /// A deployable put where a checked candidate says, its owner the player; standing on a piece, it goes with it; aboard
+    /// a ship (IRON_WAKE.md §8), it is linked to the ship with its pose in the ship's frame, rides it, and goes with it.
+    /// </summary>
     public Outcome PutDeployable(ulong player, DeployableDef def, PlacementCandidate c)
     {
         var placed = new Deployable(NextId(), def, c.Position, c.Up, c.Yaw, new EntityId(player))
         {
-            Support = c.Support.Family == TargetFamily.Piece ? c.Support.Whole : TargetRef.None,
+            Support = c.Support.Family is TargetFamily.Piece or TargetFamily.Ship ? c.Support.Whole : TargetRef.None,
+            Link = c.Aboard is { } aboard ? new SupportLink(c.Support.Whole, aboard.Position, aboard.Rotation) : SupportLink.None,
         };
         if (def.IsRespawnPoint)
         {
@@ -146,15 +150,16 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
     }
 
     /// <summary>
-    /// After a restart, once the building is back: every thing that stood on something still holds to it, and one whose
-    /// support didn't come back meets its consequence (a deployable breaks), as when a support goes.
+    /// After a restart, once the building is back (and again once the ships are, <paramref name="ships"/>): every thing
+    /// that stood on something still holds to it, and one whose support didn't come back meets its consequence (a
+    /// deployable breaks and spills), as when a support goes. Before the ships are back, what rides one waits for it.
     /// </summary>
-    public void SettleSupports()
+    public void SettleSupports(bool ships = true)
     {
         var gone = new List<TargetRef>();
         foreach (TargetRef support in Supports._dependents.Keys)
         {
-            if (!Targets.Exists(support))
+            if ((ships || support.Family != TargetFamily.Ship) && !Targets.Exists(support))
             {
                 gone.Add(support);
             }
@@ -225,17 +230,33 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
             }
         }
 
+        // The deployables standing on a support (a piece, a ship: a bag or a body lying aboard doesn't count).
         public int ThingsOn(in TargetRef support)
         {
             int count = 0;
             foreach (TargetRef dependent in zone.Supports().DependentsOf(support))
             {
-                count += dependent.Family == TargetFamily.Thing ? 1 : 0;
+                count += dependent.Family == TargetFamily.Thing && zone.Things().StaticOf(new EntityId(dependent.Id)) is Deployable ? 1 : 0;
             }
             return count;
         }
 
         public int ThingsOwned(ulong player, DeployableDef def) => zone.Placement()._owned.GetValueOrDefault((player, def));
+
+        // The ships people walk in, where they are now (as the characters aboard them are carried).
+        public void SpacesNear(Vector3 point, float radius, List<PlacedSpace> into)
+        {
+            foreach (IShipFrame frame in zone.Frames.Ships)
+            {
+                if (zone.Ships().ShipOf(new EntityId(frame.Key)) is { Destroyed: false, InOrbit: false } ship && frame.TryPose(zone.Tick, out ShipPose pose) &&
+                    Vector3.Distance(pose.Position, point) <= radius + frame.Interior.Reach)
+                {
+                    into.Add(new PlacedSpace(frame, pose, ship.Ref, ship.Def));
+                }
+            }
+        }
+
+        public bool Crew(in TargetRef ship, ulong player) => zone.Ships().ShipOf(new EntityId(ship.Id))?.IsAuthorised(player) == true;
     }
 
     public override int InitOrder => 30;

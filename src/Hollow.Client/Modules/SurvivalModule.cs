@@ -28,6 +28,8 @@ public sealed class SurvivalModule : ClientModule
     private PlacementModule Placement => _placementModule ??= Client.Require<PlacementModule>();
     private InteractionModule? _interactionModule;
     private InteractionModule Interaction => _interactionModule ??= Client.Require<InteractionModule>();
+    private ShipModule? _shipModule;
+    private ShipModule Ships => _shipModule ??= Client.Require<ShipModule>();
 
     /// <summary>Where the natural objects are, and what players did to them (as the server says).</summary>
     public INaturalObjects? Nature { get; private set; }
@@ -138,8 +140,18 @@ public sealed class SurvivalModule : ClientModule
             _thingsById.Remove(thing.Id);
             World.ThingBodyRemoved(thing); // G7
             Placement.ThingSupportRemoved(thing); // P2
+            if (thing.Aboard)
+            {
+                _aboard.Remove(thing);
+                Ships.ThingAboard(thing, false); // IW5
+            }
         }
     }
+
+    private readonly List<RemoteThing> _aboard = new();
+
+    /// <summary>The things aboard ships (IRON_WAKE.md §8), placed on their ships as drawn every frame.</summary>
+    public IReadOnlyList<RemoteThing> ThingsAboard => _aboard;
 
     private void OnThingSpawn(in ThingSpawn m)
     {
@@ -155,9 +167,20 @@ public sealed class SurvivalModule : ClientModule
             Count = (int)Math.Min(m.Count, int.MaxValue),
             Flags = m.Flags,
             Name = m.Name ?? "",
-            Support = m.SupportFamily == Simulation.Targets.TargetFamily.Piece ? new Simulation.Targets.TargetRef(m.SupportFamily, m.Support) : default,
+            Support = m.SupportFamily is Simulation.Targets.TargetFamily.Piece or Simulation.Targets.TargetFamily.Ship
+                ? new Simulation.Targets.TargetRef(m.SupportFamily, m.Support)
+                : default,
             Capabilities = new Simulation.Capabilities.CapabilitySet(m.Capabilities),
         };
+        thing.Up = Frame.UpAt(thing.Position);
+        if (thing.Aboard)
+        {
+            // Aboard a ship (IRON_WAKE.md §8): its pose is the ship's frame's, carried where the ship is drawn.
+            thing.LocalPosition = thing.Position;
+            thing.LocalYaw = thing.Yaw;
+            _aboard.Add(thing);
+            Ships.ThingAboard(thing, true);
+        }
         _things[m.NetId] = thing;
         _thingsById[thing.Id] = thing;
         World.ThingBodyAdded(thing); // G7

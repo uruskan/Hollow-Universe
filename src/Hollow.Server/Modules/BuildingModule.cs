@@ -122,7 +122,7 @@ public sealed class BuildingModule : ServerModule
         Log($"loaded the building: {pieces} pieces, {doors} doors, {claims} claim devices ({lost} left out); " +
             $"{away / 3600:0.0} h of upkeep and decay caught up, {b.PieceCount} pieces stand");
         // What stood on pieces that didn't come back goes now (GROUND_SYSTEMS.md §3.6).
-        Zone.Placement().SettleSupports();
+        Zone.Placement().SettleSupports(ships: false);
     }
 
     private bool RestoreClaim(BuildingRecord record)

@@ -40,6 +40,11 @@ public sealed class ShipSpace : IDisposable
     private readonly PartPose[] _poses;
     private readonly float[] _states;
     private readonly List<CollideShapeResult> _collides = new();
+    private readonly Dictionary<ulong, uint> _thingBodies = new();
+    private readonly Dictionary<uint, ulong> _thingOfBody = new();
+    private readonly Stack<uint> _freeThingBodies = new();
+    private readonly PiecesOnly _piecesOnly;
+    private uint _nextThingBody;
     private CharacterBody? _body;
     private bool _dirty = true;
     private bool _disposed;
@@ -62,10 +67,13 @@ public sealed class ShipSpace : IDisposable
             _broadPhaseLayers.MapObjectToBroadPhaseLayer(PhysicsWorld.StaticLayer, new BroadPhaseLayer(0));
             _broadPhaseLayers.MapObjectToBroadPhaseLayer(PhysicsWorld.MovingLayer, new BroadPhaseLayer(1));
             _objectVsBroadPhase = new ObjectVsBroadPhaseLayerFilterTable(_broadPhaseLayers, 2, _layerPairs, 2);
+            FirstThingBody = (uint)interior.Parts.Count + 1;
+            _nextThingBody = FirstThingBody;
+            _piecesOnly = new PiecesOnly(FirstThingBody);
             Jolt = new PhysicsSystem(new PhysicsSystemSettings
             {
-                // The hull and a body per part (IW5's things aboard will take the IDs after them).
-                MaxBodies = interior.Parts.Count + 1,
+                // The hull and a body per part, then the things aboard (IW5) after them.
+                MaxBodies = interior.Parts.Count + 1 + MostThings,
                 MaxBodyPairs = 64,
                 MaxContactConstraints = 64,
                 NumBodyMutexes = 0,
@@ -90,6 +98,97 @@ public sealed class ShipSpace : IDisposable
     public ShipInterior Interior { get; }
 
     public MovementTuning Tuning { get; }
+
+    /// <summary>The most things aboard one space has bodies for (IRON_WAKE.md §8: 80 deployables a ship, with room to spare).</summary>
+    public const int MostThings = 128;
+
+    /// <summary>The first body of the things aboard: the hull's and the parts' come before.</summary>
+    public uint FirstThingBody { get; }
+
+    /// <summary>How many things aboard have a body here.</summary>
+    public int ThingBodies => _thingBodies.Count;
+
+    /// <summary>Whether a body is a thing's aboard (not a piece of the ship).</summary>
+    public bool IsThing(uint body) => body >= FirstThingBody;
+
+    /// <summary>The thing a body is (its key, as <see cref="AddThing"/> was given it), or 0.</summary>
+    public ulong ThingOf(uint body) => _thingOfBody.GetValueOrDefault(body);
+
+    /// <summary>
+    /// A solid thing aboard (IRON_WAKE.md §8: a placed box, furnace or workbench) as a box of this space, standing on its
+    /// base at a point of the ship's frame and turned by <paramref name="rotation"/>: people aboard walk into it, and the
+    /// queries that meet things aboard (a grenade's flight, placement's room) meet it. Replaces the key's box if it has one;
+    /// false when the space has no room for another.
+    /// </summary>
+    public bool AddThing(ulong key, Vector3 half, Vector3 basePoint, Quaternion rotation)
+    {
+        RemoveThing(key);
+        uint id;
+        if (_freeThingBodies.Count > 0)
+        {
+            id = _freeThingBodies.Pop();
+        }
+        else if (_nextThingBody < FirstThingBody + MostThings)
+        {
+            id = _nextThingBody++;
+        }
+        else
+        {
+            return false;
+        }
+        lock (JoltRuntime.Gate)
+        {
+            Vector3 centre = basePoint + Vector3.Transform(new Vector3(0, half.Y, 0), rotation);
+            Add(Jolt.BodyInterface, id, BoxShape(half), new PartPose(rotation, centre));
+            _dirty = true;
+            OptimizeBroadPhase();
+        }
+        _thingBodies[key] = id;
+        _thingOfBody[id] = key;
+        return true;
+    }
+
+    /// <summary>A thing aboard gone (taken, broken, gone with its link): its box goes.</summary>
+    public void RemoveThing(ulong key)
+    {
+        if (!_thingBodies.Remove(key, out uint id))
+        {
+            return;
+        }
+        _thingOfBody.Remove(id);
+        lock (JoltRuntime.Gate)
+        {
+            var bodyId = new BodyID(id);
+            Jolt.BodyInterface.RemoveBody(bodyId);
+            Jolt.BodyInterface.DestroyBody(bodyId);
+            _dirty = true;
+            OptimizeBroadPhase();
+        }
+        _freeThingBodies.Push(id);
+    }
+
+    /// <summary>
+    /// Whether a box of the ship's frame (standing on its base, turned by <paramref name="rotation"/>) meets any body here,
+    /// a piece or a thing aboard, by more than <paramref name="tolerance"/>: placement's room aboard. Under the gate.
+    /// </summary>
+    public bool BoxMeets(Vector3 half, Vector3 basePoint, Quaternion rotation, float tolerance)
+    {
+        Shape shape = BoxShape(half);
+        Vector3 centre = basePoint + Vector3.Transform(new Vector3(0, half.Y, 0), rotation);
+        Matrix4x4 at = Matrix4x4.Transpose(Matrix4x4.CreateFromQuaternion(rotation) * Matrix4x4.CreateTranslation(centre));
+        Vector3 scale = Vector3.One, offset = Vector3.Zero;
+        var settings = new CollideShapeSettings { BackFaceMode = BackFaceMode.CollideWithBackFaces, MaxSeparationDistance = 0 };
+        _collides.Clear();
+        Jolt.NarrowPhaseQuery.CollideShape(shape, scale, at, settings, offset, CollisionCollectorType.AllHit, _collides, null, null, null, null);
+        foreach (CollideShapeResult r in _collides)
+        {
+            if (r.PenetrationDepth > tolerance)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     internal PhysicsSystem Jolt { get; }
 
@@ -257,8 +356,11 @@ public sealed class ShipSpace : IDisposable
         _dirty = false;
     }
 
-    /// <summary>The nearest piece along a ray of the ship's frame within <paramref name="length"/>. Under the gate.</summary>
-    public bool Ray(Vector3 origin, Vector3 direction, float length, out SpaceHit hit)
+    /// <summary>
+    /// The nearest piece along a ray of the ship's frame within <paramref name="length"/> (with <paramref name="things"/>,
+    /// the things aboard too: their bodies come after the parts', <see cref="IsThing"/>). Under the gate.
+    /// </summary>
+    public bool Ray(Vector3 origin, Vector3 direction, float length, out SpaceHit hit, bool things = false)
     {
         hit = default;
         if (length <= 0)
@@ -266,7 +368,7 @@ public sealed class ShipSpace : IDisposable
             return false;
         }
         var ray = new Ray(origin, direction * length);
-        if (!Jolt.NarrowPhaseQuery.CastRay(ray, out RayCastResult result, null, null, null))
+        if (!Jolt.NarrowPhaseQuery.CastRay(ray, out RayCastResult result, null, null, things ? null : _piecesOnly))
         {
             return false;
         }
@@ -306,7 +408,7 @@ public sealed class ShipSpace : IDisposable
         Vector3 scale = Vector3.One, offset = Vector3.Zero;
         var settings = new CollideShapeSettings { BackFaceMode = BackFaceMode.CollideWithBackFaces, MaxSeparationDistance = 0 };
         _collides.Clear();
-        Jolt.NarrowPhaseQuery.CollideShape(shape, scale, at, settings, offset, CollisionCollectorType.AllHit, _collides, null, null, null, null);
+        Jolt.NarrowPhaseQuery.CollideShape(shape, scale, at, settings, offset, CollisionCollectorType.AllHit, _collides, null, null, _piecesOnly, null);
         bool found = false;
         foreach (CollideShapeResult c in _collides)
         {
@@ -340,7 +442,7 @@ public sealed class ShipSpace : IDisposable
         Vector3 scale = Vector3.One, offset = Vector3.Zero;
         var settings = new CollideShapeSettings { BackFaceMode = BackFaceMode.CollideWithBackFaces, MaxSeparationDistance = 0 };
         _collides.Clear();
-        Jolt.NarrowPhaseQuery.CollideShape(shape, scale, at, settings, offset, CollisionCollectorType.AllHit, _collides, null, null, null, null);
+        Jolt.NarrowPhaseQuery.CollideShape(shape, scale, at, settings, offset, CollisionCollectorType.AllHit, _collides, null, null, _piecesOnly, null);
         foreach (CollideShapeResult c in _collides)
         {
             int part = (int)c.BodyID2.ID;
@@ -394,6 +496,33 @@ public sealed class ShipSpace : IDisposable
         _capsule = placed.Create();
         _capsuleFor = tuning;
         return _capsule;
+    }
+
+    private static readonly Dictionary<Vector3, Shape> BoxShapes = new();
+
+    // A thing's box by its half extents: made once and shared by every space (its bodies hold it; never disposed).
+    private static Shape BoxShape(Vector3 half)
+    {
+        half = Vector3.Max(half, new Vector3(0.02f));
+        lock (KindsLock)
+        {
+            if (!BoxShapes.TryGetValue(half, out Shape? shape))
+            {
+                using var box = new BoxShapeSettings(half, ConvexRadius);
+                shape = box.Create();
+                BoxShapes.Add(half, shape);
+            }
+            return shape;
+        }
+    }
+
+    // The ship's own pieces (the hull's and the parts' bodies), not the things aboard: what the queries through its frame
+    // mean by the ship (the aim, reach, a blast's reach, a part's health).
+    private sealed class PiecesOnly(uint firstThing) : BodyFilter
+    {
+        protected override bool ShouldCollide(BodyID bodyID) => bodyID.ID < firstThing;
+
+        protected override bool ShouldCollideLocked(Body body) => body != null && body.ID.ID < firstThing;
     }
 
     // ---------------------------------------------------------------- the shapes of a kind, built once and shared
@@ -528,6 +657,7 @@ public sealed class ShipSpace : IDisposable
         lock (JoltRuntime.Gate)
         {
             Jolt.Dispose();
+            _piecesOnly.Dispose();
             _objectVsBroadPhase.Dispose();
             _broadPhaseLayers.Dispose();
             _layerPairs.Dispose();

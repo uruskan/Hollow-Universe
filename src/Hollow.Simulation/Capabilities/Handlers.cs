@@ -238,11 +238,20 @@ public static partial class CapabilityHandlers
     /// Goes after a while (GROUND_SYSTEMS.md §3.7): the zone's one lifetime step asks it whether a thing's time is up (or it
     /// was emptied, when its rule ends it so) and ends it: its family takes it out of the world. Nothing to tell a viewer.
     /// </summary>
-    private sealed class Lifetime : ICapability, ILifetimeCapability
+    private sealed class Lifetime : ICapability, ILifetimeCapability, IDependentCapability
     {
         public string Key => "lifetime";
 
         public ViewerFlags Flags(object thing, in Viewer viewer) => ViewerFlags.None;
+
+        // A loose thing lying on a ship's deck (IRON_WAKE.md §4.10: a bag, a body) falls to what is below when the ship goes.
+        public void SupportLost(Zone zone, in TargetRef dependent, object thing)
+        {
+            if (thing is WorldObject { Rides: true } loose)
+            {
+                zone.Things().Fall(loose);
+            }
+        }
 
         public bool Over(object thing, long tick) =>
             thing is ILifetime l && (tick >= l.EndsAt || (l.Lifetime.EndsWhenEmptied && l.Emptied));

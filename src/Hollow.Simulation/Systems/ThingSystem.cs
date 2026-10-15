@@ -8,6 +8,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Physics;
+using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
 
@@ -27,6 +28,8 @@ public sealed class ThingSystem : ZoneSystem
     private DamageSystem Damage => _damageSystem ??= Zone.Require<DamageSystem>();
     private PlacementSystem? _placementSystem;
     private PlacementSystem Placement => _placementSystem ??= Zone.Require<PlacementSystem>();
+    private ShipSystem? _shipsSystem;
+    private ShipSystem Ships => _shipsSystem ??= Zone.Require<ShipSystem>();
     private SpillSystem? _spillSystem;
     private SpillSystem Spill => _spillSystem ??= Zone.Require<SpillSystem>();
     private SupportSystem? _supportsSystem;
@@ -43,6 +46,10 @@ public sealed class ThingSystem : ZoneSystem
     internal readonly List<ILifetime> _loose = new();
     private readonly List<ILifetime> _over = new();
     private readonly List<Deployable> _workers = new();
+    private readonly List<WorldObject> _riders = new();
+
+    /// <summary>The things riding a moving support (IRON_WAKE.md §4.10, §8: a ship's deck), for statistics and tests.</summary>
+    public IReadOnlyList<WorldObject> Riders => _riders;
 
     /// <summary>The object of a static entity, or null.</summary>
     public WorldObject? StaticOf(Entity entity) => Entities.Has<StaticLink>(entity) ? Entities.Get<StaticLink>(entity).Object : null;
@@ -63,18 +70,30 @@ public sealed class ThingSystem : ZoneSystem
         {
             _workers.Add(worker);
         }
+        // A bag or a body that comes to rest on a ship's deck rides the ship (IRON_WAKE.md §4.10).
+        if (thing is DroppedContainer && !thing.Rides && thing.Support.IsNone && Ships.DeckUnder(thing.Position, 0.05f, 0.3f, out _, out Ship? deck))
+        {
+            LieAboard(thing, deck!);
+        }
+        if (thing.Rides)
+        {
+            _riders.Add(thing);
+            Follow(thing, cells: false);
+        }
         if (thing is Deployable d)
         {
             Cell(d.Position).Add(d);
-            if (d.Def.Solid)
+            if (d.Def.Solid && !d.Rides)
             {
                 Physics.AddProp(PropLayer.Deployable, d.Id.Value, PropShape.Box(d.Centre, d.Def.HalfExtents, d.Up, d.Yaw));
             }
             World.RespawnPointChanged(d);
             Placement.CountOwned(d, +1);
-            // Standing on a piece, it goes with it (GROUND_SYSTEMS.md §3.6; restored, its piece may come back after it).
-            Supports.Hold(d.Ref, d.Support);
         }
+        // Standing on a piece or aboard a ship, it goes with it (GROUND_SYSTEMS.md §3.6; restored, its support may come
+        // back after it: a ship's are boarded when the ship is, Board).
+        Supports.Hold(thing.Ref, thing.Support);
+        Board(thing);
         thing.Revision++;
         return entity;
     }
@@ -88,6 +107,12 @@ public sealed class ThingSystem : ZoneSystem
         if (thing is Deployable worker)
         {
             _workers.Remove(worker);
+        }
+        if (thing.Rides)
+        {
+            _riders.Remove(thing);
+            Unboard(thing);
+            Supports.Release(thing.Ref);
         }
         if (thing is Deployable d)
         {
@@ -115,6 +140,115 @@ public sealed class ThingSystem : ZoneSystem
         {
             yield return pool.Values[i].Object;
         }
+    }
+
+    // ---------------------------------------------------------------- things aboard (IRON_WAKE.md §4.10, §8)
+
+    /// <summary>
+    /// Every thing riding a moving support goes where its support carries it (after the ships stepped, so what is looked
+    /// at this tick is where it is): its base, up and heading in the zone's frame, its cell. Its pose on its support never
+    /// changes; nobody is sent anything for it (clients carry it on the ship as they draw it).
+    /// </summary>
+    internal void FollowSupports()
+    {
+        for (int i = 0; i < _riders.Count; i++)
+        {
+            Follow(_riders[i]);
+        }
+    }
+
+    private void Follow(WorldObject thing, bool cells = true)
+    {
+        if (!Supports.TryLinkPose(thing.Link, out TargetPose pose))
+        {
+            return;
+        }
+        Vector3 up = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, pose.Rotation));
+        if (cells && thing is Deployable d && ThingCellOf(d.Position) != ThingCellOf(pose.Position))
+        {
+            Cell(d.Position).Remove(d);
+            Cell(pose.Position).Add(d);
+        }
+        thing.Position = pose.Position;
+        thing.Up = up;
+        thing.Yaw = Facing.YawOf(Vector3.Transform(-Vector3.UnitZ, pose.Rotation), up);
+    }
+
+    // A loose thing lying on a ship's deck: held by the ship where it lies, upright on the deck (the ship's up), its
+    // heading kept.
+    private void LieAboard(WorldObject thing, Ship ship)
+    {
+        Vector3 up = Vector3.Normalize(Vector3.Transform(Vector3.UnitY, ship.State.Rotation));
+        (Vector3 forward, _) = Facing.Basis(thing.Yaw, thing.Up);
+        thing.Up = up;
+        thing.Yaw = Facing.YawOf(forward, up);
+        thing.Support = ship.Ref;
+        thing.Link = Supports.LinkTo(ship.Ref, new TargetPose(thing.Position, Geometry.Upright(up, thing.Yaw)));
+    }
+
+    // A solid thing aboard is a box of its ship's space (people walk into it), once the ship is here.
+    private void Board(WorldObject thing)
+    {
+        if (thing is Deployable { Rides: true, Def.Solid: true } d && Ships.ShipOf(new EntityId(d.Link.Support.Id))?.Space is { } space)
+        {
+            space.AddThing(d.Id.Value, d.Def.HalfExtents, d.Link.Position, d.Link.Rotation);
+        }
+    }
+
+    private void Unboard(WorldObject thing)
+    {
+        if (thing is Deployable d && Ships.ShipOf(new EntityId(d.Link.Support.Id))?.Space is { } space)
+        {
+            space.RemoveThing(d.Id.Value);
+        }
+    }
+
+    /// <summary>A ship came (made, or back after a restart): what rides it goes into its space and where it carries it.</summary>
+    internal void Boarded(Ship ship)
+    {
+        foreach (WorldObject thing in _riders)
+        {
+            if (thing.Link.Support.Id == ship.Id.Value)
+            {
+                Board(thing);
+                Follow(thing);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A loose thing (a bag, a body) whose ship went (IRON_WAKE.md §4.10): it falls from where it was to what is below
+    /// (the ground, a deck), and clients are told where it lies now.
+    /// </summary>
+    internal void Fall(WorldObject thing)
+    {
+        if (!thing.Rides || StaticOf(thing.Id) != thing)
+        {
+            return;
+        }
+        _riders.Remove(thing);
+        Unboard(thing);
+        Supports.Release(thing.Ref);
+        thing.Link = SupportLink.None;
+        thing.Support = TargetRef.None;
+        Vector3 at = Spill.RestingPoint(thing.Position);
+        if (thing is Deployable d && ThingCellOf(d.Position) != ThingCellOf(at))
+        {
+            Cell(d.Position).Remove(d);
+            Cell(at).Add(d);
+        }
+        thing.Position = at;
+        thing.Up = Frame.UpAt(at);
+        // Lying on another ship's deck, it rides that one.
+        if (Ships.DeckUnder(at, 0.05f, 0.3f, out _, out Ship? deck))
+        {
+            LieAboard(thing, deck!);
+            Supports.Hold(thing.Ref, thing.Support);
+            _riders.Add(thing);
+            Follow(thing);
+        }
+        thing.Moved++;
+        thing.Revision++;
     }
 
     private List<Deployable> Cell(Vector3 position)

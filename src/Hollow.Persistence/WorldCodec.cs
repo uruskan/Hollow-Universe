@@ -38,8 +38,10 @@ public static class WorldCodec
     /// A static thing's record; decoding reads every older version. 2 (G4): a firearm's magazine and attachments in its
     /// stacks. 3: dropped items lie in bags (GROUND.md §6.1): a bag's slots instead of one stack (an older dropped stack
     /// comes back as a bag of it). 4 (P2, GROUND_SYSTEMS.md §6): what a deployable stands on (a piece's family and ID).
+    /// 5 (IW5, IRON_WAKE.md §8): what rides a ship (a deployable built aboard, a bag or a body lying there) keeps the ship
+    /// and its pose in the ship's frame, so it comes back aboard wherever the ship is.
     /// </summary>
-    public const byte ThingVersion = 4;
+    public const byte ThingVersion = 5;
 
     // ---------------------------------------------------------------- characters
 
@@ -236,8 +238,49 @@ public static class WorldCodec
                     WriteContainer(w, corpse.Loot);
                     break;
             }
+            // Version 5: what it rides (a ship) and its pose there.
+            w.Write(thing.Rides);
+            if (thing.Rides)
+            {
+                w.Write((byte)thing.Link.Support.Family);
+                w.Write(thing.Link.Support.Id);
+                w.Write(thing.Link.Support.Part);
+                w.Write(thing.Link.Position.X);
+                w.Write(thing.Link.Position.Y);
+                w.Write(thing.Link.Position.Z);
+                w.Write(thing.Link.Rotation.X);
+                w.Write(thing.Link.Rotation.Y);
+                w.Write(thing.Link.Rotation.Z);
+                w.Write(thing.Link.Rotation.W);
+            }
         }
         return stream.ToArray();
+    }
+
+    // Version 5: what a thing rides (a ship, IRON_WAKE.md §8) and its pose there, untrusted: only a ship, finite and within
+    // a ship's reach of its frame's origin; the zone holds it to the ship, and lets it go if the ship doesn't come back.
+    private static void ReadLink(BinaryReader r, WorldObject thing)
+    {
+        bool rides = r.ReadBoolean();
+        if (!rides)
+        {
+            return;
+        }
+        byte family = r.ReadByte();
+        ulong id = r.ReadUInt64();
+        byte part = r.ReadByte();
+        var position = new Vector3(r.ReadSingle(), r.ReadSingle(), r.ReadSingle());
+        var rotation = new Quaternion(r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle());
+        bool finite = float.IsFinite(position.X) && float.IsFinite(position.Y) && float.IsFinite(position.Z) && position.Length() < 1000 &&
+            float.IsFinite(rotation.X) && float.IsFinite(rotation.Y) && float.IsFinite(rotation.Z) && float.IsFinite(rotation.W) &&
+            rotation.LengthSquared() > 0.5f;
+        if (family != (byte)TargetFamily.Ship || id == 0 || !finite)
+        {
+            return;
+        }
+        var ship = new TargetRef(TargetFamily.Ship, id, part);
+        thing.Support = ship.Whole;
+        thing.Link = new SupportLink(ship, position, Quaternion.Normalize(rotation));
     }
 
     /// <summary>
@@ -300,6 +343,10 @@ public static class WorldCodec
                     ulong support = r.ReadUInt64();
                     d.Support = family == (byte)TargetFamily.Piece && support != 0 ? new TargetRef(TargetFamily.Piece, support) : TargetRef.None;
                 }
+                if (version >= 5)
+                {
+                    ReadLink(r, d);
+                }
                 return d;
             }
             case StaticKind.DroppedBag:
@@ -328,6 +375,10 @@ public static class WorldCodec
                     bag.Loot.Set(i, stacks[i]);
                 }
                 bag.Loot.ClearDirty();
+                if (version >= 5)
+                {
+                    ReadLink(r, bag);
+                }
                 return bag.Loot.IsEmpty ? null : bag;
             }
             case StaticKind.Corpse:
@@ -345,6 +396,10 @@ public static class WorldCodec
                 for (int i = 0; i < slots.Count; i++)
                 {
                     corpse.Loot.Set(i, slots[i]);
+                }
+                if (version >= 5)
+                {
+                    ReadLink(r, corpse);
                 }
                 return corpse;
             }

@@ -50,7 +50,8 @@ public sealed class WorldModule : ClientModule
     // leaves it for the others.
     internal void ThingBodyAdded(RemoteThing thing)
     {
-        if (Physics is not { } physics || thing.Deployable(Content) is not { Solid: true } def)
+        // A thing aboard a ship is a box of the ship's space instead (ShipModule.ThingAboard, IRON_WAKE.md §8).
+        if (Physics is not { } physics || thing.Aboard || thing.Deployable(Content) is not { Solid: true } def)
         {
             return;
         }

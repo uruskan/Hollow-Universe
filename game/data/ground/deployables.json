@@ -16,7 +16,7 @@
     { "key": "workbench-1", "item": "workbench-1", "pickup": true, "burns": true, "health": 300, "size": [1.0, 0.5, 0.45], "placement": { "maxSlope": 20 }, "workbench": 1 },
     { "key": "workbench-2", "item": "workbench-2", "pickup": true, "health": 500, "size": [1.1, 0.7, 0.5], "placement": { "maxSlope": 20 }, "workbench": 2 },
     { "key": "workbench-3", "item": "workbench-3", "pickup": true, "health": 750, "size": [1.3, 1.0, 0.7], "placement": { "maxSlope": 20 }, "workbench": 3 },
-    { "key": "vehicle-workbench", "item": "vehicle-workbench", "pickup": true, "health": 1000, "size": [1.2, 1.05, 0.6], "placement": { "maxSlope": 15 },
+    { "key": "vehicle-workbench", "item": "vehicle-workbench", "pickup": true, "health": 1000, "size": [1.2, 1.05, 0.6], "placement": { "aboard": false, "maxSlope": 15 },
       "bay": { "at": [0, 0, 4.6], "clear": [1.7, 3.2, 3.3], "maxSlope": 20 } },
     { "key": "research-table", "item": "research-table", "pickup": true, "health": 200, "size": [0.75, 0.45, 0.4], "placement": { "maxSlope": 20 }, "slots": 3 }
   ]

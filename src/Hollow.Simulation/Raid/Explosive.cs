@@ -123,6 +123,17 @@ public sealed class LiveExplosive : ITargetable, IOwned, ILifetime
     /// <summary>Ticks in the air so far.</summary>
     internal int Airborne;
 
+    /// <summary>
+    /// Flying aboard a ship (IRON_WAKE.md §4.10): the ship's key (its entity ID), 0 in the zone's frame; there, where it is
+    /// and how fast it goes in the ship's frame (<see cref="Position"/> and <see cref="Velocity"/> stay the zone's, for
+    /// everything else that looks at it).
+    /// </summary>
+    public ulong Frame { get; internal set; }
+
+    internal Vector3 LocalPosition;
+
+    internal Vector3 LocalVelocity;
+
     public bool Burning => FuseEndTick >= 0;
 
     public override string ToString() => $"{Item.Key} {Id} {State} at {Position}";

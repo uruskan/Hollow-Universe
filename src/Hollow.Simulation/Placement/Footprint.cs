@@ -80,8 +80,10 @@ public sealed class BoxFootprint(Vector3 half) : Footprint
     public override Outcome Clear(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c)
     {
         Vector3 lifted = c.Position + c.Up * Lift;
-        // Bodies: pieces, doors, the claim device, trees and rocks, solid deployables, parked ships (the ground isn't: the slope is its check).
-        if (world.Overlaps(this, HalfExtents, lifted, Geometry.Upright(c.Up, c.Yaw)).Count > 0)
+        // Aboard a ship (IRON_WAKE.md §8): its space's bodies, the ship's pieces, doors and solid things aboard, in its frame.
+        // Else the zone's bodies: pieces, doors, the claim device, trees and rocks, solid deployables, parked ships (the
+        // ground isn't: the slope is its check).
+        if (c.Aboard != null ? Aboard.Meets(c, HalfExtents, Lift) : world.Overlaps(this, HalfExtents, lifted, Geometry.Upright(c.Up, c.Yaw)).Count > 0)
         {
             return OutcomeCode.Blocked;
         }

@@ -109,6 +109,15 @@ public sealed record PlacementRule
     /// <summary>At most this many of it per player (0: no limit).</summary>
     public int PerPlayer { get; init; }
 
+    /// <summary>At most this many deployables aboard one ship (IRON_WAKE.md §8: 80; 0: no limit).</summary>
+    public int PerShip { get; init; }
+
+    /// <summary>
+    /// Aboard a ship, what it keeps clear under its build zone's ceiling (IRON_WAKE.md §8): 0.2 m, so a deck of 3.8 m takes
+    /// things up to 3.6 m tall and the tall bay alone the taller.
+    /// </summary>
+    public float Headroom { get; init; } = 0.2f;
+
     /// <summary>The server accepts a claimed pose this close to its own (metres).</summary>
     public float Tolerance { get; init; } = 0.3f;
 

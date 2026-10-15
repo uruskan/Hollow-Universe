@@ -33,9 +33,11 @@ public static partial class Protocol
     /// (<see cref="ZoneInfo.Ground"/>: the stand-in or the walking-scale ground, docs/WALKING_GROUND.md); 25: IW2, seats,
     /// parts and doors (IRON_WAKE.md §5.7): a ship at rest and slow as the server's word (<see cref="ShipNetFlags.Still"/>,
     /// <see cref="ShipNetFlags.Slow"/>), the seat in the own state, <see cref="ShipDetails"/> (doors, seats, health), a
-    /// seated player's keys, the hammer's family and part.
+    /// seated player's keys, the hammer's family and part; 26: IW5, building aboard (IRON_WAKE.md §8): a thing whose
+    /// support is a ship comes in its pose in the ship's frame (<see cref="ThingSpawn"/>), and a placement claimed on a ship
+    /// in it (<see cref="PlaceIntent"/>).
     /// </summary>
-    public const uint Version = 25;
+    public const uint Version = 26;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

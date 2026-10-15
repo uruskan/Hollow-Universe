@@ -414,7 +414,47 @@ public sealed class ShipModule : ClientModule
                 var frame = new ClientShipFrame(ship, ship.Def, _shipPredictor, ParkedBodyOf, prediction.Tuning, prediction.Frames.Zone.Gravity);
                 _frames.Add(netId, frame);
                 prediction.Frames.Add(frame);
+                // The solid things aboard it, as boxes of its space: the prediction walks into them as the server does.
+                foreach (RemoteThing thing in Client.Require<SurvivalModule>().ThingsAboard)
+                {
+                    if (thing.Support.Id == ship.Id.Value)
+                    {
+                        Box(frame, thing);
+                    }
+                }
             }
+        }
+    }
+
+    /// <summary>
+    /// A thing aboard a ship came or went (IRON_WAKE.md §8): a solid one is a box of the ship's space where this client
+    /// keeps one, as the server's is.
+    /// </summary>
+    internal void ThingAboard(RemoteThing thing, bool added)
+    {
+        if (ShipOf(new EntityId(thing.Support.Id)) is not { } ship || !_frames.TryGetValue(ship.NetId, out ClientShipFrame? frame))
+        {
+            return;
+        }
+        if (added)
+        {
+            Box(frame, thing);
+            if (DrawnPose(ship.NetId) is { } pose)
+            {
+                thing.Place(pose);
+            }
+        }
+        else
+        {
+            frame.Space.RemoveThing(thing.Id.Value);
+        }
+    }
+
+    private void Box(ClientShipFrame frame, RemoteThing thing)
+    {
+        if (thing.Deployable(Content) is { Solid: true } def)
+        {
+            frame.Space.AddThing(thing.Id.Value, def.HalfExtents, thing.LocalPosition, thing.LocalRotation);
         }
     }
 
@@ -499,6 +539,14 @@ public sealed class ShipModule : ClientModule
             if (remote.Frame != 0)
             {
                 remote.Place(DrawnPose(remote.Frame));
+            }
+        }
+        // The things aboard ships, where their ships are drawn (IRON_WAKE.md §8): a box on a deck never lags its deck.
+        foreach (RemoteThing thing in Client.Require<SurvivalModule>().ThingsAboard)
+        {
+            if (ShipOf(new EntityId(thing.Support.Id)) is { } ship && DrawnPose(ship.NetId) is { } pose)
+            {
+                thing.Place(pose);
             }
         }
     }

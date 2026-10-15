@@ -238,8 +238,39 @@ internal static class ShipInteriorReader
                 f.Text(l, "room", at + ": lights", "")));
         }
 
+        // Where things may be built aboard, and what is kept clear (IRON_WAKE.md §8): boxes of the ship's frame.
+        var zones = new List<ShipBuildZone>();
+        foreach (JsonElement z in f.List(root, "buildZones", at, required: false))
+        {
+            string id = f.Text(z, "id", at + ": buildZones");
+            string zoneAt = $"{at}: build zone {JsonFields.Quote(id)}";
+            Vector3 min = f.Vector(z, "min", zoneAt), max = f.Vector(z, "max", zoneAt);
+            float floor = f.Number(z, "floor", zoneAt, min.Y), headroom = f.Number(z, "headroom", zoneAt, max.Y - min.Y);
+            if (max.X < min.X || max.Y < min.Y || max.Z < min.Z || headroom <= 0)
+            {
+                f.Problem(zoneAt, "min must be below max, and its headroom above 0");
+                continue;
+            }
+            zones.Add(new ShipBuildZone(id, f.Text(z, "name", zoneAt, id), min, max, floor, headroom));
+        }
+        var exclusions = new List<ShipExclusion>();
+        foreach (JsonElement x in f.List(root, "exclusions", at, required: false))
+        {
+            string name = f.Text(x, "name", at + ": exclusions");
+            string exclusionAt = $"{at}: exclusion {JsonFields.Quote(name)}";
+            Vector3 min = f.Vector(x, "min", exclusionAt), max = f.Vector(x, "max", exclusionAt);
+            if (max.X < min.X || max.Y < min.Y || max.Z < min.Z)
+            {
+                f.Problem(exclusionAt, "min must be below max");
+                continue;
+            }
+            exclusions.Add(new ShipExclusion(name, f.Text(x, "why", exclusionAt, ""), min, max));
+        }
+
         var interior = new ShipInterior
         {
+            BuildZones = zones,
+            Exclusions = exclusions,
             File = file,
             Parts = parts,
             Pieces = pieces,

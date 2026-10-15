@@ -306,6 +306,9 @@ public sealed class ShipModule : ServerModule
         {
             Log($"loaded {loaded} ships");
         }
+        // What was built or lay aboard a ship (IRON_WAKE.md §8) rides it again (ThingSystem.Boarded); what was aboard one
+        // that didn't come back breaks and spills, or falls.
+        Zone.Placement().SettleSupports();
         // Sleepers stored aboard a ship that didn't come back (IRON_WAKE.md §4.11) wake ashore, round the landing site.
         ComponentPool<Character> characters = Zone.Entities.Pool<Character>();
         for (int i = 0; i < characters.Count; i++)

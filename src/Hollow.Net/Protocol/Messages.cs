@@ -366,7 +366,10 @@ public partial struct ThingSpawn
     /// <summary>What it looks like: a deployable's item, a world prop's number; 0 for a corpse or a bag (what a bag holds goes only to whoever opens it).</summary>
     [VarInt] public uint Look;
 
-    /// <summary>Its base on the ground, in the zone frame, and its turn about up.</summary>
+    /// <summary>
+    /// Its base on the ground, in the zone frame, and its turn about up; aboard a ship (its support a ship: IRON_WAKE.md §8)
+    /// its base in the ship's frame and its turn about the ship's up, carried where the client draws the ship.
+    /// </summary>
     public float X;
     public float Y;
     public float Z;
@@ -382,7 +385,7 @@ public partial struct ThingSpawn
     /// <summary>Its own name: a body's (the dead player's), a bag's, a world prop's; empty for a deployable (named by its item).</summary>
     [MaxLength(32)] public string Name;
 
-    /// <summary>What it stands on (GROUND_SYSTEMS.md §6): a building piece's family and ID, or none (the ground).</summary>
+    /// <summary>What it stands on (GROUND_SYSTEMS.md §6): a building piece's or a ship's family and ID, or none (the ground).</summary>
     [Bits(4)] public TargetFamily SupportFamily;
     [VarInt] public ulong Support;
 
@@ -1469,7 +1472,10 @@ public partial struct ThingDestroyed
 
 // ---------------------------------------------------------------- P2: placing anything (GROUND_SYSTEMS.md §6)
 
-/// <summary>A pose on the wire: a point in the zone frame and a turn about up (in the characters' convention).</summary>
+/// <summary>
+/// A pose on the wire: a point in the zone frame and a turn about up (in the characters' convention); with a ship as the
+/// support it names, in the ship's frame (IRON_WAKE.md §8).
+/// </summary>
 [NetStruct]
 public partial struct PoseNet
 {
