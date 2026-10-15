@@ -90,7 +90,7 @@ public partial class ShipSandbox : Node3D
     public Dictionary<string, string> Options { get; set; } = new();
 
     /// <summary>For automated screenshots: the scene set up, the ground, plants and grass around the camera streamed.</summary>
-    public bool ReadyForShot => _frames > 30 && (_aboard ? _ground?.IsSettled ?? true : _surface.IsReady);
+    public bool ReadyForShot => _frames > 30 && _surface.IsReady;
 
     private bool Seated => _zone.Ships().SeatOf(_player) == _ship;
 
@@ -115,17 +115,6 @@ public partial class ShipSandbox : Node3D
         {
             GD.PushError($"--ship {key}: no such ship in ships.json");
         }
-        if (kind?.Interior != null)
-        {
-            OpenGround();
-            _layer = new CanvasLayer { Name = "Interface" };
-            AddChild(_layer);
-            _hud = new ShipHud { Name = "ShipHud" };
-            _layer.AddChild(_hud);
-            BuildAboard(kind);
-            SetSceneAboard(_scene);
-            return;
-        }
 
         // The world: the surface view drawing the zone's own whole world in its frame (render coordinates are the zone's),
         // as the ground game does (docs/WHOLE_WORLD.md §10): it draws around the camera this sandbox places.
@@ -144,6 +133,18 @@ public partial class ShipSandbox : Node3D
         _camera = _surface.Camera;
         _camera.Fov = 70;
         _camera.MakeCurrent();
+
+        if (kind?.Interior != null)
+        {
+            OpenGround();
+            _layer = new CanvasLayer { Name = "Interface" };
+            AddChild(_layer);
+            _hud = new ShipHud { Name = "ShipHud" };
+            _layer.AddChild(_hud);
+            BuildAboard(kind);
+            SetSceneAboard(_scene);
+            return;
+        }
 
         _layer = new CanvasLayer { Name = "Interface" };
         AddChild(_layer);
@@ -428,7 +429,7 @@ public partial class ShipSandbox : Node3D
         Num.Vector3 up = _zone.Frame.UpAt(eye);
         Num.Vector3 d = at - eye;
         Num.Vector3 flat = d - up * Num.Vector3.Dot(d, up);
-        _yaw = MathF.Atan2(-flat.X, -flat.Z);
+        _yaw = Facing.YawOf(flat, up);
         _pitch = MathF.Atan2(Num.Vector3.Dot(d, up), flat.Length());
     }
 
@@ -686,8 +687,10 @@ public partial class ShipSandbox : Node3D
         d.Height = (float)(_zone.Frame.ToBody(s.Position).Length - surface.Radius);
         d.Ceiling = _ship.Def.CeilingOn(surface.Radius);
         d.OverGround = (float)(r - surface.Radius - ground);
+        // The heading from local north (docs/WHOLE_WORLD.md §5).
+        (Num.Vector3 north, Num.Vector3 east) = Facing.Compass(_zone.Frame.UpAt(s.Position));
         Num.Vector3 f = s.Forward;
-        d.Heading = MathF.Atan2(f.X, -f.Z) * 180 / MathF.PI;
+        d.Heading = MathF.Atan2(Num.Vector3.Dot(f, east), Num.Vector3.Dot(f, north)) * 180 / MathF.PI;
         d.Throttle = _controls.Throttle;
         d.Stick = _controls.Stick;
         d.AssistOff = _controls.AssistOff;
