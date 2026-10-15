@@ -413,3 +413,21 @@ but legacy trees, rocks, large blade shapes, animal art and night stars still ne
 a deliberate weapon/audio feel pass, some smaller legacy interactions and clean competing-workload-free frame-time
 measurements remain. The original reported native crash cannot be attributed without its stack trace; observed
 exit resource warnings are recorded rather than suppressed. This checkpoint is not closure of all 47 reports.
+
+## Audio-first continuation handoff — 16 October 2026
+
+The owner requested a complete contextual handoff and made audio the first priority. The standalone prompt
+`docs/HANDOFF_AUDIO_FIRST_2026-10-16.txt` enumerates all 17 current and 30 legacy reports, distinguishes prior
+implementation/evidence from remaining quality and runtime checks, and preserves the larger design scope.
+`REPAIR_STATUS.md` now reflects that ordering. Audio source verification, corrected routing and 22 new variants
+did not complete the listening/mixing pass; the 235-event/783-file engine audit remains technical evidence only.
+
+The preceding read-only runtime audit verified current AB Test B binaries and Maximum settings. The owner
+confirmed grass is present after a live night screenshot showed dense dark cover. A separate moonlight cloud-ray
+bug has a candidate patch and unrun tests under `.artifacts/cloud-shadow-stage`; no runtime files were changed.
+The attempted copied-save night reproduction disconnected and was stopped, so it is not an accepted comparison.
+The original user game/save were preserved. FPS remains available through the persistent F1 `fps` toggle; the
+last inspected preference was false and was not changed by the audit.
+
+This handoff is documentation only. Validation checks its complete R1–R17/L1–L30 coverage, referenced files and
+diff formatting; no new build, test-suite, audio-listening or rendering acceptance is claimed.

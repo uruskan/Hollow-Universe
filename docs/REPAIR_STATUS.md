@@ -7,6 +7,14 @@ Latest compiled checkpoint: build 18, zero warnings/errors; Release server also 
 The shared full run passed 384/384 on build16. Subsequent renderer/capture changes built cleanly and the final
 attachment/render-state/streaming focused run passed 8/8. Visual acceptance is recorded separately below.
 
+Owner priority, 16 October 2026: **audio first**. The source/routing work and engine audit did not finish sound
+design or listening acceptance. The owner also confirmed grass is present, while rejecting the overall visual
+quality. The current-build restored Maximum/night session was verified; it differs from prior controlled
+High/daylight captures. A moonlight/cloud-shadow correction is staged only in `.artifacts/cloud-shadow-stage`,
+not installed or validated. The copied-save follow-up capture disconnected and is not acceptance evidence.
+The complete continuation prompt, including all 17 current and 30 legacy reports, is
+[HANDOFF_AUDIO_FIRST_2026-10-16.txt](HANDOFF_AUDIO_FIRST_2026-10-16.txt).
+
 | Package | Owner | Reports | State |
 | --- | --- | --- | --- |
 | Ship motion, mouse control, all-seat orbit camera, fuel inventory | engine_reuse_audit | R1, R3–5, L27–29 | Simulation, persistence and strict prediction regressions pass. Corrected actual ship tour passed fuel opening/filter, boarding, cockpit/V/drag/zoom, W throttle, airborne exit and unattended powered flight. Passenger/turret camera isolation still needs its live check. |
@@ -113,27 +121,28 @@ Root coordinates builds, imports and captures because all agents share this chec
 
 ## Remaining work, in priority order
 
-1. **Continue the environment art pass.** Dense coverage and varied authored plants, reduced dry-ground sheen,
+1. **Finish the audio listening and action-feedback pass (R9/L19/L21).** Source hashes and event routing are
+   checked, but hit/headshot prominence, timing and overall weapon feel have not been accepted by listening.
+   Animal voices remain synthetic; species-specific recorded replacements, exact surface contacts and broader
+   per-action listening remain outstanding. Use real gameplay recordings, not file-loading success, as evidence.
+2. **Continue the environment art pass.** Dense coverage and varied authored plants, reduced dry-ground sheen,
    underwater corrections, resources, cliffs and monuments have accepted implementation captures. Large flat legacy
    blades, coarse tree bark/crowns, legacy rocks, repetitive arrangement and excessive night stars still limit realism.
    Retain coverage while improving those assets and their biome placement. The full suite, nine supplied item/container
    captures, corpse flow and actual optics gates above have passed; they do not establish finished environment quality.
-2. **Isolate the remaining tree-hit/terrain stalls (L23).** Redundant ordinary-hit buffer uploads are removed and
+3. **Isolate the remaining tree-hit/terrain stalls (L23).** Redundant ordinary-hit buffer uploads are removed and
    actual hit/depletion behavior is verified. First-hit cue/marker setup still needs clean profiling, and unrelated
    worst-frame stalls remain unexplained. Repeat idle/chop timing without competing imports/renders before making
    any overall performance claim. The reported 30–80 FPS terrain concern has no accepted before/after measurement.
-3. **Continue weapon feel (L21).** Socket drag/network authority and actual fitted holo/scope/light presentation are
+4. **Continue weapon feel (L21).** Socket drag/network authority and actual fitted holo/scope/light presentation are
    verified; see [REPAIR_ATTACHMENTS.md](REPAIR_ATTACHMENTS.md). Recoil recovery remains inherited. Replacing it or
    claiming pre-2022 Rust feel requires a deliberate gameplay/art/audio pass, not an inventory test. Scope rendering
    is bounded to one 512² viewport while aiming; its cost under broader combat scenes remains to be measured.
-4. **Close remaining gameplay visual/input gates:** targeted building windows, stairs, roofs, all LODs and placement
+5. **Close remaining gameplay visual/input gates:** targeted building windows, stairs, roofs, all LODs and placement
    previews (L2/L4–11/L14); animal attacks on foundations and across additional planet frames (R16);
    passenger/turret orbit/zoom isolation (R5/L28). Actual damaged-corpse HUD acquisition, complete
    death/respawn/harvest/backpack flow, and the pilot/unattended-flight live sequence have passed. Simulation passes
    remain valid while the remaining presentation checks are open.
-5. **Audition feedback and surface audio (R9/L19/L21).** Source hashes and event routing are checked, but hit/headshot
-   prominence, timing and overall weapon feel have not been accepted by listening. Animal voices remain synthetic;
-   species-specific recorded replacements and broader per-action listening remain outstanding.
 6. **Retain the smaller legacy gaps explicitly:** L10's arbitrary positional snapping to every nearby wall/object
    is not implemented; current improvement is measured fit and support-relative rotation. L12's requested optional
    friend-assignment menu entry is absent (bed naming itself is verified). L1/L13/L26 already have implemented and
