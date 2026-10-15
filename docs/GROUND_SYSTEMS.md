@@ -145,7 +145,11 @@ switch and fields are gone, a charge follows a door's leaf and falls when its su
 version 2 stores the `TargetRef` (version 1 records come back onto one). Spent arrows are the second (P1, §5): one rides a
 body's bone and falls to the ground when its holder goes. Placement (P2) adds the next. Fires (IW4, IRON_WAKE.md §7) are
 held by what they burn on: one rides a ship's deck, and when its floor burns through or its box burns down its fuel falls to
-what is below and burns on. Test: `FoundationTests.SupportLinksFollowAndGoWithTheirSupport`, `FireTests`.
+what is below and burns on. Things aboard (IW5, IRON_WAKE.md §8.1) are the next: a deployable built on a ship's deck, and a
+bag or body that comes to rest there, keep a link to the ship with their pose in its frame (`WorldObject.Link`); the zone
+carries them where the ship is every tick after the ships step (`ThingSystem.FollowSupports`), clients where they draw
+it; when the ship goes a deployable breaks and spills (the standing capability) and a loose thing falls (the lifetime
+capability's consequence). Test: `FoundationTests.SupportLinksFollowAndGoWithTheirSupport`, `FireTests`.
 
 ### 3.7 Lifetimes
 One despawn rule for every loose thing in the world: a `lifetime` from data (survival.json today: dropped items and bags
@@ -402,6 +406,18 @@ deployables, its building mirror, the things, characters and ships it was sent, 
 what they meet by its owner (`TargetRef`) and the surface it offers. Reach, sight and building rights moved out of the
 building's rules into the pipeline; the building keeps stability, sockets, collisions and the price. Tests:
 `PlacementTests` (nine, one a rule).
+
+*As built (IW5, IRON_WAKE.md §8.1): aboard a ship.* The same pipeline, nothing beside it. The world's surroundings
+give the ships people walk in (`IPlacementSurroundings.SpacesNear`: their frames and where they are, the server's now and a
+client's as drawn; `Crew`, the ship's list). The free solver meets a ship's pieces first when they are nearer (`Aboard.Ray`)
+and works the candidate out in the ship's frame, with its down (`Aboard.Aim`); the candidate keeps that spot
+(`PlacementCandidate.Aboard`) and is carried into the zone's frame for the checks that look at the world; its claim gives
+the pose in the ship's frame and the server settles it there (`Aboard.Settle`). One new check, `aboard` (the data file's
+build zones and exclusions, a deck of the hull, the zone's headroom less the rule's `headroom`); the others read the ship
+where they must: slope against its up, water none, overlap in its space (`ShipSpace.BoxMeets`), corners down its −Y,
+sight through its space, privilege its list, limits its `limits.ship`. A rule's `aboard: false` takes the `ship` surface
+out. The deployable put is linked to the ship with its pose there (`WorldObject.Link`) and is a box of the ship's space.
+The explosives' sweep enters ship spaces too, so a charge's ghost sticks to a hull. Tests: `IronWakeBuildTests`.
 
 **One ghost:** the thing's catalogue model in a hologram material, one colour when it fits and red when not, with the
 reason under the crosshair (the building plan's line), and a pending look until the server's answer arrives. R turns it

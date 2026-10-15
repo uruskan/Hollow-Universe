@@ -224,6 +224,20 @@ shooter's ship velocity added at launch (today nothing adds the shooter's veloci
 - **Bullets, arrows and rockets in flight** stay in the zone's frame. They are fast, and leave the ship within a few
   ticks.
 
+*As built (IW5, 15 October 2026):*
+- **Charges** stick to a ship's pieces: the explosives' sweep (`PlacementWorld.Sweep`, a charge's ghost and a throw alike)
+  enters every ship space it crosses, so a charge thrown at the hull or put on it by hand is held by the ship's part and
+  follows it each tick (`ExplosiveSystem.Follow`).
+- **Thrown grenades and charges** (`ExplosiveSystem.FlyAboard`): one inside a ship's boarding volume flies in its frame,
+  under the decks' gravity, against its pieces and the things aboard (the space's bodies), bouncing as on the ground; it
+  rests or sticks held by the ship, or, more than the margin out of the volume, flies on in the zone's frame with the
+  ship's velocity there. Its zone pose is kept where the ship carries it and sent each tick it flies aboard.
+- **Bags, bodies and dropped items**: where loose things come to rest (`SpillSystem.RestingPoint`) asks first for a deck
+  under them (`ShipSystem.DeckUnder`: the point in a live ship's boarding volume, a floor of its space below); what is
+  added on a deck (`ThingSystem.AddStatic`) is linked to the ship, upright on the deck, and rides it. A body of someone who
+  died aboard lies on the deck.
+- **Spent arrows** and **fires** were already linked (IW1, IW4).
+
 ### 4.11 Network and saves
 
 - **Input.** `InputCommand` carries the view in the frame the client believed its character was in, with that frame's
@@ -929,6 +943,80 @@ name)`, put out with `PutOut`; fires on a ship ride it and fall when it is wreck
   - They are saved with the ship.
   - When the ship is wrecked they break and spill (Rust).
   - Vibration is sound and a little cosmetic sway of loose parts, never their pose (SHIP_FEEL.md).
+
+### 8.1 As built (IW5, 15 October 2026)
+
+Built on the branch `iw5` (from `main` at IW2 and IW4). All fourteen defaults as above.
+
+**What may stand aboard** (`placement.json`). The deployable kind's surfaces are `terrain`, `floor` and `ship`; a rule's
+`aboard: false` takes `ship` out (the claim device's kind and the vehicle workbench). Its limits gain `ship: 80`; the
+defaults gain `headroom: 0.2`. The checks gain one, `aboard`, after `surface`.
+
+**How** (`Placement/Aboard.cs`). The one pipeline, nothing beside it:
+- *The free solver.* When the aim meets a ship's pieces first (`Aboard.Ray`, through every ship people walk in near the eye;
+  a parked ship's body in the zone is the same hull, so the ship wins a tie), the candidate is worked out in the ship's
+  frame: the deck under the aimed point along the ship's −Y, turned about its +Y by the aim's heading there (a heading's
+  frame is the viewer's, so the aim's direction is what both sides read alike), then carried into the zone's frame where
+  the ship is (`Aboard.Finish`). The candidate keeps its spot in the ship's frame (`PlacementCandidate.Aboard`:
+  `AboardSpot`, its base, the deck's normal, its turn, the space's body under it).
+- *The claim.* A claim whose support is a ship gives its pose in the ship's frame (`PlacementCandidate.Claim`; PoseNet
+  says so). The server works it out again there (`Aboard.Settle`), so a ship that moved between the client's frame and
+  the server's tick changes nothing. A client's ships are where it draws them (`ShipModule.DrawnPose`), the server's where
+  they are now.
+- *The checks, aboard.* `aboard` (`Aboard.Where`): the footprint's box, from its base to its top, clear of every exclusion
+  (KEEP CLEAR, 117), standing on the hull's own decks (a ramp or a door is no deck) inside one build zone (NOT IN A BUILD
+  ZONE, 116), and its top `headroom` under the zone's ceiling (TOO TALL, 118: so the lower decks' 3.8 m take 3.6 m and the
+  bay's 7.5 m the taller). `slope` is read against the ship's up; `water` has nothing to say; `overlap` asks the ship's space
+  for the box (its pieces, doors and the solid things aboard: `ShipSpace.BoxMeets`), then the soft things aboard and the
+  characters as anywhere; `support` casts each corner down the ship's −Y onto the hull's decks within 15 cm (`Aboard.Support`);
+  `sight` is a ray through the ship's space (`Aboard.Sight`); `privilege` is the ship's list (NOT CREW, 115); `limits`
+  counts the deployables standing on the ship (THE SHIP CAN'T HOLD ANOTHER …, 119).
+- *What placing makes.* The deployable's support is the ship (its deck is the hull, part 0), held by a support link with
+  its pose in the ship's frame (`WorldObject.Link`); a solid one is a box of the ship's space (`ShipSpace.AddThing`: bodies
+  after the parts', up to 128; the queries that mean the ship, the aim, reach and blasts, filter them out, `PiecesOnly`).
+  People aboard walk into it; a box half a metre high is climbed, as on the ground (the step and the capsule's curve).
+
+**What it is aboard.**
+- *Riding.* After the ships step, the zone carries every thing that rides a moving support where its link puts it
+  (`ThingSystem.FollowSupports`): its base, up, heading and cell, before anything else that tick looks at it. Nothing is
+  sent for it: a client carries it where it draws the ship. Measured: a box on Deck A 0.15 mm off its place over 84 m
+  of climb, a turn and a landing.
+- *Working.* It is the same deployable: a box opens in flight, a furnace smelts (`AFurnaceAboardSmeltsInFlight`: six metal
+  fragments in 25 s of flight), its reach and sight go through the ship's space.
+- *Spawn point.* A bed or bag aboard is one: the respawn stands its owner on the deck in front of it, in the ship's frame
+  (`PlayerSystem.AboardPoint`), wherever the ship is.
+- *No upkeep or decay*: deployables have none anywhere, and nothing aboard is a building.
+- *Picking up* is the portable capability's verb as anywhere; aboard, the ship's list is its claim: the crew take things
+  up, a stranger hears NOT CREW (`TargetFacts.Aboard`, the viewer's Authorised from the ship's list).
+
+**When the ship goes.** `ShipSystem.Wreck` takes the parked body away first, then reports the ship destroyed: the support
+rule breaks every deployable aboard (the standing capability), its contents spilling in a bag on the ground at the
+wreck, and every loose thing aboard falls (the lifetime capability's consequence, `ThingSystem.Fall`), clients being sent
+it anew (`WorldObject.Moved`). A ship taken out of the zone without a wreck does the same (`RemoveShip`).
+
+**Network** (protocol 26). `ThingSpawn` of a thing whose support is a ship carries its base and turn in the ship's frame
+and the ship's family and ID; the client keeps them (`RemoteThing.LocalPosition`, `LocalYaw`, `Aboard`) and places the
+thing on the ship as drawn every frame (`ShipModule.Sample`, `RemoteThing.Place`), so no zone pose goes stale; a solid one
+is a box of the client's copy of the space while it keeps one (`ShipModule.ThingAboard`), so a passenger's prediction walks
+into it as the server does. The game draws things aboard where they are each frame (`ThingsView`, their fires with them),
+and a body aboard as its backpack (a ragdoll doesn't ride a deck).
+
+**Saves** (`WorldCodec` thing version 5). What rides a ship keeps the ship and its pose in the ship's frame; a restart
+loads things before ships, so what rides one waits: the building's settling passes it by
+(`PlacementSystem.SettleSupports(ships: false)`), the ship's coming boards it (`ThingSystem.Boarded`: its box into the
+space, its pose), and once the ships are back what rode a ship that didn't come back breaks and spills, or falls.
+
+**Checks** (`IronWakeBuildTests`, engine-free):
+- a small box on Deck A rides take-off, a turn and landing, its pose fixed in the ship's frame; Ada opens it in flight;
+- refused, each with its line: at the stair's foot (KEEP CLEAR), on the ramp (KEEP CLEAR), by a stranger (NOT CREW), past
+  80 (THE SHIP CAN'T HOLD ANOTHER SMALL BOX), a 3.8 m furnace on the forward deck (TOO TALL), which the bay takes;
+- a furnace aboard smelts in flight; a sleeping bag aboard respawns its owner aboard 94 m up;
+- a grenade thrown aft along a climbing, turning deck bounces five times and rests on Deck A, riding the ship;
+- a wreck spills a large box's 300 metal fragments into a bag on the ground, and a bag lying aboard falls;
+- a restart keeps a box, a furnace and a bag aboard (two boxes of the space again), and a client joining is sent them
+  in the ship's frame.
+
+Not done: no picture yet (no Godot window in this package); a body aboard is drawn as its backpack, not a ragdoll.
 
 ## 9. How it looks
 

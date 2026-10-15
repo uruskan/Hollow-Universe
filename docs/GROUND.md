@@ -3799,12 +3799,18 @@ What stands where, by rule (each a field of the data):
 | Placeable | Where | Reach | Rights | Limits |
 |---|---|---|---|---|
 | Deployables | the ground, a foundation's, floor's or landing's top; every corner held within 15 cm; dry | 3 m | not in others' claims | 20 on a structure; 128 bags or beds a player |
+| Deployables aboard a ship (IW5) | a deck of a ship's hull, in the ship's frame: inside one of its data file's build zones, outside its exclusions, every corner on the deck within 15 cm, its top 0.2 m under the zone's ceiling (the tall bay alone takes things over 3.6 m); not the claim device or the vehicle workbench (`aboard: false`) | 3 m | the ship's crew (its list) | 80 a ship |
 | Building pieces | the building's sockets, or a free foundation on the ground (its own checks: stability, collisions, the price) | 8 m | not in others' claims, which reach 2.25 m further for a piece | 4,000 a structure (the building's) |
 | Doors | the doorway or wall frame aimed through (a double or garage door: a wall frame); R hangs it the other way | 8 m | not in others' claims | one an opening |
 | Locks | the door aimed at, at its lock spot | 3.5 m | not in others' claims | one a door |
 | Claim device | a foundation's or floor's top, square to it in 30° steps | 8 m | not in others' claims | one a structure |
 | Charges | the first surface the view meets (anything, the water too), lying along it | 3 m | none needed | — |
 | Tin Finch | the ground or a slab's top, its hull clear, no steeper than 20°, dry | 12 m | not in others' claims | — |
+
+Aboard a ship (IRON_WAKE.md §8.1) the free solver works in the ship's frame and the claim gives the pose there; what is
+placed is linked to the ship, rides it every tick, is a box of its space, is saved in its frame (thing records version 5)
+and breaks and spills when the ship is wrecked. The answers: NOT IN A BUILD ZONE, KEEP CLEAR, TOO TALL, THE SHIP CAN'T
+HOLD ANOTHER … (116–119) and NOT CREW (115). Tests: `IronWakeBuildTests`.
 
 In the game the held item's ghost shows wherever the player looks: pale blue when it fits, red with the reason under the
 crosshair when not (out of reach, out of sight, too steep, hanging over the edge, in the water, something in the way,

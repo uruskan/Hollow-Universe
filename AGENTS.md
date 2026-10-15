@@ -136,6 +136,7 @@ blender -b --factory-startup --python art/build.py -- iron_wake   # the Iron Wak
                                                  # D:\GameDev\Assets\IronWake_Buildable_R01; art/import/iron_wake.py -- data: the data file alone)
 dotnet run --project tests/Hollow.Tests -- Building   # the building rules, over the network and saved (GROUND.md §6.3, §6.5)
 dotnet run --project tests/Hollow.Tests -- Ship   # G6: the Tin Finch's flight, boarding, building, prediction, storage (GROUND.md §6.7)
+dotnet run --project tests/Hollow.Tests -- IronWakeBuild   # IW5: building aboard: placing on its decks, riding it, refusals, a furnace in flight, a bag aboard, a grenade, a wreck, a restart (IRON_WAKE.md §8.1)
 dotnet run --project tests/Hollow.Tests -- IronWake   # IW1: walking aboard the Iron Wake: frames, hand-overs, flight with people aboard, moving parts, shots and blasts through its space, prediction aboard, sleepers aboard (IRON_WAKE.md §4.13)
 dotnet run --project tests/Hollow.Tests -- ShipParts Seat   # IW2: seats freed every way, each part's verbs, the ramp shut, broken and mended, the helm's list, two seated in flight, ShipCodec 2 (IRON_WAKE.md §5.7)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly   # G6: bots that board their ships and fly loops
