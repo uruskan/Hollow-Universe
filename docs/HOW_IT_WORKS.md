@@ -223,7 +223,10 @@ The Godot project (`game/scripts`) draws it: `GroundMode` starts the client (and
 `GroundView` is the scene (the terrain, `PeopleView`, `ThingsView`, `NatureView`, `BuildView`, `ArrowsView`, `GibsView`,
 the first-person view and view model, `FxDirector`, `AudioDirector`), and the interface is `GroundUi` (HUD, inventory,
 crafting, map, death screen, radials, console) drawing an `IGroundUi` model that `ClientGroundUi` fills from the client
-(and `MockGroundUi` fills for screenshots without a server). Every length goes through `Ui.Px`. The Godot side builds
+(and `MockGroundUi` fills for screenshots without a server). Every length goes through `Ui.Px`. The map (G) and the
+death screen share one map control of the whole world (`GroundUi.Globe.cs`, docs/WHOLE_WORLD.md §11): its view is a
+`GlobeCamera`, a canvas shader draws the six faces' picture through `GlobeProjection`, and the overlay places the grid
+(`WorldGrid`), markers and labels with the same projection and reads clicks with its inverse. The Godot side builds
 but does not draw the whole world yet: its render frame, terrain, sea, plants, effects and cameras are S3c's
 (docs/WHOLE_WORLD.md §14), so playing on the ball waits for that step.
 

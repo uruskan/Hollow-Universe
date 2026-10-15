@@ -181,7 +181,8 @@ public static class WorldNetTests
         Assert.True(me.Markers[0].Label == "base" && me.Markers[0].Colour == 2 && Vector3.Distance(me.Markers[0].Position, basePoint) < 0.05f, "as placed");
         me.RemoveMarker(0);
         RunUntil(rig, () => me.Markers.Count == 0, "the marker gone");
-        Assert.True(ada.World().Map!.GridName(ada.World().Map!.ToMap(ada.Character.Position)).Length >= 2, "the map names a grid cell");
+        string cell = ada.World().Map!.GridName(ada.Character.Position);
+        Assert.True(System.Text.RegularExpressions.Regex.IsMatch(cell, "^[A-F] [A-Y][0-9]{1,2}$"), $"the map names a grid cell ({cell})");
     }
 
     /// <summary>

@@ -5,7 +5,8 @@ owner said go on 14 October 2026, after asking why the map still shows a 3.9 km 
 [KNOWN_PROBLEMS.md](KNOWN_PROBLEMS.md)), and approved the twelve defaults of §2 the same evening, so they are
 decisions. The code was built on the branch `whole-world` and merged into `main` on 15 October 2026, at the owner's
 word, before S3c (so that the game has the Iron Wake). S3a and S3b are built (14 and 15 October 2026; how they differ
-from this design is at the end of §14); S3c and S3d remain, on `main`.
+from this design is at the end of §14); S3c and S3d remain, on `main`. S3d, the map, was built on the branch `s3d` on 15
+October 2026 (§14, S3d as built).
 
 Four read-only surveys of the code (14 October 2026: the simulation, the network and saves, the world and the animals,
 the Godot client) found every place that assumes the zone is a flat patch. This design is built on them.
@@ -406,6 +407,7 @@ ship), the procedural sky and the fixed light. Changes:
 - **The grid** (decision 6): faces A to F, each 25 × 25 cells lettered and numbered as in Rust, so "C K12". The console's
   `whereami` and `teleport <cell>` use the same naming function. Today the console has its own copy.
 - **Facing arrows** are measured from local north.
+- **As built** (S3d, 15 October 2026): §14, S3d as built.
 
 ---
 
@@ -417,7 +419,7 @@ The surveys found these on `main` today. S3 did not cause them.
 |---|---|---|
 | Every animal added on the same tick gets the same seed, so a herd's members start on one spot, face one way and think on the same tick | `AnimalWorld.AddMember`: the counter `_localIds` is never incremented | Increment it, on `main` now |
 | In play, the near tree impostors' bounds are ±400 m around the landing site. More than about 400 m from it, they disappear whenever those bounds are out of view. Not yet seen in a run | `Vegetation.Game.RebuildNear` anchors the near set at the frame's origin; the impostors' `CustomAabb` is fixed | Bounds around the camera, on `main` now |
-| The map of a surface without a sea is most likely black: heights become infinite and the shading NaN. Not run | `ZoneMapImage` | In S3: the stand-in gets a sea (§4) and the map reads `SeaRadius` safely |
+| The map of a surface without a sea is most likely black: heights become infinite and the shading NaN. Not run | `ZoneMapImage` | In S3: the stand-in gets a sea (§4) and the map reads `SeaRadius` safely (done in S3d: a world without a sea is all land; a test draws one) |
 | `world.json` says coastal clusters lie within 40 m of the sea; the code uses 35 m | `LootSpots.Classify` | In S3 |
 | The animals' class comment says they think at 8 and 4 Hz; they think at 7.5 and 5 | `AnimalWorld` | In S3 |
 
@@ -541,6 +543,62 @@ coordinates, §8), within 256 kbit/s; prediction is exact wherever nothing pushe
 - **Left:** bursts of slow placements when 80 bases start at once on beaches (30 of 3,602 ticks over 33 ms); the
   snapshot's bytes a moving character (about 87 of 99 walkers fit the budget); the animals' cost above the flat
   patch's. KNOWN_PROBLEMS.md lists them.
+
+**S3d as built (15 October 2026, branch `s3d`).** The map of the whole world, §11, for the G screen and the death screen.
+The checks: the engine-free tests pass (243, four of them new in `MapTests`: the projection and its inverse round
+trip for a globe, Lambert's disc and the chart, about the equator and over a pole, the far side hidden, true to scale at
+the centre; the camera follows, drags, zooms and settles; the grid's names; the picture of the stand-in and of a world
+without a sea); the console test teleports to a cell and reads it back from `whereami`; `--view ui --ui-check` passes
+(26 of 26, five of them new: a marker put down where the map was clicked, taken off, the globe turned); the pictures are
+in `docs/images/ground/s3d/`: `map-globe.jpg` (the viewer zoomed out), `map-chart.jpg` (zoomed in), `death.jpg` (the
+death screen), and `map-open.jpg`, the hosted game's map as G opens it (`--tour ../docs/images/ground/s3d --tour-steps
+map`). What was built:
+- **Code.** `WorldGrid` (`Hollow.Surface`): the grid and its one naming function. `GlobeProjection` and `GlobeCamera`
+  (`Hollow.Client/Map`): the projection, its inverse and the view. `ZoneMap` and `ZoneMapImage` rewritten: the six faces
+  by direction. `GroundUi.Globe.cs`: the one map control (picture shader, overlay, input), which `GroundUi.Map.cs` (G)
+  and `GroundUi.Death.cs` use. The death screen's placeholder survey picture (`DeathMap`) is gone. world.json's
+  `map.metres` is gone; `map.cell` (150) is now about how big a cell is.
+- **The projection** (§11's "blends into a flat chart") is one family of azimuthal projections about the view's centre:
+  a point θ from the centre is drawn R·sin(kθ)/k from it. k = 1 is the globe (orthographic, the far side hidden), ½
+  Lambert's equal-area disc of the whole world, k → 0 the azimuthal equidistant chart, and every k is true to scale at
+  the centre, so zooming never changes the size of the land under the view. k is 1 while the view is 2 radii (4.8 km)
+  across and more and 0 from 1 radius (2.4 km) in, smooth between. The shader and the overlay use the same formula.
+- **Zoom:** from 2.25 radii (5.4 km, the whole world with a margin) to 150 m across the map's shorter side. The G screen
+  opens 1.2 km across, following the player; the death screen 900 m across on the body. While following, the wheel
+  zooms about the player; otherwise about the pointer.
+- **Moving it** (a choice §11 left open): a drag turns the globe so the ground under the pointer stays under it, as a
+  trackball, which carries on over the poles. Left alone, the map turns itself back to local north up (as a compass
+  settles, in a fraction of a second), except within 25° of a pole, fading out by 10°, where north turns too quickly
+  to follow; a compass in the corner shows north and a click on it puts north up at once. Following always holds north
+  up. Rust's map is always north up; a ball can't be at the poles, and this keeps it north up everywhere else.
+- **The grid** (decision 6, as §11): the faces are lettered round the equator eastward from the prime meridian, A (0°),
+  B (90° E), C (180°), D (90° W), then E (the north pole's) and F (the south's). On A to D the letters grow eastward and
+  the numbers southward, as on Rust's map. E and F take the cube's own axes, which line up with D's: near A, B and C
+  their cells are turned against north, as any grid of six faces must be somewhere. 25 cells a face on the first world,
+  107 to 151 m (smallest at a face's corners).
+- **The picture** (§11): six faces of 1,024 px by direction, from any `ISurface` (heights, `SeaRadius` read safely,
+  `BiomeAt`). Hill shading takes each pixel's slope from its four neighbours against local up, the light from local
+  north-west; contours every 10 m (faint) and 50 m, since the stand-in's land stands under 40 m; forests are darker
+  biome colours, as `BiomeAt` is all a surface must give (the planet's vegetation density was used before); paper grain
+  and stains are laid on the sphere; the square's darker edge went with the square. On disk it is one strip of the six
+  faces (`user://map-cache/<key>-1024.png`); loading and mipmaps are on the worker, so the main thread only makes the
+  texture array. The shader picks each pixel's mip level from the projection's own scale there (no seams at the faces'
+  edges) and samples bicubically when magnified, so the texels don't show as stairs.
+- **The cache key** (§9) holds the body, the radius, the picture's look (`ZoneMapImage.Version`) and the surface's
+  version. `ISurface` declares no version, so it is measured: the surface's kind, radius, sea and its height and biome at
+  1,024 directions spread evenly over the world. S4's generator gets a new picture without anyone raising a number.
+- **The overlay** is crisp at any scale: grid lines are polylines through the projection, clipped to the map; the faces'
+  edges stay dark and the cells' lines fade in as a cell grows from 9 to 27 px; cells are named in their top-left corner on
+  screen ("K12", "C K12" from 80 px) through the Labeller after the markers' names, and from afar each face shows its
+  letter. A scale bar (true at the centre) sits in the corner. Facing arrows turn from local north as the map draws north
+  there: the camera's view on foot (before, the view's yaw in its carried frame), the ship's nose while flying (before,
+  an angle measured on the old plane).
+- **The console:** `whereami` names the cell as the map does, and `teleport <cell>` (and `teleport <player> <cell>`) goes
+  to the middle of a cell; the console's own copy of the grid is gone. `teleport <x> <z>` stays (S3a kept it).
+- **Found on the way:** the death screen placed sleeping bags at a point made of the bag's X and Y (a leftover of the
+  plane: `RespawnOption.Position` became a 3D point in S3a); they now stand where they are.
+- **Not in S3d:** the map is as good as the ground it draws: until S4 it is the stand-in's continents and bands. The
+  world under the map in the game is drawn flat until S3c.
 
 ---
 

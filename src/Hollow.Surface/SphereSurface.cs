@@ -37,7 +37,7 @@ public sealed class SphereSurface : ISurface
     }
 
     /// <summary>Trilinear value noise in [0, 1) with smoothstep weights, on the integer lattice.</summary>
-    internal static double ValueNoise(Vector3D p, ulong seed)
+    public static double ValueNoise(Vector3D p, ulong seed)
     {
         double fx = Math.Floor(p.X), fy = Math.Floor(p.Y), fz = Math.Floor(p.Z);
         long ix = (long)fx, iy = (long)fy, iz = (long)fz;

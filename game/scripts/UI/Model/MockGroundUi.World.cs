@@ -1,17 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
+using Hollow.Core;
 using Hollow.Simulation;
 using Hollow.Simulation.Content;
 using Hollow.Surface;
 
 namespace HollowUniverse.UI.Model;
 
-// The mock's G7 world (GROUND.md §6.8): the first world's real map round the landing site, a few markers, a team with an
-// invite, the level 1 workbench's tech tree as world.json has it, and a recycler and research table to open.
+// The mock's G7 world (GROUND.md §6.8): the first world's map as the game draws it (the same zone, the same stand-in
+// ground, so the same picture and cache), a few markers round the landing site, a team with an invite, the level 1
+// workbench's tech tree as world.json has it, and a recycler and research table to open.
 public sealed partial class MockGroundUi
 {
-    private const float MapMetres = 3900;
     private static MapView? _map;
     private static bool _mapTried;
     private readonly List<MapMarkerView> _markers = new();
@@ -29,7 +31,15 @@ public sealed partial class MockGroundUi
     private bool _world;
     private TeamInfo? _team;
 
-    /// <summary>The first world's map round the landing site (rendered off the main thread by the interface, then cached).</summary>
+    /// <summary>The first world's zone as the server makes it (ZoneSpec.FirstWorld), without the galaxy.</summary>
+    private static readonly ZoneSpec SampleZone = new()
+    {
+        SystemAddress = FirstWorld.System.Value, BodyPath = FirstWorld.BodyPath, Radius = ZoneSpec.FirstWorldRadius,
+        SurfaceSeed = Hash64.Of(FirstWorld.System.Value, FirstWorld.BodyPath), StandIn = true,
+        LatitudeDegrees = FirstWorld.LandingLatitude, LongitudeDegrees = FirstWorld.LandingLongitude,
+    };
+
+    /// <summary>The whole first world's map (rendered off the main thread by the interface, then cached).</summary>
     public MapView? Map
     {
         get
@@ -37,32 +47,32 @@ public sealed partial class MockGroundUi
             if (!_mapTried)
             {
                 _mapTried = true;
-                if (PlanetSurfaces.Find(FirstWorld.System.Value, FirstWorld.BodyPath) is { } found)
-                {
-                    var spec = new ZoneSpec
-                    {
-                        SystemAddress = FirstWorld.System.Value, BodyPath = FirstWorld.BodyPath, Radius = found.Surface.Radius,
-                        SurfaceGravity = found.Body.SurfaceGravity, SurfaceSeed = found.Surface.Seed,
-                        LatitudeDegrees = FirstWorld.LandingLatitude, LongitudeDegrees = FirstWorld.LandingLongitude,
-                    };
-                    var map = new Hollow.Client.Map.ZoneMap(spec, found.Surface, spec.CreateFrame(found.Surface), new WorldData());
-                    _map = new MapView(map.CacheKey, 1024, () => map.Render(1024).Rgba, (float)map.Metres, map.Cells);
-                }
+                ISurface surface = SampleZone.CreateSurface();
+                var map = new Hollow.Client.Map.ZoneMap(SampleZone, surface, ZoneFrame.World, new WorldData());
+                _map = new MapView(map.CacheKey, 1024, () => map.Render(1024).Rgba, map.Radius, map.Cells);
             }
             return _map;
         }
+    }
+
+    /// <summary>A point of the sample world: metres east and south of the landing site, as a direction from the world's centre.</summary>
+    internal static Vector3 Near(float east, float south)
+    {
+        var frame = new ZoneFrame(SampleZone.LandingDirection * SampleZone.Radius);
+        Vector3D d = frame.ToBody(east, 0, south).Normalized;
+        return new Vector3((float)d.X, (float)d.Y, (float)d.Z);
     }
 
     public IReadOnlyList<MapMarkerView> MapMarkers => _markers;
 
     public int MaxMarkers => 5;
 
-    public void PlaceMarker(float x, float y, int colour, string label)
+    public void PlaceMarker(Vector3 direction, int colour, string label)
     {
         int index = _markers.Count(m => m.Kind == MapMarkerKind.Marker);
         if (index < MaxMarkers)
         {
-            _markers.Add(new MapMarkerView(MapMarkerKind.Marker, x, y, label, Colour: colour, Index: index));
+            _markers.Add(new MapMarkerView(MapMarkerKind.Marker, direction, label, Colour: colour, Index: index));
         }
     }
 
@@ -146,32 +156,20 @@ public sealed partial class MockGroundUi
         }
     }
 
-    // A zone point (metres east and south of the landing site) on the map.
-    private static (float X, float Y) At(float x, float z) => ((x + MapMetres / 2) / MapMetres, (z + MapMetres / 2) / MapMetres);
-
     /// <summary>The world's sample: markers on the map, a team of three with an invite waiting, the tech tree at a level 1 bench.</summary>
     public void WorldSample()
     {
         _world = true;
         _markers.Clear();
-        (float x, float y) = At(0, 0);
-        _markers.Add(new MapMarkerView(MapMarkerKind.Me, x, y, Facing: 40));
-        (x, y) = At(170, -120);
-        _markers.Add(new MapMarkerView(MapMarkerKind.Teammate, x, y, "Ada", Facing: 200));
-        (x, y) = At(-260, 210);
-        _markers.Add(new MapMarkerView(MapMarkerKind.Teammate, x, y, "Ben", Dim: true));
-        (x, y) = At(-520, 380);
-        _markers.Add(new MapMarkerView(MapMarkerKind.Death, x, y));
-        (x, y) = At(120, 90);
-        _markers.Add(new MapMarkerView(MapMarkerKind.Bed, x, y, "Bed"));
-        (x, y) = At(-140, -330);
-        _markers.Add(new MapMarkerView(MapMarkerKind.Bag, x, y, "Ridge bag"));
-        (x, y) = At(380, -260);
-        _markers.Add(new MapMarkerView(MapMarkerKind.Marker, x, y, "Base", Colour: 2, Index: 0));
-        (x, y) = At(-700, -90);
-        _markers.Add(new MapMarkerView(MapMarkerKind.Marker, x, y, "Bay crates", Colour: 3, Index: 1));
-        (x, y) = At(640, 520);
-        _markers.Add(new MapMarkerView(MapMarkerKind.Marker, x, y, "Sulphur", Colour: 1, Index: 2));
+        _markers.Add(new MapMarkerView(MapMarkerKind.Me, Near(0, 0), Facing: 40));
+        _markers.Add(new MapMarkerView(MapMarkerKind.Teammate, Near(170, -120), "Ada", Facing: 200));
+        _markers.Add(new MapMarkerView(MapMarkerKind.Teammate, Near(-260, 210), "Ben", Dim: true));
+        _markers.Add(new MapMarkerView(MapMarkerKind.Death, Near(-520, 380)));
+        _markers.Add(new MapMarkerView(MapMarkerKind.Bed, Near(120, 90), "Bed"));
+        _markers.Add(new MapMarkerView(MapMarkerKind.Bag, Near(-140, -330), "Ridge bag"));
+        _markers.Add(new MapMarkerView(MapMarkerKind.Marker, Near(380, -260), "Base", Colour: 2, Index: 0));
+        _markers.Add(new MapMarkerView(MapMarkerKind.Marker, Near(-700, -90), "Bay crates", Colour: 3, Index: 1));
+        _markers.Add(new MapMarkerView(MapMarkerKind.Marker, Near(640, 520), "Sulphur", Colour: 1, Index: 2));
         _team = new TeamInfo("team-1", new[]
         {
             new TeamMemberInfo("me", PlayerName, true, true, true),

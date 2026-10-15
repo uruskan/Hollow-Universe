@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using HollowUniverse.UI.Model;
@@ -12,7 +13,8 @@ namespace HollowUniverse.UI.Viewer;
 /// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|death|wheel|hammer|options|ammo|menu|map|techtree|recycler|research</c>,
 /// the F1 panel's <c>console|console-info|console-net|console-items|console-tools</c>, the F2 panel's
 /// <c>developer|developer-players|developer-look|developer-draw|developer-log</c>, and
-/// <c>--pointer x,y</c> to hold the pointer at a design-canvas point (hover states, radial sectors).
+/// <c>--pointer x,y</c> to hold the pointer at a design-canvas point (hover states, radial sectors), and
+/// <c>--across &lt;m&gt;</c> to open the map or death screen's map that many metres across (150 m to the whole world).
 /// Screenshots hold the HUD's moments and the sample's clock still; without <c>--shot</c> the mock runs and every
 /// screen is interactive (on the HUD the right mouse opens the held plan's or hammer's radial, E held the sample door's
 /// options, R held with the pistol its rounds). <c>--ui-check</c> drives the inventory, crafting and the radial with
@@ -41,6 +43,11 @@ public partial class UiViewer : Node
         layer.AddChild(_ui);
         _ui.Greet();
         Show(Options.TryGetValue("screen", out string? screen) ? screen : "hud");
+        // The map control's zoom (map and death screens): metres across the map's shorter side, 150 to the whole world.
+        if (Options.TryGetValue("across", out string? across) && double.TryParse(across, NumberStyles.Float, CultureInfo.InvariantCulture, out double metres))
+        {
+            _ui.ZoomMapTo(metres);
+        }
         if (Options.ContainsKey("ui-check"))
         {
             RunCheck();
@@ -265,6 +272,29 @@ public partial class UiViewer : Node
         await MoveTo(_ui.RadialPoint(2));
         await Hold(Godot.Key.E, false);
         Expect(_model.Door.Locked, "with a code, released on LOCK, the door locks");
+
+        // The map (docs/WHOLE_WORLD.md §11): a click puts a marker down where it was clicked (the projection's inverse), a
+        // right-click takes it off, a drag turns the globe away from the player.
+        _model.WorldSample();
+        _ui.Open(GroundScreen.Map);
+        await Frames(4);
+        int Markers() => _model.MapMarkers.Count(m => m.Kind == MapMarkerKind.Marker);
+        int markers = Markers();
+        Rect2 map = _ui.MapScreenArea;
+        Vector2 spot = (map.Position + map.Size * new Vector2(0.3f, 0.62f)).Round();
+        string? cell = _ui.MapCellAt(spot);
+        await Click(spot);
+        MapMarkerView? put = _model.MapMarkers.LastOrDefault(m => m.Kind == MapMarkerKind.Marker);
+        Expect(Markers() == markers + 1 && cell != null && put != null &&
+            Hollow.Surface.WorldGrid.Name(new Hollow.Core.Vector3D(put.At.X, put.At.Y, put.At.Z), _model.Map!.Cells) == cell,
+            $"a click on the map puts a marker down where it was clicked ({cell})");
+        await Click(spot, MouseButton.Right);
+        Expect(Markers() == markers, "a right-click on it takes it off");
+        Expect(_ui.MapFollowing, "the map follows the player");
+        await Drag(spot, spot + new Vector2(140, 60));
+        Expect(!_ui.MapFollowing && Markers() == markers, "a drag turns the globe (no marker put down)");
+        await Key(Godot.Key.G);
+        Expect(_ui.Screen == GroundScreen.Hud, "G closes the map");
 
         GD.Print($"ui-check: {checks - failures.Count}/{checks} passed");
         GetTree().Quit(failures.Count == 0 ? 0 : 1);

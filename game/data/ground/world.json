@@ -77,5 +77,5 @@
   },
   "recyclers": { "perFace": 1, "note": "One recycler on each of the world's six cube faces, on the face's first coastal cell with room, else its first with room (docs/WHOLE_WORLD.md decision 9)." },
   "teams": { "size": 8, "inviteSeconds": 300 },
-  "map": { "markers": 5, "metres": 3900, "cell": 150 }
+  "map": { "markers": 5, "cell": 150, "note": "The map is the whole world (docs/WHOLE_WORLD.md §11): its grid has as many cells of about this many metres a side on each cube face as fit (25 of 151 m on the first world), named by face and by Rust's cell, \"C K12\"." }
 }

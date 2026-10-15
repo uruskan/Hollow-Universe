@@ -252,7 +252,7 @@ public partial class GroundView : Node3D
         FxDirector.HeatHaze = false;
         // Things breaking apart (GROUND.md §9.4): every destruction the server reports, one path.
         AddChild(new GibsView { Name = "Gibs", Client = Client });
-        _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, Command = Command, Build = _build, AskCode = ShowKeypad };
+        _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, ViewDirection = () => Look(_viewFrame, _yaw, _pitch), Command = Command, Build = _build, AskCode = ShowKeypad };
         _hands = new HeldContext { Client = Client, Build = _build, Arms = _firstPerson, Placement = _placing, Say = _model.ShowNotice };
         // The radials the held item opens (the aim button, R) and the HUD's ammo come from its control.
         _model.HeldRadial = input => HandsFree() is { } held ? held.Radial(_hands, input) : null;
