@@ -111,6 +111,7 @@ flight never enters a step aboard. What a character does in the world asks where
 | `CombatSystem` | yes | held items' actions each tick (swings, bows), arrows in flight, hits on characters, nature and ground |
 | `GunSystem` | yes | gun actions queued by tick (fire, reload, unload, attach), bullets with drop and drag, lag compensation |
 | `ExplosiveSystem` | yes | thrown and placed charges, bounces, sticking, fuses, duds, detonations |
+| `FireSystem` | yes | fires a blast leaves (IW4): where the fuel rests, what each burns every half second (the heat delivery), falling when what holds it goes |
 | `WoundedSystem` | yes | down, crawling, helped up, got up, bled out |
 | `AnimalSystem` | yes | the animals' world: spawning, AI (`AnimalWorld.Brain`), attacks, harvest; it hears the zone's noises |
 | `VitalsSystem` | once a second | calories, water, temperature, bleeding, healing; starving, thirst and cold |
@@ -135,7 +136,8 @@ a handler, or a handler without an entry, stops the server from starting.
 ## 5. Events
 
 Something that happened is a record struct in `src/Hollow.Simulation/Events` (`HitConfirmed`, `Hurt`, `ItemsGained`,
-`Crafted`, `Died`, `ProjectileLaunched`, `ProjectileEnded`, `WentDown`, `GotUp`, `Detonated`, `Notice`, `Destroyed`). A
+`Crafted`, `Died`, `ProjectileLaunched`, `ProjectileEnded`, `WentDown`, `GotUp`, `Detonated`, `Notice`, `Destroyed`, and IW4's
+`FireLit` and `FireOut`; the fires light from `Detonated`, which carries the blast). A
 system adds one (`Events.Add(new Died(...))`); every subscriber of that type hears it at once, on the tick thread
 (`Events.On<Died>(...)`): the server's routes turn it into messages for the players it concerns, the counters count it,
 the animals turn a shot into a noise. The lists keep the tick's events until the server clears them after the step; a
@@ -155,6 +157,7 @@ concern is a `ServerModule` in `Modules/`, listed once in `ServerModules`, reach
 | `PlacementModule` | place | |
 | `ShipModule` | the pilot's keys | ships in the snapshot's ship section; crashes, wrecks; their save |
 | `RaidModule` | throw | explosives in range with their arcs and fuses; detonations; raid alerts (`Notifications`, queued for the offline) |
+| `FireModule` | | fires in range (IW4): lit or come into range, fallen, ended |
 | `WorldModule` | team, team chat, marker | blueprints, teams, invites, teammates' positions, the map, machines |
 | `AnimalModule` | | animals as snapshot entities (their kind on spawn, at rest when still) |
 | `ArrowModule` | | spent arrows and their poses |
@@ -214,7 +217,7 @@ the snapshots, the remote entities and chat; `LocalPlayer` is the player's own s
 vitals, the gun) and the intents it sends. Each concern is a `ClientModule` in `Modules/`, listed in `ClientModules`,
 reached as `client.Raid().Explosives`: survival (things, nature, projectiles), targets (the families' views, the same
 `TargetRef`s the server uses), world, building (the replica of the structures), placement (the ghost, with the server's
-rules), interaction (what E would do, from the same rules), raid, ships, animals, arrows, console, damage, loading, dev
+rules), interaction (what E would do, from the same rules), raid, fires, ships, animals, arrows, console, damage, loading, dev
 (the F2 panel, GROUND.md §8.5). The
 hooks: `Init` (its messages), `Welcome` (the zone is known), `Spawned`/`Despawned`, `BeforePredict`, `AfterSnapshot`,
 `Sample`, `Render`, `Update`, `Dispose`.

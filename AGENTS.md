@@ -108,6 +108,8 @@ dotnet run --project tests/Hollow.Tests -- Wounded    # G4: down, crawling, help
 dotnet run --project tests/Hollow.Tests -- Damage     # the damage pipeline's Destroyed event, in the zone and over the network (GROUND.md §6.4.2)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 120 --script build --kit build-kit   # G3: bots that build bases (GROUND.md §5.4)
 dotnet run --project tests/Hollow.Tests -- Raid       # G5: raid costs, line of sight, duds, rockets, collapse, alerts, an offline raid, network, restart
+dotnet run --project tests/Hollow.Tests -- Fire       # IW4: the incendiary rocket and its fire (boxes, walls, people, water, a ship's deck, falling,
+                                                 # the network), the HV rocket killing a bear, each rocket's drop (IRON_WAKE.md §7)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script raid   # G5: bots raiding claimed huts (GROUND.md §5.5)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script world   # G7: bots looting, recycling, researching, in teams (GROUND.md §5.9)
 dotnet run --project tests/Hollow.Tests -- ContentTests   # checks game/data/ground: references, ranges, every recipe makeable

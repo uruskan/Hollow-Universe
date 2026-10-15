@@ -193,7 +193,7 @@ public static class Program
         bots.BeginOutputReadLine();
 
         System.Threading.Thread.Sleep(TimeSpan.FromSeconds(warmup));
-        TimeSpan stepBefore = TimeSpan.Zero, raidBefore = TimeSpan.Zero, rebuildTimeBefore = TimeSpan.Zero;
+        TimeSpan stepBefore = TimeSpan.Zero, raidBefore = TimeSpan.Zero, fireBefore = TimeSpan.Zero, rebuildTimeBefore = TimeSpan.Zero;
         TimeSpan worldBefore = TimeSpan.Zero, worldSendBefore = TimeSpan.Zero;
         int rebuildsBefore = 0;
         TimeSpan animalBefore = TimeSpan.Zero;
@@ -205,6 +205,7 @@ public static class Program
                 sv.Profile.Reset();
                 stepBefore = sv.StepTime;
                 raidBefore = sv.Zone.Explosives().RaidStats.Time;
+                fireBefore = sv.Zone.Fires().Stats.Time;
                 rebuildsBefore = sv.Zone.Physics.BroadPhaseRebuilds;
                 rebuildTimeBefore = sv.Zone.Physics.BroadPhaseTime;
                 worldBefore = sv.Zone.World().WorldStats.Time;
@@ -267,6 +268,9 @@ public static class Program
             BulletSteps = sv.Zone.Guns().BulletStepsFlown,
             RaidMs = (sv.Zone.Explosives().RaidStats.Time - raidBefore).TotalMilliseconds,
             Raid = sv.Zone.Explosives().RaidStats.ToString(),
+            FireMs = (sv.Zone.Fires().Stats.Time - fireBefore).TotalMilliseconds,
+            Fires = sv.Zone.Fires().Stats.ToString(),
+            Burning = sv.Zone.Fires().Burning,
             Alerts = sv.Raid().Notifications.Counters.ToString(),
             World = sv.Zone.World().WorldStats.ToString(),
             WorldMs = (sv.Zone.World().WorldStats.Time - worldBefore).TotalMilliseconds,
@@ -357,6 +361,8 @@ public static class Program
                 $"{F(27):0} raid alerts heard\n" +
                 $"Raids (server, whole run): {measured.Raid}; explosives and blasts {measured.RaidMs / Math.Max(1, measured.Ticks):0.000} ms a tick on average " +
                 $"(measured part); {measured.Explosives} explosives in the world at the end, {measured.Pieces} building pieces, {measured.Restored} huts put back\n" +
+                $"Fires (server, whole run): {measured.Fires}; {measured.FireMs / Math.Max(1, measured.Ticks):0.000} ms a tick on average (measured part); " +
+                $"{measured.Burning} burning at the end\n" +
                 $"Alerts: {measured.Alerts}"));
         }
         if (r.Length > 38 && script == BotScript.World)

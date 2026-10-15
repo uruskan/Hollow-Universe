@@ -64,7 +64,8 @@ public static class RaidTests
     /// GROUND.md §6.6, the raid-cost table: how many of each explosive break each grade of wall, hit on its hard side
     /// and on its soft side, and each door. Rust's counts (the owner allows its raid tables) come out exactly on our hit
     /// points: timed charges 1/2/4/8 for wood, stone, metal and armoured walls, rockets 2/4/8/15, bag charges 3/10/23/46,
-    /// tin grenades 13/46/112/223, explosive rounds 49/185/400/799; doors as in the table. Explosives hurt both sides alike
+    /// tin grenades 13/46/112/223, explosive rounds 49/185/400/799; doors as in the table (and ours: the high-velocity
+    /// rocket's, and IW4's incendiary rocket's burst alone, 10/100/500/2000). Explosives hurt both sides alike
     /// (Rust); the soft side counts for blows (a stone wall takes 5% of a pickaxe on its hard side, all of it on its soft side).
     /// </summary>
     [Test]
@@ -82,6 +83,8 @@ public static class RaidTests
             ("tin-grenade", new[] { 1, 13, 46, 112, 223 }),
             ("rifle-ammo-explosive", new[] { 1, 49, 185, 400, 799 }),
             ("rocket-hv", new[] { 1, 4, 12, 23, 45 }),
+            // IW4: the incendiary rocket's burst alone (its fire does the rest to wood: IRON_WAKE.md §7, FireTests).
+            ("rocket-incendiary", new[] { 1, 10, 100, 500, 2000 }),
         };
         // Wooden, sheet metal, garage and armoured doors.
         string[] doorKeys = { "wooden-door", "sheet-metal-door", "garage-door", "armoured-door" };
@@ -93,6 +96,7 @@ public static class RaidTests
             ["tin-grenade"] = new[] { 10, 18, 43, 56 },
             ["rifle-ammo-explosive"] = new[] { 19, 63, 150, 200 },
             ["rocket-hv"] = new[] { 3, 4, 9, 12 },
+            ["rocket-incendiary"] = new[] { 7, 50, 120, 500 },
         };
         var table = new StringBuilder("\n      hits to break        twig  wood stone metal armd | soft side            | wooden metal garage armd door");
         int spot = 0;
@@ -166,7 +170,7 @@ public static class RaidTests
     // Blasts of one kind on a target (stuck to it) until it breaks.
     private static int Count(GameRig rig, BlastStats blast, ushort item, ITargetable target, Vector3 at, Vector3 normal, Func<bool> gone)
     {
-        for (int n = 1; n <= 1000; n++)
+        for (int n = 1; n <= 2500; n++)
         {
             rig.Zone.Damage().Blast(blast, at, normal, target.Ref, target.Ref.Family, EntityId.None, "", item);
             if (gone())

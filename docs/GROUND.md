@@ -1389,6 +1389,14 @@ hits on claimed huts summed into 105 alerts, 210 deliveries to bots in the game 
 - **Prediction** is all but exact: every client has the huts in its prediction physics (phase 2a's replication). Before
   the merge, characters bumping into huts their clients didn't have made 651 corrections.
 
+**IW4 (15 October 2026, on the whole world, the PC busy with other agents' work and its memory 99% used).** The raid kit
+carries two incendiary rockets besides six rockets and two high-velocity ones, and a bot fires every kind it carries in turn,
+so fires burn at the huts. In the measured minute the bots fired 232 rockets: 44 incendiary bursts lit 40 fires (4 fell in the
+sea), up to 20 burning at once, which hurt what was in them 1,021 times (1,825 damage requests): **0.032 ms a tick** on
+average, against explosives' and blasts' 0.078 ms. The tick was 10.6 ms on average (23.5 ms at the 99th percentile, 4 of 1,802
+over 33 ms) against 10.4 ms in a run of the same code a few minutes earlier whose bots never reached their incendiary rockets;
+the load test prints a line of fires.
+
 ### 5.6 G1 and G2 as one game on the first world
 
 Measured on the owner's PC (RTX 2070 Super, 12 threads) on 13 October 2026, with other agents' builds, servers and
@@ -2648,19 +2656,21 @@ and one receiver class in each domain's own file.
 
 - **The request** (`DamageRequest`), built by every delivery: who (`By`, the attacking player while in the zone;
   `Attacker` and `AttackerName`, who is blamed, kept when they've left; `ByAnimal`) and with what (`Weapon`, an item);
-  how it came (`Delivery`: melee, arrow, bullet, blast, bite) and the kind of damage (`Channel`: the building rules'
-  melee, bullet or explosive, which armour and grades resist); what each kind of thing takes before its own defences
-  (`Amounts`: flesh, already scaled for the body part; structure, for deployables; building, through the channel; hull);
-  bleeding and burning; how a character dies of it; a blast's own table by grade and door, its falloff, and whether this
-  is the thing hit (`Direct`) or splash; what it met (`Hit`: the kind, the thing, the body part, the point), from where,
-  which way; and which kinds give the attacker a hit marker.
+  how it came (`Delivery`: melee, arrow, bullet, blast, bite; since IW4 heat, a fire's) and the kind of damage (`Channel`:
+  the building rules' melee, bullet, explosive or heat, which armour and grades resist); what each kind of thing takes before
+  its own defences (`Amounts`: flesh, already scaled for the body part; structure, for deployables; building, through the
+  channel; hull); bleeding and burning; how a character dies of it, and whether a lethal blow kills outright rather than
+  knocking down (`Outright`: fire's, IW4); a blast's own table by grade and door, its falloff, and whether this is the thing
+  hit (`Direct`) or splash; what it met (`Hit`: the kind, the thing, the body part, the point), from where, which way; and
+  which kinds give the attacker a hit marker.
 - **One entry point**, `Zone.Damage(in DamageRequest)`: the receiver registered for the thing's kind applies its
   defences, then its consequences, and answers with a `DamageOutcome` (landed, dealt after defences, health taken,
   killed or broken, knocked down, the victim); the shared step after it gives the attacker their hit marker.
 - **The deliveries** build the request from their own data and know nothing of the receivers: a swing (`Strike`), an
   arrow (`ProjectileHit`), a bullet (`BulletRequest`), a blast (`Blast`: each receiver lists its things in reach, all are
   looked at before anything is damaged, each in sight gets its own request), an animal's attack (`AnimalAttacksPlayer`,
-  `DamageAnimal`). The old per-target calls (`DamageCharacter`, `ShootCharacter`, `DamageDeployable`,
+  `DamageAnimal`), a fire's heat (IW4, `FireSystem`: every half second, each receiver's things in its reach, measured by the
+  one reach and sight rule, each a heat request by its distance; §6.6). The old per-target calls (`DamageCharacter`, `ShootCharacter`, `DamageDeployable`,
   `DamageBuildingBy`, `DamageShip`, `DamageAnimal`) stay for tests and tools, as one request each.
 - **The receivers** (`IDamageReceiver`, registered once in `Zone.InitDamage`, in the order a ray tests them): each finds
   its own things along a ray (`Trace` asks each in turn) and within a blast's reach, and takes requests (since P1 an arrow
@@ -2669,11 +2679,11 @@ and one receiver class in each domain's own file.
 
 | Receiver | Found by | Defences | Consequences |
 |---|---|---|---|
-| Characters (`CombatSystem`) | hit shapes where the attacker saw them (lag compensation); chest and head in a blast | what is worn on the part hit, against blows or against projectiles and blasts | health (a lethal hit may knock down, not a projectile to the head), bleeding, burning, the victim's damage indicator |
-| Animals (`AnimalSystem`) | their hit shapes and history; their middle in a blast | none | health, a flinch, turning on the attacker or running, the kill; a tool's blow on a corpse butchers it |
+| Characters (`CombatSystem`) | hit shapes where the attacker saw them (lag compensation); chest and head in a blast (the one a round struck at the middle) | what is worn on the part hit, against blows or against projectiles, blasts and fire | health (a lethal hit may knock down, not a projectile to the head, nor fire), bleeding, burning, the victim's damage indicator |
+| Animals (`AnimalSystem`) | their hit shapes and history; their middle in a blast (the one a round struck at the middle) | none | health, a flinch, turning on the attacker or running, the kill; a tool's blow on a corpse butchers it |
 | Trees and outcrops (`CombatSystem`) | trunks and rocks (a boulder stops a ray like the ground) | — | a tool's blow gathers (§6.1's code, unchanged); arrows and bullets do nothing |
-| Deployables and props (`ThingSystem`) | their boxes | crates and recyclers can't be broken | health; at 0 its contents spill in one bag (§6.1), a research table gives back its work, a barrel goes until its respawn; destroyed |
-| The building (`BuildingSystem`) | pieces, doors and claim devices by their bodies; by nearest point in a blast (a claim device by its box) | a grade's or door's protection by channel, a wall's soft side, whole points; a blast's own table by grade and door, whole on the piece hit and a splash share on the rest, fractions carried to the next hit | the building rules' (breaking, collapse), raid hits (any explosive on a claimed base; a blow, arrow or bullet that took something off one whose claim doesn't list the attacker) |
+| Deployables and props (`ThingSystem`) | their boxes | crates and recyclers can't be broken; only those whose data says they burn take heat (IW4) | health; at 0 its contents spill in one bag (§6.1), a research table gives back its work, a barrel goes until its respawn; destroyed |
+| The building (`BuildingSystem`) | pieces, doors and claim devices by their bodies; by nearest point in a blast (a claim device by its box) | a grade's or door's protection by channel, a wall's soft side, whole points; a blast's own table by grade and door, whole on the piece hit and a splash share on the rest; a blast's and a fire's fractions of a point carried to the next hit, a channel's apart | the building rules' (breaking, collapse), raid hits (any explosive on a claimed base; a blow, arrow, bullet or fire that took something off one whose claim doesn't list the attacker) |
 | Ships (`ShipSystem`) | hull boxes; nearest point in a blast | the hull's share by delivery (ships.json) | hull health, last attacker; at 0 a wreck (the pilot dies, loot); destroyed |
 | The ground (`CombatSystem`) | the surface (a bullet's test steps by height) | — | — (it hides what is behind it) |
 
@@ -2709,7 +2719,7 @@ client raises `GameClient.Destroyed` (a `DestroyedEvent`) and keeps `GameClient.
 | Grade | `Grade` / `Grade` / `Grade` | a piece's grade (0 twig … 4 armoured); 0 otherwise |
 | Position, rotation | `Position`, `Rotation` / `X Y Z`, `Rotation*` / `Position`, `Rotation` | where it stood as it was drawn, zone frame: a piece's, claim device's or ship's own transform (`ZoneTransform`; a ship's frame origin); a door's as drawn: its frame piece's, turned half round when fitted the other way (`Open` says whether its leaves were open); a deployable's or prop's base on the ground, turned as the client turns it (Y along the zone's up there, −Z its yaw's forward) |
 | Direction | `Velocity` / `Direction*` / `Direction` | the blow's direction of travel (unit; from the blast to the thing for an explosion), zero for a collapse, decay, demolition or crash |
-| Cause | `Cause` / `Cause` / `Cause` | `DestroyCause`: `Melee`, `Bullet`, `Arrow`, `Explosion` (the blow's delivery; a door broken with its frame, or a claim device with its piece, takes the blow's), `Collapse`, `Decay`, `Demolish`, `Crash` |
+| Cause | `Cause` / `Cause` / `Cause` | `DestroyCause`: `Melee`, `Bullet`, `Arrow`, `Explosion` (the blow's delivery; a door broken with its frame, or a claim device with its piece, takes the blow's), `Collapse`, `Decay`, `Demolish`, `Crash`, `Fire` (burnt down, IW4: 4 bits on the wire since protocol 23; gibs.json's `fire` cause lets the pieces slump where they stood) |
 | Who, with what | `Player`, `Item` / `Attacker` (net ID), `Item` / `Attacker`, `Item` | the attacking (or demolishing) player, 0 for none or gone; the weapon, tool or explosive's item |
 
 What is destroyed: a deployable or world prop at 0 health (an emptied crate going is not); a building piece, door or
@@ -2731,7 +2741,8 @@ names, by its key and grade; the building's removal message only takes a piece o
 | §7 Damage through GAS (request → effect → armour execution → health; death a tag and an event) | Request → receiver (armour) → `Hurt` (health; `Die` or `Wound` the one place) and events; no GAS (no Unreal) | done, our way |
 | Damage plan: source → delivery → receiver → resolver → consequence owner; one request/result; type apart from delivery; armour by coverage and channel; no weapon-name cases in receivers | As above; armour covers body regions per item, by channel (blows, projectiles and blasts) | done |
 
-Left over: an attack carries one channel (an incendiary round's burning is an effect, not a heat channel); fall damage,
+Left over: an attack carries one channel (an incendiary round's burning is an effect; heat is a fire's own delivery since
+IW4); fall damage,
 cold, hunger and crashes hurt characters directly (`Hurt`) rather than through a request; armour doesn't wear when hit;
 no penetration; durable damage outcomes are the 30-second saves (deaths at once), not RustMVP's journal; the server's
 event dispatch and the client's message dispatch are still switch chains.
@@ -2847,16 +2858,18 @@ foundation and wall at two thirds, a twig foundation gone).
 
 ### 6.6 Raiding (G5)
 
-Explosives and explosive rounds, rockets, damage to building pieces by grade and side, raid alerts and offline raids. The rules
-are `Hollow.Simulation` code (`ExplosiveSystem`, `BlastSystem`; `Raid/`: the explosive entity, raid hits, saves, `TestBases`); the numbers are in
-`explosives.json` and `weapons.json`; the server's side is `RaidModule` and the notification service
-`Hollow.Server/Notifications`; the client's `RaidModule`, `LocalPlayer.Raid.cs` and `RemoteExplosives.cs`.
+Explosives and explosive rounds, rockets, damage to building pieces by grade and side, raid alerts and offline raids; since IW4
+the incendiary rocket and the fires blasts leave (IRON_WAKE.md §7). The rules are `Hollow.Simulation` code (`ExplosiveSystem`,
+`BlastSystem`, `FireSystem`; `Raid/`: the explosive entity, the fire, raid hits, saves, `TestBases`); the numbers are in
+`explosives.json` and `weapons.json`; the server's side is `RaidModule`, `FireModule` and the notification service
+`Hollow.Server/Notifications`; the client's `RaidModule`, `FireModule`, `LocalPlayer.Raid.cs` and `RemoteExplosives.cs`.
 
 | Tests | `dotnet run --project tests/Hollow.Tests -- Raid` |
 |---|---|
 | `RaidTests` | the raid-cost table on every grade, side and door; thrown explosives bouncing, resting and sticking; walls shielding what is behind them; duds lit again; rocket flight and blast; a broken foundation bringing a hut down |
 | `RaidAlertTests` | alerts to owners online and offline, rate-limited per base; a whole offline raid |
 | `RaidNetTests` | raiding over the network (throw, replication, a dud lit again, detonations, a live alert); charges and alerts surviving a restart |
+| `FireTests` (IW4; `-- Fire`) | the incendiary rocket made at workbench 2; its fire burning down the box it struck, about 108 off a wood wall (two break it) and nothing off stone; a player burning and burning on until they swim; a fire on water going out; a fire on a flying Iron Wake's deck riding it and burning the crew; a fire falling when what it burns on goes, the oldest of 64 making way; fires over the network; the high-velocity rocket killing a bear and a player in the best armour; the rocket dropping more than the high-velocity one |
 
 **Sources.** The owner allows Rust's numbers. Rust's well-known raid tables give how many of each explosive break each grade and
 door (the targets below). RustMVP's `docs/architecture/legacy/building_damage.md` gave the timed charge (C4: 250 explosive damage,
@@ -2875,15 +2888,23 @@ high-velocity rocket, explosive rifle rounds, explosives.
 | `timed-charge` | placed (3 m) or thrown (9 m/s), sticks | 10 s, never | 4 m | 275 | 550 | 20 explosives, 5 fibre, 2 refined metal (3) |
 | `bag-charge` | placed or thrown, sticks | 6–12 s, 1 in 5 | 3 m | 120 | 150 | 4 tin grenades, 20 fibre (1) |
 | `tin-grenade` | thrown (15 m/s) or lobbed (6 m/s), bounces | 3.5–4.5 s, 3 in 20 | 3.5 m | 60 | 40 | 60 gunpowder, 20 metal fragments (1) |
-| `rocket` (`rocket-launcher`) | fired, 18 m/s, falls a little | explodes where it hits, or after 5 s | 3 m | 210 | 300 | 10 explosives, 150 gunpowder, 2 refined metal (2) |
-| `rocket-hv` | fired, 40 m/s | as the rocket | 2 m | 175 | 120 | 100 gunpowder, 1 refined metal (2) |
+| `rocket` (`rocket-launcher`) | fired, 18 m/s, drops 0.3 of the planet's gravity (10.4 m over 50 m on the first world) | explodes where it hits, or after 5 s | 3 m | 210 | 300 | 10 explosives, 150 gunpowder, 2 metal pipes (2) |
+| `rocket-hv` | fired, 40 m/s, drops 0.1 (0.7 m over 50 m) | as the rocket | 2 m | 175; 600 to whoever it strikes | 120 | 100 gunpowder, 1 metal pipe (2) |
+| `rocket-incendiary` (IW4) | fired, 18 m/s, drops as the rocket | as the rocket, and leaves a fire (below) | 2.5 m | 60 | 60 | 2 metal pipes, 150 gunpowder, 75 lamp oil (2) |
 | `rifle-ammo-explosive` | the rifle's rounds (×0.6 damage, ×0.6 speed) | bursts where it lands | 0.6 m | 4 | 4 | 10 metal fragments, 20 gunpowder, 10 sulphur → 2 (3) |
 | `explosives` | the compound charges and rockets are made of | | | | | 50 gunpowder, 3 lamp oil, 10 sulphur, 10 metal fragments (2) |
 
-So a timed charge costs 2,200 sulphur, a rocket 1,400, a bag charge 480 and an explosive round 25, as in Rust. The rocket
-launcher (`weapons.json`; 50 refined metal and 100 metal fragments at workbench 2) is a firearm of calibre `rocket`: one in the
-magazine, a 5 s reload, 1 s to take up, no damage of its own; it fires through G4's gun pipeline (fire and reload intents, the
-client's prediction).
+So a timed charge costs 2,200 sulphur, a rocket 1,400, a bag charge 480, an explosive round 25 and an incendiary rocket 300 and
+75 lamp oil, as in Rust. The rocket launcher (`weapons.json`; 40 refined metal and 4 metal pipes at workbench 2) is a firearm of
+calibre `rocket`: one in the magazine, a 5 s reload, 1 s to take up, no damage of its own; it fires through G4's gun pipeline
+(fire and reload intents, the client's prediction). How far a round drops is its own since IW4 (the owner's direction,
+KNOWN_PROBLEMS.md finding 26): a round's `gravity` in `weapons.json` multiplies its gun's (`FirearmStats.GravityOf`, which the
+server's bullets and every client's drawing use), the launcher's is 1, and the slow, heavy rocket and the incendiary rocket fall
+0.3 of the planet's gravity (twice what every rocket fell before), the high-velocity rocket 0.1. Over 50 m on the first world the
+rocket drops 10.4 m and the high-velocity rocket 0.7 m (measured: 10.6 and 0.7, `FireTests`). A blast may have a `direct` damage:
+what the person or animal a round strikes takes in place of its `flesh` (the high-velocity rocket's 600: a bear's 400 and a player
+in the best armour, whose 33% on the body or even the 80% cap leaves 120 of 100, die; the rest in its reach take its 175 by
+distance as before). Whoever a round strikes takes its blast at the middle, wherever it landed.
 
 **Raid costs**, how many break each thing, hit on either side (Rust's counts; the test prints the table):
 
@@ -2895,6 +2916,11 @@ client's prediction).
 | Tin grenade | 1 | 13 | 46 | 112 | 223 | 10 | 18 | 43 | 56 |
 | Explosive rounds | 1 | 49 | 185 | 400 | 799 | 19 | 63 | 150 | 200 |
 | High-velocity rocket (ours) | 1 | 4 | 12 | 23 | 45 | 3 | 4 | 9 | 12 |
+| Incendiary rocket, its burst alone (IW4, ours) | 1 | 10 | 100 | 500 | 2000 | 7 | 50 | 120 | 500 |
+
+With its fire (below), two incendiary rockets break a wood wall (20 + 108 each, of 200) or a wooden door (30 + 108); stone and
+better, and metal doors, don't burn. The raid counts of the other explosives are unchanged by IW4 (`RaidTests` checks every
+row).
 
 The damage of one hit against each grade and door protection is in `explosives.json`, set so these counts come out on our hit
 points (twig 10, wood 200, stone 500, metal 1,000, armoured 2,000; doors 200, 250, 600, 1,000): a charge does 275 to a wall of any
@@ -2939,6 +2965,33 @@ step).
 surface, so its blast starts outside a wall) or at the end of its flight; an explosive round does its bullet's damage to a person
 and bursts where it lands, which is all it does to buildings.
 
+**Fire** (IW4, IRON_WAKE.md §7; `FireSystem`, `Raid/Fire.cs`). A blast whose data names a fire (`explosives.json`: the
+incendiary rocket's `rocket-incendiary` names the kind `incendiary`) leaves one where it went off, whatever delivered it (the
+`FireSystem` listens to the `Detonated` event, which carries the blast: the shoulder launcher today, the Iron Wake's batteries
+with IW3):
+- *Where it burns.* The burning fuel rests on the surface the burst met when that faces up within the rules' 50°; on anything
+  steeper (a wall, a hull's side, a trunk, a body) or in the air it runs and falls straight down to the first surface that does,
+  at most 12 m below (none: no fire). The surfaces are the placement world's (building, deployables, trees and rocks, the
+  ground) and ships' spaces (a deck). A fire there in water or the sea goes out at once.
+- *A world thing.* A fire is the twelfth target family (`TargetFamily.Fire`, GROUND_SYSTEMS.md §3.1), with the `fire`
+  capability, held by what it burns on through a support link (§3.6): a fire on a ship's deck rides the ship; when what holds
+  it goes (a floor burnt through, a box burnt down), its fuel falls to what is below and burns on for the time it had left.
+  At most 64 burn in a zone; a new one puts the oldest out. Fires don't spread and aren't saved.
+- *What it does*, every half second for 18 s, to what is within its 3.5 m and in its sight (the one reach and sight rule,
+  GROUND_SYSTEMS.md §3.4, from 0.3 m above its surface to each thing's nearest point, through ships' spaces), by distance from
+  its middle (all of it within 40% of its radius, as a blast's falloff, nothing at its edge), through the damage pipeline's
+  `heat` delivery on the `Heat` channel (§6.4.2): people 8 a second, less what they wear on the body, and 6 of the burning vital
+  a second while in it (it burns 2 a second until it runs out or they swim; fire kills outright, as burning does, rather than
+  knocking down); animals 8 a second; deployables whose data says they burn (`deployables.json` `burns`: bags, beds, boxes, the
+  wooden workbench) 5 a second; building pieces, doors and the tool cupboard 6 a second through the building rules' heat channel
+  (`building.json`: twig and wood 1, stone and up 0), a fraction of a point carried to the next hit as a blast's are. Its owner
+  (who fired it) is blamed: kills, and raid hits on a claimed base by the rule for blows. A thing burnt down breaks with the
+  cause `Fire`.
+- *Measured* (`FireTests`): a small box the rocket struck takes the burst's 60 and burns down as its fire dies (90); a wood wall
+  loses 20 to the burst and 108 to the fire, and the second rocket's fire breaks it 9 s in; a stone wall in a fire loses
+  nothing; 3 s in a fire cost a bare player 30 health and set 12 burning, which burnt 6 more in the next 3 s until the sea put it
+  out; a fire on a climbing Iron Wake's deck stayed within 0.2 mm of its place and burnt Ada beside it 48 in 5 s.
+
 **Raid alerts** (the notification service, ARCHITECTURE.md §14: `INotificationService`, implemented by `NotificationService`).
 - A claimed structure hurt by any explosive, or by a blow, arrow or bullet of someone its claim device doesn't list, is a raid
   hit: the base (its claim device's ID and place), everyone the device lists at that moment, what was hit and broken, with what,
@@ -2971,6 +3024,11 @@ into a follow-up after the minute), and loots the body; the owner logs in dead t
 - *Detonations* (`Detonation`, reliable to everyone within 600 m; an explosive round's unreliable): position, normal, radius, the
   item (explosive or round), what it was on, whose, and the explosive's ID (none for a rocket or round).
 - *Alerts:* `RaidAlertMessage` (one, live) and `RaidAlertList` (those that waited, at login).
+- *Fires* (protocol 23, IW4): `FireStarted` (118, reliable, to everyone within 300 m when one is lit or comes into range, and
+  again when it falls onto something else): its ID, the item that left it and whose, its middle (zone frame, now) and the
+  surface's normal, its radius, what holds it with its middle's place and turn in that holder's frame (so a client draws it
+  riding a ship's deck), the server ticks it was lit at and burns out at. `FireEnded` (119): its ID, and whether it went out
+  (its scorch is left) or only left the player's range.
 
 **The client API for the visual layer and sound:**
 
@@ -2980,6 +3038,7 @@ into a follow-up after the minute), and loots the body; the owner logs in dead t
 | `GameClient.ExplosiveChanged`, `ExplosiveRemoved` | One appeared or changed (a throw's whoosh, a bounce's clink, the stick of a charge, a fizzle when it turns `Dud`, a hiss when lit again), or went without a blast. |
 | `GameClient.Detonated` (`DetonationEvent`: position, normal, radius, item, target, round, owner), `GameClient.Detonations` | An explosion: flash, smoke, debris and dust by the item and radius (a round's small burst, a rocket's, a charge's), a shake and the sound by distance. |
 | `GameClient.Projectiles` | Rockets in flight are projectiles whose `Ammo` is a rocket: draw the rocket with its smoke trail. |
+| `client.Fires()` (`FireModule`, IW4): `All`, `FireOf(id)` (`ClientFire`: `Id`, `Item`, `Owner`, `Radius`, `Link`, `Pose`, `Position`, `Normal`, `StartTick`, `EndTick`, `SecondsLeft(serverTick)`); `Started` (lit, come into range, or moved), `Ended` (gone out, or out of range) | The fires in range, each where what holds it is now (every frame, riding a ship as drawn): draw the item's fire loop on it for the time it has left, its sound, and the patch it leaves when it goes out. |
 | `Local.Throw(slot, yaw, pitch, lob)`, `Local.PlaceCharge(slot, yaw, pitch)` | Intents; the item leaves the belt at once. On a dud the interact key's prompt says "E  LIGHT BAG CHARGE" and a tap lights it again (`relight`, GROUND_SYSTEMS.md §5). |
 | `Local.RaidAlerts` (`RaidAlertView`: base, where, first and last time, hits, broken, what, item, `WhileAway`), `Local.RaidAlertReceived` | Raid alerts: a notice and a sound when one comes; the list at login for those that waited. |
 | `RemoteEntity.Action == ActionKind.Throw` | Others' throws and placements, to animate. |
@@ -3004,7 +3063,12 @@ CHARGE"); the item's cooldown holds on the client too (§11 84). `Detonated` pla
 `.grenade`, `.rocket` or `.ammo` through the effects library (flash, fireball, smoke, dust along the surface, sparks,
 debris, a scorch mark, a light and the camera's shake, which the ground view adds to the camera every frame) and the
 item's `explode` and `debris` sounds (the blast's near, middle and far layers chosen by distance and delayed by the speed
-of sound). Rockets in flight are the catalogue's rocket, nose first, trailing `trail.rocket`. Raid alerts appear at the
+of sound). Rockets in flight are the catalogue's model of their round, nose first, trailing their flight effect (fx.json items:
+`trail.rocket`), the motor catching where they leave (`rocket.ignite`) and its roar (`rocket.flight`) looping on them until
+they stop (IW4: it played once where they left before); each round's and explosive's burst is its own (`explosion.incendiary`
+for the incendiary rocket). Fires (`FiresView`, IW4) burn with their item's fire loop (`fire.patch`, scaled to their radius
+over 3.5 m, its flickering light) on a node placed every frame where the fire is, for the time they have left, with their
+fuel catching (`fire.ignite`) and their roar (`fire.patch.large`); going out, they leave `fire.patch.out`'s scorch. Raid alerts appear at the
 top right in the interface's manner (`RaidAlertsPanel`): "BASE UNDER ATTACK", what was hit and with what, how far and which
 way, when, the hits and what broke, for ten seconds with a sound; at login, those that waited while the player was away,
 under "RAIDED WHILE YOU WERE AWAY", for twenty.
@@ -4428,7 +4492,8 @@ first use, or `FxDirector.Install(parent)`):
 | `FxDirector.Play(key, position, normal, FxParams p = default)` | A one-shot effect at a point on a surface facing `normal` (up in the open). Returns false when skipped (unknown key, too far, at its cap). |
 | `FxParams` | `Direction` (a bullet's flight, a tree's fall, along a door), `Scale`, `Area` (half extents to spread over, in the frame of the normal and the direction), `Tint`, `Follow` (a node flashes, lights and loops follow), `FirstPerson`, `Floor` (where debris lands), `Duration` (loops), `Seed` |
 | `FxDirector.Impact(surface, position, normal, incoming)` | A bullet's hit on `FxSurface` Dirt, Grass, Sand, Rock, Wood, Metal, Water or Flesh (`impact.bullet.<surface>`) |
-| `FxDirector.Muzzle(key, muzzleSocket, firstPerson)`, `FxDirector.MuzzleKey(weapon, silenced, brake)` | A shot's flash, light, smoke and spark on the gun's muzzle socket |
+| `FxDirector.Muzzle(key, muzzleSocket, firstPerson)` | A shot's flash, light, smoke and spark on the gun's muzzle socket; the key is the gun's own (below) |
+| `FxCatalog.ItemEffect(item, role)` (IW4) | An item's effect for a role, from fx.json's `items` (below): what the views play, so no item is named in their code. `GunEffects.MuzzleKey(content, gun, mods)` picks a shot's from it (`FxDirector.MuzzleKey` and its launcher case are gone) |
 | `FxDirector.WantsTracer(shooter, seq)` | Whether a shot draws a tracer: some do, as in Rust (`tracerEvery` in fx.json: every third, per shooter) |
 | `FxDirector.Tracer(key, origin, velocity, gravity, drag)` → id; `FxDirector.EndTracer(id, at)` | A tracer or trail along the projectile's path; where it stopped |
 | `FxDirector.Start(key, position, normal, p)` → `FxHandle`; `Stop(handle)`, `Move(handle, position)` | Loops: fires, torches, burning, rocket trails, fuses; at a point or on `p.Follow`; they fade in and out |
@@ -4451,7 +4516,7 @@ first use, or `FxDirector.Install(parent)`):
 | A gathering hit (the swing's impact, `ItemsChanged` with `Gather`) | `gather.wood` on trees, `gather.rock` on stone, `gather.sparks` on metal and sulphur ore; `gather.weakspot` too when `WeakSpot` |
 | A tree felled, an outcrop depleted (natural object state) | `gather.tree-fall` where the trunk lands (`Direction` its fall, `Area` half its length); the outcrop's remnant breaks into its gibs (§9.4) |
 | Timed charge, bag charge, tin grenade, rocket, explosive round going off | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`; a dud `explosion.dud`; while a fuse burns, `Start("fuse.burning", Follow = socket_fuse)` |
-| A rocket fired, in flight | `Muzzle("muzzle.rocket", socket_muzzle, first person)`, `Play("backblast.rocket")` on `socket_exhaust` (+X backwards), `Start("trail.rocket", Follow = the rocket)` |
+| A rocket fired, in flight | `Muzzle(the launcher's muzzle: "muzzle.rocket", socket_muzzle, first person)`, `Play(its backblast: "backblast.rocket")` on `socket_exhaust` (+X backwards), `Start(the round's flight: "trail.rocket", Follow = the rocket)` |
 | Campfire, furnace lit and out | `Start("fire.campfire"` / `"fire.furnace", Follow = its model)`, `Stop` |
 | A lit torch in hand | `Start("fire.torch", Follow = socket_flame, FirstPerson)` (third person for others) |
 | A player burning (`Vitals.Burning`) | `Start("fire.burning", Follow = the body)` while it burns |
@@ -4487,11 +4552,23 @@ first use, or `FxDirector.Install(parent)`):
 - *Fires:* `ThingsView` starts `fire.campfire` or `fire.furnace` at the model's `socket_fire` while it is lit (the loop
   outlives the model's rebuilds); a torch in hand burns with `fire.torch` on its `socket_flame` (first person with the
   arms; for others on their torch).
-- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades and doors in
+- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6), the incendiary rocket's fires in
+  `FiresView` (IW4: `fire.patch` riding what each burns on, `Scale` its radius over 3.5 m, `Duration` the time it has left,
+  `fire.patch.out` when it goes out, §6.6); upgrades and doors in
   `BuildView` (§6.5), and whatever breaks in `GibsView` (§9.4); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
   place and installs the director with the view.
 - *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`, and the Iron Wake's
-  effects (IW-F, below), which its packages IW3, IW4 and IW6 hook up (IRON_WAKE.md §13).
+  effects (IW-F, below), which its packages IW3 and IW6 hook up (IRON_WAKE.md §13); IW4's (`explosion.incendiary`,
+  `fire.patch`, `fire.patch.out`) are hooked up.
+- *Items' effects* (IW4). What an item looks like when it is used is data: fx.json's `items` gives each item its effects by
+  role, read by `FxCatalog.ItemEffect`. A gun: `muzzle` (its shot), `muzzle:<attachment>` (its shot with that part on its
+  muzzle: the pistol's and the rifle's `muzzle-brake`), `backblast` (out of its exhaust socket: the launcher's). An
+  attachment: `muzzle` (its shot on any gun that takes it: the silencer's). A round drawn as its model in flight: `flight` (a
+  loop on it: the rockets' `trail.rocket`; `RaidView.FliesAsModel` asks this, where it asked the calibre). An explosive or a
+  round with a blast: `explode`. What leaves a fire: `fire` and `fireOut`. A deployable that burns fuel: `fire` (the campfire's,
+  the furnace's). So a new gun, round or explosive is a line of data. `EffectsCatalogueTests` checks every item there is one
+  of the game's, every effect it names exists (a loop for `flight` and `fire`), and every gun, explosive, round with a blast,
+  rocket, fire and burner has its roles.
 
 **The Iron Wake's effects** (IW-F, IRON_WAKE.md §11; built 15 October 2026 from the existing batches and the C4 kit's
 flipbooks, with two decals of our own):
