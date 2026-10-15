@@ -72,6 +72,11 @@ public static class ShipMotor
     /// <summary>The skids' rays start this far above each pad.</summary>
     public const float SkidProbe = 0.5f;
 
+    /// <summary>A ship with its engines off that moves less than this in a tick (metres, radians) is held where it stands.</summary>
+    public const float HeldMetres = 0.001f;
+
+    public const float HeldTurn = 0.0003f;
+
     /// <summary>Flight assist's gentle descent works below this height over the ground.</summary>
     public const float LandingAssistHeight = 30f;
 
@@ -379,7 +384,13 @@ public static class ShipMotor
             s.Velocity = Vector3.Zero;
             s.AngularVelocity = Vector3.Zero;
         }
-        if (landed && speed < 0.05f && s.AngularVelocity.Length() < 0.02f && !input.WantsMotion)
+        // At rest: on its skids, slow and level enough (landed); or, its engines off, held where it stands by its skids and
+        // whatever else it touches (a big ship's hull on a bump of the ground beside its pads, IRON_WAKE.md §5.4: such a
+        // contact keeps a velocity the ground never lets it move by).
+        bool held = !input.Engines && loaded > 0 && Vector3.DistanceSquared(s.Position, start.Position) < HeldMetres * HeldMetres &&
+            Vector3.DistanceSquared(Vector3.Transform(Vector3.UnitZ, s.Rotation), Vector3.Transform(Vector3.UnitZ, start.Rotation)) < HeldTurn * HeldTurn &&
+            Vector3.DistanceSquared(Vector3.Transform(Vector3.UnitY, s.Rotation), Vector3.Transform(Vector3.UnitY, start.Rotation)) < HeldTurn * HeldTurn;
+        if ((landed && speed < 0.05f && s.AngularVelocity.Length() < 0.02f && !input.WantsMotion) || held)
         {
             s.RestTicks++;
             if (s.RestTicks >= SleepTicks)

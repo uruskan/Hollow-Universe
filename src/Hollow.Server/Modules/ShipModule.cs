@@ -377,7 +377,8 @@ public sealed class ShipModule : ServerModule
     /// A ship beside a player, full, theirs, its hatch open: the kind asked for (IRON_WAKE.md §5.6: the admin's
     /// <c>ship [player] [kind]</c>, the F1 panel's spawn), else the first (every new player's Tin Finch with
     /// <see cref="ServerOptions.ShipOnJoin"/>). It stands on the nearest clear spot of rings round them, as far out as its
-    /// size needs, with its way in toward them (<see cref="WayIn"/>).
+    /// size needs, with its way in toward them (<see cref="WayIn"/>); in a wood with no room for it, at the nearest spot
+    /// whose only obstacles are trees and rocks, they go (<see cref="ShipSystem.ClearNatureFor"/>).
     /// </summary>
     public Ship? GiveShip(PlayerSession session, ShipDef? kind = null)
     {
@@ -394,21 +395,29 @@ public sealed class ShipModule : ServerModule
         Vector3 side = Vector3.Normalize(Vector3.Cross(up, north));
         float wayYaw = way.X * way.X + way.Z * way.Z > 1e-6f ? Facing.YawOf(side * way.X + north * way.Z, up) : 0;
         float beyond = MathF.Max(0, MathF.Max(def.BoundsHalf.X, def.BoundsHalf.Z) - 4);
-        foreach (float ring in new[] { 6f, 9f, 12f, 16f, 22f })
+        for (int pass = 0; pass < 2; pass++)
         {
-            float distance = ring + beyond;
-            for (int i = 0; i < 12; i++)
+            foreach (float ring in new[] { 6f, 9f, 12f, 16f, 22f })
             {
-                float angle = i * MathF.PI / 6 + ring;
-                Vector3 at = feet + (north * MathF.Cos(angle) + east * MathF.Sin(angle)) * distance;
-                Vector3 ground = Zone.Settle(at);
-                float yaw = Facing.YawOf(feet - at, up) - wayYaw;
-                if (Zone.Ships().ShipSpaceClear(def, ground, yaw))
+                float distance = ring + beyond;
+                for (int i = 0; i < 12; i++)
                 {
-                    Ship ship = Zone.Ships().SpawnShip(def, ground, yaw, session.EntityId, def.FuelCapacity);
-                    ship.HatchOpen = true;
-                    ship.HatchProgress = Ship.HatchTicks;
-                    return ship;
+                    float angle = i * MathF.PI / 6 + ring;
+                    Vector3 at = feet + (north * MathF.Cos(angle) + east * MathF.Sin(angle)) * distance;
+                    Vector3 ground = Zone.Settle(at);
+                    float yaw = Facing.YawOf(feet - at, up) - wayYaw;
+                    int cleared = pass == 1 ? Zone.Ships().ClearNatureFor(def, ground, yaw) : 0;
+                    if (Zone.Ships().ShipSpaceClear(def, ground, yaw))
+                    {
+                        if (cleared > 0)
+                        {
+                            Log($"cleared {cleared} trees and rocks for a {def.Name} beside {session.Name}");
+                        }
+                        Ship ship = Zone.Ships().SpawnShip(def, ground, yaw, session.EntityId, def.FuelCapacity);
+                        ship.HatchOpen = true;
+                        ship.HatchProgress = Ship.HatchTicks;
+                        return ship;
+                    }
                 }
             }
         }

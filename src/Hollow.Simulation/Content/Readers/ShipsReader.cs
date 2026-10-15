@@ -72,7 +72,8 @@ internal sealed class ShipsReader : IContentReader
             if (fromData)
             {
                 // "hull": "data": the boxes the import fitted to the model for the world's sweeps, and the landing pads as
-                // the skids, each with a thin skid box at its foot (IRON_WAKE.md §5.4).
+                // the skids (IRON_WAKE.md §5.4), each with a thin skid box a leg's travel above its foot, as the Tin Finch's
+                // skid boxes sit: the spring takes the load through its travel, and the box stops it there.
                 if (hullValue.GetString() != "data" || interior == null)
                 {
                     f.Problem(where + ".hull", "a list of boxes, or \"data\" (the interior's data file's hull)");
@@ -80,10 +81,11 @@ internal sealed class ShipsReader : IContentReader
                 hull.AddRange(interior?.HullBoxes ?? Array.Empty<Ships.HullBox>());
                 if (interior != null)
                 {
+                    float travel = f.Number(skids, "travel", where + ".skids");
                     for (int p = 0; p < interior.Pads.Count; p++)
                     {
                         Vector2 size = interior.PadSizes[p];
-                        hull.Add(new Ships.HullBox(interior.Pads[p] + new Vector3(0, 0.15f, 0), new Vector3(size.X / 2, 0.15f, size.Y / 2), true));
+                        hull.Add(new Ships.HullBox(interior.Pads[p] + new Vector3(0, travel + 0.15f, 0), new Vector3(size.X / 2, 0.15f, size.Y / 2), true));
                     }
                 }
                 skidPoints = interior?.Pads.ToArray() ?? Array.Empty<Vector3>();

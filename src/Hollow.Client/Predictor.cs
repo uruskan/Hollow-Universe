@@ -39,7 +39,7 @@ public sealed class Predictor : IDisposable
         _ownsWorld = shared == null;
         _body = new CharacterBody(_world, tuning, Vector3.Zero, Vector3.UnitY);
         // The zone's frame as the server's zone has it (its radius bounds noclip there too).
-        Frames = new MoveFrames(new ZoneMoveFrame(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, tuning), surface.Radius, _body), tuning);
+        Frames = new MoveFrames(new ZoneMoveFrame(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, tuning), surface.Radius, _body, surface), tuning);
     }
 
     public ZoneFrame Frame { get; }

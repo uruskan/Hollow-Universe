@@ -35,13 +35,18 @@ public interface IMoveFrame
 
 /// <summary>
 /// The zone's frame (GROUND.md §4.5): up away from the planet's centre, the planet's gravity times the characters'
-/// scale, the sea from the surface, the zone's physics.
+/// scale, the sea from the surface, the zone's physics; with the surface, its ground (where a ship's ramp sinks into it,
+/// the ground wins: <see cref="MoveFrames"/>).
 /// </summary>
-public sealed class ZoneMoveFrame(ZoneFrame frame, double seaRadius, float gravity, double radius, CharacterBody? body = null) : IMoveFrame
+public sealed class ZoneMoveFrame(ZoneFrame frame, double seaRadius, float gravity, double radius, CharacterBody? body = null, ISurface? surface = null)
+    : IMoveFrame
 {
     public ulong Key => 0;
 
     public ZoneFrame Frame { get; } = frame;
+
+    /// <summary>The surface's own ground, as the zone asks it (none without a surface: the movement check's frame).</summary>
+    public GroundProbe? Ground { get; } = surface == null ? null : new GroundProbe(surface, frame);
 
     /// <summary>Radius of the sea surface in metres, 0 without one (<see cref="ISurface.SeaRadius"/>).</summary>
     public double SeaRadius { get; } = seaRadius;
@@ -116,8 +121,10 @@ public interface IShipFrame : IMoveFrame
 /// step and a client's prediction step each character through this, so both run the same code: the view turned into
 /// the character's frame when the input gave it in another, the step in the frame's space, then the hand-over at the
 /// step's end (§4.5): aboard when the ground under the feet is a ship's parked body or the feet are inside its boarding
-/// volume over its deck; ashore when nothing of the ship is under the feet more than the margin outside it. The pose and
-/// velocity are kept in the world exactly, the velocity gaining or losing the ship's at that point.
+/// volume over its deck; ashore when nothing of the ship is under the feet more than the margin outside it, or when the
+/// world's ground has risen over the ship's floor under them (a ramp's foot sunk into the ground the ship stands on: the
+/// ship's space has no ground, the zone's has). The pose and velocity are kept in the world exactly, the velocity
+/// gaining or losing the ship's at that point.
 /// </summary>
 public sealed class MoveFrames
 {
@@ -196,13 +203,19 @@ public sealed class MoveFrames
     {
         if (frame is IShipFrame aboard)
         {
-            // Ashore: nothing of the ship under the feet, and the feet more than the margin outside the boarding volume.
-            if (body.GroundState == JoltPhysicsSharp.GroundState.OnGround || body.GroundState == JoltPhysicsSharp.GroundState.OnSteepGround ||
-                aboard.Interior.OutsideBoarding(state.Position, aboard.States) <= aboard.Interior.Margin || !aboard.TryPose(tick, out ShipPose pose))
+            // Ashore: nothing of the ship under the feet, and the feet more than the margin outside the boarding volume; or
+            // the feet under the world's ground (walked down a ramp into it).
+            if (!aboard.TryPose(tick, out ShipPose pose))
             {
                 return;
             }
             Vector3 world = pose.ToWorld(state.Position);
+            bool buried = Zone.Ground is { } probe && probe.HeightAbove(world) < -BuriedFeet;
+            if (!buried && (body.GroundState == JoltPhysicsSharp.GroundState.OnGround || body.GroundState == JoltPhysicsSharp.GroundState.OnSteepGround ||
+                aboard.Interior.OutsideBoarding(state.Position, aboard.States) <= aboard.Interior.Margin))
+            {
+                return;
+            }
             state.Velocity = pose.DirectionToWorld(state.Velocity) + pose.VelocityAt(world);
             state.Position = world;
             state.Frame = 0;
@@ -237,6 +250,9 @@ public sealed class MoveFrames
 
     /// <summary>How far below the feet a ship's deck must be for its boarding volume to take a character standing on nothing (m).</summary>
     public const float DeckBelow = 3f;
+
+    /// <summary>How far under the world's ground the feet of a character aboard may be before the ground takes them (m).</summary>
+    public const float BuriedFeet = 0.02f;
 
     /// <summary>
     /// A direction given in one frame, in another (the zone's or a ship's) at a tick: through the ships' poses. Unchanged

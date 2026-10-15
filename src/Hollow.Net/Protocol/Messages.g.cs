@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xAC08D5E6C84F3918UL;
+    public const ulong SchemaHash = 0x8708B158DCCB4222UL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -449,6 +449,7 @@ partial struct ShipNetState
         w.WriteSigned(ThrustZ, 8);
         w.WriteBits((uint)Health, 8);
         w.WriteVarUInt(Kind);
+        w.WriteVarUInt(Body);
     }
 
     public static ShipNetState Read(BitReader r)
@@ -469,6 +470,7 @@ partial struct ShipNetState
         v.ThrustZ = (sbyte)r.ReadSigned(8);
         v.Health = (byte)r.ReadBits(8);
         v.Kind = r.ReadVarUInt();
+        v.Body = r.ReadVarUInt();
         return v;
     }
 
@@ -610,6 +612,15 @@ partial struct ShipNetState
         {
             w.WriteBool(false);
         }
+        if (Body != b.Body)
+        {
+            w.WriteBool(true);
+            w.WriteVarUInt(Body);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
     }
 
     public static ShipNetState ReadDelta(BitReader r, in ShipNetState b)
@@ -675,10 +686,14 @@ partial struct ShipNetState
         {
             v.Kind = r.ReadVarUInt();
         }
+        if (r.ReadBool())
+        {
+            v.Body = r.ReadVarUInt();
+        }
         return v;
     }
 
-    public readonly bool SameAs(in ShipNetState o) => X == o.X && Y == o.Y && Z == o.Z && TurnLargest == o.TurnLargest && TurnA == o.TurnA && TurnB == o.TurnB && TurnC == o.TurnC && Flags == o.Flags && Viewer == o.Viewer && Hatch == o.Hatch && ThrustX == o.ThrustX && ThrustY == o.ThrustY && ThrustZ == o.ThrustZ && Health == o.Health && Kind == o.Kind;
+    public readonly bool SameAs(in ShipNetState o) => X == o.X && Y == o.Y && Z == o.Z && TurnLargest == o.TurnLargest && TurnA == o.TurnA && TurnB == o.TurnB && TurnC == o.TurnC && Flags == o.Flags && Viewer == o.Viewer && Hatch == o.Hatch && ThrustX == o.ThrustX && ThrustY == o.ThrustY && ThrustZ == o.ThrustZ && Health == o.Health && Kind == o.Kind && Body == o.Body;
 
     /// <summary>The bits <see cref="WriteDelta"/> takes, without writing.</summary>
     public readonly int DeltaBits(in ShipNetState b)
@@ -699,11 +714,12 @@ partial struct ShipNetState
         bits += ThrustZ == b.ThrustZ ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustZ - (int)b.ThrustZ));
         bits += Health == b.Health ? 1 : 9;
         bits += Kind == b.Kind ? 1 : 41;
+        bits += Body == b.Body ? 1 : 41;
         return bits;
     }
 
     /// <summary>The bits <see cref="Write"/> takes.</summary>
-    public const int FullBits = 241;
+    public const int FullBits = 281;
 }
 
 partial struct CharacterNetState

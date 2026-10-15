@@ -4,6 +4,7 @@ using System.Numerics;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Nature;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Ships;
 
@@ -108,6 +109,55 @@ public sealed partial class ShipSystem
         }
         ship.PartsRevision++;
         return Outcome.Done;
+    }
+
+    /// <summary>
+    /// Clears the ground a ship would stand on of what grows and lies there, for good (an admin's spawn of a big ship in a
+    /// wood, IRON_WAKE.md §5.6): where nothing else is in its way, every tree and rock whose body its hull would overlap
+    /// standing at a point, its nose toward a yaw, is felled or broken. How many went.
+    /// </summary>
+    public int ClearNatureFor(ShipDef def, Vector3 ground, float yaw)
+    {
+        if (Zone.Natural is not { } natural)
+        {
+            return 0;
+        }
+        Vector3 up = Frame.UpAt(ground);
+        ShipState probe = ShipMotor.Standing(def, ground + up * 0.05f, up, yaw);
+        Span<ShipContact> contacts = stackalloc ShipContact[64];
+        int cleared = 0;
+        for (int pass = 0; pass < 4; pass++)
+        {
+            int found;
+            lock (JoltRuntime.Gate)
+            {
+                Physics.EnsureGround(ground);
+                found = ShipCollider.Overlaps(def, probe.Position, probe.Rotation, ShipCollider.NoBody, contacts);
+            }
+            // Only where nothing else is in the way: the ground no deeper than a hull may sit in it, no building, ship or prop.
+            for (int i = 0; i < found; i++)
+            {
+                bool nature = Physics.TryPropOf(contacts[i].Body, out PropLayer layer, out _) && layer == PropLayer.Nature;
+                if (!nature && (!PhysicsWorld.IsGroundBody(contacts[i].Body) || contacts[i].Depth > Hollow.Simulation.Placement.HullFootprint.GroundDepth))
+                {
+                    return cleared;
+                }
+            }
+            int before = cleared;
+            for (int i = 0; i < found; i++)
+            {
+                if (Physics.TryPropOf(contacts[i].Body, out PropLayer layer, out ulong key) && layer == PropLayer.Nature && !natural.IsDepleted(key))
+                {
+                    natural.Apply(key, new NaturalOverride { Depleted = true, RespawnAtUnixMs = long.MaxValue });
+                    cleared++;
+                }
+            }
+            if (cleared == before)
+            {
+                break;
+            }
+        }
+        return cleared;
     }
 
     private readonly List<Capsule> _partCharacters = new();

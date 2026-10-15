@@ -264,6 +264,12 @@ public partial struct ShipNetState
     [Signed(8)] public sbyte ThrustZ;
     public byte Health;
     [VarInt] public uint Kind;
+
+    /// <summary>
+    /// Its parked body's ID in the zone's physics (0 while it flies): a client makes its copy with the same ID, so its
+    /// prediction meets the same contacts in the same order (as the building's bodies, IRON_WAKE.md §4.6).
+    /// </summary>
+    [VarInt] public uint Body;
 }
 
 /// <summary>A character as other players see it: position on a 1/256 m grid, view direction, what it's doing.</summary>

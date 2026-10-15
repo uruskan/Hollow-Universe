@@ -85,7 +85,7 @@ public sealed class Zone : IDisposable
         Surface = surface;
         Frame = spec.CreateFrame(surface);
         Tuning = tuning ?? MovementTuning.Default;
-        var zoneFrame = new ZoneMoveFrame(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, Tuning), surface.Radius);
+        var zoneFrame = new ZoneMoveFrame(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, Tuning), surface.Radius, surface: surface);
         Movement = new MoveContext(zoneFrame, Tuning);
         Physics = new PhysicsWorld(surface, Frame);
         zoneFrame.Body = new CharacterBody(Physics, Tuning, Vector3.Zero, Vector3.UnitY);

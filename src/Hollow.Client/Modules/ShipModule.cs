@@ -9,6 +9,7 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Ships;
+using JoltPhysicsSharp;
 
 namespace Hollow.Client;
 
@@ -218,7 +219,12 @@ public sealed class ShipModule : ClientModule
             RemoteShip ship = RemoteShipOf(netId);
             ship.Def ??= Content.Ship((int)Math.Min(state.Kind, ushort.MaxValue));
             ship.Add(serverTick, state);
-            bool parked = (state.Flags & ShipNetFlags.Asleep) != 0 && (state.Flags & (ShipNetFlags.Piloted | ShipNetFlags.Destroyed | ShipNetFlags.InOrbit)) == 0;
+            // Parked as the server has it: its body there, with that body's ID (a new ID is a new parking).
+            bool parked = state.Body != 0;
+            if (parked && _parkedBodies.TryGetValue(netId, out uint held) && held != state.Body)
+            {
+                Unpark(netId);
+            }
             if (parked && !_parkedBodies.ContainsKey(netId))
             {
                 Park(netId, ship, state);
@@ -231,32 +237,41 @@ public sealed class ShipModule : ClientModule
     }
 
     // A parked ship's static body in the prediction's physics, as the server's zone has it: the hull's boxes, or the whole
-    // collision of a ship people walk in at its parts' states (§4.6), at the pose the server rested on the wire's grid.
+    // collision of a ship people walk in at its parts' states (§4.6), at the pose the server rested on the wire's grid, with
+    // the server's body ID (the same contacts in the same order). Another ship's body holding that ID here is a stale one.
     private void Park(uint netId, RemoteShip ship, in ShipNetState state)
     {
-        if (!_ownsShipBodies || ship.Def == null || _shipCollider == null)
+        if (!_ownsShipBodies || ship.Def == null || _shipCollider == null || state.Body == 0)
         {
             return;
         }
+        foreach ((uint other, uint held) in _parkedBodies)
+        {
+            if (held == state.Body && other != netId)
+            {
+                Unpark(other);
+                break;
+            }
+        }
+        Shape shape;
+        if (ship.Def.Interior is { } interior)
+        {
+            if (_scratchParts.Length != interior.Parts.Count)
+            {
+                _scratchParts = new float[interior.Parts.Count];
+            }
+            ship.PartsInto(interior, _scratchParts);
+            shape = ShipSpace.ParkedShape(interior, _scratchParts);
+        }
+        else
+        {
+            shape = ShipCollider.HullShape(ship.Def, swept: false);
+        }
         lock (JoltRuntime.Gate)
         {
-            uint body;
-            if (ship.Def.Interior is { } interior)
+            if (_shipCollider.AddParkedAt(state.Body, shape, ShipConvert.PositionOf(state), ShipConvert.RotationOf(state)))
             {
-                if (_scratchParts.Length != interior.Parts.Count)
-                {
-                    _scratchParts = new float[interior.Parts.Count];
-                }
-                ship.PartsInto(interior, _scratchParts);
-                body = _shipCollider.AddParked(ShipSpace.ParkedShape(interior, _scratchParts), ShipConvert.PositionOf(state), ShipConvert.RotationOf(state));
-            }
-            else
-            {
-                body = _shipCollider.AddParked(ship.Def, ShipConvert.PositionOf(state), ShipConvert.RotationOf(state));
-            }
-            if (body != 0)
-            {
-                _parkedBodies.Add(netId, body);
+                _parkedBodies.Add(netId, state.Body);
             }
         }
     }

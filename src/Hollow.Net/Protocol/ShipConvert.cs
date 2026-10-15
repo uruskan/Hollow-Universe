@@ -115,6 +115,7 @@ public static class ShipConvert
             ThrustZ = Thrust(s.Thrust.Z),
             Health = (byte)Math.Clamp(MathF.Ceiling(s.Health / ship.Def.Health * 255), 0, 255),
             Kind = ship.Def.Id,
+            Body = ship.ParkedBody,
         };
     }
 

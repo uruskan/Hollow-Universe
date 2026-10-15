@@ -248,6 +248,24 @@ public sealed class ShipCollider : IDisposable
         return id;
     }
 
+    /// <summary>
+    /// Adds a parked ship's static body with the ID the server gave its own (a client's copy, IRON_WAKE.md §4.6: the same
+    /// contacts in the same order); false when the ID is outside the ships' range or taken.
+    /// </summary>
+    public bool AddParkedAt(uint id, Shape shape, Vector3 position, Quaternion rotation)
+    {
+        if (!IsShipBody(id) || _bodies.Contains(id))
+        {
+            return false;
+        }
+        _world.AddStaticBody(id, shape, position, rotation);
+        _bodies.Add(id);
+        return true;
+    }
+
+    /// <summary>Whether a parked ship's body has this ID now.</summary>
+    public bool HasParked(uint id) => _bodies.Contains(id);
+
     public void RemoveParked(uint id)
     {
         if (id == 0 || !_bodies.Remove(id) || _disposed)
