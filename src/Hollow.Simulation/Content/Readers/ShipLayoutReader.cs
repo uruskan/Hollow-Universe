@@ -350,16 +350,16 @@ internal static class ShipLayoutReader
         {
             string key = f.Text(l, "key", where + ".lamps");
             string at = $"{where}.lamps {JsonFields.Quote(key)}";
-            f.OnlyKnown(l, at, "key", "at", "direction", "spot", "colour", "energy", "range", "shadows", "power");
+            f.OnlyKnown(l, at, "key", "at", "direction", "spot", "colour", "energy", "range", "shadows", "power", "angle");
             bool spot = f.Flag(l, "spot", at, false);
             lights.Add(new ShipLight(key, PointField(f, l, "at", at, interior).Position, spot ? Vector3.Normalize(f.Vector(l, "direction", at) + new Vector3(0, 0, 1e-9f)) : Vector3.Zero,
                 spot, f.Vector(l, "colour", at), f.Number(l, "energy", at), f.Number(l, "range", at), f.Flag(l, "shadows", at, false),
-                f.Text(l, "power", at, "ship") == "emergency" ? LightPower.Emergency : LightPower.Ship));
+                f.Text(l, "power", at, "ship") == "emergency" ? LightPower.Emergency : LightPower.Ship, f.Number(l, "angle", at, 50f)));
         }
         if (f.TryChild(o, "fixtures", out JsonElement fixtures))
         {
             string at = where + ".fixtures";
-            f.OnlyKnown(fixtures, at, "colour", "energy", "range", "shadows");
+            f.OnlyKnown(fixtures, at, "colour", "energy", "range", "shadows", "angle");
             if (interior == null)
             {
                 f.Problem(at, "the fixtures are the data file's: the ship has none");
@@ -371,10 +371,10 @@ internal static class ShipLayoutReader
                 f.Problem(at, $"no fixture \"{name}\" in {interior.File}");
             }
             Vector3 colour = f.Vector(fixtures, "colour", at);
-            float energy = f.Number(fixtures, "energy", at), range = f.Number(fixtures, "range", at);
+            float energy = f.Number(fixtures, "energy", at), range = f.Number(fixtures, "range", at), angle = f.Number(fixtures, "angle", at, 60f);
             foreach (ShipFixture x in interior.Fixtures)
             {
-                lights.Add(new ShipLight(x.Name, x.Position, x.Direction, x.Spot, colour, energy, range, shadows.Contains(x.Name), LightPower.Ship));
+                lights.Add(new ShipLight(x.Name, x.Position, x.Direction, x.Spot, colour, energy, range, shadows.Contains(x.Name), LightPower.Ship, angle));
             }
             if (f.TryChild(o, "emergency", out JsonElement emergency))
             {
@@ -384,7 +384,7 @@ internal static class ShipLayoutReader
                 float dim = f.Number(emergency, "energy", eAt), near = f.Number(emergency, "range", eAt);
                 foreach (ShipFixture x in interior.Fixtures)
                 {
-                    lights.Add(new ShipLight(x.Name + ":emergency", x.Position, x.Direction, x.Spot, red, dim, near, false, LightPower.Emergency));
+                    lights.Add(new ShipLight(x.Name + ":emergency", x.Position, x.Direction, x.Spot, red, dim, near, false, LightPower.Emergency, angle));
                 }
             }
         }

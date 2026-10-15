@@ -190,6 +190,12 @@ public sealed class ShipInterior
     /// <summary>The data file's lamp fixtures, its drive glows left out (IRON_WAKE.md §9.4): what ships.json's lights light.</summary>
     public IReadOnlyList<ShipFixture> Fixtures { get; init; } = Array.Empty<ShipFixture>();
 
+    /// <summary>
+    /// The data file's materials by role (<c>lamps</c>, <c>displays</c>, <c>glass</c>...): each one's name in the model and its
+    /// emission energy when lit (IRON_WAKE.md §9.2, §9.4; presentation).
+    /// </summary>
+    public IReadOnlyDictionary<string, (string Material, float Energy)> Materials { get; init; } = new Dictionary<string, (string, float)>();
+
     /// <summary>The data file's rooms (IRON_WAKE.md §9.4, §10), in its order.</summary>
     public IReadOnlyList<ShipRoom> Rooms { get; init; } = Array.Empty<ShipRoom>();
 

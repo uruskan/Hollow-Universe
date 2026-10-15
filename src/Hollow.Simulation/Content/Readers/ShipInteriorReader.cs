@@ -259,6 +259,15 @@ internal static class ShipInteriorReader
             }
             zones.Add(new ShipBuildZone(id, f.Text(z, "name", zoneAt, id), min, max, floor, headroom));
         }
+        var materials = new Dictionary<string, (string, float)>(StringComparer.Ordinal);
+        if (f.TryChild(root, "materials", out JsonElement mats) && mats.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty m in mats.EnumerateObject())
+            {
+                string matAt = $"{at}: materials.{m.Name}";
+                materials[m.Name] = (f.Text(m.Value, "material", matAt), f.Number(m.Value, "energy", matAt, 1f));
+            }
+        }
         var rooms = new List<ShipRoom>();
         foreach (JsonElement room in f.List(root, "rooms", at, required: false))
         {
@@ -290,6 +299,7 @@ internal static class ShipInteriorReader
         {
             BuildZones = zones,
             Rooms = rooms,
+            Materials = materials,
             Exclusions = exclusions,
             File = file,
             Parts = parts,
