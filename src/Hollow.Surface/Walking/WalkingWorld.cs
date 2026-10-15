@@ -141,6 +141,8 @@ public sealed class WalkingWorld : ISurface, IScatterField
         _bounds = (Math.Min(-200, low - 30), high + Math.Max(80, 0.3 * high));
         Array.Sort(temperatures);
         IceTemperature = iceCover > 0.001 ? Quantile(temperatures, iceCover) : -1000;
+        Cliffs = new CliffPlacements(this, seed);
+        Monuments = new MonumentPlacements(this, seed);
     }
 
     /// <summary>The seed of a body's walking-scale ground, from its zone's surface seed (<c>ZoneSpec.SurfaceSeed</c>).</summary>
@@ -165,6 +167,13 @@ public sealed class WalkingWorld : ISurface, IScatterField
 
     public WalkingParameters Parameters => _p;
 
+    /// <summary>Shared scan formations, separate from harvestable natural-object IDs and ground-height generation.</summary>
+    public CliffPlacements Cliffs { get; }
+    public MonumentPlacements Monuments { get; }
+
+    public TriangleMesh GroundCollision(in ZoneFrame frame, TileKey tile, double margin) =>
+        Monuments.AddCollision(Cliffs.Collision(frame, tile, margin), frame, tile, margin);
+
     /// <summary>The lakes, largest share of the world first by their place in the grid (a fixed order).</summary>
     public IReadOnlyList<WalkingLake> Lakes => _drainage?.Lakes ?? Array.Empty<WalkingLake>();
 
@@ -173,7 +182,11 @@ public sealed class WalkingWorld : ISurface, IScatterField
 
     internal Drainage? DrainageGrid => _drainage;
 
-    public double HeightAt(Vector3D direction) => Fields(direction).Height;
+    public double HeightAt(Vector3D direction)
+    {
+        double ground = Fields(direction).Height;
+        return Monuments == null ? ground : Monuments.HeightAt(direction, ground);
+    }
 
     /// <summary>The lowest and highest ground, for drawing tiles before their heights are known.</summary>
     public (double Low, double High) HeightBounds => _bounds;
@@ -240,7 +253,7 @@ public sealed class WalkingWorld : ISurface, IScatterField
     public SurfaceSample Sample(Vector3D direction)
     {
         WalkingSample s = Fields(direction);
-        return new SurfaceSample(s.Height, s.Continent, s.Mountains, 1 - s.Rocky, s.Roughness);
+        return new SurfaceSample(HeightAt(direction), s.Continent, s.Mountains, 1 - s.Rocky, s.Roughness);
     }
 
     // ---------------------------------------------------------------- height
@@ -471,7 +484,7 @@ public sealed class WalkingWorld : ISurface, IScatterField
     /// <summary>Plant and rock densities at a point, per square metre: the biomes', in woods and open ground, thinned on slopes, at the tree line, on shores and in water.</summary>
     public VegetationSample Vegetation(Vector3D p, in WalkingSample s, in ClimateSample climate, ReadOnlySpan<double> biomes, double slope)
     {
-        if (s.Water > s.Height - 0.2 || (_hasSea && s.Height < 0.3) || s.Ice > 0)
+        if (s.Water > s.Height - 0.2 || (_hasSea && s.Height < 0.3) || s.Ice > 0 || Monuments.VegetationAt(p) == 0)
         {
             return new VegetationSample(0, 0, 0, 0, 0);
         }
@@ -501,6 +514,8 @@ public sealed class WalkingWorld : ISurface, IScatterField
     /// <summary>The scatter's tiles: the level nearest <see cref="WalkingParameters.ScatterTile"/> (5 on the first world), candidates spaced in metres.</summary>
     public ScatterPlan ScatterPlan => _plan;
 
+    public bool AllowsScatter(Vector3D direction) => Monuments.VegetationAt(direction) > 0;
+
     public ScatterDensity Densities(Vector3D direction, in SurfaceSample sample, double slope)
     {
         WalkingSample s = Fields(direction);
@@ -510,7 +525,8 @@ public sealed class WalkingWorld : ISurface, IScatterField
         VegetationSample v = Vegetation(direction, s, climate, biomes, slope);
         Span<double> kinds = stackalloc double[4];
         BiomeTable.TreeKinds(biomes, kinds);
-        double outcrops = s.Water > s.Height - 0.3 ? 0 : Scatter.Outcrops(sample, biomes, slope);
+        double outcrops = s.Water > s.Height - 0.3 || Monuments.VegetationAt(direction) == 0 ? 0
+            : Scatter.Outcrops(sample, biomes, slope) * Math.Max(0, _p.ResourceDensity);
         return new ScatterDensity(v, kinds, outcrops, s.Mountains);
     }
 
@@ -579,6 +595,11 @@ public sealed class WalkingWorld : ISurface, IScatterField
             materials[(int)GroundMaterial.Shingle] += DMath.SmoothStep(2.5, 0.5, s.Height) * s.Rocky * edge;
         }
         Normalise(materials);
+        if (Monuments.At(direction) is { } site)
+        {
+            materials.Clear();
+            materials[(int)(site.Definition.Ground == "gravel" ? GroundMaterial.Gravel : GroundMaterial.Soil)] = 1;
+        }
         return new GroundCover(climate.Temperature, climate.Moisture, v.Grass, v.Trees);
     }
 

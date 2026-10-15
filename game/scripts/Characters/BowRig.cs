@@ -25,12 +25,14 @@ public sealed class BowRig
     private readonly Node3D? _arrow;
     private readonly Vector3 _top, _bottom;
     private readonly float _stringX, _half;
+    private readonly float _arrowHeight;
 
     private BowRig(Node3D bow, Vector3 top, Vector3 bottom, float stringX)
     {
         _top = top;
         _bottom = bottom;
         _stringX = stringX;
+        _arrowHeight = HeldItems.Socket(bow, "arrow_rest").Origin.Y;
         _half = Math.Max(0.3f, (top.Y - bottom.Y) * 0.5f);
         var cord = new CylinderMesh { TopRadius = 0.0017f, BottomRadius = 0.0017f, Height = 1f, RadialSegments = 5, Rings = 1 };
         var material = new StandardMaterial3D { AlbedoColor = new Color(0.86f, 0.82f, 0.72f), Roughness = 0.85f };
@@ -49,7 +51,7 @@ public sealed class BowRig
     }
 
     /// <summary>The nock point (where the string is drawn from) at a draw (0–1), in the bow's space.</summary>
-    public Vector3 Nock(float draw) => new(_stringX - FullDraw * Math.Clamp(draw, 0f, 1f), 0f, 0f);
+    public Vector3 Nock(float draw) => new(_stringX - FullDraw * Math.Clamp(draw, 0f, 1f), _arrowHeight, 0f);
 
     /// <summary>Rigs a bow model (an instance from <see cref="HeldItems"/>); null if it has no meshes.</summary>
     public static BowRig? Attach(Node3D bow)

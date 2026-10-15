@@ -1,0 +1,1457 @@
+{
+  "Build": "root-coordinated build17",
+  "SourceRun": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89",
+  "Review": "All45 LOD0 views rendered and reviewed; continuous solid-grade joints, no large interior flicker patches. Twig edge shimmer remains. No zero-flicker, all-LOD, window/stairs/roof or performance claim.",
+  "Images": [
+    {
+      "File": "armoured-ceiling.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\armoured-ceiling.jpg",
+      "Sha256": "BAF08A4BCE62AF8D507043A7F56FA02F799F82405350B61D22206A7245C698AB"
+    },
+    {
+      "File": "armoured-corner.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\armoured-corner.jpg",
+      "Sha256": "44BD09D8FFEB02728EB71F71ABD1FB3D8D886A33B7A8A36DE6C0F7CB9C488825"
+    },
+    {
+      "File": "armoured-doorway.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\armoured-doorway.jpg",
+      "Sha256": "557EE19063971AA4CB35338582F4F47EAFCC28BCA257756368BFC6A4BAE9D9D1"
+    },
+    {
+      "File": "armoured-double-door.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\armoured-double-door.jpg",
+      "Sha256": "3218199E07F9A1C9D8919D03CD14CDFF3BA775E3F7EA749386459710BAEA6DC6"
+    },
+    {
+      "File": "armoured-flicker.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\armoured-flicker.jpg",
+      "Sha256": "EF418EC86EEF54C1BE519C17E341AA2529D997692475BB153D3DFA7AC20AE49A"
+    },
+    {
+      "File": "armoured-floor-on-walls.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\armoured-floor-on-walls.jpg",
+      "Sha256": "BC11F810F55BE4DDE87C6466C80E7F6722D8C221EDF23F562564CFB04464034B"
+    },
+    {
+      "File": "armoured-foundations.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\armoured-foundations.jpg",
+      "Sha256": "E3CDE7B2840314BC202552F390581071912F43750D1C0D4D2AF913F5ACE47F74"
+    },
+    {
+      "File": "armoured-triangle.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\armoured-triangle.jpg",
+      "Sha256": "E4210A975A9547FB0C4B784E97985B3BB104F0F4BB6A28569A6C366E205BC4B4"
+    },
+    {
+      "File": "armoured-wall-inside.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\armoured-wall-inside.jpg",
+      "Sha256": "BE148469FE12510786FEF9F28FCAB221B4C634455896FCF85F99E4AF1D979A7E"
+    },
+    {
+      "File": "armoured-wall-outside.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\armoured-wall-outside.jpg",
+      "Sha256": "64157853D808F988E0F1DBB0B789693797F214A52974D98A8DBB51D8CAB668D0"
+    },
+    {
+      "File": "armoured.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\armoured.jpg",
+      "Sha256": "EF0A3D67AB7AC5D49984EAA2E9148D3547CCDA4681AB18C449496AABEBDC6134"
+    },
+    {
+      "File": "metal-ceiling.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\metal-ceiling.jpg",
+      "Sha256": "BE5893775B09281F2BC40BBFC65E732AA02273EAFD0F76C34E90E3070EFAB24E"
+    },
+    {
+      "File": "metal-corner.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\metal-corner.jpg",
+      "Sha256": "D6A9A503AE1ECEDBFB7A7EA1F81D8F92FE46668B8377811CFE2C927A8EE6BE06"
+    },
+    {
+      "File": "metal-doorway.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\metal-doorway.jpg",
+      "Sha256": "1B56E74C672E0FF3CE4DDCB71C9ECF2E66E9A628BA773D971DC794677DE9A997"
+    },
+    {
+      "File": "metal-double-door.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\metal-double-door.jpg",
+      "Sha256": "740B61F551D47949EF39C1608502202185EFE406723BCB3149EFEEB8292265CC"
+    },
+    {
+      "File": "metal-flicker.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\metal-flicker.jpg",
+      "Sha256": "BF14D32E5819ABFC299387C0A5D921A51AB8BA964026510080E8B5B266EF1E12"
+    },
+    {
+      "File": "metal-floor-on-walls.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\metal-floor-on-walls.jpg",
+      "Sha256": "AF66AB9F6F46A58F23F65C47D0D266455CF4D744CEE57CBAB5CAEB39F5A2EEBA"
+    },
+    {
+      "File": "metal-foundations.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\metal-foundations.jpg",
+      "Sha256": "62FD7F32D6F15432CBF4C60EA0B221B7665B7525F788ACC74476D54035546E8C"
+    },
+    {
+      "File": "metal-triangle.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\metal-triangle.jpg",
+      "Sha256": "2E8913F57F16001AEFC377C24F7F9BD6FA777BC276E367B25CA4F49EEF879897"
+    },
+    {
+      "File": "metal-wall-inside.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\metal-wall-inside.jpg",
+      "Sha256": "05187DB478F12ADFE8284AD469898B7FA425A8587A2FB02984BA62A17EBA10D4"
+    },
+    {
+      "File": "metal-wall-outside.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\metal-wall-outside.jpg",
+      "Sha256": "0587C0B226D8D1DEF6FBB804168B1EBBCF47604E30C6DF3663BA49F2327521B9"
+    },
+    {
+      "File": "metal.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\metal.jpg",
+      "Sha256": "0CFAB0F7213FF0B4BF069C9A6BB01601CEA53F2D35A1EE2A33106C12F9FF40D9"
+    },
+    {
+      "File": "stone-ceiling.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\stone-ceiling.jpg",
+      "Sha256": "634520D346C2017E1CCB4D7B6BB2960BC3DCF2D0A6A52B0AF77F895948D3AA18"
+    },
+    {
+      "File": "stone-corner.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\stone-corner.jpg",
+      "Sha256": "B7F525936E3605B6C704E0174D3C3A22FA8FC0C5851307A8C0BD9771CE98A1CB"
+    },
+    {
+      "File": "stone-doorway.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\stone-doorway.jpg",
+      "Sha256": "2FBFC4A4D2A0E3A0044C7315417355580450E4C79FFDD0D943F4118CFBEC1635"
+    },
+    {
+      "File": "stone-double-door.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\stone-double-door.jpg",
+      "Sha256": "7151611E4821C237EADB3BC5F34BA92E3A57A5866281B883D8D053DFFFF2E8BA"
+    },
+    {
+      "File": "stone-flicker.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\stone-flicker.jpg",
+      "Sha256": "1F355350D1C464A56DBADEED4A5534F3B47919587C22DFAC403DD29247C90688"
+    },
+    {
+      "File": "stone-floor-on-walls.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\stone-floor-on-walls.jpg",
+      "Sha256": "B118CBE14FA598BCFAEEDA7A97AFC96E5F74CC9BC9E7C4354894FFFE8D82FB30"
+    },
+    {
+      "File": "stone-foundations.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\stone-foundations.jpg",
+      "Sha256": "4286A6970637A750860BA152C814DE6AEB014DE032E5E14DF5E3FC37E3C8A234"
+    },
+    {
+      "File": "stone-triangle.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\stone-triangle.jpg",
+      "Sha256": "3D1CF857698199251F30C9F0EB6F804292FED4C4573B99C13D2E010AC5CBC73C"
+    },
+    {
+      "File": "stone-wall-inside.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\stone-wall-inside.jpg",
+      "Sha256": "00E9F87E7E708B89D9EDE0FEB88AA4911DEB252B63B5CF066AD6BF056F7E6C57"
+    },
+    {
+      "File": "stone-wall-outside.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\stone-wall-outside.jpg",
+      "Sha256": "079A7E078F4D2CDFF8781995ABFA58D83DA106FF28EBC28702F1598A6905528A"
+    },
+    {
+      "File": "stone.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\stone.jpg",
+      "Sha256": "8E022D66C84E295C3D5A8AE2A3504BFD3272E8C40307C7A4334E67E0D1963DBB"
+    },
+    {
+      "File": "twig-ceiling.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\twig-ceiling.jpg",
+      "Sha256": "D6FB1524CA050681054A89DBAC7125E449ECACFB5F647770DFAB705C0D934AAF"
+    },
+    {
+      "File": "twig-corner.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\twig-corner.jpg",
+      "Sha256": "9121F763B00148591B0EFBB6EF409D534572DBDD1A20E43D3884E1FC879A940B"
+    },
+    {
+      "File": "twig-doorway.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\twig-doorway.jpg",
+      "Sha256": "9780D51821DB9AFC0737DC330B0E19B392F59DB0443413A8523E9E3CF15199D7"
+    },
+    {
+      "File": "twig-double-door.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\twig-double-door.jpg",
+      "Sha256": "8A00FAE7E9DCDAE000A20F4F5B1886920434A0B484916524C6A4E8EBB421DE13"
+    },
+    {
+      "File": "twig-flicker.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\twig-flicker.jpg",
+      "Sha256": "D365F6C942CB500FB56B5F1B46D74FCCB88BEA2CA2492137D4168558B50EAC98"
+    },
+    {
+      "File": "twig-floor-on-walls.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\twig-floor-on-walls.jpg",
+      "Sha256": "7E21D92F81A57EA21043286D37CAEAF98A0C930C3C09EB7BC35C110731D08882"
+    },
+    {
+      "File": "twig-foundations.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\twig-foundations.jpg",
+      "Sha256": "54B2E2E78CBBB3E535697320EC57F1F86CAEF1159C979FF96933D82968ABD7BE"
+    },
+    {
+      "File": "twig-triangle.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\twig-triangle.jpg",
+      "Sha256": "5BB6FE7B708AA56DF8ACE941207DCECCD56810D5C02188B38F116DACDD05999A"
+    },
+    {
+      "File": "twig-wall-inside.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\twig-wall-inside.jpg",
+      "Sha256": "77B8C4F492DE7A45BF0890013B127CF6E7D613EE4B752AE30CB74631327DEC6C"
+    },
+    {
+      "File": "twig-wall-outside.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\twig-wall-outside.jpg",
+      "Sha256": "6B6ABE21B2BC541F2FFAAD956F7B0F110C9199DC74133F842C14DF796287FED1"
+    },
+    {
+      "File": "twig.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\twig.jpg",
+      "Sha256": "E0D896FBBEABBBAA32210860716B2F527AD497BA04E3F0EEF4C7882A34E72C30"
+    },
+    {
+      "File": "walk-stone-0.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-stone-0.jpg",
+      "Sha256": "A36E07271BEC9C01BAF435B0C9C9DE52AF1438CCA861515ED3E08AAEB1E7E804"
+    },
+    {
+      "File": "walk-stone-1.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-stone-1.jpg",
+      "Sha256": "467461410D3D3316C1C3AAD6498866C566D250634F14C1AC5880300C0BBC21D3"
+    },
+    {
+      "File": "walk-stone-2.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-stone-2.jpg",
+      "Sha256": "4807C1D7101A77E7C7ABF9484B74D99D48DD5894EB753B342DC5F7904B3C7B62"
+    },
+    {
+      "File": "walk-stone-3.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-stone-3.jpg",
+      "Sha256": "C2AFFCC7116FEBCDCFDFD25CE6D8CAFE5B78DCE905C0F9CD4B7F0EF950CEA8C8"
+    },
+    {
+      "File": "walk-stone-4.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-stone-4.jpg",
+      "Sha256": "E8CD36757D2DE1E5088EDEFBD03D53155DA6FE1D32A8F4BF0CF488A593D9EECF"
+    },
+    {
+      "File": "walk-stone-5.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-stone-5.jpg",
+      "Sha256": "2734B5E3D94EF3E5ADD56F68A0C28783D16466D5C1F41C7AAA894831E8ED3777"
+    },
+    {
+      "File": "walk-stone-6.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-stone-6.jpg",
+      "Sha256": "FCBA1D4D27B51470C3BC40175F56EF771D4ECCCD58BEACA18E8C1829C94502EC"
+    },
+    {
+      "File": "walk-stone-7.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-stone-7.jpg",
+      "Sha256": "9DFC6D4A279C1560D3CF5983A43789228B893EB2238832E02CD9C99B5E751A4C"
+    },
+    {
+      "File": "walk-stone.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-stone.jpg",
+      "Sha256": "9828565174B922425BF2BFD15EC283B3D6B7D058E19620EA70DF792BC6DE6619"
+    },
+    {
+      "File": "walk-twig-0.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-twig-0.jpg",
+      "Sha256": "4BDF36991247FF29BA6CFD4CBE5FFFEA27D50BEBF1AA2D6DBB6EF28C02E06BEF"
+    },
+    {
+      "File": "walk-twig-1.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-twig-1.jpg",
+      "Sha256": "FF7EFC8B7EB19E4DCB877ED752F9740791CBFA5B4CBF26EEBECEA9409652980A"
+    },
+    {
+      "File": "walk-twig-2.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-twig-2.jpg",
+      "Sha256": "E346B07DAB2DF7A44AC05B577EF3E142D93D39021C08BE466E1F33B01A16D50B"
+    },
+    {
+      "File": "walk-twig-3.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-twig-3.jpg",
+      "Sha256": "A15C42B8C7038973F69C104A9413049F34A4E726D8FD891E807D01C0567D2A8D"
+    },
+    {
+      "File": "walk-twig-4.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-twig-4.jpg",
+      "Sha256": "F852D6D7EBB98C25E4B41CEE0BCD1999A5C6C28AD6F74D4D3E3D7C418747A248"
+    },
+    {
+      "File": "walk-twig-5.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-twig-5.jpg",
+      "Sha256": "705079151DA84CAE03BC2316836E5AFE43075689B1C8E8178E1B736A5940D9B2"
+    },
+    {
+      "File": "walk-twig-6.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-twig-6.jpg",
+      "Sha256": "AF08430A8151322E28AEDE96716630F27AFACA12684481E0F706195FF5328846"
+    },
+    {
+      "File": "walk-twig-7.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-twig-7.jpg",
+      "Sha256": "5A18A1AE642DAD3180009812FB2E5DCCE00736DC2C9C26565D95BA532C1EC443"
+    },
+    {
+      "File": "walk-twig.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\walk-twig.jpg",
+      "Sha256": "38CA4B72788B2952A54689BE6F6B4F80428E61116BCB983C914092A697DA1BC3"
+    },
+    {
+      "File": "wood-ceiling.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\wood-ceiling.jpg",
+      "Sha256": "088A6194CCEA9776BD1F250D7395F11DEB8ABC4AE64B2FC9D733F49301F984CA"
+    },
+    {
+      "File": "wood-corner.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\wood-corner.jpg",
+      "Sha256": "DA893DB072328C86B2E88210465E32BEA8AADC345B3E8F95DBE3FF053CE6B1F6"
+    },
+    {
+      "File": "wood-doorway.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\wood-doorway.jpg",
+      "Sha256": "2D25E7AD211C33D6820913D58E5F4015E09E2CFFD55D33C3169FA11DD738DB20"
+    },
+    {
+      "File": "wood-double-door.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\wood-double-door.jpg",
+      "Sha256": "6DC2DAE0B07CD735836A8FD348078B5F782A67867940FFF7D832F6B4C4D31135"
+    },
+    {
+      "File": "wood-flicker.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\wood-flicker.jpg",
+      "Sha256": "D07157F82D2D4D053B315644F4D9DFF88C7002E189DEAA66041FB7B4F4AA8E57"
+    },
+    {
+      "File": "wood-floor-on-walls.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\wood-floor-on-walls.jpg",
+      "Sha256": "7838542BF3A5B6B8152899C4689A395A30A9DB6FC46E1C5454BC1362060BD974"
+    },
+    {
+      "File": "wood-foundations.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\wood-foundations.jpg",
+      "Sha256": "C7AC5A06EA226C512A70BFAF2250EC3B300E802B4AC79B388A9B216B8FB66D94"
+    },
+    {
+      "File": "wood-triangle.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\wood-triangle.jpg",
+      "Sha256": "EF2036F6CE4FF62CBF6AABEE7641C25C838D073510D24AEBDE69626C85D2F210"
+    },
+    {
+      "File": "wood-wall-inside.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\wood-wall-inside.jpg",
+      "Sha256": "EA2FEE8ECD12EF615EE70DD2794AB037B67095C766C2DB8A593BFFF10017B70A"
+    },
+    {
+      "File": "wood-wall-outside.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\wood-wall-outside.jpg",
+      "Sha256": "58EE5A559CA2CA792B3FE95E61960C77C8D515A25A0CB8D99108436F38E47EC6"
+    },
+    {
+      "File": "wood.jpg",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints\\wood.jpg",
+      "Sha256": "D5C957F3B49A7E1C9852EC9E65674AFB2E62BD56B9350B5FF0E4E1C94D531938"
+    },
+    {
+      "File": "building-joints-contact-sheet.png",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints-contact-sheet.png",
+      "Sha256": "CD2B785C32993F71B2732A76D7D689B46197BF943D50223AB60DCD3A6A1DF481"
+    },
+    {
+      "File": "building-joints-flicker-contact-sheet.png",
+      "Source": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints-flicker-contact-sheet.png",
+      "Sha256": "4797C191344B69534C37E220C0B802A606A71A1D318EF6C95F316C4E94C8EE65"
+    }
+  ],
+  "Run": {
+    "Name": "building-joints",
+    "ExitCode": 0,
+    "ElapsedSeconds": 18.1,
+    "Completed": true,
+    "InputIsolated": true,
+    "RuntimeErrors": [],
+    "ChangedInputs": [],
+    "Telemetry": [
+      "[capture] isolated input; requested resolution=(1600, 900); preferences are not saved",
+      "[joints] twig planet-frame origin=(861.81, 1226.339, 1896.521) up=(0.357, 0.507, 0.785) groundClearance=0.610m",
+      "[joints] wood planet-frame origin=(872.754, 1230.444, 1888.814) up=(0.357, 0.507, 0.785) groundClearance=0.628m",
+      "[joints] stone planet-frame origin=(883.741, 1234.612, 1881.203) up=(0.357, 0.507, 0.785) groundClearance=0.654m",
+      "[joints] metal planet-frame origin=(868.95, 1215.018, 1900.628) up=(0.357, 0.507, 0.785) groundClearance=0.637m",
+      "[joints] armoured planet-frame origin=(879.878, 1219.102, 1892.887) up=(0.357, 0.507, 0.785) groundClearance=0.636m",
+      "[joints] control: 0 pixels differ between two pictures of the same view (wall-inside)",
+      "[joints] twig: flickering pixels by view: wall-inside 18825, wall-outside 9818, foundations 8734, floor-on-walls 7012, ceiling 19036, corner 13053, triangle 5804, doorway 8114, double-door 3288",
+      "[joints] wood: flickering pixels by view: wall-inside 61, wall-outside 2150, foundations 856, floor-on-walls 1423, ceiling 148, corner 980, triangle 694, doorway 2091, double-door 833",
+      "[joints] stone: flickering pixels by view: wall-inside 110, wall-outside 2421, foundations 1077, floor-on-walls 1067, ceiling 267, corner 1569, triangle 992, doorway 3479, double-door 533",
+      "[joints] metal: flickering pixels by view: wall-inside 119, wall-outside 1752, foundations 746, floor-on-walls 2161, ceiling 493, corner 2429, triangle 2071, doorway 3364, double-door 916",
+      "[joints] armoured: flickering pixels by view: wall-inside 168, wall-outside 809, foundations 652, floor-on-walls 1761, ceiling 301, corner 594, triangle 561, doorway 1140, double-door 221",
+      "[joints] flickering pixels in all 45 views: 134693",
+      "[joints] tour saved in D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints"
+    ],
+    "AnimalTrace": [],
+    "Warnings": [
+      "WARNING: 30 ObjectDB instances were leaked at exit (run with `--verbose` for details)."
+    ],
+    "Output": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints",
+    "Log": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints.log",
+    "ErrorLog": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\visual-gates-20261015-205146-08b3ea89\\building-joints.error.log"
+  },
+  "InputScope": "Runtime DLLs, ground JSON, shaders, selected source asset roots and their available remapped import artifacts; not every incidental world asset.",
+  "Inputs": [
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_armoured_BaseColor.jpg-dfc3bcb123aacd4d5b1eca84b16cac41.s3tc.ctex",
+      "Sha256": "0738D994CC045C35014C4EE66A4DC376C07A4D29E807A0638DCFC9710768C460"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_armoured_NormalGL.jpg-ffb9ade554463abae82ae8de551abbcd.s3tc.ctex",
+      "Sha256": "CD91139930945C5D6BD86BFC6FEB5925D2E6EDAFE5B6E24ABE44FC4EA2FF1480"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_armoured_ORM.jpg-da7e164366122c26c66d2e79a1821207.s3tc.ctex",
+      "Sha256": "2A9643D8169D72861A60B73B3B1FD4CCA381C82EA857C82192D6EBEB6452C859"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_armoured.glb-230aa719615f64dd75aefc934069111f.scn",
+      "Sha256": "24ACC90FA383DF834E8318AF11DF7975E4C3DF54770903553BC0DE4111A45F57"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_metal_BaseColor.jpg-ed82b035263fedca28f15a8e93410403.s3tc.ctex",
+      "Sha256": "0A1F1851837563511BB73485E3FC05D0DD3B846EEFA8F623FC93ECD3C12B564A"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_metal_NormalGL.jpg-5851c2d2fbefa5aa639ac117f15fe91a.s3tc.ctex",
+      "Sha256": "05F3208852AFE19C00B73CD2616ED269EFCB3878BFEAE6D870B979BB1E90545D"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_metal_ORM.jpg-2f76138528f70ce91bd6acd90afbcf65.s3tc.ctex",
+      "Sha256": "AB74B7C893A14B86E9BCB1F57C928DC8F855B4979F9B811873D0CE3A8CB15056"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_metal.glb-7b9dab2071c4ddb13aad01a45dc8cddc.scn",
+      "Sha256": "193B9E978F61DED24D01B4963E3367BE9725C1C9EF89AEE114EFD8E42C47DB67"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_stone_BaseColor.jpg-1fcdf8772eef6751cd61b3388823faf6.s3tc.ctex",
+      "Sha256": "978C0F1CBB2DA6AF83C04CBF181DEADB6CC403F0D19F866A4CABE87D1F566F40"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_stone_NormalGL.jpg-8a74dce6b2e39c94757bf9987f00a3ac.s3tc.ctex",
+      "Sha256": "C81EEBB78630EC454A8E7A559B6D7EE682D25359890AF77AE9390706321D3512"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_stone_ORM.jpg-b8eea56e70c43f7034d18b77ad48f7e7.s3tc.ctex",
+      "Sha256": "2D35F7E6550D1FA6106F701440E1DFF28026D60F7DD71F9440D0402DCF9BD4B9"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_stone.glb-530f0ca8f62f78ceec3f0b380dc23b0a.scn",
+      "Sha256": "C6F80E94A23E865DE763929E5B0C2898888F0AADC0F349770BA95FD5EDB9CE35"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_twig_BaseColor.jpg-a2c36a1eab1515f527e987812bafa65e.s3tc.ctex",
+      "Sha256": "C3FF5825F7827792842F52B2201BA97E20FED784972EFB28BE3D588F7FA74794"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_twig_NormalGL.jpg-ca522b0b8aa927456ce625aa7c8363c8.s3tc.ctex",
+      "Sha256": "2E88D6E16D9785C0FC8D8BF957C5E1EC95E55D82AB5A50C5423D39EF0669DADB"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_twig_ORM.jpg-02dee5ab50877dc4539c2172ed78276d.s3tc.ctex",
+      "Sha256": "6EE3304924B5FC1E7A6E75AC7FCC85E4295846FC3131861E2B2605644486A927"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_twig.glb-a4465229df2dd4228fee9149295cc882.scn",
+      "Sha256": "93AE0FEE86B89385AC794B6084E1BA76B64DCDEAF39BA9F32CACEE1A3D574C49"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_wood_BaseColor.jpg-1ab2b765abbeb6bcdf46450de75cb9b0.s3tc.ctex",
+      "Sha256": "C898F3EF5CD5D4189B5B789C7E87409D79B5CE528A035C645542EF1093C2FC9F"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_wood_NormalGL.jpg-af28faeb7d737ec9720eb286201d93fe.s3tc.ctex",
+      "Sha256": "BE9993F4083E18224ABBF4F198305CF30E59320A7A801EC1C0112840D5DC3123"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_wood_ORM.jpg-b53a7d6153aa1e94286a46a9a580af7d.s3tc.ctex",
+      "Sha256": "BE9A0A69C0C8361D625E2891116A60B46E732FECF26E9BDA7B9B3A5A05F8D156"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\building_wood.glb-59d3c9d47aa5683043f792f7b6963ac9.scn",
+      "Sha256": "96578C9B63033F450B7C4103204E3D509A2D7E6539D65F9715AED3671D570147"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\CorrugatedSteel_BaseColor.png-1069a470a0c4b433d70b71501dead053.ctex",
+      "Sha256": "97015234BE4C8A4BCD9CD527E0956EE7DF258EDD0CE1FA83EEB6D6510C78AA05"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\CorrugatedSteel_NormalGL.png-5c3385afb43fbf5c01eef37d72a42c2c.ctex",
+      "Sha256": "1FF4830B8B3EDC0FF44D92B38DDF9A93B375F9C58266A1C2C5847A0344852265"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\CorrugatedSteel_ORM.png-82459ec3ba7b89742031168b3b363212.ctex",
+      "Sha256": "9DD662D2B1B6E0B192C896E61F8E406CE79E6CB39658D7CDB16CC6567E8A2FAA"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\door_garage_BaseColor.jpg-3e87d66f570c9e353b42511e4940503a.s3tc.ctex",
+      "Sha256": "5A9FFF2845F72FB19F7CB85C4CC1BC6E2FCACE5D0E417A905637E9E6818027FF"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\door_garage_ORM.jpg-7b96550b56cef672f0172d2a4ba0117c.s3tc.ctex",
+      "Sha256": "B920E117AA0218E7CE9D52235003DA14DBC5F67FCC87F75B65167BE9AA0821E4"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\doors_armored.glb-99bc8787c5ec04706ab9d7ae73a1c00e.scn",
+      "Sha256": "31A17190BABAF389F5F6C110159A35A568AF8EA1E9F3B55E9FD9BFF7C1D403CF"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\doors_metal.glb-592116f31188386fcbc7e6f9bb09c883.scn",
+      "Sha256": "8E512A8A564EDC625EC9D311B43F48CC7231621356E035D8B667CE8FBC20B358"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\doors_wood.glb-0d532024326c0c680c8407dd11b24323.scn",
+      "Sha256": "0CAFAE0EB69167C8C85E5263DCF45D78D7D957B6133D8F1FD64B3FBD41FAD9CF"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\garage_door.glb-f2f5eb54e07074c6b4671582c30345df.scn",
+      "Sha256": "AC26B1E524ACE4AE4147AE0F8F0404D7821454881C767B7BB9EDBA072F006698"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\RopeFibre_BaseColor.png-b7f14a2a73b336db74280bf8020bec84.ctex",
+      "Sha256": "46005F1283F77B781924E9352E4145D1D72D911EC8ABB99D0EF5E71BFB37686F"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\RopeFibre_NormalGL.png-3c48ed837179829c7a4d617b68fc566e.ctex",
+      "Sha256": "4E08758F8610057DB337790258F8BB8468B3C8151737FC0B39F01087008B9207"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\RopeFibre_ORM.png-43272c1bdbc13dc98103919d3140402c.ctex",
+      "Sha256": "563D65B090E012E9121C3B797F4A9BED6B3A1D610D30BEDCFD7FEDE7CEF3FD8D"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\SalvageTrim_BaseColor.png-0c6f4bc45e944455e89056240fe9645e.ctex",
+      "Sha256": "FC9B141CE033D34139DB64617C6E3B1577D1C17FFDC0ACBB56980886B1ABAA52"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\SalvageTrim_NormalGL.png-6c5ab2dda8a2ba2639d69805f134ac00.ctex",
+      "Sha256": "226B75EAC58C013E01F6C3EA74276B7DFB8F5A38268FBBF64C9B95B050C7ECBC"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\SalvageTrim_ORM.png-cf607d4c332ef388bdc229949673b86f.ctex",
+      "Sha256": "254D8E0D149410D9B539472490F128F0BD8D61A894B8229AAA486B1323090DFE"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\T_LC_Metal_BaseColor.png-0a5b9fc6fafd87f2fd2eac42a3a0bda5.ctex",
+      "Sha256": "6B244C8A5C965C7EFA7494CF84F30AB2755DD5AD1DEDF5721FF9E2615DD062DF"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\T_LC_Metal_NormalGL.png-92ae0e9f5aaa9047bd868930a4450843.ctex",
+      "Sha256": "6B1641F2B5E955BC849B92B1E122FC148342AC38FBCF924D43A3887629718263"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\T_LC_Metal_ORM.png-ca7237ff8e285de7f812622ac2bb5aab.ctex",
+      "Sha256": "39F2AF39BE4D5701167C515D5AC7B0A12EDB0262AF2AD6BF51445F427E68112A"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\T_LC_Wood_BaseColor.png-b10545e03df3ecdd16105f046a7d43e5.ctex",
+      "Sha256": "934572D175547073B553AC2637A8A324728363FA2E38A3EFD5870BC24C2727D5"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\T_LC_Wood_NormalGL.png-94f6b6e257877d8061d7dcc204f66640.ctex",
+      "Sha256": "4B0A3CC3BAF6D9AB711421569B1BC11F5EFF0BB7C52FA7E8CB7D6E6F918B475D"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\T_LC_Wood_ORM.png-da1765b3a6d4da1a9e5ddf33afadd7e9.ctex",
+      "Sha256": "AF843BE180F7E2942B7D5E2128BE00AF3C25951BD7FEA9A94F50F9DAD4C6387C"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\imported\\window_inserts.glb-edfb8c4ea71c35291794f3bf89e375d0.scn",
+      "Sha256": "06E7AD06C1FD1AAA84B112603F4B1DA9D3FA13B0F4FDF761B01BC69C02239559"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Client.dll",
+      "Sha256": "326C33C76DF083D2A06C3923BFD07F49819145134EEE033F7C5247147DE885EF"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Core.dll",
+      "Sha256": "245B77787D3A2A8A21FC137085C2F6D4D261B759A64A80BDAA62BE8368344DB0"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Galaxy.dll",
+      "Sha256": "BC2505B1AFE2BD79542172909C3BCE99E4D328185322AD774C24168D3A65A918"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Net.dll",
+      "Sha256": "37D24EC3C6C9B92B779BED2C2A9B1A936ECCE24F4B5B18B2929592137090C7DD"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Persistence.dll",
+      "Sha256": "DF1270FC2BC41E906A9642F409A6CD935DC876FE63EB56F7F435F36D75521D44"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Server.dll",
+      "Sha256": "A20D3B21A8150AB5B7987837E9FFE98C06FD911F03B2D6E6A15B99D4B1956126"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Simulation.dll",
+      "Sha256": "A7FCB1B48DC1FE2178268B6B7E102757F1D857D865E7715872CBD503CDF97D9B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Surface.dll",
+      "Sha256": "D0281894617BC8CE8306CD4A19651B7743AA785E9AEAF3C548C5955913943B52"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\HollowUniverse.dll",
+      "Sha256": "83807FDC3082BED339035DC39FEFC9B3D08786CA0D7D0E6FA2566E3E1BCA374D"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\building_armoured.glb",
+      "Sha256": "9DFA173C1D07E192C73CAD92FF811A572ABDAB45F666DD465EF0F5A4612CD1CD"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\building_armoured.glb.import",
+      "Sha256": "1168388F165BC0F450106D769CF5715FD42F6C013E80C56B17A41712D2931F97"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\building_metal.glb",
+      "Sha256": "1874B79EE030342BD3C4751E9986A8B8C048202189398B2361BA1091592A1488"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\building_metal.glb.import",
+      "Sha256": "3D5C1E6D72EC064F9CFDB94438C9FCE89BFF137F580052A76C340D3C5094D3B2"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\building_stone.glb",
+      "Sha256": "AEBC6D28D116F01E06E8BF45593C52E4F71B791F35458145028855B1DAD05500"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\building_stone.glb.import",
+      "Sha256": "C38775279C1E3E6E3D9B7EAA11F8C1E365E8389793AF75A12CE7204B2B2A9688"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\building_twig.glb",
+      "Sha256": "704E4846F5C55E7C76B405047972E6F00913AFE614EFA2245071CAC88F2D9C4A"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\building_twig.glb.import",
+      "Sha256": "909648C1425E55328512899570DCC2DCFC89BE3961A7498AE6DA7AA1A79840B3"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\building_wood.glb",
+      "Sha256": "E95F903E672E0A53F3D13DA1AAF481C8254524AECDA607519FC6E642D26819CB"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\building_wood.glb.import",
+      "Sha256": "D10D8DD57B2BA136E043AC69A21235F2866D8792C3774ED238A194C9845F0C63"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\doors_armored.glb",
+      "Sha256": "1591F43219A7F2B818E59467666810E88E328C384E10811BD6BB1F495DA1207F"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\doors_armored.glb.import",
+      "Sha256": "C575F68D2535CC8EAF5839B465EAF031261E375834BF2D5D1579B71C09D954C7"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\doors_metal.glb",
+      "Sha256": "E43736DAAA4DF270D09607330D2D5145955677E5FB0522523449022A309B7C78"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\doors_metal.glb.import",
+      "Sha256": "7168A66A624A348D3DA442813F79194E7ADEAD19931F0F4FC7053411CFF7B9FC"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\doors_wood.glb",
+      "Sha256": "3B3C642C28FDCA9A2EB36DDC1FF957EAF1F056DAF4F79703A080091F26B48333"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\doors_wood.glb.import",
+      "Sha256": "DFE4B2A541A7D302EAF9F5CAD39838AB76058A557F974A661E56540ADB179694"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\garage_door.glb",
+      "Sha256": "078D682EF9374F05A7FD902BF7A263F54ECE45A7D6AFA9E487AE2B5F9D1307EC"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\garage_door.glb.import",
+      "Sha256": "F1C6B5AFAA5E3038B5F02832CF4DCC90F5E696185BC7B784AC9C6AD7EF6626A0"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_armoured_BaseColor.jpg",
+      "Sha256": "13D3C36563112EC92D83F97E39CBBE31893B1E123FBE4205F7769BF5D8CDDE1B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_armoured_BaseColor.jpg.import",
+      "Sha256": "1E1A39F166579B38D4D6B51385080FBAAADB4AE8DE11B4A9E08B1AFE1AFFA700"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_armoured_NormalGL.jpg",
+      "Sha256": "85D9CDE8D3B43426F4D2B49101B85D5C509C96D52AE067E9FC0470431E8156B8"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_armoured_NormalGL.jpg.import",
+      "Sha256": "D5FE713915463CB4031D0F846A36209022E8C3363867DA98E9A88D4E1A489893"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_armoured_ORM.jpg",
+      "Sha256": "5D3EC845379E3749D294BED6198C99E707506CDDECF7BA05B78F1363DAD92842"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_armoured_ORM.jpg.import",
+      "Sha256": "507770AD5345A1E8379CADACB3CE00348D4202B26820A078A24D94DE477A8550"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_metal_BaseColor.jpg",
+      "Sha256": "A7987A2141103FB2284915EAA20C756A7D1848240EF0F3729946EF50E4F56D85"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_metal_BaseColor.jpg.import",
+      "Sha256": "EFB29EE509CE06E94D1C8AF5B871909C8EA8AFAB187C6E8019D1C751425BEF3C"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_metal_NormalGL.jpg",
+      "Sha256": "11E3A9BCC9831259B8CB507D160ACF4AC5ECA92C1034AE2AA5A30E9BE0AEC89E"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_metal_NormalGL.jpg.import",
+      "Sha256": "07A350AC1D45CA080BAE1499AF01E44D7537C04188A304133255539729831D6B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_metal_ORM.jpg",
+      "Sha256": "DA9764BA2D1EBB0AC0EBE5A8A4A6B7B81AE6F617F30F30AB495A26670B71976E"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_metal_ORM.jpg.import",
+      "Sha256": "74D950D40D2363DB328AF21BEA6F9D58C5266A23CB9B128235A23ABF5F66BD6B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_stone_BaseColor.jpg",
+      "Sha256": "4662D61B4DB9465F30B4543C198279DB2FA22FE85E0EFB6CF6B79724BAD2AADF"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_stone_BaseColor.jpg.import",
+      "Sha256": "AE8256C7E578F2EB45B0DC6344829F933357BDA0AD7FF881BF6D4E56EB29C5DF"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_stone_NormalGL.jpg",
+      "Sha256": "72C6A70EE860405D33A99BD11F77B26231540F2D65BFB101D2C6EA0D88C48567"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_stone_NormalGL.jpg.import",
+      "Sha256": "5D2C626CA30C90C50ACF6DFBBACEDB375E2EABBD925D678BAD327A1491E353D0"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_stone_ORM.jpg",
+      "Sha256": "74328E9F7F8FBDD2DED9241796690CBBE1C94B4E400A3BFA61049F09C871E8B0"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_stone_ORM.jpg.import",
+      "Sha256": "F389DB5905461544D8EA8BFF3F66202F4AD0B423B0E443B28955CE49E668A99F"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_twig_BaseColor.jpg",
+      "Sha256": "E14E209F1186180ECACBF9075824D5B9C33DDDC752C14E6F7B79B64A2EAD94D9"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_twig_BaseColor.jpg.import",
+      "Sha256": "FB3BF042AF797A016423C7386F19F075D108DC6B694D00DDCE13E37E8B42C86E"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_twig_NormalGL.jpg",
+      "Sha256": "8BB75AB594B13DC51CF6365B2DD9AD92774F143CE54AA401BC1FFB8BAD24A634"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_twig_NormalGL.jpg.import",
+      "Sha256": "430DB5FF9236D9CCE337D30A8B1A884EABBF2C59B5710B18F44893C45B8EB3C2"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_twig_ORM.jpg",
+      "Sha256": "0B07C2E0FE1EE9EB2384602AE84475C47A535943725400A8B64081DFB9A87DFE"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_twig_ORM.jpg.import",
+      "Sha256": "7447F088184D9C32A40A3514C90EB076BF1337DE263BDC94420CCC6AA006A027"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_wood_BaseColor.jpg",
+      "Sha256": "179F439F67FC57BAF9C5AC082E970E09727B27FF78744780AB603EF81BBC413C"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_wood_BaseColor.jpg.import",
+      "Sha256": "0B08BA179132A20FC13F6B4A346BB3EEFAC495DB592A81BC9FC0FA09403DCD42"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_wood_NormalGL.jpg",
+      "Sha256": "E2E0E0E4BBF2D59F94C6AAC242EB0EB85CA9AD6D042FC369BFF11F6B60EE108A"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_wood_NormalGL.jpg.import",
+      "Sha256": "AAAB42105A5D120D4F5F757A3B86D5600FF7313FA3C67628D123A36384915DA8"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_wood_ORM.jpg",
+      "Sha256": "B56ACA448A6A9E38D43623D35307533053215D6DE370A37EC71EBA84BDAF4649"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\building_wood_ORM.jpg.import",
+      "Sha256": "6CFDE607B7BF62B158AC5AC1F882F6E8CFE2FB1B590371CF75A72A20E30C80DB"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\door_garage_BaseColor.jpg",
+      "Sha256": "9604F41E8584602559246E158873142D08B5FE257926FA1B773F0F636BC6C8F3"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\door_garage_BaseColor.jpg.import",
+      "Sha256": "2783D854993CBE973A3947CD7F5670A11CE44E5B4B6300851CBD26FACE802912"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\door_garage_ORM.jpg",
+      "Sha256": "42FDF5FC57D2A31717387295C2876D442B2BDE7E9600232781C648CF7ED7095C"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\textures\\door_garage_ORM.jpg.import",
+      "Sha256": "11A28D9FF6E371A5AA65923E9D55086ADFB5D6A6E706C2AAAFF3EC68C54A10C9"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\window_inserts.glb",
+      "Sha256": "7C59C002B41292BD4D195A8FFAC49438E9D70AD2A7BA3D6C6F2C4E8C6729444E"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\building\\window_inserts.glb.import",
+      "Sha256": "2DDDEE42F9D72413E35744167EEBCE099449E19F75FCE1999F8860B5AAC01816"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\HANDOFF.json",
+      "Sha256": "E92BDD1D1F384DB73F7358CF0960C8E97CFD5E6556B661D5FD1ED708BBDC68FA"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Materials\\LC_Metal.tres",
+      "Sha256": "46090E01F605E9D3E93E78B538EC2106B8BEE7336F8EE4FB16FA5819077309A3"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Materials\\LC_Wood.tres",
+      "Sha256": "B7148A3D847064D14EB1D722FB6B2894F397803B9992DDF797CD6F85727AD391"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\README.md",
+      "Sha256": "7BD859FD0F29CCC173E063E273DE518928D7B935683B55A4B8FE800C55A7614D"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Reports\\package_manifest.json",
+      "Sha256": "1349467B838100FD2BCBD4C3DD198845ED29D46B03E5A3B419421F9955739B35"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Reports\\provenance.json",
+      "Sha256": "91B2501272660DDF9C8A2E4557EB551A3E6F9B9829D1F9D3F7BD56894393ADC0"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Scenes\\loot-barrel-1.tscn",
+      "Sha256": "9928DFCE3958D456439711559A3FF46C5904E6E1D44954B9488AE0889E976363"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Scenes\\loot-crate.tscn",
+      "Sha256": "A294528BC5CFF41E4E63D7B0BAB608CA5F94E88C3C4CD2A26E24801AE5646C14"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Scenes\\military-crate.tscn",
+      "Sha256": "744A4FC0ECE64DB0AE6BF80C9B0844233A285B8EEE09A238BE264514D2B7AAF9"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Metal_BaseColor.png",
+      "Sha256": "74A2AE564BFB5A08CA594B60EA9B585FB95473C55473292EBF7ED05DEB3C9B1A"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Metal_BaseColor.png.import",
+      "Sha256": "0E4D41A7F93F80DC52BE6A7210C1FC6C6CB036B8836C4BC4EB233C401D525C00"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Metal_NormalGL.png",
+      "Sha256": "088F64973D61C1E42D5429EE6E46F5432AF408311FEB9322548810BB87E2FAD3"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Metal_NormalGL.png.import",
+      "Sha256": "34DE252292692EF7F3026AA830BA0566E9770F7B14171BCDA0E429C758798FA9"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Metal_ORM.png",
+      "Sha256": "860BF183B2643B9BCA13665AA129328CE64F3AC96E7BEF5BB9EEEBC9F735FF8A"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Metal_ORM.png.import",
+      "Sha256": "8B5D16AF5110425857B001A63B62384EACF0416DB8C1B95787F91C495CC67502"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Wood_BaseColor.png",
+      "Sha256": "8BB354944152400F02672688FBFDE2755A4BAABBE12B38D18576688B8F4F396F"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Wood_BaseColor.png.import",
+      "Sha256": "AB59610205ED1A610E9E52079B69E2DEC76AD90DE82E79232AF075A37F266C93"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Wood_NormalGL.png",
+      "Sha256": "AD84E9B7BF18D1EA0456304A4DA94149AD80EF5A6D08C14B80247925A21F6059"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Wood_NormalGL.png.import",
+      "Sha256": "CF0E8F2891DE059D5500B98ADB7EBFA45F6C19222A558636ABEE78E7181F9691"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Wood_ORM.png",
+      "Sha256": "66A9010FEFC0101C2C697818839DB1FBD03FE6B5E1AB461BE9D0AA8B98BCFD48"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_LootContainers_R01\\Textures\\T_LC_Wood_ORM.png.import",
+      "Sha256": "C2F24FFEE0076F351BAAA172F8D65A44D4A24B5657FF0595D5C85E9DDE33558B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\HANDOFF.json",
+      "Sha256": "D810702EA58AF5FC9DAAD0673617C73E13D95871BDB4DD8C6BF9C457773FD702"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Materials\\HS_CorrugatedSteel.tres",
+      "Sha256": "5F25970130E7C34314193E6C0F3BE52B20A12A956A75DEFD7F873456909BA164"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Materials\\HS_RopeFibre.tres",
+      "Sha256": "11D54A4F3F29724D6A1C902212C9B8130BEFBE0F25464A8C629A098D0262B925"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Materials\\HS_SalvageTrim.tres",
+      "Sha256": "CC23BB77955AC087D630D03B965E7F2F3A7D87CFFBE50425678564CFF66546BB"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\README.md",
+      "Sha256": "C11D5F969FEDC2ED0AA2E3E225BC61E6D7D4BDF1B78C7E4BDA330F1BBFB19C57"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Reports\\package_manifest.json",
+      "Sha256": "C88AE6052A2A0E9B3ACC6DBAFCE9C24A8CE3DFFA12FC3AD8C798A338C98DBE5C"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Reports\\provenance.json",
+      "Sha256": "83A41C1DF4D173CB49BE9C1BBB78436DFA99482AD45FE7DD7B6501DBAF54FE61"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Scenes\\gears.tscn",
+      "Sha256": "353186BF45AC5AA99B6CE1D182D60E9566C5823E41EABD08FF53DCB2CF281F86"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Scenes\\metal-pipe.tscn",
+      "Sha256": "1FC1823FF76ABCE7097CD87F16E23691CC482A57E6610D7B186119EF19231BDE"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Scenes\\rope.tscn",
+      "Sha256": "FC55A62A742AA8204FE1372EEAB4BEDEB6C7BDB9BB96FDAFDDC8F4915D46649A"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Scenes\\sheet-metal.tscn",
+      "Sha256": "B5ED37ADCA6D9358EC20D43B5B8AE761360F1C903B2DF1EA1E01BFF7D32133D1"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Scenes\\springs.tscn",
+      "Sha256": "FF760B5CC8CFC972EED0DA14630BDB13D94229E0F7F670F723EF7E33B17D7A30"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Scenes\\tech-scrap.tscn",
+      "Sha256": "2363B4F7B004A7C148DE15B1AC8333BDAE0C28AB5D0326506A09DC6ED2E5F367"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\CorrugatedSteel_BaseColor.png",
+      "Sha256": "A5484850EA8A1E4859BCF66FEA48E8D02FD4F0402AB49F0427B286D5E9B538E6"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\CorrugatedSteel_BaseColor.png.import",
+      "Sha256": "3B6F2881BE9F02FE9E9A873D324B31CABD9D2270FCE349700F61F780B50B8534"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\CorrugatedSteel_NormalGL.png",
+      "Sha256": "F51BAF8C922BC9FD5F5249675EC06EC16EEEC576F6A948C62D2D4345C2FC2AAD"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\CorrugatedSteel_NormalGL.png.import",
+      "Sha256": "B6DDF6C1A7BC16AC8AB8FC2C4C3CCD3300B5DDEB511F53D540BBBFCBD758F1E9"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\CorrugatedSteel_ORM.png",
+      "Sha256": "2B1759423216FDA85DB1605B20EB578D754B26D849FC22A33AF571D09183B34E"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\CorrugatedSteel_ORM.png.import",
+      "Sha256": "4DA337C8C14084DF153D1506CE88B3802E7731747DB67D08387733C44E6CE5DC"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\RopeFibre_BaseColor.png",
+      "Sha256": "FC553E067C347AE27BF5A640B77910055F70BFA6A8A054AC2DCC9166C9FF51E3"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\RopeFibre_BaseColor.png.import",
+      "Sha256": "09BBAB963E5A0C6785A39CD7A40510673E3AA323EFB5DA301067ACD826B85779"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\RopeFibre_NormalGL.png",
+      "Sha256": "1F69EFA135C33B75B01E0D2EB483F9CF303F4D0100742F7FCEBC3AED5C9BEF1C"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\RopeFibre_NormalGL.png.import",
+      "Sha256": "9398D8302E956A862DF4540E038257519BF12A49A7ACC1273A0CAC04F91D490F"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\RopeFibre_ORM.png",
+      "Sha256": "EDAB711A3AD896C565E678AFCD06E3B5236535F076E09ABAEB2BF613280669EC"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\RopeFibre_ORM.png.import",
+      "Sha256": "34A183B337FF565230BC6AC0B78B2623AAE25769925EC88265AD8F0BEF6BE7E9"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\SalvageTrim_BaseColor.png",
+      "Sha256": "C15560B156D60CC852CFBB5967ECFFA71589BD9AE2AD7458D2C031F4AE8BF1F4"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\SalvageTrim_BaseColor.png.import",
+      "Sha256": "2140A9012FBBBA6A4C39F6229945209F0323B434F9D336CB44D9EF86DED1901E"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\SalvageTrim_NormalGL.png",
+      "Sha256": "D7E9D9CFDB827D213B314BE68BE56952372F6977D6E696246AD7750AC8B3579D"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\SalvageTrim_NormalGL.png.import",
+      "Sha256": "6D2D9A0197B494771C9C36D825BCFD8B6C234832D6C7BB69D9A65515857F8FE3"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\SalvageTrim_ORM.png",
+      "Sha256": "995DD2256C963C7422D6411B6075199480A5ACF4113FCDF61812B1CF734666E2"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\revised\\Hollow_Salvage_R01\\Textures\\SalvageTrim_ORM.png.import",
+      "Sha256": "0C479647CEF3D92B7035B6A90F6F0EA5A769CEC09293DF532BD231317F3E039C"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\animals.json",
+      "Sha256": "F5112248E2D31FEA5AFF4873BCC4EF88C50095885562D6480FF983F3ED609E28"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\batteries.json",
+      "Sha256": "D5789A5B18F35081C674E38D61FCE32E18C479AAE29E40EB6AFCC9E5C85956B9"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\building.json",
+      "Sha256": "A8DFA0653A14E675CE309C35E97465B4E3E17998CA4A292C274B6AD04BE029C5"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\capabilities.json",
+      "Sha256": "3A915C4B54C5F90B9045F6FD773940AB5573D1A23454B2B20458B49FDDD0525F"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\categories.json",
+      "Sha256": "CB19831022AE20035C438419AB229A2BF0ABEB7ADD02B6D1A7E0CAC45037779F"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\deployables.json",
+      "Sha256": "30BFD6FC716F9B3D7FD4CD744D21C33C90DEEFFF0813B9819E0C9F9B246E5BE8"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\explosives.json",
+      "Sha256": "F1A2E954131AE9ECB8EEF520A5F7D4114F76071E893F5B1522817628BBD35776"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\fx.json",
+      "Sha256": "70A2E41CFAF42F573F0539B74026F59445F949299DF4402EC042BE916810BC2A"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\gather.json",
+      "Sha256": "03E802E808BA03470032923C20D3061FF3FC6F56A0419C052FE3100A593EFEAE"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\gibs.json",
+      "Sha256": "EEBEED2B559A57DB5798BC20E24548858AF90AE5FB5A3338011F8EF641DC9C82"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\held-presentations.json",
+      "Sha256": "587737073A5A65254DB6F25F02557884C63C8022A7D7C352A8171C43BC2DB5FD"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\interactions.json",
+      "Sha256": "A4518D15EFAD1E43450D977F24588A5B997FF2D662C5E9C3B4872884611ED4EA"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\items.json",
+      "Sha256": "ADAF724214CF1DE742AAD2953FEB966B4FED8A4EF4C15B0B1EB4B574A0B82AE0"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\loading.json",
+      "Sha256": "C18BCAC130DF4F1C9A71570D3324ABEAE527742D82ED397FFB89075185E6B6C4"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\loot.json",
+      "Sha256": "9601F1F916321B4336A8AB5E7A64C8970943895D3C31B8C9C6DCCF405D8331DD"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\models.json",
+      "Sha256": "C57F9D04160FFDE1FE6F7AB8F9742C90479131E2637BCD82DD21383018F5D6D3"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\placement.json",
+      "Sha256": "F7E663079B347861CC32061BE45F1474BE9A79C51D5EEB13875B8B1035E6A9E8"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\recipes.json",
+      "Sha256": "DC894CF51BFFB1FF2CCF0183E43DCB079DD6C691B1F61819CA0A60001E3152ED"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\ships.json",
+      "Sha256": "80AC84B5D17C0A6FE435A9BED958F9A7E3A9C8A0E8F0216E3783E760C16B555A"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\sounds.json",
+      "Sha256": "2AC3CFAFB6FE1AC600268FAE0AAA492AE5AE66F7B3FD9E1AFE36C32C2B11AA7B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\surfaces.json",
+      "Sha256": "B95DC03B61708523352A0168F3F94CC4DC751F82DC7D4DDE830BE10CCCACC4E7"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\survival.json",
+      "Sha256": "B03E7E0AF70CDB06F4D0DB2455531E1B0CABF29672FB69CD24CBC14D09A3E96A"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\texts.json",
+      "Sha256": "7CD49CDC5D7E9D017C8CACA42AD990C04CFA366B066D44B25F7243B95FE9F046"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\weapons.json",
+      "Sha256": "9560CC5D44CE10601D57A500DEDA4B7ACFC300DFAF0FBD40363E24983615861B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\data\\ground\\world.json",
+      "Sha256": "CB68F027F38F1D5B6BB0C31897C1601EE6881F7CC9AF52E5ACFA1040ED9CCA2B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_brow.gdshader",
+      "Sha256": "99B2BD8969B2630FC54E637937D6110B58E7DE6B84DCB2A0D04FE5F9AA4B15C1"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_brow.gdshader.uid",
+      "Sha256": "31EE37C75D8244FED197F4F4AB6C7DC03E492B96B3728660ABC9193E6DDACBE1"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_cloth_viewmodel.gdshader",
+      "Sha256": "890FE8BB3D611C1B4C41FFB32CCD12A01F0611BB2826120DB3587EEEEFA4A10B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_cloth_viewmodel.gdshader.uid",
+      "Sha256": "4675B182E6275C42B36C13B3C8293C3A6DF4E2A25EB826A80E6C93CB35A6A9E4"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_cloth.gdshader",
+      "Sha256": "4F1BEA15D8B2ABFB97274B4AF0662BDE54AD543660A98B01E49025859DCB5DE4"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_cloth.gdshader.uid",
+      "Sha256": "D9ED094B2784972B1295243832CAB64090FF39DA2BC2CF855F8B2D942B8CF432"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_cloth.gdshaderinc",
+      "Sha256": "30AABD93BDB406AD5F1525923C9CA7585F19A6A7D5FC7B0B67B0A562CC0C438E"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_cloth.gdshaderinc.uid",
+      "Sha256": "2B3356402788A29A1F1ED64388010F096ED3F6046D341A12D165687BAE79C0F7"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_common.gdshaderinc",
+      "Sha256": "4D5697BDE5469A263499F9CFDA6DF8D29F7F9A5E5A77FCF25AB0309B05DCB7FE"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_common.gdshaderinc.uid",
+      "Sha256": "495E77D1BAFD8586A6952B96AD449F1F4CC64CBEC8C25E84C0C6DB230DF88ECA"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_hair.gdshader",
+      "Sha256": "E90F8880DFA5671A46F76E14AE5F4A4D0A7B36A4FB46C2D090F2AFB944DFB21E"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_hair.gdshader.uid",
+      "Sha256": "C7E65F0C8229C21B66A7DB9DBF68534F1BBA87990DB4E31C73C29F4A6D37AB74"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_hair.gdshaderinc",
+      "Sha256": "4B9E5452D25A46A124EC61722F2C1CCCCF9E2F42969E80BFC6D8695609AB0ECD"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_hair.gdshaderinc.uid",
+      "Sha256": "42DD631231344508A25942BA647CECE893B0A711BEBDE3FFDC492E3B1D2D0E77"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_skin_viewmodel.gdshader",
+      "Sha256": "DCB462CE14AB74835295F4112CCE58A43AC9CB7D3928E0CA25599C6C1388EB48"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_skin_viewmodel.gdshader.uid",
+      "Sha256": "FBA0CE1DBE17683634299139BEBB574D091029F689C11B02DE11EBB6816B8679"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_skin.gdshader",
+      "Sha256": "27CC085FCC67AB0EAC8CC86850148692C63D735BFB84E5B05B5354A9A6B1B9ED"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_skin.gdshader.uid",
+      "Sha256": "AA2259B01B08155C0BEA61CC6379A9AB85E98E852FE9AE6B6E83858DD06FA39A"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_skin.gdshaderinc",
+      "Sha256": "8B8F681E8F516BBCE55502A510D8C8F2C5F9A0CA4063338F5D03C0152A5DCE3D"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_skin.gdshaderinc.uid",
+      "Sha256": "960A081B1282A41C3F268973853D82A5A3C7C34C513D012DE6E8F05AE194DFA6"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\galaxy_sky.gdshader",
+      "Sha256": "FD17F7C494A013E5467AB22FC9EC5D8A828EE12D79D4C50BCADC38C8FDBE8B3E"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\galaxy_sky.gdshader.uid",
+      "Sha256": "C65365E82560FCD10168AE263FF81B20829EB53A5219C778DDE9385845CBBB42"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\halo.gdshader",
+      "Sha256": "64B71A5EB8D63BDCD99004FC8FA8E6C32114CC36DD37D070E31846D6630D217C"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\halo.gdshader.uid",
+      "Sha256": "98E4EA469FCD30A71F8E0181B0AC04CA3C3034B3AFF5705F50B12FAD97B2183B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\iron_wake_surface.gdshader",
+      "Sha256": "0A1349E3DD35F2B958E9591144571B57FDE240F4FF23E034FFF52934A3551D1B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\iron_wake_surface.gdshader.uid",
+      "Sha256": "06BEEAD3C3571C31DCF02EFA9B3792C036B2A20934059BE2A89D7EF52EE9C552"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\monument.gdshader",
+      "Sha256": "FDC43063D0A76BE42CF67033CA7087EBBA0F1F87CE1B1DA188B022CA88E7AA00"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\monument.gdshader.uid",
+      "Sha256": "4577E6189265C067A354C365FADF6718E81727880F2384219BBE6577754ACC7D"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\optic_lens_viewmodel.gdshader",
+      "Sha256": "EE1AA0C18098DFCBEFDDAF47204C38B8212043F281FB6BD3D953A4DE18AB4198"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\optic_lens_viewmodel.gdshader.uid",
+      "Sha256": "9C7868E9B2A340E44CD00D0E1D7F26F59895AE00A746704025CE19EB4E734E42"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\optic_lens.gdshader",
+      "Sha256": "C21DF92E57E8423AA0F70B395DEC445A046E9E4153456D3B8B2F2C1C2A717E88"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\optic_lens.gdshader.uid",
+      "Sha256": "4CFCB4828FC2E85A68C890FF226647C97340ADD84C8D0ECDEC16646A95BB0667"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\optic_lens.gdshaderinc",
+      "Sha256": "C6624347256ED7498198D1861971E9BDDA3C9D3637049E9F445DC058B30231F2"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\optic_lens.gdshaderinc.uid",
+      "Sha256": "8F16BE8DBD394A48B6D9C6E7CBC808E9259E189ED865DC2D30F7A11EC6738DD9"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\placement_ghost.gdshader",
+      "Sha256": "4BB2C93825D8CE10FB975BF81E083B05BF7EEBB3DCC370C0F99444225CB68190"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\placement_ghost.gdshader.uid",
+      "Sha256": "BEF1051EA4C810B0865C0C20EE637E9A5814257D8FAE2931E2B5E34C216B9079"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\planet.gdshader",
+      "Sha256": "DE7E71DD3B1280E1E73C9BC417D9AA8C71452B1A0FAF8F38C8F53EBB54A7F6ED"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\planet.gdshader.uid",
+      "Sha256": "194E776032310B2EC5F0D5B97F4A435DDE580C5D49761F98DA1CDEC7E064B533"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\playable_stars.gdshader",
+      "Sha256": "D26A113E6C86D030B61845EC9662F31BB67EDC390D85A4B5E79C0448B42B0236"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\playable_stars.gdshader.uid",
+      "Sha256": "2003C451C926BE09D39ED0CF706EF9D06EAA916C0D1BACB3A24B4EFCB472264E"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\ring.gdshader",
+      "Sha256": "B35FE7D1307BC9A7C5A7DD70774F01B06B72B84A4FDEEDD50087AB7D9AD79E78"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\ring.gdshader.uid",
+      "Sha256": "5D8C7DA44E740345C1EEF0654B8A75B608FC82E9E5A19E60C1B784A2074BB662"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\sector_grid.gdshader",
+      "Sha256": "5406A756FBC34C72C0F52255053DA62A44419BC2D2C1E548F723C8030D792D83"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\sector_grid.gdshader.uid",
+      "Sha256": "C86E1C60734BE0B4AB9A78490F813A2CF1D8F48CAB2FD42C20156A3E398DA56B"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\ship_exhaust.gdshader",
+      "Sha256": "6691677AE4CBD6377CB4F3DE6C2AC4FF888659628E9D9E68398E621F3ED555AB"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\ship_exhaust.gdshader.uid",
+      "Sha256": "234F4E13818CA3B68ECE8853D4EFFC4ACE148D32B673ED65E8092C3BD64A5EFB"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\star.gdshader",
+      "Sha256": "C288266BD23202EFAC0CC2E965B0A3C32BEEAF33A5B4B404FB59C50652F78E48"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\star.gdshader.uid",
+      "Sha256": "D1078777701F1399847848EF3ACDA7A86B2972DD0FE75242C738E063C1947D9F"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\stars.gdshader",
+      "Sha256": "0CC729AADB33455105D8E31D060C9823161215DF90679AF5605AC0EFA95B8F59"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\stars.gdshader.uid",
+      "Sha256": "EA880F2AD68A297F84708575267B9E1360631539B569A08D6622065CB2864737"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_atmosphere.gdshaderinc",
+      "Sha256": "8E1EDC5D30B3F107789375DAE339826D0C984568ADC5B3403EEC0EB71F2BB8F3"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_atmosphere.gdshaderinc.uid",
+      "Sha256": "C96035B599C05153DE2D92A263B1CC5D22367CC63A3A0EE6EE2E9E0EB2EEDE77"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_authored_cover.gdshader",
+      "Sha256": "9E1E21B5238D4B1F06419244533D0495ABA1CA4B75E2F40E3B2E74DD5FA567E9"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_authored_cover.gdshader.uid",
+      "Sha256": "A1DD6AC532F0E02946978F37F14EEDE34726739C473D8BF8E71F80E705FB5597"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_clouds.gdshaderinc",
+      "Sha256": "7B10404E5000EDE5587745C1DB3C69432D43818DD868B9F22A75EAF76D088B02"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_clouds.gdshaderinc.uid",
+      "Sha256": "ECBC9282767F6F2E89B741EA738C32CD64D3E822D84FDC80D213E1379CEBBA23"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_foliage.gdshader",
+      "Sha256": "89F1607D7D235BF9D3E6F24AEBCF27BF550BAB614831F54C3B7450C1C4D56836"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_foliage.gdshader.uid",
+      "Sha256": "1F3386BDD6DA91EDAF35DCEB2283E5855C0432D406105F7CE8FAE1EF3221AA68"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_grass.gdshader",
+      "Sha256": "741B3D069C7D84AC9AE5E3F63C05C0A349D76D1DFA7C3FCA90FCDC1AC4E9B809"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_grass.gdshader.uid",
+      "Sha256": "ADD18237211342E4C347423190DF3D730C425A41C10149CC77A27F24E644A1CE"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_grass.gdshaderinc",
+      "Sha256": "00C7B4ED31ADEE5446B445B298FA7BD384C30531C17EF7C4FAA8B571BE839283"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_grass.gdshaderinc.uid",
+      "Sha256": "87C77ADFB76E4DE5B8F5127D15816FCEE8FCAD37DF8A647E79D10504CB2CA109"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_impostor_bake.gdshader",
+      "Sha256": "B369838C69C517B9970EA775D51D021811B67DF19AFB0FDD8AD6F76C5936B676"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_impostor_bake.gdshader.uid",
+      "Sha256": "8E467729FDBFAA1D6FE8C90765AA6BB264DDD7E55F75CA8C9C6040D9F7F8F6BA"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_impostor.gdshader",
+      "Sha256": "95C1D352170058C1CAE758E54A11A7C88B28FD1AA3E915438DB4171313B33B72"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_impostor.gdshader.uid",
+      "Sha256": "D376CDAF9DD8ADF0293A426E61A518516546CFC72B5A9D54C6A229F5D138A009"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_planet.gdshaderinc",
+      "Sha256": "258196627E08689D56355923236DED9B0515262406D3CD8FDC1040A279DC0CB3"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_planet.gdshaderinc.uid",
+      "Sha256": "91C397F1AF7D33399694ED32D7D55276FB032A79CD43447961F5238DBA08E897"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_rock.gdshader",
+      "Sha256": "495713C6E1CA5563A2E99CBD2A351FBDE085EC5EEDDAE1484A3C386076671BFD"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_rock.gdshader.uid",
+      "Sha256": "D0157B6A9E96BAA2F23C510D14C44364F554EE999F3ED8CBD3351A9F3588DC97"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_sky.gdshader",
+      "Sha256": "4B06B8887E8FCBBB46DEA90E3185111B929D5F14CEB83B94B9A32B5FAF57D6B4"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_sky.gdshader.uid",
+      "Sha256": "95E9DDCD5D19494803DED1C8282F39A83969DD43C805FDD7BBA4D097AF0F234F"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_terrain.gdshader",
+      "Sha256": "EE3B7E475EDDF12EF14AB7175EE516158E9E23B0B6F96185038BACD3F2F00C86"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_terrain.gdshader.uid",
+      "Sha256": "86AEF231DBDEEBE1E99DBB617284A07F554BEBAB324363E6D35BFB94EE057CEC"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_underwater.gdshader",
+      "Sha256": "2158D04ED656166E23E024F7D32A322D6B60933B1C8A252BD8EF374A2F6D99DE"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_underwater.gdshader.uid",
+      "Sha256": "55378B3B0D55DFC05DB904B80F60863CFDF8563E1827D988A4F09CD3955BF890"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_water.gdshader",
+      "Sha256": "745A74CE96DF290BC0D2663AFB7CD06A25435CE91FB0F1C6409295891FB7BC43"
+    },
+    {
+      "Path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_water.gdshader.uid",
+      "Sha256": "4C4F92B27091011E29EC0D6B54C3BFBC954F2433BE96EB47BE3C236B2FE47701"
+    }
+  ]
+}

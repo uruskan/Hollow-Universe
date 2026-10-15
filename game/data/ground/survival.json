@@ -4,6 +4,7 @@
     "maxHealth": 100, "maxCalories": 500, "maxHydration": 250,
     "spawn": { "health": 60, "calories": 260, "hydration": 160 }
   },
+  "breathing": { "seconds": 20, "recoveryPerSecond": 5, "damagePerSecond": 10 },
   "metabolism": {
     "caloriesPerSecond": 0.07, "hydrationPerSecond": 0.09,
     "sprintFactor": 1.8, "coldFactor": 1.4,
@@ -59,6 +60,12 @@
   "bag": {
     "note": "Ours (GROUND.md §6.1, decisions U1-U4): everything that lands on the ground lies in a small bag, and what lands within mergeRadius metres of a bag with room goes into it (Rust drops one pouch for a broken box's contents). 48 slots: a large box's, so whatever one container spills fits one bag, and a player's whole inventory (37 slots) too. A bag lasts lifetimes.bag from the newest item put in.",
     "name": "Loot bag", "slots": 48, "mergeRadius": 1.5
+  },
+  "corpse": {
+    "note": "Player bodies remain harvestable for 150 server seconds, then become the same loot container in a large backpack. Harvest speed uses the shared animal tool table; total yield is independent of tool. The existing lifetimes.body duration applies after conversion.",
+    "bodySeconds": 150,
+    "harvestHealth": 100,
+    "yield": [["bone-fragments", 20], ["animal-fat", 10]]
   },
   "rateLimits": {
     "note": "RustMVP command_budget.hpp: 16 at once, 20 a second; every arrival costs one. Shots and reloads have their own budget, RustMVP's weapon one (BareWeaponComponent: 20 at once, 30 a second).",

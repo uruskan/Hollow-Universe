@@ -33,9 +33,9 @@ public static class ShipCodec
     /// <summary>
     /// Raised by hand when the layout changes; decoding reads every older version. 2: seats, doors, parts, crew (IW2); 3: the
     /// crewed batteries' stations (IW3): the chosen kind, the mount's aim, the shots, each chamber, each loader's cycle and
-    /// the magazine.
+    /// the magazine. 4: unattended controls. 5: the fuel tank's items and fractional burn reserve.
     /// </summary>
-    public const byte Version = 3;
+    public const byte Version = 5;
 
     private const int HatchTicksV1 = 30;
 
@@ -56,7 +56,7 @@ public static class ShipCodec
             Write(w, Vector3.Transform(s.Velocity, toBody));
             Write(w, s.AngularVelocity);
             w.Write(s.Health);
-            w.Write(s.Fuel);
+            w.Write(ship.Fuel.Amount);
             w.Write(s.BoostTicks);
             w.Write(s.CooldownTicks);
             w.Write(s.RestTicks);
@@ -118,6 +118,14 @@ public static class ShipCodec
                 }
                 WorldCodec.WriteContainer(w, st.Magazine);
             }
+            // Version 4: unattended translation/assist survives a restart; turning and boost are momentary.
+            w.Write(ship.Input.Throttle);
+            w.Write(ship.Input.Strafe);
+            w.Write(ship.Input.Vertical);
+            w.Write((byte)(ship.Input.Buttons & ShipButtons.AssistOff));
+            // Version 5: unopened fuel items and a non-withdrawable partial unit. The earlier float is only a cache.
+            w.Write(ship.Fuel.Units);
+            w.Write(ship.Fuel.Reserve);
         }
         return stream.ToArray();
     }
@@ -219,6 +227,24 @@ public static class ShipCodec
         if (version >= 3)
         {
             ReadStations(r, ship, content);
+        }
+        if (version >= 4)
+        {
+            static float Axis(float value) => float.IsFinite(value) ? Math.Clamp(value, -1, 1) : 0;
+            ship.Input = new ShipInput
+            {
+                Throttle = Axis(r.ReadSingle()), Strafe = Axis(r.ReadSingle()), Vertical = Axis(r.ReadSingle()),
+                Buttons = (ShipButtons)r.ReadByte() & ShipButtons.AssistOff,
+            };
+        }
+        if (version >= 5)
+        {
+            ship.Fuel.Restore(r.ReadInt32(), r.ReadSingle());
+            ship.SyncFuel();
+        }
+        else
+        {
+            ship.LoadFuel(fuel);
         }
         // The moving parts first (a turret's angle), then the doors over theirs (their parts follow their progress).
         for (int i = 0; i < parts.Count && i < ship.Parts.Length; i++)

@@ -141,7 +141,7 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
     /// </summary>
     public bool AnimalAttacksPlayer(Animal animal, EntityId player)
     {
-        if (animal.Species.Attack is not { } attack || !Players.TryFindPlayer(player, out Entity entity, out Player p) || p.Dead)
+        if (animal.Species.Attack is not { } attack || !Players.TryFindPlayer(player, out Entity entity, out Player p) || p.Dead || !CanAttackPlayer(animal, player))
         {
             return false;
         }
@@ -182,6 +182,21 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
     public long AnimalAttacks { get; private set; }
 
     public long AnimalsKilled { get; private set; }
+
+    public bool CanAttackPlayer(Animal animal, EntityId player)
+    {
+        if (!Players.TryFindPlayer(player, out Entity entity, out Player p) || p.Dead) return false;
+        ref Character character = ref Entities.Get<Character>(entity);
+        Vector3 feet = WorldOf(character.State), up = Frame.UpAt(feet);
+        // Animals have terrain navigation, not access to elevated player structures or ship interiors.
+        if (character.State.Frame != 0) return false;
+        if (Building.TraceBuilding(feet + up * 0.15f, -up, 0.4f, out _, out _)) return false;
+        Vector3 mouth = AnimalHitboxes.Head(animal.Species, PoseOf(animal));
+        Vector3 target = feet + up * MathF.Min(0.8f, Tuning.EyeHeight(character.State.Stance) * 0.6f);
+        Vector3 line = target - mouth;
+        float distance = line.Length();
+        return distance < 0.01f || ObstacleAlong(mouth, line / distance, distance) < 0;
+    }
 
     public float ObstacleAlong(Vector3 from, Vector3 direction, float length)
     {

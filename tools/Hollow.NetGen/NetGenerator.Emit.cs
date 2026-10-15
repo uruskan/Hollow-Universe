@@ -90,12 +90,17 @@ public static partial class NetGenerator
                     FieldKind.Bool => "1",
                     FieldKind.Signed => $"{f.Name} == b.{f.Name} ? 1 : 1 + BitWriter.DeltaBits(unchecked((int){f.Name} - (int)b.{f.Name}))",
                     FieldKind.Angle => $"{f.Name} == b.{f.Name} ? 1 : 1 + BitWriter.DeltaBits((short)unchecked((ushort)({f.Name} - b.{f.Name})))",
+                    FieldKind.VarUInt or FieldKind.VarULong => $"{f.Name} == b.{f.Name} ? 1 : 1 + BitWriter.VarUIntBits({f.Name})",
                     _ => $"{f.Name} == b.{f.Name} ? 1 : {1 + FullBits(f)}",
                 };
                 o.Append($"        bits += {cost};\n");
             }
             o.Append("        return bits;\n    }\n\n");
-            o.Append("    /// <summary>The bits <see cref=\"Write\"/> takes.</summary>\n");
+            string fullCost = string.Join(" + ", def.Fields.Select(f => f.Kind is FieldKind.VarUInt or FieldKind.VarULong
+                ? $"BitWriter.VarUIntBits({f.Name})" : FullBits(f).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            o.Append("    /// <summary>The exact bits <see cref=\"Write\"/> takes for this state, without writing.</summary>\n");
+            o.Append($"    public readonly int EncodedBits => {fullCost};\n\n");
+            o.Append("    /// <summary>The maximum bits <see cref=\"Write\"/> takes.</summary>\n");
             o.Append($"    public const int FullBits = {def.Fields.Sum(FullBits)};\n");
         }
         o.Append("}\n");

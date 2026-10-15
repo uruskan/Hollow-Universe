@@ -1,9 +1,11 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Godot;
 using HollowUniverse.UI.Model;
+using HollowUniverse.Settings;
 
 namespace HollowUniverse.UI.Viewer;
 
@@ -53,6 +55,11 @@ public partial class UiViewer : Node
             RunCheck();
             return;
         }
+        if (Options.ContainsKey("window-check"))
+        {
+            CheckWindowModes();
+            return;
+        }
         if (Options.TryGetValue("pointer", out string? pointer))
         {
             string[] xy = pointer.Split(',');
@@ -65,6 +72,43 @@ public partial class UiViewer : Node
         }
     }
 
+    // Native smoke test, explicitly requested by the viewer flag; never writes graphics.cfg.
+    private async void CheckWindowModes()
+    {
+        if (DisplayServer.GetName() == "headless" || Engine.IsEmbeddedInEditor())
+        {
+            GD.PrintErr("[window-check] requires a standalone native window");
+            GetTree().Quit(1);
+            return;
+        }
+        GraphicsValues original = GraphicsSettings.Current;
+        DisplayServer.WindowMode originalMode = DisplayServer.WindowGetMode();
+        Vector2I size = DisplayServer.WindowGetSize(), position = DisplayServer.WindowGetPosition();
+        int failures = 0;
+        foreach ((GameWindowMode setting, DisplayServer.WindowMode expected) in new[]
+        {
+            (GameWindowMode.Borderless, DisplayServer.WindowMode.Fullscreen),
+            (GameWindowMode.ExclusiveFullscreen, DisplayServer.WindowMode.ExclusiveFullscreen),
+            (GameWindowMode.Windowed, DisplayServer.WindowMode.Windowed),
+        })
+        {
+            GraphicsSettings.ApplyGlobal(GetViewport(), original with { WindowMode = setting });
+            await ToSignal(GetTree().CreateTimer(0.6), SceneTreeTimer.SignalName.Timeout);
+            DisplayServer.WindowMode actual = DisplayServer.WindowGetMode();
+            bool ok = actual == expected || expected == DisplayServer.WindowMode.Windowed && actual == DisplayServer.WindowMode.Maximized;
+            if (!ok) failures++;
+            GD.Print($"[window-check] {setting}: {actual}, size={DisplayServer.WindowGetSize()}, {(ok ? "PASS" : "FAIL")}");
+        }
+        GraphicsSettings.ApplyGlobal(GetViewport(), original);
+        DisplayServer.WindowSetMode(originalMode);
+        if (originalMode is DisplayServer.WindowMode.Windowed or DisplayServer.WindowMode.Maximized)
+        {
+            DisplayServer.WindowSetSize(size);
+            DisplayServer.WindowSetPosition(position);
+        }
+        GetTree().Quit(failures == 0 ? 0 : 1);
+    }
+
     private void Show(string screen)
     {
         switch (screen)
@@ -72,6 +116,20 @@ public partial class UiViewer : Node
             case "inventory":
                 _ui.Open(GroundScreen.Inventory);
                 _ui.Select(new SlotRef(ContainerId.Belt, 5));
+                break;
+            case "attachments":
+                _model.AttachmentSample(Hollow.Simulation.Content.GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground")));
+                _model.Move(new SlotRef(ContainerId.Main, 1), new SlotRef(ContainerId.Main, 0, 0), 1);
+                _ui.Open(GroundScreen.Inventory);
+                _ui.Select(new SlotRef(ContainerId.Main, 0));
+                break;
+            case "name":
+                var nameDialog = new HollowUniverse.Ground.Keypad();
+                _ui.GetParent().AddChild(nameDialog);
+                nameDialog.AskText("NAME", "East coast camp");
+                break;
+            case "target-health":
+                _model.TargetHealth = new TargetHealthView("Large wooden storage box", .42f);
                 break;
             case "loot":
                 Loot(ContainerKind.Box, new SlotRef(ContainerId.Belt, 5));
@@ -114,6 +172,9 @@ public partial class UiViewer : Node
                 break;
             case "menu":
                 _ui.ShowMenu(inGame: false);
+                break;
+            case "settings" or "settings-display":
+                _ui.ShowSettings(screen == "settings-display" ? 2 : 0);
                 break;
             case "map":
                 // G7: the map with markers, teammates and the team panel.
@@ -199,8 +260,36 @@ public partial class UiViewer : Node
         }
         Expect(controls, "every held behaviour has its control");
 
+        // Exercise the actual client-to-UI action mapping; the mock's fixed action list cannot catch duplicate
+        // legacy REMOVE buttons beside the new draggable attachment sockets.
+        var liveContent = Hollow.Simulation.Content.GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
+        using (var actionClient = new Hollow.Client.GameClient(new Hollow.Client.ClientOptions { Name = "UiActions", Content = liveContent }))
+        using (var liveUi = new HollowUniverse.Ground.ClientGroundUi(actionClient))
+        {
+            var rifle = Hollow.Simulation.Items.ItemStack.Of(liveContent.ItemByKey("rifle"), 1);
+            rifle.Sight = liveContent.ItemByKey("scope").Id;
+            rifle.Loaded = 9;
+            rifle.LoadedAmmo = liveContent.ItemByKey("rifle-ammo").Id;
+            actionClient.Local.Inventory.Main.Set(0, rifle);
+            var slot = new SlotRef(ContainerId.Main, 0);
+            var raw = new List<Hollow.Simulation.Items.ItemActionOption>();
+            actionClient.Local.ItemActions(Hollow.Simulation.Items.ContainerRef.Main, 0, raw);
+            Expect(raw.Any(o => o.Action.Key == "remove") && liveUi.Attachments(slot).Any(s => s.Stack.Key == "scope"),
+                "the real client retains legacy detach compatibility and exposes its fitted socket");
+            IReadOnlyList<ItemActionView> mapped = liveUi.Actions(slot);
+            Expect(raw.Any(o => o.Action.Key == "unload") && raw.Where(o => o.Action.Key == "remove").All(o => mapped.All(v => v.Label != o.Label)) &&
+                raw.Where(o => o.Action.Key != "remove").All(o => mapped.Any(v => v.Label == o.Label)),
+                "real socket UI omits only redundant REMOVE actions and preserves UNLOAD and other actions");
+        }
+
         _ui.Open(GroundScreen.Inventory);
         await Frames(6);
+        float figureYaw = _ui.CharacterYaw;
+        await Drag(Point(280, 350), Point(380, 350));
+        Expect(System.Math.Abs(_ui.CharacterYaw - figureYaw) > 0.8f, "left drag rotates the inventory's 3D figure");
+        float releasedYaw = _ui.CharacterYaw;
+        await MoveTo(Point(450, 350));
+        Expect(_ui.CharacterYaw == releasedYaw, "the inventory figure stops rotating on mouse release");
         await Click(Main(0));
         Expect(_ui.SelectedSlot == new SlotRef(ContainerId.Main, 0), "a click selects the slot");
         await Drag(Main(0), Main(20));
@@ -236,6 +325,55 @@ public partial class UiViewer : Node
         Expect(_model.Queue.Count == queued + 1, "CRAFT queues the recipe");
         await Key(Godot.Key.Tab);
         Expect(_ui.Screen == GroundScreen.Hud, "Tab closes the screen");
+
+        // H belongs to the open inventory, not to the rectangle under the pointer.
+        _model.OpenLoot(ContainerKind.Box);
+        _ui.Open(GroundScreen.Inventory);
+        await Frames(3);
+        int firstLoot = System.Linq.Enumerable.Range(0, _model.Slots(ContainerId.Loot).Count).First(i => !At(ContainerId.Loot, i).IsEmpty);
+        // Use the real slot hitboxes, so this also checks the active layout.
+        await Hold(Godot.Key.H, true);
+        await MoveTo(Point(25, 350));
+        Expect(_ui.HoverLootHeld, "H stays active outside inventory and loot panels");
+        await MoveTo(_ui.SlotPoint(new SlotRef(ContainerId.Loot, firstLoot)));
+        await ToSignal(GetTree().CreateTimer(0.45), SceneTreeTimer.SignalName.Timeout);
+        Expect(At(ContainerId.Loot, firstLoot).IsEmpty, "returning to a loot slot transfers while H is still held");
+        await Hold(Godot.Key.H, false);
+        Expect(!_ui.HoverLootHeld, "H release ends hover loot");
+        await Hold(Godot.Key.H, true);
+        _ui.Open(GroundScreen.Hud);
+        Expect(!_ui.HoverLootHeld, "closing the inventory ends hover loot");
+        await Hold(Godot.Key.H, false);
+
+        // Real socket capabilities and the production atomic rule behind the UI model.
+        _model.AttachmentSample(Hollow.Simulation.Content.GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground")));
+        _ui.Open(GroundScreen.Inventory);
+        _ui.Select(new SlotRef(ContainerId.Main, 0));
+        await Frames(4);
+        Vector2 Socket(int i) => Point(593 + i * 99, 410);
+        Expect(_model.Attachments(new SlotRef(ContainerId.Main, 0)).Count == 3, "the rifle exposes its three supported attachment sockets");
+        await Drag(Main(1), Socket(0));
+        Expect(At(ContainerId.Main, 1).IsEmpty && At(ContainerId.Main, 0).Sight == "scope", "dragging a sight into its socket attaches it");
+        await Drag(Socket(0), Main(6));
+        Expect(At(ContainerId.Main, 6).Key == "scope" && At(ContainerId.Main, 0).Sight == null, "dragging out of a socket uses the exact inventory destination");
+        await Drag(Main(2), Socket(0));
+        await Drag(Main(6), Socket(0));
+        Expect(At(ContainerId.Main, 6).Key == "holo-sight" && At(ContainerId.Main, 0).Sight == "scope", "a filled socket swaps its attachment back to the source slot");
+        await Drag(Main(3), Socket(0));
+        Expect(At(ContainerId.Main, 3).Key == "silencer" && At(ContainerId.Main, 0).Sight == "scope", "an incompatible socket leaves both items intact");
+        await Drag(Main(3), Socket(1));
+        await Drag(Socket(1), Point(1077, 295));
+        Expect(At(ContainerId.Loot, 0).Key == "silencer" && At(ContainerId.Main, 0).Muzzle == null, "a socket can detach directly into open storage");
+        await Drag(Socket(0), Point(1300, 150));
+        Expect(At(ContainerId.Main, 0).Key == "rifle" && At(ContainerId.Main, 0).Sight == "scope", "releasing an attachment outside slots cancels without dropping its weapon");
+        await MoveTo(Main(6));
+        await Mouse(Main(6), MouseButton.Left, true);
+        await MoveTo(Socket(0));
+        _model.Move(new SlotRef(ContainerId.Main, 0), new SlotRef(ContainerId.Main, 10), 1);
+        await Frames(3);
+        await Mouse(Socket(0), MouseButton.Left, false);
+        Expect(At(ContainerId.Main, 6).Key == "holo-sight" && At(ContainerId.Main, 10).Sight == "scope", "a changed selected weapon cancels the pending attachment drag");
+        _ui.Open(GroundScreen.Hud);
 
         // The radial (GROUND_SYSTEMS.md §4): the plan's on the right mouse; the sample door's on E held, tapped, chosen,
         // refused, cancelled by Esc and by the right mouse.
@@ -295,6 +433,40 @@ public partial class UiViewer : Node
         Expect(!_ui.MapFollowing && Markers() == markers, "a drag turns the globe (no marker put down)");
         await Key(Godot.Key.G);
         Expect(_ui.Screen == GroundScreen.Hud, "G closes the map");
+
+        // The same interaction modal handles plain text without the code lock's four-digit auto-submit.
+        _ui.Hide();
+        var dialog = new HollowUniverse.Ground.Keypad();
+        _ui.GetParent().AddChild(dialog);
+        var submitted = new List<string>();
+        dialog.Entered += submitted.Add;
+        async Task TypeText(string value)
+        {
+            foreach (Rune rune in value.EnumerateRunes())
+            {
+                Input.ParseInputEvent(new InputEventKey { Unicode = (uint)rune.Value, Pressed = true });
+                await Frames();
+                Input.ParseInputEvent(new InputEventKey { Unicode = (uint)rune.Value, Pressed = false });
+            }
+            await Frames();
+        }
+        dialog.AskText("NAME");
+        await Frames();
+        await TypeText("1234");
+        Expect(dialog.Visible && submitted.Count == 0 && dialog.GetNode<LineEdit>("TextEntry").Text == "1234", "four typed digits remain editable in a name");
+        await Key(Godot.Key.Enter);
+        Expect(!dialog.Visible && submitted.SequenceEqual(new[] { "1234" }), "Enter explicitly submits a name");
+        dialog.AskText("NAME", "Old name");
+        await Frames();
+        await TypeText("Café 東");
+        await Key(Godot.Key.Enter);
+        Expect(submitted.LastOrDefault() == "Café 東", "Unicode input replaces selected text and survives submission");
+        dialog.AskText("NAME");
+        await Key(Godot.Key.Enter);
+        Expect(dialog.Visible && submitted.Count == 2, "empty names keep the dialog open");
+        await Key(Godot.Key.Escape);
+        Expect(!dialog.Visible && submitted.Count == 2, "Escape cancels without sending an interaction");
+        dialog.QueueFree();
 
         GD.Print($"ui-check: {checks - failures.Count}/{checks} passed");
         GetTree().Quit(failures.Count == 0 ? 0 : 1);

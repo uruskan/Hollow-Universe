@@ -10,7 +10,7 @@ namespace HollowUniverse.Surface;
 
 /// <summary>
 /// The grass of the surface view (GROUND.md §4.6, docs/WHOLE_WORLD.md §10.3): presentation only, not part of the scatter,
-/// and never plant models: tufts of blade cards placed and shaped on the GPU (surface_grass.gdshader) around the camera.
+/// with a dense short blade underlayer and diverse authored grass/fern crowns around the camera.
 /// Every tuft belongs to a cell of a cube face at the level nearest 0.46 m (level 13 on a 2.41 km world), so what grows
 /// in it (place, size, lean, colour, kind) comes from a hash of the cell and never shifts as the camera moves; near a
 /// face seam each face's cells are drawn by a grid of their own (up to three at a corner), each keeping the cells whose
@@ -50,6 +50,7 @@ public sealed partial class GrassField : Node3D
         public double OriginU, OriginV; // metres on the face of the first node, less the texture anchor
         public float[] Nodes = Array.Empty<float>();
         public float[] Cover = Array.Empty<float>();
+        public readonly List<CoverPlant> Plants = new();
     }
 
     private sealed class FieldData
@@ -85,7 +86,7 @@ public sealed partial class GrassField : Node3D
     private bool _ready;
 
     /// <summary>Tufts on the grids (most of them shrink to nothing where there is no grass).</summary>
-    public int Tufts => _ready ? _gridWidth * _gridWidth * (_field?.Faces.Count ?? 0) : 0;
+    public int Tufts => _coverCount;
 
     /// <summary>True when the field around the camera is in place (or the camera is too high for grass).</summary>
     public bool IsIdle => !_near || (_ready && _job == null);
@@ -95,6 +96,8 @@ public sealed partial class GrassField : Node3D
 
     public void Setup(ISurface surface, RenderFrame frame, int finestLevel, FloraLibrary library, TextureLayered groundAlbedo, Texture noise, Vector3 bladeMean)
     {
+        // Render diagnosis only: retain loading, generation and readiness while exposing the identical terrain.
+        Visible = Array.IndexOf(OS.GetCmdlineUserArgs(), "--hide-ground-cover") < 0;
         _surface = surface;
         _frame = frame;
         _level = TileKey.LevelFor(surface.Radius, CellMetres);
@@ -116,6 +119,7 @@ public sealed partial class GrassField : Node3D
         material.SetShaderParameter("far_radius", _far);
         material.SetShaderParameter("shrink_start", _shrink);
         material.SetShaderParameter("density_scale", Math.Clamp(graphics.GrassDensity, 0.1f, 1f));
+        material.SetShaderParameter("blade_underlayer", true);
         material.SetShaderParameter("lattice_size", _latticeSize);
         material.SetShaderParameter("face_cells", (int)Math.Min(_faceCells, int.MaxValue));
         material.SetShaderParameter("cell_metres", (float)(_cellMetres));
@@ -150,6 +154,7 @@ public sealed partial class GrassField : Node3D
             grid.Litter = Instance(litter, grid.LitterMaterial, _litterWidth);
             _grids[g] = grid;
         }
+        SetupAuthoredCover();
     }
 
     // A grid of width² instances, every instance placed by the shader (the transforms are identity).
@@ -312,6 +317,7 @@ public sealed partial class GrassField : Node3D
             {
                 _field = _job.Result;
                 Upload(_field);
+                _coverDirty = true;
             }
             else
             {
@@ -332,7 +338,8 @@ public sealed partial class GrassField : Node3D
         {
             FaceGrid grid = _grids[g];
             FaceLattice? lattice = show && g < _field!.Faces.Count ? _field.Faces[g] : null;
-            grid.Grass.Visible = grid.Litter.Visible = lattice != null;
+            grid.Grass.Visible = lattice != null;
+            grid.Litter.Visible = lattice != null;
             if (lattice == null)
             {
                 continue;
@@ -351,6 +358,7 @@ public sealed partial class GrassField : Node3D
             Vector3 feet = cameraRender - _frame.DirectionToRender(camera.Normalized) * 1.7f;
             grid.GrassMaterial.SetShaderParameter("trample", walking ? new Vector4(feet.X, feet.Y, feet.Z, 0.9f) : Vector4.Zero);
         }
+        UpdateAuthoredCover(camera, show);
     }
 
     // A body-frame point's place on a face, in cells (fractional; may lie beyond the face's edge).
@@ -412,7 +420,7 @@ public sealed partial class GrassField : Node3D
     private FieldData Build(Vector3D anchor)
     {
         var field = new FieldData { Anchor = anchor };
-        var heights = new Dictionary<(int, long, long), double>();
+        var heights = new Dictionary<(int, long, long), (double Height, double Water)>();
         foreach (int face in FacesNear(anchor))
         {
             if (field.Faces.Count < _grids.Length)
@@ -445,7 +453,7 @@ public sealed partial class GrassField : Node3D
         return faces;
     }
 
-    private FaceLattice BuildFace(int face, Vector3D anchor, Dictionary<(int, long, long), double> heights)
+    private FaceLattice BuildFace(int face, Vector3D anchor, Dictionary<(int, long, long), (double Height, double Water)> heights)
     {
         int n = _latticeSize;
         (double cu, double cv) = CellOn(face, anchor);
@@ -463,13 +471,17 @@ public sealed partial class GrassField : Node3D
         lattice.OriginU = ou - Math.Round(ou / TileMesh.TexturePeriod) * TileMesh.TexturePeriod;
         lattice.OriginV = ov - Math.Round(ov / TileMesh.TexturePeriod) * TileMesh.TexturePeriod;
         var points = new Vector3D[n * n];
+        var bare = new bool[n * n];
+        WalkingWorld? walking = _surface as WalkingWorld;
         for (int b = 0; b < n; b++)
         {
             for (int a = 0; a < n; a++)
             {
                 Vector3D d = CubeSphere.Direction(face, U(lattice.CornerX + a), U(lattice.CornerY + b));
-                Vector3D p = d * (_surface.Radius + TriangleHeight(d, heights));
+                double h = TriangleHeight(d, heights, out double water);
+                Vector3D p = d * (_surface.Radius + h);
                 points[b * n + a] = p;
+                bare[b * n + a] = h < water + 0.12 || walking?.Monuments.At(d, 2) != null;
                 Vector3 local = _frame.DirectionToRender(p - anchor);
                 int k = (b * n + a) * 4;
                 lattice.Nodes[k] = local.X;
@@ -483,7 +495,6 @@ public sealed partial class GrassField : Node3D
         var climate = new float[coarse * coarse * Channels];
         Span<double> biomes = stackalloc double[BiomeTable.Count];
         Span<double> materials = stackalloc double[BiomeTable.MaterialCount];
-        double seaLevel = _surface.SeaRadius > 0 ? _surface.SeaRadius - _surface.Radius : 0;
         for (int b = 0; b < coarse; b++)
         {
             for (int a = 0; a < coarse; a++)
@@ -499,23 +510,13 @@ public sealed partial class GrassField : Node3D
                 double slope = Math.Sqrt(Math.Max(0, 1 - cos * cos));
                 GroundCover c = _surface.Cover(d, s, slope, biomes, materials);
                 BiomeTable.FoldFamilies(materials);
-                double ground = 1 - materials[(int)GroundMaterial.Rock] - materials[(int)GroundMaterial.Sand] - materials[(int)GroundMaterial.Snow]
-                    - 0.7 * materials[(int)GroundMaterial.Gravel] - 0.8 * materials[(int)GroundMaterial.ForestFloor];
-                double shade = 1 - 0.75 * Math.Clamp(c.Trees / 0.018, 0, 1); // grass thins out under trees
-                double density = Math.Clamp(c.Grass * 1.15 * Math.Clamp(ground, 0, 1) * shade * (1 - DMath.SmoothStep(0.3, 0.45, slope)), 0, 1);
-                double flowers = Math.Clamp(biomes[(int)Biome.Grassland] + 0.5 * biomes[(int)Biome.Shrubland] + 0.3 * biomes[(int)Biome.TemperateForest], 0, 1)
-                    * (1 - Math.Clamp(c.Trees / 0.02, 0, 1));
-                // The forest floor: litter where trees stand (and their ground is litter), small plants in its shade.
-                double cover = Math.Clamp(c.Trees / 0.018, 0, 1);
-                double litter = Math.Pow(Math.Clamp(cover * 1.1, 0, 1), 1.5) * (0.45 + 0.55 * Math.Clamp(materials[(int)GroundMaterial.ForestFloor] * 2, 0, 1))
-                    * (1 - DMath.SmoothStep(0.35, 0.55, slope)) * (s.Height - seaLevel > 0.5 ? 1 : 0);
-                double plants = litter * Math.Clamp(0.45 + 0.8 * c.Moisture, 0, 1);
+                GroundDetailCover detail = GroundDetailCover.At(c, slope, s.Height - _surface.WaterLevelAt(d), biomes, materials);
                 int k = (b * coarse + a) * Channels;
-                climate[k] = (float)density;
+                climate[k] = (float)detail.Grass;
                 climate[k + 1] = (float)c.Moisture;
-                climate[k + 2] = (float)flowers;
-                climate[k + 3] = (float)litter;
-                climate[k + 4] = (float)plants;
+                climate[k + 2] = (float)detail.Flowers;
+                climate[k + 3] = (float)detail.Litter;
+                climate[k + 4] = (float)detail.Plants;
             }
         }
         for (int b = 0; b < n; b++)
@@ -531,6 +532,9 @@ public sealed partial class GrassField : Node3D
                     float c00 = climate[(b0 * coarse + a0) * Channels + ch], c10 = climate[(b0 * coarse + a0 + 1) * Channels + ch];
                     float c01 = climate[((b0 + 1) * coarse + a0) * Channels + ch], c11 = climate[((b0 + 1) * coarse + a0 + 1) * Channels + ch];
                     float value = (c00 * (1 - u) + c10 * u) * (1 - w) + (c01 * (1 - u) + c11 * u) * w;
+                    // Streams and cleared monument pads can be narrower than one climate cell. Reject every
+                    // cover layer at their fine vertices so interpolation cannot put tufts in water or buildings.
+                    if (bare[b * n + a] && ch != 1) value = 0;
                     if (ch == 0)
                     {
                         lattice.Nodes[p + 3] = value;
@@ -542,31 +546,37 @@ public sealed partial class GrassField : Node3D
                 }
             }
         }
+        PopulateAuthoredCover(lattice, points, bare);
         return lattice;
     }
 
     // Height above the mean radius of the drawn ground along a direction: the finest tiles' triangles, which follow the
     // surface's heights at their vertex lattice (TileMesh: 32 cells a tile, the same diagonal everywhere), interpolated.
-    private double TriangleHeight(Vector3D d, Dictionary<(int, long, long), double> cache)
+    private double TriangleHeight(Vector3D d, Dictionary<(int, long, long), (double Height, double Water)> cache, out double water)
     {
         double n = 1L << _heightShift;
         (int face, double u, double v) = CubeSphere.FromDirection(d);
         double gu = (u + 1) * 0.5 * n, gv = (v + 1) * 0.5 * n;
         long i = (long)Math.Floor(gu), j = (long)Math.Floor(gv);
         double fu = gu - i, fv = gv - j;
-        double H(long a, long b)
+        (double Height, double Water) H(long a, long b)
         {
-            if (!cache.TryGetValue((face, a, b), out double h))
+            if (!cache.TryGetValue((face, a, b), out var h))
             {
-                h = _surface.HeightAt(CubeSphere.Direction(face, -1 + 2.0 * a / n, -1 + 2.0 * b / n));
+                Vector3D at = CubeSphere.Direction(face, -1 + 2.0 * a / n, -1 + 2.0 * b / n);
+                h = (_surface.HeightAt(at), _surface.WaterLevelAt(at));
                 cache[(face, a, b)] = h;
             }
             return h;
         }
-        double h00 = H(i, j), h11 = H(i + 1, j + 1);
+        var p00 = H(i, j); var p11 = H(i + 1, j + 1);
+        var side = fu >= fv ? H(i + 1, j) : H(i, j + 1);
+        // Conservative near the shore: use the highest wet corner; dry corners carry -infinity.
+        water = Math.Max(p00.Water, Math.Max(p11.Water, side.Water));
+        double h00 = p00.Height, h11 = p11.Height;
         return fu >= fv
-            ? h00 + fu * (H(i + 1, j) - h00) + fv * (h11 - H(i + 1, j))
-            : h00 + fv * (H(i, j + 1) - h00) + fu * (h11 - H(i, j + 1));
+            ? h00 + fu * (side.Height - h00) + fv * (h11 - side.Height)
+            : h00 + fv * (side.Height - h00) + fu * (h11 - side.Height);
     }
 
     /// <summary>Nothing to re-anchor: the anchor's render position is set every frame.</summary>

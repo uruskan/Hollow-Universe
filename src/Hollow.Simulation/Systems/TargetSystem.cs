@@ -357,7 +357,8 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
-            facts = new TargetFacts { Capabilities = Capabilities(target.Id), Name = a.Species.Name, Position = a.Position };
+            facts = new TargetFacts { Capabilities = Capabilities(target.Id), Name = a.Species.Name, Position = a.Position,
+                Vitality = !a.IsDead ? new TargetVitality(a.Health, a.Species.Health) : null };
             return true;
         }
 
@@ -429,7 +430,8 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
-            facts = new TargetFacts { Capabilities = Of(kind!), Name = kind!.Name, Stays = kind.Class == NaturalClass.Bush, Count = 1, Position = o.Position };
+            facts = new TargetFacts { Capabilities = Of(kind!), Name = kind!.Name, Stays = kind.Class == NaturalClass.Bush, Count = 1, Position = o.Position,
+                Vitality = !kind.IsPicked && zone.Natural != null ? new TargetVitality(zone.Natural.Health(o, kind), NaturalShapes.MaxHealth(o, kind)) : null };
             return true;
         }
 
@@ -534,6 +536,8 @@ public sealed class TargetSystem : ZoneSystem
                 Capabilities = thing.CapabilitiesIn(zone.Content!.Capabilities), Flags = zone.Targets().FlagsFor(target, viewer) | crew,
                 Name = thing.Name.Length > 0 ? thing.Name : def?.Item.Name ?? "", Count = thing.ShownCount,
                 Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position, Aboard = ship != null,
+                Vitality = thing is Deployable d ? new TargetVitality(d.Health, d.Def.Health) :
+                    thing is Corpse { Life: { IsBody: true } life } ? new TargetVitality(life.HarvestLeft, life.Tuning.HarvestHealth) : null,
             };
             return true;
         }
@@ -610,7 +614,7 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
-            facts = new TargetFacts { Name = piece.Def.Name, Position = piece.ZoneTransform.Position };
+            facts = new TargetFacts { Name = piece.Def.Name, Position = piece.ZoneTransform.Position, Vitality = new TargetVitality(piece.Health, piece.MaxHealth) };
             return true;
         }
 
@@ -680,6 +684,7 @@ public sealed class TargetSystem : ZoneSystem
             {
                 Capabilities = Capabilities(target.Id), Flags = zone.Targets().FlagsFor(target, viewer), Name = door.Def.Name, Open = door.Open,
                 Lock = door.Lock?.Kind ?? LockKind.None, Position = door.Frame.ZoneTransform.Position,
+                Vitality = new TargetVitality(door.Health, door.Def.Health),
             };
             return true;
         }
@@ -763,6 +768,7 @@ public sealed class TargetSystem : ZoneSystem
                 Capabilities = Capabilities(target.Id),
                 Flags = zone.Targets().FlagsFor(target, viewer) | zone.Targets().FlagsFor(new TargetRef(TargetFamily.Thing, claim.Id.Value), viewer),
                 Name = zone.Content!.ClaimDeployable.Item.Name, Position = claim.ZoneTransform.Position, Deployable = zone.Content!.ClaimDeployable,
+                Vitality = new TargetVitality(claim.Health, zone.Content.Building.ClaimHealth),
             };
             return true;
         }
@@ -957,6 +963,7 @@ public sealed class TargetSystem : ZoneSystem
                 Ship = def, ShipPart = target.Part, DoorRule = part.Door >= 0 ? ships.MayOpen(ship, part.Door).Code : OutcomeCode.Done,
                 DoorReady = seatDoor >= 0 && ships.DoorOpenEnough(ship, seatDoor), Jammed = part.Door >= 0 && ships.DoorJammed(ship, part.Door),
                 Broken = part.Seat >= 0 && ships.SeatDisabled(ship, part.Seat), Health = healthDef != null ? health / max : -1,
+                Vitality = target.Part == 0 ? new TargetVitality(ship.State.Health, def.Health) : healthDef != null ? new TargetVitality(health, max) : null,
                 Position = ship.State.Position,
             };
             return true;

@@ -14,4 +14,8 @@
     <InternalsVisibleTo Include="Hollow.Tests" />
     <InternalsVisibleTo Include="Hollow.GeneratorReport" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Data/cliffs.json" />
+    <EmbeddedResource Include="Data/monuments.json" />
+  </ItemGroup>
 </Project>

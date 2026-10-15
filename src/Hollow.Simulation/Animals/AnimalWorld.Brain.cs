@@ -396,6 +396,11 @@ public sealed partial class AnimalWorld
             a.Herd.PreySeenTick = Tick;
         }
         float distance = Vector3.Distance(a.Position, at);
+        if (distance < 6 && a.Target.Kind == TargetKind.Player && !_host.CanAttackPlayer(a, a.Target.Id))
+        {
+            a.StrikeTick = -1;
+            return false;
+        }
         if (distance < 6)
         {
             a.ChaseStart = Tick;
@@ -413,7 +418,8 @@ public sealed partial class AnimalWorld
             return true;
         }
         AttackStats attack = s.Attack!;
-        if (Tick >= a.AttackReady && InReach(a, at, attack.Reach, 0.75f) && MayAttack(a))
+        if (Tick >= a.AttackReady && InReach(a, at, attack.Reach, 0.75f) && MayAttack(a)
+            && (a.Target.Kind != TargetKind.Player || _host.CanAttackPlayer(a, a.Target.Id)))
         {
             StartAttack(a, a.Target);
             AttackSteer(a, at);

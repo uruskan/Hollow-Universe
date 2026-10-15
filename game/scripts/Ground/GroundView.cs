@@ -60,6 +60,12 @@ public partial class GroundView : Node3D
     private readonly HollowUniverse.Ships.ShipControls _shipControls = new();
     private readonly HollowUniverse.Ships.ShipCamera _shipCamera = new();
     private bool _wasPiloting;
+    private readonly SeatOrbitCamera _seatOrbit = new();
+    private uint _cameraSeatShip;
+    private int _cameraSeat = -1;
+    private Num.Vector3 _seatOrbitFacing = -Num.Vector3.UnitZ;
+    private bool _seatPrimaryCaptured;
+    private bool SeatThirdPerson => Client.Ships().Seated && _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Chase;
     private RenderWarmup _warmup = null!;
     private System.Collections.Generic.IReadOnlyList<LoadStage> _worldStages = Array.Empty<LoadStage>();
     private bool _greeted;
@@ -70,6 +76,7 @@ public partial class GroundView : Node3D
     private Keypad _keypad = null!;
     private Func<string, uint>? _keypadSends;
     private uint _codeSeq;
+    private bool _entryWasText;
     private float _lookDYaw, _lookDPitch;
 
     /// <summary>The camera's field of view when not zoomed (degrees, vertical): the console's fov, 75 by default.</summary>
@@ -189,6 +196,12 @@ public partial class GroundView : Node3D
         _keypad.Ask(title);
     }
 
+    public void ShowTextEntry(string title, string initial, Func<string, uint> sends)
+    {
+        _keypadSends = sends;
+        _keypad.AskText(title, initial);
+    }
+
     /// <summary>
     /// Turns the view's heading toward a direction of the world (scripted runs), its pitch kept: the heading is the
     /// movement code's, from local north (docs/WHOLE_WORLD.md §5), never an angle on a plane.
@@ -230,6 +243,9 @@ public partial class GroundView : Node3D
 
     /// <summary>Scripted input instead of the keyboard (screenshots, checks): attack, aim, walking.</summary>
     public InputFrame? Scripted { get; set; }
+
+    /// <summary>Standalone screenshots accept only the authored camera and neutral character input.</summary>
+    public bool IsolatedCapture { get; set; }
 
     /// <summary>Playing, the world drawn around the player, and the player to face (if any) in view.</summary>
     public bool ReadyForShot =>
@@ -304,7 +320,7 @@ public partial class GroundView : Node3D
         FxDirector.HeatHaze = false;
         // Things breaking apart (GROUND.md §9.4): every destruction the server reports, one path.
         AddChild(new GibsView { Name = "Gibs", Client = Client });
-        _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, ViewDirection = () => Look(_viewFrame, _yaw, _pitch), Command = Command, Build = _build, AskCode = ShowKeypad };
+        _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, ViewDirection = () => Look(_viewFrame, _yaw, _pitch), Command = Command, Build = _build, AskCode = ShowKeypad, AskText = ShowTextEntry };
         _hands = new HeldContext { Client = Client, Build = _build, Arms = _firstPerson, Placement = _placing, Say = _model.ShowNotice };
         // The radials the held item opens (the aim button, R) and the HUD's ammo come from its control.
         _model.HeldRadial = input => Client.Stations().AtStation
@@ -351,13 +367,14 @@ public partial class GroundView : Node3D
             if (_keypadSends is { } sends)
             {
                 _codeSeq = sends(code);
+                _entryWasText = _keypad.TextMode;
             }
         };
         Client.Local.IntentAnswered += answer =>
         {
             if (answer.Seq == _codeSeq && _codeSeq != 0)
             {
-                Sounds.Flat(answer.Done ? "codelock.accept" : "codelock.deny");
+                Sounds.Flat(_entryWasText ? (answer.Done ? "ui.click" : "ui.error") : (answer.Done ? "codelock.accept" : "codelock.deny"));
                 _codeSeq = 0;
             }
         };
@@ -472,10 +489,10 @@ public partial class GroundView : Node3D
         }
         // Free look while Alt is held and the game has the mouse (on foot, or in the cockpit): letting go, or the cursor
         // showing (inventory, crafting, map, menu, chat, keypad), turns the camera back to the view at once.
-        _freeLook.Hold(Input.IsPhysicalKeyPressed(Key.Alt) && Input.MouseMode == Input.MouseModeEnum.Captured &&
+        _freeLook.Hold(!IsolatedCapture && Input.IsPhysicalKeyPressed(Key.Alt) && Input.MouseMode == Input.MouseModeEnum.Captured &&
             (!Client.Ships().Piloting || _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit));
         InputFrame input = ReadInput(delta);
-        Hands(ref input, _presses);
+        if (!IsolatedCapture) Hands(ref input, _presses);
         _presses = HandPress.None;
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         _allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
@@ -524,6 +541,7 @@ public partial class GroundView : Node3D
         {
             _mapWarm = _ui.MapReady;
         }
+        _model.SeatOrbit = SeatThirdPerson;
         _model.Frame();
         Num.Vector3 feet = Client.RenderPosition;
         // A respawn or a far teleport on foot is an arrival: the land, plants and things around stream again (§4.3.1).
@@ -534,14 +552,28 @@ public partial class GroundView : Node3D
         FaceTarget(eye);
         Num.Vector3 forward = Look(_viewFrame, _yaw, _pitch);
         bool piloting = Client.Ships().Piloting && Client.Ships().OwnShipDef != null;
-        if (piloting != _wasPiloting)
+        uint seatedShip = Client.Ships().SeatShip?.NetId ?? 0;
+        int seatedIndex = Client.Ships().SeatIndex;
+        if (seatedShip != _cameraSeatShip || seatedIndex != _cameraSeat)
         {
-            // Boarded or stepped out: the lever back to zero, the chase camera placed afresh.
-            _wasPiloting = piloting;
-            _shipControls.Reset();
+            _cameraSeatShip = seatedShip;
+            _cameraSeat = seatedIndex;
+            _seatOrbit.Dragging = false;
+            _seatOrbitFacing = piloting ? OwnShipShown().Forward : forward;
             _shipCamera.Reset();
         }
-        if (piloting)
+        _ships.Cockpit = piloting && !SeatThirdPerson;
+        if (SeatThirdPerson)
+        {
+            (Num.Vector3 from, Num.Vector3 towards, Num.Vector3 camUp) = _seatOrbit.Follow(Client.RenderEye, up, _seatOrbitFacing);
+            float clearance = OverGround(from);
+            if (clearance < 0.3f) from += up * (0.3f - clearance);
+            eye = from;
+            forward = Num.Vector3.Normalize(Client.RenderEye - from);
+            _camera.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(forward), ToGodot(camUp)), ToGodot(eye));
+            _camera.Fov = FieldOfView;
+        }
+        else if (piloting)
         {
             // The ship's camera (cockpit or chase, V) on the predicted ship as drawn now; blasts shake it too.
             ShipState shown = OwnShipShown();
@@ -606,6 +638,7 @@ public partial class GroundView : Node3D
         if (_keypad.Visible || piloting)
         {
             _model.Prompt = null;
+            _model.TargetHealth = null;
         }
         _build.Aimed = _model.AimedTarget;
         // Where what is held would be placed, and its ghost (GROUND_SYSTEMS.md §6): the held item's control aims it.
@@ -621,6 +654,7 @@ public partial class GroundView : Node3D
         _raid.Refresh(delta);
         Time("raid", ref t0);
         _ships.Refresh(delta, _world?.Sky?.Exposure ?? 1);
+        _people.ShowOwnSeat(SeatThirdPerson);
         FillShipHud(piloting);
         FillStationSight(eye);
         Time("ships", ref t0);
@@ -628,7 +662,7 @@ public partial class GroundView : Node3D
         Time("fires", ref t0);
         _audio?.Refresh(delta, input.Sprint);
         Time("audio", ref t0);
-        _firstPerson.Refresh(delta, input, _yaw, _pitch);
+        _firstPerson.Refresh(delta, input, _yaw, _pitch, !Blocked && !_freeLook.Active);
         Holding()?.Arms(_hands, delta, input);
         Time("first person", ref t0);
         _overlay.Refresh(_camera, _people.Names(ToGodot(eye)), status);
@@ -668,7 +702,7 @@ public partial class GroundView : Node3D
     // in the background.
     private void UpdateMouse(bool playing)
     {
-        if (OS.HasFeature("headless") || Scripted != null)
+        if (IsolatedCapture || OS.HasFeature("headless") || Scripted != null)
         {
             return;
         }
@@ -683,6 +717,13 @@ public partial class GroundView : Node3D
     // (what they do with the item in hand is the hands', below).
     private InputFrame ReadInput(double delta)
     {
+        if (IsolatedCapture) return new InputFrame { Yaw = _yaw, Pitch = _pitch, ViewFrame = _viewFrame };
+        if (!Input.IsMouseButtonPressed(MouseButton.Left))
+        {
+            _seatPrimaryCaptured = false;
+            _seatOrbit.Dragging = false;
+        }
+        if (_ui.WantsCursor || _keypad.Visible || !GetWindow().HasFocus()) _seatOrbit.Dragging = false;
         if (Scripted is { } scripted)
         {
             scripted.Yaw = _yaw;
@@ -690,7 +731,8 @@ public partial class GroundView : Node3D
             scripted.ViewFrame = _viewFrame;
             return scripted;
         }
-        var input = new InputFrame { Yaw = _yaw, Pitch = _pitch, ViewFrame = _viewFrame, LookYaw = _freeLook.Yaw, LookPitch = _freeLook.Pitch };
+        var input = new InputFrame { Yaw = _yaw, Pitch = _pitch, ViewFrame = _viewFrame, LookYaw = _freeLook.Yaw, LookPitch = _freeLook.Pitch,
+            NoclipSpeed = _settings.NoclipSpeed };
         if (Blocked)
         {
             // Loading: the character stands as it arrived.
@@ -698,6 +740,13 @@ public partial class GroundView : Node3D
         }
         if (Client.Ships().Piloting)
         {
+            if (!_wasPiloting)
+            {
+                _wasPiloting = true;
+                _shipControls.Reset();
+                _shipControls.Throttle = Client.Ships().OwnShipCruise.Throttle;
+                _shipControls.AssistOff = Client.Ships().OwnShip.Has(ShipFlags.AssistOff);
+            }
             // Flying (G6): the stick, the lever and the thrusters instead of walking. With the interface open the lever
             // stays where it was and the stick lets go.
             bool hands = !_ui.WantsCursor && !_keypad.Visible && GetWindow().HasFocus();
@@ -708,13 +757,14 @@ public partial class GroundView : Node3D
             };
             return input;
         }
+        _wasPiloting = false;
         if (Client.Ships().Seated)
         {
             // In a seat that doesn't fly (IRON_WAKE.md §5.2): the view alone; the seat holds the body. At a station (IW3)
             // the left button fires and the right zooms, held, while the game has the mouse and no radial is open.
-            if (Client.Stations().AtStation && !_ui.WantsCursor && !_keypad.Visible && GetWindow().HasFocus() && _ui.Radial == null)
+            if (!SeatThirdPerson && Client.Stations().AtStation && !_ui.WantsCursor && !_keypad.Visible && GetWindow().HasFocus() && _ui.Radial == null)
             {
-                input.Station.Fire = Input.IsMouseButtonPressed(MouseButton.Left);
+                input.Station.Fire = !_seatPrimaryCaptured && Input.IsMouseButtonPressed(MouseButton.Left);
                 input.Station.Zoom = Input.IsMouseButtonPressed(MouseButton.Right);
             }
             return input;
@@ -762,7 +812,7 @@ public partial class GroundView : Node3D
     private IHeldControl? Holding()
     {
         LocalPlayer me = Client.Local;
-        if (me.IsDead || Client.Ships().Seated || me.HeldItem is not { } item || _held.Find((int)item.Held) is not { } control)
+        if (me.IsDead || me.IsWounded || Client.Ships().Seated || me.HeldItem is not { } item || _held.Find((int)item.Held) is not { } control)
         {
             return null;
         }
@@ -780,7 +830,7 @@ public partial class GroundView : Node3D
 
     // The battery's zoom while the right mouse is held at a station, else null.
     private float? StationZoom() =>
-        Client.Stations().Own is { } own && !_ui.WantsCursor && Input.IsMouseButtonPressed(MouseButton.Right) ? Math.Max(1, own.Station.Battery.Mount.Zoom) : null;
+        !IsolatedCapture && !SeatThirdPerson && Client.Stations().Own is { } own && !_ui.WantsCursor && Input.IsMouseButtonPressed(MouseButton.Right) ? Math.Max(1, own.Station.Battery.Mount.Zoom) : null;
 
     // The gunner's sight from the station as drawn (its mount the player's own prediction), and Tab opening the magazine
     // with the inventory.
@@ -807,7 +857,7 @@ public partial class GroundView : Node3D
         _inventoryAtStation = inventory;
         ShipStationDef s = own.Station;
         BatteryDef battery = s.Battery;
-        d.Show = _ui.Screen == GroundScreen.Hud;
+        d.Show = _ui.Screen == GroundScreen.Hud && !SeatThirdPerson;
         _stationSight.Visible = d.Show;
         d.Name = (def.Seats[s.Seat].Name ?? s.Id).ToUpperInvariant();
         d.Zoom = StationZoom() ?? 1;
@@ -893,6 +943,10 @@ public partial class GroundView : Node3D
     /// <summary>The ship camera (cockpit or chase), for scripted runs.</summary>
     public HollowUniverse.Ships.ShipCamera ShipCamera => _shipCamera;
 
+    /// <summary>Read-only orbit state for input checks, independent of the seated ship's movement.</summary>
+    public (float Yaw, float Pitch, float Distance, bool Dragging) SeatOrbitState =>
+        (_seatOrbit.Yaw, _seatOrbit.Pitch, _seatOrbit.Distance, _seatOrbit.Dragging);
+
     /// <summary>The ships drawn, for scripted runs.</summary>
     public ShipsView Ships => _ships;
 
@@ -908,6 +962,24 @@ public partial class GroundView : Node3D
         bool helm = Client.Ships().Piloting;
         switch (e)
         {
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left } button when SeatThirdPerson:
+                _seatOrbit.Dragging = button.Pressed;
+                _seatPrimaryCaptured = button.Pressed;
+                return true;
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.WheelUp } when SeatThirdPerson:
+                _seatOrbit.Zoom(1);
+                return true;
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.WheelDown } when SeatThirdPerson:
+                _seatOrbit.Zoom(-1);
+                return true;
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Middle } when helm:
+                _shipControls.CentreSteering();
+                return true;
+            case InputEventMouseMotion motion when SeatThirdPerson && _seatOrbit.Dragging && Input.MouseMode == Input.MouseModeEnum.Captured:
+                _seatOrbit.Drag(-motion.Relative.X * MouseSensitivity, motion.Relative.Y * MouseSensitivity);
+                return true;
+            case InputEventMouseMotion when SeatThirdPerson && !helm:
+                return true; // inspection never turns a gunner's aim or a passenger's body
             case InputEventMouseMotion motion when helm && Input.MouseMode == Input.MouseModeEnum.Captured && _freeLook.Active:
                 // Free look in the cockpit: the head turns about the seat, the stick lets go.
                 _freeLook.Turn(-motion.Relative.X * MouseSensitivity, -motion.Relative.Y * MouseSensitivity, 0);
@@ -952,6 +1024,9 @@ public partial class GroundView : Node3D
                         _shipCamera.Mode = _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Chase
                             ? HollowUniverse.Ships.ShipCameraMode.Cockpit : HollowUniverse.Ships.ShipCameraMode.Chase;
                         _shipCamera.Reset();
+                        _seatOrbit.Dragging = false;
+                        _seatPrimaryCaptured |= Input.IsMouseButtonPressed(MouseButton.Left);
+                        _seatOrbitFacing = helm ? OwnShipShown().Forward : Look(_viewFrame, _yaw, _pitch);
                         break;
                 }
                 return true;
@@ -1017,16 +1092,18 @@ public partial class GroundView : Node3D
         d.TimeToGround = d.VerticalSpeed < -0.5f ? d.OverGround / -d.VerticalSpeed : float.PositiveInfinity;
         // The helm's keys from its seat's data (SeatKeys): the seat's line at rest (or in orbit, the descent), the flight
         // keys in the corner.
-        string seatLine = SeatKeys.Line(SeatKeys.Of(def, def.Helm), s.Has(ShipFlags.InOrbit));
-        d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  RESUME FLIGHT" : s.Has(ShipFlags.Landed) || s.Asleep ? seatLine : null;
+        string seatLine = SeatKeys.Line(SeatKeys.Of(def, def.Helm), inOrbit: false, includeCamera: false, includeLeave: false);
+        d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  RESUME FLIGHT" : null;
         d.Notice = null;
-        d.Hints = SeatKeys.FlightHints(_shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit) + " · " + seatLine;
+        d.Hints = SeatKeys.FlightHints(_shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit) +
+            (seatLine.Length > 0 ? " · " + seatLine : "");
         _shipHud.Refresh();
     }
 
     public override void _UnhandledInput(InputEvent e)
     {
-        if (_ui.WantsCursor || _keypad.Visible || Blocked)
+        if (IsolatedCapture) return;
+        if (_ui.WantsCursor || _ui.TakesKeys || _keypad.Visible || Blocked || !GetWindow().HasFocus())
         {
             return;
         }
@@ -1035,12 +1112,18 @@ public partial class GroundView : Node3D
             GetViewport().SetInputAsHandled();
             return;
         }
+        if (ConsoleShortcut(e))
+        {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
         switch (e)
         {
             case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured:
             {
-                // A gunner's zoom turns the mouse down with it (its own sensitivity, IW3).
-                float sensitivity = MouseSensitivity / (StationZoom() ?? 1);
+                // Held optics and station sights preserve mouse precision at their actual magnification.
+                float zoom = StationZoom() ?? (Client.Local.Gun.Aimed ? Math.Max(1, Client.Local.Gun.Zoom) : 1);
+                float sensitivity = MouseSensitivity / zoom;
                 float yaw = -motion.Relative.X * sensitivity, pitch = -motion.Relative.Y * sensitivity;
                 if (_freeLook.Active)
                 {
@@ -1082,6 +1165,39 @@ public partial class GroundView : Node3D
                 }
                 break;
         }
+    }
+
+    // Menus/text fields and seat controls get first refusal. Shortcuts dispatch through the ordinary console;
+    // the server alone grants noclip, and only its acknowledged state enables the default flight-speed wheel.
+    private bool ConsoleShortcut(InputEvent e)
+    {
+        string? key = null;
+        InputEventWithModifiers? modifiers = null;
+        int wheel = 0;
+        if (e is InputEventKey { Pressed: true, Echo: false } press)
+        {
+            string name = press.PhysicalKeycode.ToString();
+            if (name.Length == 4 && name.StartsWith("Key", StringComparison.Ordinal) && char.IsDigit(name[3])) name = name[3..];
+            key = name;
+            modifiers = press;
+        }
+        else if (e is InputEventMouseButton { Pressed: true } mouse && mouse.ButtonIndex is MouseButton.WheelUp or MouseButton.WheelDown)
+        {
+            wheel = mouse.ButtonIndex == MouseButton.WheelUp ? 1 : -1;
+            key = wheel > 0 ? "MWHEELUP" : "MWHEELDOWN";
+            modifiers = mouse;
+        }
+        if (key == null || modifiers == null) return false;
+        string chord = (modifiers.CtrlPressed && key != "Ctrl" ? "CTRL+" : "") +
+            (modifiers.AltPressed && key != "Alt" ? "ALT+" : "") +
+            (modifiers.ShiftPressed && key != "Shift" ? "SHIFT+" : "") + key;
+        if (_console.RunBinding(chord)) return true;
+        if (wheel != 0 && !Client.Ships().Seated && Client.HasCharacter && Client.Character.Has(MoveCheats.Noclip))
+        {
+            _console.AdjustNoclipSpeed(wheel);
+            return true;
+        }
+        return false;
     }
 
     /// <summary>

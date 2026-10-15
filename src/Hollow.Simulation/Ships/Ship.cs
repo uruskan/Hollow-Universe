@@ -71,6 +71,7 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder, IAuthorisation
         Def = def;
         Owner = owner;
         Cargo = new Container(ContainerKind.Box, Math.Max(1, def.CargoSlots));
+        Fuel = new ShipFuel(def);
         Parts = def.Interior?.Rest.Clone() as float[] ?? Array.Empty<float>();
         Occupants = new EntityId[def.Seats.Count];
         Doors = new ShipDoorState[def.Doors.Count];
@@ -169,6 +170,13 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder, IAuthorisation
     public bool Autopilot { get; set; }
 
     public Container Cargo { get; }
+
+    public ShipFuel Fuel { get; }
+
+    /// <summary>Updates the motor/prediction/HUD total from the inventory and its partly burned unit.</summary>
+    public void SyncFuel() { State.Fuel = Fuel.Amount; State.FuelReserve = Fuel.Reserve; }
+
+    public void LoadFuel(float amount) { Fuel.Load(amount); SyncFuel(); }
 
     ulong IOwned.OwnerId => Owner.Value;
 

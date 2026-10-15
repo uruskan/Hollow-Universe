@@ -61,7 +61,8 @@ internal static class Checks
             {
                 return Outcome.Done;
             }
-            return (hit.Target.Family == TargetFamily.Ground && c.SightThroughGround) || hit.Distance >= distance - slack ||
+            return (hit.Target.Family == TargetFamily.Ground && c.SightThroughGround) ||
+                (c.SightThroughSupport && !c.Support.IsNone && hit.Target.Whole == c.Support.Whole) || hit.Distance >= distance - slack ||
                 Vector3.Distance(hit.Point, c.Nearest) <= slack
                 ? Outcome.Done
                 : OutcomeCode.OutOfSight;

@@ -16,6 +16,7 @@ public sealed partial class Vegetation
     public const ScatterKind NotDrawn = (ScatterKind)255;
 
     private readonly Dictionary<ulong, (Task<List<float>> Job, Block Block)> _blockJobs = new();
+    private readonly HashSet<ulong> _blockAgain = new();
 
     /// <summary>
     /// Set by the ground game: the kind to draw a scatter object of a tile as: its own, another (a picked berry bush as
@@ -36,6 +37,13 @@ public sealed partial class Vegetation
 
     /// <summary>How many times the meshes near the camera were put in place (the game notes it when measuring).</summary>
     public int NearBuilds { get; private set; }
+
+    /// <summary>Opt-in main-thread upload timings for the ground game's frame profiler.</summary>
+    public bool MeasureRefreshes { get; set; }
+
+    public double LastNearUploadMilliseconds { get; private set; }
+
+    public long LastNearUploadBytes { get; private set; }
 
     private Task<NearData>? _nearJob;
 
@@ -74,7 +82,15 @@ public sealed partial class Vegetation
             _nearDirty = true;
             return;
         }
+        bool measure = MeasureRefreshes;
+        long began = measure ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
+        long bytes = measure ? GC.GetAllocatedBytesForCurrentThread() : 0;
         PlaceNear(job.Result);
+        if (measure)
+        {
+            LastNearUploadMilliseconds = System.Diagnostics.Stopwatch.GetElapsedTime(began).TotalMilliseconds;
+            LastNearUploadBytes = GC.GetAllocatedBytesForCurrentThread() - bytes;
+        }
         NearBuilds++;
     }
 
@@ -97,9 +113,15 @@ public sealed partial class Vegetation
         }
         int shift = _level - _blockLevel;
         var key = new TileKey(tile.Face, _blockLevel, tile.X >> shift, tile.Y >> shift);
-        if (!_blocks.TryGetValue(key.Packed, out Block? b) || !b.Built || _blockJobs.ContainsKey(key.Packed))
+        if (!_blocks.TryGetValue(key.Packed, out Block? b) || !b.Built)
         {
             return; // not built yet: it will be, with the change
+        }
+        if (_blockJobs.ContainsKey(key.Packed))
+        {
+            // Its worker captured an earlier state. Retain the newer change until that job is applied.
+            _blockAgain.Add(key.Packed);
+            return;
         }
         if (b.Instance == null || _library == null || ChangesSnapshot == null)
         {
@@ -135,7 +157,8 @@ public sealed partial class Vegetation
                 continue;
             }
             done.Add(key);
-            if (!job.IsCompletedSuccessfully || block.Instance == null || !_blocks.ContainsKey(key))
+            if (!job.IsCompletedSuccessfully || block.Instance == null || !_blocks.TryGetValue(key, out Block? drawn) ||
+                !ReferenceEquals(block, drawn))
             {
                 continue;
             }
@@ -145,7 +168,13 @@ public sealed partial class Vegetation
         }
         foreach (ulong key in done)
         {
+            Block prior = _blockJobs[key].Block;
             _blockJobs.Remove(key);
+            if (_blockAgain.Remove(key) && _blocks.TryGetValue(key, out Block? current) && ReferenceEquals(prior, current))
+            {
+                int span = 1 << (_level - _blockLevel);
+                Refresh(new TileKey(current.Key.Face, _level, current.Key.X * span, current.Key.Y * span), near: false);
+            }
         }
     }
 }

@@ -198,13 +198,13 @@ internal sealed class SocketSolver : IPlacementSolver
         }
         else
         {
-            // A free foundation: laid again from its top (the claim's position) and heading (the variant's 15° steps).
-            if (piece.Family != PieceFamily.Foundation || claim.Variant is < 0 or >= BuildingWorld.HeadingSteps)
+            // A free foundation: laid again from its top and the existing wire pose's continuous heading.
+            if (claim.Support != TargetRef.Ground || piece.Family != PieceFamily.Foundation || !float.IsFinite(claim.Yaw))
             {
                 return null;
             }
             Vector3 up = world.Frame.UpAt(claim.Position);
-            plan = building.FoundationAt(piece, claim.Position - up * (float)building.Data.FoundationClearance, claim.Variant * BuildingWorld.HeadingStep);
+            plan = building.FoundationAt(piece, claim.Position - up * (float)building.Data.FoundationClearance, claim.Yaw);
             refused = OutcomeCode.Floating;
         }
         if (plan == null)
@@ -238,7 +238,8 @@ internal sealed class SocketSolver : IPlacementSolver
             Support = plan.Support?.Ref ?? TargetRef.Ground,
             Surface = free ? PlacementSurfaces.Terrain : world.Data.SurfaceOf(plan.Support!.Def.Family),
             Socket = free ? 0 : plan.Socket.Code,
-            Variant = free ? plan.HeadingSteps : plan.Orientation,
+            Variant = free ? 0 : plan.Orientation,
+            Yaw = free ? (float)plan.Heading : 0,
             Nearest = Solvers.F(frame.ToZone(PieceGeometry.ClosestPoint(world.Building!.Data, plan.Piece, plan.Pose, eyeLocal))),
             SightThroughGround = plan.Piece.Family == PieceFamily.Foundation,
             Detail = plan,
@@ -348,6 +349,7 @@ internal sealed class AttachSolver : IPlacementSolver
             Normal = up,
             Support = door.Ref with { Part = 1 },
             Surface = PlacementSurfaces.Door,
+            SightThroughSupport = true,
             Nearest = position,
             Detail = door,
         };

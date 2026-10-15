@@ -1,5 +1,31 @@
 # Known problems and the plan for them (14 October 2026)
 
+## AB Test B throttle at first boarding — 15 October 2026
+
+The owner reports that W/S would not adjust throttle immediately after entering a ship until boost was used.
+The old `ShipControls.Read` reset every throttle value inside ±0.02 to zero. With the default lever rate
+of 1.25 per second, each frame's change stayed inside that range above 62.5 FPS, trapping the lever at neutral.
+Boost could still request motion through its separate input; it does not unlock the lever.
+
+The current working code already uses `PilotSteering.AdjustThrottle`, which stops at zero only when crossing
+neutral and permits the next held frame to leave it. This report adds dedicated `ShipThrottleTests` for
+both directions, 30–240 FPS, neutral crossings, retained position, limits and tiny changes accumulated before
+network quantization. Build/test evidence and the live-validation limit are recorded in [DEVELOPMENT.md](DEVELOPMENT.md).
+
+## AB Test B held items — 15 October 2026
+
+The owner reports poor first-person grip/composition, swing motion, and visible hit contact.
+Source investigation confirmed that handle-held tools ignore catalogue first-person placement;
+the item-only preview and gameplay disagree; fingers and swings are rebuilt procedurally;
+the swing's cosmetic impact shake also plays on misses; and remote action timing does not
+retain the item consumed/thrown from the final stack. The approved repair covers every held
+item and includes a visual authoring editor. Status: **implemented and verified, 15 October 2026**
+(working tree; combined repair session owns the integration commit). All 41 held-model profiles,
+175 authored actions, separate FPS/TPS renderers, tick-aligned contact and the workshop are wired.
+The rifle's real magazine now moves with the support hand; full-cycle captures verified the
+reload camera-clipping repair. See [HELD_ITEMS.md](HELD_ITEMS.md) for exact tests, captures,
+adaptive reach behaviour and the existing ObjectDB/Jolt shutdown warnings.
+
 One place for everything that is known to be wrong or missing in the ground game, where it was found, what causes it,
 which package fixes it, and whether that package has started. Before this file the list was spread over the owner's
 playtest chats, the handoff, the design doc's "left for later" notes and the session memory, and the owner was not
@@ -201,3 +227,25 @@ code and the scans go into ground, cliffs, rocks and deadwood after a licence ch
 - The 30 merged worktrees under `Hollow-wt` were removed (14 October).
 - The kernel (GROUND_SYSTEMS.md §12), the F2 developer panel (GROUND.md §8.5) and the merge into `main` (14 October):
   architecture and tools, not fixes to the findings above.
+
+## AB Test B repair validation findings — 15 October 2026
+
+Current implementation/evidence is tracked in [REPAIR_STATUS.md](REPAIR_STATUS.md); historical proposals above do
+not override the current design or the owner's authorized repair work.
+
+- Vegetation requests overlaid their full-scatter flag on a packed cube-face bit, so distant tree requests could
+  suppress later nearby vegetation permanently. Separate address/mode keys fix this; two regressions and the
+  previously stuck actual teleport pass.
+- Ordinary natural hits rebuilt nearby plants and outcrop tiles without any rendered presence/stage change.
+  Visible-state invalidation removes those redundant uploads while retaining cues, weak spots, depletion and fall.
+  Four regressions and actual hit-event traces pass. First-hit setup and broader stutter remain open; concurrent
+  external GPU work prevented a clean overall FPS comparison.
+- GroundTerrain evicted a still-requested corner tile beyond its radial cache radius, preventing the building
+  viewer from settling. Requested tiles are now retained; the 45-view joint tour completes with all 73 images.
+  Changed pixels under camera movement are diagnostic data, not a blanket proof that all mesh flicker is resolved.
+- A fitted scope passed geometric alignment checks but presented a tiny view through its physical tube. It now
+  images the shared world into the rear lens only during ADS. Day/night captures, hand/eye alignment, culling and
+  render shutdown pass. Night validation uses the actual player's planet position and rendered sun elevation.
+- God-mode immunity, ordinary death/respawn and the complete corpse-to-backpack sequence pass their recorded tests.
+  The original reported native crash still has no supplied stack trace; known engine exit resource warnings are
+  retained in the evidence, not represented as a clean shutdown result.

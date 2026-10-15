@@ -4,7 +4,7 @@
 // sand, cloud shadows, and the air in front of it. The swell, the ripples and the foam are measured on the tile's cube
 // face along its axes, with up from the planet's centre (docs/WHOLE_WORLD.md §10.1), blended across face seams.
 shader_type spatial;
-render_mode cull_back, depth_draw_always, diffuse_burley, specular_schlick_ggx;
+render_mode cull_disabled, depth_draw_always, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/surface_atmosphere.gdshaderinc"
 #include "res://shaders/surface_planet.gdshaderinc"
@@ -18,7 +18,7 @@ uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_dis
 
 uniform vec3 absorption = vec3(0.45, 0.10, 0.075);   // per metre
 uniform vec3 scattering = vec3(0.004, 0.022, 0.028); // light the water itself sends back, per unit of light
-uniform float swell = 0.35;                          // metres
+uniform float swell = 0.16;                          // metres; small-world shores must remain readable
 uniform float seam_band = 4.0;                       // metres either side of a face seam the waves blend over
 
 varying vec3 v_world;
@@ -113,21 +113,38 @@ void fragment() {
 		vec2 sl = (s1 * 0.55 + s2 * 0.45 + s3 * 0.35 * detail) * calm;
 		tilt += (t * sl.x + b * sl.y) * fw[i];
 		slope += sl * fw[i];
-		foam_noise += texture(wave_normals, p / 3.1 + vec2(0.02, 0.0) * TIME).b * fw[i];
-		broken += texture(wave_normals, p / 23.0 + vec2(0.003, 0.001) * TIME).b * fw[i];
-		lace_noise += texture(wave_normals, p / 4.7 - vec2(0.0, 0.05) * TIME).b * fw[i];
+		foam_noise += texture(wave_normals, p / 3.1 + vec2(0.02, 0.0) * TIME).a * fw[i];
+		broken += texture(wave_normals, p / 23.0 + vec2(0.003, 0.001) * TIME).a * fw[i];
+		lace_noise += texture(wave_normals, p / 4.7 - vec2(0.0, 0.05) * TIME).a * fw[i];
 		swash_phase += (p.x * 0.05 + p.y * 0.03) * fw[i];
 	}
 	vec3 n = normalize(up + tilt);
+	// Both sides are continuous. Back-face culling left only occasional wave facets visible from below,
+	// producing bright broken horizontal lines instead of the underside of the water surface.
+	bool submerged = dot(CAMERA_POSITION_WORLD - v_world, up) < 0.0;
+	if (submerged) n = -n;
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 
 	// What lies behind the surface: how much water the view ray crosses.
 	float raw = texture(depth_texture, SCREEN_UV).r;
 	vec4 behind = INV_PROJECTION_MATRIX * vec4(SCREEN_UV * 2.0 - 1.0, raw, 1.0);
 	behind.xyz /= behind.w;
-	float path = max(length(behind.xyz) - length(VERTEX), 0.0);
+	float ray_path = max(length(behind.xyz) - length(VERTEX), 0.0);
+	float ndv = clamp(dot(n, normalize(CAMERA_POSITION_WORLD - v_world)), 0.0, 1.0);
+	float depth = max(v_floor, 0.0);
+	// The depth buffer can contain sky, or an object in front of the water. The sampled bed depth is also a
+	// conservative bound at grazing angles; never let either case turn a shoreline into an opaque black sheet.
+	float bed_path = depth / max(ndv, 0.12);
+	float path = raw <= 0.000001 ? bed_path : min(ray_path, max(bed_path * 1.5, 0.03));
+	if (submerged) path = dist; // from the submerged eye to the surface, not from the surface to its bed
+	path = clamp(path, 0.0, 80.0);
 	// Bend the view of the floor with the ripples, more through deeper water.
-	vec2 bent = SCREEN_UV + slope * 0.04 * clamp(path / 4.0, 0.0, 1.0) / max(dist * 0.02, 1.0);
+	vec2 bent = clamp(SCREEN_UV + slope * 0.018 * clamp(path / 4.0, 0.0, 1.0) / max(dist * 0.02, 1.0), vec2(0.001), vec2(0.999));
+	float bent_raw = texture(depth_texture, bent).r;
+	vec4 bent_point = INV_PROJECTION_MATRIX * vec4(bent * 2.0 - 1.0, bent_raw, 1.0);
+	if (bent_raw > 0.000001 && -bent_point.z / bent_point.w < -VERTEX.z) {
+		bent = SCREEN_UV;
+	}
 	vec3 floor_colour = textureLod(screen_texture, bent, 0.0).rgb;
 
 	// The air in front of the surface (also already on the floor's colour, so take it off there once).
@@ -136,43 +153,37 @@ void fragment() {
 	hu_aerial(v_world, CAMERA_POSITION_WORLD, 8, dummy, fog);
 	vec3 clear_floor = max(floor_colour - fog.rgb * fog.a, vec3(0.0)) / max(1.0 - fog.a, 0.05);
 
-	// Light reaching the water: the sun through the air and clouds, and the sky.
-	float mus = dot(hu_sun_direction, up);
 	v_cloud = hu_cloud_shadow(v_world);
-	vec3 light = hu_sun_illuminance * hu_light_transmittance(0.0, mus) * max(mus, 0.0) * v_cloud / HU_PI
-		+ hu_sun_illuminance * hu_multiscatter(0.0, mus) * 2.5
-		+ hu_moon_illuminance * hu_light_transmittance(0.0, dot(hu_moon_direction, up)) * max(dot(hu_moon_direction, up), 0.0) / HU_PI;
-
 	vec3 through = exp(-absorption * path);
 	float depth_mix = 1.0 - dot(through, vec3(1.0 / 3.0));
-	// Shallows over sand glow turquoise; deep water is a darker blue.
+	// The water body is lit by the same sun, moon and ambient light as the ground. The old emission-only body
+	// omitted the game's moonlight boost, leaving black water beside brightly lit foam at night.
 	float shallows = 1.0 - smoothstep(0.5, 6.0, path);
-	vec3 body = clear_floor * through + scattering * light * depth_mix * (4.0 + 5.0 * shallows) * vec3(0.8, 1.0, 1.0);
-	float ndv = clamp(dot(n, normalize(CAMERA_POSITION_WORLD - v_world)), 0.0, 1.0);
+	vec3 body_colour = mix(vec3(0.012, 0.045, 0.055), vec3(0.035, 0.11, 0.095), shallows);
 	float fresnel = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
 
-	// Foam where the water thins out on the shore, broken by the ripples.
-	float foam = (1.0 - smoothstep(0.05, 0.9, path)) * smoothstep(0.35, 0.75, foam_noise + 0.25 * sin(TIME * 1.3 + swash_phase * 3.0));
-	foam = max(foam, (1.0 - smoothstep(0.0, 0.25, path)) * 0.6);
+	// Foam follows physical bed depth, not the distance along the view ray. It breaks into small patches rather
+	// than the old compulsory white contour around every shore.
+	float foam = (1.0 - smoothstep(0.025, 0.18, depth))
+		* smoothstep(0.58, 0.86, foam_noise + 0.16 * sin(TIME * 1.3 + swash_phase * 3.0)) * 0.5;
 	// Surf: lines of breaking waves along the depth contours, rolling in toward the beach and fading as they
 	// spread; broken up by the ripples, never closer than a few metres from each other.
-	float depth = max(v_floor, 0.0);
 	float surf_zone = smoothstep(0.08, 0.35, depth) * (1.0 - smoothstep(0.9, 2.8, depth)) * (1.0 - smoothstep(150.0, 600.0, dist)) * (1.0 - v_inland);
 	float phase = depth * 0.95 + TIME * 0.13 + broken * 0.7;
 	float f = fract(phase);
 	float crest = smoothstep(0.0, 0.03, f) * (1.0 - smoothstep(0.03, 0.2, f));
 	float lace = smoothstep(0.42, 0.75, lace_noise + crest * 0.25);
 	float runs = smoothstep(0.35, 0.6, broken);
-	foam = max(foam, crest * lace * runs * surf_zone * 0.85);
+	foam = max(foam, crest * lace * runs * surf_zone * 0.3);
 	// The swash: a thin sheet of foam running up the sand and back.
-	float swash = 1.0 - smoothstep(0.0, 0.1 + 0.08 * sin(TIME * 0.7 + swash_phase), depth);
-	foam = max(foam, swash * smoothstep(0.3, 0.6, foam_noise) * 0.8 * (1.0 - smoothstep(80.0, 300.0, dist)) * (1.0 - v_inland));
+	float swash = 1.0 - smoothstep(0.0, 0.055 + 0.025 * sin(TIME * 0.7 + swash_phase), depth);
+	foam = max(foam, swash * smoothstep(0.58, 0.82, foam_noise) * 0.3 * (1.0 - smoothstep(80.0, 300.0, dist)) * (1.0 - v_inland));
 	// Inland water only thins out at its edge, without the sea's foam.
 	foam *= mix(1.0, 0.35, v_inland);
 
-	ALBEDO = vec3(0.85) * foam;
-	EMISSION = body * (1.0 - fresnel) * (1.0 - foam);
-	ROUGHNESS = mix(mix(0.04, 0.14, smoothstep(300.0, 20000.0, dist)), 0.7, foam);
+	ALBEDO = mix(body_colour * depth_mix, vec3(0.65, 0.68, 0.66), foam);
+	EMISSION = clear_floor * through * (1.0 - fresnel) * (1.0 - foam);
+	ROUGHNESS = mix(mix(0.12, 0.22, smoothstep(300.0, 20000.0, dist)), 0.8, foam);
 	SPECULAR = 0.35;
 	METALLIC = 0.0;
 	FOG = fog;

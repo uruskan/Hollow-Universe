@@ -319,7 +319,7 @@ public sealed class ShipModule : ServerModule
         {
             return null;
         }
-        return new[] { ShipConvert.ToOwn(ship.State, netId, ship.Def.Id) };
+        return new[] { ShipConvert.ToOwn(ship.State, netId, ship.Def.Id, ship.Input) };
     }
 
     // ---------------------------------------------------------------- storage

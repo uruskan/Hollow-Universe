@@ -92,7 +92,7 @@ public sealed partial class ClientGroundUi
             foreach (RespawnPointView point in Me.RespawnPoints)
             {
                 _mapMarkers.Add(At(point.Bed ? MapMarkerKind.Bed : MapMarkerKind.Bag, point.Position,
-                    C.Item(point.Bed ? "bed" : "sleeping-bag")?.Name ?? (point.Bed ? "Bed" : "Sleeping bag")));
+                    point.Name.Length > 0 ? point.Name : C.Item(point.Bed ? "bed" : "sleeping-bag")?.Name ?? (point.Bed ? "Bed" : "Sleeping bag")));
             }
             if (Me.DeathPoint is { } death)
             {

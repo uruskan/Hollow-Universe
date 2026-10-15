@@ -185,6 +185,9 @@ public sealed class PlacementCandidate
     /// <summary>The ground doesn't hide it (a foundation sits partly in the ground).</summary>
     public bool SightThroughGround { get; set; }
 
+    /// <summary>The attachment's own support may cover its socket (a lock on the far face of its door leaf).</summary>
+    public bool SightThroughSupport { get; set; }
+
     /// <summary>What its kind and solver worked out: a piece's <see cref="PlacementPlan"/>, a door's frame, a lock's door.</summary>
     public object? Detail { get; set; }
 

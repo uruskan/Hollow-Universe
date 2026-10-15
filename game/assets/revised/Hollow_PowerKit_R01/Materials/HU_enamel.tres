@@ -1,0 +1,21 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_PowerKit_R01/Textures/Enamel_BaseColor.png" id="1_iv25d"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_PowerKit_R01/Textures/Enamel_ORM.png" id="2_jlo5o"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_PowerKit_R01/Textures/Enamel_NormalGL.png" id="3_cln3u"]
+
+[resource]
+resource_name = "HU_enamel"
+vertex_color_use_as_albedo = true
+albedo_texture = ExtResource("1_iv25d")
+metallic = 1.0
+metallic_texture = ExtResource("2_jlo5o")
+metallic_texture_channel = 2
+roughness_texture = ExtResource("2_jlo5o")
+roughness_texture_channel = 1
+normal_enabled = true
+normal_scale = 0.22
+normal_texture = ExtResource("3_cln3u")
+ao_enabled = true
+ao_texture = ExtResource("2_jlo5o")
+texture_filter = 5

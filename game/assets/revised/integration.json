@@ -1,0 +1,327 @@
+{
+  "schema": 1,
+  "method": "Verified local Godot scene integration",
+  "packages": [
+    {
+      "source": "D:\\GameDev\\Assets\\Hollow_Salvage_R01",
+      "source_manifest_sha256": "c88ae6052a2a0e9b3acc6dbafce9c24a8ce3dffa12fc3ad8c798a338c98dbe5c",
+      "verified_source_files": 256,
+      "models": [
+        "gears",
+        "springs",
+        "metal-pipe",
+        "sheet-metal",
+        "tech-scrap",
+        "rope"
+      ],
+      "files": [
+        {
+          "source": "Scenes/gears.tscn",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Scenes/gears.tscn",
+          "source_sha256": "98f2b5ed1418841f3b90c68140f9104fb30555741539875ffcde0eb74f9c8c7a",
+          "installed_sha256": "353186bf45ac5aa99b6ce1d182d60e9566c5823e41eabd08ff53dcb2cf281f86"
+        },
+        {
+          "source": "Scenes/springs.tscn",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Scenes/springs.tscn",
+          "source_sha256": "2fe09d0924bdfc252682d2d7481a9cd603bbe11fbde7a00b102615b250a6a49a",
+          "installed_sha256": "ff760b5cc8cfc972eed0da14630bdb13d94229e0f7f670f723ef7e33b17d7a30"
+        },
+        {
+          "source": "Scenes/metal-pipe.tscn",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Scenes/metal-pipe.tscn",
+          "source_sha256": "8ce408c5dfadc16ae4637d9eb7e83ae9a43f3e926392a122950baa739d263b00",
+          "installed_sha256": "1fc1823ff76abce7097cd87f16e23691cc482a57e6610d7b186119ef19231bde"
+        },
+        {
+          "source": "Scenes/sheet-metal.tscn",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Scenes/sheet-metal.tscn",
+          "source_sha256": "e15320c2caea526f6ac3adb128fe9b2b034b1ec586bc68fb3863197f76130a9a",
+          "installed_sha256": "b5ed37adca6d9358ec20d43b5b8ae761360f1c903b2df1ea1e01bff7d32133d1"
+        },
+        {
+          "source": "Scenes/tech-scrap.tscn",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Scenes/tech-scrap.tscn",
+          "source_sha256": "a6026f6cff33b5d189b5f3a96af583449f88467c78e5619c5c42c5bbd87de4ab",
+          "installed_sha256": "2363b4f7b004a7c148de15b1ac8333bdae0c28ab5d0326506a09dc6ed2e5f367"
+        },
+        {
+          "source": "Scenes/rope.tscn",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Scenes/rope.tscn",
+          "source_sha256": "ae3459d08b29dc57f576fb9a2f1114a8edf7519a2496389609b448c12ab90c13",
+          "installed_sha256": "fc55a62a742aa8204fe1372eeab4bedeb6c7bdb9bb96fdafddc8f4915d46649a"
+        },
+        {
+          "source": "Materials/HS_CorrugatedSteel.tres",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Materials/HS_CorrugatedSteel.tres",
+          "source_sha256": "7af1a8f88670e09af41b45b07c467131f60eca1580a149ff04c0b95aa2d84da1",
+          "installed_sha256": "5f25970130e7c34314193e6c0f3be52b20a12a956a75defd7f873456909ba164"
+        },
+        {
+          "source": "Materials/HS_RopeFibre.tres",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Materials/HS_RopeFibre.tres",
+          "source_sha256": "f8114ed972b3cd5230593ce55e81da30206f678498a4291a2601629bd50cb836",
+          "installed_sha256": "11d54a4f3f29724d6a1c902212c9b8130befbe0f25464a8c629a098d0262b925"
+        },
+        {
+          "source": "Materials/HS_SalvageTrim.tres",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Materials/HS_SalvageTrim.tres",
+          "source_sha256": "d7626a0b826dfc591e9d777b7d16010bb9be7ed8cd1322eed585a25b6046b873",
+          "installed_sha256": "cc23bb77955ac087d630d03b965e7f2f3a7d87cffbe50425678564cff66546bb"
+        },
+        {
+          "source": "Textures/CorrugatedSteel_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Textures/CorrugatedSteel_BaseColor.png",
+          "source_sha256": "a5484850ea8a1e4859bcf66fea48e8d02fd4f0402ab49f0427b286d5e9b538e6",
+          "installed_sha256": "a5484850ea8a1e4859bcf66fea48e8d02fd4f0402ab49f0427b286d5e9b538e6"
+        },
+        {
+          "source": "Textures/CorrugatedSteel_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Textures/CorrugatedSteel_NormalGL.png",
+          "source_sha256": "f51baf8c922bc9fd5f5249675ec06ec16eeec576f6a948c62d2d4345c2fc2aad",
+          "installed_sha256": "f51baf8c922bc9fd5f5249675ec06ec16eeec576f6a948c62d2d4345c2fc2aad"
+        },
+        {
+          "source": "Textures/CorrugatedSteel_ORM.png",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Textures/CorrugatedSteel_ORM.png",
+          "source_sha256": "2b1759423216fda85db1605b20eb578d754b26d849fc22a33af571d09183b34e",
+          "installed_sha256": "2b1759423216fda85db1605b20eb578d754b26d849fc22a33af571d09183b34e"
+        },
+        {
+          "source": "Textures/RopeFibre_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Textures/RopeFibre_BaseColor.png",
+          "source_sha256": "fc553e067c347ae27bf5a640b77910055f70bfa6a8a054ac2dcc9166c9ff51e3",
+          "installed_sha256": "fc553e067c347ae27bf5a640b77910055f70bfa6a8a054ac2dcc9166c9ff51e3"
+        },
+        {
+          "source": "Textures/RopeFibre_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Textures/RopeFibre_NormalGL.png",
+          "source_sha256": "1f69efa135c33b75b01e0d2eb483f9cf303f4d0100742f7fcebc3aed5c9bef1c",
+          "installed_sha256": "1f69efa135c33b75b01e0d2eb483f9cf303f4d0100742f7fcebc3aed5c9bef1c"
+        },
+        {
+          "source": "Textures/RopeFibre_ORM.png",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Textures/RopeFibre_ORM.png",
+          "source_sha256": "edab711a3ad896c565e678afcd06e3b5236535f076e09abaeb2bf613280669ec",
+          "installed_sha256": "edab711a3ad896c565e678afcd06e3b5236535f076e09abaeb2bf613280669ec"
+        },
+        {
+          "source": "Textures/SalvageTrim_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Textures/SalvageTrim_BaseColor.png",
+          "source_sha256": "c15560b156d60cc852cfbb5967ecffa71589bd9ae2ad7458d2c031f4ae8bf1f4",
+          "installed_sha256": "c15560b156d60cc852cfbb5967ecffa71589bd9ae2ad7458d2c031f4ae8bf1f4"
+        },
+        {
+          "source": "Textures/SalvageTrim_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Textures/SalvageTrim_NormalGL.png",
+          "source_sha256": "d7e9d9cfdb827d213b314be68be56952372f6977d6e696246ad7750ac8b3579d",
+          "installed_sha256": "d7e9d9cfdb827d213b314be68be56952372f6977d6e696246ad7750ac8b3579d"
+        },
+        {
+          "source": "Textures/SalvageTrim_ORM.png",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Textures/SalvageTrim_ORM.png",
+          "source_sha256": "995dd2256c963c7422d6411b6075199480a5acf4113fcdf61812b1cf734666e2",
+          "installed_sha256": "995dd2256c963c7422d6411b6075199480a5acf4113fcdf61812b1cf734666e2"
+        },
+        {
+          "source": "HANDOFF.json",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/HANDOFF.json",
+          "source_sha256": "d810702ea58af5fc9daad0673617c73e13d95871bdb4dd8c6bf9c457773fd702",
+          "installed_sha256": "d810702ea58af5fc9daad0673617c73e13d95871bdb4dd8c6bf9c457773fd702"
+        },
+        {
+          "source": "README.md",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/README.md",
+          "source_sha256": "c11d5f969fedc2ed0aa2e3e225bc61e6d7d4bdf1b78c7e4bda330f1bbfb19c57",
+          "installed_sha256": "c11d5f969fedc2ed0aa2e3e225bc61e6d7d4bdf1b78c7e4bda330f1bbfb19c57"
+        },
+        {
+          "source": "Reports/provenance.json",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Reports/provenance.json",
+          "source_sha256": "83a41c1df4d173cb49be9c1bbb78436dfa99482ad45fe7dd7b6501dbaf54fe61",
+          "installed_sha256": "83a41c1df4d173cb49be9c1bbb78436dfa99482ad45fe7dd7b6501dbaf54fe61"
+        },
+        {
+          "source": "Reports/package_manifest.json",
+          "destination": "game/assets/revised/Hollow_Salvage_R01/Reports/package_manifest.json",
+          "source_sha256": "c88ae6052a2a0e9b3acc6dbafce9c24a8ce3dffa12fc3ad8c798a338c98dbe5c",
+          "installed_sha256": "c88ae6052a2a0e9b3acc6dbafce9c24a8ce3dffa12fc3ad8c798a338c98dbe5c"
+        },
+        {
+          "source": "Icons/128/gears.png",
+          "destination": "game/assets/items/icons/128/gears.png",
+          "source_sha256": "c42fc99fc0d455ccf4441581b2e49139f541378f9c1a9c3bd46300c838bc0fc9",
+          "installed_sha256": "c42fc99fc0d455ccf4441581b2e49139f541378f9c1a9c3bd46300c838bc0fc9"
+        },
+        {
+          "source": "Icons/256/gears.png",
+          "destination": "game/assets/items/icons/256/gears.png",
+          "source_sha256": "b19c2d11a01aeaa136ea30a2ffc159bb37f0a230640718cd891a7cbfc4d4b69f",
+          "installed_sha256": "b19c2d11a01aeaa136ea30a2ffc159bb37f0a230640718cd891a7cbfc4d4b69f"
+        },
+        {
+          "source": "Icons/128/springs.png",
+          "destination": "game/assets/items/icons/128/springs.png",
+          "source_sha256": "b61b07835729408899f8a9323f2f99a8feb1ce31848fb7cc15e05e04948b21af",
+          "installed_sha256": "b61b07835729408899f8a9323f2f99a8feb1ce31848fb7cc15e05e04948b21af"
+        },
+        {
+          "source": "Icons/256/springs.png",
+          "destination": "game/assets/items/icons/256/springs.png",
+          "source_sha256": "a5c9a97be12d7f48a68f689469b5451ab5e7866e44cf771c322a75967b9d71e2",
+          "installed_sha256": "a5c9a97be12d7f48a68f689469b5451ab5e7866e44cf771c322a75967b9d71e2"
+        },
+        {
+          "source": "Icons/128/metal-pipe.png",
+          "destination": "game/assets/items/icons/128/metal-pipe.png",
+          "source_sha256": "0149850afefdc202e8b81b7889b9818b94258298e81fcbfac311de2df28e4b65",
+          "installed_sha256": "0149850afefdc202e8b81b7889b9818b94258298e81fcbfac311de2df28e4b65"
+        },
+        {
+          "source": "Icons/256/metal-pipe.png",
+          "destination": "game/assets/items/icons/256/metal-pipe.png",
+          "source_sha256": "888ff66f8db4ea1945657c5080bee187d778ea651f3d26fa3eed8e18004e24f4",
+          "installed_sha256": "888ff66f8db4ea1945657c5080bee187d778ea651f3d26fa3eed8e18004e24f4"
+        },
+        {
+          "source": "Icons/128/sheet-metal.png",
+          "destination": "game/assets/items/icons/128/sheet-metal.png",
+          "source_sha256": "b0445130ad6beaabc44d626cdb04cf171ef0dfd7396d76df555ae15d2d32d0a8",
+          "installed_sha256": "b0445130ad6beaabc44d626cdb04cf171ef0dfd7396d76df555ae15d2d32d0a8"
+        },
+        {
+          "source": "Icons/256/sheet-metal.png",
+          "destination": "game/assets/items/icons/256/sheet-metal.png",
+          "source_sha256": "e7fc2ff38f2e53abcf03cfd6276d8c4e80e99d0e90443d0793e2d458338a5c5d",
+          "installed_sha256": "e7fc2ff38f2e53abcf03cfd6276d8c4e80e99d0e90443d0793e2d458338a5c5d"
+        },
+        {
+          "source": "Icons/128/tech-scrap.png",
+          "destination": "game/assets/items/icons/128/tech-scrap.png",
+          "source_sha256": "ca1558560576d51763bec41e14aa841c5ba7477b1506bbcb811b0ebe0e6d52fb",
+          "installed_sha256": "ca1558560576d51763bec41e14aa841c5ba7477b1506bbcb811b0ebe0e6d52fb"
+        },
+        {
+          "source": "Icons/256/tech-scrap.png",
+          "destination": "game/assets/items/icons/256/tech-scrap.png",
+          "source_sha256": "a4c0ea5df5ffb213f0d91c1efd8e2045bbd3dff39c02e8380f79e78c2485d5f5",
+          "installed_sha256": "a4c0ea5df5ffb213f0d91c1efd8e2045bbd3dff39c02e8380f79e78c2485d5f5"
+        },
+        {
+          "source": "Icons/128/rope.png",
+          "destination": "game/assets/items/icons/128/rope.png",
+          "source_sha256": "820402c6da12f6af112e6540ebb27e0319d0ff6e33dd834af35d09f40989685c",
+          "installed_sha256": "820402c6da12f6af112e6540ebb27e0319d0ff6e33dd834af35d09f40989685c"
+        },
+        {
+          "source": "Icons/256/rope.png",
+          "destination": "game/assets/items/icons/256/rope.png",
+          "source_sha256": "82f319936e046b7d77cea3a185a55f2b88711f89cc40e751745f3d0488eca1c6",
+          "installed_sha256": "82f319936e046b7d77cea3a185a55f2b88711f89cc40e751745f3d0488eca1c6"
+        }
+      ]
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\Hollow_LootContainers_R01",
+      "source_manifest_sha256": "1349467b838100fd2bcbd4c3dd198845ed29d46b03e5a3b419421f9955739b35",
+      "verified_source_files": 125,
+      "models": [
+        "loot-crate",
+        "military-crate",
+        "loot-barrel-1"
+      ],
+      "files": [
+        {
+          "source": "Scenes/loot-crate.tscn",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Scenes/loot-crate.tscn",
+          "source_sha256": "19a31821635b0b2e9fe239db0211390126794a457b482c17c69b655e7b8fdf10",
+          "installed_sha256": "a294528bc5cff41e4e63d7b0bab608ca5f94e88c3c4cd2a26e24801ae5646c14"
+        },
+        {
+          "source": "Scenes/military-crate.tscn",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Scenes/military-crate.tscn",
+          "source_sha256": "23d13d3a0665a721961dcf5d251c6f614dd58b28b9e053895d70b6f36ab09255",
+          "installed_sha256": "744a4fc0ece64db0ae6bf80c9b0844233a285b8eee09a238be264514d2b7aaf9"
+        },
+        {
+          "source": "Scenes/loot-barrel-1.tscn",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Scenes/loot-barrel-1.tscn",
+          "source_sha256": "88bd357f44c7043ab0fc26c5d4881345886dc82234f65b71113d83fc4b271cd2",
+          "installed_sha256": "9928dfce3958d456439711559a3ff46c5904e6e1d44954b9488ae0889e976363"
+        },
+        {
+          "source": "Materials/LC_Metal.tres",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Materials/LC_Metal.tres",
+          "source_sha256": "938983477ea20a2e18d6b02b612b57aed986ad57d1e37ae69f0b2aa0c9192257",
+          "installed_sha256": "46090e01f605e9d3e93e78b538ec2106b8bee7336f8ee4fb16fa5819077309a3"
+        },
+        {
+          "source": "Materials/LC_Wood.tres",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Materials/LC_Wood.tres",
+          "source_sha256": "95767e35d0e4d1de2ab2f8837ddf6a4667bec8f63826860161e1eda994b77845",
+          "installed_sha256": "b7148a3d847064d14eb1d722fb6b2894f397803b9992ddf797cd6f85727ad391"
+        },
+        {
+          "source": "Textures/T_LC_Metal_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Textures/T_LC_Metal_BaseColor.png",
+          "source_sha256": "74a2ae564bfb5a08ca594b60ea9b585fb95473c55473292ebf7ed05deb3c9b1a",
+          "installed_sha256": "74a2ae564bfb5a08ca594b60ea9b585fb95473c55473292ebf7ed05deb3c9b1a"
+        },
+        {
+          "source": "Textures/T_LC_Metal_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Textures/T_LC_Metal_NormalGL.png",
+          "source_sha256": "088f64973d61c1e42d5429ee6e46f5432af408311feb9322548810bb87e2fad3",
+          "installed_sha256": "088f64973d61c1e42d5429ee6e46f5432af408311feb9322548810bb87e2fad3"
+        },
+        {
+          "source": "Textures/T_LC_Metal_ORM.png",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Textures/T_LC_Metal_ORM.png",
+          "source_sha256": "860bf183b2643b9bca13665aa129328ce64f3ac96e7bef5bb9eeebc9f735ff8a",
+          "installed_sha256": "860bf183b2643b9bca13665aa129328ce64f3ac96e7bef5bb9eeebc9f735ff8a"
+        },
+        {
+          "source": "Textures/T_LC_Wood_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Textures/T_LC_Wood_BaseColor.png",
+          "source_sha256": "8bb354944152400f02672688fbfde2755a4baabbe12b38d18576688b8f4f396f",
+          "installed_sha256": "8bb354944152400f02672688fbfde2755a4baabbe12b38d18576688b8f4f396f"
+        },
+        {
+          "source": "Textures/T_LC_Wood_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Textures/T_LC_Wood_NormalGL.png",
+          "source_sha256": "ad84e9b7bf18d1ea0456304a4da94149ad80ef5a6d08c14b80247925a21f6059",
+          "installed_sha256": "ad84e9b7bf18d1ea0456304a4da94149ad80ef5a6d08c14b80247925a21f6059"
+        },
+        {
+          "source": "Textures/T_LC_Wood_ORM.png",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Textures/T_LC_Wood_ORM.png",
+          "source_sha256": "66a9010fefc0101c2c697818839db1fbd03fe6b5e1ab461be9d0aa8b98bcfd48",
+          "installed_sha256": "66a9010fefc0101c2c697818839db1fbd03fe6b5e1ab461be9d0aa8b98bcfd48"
+        },
+        {
+          "source": "HANDOFF.json",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/HANDOFF.json",
+          "source_sha256": "e92bdd1d1f384db73f7358cf0960c8e97cfd5e6556b661d5fd1ed708bbdc68fa",
+          "installed_sha256": "e92bdd1d1f384db73f7358cf0960c8e97cfd5e6556b661d5fd1ed708bbdc68fa"
+        },
+        {
+          "source": "README.md",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/README.md",
+          "source_sha256": "7bd859fd0f29ccc173e063e273de518928d7b935683b55a4b8fe800c55a7614d",
+          "installed_sha256": "7bd859fd0f29ccc173e063e273de518928d7b935683b55a4b8fe800c55a7614d"
+        },
+        {
+          "source": "Reports/provenance.json",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Reports/provenance.json",
+          "source_sha256": "91b2501272660ddf9c8a2e4557eb551a3e6f9b9829d1f9d3f7bd56894393adc0",
+          "installed_sha256": "91b2501272660ddf9c8a2e4557eb551a3e6f9b9829d1f9d3f7bd56894393adc0"
+        },
+        {
+          "source": "Reports/package_manifest.json",
+          "destination": "game/assets/revised/Hollow_LootContainers_R01/Reports/package_manifest.json",
+          "source_sha256": "1349467b838100fd2bcbd4c3dd198845ed29d46b03e5a3b419421f9955739b35",
+          "installed_sha256": "1349467b838100fd2bcbd4c3dd198845ed29d46b03e5a3b419421f9955739b35"
+        }
+      ]
+    }
+  ]
+}

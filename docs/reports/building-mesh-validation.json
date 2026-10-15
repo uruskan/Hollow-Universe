@@ -1,0 +1,42 @@
+[
+  {
+    "file": "building_armoured.glb",
+    "trianglesBefore": 239690,
+    "trianglesAfter": 243168,
+    "normalVertices": 472535,
+    "maxUnitNormalError": 1.3626936201660556e-07,
+    "nodeNamesPreserved": true
+  },
+  {
+    "file": "building_metal.glb",
+    "trianglesBefore": 335504,
+    "trianglesAfter": 340501,
+    "normalVertices": 709963,
+    "maxUnitNormalError": 1.3626936201660556e-07,
+    "nodeNamesPreserved": true
+  },
+  {
+    "file": "building_stone.glb",
+    "trianglesBefore": 144836,
+    "trianglesAfter": 145578,
+    "normalVertices": 344759,
+    "maxUnitNormalError": 1.4126751013421313e-07,
+    "nodeNamesPreserved": true
+  },
+  {
+    "file": "building_twig.glb",
+    "trianglesBefore": 438548,
+    "trianglesAfter": 438797,
+    "normalVertices": 371052,
+    "maxUnitNormalError": 1.5213685555792722e-07,
+    "nodeNamesPreserved": true
+  },
+  {
+    "file": "building_wood.glb",
+    "trianglesBefore": 239712,
+    "trianglesAfter": 243561,
+    "normalVertices": 479502,
+    "maxUnitNormalError": 1.3095659068262933e-07,
+    "nodeNamesPreserved": true
+  }
+]

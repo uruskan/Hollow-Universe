@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Numerics;
+using Hollow.Simulation.Movement;
+using Hollow.Surface;
 
 namespace Hollow.Client.Audio;
 
@@ -66,6 +69,9 @@ public struct FootInput
     public bool Swimming;
     public bool Sprinting;
 
+    /// <summary>Seats, noclip and absent/dead characters stop and clear the cadence, including pending landings.</summary>
+    public bool Suppressed;
+
     /// <summary>The ground under the feet (<see cref="Footsteps.FromGround"/>, a building floor's grade...).</summary>
     public FootSurface Surface;
 
@@ -84,6 +90,24 @@ public readonly record struct FootEvent(string Key, double VolumeDb);
 public static class Footsteps
 {
     public const string SwimKey = "swim.stroke";
+
+    /// <summary>Relative movement in the character's frame: a ship's +Y, or radial planet up.</summary>
+    public static FootInput Input(in CharacterState state, in ZoneFrame frame, bool sprinting, FootSurface surface, double waterDepth)
+    {
+        Vector3 up = state.Frame == 0 ? frame.UpAt(state.Position) : Vector3.UnitY;
+        double vertical = Vector3.Dot(state.Velocity, up);
+        double speed = (state.Velocity - up * (float)vertical).Length();
+        return new FootInput
+        {
+            Speed = speed, VerticalSpeed = vertical,
+            Grounded = (state.Flags & MoveFlags.OnGround) != 0,
+            Swimming = (state.Flags & MoveFlags.Swimming) != 0,
+            Crouching = state.Stance is Stance.Crouching or Stance.Crawling,
+            Sprinting = sprinting && speed > 3,
+            Suppressed = state.Stance == Stance.Seated || (state.Flags & MoveFlags.Dead) != 0 || (state.Cheats & MoveCheats.Noclip) != 0,
+            Surface = surface, WaterDepth = state.Frame == 0 ? waterDepth : 0,
+        };
+    }
 
     /// <summary>
     /// Hollow.Surface's ground materials, by family (BiomeTable.Family: wet sand is a sand, shingle a gravel, ...): forest
@@ -189,14 +213,26 @@ public sealed class FootstepCadence
     /// <summary>The next foot falls after this fraction of a stride when one starts moving.</summary>
     public const double FirstStep = 0.55;
 
+    public void Reset()
+    {
+        _travelled = _airborne = _fallSpeed = _swim = 0;
+        _wasGrounded = true;
+    }
+
     /// <summary>Advances by <paramref name="delta"/> seconds; returns the sound to play now, if any.</summary>
     public FootEvent? Update(double delta, in FootInput input)
     {
+        if (input.Suppressed)
+        {
+            Reset();
+            return null;
+        }
         FootEvent? result = null;
         FootSurface surface = input.WaterDepth >= 0.08 && !input.Swimming ? FootSurface.Water : input.Surface;
         if (input.Swimming)
         {
             _airborne = 0;
+            _fallSpeed = 0;
             _wasGrounded = false;
             _travelled = 0;
             if (input.Speed > 0.3)
@@ -222,6 +258,7 @@ public sealed class FootstepCadence
             _wasGrounded = false;
             return null;
         }
+        _swim = 0;
         if (!_wasGrounded)
         {
             // Touching down: a landing after a real fall; either way the next step comes a stride later.

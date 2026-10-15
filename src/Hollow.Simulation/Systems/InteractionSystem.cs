@@ -95,7 +95,7 @@ public sealed class InteractionSystem : ZoneSystem
     /// A player does a verb to a target (GROUND_SYSTEMS.md §5, <c>InteractIntent</c>): the verb's gates, the reach and sight
     /// rule with the verb's reach, the target's offer holding the verb enabled, then its handler. Done, or the reason.
     /// </summary>
-    public Outcome Interact(Entity entity, in TargetRef target, int verb, uint arg = 0, string? code = null)
+    public Outcome Interact(Entity entity, in TargetRef target, int verb, uint arg = 0, string? code = null, string? text = null)
     {
         if (Players.PlayerOf(entity) is not { } p || Interactions.Verbs.Verb(verb) is not { } def)
         {
@@ -124,12 +124,12 @@ public sealed class InteractionSystem : ZoneSystem
         {
             return OutcomeCode.NotUsable;
         }
-        return option.Enabled ? Interactions.Handlers[verb].Do(ctx, verb, new InteractArgs(arg, code ?? "")) : option.Reason;
+        return option.Enabled ? Interactions.Handlers[verb].Do(ctx, verb, new InteractArgs(arg, code ?? "", text ?? "")) : option.Reason;
     }
 
     /// <summary>A player does a verb, named by its key in interactions.json (tests, the sandboxes).</summary>
-    public Outcome Interact(Entity entity, in TargetRef target, string verb, uint arg = 0, string? code = null) =>
-        Interact(entity, target, Interactions.Verbs.Index(verb), arg, code);
+    public Outcome Interact(Entity entity, in TargetRef target, string verb, uint arg = 0, string? code = null, string? text = null) =>
+        Interact(entity, target, Interactions.Verbs.Index(verb), arg, code, text);
 
     // ---------------------------------------------------------------- what the handlers do here
 

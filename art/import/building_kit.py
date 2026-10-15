@@ -640,9 +640,48 @@ def convert(grade, tier):
         lines.append(f"  {key:24} built {'':18} triangles {counts}")
     fitted = fit_grade(grade)
     lines += corner_objects(grade, tier, material)
+    lines += repair_meshes()
     path = kc.export_glb(OUT / f"building_{grade}.glb")
+    # Exact-face deletion cannot fix differently triangulated overlapping panels (floors/window reveals).
+    repair = load_module('building_glb_repair', kc.REPO / 'tools/repair_building_glbs.py')
+    repaired = repair.repair(path, destination=path)
+    lines.append(f"  coplanar repair: {repaired['clippedTriangles']} triangles clipped with UVs preserved")
     lines.append(f"  -> {path.relative_to(kc.REPO)} ({path.stat().st_size // 1024} KB)")
     return lines, fitted
+
+
+def repair_meshes():
+    """Remove same-facing duplicate triangles; retain reversed back faces and authored UV/material data."""
+    lines = []
+    for obj in bpy.data.objects:
+        if obj.type != 'MESH':
+            continue
+        if 'convcolonly' in obj.name:
+            if obj.name.startswith(('foundation_col', 'foundation-triangle_col')):
+                old = -min(v.co.z for v in obj.data.vertices)
+                cap = min(0.2, old * 0.5)
+                for vertex in obj.data.vertices:
+                    if vertex.co.z < -cap:
+                        vertex.co.z = -cap + (vertex.co.z + cap) * (DATA['module']['foundationDepth'] - cap) / (old - cap)
+            continue
+        bm = bmesh.new()
+        bm.from_mesh(obj.data)
+        bmesh.ops.triangulate(bm, faces=list(bm.faces))
+        seen, duplicates = set(), []
+        for face in bm.faces:
+            points = tuple(tuple(round(float(c), 5) for c in vertex.co) for vertex in face.verts)
+            key = min(points[k:] + points[:k] for k in range(3))
+            if key in seen:
+                duplicates.append(face)
+            else:
+                seen.add(key)
+        if duplicates:
+            lines.append(f'  {obj.name}: removed {len(duplicates)} coincident triangles')
+            bmesh.ops.delete(bm, geom=duplicates, context='FACES_ONLY')
+        bm.to_mesh(obj.data)
+        bm.free()
+        obj.data.update()
+    return lines
 
 
 def fit_grade(grade):

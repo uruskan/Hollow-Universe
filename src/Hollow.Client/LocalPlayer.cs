@@ -15,6 +15,7 @@ namespace Hollow.Client;
 /// <summary>The player's vitals as the UI shows them.</summary>
 public readonly record struct VitalsView
 {
+    public VitalsView() { }
     public float Health { get; init; }
     public float MaxHealth { get; init; }
     public float Calories { get; init; }
@@ -34,6 +35,8 @@ public readonly record struct VitalsView
     /// <summary>Near a lit fire; wet from swimming.</summary>
     public bool Comfort { get; init; }
     public bool Wet { get; init; }
+    public float BreathFraction { get; init; } = 1;
+    public bool Suffocating { get; init; }
 
     public bool IsBleeding => Bleeding > 0;
     public bool IsBurning => Burning > 0;
@@ -49,7 +52,7 @@ public readonly record struct CraftJobView(uint Ticket, Recipe Recipe, int Count
     float UnitSeconds = 0);
 
 /// <summary>A place to respawn: a sleeping bag (or the beach, with no bag), ready in some seconds.</summary>
-public readonly record struct RespawnOption(EntityId Bag, Vector3 Position, double ReadyAtSeconds)
+public readonly record struct RespawnOption(EntityId Bag, Vector3 Position, double ReadyAtSeconds, string Name = "")
 {
     public bool IsBeach => Bag.IsNone;
 }
@@ -68,7 +71,8 @@ public sealed record LifeView
 }
 
 /// <summary>A hit landed (the UI's hit marker): <paramref name="Downed"/> when it knocked the player down (G4).</summary>
-public readonly record struct HitMarkerEvent(TargetFamily Target, HitRegion Region, float Damage, bool Killed, bool WeakSpot, bool Downed = false);
+public readonly record struct HitMarkerEvent(TargetFamily Target, HitRegion Region, float Damage, bool Killed, bool WeakSpot, bool Downed = false,
+    ushort Weapon = 0, uint ActionTick = 0, Vector3 Point = default);
 
 /// <summary>Items gained (gathered, picked up, crafted, refunded) or lost (a tool broke), for the notifications.</summary>
 public readonly record struct ItemsChangedEvent(ItemDef Item, int Count, GainReason Reason, bool WeakSpot);
@@ -546,6 +550,7 @@ public sealed partial class LocalPlayer
         Container? target = ServerContainer(m.Which, m.Size);
         if (target != null)
         {
+            target.SetConstraints((ushort)Math.Min(m.AcceptedItem, ushort.MaxValue), (int)Math.Min(m.StackLimit, ushort.MaxValue));
             target.Clear();
             foreach (SlotNet s in m.Slots ?? Array.Empty<SlotNet>())
             {
@@ -569,6 +574,7 @@ public sealed partial class LocalPlayer
         };
         if (target != null)
         {
+            target.SetConstraints((ushort)Math.Min(m.AcceptedItem, ushort.MaxValue), (int)Math.Min(m.StackLimit, ushort.MaxValue));
             foreach (SlotNet s in m.Slots ?? Array.Empty<SlotNet>())
             {
                 SetSlot(target, s);
@@ -701,6 +707,8 @@ public sealed partial class LocalPlayer
             Burning = m.Burning,
             Comfort = m.Comfort,
             Wet = m.Wet,
+            BreathFraction = m.Breath / 255f,
+            Suffocating = m.Suffocating,
         };
         _dirty = true;
     }
@@ -748,7 +756,7 @@ public sealed partial class LocalPlayer
             options.Add(new RespawnOption(EntityId.None, Vector3.Zero, ClockSeconds + m.BeachReadySeconds));
             foreach (BagNet bag in m.Bags ?? Array.Empty<BagNet>())
             {
-                options.Add(new RespawnOption(new EntityId(bag.Id), new Vector3(bag.X, bag.Y, bag.Z), ClockSeconds + bag.ReadySeconds));
+                options.Add(new RespawnOption(new EntityId(bag.Id), new Vector3(bag.X, bag.Y, bag.Z), ClockSeconds + bag.ReadySeconds, bag.Name ?? ""));
             }
         }
         bool wasDown = Life.Wounded;
@@ -781,7 +789,8 @@ public sealed partial class LocalPlayer
     /// <summary>Seconds until a respawn option is ready (0: now).</summary>
     public double SecondsUntilReady(RespawnOption option) => Math.Max(0, option.ReadyAtSeconds - ClockSeconds);
 
-    internal void OnHitMarker(in HitMarker m) => HitMarker?.Invoke(new HitMarkerEvent(m.Target, m.Region, m.Damage / 10f, m.Killed, m.WeakSpot, m.Downed));
+    internal void OnHitMarker(in HitMarker m) => HitMarker?.Invoke(new HitMarkerEvent(m.Target, m.Region, m.Damage / 10f, m.Killed, m.WeakSpot, m.Downed,
+        m.Weapon, m.ActionTick, new Vector3(m.PointX, m.PointY, m.PointZ)));
 
     internal void OnItemsChanged(in ItemsChanged m)
     {

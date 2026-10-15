@@ -124,7 +124,7 @@ public sealed class ShipPredictor
     private void Step(uint tick, ref ShipState state)
     {
         ShipInput input = ShipConvert.ToShipInput(_inputs.CommandFor(tick));
-        input.Engines = true; // the pilot is in the seat (the server's zone: alive, seated, awake)
+        input.Engines = !state.Has(ShipFlags.EngineStopped);
         ShipContext context = _context();
         lock (JoltRuntime.Gate)
         {

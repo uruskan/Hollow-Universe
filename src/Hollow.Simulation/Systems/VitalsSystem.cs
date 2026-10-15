@@ -25,13 +25,22 @@ public sealed class VitalsSystem : ZoneSystem
         for (int i = 0; i < players.Count; i++)
         {
             Player p = players.Values[i].Player;
+            Entity entity = Entities.AtSlot(players.Slots[i]);
+            ref Character c = ref Entities.Get<Character>(entity);
+            if (!p.Dead)
+            {
+                float breathBefore = p.Vitals.BreathUsed;
+                bool suffocatingBefore = p.Vitals.Suffocating;
+                bool hasAir = !Breathing.Underwater(Surface, Frame.ToBody(Zone.EyeOf(c.State)));
+                float drowning = Breathing.Step(ref p.Vitals, s, hasAir, 1);
+                if (drowning > 0) Players.Hurt(entity, p, drowning, "Drowned", EntityId.None, "", canWound: false);
+                if (breathBefore != p.Vitals.BreathUsed || suffocatingBefore != p.Vitals.Suffocating) p.VitalsRevision++;
+            }
             if (!p.IsAwakeAndAlive || p.Wounded)
             {
                 // Sleepers and the wounded are left as they are (the wounded's timer decides).
                 continue;
             }
-            Entity entity = Entities.AtSlot(players.Slots[i]);
-            ref Character c = ref Entities.Get<Character>(entity);
             ref Vitals v = ref p.Vitals;
             (int health, int calories, int hydration, int temperature, bool bleeding, bool burning) before =
                 ((int)Math.Ceiling(v.Health), (int)v.Calories, (int)v.Hydration, (int)Math.Round(v.Temperature), v.Bleeding > 0, v.Burning > 0);

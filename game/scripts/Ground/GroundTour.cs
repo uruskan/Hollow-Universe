@@ -68,6 +68,9 @@ public partial class GroundTour : Node
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
             ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("f2", F2), ("look", Look),
             ("foundations", Foundations), ("held", Held), ("place", Place), ("interact", Interaction), ("map", Map),
+            ("repair-ships", RepairShips),
+            ("repair-corpses", RepairCorpses),
+            ("repair-attachments", RepairAttachments),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -84,6 +87,11 @@ public partial class GroundTour : Node
 
     /// <summary>The kind of tree the chop step fells (<c>--tour-tree pine-tree</c>); null: a birch or a broadleaf if near.</summary>
     public string? Tree { get; set; }
+
+    /// <summary>Diagnostic chop/idle runs skip screenshot readbacks and start measuring only at the settled tree.</summary>
+    public bool Profile { get; set; }
+
+    public bool ProfileIdle { get; set; }
 
     public override void _Process(double delta)
     {
@@ -108,11 +116,27 @@ public partial class GroundTour : Node
             {
                 await _steps.Dequeue()();
             }
+            if (Profile && GetParent().GetNodeOrNull<GroundMeasure>("Measure") is { } measure)
+            {
+                await Until(() => measure.Complete, measure.Seconds + 3);
+                if (!measure.Complete) throw new InvalidOperationException("tour profile did not complete its measurement window");
+            }
             GD.Print("[tour] done");
         }
         catch (Exception e)
         {
+            if (Profile && GetParent().GetNodeOrNull<GroundMeasure>("Measure") is { IsMeasuring: false } failedMeasure)
+            {
+                failedMeasure.CancelPendingStart();
+                GD.Print($"[tour-profile] failed outside measurement: {failedMeasure.Readiness}");
+                await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                using Image failure = GetViewport().GetTexture().GetImage();
+                string failurePath = Path.Combine(Folder, "profile-preparation-failed.png");
+                GD.Print($"[tour-profile] failure image {failure.SavePng(failurePath)}: {failurePath}");
+            }
             GD.PushError($"[tour] failed: {e}");
+            GetTree().Quit(1);
+            return;
         }
         GetTree().Quit();
     }
@@ -121,6 +145,7 @@ public partial class GroundTour : Node
 
     private async Task Prepare()
     {
+        if (Profile) await RepairGod(true);
         Admin("give", "stone-hatchet 1");
         Admin("give", "stone-pickaxe 1");
         Admin("give", "bandage 3");
@@ -265,15 +290,57 @@ public partial class GroundTour : Node
         }
         if (tree is not { } trunk)
         {
+            if (Profile) throw new InvalidOperationException("tour profile needs a nearby tree; choose a forest landing site");
             GD.PushWarning("[tour] no tree to chop");
             return;
         }
         NaturalKind kind = Client.Content.Natural(trunk.Kind)!;
         float radius = kind.Radius * trunk.Scale;
-        await TeleportTo(Away(trunk.Position, radius + 1.45f));
+        Num.Vector3 profileStand = Away(trunk.Position, radius + 1.45f);
+        await TeleportTo(profileStand);
         Face(trunk.Position + trunk.Up * 1.3f);
         Me.HeldSlot = 2;
-        await Settle();
+        GroundMeasure? profileMeasure = Profile ? GetParent().GetNodeOrNull<GroundMeasure>("Measure") : null;
+        if (Profile)
+        {
+            if (profileMeasure == null) throw new InvalidOperationException("tour-profile requires a measurement node");
+            View.Scripted = new InputFrame(); // stable idle input while streaming, including when the window has focus
+            double began = Time.GetTicksMsec() / 1000.0, stableSince = -1, nextReport = began;
+            while (Time.GetTicksMsec() / 1000.0 - began < 90)
+            {
+                double now = Time.GetTicksMsec() / 1000.0;
+                if (profileMeasure.ReadyToStart)
+                {
+                    if (stableSince < 0) stableSince = now;
+                    if (now - stableSince >= 2) break;
+                }
+                else stableSince = -1;
+                if (now >= nextReport)
+                {
+                    Vector3D body = Client.Frame.ToBody(Client.Character.Position);
+                    Num.Vector3 up = Client.Frame.UpAt(Client.Character.Position);
+                    double radialHeight = body.Length - (Client.Surface?.Radius ?? 0);
+                    GD.Print($"[tour-profile] preparing {now - began:0}s {profileMeasure.Readiness}; " +
+                        $"target={trunk.Position} stand={profileStand} actual={Client.Character.Position} " +
+                        $"radialHeight={radialHeight:0.00}m up={up} treeUp={trunk.Up} velocity={Client.Character.Velocity}");
+                    nextReport = now + 10;
+                }
+                if (Me.IsDead) throw new InvalidOperationException("tour profile died during preparation despite verified god mode");
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+            if (!profileMeasure.ReadyToStart || stableSince < 0 || Time.GetTicksMsec() / 1000.0 - stableSince < 2)
+                throw new InvalidOperationException("tour profile did not become ready for two steady seconds within 90 s: " + profileMeasure.Readiness);
+            profileMeasure.StartCapture();
+            await Until(() => profileMeasure.IsMeasuring, 15);
+            if (!profileMeasure.IsMeasuring) throw new InvalidOperationException("tour measurement did not start: " + profileMeasure.Readiness);
+            GD.Print($"[tour-profile] {(ProfileIdle ? "idle" : "chop")} tree={kind.Key} id={trunk.Id} position={trunk.Position}");
+            if (ProfileIdle)
+            {
+                await Until(() => profileMeasure.Complete, profileMeasure.Seconds + 2);
+                return;
+            }
+        }
+        else await Settle();
         // The first hit: the X appears, facing the player near the hit's height.
         int wood = Count("wood");
         View.Scripted = new InputFrame { Primary = true };
@@ -292,7 +359,7 @@ public partial class GroundTour : Node
         bool burst = false;
         double started = Time.GetTicksMsec() / 1000.0;
         View.Scripted = new InputFrame { Primary = true };
-        while (Time.GetTicksMsec() / 1000.0 - started < 60 && Client.Survival().Natural?.IsDepleted(trunk.Id) != true)
+        while (Time.GetTicksMsec() / 1000.0 - started < 60 && Client.Survival().Natural?.IsDepleted(trunk.Id) != true && profileMeasure?.Complete != true)
         {
             if (Client.Survival().Natural?.WeakSpot(trunk, kind) is { } spot)
             {
@@ -314,6 +381,11 @@ public partial class GroundTour : Node
         }
         View.Scripted = null;
         GD.Print($"[tour] chop: wood a hit {string.Join(" ", log)}; felled {Count("wood") - wood}");
+        if (Profile && profileMeasure != null)
+        {
+            await Until(() => profileMeasure.Complete, profileMeasure.Seconds + 2);
+            return; // Keep the final hit-point view for the rest of the comparison window.
+        }
         // It tips away from the blow and lands along the ground.
         Num.Vector3 away = trunk.Position - Client.Character.Position;
         away = Num.Vector3.Normalize(away - trunk.Up * Num.Vector3.Dot(away, trunk.Up));
@@ -806,7 +878,14 @@ public partial class GroundTour : Node
         }
         // The tank filled with the lamp oil left over from the recipe.
         Me.Interact(atHatch with { Part = (byte)Math.Max(0, def.PartIndex("fuel")) }, "refuel");
-        await Seconds(0.5);
+        await Until(() => Me.LootTarget == ship.Id && Me.Loot != null, 3);
+        if (SlotOf(Me.Inventory.Main, "lamp-oil") is int fuelSlot)
+        {
+            Me.QuickMove(ContainerRef.Main, fuelSlot);
+            await Seconds(0.5);
+        }
+        Me.Close();
+        View.Interface.Open(GroundScreen.Hud);
         Face(hatch);
         await Seconds(0.4);
         await Shot("ship-boarding");
@@ -2447,8 +2526,17 @@ public partial class GroundTour : Node
 
     private async Task TeleportTo(Num.Vector3 point)
     {
-        Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"teleport {Client.Name} {point.X:0.00} {point.Z:0.00}"));
-        await Until(() => new Num.Vector2(Client.Character.Position.X - point.X, Client.Character.Position.Z - point.Z).Length() < 1.5f, 5);
+        // Console x/z numbers are offsets from the landing site, not whole-world Cartesian coordinates.
+        // Explicit degree suffixes avoid the console's ambiguous two-number shorthand, including at the equator.
+        Vector3D body = Client.Frame.ToBody(point).Normalized;
+        double latitude = Math.Asin(Math.Clamp(body.Y, -1, 1)) * 180 / Math.PI;
+        double longitude = Math.Atan2(-body.Z, body.X) * 180 / Math.PI;
+        Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"teleport {Client.Name} {latitude:0.000000}° {longitude:0.000000}°"));
+        await Until(() =>
+        {
+            Num.Vector3 difference = Client.Character.Position - point, up = Client.Frame.UpAt(point);
+            return (difference - up * Num.Vector3.Dot(difference, up)).Length() < 1.5f;
+        }, 5);
         await Seconds(0.5);
     }
 
@@ -2472,6 +2560,7 @@ public partial class GroundTour : Node
 
     private async Task Shot(string name, int frames = 3)
     {
+        if (Profile) return; // GPU readbacks/file encoding would contaminate hit-frame timing.
         // A far teleport is an arrival (GROUND.md §4.3.1): its short loading screen goes first.
         await Until(() => !View.LoadingShown, 30);
         for (int i = 0; i < frames; i++)

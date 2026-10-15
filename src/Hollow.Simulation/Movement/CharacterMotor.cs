@@ -227,7 +227,8 @@ public static class CharacterMotor
         {
             wish /= length;
         }
-        state.Velocity = wish * (input.Has(MoveButtons.Sprint) ? NoclipFastSpeed : NoclipSpeed);
+        float speed = float.IsFinite(input.NoclipSpeed) && input.NoclipSpeed > 0 ? Math.Clamp(input.NoclipSpeed, 1, 200) : NoclipSpeed;
+        state.Velocity = wish * speed * (input.Has(MoveButtons.Sprint) ? NoclipFastSpeed / NoclipSpeed : 1);
         Vector3 next = state.Position + state.Velocity * DeltaTime;
         if (context.Radius > 0)
         {

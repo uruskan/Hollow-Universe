@@ -1,0 +1,119 @@
+All six reports are in. Before writing the proposal, I'm recording what I learned that should outlive this session: your answer on floor stability, your rule on new assets, the world's root cause and the budget calibration.
+
+I wouldn't try to fix all 30 in one session. I had six read-only agents trace every finding to its cause in the code; nothing was changed. Most of the 30 are bugs at the edges of systems we already have and can be fixed in parallel. Three are big missing pieces that should get a design you approve first: the world itself, how gunplay feels, and character animation.
+
+## What the code says
+
+**World and map (#1, #3)**
+- The generator works at planet scale, but everything that varies the land (hills, climate, biome) changes over 60–2,200 km. Your zone is 16 km across, so it gets one landscape: the same gentle hills, one biome, and about 300 trees per hectare plus bushes and ferns.
+- There is no code for rivers, lakes, cliffs or plateaus at all.
+- hollow-orbit felt richer because its planet had a 3.6 km radius, so features were about 1,800× closer together. It also had explicit valleys, lakes, mesas and canyons.
+- Assets:
+  - Only 8 ground textures reach the game, 6 of them from your 34 Megascans sets.
+  - None of the 62 scanned cliffs, rocks and pieces of deadwood are used.
+  - Using the 4K files at full size wouldn't look sharper at our tiling. What's missing is variety and the scanned meshes.
+- The map covers a 3.9 km square, about 6% of the zone, and opens zoomed in to 1.5 km. A flat map is fine at zone scale; a planet view would be a separate screen.
+
+**Performance (#23)**
+- Every axe hit makes the client rebuild and re-upload all the plants around you on the main thread. That's a 20–30 ms frame per swing, even though a hit that doesn't fell the tree changes nothing you can see. The same rebuild runs every 8 m you walk.
+- The moon's light draws the forest's shadows a second time in daytime whenever the moon is up. That's likely part of your 30–80 fps range.
+- The hit's chips and sound wait for the server. I estimate 70–150 ms after the visible contact, even when you host.
+- The arms swing every 0.855 s, the server every 0.867 s, so the two drift apart. That's the desync you saw.
+
+**Ships (#28, #29)**
+- All six flight axes exist.
+- Q is roll, but it also opens crafting, because the interface's keys don't know you're seated. Any open screen then zeroes every flight axis, so one press of Q and you can't fly.
+- Space is the ship's "up". Only F leaves the seat, and only when the ship is at rest. Nothing on screen lists the keys.
+- Noclip speed is fixed at 10 m/s, or 40 m/s with Shift.
+
+**Building**
+- **#2:** the ground under a foundation may differ by only 0.91 m, because every foundation model is exactly 1 m deep. It needs a deeper footing model.
+- **#4:** the foundation's centre does go where you aim. Two things move it:
+  - its rotation snaps to a fixed 15° world grid;
+  - near a building it jumps to any socket within 1.75 m, even an occupied one.
+- **#5:** a floor is held only by the piece whose socket it took. Walls it touches don't count, although the code already detects that contact.
+- **#6, #7:** the stone floor, window and doorway meshes have faces drawn twice, on top of each other. They've been like that since the kit was imported. Every grade's window openings and the metal wall frame have the same defect.
+- **#8:** the door's preview is drawn closed in one flat colour, with no handle, hinge or swing shown.
+- **#9:** most likely the lock's line-of-sight check treats the garage door's own 8 cm panel as an obstacle. "Can't see it" and "something is in the way" share one message.
+- **#10, #14:** deployables' collision boxes don't match their models (the workbench's is 32 cm wider). Touching counts as overlapping, and nothing squares an object to a wall.
+- **#11:** after placing, the see-through preview stays on top of the real object for half a second, and the two flicker.
+
+**Interaction and bodies**
+- **#12, #13:** bags, beds and the vehicle workbench only have Pick up, and it isn't set as the tap action, so tapping E does nothing. Naming doesn't exist yet. The Tin Finch is crafted from the normal crafting menu while standing near the bench.
+- **#15:** most likely the body ragdolls at the zone's origin rather than where you died: the ragdoll starts before the body has been moved into place. Bodies also:
+  - fall through floors, because ragdolls only collide with the ground;
+  - can't be harvested;
+  - turn into a bag only on your own screen, not on the server.
+- **#24:** the server knows exactly what you hit, but sends only its kind with the hit marker.
+- **#25:** the radial menu shrinks titles into a fixed width and never wraps them. The cost and reason lines aren't fitted at all.
+- **#27:** whatever you open on a ship is always its cargo; four places in the code assume that. A fuel tank can't exist as a second container yet.
+
+**Weapons**
+- **#16:** the pistol's support-hand pose points the fingers down while the forearm comes up from below, a wrist bend of about 115°.
+- **#17:** the zoom and the attachments' stat changes work. But sights never use their own eye point, there's no reticle or scope overlay, and the weapon light is never drawn.
+- **#18:** the bow's draw and release animations exist but never run, because only guns set "aiming".
+- **#19:** hit and headshot sounds exist, but they're 3 dB quieter than the shot and arrive a server round trip late. They're likely buried under the gunshot.
+- **#20:** protection values exist per body region; the inventory just doesn't show them.
+- **#21:** the recoil numbers are right, but our view kicks and then returns by itself. In old Rust the view moves and stays, and you pull down. Also:
+  - the gun barely moves on screen and the camera doesn't shake;
+  - there's no first-person sound layer, bullet crack or shell casings;
+  - aiming sensitivity doesn't scale with zoom.
+- **#26:** drop is set on the launcher, so both rockets fall alike. The HV rocket does less damage to living things (175) than the regular one (210), and a bear has 400 health.
+
+Three of these were shortcuts earlier sessions chose without asking you: recoil that returns by itself, sights that don't use their eye point, and attachments added by dropping and removed with a button. You're now rejecting exactly those.
+
+## #30 and the architecture
+
+You're right to be suspicious. What was approved yesterday holds for what it covers: every attack goes through one damage entry point, every E through one interaction system, every placement through one pipeline. The leaks are at the edges:
+
+- **Damage:** harm that isn't an attack (falls, hunger, crashes) skips that entry point and calls two lower-level functions that apply damage and kill directly. God mode is checked in the first of them. A wrecked ship (any impact above about 23 m/s) calls the second directly, and four other places do the same.
+- **Keys:** they don't know whether you're on foot, seated or in a menu. Three separate handlers hard-code keys, and the pilot's keys exist in two copies.
+- **Main-thread work:** nothing limits it per frame (the plants, distant tree billboards, the sky table).
+- **Art versus rules:** model sizes and gameplay sizes are never compared, and the art import never checks a mesh for duplicate faces.
+- **Unused data:** some data is never read (the weapon light, sights' eye points, casing sounds). The tests check that the data exists, not that anything uses it.
+- **One shared model for every world object (P6):** still not done, and it's the biggest piece. Each kind of object still has its own storage, network sync and save code.
+
+Each package below fixes its bugs and adds a guard so the problem can't come back. For damage: only the damage pipeline may change health, enforced by the compiler, plus one test that god mode survives every source of harm.
+
+## Proposal
+
+**Wave 1: five packages in parallel while you sleep.** Each runs on its own branch off `ground`; I merge them, and each gets checked once (build, tests, one screenshot).
+
+| Package | Findings | Size |
+|---|---|---|
+| Seats, controls and damage | 28, 29, 30; the map covers the whole zone | Medium |
+| Building | 2, 4–11, 14 | Medium–large |
+| Interaction and bodies | 12, 13, 15, 25, 27 | Large |
+| Performance and hit feedback | 23, frame rate, 19, 24; your own hits show at the moment of contact | Medium–large |
+| Weapons and gear | 16, 17, 18, 20, 26 | Large |
+
+**Wave 2: designs first, written tonight for you to review when you wake.**
+- **World v3 (#3, #1).** A new layer in the generator for features a few km across:
+  - flat, hilly and upland regions, with stronger hills and valleys at the 100–800 m scale;
+  - rivers and lakes;
+  - cliffs, terraces and plateaus dressed with the scanned cliff and rock models;
+  - patches of meadow, heath, wetland and open woodland;
+  - realistic forest density, which is also the biggest frame-rate win;
+  - the scanned ground textures per biome, the lighting test, and a planet view on the map.
+
+  It's also what monument placement needs. The design comes with pictures from a prototype at the landing site, so you can judge it by eye. This is the largest item: days, not hours.
+- **Gunplay feel (#21).** A study of Rust from 2017 to June 2022, the learnable-pattern era before the aim-drift update. Then recoil, kick, camera shake, sound layers, bullet cracks, shell casings and aiming sensitivity.
+- **Characters and animation (#16 onwards, #22).** First-person poses stored as data, third-person grips that fit the hands to each item, and a proper bow hold. First-person animation would be Blender poses plus code-driven motion. Full-body clips would come from AI models that run locally; any tool that needs an account would need you to sign up, since I can't create accounts.
+
+**Wave 3:** the shared object model (P6), alongside the world work since they touch different code. Then the gameplay that's still missing: monuments in the game and more zones.
+
+You'd play at the end of each wave, with one launcher as before. Budget isn't a constraint: 37% of this week's usage is spent, and these six investigations cost about 2%.
+
+## Defaults I'd use (say "go" to accept them all, or change any)
+
+1. **Seats:** Space leaves any seat, in the air too (you fall). Ship up and down move to Shift and Ctrl; boost gets a free key.
+2. **Foundations:** a footing about 3 m deep so foundations stand on slopes; I'll check Rust's actual number.
+3. **Floors:** a floor is held by every wall it rests against. I read this as your answer to yesterday's open stability question.
+4. **Attachments:** slots in the gun's inventory panel, 4 by default with the count set per gun. You drag attachments in and out with a sound, and each gun takes one sight, one muzzle and one underbarrel, as in Rust. The remove buttons go.
+5. **Ship fuel:** a one-slot tank opened from the fuel cap, and the engine burns fuel straight from it.
+6. **Recoil:** as in old Rust, the view moves and stays.
+7. **Bodies:** they lie where you died, can be looted and harvested like an animal carcass, then become a bigger loot bag. The timings live in the data files.
+8. **Inventory:** a protection panel with Rust's damage types, one number each, explained on hover.
+9. **Plants:** they stay made in code (your 12 October call that hollow-orbit's look beats downloaded plants). The scans go into ground, cliffs, rocks and deadwood. Before any scan ships I check its Fab licence; the scans downloaded on 2 October haven't been checked yet.
+10. **Cleanup:** I remove the 30 merged worktrees under `Hollow-wt`; their branches stay.
+11. **One question:** what window size do you play at? The game is already limited by the graphics card at 1600×900, so this shapes the frame-rate work.

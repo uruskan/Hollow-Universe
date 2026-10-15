@@ -35,6 +35,8 @@ public partial class SurfaceView : Node3D
     private TerrainLod _terrain = null!;
     private Vegetation? _vegetation;
     private GrassField? _grass;
+    private CliffField? _cliffs;
+    private MonumentField? _monuments;
     private TextureLayered _groundAlbedo = null!;
     private TextureLayered _groundNormal = null!;
     private ShaderMaterial _terrainMaterial = null!;
@@ -150,6 +152,7 @@ public partial class SurfaceView : Node3D
         AddChild(_uiLayer);
         _ui = new SurfaceUi();
         _uiLayer.AddChild(_ui);
+        SetupWaterView();
     }
 
     public override void _ExitTree()
@@ -165,6 +168,7 @@ public partial class SurfaceView : Node3D
     {
         Visible = active;
         _uiLayer.Visible = active;
+        _waterLayer.Visible = active;
         ProcessMode = active ? ProcessModeEnum.Inherit : ProcessModeEnum.Disabled;
         if (active)
         {
@@ -271,6 +275,19 @@ public partial class SurfaceView : Node3D
         _vegetation = new Vegetation { Name = "Vegetation" };
         AddChild(_vegetation);
         _vegetation.Setup(surface, plants, seed, _frame, _groundAlbedo, _groundNormal);
+        _cliffs?.QueueFree();
+        _cliffs = null;
+        _monuments?.QueueFree();
+        _monuments = null;
+        if (surface is WalkingWorld walking)
+        {
+            _cliffs = new CliffField { Name = "Cliffs" };
+            AddChild(_cliffs);
+            _cliffs.Setup(walking.Cliffs, frame);
+            _monuments = new MonumentField { Name = "Monuments" };
+            AddChild(_monuments);
+            _monuments.Setup(walking.Monuments, frame);
+        }
         _grass?.QueueFree();
         _grass = null;
         _idleFrames = 0;
@@ -442,7 +459,8 @@ public partial class SurfaceView : Node3D
         }
         Fly((float)delta);
         UpdateWorld(delta);
-        _idleFrames = _terrain.IsIdle && (_vegetation?.IsIdle ?? true) && (_grass?.IsIdle ?? false) ? _idleFrames + 1 : 0;
+        _idleFrames = _terrain.IsIdle && (_vegetation?.IsIdle ?? true) && (_grass?.IsIdle ?? false) && (_cliffs?.IsIdle ?? true)
+            && (_monuments?.IsIdle ?? true) ? _idleFrames + 1 : 0;
     }
 
     // The ground under a body-frame point, metres above the mean radius: the land, or the sea where it is higher.
@@ -497,6 +515,7 @@ public partial class SurfaceView : Node3D
         RenderingServer.GlobalShaderParameterSet("hu_cloud_wind", new Vector2((float)-(_cloudDrift % CloudPeriod), 0));
         RenderingServer.GlobalShaderParameterSet("hu_texture_offset", frame.WrappedTravel(4096));
         _environment.TonemapExposure = DebugSky == 15 ? 1 : _sky.Exposure;
+        UpdateWaterView(camera);
         if (DebugSky == 15)
         {
             _environment.TonemapMode = Godot.Environment.ToneMapper.Linear;
@@ -513,6 +532,8 @@ public partial class SurfaceView : Node3D
 
         _terrain.UpdateLod(camera);
         _vegetation?.UpdateVegetation(camera);
+        _cliffs?.Follow(camera);
+        _monuments?.Follow(camera);
         if (_grass == null && _vegetation?.Library is { } library)
         {
             _terrainMaterial.SetShaderParameter("blade_mean", library.BladeMean);

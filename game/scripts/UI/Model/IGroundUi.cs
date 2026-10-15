@@ -49,6 +49,8 @@ public interface IGroundUi
 
     Vitals Vitals { get; }
 
+    IReadOnlyList<ProtectionStat> Protection => Array.Empty<ProtectionStat>();
+
     /// <summary>A container's slots: Main 24, Belt 6, Wear 7, Loot as many as the open container has (none if closed).</summary>
     IReadOnlyList<ItemStack> Slots(ContainerId container);
 
@@ -103,6 +105,8 @@ public interface IGroundUi
     /// <summary>What pressing the interaction key would do now, or null.</summary>
     InteractionPrompt? Prompt { get; }
 
+    TargetHealthView? TargetHealth => null;
+
     /// <summary>
     /// The held inputs that open a radial menu and what each opens now (GROUND_SYSTEMS.md §4): the right mouse with the
     /// building plan or the hammer in hand, E on what is aimed at (P1), R with a gun (P3). The interface handles every
@@ -133,6 +137,17 @@ public interface IGroundUi
 
     /// <summary>Moves <paramref name="amount"/> of a stack onto another slot: merges, swaps or splits.</summary>
     void Move(SlotRef from, SlotRef to, int amount);
+
+    IReadOnlyList<AttachmentSlotView> Attachments(SlotRef weapon) => Array.Empty<AttachmentSlotView>();
+
+    int AttachmentKind(string key) => -1;
+
+    /// <summary>Captured on mouse-down to cancel a drag when its source/selected weapon changes.</summary>
+    string MoveSignature(SlotRef slot)
+    {
+        IReadOnlyList<ItemStack> slots = Slots(slot.Container);
+        return slot.Index >= 0 && slot.Index < slots.Count ? slots[slot.Index].ToString() : "";
+    }
 
     /// <summary>
     /// The item panel's ACTIONS for a slot's stack (GROUND_SYSTEMS.md §7), besides DROP (the panel's own): what its parts

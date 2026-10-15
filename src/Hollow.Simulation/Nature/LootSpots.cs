@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Movement;
 using Hollow.Surface;
 
 namespace Hollow.Simulation.Nature;
@@ -19,6 +20,9 @@ public enum LootSite : byte
 
     /// <summary>A recycler's site: one per cube face (docs/WHOLE_WORLD.md decision 9).</summary>
     Recycler,
+
+    /// <summary>A container at an authored, accessible marker in a generated monument.</summary>
+    Monument,
 }
 
 /// <summary>Where a world prop stands: its stable ID (the spot's), what it is, its base on the ground, up, turn, and the kind of place.</summary>
@@ -43,6 +47,7 @@ public sealed class LootSpots
 
     /// <summary>Top byte of the recyclers' IDs.</summary>
     public const ulong RecyclerTag = 0xC7UL << 56;
+    public const ulong MonumentTag = 0xC8UL << 56;
 
     private const ulong LandingKey = 0xFF_FFFF_FFFF;
 
@@ -214,7 +219,32 @@ public sealed class LootSpots
                 }
             }
         }
+        result.AddRange(ForMonuments(_surface, _frame, _content));
         Spots = result;
+    }
+
+    /// <summary>Monument loot uses the existing world-prop lifecycle: server authority, depletion, storage and refill.</summary>
+    public static IReadOnlyList<LootSpot> ForMonuments(ISurface surface, in ZoneFrame frame, GameContent content)
+    {
+        var result = new List<LootSpot>();
+        if (surface is not WalkingWorld walking) return result;
+        var props = new Dictionary<string, PropDef>(StringComparer.Ordinal);
+        foreach (PropDef prop in content.World.Props)
+            if (prop.LootKey is { } key && key.Length > 0) props.TryAdd(key, prop);
+        foreach (MonumentPlacement site in walking.Monuments.All)
+        {
+            Vector3 up = Vector3.Normalize(frame.DirectionToLocal(site.Up));
+            for (int m = 0; m < site.Definition.Loot.Count; m++)
+            {
+                MonumentLoot marker = site.Definition.Loot[m];
+                if (!props.TryGetValue(marker.Table, out PropDef? prop)) continue;
+                double angle = marker.Yaw * DMath.DegToRad;
+                Vector3D forward = -site.Forward * DMath.Cos(angle) - site.Right * DMath.Sin(angle);
+                result.Add(new LootSpot(MonumentTag | ((ulong)site.Tile.Index << 8) | (uint)m, prop,
+                    frame.ToLocal(site.Transform(marker.At)), up, Facing.YawOf(frame.DirectionToLocal(forward), up), LootSite.Monument));
+            }
+        }
+        return result;
     }
 
     // A face's recycler site: the first cell centre in the face's order that is on a coast, has room and keeps clear of
@@ -317,7 +347,9 @@ public sealed class LootSpots
     private bool Valid(in Patch p, double x, double z, double half)
     {
         double h = HeightAt(p, x, z);
-        if (h - _seaLevel < 0.5)
+        Vector3D direction = Direction(p, x, z, _surface.Radius);
+        if (h - _surface.WaterLevelAt(direction) < 0.5 ||
+            _surface is WalkingWorld walking && walking.Monuments.At(direction, half + 2) != null)
         {
             return false;
         }

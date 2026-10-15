@@ -27,7 +27,7 @@ public readonly record struct InteractOption(int Verb, Outcome Reason, bool Prim
 }
 
 /// <summary>What a verb carries besides its target (GROUND_SYSTEMS.md §5): a number (the tech tree's recipe) and a code.</summary>
-public readonly record struct InteractArgs(uint Arg = 0, string Code = "");
+public readonly record struct InteractArgs(uint Arg = 0, string Code = "", string Text = "");
 
 /// <summary>What a verb's gates look at in the one doing it.</summary>
 [Flags]

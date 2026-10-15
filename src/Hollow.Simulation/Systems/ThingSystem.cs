@@ -20,7 +20,7 @@ namespace Hollow.Simulation;
 // workbench reach; and the one lifetime step (GROUND_SYSTEMS.md §3.7) for every loose thing of any family (bags, bodies,
 // duds, carcasses). The zone keeps the loose things (those with a lifetime) and the working ones (burners and machines)
 // in lists of their own, so neither the lifetime step nor the devices' step looks at every static thing.
-public sealed class ThingSystem : ZoneSystem
+public sealed partial class ThingSystem : ZoneSystem
 {
     private BuildingSystem? _buildingSystem;
     private BuildingSystem Building => _buildingSystem ??= Zone.Require<BuildingSystem>();
@@ -100,6 +100,7 @@ public sealed class ThingSystem : ZoneSystem
 
     public void RemoveStatic(WorldObject thing)
     {
+        Supports.Release(thing.Ref);
         if (thing is ILifetime loose)
         {
             Unloose(loose);
@@ -222,7 +223,7 @@ public sealed class ThingSystem : ZoneSystem
     /// </summary>
     internal void Fall(WorldObject thing)
     {
-        if (!thing.Rides || StaticOf(thing.Id) != thing)
+        if (thing.Support.IsNone || StaticOf(thing.Id) != thing)
         {
             return;
         }
@@ -231,7 +232,9 @@ public sealed class ThingSystem : ZoneSystem
         Supports.Release(thing.Ref);
         thing.Link = SupportLink.None;
         thing.Support = TargetRef.None;
-        Vector3 at = Spill.RestingPoint(thing.Position);
+        Vector3 at = Spill.RestingPoint(thing.Position, out TargetRef support,
+            thing is Corpse ? Zone.HeightAboveGround(thing.Position) + 2 : 4);
+        thing.Support = support;
         if (thing is Deployable d && ThingCellOf(d.Position) != ThingCellOf(at))
         {
             Cell(d.Position).Remove(d);
@@ -239,6 +242,7 @@ public sealed class ThingSystem : ZoneSystem
         }
         thing.Position = at;
         thing.Up = Frame.UpAt(at);
+        Supports.Hold(thing.Ref, thing.Support);
         // Lying on another ship's deck, it rides that one.
         if (Ships.DeckUnder(at, 0.05f, 0.3f, out _, out Ship? deck))
         {
@@ -379,6 +383,7 @@ public sealed class ThingSystem : ZoneSystem
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
+            zone.Things().TraceCorpses(ray, ref best);
             Vector3 end = ray.Origin + ray.Direction * ray.Length;
             zone.Combat()._traceThings.Clear();
             zone.Things().DeployablesNear((ray.Origin + end) / 2, ray.Length / 2 + 2f, zone.Combat()._traceThings);
@@ -417,6 +422,8 @@ public sealed class ThingSystem : ZoneSystem
 
         public DamageOutcome Receive(in DamageRequest r)
         {
+            if (zone.Things().StaticOf(new EntityId(r.Hit.Target.Id)) is Corpse corpse)
+                return zone.Things().HarvestCorpse(corpse, r);
             if (zone.Things().StaticOf(new EntityId(r.Hit.Target.Id)) is not Deployable d)
             {
                 return default;
@@ -640,6 +647,7 @@ public sealed class ThingSystem : ZoneSystem
         _over.Clear();
         foreach (ILifetime thing in _loose)
         {
+            if (thing is Corpse corpse) AdvanceCorpse(corpse);
             if (lifetimes.Over(thing, Tick))
             {
                 _over.Add(thing);

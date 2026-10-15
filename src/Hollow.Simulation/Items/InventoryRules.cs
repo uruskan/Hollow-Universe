@@ -37,6 +37,8 @@ public static class InventoryRules
         ItemStack target = to[toSlot];
         if (target.IsEmpty)
         {
+            // A specialised store may hold more than a carried stack. Move only what this destination can hold.
+            moving = Math.Min(moving, to.Limit(item));
             ItemStack moved = source.WithCount(moving);
             if (!to.Accepts(content, toSlot, moved, from == to ? fromSlot : -1))
             {
@@ -49,12 +51,12 @@ public static class InventoryRules
         }
         if (target.Item == source.Item && target.Condition == source.Condition && item.StackSize > 1)
         {
-            int room = item.StackSize - target.Count;
+            int room = to.Limit(item) - target.Count;
             if (room <= 0)
             {
                 return OutcomeCode.NoSpace;
             }
-            if (!to.Accepts(content, toSlot, new ItemStack(source.Item, Math.Min(item.StackSize, target.Count + 1), source.Condition)))
+            if (!to.Accepts(content, toSlot, new ItemStack(source.Item, target.Count + 1, source.Condition)))
             {
                 return OutcomeCode.NotAllowed;
             }
@@ -131,10 +133,10 @@ public static class InventoryRules
                 for (int i = 0; i < c.Size && left > 0; i++)
                 {
                     ItemStack s = c[i];
-                    if (s.Item == stack.Item && s.Condition == stack.Condition && s.Count < item.StackSize &&
+                    if (s.Item == stack.Item && s.Condition == stack.Condition && s.Count < c.Limit(item) &&
                         (!byPlayer || c.Accepts(content, i, new ItemStack(s.Item, s.Count + 1, s.Condition))))
                     {
-                        int n = Math.Min(item.StackSize - s.Count, left);
+                        int n = Math.Min(c.Limit(item) - s.Count, left);
                         s.Count += n;
                         left -= n;
                         c.Set(i, s);
@@ -154,7 +156,7 @@ public static class InventoryRules
                 {
                     continue;
                 }
-                ItemStack part = stack.WithCount(Math.Min(item.StackSize, left));
+                ItemStack part = stack.WithCount(Math.Min(c.Limit(item), left));
                 if (!byPlayer || c.Accepts(content, i, part))
                 {
                     c.Set(i, part);

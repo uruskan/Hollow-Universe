@@ -43,7 +43,7 @@ public static class ShipConvert
     };
 
     /// <summary>A ship's state exactly, for its pilot's reconciliation.</summary>
-    public static OwnShipState ToOwn(in ShipState s, uint netId, uint kind) => new()
+    public static OwnShipState ToOwn(in ShipState s, uint netId, uint kind, ShipInput cruise = default) => new()
     {
         NetId = netId,
         Kind = kind,
@@ -62,10 +62,14 @@ public static class ShipConvert
         SpinZ = s.AngularVelocity.Z,
         Health = s.Health,
         Fuel = s.Fuel,
+        FuelReserve = s.FuelReserve,
         BoostTicks = s.BoostTicks,
         CooldownTicks = s.CooldownTicks,
         RestTicks = s.RestTicks,
         Flags = s.Flags,
+        CruiseThrottle = cruise.Throttle,
+        CruiseStrafe = cruise.Strafe,
+        CruiseVertical = cruise.Vertical,
     };
 
     /// <summary>The state an own-ship message carries (untrusted floats: a rotation that isn't one becomes level).</summary>
@@ -84,6 +88,7 @@ public static class ShipConvert
             AngularVelocity = new Vector3(o.SpinX, o.SpinY, o.SpinZ),
             Health = o.Health,
             Fuel = o.Fuel,
+            FuelReserve = o.FuelReserve,
             BoostTicks = o.BoostTicks,
             CooldownTicks = o.CooldownTicks,
             RestTicks = o.RestTicks,

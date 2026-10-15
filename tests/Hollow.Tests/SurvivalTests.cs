@@ -205,7 +205,11 @@ public static class SurvivalTests
         Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.Actions().MoveItem(bo, ContainerRef.Main, 0, ContainerRef.Loot, woodSlot, 10, 0), "no putting in");
         Assert.True(rig.P(bo).Inventory.Count(c.ItemByKey("wood")) > 0, "Bo has wood");
 
-        // Its timer: gone when it runs out.
+        // The server's body timer becomes a bag with the same inventory before the bag's own expiry.
+        corpse.Life!.Restore(CorpseStage.Body, 1, corpse.Life.HarvestLeft, rig.Zone.Tick);
+        rig.Step(31);
+        Assert.True(!corpse.IsBody && rig.Zone.Things().StaticOf(corpse.Id) == corpse, "body converts without replacing its inventory");
+        Assert.True(rig.P(bo).Looting == corpse.Id, "the open loot stays open across conversion");
         corpse.DespawnTick = rig.Zone.Tick + 31;
         rig.Step(70);
         Assert.True(!rig.Zone.Things().Statics().OfType<Corpse>().Any(), "despawned on its timer");

@@ -177,7 +177,7 @@ public partial class PlacementGhost : Node3D
         return root;
     }
 
-    // A door: the kit's frame and leaves, shut (or the garage door's frame and curtain).
+    // Show the actual hinge and opening side before placing. R flips this whole assembly with the candidate.
     private Node3D? Door(Placeable placeable)
     {
         if (Assets == null)
@@ -185,7 +185,19 @@ public partial class PlacementGhost : Node3D
             return null;
         }
         var root = new Node3D { Name = placeable.Key };
-        DoorView.Parts((DoorDef)placeable.Definition, Assets, root);
+        var def = (DoorDef)placeable.Definition;
+        var leaves = new List<(MeshInstance3D Leaf, float OpenYaw)>();
+        DoorView.Parts(def, Assets, root, leaves);
+        foreach ((MeshInstance3D leaf, float openYaw) in leaves)
+        {
+            leaf.Rotation = new Vector3(0, openYaw * 0.35f, 0);
+        }
+        if (def.Rolls)
+        {
+            // A raised arrow shows the roll direction and identifies the operated face of the curtain.
+            root.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.025f, Height = 0.5f }, Position = new Vector3(0, 1.35f, 0.25f) });
+            root.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0, BottomRadius = 0.12f, Height = 0.22f }, Position = new Vector3(0, 1.7f, 0.25f) });
+        }
         return root;
     }
 }

@@ -156,7 +156,7 @@ public static class ShipMotor
             submerged = Math.Clamp((float)(ctx.Surface.SeaRadius - radius + def.WaterBelow) / (def.WaterBelow + def.WaterAbove), 0, 1);
         }
 
-        bool engines = input.Engines && s.Fuel > 0;
+        bool engines = input.Engines && !s.Has(ShipFlags.EngineStopped) && s.Fuel > 0;
         bool boosting = TickBoost(ref s, def, engines && input.Has(ShipButtons.Boost), ref events);
         // On its skids with nothing asked of it, the engines idle and the ship sits (or slides off what is too steep).
         bool landedIdle = s.Has(ShipFlags.Touching) && !input.WantsMotion;
@@ -212,11 +212,25 @@ public static class ShipMotor
             }
             // Fuel: an idle burn, more with the thrust given, more again boosting.
             float effort = Math.Min(1f, (MathF.Abs(thrust.X) + MathF.Abs(thrust.Y) + MathF.Abs(thrust.Z)) * m / (def.MainThrust + def.LiftThrust));
-            s.Fuel -= (def.FuelIdle + effort * (def.FuelFull - def.FuelIdle)) * (boosting ? def.FuelBoost : 1) * dt;
+            float requestedFuel = (def.FuelIdle + effort * (def.FuelFull - def.FuelIdle)) * (boosting ? def.FuelBoost : 1) * dt;
+            events.FuelUsed = Math.Min(s.Fuel, requestedFuel);
+            if (requestedFuel > 0 && events.FuelUsed < requestedFuel)
+            {
+                // A final fraction buys only that fraction of this tick's powered force and torque.
+                float fraction = events.FuelUsed / requestedFuel;
+                thrust *= fraction;
+                turn *= fraction;
+            }
+            ShipFuel.Split(s.Fuel, s.FuelReserve, out int fuelUnits, out float reserve);
+            ShipFuel.Burn(ref fuelUnits, ref reserve, events.FuelUsed);
+            s.FuelReserve = reserve;
+            s.Fuel = fuelUnits + reserve;
             if (s.Fuel <= 0)
             {
                 s.Fuel = 0;
                 events.OutOfFuel = true;
+                engines = boosting = false;
+                s.BoostTicks = 0;
             }
         }
         s.Thrust = new Vector3(thrust.X / capSide, thrust.Y >= 0 ? thrust.Y / capUp : thrust.Y / capDown,

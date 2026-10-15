@@ -1,0 +1,20 @@
+Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+Vulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER
+
+Hollow Universe 1.0.0+27487dcf26e16e85112cb0474e227367e9642888
+[capture] isolated input; requested resolution=(1600, 900); preferences are not saved
+Galaxy ready: 99142 catalogue stars, loaded in 574 ms.
+[joints] twig planet-frame origin=(861.81, 1226.339, 1896.521) up=(0.357, 0.507, 0.785) groundClearance=0.610m
+[joints] wood planet-frame origin=(872.754, 1230.444, 1888.814) up=(0.357, 0.507, 0.785) groundClearance=0.628m
+[joints] stone planet-frame origin=(883.741, 1234.612, 1881.203) up=(0.357, 0.507, 0.785) groundClearance=0.654m
+[joints] metal planet-frame origin=(868.95, 1215.018, 1900.628) up=(0.357, 0.507, 0.785) groundClearance=0.637m
+[joints] armoured planet-frame origin=(879.878, 1219.102, 1892.887) up=(0.357, 0.507, 0.785) groundClearance=0.636m
+[build] builder planet-frame position=<853.86145, 1229.1466, 1897.6235> up=<0.3533045, 0.50858724, 0.7851847> groundClearance=0.050m siteDistance=8.49m
+[joints] control: 0 pixels differ between two pictures of the same view (wall-inside)
+[joints] twig: flickering pixels by view: wall-inside 18825, wall-outside 9818, foundations 8734, floor-on-walls 7012, ceiling 19036, corner 13053, triangle 5804, doorway 8114, double-door 3288
+[joints] wood: flickering pixels by view: wall-inside 61, wall-outside 2150, foundations 856, floor-on-walls 1423, ceiling 148, corner 980, triangle 694, doorway 2091, double-door 833
+[joints] stone: flickering pixels by view: wall-inside 110, wall-outside 2421, foundations 1077, floor-on-walls 1067, ceiling 267, corner 1569, triangle 992, doorway 3479, double-door 533
+[joints] metal: flickering pixels by view: wall-inside 119, wall-outside 1752, foundations 746, floor-on-walls 2161, ceiling 493, corner 2429, triangle 2071, doorway 3364, double-door 916
+[joints] armoured: flickering pixels by view: wall-inside 168, wall-outside 809, foundations 652, floor-on-walls 1761, ceiling 301, corner 594, triangle 561, doorway 1140, double-door 221
+[joints] flickering pixels in all 45 views: 134693
+[joints] tour saved in D:\GameDev\Projects\HollowUniverseABTestB\.artifacts\visual-gates-20261015-205146-08b3ea89\building-joints

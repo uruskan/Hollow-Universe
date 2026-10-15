@@ -6,11 +6,11 @@ namespace HollowUniverse.Ships;
 
 /// <summary>
 /// The pilot's keyboard and mouse (G6, GROUND.md §6.7), read into a tick of <see cref="ShipInput"/>. The mouse is a
-/// virtual stick: moving it pushes the stick (up the nose rises, right it turns right), and the stick springs back to the
-/// middle when the mouse rests. W and S move the throttle lever, which stays where it is put (X pulls it to zero);
+/// persistent steering cursor: right keeps turning right until moved back or explicitly centred with MMB.
+/// W and S move the throttle lever, which stays where it is put (X pulls it to zero);
 /// A and D slide sideways, Shift and Ctrl rise and sink, Q and E roll, the arrow keys are a keyboard stick, B boosts,
 /// Z switches flight assist (the keys are <c>SeatKeys</c>', KNOWN_PROBLEMS.md finding 28; Space leaves the seat). With
-/// flight assist on the lever sets the speed to hold, the stick the rates to turn at, and letting go of everything hovers.
+/// flight assist on the lever sets the speed to hold and the cursor sets the rates to turn at.
 /// </summary>
 public sealed class ShipControls
 {
@@ -20,14 +20,16 @@ public sealed class ShipControls
     /// <summary>Flight assist switched off (Z).</summary>
     public bool AssistOff { get; set; }
 
-    /// <summary>The virtual stick: x turns right, y raises the nose; within the unit circle.</summary>
-    public Vector2 Stick { get; private set; }
+    /// <summary>The steering cursor: x turns right, y raises the nose; each axis is −1 to 1.</summary>
+    private readonly Hollow.Client.PilotSteering _steering = new();
+    public Vector2 Stick => new(_steering.Cursor.X, _steering.Cursor.Y);
+    public const float SteeringReach = 220;
 
     /// <summary>Stick per pixel of mouse travel (at interface scale 1).</summary>
-    public float MouseSensitivity { get; set; } = 0.006f;
+    public float MouseSensitivity { get; set; } = 1 / SteeringReach;
 
-    /// <summary>Seconds for a resting stick to come halfway back to the middle.</summary>
-    public float StickReturn { get; set; } = 0.16f;
+    /// <summary>Explicitly centre steering; resting the mouse does not change it.</summary>
+    public void CentreSteering() => _steering.Centre();
 
     /// <summary>How fast W and S move the lever (a full stroke in this many seconds).</summary>
     public float ThrottleStroke { get; set; } = 1.6f;
@@ -35,8 +37,7 @@ public sealed class ShipControls
     /// <summary>Feeds the mouse's movement (pixels).</summary>
     public void Mouse(Vector2 relative)
     {
-        Vector2 stick = Stick + new Vector2(relative.X, -relative.Y) * MouseSensitivity;
-        Stick = stick.Length() > 1 ? stick.Normalized() : stick;
+        _steering.Move(new System.Numerics.Vector2(relative.X, -relative.Y) * MouseSensitivity);
     }
 
     /// <summary>Handles a key press; true when it was a pilot's key (Z flight assist, X throttle to zero).</summary>
@@ -63,24 +64,20 @@ public sealed class ShipControls
     public void Reset()
     {
         Throttle = 0;
-        Stick = Vector2.Zero;
+        _steering.Centre();
         AssistOff = false;
     }
 
-    /// <summary>Reads this frame's controls (the keys held now) and lets the stick spring back by <paramref name="delta"/>.</summary>
+    /// <summary>Reads this frame's controls and smoothly follows the persistent steering cursor.</summary>
     public ShipInput Read(double delta)
     {
         static float Held(Key key) => Input.IsPhysicalKeyPressed(key) ? 1 : 0;
         float lever = Held(Godot.Key.W) - Held(Godot.Key.S);
-        Throttle = Math.Clamp(Throttle + lever * (float)delta * 2 / ThrottleStroke, -1, 1);
-        // Snap to zero when the lever crosses it, so stopping is easy.
-        if (lever != 0 && MathF.Abs(Throttle) < 0.02f)
-        {
-            Throttle = 0;
-        }
+        Throttle = Hollow.Client.PilotSteering.AdjustThrottle(Throttle, lever * (float)delta * 2 / ThrottleStroke);
         Vector2 keys = new(Held(Godot.Key.Right) - Held(Godot.Key.Left), Held(Godot.Key.Up) - Held(Godot.Key.Down));
-        Vector2 stick = Stick + keys;
-        static float Shape(float v) => MathF.Abs(v) < 0.04f ? 0 : Math.Clamp(v, -1, 1);
+        System.Numerics.Vector2 smooth = _steering.Step((float)delta);
+        Vector2 stick = new Vector2(smooth.X, smooth.Y) + keys;
+        static float Shape(float v) => Math.Clamp(v, -1, 1);
         var input = new ShipInput
         {
             Pitch = Shape(stick.Y),
@@ -98,7 +95,6 @@ public sealed class ShipControls
         {
             input.Buttons |= ShipButtons.AssistOff;
         }
-        Stick *= MathF.Exp(-(float)delta * MathF.Log(2) / StickReturn);
         return input;
     }
 }

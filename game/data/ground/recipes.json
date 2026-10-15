@@ -11,6 +11,7 @@
     { "output": "stone-pickaxe", "seconds": 15, "ingredients": [["wood", 200], ["stone", 100]] },
     { "output": "metal-hatchet", "seconds": 30, "workbench": 1, "ingredients": [["wood", 100], ["metal-fragments", 75]] },
     { "output": "metal-pickaxe", "seconds": 30, "workbench": 1, "ingredients": [["wood", 100], ["metal-fragments", 125]] },
+    { "output": "salvaged-axe", "seconds": 45, "workbench": 2, "known": false, "ingredients": [["wood", 100], ["metal-fragments", 150], ["metal-blade", 2], ["metal-pipe", 1]] },
 
     { "output": "wooden-spear", "seconds": 10, "ingredients": [["wood", 300]] },
     { "output": "stone-spear", "seconds": 15, "ingredients": [["wooden-spear", 1], ["stone", 20]] },

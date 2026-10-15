@@ -164,6 +164,7 @@ public partial class GroundUi : Control
         Model.ChatReceived += OnChat;
         Resized += Layout;
         Ui.ScaleChanged += Layout;
+        GetWindow().FocusExited += CancelInventoryGestures;
         Open(Screen);
     }
 
@@ -179,6 +180,7 @@ public partial class GroundUi : Control
         Model.Notice -= OnNotice;
         Model.ChatReceived -= OnChat;
         Ui.ScaleChanged -= Layout;
+        GetWindow().FocusExited -= CancelInventoryGestures;
     }
 
     private LineEdit Field(string name, float fontSize, Color fill, Color focused)
@@ -205,10 +207,7 @@ public partial class GroundUi : Control
             {
                 Sound?.Invoke(open ? "ui.inventory.open" : "ui.inventory.close");
             }
-            _drag = null;
-            _splitTracking = false;
-            _hoverDone.Clear();
-            _hoverStarted.Clear();
+            CancelInventoryGestures();
         }
         // The F2 panel is watched by the server while it is open (GROUND.md §8.5).
         if (screen != Screen && (screen == GroundScreen.Developer || Screen == GroundScreen.Developer))
@@ -258,6 +257,19 @@ public partial class GroundUi : Control
 
     /// <summary>Where a point of the inventory's design canvas is on the window, in pixels.</summary>
     public Vector2 CanvasPoint(Vector2 design) => CanvasFrame + design * Ui.Scale;
+
+    /// <summary>The centre of a visible slot, for input-driven UI regression checks.</summary>
+    public Vector2 SlotPoint(SlotRef slot)
+    {
+        foreach (Hit hit in _hits)
+        {
+            if (hit.Kind == HitKind.Slot && hit.Slot == slot)
+            {
+                return hit.Rect.GetCenter();
+            }
+        }
+        throw new InvalidOperationException($"Slot {slot} is not visible.");
+    }
 
     /// <summary>Holds the pointer at a design-canvas point, for screenshots of hover states and wheels.</summary>
     public void HoldPointer(Vector2 design)
@@ -387,6 +399,7 @@ public partial class GroundUi : Control
     // Tab works even while a text field has focus (RustMVP routes it first).
     public override void _Input(InputEvent e)
     {
+        InventoryInput(e);
         if (e is InputEventKey { Pressed: true } panelKey && (DeveloperKey(panelKey) || ConsoleKey(panelKey)))
         {
             GetViewport().SetInputAsHandled();
@@ -522,6 +535,11 @@ public partial class GroundUi : Control
             PressInventory(h, button);
             return;
         }
+        if (Screen == GroundScreen.Inventory && h.Kind == HitKind.Character && button == MouseButton.Left)
+        {
+            _characterDragging = true;
+            return;
+        }
         if (h.Kind == HitKind.Map)
         {
             PressGlobe(button);
@@ -550,11 +568,12 @@ public partial class GroundUi : Control
         SplitIcon,
         SplitTrack,
         Panel,
+        Character,
         Map,
     }
 
     /// <summary>Something under the pointer: a button with its action, a slot, or a panel (so a press on it goes nowhere).</summary>
-    private readonly record struct Hit(Rect2 Rect, HitKind Kind, Action? Click = null, SlotRef Slot = default, string? Key = null);
+    private readonly record struct Hit(Rect2 Rect, HitKind Kind, Action? Click = null, SlotRef Slot = default, string? Key = null, string? Tooltip = null);
 
     private readonly List<Hit> _hits = new();
 

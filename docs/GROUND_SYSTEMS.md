@@ -600,7 +600,15 @@ relevance grid; replication and saving written once per component (NetGen extend
 interpolator; one client view per capability. Building pieces keep their structure solver (sockets, stability) behind the
 same capabilities. This is the largest and riskiest change; it is decided after P0–P5 have proved the capability model.
 
-## 9a. Later: characters and held items (package P7)
+## 9a. Characters and held items (package P7)
+
+**AB Test B, 15 October 2026:** the owner approved the shared FPS/TPS animation and timing
+repair, including a visual editor for all held items. Implementation and current validation
+are tracked in [HELD_ITEMS.md](HELD_ITEMS.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
+Functional attached optics and held weapon lights use catalogue presentation capabilities, native eye/beam
+sockets and existing authoritative `HeldMods`; see [REPAIR_ATTACHMENTS.md](REPAIR_ATTACHMENTS.md) for integration
+and validation status. They add no separate inventory, damage, input message or saved light authority.
+The paragraph below records the original finding, not a claim that the repair is finished.
 
 The owner's playtest (13 October 2026) found the characters' presentation unpolished: items clip into the third-person
 body or are held oddly, the first-person rock wants Rust's closed grip, and a swing's visible contact misses the point the
@@ -821,3 +829,16 @@ others it needs in lazily found fields. Renamed, as the zone's systems were: a m
 (`client.Survival().ThingOf`, `client.Ships().Piloting`, `client.Interaction().AimInteraction`). The conversion moved 385
 call sites outside the client (198 in the presentation, 42 in the bots, 145 in the tests) by a script from the compiler's
 error list, so the moved code's text is the same where it stands. Test: `ArchitectureTests.TheClientIsAHost`.
+
+## AB Test B: supported player bodies (15 October 2026)
+
+`CorpseLifecycle` owns a player body's server deadline, harvest progress and death-time appearance. `Corpse` retains
+one ordinary take-only inventory container across body and backpack phases. `PlayerSystem.Die` creates it after the
+central god-mode guard, using `SpillSystem.RestingPoint` and the existing support graph. Fixed floors release it when
+removed; ship support links carry it every tick. The Thing damage receiver and lifetime step own harvest and phase
+conversion. `HarvestProgress` is shared with animal carcasses so tool speed never changes total yield.
+
+WorldCodec7 saves remaining world time and partial yield; old saves without lifecycle metadata become bags without a
+new harvest allowance. ThingSpawn's optional corpse appearance and ThingSpawn/ThingUpdate's `IsBody` make phase and
+clothing independent of reconnect timing. PeopleView draws a supported prone body, then the existing large backpack;
+server-only Jolt floors do not depend on a local Godot ragdoll. See `REPAIR_CORPSES.md` for tuning and validation status.

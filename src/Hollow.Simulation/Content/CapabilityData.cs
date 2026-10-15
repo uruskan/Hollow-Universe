@@ -16,7 +16,7 @@ public sealed class CapabilityData
     public const string File = "capabilities.json";
 
     private readonly Dictionary<string, int> _index = new(StringComparer.Ordinal);
-    private readonly CapabilitySet _owned, _container, _burner, _machine, _standing, _station, _portable;
+    private readonly CapabilitySet _owned, _container, _burner, _machine, _standing, _station, _portable, _nameable;
     private readonly CapabilitySet[] _locks;
 
     internal CapabilityData(IReadOnlyList<string> keys)
@@ -33,6 +33,7 @@ public sealed class CapabilityData
         _standing = Set("standing");
         _station = Set("station");
         _portable = Set("portable");
+        _nameable = Set("nameable");
         Bag = Set("container", "lifetime", "pickup");
         Corpse = Set("container", "lifetime");
         Door = Set("door", "owned");
@@ -139,6 +140,7 @@ public sealed class CapabilityData
         {
             set = set.With(_portable);
         }
+        if (def.IsRespawnPoint) set = set.With(_nameable);
         return set;
     }
 }

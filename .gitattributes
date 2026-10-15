@@ -13,3 +13,7 @@
 *.so binary
 *.cmd text eol=crlf
 *.webp binary
+# Vendored package receipts hash exact bytes, including source text line endings.
+game/assets/revised/** -text
+# Preserve the owner's original pasted report verbatim.
+docs/reports/legacy-30-issues.txt -text

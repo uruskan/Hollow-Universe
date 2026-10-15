@@ -70,6 +70,7 @@ public partial class AnimalSandbox : Node3D
         public float Fov = 50;
         public Func<(Num.Vector3 Eye, Num.Vector3 At)> Camera = null!;
         public Func<bool> Moment = () => true;
+        public bool HoldMomentForShot;
         public Func<string>? Trace;
         public Action? Tick;
         public Action<double>? Frame;
@@ -90,6 +91,7 @@ public partial class AnimalSandbox : Node3D
     private Scene? _scene;
     private double _accumulator;
     private double _sceneTime;
+    private bool _heldMoment;
     private double _elapsed;
     private bool _shot;
     private float _orbit;
@@ -101,7 +103,7 @@ public partial class AnimalSandbox : Node3D
     public Dictionary<string, string> Options { get; set; } = new();
 
     /// <summary>For automated screenshots: the ground drawn and the scene at its moment.</summary>
-    public bool ReadyForShot => _scene != null && _world.IsReady && _sceneTime > 1 && _scene.Moment();
+    public bool ReadyForShot => _scene != null && _world.IsReady && (_sceneTime > 1 || _heldMoment) && _scene.Moment();
 
     public Zone Zone => _zone;
 
@@ -172,6 +174,7 @@ public partial class AnimalSandbox : Node3D
         }
         _scene = scene;
         _sceneTime = 0;
+        _heldMoment = false;
         _world.Camera.Fov = scene.Fov;
         _cameraPlaced = false;
         _orbit = 0;
@@ -205,6 +208,10 @@ public partial class AnimalSandbox : Node3D
         _elapsed += delta;
         // The world held still until the ground around is drawn, so a scene's moment isn't missed while it streams.
         bool waiting = !_world.IsReady && _elapsed < 30;
+        // A moving scene's intended moment may occur before --wait elapses. Preserve it for the photograph,
+        // while keeping rendering/streaming and camera settling active. Interactive scenes never pause here.
+        _heldMoment |= _shot && _world.IsReady && _scene is { HoldMomentForShot: true } && _scene.Moment();
+        waiting |= _heldMoment;
         _sceneTime += waiting ? 0 : delta;
         _accumulator += waiting ? 0 : Math.Min(delta, 0.25);
         int steps = 0;

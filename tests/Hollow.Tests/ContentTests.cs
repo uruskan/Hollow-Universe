@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Json.Nodes;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Content.Readers;
 
@@ -74,10 +75,22 @@ public static class ContentTests
             .Replace("\"stack\": 64,", "\"stak\": 64,", StringComparison.Ordinal);
         texts["recipes.json"] = texts["recipes.json"].Replace("[\"stone\", 10]", "[\"unobtainium\", 10]", StringComparison.Ordinal)
             .Replace("[[\"wood\", 300]]", "[[\"refined-metal\", 1]], \"workbench\": 3", StringComparison.Ordinal);
-        texts["gather.json"] = texts["gather.json"].Replace("[[\"metal-ore\", 250], [\"high-grade-ore\", 20]]", "[[\"metal-ore\", 250]]", StringComparison.Ordinal);
-        // G7: the recycler turns loot into refined metal too; take that away as well.
-        texts["world.json"] = texts["world.json"].Replace(", [\"refined-metal\", 1]]", "]", StringComparison.Ordinal)
-            .Replace(", [\"refined-metal\", 2]]", "]", StringComparison.Ordinal);
+        // Remove every source, including the dedicated high-grade outcrop and metal-node byproduct. Match item
+        // keys structurally so added sources, balance changes or JSON formatting cannot silently repair the fixture.
+        void RemoveYields(string file, string collection, string item)
+        {
+            JsonNode root = JsonNode.Parse(texts[file])!;
+            int removed = 0;
+            foreach (JsonNode? source in root[collection]!.AsArray())
+                if (source?["yield"] is JsonArray yields)
+                    for (int i = yields.Count - 1; i >= 0; i--)
+                        if (yields[i]![0]!.GetValue<string>() == item) { yields.RemoveAt(i); removed++; }
+            Assert.True(removed > 0, $"the broken fixture actually removes {item} sources from {file}");
+            texts[file] = root.ToJsonString();
+        }
+        RemoveYields("gather.json", "kinds", "high-grade-ore");
+        // The recycler turns loot into refined metal too; take all of those yields away as well.
+        RemoveYields("world.json", "recycle", "refined-metal");
         GameContent content = GameContent.FromTexts(texts);
         string all = string.Join("\n", content.Problems);
         Fixtures.Report($"{content.Problems.Count} problems found, e.g. {content.Problems.FirstOrDefault()}");
@@ -86,7 +99,7 @@ public static class ContentTests
         Assert.True(all.Contains("unknown field \"stak\"", StringComparison.Ordinal), "a typo");
         Assert.True(all.Contains("no item \"unobtainium\"", StringComparison.Ordinal), "an unknown ingredient");
         Assert.True(all.Contains("\"workbench-2\": can't be made from gatherable resources (nothing gives refined-metal)", StringComparison.Ordinal),
-            "a recipe nothing can feed once metal outcrops give no rich ore: " + all);
+            "a recipe nothing can feed once gathering and recycling give no high-grade metal: " + all);
         Assert.True(all.Contains("\"wooden-spear\"", StringComparison.Ordinal), "a recipe needing a workbench that can't be made");
         bool threw = false;
         try

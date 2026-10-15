@@ -10,6 +10,13 @@ public sealed record WalkingParameters
 {
     public static WalkingParameters Default { get; } = new();
 
+    /// <summary>Small original monuments per candidate cell; tune world dressing without changing galaxy seeds.</summary>
+    public double MonumentSpacing { get; init; } = 300;
+    public double MonumentChance { get; init; } = 0.7;
+
+    /// <summary>Harvestable outcrops relative to the inherited sparse planet scatter. Provisional gameplay balance.</summary>
+    public double ResourceDensity { get; init; } = 2.2;
+
     // ------------------------------------------------------------ landmasses (§2)
 
     /// <summary>Wavelength of the landmass field's first octave: a few continents on a 2.4 km world.</summary>

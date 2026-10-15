@@ -196,6 +196,40 @@ public partial class GroundUi
             Ui.Px(w), px, maxLines, colour);
     }
 
+    private static List<string> WrapLines(string text, float width, float size, bool bold = false)
+    {
+        var lines = new List<string>();
+        string line = "";
+        foreach (string word in text.Replace('\n', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string joined = line.Length == 0 ? word : line + " " + word;
+            if (Measure(joined, size, bold) <= width)
+            {
+                line = joined;
+                continue;
+            }
+            if (line.Length > 0)
+            {
+                lines.Add(line);
+            }
+            line = "";
+            foreach (char c in word)
+            {
+                if (line.Length > 0 && Measure(line + c, size, bold) > width)
+                {
+                    lines.Add(line);
+                    line = "";
+                }
+                line += c;
+            }
+        }
+        if (line.Length > 0)
+        {
+            lines.Add(line);
+        }
+        return lines;
+    }
+
     /// <summary>An item's icon, fitted square and centred in the box.</summary>
     private void Icon(string? key, float x, float y, float w, float h, float alpha = 1f)
     {

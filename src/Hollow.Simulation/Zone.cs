@@ -256,6 +256,10 @@ public sealed class Zone : IDisposable
             Physics.EnsureGround(c.State.Position);
         }
         c.State.Cheats = cheats;
+        if ((cheats & MoveCheats.God) != 0 && Get<PlayerSystem>()?.PlayerOf(entity) is { Wounded: true, Dead: false } wounded)
+        {
+            Get<WoundedSystem>()?.GetUp(entity, wounded, EntityId.None);
+        }
     }
 
     /// <summary>The surface's own ground, asked as a client asks it (<see cref="GroundProbe"/>).</summary>

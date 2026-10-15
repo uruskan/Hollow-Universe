@@ -1,0 +1,1292 @@
+{
+  "algorithm": "SHA-256",
+  "files": [
+    {
+      "path": "GodotPreview/Preview.cs",
+      "bytes": 18041,
+      "sha256": "afe76bdcc4de7f402d483c3743802df7fa08ca6f293f85fd7acab627ddc7598d"
+    },
+    {
+      "path": "GodotPreview/Preview.cs.uid",
+      "bytes": 20,
+      "sha256": "e5129152bc8f21524954080447de9528c1a0b6151cca9afa7b7219ac42229131"
+    },
+    {
+      "path": "GodotPreview/Preview.tscn",
+      "bytes": 178,
+      "sha256": "df7b1ddf75a212836f4a1bbad88676fc57fcf3e0431e05034247a481e7110ea4"
+    },
+    {
+      "path": "HANDOFF.json",
+      "bytes": 12272,
+      "sha256": "d810702ea58af5fc9daad0673617c73e13d95871bdb4dd8c6bf9c457773fd702"
+    },
+    {
+      "path": "HollowSalvagePreview.csproj",
+      "bytes": 354,
+      "sha256": "c462bff47fbb2095e3c55daf7713c5b8c6f1e0cbbd85a38f0032f14594e35e6f"
+    },
+    {
+      "path": "Icons/128/gears.png",
+      "bytes": 9368,
+      "sha256": "c42fc99fc0d455ccf4441581b2e49139f541378f9c1a9c3bd46300c838bc0fc9"
+    },
+    {
+      "path": "Icons/128/gears.png.import",
+      "bytes": 929,
+      "sha256": "0ec8d61f31e0d7c6008225ee2b5048c7a07844e4b4908aa362427d9b09fca668"
+    },
+    {
+      "path": "Icons/128/metal-pipe.png",
+      "bytes": 9632,
+      "sha256": "0149850afefdc202e8b81b7889b9818b94258298e81fcbfac311de2df28e4b65"
+    },
+    {
+      "path": "Icons/128/metal-pipe.png.import",
+      "bytes": 944,
+      "sha256": "88a175ddd2deadbd3ee93067ed5ba8c51f937acd0a3daf627b11a2525db23e2d"
+    },
+    {
+      "path": "Icons/128/rope.png",
+      "bytes": 14718,
+      "sha256": "820402c6da12f6af112e6540ebb27e0319d0ff6e33dd834af35d09f40989685c"
+    },
+    {
+      "path": "Icons/128/rope.png.import",
+      "bytes": 926,
+      "sha256": "7d4980ce92e6979cf6b69c1122403b40f2f74c88be9792ed4d335cb743d3aacf"
+    },
+    {
+      "path": "Icons/128/sheet-metal.png",
+      "bytes": 10853,
+      "sha256": "b0445130ad6beaabc44d626cdb04cf171ef0dfd7396d76df555ae15d2d32d0a8"
+    },
+    {
+      "path": "Icons/128/sheet-metal.png.import",
+      "bytes": 947,
+      "sha256": "828f86439bc75686cbdcdcf9f856ff68ec335d883b66c70f5b3d483098551039"
+    },
+    {
+      "path": "Icons/128/springs.png",
+      "bytes": 14983,
+      "sha256": "b61b07835729408899f8a9323f2f99a8feb1ce31848fb7cc15e05e04948b21af"
+    },
+    {
+      "path": "Icons/128/springs.png.import",
+      "bytes": 935,
+      "sha256": "ad39b9893860472ddcdf161c799b966f4c60c5bd205436e03a63bc89f0956dc4"
+    },
+    {
+      "path": "Icons/128/tech-scrap.png",
+      "bytes": 11581,
+      "sha256": "ca1558560576d51763bec41e14aa841c5ba7477b1506bbcb811b0ebe0e6d52fb"
+    },
+    {
+      "path": "Icons/128/tech-scrap.png.import",
+      "bytes": 944,
+      "sha256": "5b256b796555af15929c4ddf288e58b1ce38af6247f70ebef3103cc88637a640"
+    },
+    {
+      "path": "Icons/256/gears.png",
+      "bytes": 27731,
+      "sha256": "b19c2d11a01aeaa136ea30a2ffc159bb37f0a230640718cd891a7cbfc4d4b69f"
+    },
+    {
+      "path": "Icons/256/gears.png.import",
+      "bytes": 929,
+      "sha256": "b43154ee4a71c55cc9bc72690e56f05e19b127be87d7c729b6ba8a96a80db9f4"
+    },
+    {
+      "path": "Icons/256/metal-pipe.png",
+      "bytes": 27199,
+      "sha256": "888ff66f8db4ea1945657c5080bee187d778ea651f3d26fa3eed8e18004e24f4"
+    },
+    {
+      "path": "Icons/256/metal-pipe.png.import",
+      "bytes": 944,
+      "sha256": "e6256e001ce3b8e38080992dded6a0c71d91da019d3af6a562aa28b2eac331e7"
+    },
+    {
+      "path": "Icons/256/rope.png",
+      "bytes": 42925,
+      "sha256": "82f319936e046b7d77cea3a185a55f2b88711f89cc40e751745f3d0488eca1c6"
+    },
+    {
+      "path": "Icons/256/rope.png.import",
+      "bytes": 926,
+      "sha256": "ccc0430c16251b3548e18fc8a7f071cca0287369ed6985ee9f97d1c3edb0f1ba"
+    },
+    {
+      "path": "Icons/256/sheet-metal.png",
+      "bytes": 35017,
+      "sha256": "e7fc2ff38f2e53abcf03cfd6276d8c4e80e99d0e90443d0793e2d458338a5c5d"
+    },
+    {
+      "path": "Icons/256/sheet-metal.png.import",
+      "bytes": 947,
+      "sha256": "454d611bcc065a3c15f577a04ef63ad3af95dc45cb51066113a7b86959305282"
+    },
+    {
+      "path": "Icons/256/springs.png",
+      "bytes": 42871,
+      "sha256": "a5c9a97be12d7f48a68f689469b5451ab5e7866e44cf771c322a75967b9d71e2"
+    },
+    {
+      "path": "Icons/256/springs.png.import",
+      "bytes": 935,
+      "sha256": "9a8f07af3ba145554e3f008b8df250b11950513dd35fccc55f29f2bd2819c1ae"
+    },
+    {
+      "path": "Icons/256/tech-scrap.png",
+      "bytes": 31558,
+      "sha256": "a4c0ea5df5ffb213f0d91c1efd8e2045bbd3dff39c02e8380f79e78c2485d5f5"
+    },
+    {
+      "path": "Icons/256/tech-scrap.png.import",
+      "bytes": 943,
+      "sha256": "21bda215a34813966ac0b9d39b03769252d15b64a165460b43cfc209f7e24cb8"
+    },
+    {
+      "path": "Materials/HS_CorrugatedSteel.tres",
+      "bytes": 543,
+      "sha256": "7af1a8f88670e09af41b45b07c467131f60eca1580a149ff04c0b95aa2d84da1"
+    },
+    {
+      "path": "Materials/HS_RopeFibre.tres",
+      "bytes": 519,
+      "sha256": "f8114ed972b3cd5230593ce55e81da30206f678498a4291a2601629bd50cb836"
+    },
+    {
+      "path": "Materials/HS_SalvageTrim.tres",
+      "bytes": 527,
+      "sha256": "d7626a0b826dfc591e9d777b7d16010bb9be7ed8cd1322eed585a25b6046b873"
+    },
+    {
+      "path": "Models/gears.glb",
+      "bytes": 398588,
+      "sha256": "e2c0d37c5d418411876984d6daa9bb638170e2ab8d3c38407f6abfdde4eaa0f3"
+    },
+    {
+      "path": "Models/gears.glb.import",
+      "bytes": 1337,
+      "sha256": "4aca8447407bcbc944613cdb24a9f362b46f719e5314d30cb08a8b950f6ec93c"
+    },
+    {
+      "path": "Models/metal-pipe.glb",
+      "bytes": 168716,
+      "sha256": "a8189047a87e8bf5352b9789ab41ee8cfae1b038760dd852aea26d05d7a027b9"
+    },
+    {
+      "path": "Models/metal-pipe.glb.import",
+      "bytes": 1351,
+      "sha256": "942b136faaacc2d15bf635ccfd82ab8fcc13bc144833466e0a702026393ca26f"
+    },
+    {
+      "path": "Models/rope.glb",
+      "bytes": 247260,
+      "sha256": "8559fd84d2bfe75c1f7e8672216e6132e645c5b67512f0edca9886550e593fc1"
+    },
+    {
+      "path": "Models/rope.glb.import",
+      "bytes": 1328,
+      "sha256": "c1f46ded318b9c82776b2330654c911886313640b1667ac54e994e60e8d262bf"
+    },
+    {
+      "path": "Models/sheet-metal.glb",
+      "bytes": 198372,
+      "sha256": "989b0bb9f749f95c593686b9a0e9b1761a31698c99469b45e0a3bd4e2878f08b"
+    },
+    {
+      "path": "Models/sheet-metal.glb.import",
+      "bytes": 1367,
+      "sha256": "dfdb179a53641afec44af64e1c0a44494e5c923bbbcc076d8263201d9a70b9c5"
+    },
+    {
+      "path": "Models/springs.glb",
+      "bytes": 195944,
+      "sha256": "a2ed06804aff33af715e8db261b6721b86de4220c38e95089ad388c59b901b58"
+    },
+    {
+      "path": "Models/springs.glb.import",
+      "bytes": 1342,
+      "sha256": "455a3ce7663813d0d9e53762f264364f6e96e459318753fc7b927d2a8007b4ed"
+    },
+    {
+      "path": "Models/tech-scrap.glb",
+      "bytes": 259008,
+      "sha256": "8846ac2de5aa4b1fd97738ea086a62a871d6538048aa98928705ec38c3065c72"
+    },
+    {
+      "path": "Models/tech-scrap.glb.import",
+      "bytes": 1352,
+      "sha256": "6d8c7112a8a3fd9936ba48de4049646a23cc98d9824cc5d0f4e6e27ef20148d7"
+    },
+    {
+      "path": "project.godot",
+      "bytes": 419,
+      "sha256": "7db8f5a84f525079f1480404acea9a593aee02c8fba461b51a5ca75c9232550e"
+    },
+    {
+      "path": "README.md",
+      "bytes": 8648,
+      "sha256": "c11d5f969fedc2ed0aa2e3e225bc61e6d7d4bdf1b78c7e4bda330f1bbfb19c57"
+    },
+    {
+      "path": "Renders/.gdignore",
+      "bytes": 2,
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "Renders/engine_family.png",
+      "bytes": 1267569,
+      "sha256": "f6dcecc2698db6d3740688ed4ef6e94fd356245942cd3b2267d59878eaeecbe4"
+    },
+    {
+      "path": "Renders/gears_auto_17m.png",
+      "bytes": 9896,
+      "sha256": "a31460455dc1dd1a5453acc119435f9a4eb779d553fb1e7ef764bbf7d776b0fd"
+    },
+    {
+      "path": "Renders/gears_auto_46m.png",
+      "bytes": 347,
+      "sha256": "9b8c0fb55362cdcb2a04b7f52c99aeca590ed88f30b95821b36ec15e8ec819de"
+    },
+    {
+      "path": "Renders/gears_auto_5m.png",
+      "bytes": 10493,
+      "sha256": "c2b2a88d6eca6823d814485fc86e16e4ca898f3ef11f65f1f9d71a8b2a5f1419"
+    },
+    {
+      "path": "Renders/gears_auto_7m.png",
+      "bytes": 10740,
+      "sha256": "08977759434fa5a109d9c2c662c5fffa96f449f9aae15fe84a58da04598b3e4d"
+    },
+    {
+      "path": "Renders/gears_back.png",
+      "bytes": 62202,
+      "sha256": "4f8d0194486228c9f680d54572eef95219893de734b0208c94a596e12cda8d1b"
+    },
+    {
+      "path": "Renders/gears_checker.png",
+      "bytes": 37650,
+      "sha256": "cbd8092e9459e3d0088bb725a1e0cd02fd9892fc4f11c06d53d1ac5ad36b566e"
+    },
+    {
+      "path": "Renders/gears_close.png",
+      "bytes": 201030,
+      "sha256": "0d1207201ec4dff35f1f098a04949a6a7c5b4dc0505864db41f15bfee7c9013f"
+    },
+    {
+      "path": "Renders/gears_front.png",
+      "bytes": 59356,
+      "sha256": "39d08852d51421deb5e498073aaf6cc2ffb56c020471bb7a4ea32f6cb1c4ca2b"
+    },
+    {
+      "path": "Renders/gears_lod0.png",
+      "bytes": 122496,
+      "sha256": "2840e0f425b317993b7344f9bbb921dda0f11a64ea9894244c7cc645b9a3a580"
+    },
+    {
+      "path": "Renders/gears_lod1.png",
+      "bytes": 122710,
+      "sha256": "bca77561c1a5011bdc32fd6df075d1c01a9c863db0207a0d93a1b6b637e6a196"
+    },
+    {
+      "path": "Renders/gears_lod2.png",
+      "bytes": 117176,
+      "sha256": "9cdbef6e1e9ae7b94c0c77aa7a551bff81957b9b023c04a0e6ec89e464c99559"
+    },
+    {
+      "path": "Renders/gears_player.png",
+      "bytes": 379302,
+      "sha256": "ed31422a6dc808e877f3d9b62db6c305a84466de241287f6953149d21d683223"
+    },
+    {
+      "path": "Renders/gears_side.png",
+      "bytes": 69125,
+      "sha256": "8799977a258af0bec1cebd4447c063ad372a647d3b4476b2ed7a44b6111d458e"
+    },
+    {
+      "path": "Renders/gears_wire.png",
+      "bytes": 39528,
+      "sha256": "2fd12187fe3bb2a69e9d13047b02ca781f3bedf27797bdf171f11d1c68c84f39"
+    },
+    {
+      "path": "Renders/inventory_silhouettes.png",
+      "bytes": 88814,
+      "sha256": "16e45ae94b7bccae66f27d80af65fcfc6107c5cac3e5f5c1b57127c5b9bf4816"
+    },
+    {
+      "path": "Renders/lod_comparison.png",
+      "bytes": 664592,
+      "sha256": "f9f6c3b88886d7ed4084515b56a33cc929078a4845ccabf5dd75ad7c4850eb8c"
+    },
+    {
+      "path": "Renders/material_closeups.png",
+      "bytes": 468470,
+      "sha256": "9ef4b9bbc778f05a4683ed816f6d9cc1c3e9f83111edd9f27f79bb354b337f88"
+    },
+    {
+      "path": "Renders/material_revision_before_after.png",
+      "bytes": 1301303,
+      "sha256": "7c1f856091f747d76791860cfb6b83e6c592ac06acf12ff0de58376a1bdc70d1"
+    },
+    {
+      "path": "Renders/metal-pipe_auto_17m.png",
+      "bytes": 18248,
+      "sha256": "7c6a385eedaedbdc895a88569f147901df371d98055abd0e02491d9ecd595f75"
+    },
+    {
+      "path": "Renders/metal-pipe_auto_46m.png",
+      "bytes": 347,
+      "sha256": "9b8c0fb55362cdcb2a04b7f52c99aeca590ed88f30b95821b36ec15e8ec819de"
+    },
+    {
+      "path": "Renders/metal-pipe_auto_5m.png",
+      "bytes": 17678,
+      "sha256": "38845aaaf3c5aea69ef1ea758dfa1e1eba2bb2af016a1cc11bfc84b271bbdaff"
+    },
+    {
+      "path": "Renders/metal-pipe_auto_7m.png",
+      "bytes": 17974,
+      "sha256": "13114ec62522453f9009fd279c8cd1575af42d015cc39df2d79c6beae7a6be07"
+    },
+    {
+      "path": "Renders/metal-pipe_back.png",
+      "bytes": 87194,
+      "sha256": "92db885ba70fa2959e9a1da2ab998bb65c1ea6430bc98209697c3e2d26a11767"
+    },
+    {
+      "path": "Renders/metal-pipe_checker.png",
+      "bytes": 69603,
+      "sha256": "9ffdf848efdb0c605b7b45cfd3c7895899882479c6665b985698f275fa3d9505"
+    },
+    {
+      "path": "Renders/metal-pipe_close.png",
+      "bytes": 120176,
+      "sha256": "565831409abe2abe28e15f0ef8b34aebcae7cff7f2fedf5aa0e4817e764a0ef3"
+    },
+    {
+      "path": "Renders/metal-pipe_front.png",
+      "bytes": 84145,
+      "sha256": "adfa76570dd0cceacd04b76ddc0c66fff8876721163ebe08d920201f11ad1d72"
+    },
+    {
+      "path": "Renders/metal-pipe_lod0.png",
+      "bytes": 106429,
+      "sha256": "077b33ddc11ea7c39dc8b48520a417466589b2ab12e7c07ff28836375db77fc8"
+    },
+    {
+      "path": "Renders/metal-pipe_lod1.png",
+      "bytes": 107419,
+      "sha256": "5a613dc3c6c07aa02315059851c15b18151632a6d8dda1b116ecc30c503b3213"
+    },
+    {
+      "path": "Renders/metal-pipe_lod2.png",
+      "bytes": 112930,
+      "sha256": "e52618a549188b2efbf889863151fb6dce8c2a90251d23681c364beeac3b6f70"
+    },
+    {
+      "path": "Renders/metal-pipe_player.png",
+      "bytes": 379603,
+      "sha256": "04d7ecfc9cf2dbfbbadc90ed7d0e289b08a3ac5ca06423c8bfefe8e760c0cc97"
+    },
+    {
+      "path": "Renders/metal-pipe_side.png",
+      "bytes": 140677,
+      "sha256": "52b6e64792e696dd2d0b7ba0a009f97d7e4487e11797af569538066d9d196923"
+    },
+    {
+      "path": "Renders/metal-pipe_wire.png",
+      "bytes": 22001,
+      "sha256": "bd08e7ce34964834af59bd1a9eff0675ef8e2c877e85153c31881bf1ff48f56f"
+    },
+    {
+      "path": "Renders/neutral_views.png",
+      "bytes": 531095,
+      "sha256": "3f2df175312e5c8ff23034d29caa8ba9db4d7c209770ab23113172db4496d7bc"
+    },
+    {
+      "path": "Renders/player_distance.png",
+      "bytes": 130004,
+      "sha256": "904e9e70513e96ccbb4eb4979cf7373e97cbac033a7df589b7c1d3509afc188e"
+    },
+    {
+      "path": "Renders/rope_auto_17m.png",
+      "bytes": 20888,
+      "sha256": "62facd951fe453d3410d1843687700ba9f4003b4b1a59105872d3d748d3e46e2"
+    },
+    {
+      "path": "Renders/rope_auto_46m.png",
+      "bytes": 347,
+      "sha256": "9b8c0fb55362cdcb2a04b7f52c99aeca590ed88f30b95821b36ec15e8ec819de"
+    },
+    {
+      "path": "Renders/rope_auto_5m.png",
+      "bytes": 20879,
+      "sha256": "8352af501882d8b7abbb218f0e09dfd7e1b3361838ba94755366be40a2a49eac"
+    },
+    {
+      "path": "Renders/rope_auto_7m.png",
+      "bytes": 20827,
+      "sha256": "2e7bc0a7e5c46b6a763ab788e30c9ae5eed81467bb48f7e6a147dc64a214aea4"
+    },
+    {
+      "path": "Renders/rope_back.png",
+      "bytes": 96128,
+      "sha256": "e1f343c39ea50f09c2617d987798d5280c6224225270b2adb0b4a4b0a153c8a5"
+    },
+    {
+      "path": "Renders/rope_checker.png",
+      "bytes": 214525,
+      "sha256": "00bff7bdca7b4152924b883ba8068086485a422661b4058a1fdea9becb19a05a"
+    },
+    {
+      "path": "Renders/rope_close.png",
+      "bytes": 211080,
+      "sha256": "a457d14a4a58d6207bd57c795d14d8f9f026449176bc02f137150a41e38c2049"
+    },
+    {
+      "path": "Renders/rope_front.png",
+      "bytes": 100781,
+      "sha256": "fa99073b7f9717adb7a13ebba18b1b97470492253f02edb162f46b52ba6329f2"
+    },
+    {
+      "path": "Renders/rope_lod0.png",
+      "bytes": 153830,
+      "sha256": "c19857320db7f3b7c41fee2563f55e9dea11deba2a4ae914060441c3ea51a88c"
+    },
+    {
+      "path": "Renders/rope_lod1.png",
+      "bytes": 153457,
+      "sha256": "ce26ff183f16b54dd3fbeca4abe7395f5658ac48e3c85dae6bee1a3326c26444"
+    },
+    {
+      "path": "Renders/rope_lod2.png",
+      "bytes": 154348,
+      "sha256": "4c389af3832eabda12794cc2046f5ef773c22476246d8154529fe424f09e620d"
+    },
+    {
+      "path": "Renders/rope_player.png",
+      "bytes": 379638,
+      "sha256": "8d5e59b1ef967e9755972ed72871a8ab407a047e5df2d8f3ac1c5e7aeb5ba3a7"
+    },
+    {
+      "path": "Renders/rope_side.png",
+      "bytes": 78306,
+      "sha256": "f9042cf6d8251e4b4d3cdb69bf50f8700b732b6ef39bcc4ab183bc3bbda01b34"
+    },
+    {
+      "path": "Renders/rope_wire.png",
+      "bytes": 48122,
+      "sha256": "e82a9b9fe0c8ac72e00797cc03198e2c64f4029fef66cac94683db669bc64381"
+    },
+    {
+      "path": "Renders/sheet-metal_auto_17m.png",
+      "bytes": 26510,
+      "sha256": "a52adadbdef05e9cbde7cab421ea7d0a17e2a1f709a4e97ab95bb0f7603c9888"
+    },
+    {
+      "path": "Renders/sheet-metal_auto_46m.png",
+      "bytes": 347,
+      "sha256": "9b8c0fb55362cdcb2a04b7f52c99aeca590ed88f30b95821b36ec15e8ec819de"
+    },
+    {
+      "path": "Renders/sheet-metal_auto_5m.png",
+      "bytes": 26501,
+      "sha256": "19f74d5615ca074b17d546df8efae4672ab34ed0ae533f006e116f9cdda77939"
+    },
+    {
+      "path": "Renders/sheet-metal_auto_7m.png",
+      "bytes": 26930,
+      "sha256": "af43744d68131a28e53a0659c3b292db9083af1a617be9894f80981af5401ab8"
+    },
+    {
+      "path": "Renders/sheet-metal_back.png",
+      "bytes": 113870,
+      "sha256": "d81933f6db67523d05c9899b67d4ac605a216966a0031995438ba62edd8a67c5"
+    },
+    {
+      "path": "Renders/sheet-metal_checker.png",
+      "bytes": 100057,
+      "sha256": "e8e1ffbc9c5861408ef17379634bd8603d5aff12f4a2d76b2c883a8be004b05e"
+    },
+    {
+      "path": "Renders/sheet-metal_close.png",
+      "bytes": 252982,
+      "sha256": "60a95c4862393f852616cb6870e149d0a55bb1da3fbc85840d30a5cf7695a946"
+    },
+    {
+      "path": "Renders/sheet-metal_distance_before_after.png",
+      "bytes": 358729,
+      "sha256": "c103ac75c1512501f88ede51999350f15b2a98d1559597fd39eefe9d96446ec7"
+    },
+    {
+      "path": "Renders/sheet-metal_front.png",
+      "bytes": 107406,
+      "sha256": "490dd1fe65a5ece4d061b6ba83cee58389b952b35be3639884595c7d4c7d5d08"
+    },
+    {
+      "path": "Renders/sheet-metal_lod0.png",
+      "bytes": 163134,
+      "sha256": "8bb02e6cc2c0568aebf48c04de9be1a22c44b600ba12357094dc1e9f93e3699c"
+    },
+    {
+      "path": "Renders/sheet-metal_lod1.png",
+      "bytes": 159834,
+      "sha256": "1f80206b48530cbfd9f2fb97d94a85d7c81749047c828903afafbec66085e06b"
+    },
+    {
+      "path": "Renders/sheet-metal_lod2.png",
+      "bytes": 153539,
+      "sha256": "0e92074fd86f31ddcc5598868a28606ac4caa95e9a928d4d886b84257ecaba99"
+    },
+    {
+      "path": "Renders/sheet-metal_material_before_after.png",
+      "bytes": 461930,
+      "sha256": "4e4ea08e8965637a92627ac4a430b0ace508e6cc5c6241cb675a7ca1a6c58cd7"
+    },
+    {
+      "path": "Renders/sheet-metal_player.png",
+      "bytes": 382091,
+      "sha256": "00c83b6c8ff68438aad37f03402fcfb01b09bcb20214365fb096221ab46fcfc7"
+    },
+    {
+      "path": "Renders/sheet-metal_side.png",
+      "bytes": 167133,
+      "sha256": "8da22ac5dd7b1a4fc0526b232bb4d257c9bfaae4c9de3893f5d33b74272a337f"
+    },
+    {
+      "path": "Renders/sheet-metal_side_before_after.png",
+      "bytes": 294462,
+      "sha256": "0342ec968e668ea545ed2952351989dbc6aa1c527980f74f88d181bc6206d300"
+    },
+    {
+      "path": "Renders/sheet-metal_wire.png",
+      "bytes": 40289,
+      "sha256": "64108583944ee743e5c4f40af7232892c6093d52f43a109426a978558b143f94"
+    },
+    {
+      "path": "Renders/springs_auto_17m.png",
+      "bytes": 21771,
+      "sha256": "ad8152055dfd75734212e666bc80ae4ebc7699a23f12342bb7790571a4ac726e"
+    },
+    {
+      "path": "Renders/springs_auto_46m.png",
+      "bytes": 347,
+      "sha256": "9b8c0fb55362cdcb2a04b7f52c99aeca590ed88f30b95821b36ec15e8ec819de"
+    },
+    {
+      "path": "Renders/springs_auto_5m.png",
+      "bytes": 22597,
+      "sha256": "fe18ea377681735150a26114fdc97d5671310244a5fcb84ab4932a32ec088b3b"
+    },
+    {
+      "path": "Renders/springs_auto_7m.png",
+      "bytes": 22455,
+      "sha256": "4fc10b1660808e440bacb1faedd3c36a743df91958245381418f38c43f1d5621"
+    },
+    {
+      "path": "Renders/springs_back.png",
+      "bytes": 130998,
+      "sha256": "f31b93e02f81a8457e764478b748b762c360a08a7f5a81b0a38723bb69d820af"
+    },
+    {
+      "path": "Renders/springs_checker.png",
+      "bytes": 113187,
+      "sha256": "5a883338617db223d88fb9c95403d285a354f2ca3ccb5a92caa1a532ff77ff76"
+    },
+    {
+      "path": "Renders/springs_close.png",
+      "bytes": 164946,
+      "sha256": "bcaf31deb12e6278e9b59feb0e829bb78652d5647e51d2b587dfbcb9f38797ee"
+    },
+    {
+      "path": "Renders/springs_front.png",
+      "bytes": 131896,
+      "sha256": "15d266ff22f36ac5ebbd22eef7e8f51c7eeca23fb73a97957c4320924981b5d3"
+    },
+    {
+      "path": "Renders/springs_lod0.png",
+      "bytes": 152389,
+      "sha256": "fa84df1dba94518a9cd96921d49f8ace83582ce6ed950da6bed7978da71b86de"
+    },
+    {
+      "path": "Renders/springs_lod1.png",
+      "bytes": 151856,
+      "sha256": "83f5137c9ba7e9bfc6e4bca48cf06e636f34885ef6ccf78e529ee2f0d38493d2"
+    },
+    {
+      "path": "Renders/springs_lod2.png",
+      "bytes": 141541,
+      "sha256": "edf73f39d30fc326be390a6b3911550e61f98c148f6f81690e34e4e1c726bd92"
+    },
+    {
+      "path": "Renders/springs_player.png",
+      "bytes": 383211,
+      "sha256": "c16d2f3f9e1a83979c15b4509aaa8bf491207f2ac7af930160a93140174b1e4e"
+    },
+    {
+      "path": "Renders/springs_side.png",
+      "bytes": 218499,
+      "sha256": "548cc5e1cf5e3c057993dc51e384fe07574f2444544339b66f2672f65cfc9b82"
+    },
+    {
+      "path": "Renders/springs_wire.png",
+      "bytes": 36724,
+      "sha256": "437b1bc6330de627ccbc60b55f6b68c17b7f0ce95d1bde00d044cb2354c57f23"
+    },
+    {
+      "path": "Renders/tech-scrap_auto_17m.png",
+      "bytes": 12846,
+      "sha256": "b6b145a538c4a9ab1ab096139fd5c32faa5e0ff95e8e3dcfae70f3ae2267c517"
+    },
+    {
+      "path": "Renders/tech-scrap_auto_46m.png",
+      "bytes": 347,
+      "sha256": "9b8c0fb55362cdcb2a04b7f52c99aeca590ed88f30b95821b36ec15e8ec819de"
+    },
+    {
+      "path": "Renders/tech-scrap_auto_5m.png",
+      "bytes": 14757,
+      "sha256": "5bf7d34399e6d441ca96ec7f2a199b8a6caf56f16ffb906ac2458b551c2a1b3e"
+    },
+    {
+      "path": "Renders/tech-scrap_auto_7m.png",
+      "bytes": 14088,
+      "sha256": "6acd36d45030d0a441eca6518dd069a0c6b447a3416c725c1c9bc62b80eec2bc"
+    },
+    {
+      "path": "Renders/tech-scrap_back.png",
+      "bytes": 49633,
+      "sha256": "5f96d39963a9cf6f2e8275c879d7d0bd1049530b8c210f4710e5b2d29b51d658"
+    },
+    {
+      "path": "Renders/tech-scrap_checker.png",
+      "bytes": 60554,
+      "sha256": "99242b28a058cdee507a7a0cf8291c0935f759b346d0f2eabfac0ee1b1d4a8db"
+    },
+    {
+      "path": "Renders/tech-scrap_close.png",
+      "bytes": 163808,
+      "sha256": "1073743ff0f1b7cfe8c0f61357a10b2c295da188bc5838080dee5dbacf5fd299"
+    },
+    {
+      "path": "Renders/tech-scrap_front.png",
+      "bytes": 45326,
+      "sha256": "0408dc8ea42260d68028a3f2eb2bd34515db6a85059a8cb8217795e1a3b74e91"
+    },
+    {
+      "path": "Renders/tech-scrap_lod0.png",
+      "bytes": 108731,
+      "sha256": "e8ce2039328eb6d7ec20224ffa4e8ee4682816317c796b66f804c639c65621e0"
+    },
+    {
+      "path": "Renders/tech-scrap_lod1.png",
+      "bytes": 104250,
+      "sha256": "0fe4c1df256df43430bbb1189003c9e69f2babe630039f8dd68c1d98f3da442f"
+    },
+    {
+      "path": "Renders/tech-scrap_lod2.png",
+      "bytes": 95844,
+      "sha256": "9305ef6a8981d263fa6772dac3900e08c727a4d19468d9a3fffd3d864f3c3cc2"
+    },
+    {
+      "path": "Renders/tech-scrap_player.png",
+      "bytes": 380140,
+      "sha256": "405bafed052a30571c30b48f1c21a051e62215771d4f084c964e48c1b4fc428e"
+    },
+    {
+      "path": "Renders/tech-scrap_side.png",
+      "bytes": 98812,
+      "sha256": "558e24f452487e308a998ab72c7ae0634f7c3a60e1e56c49ee77cd87c8b545cc"
+    },
+    {
+      "path": "Renders/tech-scrap_wire.png",
+      "bytes": 25194,
+      "sha256": "b0ccbf761e2e2f35e6f79939884e0bef9f2b8ad89d3895a0af0387c95d32dfa4"
+    },
+    {
+      "path": "Renders/uv_checker.png",
+      "bytes": 402318,
+      "sha256": "e807535bbb941b1d4f034fe5436292530d58d6b2076b60372b85226f8bc8acad"
+    },
+    {
+      "path": "Renders/wireframe.png",
+      "bytes": 564797,
+      "sha256": "1cded37c1d4c91f87e57ec50bbf746e02567e838bc56c9f16b88fa77c16e01fe"
+    },
+    {
+      "path": "Reports/.gdignore",
+      "bytes": 2,
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "Reports/blender_build.log",
+      "bytes": 6237,
+      "sha256": "637f27e70930464cc6836500ed638d2c02ba4d62ab716e44ae40da8c30788bd6"
+    },
+    {
+      "path": "Reports/build.log",
+      "bytes": 6236,
+      "sha256": "ba3b6eccaa227cd194688ce26e9590df86f9a78afbe7f184d0fac78543b42600"
+    },
+    {
+      "path": "Reports/build_metrics.json",
+      "bytes": 3167,
+      "sha256": "3bdad41ca160efd19bc15fab867646324b50b884de704b464a4f69611c02653c"
+    },
+    {
+      "path": "Reports/catalogue_mapping_proposal.json",
+      "bytes": 3970,
+      "sha256": "45ccf7acb18a6c77d4ec6501cbff942d9c4fd3ee76c47b02c84995556c87b74d"
+    },
+    {
+      "path": "Reports/commands_run.json",
+      "bytes": 2981,
+      "sha256": "953648d810017a73d8b8168edfa3fc81e6dc0585858696b514a2a6eda87e9fa6"
+    },
+    {
+      "path": "Reports/delivery_validation.json",
+      "bytes": 591,
+      "sha256": "2f3b34df232056a493b204570b45e0964358fff016ce8a6d29bf6fd878cb331f"
+    },
+    {
+      "path": "Reports/dotnet_build.log",
+      "bytes": 280,
+      "sha256": "fe5530df18db57df46419dd89ab882843ddc284abe4efbab74160ad78887fedf"
+    },
+    {
+      "path": "Reports/engine_capture_bindings.json",
+      "bytes": 12978,
+      "sha256": "8ebfbf474221a6a6597d6e32136da097149de624f9ffc5b2379eeb83cfce22ad"
+    },
+    {
+      "path": "Reports/engine_capture_validation.json",
+      "bytes": 12538,
+      "sha256": "e4f347abfb5cd5e584dc745a57f9f7cc3f9684483e72dfe9e7ceb794b9ec8cf1"
+    },
+    {
+      "path": "Reports/engine_library_validation.json",
+      "bytes": 1580,
+      "sha256": "aa03e56fcace74fdbe02a4dfe03c5ef4d293dd907a16f45247ec0aed6de65bd8"
+    },
+    {
+      "path": "Reports/engine_lod_validation.json",
+      "bytes": 7268,
+      "sha256": "db0422e406761646ca19a7ab6b6604f9218adde0d1ddca94418ee3ef423b5d55"
+    },
+    {
+      "path": "Reports/engine_texture_validation.json",
+      "bytes": 1779,
+      "sha256": "8aa060dcf8cb3d3a25724445a412536f16e83b3f5f3d42d84d007629520fe7e9"
+    },
+    {
+      "path": "Reports/glb_validation.json",
+      "bytes": 60077,
+      "sha256": "cd112f6815aab65e1377ba6d3c7d59c2bea7e5ec777016fed04ff43576198e06"
+    },
+    {
+      "path": "Reports/godot_capture.log",
+      "bytes": 2138,
+      "sha256": "faa67df012875c37155dbffcc93d00522736b409324da15b0fa9b97268116b40"
+    },
+    {
+      "path": "Reports/godot_import_final.log",
+      "bytes": 5651,
+      "sha256": "8635acf52992a4e51254c420255389feb231679dcdc7bc0b55d98780feac82a9"
+    },
+    {
+      "path": "Reports/godot_library.log",
+      "bytes": 367,
+      "sha256": "1942030a098542af0521430b3abdfa592eb566a36c0e9f77bb85efbde49dd0ae"
+    },
+    {
+      "path": "Reports/godot_texture_import.log",
+      "bytes": 5161,
+      "sha256": "c3cd0b6128da87e38f5a1c28843b57d6cbeacac7e1fbd0ded5140aedc94ebf8a"
+    },
+    {
+      "path": "Reports/icon_validation.json",
+      "bytes": 2648,
+      "sha256": "82d689c1dfcf5c1d8c688d9e823073479c3bb8e3335a57e1b95fb0aae3ab6e8e"
+    },
+    {
+      "path": "Reports/Iterations/first_import_missing_texture_cache.log",
+      "bytes": 8534,
+      "sha256": "3d17a81dc95f2f779cc6eb9826f2c94a22ea49ce9dbab1f2402056e38d2c12d2"
+    },
+    {
+      "path": "Reports/Iterations/lod_diff.png",
+      "bytes": 4670,
+      "sha256": "0ef732803014162aacc02c9e9bd2ea3fb8bc0960cacf4ab428699e01c4bc4edd"
+    },
+    {
+      "path": "Reports/Iterations/README.txt",
+      "bytes": 367,
+      "sha256": "d801328ba130b5bc084cc4d57ce3cad02690e2f6c13bf6f691de19bccf90d6c0"
+    },
+    {
+      "path": "Reports/Iterations/tech-scrap_forced_failure.png",
+      "bytes": 14127,
+      "sha256": "c284c12cf3a8ab9f893f1a40aea607c632e1aaf308e8ab9598d03732e5d9ed8d"
+    },
+    {
+      "path": "Reports/material_revision_masks.json",
+      "bytes": 800,
+      "sha256": "bbee2b9650c7feed088c74bde02e6606f83189ae0b024c4f1217cd00ed1af81c"
+    },
+    {
+      "path": "Reports/material_revision_review.json",
+      "bytes": 3437,
+      "sha256": "6d584617cc777ba40b9745df929f402137c71cf300b34eca2b4acb7f03330a72"
+    },
+    {
+      "path": "Reports/material_revision_validation.json",
+      "bytes": 2466,
+      "sha256": "5c22fecc866f62abd2e68d99999dc3309edd3718acc4a6e73a8335d11ca3b1ad"
+    },
+    {
+      "path": "Reports/pipeline_audit.md",
+      "bytes": 9065,
+      "sha256": "8337f0c8c8b095ad109e147c9abb50765fd54f1434a3b12727379c659a8d315e"
+    },
+    {
+      "path": "Reports/provenance.json",
+      "bytes": 4926,
+      "sha256": "83a41c1df4d173cb49be9c1bbb78436dfa99482ad45fe7dd7b6501dbaf54fe61"
+    },
+    {
+      "path": "Reports/revision_evidence.log",
+      "bytes": 2466,
+      "sha256": "5c22fecc866f62abd2e68d99999dc3309edd3718acc4a6e73a8335d11ca3b1ad"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/.gdignore",
+      "bytes": 2,
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/GodotPreview/Preview.cs",
+      "bytes": 16676,
+      "sha256": "d21f17c6428d7b751b147e8aa2042e39876bbada9675102974b56f68bd9bfc9f"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/HANDOFF.json",
+      "bytes": 11056,
+      "sha256": "c703a0008f2e7a6c7b0a82bfb23fc7c0085b8413bec8be540211d3a66374d93c"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Models/gears.glb",
+      "bytes": 398588,
+      "sha256": "4cba271e3bf304e34e7efaa98c2abb959e9509c0386c1b915214c4933193460d"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Models/metal-pipe.glb",
+      "bytes": 180236,
+      "sha256": "9380d3ded2018b1a4191e513177f312eb27fd4f86fac81b6a9df9489ae629b9a"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Models/rope.glb",
+      "bytes": 247260,
+      "sha256": "8559fd84d2bfe75c1f7e8672216e6132e645c5b67512f0edca9886550e593fc1"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Models/sheet-metal.glb",
+      "bytes": 198372,
+      "sha256": "8afd441bd19b2cdd8bea4bb474e647989704fe70f2c1541ea566bf6b9a709605"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Models/springs.glb",
+      "bytes": 195944,
+      "sha256": "a2ed06804aff33af715e8db261b6721b86de4220c38e95089ad388c59b901b58"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Models/tech-scrap.glb",
+      "bytes": 259008,
+      "sha256": "8846ac2de5aa4b1fd97738ea086a62a871d6538048aa98928705ec38c3065c72"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Renders/engine_family.png",
+      "bytes": 1266671,
+      "sha256": "000444a7a9630dbd6b1ac0f15bb42178cbe05b72ada879bff98cccfddd759256"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Renders/gears_close.png",
+      "bytes": 150391,
+      "sha256": "3008f6950091c040fdd06746feeb737fda6cf6b356d786969d4705b0d1f5cf22"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Renders/inventory_silhouettes.png",
+      "bytes": 87927,
+      "sha256": "c5df79aee584ca3b8c9ed6dcbc9b5ed17a012ca3d20b2671800e0706df117167"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Renders/material_closeups.png",
+      "bytes": 448862,
+      "sha256": "1cceef4b4bfefd7e65876f91bb533c7fdbafeb8900045030a02b29071023f5ac"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Renders/metal-pipe_close.png",
+      "bytes": 120064,
+      "sha256": "e87a3da66db3ed9fe33e9b2a5c0aba1fce277d7ef36e1acb990984500d09954c"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Renders/player_distance.png",
+      "bytes": 130125,
+      "sha256": "cbff8a2ff5b2c9354af9cee605d6b597dbfa1df536f6853b51097a3d8c2d75cd"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Renders/sheet-metal_close.png",
+      "bytes": 221942,
+      "sha256": "84b38504e94d9f6d2d6d426943406c3098ea23be08c218bdef5165770ef56652"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Renders/sheet-metal_player.png",
+      "bytes": 384140,
+      "sha256": "83062698821b3bf8cef22602f0a134383b708354c1f353a75d526ebfd797a09e"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Renders/sheet-metal_side.png",
+      "bytes": 135607,
+      "sha256": "6fa4e5764992ebce335e3f215472d813af4c213675bf0fdc2fd47d92507d745b"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Renders/tech-scrap_close.png",
+      "bytes": 160336,
+      "sha256": "eef21e768adcb9345372140d8a7ba0ca14c85ed479a931bbae1e1629b0d3eeb8"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Reports/delivery_validation.json",
+      "bytes": 591,
+      "sha256": "2f3b34df232056a493b204570b45e0964358fff016ce8a6d29bf6fd878cb331f"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Reports/glb_validation.json",
+      "bytes": 60071,
+      "sha256": "bacf07fc7f9d299381a75518546545d78e6dd73dd49c632a0f3b594cd7f29b4e"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Reports/package_manifest.json",
+      "bytes": 34474,
+      "sha256": "dfc5a0f4557d6b9ed6012ac57323bfc6239f0e26755491b2f0200b80596fb4eb"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Reports/visual_review.json",
+      "bytes": 1294,
+      "sha256": "55f6a4b4df8ca3b2493390b6caa68e71867b60321fd674ba1ec05a829136e613"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Source/build.py",
+      "bytes": 21075,
+      "sha256": "c2d277358e5a9f2d23398a1287d1be1a2b4918d857d0097755cd4c5ad52019fe"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Source/finish.py",
+      "bytes": 16541,
+      "sha256": "c7ba6353ead3bcfc148211dd8efc0245c42cdbc34ba7b61fa524d425fa5180f2"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Source/Hollow_Salvage_R01.blend",
+      "bytes": 829130,
+      "sha256": "bd7b6ea74184743e1e4e70adbe38e1a0b493393f846171b56366821d766710fc"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Source/prepare_engine.py",
+      "bytes": 2312,
+      "sha256": "9de0d29a4ef1a0c77e0501449365898ab816d2bfceb14f9ef1c1842d70ec1cf6"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Source/prepare_textures.py",
+      "bytes": 6769,
+      "sha256": "dfa5c42ee767fbef1a5441900c92c2cb7646ed0be28c07d6efe9caf6b0bf78fc"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Textures/CorrugatedSteel_BaseColor.png",
+      "bytes": 3103215,
+      "sha256": "99b33d9feb519e7bc55cb999e242799b539092cdead058b9e2ac6cb5a365ef17"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Textures/CorrugatedSteel_NormalGL.png",
+      "bytes": 2936042,
+      "sha256": "7d4aab4e9f58328ee14df9d859e8da9aa5b46b3bb5c15c18ec5984cbde816107"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Textures/CorrugatedSteel_ORM.png",
+      "bytes": 1511502,
+      "sha256": "10a23fd3f2f906719bd8aa8d8f636324562c56ad27bbd362b5c7de3c8402c700"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Textures/SalvageTrim_BaseColor.png",
+      "bytes": 2688256,
+      "sha256": "4c0bd4d3c0326cf44e863af9e9a50af7e98d49c0b7941b7eb6c17061822a7682"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Textures/SalvageTrim_NormalGL.png",
+      "bytes": 3246261,
+      "sha256": "286faf6e85d8582bdf516d984fc6875bdfd92551bca913c385b9a3904c04a47e"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/before/Textures/SalvageTrim_ORM.png",
+      "bytes": 676503,
+      "sha256": "74f6e5e37a6c96eab6af1068b2c028e3fdf82d24c2e7a7d18ceed097d2adacfa"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/CHANGELOG.md",
+      "bytes": 4065,
+      "sha256": "1a0e8dcf825298715cc08f756aa7551969241eac8d5f12fcf4e4395c8295e4f0"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/procedural_trial/material_revision.py",
+      "bytes": 12251,
+      "sha256": "ea0d9993cfa0a4c626d7a942a6eaa1492f7077a089b43301d11e924a46211d7f"
+    },
+    {
+      "path": "Reports/Revisions/2026-10-15_material/procedural_trial/sheet-metal_close.png",
+      "bytes": 165770,
+      "sha256": "d04d061e0acedf3eb870400a8ee8c0d47c0a4cbb1a9868610bbcdeef3a05bc61"
+    },
+    {
+      "path": "Reports/texture_manifest.json",
+      "bytes": 2850,
+      "sha256": "cf58095b0124d6d9d269dacc43ea26cb94cb7e15df579cb7dcbaa13890b4f5cf"
+    },
+    {
+      "path": "Reports/uv_layout.png",
+      "bytes": 33503,
+      "sha256": "ac9548fb7ea2323e8fbfacbeaf8f2a18e9b991aaeb4a5054513f3174876d8da4"
+    },
+    {
+      "path": "Reports/visual_review.json",
+      "bytes": 1870,
+      "sha256": "c8690927b7c0cb4e2d33a8f567252e2bac52312fc3112372a33ed07aee930842"
+    },
+    {
+      "path": "Scenes/gears.tscn",
+      "bytes": 365331,
+      "sha256": "98f2b5ed1418841f3b90c68140f9104fb30555741539875ffcde0eb74f9c8c7a"
+    },
+    {
+      "path": "Scenes/metal-pipe.tscn",
+      "bytes": 152318,
+      "sha256": "8ce408c5dfadc16ae4637d9eb7e83ae9a43f3e926392a122950baa739d263b00"
+    },
+    {
+      "path": "Scenes/rope.tscn",
+      "bytes": 329439,
+      "sha256": "ae3459d08b29dc57f576fb9a2f1114a8edf7519a2496389609b448c12ab90c13"
+    },
+    {
+      "path": "Scenes/sheet-metal.tscn",
+      "bytes": 219275,
+      "sha256": "e15320c2caea526f6ac3adb128fe9b2b034b1ec586bc68fb3863197f76130a9a"
+    },
+    {
+      "path": "Scenes/springs.tscn",
+      "bytes": 237024,
+      "sha256": "2fe09d0924bdfc252682d2d7481a9cd603bbe11fbde7a00b102615b250a6a49a"
+    },
+    {
+      "path": "Scenes/tech-scrap.tscn",
+      "bytes": 210542,
+      "sha256": "a6026f6cff33b5d189b5f3a96af583449f88467c78e5619c5c42c5bbd87de4ab"
+    },
+    {
+      "path": "Source/.gdignore",
+      "bytes": 2,
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "Source/audit.py",
+      "bytes": 2962,
+      "sha256": "120fc45f3dc6e338a94addc7e25ad7a7b8680f00e1fb637df411937ff568115e"
+    },
+    {
+      "path": "Source/build.py",
+      "bytes": 22590,
+      "sha256": "a233873c8b3af977bbfba713d5219e5b090d17c4789b6d09f7ec24e66b4beabc"
+    },
+    {
+      "path": "Source/contact_sheets.py",
+      "bytes": 2489,
+      "sha256": "4531ddcb6c09402d70d0efc6c5bc29a55912489fbbcf10c3a289d53aea7c9d2e"
+    },
+    {
+      "path": "Source/finish.py",
+      "bytes": 21514,
+      "sha256": "d03133bb3ac72efe4e67169e8a003f522a148000220a788ff0c3d236a03e5b85"
+    },
+    {
+      "path": "Source/Hollow_Salvage_R01.blend",
+      "bytes": 827609,
+      "sha256": "e5a9cb783e97fe4029e1c7f4e3f49788b845681fba56098eb2adbdd76a0ef108"
+    },
+    {
+      "path": "Source/inspect_glb.py",
+      "bytes": 13779,
+      "sha256": "89a8c0ae6f6369649decc775b233fdccfabce8b1036f935154ea0436350e7685"
+    },
+    {
+      "path": "Source/material_revision.py",
+      "bytes": 14693,
+      "sha256": "d0a0840805eba2cf6f4c0236cc89721acf542f9627ebe8bc6fd3f8626a9ab86d"
+    },
+    {
+      "path": "Source/MaterialSources/galvanized_source.png",
+      "bytes": 4026911,
+      "sha256": "c18c5c26676ff771d4580f29ff9e7e649f4a53fec8c79f633b0a863b2ae2bdf5"
+    },
+    {
+      "path": "Source/MaterialSources/imagegen_prompt.txt",
+      "bytes": 1747,
+      "sha256": "5a6cbc5d33ad35f95fbed20f3eff505845ba037a85911ad40fb5f53eb0d76921"
+    },
+    {
+      "path": "Source/prepare_engine.py",
+      "bytes": 2312,
+      "sha256": "9de0d29a4ef1a0c77e0501449365898ab816d2bfceb14f9ef1c1842d70ec1cf6"
+    },
+    {
+      "path": "Source/prepare_textures.py",
+      "bytes": 6802,
+      "sha256": "8f125653d4083733d7fcdf841648c3163afa2abf31f4394562a3859e89fc4971"
+    },
+    {
+      "path": "Source/Rebuild.ps1",
+      "bytes": 1964,
+      "sha256": "399ae89ce595d68b72582608faad4ff43e49212a210dd32c9a2569bdb7ea3e31"
+    },
+    {
+      "path": "Source/revision_evidence.py",
+      "bytes": 4316,
+      "sha256": "8dee2a90fb87894ea9475e132c0c2bb98a688cfba0b2c273bb8c97530ff1e722"
+    },
+    {
+      "path": "Source/specification.json",
+      "bytes": 1687,
+      "sha256": "ae3a45c69ebf4b8ef97bed2cd7cad30c86e0d8105e633d5dcfac5e01170bea14"
+    },
+    {
+      "path": "STATUS.txt",
+      "bytes": 605,
+      "sha256": "760dee73a99dfd030310ab5dd051caa5481b6fab941c85e169a2ad9c388bba1e"
+    },
+    {
+      "path": "Textures/CorrugatedSteel_BaseColor.png",
+      "bytes": 6857870,
+      "sha256": "a5484850ea8a1e4859bcf66fea48e8d02fd4f0402ab49f0427b286d5e9b538e6"
+    },
+    {
+      "path": "Textures/CorrugatedSteel_BaseColor.png.import",
+      "bytes": 1038,
+      "sha256": "4f5dff21482a0ed2ce49b3c54694f03afabb68ab6301402e4d4b0687e1d67f42"
+    },
+    {
+      "path": "Textures/CorrugatedSteel_NormalGL.png",
+      "bytes": 6011229,
+      "sha256": "f51baf8c922bc9fd5f5249675ec06ec16eeec576f6a948c62d2d4345c2fc2aad"
+    },
+    {
+      "path": "Textures/CorrugatedSteel_NormalGL.png.import",
+      "bytes": 1035,
+      "sha256": "66f8eaa04aaf781aaf9f4c85aca6b4549921986468fbd33f75c195e4d00cba8f"
+    },
+    {
+      "path": "Textures/CorrugatedSteel_ORM.png",
+      "bytes": 2392006,
+      "sha256": "2b1759423216fda85db1605b20eb578d754b26d849fc22a33af571d09183b34e"
+    },
+    {
+      "path": "Textures/CorrugatedSteel_ORM.png.import",
+      "bytes": 1020,
+      "sha256": "4b9e1bc5ece600f1f1ca8daf1db7fab56c9fa266c04e67824e4d13ddccc93953"
+    },
+    {
+      "path": "Textures/RopeFibre_BaseColor.png",
+      "bytes": 773824,
+      "sha256": "fc553e067c347ae27bf5a640b77910055f70bfa6a8a054ac2dcc9166c9ff51e3"
+    },
+    {
+      "path": "Textures/RopeFibre_BaseColor.png.import",
+      "bytes": 1020,
+      "sha256": "50845b031a7cfd09132b8c28e61dfd17f5f614a846b13c9b82f160bcafaed529"
+    },
+    {
+      "path": "Textures/RopeFibre_NormalGL.png",
+      "bytes": 11600157,
+      "sha256": "1f69efa135c33b75b01e0d2eb483f9cf303f4d0100742f7fcebc3aed5c9bef1c"
+    },
+    {
+      "path": "Textures/RopeFibre_NormalGL.png.import",
+      "bytes": 1017,
+      "sha256": "7c75b772e47fc80f3e9a33efbf7f5f56f712dcaa2944dd137f8d3e9d5a2c80a3"
+    },
+    {
+      "path": "Textures/RopeFibre_ORM.png",
+      "bytes": 175962,
+      "sha256": "edab711a3ad896c565e678afcd06e3b5236535f076e09abaeb2bf613280669ec"
+    },
+    {
+      "path": "Textures/RopeFibre_ORM.png.import",
+      "bytes": 1002,
+      "sha256": "5fc2b9fbf5e3c50ce7d24ce3cf847796acb43c5a344586b13b0a471863370716"
+    },
+    {
+      "path": "Textures/SalvageTrim_BaseColor.png",
+      "bytes": 1427993,
+      "sha256": "c15560b156d60cc852cfbb5967ecffa71589bd9ae2ad7458d2c031f4ae8bf1f4"
+    },
+    {
+      "path": "Textures/SalvageTrim_BaseColor.png.import",
+      "bytes": 1026,
+      "sha256": "6c1fe0834936d9494b83610b3aa28a5c70567f0589e41e40e86ffba6f54827dc"
+    },
+    {
+      "path": "Textures/SalvageTrim_NormalGL.png",
+      "bytes": 204898,
+      "sha256": "d7e9d9cfdb827d213b314be68be56952372f6977d6e696246ad7750ac8b3579d"
+    },
+    {
+      "path": "Textures/SalvageTrim_NormalGL.png.import",
+      "bytes": 1022,
+      "sha256": "a669692867c1f4bfd2342d3d13d6f07f91a8a3794c98c8086a6270f50f7e1811"
+    },
+    {
+      "path": "Textures/SalvageTrim_ORM.png",
+      "bytes": 929354,
+      "sha256": "995dd2256c963c7422d6411b6075199480a5acf4113fcdf61812b1cf734666e2"
+    },
+    {
+      "path": "Textures/SalvageTrim_ORM.png.import",
+      "bytes": 1008,
+      "sha256": "9dc4fd8b9937aad9606a6e3a0ee92eac0059aa152090be9ccd37925562fcd743"
+    },
+    {
+      "path": "Textures/UV_Checker.png",
+      "bytes": 33232,
+      "sha256": "cf4c1a03f3c4b8f1a9e0e2e8e1f624e2fa57ce50ae9ae2d12be98ca045ec2cc3"
+    },
+    {
+      "path": "Textures/UV_Checker.png.import",
+      "bytes": 942,
+      "sha256": "6cdcfa70f2fc63e1fbc8cb3f5dc652dc9e131f2eb0e1e23194f53b609efe15bc"
+    },
+    {
+      "path": "View.cmd",
+      "bytes": 85,
+      "sha256": "e7b62bb10c8a996812ed5d35d55fccf65ab86054b3e001d397a6837a5ab67d1a"
+    },
+    {
+      "path": "View.ps1",
+      "bytes": 1122,
+      "sha256": "ea0a732042ef4b3841b340cd16fcd3a15b47263e03ad3c2443fab256c2551ced"
+    }
+  ],
+  "exclusions": [
+    ".godot cache/build outputs",
+    "__pycache__",
+    ".blend1 backups",
+    "ZIP delivery archive",
+    "this self-referential manifest"
+  ]
+}

@@ -24,6 +24,9 @@ uniform float layer_metres[16];                       // metres covered by one r
 uniform vec2 layer_flip[16];                          // each layer's normal axes against the first layer's
 uniform sampler2D macro_noise : filter_linear_mipmap, repeat_enable;
 uniform float normal_strength = 1.0;
+// Reflection energy multiplier for dry porous ground, applied to direct light and the sky reflection.
+// Saturated shoreline material and ice retain full dielectric reflection; roughness remains the scan's own.
+uniform float dry_reflection_weight : hint_range(0.0, 1.0) = 0.25;
 uniform vec2 normal_sign = vec2(1.0, -1.0);
 uniform int debug_view = 0;
 uniform vec3 blade_mean = vec3(0.5, 0.63, 0.34);      // mean linear colour of the painted grass blades
@@ -41,6 +44,7 @@ varying vec4 v_m3;
 varying vec4 v_climate;
 varying float v_height;
 varying float v_cloud;
+varying float v_reflection_weight;
 varying vec2 v_face;
 
 void vertex() {
@@ -73,11 +77,12 @@ struct Look {
 	vec3 bump;    // the materials' and crowns' tilt of the normal, world axes
 	float rough;
 	float height; // the materials' own height, 0–1
+	float reflection_weight;
 };
 
-// The vertex data comes in as arguments (world point, materials, climate, height above the sea).
+// The vertex data comes in as arguments (world point, materials, climate, height above local water).
 Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, float far_fade, vec3 world, vec4 m0, vec4 m1,
-		vec4 m2, vec4 m3, vec4 climate, float sea_height) {
+		vec4 m2, vec4 m3, vec4 climate, float water_height) {
 	vec3 wp3 = world + hu_texture_offset;
 	// Large-scale variation: brightness, hue and patchiness that never repeat within view.
 	vec4 macro = texture(macro_noise, wp / 1730.0);
@@ -172,7 +177,7 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 				vec3 c_small = texture(albedo_array, vec3(uv, layer)).rgb;
 				vec3 t_small = texture(normal_array, vec3(uv, layer)).rgb;
 				vec2 r_small = texture(rough_height_array, vec3(uv, layer)).rg;
-				float m = 0.62 * (0.45 + 0.55 * macro3.b) * near;
+				float m = (0.72 + 0.18 * macro3.b) * near;
 				c = mix(c_large, c_small, m);
 				tn = mix(t_large, t_small, m);
 				rh = mix(r_large, r_small, m);
@@ -271,14 +276,12 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 	albedo *= 1.0 - 0.45 * edge_shadow;
 	// Wet sand: dark and glossy below the wave line, and a band the swash keeps wet, wider and narrower in time; thin
 	// lines of foam left where the waves ran out.
-	float wet = 1.0 - smoothstep(0.1, 0.9, sea_height);
-	float swash = 1.0 - smoothstep(0.0, 0.4 + 0.15 * sin(TIME * 0.7 + wp.x * 0.05 + wp.y * 0.03), sea_height);
-	wet = max(wet * 0.7, swash);
-	albedo *= 1.0 - 0.45 * wet;
-	rough = mix(rough, 0.16, wet);
-	float residue = smoothstep(0.92, 1.0, sin(sea_height * 38.0 + texture(macro_noise, wp / 3.0).g * 7.0)) * smoothstep(0.15, 0.3, sea_height)
-		* (1.0 - smoothstep(0.45, 0.7, sea_height)) * (w[5] + w[8]) * (1.0 - smoothstep(20.0, 60.0, dist));
-	albedo = mix(albedo, vec3(0.6, 0.6, 0.58), residue * 0.6);
+	float shore_material = clamp(w[5] + w[8] + 0.45 * w[9], 0.0, 1.0);
+	float wet = (1.0 - smoothstep(0.1, 0.9, water_height)) * shore_material;
+	float swash = 1.0 - smoothstep(0.0, 0.4 + 0.15 * sin(TIME * 0.7 + wp.x * 0.05 + wp.y * 0.03), water_height);
+	wet = max(wet * 0.7, swash * shore_material);
+	albedo *= 1.0 - 0.28 * wet;
+	rough = mix(rough, 0.48, wet);
 
 	// The materials' bumps (fading with distance) and the crowns' slopes, along this face's axes.
 	float strength = normal_strength * (1.0 - smoothstep(60.0, 400.0, dist) * 0.8);
@@ -288,6 +291,7 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 	look.bump = (t * nrm.x + b * nrm.y) * strength + (t * crown_slope.x + b * crown_slope.y) * 1.6 * canopy;
 	look.rough = rough;
 	look.height = height;
+	look.reflection_weight = mix(dry_reflection_weight, 1.0, clamp(max(wet, w[8] + w[15]), 0.0, 1.0));
 	return look;
 }
 
@@ -313,6 +317,7 @@ void fragment() {
 	vec3 bump = vec3(0.0);
 	float rough = 0.0;
 	float height = 0.0;
+	float reflection_weight = 0.0;
 	for (int k = 0; k < 3; k++) {
 		if (fw[k] <= 0.0) {
 			continue;
@@ -327,11 +332,17 @@ void fragment() {
 		bump += look.bump * fw[k];
 		rough += look.rough * fw[k];
 		height += look.height * fw[k];
+		reflection_weight += look.reflection_weight * fw[k];
 	}
 	vec3 n = normalize(n_geo + bump);
 
 	ALBEDO = albedo;
 	ROUGHNESS = rough;
+	// Godot's environment F0 is 0.16 * SPECULAR^2; this matches the direct lobe's 0.02 below.
+	SPECULAR = 0.35355339;
+	// Keep the same energy weight on the sky reflection as on the custom direct-light lobe below.
+	RADIANCE = vec4(vec3(0.0), 1.0 - reflection_weight);
+	v_reflection_weight = reflection_weight;
 	// Under the trees near by, the canopy keeps much of the sky's light off the ground (the sun's flecks stay).
 	float canopy_ao = 1.0 - 0.38 * smoothstep(0.2, 0.8, v_climate.a) * (1.0 - smoothstep(250.0, 600.0, dist));
 	AO = mix(0.55, 1.0, smoothstep(0.05, 0.6, height)) * canopy_ao;
@@ -385,6 +396,9 @@ void light() {
 	float k = r * 0.5;
 	float g = ndl / (ndl * (1.0 - k) + k) * ndv / (ndv * (1.0 - k) + k);
 	float f = 0.02 + 0.98 * pow(1.0 - clamp(dot(h, VIEW), 0.0, 1.0), 5.0);
-	SPECULAR_LIGHT += LIGHT_COLOR * ATTENUATION * cloud * d * g * f / max(4.0 * ndl * ndv, 1e-3) * ndl * SPECULAR_AMOUNT;
+	// SPECULAR_AMOUNT belongs to the light (and is 1 for the sun). Match the sky reflection weight;
+	// changing fragment SPECULAR alone had left dry soil's direct white sheen intact.
+	SPECULAR_LIGHT += LIGHT_COLOR * ATTENUATION * cloud * d * g * f / max(4.0 * ndl * ndv, 1e-3)
+		* ndl * SPECULAR_AMOUNT * v_reflection_weight;
 }
 }

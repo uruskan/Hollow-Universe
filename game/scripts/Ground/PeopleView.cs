@@ -19,8 +19,7 @@ namespace HollowUniverse.Ground;
 /// The other players (GROUND.md §4.8): each a <see cref="CharacterView"/> fed every frame from what the client
 /// replicates (position, up, yaw, pitch, the velocity seen, stance, ground, the item in hand), with their swings and
 /// shots, flinches when hurt, a ragdoll when they die, lying down asleep when logged off, and their clothing. Corpses
-/// are ragdolls too: a player's own body when they died in view, a fresh one when the corpse comes into range later;
-/// after <see cref="BodySeconds"/>, or when first seen far away, only the body's backpack is drawn.
+/// use the server's supported pose and saved appearance until its replicated phase becomes a backpack.
 /// </summary>
 public partial class PeopleView : Node3D
 {
@@ -53,22 +52,15 @@ public partial class PeopleView : Node3D
     {
         public CharacterView? View;
         public Node3D? Bag;
-        public int Frames;
-        public bool Fallen;
-        public double Since;
     }
-
-    /// <summary>How long a body lies in view before only its backpack is left (Rust's corpse turning into a bag).</summary>
-    public const double BodySeconds = 150;
-
-    /// <summary>A corpse first seen farther than this is drawn as its backpack at once (no body to make).</summary>
-    public const float BodyDistance = 80;
 
     private readonly Dictionary<uint, Person> _people = new();
     private readonly Dictionary<uint, Corpse> _corpses = new();
     private readonly HashSet<uint> _seen = new();
     private ushort[] _myWear = Array.Empty<ushort>();
     private uint _wearRevision = uint.MaxValue;
+    private CharacterView? _ownSeatBody;
+    private uint _ownSeatWear = uint.MaxValue;
 
     public GameClient Client { get; set; } = null!;
 
@@ -222,10 +214,35 @@ public partial class PeopleView : Node3D
     /// <summary>The ships as drawn (seated people sit where their seats are drawn).</summary>
     public ShipsView? Ships { get; set; }
 
+    /// <summary>The local body uses the same seat socket, clothing and hand grips as replicated occupants.</summary>
+    public void ShowOwnSeat(bool show)
+    {
+        if (!show || Client.Local.IsDead || SeatFrame(Client.EntityId, 0, 0, 0, 0) is not { } frame)
+        {
+            if (_ownSeatBody != null) _ownSeatBody.Visible = false;
+            return;
+        }
+        if (_ownSeatBody == null)
+        {
+            _ownSeatBody = new CharacterView { Name = "Seated local player", Body = (BodyType)Client.Body };
+            AddChild(_ownSeatBody);
+        }
+        if (_ownSeatWear != Client.Local.Inventory.Wear.Revision)
+        {
+            _ownSeatWear = Client.Local.Inventory.Wear.Revision;
+            _ownSeatBody.Wear(ItemLooks.Outfit(Client.Content, _myWear));
+        }
+        frame.LookYaw = 0;
+        _ownSeatBody.Visible = true;
+        _ownSeatBody.Apply(frame);
+    }
+
     // A seated character's frame (IRON_WAKE.md §9.6): the hips on the seat as its ship is drawn (a gunner's seat on its
     // turning mount), facing the seat's way with the head following the view; a station's gunner with both hands on its
     // grips (the data file's), a helm's pilot on the controls in front of the seat, a passenger's hands in the lap.
-    private CharacterFrame? SeatedFrame(RemoteEntity e, float viewYaw)
+    private CharacterFrame? SeatedFrame(RemoteEntity e, float viewYaw) => SeatFrame(e.Id, e.Pitch, viewYaw, e.LookYaw, e.LookPitch);
+
+    private CharacterFrame? SeatFrame(Hollow.Simulation.Entities.EntityId id, float pitch, float viewYaw, float lookYaw, float lookPitch)
     {
         if (Ships == null)
         {
@@ -233,7 +250,7 @@ public partial class PeopleView : Node3D
         }
         foreach (RemoteShip ship in Client.Ships().All)
         {
-            int seat = ship.SeatOf(e.Id);
+            int seat = ship.SeatOf(id);
             if (seat < 0 || ship.Def is not { } def || Ships.ViewOf(ship.NetId) is not { } view || seat >= def.Seats.Count)
             {
                 continue;
@@ -248,9 +265,9 @@ public partial class PeopleView : Node3D
                 Seat = at.Origin,
                 Up = up,
                 Yaw = yaw,
-                Pitch = e.Pitch,
-                LookYaw = Mathf.AngleDifference(yaw, viewYaw) + e.LookYaw,
-                LookPitch = e.LookPitch,
+                Pitch = pitch,
+                LookYaw = Mathf.AngleDifference(yaw, viewYaw) + lookYaw,
+                LookPitch = lookPitch,
                 Stance = CharacterStance.Sit,
                 Grounded = true,
             };
@@ -284,6 +301,7 @@ public partial class PeopleView : Node3D
             p.Frames = 0;
         }
         p.Frames++;
+        p.Dead = (e.Flags & MoveFlags.Dead) != 0;
         // Up where it stands as drawn (aboard a ship, its deck's: IRON_WAKE.md §4.8), and how it moves there: aboard, its
         // walk on the deck (the ship's own motion isn't a walk), turned as the ship is drawn.
         Num.Vector3 up = e.Up;
@@ -316,6 +334,7 @@ public partial class PeopleView : Node3D
             Torch(p, null);
             p.Actions = e.ActionCount;
             p.Health = e.Health;
+            p.Feet?.Reset();
             return;
         }
         p.View.Apply(new CharacterFrame
@@ -328,10 +347,11 @@ public partial class PeopleView : Node3D
             LookPitch = e.LookPitch,
             Velocity = p.Velocity,
             // Crawling (down, G4) has no pose in the character contract yet: crouched is the nearest.
-            Stance = swimming ? CharacterStance.Swim : e.Stance is Stance.Crouching or Stance.Crawling ? CharacterStance.Crouch : CharacterStance.Stand,
+            Stance = e.Sleeping ? CharacterStance.Sleep : e.Wounded ? CharacterStance.Crawl : swimming ? CharacterStance.Swim : e.Stance == Stance.Crouching ? CharacterStance.Crouch : CharacterStance.Stand,
             Grounded = (e.Flags & MoveFlags.OnGround) != 0 || swimming,
             Held = kind,
             HeldItem = model,
+            Aiming = e.Aiming,
         });
         if (model != null && e.Held != 0 && Client.Content.Item(e.Held)?.Firearm != null && p.View.HeldModel is { } theirGun)
         {
@@ -353,6 +373,7 @@ public partial class PeopleView : Node3D
         {
             Steps(p, e, up, swimming, dt);
         }
+        else p.Feet?.Reset();
         if (down != p.Down)
         {
             p.Down = down;
@@ -377,9 +398,31 @@ public partial class PeopleView : Node3D
         {
             if (e.ActionCount != p.Actions)
             {
-                ItemDef? heldItem = e.Held != 0 ? Client.Content.Item(e.Held) : null;
+                ItemDef? heldItem = Client.Content.Item(e.ActionItem != 0 ? e.ActionItem : e.Held);
+                HeldPresentationProfile? profile = heldItem != null && HeldItems.Find(heldItem.Key) != null ? HeldPresentations.Get(heldItem.Key) : null;
+                string? action = e.Action switch
+                {
+                    ActionKind.Swing => "swing",
+                    ActionKind.Reload => "reload",
+                    ActionKind.Draw => "draw",
+                    ActionKind.Throw => "throw",
+                    ActionKind.Use => profile?.UseAction,
+                    ActionKind.Repair => "repair",
+                    _ => null,
+                };
+                if (action != null && heldItem != null && profile?.Actions.TryGetValue(action, out HeldPresentationClip? clip) == true)
+                {
+                    float duration = HeldActionTiming.Duration(heldItem, action, clip.Duration);
+                    float phase = (float)Math.Max(0, e.RenderTick - e.ActionTick) / CharacterTicks.Rate / duration;
+                    if (e.Action is ActionKind.Throw or ActionKind.Use or ActionKind.Repair)
+                        phase += HeldActionTiming.CommitFraction(action, duration);
+                    if (phase < 1f) p.View.PlayItemAction(heldItem.Key, action, duration, phase);
+                }
                 switch (e.Action)
                 {
+                    case ActionKind.None:
+                        p.View.CancelActions();
+                        break;
                     case ActionKind.Shoot:
                         p.View.Trigger(CharacterEvent.Fire);
                         if (heldItem?.Firearm != null)
@@ -388,18 +431,22 @@ public partial class PeopleView : Node3D
                         }
                         break;
                     case ActionKind.Reload:
-                        p.View.Trigger(CharacterEvent.Reload);
                         if (heldItem?.Firearm is { } gun)
                         {
-                            ReloadSounds(heldItem.Key, (float)gun.ReloadSeconds, head);
+                            ReloadSounds(p, e, heldItem.Key, HeldActionTiming.Seconds(gun.ReloadTicks), head);
                         }
                         break;
                     case ActionKind.Draw:
                         Sounds.At("bow.draw", head);
                         break;
-                    default:
-                        p.View.Trigger(CharacterEvent.Swing);
+                    case ActionKind.Swing:
                         Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, "swing") ?? "melee.swing" : "melee.swing", head);
+                        break;
+                    case ActionKind.Throw:
+                        Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, "throw") : null, head);
+                        break;
+                    case ActionKind.Use:
+                        Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, profile?.UseAction ?? "use") ?? Sounds.Item(heldItem.Key, "use") : null, head);
                         break;
                 }
             }
@@ -474,14 +521,17 @@ public partial class PeopleView : Node3D
     }
 
     // A reload's parts as they come: magazine out, in, the slide or bolt.
-    private void ReloadSounds(string gun, float seconds, Vector3 at)
+    private void ReloadSounds(Person person, RemoteEntity entity, string gun, float seconds, Vector3 at)
     {
+        byte action = entity.ActionCount;
+        bool StillReloading() => IsInstanceValid(person.View) && !person.Down && !entity.Wounded && entity.Stance != Stance.Seated &&
+            entity.ActionCount == action && entity.Action == ActionKind.Reload && entity.Held == entity.ActionItem;
         Sounds.At(Sounds.Item(gun, "magOut"), at);
-        GetTree().CreateTimer(seconds * 0.55).Timeout += () => Sounds.At(Sounds.Item(gun, "magIn"), at);
-        GetTree().CreateTimer(seconds * 0.85).Timeout += () => Sounds.At(Sounds.Item(gun, "rack"), at);
+        GetTree().CreateTimer(seconds * 0.55).Timeout += () => { if (StillReloading()) Sounds.At(Sounds.Item(gun, "magIn"), at); };
+        GetTree().CreateTimer(seconds * 0.85).Timeout += () => { if (StillReloading()) Sounds.At(Sounds.Item(gun, "rack"), at); };
     }
 
-    // Their footsteps, at their feet, on the ground under them (looked up again every 4 m).
+    // Their footsteps in zone space, using deck-relative velocity and the surface directly underfoot.
     private void Steps(Person p, RemoteEntity e, Num.Vector3 up, bool swimming, float dt)
     {
         if (p.Feet == null)
@@ -489,10 +539,10 @@ public partial class PeopleView : Node3D
             p.Feet = new FootstepDriver { Name = "Feet " + e.Name };
             AddChild(p.Feet);
         }
-        if (Num.Vector3.Distance(e.Position, p.SurfaceAt) > 4)
+        if (Num.Vector3.Distance(e.Position, p.SurfaceAt) > 0.6f)
         {
             p.SurfaceAt = e.Position;
-            p.Surface = GroundAudio.SurfaceAt(Client, e.Position);
+            p.Surface = GroundAudio.SurfaceAt(Client, e.Position, e.Frame);
         }
         Vector3 upG = GroundView.ToGodot(up);
         float vertical = p.Velocity.Dot(upG);
@@ -505,17 +555,23 @@ public partial class PeopleView : Node3D
             Crouching = e.Stance is Stance.Crouching or Stance.Crawling,
             Swimming = swimming,
             Sprinting = speed > 4.5f,
-            Surface = p.Surface,
-            WaterDepth = GroundAudio.WaterDepth(Client, e.Position),
+            Suppressed = e.Stance == Stance.Seated || (e.Flags & MoveFlags.Dead) != 0,
+            Surface = e.Frame != 0 ? FootSurface.Metal : p.Surface,
+            WaterDepth = e.Frame == 0 ? GroundAudio.WaterDepth(Client, e.Position) : 0,
         }, GroundView.ToGodot(e.Position));
     }
 
-    // Corpses: a dead player's ragdoll becomes their corpse; a corpse that came into range on its own gets a body that
-    // falls where it lies; an old or far one is its backpack.
+    // The server owns support, phase and death-time appearance. A stable prone pose stays on Jolt building floors
+    // and moving decks; a client-only ragdoll cannot collide with the server's building collision world.
     private void UpdateCorpses()
     {
-        double now = Time.GetTicksMsec() / 1000.0;
         var things = new HashSet<uint>();
+        foreach (Person person in _people.Values)
+        {
+            // Dead characters can remain replicated after their body expired. Their only visible representation is
+            // the authoritative corpse, including for somebody who joins after it has already gone.
+            if (person.Dead) person.View.Visible = false;
+        }
         foreach (RemoteThing thing in Client.Survival().Things)
         {
             if (thing.Kind != StaticKind.Corpse)
@@ -523,54 +579,39 @@ public partial class PeopleView : Node3D
                 continue;
             }
             things.Add(thing.NetId);
-            if (_corpses.TryGetValue(thing.NetId, out Corpse? known))
+            if (!_corpses.TryGetValue(thing.NetId, out Corpse? known))
             {
-                // A body aboard a ship (IRON_WAKE.md §4.10) is its backpack, where the ship is drawn this frame.
-                if (thing.Aboard && known.Bag != null)
-                {
-                    known.Bag.Transform = new Transform3D(NatureView.Upright(thing.Up, thing.Yaw), GroundView.ToGodot(thing.Position));
-                }
-                if (known.View != null && now - known.Since > BodySeconds)
-                {
-                    known.View.QueueFree();
-                    known.View = null;
-                    known.Bag = Bag(thing);
-                }
-                continue;
-            }
-            Vector3 at = GroundView.ToGodot(thing.Position);
-            // Far, or aboard a ship (a ragdoll doesn't ride a deck): its backpack.
-            if (thing.Aboard || Num.Vector3.Distance(thing.Position, Client.Character.Position) > BodyDistance)
-            {
-                _corpses[thing.NetId] = new Corpse { Bag = Bag(thing), Fallen = true, Since = now };
-                continue;
-            }
-            Person? died = _people.Values.FirstOrDefault(p => p.Dead && p.View.GlobalPosition.DistanceTo(at) < 3f && string.Equals(p.Name, thing.Name, StringComparison.Ordinal));
-            if (died != null)
-            {
-                // Adopt the falling body; the player gets a new one when they come back.
-                uint key = _people.First(kv => kv.Value == died).Key;
-                _people.Remove(key);
-                _corpses[thing.NetId] = new Corpse { View = died.View, Fallen = true, Since = now };
-                continue;
-            }
-            Person? owner = _people.Values.FirstOrDefault(p => p.Name == thing.Name);
-            byte body = thing.Name == Client.Name ? Client.Body : owner?.Body ?? 0;
-            var view = new CharacterView { Name = "Corpse " + thing.Name, Body = (BodyType)body };
-            AddChild(view);
-            ushort[] wear = thing.Name == Client.Name ? _myWear : owner?.Wear ?? Array.Empty<ushort>();
-            view.Wear(ItemLooks.Outfit(Client.Content, wear));
-            Num.Vector3 up = Client.Frame.UpAt(thing.Position);
-            view.Apply(CharacterFrame.Standing(at, GroundView.ToGodot(up), thing.Yaw));
-            _corpses[thing.NetId] = new Corpse { View = view, Since = now };
-        }
-        foreach ((uint id, Corpse corpse) in _corpses)
-        {
-            if (!corpse.Fallen && ++corpse.Frames >= 2)
-            {
-                corpse.Fallen = true;
-                corpse.View?.Trigger(CharacterEvent.Death, Vector3.Zero);
+                _corpses[thing.NetId] = known = new Corpse();
                 FrameEvents.Note("corpse");
+            }
+            if (thing.IsBody)
+            {
+                if (known.View == null)
+                {
+                    known.Bag?.QueueFree();
+                    known.Bag = null;
+                    var body = (BodyType)thing.CorpseBody;
+                    known.View = new CharacterView { Name = "Corpse " + thing.Name, Body = body,
+                        Look = Looks.ForPlayer(thing.CorpseOwner, body), FootPlacement = false, BlinkOverride = 1 };
+                    AddChild(known.View);
+                    known.View.Wear(ItemLooks.Outfit(Client.Content, thing.CorpseWear));
+                }
+                (Num.Vector3 forward, _) = Facing.Basis(thing.Yaw, thing.Up);
+                Vector3 up = GroundView.ToGodot(thing.Up);
+                known.View.Apply(new CharacterFrame
+                {
+                    Position = GroundView.ToGodot(thing.Position), Up = up,
+                    Yaw = CharacterFrame.YawToward(up, GroundView.ToGodot(forward)),
+                    Stance = CharacterStance.Sleep, Grounded = true,
+                });
+            }
+            else
+            {
+                known.View?.QueueFree();
+                known.View = null;
+                known.Bag ??= Bag(thing);
+                if (known.Bag != null)
+                    known.Bag.Transform = new Transform3D(NatureView.Upright(thing.Up, thing.Yaw), GroundView.ToGodot(thing.Position));
             }
         }
         foreach (uint gone in _corpses.Keys.Where(k => !things.Contains(k)).ToList())

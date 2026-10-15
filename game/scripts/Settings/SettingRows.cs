@@ -149,4 +149,11 @@ public static class SettingRows
         new("INTERFACE SCALE", "The size of all text and panels (also Ctrl + plus and minus).", SettingKind.Slider,
             v => v.InterfaceScale, (v, x) => v with { InterfaceScale = x }, 0.6f, 2, 0.05f, Format: Percent),
     };
+
+    public static readonly SettingRow[] Display =
+    {
+        new("WINDOW MODE", "Windowed, borderless desktop, or exclusive fullscreen.", SettingKind.Choice,
+            v => (int)v.WindowMode, (v, x) => v with { WindowMode = (GameWindowMode)(int)x },
+            Options: new[] { "WINDOWED", "BORDERLESS", "EXCLUSIVE" }),
+    };
 }

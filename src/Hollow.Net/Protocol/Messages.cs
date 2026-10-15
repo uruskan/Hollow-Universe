@@ -132,6 +132,9 @@ public partial struct InputCommand
     /// (0 the zone's). On the tick of a hand-over it is the other: the server turns the view through the ship's pose.
     /// </summary>
     [VarInt] public uint Frame;
+
+    /// <summary>Noclip speed request in metres/second (0: default); authority must already grant noclip.</summary>
+    public byte FlySpeed;
 }
 
 /// <summary>One tick of a pilot's controls (G6), each −127 … 127: stick, throttle lever, strafe, up and down.</summary>
@@ -262,7 +265,12 @@ public partial struct OwnShipState
     public ushort BoostTicks;
     public ushort CooldownTicks;
     public ushort RestTicks;
-    [Bits(9)] public ShipFlags Flags;
+    [Bits(10)] public ShipFlags Flags;
+    public float CruiseThrottle;
+    public float CruiseStrafe;
+    public float CruiseVertical;
+    /// <summary>The engine's partial unit; its separate precision keeps prediction and authoritative burn identical.</summary>
+    public float FuelReserve;
 }
 
 /// <summary>
@@ -320,6 +328,10 @@ public partial struct CharacterNetState
     public ushort Held;
     [Bits(4)] public byte ActionCount;
     [Bits(3)] public ActionKind Action;
+    /// <summary>The item which performed the last action, even after its final unit was consumed or thrown.</summary>
+    public ushort ActionItem;
+    /// <summary>Authoritative action start, for sampling the same action phase at the interpolated render tick.</summary>
+    [VarInt] public uint ActionTick;
 
     /// <summary>Logged off and asleep in the world.</summary>
     public bool Sleeping;
@@ -399,8 +411,8 @@ public partial struct ThingSpawn
     /// <summary>What the receiver is told of it (GROUND_SYSTEMS.md §3.3): lit, theirs, empty, a teammate's.</summary>
     [Bits(8)] public ViewerFlags Flags;
 
-    /// <summary>Its own name: a body's (the dead player's), a bag's, a world prop's; empty for a deployable (named by its item).</summary>
-    [MaxLength(32)] public string Name;
+    /// <summary>Its own name: a player's label, body's, bag's or world prop's; empty uses the item name.</summary>
+    [MaxLength(192)] public string Name;
 
     /// <summary>What it stands on (GROUND_SYSTEMS.md §6): a building piece's or a ship's family and ID, or none (the ground).</summary>
     [Bits(4)] public TargetFamily SupportFamily;
@@ -411,6 +423,10 @@ public partial struct ThingSpawn
     /// it, the same set the server's rules see.
     /// </summary>
     [VarInt] public ulong Capabilities;
+
+    /// <summary>Authoritative body phase; wrecks and expired player bodies are bags.</summary>
+    public bool IsBody;
+    [MaxCount(1)] public CorpseAppearance[] Corpse;
 }
 
 /// <summary>A relevant static thing changed: health, count, or what the receiver is told of it.</summary>
@@ -421,6 +437,17 @@ public partial struct ThingUpdate
     public byte Health;
     [VarInt] public uint Count;
     [Bits(8)] public ViewerFlags Flags;
+    [MaxLength(192)] public string Name;
+    public bool IsBody;
+}
+
+/// <summary>Appearance saved at death, independent of the former player's connection or later inventory.</summary>
+[NetStruct]
+public partial struct CorpseAppearance
+{
+    public ulong Owner;
+    public byte Body;
+    [MaxCount(7)] public WornItem[] Wear;
 }
 
 /// <summary>An item worn (for <see cref="CharacterLook"/>).</summary>
@@ -776,6 +803,9 @@ public partial struct ContainerContents
     [Bits(3)] public ContainerRef Which;
     public byte Size;
     [MaxCount(255)] public SlotNet[] Slots;
+    /// <summary>Specialised storage constraints; zero means ordinary item/kind rules.</summary>
+    [VarInt] public uint AcceptedItem;
+    [VarInt] public uint StackLimit;
 }
 
 /// <summary>Slots of a container that changed (an emptied slot has item 0).</summary>
@@ -785,6 +815,8 @@ public partial struct ContainerSlots
     [VarInt] public uint LastSeq;
     [Bits(3)] public ContainerRef Which;
     [MaxCount(255)] public SlotNet[] Slots;
+    [VarInt] public uint AcceptedItem;
+    [VarInt] public uint StackLimit;
 }
 
 /// <summary>What the player is looting now (target 0: nothing); its containers follow.</summary>
@@ -815,6 +847,9 @@ public partial struct VitalsUpdate
     public byte Cold;
     public bool Comfort;
     public bool Wet;
+    /// <summary>Breath reserve, 255 full; suffocation is server-authoritative.</summary>
+    public byte Breath;
+    public bool Suffocating;
 }
 
 /// <summary>A crafting job as the client shows it.</summary>
@@ -842,6 +877,11 @@ public partial struct CraftQueueState
 [NetMessage(76)]
 public partial struct HitMarker
 {
+    public ushort Weapon;
+    [VarInt] public uint ActionTick;
+    public float PointX;
+    public float PointY;
+    public float PointZ;
     [Bits(4)] public TargetFamily Target;
     [Bits(2)] public HitRegion Region;
     [VarInt] public uint Damage;
@@ -890,6 +930,7 @@ public partial struct BagNet
     public float Y;
     public float Z;
     [VarInt] public uint ReadySeconds;
+    [MaxLength(192)] public string Name;
 }
 
 /// <summary>Alive or dead; when dead, how, by whom, and where the player can respawn.</summary>
@@ -953,6 +994,22 @@ public partial struct AttachIntent
     [Bits(3)] public ContainerRef WeaponIn;
     public byte WeaponSlot;
     [VarInt] public uint Expected;
+}
+
+/// <summary>Atomic attachment drag. Mod 255 means an ordinary slot; 0..2 are sight/muzzle/rail.
+/// Full stack snapshots reject a changed weapon, attachment, magazine or destination.</summary>
+[NetMessage(65)]
+public partial struct AttachmentMoveIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public ContainerRef From;
+    public byte FromSlot;
+    public byte FromMod;
+    [Bits(3)] public ContainerRef To;
+    public byte ToSlot;
+    public byte ToMod;
+    public SlotNet ExpectedFrom;
+    public SlotNet ExpectedTo;
 }
 
 /// <summary>
@@ -1405,6 +1462,7 @@ public partial struct RespawnPointNet
     public float Y;
     public float Z;
     public bool Bed;
+    [MaxLength(192)] public string Name;
 }
 
 /// <summary>What the player's map shows of their own: their markers, where they died last, their sleeping bags and beds.</summary>
@@ -1497,6 +1555,7 @@ public partial struct InteractIntent
     [VarInt] public uint Verb;
     [VarInt] public uint Arg;
     [MaxLength(8)] public string Code;
+    [MaxLength(192)] public string Text;
 }
 
 /// <summary>

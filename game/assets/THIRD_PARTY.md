@@ -143,6 +143,13 @@ IRON_WAKE.md §10): its drives, lift engines, pumps, contactors, hydraulics, ser
 rocket motors, klaxon, alarm bell, interior beds and the steel space's impulse response, layered in `audio/iron-wake/`
 with the recordings below.
 
+AB Test B action foley (15 October 2026): `art/audio/repair_actions.py` mixes the existing Kenney Impact/RPG,
+Rubberduck metal recordings, and BigSoundBank 0683 / 1340 / 1341 / 1344 with our machinery synthesis into the
+injector, launcher and recycler's dedicated sounds. The recycler additionally uses BigSoundBank 0304,
+"Grinding metal gate #2", CC0: `D:/GameDev/Assets/Downloads/bigsoundbank/0304.wav` (195,686 bytes),
+SHA-256 `1e37e32462a455daa53c2f514d02df2220781c02f98b4b647fbb02fb797d6f94`.
+Its recorded source is https://bigsoundbank.com/s0304.html; no new download was required.
+
 | Download | Licence | SHA-256 | Used for |
 |---|---|---|---|
 | Kenney (kenney.nl), Impact Sounds: `kenney_impact-sounds.zip`, https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip (page: https://kenney.nl/assets/impact-sounds), 800,850 bytes | CC0 1.0 | `029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8` | 70 files: `impactGlass_light_000.ogg`, `impactGlass_light_001.ogg`, `impactMetal_heavy_000.ogg`, `impactMetal_heavy_001.ogg`, `impactMetal_heavy_002.ogg`, `impactMetal_heavy_003.ogg`, `impactMetal_heavy_004.ogg`, `impactMetal_light_000.ogg`, `impactMetal_light_001.ogg`, `impactMetal_light_002.ogg`, `impactMetal_light_003.ogg`, `impactMetal_light_004.ogg` ... |
@@ -317,3 +324,29 @@ All our own (G7, GROUND.md §6.9); nothing was downloaded for them:
 |---|---|---|---|
 | `fx/c4/` | The PSG C4 VFX kit R01, converted by `art/fx/build.py` (GROUND.md §9.3): smoke and fire flipbooks, flash, pressure ring, heat distortion, dust puff, spark, scorch, and the procedural concrete texture of its debris; its concrete shards and metal fragments are in `fx/chunks.glb` | `D:\GameDev\Assets\PSG_C4VFX_R01`: our own kit, made for this project by Blender Python (a Mantaflow simulation rendered by Blender, textures generated in `Source/build_support.py`); no third-party content | Ours |
 | `fx/textures/`, `fx/decals/`, `fx/chunks.glb` (the rest), `fx/shaders/` | The muzzle flash atlas, noise, soft dot, droplet, bullet holes, blood, scuff and debris shapes, painted and modelled by `art/fx/build.py`; the shaders | Ours | Ours |
+
+## Environment repair additions (15 October 2026)
+
+| Path | Source and use | Rights and provenance |
+|---|---|---|
+| `surface/cliffs/coastal_cliff_04_lod*.glb` | Local `D:/GameDev/Assets/coastal_cliff_04_4k.gltf`; [Poly Haven Coastal Cliff 04](https://polyhaven.com/a/coastal_cliff_04), reduced to two mesh levels with 2K PBR textures | [CC0](https://polyhaven.com/license). Original/output SHA-256s and conversion measurements: `surface/cliffs/provenance.json`; reproducible conversion: `tools/blender/environment_cliffs.py`. |
+| `surface/cliffs/namaqualand_cliff_02_lod*.glb` | Local `D:/GameDev/Assets/namaqualand_cliff_02_4k.gltf`; [Poly Haven Namaqualand Cliff 02](https://polyhaven.com/a/namaqualand_cliff_02) | CC0, with the same receipt and conversion. |
+| `revised/Hollow_Substation_R01/` | Five selected native scenes and required materials/textures from the owner's local package: service court, transformer, switchgear, cable reel and barrier | Original owner-controlled geometry and labels; CC0 Poly Haven scan derivatives. Source material audit: the package's `Reports/texture_provenance.json`. |
+| `revised/Hollow_PowerKit_R01/` | Breaker, open disconnect and termination pedestal, with native PBR materials and LODs | Original owner-controlled Blender geometry and synthesized textures. The source package's `Reports/provenance.json` records construction and reference-only hardware documents; no external model/image or commercial-game extraction. |
+| `revised/Hollow_RuinDressing_R01/` | Hardware cluster and localized oil-seep decal with their required dependencies | Original owner-controlled geometry/masks plus documented CC0 scan derivatives and an earlier ImageGen-derived painted-steel source. The source package's `Reports/provenance.json` records those inputs; no image generation was performed by this integration. |
+
+`revised/substation-integration.json` records source manifest hashes, the 69 selected dependency source/output
+SHA-256s, and the combined service-substation layout. `tools/blender/environment_substation.py` verifies those
+manifests before copying, remaps resource paths and derives shared collision from the actual authored hulls.
+The five other live monument types reuse the project's original `monuments/` assemblies and collision metadata.
+No extracted commercial-game geometry, textures or map placements were incorporated.
+
+### Authored ground cover (repair pass, 15 October 2026)
+
+`surface/ground-cover/` contains derivatives of the owner's Wild Grass (`vlkhcbxia`), Cotton Grass (`wlykecdia`),
+Tundra Grass (`wk2oaeyqx`) and Bracken Fern (`seEoW`) Quixel/Fab plant archives in `D:/GameDev/Assets`.
+Use is under the same owner-supplied Fab Standard License basis as the ground scans above; these are not CC0.
+Three variants per family retain authored UVs, opacity and lower LODs. Original source files remain external and
+unchanged. `surface/ground-cover/catalog.json` contains archive hashes, verified input hashes and output hashes;
+`tools/blender/environment_ground_cover.py` reproduces metre normalization and 2048-pixel texture derivatives.
+No commercial-game extraction, remote generation or provider job was used.

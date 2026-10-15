@@ -24,6 +24,7 @@ render_mode cull_disabled, depth_draw_opaque, diffuse_burley, specular_schlick_g
 global uniform vec4 hu_wind;
 
 uniform int layer = 0;              // 0 upright tufts and plants, 1 flat litter
+uniform bool blade_underlayer = false; // authored crowns supply the larger species above this closed short sward
 uniform int grid_width = 180;
 uniform ivec2 grid_offset;          // the grid's first cell in the lattice
 uniform float far_radius = 42.0;    // blades are gone here
@@ -123,7 +124,7 @@ void vertex() {
 	if (layer == 0) {
 		if (roll < density) {
 			kind = 0.0;
-		} else if (roll < density + (1.0 - density) * f2.a * 0.3) {
+		} else if (!blade_underlayer && roll < density + (1.0 - density) * f2.a * 0.3) {
 			kind = 1.0;
 		}
 	} else if (roll < f2.b * 0.85) {
@@ -183,10 +184,11 @@ void vertex() {
 		float lean = 0.05 + 0.12 * rnd(s);
 		float v = rnd(s);
 		if (kind == 0.0) {
-			float flower = step(r_kind, f2.g * 0.06);
-			v_cell = flower > 0.5 ? (rnd(s) < 0.75 ? cell_flower : cell_herb) : (dry > 0.62 ? cell_dry : (r_kind > 0.82 ? cell_meadow : cell_grass));
-			v_tint = tint_face * (0.8 + 0.4 * v);
+			float flower = blade_underlayer ? 0.0 : step(r_kind, f2.g * 0.12);
+			v_cell = flower > 0.5 ? (rnd(s) < 0.75 ? cell_flower : cell_herb) : (dry > 0.62 ? cell_dry : (r_kind > 0.65 ? cell_meadow : cell_grass));
+			v_tint = tint_face * (0.68 + 0.32 * v);
 			if (flower > 0.5) {
+				v_kind = 1.0; // petals use their atlas silhouette, not the grass blade mask
 				height = 0.38 + 0.2 * rnd(s);
 				float p = rnd(s);
 				v_tint = p < 0.3 ? vec3(1.0, 0.82, 0.12) : p < 0.55 ? vec3(0.95, 0.95, 0.9) : p < 0.75 ? vec3(0.62, 0.38, 0.92) : p < 0.9 ? vec3(0.95, 0.35, 0.22) : vec3(1.0, 0.62, 0.18);
@@ -194,6 +196,10 @@ void vertex() {
 			// Where grass is thin, a tuft is a few narrow cards: a handful of loose blades, not a block.
 			width *= mix(0.32, 1.0, smoothstep(0.08, 0.65, density));
 			height *= mix(0.8, 1.0, smoothstep(0.08, 0.65, density));
+			if (blade_underlayer) {
+				height *= 0.68 + 0.2 * patchy;
+				v_tint *= vec3(0.82, 0.90, 1.10);
+			}
 		} else if (kind == 1.0) {
 			// Forest floor plants: ferns, herbs and seedlings, in the shade's greens.
 			float p = rnd(s);
@@ -259,6 +265,7 @@ void vertex() {
 		// The ground's own colour at the tuft's foot, as the terrain shader draws its grass layer.
 		float lum = dot(detail, vec3(0.2126, 0.7152, 0.0722));
 		v_ground = clamp(lum / 0.1, 0.4, 1.8) * blade_mean * tint_face;
+		if (blade_underlayer && kind == 0.0) v_ground *= vec3(0.82, 0.90, 1.10);
 	}
 }
 
@@ -274,11 +281,15 @@ void fragment() {
 		float h1 = fract(sin((cell_x + 1.0) * 12.9898 + v_seed * 3.1) * 43758.5453);
 		float top = 0.42 + 0.58 * mix(h0, h1, smoothstep(0.0, 1.0, fract(x)));
 		alpha *= step(UV.y, top) * step(abs(UV.x - 0.5), 0.5 - 0.22 * UV.y);
+		// The painted atlas is solid at the roots. Separate individual blades all the way down, otherwise the
+		// base of every upright card reads as a flat rectangular fence at shorelines and against bare soil.
+		float blade_centre = 0.5 + sin(cell_x * 1.7 + v_seed + UV.y * 3.0) * 0.16 * UV.y;
+		float blade_width = mix(0.32, 0.07, UV.y);
+		alpha *= 1.0 - smoothstep(blade_width, blade_width + 0.035, abs(fract(x) - blade_centre));
 	}
-	ALPHA = alpha;
-	ALPHA_SCISSOR_THRESHOLD = 0.5;
-	ALPHA_ANTIALIASING_EDGE = 0.25;
-	ALPHA_TEXTURE_COORDINATE = uv * vec2(textureSize(atlas, 0));
+	// Keep cutouts in the opaque pass: water needs their colour and depth in the same screen snapshot.
+	// Writing ALPHA moved the cards after screen-texture water and left dark card-shaped silhouettes underwater.
+	if (alpha < 0.5) discard;
 	vec3 albedo;
 	if (v_kind > 1.5) {
 		// Dead leaves and twigs: the painted shading, faded to the litter's browns.
@@ -316,6 +327,8 @@ void light() {
 		// Light through the blades: the tips glow looking toward a low sun.
 		float toward = clamp(dot(-VIEW, LIGHT), 0.0, 1.0);
 		float wrap = clamp(-ndl * 0.6 + 0.4, 0.0, 1.0);
-		DIFFUSE_LIGHT += light * translucency * (pow(toward, 4.0) * 1.4 * v_t + wrap * 0.35) * vec3(0.9, 1.05, 0.55);
+		float transmission = translucency * (blade_underlayer ? 0.5 : 1.0);
+		vec3 transmission_colour = blade_underlayer ? vec3(0.94, 1.0, 0.85) : vec3(0.9, 1.05, 0.55);
+		DIFFUSE_LIGHT += light * transmission * (pow(toward, 4.0) * 1.4 * v_t + wrap * 0.35) * transmission_colour;
 	}
 }

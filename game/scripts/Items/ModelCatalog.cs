@@ -23,7 +23,10 @@ public readonly record struct Pose(Vector3 Position, Vector3 RotationDegrees)
 /// 0: at its eye socket), <see cref="Flame"/> the effect that burns on its flame socket while it is held (the torch's).
 /// </summary>
 public sealed record HeldInfo(Pose FirstPerson, Pose ThirdPerson, string? OffHand, string Hand, GripInfo? Grip = null,
-    string? Pose = null, float EyeRelief = 0, string? Flame = null);
+    string? Pose = null, float EyeRelief = 0, string? Flame = null, SupportHandInfo? SupportHand = null);
+
+/// <summary>Support-hand axes and grip offset in item space; elbow pole in camera space. Per item, not per weapon class.</summary>
+public sealed record SupportHandInfo(Vector3 Fingers, Vector3 Thumb, Vector3 Offset, Vector3 Pole);
 
 /// <summary>
 /// How the first-person hand holds an item (GROUND.md §4.8), in the item's frame: which way the fingers run from the
@@ -61,7 +64,9 @@ public sealed record ModelEntry(
     string? StandIn,
     string? Slot,
     IReadOnlyDictionary<string, string> Sockets,
-    GibsInfo? Gibs)
+    GibsInfo? Gibs,
+    OpticInfo? Optic = null,
+    AttachmentLightInfo? AttachmentLight = null)
 {
     public bool IsItem => Kind == "item";
 
@@ -149,6 +154,7 @@ public static class ModelCatalog
         Collision(root, use);
         float[] distances = entry.LodDistances ?? DefaultLodDistances(LocalBounds(root, 0));
         SetLodRanges(root, distances);
+        GunAttachmentPresentation.Prepare(root, entry);
         return root;
     }
 
@@ -175,6 +181,7 @@ public static class ModelCatalog
             return null;
         }
         attachment.Name = part.Slot;
+        attachment.SetMeta("attachment_key", attachmentKey);
         socket.AddChild(attachment);
         return attachment;
     }
@@ -462,7 +469,11 @@ public static class ModelCatalog
                 h.TryGetProperty("grip", out JsonElement grip) ? GripOf(grip) : null,
                 h.TryGetProperty("pose", out JsonElement pose) ? pose.GetString() : null,
                 h.TryGetProperty("eyeRelief", out JsonElement relief) ? relief.GetSingle() : 0,
-                h.TryGetProperty("flame", out JsonElement flame) ? flame.GetString() : null);
+                h.TryGetProperty("flame", out JsonElement flame) ? flame.GetString() : null,
+                h.TryGetProperty("supportHand", out JsonElement support) ? new SupportHandInfo(
+                    Vec(support.GetProperty("fingers")), Vec(support.GetProperty("thumb")),
+                    support.TryGetProperty("offset", out JsonElement offset) ? Vec(offset) : Vector3.Zero,
+                    support.TryGetProperty("pole", out JsonElement pole) ? Vec(pole) : new Vector3(-0.4f, -1f, 0.1f)) : null);
         }
         float[]? lodDistances = null;
         if (m.TryGetProperty("lodDistances", out JsonElement ld))
@@ -496,7 +507,14 @@ public static class ModelCatalog
             m.TryGetProperty("gibs", out JsonElement gibs) && gibs.TryGetProperty("file", out JsonElement gibFile)
                 ? new GibsInfo(gibFile.GetString()!, gibs.TryGetProperty("material", out JsonElement gm) ? gm.GetString() ?? "" : "",
                     gibs.TryGetProperty("grade", out JsonElement gg) && gg.ValueKind == JsonValueKind.Number ? gg.GetInt32() : null)
-                : null);
+                : null,
+            m.TryGetProperty("optic", out JsonElement optic) ? new OpticInfo(
+                optic.GetProperty("lens").GetString()!, optic.GetProperty("eye").GetString()!,
+                optic.GetProperty("reticle").GetString() == "crosshair" ? 1 : 0,
+                optic.TryGetProperty("magnified", out JsonElement magnified) && magnified.GetBoolean()) : null,
+            m.TryGetProperty("attachmentLight", out JsonElement lamp) ? new AttachmentLightInfo(
+                lamp.GetProperty("beam").GetString()!, Math.Clamp(lamp.GetProperty("range").GetSingle(), 1, 40),
+                Math.Clamp(lamp.GetProperty("angle").GetSingle(), 1, 80), Math.Clamp(lamp.GetProperty("energy").GetSingle(), 0, 20)) : null);
     }
 
     private static Dictionary<string, string> SocketsOf(JsonElement m)

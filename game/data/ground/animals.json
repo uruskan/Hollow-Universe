@@ -12,7 +12,7 @@
   "harvest": {
     "note": "Harvest health a hit takes from a corpse: the bone knife is the butcher's tool (Rust's), hatchets and the machete are good, a rock is poor; other melee items take 40% of their damage. As with gathering, a better tool is quicker, not richer (GROUND.md §6.1).",
     "default": 0.4,
-    "tools": { "bone-knife": 30, "machete": 26, "metal-hatchet": 24, "stone-hatchet": 18, "rock": 8, "torch": 4 }
+    "tools": { "bone-knife": 30, "machete": 26, "salvaged-axe": 28, "metal-hatchet": 24, "stone-hatchet": 18, "rock": 8, "torch": 4 }
   },
   "species": [
     {

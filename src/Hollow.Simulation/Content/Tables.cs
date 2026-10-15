@@ -334,6 +334,10 @@ public sealed class SurvivalTuning
     public float SpawnCalories { get; init; } = 260;
     public float SpawnHydration { get; init; } = 160;
 
+    public float BreathSeconds { get; init; } = 20;
+    public float BreathRecoveryPerSecond { get; init; } = 5;
+    public float SuffocationDamagePerSecond { get; init; } = 10;
+
     public float CaloriesPerSecond { get; init; }
     public float HydrationPerSecond { get; init; }
     public float SprintFactor { get; init; } = 1;
@@ -378,6 +382,8 @@ public sealed class SurvivalTuning
     public LifetimeRule BagLifetime { get; init; } = new(300, LifetimeRestart.Deposit, true);
 
     public LifetimeRule BodyLifetime { get; init; } = new(300, LifetimeRestart.None, true);
+
+    public Hollow.Simulation.World.CorpseTuning Corpse { get; init; } = new();
 
     /// <summary>A dud (a charge whose fuse went out) nobody lights again.</summary>
     public LifetimeRule DudLifetime { get; init; } = new(600, LifetimeRestart.None, false);

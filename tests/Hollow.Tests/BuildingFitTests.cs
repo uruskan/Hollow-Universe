@@ -23,6 +23,7 @@ public static class BuildingFitTests
         using JsonDocument building = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "game", "data", "ground", "building.json")));
         var pieces = building.RootElement.GetProperty("pieces").EnumerateArray().ToDictionary(p => p.GetProperty("key").GetString()!, p => p);
         double half = building.RootElement.GetProperty("module").GetProperty("width").GetDouble() / 2;
+        double foundationDepth = building.RootElement.GetProperty("module").GetProperty("foundationDepth").GetDouble();
         double triangleBase = half * 2 * Math.Sqrt(3) / 6;
         const double reach = 0.002;
         int meshes = 0;
@@ -50,6 +51,10 @@ public static class BuildingFitTests
                 else if (family is "foundation" or "floor")
                 {
                     Assert.InRange(-reach, 0.025, max[1], $"{what}: its top");
+                    if (family == "foundation")
+                    {
+                        Assert.Near(-foundationDepth, min[1], reach, $"{what}: its skirt reaches the placement/collision depth");
+                    }
                     Assert.True(max[2] >= (triangle ? triangleBase : half) - reach, $"{what}: its front edge at {max[2]:0.000} m, short of the slot");
                     if (!triangle)
                     {

@@ -35,6 +35,9 @@ public sealed class ViewSettings
     /// <summary>Mouse look sensitivity (0.1–5; 1 by default: 0.002 radians a mouse count).</summary>
     public float Sensitivity { get; set; } = 1;
 
+    /// <summary>Preferred admin flight speed; permission comes from the server's character state.</summary>
+    public float NoclipSpeed { get; set; } = 10;
+
     public bool ShowFps { get; set; }
 
     public static ViewSettings Load()
@@ -45,6 +48,7 @@ public sealed class ViewSettings
         {
             Fov = Math.Clamp((float)file.GetValue("view", "fov", 75.0).AsDouble(), 60, 100),
             Sensitivity = Math.Clamp((float)file.GetValue("view", "sensitivity", 1.0).AsDouble(), 0.1f, 5),
+            NoclipSpeed = Math.Clamp((float)file.GetValue("view", "noclip_speed", 10.0).AsDouble(), 1, 200),
             ShowFps = file.GetValue("view", "fps", false).AsBool(),
         };
     }
@@ -55,6 +59,7 @@ public sealed class ViewSettings
         file.Load(FilePath);
         file.SetValue("view", "fov", Fov);
         file.SetValue("view", "sensitivity", Sensitivity);
+        file.SetValue("view", "noclip_speed", NoclipSpeed);
         file.SetValue("view", "fps", ShowFps);
         file.Save(FilePath);
     }
@@ -66,7 +71,7 @@ public sealed class ViewSettings
 /// netgraph, fov, sensitivity) run here, everything else goes to the server, which checks the player's rights and
 /// answers line by line; the INFO, NET, ITEMS and TOOLS tabs' reads.
 /// </summary>
-public sealed class ClientConsole : IConsoleModel, IDisposable
+public sealed partial class ClientConsole : IConsoleModel, IDisposable
 {
     private const int MaxLines = 600;
     private const int MaxHistory = 100;
@@ -92,6 +97,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
         Settings = settings;
         _client.Console().ConsoleAnswered += OnAnswer;
         LoadHistory();
+        LoadBindings();
         Add("Hollow Universe console. Type help for the commands; Tab completes, Up and Down go through what you typed.", ConsoleLineKind.System);
     }
 
@@ -233,6 +239,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
     // The game's own commands.
     private void RunHere(ConsoleCommandDef command, IReadOnlyList<string> args)
     {
+        if (RunBindingCommand(command.Name, args)) return;
         switch (command.Name)
         {
             case "help":

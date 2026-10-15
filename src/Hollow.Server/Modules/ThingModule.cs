@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Net.Bits;
@@ -238,7 +239,7 @@ public sealed class ThingModule : ServerModule
                     {
                         (byte health, uint count) = Look(thing);
                         Writer.Reset();
-                        new ThingUpdate { NetId = netId, Health = health, Count = count, Flags = flags }.WriteMessage(Writer);
+                        new ThingUpdate { NetId = netId, Health = health, Count = count, Flags = flags, Name = thing.Name, IsBody = thing is Corpse { IsBody: true } }.WriteMessage(Writer);
                         Send(session);
                     }
                 }
@@ -272,6 +273,11 @@ public sealed class ThingModule : ServerModule
                     SupportFamily = thing.Support.Family,
                     Support = thing.Support.Id,
                     Capabilities = thing.CapabilitiesIn(Content.Capabilities).Bits,
+                    IsBody = thing is Corpse { IsBody: true },
+                    Corpse = thing is Corpse { Life: { } life } corpse ? new[]
+                    {
+                        new CorpseAppearance { Owner = corpse.Of.Value, Body = life.Body, Wear = life.Wear.Select(item => new WornItem { Item = item }).ToArray() },
+                    } : Array.Empty<CorpseAppearance>(),
                 }.WriteMessage(Writer);
                 Send(session);
             }

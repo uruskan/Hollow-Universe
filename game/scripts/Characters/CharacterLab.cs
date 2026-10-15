@@ -51,6 +51,7 @@ public partial class CharacterLab : Node3D
 
     // Automation.
     private double _elapsed;
+    private double _presentationElapsed;
     private bool _capturing;
     private string? _pendingEvent;
     private double _eventAt;
@@ -628,6 +629,9 @@ public partial class CharacterLab : Node3D
         float dt = (float)delta;
         _time += dt;
         _elapsed += delta;
+        // The arms cap their animation step during a shader/import stall. Events and screenshots must use
+        // that same clock, otherwise a several-second first frame can photograph an almost undrawn bow.
+        _presentationElapsed += Math.Min(delta, 0.05);
         CharacterFrame frame = MotionFrame(Motions[_motion], _time, dt);
         frame.Pitch = _aimPitch;
         frame.LookYaw = _look.X;
@@ -638,7 +642,7 @@ public partial class CharacterLab : Node3D
         _character.Apply(frame);
         UpdateCrowd(dt);
 
-        if (_pendingEvent != null && _elapsed >= _eventAt)
+        if (_pendingEvent != null && _presentationElapsed >= _eventAt)
         {
             if (_pendingEvent.StartsWith("motion:", StringComparison.Ordinal))
             {
@@ -876,7 +880,7 @@ public partial class CharacterLab : Node3D
         {
             return;
         }
-        if (_elapsed >= wait + Math.Max(0, measure))
+        if (_presentationElapsed >= wait + Math.Max(0, measure))
         {
             _capturing = true;
             Capture(path);
@@ -917,6 +921,7 @@ public partial class CharacterLab : Node3D
         }
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
         Image image = GetViewport().GetTexture().GetImage();
+        if (_firstPerson) GD.Print("[viewmodel] " + _viewmodel.PresentationState);
         Error error = Save(image, path);
         GD.Print(error == Error.Ok ? $"Saved screenshot {path} ({image.GetWidth()}x{image.GetHeight()})." : $"Could not save {path}: {error}");
         GetTree().Quit(error == Error.Ok ? 0 : 1);

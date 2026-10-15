@@ -1,0 +1,8 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+resource_name = "HU_copper"
+albedo_color = Color(0.55, 0.29, 0.14, 1)
+metallic = 1.0
+roughness = 0.4
+texture_filter = 5

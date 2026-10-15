@@ -66,7 +66,7 @@ public sealed class Bullet
 // Firearms (GROUND.md §6.3): shots and reloads the clients asked for, applied at the tick they happened on with the
 // rules both sides share (Combat/Firearms.cs); bullets flown with drop and drag and tested against characters where
 // the shooter saw them; damage by distance, body part and armour; attachments put on and taken off.
-public sealed class GunSystem : ZoneSystem
+public sealed partial class GunSystem : ZoneSystem
 {
     private ActionSystem? _actionsSystem;
     private ActionSystem Actions => _actionsSystem ??= Zone.Require<ActionSystem>();
@@ -231,8 +231,7 @@ public sealed class GunSystem : ZoneSystem
             OutcomeCode reload = FirearmRules.BeginReload(ref p.Gun, weapon, gun, ammo, ammo == 0 ? 0 : InventoryRules.Count(carried, ammo), a.Tick);
             if (reload == OutcomeCode.Done)
             {
-                p.ActionCount++;
-                p.LastAction = ActionKind.Reload;
+                p.RecordAction(ActionKind.Reload, weapon.Item, a.Tick);
             }
             return reload;
         }
@@ -282,8 +281,7 @@ public sealed class GunSystem : ZoneSystem
             shot = shot with { Origin = origin, Direction = seen.DirectionToWorld(shot.Direction) };
         }
         LaunchBullet(p, gun, shot, a, shipVelocity);
-        p.ActionCount++;
-        p.LastAction = ActionKind.Shoot;
+        p.RecordAction(ActionKind.Shoot, weapon.Item, a.Tick);
         Combat.Wear(entity, p, p.HeldSlot);
         return OutcomeCode.Done;
     }

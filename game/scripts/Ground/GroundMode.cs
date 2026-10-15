@@ -47,6 +47,15 @@ public partial class GroundMode : Node
     /// <summary>The command-line options; set before adding to the tree.</summary>
     public Dictionary<string, string> Options { get; set; } = new();
 
+    private bool IsolatedShot => HollowUniverse.App.CaptureIsolation.Requested(Options);
+
+    public void ReportCapture()
+    {
+        if (_view == null) return;
+        GD.Print($"[capture] ground state={_client?.State} position={_client?.Character.Position} yaw={_view.Yaw:0.000000} pitch={_view.Pitch:0.000000} " +
+            $"ready={_view.ReadyForShot} loading={_view.LoadingShown} hostPort={_view.HostedPort}");
+    }
+
     /// <summary>For automated screenshots: playing, the world drawn, and the player to face (if any) in view.</summary>
     public bool ReadyForShot => _tour == null && (_view?.ReadyForShot ?? _menuWorld?.IsReady ?? _menu != null);
 
@@ -150,6 +159,7 @@ public partial class GroundMode : Node
     // From a menu: the menu (or the game before) goes, the game starts.
     private void Begin(string name, string? host, int port, bool female)
     {
+        if (IsolatedShot) return; // GUI actions must never replace or start another server during a capture.
         _female = female;
         Callable.From(() =>
         {
@@ -240,6 +250,7 @@ public partial class GroundMode : Node
         {
             Name = "GroundView",
             Client = _client,
+            IsolatedCapture = IsolatedShot,
             Loading = loading,
             HostedPort = _server?.Port ?? _child?.Port,
             FaceName = Options.TryGetValue("face", out string? face) ? face : null,
@@ -261,11 +272,13 @@ public partial class GroundMode : Node
         AddChild(_view);
         _view.Interface.HostRequested += player => Begin(player, null, Protocol.DefaultPort, _view.Interface.FemaleBody);
         _view.Interface.ConnectRequested += (player, address, p) => Begin(player, address, p, _view.Interface.FemaleBody);
-        if (Options.ContainsKey("measure"))
+        bool tourProfile = Options.ContainsKey("tour-profile");
+        if (Options.ContainsKey("measure") || tourProfile)
         {
             AddChild(new GroundMeasure
             {
                 Name = "Measure", View = _view, Server = _server, Command = Command, Seconds = Number("measure", 20), Expect = (int)Number("expect", 0),
+                AutoStart = !tourProfile, QuitWhenComplete = !tourProfile,
             });
         }
         if (Options.TryGetValue("tour", out string? folder) && folder != "true")
@@ -273,8 +286,9 @@ public partial class GroundMode : Node
             _tour = new GroundTour
             {
                 Name = "Tour", View = _view, Folder = folder, Command = Command,
-                Only = Options.TryGetValue("tour-steps", out string? steps) ? new HashSet<string>(steps.Split(',')) : null,
+                Only = tourProfile ? new HashSet<string> { "chop" } : Options.TryGetValue("tour-steps", out string? steps) ? new HashSet<string>(steps.Split(',')) : null,
                 Tree = Options.TryGetValue("tour-tree", out string? tree) ? tree : null,
+                Profile = tourProfile, ProfileIdle = Options.TryGetValue("tour-profile", out string? profile) && profile == "idle",
             };
             AddChild(_tour);
         }

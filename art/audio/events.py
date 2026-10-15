@@ -1793,7 +1793,7 @@ def door_roles(material):
 # SoundCatalogData.ItemEvent(item, role); the tests check every item that needs a sound has its roles.
 ITEMS = {
     "rock": MELEE, "torch": MELEE, "stone-hatchet": HEAVY, "stone-pickaxe": HEAVY, "metal-hatchet": HEAVY,
-    "metal-pickaxe": HEAVY, "wooden-spear": HEAVY, "stone-spear": HEAVY, "machete": MELEE,
+    "metal-pickaxe": HEAVY, "salvaged-axe": HEAVY, "wooden-spear": HEAVY, "stone-spear": HEAVY, "machete": MELEE,
     "bow": {"draw": "bow.draw", "release": "bow.release", "flight": "arrow.flight", "impact": "arrow.impact",
             "impactFlesh": "arrow.impact.flesh", "hitMarker": "hit.marker", "headshot": "hit.headshot",
             "kill": "hit.kill"},
@@ -1801,7 +1801,7 @@ ITEMS = {
               "pickup": "gather.pickup"},
     "pistol": gun_roles("pistol"), "rifle": gun_roles("rifle"),
     "silencer": {"shotPistol": "pistol.shot.silenced", "shotRifle": "rifle.shot.silenced"},
-    "bandage": {"use": "survival.bandage"}, "medical-injector": {"use": "survival.bandage"},
+    "bandage": {"use": "survival.bandage"}, "medical-injector": {"use": "survival.inject"},
     "red-berries": {"use": "survival.eat"}, "blue-berries": {"use": "survival.eat"},
     "wild-tuber": {"use": "survival.eat"}, "roasted-tuber": {"use": "survival.eat"},
     # G7 animals (GROUND.md §6.9): meat is eaten like any food; the bone knife and club are swung like the other blades.
@@ -1823,7 +1823,7 @@ ITEMS = {
     "loot-barrel-2": {"hit": "impact.metal", "break": "impact.metal"},
     "loot-crate": {"open": "box.open", "close": "box.close"},
     "military-crate": {"open": "box.open", "close": "box.close"},
-    "recycler": {"open": "box.open", "close": "box.close", "start": "furnace.ignite", "loop": "furnace.loop", "stop": "fire.extinguish"},
+    "recycler": {"open": "box.open", "close": "box.close", "start": "recycler.start", "loop": "recycler.loop", "stop": "recycler.stop"},
     "building-plan": {"placeTwig": "build.place.twig", "placeWood": "build.place.wood",
                       "placeStone": "build.place.stone", "placeMetal": "build.place.metal",
                       "placeArmoured": "build.place.armoured"},
@@ -1842,8 +1842,8 @@ ITEMS = {
     "tin-grenade": {"fuse": "explosive.fuse", "explode": "explosion", "debris": "explosion.debris",
                     "place": "deploy.place", "throw": "melee.swing", "bounce": "impact.metal",
                     "fizzle": "fire.extinguish", "relight": "campfire.ignite"},
-    "rocket-launcher": {"shot": "rifle.shot", "magOut": "reload.rifle.magout", "magIn": "reload.rifle.magin",
-                        "rack": "reload.rifle.bolt", "dryFire": "gun.dryfire", "hitMarker": "hit.marker",
+    "rocket-launcher": {"shot": "launcher.shot", "magOut": "launcher.open", "magIn": "launcher.load",
+                        "rack": "launcher.lock", "dryFire": "gun.dryfire", "hitMarker": "hit.marker",
                         "kill": "hit.kill"},
     # IW4 (IRON_WAKE.md §10.1): every rocket's motor catching where it leaves and its roar on it until it stops (the
     # rockets' view loops "flight" on the rocket); the incendiary rocket's burst, its fuel catching and its fire (a
@@ -1892,4 +1892,5 @@ def everything():
     ambience()
     animals()
     iron_wake()
+    __import__("repair_actions").recipes()
     return list(OUTS), list(EVENTS)

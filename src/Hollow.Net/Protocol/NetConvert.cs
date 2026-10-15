@@ -31,6 +31,8 @@ public static class NetConvert
             ViewV = v,
             Buttons = input.Buttons,
             Frame = FrameOnWire(input.Frame),
+            FlySpeed = float.IsFinite(input.NoclipSpeed) && input.NoclipSpeed > 0
+                ? (byte)Math.Clamp((int)MathF.Round(Math.Clamp(input.NoclipSpeed, 1, 200)), 1, 200) : (byte)0,
         };
     }
 
@@ -72,6 +74,7 @@ public static class NetConvert
         View = Quantize.FromOctahedral(command.ViewU, command.ViewV),
         Buttons = command.Buttons & (MoveButtons.Jump | MoveButtons.JumpPressed | MoveButtons.Crouch | MoveButtons.Sprint),
         Frame = command.Frame,
+        NoclipSpeed = Math.Min(command.FlySpeed, (byte)200),
     };
 
     /// <summary>The exact state, for the player's own reconciliation.</summary>

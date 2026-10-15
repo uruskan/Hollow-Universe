@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using Godot;
 using Hollow.Simulation.Ships;
@@ -145,7 +146,7 @@ public partial class ShipHud : Control
         if (d.Hints != null)
         {
             _o = Vector2.Zero;
-            Text(d.Hints, 24, 18, 16, G.Ink, bold: true, shadow: true);
+            PaintHints(d.Hints);
         }
         if (d.Def == null)
         {
@@ -169,17 +170,56 @@ public partial class ShipHud : Control
         PaintWarnings(d);
     }
 
+    // Keep the flight help within the viewport at any UI scale, with at most two measured lines.
+    private void PaintHints(string hints)
+    {
+        float width = Math.Max(1, Size.X - Ui.Px(48));
+        List<string> Lines(float size)
+        {
+            FontFile font = G.Font(size, bold: true);
+            int px = Ui.Px(size);
+            var lines = new List<string>();
+            foreach (string paragraph in hints.Split('\n'))
+            {
+                string line = "";
+                foreach (string hint in paragraph.Split('·', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+                {
+                    string next = line.Length == 0 ? hint : line + " · " + hint;
+                    if (line.Length > 0 && font.GetStringSize(next, HorizontalAlignment.Left, -1, px).X > width)
+                    {
+                        lines.Add(line);
+                        line = hint;
+                    }
+                    else line = next;
+                }
+                if (line.Length > 0) lines.Add(line);
+            }
+            return lines;
+        }
+        float size = 16;
+        List<string> lines = Lines(size);
+        while (size > 13 && lines.Count > 2) lines = Lines(--size);
+        for (int i = 0; i < Math.Min(2, lines.Count); i++)
+        {
+            string line = lines[i];
+            if (i == 1 && lines.Count > 2) line += " …";
+            FontFile font = G.Font(size, bold: true);
+            while (line.Length > 1 && font.GetStringSize(line, HorizontalAlignment.Left, -1, Ui.Px(size)).X > width)
+                line = line.TrimEnd(' ', '…')[..^1] + "…";
+            Text(line, 24, 18 + i * (size + 5), size, G.Ink, bold: true, shadow: true);
+        }
+    }
+
     // The crosshair and the stick: a ring for the stick's reach, a dot where it is.
     private void PaintCentre(ShipHudData d)
     {
         _o = CentreFrame;
         var faint = new Color(G.Ink, 0.28f);
         Ring(800, 450, 6, new Color(G.Ink, 0.85f), 1.5f);
-        Ring(800, 450, 70, faint, 1f);
-        Vector2 stick = d.Stick.LimitLength(1);
+        Vector2 stick = d.Stick;
         if (stick.Length() > 0.02f)
         {
-            Vector2 at = new(800 + stick.X * 70, 450 - stick.Y * 70);
+            Vector2 at = new(800 + stick.X * ShipControls.SteeringReach, 450 - stick.Y * ShipControls.SteeringReach);
             DrawLine(Pt(800, 450), Pt(at.X, at.Y), new Color(G.Ink, 0.35f), Math.Max(1f, Ui.Pxf(1.5f)), true);
             DrawCircle(Pt(at.X, at.Y), Ui.Pxf(4.5f), new Color(G.Ink, 0.9f));
         }

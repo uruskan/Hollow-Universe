@@ -63,6 +63,10 @@ public static class ConsoleCatalog
             [ArgKind.Number], "graphics.fov"),
         Def("sensitivity", ["sensitivity [x]"], "Mouse sensitivity, 0.1 to 5 (1 by default); kept on this computer.", false, CommandSide.Client,
             [ArgKind.Number], "input.sensitivity"),
+        Def("bind", ["bind <key> [command]", "bind F6 \"noclip\""], "Assign a console command to a physical key or MWHEELUP/MWHEELDOWN; saved locally. Without a command, shows the binding.", false, CommandSide.Client, [ArgKind.Text, ArgKind.Command]),
+        Def("unbind", ["unbind <key>"], "Remove a saved console-command binding.", false, CommandSide.Client, [ArgKind.Text]),
+        Def("binds", ["binds"], "List saved console-command bindings.", false, CommandSide.Client, []),
+        Def("noclipspeed", ["noclipspeed [1..200]"], "Preferred noclip speed in m/s, sprint multiplies by four. Only affects players granted noclip by the server; wheel adjusts it while flying.", false, CommandSide.Client, [ArgKind.Number], "noclip.speed"),
 
         // ---------------------------------------------------------------- everyone, on the server
         Def("kill", ["kill", "kill <player>  (admin)"],

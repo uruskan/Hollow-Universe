@@ -1,0 +1,54 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://assets/revised/Hollow_Substation_R01/Scenes/service-court.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://assets/revised/Hollow_Substation_R01/Scenes/oil-transformer.tscn" id="2"]
+[ext_resource type="PackedScene" path="res://assets/revised/Hollow_Substation_R01/Scenes/switchgear-cabinet.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://assets/revised/Hollow_Substation_R01/Scenes/cable-reel.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://assets/revised/Hollow_Substation_R01/Scenes/jersey-barrier.tscn" id="5"]
+[ext_resource type="PackedScene" path="res://assets/revised/Hollow_PowerKit_R01/Scenes/breaker.tscn" id="6"]
+[ext_resource type="PackedScene" path="res://assets/revised/Hollow_PowerKit_R01/Scenes/disconnect-open.tscn" id="7"]
+[ext_resource type="PackedScene" path="res://assets/revised/Hollow_PowerKit_R01/Scenes/termination-pedestal.tscn" id="8"]
+[ext_resource type="PackedScene" path="res://assets/revised/Hollow_RuinDressing_R01/Scenes/hardware-cluster.tscn" id="9"]
+[ext_resource type="PackedScene" path="res://assets/revised/Hollow_RuinDressing_R01/Scenes/decal-oil-seep.tscn" id="10"]
+
+[node name="ServiceSubstation" type="Node3D"]
+
+[node name="service-court" parent="." instance=ExtResource("1")]
+position = Vector3(0, 0, 0)
+rotation = Vector3(0, 0, 0)
+
+[node name="oil-transformer" parent="." instance=ExtResource("2")]
+position = Vector3(0, 0.28, -1.5)
+rotation = Vector3(0, 0, 0)
+
+[node name="switchgear-cabinet" parent="." instance=ExtResource("3")]
+position = Vector3(-3.6, 0.07, -0.6)
+rotation = Vector3(0, 0, 0)
+
+[node name="cable-reel" parent="." instance=ExtResource("4")]
+position = Vector3(-3.5, 0.07, 2.8)
+rotation = Vector3(0, -0.25, 0)
+
+[node name="jersey-barrier" parent="." instance=ExtResource("5")]
+position = Vector3(2.1, 0.07, 3.9)
+rotation = Vector3(0, -0.12, 0)
+
+[node name="breaker" parent="." instance=ExtResource("6")]
+position = Vector3(9, 0, -1)
+rotation = Vector3(0, 0, 0)
+
+[node name="disconnect-open" parent="." instance=ExtResource("7")]
+position = Vector3(9, 0, 2.5)
+rotation = Vector3(0, 0, 0)
+
+[node name="termination-pedestal" parent="." instance=ExtResource("8")]
+position = Vector3(7, 0, -3.7)
+rotation = Vector3(0, 0, 0)
+
+[node name="hardware-cluster" parent="." instance=ExtResource("9")]
+position = Vector3(-2.2, 0.07, -0.6)
+rotation = Vector3(0, -0.3, 0)
+
+[node name="decal-oil-seep" parent="." instance=ExtResource("10")]
+position = Vector3(0.9, 0.29, -0.5)
+rotation = Vector3(0, 0.2, 0)

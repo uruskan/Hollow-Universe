@@ -24,6 +24,7 @@
     { "key": "seat", "note": "ships.json parts naming a seat (IRON_WAKE.md §5.2): sat in with the seat's verb (board, take the helm, man, sit in), by those its sitters allow." },
     { "key": "ship-door", "note": "ships.json parts naming a door (IRON_WAKE.md §5.3): opened as its rule allows and shut, locked and unlocked by the ship's crew." },
     { "key": "fuel", "note": "ships.json parts: a ship's tank, filled from the player's fuel." },
-    { "key": "magazine", "note": "ships.json parts of a station (IRON_WAKE.md §6.5, IW3): its battery's magazine, opened with E on foot or Tab from its seat by the ship's crew and its gunner; it takes only the battery's rockets (batteries.json)." }
+    { "key": "magazine", "note": "ships.json parts of a station (IRON_WAKE.md §6.5, IW3): its battery's magazine, opened with E on foot or Tab from its seat by the ship's crew and its gunner; it takes only the battery's rockets (batteries.json)." },
+    { "key": "nameable", "note": "A respawn point's owner may give it a plain-text label, retained on its prompt, map and respawn list." }
   ]
 }

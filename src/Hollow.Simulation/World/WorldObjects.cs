@@ -142,7 +142,7 @@ public abstract class WorldObject : ITargetable, IContainerHolder
 /// A placed object (GROUND.md §6): sleeping bag, campfire, furnace, box, workbench, research table; and (G7) the
 /// world's own props (<see cref="WorldProp"/>), which hits, blasts, opening and replication treat the same way.
 /// </summary>
-public class Deployable : WorldObject, IOwned
+public class Deployable : WorldObject, IOwned, ICustomNamed
 {
     public Deployable(EntityId id, DeployableDef def, Vector3 position, Vector3 up, float yaw, EntityId owner)
         : base(id, position, up, yaw)
@@ -165,6 +165,17 @@ public class Deployable : WorldObject, IOwned
     public override StaticKind Kind => StaticKind.Deployable;
 
     public DeployableDef Def { get; }
+
+    public string CustomName { get; private set; } = "";
+
+    public override string Name => CustomName;
+
+    public void Rename(string name)
+    {
+        if (CustomName == name) return;
+        CustomName = name;
+        Revision++;
+    }
 
     /// <summary>The character that placed it (a bag is only theirs to respawn at).</summary>
     public EntityId Owner { get; set; }
@@ -299,7 +310,7 @@ public abstract class DroppedContainer : WorldObject, ILifetime
     }
 
     /// <summary>Looted empty.</summary>
-    public bool Emptied => Loot.IsEmpty;
+    public virtual bool Emptied => Loot.IsEmpty;
 }
 
 /// <summary>
@@ -358,6 +369,17 @@ public sealed class Corpse : DroppedContainer
     public override string Name { get; }
 
     public EntityId Of { get; }
+
+    /// <summary>Player-body phase and appearance; null for wreck loot and legacy bags.</summary>
+    public CorpseLifecycle? Life { get; set; }
+
+    public bool IsBody => Life?.IsBody == true;
+
+    public override bool Emptied => !IsBody && base.Emptied;
+
+    public override float HealthFraction => Life?.Fraction ?? 0;
+
+    public override string ModelKey => IsBody ? "" : "loot-sack";
 
     public override ushort Look => 0;
 

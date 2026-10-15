@@ -49,6 +49,28 @@ public sealed class TargetModule : ClientModule
     /// <summary>The families as this client aims through them, in their numbers' order (every family has one: checked).</summary>
     public IReadOnlyList<ITargetView> TargetViews => _targetViews;
 
+    public AimedVitality? AimedHealth(Vector3 eye, Vector3 direction) =>
+        TargetHealthQuery.Find(_targetViews, eye, direction, new Viewer(EntityId, null, null));
+
+    /// <summary>A non-authoritative contact pose prediction using the world's shared target shapes. It emits no effects or damage.</summary>
+    public AimHit PredictMelee(Vector3 origin, Vector3 direction, float reach)
+    {
+        var ray = new AimRay(origin, Vector3.Normalize(direction), reach, Client.EntityId.Value) { AttackRadius = CombatSystem.SweepRadius };
+        AimHit best = AimHit.None;
+        foreach (ITargetView view in _targetViews)
+        {
+            if (view.Family is TargetFamily.Explosive or TargetFamily.Arrow or TargetFamily.Fire) continue;
+            view.Aim(ray, ref best);
+        }
+        if (best.Hit && best.Target.Family == TargetFamily.Natural && Survival.Nature?.TryGet(best.Target.Id, out NaturalObject natural) == true &&
+            Content.Natural(natural.Kind) is { Gather: { } gather } kind && Survival.Natural != null)
+        {
+            Vector3 point = gather.Spot.Surface.Meet(natural, kind, Survival.Natural.Stage(natural, kind), origin, direction, best.Point);
+            best = best with { Point = point };
+        }
+        return best;
+    }
+
     protected internal override void Welcome()
     {
         var registry = Registry<ITargetView>.ForEnum<TargetFamily>("client target families", complete: true, TargetFamily.None);
@@ -224,7 +246,7 @@ public sealed class TargetModule : ClientModule
                 {
                     continue;
                 }
-                ray.Consider(ref best, Hitboxes.Raycast(c.PoseOf(r), ray.Origin, ray.Direction, length, AimShapes.BodyMargin, out _),
+                ray.Consider(ref best, Hitboxes.Raycast(c.PoseOf(r), ray.Origin, ray.Direction, length, ray.AttackRadius ?? AimShapes.BodyMargin, out _),
                     new TargetRef(TargetFamily.Character, r.Id.Value));
             }
         }
@@ -283,7 +305,7 @@ public sealed class TargetModule : ClientModule
             {
                 if (a.Species is { } species && Vector3.DistanceSquared(a.Position, ray.Origin) <= (length + 4) * (length + 4))
                 {
-                    ray.Consider(ref best, AnimalHitboxes.Raycast(species, c.PoseOf(a), ray.Origin, ray.Direction, length, AimShapes.BodyMargin, out _),
+                    ray.Consider(ref best, AnimalHitboxes.Raycast(species, c.PoseOf(a), ray.Origin, ray.Direction, length, ray.AttackRadius ?? AimShapes.BodyMargin, out _),
                         new TargetRef(TargetFamily.Animal, a.Id.Value), AimKind.Backdrop);
                 }
             }
@@ -299,6 +321,7 @@ public sealed class TargetModule : ClientModule
             facts = new TargetFacts
             {
                 Capabilities = a.Dead ? c.Content.Capabilities.Carcass : CapabilitySet.Empty, Name = a.Species?.Name ?? a.SpeciesKey, Position = a.Position,
+                Vitality = !a.Dead && a.Species is { } species ? new TargetVitality(a.Health * species.Health, species.Health) : null,
             };
             return true;
         }
@@ -361,6 +384,7 @@ public sealed class TargetModule : ClientModule
             {
                 Capabilities = kind!.IsPicked ? c.Content.Capabilities.Pickup : CapabilitySet.Empty, Name = kind.Name, Stays = kind.Class == NaturalClass.Bush,
                 Count = 1, Position = o.Position,
+                Vitality = !kind.IsPicked && c.Survival.Natural != null ? new TargetVitality(c.Survival.Natural.Health(o, kind), NaturalShapes.MaxHealth(o, kind)) : null,
             };
             return true;
         }
@@ -375,7 +399,9 @@ public sealed class TargetModule : ClientModule
 
         // How the prompt names it: its own name (a bag, a prop; a body by whose it is), else its item's.
         private static string NameOf(RemoteThing thing, DeployableDef? def) =>
-            thing.Kind == StaticKind.Corpse ? $"{thing.Name}'s body" : thing.Name.Length > 0 ? thing.Name : def?.Item.Name ?? "";
+            thing.Kind == StaticKind.Corpse && thing.CorpseOwner != 0
+                ? thing.IsBody ? $"{thing.Name}'s body" : $"{thing.Name}'s backpack"
+                : thing.Name.Length > 0 ? thing.Name : def?.Item.Name ?? "";
 
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
@@ -433,6 +459,8 @@ public sealed class TargetModule : ClientModule
             {
                 Capabilities = thing.Capabilities, Flags = thing.Flags | crew, Name = NameOf(thing, def), Count = thing.Count,
                 Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position, Aboard = thing.Aboard,
+                Vitality = def != null ? new TargetVitality(thing.Health * def.Health, def.Health) :
+                    thing.IsBody ? new TargetVitality(thing.Health * c.Content.Survival.Corpse.HarvestHealth, c.Content.Survival.Corpse.HarvestHealth) : null,
             };
             return true;
         }
@@ -484,7 +512,7 @@ public sealed class TargetModule : ClientModule
             {
                 return false;
             }
-            facts = new TargetFacts { Name = piece.Def.Name, Position = piece.ZoneTransform.Position };
+            facts = new TargetFacts { Name = piece.Def.Name, Position = piece.ZoneTransform.Position, Vitality = new TargetVitality(piece.Health, piece.MaxHealth) };
             return true;
         }
     }
@@ -547,6 +575,7 @@ public sealed class TargetModule : ClientModule
             {
                 Capabilities = data.Door.With(data.Lock(state.Lock)), Flags = state.Flags, Name = door.Def.Name, Open = door.Open, Lock = state.Lock,
                 Position = door.Frame.ZoneTransform.Position,
+                Vitality = new TargetVitality(door.Health, door.Def.Health),
             };
             return true;
         }
@@ -601,6 +630,7 @@ public sealed class TargetModule : ClientModule
             {
                 Capabilities = c.Content.Capabilities.Cupboard, Flags = replica.StateOf(claim).Flags | box, Name = c.Content.ClaimDeployable.Item.Name,
                 Position = claim.ZoneTransform.Position, Deployable = c.Content.ClaimDeployable,
+                Vitality = new TargetVitality(claim.Health, c.Content.Building.ClaimHealth),
             };
             return true;
         }
@@ -780,6 +810,9 @@ public sealed class TargetModule : ClientModule
                 Jammed = door?.Health != null && part.Door < ship.Doors.Length && ship.Doors[part.Door].Health <= 0,
                 Broken = seatPart > 0 && def.Parts[seatPart].Health != null && seatPart < ship.PartHealth.Length && ship.PartHealth[seatPart] <= 0,
                 Health = hasHealth && target.Part < ship.PartHealth.Length ? ship.PartHealth[target.Part] : -1,
+                Vitality = target.Part == 0 ? new TargetVitality(ship.Health * def.Health, def.Health) :
+                    hasHealth && target.Part < ship.PartHealth.Length && (door?.Health ?? part.Health) is { } hp
+                        ? new TargetVitality(ship.PartHealth[target.Part] * hp.Max, hp.Max) : null,
                 Position = ship.Position,
             };
             return true;

@@ -55,7 +55,7 @@ public static class SeatKeys
     /// <summary>A seat's keys, from its data: Space leaves; the doors it works (1–9) and the lock; the helm's descent and camera.</summary>
     public static IReadOnlyList<SeatKey> Of(ShipDef def, ShipSeatDef seat)
     {
-        var keys = new List<SeatKey> { new(Key.Space, SeatAction.Leave, -1, "LEAVE") };
+        var keys = new List<SeatKey> { new(Key.Space, SeatAction.Leave, -1, "LEAVE"), new(Key.V, SeatAction.Camera, -1, "CAMERA") };
         if ((seat.Works & SeatWorks.Doors) != 0)
         {
             for (int door = 0; door < def.Doors.Count && door < 9; door++)
@@ -66,7 +66,6 @@ public static class SeatKeys
         }
         if (seat.Flies)
         {
-            keys.Add(new SeatKey(Key.V, SeatAction.Camera, -1, "CAMERA"));
             keys.Add(new SeatKey(Key.J, SeatAction.Descend, -1, "RESUME FLIGHT"));
         }
         if (seat.Role == SeatRole.Station)
@@ -94,12 +93,13 @@ public static class SeatKeys
     /// <summary>
     /// A line of a seat's keys for the screen (in orbit the helm shows its descent, else not): "SPACE LEAVE   1 RAMP …".
     /// </summary>
-    public static string Line(IReadOnlyList<SeatKey> keys, bool inOrbit)
+    public static string Line(IReadOnlyList<SeatKey> keys, bool inOrbit, bool includeCamera = true, bool includeLeave = true)
     {
         var line = new StringBuilder();
         foreach (SeatKey k in keys)
         {
-            if (k.Action == SeatAction.Descend && !inOrbit || k.Action == SeatAction.Camera)
+            if (k.Action == SeatAction.Descend && !inOrbit || k.Action == SeatAction.Camera && !includeCamera ||
+                k.Action == SeatAction.Leave && !includeLeave)
             {
                 continue;
             }
@@ -117,7 +117,9 @@ public static class SeatKeys
 
     /// <summary>The helm's flight keys, for the flight HUD's corner.</summary>
     public static string FlightHints(bool cockpit) =>
-        $"W S throttle · A D slide · SHIFT CTRL up, down · Q E roll · B boost · Z flight assist · X throttle 0 · V {(cockpit ? "chase" : "cockpit")} camera";
+        "W/S throttle · A/D slide · SHIFT/CTRL climb/descend · Q/E roll · B boost · Z assist · X zero throttle\n" +
+        (cockpit ? "Mouse steer · ALT look · MMB centre · V orbit" : "Mouse steer · LMB drag orbit · Wheel zoom · MMB centre · V cockpit") +
+        " · SPACE leave";
 
     private static string Name(Key key) => key switch
     {

@@ -98,11 +98,13 @@ public sealed class CombatSystem : ZoneSystem
             ref Character c = ref Entities.Get<Character>(entity);
             if (p.Wounded)
             {
+                p.StrikeTick = -1;
                 Guns.RefuseGunActions(p, OutcomeCode.Dead);
                 continue;
             }
             if (Entities.Has<Ships.ShipSeat>(entity))
             {
+                p.StrikeTick = -1;
                 // In a ship's seat (G6): the hands are on the controls.
                 Guns.RefuseGunActions(p, OutcomeCode.Lowered);
                 continue;
@@ -113,6 +115,9 @@ public sealed class CombatSystem : ZoneSystem
             ushort inSlot = input.HeldSlot < PlayerInventory.BeltSlots ? p.Inventory.Belt[input.HeldSlot].Item : (ushort)0;
             if (input.HeldSlot != p.HeldSlot || inSlot != p.HeldItem)
             {
+                // Replicate an explicit user slot switch even when both slots hold the same item type. Depletion
+                // within the same slot must keep the accepted use/throw event for its remaining presentation.
+                if (input.HeldSlot != p.HeldSlot) p.RecordAction(ActionKind.None, inSlot, Tick);
                 HeldSystem.IHeldRules? putAway = Held.HeldRulesOf(content.Item(p.HeldItem));
                 p.HeldSlot = input.HeldSlot;
                 p.HeldItem = inSlot;
@@ -135,8 +140,7 @@ public sealed class CombatSystem : ZoneSystem
         {
             p.StrikeTick = Tick + melee.StrikeTicks;
             p.NextSwingTick = Tick + melee.SwingTicks;
-            p.ActionCount++;
-            p.LastAction = ActionKind.Swing;
+            p.RecordAction(ActionKind.Swing, item.Id, Tick);
         }
         if (p.StrikeTick == Tick)
         {
@@ -202,7 +206,7 @@ public sealed class CombatSystem : ZoneSystem
         {
             Supports.SupportGone(new TargetRef(TargetFamily.Natural, o.Id));
         }
-        Events.Add(new HitConfirmed(By: p.Id, Target: new TargetRef(TargetFamily.Natural, o.Id), Flag: result.WeakSpot, Point: result.Point));
+        Events.Add(new HitConfirmed(By: p.Id, Target: new TargetRef(TargetFamily.Natural, o.Id), Flag: result.WeakSpot, Point: result.Point, Weapon: p.Held(Content)?.Id ?? 0));
         Give(entity, p, result.Yield, GainReason.Gathered, result.WeakSpot);
     }
 
@@ -261,8 +265,7 @@ public sealed class CombatSystem : ZoneSystem
         if (p.DrawStartTick < 0)
         {
             p.DrawStartTick = Tick;
-            p.ActionCount++;
-            p.LastAction = ActionKind.Draw;
+            p.RecordAction(ActionKind.Draw, item.Id, Tick);
         }
         if (!c.Actions.Has(ActionButtons.PrimaryPressed) || Tick - p.DrawStartTick < bow.DrawTicks)
         {
@@ -287,8 +290,7 @@ public sealed class CombatSystem : ZoneSystem
         };
         Launch(projectile);
         p.DrawStartTick = Tick; // drawing again while the button is held
-        p.ActionCount++;
-        p.LastAction = ActionKind.Shoot;
+        p.RecordAction(ActionKind.Shoot, item.Id, Tick);
         Wear(entity, p, p.HeldSlot);
     }
 

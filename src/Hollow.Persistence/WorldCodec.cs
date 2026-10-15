@@ -29,7 +29,7 @@ public static class WorldCodec
     /// death's point in the body frame (a whole world's zone frame, docs/WHOLE_WORLD.md §9); an older state's are
     /// dropped, being in a frame at the old landing site.
     /// </summary>
-    public const byte PlayerVersion = 5;
+    public const byte PlayerVersion = 6;
 
     /// <summary>A world prop's stored state (G7, <see cref="EncodeProp"/>).</summary>
     public const byte PropVersion = 1;
@@ -41,7 +41,7 @@ public static class WorldCodec
     /// 5 (IW5, IRON_WAKE.md §8): what rides a ship (a deployable built aboard, a bag or a body lying there) keeps the ship
     /// and its pose in the ship's frame, so it comes back aboard wherever the ship is.
     /// </summary>
-    public const byte ThingVersion = 5;
+    public const byte ThingVersion = 7;
 
     // ---------------------------------------------------------------- characters
 
@@ -102,6 +102,7 @@ public static class WorldCodec
             w.Write(death.X);
             w.Write(death.Y);
             w.Write(death.Z);
+            w.Write(v.BreathUsed);
         }
         return stream.ToArray();
     }
@@ -184,6 +185,10 @@ public static class WorldCodec
             var point = new Vector3(Finite(r.ReadSingle()), Finite(r.ReadSingle()), Finite(r.ReadSingle()));
             p.DeathPoint = died && version >= 5 ? point : null;
         }
+        if (version >= 6)
+        {
+            p.Vitals.BreathUsed = Math.Clamp(Finite(r.ReadSingle()), 0, content.Survival.BreathSeconds);
+        }
         if (p.Dead)
         {
             p.Vitals = default;
@@ -252,6 +257,24 @@ public static class WorldCodec
                 w.Write(thing.Link.Rotation.Y);
                 w.Write(thing.Link.Rotation.Z);
                 w.Write(thing.Link.Rotation.W);
+            }
+            // Version6: a deployable's optional player-facing label. PlayerVersion6 breath data is independent.
+            if (thing is Deployable named) w.Write(named.CustomName);
+            // Version 7: server-owned body phase, exact partial harvest, appearance and a fixed floor support.
+            if (thing is Corpse bodyCorpse)
+            {
+                w.Write((byte)bodyCorpse.Support.Family);
+                w.Write(bodyCorpse.Support.Id);
+                w.Write(bodyCorpse.Life != null);
+                if (bodyCorpse.Life is { } life)
+                {
+                    w.Write((byte)life.Stage);
+                    w.Write(life.RemainingBodyTicks(tick));
+                    w.Write(life.HarvestLeft);
+                    w.Write(life.Body);
+                    w.Write((byte)life.Wear.Count);
+                    foreach (ushort item in life.Wear) w.Write(item);
+                }
             }
         }
         return stream.ToArray();
@@ -347,6 +370,7 @@ public static class WorldCodec
                 {
                     ReadLink(r, d);
                 }
+                if (version >= 6 && Hollow.Simulation.Interaction.Names.TryNormalize(r.ReadString(), out string label)) d.Rename(label);
                 return d;
             }
             case StaticKind.DroppedBag:
@@ -400,6 +424,30 @@ public static class WorldCodec
                 if (version >= 5)
                 {
                     ReadLink(r, corpse);
+                }
+                if (version >= 7)
+                {
+                    byte family = r.ReadByte();
+                    ulong support = r.ReadUInt64();
+                    if (!corpse.Rides && ((TargetFamily)family is TargetFamily.Piece or TargetFamily.Thing) && support != 0 && support != corpse.Id.Value)
+                        corpse.Support = new TargetRef((TargetFamily)family, support);
+                    if (r.ReadBoolean())
+                    {
+                        CorpseStage stage = (CorpseStage)r.ReadByte();
+                        long bodyLeft = r.ReadInt64();
+                        float harvestLeft = r.ReadSingle();
+                        byte bodyType = r.ReadByte();
+                        int worn = r.ReadByte();
+                        var wear = new List<ushort>();
+                        for (int i = 0; i < worn; i++)
+                        {
+                            ushort item = r.ReadUInt16();
+                            if (i < 7) wear.Add(content.Item(item)?.Wear != null ? item : (ushort)0);
+                        }
+                        corpse.Life = new CorpseLifecycle(content.Survival.Corpse, tick, bodyType, wear);
+                        corpse.Life.Restore(stage, bodyLeft, harvestLeft, tick);
+                        if (corpse.IsBody) corpse.DespawnTick = corpse.Life.BodyUntilTick;
+                    }
                 }
                 return corpse;
             }

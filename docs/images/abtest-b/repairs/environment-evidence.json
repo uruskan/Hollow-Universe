@@ -1,0 +1,499 @@
+{
+  "Version": 1,
+  "Description": "Unaltered accepted environment evidence. All controlled captures share RuntimeInputs; only the listed material shaders vary.",
+  "RuntimeInputs": [
+    {
+      "Path": "game/.godot/mono/temp/bin/Debug/Hollow.Client.dll",
+      "Sha256": "23B579B0021EB193E04C30135D0298847879843BD2EEF172992B101211FD8914"
+    },
+    {
+      "Path": "game/.godot/mono/temp/bin/Debug/Hollow.Core.dll",
+      "Sha256": "245B77787D3A2A8A21FC137085C2F6D4D261B759A64A80BDAA62BE8368344DB0"
+    },
+    {
+      "Path": "game/.godot/mono/temp/bin/Debug/Hollow.Galaxy.dll",
+      "Sha256": "BC2505B1AFE2BD79542172909C3BCE99E4D328185322AD774C24168D3A65A918"
+    },
+    {
+      "Path": "game/.godot/mono/temp/bin/Debug/Hollow.Net.dll",
+      "Sha256": "37D24EC3C6C9B92B779BED2C2A9B1A936ECCE24F4B5B18B2929592137090C7DD"
+    },
+    {
+      "Path": "game/.godot/mono/temp/bin/Debug/Hollow.Persistence.dll",
+      "Sha256": "DF1270FC2BC41E906A9642F409A6CD935DC876FE63EB56F7F435F36D75521D44"
+    },
+    {
+      "Path": "game/.godot/mono/temp/bin/Debug/Hollow.Server.dll",
+      "Sha256": "A20D3B21A8150AB5B7987837E9FFE98C06FD911F03B2D6E6A15B99D4B1956126"
+    },
+    {
+      "Path": "game/.godot/mono/temp/bin/Debug/Hollow.Simulation.dll",
+      "Sha256": "A7FCB1B48DC1FE2178268B6B7E102757F1D857D865E7715872CBD503CDF97D9B"
+    },
+    {
+      "Path": "game/.godot/mono/temp/bin/Debug/Hollow.Surface.dll",
+      "Sha256": "D0281894617BC8CE8306CD4A19651B7743AA785E9AEAF3C548C5955913943B52"
+    },
+    {
+      "Path": "game/.godot/mono/temp/bin/Debug/HollowUniverse.dll",
+      "Sha256": "65761054515F539CC649349845D6629BAEEF4D067AEC517AE1984565873EF977"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/catalog.json",
+      "Sha256": "11F87351B1BF2486DD645C12D46EDCAF2C0457C2F66DB987DBF0DFBBA6599239"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/cotton_T_wlykecdia_4K_B-O.png.import",
+      "Sha256": "B57D98AB1057205EDB33DEA033342434F1A4D27384CE7FBE843AA2D26D3576FB"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/cotton_T_wlykecdia_4K_Billboard_B-O.png.import",
+      "Sha256": "D3D9117D0D5EEEDFE85107901A46F6A2E4A0DD0ADB21CBBD5D21179E4E494447"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/cotton_T_wlykecdia_4K_Billboard_N-T.png.import",
+      "Sha256": "ED13F4E0BEEF9A99069CBCF50A1EAC3BE344F93455C2C28E1195E65012212159"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/cotton_T_wlykecdia_4K_N.png.import",
+      "Sha256": "6A1A56620B616AC0039CF4B607EAF281C223950670A22AF50A931967F73BF606"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/cotton_T_wlykecdia_4K_ORT.png.import",
+      "Sha256": "9E9AE19F98AB4D0D0DA3F68FAC13BBF230CE23E7E9BB8050F11DA2025EA6FAB5"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/cotton.glb",
+      "Sha256": "3826EBA31EE4AAF0F7BE7342A86B7ECF15CAB70D071EB0B28AD1D3DF35DB0EBC"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/cotton.glb.import",
+      "Sha256": "766B448EC536411BEBCE47FF36C06FA8B6F927B13C83A9EE37FB4439E94C1515"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/fern_T_seEoW_4K_B-O.png.import",
+      "Sha256": "E3F3532F0803EDE07AE814B202F4F83FCB1CA32686E26FF2A491D42EC59AB1A1"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/fern_T_seEoW_4K_Billboard_B-O.png.import",
+      "Sha256": "2F78EEC4401F6A1CB88CB147098F35EA02264ED40D3F240A3EF03B0A3757E583"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/fern_T_seEoW_4K_Billboard_N-T.png.import",
+      "Sha256": "FA5DEA27C77E2136B20ABBDBDF573BF2C5B51827FDC99349045CFF7060BA1756"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/fern_T_seEoW_4K_N.png.import",
+      "Sha256": "9A14FEB10FADD7C5892F56E7DCA789D9B5D309B638D89D90FBE36555F5A3E2E5"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/fern_T_seEoW_4K_ORT.png.import",
+      "Sha256": "3DAB4CAAF4014F997722C2BBFDECB6C991DFA563AC9DA3B5ED48E47F2967AF13"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/fern.glb",
+      "Sha256": "0FD809D2AF27E5ACBF6F881C8194FED0BE7BD116D06EDAFC3CBAA4DB9D3D8404"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/fern.glb.import",
+      "Sha256": "27CA73D0503EEF45C55DA3C412CD15F7692C7E93A7860AD12819000447029879"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_B-O.png.import",
+      "Sha256": "3457755C27ECB76472CCE5049014BB6509B08D32145658558176607F7E6DB90D"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_Billboard_B-O.png.import",
+      "Sha256": "12F3A34379A7B88595A525B1A1FECC38EA5CC7F5D56907062D634A34B1684A81"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_Billboard_N-T.png.import",
+      "Sha256": "054BA67F75D5BA322E6F4B7EC296AD9CE69BEE51EC9723C956C462B54B9986B5"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_N.png.import",
+      "Sha256": "E6309A9F56BE426BE3A623F64144521B9B9E25DEE3638B64CA4C58C84DA56FF1"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_ORT.png.import",
+      "Sha256": "5C2636775CC5DFAA56B7C0B7BC9FF86D0C55250F12A217DF7794793A9E226A4F"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/tundra.glb",
+      "Sha256": "94DF8A5A501CAD73C8A4B09E9524074209E07A85049218C2CAA7F8B52DFC95BB"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/tundra.glb.import",
+      "Sha256": "A8E1B7063972CDC1E93D080A0E381E719561BF90B4571C8C5B57D981228B8D5B"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/wild_T_vlkhcbxia_4K_B-O.png.import",
+      "Sha256": "F95009DDA23D3DC7F71B5591AF287262E1325D16475FD6F8E01D97B8C46518FE"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/wild_T_vlkhcbxia_4K_Billboard_B-O.png.import",
+      "Sha256": "5FC4E9F5E2C3DBAC87117F746A55194DC1430FF9D0DD4B11B2F72988007211B5"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/wild_T_vlkhcbxia_4K_Billboard_N-T.png.import",
+      "Sha256": "81C2B278B47B4E1A86425526ED10E33076EFA022483B4C43870E40AA2296A308"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/wild_T_vlkhcbxia_4K_N.png.import",
+      "Sha256": "2BE0D323386EBA58408EDA5F9387C9CBF0660ACD003CB884CCC21F642328B611"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/wild_T_vlkhcbxia_4K_ORT.png.import",
+      "Sha256": "9EEC64E3959BFD63385197DD31E8A818EA5D2B93584A470B76FD73732DF6A517"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/wild.glb",
+      "Sha256": "2565DFC05E49BA66CD92B4425B4F6ECEBD245DEB8BB14D05E3CDD9B6B49CBB62"
+    },
+    {
+      "Path": "game/assets/surface/ground-cover/wild.glb.import",
+      "Sha256": "503945589AF9B04170C7849CA058DED884E40ABDC390F9E541C396F36A7CD1D4"
+    },
+    {
+      "Path": "game/data/ground/animals.json",
+      "Sha256": "F5112248E2D31FEA5AFF4873BCC4EF88C50095885562D6480FF983F3ED609E28"
+    },
+    {
+      "Path": "game/data/ground/batteries.json",
+      "Sha256": "D5789A5B18F35081C674E38D61FCE32E18C479AAE29E40EB6AFCC9E5C85956B9"
+    },
+    {
+      "Path": "game/data/ground/building.json",
+      "Sha256": "A8DFA0653A14E675CE309C35E97465B4E3E17998CA4A292C274B6AD04BE029C5"
+    },
+    {
+      "Path": "game/data/ground/capabilities.json",
+      "Sha256": "3A915C4B54C5F90B9045F6FD773940AB5573D1A23454B2B20458B49FDDD0525F"
+    },
+    {
+      "Path": "game/data/ground/categories.json",
+      "Sha256": "CB19831022AE20035C438419AB229A2BF0ABEB7ADD02B6D1A7E0CAC45037779F"
+    },
+    {
+      "Path": "game/data/ground/deployables.json",
+      "Sha256": "30BFD6FC716F9B3D7FD4CD744D21C33C90DEEFFF0813B9819E0C9F9B246E5BE8"
+    },
+    {
+      "Path": "game/data/ground/explosives.json",
+      "Sha256": "F1A2E954131AE9ECB8EEF520A5F7D4114F76071E893F5B1522817628BBD35776"
+    },
+    {
+      "Path": "game/data/ground/fx.json",
+      "Sha256": "70A2E41CFAF42F573F0539B74026F59445F949299DF4402EC042BE916810BC2A"
+    },
+    {
+      "Path": "game/data/ground/gather.json",
+      "Sha256": "03E802E808BA03470032923C20D3061FF3FC6F56A0419C052FE3100A593EFEAE"
+    },
+    {
+      "Path": "game/data/ground/gibs.json",
+      "Sha256": "EEBEED2B559A57DB5798BC20E24548858AF90AE5FB5A3338011F8EF641DC9C82"
+    },
+    {
+      "Path": "game/data/ground/held-presentations.json",
+      "Sha256": "587737073A5A65254DB6F25F02557884C63C8022A7D7C352A8171C43BC2DB5FD"
+    },
+    {
+      "Path": "game/data/ground/interactions.json",
+      "Sha256": "A4518D15EFAD1E43450D977F24588A5B997FF2D662C5E9C3B4872884611ED4EA"
+    },
+    {
+      "Path": "game/data/ground/items.json",
+      "Sha256": "ADAF724214CF1DE742AAD2953FEB966B4FED8A4EF4C15B0B1EB4B574A0B82AE0"
+    },
+    {
+      "Path": "game/data/ground/loading.json",
+      "Sha256": "C18BCAC130DF4F1C9A71570D3324ABEAE527742D82ED397FFB89075185E6B6C4"
+    },
+    {
+      "Path": "game/data/ground/loot.json",
+      "Sha256": "9601F1F916321B4336A8AB5E7A64C8970943895D3C31B8C9C6DCCF405D8331DD"
+    },
+    {
+      "Path": "game/data/ground/models.json",
+      "Sha256": "1286F31AD37709CE707046BC6F78684F8BD1FFCAECB9267FB8A21F9C53E374EC"
+    },
+    {
+      "Path": "game/data/ground/placement.json",
+      "Sha256": "F7E663079B347861CC32061BE45F1474BE9A79C51D5EEB13875B8B1035E6A9E8"
+    },
+    {
+      "Path": "game/data/ground/recipes.json",
+      "Sha256": "DC894CF51BFFB1FF2CCF0183E43DCB079DD6C691B1F61819CA0A60001E3152ED"
+    },
+    {
+      "Path": "game/data/ground/ships.json",
+      "Sha256": "80AC84B5D17C0A6FE435A9BED958F9A7E3A9C8A0E8F0216E3783E760C16B555A"
+    },
+    {
+      "Path": "game/data/ground/sounds.json",
+      "Sha256": "2AC3CFAFB6FE1AC600268FAE0AAA492AE5AE66F7B3FD9E1AFE36C32C2B11AA7B"
+    },
+    {
+      "Path": "game/data/ground/surfaces.json",
+      "Sha256": "B95DC03B61708523352A0168F3F94CC4DC751F82DC7D4DDE830BE10CCCACC4E7"
+    },
+    {
+      "Path": "game/data/ground/survival.json",
+      "Sha256": "B03E7E0AF70CDB06F4D0DB2455531E1B0CABF29672FB69CD24CBC14D09A3E96A"
+    },
+    {
+      "Path": "game/data/ground/texts.json",
+      "Sha256": "7CD49CDC5D7E9D017C8CACA42AD990C04CFA366B066D44B25F7243B95FE9F046"
+    },
+    {
+      "Path": "game/data/ground/weapons.json",
+      "Sha256": "9560CC5D44CE10601D57A500DEDA4B7ACFC300DFAF0FBD40363E24983615861B"
+    },
+    {
+      "Path": "game/data/ground/world.json",
+      "Sha256": "CB68F027F38F1D5B6BB0C31897C1601EE6881F7CC9AF52E5ACFA1040ED9CCA2B"
+    },
+    {
+      "Path": "game/shaders/surface_atmosphere.gdshaderinc",
+      "Sha256": "8E1EDC5D30B3F107789375DAE339826D0C984568ADC5B3403EEC0EB71F2BB8F3"
+    },
+    {
+      "Path": "game/shaders/surface_atmosphere.gdshaderinc.uid",
+      "Sha256": "C96035B599C05153DE2D92A263B1CC5D22367CC63A3A0EE6EE2E9E0EB2EEDE77"
+    },
+    {
+      "Path": "game/shaders/surface_authored_cover.gdshader",
+      "Sha256": "9E1E21B5238D4B1F06419244533D0495ABA1CA4B75E2F40E3B2E74DD5FA567E9"
+    },
+    {
+      "Path": "game/shaders/surface_authored_cover.gdshader.uid",
+      "Sha256": "A1DD6AC532F0E02946978F37F14EEDE34726739C473D8BF8E71F80E705FB5597"
+    },
+    {
+      "Path": "game/shaders/surface_clouds.gdshaderinc",
+      "Sha256": "7B10404E5000EDE5587745C1DB3C69432D43818DD868B9F22A75EAF76D088B02"
+    },
+    {
+      "Path": "game/shaders/surface_clouds.gdshaderinc.uid",
+      "Sha256": "ECBC9282767F6F2E89B741EA738C32CD64D3E822D84FDC80D213E1379CEBBA23"
+    },
+    {
+      "Path": "game/shaders/surface_foliage.gdshader",
+      "Sha256": "89F1607D7D235BF9D3E6F24AEBCF27BF550BAB614831F54C3B7450C1C4D56836"
+    },
+    {
+      "Path": "game/shaders/surface_foliage.gdshader.uid",
+      "Sha256": "1F3386BDD6DA91EDAF35DCEB2283E5855C0432D406105F7CE8FAE1EF3221AA68"
+    },
+    {
+      "Path": "game/shaders/surface_grass.gdshader.uid",
+      "Sha256": "ADD18237211342E4C347423190DF3D730C425A41C10149CC77A27F24E644A1CE"
+    },
+    {
+      "Path": "game/shaders/surface_grass.gdshaderinc.uid",
+      "Sha256": "87C77ADFB76E4DE5B8F5127D15816FCEE8FCAD37DF8A647E79D10504CB2CA109"
+    },
+    {
+      "Path": "game/shaders/surface_impostor_bake.gdshader",
+      "Sha256": "B369838C69C517B9970EA775D51D021811B67DF19AFB0FDD8AD6F76C5936B676"
+    },
+    {
+      "Path": "game/shaders/surface_impostor_bake.gdshader.uid",
+      "Sha256": "8E467729FDBFAA1D6FE8C90765AA6BB264DDD7E55F75CA8C9C6040D9F7F8F6BA"
+    },
+    {
+      "Path": "game/shaders/surface_impostor.gdshader",
+      "Sha256": "95C1D352170058C1CAE758E54A11A7C88B28FD1AA3E915438DB4171313B33B72"
+    },
+    {
+      "Path": "game/shaders/surface_impostor.gdshader.uid",
+      "Sha256": "D376CDAF9DD8ADF0293A426E61A518516546CFC72B5A9D54C6A229F5D138A009"
+    },
+    {
+      "Path": "game/shaders/surface_planet.gdshaderinc",
+      "Sha256": "258196627E08689D56355923236DED9B0515262406D3CD8FDC1040A279DC0CB3"
+    },
+    {
+      "Path": "game/shaders/surface_planet.gdshaderinc.uid",
+      "Sha256": "91C397F1AF7D33399694ED32D7D55276FB032A79CD43447961F5238DBA08E897"
+    },
+    {
+      "Path": "game/shaders/surface_rock.gdshader",
+      "Sha256": "495713C6E1CA5563A2E99CBD2A351FBDE085EC5EEDDAE1484A3C386076671BFD"
+    },
+    {
+      "Path": "game/shaders/surface_rock.gdshader.uid",
+      "Sha256": "D0157B6A9E96BAA2F23C510D14C44364F554EE999F3ED8CBD3351A9F3588DC97"
+    },
+    {
+      "Path": "game/shaders/surface_sky.gdshader",
+      "Sha256": "4B06B8887E8FCBBB46DEA90E3185111B929D5F14CEB83B94B9A32B5FAF57D6B4"
+    },
+    {
+      "Path": "game/shaders/surface_sky.gdshader.uid",
+      "Sha256": "95E9DDCD5D19494803DED1C8282F39A83969DD43C805FDD7BBA4D097AF0F234F"
+    },
+    {
+      "Path": "game/shaders/surface_terrain.gdshader.uid",
+      "Sha256": "86AEF231DBDEEBE1E99DBB617284A07F554BEBAB324363E6D35BFB94EE057CEC"
+    },
+    {
+      "Path": "game/shaders/surface_underwater.gdshader",
+      "Sha256": "2158D04ED656166E23E024F7D32A322D6B60933B1C8A252BD8EF374A2F6D99DE"
+    },
+    {
+      "Path": "game/shaders/surface_underwater.gdshader.uid",
+      "Sha256": "55378B3B0D55DFC05DB904B80F60863CFDF8563E1827D988A4F09CD3955BF890"
+    },
+    {
+      "Path": "game/shaders/surface_water.gdshader",
+      "Sha256": "745A74CE96DF290BC0D2663AFB7CD06A25435CE91FB0F1C6409295891FB7BC43"
+    },
+    {
+      "Path": "game/shaders/surface_water.gdshader.uid",
+      "Sha256": "4C4F92B27091011E29EC0D6B54C3BFBC954F2433BE96EB47BE3C236B2FE47701"
+    }
+  ],
+  "Captures": [
+    {
+      "Tag": "material-locked",
+      "StartedUtc": "2026-10-15T19:40:26.7591848Z",
+      "ImageSha256": "EEF032C6087E8947AB7E2D1150993762B4B48E68278FCCBF729ACA5130D29D94",
+      "ManifestSha256": "1D40776DE8602209D1F4B1C8B44700A7D7F207504F1777D6F8D6BE1FAE520C16",
+      "Width": 1600,
+      "Height": 900,
+      "ElapsedSeconds": 38.3,
+      "Telemetry": [
+        "[capture] isolated input; requested resolution=(1600, 900); preferences are not saved",
+        "[capture] ready=True elapsed=10.37s path=D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\environment-stream-day-material-locked.png",
+        "[capture] resolution=(1600, 900) window=(1600, 900) mode=Windowed camera=@Camera3D@2 position=(-272.44345, -859.3024, 804.43463) basis=[X: (0.94715405, -1.6391277E-07, 0.32077906), Y: (-0.22549582, -0.7112268, 0.66581386), Z: (0.22814655, -0.70296264, -0.6736414)] fov=75",
+        "[capture] ground state=Playing position=<-272.06012, -858.0933, 803.30273> yaw=-0.000000 pitch=0.000000 ready=True loading=False hostPort=27042"
+      ],
+      "HostStarts": 1,
+      "ShaderErrors": [],
+      "SessionErrors": [],
+      "WarmupWarnings": [],
+      "ChangedInputs": [],
+      "MaterialShaders": [
+        {
+          "Path": "surface_grass.gdshader",
+          "Sha256": "741B3D069C7D84AC9AE5E3F63C05C0A349D76D1DFA7C3FCA90FCDC1AC4E9B809"
+        },
+        {
+          "Path": "surface_grass.gdshaderinc",
+          "Sha256": "00C7B4ED31ADEE5446B445B298FA7BD384C30531C17EF7C4FAA8B571BE839283"
+        },
+        {
+          "Path": "surface_terrain.gdshader",
+          "Sha256": "EE3B7E475EDDF12EF14AB7175EE516158E9E23B0B6F96185038BACD3F2F00C86"
+        }
+      ]
+    },
+    {
+      "Tag": "bare-before-locked",
+      "StartedUtc": "2026-10-15T19:41:46.1615899Z",
+      "ImageSha256": "39C6B4BF7550CF1B4EAB69977B281649CEE73315A8E71E56DB41308A4D41EB93",
+      "ManifestSha256": "62444780F9787504D88B65D244C1672F18A955A7EB5389E796FB3E5D53E483C6",
+      "Width": 1600,
+      "Height": 900,
+      "ElapsedSeconds": 37.2,
+      "Telemetry": [
+        "[capture] isolated input; requested resolution=(1600, 900); preferences are not saved",
+        "[capture] ready=True elapsed=10.03s path=D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\environment-stream-day-bare-before-locked.png",
+        "[capture] resolution=(1600, 900) window=(1600, 900) mode=Windowed camera=@Camera3D@2 position=(-272.44345, -859.3024, 804.43463) basis=[X: (0.94715405, -1.6391277E-07, 0.32077906), Y: (-0.22549582, -0.7112268, 0.66581386), Z: (0.22814655, -0.70296264, -0.6736414)] fov=75",
+        "[capture] ground state=Playing position=<-272.06012, -858.0933, 803.30273> yaw=-0.000000 pitch=0.000000 ready=True loading=False hostPort=27042"
+      ],
+      "HostStarts": 1,
+      "ShaderErrors": [],
+      "SessionErrors": [],
+      "WarmupWarnings": [],
+      "ChangedInputs": [],
+      "MaterialShaders": [
+        {
+          "Path": "surface_grass.gdshader",
+          "Sha256": "0AF8D688DBCAABBF373256549A383A9B78D49FD27EA874F4A96824DFBD8AAE52"
+        },
+        {
+          "Path": "surface_grass.gdshaderinc",
+          "Sha256": "E5DDF5CB9DB459C844E15CF47029483E355A59F9697345E6D2631142F624E5A6"
+        },
+        {
+          "Path": "surface_terrain.gdshader",
+          "Sha256": "712B915683267E7B9575C5495B8E7FFF33AED9BFCAD335772418C4A21EA5237C"
+        }
+      ]
+    },
+    {
+      "Tag": "bare-after-locked",
+      "StartedUtc": "2026-10-15T19:41:06.8539956Z",
+      "ImageSha256": "51F9B86BD0D98ABBE8689D98FBAC7901E2078E499DFA93603C026C7BBCA2AA79",
+      "ManifestSha256": "EB9083A172C4F9D59E94C4D4FE749BCCDE85A68841E01E8B8425E600EC27AC2B",
+      "Width": 1600,
+      "Height": 900,
+      "ElapsedSeconds": 37.8,
+      "Telemetry": [
+        "[capture] isolated input; requested resolution=(1600, 900); preferences are not saved",
+        "[capture] ready=True elapsed=10.03s path=D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\environment-stream-day-bare-after-locked.png",
+        "[capture] resolution=(1600, 900) window=(1600, 900) mode=Windowed camera=@Camera3D@2 position=(-272.44345, -859.3025, 804.4347) basis=[X: (0.94715405, -1.4901161E-07, 0.32077903), Y: (-0.22549576, -0.7112268, 0.66581386), Z: (0.22814654, -0.7029626, -0.6736414)] fov=75",
+        "[capture] ground state=Playing position=<-272.06012, -858.0933, 803.30273> yaw=-0.000000 pitch=0.000000 ready=True loading=False hostPort=27042"
+      ],
+      "HostStarts": 1,
+      "ShaderErrors": [],
+      "SessionErrors": [],
+      "WarmupWarnings": [],
+      "ChangedInputs": [],
+      "MaterialShaders": [
+        {
+          "Path": "surface_grass.gdshader",
+          "Sha256": "741B3D069C7D84AC9AE5E3F63C05C0A349D76D1DFA7C3FCA90FCDC1AC4E9B809"
+        },
+        {
+          "Path": "surface_grass.gdshaderinc",
+          "Sha256": "00C7B4ED31ADEE5446B445B298FA7BD384C30531C17EF7C4FAA8B571BE839283"
+        },
+        {
+          "Path": "surface_terrain.gdshader",
+          "Sha256": "EE3B7E475EDDF12EF14AB7175EE516158E9E23B0B6F96185038BACD3F2F00C86"
+        }
+      ]
+    }
+  ],
+  "PreservedFrames": [
+    {
+      "File": "environment-cliff.png",
+      "Sha256": "C6C48BEC7136CAA0D7E529388808DA13C307D4926B4F06D80D68A8D360A531A5",
+      "Bytes": 2416417
+    },
+    {
+      "File": "environment-soil-after.png",
+      "Sha256": "51F9B86BD0D98ABBE8689D98FBAC7901E2078E499DFA93603C026C7BBCA2AA79",
+      "Bytes": 1859804
+    },
+    {
+      "File": "environment-soil-before.png",
+      "Sha256": "39C6B4BF7550CF1B4EAB69977B281649CEE73315A8E71E56DB41308A4D41EB93",
+      "Bytes": 1929260
+    },
+    {
+      "File": "environment-stream-covered.png",
+      "Sha256": "EEF032C6087E8947AB7E2D1150993762B4B48E68278FCCBF729ACA5130D29D94",
+      "Bytes": 2117557
+    },
+    {
+      "File": "environment-stream-night.png",
+      "Sha256": "C468838EAC644418BD830DD63C92FC10B0CCF43800F60D8170D82BFE5A6AF2D1",
+      "Bytes": 1968178
+    },
+    {
+      "File": "environment-substation.png",
+      "Sha256": "E7B4A65DB6CC09C778D1EB85E06CAC6999A4E4CCBF3EBEB74723214F840C3F5D",
+      "Bytes": 2138644
+    },
+    {
+      "File": "environment-underwater.png",
+      "Sha256": "E6B64A873BD56436A335D3E10450DDD10754A5E4A9E8B3C6EF8F9FE9141C40F7",
+      "Bytes": 4786505
+    }
+  ]
+}

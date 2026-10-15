@@ -247,7 +247,7 @@ public static partial class CapabilityHandlers
             ctx.Thing is Ship ship ? ctx.Zone!.Ships().OpenMagazine(ctx.Entity, ctx.Player!, ship, ctx.Target.Part) : OutcomeCode.NotFound;
     }
 
-    /// <summary>A ship's tank, at its fuel cap: filled from the player's fuel (lamp oil).</summary>
+    /// <summary>A ship's one-slot tank at its fuel cap. The old verb key is retained for stable data IDs.</summary>
     private sealed class FuelCapability : ICapability, IInteractCapability
     {
         private readonly VerbActions _verbs;
@@ -255,7 +255,7 @@ public static partial class CapabilityHandlers
 
         public FuelCapability(InteractionData data)
         {
-            _verbs = new VerbActions(data, ("refuel", Refuel));
+            _verbs = new VerbActions(data, ("refuel", Open));
             _refuel = _verbs["refuel"];
         }
 
@@ -265,12 +265,13 @@ public static partial class CapabilityHandlers
 
         public IReadOnlyList<string> Verbs => _verbs.Keys;
 
-        public void Offer(in InteractContext ctx, List<InteractOption> into) => into.Add(InteractOption.Can(_refuel, primary: true, name: ctx.Facts.Ship?.Name));
+        public void Offer(in InteractContext ctx, List<InteractOption> into) => into.Add(ctx.Has(ViewerFlags.Authorised)
+            ? InteractOption.Can(_refuel, primary: true) : InteractOption.Cannot(_refuel, OutcomeCode.NotCrew, primary: true));
 
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
-        private static Outcome Refuel(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Ship ship ? ctx.Zone!.Ships().Refuel(ctx.Player!, ship) : OutcomeCode.NotFound;
+        private static Outcome Open(in InteractContext ctx, in InteractArgs args) =>
+            ctx.Thing is Ship ship ? ctx.Zone!.Ships().OpenFuel(ctx.Player!, ship, ctx.Target.Part) : OutcomeCode.NotFound;
     }
 
     /// <summary>

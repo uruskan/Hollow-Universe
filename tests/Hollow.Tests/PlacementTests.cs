@@ -276,6 +276,59 @@ public static class PlacementTests
         Assert.Equal(OutcomeCode.HasLock, Ghost(rig, ada, "key-lock", fitted.LockSpot.Position)?.Outcome.Code, "one lock to a door");
     }
 
+    [Test]
+    public static void BuildingRepairGarageLockFitsFromEitherSideBetweenDoors()
+    {
+        using var rig = new GameRig();
+        Entity ada = rig.Add("Ada", 0, 0);
+        BuildingWorld world = rig.Zone.Building().World!;
+        Piece basePiece = BuildingNetTests.Foundation(rig.Zone, rig.Zone.GroundAt(0, 12), rig.P(ada).Id.Value);
+        PlacementPlan framePlan = world.FromIntent(rig.C.Building.Piece("wall-frame")!, basePiece, new SocketId(SocketKind.Edge, 0), 0)!;
+        Piece frame = world.Add(basePiece.Structure, framePlan.Piece, 0, framePlan.Pose, rig.P(ada).Id.Value, 0);
+        Assert.True(world.PlaceDoor(rig.P(ada).Id.Value, rig.C.Building.Door("garage-door")!, frame, 0, out Door? garage).Ok, "garage fitted");
+        for (int edge = 1; edge <= 2; edge++)
+        {
+            PlacementPlan wingPlan = world.FromIntent(rig.C.Building.Piece("foundation-triangle")!, basePiece, new SocketId(SocketKind.Edge, edge), 0)!;
+            Piece wing = world.Add(basePiece.Structure, wingPlan.Piece, 0, wingPlan.Pose, rig.P(ada).Id.Value, 0);
+            PlacementPlan doorPlan = world.FromIntent(rig.C.Building.Piece("doorway")!, wing, new SocketId(SocketKind.Edge, 1), 0)!;
+            Piece doorway = world.Add(wing.Structure, doorPlan.Piece, 0, doorPlan.Pose, rig.P(ada).Id.Value, 0);
+            Assert.True(world.PlaceDoor(rig.P(ada).Id.Value, rig.C.Building.Door("wooden-door")!, doorway, 0, out _).Ok, "neighbour door fitted");
+        }
+        rig.Give(ada, "code-lock", 1);
+        var (position, rotation) = garage!.LockSpot;
+        Vector3 normal = Vector3.Transform(Vector3.UnitZ, rotation);
+        Vector3 up = Vector3.Transform(Vector3.UnitY, rotation);
+        foreach (int side in new[] { -1, 1 })
+        {
+            Raids.Stand(rig, ada, position + normal * (side * 1.4f) - up * 1.05f);
+            PlacementCandidate? candidate = Ghost(rig, ada, "code-lock", position);
+            Assert.True(candidate is { Valid: true }, $"garage lock reached from side {side}: {candidate}");
+            PlacementCandidate? server = Placer.Settle(rig.Zone.Placement().World,
+                new PlacementContext(rig.P(ada).Id.Value, rig.Zone.EyeOf(rig.Ch(ada).State), candidate!.Placeable, null), candidate.Claim, out Outcome refused);
+            Assert.True(server != null && refused.Ok, "authoritative solver agrees");
+        }
+    }
+
+    [Test]
+    public static void BuildingRepairWorkbenchFitsItsMeasuredSpace()
+    {
+        using var rig = new GameRig();
+        Entity ada = rig.Add("Ada", 0, 0);
+        BuildingWorld world = rig.Zone.Building().World!;
+        Piece foundation = BuildingNetTests.Foundation(rig.Zone, rig.Zone.GroundAt(0, 12), rig.P(ada).Id.Value);
+        PlacementPlan wallPlan = world.FromIntent(rig.C.Building.Piece("wall")!, foundation, new SocketId(SocketKind.Edge, 1), 0)!;
+        world.Add(foundation.Structure, wallPlan.Piece, 0, wallPlan.Pose, rig.P(ada).Id.Value, 0);
+        Vector3 at = Top(rig.Zone, foundation, 0.3, 0);
+        Raids.Stand(rig, ada, BuildingWorld.F(foundation.Structure.Frame.ToZone(new Vector3D(0.3, 0, -2.7))));
+        rig.Give(ada, "workbench-3", 1);
+        PlacementCandidate? ghost = Ghost(rig, ada, "workbench-3", at);
+        Assert.True(ghost is { Valid: true }, $"the actual 1.86 m bench fits beside the wall: {ghost}");
+        var context = new PlacementContext(rig.P(ada).Id.Value, rig.Zone.EyeOf(rig.Ch(ada).State), ghost!.Placeable, null);
+        Assert.Equal(OutcomeCode.Blocked, new BoxFootprint(new Vector3(1.3f, 1, 0.7f)).Clear(rig.Zone.Placement().World, context, ghost).Code,
+            "the old 2.6 m footprint incorrectly blocks this space");
+        Assert.True(ghost.Placeable.Rule.Rotation == "support", "bench aligns with the foundation; R selects the next quarter turn");
+    }
+
     /// <summary>
     /// The Tin Finch from its item: its hull is its footprint (not where someone stands, not on another ship), set down
     /// on the ground within 12 m, with the 50 of lamp oil ships.json gives a placed one; the item is used up.

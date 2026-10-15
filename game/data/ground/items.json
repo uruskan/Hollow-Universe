@@ -57,6 +57,9 @@
     { "id": 25, "key": "metal-pickaxe", "name": "Metal pickaxe", "category": "tools", "condition": 600,
       "description": "A forged pick. Mines stone and ore fast.",
       "melee": { "damage": 20, "reach": 1.7, "swing": 0.9, "strike": 0.33, "tree": 8, "ore": 45, "structure": 10, "bleed": 0.3 } },
+    { "id": 221, "key": "salvaged-axe", "name": "Salvaged Axe", "category": "tools", "condition": 900,
+      "description": "A heavy-duty axe rebuilt from salvaged metal. Chops faster and lasts longer than a metal hatchet. Learn its blueprint from loot or research, then craft it at a level 2 workbench.",
+      "melee": { "damage": 25, "reach": 1.7, "swing": 0.8, "strike": 0.28, "tree": 65, "ore": 8, "structure": 12, "bleed": 0.4 } },
 
     { "id": 30, "key": "wooden-spear", "name": "Wooden spear", "category": "weapons", "condition": 100,
       "description": "A long sharpened pole. Reaches further than anything else in hand.",

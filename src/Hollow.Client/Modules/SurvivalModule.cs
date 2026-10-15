@@ -44,6 +44,9 @@ public sealed class SurvivalModule : ClientModule
     /// <summary>Projectiles in flight (and for a moment after they stop), for drawing.</summary>
     public IReadOnlyList<ClientProjectile> Projectiles => _projectiles;
 
+    /// <summary>A newly accepted server projectile, for release animations and effects that are not gun-predicted.</summary>
+    public event Action<ClientProjectile>? ProjectileLaunched;
+
     /// <summary>Raised when a character's look (clothing) changes or arrives.</summary>
     public event Action<RemoteEntity>? LookChanged;
 
@@ -167,11 +170,19 @@ public sealed class SurvivalModule : ClientModule
             Count = (int)Math.Min(m.Count, int.MaxValue),
             Flags = m.Flags,
             Name = m.Name ?? "",
-            Support = m.SupportFamily is Simulation.Targets.TargetFamily.Piece or Simulation.Targets.TargetFamily.Ship
+            Support = m.SupportFamily is Simulation.Targets.TargetFamily.Piece or Simulation.Targets.TargetFamily.Ship or Simulation.Targets.TargetFamily.Thing
                 ? new Simulation.Targets.TargetRef(m.SupportFamily, m.Support)
                 : default,
             Capabilities = new Simulation.Capabilities.CapabilitySet(m.Capabilities),
+            IsBody = m.Kind == StaticKind.Corpse && m.IsBody,
         };
+        if (m.Corpse is { Length: > 0 })
+        {
+            CorpseAppearance appearance = m.Corpse[0];
+            thing.CorpseOwner = appearance.Owner;
+            thing.CorpseBody = Math.Min(appearance.Body, (byte)1);
+            thing.CorpseWear = (appearance.Wear ?? Array.Empty<WornItem>()).Take(7).Select(w => (ushort)Math.Min(w.Item, ushort.MaxValue)).ToArray();
+        }
         thing.Up = Frame.UpAt(thing.Position);
         if (thing.Aboard)
         {
@@ -194,6 +205,8 @@ public sealed class SurvivalModule : ClientModule
             thing.Health = m.Health / 255f;
             thing.Count = (int)Math.Min(m.Count, int.MaxValue);
             thing.Flags = m.Flags;
+            thing.Name = m.Name ?? "";
+            thing.IsBody = thing.Kind == StaticKind.Corpse && m.IsBody;
             thing.Revision++;
         }
     }
@@ -239,7 +252,7 @@ public sealed class SurvivalModule : ClientModule
         float gravity = ammo?.Ammo is { } arrow ? (float)(Zone.SurfaceGravity * 9.80665 * arrow.Gravity)
             : gun != null ? (float)gun.GravityOf(ammo?.Bullet, Zone.SurfaceGravity)
             : (float)(Zone.SurfaceGravity * 9.80665);
-        _projectiles.Add(new ClientProjectile
+        var projectile = new ClientProjectile
         {
             Id = m.Id,
             Shooter = m.Shooter,
@@ -254,7 +267,9 @@ public sealed class SurvivalModule : ClientModule
             LaunchedAt = ClockSeconds,
             Battery = motor != null ? m.Battery : 0,
             Motor = motor,
-        });
+        };
+        _projectiles.Add(projectile);
+        ProjectileLaunched?.Invoke(projectile);
     }
 
     /// <summary>

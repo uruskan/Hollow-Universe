@@ -101,6 +101,8 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
         {
             wallet.Take(cost.Material, cost.Amount);
         }
+        // A charge already recorded its release in PutCharge; ordinary placement is one accepted use.
+        if (needs.Throwable == null) p.RecordAction(ActionKind.Use, needs.Id, Tick);
         return Outcome.Done;
     }
 

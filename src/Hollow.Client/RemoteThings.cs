@@ -60,6 +60,11 @@ public sealed class RemoteThing
     /// <summary>Health as a fraction (deployables).</summary>
     public float Health { get; set; } = 1;
 
+    public bool IsBody { get; set; }
+    public ulong CorpseOwner { get; set; }
+    public byte CorpseBody { get; set; }
+    public ushort[] CorpseWear { get; set; } = Array.Empty<ushort>();
+
     /// <summary>How many stacks a bag holds (one is picked up at once; more open like a box).</summary>
     public int Count { get; set; }
 

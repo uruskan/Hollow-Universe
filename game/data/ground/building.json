@@ -3,7 +3,7 @@
 
   "module": {
     "width": 3.0, "storey": 3.0, "halfWall": 1.5, "lowWall": 1.0, "ramp": 0.75,
-    "foundationDepth": 1.0, "floorThickness": 0.2, "wallThickness": 0.3, "frameBorder": 0.2,
+    "foundationDepth": 3.0, "floorThickness": 0.2, "wallThickness": 0.3, "frameBorder": 0.2,
     "doorOpening": [1.2, 2.3], "doubleOpening": [2.7, 2.85], "windowOpening": [1.8, 1.2], "windowSill": 0.9
   },
 

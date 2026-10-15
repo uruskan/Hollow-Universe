@@ -142,6 +142,37 @@ public static class BatteryTests
         Assert.True(worst <= st.Def.Battery.Mount.Alignment / Deg, "the aim held in the world within the battery's alignment");
     }
 
+    [Test]
+    public static void ShipRepairBatteryTracksCurrentPoseThroughAccelerationAndReversal()
+    {
+        ShipDef ship = ContentFixture.Content.Ship("iron-wake")!;
+        ShipInterior interior = ship.Interior!;
+        ShipStationDef station = ship.Stations.First(s => s.Id == "Siege_Forward");
+        var st = new StationState(station) { Input = new StationInput { View = Vector3.Normalize(new Vector3(0, 0.1f, 1)) } };
+        float[] parts = (float[])interior.Rest.Clone();
+        for (int i = 0; i < 90; i++) StationRules.Slew(interior, st, Quaternion.Identity);
+        float yaw = 0, speed = 0, worst = 0;
+        const float dt = 1f / 30;
+        for (int tick = 0; tick < 240; tick++)
+        {
+            float target = tick / 60 % 2 == 0 ? 32 : -32;
+            speed += Math.Clamp(target - speed, -90 * dt, 90 * dt);
+            yaw += speed * dt;
+            Quaternion rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, yaw * Deg);
+            float before = st.Yaw;
+            StationRules.Slew(interior, st, rotation);
+            StationRules.Into(st, parts);
+            Assert.True(!st.Limit, "this tracking course stays inside the mechanical arc");
+            Assert.True(MathF.Abs(st.Yaw - before) <= station.Battery.Mount.YawRate * dt + 1e-5f, "tracking respects the mount rate");
+            worst = MathF.Max(worst, StationRules.Misalignment(interior, st, parts, rotation) / Deg);
+        }
+        Fixtures.Report($"battery error through full-rate starts/reversals: {worst:0.000} degrees");
+        Assert.True(worst <= station.Battery.Mount.Alignment / Deg, "current-pose tracking meets the original half-degree alignment");
+        st.Input = new StationInput { View = Vector3.UnitZ };
+        StationRules.Slew(interior, st, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI));
+        Assert.True(st.Limit, "aim beyond the mechanical arc still reports a limit");
+    }
+
     /// <summary>
     /// IRON_WAKE.md §6.3, §6.6: the forward siege battery, its magazine holding six rockets, loads both barrels from an empty
     /// breech; one press fires barrel 0, the next barrel 1. Barrel 0's loader then runs batteries.json's phases: each begins

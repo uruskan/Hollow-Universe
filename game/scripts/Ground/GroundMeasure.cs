@@ -20,10 +20,12 @@ public partial class GroundMeasure : Node
     private double _waited;
     private double _measured;
     private bool _started;
+    private bool _requested;
     private double _process, _gpu, _cpu;
     private (int, int, int) _gc, _last;
     private long _allocated, _allocatedHere;
-    private readonly List<(double Delta, string Events)> _events = new();
+    private ulong _pipelines;
+    private readonly List<(double Elapsed, double Delta, string Events)> _events = new();
 
     public GroundView View { get; set; } = null!;
 
@@ -35,6 +37,44 @@ public partial class GroundMeasure : Node
     public double Seconds { get; set; } = 20;
 
     public int Expect { get; set; }
+
+    /// <summary>False lets a scripted tour finish positioning and settling before it calls <see cref="StartCapture"/>.</summary>
+    public bool AutoStart { get; set; } = true;
+
+    /// <summary>A tour can retain control after the report; ordinary --measure runs quit when complete.</summary>
+    public bool QuitWhenComplete { get; set; } = true;
+
+    public bool IsMeasuring => _started && !_done;
+
+    public bool Complete => _done;
+
+    public void StartCapture() => _requested = true;
+
+    /// <summary>The same gate used by automatic recording, also available to a tour before it requests a start.</summary>
+    public bool ReadyToStart => View.ReadyForShot && !View.Client.Local.IsDead &&
+        (View.Client.Entities.Count() >= Expect || _waited >= 60);
+
+    /// <summary>Only for a failed preparation: prevents a late ready frame from starting during its diagnostic screenshot.</summary>
+    public void CancelPendingStart()
+    {
+        if (_started) return;
+        AutoStart = false;
+        _requested = false;
+    }
+
+    public string Readiness
+    {
+        get
+        {
+            var loading = View.Loading;
+            string pending = loading == null ? "none" : string.Join(",", loading.Taking.Where(s => !s.Done)
+                .Select(s => $"{s.Key}:{s.Progress:P0}{(s.Failed ? ":failed" : "")}"));
+            return $"state={View.Client.State} character={View.Client.HasCharacter} dead={View.Client.Local.IsDead} " +
+                $"worldReady={View.World?.IsReady} loadingShown={View.LoadingShown} phase={loading?.Phase} " +
+                $"pending=[{pending}] face={View.FaceName ?? "none"} ready={View.ReadyForShot} " +
+                $"others={View.Client.Entities.Count()}/{Expect} requested={_requested}; streaming=({View.World?.StreamingStatus ?? "no world"})";
+        }
+    }
 
     // Allocation probes: the first and the last node to process each frame.
     private sealed partial class Probe : Node
@@ -78,9 +118,13 @@ public partial class GroundMeasure : Node
         GameClient client = View.Client;
         if (!_started)
         {
+            if (!AutoStart && !_requested)
+            {
+                return;
+            }
             _waited += delta;
             int seen = client.Entities.Count();
-            if (!View.ReadyForShot || (seen < Expect && _waited < 60))
+            if (!ReadyToStart)
             {
                 return;
             }
@@ -94,6 +138,8 @@ public partial class GroundMeasure : Node
             _late!.Phase = 0;
             _early!.Bytes = 0;
             _gc = (GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
+            _last = _gc;
+            _pipelines = Pipelines();
             _allocated = GC.GetTotalAllocatedBytes();
             _allocatedHere = GC.GetAllocatedBytesForCurrentThread();
             FaceCrowd(client);
@@ -118,7 +164,13 @@ public partial class GroundMeasure : Node
             FrameEvents.Note("gc0");
         }
         _last = (g0, g1, g2);
-        _events.Add((delta, FrameEvents.Take()));
+        ulong pipelines = Pipelines();
+        if (pipelines > _pipelines)
+        {
+            FrameEvents.Note($"pipelines +{pipelines - _pipelines}");
+        }
+        _pipelines = pipelines;
+        _events.Add((_measured, delta, FrameEvents.Take()));
         _process += Performance.GetMonitor(Performance.Monitor.TimeProcess);
         _gpu += RenderingServer.ViewportGetMeasuredRenderTimeGpu(GetViewport().GetViewportRid());
         _cpu += RenderingServer.ViewportGetMeasuredRenderTimeCpu(GetViewport().GetViewportRid()) + RenderingServer.GetFrameSetupTimeCpu();
@@ -126,6 +178,8 @@ public partial class GroundMeasure : Node
         {
             return;
         }
+        _done = true;
+        FrameEvents.Enabled = false;
         // The slowest frames, each with what the frame before it did (its cost lands on the next frame's delta).
         var slow = new List<string>();
         for (int i = 1; i < _events.Count; i++)
@@ -134,6 +188,13 @@ public partial class GroundMeasure : Node
         }
         var order = Enumerable.Range(1, _events.Count - 1).OrderByDescending(i => _events[i].Delta).Take(12).Select(i => slow[i - 1]);
         GD.Print("[measure] slowest frames: " + string.Join("; ", order));
+        // Each hit and completed upload, including the next frame whose delta contains that work. Keep the ordinary
+        // frame report compact while retaining repeated hit costs that need not rank among streaming's worst frames.
+        bool GatherFrame(int i) => _events[i].Events.Contains("natural hit", StringComparison.Ordinal) ||
+            _events[i].Events.Contains("plants in place", StringComparison.Ordinal);
+        var gathering = Enumerable.Range(1, _events.Count - 1).Where(i => GatherFrame(i - 1) || GatherFrame(i)).Take(80)
+            .Select(i => $"t={_events[i].Elapsed:0.00}s {_events[i].Delta * 1000:0.00} ms [{_events[i - 1].Events}|{_events[i].Events}]");
+        GD.Print("[measure] gather frames (up to 80): " + string.Join("; ", gathering));
         GD.Print("[measure] slowest parts of the ground view: " + string.Join(", ", View.Slowest.Select(p => $"{p.Key} {p.Value:0.0} ms")));
         _frames.Sort();
         double average = _frames.Average();
@@ -152,8 +213,10 @@ public partial class GroundMeasure : Node
         {
             // A server in its own process prints its tick (the game's log shows it as "[server] tick ..."): wait for it.
             Command("status");
-            _done = true;
-            GetTree().CreateTimer(1.0).Timeout += () => GetTree().Quit();
+            if (QuitWhenComplete)
+            {
+                GetTree().CreateTimer(1.0).Timeout += () => GetTree().Quit();
+            }
             return;
         }
         if (Server != null)
@@ -162,8 +225,16 @@ public partial class GroundMeasure : Node
             GD.Print($"[measure] server: {Server.Players.Count} players, tick avg={t.TotalAverageMs:0.00} ms p99={t.TotalPercentileMs(99):0.00} ms " +
                 $"worst={t.TotalMaxMs:0.0} ms over={t.Overruns} of {t.Ticks}; {Server.Zone.Physics.TileCount} ground tiles, {Server.Zone.Physics.PropCount} props");
         }
-        GetTree().Quit();
+        if (QuitWhenComplete)
+        {
+            GetTree().Quit();
+        }
     }
+
+    private static ulong Pipelines() =>
+        RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.PipelineCompilationsDraw) +
+        RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.PipelineCompilationsSurface) +
+        RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.PipelineCompilationsMesh);
 
     // Faces the middle of the other players, looking a little down.
     private void FaceCrowd(GameClient client)

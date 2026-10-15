@@ -1,0 +1,2758 @@
+{
+  "source": "D:\\GameDev\\Assets\\PSG_ResourceNodes_R01",
+  "source_manifest_sha256": "8e6542ac20eba7ca77a7c3a3a64a4edb6927f9512e0d2e00a0ff620247adad2c",
+  "method": "Local Blender library import and glTF export; not a game-dev canonical package.",
+  "license": "Owner-authored work; baked Poly Haven CC0 photographic detail; see THIRD_PARTY_NOTICES.md.",
+  "blender": "5.2.1 LTS",
+  "assets": [
+    {
+      "key": "stone-node",
+      "source_kind": "Stone",
+      "stage": 1,
+      "source": "Source/PSG_Node_Stone_S01.blend",
+      "source_sha256": "9307c29ff6cb727c53b9bd5246d8288a9fe91c71e8a1d1b80007ae63a0387879",
+      "report_sha256": "869d38106758cfa4af8d3c6e0099756919251c13cd7496c86606f4a40875c417",
+      "triangles": [
+        23626,
+        11774,
+        5194,
+        1890
+      ],
+      "dimensions_m": [
+        2.523141,
+        1.663177,
+        2.167919
+      ],
+      "material": "M_PSG_Stone_1",
+      "glb": "world\\stone-node-1.glb",
+      "glb_sha256": "ae968753fd26808736a46a77d98af2b7a696d94da93c3c375ed01c281b3a7afa",
+      "textures": {
+        "BC": "Textures\\PSG_Node_Stone_S01\\T_PSG_Node_Stone_S01_BC.png",
+        "ORM": "Textures\\PSG_Node_Stone_S01\\T_PSG_Node_Stone_S01_ORM.png",
+        "N_DX": "Textures\\PSG_Node_Stone_S01\\T_PSG_Node_Stone_S01_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_Stone_S01/T_PSG_Node_Stone_S01_BC.png",
+          "source_sha256": "7f9f64eb12cd099ced0db83b002859ec944325eac5a0d9de88d53a692c924c0c",
+          "output": "Textures/stone-node-1-BC.png",
+          "output_sha256": "35f4270be10c68ad139667139d505fd9afe50f5aa293cad8d530e321d40d0a52",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Stone_S01/T_PSG_Node_Stone_S01_ORM.png",
+          "source_sha256": "ed933cba8804e659361b515d3bb5d4b805175b6e68f915d365fafaf175f734c8",
+          "output": "Textures/stone-node-1-ORM.png",
+          "output_sha256": "66f848e0fa873361dd720a632fbb4ad474df7e32e1c744d272f211fa81cfedb4",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Stone_S01/T_PSG_Node_Stone_S01_N_DX.png",
+          "source_sha256": "9f7edba660e021bbf195fdf3ee57aff72b64f9806fa1f0abbe27eba655e2c7f3",
+          "output": "Textures/stone-node-1-NormalGL.png",
+          "output_sha256": "2cee2246b79a97c0ecced9e288e1c6f8f04df5623cd98ed0f0206ee3b691e627",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    },
+    {
+      "key": "stone-node",
+      "source_kind": "Stone",
+      "stage": 2,
+      "source": "Source/PSG_Node_Stone_S02.blend",
+      "source_sha256": "8eb5d1a8dd0a4ad183cfb89142c3662deb3a2f36e7532345b7d10ebee4efbc3e",
+      "report_sha256": "836f451637add6cc26d18bab466556679a33abd002ef41c7c650d82564026883",
+      "triangles": [
+        17202,
+        8586,
+        3784,
+        1376
+      ],
+      "dimensions_m": [
+        2.510688,
+        1.628582,
+        2.170732
+      ],
+      "material": "M_PSG_Stone_2",
+      "glb": "world\\stone-node-2.glb",
+      "glb_sha256": "e5c5788f8365de20fe568c0cd7dc61ab3284b819b3edc47396d5ef42b7193f8e",
+      "textures": {
+        "BC": "Textures\\PSG_Node_Stone_S02\\T_PSG_Node_Stone_S02_BC.png",
+        "ORM": "Textures\\PSG_Node_Stone_S02\\T_PSG_Node_Stone_S02_ORM.png",
+        "N_DX": "Textures\\PSG_Node_Stone_S02\\T_PSG_Node_Stone_S02_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_Stone_S02/T_PSG_Node_Stone_S02_BC.png",
+          "source_sha256": "75cf1a9c2a12b7a207d9a3ec1f7dc6b80cdc0f6759f2f1ee5631f2200636bc5d",
+          "output": "Textures/stone-node-2-BC.png",
+          "output_sha256": "2e4700e5a0e6a351550ff3c492404f13420d9bb7db00812376b317e23bd57ff5",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Stone_S02/T_PSG_Node_Stone_S02_ORM.png",
+          "source_sha256": "9ef9cc8c26cf4dc302aa374a9493b6c7a32d3440b32915341fe3e42d95e933d3",
+          "output": "Textures/stone-node-2-ORM.png",
+          "output_sha256": "1d24c62a3a106fbb2422dbdfd9386940cfb25841552eaf58a02afabe5614bec9",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Stone_S02/T_PSG_Node_Stone_S02_N_DX.png",
+          "source_sha256": "060683441f37a7e0a844f706a6f76dac483d49c5eb6dd7a58ec71b1a79c8e18f",
+          "output": "Textures/stone-node-2-NormalGL.png",
+          "output_sha256": "926d8025d1095feaf3d180252d9566d0730abf86ecb1c9e866eeb3dc4e326538",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    },
+    {
+      "key": "stone-node",
+      "source_kind": "Stone",
+      "stage": 3,
+      "source": "Source/PSG_Node_Stone_S03.blend",
+      "source_sha256": "296380920bc12150821f1dc3a836c46fe85cd00443cfbeb415ca715126b733e3",
+      "report_sha256": "2de730a11e83639244873aeb776202bb52dcd205a3d7e56580f23777c057e75f",
+      "triangles": [
+        10542,
+        5270,
+        2318,
+        842
+      ],
+      "dimensions_m": [
+        2.506886,
+        0.86015,
+        2.120433
+      ],
+      "material": "M_PSG_Stone_3",
+      "glb": "world\\stone-node-3.glb",
+      "glb_sha256": "6e23a2dc6c5dc4d7746f6fb322c81d1e4977b22a3c1a12272f739c79fa19cb41",
+      "textures": {
+        "BC": "Textures\\PSG_Node_Stone_S03\\T_PSG_Node_Stone_S03_BC.png",
+        "ORM": "Textures\\PSG_Node_Stone_S03\\T_PSG_Node_Stone_S03_ORM.png",
+        "N_DX": "Textures\\PSG_Node_Stone_S03\\T_PSG_Node_Stone_S03_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_Stone_S03/T_PSG_Node_Stone_S03_BC.png",
+          "source_sha256": "3e4ca3a661951de109faa9a943cb85bc4941e29f34539e41c4cb4869007d469b",
+          "output": "Textures/stone-node-3-BC.png",
+          "output_sha256": "da1d7e61678377bc66467805b73ec4a4d1659ed87f32140c609d7bc9eff62866",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Stone_S03/T_PSG_Node_Stone_S03_ORM.png",
+          "source_sha256": "b2ecc99a62d496adef82d52a594761387b43506288063bc418a21286776001e9",
+          "output": "Textures/stone-node-3-ORM.png",
+          "output_sha256": "87a05f3073d195c87b3461c56a6a3756753254dd8c4e84fd0676671c730ba755",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Stone_S03/T_PSG_Node_Stone_S03_N_DX.png",
+          "source_sha256": "057683b32e55eca710d411cc156220dc7418965f5fbf62ce45c129feac6531ee",
+          "output": "Textures/stone-node-3-NormalGL.png",
+          "output_sha256": "e2014739498af0d12aee30f1b1be30ef91fa20157ffda32a9d366cc5c88d260d",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    },
+    {
+      "key": "metal-node",
+      "source_kind": "Metal",
+      "stage": 1,
+      "source": "Source/PSG_Node_Metal_S01.blend",
+      "source_sha256": "09916199f0a4eeffcbf11b3a5e44c6a85acba503a0ac5dca99e7b3f0ce7eb810",
+      "report_sha256": "7f9b9441df9eb3835e1b655dfd3b5a2ea7eb94480aa500bd81fb095dfaa7d8d3",
+      "triangles": [
+        25444,
+        12700,
+        5596,
+        2034
+      ],
+      "dimensions_m": [
+        2.434901,
+        1.828388,
+        2.021298
+      ],
+      "material": "M_PSG_Metal_1",
+      "glb": "world\\metal-node-1.glb",
+      "glb_sha256": "2c2947009376c2bc9c3bf7ff861819a0d88635e45b720e5cf5c0ef4613057c20",
+      "textures": {
+        "BC": "Textures\\PSG_Node_Metal_S01\\T_PSG_Node_Metal_S01_BC.png",
+        "ORM": "Textures\\PSG_Node_Metal_S01\\T_PSG_Node_Metal_S01_ORM.png",
+        "N_DX": "Textures\\PSG_Node_Metal_S01\\T_PSG_Node_Metal_S01_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_Metal_S01/T_PSG_Node_Metal_S01_BC.png",
+          "source_sha256": "f64744fe4af84f3bf15845078f6cf7f9642749a80ead77fdd16aa6bc0cd8b24e",
+          "output": "Textures/metal-node-1-BC.png",
+          "output_sha256": "c20e8f0a33264fbb0e4bed087dd73599d5db5ed0bc8c3d16f8957e511c9333a2",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Metal_S01/T_PSG_Node_Metal_S01_ORM.png",
+          "source_sha256": "9d2e762d98a5c13df27eb10c5fc523d49d2a8dfdc4e9b48283cc6b2557e18f56",
+          "output": "Textures/metal-node-1-ORM.png",
+          "output_sha256": "a609bad6f9e934488c70d79f4818c827db2afea61b531bc92d765cc0ed5d7989",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Metal_S01/T_PSG_Node_Metal_S01_N_DX.png",
+          "source_sha256": "44d3c0ba10f28b00a85d66198454895c88a6fbfc491191fc4a1a002b3cbb2c67",
+          "output": "Textures/metal-node-1-NormalGL.png",
+          "output_sha256": "58b81fc5c39463df271ab738cb4cc0aa37ff291cb0bfed77043352dd5052b00d",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    },
+    {
+      "key": "metal-node",
+      "source_kind": "Metal",
+      "stage": 2,
+      "source": "Source/PSG_Node_Metal_S02.blend",
+      "source_sha256": "058324ab425b9f6c7603732201938177bd571d9bc3e520644f8b3c2ba3cdf6b9",
+      "report_sha256": "2b133721a01b3ebc7bd29611f6ac990a71419fe32680ece9a624edcc03f5adf9",
+      "triangles": [
+        18596,
+        9284,
+        4090,
+        1486
+      ],
+      "dimensions_m": [
+        2.428066,
+        1.717377,
+        2.024256
+      ],
+      "material": "M_PSG_Metal_2",
+      "glb": "world\\metal-node-2.glb",
+      "glb_sha256": "2de5ec17fc0322762bced89019adc80b2265ac0001722ec4b33188d39cb11c3d",
+      "textures": {
+        "BC": "Textures\\PSG_Node_Metal_S02\\T_PSG_Node_Metal_S02_BC.png",
+        "ORM": "Textures\\PSG_Node_Metal_S02\\T_PSG_Node_Metal_S02_ORM.png",
+        "N_DX": "Textures\\PSG_Node_Metal_S02\\T_PSG_Node_Metal_S02_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_Metal_S02/T_PSG_Node_Metal_S02_BC.png",
+          "source_sha256": "5cc907fb7218e8b28d88d2008ac322c8a11d97eeb16da63881bf38451e7e2ae9",
+          "output": "Textures/metal-node-2-BC.png",
+          "output_sha256": "aabccf7dc2f6d1339e09aceca18a91df68a2e43fe69e26bfdca9f79345eac3bf",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Metal_S02/T_PSG_Node_Metal_S02_ORM.png",
+          "source_sha256": "b38abb90483073efd5f727b9aca49a86034346b5eac4a5ad23117e8c7bcaf06e",
+          "output": "Textures/metal-node-2-ORM.png",
+          "output_sha256": "cb1d34e6d6283f4241eada5a8dcbf85bf93178c4a5b64f15a710eb99b6ed992c",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Metal_S02/T_PSG_Node_Metal_S02_N_DX.png",
+          "source_sha256": "2ac3c0abae82f5ef20cc6b3a869b41838aa7820b531069a55304b5abf5ad5923",
+          "output": "Textures/metal-node-2-NormalGL.png",
+          "output_sha256": "520d847597f769353af668f3c25c0966d59a29cd1adf557c46ab8d4ab03e519b",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    },
+    {
+      "key": "metal-node",
+      "source_kind": "Metal",
+      "stage": 3,
+      "source": "Source/PSG_Node_Metal_S03.blend",
+      "source_sha256": "24262f388e513e5b9eab54cac63b5c949078514de1d3b24d4be62fc86f22ecee",
+      "report_sha256": "edfdb292598c9b8f06ddd2da9fcc2d22b663f767b73b19cf0e013a605b49c46b",
+      "triangles": [
+        11410,
+        5704,
+        2510,
+        912
+      ],
+      "dimensions_m": [
+        2.425792,
+        0.830587,
+        1.981544
+      ],
+      "material": "M_PSG_Metal_3",
+      "glb": "world\\metal-node-3.glb",
+      "glb_sha256": "169d5d29f3b4309cfa3f2b6e9ce5b3f8eedc8f546140a17dbbaa5f0e32ec83b4",
+      "textures": {
+        "BC": "Textures\\PSG_Node_Metal_S03\\T_PSG_Node_Metal_S03_BC.png",
+        "ORM": "Textures\\PSG_Node_Metal_S03\\T_PSG_Node_Metal_S03_ORM.png",
+        "N_DX": "Textures\\PSG_Node_Metal_S03\\T_PSG_Node_Metal_S03_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_Metal_S03/T_PSG_Node_Metal_S03_BC.png",
+          "source_sha256": "37429b4a900ec5d7529b2b649bf3bc34f837462ee31eba14e93a5b9f27264e59",
+          "output": "Textures/metal-node-3-BC.png",
+          "output_sha256": "9d6bea17b74fe6f3dc0e51ff0d14fc544c6d22f36c334c4a8b56907680cb67bf",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Metal_S03/T_PSG_Node_Metal_S03_ORM.png",
+          "source_sha256": "221a8827b0bac242ad9a2b08142911178bf9efb32e59e72ce0e91f0e3fc384c4",
+          "output": "Textures/metal-node-3-ORM.png",
+          "output_sha256": "33494f95164492690df35b8bf59878949bb37e251155c0a7f85f0fffbae928d0",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Metal_S03/T_PSG_Node_Metal_S03_N_DX.png",
+          "source_sha256": "e61b4e68b3823539ee6fb3db31119ef1e001543daa0c19efc3ed09344587b4d1",
+          "output": "Textures/metal-node-3-NormalGL.png",
+          "output_sha256": "d242b905455fd2aa10b478f4931b1f1daa4466cdac8a8ace5abf6919b5ffc840",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    },
+    {
+      "key": "sulphur-node",
+      "source_kind": "Sulfur",
+      "stage": 1,
+      "source": "Source/PSG_Node_Sulfur_S01.blend",
+      "source_sha256": "a953e96e23e2bc8de9f13735d59829ed80ce80f2a5597ed075cbf6d714921eea",
+      "report_sha256": "ef108be915d303a362324ec29698499100984118353a0ac032612a8d1c83d5f8",
+      "triangles": [
+        23728,
+        11854,
+        5220,
+        1898
+      ],
+      "dimensions_m": [
+        2.52113,
+        1.684757,
+        2.147385
+      ],
+      "material": "M_PSG_Sulfur_1",
+      "glb": "world\\sulphur-node-1.glb",
+      "glb_sha256": "60fb6baa3f38656507e9143ddb1328975c0a1fec5828669bd6f06c466b119cf6",
+      "textures": {
+        "BC": "Textures\\PSG_Node_Sulfur_S01\\T_PSG_Node_Sulfur_S01_BC.png",
+        "ORM": "Textures\\PSG_Node_Sulfur_S01\\T_PSG_Node_Sulfur_S01_ORM.png",
+        "N_DX": "Textures\\PSG_Node_Sulfur_S01\\T_PSG_Node_Sulfur_S01_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_Sulfur_S01/T_PSG_Node_Sulfur_S01_BC.png",
+          "source_sha256": "1946384948fe54ea7c4132d71b721b14f10b261b40c92bc770a0fafe2f1fbd62",
+          "output": "Textures/sulphur-node-1-BC.png",
+          "output_sha256": "1c2cd741e558cd71dfad9083143404cc71f46f2a4ebfef33a78019b1b035fd93",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Sulfur_S01/T_PSG_Node_Sulfur_S01_ORM.png",
+          "source_sha256": "7bebb05abb2e9e220b1dc6165f68aed080685ef70cc21a64fcbd6e4f526d812d",
+          "output": "Textures/sulphur-node-1-ORM.png",
+          "output_sha256": "cf55d402f3d30eaf48633f26495e66a09127d4dca483097f218c1def46a63860",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Sulfur_S01/T_PSG_Node_Sulfur_S01_N_DX.png",
+          "source_sha256": "56d4029e97e24041ffe5711f484dcfe56a80ad5cb0bda1d4a17d731c06b511f5",
+          "output": "Textures/sulphur-node-1-NormalGL.png",
+          "output_sha256": "85c9e4971365123412800a608a0f290507e7428be577508e7c2658b018d6cc5e",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    },
+    {
+      "key": "sulphur-node",
+      "source_kind": "Sulfur",
+      "stage": 2,
+      "source": "Source/PSG_Node_Sulfur_S02.blend",
+      "source_sha256": "8d50e2e941dd7a0d1316f10b2c0c56fa9ea625f54c37b58b259366588a5e060a",
+      "report_sha256": "5877fbeb2755519ce9c6108982caa591c605c008a355a9e7fdfe2733dd5b82f6",
+      "triangles": [
+        17224,
+        8610,
+        3788,
+        1376
+      ],
+      "dimensions_m": [
+        2.511837,
+        1.64316,
+        2.145189
+      ],
+      "material": "M_PSG_Sulfur_2",
+      "glb": "world\\sulphur-node-2.glb",
+      "glb_sha256": "f7630932b4fec148064fb60f884bebec4e3059ac2f922a4daee254eb1d8471cb",
+      "textures": {
+        "BC": "Textures\\PSG_Node_Sulfur_S02\\T_PSG_Node_Sulfur_S02_BC.png",
+        "ORM": "Textures\\PSG_Node_Sulfur_S02\\T_PSG_Node_Sulfur_S02_ORM.png",
+        "N_DX": "Textures\\PSG_Node_Sulfur_S02\\T_PSG_Node_Sulfur_S02_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_Sulfur_S02/T_PSG_Node_Sulfur_S02_BC.png",
+          "source_sha256": "8cc9546c02b554c29d2b0ec856213979d0e2b27efedd989099bce9c6175a96b9",
+          "output": "Textures/sulphur-node-2-BC.png",
+          "output_sha256": "0e2eab70280463c6bb03e9b3413404ef832789574696e7e28bba5771cd6e9e2f",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Sulfur_S02/T_PSG_Node_Sulfur_S02_ORM.png",
+          "source_sha256": "e9cdb1ffeaee658625ee7c92646eec6a02b50f17c1bfd0077082e09138320057",
+          "output": "Textures/sulphur-node-2-ORM.png",
+          "output_sha256": "029014f5538054268ba5d55ce0648771737764a6ac8e224fdad6a612d731e467",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Sulfur_S02/T_PSG_Node_Sulfur_S02_N_DX.png",
+          "source_sha256": "f8fd7961d6974f4b951abb545a1dccaa939de7b6fca57f099afbbf48253e66cb",
+          "output": "Textures/sulphur-node-2-NormalGL.png",
+          "output_sha256": "1ae0081513c3638c3eb76bfe60c505789c0da63facca2ef6bca6d3afa62a94d9",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    },
+    {
+      "key": "sulphur-node",
+      "source_kind": "Sulfur",
+      "stage": 3,
+      "source": "Source/PSG_Node_Sulfur_S03.blend",
+      "source_sha256": "b71bac1a3dc652f2979e05e7ae09439327b5dfac4bc84a0f96e57c14ef99d784",
+      "report_sha256": "f468290cd2adb604c088e700e32f75ee7b111a3bb852aba3706355264604527b",
+      "triangles": [
+        10550,
+        5274,
+        2320,
+        844
+      ],
+      "dimensions_m": [
+        2.478441,
+        0.844425,
+        2.129037
+      ],
+      "material": "M_PSG_Sulfur_3",
+      "glb": "world\\sulphur-node-3.glb",
+      "glb_sha256": "6435cef2e502182330c1bd3dfc7ef5ee09ae1717e5a9857ca2a4d08e3e9c5a27",
+      "textures": {
+        "BC": "Textures\\PSG_Node_Sulfur_S03\\T_PSG_Node_Sulfur_S03_BC.png",
+        "ORM": "Textures\\PSG_Node_Sulfur_S03\\T_PSG_Node_Sulfur_S03_ORM.png",
+        "N_DX": "Textures\\PSG_Node_Sulfur_S03\\T_PSG_Node_Sulfur_S03_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_Sulfur_S03/T_PSG_Node_Sulfur_S03_BC.png",
+          "source_sha256": "6b71e38068d88775505390016866ba3f4389f0647b545d6b5a51565e3cd0c9eb",
+          "output": "Textures/sulphur-node-3-BC.png",
+          "output_sha256": "e9d320d23d36f22014e0cb5b0eebdc2974041926f7ee23b856a3cebd09961985",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Sulfur_S03/T_PSG_Node_Sulfur_S03_ORM.png",
+          "source_sha256": "3408597c3b4311c93d07cd1228974fd78d2d6cf59b37bbcbe510f693cdf73ed0",
+          "output": "Textures/sulphur-node-3-ORM.png",
+          "output_sha256": "de35397eae19f121bbab38fcbe38c760f5179c5fc92139e32aaa1fdbdfe7e700",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_Sulfur_S03/T_PSG_Node_Sulfur_S03_N_DX.png",
+          "source_sha256": "7bbb31d0dfc038b1dd50ae7c4c7e7373a8b244e69bdba87e6b81527d42753459",
+          "output": "Textures/sulphur-node-3-NormalGL.png",
+          "output_sha256": "299db6b3f87b7bf3b42c3d25782bb04d1813a31a400d0b4f8af30acb0560dc37",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    },
+    {
+      "key": "high-grade-node",
+      "source_kind": "HQMetal",
+      "stage": 1,
+      "source": "Source/PSG_Node_HQMetal_S01.blend",
+      "source_sha256": "9b6f8c90afd03dfd95383534ff349d7250e6a6ad1a49bbc1fa91c00d851d55f1",
+      "report_sha256": "d07053b96fb5586841bd766683c1f52571b0876f8deeeb41179c956f6f7a89e6",
+      "triangles": [
+        27202,
+        13526,
+        5980,
+        2176
+      ],
+      "dimensions_m": [
+        2.291651,
+        1.858793,
+        2.004257
+      ],
+      "material": "M_PSG_HQMetal_1",
+      "glb": "world\\high-grade-node-1.glb",
+      "glb_sha256": "9216fb5cd9dc266236e5b7a934738973cebb1ddd36d4c36af32814870ea4a172",
+      "textures": {
+        "BC": "Textures\\PSG_Node_HQMetal_S01\\T_PSG_Node_HQMetal_S01_BC.png",
+        "ORM": "Textures\\PSG_Node_HQMetal_S01\\T_PSG_Node_HQMetal_S01_ORM.png",
+        "N_DX": "Textures\\PSG_Node_HQMetal_S01\\T_PSG_Node_HQMetal_S01_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_HQMetal_S01/T_PSG_Node_HQMetal_S01_BC.png",
+          "source_sha256": "500e9836ea9a1ecab6846a581562855e02fc9eb54533e79e8daa3cf295552895",
+          "output": "Textures/high-grade-node-1-BC.png",
+          "output_sha256": "4205f9f1a8eaeeac9730022e37ada499e4da5d2e638140764feb9396c51d2c4d",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_HQMetal_S01/T_PSG_Node_HQMetal_S01_ORM.png",
+          "source_sha256": "addb98d4102c6507e4887fe219cf344f1d5f331e08d6d758c7f62250d415dd1d",
+          "output": "Textures/high-grade-node-1-ORM.png",
+          "output_sha256": "d16a4e275db9d4f2568845dbdc1a9acdb640d3c93fa53a8c9c55145bc30883f6",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_HQMetal_S01/T_PSG_Node_HQMetal_S01_N_DX.png",
+          "source_sha256": "d967069b18eaab2bb5f6c9303f9e506789c28fa95a3bc67cad1eca3ee543b77a",
+          "output": "Textures/high-grade-node-1-NormalGL.png",
+          "output_sha256": "5b2b17d19ecd5a2fad2aedfb54e07d79891f91e4210156e87f4603c31b7971f2",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    },
+    {
+      "key": "high-grade-node",
+      "source_kind": "HQMetal",
+      "stage": 2,
+      "source": "Source/PSG_Node_HQMetal_S02.blend",
+      "source_sha256": "2dc536da3f01d17ede36f9b4672e42a3201202068477d013a81f891c9f62547b",
+      "report_sha256": "86ee11beee35e08299333781099d7aa8106562ff86f882c08e6679635c812cd3",
+      "triangles": [
+        19914,
+        9942,
+        4380,
+        1592
+      ],
+      "dimensions_m": [
+        2.276799,
+        1.746488,
+        2.005154
+      ],
+      "material": "M_PSG_HQMetal_2",
+      "glb": "world\\high-grade-node-2.glb",
+      "glb_sha256": "8592e2ba37843b61b185a8aa98b7715b1b703a4f916de875576e1ce254a1668b",
+      "textures": {
+        "BC": "Textures\\PSG_Node_HQMetal_S02\\T_PSG_Node_HQMetal_S02_BC.png",
+        "ORM": "Textures\\PSG_Node_HQMetal_S02\\T_PSG_Node_HQMetal_S02_ORM.png",
+        "N_DX": "Textures\\PSG_Node_HQMetal_S02\\T_PSG_Node_HQMetal_S02_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_HQMetal_S02/T_PSG_Node_HQMetal_S02_BC.png",
+          "source_sha256": "44a8d65a4446e2f573872173407583bf1bc6bcfe9f75e2cc7fec735667e22a33",
+          "output": "Textures/high-grade-node-2-BC.png",
+          "output_sha256": "384806f142e7185a244a0dc4234d9f4706ff95fef268bfb94d8cb1d2b1dd8769",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_HQMetal_S02/T_PSG_Node_HQMetal_S02_ORM.png",
+          "source_sha256": "7bc8eab6dc9e78552729607872955ea264326bd915fbeb0d3ccd442ec8cf92b0",
+          "output": "Textures/high-grade-node-2-ORM.png",
+          "output_sha256": "e4eb88291412a3fb3d9ce0dc38e96e7d200ff003163bafcafe95e43be4c18f90",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_HQMetal_S02/T_PSG_Node_HQMetal_S02_N_DX.png",
+          "source_sha256": "0e908586bb4fd38501ce1c7c991cd9db43878922bbf39c6152bbe44c5e1351dd",
+          "output": "Textures/high-grade-node-2-NormalGL.png",
+          "output_sha256": "2598ab1530a9f52600c6c5ad889725fad940d0a6335303a1f021b4387e8ac49a",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    },
+    {
+      "key": "high-grade-node",
+      "source_kind": "HQMetal",
+      "stage": 3,
+      "source": "Source/PSG_Node_HQMetal_S03.blend",
+      "source_sha256": "ebc983dd44af311ef15f1dc3a5960088ad0d9005a88dce2dd89492c72fa67c1c",
+      "report_sha256": "d86fb463b264732d3bddf5c51ddf8f5e337242ea9b0a1b5ae0bedc101a5851dc",
+      "triangles": [
+        12266,
+        6126,
+        2698,
+        980
+      ],
+      "dimensions_m": [
+        2.256114,
+        0.817938,
+        1.948632
+      ],
+      "material": "M_PSG_HQMetal_3",
+      "glb": "world\\high-grade-node-3.glb",
+      "glb_sha256": "fa84274cb625229ebf4be63d0fa064c94472b50a55ee5a67467ec811336849a2",
+      "textures": {
+        "BC": "Textures\\PSG_Node_HQMetal_S03\\T_PSG_Node_HQMetal_S03_BC.png",
+        "ORM": "Textures\\PSG_Node_HQMetal_S03\\T_PSG_Node_HQMetal_S03_ORM.png",
+        "N_DX": "Textures\\PSG_Node_HQMetal_S03\\T_PSG_Node_HQMetal_S03_N_DX.png"
+      },
+      "texture_conversion": [
+        {
+          "source": "Textures/PSG_Node_HQMetal_S03/T_PSG_Node_HQMetal_S03_BC.png",
+          "source_sha256": "e0a368e367527b24dde9a84c762a284d8960988b25d59da9fe5d602bf5c0cb97",
+          "output": "Textures/high-grade-node-3-BC.png",
+          "output_sha256": "1e81698d8679ac5fef90ae0a99342badfc570ff5a5c4b50edf36efc694a33f7b",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_HQMetal_S03/T_PSG_Node_HQMetal_S03_ORM.png",
+          "source_sha256": "d9c4c665a89a503e67b10c434ff474942711613463d54663a6afe1eb792de0e0",
+          "output": "Textures/high-grade-node-3-ORM.png",
+          "output_sha256": "c7e0c5d6177addd65fb07a8fba7e4fa88b93c62cfd88484ee3249b3baba3bfb8",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": null
+        },
+        {
+          "source": "Textures/PSG_Node_HQMetal_S03/T_PSG_Node_HQMetal_S03_N_DX.png",
+          "source_sha256": "aa7521809f5262fd5f1141a10a4a7b2476bc03298c9906df2b5d794db17ad343",
+          "output": "Textures/high-grade-node-3-NormalGL.png",
+          "output_sha256": "f25ee2a1e7f090728ef8fc0f2f52885dd8369e8638f8bbe277fb25c699c75c7c",
+          "size": [
+            2048,
+            2048
+          ],
+          "normal": "OpenGL; green flipped and vectors renormalized"
+        }
+      ]
+    }
+  ],
+  "surfaces": {
+    "stone-node": [
+      [
+        [
+          1.481,
+          1.482,
+          1.484,
+          1.483,
+          1.481,
+          1.476,
+          1.469,
+          1.464,
+          1.444,
+          1.423,
+          1.419,
+          1.45,
+          1.478,
+          1.493,
+          1.49,
+          1.489,
+          1.489,
+          1.487,
+          1.484,
+          1.483,
+          1.482,
+          1.455,
+          1.422,
+          1.383,
+          1.41,
+          1.437,
+          1.455,
+          1.463,
+          1.472,
+          1.476,
+          1.476,
+          1.479
+        ],
+        [
+          1.48,
+          1.485,
+          1.491,
+          1.5,
+          1.508,
+          1.519,
+          1.523,
+          1.502,
+          1.479,
+          1.468,
+          1.516,
+          1.513,
+          1.503,
+          1.502,
+          1.497,
+          1.5,
+          1.502,
+          1.495,
+          1.485,
+          1.489,
+          1.496,
+          1.494,
+          1.486,
+          1.469,
+          1.392,
+          1.451,
+          1.477,
+          1.472,
+          1.471,
+          1.462,
+          1.464,
+          1.471
+        ],
+        [
+          1.478,
+          1.489,
+          1.492,
+          1.509,
+          1.507,
+          1.505,
+          1.518,
+          1.527,
+          1.497,
+          1.529,
+          1.515,
+          1.484,
+          1.471,
+          1.458,
+          1.452,
+          1.466,
+          1.47,
+          1.494,
+          1.491,
+          1.486,
+          1.479,
+          1.479,
+          1.483,
+          1.481,
+          1.4,
+          1.468,
+          1.475,
+          1.472,
+          1.468,
+          1.463,
+          1.469,
+          1.474
+        ],
+        [
+          1.474,
+          1.475,
+          1.449,
+          1.45,
+          1.473,
+          1.502,
+          1.528,
+          1.528,
+          1.499,
+          1.466,
+          1.437,
+          1.392,
+          1.365,
+          1.35,
+          1.319,
+          1.383,
+          1.431,
+          1.461,
+          1.4,
+          1.37,
+          1.389,
+          1.392,
+          1.407,
+          1.417,
+          1.425,
+          1.463,
+          1.464,
+          1.468,
+          1.467,
+          1.463,
+          1.424,
+          1.446
+        ]
+      ],
+      [
+        [
+          1.199,
+          1.192,
+          1.182,
+          1.181,
+          1.188,
+          1.191,
+          1.197,
+          1.209,
+          1.222,
+          1.24,
+          1.275,
+          1.293,
+          1.301,
+          1.309,
+          1.311,
+          1.325,
+          1.337,
+          1.332,
+          1.318,
+          1.321,
+          1.323,
+          1.318,
+          1.307,
+          1.295,
+          1.285,
+          1.272,
+          1.26,
+          1.239,
+          1.22,
+          1.212,
+          1.208,
+          1.202
+        ],
+        [
+          1.075,
+          1.073,
+          1.084,
+          1.086,
+          1.083,
+          1.098,
+          1.138,
+          1.179,
+          1.231,
+          1.279,
+          1.307,
+          1.349,
+          1.378,
+          1.364,
+          1.383,
+          1.421,
+          1.425,
+          1.443,
+          1.451,
+          1.44,
+          1.416,
+          1.403,
+          1.373,
+          1.323,
+          1.287,
+          1.247,
+          1.212,
+          1.18,
+          1.151,
+          1.12,
+          1.081,
+          1.076
+        ],
+        [
+          0.937,
+          0.935,
+          0.932,
+          0.967,
+          0.984,
+          1.021,
+          1.076,
+          1.146,
+          1.198,
+          1.258,
+          1.315,
+          1.398,
+          1.437,
+          1.455,
+          1.451,
+          1.469,
+          1.469,
+          1.49,
+          1.49,
+          1.487,
+          1.481,
+          1.464,
+          1.416,
+          1.368,
+          1.325,
+          1.256,
+          1.202,
+          1.15,
+          1.073,
+          1.014,
+          0.968,
+          0.957
+        ],
+        [
+          0.823,
+          0.846,
+          0.838,
+          0.86,
+          0.894,
+          0.934,
+          1.032,
+          1.111,
+          1.146,
+          1.269,
+          1.328,
+          1.392,
+          1.367,
+          1.351,
+          1.319,
+          1.383,
+          1.432,
+          1.462,
+          1.426,
+          1.368,
+          1.392,
+          1.393,
+          1.407,
+          1.398,
+          1.345,
+          1.229,
+          1.147,
+          1.078,
+          1.021,
+          0.948,
+          0.891,
+          0.851
+        ]
+      ],
+      [
+        [
+          0.43,
+          0.433,
+          0.435,
+          0.437,
+          0.441,
+          0.448,
+          0.456,
+          0.458,
+          0.464,
+          0.464,
+          0.465,
+          0.468,
+          0.47,
+          0.476,
+          0.474,
+          0.474,
+          0.476,
+          0.465,
+          0.456,
+          0.447,
+          0.438,
+          0.428,
+          0.42,
+          0.411,
+          0.403,
+          0.404,
+          0.407,
+          0.411,
+          0.412,
+          0.418,
+          0.421,
+          0.425
+        ],
+        [
+          0.405,
+          0.422,
+          0.431,
+          0.448,
+          0.448,
+          0.47,
+          0.494,
+          0.516,
+          0.527,
+          0.522,
+          0.519,
+          0.518,
+          0.504,
+          0.501,
+          0.497,
+          0.494,
+          0.493,
+          0.478,
+          0.459,
+          0.449,
+          0.437,
+          0.419,
+          0.414,
+          0.402,
+          0.382,
+          0.38,
+          0.378,
+          0.372,
+          0.362,
+          0.372,
+          0.389,
+          0.397
+        ],
+        [
+          0.394,
+          0.412,
+          0.434,
+          0.47,
+          0.492,
+          0.503,
+          0.517,
+          0.542,
+          0.556,
+          0.57,
+          0.545,
+          0.555,
+          0.552,
+          0.554,
+          0.543,
+          0.535,
+          0.504,
+          0.493,
+          0.47,
+          0.437,
+          0.415,
+          0.398,
+          0.383,
+          0.376,
+          0.339,
+          0.341,
+          0.337,
+          0.323,
+          0.352,
+          0.35,
+          0.349,
+          0.357
+        ],
+        [
+          0.36,
+          0.39,
+          0.434,
+          0.467,
+          0.491,
+          0.517,
+          0.543,
+          0.572,
+          0.587,
+          0.601,
+          0.607,
+          0.601,
+          0.598,
+          0.598,
+          0.585,
+          0.55,
+          0.529,
+          0.506,
+          0.471,
+          0.424,
+          0.413,
+          0.387,
+          0.367,
+          0.338,
+          0.308,
+          0.286,
+          0.288,
+          0.294,
+          0.286,
+          0.311,
+          0.305,
+          0.353
+        ]
+      ]
+    ],
+    "metal-node": [
+      [
+        [
+          1.589,
+          1.591,
+          1.586,
+          1.58,
+          1.564,
+          1.558,
+          1.616,
+          1.664,
+          1.665,
+          1.667,
+          1.67,
+          1.674,
+          1.674,
+          1.673,
+          1.671,
+          1.67,
+          1.668,
+          1.662,
+          1.655,
+          1.651,
+          1.647,
+          1.644,
+          1.644,
+          1.644,
+          1.643,
+          1.643,
+          1.644,
+          1.575,
+          1.538,
+          1.555,
+          1.571,
+          1.583
+        ],
+        [
+          1.632,
+          1.634,
+          1.634,
+          1.642,
+          1.657,
+          1.666,
+          1.646,
+          1.569,
+          1.686,
+          1.685,
+          1.67,
+          1.668,
+          1.664,
+          1.651,
+          1.642,
+          1.633,
+          1.624,
+          1.625,
+          1.624,
+          1.627,
+          1.632,
+          1.638,
+          1.638,
+          1.625,
+          1.618,
+          1.542,
+          1.562,
+          1.595,
+          1.614,
+          1.618,
+          1.618,
+          1.618
+        ],
+        [
+          1.605,
+          1.617,
+          1.632,
+          1.646,
+          1.649,
+          1.664,
+          1.671,
+          1.65,
+          1.672,
+          1.696,
+          1.655,
+          1.626,
+          1.605,
+          1.588,
+          1.578,
+          1.555,
+          1.558,
+          1.575,
+          1.571,
+          1.554,
+          1.56,
+          1.574,
+          1.588,
+          1.615,
+          1.543,
+          1.587,
+          1.597,
+          1.587,
+          1.589,
+          1.591,
+          1.595,
+          1.598
+        ],
+        [
+          1.582,
+          1.561,
+          1.591,
+          1.609,
+          1.61,
+          1.636,
+          1.671,
+          1.695,
+          1.607,
+          1.603,
+          1.561,
+          1.521,
+          1.51,
+          1.458,
+          1.49,
+          1.471,
+          1.512,
+          1.566,
+          1.499,
+          1.427,
+          1.425,
+          1.429,
+          1.46,
+          1.513,
+          1.476,
+          1.586,
+          1.585,
+          1.573,
+          1.575,
+          1.591,
+          1.587,
+          1.585
+        ]
+      ],
+      [
+        [
+          1.162,
+          1.165,
+          1.173,
+          1.183,
+          1.196,
+          1.213,
+          1.227,
+          1.241,
+          1.254,
+          1.274,
+          1.303,
+          1.316,
+          1.312,
+          1.313,
+          1.319,
+          1.335,
+          1.338,
+          1.341,
+          1.339,
+          1.33,
+          1.323,
+          1.309,
+          1.299,
+          1.292,
+          1.284,
+          1.275,
+          1.262,
+          1.229,
+          1.207,
+          1.188,
+          1.178,
+          1.169
+        ],
+        [
+          1.086,
+          1.083,
+          1.091,
+          1.092,
+          1.104,
+          1.138,
+          1.157,
+          1.182,
+          1.221,
+          1.257,
+          1.267,
+          1.302,
+          1.352,
+          1.4,
+          1.414,
+          1.441,
+          1.448,
+          1.45,
+          1.439,
+          1.42,
+          1.414,
+          1.387,
+          1.361,
+          1.329,
+          1.294,
+          1.241,
+          1.208,
+          1.174,
+          1.133,
+          1.121,
+          1.099,
+          1.074
+        ],
+        [
+          0.961,
+          0.953,
+          0.959,
+          0.965,
+          0.996,
+          1.039,
+          1.098,
+          1.141,
+          1.225,
+          1.262,
+          1.32,
+          1.357,
+          1.42,
+          1.458,
+          1.515,
+          1.54,
+          1.557,
+          1.555,
+          1.547,
+          1.541,
+          1.505,
+          1.456,
+          1.433,
+          1.378,
+          1.312,
+          1.234,
+          1.185,
+          1.148,
+          1.075,
+          1.037,
+          0.986,
+          0.965
+        ],
+        [
+          0.826,
+          0.82,
+          0.846,
+          0.882,
+          0.906,
+          0.964,
+          1.029,
+          1.091,
+          1.182,
+          1.253,
+          1.339,
+          1.407,
+          1.496,
+          1.459,
+          1.49,
+          1.476,
+          1.51,
+          1.566,
+          1.5,
+          1.428,
+          1.425,
+          1.43,
+          1.46,
+          1.414,
+          1.322,
+          1.243,
+          1.181,
+          1.078,
+          1.014,
+          0.948,
+          0.908,
+          0.873
+        ]
+      ],
+      [
+        [
+          0.45,
+          0.454,
+          0.462,
+          0.47,
+          0.474,
+          0.475,
+          0.476,
+          0.477,
+          0.478,
+          0.485,
+          0.487,
+          0.481,
+          0.486,
+          0.48,
+          0.474,
+          0.467,
+          0.458,
+          0.453,
+          0.453,
+          0.455,
+          0.443,
+          0.44,
+          0.429,
+          0.422,
+          0.417,
+          0.413,
+          0.41,
+          0.417,
+          0.424,
+          0.43,
+          0.433,
+          0.441
+        ],
+        [
+          0.419,
+          0.431,
+          0.444,
+          0.466,
+          0.485,
+          0.488,
+          0.489,
+          0.498,
+          0.499,
+          0.514,
+          0.534,
+          0.528,
+          0.517,
+          0.51,
+          0.507,
+          0.489,
+          0.473,
+          0.462,
+          0.464,
+          0.445,
+          0.412,
+          0.402,
+          0.403,
+          0.393,
+          0.393,
+          0.383,
+          0.373,
+          0.38,
+          0.385,
+          0.384,
+          0.386,
+          0.4
+        ],
+        [
+          0.383,
+          0.4,
+          0.428,
+          0.455,
+          0.495,
+          0.499,
+          0.52,
+          0.54,
+          0.555,
+          0.568,
+          0.54,
+          0.568,
+          0.575,
+          0.556,
+          0.541,
+          0.522,
+          0.508,
+          0.479,
+          0.473,
+          0.452,
+          0.407,
+          0.39,
+          0.371,
+          0.347,
+          0.349,
+          0.353,
+          0.342,
+          0.329,
+          0.357,
+          0.341,
+          0.347,
+          0.374
+        ],
+        [
+          0.351,
+          0.385,
+          0.428,
+          0.464,
+          0.502,
+          0.528,
+          0.542,
+          0.56,
+          0.601,
+          0.609,
+          0.606,
+          0.623,
+          0.588,
+          0.593,
+          0.566,
+          0.547,
+          0.545,
+          0.52,
+          0.46,
+          0.452,
+          0.406,
+          0.382,
+          0.345,
+          0.341,
+          0.324,
+          0.317,
+          0.297,
+          0.299,
+          0.288,
+          0.303,
+          0.321,
+          0.348
+        ]
+      ]
+    ],
+    "sulphur-node": [
+      [
+        [
+          1.493,
+          1.497,
+          1.503,
+          1.508,
+          1.513,
+          1.514,
+          1.513,
+          1.515,
+          1.52,
+          1.518,
+          1.517,
+          1.516,
+          1.516,
+          1.516,
+          1.516,
+          1.516,
+          1.514,
+          1.512,
+          1.509,
+          1.507,
+          1.503,
+          1.497,
+          1.496,
+          1.493,
+          1.489,
+          1.489,
+          1.489,
+          1.49,
+          1.491,
+          1.49,
+          1.489,
+          1.49
+        ],
+        [
+          1.502,
+          1.487,
+          1.474,
+          1.492,
+          1.506,
+          1.522,
+          1.529,
+          1.539,
+          1.546,
+          1.542,
+          1.541,
+          1.538,
+          1.53,
+          1.529,
+          1.528,
+          1.529,
+          1.528,
+          1.516,
+          1.501,
+          1.5,
+          1.498,
+          1.497,
+          1.488,
+          1.477,
+          1.465,
+          1.459,
+          1.457,
+          1.45,
+          1.448,
+          1.463,
+          1.486,
+          1.497
+        ],
+        [
+          1.513,
+          1.506,
+          1.5,
+          1.45,
+          1.471,
+          1.507,
+          1.531,
+          1.547,
+          1.549,
+          1.552,
+          1.537,
+          1.522,
+          1.494,
+          1.485,
+          1.485,
+          1.506,
+          1.516,
+          1.512,
+          1.507,
+          1.503,
+          1.49,
+          1.474,
+          1.468,
+          1.455,
+          1.439,
+          1.433,
+          1.426,
+          1.424,
+          1.473,
+          1.47,
+          1.489,
+          1.496
+        ],
+        [
+          1.498,
+          1.505,
+          1.49,
+          1.455,
+          1.428,
+          1.478,
+          1.53,
+          1.563,
+          1.552,
+          1.506,
+          1.441,
+          1.402,
+          1.349,
+          1.358,
+          1.377,
+          1.396,
+          1.418,
+          1.421,
+          1.379,
+          1.337,
+          1.405,
+          1.398,
+          1.374,
+          1.388,
+          1.4,
+          1.43,
+          1.414,
+          1.406,
+          1.455,
+          1.468,
+          1.474,
+          1.482
+        ]
+      ],
+      [
+        [
+          1.186,
+          1.187,
+          1.187,
+          1.192,
+          1.194,
+          1.195,
+          1.2,
+          1.213,
+          1.226,
+          1.241,
+          1.267,
+          1.285,
+          1.293,
+          1.298,
+          1.303,
+          1.318,
+          1.326,
+          1.325,
+          1.315,
+          1.319,
+          1.318,
+          1.309,
+          1.284,
+          1.255,
+          1.238,
+          1.231,
+          1.219,
+          1.212,
+          1.212,
+          1.205,
+          1.196,
+          1.189
+        ],
+        [
+          1.101,
+          1.077,
+          1.08,
+          1.084,
+          1.105,
+          1.108,
+          1.142,
+          1.168,
+          1.206,
+          1.243,
+          1.272,
+          1.316,
+          1.368,
+          1.409,
+          1.431,
+          1.428,
+          1.438,
+          1.446,
+          1.455,
+          1.437,
+          1.399,
+          1.388,
+          1.364,
+          1.335,
+          1.299,
+          1.261,
+          1.213,
+          1.177,
+          1.159,
+          1.112,
+          1.107,
+          1.089
+        ],
+        [
+          0.943,
+          0.963,
+          0.977,
+          0.991,
+          1.008,
+          1.046,
+          1.104,
+          1.16,
+          1.217,
+          1.259,
+          1.31,
+          1.368,
+          1.415,
+          1.467,
+          1.484,
+          1.506,
+          1.516,
+          1.512,
+          1.507,
+          1.505,
+          1.489,
+          1.474,
+          1.417,
+          1.364,
+          1.303,
+          1.24,
+          1.17,
+          1.116,
+          1.079,
+          1.061,
+          1.013,
+          0.971
+        ],
+        [
+          0.816,
+          0.82,
+          0.859,
+          0.874,
+          0.9,
+          0.939,
+          1.017,
+          1.077,
+          1.164,
+          1.259,
+          1.365,
+          1.408,
+          1.357,
+          1.359,
+          1.377,
+          1.398,
+          1.418,
+          1.422,
+          1.38,
+          1.34,
+          1.406,
+          1.399,
+          1.374,
+          1.388,
+          1.324,
+          1.233,
+          1.147,
+          1.079,
+          1.023,
+          0.95,
+          0.888,
+          0.877
+        ]
+      ],
+      [
+        [
+          0.441,
+          0.442,
+          0.446,
+          0.456,
+          0.462,
+          0.466,
+          0.469,
+          0.469,
+          0.469,
+          0.476,
+          0.484,
+          0.483,
+          0.481,
+          0.475,
+          0.477,
+          0.471,
+          0.464,
+          0.459,
+          0.45,
+          0.436,
+          0.428,
+          0.421,
+          0.418,
+          0.417,
+          0.415,
+          0.411,
+          0.41,
+          0.412,
+          0.416,
+          0.417,
+          0.433,
+          0.441
+        ],
+        [
+          0.411,
+          0.424,
+          0.446,
+          0.456,
+          0.461,
+          0.474,
+          0.484,
+          0.506,
+          0.52,
+          0.518,
+          0.522,
+          0.519,
+          0.518,
+          0.511,
+          0.5,
+          0.481,
+          0.489,
+          0.472,
+          0.467,
+          0.454,
+          0.441,
+          0.423,
+          0.412,
+          0.396,
+          0.38,
+          0.381,
+          0.374,
+          0.383,
+          0.387,
+          0.393,
+          0.406,
+          0.411
+        ],
+        [
+          0.39,
+          0.403,
+          0.423,
+          0.459,
+          0.47,
+          0.497,
+          0.509,
+          0.532,
+          0.548,
+          0.547,
+          0.559,
+          0.557,
+          0.566,
+          0.543,
+          0.531,
+          0.529,
+          0.524,
+          0.484,
+          0.454,
+          0.448,
+          0.418,
+          0.399,
+          0.38,
+          0.365,
+          0.344,
+          0.323,
+          0.336,
+          0.336,
+          0.347,
+          0.341,
+          0.346,
+          0.351
+        ],
+        [
+          0.344,
+          0.387,
+          0.433,
+          0.472,
+          0.478,
+          0.514,
+          0.542,
+          0.572,
+          0.576,
+          0.597,
+          0.6,
+          0.611,
+          0.615,
+          0.6,
+          0.586,
+          0.566,
+          0.539,
+          0.49,
+          0.457,
+          0.433,
+          0.399,
+          0.375,
+          0.36,
+          0.338,
+          0.331,
+          0.304,
+          0.286,
+          0.269,
+          0.287,
+          0.304,
+          0.316,
+          0.326
+        ]
+      ]
+    ],
+    "high-grade-node": [
+      [
+        [
+          1.672,
+          1.674,
+          1.675,
+          1.677,
+          1.68,
+          1.684,
+          1.685,
+          1.686,
+          1.688,
+          1.69,
+          1.691,
+          1.689,
+          1.687,
+          1.688,
+          1.692,
+          1.691,
+          1.688,
+          1.687,
+          1.686,
+          1.682,
+          1.679,
+          1.678,
+          1.677,
+          1.678,
+          1.679,
+          1.679,
+          1.677,
+          1.673,
+          1.668,
+          1.667,
+          1.666,
+          1.669
+        ],
+        [
+          1.632,
+          1.638,
+          1.633,
+          1.62,
+          1.66,
+          1.691,
+          1.693,
+          1.704,
+          1.707,
+          1.705,
+          1.697,
+          1.698,
+          1.697,
+          1.708,
+          1.685,
+          1.665,
+          1.685,
+          1.649,
+          1.659,
+          1.677,
+          1.671,
+          1.674,
+          1.667,
+          1.666,
+          1.667,
+          1.659,
+          1.648,
+          1.65,
+          1.66,
+          1.631,
+          1.587,
+          1.614
+        ],
+        [
+          1.663,
+          1.674,
+          1.688,
+          1.696,
+          1.703,
+          1.672,
+          1.696,
+          1.717,
+          1.726,
+          1.707,
+          1.663,
+          1.635,
+          1.59,
+          1.601,
+          1.611,
+          1.62,
+          1.654,
+          1.689,
+          1.653,
+          1.629,
+          1.56,
+          1.603,
+          1.622,
+          1.647,
+          1.648,
+          1.64,
+          1.608,
+          1.597,
+          1.625,
+          1.647,
+          1.649,
+          1.661
+        ],
+        [
+          1.657,
+          1.666,
+          1.655,
+          1.657,
+          1.673,
+          1.678,
+          1.676,
+          1.735,
+          1.695,
+          1.611,
+          1.566,
+          1.536,
+          1.454,
+          1.494,
+          1.5,
+          1.499,
+          1.536,
+          1.588,
+          1.553,
+          1.514,
+          1.5,
+          1.507,
+          1.516,
+          1.548,
+          1.588,
+          1.575,
+          1.615,
+          1.621,
+          1.611,
+          1.617,
+          1.621,
+          1.653
+        ]
+      ],
+      [
+        [
+          1.176,
+          1.172,
+          1.168,
+          1.172,
+          1.184,
+          1.191,
+          1.2,
+          1.222,
+          1.24,
+          1.259,
+          1.281,
+          1.293,
+          1.302,
+          1.3,
+          1.301,
+          1.311,
+          1.322,
+          1.323,
+          1.322,
+          1.319,
+          1.312,
+          1.307,
+          1.303,
+          1.301,
+          1.291,
+          1.28,
+          1.266,
+          1.248,
+          1.217,
+          1.203,
+          1.192,
+          1.181
+        ],
+        [
+          1.069,
+          1.073,
+          1.044,
+          1.056,
+          1.085,
+          1.115,
+          1.143,
+          1.172,
+          1.203,
+          1.241,
+          1.281,
+          1.32,
+          1.354,
+          1.366,
+          1.395,
+          1.426,
+          1.432,
+          1.44,
+          1.418,
+          1.416,
+          1.407,
+          1.397,
+          1.357,
+          1.333,
+          1.303,
+          1.261,
+          1.185,
+          1.166,
+          1.138,
+          1.117,
+          1.096,
+          1.071
+        ],
+        [
+          0.957,
+          0.942,
+          0.953,
+          0.951,
+          1.009,
+          1.063,
+          1.111,
+          1.15,
+          1.202,
+          1.255,
+          1.313,
+          1.396,
+          1.435,
+          1.482,
+          1.528,
+          1.558,
+          1.556,
+          1.556,
+          1.523,
+          1.511,
+          1.504,
+          1.448,
+          1.43,
+          1.377,
+          1.298,
+          1.253,
+          1.191,
+          1.13,
+          1.088,
+          1.019,
+          1.005,
+          0.965
+        ],
+        [
+          0.846,
+          0.821,
+          0.839,
+          0.872,
+          0.907,
+          0.967,
+          1.017,
+          1.093,
+          1.18,
+          1.23,
+          1.367,
+          1.432,
+          1.473,
+          1.494,
+          1.504,
+          1.5,
+          1.536,
+          1.587,
+          1.553,
+          1.514,
+          1.5,
+          1.502,
+          1.489,
+          1.415,
+          1.332,
+          1.239,
+          1.166,
+          1.097,
+          1.015,
+          0.95,
+          0.905,
+          0.858
+        ]
+      ],
+      [
+        [
+          0.436,
+          0.445,
+          0.452,
+          0.457,
+          0.464,
+          0.476,
+          0.472,
+          0.477,
+          0.479,
+          0.485,
+          0.486,
+          0.484,
+          0.481,
+          0.471,
+          0.471,
+          0.469,
+          0.467,
+          0.46,
+          0.447,
+          0.442,
+          0.435,
+          0.432,
+          0.428,
+          0.43,
+          0.436,
+          0.43,
+          0.423,
+          0.421,
+          0.421,
+          0.416,
+          0.423,
+          0.43
+        ],
+        [
+          0.421,
+          0.418,
+          0.429,
+          0.446,
+          0.476,
+          0.477,
+          0.479,
+          0.491,
+          0.498,
+          0.515,
+          0.532,
+          0.522,
+          0.503,
+          0.511,
+          0.509,
+          0.498,
+          0.489,
+          0.473,
+          0.457,
+          0.454,
+          0.431,
+          0.409,
+          0.401,
+          0.402,
+          0.392,
+          0.381,
+          0.371,
+          0.367,
+          0.362,
+          0.381,
+          0.382,
+          0.394
+        ],
+        [
+          0.375,
+          0.4,
+          0.421,
+          0.441,
+          0.45,
+          0.495,
+          0.517,
+          0.543,
+          0.551,
+          0.551,
+          0.553,
+          0.555,
+          0.56,
+          0.551,
+          0.548,
+          0.536,
+          0.512,
+          0.494,
+          0.45,
+          0.437,
+          0.409,
+          0.393,
+          0.377,
+          0.357,
+          0.356,
+          0.319,
+          0.335,
+          0.335,
+          0.346,
+          0.332,
+          0.337,
+          0.348
+        ],
+        [
+          0.382,
+          0.394,
+          0.422,
+          0.463,
+          0.502,
+          0.517,
+          0.551,
+          0.575,
+          0.595,
+          0.601,
+          0.597,
+          0.61,
+          0.608,
+          0.579,
+          0.561,
+          0.54,
+          0.541,
+          0.488,
+          0.469,
+          0.441,
+          0.406,
+          0.382,
+          0.359,
+          0.323,
+          0.325,
+          0.286,
+          0.288,
+          0.282,
+          0.301,
+          0.327,
+          0.334,
+          0.323
+        ]
+      ]
+    ]
+  },
+  "texture_policy": "2K RGB8 derivatives; source4K retained; linear albedo filtering; ORM linear data; OpenGL normals; mipmapped high-quality VRAM compression.",
+  "output_roster": [
+    {
+      "path": "Textures/stone-node-1-BC.png",
+      "sha256": "35f4270be10c68ad139667139d505fd9afe50f5aa293cad8d530e321d40d0a52"
+    },
+    {
+      "path": "Textures/stone-node-1-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/stone-node-1-ORM.png",
+      "sha256": "66f848e0fa873361dd720a632fbb4ad474df7e32e1c744d272f211fa81cfedb4"
+    },
+    {
+      "path": "Textures/stone-node-1-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/stone-node-1-NormalGL.png",
+      "sha256": "2cee2246b79a97c0ecced9e288e1c6f8f04df5623cd98ed0f0206ee3b691e627"
+    },
+    {
+      "path": "Textures/stone-node-1-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/stone-node-1.tres",
+      "sha256": "67da8e91252df93bd10ab626bbe84d39882baffabfa9d5472c47a7aa797259e9"
+    },
+    {
+      "path": "Textures/stone-node-2-BC.png",
+      "sha256": "2e4700e5a0e6a351550ff3c492404f13420d9bb7db00812376b317e23bd57ff5"
+    },
+    {
+      "path": "Textures/stone-node-2-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/stone-node-2-ORM.png",
+      "sha256": "1d24c62a3a106fbb2422dbdfd9386940cfb25841552eaf58a02afabe5614bec9"
+    },
+    {
+      "path": "Textures/stone-node-2-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/stone-node-2-NormalGL.png",
+      "sha256": "926d8025d1095feaf3d180252d9566d0730abf86ecb1c9e866eeb3dc4e326538"
+    },
+    {
+      "path": "Textures/stone-node-2-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/stone-node-2.tres",
+      "sha256": "807429d4c5938858275ed3bb43662c1f99c443eb7c85e0050ee2190f8c3aae97"
+    },
+    {
+      "path": "Textures/stone-node-3-BC.png",
+      "sha256": "da1d7e61678377bc66467805b73ec4a4d1659ed87f32140c609d7bc9eff62866"
+    },
+    {
+      "path": "Textures/stone-node-3-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/stone-node-3-ORM.png",
+      "sha256": "87a05f3073d195c87b3461c56a6a3756753254dd8c4e84fd0676671c730ba755"
+    },
+    {
+      "path": "Textures/stone-node-3-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/stone-node-3-NormalGL.png",
+      "sha256": "e2014739498af0d12aee30f1b1be30ef91fa20157ffda32a9d366cc5c88d260d"
+    },
+    {
+      "path": "Textures/stone-node-3-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/stone-node-3.tres",
+      "sha256": "42d617d6ec7ec425df75851915a5453873b57c3ced50b990b58558e3333c9d84"
+    },
+    {
+      "path": "Textures/metal-node-1-BC.png",
+      "sha256": "c20e8f0a33264fbb0e4bed087dd73599d5db5ed0bc8c3d16f8957e511c9333a2"
+    },
+    {
+      "path": "Textures/metal-node-1-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/metal-node-1-ORM.png",
+      "sha256": "a609bad6f9e934488c70d79f4818c827db2afea61b531bc92d765cc0ed5d7989"
+    },
+    {
+      "path": "Textures/metal-node-1-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/metal-node-1-NormalGL.png",
+      "sha256": "58b81fc5c39463df271ab738cb4cc0aa37ff291cb0bfed77043352dd5052b00d"
+    },
+    {
+      "path": "Textures/metal-node-1-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/metal-node-1.tres",
+      "sha256": "acad4edbe6247cbb22a33933f3ba3a7d453dfdd87cd02b59a8b8fa899b6d4854"
+    },
+    {
+      "path": "Textures/metal-node-2-BC.png",
+      "sha256": "aabccf7dc2f6d1339e09aceca18a91df68a2e43fe69e26bfdca9f79345eac3bf"
+    },
+    {
+      "path": "Textures/metal-node-2-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/metal-node-2-ORM.png",
+      "sha256": "cb1d34e6d6283f4241eada5a8dcbf85bf93178c4a5b64f15a710eb99b6ed992c"
+    },
+    {
+      "path": "Textures/metal-node-2-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/metal-node-2-NormalGL.png",
+      "sha256": "520d847597f769353af668f3c25c0966d59a29cd1adf557c46ab8d4ab03e519b"
+    },
+    {
+      "path": "Textures/metal-node-2-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/metal-node-2.tres",
+      "sha256": "4468b43775c45f8ce44360a3175fb9120409f6cf95daa9d61b2e4b788fee55a9"
+    },
+    {
+      "path": "Textures/metal-node-3-BC.png",
+      "sha256": "9d6bea17b74fe6f3dc0e51ff0d14fc544c6d22f36c334c4a8b56907680cb67bf"
+    },
+    {
+      "path": "Textures/metal-node-3-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/metal-node-3-ORM.png",
+      "sha256": "33494f95164492690df35b8bf59878949bb37e251155c0a7f85f0fffbae928d0"
+    },
+    {
+      "path": "Textures/metal-node-3-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/metal-node-3-NormalGL.png",
+      "sha256": "d242b905455fd2aa10b478f4931b1f1daa4466cdac8a8ace5abf6919b5ffc840"
+    },
+    {
+      "path": "Textures/metal-node-3-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/metal-node-3.tres",
+      "sha256": "40653e5b12f89ce94903a878368c671061cc6f5f01bc4d5dcc37dcd6e3ab1709"
+    },
+    {
+      "path": "Textures/sulphur-node-1-BC.png",
+      "sha256": "1c2cd741e558cd71dfad9083143404cc71f46f2a4ebfef33a78019b1b035fd93"
+    },
+    {
+      "path": "Textures/sulphur-node-1-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/sulphur-node-1-ORM.png",
+      "sha256": "cf55d402f3d30eaf48633f26495e66a09127d4dca483097f218c1def46a63860"
+    },
+    {
+      "path": "Textures/sulphur-node-1-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/sulphur-node-1-NormalGL.png",
+      "sha256": "85c9e4971365123412800a608a0f290507e7428be577508e7c2658b018d6cc5e"
+    },
+    {
+      "path": "Textures/sulphur-node-1-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/sulphur-node-1.tres",
+      "sha256": "f75a3a72b077e88eda288d681b8e16fa5e7fb167a9828560810a69763b23769f"
+    },
+    {
+      "path": "Textures/sulphur-node-2-BC.png",
+      "sha256": "0e2eab70280463c6bb03e9b3413404ef832789574696e7e28bba5771cd6e9e2f"
+    },
+    {
+      "path": "Textures/sulphur-node-2-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/sulphur-node-2-ORM.png",
+      "sha256": "029014f5538054268ba5d55ce0648771737764a6ac8e224fdad6a612d731e467"
+    },
+    {
+      "path": "Textures/sulphur-node-2-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/sulphur-node-2-NormalGL.png",
+      "sha256": "1ae0081513c3638c3eb76bfe60c505789c0da63facca2ef6bca6d3afa62a94d9"
+    },
+    {
+      "path": "Textures/sulphur-node-2-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/sulphur-node-2.tres",
+      "sha256": "d2f5ec57b8b9fd20a647ed45151b2931a3b8f590e78ef501b00c30c6cf4f5a73"
+    },
+    {
+      "path": "Textures/sulphur-node-3-BC.png",
+      "sha256": "e9d320d23d36f22014e0cb5b0eebdc2974041926f7ee23b856a3cebd09961985"
+    },
+    {
+      "path": "Textures/sulphur-node-3-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/sulphur-node-3-ORM.png",
+      "sha256": "de35397eae19f121bbab38fcbe38c760f5179c5fc92139e32aaa1fdbdfe7e700"
+    },
+    {
+      "path": "Textures/sulphur-node-3-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/sulphur-node-3-NormalGL.png",
+      "sha256": "299db6b3f87b7bf3b42c3d25782bb04d1813a31a400d0b4f8af30acb0560dc37"
+    },
+    {
+      "path": "Textures/sulphur-node-3-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/sulphur-node-3.tres",
+      "sha256": "71b6712125f14731860418d3f394e0d65b841686b528daba19405309e3d3f3c7"
+    },
+    {
+      "path": "Textures/high-grade-node-1-BC.png",
+      "sha256": "4205f9f1a8eaeeac9730022e37ada499e4da5d2e638140764feb9396c51d2c4d"
+    },
+    {
+      "path": "Textures/high-grade-node-1-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/high-grade-node-1-ORM.png",
+      "sha256": "d16a4e275db9d4f2568845dbdc1a9acdb640d3c93fa53a8c9c55145bc30883f6"
+    },
+    {
+      "path": "Textures/high-grade-node-1-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/high-grade-node-1-NormalGL.png",
+      "sha256": "5b2b17d19ecd5a2fad2aedfb54e07d79891f91e4210156e87f4603c31b7971f2"
+    },
+    {
+      "path": "Textures/high-grade-node-1-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/high-grade-node-1.tres",
+      "sha256": "b67a4b191949422c68fc5d6f48c846f4bcc80709175b1747e36167d2ee225a87"
+    },
+    {
+      "path": "Textures/high-grade-node-2-BC.png",
+      "sha256": "384806f142e7185a244a0dc4234d9f4706ff95fef268bfb94d8cb1d2b1dd8769"
+    },
+    {
+      "path": "Textures/high-grade-node-2-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/high-grade-node-2-ORM.png",
+      "sha256": "e4eb88291412a3fb3d9ce0dc38e96e7d200ff003163bafcafe95e43be4c18f90"
+    },
+    {
+      "path": "Textures/high-grade-node-2-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/high-grade-node-2-NormalGL.png",
+      "sha256": "2598ab1530a9f52600c6c5ad889725fad940d0a6335303a1f021b4387e8ac49a"
+    },
+    {
+      "path": "Textures/high-grade-node-2-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/high-grade-node-2.tres",
+      "sha256": "9958ff4d189889946f2722c3843b8ffa2312ff6c3a3a6bdf07b198efdfecfbb5"
+    },
+    {
+      "path": "Textures/high-grade-node-3-BC.png",
+      "sha256": "1e81698d8679ac5fef90ae0a99342badfc570ff5a5c4b50edf36efc694a33f7b"
+    },
+    {
+      "path": "Textures/high-grade-node-3-BC.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/high-grade-node-3-ORM.png",
+      "sha256": "c7e0c5d6177addd65fb07a8fba7e4fa88b93c62cfd88484ee3249b3baba3bfb8"
+    },
+    {
+      "path": "Textures/high-grade-node-3-ORM.png.import",
+      "sha256": "e5e18a9660441eab18543ddcfb65ae17832ff6c3352cd25d507e4ccd2dcce8eb"
+    },
+    {
+      "path": "Textures/high-grade-node-3-NormalGL.png",
+      "sha256": "f25ee2a1e7f090728ef8fc0f2f52885dd8369e8638f8bbe277fb25c699c75c7c"
+    },
+    {
+      "path": "Textures/high-grade-node-3-NormalGL.png.import",
+      "sha256": "0ec6ea1a5a0062d734c8b556263558b3188e83c2feb7dc2a07dc165eafaa1ebd"
+    },
+    {
+      "path": "Materials/high-grade-node-3.tres",
+      "sha256": "40702d888a4e44eed09b102ac31ab47cf605e1e9d50debaf6ca2f0ed0e4a3e0b"
+    }
+  ]
+}

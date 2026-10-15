@@ -111,7 +111,7 @@ public static class NoiseTextures
 
     /// <summary>
     /// 512² tiling normal map of small wind waves: a height field of fractal noise stretched across the wind,
-    /// turned into normals (tangent space, OpenGL convention).
+    /// turned into normals (tangent space, OpenGL convention), with a separate wave-height foam mask in alpha.
     /// </summary>
     public static ImageTexture WaveNormals(int seed)
     {
@@ -140,7 +140,8 @@ public static class NoiseTextures
                 data[k] = ToByte(n.X * 0.5 + 0.5);
                 data[k + 1] = ToByte(n.Y * 0.5 + 0.5);
                 data[k + 2] = ToByte(n.Z * 0.5 + 0.5);
-                data[k + 3] = 255;
+                // Normal Z stays near one and is not a usable noise field. Foam reads this independent mask.
+                data[k + 3] = ToByte((height[y * Size + x] - 0.3) / 0.9);
             }
         }
         Image image = Image.CreateFromData(Size, Size, false, Image.Format.Rgba8, data);

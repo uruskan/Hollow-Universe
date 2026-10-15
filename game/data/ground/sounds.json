@@ -22,8 +22,8 @@
   },
   "spaces": {
     "outside": {"roomSize": 0.2, "damping": 0.7, "spread": 0.8, "hipass": 0.15, "dry": 1.0, "wet": 0.02, "predelayMs": 12.0, "predelayFeedback": 0.2, "structureDb": -80.0, "note": "Open air: no tail of its own (today's SetSpace(0))."},
-    "deck": {"roomSize": 0.78, "damping": 0.28, "spread": 1.0, "hipass": 0.08, "dry": 0.92, "wet": 0.34, "predelayMs": 22.0, "predelayFeedback": 0.32, "structureDb": 0.0, "note": "Deck A, the bay and the mezzanine as one connected steel room: long, bright, with flutter between parallel plates.", "rooms": ["deck-a", "bay", "deck-b"]},
-    "bridge": {"roomSize": 0.22, "damping": 0.85, "spread": 0.5, "hipass": 0.3, "dry": 1.0, "wet": 0.07, "predelayMs": 3.0, "predelayFeedback": 0.05, "structureDb": -6.0, "note": "The glazed bridge, insulated and padded: small and dry.", "rooms": ["bridge"]}
+    "deck": {"roomSize": 0.78, "damping": 0.28, "spread": 1.0, "hipass": 0.08, "dry": 0.92, "wet": 0.34, "predelayMs": 22.0, "predelayFeedback": 0.32, "structureDb": 0.0, "rooms": ["deck-a", "bay", "deck-b"], "note": "Deck A, the bay and the mezzanine as one connected steel room: long, bright, with flutter between parallel plates."},
+    "bridge": {"roomSize": 0.22, "damping": 0.85, "spread": 0.5, "hipass": 0.3, "dry": 1.0, "wet": 0.07, "predelayMs": 3.0, "predelayFeedback": 0.05, "structureDb": -6.0, "rooms": ["bridge"], "note": "The glazed bridge, insulated and padded: small and dry."}
   },
   "items": {
     "rock": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
@@ -31,6 +31,7 @@
     "stone-hatchet": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "stone-pickaxe": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "metal-hatchet": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "salvaged-axe": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "metal-pickaxe": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "wooden-spear": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "stone-spear": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
@@ -41,7 +42,7 @@
     "rifle": {"shot": "rifle.shot", "shotSilenced": "rifle.shot.silenced", "magOut": "reload.rifle.magout", "magIn": "reload.rifle.magin", "rack": "reload.rifle.bolt", "dryFire": "gun.dryfire", "shell": "gun.shell", "hitMarker": "hit.marker", "headshot": "hit.headshot", "kill": "hit.kill"},
     "silencer": {"shotPistol": "pistol.shot.silenced", "shotRifle": "rifle.shot.silenced"},
     "bandage": {"use": "survival.bandage"},
-    "medical-injector": {"use": "survival.bandage"},
+    "medical-injector": {"use": "survival.inject"},
     "red-berries": {"use": "survival.eat"},
     "blue-berries": {"use": "survival.eat"},
     "wild-tuber": {"use": "survival.eat"},
@@ -79,7 +80,7 @@
     "loot-barrel-2": {"hit": "impact.metal", "break": "impact.metal"},
     "loot-crate": {"open": "box.open", "close": "box.close"},
     "military-crate": {"open": "box.open", "close": "box.close"},
-    "recycler": {"open": "box.open", "close": "box.close", "start": "furnace.ignite", "loop": "furnace.loop", "stop": "fire.extinguish"},
+    "recycler": {"open": "box.open", "close": "box.close", "start": "recycler.start", "loop": "recycler.loop", "stop": "recycler.stop"},
     "building-plan": {"placeTwig": "build.place.twig", "placeWood": "build.place.wood", "placeStone": "build.place.stone", "placeMetal": "build.place.metal", "placeArmoured": "build.place.armoured"},
     "hammer": {"swing": "melee.swing", "upgradeWood": "build.upgrade.wood", "upgradeStone": "build.upgrade.stone", "upgradeMetal": "build.upgrade.metal", "upgradeArmoured": "build.upgrade.armoured", "repair": "build.repair", "demolish": "build.demolish", "collapse": "build.collapse"},
     "code-lock": {"press": "codelock.beep", "accept": "codelock.accept", "deny": "codelock.deny", "place": "lock.key"},
@@ -87,7 +88,7 @@
     "timed-charge": {"fuse": "explosive.fuse", "beep": "explosive.beep", "explode": "explosion", "debris": "explosion.debris", "place": "deploy.place", "throw": "melee.swing"},
     "bag-charge": {"fuse": "explosive.fuse", "explode": "explosion", "debris": "explosion.debris", "place": "deploy.place", "throw": "melee.swing", "fizzle": "fire.extinguish", "relight": "campfire.ignite"},
     "tin-grenade": {"fuse": "explosive.fuse", "explode": "explosion", "debris": "explosion.debris", "place": "deploy.place", "throw": "melee.swing", "bounce": "impact.metal", "fizzle": "fire.extinguish", "relight": "campfire.ignite"},
-    "rocket-launcher": {"shot": "rifle.shot", "magOut": "reload.rifle.magout", "magIn": "reload.rifle.magin", "rack": "reload.rifle.bolt", "dryFire": "gun.dryfire", "hitMarker": "hit.marker", "kill": "hit.kill"},
+    "rocket-launcher": {"shot": "launcher.shot", "magOut": "launcher.open", "magIn": "launcher.load", "rack": "launcher.lock", "dryFire": "gun.dryfire", "hitMarker": "hit.marker", "kill": "hit.kill"},
     "rocket": {"ignite": "rocket.ignite", "flight": "rocket.flight", "explode": "explosion", "debris": "explosion.debris"},
     "rocket-hv": {"ignite": "rocket.ignite", "flight": "rocket.flight", "explode": "explosion", "debris": "explosion.debris"},
     "rocket-incendiary": {"ignite": "rocket.ignite", "flight": "rocket.flight", "explode": "rocket.incendiary.burst", "fireStart": "fire.ignite", "fire": "fire.patch.large"},
@@ -4136,6 +4137,142 @@
       "loop": true,
       "files": [
         "res://assets/audio/iron-wake/fire_patch_large.ogg"
+      ]
+    },
+    {
+      "key": "survival.inject",
+      "category": "foley",
+      "bus": "SFX",
+      "volume": -1,
+      "unitSize": 4.0,
+      "maxDistance": 12,
+      "priority": 60,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/survival/inject_01.ogg",
+        "res://assets/audio/survival/inject_02.ogg",
+        "res://assets/audio/survival/inject_03.ogg"
+      ]
+    },
+    {
+      "key": "launcher.shot",
+      "category": "gunshot",
+      "bus": "SFX",
+      "volume": 2,
+      "unitSize": 10,
+      "maxDistance": 450,
+      "priority": 90,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "delay": true,
+      "files": [
+        "res://assets/audio/weapon/launcher_shot_01.ogg",
+        "res://assets/audio/weapon/launcher_shot_02.ogg",
+        "res://assets/audio/weapon/launcher_shot_03.ogg"
+      ]
+    },
+    {
+      "key": "launcher.open",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0,
+      "unitSize": 4.0,
+      "maxDistance": 22,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/launcher_open_01.ogg",
+        "res://assets/audio/weapon/launcher_open_02.ogg",
+        "res://assets/audio/weapon/launcher_open_03.ogg"
+      ]
+    },
+    {
+      "key": "launcher.load",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0,
+      "unitSize": 4.0,
+      "maxDistance": 22,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/launcher_load_01.ogg",
+        "res://assets/audio/weapon/launcher_load_02.ogg",
+        "res://assets/audio/weapon/launcher_load_03.ogg"
+      ]
+    },
+    {
+      "key": "launcher.lock",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": 0,
+      "unitSize": 4.0,
+      "maxDistance": 22,
+      "priority": 50,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/weapon/launcher_lock_01.ogg",
+        "res://assets/audio/weapon/launcher_lock_02.ogg",
+        "res://assets/audio/weapon/launcher_lock_03.ogg"
+      ]
+    },
+    {
+      "key": "recycler.loop",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0,
+      "unitSize": 3,
+      "maxDistance": 45,
+      "priority": 40,
+      "limit": 6,
+      "pitch": [1, 1],
+      "jitter": 0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/deploy/recycler_loop.ogg"
+      ]
+    },
+    {
+      "key": "recycler.start",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 0,
+      "unitSize": 4.0,
+      "maxDistance": 45,
+      "priority": 55,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/deploy/recycler_start_01.ogg",
+        "res://assets/audio/deploy/recycler_start_02.ogg",
+        "res://assets/audio/deploy/recycler_start_03.ogg"
+      ]
+    },
+    {
+      "key": "recycler.stop",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 0,
+      "unitSize": 4.0,
+      "maxDistance": 45,
+      "priority": 55,
+      "limit": 6,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/deploy/recycler_stop_01.ogg",
+        "res://assets/audio/deploy/recycler_stop_02.ogg",
+        "res://assets/audio/deploy/recycler_stop_03.ogg"
       ]
     }
   ]

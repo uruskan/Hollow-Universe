@@ -38,12 +38,16 @@
     { "key": "hatch-open", "label": "Open", "glyph": "hatch", "description": "As its ship allows: a hatch at rest, a ramp slow and low, an airlock any time.", "priority": 60 },
     { "key": "hatch-close", "label": "Close", "glyph": "hatch", "description": "Shut it.", "priority": 45 },
     { "key": "board", "label": "Board", "glyph": "board", "description": "Into the seat; the hatch shuts behind you.", "priority": 70 },
-    { "key": "refuel", "label": "Refuel", "glyph": "fuel", "description": "Fill the tank from your lamp oil.", "priority": 65 },
+    { "key": "refuel", "label": "Open", "named": false, "glyph": "open", "description": "Open the one-slot fuel tank.", "priority": 65, "reach": "open" },
     { "key": "ship-lock", "label": "Lock", "glyph": "lock", "description": "Its doors stay shut to all but its crew.", "priority": 20 },
     { "key": "ship-unlock", "label": "Unlock", "glyph": "unlock", "description": "Anyone may open its doors.", "priority": 20 },
     { "key": "take-helm", "label": "Take the helm", "named": false, "glyph": "board", "description": "Fly it: its crew alone.", "priority": 70 },
     { "key": "man", "label": "Man", "glyph": "board", "description": "Sit at its gun: its crew alone.", "priority": 70 },
     { "key": "sit", "label": "Sit in", "glyph": "board", "description": "A seat for the ride.", "priority": 70 },
-    { "key": "open-magazine", "label": "Open magazine", "glyph": "open", "description": "Its rockets: its crew and its gunner fill it.", "priority": 40 }
+    { "key": "open-magazine", "label": "Open magazine", "glyph": "open", "description": "Its rockets: its crew and its gunner fill it.", "priority": 40 },
+    { "key": "engine-on", "label": "Engine on", "named": false, "glyph": "fuel", "description": "Start the engines with the retained flight settings.", "priority": 15 },
+    { "key": "engine-off", "label": "Engine off", "named": false, "glyph": "fuel", "description": "Stop thrust and flight assist. The ship coasts or falls under gravity.", "priority": 15 },
+    { "key": "open-fuel", "label": "Open fuel tank", "named": false, "glyph": "fuel", "description": "Move lamp oil into or out of its one-slot tank.", "priority": 30, "reach": "open" },
+    { "key": "rename", "label": "Name", "named": false, "glyph": "name", "description": "Choose the name shown on your map and respawn list.", "priority": 90, "text": true }
   ]
 }

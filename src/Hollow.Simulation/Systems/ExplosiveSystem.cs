@@ -120,8 +120,7 @@ public sealed class ExplosiveSystem : ZoneSystem
         LiveExplosive e = Spawn(stats, p.Id, p.Name, start, direction * speed + walked * 0.5f + carried);
         Arm(e);
         RaidStats.Thrown++;
-        p.ActionCount++;
-        p.LastAction = ActionKind.Throw;
+        p.RecordAction(ActionKind.Throw, stats.Item.Id, Tick);
         return OutcomeCode.Done;
     }
 
@@ -150,8 +149,7 @@ public sealed class ExplosiveSystem : ZoneSystem
         Stick(e, new PlacementHit(0, surface, c.Normal, c.Support, c.Surface));
         Arm(e);
         RaidStats.Placed++;
-        p.ActionCount++;
-        p.LastAction = ActionKind.Throw;
+        p.RecordAction(ActionKind.Throw, stats.Item.Id, Tick);
         return OutcomeCode.Done;
     }
 

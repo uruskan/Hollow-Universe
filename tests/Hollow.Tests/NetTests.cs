@@ -182,8 +182,8 @@ public static class NetTests
             .Select(i => new SnapshotCandidate { NetId = 1 + (uint)i * 50_000, State = new CharacterNetState { X = i * 1000, Health = 100 }, Weight = 1 })
             .ToArray();
         var seen = new HashSet<uint>();
-        // 300 entities at about 16 a snapshot (a character's state is 199 bits in full since IW1's frame, IRON_WAKE.md
-        // §4.11, a byte while aboard nothing): all within 19.
+        // The original service bound remains 300 entities within 19 packets. Full states now include action identity
+        // and frame varints: count their actual encoded width, not the maximum width of every possible value.
         int rounds = 0;
         for (int round = 0; round < 19 && seen.Count < crowd.Length; round++, rounds++)
         {

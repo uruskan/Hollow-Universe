@@ -86,7 +86,8 @@ public static class GunEffects
     /// model catalogue; those taken off go. <paramref name="prepare"/> readies each new part (the arms' layer and
     /// materials in first person).
     /// </summary>
-    public static void Dress(GameContent content, Node3D gun, string weaponKey, byte mods, Action<Node3D>? prepare = null)
+    public static void Dress(GameContent content, Node3D gun, string weaponKey, byte mods, Action<Node3D>? prepare = null,
+        bool firstPerson = false)
     {
         Know(content);
         if (gun.HasMeta("mods") && (int)gun.GetMeta("mods") == mods)
@@ -110,6 +111,8 @@ public static class GunEffects
             if ((mods & bit) != 0 && ModelCatalog.Attach(gun, weaponKey, key) is { } part)
             {
                 prepare?.Invoke(part);
+                if (ModelCatalog.Find(key) is { } entry)
+                    GunAttachmentPresentation.Held(part, entry, content.ItemByKey(key).Attachment is { Light: true }, firstPerson);
             }
         }
     }

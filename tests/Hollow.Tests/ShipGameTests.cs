@@ -68,13 +68,12 @@ public static class ShipGameTests
         Assert.Equal(Stance.Seated, Ch(rig, ada).State.Stance, "seated");
         Assert.True(Vector3.Distance(Ch(rig, ada).State.Position, ship.PointOf(ShipRig.Finch.SeatPoint())) < 1e-3f, "at the seat");
 
-        // She takes off: the seat carries her; she can't step out in the air.
+        // She takes off: the seat carries her. Airborne exit is covered by ShipRepairTests; this trip lands first.
         ship.Input = new ShipInput { Vertical = 1 };
         rig.Step(60);
         float height = rig.Height(ship);
         Assert.True(height > 8, $"lifted off ({height:0.0} m)");
         Assert.True(Vector3.Distance(Ch(rig, ada).State.Position, ship.PointOf(ShipRig.Finch.SeatPoint())) < 1e-3f, "the seat carries the pilot");
-        Assert.Equal(OutcomeCode.NotLanded, zone.Ships().LeaveSeat(ada), "no stepping out in the air");
         Assert.True(!ship.Doors[0].Opening && ship.DoorAt(0, zone.Tick) == 0, "the hatch shut behind her");
 
         // Down again, and out to a safe point by the hatch.
@@ -114,14 +113,15 @@ public static class ShipGameTests
         Assert.Equal(OutcomeCode.Done, zone.Actions().QuickMove(ada, ContainerRef.Main, 0, ContentFixture.Item("wood").Id), "puts wood in");
         Assert.Equal(100, ship.Cargo[0].Count, "the wood is in the cargo");
 
-        // Refuelling from lamp oil.
-        float fuel = ship.State.Fuel;
+        // The fuel cap opens one inventory slot; it never automatically takes oil.
         pa.Inventory.Give(ContentFixture.Content, ContentFixture.Item("lamp-oil"), 30);
-        ship.State.Fuel = 480;
-        Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, atCap, "refuel"), "refuels");
-        Assert.Near(500, ship.State.Fuel, 1e-3, "filled to the brim");
+        ship.LoadFuel(480);
+        Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, atCap, "refuel"), "opens the fuel tank");
+        Assert.Near(480, ship.Fuel.Amount, 1e-3, "opening transfers nothing");
+        Assert.Equal(1, zone.Actions().ResolveContainer(pa, ContainerRef.Loot)!.Size, "one fuel slot");
+        Assert.Equal(OutcomeCode.Done, zone.Actions().QuickMove(ada, ContainerRef.Main, 0, ContentFixture.Item("lamp-oil").Id), "moves oil into the tank");
+        Assert.Near(500, ship.Fuel.Amount, 1e-3, "filled to the brim");
         Assert.Equal(10, pa.Inventory.Count(ContentFixture.Item("lamp-oil")), "20 units went in");
-        _ = fuel;
     }
 
     /// <summary>GROUND.md §6.7: the vehicle workbench builds a Tin Finch, which rolls out onto its bay when that is clear.</summary>

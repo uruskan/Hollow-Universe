@@ -1,0 +1,21 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_wood_BaseColor.png" id="1_8pl8k"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_wood_ORM.png" id="2_aev1f"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_wood_NormalGL.png" id="3_3om48"]
+
+[resource]
+resource_name = "HU_wood"
+albedo_texture = ExtResource("1_8pl8k")
+metallic = 1.0
+metallic_texture = ExtResource("2_aev1f")
+metallic_texture_channel = 2
+roughness_texture = ExtResource("2_aev1f")
+roughness_texture_channel = 1
+normal_enabled = true
+normal_scale = 0.7
+normal_texture = ExtResource("3_3om48")
+ao_enabled = true
+ao_texture = ExtResource("2_aev1f")
+uv1_scale = Vector3(0.5, 0.5, 1)
+texture_filter = 5

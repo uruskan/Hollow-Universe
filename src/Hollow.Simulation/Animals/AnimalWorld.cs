@@ -45,6 +45,8 @@ public struct AnimalNoise
 /// <summary>What the zone does for the animals: hurting players, telling them about walls and boxes.</summary>
 public interface IAnimalHost
 {
+    /// <summary>Whether the target can be physically reached; also checked again when the attack lands.</summary>
+    bool CanAttackPlayer(Animal animal, EntityId player);
     /// <summary>The animal's attack lands on a player (armour applies); false if they are gone or dead.</summary>
     bool AnimalAttacksPlayer(Animal animal, EntityId player);
 
@@ -657,23 +659,11 @@ public sealed partial class AnimalWorld
         {
             return gained;
         }
-        float max = corpse.Species.HarvestHealth;
-        float before = corpse.HarvestLeft, after = MathF.Max(0, before - rate);
-        foreach (ItemAmount y in corpse.Species.Harvest)
-        {
-            int n = Gathered(y.Count, max, after) - Gathered(y.Count, max, before);
-            if (n > 0)
-            {
-                gained.Add(new ItemAmount(y.Item, n));
-            }
-        }
-        corpse.HarvestLeft = after;
+        float left = corpse.HarvestLeft;
+        Hollow.Simulation.World.HarvestProgress.Take(corpse.Species.Harvest, corpse.Species.HarvestHealth, ref left, rate, gained);
+        corpse.HarvestLeft = left;
         return gained;
     }
-
-    // Units gathered once health has fallen to `left` of `max`: in proportion, all of it at none.
-    private static int Gathered(int total, float max, float left) =>
-        left <= 0 ? total : (int)MathF.Floor(total * (1 - left / max) + 1e-4f);
 
     // ---------------------------------------------------------------- small helpers
 

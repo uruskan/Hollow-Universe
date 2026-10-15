@@ -23,7 +23,10 @@ public enum ContainerId : byte
 }
 
 /// <summary>A slot: its container and its index there.</summary>
-public readonly record struct SlotRef(ContainerId Container, int Index);
+public readonly record struct SlotRef(ContainerId Container, int Index, int Attachment = -1);
+
+/// <summary>A real firearm socket and the catalogue parts it accepts; no sockets are invented by the UI.</summary>
+public sealed record AttachmentSlotView(int Index, string Label, ItemStack Stack, IReadOnlyList<string> Compatible);
 
 /// <summary>
 /// What a slot holds. <see cref="Condition"/> runs from 0 to 1, or is negative for items without one;
@@ -36,6 +39,10 @@ public readonly record struct ItemStack(string Key, int Amount, float Condition 
 
     /// <summary>A gun's loaded round (its item key), drawn small at the slot's bottom left (GROUND_SYSTEMS.md §7); null for anything else.</summary>
     public string? Round { get; init; }
+
+    public string? Sight { get; init; }
+    public string? Muzzle { get; init; }
+    public string? Rail { get; init; }
 
     public bool IsEmpty => string.IsNullOrEmpty(Key) || Amount <= 0;
 
@@ -115,7 +122,7 @@ public enum Privilege : byte
 /// RustMVP). Temperature is what the body feels in °C (air, clothing and fires); bleeding is health lost per second.
 /// </summary>
 public sealed record Vitals(float Health, float Calories, float Hydration, float Temperature = 20, float Comfort = 0,
-    float Bleeding = 0, float Wetness = 0, Privilege Building = Privilege.None)
+    float Bleeding = 0, float Wetness = 0, Privilege Building = Privilege.None, float BreathFraction = 1, bool Suffocating = false)
 {
     public const float MaxHealth = 100, MaxCalories = 500, MaxHydration = 250;
 
@@ -126,6 +133,8 @@ public sealed record Vitals(float Health, float Calories, float Hydration, float
 
 /// <summary>A weapon's loaded rounds and the matching rounds in the inventory.</summary>
 public readonly record struct HeldAmmo(int Loaded, int Reserve, bool Reloading = false);
+
+public sealed record ProtectionStat(string Name, string Value, string Description);
 
 /// <summary>An ingredient of a recipe.</summary>
 public readonly record struct Ingredient(string Key, int Amount);
@@ -151,6 +160,9 @@ public sealed record DeathInfo(float AliveSeconds, string KilledBy, string? Weap
 
 /// <summary>The interaction prompt: "[E]  OPEN", with "Hold [E] for more options" when there are more.</summary>
 public sealed record InteractionPrompt(string Key, string Action, bool MoreOptions = false);
+
+/// <summary>The common nearby damaged-target bar; the client adapter owns targeting and visibility rules.</summary>
+public sealed record TargetHealthView(string Name, float Fraction);
 
 /// <summary>A chat message.</summary>
 public sealed record ChatLine(string From, string Text, bool FromServer = false)

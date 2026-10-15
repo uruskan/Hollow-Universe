@@ -41,10 +41,10 @@ materials/extract_format=0
 materials/extract_path=""
 _subresources={
 "materials": {
-"M_Hollow_Rock": {
+"M_PSG_Stone_3": {
 "use_external/enabled": true,
-"use_external/fallback_path": "res://assets/materials/hollow_rock.tres",
-"use_external/path": "res://assets/materials/hollow_rock.tres"
+"use_external/fallback_path": "res://assets/revised/PSG_ResourceNodes_R01/Materials/stone-node-3.tres",
+"use_external/path": "res://assets/revised/PSG_ResourceNodes_R01/Materials/stone-node-3.tres"
 }
 }
 }

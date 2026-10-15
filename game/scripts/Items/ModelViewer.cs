@@ -321,26 +321,28 @@ public partial class ModelViewer : Node3D
     }
 
     /// <summary>
-    /// The held item as the player sees it: its grip at its catalogue pose (as the arms hold it, GROUND.md §4.8) in front
-    /// of a camera with the arms' field of view.
+    /// The real first-person rig, including its authored item placement and hands. Using the gameplay view avoids
+    /// showing a catalogue-only placement that disagrees with what the player actually holds.
     /// </summary>
     private void ShowFirstPerson()
     {
         ModelEntry entry = _entries[_index];
-        Node3D? model = entry.Held == null ? null : ModelCatalog.Instantiate(entry.Key);
+        var held = HollowUniverse.Characters.HeldItems.Find(entry.Key);
         _camera.Fov = HollowUniverse.Characters.CharacterMaterials.ViewmodelFov;
         _camera.Position = new Vector3(0, 1.6f, 0);
         _camera.Rotation = Vector3.Zero;
-        if (model == null)
+        if (held == null)
         {
             return;
         }
-        Mount(entry, model);
-        ModelCatalog.ForceLod(model, 0);
-        Transform3D grip = HollowUniverse.Characters.HeldItems.Find(entry.Key) is { } held
-            ? HollowUniverse.Characters.HeldItems.Grip(model, held) : Transform3D.Identity;
-        model.Transform = entry.Held!.FirstPerson.Transform * grip.AffineInverse();
-        _camera.AddChild(model);
+        var arms = new HollowUniverse.Characters.ViewmodelView { Name = "Viewmodel" };
+        _camera.AddChild(arms);
+        arms.Hold(held.Kind, held.Id);
+        if (arms.GetNodeOrNull<Node3D>(held.Id) is { } model)
+        {
+            Mount(entry, model);
+            HollowUniverse.Characters.ViewmodelView.PrepareItem(model);
+        }
     }
 
     private void ShowLineup()

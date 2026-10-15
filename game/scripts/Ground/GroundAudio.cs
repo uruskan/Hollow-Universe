@@ -42,10 +42,10 @@ public partial class GroundAudio : Node
     private AudioDirector _director = null!;
     private AmbienceDirector _ambience = null!;
     private FootstepDriver _feet = null!;
-    private Num.Vector3 _lastFeet;
-    private bool _hasFeet;
     private FootSurface _surface = FootSurface.Grass;
     private Num.Vector3 _surfaceAt = new(float.MaxValue);
+    private ulong _surfaceFrame = ulong.MaxValue;
+    private double _surfaceIn;
     private double _ambienceIn;
     private double _coldIn = 5;
     private AmbienceInput _place = new() { Biome = Biome.TemperateForest, SeaDistance = 5000, Exposure = 0.4, Wind = 0.3 };
@@ -113,7 +113,8 @@ public partial class GroundAudio : Node
         }
         else
         {
-            _hasFeet = false;
+            _feet.Reset();
+            _surfaceIn = 0;
         }
         _ambienceIn -= delta;
         if (_ambienceIn <= 0)
@@ -137,38 +138,22 @@ public partial class GroundAudio : Node
     private void UpdateOwnFeet(double delta, bool sprinting)
     {
         CharacterState c = Client.Character;
-        Num.Vector3 up = Client.Frame.UpAt(c.Position);
-        Num.Vector3 v = c.Velocity;
-        double vertical = Num.Vector3.Dot(v, up);
-        double speed = (v - up * (float)vertical).Length();
-        if (!_hasFeet)
+        Num.Vector3 feet = Client.Prediction?.WorldPose(0).Feet ?? Client.RenderPosition;
+        _surfaceIn -= delta;
+        if (_surfaceIn <= 0 || c.Frame != _surfaceFrame || Num.Vector3.Distance(feet, _surfaceAt) > 0.6f)
         {
-            _hasFeet = true;
-            _lastFeet = c.Position;
+            _surfaceAt = feet;
+            _surfaceFrame = c.Frame;
+            _surfaceIn = 0.25;
+            _surface = SurfaceAt(Client, feet, c.Frame);
         }
-        _lastFeet = c.Position;
-        if (Num.Vector3.Distance(c.Position, _surfaceAt) > 2)
-        {
-            _surfaceAt = c.Position;
-            _surface = SurfaceAt(Client, c.Position);
-        }
-        bool swimming = (c.Flags & MoveFlags.Swimming) != 0;
-        var input = new FootInput
-        {
-            Speed = speed,
-            VerticalSpeed = vertical,
-            Grounded = (c.Flags & MoveFlags.OnGround) != 0,
-            Crouching = c.Stance == Stance.Crouching,
-            Swimming = swimming,
-            Sprinting = sprinting && speed > 3,
-            Surface = _surface,
-            WaterDepth = WaterDepth(Client, c.Position),
-        };
-        _feet.Update(delta, input, GroundView.ToGodot(c.Position));
+        FootInput input = Footsteps.Input(c, Client.Frame, sprinting, _surface, c.Frame == 0 ? WaterDepth(Client, feet) : 0);
+        _feet.Update(delta, input, GroundView.ToGodot(feet));
     }
 
     /// <summary>What the ground sounds like underfoot at a point (zone frame): the strongest ground material there.</summary>
-    public static FootSurface SurfaceAt(GameClient client, Num.Vector3 local) => Footsteps.FromGround(MaterialAt(client, local));
+    public static FootSurface SurfaceAt(GameClient client, Num.Vector3 local, ulong movementFrame = 0) =>
+        client.Surface is { } surface ? FootstepEnvironment.At(surface, client.Frame, client.Building().World, local, movementFrame) : FootSurface.Grass;
 
     /// <summary>
     /// The ground's main material at a point (zone frame): grass, dirt, sand, rock… as the terrain paints it there
@@ -180,27 +165,13 @@ public partial class GroundAudio : Node
         {
             return GroundMaterial.Grass;
         }
-        Vector3D p = client.Frame.ToBody(local).Normalized;
-        Span<double> biomes = stackalloc double[BiomeTable.Count];
-        Span<double> materials = stackalloc double[BiomeTable.MaterialCount];
-        surface.Cover(p, surface.Sample(p), 0.1, biomes, materials);
-        BiomeTable.FoldFamilies(materials);
-        int best = 0;
-        for (int i = 1; i < materials.Length; i++)
-        {
-            if (materials[i] > materials[best])
-            {
-                best = i;
-            }
-        }
-        return (GroundMaterial)best;
+        return FootstepEnvironment.MaterialAt(surface, client.Frame, local);
     }
 
-    /// <summary>Sea water over a point (zone frame), metres; 0 on land.</summary>
+    /// <summary>Sea or inland water over a point (zone frame), metres; 0 on land.</summary>
     public static double WaterDepth(GameClient client, Num.Vector3 local)
     {
-        double sea = client.Surface?.SeaRadius ?? 0;
-        return sea <= 0 ? 0 : Math.Max(0, sea - client.Frame.ToBody(local).Length);
+        return client.Surface is { } surface ? FootstepEnvironment.WaterDepth(surface, client.Frame, local) : 0;
     }
 
     // ---------------------------------------------------------------- ambience
@@ -265,6 +236,7 @@ public partial class GroundAudio : Node
     {
         var input = new AmbienceInput { Wind = Wind, Forest = Math.Clamp(trees / 22.0, 0, 1) };
         Vector3D here = frame.ToBody(at).Normalized;
+        var tangent = new ZoneFrame(here * surface.Radius);
         input.Biome = surface.BiomeAt(here);
         double h0 = surface.HeightAt(here);
         double around = 0;
@@ -275,7 +247,9 @@ public partial class GroundAudio : Node
             for (int i = 0; i < 8; i++)
             {
                 double a = i * Math.PI / 4;
-                Vector3D d = frame.ToBody(at.X + (float)(Math.Cos(a) * r), 0, at.Z + (float)(Math.Sin(a) * r)).Normalized;
+                double angle = r / surface.Radius;
+                Vector3D along = tangent.East * Math.Cos(a) + tangent.South * Math.Sin(a);
+                Vector3D d = here * Math.Cos(angle) + along * Math.Sin(angle);
                 double h = surface.HeightAt(d);
                 if (r < 200)
                 {

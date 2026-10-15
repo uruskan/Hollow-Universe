@@ -502,6 +502,7 @@ public sealed class TileMeshData
     public Vector3[] Vertices = Array.Empty<Vector3>();
     public Vector3[] Normals = Array.Empty<Vector3>();
     public Color[] Climate = Array.Empty<Color>();
+    /// <summary>Terrain UV.x: height above local water; UV.y: skirt flag. Water uses its separate depth array.</summary>
     public Vector2[] Heights = Array.Empty<Vector2>();
     public Vector2[] FaceMetres = Array.Empty<Vector2>();
     public float[] MorphPositions = Array.Empty<float>();
@@ -635,7 +636,9 @@ public sealed class TileMeshData
         }
         d.Climate[target] = new Color(grid.Climate[4 * source] / 255f, grid.Climate[4 * source + 1] / 255f,
             grid.Climate[4 * source + 2] / 255f, grid.Climate[4 * source + 3] / 255f);
-        d.Heights[target] = new Vector2(grid.Heights[source], offset == Vector3.Zero ? 0 : 1);
+        // Terrain UV.x is the wetness height: use the same local stream/lake/sea level as the water mesh.
+        // TileGrid.Heights itself remains ocean-relative for terrain bounds, water depth and physics.
+        d.Heights[target] = new Vector2(grid.Heights[source] - grid.WaterLevels[source], offset == Vector3.Zero ? 0 : 1);
         d.FaceMetres[target] = new Vector2(grid.FaceMetres[2 * source], grid.FaceMetres[2 * source + 1]);
     }
 

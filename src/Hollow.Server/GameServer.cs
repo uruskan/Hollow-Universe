@@ -768,16 +768,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             state.Frame = values[i].Frame;
             if (Zone.Players().PlayerOf(entity) is { } p)
             {
-                state.Held = p.IsAwakeAndAlive ? p.HeldItem : (ushort)0;
-                // Only an awake player's head looks around (a sleeper sends nothing more, a body nothing at all).
-                state.LookYaw = p.IsAwakeAndAlive ? state.LookYaw : (sbyte)0;
-                state.LookPitch = p.IsAwakeAndAlive ? state.LookPitch : (sbyte)0;
-                state.ActionCount = (byte)(p.ActionCount & 15);
-                state.Action = p.LastAction;
-                state.Sleeping = p.Sleeping && !p.Dead;
-                // G4: a gun aimed down its sights, and what is on it, for others to draw.
-                state.HeldMods = p.CanAct ? Zone.Guns().HeldGunLook(p) : (byte)0;
-                state.Aiming = p.CanAct && p.Gun.Item != 0 && !p.Gun.Reloading && character.Actions.Has(ActionButtons.Secondary);
+                CharacterPresentation.Apply(Zone, p, character, ref state);
             }
             _netStates[values[i].NetId] = new NetEntity(entity, state, null);
         }

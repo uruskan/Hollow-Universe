@@ -180,7 +180,7 @@ public sealed partial class ShipSystem : ZoneSystem
         {
             State = state,
         };
-        ship.State.Fuel = Math.Clamp(fuel, 0, def.FuelCapacity);
+        ship.LoadFuel(fuel);
         Physics.EnsureGround(ground);
         return AddShip(ship);
     }
@@ -254,21 +254,25 @@ public sealed partial class ShipSystem : ZoneSystem
                 continue;
             }
             CheckSeats(ship);
+            ship.SyncFuel();
             Player? pilot = null;
             Entity pilotEntity = Entity.None;
             if (ship.Piloted && Entities.TryFind(ship.Pilot, out pilotEntity))
             {
                 pilot = PlayerOf(pilotEntity);
             }
-            // The helm's controls; asleep (logged off) the engines hold the ship where it is (flight assist, no input).
-            ShipInput input = pilot != null ? (pilot.Sleeping ? new ShipInput() : ship.Input) : ship.Autopilot ? ship.Input : default;
-            input.Engines = pilot != null || ship.Autopilot;
+            // Leaving the helm releases rotation/boost, not the movement lever or engine switch.
+            ShipInput input = pilot is { Sleeping: false } || ship.Autopilot ? ship.Input : ship.Input.Unattended();
+            input.Engines = !ship.State.Has(ShipFlags.EngineStopped)
+                && (pilot != null || ship.Autopilot || ship.State.Has(ShipFlags.EnginesOn));
             if (ship.ParkedBody != 0 && input.Engines)
             {
                 ShipCollider.RemoveParked(ship.ParkedBody);
                 ship.ParkedBody = 0;
             }
             ship.Events = ShipMotor.Step(ref ship.State, input, ship.Def, context, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody);
+            ship.Fuel.Consume(ship.Events.FuelUsed);
+            ship.SyncFuel();
             ShipSteps++;
             StepDoors(ship);
             StepStations(ship);
@@ -420,32 +424,21 @@ public sealed partial class ShipSystem : ZoneSystem
     public bool ShipSlow(Ship ship) =>
         ShipStill(ship) || (ship.State.Velocity.Length() < ShipDoorDef.SlowSpeed && HeightAboveGround(ship.Origin) < ShipDoorDef.SlowHeight);
 
-    /// <summary>Fills a ship's tank from the player's lamp oil (main slots, then belt), as much as fits.</summary>
-    internal Outcome Refuel(Player p, Ship ship)
+    /// <summary>Opens the tank through the shared inventory; a negative loot part remembers which part was reached.</summary>
+    internal Outcome OpenFuel(Player p, Ship ship, int reachedPart)
     {
-        int room = (int)MathF.Floor(ship.Def.FuelCapacity - ship.State.Fuel);
-        if (room <= 0)
-        {
-            return OutcomeCode.NoSpace;
-        }
-        int have = p.Inventory.Count(ship.Def.Fuel);
-        if (have <= 0)
-        {
-            return OutcomeCode.NotEnough;
-        }
-        int taken = Math.Min(room, have);
-        p.Inventory.Take(new[] { new ItemAmount(ship.Def.Fuel, taken) });
-        ship.State.Fuel += taken;
-        WakeShip(ship);
-        Events.Add(new ItemsGained(Player: p.Id, Item: ship.Def.Fuel.Id, Count: -taken, Reason: GainReason.Used));
-        return OutcomeCode.Done;
+        if (!p.CanAct || ship.Destroyed) return OutcomeCode.NotAllowed;
+        if (!ship.IsAuthorised(p.Id.Value)) return OutcomeCode.NotCrew;
+        if (reachedPart < 0 || reachedPart >= ship.Def.Parts.Count) return OutcomeCode.Invalid;
+        return Zone.Interaction().OpenLoot(p, ship.Id, -1 - reachedPart);
     }
 
-    /// <summary>The ship whose cargo (or a station's magazine) a player has open, or null.</summary>
+    /// <summary>The ship whose cargo, tank or station magazine a player has open, or null.</summary>
     public Ship? LootShip(Player p) => p.Looting.IsNone ? null : ShipOf(p.Looting) is { Destroyed: false } ship ? ship : null;
 
-    /// <summary>What a player looting a ship has open: a station's magazine at the part they opened (IRON_WAKE.md §6.5), else its cargo.</summary>
+    /// <summary>The fuel tank for a negative loot part, a station's magazine for its part, otherwise the cargo.</summary>
     public Container LootContainer(Player p, Ship ship) =>
+        p.LootPart < 0 ? ship.Fuel.Tank :
         p.LootPart > 0 && p.LootPart < ship.Def.Parts.Count && ship.Def.Parts[p.LootPart].Station is >= 0 and var station && station < ship.Stations.Length
             ? ship.Stations[station].Magazine : ship.Cargo;
 
@@ -454,13 +447,15 @@ public sealed partial class ShipSystem : ZoneSystem
     // only while it is at rest.
     internal bool StillAtShip(Entity entity, Ship ship, int part = 0)
     {
+        if (part < 0 && (PlayerOf(entity) is not { } player || !ship.IsAuthorised(player.Id.Value))) return false;
         if (SeatOf(entity) == ship)
         {
             return true;
         }
         bool magazine = part > 0 && part < ship.Def.Parts.Count && ship.Def.Parts[part].Station >= 0;
-        int at = magazine ? part : ship.Def.CargoPart;
-        return at > 0 && Content != null && !ship.InOrbit && (magazine || ShipStill(ship)) &&
+        bool fuel = part < 0;
+        int at = fuel ? -1 - part : magazine ? part : ship.Def.CargoPart;
+        return (at > 0 || fuel) && Content != null && !ship.InOrbit && (fuel || magazine || ShipStill(ship)) &&
             Targets.Reach(EyeOf(Entities.Get<Character>(entity).State), new TargetRef(TargetFamily.Ship, ship.Id.Value, (byte)at), Content.Survival.KeepOpenReach,
                 sight: false).Ok;
     }
@@ -638,10 +633,13 @@ public sealed partial class ShipSystem : ZoneSystem
                 }
             }
         }
-        int fuel = (int)MathF.Floor(ship.State.Fuel * 0.5f);
-        if (fuel > 0)
+        int fuel = (int)MathF.Floor(ship.Fuel.Amount * 0.5f);
+        ship.LoadFuel(0);
+        while (fuel > 0)
         {
-            stacks.Add(ItemStack.Of(ship.Def.Fuel, Math.Min(fuel, ship.Def.Fuel.StackSize)));
+            int count = Math.Min(fuel, ship.Def.Fuel.StackSize);
+            stacks.Add(ItemStack.Of(ship.Def.Fuel, count));
+            fuel -= count;
         }
         foreach (ItemAmount a in ship.Def.Wreck)
         {

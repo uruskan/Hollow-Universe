@@ -99,7 +99,7 @@ public sealed class SurvivalModule : ServerModule
             // GROUND_SYSTEMS.md §5: every verb, one path (Zone.Interaction().Interact).
             InteractIntent m = message;
             Entity me = session.Entity;
-            Intent(session, m.Seq, () => Zone.Interaction().Interact(me, NetConvert.ToRef(m.Target), (int)Math.Min(m.Verb, int.MaxValue), m.Arg, m.Code));
+            Intent(session, m.Seq, () => Zone.Interaction().Interact(me, NetConvert.ToRef(m.Target), (int)Math.Min(m.Verb, int.MaxValue), m.Arg, m.Code, m.Text));
         });
         handlers.On<CloseIntent>((PlayerSession session, in CloseIntent message) =>
         {
@@ -141,6 +141,11 @@ public sealed class SurvivalModule : ServerModule
                 Writer.Reset();
                 new HitMarker
                 {
+                    Weapon = e.Weapon,
+                    ActionTick = Zone.Players().PlayerOf(to.Entity)?.LastActionTick ?? 0,
+                    PointX = e.Point.X,
+                    PointY = e.Point.Y,
+                    PointZ = e.Point.Z,
                     Target = e.Target.Family,
                     Region = e.Region,
                     Damage = Tenths(e.Amount),
@@ -355,6 +360,8 @@ public sealed class SurvivalModule : ServerModule
                 Cold = (byte)Math.Clamp(v.Cold * 255, 0, 255),
                 Comfort = v.Comfort,
                 Wet = v.WetSeconds > 0,
+                Breath = (byte)Math.Clamp(MathF.Round(255 * (1 - v.BreathUsed / Content.Survival.BreathSeconds)), 0, 255),
+                Suffocating = v.Suffocating,
             }.WriteMessage(Writer);
             Send(session);
         }
@@ -432,6 +439,7 @@ public sealed class SurvivalModule : ServerModule
                         Y = bag.Position.Y,
                         Z = bag.Position.Z,
                         ReadySeconds = (uint)Math.Max(0, Math.Ceiling((bag.ReadyAtUnixMs - Zone.UnixMilliseconds) / 1000.0)),
+                        Name = bag.Name.Length > 0 ? bag.Name : bag.Def.Item.Name,
                     });
                 }
             }
@@ -461,7 +469,8 @@ public sealed class SurvivalModule : ServerModule
             }
         }
         Writer.Reset();
-        new ContainerContents { LastSeq = session.LastIntentSeq, Which = which, Size = (byte)Math.Min(255, container.Size), Slots = _slots.ToArray() }.WriteMessage(Writer);
+        new ContainerContents { LastSeq = session.LastIntentSeq, Which = which, Size = (byte)Math.Min(255, container.Size), Slots = _slots.ToArray(),
+            AcceptedItem = container.AcceptedItem, StackLimit = (uint)container.StackLimit }.WriteMessage(Writer);
         Send(session);
     }
 
@@ -528,7 +537,8 @@ public sealed class SurvivalModule : ServerModule
             foreach ((PlayerSession session, ContainerRef which) in list)
             {
                 Writer.Reset();
-                new ContainerSlots { LastSeq = session.LastIntentSeq, Which = which, Slots = slots }.WriteMessage(Writer);
+                new ContainerSlots { LastSeq = session.LastIntentSeq, Which = which, Slots = slots,
+                    AcceptedItem = container.AcceptedItem, StackLimit = (uint)container.StackLimit }.WriteMessage(Writer);
                 Send(session);
             }
         }

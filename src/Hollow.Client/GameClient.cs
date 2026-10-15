@@ -76,6 +76,7 @@ public sealed record ClientOptions
 public sealed class GameClient : INetEventListener, IDisposable
 {
     public const int TickRate = CharacterMotor.TickRate;
+    public LocalMelee Melee { get; } = new();
 
     /// <summary>The prediction clock aims to have inputs reach the server this many ticks early, at the latest.</summary>
     public const int TargetInputMargin = 2;
@@ -470,6 +471,7 @@ public sealed class GameClient : INetEventListener, IDisposable
             View = ViewOf(frame, viewFrame),
             Buttons = buttons,
             Frame = viewFrame,
+            NoclipSpeed = frame.NoclipSpeed,
         }, actions);
         // Free look rides with the view, for others to see the head turn (the prediction never uses it).
         command.LookYaw = NetConvert.ToLook(frame.LookYaw, FreeLook.MaxYaw);
@@ -504,6 +506,8 @@ public sealed class GameClient : INetEventListener, IDisposable
             // G4: the gun in hand fires (or reloads) on this tick's predicted state, and sends its intent for this tick.
             Local.Gun.Tick(tick, command, _predictor.Latest, _predictor.Frames, DrawnFrame?.Invoke(OwnFrame), _predictor.Tuning, EntityId,
                 !Local.IsDead && !Local.IsWounded && !this.Ships().Seated);
+            Melee.Tick(tick, Local.HeldItem, Local.HeldSlot, (command.Actions & ActionButtons.Primary) != 0,
+                !Local.IsDead && !Local.IsWounded && !this.Ships().Seated, Content.Survival.EquipSeconds);
         }
 
         // The packet: this tick's input and the three before it, and which snapshots arrived.

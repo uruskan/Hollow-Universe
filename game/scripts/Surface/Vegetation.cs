@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Godot;
+using Hollow.Client.Streaming;
 using Hollow.Core;
 using Hollow.Surface;
 using HollowUniverse.Surface.Flora;
@@ -93,7 +94,7 @@ public sealed partial class Vegetation : Node3D
     private ArrayMesh _quad = null!;
     private readonly ConcurrentDictionary<ulong, IReadOnlyList<ScatterItem>> _full = new();
     private readonly ConcurrentDictionary<ulong, IReadOnlyList<ScatterItem>> _trees = new();
-    private readonly ConcurrentDictionary<ulong, byte> _requested = new();
+    private readonly ScatterRequestSet _requested = new();
     private readonly BlockingQueue _jobs = new();
     private readonly List<Thread> _workers = new();
     private readonly Dictionary<ulong, Block> _blocks = new();
@@ -344,8 +345,7 @@ public sealed partial class Vegetation : Node3D
 
     private void Request(TileKey key, bool full, double priority)
     {
-        ulong id = key.Packed ^ (full ? 1UL << 63 : 0);
-        if (_requested.TryAdd(id, 0))
+        if (_requested.TryAdd(key, full))
         {
             Interlocked.Increment(ref _busy);
             _jobs.Add(priority + (full ? 0 : 1e6), () =>

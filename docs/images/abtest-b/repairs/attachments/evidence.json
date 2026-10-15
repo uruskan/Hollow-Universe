@@ -1,0 +1,102 @@
+{
+  "checkpoint": "build17",
+  "review": "Root visually accepted all six frames; no compositing or image edits.",
+  "scope": {
+    "viewport_pixels": [
+      512,
+      512
+    ],
+    "optical_fov_degrees": 7.36,
+    "world_fov_degrees": 21.72,
+    "zoom": 4,
+    "native_eye_error_metres": 0,
+    "axis_alignment": 1,
+    "left_hand_error_metres": 0,
+    "right_hand_error_metres": 0,
+    "shoulder_accommodation_metres": 0.0564,
+    "full_rear_field": true,
+    "front_sight_excluded": true
+  },
+  "night": {
+    "local_solar_hour": 0,
+    "sun_elevation_degrees": -63.98,
+    "actual_player_radial": true,
+    "off_on_detached_wall_change_accepted": true
+  },
+  "regressions": {
+    "full_build16": "384/384 in 429.0 s",
+    "focused_build17": "8/8 including both attachment tests",
+    "base_guns_build16": "male and female each 12 actions, 200 FPS/TPS samples, no hand samples over 25 mm",
+    "known_exit_diagnostics": "Each held-editor run reports six Jolt shape leaks and one ObjectDB leak at exit."
+  },
+  "frames": [
+    {
+      "file": "repair-holo-ads.jpg",
+      "source": ".artifacts/repair-optics17/repair-holo-ads.jpg",
+      "bytes": 356639,
+      "sha256": "485dbdfbad4638f3dbf0b1b6aad3d72cfc482828f25ac9d1a172e3bdd07f4823",
+      "exact_copy": true
+    },
+    {
+      "file": "repair-scope-ads.jpg",
+      "source": ".artifacts/repair-optics17/repair-scope-ads.jpg",
+      "bytes": 424324,
+      "sha256": "f9c82bdcd1013558bafe9f7cc352cedea0ba607d6cfdfd3729824d36fc8bd215",
+      "exact_copy": true
+    },
+    {
+      "file": "repair-weapon-light-off.jpg",
+      "source": ".artifacts/repair-optics17/repair-weapon-light-off.jpg",
+      "bytes": 255758,
+      "sha256": "333828213d2adf0c9c5314252a3c8fd191b4395e88a2ce43e0f9e974c4bf7109",
+      "exact_copy": true
+    },
+    {
+      "file": "repair-weapon-light-on.jpg",
+      "source": ".artifacts/repair-optics17/repair-weapon-light-on.jpg",
+      "bytes": 263883,
+      "sha256": "0e3123d289d3ea7b5fbae5e5c1ca4a2fbb74e5fa3c67d6495ada6cab169eebaf",
+      "exact_copy": true
+    },
+    {
+      "file": "repair-scope-night-light.jpg",
+      "source": ".artifacts/repair-optics17/repair-scope-night-light.jpg",
+      "bytes": 349626,
+      "sha256": "575d0d7b9ca12ae9b7159ddf4b92e2f46ef6aa95961b471c386f93be066ef108",
+      "exact_copy": true
+    },
+    {
+      "file": "repair-weapon-light-detached.jpg",
+      "source": ".artifacts/repair-optics17/repair-weapon-light-detached.jpg",
+      "bytes": 256094,
+      "sha256": "c449a93fbcd2c43a1bbe1e222dab1bdb0b4db2fbc19a276c2f49e2a60cb8c067",
+      "exact_copy": true
+    }
+  ],
+  "logs": [
+    {
+      "source": ".artifacts/repair-optics17.log",
+      "sha256": "0de45b1bb10b710de1ad5e20bd58682dd1cbbf6fda15a5b0b1d9bdcad24387be"
+    },
+    {
+      "source": ".artifacts/repair-build17.log",
+      "sha256": "d6960fb08a3d1726cfefff9866d4889a5314e651d98e9f859830a31a626c8de4"
+    },
+    {
+      "source": ".artifacts/repair-final-focused.log",
+      "sha256": "40fa33ca2656abab2923421943740ea09a72bc967afaa770ea6e6f218b7c131c"
+    },
+    {
+      "source": ".artifacts/repair-held-regression16-male.log",
+      "sha256": "79986801f6265678f8a95690e85e88d544dce1d8944c697477b6239c82d15423"
+    },
+    {
+      "source": ".artifacts/repair-held-regression16-female.log",
+      "sha256": "f3c6dfdea3436d56f6f18d0582d8808427e0a692f8afcd20aa978f8f9da33d37"
+    },
+    {
+      "source": ".artifacts/repair-full3.log",
+      "sha256": "6aa977096a9d5f2dd0de9ec778da1e3ca606503aaebb7169ad2618a628df83bf"
+    }
+  ]
+}

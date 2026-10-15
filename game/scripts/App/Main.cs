@@ -54,6 +54,8 @@ public partial class Main : Node
         // Crash reports first (GROUND.md §4.3): everything after may be what fails.
         CrashReporter.Install();
         _options = ParseOptions(OS.GetCmdlineUserArgs());
+        bool isolatedShot = CaptureIsolation.Requested(_options);
+        Vector2I captureResolution = CaptureIsolation.RequestedResolution(GetWindow().Size);
         CrashReporter.Running = "view " + Option("view", DefaultView) + (_options.ContainsKey("host") ? ", hosting" : "") +
             (_options.TryGetValue("connect", out string? server) ? ", connected to " + server : "");
         if (_options.ContainsKey("physics-check"))
@@ -63,7 +65,11 @@ public partial class Main : Node
         }
         // The graphics settings (GROUND.md §8.6), saved or this computer's defaults; --quality <preset> for this run.
         HollowUniverse.Settings.GraphicsSettings.Load(HollowUniverse.Settings.GraphicsSettings.ParsePreset(Option("quality", "")));
+        if (isolatedShot)
+            HollowUniverse.Settings.GraphicsSettings.Preview(HollowUniverse.Settings.GraphicsSettings.Current with
+                { WindowMode = HollowUniverse.Settings.GameWindowMode.Windowed });
         AddChild(new HollowUniverse.Settings.GraphicsNode { Name = "Graphics" });
+        if (isolatedShot) AddChild(new CaptureIsolation { Name = "CaptureIsolation", Resolution = captureResolution });
         // The interface scale has to be known before any interface is built.
         _scaler = new UiScaler { Name = "UiScaler" };
         if (_options.ContainsKey("ui-scale"))
@@ -116,6 +122,12 @@ public partial class Main : Node
             // The audition viewer (GROUND.md §4.9): every sound event, a source walking away, the ambience.
             _sounds = new SoundViewer { Name = "Sounds", Options = _options };
             AddChild(_sounds);
+            return;
+        }
+        if (Option("view", "") == "held-editor")
+        {
+            AddChild(new HollowUniverse.Characters.HeldItemEditor(_options));
+            SetProcess(false);
             return;
         }
         if (Option("view", "") == "character")
@@ -342,11 +354,11 @@ public partial class Main : Node
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))
         {
             _capturing = true;
-            Capture(path);
+            Capture(path, ready);
         }
     }
 
-    private async void Capture(string path)
+    private async void Capture(string path, bool ready)
     {
         // Let a few frames settle after streaming finished.
         for (int i = 0; i < 3; i++)
@@ -354,10 +366,13 @@ public partial class Main : Node
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        GD.Print($"[capture] ready={ready} elapsed={_elapsed:0.00}s path={path}");
+        CaptureIsolation.Report(GetViewport());
+        _ground?.ReportCapture();
         Image image = GetViewport().GetTexture().GetImage();
         Error error = path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? image.SaveJpg(path, 0.9f) : image.SavePng(path);
         GD.Print(error == Error.Ok ? $"Saved screenshot {path} ({image.GetWidth()}x{image.GetHeight()})." : $"Could not save {path}: {error}");
-        GetTree().Quit(error == Error.Ok ? 0 : 1);
+        GetTree().Quit(error == Error.Ok && ready ? 0 : 1);
     }
 
     private static Dictionary<string, string> ParseOptions(string[] args)

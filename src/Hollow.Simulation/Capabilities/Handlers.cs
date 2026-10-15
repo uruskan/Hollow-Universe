@@ -62,10 +62,10 @@ public static partial class CapabilityHandlers
         foreach (ICapability handler in new ICapability[]
                  {
                      new Owned(), new Holds(verbs), new Burner(verbs), new Machine(verbs), new DoorCapability(verbs), new KeyLockCapability(verbs),
-                     new CodeLockCapability(verbs), new CupboardCapability(verbs), new ShipCapability(), new Lifetime(), new ExplosiveCapability(),
+                     new CodeLockCapability(verbs), new CupboardCapability(verbs), new ShipCapability(verbs), new Lifetime(), new ExplosiveCapability(),
                      new Pickup(verbs), new Portable(verbs, data), new Station(verbs), new WoundedCapability(verbs), new CharacterCapability(verbs),
                      new DudCapability(verbs), new ArrowCapability(), new Standing(), new FireCapability(), new SeatCapability(verbs),
-                     new ShipDoorCapability(verbs), new FuelCapability(verbs), new MagazineCapability(verbs),
+                     new ShipDoorCapability(verbs), new FuelCapability(verbs), new MagazineCapability(verbs), new Nameable(verbs),
                  })
         {
             registry.Add(handler.Key, handler);
@@ -172,12 +172,13 @@ public static partial class CapabilityHandlers
     }
 
     /// <summary>A ship, on every part: Locked while its lock keeps its doors shut to strangers; Authorised for its crew.</summary>
-    private sealed class ShipCapability : ICapability
+    private sealed partial class ShipCapability : ICapability
     {
         public string Key => "ship";
 
         public ViewerFlags Flags(object thing, in Viewer viewer) => thing is not Ship ship ? ViewerFlags.None
-            : (ship.Locked ? ViewerFlags.Locked : ViewerFlags.None) | (ship.IsAuthorised(viewer.Id.Value) ? ViewerFlags.Authorised : ViewerFlags.None);
+            : (ship.Locked ? ViewerFlags.Locked : ViewerFlags.None) | (ship.IsAuthorised(viewer.Id.Value) ? ViewerFlags.Authorised : ViewerFlags.None)
+              | (ship.State.Has(ShipFlags.EnginesOn) ? ViewerFlags.Lit : ViewerFlags.None);
     }
 
     /// <summary>A charge or grenade with its fuse: when what it is stuck to or lies on goes, it falls (and its fuse burns on).</summary>
@@ -247,14 +248,14 @@ public static partial class CapabilityHandlers
         // A loose thing lying on a ship's deck (IRON_WAKE.md §4.10: a bag, a body) falls to what is below when the ship goes.
         public void SupportLost(Zone zone, in TargetRef dependent, object thing)
         {
-            if (thing is WorldObject { Rides: true } loose)
+            if (thing is WorldObject loose && (loose.Rides || loose is DroppedContainer && !loose.Support.IsNone))
             {
                 zone.Things().Fall(loose);
             }
         }
 
         public bool Over(object thing, long tick) =>
-            thing is ILifetime l && (tick >= l.EndsAt || (l.Lifetime.EndsWhenEmptied && l.Emptied));
+            thing is not Corpse { IsBody: true } && thing is ILifetime l && (tick >= l.EndsAt || (l.Lifetime.EndsWhenEmptied && l.Emptied));
 
         public void Restart(object thing, LifetimeRestart why, long tick)
         {

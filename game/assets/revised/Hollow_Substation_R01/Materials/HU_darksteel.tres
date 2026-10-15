@@ -1,0 +1,21 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_darksteel_BaseColor.png" id="1_arfm6"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_darksteel_ORM.png" id="2_5t7h3"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_darksteel_NormalGL.png" id="3_pjaq8"]
+
+[resource]
+resource_name = "HU_darksteel"
+albedo_texture = ExtResource("1_arfm6")
+metallic = 1.0
+metallic_texture = ExtResource("2_5t7h3")
+metallic_texture_channel = 2
+roughness_texture = ExtResource("2_5t7h3")
+roughness_texture_channel = 1
+normal_enabled = true
+normal_scale = 0.7
+normal_texture = ExtResource("3_pjaq8")
+ao_enabled = true
+ao_texture = ExtResource("2_5t7h3")
+uv1_scale = Vector3(0.5, 0.5, 1)
+texture_filter = 5

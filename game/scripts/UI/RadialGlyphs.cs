@@ -80,6 +80,7 @@ public static class RadialGlyphs
             }
         }
         Glyph("keypad", keypad.ToArray());
+        Glyph("name", S(-.75f, .8f, -.6f, .25f, .42f, -.77f, .8f, -.4f, -.22f, .62f, -.75f, .8f), S(-.6f, .25f, -.22f, .62f), S(.23f, -.58f, .61f, -.21f));
         Glyph("pick-up", S(-.72f, .1f, 0, .5f, .72f, .1f, .72f, .75f, 0, 1f, -.72f, .75f, -.72f, .1f), S(0, .25f, 0, -.9f),
             S(-.35f, -.5f, 0, -.9f, .35f, -.5f));
 

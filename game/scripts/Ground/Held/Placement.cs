@@ -13,7 +13,7 @@ public interface IPlacement
     void Aim(HeldContext ctx, Num.Vector3 eye, Num.Vector3 forward);
 
     /// <summary>The attack button (a charge's: the aim button): place it.</summary>
-    void Place(HeldContext ctx);
+    uint Place(HeldContext ctx);
 
     /// <summary>R: turn it.</summary>
     void Turn(HeldContext ctx);

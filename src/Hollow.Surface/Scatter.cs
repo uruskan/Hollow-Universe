@@ -68,6 +68,9 @@ public interface IScatterField
     /// <summary>Height of the ground above the mean radius at a unit direction, metres.</summary>
     double HeightAt(Vector3D direction);
 
+    /// <summary>Footprints reserved by world structures, checked at the actual candidate after density interpolation.</summary>
+    bool AllowsScatter(Vector3D direction) => true;
+
     /// <summary>
     /// Densities of everything the scatter places at a point, from its sample and the ground's slope (the sine of its
     /// tilt).
@@ -138,7 +141,7 @@ public readonly record struct ScatterPlan(int Level, int TreeCells, int BushCell
         ScatterKind.Bush => BushCells,
         ScatterKind.Fern => FernCells,
         ScatterKind.BerryRed or ScatterKind.BerryBlue => BerryCells,
-        ScatterKind.StoneOutcrop => OutcropCells,
+        ScatterKind.StoneOutcrop or ScatterKind.HighGradeOutcrop => OutcropCells,
         _ => RockCells,
     };
 }
@@ -209,6 +212,7 @@ public static class Scatter
             Place(surface, plan, tile, grid, tileSeed, ScatterKind.BerryBlue, items);
             // Gameplay kinds after the plants, each from its own candidates and streams, so adding them moved nothing.
             Place(surface, plan, tile, grid, tileSeed, ScatterKind.StoneOutcrop, items);
+            Place(surface, plan, tile, grid, tileSeed, ScatterKind.HighGradeOutcrop, items);
         }
         return items;
     }
@@ -277,6 +281,7 @@ public static class Scatter
                 }
                 double u = tile.U0 + fu * span, v = tile.V0 + fv * span;
                 Vector3D direction = CubeSphere.Direction(tile.Face, u, v);
+                if (!surface.AllowsScatter(direction)) continue;
                 ScatterKind placed = kind;
                 float scale;
                 if (kind == ScatterKind.Fir)
@@ -292,9 +297,10 @@ public static class Scatter
                     double r = rng.NextDouble();
                     scale = (float)(0.25 + 2.2 * r * r * r);
                 }
-                else if (kind == ScatterKind.StoneOutcrop)
+                else if (kind is ScatterKind.StoneOutcrop or ScatterKind.HighGradeOutcrop)
                 {
-                    placed = OutcropKind(ref rng, Bilinear(a.Mountain, b.Mountain, c.Mountain, d.Mountain, tx, ty));
+                    placed = kind == ScatterKind.HighGradeOutcrop ? kind
+                        : OutcropKind(ref rng, Bilinear(a.Mountain, b.Mountain, c.Mountain, d.Mountain, tx, ty));
                     scale = (float)rng.Range(0.8, 1.25);
                 }
                 else
@@ -361,6 +367,7 @@ public static class Scatter
         ScatterKind.BerryRed => d.RedBerries,
         ScatterKind.BerryBlue => d.BlueBerries,
         ScatterKind.StoneOutcrop => d.Outcrops,
+        ScatterKind.HighGradeOutcrop => d.Outcrops * 0.075,
         _ => d.Rocks,
     };
 

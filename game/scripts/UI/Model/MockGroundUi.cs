@@ -74,6 +74,8 @@ public sealed partial class MockGroundUi : IGroundUi
 
     public InteractionPrompt? Prompt { get; set; }
 
+    public TargetHealthView? TargetHealth { get; set; }
+
     public HeldAmmo? Ammo
     {
         get
@@ -108,6 +110,7 @@ public sealed partial class MockGroundUi : IGroundUi
 
     public void Move(SlotRef from, SlotRef to, int amount)
     {
+        if (MoveAttachment(from, to)) return;
         if (from == to || !Valid(from) || !Valid(to))
         {
             return;
@@ -170,6 +173,7 @@ public sealed partial class MockGroundUi : IGroundUi
 
     public void Drop(SlotRef slot, int amount)
     {
+        if (slot.Attachment >= 0) return;
         if (!Valid(slot))
         {
             return;
@@ -184,6 +188,7 @@ public sealed partial class MockGroundUi : IGroundUi
 
     public void QuickMove(SlotRef slot)
     {
+        if (slot.Attachment >= 0) { QuickAttachment(slot); return; }
         if (!Valid(slot) || Of(slot.Container)[slot.Index].IsEmpty)
         {
             return;

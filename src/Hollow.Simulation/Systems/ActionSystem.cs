@@ -182,7 +182,14 @@ public sealed class ActionSystem : ZoneSystem
         {
             return OutcomeCode.Dead;
         }
-        return Content.ItemActions.Do(new PlayerActor(Zone, entity, p), from, slot, expected, action, arg);
+        Container? usedFrom = from is ContainerRef.Main or ContainerRef.Belt or ContainerRef.Wear ? p.Inventory[from] : null;
+        ushort usedItem = usedFrom?.InRange(slot) == true ? usedFrom[slot].Item : (ushort)0;
+        Outcome result = Content.ItemActions.Do(new PlayerActor(Zone, entity, p), from, slot, expected, action, arg);
+        if (result.Ok && Content.Item(usedItem)?.Held is HeldUse.Consumable or HeldUse.Blueprint)
+        {
+            p.RecordAction(ActionKind.Use, usedItem, Tick);
+        }
+        return result;
     }
 
     /// <summary>The player an item action acts for, as the zone has them: eating feeds them, learning counts, the gun in hand hears of its magazine.</summary>

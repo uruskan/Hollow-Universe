@@ -11,23 +11,16 @@ using Hollow.Simulation.Placement;
 namespace Hollow.Client;
 
 /// <summary>
-/// A placement sent and not yet answered (or answered a moment ago): drawn where it will stand in the ghost's pending look
+/// A placement sent and not yet answered: drawn where it will stand in the ghost's pending look
 /// until the server says (GROUND_SYSTEMS.md §6), then it goes; refused, at once.
 /// </summary>
-public sealed record PendingPlacement(uint Seq, Placeable Placeable, Vector3 Position, Quaternion Rotation, object? Detail)
-{
-    /// <summary>When the server said it was done (client seconds), or NaN while unanswered.</summary>
-    public double AcceptedAt { get; internal set; } = double.NaN;
-}
+public sealed record PendingPlacement(uint Seq, Placeable Placeable, Vector3 Position, Quaternion Rotation, object? Detail);
 
 // Placing anything (GROUND_SYSTEMS.md §6): one intent, PlaceIntent, for what the ghost shows (GameClient.Plan); its price
 // leaves the inventory at once (the item used up, or a piece's materials), the placement is drawn pending until the answer,
 // and a refusal rolls it back.
 public sealed partial class LocalPlayer
 {
-    /// <summary>An accepted placement is still drawn this long, while the real thing arrives.</summary>
-    private const double PendingLinger = 0.5;
-
     private readonly List<PendingPlacement> _pendingPlacements = new();
 
     /// <summary>Placements on their way: draw them in the pending look.</summary>
@@ -82,7 +75,7 @@ public sealed partial class LocalPlayer
         return true;
     }
 
-    // A placement's answer: accepted, it stays drawn a moment more while the real thing arrives; refused, it goes.
+    // The reliable server answer ends the prediction. Lingering after acceptance draws coplanar geometry over the replica.
     private void AnsweredPlacement(uint seq, bool done)
     {
         int i = _pendingPlacements.FindIndex(p => p.Seq == seq);
@@ -90,22 +83,14 @@ public sealed partial class LocalPlayer
         {
             return;
         }
-        if (done)
-        {
-            _pendingPlacements[i].AcceptedAt = ClockSeconds;
-        }
-        else
-        {
-            _pendingPlacements.RemoveAt(i);
-        }
+        _pendingPlacements.RemoveAt(i);
     }
 
     internal void UpdatePlacements()
     {
         for (int i = _pendingPlacements.Count - 1; i >= 0; i--)
         {
-            PendingPlacement p = _pendingPlacements[i];
-            if ((!double.IsNaN(p.AcceptedAt) && ClockSeconds - p.AcceptedAt > PendingLinger) || i < _pendingPlacements.Count - 64)
+            if (i < _pendingPlacements.Count - 64)
             {
                 _pendingPlacements.RemoveAt(i);
             }

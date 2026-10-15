@@ -11,14 +11,14 @@ namespace Hollow.Client;
 public sealed partial class LocalPlayer
 {
     /// <summary>Does a verb (interactions.json's number) to a target.</summary>
-    public uint Interact(in TargetRef target, int verb, uint arg = 0, string? code = null) => Interact(target, verb, arg, code, null);
+    public uint Interact(in TargetRef target, int verb, uint arg = 0, string? code = null, string? text = null) => SendInteraction(target, verb, arg, code, null, text);
 
     /// <summary>Does a verb, named by its key in interactions.json.</summary>
-    public uint Interact(in TargetRef target, string verb, uint arg = 0, string? code = null) =>
-        Interact(target, Content.Interactions.Index(verb), arg, code, null);
+    public uint Interact(in TargetRef target, string verb, uint arg = 0, string? code = null, string? text = null) =>
+        SendInteraction(target, Content.Interactions.Index(verb), arg, code, null, text);
 
     // An interaction, with what it changes shown at once where the client knows it (an unlock's blueprint and salvage).
-    private uint Interact(in TargetRef target, int verb, uint arg, string? code, Pending? shown)
+    private uint SendInteraction(in TargetRef target, int verb, uint arg, string? code, Pending? shown, string? text = null)
     {
         if (Content.Interactions.Verb(verb) is not { Panel: null })
         {
@@ -26,6 +26,7 @@ public sealed partial class LocalPlayer
         }
         TargetNet named = NetConvert.ToNet(target);
         string digits = code ?? "";
-        return Intend(shown, w => new InteractIntent { Seq = _nextSeq, Target = named, Verb = (uint)verb, Arg = arg, Code = digits }.WriteMessage(w));
+        string label = text ?? "";
+        return Intend(shown, w => new InteractIntent { Seq = _nextSeq, Target = named, Verb = (uint)verb, Arg = arg, Code = digits, Text = label }.WriteMessage(w));
     }
 }

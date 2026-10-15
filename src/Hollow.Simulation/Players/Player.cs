@@ -16,6 +16,12 @@ public struct Vitals
     public float Calories;
     public float Hydration;
 
+    /// <summary>Seconds of the breath reserve used; zero is full. Persists across reconnects.</summary>
+    public float BreathUsed;
+
+    /// <summary>Currently out of breathable air with the reserve exhausted.</summary>
+    public bool Suffocating;
+
     /// <summary>Health still to be lost to bleeding.</summary>
     public float Bleeding;
 
@@ -88,6 +94,12 @@ public enum ActionKind : byte
 
     /// <summary>An explosive thrown or placed (G5).</summary>
     Throw,
+
+    /// <summary>An accepted inventory use, including food, medicine and learning.</summary>
+    Use,
+
+    /// <summary>An accepted hammer repair.</summary>
+    Repair,
 }
 
 /// <summary>
@@ -140,7 +152,7 @@ public sealed class Player : ITargetable
     /// <summary>Raised whenever <see cref="Looting"/> changes, so the server knows to send contents.</summary>
     public uint LootRevision { get; set; }
 
-    /// <summary>The part of a ship looted (a station's magazine, IRON_WAKE.md §6.5), or 0: the whole (its cargo).</summary>
+    /// <summary>A ship magazine's part, or 0 for cargo. Negative values open fuel, encoding the reached part as -1-part.</summary>
     public int LootPart { get; set; }
 
     // ---------------------------------------------------------------- held item and its actions
@@ -161,6 +173,16 @@ public sealed class Player : ITargetable
 
     /// <summary>Counts swings and shots (wrapping), so others see each one; and what the last was.</summary>
     public byte ActionCount;
+    public ushort LastActionItem;
+    public uint LastActionTick;
+
+    public void RecordAction(ActionKind kind, ushort item, long tick)
+    {
+        ActionCount++;
+        LastAction = kind;
+        LastActionItem = item;
+        LastActionTick = (uint)Math.Max(0, tick);
+    }
     public ActionKind LastAction;
 
     /// <summary>Raised when the vitals change in a way the owner should see (whole units).</summary>

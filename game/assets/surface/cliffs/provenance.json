@@ -1,0 +1,49 @@
+{
+  "license": "CC0-1.0",
+  "license_url": "https://polyhaven.com/license",
+  "assets": [
+    {
+      "key": "coastal_cliff_04",
+      "source": "D:\\GameDev\\Assets\\coastal_cliff_04_4k.gltf\\coastal_cliff_04_4k.gltf",
+      "source_sha256": "3efdb7aea58441981d99351cda2af27b12b1d727595b3374babdf1e9c94ab978",
+      "source_url": "https://polyhaven.com/a/coastal_cliff_04",
+      "width": 22.0,
+      "height": 2.723763,
+      "collision_triangles": 700,
+      "outputs": [
+        {
+          "file": "game/assets/surface/cliffs/coastal_cliff_04_lod0.glb",
+          "sha256": "445f4c15fcee5aab5d9f049dd0342c1098c5d732c57eacd14f189fe5d6138c55",
+          "triangles": 12000
+        },
+        {
+          "file": "game/assets/surface/cliffs/coastal_cliff_04_lod1.glb",
+          "sha256": "75f3bc910bfa1e6193a24c9b2667a5fd80d7a63fa65fad49898a511a8d9fbe4f",
+          "triangles": 2500
+        }
+      ]
+    },
+    {
+      "key": "namaqualand_cliff_02",
+      "source": "D:\\GameDev\\Assets\\namaqualand_cliff_02_4k.gltf\\namaqualand_cliff_02_4k.gltf",
+      "source_sha256": "d0179af559464fa66473d74a0fe4570f38ad91169709df7fd685e4ba3649957f",
+      "source_url": "https://polyhaven.com/a/namaqualand_cliff_02",
+      "width": 18.0,
+      "height": 6.366317,
+      "collision_triangles": 700,
+      "outputs": [
+        {
+          "file": "game/assets/surface/cliffs/namaqualand_cliff_02_lod0.glb",
+          "sha256": "3e60d39f609caca9884ad0a353fa648fec0736f83ea710925b32d4796fd7143b",
+          "triangles": 12000
+        },
+        {
+          "file": "game/assets/surface/cliffs/namaqualand_cliff_02_lod1.glb",
+          "sha256": "8d5919abc7dddeb3c75befa47cf8ecd3cf510e4eae526ad433b0f4daf2069c53",
+          "triangles": 2500
+        }
+      ]
+    }
+  ],
+  "collision_sha256": "3098463e50dd85b1579177518e99a559eafe2ad8b97093a72edae1b97d51f95b"
+}

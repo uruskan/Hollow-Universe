@@ -8,6 +8,7 @@ pointing +Y like the other held things, turned to +X on export.
     blender -b --factory-startup --python art/models/attachments.py -- [keys...]
 """
 import math
+import bmesh
 import sys
 from pathlib import Path
 
@@ -36,8 +37,16 @@ def holo_sight(seed=301):
         m.box((0.004, 0.034, 0.042), (x, 0.016, 0.045), bevel=0.0012, tile=GUNMETAL, tint=BLACK, metres=0.6)
     m.box((0.035, 0.036, 0.005), (0, 0.016, 0.068), bevel=0.0015, tile=GUNMETAL, tint=BLACK, metres=0.6)
     # The window: tinted glass with an anti-glare coating that reads blue-green from outside.
-    m.box((0.028, 0.002, 0.036), (0, 0.03, 0.045), bevel=0.0, material=GLOSSY, tint=(0.22, 0.48, 0.55), metres=0.3)
-    m.box((0.026, 0.024, 0.022), (0, -0.022, 0.035), bevel=0.003, tile=GUNMETAL, tint=DARK, metres=0.48)
+    # A separate optical aperture: runtime glass/reticle material uses this actual window.
+    # One plane avoids alpha layering through the old opaque glass box.
+    m.part("OpticLens", (0, 0.03, 0.045))
+    bm = bmesh.new()
+    verts = [bm.verts.new(v) for v in ((-0.014, 0, -0.018), (0.014, 0, -0.018),
+                                      (0.014, 0, 0.018), (-0.014, 0, 0.018))]
+    bm.faces.new(verts)
+    m.add(bm, (0, 0.03, 0.045), material=GLOSSY, tint=(1, 1, 1), smooth=False)
+    m.part("Body")
+    m.box((0.026, 0.024, 0.022), (0, -0.022, 0.032), bevel=0.003, tile=GUNMETAL, tint=DARK, metres=0.48)
     m.cylinder(0.006, 0.008, (0.021, -0.022, 0.038), (0, 90, 0), sides=14, bevel=0.001, tile=RUBBER, tint=(0.6, 0.6, 0.6), metres=0.12)
     m.cylinder(0.0035, 0.004, (0, -0.035, 0.04), (90, 0, 0), sides=10, tile=GUNMETAL, tint=(0.55, 0.15, 0.12), metres=0.12)
     m.socket("eye", (0, -0.12, 0.045))
@@ -52,11 +61,21 @@ def scope(seed=303):
         m.lathe([(0.0158, -0.009), (0.0158, 0.009)], (0, y, axis), (-90, 0, 0), sides=20, close=False, tile=GUNMETAL, tint=BLACK, metres=0.3)
         m.box((0.012, 0.018, axis - 0.012 - 0.012), (0, y, (axis + 0.012) / 2), bevel=0.002, tile=GUNMETAL, tint=BLACK, metres=0.3)
     # The tube, along +Y here: eyepiece at the back, objective bell at the front.
-    profile = [(0.0, -0.16), (0.0175, -0.16), (0.019, -0.15), (0.019, -0.11), (0.0135, -0.085), (0.0127, -0.07), (0.0127, 0.08),
-               (0.0135, 0.09), (0.0225, 0.125), (0.0235, 0.15), (0.022, 0.16), (0.0, 0.16)]
-    m.lathe(profile, (0, 0, axis), (-90, 0, 0), sides=28, tile=GUNMETAL, tint=BLACK, metres=1.8)
-    for y, r in ((-0.1605, 0.0165), (0.1605, 0.0205)):
-        m.cylinder(r, 0.002, (0, y, axis), (90, 0, 0), sides=24, material=GLOSSY, tint=(0.1, 0.16, 0.22), metres=0.3)
+    # A closed wall section around an open optical bore. The former radius-zero ends
+    # capped the scope solid; transparent lenses alone could never reveal the scene.
+    profile = [(0.0175, -0.16), (0.019, -0.15), (0.019, -0.11), (0.0135, -0.085), (0.0127, -0.07), (0.0127, 0.08),
+               (0.0135, 0.09), (0.0225, 0.125), (0.0235, 0.15), (0.022, 0.16),
+               (0.0205, 0.16), (0.0215, 0.15), (0.0205, 0.125), (0.0115, 0.09),
+               (0.0107, 0.08), (0.0107, -0.07), (0.0115, -0.085), (0.017, -0.11),
+               (0.017, -0.15), (0.0155, -0.16), (0.0175, -0.16)]
+    m.lathe(profile, (0, 0, axis), (-90, 0, 0), sides=28, close=False, tile=GUNMETAL, tint=BLACK, metres=1.8)
+    m.part("OpticLens", (0, -0.1605, axis))
+    bm = bmesh.new()
+    vertices = [bm.verts.new((0.0154 * math.cos(i * 2 * math.pi / 32), 0,
+                              0.0154 * math.sin(i * 2 * math.pi / 32))) for i in range(32)]
+    bm.faces.new(vertices)
+    m.add(bm, (0, -0.1605, axis), material=GLOSSY, tint=(1, 1, 1), smooth=False)
+    m.part("Body")
     m.cylinder(0.011, 0.016, (0, 0.005, axis + 0.019), sides=16, bevel=0.0015, tile=GUNMETAL, tint=DARK, metres=0.3)
     m.cylinder(0.011, 0.016, (0.019, 0.005, axis), (0, 90, 0), sides=16, bevel=0.0015, tile=GUNMETAL, tint=DARK, metres=0.3)
     m.socket("eye", (0, -0.24, axis))

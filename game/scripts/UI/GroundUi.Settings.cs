@@ -21,7 +21,15 @@ public partial class GroundUi
     private int _settingsDrag = -1;
     private float _settingsDragX, _settingsDragW;
 
-    private SettingRow[] SettingsRows => _settingsTab == 0 ? SettingRows.Graphics : SettingRows.Interface;
+    private SettingRow[] SettingsRows => _settingsTab switch { 0 => SettingRows.Graphics, 1 => SettingRows.Interface, _ => SettingRows.Display };
+
+    /// <summary>Opens a settings tab, also used by reproducible UI captures.</summary>
+    public void ShowSettings(int tab = 0)
+    {
+        ShowMenu(_inGame);
+        OpenSettings();
+        _settingsTab = Math.Clamp(tab, 0, 2);
+    }
 
     private void OpenSettings()
     {
@@ -66,7 +74,7 @@ public partial class GroundUi
         Rect(SetX, SetY, 4, SetH, G.Red);
         PanelArea(SetX, SetY, SetW, SetH);
         Text("SETTINGS", SetX + 36, SetY + 22, 43, G.Ink, bold: true);
-        string[] tabs = { "GRAPHICS", "INTERFACE" };
+        string[] tabs = { "GRAPHICS", "INTERFACE", "DISPLAY" };
         for (int t = 0; t < tabs.Length; t++)
         {
             int tab = t;
@@ -207,7 +215,7 @@ public partial class GroundUi
                 ChangeSetting(_settingsRow, (r, v) => r.Move(v, 1));
                 return true;
             case Key.Tab:
-                _settingsTab = 1 - _settingsTab;
+                _settingsTab = (_settingsTab + 1) % 3;
                 _settingsRow = 0;
                 return true;
             default:

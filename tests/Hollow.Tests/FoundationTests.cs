@@ -478,7 +478,13 @@ public static class FoundationTests
             z.Targets().Families.Find((int)TargetFamily.Animal)!.Capabilities(deer.Id.Value).Has(lifetime), "their capabilities say so");
         Assert.Equal(4, z.Things().LooseCount, "the bag, the body, the dud and the carcass lie loose, nothing else");
 
-        // Their time up, the one step ends each through its family.
+        // A player's body first becomes a bag. The same lifetime step does that without removing its inventory.
+        body.Life!.Restore(CorpseStage.Body, 1, body.Life.HarvestLeft, z.Tick);
+        rig.Step(31);
+        Assert.True(!body.IsBody && z.Things().StaticOf(body.Id) == body && body.Loot[0].Count == 20,
+            "body phase ends into the same lootbag with its contents");
+        Assert.Equal(4, z.Things().LooseCount, "phase change keeps exactly one loose container");
+        // Their final time up, the one step ends each through its family.
         foreach (ILifetime loose in new ILifetime[] { bag, body, dud, deer })
         {
             loose.EndsAt = z.Tick + 5;

@@ -78,7 +78,7 @@ public static class ConsoleTests
         Expect("kit supply", "kit supply-crate ");
         Expect("env.ti", "env.time", "env.time", "env.timescale");
         Expect("global.noc", "global.noclip ");
-        Expect("help noc", "help noclip ");
+        Expect("help noc", "help noclip", "noclip", "noclipspeed");
         Expect("noclip o", "noclip o", "on", "off");
         Expect("frobnicate x", "frobnicate x");
         Assert.True(sources.Spawnables.Contains("raidbase") && sources.Spawnables.Contains("research-table") && sources.Spawnables.Contains("crate"),

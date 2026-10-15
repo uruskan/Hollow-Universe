@@ -49,12 +49,8 @@ public sealed class SnapshotSender
     /// <summary>Ships may take at most this share of a snapshot's budget.</summary>
     public const float ShipShare = 0.35f;
 
-    // Header and own state, with room for the varints at their largest; the ship section's count and the own ship's
-    // presence bit (G6).
-    private const int HeaderBits = 8 + 32 + 32 + 8 + 32 + 6 * 32 + 1 + 8 + 4 + 32 + 40 + 1 + 40;
-
-    // The pilot's own ship, exactly (OwnShipState: two varints, 15 floats, three ushorts and nine bits of flags).
-    private const int OwnShipBits = 2 * 40 + 15 * 32 + 3 * 16 + 9;
+    // Measure the generated header itself: hand-maintained constants silently undercount when own-state fields grow.
+    private readonly BitWriter _headerSizer = new(192);
 
     private readonly DeltaChannel<CharacterNetState> _characters = new();
     private readonly DeltaChannel<ShipNetState> _ships = new();
@@ -117,7 +113,15 @@ public sealed class SnapshotSender
     {
         uint sequence = ++LastSequence;
         LastOffered = candidates.Length;
-        int budget = byteBudget * 8 - HeaderBits - (header.OwnShip is { Length: > 0 } ? OwnShipBits : 0);
+        header.Sequence = sequence;
+        // Offered counts bound the encoded widths of the final chosen counts (normally only one byte).
+        header.EntityCount = (uint)candidates.Length;
+        _headerSizer.Reset();
+        _headerSizer.WriteBits(Protocol.Protocol.SnapshotTypeId, 8);
+        header.Write(_headerSizer);
+        _headerSizer.WriteVarUInt((uint)ships.Length);
+        int budget = byteBudget * 8 - _headerSizer.BitCount;
+        if (budget < 0) throw new ArgumentOutOfRangeException(nameof(byteBudget), "Snapshot header exceeds the packet budget.");
         int shipBits = _ships.Choose(ships, sequence, (int)(Math.Max(0, budget) * ShipShare));
         _characters.Choose(candidates, sequence, budget - shipBits);
 

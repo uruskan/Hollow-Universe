@@ -1,0 +1,541 @@
+{
+  "method": "Selective, manifest-verified native Godot dependency integration; authored convex hulls compiled for shared physics",
+  "packages": {
+    "Hollow_Substation_R01": {
+      "source": "D:\\GameDev\\Assets\\Hollow_Substation_R01",
+      "source_manifest_sha256": "46267f5e3aa16dce9e692be99db7cc7f6d3c683c21a255ffabf2c0871f458c4d",
+      "files": [
+        {
+          "source": "Textures/T_HS_gravel_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_gravel_BaseColor.png",
+          "source_sha256": "0457236280d0d50c233e406c13878696394b06dd30ecfb1ca8d61f45cc61e1d8",
+          "installed_sha256": "0457236280d0d50c233e406c13878696394b06dd30ecfb1ca8d61f45cc61e1d8"
+        },
+        {
+          "source": "Textures/T_HS_gravel_ORM.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_gravel_ORM.png",
+          "source_sha256": "9b704a06aa59cf3d456b339e95ed87ba40ffde81ac11db4e2811428ee7cf17a5",
+          "installed_sha256": "9b704a06aa59cf3d456b339e95ed87ba40ffde81ac11db4e2811428ee7cf17a5"
+        },
+        {
+          "source": "Textures/T_HS_gravel_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_gravel_NormalGL.png",
+          "source_sha256": "beb1773132e766390ecd5c633c4381f065711721521b428b5db12a09ce256a17",
+          "installed_sha256": "beb1773132e766390ecd5c633c4381f065711721521b428b5db12a09ce256a17"
+        },
+        {
+          "source": "Materials/HU_gravel.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_gravel.tres",
+          "source_sha256": "e43259f3b5f9cc362dd4e40049b121dad6645bf86a4709a45be9bb65d207437a",
+          "installed_sha256": "1bccc2e8dc3683286f823daf076ec646d902a7892111ed717d8af1bd37561501"
+        },
+        {
+          "source": "Textures/T_HS_concrete_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_concrete_BaseColor.png",
+          "source_sha256": "c8d8b615f3bf888c1824ba6e28c830ed3f53ba0734df1a0dc3f35941a2c0d09e",
+          "installed_sha256": "c8d8b615f3bf888c1824ba6e28c830ed3f53ba0734df1a0dc3f35941a2c0d09e"
+        },
+        {
+          "source": "Textures/T_HS_concrete_ORM.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_concrete_ORM.png",
+          "source_sha256": "56ed817b6ba29fb0afd9abdae15666df6d2744331e73d5c2d88936cce5f3229a",
+          "installed_sha256": "56ed817b6ba29fb0afd9abdae15666df6d2744331e73d5c2d88936cce5f3229a"
+        },
+        {
+          "source": "Textures/T_HS_concrete_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_concrete_NormalGL.png",
+          "source_sha256": "166adcf36a3cae748e51756da9ed1c70ac0b670b0d604a944f891ced431b90ec",
+          "installed_sha256": "166adcf36a3cae748e51756da9ed1c70ac0b670b0d604a944f891ced431b90ec"
+        },
+        {
+          "source": "Materials/HU_concrete.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_concrete.tres",
+          "source_sha256": "a9243ee044cc90b503b1e82240f40e00bc3a4fcc9e4f1c4646a9a3e55fd3d565",
+          "installed_sha256": "3ebcc8cd6bc05ecde3aadc65c88892f8834ca42199690ac9bccb3c898a2ca2d0"
+        },
+        {
+          "source": "Textures/T_HS_steel_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_steel_BaseColor.png",
+          "source_sha256": "0b41ecbed65bf27fa1c230025e10cd3347b60a428c1cd25b7662fa557bb6e850",
+          "installed_sha256": "0b41ecbed65bf27fa1c230025e10cd3347b60a428c1cd25b7662fa557bb6e850"
+        },
+        {
+          "source": "Textures/T_HS_steel_ORM.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_steel_ORM.png",
+          "source_sha256": "48645aff28657c1ce0117fc4599918df4dce319ad6ff920f6208ea5835a704aa",
+          "installed_sha256": "48645aff28657c1ce0117fc4599918df4dce319ad6ff920f6208ea5835a704aa"
+        },
+        {
+          "source": "Textures/T_HS_steel_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_steel_NormalGL.png",
+          "source_sha256": "6f169c79768618467ca2bef06e9d425b52241b89a0f3cece10f170dffde3aadf",
+          "installed_sha256": "6f169c79768618467ca2bef06e9d425b52241b89a0f3cece10f170dffde3aadf"
+        },
+        {
+          "source": "Materials/HU_steel.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_steel.tres",
+          "source_sha256": "1ce18866d18227cea9c6c5c2392337d2171d870b358647332e457ec4238fe71d",
+          "installed_sha256": "6c6d43fb88abd252fac4f94b09f270996fca584b50853294988bbab46d91b567"
+        },
+        {
+          "source": "Materials/HU_drygrass.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_drygrass.tres",
+          "source_sha256": "78f87c058f10d3528aa3ce7b02a019fd0e292e76209ecd7da272a4ec4909a332",
+          "installed_sha256": "90b49af209f28a6140c57d87ceb85050bd9e55d82a166e9449565d8fd3f37cce"
+        },
+        {
+          "source": "Textures/T_HS_paint_ivory_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_paint_ivory_BaseColor.png",
+          "source_sha256": "c09f4bee2b17874cc10857a657e308e5df09d22479b4791119f6fe03d864f448",
+          "installed_sha256": "c09f4bee2b17874cc10857a657e308e5df09d22479b4791119f6fe03d864f448"
+        },
+        {
+          "source": "Textures/T_HS_paint_shared_ORM.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_paint_shared_ORM.png",
+          "source_sha256": "5313d33cff5fd6112bf1f2558e0a8d65ebd81045c49c63ac5760749b35db19b1",
+          "installed_sha256": "5313d33cff5fd6112bf1f2558e0a8d65ebd81045c49c63ac5760749b35db19b1"
+        },
+        {
+          "source": "Textures/T_HS_paint_shared_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_paint_shared_NormalGL.png",
+          "source_sha256": "473c5808f656fb10ee4f2ed6dabe2cc807566e0c3b875e6befbca1bba2ed83d9",
+          "installed_sha256": "473c5808f656fb10ee4f2ed6dabe2cc807566e0c3b875e6befbca1bba2ed83d9"
+        },
+        {
+          "source": "Materials/HU_paint_ivory.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_paint_ivory.tres",
+          "source_sha256": "723d53473a5bd79e7398f69eee43d76512acd43a5fd6eec7435cabad71dc0775",
+          "installed_sha256": "b2add7cd2b15bc4ba071282d442042f4ff519a042cc2a2f78118318ebf23ecc8"
+        },
+        {
+          "source": "Textures/T_HS_paint_teal_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_paint_teal_BaseColor.png",
+          "source_sha256": "cb09c6b21041d4192e6775b9e30d3a09552fd6daddf51c99b4a69829a69de40b",
+          "installed_sha256": "cb09c6b21041d4192e6775b9e30d3a09552fd6daddf51c99b4a69829a69de40b"
+        },
+        {
+          "source": "Materials/HU_paint_teal.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_paint_teal.tres",
+          "source_sha256": "a4ce5dced1c152e59a7574670f22950e3d334816681fe1dd3b3e56f96213964e",
+          "installed_sha256": "47ad9d27bfdf6d32f737c802f9af01df379916f2d2ee707af7a4612e77413fb0"
+        },
+        {
+          "source": "Textures/T_HS_darksteel_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_darksteel_BaseColor.png",
+          "source_sha256": "98c96412b119f159c8ca10869f1118136c9e3df6199072020cc8b396ac8a8642",
+          "installed_sha256": "98c96412b119f159c8ca10869f1118136c9e3df6199072020cc8b396ac8a8642"
+        },
+        {
+          "source": "Textures/T_HS_darksteel_ORM.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_darksteel_ORM.png",
+          "source_sha256": "41cd3f91158c555353c4d910413b7f9e105d49c72cf92dd3a7679394f8ea4d8b",
+          "installed_sha256": "41cd3f91158c555353c4d910413b7f9e105d49c72cf92dd3a7679394f8ea4d8b"
+        },
+        {
+          "source": "Textures/T_HS_darksteel_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_darksteel_NormalGL.png",
+          "source_sha256": "6f169c79768618467ca2bef06e9d425b52241b89a0f3cece10f170dffde3aadf",
+          "installed_sha256": "6f169c79768618467ca2bef06e9d425b52241b89a0f3cece10f170dffde3aadf"
+        },
+        {
+          "source": "Materials/HU_darksteel.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_darksteel.tres",
+          "source_sha256": "8783ec8164c5698f9e4fcf45df3c38965d1306fda355e8991fd82044564c4f6b",
+          "installed_sha256": "e0df373d9c480974ab8d444e900fc50bc26ad6ba2fcbebe271fd11d8faced7ab"
+        },
+        {
+          "source": "Materials/HU_lamp.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_lamp.tres",
+          "source_sha256": "712bf0a999da582b41b8cc7fd5ea018b1baa799713f906b28ca003b986bbd8ce",
+          "installed_sha256": "864f3e3c5a74af121deb9220dcac6fbe885bda4ddb55a8147e03cd7c7a867594"
+        },
+        {
+          "source": "Textures/T_HS_paving_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_paving_BaseColor.png",
+          "source_sha256": "cd234965522318544a35384bf6f6ed2d85c0b7e479b0f9bda02e02b4bbb2f81e",
+          "installed_sha256": "cd234965522318544a35384bf6f6ed2d85c0b7e479b0f9bda02e02b4bbb2f81e"
+        },
+        {
+          "source": "Materials/HU_paving.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_paving.tres",
+          "source_sha256": "2b08f32c9424428c819ae2e5e30bf5d27273a0cfed77015e87dff45a6b86a69a",
+          "installed_sha256": "396a334a9c45181f1627c394c34bcfa06dc090a04c8fc4403d40e248d040416e"
+        },
+        {
+          "source": "Materials/HU_rubber.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_rubber.tres",
+          "source_sha256": "0b515e8ed261b3c62ea138d8a8cb4c9bebee225519efc73a866964c247cc5510",
+          "installed_sha256": "0cb2e404a2269ef05e2e3114afcaccd36342156c615161bd58842dd67b5a5b89"
+        },
+        {
+          "source": "Textures/T_HS_Labels_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_Labels_BaseColor.png",
+          "source_sha256": "d2c5dceb518453e3001f0f0900ae366be1429bc40b3942e5454fc72d5b184aab",
+          "installed_sha256": "d2c5dceb518453e3001f0f0900ae366be1429bc40b3942e5454fc72d5b184aab"
+        },
+        {
+          "source": "Materials/HU_labels.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_labels.tres",
+          "source_sha256": "ca3f5ec42ba547f6b9095a596c389254a63ca321002fd165afeb1dcd53212755",
+          "installed_sha256": "52514d6a3b0f044a7cc148e9da8f40398fa2c7d86b62f4ee473572ccaebd76f7"
+        },
+        {
+          "source": "Scenes/service-court.tscn",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Scenes/service-court.tscn",
+          "source_sha256": "8eb05e5f10d9d28a3cdc551ef9d655ad01d97e84b3b1d7c07d41eb0e88ac5e94",
+          "installed_sha256": "f98252395a8fe22e699b93a413e495867fd4b3b50c3baed1a1504e479db9fb96"
+        },
+        {
+          "source": "Materials/HU_copper.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_copper.tres",
+          "source_sha256": "d053d7eef21d09e24c66084e9d7f68b209d5eb5c3a4d9723f66b6447f96b6c02",
+          "installed_sha256": "6cc5c7188b5e6a82c7dee97cb992f1a15886f4cef9e525fa77f8a92fc2b3a4f6"
+        },
+        {
+          "source": "Materials/HU_ceramic.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_ceramic.tres",
+          "source_sha256": "c0a9a26885555feb0b3a851605625155674fc0a1003d6f2adf052f3954b66a36",
+          "installed_sha256": "168b96935342894e5574ac52265ca84388e59f40f4561cfd95e51512151177c0"
+        },
+        {
+          "source": "Materials/HU_glass.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_glass.tres",
+          "source_sha256": "cc20dc8ad42cf0ee62b9a01fe34a62b538de9fd9ffb038069e3dc9a41076d78f",
+          "installed_sha256": "8c026636491fd5ee6a763379445ac762ebc6707173ad5683dd6b43515ebec16e"
+        },
+        {
+          "source": "Textures/T_HS_rust_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_rust_BaseColor.png",
+          "source_sha256": "b698425618aaeed7a01044a5c4aab6343c83e96068154aa9e42fad02682ded6f",
+          "installed_sha256": "b698425618aaeed7a01044a5c4aab6343c83e96068154aa9e42fad02682ded6f"
+        },
+        {
+          "source": "Textures/T_HS_rust_ORM.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_rust_ORM.png",
+          "source_sha256": "9c8d3dc65efcea1caae829179e78b44957b8d6c5ba89329608f8185fcd057920",
+          "installed_sha256": "9c8d3dc65efcea1caae829179e78b44957b8d6c5ba89329608f8185fcd057920"
+        },
+        {
+          "source": "Textures/T_HS_rust_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_rust_NormalGL.png",
+          "source_sha256": "90527abe76e0819991c0b4601c8031ac82416e2ae01162f884809d79133c8626",
+          "installed_sha256": "90527abe76e0819991c0b4601c8031ac82416e2ae01162f884809d79133c8626"
+        },
+        {
+          "source": "Materials/HU_rust.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_rust.tres",
+          "source_sha256": "319281e3590dff35124dd558314ba6a56569577287859fbb58b4d5e0927756a5",
+          "installed_sha256": "20fbe1e10206ebb0019cdcd5c8639e1e1c24bbb6323884557c17f5767c7bb783"
+        },
+        {
+          "source": "Scenes/oil-transformer.tscn",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Scenes/oil-transformer.tscn",
+          "source_sha256": "8cc39dfaaa87de079b712b7fb4b87bdbd96aa81d1f18aca1627529e026a66516",
+          "installed_sha256": "1c80b7973682bf781fea5437520d2bc18c37b8add7af7fe025462a3eae19c174"
+        },
+        {
+          "source": "Scenes/switchgear-cabinet.tscn",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Scenes/switchgear-cabinet.tscn",
+          "source_sha256": "90e51859616d2d604c81125699df4d3afa2a298ce0c7624087e3638b35e817b7",
+          "installed_sha256": "adb7511995148a99f4fc06f3421491fd84c15bf8a18161804653738665446e0b"
+        },
+        {
+          "source": "Textures/T_HS_wood_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_wood_BaseColor.png",
+          "source_sha256": "8bb354944152400f02672688fbfde2755a4baabbe12b38d18576688b8f4f396f",
+          "installed_sha256": "8bb354944152400f02672688fbfde2755a4baabbe12b38d18576688b8f4f396f"
+        },
+        {
+          "source": "Textures/T_HS_wood_ORM.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_wood_ORM.png",
+          "source_sha256": "66a9010fefc0101c2c697818839db1fbd03fe6b5e1ab461be9d0aa8b98bcfd48",
+          "installed_sha256": "66a9010fefc0101c2c697818839db1fbd03fe6b5e1ab461be9d0aa8b98bcfd48"
+        },
+        {
+          "source": "Textures/T_HS_wood_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Textures/T_HS_wood_NormalGL.png",
+          "source_sha256": "ad84e9b7bf18d1ea0456304a4da94149ad80ef5a6d08c14b80247925a21f6059",
+          "installed_sha256": "ad84e9b7bf18d1ea0456304a4da94149ad80ef5a6d08c14b80247925a21f6059"
+        },
+        {
+          "source": "Materials/HU_wood.tres",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Materials/HU_wood.tres",
+          "source_sha256": "750f7e090b058e498f630112bc520585716bbaea6f57bcbe1b98e4aa15390413",
+          "installed_sha256": "da9c2c0cce88c40f666a71adadb71cb3195c534a8c1e572aa910028fdb60a91f"
+        },
+        {
+          "source": "Scenes/cable-reel.tscn",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Scenes/cable-reel.tscn",
+          "source_sha256": "52c94b9992606c36744a8357efbce65d2290e00ed9ede352c27b8a3eab089630",
+          "installed_sha256": "b40ddb841523008f77ffeb52b7b7c2fd07204b429cd41791079c538de0014568"
+        },
+        {
+          "source": "Scenes/jersey-barrier.tscn",
+          "destination": "game/assets/revised/Hollow_Substation_R01/Scenes/jersey-barrier.tscn",
+          "source_sha256": "8e80aec744d63e5d2459b3af9a2d36861a61fd1808ce5f3fd82c88f682edaa37",
+          "installed_sha256": "fde1f8e7ae21311352eb2fa6876b09fbab36dfb64447896c84887583b9d6c856"
+        }
+      ]
+    },
+    "Hollow_PowerKit_R01": {
+      "source": "D:\\GameDev\\Assets\\Hollow_PowerKit_R01",
+      "source_manifest_sha256": "1ed8b949f9f469fd5c7ec848ebe78f5047a00f8c5f1bc1e56da912789327e21b",
+      "files": [
+        {
+          "source": "Textures/Galvanized_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Textures/Galvanized_BaseColor.png",
+          "source_sha256": "ba362f645bd44ce84803c9bcc9a50bd7b20b79386f9091febce6acc9043061a7",
+          "installed_sha256": "ba362f645bd44ce84803c9bcc9a50bd7b20b79386f9091febce6acc9043061a7"
+        },
+        {
+          "source": "Textures/Galvanized_ORM.png",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Textures/Galvanized_ORM.png",
+          "source_sha256": "d29c37c3a4ae4502b75bfed1f3a21f28ecaf16af75528c6d4cafc7fb287c56ef",
+          "installed_sha256": "d29c37c3a4ae4502b75bfed1f3a21f28ecaf16af75528c6d4cafc7fb287c56ef"
+        },
+        {
+          "source": "Textures/Galvanized_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Textures/Galvanized_NormalGL.png",
+          "source_sha256": "514cdc9ce7c776a8618d22ce8da6e0e082dc2007c85bb1e510a3766ffdc9c0fc",
+          "installed_sha256": "514cdc9ce7c776a8618d22ce8da6e0e082dc2007c85bb1e510a3766ffdc9c0fc"
+        },
+        {
+          "source": "Materials/HU_steel.tres",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Materials/HU_steel.tres",
+          "source_sha256": "c8ab7cc63924c2b0f94f904215f41792b7df7d9756487599f3790ade3534005e",
+          "installed_sha256": "622b867f860b510dbdda276caeccf8c48a1635261ca4ad2a2a16df4fab3421dd"
+        },
+        {
+          "source": "Textures/Enamel_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Textures/Enamel_BaseColor.png",
+          "source_sha256": "08709548b67525af57f668eec08bdd54ce162f9bbb19557c6eb55abaf95a6206",
+          "installed_sha256": "08709548b67525af57f668eec08bdd54ce162f9bbb19557c6eb55abaf95a6206"
+        },
+        {
+          "source": "Textures/Enamel_ORM.png",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Textures/Enamel_ORM.png",
+          "source_sha256": "e2fcc902825e7fa05ffd2738183005cc9ce65df1ed6a915e1e080e7930be231a",
+          "installed_sha256": "e2fcc902825e7fa05ffd2738183005cc9ce65df1ed6a915e1e080e7930be231a"
+        },
+        {
+          "source": "Textures/Enamel_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Textures/Enamel_NormalGL.png",
+          "source_sha256": "7dc2cc1fa9ae8b683b554ac2d6a79edc62dc3f8362b935baf79b72de65e95b7f",
+          "installed_sha256": "7dc2cc1fa9ae8b683b554ac2d6a79edc62dc3f8362b935baf79b72de65e95b7f"
+        },
+        {
+          "source": "Materials/HU_enamel.tres",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Materials/HU_enamel.tres",
+          "source_sha256": "0a09e087890d6ccca6d62bdeaabe441bb1cc73a7b727583482adba1c77b6dd36",
+          "installed_sha256": "16585348a82ea6659892b9921a62048f4aa474249c6c25aaf3a0a84e93422506"
+        },
+        {
+          "source": "Textures/Technical_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Textures/Technical_BaseColor.png",
+          "source_sha256": "ba9760cbedbf157b472586b6f5c818c0c26783264e569a3933348a78e9d0b50b",
+          "installed_sha256": "ba9760cbedbf157b472586b6f5c818c0c26783264e569a3933348a78e9d0b50b"
+        },
+        {
+          "source": "Textures/Technical_ORM.png",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Textures/Technical_ORM.png",
+          "source_sha256": "c826cc584e414a5a84d9028ccf9b0231ec99664295327c80245c18d9f9604efe",
+          "installed_sha256": "c826cc584e414a5a84d9028ccf9b0231ec99664295327c80245c18d9f9604efe"
+        },
+        {
+          "source": "Textures/Technical_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Textures/Technical_NormalGL.png",
+          "source_sha256": "91d84d001c158026be44b364250c5e71c17f072ff42c355ca951cb511866c72c",
+          "installed_sha256": "91d84d001c158026be44b364250c5e71c17f072ff42c355ca951cb511866c72c"
+        },
+        {
+          "source": "Materials/HU_technical.tres",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Materials/HU_technical.tres",
+          "source_sha256": "4b9f1704054dd5347a0fdebb99374779f7d47e4d8caed0408dfad0a132c1b2ad",
+          "installed_sha256": "1bec74582dd4974ac76fa77e6111bcf680a74cf5e6168e2078f54fe36ded0be5"
+        },
+        {
+          "source": "Scenes/breaker.tscn",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Scenes/breaker.tscn",
+          "source_sha256": "ad97c8b0f9eeba3fae2787966df7f01cd6057a4a543ae5018feb36390f273544",
+          "installed_sha256": "dfd2cd5f3e221b753981bf968d562bea5065ac1ca89a8ddfe438321b92764dc6"
+        },
+        {
+          "source": "Scenes/disconnect-open.tscn",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Scenes/disconnect-open.tscn",
+          "source_sha256": "9d71f5d54201dda55b60ce5adf782a01211e66c4566172ae10537b47cc0d9c94",
+          "installed_sha256": "d57b43cb2d2742fea060c72d981e950ca1f10c3e52fc03394a70bd27a806a215"
+        },
+        {
+          "source": "Scenes/termination-pedestal.tscn",
+          "destination": "game/assets/revised/Hollow_PowerKit_R01/Scenes/termination-pedestal.tscn",
+          "source_sha256": "809633ba5b91d5c46ac2bb258b8601baccf154f87abeaecd95efb45417725a98",
+          "installed_sha256": "71fc941e36e829ea143b2017763fa6427383b072450cfc08239a000813d4fc3c"
+        }
+      ]
+    },
+    "Hollow_RuinDressing_R01": {
+      "source": "D:\\GameDev\\Assets\\Hollow_RuinDressing_R01",
+      "source_manifest_sha256": "0e8fc27dbdd4522237c84a187a90f060f4ba918a07ec2b9be6ea70f56b0548c3",
+      "files": [
+        {
+          "source": "Textures/ruin_metal_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_RuinDressing_R01/Textures/ruin_metal_BaseColor.png",
+          "source_sha256": "774d341af1dd958444a90d9fb3bbc50263513fa65346ef3753ed5d706e80c581",
+          "installed_sha256": "774d341af1dd958444a90d9fb3bbc50263513fa65346ef3753ed5d706e80c581"
+        },
+        {
+          "source": "Textures/ruin_metal_ORM.png",
+          "destination": "game/assets/revised/Hollow_RuinDressing_R01/Textures/ruin_metal_ORM.png",
+          "source_sha256": "49cc8c3cc897f522c8f47b4f0d29118146dcc43bafb9ed5d97242a20dd7703e2",
+          "installed_sha256": "49cc8c3cc897f522c8f47b4f0d29118146dcc43bafb9ed5d97242a20dd7703e2"
+        },
+        {
+          "source": "Textures/ruin_metal_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_RuinDressing_R01/Textures/ruin_metal_NormalGL.png",
+          "source_sha256": "adb7def4d6f56f0f395b74d79014254b7512e804f5fb26597bfa2ca214d368de",
+          "installed_sha256": "adb7def4d6f56f0f395b74d79014254b7512e804f5fb26597bfa2ca214d368de"
+        },
+        {
+          "source": "Materials/HR_metal.tres",
+          "destination": "game/assets/revised/Hollow_RuinDressing_R01/Materials/HR_metal.tres",
+          "source_sha256": "b04c2ef6092951ba85ae3e4a4274e673df6c67912786c3441e65809f5b4401a8",
+          "installed_sha256": "f46ac92863e70af7f6034f5ab193d27cf687c3d16303d3fbd105d6a6dff983da"
+        },
+        {
+          "source": "Scenes/hardware-cluster.tscn",
+          "destination": "game/assets/revised/Hollow_RuinDressing_R01/Scenes/hardware-cluster.tscn",
+          "source_sha256": "fd984a880aee9636bf7ffbbaa20c7682aaaad3cad39aecc5cfe21eef0c26f39e",
+          "installed_sha256": "7caf5ffd93159fc79515c81a9a56704618c2315cba248cc67d354f2710b1ca41"
+        },
+        {
+          "source": "Textures/oil-seep_BaseColor.png",
+          "destination": "game/assets/revised/Hollow_RuinDressing_R01/Textures/oil-seep_BaseColor.png",
+          "source_sha256": "13ef73118bb564900ca4dd6d5bb3aa9a40909cf3d184e71c0c4c4eacbafb3a75",
+          "installed_sha256": "13ef73118bb564900ca4dd6d5bb3aa9a40909cf3d184e71c0c4c4eacbafb3a75"
+        },
+        {
+          "source": "Textures/oil-seep_NormalGL.png",
+          "destination": "game/assets/revised/Hollow_RuinDressing_R01/Textures/oil-seep_NormalGL.png",
+          "source_sha256": "df3aca6fa27d8803546d1485abff54834bea97cedeb38f5f43333571f32a6472",
+          "installed_sha256": "df3aca6fa27d8803546d1485abff54834bea97cedeb38f5f43333571f32a6472"
+        },
+        {
+          "source": "Textures/oil-seep_ORM.png",
+          "destination": "game/assets/revised/Hollow_RuinDressing_R01/Textures/oil-seep_ORM.png",
+          "source_sha256": "1c62bd1a7450ef7ce72a53aea59df583caa0f8a4fc3d1ca6fdfa8b8deb2fcca4",
+          "installed_sha256": "1c62bd1a7450ef7ce72a53aea59df583caa0f8a4fc3d1ca6fdfa8b8deb2fcca4"
+        },
+        {
+          "source": "Scenes/decal-oil-seep.tscn",
+          "destination": "game/assets/revised/Hollow_RuinDressing_R01/Scenes/decal-oil-seep.tscn",
+          "source_sha256": "a77e8cadfb9db021d4d748eeb44b551bf50d2684a6de10746dab458b4cc86e2b",
+          "installed_sha256": "f078b7c854836913eea7090d069057f06bf4e44b9117400e7a77b0728061416a"
+        }
+      ]
+    }
+  },
+  "assembly_sha256": "f9d0764afe08bf1b0a22354976c6d722432ea49f9026a6c775ea66335f5d7366",
+  "collision_triangles": 396,
+  "layout": [
+    {
+      "package": "Hollow_Substation_R01",
+      "part": "service-court",
+      "at": [
+        0,
+        0,
+        0
+      ],
+      "yaw_radians": 0
+    },
+    {
+      "package": "Hollow_Substation_R01",
+      "part": "oil-transformer",
+      "at": [
+        0,
+        0.28,
+        -1.5
+      ],
+      "yaw_radians": 0
+    },
+    {
+      "package": "Hollow_Substation_R01",
+      "part": "switchgear-cabinet",
+      "at": [
+        -3.6,
+        0.07,
+        -0.6
+      ],
+      "yaw_radians": 0
+    },
+    {
+      "package": "Hollow_Substation_R01",
+      "part": "cable-reel",
+      "at": [
+        -3.5,
+        0.07,
+        2.8
+      ],
+      "yaw_radians": -0.25
+    },
+    {
+      "package": "Hollow_Substation_R01",
+      "part": "jersey-barrier",
+      "at": [
+        2.1,
+        0.07,
+        3.9
+      ],
+      "yaw_radians": -0.12
+    },
+    {
+      "package": "Hollow_PowerKit_R01",
+      "part": "breaker",
+      "at": [
+        9,
+        0,
+        -1
+      ],
+      "yaw_radians": 0
+    },
+    {
+      "package": "Hollow_PowerKit_R01",
+      "part": "disconnect-open",
+      "at": [
+        9,
+        0,
+        2.5
+      ],
+      "yaw_radians": 0
+    },
+    {
+      "package": "Hollow_PowerKit_R01",
+      "part": "termination-pedestal",
+      "at": [
+        7,
+        0,
+        -3.7
+      ],
+      "yaw_radians": 0
+    },
+    {
+      "package": "Hollow_RuinDressing_R01",
+      "part": "hardware-cluster",
+      "at": [
+        -2.2,
+        0.07,
+        -0.6
+      ],
+      "yaw_radians": -0.3
+    },
+    {
+      "package": "Hollow_RuinDressing_R01",
+      "part": "decal-oil-seep",
+      "at": [
+        0.9,
+        0.29,
+        -0.5
+      ],
+      "yaw_radians": 0.2
+    }
+  ]
+}

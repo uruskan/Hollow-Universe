@@ -36,6 +36,9 @@ public enum ShipFlags : ushort
 
     /// <summary>At least three skid pads carried it at the end of the last step (its engines idle there unless asked to move).</summary>
     Touching = 256,
+
+    /// <summary>The crew explicitly switched the engine off; sitting at the helm does not restart it.</summary>
+    EngineStopped = 512,
 }
 
 /// <summary>Buttons of a pilot's tick of input.</summary>
@@ -77,6 +80,13 @@ public struct ShipInput
 
     public readonly bool Has(ShipButtons button) => (Buttons & button) != 0;
 
+    /// <summary>Hands leave the helm: retain the movement lever and assist setting, release turning and boost.</summary>
+    public readonly ShipInput Unattended() => new()
+    {
+        Throttle = Throttle, Strafe = Strafe, Vertical = Vertical,
+        Buttons = Buttons & ShipButtons.AssistOff, Engines = Engines,
+    };
+
     /// <summary>Anything that asks the ship to move (wakes a resting ship, lifts a landed one).</summary>
     public readonly bool WantsMotion => Engines && (Throttle != 0 || Strafe != 0 || Vertical > 0 || Has(ShipButtons.Boost) ||
         (Has(ShipButtons.AssistOff) && (Pitch != 0 || Yaw != 0 || Roll != 0 || Vertical != 0)));
@@ -104,7 +114,11 @@ public struct ShipState : IEquatable<ShipState>
     public float Health;
 
     /// <summary>Units of fuel in the tank.</summary>
+    /// <summary>Motor/prediction total; authoritative ships derive it from their tank and fractional reserve.</summary>
     public float Fuel;
+
+    /// <summary>The fractional engine reserve, retained separately so server and prediction burn identically.</summary>
+    public float FuelReserve;
 
     /// <summary>Ticks of boost left, and of cooling down after it.</summary>
     public ushort BoostTicks;
@@ -140,7 +154,7 @@ public struct ShipState : IEquatable<ShipState>
     // What the next step reads (outputs aside): the client's prediction compares these.
     public readonly bool Equals(ShipState o) =>
         Position.Equals(o.Position) && Rotation.Equals(o.Rotation) && Velocity.Equals(o.Velocity) && AngularVelocity.Equals(o.AngularVelocity) &&
-        Health.Equals(o.Health) && Fuel.Equals(o.Fuel) && BoostTicks == o.BoostTicks && CooldownTicks == o.CooldownTicks &&
+        Health.Equals(o.Health) && Fuel.Equals(o.Fuel) && FuelReserve.Equals(o.FuelReserve) && BoostTicks == o.BoostTicks && CooldownTicks == o.CooldownTicks &&
         RestTicks == o.RestTicks && Flags == o.Flags;
 
     public override readonly bool Equals(object? obj) => obj is ShipState s && Equals(s);
@@ -171,6 +185,9 @@ public struct ShipEvents
 
     /// <summary>The tank ran dry this step.</summary>
     public bool OutOfFuel;
+
+    /// <summary>Exact fuel requested and available this step; the server burns this from its tank and reserve.</summary>
+    public float FuelUsed;
 
     /// <summary>Skid pads touching the ground at the end of the step.</summary>
     public int Contacts;

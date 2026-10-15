@@ -27,6 +27,12 @@ public partial class FootstepDriver : Node3D
     /// <summary>The last sound played, for debugging and the viewer.</summary>
     public string LastKey { get; private set; } = "";
 
+    public void Reset()
+    {
+        _cadence.Reset();
+        LastKey = "";
+    }
+
     /// <summary>Call every frame with the character's movement; <paramref name="feet"/> in render space.</summary>
     public void Update(double delta, in FootInput input, Vector3 feet)
     {

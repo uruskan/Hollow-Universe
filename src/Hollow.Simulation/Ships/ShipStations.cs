@@ -294,6 +294,7 @@ public static class StationRules
             // Nothing asked yet: it holds where it is.
             bool moving = st.YawRate != 0 || st.PitchRate != 0;
             st.YawRate = st.PitchRate = 0;
+            st.HasTarget = false;
             st.Limit = false;
             return moving;
         }
@@ -308,7 +309,8 @@ public static class StationRules
         float pitch = Math.Clamp(pitchWanted, m.PitchMin, m.PitchMax);
         bool pitchBeyond = MathF.Abs(pitch - pitchWanted) > 1e-4f;
         st.Limit = yawBeyond || pitchBeyond;
-        float yawFollow = st.HasTarget ? Math.Clamp((yaw - st.YawTarget) / Dt, -m.YawRate, m.YawRate) : 0;
+        float yawChange = s.FullCircle ? (float)DMath.WrapAngle(yaw - st.YawTarget) : yaw - st.YawTarget;
+        float yawFollow = st.HasTarget ? Math.Clamp(yawChange / Dt, -m.YawRate, m.YawRate) : 0;
         float pitchFollow = st.HasTarget ? Math.Clamp((pitch - st.PitchTarget) / Dt, -m.PitchRate, m.PitchRate) : 0;
         st.YawTarget = yaw;
         st.PitchTarget = pitch;
@@ -338,10 +340,11 @@ public static class StationRules
         float wanted = Math.Clamp(follow + MathF.Sign(gap) * closing, -most, most);
         rate += Math.Clamp(wanted - rate, -accel * Dt, accel * Dt);
         float next = position + rate * Dt;
-        float ahead = target + follow * Dt;
-        if ((position <= ahead && ahead <= next) || (next <= ahead && ahead <= position) || MathF.Abs(ahead - next) < 1e-6f)
+        // Slew runs after the hull's step (and against the client's pose for this tick). The target is already current:
+        // adding a further follow*Dt aimed one tick ahead, causing a permanent error proportional to hull turn speed.
+        if ((position <= target && target <= next) || (next <= target && target <= position) || MathF.Abs(target - next) < 1e-6f)
         {
-            next = ahead;
+            next = target;
             rate = follow;
         }
         position = next;

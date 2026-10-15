@@ -282,7 +282,8 @@ public sealed class WorldModule : ServerModule
         {
             if (thing is Deployable { Def.IsRespawnPoint: true } bag && bag.Owner == p.Id && points.Count < 64)
             {
-                points.Add(new RespawnPointNet { Id = bag.Id.Value, X = bag.Position.X, Y = bag.Position.Y, Z = bag.Position.Z, Bed = bag.Def.Key == "bed" });
+                points.Add(new RespawnPointNet { Id = bag.Id.Value, X = bag.Position.X, Y = bag.Position.Y, Z = bag.Position.Z, Bed = bag.Def.Key == "bed",
+                    Name = bag.Name.Length > 0 ? bag.Name : bag.Def.Item.Name });
             }
         }
         Vector3 death = p.DeathPoint ?? Vector3.Zero;

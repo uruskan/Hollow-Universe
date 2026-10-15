@@ -212,7 +212,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
 
     // ---------------------------------------------------------------- scenes
 
-    // The flattest 34 m square within 150 m of the zone's origin, by the stand-in surface's heights.
+    // The flattest 34 m square within 150 m of the landing site, by radial terrain height.
     private Num.Vector3 FlatSite()
     {
         float best = float.MaxValue;
@@ -226,9 +226,10 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
                 {
                     for (int j = 0; j <= 10; j++)
                     {
-                        float y = _zone.GroundAt(cx * 10 + (i - 5) * 3.4f, cz * 10 + (j - 5) * 3.4f).Y;
-                        lo = MathF.Min(lo, y);
-                        hi = MathF.Max(hi, y);
+                        Num.Vector3 point = _zone.GroundAt(cx * 10 + (i - 5) * 3.4f, cz * 10 + (j - 5) * 3.4f);
+                        float height = (float)_zone.Frame.ToBody(point).Length;
+                        lo = MathF.Min(lo, height);
+                        hi = MathF.Max(hi, height);
                     }
                 }
                 if (hi - lo < best)
@@ -245,10 +246,13 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
     {
         _scene = Options.TryGetValue("scene", out string? s) ? s : "house";
         PlacementPlan? first = _world.FoundationAt(_data.Piece("foundation")!, site, 0.35);
-        Num.Vector3 spawn = site + new Num.Vector3(2, 0.5f, 12);
+        Num.Vector3 siteUp = _zone.Frame.UpAt(site);
+        (Num.Vector3 north, Num.Vector3 east) = Facing.Compass(siteUp);
+        Num.Vector3 Offset(float x, float y, float z) => site + east * x + siteUp * y - north * z;
+        Num.Vector3 spawn = Offset(2, 0.5f, 12);
         if (first == null)
         {
-            AddPlayer(site + new Num.Vector3(0, 0.5f, 6));
+            AddPlayer(Offset(0, 0.5f, 6));
             return;
         }
         BuildingFrame frame = first.Frame;
@@ -256,7 +260,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         {
             case "empty":
                 // Nothing built: the first foundation's frame only measures --from and --at (a free foundation's ghost).
-                spawn = site + new Num.Vector3(0, 0.5f, 6);
+                spawn = Offset(0, 0.5f, 6);
                 break;
             case "joints":
                 // Every grade's joints (BuildSandbox.Joints.cs); --from and --at are in the twig group's frame.
@@ -332,11 +336,11 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
             {
                 // Playing: the builder stands under the scene's view, facing what it looks at.
                 spawn = N(eye);
-                Num.Vector3 ground = _zone.GroundAt(spawn.X, spawn.Z);
-                Num.Vector3 look = N(target) - (ground + N(up) * _zone.Tuning.StandingEyeHeight);
-                Num.Vector3 flat = look - N(up) * Num.Vector3.Dot(look, N(up));
-                _yaw = MathF.Atan2(-flat.X, -flat.Z);
-                _pitch = MathF.Atan2(Num.Vector3.Dot(look, N(up)), flat.Length());
+                Num.Vector3 ground = _zone.Settle(spawn);
+                Num.Vector3 localUp = _zone.Frame.UpAt(ground);
+                Num.Vector3 look = Num.Vector3.Normalize(N(target) - (ground + localUp * _zone.Tuning.StandingEyeHeight));
+                _yaw = Facing.YawOf(look, localUp);
+                _pitch = Facing.PitchOf(look, localUp);
             }
         }
         AddPlayer(spawn);
@@ -353,9 +357,11 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
 
     private void AddPlayer(Num.Vector3 near)
     {
-        Num.Vector3 ground = _zone.GroundAt(near.X, near.Z);
+        Num.Vector3 ground = _zone.Settle(near);
         _player = _zone.AddCharacter(new EntityId(1000), "Builder", _zone.NewCharacter(ground + _zone.Frame.UpAt(ground) * 0.05f));
         _feetBefore = _feetNow = _zone.Entities.Get<Character>(_player).State.Position;
+        GD.Print($"[build] builder planet-frame position={_feetNow} up={_zone.Frame.UpAt(_feetNow)} " +
+            $"groundClearance={_zone.HeightAboveGround(_feetNow):0.000}m siteDistance={Num.Vector3.Distance(_feetNow, _site):0.00}m");
     }
 
     private IEnumerable<Capsule> Capsules()
@@ -391,7 +397,8 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
             Num.Vector3 forward = CharacterMotor.ViewDirection(_yaw, _pitch, up);
             _camera.GlobalTransform = new Transform3D(Basis.LookingAt(G(forward), G(up)), G(eye));
         }
-        _terrain.Follow(_zone.Physics, _fixedCamera.HasValue ? N(_camera.GlobalPosition) - up * 1.7f : feet);
+        Num.Vector3 cameraPosition = N(_camera.GlobalPosition);
+        _terrain.Follow(_zone.Physics, _fixedCamera.HasValue ? cameraPosition - _zone.Frame.UpAt(cameraPosition) * 1.7f : feet);
         Aim();
         Measure(delta);
         bool wantsCursor = _ui.WantsCursor;
@@ -463,7 +470,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         }
         Placeable? placing = (uint)tool < (uint)Tools.Length ? Tools[tool](this) : null;
         _candidate = placing != null
-            ? Placer.Plan(_placement, new PlacementContext(Player, eye, placing, _wallet), new PlacementAim(forward, MathF.Atan2(-forward.X, -forward.Z), _turns))
+            ? Placer.Plan(_placement, new PlacementContext(Player, eye, placing, _wallet), new PlacementAim(forward, Facing.YawOf(forward, _zone.Frame.UpAt(eye)), _turns))
             : null;
         _ghost.Show(_candidate);
         if (placing != null)

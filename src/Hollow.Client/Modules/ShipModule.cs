@@ -102,6 +102,9 @@ public sealed class ShipModule : ClientModule
     /// <summary>The ship flown, as predicted (its newest tick), its kind, and its remote copy (the hatch, the flags).</summary>
     public ShipState OwnShip => _shipPredictor?.Latest ?? default;
 
+    /// <summary>The server's retained helm command, used when taking over a ship already in flight.</summary>
+    public ShipInput OwnShipCruise { get; private set; }
+
     public ShipDef? OwnShipDef => _shipPredictor?.Def;
 
     public RemoteShip? OwnShipRemote => Piloting && _ships.TryGetValue(_shipPredictor!.NetId, out RemoteShip? s) ? s : null;
@@ -488,6 +491,13 @@ public sealed class ShipModule : ClientModule
             return;
         }
         OwnShipState o = own[0];
+        OwnShipCruise = new ShipInput
+        {
+            Throttle = Math.Clamp(float.IsFinite(o.CruiseThrottle) ? o.CruiseThrottle : 0, -1, 1),
+            Strafe = Math.Clamp(float.IsFinite(o.CruiseStrafe) ? o.CruiseStrafe : 0, -1, 1),
+            Vertical = Math.Clamp(float.IsFinite(o.CruiseVertical) ? o.CruiseVertical : 0, -1, 1),
+            Buttons = o.Flags.HasFlag(ShipFlags.AssistOff) ? ShipButtons.AssistOff : ShipButtons.None,
+        };
         if (Content.Ship((int)Math.Min(o.Kind, ushort.MaxValue)) is not { } def)
         {
             return;

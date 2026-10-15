@@ -342,20 +342,21 @@ public partial class BuildView : Node3D, IHammerActions
     /// ship's door or battery, IRON_WAKE.md §5.5). (What a building tool places goes through the placement controller,
     /// <see cref="PlacementView"/>.)
     /// </summary>
-    public void Use()
+    public uint Use()
     {
         if (Held != BuildingRole.Hammer)
         {
-            return;
+            return 0;
         }
         if (_target is Piece piece)
         {
-            Client.Local.Repair(piece);
+            return Client.Local.Repair(piece);
         }
         else if (Mendable(out _) is { } thing)
         {
-            Client.Local.Repair(thing);
+            return Client.Local.Repair(thing);
         }
+        return 0;
     }
 
     // What the interact aim names, when it is something other than a piece whose facts have health (a ship's part).

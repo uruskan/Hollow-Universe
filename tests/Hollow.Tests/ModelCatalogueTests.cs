@@ -90,7 +90,8 @@ public static class ModelCatalogueTests
             {
                 string path = Local(game, res);
                 Assert.True(File.Exists(path), $"{key}: {res} is missing");
-                (List<string> nodes, List<string> materials) = ReadGlb(path);
+                bool nativeScene = path.EndsWith(".tscn", StringComparison.Ordinal);
+                (List<string> nodes, List<string> materials) = nativeScene ? ReadScene(game, path, convex) : ReadGlb(path);
                 List<string> parts = nodes.Where(n => n.EndsWith("_lod0", StringComparison.Ordinal)).Select(n => n[..^5]).ToList();
                 Assert.True(parts.Count > 0, $"{key}: {res} has no _lod0 mesh");
                 foreach (string part in parts)
@@ -100,7 +101,7 @@ public static class ModelCatalogueTests
                         Assert.True(nodes.Contains($"{part}_lod{lod}"), $"{key}: {res} has no {part}_lod{lod}");
                     }
                 }
-                if (convex)
+                if (convex && !nativeScene)
                 {
                     Assert.True(nodes.Any(n => n.EndsWith("-convcolonly", StringComparison.Ordinal)), $"{key}: {res} has no convex hull");
                 }
@@ -116,6 +117,13 @@ public static class ModelCatalogueTests
                     {
                         CheckGrip(key, grip);
                     }
+                    if (held.TryGetProperty("supportHand", out JsonElement support))
+                    {
+                        CheckGrip(key + " support hand", support);
+                        double[] pole = support.GetProperty("pole").EnumerateArray().Select(v => v.GetDouble()).ToArray();
+                        Assert.True(pole.Length == 3 && pole.All(double.IsFinite) && pole.Sum(v => v * v) > 0.1,
+                            $"{key}: support hand needs a finite elbow direction");
+                    }
                 }
                 // A gun's attachment sockets are nodes of its file.
                 if (m.TryGetProperty("sockets", out JsonElement sockets))
@@ -126,7 +134,7 @@ public static class ModelCatalogueTests
                         mounts.Add(socket.Name);
                     }
                 }
-                CheckImport(game, key, path, materials);
+                if (!nativeScene) CheckImport(game, key, path, materials);
                 files++;
             }
             if (m.TryGetProperty("slot", out JsonElement slot))
@@ -172,6 +180,36 @@ public static class ModelCatalogueTests
     {
         Assert.True(res.StartsWith("res://", StringComparison.Ordinal), $"{res}: not a res:// path");
         return Path.Combine(game, res["res://".Length..].Replace('/', Path.DirectorySeparatorChar));
+    }
+
+    /// <summary>Native packages embed the authored LOD meshes and supply their own collision/material wrappers.</summary>
+    private static (List<string> Nodes, List<string> Materials) ReadScene(string game, string path, bool convex)
+    {
+        string scene = File.ReadAllText(path);
+        Assert.True(scene.StartsWith("[gd_scene", StringComparison.Ordinal), $"{path}: not a Godot scene");
+        var nodes = Regex.Matches(scene, "\\[node name=\"([^\"]+)\"").Select(m => m.Groups[1].Value).ToList();
+        Assert.True(scene.Contains("type=\"ArrayMesh\"", StringComparison.Ordinal), $"{path}: has no embedded mesh");
+        if (convex)
+        {
+            Assert.True(scene.Contains("type=\"StaticBody3D\"", StringComparison.Ordinal) &&
+                scene.Contains("type=\"CollisionShape3D\"", StringComparison.Ordinal) &&
+                Regex.IsMatch(scene, "type=\"(ConvexPolygon|Box|Cylinder)Shape3D\""), $"{path}: missing convex collision");
+        }
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        void CheckReferences(string resource)
+        {
+            if (!seen.Add(resource)) return;
+            foreach (Match match in Regex.Matches(File.ReadAllText(resource), "path=\"(res://[^\"]+)\""))
+            {
+                string dependency = Local(game, match.Groups[1].Value);
+                Assert.True(File.Exists(dependency), $"{resource}: missing {dependency}");
+                if (dependency.EndsWith(".tres", StringComparison.Ordinal) || dependency.EndsWith(".tscn", StringComparison.Ordinal))
+                    CheckReferences(dependency);
+            }
+        }
+        CheckReferences(path);
+        Assert.True(seen.Count > 1, $"{path}: no external PBR material");
+        return (nodes, new List<string>());
     }
 
     /// <summary>Node and material names from a GLB's JSON chunk.</summary>

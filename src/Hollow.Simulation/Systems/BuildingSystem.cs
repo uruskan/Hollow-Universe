@@ -473,7 +473,12 @@ public sealed class BuildingSystem : ZoneSystem
             return OutcomeCode.NotUsable;
         }
         Outcome reach = Zone.Targets().Reach(eye, target, (float)Content!.Building.Reach);
-        return reach.Ok ? family.Repair(entity, p, target, new ItemWallet(Content, p.Inventory.Carried)) : reach;
+        Outcome result = reach.Ok ? family.Repair(entity, p, target, new ItemWallet(Content, p.Inventory.Carried)) : reach;
+        if (result.Ok)
+        {
+            p.RecordAction(ActionKind.Repair, p.HeldItem, Tick);
+        }
+        return result;
     }
 
     public Outcome Hammer(Entity entity, HammerAction action, EntityId target, int grade)

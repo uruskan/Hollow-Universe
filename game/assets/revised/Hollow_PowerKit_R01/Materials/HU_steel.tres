@@ -1,0 +1,21 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_PowerKit_R01/Textures/Galvanized_BaseColor.png" id="1_gjkgj"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_PowerKit_R01/Textures/Galvanized_ORM.png" id="2_him1c"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_PowerKit_R01/Textures/Galvanized_NormalGL.png" id="3_re88o"]
+
+[resource]
+resource_name = "HU_steel"
+vertex_color_use_as_albedo = true
+albedo_texture = ExtResource("1_gjkgj")
+metallic = 1.0
+metallic_texture = ExtResource("2_him1c")
+metallic_texture_channel = 2
+roughness_texture = ExtResource("2_him1c")
+roughness_texture_channel = 1
+normal_enabled = true
+normal_scale = 0.22
+normal_texture = ExtResource("3_re88o")
+ao_enabled = true
+ao_texture = ExtResource("2_him1c")
+texture_filter = 5

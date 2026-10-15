@@ -26,6 +26,15 @@ public partial class GroundUi
         if (alive)
         {
             Text("·", 789, 428, 35, new Color(1, 1, 0.94f, 0.8f));
+            if (Model.TargetHealth is { Fraction: > 0 and < 1 } health)
+            {
+                float fraction = Math.Clamp(health.Fraction, 0, 1);
+                Rect(680, 366, 240, 53, G.HudSlot);
+                TextIn(HealthTitle(health.Name), 690, 370, 174, 15, G.Ink, HorizontalAlignment.Left, bold: true);
+                TextIn($"{MathF.Round(fraction * 100):0}%", 868, 370, 42, 15, G.Ink, HorizontalAlignment.Right, bold: true);
+                Rect(690, 401, 220, 5, G.Panel);
+                Rect(690, 401, 220 * fraction, 5, fraction < .25f ? G.Red : G.Health);
+            }
         }
         double hit = Age(_hitAt);
         if (hit < 0.3)
@@ -60,6 +69,21 @@ public partial class GroundUi
                 CentreText($"Hold [{prompt.Key}] for more options", 556, 23, G.Ink, bold: true, condensed: false);
             }
         }
+    }
+
+    private static string HealthTitle(string name)
+    {
+        string title = name.ToUpperInvariant();
+        FontFile font = FontFor(15, true, false);
+        bool Fits(string value) => font.GetStringSize(value, HorizontalAlignment.Left, -1, Ui.Px(15)).X <= Ui.Pxf(174);
+        if (Fits(title)) return title;
+        int[] starts = StringInfo.ParseCombiningCharacters(title);
+        for (int i = starts.Length - 1; i > 0; i--)
+        {
+            string shortened = title[..starts[i]] + "…";
+            if (Fits(shortened)) return shortened;
+        }
+        return "…";
     }
 
     private void PaintBelt(bool inventory)
@@ -131,6 +155,10 @@ public partial class GroundUi
     private static List<(string, string, string, Color)> Statuses(Vitals v)
     {
         var rows = new List<(string, string, string, Color)>();
+        if (v.BreathFraction < 0.999f || v.Suffocating)
+        {
+            rows.Add(("oxygen", "OXYGEN", Ui.Number(Math.Clamp(v.BreathFraction, 0, 1) * 100, "N0") + "%", v.Suffocating ? G.Red : Cold));
+        }
         if (v.Building == Privilege.Allowed)
         {
             rows.Add(("privilege", "BUILDING PRIVILEGE", "", G.Green));

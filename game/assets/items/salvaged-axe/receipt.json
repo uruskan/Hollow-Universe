@@ -1,0 +1,93 @@
+{
+  "asset": "salvaged-axe",
+  "sourceFile": "D:\\GameDev\\Assets\\woodsman_collection_heavy_duty_hatchet_axe.glb",
+  "originalTitle": "Woodsman Collection Heavy Duty Hatchet Axe",
+  "originalAuthor": "Gerardo Justel",
+  "originalListing": "https://www.fab.com/listings/24947c95-1253-44a9-9b1f-0d057ed1ff72",
+  "sourceGenerator": "fab-model-conversion",
+  "sourceSha256": "9bf85f4343a60b3a63d50d3422bfde4ef19d1caf5e5ed5216eccb8d1d2041c17",
+  "sourceMesh": "axe.002_low_axe_0",
+  "excludedMeshes": [
+    "Plane.001_ground_0",
+    "trunk_trunk_0"
+  ],
+  "sourceLocalBounds": {
+    "min": [
+      -0.4652214,
+      -0.1007528,
+      -2.8200803
+    ],
+    "max": [
+      1.2521318,
+      0.1007528,
+      1.2739112
+    ]
+  },
+  "sourceLocalGrip": [
+    0.1606771,
+    -0.0,
+    -2.093727
+  ],
+  "scale": 0.15144145594278502,
+  "dimensionsMetres": {
+    "height": 0.62,
+    "width": 0.2600784727248332,
+    "thickness": 0.030516292630951715
+  },
+  "godotFrame": "+X blade forward; +Y shaft up; +Z across thickness; right palm at origin",
+  "gripHeightAboveButtMetres": 0.11,
+  "godotBounds": {
+    "min": [
+      -0.094787,
+      -0.11,
+      -0.0152581
+    ],
+    "max": [
+      0.1652915,
+      0.51,
+      0.0152581
+    ]
+  },
+  "triangleCounts": {
+    "Body_lod0": 20352,
+    "Body_lod1": 10176,
+    "Body_lod2": 3052,
+    "Body_hull0-convcolonly": 114
+  },
+  "textures": {
+    "albedo": {
+      "sourceSize": [
+        4096,
+        4096
+      ],
+      "sourceSha256": "648ab5e78a6dadb99c665d3fd7777bdf52f9c795a4f5e0128fbdd13916f99937"
+    },
+    "orm": {
+      "sourceSize": [
+        4096,
+        4096
+      ],
+      "sourceSha256": "7444c18bba35360299bf100cf08b554ea96e80004e32a774e1f99ca9a3307aa8"
+    },
+    "normal": {
+      "sourceSize": [
+        4096,
+        4096
+      ],
+      "sourceSha256": "c59b34e79dbf1414b5de762234a2f1d8c608b2c3e586b716610f60b49e59d23b"
+    }
+  },
+  "textureSize": 4096,
+  "normalConvention": "OpenGL (source glTF), renormalized after filtering",
+  "geometryValidation": "Explicit LOD0/1/2, convex hull, grip and impact sockets; no embedded images",
+  "engineValidation": "Performed separately by the integration workflow",
+  "licence": "Owner confirmed D:/GameDev/Assets paid and fully licensed for game use on 2026-10-15; see docs/handoff-ground.md and game/assets/THIRD_PARTY.md. No redistribution licence is inferred.",
+  "outputsSha256": {
+    "salvaged-axe.glb": "c8497476da0bc49682eaeecf96df34bc021dfe0ceb2f76e73f0d0bb49855af4b",
+    "salvaged-axe/salvaged-axe.tres": "0d04a83eac63d371731f76f4af6473880251b1156dbbd01f425d543dff5948fe",
+    "salvaged-axe/albedo.png": "f75186f349246126007366b2284f603f88e7e7a92abae9b6468c4ee8bf08f99b",
+    "salvaged-axe/normal.png": "24083c39831858aeafa76470ff8a0ce612765cb44b4796f6d2455c5c9b75415a",
+    "salvaged-axe/orm.png": "77e5a70c134057c1d210b3ed507e2b1211b60bd425e0c4ec586b0416b9a4fca9"
+  },
+  "materialDoubleSided": true
+}

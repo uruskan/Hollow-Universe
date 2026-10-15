@@ -26,6 +26,13 @@ public enum AntiAliasingMode
     Fsr2,
 }
 
+public enum GameWindowMode
+{
+    Windowed,
+    Borderless,
+    ExclusiveFullscreen,
+}
+
 /// <summary>
 /// One set of graphics settings (GROUND.md §8.6). The presets set everything above <see cref="VSync"/>; vsync, the frame
 /// cap, the field of view and the interface scale are the player's own and no preset touches them.
@@ -82,6 +89,8 @@ public sealed record GraphicsValues
     public int Anisotropy { get; set; } = 2;
 
     // ------------------------------------------------ the player's own (no preset sets them)
+
+    public GameWindowMode WindowMode { get; set; } = GameWindowMode.Windowed;
 
     /// <summary>0 off, 1 on, 2 adaptive, 3 mailbox.</summary>
     public int VSync { get; set; } = 1;
@@ -235,6 +244,7 @@ public static class GraphicsSettings
                 Anisotropy = I("anisotropy", d.Anisotropy, 0, 4),
                 VSync = I("vsync", d.VSync, 0, 3),
                 FrameCap = I("frame_cap", d.FrameCap, 0, FrameCaps.Length - 1),
+                WindowMode = (GameWindowMode)I("window_mode", (int)d.WindowMode, 0, (int)GameWindowMode.ExclusiveFullscreen),
             };
         }
         var view = new ConfigFile();
@@ -293,6 +303,7 @@ public static class GraphicsSettings
         file.SetValue("graphics", "anisotropy", v.Anisotropy);
         file.SetValue("graphics", "vsync", v.VSync);
         file.SetValue("graphics", "frame_cap", v.FrameCap);
+        file.SetValue("graphics", "window_mode", (int)v.WindowMode);
         file.Save(FilePath);
         var view = new ConfigFile();
         view.Load(ViewPath);
@@ -333,6 +344,7 @@ public static class GraphicsSettings
     /// </summary>
     public static bool ApplyGlobal(Viewport viewport, GraphicsValues v)
     {
+        ApplyWindow(v.WindowMode);
         AntiAliasingMode aa = v.AntiAliasing;
         viewport.Msaa3D = aa switch
         {
@@ -404,6 +416,46 @@ public static class GraphicsSettings
             DisplayServer.WindowSetVsyncMode(vsync);
         }
         return v.Sharpen && v.SharpenStrength > 0.001f && !fsr;
+    }
+
+    private static Vector2I? _windowSize, _windowPosition;
+
+    /// <summary>Godot's Fullscreen is borderless desktop fullscreen; ExclusiveFullscreen requests the exclusive mode.</summary>
+    private static void ApplyWindow(GameWindowMode value)
+    {
+        if (DisplayServer.GetName() == "headless" || Engine.IsEmbeddedInEditor())
+        {
+            return;
+        }
+        DisplayServer.WindowMode target = value switch
+        {
+            GameWindowMode.Borderless => DisplayServer.WindowMode.Fullscreen,
+            GameWindowMode.ExclusiveFullscreen => DisplayServer.WindowMode.ExclusiveFullscreen,
+            _ => DisplayServer.WindowMode.Windowed,
+        };
+        DisplayServer.WindowMode current = DisplayServer.WindowGetMode();
+        // Keep a maximized window maximized until the player actually chooses another mode.
+        if (current == target || target == DisplayServer.WindowMode.Windowed && current == DisplayServer.WindowMode.Maximized)
+        {
+            return;
+        }
+        if (current is DisplayServer.WindowMode.Windowed or DisplayServer.WindowMode.Maximized)
+        {
+            _windowSize = DisplayServer.WindowGetSize();
+            _windowPosition = DisplayServer.WindowGetPosition();
+        }
+        DisplayServer.WindowSetMode(target);
+        if (target == DisplayServer.WindowMode.Windowed)
+        {
+            if (_windowSize is { } size)
+            {
+                DisplayServer.WindowSetSize(size);
+            }
+            if (_windowPosition is { } at)
+            {
+                DisplayServer.WindowSetPosition(at);
+            }
+        }
     }
 
     /// <summary>The look of the air the volumetric fog stands for: its density per metre, colour and forward scattering.</summary>

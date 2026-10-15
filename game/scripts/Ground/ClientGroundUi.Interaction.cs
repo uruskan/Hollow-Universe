@@ -25,6 +25,8 @@ public sealed partial class ClientGroundUi
     /// <summary>What the interact key acts on now (null: nothing there offers anything).</summary>
     public InteractAim? Aimed => _aim;
 
+    public TargetHealthView? TargetHealth { get; set; }
+
     /// <summary>The game's data (the verbs' labels and glyphs, the lines).</summary>
     internal GameContent Content => C;
 
@@ -36,6 +38,7 @@ public sealed partial class ClientGroundUi
     /// keeps the intent's number the answer comes back to (the lock's beep).
     /// </summary>
     public Action<string, Func<string, uint>>? AskCode { get; set; }
+    public Action<string, string, Func<string, uint>>? AskText { get; set; }
 
     /// <summary>Opens a panel of the interface by the name a verb gives it (the tech tree).</summary>
     public Action<string>? OpenPanel { get; set; }
@@ -50,6 +53,8 @@ public sealed partial class ClientGroundUi
         _aim = can ? _client.Interaction().AimInteraction(eye, direction) : null;
         _aimed = _aim?.Target ?? TargetRef.None;
         Prompt = _aim != null ? PromptFor(_aim) : null;
+        TargetHealth = can && _client.Targets().AimedHealth(eye, direction) is { } health
+            ? new TargetHealthView(health.Name, health.Vitality.Fraction) : null;
     }
 
     // "E  OPEN WOODEN DOOR" (its primary verb and the target's name, unless the verb leaves it out: "E  SET CODE"), or the
@@ -133,6 +138,11 @@ public sealed partial class ClientGroundUi
         else if (verb.Code)
         {
             AskCode?.Invoke(verb.Label.ToUpperInvariant(), code => Me.Interact(at, verb.Id, code: code));
+        }
+        else if (verb.Text)
+        {
+            _client.Interaction().Options(at, _eye, _menu, out TargetFacts facts);
+            AskText?.Invoke(verb.Label.ToUpperInvariant(), facts.Name ?? "", text => Me.Interact(at, verb.Id, text: text));
         }
         else
         {

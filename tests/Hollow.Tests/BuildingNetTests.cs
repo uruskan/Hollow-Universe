@@ -157,6 +157,7 @@ public static class BuildingNetTests
         Assert.Equal(1, ada.Local.PendingPlacements.Count, "and the piece shows at once");
         RunUntil(rig, () => ada.Building().World!.PieceCount == 1 && bo.Building().World!.PieceCount == 1, "the foundation on both clients");
         Assert.True(answers.Single(a => a.Seq == seq).Done, "placed");
+        Assert.Equal(0, ada.Local.PendingPlacements.Count, "accepted placement does not linger over its real mesh");
         RunUntil(rig, () => ada.Local.PendingPlacements.Count == 0, "the pending piece replaced by the real one");
 
         // A wall on the foundation's edge nearest Ada: the server derives the pose from support, socket and orientation.

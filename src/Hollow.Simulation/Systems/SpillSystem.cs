@@ -10,6 +10,7 @@ using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
 
@@ -107,11 +108,16 @@ public sealed class SpillSystem : ZoneSystem
     /// Where loose things come to rest below a point: on the first solid surface under it (a floor or foundation, a box's
     /// lid, the ground's own collision) within a few metres, else on the ground.
     /// </summary>
-    public Vector3 RestingPoint(Vector3 point)
+    public Vector3 RestingPoint(Vector3 point) => RestingPoint(point, out _);
+
+    /// <summary>Also names a removable support. Falling bodies may request a longer, bounded search to the ground.</summary>
+    public Vector3 RestingPoint(Vector3 point, out TargetRef support, float searchDepth = RestDepth)
     {
+        support = TargetRef.None;
+        float depth = float.IsFinite(searchDepth) ? Math.Clamp(searchDepth, RestDepth, 10_000) : RestDepth;
         // Aboard a ship people walk in, on its deck (its space: the zone's physics has no flying ship): what rests there
         // rides it (IRON_WAKE.md §4.10, ThingSystem.AddStatic).
-        if (Ships.DeckUnder(point, RestFrom, RestDepth, out Vector3 deck, out _))
+        if (Ships.DeckUnder(point, RestFrom, depth, out Vector3 deck, out _))
         {
             return deck;
         }
@@ -119,8 +125,14 @@ public sealed class SpillSystem : ZoneSystem
         lock (JoltRuntime.Gate)
         {
             // A ray that starts inside something (a wall, a trunk) meets it at once: then the ground below will do.
-            if (Ships.ShipCollider.Ray(point + up * RestFrom, -up, RestFrom + RestDepth, ShipCollider.NoBody, out ShipRayHit hit) && hit.Distance > 1e-3f)
+            if (Ships.ShipCollider.Ray(point + up * RestFrom, -up, RestFrom + depth, ShipCollider.NoBody, out ShipRayHit hit) && hit.Distance > 1e-3f)
             {
+                if (Zone.Building().TraceBuilding(point + up * RestFrom, -up, hit.Distance + 0.02f, out float distance, out object? owner) &&
+                    MathF.Abs(distance - hit.Distance) < 0.03f && owner is ITargetable target && target.Ref.Family == TargetFamily.Piece)
+                    support = target.Ref;
+                else if (Physics.TryPropOf(hit.Body, out PropLayer layer, out ulong key) && layer == PropLayer.Deployable &&
+                    Things.StaticOf(new EntityId(key)) is { } thing)
+                    support = thing.Ref;
                 return hit.Point;
             }
         }

@@ -523,6 +523,28 @@ public static class PieceGeometry
 
     // ---------------------------------------------------------------- seams (collision exemptions)
 
+    /// <summary>A floor bears on at least 25 cm of a wall's top. Side contact and a single corner do not carry load.</summary>
+    public static bool WallBearsFloor(BuildingData data, PieceDef wall, in Pose wallPose, PieceDef floor, in Pose floorPose)
+    {
+        if (wall.Family != PieceFamily.Wall || floor.Family != PieceFamily.Floor || floor.Frame ||
+            Math.Abs(floorPose.Position.Y - wallPose.Position.Y - wall.Height) > 0.005) return false;
+        Vector3D a = ToLocal(floorPose, ToFrame(wallPose, new Vector3D(-data.Width / 2, 0, 0)));
+        Vector3D b = ToLocal(floorPose, ToFrame(wallPose, new Vector3D(data.Width / 2, 0, 0)));
+        Vector3D[] polygon = Footprint(floor.Shape, data.Width);
+        double from = 0, to = 1;
+        for (int i = 0; i < polygon.Length; i++)
+        {
+            Vector3D p = polygon[i], q = polygon[(i + 1) % polygon.Length];
+            double tolerance = (q - p).Length * 0.005;
+            double da = Cross2(p, q, a) + tolerance, db = Cross2(p, q, b) + tolerance;
+            if (da < 0 && db < 0) return false;
+            if (da < 0) from = Math.Max(from, da / (da - db));
+            if (db < 0) to = Math.Min(to, da / (da - db));
+            if (from >= to) return false;
+        }
+        return (to - from) * data.Width >= 0.25;
+    }
+
     /// <summary>
     /// A wall standing on or beside a slab's border, at any height through its span, with the whole wall on or outside
     /// one footprint edge (RustMVP's <c>wall_tile_seam</c>): their small overlap is the joint, not an intersection.

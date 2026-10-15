@@ -102,6 +102,9 @@ public enum ScatterKind : byte
 
     /// <summary>A sulphur-ore outcrop.</summary>
     SulphurOutcrop = 11,
+
+    /// <summary>A rarer concentrated high-grade metal outcrop, in its own stable candidate stream.</summary>
+    HighGradeOutcrop = 12,
 }
 
 /// <summary>The climate at a point: what the biome, materials and plants are picked from.</summary>

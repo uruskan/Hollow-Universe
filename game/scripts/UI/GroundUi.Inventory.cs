@@ -21,10 +21,19 @@ public partial class GroundUi
         public Vector2 Origin;
         public bool Moving;
         public MouseButton Button;
+        public string Signature = "";
+        public SlotRef? SelectedWeapon;
+        public string WeaponSignature = "";
+        public bool SelectOnClick;
     }
 
     private DragState? _drag;
     private bool _splitTracking;
+    private bool _characterDragging;
+    private bool _hoverLootHeld;
+
+    public float CharacterYaw => _character.Yaw;
+    public bool HoverLootHeld => _hoverLootHeld;
     private SlotRef? _selected;
     private int _splitValue = 1;
     private string _splitSignature = "";
@@ -35,6 +44,8 @@ public partial class GroundUi
 
     private ItemStack StackAt(SlotRef slot)
     {
+        if (slot.Attachment >= 0)
+            return Model.Attachments(slot with { Attachment = -1 }).FirstOrDefault(a => a.Index == slot.Attachment)?.Stack ?? default;
         IReadOnlyList<ItemStack> slots = Model.Slots(slot.Container);
         return slot.Index >= 0 && slot.Index < slots.Count ? slots[slot.Index] : default;
     }
@@ -48,8 +59,17 @@ public partial class GroundUi
 
         _o = CanvasFrame;
         _p.DrawTextureRect(_character.GetTexture(), Area(70, 40, 455, 628), false);
-        PanelArea(70, 40, 455, 628);
+        _hits.Add(new Hit(Area(70, 40, 455, 628), HitKind.Character));
         Text(Model.PlayerName, 212, 84, 26, G.Ink, bold: true);
+        for (int i = 0; i < Model.Protection.Count; i++)
+        {
+            ProtectionStat stat = Model.Protection[i];
+            float y = 570 + i * 29;
+            Rect(75, y, 195, 26, G.Panel);
+            Text(stat.Name, 82, y + 3, 14, G.Ink, bold: true);
+            TextIn(stat.Value, 204, y + 3, 58, 14, G.Ink, HorizontalAlignment.Right);
+            _hits.Add(new Hit(Area(75, y, 195, 26), HitKind.Button, Tooltip: stat.Description));
+        }
 
         Section("INVENTORY", 550, 449);
         IReadOnlyList<ItemStack> main = Model.Slots(ContainerId.Main);
@@ -95,6 +115,7 @@ public partial class GroundUi
             _splitValue = Math.Max(1, (stack.Amount + 1) / 2);
         }
         ItemInfo info = Model.Item(stack.Key);
+        IReadOnlyList<AttachmentSlotView> attachments = Model.Attachments(slot);
         bool split = stack.Amount > 1;
         float content = split ? 298 : 361;
         Text(info.Name.ToUpperInvariant(), 552, 84, 26, G.Ink, bold: true);
@@ -102,14 +123,29 @@ public partial class GroundUi
         Paragraph(info.Description, 567, 127, 368, 17, G.Ink, 3);
         Icon(stack.Key, 950, 121, 70, 66);
         // INFORMATION (the describers' rows, GROUND_SYSTEMS.md §7) and ACTIONS side by side.
-        Rect(552, 194, InfoWidth, content - 109, G.Panel);
+        float rowsBottom = attachments.Count > 0 ? 355 : 194 + content - 109;
+        Rect(552, 194, InfoWidth, rowsBottom - 194, G.Panel);
         Rect(ActionsX, 194, ActionsWidth, content - 109, G.Panel);
         Rect(552, 194, InfoWidth, 25, G.Panel);
         Rect(ActionsX, 194, ActionsWidth, 25, G.Panel);
         Text("INFORMATION", 558, 194, 17, G.Ink, bold: true);
         Text("ACTIONS", ActionsX + 6, 194, 17, G.Ink, bold: true);
         PanelArea(545, 80, 492, 370);
-        PaintRows(Model.Rows(slot), 194 + content - 109);
+        PaintRows(Model.Rows(slot), rowsBottom);
+        for (int i = 0; i < attachments.Count; i++)
+        {
+            AttachmentSlotView socket = attachments[i];
+            float x = 562 + i * 99;
+            Text(socket.Label, x, 358, 13, G.Ink, bold: true);
+            SlotRef socketRef = slot with { Attachment = socket.Index };
+            Slot(socketRef, socket.Stack, x, 379, 62, true, false, true);
+            Rect2 area = Area(x, 379, 62, 62);
+            if (_drag is { Moving: true } dragging)
+                _p.DrawRect(area, socket.Compatible.Contains(dragging.Key) ? G.Green : G.Short, false, Ui.Pxf(2));
+            string compatible = string.Join(", ", socket.Compatible.Select(key => Model.Item(key).Name));
+            _hits.Add(new Hit(area, HitKind.Slot, Slot: socketRef,
+                Tooltip: (socket.Stack.IsEmpty ? socket.Label : Model.Item(socket.Stack.Key).Name) + ". Accepts: " + compatible + ". Drag a part here; drag it out to an inventory or storage slot."));
+        }
 
         // The stack's own actions (its parts', GROUND_SYSTEMS.md §7), then DROP; a refused one shows muted and says why.
         IReadOnlyList<ItemActionView> actions = Model.Actions(slot);
@@ -302,8 +338,21 @@ public partial class GroundUi
             Text("x" + drag.Amount.ToString(CultureInfo.InvariantCulture), p.X, p.Y + 15, 18, G.Ink, bold: true);
             return;
         }
-        if (_splitTracking || Input.IsKeyPressed(Key.H) || HitAt(Pointer) is not Hit hit)
+        if (_splitTracking || _hoverLootHeld || _characterDragging || HitAt(Pointer) is not Hit hit)
         {
+            return;
+        }
+        if (hit.Tooltip is { } tip)
+        {
+            const float width = 350, font = 16;
+            List<string> lines = WrapLines(tip, width - 20, font);
+            float height = lines.Count * 21 + 16;
+            float left = Math.Clamp(p.X + 16, 10, 1590 - width), top = Math.Clamp(p.Y + 20, 10, 880 - height);
+            Rect(left, top, width, height, G.Tooltip);
+            for (int i = 0; i < lines.Count; i++)
+            {
+                Text(lines[i], left + 10, top + 8 + i * 21, font, G.Ink);
+            }
             return;
         }
         string? key = hit.Kind == HitKind.Slot ? StackAt(hit.Slot).Key : hit.Key;
@@ -343,18 +392,23 @@ public partial class GroundUi
             Model.QuickMove(hit.Slot);
             return;
         }
-        if (hit.Kind == HitKind.Slot && button == MouseButton.Left)
+        bool retainWeapon = hit.Slot.Attachment < 0 && Model.AttachmentKind(stack.Key ?? "") >= 0 &&
+            _selected is { } selected && Model.Attachments(selected).Count > 0;
+        if (hit.Kind == HitKind.Slot && button == MouseButton.Left && hit.Slot.Attachment < 0 && !retainWeapon)
         {
             SelectSlot(hit.Slot);
         }
-        if (stack.IsEmpty || Input.IsKeyPressed(Key.H) || button is not (MouseButton.Left or MouseButton.Middle))
+        if (stack.IsEmpty || _hoverLootHeld || button is not (MouseButton.Left or MouseButton.Middle))
         {
             return;
         }
         int amount = hit.Kind == HitKind.SplitIcon ? Math.Clamp(_splitValue, 1, stack.Amount)
             : button == MouseButton.Middle ? (stack.Amount + (Input.IsKeyPressed(Key.Shift) ? 2 : 1)) / (Input.IsKeyPressed(Key.Shift) ? 3 : 2)
             : stack.Amount;
-        _drag = new DragState { From = hit.Slot, Key = stack.Key, Amount = Math.Max(1, amount), Origin = Pointer, Button = button };
+        SlotRef? weapon = _selected is { } selectedWeapon && Model.Attachments(selectedWeapon).Count > 0 ? selectedWeapon : null;
+        _drag = new DragState { From = hit.Slot, Key = stack.Key!, Amount = Math.Max(1, amount), Origin = Pointer, Button = button,
+            Signature = Model.MoveSignature(hit.Slot), SelectedWeapon = weapon,
+            WeaponSignature = weapon is { } owner ? Model.MoveSignature(owner) : "", SelectOnClick = retainWeapon };
     }
 
     private void PointerMoved()
@@ -400,6 +454,17 @@ public partial class GroundUi
         _drag = null;
         if (!drag.Moving || Screen != GroundScreen.Inventory)
         {
+            if (!drag.Moving && drag.SelectOnClick && Screen == GroundScreen.Inventory) SelectSlot(drag.From);
+            return;
+        }
+        if (Model.MoveSignature(drag.From) != drag.Signature)
+        {
+            OnNotice("That item changed while you were dragging it.");
+            return;
+        }
+        if (drag.SelectedWeapon is { } selectedWeapon && Model.MoveSignature(selectedWeapon) != drag.WeaponSignature)
+        {
+            OnNotice("That weapon changed while you were dragging.");
             return;
         }
         if (HitAt(Pointer) is { Kind: HitKind.Slot } target)
@@ -411,6 +476,8 @@ public partial class GroundUi
             }
             return;
         }
+        // A loose socket drag needs an explicit destination; releasing in the world never drops the whole weapon.
+        if (drag.From.Attachment >= 0) return;
         Sound?.Invoke("ui.drop");
         Model.Drop(drag.From, drag.Amount);
     }
@@ -418,8 +485,7 @@ public partial class GroundUi
     // H held: each filled slot the pointer rests on for 350 ms moves across once (RustMVP's hover transfer).
     private void HoverTransfer()
     {
-        bool held = Input.IsKeyPressed(Key.H) && GetViewport().GuiGetFocusOwner() is not LineEdit;
-        if (!held)
+        if (!_hoverLootHeld)
         {
             _hoverStarted.Clear();
             _hoverDone.Clear();
@@ -443,5 +509,40 @@ public partial class GroundUi
                 Model.QuickMove(slot);
             }
         }
+    }
+
+    // Window-level input owns the held gesture. Crossing a panel or a child control never ends H or a figure drag.
+    private void InventoryInput(InputEvent e)
+    {
+        if (e is InputEventKey { PhysicalKeycode: Key.H, Echo: false } key)
+        {
+            _hoverLootHeld = key.Pressed && Screen == GroundScreen.Inventory && GetViewport().GuiGetFocusOwner() is not LineEdit;
+            if (!_hoverLootHeld)
+            {
+                _hoverStarted.Clear();
+                _hoverDone.Clear();
+            }
+        }
+        if (Screen == GroundScreen.Inventory && e is InputEventMouseMotion motion && !_pointerHeld)
+        {
+            if (_characterDragging)
+            {
+                _character.Turn((motion.Position.X - _pointer.X) / Ui.Scale);
+            }
+            _pointer = motion.Position;
+            _pointerDesign = null;
+        }
+        if (e is InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: false })
+        {
+            _characterDragging = false;
+        }
+    }
+
+    private void CancelInventoryGestures()
+    {
+        _characterDragging = _hoverLootHeld = _splitTracking = false;
+        _drag = null;
+        _hoverStarted.Clear();
+        _hoverDone.Clear();
     }
 }

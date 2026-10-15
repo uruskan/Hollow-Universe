@@ -218,8 +218,9 @@ public sealed class PlayerSystem : ZoneSystem
     /// </summary>
     public void Die(Entity entity, Player p, string cause, EntityId by, string byName)
     {
-        if (p.Dead)
+        if (p.Dead || Entities.Get<Character>(entity).State.Has(MoveCheats.God))
         {
+            // Every death route, including wrecks and bleed-out, must honor immunity before moving inventory or frames.
             return;
         }
         GameContent content = Content;
@@ -246,22 +247,21 @@ public sealed class PlayerSystem : ZoneSystem
                 stacks.Add(refund);
             }
         }
-        bool any = stacks.Exists(s => !s.IsEmpty);
+        var appearance = new ushort[p.Inventory.Wear.Size];
+        for (int i = 0; i < appearance.Length; i++) appearance[i] = p.Inventory.Wear[i].Item;
         p.Inventory.Clear();
         // Where the body is in the world: aboard a ship, on its deck where it carried it, and it rides the ship from then on
         // (IRON_WAKE.md §4.10).
         Vector3 fell = WorldOf(c.State);
-        if (any)
+        Vector3 at = Spill.RestingPoint(fell, out TargetRef support, Zone.HeightAboveGround(fell) + 2);
+        var life = new CorpseLifecycle(content.Survival.Corpse, Tick, p.Body, appearance);
+        var corpse = new Corpse(NextId(), p.Name, p.Id, stacks.Count,
+            at, Frame.UpAt(at), Facing.YawOf(ViewOf(c), Frame.UpAt(at)), content.Survival.BodyLifetime, life.BodyUntilTick)
         {
-            Vector3 at = c.State.Frame != 0 ? Spill.RestingPoint(fell) : Settle(fell);
-            var corpse = new Corpse(NextId(), p.Name, p.Id, stacks.Count,
-                at, Frame.UpAt(at), Facing.YawOf(ViewOf(c), Frame.UpAt(at)), content.Survival.BodyLifetime, Tick + content.Survival.BodyLifetime.Ticks);
-            for (int i = 0; i < stacks.Count; i++)
-            {
-                corpse.Loot.Set(i, stacks[i]);
-            }
-            Things.AddStatic(corpse);
-        }
+            Life = life, Support = support,
+        };
+        for (int i = 0; i < stacks.Count; i++) corpse.Loot.Set(i, stacks[i]);
+        Things.AddStatic(corpse);
         p.Dead = true;
         p.Wounded = false;
         GunSystem.ResetGun(p);

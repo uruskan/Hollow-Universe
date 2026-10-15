@@ -14,6 +14,8 @@ namespace Hollow.Simulation.Targets;
 /// </summary>
 public readonly record struct AimRay(Vector3 Origin, Vector3 Direction, float Length, ulong Ignore = 0)
 {
+    /// <summary>When set, preview a damage query rather than an interaction: solid objects, with this attack radius.</summary>
+    public float? AttackRadius { get; init; }
     /// <summary>How far along a hit must be to beat the best so far.</summary>
     public float Upto(in AimHit best) => best.Hit ? MathF.Min(Length, best.Distance) : Length;
 
@@ -100,6 +102,9 @@ public struct TargetFacts
 
     /// <summary>A ship's part's health as a share of its most (its door's, its own), or −1 for none.</summary>
     public float Health;
+
+    /// <summary>Health for common inspection feedback; null for targets that do not advertise damage.</summary>
+    public TargetVitality? Vitality;
 
     /// <summary>A door's lock.</summary>
     public LockKind Lock;
@@ -210,13 +215,14 @@ public static class NaturalAim
         nature.Query((ray.Origin + end) / 2, length / 2 + margin, scratch);
         foreach (Nature.NaturalObject o in scratch)
         {
-            if (content.Natural(o.Kind) is not { } kind || state.IsDepleted(o.Id))
+            if (content.Natural(o.Kind) is not { } kind || state.IsDepleted(o.Id) || ray.AttackRadius != null && !kind.IsSolid)
             {
                 continue;
             }
             // A pickup or bush is taken with E (a little bigger than it is); a tree or a rock only stops the view.
             Combat.HitShape shape = Nature.NaturalShapes.Bounds(o, kind);
             (float grow, AimKind aim) = kind.IsPicked ? (AimShapes.PickupMargin, AimKind.Thing) : (0f, AimKind.Backdrop);
+            grow = ray.AttackRadius ?? grow;
             ray.Consider(ref best, shape.Raycast(ray.Origin, ray.Direction, length, grow), new TargetRef(TargetFamily.Natural, o.Id), aim);
         }
     }
@@ -240,6 +246,7 @@ public static class BuildingAim
 
     public static void Openings(BuildingWorld building, in AimRay ray, ref AimHit best, List<Piece> scratch)
     {
+        if (ray.AttackRadius != null) return; // An empty doorway offers interaction, never an attack contact.
         float length = ray.Upto(best);
         building.PiecesNear(ray.Origin, ray.Origin + ray.Direction * length, 3.5f, scratch);
         var within = ray with { Length = length };
@@ -429,7 +436,7 @@ public static class AimShapes
     public static float Box(in AimRay ray, Vector3 position, Vector3 up, float yaw, Vector3 halfExtents)
     {
         (Vector3 right, Vector3 forward) = Combat.Geometry.Axes(up, yaw);
-        return Combat.Geometry.RayBox(ray.Origin, ray.Direction, ray.Length, position + up * halfExtents.Y, halfExtents + new Vector3(BoxMargin),
+        return Combat.Geometry.RayBox(ray.Origin, ray.Direction, ray.Length, position + up * halfExtents.Y, halfExtents + new Vector3(ray.AttackRadius ?? BoxMargin),
             right, up, forward);
     }
 
