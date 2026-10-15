@@ -3902,7 +3902,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
 | `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
-| `models/raid.py` | G5 raid items: bag charge, tin grenade, rocket launcher, rocket and high-velocity rocket |
+| `models/raid.py` | G5 raid items: bag charge, tin grenade, rocket launcher, rocket and high-velocity rocket; the incendiary rocket (IW-A) |
 
 **Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
 rifle's LOD1–LOD3, as the character package chose; the building kit's pieces then fitted to their slots, §6.3 Fit);
@@ -3967,7 +3967,11 @@ flared venturi, a canvas heat sleeve where it rests on the shoulder, a pistol gr
 fore grip (`grip_l`), a folding frame sight on the left (`sight`, `eye`), `muzzle` at the front and `exhaust` at the back
 (+X pointing backwards, for the back blast); class `gun`, so the character package holds it two-handed like the rifle.
 The rockets lie on the ground along their length: an olive warhead with a yellow band, or for `rocket-hv` a slimmer
-pointed one with a blue band, on a motor with four fins.
+pointed one with a blue band, on a motor with four fins. The incendiary rocket (`rocket-incendiary`, IW-A,
+docs/IRON_WAKE.md §7) has the rocket's motor and fins and, in place of the ogive, a blunt grey steel canister with a
+filler plug under a pale frangible nose cap, a thin pressed shell scored in four with a crush disc on its nose, and a
+red band where the others carry theirs. Its model and icons come before its item, which the battery rules' package
+adds with its recipe (the catalogue needs a model for every item, not an item for every model).
 
 **The loot bag** (`dropped-bag`, U4; remade on 13 October 2026 to read like the owner's picture of a strapped bundle,
 our own design): 0.42 × 0.32 × 0.30 m, a khaki canvas tarp over a box-like load, wrapped like a parcel. Its ends are
