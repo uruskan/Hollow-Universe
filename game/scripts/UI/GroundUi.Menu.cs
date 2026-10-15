@@ -23,7 +23,7 @@ public partial class GroundUi
         _o = LeftFrame;
         Rect(104, 92, 52, 5, G.Red);
         Text("HOLLOW", 96, 101, 112, G.Ink, bold: true);
-        Text("GROUND  /  PLAYTEST", 106, 247, 20, G.Muted);
+        Text("UNIVERSE", 106, 247, 30, G.Muted);
         Button(_inGame ? "RESUME" : "PLAY", 90, 385, 360, 80, _inGame ? () => Open(GroundScreen.Hud) : Host, 55, Transparent, left: true);
         Button("CONNECT", 90, 499, 360, 65, () =>
         {
@@ -45,8 +45,8 @@ public partial class GroundUi
         }, 39, _settingsOpen ? G.Panel : Transparent, left: true);
         Button("QUIT", 90, 684, 360, 65, Quit, 39, Transparent, left: true);
         Rect(105, 824, 1388, 1, new Color(0.8f, 0.82f, 0.75f, 0.18f));
-        Text("NOLCAS PERIS CQ-SLY 7-0 B 3", 105, 837, 19, G.Muted);
-        TextIn("PLAYTEST  /  G2", 1293, 837, 200, 18, G.Muted, HorizontalAlignment.Right);
+        Text("EARTH  /  SOL", 105, 837, 19, G.Muted);
+        TextIn("HOLLOW UNIVERSE", 1293, 837, 200, 18, G.Muted, HorizontalAlignment.Right);
         PaintCrashNotice();
 
         if (_settingsOpen)

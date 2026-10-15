@@ -124,7 +124,11 @@ public sealed partial class LocalPlayer
         {
             return can;
         }
-        if (WorkbenchLevel < node.Tier)
+        if (node.Station is { } station && (StationNear?.Invoke(station) ?? 0) == 0)
+        {
+            return OutcomeCode.NeedsStation.With(station.Item.Id);
+        }
+        if (node.Station == null && WorkbenchLevel < node.Tier)
         {
             return OutcomeCode.NeedsWorkbench.With(node.Tier);
         }

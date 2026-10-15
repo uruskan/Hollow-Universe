@@ -218,7 +218,7 @@ public static partial class CapabilityHandlers
 
         public void Offer(in InteractContext ctx, List<InteractOption> into)
         {
-            if (ctx.Facts.Deployable is { Workbench: > 0 } bench && ctx.Content.World.Tree(bench.Workbench) != null)
+            if (ctx.Facts.Deployable?.TechTree != null)
             {
                 into.Add(InteractOption.Can(_tree, primary: true));
                 into.Add(InteractOption.Can(_unlock));
@@ -232,6 +232,8 @@ public static partial class CapabilityHandlers
 
         // A node of the tree, for its salvage, at a bench of its level within reach (as crafting counts benches).
         private static Outcome Unlock(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Zone!.World().UnlockNode(ctx.Entity, ctx.Player!, (int)Math.Min(args.Arg, int.MaxValue));
+            ctx.Facts.Deployable is { } bench
+                ? ctx.Zone!.World().UnlockNode(ctx.Entity, ctx.Player!, (int)Math.Min(args.Arg, int.MaxValue), bench)
+                : OutcomeCode.NotFound;
     }
 }

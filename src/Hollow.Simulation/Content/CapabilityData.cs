@@ -131,7 +131,7 @@ public sealed class CapabilityData
         {
             set = set.With(_machine);
         }
-        if (def.Workbench > 0)
+        if (def.TechTree != null)
         {
             set = set.With(_station);
         }

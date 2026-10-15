@@ -82,6 +82,7 @@
     { "output": "research-table", "seconds": 20, "workbench": 1, "ingredients": [["metal-fragments", 200], ["salvage", 20]] },
 
     { "output": "vehicle-workbench", "seconds": 60, "workbench": 2, "ingredients": [["metal-fragments", 800], ["refined-metal", 40], ["wood", 300]] },
+    { "output": "engineering-workbench", "seconds": 45, "workbench": 2, "ingredients": [["metal-fragments", 500], ["refined-metal", 20], ["wood", 200]] },
     { "output": "tin-finch", "seconds": 120, "station": "vehicle-workbench",
       "ingredients": [["metal-fragments", 1200], ["refined-metal", 120], ["wood", 300], ["fibre", 100], ["lamp-oil", 50]] },
 

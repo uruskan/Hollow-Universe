@@ -11,7 +11,9 @@ config_version=5
 [application]
 
 config/name="Hollow Universe"
-config/description="Online survival in a full-scale Milky Way."
+config/description="Persistent sandbox survival, handmade spacecraft, and a compact explorable galaxy."
+config/use_custom_user_dir=true
+config/custom_user_dir_name="HollowUniverseABTestB"
 run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 run/flush_stdout_on_print=true

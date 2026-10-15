@@ -383,8 +383,8 @@ public sealed class ShipDef
     public IReadOnlyList<ShipLight> Lights { get; init; } = Array.Empty<ShipLight>();
 
     /// <summary>
-    /// The leaving height in world radii over the ground (docs/WHOLE_WORLD.md decision 4: 2, 4.8 km on the first world):
-    /// above it the ship reaches orbit (GROUND.md §6.6).
+    /// The orbital-altitude marker, in world radii above the mean surface. Kept as <c>ceiling</c> in the data for
+    /// compatibility; this height is a transfer hook and presentation marker, not a flight limit.
     /// </summary>
     public float Ceiling { get; init; }
 

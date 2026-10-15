@@ -124,10 +124,9 @@ public static class GraphicsSettings
     /// <summary>Raised after <see cref="Current"/> changes (on the main thread).</summary>
     public static event Action<GraphicsValues>? Changed;
 
-    /// <summary>This computer's preset when nothing is saved: Maximum on a discrete graphics card, Medium on an integrated one, else High.</summary>
+    /// <summary>This computer's preset when nothing is saved: Medium on an integrated graphics card, otherwise High.</summary>
     public static QualityPreset DefaultPreset => RenderingServer.GetVideoAdapterType() switch
     {
-        RenderingDevice.DeviceType.DiscreteGpu => QualityPreset.Maximum,
         RenderingDevice.DeviceType.IntegratedGpu => QualityPreset.Medium,
         _ => QualityPreset.High,
     };
@@ -187,8 +186,15 @@ public static class GraphicsSettings
     }
 
     /// <summary>The preset named on the command line (<c>--quality low|medium|high|ultra|maximum</c>), if it is one.</summary>
-    public static QualityPreset? ParsePreset(string? name) =>
-        Enum.TryParse(name, ignoreCase: true, out QualityPreset preset) && preset != QualityPreset.Custom ? preset : null;
+    public static QualityPreset? ParsePreset(string? name) => name?.ToLowerInvariant() switch
+    {
+        "low" => QualityPreset.Low,
+        "medium" => QualityPreset.Medium,
+        "high" => QualityPreset.High,
+        "ultra" => QualityPreset.Ultra,
+        "maximum" => QualityPreset.Maximum,
+        _ => null,
+    };
 
     /// <summary>
     /// Reads the saved settings (this computer's defaults where nothing is saved). <paramref name="forRun"/>, from

@@ -34,7 +34,8 @@ public static class PlanetSurfaces
         StarSystem? system;
         try
         {
-            system = galaxy.GetSystem(new SystemAddress(systemAddress));
+            var address = new SystemAddress(systemAddress);
+            system = address.Equals(SolSystem.Address) ? SolSystem.Create(SolSystem.Primary) : galaxy.GetSystem(address);
         }
         catch (ArgumentException)
         {

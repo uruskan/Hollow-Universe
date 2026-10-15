@@ -533,7 +533,7 @@ public partial class ShipSandbox : Node3D
                     Notice(FormattableString.Invariant($"Hit the ground at {_ship.Events.ImpactSpeed:0} m/s: {e.Amount:0} hull lost"));
                     break;
                 case ShipEventKind.Orbit when e.Amount > 0:
-                    Notice("Orbit reached: parked over this spot. J to descend.");
+                    Notice("Orbital altitude reached. Continue flying or descend with the flight controls.");
                     break;
                 case ShipEventKind.Destroyed:
                     Notice("The Tin Finch is destroyed.");
@@ -694,7 +694,7 @@ public partial class ShipSandbox : Node3D
         d.Stick = _controls.Stick;
         d.AssistOff = _controls.AssistOff;
         d.TimeToGround = d.VerticalSpeed < -0.5f ? d.OverGround / -d.VerticalSpeed : float.PositiveInfinity;
-        d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  DESCEND OVER THE SAME SPOT"
+        d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  RESUME FLIGHT"
             : s.Has(ShipFlags.Landed) || s.Asleep ? "F  STEP OUT     H  HATCH" : null;
         d.Hints = $"V {(_shipCamera.Mode == ShipCameraMode.Cockpit ? "chase" : "cockpit")} camera · Z flight assist · X throttle 0 · Shift boost";
         _hud.Refresh();

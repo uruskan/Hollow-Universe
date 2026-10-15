@@ -67,7 +67,7 @@ public static class SeatKeys
         if (seat.Flies)
         {
             keys.Add(new SeatKey(Key.V, SeatAction.Camera, -1, "CAMERA"));
-            keys.Add(new SeatKey(Key.J, SeatAction.Descend, -1, "DESCEND FROM ORBIT"));
+            keys.Add(new SeatKey(Key.J, SeatAction.Descend, -1, "RESUME FLIGHT"));
         }
         if (seat.Role == SeatRole.Station)
         {

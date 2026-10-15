@@ -67,7 +67,11 @@
       { "item": "scope", "cost": 250, "after": ["rifle"] },
       { "item": "armoured-door", "cost": 300 },
       { "item": "timed-charge", "cost": 500, "after": ["armoured-door"] }
-    ] }
+    ] },
+    { "station": "vehicle-workbench", "note": "CRAFT-01/04: an unlevelled tree, distinct from standard workbench speed. Tin Finch's 500 salvage is provisional balance.", "nodes": [
+      { "item": "tin-finch", "cost": 500 }
+    ] },
+    { "station": "engineering-workbench", "note": "CRAFT-01/02: separate unlevelled tree; technologies remain undefined in the design, so none are invented here.", "nodes": [] }
   ],
   "loot": {
     "cell": 130, "clear": 90, "spread": 6,

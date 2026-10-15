@@ -145,6 +145,8 @@ public static class ShipGameTests
         Vector3 at = zone.Landing;
         var station = new Deployable(zone.NextId(), bench, at, zone.Frame.UpAt(at), 0, p.Id);
         zone.Things().AddStatic(station);
+        Assert.Equal(OutcomeCode.UnknownRecipe, zone.Actions().Craft(ada, recipe.Id, 1, out _), "spacecraft technology must also be learned");
+        p.Blueprints.Learn(recipe); // ProgressionTests covers learning at the bench and from a blueprint.
         // Something in the way on the bay first: a box.
         DeployableDef boxDef = c.Deployable("large-box")!;
         Vector3 bay = zone.GroundAt(0, -bench.Bay!.At.Z);

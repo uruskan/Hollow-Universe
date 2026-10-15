@@ -20,7 +20,7 @@ public sealed class ShipHudData
     /// <summary>Metres over the ground (or the sea) below, and over the planet's datum (the ceiling's measure).</summary>
     public float OverGround, Height;
 
-    /// <summary>The leaving height over the datum on this world, in metres (the ship's ceiling in world radii, docs/WHOLE_WORLD.md decision 4).</summary>
+    /// <summary>The orbital-altitude marker over the datum, in metres; flight continues through it.</summary>
     public float Ceiling = float.PositiveInfinity;
 
     /// <summary>Degrees from north toward east, the nose's heading.</summary>
@@ -330,9 +330,17 @@ public partial class ShipHud : Control
         {
             Line("LOW FUEL", G.Warning);
         }
-        if (!s.Has(ShipFlags.InOrbit) && d.Height > d.Ceiling - 1000)
+        if (s.Has(ShipFlags.AtEdge))
         {
-            Line($"ORBIT IN {N(MathF.Max(d.Ceiling - d.Height, 0))} M  ·  CEILING {N(d.Ceiling / 1000)} KM", G.Ink, 24);
+            Line("LOCAL FLIGHT LIMIT  ·  TURN OR DESCEND", G.Warning, 24);
+        }
+        else if (!s.Has(ShipFlags.InOrbit) && d.Height >= d.Ceiling)
+        {
+            Line("ORBITAL ALTITUDE  ·  FLIGHT CONTROLS ACTIVE", G.Ink, 24);
+        }
+        else if (!s.Has(ShipFlags.InOrbit) && d.Height > d.Ceiling - 1000)
+        {
+            Line($"ORBITAL ALTITUDE IN {N(d.Ceiling - d.Height)} M", G.Ink, 24);
         }
         if (d.Notice != null)
         {

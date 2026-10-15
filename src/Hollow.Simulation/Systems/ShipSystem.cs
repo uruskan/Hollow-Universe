@@ -28,7 +28,7 @@ public enum ShipEventKind : byte
     /// <summary>A ship crashed into something hard enough to hurt it (to everyone near).</summary>
     Crashed,
 
-    /// <summary>A ship reached orbit (amount 1) or came back down from it (0), to its pilot.</summary>
+    /// <summary>A ship crossed orbital altitude (amount 1) or resumed from legacy orbit parking (0), to its pilot.</summary>
     Orbit,
 }
 
@@ -46,7 +46,7 @@ public readonly record struct ShipEvent(ShipEventKind Kind, Ship Ship, float Amo
 
 // Ships in the zone (GROUND.md §6.7, IRON_WAKE.md §5): built at a vehicle workbench, flown by whoever sits at their helm,
 // parked on their skids (a static body characters walk into), fuelled, looted, hurt by weapons and crashes, wrecked when
-// the hull goes, parked in orbit above the ceiling. Their seats (ShipSystem.Seats.cs), doors (ShipSystem.Doors.cs), crew
+// the hull goes, and flown continuously through orbital altitude. Their seats (ShipSystem.Seats.cs), doors (ShipSystem.Doors.cs), crew
 // and parts' health (ShipSystem.Parts.cs) and the spaces people walk in (ShipSystem.Spaces.cs) are this system's too.
 public sealed partial class ShipSystem : ZoneSystem
 {
@@ -233,7 +233,7 @@ public sealed partial class ShipSystem : ZoneSystem
 
     // After the characters move, inside the movement pass's Jolt lock: every ship's seats are checked (an occupant gone,
     // dead or no longer seated frees theirs), every ship steps with its helm's input (or none), its doors move, it carries
-    // whoever sits in it, parks or wakes, goes to orbit, crashes or burns as its step says.
+    // whoever sits in it, parks or wakes, crosses orbital altitude, crashes or burns as its step says.
     private void StepShips()
     {
         if (_ships.Count == 0)
@@ -282,7 +282,7 @@ public sealed partial class ShipSystem : ZoneSystem
             }
             if (ship.Events.ReachedCeiling && (ship.Piloted || ship.Autopilot) && !ship.Destroyed)
             {
-                EnterOrbit(ship);
+                CrossedOrbitalAltitude(ship);
             }
             CarrySeated(ship);
             bool park = ship.State.Asleep && !ship.Piloted && !ship.Autopilot && !ship.Destroyed && !ship.InOrbit;
@@ -468,37 +468,30 @@ public sealed partial class ShipSystem : ZoneSystem
     // ---------------------------------------------------------------- orbit (GROUND.md §6.7: the seam for G8)
 
     /// <summary>
-    /// Asked when a ship climbs above its ceiling: a handler that takes it to the space layer (G8, ARCHITECTURE.md §12,
-    /// "local space ↔ surface") returns true. Until that exists the zone parks it at its orbit marker above where it left.
+    /// Asked once per upward crossing of orbital altitude: a handler that takes the ship to another space returns true.
+    /// With no transfer, flight continues in this local world. Crossing the height never parks or teleports a ship.
     /// </summary>
     public Func<Ship, bool>? OrbitTransfer { get; set; }
 
-    private void EnterOrbit(Ship ship)
+    private void CrossedOrbitalAltitude(Ship ship)
     {
         if (OrbitTransfer?.Invoke(ship) == true)
         {
             return;
         }
-        ship.OrbitAnchor = ship.State.Position;
-        ShipMotor.ParkInOrbit(ref ship.State);
         ShipEvents.Add(new ShipEvent(ShipEventKind.Orbit, ship, 1, ship.Pilot));
     }
 
-    /// <summary>From orbit, back down over the spot it left: level, nose where it was, falling at 40 m/s with flight assist on (the helm's key).</summary>
+    /// <summary>
+    /// Releases a legacy parked orbit state in place. Current flights descend using the normal controls; this action
+    /// stays for saved parked ships and the existing protocol, without the old 250 m teleport or imposed fall.
+    /// </summary>
     public Outcome Descend(Entity entity)
     {
         if (PlayerOf(entity) is not { Dead: false } || SeatOf(entity) is not { InOrbit: true } ship || ship.Pilot != Entities.IdOf(entity))
         {
             return OutcomeCode.NotAllowed;
         }
-        Vector3 up = Frame.UpAt(ship.OrbitAnchor);
-        float yaw = ShipMotor.YawOf(ship.State.Rotation, up);
-        Vector3 start = ship.OrbitAnchor - up * 250f;
-        Vector3 startUp = Frame.UpAt(start);
-        ship.State.Rotation = ShipMotor.Orientation(startUp, yaw);
-        ship.State.Position = start;
-        ship.State.Velocity = -startUp * 40f;
-        ship.State.AngularVelocity = Vector3.Zero;
         ship.State.Flags &= ~ShipFlags.InOrbit;
         ship.State.RestTicks = 0;
         ShipEvents.Add(new ShipEvent(ShipEventKind.Orbit, ship, 0, ship.Pilot));

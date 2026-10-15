@@ -128,11 +128,7 @@ public sealed class ShipPredictor
         ShipContext context = _context();
         lock (JoltRuntime.Gate)
         {
-            ShipEvents events = ShipMotor.Step(ref state, input, Def!, context, IgnoreBody?.Invoke() ?? ShipCollider.NoBody);
-            if (events.ReachedCeiling && !state.Has(ShipFlags.Destroyed))
-            {
-                ShipMotor.ParkInOrbit(ref state); // as the zone does when nothing takes the ship to space
-            }
+            ShipMotor.Step(ref state, input, Def!, context, IgnoreBody?.Invoke() ?? ShipCollider.NoBody);
         }
     }
 

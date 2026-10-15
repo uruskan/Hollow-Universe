@@ -98,24 +98,35 @@ public partial class GroundMode : Node
         _menu = new Node3D { Name = "Menu" };
         AddChild(_menu);
         // Behind the menu: the landing site, the camera turning slowly at eye height.
-        if (PlanetSurfaces.Find(FirstWorld.System.Value, FirstWorld.BodyPath) is { } planet)
+        if (PlanetSurfaces.Find(StartingWorld.System.Value, StartingWorld.BodyPath) is { } planet)
         {
+            ZoneSpec spec = ZoneSpec.StartingWorld(StartingWorld.LandingLatitude, StartingWorld.LandingLongitude);
+            WalkingWorld surface = WalkingWorlds.Find(spec.SystemAddress, spec.BodyPath, spec.Radius)!;
             var world = new SurfaceView { Name = "World", Driven = true };
             _menu.AddChild(world);
             _menuWorld = world;
-            Vector3D direction = ZoneFrame.Direction(FirstWorld.LandingLatitude * Math.PI / 180, FirstWorld.LandingLongitude * Math.PI / 180);
-            Vector3D origin = direction * (planet.Surface.Radius + planet.Surface.HeightAt(direction));
-            world.OpenZone(planet.System, planet.Body, planet.Surface, origin, TimeOption() ?? UniverseTime.Now, ZoneSpec.DefaultRotationTimeScale);
+            Vector3D direction = surface.LandingSite;
+            Vector3D origin = direction * (surface.Radius + surface.HeightAt(direction));
+            world.OpenWorld(planet.System, planet.Body, surface, new SurfacePlants(surface), spec.SurfaceSeed,
+                TimeOption() ?? UniverseTime.Now, spec.RotationTimeScale, (float)(spec.SurfaceGravity * Units.StandardGravity));
             world.Camera.Current = true;
             world.Camera.Fov = 70;
-            _menu.AddChild(new MenuCamera { Camera = world.Camera });
+            var frame = new ZoneFrame(origin);
+            static Vector3 V(Vector3D value) => new((float)value.X, (float)value.Y, (float)value.Z);
+            var anchor = new Transform3D(new Basis(V(frame.East), V(frame.Up), V(frame.South)), V(origin));
+            world.Camera.Transform = anchor * new Transform3D(Basis.Identity, new Vector3(0, 1.7f, 0));
+            _menu.AddChild(new MenuCamera { Camera = world.Camera, Anchor = anchor });
         }
         var layer = new CanvasLayer { Name = "MenuInterface" };
         _menu.AddChild(layer);
-        var ui = new GroundUi { Name = "GroundUi", Model = new MenuGroundUi() };
+        var ui = new GroundUi
+        {
+            Name = "GroundUi", Model = new MenuGroundUi(),
+            ConnectionPortOverride = Options.ContainsKey("port") ? Math.Clamp((int)Number("port", Protocol.DefaultPort), 1, 65535) : null,
+        };
         layer.AddChild(ui);
         ui.ShowMenu(inGame: false);
-        ui.HostRequested += player => Begin(player, null, Protocol.DefaultPort, ui.FemaleBody);
+        ui.HostRequested += player => Begin(player, null, ui.ConnectionPort, ui.FemaleBody);
         ui.ConnectRequested += (player, host, port) => Begin(player, host, port, ui.FemaleBody);
         ui.QuitRequested += () => GetTree().Quit();
         Input.MouseMode = Input.MouseModeEnum.Visible;
@@ -125,13 +136,14 @@ public partial class GroundMode : Node
     private partial class MenuCamera : Node
     {
         public Camera3D Camera = null!;
+        public Transform3D Anchor = Transform3D.Identity;
         private double _time;
 
         public override void _Process(double delta)
         {
             _time += delta;
             float yaw = 1.05f + (float)(_time * 0.012);
-            Camera.Transform = new Transform3D(Basis.FromEuler(new Vector3(0.02f, -yaw, 0), EulerOrder.Yxz), new Vector3(0, 1.7f, 0));
+            Camera.Transform = Anchor * new Transform3D(Basis.FromEuler(new Vector3(0.02f, -yaw, 0), EulerOrder.Yxz), new Vector3(0, 1.7f, 0));
         }
     }
 
@@ -192,8 +204,8 @@ public partial class GroundMode : Node
                     Content = _content,
                     SpawnAtOrigin = Option("spawn", "beach") == "origin",
                     Ground = ground == "walking" ? Hollow.Simulation.GroundKind.Walking : Hollow.Simulation.GroundKind.StandIn,
-                    Latitude = Number("lat", FirstWorld.LandingLatitude),
-                    Longitude = Number("lon", FirstWorld.LandingLongitude),
+                    Latitude = Number("lat", StartingWorld.LandingLatitude),
+                    Longitude = Number("lon", StartingWorld.LandingLongitude),
                     // The hosting player is the game's admin (GROUND.md §8.2).
                     Admins = new[] { name },
                     Log = line => GD.Print("[server] " + line),
@@ -380,15 +392,19 @@ public partial class GroundMode : Node
         {
             return UniverseTime.SecondsSinceJ2000(DateTime.Parse(t, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal));
         }
-        if (!Options.ContainsKey("hour") || PlanetSurfaces.Find(FirstWorld.System.Value, FirstWorld.BodyPath) is not { } planet)
+        if (!Options.ContainsKey("hour") || PlanetSurfaces.Find(StartingWorld.System.Value, StartingWorld.BodyPath) is not { } planet)
         {
             return null;
         }
         double hour = Number("hour", 10);
         var sky = new SkyEphemeris(planet.System, planet.Body);
         sky.SetRotationTimeScale(ZoneSpec.DefaultRotationTimeScale, 0);
-        // The hour where the game lands (--lat and --lon, else the first world's landing site).
-        Vector3D site = ZoneFrame.Direction(Number("lat", FirstWorld.LandingLatitude) * Math.PI / 180, Number("lon", FirstWorld.LandingLongitude) * Math.PI / 180);
+        // Match the live walking world's dry landing site for --spawn origin and the menu preview.
+        double latitude = Number("lat", StartingWorld.LandingLatitude), longitude = Number("lon", StartingWorld.LandingLongitude);
+        Vector3D site = ZoneFrame.Direction(latitude * Math.PI / 180, longitude * Math.PI / 180);
+        if (latitude == StartingWorld.LandingLatitude && longitude == StartingWorld.LandingLongitude
+            && WalkingWorlds.Find(StartingWorld.System.Value, StartingWorld.BodyPath, Hollow.Galaxy.GameScale.DefaultEarthRadius) is { } walking)
+            site = walking.LandingSite;
         double now = UniverseTime.Now, best = now, bestError = double.MaxValue;
         for (double s = 0; s < 6 * 3600; s += 20)
         {

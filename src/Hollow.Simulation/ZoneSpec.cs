@@ -111,16 +111,44 @@ public sealed record ZoneSpec
             return null;
         }
         (StarSystem system, Body planet) = found.Value;
+        // Keep reference-world regression scenarios unchanged. Hosted/dedicated play uses StartingWorld below.
+        (double density, double scaleHeight) = Air(planet.SurfacePressure, planet.Temperature, planet.SurfaceGravity);
+        return new ZoneSpec
+        {
+            AirDensity = density,
+            AirScaleHeight = scaleHeight * (LeavingRadii * FirstWorldRadius / RealCeiling),
+            SystemAddress = system.Address.Value,
+            BodyPath = planet.Path,
+            Radius = FirstWorldRadius,
+            SurfaceGravity = planet.SurfaceGravity,
+            SurfaceSeed = Core.Hash64.Of(system.Address.Value, planet.Path),
+            LatitudeDegrees = latitudeDegrees,
+            LongitudeDegrees = longitudeDegrees,
+            StandIn = true,
+        };
+    }
+
+    /// <summary>Earth, the live game's starting world (LOOP-01), without optional catalogue dependencies.</summary>
+    public static ZoneSpec StartingWorld(double latitudeDegrees, double longitudeDegrees)
+    {
+        (StarSystem system, Body planet) = Hollow.Surface.StartingWorld.Find();
+        return ForBody(system, planet, latitudeDegrees, longitudeDegrees);
+    }
+
+    /// <summary>One scaling boundary for all playable planets; source physics and generation are unchanged.</summary>
+    public static ZoneSpec ForBody(StarSystem system, Body planet, double latitudeDegrees, double longitudeDegrees)
+    {
+        double radius = Galaxy.GameScale.PlanetRadius(planet);
         (double density, double scaleHeight) = Air(planet.SurfacePressure, planet.Temperature, planet.SurfaceGravity);
         return new ZoneSpec
         {
             AirDensity = density,
             // Real-equivalent heights (docs/WHOLE_WORLD.md §6.5): the climb to the leaving height thins the air as the
             // climb to the old 15 km ceiling did.
-            AirScaleHeight = scaleHeight * (LeavingRadii * FirstWorldRadius / RealCeiling),
+            AirScaleHeight = scaleHeight * (LeavingRadii * radius / RealCeiling),
             SystemAddress = system.Address.Value,
             BodyPath = planet.Path,
-            Radius = FirstWorldRadius,
+            Radius = radius,
             SurfaceGravity = planet.SurfaceGravity,
             SurfaceSeed = Core.Hash64.Of(system.Address.Value, planet.Path),
             LatitudeDegrees = latitudeDegrees,
@@ -135,9 +163,9 @@ public sealed record ZoneSpec
     /// </summary>
     public static (double Latitude, double Longitude) LandingFor(GroundKind ground, Galaxy.Galaxy galaxy, double latitude, double longitude)
     {
-        if (ground != GroundKind.Walking || latitude != Hollow.Surface.FirstWorld.LandingLatitude || longitude != Hollow.Surface.FirstWorld.LandingLongitude
-            || Hollow.Surface.FirstWorld.Find(galaxy) is not var (system, planet)
-            || WalkingWorlds.Find(system.Address.Value, planet.Path, FirstWorldRadius) is not { } walking)
+        (StarSystem system, Body planet) = Hollow.Surface.StartingWorld.Find();
+        if (ground != GroundKind.Walking || latitude != Hollow.Surface.StartingWorld.LandingLatitude || longitude != Hollow.Surface.StartingWorld.LandingLongitude
+            || WalkingWorlds.Find(system.Address.Value, planet.Path, Galaxy.GameScale.PlanetRadius(planet)) is not { } walking)
         {
             return (latitude, longitude);
         }
@@ -146,8 +174,8 @@ public sealed record ZoneSpec
     }
 
     /// <summary>
-    /// The first world's game radius in metres (SCALE.md §3.1, docs/WHOLE_WORLD.md §1): a constant until S1's
-    /// <c>GameScale</c> gives every body its own.
+    /// The inherited reference world's radius, retained for regression fixtures and explicit development viewers.
+    /// Live worlds use <see cref="StartingWorld"/> and <see cref="Galaxy.GameScale"/> instead.
     /// </summary>
     public const double FirstWorldRadius = 2410;
 

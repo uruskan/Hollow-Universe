@@ -372,7 +372,7 @@ public partial class GroundTour : Node
         View.Scripted = new InputFrame { Primary = true };
         while (Time.GetTicksMsec() / 1000.0 - started < 40 && Hits(rock.Id).Stage < 2 && !Client.Survival().Natural!.IsDepleted(rock.Id))
         {
-            if (Client.Survival().Natural.WeakSpot(rock, kind) is { } spot)
+            if (Client.Survival().Natural?.WeakSpot(rock, kind) is { } spot)
             {
                 Face(spot);
             }
@@ -407,7 +407,7 @@ public partial class GroundTour : Node
         double mining = Time.GetTicksMsec() / 1000.0;
         while (Time.GetTicksMsec() / 1000.0 - mining < 40 && !Client.Survival().Natural!.IsDepleted(rock.Id))
         {
-            if (Client.Survival().Natural.WeakSpot(rock, kind) is { } spot)
+            if (Client.Survival().Natural?.WeakSpot(rock, kind) is { } spot)
             {
                 Face(spot);
             }
@@ -415,7 +415,7 @@ public partial class GroundTour : Node
         }
         View.Scripted = null;
         GD.Print($"[tour] the outcrop {(Client.Survival().Natural!.IsDepleted(rock.Id) ? "is mined out" : "still stands")}");
-        if (Client.Survival().Natural.IsDepleted(rock.Id))
+        if (Client.Survival().Natural?.IsDepleted(rock.Id) == true)
         {
             Face(rock.Position + rock.Up * 0.3f);
             await Seconds(0.3);
@@ -2379,13 +2379,13 @@ public partial class GroundTour : Node
     // The nearest natural object of a kind, preferring ones with no tree within 3 m (in the open).
     private NaturalObject? Nearest(string key, Num.Vector3 near, float radius, bool open)
     {
-        if (Client.Survival().Nature == null || Client.Content.Natural(key) is not { } kind)
+        if (Client.Survival().Nature is not { } nature || Client.Survival().Natural is not { } natural || Client.Content.Natural(key) is not { } kind)
         {
             return null;
         }
         var all = new List<NaturalObject>();
-        Client.Survival().Nature.Query(near, radius, all);
-        IEnumerable<NaturalObject> candidates = all.Where(o => o.Kind == kind.Index && !Client.Survival().Natural!.IsDepleted(o.Id));
+        nature.Query(near, radius, all);
+        IEnumerable<NaturalObject> candidates = all.Where(o => o.Kind == kind.Index && !natural.IsDepleted(o.Id));
         if (open)
         {
             var solid = all.Where(o => Client.Content.Natural(o.Kind)!.IsSolid).ToList();

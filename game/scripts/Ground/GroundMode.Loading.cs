@@ -101,7 +101,7 @@ public partial class GroundMode
     // client would otherwise build both on the main thread when it is welcomed and opens the world.
     private static void Prefetch() => Task.Run(() =>
     {
-        if (PlanetSurfaces.Find(FirstWorld.System.Value, FirstWorld.BodyPath) is { } world)
+        if (PlanetSurfaces.Find(StartingWorld.System.Value, StartingWorld.BodyPath) is { } world)
         {
             AtmosphereModel.Prepare(world.Body);
         }

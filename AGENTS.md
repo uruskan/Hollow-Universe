@@ -1,4 +1,30 @@
-# Working on Hollow Universe (for AI agents and people)
+# Hollow Universe AB Test B — active project instructions
+
+This independent project lives in `D:\GameDev\Projects\HollowUniverseABTestB` on branch `abtest-b`.
+The user approved Godot 4.7.2 .NET and C# on 15 October 2026. The original repository at
+`D:\GameDev\Projects\Hollow Universe` is a reusable source/reference, not this project's working directory.
+Do not edit or merge into it as part of this project. This repository has no push remote.
+
+## Authoritative design and precedence
+
+Read `docs/DESIGN.md`, copied from the user's `D:\GameDev\Projects\x\design.md`, as the current design.
+It supersedes the historical design, lore, scale, travel, faction, and workflow statements below and in inherited docs.
+Keep confirmed requirements distinct from proposals. Current requirements include a maximum of 1,000 stars,
+planets with at most 23.04 km² total surface area, initial spawn on Earth with one rock and one torch,
+direct compressed-distance flight without supercruise, and preservation of the ground UI.
+Use the standard Godot build; custom precision builds are not an assumed requirement.
+
+Retain C#, engine-free simulation, deterministic generation, data-driven shared systems, build/test checks,
+and screenshots for visual changes from the engineering rules below. Existing implementation is a reusable
+foundation, not evidence that new design requirements are already complete. Record current work and honest
+validation in `docs/DEVELOPMENT.md`. Existing source docs describe inherited behavior until explicitly updated.
+
+Separate agent ownership before parallel edits. Coordinate builds and Godot runs with the root agent.
+Local save data is isolated under `HollowUniverseABTestB`; never load the original game's saves implicitly.
+
+---
+
+# Historical source-project guide (reference only where consistent with the above)
 
 ## Where development is now (14 October 2026)
 

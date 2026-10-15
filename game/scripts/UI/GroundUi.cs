@@ -652,6 +652,10 @@ public partial class GroundUi : Control
     /// <summary>The body chosen in the menu (GROUND.md §4.8): female or not (male).</summary>
     public bool FemaleBody { get; set; }
 
+    /// <summary>A launch-specified port takes precedence over the last connection preference.</summary>
+    public int? ConnectionPortOverride { get; set; }
+    public int ConnectionPort => MenuPort();
+
     /// <summary>The body last chosen in the menu, as saved on this computer.</summary>
     public static bool SavedFemaleBody()
     {
@@ -667,7 +671,7 @@ public partial class GroundUi : Control
         FemaleBody = (string)file.GetValue("connection", "body", "male") == "female";
         _name.Text = (string)file.GetValue("connection", "name", "Survivor");
         _host.Text = (string)file.GetValue("connection", "host", "127.0.0.1");
-        _port.Text = ((int)file.GetValue("connection", "port", 27015)).ToString(CultureInfo.InvariantCulture);
+        _port.Text = (ConnectionPortOverride ?? (int)file.GetValue("connection", "port", 27015)).ToString(CultureInfo.InvariantCulture);
         foreach (string key in (string[])file.GetValue("crafting", "favourites", Array.Empty<string>()))
         {
             _favourites.Add(key);

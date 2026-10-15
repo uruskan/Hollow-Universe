@@ -170,6 +170,9 @@ public sealed class DeployableDef
     /// <summary>The workbench level it gives within reach (0: not a workbench).</summary>
     public int Workbench { get; init; }
 
+    /// <summary>The tree offered here, linked from world.json. Specialized stations retain workbench level zero.</summary>
+    public TechTree? TechTree { get; internal set; }
+
     /// <summary>Its storage is take only (a world crate, G7).</summary>
     public bool TakeOnly { get; init; }
 

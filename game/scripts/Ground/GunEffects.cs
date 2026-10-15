@@ -181,12 +181,12 @@ public static class GunEffects
     /// <summary>The class of the natural object nearest a point within 3 m (a tree, an outcrop, a bush), if any.</summary>
     public static NaturalClass? NaturalAt(GameClient client, Num.Vector3 point)
     {
-        if (client.Survival().Nature == null)
+        if (client.Survival().Nature is not { } nature)
         {
             return null;
         }
         var near = new List<NaturalObject>();
-        client.Survival().Nature.Query(point, 3, near);
+        nature.Query(point, 3, near);
         NaturalObject? best = null;
         float bestDistance = float.MaxValue;
         foreach (NaturalObject o in near)

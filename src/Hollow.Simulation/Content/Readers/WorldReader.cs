@@ -171,9 +171,15 @@ internal sealed class WorldReader : IContentReader
         var trees = new List<TechTree>();
         foreach (JsonElement t in f.List(root, "techTrees", File))
         {
-            int bench = f.Integer(t, "workbench", File + ": techTrees");
-            string where = $"{File}: tech tree {bench}";
-            f.OnlyKnown(t, where, "workbench", "nodes", "note");
+            int bench = f.Integer(t, "workbench", File + ": techTrees", 0);
+            string? stationKey = f.Has(t, "station") ? f.Text(t, "station", File + ": techTrees") : null;
+            DeployableDef? station = stationKey == null ? null : loaded.Deployables.FirstOrDefault(d => d.Key == stationKey);
+            string where = $"{File}: tech tree {stationKey ?? bench.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            f.OnlyKnown(t, where, "workbench", "station", "nodes", "note");
+            if (stationKey != null && station == null)
+            {
+                f.Problem(where, $"no deployable \"{stationKey}\"");
+            }
             var nodes = new List<TechNode>();
             foreach (JsonElement n in f.List(t, "nodes", where))
             {
@@ -185,7 +191,7 @@ internal sealed class WorldReader : IContentReader
                     f.Problem(nw, $"no recipe makes \"{key}\"");
                     continue;
                 }
-                var node = new TechNode { Recipe = recipe, Tier = bench, Cost = f.Integer(n, "cost", nw), AfterKeys = f.Texts(n, "after", nw) };
+                var node = new TechNode { Recipe = recipe, Tier = bench, Station = station, Cost = f.Integer(n, "cost", nw), AfterKeys = f.Texts(n, "after", nw) };
                 nodes.Add(node);
                 if (world.NodeOf(recipe.Id) != null)
                 {
@@ -214,7 +220,12 @@ internal sealed class WorldReader : IContentReader
             {
                 node.Depth = DepthOf(node, 0);
             }
-            trees.Add(new TechTree { Workbench = bench, Nodes = nodes });
+            var tree = new TechTree { Workbench = bench, Station = station, Nodes = nodes };
+            trees.Add(tree);
+            foreach (DeployableDef def in loaded.Deployables.Where(d => station != null ? d == station : d.Workbench == bench && bench > 0))
+            {
+                def.TechTree = tree;
+            }
         }
         world.TechTrees = trees;
         foreach (Recipe recipe in loaded.Recipes)
@@ -381,14 +392,21 @@ internal sealed class WorldReader : IContentReader
         }
         foreach (TechTree tree in w.TechTrees)
         {
-            string where = $"{File}: tech tree {tree.Workbench}";
-            if (tree.Workbench is < 1 or > 3 || w.TechTrees.Count(t => t.Workbench == tree.Workbench) > 1)
+            string where = $"{File}: tech tree {tree.Station?.Key ?? tree.Workbench.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+            if (tree.Station is { } station)
+            {
+                if (tree.Workbench != 0 || station.Workbench != 0 || w.TechTrees.Count(t => t.Station == station) > 1)
+                {
+                    c.Problem(where, "a specialized station has no level and exactly one tree");
+                }
+            }
+            else if (tree.Workbench is < 1 or > 3 || w.TechTrees.Count(t => t.Station == null && t.Workbench == tree.Workbench) > 1)
             {
                 c.Problem(where, "workbench levels 1 … 3, one tree each");
             }
             foreach (TechNode n in tree.Nodes)
             {
-                if (n.Cost < 1 || n.Recipe.Workbench > tree.Workbench || n.Depth >= 64)
+                if (n.Cost < 1 || (tree.Station == null && n.Recipe.Workbench > tree.Workbench) || n.Depth >= 64)
                 {
                     c.Problem($"{where}: \"{n.Item.Key}\"", "a positive cost, a recipe this bench or a lower one makes, and no loop through \"after\"");
                 }

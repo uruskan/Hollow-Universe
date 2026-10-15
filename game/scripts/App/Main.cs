@@ -19,12 +19,14 @@ using HollowUniverse.UI.Viewer;
 namespace HollowUniverse.App;
 
 /// <summary>
-/// Entry point. Loads the galaxy and switches between the galaxy map and the system map.
+/// Entry point. Opens the survival game's main menu; explicit views keep the development viewers available.
 /// Command-line options (after "--") drive the views for automated screenshots, e.g.
 /// <c>-- --view system --focus Sol --time 2026-10-10T12:00:00Z --shot sol.png</c>.
 /// </summary>
 public partial class Main : Node
 {
+    private const string DefaultView = "ground";
+
     private GalaxyMapView _galaxyMap = null!;
     private SystemMapView _systemMap = null!;
     private SurfaceView _surfaceView = null!;
@@ -52,7 +54,7 @@ public partial class Main : Node
         // Crash reports first (GROUND.md §4.3): everything after may be what fails.
         CrashReporter.Install();
         _options = ParseOptions(OS.GetCmdlineUserArgs());
-        CrashReporter.Running = "view " + Option("view", "galaxy") + (_options.ContainsKey("host") ? ", hosting" : "") +
+        CrashReporter.Running = "view " + Option("view", DefaultView) + (_options.ContainsKey("host") ? ", hosting" : "") +
             (_options.TryGetValue("connect", out string? server) ? ", connected to " + server : "");
         if (_options.ContainsKey("physics-check"))
         {
@@ -74,42 +76,42 @@ public partial class Main : Node
         {
             CatalogItemIcons.Install();
         }
-        if (Option("view", "galaxy") == "icons")
+        if (Option("view", DefaultView) == "icons")
         {
             // Renders the item icons (--out <dir>) and shows them all on one sheet (GROUND.md §9).
             _icons = new IconRenderer { Name = "Icons", Options = _options };
             AddChild(_icons);
             return;
         }
-        if (Option("view", "galaxy") == "models")
+        if (Option("view", DefaultView) == "models")
         {
             // Every catalogue model on the ground, or one on a turntable (GROUND.md §9).
             _models = new ModelViewer { Name = "Models", Options = _options };
             AddChild(_models);
             return;
         }
-        if (Option("view", "galaxy") == "monuments")
+        if (Option("view", DefaultView) == "monuments")
         {
             // Every monument at its real size, a row per tier, with a fly camera (MONUMENTS.md §8.5).
             _monuments = new HollowUniverse.Monuments.MonumentViewer { Name = "Monuments", Options = _options };
             AddChild(_monuments);
             return;
         }
-        if (Option("view", "galaxy") == "fx")
+        if (Option("view", DefaultView) == "fx")
         {
             // The effects library on its stations, contact sheets, scenes and the firefight measurement (GROUND.md §9.3).
             _fx = new FxViewer { Name = "Fx", Options = _options };
             AddChild(_fx);
             return;
         }
-        if (Option("view", "galaxy") == "ui")
+        if (Option("view", DefaultView) == "ui")
         {
             // The ground game's interface on sample data (GROUND.md §8): --screen hud|inventory|crafting|...
             _ui = new UiViewer { Name = "UiViewer", Options = _options };
             AddChild(_ui);
             return;
         }
-        if (Option("view", "galaxy") == "sounds")
+        if (Option("view", DefaultView) == "sounds")
         {
             // The audition viewer (GROUND.md §4.9): every sound event, a source walking away, the ambience.
             _sounds = new SoundViewer { Name = "Sounds", Options = _options };
@@ -124,28 +126,28 @@ public partial class Main : Node
             return;
         }
         GalaxyService.Load();
-        if (Option("view", "galaxy") == "ground")
+        if (Option("view", DefaultView) == "ground")
         {
             // The ground game (GROUND.md §4.3): its own view; the maps aren't built.
             _ground = new GroundMode { Name = "Ground", Options = _options };
             AddChild(_ground);
             return;
         }
-        if (Option("view", "galaxy") == "animals")
+        if (Option("view", DefaultView) == "animals")
         {
             // The animal sandbox (GROUND.md §6.9): herds, a wolf pack, the bear, butchering and cooking on the real surface.
             _animals = new HollowUniverse.Animals.AnimalSandbox { Name = "Animals", Options = _options };
             AddChild(_animals);
             return;
         }
-        if (Option("view", "galaxy") == "build")
+        if (Option("view", DefaultView) == "build")
         {
             // The build sandbox (GROUND.md §6.3): the building rules and their art in a local zone.
             _build = new BuildSandbox { Name = "Build", Options = _options };
             AddChild(_build);
             return;
         }
-        if (Option("view", "galaxy") == "ship")
+        if (Option("view", DefaultView) == "ship")
         {
             // The ship sandbox (GROUND.md §6.7): the Tin Finch on the first world's real surface.
             _ship = new ShipSandbox { Name = "Ship", Options = _options };
@@ -216,7 +218,7 @@ public partial class Main : Node
 
     private bool OpenSystem(SystemAddress address, double time)
     {
-        StarSystem? system = GalaxyService.Galaxy.GetSystem(address);
+        StarSystem? system = GalaxyService.Playable.GetSystem(address);
         if (system == null)
         {
             return false;
@@ -232,16 +234,16 @@ public partial class Main : Node
     private void ApplyOptions()
     {
         Galaxy galaxy = GalaxyService.Galaxy;
-        string view = Option("view", "galaxy");
-        double distance = Number("distance", 80);
+        string view = Option("view", DefaultView);
+        double distance = Number("distance", 780);
         double yaw = Number("yaw", 37);
-        double pitch = Number("pitch", 34);
+        double pitch = Number("pitch", 58);
 
         Vector3D focus = Vector3D.Zero;
         SystemAddress? focusAddress = null;
         if (_options.TryGetValue("focus", out string? focusName))
         {
-            List<SearchResult> hits = galaxy.Search(focusName, 1);
+            List<SearchResult> hits = GalaxyService.Playable.Search(focusName, 1);
             if (hits.Count > 0)
             {
                 focus = hits[0].Position;

@@ -1018,7 +1018,7 @@ public partial class GroundView : Node3D
         // The helm's keys from its seat's data (SeatKeys): the seat's line at rest (or in orbit, the descent), the flight
         // keys in the corner.
         string seatLine = SeatKeys.Line(SeatKeys.Of(def, def.Helm), s.Has(ShipFlags.InOrbit));
-        d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  DESCEND OVER THE SAME SPOT" : s.Has(ShipFlags.Landed) || s.Asleep ? seatLine : null;
+        d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  RESUME FLIGHT" : s.Has(ShipFlags.Landed) || s.Asleep ? seatLine : null;
         d.Notice = null;
         d.Hints = SeatKeys.FlightHints(_shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit) + " · " + seatLine;
         _shipHud.Refresh();

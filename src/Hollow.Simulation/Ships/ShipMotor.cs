@@ -63,7 +63,7 @@ public static class ShipMotor
     /// <summary>A sleeping ship checks every this many ticks that it still has ground under its skids.</summary>
     public const int SupportCheckTicks = 2 * CharacterMotor.TickRate;
 
-    /// <summary>A ship is held within this many world radii of the centre (the leaving height parks it in orbit long before).</summary>
+    /// <summary>The current local flight boundary, in world radii from the centre, beyond orbital altitude.</summary>
     public const float EdgeRadii = 4f;
 
     /// <summary>Within this height over the ground (plus a second's travel) the hull and skids look for contacts.</summary>
@@ -439,7 +439,8 @@ public static class ShipMotor
                 s.Flags |= ShipFlags.Destroyed;
             }
         }
-        if (height > def.CeilingOn(ctx.Surface.Radius))
+        float orbitalAltitude = def.CeilingOn(ctx.Surface.Radius);
+        if (height <= orbitalAltitude && ctx.Frame.ToBody(s.Position).Length - ctx.Surface.Radius > orbitalAltitude)
         {
             events.ReachedCeiling = true;
         }
@@ -680,8 +681,8 @@ public static class ShipMotor
         return Quaternion.Normalize(q * delta);
     }
 
-    // A whole world has no edge on the ground: a ship is only held within a sphere round the centre (the leaving height
-    // parks it in orbit long before), its outward speed stopped there.
+    // The current local flight volume ends at this sphere. Stop only outward travel: the pilot can still turn, fly
+    // around the planet, and descend. Interplanetary transfers will extend the playable space beyond this boundary.
     private static void KeepInZone(ref ShipState s, float edge)
     {
         float r = s.Position.Length();
@@ -726,8 +727,8 @@ public static class ShipMotor
     private static float OnGrid(float value) => Quantize.FromFixed(Quantize.Fixed(value, Quantize.PositionScale), Quantize.PositionScale);
 
     /// <summary>
-    /// A ship that crossed its ceiling parked at its orbit marker (GROUND.md §6.7): out of the physics, still. The zone does
-    /// this when no transfer takes it, and a pilot's prediction does the same.
+    /// Legacy parked-orbit state, retained for compatibility with older saves and explicit transfer handlers.
+    /// Normal flight and prediction never call this when crossing orbital altitude.
     /// </summary>
     public static void ParkInOrbit(ref ShipState s)
     {

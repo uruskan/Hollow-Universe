@@ -392,11 +392,14 @@ public partial class SystemMapUi : Control
         }
         else if (body.Kind is BodyKind.Planet or BodyKind.Moon)
         {
+            double playableRadius = GameScale.PlanetRadius(body);
+            Row("Playable radius", Ui.Number(playableRadius / 1000, "N3") + " km");
+            Row("Total surface area", Ui.Number(GameScale.SurfaceArea(playableRadius) / 1e6, "N2") + " km²");
             double earthMasses = body.Mass / Units.EarthMass;
             Row("Mass", earthMasses < 0.001
                 ? body.Mass.ToString("0.00e+0", CultureInfo.InvariantCulture) + " kg"
                 : Ui.Times(earthMasses, "Earth", earthMasses < 10 ? "N3" : "N1"));
-            Row("Radius", Ui.Number(body.Radius / 1000, "N0") + " km");
+            Row("Physical reference radius", Ui.Number(body.Radius / 1000, "N0") + " km");
             Row("Gravity", Ui.Number(body.SurfaceGravity, "N2") + " g");
             Row("Temperature", Ui.Temperature(body.Temperature));
             PlanetState? state = body.State;

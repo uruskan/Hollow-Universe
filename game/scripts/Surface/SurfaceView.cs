@@ -259,7 +259,7 @@ public partial class SurfaceView : Node3D
         _groundAlbedo = GroundLayers.Albedo;
         _groundNormal = GroundLayers.Normal;
         GroundLayers.Apply(_terrainMaterial);
-        _terrainMaterial.SetShaderParameter("macro_noise", _noise);
+        _terrainMaterial.SetShaderParameter("macro_noise", _noise ?? throw new InvalidOperationException("Surface noise was not initialized."));
         _canopy ??= NoiseTextures.Canopy(13);
         _terrainMaterial.SetShaderParameter("canopy_texture", _canopy);
         // One water for the sea, lakes and streams (ISurface.WaterLevelAt; a world without any draws none).

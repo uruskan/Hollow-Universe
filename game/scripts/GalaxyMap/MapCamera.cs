@@ -9,8 +9,8 @@ namespace HollowUniverse.GalaxyMap;
 /// </summary>
 public sealed class MapCamera
 {
-    public const double MinDistance = 0.3;
-    public const double MaxDistance = 220000;
+    public const double MinDistance = 12;
+    public const double MaxDistance = 2400;
     private const double MaxPitch = 1.53;
 
     private Vector3D _targetFocus;

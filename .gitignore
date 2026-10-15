@@ -15,6 +15,12 @@ export_presets.cfg
 
 # Local tools
 .tmp/
+.artifacts/
+
+# Runtime state belongs to the local installation, never version control
+*.db
+*.db-shm
+*.db-wal
 
 # Blender build scratch
 art/.cache/

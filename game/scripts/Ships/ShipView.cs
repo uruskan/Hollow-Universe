@@ -117,7 +117,7 @@ public partial class ShipView : Node3D
     private string ModelKey => string.IsNullOrEmpty(_def.Model) ? _def.Key : _def.Model;
 
     // Plumes and lights grow with the ship: the Tin Finch's sizes, scaled by the square root of how much bigger it is.
-    private float Scale => MathF.Sqrt(MathF.Max(1, _def.BoundingRadius / 3.5f));
+    private float EffectsScale => MathF.Sqrt(MathF.Max(1, _def.BoundingRadius / 3.5f));
 
     public override void _Ready()
     {
@@ -361,7 +361,7 @@ public partial class ShipView : Node3D
     private void BuildLights()
     {
         // The lift nozzles' light on the ground below: between them, reaching eight times their plumes' length (ships.json).
-        float scale = Scale;
+        float scale = EffectsScale;
         Vector3 liftAt = Vector3.Zero;
         float liftLength = 0, liftWidth = 0;
         foreach (Plume p in _plumes)

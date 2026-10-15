@@ -9,6 +9,12 @@ namespace Hollow.Galaxy.Systems;
 /// </summary>
 public static class SolSystem
 {
+    /// <summary>Sol is built-in content; its identity and physical definition do not require the optional HYG file.</summary>
+    public static readonly SystemAddress Address = SystemAddress.Catalogue(0, 0);
+    public static readonly GalaxyStar Primary = new(Address, Vector3D.Zero,
+        new StarClass(StarKind.MainSequence, 42), new StarPhysics(5772, 4.83f, 1, 1, 1),
+        0, GalaxyComponent.Catalogue, 0, 4.6f);
+
     private const double Km = 1000.0;
     private const double Deg = DMath.DegToRad;
     private const double Hour = 3600.0;

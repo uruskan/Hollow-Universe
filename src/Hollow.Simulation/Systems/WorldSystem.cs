@@ -522,7 +522,7 @@ public sealed class WorldSystem : ZoneSystem
     /// its level within reach, once one of the nodes before it is known, for its salvage from the player's main and belt
     /// slots. The blueprint is learnt at once.
     /// </summary>
-    internal Outcome UnlockNode(Entity entity, Player p, int recipeId)
+    internal Outcome UnlockNode(Entity entity, Player p, int recipeId, DeployableDef bench)
     {
         GameContent content = Content;
         if (content.World.NodeOf(recipeId) is not { } node)
@@ -534,7 +534,11 @@ public sealed class WorldSystem : ZoneSystem
         {
             return can;
         }
-        if (Things.WorkbenchLevel(EyeOf(Entities.Get<Character>(entity).State)) < node.Tier)
+        if (node.Station is { } station && bench != station)
+        {
+            return OutcomeCode.NeedsStation.With(station.Item.Id);
+        }
+        if (node.Station == null && bench.Workbench < node.Tier)
         {
             return OutcomeCode.NeedsWorkbench.With(node.Tier);
         }

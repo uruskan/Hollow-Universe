@@ -43,19 +43,19 @@ public sealed class ShipRig : IDisposable
 
     public const double Earthlike = ZoneSpec.FirstWorldRadius;
 
-    public ShipRig(ISurface? surface = null, bool content = false, double slopeDegrees = 0)
+    public ShipRig(ISurface? surface = null, bool content = false, double slopeDegrees = 0, ZoneSpec? worldSpec = null)
     {
-        var spec = new ZoneSpec
+        var spec = worldSpec ?? new ZoneSpec
         {
             Radius = Earthlike, SurfaceGravity = 0.92, LatitudeDegrees = 10, LongitudeDegrees = 20,
             AirDensity = ZoneSpec.Air(2.23, 291, 0.92).Density, AirScaleHeight = ZoneSpec.Air(2.23, 291, 0.92).ScaleHeight,
         };
         if (surface == null && slopeDegrees != 0)
         {
-            ZoneFrame flat = new LevelSurface(Earthlike).Pipe(s => ZoneFrame.At(s, 10 * Math.PI / 180, 20 * Math.PI / 180));
-            surface = new SlopeSurface(Earthlike, flat.East, slopeDegrees);
+            ZoneFrame flat = new LevelSurface(spec.Radius).Pipe(s => ZoneFrame.At(s, spec.LatitudeDegrees * Math.PI / 180, spec.LongitudeDegrees * Math.PI / 180));
+            surface = new SlopeSurface(spec.Radius, flat.East, slopeDegrees);
         }
-        Zone = new Zone(surface ?? new LevelSurface(Earthlike), spec, content: content ? ContentFixture.Content : null)
+        Zone = new Zone(surface ?? new LevelSurface(spec.Radius), spec, content: content ? ContentFixture.Content : null)
         {
             UnixMilliseconds = 1_800_000_000_000,
         };

@@ -110,12 +110,12 @@ public partial class NatureView : Node3D
     /// <summary>Where the player is (feet), for what is drawn near them.</summary>
     public void Refresh(Num.Vector3 feet, double delta)
     {
-        if (Client.Survival().Nature == null || Client.Survival().Natural == null)
+        if (Client.Survival().Nature == null || Client.Survival().Natural is not { } natural)
         {
             return;
         }
         long bytes = GC.GetAllocatedBytesForCurrentThread(), start = System.Diagnostics.Stopwatch.GetTimestamp();
-        bool quiet = Client.Survival().Natural.Revision == _revision;
+        bool quiet = natural.Revision == _revision;
         RefreshNow(feet, delta);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - bytes;
         _costTicks += System.Diagnostics.Stopwatch.GetTimestamp() - start;

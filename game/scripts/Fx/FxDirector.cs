@@ -146,6 +146,9 @@ public partial class FxDirector : Node3D
     /// <summary>The camera distances and the first-person correction use (the viewport's own camera when null).</summary>
     public Camera3D? CameraOverride { get; set; }
 
+    /// <summary>Preview directors warm their own effects without notifying gameplay of camera shakes.</summary>
+    internal bool PreviewOnly { get; set; }
+
     private Camera3D? ActiveCamera => CameraOverride ?? GetViewport()?.GetCamera3D();
 
     /// <summary>Freezes every effect where it is (screenshots).</summary>
@@ -290,14 +293,17 @@ public partial class FxDirector : Node3D
     /// <paramref name="drag"/> of its speed a second, as ClientProjectile does. Returns an id for <see cref="EndTracer"/>.
     /// </summary>
     public static int Tracer(string key, Vector3 origin, Vector3 velocity, Vector3 gravity, float drag)
+        => Instance.TracerNow(key, origin, velocity, gravity, drag);
+
+    // An explicit director keeps loading previews separate from the live world's effects.
+    internal int TracerNow(string key, Vector3 origin, Vector3 velocity, Vector3 gravity, float drag)
     {
-        FxDirector d = Instance;
         FxDef? def = FxCatalog.Find(key);
-        if (!d._ready || def?.Tracer == null)
+        if (!_ready || def?.Tracer == null)
         {
             return 0;
         }
-        return d._tracers.Launch(d._time, def.Tracer, origin, velocity, gravity, drag, Colors.White);
+        return _tracers.Launch(_time, def.Tracer, origin, velocity, gravity, drag, Colors.White);
     }
 
     /// <summary>The projectile of tracer <paramref name="id"/> stopped at <paramref name="at"/>.</summary>
@@ -417,7 +423,7 @@ public partial class FxDirector : Node3D
         public Vector3 Velocity;
     }
 
-    private bool PlayNow(string key, Vector3 position, Vector3 normal, FxParams p)
+    internal bool PlayNow(string key, Vector3 position, Vector3 normal, FxParams p)
     {
         if (!_ready)
         {
@@ -565,7 +571,10 @@ public partial class FxDirector : Node3D
             {
                 var shake = new FxShakeEvent(spot.Position, layer.Strength * spot.Scale, layer.Radius * Mathf.Sqrt(spot.Scale), layer.Duration);
                 _shake.Add(_time, shake);
-                Shaken?.Invoke(shake);
+                if (!PreviewOnly)
+                {
+                    Shaken?.Invoke(shake);
+                }
                 return;
             }
             case FxLayerType.Muzzle:
@@ -683,7 +692,7 @@ public partial class FxDirector : Node3D
 
     // ---------------------------------------------------------------- loops
 
-    private FxHandle StartNow(string key, Vector3 position, Vector3 normal, FxParams p)
+    internal FxHandle StartNow(string key, Vector3 position, Vector3 normal, FxParams p)
     {
         if (!_ready)
         {

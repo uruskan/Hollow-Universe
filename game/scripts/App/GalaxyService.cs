@@ -11,8 +11,10 @@ public static class GalaxyService
     public const string CataloguePath = "res://data/catalog/hyg41.bin.gz";
 
     private static Galaxy? _galaxy;
+    private static PlayableGalaxy? _playable;
 
     public static Galaxy Galaxy => _galaxy ?? throw new InvalidOperationException("GalaxyService.Load() has not run.");
+    public static PlayableGalaxy Playable => _playable ??= new PlayableGalaxy(Galaxy);
 
     public static bool IsLoaded => _galaxy != null;
 

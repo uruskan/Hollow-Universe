@@ -124,6 +124,10 @@ public sealed partial class ClientGroundUi
         TargetRef at = target;
         if (verb.Panel != null)
         {
+            if (_client.Interaction().TechTreeAt(at) != null)
+            {
+                _techBench = at;
+            }
             OpenPanel?.Invoke(verb.Panel);
         }
         else if (verb.Code)

@@ -81,7 +81,7 @@ public partial class GalaxyMapUi : Control
 
         _search = new LineEdit
         {
-            PlaceholderText = "Search stars, systems and sectors",
+            PlaceholderText = "Search playable systems",
             ClearButtonEnabled = true,
             RightIcon = UiIcons.Get(UiIcon.Search, 16),
             CaretBlink = true,
@@ -141,7 +141,7 @@ public partial class GalaxyMapUi : Control
         Ui.Track(hints, c => c.AddThemeStyleboxOverride("panel", StripStyle()));
         var lines = new VBoxContainer();
         Ui.Track(lines, c => c.AddThemeConstantOverride("separation", Ui.Px(7)));
-        lines.AddChild(HintLine(("Drag", "Rotate"), ("Right-drag", "Pan"), ("Wheel", "Zoom"), ("Click", "Select"), ("Double-click", "Fly to")));
+        lines.AddChild(HintLine(("Drag", "Rotate"), ("Right-drag", "Pan"), ("Wheel", "Zoom"), ("Click", "Select"), ("Double-click", "Focus")));
         lines.AddChild(HintLine(("W|A|S|D", "Move"), ("R|F", "Up / down"), ("Enter", "System map"), ("H", "Sol"), ("G", "Whole galaxy")));
         hints.AddChild(lines);
         AddChild(hints);
@@ -193,20 +193,11 @@ public partial class GalaxyMapUi : Control
 
     public void SetFocus(string sector, Region? region, Vector3D focus, double cameraDistance)
     {
-        bool inside = sector.Length > 0;
-        if (region != null)
-        {
-            _region.Text = region.Name;
-            _regionKind.Text = char.ToUpperInvariant(region.KindName[0]) + region.KindName[1..] + (inside ? " in " + sector : "");
-        }
-        else
-        {
-            _region.Text = inside ? sector : "Intergalactic space";
-            _regionKind.Text = inside ? "Sector" : "Outside the sector grid";
-        }
-        _position.Text = $"{Ui.Number(focus.X)}, {Ui.Number(focus.Y)}, {Ui.Number(focus.Z)} ly";
-        _fromSol.Text = Ui.Ly(focus.Length);
-        _viewWidth.Text = Ui.Ly(cameraDistance * 1.15) + " wide";
+        _region.Text = "Hollow";
+        _regionKind.Text = "Playable galaxy · schematic map";
+        _position.Text = $"{Ui.Number(focus.X)}, {Ui.Number(focus.Z)}";
+        _fromSol.Text = Ui.Number(focus.Length) + " map units";
+        _viewWidth.Text = Ui.Number(cameraDistance * 1.15) + " map units";
     }
 
     public void SetResults(List<SearchResult> results)
@@ -234,7 +225,7 @@ public partial class GalaxyMapUi : Control
             name.TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis;
             name.MouseFilter = MouseFilterEnum.Ignore;
             name.VerticalAlignment = VerticalAlignment.Center;
-            Label distance = Ui.Label(result.IsSector ? result.PlaceKind : Ui.Ly(result.Position.Length), TextStyle.Caption);
+            Label distance = Ui.Label(Ui.Number(result.Position.Length) + " units", TextStyle.Caption);
             distance.AddThemeFontOverride("font", Ui.Tabular);
             distance.MouseFilter = MouseFilterEnum.Ignore;
             distance.VerticalAlignment = VerticalAlignment.Center;
@@ -286,7 +277,7 @@ public partial class GalaxyMapUi : Control
             _selectionRows.RemoveChild(child);
             child.QueueFree();
         }
-        Ui.AddRow(_selectionRows, "Distance from Sol", Ui.Ly(star.Position.Length));
+        Ui.AddRow(_selectionRows, "Map distance from Sol", Ui.Number(star.Position.Length) + " units");
         Ui.AddRow(_selectionRows, "Location", sector.Length > 0 ? sector : "—", numeric: false);
         Ui.AddRow(_selectionRows, "Position", $"{Ui.Number(star.Position.X, "N1")}, {Ui.Number(star.Position.Y, "N1")}, {Ui.Number(star.Position.Z, "N1")}");
         if (star.Physics.Temperature > 0)

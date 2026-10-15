@@ -16,7 +16,7 @@ public enum ShipFlags : ushort
     /// <summary>The hull's health ran out: a wreck (the zone replaces it with its loot).</summary>
     Destroyed = 2,
 
-    /// <summary>Climbed above the ceiling: parked at its orbit marker over the zone, out of the physics (GROUND.md §6.6).</summary>
+    /// <summary>Legacy parked-orbit state, retained for old saves. Current flights keep moving through orbital altitude.</summary>
     InOrbit = 4,
 
     /// <summary>Boosting (the last step).</summary>
@@ -28,7 +28,7 @@ public enum ShipFlags : ushort
     /// <summary>Flight assist was off in the last step's input.</summary>
     AssistOff = 32,
 
-    /// <summary>Pushed back from the edge of the zone's ground this step.</summary>
+    /// <summary>Held at the outer boundary of the current local flight volume this step.</summary>
     AtEdge = 64,
 
     /// <summary>In the sea.</summary>
@@ -163,7 +163,7 @@ public struct ShipEvents
     public bool Touchdown;
     public float TouchdownSpeed;
 
-    /// <summary>Crossed the ceiling this step (the zone moves it to orbit).</summary>
+    /// <summary>Crossed orbital altitude upward this step (an optional transfer hook; flight otherwise continues).</summary>
     public bool ReachedCeiling;
 
     /// <summary>A boost started.</summary>

@@ -1,3 +1,27 @@
+# Hollow Universe — AB Test B
+
+This independent Godot 4.7.2 .NET / C# project lives in `D:\GameDev\Projects\HollowUniverseABTestB`.
+The current specification is [docs/DESIGN.md](docs/DESIGN.md). The original Hollow Universe supplies
+reusable systems and assets; its checkout and saves are separate.
+
+**Start:** double-click `Play.cmd`. For direct hosting, run `./Play.ps1 -Mode Host -PlayerName Ada`;
+join with `./Play.ps1 -Mode Join -Address 127.0.0.1 -PlayerName Bea`. The launcher builds both programs,
+checks asset imports, and uses port 27025. Normal project launch opens the survival menu.
+
+The current wave establishes Earth as the starting world, a 23.04 km² maximum whole-planet surface
+area, a finite galaxy map, specialized workbench progression, and continuous local ship ascent and
+descent. It preserves the existing FPS interface, survival/building/combat systems and owned art.
+This is an evolving game foundation. Travel between worlds, electricity, environmental oxygen,
+autominers, and the full content catalogue still require implementation and validation.
+
+See [development status](docs/DEVELOPMENT.md), [playable scale](docs/IMPLEMENTATION_SCALE.md),
+and [local flight scope](docs/LOCAL_FLIGHT.md). The material below is inherited source-project history;
+the current design and status take precedence wherever they differ.
+
+---
+
+## Original project notes
+
 <p align="center">
   <img src="docs/images/readme/hero.jpg" alt="A meadow at golden hour on Nolcas Peris CQ-SLY 7-0 B 3, the first world">
 </p>
