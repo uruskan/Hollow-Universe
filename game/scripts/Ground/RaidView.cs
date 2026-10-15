@@ -236,7 +236,9 @@ public partial class RaidView : Node3D
         if (shown.HasPrev && tick < e.StateTick)
         {
             float t = (float)(Math.Max(0, tick - shown.PrevTick) / GameClient.TickRate);
-            at = shown.PrevStart + shown.PrevVelocity * t + shown.PrevGravity * (0.5f * t * t);
+            // Gravity re-aimed toward the centre along the arc, as the client's explosives are (Hollow.Client.Arc).
+            at = shown.PrevStart + shown.PrevVelocity * t
+                + Hollow.Client.Arc.Gravity(shown.PrevGravity, e.Centre, shown.PrevStart, shown.PrevVelocity, t) * (0.5f * t * t);
             flying = true;
         }
         else
