@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using Godot;
 
 namespace HollowUniverse.Settings;
@@ -468,7 +467,4 @@ public static class GraphicsSettings
         sun.DirectionalShadowSplit2 = tight ? Math.Clamp(260f / v.ShadowDistance, 0.06f, 0.2f) : 0.2f;
         sun.DirectionalShadowSplit3 = tight ? 0.45f : 0.5f;
     }
-
-    /// <summary>A setting's value for a row: a percentage.</summary>
-    public static string Percent(float value) => (value * 100).ToString("0", CultureInfo.InvariantCulture) + " %";
 }
