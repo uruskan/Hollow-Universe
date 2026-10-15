@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Simulation.Movement;
 using Hollow.Net.Protocol;

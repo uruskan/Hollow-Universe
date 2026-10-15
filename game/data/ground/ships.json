@@ -46,6 +46,51 @@
       "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 12, "sight": 0.5 },
       "ceiling": 2,
       "wreck": [["metal-fragments", 300], ["refined-metal", 20]]
+    },
+    {
+      "key": "iron-wake",
+      "item": "iron-wake",
+      "model": "iron-wake",
+      "mass": 420000,
+      "inertia": [103000000, 107000000, 21000000],
+      "centreOfMass": [0, 5.5, -1.0],
+      "health": 18000,
+      "damage": { "melee": 0.05, "arrow": 0.02, "bullet": 0.2, "explosive": 1.0 },
+      "thrust": { "main": 2100000, "retro": 1300000, "lateral": 850000, "lift": 7600000, "down": 800000 },
+      "speed": { "forward": 110, "reverse": 25, "lateral": 18, "up": 15, "down": 12 },
+      "boost": { "thrust": 1.5, "speed": 150, "seconds": 6, "cooldown": 12 },
+      "rates": { "pitch": [9, 6], "yaw": [8, 5], "roll": [7, 5] },
+      "drag": { "forward": 190, "side": 950, "top": 1150, "turn": 0.4 },
+      "assist": { "level": [20, 12], "return": 0.6 },
+      "landing": { "maxSlope": 12, "assist": [1.0, 0.15] },
+      "skids": { "stiffness": 6300000, "damping": 1100000, "travel": 0.35, "friction": 0.6 },
+      "crash": { "safe": 3, "scale": 60, "pilot": 0.05 },
+      "fuel": { "item": "lamp-oil", "capacity": 6000, "idle": 0.5, "full": 5, "boost": 2.0, "placed": 600 },
+      "water": { "below": 4.1, "above": 2.3, "volume": 1680 },
+      "cargo": 0,
+      "hull": "data",
+      "interior": {
+        "file": "ships/iron-wake.json",
+        "margin": 0.3,
+        "gravity": 1.0,
+        "poses": { "Ramp_Main": 1, "Ramp_Leaf": 1, "Airlock_Door": 0 },
+        "conditions": { "ramp-open": "Ramp_Main" }
+      },
+      "sockets": {
+        "seat": "PilotSeat",
+        "eye": "PilotCamera",
+        "hatch": [-1.75, 10.45, 14.9], "cargo": "CargoEntry",
+        "fuel": [6.3, 2.7, -15.0],
+        "exits": [[-0.6, 9.1, 14.2], [-1.75, 9.1, 13.9]]
+      },
+      "nozzles": {
+        "main": ["MainExhaust_Port", "MainExhaust_Starboard"],
+        "aux": ["AuxExhaust_Port", "AuxExhaust_Starboard"],
+        "lift": ["LiftExhaust_-7_-1", "LiftExhaust_-7_1", "LiftExhaust_9_-1", "LiftExhaust_9_1"]
+      },
+      "placement": { "surfaces": ["terrain"], "maxSlope": 12, "reach": 30, "sight": 0.5 },
+      "ceiling": 2,
+      "wreck": [["metal-fragments", 3000], ["refined-metal", 200]]
     }
   ]
 }

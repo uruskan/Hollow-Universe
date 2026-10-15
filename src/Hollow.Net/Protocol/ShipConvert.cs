@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;

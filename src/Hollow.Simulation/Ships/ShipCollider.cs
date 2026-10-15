@@ -222,7 +222,13 @@ public sealed class ShipCollider : IDisposable
     // ---------------------------------------------------------------- parked ships
 
     /// <summary>Adds a parked ship's static body at its pose (centre of mass and rotation); returns its ID, or 0 when the range is full.</summary>
-    public uint AddParked(ShipDef def, Vector3 position, Quaternion rotation)
+    public uint AddParked(ShipDef def, Vector3 position, Quaternion rotation) => AddParked(HullShape(def, swept: false), position, rotation);
+
+    /// <summary>
+    /// Adds a parked ship's static body of a shape whose origin is the ship's centre of mass (a ship people walk in: every
+    /// piece, IRON_WAKE.md §4.6); returns its ID, or 0 when the range is full.
+    /// </summary>
+    public uint AddParked(Shape shape, Vector3 position, Quaternion rotation)
     {
         uint id;
         if (_free.Count > 0)
@@ -237,7 +243,7 @@ public sealed class ShipCollider : IDisposable
         {
             return 0;
         }
-        _world.AddStaticBody(id, HullShape(def, swept: false), position, rotation);
+        _world.AddStaticBody(id, shape, position, rotation);
         _bodies.Add(id);
         return id;
     }

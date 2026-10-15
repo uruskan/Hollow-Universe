@@ -75,6 +75,7 @@
     { "kind": "cupboard", "key": "claim-device" },
     { "kind": "charge", "key": "timed-charge" },
     { "kind": "charge", "key": "bag-charge" },
-    { "kind": "ship", "key": "tin-finch" }
+    { "kind": "ship", "key": "tin-finch" },
+    { "kind": "ship", "key": "iron-wake" }
   ]
 }

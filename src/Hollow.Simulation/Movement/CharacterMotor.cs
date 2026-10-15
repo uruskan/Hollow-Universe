@@ -6,28 +6,32 @@ using Hollow.Surface;
 
 namespace Hollow.Simulation.Movement;
 
-/// <summary>What a movement step needs to know about where it happens.</summary>
+/// <summary>
+/// What a movement step needs to know about where it happens: the frame it runs in (<see cref="IMoveFrame"/>: the
+/// zone's, or a ship's, IRON_WAKE.md §4.3) and the movement's numbers.
+/// </summary>
 public readonly struct MoveContext
 {
-    public MoveContext(ZoneFrame frame, double seaRadius, float gravity, MovementTuning tuning, double radius = 0)
+    public MoveContext(IMoveFrame frame, MovementTuning tuning)
     {
         Frame = frame;
-        SeaRadius = seaRadius;
-        Gravity = gravity;
         Tuning = tuning;
-        Radius = radius;
     }
 
-    public readonly ZoneFrame Frame;
+    /// <summary>The zone's frame, as before ship spaces (the movement check, tests).</summary>
+    public MoveContext(ZoneFrame frame, double seaRadius, float gravity, MovementTuning tuning, double radius = 0)
+        : this(new ZoneMoveFrame(frame, seaRadius, gravity, radius), tuning)
+    {
+    }
 
-    /// <summary>Radius of the sea surface in metres, 0 without one (<see cref="ISurface.SeaRadius"/>).</summary>
-    public readonly double SeaRadius;
+    /// <summary>The frame: up, gravity, water and the space (IRON_WAKE.md §4.3).</summary>
+    public readonly IMoveFrame Frame;
 
     /// <summary>The world's mean radius in metres (noclip's bounds); 0 when not known.</summary>
-    public readonly double Radius;
+    public double Radius => Frame.Radius;
 
-    /// <summary>A character's gravity in m/s²: the planet's, times <see cref="MovementTuning.GravityScale"/>.</summary>
-    public readonly float Gravity;
+    /// <summary>A character's gravity in m/s²: the planet's, times <see cref="MovementTuning.GravityScale"/> (a ship's decks: theirs).</summary>
+    public float Gravity => Frame.Gravity;
 
     public readonly MovementTuning Tuning;
 
@@ -50,8 +54,9 @@ public struct StepEvents
 
 /// <summary>
 /// On-foot movement (GROUND.md §4.5): walk, sprint, crouch, jump, fall damage and swimming. The server and the client's
-/// prediction run exactly this, one fixed tick at a time. "Up" is always away from the body's centre at the character
-/// (<see cref="ZoneFrame.UpAt"/>), never +Y.
+/// prediction run exactly this, one fixed tick at a time, in whichever frame the character is (IRON_WAKE.md §4.3): in
+/// the zone's, "up" is away from the body's centre at the character (<see cref="ZoneFrame.UpAt"/>), never +Y; aboard a
+/// ship, its +Y, with the decks' gravity.
 /// </summary>
 public static class CharacterMotor
 {
@@ -275,15 +280,7 @@ public static class CharacterMotor
     }
 
     /// <summary>How deep the feet are below the sea surface, as a fraction of the standing height (0 when dry).</summary>
-    public static float Submersion(Vector3 position, in MoveContext context)
-    {
-        if (context.SeaRadius <= 0)
-        {
-            return 0f;
-        }
-        double depth = context.SeaRadius - context.Frame.ToBody(position).Length;
-        return depth <= 0 ? 0f : (float)Math.Min(1.0, depth / context.Tuning.StandingHeight);
-    }
+    public static float Submersion(Vector3 position, in MoveContext context) => context.Frame.Submersion(position, context.Tuning);
 
     // Walking (the movement component's model): friction turns the velocity toward the wanted direction, then
     // acceleration adds speed up to the maximum; with no input, friction and braking stop the character.

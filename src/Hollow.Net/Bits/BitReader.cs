@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using Hollow.Core;
 
 namespace Hollow.Net.Bits;
 

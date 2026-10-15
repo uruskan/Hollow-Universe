@@ -1,6 +1,6 @@
 using System;
 
-namespace Hollow.Net.Bits;
+namespace Hollow.Core;
 
 /// <summary>
 /// Turning floats into the integers sent on the wire and back. Every conversion is plain IEEE arithmetic with

@@ -51,8 +51,7 @@ public static class FoundationTests
             "an answer is its code, whatever its detail");
         Assert.True((int)Enum.GetValues<OutcomeCode>().Max() < 128, "the codes fit IntentResult's 7 bits");
 
-        Dictionary<string, string> files = GameContent.Files.Concat(GameContent.Unhashed)
-            .ToDictionary(f => f, f => File.ReadAllText(Path.Combine(ContentFixture.Folder, f)));
+        Dictionary<string, string> files = GameContent.ReadTexts(ContentFixture.Folder);
         ulong hash = GameContent.FromTexts(files).Hash;
         files[Texts.File] = files[Texts.File]
             .Replace("\"Stale\": \"That item has moved\",", "\"Stail\": \"That item has moved\",", StringComparison.Ordinal)

@@ -25,7 +25,21 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder
         Def = def;
         Owner = owner;
         Cargo = new Container(ContainerKind.Box, System.Math.Max(1, def.CargoSlots));
+        Parts = def.Interior?.Rest.Clone() as float[] ?? System.Array.Empty<float>();
     }
+
+    /// <summary>
+    /// Its moving parts' states, by the interior's part index (IRON_WAKE.md §4.3): a door's progress from shut (0) to open
+    /// (1), a turret's angle. Data for now (the interior's poses: the ramp open); the ship's rules move them through
+    /// <c>ShipSystem.MovePart</c> (IW2 drives the doors).
+    /// </summary>
+    public float[] Parts { get; }
+
+    /// <summary>Its own physics, for a ship people walk in (null for one they only sit in): made with the ship, gone with it.</summary>
+    public Physics.ShipSpace? Space { get; internal set; }
+
+    /// <summary>The frame characters aboard move in (null without an interior).</summary>
+    public ShipFrame? Frame { get; internal set; }
 
     public EntityId Id { get; }
 

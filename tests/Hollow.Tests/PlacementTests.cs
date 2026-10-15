@@ -97,8 +97,7 @@ public static class PlacementTests
         Assert.True(data.Of(c.Building.Piece("wall")!)!.Rule is { Solver: "socket", Reach: 8, Padding: 2.25f } && data.Of(c.Building.Piece("wall")!)!.Tool?.Key == "building-plan",
             "a wall: the building's sockets, reach and claim padding, with the building plan");
 
-        Dictionary<string, string> files = GameContent.Files.Concat(GameContent.Unhashed)
-            .ToDictionary(f => f, f => File.ReadAllText(Path.Combine(ContentFixture.Folder, f)));
+        Dictionary<string, string> files = GameContent.ReadTexts(ContentFixture.Folder);
         void Reports(Func<string, string> breaking, params string[] expected)
         {
             var texts = new Dictionary<string, string>(files) { ["placement.json"] = breaking(files["placement.json"]) };

@@ -100,6 +100,33 @@ public sealed class ShipDef
 
     public float TurnDrag { get; init; }
 
+    /// <summary>
+    /// Flight assist's level hold (ships.json <c>assist.level</c>, IRON_WAKE.md §5.4, IW3): the most pitch and roll from
+    /// level it lets the ship take, in radians, and how fast it brings the ship back toward level with the stick centred
+    /// (radians a second per radian). 0: none (the Tin Finch flies free).
+    /// </summary>
+    public float LevelPitch { get; init; }
+
+    public float LevelRoll { get; init; }
+
+    public float LevelReturn { get; init; } = 0.6f;
+
+    /// <summary>
+    /// The sea (IRON_WAKE.md §5.4): the band round the centre of mass the hull fills, below and above it (metres; the
+    /// Tin Finch's 1.2 each way), and the water its hull displaces when wholly under (m³; by default its non-skid boxes').
+    /// </summary>
+    public float WaterBelow { get; init; } = 1.2f;
+
+    public float WaterAbove { get; init; } = 1.2f;
+
+    public float WaterVolume { get; internal set; }
+
+    /// <summary>The model catalogue's key the views draw it with (ships.json <c>model</c>; by default its own key).</summary>
+    public string Model { get; init; } = "";
+
+    /// <summary>The inside people walk in (ships.json <c>interior</c>, IRON_WAKE.md §4.3), or null: a ship people only sit in.</summary>
+    public ShipInterior? Interior { get; init; }
+
     /// <summary>The steepest ground the ship rests on as landed.</summary>
     public float MaxLandingSlope { get; init; }
 
@@ -206,12 +233,16 @@ public sealed class ShipDef
             return;
         }
         Vector3 min = new(float.MaxValue), max = new(float.MinValue);
-        float radius = 0;
+        float radius = 0, volume = 0;
         foreach (HullBox box in Hull)
         {
             min = Vector3.Min(min, box.Centre - box.HalfExtents);
             max = Vector3.Max(max, box.Centre + box.HalfExtents);
             radius = MathF.Max(radius, Vector3.Distance(box.Centre, CentreOfMass) + box.HalfExtents.Length());
+            if (!box.Skid)
+            {
+                volume += 8 * box.HalfExtents.X * box.HalfExtents.Y * box.HalfExtents.Z;
+            }
         }
         foreach (Vector3 p in SkidPoints)
         {
@@ -222,7 +253,23 @@ public sealed class ShipDef
         BoundsCentre = (min + max) / 2;
         BoundsHalf = (max - min) / 2;
         BoundingRadius = radius;
+        if (WaterVolume <= 0)
+        {
+            WaterVolume = volume;
+        }
+        int boxes = 0;
+        foreach (HullBox box in Hull)
+        {
+            boxes += box.Skid ? 0 : 1;
+        }
+        MostContacts = Math.Max(4, boxes);
     }
+
+    /// <summary>
+    /// The most hull contacts one sweep's overlaps keep (the deepest first): one for each of its boxes that isn't a skid,
+    /// at least four (IRON_WAKE.md §5.4: a fixed four held the Tin Finch's four, not a carrier's ten).
+    /// </summary>
+    public int MostContacts { get; private set; } = 4;
 
     public override string ToString() => Key;
 }

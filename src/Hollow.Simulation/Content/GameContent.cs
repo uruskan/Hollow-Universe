@@ -264,8 +264,17 @@ public sealed partial class GameContent
         return content;
     }
 
+    /// <summary>
+    /// The folders whose JSON files are data files the listed ones name (a ships.json entry's interior names its ship's
+    /// data file, IRON_WAKE.md §9.1): read and hashed with the rest, after them, by name.
+    /// </summary>
+    public static readonly string[] DataFolders = { "ships" };
+
     /// <summary>Reads the files in a folder and keeps whatever problems they have (for checks and tests).</summary>
-    public static GameContent Read(string folder)
+    public static GameContent Read(string folder) => FromTexts(ReadTexts(folder));
+
+    /// <summary>Every file's text in a folder, by its name (a data file by its path under the folder: "ships/iron-wake.json").</summary>
+    public static Dictionary<string, string> ReadTexts(string folder)
     {
         var texts = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (string file in Files.Concat(Unhashed))
@@ -273,8 +282,24 @@ public sealed partial class GameContent
             string path = Path.Combine(folder, file);
             texts[file] = File.Exists(path) ? File.ReadAllText(path) : "";
         }
-        return FromTexts(texts);
+        foreach (string sub in DataFolders)
+        {
+            string path = Path.Combine(folder, sub);
+            if (!Directory.Exists(path))
+            {
+                continue;
+            }
+            foreach (string file in Directory.EnumerateFiles(path, "*.json").Order(StringComparer.Ordinal))
+            {
+                texts[sub + "/" + Path.GetFileName(file)] = File.ReadAllText(file);
+            }
+        }
+        return texts;
     }
+
+    /// <summary>The data files among some texts (their names have a folder), in the order they are hashed.</summary>
+    private static IEnumerable<string> DataFiles(IReadOnlyDictionary<string, string> texts) =>
+        texts.Keys.Where(k => k.Contains('/', StringComparison.Ordinal) && k.EndsWith(".json", StringComparison.Ordinal)).Order(StringComparer.Ordinal);
 
     /// <summary>Content from the files' texts (a missing file is a problem, never a different game).</summary>
     public static GameContent FromTexts(IReadOnlyDictionary<string, string> texts)
@@ -283,7 +308,7 @@ public sealed partial class GameContent
         var loaded = new Loaded { Problems = problems };
         var documents = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         ulong hash = Hash64.Of(0x5EED_C0DE);
-        foreach (string file in Files)
+        foreach (string file in Files.Concat(DataFiles(texts)))
         {
             string text = texts.GetValueOrDefault(file) ?? "";
             hash = Hash64.Combine(hash, Hash64.Of(text.Replace("\r\n", "\n", StringComparison.Ordinal)));

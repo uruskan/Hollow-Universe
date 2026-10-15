@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text.Json;
 
 namespace Hollow.Simulation.Content.Readers;
@@ -26,8 +27,14 @@ internal sealed class ShipsReader : IContentReader
             string key = f.Text(e, "key", $"ships.json: ships[{i}]");
             string where = $"ships.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
-                "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "sockets", "nozzles", "ceiling", "wreck", "placement");
+                "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "sockets", "nozzles", "ceiling", "wreck", "placement",
+                "model", "interior", "water", "assist");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
+            // The inside people walk in (IRON_WAKE.md §4.3): its data file, read first, since the sockets and the hull may
+            // name what it holds.
+            Ships.ShipInterior? interior = f.TryChild(e, "interior", out JsonElement interiorBlock)
+                ? ShipInteriorReader.Read(r, interiorBlock, where + ".interior")
+                : null;
             var blocks = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
             foreach (string name in new[] { "damage", "thrust", "speed", "boost", "rates", "drag", "landing", "skids", "crash", "fuel", "sockets", "nozzles" })
             {
@@ -60,10 +67,57 @@ internal sealed class ShipsReader : IContentReader
             f.OnlyKnown(sockets, where + ".sockets", "seat", "eye", "hatch", "fuel", "cargo", "exits");
             f.OnlyKnown(nozzles, where + ".nozzles", "main", "aux", "lift", "rcs");
             var hull = new List<Ships.HullBox>();
-            foreach (JsonElement h in f.List(e, "hull", where))
+            Vector3[] skidPoints;
+            bool fromData = e.TryGetProperty("hull", out JsonElement hullValue) && hullValue.ValueKind == JsonValueKind.String;
+            if (fromData)
             {
-                f.OnlyKnown(h, where + ".hull", "centre", "size", "skid");
-                hull.Add(new Ships.HullBox(f.Vector(h, "centre", where + ".hull"), f.Vector(h, "size", where + ".hull"), f.Flag(h, "skid", where + ".hull", false)));
+                // "hull": "data": the boxes the import fitted to the model for the world's sweeps, and the landing pads as
+                // the skids, each with a thin skid box at its foot (IRON_WAKE.md §5.4).
+                if (hullValue.GetString() != "data" || interior == null)
+                {
+                    f.Problem(where + ".hull", "a list of boxes, or \"data\" (the interior's data file's hull)");
+                }
+                hull.AddRange(interior?.HullBoxes ?? Array.Empty<Ships.HullBox>());
+                if (interior != null)
+                {
+                    for (int p = 0; p < interior.Pads.Count; p++)
+                    {
+                        Vector2 size = interior.PadSizes[p];
+                        hull.Add(new Ships.HullBox(interior.Pads[p] + new Vector3(0, 0.15f, 0), new Vector3(size.X / 2, 0.15f, size.Y / 2), true));
+                    }
+                }
+                skidPoints = interior?.Pads.ToArray() ?? Array.Empty<Vector3>();
+            }
+            else
+            {
+                foreach (JsonElement h in f.List(e, "hull", where))
+                {
+                    f.OnlyKnown(h, where + ".hull", "centre", "size", "skid");
+                    hull.Add(new Ships.HullBox(f.Vector(h, "centre", where + ".hull"), f.Vector(h, "size", where + ".hull"), f.Flag(h, "skid", where + ".hull", false)));
+                }
+                skidPoints = f.Vectors(skids, "points", where + ".skids");
+            }
+            if (fromData && f.Has(skids, "points"))
+            {
+                f.Problem(where + ".skids", "\"points\" come from the data file's pads when the hull does");
+            }
+            // Flight assist's level hold (IW3) and the sea (IRON_WAKE.md §5.4), both optional.
+            float levelPitch = 0, levelRoll = 0, levelReturn = 0.6f;
+            if (f.TryChild(e, "assist", out JsonElement assistBlock))
+            {
+                f.OnlyKnown(assistBlock, where + ".assist", "level", "return");
+                double[]? level = f.Numbers(assistBlock, "level", where + ".assist", 2);
+                levelPitch = level == null ? 0 : (float)level[0] * MathF.PI / 180;
+                levelRoll = level == null ? 0 : (float)level[1] * MathF.PI / 180;
+                levelReturn = f.Number(assistBlock, "return", where + ".assist", 0.6f);
+            }
+            float waterBelow = 1.2f, waterAbove = 1.2f, waterVolume = 0;
+            if (f.TryChild(e, "water", out JsonElement waterBlock))
+            {
+                f.OnlyKnown(waterBlock, where + ".water", "below", "above", "volume");
+                waterBelow = f.Number(waterBlock, "below", where + ".water");
+                waterAbove = f.Number(waterBlock, "above", where + ".water");
+                waterVolume = f.Number(waterBlock, "volume", where + ".water", 0);
             }
             var wreck = new List<ItemAmount>();
             foreach (JsonElement w in f.List(e, "wreck", where, required: false))
@@ -120,7 +174,15 @@ internal sealed class ShipsReader : IContentReader
                 MaxLandingSlope = f.Number(landing, "maxSlope", where + ".landing") * MathF.PI / 180,
                 LandingDescent = assist.Length == 2 ? assist[0] : 1.5f,
                 LandingDescentPerMetre = assist.Length == 2 ? assist[1] : 0.25f,
-                SkidPoints = f.Vectors(skids, "points", where + ".skids"),
+                LevelPitch = levelPitch,
+                LevelRoll = levelRoll,
+                LevelReturn = levelReturn,
+                WaterBelow = waterBelow,
+                WaterAbove = waterAbove,
+                WaterVolume = waterVolume,
+                Model = f.Text(e, "model", where, key),
+                Interior = interior,
+                SkidPoints = skidPoints,
                 SkidStiffness = f.Number(skids, "stiffness", where + ".skids"),
                 SkidDamping = f.Number(skids, "damping", where + ".skids"),
                 SkidTravel = f.Number(skids, "travel", where + ".skids"),
@@ -136,16 +198,16 @@ internal sealed class ShipsReader : IContentReader
                 PlacedFuel = f.Number(fuel, "placed", where + ".fuel", 0),
                 CargoSlots = f.Integer(e, "cargo", where, 0),
                 Hull = hull,
-                Seat = f.Vector(sockets, "seat", where + ".sockets"),
-                Eye = f.Vector(sockets, "eye", where + ".sockets"),
-                Hatch = f.Vector(sockets, "hatch", where + ".sockets"),
-                FuelCap = f.Vector(sockets, "fuel", where + ".sockets"),
-                Cargo = f.Vector(sockets, "cargo", where + ".sockets"),
-                Exits = f.Vectors(sockets, "exits", where + ".sockets"),
-                MainNozzles = f.Vectors(nozzles, "main", where + ".nozzles", required: false),
-                AuxNozzles = f.Vectors(nozzles, "aux", where + ".nozzles", required: false),
-                LiftNozzles = f.Vectors(nozzles, "lift", where + ".nozzles", required: false),
-                RcsNozzles = f.Vectors(nozzles, "rcs", where + ".nozzles", required: false),
+                Seat = ShipInteriorReader.Point(f, sockets, "seat", where + ".sockets", interior),
+                Eye = ShipInteriorReader.Point(f, sockets, "eye", where + ".sockets", interior),
+                Hatch = ShipInteriorReader.Point(f, sockets, "hatch", where + ".sockets", interior),
+                FuelCap = ShipInteriorReader.Point(f, sockets, "fuel", where + ".sockets", interior),
+                Cargo = ShipInteriorReader.Point(f, sockets, "cargo", where + ".sockets", interior),
+                Exits = ShipInteriorReader.Points(f, sockets, "exits", where + ".sockets", interior),
+                MainNozzles = ShipInteriorReader.Points(f, nozzles, "main", where + ".nozzles", interior, required: false),
+                AuxNozzles = ShipInteriorReader.Points(f, nozzles, "aux", where + ".nozzles", interior, required: false),
+                LiftNozzles = ShipInteriorReader.Points(f, nozzles, "lift", where + ".nozzles", interior, required: false),
+                RcsNozzles = ShipInteriorReader.Points(f, nozzles, "rcs", where + ".nozzles", interior, required: false),
                 Ceiling = f.Number(e, "ceiling", where),
                 Wreck = wreck,
             };
@@ -168,6 +230,30 @@ internal sealed class ShipsReader : IContentReader
                 f.Problem($"ships.json: {JsonFields.Quote(def.Key)}", $"its item is \"{def.Item.Key}\", but \"{item.Key}\" says it is that ship");
             }
             item.Ship = def;
+        }
+    }
+
+    // A ship people walk in (IRON_WAKE.md §4.3, §9.1): pieces to stand on, a boarding volume, sane margins, and the seat,
+    // its eye and every exit inside the boarding volume (exits stand aboard: a pilot steps out onto the deck).
+    private static void CheckInterior(ContentChecking c, Ships.ShipDef ship, Ships.ShipInterior interior, string where)
+    {
+        if (interior.Pieces.Count == 0 || interior.Boarding.Count == 0 || interior.Parts.Count == 0)
+        {
+            c.Problem(where + ".interior", $"{interior.File} needs convex pieces, a boarding volume and parts");
+            return;
+        }
+        if (interior.Margin is < 0 or > 2 || interior.DeckGravity is < 0 or > 2)
+        {
+            c.Problem(where + ".interior", "margin 0 … 2 m, gravity 0 … 2 times a character's");
+        }
+        float[] rest = interior.Rest;
+        foreach ((string name, Vector3 point) in new[] { ("seat", ship.Seat), ("eye", ship.Eye) }
+                     .Concat(ship.Exits.Select((e, i) => ($"exits[{i}]", e))))
+        {
+            if (interior.OutsideBoarding(point, rest) > 0)
+            {
+                c.Problem(where + ".sockets." + name, $"must be inside the boarding volume of {interior.File} (aboard)");
+            }
         }
     }
 
@@ -226,6 +312,15 @@ internal sealed class ShipsReader : IContentReader
                 new[] { ship.MeleeDamage, ship.ArrowDamage, ship.BulletDamage, ship.ExplosiveDamage }.Any(m => m is < 0 or > 10))
             {
                 c.Problem(where, "cargo 0 … 64 slots, an exit, a ceiling of 1 … 3 world radii, damage multipliers 0 … 10");
+            }
+            if (ship.WaterBelow <= 0 || ship.WaterAbove <= 0 || ship.WaterVolume < 0 || ship.LevelPitch is < 0 or > 1.05f ||
+                ship.LevelRoll is < 0 or > 1.05f || ship.LevelReturn is < 0 or > 10)
+            {
+                c.Problem(where, "water: a positive band below and above the centre of mass, a volume; assist.level: 0 … 60° of pitch and roll");
+            }
+            if (ship.Interior is { } interior)
+            {
+                CheckInterior(c, ship, interior, where);
             }
         }
     }

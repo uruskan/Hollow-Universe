@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
+using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
 using Hollow.Persistence;

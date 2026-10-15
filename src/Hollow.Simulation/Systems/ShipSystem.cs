@@ -91,7 +91,10 @@ public sealed class ShipSystem : ZoneSystem
     /// <summary>The ship a character sits in, or null.</summary>
     public Ship? SeatOf(Entity character) => Entities.Has<ShipSeat>(character) ? Entities.Get<ShipSeat>(character).Ship : null;
 
-    /// <summary>Adds a ship (built, or restored from storage).</summary>
+    /// <summary>
+    /// Adds a ship (built, or restored from storage). One people walk in (an <c>interior</c> in ships.json, IRON_WAKE.md
+    /// §4.3) gets its space, posed from its parts' states, and its frame among the zone's.
+    /// </summary>
     public Ship AddShip(Ship ship)
     {
         Entity entity = Entities.Create(ship.Id);
@@ -99,6 +102,12 @@ public sealed class ShipSystem : ZoneSystem
         int at = _ships.FindIndex(s => s.Id.Value > ship.Id.Value);
         _ships.Insert(at < 0 ? _ships.Count : at, ship);
         ship.Revision++;
+        if (ship.Def.Interior is { } interior)
+        {
+            ship.Space = new ShipSpace(interior, ship.Parts, Tuning);
+            ship.Frame = new ShipFrame(ship, ship.Space, Movement.Gravity);
+            Zone.Frames.Add(ship.Frame);
+        }
         return ship;
     }
 
@@ -119,13 +128,17 @@ public sealed class ShipSystem : ZoneSystem
         return AddShip(ship);
     }
 
-    /// <summary>Takes a ship out of the zone: its pilot steps out where the seat is, its body goes.</summary>
+    /// <summary>
+    /// Takes a ship out of the zone: its pilot steps out where the seat is, everyone else aboard is put ashore where the
+    /// ship carried them (with its velocity there), its body and its space go.
+    /// </summary>
     public void RemoveShip(Ship ship)
     {
         if (ship.Piloted && Entities.TryFind(ship.Pilot, out Entity pilot))
         {
             Unseat(pilot, ship, Settle(ship.Origin) + Frame.UpAt(ship.Origin) * 0.05f);
         }
+        Ashore(ship);
         if (ship.ParkedBody != 0)
         {
             lock (JoltRuntime.Gate)
@@ -134,11 +147,56 @@ public sealed class ShipSystem : ZoneSystem
             }
             ship.ParkedBody = 0;
         }
+        if (ship.Frame != null)
+        {
+            Zone.Frames.Remove(ship.Frame.Key);
+            ship.Frame = null;
+        }
+        ship.Space?.Dispose();
+        ship.Space = null;
         if (Entities.TryFind(ship.Id, out Entity entity))
         {
             Entities.Destroy(entity);
         }
         _ships.Remove(ship);
+    }
+
+    /// <summary>Everyone aboard a ship into the zone's frame where it carries them, with its velocity there (a wreck, a ship gone).</summary>
+    private void Ashore(Ship ship)
+    {
+        if (ship.Frame == null)
+        {
+            return;
+        }
+        ComponentPool<Character> characters = Entities.Pool<Character>();
+        Span<Character> values = characters.Values;
+        for (int i = 0; i < values.Length; i++)
+        {
+            ref Character c = ref values[i];
+            if (c.State.Frame == ship.Frame.Key)
+            {
+                if (c.State.Stance == Stance.Seated)
+                {
+                    c.State.Stance = Stance.Standing;
+                    Entities.Remove<ShipSeat>(Entities.AtSlot(characters.Slots[i]));
+                }
+                Zone.ToZoneFrame(ref c.State);
+            }
+        }
+    }
+
+    /// <summary>The characters aboard a ship (the frame's key is its ID), for the rules that touch only them.</summary>
+    public void Aboard(Ship ship, List<Entity> into)
+    {
+        into.Clear();
+        ComponentPool<Character> characters = Entities.Pool<Character>();
+        for (int i = 0; i < characters.Count; i++)
+        {
+            if (characters.Values[i].State.Frame == ship.Id.Value)
+            {
+                into.Add(Entities.AtSlot(characters.Slots[i]));
+            }
+        }
     }
 
     // ---------------------------------------------------------------- each tick
@@ -214,7 +272,7 @@ public sealed class ShipSystem : ZoneSystem
             bool park = ship.State.Asleep && !ship.Piloted && !ship.Autopilot && !ship.Destroyed && !ship.InOrbit;
             if (park && ship.ParkedBody == 0)
             {
-                ship.ParkedBody = ShipCollider.AddParked(ship.Def, ship.State.Position, ship.State.Rotation);
+                Park(ship);
             }
             else if (!park && ship.ParkedBody != 0)
             {
@@ -250,12 +308,23 @@ public sealed class ShipSystem : ZoneSystem
         }
     }
 
-    // The seated character goes where the seat is.
+    // The seated character goes where the seat is: aboard a ship people walk in, at the seat in its frame (the ship's
+    // flight carries it, IRON_WAKE.md §4.2); in one they only sit in, at the seat's point in the zone's frame.
     private void CarryPilot(Entity pilot, Ship ship)
     {
         ref Character c = ref Entities.Get<Character>(pilot);
-        c.State.Position = ship.PointOf(ship.Def.Seat);
-        c.State.Velocity = ship.State.Velocity;
+        if (ship.Frame != null)
+        {
+            c.State.Frame = ship.Frame.Key;
+            c.State.Position = ship.Def.Seat;
+            c.State.Velocity = Vector3.Zero;
+        }
+        else
+        {
+            c.State.Frame = 0;
+            c.State.Position = ship.PointOf(ship.Def.Seat);
+            c.State.Velocity = ship.State.Velocity;
+        }
         c.State.Stance = Stance.Seated;
         c.State.Flags = MoveFlags.None;
     }
@@ -484,13 +553,14 @@ public sealed class ShipSystem : ZoneSystem
         {
             return OutcomeCode.Blocked;
         }
-        Unseat(entity, ship, at);
+        Unseat(entity, ship, at, aboard: ship.Frame != null);
         ship.HatchOpen = true;
         return OutcomeCode.Done;
     }
 
-    // Takes a character out of a ship's seat, standing at a point.
-    private void Unseat(Entity entity, Ship ship, Vector3 at)
+    // Takes a character out of a ship's seat, standing at a point: of the ship's frame when it stays aboard (a ship people
+    // walk in), else of the zone's.
+    private void Unseat(Entity entity, Ship ship, Vector3 at, bool aboard = false)
     {
         if (ship.Pilot == Entities.IdOf(entity))
         {
@@ -499,22 +569,49 @@ public sealed class ShipSystem : ZoneSystem
         ship.Input = default;
         Entities.Remove<ShipSeat>(entity);
         ref Character c = ref Entities.Get<Character>(entity);
-        Vector3 up = Frame.UpAt(at);
         c.State.Position = at;
         c.State.Velocity = Vector3.Zero;
         c.State.Stance = Stance.Standing;
         c.State.Flags = MoveFlags.OnGround;
-        c.Input.View = Facing.View(ShipMotor.YawOf(ship.State.Rotation, up), 0, up);
-        Physics.EnsureGround(at);
+        if (aboard && ship.Frame != null)
+        {
+            // Facing the bow, in the ship's frame.
+            c.State.Frame = ship.Frame.Key;
+            c.Input.View = Vector3.UnitZ;
+            c.Input.Frame = ship.Frame.Key;
+        }
+        else
+        {
+            Vector3 up = Frame.UpAt(at);
+            c.State.Frame = 0;
+            c.Input.View = Facing.View(ShipMotor.YawOf(ship.State.Rotation, up), 0, up);
+            c.Input.Frame = 0;
+            Physics.EnsureGround(at);
+        }
         WakeShip(ship);
     }
 
-    // The first exit (ships.json, in order) whose spot on the ground is clear of the hull, deployables, trees and walls.
+    // The first exit (ships.json, in order) whose spot on the ground is clear of the hull, deployables, trees and walls;
+    // aboard a ship people walk in, the first whose spot on its deck is clear in its space (a standing capsule over a floor).
     private bool ExitPoint(Ship ship, out Vector3 at)
     {
         Vector3 up = Frame.UpAt(ship.State.Position);
         lock (JoltRuntime.Gate)
         {
+            if (ship.Space is { } space)
+            {
+                foreach (Vector3 exit in ship.Def.Exits)
+                {
+                    Vector3 feet = exit + Vector3.UnitY * 0.05f;
+                    if (space.Ray(feet + Vector3.UnitY * 0.3f, -Vector3.UnitY, 0.6f, out _) && space.CapsuleClear(feet))
+                    {
+                        at = feet;
+                        return true;
+                    }
+                }
+                at = default;
+                return false;
+            }
             foreach (Vector3 exit in ship.Def.Exits)
             {
                 Vector3 point = ship.PointOf(exit);
@@ -779,6 +876,38 @@ public sealed class ShipSystem : ZoneSystem
         }
     }
 
+    /// <summary>
+    /// A ship asleep with nobody at the helm becomes a static body in the zone's physics (§4.6): the hull's boxes for a
+    /// ship people only sit in, the whole collision of one they walk in (a compound of its pieces at its parts' poses),
+    /// so people outside walk round its legs and up its ramp, and a character standing on it is aboard. Its pose rests
+    /// on the wire's grid first (<see cref="ShipMotor.RestOnGrid"/>), so every client places the same body.
+    /// </summary>
+    private void Park(Ship ship)
+    {
+        ShipMotor.RestOnGrid(ref ship.State);
+        ship.ParkedBody = ship.Def.Interior is { } interior
+            ? ShipCollider.AddParked(ParkedShape(interior, ship.Parts), ship.State.Position, ship.State.Rotation)
+            : ShipCollider.AddParked(ship.Def, ship.State.Position, ship.State.Rotation);
+    }
+
+    private readonly Dictionary<(ShipInterior, ulong), JoltPhysicsSharp.Shape> _parkedShapes = new();
+
+    // A kind's pieces at its parts' states as one shape, kept for each set of states (the ramp open, shut).
+    private JoltPhysicsSharp.Shape ParkedShape(ShipInterior interior, float[] states)
+    {
+        ulong key = Core.Hash64.Of((ulong)states.Length);
+        foreach (float state in states)
+        {
+            key = Core.Hash64.Combine(key, BitConverter.SingleToUInt32Bits(state));
+        }
+        if (!_parkedShapes.TryGetValue((interior, key), out JoltPhysicsSharp.Shape? shape))
+        {
+            shape = ShipSpace.ParkedShape(interior, states);
+            _parkedShapes.Add((interior, key), shape);
+        }
+        return shape;
+    }
+
     // The hull is gone: the pilot dies in it; its cargo, half its fuel and some of its metal go into a wreck anyone may loot.
     private void Wreck(Ship ship)
     {
@@ -807,6 +936,7 @@ public sealed class ShipSystem : ZoneSystem
             Unseat(pilot, ship, at + up * 0.05f);
             Players.Die(pilot, p, "Went down with the ship", ship.LastAttacker, ship.LastAttackerName);
         }
+        Ashore(ship);
         var stacks = new List<ItemStack>();
         for (int i = 0; i < ship.Cargo.Size; i++)
         {
@@ -873,7 +1003,15 @@ public sealed class ShipSystem : ZoneSystem
         StepShips();
     }
 
-    public override void Dispose() => _shipCollider?.Dispose();
+    public override void Dispose()
+    {
+        foreach (Ship ship in _ships)
+        {
+            ship.Space?.Dispose();
+            ship.Space = null;
+        }
+        _shipCollider?.Dispose();
+    }
 
     /// <summary>The survival state of a character, or null: not a player, or G1's movement-only zone, where ships fly without players.</summary>
     private Player? PlayerOf(Entity entity) => Zone.Get<PlayerSystem>()?.PlayerOf(entity);

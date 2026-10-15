@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
+using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
 using Hollow.Net.Replication;
