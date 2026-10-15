@@ -11,7 +11,8 @@ namespace Hollow.Bots;
 /// <summary>
 /// A bot that flies (G6, GROUND.md §6.7): it walks to the hatch of the ship the server gave it (<c>ShipOnJoin</c>), boards
 /// it, lifts off and flies loops a few hundred metres round, climbing and sinking between 50 and 200 m over the ground,
-/// boosting now and then, and steering home when it strays. Deterministic per bot (seeded by its number).
+/// boosting now and then, and steering home (where it arrived and boarded) when it strays. Deterministic per bot (seeded
+/// by its number).
 /// </summary>
 public sealed class FlyBrain
 {
@@ -23,6 +24,7 @@ public sealed class FlyBrain
     private double _boardedAt = -1;
     private double _nextBoost;
     private float _turn;
+    private Vector3 _home;
 
     public FlyBrain(int index)
     {
@@ -48,6 +50,7 @@ public sealed class FlyBrain
         {
             _boardedAt = time;
             Boardings++;
+            _home = BotGround.Home(client); // where it arrived: its ship was set down beside it
         }
         return Fly(time, delta, client);
     }
@@ -117,10 +120,10 @@ public sealed class FlyBrain
         Vector3 forward = s.Forward;
         ship.Throttle = 0.45f + 0.15f * (float)Math.Sin(flying / 7 + _index);
         ship.Yaw = _turn;
-        // Home if strayed: turn toward the landing site.
-        if (Vector3.Distance(s.Position, BotGround.Home) > HomeRadius)
+        // Home if strayed: turn toward where it arrived.
+        if (Vector3.Distance(s.Position, _home) > HomeRadius)
         {
-            Vector3 home = BotGround.Home - s.Position;
+            Vector3 home = _home - s.Position;
             Vector3 flatHome = Vector3.Normalize(home - up * Vector3.Dot(home, up));
             Vector3 flatForward = forward - up * Vector3.Dot(forward, up);
             float side = Vector3.Dot(Vector3.Cross(flatForward, flatHome), up);

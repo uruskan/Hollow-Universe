@@ -29,8 +29,8 @@ public sealed record ServerOptions
     public double RotationTimeScale { get; init; } = Simulation.ZoneSpec.DefaultRotationTimeScale;
 
     /// <summary>
-    /// New characters arrive at the landing site instead of on a beach anywhere on the world, as in Rust: for load tests,
-    /// measurements and tests that want everyone in one place.
+    /// New characters arrive at the landing site instead of on a beach anywhere on the world, as in Rust, and respawns
+    /// come back 15–60 m round it: for load tests, measurements and tests that want everyone in one place.
     /// </summary>
     public bool SpawnAtOrigin { get; init; }
 
@@ -86,6 +86,12 @@ public sealed record ServerOptions
     public int AnimalPopulation { get; init; }
 
     public float AnimalRadius { get; init; } = 220f;
+
+    /// <summary>
+    /// The most animals out at once, if fewer than animals.json's 600 (the animal load test with players arriving on
+    /// beaches all round the world: natural spawning, held to its population); 0 keeps the data's.
+    /// </summary>
+    public int AnimalCap { get; init; }
 
     /// <summary>Where raid alerts for players offline are pushed (a phone app, later); null: nowhere.</summary>
     public Notifications.IPushChannel? Push { get; init; }

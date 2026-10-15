@@ -131,13 +131,14 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 ? new PlanetClimate(Content.Survival, planet, Zone.Frame, Sky)
                 : new StandInClimate(Content.Survival, Zone.Frame, Zone.Surface.Radius, Sky);
         }
-        // Beaches anywhere on the world (docs/WHOLE_WORLD.md decision 8): where players arrive and respawn.
+        // Beaches anywhere on the world (docs/WHOLE_WORLD.md decision 8): where players arrive and respawn; with everyone
+        // kept in one place (SpawnAtOrigin), respawns too come back round the landing site.
         Beaches = Simulation.Beaches.Find(Zone.Surface, Zone.Frame);
-        if (Beaches.Points.Count > 0)
+        if (Beaches.Points.Count > 0 && !options.SpawnAtOrigin)
         {
             Zone.Beaches = salt => Beaches.Pick(salt)!.Value;
         }
-        Log($"{Beaches.Points.Count} beach points on the world" + (Beaches.Points.Count > 0 ? "" : ": players arrive at the landing site"));
+        Log($"{Beaches.Points.Count} beach points on the world" + (Zone.Beaches == null ? ": players arrive and respawn at the landing site" : ""));
         // Build the ground where players arrive now (and warm the code up), so the first arrival doesn't stall the
         // tick loop.
         Vector3 arrival = Arrival(0);
@@ -196,6 +197,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     /// </summary>
     public Vector3 Arrival(ulong salt) =>
         !_options.SpawnAtOrigin && Beaches?.Pick(salt) is { } beach ? beach : Zone.SpawnPoint(salt);
+
+    /// <summary>Where a new character called <paramref name="name"/> arrives (<see cref="Arrival"/>, picked by the name).</summary>
+    public Vector3 ArrivalOf(string name) => Arrival(Hash64.Of(name.ToUpperInvariant()));
 
     /// <summary>The UDP port the server listens on.</summary>
     public int Port { get; }
@@ -497,9 +501,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 continue;
             }
             (long account, CharacterRecord? record) = login.Result;
-            // The ground where the player comes in is built first, on worker threads (GROUND.md §4.6): the login
-            // waits for it, a second at most, so a crowd joining at once doesn't stall the tick.
-            if (session.ArrivalWait < TickRate && ArrivalPoint(session, record) is { } at && !Zone.Physics.GroundReady(at))
+            // The ground where the player comes in is built first, on worker threads (GROUND.md §4.5): the login
+            // waits for it, so a crowd joining at once doesn't stall the tick.
+            if (session.ArrivalWait < PlayerSession.ArrivalWaitTicks && ArrivalPoint(session, record) is { } at && !Zone.Physics.GroundReady(at))
             {
                 session.ArrivalWait++;
                 continue;
@@ -517,7 +521,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         {
             return null;
         }
-        return record != null && CharacterRecords.Restorable(Zone, Spec, record, out Vector3 local) ? local : Arrival(Hash64.Of(session.Name.ToUpperInvariant()));
+        return record != null && CharacterRecords.Restorable(Zone, Spec, record, out Vector3 local) ? local : ArrivalOf(session.Name);
     }
 
     /// <summary>
@@ -555,7 +559,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             else
             {
                 id = record?.Id ?? _ids.Next();
-                state = Zone.NewCharacter(Arrival(Hash64.Of(session.Name.ToUpperInvariant())));
+                state = Zone.NewCharacter(ArrivalOf(session.Name));
                 view = Facing.View(0, 0, Zone.Frame.UpAt(state.Position));
                 how = "new";
             }

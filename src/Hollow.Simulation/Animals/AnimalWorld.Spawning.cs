@@ -108,6 +108,15 @@ public sealed partial class AnimalWorld
     /// <summary>Animals come and go with the players by themselves (the server turns it on; tests and sandboxes may not).</summary>
     public bool NaturalSpawning { get; set; }
 
+    /// <summary>The most animals the world brings out (animals.json's <c>spawning.max</c>); a server may hold fewer (a load test).</summary>
+    public int MaxAnimals
+    {
+        get => _maxAnimals ?? Content.AnimalSpawning.MaxAnimals;
+        set => _maxAnimals = value;
+    }
+
+    private int? _maxAnimals;
+
     /// <summary>The spawn areas looked at so far.</summary>
     public IReadOnlyCollection<SpawnArea> Areas => _areas.Values;
 
@@ -219,7 +228,7 @@ public sealed partial class AnimalWorld
                 _areas.Add(tile, area);
             }
             area.LastNear = Tick;
-            if (!area.Active && _animals.Count < spawning.MaxAnimals)
+            if (!area.Active && _animals.Count < MaxAnimals)
             {
                 Activate(area);
             }
@@ -410,7 +419,7 @@ public sealed partial class AnimalWorld
         }
         for (int i = slot.Respawns.Count - 1; i >= 0; i--)
         {
-            if (Tick < slot.Respawns[i] || _animals.Count >= Content.AnimalSpawning.MaxAnimals)
+            if (Tick < slot.Respawns[i] || _animals.Count >= MaxAnimals)
             {
                 continue;
             }

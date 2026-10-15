@@ -52,14 +52,15 @@ public sealed class BotSwarm : IDisposable
                 Content = _content,
                 Log = i == 0 ? log : _ => { },
             });
-            if (i < 3 || Environment.GetEnvironmentVariable("HOLLOW_BOT_REFUSALS") != null)
+            bool tell = i < 3 || Environment.GetEnvironmentVariable("HOLLOW_BOT_REFUSALS") != null;
+            if (tell)
             {
                 client.Local.IntentRejected += a => log($"{client.Name}: intent {a.Seq} refused: {a.Code} ({_content.Texts.Line(a.Outcome)})");
             }
             client.Connect(host, port);
             _bots.Add((client, new BotBrain(i, script), script == BotScript.Survive ? new SurvivalBrain(i) : null,
                 script == BotScript.Fight ? new FightBrain(i) : null,
-                script == BotScript.Build ? new BuildBrain(i) { Log = i < 3 ? log : null } : null,
+                script == BotScript.Build ? new BuildBrain(i) { Log = tell ? log : null } : null,
                 script == BotScript.Raid ? new RaidBrain(i, raidBases, raidRadius) : null));
             if (script == BotScript.Fly || i < fly)
             {
@@ -138,7 +139,7 @@ public sealed class BotSwarm : IDisposable
     {
         if (!client.Local.IsDead)
         {
-            return brain.Think(now, delta, client.Character.Position);
+            return brain.Think(now, delta, client.Character.Position, BotGround.Home(client));
         }
         if (now >= _respawnAsked.GetValueOrDefault(client) + 2)
         {
@@ -161,7 +162,7 @@ public sealed class BotSwarm : IDisposable
             {
                 if (client.HasCharacter)
                 {
-                    BotGround.Ensure(client); // home: the landing site (docs/WHOLE_WORLD.md §13)
+                    BotGround.Follow(client); // home: where it arrived (docs/WHOLE_WORLD.md §13)
                 }
                 InputFrame input = !client.HasCharacter ? default
                     : _world.TryGetValue(client, out WorldBrain? world) ? world.Think(now, delta, client)

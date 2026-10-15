@@ -174,7 +174,9 @@ Godot.
   - Ground near the spawn is built at start, so the first arrival doesn't stall the tick. A respawn or a login waits
     for the ground where the player comes in: the point is picked when the player asks (the beach as of that tick),
     its tiles are built on worker threads, and the player comes in, and the respawn intent is answered, on the tick
-    they are ready (a second at most; §4.5, §5.11).
+    they are ready (five seconds at most, then the tick builds what is left; §4.5, §5.11). One arrival takes a few
+    tens of milliseconds; a crowd arriving at once all round the world (a busy server's restart, the S3b load test,
+    §5.12) needs a few seconds of the workers' time, which was a second until S3b.
 
 ### 4.3 Client
 
@@ -196,7 +198,12 @@ Godot.
   - **Prediction:** a `Predictor` keeps 4 s of inputs and predicted states. A snapshot brings the server's state of
     the character after some tick; if it differs from the prediction for that tick, the predictor takes the server's
     state and replays the newer inputs. Identical inputs give identical results (§4.5), so on a clean line nothing is
-    ever corrected.
+    ever corrected. Just arrived somewhere whose ground isn't built yet (the start, a respawn on a far beach, a
+    teleport: a tick that starts more than 32 m from the last), the predictor holds the character until worker threads
+    have built the tiles within 64 m (`PhysicsWorld.GroundReady`), as the server holds an arrival, and the server's
+    states correct the wait (S3b, §5.12): building a dozen tiles on the client's own thread would stall a frame, and a
+    process of 100 bots arriving all round the world for longer than a connection lasts. Ground walked into is built at
+    once if the prefetch hasn't, as the server's zone does, so prediction stays exact there.
   - **Smoothing:** a correction under 2 m is added to a visual offset that fades in about 0.1 s; a bigger one (a
     teleport, a respawn) shows at once. The drawn position blends the last two predicted ticks, so movement is smooth
     at any frame rate; the eye height eases between stances (RustMVP's rate 18).
@@ -511,9 +518,14 @@ neighbours are indexed by 3D cubes, and natural objects are queried by sphere
     ahead (`Prefetch`); a ship needs only the tiles its queries of the tick can reach (its bounding sphere, a tick's
     travel, the skids' rays and the widest natural prop's 3 m: one to four tiles, `EnsureGroundAround`) and builds
     ahead a corridor that wide along the next 1.5 s of its way (`PrefetchAlong`); a respawn or a login waits for the
-    tiles within 64 m (`GroundReady`, §4.2). The tiles within a reach are found by sampling the local tangent plane a
-    third of a tile apart (`TileKey.Around`), so face seams and the cube's corners need nothing special. A tile with
-    its trees and outcrops comes and goes as one.
+    tiles within 64 m (`GroundReady`, §4.2), and so does a client's prediction (§4.3). The tiles within a reach are
+    found by sampling the local tangent plane a third of a tile apart (`TileKey.Around`), so face seams and the cube's
+    corners need nothing special. That costs about 15 µs for 128 m, and every character asks for 64 and 128 m every
+    tick, on the server and again in its client's prediction and each replay of it; so the answers to searches of a
+    tile's reach or more are kept by the fine cell the point lies in (7.4 m, three levels down), the search going round
+    the cell's middle with the reach widened by the cell's own (`NearTiles`, S3b: 2.2 ms a tick for 100 characters on
+    the server before, 0.1–0.4 ms after; the animals' nav grid asks the same way). A tile with its trees and outcrops
+    comes and goes as one.
   - *Built on worker threads*, from the surface's collision grid (`SurfaceGrid`: neighbouring tiles of a face share
     their grid points bit for bit, §4.6); taken into the world at most 8 a tick. A tile needed now that is still
     queued is built by the tick itself rather than waited for behind the others (a respawn storm queues hundreds); one
@@ -1138,7 +1150,7 @@ Rust's helicopters do.
 
 The measurements of §5.1–§5.11 were made before S3 (14 October 2026), on the flat patch of the 6,435 km planet or its
 old stand-in sphere: where they say the origin they mean the landing site, and their ground tiles are 64 m squares of
-the zone's plane. S3b measures the load test on the ball (WHOLE_WORLD.md §14).
+the zone's plane. §5.12 measures every load test again on the ball (S3b, 15 October 2026).
 
 ### 5.1 G1 network measurements
 
@@ -1695,6 +1707,118 @@ On the final code, with G7a and G7b merged, one more run of the hardest case on 
   pool's first-come order) would remove these.
 - **The client's prediction** runs the same code: its first prop makes the 65,536 prop bodies (10 MB, 20–50 ms
   once, while the world opens), and its ships ask for the same ground as the server's.
+
+### 5.12 S3b: every load test on the whole world
+
+Measured on the owner's PC (12 threads, 16 GB) on 15 October 2026, on `whole-world` after S3b: one zone holds the whole
+first world, the stand-in ball of 2,410 m (WHOLE_WORLD.md §4), in its own frame. The server runs in the load test's
+process and the bots in a child process (§5.1). Every load test of AGENTS.md ran twice:
+
+- **At the landing site** (`--spawn origin`, the default): every bot arrives there and, since S3b, respawns 15–60 m
+  round it, so each sees the others (the bandwidth worst case), as in §5.1–§5.10.
+- **On beaches all round the world** (`--spawn beach`): each bot arrives at the beach point its name picks (256
+  points at least 45 m apart, on all six faces; 100 names fall on about 83 of them), plays round where it arrived
+  (WHOLE_WORLD.md §13) and respawns on any beach. This is how players arrive (decision 8), and the case S3 changed
+  most: the ground, nature and props stream all over the ball, and each player has a handful of others in range or
+  none.
+
+The PC was quiet for these runs (the memory in use 50–78 %, 86–92 % in two of them), apart from other sessions'
+builds now and then. The bots' process predicts every bot on one copy of the ground, on beaches all round the world.
+
+```bash
+# each with --spawn origin (the default) and with --spawn beach
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script fight --kit gunfight-kit
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 120 --script build --kit build-kit
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script raid
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script world
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit --animals 200
+```
+
+On beaches the raid's server puts each hut beside the beach where its raider arrives (one a bot), and `--animals 200`
+turns on the server's own rule instead of a population round the landing site: herds come out round the players
+wherever they are (decision 10), held to 200.
+
+**At the landing site**, with the same load test before S3 (§5.1–§5.11; the server's tick in ms, average / 99th
+percentile / worst, and the ticks over 33.3 ms; bandwidth per client down and up; prediction's mean and worst error and
+its corrections):
+
+| Load test | Tick | Before S3 | Down / up kbit/s | Before S3 | Prediction | Before S3 | The bots did |
+|---|---|---|---|---|---|---|---|
+| 100 walking | 5.60 / 9.3 / 11.9, 0 | 4.25 / 10.2 / 26.9 (§5.1, the old stand-in); 5.25 / 11.9 / 31.7 (§5.11, the planet) | 151.6 / 22.0 | 114 / 18 | 0 / 0 mm, 0 | 0 / 0 mm, 0 | |
+| 100 surviving | 6.57 / 11.4 / 25.1, 0 | 5.90 / 12.3 / 65.5, 2 (§5.2); 5.04 / 13.1 / 93.3, 3 (§5.7) | 138.0 / 25.0 | 105 / 24 | 0.016 / 67 mm, 59 | 0.007 / 183 mm, 6 | 1,057 gathering hits |
+| 100 fighting | 7.48 / 12.4 / 15.2, 0 | 8.64 / 18.5 / 227, 7 (§5.3) | 189.0 / 24.8 | 169 / 23 | 0.29 / 1,087 mm, 579 | 0.24 / 307 mm, 525 | 3,958 shots, 2,600 hits, 727 kills; every refused shot "not alive" |
+| 100 building | 7.44 / 22.8 / 40.4, 7 | 7.38 / 21.3 / 68.2, 5 (§5.4) | 109.0 / 24.9 | 83.7 / 23.1 | 0.001 / 61 mm, 23 | 0 / 0 mm, 0 | 947 pieces in 98 bases, 96 doors, 97 claim devices; 1,199 door toggles |
+| 100 raiding | 8.13 / 14.7 / 21.2, 0 | 9.66 / 30.7 / 100, 16 (§5.5) | 178.1 / 26.1 | 157 / 22 | 0.006 / 183 mm, 9 | 0.006 / 157 mm, 10 | 1,647 detonations, 79 raid alerts, 93 huts put back |
+| 100 living off the loot | 5.60 / 9.1 / 15.0, 0 | 5.75 / 18.6 / 48.5, 5 (§5.9) | 147.4 / 22.3 | 100.0 / 20.4 | 0.003 / 111 mm, 7 | 0.012 / 282 mm, 46 | 26 researched, 24 teams; 1 barrel (below) |
+| 20 flying | 1.51 / 3.2 / 4.2, 0 | 1.31 / 4.1 / 13.2, 0 (§5.11) | 73.6 / 28.7 | | 0 / 0 mm, 0; ships corrected 0 times | the same | 51 s flown each |
+| 100 surviving, 200 animals | 8.31 / 13.9 / 24.6, 0 | 9.13 / 27.3 / 181, 13 (§5.10) | 156.1 / 23.9 | 131.8 / 21.6 | 0.018 / 156 mm, 60 | | the animals 0.55 ms a tick, 2.7 µs each (2.1 before) |
+
+**On beaches all round the world** (nothing to compare: before S3 the beaches were within a kilometre of the landing
+site):
+
+| Load test | Tick | Down / up kbit/s | Others in view | Prediction | Ground tiles held | The bots did |
+|---|---|---|---|---|---|---|
+| 100 walking | 4.40 / 7.6 / 12.0, 0 | 15.0 / 21.9 | 1.3 | 0 / 0 mm, 0 | 2,990 | |
+| 100 surviving | 4.50 / 9.5 / 27.7, 0 | 15.1 / 22.5 | 1.3 | 0.017 / 187 mm, 21 | 2,982 | 3,404 gathering hits |
+| 100 fighting | 4.68 / 11.1 / 44.8, 1 | 15.1 / 22.2 | 0.7 | 0.052 / 365 mm, 123 | 3,567 | 1,807 shots, 416 hits, 93 kills |
+| 100 building | 4.39 / 27.0 / 108.5, 30 | 14.0 / 22.1 | 1.3 | 0 / 0 mm, 0 | 2,728 | 796 pieces in 79 bases, 79 doors, 79 claim devices; 1,659 door toggles |
+| 100 raiding | 5.73 / 9.8 / 27.2, 0 | 16.5 / 22.7 | 0.9 | 0.005 / 93 mm, 23 | 3,393 | 1,835 detonations at 100 huts, 139 raid alerts |
+| 100 living off the loot | 4.52 / 7.9 / 14.9, 0 | 14.9 / 22.3 | 1.1 | 0.014 / 308 mm, 21 | 3,159 | 203 barrels broken, 53 crates emptied, 6 recycler batches, 64 researched |
+| 20 flying | 1.90 / 3.9 / 34.6, 1 | 34.7 / 28.5 | 0.3 | 0.005 / 21 mm, 9; ships corrected 9 times | 1,379 | 51 s flown each |
+| 100 surviving, natural spawning to 200 animals | 5.19 / 17.9 / 43.5, 4 | 16.1 / 22.5 | 2.1 | 0.013 / 187 mm, 26 | 3,018 | 766 spawn areas out, 200 animals, 0.40 ms a tick (2.0 µs each) |
+
+Every bot played to the end in every run, and every run meets the targets (≤ 10 ms typical, ≤ 33 ms at the 99th
+percentile).
+- **The tick at the landing site** is what it was on the flat patch or less: replication, now 3–5 ms, is the largest
+  part as before (§5.11), movement about 1.4 ms for 100 characters. On beaches it is lower still (each player has
+  nobody or one other in range), though the server holds about 3,000 ground tiles and 20,000–28,000 props all over the
+  ball.
+- **Down is 12–47 % higher at the landing site**: a moving character's change costs about 11 bytes a snapshot
+  instead of 7, because a position on a ball changes in all three coordinates and the view's two octahedral halves both
+  change as it turns (WHOLE_WORLD.md §8 foresaw it); the 1,200-byte budget holds about 87 of 99 walkers a snapshot.
+  It stays within 256 kbit/s.
+- **Prediction** is exact where nothing pushes a player (walking, flying, building), and the corrections come from
+  knock-downs (fighting, surviving), blasts and arrivals: a character arriving where its client's ground isn't built
+  yet is held until it is (§4.3), 0.2–1.3 s each when 100 arrive all round the world at once.
+- **Building on beaches** loses 30 of 3,602 ticks to bursts in receiving, when 80 bases start at once all round the
+  world: a placement's checks against ground the tick hasn't touched yet took 3–30 ms each.
+- **The world bots at the landing site** broke one barrel: the nearest loot is a cluster 160 m away, and a hundred bots
+  there either hold their swings while another stands at the barrel (friendly fire) or take each other's blows; on
+  beaches they broke 203. No recycler stands within reach of the landing site (decision 9: one a cube face).
+
+**What broke on the ball, and was fixed in S3b:**
+1. **Arrivals all round the world dropped every bot.** The bots' process predicts 100 clients on one thread, and its
+   prediction built a new place's ground there whenever no worker had started it: about a thousand tiles, longer than
+   the ten seconds a connection lasts. Now an arrival's prediction is held until worker threads have built its ground (§4.3),
+   as the server holds a login or a respawn; that wait grew from 1 to 5 s, since a crowd arriving all round the world
+   needs a few seconds of the workers (§4.2).
+2. **The ground under every character cost 2.2 ms a tick** for 100 (0.2 ms on the flat patch), and as much again in
+   every client's prediction: finding the tiles within 64 and 128 m samples the tangent plane about 300 times a
+   character a tick. The answers are kept by the 7.4 m cell a point lies in (`NearTiles`, §4.5): 0.1–0.4 ms a tick.
+3. **A respawn at the landing site went to a beach anywhere on the world**, so a fight scattered its crowd (7 of 99
+   others in view by the end, 37 % of inputs on time while the bots built the far ground). With `SpawnAtOrigin`
+   respawns come back round the landing site.
+4. **Animals cost 6.4 µs each a tick** (2.1 before S3): every look at the nav grid found a direction's face coordinates
+   twice (four deterministic arctangents), and steering looks at about a hundred points a think. Now once, the same
+   answers to the bit, and a path search remembers each cell's walkability: 2.0–2.7 µs. Their prefetch asks
+   `NearTiles` too.
+5. **A foundation's collision check took 3–90 ms** at spots on beaches (its box against the ground tile's mesh): 39 ms
+   at the 99th percentile when 80 bases started at once. A foundation sits in the ground, so its check now leaves the
+   ground out (`BuildingPhysics.Overlaps`): 27 ms.
+6. **The bots** (WHOLE_WORLD.md §13): a bot's home is where it arrived, and again after a respawn elsewhere (every home
+   was the landing site, so bots on beaches walked toward it all run); building plots are the crowd's grid round the
+   landing site on dry ground (the sea is 120 m away), or a bot's own beach; fighting bots go after the nearest player
+   they can see when nobody is in range; surviving bots crawl when knocked down (they went on acting: 412 of 993
+   intents refused, left over from G4); world bots allow for the walk to loot 160 m away (they gave up on the way) and
+   leave a crowded barrel after three seconds; the building bot no longer moved its site along the polar axis.
+7. **The building bots placed one claim device in 98 bases** (G3: 97): placed last, from outside the shut hut, the
+   placement's sight check (P2, after G3) refused it, so it now goes in before the last walls. Their doors: the bots'
+   shared copy of the building cleared a claim's list every time another bot heard of it (a client's mirror now changes
+   only its own entry), and holds one viewer's flags for a door, so a bot uses its own door by the verb it knows.
+8. **The profile** counted tiles prepared on worker threads as the tick's nature lookups, racing its counters.
 
 ---
 

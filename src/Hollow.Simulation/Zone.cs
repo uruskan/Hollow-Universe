@@ -155,7 +155,7 @@ public sealed class Zone : IDisposable
     /// <summary>Hands out IDs for new persistent entities (the server's allocator); a counter if not set.</summary>
     public Func<EntityId>? NewEntityId { get; set; }
 
-    /// <summary>A beach point for a respawn (the server sets the planet's real coast, <see cref="Simulation.Beaches"/>); the stand-in ring if not set.</summary>
+    /// <summary>A beach point for a respawn (the server sets the world's coast, <see cref="Simulation.Beaches"/>); if not set, a ring round the landing site.</summary>
     public Func<ulong, Vector3>? Beaches { get; set; }
 
     /// <summary>One second of poses of every character, for hits as the attacker saw them (<see cref="HistorySystem"/> records them).</summary>

@@ -57,6 +57,15 @@ public sealed class Predictor : IDisposable
     /// <summary>Ticks replayed after corrections, for statistics.</summary>
     public long Replayed { get; private set; }
 
+    /// <summary>New ticks the character was held because its ground wasn't built yet (arrivals; replays not counted), for statistics.</summary>
+    public long HeldForGround { get; private set; }
+
+    /// <summary>A tick that starts this far from where the last one did is an arrival (a respawn, a teleport).</summary>
+    public const float ArrivalMetres = 32f;
+
+    // Where the last tick stepped from (none yet: the start is an arrival).
+    private Vector3 _lastStep = new(float.NaN);
+
     /// <summary>The predicted state after a tick, if still kept.</summary>
     public bool TryGetState(uint tick, out CharacterState state)
     {
@@ -95,7 +104,10 @@ public sealed class Predictor : IDisposable
         {
             CharacterState state = Latest;
             uint next = LatestTick + 1;
-            Step(next, ref state);
+            if (!Step(next, ref state))
+            {
+                HeldForGround++;
+            }
             LatestTick = next;
             Store(next, state);
         }
@@ -159,7 +171,8 @@ public sealed class Predictor : IDisposable
         return command;
     }
 
-    private void Step(uint tick, ref CharacterState state)
+    // One tick of movement; false when the character was held for its ground.
+    private bool Step(uint tick, ref CharacterState state)
     {
         if (state.Stance == Stance.Seated && !state.IsDead)
         {
@@ -170,10 +183,20 @@ public sealed class Predictor : IDisposable
                 state.Velocity = seat.Velocity;
             }
             state.Flags = MoveFlags.None;
-            return;
+            return true;
         }
         InputCommand command = CommandFor(tick);
-        // The ground first, outside Jolt's lock (a tile being built doesn't hold up a server in the same process).
+        // The ground first, outside Jolt's lock (a tile being built doesn't hold up a server in the same process). Just
+        // arrived somewhere whose ground isn't built yet (the start, a respawn on a far beach, a teleport), the character
+        // is held until worker threads have built it, as the server holds an arrival (GROUND.md §4.5), and the server's
+        // states correct the wait: a dozen tiles built here would stall the frame, and a swarm of bots arriving all round
+        // the world (docs/WHOLE_WORLD.md decision 8) for longer than a connection lasts. Ground walked into is built now
+        // if it must be, as the server's zone does (the prefetch keeps it ahead).
+        if (!(Vector3.DistanceSquared(state.Position, _lastStep) < ArrivalMetres * ArrivalMetres) && !_world.GroundReady(state.Position))
+        {
+            return false;
+        }
+        _lastStep = state.Position;
         _world.EnsureGround(state.Position);
         _world.Prefetch(state.Position);
         lock (JoltRuntime.Gate)
@@ -181,6 +204,7 @@ public sealed class Predictor : IDisposable
             _world.OptimizeBroadPhase();
             CharacterMotor.Step(ref state, NetConvert.ToMoveInput(command), _body, _context);
         }
+        return true;
     }
 
     /// <summary>

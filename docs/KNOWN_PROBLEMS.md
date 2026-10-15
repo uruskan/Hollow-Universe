@@ -108,6 +108,18 @@ These are written in GROUND.md as decisions of the form "left for later" and wer
 | Near tree impostors most likely disappear more than about 400 m from the landing site whenever the landing site is out of view (not yet seen in a run). | In play the near set is anchored at the frame's origin (`Vegetation.Game.RebuildNear`), and the near impostors' `CustomAabb` is a fixed ±400 m around that anchor, so Godot culls them by the wrong box. | open, small (on `main`) |
 | The map of a surface without a sea is most likely black (not run). | `ZoneMapImage` takes sea level as −∞ when `SeaRadius` is 0, so heights become infinite and the hill shading NaN; only the `--stand-in` world has no sea. | in S3: since S3a the stand-in world has a sea; the map's safe reading is S3d (WHOLE_WORLD.md §4, §12) |
 
+### Found by the load test on the whole world (15 October 2026, S3b)
+
+S3b ran every load test with 100 bots on the ball, at the landing site and on beaches all round it (GROUND.md §5.12),
+and fixed on `whole-world` what broke there. Still open:
+
+| What | Cause | Status |
+|---|---|---|
+| A moving character costs about half as much again in a snapshot as on the flat patch: 152 kbit/s down with 99 walkers in view (114 before S3), and the 1,200-byte budget holds about 87 of them a snapshot. | A position on a ball changes in all three coordinates, and the view's two octahedral halves both change as it turns (WHOLE_WORLD.md §8). | open: positions coded along the ground |
+| When 80 bases start at once on beaches all round the world, 30 of 3,602 ticks go over 33 ms in receiving (the 99th percentile 27 ms). | A placement's checks against ground the tick hasn't touched yet took 3–30 ms each; a foundation's no longer asks about the ground (S3b). | open |
+| Animals cost 2.0–2.7 µs each a tick, 2.1 on the flat patch. | Every look at the nav grid finds its face coordinates by two arctangents; on the plane it was a division. | open, small |
+| The load test's bots share one copy of the building, which keeps one viewer's flags for a door (the last bot's that heard of it). | `BuildingReplica` keys door states by door only. The bots use their own doors by the verb they know (S3b). | open, bots only |
+
 ## 3. Deferred structure and decisions waiting on the owner
 
 | What | Why it waits | Status |
@@ -116,7 +128,7 @@ These are written in GROUND.md as decisions of the form "left for later" and wer
 | P7, characters and held items | Grips, clipping, Rust's closed grip, first-person poses as data, full-body clips from local AI tools. | wave 2, designing |
 | The rename from claim device to tool cupboard in the code | Deferred because another session worked in that code at the time. | open, small |
 | The zone host, transfers between zones, the lifecycle with catch-up (GROUND_SYSTEMS.md K14) | Deferred by the owner on 14 October: one dedicated server for now. | deferred |
-| SCALE.md | The scale proposal (2.4 km worlds, a galaxy of landmarks) decides findings 1 and 3. On 14 October 2026 the owner said go for S3 (one zone for a whole world, the globe map) and approved its design, WHOLE_WORLD.md; it is built on the branch `whole-world`, where S3a is built (the zone is the whole world). S4 (the ground at walking scale) is to be talked through with the owner first. | S3 building (S3a built); the rest waiting |
+| SCALE.md | The scale proposal (2.4 km worlds, a galaxy of landmarks) decides findings 1 and 3. On 14 October 2026 the owner said go for S3 (one zone for a whole world, the globe map) and approved its design, WHOLE_WORLD.md; it is built on the branch `whole-world`, where S3a is built (the zone is the whole world) and S3b (the load tests on the ball, GROUND.md §5.12). S4 (the ground at walking scale) is to be talked through with the owner first. | S3 building (S3a and S3b built); the rest waiting |
 | `prototypes/map-ux` | Three web prototypes of the galaxy map wait for the owner's choice. | waiting |
 | The front door | The menu as the default start, a Developer page listing the viewers, a desktop shortcut (asked on 14 October after the F2 panel). | waiting |
 | The owner's window size | Asked in the playtest plan and never answered; the frame-rate work depends on it. | waiting |

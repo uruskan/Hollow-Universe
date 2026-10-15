@@ -67,7 +67,7 @@ public sealed class PhysicsWorld : IDisposable
     private readonly Dictionary<TileKey, TileBuild> _pending = new();
     private readonly List<TileKey> _expired = new();
     private readonly List<TileKey> _adopted = new();
-    private readonly List<TileKey> _near = new();
+    private readonly NearTiles _near;
     private readonly Dictionary<(PropLayer, ulong), Prop> _props = new();
     private readonly Dictionary<uint, (PropLayer Layer, ulong Key)> _propOf = new();
     private readonly bool[] _propIdUsed = new bool[MaxProps];
@@ -92,6 +92,7 @@ public sealed class PhysicsWorld : IDisposable
         Surface = surface;
         Frame = frame;
         Level = LevelOn(surface.Radius);
+        _near = new NearTiles(surface.Radius, Level);
         JoltRuntime.EnsureInitialised();
         lock (JoltRuntime.Gate)
         {
@@ -146,13 +147,10 @@ public sealed class PhysicsWorld : IDisposable
     /// <summary>The ground tile holding a point (its direction from the centre).</summary>
     public TileKey TileOf(Vector3 position) => TileKey.At(Frame.ToBody(position), Level);
 
-    // The tiles within a reach of a point, into _near (the owning thread's scratch list).
-    private List<TileKey> TilesNear(Vector3 position, float reach)
-    {
-        _near.Clear();
-        TileKey.Around(Frame.ToBody(position), reach, Surface.Radius, Level, _near);
-        return _near;
-    }
+    // The tiles within a reach of a point (on the owning thread). Every character on foot asks for 64 and 128 m every
+    // tick, on the server and again in its client's prediction and every replay of it, so the answers are kept by the
+    // fine cell the point lies in (NearTiles).
+    private ReadOnlySpan<TileKey> TilesNear(Vector3 position, float reach) => _near.Around(Frame.ToBody(position), reach);
 
     /// <summary>
     /// Makes sure the ground exists within <see cref="EnsureReach"/> of <paramref name="position"/>, and marks those

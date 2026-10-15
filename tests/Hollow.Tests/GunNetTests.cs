@@ -46,6 +46,8 @@ public static class GunNetTests
         // The client: its own ground and predictor, and the local player with the inventory the server would send.
         using var predictor = new Predictor(rig.Zone.Spec, rig.Zone.Spec.CreateSurface(), null);
         uint start = (uint)rig.Zone.Tick;
+        // Its ground first, as the client's loading screen waits for it (GROUND.md §4.3: the prediction holds without it).
+        predictor.World.EnsureGround(rig.Ch(ada).State.Position);
         predictor.Reset(start, rig.Ch(ada).State, start);
         var sent = new List<byte[]>();
         var local = new LocalPlayer(c)
@@ -205,6 +207,8 @@ public static class GunNetTests
 
         using var predictor = new Predictor(rig.Zone.Spec, rig.Zone.Spec.CreateSurface(), null);
         uint start = (uint)rig.Zone.Tick;
+        // Its ground first, as the client's loading screen waits for it (GROUND.md §4.3: the prediction holds without it).
+        predictor.World.EnsureGround(rig.Ch(ada).State.Position);
         predictor.Reset(start, rig.Ch(ada).State, start);
         var sent = new List<byte[]>();
         var local = new LocalPlayer(c)

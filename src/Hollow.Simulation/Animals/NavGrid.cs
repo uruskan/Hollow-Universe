@@ -82,7 +82,7 @@ public sealed class NavGrid
     private readonly Dictionary<TileKey, NavArea> _areas = new();
     private readonly Dictionary<TileKey, Task<NavArea>> _pending = new();
     private readonly List<TileKey> _done = new();
-    private readonly List<TileKey> _near = new();
+    private readonly NearTiles _near;
     private long _epoch;
 
     public NavGrid(ISurface surface, ZoneFrame frame, INaturalObjects? nature, GameContent? content)
@@ -92,6 +92,7 @@ public sealed class NavGrid
         _nature = nature;
         _content = content;
         Level = Math.Min(TileKey.LevelFor(surface.Radius, AreaSize), 20);
+        _near = new NearTiles(surface.Radius, Level);
     }
 
     /// <summary>The cube-sphere level of the areas on this world.</summary>
@@ -113,12 +114,13 @@ public sealed class NavGrid
     /// <summary>The areas in the world now (the developer panel draws them).</summary>
     public IEnumerable<NavArea> Areas => _areas.Values;
 
-    /// <summary>Starts building, on a worker, the areas within <paramref name="radius"/> metres of a point not built yet.</summary>
+    /// <summary>
+    /// Starts building, on a worker, the areas within <paramref name="radius"/> metres of a point not built yet (every
+    /// animal asks at every think: the areas near it are kept by the fine cell it stands in, <see cref="NearTiles"/>).
+    /// </summary>
     public void Prefetch(Vector3 point, float radius)
     {
-        _near.Clear();
-        TileKey.Around(_frame.ToBody(point), radius, _surface.Radius, Level, _near);
-        foreach (TileKey tile in _near)
+        foreach (TileKey tile in _near.Around(_frame.ToBody(point), radius))
         {
             if (_areas.TryGetValue(tile, out NavArea? area))
             {
@@ -219,12 +221,13 @@ public sealed class NavGrid
 
     // ---------------------------------------------------------------- queries
 
-    // The area under a point, its cell and where in the cell the point falls (0 … 1 both ways).
+    // The area under a point, its cell and where in the cell the point falls (0 … 1 both ways). The face coordinates are
+    // found once (two arctangents): steering asks about a hundred points a think, a path search thousands.
     private NavArea AreaAt(Vector3 point, out Vector3D direction, out int i, out int j, out float fx, out float fz)
     {
         direction = _frame.ToBody(point).Normalized;
-        NavArea area = Ensure(TileKey.At(direction, Level));
-        (int _, double u, double v) = CubeSphere.FromDirection(direction);
+        (int face, double u, double v) = CubeSphere.FromDirection(direction);
+        NavArea area = Ensure(TileKey.At(face, u, v, Level));
         TileKey t = area.Tile;
         float cx = (float)Math.Clamp((u - t.U0) / t.Span * NavArea.Cells, 0, NavArea.Cells - 1e-3);
         float cz = (float)Math.Clamp((v - t.V0) / t.Span * NavArea.Cells, 0, NavArea.Cells - 1e-3);
@@ -289,6 +292,7 @@ public sealed class NavGrid
     private readonly PriorityQueue<int, float> _open = new();
     private readonly Dictionary<int, int> _cameFrom = new();
     private readonly Dictionary<int, float> _cost = new();
+    private sbyte[] _walkable = Array.Empty<sbyte>();
 
     /// <summary>
     /// A short path from <paramref name="from"/> towards <paramref name="to"/> over walkable cells (A* on a grid of
@@ -309,6 +313,21 @@ public sealed class NavGrid
         int span = 2 * window + 1;
         int Index(int x, int z) => (z + window) * span + (x + window);
         Vector3 Cell(int x, int z) => from + (east * x - north * z) * CellSize;
+        // Each cell's walkability, looked up once a search: the expansion asks about a cell up to a dozen times.
+        if (_walkable.Length < span * span)
+        {
+            _walkable = new sbyte[span * span];
+        }
+        Array.Clear(_walkable, 0, span * span);
+        bool Walk(int x, int z)
+        {
+            int c = Index(x, z);
+            if (_walkable[c] == 0)
+            {
+                _walkable[c] = Walkable(Cell(x, z), maxSlope) ? (sbyte)1 : (sbyte)-1;
+            }
+            return _walkable[c] > 0;
+        }
         int start = Index(0, 0), goal = Index(gx, gz);
         _open.Clear();
         _cameFrom.Clear();
@@ -348,12 +367,12 @@ public sealed class NavGrid
                     {
                         continue;
                     }
-                    if (!Walkable(Cell(nx, nz), maxSlope))
+                    if (!Walk(nx, nz))
                     {
                         continue;
                     }
                     // No cutting between two blocked diagonal neighbours.
-                    if (dx != 0 && dz != 0 && (!Walkable(Cell(cx + dx, cz), maxSlope) || !Walkable(Cell(cx, cz + dz), maxSlope)))
+                    if (dx != 0 && dz != 0 && (!Walk(cx + dx, cz) || !Walk(cx, cz + dz)))
                     {
                         continue;
                     }

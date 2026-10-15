@@ -46,19 +46,20 @@ is the one thing standing between the zone and a second thread (§9).
 
 ## 3. One tick of the server
 
-`GameServer.Tick`, 30 times a second. The numbers are the load test with 100 survival bots (GROUND.md §5.11).
+`GameServer.Tick`, 30 times a second. The numbers are the load test with 100 survival bots at the landing site of the
+whole world (GROUND.md §5.12).
 
 | Step | What happens | Who | ms |
 |---|---|---|---|
-| 1. Receive | UDP packets in; each one's first byte picks its handler in the table (`MessageHandlers<PlayerSession>`): inputs and chat to the host, every intent to the module that registered it | `GameServer`, the modules' `Init` | 0.7 |
+| 1. Receive | UDP packets in; each one's first byte picks its handler in the table (`MessageHandlers<PlayerSession>`): inputs and chat to the host, every intent to the module that registered it | `GameServer`, the modules' `Init` | 0.6 |
 | 2. Logins and respawns | characters whose ground is ready come in (`FinishLogins`, the modules' `BeforeStep`) | `GameServer`, `SurvivalModule` | 0.0 |
 | 3. Commands | the console's queued commands and the load test's inspections run | `AdminCommands`, `ConsoleModule` | |
 | 4. Inputs | each player's input for this tick goes into their `Character` (the one received, or the last one again); pilots' controls to the ship | `PlayerSession.InputFor`, `ShipModule.Input` | |
-| 5. The zone's step | §4 below: movement, then every system in order; events fire as they happen | `Zone.Step` | 1.0 |
+| 5. The zone's step | §4 below: movement, then every system in order; events fire as they happen | `Zone.Step` | 1.7 |
 | 6. After the step | the modules' `AfterStep` in list order: ship notices, raid alerts, the world, each player's own state (vitals, containers, crafting, loot), then the answers to this tick's intents | the modules | 0.1 |
-| 7. Replicate | 20 times a second: what each player should know (§6) | `GameServer.Replicate`, the modules' `Prepare`/`Snapshot`/`Replicate`/`Finish` | 3.1 |
+| 7. Replicate | 20 times a second: what each player should know (§6) | `GameServer.Replicate`, the modules' `Prepare`/`Snapshot`/`Replicate`/`Finish` | 3.6 |
 | 8. Save | every 30 s, or within a second of a death: one transaction with everything that changed | the modules' `Save`, `PersistenceWorker` | 0.0 |
-| 9. Send | the transport writes the packets | LiteNetLib | 0.6 |
+| 9. Send | the transport writes the packets | LiteNetLib | 0.5 |
 
 Everything in the table runs on the tick thread, one after another; nothing in the game's rules is concurrent.
 
@@ -259,10 +260,12 @@ who leaves stays in the world asleep.
 
 ## 11. Performance and what runs in parallel
 
-Measured on the owner's PC before S3 made the zone a whole world (GROUND.md §5.11; the load test on the ball is S3b's):
-with 100 survival bots the server ticks in 5.2 ms on average, 9.4 at the 99th percentile, none over the 33.3 ms budget;
-the zone's step is 1.0 ms of it (movement 1.0, the game's rules 0.1), replication 3.1 (snapshots 1.8, nature 0.6, things
-0.3), receiving 0.7, sending 0.6. A client draws at 86 to 108 fps on an RTX 2070 at 1600×900.
+Measured on the owner's PC on the whole world (GROUND.md §5.12, S3b): with 100 survival bots at the landing site the
+server ticks in 6.6 ms on average, 11.4 at the 99th percentile, none over the 33.3 ms budget; the zone's step is 1.7 ms
+of it (movement 1.5, the game's rules 0.1), replication 3.6 (snapshots 1.6, things 0.4, nature 0.06), receiving 0.6,
+sending 0.5. The same bots arriving on beaches all round the world tick in 4.5 ms (each has one other in range or none),
+with about 3,000 ground tiles held all over the ball. Before S3, on the flat patch: 5.2 ms (GROUND.md §5.11). A client
+draws at 86 to 108 fps on an RTX 2070 at 1600×900 (measured before S3).
 
 What runs off the tick thread today: the ground tiles and nav grids built ahead (worker tasks), every database write
 (the persistence thread), the console; the hosted server as a whole (its own process). What is serial: the zone's step

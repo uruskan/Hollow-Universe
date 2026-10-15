@@ -53,7 +53,7 @@ public sealed class NaturalBodies : ITileListener
     }
 
     /// <summary>On a worker thread: the tile's objects are generated (and cached) before the tick adds the tile.</summary>
-    public void TilePreparing(TileKey tile) => TileObjects(tile, new List<NaturalObject>());
+    public void TilePreparing(TileKey tile) => TileObjects(tile, new List<NaturalObject>(), timed: false);
 
     public void TileRemoved(TileKey tile)
     {
@@ -106,10 +106,11 @@ public sealed class NaturalBodies : ITileListener
         }
     }
 
-    // The objects whose base lies in a ground tile: those near its centre, kept when the tile holds them.
-    private List<NaturalObject> TileObjects(TileKey tile, List<NaturalObject> into)
+    // The objects whose base lies in a ground tile: those near its centre, kept when the tile holds them. Timed on the
+    // tick's thread only: the profile is that thread's, and a worker preparing a tile would race it and count as the tick.
+    private List<NaturalObject> TileObjects(TileKey tile, List<NaturalObject> into, bool timed = true)
     {
-        using TickProfile.Scope _ = _world.Profile.Time(ProfileSection.NatureQuery);
+        using TickProfile.Scope _ = (timed ? _world.Profile : null).Time(ProfileSection.NatureQuery);
         into.Clear();
         double edge = TileKey.EdgeLength(tile.Level, _world.Surface.Radius);
         Vector3 centre = _world.Frame.ToLocal(tile.Centre * _world.Surface.Radius);

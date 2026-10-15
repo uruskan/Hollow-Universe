@@ -120,6 +120,8 @@ public static class MultiplayerTests
         using var zone = new Zone(spec);
         Entity entity = zone.AddCharacter(new EntityId(7), "server", zone.NewCharacter(zone.SpawnPoint(1)));
         using var predictor = new Predictor(spec, spec.CreateSurface(), null);
+        // The client's ground first, as its loading screen waits for it (GROUND.md §4.3: the prediction holds without it).
+        predictor.World.EnsureGround(zone.Entities.Get<Character>(entity).State.Position);
         predictor.Reset(0, zone.Entities.Get<Character>(entity).State, 0);
         var commands = new InputCommand[601];
         for (uint tick = 1; tick <= 600; tick++)

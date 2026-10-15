@@ -339,8 +339,9 @@ The detailed design, from four surveys of the code, is [WHOLE_WORLD.md](WHOLE_WO
 - schema 7 wipes the world's rows once, and characters start a new life (§5.4).
 
 In the tests a character and a Tin Finch go straight ahead round the world, over both poles, and come back within a
-metre. S3b (the load test with 100 bots on the ball), S3c (the Godot client draws the ball; playing on the ball waits for
-it) and S3d (the map) remain. WHOLE_WORLD.md §14 says where the build differs from the design.
+metre. S3b ran the load test with 100 bots on the ball, at the landing site and on beaches all round it (GROUND.md
+§5.12). S3c (the Godot client draws the ball; playing on the ball waits for it) and S3d (the map) remain.
+WHOLE_WORLD.md §14 says where the build differs from the design.
 
 ### 5.2 Every length from `GameScale`
 
@@ -393,7 +394,7 @@ Each package ends green with one check, on its own branch, as usual.
 |---|---|---|---|
 | S1 | `GameScale` and the landmark layer, engine-free, with GALAXY.md and GAME_DESIGN.md | Approval | A generator report listing every landmark and system |
 | S2 | The galaxy map on the list (Godot) | S1 | One screenshot |
-| S3 | The zone as a whole ball (§5.1), on a 2.4 km stand-in sphere: movement, building, guns, raiding, ships, animals, saves. Designed in [WHOLE_WORLD.md](WHOLE_WORLD.md) (approved by the owner on 14 October 2026; being built on the branch `whole-world`: S3a is built, S3b to S3d remain, §5.1) | Approval | The bots' load test on the ball, and a walk round it |
+| S3 | The zone as a whole ball (§5.1), on a 2.4 km stand-in sphere: movement, building, guns, raiding, ships, animals, saves. Designed in [WHOLE_WORLD.md](WHOLE_WORLD.md) (approved by the owner on 14 October 2026; being built on the branch `whole-world`: S3a and S3b are built, S3c and S3d remain, §5.1) | Approval | The bots' load test on the ball, and a walk round it |
 | S4 | The ground at walking scale (§3.3): its design document with look-dev renders first, then the generator | S3 | The look-dev views, judged by the owner |
 | S5 | Air, clouds, sky and moons at the new scale (§3.4, §3.6) | S4 | The look-dev views at morning, golden hour, night and from 2 km up |
 | S6 | Clean-up: the 1:1 path out of the game, the docs, the golden values | S2, S5 | Build and tests |

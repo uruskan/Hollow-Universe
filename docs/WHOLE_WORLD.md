@@ -4,7 +4,8 @@ Status: **approved by the owner on 14 October 2026; being built.** This is packa
 owner said go on 14 October 2026, after asking why the map still shows a 3.9 km square without proper zoom (finding 1 of
 [KNOWN_PROBLEMS.md](KNOWN_PROBLEMS.md)), and approved the twelve defaults of §2 the same evening, so they are
 decisions. The code is built on the branch `whole-world` (worktree `D:\GameDev\Projects\Hollow-wt\whole-world`).
-S3a is built (14 October 2026; how it differs from this design is at the end of §14); S3b to S3d remain.
+S3a and S3b are built (14 and 15 October 2026; how they differ from this design is at the end of §14); S3c and S3d
+remain.
 
 Four read-only surveys of the code (14 October 2026: the simulation, the network and saves, the world and the animals,
 the Godot client) found every place that assumes the zone is a flat patch. This design is built on them.
@@ -500,6 +501,45 @@ exact. Where the build differs from the design above:
 - **Found while converting:** the nature changes' replication, rewritten for 3D cubes, sent a fresh hit twice, once
   for its cube coming into range and once as this tick's change (fixed); the X's height test passed by luck (its
   bound now follows where the swing meets the trunk).
+
+**S3b as built (15 October 2026).** The check: every load test of AGENTS.md ran on the ball with 100 bots (20 for
+flying), each twice: with every bot at the landing site, and with arrivals on beaches all round the world, each bot
+playing round its own. All 16 runs keep every bot to the end and meet the targets; GROUND.md §5.12 has the tables and
+the comparison with the flat patch. In short, at the landing site and on beaches (the server's tick, average / 99th
+percentile, ms):
+
+| Load test | Landing site | Before S3 | Beaches |
+|---|---|---|---|
+| 100 walking | 5.60 / 9.3 | 4.25 / 10.2 | 4.40 / 7.6 |
+| 100 surviving | 6.57 / 11.4 | 5.90 / 12.3 | 4.50 / 9.5 |
+| 100 fighting | 7.48 / 12.4 | 8.64 / 18.5 | 4.68 / 11.1 |
+| 100 building | 7.44 / 22.8 | 7.38 / 21.3 | 4.39 / 27.0 |
+| 100 raiding | 8.13 / 14.7 | 9.66 / 30.7 | 5.73 / 9.8 |
+| 100 living off the loot | 5.60 / 9.1 | 5.75 / 18.6 | 4.52 / 7.9 |
+| 20 flying | 1.51 / 3.2 | 1.31 / 4.1 | 1.90 / 3.9 |
+| 100 surviving and 200 animals | 8.31 / 13.9 | 9.13 / 27.3 | 5.19 / 17.9 |
+
+Bandwidth down at the landing site is 12–47 % higher than on the flat patch (a position on a ball changes in all three
+coordinates, §8), within 256 kbit/s; prediction is exact wherever nothing pushes a player. The engine-free tests pass
+(227). What S3b changed, besides measuring:
+- **Arrivals:** a client's prediction holds an arrival (the start, a respawn on a far beach, a teleport) until worker
+  threads have built its ground, as the server holds a login or a respawn, whose wait went from 1 to 5 s. Without it
+  100 bots arriving all round the world lost their connections: their one process built about a thousand tiles itself.
+- **The tiles near a point** (§6.1) are kept by the 7.4 m cell it lies in (`NearTiles`): the search went 2.2 → 0.1–0.4
+  ms a tick for 100 characters on the server, and in every client's prediction. The nav grid asks the same way.
+- **A server that keeps everyone in one place** (`SpawnAtOrigin`) respawns them round the landing site too, or a fight
+  scattered its crowd over the world.
+- **Animals** (§7.3): a nav lookup finds its face coordinates once instead of twice, and a path search remembers each
+  cell's walkability: 6.4 → 2.0–2.7 µs an animal a tick (2.1 on the flat patch).
+- **A foundation's collision check** leaves the ground out (it sits in it): bases started at once on beaches spent
+  3–90 ms on a box against a tile's mesh.
+- **The bots** (§13): a bot's home is where it arrived, renewed after a respawn elsewhere; the build plots are a grid
+  round the landing site on dry ground for the crowd there, else the bot's own beach; on beaches the raid arena puts each
+  hut beside its raider's beach (`TestBases.Beside`), one hut a bot; the animal test on beaches uses natural spawning,
+  held to its population (`ServerOptions.AnimalCap`). Older bot faults the ball showed are in GROUND.md §5.12.
+- **Left:** bursts of slow placements when 80 bases start at once on beaches (30 of 3,602 ticks over 33 ms); the
+  snapshot's bytes a moving character (about 87 of 99 walkers fit the budget); the animals' cost above the flat
+  patch's. KNOWN_PROBLEMS.md lists them.
 
 ---
 

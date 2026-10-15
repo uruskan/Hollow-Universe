@@ -12,6 +12,7 @@ using Hollow.Simulation;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Physics;
 using Hollow.Simulation.Raid;
 using LiteNetLib;
 
@@ -65,8 +66,10 @@ public sealed class RaidModule : ServerModule, IPlayerPresence
         _notifications = new NotificationService(this, store, settings, Options.Push);
         if (Options.RaidBases > 0)
         {
-            _arena = new RaidArena(Zone, Options.RaidBases, Options.RaidRadius, Options.RaidBasePrefix);
-            Log($"raid arena: {_arena.Count} huts {Options.RaidRadius:0} m around the landing site");
+            // Players arriving on beaches anywhere on the world find the hut they raid beside their beach.
+            bool beaches = !Options.SpawnAtOrigin && Server.Beaches is { Points.Count: > 0 };
+            _arena = new RaidArena(Zone, Options.RaidBases, Options.RaidRadius, Options.RaidBasePrefix, beaches ? Server.ArrivalOf : null);
+            Log($"raid arena: {_arena.Count} huts " + (beaches ? "beside the beaches where their raiders arrive" : $"{Options.RaidRadius:0} m around the landing site"));
         }
     }
 
@@ -311,27 +314,50 @@ public sealed class RaidModule : ServerModule, IPlayerPresence
 }
 
 /// <summary>
-/// The raid load test's bases (GROUND.md §5.5): stone huts with sheet metal doors on a ring around the zone's origin; the
-/// player called <c>{prefix}{n:000}</c> is listed on hut <c>(n − 1) mod huts</c> once they join (so raids on it alert them;
-/// with half as many huts as bots, two to a hut), and they are kept standing: whatever a raid broke is put back every
-/// 20 s, a hut whose foundation went is built again.
+/// The raid load test's bases (GROUND.md §5.5): stone huts with sheet metal doors on a ring round the landing site, or,
+/// when players arrive on beaches anywhere on the world, each beside the beach where the bot that raids it arrives (the
+/// bot called <c>{prefix}{n:000}</c> raids hut <c>n mod huts</c>), its doorway facing that beach. The player called
+/// <c>{prefix}{n:000}</c> is listed on hut <c>(n − 1) mod huts</c> once they join (so raids on it alert them; with half as
+/// many huts as bots, two to a hut), and the huts are kept standing: whatever a raid broke is put back every 20 s, a hut
+/// whose foundation went is built again.
 /// </summary>
 public sealed class RaidArena
 {
     private const double RestoreSeconds = 20;
 
+    /// <summary>
+    /// A hut beside a beach stands this far inland of it, so the raider's furthest stand (its rockets', 16.7 m out from
+    /// the hut's middle) stays on the shore.
+    /// </summary>
+    public const float BesideBeach = 20f;
+
     private readonly TestBases.Hut?[] _huts;
-    private readonly float _radius;
+    private readonly (Vector3 At, double Heading)[] _sites;
     private readonly string _prefix;
     private readonly Zone _zone;
     private double _nextRestore;
 
-    public RaidArena(Zone zone, int count, float radius, string prefix)
+    /// <param name="arrival">
+    /// Where a player of a name first arrives, when players arrive on beaches anywhere on the world (the huts then stand
+    /// beside their raiders' beaches); null puts them on a ring of <paramref name="radius"/> metres round the landing site.
+    /// </param>
+    public RaidArena(Zone zone, int count, float radius, string prefix, Func<string, Vector3>? arrival = null)
     {
         _zone = zone;
-        _radius = radius;
         _prefix = prefix;
         _huts = new TestBases.Hut?[count];
+        _sites = new (Vector3, double)[count];
+        var taken = new List<Vector3>();
+        for (int i = 0; i < count; i++)
+        {
+            // A ring round the landing site (docs/WHOLE_WORLD.md §6.7), or beside the beach of the bot that raids the hut.
+            _sites[i] = arrival == null
+                ? TestBases.Ring(zone.Ground, zone.Landing, i, count, radius)
+                : TestBases.Beside(zone.Ground, arrival($"{prefix}{(i == 0 ? count : i):000}"), BesideBeach, taken, 9f);
+            taken.Add(_sites[i].At);
+            // Their ground, on worker threads all at once, before the huts are built on it.
+            zone.Physics.PrefetchWithin(_sites[i].At, PhysicsWorld.EnsureReach);
+        }
         for (int i = 0; i < count; i++)
         {
             _huts[i] = Build(i);
@@ -348,8 +374,7 @@ public sealed class RaidArena
 
     private TestBases.Hut? Build(int i)
     {
-        // A ring round the landing site (docs/WHOLE_WORLD.md §6.7).
-        (Vector3 at, double heading) = TestBases.Ring(_zone.Ground, _zone.Landing, i, _huts.Length, _radius);
+        (Vector3 at, double heading) = _sites[i];
         TestBases.Hut? hut = TestBases.Build(_zone, at, heading, grade: 2, owner: 0);
         if (hut?.Claim is { } claim)
         {

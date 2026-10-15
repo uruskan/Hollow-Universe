@@ -225,7 +225,7 @@ public sealed class SurvivalModule : ServerModule
     // ---------------------------------------------------------------- respawns waiting for their ground
 
     /// <summary>A respawn waits at most this long for its ground, then builds what is missing itself.</summary>
-    private const int RespawnWaitTicks = TickRate;
+    private const int RespawnWaitTicks = PlayerSession.ArrivalWaitTicks;
 
     private sealed record PendingRespawn(PlayerSession Session, Entity Player, uint Seq, EntityId Bag, Vector3 At, long Since);
 

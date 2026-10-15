@@ -13,10 +13,11 @@ owner's request, the `ground` branch was merged into `main` so the game lives in
 - the scale proposal (`docs/SCALE.md`): small worlds and a galaxy of landmarks, waiting for the owner's approval;
 - its package S3, one zone for a whole world and a map of the whole world (`docs/WHOLE_WORLD.md`): the owner said go
   on 14 October 2026 and approved the design the same evening; its code is being built on the branch `whole-world`
-  (worktree `D:\GameDev\Projects\Hollow-wt\whole-world`). S3a is built there: the zone is the whole first world, 2.41 km
-  across in its own frame (origin at the centre), standing on the stand-in world until S4; views on the wire, tiles on
-  the cube sphere, places, ships and the console on the ball. S3b to S3d (the load test, the client drawing the ball,
-  the map) remain, so the Godot game doesn't play on the branch yet. Code that S3 rewrites (frames, facings, spatial
+  (worktree `D:\GameDev\Projects\Hollow-wt\whole-world`). S3a and S3b are built there: the zone is the whole first
+  world, 2.41 km in radius in its own frame (origin at the centre), standing on the stand-in world until S4; views on
+  the wire, tiles on the cube sphere, places, ships and the console on the ball; every load test runs on it with 100
+  bots, at the landing site and on beaches all round it (`docs/GROUND.md` §5.12). S3c and S3d (the client drawing the
+  ball, the map) remain, so the Godot game doesn't play on the branch yet. Code that S3 rewrites (frames, facings, spatial
   indexes, the map) is best left alone on `main` meanwhile, or changed knowing it will be merged into that branch.
 
 Work happens here, on `main`. A package that needs isolation gets a short-lived branch and worktree under
@@ -94,7 +95,10 @@ dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server:
 dotnet run --project tests/Hollow.Tests -- Console    # the F1 console: parsing, completion, rights, commands over the network, god and noclip
 dotnet run -c Release --project tools/Hollow.Bots -- --server 127.0.0.1:27015 --count 100   # bots (--script, --lag/--jitter/--loss)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60   # server + 100 bots at the landing site: tick
-                                                 # time, bandwidth, prediction (--spawn beach, --stand-in)
+                                                 # time, bandwidth, prediction; every load test also takes --spawn beach
+                                                 # (arrivals and respawns on beaches all round the world, each bot playing
+                                                 # round its own; the raid's huts beside them, the animals spawned round
+                                                 # them; GROUND.md §5.12)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit   # G2: bots that gather, craft and fight (GROUND.md §5.2)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script fight --kit gunfight-kit   # G4: bots in firefights, a kit every life (GROUND.md §5.3)
 dotnet run --project tests/Hollow.Tests -- Gun        # G4: ballistics, recoil, damage, armour, refusals, client and server agreeing, a gunfight

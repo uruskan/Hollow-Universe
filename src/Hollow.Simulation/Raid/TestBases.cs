@@ -158,12 +158,51 @@ public static class TestBases
     {
         double angle = DMath.TwoPi * index / Math.Max(1, count);
         Vector3 at = ground.Offset(centre, (float)(radius * DMath.Cos(angle)), (float)(radius * DMath.Sin(angle)));
-        // A hut's +Z (its doorway's outside) is the frame's AxisZ (BuildingFrame.At): pointed at the centre.
+        return (at, Facing(ground, at, centre));
+    }
+
+    /// <summary>
+    /// A place for a hut beside a point (the beach where a raider arrives, in the raid load test on a whole world):
+    /// <paramref name="distance"/> metres from it along the ground toward the highest of eight directions (inland, on a
+    /// coast), the next highest where a hut of <paramref name="taken"/> stands within <paramref name="apart"/> metres; and
+    /// the heading that turns its doorway toward the point.
+    /// </summary>
+    public static (Vector3 At, double Heading) Beside(GroundProbe ground, Vector3 point, float distance, IReadOnlyCollection<Vector3> taken,
+        float apart)
+    {
+        var sites = new List<(double Height, int K, Vector3 At)>();
+        for (int k = 0; k < 8; k++)
+        {
+            double angle = DMath.TwoPi * k / 8;
+            Vector3 at = ground.Offset(point, (float)(distance * DMath.Cos(angle)), (float)(distance * DMath.Sin(angle)));
+            sites.Add((ground.Frame.ToBody(at).Length, k, at));
+        }
+        sites.Sort((a, b) => a.Height != b.Height ? b.Height.CompareTo(a.Height) : a.K.CompareTo(b.K));
+        Vector3 site = sites[0].At;
+        foreach ((double _, int _, Vector3 at) in sites)
+        {
+            bool free = true;
+            foreach (Vector3 other in taken)
+            {
+                free &= Vector3.DistanceSquared(other, at) >= apart * apart;
+            }
+            if (free)
+            {
+                site = at;
+                break;
+            }
+        }
+        return (site, Facing(ground, site, point));
+    }
+
+    // The heading that turns a hut at a point to face another along the ground: a hut's +Z (its doorway's outside) is
+    // the frame's AxisZ (BuildingFrame.At).
+    private static double Facing(GroundProbe ground, Vector3 at, Vector3 toward)
+    {
         Vector3 up = ground.Frame.UpAt(at);
-        Vector3 toward = centre - at;
-        toward -= up * Vector3.Dot(toward, up);
-        double heading = BuildingFrame.HeadingOf(new Vector3D(toward.X, toward.Y, toward.Z), new Vector3D(up.X, up.Y, up.Z));
-        return (at, heading);
+        Vector3 along = toward - at;
+        along -= up * Vector3.Dot(along, up);
+        return BuildingFrame.HeadingOf(new Vector3D(along.X, along.Y, along.Z), new Vector3D(up.X, up.Y, up.Z));
     }
 
     /// <summary>

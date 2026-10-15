@@ -332,7 +332,9 @@ public sealed partial class BuildingWorld
             return;
         }
         device.Health = Math.Clamp(health, 0, Data.ClaimHealth);
-        device.AuthorisedList.Clear();
+        // Only this player's entry: a client's mirror lists no one else, and a mirror many clients share (bots) keeps
+        // each one's as the server tells each of them (another's "not listed" mustn't take the owner off).
+        device.AuthorisedList.Remove(player);
         if (authorised)
         {
             device.AuthorisedList.Add(player);

@@ -1,9 +1,9 @@
-# The code, file by file (14 October 2026)
+# The code, file by file (15 October 2026)
 
 Generated from the repository: every C# file, the types it declares (nested ones in brackets), its length and its
 own first line of explanation. HOW_IT_WORKS.md says how these run together; this is the map. Regenerate it after
 a package with the script in the session that made it, or by hand: the shape is one table per folder.
-579 files, 157,298 lines of C#.
+580 files, 157,684 lines of C#.
 
 
 ## src/Hollow.Core
@@ -68,14 +68,15 @@ The 1:1 galaxy: the density model, sectors and cells, the catalogue, names, star
 
 Planets as surfaces: the cube-sphere, terrain, biomes, scatter, the sky, the zone frame.
 
-### src/Hollow.Surface (15 files, 2,890 lines)
+### src/Hollow.Surface (16 files, 2,967 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Biomes.cs` | 272 | Biome, GroundMaterial, ScatterKind, ClimateSample, BiomeTable | Land biomes (GROUND.md §4.6), picked from the climate: annual mean temperature, moisture and height. |
-| `CubeSphere.cs` | 257 | CubeSphere, TileKey | The cube-sphere of a planet surface (GROUND.md §4.6): six faces, each a square of face coordinates |
+| `CubeSphere.cs` | 263 | CubeSphere, TileKey | The cube-sphere of a planet surface (GROUND.md §4.6): six faces, each a square of face coordinates |
 | `FirstWorld.cs` | 32 | FirstWorld | The ground game's first world (GROUND.md §3): Nolcas Peris CQ-SLY 7-0 B 3, a breathable Earth-like planet |
 | `ISurface.cs` | 117 | ISurface, TriangleMesh, PooledTriangles | A body's ground as a pure function (GROUND.md §4.6): the server builds collision from it and the client draws it, |
+| `NearTiles.cs` | 71 | NearTiles | TileKey.Around for searches repeated from about the same place every tick (a character's ground, an |
 | `Noise.cs` | 146 | Noise | Deterministic 3D gradient noise with its analytic gradient (Perlin's lattice gradients, quintic fade), and the |
 | `PlanetSurface.cs` | 562 | SurfaceSample, VegetationSample, PlanetSurface, MonotoneCurve | What the height function knows about a point, besides its height. |
 | `PlanetSurfaces.cs` | 51 | PlanetSurfaces [Entry] | The real surfaces of bodies, built once per process and shared (GROUND.md §4.6): the server's zone, the client's |
@@ -104,29 +105,29 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `ZoneEvents.cs` | 117 | GainReason, IZoneEvent, ZoneEventHandler, ZoneEvents [Channel, Channel] | Why items arrived, for the UI's notifications. |
 | `ZoneSpec.cs` | 156 | ZoneSpec | Which surface zone this is (GROUND.md §4.2): the body, what the server and every client need to build the same |
 
-### src/Hollow.Simulation/Animals (7 files, 3,055 lines)
+### src/Hollow.Simulation/Animals (7 files, 3,083 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Animal.cs` | 318 | AnimalState, TargetKind, AnimalTarget, Herd, Animal | What an animal is doing (GROUND.md §6.9); others see it (4 bits) and animate by it. |
 | `AnimalHitboxes.cs` | 75 | AnimalHitboxes | An animal's hit shapes (GROUND.md §6.9), from its species' size and a pose: a capsule for the body along its length, |
 | `AnimalWorld.Brain.cs` | 706 | AnimalWorld [Senses] | The animals' AI (GROUND.md §6.9): what each one notices of players, noises and other animals, and what it does about |
-| `AnimalWorld.Spawning.cs` | 489 | SpawnArea, SpawnSlot, AnimalWorld | A cube-sphere tile of the world where animals live (GROUND.md §6.9, docs/WHOLE_WORLD.md §7.3: the level nearest the |
+| `AnimalWorld.Spawning.cs` | 498 | SpawnArea, SpawnSlot, AnimalWorld | A cube-sphere tile of the world where animals live (GROUND.md §6.9, docs/WHOLE_WORLD.md §7.3: the level nearest the |
 | `AnimalWorld.Steering.cs` | 265 | AnimalWorld | Steering (GROUND.md §6.9): a decision becomes a heading and a speed. Context steering: sixteen headings around the one |
 | `AnimalWorld.cs` | 710 | AnimalObserver, AnimalNoise, IAnimalHost, AnimalWorld | A player as the animals see and hear them this tick (the zone fills the list). |
-| `NavGrid.cs` | 492 | NavFlags, NavArea, NavGrid | What a cell of the navigation grid holds. |
+| `NavGrid.cs` | 511 | NavFlags, NavArea, NavGrid | What a cell of the navigation grid holds. |
 
-### src/Hollow.Simulation/Building (14 files, 5,891 lines)
+### src/Hollow.Simulation/Building (14 files, 5,905 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `BuildResults.cs` | 126 | Privilege, IBuildingWallet, Wallet, Capsule, BuildingChange, BuildingEvent, IBuildingPart, Removal | Building rights at a place for a player (GROUND.md §8's privilege status). |
 | `BuildingData.cs` | 916 | PieceFamily, PieceShape, Opening, StairsKind, SocketKind, DamageType, SocketDef, PieceDef, Protection, GradeDef, LeafDef, DoorDef, BuildingData [Reader] | What a piece is, structurally (RustMVP's families): it decides its sockets' geometry and its support losses. |
-| `BuildingPhysics.cs` | 268 | RayHit, OverlapHit, BuildingPhysics [OnlyGround, OnlyBuilding] | What a ray hit: the body, how far along, where and the surface's normal there. |
+| `BuildingPhysics.cs` | 282 | RayHit, OverlapHit, BuildingPhysics [OnlyGround, OnlyBuilding, NotGround] | What a ray hit: the body, how far along, where and the surface's normal there. |
 | `BuildingWorld.Destroyed.cs` | 59 | RemovedPart, BuildingWorld | A piece or door gone from the building as the Destroyed event names it (GROUND.md §6.4.2, §9.4): what it was (its |
 | `BuildingWorld.Hammer.cs` | 269 | DamageHit, DamageResult, BuildingWorld | A hit on a piece or a door: the attack's direction in the zone (from the attacker toward the target) and its damage by type. |
-| `BuildingWorld.Placement.cs` | 665 | PlacementPlan, BuildingWorld | What a piece's placement would be: the piece, its structure (none yet for a free foundation), its pose in the |
-| `BuildingWorld.Replica.cs` | 362 | BuildingWorld, LockKind, BuildPartKind | The building as a copy of someone else's (GROUND.md §6.3, phase 2): a world loaded from storage, and a client's |
+| `BuildingWorld.Placement.cs` | 663 | PlacementPlan, BuildingWorld | What a piece's placement would be: the piece, its structure (none yet for a free foundation), its pose in the |
+| `BuildingWorld.Replica.cs` | 364 | BuildingWorld, LockKind, BuildPartKind | The building as a copy of someone else's (GROUND.md §6.3, phase 2): a world loaded from storage, and a client's |
 | `BuildingWorld.cs` | 659 | BuildingWorld | Building in one zone (GROUND.md §6.3): its structures and pieces, doors and claim devices, and every rule about them, |
 | `ClaimDevice.cs` | 501 | ClaimDevice, BuildingWorld | The claim device, our tool cupboard (GROUND.md §6.3): it stands on a piece of a structure, lists the players |
 | `Doors.cs` | 653 | LockDef, DoorLock, KeyLock, CodeLock, Door, DoorLeaf, BuildingWorld | A lock as something to place (building.json's locks, GROUND_SYSTEMS.md §6): its key (its item's), name, kind, and the |
@@ -267,25 +268,25 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `MovementCheck.cs` | 111 | MovementCheck [Result] | The physics spike of GROUND.md §4.5, kept as a check: a fixed script of inputs walks a character over ground from |
 | `MovementTuning.cs` | 127 | MovementTuning | The numbers of on-foot movement (GROUND.md §4.5, §6). Rust's movement, through RustMVP's legacy spec |
 
-### src/Hollow.Simulation/Nature (7 files, 1,730 lines)
+### src/Hollow.Simulation/Nature (7 files, 1,731 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `LootSpots.cs` | 403 | LootSite, LootSpot, LootSpots [Patch] | What kind of place a loot cluster stands in (GROUND.md §6.8). |
-| `NaturalBodies.cs` | 121 | NaturalBodies | Keeps the trees and outcrops of every ground tile in a PhysicsWorld as static props, so characters |
+| `NaturalBodies.cs` | 122 | NaturalBodies | Keeps the trees and outcrops of every ground tile in a PhysicsWorld as static props, so characters |
 | `NaturalObjects.cs` | 116 | NaturalObject, INaturalObjects, NaturalShapes | One natural object (GROUND.md §4.6): a tree, an outcrop, a pickup or a bush, generated from the surface, never |
 | `NaturalState.cs` | 310 | NaturalOverride, GatherSwing, GatherResult, NaturalState | A player change to a natural object (ARCHITECTURE.md P1: only changes are stored). |
 | `ScatterNaturalObjects.cs` | 226 | ScatterNaturalObjects [TileObjects] | The natural objects of a real surface (GROUND.md §6.1): the planet's own scatter (Scatter), the same |
 | `SpotSurfaces.cs` | 410 | ISpotSurface, SpotFrames, TrunkSurface, MeasuredSurface | Where a natural object's weak spot can sit (GROUND.md §6.1): on the surface players see, at the object's current |
 | `StandInNaturalObjects.cs` | 144 | StandInNaturalObjects | Natural objects of the stand-in world (docs/WHOLE_WORLD.md §7.1), placed by a seeded stream per cube-sphere tile of |
 
-### src/Hollow.Simulation/Physics (4 files, 1,024 lines)
+### src/Hollow.Simulation/Physics (4 files, 1,022 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `CharacterBody.cs` | 159 | CharacterBody | A character's collision in a PhysicsWorld: Jolt's virtual character, a kinematic capsule outside the |
 | `JoltRuntime.cs` | 51 | JoltRuntime | The process-wide Jolt runtime (GROUND.md §4.5). Jolt is initialised once per process, by whichever world needs it |
-| `PhysicsWorld.cs` | 696 | PhysicsWorld [Prop, Tile, TileBuild] | One zone's Jolt physics system (GROUND.md §4.5): the ground near characters, as static mesh tiles built from the |
+| `PhysicsWorld.cs` | 694 | PhysicsWorld [Prop, Tile, TileBuild] | One zone's Jolt physics system (GROUND.md §4.5): the ground near characters, as static mesh tiles built from the |
 | `Props.cs` | 118 | PropLayer, ITileListener, PropKind, PropShape | Who a prop belongs to: its key is only unique within its layer. |
 
 ### src/Hollow.Simulation/Placement (9 files, 2,059 lines)
@@ -310,12 +311,12 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `MapMarker.cs` | 14 | MapMarker | A marker a player put on the map (GROUND.md §6.8, Rust's: up to five, theirs alone): a point in the zone frame, a |
 | `Player.cs` | 219 | Vitals, ActionButtons, ActionInput, ActionKind, Player | The survival state of a character (GROUND.md §6): health and the needs, all in their own units. |
 
-### src/Hollow.Simulation/Raid (2 files, 472 lines)
+### src/Hollow.Simulation/Raid (2 files, 511 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Explosive.cs` | 263 | ExplosiveState, LiveExplosive, RaidHit, ExplosiveSave, BlastReport, RaidCounters | Where a thrown or placed explosive is (GROUND.md §6.6). |
-| `TestBases.cs` | 209 | TestBases [Hut] | Small claimed bases built straight through the building rules (no player, no wallet, no placement checks), for the raid |
+| `TestBases.cs` | 248 | TestBases [Hut] | Small claimed bases built straight through the building rules (no player, no wallet, no placement checks), for the raid |
 
 ### src/Hollow.Simulation/Ships (5 files, 1,498 lines)
 
@@ -452,27 +453,27 @@ SQLite storage: the database, one worker thread, one codec per kind of record.
 
 The dedicated server: the host and its modules, sessions, admin commands, notifications.
 
-### src/Hollow.Server (11 files, 2,817 lines)
+### src/Hollow.Server (11 files, 2,833 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `AdminCommands.cs` | 536 | CommandContext, GameServer | Who runs a console command and where its answer goes (GROUND.md §8.2): a player through the F1 console (their own |
 | `CharacterRecords.cs` | 88 | CharacterRecords | How a character is stored and comes back (GROUND.md §4.7): its record from the zone, its survival state from the |
 | `DevInspector.cs` | 192 | DevInspector | Describes a target for the F2 panel's LOOK tab (GROUND.md §8.5): what its family resolves it to and every public |
-| `GameServer.cs` | 1094 | GameServer [NetEntity] | The dedicated server (GROUND.md §4.2): one zone on the first world, ticking at 30 Hz on one thread, with |
+| `GameServer.cs` | 1098 | GameServer [NetEntity] | The dedicated server (GROUND.md §4.2): one zone on the first world, ticking at 30 Hz on one thread, with |
 | `NetPresence.cs` | 17 | NetPresence | The server's part of a networked entity: its net ID, view (octahedral, with the head's free look) and owner. |
-| `PlayerSession.cs` | 247 | PlayerSession | One connected player: their connection, character, inputs, budgets and what the host has sent them. What a module |
+| `PlayerSession.cs` | 253 | PlayerSession | One connected player: their connection, character, inputs, budgets and what the host has sent them. What a module |
 | `Program.cs` | 143 | Program | The dedicated server's console program: |
 | `ServerModule.cs` | 275 | ServerModule | One concern of the server (GROUND_SYSTEMS.md §12.5, K10): its own state, its message handlers and event |
 | `ServerModules.cs` | 29 | ServerModules | The server's modules and their order (GROUND_SYSTEMS.md §12.5, K10), the one place that lists them. The host calls |
-| `ServerOptions.cs` | 111 | ServerOptions | How a server runs. The console program fills it from its command line; the game fills it for Host mode. |
+| `ServerOptions.cs` | 117 | ServerOptions | How a server runs. The console program fills it from its command line; the game fills it for Host mode. |
 | `TickStats.cs` | 85 | TickStats | How long ticks take (GROUND.md §5: ≤ 10 ms typical with 100 bots). Keeps the last few seconds for the console's |
 
-### src/Hollow.Server/Modules (13 files, 4,679 lines)
+### src/Hollow.Server/Modules (13 files, 4,708 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `AnimalModule.cs` | 201 | AnimalModule, AnimalModuleAccess | Animals on the server (GROUND.md §6.9): the zone's population turned on, animals replicated as entities of their own |
+| `AnimalModule.cs` | 205 | AnimalModule, AnimalModuleAccess | Animals on the server (GROUND.md §6.9): the zone's population turned on, animals replicated as entities of their own |
 | `ArrowModule.cs` | 128 | ArrowModule, ArrowModuleAccess [ArrowView] | Spent arrows on the server (GROUND_SYSTEMS.md §5): each player is told of the arrows within their range — what holds |
 | `BuildingModule.cs` | 638 | BuildingModule, BuildingModuleAccess [BuildView] | Building on the server (GROUND.md §4.4, §6.3, phase 2): players' building intents (on the same budget as every |
 | `ConsoleModule.cs` | 810 | ConsoleModule, ConsoleModuleAccess [ConsoleBudget] | The F1 console on the server (GROUND.md §8.2): who is an admin, the console's messages (a line in, the answer's lines |
@@ -480,7 +481,7 @@ The dedicated server: the host and its modules, sessions, admin commands, notifi
 | `DevModule.cs` | 452 | DevModule, DevModuleAccess [Watch] | The F2 developer panel's server side (GROUND.md §8.5): who watches; every half second the stats (the tick's profile |
 | `GunModule.cs` | 98 | GunModule, GunBudget, GunModuleAccess | Guns on the server (GROUND.md §6.4, G4): shots, reloads and unloads from the player's own gun budget (a refused one |
 | `PlacementModule.cs` | 51 | PlacementModule, PlacementModuleAccess | Placing anything (GROUND_SYSTEMS.md §6): one intent for every placeable, on the general budget, answered by |
-| `RaidModule.cs` | 415 | RaidModule, RaidArena, RaidModuleAccess [ExplosiveView] | Raiding on the server (GROUND.md §6.6, G5): throw and place intents (a dud is lit again by a verb); explosives replicated to everyone in range |
+| `RaidModule.cs` | 440 | RaidModule, RaidArena, RaidModuleAccess [ExplosiveView] | Raiding on the server (GROUND.md §6.6, G5): throw and place intents (a dud is lit again by a verb); explosives replicated to everyone in range |
 | `ShipModule.cs` | 331 | ShipModule, ShipModuleAccess [ShipView] | Ships on the server (GROUND.md §6.7): the pilots' controls into their ships, ship intents, ships in every nearby |
 | `SurvivalModule.cs` | 661 | SurvivalModule, GameCounters, SurvivalModuleAccess [OwnState, Looks, PendingRespawn] | The survival game on the server (GROUND.md §4.2, §6): players' intents (inventory, crafting, interaction, closing, |
 | `ThingModule.cs` | 404 | ThingModule, ThingSent, ThingModuleAccess [ThingView] | Static things and natural objects on the server (GROUND.md §4.2, §6.1): every static thing gets a net ID and is |
@@ -496,7 +497,7 @@ The dedicated server: the host and its modules, sessions, admin commands, notifi
 
 The client without graphics: the host and its modules, prediction, the local player, the map, sounds' rules.
 
-### src/Hollow.Client (19 files, 4,399 lines)
+### src/Hollow.Client (19 files, 4,423 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -513,7 +514,7 @@ The client without graphics: the host and its modules, prediction, the local pla
 | `LocalPlayer.Ships.cs` | 26 | LocalPlayer | The pilot's keys in the seat (GROUND.md §6.7): the hatch, stepping out, the lock, descending from orbit. Each returns its |
 | `LocalPlayer.World.cs` | 301 | TeamMemberView, TeamView, TeamInviteView, TeammateView, MarkerView, RespawnPointView, MachineView, LocalPlayer | A member of the player's team as the interface shows them. |
 | `LocalPlayer.cs` | 809 | VitalsView, CraftJobView, RespawnOption, LifeView, HitMarkerEvent, ItemsChangedEvent, DamageEvent, IntentAnswer, LocalPlayer [Prediction, Pending] | The player's vitals as the UI shows them. |
-| `Predictor.cs` | 216 | Predictor | The player's own character, predicted (GROUND.md §4.3): every tick runs the server's movement code on the client's |
+| `Predictor.cs` | 240 | Predictor | The player's own character, predicted (GROUND.md §4.3): every tick runs the server's movement code on the client's |
 | `RemoteEntity.cs` | 191 | RemoteEntity | Another entity as this client sees it (GROUND.md §4.3): the states snapshots brought, each at its server tick, and |
 | `RemoteExplosives.cs` | 90 | ClientExplosive, DetonationEvent, RaidAlertView | An explosive in the world as this client knows it (GROUND.md §6.6): a timed charge, bag charge or tin grenade the |
 | `RemoteShip.cs` | 170 | RemoteShip | A ship as this client sees it (GROUND.md §6.7), as RemoteEntity sees a character: the states snapshots |
@@ -866,21 +867,21 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 
 Tools: the bots and the load test, the message generator, the generator's reports, the catalogue builder, the map export.
 
-### tools/Hollow.Bots (11 files, 3,231 lines)
+### tools/Hollow.Bots (11 files, 3,383 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `BotBrain.cs` | 120 | BotScript, BotBrain |  |
-| `BotGround.cs` | 53 | BotGround | The bots' ground on a whole world (docs/WHOLE_WORLD.md §13): their home (the landing site, where the load test's |
-| `BotSwarm.cs` | 198 | BotSwarm | Many headless clients in one process, on one thread (GROUND.md §4.3): each a full GameClient with |
-| `BuildBrain.cs` | 544 | BuildBrain [Stage] | A bot that builds a small base (GROUND.md §5.3) through the client's building API, as a player would: it walks to a |
-| `FightBrain.cs` | 300 | FightBrain | A bot that fights with guns (GROUND.md §6.3, the G4 load test) through the same client API as a player: it keeps its |
-| `FlyBrain.cs` | 155 | FlyBrain | A bot that flies (G6, GROUND.md §6.7): it walks to the hatch of the ship the server gave it (ShipOnJoin), boards |
+| `BotGround.cs` | 82 | BotGround | The bots' ground on a whole world (docs/WHOLE_WORLD.md §13): the landing site, each bot's home (where it arrived), |
+| `BotSwarm.cs` | 199 | BotSwarm | Many headless clients in one process, on one thread (GROUND.md §4.3): each a full GameClient with |
+| `BuildBrain.cs` | 579 | BuildBrain [Stage] | A bot that builds a small base (GROUND.md §5.3) through the client's building API, as a player would: it walks to a |
+| `FightBrain.cs` | 314 | FightBrain | A bot that fights with guns (GROUND.md §6.3, the G4 load test) through the same client API as a player: it keeps its |
+| `FlyBrain.cs` | 158 | FlyBrain | A bot that flies (G6, GROUND.md §6.7): it walks to the hatch of the ship the server gave it (ShipOnJoin), boards |
 | `Interacting.cs` | 37 | Interacting | The interact key, as a bot presses it (GROUND_SYSTEMS.md §5): a tap does a target's primary option from where the bot's |
-| `Program.cs` | 438 | Program | Headless clients (GROUND.md §4.3). |
-| `RaidBrain.cs` | 273 | RaidBrain | A bot that raids (GROUND.md §5.5, G5) through the same client API as a player: its kit (charges, bag charges, |
-| `SurvivalBrain.cs` | 370 | SurvivalBrain [Goal] | A bot that plays the survival game (GROUND.md §6) through the same client API as a player: it walks to trees and |
-| `WorldBrain.cs` | 743 | WorldBrain [Goal] | A bot that lives off the world's loot (GROUND.md §6.8, G7) through the same client API as a player: it walks to the |
+| `Program.cs` | 448 | Program | Headless clients (GROUND.md §4.3). |
+| `RaidBrain.cs` | 311 | RaidBrain | A bot that raids (GROUND.md §5.5, G5) through the same client API as a player: its kit (charges, bag charges, |
+| `SurvivalBrain.cs` | 378 | SurvivalBrain [Goal] | A bot that plays the survival game (GROUND.md §6) through the same client API as a player: it walks to trees and |
+| `WorldBrain.cs` | 757 | WorldBrain [Goal] | A bot that lives off the world's loot (GROUND.md §6.8, G7) through the same client API as a player: it walks to the |
 
 ### tools/Hollow.CatalogBuilder (1 files, 948 lines)
 
@@ -920,7 +921,7 @@ Tools: the bots and the load test, the message generator, the generator's report
 
 The tests, one file per area (the runner needs no packages).
 
-### tests/Hollow.Tests (49 files, 14,156 lines)
+### tests/Hollow.Tests (49 files, 14,164 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -932,7 +933,7 @@ The tests, one file per area (the runner needs no packages).
 | `BuildingPersistenceTests.cs` | 151 | BuildingPersistenceTests | The building in storage (GROUND.md §4.7, §6.3, phase 2): a base survives a restart, and decay catches up on load. |
 | `BuildingTests.cs` | 735 | BuildingTests [Alone, CliffSurface, RampSurface] | GROUND.md §6.3: the building rules, engine-free. |
 | `CharacterAssetTests.cs` | 103 | CharacterAssetTests |  |
-| `ConsoleTests.cs` | 319 | ConsoleTests | The F1 console (GROUND.md §8.2): its words, completion, rights, commands over the network, and cheats. |
+| `ConsoleTests.cs` | 321 | ConsoleTests | The F1 console (GROUND.md §8.2): its words, completion, rights, commands over the network, and cheats. |
 | `ContentTests.cs` | 131 | ContentFixture, ContentTests | The ground game's data (GROUND.md §7), loaded once for every test that needs it. |
 | `CoreTests.cs` | 112 | CoreTests |  |
 | `DamageTests.cs` | 153 | DamageTests | The damage pipeline's Destroyed event (GROUND.md §6.4.2), in the zone and over the network. |
@@ -943,7 +944,7 @@ The tests, one file per area (the runner needs no packages).
 | `GatheringTests.cs` | 392 | GatheringTests |  |
 | `GibTests.cs` | 204 | GibTests | Gibs (GROUND.md §9.4): everything that can be destroyed has pieces to break into, declared beside its model in the |
 | `Golden.cs` | 66 | Golden | Golden hashes over generated objects. Hashes every stored field (public or private, including the fields behind |
-| `GunNetTests.cs` | 494 | GunNetTests |  |
+| `GunNetTests.cs` | 498 | GunNetTests |  |
 | `GunTests.cs` | 431 | Guns, GunTests | Guns in a GameRig: a loaded gun in hand, shots queued for the coming tick as the server would. |
 | `HeldTests.cs` | 404 | HeldTests, Loopback [TestActor] | Held items, item information and inventory actions (GROUND_SYSTEMS.md §7, package P3), engine-free. |
 | `InteractionTests.cs` | 556 | InteractionTests [Rogue] | The interaction system (GROUND_SYSTEMS.md §5): what the E key does, one rule a test. |
@@ -951,7 +952,7 @@ The tests, one file per area (the runner needs no packages).
 | `LoadingTests.cs` | 240 | LoadingTests [Clock] | The loading pipeline's rules (GROUND.md §4.3.1), without Godot: the game's plan reads and names every stage; the bar |
 | `ModelCatalogueTests.cs` | 247 | ModelCatalogueTests | The ground game's model catalogue (GROUND.md §9), checked without Godot: every model file is a GLB with its LOD |
 | `MovementTests.cs` | 307 | LevelSurface, Lap, MovementRig, MovementTests | A test surface: a smooth sphere whose ground sits at a fixed height, with an optional sea. |
-| `MultiplayerTests.cs` | 305 | LoopbackRig, MultiplayerTests | An in-process server on a background thread, and clients driven from the test's thread. |
+| `MultiplayerTests.cs` | 307 | LoopbackRig, MultiplayerTests | An in-process server on a background thread, and clients driven from the test's thread. |
 | `NetTests.cs` | 381 | NetTests [Arrivals] |  |
 | `PersistenceTests.cs` | 65 | TempDatabase, PersistenceTests | A database file in the temp folder, deleted afterwards. |
 | `PhysicsTests.cs` | 126 | PhysicsTests |  |

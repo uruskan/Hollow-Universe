@@ -139,6 +139,12 @@ public readonly struct TileKey : IEquatable<TileKey>
     public static TileKey At(Vector3D direction, int level)
     {
         (int face, double u, double v) = CubeSphere.FromDirection(direction);
+        return At(face, u, v, level);
+    }
+
+    /// <summary>The tile at a level that holds face coordinates (<see cref="CubeSphere.FromDirection"/>'s), for callers that need them too.</summary>
+    public static TileKey At(int face, double u, double v, int level)
+    {
         int n = 1 << level;
         int x = Math.Clamp((int)Math.Floor((u + 1) * 0.5 * n), 0, n - 1);
         int y = Math.Clamp((int)Math.Floor((v + 1) * 0.5 * n), 0, n - 1);
