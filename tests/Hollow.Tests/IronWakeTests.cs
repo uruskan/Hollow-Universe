@@ -29,9 +29,6 @@ public sealed class IronWakeRig : IDisposable
         // A clearing: nothing of the world's within its footprint and the walk round it.
         Game.Clear(Ground, Ground, 48);
         Ship = Zone.Ships().SpawnShip(Def, Ground, 0, EntityId.None, 2000);
-        // The helm's hatch open, as an admin's spawn leaves it (IW1 boards the helm through it; IW2 brings seats).
-        Ship.HatchOpen = true;
-        Ship.HatchProgress = Ship.HatchTicks;
         // Down onto its pads, then asleep: parked, a body in the zone's physics.
         for (int i = 0; settle && i < 20 * 30 && Ship.ParkedBody == 0; i++)
         {
@@ -118,12 +115,18 @@ public sealed class IronWakeRig : IDisposable
         return e;
     }
 
-    /// <summary>A pilot: aboard on the bridge's dais beside the helm, then into its seat with the board verb (IW2 brings `sit`).</summary>
+    /// <summary>A pilot: aboard on the bridge's dais beside the helm, on its list, then into its seat with its verb (take the helm).</summary>
     public Entity Pilot(string name)
     {
         Entity e = Aboard(name, new Vector3(-1.75f, 9.1f, 13.9f), Vector3.UnitZ);
         Step(3);
-        Outcome boarded = Zone.Interaction().Interact(e, new TargetRef(TargetFamily.Ship, Ship.Id.Value, ShipParts.Hatch), "board");
+        var helm = new TargetRef(TargetFamily.Ship, Ship.Id.Value, Def.HelmPart());
+        if (!Ship.IsAuthorised(Game.P(e).Id.Value))
+        {
+            // The helm is the ship's tool cupboard (IRON_WAKE.md §5.2): on its list first, as at a cupboard.
+            Assert.Equal(OutcomeCode.Done, Zone.Interaction().Interact(e, helm, "authorise").Code, $"{name} authorises at the helm");
+        }
+        Outcome boarded = Zone.Interaction().Interact(e, helm, Def.Helm.VerbKey);
         Assert.Equal(OutcomeCode.Done, boarded.Code, $"{name} takes the helm");
         return e;
     }
@@ -376,19 +379,20 @@ public static class IronWakeTests
     {
         using var rig = new IronWakeRig();
         ShipInterior interior = rig.Def.Interior!;
-        int main = interior.PartIndex("Ramp_Main"), leaf = interior.PartIndex("Ramp_Leaf"), turret = interior.PartIndex("Defense_A_P_Yaw");
+        int main = interior.PartIndex("Ramp_Main"), turret = interior.PartIndex("Defense_A_P_Yaw");
         Entity ada = rig.Aboard("Ada", new Vector3(0, 2.2f, -20), Vector3.UnitZ);
         rig.Step(10);
         Assert.True(rig.Ch(ada).State.Frame == rig.Key && rig.Ch(ada).State.Position.Y < 3, "Ada stands on the open ramp");
         uint body = rig.Ship.ParkedBody;
-        Outcome blocked = rig.Zone.Ships().MovePart(rig.Ship, main, 0);
+        Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.Ships().MovePart(rig.Ship, main, 0).Code, "the ramp's parts are its door's to move");
+        Outcome blocked = rig.Zone.Ships().SetDoor(rig.Game.P(ada), rig.Ship, 0, open: false);
         Assert.Equal(OutcomeCode.RampBlocked, blocked.Code, "the ramp won't shut on Ada");
         Assert.True(rig.Ship.Parts[main] == 1 && rig.Ship.ParkedBody == body, "and nothing moved");
 
         rig.Walk(ada, Vector3.UnitZ, 30 * 4);
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Ships().MovePart(rig.Ship, leaf, 0).Code, "the leaf folds");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Ships().MovePart(rig.Ship, main, 0).Code, "the ramp shuts once she's in the hold");
-        Assert.True(rig.Ship.ParkedBody != 0 && rig.Ship.PartsRevision == 2, "the parked body made again at the new states, the clients told");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Ships().SetDoor(rig.Game.P(ada), rig.Ship, 0, open: false).Code, "the ramp shuts once she's in the hold");
+        rig.Step(30 * 6 + 2);
+        Assert.True(rig.Ship.Parts[main] == 0 && rig.Ship.ParkedBody != 0, "shut in six seconds, the parked body made again at the new states");
         lock (JoltRuntime.Gate)
         {
             Assert.True(rig.Ship.Space!.Ray(new Vector3(0, 5, -30), Vector3.UnitZ, 20, out SpaceHit shut), "the shut ramp closes the stern");
@@ -441,14 +445,14 @@ public static class IronWakeTests
         Assert.True(open == TargetFamily.Character && hurtOpen > 0, "the shot goes in through the open ramp and hits Ada");
 
         rig.Game.P(ada).Vitals.Health = health;
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Ships().MovePart(rig.Ship, interior.PartIndex("Ramp_Leaf"), 0).Code, "the leaf folds");
-        Assert.Equal(OutcomeCode.Done, rig.Zone.Ships().MovePart(rig.Ship, interior.PartIndex("Ramp_Main"), 0).Code, "the ramp shuts");
+        Assert.Equal(OutcomeCode.Done, rig.Zone.Ships().SetDoor(rig.Game.P(ada), rig.Ship, 0, open: false).Code, "the ramp shuts");
+        rig.Step(30 * 6 + 2);
         float hull = rig.Ship.State.Health;
         rig.Step(10);
         (TargetFamily shut, float hurtShut) = Shoot(rig, cy, ada, 2);
-        Fixtures.Report($"with the ramp shut: met {shut}, Ada {hurtShut:0.0} hurt, the hull {hull - rig.Ship.State.Health:0.00} damaged");
+        Fixtures.Report($"with the ramp shut: met {shut}, Ada {hurtShut:0.0} hurt, the hull {hull - rig.Ship.State.Health:0.00} damaged, the ramp at {rig.Ship.Doors[0].Health:0.0}");
         Assert.True(shut == TargetFamily.Ship && hurtShut == 0, "the same shot meets the hull; Ada is unhurt");
-        Assert.True(rig.Ship.State.Health < hull, "and the hull takes it");
+        Assert.True(rig.Ship.State.Health == hull, "the ramp, an armoured door of its own (IW2), takes it, not the hull");
     }
 
     // A shot from a player on the ground at another's chest, judged now: what it ended on, and how much it hurt the other.

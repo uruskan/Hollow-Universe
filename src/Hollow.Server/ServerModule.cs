@@ -59,6 +59,14 @@ public abstract class ServerModule : IDisposable
     }
 
     /// <summary>A player left (their character stays, asleep).</summary>
+    /// <summary>
+    /// A playing player is leaving, their character still theirs (before it sleeps and is saved): <paramref name="loggedOff"/>
+    /// when they said goodbye (a quit), false when the connection was lost.
+    /// </summary>
+    protected internal virtual void Leaving(PlayerSession session, bool loggedOff)
+    {
+    }
+
     protected internal virtual void Left(PlayerSession session)
     {
     }

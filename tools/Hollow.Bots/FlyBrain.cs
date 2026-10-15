@@ -70,7 +70,8 @@ public sealed class FlyBrain
         }
         Vector3 feet = client.Character.Position;
         Vector3 up = client.Frame.UpAt(feet);
-        Vector3 hatch = ship.PointOf(ship.Def!.Hatch);
+        int hatchPart = ship.Def!.PartOfSeat(ship.Def.Helm.Index);
+        Vector3 hatch = ship.PointOf(ship.Def.PartPoint(hatchPart));
         Vector3 outward = Vector3.Normalize(Vector3.Transform(-Vector3.UnitX, ship.Rotation));
         Vector3 nose = Vector3.Normalize(Vector3.Transform(Vector3.UnitZ, ship.Rotation));
         Vector3 spot = hatch + outward * 1.4f;
@@ -94,10 +95,11 @@ public sealed class FlyBrain
         {
             _nextIntent = time + 1.5;
             // A tap of E at the hatch: opened when shut, boarded when open.
-            if (!ship.Has(ShipNetFlags.HatchOpen) || ship.Hatch > 0.6f)
+            bool opening = ship.Doors.Length > 0 && ship.Doors[0].Opening;
+            if (!opening || ship.DoorAt(0, client.ServerTickNow) > 0.6f)
             {
                 Interacting.Tap(client, new Hollow.Simulation.Targets.TargetRef(Hollow.Simulation.Targets.TargetFamily.Ship, ship.Id.Value,
-                    Hollow.Simulation.Ships.ShipParts.Hatch));
+                    (byte)hatchPart));
             }
         }
         return input;

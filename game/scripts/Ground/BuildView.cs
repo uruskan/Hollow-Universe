@@ -7,7 +7,9 @@ using Hollow.Core;
 using Hollow.Simulation;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Targets;
 using HollowUniverse.Build;
 using HollowUniverse.Fx;
 using HollowUniverse.UI.Model;
@@ -77,7 +79,7 @@ public partial class BuildView : Node3D, IHammerActions
     public BuildingRole Held { get; private set; }
 
     /// <summary>What the interact key acts on now (set by the view each frame): a door or the tool cupboard has its line.</summary>
-    public Hollow.Simulation.Targets.TargetRef Aimed { get; set; }
+    public TargetRef Aimed { get; set; }
 
     private BuildingData Data => Client.Content.Building;
 
@@ -107,7 +109,9 @@ public partial class BuildView : Node3D, IHammerActions
         else if (Held == BuildingRole.Hammer)
         {
             Hud.Hints = "LMB REPAIR   ·   HOLD RMB UPGRADE / ROTATE / DEMOLISH";
-            Hud.Line = _target != null ? TargetLine(_target) : null;
+            Hud.Line = _target != null ? TargetLine(_target) : Mendable(out TargetFacts facts) is { } _
+                ? $"{facts.Name.ToUpperInvariant()}  ·  {facts.Health * 100:0}%" + (facts.Jammed ? "  ·  JAMMED OPEN" : facts.Broken ? "  ·  DISABLED" : "")
+                : null;
         }
         else if (AimedPart() is { } part)
         {
@@ -333,13 +337,34 @@ public partial class BuildView : Node3D, IHammerActions
         return double.IsInfinity(hours) ? "FOREVER" : hours < 1 ? $"{hours * 60:0} MIN" : $"{hours:0.#} H";
     }
 
-    /// <summary>The hammer's attack button: repairs the piece aimed at. (What a building tool places goes through the placement controller, <see cref="PlacementView"/>.)</summary>
+    /// <summary>
+    /// The hammer's attack button: repairs the piece aimed at, else anything else the interact aim names that has health (a
+    /// ship's door or battery, IRON_WAKE.md §5.5). (What a building tool places goes through the placement controller,
+    /// <see cref="PlacementView"/>.)
+    /// </summary>
     public void Use()
     {
-        if (Held == BuildingRole.Hammer && _target is Piece piece)
+        if (Held != BuildingRole.Hammer)
+        {
+            return;
+        }
+        if (_target is Piece piece)
         {
             Client.Local.Repair(piece);
         }
+        else if (Mendable(out _) is { } thing)
+        {
+            Client.Local.Repair(thing);
+        }
+    }
+
+    // What the interact aim names, when it is something other than a piece whose facts have health (a ship's part).
+    private TargetRef? Mendable(out TargetFacts facts)
+    {
+        facts = default;
+        TargetRef aimed = Aimed;
+        return !aimed.IsNone && aimed.Family != TargetFamily.Piece && Client.Targets().TargetViewOf(aimed.Family) is { } view &&
+            view.TryFacts(aimed, new Viewer(Client.EntityId, null, null), out facts) && facts.Health >= 0 ? aimed : null;
     }
 
     // The door or tool cupboard the interact key acts on (an ID names one thing, whatever its family), for its line.

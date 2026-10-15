@@ -103,6 +103,11 @@
 
     "RampBlocked": "Ramp blocked: someone is in the way",
 
-    "ShipMoving": "Not while it moves: wait until it is at rest"
+    "ShipMoving": "Not while it moves: wait until it is at rest",
+    "ExitBlocked": "Exit blocked",
+    "Jammed": "Jammed open: mend it with a hammer",
+    "Disabled": "Disabled: mend it with a hammer",
+    "TooFast": "Too fast or too high: slow down near the ground",
+    "NotCrew": "Its crew only: authorise at its helm"
   }
 }

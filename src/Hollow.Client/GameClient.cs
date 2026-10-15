@@ -272,7 +272,10 @@ public sealed class GameClient : INetEventListener, IDisposable
     /// <summary>Up at the feet as drawn (aboard, the ship's), and the eye there.</summary>
     public Vector3 RenderUp => RenderFrame != 0 && DrawnFrame?.Invoke(RenderFrame) is { } ship ? ship.Up : Frame.UpAt(RenderPosition);
 
-    public Vector3 RenderEye => RenderPosition + RenderUp * EyeHeight;
+    public Vector3 RenderEye => SeatEye?.Invoke() ?? RenderPosition + RenderUp * EyeHeight;
+
+    /// <summary>The eye of the seat the player sits in, as drawn (a station's camera socket, IRON_WAKE.md §5.2), or null.</summary>
+    internal Func<Vector3?>? SeatEye { get; set; }
 
     /// <summary>The eye's height above the feet, easing between stances.</summary>
     public float EyeHeight => _eyeHeight;
@@ -471,12 +474,12 @@ public sealed class GameClient : INetEventListener, IDisposable
         // Free look rides with the view, for others to see the head turn (the prediction never uses it).
         command.LookYaw = NetConvert.ToLook(frame.LookYaw, FreeLook.MaxYaw);
         command.LookPitch = NetConvert.ToLook(frame.LookPitch, FreeLook.MaxPitch);
-        bool seated = false;
+        bool flies = false;
         foreach (ClientModule module in _modules)
         {
-            seated |= module.Seated;
+            flies |= module.Flies;
         }
-        if (seated)
+        if (flies)
         {
             // G6: the pilot's controls ride in the input; the ship is predicted first (BeforePredict), as the server steps
             // it, so the seated character goes where its seat is.
@@ -496,7 +499,7 @@ public sealed class GameClient : INetEventListener, IDisposable
         {
             // G4: the gun in hand fires (or reloads) on this tick's predicted state, and sends its intent for this tick.
             Local.Gun.Tick(tick, command, _predictor.Latest, _predictor.Frames, DrawnFrame?.Invoke(OwnFrame), _predictor.Tuning, EntityId,
-                !Local.IsDead && !Local.IsWounded && !seated);
+                !Local.IsDead && !Local.IsWounded && !this.Ships().Seated);
         }
 
         // The packet: this tick's input and the three before it, and which snapshots arrived.

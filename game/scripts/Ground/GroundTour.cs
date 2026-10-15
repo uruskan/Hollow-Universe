@@ -791,25 +791,26 @@ public partial class GroundTour : Node
             return;
         }
         await Seconds(1.0);
-        // To the hatch: open it, and the prompt to board.
-        Num.Vector3 hatch = ship.PointOf(def.Hatch);
+        // To the hatch (the helm's part): open it, and the prompt to board.
+        byte hatchPart = (byte)def.PartOfSeat(def.Helm.Index);
+        Num.Vector3 hatch = ship.PointOf(def.PartPoint(hatchPart));
         Num.Vector3 side = FlatUnit(hatch - ship.Position);
         await TeleportTo(hatch + side * 2.4f);
         Face(hatch);
         await Seconds(0.6);
-        var atHatch = new TargetRef(TargetFamily.Ship, ship.Id.Value, Hollow.Simulation.Ships.ShipParts.Hatch);
-        if (!ship.Has(Hollow.Net.Protocol.ShipNetFlags.HatchOpen))
+        var atHatch = new TargetRef(TargetFamily.Ship, ship.Id.Value, hatchPart);
+        if (ship.Doors.Length > 0 && !ship.Doors[0].Opening)
         {
             Me.Interact(atHatch, "hatch-open");
-            await Until(() => ship.Hatch > 0.95f, 4);
+            await Until(() => ship.DoorAt(0, Client.ServerTickNow) > 0.95f, 4);
         }
         // The tank filled with the lamp oil left over from the recipe.
-        Me.Interact(atHatch with { Part = Hollow.Simulation.Ships.ShipParts.FuelCap }, "refuel");
+        Me.Interact(atHatch with { Part = (byte)Math.Max(0, def.PartIndex("fuel")) }, "refuel");
         await Seconds(0.5);
-        Face(ship.PointOf(def.Hatch));
+        Face(hatch);
         await Seconds(0.4);
         await Shot("ship-boarding");
-        Me.Interact(atHatch, "board");
+        Me.Interact(atHatch, def.Helm.VerbKey);
         await Until(() => Client.Ships().Piloting, 5);
         await Seconds(0.8);
         // Up and out over the forest, from the cockpit.
@@ -840,8 +841,8 @@ public partial class GroundTour : Node
         await Pilot(default, 1.5);
         View.Scripted = null;
         await Shot("ship-landed", frames: 0);
-        Me.ExitShip();
-        await Until(() => !Client.Ships().Piloting, 5);
+        Me.LeaveSeat();
+        await Until(() => !Client.Ships().Seated, 5);
         await Seconds(0.8);
     }
 

@@ -115,8 +115,6 @@ public partial class ShipSandbox
         int cleared = _zone.Ships().ClearNatureFor(def, _pad, _padYaw);
         Entity player = AddPlayer(Local(def, new Num.Vector3(0, 0, -36)));
         _ship = _zone.Ships().SpawnShip(def, _pad, _padYaw, _zone.Players().PlayerOf(player)!.Id, def.FuelCapacity);
-        _ship.HatchOpen = true;
-        _ship.HatchProgress = Ship.HatchTicks;
         _shipView = new ShipView(def);
         AddChild(_shipView);
         for (int i = 0; i < 30 * 20 && _ship.ParkedBody == 0; i++)
@@ -165,7 +163,9 @@ public partial class ShipSandbox
         _helm = _zone.Players().AddPlayer(_zone.NextId(), "Helm", state);
         _zone.Entities.Get<Character>(_helm).Input = new MoveInput { View = Num.Vector3.UnitZ, Frame = _ship.Id.Value };
         Step(2);
-        Outcome boarded = _zone.Interaction().Interact(_helm, new TargetRef(TargetFamily.Ship, _ship.Id.Value, ShipParts.Hatch), "board");
+        var helmPart = new TargetRef(TargetFamily.Ship, _ship.Id.Value, (byte)_ship.Def.PartOfSeat(_ship.Def.Helm.Index));
+        _zone.Interaction().Interact(_helm, helmPart, "authorise"); // on its list at the helm, as at a tool cupboard
+        Outcome boarded = _zone.Interaction().Interact(_helm, helmPart, _ship.Def.Helm.VerbKey);
         if (boarded != OutcomeCode.Done)
         {
             GD.PushWarning($"[ship] the pilot couldn't take the helm: {boarded}");
@@ -297,7 +297,7 @@ public partial class ShipSandbox
         _ground?.Follow(_zone.Physics, R2(_camera.GlobalPosition));
         _shipView.Visible = _zone.Ships().All.Contains(_ship);
         _shipView.FromCockpit = Seated && _shipCamera.Mode == ShipCameraMode.Cockpit && _observer == null;
-        _shipView.Show(new ShipLook(Pivot(shown), _ship.HatchProgress / (float)Ship.HatchTicks, shown.Thrust,
+        _shipView.Show(new ShipLook(Pivot(shown), _ship.Doors.Length > 0 ? _ship.DoorAt(0, _zone.Tick) : 0, shown.Thrust,
             shown.Has(ShipFlags.EnginesOn), shown.Has(ShipFlags.Boosting), _ship.Piloted, _ship.Destroyed), delta);
         _shipView.ShowParts(_ship.Parts);
         foreach ((Entity who, CharacterView view) in _crew)
@@ -546,7 +546,7 @@ public partial class ShipSandbox
                 _landedTicks = s.Has(ShipFlags.Landed) && s.Velocity.Length() < 0.1f ? _landedTicks + 1 : 0;
                 if (_landedTicks > 30)
                 {
-                    Outcome exit = _zone.Ships().ExitShip(_helm);
+                    Outcome exit = _zone.Ships().LeaveSeat(_helm);
                     GD.Print($"[tour] landed {over:0.00} m over the ground; the pilot steps up from the helm: {exit}");
                     NextWalk(Walk.Park);
                 }

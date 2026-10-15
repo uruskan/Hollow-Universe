@@ -98,7 +98,7 @@ public sealed class TargetModule : ClientModule
         Feet = r.Position,
         Up = r.Up,
         Yaw = r.Yaw,
-        Pose = r.Sleeping || r.Wounded ? Simulation.Combat.Pose.Lying : r.Stance == Stance.Crouching ? Simulation.Combat.Pose.Crouching : Simulation.Combat.Pose.Standing,
+        Pose = r.Stance == Stance.Seated ? Simulation.Combat.Pose.Seated : r.Sleeping || r.Wounded ? Simulation.Combat.Pose.Lying : r.Stance == Stance.Crouching ? Simulation.Combat.Pose.Crouching : Simulation.Combat.Pose.Standing,
     };
 
     private HitPose PoseOf(ClientAnimal a) => new()
@@ -595,7 +595,7 @@ public sealed class TargetModule : ClientModule
             facts = new TargetFacts
             {
                 Capabilities = c.Content.Capabilities.Cupboard, Flags = replica.StateOf(claim).Flags | box, Name = c.Content.ClaimDeployable.Item.Name,
-                Position = claim.ZoneTransform.Position,
+                Position = claim.ZoneTransform.Position, Deployable = c.Content.ClaimDeployable,
             };
             return true;
         }
@@ -657,64 +657,125 @@ public sealed class TargetModule : ClientModule
     {
         public TargetFamily Family => TargetFamily.Ship;
 
+        // A ship as drawn (its pose and its parts' states here: the frame's space as posed, else its details now).
+        private (ShipPose Pose, float[] Parts)? Drawn(RemoteShip ship, ShipDef def)
+        {
+            if (c.Ships.DrawnPose(ship.NetId) is not { } pose)
+            {
+                return null;
+            }
+            if (def.Interior is not { } interior)
+            {
+                return (pose, Array.Empty<float>());
+            }
+            if (c.Ships.FrameOf(ship.NetId) is { } frame)
+            {
+                return (pose, frame.States);
+            }
+            if (_parts.Length != interior.Parts.Count)
+            {
+                _parts = new float[interior.Parts.Count];
+            }
+            ship.PartsInto(interior, _parts, (long)c.ServerTickNow);
+            return (pose, _parts);
+        }
+
+        private float[] _parts = Array.Empty<float>();
+        private readonly List<(int Part, Vector3 Point, float Distance)> _near = new();
+
+        // The ship by its pivot, or a part at its pose (moved by what carries it: the ramp's leaf, a turret), as the server's.
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
             pose = default;
-            if (c.ShipById(target.Id) is not { Def: { } def } ship)
+            if (c.ShipById(target.Id) is not { Def: { } def } ship || Drawn(ship, def) is not { } drawn)
             {
                 return false;
             }
-            pose = new TargetPose(target.Part == ShipParts.Hull ? ship.Origin : ship.PointOf(def.PartPoint(target.Part)), ship.Rotation);
+            pose = target.Part == ShipParts.Hull ? new TargetPose(ship.Origin, ship.Rotation) : ShipAim.PartPose(def, target.Part, drawn.Pose, drawn.Parts);
             return true;
         }
 
+        // The hull's nearest point, or a part's (its ball's surface, its pieces'), as the server's.
         public bool TryNearest(in TargetRef target, Vector3 from, out Vector3 point)
         {
             point = from;
-            if (c.ShipById(target.Id) is not { Def: { } def } ship)
+            if (c.ShipById(target.Id) is not { Def: { } def } ship || Drawn(ship, def) is not { } drawn)
             {
                 return false;
             }
-            point = target.Part == ShipParts.Hull ? ShipShapes.NearestOnHull(def, ship.Position, ship.Rotation, from) : ship.PointOf(def.PartPoint(target.Part));
+            if (!ShipAim.Nearest(def, c.Ships.FrameOf(ship.NetId), drawn.Pose, drawn.Parts, target.Part, from, _near, out point))
+            {
+                point = ShipShapes.NearestOnHull(def, ship.Position, ship.Rotation, from);
+            }
             return true;
         }
 
         // A ship as drawn: a ship people walk in hides what is behind its pieces (IRON_WAKE.md §4.9: the view goes on through
-        // its open ramp, not its hull), as the server's family does; then its parts round their points.
+        // its open ramp, not its hull; a part's pieces are that part), as the server's family does; then every ship's parts'
+        // balls, a part reached through a door only while that door lets one in.
         public void Aim(in AimRay ray, ref AimHit best)
         {
             if (c.Client.Prediction?.Frames.Ships is { Count: > 0 } frames &&
                 ShipQueries.Ray(frames, _drawn ??= f => c.Ships.DrawnPose((uint)f.Key), ray.Origin, ray.Direction, ray.Upto(best), out ShipQueryHit hit) &&
-                hit.Ship is ClientShipFrame { Ship: { Spawned: true } walked } && !walked.Has(ShipNetFlags.Destroyed) && !walked.Has(ShipNetFlags.InOrbit))
+                hit.Ship is ClientShipFrame { Ship: { Spawned: true, Def: { } walkedDef } walked } && !walked.Has(ShipNetFlags.Destroyed) && !walked.Has(ShipNetFlags.InOrbit))
             {
-                ray.Consider(ref best, hit.Distance, new TargetRef(TargetFamily.Ship, walked.Id.Value), AimKind.Backdrop);
+                int part = walkedDef.PartOfPieces(hit.Hit.Part);
+                ray.Consider(ref best, hit.Distance, new TargetRef(TargetFamily.Ship, walked.Id.Value, (byte)part), part == 0 ? AimKind.Backdrop : AimKind.Thing);
             }
+            double now = c.ServerTickNow;
             foreach (RemoteShip ship in c.Ships.Known)
             {
-                if (ship is { Spawned: true, HasState: true, Def: { } def } && !ship.Has(ShipNetFlags.Destroyed) && !ship.Has(ShipNetFlags.InOrbit))
+                if (ship is { Spawned: true, HasState: true, Def: { } def } && !ship.Has(ShipNetFlags.Destroyed) && !ship.Has(ShipNetFlags.InOrbit) &&
+                    Drawn(ship, def) is { } drawn)
                 {
-                    ShipAim.Parts(ship.Id.Value, def, ship.Position, ship.Rotation, ship.Has(ShipNetFlags.HatchOpen), ray, ref best);
+                    uint ready = 0;
+                    for (int d = 0; d < ship.Doors.Length && d < 32; d++)
+                    {
+                        if (ship.Doors[d].LetsIn(ship.DoorAt(d, now)))
+                        {
+                            ready |= 1u << d;
+                        }
+                    }
+                    ShipAim.Balls(ship.Id.Value, def, drawn.Pose, drawn.Parts, ready, ray, ref best);
                 }
             }
         }
 
         private Func<IShipFrame, ShipPose?>? _drawn;
 
-        // The cargo is a container's while the hatch is open and the ship at rest (this client knows it landed or asleep).
+        // What the rules know of a part (IRON_WAKE.md §5.1), as the server's family has it: from the ship's state (at rest and
+        // slow as the server judges them, ShipNetFlags.Still and Slow) and its details (doors, seats, health).
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (c.ShipById(target.Id) is not { Def: { } def } ship || ship.Has(ShipNetFlags.Destroyed))
+            if (c.ShipById(target.Id) is not { Def: { } def } ship || ship.Has(ShipNetFlags.Destroyed) || target.Part >= def.Parts.Count)
             {
                 return false;
             }
             CapabilityData data = c.Content.Capabilities;
-            // At rest as the server judges it (its one rule, ShipNetFlags.Still).
-            bool open = ship.Has(ShipNetFlags.HatchOpen), still = ship.Has(ShipNetFlags.Still);
+            ShipTargetPart part = def.Parts[target.Part];
+            bool still = ship.Has(ShipNetFlags.Still), slow = ship.Has(ShipNetFlags.Slow);
+            double now = c.ServerTickNow;
+            bool LetsIn(int d) => d >= 0 && d < ship.Doors.Length && ship.Doors[d].LetsIn(ship.DoorAt(d, now));
+            CapabilitySet capabilities = data.Ship.With(part.Capabilities);
+            if (part.Through >= 0 && (!LetsIn(part.Through) || !still))
+            {
+                capabilities = data.Ship;
+            }
+            ShipDoorDef? door = part.Door >= 0 && part.Door < def.Doors.Count ? def.Doors[part.Door] : null;
+            bool hasHealth = part.Health != null || door?.Health != null;
+            int seatPart = part.Seat >= 0 ? def.PartOfSeat(part.Seat) : 0;
             facts = new TargetFacts
             {
-                Capabilities = target.Part == ShipParts.Cargo && def.CargoSlots > 0 && open && still ? data.Ship : data.ShipPart, Flags = ship.Viewer, Name = def.Name, Open = open,
-                Busy = ship.Has(ShipNetFlags.Piloted), Still = still, Position = ship.Position,
+                Capabilities = capabilities, Flags = ship.Viewer, Name = target.Part == 0 ? def.Name : part.Name,
+                Open = door != null && part.Door < ship.Doors.Length && ship.Doors[part.Door].Opening,
+                Busy = part.Seat >= 0 && part.Seat < ship.Occupants.Length && !ship.Occupants[part.Seat].IsNone, Still = still,
+                Ship = def, ShipPart = target.Part, DoorRule = door != null ? door.Rule(still, slow).Code : OutcomeCode.Done,
+                DoorReady = part.Seat >= 0 && LetsIn(def.Seats[part.Seat].Door),
+                Jammed = door?.Health != null && part.Door < ship.Doors.Length && ship.Doors[part.Door].Health <= 0,
+                Broken = seatPart > 0 && def.Parts[seatPart].Health != null && seatPart < ship.PartHealth.Length && ship.PartHealth[seatPart] <= 0,
+                Health = hasHealth && target.Part < ship.PartHealth.Length ? ship.PartHealth[target.Part] : -1,
+                Position = ship.Position,
             };
             return true;
         }

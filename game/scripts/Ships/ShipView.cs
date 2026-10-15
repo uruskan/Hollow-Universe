@@ -8,7 +8,7 @@ namespace HollowUniverse.Ships;
 
 /// <summary>What a ship is doing this frame, as a <see cref="ShipView"/> draws it.</summary>
 /// <param name="Pivot">The model's pivot (the ship frame's origin, on the ground between the skids) in render space, its axes the ship's.</param>
-/// <param name="Hatch">How far the hatch has swung open, 0 shut to 1 open.</param>
+/// <param name="Hatch">How far its first door is open, 0 shut to 1 open: a model with a <c>Hatch</c> node swings it by its open clip (the Tin Finch's).</param>
 /// <param name="Thrust"><see cref="ShipState.Thrust"/>: what the engines give on each axis (x + left, y + up, z + forward; above 1 boosting).</param>
 public readonly record struct ShipLook(Transform3D Pivot, float Hatch, System.Numerics.Vector3 Thrust, bool Engines, bool Boosting,
     bool Piloted, bool Destroyed);
@@ -239,39 +239,38 @@ public partial class ShipView : Node3D
         return mesh;
     }
 
+    // A plume on every nozzle of ships.json (its drive, its width and length at full thrust): the main and side engines
+    // blow aft, the lift nozzles down, the small thrusters outward from their side of the hull (+X is the ship's left).
     private void BuildPlumes()
     {
         EnsureMaterials();
-        void Add(IReadOnlyList<System.Numerics.Vector3> nozzles, Drive drive, Vector3 direction, float width, float length)
+        foreach (ShipNozzle n in _def.Nozzles)
         {
-            foreach (System.Numerics.Vector3 n in nozzles)
+            (Drive drive, Vector3 dir) = n.Drive switch
             {
-                Drive d = drive;
-                Vector3 dir = direction;
-                if (drive == Drive.RcsLeft)
-                {
-                    // The small thrusters blow outward from their side of the hull (+X is the ship's left).
-                    d = n.X >= 0 ? Drive.RcsLeft : Drive.RcsRight;
-                    dir = new Vector3(n.X >= 0 ? 1 : -1, 0, 0);
-                }
-                _plumes.Add(new Plume
-                {
-                    Gas = Quad(_plumeMaterial!, $"Plume{_plumes.Count}"),
-                    Glow = Quad(_glowMaterial!, $"Nozzle{_plumes.Count}"),
-                    Drive = d,
-                    Nozzle = new Vector3(n.X, n.Y, n.Z),
-                    Direction = dir,
-                    Width = width,
-                    Length = length,
-                });
+                NozzleDrive.Main => (Drive.Main, new Vector3(0, 0, -1)),
+                NozzleDrive.Aux => (Drive.Aux, new Vector3(0, 0, -1)),
+                NozzleDrive.Lift => (Drive.Lift, new Vector3(0, -1, 0)),
+                _ => n.At.X >= 0 ? (Drive.RcsLeft, new Vector3(1, 0, 0)) : (Drive.RcsRight, new Vector3(-1, 0, 0)),
+            };
+            if (drive == Drive.Lift)
+            {
+                _liftNozzles++;
             }
+            _plumes.Add(new Plume
+            {
+                Gas = Quad(_plumeMaterial!, $"Plume{_plumes.Count}"),
+                Glow = Quad(_glowMaterial!, $"Nozzle{_plumes.Count}"),
+                Drive = drive,
+                Nozzle = new Vector3(n.At.X, n.At.Y, n.At.Z),
+                Direction = dir,
+                Width = n.Width,
+                Length = n.Length,
+            });
         }
-        float scale = Scale;
-        Add(_def.MainNozzles, Drive.Main, new Vector3(0, 0, -1), 0.5f * scale, 3.4f * scale);
-        Add(_def.AuxNozzles, Drive.Aux, new Vector3(0, 0, -1), 0.24f * scale, 1.9f * scale);
-        Add(_def.LiftNozzles, Drive.Lift, new Vector3(0, -1, 0), 0.3f * scale, 1.7f * scale);
-        Add(_def.RcsNozzles, Drive.RcsLeft, Vector3.Zero, 0.12f * scale, 0.8f * scale);
     }
+
+    private int _liftNozzles;
 
     private void BuildLights()
     {
@@ -391,7 +390,7 @@ public partial class ShipView : Node3D
                 lift += p.Shown;
             }
         }
-        lift /= Math.Max(1, _def.LiftNozzles.Count);
+        lift /= Math.Max(1, _liftNozzles);
 
         _belly.Visible = running && lift > 0.08f;
         _belly.LightEnergy = 2.2f * lift * energy;

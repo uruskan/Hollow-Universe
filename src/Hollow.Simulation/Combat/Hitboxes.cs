@@ -15,6 +15,12 @@ public enum Pose : byte
 
     /// <summary>Asleep on the ground.</summary>
     Lying,
+
+    /// <summary>
+    /// In a seat (IRON_WAKE.md §5.2: an exposed one, a gunner's): the feet are the seat's point, the pelvis on it, the
+    /// thighs forward, the hands forward on the grips.
+    /// </summary>
+    Seated,
 }
 
 /// <summary>Where a character's body was at one moment: enough to build its hit shapes.</summary>
@@ -80,6 +86,17 @@ public static class Hitboxes
             into[1] = new HitShape(f + forward * -0.15f + up * 0.2f, f + forward * 0.55f + up * 0.2f, 0.22f, HitRegion.Body);
             into[2] = new HitShape(f + forward * -0.95f + up * 0.13f, f + forward * -0.2f + up * 0.13f, 0.16f, HitRegion.Limb);
             return 3;
+        }
+        if (pose.Pose == Pose.Seated)
+        {
+            Vector3 head = f + up * 0.93f;
+            into[0] = new HitShape(head, head, 0.13f, HitRegion.Head);
+            into[1] = new HitShape(f + up * 0.2f, f + up * 0.62f, 0.21f, HitRegion.Body);
+            into[2] = new HitShape(f + right * 0.11f + up * 0.12f, f + right * 0.11f + forward * 0.6f - up * 0.35f, 0.11f, HitRegion.Limb);
+            into[3] = new HitShape(f - right * 0.11f + up * 0.12f, f - right * 0.11f + forward * 0.6f - up * 0.35f, 0.11f, HitRegion.Limb);
+            into[4] = new HitShape(f + right * 0.25f + up * 0.62f, f + right * 0.32f + forward * 0.35f + up * 0.55f, 0.07f, HitRegion.Limb);
+            into[5] = new HitShape(f - right * 0.25f + up * 0.62f, f - right * 0.32f + forward * 0.35f + up * 0.55f, 0.07f, HitRegion.Limb);
+            return 6;
         }
         float s = pose.Pose == Pose.Crouching ? 1.10f / StandingHeight : 1f;
         Vector3 top = f + up * (1.60f * s);

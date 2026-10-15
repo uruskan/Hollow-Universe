@@ -35,11 +35,14 @@
     { "key": "help-up", "label": "Help up", "glyph": "help-up", "description": "Back on their feet with what health they have.", "priority": 80, "reach": "help" },
     { "key": "invite", "label": "Invite to team", "glyph": "team", "description": "Ask them to join the team you lead.", "priority": 40, "reach": "invite" },
     { "key": "relight", "label": "Light", "glyph": "fire", "description": "A new fuse, which may go out again.", "priority": 60 },
-    { "key": "hatch-open", "label": "Open hatch", "named": false, "glyph": "hatch", "description": "Only when it is at rest.", "priority": 60 },
-    { "key": "hatch-close", "label": "Close hatch", "named": false, "glyph": "hatch", "description": "Shut it.", "priority": 45 },
+    { "key": "hatch-open", "label": "Open", "glyph": "hatch", "description": "As its ship allows: a hatch at rest, a ramp slow and low, an airlock any time.", "priority": 60 },
+    { "key": "hatch-close", "label": "Close", "glyph": "hatch", "description": "Shut it.", "priority": 45 },
     { "key": "board", "label": "Board", "glyph": "board", "description": "Into the seat; the hatch shuts behind you.", "priority": 70 },
     { "key": "refuel", "label": "Refuel", "glyph": "fuel", "description": "Fill the tank from your lamp oil.", "priority": 65 },
-    { "key": "ship-lock", "label": "Lock", "glyph": "lock", "description": "Only you open its hatch.", "priority": 20 },
-    { "key": "ship-unlock", "label": "Unlock", "glyph": "unlock", "description": "Anyone may open its hatch.", "priority": 20 }
+    { "key": "ship-lock", "label": "Lock", "glyph": "lock", "description": "Its doors stay shut to all but its crew.", "priority": 20 },
+    { "key": "ship-unlock", "label": "Unlock", "glyph": "unlock", "description": "Anyone may open its doors.", "priority": 20 },
+    { "key": "take-helm", "label": "Take the helm", "named": false, "glyph": "board", "description": "Fly it: its crew alone.", "priority": 70 },
+    { "key": "man", "label": "Man", "glyph": "board", "description": "Sit at its gun: its crew alone.", "priority": 70 },
+    { "key": "sit", "label": "Sit in", "glyph": "board", "description": "A seat for the ride.", "priority": 70 }
   ]
 }

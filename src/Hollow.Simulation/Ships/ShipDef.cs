@@ -171,40 +171,200 @@ public sealed class ShipDef
 
     public IReadOnlyList<HullBox> Hull { get; init; } = Array.Empty<HullBox>();
 
-    /// <summary>
-    /// The pilot's seat (where the seated character's feet go), the pilot's eye, the hatch's middle, the fuel cap, the
-    /// cargo (reached through the open hatch).
-    /// </summary>
-    public Vector3 Seat { get; init; }
+    // ---------------------------------------------------------------- seats, doors and parts (IRON_WAKE.md §5.1)
 
-    public Vector3 Eye { get; init; }
+    /// <summary>Its seats (ships.json <c>seats</c>, §5.2): by index, the wire's and the saves' number.</summary>
+    public IReadOnlyList<ShipSeatDef> Seats { get; init; } = Array.Empty<ShipSeatDef>();
 
-    public Vector3 Hatch { get; init; }
+    /// <summary>The seat that flies it (the one with the helm's role; the content check wants exactly one).</summary>
+    public ShipSeatDef Helm => _helm ??= FirstHelm();
 
-    public Vector3 FuelCap { get; init; }
+    private ShipSeatDef? _helm;
 
-    public Vector3 Cargo { get; init; }
-
-    private Vector3[]? _parts;
-
-    /// <summary>A part's point (<see cref="ShipParts"/>, by its number): the hatch, the fuel cap, the cargo; the centre for the hull.</summary>
-    public Vector3 PartPoint(byte part)
+    private ShipSeatDef FirstHelm()
     {
-        _parts ??= new[] { CentreOfMass, Hatch, FuelCap, Cargo };
-        return part < _parts.Length ? _parts[part] : CentreOfMass;
+        foreach (ShipSeatDef seat in Seats)
+        {
+            if (seat.Flies)
+            {
+                return seat;
+            }
+        }
+        return Seats.Count > 0 ? Seats[0] : new ShipSeatDef();
     }
 
-    /// <summary>Where a pilot steps out, in order of preference (on the ground below each point).</summary>
-    public IReadOnlyList<Vector3> Exits { get; init; } = Array.Empty<Vector3>();
+    /// <summary>Its doors (ships.json <c>doors</c>, §5.3): by index, the wire's and the saves' number.</summary>
+    public IReadOnlyList<ShipDoorDef> Doors { get; init; } = Array.Empty<ShipDoorDef>();
 
-    /// <summary>Exhausts and nozzles, for the client's glow (presentation only).</summary>
-    public IReadOnlyList<Vector3> MainNozzles { get; init; } = Array.Empty<Vector3>();
+    /// <summary>
+    /// Its target parts (ships.json <c>parts</c>, GROUND_SYSTEMS.md §3.1): <c>TargetRef.Part</c> is an index here, 0 the hull.
+    /// </summary>
+    public IReadOnlyList<ShipTargetPart> Parts { get; init; } = Array.Empty<ShipTargetPart>();
 
-    public IReadOnlyList<Vector3> AuxNozzles { get; init; } = Array.Empty<Vector3>();
+    /// <summary>The target part its cargo is opened at (the one with the container capability), or 0: none.</summary>
+    public int CargoPart { get; init; }
 
-    public IReadOnlyList<Vector3> LiftNozzles { get; init; } = Array.Empty<Vector3>();
+    private int[]? _partOfPieces;
 
-    public IReadOnlyList<Vector3> RcsNozzles { get; init; } = Array.Empty<Vector3>();
+    /// <summary>
+    /// The target part the pieces of the data file's part <paramref name="dataPart"/> belong to (a hit on the ramp's leaf is
+    /// the ramp's, on a turret its battery's), else 0, the hull.
+    /// </summary>
+    public int PartOfPieces(int dataPart)
+    {
+        if (_partOfPieces == null)
+        {
+            var map = new int[Interior?.Parts.Count ?? 0];
+            foreach (ShipTargetPart part in Parts)
+            {
+                foreach (int piece in part.Pieces)
+                {
+                    if (piece < map.Length)
+                    {
+                        map[piece] = part.Index;
+                    }
+                }
+            }
+            _partOfPieces = map;
+        }
+        return dataPart > 0 && dataPart < _partOfPieces.Length ? _partOfPieces[dataPart] : 0;
+    }
+
+    /// <summary>The target part a seat is sat in at (whose health is its station's), or 0.</summary>
+    public int PartOfSeat(int seat)
+    {
+        foreach (ShipTargetPart part in Parts)
+        {
+            if (part.Seat == seat)
+            {
+                return part.Index;
+            }
+        }
+        return 0;
+    }
+
+    /// <summary>The door that moves an interior part (the part's state follows the door's progress, §5.3), or −1.</summary>
+    public int DoorOfPart(int part)
+    {
+        foreach (ShipDoorDef door in Doors)
+        {
+            if (Contains(door.Parts, part))
+            {
+                return door.Index;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>The target part a door is worked at (the first naming it), or 0.</summary>
+    public int PartOfDoor(int door)
+    {
+        foreach (ShipTargetPart part in Parts)
+        {
+            if (part.Door == door)
+            {
+                return part.Index;
+            }
+        }
+        return 0;
+    }
+
+    /// <summary>A target part's index by its key, or −1.</summary>
+    public int PartIndex(string key)
+    {
+        foreach (ShipTargetPart part in Parts)
+        {
+            if (part.Key == key)
+            {
+                return part.Index;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>A door's index by its key, or −1.</summary>
+    public int DoorIndex(string key)
+    {
+        foreach (ShipDoorDef door in Doors)
+        {
+            if (door.Key == key)
+            {
+                return door.Index;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>A seat's index by its key, or −1.</summary>
+    public int SeatIndex(string key)
+    {
+        foreach (ShipSeatDef seat in Seats)
+        {
+            if (seat.Key == key)
+            {
+                return seat.Index;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// A target part's point in the ship's frame at its parts' states: its ball's centre (carried by its part), or the
+    /// middle of its pieces' bounds where they are now; the centre of mass for the hull. Where a tool aims at it.
+    /// </summary>
+    public Vector3 PartPoint(int part, ReadOnlySpan<float> states)
+    {
+        if (part <= 0 || part >= Parts.Count)
+        {
+            return CentreOfMass;
+        }
+        ShipTargetPart p = Parts[part];
+        if (p.HasBall)
+        {
+            return Interior != null ? Interior.SocketAt(p.At, states) : p.At.Position;
+        }
+        if (Interior == null || p.Pieces.Count == 0)
+        {
+            return CentreOfMass;
+        }
+        Vector3 min = new(float.MaxValue), max = new(float.MinValue);
+        foreach (ShipPiece piece in Interior.Pieces)
+        {
+            if (!Contains(p.Pieces, piece.Part))
+            {
+                continue;
+            }
+            PartPose pose = Interior.PartPose(piece.Part, states);
+            foreach (Vector3 point in piece.Points)
+            {
+                Vector3 moved = pose.Apply(point);
+                min = Vector3.Min(min, moved);
+                max = Vector3.Max(max, moved);
+            }
+        }
+        return min.X <= max.X ? (min + max) / 2 : CentreOfMass;
+    }
+
+    /// <summary>A target part's point at the interior's rest (or the data's, for a ship without one).</summary>
+    public Vector3 PartPoint(int part) => PartPoint(part, Interior?.Rest ?? Array.Empty<float>());
+
+    private static bool Contains(IReadOnlyList<int> list, int value)
+    {
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (list[i] == value)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>The nozzles (ships.json <c>nozzles</c>): where each is, its drive and its plume's size (presentation only).</summary>
+    public IReadOnlyList<ShipNozzle> Nozzles { get; init; } = Array.Empty<ShipNozzle>();
+
+    /// <summary>The lamps (ships.json <c>lights</c>, IRON_WAKE.md §9.4): data until IW6 draws them.</summary>
+    public IReadOnlyList<ShipLight> Lights { get; init; } = Array.Empty<ShipLight>();
 
     /// <summary>
     /// The leaving height in world radii over the ground (docs/WHOLE_WORLD.md decision 4: 2, 4.8 km on the first world):
@@ -274,20 +434,8 @@ public sealed class ShipDef
     public override string ToString() => Key;
 }
 
-/// <summary>
-/// A ship's parts as targets (GROUND_SYSTEMS.md §3.1, §5): <see cref="Targets.TargetRef.Part"/> names one. The hull is the
-/// whole ship; the hatch is where it is boarded, opened and locked; the fuel cap where it is refuelled; the cargo is reached
-/// through the open hatch.
-/// </summary>
+/// <summary>The hull's number among a ship's target parts (GROUND_SYSTEMS.md §3.1): 0, the rest of the ship.</summary>
 public static class ShipParts
 {
-    public const byte Hull = 0, Hatch = 1, FuelCap = 2, Cargo = 3;
-
-    /// <summary>The parts the interact key looks for, after the hull.</summary>
-    public const byte Count = 4;
-
-    // How near a part the aim must pass, by its number: the hatch's frame, the cap, the cargo's opening.
-    private static readonly float[] Radii = { 0, 0.7f, 0.45f, 0.45f };
-
-    public static float Radius(byte part) => part < Radii.Length ? Radii[part] : 0;
+    public const byte Hull = 0;
 }

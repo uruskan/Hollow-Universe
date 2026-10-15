@@ -212,9 +212,13 @@ public sealed class Zone : IDisposable
         Flags = MoveFlags.OnGround,
     };
 
-    /// <summary>Moves a character to a point of the zone's frame, at rest (admin teleport, respawn).</summary>
+    /// <summary>
+    /// Moves a character to a point of the zone's frame, at rest (admin teleport, respawn); out of a ship's seat first, which
+    /// is free at once (IRON_WAKE.md §5.2).
+    /// </summary>
     public void Teleport(Entity entity, Vector3 position)
     {
+        Get<ShipSystem>()?.Release(entity, SeatRelease.Moved);
         ref Character character = ref Entities.Get<Character>(entity);
         character.State.Position = position;
         character.State.Velocity = Vector3.Zero;
@@ -230,6 +234,10 @@ public sealed class Zone : IDisposable
     /// </summary>
     public void SetCheats(Entity entity, MoveCheats cheats)
     {
+        if ((cheats & MoveCheats.Noclip) != 0)
+        {
+            Get<ShipSystem>()?.Release(entity, SeatRelease.Moved); // noclip flies free of any seat
+        }
         ref Character c = ref Entities.Get<Character>(entity);
         if ((cheats & MoveCheats.Noclip) != 0 && c.State.Frame != 0)
         {

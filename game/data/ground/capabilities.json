@@ -8,8 +8,8 @@
     { "key": "door", "note": "Opens and shuts: building.json doors. CanUse when the viewer may pass it now." },
     { "key": "key-lock", "note": "items.json building KeyLock, fitted to a door. Locked." },
     { "key": "code-lock", "note": "items.json building CodeLock, fitted to a door. Locked; HasCode once a code is set; Authorised when the viewer is on its list." },
-    { "key": "cupboard", "note": "building.json claim: a base's building rights and upkeep. Authorised when the viewer is on its list." },
-    { "key": "ship", "note": "ships.json. Locked when its owner locked it." },
+    { "key": "cupboard", "note": "A list of authorised players: building.json claim (a base's building rights and upkeep), and a ship's helm (ships.json parts: its crew, IRON_WAKE.md §5.2). Authorised when the viewer is on its list." },
+    { "key": "ship", "note": "ships.json, on every part of a ship. Locked while its lock keeps its doors shut to those not on its list; Authorised when the viewer is on its list (its crew)." },
     { "key": "lifetime", "note": "Goes after a while, on world time, by the zone's one lifetime step (GROUND_SYSTEMS.md §3.7): survival.json lifetimes (bags of dropped items, bodies, a dud), animals.json corpse (an animal's carcass). At once when emptied, if its rule says so." },
     { "key": "explosive", "note": "explosives.json throwables: a charge or grenade with its fuse. Stuck to or lying on a thing, it falls when that goes (GROUND_SYSTEMS.md §3.6)." },
     { "key": "standing", "note": "Placed on something that may go (GROUND_SYSTEMS.md §6): every deployable (deployables.json). Standing on a foundation or floor, it goes when that goes (Rust): it breaks and what it held spills in one bag. Nothing for a viewer." },
@@ -19,6 +19,9 @@
     { "key": "wounded", "note": "A player down (the wounded state): another helps them up." },
     { "key": "character", "note": "A player awake: the leader of a team invites them into it." },
     { "key": "dud", "note": "An explosive whose fuse went out: anyone lights it again." },
-    { "key": "arrow", "note": "A spent arrow stuck where it hit (GROUND_SYSTEMS.md §5), held by what it hit: when that goes it falls to the ground below." }
+    { "key": "arrow", "note": "A spent arrow stuck where it hit (GROUND_SYSTEMS.md §5), held by what it hit: when that goes it falls to the ground below." },
+    { "key": "seat", "note": "ships.json parts naming a seat (IRON_WAKE.md §5.2): sat in with the seat's verb (board, take the helm, man, sit in), by those its sitters allow." },
+    { "key": "ship-door", "note": "ships.json parts naming a door (IRON_WAKE.md §5.3): opened as its rule allows and shut, locked and unlocked by the ship's crew." },
+    { "key": "fuel", "note": "ships.json parts: a ship's tank, filled from the player's fuel." }
   ]
 }

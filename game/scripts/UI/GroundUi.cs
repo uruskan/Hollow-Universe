@@ -422,13 +422,13 @@ public partial class GroundUi : Control
             case Key.Escape when Screen == GroundScreen.Menu && _inGame:
                 Open(Model.Death != null ? GroundScreen.Death : GroundScreen.Hud);
                 break;
-            case Key.Q when Screen is GroundScreen.Hud or GroundScreen.Inventory or GroundScreen.Crafting:
+            case Key.Q when Screen is GroundScreen.Hud or GroundScreen.Inventory or GroundScreen.Crafting && KeyContexts.Hands(Model.Keys):
                 ToggleCrafting();
                 break;
             case Key.Enter or Key.KpEnter when Screen == GroundScreen.Hud && Radial == null:
                 OpenChat();
                 break;
-            case >= Key.Key1 and <= Key.Key6 when Screen is GroundScreen.Hud or GroundScreen.Inventory:
+            case >= Key.Key1 and <= Key.Key6 when Screen is GroundScreen.Hud or GroundScreen.Inventory && KeyContexts.Belt(Model.Keys):
                 Model.SelectBelt((int)(key.PhysicalKeycode - Key.Key1));
                 break;
             default:

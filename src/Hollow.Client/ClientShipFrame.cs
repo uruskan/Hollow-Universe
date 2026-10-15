@@ -27,8 +27,8 @@ public sealed class ClientShipFrame : IShipFrame, IDisposable
         _pilot = pilot;
         _parkedBody = parkedBody;
         States = new float[Interior.Parts.Count];
-        ship.PartsInto(Interior, States);
-        PartsVersion = ship.PartsVersion;
+        _scratch = new float[Interior.Parts.Count];
+        ship.PartsInto(Interior, States, Math.Max(0, (long)ship.NewestTick));
         Space = new ShipSpace(Interior, States, tuning);
         Gravity = characterGravity * Interior.DeckGravity;
     }
@@ -55,8 +55,7 @@ public sealed class ClientShipFrame : IShipFrame, IDisposable
 
     public CharacterBody Body => Space.Body;
 
-    /// <summary>The ship's <see cref="RemoteShip.PartsVersion"/> its space is posed at.</summary>
-    public int PartsVersion { get; private set; }
+    private readonly float[] _scratch;
 
     public Vector3 UpAt(Vector3 position) => Vector3.UnitY;
 
@@ -73,15 +72,18 @@ public sealed class ClientShipFrame : IShipFrame, IDisposable
         return Ship.TryPoseAt(tick - 1, out pose);
     }
 
-    /// <summary>Poses the space's parts as the server last said (true when they moved).</summary>
-    public bool FollowParts()
+    /// <summary>
+    /// Poses the space's parts for a tick's step (true when they moved): as the server's are when its characters step that
+    /// tick, where its ships' step of the tick before left them (the doors at their progress then, the rest as it said).
+    /// </summary>
+    public bool PoseFor(long tick)
     {
-        if (Ship.PartsVersion == PartsVersion)
+        Ship.PartsInto(Interior, _scratch, Math.Max(0, tick - 1));
+        if (_scratch.AsSpan().SequenceEqual(States))
         {
             return false;
         }
-        PartsVersion = Ship.PartsVersion;
-        Ship.PartsInto(Interior, States);
+        _scratch.CopyTo(States, 0);
         Space.Pose(States);
         return true;
     }

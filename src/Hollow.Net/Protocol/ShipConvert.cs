@@ -1,7 +1,10 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Net.Bits;
+using Hollow.Simulation.Entities;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
 
@@ -89,14 +92,15 @@ public static class ShipConvert
     }
 
     /// <summary>
-    /// A ship as one viewer sees it: its state, what they are told of it (<paramref name="viewer"/>), and whether the
-    /// server has it at rest (<paramref name="still"/>, its one rule).
+    /// A ship as one viewer sees it: its state, what they are told of it (<paramref name="viewer"/>), whether the server
+    /// has it at rest (<paramref name="still"/>, its one rule) and slow and low enough for its slow doors
+    /// (<paramref name="slow"/>).
     /// </summary>
-    public static ShipNetState ToNet(Ship ship, ViewerFlags viewer, bool still)
+    public static ShipNetState ToNet(Ship ship, ViewerFlags viewer, bool still, bool slow = false)
     {
         ShipState s = ship.State;
         (byte largest, short a, short b, short c) = Quantize.SmallestThree(s.Rotation);
-        ShipNetFlags flags = (ship.Piloted || ship.Autopilot ? ShipNetFlags.Piloted : 0) | (ship.HatchOpen ? ShipNetFlags.HatchOpen : 0)
+        ShipNetFlags flags = (ship.Piloted || ship.Autopilot ? ShipNetFlags.Piloted : 0) | (slow ? ShipNetFlags.Slow : 0)
             | (s.Has(ShipFlags.Landed) ? ShipNetFlags.Landed : 0) | (s.Has(ShipFlags.Destroyed) ? ShipNetFlags.Destroyed : 0)
             | (s.Has(ShipFlags.InOrbit) ? ShipNetFlags.InOrbit : 0) | (s.Has(ShipFlags.Boosting) ? ShipNetFlags.Boosting : 0)
             | (s.Has(ShipFlags.EnginesOn) ? ShipNetFlags.EnginesOn : 0) | (s.Has(ShipFlags.AssistOff) ? ShipNetFlags.AssistOff : 0)
@@ -112,7 +116,6 @@ public static class ShipConvert
             TurnC = c,
             Flags = flags,
             Viewer = viewer,
-            Hatch = (byte)Math.Clamp(ship.HatchProgress, 0, 31),
             ThrustX = Thrust(s.Thrust.X),
             ThrustY = Thrust(s.Thrust.Y),
             ThrustZ = Thrust(s.Thrust.Z),
@@ -121,6 +124,77 @@ public static class ShipConvert
             Body = ship.ParkedBody,
         };
     }
+
+    /// <summary>
+    /// A ship's details (IRON_WAKE.md §5, <see cref="ShipDetails"/>): its moving parts away from rest that no door drives,
+    /// its doors' motion, its seats taken and its parts' health below their most. <paramref name="seat"/> gives the net ID
+    /// of each occupant.
+    /// </summary>
+    public static ShipDetails Details(Ship ship, uint netId, Func<EntityId, ulong> seat)
+    {
+        ShipDef def = ship.Def;
+        var parts = new List<ShipPartNet>();
+        if (def.Interior != null)
+        {
+            float[] rest = def.Interior.Rest;
+            for (int i = 0; i < ship.Parts.Length && i < rest.Length; i++)
+            {
+                if (ship.Parts[i] != rest[i] && !DoorDriven(def, i))
+                {
+                    parts.Add(new ShipPartNet { Part = (uint)i, Bits = BitConverter.SingleToUInt32Bits(ship.Parts[i]) });
+                }
+            }
+        }
+        var doors = new ShipDoorNet[ship.Doors.Length];
+        for (int i = 0; i < doors.Length; i++)
+        {
+            ShipDoorState d = ship.Doors[i];
+            float max = def.Doors[i].Health?.Max ?? 0;
+            doors[i] = new ShipDoorNet
+            {
+                From = BitConverter.SingleToUInt32Bits(d.From),
+                Moving = d.Moving,
+                Waiting = d.Waiting,
+                Since = (uint)d.Since,
+                Health = max > 0 ? Share(d.Health, max) : (byte)255,
+            };
+        }
+        var seats = new List<ShipSeatNet>();
+        for (int i = 0; i < ship.Occupants.Length; i++)
+        {
+            if (!ship.Occupants[i].IsNone)
+            {
+                seats.Add(new ShipSeatNet { Seat = (byte)i, Occupant = seat(ship.Occupants[i]) });
+            }
+        }
+        var health = new List<ShipPartHealthNet>();
+        for (int i = 0; i < ship.PartHealth.Length; i++)
+        {
+            float max = def.Parts[i].Health?.Max ?? 0;
+            if (max > 0 && ship.PartHealth[i] < max)
+            {
+                health.Add(new ShipPartHealthNet { Part = (byte)i, Health = Share(ship.PartHealth[i], max) });
+            }
+        }
+        return new ShipDetails { Ship = netId, Parts = parts.ToArray(), Doors = doors, Seats = seats.ToArray(), Health = health.ToArray() };
+    }
+
+    /// <summary>A door's motion as the wire carries it.</summary>
+    public static ShipDoorState DoorOf(in ShipDoorNet d, float max) => new()
+    {
+        From = Math.Clamp(BitConverter.UInt32BitsToSingle(d.From) is float f && float.IsFinite(f) ? f : 0, 0, 1),
+        Moving = (sbyte)Math.Sign(d.Moving),
+        Waiting = (sbyte)Math.Sign(d.Waiting),
+        Since = d.Since,
+        Health = max * d.Health / 255f,
+    };
+
+    /// <summary>Health as a share of its most on the wire: 0 only when gone, 255 only when whole.</summary>
+    public static byte Share(float health, float max) =>
+        health <= 0 ? (byte)0 : health >= max ? (byte)255 : (byte)Math.Clamp((int)MathF.Ceiling(health / max * 254), 1, 254);
+
+    /// <summary>An interior part a door moves (its state follows the door's progress on every machine).</summary>
+    public static bool DoorDriven(ShipDef def, int part) => def.DoorOfPart(part) >= 0;
 
     /// <summary>The centre of mass a ship's state puts on the wire's grid.</summary>
     public static Vector3 PositionOf(in ShipNetState s) => new(

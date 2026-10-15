@@ -99,10 +99,10 @@ public static class SeatTests
         rig.Server.Execute("ship Ada");
         rig.Run(1.0, (_, _) => default);
         RemoteShip finch = ada.Ships().All.First();
-        Vector3 hatch = finch.PointOf(finch.Def!.Hatch);
+        Vector3 hatch = finch.PointOf(finch.Def!.HatchPoint());
         rig.Teleport("Ada", hatch + Vector3.Normalize(Vector3.Transform(-Vector3.UnitX, finch.Rotation)) * 1.6f);
         rig.Run(0.5, (_, _) => default);
-        ada.Local.Interact(new TargetRef(TargetFamily.Ship, finch.Id.Value, ShipParts.Hatch), "board");
+        ada.Local.Interact(new TargetRef(TargetFamily.Ship, finch.Id.Value, finch.Def!.HelmPart()), "board");
         rig.Run(0.5, (_, _) => default);
         Assert.True(ada.Ships().Piloting, "Ada flies her Tin Finch");
         rig.Run(2.5, (_, _) => new InputFrame { Ship = new ShipInput { Vertical = 1 } });
@@ -136,7 +136,7 @@ public static class SeatTests
         while ((wake == null || !wake.Has(ShipNetFlags.Asleep)) && wait.Elapsed.TotalSeconds < 25);
         Assert.True(wake != null && wake.Has(ShipNetFlags.Asleep) && wake.Has(ShipNetFlags.Still), "the Iron Wake came to rest, and her client is told so");
         int compared = 0;
-        for (byte part = 0; part < ShipParts.Count; part++)
+        for (byte part = 0; part < wake!.Def!.Parts.Count; part++)
         {
             var target = new TargetRef(TargetFamily.Ship, wake!.Id.Value, part);
             var mine = new List<InteractOption>();

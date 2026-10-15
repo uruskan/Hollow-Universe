@@ -8,9 +8,9 @@ namespace HollowUniverse.Ships;
 /// The pilot's keyboard and mouse (G6, GROUND.md §6.7), read into a tick of <see cref="ShipInput"/>. The mouse is a
 /// virtual stick: moving it pushes the stick (up the nose rises, right it turns right), and the stick springs back to the
 /// middle when the mouse rests. W and S move the throttle lever, which stays where it is put (X pulls it to zero);
-/// A and D slide sideways, Space and C (or Ctrl) rise and sink, Q and E roll, the arrow keys are a keyboard stick,
-/// Shift (or Tab) boosts, Z switches flight assist. With flight assist on the lever sets the speed to hold, the stick the
-/// rates to turn at, and letting go of everything hovers.
+/// A and D slide sideways, Shift and Ctrl rise and sink, Q and E roll, the arrow keys are a keyboard stick, B boosts,
+/// Z switches flight assist (the keys are <c>SeatKeys</c>', KNOWN_PROBLEMS.md finding 28; Space leaves the seat). With
+/// flight assist on the lever sets the speed to hold, the stick the rates to turn at, and letting go of everything hovers.
 /// </summary>
 public sealed class ShipControls
 {
@@ -46,14 +46,15 @@ public sealed class ShipControls
         {
             return false;
         }
-        switch (key.PhysicalKeycode)
+        if (key.PhysicalKeycode == Ground.SeatKeys.Assist)
         {
-            case Godot.Key.Z:
-                AssistOff = !AssistOff;
-                return true;
-            case Godot.Key.X:
-                Throttle = 0;
-                return true;
+            AssistOff = !AssistOff;
+            return true;
+        }
+        if (key.PhysicalKeycode == Ground.SeatKeys.ZeroThrottle)
+        {
+            Throttle = 0;
+            return true;
         }
         return false;
     }
@@ -87,9 +88,9 @@ public sealed class ShipControls
             Roll = Held(Godot.Key.E) - Held(Godot.Key.Q),
             Throttle = Throttle,
             Strafe = Held(Godot.Key.D) - Held(Godot.Key.A),
-            Vertical = Held(Godot.Key.Space) - Math.Max(Held(Godot.Key.C), Held(Godot.Key.Ctrl)),
+            Vertical = Held(Ground.SeatKeys.Rise) - Held(Ground.SeatKeys.Sink),
         };
-        if (Input.IsPhysicalKeyPressed(Godot.Key.Shift) || Input.IsPhysicalKeyPressed(Godot.Key.Tab))
+        if (Input.IsPhysicalKeyPressed(Ground.SeatKeys.Boost))
         {
             input.Buttons |= ShipButtons.Boost;
         }

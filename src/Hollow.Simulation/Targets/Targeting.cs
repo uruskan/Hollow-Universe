@@ -73,7 +73,7 @@ public struct TargetFacts
     /// <summary>Taking from it leaves it where it is (a berry bush is picked bare).</summary>
     public bool Stays;
 
-    /// <summary>A door or a hatch open.</summary>
+    /// <summary>A door open, or a ship's door opening or open.</summary>
     public bool Open;
 
     /// <summary>A ship's seat taken.</summary>
@@ -81,6 +81,25 @@ public struct TargetFacts
 
     /// <summary>A ship at rest (its hatch opens and its cargo is reached only then).</summary>
     public bool Still;
+
+    /// <summary>A ship's part (IRON_WAKE.md §5.1): the ship's kind and the part (its seat, its door), or null.</summary>
+    public Ships.ShipDef? Ship;
+
+    public byte ShipPart;
+
+    /// <summary>Whether the part's door may open now by its rule (the server's word on the ship's motion), else why not.</summary>
+    public OutcomeCode DoorRule;
+
+    /// <summary>The door a part's seat is reached through open at least half way (the Tin Finch's hatch).</summary>
+    public bool DoorReady;
+
+    /// <summary>The part's door broken, jammed open; the part itself broken (a station disabled).</summary>
+    public bool Jammed;
+
+    public bool Broken;
+
+    /// <summary>A ship's part's health as a share of its most (its door's, its own), or −1 for none.</summary>
+    public float Health;
 
     /// <summary>A door's lock.</summary>
     public LockKind Lock;
@@ -228,24 +247,95 @@ public static class BuildingAim
     }
 }
 
-/// <summary>A ship's parts along the interact key's ray (GROUND_SYSTEMS.md §5), the same on both sides: the hatch, the fuel cap, and the cargo while the hatch is open.</summary>
+/// <summary>
+/// A ship's target parts as the interact key, reach and support links see them (GROUND_SYSTEMS.md §5, IRON_WAKE.md §5.1),
+/// the same on both sides: each part's pose (the ship's, moved by what carries it: a battery turns with its turret, the
+/// ramp swings), its ball along a ray (a part reached through a door only while that door lets one in), and its nearest
+/// point (its ball's surface, or its pieces' in the ship's space). A part met by pieces is found along a ray by the space's
+/// query, which names the data file's part (<see cref="Ships.ShipDef.PartOfPieces"/>).
+/// </summary>
 public static class ShipAim
 {
-    public static void Parts(ulong id, Ships.ShipDef def, Vector3 centre, Quaternion rotation, bool hatchOpen, in AimRay ray, ref AimHit best)
+    /// <summary>A part's pose in the zone's frame: the ship's at <paramref name="pose"/>, moved by the part's carrier at the states.</summary>
+    public static TargetPose PartPose(Ships.ShipDef def, int part, in Movement.ShipPose pose, ReadOnlySpan<float> states)
     {
-        if (Vector3.DistanceSquared(centre, ray.Origin) > (def.BoundingRadius + ray.Length + 1) * (def.BoundingRadius + ray.Length + 1))
+        Ships.PartPose motion = Carrier(def, part, states);
+        return new TargetPose(pose.ToWorld(motion.Translation), Quaternion.Normalize(pose.Rotation * motion.Rotation));
+    }
+
+    private static Ships.PartPose Carrier(Ships.ShipDef def, int part, ReadOnlySpan<float> states)
+    {
+        if (def.Interior == null || part <= 0 || part >= def.Parts.Count)
+        {
+            return Ships.PartPose.Rest;
+        }
+        Ships.ShipTargetPart p = def.Parts[part];
+        int carrier = p.Pieces.Count > 0 ? p.Pieces[0] : p.At.Part;
+        return carrier > 0 ? def.Interior.PartPose(carrier, states) : Ships.PartPose.Rest;
+    }
+
+    // A part's ball's centre in the zone's frame.
+    private static Vector3 BallCentre(Ships.ShipDef def, Ships.ShipTargetPart p, in Movement.ShipPose pose, ReadOnlySpan<float> states) =>
+        pose.ToWorld(def.Interior != null ? def.Interior.SocketAt(p.At, states) : p.At.Position);
+
+    /// <summary>
+    /// The balls of a ship's parts along the ray (its pose, its parts' states): a part reached through a door only while
+    /// that door lets one in (bit d of <paramref name="ready"/> for door d).
+    /// </summary>
+    public static void Balls(ulong id, Ships.ShipDef def, in Movement.ShipPose pose, ReadOnlySpan<float> states, uint ready, in AimRay ray, ref AimHit best)
+    {
+        float reach = MathF.Max(def.BoundingRadius, def.Interior?.Reach ?? 0) + ray.Length + 1;
+        if (Vector3.DistanceSquared(pose.Position, ray.Origin) > reach * reach)
         {
             return;
         }
-        for (byte part = Ships.ShipParts.Hatch; part < Ships.ShipParts.Count; part++)
+        for (int i = 1; i < def.Parts.Count; i++)
         {
-            if (part == Ships.ShipParts.Cargo && (!hatchOpen || def.CargoSlots == 0))
+            Ships.ShipTargetPart p = def.Parts[i];
+            if (!p.HasBall || (p.Through >= 0 && (ready & 1u << p.Through) == 0))
             {
                 continue;
             }
-            Vector3 point = centre + Vector3.Transform(def.PartPoint(part) - def.CentreOfMass, rotation);
-            ray.Consider(ref best, AimShapes.Sphere(ray, point, Ships.ShipParts.Radius(part)), new TargetRef(TargetFamily.Ship, id, part));
+            ray.Consider(ref best, AimShapes.Sphere(ray, BallCentre(def, p, pose, states), p.Radius), new TargetRef(TargetFamily.Ship, id, (byte)i));
         }
+    }
+
+    /// <summary>
+    /// The nearest point of a part to a point (reach is measured to it): its ball's surface, or its pieces' (the ship's
+    /// space, <paramref name="frame"/>), whichever is nearer; false for the hull and a part not met here (the caller then
+    /// measures to the hull).
+    /// </summary>
+    public static bool Nearest(Ships.ShipDef def, Movement.IShipFrame? frame, in Movement.ShipPose pose, ReadOnlySpan<float> states, int part, Vector3 from,
+        List<(int Part, Vector3 Point, float Distance)> scratch, out Vector3 point)
+    {
+        point = from;
+        if (part <= 0 || part >= def.Parts.Count)
+        {
+            return false;
+        }
+        Ships.ShipTargetPart p = def.Parts[part];
+        float best = float.MaxValue;
+        bool found = false;
+        if (p.HasBall)
+        {
+            point = AimShapes.NearestOnSphere(BallCentre(def, p, pose, states), p.Radius, from);
+            best = Vector3.Distance(point, from);
+            found = true;
+        }
+        if (p.Pieces.Count > 0 && frame != null)
+        {
+            Ships.ShipQueries.NearestByPart(frame, pose, from, Vector3.Distance(from, pose.Position) + frame.Interior.Reach, scratch);
+            foreach ((int dataPart, Vector3 at, float distance) in scratch)
+            {
+                if (distance < best && def.PartOfPieces(dataPart) == part)
+                {
+                    best = distance;
+                    point = at;
+                    found = true;
+                }
+            }
+        }
+        return found;
     }
 }
 

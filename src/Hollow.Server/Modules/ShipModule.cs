@@ -37,11 +37,11 @@ public sealed class ShipModule : ServerModule
 
     public long ShipIntentsRefused { get; private set; }
 
-    /// <summary>The ships (net IDs) this player hears about (G6), and the revision of each one's parts they were told (IW1).</summary>
+    /// <summary>The ships (net IDs) this player hears about (G6), and the revisions of each one's details they were told (IW1, IW2).</summary>
     private sealed class ShipView
     {
         public readonly HashSet<uint> Relevant = new();
-        public readonly Dictionary<uint, uint> PartsSent = new();
+        public readonly Dictionary<uint, (uint Parts, uint Details)> DetailsSent = new();
     }
 
     protected internal override void Init(MessageHandlers<PlayerSession> handlers)
@@ -55,9 +55,9 @@ public sealed class ShipModule : ServerModule
             {
                 Outcome result = m.Action switch
                 {
-                    ShipAction.Hatch => Zone.Ships().ShipHatch(me, target),
-                    ShipAction.Exit => Zone.Ships().ExitShip(me),
-                    ShipAction.Lock => Zone.Ships().LockShip(me, target),
+                    ShipAction.Door => Zone.Ships().SeatedDoor(me, target, m.Arg),
+                    ShipAction.Leave => Zone.Ships().LeaveSeat(me),
+                    ShipAction.Lock => Zone.Ships().SeatedLock(me, target),
                     ShipAction.Descend => Zone.Ships().Descend(me),
                     _ => OutcomeCode.Invalid,
                 };
@@ -72,6 +72,18 @@ public sealed class ShipModule : ServerModule
                 return result;
             });
         });
+    }
+
+    /// <summary>
+    /// A player leaving while seated (IRON_WAKE.md §5.2): logging off keeps the seat, asleep in it; a lost connection stands
+    /// them up at its first clear exit, where they sleep (none clear: they sleep in the seat).
+    /// </summary>
+    protected internal override void Leaving(PlayerSession session, bool loggedOff)
+    {
+        if (!loggedOff)
+        {
+            Zone.Ships().Release(session.Entity, SeatRelease.Disconnected);
+        }
     }
 
     /// <summary>Every new character gets a Tin Finch beside them, full and theirs (<see cref="ServerOptions.ShipOnJoin"/>, the G6 load test's pilots).</summary>
@@ -173,6 +185,7 @@ public sealed class ShipModule : ServerModule
         ReplicateShips(session, centre, ships);
         header.OwnShip = OwnShip(session)!;
         header.Own.Frame = NetIdOfFrame(Zone.Entities.Get<Character>(session.Entity).State.Frame);
+        header.Own.Seat = (byte)(Zone.Ships().SeatIndexOf(session.Entity) + 1);
     }
 
     // The ships near a player: spawned and despawned (reliable), offered to their snapshot by nearness.
@@ -182,7 +195,7 @@ public sealed class ShipModule : ServerModule
         HashSet<uint> relevant = view.Relevant;
         foreach (uint netId in _shipsGone)
         {
-            view.PartsSent.Remove(netId);
+            view.DetailsSent.Remove(netId);
             if (relevant.Remove(netId))
             {
                 session.Snapshots.Forget(netId);
@@ -202,13 +215,13 @@ public sealed class ShipModule : ServerModule
                 new Spawn { NetId = netId, EntityId = ship.Id.Value, Kind = EntityKind.Ship, Name = ship.Def.Key }.WriteMessage(Writer);
                 session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
             }
-            SendParts(session, view, netId, ship);
+            SendDetails(session, view, netId, ship);
             float distance = Vector3.Distance(position, centre);
             bool moving = !ship.State.Asleep;
             ships.Add(new ShipCandidate
             {
                 NetId = netId,
-                State = ShipConvert.ToNet(ship, Zone.Targets().FlagsFor(ship.Ref, session.Viewer), Zone.Ships().ShipStill(ship)),
+                State = ShipConvert.ToNet(ship, Zone.Targets().FlagsFor(ship.Ref, session.Viewer), Zone.Ships().ShipStill(ship), Zone.Ships().ShipSlow(ship)),
                 Weight = (moving ? 3f : 0.5f) + 4f * MathF.Max(0f, 1f - distance / ShipRelevanceRadius) + (ship.Pilot == session.EntityId ? 10f : 0f),
             });
         }
@@ -223,35 +236,28 @@ public sealed class ShipModule : ServerModule
         foreach (uint netId in _shipsLeaving)
         {
             relevant.Remove(netId);
-            view.PartsSent.Remove(netId);
+            view.DetailsSent.Remove(netId);
             session.Snapshots.Forget(netId);
             Despawned(session, netId);
         }
     }
 
-    // A ship's parts away from rest, to a player who hasn't been told their newest (IRON_WAKE.md §4.7): a client starts a
-    // ship's space at rest, so one never moved needs no message.
-    private void SendParts(PlayerSession session, ShipView view, uint netId, Ship ship)
+    // A ship's details (IRON_WAKE.md §5: its parts away from rest, its doors' motion, its seats, its parts' health), to a
+    // player who hasn't been told their newest: when it comes into range, and whenever they change.
+    private void SendDetails(PlayerSession session, ShipView view, uint netId, Ship ship)
     {
-        if (ship.Def.Interior is not { } interior || (view.PartsSent.TryGetValue(netId, out uint sent) ? sent : 0) == ship.PartsRevision)
+        (uint Parts, uint Details) now = (ship.PartsRevision, ship.DetailsRevision);
+        if (view.DetailsSent.TryGetValue(netId, out (uint Parts, uint Details) sent) && sent == now)
         {
             return;
         }
-        view.PartsSent[netId] = ship.PartsRevision;
-        var parts = new List<ShipPartNet>();
-        for (int i = 0; i < ship.Parts.Length && i < interior.Rest.Length; i++)
-        {
-            if (ship.Parts[i] != interior.Rest[i])
-            {
-                parts.Add(new ShipPartNet { Part = (uint)i, Bits = BitConverter.SingleToUInt32Bits(ship.Parts[i]) });
-            }
-        }
+        view.DetailsSent[netId] = now;
         Writer.Reset();
-        new ShipPartStates { Ship = netId, Parts = parts.ToArray() }.WriteMessage(Writer);
+        ShipConvert.Details(ship, netId, id => id.Value).WriteMessage(Writer);
         session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
     }
 
-    /// <summary>The ship this player flies, exactly, for the snapshot's header (none on foot).</summary>
+    /// <summary>The ship this player flies (at its helm), exactly, for the snapshot's header (none otherwise).</summary>
     private OwnShipState[]? OwnShip(PlayerSession session)
     {
         if (Zone.Ships().SeatOf(session.Entity) is not { } ship || ship.Pilot != session.EntityId || !_shipNetIds.TryGetValue(ship.Id, out uint netId))
@@ -265,8 +271,8 @@ public sealed class ShipModule : ServerModule
 
     private readonly HashSet<EntityId> _savedShips = new();
 
-    // The body's ships as they were saved: parked, flying (they fall or hover on), in orbit; their pilots, loaded as
-    // sleepers, go back into their seats.
+    // The body's ships as they were saved: parked, flying (they fall or hover on), in orbit; whoever sat in their seats,
+    // loaded as sleepers, goes back into them.
     protected internal override void Restore(ZoneRecord stored, HashSet<EntityId> saved)
     {
         int loaded = 0;
@@ -282,9 +288,13 @@ public sealed class ShipModule : ServerModule
                 Ship ship = Zone.Ships().AddShip(restored.Ship);
                 Zone.Physics.EnsureGround(ship.State.Position);
                 loaded++;
-                if (!restored.Pilot.IsNone && Zone.Entities.TryFind(restored.Pilot, out Entity pilot) && Zone.Players().PlayerOf(pilot) != null)
+                for (int seat = 0; seat < restored.Occupants.Length; seat++)
                 {
-                    Zone.Ships().Reseat(pilot, ship);
+                    EntityId who = restored.Occupants[seat];
+                    if (!who.IsNone && Zone.Entities.TryFind(who, out Entity sitter) && Zone.Players().PlayerOf(sitter) != null)
+                    {
+                        Zone.Ships().Reseat(sitter, ship, seat);
+                    }
                 }
             }
             catch (Exception e) when (e is System.IO.EndOfStreamException or System.IO.InvalidDataException or ArgumentException)
@@ -301,6 +311,11 @@ public sealed class ShipModule : ServerModule
         for (int i = 0; i < characters.Count; i++)
         {
             ref Character c = ref characters.Values[i];
+            Entity character = Zone.Entities.AtSlot(characters.Slots[i]);
+            if (c.State.Stance == Stance.Seated && Zone.Ships().SeatOf(character) == null)
+            {
+                c.State.Stance = Stance.Standing; // stored seated in a seat it didn't get back: it stands where it was
+            }
             if (c.State.Frame != 0 && Zone.Frames.Ship(c.State.Frame) == null)
             {
                 EntityId id = Zone.Entities.IdOf(Zone.Entities.AtSlot(characters.Slots[i]));
@@ -323,7 +338,7 @@ public sealed class ShipModule : ServerModule
             {
                 continue;
             }
-            save.Ships.Add(new ShipRecord(ship.Id, ShipCodec.Encode(ship, Zone.Frame)));
+            save.Ships.Add(new ShipRecord(ship.Id, ShipCodec.Encode(ship, Zone.Frame, Zone.Tick)));
             ships.Add(ship.Id);
         }
         foreach (EntityId id in _savedShips)
@@ -374,7 +389,7 @@ public sealed class ShipModule : ServerModule
     public long ShipCrashes { get; private set; }
 
     /// <summary>
-    /// A ship beside a player, full, theirs, its hatch open: the kind asked for (IRON_WAKE.md §5.6: the admin's
+    /// A ship beside a player, full, theirs, its first door open: the kind asked for (IRON_WAKE.md §5.6: the admin's
     /// <c>ship [player] [kind]</c>, the F1 panel's spawn), else the first (every new player's Tin Finch with
     /// <see cref="ServerOptions.ShipOnJoin"/>). It stands on the nearest clear spot of rings round them, as far out as its
     /// size needs, with its way in toward them (<see cref="WayIn"/>); in a wood with no room for it, at the nearest spot
@@ -414,8 +429,10 @@ public sealed class ShipModule : ServerModule
                             Log($"cleared {cleared} trees and rocks for a {def.Name} beside {session.Name}");
                         }
                         Ship ship = Zone.Ships().SpawnShip(def, ground, yaw, session.EntityId, def.FuelCapacity);
-                        ship.HatchOpen = true;
-                        ship.HatchProgress = Ship.HatchTicks;
+                        if (def.Doors.Count > 0)
+                        {
+                            Zone.Ships().SetDoorAtOnce(ship, 0, 1);
+                        }
                         return ship;
                     }
                 }
@@ -425,14 +442,14 @@ public sealed class ShipModule : ServerModule
     }
 
     /// <summary>
-    /// Where a ship is entered, in its frame: the hatch of one people sit in; the lowest box of the boarding volume of one
-    /// they walk in (the Iron Wake's open ramp, down to the ground).
+    /// Where a ship is entered, in its frame: its helm's part (the hatch) of one people sit in; the lowest box of the
+    /// boarding volume of one they walk in (the Iron Wake's open ramp, down to the ground).
     /// </summary>
     public static Vector3 WayIn(ShipDef def)
     {
         if (def.Interior is not { Boarding.Count: > 0 } interior)
         {
-            return def.Hatch;
+            return def.PartPoint(def.PartOfSeat(def.Helm.Index));
         }
         BoardingBox lowest = interior.Boarding[0];
         foreach (BoardingBox box in interior.Boarding)

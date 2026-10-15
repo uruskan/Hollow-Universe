@@ -447,15 +447,16 @@ public sealed class CombatSystem : ZoneSystem
                 }
                 Entity entity = zone.Entities.AtSlot(players.Slots[i]);
                 CharacterState s = zone.Entities.Get<Character>(entity).State;
-                if (s.Stance == Stance.Seated)
+                bool seated = s.Stance == Stance.Seated;
+                if (seated && !zone.Ships().SeatExposed(entity))
                 {
-                    continue;
+                    continue; // a sheltered seat: the cabin's to protect
                 }
                 // Where it is in the world (aboard a ship, where the ship carries it).
                 Vector3 up = zone.UpOf(s), feet = zone.WorldOf(s);
                 bool lying = p.Sleeping || p.Wounded;
-                Vector3 chest = feet + up * (lying ? 0.25f : s.Stance == Stance.Crouching ? 0.7f : 1.15f);
-                Vector3 head = feet + up * (lying ? 0.3f : s.Stance == Stance.Crouching ? 1.0f : 1.6f);
+                Vector3 chest = feet + up * (seated ? 0.45f : lying ? 0.25f : s.Stance == Stance.Crouching ? 0.7f : 1.15f);
+                Vector3 head = feet + up * (seated ? 0.93f : lying ? 0.3f : s.Stance == Stance.Crouching ? 1.0f : 1.6f);
                 float distance = MathF.Max(0, MathF.Min(Vector3.Distance(chest, blast.At), Vector3.Distance(head, blast.At)) - 0.3f);
                 if (distance <= blast.Radius)
                 {

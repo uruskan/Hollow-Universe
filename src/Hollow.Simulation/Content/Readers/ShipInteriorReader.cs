@@ -219,6 +219,25 @@ internal static class ShipInteriorReader
             }
         }
 
+        // The stations' ids (a station's seat names one) and the lamps' fixtures (ships.json's lights), the drive glows left out.
+        var stations = new HashSet<string>(StringComparer.Ordinal);
+        foreach (JsonElement s in f.List(root, "stations", at, required: false))
+        {
+            stations.Add(f.Text(s, "id", at + ": stations"));
+        }
+        var fixtures = new List<ShipFixture>();
+        foreach (JsonElement l in f.List(root, "lights", at, required: false))
+        {
+            string name = f.Text(l, "name", at + ": lights");
+            if (f.Text(l, "use", at + ": lights", "") == "exhaust")
+            {
+                continue;
+            }
+            bool spot = f.Text(l, "kind", at + ": lights", "omni") == "spot";
+            fixtures.Add(new ShipFixture(name, f.Vector(l, "position", $"{at}: light {name}"), spot ? f.Vector(l, "direction", $"{at}: light {name}") : Vector3.Zero, spot,
+                f.Text(l, "room", at + ": lights", "")));
+        }
+
         var interior = new ShipInterior
         {
             File = file,
@@ -233,6 +252,8 @@ internal static class ShipInteriorReader
             Margin = f.Number(block, "margin", where, 0.3f),
             DeckGravity = f.Number(block, "gravity", where, 1f),
             Rest = rest,
+            Stations = stations,
+            Fixtures = fixtures,
         };
         interior.Finish();
         return interior;
@@ -260,50 +281,5 @@ internal static class ShipInteriorReader
                 f.Problem(where, $"unknown kind \"{kind}\" (static, hinge, slide, yaw, pitch, recoil, loader)");
                 return ShipPartKind.Static;
         }
-    }
-
-    /// <summary>
-    /// A ships.json point that may name one of the data file's sockets instead of giving three numbers (IRON_WAKE.md
-    /// §5.1: the sockets come from the generated file, not hand-copied numbers).
-    /// </summary>
-    public static Vector3 Point(JsonFields f, JsonElement o, string name, string where, ShipInterior? interior)
-    {
-        if (o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out JsonElement v) && v.ValueKind == JsonValueKind.String)
-        {
-            return Socket(f, v.GetString() ?? "", $"{where}.{name}", interior);
-        }
-        return f.Vector(o, name, where);
-    }
-
-    /// <summary>A ships.json list of points, each three numbers or a socket's name.</summary>
-    public static Vector3[] Points(JsonFields f, JsonElement o, string name, string where, ShipInterior? interior, bool required = true)
-    {
-        var result = new List<Vector3>();
-        foreach (JsonElement v in f.List(o, name, where, required))
-        {
-            if (v.ValueKind == JsonValueKind.String)
-            {
-                result.Add(Socket(f, v.GetString() ?? "", $"{where}.{name}", interior));
-            }
-            else if (v.ValueKind == JsonValueKind.Array && v.GetArrayLength() == 3 && v.EnumerateArray().All(x => x.ValueKind == JsonValueKind.Number))
-            {
-                result.Add(new Vector3((float)v[0].GetDouble(), (float)v[1].GetDouble(), (float)v[2].GetDouble()));
-            }
-            else
-            {
-                f.Problem(where, $"each of \"{name}\" is three numbers or a socket's name");
-            }
-        }
-        return result.ToArray();
-    }
-
-    private static Vector3 Socket(JsonFields f, string socket, string where, ShipInterior? interior)
-    {
-        if (interior != null && interior.Sockets.TryGetValue(socket, out ShipSocket s))
-        {
-            return s.Position;
-        }
-        f.Problem(where, interior == null ? $"names a socket (\"{socket}\") but the ship has no interior data file" : $"no socket \"{socket}\" in {interior.File}");
-        return Vector3.Zero;
     }
 }

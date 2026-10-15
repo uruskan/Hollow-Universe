@@ -40,8 +40,7 @@ public sealed class CapabilityData
         _locks[(int)LockKind.Key] = Set("key-lock");
         _locks[(int)LockKind.Code] = Set("code-lock");
         Cupboard = Set("cupboard", "owned", "container");
-        Ship = Set("ship", "owned", "container");
-        ShipPart = Set("ship", "owned");
+        Ship = Set("ship", "owned");
         Explosive = Set("owned", "explosive");
         Dud = Set("owned", "explosive", "lifetime", "dud");
         Carcass = Set("lifetime");
@@ -79,10 +78,8 @@ public sealed class CapabilityData
 
     public CapabilitySet Cupboard { get; }
 
+    /// <summary>A ship, on every part (a part adds its own, ships.json parts: a seat, a door, a tank, its cargo, the helm's list).</summary>
     public CapabilitySet Ship { get; }
-
-    /// <summary>A ship's hatch or fuel cap (its cargo, reached through the open hatch, is <see cref="Ship"/>'s whole set).</summary>
-    public CapabilitySet ShipPart { get; }
 
     public CapabilitySet Explosive { get; }
 

@@ -53,7 +53,7 @@ public sealed class ShipCamera
         if (Mode == ShipCameraMode.Cockpit)
         {
             _has = false;
-            Vector3 eye = s.PointOf(def.Eye, def.CentreOfMass);
+            Vector3 eye = s.PointOf(Hollow.Simulation.ShipSeats.EyeInFrame(def, def.Helm.Index, def.Interior?.Rest ?? Array.Empty<float>()), def.CentreOfMass);
             // A few degrees down from the nose line: the ground ahead shows over the dash.
             Vector3 look = Vector3.Normalize(forward * MathF.Cos(0.07f) - shipUp * MathF.Sin(0.07f));
             return (eye, look, shipUp);

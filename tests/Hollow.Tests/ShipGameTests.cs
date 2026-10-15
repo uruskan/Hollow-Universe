@@ -51,31 +51,31 @@ public static class ShipGameTests
         Assert.True(ship.State.Asleep && ship.ParkedBody != 0, "a parked ship sleeps on its skids, a static body");
 
         // Ada stands at the hatch (on the ship's right: east, the nose facing north).
-        Vector3 hatch = ship.PointOf(ShipRig.Finch.Hatch);
+        Vector3 hatch = ship.PointOf(ShipRig.Finch.HatchPoint());
         Entity ada = AddPlayer(rig, "Ada", zone.Frame.Beside(hatch, 1.6f, 0, 0));
         ship.Owner = zone.Players().PlayerOf(ada)!.Id;
         Look(rig, ada, hatch);
-        TargetRef atHatch = new(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), atCap = atHatch with { Part = ShipParts.FuelCap },
-            atCargo = atHatch with { Part = ShipParts.Cargo };
+        TargetRef atHatch = new(TargetFamily.Ship, ship.Id.Value, ShipRig.Finch.HelmPart()), atCap = atHatch with { Part = ShipRig.Finch.FuelPart() },
+            atCargo = atHatch with { Part = ShipRig.Finch.CargoPartIndex() };
         Assert.Equal(OutcomeCode.HatchShut, zone.Interaction().Interact(ada, atHatch, "board"), "the hatch is shut");
         Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, atHatch, "hatch-open"), "opens the hatch");
-        rig.Step(Ship.HatchTicks);
-        Assert.Equal(Ship.HatchTicks, ship.HatchProgress, "the hatch swung open in a second");
+        rig.Step(ShipTestParts.HatchTicks);
+        Assert.Equal(1f, ship.DoorAt(0, zone.Tick), "the hatch swung open in a second");
         Entity bo = AddPlayer(rig, "Bo", zone.Frame.Beside(hatch, 1.4f, 0, 0.8f));
         Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, atHatch, "board"), "Ada boards");
         Assert.Equal(OutcomeCode.SeatTaken, zone.Interaction().Interact(bo, atHatch, "board"), "the seat is taken");
         Assert.True(zone.Ships().SeatOf(ada) == ship && ship.Pilot == zone.Players().PlayerOf(ada)!.Id, "Ada is in the seat");
         Assert.Equal(Stance.Seated, Ch(rig, ada).State.Stance, "seated");
-        Assert.True(Vector3.Distance(Ch(rig, ada).State.Position, ship.PointOf(ShipRig.Finch.Seat)) < 1e-3f, "at the seat");
+        Assert.True(Vector3.Distance(Ch(rig, ada).State.Position, ship.PointOf(ShipRig.Finch.SeatPoint())) < 1e-3f, "at the seat");
 
         // She takes off: the seat carries her; she can't step out in the air.
         ship.Input = new ShipInput { Vertical = 1 };
         rig.Step(60);
         float height = rig.Height(ship);
         Assert.True(height > 8, $"lifted off ({height:0.0} m)");
-        Assert.True(Vector3.Distance(Ch(rig, ada).State.Position, ship.PointOf(ShipRig.Finch.Seat)) < 1e-3f, "the seat carries the pilot");
-        Assert.Equal(OutcomeCode.NotLanded, zone.Ships().ExitShip(ada), "no stepping out in the air");
-        Assert.True(!ship.HatchOpen && ship.HatchProgress == 0, "the hatch shut behind her");
+        Assert.True(Vector3.Distance(Ch(rig, ada).State.Position, ship.PointOf(ShipRig.Finch.SeatPoint())) < 1e-3f, "the seat carries the pilot");
+        Assert.Equal(OutcomeCode.NotLanded, zone.Ships().LeaveSeat(ada), "no stepping out in the air");
+        Assert.True(!ship.Doors[0].Opening && ship.DoorAt(0, zone.Tick) == 0, "the hatch shut behind her");
 
         // Down again, and out to a safe point by the hatch.
         ship.Input = new ShipInput { Vertical = -1 };
@@ -84,27 +84,27 @@ public static class ShipGameTests
             rig.Step();
         }
         Assert.True(ship.State.Has(ShipFlags.Landed), "landed again");
-        Assert.Equal(OutcomeCode.Done, zone.Ships().ExitShip(ada), "steps out");
+        Assert.Equal(OutcomeCode.Done, zone.Ships().LeaveSeat(ada), "steps out");
         Vector3 feet = Ch(rig, ada).State.Position;
-        Fixtures.Report(FormattableString.Invariant($"stepped out {Vector3.Distance(feet, ship.PointOf(ShipRig.Finch.Exits[0])):0.00} m from the first exit, {zone.HeightAboveGround(feet):0.00} m over the ground"));
+        Fixtures.Report(FormattableString.Invariant($"stepped out {Vector3.Distance(feet, ship.PointOf(ShipRig.Finch.Helm.Exits[0].Position)):0.00} m from the first exit, {zone.HeightAboveGround(feet):0.00} m over the ground"));
         Assert.True(zone.Ships().SeatOf(ada) == null && ship.Pilot.IsNone && Ch(rig, ada).State.Stance == Stance.Standing, "out of the seat");
-        Assert.True(Vector3.Distance(feet, ship.PointOf(ShipRig.Finch.Exits[0])) < 1.5f, "at the hatch's exit");
-        Assert.True(ship.HatchOpen, "the hatch opens to let her out");
+        Assert.True(Vector3.Distance(feet, ship.PointOf(ShipRig.Finch.Helm.Exits[0].Position)) < 1.5f, "at the hatch's exit");
+        Assert.True(ship.Doors[0].Opening, "the hatch opens to let her out");
         rig.Step(20);
         Assert.True(Vector3.Distance(Ch(rig, ada).State.Position, feet) < 0.1f, "standing on the ground, clear of the hull");
 
         // The lock: only the owner gets in.
         Assert.Equal(OutcomeCode.NotUsable, zone.Interaction().Interact(bo, atHatch, "ship-lock"), "only the owner is offered the lock");
-        Look(rig, ada, ship.PointOf(ShipRig.Finch.Hatch));
+        Look(rig, ada, ship.PointOf(ShipRig.Finch.HatchPoint()));
         Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, atHatch, "ship-lock"), "Ada locks it");
-        Look(rig, bo, ship.PointOf(ShipRig.Finch.Hatch));
+        Look(rig, bo, ship.PointOf(ShipRig.Finch.HatchPoint()));
         Assert.Equal(OutcomeCode.Locked, zone.Interaction().Interact(bo, atHatch, "board"), "locked to Bo");
         Assert.Equal(OutcomeCode.Locked, zone.Interaction().Interact(bo, atCargo, "open"), "its cargo too");
         Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, atHatch, "hatch-close"), "Ada shuts the hatch");
-        rig.Step(Ship.HatchTicks);
+        rig.Step(ShipTestParts.HatchTicks);
         Assert.Equal(OutcomeCode.Locked, zone.Interaction().Interact(bo, atHatch, "hatch-open"), "and Bo can't open it");
         Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, atHatch, "hatch-open"), "Ada can");
-        rig.Step(Ship.HatchTicks);
+        rig.Step(ShipTestParts.HatchTicks);
 
         // The cargo: a box behind the open hatch.
         Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, atCargo, "open"), "Ada opens the cargo");
@@ -205,12 +205,12 @@ public static class ShipGameTests
         Assert.True(!ship.State.Asleep, "a hit wakes it");
 
         // Ada in the seat when it goes.
-        Vector3 hatch = ship.PointOf(ShipRig.Finch.Hatch);
+        Vector3 hatch = ship.PointOf(ShipRig.Finch.HatchPoint());
         Entity ada = AddPlayer(rig, "Ada", zone.Frame.Beside(hatch, 1.6f, 0, 0));
         Look(rig, ada, hatch);
-        var atHatch = new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch);
+        var atHatch = new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipRig.Finch.HelmPart());
         zone.Interaction().Interact(ada, atHatch, "hatch-open");
-        rig.Step(Ship.HatchTicks);
+        rig.Step(ShipTestParts.HatchTicks);
         Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, atHatch, "board"), "boards");
         Player pa = zone.Players().PlayerOf(ada)!;
 

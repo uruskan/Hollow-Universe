@@ -31,9 +31,10 @@ public partial class ShipsView : Node3D
         public bool Known;
         public FxHandle Fire;
 
-        // A ship people walk in: its parts' states as last posed, and the server's word they came from.
+        // A ship people walk in: its parts' states as last shown; each door's way, for its sound when it turns.
         public float[]? Parts;
-        public int PartsVersion = -1;
+        public float[]? Shown;
+        public bool[]? Opening;
     }
 
     private readonly Dictionary<uint, Drawn> _drawn = new();
@@ -75,23 +76,35 @@ public partial class ShipsView : Node3D
                 ShipState s = Client.Ships().OwnShip;
                 Num.Quaternion q = Client.Ships().OwnShipRenderRotation;
                 Num.Vector3 origin = Client.Ships().OwnShipRenderPosition - Num.Vector3.Transform(def.CentreOfMass, q);
-                look = new ShipLook(Pivot(origin, q), ship.Hatch, s.Thrust, s.Has(ShipFlags.EnginesOn), s.Has(ShipFlags.Boosting), true, false);
+                look = new ShipLook(Pivot(origin, q), ship.DoorAt(0, Client.ServerTickNow), s.Thrust, s.Has(ShipFlags.EnginesOn), s.Has(ShipFlags.Boosting), true, false);
             }
             else
             {
-                look = new ShipLook(Pivot(ship.Origin, ship.Rotation), ship.Hatch, ship.Thrust, ship.Has(ShipNetFlags.EnginesOn),
+                look = new ShipLook(Pivot(ship.Origin, ship.Rotation), ship.DoorAt(0, Client.RenderTick), ship.Thrust, ship.Has(ShipNetFlags.EnginesOn),
                     ship.Has(ShipNetFlags.Boosting), ship.Has(ShipNetFlags.Piloted), ship.Has(ShipNetFlags.Destroyed));
             }
             d.View.Visible = !ship.Has(ShipNetFlags.InOrbit);
             d.View.FromCockpit = mine && Cockpit;
             d.View.Show(look, delta);
-            if (def.Interior is { } interior && ship.PartsVersion != d.PartsVersion)
+            if (def.Interior is { } interior)
             {
-                // Its ramp, airlock and turrets as the server last said (IRON_WAKE.md §4.7).
-                d.PartsVersion = ship.PartsVersion;
+                // Its ramp, airlock and turrets (IRON_WAKE.md §4.7, §5.3): as its space is posed where the player has one (the
+                // doors drawn where they are met), else its details at the time drawn; shown when they change.
                 d.Parts ??= new float[interior.Parts.Count];
-                ship.PartsInto(interior, d.Parts);
-                d.View.ShowParts(d.Parts);
+                d.Shown ??= new float[interior.Parts.Count];
+                if (Client.Ships().FrameOf(ship.NetId) is { } frame)
+                {
+                    frame.States.CopyTo(d.Parts, 0);
+                }
+                else
+                {
+                    ship.PartsInto(interior, d.Parts, (long)Client.RenderTick);
+                }
+                if (!d.Parts.AsSpan().SequenceEqual(d.Shown))
+                {
+                    d.Parts.CopyTo(d.Shown, 0);
+                    d.View.ShowParts(d.Shown);
+                }
             }
             Hear(d, ship, def, look);
         }
@@ -144,23 +157,26 @@ public partial class ShipsView : Node3D
             d.Hum = d.Burn = SoundHandle.None;
         }
         ShipNetFlags was = d.Flags, now = ship.Flags;
-        Vector3 hatch = GroundView.ToGodot(ship.PointOf(def.Hatch));
         Vector3 centre = GroundView.ToGodot(ship.Position);
+        // Each door as it turns to open or shut (its own sound, else the ship's hatch's), at its part.
+        d.Opening ??= new bool[def.Doors.Count];
+        for (int i = 0; i < def.Doors.Count && i < ship.Doors.Length; i++)
+        {
+            bool opening = ship.Doors[i].Opening;
+            if (d.Known && opening != d.Opening[i])
+            {
+                string way = opening ? "Open" : "Close";
+                Vector3 door = GroundView.ToGodot(ship.PointOf(def.PartPoint(def.PartOfDoor(i))));
+                Sounds.At(Sounds.Item(def.Key, def.Doors[i].Key + way) ?? Sounds.Item(def.Key, "hatch" + way), door);
+            }
+            d.Opening[i] = opening;
+        }
         if (d.Known)
         {
             bool Rose(ShipNetFlags f) => (now & f) != 0 && (was & f) == 0;
-            bool Fell(ShipNetFlags f) => (now & f) == 0 && (was & f) != 0;
             if (Rose(ShipNetFlags.Boosting))
             {
                 Sounds.At(Sounds.Item(def.Key, "boost"), at.GlobalPosition);
-            }
-            if (Rose(ShipNetFlags.HatchOpen))
-            {
-                Sounds.At(Sounds.Item(def.Key, "hatchOpen"), hatch);
-            }
-            else if (Fell(ShipNetFlags.HatchOpen))
-            {
-                Sounds.At(Sounds.Item(def.Key, "hatchClose"), hatch);
             }
             if (Rose(ShipNetFlags.Landed) && d.Velocity.Length() > 0.6f)
             {

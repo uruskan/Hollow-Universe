@@ -61,14 +61,13 @@ public static class ShipNetTests
         GameContent c = ContentFixture.Content;
         Ship ship = rig.Add(x: 30, z: -20, yaw: 0.4f);
         rig.Step(40);
-        Vector3 hatch = ship.PointOf(ShipRig.Finch.Hatch);
+        Vector3 hatch = ship.PointOf(ShipRig.Finch.HatchPoint());
         Vector3 side = Vector3.Normalize(Vector3.Transform(-Vector3.UnitX, ship.State.Rotation));
         Vector3 standAt = zone.Settle(hatch + side * 1.6f);
         Entity ada = zone.Players().AddPlayer(zone.NextId(), "Ada", zone.NewCharacter(standAt + zone.Frame.UpAt(standAt) * 0.02f));
         zone.Players().PlayerOf(ada)!.Vitals.Health = 100;
-        ship.HatchOpen = true;
-        ship.HatchProgress = Ship.HatchTicks;
-        Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board"), "boards");
+        zone.Ships().SetDoorAtOnce(ship, 0, 1);
+        Assert.Equal(OutcomeCode.Done, zone.Interaction().Interact(ada, new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipRig.Finch.HelmPart()), "board"), "boards");
         rig.Step(2);
 
         // The client: its own ground and trees, the character's predictor (which records the inputs) and the ship's.
@@ -80,7 +79,7 @@ public static class ShipNetTests
         var context = new ShipContext(frame, surface, ShipContext.GravityOf(zone.Spec.SurfaceGravity), (float)zone.Spec.AirDensity,
             (float)zone.Spec.AirScaleHeight, collider);
         var ships = new ShipPredictor(predictor, () => context);
-        predictor.Seat = tick => ships.TryGetState(tick, out ShipState s) ? (0UL, s.PointOf(ShipRig.Finch.Seat, ShipRig.Finch.CentreOfMass), s.Velocity) : null;
+        predictor.Seat = tick => ships.TryGetState(tick, out ShipState s) ? (0UL, s.PointOf(ShipRig.Finch.SeatPoint(), ShipRig.Finch.CentreOfMass), s.Velocity) : null;
         uint start = (uint)zone.Tick;
         zone.Entities.Get<Character>(ada).State.Health = 100; // as the vitals have it (set above)
         ships.Reset(ShipRig.Finch, 1, start, ship.State, start);
@@ -145,12 +144,12 @@ public static class ShipNetTests
         Assert.True(seen?.Def != null, "Ada sees her ship");
         RemoteShip ship = seen!;
         // Ada walks to the hatch (the admin's teleport puts her beside it) and boards.
-        Vector3 hatch = ship.PointOf(ship.Def!.Hatch);
+        Vector3 hatch = ship.PointOf(ship.Def!.HatchPoint());
         Vector3 out_ = Vector3.Normalize(Vector3.Transform(-Vector3.UnitX, ship.Rotation));
         Vector3 at = hatch + out_ * 1.6f;
         rig.Teleport("Ada", at);
         rig.Run(0.5, (_, _) => default);
-        ada.Local.Interact(new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board");
+        ada.Local.Interact(new TargetRef(TargetFamily.Ship, ship.Id.Value, ship.Def!.HelmPart()), "board");
         rig.Run(0.5, (_, _) => default);
         Assert.True(ada.Ships().Piloting, "Ada flies the ship (her client predicts it)");
         long corrections = ada.Stats.ShipCorrections;

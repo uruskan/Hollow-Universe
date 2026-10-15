@@ -11,6 +11,7 @@ using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Targets;
 using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Diagnostics;
 
@@ -61,7 +62,9 @@ public sealed class BuildingModule : ServerModule
         {
             HammerIntent m = message;
             Entity me = session.Entity;
-            Intent(session, m.Seq, () => Zone.Building().Hammer(me, m.Action, new EntityId(m.Target), m.Grade));
+            Intent(session, m.Seq, () => m.Action == HammerAction.Repair
+                ? Zone.Building().Repair(me, new TargetRef((TargetFamily)m.Family, m.Target, m.Part))
+                : Zone.Building().Hammer(me, m.Action, new EntityId(m.Target), m.Grade));
         });
     }
 

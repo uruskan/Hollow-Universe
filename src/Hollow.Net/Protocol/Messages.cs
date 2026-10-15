@@ -181,6 +181,12 @@ public partial struct OwnState
 
     /// <summary>The frame the state is in (IRON_WAKE.md §4.2): aboard, the ship's net ID, and the position and velocity are its frame's; 0 the zone's.</summary>
     [VarInt] public uint Frame;
+
+    /// <summary>
+    /// The seat the character sits in (IRON_WAKE.md §5.2): 0 none, n seat n − 1 of the ship its frame names (or, a ship
+    /// people only sit in, the one in <c>OwnShip</c>); the prediction carries it there.
+    /// </summary>
+    [Bits(5)] public byte Seat;
 }
 
 /// <summary>
@@ -256,9 +262,8 @@ public partial struct ShipNetState
     [Signed(16)] public short TurnC;
     [Bits(11)] public ShipNetFlags Flags;
 
-    /// <summary>What the receiver is told of it (GROUND_SYSTEMS.md §3.3): theirs, a teammate's, locked.</summary>
+    /// <summary>What the receiver is told of it (GROUND_SYSTEMS.md §3.3): theirs, a teammate's, locked, on its crew.</summary>
     [Bits(8)] public ViewerFlags Viewer;
-    [Bits(5)] public byte Hatch;
     [Signed(8)] public sbyte ThrustX;
     [Signed(8)] public sbyte ThrustY;
     [Signed(8)] public sbyte ThrustZ;
@@ -570,9 +575,9 @@ public partial struct IntentResult
 }
 
 /// <summary>
-/// The pilot's keys in the seat (G6, client → server, reliable ordered, the general intent sequence and budget, answered
-/// by <see cref="IntentResult"/>): the hatch, stepping out, the lock, descending from orbit. On foot, a ship's hatch, seat,
-/// tank, lock and cargo are verbs (<see cref="InteractIntent"/>).
+/// A seated occupant's keys (G6, IW2; client → server, reliable ordered, the general intent sequence and budget, answered
+/// by <see cref="IntentResult"/>): a door (its index in <see cref="Arg"/>), leaving the seat, the lock, descending from
+/// orbit. On foot, a ship's doors, seats, tank, list and cargo are verbs (<see cref="InteractIntent"/>).
 /// </summary>
 [NetMessage(120)]
 public partial struct ShipIntent
@@ -580,19 +585,24 @@ public partial struct ShipIntent
     [VarInt] public uint Seq;
     public ulong Ship;
     [Bits(3)] public ShipAction Action;
+    [Bits(4)] public byte Arg;
 }
 
 /// <summary>
-/// A ship's moving parts away from rest (IRON_WAKE.md §4.7, server → client, reliable ordered): sent when a part moves,
-/// and when a ship whose parts moved comes into range. Every part not listed is at the interior's rest; a listed one
-/// carries its state's bits exactly, so a client's space poses its bodies as the server's and its prediction aboard
-/// stays exact.
+/// A ship's details (IRON_WAKE.md §5, §12; server → client, reliable ordered), sent when they change and when a ship whose
+/// details differ from a new one's comes into range: its moving parts away from rest that no door drives (their states'
+/// bits exactly, so a client's space poses as the server's and its prediction aboard stays exact; every part not listed
+/// is at the interior's rest), each door's motion (where it was at a tick and which way it goes: a client works out its
+/// progress at any tick as the server does), who sits in each seat taken, and each part's health below its most.
 /// </summary>
 [NetMessage(121)]
-public partial struct ShipPartStates
+public partial struct ShipDetails
 {
     [VarInt] public uint Ship;
     [MaxCount(255)] public ShipPartNet[] Parts;
+    [MaxCount(16)] public ShipDoorNet[] Doors;
+    [MaxCount(31)] public ShipSeatNet[] Seats;
+    [MaxCount(255)] public ShipPartHealthNet[] Health;
 }
 
 /// <summary>One part's state: its index in the interior, the float's bits.</summary>
@@ -601,6 +611,36 @@ public partial struct ShipPartNet
 {
     [VarInt] public uint Part;
     public uint Bits;
+}
+
+/// <summary>
+/// One door's motion (IRON_WAKE.md §5.3): its progress's bits at <see cref="Since"/> (a server tick), which way it goes
+/// (+1, −1, 0) or would go once whoever is in its way is clear, and its health as a share of its most (0 broken).
+/// </summary>
+[NetStruct]
+public partial struct ShipDoorNet
+{
+    public uint From;
+    [Signed(2)] public sbyte Moving;
+    [Signed(2)] public sbyte Waiting;
+    public uint Since;
+    public byte Health;
+}
+
+/// <summary>A seat taken: its index and who sits there.</summary>
+[NetStruct]
+public partial struct ShipSeatNet
+{
+    [Bits(5)] public byte Seat;
+    public ulong Occupant;
+}
+
+/// <summary>A part's health below its most: its index, its share of its most (0 broken, 255 whole).</summary>
+[NetStruct]
+public partial struct ShipPartHealthNet
+{
+    public byte Part;
+    public byte Health;
 }
 
 /// <summary>A firearm's magazine and attachments (G4), carried by its slot.</summary>
@@ -851,7 +891,10 @@ public partial struct GunUpdate
 // ---------------------------------------------------------------- G3: building intents (client → server, reliable)
 // Each has a sequence number from the same series as G2's intents and is answered with an IntentResult (GROUND.md §6.3).
 
-/// <summary>A hammer action on a piece: upgrade (to a grade), rotate, demolish, repair.</summary>
+/// <summary>
+/// A hammer action: on a piece, upgrade (to a grade), rotate, demolish; repair anything the hammer mends, named by its
+/// family and part (a piece, a ship's door or battery, IRON_WAKE.md §5.5).
+/// </summary>
 [NetMessage(91)]
 public partial struct HammerIntent
 {
@@ -859,6 +902,8 @@ public partial struct HammerIntent
     [Bits(2)] public HammerAction Action;
     public ulong Target;
     [Bits(3)] public byte Grade;
+    [Bits(4)] public byte Family;
+    public byte Part;
 }
 
 // ---------------------------------------------------------------- G3: building replication (server → client, reliable)

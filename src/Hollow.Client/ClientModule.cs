@@ -54,10 +54,10 @@ public abstract class ClientModule : IDisposable
     }
 
     /// <summary>
-    /// Whether this module has the player in a seat this tick (a pilot's, G6): their controls ride in the tick's input
-    /// and the item in hand does nothing.
+    /// Whether this module has the player flying something this tick (a ship's helm, G6): its controls ride in the tick's
+    /// input.
     /// </summary>
-    protected internal virtual bool Seated => false;
+    protected internal virtual bool Flies => false;
 
     /// <summary>Each tick, after its input was recorded and before the character is predicted (a ship is predicted first).</summary>
     protected internal virtual void BeforePredict(uint tick)

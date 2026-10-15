@@ -199,9 +199,16 @@ public sealed class Predictor : IDisposable
         return command;
     }
 
+    /// <summary>
+    /// Called before each tick's step, first predicted or replayed: the ships' frames are posed for it as the server's
+    /// spaces are when its characters step that tick (IRON_WAKE.md §5.3: a door at its progress).
+    /// </summary>
+    public Action<uint>? BeforeStep { get; set; }
+
     // One tick of movement; false when the character was held for its ground.
     private bool Step(uint tick, ref CharacterState state)
     {
+        BeforeStep?.Invoke(tick);
         if (state.Stance == Stance.Seated && !state.IsDead)
         {
             // In a ship's seat (G6): the ship carries the character, as the server's zone does after the ship moves.

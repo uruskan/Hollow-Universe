@@ -322,6 +322,43 @@ public sealed class ShipSpace : IDisposable
         return found;
     }
 
+    /// <summary>
+    /// The nearest point of each part's pieces to a point of the ship's frame within <paramref name="radius"/> (a blast's
+    /// reach over a ship's parts with health, IRON_WAKE.md §5.5): one entry per part met (0 the hull), its point and
+    /// distance (0 inside a piece), in the parts' order. Under the gate.
+    /// </summary>
+    public void NearestByPart(Vector3 point, float radius, List<(int Part, Vector3 Point, float Distance)> into)
+    {
+        into.Clear();
+        if (radius <= 0)
+        {
+            return;
+        }
+        using var sphere = new SphereShapeSettings(radius);
+        using Shape shape = sphere.Create();
+        Matrix4x4 at = Matrix4x4.Transpose(Matrix4x4.CreateTranslation(point));
+        Vector3 scale = Vector3.One, offset = Vector3.Zero;
+        var settings = new CollideShapeSettings { BackFaceMode = BackFaceMode.CollideWithBackFaces, MaxSeparationDistance = 0 };
+        _collides.Clear();
+        Jolt.NarrowPhaseQuery.CollideShape(shape, scale, at, settings, offset, CollisionCollectorType.AllHit, _collides, null, null, null, null);
+        foreach (CollideShapeResult c in _collides)
+        {
+            int part = (int)c.BodyID2.ID;
+            float d = MathF.Max(0, radius - c.PenetrationDepth);
+            Vector3 nearest = d == 0 ? point : c.ContactPointOn2;
+            int index = into.FindIndex(e => e.Part == part);
+            if (index < 0)
+            {
+                into.Add((part, nearest, d));
+            }
+            else if (d < into[index].Distance)
+            {
+                into[index] = (part, nearest, d);
+            }
+        }
+        into.Sort((a, b) => a.Part.CompareTo(b.Part));
+    }
+
     /// <summary>Whether a standing character's capsule with its feet at a point of the ship's frame meets no piece (an exit, a seat's way out). Under the gate.</summary>
     public bool CapsuleClear(Vector3 feet)
     {

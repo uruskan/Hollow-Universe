@@ -249,6 +249,21 @@ public enum OutcomeCode : byte
 
     /// <summary>On foot at a ship that isn't at rest: its hatch opens, and its seat is reached, only when it is.</summary>
     ShipMoving = 110,
+
+    /// <summary>Leaving a seat: none of its exits is clear.</summary>
+    ExitBlocked = 111,
+
+    /// <summary>A ship's door broken: jammed open until the hammer mends it.</summary>
+    Jammed = 112,
+
+    /// <summary>A ship's station broken: disabled until the hammer mends it.</summary>
+    Disabled = 113,
+
+    /// <summary>A door that opens only slow and low (the ramp): the ship too fast or too high.</summary>
+    TooFast = 114,
+
+    /// <summary>The ship's crew alone (those authorised at its helm).</summary>
+    NotCrew = 115,
 }
 
 /// <summary>

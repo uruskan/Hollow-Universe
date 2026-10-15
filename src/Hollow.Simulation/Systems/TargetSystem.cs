@@ -267,7 +267,7 @@ public sealed class TargetSystem : ZoneSystem
                 Feet = zone.WorldOf(c.State),
                 Up = up,
                 Yaw = Facing.YawOf(zone.ViewOf(c), up),
-                Pose = p.Sleeping || p.Wounded ? Simulation.Combat.Pose.Lying : c.State.Stance == Stance.Crouching ? Simulation.Combat.Pose.Crouching : Simulation.Combat.Pose.Standing,
+                Pose = c.State.Stance == Stance.Seated ? Simulation.Combat.Pose.Seated : p.Sleeping || p.Wounded ? Simulation.Combat.Pose.Lying : c.State.Stance == Stance.Crouching ? Simulation.Combat.Pose.Crouching : Simulation.Combat.Pose.Standing,
             };
             return true;
         }
@@ -550,9 +550,12 @@ public sealed class TargetSystem : ZoneSystem
         }
     }
 
-    /// <summary>Building pieces (one coming down still stands until it is taken away).</summary>
-    internal sealed class PieceTargets(Zone zone) : ITargetFamily
+    /// <summary>Building pieces (one coming down still stands until it is taken away); the hammer mends them.</summary>
+    internal sealed class PieceTargets(Zone zone) : ITargetFamily, IRepairFamily
     {
+        public Outcome Repair(Entity entity, Player p, in TargetRef target, IBuildingWallet wallet) =>
+            zone.Building().Hammer(entity, HammerAction.Repair, new EntityId(target.Id), 0);
+
         public TargetFamily Family => TargetFamily.Piece;
 
         public bool Moves => false;
@@ -689,9 +692,21 @@ public sealed class TargetSystem : ZoneSystem
         private Door? Find(ulong id) => zone.Building().World?.DoorOf(new EntityId(id)) is { Gone: false } door ? door : null;
     }
 
-    /// <summary>The claim device (the base's cupboard), found by its box.</summary>
-    internal sealed class CupboardTargets(Zone zone) : ITargetFamily
+    /// <summary>The claim device (the base's cupboard), found by its box; its list is the building rules'.</summary>
+    internal sealed class CupboardTargets(Zone zone) : ITargetFamily, IAuthoriseFamily
     {
+        public Outcome Authorise(Player p, in TargetRef target) =>
+            Find(target.Id) is { } claim ? zone.Building().World!.Authorise(p.Id.Value, claim) : OutcomeCode.NotFound;
+
+        public Outcome Deauthorise(Player p, in TargetRef target) =>
+            Find(target.Id) is { } claim ? zone.Building().World!.Deauthorise(p.Id.Value, claim) : OutcomeCode.NotFound;
+
+        public Outcome AuthoriseTeam(Player p, in TargetRef target, List<ulong> team) =>
+            Find(target.Id) is { } claim ? zone.World().AuthoriseTeam(p.Id.Value, claim, team) : OutcomeCode.NotFound;
+
+        public Outcome ClearList(Player p, in TargetRef target) =>
+            Find(target.Id) is { } claim ? zone.Building().World!.ClearAuthorised(p.Id.Value, claim) : OutcomeCode.NotFound;
+
         public TargetFamily Family => TargetFamily.Cupboard;
 
         public bool Moves => false;
@@ -744,7 +759,7 @@ public sealed class TargetSystem : ZoneSystem
             {
                 Capabilities = Capabilities(target.Id),
                 Flags = zone.Targets().FlagsFor(target, viewer) | zone.Targets().FlagsFor(new TargetRef(TargetFamily.Thing, claim.Id.Value), viewer),
-                Name = zone.Content!.ClaimDeployable.Item.Name, Position = claim.ZoneTransform.Position,
+                Name = zone.Content!.ClaimDeployable.Item.Name, Position = claim.ZoneTransform.Position, Deployable = zone.Content!.ClaimDeployable,
             };
             return true;
         }
@@ -828,9 +843,15 @@ public sealed class TargetSystem : ZoneSystem
         }
     }
 
-    /// <summary>Ships, wrecks included until they go; found by their hulls.</summary>
-    internal sealed class ShipTargets(Zone zone) : ITargetFamily
+    /// <summary>
+    /// Ships, wrecks included until they go, by their target parts (IRON_WAKE.md §5.1): found by their parts' balls and,
+    /// for a ship people walk in, by its space's pieces (a piece names its part: the ramp, a battery; the rest is the hull,
+    /// which only stops the view). Their lists (the helm's) and their parts' repair are theirs too.
+    /// </summary>
+    internal sealed class ShipTargets(Zone zone) : ITargetFamily, IAuthoriseFamily, IRepairFamily
     {
+        private readonly List<(int Part, Vector3 Point, float Distance)> _near = new();
+
         public TargetFamily Family => TargetFamily.Ship;
 
         public bool Moves => true;
@@ -839,7 +860,7 @@ public sealed class TargetSystem : ZoneSystem
 
         public object? Resolve(ulong id) => zone.Ships().ShipOf(new EntityId(id));
 
-        // The ship by its pivot, or a part (the hatch, the fuel cap, the cargo) at its point on the hull.
+        // The ship by its pivot, or a part at its pose (moved by what carries it: the ramp's leaf, a turret).
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
             pose = default;
@@ -847,11 +868,12 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
-            pose = new TargetPose(target.Part == ShipParts.Hull ? ship.Origin : ship.PointOf(ship.Def.PartPoint(target.Part)), ship.State.Rotation);
+            pose = target.Part == ShipParts.Hull ? new TargetPose(ship.Origin, ship.State.Rotation)
+                : ShipAim.PartPose(ship.Def, target.Part, ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass), ship.Parts);
             return true;
         }
 
-        // The hull's nearest point, or a part's own point on it (a hatch is reached where it is).
+        // The hull's nearest point, or a part's (its ball's surface, its pieces').
         public bool TryNearest(in TargetRef target, Vector3 from, out Vector3 point)
         {
             point = from;
@@ -859,7 +881,10 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
-            point = target.Part == ShipParts.Hull ? ShipSystem.ShipClosestPoint(ship, from) : ship.PointOf(ship.Def.PartPoint(target.Part));
+            if (!ShipAim.Nearest(ship.Def, ship.Frame, ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass), ship.Parts, target.Part, from, _near, out point))
+            {
+                point = ShipSystem.ShipClosestPoint(ship, from);
+            }
             return true;
         }
 
@@ -867,44 +892,86 @@ public sealed class TargetSystem : ZoneSystem
 
         public CapabilitySet Capabilities(ulong id) => zone.Ships().ShipOf(new EntityId(id)) != null ? zone.Content!.Capabilities.Ship : CapabilitySet.Empty;
 
-        // Its parts, round their points: the hatch, the fuel cap and, through the open hatch, the cargo; a ship people walk
-        // in hides what is behind its pieces (IRON_WAKE.md §4.9: the view goes on through its open ramp, not its hull).
+        // A ship people walk in: its pieces stop the view (its hull a backdrop, a part's pieces that part, IRON_WAKE.md §4.9:
+        // the view goes on through its open ramp, not its hull); then every ship's parts' balls.
         public void Aim(in AimRay ray, ref AimHit best)
         {
             if (zone.Frames.Ships.Count > 0 &&
                 ShipQueries.Ray(zone.Frames.Ships, ray.Origin, ray.Direction, ray.Upto(best), zone.Tick, out ShipQueryHit hit) &&
                 zone.Ships().ShipOf(new EntityId(hit.Key)) is { Destroyed: false, InOrbit: false } walked)
             {
-                ray.Consider(ref best, hit.Distance, walked.Ref, AimKind.Backdrop);
+                int part = walked.Def.PartOfPieces(hit.Hit.Part);
+                ray.Consider(ref best, hit.Distance, walked.Ref with { Part = (byte)part }, part == 0 ? AimKind.Backdrop : AimKind.Thing);
             }
             foreach (Ship ship in zone.Ships().All)
             {
                 if (!ship.Destroyed && !ship.InOrbit)
                 {
-                    ShipAim.Parts(ship.Id.Value, ship.Def, ship.State.Position, ship.State.Rotation, ship.HatchOpen, ray, ref best);
+                    ShipAim.Balls(ship.Id.Value, ship.Def, ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass), ship.Parts, Ready(ship), ray, ref best);
                 }
             }
         }
 
-        // A part's capabilities: the cargo is a container's while the hatch is open and the ship at rest; the hatch and the
-        // fuel cap are the ship's.
+        // The doors that let one in now (a part reached through one), as bits.
+        private uint Ready(Ship ship)
+        {
+            uint ready = 0;
+            for (int d = 0; d < ship.Doors.Length && d < 32; d++)
+            {
+                if (zone.Ships().DoorOpenEnough(ship, d))
+                {
+                    ready |= 1u << d;
+                }
+            }
+            return ready;
+        }
+
+        // What the rules know of a part (IRON_WAKE.md §5.1): the ship's capabilities and the part's own (a part reached
+        // through a door only while that door lets one in and the ship is at rest), its name, its door's state and rule, its
+        // seat's, its health.
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)
         {
             facts = default;
-            if (zone.Ships().ShipOf(new EntityId(target.Id)) is not { Destroyed: false } ship)
+            if (zone.Ships().ShipOf(new EntityId(target.Id)) is not { Destroyed: false } ship || target.Part >= ship.Def.Parts.Count)
             {
                 return false;
             }
-            CapabilityData data = zone.Content!.Capabilities;
-            bool still = zone.Ships().ShipStill(ship);
+            ShipSystem ships = zone.Ships();
+            ShipDef def = ship.Def;
+            ShipTargetPart part = def.Parts[target.Part];
+            bool still = ships.ShipStill(ship);
+            CapabilitySet capabilities = zone.Content!.Capabilities.Ship.With(part.Capabilities);
+            if (part.Through >= 0 && (!ships.DoorOpenEnough(ship, part.Through) || !still))
+            {
+                capabilities = zone.Content!.Capabilities.Ship;
+            }
+            int seatDoor = part.Seat >= 0 ? def.Seats[part.Seat].Door : -1;
+            (float health, float max, ShipPartHealth? healthDef) = ships.PartHealthOf(ship, target.Part);
             facts = new TargetFacts
             {
-                Capabilities = target.Part == ShipParts.Cargo && ship.Def.CargoSlots > 0 && ship.HatchOpen && still ? data.Ship : data.ShipPart,
-                Flags = zone.Targets().FlagsFor(target, viewer), Name = ship.Def.Name, Open = ship.HatchOpen, Busy = ship.Piloted, Still = still,
+                Capabilities = capabilities, Flags = zone.Targets().FlagsFor(ship.Ref, viewer), Name = target.Part == 0 ? def.Name : part.Name,
+                Open = part.Door >= 0 && ship.Doors[part.Door].Opening, Busy = part.Seat >= 0 && !ship.Occupants[part.Seat].IsNone, Still = still,
+                Ship = def, ShipPart = target.Part, DoorRule = part.Door >= 0 ? ships.MayOpen(ship, part.Door).Code : OutcomeCode.Done,
+                DoorReady = seatDoor >= 0 && ships.DoorOpenEnough(ship, seatDoor), Jammed = part.Door >= 0 && ships.DoorJammed(ship, part.Door),
+                Broken = part.Seat >= 0 && ships.SeatDisabled(ship, part.Seat), Health = healthDef != null ? health / max : -1,
                 Position = ship.State.Position,
             };
             return true;
         }
+
+        private Ship? ShipAt(in TargetRef target) => zone.Ships().ShipOf(new EntityId(target.Id)) is { Destroyed: false } ship ? ship : null;
+
+        public Outcome Authorise(Player p, in TargetRef target) => ShipAt(target) is { } ship ? zone.Ships().Authorise(p.Id.Value, ship) : OutcomeCode.NotFound;
+
+        public Outcome Deauthorise(Player p, in TargetRef target) => ShipAt(target) is { } ship ? zone.Ships().Deauthorise(p.Id.Value, ship) : OutcomeCode.NotFound;
+
+        public Outcome AuthoriseTeam(Player p, in TargetRef target, List<ulong> team) =>
+            ShipAt(target) is { } ship ? zone.Ships().AuthoriseTeam(p.Id.Value, ship, team) : OutcomeCode.NotFound;
+
+        public Outcome ClearList(Player p, in TargetRef target) => ShipAt(target) is { } ship ? zone.Ships().ClearCrew(p.Id.Value, ship) : OutcomeCode.NotFound;
+
+        public Outcome Repair(Entity entity, Player p, in TargetRef target, IBuildingWallet wallet) =>
+            ShipAt(target) is { } ship ? zone.Ships().RepairPart(entity, p, ship, target.Part, wallet) : OutcomeCode.NotFound;
     }
 
     // ---------------------------------------------------------------- what was TargetSystem

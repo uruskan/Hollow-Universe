@@ -500,16 +500,11 @@ public sealed class ConsoleModule : ServerModule
 
     private static int Sign(string word) => word.Length > 0 && "SWsw".Contains(word[^1], StringComparison.Ordinal) ? -1 : 1;
 
-    // Moves a player onto a point of the ground (not one in a ship's seat).
+    // Moves a player onto a point of the ground (out of a ship's seat first: Zone.Teleport frees it, IRON_WAKE.md §5.2).
     private void MoveTo(CommandContext ctx, PlayerSession whom, Vector3 ground, string where)
     {
         if (!Server.Alive(ctx, whom, out _))
         {
-            return;
-        }
-        if (Zone.Entities.Get<Character>(whom.Entity).State.Stance == Stance.Seated)
-        {
-            ctx.Error($"{(GameServer.IsMe(ctx, whom) ? "You are" : whom.Name + " is")} in a ship's seat: step out first (F).");
             return;
         }
         Zone.Teleport(whom.Entity, ground + Zone.Frame.UpAt(ground) * 0.05f);

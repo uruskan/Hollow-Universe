@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x31A34CE3FFC792C3UL;
+    public const ulong SchemaHash = 0x2590DAD63C270BB9UL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -309,6 +309,7 @@ partial struct OwnState
         w.WriteBits((uint)Flags, 4);
         w.WriteBits((uint)Cheats, 2);
         w.WriteVarUInt(Frame);
+        w.WriteBits((uint)Seat, 5);
     }
 
     public static OwnState Read(BitReader r)
@@ -325,6 +326,7 @@ partial struct OwnState
         v.Flags = (MoveFlags)r.ReadBits(4);
         v.Cheats = (MoveCheats)r.ReadBits(2);
         v.Frame = r.ReadVarUInt();
+        v.Seat = (byte)r.ReadBits(5);
         return v;
     }
 }
@@ -443,7 +445,6 @@ partial struct ShipNetState
         w.WriteSigned(TurnC, 16);
         w.WriteBits((uint)Flags, 11);
         w.WriteBits((uint)Viewer, 8);
-        w.WriteBits((uint)Hatch, 5);
         w.WriteSigned(ThrustX, 8);
         w.WriteSigned(ThrustY, 8);
         w.WriteSigned(ThrustZ, 8);
@@ -464,7 +465,6 @@ partial struct ShipNetState
         v.TurnC = (short)r.ReadSigned(16);
         v.Flags = (ShipNetFlags)r.ReadBits(11);
         v.Viewer = (ViewerFlags)r.ReadBits(8);
-        v.Hatch = (byte)r.ReadBits(5);
         v.ThrustX = (sbyte)r.ReadSigned(8);
         v.ThrustY = (sbyte)r.ReadSigned(8);
         v.ThrustZ = (sbyte)r.ReadSigned(8);
@@ -553,15 +553,6 @@ partial struct ShipNetState
         {
             w.WriteBool(true);
             w.WriteBits((uint)Viewer, 8);
-        }
-        else
-        {
-            w.WriteBool(false);
-        }
-        if (Hatch != b.Hatch)
-        {
-            w.WriteBool(true);
-            w.WriteBits((uint)Hatch, 5);
         }
         else
         {
@@ -664,10 +655,6 @@ partial struct ShipNetState
         }
         if (r.ReadBool())
         {
-            v.Hatch = (byte)r.ReadBits(5);
-        }
-        if (r.ReadBool())
-        {
             v.ThrustX = unchecked((sbyte)((int)b.ThrustX + r.ReadDelta()));
         }
         if (r.ReadBool())
@@ -693,7 +680,7 @@ partial struct ShipNetState
         return v;
     }
 
-    public readonly bool SameAs(in ShipNetState o) => X == o.X && Y == o.Y && Z == o.Z && TurnLargest == o.TurnLargest && TurnA == o.TurnA && TurnB == o.TurnB && TurnC == o.TurnC && Flags == o.Flags && Viewer == o.Viewer && Hatch == o.Hatch && ThrustX == o.ThrustX && ThrustY == o.ThrustY && ThrustZ == o.ThrustZ && Health == o.Health && Kind == o.Kind && Body == o.Body;
+    public readonly bool SameAs(in ShipNetState o) => X == o.X && Y == o.Y && Z == o.Z && TurnLargest == o.TurnLargest && TurnA == o.TurnA && TurnB == o.TurnB && TurnC == o.TurnC && Flags == o.Flags && Viewer == o.Viewer && ThrustX == o.ThrustX && ThrustY == o.ThrustY && ThrustZ == o.ThrustZ && Health == o.Health && Kind == o.Kind && Body == o.Body;
 
     /// <summary>The bits <see cref="WriteDelta"/> takes, without writing.</summary>
     public readonly int DeltaBits(in ShipNetState b)
@@ -708,7 +695,6 @@ partial struct ShipNetState
         bits += TurnC == b.TurnC ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)TurnC - (int)b.TurnC));
         bits += Flags == b.Flags ? 1 : 12;
         bits += Viewer == b.Viewer ? 1 : 9;
-        bits += Hatch == b.Hatch ? 1 : 6;
         bits += ThrustX == b.ThrustX ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustX - (int)b.ThrustX));
         bits += ThrustY == b.ThrustY ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustY - (int)b.ThrustY));
         bits += ThrustZ == b.ThrustZ ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustZ - (int)b.ThrustZ));
@@ -719,7 +705,7 @@ partial struct ShipNetState
     }
 
     /// <summary>The bits <see cref="Write"/> takes.</summary>
-    public const int FullBits = 282;
+    public const int FullBits = 277;
 }
 
 partial struct CharacterNetState
@@ -1707,6 +1693,7 @@ partial struct ShipIntent : INetMessage<ShipIntent>
         w.WriteVarUInt(Seq);
         w.WriteBits64(Ship, 64);
         w.WriteBits((uint)Action, 3);
+        w.WriteBits((uint)Arg, 4);
     }
 
     public static ShipIntent Read(BitReader r)
@@ -1715,15 +1702,16 @@ partial struct ShipIntent : INetMessage<ShipIntent>
         v.Seq = r.ReadVarUInt();
         v.Ship = r.ReadBits64(64);
         v.Action = (ShipAction)r.ReadBits(3);
+        v.Arg = (byte)r.ReadBits(4);
         return v;
     }
 }
 
-partial struct ShipPartStates : INetMessage<ShipPartStates>
+partial struct ShipDetails : INetMessage<ShipDetails>
 {
     public const byte TypeId = 121;
 
-    static byte INetMessage<ShipPartStates>.Id => TypeId;
+    static byte INetMessage<ShipDetails>.Id => TypeId;
 
     /// <summary>The type byte, then the message.</summary>
     public readonly void WriteMessage(BitWriter w)
@@ -1741,11 +1729,29 @@ partial struct ShipPartStates : INetMessage<ShipPartStates>
         {
             Parts![i].Write(w);
         }
+        int countDoors = Doors == null ? 0 : Math.Min(Doors.Length, 16);
+        w.WriteBits((uint)countDoors, 5);
+        for (int i = 0; i < countDoors; i++)
+        {
+            Doors![i].Write(w);
+        }
+        int countSeats = Seats == null ? 0 : Math.Min(Seats.Length, 31);
+        w.WriteBits((uint)countSeats, 5);
+        for (int i = 0; i < countSeats; i++)
+        {
+            Seats![i].Write(w);
+        }
+        int countHealth = Health == null ? 0 : Math.Min(Health.Length, 255);
+        w.WriteBits((uint)countHealth, 8);
+        for (int i = 0; i < countHealth; i++)
+        {
+            Health![i].Write(w);
+        }
     }
 
-    public static ShipPartStates Read(BitReader r)
+    public static ShipDetails Read(BitReader r)
     {
-        var v = new ShipPartStates();
+        var v = new ShipDetails();
         v.Ship = r.ReadVarUInt();
         int countParts = (int)r.ReadBits(8);
         if (countParts > 255)
@@ -1757,6 +1763,39 @@ partial struct ShipPartStates : INetMessage<ShipPartStates>
         for (int i = 0; i < countParts; i++)
         {
             v.Parts[i] = ShipPartNet.Read(r);
+        }
+        int countDoors = (int)r.ReadBits(5);
+        if (countDoors > 16)
+        {
+            r.Fail();
+            countDoors = 0;
+        }
+        v.Doors = new ShipDoorNet[countDoors];
+        for (int i = 0; i < countDoors; i++)
+        {
+            v.Doors[i] = ShipDoorNet.Read(r);
+        }
+        int countSeats = (int)r.ReadBits(5);
+        if (countSeats > 31)
+        {
+            r.Fail();
+            countSeats = 0;
+        }
+        v.Seats = new ShipSeatNet[countSeats];
+        for (int i = 0; i < countSeats; i++)
+        {
+            v.Seats[i] = ShipSeatNet.Read(r);
+        }
+        int countHealth = (int)r.ReadBits(8);
+        if (countHealth > 255)
+        {
+            r.Fail();
+            countHealth = 0;
+        }
+        v.Health = new ShipPartHealthNet[countHealth];
+        for (int i = 0; i < countHealth; i++)
+        {
+            v.Health[i] = ShipPartHealthNet.Read(r);
         }
         return v;
     }
@@ -1775,6 +1814,63 @@ partial struct ShipPartNet
         var v = new ShipPartNet();
         v.Part = r.ReadVarUInt();
         v.Bits = (uint)r.ReadBits(32);
+        return v;
+    }
+}
+
+partial struct ShipDoorNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)From, 32);
+        w.WriteSigned(Moving, 2);
+        w.WriteSigned(Waiting, 2);
+        w.WriteBits((uint)Since, 32);
+        w.WriteBits((uint)Health, 8);
+    }
+
+    public static ShipDoorNet Read(BitReader r)
+    {
+        var v = new ShipDoorNet();
+        v.From = (uint)r.ReadBits(32);
+        v.Moving = (sbyte)r.ReadSigned(2);
+        v.Waiting = (sbyte)r.ReadSigned(2);
+        v.Since = (uint)r.ReadBits(32);
+        v.Health = (byte)r.ReadBits(8);
+        return v;
+    }
+}
+
+partial struct ShipSeatNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Seat, 5);
+        w.WriteBits64(Occupant, 64);
+    }
+
+    public static ShipSeatNet Read(BitReader r)
+    {
+        var v = new ShipSeatNet();
+        v.Seat = (byte)r.ReadBits(5);
+        v.Occupant = r.ReadBits64(64);
+        return v;
+    }
+}
+
+partial struct ShipPartHealthNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Part, 8);
+        w.WriteBits((uint)Health, 8);
+    }
+
+    public static ShipPartHealthNet Read(BitReader r)
+    {
+        var v = new ShipPartHealthNet();
+        v.Part = (byte)r.ReadBits(8);
+        v.Health = (byte)r.ReadBits(8);
         return v;
     }
 }
@@ -2477,6 +2573,8 @@ partial struct HammerIntent : INetMessage<HammerIntent>
         w.WriteBits((uint)Action, 2);
         w.WriteBits64(Target, 64);
         w.WriteBits((uint)Grade, 3);
+        w.WriteBits((uint)Family, 4);
+        w.WriteBits((uint)Part, 8);
     }
 
     public static HammerIntent Read(BitReader r)
@@ -2486,6 +2584,8 @@ partial struct HammerIntent : INetMessage<HammerIntent>
         v.Action = (HammerAction)r.ReadBits(2);
         v.Target = r.ReadBits64(64);
         v.Grade = (byte)r.ReadBits(3);
+        v.Family = (byte)r.ReadBits(4);
+        v.Part = (byte)r.ReadBits(8);
         return v;
     }
 }

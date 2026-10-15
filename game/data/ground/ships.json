@@ -1,5 +1,5 @@
 {
-  "source": "Ours (GROUND.md §6.6). The Tin Finch TF-01's sizes, sockets, skids and nozzles come from its asset (D:/GameDev/Assets/TinFinch_TF01: socket_manifest.json and the source geometry, in the game model's axes: +Z the nose, +Y up, +X the left side, metres from the pivot on the ground between the skids). Mass, thrust, rates and drag are chosen for a weighty, thrust-borne skiff flown the Elite way (flight assist on by default, boost); drag areas are Cd x area. The hull's 750 is Rust's minicopter's; it burns lamp oil, our low-grade fuel, as Rust's helicopters burn theirs. The air comes from the planet (the zone's spec), not from here. P2 (GROUND_SYSTEMS.md §6): placed from its item (placement.json's ship rule with its own 'placement' on top), its hull must be clear and its skids on the ground or a foundation's top no steeper than 20 degrees (the vehicle workbench bay's slope), within 12 m of the eye; it carries fuel.placed of lamp oil, the same 50 its recipe's first tank holds. The Iron Wake (IRON_WAKE.md §5.4, IW1): a carrier people walk in. Its numbers are §5.4's proposals; its model, ten sweep boxes, four landing pads, sockets and interior (convex pieces by part, boarding volume, rooms) come from its data file, ships/iron-wake.json, written by its import; its centre of mass is the asset's hint (the data file's, checked); it floats on 1,680 m3 in a band 4.1 m below and 2.3 m above its centre of mass, and flight assist holds it within 20 degrees of pitch and 12 of roll.",
+  "source": "Ours (GROUND.md §6.6). The Tin Finch TF-01's sizes, sockets, skids and nozzles come from its asset (D:/GameDev/Assets/TinFinch_TF01: socket_manifest.json and the source geometry, in the game model's axes: +Z the nose, +Y up, +X the left side, metres from the pivot on the ground between the skids). Mass, thrust, rates and drag are chosen for a weighty, thrust-borne skiff flown the Elite way (flight assist on by default, boost); drag areas are Cd x area. The hull's 750 is Rust's minicopter's; it burns lamp oil, our low-grade fuel, as Rust's helicopters burn theirs. The air comes from the planet (the zone's spec), not from here. P2 (GROUND_SYSTEMS.md §6): placed from its item (placement.json's ship rule with its own 'placement' on top), its hull must be clear and its skids on the ground or a foundation's top no steeper than 20 degrees (the vehicle workbench bay's slope), within 12 m of the eye; it carries fuel.placed of lamp oil, the same 50 its recipe's first tank holds. The Iron Wake (IRON_WAKE.md §5.4, IW1): a carrier people walk in. Its numbers are §5.4's proposals; its model, ten sweep boxes, four landing pads, sockets and interior (convex pieces by part, boarding volume, rooms) come from its data file, ships/iron-wake.json, written by its import; its centre of mass is the asset's hint (the data file's, checked); it floats on 1,680 m3 in a band 4.1 m below and 2.3 m above its centre of mass, and flight assist holds it within 20 degrees of pitch and 12 of roll. Seats, doors and parts (IRON_WAKE.md §5.1, IW2): a point is a socket of the data file by name or three numbers; a seat's role flies (helm), rides (passenger) or works a station of the data file (station:<id>); its verb is the interaction verb that sits there, its sitters who may (anyone; unlocked: anyone while the ship is unlocked, its crew while locked; crew: those on its list, authorised at its helm); a door drives parts of the data file by its progress (or the views sample the model's clip), opens always, still or slow (at rest, or under 5 m/s within 30 m of the ground) and shuts any time; parts are the targets a TargetRef's part names, in their wire order, the first the hull, each met by a ball (at, radius) or by pieces of the data file. Health: the ramp and the airlock as the building's armoured door (1,000, protection armoured, a blast's doors' table, mended with refined metal, 10 from nothing); a battery 1,500 of metal, mended with metal fragments. Plume sizes are what ShipView drew, the Tin Finch's scaled by the square root of a ship's size over the Tin Finch's. Lamps: the Tin Finch's nav lights, beacon and landing light where ShipView put them; the Iron Wake's data file's fixtures, warm white (the lamp material's colour), the four on Deck A and the bridge's two casting shadows, dim red emergency lamps without power (IRON_WAKE.md §9.4); drawn from IW6.",
   "ships": [
     {
       "key": "tin-finch",
@@ -30,18 +30,35 @@
         { "centre": [0.99, 0.18, -0.39], "size": [0.06, 0.11, 2.29], "skid": true },
         { "centre": [-0.99, 0.18, -0.39], "size": [0.06, 0.11, 2.29], "skid": true }
       ],
-      "sockets": {
-        "seat": [0, 0.992, -0.08],
-        "eye": [0, 1.89, -0.25],
-        "hatch": [-0.73, 1.2, 0.37], "cargo": [-0.58, 0.75, -0.38],
-        "fuel": [-0.77, 1.79, -1.285],
-        "exits": [[-1.37, 0, 0.42], [1.45, 0, 0.42], [0, 0, -3.7], [0, 0, 2.7]]
-      },
+      "seats": [
+        {
+          "key": "pilot", "role": "helm", "verb": "board", "sitters": "unlocked", "works": ["doors"], "door": "hatch",
+          "at": [0, 0.992, -0.08], "eye": [0, 1.89, -0.25],
+          "exits": [[-1.37, 0, 0.42], [1.45, 0, 0.42], [0, 0, -3.7], [0, 0, 2.7]]
+        }
+      ],
+      "doors": [
+        { "key": "hatch", "name": "Hatch", "clip": "Hatch_Open", "seconds": 1.0, "opens": "still" }
+      ],
+      "parts": [
+        { "key": "hull" },
+        { "key": "hatch", "name": "Hatch", "at": [-0.73, 1.2, 0.37], "radius": 0.7, "capabilities": ["ship-door", "seat", "cupboard"], "door": "hatch", "seat": "pilot" },
+        { "key": "fuel", "name": "Fuel cap", "at": [-0.77, 1.79, -1.285], "radius": 0.45, "capabilities": ["fuel"] },
+        { "key": "cargo", "name": "Cargo", "at": [-0.58, 0.75, -0.38], "radius": 0.45, "capabilities": ["container"], "through": "hatch" }
+      ],
       "nozzles": {
-        "main": [[0, 1.004, -2.57]],
-        "aux": [[-1.177, 0.97, -3.01], [1.177, 0.97, -3.01]],
-        "lift": [[1.177, 0.605, -2.31], [-1.177, 0.605, -2.31], [0.64, 0.545, 1.15], [-0.64, 0.545, 1.15]],
-        "rcs": [[1.246, 0.98, -0.71], [-1.246, 0.98, -0.71]]
+        "main": { "at": [[0, 1.004, -2.57]], "width": 0.5, "length": 3.4 },
+        "aux": { "at": [[-1.177, 0.97, -3.01], [1.177, 0.97, -3.01]], "width": 0.24, "length": 1.9 },
+        "lift": { "at": [[1.177, 0.605, -2.31], [-1.177, 0.605, -2.31], [0.64, 0.545, 1.15], [-0.64, 0.545, 1.15]], "width": 0.3, "length": 1.7 },
+        "rcs": { "at": [[1.246, 0.98, -0.71], [-1.246, 0.98, -0.71]], "width": 0.12, "length": 0.8 }
+      },
+      "lights": {
+        "lamps": [
+          { "key": "nav-left", "at": [1.49, 0.98, -3.0], "colour": [1.0, 0.08, 0.04], "energy": 1.2, "range": 3 },
+          { "key": "nav-right", "at": [-1.49, 0.98, -3.0], "colour": [0.1, 1.0, 0.25], "energy": 1.2, "range": 3 },
+          { "key": "beacon", "at": [0, 2.345, -1.4], "colour": [1.0, 1.0, 1.0], "energy": 1.2, "range": 3 },
+          { "key": "landing", "at": [0, 0.75, 1.9], "direction": [0, -0.55, 1], "spot": true, "colour": [1.0, 0.95, 0.86], "energy": 4, "range": 90 }
+        ]
       },
       "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 12, "sight": 0.5 },
       "ceiling": 2,
@@ -76,17 +93,100 @@
         "poses": { "Ramp_Main": 1, "Ramp_Leaf": 1, "Airlock_Door": 0 },
         "conditions": { "ramp-open": "Ramp_Main" }
       },
-      "sockets": {
-        "seat": "PilotSeat",
-        "eye": "PilotCamera",
-        "hatch": [-1.75, 10.45, 14.9], "cargo": "CargoEntry",
-        "fuel": [6.3, 2.7, -15.0],
-        "exits": [[-0.6, 9.1, 14.2], [-1.75, 9.1, 13.9]]
-      },
+      "seats": [
+        {
+          "key": "helm", "name": "Helm", "role": "helm", "verb": "take-helm", "sitters": "crew", "works": ["doors", "lights"],
+          "at": "PilotSeat", "eye": "PilotCamera", "exits": [[-1.75, 9.1, 13.9], [-0.6, 9.1, 14.2]]
+        },
+        {
+          "key": "copilot", "name": "Copilot's seat", "role": "passenger", "verb": "sit", "sitters": "anyone", "works": ["doors", "lights"],
+          "at": "CopilotSeat", "eye": "CopilotCamera", "exits": [[1.75, 9.1, 13.9], [0.6, 9.1, 14.2]]
+        },
+        {
+          "key": "forward-battery", "name": "Forward battery", "role": "station:Siege_Forward", "verb": "man", "sitters": "crew", "exposed": true,
+          "at": "Siege_Forward_GunnerSeat", "eye": "Siege_Forward_GunnerCamera", "exits": ["Siege_Forward_GunnerExit", [-1.76, 9.04, 20.75]]
+        },
+        {
+          "key": "dorsal-battery", "name": "Dorsal battery", "role": "station:Siege_Dorsal", "verb": "man", "sitters": "crew", "exposed": true,
+          "at": "Siege_Dorsal_GunnerSeat", "eye": "Siege_Dorsal_GunnerCamera", "exits": ["Siege_Dorsal_GunnerExit", [-1.76, 12.12, -4.9]]
+        },
+        {
+          "key": "forward-starboard-mount", "name": "Forward starboard mount", "role": "station:Defense_F_P", "verb": "man", "sitters": "crew", "exposed": true,
+          "at": "Defense_F_P_GunnerSeat", "eye": "Defense_F_P_GunnerCamera", "exits": ["Defense_F_P_GunnerExit", [-6.75, 7.91, 6.0]]
+        },
+        {
+          "key": "forward-port-mount", "name": "Forward port mount", "role": "station:Defense_F_S", "verb": "man", "sitters": "crew", "exposed": true,
+          "at": "Defense_F_S_GunnerSeat", "eye": "Defense_F_S_GunnerCamera", "exits": ["Defense_F_S_GunnerExit", [6.75, 7.91, 6.0]]
+        },
+        {
+          "key": "aft-starboard-mount", "name": "Aft starboard mount", "role": "station:Defense_A_P", "verb": "man", "sitters": "crew", "exposed": true,
+          "at": "Defense_A_P_GunnerSeat", "eye": "Defense_A_P_GunnerCamera", "exits": ["Defense_A_P_GunnerExit", [-6.75, 8.63, -12.3]]
+        },
+        {
+          "key": "aft-port-mount", "name": "Aft port mount", "role": "station:Defense_A_S", "verb": "man", "sitters": "crew", "exposed": true,
+          "at": "Defense_A_S_GunnerSeat", "eye": "Defense_A_S_GunnerCamera", "exits": ["Defense_A_S_GunnerExit", [6.75, 8.63, -12.3]]
+        }
+      ],
+      "doors": [
+        {
+          "key": "ramp", "name": "Ramp", "parts": ["Ramp_Main", "Ramp_Leaf"], "seconds": 6.0, "opens": "slow", "ease": "inOut",
+          "health": { "max": 1000, "protection": "armoured", "table": "doors", "repair": ["refined-metal", 10] }
+        },
+        {
+          "key": "airlock", "name": "Airlock", "parts": ["Airlock_Door"], "seconds": 1.5, "opens": "always", "ease": "inOut",
+          "health": { "max": 1000, "protection": "armoured", "table": "doors", "repair": ["refined-metal", 10] }
+        }
+      ],
+      "parts": [
+        { "key": "hull" },
+        { "key": "helm", "name": "Helm", "at": "PilotSeat", "radius": 0.6, "capabilities": ["seat", "cupboard"], "seat": "helm" },
+        { "key": "copilot", "name": "Copilot's seat", "at": "CopilotSeat", "radius": 0.6, "capabilities": ["seat"], "seat": "copilot" },
+        { "key": "ramp", "name": "Ramp", "pieces": ["Ramp_Main", "Ramp_Leaf"], "capabilities": ["ship-door"], "door": "ramp" },
+        { "key": "ramp-switch", "name": "Ramp", "at": [-3.2, 4.4, -17.5], "radius": 0.2, "capabilities": ["ship-door"], "door": "ramp" },
+        { "key": "airlock", "name": "Airlock", "pieces": ["Airlock_Door"], "capabilities": ["ship-door"], "door": "airlock" },
+        {
+          "key": "forward-battery", "name": "Forward battery", "pieces": ["Siege_Forward_Yaw"], "at": "Siege_Forward_GunnerInteraction", "radius": 0.5,
+          "capabilities": ["seat"], "seat": "forward-battery",
+          "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
+        },
+        {
+          "key": "dorsal-battery", "name": "Dorsal battery", "pieces": ["Siege_Dorsal_Yaw"], "at": "Siege_Dorsal_GunnerInteraction", "radius": 0.5,
+          "capabilities": ["seat"], "seat": "dorsal-battery",
+          "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
+        },
+        {
+          "key": "forward-starboard-mount", "name": "Forward starboard mount", "pieces": ["Defense_F_P_Yaw"], "at": "Defense_F_P_GunnerInteraction", "radius": 0.5,
+          "capabilities": ["seat"], "seat": "forward-starboard-mount",
+          "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
+        },
+        {
+          "key": "forward-port-mount", "name": "Forward port mount", "pieces": ["Defense_F_S_Yaw"], "at": "Defense_F_S_GunnerInteraction", "radius": 0.5,
+          "capabilities": ["seat"], "seat": "forward-port-mount",
+          "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
+        },
+        {
+          "key": "aft-starboard-mount", "name": "Aft starboard mount", "pieces": ["Defense_A_P_Yaw"], "at": "Defense_A_P_GunnerInteraction", "radius": 0.5,
+          "capabilities": ["seat"], "seat": "aft-starboard-mount",
+          "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
+        },
+        {
+          "key": "aft-port-mount", "name": "Aft port mount", "pieces": ["Defense_A_S_Yaw"], "at": "Defense_A_S_GunnerInteraction", "radius": 0.5,
+          "capabilities": ["seat"], "seat": "aft-port-mount",
+          "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
+        },
+        { "key": "fuel", "name": "Fuel cap", "at": [6.3, 2.7, -15.0], "radius": 0.45, "capabilities": ["fuel"] }
+      ],
       "nozzles": {
-        "main": ["MainExhaust_Port", "MainExhaust_Starboard"],
-        "aux": ["AuxExhaust_Port", "AuxExhaust_Starboard"],
-        "lift": ["LiftExhaust_-7_-1", "LiftExhaust_-7_1", "LiftExhaust_9_-1", "LiftExhaust_9_1"]
+        "main": { "at": ["MainExhaust_Port", "MainExhaust_Starboard"], "width": 1.615, "length": 10.982 },
+        "aux": { "at": ["AuxExhaust_Port", "AuxExhaust_Starboard"], "width": 0.775, "length": 6.137 },
+        "lift": { "at": ["LiftExhaust_-7_-1", "LiftExhaust_-7_1", "LiftExhaust_9_-1", "LiftExhaust_9_1"], "width": 0.969, "length": 5.491 }
+      },
+      "lights": {
+        "fixtures": {
+          "colour": [1.0, 0.66, 0.32], "energy": 3.0, "range": 9.0,
+          "shadows": ["DeckA_PortLining_02", "DeckA_PortLining_05", "DeckA_StarboardLining_02", "DeckA_StarboardLining_05", "Bridge_Interior_00", "Bridge_Interior_01"]
+        },
+        "emergency": { "colour": [1.0, 0.1, 0.06], "energy": 0.35, "range": 6.0 }
       },
       "placement": { "surfaces": ["terrain"], "maxSlope": 12, "reach": 30, "sight": 0.5 },
       "ceiling": 2,

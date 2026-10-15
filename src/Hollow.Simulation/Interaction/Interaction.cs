@@ -11,18 +11,19 @@ namespace Hollow.Simulation.Interaction;
 
 /// <summary>
 /// One thing the E key can do to a target now (GROUND_SYSTEMS.md §5): a verb (interactions.json's number), done or
-/// refused with the reason (an <see cref="Outcome"/>: the radial says why), and whether its handler makes it the primary
-/// one (a tap of E does the highest such by priority).
+/// refused with the reason (an <see cref="Outcome"/>: the radial says why), whether its handler makes it the primary
+/// one (a tap of E does the highest such by priority), and what the verb acts on when that isn't the target's own name
+/// (a ship's part: "OPEN RAMP", "MAN FORWARD BATTERY", "BOARD TIN FINCH"; null: the target's name).
 /// </summary>
-public readonly record struct InteractOption(int Verb, Outcome Reason, bool Primary = false)
+public readonly record struct InteractOption(int Verb, Outcome Reason, bool Primary = false, string? Name = null)
 {
     public bool Enabled => Reason.Ok;
 
     /// <summary>An option that can be chosen.</summary>
-    public static InteractOption Can(int verb, bool primary = false) => new(verb, Outcome.Done, primary);
+    public static InteractOption Can(int verb, bool primary = false, string? name = null) => new(verb, Outcome.Done, primary, name);
 
     /// <summary>An option shown with the reason it can't be chosen now.</summary>
-    public static InteractOption Cannot(int verb, Outcome why, bool primary = false) => new(verb, why, primary);
+    public static InteractOption Cannot(int verb, Outcome why, bool primary = false, string? name = null) => new(verb, why, primary, name);
 }
 
 /// <summary>What a verb carries besides its target (GROUND_SYSTEMS.md §5): a number (the tech tree's recipe) and a code.</summary>
@@ -86,6 +87,29 @@ public readonly struct InteractContext
 public interface IPickupFamily
 {
     Outcome PickUp(Entity entity, Player p, in TargetRef target);
+}
+
+/// <summary>
+/// A family whose things keep a list of authorised players (the cupboard capability's verbs, GROUND_SYSTEMS.md §5): the
+/// tool cupboard's building rights, a ship's crew at its helm (IRON_WAKE.md §5.2). The verbs go to the family's own rules.
+/// </summary>
+public interface IAuthoriseFamily
+{
+    Outcome Authorise(Player p, in TargetRef target);
+
+    Outcome Deauthorise(Player p, in TargetRef target);
+
+    Outcome AuthoriseTeam(Player p, in TargetRef target, List<ulong> team);
+
+    Outcome ClearList(Player p, in TargetRef target);
+}
+
+/// <summary>
+/// A family whose things the hammer mends (GROUND.md §6.3, IRON_WAKE.md §5.5): a building's piece, a ship's door or battery.
+/// </summary>
+public interface IRepairFamily
+{
+    Outcome Repair(Entity entity, Player p, in TargetRef target, Building.IBuildingWallet wallet);
 }
 
 /// <summary>

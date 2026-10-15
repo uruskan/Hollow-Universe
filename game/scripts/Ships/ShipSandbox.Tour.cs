@@ -43,8 +43,7 @@ public partial class ShipSandbox
             // From the start: the hatch shut, the pilot a few steps from it.
             _tourStarted = _clock;
             _legStarted = _clock;
-            _ship.HatchOpen = false;
-            _ship.HatchProgress = 0;
+            _zone.Ships().SetDoorAtOnce(_ship, 0, 0);
         }
         if (_ship.Destroyed || !_zone.Ships().All.Contains(_ship))
         {
@@ -85,7 +84,7 @@ public partial class ShipSandbox
         {
             case Leg.Walk:
             {
-                Num.Vector3 hatch = _ship.PointOf(_ship.Def.Hatch);
+                Num.Vector3 hatch = _ship.PointOf(_ship.Def.PartPoint(Hatch.Part));
                 Num.Vector3 outward = Num.Vector3.Transform(-Num.Vector3.UnitX, s.Rotation);
                 Num.Vector3 feet = _zone.Entities.Get<Character>(_player).State.Position;
                 Num.Vector3 to = hatch + outward * 1.3f - feet;
@@ -104,7 +103,7 @@ public partial class ShipSandbox
             }
             case Leg.Open:
                 Hold(Godot.Key.E, false);
-                if (_ship.HatchProgress >= Ship.HatchTicks)
+                if (_ship.DoorAt(0, _zone.Tick) >= 1)
                 {
                     Next(Leg.Board);
                     Hold(Godot.Key.E, true);

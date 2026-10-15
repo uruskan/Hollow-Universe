@@ -39,7 +39,7 @@ public enum TargetFamily : byte
     /// <summary>Thrown and placed explosives, duds included.</summary>
     Explosive = 9,
 
-    /// <summary>Ships (their parts: the hatch, the fuel cap, the cargo).</summary>
+    /// <summary>Ships (their parts: ships.json's, IRON_WAKE.md §5.1; 0 the hull).</summary>
     Ship = 10,
 
     /// <summary>Spent arrows stuck where they hit (GROUND_SYSTEMS.md §5), held by what they hit.</summary>

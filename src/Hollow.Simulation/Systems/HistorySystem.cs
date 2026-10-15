@@ -35,14 +35,15 @@ public sealed class HistorySystem : ZoneSystem
             {
                 continue;
             }
-            ref Character c = ref Entities.Get<Character>(Entities.AtSlot(slots[i]));
-            if (c.State.Stance == Stance.Seated)
+            Entity entity = Entities.AtSlot(slots[i]);
+            ref Character c = ref Entities.Get<Character>(entity);
+            if (c.State.Stance == Stance.Seated && Zone.Get<ShipSystem>()?.SeatExposed(entity) != true)
             {
-                // In a ship's cabin (G6): shots hit the hull, not the pilot.
+                // In a sheltered seat (a cabin, the bridge, IRON_WAKE.md IW4): shots hit the hull, not the one in it.
                 History.Forget(p.Id);
                 continue;
             }
-            Pose pose = p.Sleeping || p.Wounded ? Pose.Lying : c.State.Stance == Stance.Crouching ? Pose.Crouching : Pose.Standing;
+            Pose pose = c.State.Stance == Stance.Seated ? Pose.Seated : p.Sleeping || p.Wounded ? Pose.Lying : c.State.Stance == Stance.Crouching ? Pose.Crouching : Pose.Standing;
             if (c.State.Frame != 0)
             {
                 // Aboard: in the ship's frame, its up +Y, the view turned into it if it came in another.

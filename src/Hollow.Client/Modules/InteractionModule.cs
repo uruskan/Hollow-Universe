@@ -69,7 +69,7 @@ public sealed class InteractionModule : ClientModule
     {
         get
         {
-            DoerState state = (Local.IsDead ? DoerState.Dead : 0) | (Local.IsWounded ? DoerState.Wounded : 0) | (Ships.Piloting ? DoerState.Seated : 0);
+            DoerState state = (Local.IsDead ? DoerState.Dead : 0) | (Local.IsWounded ? DoerState.Wounded : 0) | (Ships.Seated ? DoerState.Seated : 0);
             TeamView? team = Local.Team;
             return new Doer(EntityId, state, team != null, Local.LeadsTeam, team != null && team.Members.Count >= Content.World.TeamSize);
         }

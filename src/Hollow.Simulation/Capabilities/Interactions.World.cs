@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Interaction;
 using Hollow.Simulation.Players;
@@ -100,57 +101,138 @@ public static partial class CapabilityHandlers
     }
 
     /// <summary>
-    /// A ship on the ground (GROUND.md §6.7), by its parts: at its hatch, the hatch opened (at rest, and by its owner when
-    /// locked) and shut, the seat boarded through the open hatch; at its fuel cap, the tank filled from lamp oil; its owner
-    /// locks and unlocks it. Its cargo, through the open hatch, is a container's. The pilot's keys in the seat stay the
-    /// ship's own intent.
+    /// A ship's seat (IRON_WAKE.md §5.2), at the part that names it: sat in with the seat's own verb (board the Tin Finch,
+    /// take the helm, man a battery, sit in the copilot's seat), the seat's words for the prompt; refused when it is taken,
+    /// when its sitters exclude the doer (its crew alone; strangers while the ship is locked), when its station is
+    /// disabled, and through a door, while that door is shut or the ship isn't at rest. A tap's once its door lets them in.
     /// </summary>
-    private sealed partial class ShipCapability : IInteractCapability
+    private sealed class SeatCapability : ICapability, IInteractCapability
     {
         private readonly VerbActions _verbs;
-        private readonly int _open, _close, _board, _refuel, _lock, _unlock;
 
-        public ShipCapability(InteractionData data)
+        public SeatCapability(InteractionData data)
         {
-            _verbs = new VerbActions(data, ("hatch-open", (in InteractContext c, in InteractArgs a) => Hatch(c, true)),
-                ("hatch-close", (in InteractContext c, in InteractArgs a) => Hatch(c, false)), ("board", Board), ("refuel", Refuel),
-                ("ship-lock", (in InteractContext c, in InteractArgs a) => Lock(c, true)), ("ship-unlock", (in InteractContext c, in InteractArgs a) => Lock(c, false)));
-            (_open, _close, _board) = (_verbs["hatch-open"], _verbs["hatch-close"], _verbs["board"]);
-            (_refuel, _lock, _unlock) = (_verbs["refuel"], _verbs["ship-lock"], _verbs["ship-unlock"]);
+            _verbs = new VerbActions(data, ShipSeatDef.Verbs.Select(v => (v, (VerbAction)Sit)).ToArray());
         }
+
+        public string Key => "seat";
+
+        public ViewerFlags Flags(object thing, in Viewer viewer) => ViewerFlags.None;
 
         public IReadOnlyList<string> Verbs => _verbs.Keys;
 
         public void Offer(in InteractContext ctx, List<InteractOption> into)
         {
             TargetFacts f = ctx.Facts;
-            bool atHatch = ctx.Target.Part is ShipParts.Hull or ShipParts.Hatch, lockedOut = ctx.Has(ViewerFlags.Locked) && !ctx.Has(ViewerFlags.Mine);
-            // The hatch: opened at rest (by its owner when locked), shut by anyone; the seat through it, a tap's once it is open.
-            into.Add(f.Open ? InteractOption.Can(_close)
-                : new InteractOption(_open, !f.Still ? OutcomeCode.ShipMoving : lockedOut ? OutcomeCode.Locked : Outcome.Done, Primary: atHatch));
-            Outcome seat = f.Busy ? OutcomeCode.SeatTaken : lockedOut ? OutcomeCode.Locked : !f.Open ? OutcomeCode.HatchShut
-                : !f.Still ? OutcomeCode.ShipMoving : Outcome.Done;
-            into.Add(new InteractOption(_board, seat, Primary: atHatch && f.Open));
-            into.Add(InteractOption.Can(_refuel, primary: ctx.Target.Part == ShipParts.FuelCap));
-            if (ctx.Has(ViewerFlags.Mine))
+            if (f.Ship is not { } ship || ctx.Target.Part >= ship.Parts.Count || ship.Parts[ctx.Target.Part].Seat is not (>= 0 and var index))
             {
-                into.Add(InteractOption.Can(ctx.Has(ViewerFlags.Locked) ? _unlock : _lock));
+                return;
+            }
+            ShipSeatDef seat = ship.Seats[index];
+            bool crew = ctx.Has(ViewerFlags.Authorised);
+            Outcome why = f.Busy ? OutcomeCode.SeatTaken
+                : seat.Sitters == SeatSitters.Crew && !crew ? OutcomeCode.NotCrew
+                : seat.Sitters == SeatSitters.Unlocked && ctx.Has(ViewerFlags.Locked) && !crew ? OutcomeCode.Locked
+                : f.Broken ? OutcomeCode.Disabled
+                : seat.Door >= 0 && !f.DoorReady ? OutcomeCode.HatchShut
+                : seat.Door >= 0 && !f.Still ? OutcomeCode.ShipMoving
+                : Outcome.Done;
+            into.Add(new InteractOption(seat.Verb, why, Primary: seat.Door < 0 || f.DoorReady, Name: seat.Name));
+        }
+
+        public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
+
+        private static Outcome Sit(in InteractContext ctx, in InteractArgs args) =>
+            ctx.Thing is Ship ship && ctx.Target.Part < ship.Def.Parts.Count && ship.Def.Parts[ctx.Target.Part].Seat is >= 0 and var seat
+                ? ctx.Zone!.Ships().Sit(ctx.Entity, ctx.Player!, ship, seat) : OutcomeCode.NotFound;
+    }
+
+    /// <summary>
+    /// A ship's door (IRON_WAKE.md §5.3), at the parts that name it (the ramp's leaves and its switch, the airlock, the Tin
+    /// Finch's hatch): opened as its rule allows (at rest, slow and low, any time) by anyone the ship's lock lets through,
+    /// shut by anyone; jammed open while broken. The ship's crew lock and unlock its doors there.
+    /// </summary>
+    private sealed class ShipDoorCapability : ICapability, IInteractCapability
+    {
+        private readonly VerbActions _verbs;
+        private readonly int _open, _close, _lock, _unlock;
+
+        public ShipDoorCapability(InteractionData data)
+        {
+            _verbs = new VerbActions(data, ("hatch-open", (in InteractContext c, in InteractArgs a) => Door(c, true)),
+                ("hatch-close", (in InteractContext c, in InteractArgs a) => Door(c, false)),
+                ("ship-lock", (in InteractContext c, in InteractArgs a) => Lock(c, true)), ("ship-unlock", (in InteractContext c, in InteractArgs a) => Lock(c, false)));
+            (_open, _close, _lock, _unlock) = (_verbs["hatch-open"], _verbs["hatch-close"], _verbs["ship-lock"], _verbs["ship-unlock"]);
+        }
+
+        public string Key => "ship-door";
+
+        public ViewerFlags Flags(object thing, in Viewer viewer) => ViewerFlags.None;
+
+        public IReadOnlyList<string> Verbs => _verbs.Keys;
+
+        public void Offer(in InteractContext ctx, List<InteractOption> into)
+        {
+            TargetFacts f = ctx.Facts;
+            if (f.Ship is not { } ship || ctx.Target.Part >= ship.Parts.Count || ship.Parts[ctx.Target.Part].Door is not (>= 0 and var index))
+            {
+                return;
+            }
+            string name = ship.Doors[index].Name;
+            bool crew = ctx.Has(ViewerFlags.Authorised), locked = ctx.Has(ViewerFlags.Locked);
+            if (f.Jammed)
+            {
+                into.Add(InteractOption.Cannot(_close, OutcomeCode.Jammed, primary: true, name: name));
+            }
+            else if (f.Open)
+            {
+                into.Add(InteractOption.Can(_close, primary: true, name: name));
+            }
+            else
+            {
+                Outcome why = locked && !crew ? OutcomeCode.Locked : f.DoorRule != OutcomeCode.Done ? f.DoorRule : Outcome.Done;
+                into.Add(new InteractOption(_open, why, Primary: true, Name: name));
+            }
+            if (crew)
+            {
+                into.Add(InteractOption.Can(locked ? _unlock : _lock, name: ship.Name));
             }
         }
 
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
-        private static Outcome Hatch(in InteractContext ctx, bool open) =>
-            ctx.Thing is Ship ship ? ctx.Zone!.Ships().SetHatch(ctx.Player!, ship, open) : OutcomeCode.NotFound;
-
-        private static Outcome Board(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Ship ship ? ctx.Zone!.Ships().BoardShip(ctx.Entity, ctx.Player!, ship) : OutcomeCode.NotFound;
-
-        private static Outcome Refuel(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Ship ship ? ctx.Zone!.Ships().Refuel(ctx.Player!, ship) : OutcomeCode.NotFound;
+        private static Outcome Door(in InteractContext ctx, bool open) =>
+            ctx.Thing is Ship ship && ctx.Target.Part < ship.Def.Parts.Count && ship.Def.Parts[ctx.Target.Part].Door is >= 0 and var door
+                ? ctx.Zone!.Ships().SetDoorOnFoot(ctx.Player!, ship, door, open) : OutcomeCode.NotFound;
 
         private static Outcome Lock(in InteractContext ctx, bool locked) =>
             ctx.Thing is Ship ship ? ctx.Zone!.Ships().SetShipLock(ctx.Player!, ship, locked) : OutcomeCode.NotFound;
+    }
+
+    /// <summary>A ship's tank, at its fuel cap: filled from the player's fuel (lamp oil).</summary>
+    private sealed class FuelCapability : ICapability, IInteractCapability
+    {
+        private readonly VerbActions _verbs;
+        private readonly int _refuel;
+
+        public FuelCapability(InteractionData data)
+        {
+            _verbs = new VerbActions(data, ("refuel", Refuel));
+            _refuel = _verbs["refuel"];
+        }
+
+        public string Key => "fuel";
+
+        public ViewerFlags Flags(object thing, in Viewer viewer) => ViewerFlags.None;
+
+        public IReadOnlyList<string> Verbs => _verbs.Keys;
+
+        public void Offer(in InteractContext ctx, List<InteractOption> into) => into.Add(InteractOption.Can(_refuel, primary: true, name: ctx.Facts.Ship?.Name));
+
+        public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
+
+        private static Outcome Refuel(in InteractContext ctx, in InteractArgs args) =>
+            ctx.Thing is Ship ship ? ctx.Zone!.Ships().Refuel(ctx.Player!, ship) : OutcomeCode.NotFound;
     }
 
     /// <summary>

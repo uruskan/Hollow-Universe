@@ -62,9 +62,9 @@ public partial class ShipSandbox : Node3D
     private readonly List<InteractOption> _options = new();
 
     // The ship's parts as the interact key names them (GROUND_SYSTEMS.md §5).
-    private TargetRef Hatch => new(TargetFamily.Ship, _ship.Id.Value, ShipParts.Hatch);
+    private TargetRef Hatch => new(TargetFamily.Ship, _ship.Id.Value, (byte)_ship.Def.PartOfSeat(_ship.Def.Helm.Index));
 
-    private TargetRef FuelCap => new(TargetFamily.Ship, _ship.Id.Value, ShipParts.FuelCap);
+    private TargetRef FuelCap => new(TargetFamily.Ship, _ship.Id.Value, (byte)Math.Max(0, _ship.Def.PartIndex("fuel")));
 
     private Num.Vector3 _pad;
     private float _padYaw;
@@ -338,8 +338,8 @@ public partial class ShipSandbox : Node3D
             default:
             {
                 // On foot by the ship on its pad, the hatch open, the workbench behind it.
-                _ship.HatchOpen = true;
-                Step(Ship.HatchTicks + 2);
+                _zone.Ships().SetDoorAtOnce(_ship, 0, 1);
+                Step(2);
                 Num.Vector3 eye = _zone.Settle(_pad + forward * 6.5f + right * 6f) + up * 2.3f;
                 _observer = (eye, _pad + up * 1.0f - forward * 1.6f);
                 LookFrom(eye, _observer.Value.At);
@@ -355,13 +355,12 @@ public partial class ShipSandbox : Node3D
     private void Board()
     {
         Ship ship = _ship;
-        Num.Vector3 hatch = ship.PointOf(ship.Def.Hatch);
+        Num.Vector3 hatch = ship.PointOf(ship.Def.PartPoint(Hatch.Part));
         ref Character c = ref _zone.Entities.Get<Character>(_player);
         Num.Vector3 outward = Num.Vector3.Transform(-Num.Vector3.UnitX, ship.State.Rotation);
         c.State.Position = _zone.Settle(hatch + outward * 1.2f) + _zone.Frame.UpAt(hatch) * 0.05f;
-        ship.HatchOpen = true;
-        ship.HatchProgress = Ship.HatchTicks;
-        Outcome result = _zone.Interaction().Interact(_player, new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board");
+        _zone.Ships().SetDoorAtOnce(ship, 0, 1);
+        Outcome result = _zone.Interaction().Interact(_player, Hatch, ship.Def.Helm.VerbKey);
         if (result != OutcomeCode.Done)
         {
             GD.PushWarning($"[ship] could not board for the scene: {result}");
@@ -453,7 +452,7 @@ public partial class ShipSandbox : Node3D
         {
             _shipView.Visible = true;
             _shipView.FromCockpit = Seated && _shipCamera.Mode == ShipCameraMode.Cockpit && _observer == null;
-            _shipView.Show(new ShipLook(Pivot(shown), _ship.HatchProgress / (float)Ship.HatchTicks, shown.Thrust,
+            _shipView.Show(new ShipLook(Pivot(shown), _ship.Doors.Length > 0 ? _ship.DoorAt(0, _zone.Tick) : 0, shown.Thrust,
                 shown.Has(ShipFlags.EnginesOn), shown.Has(ShipFlags.Boosting), _ship.Piloted, _ship.Destroyed), delta);
         }
         else
@@ -781,9 +780,9 @@ public partial class ShipSandbox : Node3D
                     _shipCamera.Mode = _shipCamera.Mode == ShipCameraMode.Chase ? ShipCameraMode.Cockpit : ShipCameraMode.Chase;
                     _shipCamera.Reset();
                     break;
-                case Godot.Key.F:
+                case Godot.Key.Space:
                 {
-                    Outcome r = _zone.Ships().ExitShip(_player);
+                    Outcome r = _zone.Ships().LeaveSeat(_player);
                     if (r == OutcomeCode.Done)
                     {
                         _controls.Reset();
@@ -796,11 +795,11 @@ public partial class ShipSandbox : Node3D
                     }
                     break;
                 }
-                case Godot.Key.H:
-                    Refused(_zone.Ships().ShipHatch(_player, _ship.Id), "The hatch opens only when the ship is at rest.");
+                case Godot.Key.Key1:
+                    Refused(_zone.Ships().SeatedDoor(_player, _ship.Id, 0), "The hatch opens only when the ship is at rest.");
                     break;
                 case Godot.Key.L:
-                    Refused(_zone.Ships().LockShip(_player, _ship.Id), "Only the owner locks it.");
+                    Refused(_zone.Ships().SeatedLock(_player, _ship.Id), "Only its crew locks it.");
                     Notice(_ship.Locked ? "Locked" : "Unlocked");
                     break;
                 case Godot.Key.J:

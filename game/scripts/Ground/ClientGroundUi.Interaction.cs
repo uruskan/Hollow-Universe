@@ -67,7 +67,7 @@ public sealed partial class ClientGroundUi
             return new InteractionPrompt("E", name.ToUpperInvariant(), MoreOptions: menu > 0);
         }
         InteractOption primary = aim.Options[aim.Primary];
-        string action = !primary.Enabled ? C.Texts.Line(primary.Reason) : verb.Named ? $"{verb.Label} {name}" : verb.Label;
+        string action = !primary.Enabled ? C.Texts.Line(primary.Reason) : verb.Named ? $"{verb.Label} {primary.Name ?? name}" : verb.Label;
         return new InteractionPrompt("E", action.ToUpperInvariant(), MoreOptions: menu > 1);
     }
 

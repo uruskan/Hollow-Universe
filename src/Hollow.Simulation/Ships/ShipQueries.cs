@@ -107,6 +107,27 @@ public static class ShipQueries
     }
 
     /// <summary>
+    /// The nearest point of each of a ship's parts (the data file's: 0 the hull) to a point of the zone's frame within
+    /// <paramref name="radius"/>, in the zone's frame, with its distance (0 inside a piece): a blast over a ship's parts.
+    /// </summary>
+    public static void NearestByPart(IShipFrame ship, in ShipPose pose, Vector3 point, float radius, List<(int Part, Vector3 Point, float Distance)> into)
+    {
+        into.Clear();
+        if (Vector3.Distance(point, pose.Position) > radius + ship.Interior.Reach)
+        {
+            return;
+        }
+        lock (JoltRuntime.Gate)
+        {
+            ship.Space.NearestByPart(pose.ToLocal(point), radius, into);
+        }
+        for (int i = 0; i < into.Count; i++)
+        {
+            into[i] = (into[i].Part, pose.ToWorld(into[i].Point), into[i].Distance);
+        }
+    }
+
+    /// <summary>
     /// The nearest point of a ship's pieces to a point of the zone's frame within <paramref name="radius"/>, in the zone's
     /// frame, with the part and the distance (0 inside a piece). False when nothing of it is that near.
     /// </summary>

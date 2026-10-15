@@ -620,6 +620,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }
         if (session.Playing)
         {
+            foreach (ServerModule module in _modules)
+            {
+                module.Leaving(session, loggedOff: info.Reason == DisconnectReason.RemoteConnectionClose);
+            }
             Zone.Players().Sleep(session.Entity);
             ref NetPresence presence = ref Zone.Entities.Get<NetPresence>(session.Entity);
             presence.Owner = null;

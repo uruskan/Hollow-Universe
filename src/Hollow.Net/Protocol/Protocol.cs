@@ -86,7 +86,9 @@ public enum ShipNetFlags : ushort
 {
     None = 0,
     Piloted = 1,
-    HatchOpen = 2,
+
+    /// <summary>Slow and low enough for a door that opens "slow" (the ramp, IRON_WAKE.md §5.3): the server's word (<c>ShipSystem.ShipSlow</c>).</summary>
+    Slow = 2,
     Landed = 4,
     Destroyed = 8,
     InOrbit = 16,
@@ -104,11 +106,15 @@ public enum ShipNetFlags : ushort
     Still = 1024,
 }
 
-/// <summary>A pilot's key in the seat (<see cref="ShipIntent"/>); on foot a ship's hatch, seat, tank and lock are verbs.</summary>
+/// <summary>
+/// A seated occupant's key (<see cref="ShipIntent"/>, IRON_WAKE.md §5.2): a door from a seat that works them (its index in
+/// <c>ShipIntent.Arg</c>), leaving the seat, the lock, descending from orbit; on foot a ship's doors, seats, tank, list and
+/// cargo are verbs.
+/// </summary>
 public enum ShipAction : byte
 {
-    Hatch,
-    Exit,
+    Door,
+    Leave,
     Lock,
     Descend,
 }

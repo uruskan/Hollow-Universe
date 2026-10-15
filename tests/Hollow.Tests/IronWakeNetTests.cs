@@ -14,10 +14,10 @@ namespace Hollow.Tests;
 /// <summary>The Iron Wake over the network (IRON_WAKE.md §4.8, §4.11): prediction aboard, and sleepers aboard across a restart.</summary>
 public static class IronWakeNetTests
 {
-    private readonly record struct ShipFacts(ulong Id, ShipPose Pose, bool Parked, float Height);
+    internal readonly record struct ShipFacts(ulong Id, ShipPose Pose, bool Parked, float Height);
 
     // The server's Iron Wake: its ID, where it is, parked or not, its pads' height over the ground.
-    private static ShipFacts Facts(LoopbackRig rig) => rig.Server.Inspect(sv =>
+    internal static ShipFacts Facts(LoopbackRig rig) => rig.Server.Inspect(sv =>
     {
         foreach (Ship ship in sv.Zone.Ships().All)
         {
@@ -30,7 +30,7 @@ public static class IronWakeNetTests
     });
 
     // Gives a player an Iron Wake (the admin's command) and waits until it stands parked on its pads.
-    private static ShipFacts Spawn(LoopbackRig rig, string owner)
+    internal static ShipFacts Spawn(LoopbackRig rig, string owner)
     {
         rig.Server.Execute($"ship {owner} iron-wake");
         var wait = Stopwatch.StartNew();
@@ -46,11 +46,11 @@ public static class IronWakeNetTests
     }
 
     // A player's character on the server: its state (in its frame).
-    private static CharacterState ServerState(LoopbackRig rig, EntityId id) => rig.Server.Inspect(sv =>
+    internal static CharacterState ServerState(LoopbackRig rig, EntityId id) => rig.Server.Inspect(sv =>
         sv.Zone.Entities.TryFind(id, out Entity e) ? sv.Zone.Entities.Get<Character>(e).State : default);
 
     // Full health and vitals for a player, so nothing the prediction doesn't know of changes it (healing, hunger).
-    private static void Heal(LoopbackRig rig, EntityId id) => rig.Server.Inspect(sv =>
+    internal static void Heal(LoopbackRig rig, EntityId id) => rig.Server.Inspect(sv =>
     {
         Assert.True(sv.Zone.Entities.TryFind(id, out Entity e), "the character is in the zone");
         Hollow.Simulation.Players.Player p = sv.Zone.Players().PlayerOf(e)!;
@@ -63,7 +63,7 @@ public static class IronWakeNetTests
     });
 
     // Puts a player's character aboard on the server, standing at a point of the ship's frame (as a teleport would).
-    private static void PutAboard(LoopbackRig rig, EntityId id, ulong ship, Vector3 local) => rig.Server.Inspect(sv =>
+    internal static void PutAboard(LoopbackRig rig, EntityId id, ulong ship, Vector3 local) => rig.Server.Inspect(sv =>
     {
         Assert.True(sv.Zone.Entities.TryFind(id, out Entity e), "the character is in the zone");
         ref Character c = ref sv.Zone.Entities.Get<Character>(e);
@@ -107,7 +107,7 @@ public static class IronWakeNetTests
         // Bo onto the bridge and into the helm's seat.
         PutAboard(rig, bo.EntityId, ship.Id, new Vector3(-1.75f, 9.1f, 13.9f));
         rig.Run(0.8, (_, _) => default);
-        bo.Local.Interact(new TargetRef(TargetFamily.Ship, ship.Id, ShipParts.Hatch), "board");
+        bo.Local.Interact(new TargetRef(TargetFamily.Ship, ship.Id, (byte)ContentFixture.Content.Ship("iron-wake")!.PartIndex("helm")), "take-helm");
         rig.Run(0.8, (_, _) => default);
         Assert.True(bo.Ships().Piloting, "Bo at the helm, his client predicting the ship");
 

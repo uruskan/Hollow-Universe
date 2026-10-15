@@ -15,7 +15,7 @@ namespace Hollow.Tests;
 public static class ShipPersistenceTests
 {
     private static string Fingerprint(Ship s) => string.Create(System.Globalization.CultureInfo.InvariantCulture,
-        $"{s.Def.Key} owner {s.Owner} locked {s.Locked} hull {s.State.Health:0.000} fuel {s.State.Fuel:0.000} hatch {s.HatchOpen} " +
+        $"{s.Def.Key} owner {s.Owner} locked {s.Locked} hull {s.State.Health:0.000} fuel {s.State.Fuel:0.000} hatch {s.Doors[0].Opening} crew {string.Join(",", s.Crew)} " +
         $"cargo {string.Join(",", Enumerable.Range(0, s.Cargo.Size).Select(i => s.Cargo[i].IsEmpty ? "-" : $"{s.Cargo[i].Item}x{s.Cargo[i].Count}"))}");
 
     /// <summary>
@@ -41,11 +41,11 @@ public static class ShipPersistenceTests
             rig.Server.Execute("ship Ada");
             rig.Run(0.7, (_, _) => default);
             RemoteShip seen = ada.Ships().All.Single();
-            Vector3 hatch = seen.PointOf(seen.Def!.Hatch);
+            Vector3 hatch = seen.PointOf(seen.Def!.HatchPoint());
             Vector3 at = hatch + Vector3.Normalize(Vector3.Transform(-Vector3.UnitX, seen.Rotation)) * 1.6f;
             rig.Teleport("Ada", at);
             rig.Run(0.5, (_, _) => default);
-            ada.Local.Interact(new Hollow.Simulation.Targets.TargetRef(Hollow.Simulation.Targets.TargetFamily.Ship, seen.Id.Value, ShipParts.Hatch), "board");
+            ada.Local.Interact(new Hollow.Simulation.Targets.TargetRef(Hollow.Simulation.Targets.TargetFamily.Ship, seen.Id.Value, seen.Def!.HelmPart()), "board");
             rig.Run(0.7, (_, _) => default);
             Assert.True(ada.Ships().Piloting, "Ada is in the seat");
             (shipId, before, position, rotation) = rig.Server.Inspect(sv =>

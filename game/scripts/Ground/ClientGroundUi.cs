@@ -298,7 +298,10 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         }
     }
 
-    public bool Piloting => _client.Ships().Piloting;
+    public KeyContext Keys => SeatKeys.Context(_client);
+
+    public string? SeatLine => Keys is KeyContext.Seat or KeyContext.Station && _client.Ships() is { SeatShip.Def: { } def, Seat: { } seat }
+        ? SeatKeys.Line(SeatKeys.Of(def, seat), inOrbit: false) : null;
 
     public bool StationNear(string station) => C.Deployable(station) is { } def && (Me.StationNear?.Invoke(def) ?? 0) != 0;
 

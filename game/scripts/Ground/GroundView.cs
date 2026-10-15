@@ -670,6 +670,11 @@ public partial class GroundView : Node3D
             };
             return input;
         }
+        if (Client.Ships().Seated)
+        {
+            // In a seat that doesn't fly (IRON_WAKE.md §5.2): the view alone; the seat holds the body.
+            return input;
+        }
         // Keys move the character unless a screen takes them (the inventory, crafting, chat, the menu, the keypad); a radial
         // doesn't (RustMVP's: the player walks while choosing), though its pointer keeps the buttons.
         if (_ui.TakesKeys || _keypad.Visible || Client.Local.IsDead || !GetWindow().HasFocus())
@@ -713,7 +718,7 @@ public partial class GroundView : Node3D
     private IHeldControl? Holding()
     {
         LocalPlayer me = Client.Local;
-        if (me.IsDead || Client.Ships().Piloting || me.HeldItem is not { } item || _held.Find((int)item.Held) is not { } control)
+        if (me.IsDead || Client.Ships().Seated || me.HeldItem is not { } item || _held.Find((int)item.Held) is not { } control)
         {
             return null;
         }
@@ -738,52 +743,62 @@ public partial class GroundView : Node3D
     /// <summary>The pilot's controls (the lever the HUD shows), for scripted runs.</summary>
     public HollowUniverse.Ships.ShipControls ShipControls => _shipControls;
 
-    // The pilot's input: the mouse moves the stick; Z flight assist, X the lever to zero, V the camera, F step out, H the
-    // hatch, L the lock, J descend from orbit. The rest of the keys (W S A D, Q E, Space C, Shift) are read each frame.
-    private bool Pilot(InputEvent e)
+    // A seated player's input (KNOWN_PROBLEMS.md finding 28: the keys in one place, SeatKeys). At the helm the mouse is the
+    // stick (Alt: free look) and the flight keys are ShipControls' (W S A D, Shift Ctrl, Q E, B, Z, X, read each frame); in
+    // any other seat the mouse looks, as on foot. The seat's own keys come from its data: Space leaves, 1–9 the doors it
+    // works, L the lock, V the camera, J the descent; the hands' keys (E, R, Q, the buttons) do nothing.
+    private bool SeatInput(InputEvent e)
     {
+        bool helm = Client.Ships().Piloting;
         switch (e)
         {
-            case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured && _freeLook.Active:
+            case InputEventMouseMotion motion when helm && Input.MouseMode == Input.MouseModeEnum.Captured && _freeLook.Active:
                 // Free look in the cockpit: the head turns about the seat, the stick lets go.
                 _freeLook.Turn(-motion.Relative.X * MouseSensitivity, -motion.Relative.Y * MouseSensitivity, 0);
                 return true;
-            case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured:
+            case InputEventMouseMotion motion when helm && Input.MouseMode == Input.MouseModeEnum.Captured:
                 _shipControls.Mouse(motion.Relative / Math.Max(HollowUniverse.Common.Ui.Scale, 0.5f));
                 return true;
+            case InputEventMouseMotion:
+                return false;
             case InputEventMouseButton:
                 return true;
             case InputEventKey { Pressed: true, Echo: false } key:
             {
-                if (_shipControls.Key(key))
+                if (helm && _shipControls.Key(key))
                 {
                     return true;
                 }
-                LocalPlayer me = Client.Local;
-                EntityId ship = Client.Ships().OwnShipRemote?.Id ?? EntityId.None;
-                switch (key.PhysicalKeycode)
+                if (Client.Ships() is not { SeatShip: { Def: { } def } ship, Seat: { } seat })
                 {
-                    case Key.V:
+                    return false;
+                }
+                if (SeatKeys.Find(SeatKeys.Of(def, seat), key.PhysicalKeycode) is not { } k)
+                {
+                    return key.PhysicalKeycode is Key.E or Key.R or Key.Q or Key.F;
+                }
+                LocalPlayer me = Client.Local;
+                switch (k.Action)
+                {
+                    case SeatAction.Leave:
+                        me.LeaveSeat();
+                        break;
+                    case SeatAction.Door:
+                        me.ShipDoor(ship.Id, k.Door);
+                        break;
+                    case SeatAction.Lock:
+                        me.LockShip(ship.Id);
+                        break;
+                    case SeatAction.Descend:
+                        me.Descend();
+                        break;
+                    case SeatAction.Camera:
                         _shipCamera.Mode = _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Chase
                             ? HollowUniverse.Ships.ShipCameraMode.Cockpit : HollowUniverse.Ships.ShipCameraMode.Chase;
                         _shipCamera.Reset();
-                        return true;
-                    case Key.F:
-                        me.ExitShip();
-                        return true;
-                    case Key.H:
-                        me.ShipHatch(ship);
-                        return true;
-                    case Key.L:
-                        me.LockShip(ship);
-                        return true;
-                    case Key.J:
-                        me.Descend();
-                        return true;
-                    case Key.E or Key.R or Key.Space:
-                        return true;
+                        break;
                 }
-                return false;
+                return true;
             }
         }
         return false;
@@ -842,10 +857,12 @@ public partial class GroundView : Node3D
         d.Stick = _shipControls.Stick;
         d.AssistOff = _shipControls.AssistOff;
         d.TimeToGround = d.VerticalSpeed < -0.5f ? d.OverGround / -d.VerticalSpeed : float.PositiveInfinity;
-        d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  DESCEND OVER THE SAME SPOT"
-            : s.Has(ShipFlags.Landed) || s.Asleep ? "F  STEP OUT     H  HATCH     L  LOCK" : null;
+        // The helm's keys from its seat's data (SeatKeys): the seat's line at rest (or in orbit, the descent), the flight
+        // keys in the corner.
+        string seatLine = SeatKeys.Line(SeatKeys.Of(def, def.Helm), s.Has(ShipFlags.InOrbit));
+        d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  DESCEND OVER THE SAME SPOT" : s.Has(ShipFlags.Landed) || s.Asleep ? seatLine : null;
         d.Notice = null;
-        d.Hints = $"V {(_shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit ? "chase" : "cockpit")} camera · Z flight assist · X throttle 0 · Shift boost";
+        d.Hints = SeatKeys.FlightHints(_shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit) + " · " + seatLine;
         _shipHud.Refresh();
     }
 
@@ -855,7 +872,7 @@ public partial class GroundView : Node3D
         {
             return;
         }
-        if (Client.Ships().Piloting && Pilot(e))
+        if (Client.Ships().Seated && SeatInput(e))
         {
             GetViewport().SetInputAsHandled();
             return;

@@ -202,10 +202,9 @@ public static class InteractionTests
         // In a ship's seat: nothing on foot.
         Ship ship = z.Ships().SpawnShip(c.Ship("tin-finch")!, z.GroundAt(-20, 0), 0, a.Id, 10);
         rig.Step(45);
-        ship.HatchOpen = true;
-        ship.HatchProgress = Ship.HatchTicks;
-        Raids.Stand(rig, ada, z.Settle(z.Frame.Beside(ship.PointOf(ship.Def.Hatch), 1.4f, 0, 0)));
-        var hatch = new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch);
+        z.Ships().SetDoorAtOnce(ship, 0, 1);
+        Raids.Stand(rig, ada, z.Settle(z.Frame.Beside(ship.PointOf(ship.Def.HatchPoint()), 1.4f, 0, 0)));
+        var hatch = new TargetRef(TargetFamily.Ship, ship.Id.Value, ship.Def.HelmPart());
         Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, hatch, "board"), "Ada boards");
         Assert.Equal(OutcomeCode.Seated, z.Interaction().Interact(ada, box.Ref, "open"), "seated, she does nothing on foot");
     }

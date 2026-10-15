@@ -78,6 +78,9 @@ public readonly record struct BoardingBox(Vector3 Min, Vector3 Max, int Part, in
 /// <summary>A named point of a ship's model, with its orientation, and the part that carries it (−1 the hull).</summary>
 public readonly record struct ShipSocket(Vector3 Position, Vector3 Forward, Vector3 Up, int Part);
 
+/// <summary>A lamp fixture of a ship's data file (IRON_WAKE.md §9.4): its name, where it is, which way it shines (a spot), its room.</summary>
+public sealed record ShipFixture(string Name, Vector3 Position, Vector3 Direction, bool Spot, string Room);
+
 /// <summary>A rigid motion of a ship's frame: a point p goes to <c>Rotation·p + Translation</c>.</summary>
 public readonly record struct PartPose(Quaternion Rotation, Vector3 Translation)
 {
@@ -124,6 +127,12 @@ public sealed class ShipInterior
 
     /// <summary>The asset's centre-of-mass hint.</summary>
     public Vector3 CentreOfMass { get; init; }
+
+    /// <summary>The data file's stations by their ids (IRON_WAKE.md §6.1): what a station's seat names.</summary>
+    public IReadOnlySet<string> Stations { get; init; } = new HashSet<string>();
+
+    /// <summary>The data file's lamp fixtures, its drive glows left out (IRON_WAKE.md §9.4): what ships.json's lights light.</summary>
+    public IReadOnlyList<ShipFixture> Fixtures { get; init; } = Array.Empty<ShipFixture>();
 
     /// <summary>How far outside the boarding volume, with nothing of the ship under the feet, a character leaves (IRON_WAKE.md §4.5: 0.3 m).</summary>
     public float Margin { get; init; } = 0.3f;

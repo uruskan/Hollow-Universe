@@ -21,6 +21,15 @@ public interface IContainerHolder
 }
 
 /// <summary>
+/// A thing with a list of authorised players (the cupboard capability's, GROUND_SYSTEMS.md §5): the tool cupboard's
+/// building rights, a ship's crew at its helm (IRON_WAKE.md §5.2).
+/// </summary>
+public interface IAuthorisations
+{
+    bool IsAuthorised(ulong player);
+}
+
+/// <summary>
 /// A loose thing with a lifetime (GROUND_SYSTEMS.md §3.7), of any family: its kind's rule (survival.json's lifetimes, a
 /// species' carcass), the world tick it goes at (restarted as its rule says), and whether it was emptied (looted or
 /// harvested out: it goes at once, if its rule says so).
@@ -53,9 +62,10 @@ public static partial class CapabilityHandlers
         foreach (ICapability handler in new ICapability[]
                  {
                      new Owned(), new Holds(verbs), new Burner(verbs), new Machine(verbs), new DoorCapability(verbs), new KeyLockCapability(verbs),
-                     new CodeLockCapability(verbs), new CupboardCapability(verbs), new ShipCapability(verbs), new Lifetime(), new ExplosiveCapability(),
+                     new CodeLockCapability(verbs), new CupboardCapability(verbs), new ShipCapability(), new Lifetime(), new ExplosiveCapability(),
                      new Pickup(verbs), new Portable(verbs, data), new Station(verbs), new WoundedCapability(verbs), new CharacterCapability(verbs),
-                     new DudCapability(verbs), new ArrowCapability(), new Standing(),
+                     new DudCapability(verbs), new ArrowCapability(), new Standing(), new SeatCapability(verbs), new ShipDoorCapability(verbs),
+                     new FuelCapability(verbs),
                  })
         {
             registry.Add(handler.Key, handler);
@@ -152,21 +162,22 @@ public static partial class CapabilityHandlers
         }
     }
 
-    /// <summary>The claim device: Authorised when the viewer is on its list (their building rights there).</summary>
+    /// <summary>A list of authorised players (the claim device, a ship's helm): Authorised when the viewer is on it.</summary>
     private sealed partial class CupboardCapability : ICapability
     {
         public string Key => "cupboard";
 
         public ViewerFlags Flags(object thing, in Viewer viewer) =>
-            thing is ClaimDevice claim && claim.IsAuthorised(viewer.Id.Value) ? ViewerFlags.Authorised : ViewerFlags.None;
+            thing is IAuthorisations list && list.IsAuthorised(viewer.Id.Value) ? ViewerFlags.Authorised : ViewerFlags.None;
     }
 
-    /// <summary>A ship: Locked when its owner locked it.</summary>
-    private sealed partial class ShipCapability : ICapability
+    /// <summary>A ship, on every part: Locked while its lock keeps its doors shut to strangers; Authorised for its crew.</summary>
+    private sealed class ShipCapability : ICapability
     {
         public string Key => "ship";
 
-        public ViewerFlags Flags(object thing, in Viewer viewer) => thing is Ship { Locked: true } ? ViewerFlags.Locked : ViewerFlags.None;
+        public ViewerFlags Flags(object thing, in Viewer viewer) => thing is not Ship ship ? ViewerFlags.None
+            : (ship.Locked ? ViewerFlags.Locked : ViewerFlags.None) | (ship.IsAuthorised(viewer.Id.Value) ? ViewerFlags.Authorised : ViewerFlags.None);
     }
 
     /// <summary>A charge or grenade with its fuse: when what it is stuck to or lies on goes, it falls (and its fuse burns on).</summary>

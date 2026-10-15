@@ -44,7 +44,7 @@ public partial class GroundUi
                 return;
             case GroundScreen.Console:
                 // The F1 panel hangs from the top; the belt stays in sight below it (what is given lands there).
-                if (Model.Death == null && !Model.Piloting)
+                if (Model.Death == null && KeyContexts.Hud(Model.Keys))
                 {
                     PaintBelt(false);
                 }
@@ -52,7 +52,7 @@ public partial class GroundUi
                 PaintToast();
                 return;
             case GroundScreen.Developer:
-                if (Model.Death == null && !Model.Piloting)
+                if (Model.Death == null && KeyContexts.Hud(Model.Keys))
                 {
                     PaintBelt(false);
                 }
@@ -62,7 +62,7 @@ public partial class GroundUi
         }
         bool inventory = Screen is GroundScreen.Inventory or GroundScreen.Crafting or GroundScreen.TechTree;
         // Flying, the ship's HUD (drawn by the ground view) has the centre, the belt's and the vitals' places.
-        bool flying = Screen == GroundScreen.Hud && Model.Piloting;
+        bool flying = Screen == GroundScreen.Hud && !KeyContexts.Hud(Model.Keys);
         if (Screen == GroundScreen.Hud && Radial == null && !flying)
         {
             PaintCentre();
@@ -76,6 +76,11 @@ public partial class GroundUi
         {
             PaintFeed();
             PaintChat();
+            if (Model.SeatLine is { } seatKeys)
+            {
+                // Seated: the seat's keys, above the belt (finding 28: the keys shown).
+                TextIn(seatKeys, 0, 742, 1600, 18, G.Ink, HorizontalAlignment.Center, bold: true, condensed: true);
+            }
         }
         if (Screen == GroundScreen.Inventory)
         {

@@ -82,6 +82,10 @@ public sealed partial class ShipSystem
         {
             return OutcomeCode.Invalid;
         }
+        if (ship.Def.DoorOfPart(part) >= 0)
+        {
+            return OutcomeCode.NotAllowed; // its door's to move (SetDoor), as every machine works it out
+        }
         ShipPartDef def = interior.Parts[part];
         if (def.IsDoor)
         {

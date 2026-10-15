@@ -27,8 +27,8 @@ internal sealed class ShipsReader : IContentReader
             string key = f.Text(e, "key", $"ships.json: ships[{i}]");
             string where = $"ships.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
-                "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "sockets", "nozzles", "ceiling", "wreck", "placement",
-                "model", "interior", "water", "assist");
+                "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "seats", "doors", "parts", "nozzles", "lights", "ceiling",
+                "wreck", "placement", "model", "interior", "water", "assist");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             // The inside people walk in (IRON_WAKE.md §4.3): its data file, read first, since the sockets and the hull may
             // name what it holds.
@@ -36,7 +36,7 @@ internal sealed class ShipsReader : IContentReader
                 ? ShipInteriorReader.Read(r, interiorBlock, where + ".interior")
                 : null;
             var blocks = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            foreach (string name in new[] { "damage", "thrust", "speed", "boost", "rates", "drag", "landing", "skids", "crash", "fuel", "sockets", "nozzles" })
+            foreach (string name in new[] { "damage", "thrust", "speed", "boost", "rates", "drag", "landing", "skids", "crash", "fuel", "nozzles" })
             {
                 if (f.TryChild(e, name, out JsonElement child) && child.ValueKind == JsonValueKind.Object)
                 {
@@ -47,13 +47,13 @@ internal sealed class ShipsReader : IContentReader
                     f.Problem(where, $"needs \"{name}\" (an object)");
                 }
             }
-            if (blocks.Count < 12)
+            if (blocks.Count < 11)
             {
                 continue;
             }
             JsonElement damage = blocks["damage"], thrust = blocks["thrust"], speed = blocks["speed"], boost = blocks["boost"];
             JsonElement rates = blocks["rates"], drag = blocks["drag"], landing = blocks["landing"], skids = blocks["skids"];
-            JsonElement crash = blocks["crash"], fuel = blocks["fuel"], sockets = blocks["sockets"], nozzles = blocks["nozzles"];
+            JsonElement crash = blocks["crash"], fuel = blocks["fuel"], nozzles = blocks["nozzles"];
             f.OnlyKnown(damage, where + ".damage", "melee", "arrow", "bullet", "explosive");
             f.OnlyKnown(thrust, where + ".thrust", "main", "retro", "lateral", "lift", "down");
             f.OnlyKnown(speed, where + ".speed", "forward", "reverse", "lateral", "up", "down");
@@ -64,8 +64,6 @@ internal sealed class ShipsReader : IContentReader
             f.OnlyKnown(skids, where + ".skids", "points", "stiffness", "damping", "travel", "friction");
             f.OnlyKnown(crash, where + ".crash", "safe", "scale", "pilot");
             f.OnlyKnown(fuel, where + ".fuel", "item", "capacity", "idle", "full", "boost", "placed");
-            f.OnlyKnown(sockets, where + ".sockets", "seat", "eye", "hatch", "fuel", "cargo", "exits");
-            f.OnlyKnown(nozzles, where + ".nozzles", "main", "aux", "lift", "rcs");
             var hull = new List<Ships.HullBox>();
             Vector3[] skidPoints;
             bool fromData = e.TryGetProperty("hull", out JsonElement hullValue) && hullValue.ValueKind == JsonValueKind.String;
@@ -140,6 +138,9 @@ internal sealed class ShipsReader : IContentReader
             {
                 continue;
             }
+            // Its seats, doors and target parts (IRON_WAKE.md §5.1), its nozzles and lamps.
+            (List<Ships.ShipSeatDef> seats, List<Ships.ShipDoorDef> doors, List<Ships.ShipTargetPart> parts) =
+                ShipLayoutReader.Read(r, e, where, item.Name, interior);
             var def = new Ships.ShipDef
             {
                 Key = key,
@@ -200,16 +201,12 @@ internal sealed class ShipsReader : IContentReader
                 PlacedFuel = f.Number(fuel, "placed", where + ".fuel", 0),
                 CargoSlots = f.Integer(e, "cargo", where, 0),
                 Hull = hull,
-                Seat = ShipInteriorReader.Point(f, sockets, "seat", where + ".sockets", interior),
-                Eye = ShipInteriorReader.Point(f, sockets, "eye", where + ".sockets", interior),
-                Hatch = ShipInteriorReader.Point(f, sockets, "hatch", where + ".sockets", interior),
-                FuelCap = ShipInteriorReader.Point(f, sockets, "fuel", where + ".sockets", interior),
-                Cargo = ShipInteriorReader.Point(f, sockets, "cargo", where + ".sockets", interior),
-                Exits = ShipInteriorReader.Points(f, sockets, "exits", where + ".sockets", interior),
-                MainNozzles = ShipInteriorReader.Points(f, nozzles, "main", where + ".nozzles", interior, required: false),
-                AuxNozzles = ShipInteriorReader.Points(f, nozzles, "aux", where + ".nozzles", interior, required: false),
-                LiftNozzles = ShipInteriorReader.Points(f, nozzles, "lift", where + ".nozzles", interior, required: false),
-                RcsNozzles = ShipInteriorReader.Points(f, nozzles, "rcs", where + ".nozzles", interior, required: false),
+                Seats = seats,
+                Doors = doors,
+                Parts = parts,
+                CargoPart = parts.FirstOrDefault(p => p.Capabilities.Has(r.Loaded.Capabilities?.Index("container") ?? -1))?.Index ?? 0,
+                Nozzles = ShipLayoutReader.Nozzles(f, nozzles, where + ".nozzles", interior),
+                Lights = ShipLayoutReader.Lights(f, e, where, interior),
                 Ceiling = f.Number(e, "ceiling", where),
                 Wreck = wreck,
             };
@@ -255,12 +252,15 @@ internal sealed class ShipsReader : IContentReader
             c.Problem(where + ".centreOfMass", $"must be the centre of mass of {interior.File} ({interior.CentreOfMass})");
         }
         float[] rest = interior.Rest;
-        foreach ((string name, Vector3 point) in new[] { ("seat", ship.Seat), ("eye", ship.Eye) }
-                     .Concat(ship.Exits.Select((e, i) => ($"exits[{i}]", e))))
+        foreach (Ships.ShipSeatDef seat in ship.Seats)
         {
-            if (interior.OutsideBoarding(point, rest) > 0)
+            foreach ((string name, Ships.ShipSocket point) in new[] { ("at", seat.At), ("eye", seat.Eye) }
+                         .Concat(seat.Exits.Select((e, i) => ($"exits[{i}]", e))))
             {
-                c.Problem(where + ".sockets." + name, $"must be inside the boarding volume of {interior.File} (aboard)");
+                if (interior.OutsideBoarding(interior.SocketAt(point, rest), rest) > 0)
+                {
+                    c.Problem($"{where}.seats \"{seat.Key}\".{name}", $"must be inside the boarding volume of {interior.File} (aboard)");
+                }
             }
         }
     }
@@ -316,11 +316,12 @@ internal sealed class ShipsReader : IContentReader
             {
                 c.Problem(where, "hull: boxes of positive size");
             }
-            if (ship.CargoSlots is < 0 or > 64 || ship.Exits.Count == 0 || ship.Ceiling is < 1 or > 3 ||
+            if (ship.CargoSlots is < 0 or > 64 || ship.Ceiling is < 1 or > 3 ||
                 new[] { ship.MeleeDamage, ship.ArrowDamage, ship.BulletDamage, ship.ExplosiveDamage }.Any(m => m is < 0 or > 10))
             {
-                c.Problem(where, "cargo 0 … 64 slots, an exit, a ceiling of 1 … 3 world radii, damage multipliers 0 … 10");
+                c.Problem(where, "cargo 0 … 64 slots, a ceiling of 1 … 3 world radii, damage multipliers 0 … 10");
             }
+            ShipLayoutReader.Check(c, ship, where);
             if (ship.WaterBelow <= 0 || ship.WaterAbove <= 0 || ship.WaterVolume < 0 || ship.LevelPitch is < 0 or > 1.05f ||
                 ship.LevelRoll is < 0 or > 1.05f || ship.LevelReturn is < 0 or > 10)
             {

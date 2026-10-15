@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using Hollow.Net.Protocol;
 using Hollow.Net.Replication;
+using Hollow.Simulation;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
@@ -13,11 +14,12 @@ using JoltPhysicsSharp;
 
 namespace Hollow.Client;
 
-// Ships in the client (GROUND.md §6.7): every ship near, interpolated; the one the player flies, predicted (its controls
-// ride in each tick's input); parked ships solid in the prediction's own physics. A ship people walk in (IRON_WAKE.md §4)
-// has a frame near the player: its space, in which the player's character is predicted aboard and the aim meets its
-// pieces; everyone aboard is placed on the ship as drawn. What the interact key does at a ship is its parts' verbs
-// (TargetModule, GROUND_SYSTEMS.md §5).
+// Ships in the client (GROUND.md §6.7): every ship near, interpolated, with its details (doors, seats, health; IRON_WAKE.md
+// §5); the one the player flies from its helm, predicted (its controls ride in each tick's input); parked ships solid in the
+// prediction's own physics. A ship people walk in (IRON_WAKE.md §4) has a frame near the player: its space, posed for each
+// predicted tick as the server's is (its doors at their progress), in which the player's character is predicted aboard and
+// the aim meets its pieces; everyone aboard is placed on it as drawn. The player in any seat is carried by the one seat
+// rule (ShipSeats). What the interact key does at a ship is its parts' verbs (TargetModule, GROUND_SYSTEMS.md §5).
 public sealed class ShipModule : ClientModule
 {
     /// <summary>A ship with an interior has a space on this client within this many metres of the player (IRON_WAKE.md §4.3).</summary>
@@ -35,6 +37,9 @@ public sealed class ShipModule : ClientModule
     private ShipCollider? _shipCollider;
     private bool _ownsShipBodies;
     private Vector3 _shipSmoothing;
+    private int _ownSeat = -1;
+    private uint _ownSeatFrame;
+    private float[] _seatParts = Array.Empty<float>();
 
     /// <summary>Ships this client was told about, interpolated for drawing.</summary>
     public IEnumerable<RemoteShip> All => _ships.Values.Where(s => s.Spawned && s.HasState);
@@ -53,8 +58,46 @@ public sealed class ShipModule : ClientModule
     /// <summary>A ship's frame by its net ID, or null when this client keeps none for it.</summary>
     public ClientShipFrame? FrameOf(uint netId) => _frames.GetValueOrDefault(netId);
 
-    /// <summary>The player is flying a ship (its prediction runs; the controls go out with every input).</summary>
+    /// <summary>The player is flying a ship from its helm (its prediction runs; the controls go out with every input).</summary>
     public bool Piloting => _shipPredictor?.Active == true;
+
+    /// <summary>The player sits in a ship's seat (any: the helm, a passenger's, a station's; IRON_WAKE.md §5.2), as the server says.</summary>
+    public bool Seated => _ownSeat >= 0 && SeatShip != null;
+
+    /// <summary>The ship whose seat the player sits in (null on foot, or before it is known here).</summary>
+    public RemoteShip? SeatShip
+    {
+        get
+        {
+            if (_ownSeat < 0)
+            {
+                return null;
+            }
+            if (_ownSeatFrame != 0)
+            {
+                return _ships.GetValueOrDefault(_ownSeatFrame);
+            }
+            if (_shipPredictor is { Active: true } own && _ships.TryGetValue(own.NetId, out RemoteShip? flown))
+            {
+                return flown;
+            }
+            EntityId me = HasCharacter ? EntityId : EntityId.None;
+            foreach (RemoteShip ship in _ships.Values)
+            {
+                if (ship.SeatOf(me) >= 0)
+                {
+                    return ship;
+                }
+            }
+            return null;
+        }
+    }
+
+    /// <summary>The seat the player sits in (its index in its ship's seats), or −1.</summary>
+    public int SeatIndex => Seated ? _ownSeat : -1;
+
+    /// <summary>The seat the player sits in, as its kind has it (its role, its doors, its name), or null.</summary>
+    public ShipSeatDef? Seat => SeatShip?.Def is { } def && _ownSeat < def.Seats.Count ? def.Seats[_ownSeat] : null;
 
     /// <summary>The ship flown, as predicted (its newest tick), its kind, and its remote copy (the hatch, the flags).</summary>
     public ShipState OwnShip => _shipPredictor?.Latest ?? default;
@@ -62,6 +105,15 @@ public sealed class ShipModule : ClientModule
     public ShipDef? OwnShipDef => _shipPredictor?.Def;
 
     public RemoteShip? OwnShipRemote => Piloting && _ships.TryGetValue(_shipPredictor!.NetId, out RemoteShip? s) ? s : null;
+
+    /// <summary>The frames this client keeps, posed for a tick's step (the prediction asks before each).</summary>
+    private void PoseFrames(uint tick)
+    {
+        foreach (ClientShipFrame frame in _frames.Values)
+        {
+            frame.PoseFor(tick);
+        }
+    }
 
     /// <summary>The ship flown as drawn now: between its last two predicted ticks, plus what is left of a smoothed correction.</summary>
     public Vector3 OwnShipRenderPosition { get; private set; }
@@ -78,9 +130,9 @@ public sealed class ShipModule : ClientModule
     /// <summary>Parked ships' bodies in the prediction's physics (null before joining): the placement world avoids them.</summary>
     internal ShipCollider? Collider => _shipCollider;
 
-    protected internal override bool Seated => Piloting;
+    protected internal override bool Flies => Piloting;
 
-    protected internal override void Init(MessageHandlers<GameClient> handlers) => handlers.On<ShipPartStates>((_, in m) => OnParts(m));
+    protected internal override void Init(MessageHandlers<GameClient> handlers) => handlers.On<ShipDetails>((_, in m) => OnDetails(m));
 
     protected internal override void Welcome()
     {
@@ -91,7 +143,9 @@ public sealed class ShipModule : ClientModule
             IgnoreBody = () => _shipPredictor != null && _parkedBodies.TryGetValue(_shipPredictor.NetId, out uint body) ? body : ShipCollider.NoBody,
         };
         Prediction.Seat = SeatAt;
+        Prediction.BeforeStep = PoseFrames;
         Client.DrawnFrame = DrawnPose;
+        Client.SeatEye = SeatEye;
     }
 
     public override void Dispose()
@@ -119,19 +173,50 @@ public sealed class ShipModule : ClientModule
         _shipPredictor = null;
     }
 
-    // Where the predicted ship's seat is after a tick (the character's prediction carries the pilot there): in a ship people
-    // walk in, the seat in the ship's frame, still (IRON_WAKE.md §4.2); in one they only sit in, where the ship carries it.
+    // Where the player's seat is after a tick (the character's prediction carries the seated player there), by the one seat
+    // rule (ShipSeats.Pose, the server's): in a ship people walk in, the seat's socket in the ship's frame at its parts'
+    // states then (a gunner's turns with the turret), still; in one they only sit in, where the ship flown carries it.
+    // Null when the seat's ship or state isn't known here (the character then stays where it was).
     private (ulong Frame, Vector3 Position, Vector3 Velocity)? SeatAt(uint tick)
     {
-        if (_shipPredictor is not { Active: true } ships || !ships.TryGetState(tick, out ShipState s))
+        if (SeatShip is not { Def: { } def } ship || _ownSeat >= def.Seats.Count)
         {
             return null;
         }
-        if (ships.Def!.Interior != null)
+        ShipState state = default;
+        if (def.Interior == null && !(_shipPredictor is { Active: true } own && own.NetId == ship.NetId && own.TryGetState(tick, out state)))
         {
-            return (ships.NetId, ships.Def.Seat, Vector3.Zero);
+            return null;
         }
-        return (0, s.PointOf(ships.Def.Seat, ships.Def.CentreOfMass), s.Velocity);
+        (bool aboard, Vector3 position, Vector3 velocity) = ShipSeats.Pose(def, _ownSeat, state, SeatParts(ship, def, tick));
+        return (aboard ? ship.NetId : 0, position, velocity);
+    }
+
+    // A ship's parts' states at a tick, for its seats (none for a ship people only sit in).
+    private ReadOnlySpan<float> SeatParts(RemoteShip ship, ShipDef def, long tick)
+    {
+        if (def.Interior is not { } interior)
+        {
+            return ReadOnlySpan<float>.Empty;
+        }
+        if (_seatParts.Length != interior.Parts.Count)
+        {
+            _seatParts = new float[interior.Parts.Count];
+        }
+        ship.PartsInto(interior, _seatParts, tick);
+        return _seatParts;
+    }
+
+    // The eye of the player's seat as drawn (IRON_WAKE.md §5.2: a station's camera socket), in a ship people walk in; null
+    // otherwise (the character's own eye; the helm of one they only sit in has the ship's cameras).
+    private Vector3? SeatEye()
+    {
+        if (SeatShip is not { Def: { Interior: not null } def } ship || _ownSeat >= def.Seats.Count || DrawnPose(ship.NetId) is not { } pose)
+        {
+            return null;
+        }
+        ReadOnlySpan<float> parts = _frames.TryGetValue(ship.NetId, out ClientShipFrame? frame) ? frame.States : SeatParts(ship, def, (long)Client.RenderTick);
+        return pose.ToWorld(ShipSeats.EyeInFrame(def, _ownSeat, parts));
     }
 
     // ---------------------------------------------------------------- frames as drawn (IRON_WAKE.md §4.8)
@@ -185,13 +270,15 @@ public sealed class ShipModule : ClientModule
         }
     }
 
-    // The server moved a ship's parts (IRON_WAKE.md §4.7): its space follows, and a parked one's body is made again.
-    private void OnParts(in ShipPartStates m)
+    // The server's word on a ship's details (IRON_WAKE.md §5): its space follows them at the next step it is posed for; a
+    // part no door drives that moved makes a parked one's body again, as the server does (a door's motion doesn't: the
+    // server makes it again when the door stops, and its new body comes with the snapshots).
+    private void OnDetails(in ShipDetails m)
     {
         RemoteShip ship = RemoteShipOf(m.Ship);
-        ship.SetParts(m.Parts);
-        _frames.GetValueOrDefault(m.Ship)?.FollowParts();
-        if (_parkedBodies.ContainsKey(m.Ship))
+        int parts = ship.PartsVersion;
+        ship.SetDetails(m);
+        if (ship.PartsVersion != parts && _parkedBodies.ContainsKey(m.Ship))
         {
             Unpark(m.Ship);
             Park(m.Ship, ship, ship.Newest);
@@ -208,6 +295,8 @@ public sealed class ShipModule : ClientModule
         {
             return;
         }
+        _ownSeat = header.Own.Seat - 1;
+        _ownSeatFrame = header.Own.Seat > 0 ? header.Own.Frame : 0;
         KeepFrames(header.OwnTick != 0 ? header.Own.Frame : 0);
         ReconcileShip(header);
     }
@@ -260,7 +349,7 @@ public sealed class ShipModule : ClientModule
             {
                 _scratchParts = new float[interior.Parts.Count];
             }
-            ship.PartsInto(interior, _scratchParts);
+            ship.PartsInto(interior, _scratchParts, ship.NewestTick);
             shape = ShipSpace.ParkedShape(interior, _scratchParts);
         }
         else

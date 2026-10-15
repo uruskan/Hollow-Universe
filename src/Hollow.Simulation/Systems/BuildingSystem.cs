@@ -450,6 +450,30 @@ public sealed class BuildingSystem : ZoneSystem
     }
 
     /// <summary>Upgrades (to <paramref name="grade"/>), turns, demolishes or repairs a piece with the hammer (the player must carry one).</summary>
+    /// <summary>
+    /// One hammer hit of repair on anything the hammer mends, named as the world names it (a piece; a ship's door or battery,
+    /// IRON_WAKE.md §5.5): the hammer in hand, the thing within the building's reach and in sight, then its family's repair
+    /// (<see cref="IRepairFamily"/>) paid from what the player carries.
+    /// </summary>
+    public Outcome Repair(Entity entity, in TargetRef target)
+    {
+        Outcome ok = Builder(entity, out Player p, out Vector3 eye);
+        if (!ok.Ok)
+        {
+            return ok;
+        }
+        if (!Carries(p, BuildingRole.Hammer))
+        {
+            return OutcomeCode.NoTool.With(ToolItem(BuildingRole.Hammer));
+        }
+        if (Zone.Targets().FamilyOf(target.Family) is not Interaction.IRepairFamily family)
+        {
+            return OutcomeCode.NotUsable;
+        }
+        Outcome reach = Zone.Targets().Reach(eye, target, (float)Content!.Building.Reach);
+        return reach.Ok ? family.Repair(entity, p, target, new ItemWallet(Content, p.Inventory.Carried)) : reach;
+    }
+
     public Outcome Hammer(Entity entity, HammerAction action, EntityId target, int grade)
     {
         Outcome ok = Builder(entity, out Player p, out Vector3 eye);

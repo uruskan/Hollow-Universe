@@ -14,7 +14,7 @@ namespace Hollow.Simulation.Building;
 /// authorised to build there, gives that structure an area of building rights, and holds the materials that pay its
 /// upkeep. One per connected structure.
 /// </summary>
-public sealed class ClaimDevice : IBuildingPart, IOwned
+public sealed class ClaimDevice : IBuildingPart, IOwned, Hollow.Simulation.Capabilities.IAuthorisations
 {
     internal readonly List<ulong> AuthorisedList = new();
     internal uint Body;

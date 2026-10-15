@@ -36,7 +36,20 @@ public sealed class RemoteShip
     public EntityId Id { get; set; }
 
     /// <summary>Its kind (null until a state names one this client's data knows).</summary>
-    public ShipDef? Def { get; set; }
+    public ShipDef? Def
+    {
+        get => _def;
+        set
+        {
+            if (value != _def)
+            {
+                _def = value;
+                ApplyDetails();
+            }
+        }
+    }
+
+    private ShipDef? _def;
 
     public uint NewestTick => _newest < 0 ? 0 : _ticks[_newest];
 
@@ -68,9 +81,6 @@ public sealed class RemoteShip
 
     public bool Locked => (Viewer & ViewerFlags.Locked) != 0;
 
-    /// <summary>The hatch's swing, 0 shut … 1 open.</summary>
-    public float Hatch { get; private set; }
-
     public float Health { get; private set; } = 1;
 
     public bool Has(ShipNetFlags flag) => (Flags & flag) != 0;
@@ -81,30 +91,148 @@ public sealed class RemoteShip
     /// <summary>A point of the ship's frame (relative to its pivot) in the zone frame.</summary>
     public Vector3 PointOf(Vector3 local) => Def == null ? Position : Position + Vector3.Transform(local - Def.CentreOfMass, Rotation);
 
-    // ---------------------------------------------------------------- its parts (IRON_WAKE.md §4.7)
+    // ---------------------------------------------------------------- its details (IRON_WAKE.md §4.7, §5)
 
-    private ShipPartNet[] _parts = Array.Empty<ShipPartNet>();
+    private ShipDetails _details;
+    private bool _hasDetails;
 
-    /// <summary>Raised whenever the server tells this client its parts' states (the space that follows them compares it).</summary>
+    /// <summary>Raised whenever the server tells this client its details (its moving parts, doors, seats, health).</summary>
+    public int DetailsVersion { get; private set; }
+
+    /// <summary>Raised when the server moves a part no door drives (a turret): a parked body is made again for it.</summary>
     public int PartsVersion { get; private set; }
 
-    /// <summary>The server's word on its moving parts: those listed at their states, every other at rest.</summary>
-    public void SetParts(ShipPartNet[]? parts)
+    /// <summary>Each door's motion (<see cref="ShipDef.Doors"/>' order), as the server last said; its progress at any tick follows.</summary>
+    public ShipDoorState[] Doors { get; private set; } = Array.Empty<ShipDoorState>();
+
+    /// <summary>Who sits in each seat (<see cref="ShipDef.Seats"/>' order).</summary>
+    public EntityId[] Occupants { get; private set; } = Array.Empty<EntityId>();
+
+    /// <summary>Each target part's health as a share of its most (1 whole; a door's part, its door's).</summary>
+    public float[] PartHealth { get; private set; } = Array.Empty<float>();
+
+    /// <summary>The server's word on its details (<see cref="ShipDetails"/>).</summary>
+    public void SetDetails(in ShipDetails details)
     {
-        _parts = parts ?? Array.Empty<ShipPartNet>();
-        PartsVersion++;
+        bool partsMoved = !_hasDetails || !SameParts(_details.Parts, details.Parts);
+        _details = details;
+        _hasDetails = true;
+        DetailsVersion++;
+        if (partsMoved)
+        {
+            PartsVersion++;
+        }
+        ApplyDetails();
     }
 
-    /// <summary>Its parts' states into an array the size of its interior's parts (the interior's rest, then what the server said).</summary>
-    public void PartsInto(ShipInterior interior, float[] into)
+    private static bool SameParts(ShipPartNet[]? a, ShipPartNet[]? b)
+    {
+        a ??= Array.Empty<ShipPartNet>();
+        b ??= Array.Empty<ShipPartNet>();
+        if (a.Length != b.Length)
+        {
+            return false;
+        }
+        for (int i = 0; i < a.Length; i++)
+        {
+            if (a[i].Part != b[i].Part || a[i].Bits != b[i].Bits)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // The details for its kind (once both are known): doors, seats and health sized to its kind's; before any word from
+    // the server, its doors as a new ship's (the interior's rest), its seats empty, its parts whole.
+    private void ApplyDetails()
+    {
+        if (_def == null)
+        {
+            return;
+        }
+        ShipDef def = _def;
+        var doors = new ShipDoorState[def.Doors.Count];
+        for (int i = 0; i < doors.Length; i++)
+        {
+            float max = def.Doors[i].Health?.Max ?? 0;
+            if (_hasDetails && _details.Doors != null && i < _details.Doors.Length)
+            {
+                doors[i] = ShipConvert.DoorOf(_details.Doors[i], max);
+            }
+            else
+            {
+                int first = def.Doors[i].Parts.Count > 0 ? def.Doors[i].Parts[0] : -1;
+                float rest = def.Interior != null && first >= 0 && first < def.Interior.Rest.Length ? def.Interior.Rest[first] : 0;
+                doors[i] = new ShipDoorState { From = Math.Clamp(rest, 0f, 1f), Health = max };
+            }
+        }
+        var occupants = new EntityId[def.Seats.Count];
+        foreach (ShipSeatNet seat in _hasDetails ? _details.Seats ?? Array.Empty<ShipSeatNet>() : Array.Empty<ShipSeatNet>())
+        {
+            if (seat.Seat < occupants.Length)
+            {
+                occupants[seat.Seat] = new EntityId(seat.Occupant);
+            }
+        }
+        var health = new float[def.Parts.Count];
+        Array.Fill(health, 1f);
+        foreach (ShipPartHealthNet part in _hasDetails ? _details.Health ?? Array.Empty<ShipPartHealthNet>() : Array.Empty<ShipPartHealthNet>())
+        {
+            if (part.Part < health.Length)
+            {
+                health[part.Part] = part.Health / 255f;
+            }
+        }
+        for (int i = 0; i < health.Length; i++)
+        {
+            if (def.Parts[i].Door >= 0 && def.Parts[i].Door < doors.Length && def.Doors[def.Parts[i].Door].Health is { Max: > 0 } h)
+            {
+                health[i] = doors[def.Parts[i].Door].Health / h.Max;
+            }
+        }
+        Doors = doors;
+        Occupants = occupants;
+        PartHealth = health;
+    }
+
+    /// <summary>A door's progress at a (fractional) server tick: 0 shut … 1 open.</summary>
+    public float DoorAt(int door, double tick) =>
+        _def != null && door >= 0 && door < Doors.Length ? Doors[door].ProgressAt(tick, _def.Doors[door].Rate) : 0;
+
+    /// <summary>The seat a character sits in here, or −1.</summary>
+    public int SeatOf(EntityId character)
+    {
+        for (int i = 0; i < Occupants.Length; i++)
+        {
+            if (!character.IsNone && Occupants[i] == character)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Its parts' states at a server tick into an array the size of its interior's parts: the interior's rest, the parts the
+    /// server listed, then each door's parts at its progress then (the server's arithmetic, ShipSystem.DoorParts).
+    /// </summary>
+    public void PartsInto(ShipInterior interior, float[] into, long tick)
     {
         interior.Rest.AsSpan(0, Math.Min(interior.Rest.Length, into.Length)).CopyTo(into);
-        foreach (ShipPartNet part in _parts)
+        if (_hasDetails)
         {
-            if (part.Part < into.Length)
+            foreach (ShipPartNet part in _details.Parts ?? Array.Empty<ShipPartNet>())
             {
-                into[part.Part] = BitConverter.UInt32BitsToSingle(part.Bits);
+                if (part.Part < into.Length)
+                {
+                    into[part.Part] = BitConverter.UInt32BitsToSingle(part.Bits);
+                }
             }
+        }
+        if (_def != null)
+        {
+            Simulation.ShipSystem.DoorParts(_def, Doors, tick, into);
         }
     }
 
@@ -247,7 +375,6 @@ public sealed class RemoteShip
         ShipNetState discrete = t < 0.5f ? sa : sb;
         Flags = discrete.Flags;
         Viewer = discrete.Viewer;
-        Hatch = (sa.Hatch + (sb.Hatch - sa.Hatch) * Math.Clamp(t, 0, 1)) / Ship.HatchTicks;
         Health = discrete.Health / 255f;
     }
 

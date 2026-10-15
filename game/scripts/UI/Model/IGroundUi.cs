@@ -61,8 +61,14 @@ public interface IGroundUi
     /// <summary>The open container, or null.</summary>
     LootView? Loot { get; }
 
-    /// <summary>The player flies a ship (G6): the flight HUD takes the belt's, the vitals' and the crosshair's place.</summary>
-    bool Piloting => false;
+    /// <summary>
+    /// What the keys mean now (KNOWN_PROBLEMS.md finding 28): on foot, or seated by role; at the helm the flight HUD takes
+    /// the belt's, the vitals' and the crosshair's place, and seated Q and E open nothing.
+    /// </summary>
+    KeyContext Keys => KeyContext.OnFoot;
+
+    /// <summary>Seated (not at the helm, whose HUD shows them): the seat's keys, one line for the screen; else null.</summary>
+    string? SeatLine => null;
 
     /// <summary>A station (a deployable's key, e.g. the vehicle workbench) is within reach, for a recipe made at one.</summary>
     bool StationNear(string station) => true;

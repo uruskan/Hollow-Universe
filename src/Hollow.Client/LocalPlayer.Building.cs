@@ -8,6 +8,7 @@ using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Client;
 
@@ -61,6 +62,19 @@ public sealed partial class LocalPlayer
         double restored = Math.Min(data.RepairPerHit, piece.MaxHealth - piece.Health);
         int cost = restored > 0 ? piece.Structure.World.RepairCost(data.CostOf(piece.Def, piece.Grade), restored, piece.MaxHealth) : 0;
         return Intend(new Pending(p => new ItemWallet(p.Content, p.Inventory.Carried).Take(material, cost)),
-            w => new HammerIntent { Seq = _nextSeq, Action = HammerAction.Repair, Target = piece.Id.Value }.WriteMessage(w));
+            w => new HammerIntent { Seq = _nextSeq, Action = HammerAction.Repair, Target = piece.Id.Value, Family = (byte)TargetFamily.Piece }.WriteMessage(w));
+    }
+
+    /// <summary>
+    /// One hammer hit of repair on anything else the hammer mends, as the world names it (a ship's door or battery,
+    /// IRON_WAKE.md §5.5); its cost is the server's to take.
+    /// </summary>
+    public uint Repair(in TargetRef target)
+    {
+        TargetRef t = target;
+        return Intend(null, w => new HammerIntent
+        {
+            Seq = _nextSeq, Action = HammerAction.Repair, Target = t.Id, Family = (byte)t.Family, Part = t.Part,
+        }.WriteMessage(w));
     }
 }

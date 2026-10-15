@@ -158,8 +158,10 @@ public static partial class CapabilityHandlers
     }
 
     /// <summary>
-    /// The tool cupboard (GROUND.md §6.3): anyone authorises at it (E's primary until they are on its list, then its store
-    /// opens); those on it deauthorise, clear the list, put their team on it and pick it up with its store.
+    /// A list of authorised players: the tool cupboard (GROUND.md §6.3) and a ship's helm (IRON_WAKE.md §5.2, the ship is
+    /// its own cupboard). Anyone authorises at it (E's primary until they are on its list); those on it deauthorise, clear
+    /// the list and put their team on it; a cupboard (a deployable) is picked up with its store. The list is its family's
+    /// (<see cref="IAuthoriseFamily"/>).
     /// </summary>
     private sealed partial class CupboardCapability : IInteractCapability
     {
@@ -179,7 +181,7 @@ public static partial class CapabilityHandlers
         public void Offer(in InteractContext ctx, List<InteractOption> into)
         {
             bool listed = ctx.Has(ViewerFlags.Authorised);
-            into.Add(InteractOption.Can(listed ? _deauthorise : _authorise, primary: !listed));
+            into.Add(InteractOption.Can(listed ? _deauthorise : _authorise, primary: !listed && ctx.Facts.Deployable != null));
             if (ctx.Doer.InTeam)
             {
                 into.Add(InteractOption.Can(_team));
@@ -187,23 +189,28 @@ public static partial class CapabilityHandlers
             if (listed)
             {
                 into.Add(InteractOption.Can(_clear));
-                into.Add(InteractOption.Can(_pickUp));
+                if (ctx.Facts.Deployable != null)
+                {
+                    into.Add(InteractOption.Can(_pickUp));
+                }
             }
         }
 
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
+        private static IAuthoriseFamily? List(in InteractContext ctx) => ctx.Zone!.Targets().FamilyOf(ctx.Target.Family) as IAuthoriseFamily;
+
         private static Outcome Authorise(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is ClaimDevice device ? ctx.Zone!.Building().World!.Authorise(ctx.Doer.Id.Value, device) : OutcomeCode.NotFound;
+            List(ctx) is { } list ? list.Authorise(ctx.Player!, ctx.Target) : OutcomeCode.NotUsable;
 
         private static Outcome Deauthorise(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is ClaimDevice device ? ctx.Zone!.Building().World!.Deauthorise(ctx.Doer.Id.Value, device) : OutcomeCode.NotFound;
+            List(ctx) is { } list ? list.Deauthorise(ctx.Player!, ctx.Target) : OutcomeCode.NotUsable;
 
         private static Outcome Team(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is ClaimDevice device ? ctx.Zone!.World().AuthoriseTeam(ctx.Doer.Id.Value, device, ctx.Zone!.World().TeamOf(ctx.Player!)) : OutcomeCode.NotFound;
+            List(ctx) is { } list ? list.AuthoriseTeam(ctx.Player!, ctx.Target, ctx.Zone!.World().TeamOf(ctx.Player!)) : OutcomeCode.NotUsable;
 
         private static Outcome Clear(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is ClaimDevice device ? ctx.Zone!.Building().World!.ClearAuthorised(ctx.Doer.Id.Value, device) : OutcomeCode.NotFound;
+            List(ctx) is { } list ? list.ClearList(ctx.Player!, ctx.Target) : OutcomeCode.NotUsable;
 
         private static Outcome PickUp(in InteractContext ctx, in InteractArgs args) =>
             ctx.Thing is ClaimDevice device ? ctx.Zone!.Building().TakeClaim(ctx.Entity, ctx.Player!, device) : OutcomeCode.NotFound;

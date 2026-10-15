@@ -453,6 +453,158 @@ In the takeoff test it climbed 106 m in 13 s, reached 38 m/s, turned 40° and st
 Open (§15.1). Until the owner decides, an admin spawns it (`ship <name> iron-wake`, the F1 panel's spawn). This also
 fixes the spawn that always made `Ships[0]`.
 
+### 5.7 As built (IW2, 15 October 2026)
+
+**The data.** `ships.json` has the blocks `seats`, `doors`, `parts`, `nozzles` and `lights` for both ships, read by
+`ShipLayoutReader` (`Content/Readers`) after the interior, and checked there:
+- exactly one helm; at most 31 seats, 16 doors, 255 parts; unique keys;
+- part 0 is the hull, with no shape or capability of its own;
+- a door's pieces belong to one part; a part with the `seat` capability names a seat, and one with `ship-door` a door;
+- a door's own part has no health of its own (its door's);
+- every seat has a part, and its socket, eye and exits lie inside the boarding volume.
+
+A point is three numbers or a socket's name in the generated data file. The Tin Finch's numbers are unchanged:
+- its seat at (0, 0.992, −0.08), its eye, its four exits on the ground;
+- its hatch, a door of 1 s that opens at rest;
+- its parts: the hull, the hatch (the seat, the door and the list), the fuel cap and the cargo behind the hatch.
+
+`ShipParts` keeps only `Hull = 0`; every other part is the data's, its index its wire number. The Iron Wake's parts:
+
+| Part | What it is | Capabilities |
+|---|---|---|
+| helm, copilot | the bridge's two seats, by their sockets | `seat`; the helm also `cupboard` |
+| ramp | the ramp's two leaves | `ship-door` |
+| ramp-switch | a switch at the ramp's top, inside | `ship-door` |
+| airlock | its door | `ship-door` |
+| six stations | each battery's turret pieces and its gunner's ball | `seat`, health 1,500 |
+| fuel | the filler on the starboard side | `fuel` |
+
+`nozzles` and their plume sizes are data now (the view's fixed sizes are gone). `lights` are read and checked but stay
+data until IW6 draws them (`LightPower`: the ship's power or the emergency lamps).
+
+**Seats** (§5.2). `Ship.Occupants` holds one occupant a seat, and `ShipSeat` has the seat's index.
+- **One seat rule**, `ShipSeats.Pose`. The server carries every occupant with it each tick, and a client's prediction
+  carries its player with it (`Predictor.Seat`, the seat from `OwnState.Seat`). Aboard a ship people walk in, the seat's
+  socket is in the ship's frame at its parts' states (a gunner turns with the turret). In one they only sit in, the seat
+  is carried in the zone's frame.
+- **Sitting** is the seat's own verb (`verb` in its data):
+  - `board` the Tin Finch;
+  - `take-helm`;
+  - `man` a battery;
+  - `sit` in the copilot's seat.
+
+  The prompt says the seat's name: MAN FORWARD STARBOARD MOUNT, never BOARD IRON WAKE. `ShipSystem.MaySit` and the seat
+  capability's offer refuse with the same reasons:
+  - taken;
+  - not on the list (a crew seat);
+  - locked (an "unlocked" seat);
+  - disabled;
+  - through its door, the door shut or the ship not at rest.
+- **Standing up** is Space in any seat (`ShipAction.Leave`):
+  - to the first exit whose capsule is clear on a floor of the ship's space, in flight too (a gunner onto the walkway);
+  - a ship without an interior keeps its ground exits and the rule that it be at rest;
+  - none clear: EXIT BLOCKED (111), and the occupant stays.
+- **Every way out is `ShipSystem.Release`:**
+  - a death (the `Died` event, at once: the F1 console's `kill`, a wound, a fall);
+  - an admin's teleport or noclip (`Zone.Teleport`);
+  - a lost connection (`ServerModule.Leaving`, not a goodbye): the occupant stands at the first clear exit and sleeps
+    there, or sleeps in the seat when none is clear;
+  - a disabled station (its gunner put out);
+  - a wreck, which kills whoever sits in it.
+
+  Logging off (LiteNetLib's goodbye) keeps the seat: they sleep in it, and the server seats them again after a restart.
+- **Exposed seats** (the batteries) keep their occupant in the hit history and in blasts' reach, with seated hit shapes
+  (`Pose.Seated`). The bridge's seats stay sheltered.
+
+**The helm's list.** The ship is its own tool cupboard: the helm part has the `cupboard` capability.
+- The ship keeps a list (`Ship.Crew`, `IAuthorisations`, 64 at most). Its owner is on it from the start.
+- The cupboard's verbs at the helm (authorise, deauthorise, authorise team, clear list) go through `IAuthoriseFamily`,
+  the family's own list: a claim device's, a ship's.
+- As at Rust's cupboard, whoever reaches the helm authorises themselves. The ship's locked doors keep strangers from
+  it.
+- The list governs:
+  - the crew's seats (the helm and the batteries): a ship whose list is empty waits for someone to authorise;
+  - the lock and the locked doors;
+  - mending its parts (anyone may mend a ship whose list is empty).
+
+**Doors** (§5.3, `ShipSystem.Doors.cs`). A door is a motion record, `ShipDoorState`:
+- what it holds: its progress at a tick, the way it moves (+1, −1, 0), the way it waits to go while someone is in its
+  way, and its health;
+- its progress at any tick is `clamp(From + Moving × (tick − Since) × rate)`;
+- its parts follow by its ease (`InOut`: smoothstep) through `ShipSystem.DoorParts`, on the server and every client
+  alike;
+- the record goes to clients once a change (`ShipDetails`), never every tick.
+
+Its rules:
+- `ShipDoorDef.Rule`: the ramp moves at rest, or below 5 m/s within 30 m of the ground (`ShipSystem.ShipSlow`, sent as
+  `ShipNetFlags.Slow`); the airlock moves any time.
+- A move whose whole way would meet someone is refused (RAMP BLOCKED). Someone stepping in its way mid-motion stops it,
+  and it goes on once they are clear.
+- The parked body is kept while a door moves and made again when it stops.
+- Locked, a door is shut to anyone not on the list.
+- **Broken** (health 0; armoured, 1,000, the explosives' door table) a door falls open at once and stays jammed (JAMMED
+  OPEN) until the hammer mends it.
+
+`MovePart` refuses a door's parts (its door moves them). The Iron Wake's ramp and airlock are drawn from their parts'
+states, exactly where their collision is, rather than by sampling the `CargoRamp_Open` and `Airlock_Open` clips. The Tin
+Finch's hatch still samples `Hatch_Open` by its progress.
+
+**Health** (§5.5). The hull keeps its 18,000.
+- Each part with health takes blows through the damage pipeline's ship receiver:
+  - a ray's hit in the space names its part (`ShipDef.PartOfPieces`);
+  - a blast reaches each part by its own pieces' nearest point, the part it is stuck to whole;
+  - its protection resolves it as a building's would: armoured for the doors, metal for the batteries.
+- A battery at 0 is disabled (DISABLED, 113) and its gunner is put out.
+- **Mending.** The hammer's attack mends what the interact aim names (`IRepairFamily`; `HammerIntent` carries the
+  family and part):
+  - building.json's numbers: 100 a hit, not within 30 s of damage;
+  - each hit costs max(1, ⌈full cost × restored ÷ most⌉) of the part's material: refined metal 10 for a door, metal
+    fragments 300 for a battery.
+
+**Keys** (KNOWN_PROBLEMS.md finding 28). The key context is in one place (`SeatKeys.Context`): on foot, or seated as
+helm, passenger or station.
+- **Every seat:** Space leaves it.
+- **A seat that works doors:** 1–9 work its ship's doors (1 the hatch or the ramp, 2 the airlock), and L the lock.
+- **The helm:** J descends from orbit, V switches the camera. Its flight keys are W S the lever, A D slide, **Shift and
+  Ctrl up and down**, Q E roll, **B boost**, Z flight assist, X the lever to zero. Space and C no longer move the ship,
+  F no longer leaves it, and H no longer works the hatch.
+- **Seated, Q, E and 1–6 do nothing of their own:** no crafting, no hold-E radial, no belt. Tab, G, Enter, Esc, F1 and
+  F2 work everywhere.
+- **The keys on screen:** the flight HUD shows the helm's in its corner (and its seat's line at rest); another seat
+  shows its line above the belt.
+- **A station's seat** looks from its camera socket (`GameClient.SeatEye`).
+
+**The F1-kill finding** (KNOWN_PROBLEMS.md, commit 9da9bdd). Nothing of the seat was stale. The Iron Wake beside the
+respawn never slept:
+- on uneven ground its hull jittered a few millimetres a tick;
+- afloat or on its side it never rested;
+- a client judged a ship at rest only by its landing or its sleep.
+
+Every verb at it said the pilot's "land first". Now:
+- the motor rests any ship that touches something and barely moves;
+- the server's word on a ship at rest goes to clients (`ShipNetFlags.Still`);
+- on foot a ship in motion says NOT WHILE IT MOVES.
+
+**Saves.** `ShipCodec` version 2 keeps:
+- who sits in each seat;
+- each door's progress, way and health;
+- the parts' states and health;
+- the list.
+
+Version 1 (a pilot and a hatch) reads as the helm's occupant and the first door, its owner its list. A door's motion is
+counted from the tick the ship is added (a half-shut ramp goes on shutting). `ship <name> [kind]` sets the ship down
+with its first door open.
+
+**Checks** (engine-free):
+- `SeatTests`: every ship left alone parks; killed in flight and respawned;
+- `ShipPartsTests`:
+  - every way out frees the seat;
+  - each part offers its own verbs;
+  - the ramp opens, shuts, breaks under two timed charges and is mended;
+  - the helm's list governs the helm and the doors;
+  - two seated in a flying ship over the network (no correction; the gunner stands up onto the walkway);
+  - `ShipCodec` 2 and 1.
+
 ## 6. Crewed batteries
 
 ### 6.1 A station
@@ -1370,6 +1522,20 @@ ms). The siege muzzle stays within one heavy effect's share.
 
 **As built (IW1).** Protocol 22: the frame in the input, the own state, characters' states, `FireIntent` and `ThrowIntent`;
 `ShipNetState.Body`; `ShipPartStates` (121). Schema 8: `characters.frame`. Measured: §4.13.
+
+**As built (IW2).** Protocol 25 (after IW4's 23 and S4's 24):
+- `ShipNetFlags.Still` (the server's word on a ship at rest) and `Slow` (its slow doors may move), the hatch's progress
+  gone from `ShipNetState`;
+- `OwnState.Seat`;
+- `ShipIntent.Arg` with the actions `Door`, `Leave`, `Lock` and `Descend`;
+- `ShipDetails` (121, in place of `ShipPartStates`), sent when a ship comes into range and whenever its details change:
+  - the parts away from rest that no door drives;
+  - each door's motion and health;
+  - the seats taken;
+  - the parts' health below their most;
+- `HammerIntent.Family` and `Part`.
+
+No schema step: the ship's record is a blob, `ShipCodec` version 2.
 
 ## 13. Order of work
 

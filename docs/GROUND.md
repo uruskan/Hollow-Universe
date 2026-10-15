@@ -3109,6 +3109,26 @@ stands at the first clear exit (the hatch's side, the other side, behind, in fro
 the hatch or from the seat: as much of the player's lamp oil as fits. The **cargo** (12 slots) opens like a box at the
 hatch or from the seat.
 
+**Seats, parts and doors** (IW2, 15 October 2026; IRON_WAKE.md §5.7). Every ship's seats, doors and parts are data
+(`ships.json`'s `seats`, `doors`, `parts`), the Tin Finch's in the same blocks as the Iron Wake's.
+- **Seats.** One occupant a seat, sat in with the seat's own verb (board, take the helm, man, sit), carried by one seat
+  rule (`ShipSeats.Pose`) on the server and in the prediction.
+- **Leaving.** Left with Space to the first clear exit (EXIT BLOCKED when none is), freed by every way out:
+  - a death;
+  - an admin's teleport;
+  - a lost connection;
+  - a disabled station;
+  - a wreck.
+
+  Logging off keeps the seat.
+- **Doors** are motion records that every machine works out alike: the hatch, the ramp, the airlock. They open by
+  their rules, are shut to strangers while locked, and jam open when broken until the hammer mends them.
+- **Parts** are targets with their own verbs, names and health.
+- **The helm keeps the ship's list,** as a tool cupboard does, and the list governs the crew's seats, the lock and the
+  locked doors.
+
+The paragraphs above (the hatch, the seat, the lock) are the Tin Finch's case of these rules.
+
 **Without a pilot** a ship's engines are off: it rests on its skids, or falls if it was left in the air. A parked ship
 (asleep, nobody in the seat) is a static Jolt body of its hull, from `PhysicsWorld.FirstShipBody` on, so characters walk
 into it; a flown one isn't. A pilot who logs off stays in the seat; the engines then hold the ship where it was, with
@@ -3214,8 +3234,10 @@ reports the rebuilds.
   ground. V switches them.
 - `ShipControls` (S14): the mouse is a virtual stick that springs back to the middle (a turn follows how fast the mouse
   moves; the arrows are a keyboard stick); W/S move a throttle lever that stays where it is put (X: zero); A/D slide,
-  Space/C rise and sink, Q/E roll, Shift boosts, Z switches flight assist. In the seat F steps out, H works the hatch, L
-  the lock, J descends from orbit; on foot E opens the hatch and boards.
+  Shift/Ctrl rise and sink, Q/E roll, B boosts, Z switches flight assist (since IW2; before, Space/C and Shift). In any
+  seat Space stands up, 1–9 work the doors of a seat that works them (1 the hatch or the ramp), L the lock; at the helm J
+  descends from orbit and V switches the camera (`SeatKeys`, KNOWN_PROBLEMS.md finding 28); on foot E opens the hatch
+  and boards.
 - `ShipHud`, in the ground interface's style and design canvas (§8): speed, height over the ground and climb at the
   bottom with the heading above them; the throttle lever on the left with the speed flight assist will hold; fuel and
   hull where the vitals sit, with flight assist, boost (time left, or cooling), landed (or "too steep") and orbit stacked
@@ -3277,10 +3299,16 @@ sloping 6°; F stepped the pilot out at the hatch; 21 units of fuel in 31 s. The
   predicted thrust and flags; `ShipView.Exposure` from the sky; hidden in orbit. In the cockpit the own ship's nearest
   plumes hide (`FromCockpit`).
 - While `Piloting`, `ShipControls.Read` fills `InputFrame.Ship` each frame (with the interface open the lever stays and
-  the stick lets go); the mouse moves the stick; the camera is `ShipCamera.Follow` on the ship as drawn (cockpit or
-  chase, V), with the blasts' shake; `ShipHud` replaces the belt, the vitals and the crosshair (`IGroundUi.Piloting`);
-  the arms draw nothing; F steps out, H works the hatch, L the lock, J descends from orbit; E, R and Space belong to the
-  ship (roll, nothing, rise).
+  the stick lets go). The mouse moves the stick, and the camera is `ShipCamera.Follow` on the ship as drawn (cockpit or
+  chase, V), with the blasts' shake.
+- The keys' context is one place since IW2 (`SeatKeys.Context`: on foot, or seated as helm, passenger or station;
+  `IGroundUi.Keys`):
+  - at the helm `ShipHud` replaces the belt, the vitals and the crosshair, and lists the keys;
+  - a seat's own keys come from its data (`SeatKeys.Of`): Space stands up, 1–9 its doors, L the lock, J the descent,
+    V the camera;
+  - seated, Q, E and 1–6 open nothing: no crafting, no hold-E radial, no belt; E and R do nothing;
+  - another seat shows its keys above the belt, and a station's seat looks from its camera socket;
+  - the arms draw nothing.
 - On foot, the prompt under the crosshair is the interaction's ("E  OPEN HATCH", "E  BOARD TIN FINCH", "E  REFUEL TIN
   FINCH", the cargo) by the part aimed at; a tap of E does it, held E shows the rest; the cargo opens in the loot panel
   like a box; refusals (locked, seat taken, not landed, the hatch shut) are the radial's reasons and toasts.
@@ -5359,7 +5387,8 @@ Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn 
 - S14. **The pilot's keys** are Elite's habits on our ground keys: the mouse turns (pitch and yaw, the owner's own
   binding; a stick that springs back rather than a pointer to fly toward), Q/E roll, W/S a throttle lever that stays put,
   A/D and Space/C the thrusters, Shift boost, Z flight assist; E stays the interact key on foot, so in the seat F steps
-  out.
+  out. (IW2, KNOWN_PROBLEMS.md finding 28: Space leaves any seat, so the thrusters up and down are Shift/Ctrl and boost
+  is B; F no longer steps out.)
 - S15. **Plumes, lamps and ship lights are scaled by the camera's exposure** (brightness over exposure), not lit
   physically: a thruster reads as a thruster at noon, and doesn't blind at night.
 - S16. **The ship sandbox is a local zone with the server's rules** on the planet's own ground and nature, drawn by the

@@ -229,7 +229,7 @@ Outcome Do(in InteractContext ctx, VerbId verb, in InteractArgs args);
 | Wounded character | Help up |
 | Character (when the viewer leads a team) | Invite to team |
 | Dud explosive | Relight |
-| Ship (by part) | Hatch, Board, Refuel, Cargo, Lock |
+| Ship (by part) | Hatch, Board, Refuel, Cargo, Lock. Since IW2 (IRON_WAKE.md §5.7) each part's own, by its capabilities in `ships.json`: a seat (`seat`: board, take the helm, man, sit, the seat's name in the prompt), a door (`ship-door`: open, close, lock, unlock), the tank (`fuel`: refuel), the cargo (`container`), the helm's list (`cupboard`) |
 
 **Spent arrows** (the owner, 13 October 2026) stay where they stuck: in the ground, a building, a deployable, a tree, an
 animal or a player, alive or dead, held there by a support link (§3.6) and riding on a moving body. Each is its own small
@@ -269,8 +269,8 @@ labels. Read by `Content/Interactions.cs` (`VerbDef`, `InteractionData`).
 *Handlers:* a capability with verbs implements `IInteractCapability { Verbs, Offer, Do }` (`Interaction/Interaction.cs`);
 the handlers are in `Capabilities/Interactions.Things.cs` (container: open or loot; pickup: pick up, pick; portable:
 retrieve; burner: light, put out; machine: turn on, off; station: tech tree, unlock), `Interactions.Building.cs` (door,
-key lock, code lock, cupboard) and `Interactions.World.cs` (wounded: help up; character: invite; dud: light; ship: hatch,
-board, refuel, lock; arrow: falls when its holder goes). Each names its verbs by key and finds what one does in a table
+key lock, code lock, cupboard) and `Interactions.World.cs` (wounded: help up; character: invite; dud: light; seat: board,
+take the helm, man, sit; ship door: open, close, lock, unlock; fuel: refuel; arrow: falls when its holder goes). Each names its verbs by key and finds what one does in a table
 by number (`VerbActions`), never by testing which it was given. `InteractionRules` gives every verb its one handler in a
 sealed registry (a verb without one, one with two, or a handler's verb the data lacks stop the start), and makes a
 target's options: every capability's offer, each verb's gates, ranked by priority; `Primary` is the first primary that
@@ -325,6 +325,16 @@ dead) it falls to the floor or ground below. Picked up with E (the pickup capabi
 living too. The server tells each player those in range (`ArrowStates` 211, in their holder's frame, again when one
 falls; `ArrowsGone` 212); a client places each where its holder is every frame (`GameClient.Arrows`) and `ArrowsView`
 draws them with the arrow's model as one multimesh (one draw call, no shadow, 512 within 60 m).
+
+**IW2 (15 October 2026, IRON_WAKE.md §5.7).** A ship's parts are its data's. The capabilities `seat`, `ship-door` and
+`fuel` are appended to `capabilities.json`, and the verbs `take-helm`, `man` and `sit` to `interactions.json`. The
+old `ship` capability keeps no verbs: only its flags (locked, on the list).
+- An option may name what it acts on (`InteractOption.Name`: "MAN FORWARD STARBOARD MOUNT", "CLOSE RAMP"), and the
+  prompt says it.
+- The cupboard's verbs act on the list of the target's family (`IAuthoriseFamily`: a claim device's, a ship's), so the
+  Iron Wake's helm is its tool cupboard with no second handler.
+- The hammer mends whatever the aim names through its family (`IRepairFamily`: a piece, a ship's door or battery;
+  `BuildingSystem.Repair`), within the building's reach and in sight.
 
 Tests (`InteractionTests`): every verb has exactly one handler; the one query meets the nearest thing; the garage door
 shuts through its opening; one intent passes gates, reach and the offer; a fresh code lock sets its code first; the
