@@ -259,6 +259,19 @@ internal static class ShipInteriorReader
             }
             zones.Add(new ShipBuildZone(id, f.Text(z, "name", zoneAt, id), min, max, floor, headroom));
         }
+        var rooms = new List<ShipRoom>();
+        foreach (JsonElement room in f.List(root, "rooms", at, required: false))
+        {
+            string id = f.Text(room, "id", at + ": rooms");
+            string roomAt = $"{at}: room {JsonFields.Quote(id)}";
+            Vector3 min = f.Vector(room, "min", roomAt), max = f.Vector(room, "max", roomAt);
+            if (max.X < min.X || max.Y < min.Y || max.Z < min.Z)
+            {
+                f.Problem(roomAt, "min must be below max");
+                continue;
+            }
+            rooms.Add(new ShipRoom(id, f.Text(room, "name", roomAt, id), min, max));
+        }
         var exclusions = new List<ShipExclusion>();
         foreach (JsonElement x in f.List(root, "exclusions", at, required: false))
         {
@@ -276,6 +289,7 @@ internal static class ShipInteriorReader
         var interior = new ShipInterior
         {
             BuildZones = zones,
+            Rooms = rooms,
             Exclusions = exclusions,
             File = file,
             Parts = parts,

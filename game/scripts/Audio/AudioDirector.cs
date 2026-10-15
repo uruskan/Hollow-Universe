@@ -209,24 +209,47 @@ public partial class AudioDirector : Node
         return Start2D(e, volumeDb, pitch * RandomPitch(e), loop: false);
     }
 
-    /// <summary>Loops an event on a node (a campfire, a fuse) until <see cref="Stop"/> or the node is freed.</summary>
-    public SoundHandle Loop(string key, Node3D node, float volumeDb = 0f)
+    /// <summary>
+    /// Loops an event on a node (a campfire, a fuse) until <see cref="Stop"/> or the node is freed. <paramref name="startGainDb"/>
+    /// is the extra gain it starts at (−80 to fade it in with <see cref="SetGain"/>: a crossfaded layer, IRON_WAKE.md §10).
+    /// </summary>
+    public SoundHandle Loop(string key, Node3D node, float volumeDb = 0f, float startGainDb = 0f)
     {
         SoundEventData? e = Event(key);
         if (e == null)
         {
             return SoundHandle.None;
         }
+        SoundHandle handle;
         if (!e.Positional)
         {
-            return Start2D(e, volumeDb, 1f, loop: true);
+            handle = Start2D(e, volumeDb, 1f, loop: true);
         }
-        var handle = new SoundHandle(_nextHandle++);
-        Vector3 at = node.GlobalPosition;
-        float distance = ListenerPosition().DistanceTo(at);
-        bool ok = Start3D(e, handle, "", e.Files, 0, at, node, (float)e.Volume + volumeDb, 1f, (float)e.UnitSize,
-            (float)e.MaxDistance, 0, distance, airAbsorption: true, loop: true);
-        return ok ? handle : SoundHandle.None;
+        else
+        {
+            handle = new SoundHandle(_nextHandle++);
+            Vector3 at = node.GlobalPosition;
+            float distance = ListenerPosition().DistanceTo(at);
+            bool ok = Start3D(e, handle, "", e.Files, 0, at, node, (float)e.Volume + volumeDb, 1f, (float)e.UnitSize,
+                (float)e.MaxDistance, 0, distance, airAbsorption: true, loop: true);
+            if (!ok)
+            {
+                return SoundHandle.None;
+            }
+        }
+        if (startGainDb != 0f)
+        {
+            foreach (Voice v in AllVoices())
+            {
+                if (v.Active && v.Handle == handle.Id)
+                {
+                    v.GainDb = startGainDb;
+                    v.TargetDb = startGainDb;
+                    v.Apply();
+                }
+            }
+        }
+        return handle;
     }
 
     /// <summary>

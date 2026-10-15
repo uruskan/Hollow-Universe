@@ -295,9 +295,14 @@ public sealed class StationsView
         }
         Sounds.At(battery.Key + ".fire.report", at);
         Sounds.At(battery.Key + ".fire.mechanism", at);
+        // Through the structure (IRON_WAKE.md §10): the gunner's own, and anyone aboard at their space's structure-borne level.
         if (shot.Own)
         {
             Sounds.Flat(battery.Key + ".fire.interior", -4);
+        }
+        else if (Client.RenderFrame == shot.Ship && HollowUniverse.Audio.AudioBuses.Space is { StructureDb: > -60f } space)
+        {
+            Sounds.Flat(battery.Key + ".fire.interior", space.StructureDb);
         }
         if (battery.Launch.Of(shot.Kind) is { } profile && profile.Muzzle > 0)
         {

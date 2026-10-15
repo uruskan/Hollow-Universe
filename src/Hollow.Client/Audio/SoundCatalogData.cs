@@ -26,6 +26,18 @@ public sealed class SoundLayer
     public IReadOnlyList<string> Files { get; init; } = Array.Empty<string>();
 }
 
+/// <summary>
+/// The listener's space (sounds.json <c>spaces</c>, IRON_WAKE.md §10.1): the world buses' reverb in Godot's
+/// <c>AudioEffectReverb</c> terms, how loud structure-borne sounds (a hull's strain, a battery's shot through the hull, a
+/// ship's interior beds) are heard there, and the rooms of ships' data files it covers (none: the open air's).
+/// </summary>
+public sealed record SoundSpace(string Key, float RoomSize, float Damping, float Spread, float Hipass, float Dry, float Wet,
+    float PredelayMs, float PredelayFeedback, float StructureDb, IReadOnlyList<string> Rooms)
+{
+    /// <summary>The open air, when the catalogue has no <c>outside</c>.</summary>
+    public static readonly SoundSpace Open = new("outside", 0.2f, 0.7f, 0.8f, 0.15f, 1f, 0.02f, 12f, 0.2f, -80f, Array.Empty<string>());
+}
+
 /// <summary>One sound event of the catalogue (game/data/ground/sounds.json): what plays, how loud, how far, where.</summary>
 public sealed class SoundEventData
 {
@@ -90,8 +102,9 @@ public sealed class SoundCatalogData
     public const string FileName = "sounds.json";
 
     private SoundCatalogData(Dictionary<string, SoundCategory> categories, List<SoundEventData> events,
-        Dictionary<string, IReadOnlyDictionary<string, string>> items)
+        Dictionary<string, IReadOnlyDictionary<string, string>> items, Dictionary<string, SoundSpace> spaces)
     {
+        Spaces = spaces;
         Categories = categories;
         Events = events;
         Items = items;
@@ -99,6 +112,31 @@ public sealed class SoundCatalogData
     }
 
     public IReadOnlyDictionary<string, SoundCategory> Categories { get; }
+
+    /// <summary>The listener's spaces by key (<c>outside</c>, <c>deck</c>, <c>bridge</c>).</summary>
+    public IReadOnlyDictionary<string, SoundSpace> Spaces { get; }
+
+    /// <summary>The open air: the <c>outside</c> space.</summary>
+    public SoundSpace Outside => Spaces.TryGetValue("outside", out SoundSpace? s) ? s : SoundSpace.Open;
+
+    /// <summary>The space a ship's room is in (a room no space lists, or none: the open air).</summary>
+    public SoundSpace SpaceOfRoom(string? room)
+    {
+        if (room != null)
+        {
+            foreach (SoundSpace s in Spaces.Values)
+            {
+                foreach (string r in s.Rooms)
+                {
+                    if (r == room)
+                    {
+                        return s;
+                    }
+                }
+            }
+        }
+        return Outside;
+    }
 
     /// <summary>Item keys (and building.json's door kinds) → role ("swing", "shot", "open"...) → event key.</summary>
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Items { get; }
@@ -229,11 +267,25 @@ public sealed class SoundCatalogData
                 items[item.Name] = roles;
             }
         }
+        var spaces = new Dictionary<string, SoundSpace>(StringComparer.Ordinal);
+        if (root.TryGetProperty("spaces", out JsonElement sps) && sps.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty sp in sps.EnumerateObject())
+            {
+                JsonElement v = sp.Value;
+                string[] rooms = v.TryGetProperty("rooms", out JsonElement rs) && rs.ValueKind == JsonValueKind.Array
+                    ? rs.EnumerateArray().Select(x => x.GetString() ?? "").Where(x => x.Length > 0).ToArray()
+                    : Array.Empty<string>();
+                spaces[sp.Name] = new SoundSpace(sp.Name, (float)Num(v, "roomSize", 0.2), (float)Num(v, "damping", 0.7), (float)Num(v, "spread", 0.8),
+                    (float)Num(v, "hipass", 0.15), (float)Num(v, "dry", 1), (float)Num(v, "wet", 0.02), (float)Num(v, "predelayMs", 12),
+                    (float)Num(v, "predelayFeedback", 0.2), (float)Num(v, "structureDb", -80), rooms);
+            }
+        }
         if (problems.Count > 0)
         {
             throw new FormatException("sounds.json: " + string.Join("; ", problems));
         }
-        return new SoundCatalogData(categories, events, items);
+        return new SoundCatalogData(categories, events, items, spaces);
     }
 
     private static IReadOnlyList<string> Files(JsonElement e) =>

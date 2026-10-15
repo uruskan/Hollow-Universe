@@ -22,8 +22,8 @@
   },
   "spaces": {
     "outside": {"roomSize": 0.2, "damping": 0.7, "spread": 0.8, "hipass": 0.15, "dry": 1.0, "wet": 0.02, "predelayMs": 12.0, "predelayFeedback": 0.2, "structureDb": -80.0, "note": "Open air: no tail of its own (today's SetSpace(0))."},
-    "deck": {"roomSize": 0.78, "damping": 0.28, "spread": 1.0, "hipass": 0.08, "dry": 0.92, "wet": 0.34, "predelayMs": 22.0, "predelayFeedback": 0.32, "structureDb": 0.0, "note": "Deck A, the bay and the mezzanine as one connected steel room: long, bright, with flutter between parallel plates."},
-    "bridge": {"roomSize": 0.22, "damping": 0.85, "spread": 0.5, "hipass": 0.3, "dry": 1.0, "wet": 0.07, "predelayMs": 3.0, "predelayFeedback": 0.05, "structureDb": -6.0, "note": "The glazed bridge, insulated and padded: small and dry."}
+    "deck": {"roomSize": 0.78, "damping": 0.28, "spread": 1.0, "hipass": 0.08, "dry": 0.92, "wet": 0.34, "predelayMs": 22.0, "predelayFeedback": 0.32, "structureDb": 0.0, "note": "Deck A, the bay and the mezzanine as one connected steel room: long, bright, with flutter between parallel plates.", "rooms": ["deck-a", "bay", "deck-b"]},
+    "bridge": {"roomSize": 0.22, "damping": 0.85, "spread": 0.5, "hipass": 0.3, "dry": 1.0, "wet": 0.07, "predelayMs": 3.0, "predelayFeedback": 0.05, "structureDb": -6.0, "note": "The glazed bridge, insulated and padded: small and dry.", "rooms": ["bridge"]}
   },
   "items": {
     "rock": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
@@ -92,7 +92,8 @@
     "rocket-hv": {"ignite": "rocket.ignite", "flight": "rocket.flight", "explode": "explosion", "debris": "explosion.debris"},
     "rocket-incendiary": {"ignite": "rocket.ignite", "flight": "rocket.flight", "explode": "rocket.incendiary.burst", "fireStart": "fire.ignite", "fire": "fire.patch.large"},
     "rifle-ammo-explosive": {"explode": "impact.metal"},
-    "tin-finch": {"engine": "ship.engine", "thrust": "ship.thrust", "boost": "ship.boost", "hatchOpen": "ship.hatch.open", "hatchClose": "ship.hatch.close", "touchdown": "ship.touchdown", "crash": "ship.crash", "destroyed": "explosion"},
+    "tin-finch": {"engine": "ship.engine", "load": "ship.thrust", "boost": "ship.boost", "hatchOpen": "ship.hatch.open", "hatchClose": "ship.hatch.close", "touchdown": "ship.touchdown", "crash": "ship.crash", "destroyed": "explosion"},
+    "iron-wake": {"start": "iw.drive.start", "idle": "iw.drive.idle.slow", "idleFast": "iw.drive.idle.fast", "load": "iw.drive.load.slow", "loadFast": "iw.drive.load.fast", "release": "iw.drive.release", "shutdown": "iw.drive.shutdown", "lift": "iw.lift.loop.slow", "liftFast": "iw.lift.loop.fast", "rcs": "iw.rcs.puff", "boostLoop": "iw.boost.strain.slow", "boostLoopFast": "iw.boost.strain.fast", "boostRelease": "iw.boost.release", "strainLight": "iw.hull.strain.light", "strainMedium": "iw.hull.strain.medium", "strainHeavy": "iw.hull.strain.heavy", "touchdown": "iw.touchdown", "crash": "ship.crash", "destroyed": "explosion", "ventilation": "iw.interior.ventilation", "machinery": "iw.interior.machinery", "alarmHull": "iw.alarm.hull", "rampOpen": "iw.ramp.release", "rampClose": "iw.ramp.release", "rampTravel": "iw.ramp.actuator", "rampOpened": "iw.ramp.contact", "rampShut": "iw.ramp.lock", "airlockOpen": "iw.airlock.slide", "airlockClose": "iw.airlock.slide", "airlockShut": "iw.airlock.seal"},
     "wooden-door": {"open": "door.open.wood", "close": "door.close.wood", "place": "build.place.wood"},
     "metal-door": {"open": "door.open.metal", "close": "door.close.metal", "place": "build.place.wood"},
     "armoured-door": {"open": "door.open.armoured", "close": "door.close.armoured", "place": "build.place.wood"},
