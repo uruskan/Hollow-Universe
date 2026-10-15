@@ -42,6 +42,7 @@ public sealed class ShipModule : ServerModule
     {
         public readonly HashSet<uint> Relevant = new();
         public readonly Dictionary<uint, (uint Parts, uint Details)> DetailsSent = new();
+        public readonly Dictionary<uint, uint> StationsSent = new();
     }
 
     protected internal override void Init(MessageHandlers<PlayerSession> handlers)
@@ -59,6 +60,7 @@ public sealed class ShipModule : ServerModule
                     ShipAction.Leave => Zone.Ships().LeaveSeat(me),
                     ShipAction.Lock => Zone.Ships().SeatedLock(me, target),
                     ShipAction.Descend => Zone.Ships().Descend(me),
+                    ShipAction.Magazine => Zone.Ships().SeatedMagazine(me, target),
                     _ => OutcomeCode.Invalid,
                 };
                 if (result == OutcomeCode.Done)
@@ -71,6 +73,27 @@ public sealed class ShipModule : ServerModule
                 }
                 return result;
             });
+        });
+        // A battery's shot (IW3), to everyone its ship is relevant to: the gunner's client matches its predicted shot by the
+        // number, others play it.
+        Zone.Events.On<TurretFired>((in TurretFired e) =>
+        {
+            if (!_shipNetIds.TryGetValue(e.Ship, out uint netId))
+            {
+                return;
+            }
+            Writer.Reset();
+            new TurretShot
+            {
+                Ship = netId, Station = (byte)e.Station, Barrel = (byte)e.Barrel, Number = e.Number, Tick = (uint)e.Tick, Kind = e.Kind, Gunner = NetIdOf(e.Gunner),
+            }.WriteMessage(Writer);
+            foreach (PlayerSession session in Players)
+            {
+                if (session.Playing && session.State<ShipView>().Relevant.Contains(netId))
+                {
+                    session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
+                }
+            }
         });
     }
 
@@ -106,6 +129,12 @@ public sealed class ShipModule : ServerModule
         }
         ref Character c = ref Zone.Entities.Get<Character>(session.Entity);
         c.Input.Frame = input.Frame == 0 ? 0 : _shipsByNet.TryGetValue(input.Frame, out Ship? frame) ? frame.Id.Value : c.State.Frame;
+        if (Zone.Ships().StationOf(session.Entity, out _) != null)
+        {
+            // A gunner (IW3): the controls ride beside the view, which is the asked direction in the world (§6.2).
+            Vector3 world = Zone.Frames.ViewIn(NetConvert.View(input.ViewU, input.ViewV), c.Input.Frame, 0, Zone.Tick);
+            Zone.Ships().SetStationInput(session.Entity, StationConvert.ToInput(input, world));
+        }
     }
 
     /// <summary>A frame's key in the zone (a ship's ID) from the wire's (its net ID); 0 for the zone's, or one not known.</summary>
@@ -196,6 +225,7 @@ public sealed class ShipModule : ServerModule
         foreach (uint netId in _shipsGone)
         {
             view.DetailsSent.Remove(netId);
+            view.StationsSent.Remove(netId);
             if (relevant.Remove(netId))
             {
                 session.Snapshots.Forget(netId);
@@ -216,6 +246,7 @@ public sealed class ShipModule : ServerModule
                 session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
             }
             SendDetails(session, view, netId, ship);
+            SendStations(session, view, netId, ship);
             float distance = Vector3.Distance(position, centre);
             bool moving = !ship.State.Asleep;
             ships.Add(new ShipCandidate
@@ -237,6 +268,7 @@ public sealed class ShipModule : ServerModule
         {
             relevant.Remove(netId);
             view.DetailsSent.Remove(netId);
+            view.StationsSent.Remove(netId);
             session.Snapshots.Forget(netId);
             Despawned(session, netId);
         }
@@ -254,6 +286,29 @@ public sealed class ShipModule : ServerModule
         view.DetailsSent[netId] = now;
         Writer.Reset();
         ShipConvert.Details(ship, netId, id => id.Value).WriteMessage(Writer);
+        session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
+    }
+
+    // A ship's stations (IW3: their loaders' records, chambers, shots, chosen kinds, magazines' counts, refusals), to a player
+    // who hasn't been told their newest: when it comes into range, and whenever one changes.
+    private void SendStations(PlayerSession session, ShipView view, uint netId, Ship ship)
+    {
+        if (ship.Stations.Length == 0)
+        {
+            return;
+        }
+        uint now = ship.StationsRevision;
+        foreach (StationState st in ship.Stations)
+        {
+            now = unchecked(now * 31 + st.Magazine.Revision);
+        }
+        if (view.StationsSent.TryGetValue(netId, out uint sent) && sent == now)
+        {
+            return;
+        }
+        view.StationsSent[netId] = now;
+        Writer.Reset();
+        StationConvert.Stations(ship, netId).WriteMessage(Writer);
         session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
     }
 

@@ -6,6 +6,7 @@ using System.Text;
 using Hollow.Core;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Items;
 using Hollow.Simulation.Ships;
 using Hollow.Surface;
 
@@ -29,8 +30,12 @@ public sealed record StoredShip(Ship Ship, EntityId[] Occupants)
 /// </summary>
 public static class ShipCodec
 {
-    /// <summary>Raised by hand when the layout changes; decoding reads every older version. 2: seats, doors, parts, crew (IW2).</summary>
-    public const byte Version = 2;
+    /// <summary>
+    /// Raised by hand when the layout changes; decoding reads every older version. 2: seats, doors, parts, crew (IW2); 3: the
+    /// crewed batteries' stations (IW3): the chosen kind, the mount's aim, the shots, each chamber, each loader's cycle and
+    /// the magazine.
+    /// </summary>
+    public const byte Version = 3;
 
     private const int HatchTicksV1 = 30;
 
@@ -88,6 +93,31 @@ public static class ShipCodec
             }
             Write(w, zone.ToBody(ship.OrbitAnchor));
             WorldCodec.WriteContainer(w, ship.Cargo);
+            // The stations (version 3): a loader's cycle as seconds into it now (it goes on from there when loaded).
+            w.Write((byte)ship.Stations.Length);
+            foreach (StationState st in ship.Stations)
+            {
+                w.Write(st.Chosen);
+                w.Write(st.Yaw);
+                w.Write(st.Pitch);
+                w.Write(st.Shots);
+                w.Write((byte)st.Chambers.Length);
+                foreach (ushort chamber in st.Chambers)
+                {
+                    w.Write(chamber);
+                }
+                w.Write((byte)st.Loaders.Length);
+                foreach (LoaderState l in st.Loaders)
+                {
+                    w.Write(l.Active);
+                    w.Write(l.Waiting);
+                    w.Write(l.Reverse);
+                    w.Write(l.Elapsed(tick));
+                    w.Write(l.Kind);
+                    w.Write(l.Count);
+                }
+                WorldCodec.WriteContainer(w, st.Magazine);
+            }
         }
         return stream.ToArray();
     }
@@ -186,6 +216,10 @@ public static class ShipCodec
             return null; // a wreck that was never cleared: gone
         }
         WorldCodec.ReadContainer(r, ship.Cargo, content, WorldCodec.PlayerVersion);
+        if (version >= 3)
+        {
+            ReadStations(r, ship, content);
+        }
         // The moving parts first (a turret's angle), then the doors over theirs (their parts follow their progress).
         for (int i = 0; i < parts.Count && i < ship.Parts.Length; i++)
         {
@@ -237,6 +271,72 @@ public static class ShipCodec
             }
         }
         return new StoredShip(ship, seated);
+    }
+
+    // The stations of version 3, each onto the kind's station of its index (more than the kind has are read and left out):
+    // kinds the battery doesn't take are dropped, angles and times made sane, the magazine keeping only its rockets.
+    private static void ReadStations(BinaryReader r, Ship ship, GameContent content)
+    {
+        int count = r.ReadByte();
+        for (int i = 0; i < count; i++)
+        {
+            byte chosen = r.ReadByte();
+            float yaw = r.ReadSingle(), pitch = r.ReadSingle();
+            uint shots = r.ReadUInt32();
+            var chambers = new ushort[r.ReadByte()];
+            for (int b = 0; b < chambers.Length; b++)
+            {
+                chambers[b] = r.ReadUInt16();
+            }
+            var loaders = new LoaderState[r.ReadByte()];
+            for (int l = 0; l < loaders.Length; l++)
+            {
+                loaders[l] = new LoaderState
+                {
+                    Active = r.ReadBoolean(), Waiting = r.ReadBoolean(), Reverse = r.ReadBoolean(), At = r.ReadSingle(), Kind = r.ReadUInt16(), Count = r.ReadByte(),
+                };
+            }
+            var magazine = new Container(ContainerKind.Box, 64);
+            WorldCodec.ReadContainer(r, magazine, content, WorldCodec.PlayerVersion);
+            if (i >= ship.Stations.Length)
+            {
+                continue;
+            }
+            StationState st = ship.Stations[i];
+            Simulation.Content.BatteryDef battery = st.Def.Battery;
+            st.Chosen = (byte)Math.Min(chosen, Math.Max(0, battery.Ammo.Count - 1));
+            st.Yaw = float.IsFinite(yaw) ? yaw : 0;
+            st.Pitch = float.IsFinite(pitch) ? Math.Clamp(pitch, battery.Mount.PitchMin, battery.Mount.PitchMax) : 0;
+            st.Shots = shots;
+            for (int b = 0; b < st.Chambers.Length && b < chambers.Length; b++)
+            {
+                st.Chambers[b] = battery.Takes(chambers[b]) ? chambers[b] : (ushort)0;
+            }
+            float seconds = battery.Loader.Seconds;
+            for (int l = 0; l < st.Loaders.Length && l < loaders.Length; l++)
+            {
+                LoaderState s = loaders[l];
+                s.At = float.IsFinite(s.At) ? Math.Clamp(s.At, 0, seconds) : 0;
+                s.Kind = battery.Takes(s.Kind) ? s.Kind : (ushort)0;
+                s.Count = s.Kind == 0 ? (byte)0 : (byte)Math.Min(s.Count, (byte)Math.Max(1, battery.RoundsPerLoad));
+                st.Loaders[l] = s.Active ? s : default;
+            }
+            for (int k = 0; k < magazine.Size && k < st.Magazine.Size; k++)
+            {
+                ItemStack stack = magazine[k];
+                st.Magazine.Set(k, battery.Takes(stack.Item) ? stack : default);
+            }
+            st.Magazine.ClearDirty();
+            // The mount's parts follow its aim.
+            if (st.Def.YawPart >= 0 && st.Def.YawPart < ship.Parts.Length)
+            {
+                ship.Parts[st.Def.YawPart] = st.Yaw;
+            }
+            if (st.Def.PitchPart >= 0 && st.Def.PitchPart < ship.Parts.Length)
+            {
+                ship.Parts[st.Def.PitchPart] = st.Pitch;
+            }
+        }
     }
 
     /// <summary>The turn from a zone's frame to the body frame (its axes are east, up and south).</summary>

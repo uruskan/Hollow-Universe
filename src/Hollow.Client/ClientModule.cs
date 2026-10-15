@@ -59,6 +59,14 @@ public abstract class ClientModule : IDisposable
     /// </summary>
     protected internal virtual bool Flies => false;
 
+    /// <summary>
+    /// Each tick, as its input is made and before it is recorded: what this module adds to it (a gunner's controls, IW3)
+    /// and predicts from it.
+    /// </summary>
+    protected internal virtual void Command(uint tick, ref InputCommand command, in InputFrame frame)
+    {
+    }
+
     /// <summary>Each tick, after its input was recorded and before the character is predicted (a ship is predicted first).</summary>
     protected internal virtual void BeforePredict(uint tick)
     {

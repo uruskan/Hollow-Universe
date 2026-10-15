@@ -124,6 +124,9 @@ public partial struct InputCommand
     /// <summary>A pilot's controls (G6): one entry while flying a ship, none on foot (a bit).</summary>
     [MaxCount(1)] public ShipControls[] Ship;
 
+    /// <summary>A gunner's controls (IW3, IRON_WAKE.md §6.8): one entry while seated at a station, none otherwise.</summary>
+    [MaxCount(1)] public StationControls[] Station;
+
     /// <summary>
     /// The frame the view is in (IRON_WAKE.md §4.11): the one the client believed its character was in, a ship's net ID
     /// (0 the zone's). On the tick of a hand-over it is the other: the server turns the view through the ship's pose.
@@ -144,6 +147,20 @@ public partial struct ShipControls
 
     /// <summary>Boost held, flight assist off.</summary>
     [Bits(2)] public ShipButtons Buttons;
+}
+
+/// <summary>
+/// One tick of a gunner's controls (IW3, IRON_WAKE.md §6.8): the trigger held, the zoom, the kind asked for (its index in
+/// the battery's ammo + 1; 0 no change) and a counter a tap of R raises (a change draws rounds of another kind back). The
+/// asked direction is the input's view, given in the zone's frame.
+/// </summary>
+[NetStruct]
+public partial struct StationControls
+{
+    public bool Fire;
+    public bool Zoom;
+    [Bits(2)] public byte Choice;
+    [Bits(2)] public byte Cycle;
 }
 
 /// <summary>
@@ -472,6 +489,9 @@ public partial struct ProjectileLaunch
     /// <summary>A bullet's shot: the shooter's gun action (their client already drew it), and whether silenced. 0 for arrows.</summary>
     [VarInt] public uint Seq;
     public bool Silenced;
+
+    /// <summary>A battery's rocket (IW3): its battery's number + 1, so it is drawn under its motor (0: a gun's or a bow's); <see cref="Seq"/> is its shot's number.</summary>
+    [Bits(4)] public byte Battery;
 }
 
 /// <summary>A projectile stopped, at a point, on a thing of a family (none: out of range or time in the air).</summary>
@@ -644,6 +664,80 @@ public partial struct ShipPartHealthNet
 {
     public byte Part;
     public byte Health;
+}
+
+/// <summary>
+/// A ship's crewed batteries (IW3, IRON_WAKE.md §6.6, §6.9; server → client, reliable ordered), sent when a station's record
+/// changes (a shot, a loader's cycle starting, waiting, taking its rounds, reversing or done, the chosen kind, the magazine,
+/// a refusal) and when the ship comes into range: like a door's, a loader's time at any tick follows from its record, so
+/// nothing is sent while it runs. The mounts' yaw and pitch are the ship's parts (<see cref="ShipDetails"/>).
+/// </summary>
+[NetMessage(122)]
+public partial struct ShipStations
+{
+    [VarInt] public uint Ship;
+    [MaxCount(15)] public StationNet[] Stations;
+}
+
+/// <summary>One station's record: its chosen kind, shots so far, each barrel, each loader, the magazine's counts by kind, its last refusal.</summary>
+[NetStruct]
+public partial struct StationNet
+{
+    [Bits(4)] public byte Station;
+    [Bits(2)] public byte Chosen;
+    [VarInt] public uint Shots;
+    public bool Limit;
+    [MaxCount(8)] public StationBarrelNet[] Barrels;
+    [MaxCount(8)] public LoaderNet[] Loaders;
+    [MaxCount(3)] public MagazineCountNet[] Counts;
+    [Bits(7)] public OutcomeCode Refused;
+    [VarInt] public uint RefusedDetail;
+    public uint RefusedTick;
+}
+
+/// <summary>A barrel: its round (0 empty) and its last shot's tick.</summary>
+[NetStruct]
+public partial struct StationBarrelNet
+{
+    [VarInt] public uint Chamber;
+    public uint ShotTick;
+}
+
+/// <summary>A loader's record (IRON_WAKE.md §6.6): at work, waiting, in reverse, its time's bits at a tick, what it carries.</summary>
+[NetStruct]
+public partial struct LoaderNet
+{
+    public bool Active;
+    public bool Waiting;
+    public bool Reverse;
+    public uint Since;
+    public uint At;
+    [VarInt] public uint Kind;
+    [Bits(4)] public byte Count;
+}
+
+/// <summary>How many of one of the battery's kinds the magazine holds (the battery's ammo order).</summary>
+[NetStruct]
+public partial struct MagazineCountNet
+{
+    [VarInt] public uint Count;
+}
+
+/// <summary>
+/// A crewed battery fired (IW3, IRON_WAKE.md §6.9; server → client, reliable ordered, to everyone the ship is relevant to):
+/// the ship, its station and barrel, the shot's number, the tick and the round, the gunner. The gunner's client matches its
+/// predicted shot by the number and plays nothing again; others play the shot. The rocket is the projectile messages'.
+/// </summary>
+[NetMessage(123)]
+public partial struct TurretShot
+{
+    [VarInt] public uint Ship;
+    [Bits(4)] public byte Station;
+    [Bits(3)] public byte Barrel;
+    [VarInt] public uint Number;
+    public uint Tick;
+    [VarInt] public uint Kind;
+    [VarInt] public uint Gunner;
 }
 
 /// <summary>A firearm's magazine and attachments (G4), carried by its slot.</summary>

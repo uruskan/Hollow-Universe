@@ -202,12 +202,15 @@ public sealed class SurvivalModule : ClientModule
         }
         var origin = new Vector3(m.X, m.Y, m.Z);
         ItemDef? ammo = Content.Item((int)Math.Min(m.Ammo, ushort.MaxValue));
-        if (m.Seq != 0 && m.Shooter == NetId && _projectiles.FirstOrDefault(p => p.Own && p.Seq == m.Seq && p.Id == 0) is { } mine)
+        if (m.Seq != 0 && m.Shooter == NetId && _projectiles.FirstOrDefault(p => p.Own && p.Seq == m.Seq && p.Battery == m.Battery && p.Id == 0) is { } mine)
         {
             // Our own shot, drawn since we fired it: now it has the server's ID (its end will name it).
             mine.Id = m.Id;
             return;
         }
+        // A battery's rocket (IW3): under its motor, the battery's launch rules for its round.
+        Simulation.Combat.RocketMotor? motor = m.Battery > 0 && Content.Battery(m.Battery - 1) is { } battery && ammo != null && battery.Launch.Of(ammo.Id) is { } profile
+            ? Simulation.Combat.RocketMotor.Of(battery.Launch, profile) : null;
         FirearmStats? gun = ammo?.Bullet is { } round ? Content.Firearms.FirstOrDefault(g => g.Calibre == round.Calibre) : null;
         // An arrow's own, a round's its gun's times its own (IW4), as the server flies them.
         float gravity = ammo?.Ammo is { } arrow ? (float)(Zone.SurfaceGravity * 9.80665 * arrow.Gravity)
@@ -226,8 +229,41 @@ public sealed class SurvivalModule : ClientModule
             Seq = m.Seq,
             Silenced = m.Silenced,
             LaunchedAt = ClockSeconds,
+            Battery = motor != null ? m.Battery : 0,
+            Motor = motor,
         });
     }
+
+    /// <summary>
+    /// A gunner's predicted rocket (IW3, IRON_WAKE.md §6.9): drawn at once from the muzzle, its number the shot's; the
+    /// server's launch then names it, or a refusal takes it away (<see cref="RemoveOwnRocket"/>).
+    /// </summary>
+    public ClientProjectile? AddOwnRocket(Simulation.Content.BatteryDef battery, ushort round, Vector3 origin, Vector3 velocity, uint number)
+    {
+        if (Zone == null || battery.Launch.Of(round) is not { } profile)
+        {
+            return null;
+        }
+        var rocket = new ClientProjectile
+        {
+            Shooter = NetId,
+            Ammo = round,
+            Origin = origin,
+            Velocity = velocity,
+            Gravity = -Frame.UpAt(origin) * (float)(Zone.SurfaceGravity * 9.80665),
+            Centre = Frame.ToLocal(Core.Vector3D.Zero),
+            Seq = number,
+            Own = true,
+            LaunchedAt = ClockSeconds,
+            Battery = battery.Index + 1,
+            Motor = Simulation.Combat.RocketMotor.Of(battery.Launch, profile),
+        };
+        _projectiles.Add(rocket);
+        return rocket;
+    }
+
+    /// <summary>Takes a predicted rocket away (the server refused its shot).</summary>
+    public void RemoveOwnRocket(ClientProjectile rocket) => _projectiles.Remove(rocket);
 
     private void OnProjectileEnd(ProjectileEnd m)
     {
