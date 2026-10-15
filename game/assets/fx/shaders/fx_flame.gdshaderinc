@@ -8,6 +8,8 @@ uniform float sway = 1.0;
 instance uniform float fx_brightness = 3.0;
 instance uniform float fx_speed = 1.0;
 instance uniform float fx_strength = 1.0;   // the whole fire (fades it in and out)
+instance uniform float fx_foot = 0.0;       // the share of a card's height its light rises over from the foot (0: hottest at
+                                            // the foot; a pool of many cards dims them, so their feet don't add into domes)
 #ifdef VIEWMODEL
 uniform float viewmodel_fov : hint_range(30.0, 110.0) = 60.0;
 uniform float viewmodel_depth : hint_range(0.01, 1.0) = 0.12;
@@ -57,6 +59,7 @@ void fragment() {
 	float licks = smoothstep(0.35, 0.75, n2 * 0.6 + n3 * 0.4 + (1.0 - y) * 0.75);
 	float cover = body * mix(1.0, licks, smoothstep(0.15, 0.6, y));
 	float heat = cover * (1.05 - y * 0.8) * (0.7 + 0.5 * n1) * (1.0 - 0.45 * smoothstep(0.3, 1.0, abs(x) / max(width, 1e-3)));
-	ALBEDO = fire_ramp(clamp(heat, 0.0, 1.0)) * fx_brightness * v_power * fx_strength;
+	float foot = fx_foot > 1e-4 ? mix(0.2, 1.0, smoothstep(0.0, fx_foot, y)) : 1.0;
+	ALBEDO = fire_ramp(clamp(heat * mix(0.75, 1.0, foot), 0.0, 1.0)) * fx_brightness * v_power * fx_strength * foot;
 	ALPHA = clamp(cover * smoothstep(0.0, 0.08, y), 0.0, 1.0);
 }

@@ -274,6 +274,8 @@ public enum LightPower : byte
 
 /// <summary>
 /// A lamp of a ship (ships.json <c>lights</c>, IRON_WAKE.md §9.4): the data file's fixtures, or a point; how it shines, its
-/// colour, energy and range, whether it casts shadows, and the power it needs. Data only until IW6 draws them.
+/// colour, energy and range, whether it casts shadows, the power it needs, and a spot's cone (degrees, its half angle as
+/// Godot's <c>spot_angle</c>). The ship views draw them (IW6).
 /// </summary>
-public sealed record ShipLight(string Key, Vector3 At, Vector3 Direction, bool Spot, Vector3 Colour, float Energy, float Range, bool Shadows, LightPower Power);
+public sealed record ShipLight(string Key, Vector3 At, Vector3 Direction, bool Spot, Vector3 Colour, float Energy, float Range, bool Shadows, LightPower Power,
+    float Angle = 50f);

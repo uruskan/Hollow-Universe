@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using Hollow.Simulation.Ships;
+using HollowUniverse.Fx;
 using HollowUniverse.Items;
 
 namespace HollowUniverse.Ships;
@@ -39,10 +40,14 @@ public partial class ShipView : Node3D
     private Quaternion _hatchRest = Quaternion.Identity;
     private readonly List<Plume> _plumes = new();
     private readonly List<(MeshInstance3D Glow, Color Colour, float Phase, float Period)> _navLights = new();
-    private readonly List<StandardMaterial3D> _lamps = new();
+    private readonly List<(BaseMaterial3D Material, float Energy)> _lamps = new();
+    private readonly List<(BaseMaterial3D Material, float Energy)> _displays = new();
+    private readonly List<(Light3D Light, ShipLight Def)> _lights = new();
     private OmniLight3D _belly = null!;
-    private SpotLight3D _landing = null!;
     private float _lampEnergy = -1;
+    private int _lightsState = -1;
+    private float _lightsEnergy = -1;
+    private int _probeFrames;
     private double _time;
     private PartNode[] _parts = Array.Empty<PartNode>();
     private float[]? _posedAt;
@@ -123,7 +128,9 @@ public partial class ShipView : Node3D
         FindParts();
         BuildPlumes();
         BuildLights();
+        BuildLamps();
         FindLamps();
+        BuildProbes();
     }
 
     // ---------------------------------------------------------------- moving parts (IRON_WAKE.md §4.3)
@@ -219,6 +226,34 @@ public partial class ShipView : Node3D
         }
     }
 
+    /// <summary>
+    /// A socket of the ship's frame (a seat, a grip) where it is drawn now, in render space: carried by its part as the part
+    /// is posed (a gunner's seat on a turning mount), its axes the socket's (+Z forward, +Y up).
+    /// </summary>
+    public Transform3D SocketWorld(Hollow.Simulation.Ships.ShipSocket socket)
+    {
+        var fwd = new Vector3(socket.Forward.X, socket.Forward.Y, socket.Forward.Z);
+        var up = new Vector3(socket.Up.X, socket.Up.Y, socket.Up.Z);
+        if (fwd.LengthSquared() < 1e-6f)
+        {
+            fwd = Vector3.Back;
+        }
+        if (up.LengthSquared() < 1e-6f || MathF.Abs(up.Normalized().Dot(fwd.Normalized())) > 0.99f)
+        {
+            up = Vector3.Up;
+        }
+        Vector3 z = fwd.Normalized(), x = up.Cross(z).Normalized(), y = z.Cross(x);
+        var local = new Transform3D(new Basis(x, y, z), new Vector3(socket.Position.X, socket.Position.Y, socket.Position.Z));
+        foreach (PartNode p in _parts)
+        {
+            if (p.Part == socket.Part && GodotObject.IsInstanceValid(p.Node))
+            {
+                return _model.GlobalTransform * (InModel(p.Node) * p.Rest.AffineInverse()) * local;
+            }
+        }
+        return _model.GlobalTransform * local;
+    }
+
     // ---------------------------------------------------------------- set-up
 
     private void FindHatch()
@@ -307,34 +342,49 @@ public partial class ShipView : Node3D
 
     private int _liftNozzles;
 
+    /// <summary>How many lift nozzles it has (ships.json <c>nozzles.lift</c>).</summary>
+    public int LiftNozzles => _liftNozzles;
+
+    /// <summary>A lift nozzle where it is drawn (render space) and how hard its plume blows now (0 out, 1 full lift).</summary>
+    public (Vector3 At, float Shown) LiftNozzle(int index)
+    {
+        foreach (Plume p in _plumes)
+        {
+            if (p.Drive == Drive.Lift && index-- == 0)
+            {
+                return (_model.GlobalTransform * p.Nozzle, p.Shown);
+            }
+        }
+        return (GlobalPosition, 0);
+    }
+
     private void BuildLights()
     {
-        // The lift nozzles' light on the ground below, and a landing light under the nose looking ahead and down.
+        // The lift nozzles' light on the ground below: between them, reaching eight times their plumes' length (ships.json).
         float scale = Scale;
+        Vector3 liftAt = Vector3.Zero;
+        float liftLength = 0, liftWidth = 0;
+        foreach (Plume p in _plumes)
+        {
+            if (p.Drive == Drive.Lift)
+            {
+                liftAt += p.Nozzle;
+                liftLength += p.Length;
+                liftWidth += p.Width;
+            }
+        }
+        int lifts = Math.Max(1, _liftNozzles);
         _belly = new OmniLight3D
         {
             Name = "Belly",
             LightColor = new Color(1f, 0.62f, 0.32f),
-            OmniRange = 14 * scale,
+            OmniRange = _liftNozzles > 0 ? 8 * liftLength / lifts : 14 * scale,
             OmniAttenuation = 1.6f,
             ShadowEnabled = false,
-            Position = new Vector3(0, 0.2f, -0.5f) * scale,
+            Position = _liftNozzles > 0 ? liftAt / lifts - Vector3.Up * (liftWidth / lifts) : new Vector3(0, 0.2f, -0.5f) * scale,
             Visible = false,
         };
         _model.AddChild(_belly);
-        _landing = new SpotLight3D
-        {
-            Name = "Landing",
-            LightColor = new Color(1f, 0.95f, 0.86f),
-            SpotRange = 90,
-            SpotAngle = 26,
-            SpotAttenuation = 1.2f,
-            ShadowEnabled = false,
-            Visible = false,
-        };
-        _landing.SpotRange = 90 * scale;
-        _landing.Transform = new Transform3D(Basis.LookingAt(new Vector3(0, -0.55f, 1), Vector3.Up), new Vector3(0, 0.75f, 1.9f) * scale);
-        _model.AddChild(_landing);
         // Nav lights at the tips of the outermost hull boxes (the Tin Finch's engine pods: red on the left, green on the
         // right), a white beacon over the top of the hull.
         float podX = 1.18f, podY = 0.97f, podZ = -2.95f, top = 1.845f;
@@ -365,9 +415,57 @@ public partial class ShipView : Node3D
         _navLights.Add((glow, colour, phase, period));
     }
 
-    // The lamp surfaces get a material of their own, so this ship's lamps light and dim by themselves.
+    // A light at every lamp of ships.json's lights (IRON_WAKE.md §9.4): the data file's fixtures, omni or spot, a few casting
+    // shadows; the dim red emergency lamps at the same fixtures; a small ship's nav and landing lights. Interior lamps fade
+    // out with distance (nobody sees a deck's lamps from 100 m but through its glow).
+    private void BuildLamps()
+    {
+        foreach (ShipLight l in _def.Lights)
+        {
+            Light3D light;
+            var at = new Vector3(l.At.X, l.At.Y, l.At.Z);
+            if (l.Spot)
+            {
+                var dir = new Vector3(l.Direction.X, l.Direction.Y, l.Direction.Z);
+                Vector3 up = MathF.Abs(dir.Normalized().Y) > 0.95f ? Vector3.Forward : Vector3.Up;
+                light = new SpotLight3D
+                {
+                    SpotRange = l.Range,
+                    SpotAngle = Math.Clamp(l.Angle, 1f, 89f),
+                    SpotAttenuation = 1.2f,
+                    Transform = new Transform3D(Basis.LookingAt(dir, up), at),
+                };
+            }
+            else
+            {
+                light = new OmniLight3D { OmniRange = l.Range, OmniAttenuation = 1.4f, Position = at };
+            }
+            light.Name = "Lamp_" + l.Key.Replace(':', '_');
+            light.LightColor = new Color(l.Colour.X, l.Colour.Y, l.Colour.Z);
+            light.ShadowEnabled = l.Shadows;
+            light.Visible = false;
+            if (l.Range < 30)
+            {
+                light.DistanceFadeEnabled = true;
+                light.DistanceFadeBegin = 70;
+                light.DistanceFadeLength = 25;
+                light.DistanceFadeShadow = 40;
+            }
+            _model.AddChild(light);
+            _lights.Add((light, l));
+        }
+    }
+
+    // The lamp and display surfaces get a material of their own, so this ship's lamps and screens light and dim by
+    // themselves: the data file's lamps and displays materials (IRON_WAKE.md §9.2), else any lamps material of the model.
     private void FindLamps()
     {
+        string? lamps = null, displays = null;
+        if (_def.Interior is { } interior)
+        {
+            lamps = interior.Materials.TryGetValue("lamps", out var l) ? l.Material : null;
+            displays = interior.Materials.TryGetValue("displays", out var d) ? d.Material : null;
+        }
         foreach (MeshInstance3D mesh in ModelCatalog.Meshes(_model))
         {
             if (mesh.Mesh == null)
@@ -376,14 +474,53 @@ public partial class ShipView : Node3D
             }
             for (int s = 0; s < mesh.Mesh.GetSurfaceCount(); s++)
             {
-                if (mesh.Mesh.SurfaceGetMaterial(s) is StandardMaterial3D m && m.ResourceName == "M_TinFinch_Lamps")
+                if (mesh.Mesh.SurfaceGetMaterial(s) is not BaseMaterial3D m || !m.EmissionEnabled)
                 {
-                    var own = (StandardMaterial3D)m.Duplicate();
+                    continue;
+                }
+                bool lamp = lamps != null ? m.ResourceName == lamps : m.ResourceName.EndsWith("_Lamps", StringComparison.Ordinal);
+                bool display = displays != null && m.ResourceName == displays;
+                if (lamp || display)
+                {
+                    var own = (BaseMaterial3D)m.Duplicate();
                     mesh.SetSurfaceOverrideMaterial(s, own);
-                    _lamps.Add(own);
+                    (lamp ? _lamps : _displays).Add((own, m.EmissionEnergyMultiplier));
                 }
             }
         }
+    }
+
+    // Reflection probes in the rooms' boxes (IRON_WAKE.md §9.4): interior mode with their own dark ambient, box projected,
+    // captured once with the ship's lamps on (held on for the capture's frames), moving with the ship; so metal inside
+    // reflects the inside rather than the sky.
+    private void BuildProbes()
+    {
+        if (_def.Interior is not { Rooms.Count: > 0 } interior)
+        {
+            return;
+        }
+        foreach (ShipRoom room in interior.Rooms)
+        {
+            var min = new Vector3(room.Min.X, room.Min.Y, room.Min.Z);
+            var max = new Vector3(room.Max.X, room.Max.Y, room.Max.Z);
+            var probe = new ReflectionProbe
+            {
+                Name = "Probe_" + room.Id,
+                Position = (min + max) * 0.5f,
+                Size = (max - min) + Vector3.One * 0.2f,
+                BoxProjection = true,
+                Interior = true,
+                AmbientMode = ReflectionProbe.AmbientModeEnum.Color,
+                AmbientColor = new Color(0.035f, 0.033f, 0.03f),
+                AmbientColorEnergy = 1f,
+                UpdateMode = ReflectionProbe.UpdateModeEnum.Once,
+                EnableShadows = false,
+                MaxDistance = (max - min).Length(),
+                CullMask = ~FxDirector.RenderLayer,
+            };
+            _model.AddChild(probe);
+        }
+        _probeFrames = 8;
     }
 
     // ---------------------------------------------------------------- each frame
@@ -429,17 +566,7 @@ public partial class ShipView : Node3D
 
         _belly.Visible = running && lift > 0.08f;
         _belly.LightEnergy = 2.2f * lift * energy;
-        _landing.Visible = running && look.Piloted;
-        _landing.LightEnergy = 4f * energy;
-        float lamps = look.Destroyed ? 0 : running ? 3f : look.Piloted ? 1f : 0.25f;
-        if (MathF.Abs(lamps * energy - _lampEnergy) > 1e-3f * MathF.Max(1, _lampEnergy))
-        {
-            _lampEnergy = lamps * energy;
-            foreach (StandardMaterial3D m in _lamps)
-            {
-                m.EmissionEnergyMultiplier = _lampEnergy;
-            }
-        }
+        ShowLamps(look, running, energy);
         foreach ((MeshInstance3D glow, Color _, float phase, float period) in _navLights)
         {
             bool on = running && (period <= 0 || ((_time / period + phase) % 1.0) < 0.08);
@@ -447,6 +574,44 @@ public partial class ShipView : Node3D
             if (on)
             {
                 glow.SetInstanceShaderParameter("intensity", 1.2f);
+            }
+        }
+    }
+
+    // The lamps by the ship's power (IRON_WAKE.md §9.4): with the engines running or someone at the helm, the ship's lamps,
+    // their surfaces and the instrument displays; without, the dim red emergency lamps and the lamps' surfaces barely
+    // glowing; nothing on a wreck. A reflection probe's capture holds the ship's lamps on for its frames.
+    private void ShowLamps(in ShipLook look, bool running, float energy)
+    {
+        bool capture = _probeFrames > 0;
+        if (capture)
+        {
+            _probeFrames--;
+        }
+        bool powered = !look.Destroyed && (running || look.Piloted || capture);
+        int state = look.Destroyed ? 0 : powered ? 2 : 1;
+        if (state != _lightsState || MathF.Abs(energy - _lightsEnergy) > 0.01f * _lightsEnergy)
+        {
+            _lightsState = state;
+            _lightsEnergy = energy;
+            foreach ((Light3D light, ShipLight def) in _lights)
+            {
+                bool on = state == 2 ? def.Power == LightPower.Ship : state == 1 && def.Power == LightPower.Emergency;
+                light.Visible = on;
+                light.LightEnergy = def.Energy * energy;
+            }
+            foreach ((BaseMaterial3D m, float e) in _displays)
+            {
+                m.EmissionEnergyMultiplier = state == 2 ? e * energy : 0f;
+            }
+        }
+        float lamps = state == 0 ? 0 : state == 2 ? 1f : 0.08f;
+        if (MathF.Abs(lamps * energy - _lampEnergy) > 1e-3f * MathF.Max(1, _lampEnergy))
+        {
+            _lampEnergy = lamps * energy;
+            foreach ((BaseMaterial3D m, float e) in _lamps)
+            {
+                m.EmissionEnergyMultiplier = e * _lampEnergy;
             }
         }
     }

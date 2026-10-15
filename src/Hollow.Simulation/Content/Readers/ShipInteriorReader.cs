@@ -259,6 +259,28 @@ internal static class ShipInteriorReader
             }
             zones.Add(new ShipBuildZone(id, f.Text(z, "name", zoneAt, id), min, max, floor, headroom));
         }
+        var materials = new Dictionary<string, (string, float)>(StringComparer.Ordinal);
+        if (f.TryChild(root, "materials", out JsonElement mats) && mats.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty m in mats.EnumerateObject())
+            {
+                string matAt = $"{at}: materials.{m.Name}";
+                materials[m.Name] = (f.Text(m.Value, "material", matAt), f.Number(m.Value, "energy", matAt, 1f));
+            }
+        }
+        var rooms = new List<ShipRoom>();
+        foreach (JsonElement room in f.List(root, "rooms", at, required: false))
+        {
+            string id = f.Text(room, "id", at + ": rooms");
+            string roomAt = $"{at}: room {JsonFields.Quote(id)}";
+            Vector3 min = f.Vector(room, "min", roomAt), max = f.Vector(room, "max", roomAt);
+            if (max.X < min.X || max.Y < min.Y || max.Z < min.Z)
+            {
+                f.Problem(roomAt, "min must be below max");
+                continue;
+            }
+            rooms.Add(new ShipRoom(id, f.Text(room, "name", roomAt, id), min, max));
+        }
         var exclusions = new List<ShipExclusion>();
         foreach (JsonElement x in f.List(root, "exclusions", at, required: false))
         {
@@ -276,6 +298,8 @@ internal static class ShipInteriorReader
         var interior = new ShipInterior
         {
             BuildZones = zones,
+            Rooms = rooms,
+            Materials = materials,
             Exclusions = exclusions,
             File = file,
             Parts = parts,
@@ -352,7 +376,17 @@ internal static class ShipInteriorReader
                 }
             }
         }
-        return new StationGeometry(id, f.Text(s, "kind", where), Side(f.Text(s, "side", where, "centre")), yaw, pitch, barrels, cameraSocket, arcs);
+        ShipSocket? left = null, right = null;
+        if (f.TryChild(s, "grips", out JsonElement grips) && grips.ValueKind == JsonValueKind.Object)
+        {
+            left = sockets.TryGetValue(f.Text(grips, "left", where + ".grips", ""), out ShipSocket l) ? l : null;
+            right = sockets.TryGetValue(f.Text(grips, "right", where + ".grips", ""), out ShipSocket r) ? r : null;
+        }
+        return new StationGeometry(id, f.Text(s, "kind", where), Side(f.Text(s, "side", where, "centre")), yaw, pitch, barrels, cameraSocket, arcs)
+        {
+            GripLeft = left,
+            GripRight = right,
+        };
     }
 
     // The data file's sides: port is +X, starboard −X.

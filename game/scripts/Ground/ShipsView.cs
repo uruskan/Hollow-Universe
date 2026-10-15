@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using Hollow.Client;
+using Hollow.Client.Audio;
 using Hollow.Net.Protocol;
+using Hollow.Simulation;
 using Hollow.Simulation.Ships;
 using HollowUniverse.Audio;
 using HollowUniverse.Fx;
@@ -14,33 +16,37 @@ namespace HollowUniverse.Ground;
 /// <summary>
 /// Ships in the ground game (G6, GROUND.md §6.7): every ship the client knows drawn by a <see cref="ShipView"/>, others'
 /// interpolated 100 ms behind (<see cref="RemoteShip"/>), the one the player flies as predicted
-/// (<see cref="GameClient.OwnShipRenderPosition"/>); their engines heard at the engine socket (a hum that runs with
-/// them and the thrusters' burn, both turned up with the thrust), a boost's roar, the hatch, a touchdown on the skids,
-/// a crash; and a wreck's blast, with the hull burning until it goes.
+/// (<see cref="GameClient.OwnShipRenderPosition"/>); what each sounds like by its kind's roles in sounds.json
+/// (<see cref="ShipSounds"/>, IRON_WAKE.md §10); the listener's space by the room the player stands in aboard (the world
+/// buses' reverb, §10.1); and a wreck's blast, with the hull burning until it goes.
 /// </summary>
 public partial class ShipsView : Node3D
 {
     private sealed class Drawn
     {
         public ShipView View = null!;
-        public Node3D? Engine;
-        public SoundHandle Hum, Burn;
+        public ShipSounds? Sounds;
         public ShipNetFlags Flags;
-        public float Health = 1;
-        public Num.Vector3 Velocity;
         public bool Known;
         public FxHandle Fire;
 
-        // A ship people walk in: its parts' states as last shown; each door's way, for its sound when it turns.
+        // A ship people walk in: its parts' states as last shown.
         public float[]? Parts;
         public float[]? Shown;
-        public bool[]? Opening;
+
+        // Its effects (IRON_WAKE.md §11): the wash under each lift nozzle, smoke from each disabled battery and the hull.
+        public FxHandle[]? Wash;
+        public FxHandle[]? Smoke;
+        public FxHandle HullSmoke;
+        public Node3D? HullSmokeAt;
     }
 
     private readonly Dictionary<uint, Drawn> _drawn = new();
     private readonly HashSet<uint> _seen = new();
     private readonly List<uint> _gone = new();
     private StationsView? _stations;
+    private SoundSpace _space = SoundSpace.Open;
+    private double _delta;
 
     public GameClient Client { get; set; } = null!;
 
@@ -74,6 +80,9 @@ public partial class ShipsView : Node3D
     public void Refresh(double delta, float exposure)
     {
         ShipView.Exposure = exposure;
+        _delta = delta;
+        _space = ListenerSpace();
+        AudioBuses.SetSpace(_space, delta);
         _seen.Clear();
         RemoteShip? own = Client.Ships().OwnShipRemote;
         foreach (RemoteShip ship in Client.Ships().All)
@@ -87,7 +96,6 @@ public partial class ShipsView : Node3D
             {
                 d = new Drawn { View = new ShipView(def) };
                 AddChild(d.View);
-                d.Engine = GunEffects.Socket(d.View.Model, "engine_audio");
                 _drawn[ship.NetId] = d;
             }
             bool mine = own != null && own.NetId == ship.NetId;
@@ -129,7 +137,9 @@ public partial class ShipsView : Node3D
                     d.View.ShowParts(d.Shown, loaders);
                 }
             }
-            Hear(d, ship, def, look);
+            Num.Vector3 velocity = mine ? Client.Ships().OwnShip.Velocity : ship.Velocity;
+            Hear(d, ship, def, look, velocity, mine ? Client.ServerTickNow : Client.RenderTick);
+            Effects(d, ship, def, look);
         }
         _gone.Clear();
         foreach (uint id in _drawn.Keys)
@@ -142,8 +152,8 @@ public partial class ShipsView : Node3D
         foreach (uint id in _gone)
         {
             Drawn d = _drawn[id];
-            Sounds.Stop(d.Hum, 0.3f);
-            Sounds.Stop(d.Burn, 0.3f);
+            d.Sounds?.StopAll();
+            StopEffects(d);
             if (d.Fire.IsValid)
             {
                 FxDirector.Stop(d.Fire);
@@ -157,74 +167,129 @@ public partial class ShipsView : Node3D
     private static Transform3D Pivot(Num.Vector3 origin, Num.Quaternion q) =>
         new(new Basis(new Quaternion(q.X, q.Y, q.Z, q.W)), GroundView.ToGodot(origin));
 
-    // The engines' loops while they run, each turned up with the thrust; and what happened since the last frame.
-    private void Hear(Drawn d, RemoteShip ship, ShipDef def, in ShipLook look)
+    // What it sounds like (ShipSounds: every role of its kind's from the replicated state) and what happened to it: a
+    // wreck's blast with the hull burning until it goes.
+    private void Hear(Drawn d, RemoteShip ship, ShipDef def, in ShipLook look, Num.Vector3 velocity, double tick)
     {
-        Node3D at = d.Engine ?? d.View;
-        bool running = look.Engines && !look.Destroyed && d.View.Visible;
-        if (running)
+        d.Sounds ??= new ShipSounds(def, d.View);
+        SoundSpace? aboard = Client.RenderFrame == ship.NetId ? _space : null;
+        d.Sounds.Update(look, ship, velocity, tick, d.View.Visible, aboard, _delta);
+        if (d.Known && (ship.Flags & ShipNetFlags.Destroyed) != 0 && (d.Flags & ShipNetFlags.Destroyed) == 0)
         {
-            if (!d.Hum.IsValid)
-            {
-                d.Hum = Sounds.Loop(Sounds.Item(def.Key, "engine") ?? "ship.engine", at);
-                d.Burn = Sounds.Loop(Sounds.Item(def.Key, "thrust") ?? "ship.thrust", at);
-            }
-            Num.Vector3 t = look.Thrust;
-            float power = Math.Clamp(Math.Max(Math.Abs(t.Z), Math.Max(Math.Abs(t.Y) * 0.8f, Math.Abs(t.X) * 0.6f)), 0, 1.8f);
-            AudioDirector.Instance?.SetGain(d.Hum, -8 + 8 * Math.Min(power, 1), 0.15f);
-            AudioDirector.Instance?.SetGain(d.Burn, power < 0.04f ? -40 : 20 * MathF.Log10(power) - 2 + (look.Boosting ? 3 : 0), 0.15f);
-        }
-        else if (d.Hum.IsValid)
-        {
-            Sounds.Stop(d.Hum, 0.6f);
-            Sounds.Stop(d.Burn, 0.4f);
-            d.Hum = d.Burn = SoundHandle.None;
-        }
-        ShipNetFlags was = d.Flags, now = ship.Flags;
-        Vector3 centre = GroundView.ToGodot(ship.Position);
-        // Each door as it turns to open or shut (its own sound, else the ship's hatch's), at its part.
-        d.Opening ??= new bool[def.Doors.Count];
-        for (int i = 0; i < def.Doors.Count && i < ship.Doors.Length; i++)
-        {
-            bool opening = ship.Doors[i].Opening;
-            if (d.Known && opening != d.Opening[i])
-            {
-                string way = opening ? "Open" : "Close";
-                Vector3 door = GroundView.ToGodot(ship.PointOf(def.PartPoint(def.PartOfDoor(i))));
-                Sounds.At(Sounds.Item(def.Key, def.Doors[i].Key + way) ?? Sounds.Item(def.Key, "hatch" + way), door);
-            }
-            d.Opening[i] = opening;
-        }
-        if (d.Known)
-        {
-            bool Rose(ShipNetFlags f) => (now & f) != 0 && (was & f) == 0;
-            if (Rose(ShipNetFlags.Boosting))
-            {
-                Sounds.At(Sounds.Item(def.Key, "boost"), at.GlobalPosition);
-            }
-            if (Rose(ShipNetFlags.Landed) && d.Velocity.Length() > 0.6f)
-            {
-                Sounds.At(Sounds.Item(def.Key, "touchdown"), centre);
-            }
-            // A crash: the hull hurt as the ship stopped short (gunfire hurts it without the jolt).
-            if (ship.Health < d.Health - 0.002f && !ship.Has(ShipNetFlags.Destroyed) && (ship.Velocity - d.Velocity).Length() > 3f)
-            {
-                Sounds.At(Sounds.Item(def.Key, "crash"), centre);
-                FxDirector.Play("impact.bullet.metal", centre, GroundView.ToGodot(Client.Frame.UpAt(ship.Position)), new FxParams { Scale = 4 });
-            }
-            if (Rose(ShipNetFlags.Destroyed))
-            {
-                // The wreck: a blast, its debris, and the hull burning until it goes (two seconds).
-                Vector3 up = GroundView.ToGodot(Client.Frame.UpAt(ship.Position));
-                FxDirector.Play("explosion.rocket", centre, up, new FxParams { Scale = 1.6f });
-                Sounds.At(Sounds.Item(def.Key, "destroyed") ?? "explosion", centre);
-                Sounds.At("explosion.debris", centre, -2);
-                d.Fire = FxDirector.Start("fire.burning", centre, up, new FxParams { Follow = d.View, Scale = 2.2f, Duration = 3f });
-            }
+            // The wreck: a blast, its debris, and the hull burning until it goes (two seconds).
+            Vector3 centre = GroundView.ToGodot(ship.Position);
+            Vector3 up = GroundView.ToGodot(Client.Frame.UpAt(ship.Position));
+            FxDirector.Play("explosion.rocket", centre, up, new FxParams { Scale = 1.6f });
+            d.Fire = FxDirector.Start("fire.burning", centre, up, new FxParams { Follow = d.View, Scale = 2.2f, Duration = 3f });
         }
         d.Known = true;
-        d.Flags = now;
-        d.Health = ship.Health;
-        d.Velocity = ship.Velocity;
+        d.Flags = ship.Flags;
+    }
+
+    /// <summary>The wash ends past this height over the ground (IRON_WAKE.md §11).</summary>
+    private const float WashReach = 25f;
+
+    /// <summary>Full wash at this height and under.</summary>
+    private const float WashFull = 4f;
+
+    // The ship's own effects (IRON_WAKE.md §11): dust under each lift nozzle within 25 m of the ground, by its plume and
+    // nearness; smoke pouring from each disabled battery's gun house and from the hull below a quarter, until mended.
+    private void Effects(Drawn d, RemoteShip ship, ShipDef def, in ShipLook look)
+    {
+        bool shown = d.View.Visible && !look.Destroyed;
+        d.Wash ??= new FxHandle[d.View.LiftNozzles];
+        GroundProbe? ground = Client.Surface is { } world ? new GroundProbe(world, Client.Frame) : null;
+        for (int i = 0; i < d.Wash.Length; i++)
+        {
+            (Vector3 at, float blow) = d.View.LiftNozzle(i);
+            Num.Vector3 nozzle = new(at.X, at.Y, at.Z);
+            float height = ground?.HeightAbove(nozzle) ?? float.PositiveInfinity;
+            float near = Math.Clamp((WashReach - height) / (WashReach - WashFull), 0f, 1f);
+            float k = Math.Min(blow, 1f) * near;
+            if (!shown || ground == null || k < 0.02f)
+            {
+                if (d.Wash[i].IsValid)
+                {
+                    FxDirector.Stop(d.Wash[i]);
+                    d.Wash[i] = default;
+                }
+                continue;
+            }
+            Num.Vector3 up = Client.Frame.UpAt(nozzle);
+            Num.Vector3 under = nozzle - up * Math.Max(height, 0);
+            Vector3 point = GroundView.ToGodot(under), normal = GroundView.ToGodot(ground.Value.Normal(under).Normal);
+            if (!d.Wash[i].IsValid)
+            {
+                FxSurface surface = GroundAudio.WaterDepth(Client, under) > 0.05 ? FxSurface.Water : FxSurfaces.Of(GroundAudio.MaterialAt(Client, under));
+                d.Wash[i] = FxDirector.Start("wash.lift", point, normal, new FxParams { Tint = FxSurfaces.Dust(surface) });
+            }
+            FxDirector.Move(d.Wash[i], point);
+            FxDirector.SetIntensity(d.Wash[i], k);
+        }
+
+        // Smoke from a battery whose health ran out (its gun house: the yaw part), and from the hull under a quarter.
+        if (def.Interior is { } interior && def.Stations.Count > 0)
+        {
+            d.Smoke ??= new FxHandle[def.Stations.Count];
+            for (int i = 0; i < def.Stations.Count; i++)
+            {
+                ShipStationDef s = def.Stations[i];
+                bool disabled = shown && s.Part < ship.PartHealth.Length && def.Parts[s.Part].Health != null && ship.PartHealth[s.Part] <= 0;
+                if (disabled && !d.Smoke[i].IsValid)
+                {
+                    Node3D? house = s.YawPart > 0 ? d.View.NodeNamed(interior.Parts[s.YawPart].Name) : null;
+                    Vector3 at = GroundView.ToGodot(ship.PointOf(def.PartPoint(s.Part)));
+                    d.Smoke[i] = FxDirector.Start("smoke.damaged", at, GroundView.ToGodot(Client.Frame.UpAt(ship.Position)), new FxParams { Follow = house ?? d.View });
+                }
+                else if (!disabled && d.Smoke[i].IsValid)
+                {
+                    FxDirector.Stop(d.Smoke[i]);
+                    d.Smoke[i] = default;
+                }
+            }
+        }
+        bool hurt = shown && ship.Health < 0.25f;
+        if (hurt && !d.HullSmoke.IsValid)
+        {
+            // Over the hull's top, at its middle (the ship's bounds, ships.json and its data file).
+            if (d.HullSmokeAt == null)
+            {
+                Num.Vector3 top = def.BoundsCentre + new Num.Vector3(0, def.BoundsHalf.Y * 0.6f, 0);
+                d.HullSmokeAt = new Node3D { Name = "HullSmoke", Position = GroundView.ToGodot(top) };
+                d.View.AddChild(d.HullSmokeAt);
+            }
+            d.HullSmoke = FxDirector.Start("smoke.damaged", d.HullSmokeAt.GlobalPosition, Vector3.Up, new FxParams { Follow = d.HullSmokeAt });
+        }
+        else if (!hurt && d.HullSmoke.IsValid)
+        {
+            FxDirector.Stop(d.HullSmoke);
+            d.HullSmoke = default;
+        }
+    }
+
+    private static void StopEffects(Drawn d)
+    {
+        foreach (FxHandle h in d.Wash ?? Array.Empty<FxHandle>())
+        {
+            FxDirector.Stop(h);
+        }
+        foreach (FxHandle h in d.Smoke ?? Array.Empty<FxHandle>())
+        {
+            FxDirector.Stop(h);
+        }
+        FxDirector.Stop(d.HullSmoke);
+    }
+
+    // The listener's space (IRON_WAKE.md §10.1): aboard a ship, the space of the room the player stands in (sounds.json's
+    // spaces list their rooms); elsewhere, and on a ship's open decks, the open air.
+    private SoundSpace ListenerSpace()
+    {
+        SoundCatalogData data = SoundLibrary.Data;
+        uint frame = Client.RenderFrame;
+        if (frame != 0 && Client.Ships().ShipByNetId(frame)?.Def?.Interior is { } interior)
+        {
+            return data.SpaceOfRoom(interior.RoomAt(Client.RenderLocal)?.Id);
+        }
+        return data.Outside;
     }
 }

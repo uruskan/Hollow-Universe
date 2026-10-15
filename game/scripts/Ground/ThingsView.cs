@@ -337,6 +337,11 @@ public partial class ThingsView : Node3D
         {
             FxDirector.Play("impact.incendiary", at, normal, new FxParams { Direction = incoming });
         }
+        else if (p.EndTarget == TargetFamily.Ship)
+        {
+            // A ship's hull: sparks off the plate and a strike mark of its own (IRON_WAKE.md §11).
+            FxDirector.Play("impact.hull", at, normal, new FxParams { Direction = incoming });
+        }
         else
         {
             FxDirector.Impact(surface, at, normal, incoming);

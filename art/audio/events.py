@@ -1756,11 +1756,11 @@ SPACES = {
                 "predelayMs": 12.0, "predelayFeedback": 0.2, "structureDb": -80.0,
                 "note": "Open air: no tail of its own (today's SetSpace(0))."},
     "deck": {"roomSize": 0.78, "damping": 0.28, "spread": 1.0, "hipass": 0.08, "dry": 0.92, "wet": 0.34,
-             "predelayMs": 22.0, "predelayFeedback": 0.32, "structureDb": 0.0,
+             "predelayMs": 22.0, "predelayFeedback": 0.32, "structureDb": 0.0, "rooms": ["deck-a", "bay", "deck-b"],
              "note": "Deck A, the bay and the mezzanine as one connected steel room: long, bright, with flutter "
                      "between parallel plates."},
     "bridge": {"roomSize": 0.22, "damping": 0.85, "spread": 0.5, "hipass": 0.3, "dry": 1.0, "wet": 0.07,
-               "predelayMs": 3.0, "predelayFeedback": 0.05, "structureDb": -6.0,
+               "predelayMs": 3.0, "predelayFeedback": 0.05, "structureDb": -6.0, "rooms": ["bridge"],
                "note": "The glazed bridge, insulated and padded: small and dry."},
 }
 
@@ -1855,9 +1855,21 @@ ITEMS = {
     "rifle-ammo-explosive": {"explode": "impact.metal"},
     # Door items (models.json) and door kinds (building.json).
     # Ships (G6): the Tin Finch's engines, boost, hatch, touchdown, crash and wreck.
-    "tin-finch": {"engine": "ship.engine", "thrust": "ship.thrust", "boost": "ship.boost", "hatchOpen": "ship.hatch.open",
+    "tin-finch": {"engine": "ship.engine", "load": "ship.thrust", "boost": "ship.boost", "hatchOpen": "ship.hatch.open",
                   "hatchClose": "ship.hatch.close", "touchdown": "ship.touchdown", "crash": "ship.crash",
                   "destroyed": "explosion"},
+    # The Iron Wake (IW6, IRON_WAKE.md §10.1): ShipsView drives each role from the replicated state.
+    "iron-wake": {
+        "start": "iw.drive.start", "idle": "iw.drive.idle.slow", "idleFast": "iw.drive.idle.fast",
+        "load": "iw.drive.load.slow", "loadFast": "iw.drive.load.fast", "release": "iw.drive.release",
+        "shutdown": "iw.drive.shutdown", "lift": "iw.lift.loop.slow", "liftFast": "iw.lift.loop.fast",
+        "rcs": "iw.rcs.puff", "boostLoop": "iw.boost.strain.slow", "boostLoopFast": "iw.boost.strain.fast",
+        "boostRelease": "iw.boost.release", "strainLight": "iw.hull.strain.light", "strainMedium": "iw.hull.strain.medium",
+        "strainHeavy": "iw.hull.strain.heavy", "touchdown": "iw.touchdown", "crash": "ship.crash",
+        "destroyed": "explosion", "ventilation": "iw.interior.ventilation", "machinery": "iw.interior.machinery",
+        "alarmHull": "iw.alarm.hull", "rampOpen": "iw.ramp.release", "rampClose": "iw.ramp.release",
+        "rampTravel": "iw.ramp.actuator", "rampOpened": "iw.ramp.contact", "rampShut": "iw.ramp.lock",
+        "airlockOpen": "iw.airlock.slide", "airlockClose": "iw.airlock.slide", "airlockShut": "iw.airlock.seal"},
     "wooden-door": door_roles("wood"), "metal-door": door_roles("metal"), "armoured-door": door_roles("armoured"),
     "double-door": door_roles("wood"), "garage-door": door_roles("garage"),
     "sheet-metal-door": door_roles("metal"), "wooden-double-door": door_roles("wood"),

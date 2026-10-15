@@ -57,7 +57,7 @@
           { "key": "nav-left", "at": [1.49, 0.98, -3.0], "colour": [1.0, 0.08, 0.04], "energy": 1.2, "range": 3 },
           { "key": "nav-right", "at": [-1.49, 0.98, -3.0], "colour": [0.1, 1.0, 0.25], "energy": 1.2, "range": 3 },
           { "key": "beacon", "at": [0, 2.345, -1.4], "colour": [1.0, 1.0, 1.0], "energy": 1.2, "range": 3 },
-          { "key": "landing", "at": [0, 0.75, 1.9], "direction": [0, -0.55, 1], "spot": true, "colour": [1.0, 0.95, 0.86], "energy": 4, "range": 90 }
+          { "key": "landing", "at": [0, 0.75, 1.9], "direction": [0, -0.55, 1], "spot": true, "angle": 26, "colour": [1.0, 0.95, 0.86], "energy": 4, "range": 90 }
         ]
       },
       "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 12, "sight": 0.5 },

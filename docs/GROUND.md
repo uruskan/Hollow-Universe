@@ -4728,8 +4728,12 @@ flipbooks, with two decals of our own):
   soot), 20 cm.
 - *`smoke.damaged`*, a loop: heavy black smoke pouring up, a lighter grey with it, embers and a dim flickering glow.
 
-**What the library can't do yet** (code for the packages that hook these up; IW-F changed only `fx.json`, the assets and
-the viewer):
+**What the library couldn't do** (IW-F changed only `fx.json`, the assets and the viewer; **IW6 built the first four and
+the flames' feet**, 15 October 2026: `FxDirector.SetIntensity(handle, k)` multiplies a loop's emit rates, light and
+flames; `UpdateLoop` spreads each frame's particles along the path from `FxLoop.LastEmit` (a jump over 60 m starts
+afresh); `FxParams.Scale` on a loop scales its flame cards, its emitters' places and rates and its light's range and
+reach; `FxParams.Velocity` is added to every particle of a one-shot; fx.json's `flameFoot` (a loop's) dims each flame card
+over that share of its height from the foot, `fire.patch` 0.3. The soft-puff batch below is still to make):
 - *A loop's intensity.* A loop fades in and out but takes no rate: `wash.lift` needs `FxDirector.SetIntensity(handle,
   k)` (or `FxParams.Intensity` with a setter) multiplying its emit rates and light, k = thrust share × nearness (1 at 4
   m, 0 at 25 m). Until then the view starts it at full thrust under 25 m and stops it otherwise.
@@ -5502,8 +5506,10 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     point isn't used yet (Rust raises the sight line to it).
 86. **Attaching is a drop and detaching a button** (cheaper than Rust's attachment slots in the item panel): an
     attachment dropped on a gun goes onto it; the gun's panel lists REMOVE <PART> for each one.
-87. **A seated pilot isn't drawn** in the cockpit, others' or one's own: the character contract has no sitting pose
-    (§4.8), and a standing body would stick out of the canopy. A `Seated` stance there would put them in the seat.
+87. ~~**A seated pilot isn't drawn**~~ in the cockpit, others' or one's own: the character contract has no sitting pose
+    (§4.8), and a standing body would stick out of the canopy. *Closed by IW6 (15 October 2026):* a `Sit` stance plays
+    `sit_idle` with the hips on the seat as the ship is drawn, the hands on their grips (IRON_WAKE.md §9.6), every ship's;
+    one's own first-person arms hide while seated.
 88. **The ships' sounds are made from Kenney's sci-fi pack** (CC0, already a source of the explosions): the Tin Finch
     hums and burns with its thrust; a ship's crash is told from its hull dropping while its speed changes by more
     than 3 m/s in a frame (gunfire hurts the hull without the jolt), since the server sends no ship events.

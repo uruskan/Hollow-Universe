@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using Hollow.Client.Audio;
 
 namespace HollowUniverse.Audio;
 
@@ -69,7 +70,15 @@ public static class AudioBuses
                 AudioServer.SetBusVolumeDb(occluded, -3f);
             }
         }
-        SetSpace(_space);
+        if (Space is { } space)
+        {
+            _preset = null;
+            SetSpace(space, 0);
+        }
+        else
+        {
+            SetSpace(_space);
+        }
     }
 
     /// <summary>
@@ -79,6 +88,8 @@ public static class AudioBuses
     public static void SetSpace(float indoor)
     {
         _space = Math.Clamp(indoor, 0f, 1f);
+        _preset = null;
+        Space = null;
         foreach (string name in new[] { Sfx, Footsteps })
         {
             int bus = AudioServer.GetBusIndex(name);
@@ -87,6 +98,50 @@ public static class AudioBuses
                 reverb.Wet = 0.02f + 0.2f * _space;
                 reverb.RoomSize = 0.2f + 0.25f * _space;
                 reverb.Damping = 0.7f - 0.2f * _space;
+            }
+        }
+    }
+
+    private static float[]? _preset;
+
+    /// <summary>The space the listener is in now, as last set (<see cref="SetSpace(SoundSpace, double)"/>).</summary>
+    public static SoundSpace? Space { get; private set; }
+
+    /// <summary>
+    /// The listener's space as sounds.json's <c>spaces</c> give it (IRON_WAKE.md §10.1: the open air, a ship's deck, its
+    /// bridge): every term of the world buses' reverb moves toward the preset over about a third of a second each frame
+    /// (<paramref name="delta"/>; 0 at once), so stepping through a door doesn't click the tail in.
+    /// </summary>
+    public static void SetSpace(SoundSpace space, double delta)
+    {
+        Space = space;
+        float[] want = { space.RoomSize, space.Damping, space.Spread, space.Hipass, space.Dry, space.Wet, space.PredelayMs, space.PredelayFeedback };
+        float k = delta <= 0 || _preset == null ? 1f : 1f - MathF.Exp(-(float)delta / 0.3f);
+        _preset ??= (float[])want.Clone();
+        bool changed = false;
+        for (int i = 0; i < want.Length; i++)
+        {
+            float next = _preset[i] + (want[i] - _preset[i]) * k;
+            changed |= MathF.Abs(next - _preset[i]) > 1e-4f || k >= 1f;
+            _preset[i] = next;
+        }
+        if (!changed)
+        {
+            return;
+        }
+        foreach (string name in new[] { Sfx, Footsteps })
+        {
+            int bus = AudioServer.GetBusIndex(name);
+            if (bus >= 0 && Effect<AudioEffectReverb>(bus) is AudioEffectReverb reverb)
+            {
+                reverb.RoomSize = Math.Clamp(_preset[0], 0f, 1f);
+                reverb.Damping = Math.Clamp(_preset[1], 0f, 1f);
+                reverb.Spread = Math.Clamp(_preset[2], 0f, 1f);
+                reverb.Hipass = Math.Clamp(_preset[3], 0f, 1f);
+                reverb.Dry = Math.Clamp(_preset[4], 0f, 1f);
+                reverb.Wet = Math.Clamp(_preset[5], 0f, 1f);
+                reverb.PredelayMsec = Math.Clamp(_preset[6], 0f, 500f);
+                reverb.PredelayFeedback = Math.Clamp(_preset[7], 0f, 0.98f);
             }
         }
     }

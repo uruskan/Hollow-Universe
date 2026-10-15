@@ -163,6 +163,8 @@ public static class GunEffects
                     _ => FxSurface.Wood,
                 };
             }
+            case TargetFamily.Ship:
+                return FxSurface.Metal;
             case TargetFamily.Piece or TargetFamily.Door or TargetFamily.Cupboard:
                 return client.Building().AimBuilding(end - dir * 0.4f, dir) switch
                 {

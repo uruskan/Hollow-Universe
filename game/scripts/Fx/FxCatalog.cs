@@ -98,6 +98,10 @@ public sealed class FxLoopDef
     public List<(FxLayer Layer, float Rate, Vector3 Offset)> Emit { get; } = new();
     public float FlameBrightness = 3f;
     public float FlameSpeed = 1f;
+
+    /// <summary>The share of a flame card's height its light rises over from the foot (fx.json <c>flameFoot</c>; 0: hottest
+    /// at the foot). A pool of many overlapping cards sets it, so their feet don't add into bright domes.</summary>
+    public float FlameFoot;
     public Color LightColor = new(1f, 0.55f, 0.25f);
     public float LightEnergy;
     public float LightRange = 6f;
@@ -298,6 +302,7 @@ public static class FxCatalog
         {
             FlameBrightness = Num(l, "flameBrightness", 3f),
             FlameSpeed = Num(l, "flameSpeed", 1f),
+            FlameFoot = Num(l, "flameFoot", 0f),
             FadeIn = Num(l, "fadeIn", 0.4f),
             FadeOut = Num(l, "fadeOut", 0.6f),
         };

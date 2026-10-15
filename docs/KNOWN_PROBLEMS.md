@@ -190,6 +190,12 @@ code and the scans go into ground, cliffs, rocks and deadwood after a licence ch
 
 ## 5. Done since the list was made
 
+- IW6 (15 October 2026, branch `iw6`): seated people are drawn sitting at their seats, every ship's, the Tin Finch's pilot
+  included, hands on their grips (GROUND.md §11 87; IRON_WAKE.md §9.6). The effects library's weak spots: a loop's
+  intensity, trails at speed laid along the path, loops scaled whole (fires of other radii), a moving shooter's velocity,
+  and flame cards dim at their feet (`fire.patch`'s white domes) (GROUND.md §9.3). Still open: the soft-puff smoke batch;
+  the helm's own light switch (IRON_WAKE.md §9.4); unverified in play, every one (no renders in this package).
+
 - The first playtest's findings (13 October: looking, holding, free foundations) were fixed in `ground-look` and
   merged (GROUND.md §11's decisions for `ground-look`).
 - The 30 merged worktrees under `Hollow-wt` were removed (14 October).

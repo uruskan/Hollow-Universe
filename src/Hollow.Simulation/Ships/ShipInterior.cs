@@ -104,10 +104,25 @@ public sealed record StationBarrelData(int RecoilPart, ShipSocket Muzzle, Vector
 /// the bow, + to port) its barrels clear the hull through at level.
 /// </summary>
 public sealed record StationGeometry(string Id, string Kind, float Side, int YawPart, int PitchPart, IReadOnlyList<StationBarrelData> Barrels,
-    ShipSocket Camera, IReadOnlyList<(float From, float To)> Arcs);
+    ShipSocket Camera, IReadOnlyList<(float From, float To)> Arcs)
+{
+    /// <summary>The grips the gunner's hands hold (the data file's <c>grips</c>: left and right as the character's hands), if any.</summary>
+    public ShipSocket? GripLeft { get; init; }
+
+    public ShipSocket? GripRight { get; init; }
+}
 
 /// <summary>A lamp fixture of a ship's data file (IRON_WAKE.md §9.4): its name, where it is, which way it shines (a spot), its room.</summary>
 public sealed record ShipFixture(string Name, Vector3 Position, Vector3 Direction, bool Spot, string Room);
+
+/// <summary>
+/// A room of a ship's data file (IRON_WAKE.md §9.4, §10): a box of the ship's frame; the listener's space and the
+/// reflection probes go by it (presentation).
+/// </summary>
+public sealed record ShipRoom(string Id, string Name, Vector3 Min, Vector3 Max)
+{
+    public bool Contains(Vector3 p) => p.X >= Min.X && p.X <= Max.X && p.Y >= Min.Y && p.Y <= Max.Y && p.Z >= Min.Z && p.Z <= Max.Z;
+}
 
 /// <summary>A rigid motion of a ship's frame: a point p goes to <c>Rotation·p + Translation</c>.</summary>
 public readonly record struct PartPose(Quaternion Rotation, Vector3 Translation)
@@ -180,6 +195,28 @@ public sealed class ShipInterior
 
     /// <summary>The data file's lamp fixtures, its drive glows left out (IRON_WAKE.md §9.4): what ships.json's lights light.</summary>
     public IReadOnlyList<ShipFixture> Fixtures { get; init; } = Array.Empty<ShipFixture>();
+
+    /// <summary>
+    /// The data file's materials by role (<c>lamps</c>, <c>displays</c>, <c>glass</c>...): each one's name in the model and its
+    /// emission energy when lit (IRON_WAKE.md §9.2, §9.4; presentation).
+    /// </summary>
+    public IReadOnlyDictionary<string, (string Material, float Energy)> Materials { get; init; } = new Dictionary<string, (string, float)>();
+
+    /// <summary>The data file's rooms (IRON_WAKE.md §9.4, §10), in its order.</summary>
+    public IReadOnlyList<ShipRoom> Rooms { get; init; } = Array.Empty<ShipRoom>();
+
+    /// <summary>The first room holding a point of the ship's frame, or null (the weather decks, outside).</summary>
+    public ShipRoom? RoomAt(Vector3 point)
+    {
+        foreach (ShipRoom r in Rooms)
+        {
+            if (r.Contains(point))
+            {
+                return r;
+            }
+        }
+        return null;
+    }
 
     /// <summary>Where things may be built aboard (IRON_WAKE.md §8), in the data file's order.</summary>
     public IReadOnlyList<ShipBuildZone> BuildZones { get; init; } = Array.Empty<ShipBuildZone>();

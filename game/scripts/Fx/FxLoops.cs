@@ -32,9 +32,13 @@ public sealed class FxLoop
     public float[] Accumulators = Array.Empty<float>();
     public Vector3 LastEmit;
     public bool HasLastEmit;
+
+    /// <summary>What the loop gives, 0 to 1 (<see cref="FxDirector.SetIntensity"/>): its emitters' rates, its light and its
+    /// flames, on top of its fade.</summary>
+    public float Intensity = 1f;
     public float FlickerPhase;
 
-    /// <summary>The loop's frame: the followed node's, or its position with the normal as up.</summary>
+    /// <summary>The loop's frame: the followed node's, or its position with the normal as up (unscaled).</summary>
     public Transform3D Frame()
     {
         if (Params.Follow != null && GodotObject.IsInstanceValid(Params.Follow) && Params.Follow.IsInsideTree())

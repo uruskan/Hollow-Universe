@@ -287,7 +287,8 @@ public sealed class StationsView
         }
         BatteryDef battery = def.Stations[shot.Station].Battery;
         Vector3 at = GroundView.ToGodot(shot.Origin), way = GroundView.ToGodot(shot.Direction);
-        var p = new FxParams { Direction = way };
+        Num.Vector3 moving = Client.Ships().ShipByNetId(shot.Ship)?.Velocity ?? default;
+        var p = new FxParams { Direction = way, Velocity = new Vector3(moving.X, moving.Y, moving.Z) };
         FxDirector.Play("muzzle." + battery.Key, at, way, p);
         if (FxCatalog.Find("muzzle." + battery.Key + ".dust") != null)
         {
@@ -295,9 +296,14 @@ public sealed class StationsView
         }
         Sounds.At(battery.Key + ".fire.report", at);
         Sounds.At(battery.Key + ".fire.mechanism", at);
+        // Through the structure (IRON_WAKE.md §10): the gunner's own, and anyone aboard at their space's structure-borne level.
         if (shot.Own)
         {
             Sounds.Flat(battery.Key + ".fire.interior", -4);
+        }
+        else if (Client.RenderFrame == shot.Ship && HollowUniverse.Audio.AudioBuses.Space is { StructureDb: > -60f } space)
+        {
+            Sounds.Flat(battery.Key + ".fire.interior", space.StructureDb);
         }
         if (battery.Launch.Of(shot.Kind) is { } profile && profile.Muzzle > 0)
         {

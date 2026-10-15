@@ -43,6 +43,12 @@ public struct FxParams
     /// <summary>A seed for repeatable effects (0: the director's running sequence).</summary>
     public ulong Seed;
 
+    /// <summary>
+    /// The velocity of what plays it (a ship at speed firing, IRON_WAKE.md §11), added to every particle of a one-shot: the
+    /// first moments of a muzzle's blast travel with the muzzle rather than being left behind at once.
+    /// </summary>
+    public Vector3 Velocity;
+
     internal readonly float ScaleOr1 => Scale > 0 ? Scale : 1f;
 
     internal readonly Color TintOrWhite => Tint.A > 0 ? Tint : Colors.White;
@@ -323,6 +329,18 @@ public partial class FxDirector : Node3D
         }
     }
 
+    /// <summary>
+    /// A loop's intensity, 0 to 1 (GROUND.md §9.3): its emitters' rates, its light and its flames, on top of its fade
+    /// (the lift engines' wash by thrust and nearness, a fire by what is left of it).
+    /// </summary>
+    public static void SetIntensity(FxHandle handle, float intensity)
+    {
+        if (_instance != null && _instance._loops.TryGetValue(handle.Id, out FxLoop? loop))
+        {
+            loop.Intensity = Math.Clamp(intensity, 0f, 1f);
+        }
+    }
+
     /// <summary>Moves a loop that follows no node.</summary>
     public static void Move(FxHandle handle, Vector3 position)
     {
@@ -396,6 +414,7 @@ public partial class FxDirector : Node3D
         public Node3D? Follow;
         public float Lod;
         public float Distance;
+        public Vector3 Velocity;
     }
 
     private bool PlayNow(string key, Vector3 position, Vector3 normal, FxParams p)
@@ -505,6 +524,7 @@ public partial class FxDirector : Node3D
             Follow = p.Follow,
             Lod = DistanceLod ? Lod(distance) : 1f,
             Distance = distance,
+            Velocity = p.Velocity,
         };
     }
 
@@ -616,7 +636,8 @@ public partial class FxDirector : Node3D
                     turn = _random.Turn();
                     break;
             }
-            batch.Emit(pos, size, dir * speed, c, life, _random.Next(), parameter, spot.Normal, turn);
+            // A moving shooter's velocity carries its blast's first moments along (the batches' drag slows it).
+            batch.Emit(pos, size, dir * speed + spot.Velocity, c, life, _random.Next(), parameter, spot.Normal, turn);
         }
         _frameParticles += count;
     }
@@ -701,6 +722,7 @@ public partial class FxDirector : Node3D
             loop.Flames.SetInstanceShaderParameter("fx_brightness", def.Loop.FlameBrightness);
             loop.Flames.SetInstanceShaderParameter("fx_speed", def.Loop.FlameSpeed);
             loop.Flames.SetInstanceShaderParameter("fx_strength", 0f);
+            loop.Flames.SetInstanceShaderParameter("fx_foot", def.Loop.FlameFoot);
             AddChild(loop.Flames);
         }
         if (def.Loop.LightEnergy > 0)
@@ -709,7 +731,7 @@ public partial class FxDirector : Node3D
             {
                 Name = $"LoopLight{loop.Id}",
                 LightColor = def.Loop.LightColor,
-                OmniRange = def.Loop.LightRange,
+                OmniRange = def.Loop.LightRange * p.ScaleOr1,
                 LightEnergy = 0,
                 ShadowEnabled = def.Loop.LightShadows,
                 OmniAttenuation = 1.4f,
@@ -735,21 +757,30 @@ public partial class FxDirector : Node3D
         float rate = loop.Stopping ? 1f / Math.Max(0.05f, def.FadeOut) : 1f / Math.Max(0.05f, def.FadeIn);
         loop.Strength = Mathf.MoveToward(loop.Strength, target, rate * dt);
         Transform3D frame = loop.Frame();
+        // A loop scaled whole (a fire of another radius): its flames, its emitters' places and its light's reach.
+        float scale = loop.Params.ScaleOr1;
+        float give = loop.Strength * loop.Intensity;
         if (loop.Flames != null)
         {
-            loop.Flames.GlobalTransform = frame;
-            loop.Flames.SetInstanceShaderParameter("fx_strength", loop.Strength);
+            loop.Flames.GlobalTransform = new Transform3D(frame.Basis.Scaled(Vector3.One * scale), frame.Origin);
+            loop.Flames.SetInstanceShaderParameter("fx_strength", give);
             loop.Flames.SetInstanceShaderParameter("fx_brightness", def.FlameBrightness * _brightness);
         }
         if (loop.Light != null)
         {
             float t = (float)_time * 9f + loop.FlickerPhase;
             float flicker = 1f + def.LightFlicker * (0.55f * MathF.Sin(t) + 0.3f * MathF.Sin(t * 2.7f + 1.3f) + 0.15f * MathF.Sin(t * 6.1f + 0.4f));
-            loop.Light.LightEnergy = def.LightEnergy * loop.Strength * flicker * _brightness;
+            loop.Light.LightEnergy = def.LightEnergy * give * flicker * _brightness * MathF.Sqrt(scale);
             Vector3 jitter = new Vector3(MathF.Sin(t * 1.3f), MathF.Sin(t * 1.7f + 2f), MathF.Sin(t * 1.1f + 4f)) * (0.02f * def.LightFlicker);
-            loop.Light.GlobalPosition = frame * (def.LightOffset + jitter);
+            loop.Light.GlobalPosition = frame * (def.LightOffset * scale + jitter);
         }
-        if (dt <= 0 || loop.Strength <= 0.01f)
+        // Where it emitted last: a trail at speed is laid along the frame's path, not in beads at each frame's end (a
+        // rocket at 140 to 260 m/s moves 2 to 4 m a frame). A jump (a teleport, a loop moved far) starts afresh.
+        Vector3 back = loop.HasLastEmit && !loop.Params.FirstPerson && loop.LastEmit.DistanceSquaredTo(frame.Origin) < 60f * 60f
+            ? loop.LastEmit - frame.Origin : Vector3.Zero;
+        loop.LastEmit = frame.Origin;
+        loop.HasLastEmit = true;
+        if (dt <= 0 || give <= 0.01f)
         {
             return;
         }
@@ -762,14 +793,14 @@ public partial class FxDirector : Node3D
         for (int i = 0; i < def.Emit.Count; i++)
         {
             (FxLayer layer, float perSecond, Vector3 offset) = def.Emit[i];
-            loop.Accumulators[i] += perSecond * dt * loop.Strength * lod;
+            loop.Accumulators[i] += perSecond * dt * give * lod * scale;
             int n = (int)loop.Accumulators[i];
             if (n <= 0)
             {
                 continue;
             }
             loop.Accumulators[i] -= n;
-            Vector3 at = frame * offset;
+            Vector3 at = frame * (offset * scale);
             // Up where the loop burns: on a whole world it is not +Y (docs/WHOLE_WORLD.md §10.4).
             Vector3 up = PlanetGlobals.Up(at);
             (Vector3 across, Vector3 along) = FxRandom.Frame(up);
@@ -789,6 +820,8 @@ public partial class FxDirector : Node3D
             FxLayer once = layer;
             for (int k = 0; k < n; k++)
             {
+                // Spread along the path since the last frame (nothing to spread when it stood still).
+                spot.Position = at + back * (1f - (k + _random.Next()) / n);
                 EmitLoopParticle(once, spot);
             }
         }
@@ -912,6 +945,16 @@ public static class FxSurfaces
         Hollow.Surface.GroundMaterial.Rock or Hollow.Surface.GroundMaterial.Gravel => FxSurface.Rock,
         Hollow.Surface.GroundMaterial.Sand or Hollow.Surface.GroundMaterial.Snow => FxSurface.Sand,
         _ => FxSurface.Dirt,
+    };
+
+    /// <summary>The colour of the dust a surface throws up (a lift engine's wash, a muzzle's blast on the ground).</summary>
+    public static Color Dust(FxSurface s) => s switch
+    {
+        FxSurface.Sand => new Color(0.86f, 0.78f, 0.62f),
+        FxSurface.Rock => new Color(0.66f, 0.64f, 0.6f),
+        FxSurface.Grass => new Color(0.62f, 0.58f, 0.46f),
+        FxSurface.Water => new Color(0.85f, 0.9f, 0.95f),
+        _ => new Color(0.6f, 0.5f, 0.4f),
     };
 
     /// <summary>The surface of a building grade (building.json: twig, wood, stone, metal, armoured).</summary>

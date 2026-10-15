@@ -162,6 +162,8 @@ public partial class FirstPersonView : Node3D
         }
         _sinceEquip += delta;
         DressArms();
+        // Seated, the first-person arms hide: the hands are on the controls, drawn for others (IRON_WAKE.md §9.6).
+        _body.Visible = !Client.Ships().Seated;
 
         // Motion of the arms: velocity in their own frame (the aim's), how fast the view turns.
         _body.Basis = ArmsTurn;
