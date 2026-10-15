@@ -832,7 +832,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `SystemMapUi.cs` | 566 | SystemMapUi | The system map's interface: system summary, body list, selected body, time and scale controls. |
 | `SystemMapView.cs` | 686 | SystemMapView [BodyView] | The system map (GALAXY.md §12): an orrery of one star system, animated by universe time. Distances are |
 
-### game/scripts/UI (19 files, 5,874 lines)
+### game/scripts/UI (19 files, 5,880 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -844,7 +844,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GroundUi.Hud.cs` | 229 | GroundUi | The HUD (RustMVP's, from SBareRoot.cpp): the centre dot, hit marker, damage direction and prompt in the middle; |
 | `GroundUi.Inventory.cs` | 447 | GroundUi [DragState] | The inventory (RustMVP's, from SBareRoot.cpp): the character and clothing on the left, the item panel and the |
 | `GroundUi.Machines.cs` | 69 | GroundUi | The loot panels of G7's machines (GROUND.md §6.8), in the furnace's manner: the recycler's six inputs and six outputs |
-| `GroundUi.Globe.cs` | 791 | GroundUi [Globe, GlobeFrame] | The map control (docs/WHOLE_WORLD.md §11), one for the G screen and the death screen: the whole world as a globe seen |
+| `GroundUi.Globe.cs` | 797 | GroundUi [Globe, GlobeFrame] | The map control (docs/WHOLE_WORLD.md §11), one for the G screen and the death screen: the whole world as a globe seen |
 | `GroundUi.Map.cs` | 273 | GroundUi | The map (G7, GROUND.md §6.8; the whole world since S3d, docs/WHOLE_WORLD.md §11), on G as in Rust: the map control |
 | `GroundUi.Menu.cs` | 100 | GroundUi | A small main menu for playtests, in RustMVP's menu style: the title and a column of big condensed items on the |
 | `GroundUi.Paint.cs` | 376 | GroundUi | Immediate-mode painting on the design canvas, as RustMVP's SBareRoot painted: rectangles, text, icons and lines at |
