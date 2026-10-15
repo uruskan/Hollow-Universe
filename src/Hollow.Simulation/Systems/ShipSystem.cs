@@ -582,8 +582,7 @@ public sealed partial class ShipSystem : ZoneSystem
         ship.State.Flags |= ShipFlags.Destroyed;
         ship.State.Velocity = Vector3.Zero;
         ship.State.AngularVelocity = Vector3.Zero;
-        // Destroyed by the blow being applied, or (none) by its crash.
-        Damage.Destroyed(ship.Ref, ship.Def.Key, 0, ship.Origin, ship.State.Rotation, Damage._blow.Active ? null : DestroyCause.Crash);
+        // Its parked body goes first: what was aboard spills to the ground under it, not onto a deck that is gone.
         if (ship.ParkedBody != 0)
         {
             lock (JoltRuntime.Gate)
@@ -592,6 +591,9 @@ public sealed partial class ShipSystem : ZoneSystem
             }
             ship.ParkedBody = 0;
         }
+        // Destroyed by the blow being applied, or (none) by its crash; what was built aboard breaks and spills, what lay
+        // aboard falls (IRON_WAKE.md §8, the support rule).
+        Damage.Destroyed(ship.Ref, ship.Def.Key, 0, ship.Origin, ship.State.Rotation, Damage._blow.Active ? null : DestroyCause.Crash);
         Vector3 at = Settle(ship.Origin);
         Vector3 up = Frame.UpAt(at);
         for (int seat = 0; seat < ship.Occupants.Length; seat++)

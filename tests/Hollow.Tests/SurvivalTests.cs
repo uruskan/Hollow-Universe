@@ -20,17 +20,19 @@ public sealed class GameRig : IDisposable
     private long _ids = 1;
 
     /// <summary>The zone on the first world's stand-in ground, or on a surface the test makes for the zone's spec (one with a sea).</summary>
-    public GameRig(Func<ZoneSpec, Hollow.Surface.ISurface>? surface = null)
+    public GameRig(Func<ZoneSpec, Hollow.Surface.ISurface>? surface = null, GameContent? content = null)
     {
         ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, 28.4, -61.7)! with { StandIn = true };
-        Zone = surface == null ? new Zone(spec, content: ContentFixture.Content) : new Zone(surface(spec), spec, content: ContentFixture.Content);
+        C = content ?? ContentFixture.Content;
+        Zone = surface == null ? new Zone(spec, content: C) : new Zone(surface(spec), spec, content: C);
         Zone.UnixMilliseconds = 1_800_000_000_000;
         Zone.NewEntityId = () => new EntityId(0x100_0000 + (ulong)_ids++);
     }
 
     public Zone Zone { get; }
 
-    public GameContent C => ContentFixture.Content;
+    /// <summary>The game data the zone runs (the game's own, or a test's).</summary>
+    public GameContent C { get; }
 
     /// <summary>A new player standing x metres east and z metres south of the landing site (no kit: an empty inventory).</summary>
     public Entity Add(string name, float x, float z, bool kit = false)
