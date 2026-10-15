@@ -12,8 +12,10 @@ with walkable decks that players furnish, six crewed rocket cannons with a visib
 incendiary rocket. The design is [IRON_WAKE.md](IRON_WAKE.md), **approved by the owner on 15 October 2026** with all
 fourteen defaults (§2). On 15 October 2026 its import (model, materials, LODs, the data file), its sounds and its
 effects were merged into `main` (IW-A part 1, IW-S, IW-F), then the loading mechanisms, the battery table
-(`batteries.json`) and the incendiary rocket's model (IW-A part 2, 2c7677b). IW1 (ship spaces: walking aboard) is
-being built on `iw-spaces`, cut from `whole-world` with `main` merged in, as the owner asked; IW2–IW6 follow.
+(`batteries.json`) and the incendiary rocket's model (IW-A part 2, 2c7677b). IW1 (ship spaces: walking aboard) was
+built on `iw-spaces`, cut from `whole-world` with `main` merged in, and fast-forwarded into `whole-world` (1f7b89a, 239
+tests): people aboard move in the ship's frame, protocol 22, schema 8 (IRON_WAKE.md §4.13). IW2–IW6 follow on
+`whole-world`.
 
 ## 14 October 2026, night: one place (read this first)
 
