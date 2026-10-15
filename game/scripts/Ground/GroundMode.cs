@@ -156,7 +156,12 @@ public partial class GroundMode : Node
     {
         LoadingPipeline loading = BeginLoading();
         // The save: --db, else this branch's own (Checkout.HostedSave: a branch's newer schema never meets an older build).
-        string database = Options.TryGetValue("db", out string? dbOption) && dbOption != "true" ? dbOption : ProjectSettings.GlobalizePath(Checkout.HostedSave);
+        // The walking-scale ground is the default since 15 October 2026 (the owner: play everything that's built);
+        // --ground stand-in plays on the plain stand-in world. Each ground keeps its own save, so places from one never
+        // land on the other.
+        string ground = Option("ground", "walking");
+        string save = ground == "walking" ? Checkout.HostedSave.Replace(".db", "-walking.db") : Checkout.HostedSave;
+        string database = Options.TryGetValue("db", out string? dbOption) && dbOption != "true" ? dbOption : ProjectSettings.GlobalizePath(save);
         bool connectNow = true;
         if (host == null && !Options.ContainsKey("in-process"))
         {
@@ -165,7 +170,7 @@ public partial class GroundMode : Node
             if (ChildServer.Find(repository) is { } dll)
             {
                 _child = ChildServer.Start(dll, repository, port, System.IO.Path.GetFullPath(database), $"{name}'s game",
-                    Option("spawn", "beach") == "origin", admin: name, ground: Option("ground", "stand-in"), extra: ServerPlace());
+                    Option("spawn", "beach") == "origin", admin: name, ground: ground, extra: ServerPlace());
                 loading.Add(_child.LoadStage());
                 host = "127.0.0.1";
                 connectNow = false;
@@ -188,7 +193,7 @@ public partial class GroundMode : Node
                     DatabasePath = database,
                     Content = _content,
                     SpawnAtOrigin = Option("spawn", "beach") == "origin",
-                    Ground = Option("ground", "stand-in") == "walking" ? Hollow.Simulation.GroundKind.Walking : Hollow.Simulation.GroundKind.StandIn,
+                    Ground = ground == "walking" ? Hollow.Simulation.GroundKind.Walking : Hollow.Simulation.GroundKind.StandIn,
                     Latitude = Number("lat", FirstWorld.LandingLatitude),
                     Longitude = Number("lon", FirstWorld.LandingLongitude),
                     // The hosting player is the game's admin (GROUND.md §8.2).

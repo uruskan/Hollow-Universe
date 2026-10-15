@@ -35,7 +35,7 @@ public static class Program
             RotationTimeScale = Math.Clamp(Number(o, "day-scale", Simulation.ZoneSpec.DefaultRotationTimeScale), 0.01, 10000),
             SpawnAtOrigin = o.GetValueOrDefault("spawn", "beach") == "origin",
             StandIn = o.ContainsKey("stand-in"),
-            Ground = o.GetValueOrDefault("ground", "stand-in") == "walking" ? Simulation.GroundKind.Walking : Simulation.GroundKind.StandIn,
+            Ground = o.GetValueOrDefault("ground", "walking") != "stand-in" ? Simulation.GroundKind.Walking : Simulation.GroundKind.StandIn,
             CataloguePath = o.GetValueOrDefault("catalogue"),
             MaxPlayers = (int)Number(o, "max-players", 128),
             RelevanceRadius = (float)Number(o, "relevance", 300),

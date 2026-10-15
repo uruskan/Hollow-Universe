@@ -26,8 +26,9 @@ public sealed record ServerOptions
     public bool StandIn { get; init; }
 
     /// <summary>
-    /// The ground the zone stands on: the stand-in by default; <c>--ground walking</c> puts it on the walking-scale ground
-    /// of S4 (docs/WALKING_GROUND.md), told to clients with the zone. Off until the owner approves S4. On that ground, a
+    /// The ground the zone stands on, told to clients with the zone: the walking-scale ground of S4 (docs/WALKING_GROUND.md)
+    /// from the command line and the hosted game since 15 October 2026 (the owner: play everything that's built);
+    /// <c>--ground stand-in</c> the plain stand-in world. This property's own default stays the stand-in, for the tests. On that ground, a
     /// server left at the default latitude and longitude lands players at the ground's own landing site.
     /// </summary>
     public Simulation.GroundKind Ground { get; init; }
