@@ -22,8 +22,15 @@ public sealed class ViewSettings
 {
     private const string FilePath = "user://ground-settings.cfg";
 
-    /// <summary>Vertical field of view in degrees (60–100; 75 by default).</summary>
-    public float Fov { get; set; } = 75;
+    /// <summary>
+    /// Vertical field of view in degrees (60–100; 75 by default): the graphics settings' (GROUND.md §8.6), so the F1
+    /// console's fov and the settings panel show and change the same value.
+    /// </summary>
+    public float Fov
+    {
+        get => HollowUniverse.Settings.GraphicsSettings.Current.FieldOfView;
+        set => HollowUniverse.Settings.GraphicsSettings.SetFieldOfView(value);
+    }
 
     /// <summary>Mouse look sensitivity (0.1–5; 1 by default: 0.002 radians a mouse count).</summary>
     public float Sensitivity { get; set; } = 1;

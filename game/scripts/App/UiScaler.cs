@@ -27,10 +27,27 @@ public partial class UiScaler : Node
             _preference = Math.Clamp((float)settings.GetValue("ui", "scale", 1f).AsDouble(), 0.6f, 2f);
         }
         GetTree().Root.SizeChanged += Apply;
+        HollowUniverse.Settings.GraphicsSettings.Changed += Take;
         Apply();
     }
 
-    public override void _ExitTree() => GetTree().Root.SizeChanged -= Apply;
+    public override void _ExitTree()
+    {
+        GetTree().Root.SizeChanged -= Apply;
+        HollowUniverse.Settings.GraphicsSettings.Changed -= Take;
+    }
+
+    // The settings panel's INTERFACE SCALE (GROUND.md §8.6), shown at once.
+    private void Take(HollowUniverse.Settings.GraphicsValues values)
+    {
+        if (Math.Abs(values.InterfaceScale - _preference) < 0.001f)
+        {
+            return;
+        }
+        _preference = Math.Clamp(values.InterfaceScale, 0.6f, 2f);
+        Override = null;
+        Apply();
+    }
 
     /// <summary>Recomputes the scale from the window size and the preference.</summary>
     public void Apply()
@@ -93,6 +110,7 @@ public partial class UiScaler : Node
         settings.SetValue("ui", "scale", _preference);
         settings.Save(SettingsPath);
         Override = null;
+        HollowUniverse.Settings.GraphicsSettings.SetInterfaceScale(_preference);
         Apply();
         GetViewport().SetInputAsHandled();
     }

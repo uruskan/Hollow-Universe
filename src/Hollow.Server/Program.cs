@@ -18,7 +18,7 @@ public static class Program
         Dictionary<string, string> o = ParseOptions(args);
         if (o.ContainsKey("help"))
         {
-            Console.WriteLine("Hollow.Server options: --port <n> --name <text> --db <path> | --no-db --lat <deg> --lon <deg> " +
+            Console.WriteLine("Hollow.Server options: --port <n> --name <text> --db <path> | --no-db --crash-dir <path> --lat <deg> --lon <deg> " +
                 "--catalogue <path> --max-players <n> --relevance <m> --kit <loot table> --raid-bases <n> --raid-radius <m> --day-scale <x> --spawn beach|origin --stand-in --ground stand-in|walking --parent <pid> " +
                 "--no-animals --animals <n> --animal-radius <m> --admin <name> (as often as wanted) --admins <file> (admins.txt) " +
                 "--dev (everyone is an admin)\nCommands:\n" +
@@ -52,6 +52,23 @@ public static class Program
             AdminsFile = System.IO.Path.GetFullPath(o.GetValueOrDefault("admins", "admins.txt")),
             EveryoneAdmin = o.ContainsKey("dev"),
         };
+        // Crash reports (GROUND.md §4.3): beside the save in crashes/ (a hosted game's save is in the game's user://, so
+        // its menu finds them), or --crash-dir.
+        var crash = new Diagnostics.CrashLog(
+            o.GetValueOrDefault("crash-dir") ?? System.IO.Path.Combine(
+                System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(options.DatabasePath ?? "hollow-server.db")) ?? ".", "crashes"),
+            "server", typeof(Program).Assembly)
+        {
+            Running = () => $"the dedicated server \"{options.Name}\" on port {options.Port}",
+        };
+        Console.SetOut(new Diagnostics.CrashLogWriter(Console.Out, crash));
+        Console.SetError(new Diagnostics.CrashLogWriter(Console.Error, crash));
+        crash.HookDotNet();
+        if (crash.Start() is { } unclean)
+        {
+            Console.WriteLine($"The last server run ended without stopping cleanly: {unclean}");
+        }
+        Console.WriteLine($"Hollow.Server {crash.Build}");
         GameServer created;
         try
         {
@@ -62,6 +79,7 @@ public static class Program
             // One line the hosting game shows on its menu ("error: "), and the path for whoever reads the log.
             Console.Error.WriteLine($"error: {e.Message}");
             Console.Error.WriteLine($"The save is {e.SavePath}: run the build that wrote it, or give this one another (--db <path>).");
+            crash.Stop();
             return 2;
         }
         using GameServer server = created;
@@ -105,6 +123,7 @@ public static class Program
         console.Start();
         Console.WriteLine("Ready. Type help for commands.");
         server.Run();
+        crash.Stop();
         return 0;
     }
 

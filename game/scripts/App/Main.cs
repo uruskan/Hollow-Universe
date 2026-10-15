@@ -29,6 +29,9 @@ public partial class Main : Node
     private SystemMapView _systemMap = null!;
     private SurfaceView _surfaceView = null!;
     private Dictionary<string, string> _options = new();
+
+    // A clean exit clears the crash marker (GROUND.md §4.3).
+    public override void _ExitTree() => CrashReporter.Stop();
     private double _elapsed;
     private bool _capturing;
     private bool _rescaled;
@@ -46,12 +49,19 @@ public partial class Main : Node
 
     public override void _Ready()
     {
+        // Crash reports first (GROUND.md §4.3): everything after may be what fails.
+        CrashReporter.Install();
         _options = ParseOptions(OS.GetCmdlineUserArgs());
+        CrashReporter.Running = "view " + Option("view", "galaxy") + (_options.ContainsKey("host") ? ", hosting" : "") +
+            (_options.TryGetValue("connect", out string? server) ? ", connected to " + server : "");
         if (_options.ContainsKey("physics-check"))
         {
             GroundChecks.RunPhysicsCheck(this);
             return;
         }
+        // The graphics settings (GROUND.md §8.6), saved or this computer's defaults; --quality <preset> for this run.
+        HollowUniverse.Settings.GraphicsSettings.Load(HollowUniverse.Settings.GraphicsSettings.ParsePreset(Option("quality", "")));
+        AddChild(new HollowUniverse.Settings.GraphicsNode { Name = "Graphics" });
         // The interface scale has to be known before any interface is built.
         _scaler = new UiScaler { Name = "UiScaler" };
         if (_options.ContainsKey("ui-scale"))

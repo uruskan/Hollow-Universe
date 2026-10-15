@@ -27,14 +27,33 @@ public partial class GroundUi
         Button(_inGame ? "RESUME" : "PLAY", 90, 385, 360, 80, _inGame ? () => Open(GroundScreen.Hud) : Host, 55, Transparent, left: true);
         Button("CONNECT", 90, 499, 360, 65, () =>
         {
+            CloseSettings();
             _menuEntry = !_menuEntry;
             Layout();
         }, 39, Transparent, left: true);
+        // The settings panel (GROUND.md §8.6), in the main menu and the Esc menu alike.
+        Button("SETTINGS", 90, 591, 360, 65, () =>
+        {
+            if (_settingsOpen)
+            {
+                CloseSettings();
+            }
+            else
+            {
+                OpenSettings();
+            }
+        }, 39, _settingsOpen ? G.Panel : Transparent, left: true);
         Button("QUIT", 90, 684, 360, 65, Quit, 39, Transparent, left: true);
         Rect(105, 824, 1388, 1, new Color(0.8f, 0.82f, 0.75f, 0.18f));
         Text("NOLCAS PERIS CQ-SLY 7-0 B 3", 105, 837, 19, G.Muted);
         TextIn("PLAYTEST  /  G2", 1293, 837, 200, 18, G.Muted, HorizontalAlignment.Right);
+        PaintCrashNotice();
 
+        if (_settingsOpen)
+        {
+            PaintSettings();
+            return;
+        }
         if (!_menuEntry)
         {
             return;
@@ -57,6 +76,20 @@ public partial class GroundUi
         Button("CONNECT     ", 1232, 640, 218, 53, Connect, 27);
         Arrow(1390, 666);
         Text(_menuStatus, 916, 706, 18, G.Muted);
+    }
+
+    // A crash report the menu has not shown yet (GROUND.md §4.3): small, under the menu's column, with its folder.
+    private void PaintCrashNotice()
+    {
+        if (HollowUniverse.App.CrashReporter.Notice is not { } notice)
+        {
+            return;
+        }
+        bool crash = notice.Kind.StartsWith("crash", StringComparison.Ordinal);
+        float w = Text(crash ? "THE LAST RUN CRASHED" : "THE LAST RUN HIT AN ERROR", 105, 764, 18, G.Warning, bold: true, condensed: true);
+        Button("OPEN FOLDER", 105 + w + 16, 760, 120, 26, () => OS.ShellOpen(HollowUniverse.App.CrashReporter.Folder), 16);
+        Button("DISMISS", 105 + w + 144, 760, 90, 26, HollowUniverse.App.CrashReporter.Dismiss, 16);
+        Text(notice.Path, 105, 792, 15, G.Muted);
     }
 
     private string PlayerName => _name.Text.Trim().Length > 0 ? _name.Text.Trim() : "Survivor";

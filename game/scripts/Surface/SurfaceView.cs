@@ -144,6 +144,8 @@ public partial class SurfaceView : Node3D
         AddChild(_moonLight);
         _terrain = new TerrainLod { Name = "Terrain" };
         AddChild(_terrain);
+        HollowUniverse.Settings.GraphicsSettings.Changed += ApplyGraphics;
+        ApplyGraphics(HollowUniverse.Settings.GraphicsSettings.Current);
         _uiLayer = new CanvasLayer();
         AddChild(_uiLayer);
         _ui = new SurfaceUi();
@@ -152,6 +154,7 @@ public partial class SurfaceView : Node3D
 
     public override void _ExitTree()
     {
+        HollowUniverse.Settings.GraphicsSettings.Changed -= ApplyGraphics;
         if (_frame != null)
         {
             PlanetGlobals.Clear();
@@ -379,11 +382,8 @@ public partial class SurfaceView : Node3D
             AmbientLightSource = Godot.Environment.AmbientSource.Sky,
             ReflectedLightSource = Godot.Environment.ReflectionSource.Sky,
             TonemapMode = Godot.Environment.ToneMapper.Agx,
-            GlowEnabled = true,
-            GlowIntensity = 0.35f,
-            GlowBloom = 0.02f,
+            // Glow and bloom (0.35 and 0.02 at strength 1), SSAO and the rest: the graphics settings (GROUND.md §8.6).
             GlowHdrThreshold = 1.4f,
-            SsaoEnabled = OS.GetEnvironment("HU_NO_SSAO").Length == 0,
             // Gentle: on dense grass and leaf cards strong SSAO turns everything in shade black.
             SsaoRadius = 0.7f,
             SsaoIntensity = 0.6f,
@@ -391,6 +391,40 @@ public partial class SurfaceView : Node3D
         // The camera carries its own environment: the maps' WorldEnvironment nodes stay in the tree.
         _environment = environment;
         _camera.Environment = environment;
+        ApplyGraphics(HollowUniverse.Settings.GraphicsSettings.Current);
+    }
+
+    // The graphics settings (GROUND.md §8.6): the environment's effects, the sun's shadows, and the grass rebuilt when
+    // its distance or density changes. The exposure stays the sky's, set every frame, whatever lights the ground.
+    private void ApplyGraphics(HollowUniverse.Settings.GraphicsValues values)
+    {
+        if (_environment is { } environment)
+        {
+            HollowUniverse.Settings.GraphicsSettings.ApplyTo(environment, values, FogLook());
+        }
+        HollowUniverse.Settings.GraphicsSettings.ApplyTo(_sunLight, values);
+        _moonLight.ShadowEnabled = values.Shadows > 0;
+        if (_grass != null && _grass.BuiltWith != (values.GrassDistance, values.GrassDensity))
+        {
+            _grass.QueueFree();
+            _grass = null;
+        }
+    }
+
+    // The volumetric fog as this planet's air near the ground: faint (0.0008 per metre with Earth's haze, so a
+    // fifth of the light at the fog's far end), its density following the air's Mie extinction, its colour the air's
+    // scattering, and the haze's forward scattering for shafts of sun.
+    private HollowUniverse.Settings.GraphicsSettings.FogLook FogLook()
+    {
+        if (_air is not { } air)
+        {
+            return new(0.0008f, new Color(0.85f, 0.9f, 1f), 0.6f);
+        }
+        float haze = (float)Math.Clamp(air.MieExtinction / 5e-6, 0.3, 3);
+        Vector3 scatter = air.RayleighScattering + Vector3.One * (float)air.MieScattering;
+        float top = Math.Max(scatter.X, Math.Max(scatter.Y, scatter.Z));
+        Vector3 tint = Vector3.One.Lerp(top > 0 ? scatter / top : Vector3.One, 0.25f);
+        return new(0.0008f * haze, new Color(tint.X, tint.Y, tint.Z), Math.Clamp((float)air.MieG, 0f, 0.85f));
     }
 
     // ---------------------------------------------------------------- frame

@@ -225,6 +225,11 @@ public partial class GroundUi : Control
         {
             _menuEntry = !_inGame;
         }
+        else
+        {
+            // Leaving the menu closes the settings panel, dropping what was not applied.
+            CloseSettings();
+        }
         GetViewport()?.GuiReleaseFocus();
         Layout();
     }
@@ -373,6 +378,7 @@ public partial class GroundUi : Control
             Layout();
         }
         UpdateGlobe(delta);
+        DragSetting();
         _canvas.QueueRedraw();
         _globePicture.QueueRedraw();
         _overlay.QueueRedraw();
@@ -402,6 +408,11 @@ public partial class GroundUi : Control
         // A radial's held input (the right mouse with a building tool; E and R when a binding asks for them) and the keys
         // and buttons that end an open radial.
         if (RadialEvent(e))
+        {
+            GetViewport().SetInputAsHandled();
+            return;
+        }
+        if (e is InputEventKey { Pressed: true } settingsKey && SettingsKey(settingsKey))
         {
             GetViewport().SetInputAsHandled();
             return;

@@ -28,6 +28,7 @@ uniform int grid_width = 180;
 uniform ivec2 grid_offset;          // the grid's first cell in the lattice
 uniform float far_radius = 42.0;    // blades are gone here
 uniform float shrink_start = 24.0;  // and start shrinking here
+uniform float density_scale = 1.0;  // the share of tufts kept (the graphics settings' grass density)
 
 uniform sampler2D lattice : filter_nearest, repeat_disable;       // xyz: the cell corner from the anchor; w: grass density
 uniform sampler2D lattice_cover : filter_nearest, repeat_disable; // r: moisture, g: flowers, b: forest cover (litter), a: small plants
@@ -128,6 +129,9 @@ void vertex() {
 	} else if (roll < f2.b * 0.85) {
 		kind = 2.0;
 	}
+	// The graphics settings thin the tufts out by a hash of their own (the cell's other draws stay as they were).
+	float keep = float(hash_u(s ^ 0xA511E9B3u) & 0xFFFFu) / 65535.0;
+	kind = keep <= density_scale ? kind : -1.0;
 	float size = inside * step(0.0, kind) * (1.0 - smoothstep(shrink_start, far_radius, dist));
 	v_kind = kind;
 	v_cover = f2.b;

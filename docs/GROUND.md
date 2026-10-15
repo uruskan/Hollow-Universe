@@ -269,6 +269,18 @@ Godot.
     (`ScatterNaturalObjects.TryGetCached`); the game runs with .NET's sustained low-latency collector. A lost
     connection returns to the menu.
   - **Loading** (§4.3.1): one loading pipeline and one loading screen; play starts when every part is ready.
+  - **Crash reports** (`game/scripts/App/CrashReporter.cs` over `src/Hollow.Server/Diagnostics/CrashLog.cs`, which
+    is engine-free and serves the dedicated server too). The game installs them first thing in `Main`: a Godot
+    `Logger` keeps the last 200 lines of the log; .NET's unhandled exceptions and unobserved task exceptions, and the
+    first three script exceptions Godot catches (the game goes on), each write `user://crashes/crash-<UTC>-game.txt`
+    with the exception, the log, the build and commit (the assembly's informational version, or the commit read from
+    `.git`, worktrees too), the command line and what was running (the view, hosting or connected). A marker per
+    process (`game-running-<pid>.txt`) is written at start and cleared by `Main._ExitTree` on a clean exit; a marker
+    whose process is gone at the next start becomes a report: that run died without an exception (a native crash, or
+    a freeze that was killed; the engine's own log in `user://logs` has its last lines). The main menu shows the newest
+    report it has not shown yet, small under its column, with OPEN FOLDER and DISMISS. The dedicated server does the
+    same with its console output, in `crashes/` beside its save (a hosted game's save is in `user://`, so its reports
+    land with the game's) or `--crash-dir <path>`, and prints its build at start.
 
 ### 4.3.1 Loading: one pipeline, one screen
 
@@ -4273,6 +4285,59 @@ hitboxes and the ring, a mesh per tile, a mesh per nav window and per areas list
 every section and both players, a description of a player with his name among its members, and the log; a player who
 isn't an admin asks the same and gets nothing. The profile's window and the log event cost nothing measurable; the panel
 costs the server nothing while nobody watches.
+
+### 8.6 Settings
+
+SETTINGS in the main menu and in the Esc menu opens a panel over the menu, in the ground interface's style
+(`GroundUi.Settings.cs`). Its tabs: **GRAPHICS** and **INTERFACE**. Every row shows its value and one line saying what
+it does; the rows are data (`game/scripts/Settings/SettingRows.cs`: a switch, a choice or a slider, read and written as
+a number), the panel one loop over them. Changes show at once; **APPLY** saves them, **REVERT** goes back to what is
+saved, **DEFAULTS** to this computer's preset; Esc or BACK closes and drops what was not applied. Keys: Up and Down
+choose a row, Left and Right change it, Enter flips or steps it, Tab the other tab; a slider's track drags.
+
+- **The model** (`game/scripts/Settings/GraphicsSettings.cs`): `GraphicsValues`, the values shown (`Current`) and saved
+  (`Saved`: `user://graphics.cfg`; the field of view stays in `ground-settings.cfg` beside the F1 console's `fov`, which
+  changes the same value; the interface scale stays in `settings.cfg` beside Ctrl + plus and minus). One function per
+  thing the settings reach: `ApplyGlobal` (the window's viewport: MSAA, FXAA, SMAA, TAA, FSR 2, render scale with FSR 1
+  below 100 %, FSR's sharpness, debanding, anisotropic filtering, the automatic mesh LOD's threshold; the rendering
+  server: the directional shadow atlas and the soft-shadow filter, SSAO, SSIL and SDFGI quality, SSR and GI at half
+  size, the fog's froxel volume; vsync and the frame cap), `ApplyTo(Environment)` (glow and bloom strength, SSAO, SSIL,
+  SDFGI, SSR, volumetric fog) and `ApplyTo(DirectionalLight3D)` (the sun's shadows, reach and cascades).
+  `GraphicsNode` (added by `Main`) applies the global part whenever they change and draws the sharpening pass: AMD's
+  contrast-adaptive sharpening on a canvas layer under every interface, so text is never sharpened (when FSR draws,
+  its own sharpening does it). The surface view applies its environment and sun, and builds a new grass field when the
+  grass's distance or density changes. The drawers read their factors from `Current`: the terrain's split distance,
+  the trees' and plants' detail bands, the grass's reach and the share of tufts kept (`density_scale`, a hash of each
+  tuft's own), the models' LOD ranges (models made after the change).
+- **Presets:** Low, Medium, High, Ultra and Maximum; any single change makes it Custom (and a change that lands on a
+  preset's values shows that preset). High is the game as it looked before the settings. Vsync, the frame cap, the
+  field of view and the interface scale are the player's own; no preset touches them. With nothing saved, the
+  computer's preset is Maximum on a discrete graphics card, Medium on an integrated one, else High.
+  `--quality low|medium|high|ultra|maximum` shows a preset for one run without saving it (screenshots).
+
+| | Low | Medium | High | Ultra | Maximum |
+|---|---|---|---|---|---|
+| Anti-aliasing | FXAA | FXAA | MSAA 2× | MSAA 4× | MSAA 4× |
+| Render scale | 75 % (FSR) | 100 % | 100 % | 100 % | 100 % |
+| Sharpening | 40 % | 25 % | 25 % | 30 % | 35 % |
+| SSAO, SSIL, SDFGI | –, –, – | on, –, – | on, –, – | on, on, – | on, on, on |
+| Reflections, fog | –, – | –, – | –, – | on, on | on, on |
+| Effect quality | low | medium | medium | high | high |
+| Shadows | low (2048, soft very low), 600 m | medium (4096, soft low), 1,000 m | medium, 1,600 m | high (soft medium), 1,600 m | ultra (soft high, tight cascades), 2,000 m |
+| Terrain, plants, grass reach, models | 75, 75, 70, 75 % | 90, 90, 85, 90 % | 100 % | 115, 115, 120, 125 % | 135, 130, 140, 150 % |
+| Grass density | 60 % | 80 % | 100 % | 100 % | 100 % |
+| Texture filtering | 2× | 4× | 4× | 8× | 16× |
+
+- **On the ball world:** SDFGI's cascades follow the camera along the world's axes, which are nowhere the local up but
+  at the poles, so its vertical scale stays 100 % (the flat-world 50 % would halve its detail sideways where the
+  ground is not level in the world's frame); a 0.2 m first cell and 4–7 cascades by effect quality reach 205–1,640 m
+  (6 at high: 820 m), past what the ground of a 2.41 km world hides, and the sky lights the rest. The volumetric fog is
+  the air near the ground: 0.0008 per metre times the air's haze against Earth's (its Mie extinction), coloured by its
+  scattering and scattering forward by its Mie asymmetry, 160–256 m long, never affecting the sky, which draws its own
+  air. Exposure stays the sky's, set every frame, with GI on or off. The ultra shadows keep the first cascade's edge
+  about 80 m out however far the shadows reach.
+- **Not yet:** the maps' and sandboxes' own environments take only the global part (anti-aliasing, scale, filtering,
+  the shadow atlas); there is no motion blur in the game, so there is no switch for it.
 
 ---
 
