@@ -5,6 +5,39 @@ Written 13 October 2026, morning, when the first session filled its context; the
 Memory files `ground-game-plan`, `earlier-rust-attempts-and-assets`, `grass-is-a-shader-system` and
 `minimal-automated-testing` hold the owner's standing decisions.
 
+## 15 October 2026, afternoon: S3c, S3d and S4 on `main`
+
+The owner said "finish S3c, S3d and S4 right now". Three packages were built in worktrees under `Hollow-wt\` (`s3c`,
+`s3d`, `s4`) and merged into `main` the same day (8d62fe5, dc233cc, dad661c, 73c273a), beside the Iron Wake session's
+IW4 and IW2. Near the end of the week's usage the owner asked for fewer tests: the build is green on every merge and the
+engine-free suite passes on the final `main` with IW2 (268 of 268, 73c273a), but most Godot checks were skipped (list below), to run once the limits
+reset, after the owner's own playtest.
+- **S3c** (WHOLE_WORLD.md §14, "S3c as built"): the hosted game draws the whole world as a ball from any `ISurface`
+  (terrain, sea, the planet's sky and the ball's horizon, plants from the zone's natural objects, grass on the cube
+  faces, things falling toward the centre, a 15 km far plane). `ISurface` has a drawing contract with defaults
+  (`HeightBounds`, `Sample`, `Cover`).
+- **S3d** (WHOLE_WORLD.md §14, "S3d as built"): one map for G and the death screen, a globe that becomes a flat chart,
+  the grid "C K12" shared with `whereami` and `teleport <cell>`. Finding 1 is done.
+- **S4** ([WALKING_GROUND.md](WALKING_GROUND.md)): the design (16 decisions waiting for the owner), the generator
+  `WalkingWorld` and its look-dev renders; **S4c**: the game draws it with 16 ground layers built at 4K from the owned
+  scans, lakes and streams as water. It is **off by default**: `play-ground.cmd --ground walking`. Protocol 24 (IW2 may
+  have taken the next).
+- **The owner's word on assets (15 October):** everything in `D:\GameDev\Assets` is paid for and fully licensed; use it
+  at full quality, no licence checks (files extracted from other games stay out, as ever).
+- **Left, in order:** the owner's playtest and their verdict on WALKING_GROUND.md's decisions; S4b (the generator's
+  speed: 1.75 µs a height and 10.5 ms a physics tile against 1 µs and 5 ms; the scatter cache; the server's 10 s start;
+  the 100-bot load tests on it); S4d (the scanned cliff and rock meshes along cliffs, sea cliffs and canyons); S4e (going
+  live: the default ground, the landing site, a save wipe, arrivals off lakes and plants, the nav grid's water); S5
+  (clouds from above, the thin air from space, clouds drawing over the near ground on the small world).
+- **Seen in S4c's shots, to fix:** grass tufts on snow fields and frozen lakes, white dashes along flat beaches' waterline,
+  bare grey mountain faces until S4d, a player arriving inside a fern.
+- **Skipped checks, for the review after the limits reset:** Godot's `--physics-check` against `MovementCheck`; a
+  measured frame time with a crowd; the ground tour; the ship (Tin Finch and Iron Wake) and animal sandboxes and the
+  look-dev view after S3c's changes; the main menu; the stand-in and the real planet drawn with 16 layers; the
+  100-bot load tests on the walking ground; Godot `.uid` files for S3c's new scripts (`PlanetGlobals.cs`,
+  `PlantSource.cs`, `NaturePlants.cs`, `surface_planet.gdshaderinc`); a native Jolt crash seen once during a test run
+  beside three Godot games (KNOWN_PROBLEMS.md).
+
 ## 14 October 2026, late night: the Iron Wake designed
 
 The owner gave the game its benchmark ship, the Iron Wake (`D:\GameDev\Assets\IronWake_Buildable_R01`): a 58 m carrier

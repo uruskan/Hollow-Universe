@@ -16,11 +16,11 @@ owner's request, the `ground` branch was merged into `main` so the game lives in
   into `main` on 15 October 2026 at the owner's word**, before S3c, so that the game has the Iron Wake: the zone is the
   whole first world, 2.41 km in radius in its own frame (origin at the centre), standing on the plain stand-in world
   until S4; views on the wire, tiles on the cube sphere, places, ships and the console on the ball; every load test
-  runs on it with 100 bots (`docs/GROUND.md` §5.12). S3c and S3d (the client drawing the ball properly, the globe map)
-  remain: until then the game plays under a plain sky on simple ground, and the map is not the whole world yet;
+  runs on it with 100 bots (`docs/GROUND.md` §5.12). S3c (the client draws the ball: terrain, sea, the planet's sky,
+  plants and grass) and S3d (one map, a globe that becomes a flat chart, the grid "C K12") were merged on 15 October 2026;
 - the walking-scale ground (S4, `docs/WALKING_GROUND.md`): designed with look-dev renders (`WalkingWorld`, S4a, on
   `main`), and the game drawing it with sixteen 4K ground layers from the owned scans and its lakes' and streams' water
-  (S4c, on the branch `s4`), behind `--ground walking` (off by default), for the owner's review;
+  (S4c, on `main` since 15 October 2026), behind `--ground walking` (off by default), for the owner's review;
 - the Iron Wake (`docs/IRON_WAKE.md`): its art, sounds and effects, and walking aboard and flying it with people on
   its decks (IW1). In a hosted game the host gets one with `ship iron-wake` (F1). Its cannons, loading, fire and
   building aboard (IW2 to IW6) come next.
