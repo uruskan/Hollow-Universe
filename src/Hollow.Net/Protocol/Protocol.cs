@@ -29,9 +29,10 @@ public static partial class Protocol
     /// thing's capabilities; 20: the F2 developer panel; 21: S3, the whole world in one zone (views and turns that don't break
     /// at a pole); 22: IW1, ship spaces (a frame with every view and character state, IRON_WAKE.md §12); 23: IW4,
     /// fires (<see cref="FireStarted"/>, <see cref="FireEnded"/>, the Fire target family, a thing destroyed by fire) and
-    /// rockets that drop by their own gravity (IRON_WAKE.md §7).
+    /// rockets that drop by their own gravity (IRON_WAKE.md §7); 24: S4, the zone's ground
+    /// (<see cref="ZoneInfo.Ground"/>: the stand-in or the walking-scale ground, docs/WALKING_GROUND.md).
     /// </summary>
-    public const uint Version = 23;
+    public const uint Version = 24;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

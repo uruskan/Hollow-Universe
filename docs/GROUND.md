@@ -457,6 +457,9 @@ ship's turn is a smallest-three quaternion (`ShipNetState`, §6.7). `BagNet` and
 neighbours are indexed by 3D cubes, and natural objects are queried by sphere
 (`INaturalObjects.Query(centre, radius, into)`).
 
+**S4 (protocol 24, 15 October 2026; WALKING_GROUND.md §12):** `ZoneInfo.Ground` says which ground the zone stands on
+(0 the stand-in, 1 the walking-scale ground); a kind a client doesn't know stands on the stand-in.
+
 **IW1 (protocol 22, 15 October 2026; IRON_WAKE.md §4.11, §4.13):** a frame travels with every view and character state:
 `InputCommand.Frame` (the frame the view is in, as the client believed it), `OwnState.Frame`, `CharacterNetState.Frame`
 (aboard, the position and view are the ship frame's), `FireIntent.Frame`, `ThrowIntent.Frame`, each a ship's net ID or 0
@@ -601,6 +604,13 @@ ground game draws the zone's whole world with it, in the body's own frame (`Rend
   coordinates, a power of two cells a side about a metre apart, widened by whole cells for the 2 m margin, each point
   lifted to the ground along its direction; neighbouring tiles of a face share their grid points bit for bit.
   `PlanetSurface`'s collision of a square of a tangent plane is `PatchCollision` now, for the look-dev tools and tests.
+
+**The walking-scale ground** (S4, [WALKING_GROUND.md](WALKING_GROUND.md); built on the branch `s4`, off by default):
+`WalkingWorld`, the first world's ground made for its 2.41 km: landmasses from the real sea cover, relief provinces
+(plains, hills, tablelands with escarpments, ridged mountains), sandy and rocky coasts, streams from source to the sea or
+a lake, lakes, canyons and gorges cut by water, climate at real-equivalent heights, woods in stands and clearings, and the
+scatter at the level by size. `ZoneSpec.Ground` picks it (`--ground walking` on the server, the game's host and the bots),
+`ZoneInfo.Ground` tells clients (protocol 24), and `ISurface.WaterLevelAt` makes its lakes and streams water.
 
 **The real surface:**
 - **A pure function** of (universe seed, system, body, planet state, `GeneratorVersion.Surface`), built with `DMath`,

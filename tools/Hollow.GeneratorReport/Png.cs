@@ -6,7 +6,7 @@ using System.Text;
 
 namespace Hollow.GeneratorReport;
 
-/// <summary>A minimal PNG writer (8-bit RGB, no filtering): enough for the generator's maps.</summary>
+/// <summary>A minimal PNG writer (8-bit RGB, Paeth-filtered rows): enough for the generator's maps.</summary>
 public static class Png
 {
     private static readonly uint[] CrcTable = BuildCrcTable();
@@ -26,10 +26,24 @@ public static class Png
         using var raw = new MemoryStream();
         using (var zlib = new ZLibStream(raw, CompressionLevel.SmallestSize, leaveOpen: true))
         {
+            // Every row with the Paeth filter (type 4): each byte as the difference from its predicted value, which
+            // smooth maps compress far better than raw bytes.
+            int stride = width * 3;
+            var row = new byte[stride];
             for (int y = 0; y < height; y++)
             {
-                zlib.WriteByte(0); // filter: none
-                zlib.Write(rgb, y * width * 3, width * 3);
+                int start = y * stride;
+                for (int x = 0; x < stride; x++)
+                {
+                    int a = x >= 3 ? rgb[start + x - 3] : 0;
+                    int b = y > 0 ? rgb[start - stride + x] : 0;
+                    int c = x >= 3 && y > 0 ? rgb[start - stride + x - 3] : 0;
+                    int p = a + b - c, pa = Math.Abs(p - a), pb = Math.Abs(p - b), pc = Math.Abs(p - c);
+                    int predicted = pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+                    row[x] = (byte)(rgb[start + x] - predicted);
+                }
+                zlib.WriteByte(4);
+                zlib.Write(row, 0, stride);
             }
         }
         Chunk(file, "IDAT", raw.ToArray());

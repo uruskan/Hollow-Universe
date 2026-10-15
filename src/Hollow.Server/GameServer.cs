@@ -87,10 +87,12 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     {
         _options = options;
         galaxy ??= new Galaxy.Galaxy(options.CataloguePath != null ? Galaxy.StarCatalogue.Load(options.CataloguePath) : null);
-        Spec = (ZoneSpec.FirstWorld(galaxy, options.Latitude, options.Longitude)
+        (double latitude, double longitude) = ZoneSpec.LandingFor(options.Ground, galaxy, options.Latitude, options.Longitude);
+        Spec = (ZoneSpec.FirstWorld(galaxy, latitude, longitude)
             ?? throw new InvalidOperationException("The generator no longer makes the first world (GROUND.md §3).")) with
             {
                 StandIn = options.StandIn,
+                Ground = options.Ground,
                 RotationTimeScale = options.RotationTimeScale,
             };
         Content = options.Content ?? GameContent.LoadDefault();

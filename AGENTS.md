@@ -18,6 +18,8 @@ owner's request, the `ground` branch was merged into `main` so the game lives in
   until S4; views on the wire, tiles on the cube sphere, places, ships and the console on the ball; every load test
   runs on it with 100 bots (`docs/GROUND.md` §5.12). S3c and S3d (the client drawing the ball properly, the globe map)
   remain: until then the game plays under a plain sky on simple ground, and the map is not the whole world yet;
+- the walking-scale ground (S4, `docs/WALKING_GROUND.md`): designed with look-dev renders and built on the branch `s4`
+  (`WalkingWorld`), the game able to stand on it behind `--ground walking` (off by default), for the owner's review;
 - the Iron Wake (`docs/IRON_WAKE.md`): its art, sounds and effects, and walking aboard and flying it with people on
   its decks (IW1). In a hosted game the host gets one with `ship iron-wake` (F1). Its cannons, loading, fire and
   building aboard (IW2 to IW6) come next.
@@ -91,7 +93,8 @@ dotnet run --project tools/Hollow.NetGen      # after changing src/Hollow.Net/Pr
 dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server: the first world, whole (2.41 km; on the
                                                  # whole-world branch, the stand-in world until S4); players arrive on
                                                  # beaches anywhere (--spawn origin: at the landing site, --lat, --lon)
-                                                 # (--no-db, --db <path>, --day-scale <x>; type help). F1 console admins:
+                                                 # (--no-db, --db <path>, --day-scale <x>, --ground walking: S4's ground,
+                                                 # off by default; type help). F1 console admins:
                                                  # --admin <name> (repeatable), admins.txt (or --admins <file>),
                                                  # --dev (everyone is an admin); GROUND.md §8.2
 dotnet run --project tests/Hollow.Tests -- Console    # the F1 console: parsing, completion, rights, commands over the network, god and noclip
@@ -119,6 +122,11 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs pe
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what generated systems contain
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- worlds  # one example of each notable kind of world
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- maps    # galaxy-wide maps per level (~4 min)
+dotnet run --project tests/Hollow.Tests -- Walking     # S4: the walking-scale ground: determinism, sea cover, streams to the sea
+                                                 # or a lake, no seams, scatter at the level by size, speed
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- walking stats|relief|biomes|rivers|provinces|globe|zoom|slopes|spots|closeups|compare|all
+                                                 # the walking-scale ground's look-dev (docs/WALKING_GROUND.md §15; `all` writes
+                                                 # docs/images/scale/s4; HOLLOW_WALKING="Name=value;..." changes its table for a run)
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|relief|zoom|stats|bench|site|spot|times
                                                  # the first world's surface: maps, speed, landing site, look-dev
                                                  # spots (forest|meadow|beach|mountain), sun and moon by the hour
@@ -389,6 +397,7 @@ Client options (after `--`):
 |---|---|
 | `src/Hollow.Core` | Vectors in double precision, `DMath`, `Hash64`, `Rng`, units |
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
+| `src/Hollow.Surface/Walking` | The walking-scale ground of S4 (docs/WALKING_GROUND.md): `WalkingWorld` (an `ISurface` and `IScatterField`), relief provinces, the drainage (streams, lakes, canyons), its table of numbers (`WalkingParameters`), `WalkingWorlds` (one per body in a process) |
 | `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame` (`World`: the world's own frame, origin at the centre), `PlanetSurface` (plates, climate, biomes), cube-sphere tiles (`TileKey.LevelFor`: levels by size), tile collision (`SurfaceGrid`), scatter, `SkyEphemeris`, the stand-in world every zone stands on until S4 (`StandInWorld`: continents, a sea, latitude bands, over the hills of `SphereSurface`), `FirstWorld` |
 | `src/Hollow.Simulation` | Rules and simulation of the ground game; the zone is a host of `ZoneSystem`s (`Systems/`, listed in `GroundSystems`; GROUND_SYSTEMS.md §12), with its typed events (`Events/`) and one reader per data file (`Content/Readers`): entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation; building in `Building/` (structures, sockets, placement, stability, hammer, doors and locks, the claim device, upkeep and decay; GROUND.md §6.3); G4 (§6.3): firearms (`Combat/Firearms.cs`: recoil, spread, cadence, reload, ballistics), bullets and damage (`GunSystem`), the wounded state (`WoundedSystem`); the damage pipeline (§6.4.2: `Combat/Damage.cs`, `DamageSystem`: one request, one entry point, a receiver per kind of thing in each domain's file, the Destroyed event); G5 (§6.6): explosives, blasts with line of sight, rockets and explosive rounds, raid hits (`ExplosiveSystem`, `BlastSystem`, `Raid/`); G6 (§6.7): ships in `Ships/` (`ShipDef`, `ShipState`, `ShipMotor`, `ShipCollider`) and `ShipSystem`; G7 (§6.8): world props and where they stand (`WorldSystem`, `Nature/LootSpots.cs`, `World/WorldObjects.cs`), the recycler, research and tech trees (`Economy/`, `Items/Blueprints.cs`, `Content/World.cs`), teams (`Teams/`), map markers |
 | `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay; `Commands/`: the F1 console's command catalogue, parsing and Tab completion (§8.2) |

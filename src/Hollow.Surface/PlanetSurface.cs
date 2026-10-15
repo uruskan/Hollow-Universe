@@ -75,7 +75,7 @@ public readonly struct VegetationSample
 /// <see cref="PlanetState.IceCover"/>; moisture from latitude bands, distance inland and noise. A biome table turns
 /// climate into ground materials and plant densities.</para>
 /// </remarks>
-public sealed class PlanetSurface : ISurface
+public sealed class PlanetSurface : ISurface, IScatterField
 {
     /// <summary>Quadtree level of the tiles collision is built from: the finest tiles the client draws.</summary>
     public const int CollisionLevel = 18;
@@ -251,58 +251,12 @@ public sealed class PlanetSurface : ISurface
         return 0.7 * noise + 0.42 * bias * (0.4 + 0.6 * _tectonics);
     }
 
-    /// <summary>
-    /// Eroded ridged noise ("swiss turbulence"): each octave is displaced along the slopes summed so far and damped
-    /// where the sum is low, so ridges are sharp, valleys smooth and side valleys branch like drainage. About 0–1.
-    /// </summary>
-    private double Swiss(Vector3D p, double wavelength, int octaves, double gain, double warp, ulong seed)
-    {
-        double f0 = Radius / wavelength;
-        double bx = p.X * f0, by = p.Y * f0, bz = p.Z * f0;
-        double sum = 0, amplitude = 1, frequency = 1, norm = 0;
-        double sx = 0, sy = 0, sz = 0;
-        for (int i = 0; i < octaves; i++)
-        {
-            ulong s = seed + (ulong)i * 0x632BE59BD9B4E019UL;
-            double o = Noise.Offset(s);
-            double n = Noise.Sample((bx + warp * sx) * frequency + o, (by + warp * sy) * frequency - o,
-                (bz + warp * sz) * frequency + 0.5 * o, s, out double dx, out double dy, out double dz);
-            double r = 1 - Math.Abs(n);
-            sum += amplitude * r * r;
-            norm += amplitude;
-            sx -= amplitude * dx * n;
-            sy -= amplitude * dy * n;
-            sz -= amplitude * dz * n;
-            frequency *= Noise.Lacunarity;
-            amplitude *= gain * Math.Clamp(sum / norm * 1.6, 0, 1);
-        }
-        // (1 − |n|)² sits around 0.6 on average; map so typical valleys are near 0 and crests near 1.
-        return (sum / norm - 0.3) / 0.62;
-    }
+    // Eroded ridged noise and eroded-slope noise on this surface's sphere (Noise.Swiss and Noise.Eroded).
+    private double Swiss(Vector3D p, double wavelength, int octaves, double gain, double warp, ulong seed) =>
+        Noise.Swiss(p, Radius, wavelength, octaves, gain, warp, seed);
 
-    /// <summary>
-    /// Noise with eroded slopes: each octave is damped where the slopes summed so far are steep, so slopes stay
-    /// smooth and detail gathers on flats and crests. About −1 to 1.
-    /// </summary>
-    private double Eroded(Vector3D p, double wavelength, int octaves, double gain, ulong seed)
-    {
-        double f = Radius / wavelength;
-        double sum = 0, amplitude = 1, norm = 0, gx = 0, gy = 0, gz = 0;
-        for (int i = 0; i < octaves; i++)
-        {
-            ulong s = seed + (ulong)i * 0x632BE59BD9B4E019UL;
-            double o = Noise.Offset(s);
-            double n = Noise.Sample(p.X * f + o, p.Y * f - o, p.Z * f + 0.5 * o, s, out double dx, out double dy, out double dz);
-            gx += amplitude * dx;
-            gy += amplitude * dy;
-            gz += amplitude * dz;
-            sum += amplitude * n / (1 + 0.6 * (gx * gx + gy * gy + gz * gz));
-            norm += amplitude;
-            amplitude *= gain;
-            f *= Noise.Lacunarity;
-        }
-        return sum / norm * 1.6;
-    }
+    private double Eroded(Vector3D p, double wavelength, int octaves, double gain, ulong seed) =>
+        Noise.Eroded(p, Radius, wavelength, octaves, gain, seed);
 
     // ---------------------------------------------------------------- climate
 
@@ -330,7 +284,7 @@ public sealed class PlanetSurface : ISurface
     }
 
     // Wet at the equator, dry in the subtropics, wet again in the mid-latitudes, dry and cold at the poles.
-    private static double MoistureBand(double absLatitude)
+    internal static double MoistureBand(double absLatitude)
     {
         ReadOnlySpan<double> lat = stackalloc double[] { 0, 12, 26, 38, 52, 68, 90 };
         ReadOnlySpan<double> m = stackalloc double[] { 0.86, 0.66, 0.26, 0.56, 0.74, 0.56, 0.4 };
@@ -458,6 +412,24 @@ public sealed class PlanetSurface : ISurface
         TileMesh.Collision(this, frame, centreX, centreZ, size, CollisionLevel, TileCells);
 
     public IReadOnlyList<ScatterItem> ScatterFor(TileKey tile) => Scatter.ForTile(this, tile);
+
+    // ---------------------------------------------------------------- scatter
+
+    ulong IScatterField.ScatterSeed => _seed;
+
+    ScatterPlan IScatterField.ScatterPlan => ScatterPlan.Planet;
+
+    /// <summary>What the scatter places at a point: the climate's biomes, their plants thinned by clearings and slope, outcrops.</summary>
+    public ScatterDensity Densities(Vector3D direction, in SurfaceSample sample, double slope)
+    {
+        ClimateSample climate = Climate(direction, sample);
+        Span<double> biomes = stackalloc double[BiomeTable.Count];
+        BiomeWeights(direction, sample, climate, biomes);
+        VegetationSample v = Vegetation(direction, sample, climate, biomes, slope);
+        Span<double> kinds = stackalloc double[4];
+        BiomeTable.TreeKinds(biomes, kinds);
+        return new ScatterDensity(v, kinds, Scatter.Outcrops(sample, biomes, slope), sample.Mountain);
+    }
 
     // ---------------------------------------------------------------- helpers
 

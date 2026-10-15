@@ -19,7 +19,7 @@ public static class Program
         if (o.ContainsKey("help"))
         {
             Console.WriteLine("Hollow.Server options: --port <n> --name <text> --db <path> | --no-db --lat <deg> --lon <deg> " +
-                "--catalogue <path> --max-players <n> --relevance <m> --kit <loot table> --raid-bases <n> --raid-radius <m> --day-scale <x> --spawn beach|origin --stand-in --parent <pid> " +
+                "--catalogue <path> --max-players <n> --relevance <m> --kit <loot table> --raid-bases <n> --raid-radius <m> --day-scale <x> --spawn beach|origin --stand-in --ground stand-in|walking --parent <pid> " +
                 "--no-animals --animals <n> --animal-radius <m> --admin <name> (as often as wanted) --admins <file> (admins.txt) " +
                 "--dev (everyone is an admin)\nCommands:\n" +
                 GameServer.CommandHelp);
@@ -35,6 +35,7 @@ public static class Program
             RotationTimeScale = Math.Clamp(Number(o, "day-scale", Simulation.ZoneSpec.DefaultRotationTimeScale), 0.01, 10000),
             SpawnAtOrigin = o.GetValueOrDefault("spawn", "beach") == "origin",
             StandIn = o.ContainsKey("stand-in"),
+            Ground = o.GetValueOrDefault("ground", "stand-in") == "walking" ? Simulation.GroundKind.Walking : Simulation.GroundKind.StandIn,
             CataloguePath = o.GetValueOrDefault("catalogue"),
             MaxPlayers = (int)Number(o, "max-players", 128),
             RelevanceRadius = (float)Number(o, "relevance", 300),

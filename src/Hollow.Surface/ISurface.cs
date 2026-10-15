@@ -39,6 +39,13 @@ public interface ISurface
     PooledTriangles GroundCollisionPooled(in ZoneFrame frame, TileKey tile, double margin) =>
         PooledTriangles.Of(GroundCollision(frame, tile, margin));
 
+    /// <summary>
+    /// The height above <see cref="Radius"/> of the water's surface over a unit direction, or −∞ where none lies: a point
+    /// below it is in water. By default the sea's level wherever the body has a sea (the sea covers everything below
+    /// it); the walking-scale ground adds its lakes and streams (docs/WALKING_GROUND.md §4).
+    /// </summary>
+    double WaterLevelAt(Vector3D direction) => SeaRadius > 0 ? SeaRadius - Radius : double.NegativeInfinity;
+
     /// <summary>The biome at a unit direction (stand-in surfaces: grassland).</summary>
     Biome BiomeAt(Vector3D direction) => Biome.Grassland;
 
