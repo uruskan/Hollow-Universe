@@ -155,7 +155,8 @@ public partial class GroundMode : Node
     private void Start(string name, string? host, int port)
     {
         LoadingPipeline loading = BeginLoading();
-        string database = Options.TryGetValue("db", out string? dbOption) && dbOption != "true" ? dbOption : ProjectSettings.GlobalizePath("user://hollow-host.db");
+        // The save: --db, else this branch's own (Checkout.HostedSave: a branch's newer schema never meets an older build).
+        string database = Options.TryGetValue("db", out string? dbOption) && dbOption != "true" ? dbOption : ProjectSettings.GlobalizePath(Checkout.HostedSave);
         bool connectNow = true;
         if (host == null && !Options.ContainsKey("in-process"))
         {
@@ -302,7 +303,9 @@ public partial class GroundMode : Node
                 else
                 {
                     _view?.Interface.ShowMenu(inGame: false);
-                    _view?.Interface.SetMenuStatus("The server stopped while starting (see the log).");
+                    _view?.Interface.SetMenuStatus(_child.Error is { } why
+                        ? $"The server stopped while starting: {why}"
+                        : "The server stopped while starting (see the log).");
                 }
                 _child.Dispose();
                 _child = null;

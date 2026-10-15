@@ -19,6 +19,7 @@ public sealed class ChildServer : IDisposable
     private readonly ConcurrentQueue<string> _lines = new();
     private volatile bool _ready;
     private volatile bool _portTaken;
+    private volatile string? _error;
 
     private ChildServer(Process process, int port)
     {
@@ -36,6 +37,9 @@ public sealed class ChildServer : IDisposable
 
     /// <summary>It couldn't listen: another game hosts on the port here.</summary>
     public bool PortTaken => _portTaken;
+
+    /// <summary>Why it stopped, when it said so (its last "error: " line), for the menu; null otherwise.</summary>
+    public string? Error => _error;
 
     /// <summary>
     /// The server's program in the repository (<paramref name="repository"/>: the folder above game/): the Release
@@ -115,6 +119,10 @@ public sealed class ChildServer : IDisposable
         if (line.StartsWith("Ready.", StringComparison.Ordinal))
         {
             _ready = true;
+        }
+        if (line.StartsWith("error: ", StringComparison.Ordinal))
+        {
+            _error = line[7..];
         }
         // The socket refused: "Only one usage of each socket address" (Windows, 10048), "Address already in use".
         if (line.Contains("10048", StringComparison.Ordinal) || line.Contains("already in use", StringComparison.OrdinalIgnoreCase) ||

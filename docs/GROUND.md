@@ -206,7 +206,10 @@ Godot.
     its Release and Debug builds) as a process of its own on localhost (`ChildServer`): the game connects once it says
     "Ready.", its log lines show in the game's as "[server]", admin commands go to its console, and it saves and stops
     with the game (`quit`, or by itself through `--parent <pid>` if the game goes away). `--in-process` keeps the
-    server on a thread of the game (tests, statistics read from the server directly).
+    server on a thread of the game (tests, statistics read from the server directly). The save is the branch's own
+    (`Checkout.HostedSave`): `user://hollow-host.db` on `main`, `user://hollow-host-<branch>.db` on another, since a
+    branch's server may write a newer schema than an older build reads. A server given a save it can't read (a newer
+    schema) says so in one line ("error: ...") and stops with exit code 2; the menu shows that line.
   - **The world** is the planet package's `SurfaceView` driven by the game (`SurfaceView.Driven`, `OpenZone`): its
     terrain, sea, sky, clouds, plants and grass, with the render frame on the zone's own frame (the same origin and
     axes, and no floating-origin moves: the zone keeps within 8.2 km of its origin, where floats are good to half a

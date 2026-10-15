@@ -108,6 +108,12 @@ These are written in GROUND.md as decisions of the form "left for later" and wer
 | Near tree impostors most likely disappear more than about 400 m from the landing site whenever the landing site is out of view (not yet seen in a run). | In play the near set is anchored at the frame's origin (`Vegetation.Game.RebuildNear`), and the near impostors' `CustomAabb` is a fixed ±400 m around that anchor, so Godot culls them by the wrong box. | open, small (on `main`) |
 | The map of a surface without a sea is most likely black (not run). | `ZoneMapImage` takes sea level as −∞ when `SeaRadius` is 0, so heights become infinite and the hill shading NaN; only the `--stand-in` world has no sea. | in S3 (WHOLE_WORLD.md §4, §12) |
 
+### Found in play (15 October 2026)
+
+| What the owner saw | Cause | Status |
+|---|---|---|
+| Hosting on `main` crashed while starting the world: Windows' error box for `Hollow.Server.exe` (exception 0xe0434352). | Both checkouts host with the same save (`user://hollow-host.db`). A `whole-world` build had upgraded it to schema 8; `main`'s server knows schema 6, threw, and nothing caught it. Leaving the world then threw again in `TerrainLod._ExitTree` (`SemaphoreSlim.Release(0)` when no worker had started). | done: each branch hosts with its own save, a server says why it refuses a newer save and stops cleanly (the menu shows it), the terrain's exit releases only started workers (GROUND.md §4.3); the upgraded save was moved to `hollow-host-whole-world.db` |
+
 ## 3. Deferred structure and decisions waiting on the owner
 
 | What | Why it waits | Status |

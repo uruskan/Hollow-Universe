@@ -3,7 +3,7 @@
 Generated from the repository: every C# file, the types it declares (nested ones in brackets), its length and its
 own first line of explanation. HOW_IT_WORKS.md says how these run together; this is the map. Regenerate it after
 a package with the script in the session that made it, or by hand: the shape is one table per folder.
-575 files, 156,077 lines of C#.
+577 files, 156,845 lines of C#.
 
 
 ## src/Hollow.Core
@@ -432,14 +432,14 @@ The protocol: messages and their generated serializers, bit packing, snapshot de
 
 SQLite storage: the database, one worker thread, one codec per kind of record.
 
-### src/Hollow.Persistence (8 files, 2,278 lines)
+### src/Hollow.Persistence (8 files, 2,289 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `AnimalCodec.cs` | 73 | CorpseSave, AnimalCodec | An animal's corpse as stored: its species (key), where it lies, what is left to harvest, its timer. |
 | `BuildingCodec.cs` | 332 | BuildingRecord, StoredClaim, ClaimRecord, BuildingCodec | A stored piece, door (with its lock) or claim device (with its list and store): kind and versioned bytes. |
 | `ExplosiveCodec.cs` | 147 | ExplosiveCodec | An explosive's stored form (GROUND.md §6.6, G5): a charge stuck or lying in the world with its fuse left survives a |
-| `GameDatabase.cs` | 863 | CharacterRecord, ThingRecord, NaturalRecord, TeamRecord, PropRecord, ZoneRecord, ZoneSave, ShipRecord, GameDatabase | A stored character (GROUND.md §4.7): where it is on its body, in the body frame (metres from the body's centre, |
+| `GameDatabase.cs` | 874 | CharacterRecord, ThingRecord, NaturalRecord, TeamRecord, PropRecord, ZoneRecord, ZoneSave, NewerSaveException, ShipRecord, GameDatabase | A stored character (GROUND.md §4.7): where it is on its body, in the body frame (metres from the body's centre, |
 | `PersistenceWorker.cs` | 138 | PersistenceWorker | Owns the GameDatabase on one background thread and runs every request in the order it was made |
 | `ShipCodec.cs` | 163 | StoredShip, ShipCodec | A ship read back from storage, and who was in its seat (the server seats them again if they are there). |
 | `TeamCodec.cs` | 50 | TeamCodec | A stored team (G7, GROUND.md §6.8): its leader and members, oldest first. Invites aren't stored. |
@@ -449,7 +449,7 @@ SQLite storage: the database, one worker thread, one codec per kind of record.
 
 The dedicated server: the host and its modules, sessions, admin commands, notifications.
 
-### src/Hollow.Server (11 files, 2,787 lines)
+### src/Hollow.Server (11 files, 2,799 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -459,7 +459,7 @@ The dedicated server: the host and its modules, sessions, admin commands, notifi
 | `GameServer.cs` | 1092 | GameServer [NetEntity] | The dedicated server (GROUND.md §4.2): one zone on the first world, ticking at 30 Hz on one thread, with |
 | `NetPresence.cs` | 15 | NetPresence | The server's part of a networked entity: its net ID, view angles (with the head's free look) and owner. |
 | `PlayerSession.cs` | 247 | PlayerSession | One connected player: their connection, character, inputs, budgets and what the host has sent them. What a module |
-| `Program.cs` | 143 | Program | The dedicated server's console program: |
+| `Program.cs` | 155 | Program | The dedicated server's console program: |
 | `ServerModule.cs` | 261 | ServerModule | One concern of the server (GROUND_SYSTEMS.md §12.5, K10): its own state, its message handlers and event |
 | `ServerModules.cs` | 29 | ServerModules | The server's modules and their order (GROUND_SYSTEMS.md §12.5, K10), the one place that lists them. The host calls |
 | `ServerOptions.cs` | 105 | ServerOptions | How a server runs. The console program fills it from its command line; the game fills it for Host mode. |
@@ -584,7 +584,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `Main.cs` | 379 | Main | Entry point. Loads the galaxy and switches between the galaxy map and the system map. |
 | `UiScaler.cs` | 100 | UiScaler | Keeps Ui.Scale matched to the window (see Automatic), times the player's own |
 
-### game/scripts/Audio (7 files, 1,950 lines)
+### game/scripts/Audio (7 files, 1,961 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -594,7 +594,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `FootstepDriver.cs` | 55 | FootstepDriver | One character's footsteps (GROUND.md §4.9). The ground mode gives it the character's movement every frame with |
 | `SoundLibrary.cs` | 131 | SoundLibrary, VariantBag | The sound catalogue in the game (GROUND.md §4.9): res://data/ground/sounds.json read once, its streams |
 | `SoundMeter.cs` | 80 | SoundMeter | Loudness of the game's own sound files, measured in the engine: each stream is decoded through Godot |
-| `SoundViewer.cs` | 777 | SoundViewer | The audition viewer (--view sounds, GROUND.md §4.9): every event of the catalogue in a list (a click plays |
+| `SoundViewer.cs` | 788 | SoundViewer | The audition viewer (--view sounds, GROUND.md §4.9): every event of the catalogue in a list (a click plays |
 
 ### game/scripts/Build (11 files, 2,694 lines)
 
@@ -644,7 +644,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `UiIcons.cs` | 85 | UiIcon, UiIcons |  |
 | `WarmItem.cs` | 31 | WarmItem, WarmSpot | One thing the game can draw, for the renderer's warm-up (GROUND.md §4.3.1): the files it is made of, loaded on Godot's |
 
-### game/scripts/Fx (18 files, 4,675 lines)
+### game/scripts/Fx (20 files, 5,391 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -658,13 +658,15 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `FxLoops.cs` | 108 | FxHandle, FxLoop, FxFlameMeshes | A running loop (a fire, a trail), as FxDirector.Start returns it. |
 | `FxRandom.cs` | 76 | FxRandom | A small, fast random source for effects (xorshift); seeded, so screenshots repeat. |
 | `FxShake.cs` | 61 | FxShakeEvent, FxShake | A camera shake that started somewhere (GROUND.md §9.3): what the camera hook and other listeners get. |
-| `FxStage.cs` | 344 | FxStation, FxStage | A place in the effects viewer where effects play (GROUND.md §9.3): its props, where and which way an effect plays, |
+| `FxStage.Ship.cs` | 421 | FxRocketLaunch, FxStage | How a battery launches its rocket (IRON_WAKE.md §6.4): the speed the gun gives it, how far out its motor lights, the |
+| `FxStage.cs` | 358 | FxStation, FxStage | A place in the effects viewer where effects play (GROUND.md §9.3): its props, where and which way an effect plays, |
 | `FxTracers.cs` | 178 | FxTracers [Tracer] | Tracers and trails (GROUND.md §9.3): bright streaks that fly the projectile's own path, with the same gravity and |
-| `FxViewer.Action.cs` | 360 | FxViewer | The in-action scenes (--action &lt;family&gt;): each family as it would be seen in play, caught at a telling |
+| `FxViewer.Action.cs` | 363 | FxViewer | The in-action scenes (--action &lt;family&gt;): each family as it would be seen in play, caught at a telling |
 | `FxViewer.Gibs.cs` | 301 | FxViewer [GibCell] | Gibs in the effects viewer (GROUND.md §9.4). --gibs lays out every model that breaks (props, deployables, the |
 | `FxViewer.Sheet.cs` | 266 | FxViewer [Cell] | The contact sheet (--sheet &lt;family&gt;): every effect of a family in its own cell, all caught at their |
-| `FxViewer.Stress.cs` | 305 | FxViewer [Shooter] | The firefight measurement (--stress firefight --measure &lt;s&gt;, GROUND.md §9.3): ten players in two teams |
-| `FxViewer.cs` | 479 | FxViewer | The effects viewer (--view fx, GROUND.md §9.3). By default every effect of the catalogue plays in turn on its |
+| `FxViewer.Ship.cs` | 225 | FxViewer | The Iron Wake in the effects viewer (IRON_WAKE.md §11): --action ship, its siege battery firing over its deck |
+| `FxViewer.Stress.cs` | 333 | FxViewer [Shooter] | The firefight measurement (--stress firefight --measure &lt;s&gt;, GROUND.md §9.3): ten players in two teams |
+| `FxViewer.cs` | 504 | FxViewer | The effects viewer (--view fx, GROUND.md §9.3). By default every effect of the catalogue plays in turn on its |
 | `FxWarm.cs` | 46 | FxWarm | The effects' part of the renderer's warm-up (GROUND.md §4.3.1, §9.3): every effect of fx.json played once, |
 
 ### game/scripts/GalaxyMap (5 files, 2,316 lines)
@@ -687,20 +689,20 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GibWarm.cs` | 35 | GibWarm | The gibs' part of the renderer's warm-up (GROUND.md §4.3.1, §9.4): every gib file the catalogue names, read, and a |
 | `GibWorld.cs` | 798 | GibFloor, GibWorld [PieceState, Turn, Piece, BreakFloor, Batch] | Where the floor is under a point: a ray from  along  for |
 
-### game/scripts/Ground (43 files, 13,520 lines)
+### game/scripts/Ground (43 files, 13,510 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `ArrowsView.cs` | 81 | ArrowsView | Spent arrows stuck where they hit (GROUND_SYSTEMS.md §5): every one this client knows, placed each frame where its holder |
 | `BuildPanels.cs` | 232 | Keypad, RectSnapping | The code lock's keypad (GROUND.md §6.5), in the RustMVP interface's manner: a dark dialog in the middle of the |
 | `BuildView.cs` | 363 | BuildView, GodotVectors | Building in the ground game (GROUND.md §6.5, phase 2b): the replicated structures drawn by the building package's |
-| `ChildServer.cs` | 176 | ChildServer | A game hosted on this computer in a process of its own (GROUND.md §4.3): the dedicated server (Hollow.Server, built |
-| `ClientConsole.cs` | 632 | ViewSettings, ClientConsole | The view's settings the console sets (GROUND.md §8.2), kept on this computer: field of view, mouse sensitivity, the frame rate shown. |
+| `ChildServer.cs` | 184 | ChildServer | A game hosted on this computer in a process of its own (GROUND.md §4.3): the dedicated server (Hollow.Server, built |
+| `ClientConsole.cs` | 606 | ViewSettings, ClientConsole | The view's settings the console sets (GROUND.md §8.2), kept on this computer: field of view, mouse sensitivity, the frame rate shown. |
 | `ClientDeveloper.cs` | 327 | ClientDeveloper | The F2 panel's model over the client (GROUND.md §8.5): the server's stats, sections and players as the client's dev |
 | `ClientGroundUi.Interaction.cs` | 229 | ClientGroundUi, InteractionRadial | The interact key in the view model (GROUND_SYSTEMS.md §5, GROUND.md §8.4): every frame the one targeting query says |
 | `ClientGroundUi.World.cs` | 447 | ClientGroundUi | The interface's G7 members over the client (GROUND.md §6.8): the zone's map and what is on it (the player, teammates, |
 | `ClientGroundUi.cs` | 669 | ClientGroundUi | The ground interface's view model over the client (GROUND.md §8.1): GroundUi reads the player's own |
-| `DevDraw.cs` | 470 | DevDraw | The F2 panel's drawings in the world (GROUND.md §8.5), over the client's dev module's toggles: the hitboxes of every |
+| `DevDraw.cs` | 475 | DevDraw | The F2 panel's drawings in the world (GROUND.md §8.5), over the client's dev module's toggles: the hitboxes of every |
 | `FirstPersonView.cs` | 262 | FirstPersonView | The local player in first person (GROUND.md §4.8): the character package's ViewmodelView holding the |
 | `FrameEvents.cs` | 29 | FrameEvents | What happened in this frame that may cost time (for --measure's report of the slowest frames). |
 | `GibsView.cs` | 53 | GibsView | Things breaking apart in the ground game (GROUND.md §9.4): whatever the damage pipeline's Destroyed event names |
@@ -710,7 +712,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GroundCollision.cs` | 75 | GroundCollision | The ground near the player in Godot's own physics (layer 1), for what Godot simulates: ragdolls of the dead and |
 | `GroundMeasure.cs` | 182 | GroundMeasure [Probe] | Measures the ground game's frame time where it is played (GROUND.md §5, --measure &lt;s&gt;): once the world |
 | `GroundMode.Loading.cs` | 126 | GroundMode | The ground game's start (GROUND.md §4.3.1): one loading pipeline per game, in which the parts that make the game |
-| `GroundMode.cs` | 381 | GroundMode [MenuCamera] | The ground game (GROUND.md §4.3). With neither --host nor --connect it opens the main menu over the |
+| `GroundMode.cs` | 384 | GroundMode [MenuCamera] | The ground game (GROUND.md §4.3). With neither --host nor --connect it opens the main menu over the |
 | `GroundModels.cs` | 266 | IGroundModels, GroundModels, CatalogModels, PlaceholderModels | Where the ground game's world models come from (GROUND.md §9): deployables, bags of dropped items, outcrops and the |
 | `GroundOverlay.cs` | 226 | GroundOverlay [Crosshair] | What the ground game shows besides the RustMVP interface: other players' names over their heads (placed by |
 | `GroundTerrain.cs` | 134 | GroundTerrain [TileArrays] | Placeholder ground (GROUND.md §4.3): the collision tiles of ISurface.GroundCollision around the |
@@ -744,14 +746,14 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `HeldControls.cs` | 209 | MeleeControl, BowControl, FirearmControl, ThrowableControl, PlacerControl, PlannerControl, HammerControl, UsesItsPartControl | The held controls (GROUND_SYSTEMS.md §7), one per held behaviour; registered in HeldControls.Create. |
 | `Placement.cs` | 21 | IPlacement | Placing what is in hand (GROUND_SYSTEMS.md §6, package P2's system): the placer's, the planner's and a charge's one |
 
-### game/scripts/Items (6 files, 1,820 lines)
+### game/scripts/Items (6 files, 1,903 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `CatalogItemIcons.cs` | 119 | CatalogItemIcons | Item icons rendered from the models (GROUND.md §9): the catalogue's PNG nearest above the asked size, resampled |
 | `IconRenderer.cs` | 401 | IconRenderer, IconSheet | The icon tool (--view icons, GROUND.md §9). With --out &lt;dir&gt; it renders every catalogue model |
 | `ModelCatalog.cs` | 523 | Pose, HeldInfo, GripInfo, GibsInfo, ModelEntry, ModelUse, ModelCatalog | A position (metres) and a rotation (degrees, Godot's Euler order YXZ) from the catalogue. |
-| `ModelViewer.cs` | 591 | ModelViewer | The model viewer (--view models, GROUND.md §9). By default every catalogue model stands on the ground in |
+| `ModelViewer.cs` | 674 | ModelViewer | The model viewer (--view models, GROUND.md §9). By default every catalogue model stands on the ground in |
 | `ModelWarm.cs` | 47 | ModelWarm | The model catalogue's part of the renderer's warm-up (GROUND.md §4.3.1): every model of models.json (items, |
 | `SurfaceSurvey.cs` | 139 | SurfaceSurvey | Measures the drawn surfaces of the natural objects the ground game draws from catalogue models (the outcrops at |
 
@@ -773,7 +775,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ShipView.cs` | 354 | ShipLook, ShipView [Drive, Plume] | What a ship is doing this frame, as a ShipView draws it. |
 | `ShipWarm.cs` | 28 | ShipWarm | The ships' part of the renderer's warm-up (GROUND.md §4.3.1, §6.7): every ship of ships.json as |
 
-### game/scripts/Surface (15 files, 3,967 lines)
+### game/scripts/Surface (15 files, 3,970 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -788,7 +790,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `SurfaceView.Loading.cs` | 62 | SurfaceView | The surface view's part of the loading pipeline (GROUND.md §4.3.1): what IsReady waits for, as two stages with their |
 | `SurfaceView.cs` | 536 | SurfaceView | The surface view (GROUND.md §4.6): stand on or fly over a real planet of the universe, with its terrain out to the |
 | `TerrainLod.Loading.cs` | 28 | TerrainLod | What the loading pipeline reads of the terrain (GROUND.md §4.3.1). |
-| `TerrainLod.cs` | 644 | TerrainLod, TileMeshData [Node, Job] | Draws a planet's ground out to the horizon (GROUND.md §4.6): a quadtree of tiles on each cube face, split near |
+| `TerrainLod.cs` | 647 | TerrainLod, TileMeshData [Node, Job] | Draws a planet's ground out to the horizon (GROUND.md §4.6): a quadtree of tiles on each cube face, split near |
 | `Vegetation.Game.cs` | 147 | Vegetation | What the ground game changed about scatter objects (GROUND.md §6.1): felled trees, picked ferns and berry bushes. |
 | `Vegetation.Loading.cs` | 17 | Vegetation | What the loading pipeline reads of the plants (GROUND.md §4.3.1). |
 | `Vegetation.cs` | 814 | Vegetation [LodSet, Block, LodState, NearData, BlockingQueue] | Trees, bushes, berry bushes, ferns and rocks of the surface view (GROUND.md §4.6), from the surface generator's |
@@ -803,14 +805,14 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ImpostorBaker.cs` | 185 | ImpostorBaker [Result] | Renders every tree variant of the flora library from eight sides into two atlases (GROUND.md §4.6): colour with |
 | `Painter.cs` | 299 | Painter | A small 2D vector painter for the foliage atlas (presentation only): paths of lines and quadratic curves, filled |
 
-### game/scripts/SystemMap (4 files, 1,656 lines)
+### game/scripts/SystemMap (4 files, 1,598 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `BodyText.cs` | 146 | BodyText | Words for a body's physical state (GALAXY.md §10.3) on the body card (presentation only). |
 | `PlanetLook.cs` | 200 | PlanetLook | Colours and surface parameters of planets (presentation only): a base look by type, then oceans, lava, lakes, ice |
-| `SystemMapUi.cs` | 610 | SystemMapUi | The system map's interface: system summary, body list, selected body, time and scale controls. |
-| `SystemMapView.cs` | 700 | SystemMapView [BodyView] | The system map (GALAXY.md §12): an orrery of one star system, animated by universe time. Distances are |
+| `SystemMapUi.cs` | 566 | SystemMapUi | The system map's interface: system summary, body list, selected body, time and scale controls. |
+| `SystemMapView.cs` | 686 | SystemMapView [BodyView] | The system map (GALAXY.md §12): an orrery of one star system, animated by universe time. Distances are |
 
 ### game/scripts/UI (19 files, 5,419 lines)
 

@@ -150,6 +150,17 @@ public sealed class ZoneSave
     public List<ulong> RemovedProps { get; } = new();
 }
 
+/// <summary>
+/// A save written by a newer build than this one: its schema is past <see cref="GameDatabase.SchemaVersion"/>, so this
+/// build can't read it (and mustn't write it). Opening it again with that build, or another save, are the ways on.
+/// </summary>
+public sealed class NewerSaveException(string path, int found, int known)
+    : InvalidOperationException($"{System.IO.Path.GetFileName(path)} was saved by a newer build (schema {found}; this one knows up to {known}).")
+{
+    /// <summary>The save's full path.</summary>
+    public string SavePath { get; } = path;
+}
+
 /// <summary>A stored ship (G6): its ID and <see cref="ShipCodec"/>'s bytes.</summary>
 public sealed record ShipRecord(EntityId Id, byte[] Data);
 
@@ -317,7 +328,7 @@ public sealed class GameDatabase : IDisposable
         int version = Version;
         if (version > SchemaVersion)
         {
-            throw new InvalidOperationException($"{Path} has schema {version}; this build knows up to {SchemaVersion}.");
+            throw new NewerSaveException(Path, version, SchemaVersion);
         }
         for (; version < SchemaVersion; version++)
         {

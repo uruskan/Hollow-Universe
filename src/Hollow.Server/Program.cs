@@ -51,7 +51,19 @@ public static class Program
             AdminsFile = System.IO.Path.GetFullPath(o.GetValueOrDefault("admins", "admins.txt")),
             EveryoneAdmin = o.ContainsKey("dev"),
         };
-        using var server = new GameServer(options);
+        GameServer created;
+        try
+        {
+            created = new GameServer(options);
+        }
+        catch (Hollow.Persistence.NewerSaveException e)
+        {
+            // One line the hosting game shows on its menu ("error: "), and the path for whoever reads the log.
+            Console.Error.WriteLine($"error: {e.Message}");
+            Console.Error.WriteLine($"The save is {e.SavePath}: run the build that wrote it, or give this one another (--db <path>).");
+            return 2;
+        }
+        using GameServer server = created;
         Console.CancelKeyPress += (_, e) =>
         {
             e.Cancel = true;
