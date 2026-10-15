@@ -925,7 +925,7 @@ the radial was read), the ripple and the alternation by hand, a gunner's predict
 
 **Checks** (engine-free and over the loopback, `BatteryTests`): the aim held while the ship yaws; alternation and the loader
 against the table; EMPTY and DISABLED; LOADING, LIMIT, TRAVERSING and HULL BLOCKED (the dorsal battery laid forward and
-down across the bridge); a rocket striking a hut 110 m ahead with its burst, a rocket drawn back and an incendiary loaded
+down across the bridge); a rocket striking a hut 75 m ahead with its burst, a rocket drawn back and an incendiary loaded
 and leaving a fire; a defense mount rippling three and changing its clip in the table's time; six predicted shots over
 120 ms each matched by number; a stored ship's magazine, loaded barrel and mid-cycle loader.
 

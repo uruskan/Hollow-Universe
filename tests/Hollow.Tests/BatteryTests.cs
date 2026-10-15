@@ -303,13 +303,38 @@ public static class BatteryTests
     // A hut ahead of the forward battery, its wall facing the ship, and the line from the station's muzzle to that wall's middle.
     private static (TestBases.Hut Hut, Piece Wall, Vector3 Target) HutAhead(IronWakeRig rig, float metres)
     {
-        Vector3 at = rig.Zone.Settle(rig.Pose.ToWorld(new Vector3(0, 0, 23 + metres)));
-        rig.Game.Clear(rig.Pose.ToWorld(new Vector3(0, 0, 30)), at, 6);
-        rig.Game.Clear(at, at, 8);
+        // Ahead within the forward battery's reach: the first bearing and range where the line from its muzzle to a wall's
+        // middle stays clear of the ground and within its pitch.
+        Vector3 muzzle = rig.Pose.ToWorld(new Vector3(0, 9.4f, 35));
+        Vector3 up = rig.Zone.Frame.UpAt(muzzle);
+        Vector3 at = default;
+        bool found = false;
+        foreach (float range in new[] { metres, metres - 15, metres + 15, metres - 25 })
+        {
+            foreach (float bearing in new[] { 0f, 25f, -25f, 50f, -50f })
+            {
+                Vector3 local = new(MathF.Sin(bearing * Deg) * range, 0, 23 + MathF.Cos(bearing * Deg) * range);
+                Vector3 ground = rig.Zone.Settle(rig.Pose.ToWorld(local));
+                Vector3 target = ground + rig.Zone.Frame.UpAt(ground) * 2.6f;
+                float pitch = MathF.Asin(Vector3.Dot(Vector3.Normalize(target - muzzle), up)) / Deg;
+                bool clear = true;
+                for (int k = 1; k < 20 && clear; k++)
+                {
+                    clear = rig.Zone.HeightAboveGround(Vector3.Lerp(muzzle, target, k / 20f)) > 1.8f;
+                }
+                if (!found && clear && pitch is > -6 and < 4)
+                {
+                    (at, found) = (ground, true);
+                }
+            }
+        }
+        Assert.True(found, "a clear line from the forward battery to a hut ahead");
+        rig.Game.Clear(rig.Pose.ToWorld(new Vector3(0, 0, 30)), at, 14);
+        rig.Game.Clear(at, at, 12);
         TestBases.Hut hut = TestBases.Build(rig.Zone, at, 0, grade: 1, owner: 77, door: null) ?? throw new TestFailure("no hut");
         Vector3 toShip = Vector3.Normalize(rig.Pose.Position - at);
         Piece wall = hut.Walls.Skip(1).OrderByDescending(w => Vector3.Dot(hut.Face(w).Normal, toShip)).First();
-        return (hut, wall, hut.Face(wall, height: 1.6).Point);
+        return (hut, wall, hut.Face(wall, height: 1.4).Point);
     }
 
     // The asked direction from a barrel's muzzle that puts the round's flight through a target: the straight line, then the
@@ -326,9 +351,9 @@ public static class BatteryTests
         Vector3 side = Vector3.Normalize(Vector3.Cross(straight, up));
         Vector3 best = straight;
         float nearest = float.MaxValue;
-        for (float raise = 0; raise < 6; raise += 0.02f)
+        for (float raise = -1; raise < 6; raise += 0.02f)
         {
-            Vector3 dir = Vector3.Normalize(Vector3.Transform(straight, Quaternion.CreateFromAxisAngle(side, -raise * Deg)));
+            Vector3 dir = Vector3.Normalize(Vector3.Transform(straight, Quaternion.CreateFromAxisAngle(side, raise * Deg)));
             Vector3 p = muzzle, v = dir * profile.Muzzle;
             float flown = 0, burnt = 0, closest = float.MaxValue;
             for (int i = 0; i < 2 * 30 * 6; i++)
@@ -341,6 +366,11 @@ public static class BatteryTests
                 {
                     break;
                 }
+                if (Vector3.Distance(p, target) > 3 && rig.Zone.HeightAboveGround(p) < 0.3f)
+                {
+                    closest = float.MaxValue; // into the ground before the wall
+                    break;
+                }
             }
             if (closest < nearest)
             {
@@ -351,7 +381,7 @@ public static class BatteryTests
     }
 
     /// <summary>
-    /// IRON_WAKE.md §6.3, §7: from the parked Iron Wake's forward battery a rocket strikes a wooden hut 110 m ahead with its
+    /// IRON_WAKE.md §6.3, §7: from the parked Iron Wake's forward battery a rocket strikes a wooden hut 75 m ahead with its
     /// burst (the wall it meets loses health, the blast is the rocket's own); then the gunner chooses incendiary rockets,
     /// the other barrel's rocket is drawn back into the magazine by the mechanism in reverse, and the incendiary that loads
     /// leaves a fire where it strikes.
@@ -360,7 +390,7 @@ public static class BatteryTests
     public static void ARocketStrikesAHutAndAnIncendiaryLeavesAFire()
     {
         using var rig = new IronWakeRig();
-        (TestBases.Hut hut, Piece wall, Vector3 target) = HutAhead(rig, 110);
+        (TestBases.Hut hut, Piece wall, Vector3 target) = HutAhead(rig, 75);
         Entity ada = Gunner(rig, "Ada", "Siege_Forward");
         StationState st = Station(rig, "Siege_Forward");
         GameContent c = rig.Game.C;
@@ -370,20 +400,35 @@ public static class BatteryTests
         Aim(rig, ada, laid);
         StepUntil(rig, () => st.Loaded(0) && st.Loaded(1), 30 * 8, "both loaded");
         rig.Step(30 * 3);
+        // Laid again from the muzzle where the mount now holds it (the muzzle swings with the aim, 12 m out from the yaw's pivot).
+        for (int i = 0; i < 4; i++)
+        {
+            laid = Lay(rig, st, 0, "rocket", target);
+            Aim(rig, ada, laid);
+            rig.Step(30);
+        }
         double before = wall.Health;
         var ended = new List<ProjectileEnded>();
         var blasts = new List<Detonated>();
+        var launched = new List<ProjectileLaunched>();
         void Watch()
         {
+            launched.AddRange(rig.Zone.Events.Of<ProjectileLaunched>());
             ended.AddRange(rig.Zone.Events.Of<ProjectileEnded>());
             blasts.AddRange(rig.Zone.Events.Of<Detonated>());
         }
         Aim(rig, ada, laid, fire: true);
         rig.Step(1, Watch);
+        Fixtures.Report($"the press: {st.Refused}, misaligned {Misaligned(rig, st):0.00}°, limit {st.Limit}, laid {MathF.Asin(Vector3.Dot(laid, rig.Zone.Frame.UpAt(rig.Ship.State.Position))) / Deg:0.00}° up");
         // At once: the incendiary chosen and the cycle tapped (the other barrel's rocket goes back).
         Aim(rig, ada, laid, choice: (byte)(st.Def.Battery.AmmoIndex(c.ItemByKey("rocket-incendiary").Id) + 1), cycle: 1);
         rig.Step(30 * 4, Watch);
         ProjectileEnded strike = ended.FirstOrDefault(e => e.Target.Family == TargetFamily.Piece);
+        Vector3 muzzle = rig.Pose.ToWorld(StationRules.BarrelLine(rig.Def.Interior!, st.Def, 0, rig.Ship.Parts).Muzzle);
+        Fixtures.Report($"muzzle {rig.Zone.HeightAboveGround(muzzle):0.0} m up, the target {rig.Zone.HeightAboveGround(target):0.0} m up " +
+            $"{Vector3.Distance(muzzle, target):0.0} m away; the rocket ended at {string.Join(", ", ended.Select(e => $"{Vector3.Distance(e.Position, target):0.0} m from the target, {rig.Zone.HeightAboveGround(e.Position):0.0} m up"))}");
+        Fixtures.Report($"launched {string.Join(", ", launched.Select(l => $"at {rig.Pose.ToLocal(l.Position)} going {rig.Pose.DirectionToLocal(l.Velocity)}"))}; " +
+            $"ended {string.Join(", ", ended.Select(e => $"at {rig.Pose.ToLocal(e.Position)}"))}; the target at {rig.Pose.ToLocal(target)}");
         Fixtures.Report($"the rocket ended on {string.Join(", ", ended.Select(e => e.Target.Family))}; the wall {before} → {wall.Health}; " +
             $"blasts {blasts.Count}; the magazine: {st.Count(c.ItemByKey("rocket").Id)} rockets, {st.Count(c.ItemByKey("rocket-incendiary").Id)} incendiary");
         Assert.True(strike.Target.Family == TargetFamily.Piece, "the rocket struck the hut");
@@ -392,6 +437,11 @@ public static class BatteryTests
         StepUntil(rig, () => st.Loaded(0) && st.Chambers[0] == c.ItemByKey("rocket-incendiary").Id, 30 * 8, "an incendiary loaded");
         rig.Step(30 * 2);
         int firesBefore = rig.Zone.Fires().All.Count;
+        for (int i = 0; i < 3; i++)
+        {
+            Aim(rig, ada, Lay(rig, st, 0, "rocket-incendiary", target));
+            rig.Step(30);
+        }
         Aim(rig, ada, Lay(rig, st, 0, "rocket-incendiary", target), fire: true);
         rig.Step(1, Watch);
         Aim(rig, ada, laid);
