@@ -1558,6 +1558,24 @@ The Iron Wake therefore brings its own:
 A lighting test in this setup is also the engine question's test (memory: the visual fidelity bar): scanned materials,
 bevels, standard PBR and real lamps, judged on the owner's screen.
 
+#### As built (IW6, 15 October 2026)
+
+- **Lamps.** `ShipView` draws a light at every lamp of `ships.json`'s `lights`: the data file's 38 fixtures (omni or spot
+  as the data file has them, a spot's cone from the data's `angle`, 60° for the fixtures), the six named in
+  `fixtures.shadows` casting shadows (four on Deck A, two on the bridge), the rest shadowless; one emergency lamp at each
+  fixture (dim red, `emergency`); the Tin Finch's nav lights and its landing light (26°) from its own `lamps`. Lamps under
+  30 m of reach fade out from 70 m. They read alike by day and night as the plumes do (the camera's exposure).
+- **Power.** The ship's lamps, the lamps' surfaces (the data file's `materials.lamps`) and the instrument displays
+  (`materials.displays`, emissive only with power) light while the engines run or someone sits at the helm; without power
+  the emergency lamps light and the lamps' surfaces barely glow; a wreck is dark. *Not built:* the helm's own light switch
+  (`works: lights`) needs a ship action and a replicated flag; until then sitting at the helm is the switch.
+- **Reflection probes.** One in each of the data file's rooms (`rooms`, now read into `ShipInterior.Rooms`: Deck A, the
+  bay, Deck B and the bridge; the weather decks have none), box projected, interior mode with a dark ambient of its own,
+  captured once when the ship is first drawn with its lamps held on for the capture's frames, moving with the ship (the
+  capture keeps the orientation it was taken in).
+- **Occlusion culling** is on project-wide (`rendering/occlusion_culling/use_occlusion_culling`); the import's `-occonly`
+  occluders (the body's and the moving doors') cull what the hull hides. Unmeasured in play.
+
 ### 9.5 The loading mechanisms (new art)
 
 Made in Blender by our own script, `art/ships/iron_wake_loaders.py`:
@@ -1823,6 +1841,21 @@ stay.
 - **The gunner's own view.** In first person the gunner sees the station, its display and their own hands on the
   grips: the first-person arms with their hands on the grips' sockets.
 
+#### As built (IW6, 15 October 2026)
+
+- A `Sit` stance in the character contract (`CharacterStance.Sit`) and graph: the built `sit_idle` clip. The pilot's and
+  gunner's own authored poses (`authored_clips.py`) are not made: everyone sits in `sit_idle`, the hands placed by the
+  two-bone reach.
+- `PeopleView` draws a seated character at its seat as the ship is drawn (`ShipView.SocketWorld`: the seat socket carried
+  by its part, so a gunner turns with the mount): the view puts the clip's pelvis 10 cm over the seat (measured from the
+  last pose, so any body fits any seat), faces the seat's way, and the head and spine follow the view (the head within
+  its 95°). Every ship's, the Tin Finch's pilot included (GROUND.md §11 87 closed).
+- Hands: a station's gunner on its two grips (the data file's `grips`, now read into `StationGeometry.GripLeft/Right`;
+  their left and right are the character's, the asset's sides mirrored); a helm without grips of its own on the controls
+  20 cm either side, 42 cm in front of the seat at hand height; a passenger's in the lap; nothing held is drawn.
+- The gunner's own view: the first-person arms hide while seated (the hands on the grips are drawn for others; the
+  viewmodel's arms reaching sockets would need their own IK).
+
 ### 9.7 Cameras
 
 | Who | Camera |
@@ -1873,8 +1906,8 @@ room reverb (`AudioBuses.SetSpace`) is never called. The Iron Wake adds three th
 ### 10.1 As built (IW-S, 15 October 2026)
 
 Built on the branch `iw-sound`: **56 events, 198 files** in `game/assets/audio/iron-wake/` (Ogg Vorbis at 48 kHz,
-7.3 MB), measured in `levels.json` and listed in `sounds.json`. Nothing plays them yet: IW6 hooks them up by the notes
-in the table. `--view sounds` auditions every one (groups Iron Wake, Batteries, Rockets and Fire); `--sound-check`
+7.3 MB), measured in `levels.json` and listed in `sounds.json`. IW6 hooks them up by the notes in the table (see "Hooked up" below).
+`--view sounds` auditions every one (groups Iron Wake, Batteries, Rockets and Fire); `--sound-check`
 agrees with the pipeline on all of them.
 
 ![The audition viewer with the Iron Wake's and the batteries' events, the rammer's four variants measured by the
@@ -1932,6 +1965,36 @@ bell, so the machinery is modelled in code (`art/audio/machines.py`) and layered
 | `rocket.ignite` (4), `rocket.flight` (2 × 6 s loops), `rocket.incendiary.burst` (4 near, 3 mid, 2 far) | The motor catching a few metres out; a rocket motor's roar and crackle with a gasoline fire's real turbulence; a small blast and the fuel's whoomp, splash and crackle | Ignition at the light-up point; the flight loop on the rocket's node (`Loop`, `Stop` on arrival); the burst at impact, delayed |
 | `fire.ignite` (4), `fire.patch.small`, `.large` (20 and 24 s loops) | Fuel catching with a whoomp; crackle; a roar | The fire's start; its 18 s by size (§7) |
 
+**Hooked up (IW6, 15 October 2026).** `ShipSounds` (one per drawn ship, `ShipsView`) plays every role a ship's kind lists in
+`sounds.json`'s `items` from the replicated state; a role the kind doesn't list is silent, so the Tin Finch and the Iron
+Wake go through one rule (`iron-wake`: `start`, `idle`/`idleFast`, `load`/`loadFast`, `release`, `shutdown`,
+`lift`/`liftFast`, `rcs`, `boostLoop`/`boostLoopFast`, `boostRelease`, `strainLight`/`Medium`/`Heavy`, `touchdown`,
+`crash`, `destroyed`, `ventilation`, `machinery`, `alarmHull`, and each door's `<door>Open`/`Close`/`Travel`/`Opened`/
+`Shut`; the Tin Finch's `engine`, `load`, `boost`, `hatchOpen`/`Close`, `touchdown`, `crash`, `destroyed`):
+- *Drives.* The start when the engines come on (a ship first seen running starts at idle), the idle fading in over the
+  start's last 1.5 s (its length read from the file); idle slow to fast by the ship being airborne (1.5 s), 1.5 dB under
+  full load; load by thrust over idle (the main and side drives; every axis for a ship without lift engines), slow to fast
+  from 0.35 to 0.9 of thrust; the lift loops by lift thrust (a hover is about half: −2 dB), slow to fast from 0.3 to 0.9;
+  a release when the load falls by 0.4 quickly (4 s apart); the shutdown fading the loops over 0.5 s. The loops ride a node
+  between the main nozzles and one between the lift nozzles (ships.json's nozzles), unless the model has `engine_audio`.
+- *Boost.* The strain loops while boosting, slow to fast over the boost's seconds; the release when it ends.
+- *Puffs.* A manoeuvring puff on the side as a sideways or downward push begins, or a turn kicks in (the drawn rotation's
+  acceleration over 0.6 of the yaw axis's), 0.25 s apart.
+- *Hull.* Structure-borne strain for a listener aboard at the space's `structureDb`: by the ship's acceleration against
+  its own drive's (main thrust over mass) and its turn rate against its yaw rate (light over 0.55, medium 0.85, heavy 1.2),
+  or by a hit's size (health lost: any, 0.4 %, 2 %); 2.2 to 4.5 s apart. The touchdown at the legs (the pivot) on landing
+  faster than 0.6 m/s.
+- *Doors.* The start each way (the ramp's release, the airlock's slide), the actuator's loop while it travels, the ramp's
+  contact when it reaches open and its lock (the airlock's seal) when it shuts, at the door's part.
+- *Beds and alarm.* The ventilation and machinery beds flat while the listener is aboard, at the space's `structureDb`
+  (the bridge −6 dB, the open decks none), the machinery 4 dB down with the engines off; the hull alarm under a quarter, a
+  phrase every 20 to 30 s, flat for those aboard.
+- *The listener's space.* `ShipsView` finds the room the player stands in (the data file's `rooms`) and the space whose
+  `rooms` list it (`sounds.json`: `deck` Deck A, the bay and Deck B; `bridge`); anywhere else the open air.
+  `AudioBuses.SetSpace(space, delta)` moves every term of the world buses' reverb toward the preset (0.3 s).
+- *A battery's shot through the hull* plays for anyone aboard at the space's `structureDb` (the gunner's own as before).
+- *Not hooked up:* `iw.alarm.fire` (fire aboard), the turret traverse's slew-rate crossfade is IW3's own.
+
 **Mapped since IW4.** Every rocket's `ignite` and `flight` roles are `rocket.ignite` (where it leaves) and `rocket.flight`,
 which `RaidView` loops on the rocket and stops where it stops (it played `arrow.flight` once at the launch point before); the
 incendiary rocket's `explode` is `rocket.incendiary.burst`, its fire's `fireStart` `fire.ignite` and its `fire`
@@ -1987,9 +2050,14 @@ ms). The siege muzzle stays within one heavy effect's share.
   hit every tenth of a second, two hulks smoking and four lift engines' wash, all at once): +0.81 ms a frame on the
   owner's PC (GPU +0.81 ms, the library's CPU 0.09 ms), against the 2 ms allowed; the siege batteries' share +0.16 ms.
   A siege shot with its dust and ignition puts 216 particles into one frame, against the 1,500 budget.
-- *Waiting for code* (GROUND.md §9.3): a loop's intensity (the wash's rate by thrust and nearness), trails laid along
-  each frame's path (rockets at 140 to 260 m/s), loops scaled whole (fires of another radius), and the ship's velocity
-  added to its shots' particles.
+- *Hooked up in IW6* (15 October 2026): `wash.lift` under each lift nozzle within 25 m of the ground (`ShipsView`), its
+  intensity the plume's strength times nearness (1 at 4 m, 0 at 25 m), tinted by the ground's dust (`FxSurfaces.Dust`);
+  `impact.hull` on a bullet's hit on any ship (`ThingsView`); `smoke.damaged` from a disabled battery's gun house (its yaw
+  part) and from over the hull's middle under a quarter, until mended; the batteries' muzzle effects carry the ship's
+  velocity (`FxParams.Velocity`). The plumes keep their data sizes; the lift nozzles' light on the ground is placed
+  between them and reaches eight times their plumes' length (no longer the Tin Finch's size scaled).
+- *The library's fixes* (IW6): `FxDirector.SetIntensity`, trails laid along each frame's path, loops scaled whole,
+  `FxParams.Velocity`, and flame cards that dim at their feet (`flameFoot`, `fire.patch` 0.3); GROUND.md §9.3.
 - *Pictures:* `docs/images/iron-wake/fx-*.jpg`.
 
 ## 12. Network, saves and budgets

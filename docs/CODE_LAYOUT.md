@@ -828,7 +828,8 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ShipSandbox.Aboard.cs` | 609 | ShipSandbox [Walk] | The ship sandbox for a ship people walk in (IRON_WAKE.md §4, IW1): `--view ship --ship iron-wake`. The ship parked in a |
 | `ShipSandbox.Tour.cs` | 215 | ShipSandbox [Leg] | --tour: the sandbox played by a script through the same keys a player presses (Input.ParseInputEvent), to check the |
 | `ShipSandbox.cs` | 899 | ShipSandbox [Site] | The ship sandbox (--view ship, GROUND.md §6.7): the Tin Finch on the first world's ground (the stand-in world |
-| `ShipView.cs` | 461 | ShipLook, ShipView [PartNode, Drive, Plume] | What a ship is doing this frame, as a ShipView draws it. |
+| `ShipSounds.cs` | 468 | ShipSounds | What one ship sounds like (IW6, IRON_WAKE.md §10): every role of its kind's in sounds.json from the replicated state, slow and fast loops crossfaded. |
+| `ShipView.cs` | 661 | ShipLook, ShipView [PartNode, Drive, Plume] | What a ship is doing this frame, as a ShipView draws it: plumes, lamps by power, reflection probes, sockets where drawn. |
 | `StationsView.cs` | 337 | StationsView [LoaderSeen, SlotModel, StationSeen, ShipSeen] | The batteries drawn and heard (IW3): mounts, recoil, loader pieces by the table, rockets in slots, phases' sounds, shots. |
 | `ShipWarm.cs` | 28 | ShipWarm | The ships' part of the renderer's warm-up (GROUND.md §4.3.1, §6.7): every ship of ships.json as |
 
