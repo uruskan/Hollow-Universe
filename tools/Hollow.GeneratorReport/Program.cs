@@ -59,13 +59,15 @@ public static class Program
                 return 0;
             case "surface":
                 return SurfaceReport.Run(args);
+            case "walking":
+                return WalkingReport.Run(args);
             case "maps":
                 Maps.Render(args.Length > 1 ? args[1] : Path.Combine(RepoRoot(), "docs", "images", "generator"),
                     args.Length > 2 ? args[2] : "",
                     args.Length > 3 ? int.Parse(args[3], CultureInfo.InvariantCulture) : StarClassTable.LevelCount - 1);
                 return 0;
             default:
-                Console.Error.WriteLine("usage: Hollow.GeneratorReport bench|stats|names|maps [folder] [prefix]|shells|calibrate|completeness|stars|find|worlds|surface");
+                Console.Error.WriteLine("usage: Hollow.GeneratorReport bench|stats|names|maps [folder] [prefix]|shells|calibrate|completeness|stars|find|worlds|surface|walking");
                 return 2;
         }
     }

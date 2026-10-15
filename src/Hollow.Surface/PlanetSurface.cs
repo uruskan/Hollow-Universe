@@ -284,7 +284,7 @@ public sealed class PlanetSurface : ISurface, IScatterField
     }
 
     // Wet at the equator, dry in the subtropics, wet again in the mid-latitudes, dry and cold at the poles.
-    private static double MoistureBand(double absLatitude)
+    internal static double MoistureBand(double absLatitude)
     {
         ReadOnlySpan<double> lat = stackalloc double[] { 0, 12, 26, 38, 52, 68, 90 };
         ReadOnlySpan<double> m = stackalloc double[] { 0.86, 0.66, 0.26, 0.56, 0.74, 0.56, 0.4 };

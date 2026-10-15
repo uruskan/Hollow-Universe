@@ -4,27 +4,55 @@ using Hollow.Core;
 namespace Hollow.Surface;
 
 /// <summary>
-/// Deterministic 3D gradient noise with its analytic gradient (Perlin's lattice gradients, quintic fade), and the
-/// sums of octaves the surface is built from. Only + − × ÷ and floor, so every machine gets the same bits
-/// (ARCHITECTURE.md §8). The lattice hash is a 64-bit mix of the cell and the seed, so the noise never repeats.
+/// The lattice gradients a noise is made of. <see cref="Perlin"/>'s twelve cube-edge gradients each have a zero
+/// component, so about one lattice edge in seven carries noise that is exactly zero along its whole length: ridged noise,
+/// creases (|n| near 0) and thresholds near 0 turn those into straight lines, which show at walking scale.
+/// <see cref="Corners"/> (the cube's eight corners) has none.
+/// </summary>
+internal enum NoiseBasis
+{
+    Perlin = 0,
+    Corners = 16,
+}
+
+/// <summary>
+/// Deterministic 3D gradient noise with its analytic gradient (lattice gradients of a <see cref="NoiseBasis"/>, Perlin's
+/// by default; quintic fade), and the sums of octaves the surfaces are built from. Only + − × ÷ and floor, so every
+/// machine gets the same bits (ARCHITECTURE.md §8). The lattice hash is a 64-bit mix of the cell and the seed, so the
+/// noise never repeats.
 /// </summary>
 internal static class Noise
 {
-    // Perlin's twelve cube-edge gradients, four of them twice, so a 4-bit index picks one.
-    private static readonly double[] Gx = { 1, -1, 1, -1, 1, -1, 1, -1, 0, 0, 0, 0, 1, -1, 0, 0 };
-    private static readonly double[] Gy = { 1, 1, -1, -1, 0, 0, 0, 0, 1, -1, 1, -1, 1, 1, -1, -1 };
-    private static readonly double[] Gz = { 0, 0, 0, 0, 1, 1, -1, -1, 1, 1, -1, -1, 0, 0, 1, 1 };
+    // Perlin's twelve cube-edge gradients, four of them twice, so a 4-bit index picks one; then the cube's eight corners,
+    // twice (NoiseBasis.Corners adds 16 to the index).
+    private static readonly double[] Gx =
+    {
+        1, -1, 1, -1, 1, -1, 1, -1, 0, 0, 0, 0, 1, -1, 0, 0,
+        1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1, 1, -1,
+    };
 
-    private static int Corner(ulong seed, long x, long y, long z)
+    private static readonly double[] Gy =
+    {
+        1, 1, -1, -1, 0, 0, 0, 0, 1, -1, 1, -1, 1, 1, -1, -1,
+        1, 1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1,
+    };
+
+    private static readonly double[] Gz =
+    {
+        0, 0, 0, 0, 1, 1, -1, -1, 1, 1, -1, -1, 0, 0, 1, 1,
+        1, 1, 1, 1, -1, -1, -1, -1, 1, 1, 1, 1, -1, -1, -1, -1,
+    };
+
+    private static int Corner(ulong seed, long x, long y, long z, NoiseBasis basis)
     {
         ulong h = seed ^ (ulong)x * 0x9E3779B97F4A7C15UL ^ (ulong)y * 0xC2B2AE3D27D4EB4FUL ^ (ulong)z * 0x165667B19E3779F9UL;
         h = (h ^ (h >> 30)) * 0xBF58476D1CE4E5B9UL;
         h = (h ^ (h >> 27)) * 0x94D049BB133111EBUL;
-        return (int)(h >> 60);
+        return (int)(h >> 60) + (int)basis;
     }
 
     /// <summary>Gradient noise at a point, roughly in [−1, 1], without the gradient (the same value as <see cref="Sample"/>).</summary>
-    public static double Value(double x, double y, double z, ulong seed)
+    public static double Value(double x, double y, double z, ulong seed, NoiseBasis basis = NoiseBasis.Perlin)
     {
         double fx = Math.Floor(x), fy = Math.Floor(y), fz = Math.Floor(z);
         long ix = (long)fx, iy = (long)fy, iz = (long)fz;
@@ -32,10 +60,10 @@ internal static class Noise
         double ux = tx * tx * tx * (tx * (tx * 6 - 15) + 10);
         double uy = ty * ty * ty * (ty * (ty * 6 - 15) + 10);
         double uz = tz * tz * tz * (tz * (tz * 6 - 15) + 10);
-        int a = Corner(seed, ix, iy, iz), b = Corner(seed, ix + 1, iy, iz);
-        int c = Corner(seed, ix, iy + 1, iz), d = Corner(seed, ix + 1, iy + 1, iz);
-        int e = Corner(seed, ix, iy, iz + 1), f = Corner(seed, ix + 1, iy, iz + 1);
-        int g = Corner(seed, ix, iy + 1, iz + 1), h = Corner(seed, ix + 1, iy + 1, iz + 1);
+        int a = Corner(seed, ix, iy, iz, basis), b = Corner(seed, ix + 1, iy, iz, basis);
+        int c = Corner(seed, ix, iy + 1, iz, basis), d = Corner(seed, ix + 1, iy + 1, iz, basis);
+        int e = Corner(seed, ix, iy, iz + 1, basis), f = Corner(seed, ix + 1, iy, iz + 1, basis);
+        int g = Corner(seed, ix, iy + 1, iz + 1, basis), h = Corner(seed, ix + 1, iy + 1, iz + 1, basis);
         double va = Gx[a] * tx + Gy[a] * ty + Gz[a] * tz;
         double vb = Gx[b] * (tx - 1) + Gy[b] * ty + Gz[b] * tz;
         double vc = Gx[c] * tx + Gy[c] * (ty - 1) + Gz[c] * tz;
@@ -51,7 +79,8 @@ internal static class Noise
     }
 
     /// <summary>Gradient noise at a point, roughly in [−1, 1], and its gradient.</summary>
-    public static double Sample(double x, double y, double z, ulong seed, out double dx, out double dy, out double dz)
+    public static double Sample(double x, double y, double z, ulong seed, out double dx, out double dy, out double dz,
+        NoiseBasis basis = NoiseBasis.Perlin)
     {
         double fx = Math.Floor(x), fy = Math.Floor(y), fz = Math.Floor(z);
         long ix = (long)fx, iy = (long)fy, iz = (long)fz;
@@ -64,10 +93,10 @@ internal static class Noise
         double duy = 30 * ty * ty * (ty * (ty - 2) + 1);
         double duz = 30 * tz * tz * (tz * (tz - 2) + 1);
 
-        int a = Corner(seed, ix, iy, iz), b = Corner(seed, ix + 1, iy, iz);
-        int c = Corner(seed, ix, iy + 1, iz), d = Corner(seed, ix + 1, iy + 1, iz);
-        int e = Corner(seed, ix, iy, iz + 1), f = Corner(seed, ix + 1, iy, iz + 1);
-        int g = Corner(seed, ix, iy + 1, iz + 1), h = Corner(seed, ix + 1, iy + 1, iz + 1);
+        int a = Corner(seed, ix, iy, iz, basis), b = Corner(seed, ix + 1, iy, iz, basis);
+        int c = Corner(seed, ix, iy + 1, iz, basis), d = Corner(seed, ix + 1, iy + 1, iz, basis);
+        int e = Corner(seed, ix, iy, iz + 1, basis), f = Corner(seed, ix + 1, iy, iz + 1, basis);
+        int g = Corner(seed, ix, iy + 1, iz + 1, basis), h = Corner(seed, ix + 1, iy + 1, iz + 1, basis);
 
         double gax = Gx[a], gay = Gy[a], gaz = Gz[a];
         double gbx = Gx[b], gby = Gy[b], gbz = Gz[b];
@@ -116,14 +145,15 @@ internal static class Noise
     /// <see cref="Lacunarity"/> times the frequency and <paramref name="gain"/> times the amplitude. Normalised to
     /// roughly [−1, 1].
     /// </summary>
-    public static double Fbm(Vector3D p, double radius, double wavelength, int octaves, double gain, ulong seed)
+    public static double Fbm(Vector3D p, double radius, double wavelength, int octaves, double gain, ulong seed,
+        NoiseBasis basis = NoiseBasis.Perlin)
     {
         double f = radius / wavelength, amplitude = 1, sum = 0, norm = 0;
         for (int i = 0; i < octaves; i++)
         {
             ulong s = seed + (ulong)i * 0x632BE59BD9B4E019UL;
             double o = Offset(s);
-            sum += amplitude * Value(p.X * f + o, p.Y * f - o, p.Z * f + 0.5 * o, s);
+            sum += amplitude * Value(p.X * f + o, p.Y * f - o, p.Z * f + 0.5 * o, s, basis);
             norm += amplitude;
             amplitude *= gain;
             f *= Lacunarity;
@@ -136,7 +166,8 @@ internal static class Noise
     /// is displaced along the slopes summed so far and damped where the sum is low, so ridges are sharp, valleys smooth
     /// and side valleys branch like drainage. About 0 (valleys) to 1 (crests).
     /// </summary>
-    public static double Swiss(Vector3D p, double radius, double wavelength, int octaves, double gain, double warp, ulong seed)
+    public static double Swiss(Vector3D p, double radius, double wavelength, int octaves, double gain, double warp, ulong seed,
+        NoiseBasis basis = NoiseBasis.Perlin)
     {
         double f0 = radius / wavelength;
         double bx = p.X * f0, by = p.Y * f0, bz = p.Z * f0;
@@ -147,7 +178,7 @@ internal static class Noise
             ulong s = seed + (ulong)i * 0x632BE59BD9B4E019UL;
             double o = Offset(s);
             double n = Sample((bx + warp * sx) * frequency + o, (by + warp * sy) * frequency - o,
-                (bz + warp * sz) * frequency + 0.5 * o, s, out double dx, out double dy, out double dz);
+                (bz + warp * sz) * frequency + 0.5 * o, s, out double dx, out double dy, out double dz, basis);
             double r = 1 - Math.Abs(n);
             sum += amplitude * r * r;
             norm += amplitude;
@@ -165,7 +196,8 @@ internal static class Noise
     /// Noise with eroded slopes at a unit direction on a sphere of <paramref name="radius"/>: each octave is damped where
     /// the slopes summed so far are steep, so slopes stay smooth and detail gathers on flats and crests. About −1 to 1.
     /// </summary>
-    public static double Eroded(Vector3D p, double radius, double wavelength, int octaves, double gain, ulong seed)
+    public static double Eroded(Vector3D p, double radius, double wavelength, int octaves, double gain, ulong seed,
+        NoiseBasis basis = NoiseBasis.Perlin)
     {
         double f = radius / wavelength;
         double sum = 0, amplitude = 1, norm = 0, gx = 0, gy = 0, gz = 0;
@@ -173,7 +205,7 @@ internal static class Noise
         {
             ulong s = seed + (ulong)i * 0x632BE59BD9B4E019UL;
             double o = Offset(s);
-            double n = Sample(p.X * f + o, p.Y * f - o, p.Z * f + 0.5 * o, s, out double dx, out double dy, out double dz);
+            double n = Sample(p.X * f + o, p.Y * f - o, p.Z * f + 0.5 * o, s, out double dx, out double dy, out double dz, basis);
             gx += amplitude * dx;
             gy += amplitude * dy;
             gz += amplitude * dz;
@@ -192,8 +224,9 @@ internal static class Noise
     public static double Offset(ulong seed) => (Hash64.Mix(seed) >> 11) * (64.0 / 9007199254740992.0);
 
     /// <summary>A vector of three independent noises (for domain warping), roughly in [−1, 1] each.</summary>
-    public static Vector3D Vector(Vector3D p, double radius, double wavelength, int octaves, double gain, ulong seed) =>
-        new(Fbm(p, radius, wavelength, octaves, gain, seed),
-            Fbm(p, radius, wavelength, octaves, gain, seed ^ 0x5851F42D4C957F2DUL),
-            Fbm(p, radius, wavelength, octaves, gain, seed ^ 0x14057B7EF767814FUL));
+    public static Vector3D Vector(Vector3D p, double radius, double wavelength, int octaves, double gain, ulong seed,
+        NoiseBasis basis = NoiseBasis.Perlin) =>
+        new(Fbm(p, radius, wavelength, octaves, gain, seed, basis),
+            Fbm(p, radius, wavelength, octaves, gain, seed ^ 0x5851F42D4C957F2DUL, basis),
+            Fbm(p, radius, wavelength, octaves, gain, seed ^ 0x14057B7EF767814FUL, basis));
 }
