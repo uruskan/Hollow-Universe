@@ -6,7 +6,7 @@
 
 [resource]
 resource_name = "M_IronWake_Markings"
-vertex_color_use_as_albedo = true
+vertex_color_use_as_albedo = false
 albedo_color = Color(1, 1, 1, 1)
 albedo_texture = ExtResource("1")
 orm_texture = ExtResource("2")
