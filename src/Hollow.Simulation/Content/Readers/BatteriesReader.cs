@@ -84,7 +84,9 @@ internal sealed class BatteriesReader : IContentReader
         // Slots: the magazine, rounds a load holds, loads waiting in view.
         f.TryChild(e, "slots", out JsonElement slots);
         int magazine = f.Integer(slots, "magazine", where + ".slots");
-        int perLoad = f.Has(slots, "cassette") ? f.Integer(slots, "cassette", where + ".slots") : 1;
+        // A load's rounds: a clip's (or a cassette's) on a mount, one a barrel.
+        int perLoad = f.Has(slots, "clip") ? f.Integer(slots, "clip", where + ".slots")
+            : f.Has(slots, "cassette") ? f.Integer(slots, "cassette", where + ".slots") : 1;
         int waiting = (f.Has(slots, "rack") ? f.Integer(slots, "rack", where + ".slots") : 0) +
             (f.Has(slots, "hood") ? f.Integer(slots, "hood", where + ".slots") : 0) +
             (f.Has(slots, "waiting") ? f.Integer(slots, "waiting", where + ".slots") : 0);

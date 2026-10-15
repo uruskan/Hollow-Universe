@@ -535,14 +535,27 @@ public static class LoaderPoses
         bool taken = active && record.Kind != 0;
         ushort chosen = st.ChosenItem.Id;
         int per = Math.Max(1, battery.RoundsPerLoad);
-        foreach (LoaderHolder h in l.Holders)
+        for (int hi = 0; hi < l.Holders.Count; hi++)
         {
+            LoaderHolder h = l.Holders[hi];
             string node = Name(h.Node, s.Id, barrel);
             var slots = new string[h.Slots.Count];
             var items = new ushort[h.Slots.Count];
             for (int i = 0; i < slots.Length; i++)
             {
                 slots[i] = Name(h.Slots[i], s.Id, barrel);
+            }
+            // A load's rounds are numbered across the holders that show it in the same window: the defense clip's three
+            // rockets are three holders of a slot each (batteries.json conventions.holders); a holder without slots (the
+            // clip) holds the load while any of it is there.
+            int offset = 0;
+            for (int earlier = 0; earlier < hi; earlier++)
+            {
+                LoaderHolder e = l.Holders[earlier];
+                if (e.What == h.What && e.From == h.From && e.Until == h.Until)
+                {
+                    offset += e.Slots.Count;
+                }
             }
             bool inWindow = !active || ((h.From < 0 || elapsed >= l.Phases[h.From].Start) && (h.Until < 0 || elapsed < l.Phases[h.Until].End));
             if (!active && h.From >= 0)
@@ -563,23 +576,25 @@ public static class LoaderPoses
             else
             {
                 int n = h.What;
+                int rounds;
+                ushort kind;
                 if (n == 0 && taken)
                 {
-                    for (int i = 0; i < items.Length && i < record.Count; i++)
-                    {
-                        items[i] = record.Kind;
-                    }
-                    holds = record.Count > 0;
+                    (rounds, kind) = (record.Count, record.Kind);
                 }
                 else
                 {
                     int fromMagazine = n - (taken ? 1 : 0);
                     int first = (fromMagazine * loaders + loader) * per;
-                    int rounds = Math.Clamp(magazineCount - first, 0, per);
-                    for (int i = 0; i < items.Length && i < rounds; i++)
-                    {
-                        items[i] = chosen;
-                    }
+                    (rounds, kind) = (Math.Clamp(magazineCount - first, 0, per), chosen);
+                }
+                for (int i = 0; i < items.Length; i++)
+                {
+                    items[i] = offset + i < rounds ? kind : (ushort)0;
+                    holds |= items[i] != 0;
+                }
+                if (items.Length == 0)
+                {
                     holds = rounds > 0;
                 }
             }
