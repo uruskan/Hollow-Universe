@@ -547,7 +547,7 @@ coordinates, §8), within 256 kbit/s; prediction is exact wherever nothing pushe
 view opens the zone's own surface in the body's frame (`SurfaceView.OpenWorld`, `RenderFrame.World`), under the sky of
 the planet it stands for, with the zone's natural objects as its plants; `GroundTerrain` and the procedural sky and fixed
 sun left the game (the build sandbox still draws with `GroundTerrain`). Pictures: `docs/images/ground/s3c/`
-(`ground-morning.png`, at the landing site at 10 o'clock, 65 fps; `ground-dusk.png`, at 18:36, 84 fps;
+(`ground-morning.png`, at the landing site at 10 o'clock, 90 fps, from the last build; `ground-dusk.png`, at 18:36, 84 fps;
 `leaving-height.png`, the camera 4.8 km up, 117 fps; 1600 × 900, RTX 2070 Super, the fps counter's reading). Where the
 build differs from §10, and what was decided on the way:
 - **One way to draw the ground** (§10.1). `ISurface` got a drawing contract with defaults, so S4's generator needs only
