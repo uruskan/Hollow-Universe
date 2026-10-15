@@ -138,7 +138,7 @@ public partial class GroundUi
                     return true;
             }
         }
-        if (Radial != null || _holding != null || !e.IsPressed() || e.IsEcho() || Screen != GroundScreen.Hud || IsChatting || !KeyContexts.Hands(Model.Keys))
+        if (Radial != null || _holding != null || !e.IsPressed() || e.IsEcho() || Screen != GroundScreen.Hud || IsChatting || !KeyContexts.Radials(Model.Keys))
         {
             return false;
         }

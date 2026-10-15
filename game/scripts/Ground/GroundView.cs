@@ -55,6 +55,8 @@ public partial class GroundView : Node3D
     private FiresView _fires = null!;
     private ShipsView _ships = null!;
     private HollowUniverse.Ships.ShipHud _shipHud = null!;
+    private HollowUniverse.Ships.StationSight _stationSight = null!;
+    private bool _inventoryAtStation;
     private readonly HollowUniverse.Ships.ShipControls _shipControls = new();
     private readonly HollowUniverse.Ships.ShipCamera _shipCamera = new();
     private bool _wasPiloting;
@@ -280,6 +282,9 @@ public partial class GroundView : Node3D
         AddChild(_ships);
         _shipHud = new HollowUniverse.Ships.ShipHud { Name = "ShipHud", Visible = false };
         layer.AddChild(_shipHud);
+        // A gunner's sight (IW3, IRON_WAKE.md §6.8), over the HUD while seated at a station.
+        _stationSight = new HollowUniverse.Ships.StationSight { Name = "StationSight", Visible = false };
+        layer.AddChild(_stationSight);
         // The effects library, ready before the first shot or blast; without heat haze, which draws black here (§11).
         FxDirector.Install(this);
         FxDirector.HeatHaze = false;
@@ -288,7 +293,9 @@ public partial class GroundView : Node3D
         _model = new ClientGroundUi(Client) { ViewYaw = () => _yaw, ViewDirection = () => Look(_viewFrame, _yaw, _pitch), Command = Command, Build = _build, AskCode = ShowKeypad };
         _hands = new HeldContext { Client = Client, Build = _build, Arms = _firstPerson, Placement = _placing, Say = _model.ShowNotice };
         // The radials the held item opens (the aim button, R) and the HUD's ammo come from its control.
-        _model.HeldRadial = input => HandsFree() is { } held ? held.Radial(_hands, input) : null;
+        _model.HeldRadial = input => Client.Stations().AtStation
+            ? (input == RadialInput.Reload ? new HollowUniverse.Ships.StationAmmoRadial(Client) : null)
+            : HandsFree() is { } held ? held.Radial(_hands, input) : null;
         _model.HeldAmmo = () => Holding() is { } held ? held.Ammo(_hands) : null;
         // The F1 panel (GROUND.md §8.2): its console runs the view's own commands here, the rest on the server.
         _settings = ViewSettings.Load();
@@ -542,6 +549,10 @@ public partial class GroundView : Node3D
             Vector3 shake = FxDirector.CameraShake(ToGodot(eye));
             _camera.GlobalTransform = new Transform3D(view * Basis.FromEuler(shake), ToGodot(eye));
             float zoom = gun.Aimed ? Math.Max(1, gun.Zoom) : 1;
+            if (StationZoom() is { } sight)
+            {
+                zoom = sight; // a gunner's zoom (IW3: the battery's, the right mouse held)
+            }
             float fov = 2 * MathF.Atan(MathF.Tan(Mathf.DegToRad(FieldOfView) / 2) / zoom);
             _camera.Fov = Mathf.MoveToward(_camera.Fov, Mathf.RadToDeg(fov), (float)delta * 240);
         }
@@ -589,6 +600,7 @@ public partial class GroundView : Node3D
         Time("raid", ref t0);
         _ships.Refresh(delta, _world?.Sky?.Exposure ?? 1);
         FillShipHud(piloting);
+        FillStationSight(eye);
         Time("ships", ref t0);
         _fires.Refresh(delta);
         Time("fires", ref t0);
@@ -676,7 +688,13 @@ public partial class GroundView : Node3D
         }
         if (Client.Ships().Seated)
         {
-            // In a seat that doesn't fly (IRON_WAKE.md §5.2): the view alone; the seat holds the body.
+            // In a seat that doesn't fly (IRON_WAKE.md §5.2): the view alone; the seat holds the body. At a station (IW3)
+            // the left button fires and the right zooms, held, while the game has the mouse and no radial is open.
+            if (Client.Stations().AtStation && !_ui.WantsCursor && !_keypad.Visible && GetWindow().HasFocus() && _ui.Radial == null)
+            {
+                input.Station.Fire = Input.IsMouseButtonPressed(MouseButton.Left);
+                input.Station.Zoom = Input.IsMouseButtonPressed(MouseButton.Right);
+            }
             return input;
         }
         // Keys move the character unless a screen takes them (the inventory, crafting, chat, the menu, the keypad); a radial
@@ -735,6 +753,118 @@ public partial class GroundView : Node3D
 
     // The control when the hands may act: not while free looking (the one place free look stops them).
     private IHeldControl? HandsFree() => _freeLook.Active ? null : Holding();
+
+    // ---------------------------------------------------------------- a gunner's station (IW3, IRON_WAKE.md §6.8)
+
+    // The battery's zoom while the right mouse is held at a station, else null.
+    private float? StationZoom() =>
+        Client.Stations().Own is { } own && !_ui.WantsCursor && Input.IsMouseButtonPressed(MouseButton.Right) ? Math.Max(1, own.Station.Battery.Mount.Zoom) : null;
+
+    // The gunner's sight from the station as drawn (its mount the player's own prediction), and Tab opening the magazine
+    // with the inventory.
+    private void FillStationSight(Num.Vector3 eye)
+    {
+        HollowUniverse.Ships.StationSightData d = _stationSight.Data;
+        bool inventory = _ui.Screen == GroundScreen.Inventory;
+        if (_camera == null || Client.Stations().Own is not { } own || own.Ship.Def is not { Interior: { } interior } def ||
+            Client.Stations().Display(own.Ship, own.Station.Index) is not { } st || Client.Ships().DrawnPose(own.Ship.NetId) is not { } pose)
+        {
+            _inventoryAtStation = false;
+            if (d.Show)
+            {
+                d.Show = false;
+                _stationSight.Visible = false;
+                _stationSight.Refresh();
+            }
+            return;
+        }
+        if (inventory && !_inventoryAtStation)
+        {
+            Client.Local.OpenMagazine(own.Ship.Id);
+        }
+        _inventoryAtStation = inventory;
+        ShipStationDef s = own.Station;
+        BatteryDef battery = s.Battery;
+        d.Show = _ui.Screen == GroundScreen.Hud;
+        _stationSight.Visible = d.Show;
+        d.Name = (def.Seats[s.Seat].Name ?? s.Id).ToUpperInvariant();
+        d.Zoom = StationZoom() ?? 1;
+        // Where the barrels point, and the chosen rocket's path from the muzzle, through the ship as drawn.
+        float[] parts = new float[interior.Parts.Count];
+        own.Ship.PartsInto(interior, parts, (long)Client.RenderTick);
+        Client.Stations().OverlayMount(own.Ship.NetId, parts);
+        Num.Vector3 barrel = Num.Vector3.Normalize(pose.DirectionToWorld(StationRules.BarrelDirection(interior, s, parts)));
+        (Num.Vector3 muzzleLocal, _) = StationRules.BarrelLine(interior, s, 0, parts);
+        Num.Vector3 muzzle = pose.ToWorld(muzzleLocal);
+        Vector3 far = ToGodot(muzzle + barrel * 2000);
+        d.Ring = _camera.IsPositionBehind(far) ? null : _camera.UnprojectPosition(far);
+        d.Marks.Clear();
+        ushort chosen = st.ChosenItem.Id;
+        if (battery.Launch.Of(chosen) is { } profile && Client.Zone is { } zone)
+        {
+            var motor = Hollow.Simulation.Combat.RocketMotor.Of(battery.Launch, profile);
+            Num.Vector3 p = muzzle, v = barrel * profile.Muzzle + pose.VelocityAt(muzzle);
+            Num.Vector3 centre = Client.Frame.ToLocal(Vector3D.Zero);
+            float g = (float)(zone.SurfaceGravity * 9.80665), flown = 0, burnt = 0;
+            int next = 100;
+            const float h = Hollow.Simulation.Combat.RocketFlight.StepSeconds;
+            for (float t = 0; t < profile.Lifetime && next <= 2000; t += h)
+            {
+                (Num.Vector3 q, Num.Vector3 w, burnt) = Hollow.Simulation.Combat.RocketFlight.Step(p, v, Num.Vector3.Normalize(centre - p), g, motor, flown, burnt, h);
+                flown += (q - p).Length();
+                (p, v) = (q, w);
+                if (Num.Vector3.Distance(p, muzzle) >= next)
+                {
+                    Vector3 at = ToGodot(p);
+                    if (!_camera.IsPositionBehind(at))
+                    {
+                        d.Marks.Add((_camera.UnprojectPosition(at), next));
+                    }
+                    next += 100;
+                }
+            }
+        }
+        // Each barrel: loaded (its round), loading (its loader's progress), empty.
+        d.Barrels.Clear();
+        double tick = Client.Stations().DrawTick(own.Ship.NetId, s.Index);
+        foreach (StationBarrel b in s.Barrels)
+        {
+            LoaderState l = st.Loaders[s.LoaderOf(b.Index)];
+            ushort round = st.Chambers[b.Index] != 0 ? st.Chambers[b.Index] : l.Kind;
+            string? icon = round != 0 ? Client.Content.Item(round)?.Key : null;
+            bool loaded = st.Chambers[b.Index] != 0 && !l.Active;
+            d.Barrels.Add(new HollowUniverse.Ships.SightBarrel(loaded, icon ?? st.ChosenItem.Key, StationRules.Progress(battery.Loader, l, tick), l.Active));
+        }
+        d.Kinds.Clear();
+        foreach (ItemDef kind in battery.Ammo)
+        {
+            d.Kinds.Add(new HollowUniverse.Ships.SightKind(kind.Key, kind.Name, st.Count(kind.Id), kind.Id == chosen));
+        }
+        // The refusal (§6.7): the player's own press's, for two seconds.
+        Hollow.Simulation.Outcome refused = Client.Stations().Refused;
+        d.Refusal = !refused.Ok && Client.ClockSeconds - Client.Stations().RefusedAt < 2 ? Client.Content.Texts.Line(refused).ToUpperInvariant() : null;
+        // The arcs' dial near a limit (within 15° of one, or past it).
+        const float Deg = 180 / MathF.PI;
+        float asked = st.Yaw;
+        {
+            Num.Vector3 local = pose.DirectionToLocal(Look(_viewFrame, _yaw, _pitch));
+            asked = StationRules.Angles(interior, s, local).Yaw;
+        }
+        d.Dial = !s.FullCircle && (st.Limit || st.Yaw - s.YawMin < 15 / Deg || s.YawMax - st.Yaw < 15 / Deg);
+        (d.DialMin, d.DialMax, d.DialYaw, d.DialAsked) = (s.YawMin * Deg, s.YawMax * Deg, st.Yaw * Deg, StationRules.ClampYaw(s, asked).Yaw * Deg);
+        if (StationRules.ClampYaw(s, asked).Beyond)
+        {
+            d.DialAsked = asked * Deg;
+        }
+        // The ship's heading and speed, small at the side.
+        Num.Vector3 up = Client.Frame.UpAt(pose.Position);
+        (Num.Vector3 north, Num.Vector3 east) = Facing.Compass(up);
+        Num.Vector3 nose = pose.DirectionToWorld(Num.Vector3.UnitZ);
+        d.Heading = MathF.Atan2(Num.Vector3.Dot(nose, east), Num.Vector3.Dot(nose, north)) * Deg;
+        d.Speed = pose.Velocity.Length();
+        _ = eye;
+        _stationSight.Refresh();
+    }
 
     // ---------------------------------------------------------------- flying (G6, GROUND.md §6.7)
 
@@ -887,7 +1017,9 @@ public partial class GroundView : Node3D
         {
             case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured:
             {
-                float yaw = -motion.Relative.X * MouseSensitivity, pitch = -motion.Relative.Y * MouseSensitivity;
+                // A gunner's zoom turns the mouse down with it (its own sensitivity, IW3).
+                float sensitivity = MouseSensitivity / (StationZoom() ?? 1);
+                float yaw = -motion.Relative.X * sensitivity, pitch = -motion.Relative.Y * sensitivity;
                 if (_freeLook.Active)
                 {
                     // Free look: the camera alone turns; the view, the aim and the recoil's countersteer never see it.
@@ -997,7 +1129,8 @@ public partial class GroundView : Node3D
     // the same way in the world.
     private void FollowFrame()
     {
-        uint now = Client.OwnFrame;
+        // A gunner's aim is held in the world (IRON_WAKE.md §6.2): their view is the zone's, whatever the ship does.
+        uint now = Client.Stations().AtStation ? 0 : Client.OwnFrame;
         if (!_viewRestored || now == _viewFrame)
         {
             return;

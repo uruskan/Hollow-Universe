@@ -40,8 +40,29 @@ public partial class ShipsView : Node3D
     private readonly Dictionary<uint, Drawn> _drawn = new();
     private readonly HashSet<uint> _seen = new();
     private readonly List<uint> _gone = new();
+    private StationsView? _stations;
 
     public GameClient Client { get; set; } = null!;
+
+    // The crewed batteries (IW3): posed, heard and fired on every ship drawn.
+    private StationsView Stations
+    {
+        get
+        {
+            if (_stations == null)
+            {
+                _stations = new StationsView { Client = Client };
+                Client.Stations().Shot += shot =>
+                {
+                    if (Client.Ships().ShipByNetId(shot.Ship)?.Def is { } def)
+                    {
+                        _stations.Shot(shot, def);
+                    }
+                };
+            }
+            return _stations;
+        }
+    }
 
     /// <summary>The player's own ship is seen from its cockpit: its plumes nearest the eye hide.</summary>
     public bool Cockpit { get; set; }
@@ -100,10 +121,12 @@ public partial class ShipsView : Node3D
                 {
                     ship.PartsInto(interior, d.Parts, (long)Client.RenderTick);
                 }
-                if (!d.Parts.AsSpan().SequenceEqual(d.Shown))
+                // Its batteries (IW3): the mounts (the player's own as predicted), the barrels' recoil and the loaders' pieces.
+                IReadOnlyDictionary<int, (Num.Vector3, Num.Quaternion)>? loaders = Stations.Pose(ship, def, d.View, d.Parts, delta);
+                if (loaders is { Count: > 0 } || !d.Parts.AsSpan().SequenceEqual(d.Shown))
                 {
                     d.Parts.CopyTo(d.Shown, 0);
-                    d.View.ShowParts(d.Shown);
+                    d.View.ShowParts(d.Shown, loaders);
                 }
             }
             Hear(d, ship, def, look);
@@ -127,6 +150,7 @@ public partial class ShipsView : Node3D
             }
             d.View.QueueFree();
             _drawn.Remove(id);
+            _stations?.Forget(id);
         }
     }
 

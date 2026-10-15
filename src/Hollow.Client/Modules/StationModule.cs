@@ -516,6 +516,16 @@ public sealed class StationModule : ClientModule
 
     /// <summary>Predicted shots waiting for the server's word (tests).</summary>
     public int PendingShots => _pending.Count;
+
+    /// <summary>
+    /// The tick a station is drawn at now (fractional): the player's own on the predicted timeline (its shots play when
+    /// fired), others' as everything else of the ship is drawn, 100 ms behind.
+    /// </summary>
+    public double DrawTick(uint ship, int station) =>
+        _mount != null && _mountShip == ship && _mountStation == station ? TickClock : Client.RenderTick;
+
+    /// <summary>The player's own mount's turning rates (radians a second; the traverse's sound), or zero.</summary>
+    public (float Yaw, float Pitch) OwnRates => _mount != null ? (_mount.YawRate, _mount.Pitch == 0 ? 0 : _mount.PitchRate) : (0, 0);
 }
 
 /// <summary>The accessor on the client (GROUND_SYSTEMS.md §12.5, K11).</summary>

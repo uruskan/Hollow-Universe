@@ -46,6 +46,31 @@ public partial class ShipView : Node3D
     private double _time;
     private PartNode[] _parts = Array.Empty<PartNode>();
     private float[]? _posedAt;
+    private bool _loadersShown;
+    private readonly Dictionary<string, Node3D?> _sockets = new();
+
+    /// <summary>A socket of the model by its name (<c>socket_&lt;name&gt;</c>), found once; null when the model has none.</summary>
+    public Node3D? Socket(string name)
+    {
+        if (!_sockets.TryGetValue(name, out Node3D? node))
+        {
+            node = _model?.FindChild("socket_" + name, true, false) as Node3D;
+            _sockets[name] = node;
+        }
+        return node;
+    }
+
+    /// <summary>A node of the model by its name (a loader's piece, a holder), found once; null when the model has none.</summary>
+    public Node3D? NodeNamed(string name)
+    {
+        string key = "#" + name;
+        if (!_sockets.TryGetValue(key, out Node3D? node))
+        {
+            node = _model?.FindChild(name, true, false) as Node3D;
+            _sockets[key] = node;
+        }
+        return node;
+    }
 
     // A moving part's node in the model: its part, where it stands at rest in the model's space, and what carries it
     // there (another part's node, by its index here, or the model's still nodes: their rest in the model's space).
@@ -164,13 +189,15 @@ public partial class ShipView : Node3D
     /// Poses the moving parts at their states (a door's progress, a turret's angle), as the ship's space poses its bodies:
     /// each part's motion from rest, its carriers' included. Nothing happens when they are as last posed.
     /// </summary>
-    public void ShowParts(ReadOnlySpan<float> states)
+    public void ShowParts(ReadOnlySpan<float> states, IReadOnlyDictionary<int, (System.Numerics.Vector3 Offset, System.Numerics.Quaternion Turn)>? loaders = null)
     {
-        if (_parts.Length == 0 || _def.Interior is not { } interior || (_posedAt != null && states.SequenceEqual(_posedAt)))
+        bool moved = loaders is { Count: > 0 };
+        if (_parts.Length == 0 || _def.Interior is not { } interior || (!moved && !_loadersShown && _posedAt != null && states.SequenceEqual(_posedAt)))
         {
             return;
         }
         _posedAt = states.ToArray();
+        _loadersShown = moved;
         Span<Transform3D> inModel = stackalloc Transform3D[_parts.Length];
         for (int i = 0; i < _parts.Length; i++)
         {
@@ -179,6 +206,14 @@ public partial class ShipView : Node3D
             var motion = new Transform3D(new Basis(new Quaternion(pose.Rotation.X, pose.Rotation.Y, pose.Rotation.Z, pose.Rotation.W)),
                 new Vector3(pose.Translation.X, pose.Translation.Y, pose.Translation.Z));
             inModel[i] = motion * p.Rest;
+            if (moved && loaders!.TryGetValue(p.Part, out var extra))
+            {
+                // A loading mechanism's piece (IRON_WAKE.md §9.5): moved along and turned about its own axes at its pivot,
+                // which are the model's axes at rest carried by its parents.
+                var local = new Transform3D(new Basis(new Quaternion(extra.Turn.X, extra.Turn.Y, extra.Turn.Z, extra.Turn.W)),
+                    new Vector3(extra.Offset.X, extra.Offset.Y, extra.Offset.Z));
+                inModel[i] = inModel[i] * local;
+            }
             Transform3D carrier = p.Carrier >= 0 ? inModel[p.Carrier] * _parts[p.Carrier].Rest.AffineInverse() * p.CarrierRest : p.CarrierRest;
             p.Node.Transform = carrier.AffineInverse() * inModel[i];
         }
