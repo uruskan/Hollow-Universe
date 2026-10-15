@@ -164,17 +164,26 @@ def moving_parts(asset):
     return moving
 
 
-def run_loaders(asset):
+def loaders_module():
+    """art/ships/iron_wake_loaders.py as a module, or None when it doesn't exist."""
     if not LOADERS.exists():
-        log("no art/ships/iron_wake_loaders.py: the batteries go without their loading mechanisms")
         return None
     spec = importlib.util.spec_from_file_location("iron_wake_loaders", LOADERS)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
+    return module
+
+
+def run_loaders(asset):
+    """Runs the loaders' hook; returns (the module, what build() returned)."""
+    module = loaders_module()
+    if module is None:
+        log("no art/ships/iron_wake_loaders.py: the batteries go without their loading mechanisms")
+        return None, None
     result = module.build(asset)
     bpy.context.view_layer.update()
     log(f"loaders: {len(asset.collection.objects)} objects added")
-    return result
+    return module, result
 
 
 # ------------------------------------------------------------------------------------------------ materials
@@ -478,11 +487,16 @@ def build(asset, moving):
         world = TURN_WORLD @ e.matrix_world
         loc, rot, _ = world.decompose()
         empty = make_empty(name, Matrix.LocRotScale(loc, rot, Vector((1, 1, 1))), out, parts[parent]["empty"])
-        rec = parts[name] = {"empty": empty, "lods": [], "hulls": hulls, "parent": parent, "sockets": sockets}
+        rec = parts[name] = {"empty": empty, "lods": [], "hulls": hulls, "parent": parent, "sockets": sockets,
+                             "loader": True}
         last = None
         for level in range(4):
             src = lods.get(level)
-            if src is not None:
+            if level == 3:
+                # A loader's moving piece is drawn to LOD2's range (450 m); beyond, a few pixels, it costs a draw call
+                # per finish for nothing (IRON_WAKE.md §9.5). Its static parts are in the turret's own meshes.
+                o = make_empty(f"{name}_lod3", empty.matrix_world.copy(), out, empty, 0.02)
+            elif src is not None:
                 o = merged([src], f"{name}_lod{level}", out)
             else:
                 o = decimated_copy(last, f"{name}_lod{level}", (0.5, 0.25, 0.6)[level - 1], out)
@@ -495,19 +509,20 @@ def build(asset, moving):
 
 
 def loader_record(name, parent, e):
-    """A loader part for the data file: its pivot and local axes at rest, in game axes."""
+    """A loader part for the data file: its pivot and its node's local axes at rest, in game axes. The exported node's
+    axes are the empty's local x, z and -y (glTF's Y is Blender's Z), so a hook empty turned by its NODE_ROT exports
+    unrotated: x, y and z are the game's."""
     native = e.matrix_world
+    x, y, z = (native.col[i].xyz.normalized() for i in range(3))
     return {"name": name, "parent": parent, "kind": "loader", "pivot": iron_wake_data.gp(native.translation, 4),
-            "axes": {"x": iron_wake_data.gp(native.col[0].xyz.normalized(), 4),
-                     "y": iron_wake_data.gp(native.col[1].xyz.normalized(), 4),
-                     "z": iron_wake_data.gp(native.col[2].xyz.normalized(), 4)}}
+            "axes": {"x": iron_wake_data.gp(x, 4), "y": iron_wake_data.gp(z, 4), "z": iron_wake_data.gp(-y, 4)}}
 
 
 # ------------------------------------------------------------------------------------------------ occlusion and LOD4
 
 
 def contact_darkening(parts):
-    levels = [[rec["lods"][lv] for rec in parts.values()] for lv in range(4)]
+    levels = [[rec["lods"][lv] for rec in parts.values() if rec["lods"][lv].type == "MESH"] for lv in range(4)]
     t0 = time.time()
     occ0 = Triangles(levels[0], skip_materials={GLASS})
     ao = contact_ao(levels[0], occ0, AO_SAMPLES, AO_DISTANCE)
@@ -553,7 +568,9 @@ def lod4(parts, info, out, ao):
     remesh, so overlapping pieces and thin shells such as the barrels' heat shields fuse instead of folding into
     slivers), only what can be seen from outside (the glass blocking the view in), decimated; each face coloured by the
     finish of the nearest LOD3 face (its average colour) times the contact darkening there; one material."""
-    names = [n for n in parts if n != "Hold"]
+    # The loaders' moving pieces have no LOD3 or LOD4 (see build()): what stands still of them is part of the gun
+    # house's and the receiver's shells.
+    names = [n for n in parts if n != "Hold" and not parts[n].get("loader")]
     src3 = {n: parts[n]["lods"][3] for n in names}
     source = Triangles([src3[n] for n in names])
     shade = np.ones(len(source.verts), np.float32)
@@ -611,6 +628,9 @@ def lod4(parts, info, out, ao):
             attach_world(o, parts[n]["empty"])
         parts[n]["lods"].append(o)
     parts["Hold"]["lods"].append(make_empty("Hold_lod4", Matrix.Identity(4), out, size=0.05))
+    for n, rec in parts.items():
+        if rec.get("loader"):
+            rec["lods"].append(make_empty(f"{n}_lod4", rec["empty"].matrix_world.copy(), out, rec["empty"], 0.02))
     return weights
 
 
@@ -802,9 +822,10 @@ def _fcurves(action):
         yield from action.fcurves
 
 
-def clips(asset, parts):
+def clips(asset, parts, loaders=None):
     """The asset's motion as clips (its Source/weapon_motion.py and Documentation/weapon_motion.json): the ramp's two
-    leaves about their hinges, the airlock door sliding 2.5 m forward, each barrel's recoil along the barrel."""
+    leaves about their hinges, the airlock door sliding 2.5 m forward, each barrel's recoil along the barrel; then
+    the loaders' review clips, baked by their module from game/data/ground/batteries.json (IRON_WAKE.md §9.5)."""
     fps = bpy.context.scene.render.fps / bpy.context.scene.render.fps_base
     main, leaf = parts["Ramp_Main"]["empty"], parts["Ramp_Leaf"]["empty"]
     door = parts["Airlock_Door"]["empty"]
@@ -826,6 +847,8 @@ def clips(asset, parts):
         node = parts[a["recoil_node"]]["empty"]
         # Native local -X (back along the barrel) is Blender +Y once turned.
         clip(a["name"], [(node, "location", 1, a["times_seconds"], [-x for x in a["local_x_offsets_m"]])], fps)
+    if loaders is not None and hasattr(loaders, "clips"):
+        loaders.clips({name: rec["empty"] for name, rec in parts.items() if rec.get("empty") is not None}, fps)
     bpy.context.scene.frame_set(0)
     log(f"clips: {len(bpy.data.actions)}")
 
@@ -877,11 +900,11 @@ def main():
     load()
     asset = Asset()
     moving = moving_parts(asset)
-    loader_result = run_loaders(asset)
+    loaders, loader_result = run_loaders(asset)
     if "data" in script_args():
         # Only the data file (iterating on it): blender -b --factory-startup --python art/import/iron_wake.py -- data
-        loaders, _ = loader_parts(asset, moving)
-        write_data(asset, moving, [loader_record(n, p, e) for n, p, e, *_ in loaders], loader_result)
+        pieces, _ = loader_parts(asset, moving)
+        write_data(asset, moving, [loader_record(n, p, e) for n, p, e, *_ in pieces], loader_result)
         log(f"done in {time.time() - t0:.0f} s")
         return
     tex, info, mem = materials(asset)
@@ -892,7 +915,7 @@ def main():
     hull_objs = hulls(asset, moving, parts, out)
     socket_objs = sockets(asset, moving, parts, out)
     occ = occluders(parts, out)
-    clips(asset, parts)
+    clips(asset, parts, loaders)
     objects = []
     for rec in parts.values():
         if rec["empty"] is not None:
@@ -910,4 +933,5 @@ def main():
     log(f"done in {time.time() - t0:.0f} s")
 
 
-main()
+if __name__ == "__main__":
+    main()

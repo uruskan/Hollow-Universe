@@ -14,7 +14,8 @@ namespace HollowUniverse.Items;
 /// LODs by distance, Space pauses the turntable, F shows a held item in first person at its catalogue pose, the mouse
 /// wheel zooms. Options: <c>--stage n</c>, <c>--lod n</c>, <c>--yaw deg</c> (the turntable's angle, paused, for a
 /// screenshot), <c>--zoom f</c> (the turntable camera's distance, 1 fits the model), <c>--anim name</c> (play one of
-/// the model's clips; H plays the next), <c>--attach a,b</c> (mount attachments on a gun), <c>--upright</c> (a held
+/// the model's clips; H plays the next; <c>--anim-time s</c> holds it at s seconds), <c>--slots a,b</c> (rocket models
+/// in a ship's ammunition slots, in turn), <c>--attach a,b</c> (mount attachments on a gun), <c>--upright</c> (a held
 /// item as it is held, not lying down), <c>--first-person</c>,
 /// <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera). <c>--from=x,y,z --at=x,y,z</c> place the turntable's
 /// camera in the model's own frame (metres, its +Z the front) and hold the turntable still, for a close look at one place
@@ -214,6 +215,7 @@ public partial class ModelViewer : Node3D
         }
         pivot.AddChild(model);
         Mount(entry, model);
+        Slots(model);
         ApplyLod(model);
         PlayClip(model);
         _shown = pivot;
@@ -268,9 +270,53 @@ public partial class ModelViewer : Node3D
             return;
         }
         player.Play(clip);
-        if (Options.ContainsKey("shot"))
+        if (Options.TryGetValue("anim-time", out string? at))
+        {
+            // Held at one moment of the clip (a loader mid-cycle, say).
+            player.Seek(Math.Clamp(float.Parse(at, CultureInfo.InvariantCulture), 0f, (float)player.GetAnimation(clip).Length), true);
+            player.Pause();
+        }
+        else if (Options.ContainsKey("shot"))
         {
             player.Seek(player.GetAnimation(clip).Length, true);
+        }
+    }
+
+    /// <summary>
+    /// Fills a model's ammunition slots for a look at its loaders (<c>--slots rocket,rocket-hv</c>): every
+    /// <c>socket_*_Slot_*</c> node gets the next model of the list as its child, with no offset, as the battery view
+    /// attaches rockets (IRON_WAKE.md §9.5).
+    /// </summary>
+    private void Slots(Node3D model)
+    {
+        if (!Options.TryGetValue("slots", out string? list))
+        {
+            return;
+        }
+        string[] keys = list.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var sockets = new List<Node3D>();
+        var stack = new Stack<Node>();
+        stack.Push(model);
+        while (stack.Count > 0)
+        {
+            Node node = stack.Pop();
+            string name = node.Name;
+            if (node is Node3D socket && name.StartsWith("socket_", StringComparison.Ordinal) && name.Contains("_Slot_", StringComparison.Ordinal))
+            {
+                sockets.Add(socket);
+            }
+            foreach (Node child in node.GetChildren())
+            {
+                stack.Push(child);
+            }
+        }
+        int i = 0;
+        foreach (Node3D socket in sockets.OrderBy(s => s.Name.ToString(), StringComparer.Ordinal))
+        {
+            if (keys.Length > 0 && ModelCatalog.Instantiate(keys[i++ % keys.Length]) is Node3D round)
+            {
+                socket.AddChild(round);
+            }
         }
     }
 

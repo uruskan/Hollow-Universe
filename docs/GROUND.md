@@ -3893,7 +3893,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `import/starter_kit.py` | The PSG Starter Kit's 17 items (all but the AK and the solar panel) |
 | `import/frontier_rifle.py` | The rifle, from the PSG Frontier AK |
 | `import/tin_finch.py` | The Tin Finch: hull and hatch with their LODs, 26 hulls, 10 sockets, the hatch's open and close clips |
-| `import/iron_wake.py` | The Iron Wake (docs/IRON_WAKE.md §9.1–§9.3): body, hold and 31 moving parts with five LODs, 358 hulls, 91 sockets, occluders, 20 clips, its sixteen finishes, and the ship's data file `game/data/ground/ships/iron-wake.json` (`-- data` writes the data file alone) |
+| `import/iron_wake.py` | The Iron Wake (docs/IRON_WAKE.md §9.1–§9.3): body, hold and 31 moving parts with five LODs, 358 hulls, 91 sockets, occluders, 20 clips, its sixteen finishes, and the ship's data file `game/data/ground/ships/iron-wake.json` (`-- data` writes the data file alone); with `ships/iron_wake_loaders.py`, its hook, the batteries' loading mechanisms (§9.5, IW-A part 2): 56 more moving parts, 48 slot and breech sockets, 8 review clips, checked for clearance at every import |
 | `models/resources.py` | The twelve resources as small piles (their dropped look; gunpowder a heap on an opened paper), and the four world pickups as bigger piles |
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
 | `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
@@ -3902,7 +3902,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
 | `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
-| `models/raid.py` | G5 raid items: bag charge, tin grenade, rocket launcher, rocket and high-velocity rocket |
+| `models/raid.py` | G5 raid items: bag charge, tin grenade, rocket launcher, rocket and high-velocity rocket; the incendiary rocket (IW-A) |
 
 **Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
 rifle's LOD1–LOD3, as the character package chose; the building kit's pieces then fitted to their slots, §6.3 Fit);
@@ -3967,7 +3967,11 @@ flared venturi, a canvas heat sleeve where it rests on the shoulder, a pistol gr
 fore grip (`grip_l`), a folding frame sight on the left (`sight`, `eye`), `muzzle` at the front and `exhaust` at the back
 (+X pointing backwards, for the back blast); class `gun`, so the character package holds it two-handed like the rifle.
 The rockets lie on the ground along their length: an olive warhead with a yellow band, or for `rocket-hv` a slimmer
-pointed one with a blue band, on a motor with four fins.
+pointed one with a blue band, on a motor with four fins. The incendiary rocket (`rocket-incendiary`, IW-A,
+docs/IRON_WAKE.md §7) has the rocket's motor and fins and, in place of the ogive, a blunt grey steel canister with a
+filler plug under a pale frangible nose cap, a thin pressed shell scored in four with a crush disc on its nose, and a
+red band where the others carry theirs. Its model and icons come before its item, which the battery rules' package
+adds with its recipe (the catalogue needs a model for every item, not an item for every model).
 
 **The loot bag** (`dropped-bag`, U4; remade on 13 October 2026 to read like the owner's picture of a strapped bundle,
 our own design): 0.42 × 0.32 × 0.30 m, a khaki canvas tarp over a box-like load, wrapped like a parcel. Its ends are
@@ -4007,7 +4011,9 @@ angles.
 
 **Viewer** (`--view models`): every model on the ground in groups by size with a 1.8 m figure for scale, or one on a
 turntable (`--model <key>`, Tab); LOD keys 0 to 4 and A; F (or `--first-person`) shows a held item at its first-person
-pose; H (or `--anim <clip>`) plays a model's clips, such as the Tin Finch's `Hatch_Open`; a vehicle under 25 m stands
+pose; H (or `--anim <clip>`) plays a model's clips, such as the Tin Finch's `Hatch_Open` (`--anim-time <s>` holds it at
+that moment); `--slots a,b` puts those models on a ship's ammunition slots in turn (the Iron Wake's racks and
+cassettes, IRON_WAKE.md §9.5); a vehicle under 25 m stands
 on a plain stand, the Iron Wake on its own legs. `--from=x,y,z --at=x,y,z` put the camera in the model's own frame
 (metres, +Z its front) and hold the turntable, for a close look at one place; `--fov <deg>` sets the lens.
 `tests/Hollow.Tests/ModelCatalogueTests.cs` checks that every file is there,
