@@ -1,0 +1,294 @@
+{
+  "size": 4096,
+  "roughHeightSize": 2048,
+  "layers": [
+    {
+      "index": 0,
+      "key": "grass",
+      "metres": 4.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "00_grass_albedo.jpg",
+      "normal": "00_grass_normal.jpg",
+      "roughHeight": "00_grass_rh.webp",
+      "meanColour": [
+        0.4271,
+        0.3282,
+        0.2444
+      ],
+      "roughness": 0.765
+    },
+    {
+      "index": 1,
+      "key": "forest_floor",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "01_forest_floor_albedo.jpg",
+      "normal": "01_forest_floor_normal.jpg",
+      "roughHeight": "01_forest_floor_rh.webp",
+      "meanColour": [
+        0.4278,
+        0.3884,
+        0.3201
+      ],
+      "roughness": 0.838
+    },
+    {
+      "index": 2,
+      "key": "soil",
+      "metres": 2.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "02_soil_albedo.webp",
+      "normal": "02_soil_normal.webp",
+      "roughHeight": "02_soil_rh.webp",
+      "meanColour": [
+        0.7154,
+        0.5478,
+        0.3917
+      ],
+      "roughness": 0.92
+    },
+    {
+      "index": 3,
+      "key": "rock",
+      "metres": 2.4,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "03_rock_albedo.jpg",
+      "normal": "03_rock_normal.jpg",
+      "roughHeight": "03_rock_rh.webp",
+      "meanColour": [
+        0.4955,
+        0.465,
+        0.4308
+      ],
+      "roughness": 0.904
+    },
+    {
+      "index": 4,
+      "key": "gravel",
+      "metres": 4.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "04_gravel_albedo.jpg",
+      "normal": "04_gravel_normal.jpg",
+      "roughHeight": "04_gravel_rh.webp",
+      "meanColour": [
+        0.2617,
+        0.2185,
+        0.1784
+      ],
+      "roughness": 0.847
+    },
+    {
+      "index": 5,
+      "key": "sand",
+      "metres": 4.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "05_sand_albedo.jpg",
+      "normal": "05_sand_normal.jpg",
+      "roughHeight": "05_sand_rh.webp",
+      "meanColour": [
+        0.4433,
+        0.3778,
+        0.3094
+      ],
+      "roughness": 0.778
+    },
+    {
+      "index": 6,
+      "key": "snow",
+      "metres": 2.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "06_snow_albedo.jpg",
+      "normal": "06_snow_normal.jpg",
+      "roughHeight": "06_snow_rh.webp",
+      "meanColour": [
+        0.9006,
+        0.9006,
+        0.9007
+      ],
+      "roughness": 0.888
+    },
+    {
+      "index": 7,
+      "key": "moss",
+      "metres": 4.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "07_moss_albedo.webp",
+      "normal": "07_moss_normal.webp",
+      "roughHeight": "07_moss_rh.webp",
+      "meanColour": [
+        0.4156,
+        0.3508,
+        0.2643
+      ],
+      "roughness": 0.9
+    },
+    {
+      "index": 8,
+      "key": "wet_sand",
+      "metres": 1.5,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "08_wet_sand_albedo.jpg",
+      "normal": "08_wet_sand_normal.jpg",
+      "roughHeight": "08_wet_sand_rh.webp",
+      "meanColour": [
+        0.2015,
+        0.1575,
+        0.0737
+      ],
+      "roughness": 0.764
+    },
+    {
+      "index": 9,
+      "key": "shingle",
+      "metres": 2.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "09_shingle_albedo.jpg",
+      "normal": "09_shingle_normal.jpg",
+      "roughHeight": "09_shingle_rh.webp",
+      "meanColour": [
+        0.4041,
+        0.3495,
+        0.2521
+      ],
+      "roughness": 0.783
+    },
+    {
+      "index": 10,
+      "key": "wet_grass",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "10_wet_grass_albedo.jpg",
+      "normal": "10_wet_grass_normal.jpg",
+      "roughHeight": "10_wet_grass_rh.webp",
+      "meanColour": [
+        0.1371,
+        0.1276,
+        0.0832
+      ],
+      "roughness": 0.747
+    },
+    {
+      "index": 11,
+      "key": "mossy_floor",
+      "metres": 4.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "11_mossy_floor_albedo.jpg",
+      "normal": "11_mossy_floor_normal.jpg",
+      "roughHeight": "11_mossy_floor_rh.webp",
+      "meanColour": [
+        0.315,
+        0.2716,
+        0.1271
+      ],
+      "roughness": 0.944
+    },
+    {
+      "index": 12,
+      "key": "tundra",
+      "metres": 4.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "12_tundra_albedo.jpg",
+      "normal": "12_tundra_normal.jpg",
+      "roughHeight": "12_tundra_rh.webp",
+      "meanColour": [
+        0.1948,
+        0.1721,
+        0.1194
+      ],
+      "roughness": 0.88
+    },
+    {
+      "index": 13,
+      "key": "sandstone",
+      "metres": 2.5,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "13_sandstone_albedo.jpg",
+      "normal": "13_sandstone_normal.jpg",
+      "roughHeight": "13_sandstone_rh.webp",
+      "meanColour": [
+        0.457,
+        0.2669,
+        0.1895
+      ],
+      "roughness": 0.87
+    },
+    {
+      "index": 14,
+      "key": "dry_earth",
+      "metres": 2.5,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "14_dry_earth_albedo.jpg",
+      "normal": "14_dry_earth_normal.jpg",
+      "roughHeight": "14_dry_earth_rh.webp",
+      "meanColour": [
+        0.532,
+        0.3444,
+        0.2542
+      ],
+      "roughness": 0.852
+    },
+    {
+      "index": 15,
+      "key": "ice",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "15_ice_albedo.jpg",
+      "normal": "15_ice_normal.jpg",
+      "roughHeight": "15_ice_rh.webp",
+      "meanColour": [
+        0.4591,
+        0.4618,
+        0.4786
+      ],
+      "roughness": 0.243
+    }
+  ]
+}

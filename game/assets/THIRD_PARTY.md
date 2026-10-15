@@ -27,11 +27,14 @@ Our own work in `characters/`: the body's regions, underwear and levels of detai
 procedural surface textures (`*_detail_normal.png`, `knit_normal.png`, `weave_normal.png` and the like), and the
 retargeting, all made by the scripts in `art/`.
 
-## Ground textures (`surface/ground/`)
+## Ground textures (`surface/ground/layers/`)
 
-`ground_albedo.webp` and `ground_normal.webp` are two atlases of eight 2048 px layers each (base colour; normal and
-height), built by `tools/blender/surface_ground.py` from the sets below: downscaled from 4K, packed, normal maps
-brought to one convention. Layers in `Hollow.Surface.GroundMaterial` order:
+Sixteen layers, one a `Hollow.Surface.GroundMaterial` (docs/WALKING_GROUND.md §8), built by
+`tools/blender/surface_layers.py` from the scans in `D:\GameDev\Assets`: each layer's base colour and normal map at 4K
+are the scan's own files (the Megascans JPEGs copied byte for byte; the two Poly Haven PNGs written as lossless WebP), and
+a 2K lossless WebP holds its roughness and height. Godot compresses them for the GPU when it imports them; the game puts
+them together into texture arrays (`game/scripts/Surface/GroundLayers.cs`). Every set was bought for this game or is
+CC0; the Fab ones ship only inside the game.
 
 | Layer | Set | Source | Licence |
 |---|---|---|---|
@@ -43,13 +46,18 @@ brought to one convention. Layers in `Hollow.Surface.GroundMaterial` order:
 | 5 sand | Beach Sand (Quixel Megascans, `ukviejtlw`) | https://www.fab.com/listings/2342785d-12a5-465d-a74a-4ce98909aaed | Fab Standard License |
 | 6 snow | Clean Snow (Quixel Megascans, `ueqmfe3fw`) | https://www.fab.com/listings/a8080c7e-824d-4abb-a980-05f23aafd902 | Fab Standard License |
 | 7 moss (recoloured by the shader) | `forest_ground_04` (Poly Haven, from the "Pine Forest" scene pack) | https://polyhaven.com/a/forest_ground_04 | CC0 |
+| 8 wet sand | Wet Plain Sand (Quixel Megascans, `rldas3p0`) | Fab, Quixel Megascans; `wet_plain_sand_rldas3p0_4k.zip` | Fab Standard License |
+| 9 shingle | Beach Gravel With Pebbles (Quixel Megascans, `tbvqegas`) | Fab, Quixel Megascans; `beach_gravel_with_pebbles_tbvqegas_4k.zip` | Fab Standard License |
+| 10 wet grass | Wet Grass Ground (Quixel Megascans, `sjzkdjba`) | Fab, Quixel Megascans; `wet_grass_ground_sjzkdjba_4k.zip` | Fab Standard License |
+| 11 mossy forest floor | Mossy Ground (Quixel Megascans, `tj4ocdjr`) | Fab, Quixel Megascans; `mossy_ground_tj4ocdjr_4k.zip` | Fab Standard License |
+| 12 tundra | Tundra Mossy Ground (Quixel Megascans, `vjulbjjr`) | Fab, Quixel Megascans; `tundra_mossy_ground_vjulbjjr_4k.zip` | Fab Standard License |
+| 13 sandstone | Canyon Sandstone Rock (Quixel Megascans, `vimldgeg`) | https://www.fab.com/listings/2ff5cf78-69c9-4c87-bbf3-a81d857e7ba3 | Fab Standard License |
+| 14 dry earth | Desert Western Ground Dirt Coarse 07 (Quixel Megascans, `xiqebhm`) | Fab, Quixel Megascans; `desert_western_ground_dirt_coarse_07_xiqebhm_4k.zip` | Fab Standard License |
+| 15 ice | Frozen Lake (Quixel Megascans, `tcbkdcfr`) | Fab, Quixel Megascans; `frozen_lake_tcbkdcfr_4k.zip` | Fab Standard License |
 
-The Megascans sets are owned on the project's Fab account (listing URLs from the local download manifest,
-`D:\GameDev\Assets\Bare-World-Manual\DOWNLOAD-MANIFEST-VERIFIED.json`). The Fab Standard License allows use in any
-engine. **Checked on 2026-10-13:** each of the six listing pages above gives "License terms: Standard License" and
-none of them says the product is licensed for use only with Unreal Engine (the pages mention Unreal only in Fab's
-footer). The Fab Standard License does not allow redistributing the files on their own: they ship only inside the
-game.
+The archives named are in `D:\GameDev\Assets` (each unpacked beside it with its `_EXTRACTION_PROVENANCE.json`, which
+holds every file's SHA-256); the Fab listing URLs of layers 0-6 and 13 are from
+`D:\GameDev\Assets\Bare-World-Manual\DOWNLOAD-MANIFEST-VERIFIED.json`.
 
 ## Item and world models (`items/`, `world/`, `textures/`, `materials/`)
 
