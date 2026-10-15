@@ -11,9 +11,9 @@ The owner gave the game its benchmark ship, the Iron Wake (`D:\GameDev\Assets\Ir
 with walkable decks that players furnish, six crewed rocket cannons with a visible loading mechanism, and a new
 incendiary rocket. The design is [IRON_WAKE.md](IRON_WAKE.md), **approved by the owner on 15 October 2026** with all
 fourteen defaults (§2). On 15 October 2026 its import (model, materials, LODs, the data file), its sounds and its
-effects were merged into `main` (IW-A part 1, IW-S, IW-F); the loading mechanisms are being built on `iw-loaders`. Its
-rules (people aboard in the ship's own frame, seats, stations, fire, building aboard) start on top of S3a once the art
-is in, as the owner asked.
+effects were merged into `main` (IW-A part 1, IW-S, IW-F), then the loading mechanisms, the battery table
+(`batteries.json`) and the incendiary rocket's model (IW-A part 2, 2c7677b). IW1 (ship spaces: walking aboard) is
+being built on `iw-spaces`, cut from `whole-world` with `main` merged in, as the owner asked; IW2–IW6 follow.
 
 ## 14 October 2026, night: one place (read this first)
 
