@@ -45,6 +45,17 @@ public interface IPlacementSurroundings
 
     /// <summary>How many of a deployable a player owns.</summary>
     int ThingsOwned(ulong player, DeployableDef def);
+
+    /// <summary>
+    /// The ships people walk in whose reach comes within a radius of a point (IRON_WAKE.md §8): their frames and where they
+    /// are (the server's now, a client's as drawn), how the world names them. None by default (a world without ships).
+    /// </summary>
+    void SpacesNear(Vector3 point, float radius, List<PlacedSpace> into)
+    {
+    }
+
+    /// <summary>Whether a player is on a ship's list, its crew: who may build aboard (IRON_WAKE.md §8).</summary>
+    bool Crew(in TargetRef ship, ulong player) => false;
 }
 
 /// <summary>
@@ -108,6 +119,35 @@ public sealed class PlacementWorld
         _things.Clear();
         Around.ThingsNear(point, radius, _things);
         return _things;
+    }
+
+    private readonly List<PlacedSpace> _spaces = new();
+
+    /// <summary>The ships people walk in whose reach comes within a radius of a point (the world's own list, good until the next call).</summary>
+    public List<PlacedSpace> SpacesNear(Vector3 point, float radius)
+    {
+        _spaces.Clear();
+        Around.SpacesNear(point, radius, _spaces);
+        return _spaces;
+    }
+
+    /// <summary>A ship people walk in, by how the world names it, near a point (an eye).</summary>
+    public bool SpaceOf(in TargetRef ship, Vector3 near, out PlacedSpace space)
+    {
+        space = default;
+        if (ship.Family != TargetFamily.Ship)
+        {
+            return false;
+        }
+        foreach (PlacedSpace s in SpacesNear(near, 64))
+        {
+            if (s.Ref.Whole == ship.Whole)
+            {
+                space = s;
+                return true;
+            }
+        }
+        return false;
     }
 
     // ---------------------------------------------------------------- rays and overlaps
@@ -212,6 +252,28 @@ public sealed class PlacementWorld
                 // A piece, a door's leaf (its part), the claim device: whatever owns the body says how it is named.
                 (TargetRef target, PlacementSurfaces surface) = Classify(rh.Body);
                 best = new PlacementHit(t, rh.Point, Facing(rh.Normal, direction), target, surface);
+            }
+        }
+
+        // Ships people walk in (IRON_WAKE.md §4.10): their pieces, in their frames (a charge sticks to a hull, a grenade
+        // bounces off it; one stuck there rides the ship).
+        foreach (PlacedSpace ship in SpacesNear((from + to) / 2, length / 2 + radius))
+        {
+            if (Geometry.RaySphere(from, direction, length + radius, ship.Pose.Position, ship.Interior.Reach) < 0)
+            {
+                continue;
+            }
+            bool met;
+            SpaceHit sh;
+            lock (JoltRuntime.Gate)
+            {
+                met = ship.Space.Ray(ship.Pose.ToLocal(from), ship.Pose.DirectionToLocal(direction), length + radius, out sh);
+            }
+            float t = met ? MathF.Max(0, sh.Distance - radius) : float.MaxValue;
+            if (t <= length && t < best.Distance)
+            {
+                var target = ship.Ref with { Part = (byte)Math.Clamp(ship.Def.PartOfPieces(sh.Part), 0, 255) };
+                best = new PlacementHit(t, ship.Pose.ToWorld(sh.Point), Facing(ship.Pose.DirectionToWorld(sh.Normal), direction), target, PlacementSurfaces.Ship);
             }
         }
 

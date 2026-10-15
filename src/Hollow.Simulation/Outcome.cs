@@ -264,6 +264,20 @@ public enum OutcomeCode : byte
 
     /// <summary>The ship's crew alone (those authorised at its helm).</summary>
     NotCrew = 115,
+
+    // ---------------------------------------------------------------- building aboard (IRON_WAKE.md §8, IW5)
+
+    /// <summary>Aboard a ship, outside its build zones (its bays and decks) or on no deck of its hull (a ramp, a door).</summary>
+    NotInBuildZone = 116,
+
+    /// <summary>Aboard a ship, in what is kept clear: the ramp's top, the stairs, the bridge, the lanes to the stations.</summary>
+    KeepClear = 117,
+
+    /// <summary>Aboard a ship, taller than its deck's headroom allows (the tall bay alone takes the tall things).</summary>
+    TooTall = 118,
+
+    /// <summary>The ship holds as many deployables as it may: <see cref="Outcome.Detail"/> is the item.</summary>
+    ShipFull = 119,
 }
 
 /// <summary>

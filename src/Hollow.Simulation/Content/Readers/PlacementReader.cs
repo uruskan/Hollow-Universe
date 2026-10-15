@@ -20,7 +20,7 @@ internal sealed class PlacementReader : IContentReader
     private static readonly string[] RuleFields =
     {
         "surfaces", "solver", "footprint", "support", "supportStep", "maxSlope", "maxStep", "water", "align", "rotation", "turn", "reach",
-        "sight", "privilege", "padding", "limits", "tolerance",
+        "sight", "privilege", "padding", "limits", "tolerance", "aboard", "headroom",
     };
 
     private static readonly Dictionary<string, PlacementSurfaces> SurfaceNames = new(StringComparer.Ordinal)
@@ -236,7 +236,7 @@ internal sealed class PlacementReader : IContentReader
             {
                 if (p.Name == "limits" && p.Value.ValueKind == JsonValueKind.Object)
                 {
-                    f.OnlyKnown(p.Value, at + ".limits", "structure", "player");
+                    f.OnlyKnown(p.Value, at + ".limits", "structure", "player", "ship");
                     foreach (JsonProperty limit in p.Value.EnumerateObject())
                     {
                         fields["limits." + limit.Name] = (limit.Value, at);
@@ -277,6 +277,19 @@ internal sealed class PlacementReader : IContentReader
         PlacementSurfaces surfaces = fields.TryGetValue("surfaces", out (JsonElement Value, string Where) s)
             ? Surfaces(f, s.Value, s.Where)
             : PlacementSurfaces.Terrain | PlacementSurfaces.Floor;
+        // "aboard": false keeps it off ships' decks whatever its kind allows (IRON_WAKE.md §8: the claim device, the
+        // vehicle workbench).
+        if (fields.TryGetValue("aboard", out (JsonElement Value, string Where) aboard))
+        {
+            if (aboard.Value.ValueKind == JsonValueKind.False)
+            {
+                surfaces &= ~PlacementSurfaces.Ship;
+            }
+            else if (aboard.Value.ValueKind != JsonValueKind.True)
+            {
+                f.Problem(aboard.Where, "\"aboard\" must be true or false");
+            }
+        }
         string solver = Text("solver", solvers.FirstOrDefault() ?? "free", solvers);
 
         Vector3? half = null;
@@ -352,7 +365,9 @@ internal sealed class PlacementReader : IContentReader
             Padding = Number("padding", 0, 0, 10),
             PerStructure = (int)Number("limits.structure", 0, 0, 10_000),
             PerPlayer = (int)Number("limits.player", 0, 0, 10_000),
+            PerShip = (int)Number("limits.ship", 0, 0, 10_000),
             Tolerance = Number("tolerance", 0.3f, 0.01f, 2),
+            Headroom = Number("headroom", 0.2f, 0, 3),
         };
     }
 

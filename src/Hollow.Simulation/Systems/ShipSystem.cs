@@ -112,8 +112,52 @@ public sealed partial class ShipSystem : ZoneSystem
             ship.Space = new ShipSpace(interior, ship.Parts, Tuning);
             ship.Frame = new ShipFrame(ship, ship.Space, Movement.Gravity);
             Zone.Frames.Add(ship.Frame);
+            // What rides it (restored before it, IRON_WAKE.md §8) goes into its space and where it carries it.
+            Zone.Get<ThingSystem>()?.Boarded(ship);
         }
         return ship;
+    }
+
+    /// <summary>
+    /// The deck of a ship people walk in under a point of the zone's frame (IRON_WAKE.md §4.10): the point inside its
+    /// boarding volume, and a floor of its space (its pieces or a thing aboard) facing up from <paramref name="above"/> over
+    /// it to <paramref name="below"/> under it. A wreck or a ship in orbit has none. Where on the deck, in the zone's frame.
+    /// </summary>
+    public bool DeckUnder(Vector3 point, float above, float below, out Vector3 at, out Ship? ship)
+    {
+        at = point;
+        ship = null;
+        foreach (Ship s in _ships)
+        {
+            if (s.Frame == null || s.Space == null || s.Destroyed || s.InOrbit)
+            {
+                continue;
+            }
+            ShipPose pose = ShipFrame.PoseOf(s.State, s.Def.CentreOfMass);
+            ShipInterior interior = s.Space.Interior;
+            if (Vector3.DistanceSquared(pose.Position, point) > interior.Reach * interior.Reach)
+            {
+                continue;
+            }
+            Vector3 local = pose.ToLocal(point);
+            if (interior.OutsideBoarding(local, s.Parts) > interior.Margin)
+            {
+                continue;
+            }
+            bool met;
+            SpaceHit hit;
+            lock (JoltRuntime.Gate)
+            {
+                met = s.Space.Ray(local + Vector3.UnitY * above, -Vector3.UnitY, above + below, out hit, things: true);
+            }
+            if (met && hit.Normal.Y > 0.5f)
+            {
+                at = pose.ToWorld(hit.Point);
+                ship = s;
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>A new ship standing level on the ground at a point, its nose toward <paramref name="yaw"/>.</summary>
@@ -172,6 +216,9 @@ public sealed partial class ShipSystem : ZoneSystem
             Entities.Destroy(entity);
         }
         _ships.Remove(ship);
+        // What rode it goes with it (IRON_WAKE.md §8; a wreck's went when it was wrecked): built things break and spill,
+        // loose ones fall.
+        Zone.Get<SupportSystem>()?.SupportGone(ship.Ref);
     }
 
     // ---------------------------------------------------------------- each tick
@@ -248,6 +295,8 @@ public sealed partial class ShipSystem : ZoneSystem
         {
             RemoveShip(gone);
         }
+        // What rides the ships goes where they carried it, before anything this tick looks at it (IRON_WAKE.md §4.10).
+        Zone.Get<ThingSystem>()?.FollowSupports();
         ShipTime += System.Diagnostics.Stopwatch.GetElapsedTime(started);
     }
 
@@ -533,8 +582,7 @@ public sealed partial class ShipSystem : ZoneSystem
         ship.State.Flags |= ShipFlags.Destroyed;
         ship.State.Velocity = Vector3.Zero;
         ship.State.AngularVelocity = Vector3.Zero;
-        // Destroyed by the blow being applied, or (none) by its crash.
-        Damage.Destroyed(ship.Ref, ship.Def.Key, 0, ship.Origin, ship.State.Rotation, Damage._blow.Active ? null : DestroyCause.Crash);
+        // Its parked body goes first: what was aboard spills to the ground under it, not onto a deck that is gone.
         if (ship.ParkedBody != 0)
         {
             lock (JoltRuntime.Gate)
@@ -543,6 +591,9 @@ public sealed partial class ShipSystem : ZoneSystem
             }
             ship.ParkedBody = 0;
         }
+        // Destroyed by the blow being applied, or (none) by its crash; what was built aboard breaks and spills, what lay
+        // aboard falls (IRON_WAKE.md §8, the support rule).
+        Damage.Destroyed(ship.Ref, ship.Def.Key, 0, ship.Origin, ship.State.Rotation, Damage._blow.Active ? null : DestroyCause.Crash);
         Vector3 at = Settle(ship.Origin);
         Vector3 up = Frame.UpAt(at);
         for (int seat = 0; seat < ship.Occupants.Length; seat++)

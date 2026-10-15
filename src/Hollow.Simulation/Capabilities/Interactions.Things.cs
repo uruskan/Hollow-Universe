@@ -124,7 +124,10 @@ public static partial class CapabilityHandlers
 
         public void Offer(in InteractContext ctx, List<InteractOption> into)
         {
+            // Aboard a ship its crew takes things up (IRON_WAKE.md §8: its list is its claim); elsewhere, where no one
+            // else's claim covers.
             Outcome why = ctx.Facts.Capabilities.Has(_container) && !ctx.Has(ViewerFlags.Empty) ? OutcomeCode.NotEmpty
+                : ctx.Facts.Aboard ? ctx.Has(ViewerFlags.Authorised) ? Outcome.Done : OutcomeCode.NotCrew
                 : ctx.Building?.PrivilegeAt(ctx.Doer.Id.Value, ctx.Facts.Position) == Privilege.Blocked ? OutcomeCode.BuildingBlocked
                 : Outcome.Done;
             into.Add(new InteractOption(_retrieve, why));

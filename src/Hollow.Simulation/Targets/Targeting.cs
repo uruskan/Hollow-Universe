@@ -107,6 +107,12 @@ public struct TargetFacts
     /// <summary>The deployable it is, if one (a workbench's level, a machine's kind).</summary>
     public DeployableDef? Deployable;
 
+    /// <summary>
+    /// Built or lying aboard a ship (IRON_WAKE.md §8): its crew's to pick up, not a building claim's; the viewer's flags
+    /// then say <see cref="ViewerFlags.Authorised"/> when they are on the ship's list.
+    /// </summary>
+    public bool Aboard;
+
     /// <summary>Where it stands, in the zone frame (the building rights there).</summary>
     public Vector3 Position;
 }

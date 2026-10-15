@@ -28,6 +28,8 @@ public sealed class PlayerSystem : ZoneSystem
     private SupportSystem Supports => _supportsSystem ??= Zone.Require<SupportSystem>();
     private ThingSystem? _thingsSystem;
     private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+    private SpillSystem? _spillSystem;
+    private SpillSystem Spill => _spillSystem ??= Zone.Require<SpillSystem>();
     private WorldSystem? _worldSystem;
     private WorldSystem World => _worldSystem ??= Zone.Require<WorldSystem>();
     private WoundedSystem? _woundedSystem;
@@ -246,11 +248,12 @@ public sealed class PlayerSystem : ZoneSystem
         }
         bool any = stacks.Exists(s => !s.IsEmpty);
         p.Inventory.Clear();
-        // Where the body is in the world (aboard a ship, where it carried it; IRON_WAKE.md §4.10 links bodies to ships later).
+        // Where the body is in the world: aboard a ship, on its deck where it carried it, and it rides the ship from then on
+        // (IRON_WAKE.md §4.10).
         Vector3 fell = WorldOf(c.State);
         if (any)
         {
-            Vector3 at = Settle(fell);
+            Vector3 at = c.State.Frame != 0 ? Spill.RestingPoint(fell) : Settle(fell);
             var corpse = new Corpse(NextId(), p.Name, p.Id, stacks.Count,
                 at, Frame.UpAt(at), Facing.YawOf(ViewOf(c), Frame.UpAt(at)), content.Survival.BodyLifetime, Tick + content.Survival.BodyLifetime.Ticks);
             for (int i = 0; i < stacks.Count; i++)
@@ -304,6 +307,7 @@ public sealed class PlayerSystem : ZoneSystem
         }
         Vector3 at;
         float yaw = 0;
+        (ulong Frame, Vector3 Position, Vector3 Forward)? aboard = null;
         if (!bag.IsNone)
         {
             if (!Entities.TryFind(bag, out Entity bagEntity) || Things.StaticOf(bagEntity) is not Deployable d || !d.Def.IsRespawnPoint)
@@ -322,6 +326,7 @@ public sealed class PlayerSystem : ZoneSystem
             d.Revision++;
             at = BagPoint(d);
             yaw = d.Yaw;
+            aboard = AboardPoint(d);
         }
         else
         {
@@ -338,6 +343,14 @@ public sealed class PlayerSystem : ZoneSystem
         c.State = NewCharacter(at);
         c.State.Cheats = cheats;
         c.Input = new MoveInput { View = Facing.View(yaw, 0, Frame.UpAt(at)) };
+        if (aboard is { } deck)
+        {
+            // A bag or bed aboard a ship (IRON_WAKE.md §8): in front of it on the deck, in the ship's frame.
+            c.State.Position = deck.Position;
+            c.State.Frame = deck.Frame;
+            c.Input = new MoveInput { View = deck.Forward, Frame = deck.Frame };
+            at = WorldOf(c.State);
+        }
         c.Actions = default;
         SyncHealth(ref c, p);
         Physics.PrefetchWithin(at, PhysicsWorld.EnsureReach);
@@ -360,6 +373,18 @@ public sealed class PlayerSystem : ZoneSystem
             return BeachPoint(Hash64.Of(p.Id.Value, (ulong)Tick, 0xBEAC));
         }
         return Entities.TryFind(bag, out Entity bagEntity) && Things.StaticOf(bagEntity) is Deployable { Def.IsRespawnPoint: true } d ? BagPoint(d) : null;
+    }
+
+    // In front of a sleeping bag or bed aboard a ship, on its deck, in the ship's frame: the frame, the feet, the way it faces.
+    private (ulong Frame, Vector3 Position, Vector3 Forward)? AboardPoint(Deployable d)
+    {
+        if (!d.Rides || Zone.Frames.Ship(d.Link.Support.Id) is not { } frame)
+        {
+            return null;
+        }
+        Vector3 forward = Vector3.Transform(-Vector3.UnitZ, d.Link.Rotation);
+        forward = Vector3.Normalize(new Vector3(forward.X, 0, forward.Z) + new Vector3(0, 0, 1e-6f));
+        return (frame.Key, d.Link.Position + forward * 0.3f + Vector3.UnitY * 0.05f, forward);
     }
 
     // In front of a sleeping bag, on the ground.

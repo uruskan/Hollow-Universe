@@ -426,10 +426,13 @@ public sealed class TargetModule : ClientModule
                 return false;
             }
             DeployableDef? def = thing.Deployable(c.Content);
+            // Aboard a ship (IRON_WAKE.md §8): the ship's list says who may take it up, as the server's facts have it.
+            RemoteShip? ship = thing.Aboard ? c.Ships.ShipOf(new EntityId(thing.Support.Id)) : null;
+            ViewerFlags crew = ship != null && (ship.Viewer & ViewerFlags.Authorised) != 0 ? ViewerFlags.Authorised : ViewerFlags.None;
             facts = new TargetFacts
             {
-                Capabilities = thing.Capabilities, Flags = thing.Flags, Name = NameOf(thing, def), Count = thing.Count,
-                Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position,
+                Capabilities = thing.Capabilities, Flags = thing.Flags | crew, Name = NameOf(thing, def), Count = thing.Count,
+                Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position, Aboard = thing.Aboard,
             };
             return true;
         }

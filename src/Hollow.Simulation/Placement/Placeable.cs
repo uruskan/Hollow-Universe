@@ -132,7 +132,8 @@ public readonly record struct PlacementAim(Vector3 Direction, float ViewYaw, int
 /// <summary>
 /// What an intent says was placed (PlaceIntent): what holds it (a piece, a door, the ground…), the socket it snaps to, where
 /// it goes and its turn, and its variant (a piece's orientation, a door's side, a turn in its support's steps). The server
-/// works the candidate out again from it and accepts only a pose within the rule's tolerance of its own.
+/// works the candidate out again from it and accepts only a pose within the rule's tolerance of its own. With a ship as
+/// its support, the pose is in the ship's frame (IRON_WAKE.md §8): its base there and its turn about the ship's up.
 /// </summary>
 public readonly record struct PlacementClaim(TargetRef Support, int Socket, Vector3 Position, float Yaw, int Variant);
 
@@ -187,13 +188,18 @@ public sealed class PlacementCandidate
     /// <summary>What its kind and solver worked out: a piece's <see cref="PlacementPlan"/>, a door's frame, a lock's door.</summary>
     public object? Detail { get; set; }
 
+    /// <summary>Aboard a ship (IRON_WAKE.md §8): where it goes in the ship's frame; null in the zone's.</summary>
+    public AboardSpot? Aboard { get; set; }
+
     /// <summary>The verdict: done, or why not.</summary>
     public Outcome Outcome { get; set; }
 
     public bool Valid => Outcome.Ok;
 
-    /// <summary>What an intent sends of it.</summary>
-    public PlacementClaim Claim => new(Support, Socket, Position, Yaw, Variant);
+    /// <summary>What an intent sends of it: aboard a ship, its pose in the ship's frame (IRON_WAKE.md §8).</summary>
+    public PlacementClaim Claim => Aboard is { } aboard
+        ? new(Support, Socket, aboard.Position, aboard.Yaw, Variant)
+        : new(Support, Socket, Position, Yaw, Variant);
 
     public override string ToString() => $"{Placeable.Key} at {Position} on {Support} ({Surface}): {Outcome}";
 }

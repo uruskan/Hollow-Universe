@@ -28,10 +28,34 @@ public sealed class RemoteThing
     /// <summary>A deployable's item, a world prop's number (0 for a corpse or a bag: a bag's contents show only when opened).</summary>
     public ushort Look { get; set; }
 
-    /// <summary>Its base on the ground (zone frame) and turn about up.</summary>
+    /// <summary>
+    /// Its base on the ground (zone frame), its up there and its turn about up. Aboard a ship (<see cref="Aboard"/>), where
+    /// the ship as drawn carries it, set every frame (<c>ShipModule.Sample</c>): never a zone pose that goes stale.
+    /// </summary>
     public Vector3 Position { get; set; }
 
+    public Vector3 Up { get; set; } = Vector3.UnitY;
+
     public float Yaw { get; set; }
+
+    /// <summary>Built or lying aboard a ship (IRON_WAKE.md §8): <see cref="Support"/> names the ship (its entity ID).</summary>
+    public bool Aboard => Support.Family == TargetFamily.Ship;
+
+    /// <summary>Aboard: its base in the ship's frame, and its turn about the ship's up (as the server sent them).</summary>
+    public Vector3 LocalPosition { get; set; }
+
+    public float LocalYaw { get; set; }
+
+    /// <summary>Aboard: its turn in the ship's frame (X right, Y up, −Z forward).</summary>
+    public Quaternion LocalRotation => Simulation.Combat.Geometry.Upright(Vector3.UnitY, LocalYaw);
+
+    /// <summary>Carries it where a ship is drawn (aboard).</summary>
+    public void Place(in Simulation.Movement.ShipPose ship)
+    {
+        Position = ship.ToWorld(LocalPosition);
+        Up = ship.Up;
+        Yaw = Simulation.Movement.Facing.YawOf(ship.DirectionToWorld(Vector3.Transform(-Vector3.UnitZ, LocalRotation)), Up);
+    }
 
     /// <summary>Health as a fraction (deployables).</summary>
     public float Health { get; set; } = 1;
@@ -56,7 +80,10 @@ public sealed class RemoteThing
     /// <summary>Raised when it changes, for views that cache what they built.</summary>
     public uint Revision { get; set; }
 
-    /// <summary>What it stands on (a building piece; none on the ground): a structure's limit counts what stands on it.</summary>
+    /// <summary>
+    /// What it stands on (a building piece, a ship; none on the ground): a structure's or a ship's limit counts what stands
+    /// on it.
+    /// </summary>
     public TargetRef Support { get; set; }
 
     /// <summary>The deployable it is, if one (a world prop is one too, G7).</summary>

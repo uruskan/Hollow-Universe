@@ -109,6 +109,12 @@ public sealed class SpillSystem : ZoneSystem
     /// </summary>
     public Vector3 RestingPoint(Vector3 point)
     {
+        // Aboard a ship people walk in, on its deck (its space: the zone's physics has no flying ship): what rests there
+        // rides it (IRON_WAKE.md §4.10, ThingSystem.AddStatic).
+        if (Ships.DeckUnder(point, RestFrom, RestDepth, out Vector3 deck, out _))
+        {
+            return deck;
+        }
         Vector3 up = Frame.UpAt(point);
         lock (JoltRuntime.Gate)
         {

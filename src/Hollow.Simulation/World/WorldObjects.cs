@@ -60,6 +60,19 @@ public abstract class WorldObject : ITargetable, IContainerHolder
     /// </summary>
     public TargetRef Support { get; set; }
 
+    /// <summary>
+    /// Its pose on a support that moves (IRON_WAKE.md §4.10, §8: a ship's deck), in that support's frame: the zone carries
+    /// it there every tick, a client draws it there every frame, and it is saved there. None for what stays put (the
+    /// ground, a piece).
+    /// </summary>
+    public SupportLink Link { get; set; }
+
+    /// <summary>Whether it rides a moving support (a ship).</summary>
+    public bool Rides => !Link.IsNone;
+
+    /// <summary>Raised when it was put somewhere else (it fell when the ship it lay on went): clients are sent it anew.</summary>
+    public uint Moved { get; set; }
+
     private int _shown;
 
     /// <summary>

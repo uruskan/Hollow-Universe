@@ -24,7 +24,7 @@ internal static class Checks
     public static IPlacementCheck[] All => new IPlacementCheck[]
     {
         new Reach(), new Sight(), new Surface(), new Step(), new Slope(), new Support(), new Water(), new Rights(), new Overlap(),
-        new Limits(), new Own(),
+        new Limits(), new Own(), new Aboard(),
     };
 
     /// <summary>A footprint corner's surface must face this far up (RustMVP's 0.75) to hold it.</summary>
@@ -50,6 +50,10 @@ internal static class Checks
 
         public Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c)
         {
+            if (c.Aboard != null)
+            {
+                return Placement.Aboard.Sight(ctx, c);
+            }
             float slack = ctx.Rule.Sight;
             Vector3 d = c.Nearest - ctx.Eye;
             float distance = d.Length();
@@ -96,7 +100,7 @@ internal static class Checks
         public string Name => "slope";
 
         public Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) =>
-            Vector3.Dot(c.Normal, world.Frame.UpAt(c.Position)) >= ctx.Rule.MinUp ? Outcome.Done : OutcomeCode.TooSteep;
+            (c.Aboard is { } aboard ? aboard.Normal.Y : Vector3.Dot(c.Normal, world.Frame.UpAt(c.Position))) >= ctx.Rule.MinUp ? Outcome.Done : OutcomeCode.TooSteep;
     }
 
     /// <summary>
@@ -113,6 +117,10 @@ internal static class Checks
             if (ctx.Rule.Support != SupportMode.Corners)
             {
                 return Outcome.Done;
+            }
+            if (c.Aboard != null)
+            {
+                return Placement.Aboard.Support(ctx, c);
             }
             Span<Vector3> corners = stackalloc Vector3[8];
             int count = c.Placeable.Footprint.Corners(c, corners);
@@ -136,7 +144,7 @@ internal static class Checks
         public string Name => "water";
 
         public Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) =>
-            ctx.Rule.Water || !world.Ground.InWater(c.Position) ? Outcome.Done : OutcomeCode.InWater;
+            ctx.Rule.Water || c.Aboard != null || !world.Ground.InWater(c.Position) ? Outcome.Done : OutcomeCode.InWater;
     }
 
     /// <summary>Building rights where it goes: none needed, no one else's claim (building blocked), or authorised by one.</summary>
@@ -146,7 +154,16 @@ internal static class Checks
 
         public Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c)
         {
-            if (ctx.Rule.Privilege == PrivilegeMode.Ignored || world.Building is not { } building)
+            if (ctx.Rule.Privilege == PrivilegeMode.Ignored)
+            {
+                return Outcome.Done;
+            }
+            // Aboard a ship its crew builds (IRON_WAKE.md §8): those on its list, authorised at its helm.
+            if (c.Aboard != null)
+            {
+                return world.Around.Crew(c.Support, ctx.Player) ? Outcome.Done : OutcomeCode.NotCrew;
+            }
+            if (world.Building is not { } building)
             {
                 return Outcome.Done;
             }
@@ -177,6 +194,11 @@ internal static class Checks
         {
             PlacementRule rule = ctx.Rule;
             int item = c.Placeable.Item?.Id ?? 0;
+            // Aboard: so many deployables a ship (IRON_WAKE.md §8).
+            if (rule.PerShip > 0 && c.Support.Family == TargetFamily.Ship && world.Around.ThingsOn(c.Support.Whole) >= rule.PerShip)
+            {
+                return OutcomeCode.ShipFull.With(item);
+            }
             if (rule.PerStructure > 0 && c.Support.Family == TargetFamily.Piece &&
                 world.Building?.PieceOf(new EntityId(c.Support.Id)) is { } piece &&
                 c.Placeable.Kind.CountOn(world, piece.Structure) >= rule.PerStructure)
@@ -189,6 +211,18 @@ internal static class Checks
             }
             return Outcome.Done;
         }
+    }
+
+    /// <summary>
+    /// Aboard a ship (IRON_WAKE.md §8): where its footprint may stand there, as the ship's data file has it: clear of what
+    /// is kept clear, on a deck of its hull, in a build zone, under its headroom. In the zone's frame there is nothing to say.
+    /// </summary>
+    private sealed class Aboard : IPlacementCheck
+    {
+        public string Name => "aboard";
+
+        public Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) =>
+            c.Aboard != null ? Placement.Aboard.Where(ctx, c) : Outcome.Done;
     }
 
     /// <summary>Its kind's own rules: a piece's building checks, a door's opening, one lock to a door, the claim device on a slab.</summary>

@@ -12,9 +12,11 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
+using Hollow.Simulation.Physics;
 using Hollow.Simulation.Placement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
+using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
 
@@ -42,6 +44,8 @@ public sealed class ExplosiveSystem : ZoneSystem
     private SupportSystem Supports => _supportsSystem ??= Zone.Require<SupportSystem>();
     private ThingSystem? _thingsSystem;
     private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
+    private ShipSystem? _shipsSystem;
+    private ShipSystem Ships => _shipsSystem ??= Zone.Require<ShipSystem>();
 
     /// <summary>At most this many explosives live in a zone at once (RustMVP allowed 1,000 charges); more are refused.</summary>
     public const int MaxExplosives = 1024;
@@ -353,6 +357,10 @@ public sealed class ExplosiveSystem : ZoneSystem
     // restitution and some friction, and rests once slow on ground that is flat enough.
     private void Fly(LiveExplosive e)
     {
+        if (FlyAboard(e))
+        {
+            return;
+        }
         ThrowableStats t = e.Stats;
         float gravity = (float)(Spec.SurfaceGravity * 9.80665);
         float radius = (float)t.Radius;
@@ -403,6 +411,120 @@ public sealed class ExplosiveSystem : ZoneSystem
             Vector3 ground = Settle(p);
             Rest(e, new PlacementHit(0, ground, GroundNormal(ground).Normal, TargetRef.Ground, PlacementSurfaces.Terrain), ground + Frame.UpAt(ground) * radius);
         }
+    }
+
+    // Thrown aboard a ship people walk in, or flying in one (IRON_WAKE.md §4.10): it flies and bounces in the ship's frame
+    // under the decks' gravity (a turning or braking deck throws nothing about), against its pieces and the things aboard,
+    // until it leaves the boarding volume; then on in the zone's frame with the ship's velocity there. Its zone pose is
+    // kept where the ship carries it, and sent each tick it flies there. False: not aboard.
+    private bool FlyAboard(LiveExplosive e)
+    {
+        IShipFrame? frame = null;
+        ShipPose pose = default;
+        if (e.Frame != 0 && (Zone.Frames.Ship(e.Frame) is not { } current || Ships.ShipOf(new EntityId(e.Frame)) is not { Destroyed: false, InOrbit: false } ||
+                !current.TryPose(Tick, out pose)))
+        {
+            e.Frame = 0; // its ship went: on in the zone's frame from where it was
+        }
+        else if (e.Frame != 0)
+        {
+            frame = Zone.Frames.Ship(e.Frame);
+        }
+        if (frame == null)
+        {
+            foreach (IShipFrame f in Zone.Frames.Ships)
+            {
+                if (Ships.ShipOf(new EntityId(f.Key)) is { Destroyed: false, InOrbit: false } && f.TryPose(Tick, out ShipPose p) &&
+                    Vector3.DistanceSquared(p.Position, e.Position) <= f.Interior.Reach * f.Interior.Reach &&
+                    f.Interior.OutsideBoarding(p.ToLocal(e.Position), f.States) == 0)
+                {
+                    frame = f;
+                    pose = p;
+                    break;
+                }
+            }
+            if (frame == null)
+            {
+                return false;
+            }
+            e.Frame = frame.Key;
+            e.LocalPosition = pose.ToLocal(e.Position);
+            e.LocalVelocity = pose.DirectionToLocal(e.Velocity - pose.VelocityAt(e.Position));
+        }
+        ThrowableStats t = e.Stats;
+        Ship ship = Ships.ShipOf(new EntityId(frame.Key))!;
+        float gravity = (float)(Spec.SurfaceGravity * 9.80665) * frame.Interior.DeckGravity;
+        Vector3 g = -Vector3.UnitY * gravity;
+        float radius = (float)t.Radius;
+        Vector3 at = e.LocalPosition, v = e.LocalVelocity;
+        for (int s = 0; s < FlightSteps; s++)
+        {
+            float h = FlightStepSeconds;
+            Vector3 next = at + v * h + g * (0.5f * h * h);
+            Vector3 d = next - at;
+            float length = d.Length();
+            bool met = false;
+            SpaceHit hit = default;
+            if (length > 1e-6f)
+            {
+                lock (JoltRuntime.Gate)
+                {
+                    met = frame.Space.Ray(at, d / length, length + radius, out hit, things: true);
+                }
+            }
+            if (met && hit.Distance - radius <= length)
+            {
+                // Lying or stuck aboard, it rides the ship (on a thing aboard too: the ship carries both).
+                Vector3 n = hit.Normal.LengthSquared() > 1e-6f ? Vector3.Normalize(hit.Normal) : -d / length;
+                var target = ship.Ref with { Part = (byte)Math.Clamp(ship.Def.PartOfPieces(frame.Space.IsThing((uint)hit.Part) ? 0 : hit.Part), 0, 255) };
+                PlacementHit world = new(0, pose.ToWorld(hit.Point), Vector3.Normalize(pose.DirectionToWorld(n)), target, PlacementSurfaces.Ship);
+                if (t.Sticky)
+                {
+                    e.Frame = 0;
+                    Stick(e, world);
+                    return true;
+                }
+                float fraction = Math.Clamp((hit.Distance - radius) / length, 0, 1);
+                Vector3 off = hit.Point + n * (radius + 0.01f);
+                Vector3 vh = v + g * (h * fraction);
+                float vn = Vector3.Dot(vh, n);
+                Vector3 bounced = vn < 0 ? vh - n * ((1 + (float)t.Bounce) * vn) : vh;
+                float along = Vector3.Dot(bounced, n);
+                bounced = n * along + (bounced - n * along) * 0.7f;
+                e.Bounces++;
+                float speed = bounced.Length();
+                if (speed < 0.3f || e.Bounces >= MaxBounces || (speed < 1.2f && n.Y > 0.6f))
+                {
+                    e.Frame = 0;
+                    Rest(e, world, pose.ToWorld(off));
+                    return true;
+                }
+                at = off;
+                v = bounced;
+                break;
+            }
+            at = next;
+            v += g * h;
+        }
+        e.LocalPosition = at;
+        e.LocalVelocity = v;
+        e.Position = pose.ToWorld(at);
+        e.Velocity = pose.DirectionToWorld(v) + pose.VelocityAt(e.Position);
+        e.ArcStart = e.Position;
+        e.ArcVelocity = e.Velocity;
+        e.StateTick = Tick;
+        e.Revision++;
+        // Out of the boarding volume (over the side, out of the open ramp): on in the zone's frame.
+        if (frame.Interior.OutsideBoarding(at, frame.States) > frame.Interior.Margin)
+        {
+            e.Frame = 0;
+        }
+        else if (++e.Airborne > MaxAirborneTicks)
+        {
+            e.Frame = 0;
+            Rest(e, new PlacementHit(0, e.Position, pose.Up, ship.Ref, PlacementSurfaces.Ship), e.Position);
+        }
+        return true;
     }
 
     private void Stick(LiveExplosive e, in PlacementHit hit)

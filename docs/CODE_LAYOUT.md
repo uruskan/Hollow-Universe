@@ -314,7 +314,8 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `Checks.cs` | 202 | IPlacementCheck, Checks [Reach, Sight, Surface, Step, Slope, Support, Water, Rights, Overlap, Limits, Own] | One check of the placement pipeline (GROUND_SYSTEMS.md §6), registered by name and run in placement.json's fixed order, |
+| `Aboard.cs` | 290 | PlacedSpace, AboardHit, AboardSpot, Aboard | Placing aboard a ship (IRON_WAKE.md §8.1): the free solver's half in the ship's frame, its claim settled there, and the checks' parts aboard (where, corners, sight, room). |
+| `Checks.cs` | 215 | IPlacementCheck, Checks [Reach, Sight, Surface, Step, Slope, Support, Water, Rights, Overlap, Limits, Own, Aboard] | One check of the placement pipeline (GROUND_SYSTEMS.md §6), registered by name and run in placement.json's fixed order, |
 | `Footprint.cs` | 235 | Footprint, BoxFootprint, HullFootprint [PointFootprint] | What a placement occupies (GROUND_SYSTEMS.md §6's footprint): a box (a deployable's or the claim device's size, or half |
 | `Kinds.cs` | 320 | ResolvedPlaceable, IPlacementSite, PlacementSources, PlaceableKind, Kinds, DeployableKind, PieceKind, DoorKind, LockPlacement, CupboardKind, ChargeKind, ShipKind | What a kind finds a placeable's key to name in the game data (its definition and the items it involves). |
 | `Placeable.cs` | 200 | PlacementCost, Placeable, PlacementData, PlacementContext, PlacementAim, PlacementClaim, PlacementCandidate | A material a placement costs (a building piece's twig, from the carried slots). |
@@ -998,6 +999,7 @@ The tests, one file per area (the runner needs no packages).
 | `GunTests.cs` | 431 | Guns, GunTests | Guns in a GameRig: a loaded gun in hand, shots queued for the coming tick as the server would. |
 | `HeldTests.cs` | 403 | HeldTests, Loopback [TestActor] | Held items, item information and inventory actions (GROUND_SYSTEMS.md §7, package P3), engine-free. |
 | `InteractionTests.cs` | 554 | InteractionTests [Rogue] | The interaction system (GROUND_SYSTEMS.md §5): what the E key does, one rule a test. |
+| `IronWakeBuildTests.cs` | 390 | IronWakeBuildTests | Building aboard the Iron Wake (IRON_WAKE.md §8.1, IW5): placing on its decks, riding it, the refusals, a furnace in flight, a bag aboard, a grenade, a wreck, a restart. |
 | `IronWakeNetTests.cs` | 195 | IronWakeNetTests [ShipFacts] | The Iron Wake over the network (IRON_WAKE.md §4.8, §4.11): prediction aboard, and sleepers aboard across a restart. |
 | `IronWakeTests.cs` | 634 | IronWakeRig, IronWakeTests | The Iron Wake on the first world's stand-in ground (IRON_WAKE.md §4, IW1): one parked near the landing site, its nose |
 | `ItemTests.cs` | 161 | ItemTests |  |

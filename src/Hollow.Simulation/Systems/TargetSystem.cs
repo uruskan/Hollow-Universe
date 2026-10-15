@@ -526,11 +526,14 @@ public sealed class TargetSystem : ZoneSystem
                 return false;
             }
             DeployableDef? def = (thing as Deployable)?.Def;
+            // Aboard a ship (IRON_WAKE.md §8): the ship's list says who may take it up.
+            Ships.Ship? ship = thing.Support.Family == TargetFamily.Ship ? zone.Ships().ShipOf(new EntityId(thing.Support.Id)) : null;
+            ViewerFlags crew = ship != null && ship.IsAuthorised(viewer.Id.Value) ? ViewerFlags.Authorised : ViewerFlags.None;
             facts = new TargetFacts
             {
-                Capabilities = thing.CapabilitiesIn(zone.Content!.Capabilities), Flags = zone.Targets().FlagsFor(target, viewer),
+                Capabilities = thing.CapabilitiesIn(zone.Content!.Capabilities), Flags = zone.Targets().FlagsFor(target, viewer) | crew,
                 Name = thing.Name.Length > 0 ? thing.Name : def?.Item.Name ?? "", Count = thing.ShownCount,
-                Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position,
+                Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position, Aboard = ship != null,
             };
             return true;
         }

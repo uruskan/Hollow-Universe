@@ -58,6 +58,15 @@ public partial class ThingsView : Node3D
             {
                 if (existing.Revision == thing.Revision)
                 {
+                    // Aboard a ship (IRON_WAKE.md §8): where the ship is drawn this frame, its fire with it.
+                    if (thing.Aboard)
+                    {
+                        existing.Node.Transform = Placed(thing);
+                        if (_fires.TryGetValue(thing.NetId, out FxHandle burning))
+                        {
+                            FxDirector.Move(burning, existing.Node.Transform * FireSpot(existing.Node));
+                        }
+                    }
                     continue;
                 }
                 existing.Node.QueueFree();
@@ -139,8 +148,7 @@ public partial class ThingsView : Node3D
         DeployableDef? def = thing.Lit && thing.Deployable(Client.Content) is { Device: not null } burner ? burner : null;
         if (def != null && !burning)
         {
-            Node3D? model = node.GetChildCount() > 0 ? node.GetChild(0) as Node3D : null;
-            Vector3 local = model != null && Socket(model, "socket_fire") is { } at ? at : new Vector3(0, 0.12f, 0);
+            Vector3 local = FireSpot(node);
             Transform3D t = node.Transform;
             // Its own fire (fx.json items: the campfire's flames, the furnace's firebox).
             _fires[thing.NetId] = FxDirector.Start(FxCatalog.ItemEffect(def.Key, "fire") ?? "fire.campfire", t * local, t.Basis.Y.Normalized());
@@ -152,11 +160,21 @@ public partial class ThingsView : Node3D
         }
     }
 
+    // Where a thing's fire burns on its node (its model's socket_fire).
+    private static Vector3 FireSpot(Node3D node)
+    {
+        Node3D? model = node.GetChildCount() > 0 ? node.GetChild(0) as Node3D : null;
+        return model != null && Socket(model, "socket_fire") is { } at ? at : new Vector3(0, 0.12f, 0);
+    }
+
+    // A thing's node where it is now: standing along its up (aboard, the ship's as drawn) at its heading.
+    private static Transform3D Placed(RemoteThing thing) =>
+        new(NatureView.Upright(thing.Up, thing.Yaw), GroundView.ToGodot(thing.Position));
+
     private Node3D Build(RemoteThing thing)
     {
-        Num.Vector3 up = Client.Frame.UpAt(thing.Position);
         var node = new Node3D { Name = $"Thing {thing.NetId}" };
-        node.Transform = new Transform3D(NatureView.Upright(up, thing.Yaw), GroundView.ToGodot(thing.Position));
+        node.Transform = Placed(thing);
         switch (thing.Kind)
         {
             case StaticKind.Deployable when thing.Deployable(Client.Content) is { } def:

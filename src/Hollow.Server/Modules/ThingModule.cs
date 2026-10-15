@@ -11,6 +11,7 @@ using Hollow.Simulation;
 using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Targets;
@@ -220,6 +221,11 @@ public sealed class ThingModule : ServerModule
             uint netId = _thingGrid[index].NetId;
             WorldObject thing = _things[netId];
             uint contents = thing.Container?.Revision ?? 0;
+            // Put somewhere else (it fell when the ship it lay on went): sent anew, as a spawn.
+            if (view.ThingsSent.TryGetValue(netId, out ThingSent moved) && moved.Moved != thing.Moved)
+            {
+                view.ThingsSent.Remove(netId);
+            }
             if (view.ThingsSent.TryGetValue(netId, out ThingSent sent))
             {
                 _thingsRelevant.Add(netId);
@@ -227,7 +233,7 @@ public sealed class ThingModule : ServerModule
                 if (sent.Revision != thing.Revision || sent.Contents != contents || session.ViewerChanged)
                 {
                     ViewerFlags flags = Zone.Targets().FlagsFor(thing.Ref, session.Viewer);
-                    view.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags);
+                    view.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags, thing.Moved);
                     if (sent.Revision != thing.Revision || flags != sent.Flags)
                     {
                         (byte health, uint count) = Look(thing);
@@ -242,8 +248,12 @@ public sealed class ThingModule : ServerModule
                 spawned++;
                 _thingsRelevant.Add(netId);
                 ViewerFlags flags = Zone.Targets().FlagsFor(thing.Ref, session.Viewer);
-                view.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags);
+                view.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags, thing.Moved);
                 (byte health, uint count) = Look(thing);
+                // Aboard a ship (IRON_WAKE.md §8), its pose in the ship's frame: the client carries it where it draws the ship.
+                (Vector3 at, float yaw) = thing.Rides && thing.Support.Family == TargetFamily.Ship
+                    ? (thing.Link.Position, Facing.YawOf(Vector3.Transform(-Vector3.UnitZ, thing.Link.Rotation), Vector3.UnitY))
+                    : (thing.Position, thing.Yaw);
                 Writer.Reset();
                 new ThingSpawn
                 {
@@ -251,10 +261,10 @@ public sealed class ThingModule : ServerModule
                     EntityId = thing.Id.Value,
                     Kind = thing.Kind,
                     Look = thing.Look,
-                    X = thing.Position.X,
-                    Y = thing.Position.Y,
-                    Z = thing.Position.Z,
-                    Yaw = Quantize.Angle16(thing.Yaw),
+                    X = at.X,
+                    Y = at.Y,
+                    Z = at.Z,
+                    Yaw = Quantize.Angle16(yaw),
                     Health = health,
                     Count = count,
                     Flags = flags,
@@ -395,7 +405,7 @@ public sealed class ThingModule : ServerModule
 }
 
 /// <summary>What a player was last sent of a static thing: its revision, its contents' revision, what they were told of it.</summary>
-public readonly record struct ThingSent(uint Revision, uint Contents, ViewerFlags Flags);
+public readonly record struct ThingSent(uint Revision, uint Contents, ViewerFlags Flags, uint Moved = 0);
 
 /// <summary>The accessor on the server (GROUND_SYSTEMS.md §12.5): the static things and natural objects as replicated.</summary>
 public static class ThingModuleAccess

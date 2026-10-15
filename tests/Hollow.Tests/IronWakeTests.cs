@@ -21,10 +21,10 @@ namespace Hollow.Tests;
 /// </summary>
 public sealed class IronWakeRig : IDisposable
 {
-    public IronWakeRig(bool settle = true)
+    public IronWakeRig(bool settle = true, GameContent? content = null)
     {
-        Game = new GameRig();
-        Def = ContentFixture.Content.Ship("iron-wake")!;
+        Game = new GameRig(content: content);
+        Def = Game.C.Ship("iron-wake")!;
         Ground = Site(Game.Zone, Def);
         // A clearing: nothing of the world's within its footprint and the walk round it.
         Game.Clear(Ground, Ground, 48);

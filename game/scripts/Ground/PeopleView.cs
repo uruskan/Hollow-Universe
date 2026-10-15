@@ -463,6 +463,11 @@ public partial class PeopleView : Node3D
             things.Add(thing.NetId);
             if (_corpses.TryGetValue(thing.NetId, out Corpse? known))
             {
+                // A body aboard a ship (IRON_WAKE.md §4.10) is its backpack, where the ship is drawn this frame.
+                if (thing.Aboard && known.Bag != null)
+                {
+                    known.Bag.Transform = new Transform3D(NatureView.Upright(thing.Up, thing.Yaw), GroundView.ToGodot(thing.Position));
+                }
                 if (known.View != null && now - known.Since > BodySeconds)
                 {
                     known.View.QueueFree();
@@ -472,7 +477,8 @@ public partial class PeopleView : Node3D
                 continue;
             }
             Vector3 at = GroundView.ToGodot(thing.Position);
-            if (Num.Vector3.Distance(thing.Position, Client.Character.Position) > BodyDistance)
+            // Far, or aboard a ship (a ragdoll doesn't ride a deck): its backpack.
+            if (thing.Aboard || Num.Vector3.Distance(thing.Position, Client.Character.Position) > BodyDistance)
             {
                 _corpses[thing.NetId] = new Corpse { Bag = Bag(thing), Fallen = true, Since = now };
                 continue;
@@ -520,8 +526,7 @@ public partial class PeopleView : Node3D
         {
             return null;
         }
-        Num.Vector3 up = Client.Frame.UpAt(thing.Position);
-        bag.Transform = new Transform3D(NatureView.Upright(up, thing.Yaw), GroundView.ToGodot(thing.Position));
+        bag.Transform = new Transform3D(NatureView.Upright(thing.Up, thing.Yaw), GroundView.ToGodot(thing.Position));
         AddChild(bag);
         return bag;
     }

@@ -15,7 +15,7 @@ namespace Hollow.Client;
 // the replicated world. Local.Place sends what it shows.
 public sealed class PlacementModule : ClientModule
 {
-    private readonly Dictionary<ulong, int> _thingsOn = new();
+    private readonly Dictionary<TargetRef, int> _thingsOn = new();
     private PlacementWorld? _placement;
     private ItemWallet? _placementWallet;
     private SurvivalModule? _survivalModule;
@@ -92,26 +92,27 @@ public sealed class PlacementModule : ClientModule
         _thingsOn.Clear();
     }
 
-    // What stands on what: a thing's support, counted for the structure limits.
+    // What stands on what: a deployable's support (a piece, a ship), counted for the structure's and the ship's limits.
     internal void ThingSupportAdded(RemoteThing thing)
     {
-        if (thing.Support.Family == TargetFamily.Piece)
+        if (thing.Support.Family is TargetFamily.Piece or TargetFamily.Ship && thing.Kind == Simulation.World.StaticKind.Deployable)
         {
-            _thingsOn[thing.Support.Id] = _thingsOn.GetValueOrDefault(thing.Support.Id) + 1;
+            _thingsOn[thing.Support.Whole] = _thingsOn.GetValueOrDefault(thing.Support.Whole) + 1;
         }
     }
 
     internal void ThingSupportRemoved(RemoteThing thing)
     {
-        if (thing.Support.Family == TargetFamily.Piece && _thingsOn.TryGetValue(thing.Support.Id, out int count))
+        if (thing.Support.Family is TargetFamily.Piece or TargetFamily.Ship && thing.Kind == Simulation.World.StaticKind.Deployable &&
+            _thingsOn.TryGetValue(thing.Support.Whole, out int count))
         {
             if (count > 1)
             {
-                _thingsOn[thing.Support.Id] = count - 1;
+                _thingsOn[thing.Support.Whole] = count - 1;
             }
             else
             {
-                _thingsOn.Remove(thing.Support.Id);
+                _thingsOn.Remove(thing.Support.Whole);
             }
         }
     }
@@ -125,7 +126,7 @@ public sealed class PlacementModule : ClientModule
             {
                 if (Vector3.DistanceSquared(thing.Position, point) <= radius * radius && thing.Deployable(client.Content) is { } def)
                 {
-                    into.Add(new PlacedThing(new TargetRef(TargetFamily.Thing, thing.Id.Value), def, thing.Position, client.Frame.UpAt(thing.Position), thing.Yaw));
+                    into.Add(new PlacedThing(new TargetRef(TargetFamily.Thing, thing.Id.Value), def, thing.Position, thing.Up, thing.Yaw));
                 }
             }
         }
@@ -166,7 +167,25 @@ public sealed class PlacementModule : ClientModule
             }
         }
 
-        public int ThingsOn(in TargetRef support) => support.Family == TargetFamily.Piece ? client._thingsOn.GetValueOrDefault(support.Id) : 0;
+        public int ThingsOn(in TargetRef support) => client._thingsOn.GetValueOrDefault(support.Whole);
+
+        // The ships people walk in whose spaces this client keeps, where they are drawn (what the player sees is what the
+        // ghost stands on, IRON_WAKE.md §8).
+        public void SpacesNear(Vector3 point, float radius, List<PlacedSpace> into)
+        {
+            foreach (ClientShipFrame frame in client.Ships.Frames)
+            {
+                if (frame.Ship is { Spawned: true, HasState: true } ship && !ship.Has(ShipNetFlags.Destroyed) && !ship.Has(ShipNetFlags.InOrbit) &&
+                    client.Ships.DrawnPose(ship.NetId) is { } pose && Vector3.Distance(pose.Position, point) <= radius + frame.Interior.Reach)
+                {
+                    into.Add(new PlacedSpace(frame, pose, new TargetRef(TargetFamily.Ship, ship.Id.Value), frame.Def));
+                }
+            }
+        }
+
+        // On the ship's list, as the server tells this player of the ship.
+        public bool Crew(in TargetRef ship, ulong player) =>
+            client.Ships.ShipOf(new Simulation.Entities.EntityId(ship.Id)) is { } remote && (remote.Viewer & ViewerFlags.Authorised) != 0;
 
         public int ThingsOwned(ulong player, DeployableDef def)
         {
