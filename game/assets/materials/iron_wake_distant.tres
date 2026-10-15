@@ -4,6 +4,6 @@
 resource_name = "M_IronWake_Distant"
 vertex_color_use_as_albedo = true
 albedo_color = Color(1, 1, 1, 1)
-roughness = 0.654
+roughness = 0.655
 metallic = 0
 texture_filter = 5

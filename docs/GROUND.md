@@ -3893,7 +3893,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `import/starter_kit.py` | The PSG Starter Kit's 17 items (all but the AK and the solar panel) |
 | `import/frontier_rifle.py` | The rifle, from the PSG Frontier AK |
 | `import/tin_finch.py` | The Tin Finch: hull and hatch with their LODs, 26 hulls, 10 sockets, the hatch's open and close clips |
-| `import/iron_wake.py` | The Iron Wake (docs/IRON_WAKE.md §9.1–§9.3): body, hold and 31 moving parts with five LODs, 358 hulls, 91 sockets, occluders, 20 clips, its sixteen finishes, and the ship's data file `game/data/ground/ships/iron-wake.json` (`-- data` writes the data file alone) |
+| `import/iron_wake.py` | The Iron Wake (docs/IRON_WAKE.md §9.1–§9.3): body, hold and 31 moving parts with five LODs, 358 hulls, 91 sockets, occluders, 20 clips, its sixteen finishes, and the ship's data file `game/data/ground/ships/iron-wake.json` (`-- data` writes the data file alone); with `ships/iron_wake_loaders.py`, its hook, the batteries' loading mechanisms (§9.5, IW-A part 2): 56 more moving parts, 48 slot and breech sockets, 8 review clips, checked for clearance at every import |
 | `models/resources.py` | The twelve resources as small piles (their dropped look; gunpowder a heap on an opened paper), and the four world pickups as bigger piles |
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
 | `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
@@ -4011,7 +4011,9 @@ angles.
 
 **Viewer** (`--view models`): every model on the ground in groups by size with a 1.8 m figure for scale, or one on a
 turntable (`--model <key>`, Tab); LOD keys 0 to 4 and A; F (or `--first-person`) shows a held item at its first-person
-pose; H (or `--anim <clip>`) plays a model's clips, such as the Tin Finch's `Hatch_Open`; a vehicle under 25 m stands
+pose; H (or `--anim <clip>`) plays a model's clips, such as the Tin Finch's `Hatch_Open` (`--anim-time <s>` holds it at
+that moment); `--slots a,b` puts those models on a ship's ammunition slots in turn (the Iron Wake's racks and
+cassettes, IRON_WAKE.md §9.5); a vehicle under 25 m stands
 on a plain stand, the Iron Wake on its own legs. `--from=x,y,z --at=x,y,z` put the camera in the model's own frame
 (metres, +Z its front) and hold the turntable, for a close look at one place; `--fov <deg>` sets the lens.
 `tests/Hollow.Tests/ModelCatalogueTests.cs` checks that every file is there,

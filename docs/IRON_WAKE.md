@@ -432,41 +432,47 @@ wave 1's fix (KNOWN_PROBLEMS.md, finding 26).
 
 ### 6.6 Loading, step by step (IW6)
 
-Each battery kind has a loader: an ordered list of phases with durations, in `ships.json`. The rules step through them
-per barrel (siege) or per mount (defense). A barrel counts as loaded at the end of its last phase. The view samples
-each phase's progress to pose the mechanism's parts (§9.5), so what is seen is what the rules are doing. The
-mechanism's nodes and their motions (which node, which axis, how far, with what easing) are named in the same table,
-so the art and the rules can't drift apart.
+Each battery kind has a loader: an ordered list of phases with durations. The rules step through them per barrel
+(siege) or per mount (defense). A barrel counts as loaded at the end of its last phase. The view samples each phase's
+progress to pose the mechanism's parts (§9.5), so what is seen is what the rules are doing. The mechanism's nodes and
+their motions (which node, which axis, how far, with what easing) are named in the same table, so the art and the
+rules can't drift apart.
+
+**As built (15 October 2026, IW-A part 2).** The table is `game/data/ground/batteries.json`, the one timing definition
+for the rules (IW3), the view (IW6), the import's review clips and the mechanism's clearance check; its format is in
+§9.5. Its phases are cut to the mechanism as built (§9.5), which feeds through the trunnion rather than swinging an arm
+outside the receiver (the plan's), and the defense cassette is changed sideways rather than dropped and raised. The
+totals are the plan's: 4.6 s a siege barrel, 2.52 s a defense cassette.
 
 **Siege battery, per barrel** (each barrel has its own loader; the battery alternates):
 
 | Phase | s | What is seen and heard |
 |---|---|---|
-| recover | 0.90 | The barrel recoils and runs back to battery (the asset's curve) |
-| breech open | 0.45 | The sliding breech block drops; a puff of smoke from the chamber |
-| fetch | 0.80 | The loader arm, pivoting on the trunnion axis beside the barrel, swings the empty tray down to the ready rack; the rack's drum indexes one place |
-| transfer | 0.40 | The rack's pusher slides the next rocket onto the tray |
-| present | 0.80 | The arm swings up to the barrel's line at its current elevation (it shares the trunnion, so any elevation works) |
-| ram | 0.50 | The chain rammer extends and drives the rocket into the chamber; the rocket is seen to go in |
-| retract | 0.40 | The rammer folds back; the tray swings clear |
-| breech close | 0.35 | The block rises and locks |
+| recover | 0.90 | The barrel recoils 0.48 m and runs back to battery (the asset's curve); the latch is heard at the end |
+| breechOpen | 0.45 | The sliding wedge block runs 0.58 m outboard on its guide, pulled by its hydraulic cylinder; a puff of smoke from the chamber, wisps until the ram |
+| fetch | 0.80 | The feed rammer's two stages drive the ready rack's lowest round 1.22 m forward, through the port in the gun house's rear face, into the trunnion transfer |
+| transfer | 0.40 | Inside, the transfer cradle on the trunnion axis takes the round; the feed rammer withdraws |
+| present | 0.80 | The cradle turns the round to the barrel's line at the current elevation (it turns about the trunnion axis, so any elevation works); the rack indexes: its rounds step down one place (0.5 m) and the round waiting in the hood comes down into view |
+| ram | 0.50 | The chain rammer drives the round, in its launch carrier, 2.05 m out of the receiver's ram port, across the open breech and into the chamber; it is seen to go in |
+| retract | 0.40 | The rammer withdraws into the receiver; the round stays seated |
+| breechClose | 0.35 | The block runs back across the chamber and locks |
 
 That is 4.6 s from shot to loaded, per barrel; alternating, the battery fires about every 2.3 s sustained. With an
-empty rack the loader waits after "breech open": the breech stays open and the sight says EMPTY.
+empty rack the loader waits before "fetch": the breech stays open and the sight says EMPTY.
 
 **Defense mount, per mount** (a three-round cassette):
 
 | Phase | s | What is seen and heard |
 |---|---|---|
-| recover | 0.32 | The third barrel's recoil |
-| release | 0.30 | The spent cassette's latches open |
-| eject | 0.45 | It slides back and drops into the chute under the mount |
-| raise | 0.70 | A filled cassette rises from the hoist behind the breech face |
-| seat | 0.45 | It slides forward; the three rockets enter their tubes |
-| lock | 0.30 | The latches close |
+| recover | 0.32 | The third tube's recoil (each tube recoils 0.19 m at its own shot of the ripple) |
+| release | 0.30 | The two latches swing up 80 degrees off the cassette's lugs; the spent cassette backs 15 mm off the breech face |
+| lower | 0.70 | In the feed hood, a closed box on the mount's outboard flank, the hoist lowers the filled cassette (brought up from the mount's base through the trunnion) from above the hood's slot to the bay's level |
+| eject | 0.45 | The conveyor under the bay's floor carries the filled cassette 0.885 m out through the hood's slot into the bay, and the spent one out through the spent bin's slot |
+| seat | 0.45 | The cassette closes up 15 mm against the breech face, its rockets' noses at the face's bores; in the bin the lift stows the spent cassette above the slot |
+| lock | 0.30 | The latches come down over the cassette's lugs |
 
-That is 2.5 s after the third shot. With the ripple, a defense mount fires three rockets about every 3 s. A cassette
-holds what the magazine has of the chosen kind, up to three.
+That is 2.52 s after the third shot. With the ripple, a defense mount fires three rockets about every 3 s. A cassette
+holds what the magazine has of the chosen kind, up to three. With an empty magazine the loader waits before "lower".
 
 ### 6.7 Why a shot is refused
 
@@ -530,7 +536,7 @@ The sight says why, in this order, and the press does nothing:
 | Yaw | arcs from the hull's clearance at import; 24°/s, 40°/s² | ±100° outboard; 80°/s, 240°/s² |
 | Pitch | −8° to +40°; 16°/s, 30°/s² | −15° to +65°; 60°/s, 180°/s² |
 | Alignment tolerance | 0.5° | 1.5° |
-| Loader | 4.6 s a barrel | 2.5 s a cassette |
+| Loader | 4.6 s a barrel | 2.52 s a cassette |
 | Magazine | 12 slots (36) | 6 slots (18) |
 | Health | 1,500 | 1,500 |
 | Zoom | ×3 | ×2 |
@@ -542,7 +548,10 @@ The sight says why, in this order, and the press does nothing:
 - Recipe (Rust's): workbench 2, 2 metal pipes, 150 gunpowder and 75 lamp oil (our low-grade fuel). Researchable like the
   rocket.
 - It fires from the launcher (calibre `rocket`) and from both batteries.
-- Its model: the rocket's body with a red band and a blunt, frangible nose cap.
+- Its model: the rocket's body with a red band and a blunt, frangible nose cap. As built (IW-A part 2,
+  `art/models/raid.py`, GROUND.md §9.1): the rocket's motor and fins, a grey steel canister with a filler plug, a pale
+  pressed cap scored in four with a crush disc on its nose; `rocket-incendiary` in the model catalogue with its icons.
+  The item and its recipe come with the battery rules (IW3, IW7).
 
 **Its burst** (`explosives.json` blast `rocket-incendiary`, proposals) is a small blast:
 - radius 2.5 m;
@@ -898,7 +907,8 @@ What it may add:
   it rides on (`SM_IW_<Station>_Yaw`, `_Pitch` or `_Recoil_0n`) or to another such empty. It becomes a part of that
   name in the model and in the data file's `parts` (`kind` `loader`, with its pivot and local axes in game axes).
 - **Its meshes** are parented to it and named `<Empty>_LOD0` to `_LOD3`. LOD1 to LOD3 are optional: a missing level is
-  decimated from the one above. LOD4 is always made by the import.
+  decimated from the one above. LOD4 is made by the import. (As built, IW-A part 2: a moving piece's LOD3 and LOD4 are
+  empty nodes, see the As built below.)
 - **A static addition** is a mesh parented straight to an asset object and named `<anything>_LOD<n>`. It joins that
   part's LOD n mesh.
 - **Materials:** faces use `ctx.materials` only, so every surface maps to a shared Godot material.
@@ -925,6 +935,133 @@ game axes, metres from the trunnion):
   - The gun house's front face is at z +0.295 (+0.163 above y +0.25). Its inner faces are at x ±0.80.
   - The housing's top is at y +0.305.
   - The seat is at (0, +0.447, −1.994).
+
+#### As built (15 October 2026, IW-A part 2)
+
+`art/ships/iron_wake_loaders.py` builds the mechanisms through the hook above, in the asset's finishes; every moving
+piece is an empty at its pivot whose exported node carries no rotation, so its axes are the model's game axes, the
+axes the motions are written in. It also checks the clearances and bakes the review clips, all from
+`game/data/ground/batteries.json`. The plan's arm swinging outside the receiver would cross the gun house's walls
+(x ±1.87 to ±2.14 up to z +0.72) and the racks at most elevations, and nothing of a breech showed: the asset's barrels
+end inside closed receivers. So the round travels inside the housings, as naval turrets feed their guns, and the
+breech is brought out where it can be seen.
+
+**Siege battery, per barrel.**
+- **The ready rack** stands on the gun house (yaw) in the open cockpit beside the gunner, in place of the asset's two
+  side magazines: an outboard plate against the cheek, an open frame of posts and rails on the gunner's side so the
+  rounds and their bands show, guide strips, escapement pawls and an index cylinder, and above the third round an
+  armoured hood (stencilled READY and PORT or STBD) that holds a fourth. Each round sits in its launch carrier.
+- **The feed rammer**, a two-stage hydraulic cylinder behind the rack, drives the lowest round 1.22 m forward through a
+  port in the gun house's rear face (its collar outside, a black back wall inside: the round passes into darkness).
+- **Inside**, a transfer cradle on the trunnion axis takes the round and turns it to the barrel's line. It turns about
+  the axis the barrel elevates about, so it receives the round level whatever the elevation and presents it in line at
+  any elevation from −8° to +40°: everything before it rides on the gun house, everything after it on the receiver and
+  the barrel. It is not modelled; the rules time it.
+- **The chain rammer** (a head with its face plate, nine rigid links) lies in the receiver and drives the round 2.05 m
+  out of a port in the receiver's face, across the breech and into the chamber.
+- **The breech**: the asset's sleeves are cut back to z +2.37 and the barrel's hidden rear end is moved up to the
+  chamber mouth at z +2.05, so the breech lies open between the receiver's face (z +1.27) and the sleeve. On the barrel
+  (under its recoil node, so it recoils with it) sits a breech ring with a machined chamber mouth and a sliding wedge
+  block, 0.58 m outboard on its guide when open, pulled by a hydraulic cylinder outboard of the guide whose chromed rod
+  is part of the block; a socket at the chamber mouth for the breech's smoke.
+- **The bore** (option a): each round rides in a discarding sabot, three steel petals with bands and a scoop on a
+  pusher base with a driving band, 0.78 m long and 0.485 m across, sized to the 48 cm bore the asset's muzzles show (its
+  hollow muzzle collars stay as they are). The rocket lies in two saddles inside it. A liner (b) would put a 9 cm barrel
+  in the 48 cm one and the muzzle would have to show it; firing from outside the barrel (c) would make the barrels
+  decoration. The carriers are mechanism parts, one per rack slot and one in the rammer; the effects package sheds the
+  petals at the muzzle (§11).
+
+**Defense mount, per mount.**
+- The tubes' sleeves give way between the receiver's face (z +0.507) and a guide yoke at z +1.58 to +1.68; the tubes'
+  hidden rear ends move up to z +1.50, behind the **breech face** (z +1.26 to +1.29, three bores), with room for the
+  0.19 m recoil (a tube's rear end comes back to +1.31).
+- **The cassette** (0.80 × 0.17 × 0.73 m): a welded frame of end plates, rails and ring chambers for three rockets,
+  lifting lugs, two lugs on top for the latches, a yellow band at its front end. It sits in the open bay between the
+  receiver's face and the breech face on a **chain conveyor** (two rails and the chain's channel across the bay's floor).
+- **Two latches** on pins (cheeks on the receiver's face and on the breech face) come down on its lugs.
+- **The feed hood**, a closed box on the mount's outboard flank (stencilled FEED, the hoist's motor case outside), holds
+  the next filled cassette above its slot; **the spent bin**, its twin on the inboard flank (SPENT, an unloading hatch),
+  stows the spent one above its own. Their outboard top edges are chamfered so the boxes stay out of the gunner's view.
+  Every cassette appears, waits and disappears inside a box, so nothing pops in view.
+- The hoist works at any elevation from −15° to +65°: it rides with the receiver, and the cassette comes up from the
+  mount's base through the trunnion (not modelled).
+
+**Nodes, slots and the data file.** Pattern names, `{station}` and `{barrel}` (two digits):
+- Siege: `{station}_Carrier_{barrel}_00` to `_03` (rack slots 00 at the bottom to 03 in the hood),
+  `{station}_Feed_{barrel}_A`, `_B`, `{station}_Rammer_{barrel}`, `{station}_RamCarrier_{barrel}`,
+  `{station}_BreechRing_{barrel}`, `{station}_Breech_{barrel}`, and the asset's `{station}_Recoil_{barrel}`. Static
+  additions join the gun house (`ReadyRack`) and the receiver (`RamPortCollar`).
+- Defense: `{station}_BayCassette`, `{station}_FeedCassette`, `{station}_Latch_A`, `_B`, and the asset's
+  `{station}_Recoil_00` to `_02`; the static `{station}_Breech` frame joins the receiver.
+- Slot sockets, where the rocket item's model goes as a child with no offset (nose along −Z, up +Y, its origin on the
+  ground under it): `socket_{station}_Rack_{barrel}_Slot_00` to `_03`, `socket_{station}_Ram_{barrel}_Slot_00`,
+  `socket_{station}_Bay_Slot_00` to `_02`, `socket_{station}_Feed_Slot_00` to `_02`; and
+  `socket_{station}_Breech_{barrel}` at a siege chamber's mouth.
+- The data file's `parts` list every node (`kind` `loader`, pivot and axes); its `loaders` block lists per station each
+  loader's side, nodes, holders with their slots and review clip, the bore, the triangles and the clearance report.
+- Review clips for the model viewer: `{station}_Load_{barrel}` (a siege barrel's cycle with its recoil, 4.6 s) and
+  `{station}_Load` (the ripple's three shots, then the cassette changed, 3.02 s). The runtime poses from the table.
+
+**The table** (`batteries.json`, format 1). Per kind (`siege`, `defense`): `ammo` (`rocket`, `rocket-hv`,
+`rocket-incendiary`), `carrier`, `fire`, `recoil` (the asset's curve: travel, axis, seconds, times and fractions),
+`slots`, `launch` (§6.4's profiles), `mount` (§6.10's rates and limits) and `loader`: `per` (barrel or mount),
+`waitsBefore` (the phase an empty magazine holds the loader before), `phases` (`name`, `seconds`, `sound`, `endSound`,
+`effects`, `loop`, `note`, `motions`) and `holders`. A motion is `node` (a pattern), `kind` (`translate` or
+`rotate`), `axis` (in the node's own axes, which are the model's at rest, or `outboard`), `from`, `to` (metres or
+degrees), `ease` (`linear`, `in`, `out`, `inOut`) and an optional `span` (the part of the phase it takes), or `curve:
+recoil`; `mirror` flips it for a starboard loader. A node holds a motion's `to` until another motion of it on the same
+axis starts; its pose is the sum of its motions on top of its rest; at a cycle's end every node is back at rest. A
+holder (`node`, `slots`, `what`, `from`, `until`) says which load its slots show and when: `what` counts loads of the
+chosen kind from the one this cycle loads (0), or `current`; a holder holding nothing is hidden with its slots. The
+file's `conventions` say all of this in full.
+
+**How the view poses it.** For a loader at cycle time t: for every phase that has started, each motion's value (its
+ease over its span, or the recoil curve), the last one per node and axis; each node's local transform is its rest
+translated by the sum of its translations along its own axes and turned by its rotations; `outboard` and `mirror` by
+the loader's side (`mountSide` of the barrel, or the station's side). Holders show or hide by `from`, `until` and what
+the magazine holds. `iron_wake_loaders.evaluate()` is the reference, and the clips are baked from it.
+
+**Clearance, checked by the hook at every import** (`loaders.clearance` in the data file). Every station at 5° steps
+across its elevations, at each phase's start and four steps through it and at the recoil's furthest point, both siege
+loaders at once and all three defense tubes recoiling together. Each pair of meshes is tested for crossing faces
+(Blender's BVH overlap, with the mechanism's surfaces pulled 2 mm in so parts that only touch don't count). A crossing
+is out of sight when rays in fourteen directions from it all meet housing within 4 m; a mesh passing a port's black
+back wall is how a round disappears.
+- **Siege battery** (each of two): 374 poses, 2,900 to 4,900 pair tests. Nothing crosses the asset's housings, cheeks or
+  receivers, the gunner's volumes, the barrels' recoil path or the other barrel's mechanism. Out of sight inside the
+  gun house and the receiver: the fed round meeting the stowed rammer and the receiver's inner parts, the rammer and
+  the rammed round passing the gun house's front face within the receiver (12 pairs). Into the dark ports: the round
+  and the feed head (4). Joined by design: the breech ring on the barrel, the ram port's collar in the receiver's face.
+- **Defense mount** (each of four): 442 poses, 1,100 to 1,750 pair tests: nothing crosses anything.
+- **The gunner's sightline**: rays from each gunner's eye through the view ahead (40° wide, from 10° below the aim to
+  30° above), at every other elevation and through the cycle. The siege mechanism closes none of the view the ship
+  leaves open (8,712 rays). On a defense mount, at −15° only, one ray direction at the view's edge (20° aside, 21°
+  down) meets the hood's or the bin's roof, the box beside the bay; the line over the receiver is clear (9,801 rays).
+- **The racks from the seat** (rays from the eye to nine points on each round's upper side, at rest): the third round
+  8 of 9 points, the second 5, the lowest 1 to 2 over the asset's grip consoles; the hood's round is shut in until it
+  comes down. The delivery line was raised 6 cm to bring the lowest round over the consoles.
+
+**Numbers.** Triangles made by the script for the six stations: LOD0 105,280 (the budget was 120,000), LOD1 66,336, LOD2
+27,552. The moving pieces stop at LOD2 (450 m): their LOD3 and LOD4 are empty nodes, since beyond that a carrier or a
+cassette is a few pixels and each would still cost a draw call per finish. What stands still (the racks, the hoods and
+bins, the breech face, the collars) is merged into the gun house's and the receiver's own meshes at every level, LOD4's
+shells included. The whole model by the import's report (part 1's in brackets): triangles 717,076 at LOD0 (622,060),
+391,092 at LOD1 (331,740), 89,392 at LOD2 (63,360), 57,384 at LOD3 (51,736) and 10,525 at LOD4 (9,131); draw calls 285
+(161), 273 (155), 244 (138), 152 (138) and 32 (32). A moving piece draws once per finish (one to four, the details that
+are hidden or tiny sharing one): merging them would take the rigid skinning §9.3 leaves to the owner once IW6 has
+measured the cost. The GLB is 70.3 MB, 1,033 nodes, 28 clips and 139 sockets.
+
+**Review** (`docs/images/iron-wake/`):
+- Blender (Eevee, the asset's finishes, the rockets on their sockets, the gunner's volumes faint): every phase at three
+  elevations in `loader-siege-rack-sheet.jpg` (the port barrel's ready rack from across the seat),
+  `loader-siege-breech-sheet.jpg` (its breech from outboard) and `loader-defense-sheet.jpg` (the bay from above the
+  receiver); a whole cycle in `loader-siege-cycle.mp4` and `.gif` (rack and breech side by side, 12°) and
+  `loader-defense-cycle.mp4` and `.gif` (the ripple, then the cassette changed, 20°). Made again by
+  `blender -b --factory-startup --python art/ships/review_loaders.py [-- <folder> sheets cycles]`.
+- Godot (`--view models --model iron-wake --anim <clip> --anim-time <s> --slots rocket,rocket-incendiary,rocket-hv`
+  with `--from`, `--at` and `--fov`): `loader-siege.jpg` (a round rammed across the open breech),
+  `loader-siege-rack.jpg` (the rack indexing), `loader-defense.jpg` (a cassette carried into the bay) and
+  `loader-gunner.jpg` (the gunner's view from the seat, the port rack working).
 
 ### 9.6 People in seats
 
