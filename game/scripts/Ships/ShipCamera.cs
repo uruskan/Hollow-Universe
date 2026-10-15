@@ -59,13 +59,15 @@ public sealed class ShipCamera
             return (eye, look, shipUp);
         }
 
-        // Upright: the world's up, leaning a little with the ship's roll; behind the nose as it climbs or dives.
+        // Upright: the world's up, leaning a little with the ship's roll; behind the nose as it climbs or dives; as far back
+        // and up as the ship is big (the Tin Finch's distances, for a carrier ten times them).
+        float size = MathF.Max(1, def.BoundingRadius / 3.6f);
         Vector3 up = Vector3.Normalize(worldUp * 0.8f + shipUp * 0.2f);
         Vector3 flat = forward - worldUp * Vector3.Dot(forward, worldUp);
         Vector3 heading = flat.LengthSquared() > 1e-4f ? Vector3.Normalize(flat) : Vector3.Normalize(-shipUp - worldUp * Vector3.Dot(-shipUp, worldUp) + new Vector3(1e-3f, 0, 0));
         // Follow the climb half way, so a steep climb still shows the ground.
         Vector3 back = Vector3.Normalize(heading * 0.5f + forward * 0.5f);
-        Vector3 want = -back * Distance + up * Height;
+        Vector3 want = (-back * Distance + up * Height) * size;
         float k = _has ? 1 - MathF.Exp(-delta * MathF.Log(2) / Swing) : 1;
         _offset = Vector3.Lerp(_offset, want, k);
         _offset = Vector3.Normalize(_offset) * want.Length();
@@ -81,7 +83,7 @@ public sealed class ShipCamera
                 camera += worldUp * (1.6f - clear);
             }
         }
-        Vector3 target = centre + back * LookAhead + _up * 1.2f;
+        Vector3 target = centre + (back * LookAhead + _up * 1.2f) * size;
         return (camera, Vector3.Normalize(target - camera), _up);
     }
 }

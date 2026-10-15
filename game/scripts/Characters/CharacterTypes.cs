@@ -131,6 +131,24 @@ public struct CharacterFrame
         return north.Rotated(up, yaw);
     }
 
+    /// <summary>
+    /// The yaw, in this struct's convention, that faces a direction at a point with this up (<see cref="Facing"/>'s
+    /// inverse): what a character view takes for someone looking along a direction of the world, whatever the movement
+    /// code's own north there.
+    /// </summary>
+    public static float YawToward(Vector3 up, Vector3 direction)
+    {
+        up = up.Normalized();
+        Vector3 flat = direction - up * direction.Dot(up);
+        if (flat.LengthSquared() < 1e-10f)
+        {
+            return 0;
+        }
+        Vector3 north = Facing(up, 0);
+        flat = flat.Normalized();
+        return MathF.Atan2(north.Cross(flat).Dot(up), north.Dot(flat));
+    }
+
     /// <summary>A basis with Y along <paramref name="up"/> and −Z along the facing direction.</summary>
     public static Basis BasisOf(Vector3 up, float yaw)
     {

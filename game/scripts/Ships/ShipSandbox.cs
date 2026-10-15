@@ -34,7 +34,8 @@ namespace HollowUniverse.Ships;
 /// In the seat: the mouse is the stick; W/S the throttle lever, X lever to zero; A/D sideways; Space/C rise and sink;
 /// Q/E roll; arrows a keyboard stick; Shift boost; Z flight assist; V cockpit or chase camera; H the hatch; L the lock;
 /// J descend from orbit; F step out. Esc frees the mouse. Options (after "--"): <c>--scene
-/// pad|hover|forest|cockpit|slope|ceiling</c> (screenshots hold the scene's camera), <c>--time</c>, <c>--trace</c>.
+/// pad|hover|forest|cockpit|slope|ceiling</c> (screenshots hold the scene's camera), <c>--time</c>, <c>--trace</c>;
+/// <c>--ship iron-wake</c> a ship people walk in instead (ShipSandbox.Aboard.cs: <c>--scene parked|ramp|deck|outside</c>).
 /// </para>
 /// </summary>
 public partial class ShipSandbox : Node3D
@@ -88,7 +89,7 @@ public partial class ShipSandbox : Node3D
     public Dictionary<string, string> Options { get; set; } = new();
 
     /// <summary>For automated screenshots: the scene set up, the ground, plants and grass around the camera streamed.</summary>
-    public bool ReadyForShot => _frames > 30 && _surface.IsReady;
+    public bool ReadyForShot => _frames > 30 && (_aboard ? _ground?.IsSettled ?? true : _surface.IsReady);
 
     private bool Seated => _zone.Ships().SeatOf(_player) == _ship;
 
@@ -106,6 +107,24 @@ public partial class ShipSandbox : Node3D
         _content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
         _zone = new Zone(spec, content: _content);
         _planet = found.Surface;
+        // --ship names the kind: one people walk in (IRON_WAKE.md §4) parks in a clearing with you behind its ramp, on the
+        // zone's own ground drawn as the ground game draws it; the Tin Finch stands on its workbench's bay.
+        ShipDef? kind = Options.TryGetValue("ship", out string? key) ? _content.Ship(key) : null;
+        if (key != null && kind == null)
+        {
+            GD.PushError($"--ship {key}: no such ship in ships.json");
+        }
+        if (kind?.Interior != null)
+        {
+            OpenGround();
+            _layer = new CanvasLayer { Name = "Interface" };
+            AddChild(_layer);
+            _hud = new ShipHud { Name = "ShipHud" };
+            _layer.AddChild(_hud);
+            BuildAboard(kind);
+            SetSceneAboard(_scene);
+            return;
+        }
 
         // The planet: the surface view driven in the zone's frame (render coordinates are the zone's), as the ground game
         // drives it: it draws around the camera this sandbox places.
@@ -409,6 +428,11 @@ public partial class ShipSandbox : Node3D
         }
         _frames++;
         _clock += delta;
+        if (_aboard)
+        {
+            ProcessAboard(delta);
+            return;
+        }
         if (_touring)
         {
             Tour();

@@ -81,6 +81,10 @@ public partial class GroundView : Node3D
     private float _yaw;
     private float _pitch;
 
+    // The frame the view's heading and pitch are read in (IRON_WAKE.md §4.8): the zone's (0), or aboard a ship its frame,
+    // by the ship's net ID. Turned into the character's new frame when it boards or leaves, so the camera looks on.
+    private uint _viewFrame;
+
     // Free look (Alt, GROUND.md §4.5): the camera's and the head's turn from the view.
     private FreeLook _freeLook;
     private bool _viewRestored;
@@ -390,9 +394,11 @@ public partial class GroundView : Node3D
     public override void _Process(double delta)
     {
         bool playing = Client.State == ClientState.Playing;
-        if (playing && !_viewRestored)
+        if (playing && Client.HasCharacter && !_viewRestored)
         {
+            // The view the server kept, in the frame the character came back in (aboard a ship, its own).
             _viewRestored = true;
+            _viewFrame = Client.OwnFrame;
             _yaw = Client.InitialYaw;
             _pitch = Client.InitialPitch;
         }
@@ -421,6 +427,7 @@ public partial class GroundView : Node3D
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
         _allocatedBefore = GC.GetAllocatedBytesForCurrentThread();
         Client.Update(delta, input);
+        FollowFrame();
         Time("client", ref t0);
         // The gun's recoil (G4, GROUND.md §6.4), in RustMVP's order once the frame's ticks have run: what the recovering
         // recoil gives back of the player's countersteer goes onto the view they control (up to the moment the camera
@@ -468,10 +475,11 @@ public partial class GroundView : Node3D
         Num.Vector3 feet = Client.RenderPosition;
         // A respawn or a far teleport on foot is an arrival: the land, plants and things around stream again (§4.3.1).
         Loading?.Follow(feet.X, feet.Y, feet.Z, arrivals: !Client.Ships().Piloting);
-        Num.Vector3 up = Client.Frame.UpAt(feet);
-        Num.Vector3 eye = feet + up * Client.EyeHeight;
-        FaceTarget(eye, up);
-        Num.Vector3 forward = CharacterMotor.ViewDirection(_yaw, _pitch, up);
+        // Up and the eye where the character is drawn: aboard a ship, on its deck as drawn (IRON_WAKE.md §4.8).
+        Num.Vector3 up = Client.RenderUp;
+        Num.Vector3 eye = Client.RenderEye;
+        FaceTarget(eye);
+        Num.Vector3 forward = Look(_viewFrame, _yaw, _pitch);
         bool piloting = Client.Ships().Piloting && Client.Ships().OwnShipDef != null;
         if (piloting != _wasPiloting)
         {
@@ -501,10 +509,10 @@ public partial class GroundView : Node3D
             // zooms by the sight's magnification while aimed.
             (float kickYaw, float kickPitch) = gun.ViewKick;
             float aimPitch = Math.Clamp(_pitch + kickPitch, -MaxPitch, MaxPitch);
-            Basis aim = Basis.LookingAt(ToGodot(CharacterMotor.ViewDirection(_yaw + kickYaw, aimPitch, up)), ToGodot(up));
+            Basis aim = Basis.LookingAt(ToGodot(Look(_viewFrame, _yaw + kickYaw, aimPitch)), ToGodot(up));
             // Free look turns the camera from the aim; the arms belong to the body and stay on the aim (§4.8).
-            Basis view = Basis.LookingAt(ToGodot(CharacterMotor.ViewDirection(_yaw + kickYaw + _freeLook.Yaw,
-                Math.Clamp(aimPitch + _freeLook.Pitch, -MaxPitch, MaxPitch), up)), ToGodot(up));
+            Basis view = Basis.LookingAt(ToGodot(Look(_viewFrame, _yaw + kickYaw + _freeLook.Yaw,
+                Math.Clamp(aimPitch + _freeLook.Pitch, -MaxPitch, MaxPitch))), ToGodot(up));
             _firstPerson.ArmsTurn = view.Inverse() * aim;
             // Blasts shake the camera (the effects library sums them by distance), never the view the player controls.
             Vector3 shake = FxDirector.CameraShake(ToGodot(eye));
@@ -620,9 +628,10 @@ public partial class GroundView : Node3D
         {
             scripted.Yaw = _yaw;
             scripted.Pitch = _pitch;
+            scripted.ViewFrame = _viewFrame;
             return scripted;
         }
-        var input = new InputFrame { Yaw = _yaw, Pitch = _pitch, LookYaw = _freeLook.Yaw, LookPitch = _freeLook.Pitch };
+        var input = new InputFrame { Yaw = _yaw, Pitch = _pitch, ViewFrame = _viewFrame, LookYaw = _freeLook.Yaw, LookPitch = _freeLook.Pitch };
         if (Blocked)
         {
             // Loading: the character stands as it arrived.
@@ -900,7 +909,7 @@ public partial class GroundView : Node3D
     private void ApplyDay(ZoneDay day) => _world?.Sky?.Ephemeris.SetSpin(day.BaseTime, day.BaseTurns, day.Scale);
 
     // Turns toward the player named by --face once they are in view (for screenshots), looking a little down at them.
-    private void FaceTarget(Num.Vector3 eye, Num.Vector3 up)
+    private void FaceTarget(Num.Vector3 eye)
     {
         if (FaceName == null || _faced)
         {
@@ -911,11 +920,46 @@ public partial class GroundView : Node3D
         {
             return;
         }
-        Num.Vector3 chest = target.Position + up * 1.2f - eye;
-        Num.Vector3 flat = chest - up * Num.Vector3.Dot(chest, up);
-        _yaw = MathF.Atan2(-flat.X, -flat.Z);
-        _pitch = MathF.Atan2(Num.Vector3.Dot(chest, up), flat.Length());
+        (_yaw, _pitch) = Heading(_viewFrame, Num.Vector3.Normalize(target.Position + target.Up * 1.2f - eye));
         _faced = _world?.IsReady ?? true;
+    }
+
+    // ---------------------------------------------------------------- the view's frame (IRON_WAKE.md §4.8)
+
+    // A heading and pitch read in a frame, as a direction in the world: the zone's where the player stands, or a ship's
+    // as it is drawn now.
+    private Num.Vector3 Look(uint frame, float yaw, float pitch)
+    {
+        if (frame != 0 && Client.Ships().DrawnPose(frame) is { } ship)
+        {
+            return Num.Vector3.Normalize(ship.DirectionToWorld(CharacterMotor.ViewDirection(yaw, pitch, Num.Vector3.UnitY)));
+        }
+        return CharacterMotor.ViewDirection(yaw, pitch, Client.Frame.UpAt(Client.RenderPosition));
+    }
+
+    // A direction in the world as a heading and pitch read in a frame.
+    private (float Yaw, float Pitch) Heading(uint frame, Num.Vector3 world)
+    {
+        Num.Vector3 up = Client.Frame.UpAt(Client.RenderPosition);
+        if (frame != 0 && Client.Ships().DrawnPose(frame) is { } ship)
+        {
+            world = ship.DirectionToLocal(world);
+            up = Num.Vector3.UnitY;
+        }
+        return (Facing.YawOf(world, up), Math.Clamp(Facing.PitchOf(world, up), -MaxPitch, MaxPitch));
+    }
+
+    // Boarded or left a ship: the view's heading and pitch turned into the character's new frame, the camera looking on
+    // the same way in the world.
+    private void FollowFrame()
+    {
+        uint now = Client.OwnFrame;
+        if (!_viewRestored || now == _viewFrame)
+        {
+            return;
+        }
+        (_yaw, _pitch) = Heading(now, Look(_viewFrame, _yaw, _pitch));
+        _viewFrame = now;
     }
 
     public static Vector3 ToGodot(Num.Vector3 v) => new(v.X, v.Y, v.Z);

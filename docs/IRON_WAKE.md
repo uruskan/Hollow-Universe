@@ -245,6 +245,91 @@ shooter's ship velocity added at launch (today nothing adds the shooter's veloci
 | `Hollow.Net` | The frame in the input and in `CharacterNetState` |
 | `Hollow.Persistence` | Sleepers and things aboard in the ship's frame |
 
+### 4.13 As built (IW1, 15 October 2026)
+
+Built on the branch `iw-spaces` (from `whole-world`). Everything of §4.1–§4.12 but §4.10 (things aboard, IW5).
+
+**The space** (`Physics/ShipSpace.cs`). The Iron Wake's data file gives 358 convex pieces on 88 parts, 120 boarding boxes
+and its sockets (`Content/Readers/ShipInteriorReader.cs` into `Ships/ShipInterior.cs`); Jolt refuses none. Body 0 is the
+hull's compound (every static piece), body *n* part *n*'s pieces, posed by `ShipInterior.PartPose` (a part's motion from
+rest, its carriers' included, with deterministic sines). Shapes are made once per kind; a space is a `PhysicsSystem` of
+89 bodies. The server keeps one per ship with an interior (`Ship.Space`); a client one per such ship within 300 m of the
+player (kept to 350 m) and the one it is aboard (`ClientShipFrame`).
+
+**Frames** (`Movement/MoveFrames.cs`). `CharacterState.Frame` and `MoveInput.Frame` name the frame: 0 the zone's, else a
+ship's key (its entity ID on the server, its net ID on a client and on the wire). `IMoveFrame` gives up, gravity, water,
+noclip's radius and the frame's one `CharacterBody`; `ZoneMoveFrame` and `IShipFrame` (`ShipFrame` on the server,
+`ClientShipFrame` on a client) are the two kinds. `MoveFrames.Step` is the one step both the zone and the prediction run:
+the view turned into the character's frame when the input gave it in another, `CharacterMotor.Step` unchanged, then the
+hand-over. `ShipPose` turns points, directions and velocities between a ship's frame and the zone's; its spin includes the
+ground's turn under a moving ship (r × v / r²).
+
+**The hand-over** (§4.5), at the end of the step, the pose and velocity kept in the world exactly:
+- *on*: the ground body is the ship's parked body; or the feet stand on nothing inside its boarding volume with its deck
+  at most 3 m below them;
+- *off*: nothing of the ship under the feet and the feet more than 0.3 m outside the boarding volume; or the feet more
+  than 2 cm under the world's ground. The second rule was found by the tests: the Iron Wake's ramp foot sinks 0.2 m into
+  the ground under a parked ship, and the space has no ground, so walking down it took people underground and the zone
+  popped them up 0.28 m. Now the ground takes them where it rises over the ramp.
+
+**Parked** (§4.6). A parked ship's pose rests on the wire's grid (`ShipMotor.RestOnGrid`: the 1/256 m grid and the
+smallest-three turn, settled until encoding changes nothing), and its body is a compound of every piece at the parts'
+states (`ShipSpace.ParkedShape`, cached per kind and states). The server's body ID goes to clients
+(`ShipNetState.Body`): Jolt's character orders its contacts by body ID, so a client's copy under another ID gave the
+same position but a velocity 3 × 10⁻⁷ m/s off after the hand-over. A ship with its engines off that moves less than 1 mm
+and 0.0003 rad in a tick is held where it stands and sleeps: on uneven ground the Iron Wake rested on a hull box beside
+two pads with a velocity the contacts never let it move by, and never parked.
+
+**Moving parts** (§4.7). `ShipSystem.MovePart(ship, part, state)` is the one entry point: a door (a hinge or a slide)
+refuses with RAMP BLOCKED (`OutcomeCode` 109) when its pieces would pass through anyone aboard or ashore within reach,
+tried every 0.02 rad or 5 cm of the way; a turret turns anyway and the character's next steps push them out (two ticks
+in the test). The space and a parked body follow, and `ShipPartStates` (message 121) tells the clients that know the
+ship its parts away from rest. Nothing calls it in play yet: the doors' rules are IW2's.
+
+**Queries** (§4.9, `Ships/ShipQueries.cs`): a ray of the zone's frame enters every ship space its bounding sphere meets.
+The aim's backdrop (the server's and, through the ships as drawn, the client's), reach and sight (`TargetSystem.InSight`),
+blasts' line of sight (`BlastSystem.Visible`), and bullets and arrows (`ShipReceiver.Raycast`, at the pose the history kept
+for a late shot) all ask it. A swing, an arrow, a throw or a shot from a deck leaves where the shooter saw the ship
+(`CharacterWorld.AttackLine`, `Zone.SeenPose`) with the ship's velocity at the eye added.
+
+**History.** `HistorySystem` records every ship's pose and aboard characters in their ship's frame; a sample composes them.
+
+**Network** (protocol 22): the frame in `InputCommand`, `OwnState`, `CharacterNetState` (a full character state grows 8
+bits, from 191 to 199), `FireIntent` and `ThrowIntent`; `ShipNetState.Body`; `ShipPartStates`. Characters aboard are
+relevant wherever they stand while their ship is within 2,000 m (`RelevanceGrid`'s far anchor). `CharacterNetState` has no
+velocity, aboard or not: positions aboard are the ship frame's, on the 1/256 m grid.
+
+**Saves** (schema 8): `characters.frame`; a sleeper aboard is stored in its ship's frame, comes back aboard at start
+(ships load after sleepers, so a sleeper is restored pending and put ashore at the landing site if its ship didn't come
+back), and wakes aboard. `ShipCodec` is unchanged: the parts' states are not saved (IW2's doors).
+
+**Drawing.** `RemoteEntity` interpolates aboard characters in their ship's frame (across a hand-over, the nearer state)
+and `ShipModule.Sample` places them on the ship as drawn; `GameClient.RenderPosition` is the local feet placed on the
+frame as drawn; the camera's heading and pitch are read in its frame and turned when the player boards or leaves
+(`GroundView.FollowFrame`). `ShipView` draws any kind from its catalogue model (ships.json's `model`), poses its parts'
+nodes from their states, keeps its `-convcolonly` hulls under their parts on the feet's layer (`ModelUse.Parts`), and sizes
+plumes, lights and the chase camera to the ship. People are drawn facing where they look in the character view's own
+convention (`CharacterFrame.YawToward`): its north was the flat world's −Z, 60° off the movement code's at the landing site.
+
+**The helm** stays the Tin Finch's: the `hatch`/`board` verbs at the Iron Wake's `hatch` socket on the bridge, its one
+seat at `PilotSeat`, stepping out only when the ship is still (to an exit tested in the space). IW2 brings seats.
+
+**Getting one** (§5.6): `ship [player] [kind]` and the F1 panel's spawn make the kind asked for, its way in (the lowest
+boarding box: the ramp) toward the player; with no room in a wood, the trees and rocks where nothing else stands go.
+
+**Measured** (engine-free, this PC): one Iron Wake flying with twelve walking aboard adds 0.19 ms to the server's tick
+(budget 1 ms); a prediction step aboard costs 3–4 µs. Over the loopback a passenger walking up and down Deck A for 30 s
+while another flies was reconciled 600 times: 0 corrections, 0 ticks replayed; walking up the parked ramp, the same.
+
+![The parked Iron Wake's open ramp, two of the crew on it](images/iron-wake/aboard-ramp.jpg)
+
+![On Deck A in flight, looking out of the open ramp](images/iron-wake/aboard-deck.jpg)
+
+![Hovering on its lift engines, someone at the top of the ramp](images/iron-wake/aboard-outside.jpg)
+
+The pictures are `--view ship --ship iron-wake --scene ramp|deck|outside`, on the stand-in world's ground as the ground
+game draws it until S3c draws the world.
+
 ## 5. Ships with many seats, parts and doors
 
 ### 5.1 `ships.json` grows
@@ -335,6 +420,19 @@ Five motor limits break at this size and become data or are fixed:
 
 For the sweeps, ten boxes fitted to the model at import (body, bow, superstructure, bridge, two drive pods, two
 outriggers, two batteries) sweep the world as the Tin Finch's six do, with the legs' four pads as skids.
+
+**As built (IW1, 15 October 2026).** The entry has every number of the table: mass 420 t, inertia 103/107/21 × 10⁶
+kg·m², the centre of mass at (0, 5.5, −1) (checked to be the data file's), the thrusts, speeds, boost, rates, drag areas,
+landing legs (6.3 MN/m, 1.1 MN·s/m, 0.35 m, friction 0.6, 12°), crash, hull 18,000 and fuel. The limits:
+- `water`: 4.1 m below and 2.3 m above the centre of mass, 1,680 m³ (a ship's own; the Tin Finch keeps 1.2 m each way and
+  its boxes' volume);
+- as many skid loads as pads, and as many overlap contacts as hull boxes (at least four);
+- the reader's caps widened to a carrier's numbers;
+- `"hull": "data"`: the data file's ten boxes, and its four pads as skids, each with a thin box a leg's travel (0.35 m)
+  above its foot, as the Tin Finch's skid boxes sit over theirs;
+- flight assist holds pitch within 20° and roll within 12° of level (`assist.level`), easing back at 0.6 of the rate.
+
+In the takeoff test it climbed 106 m in 13 s, reached 38 m/s, turned 40° and stopped again in 15 s under flight assist.
 
 ### 5.5 Damage, the wreck and raiding a ship
 
@@ -1269,6 +1367,9 @@ ms). The siege muzzle stays within one heavy effect's share.
   - **Network.** The ship and its stations cost under 2 kbit/s to a watcher when idle and under 8 kbit/s in a
     firefight.
 
+**As built (IW1).** Protocol 22: the frame in the input, the own state, characters' states, `FireIntent` and `ThrowIntent`;
+`ShipNetState.Body`; `ShipPartStates` (121). Schema 8: `characters.frame`. Measured: §4.13.
+
 ## 13. Order of work
 
 S3 is being built on `whole-world` now (WHOLE_WORLD.md §14). Its first step, S3a, rewrites the code §4–§8 change:
@@ -1321,6 +1422,15 @@ own, as the kernel's did.
 - An incendiary fire burns a wooden box, a wood wall and a player, and spares a stone wall.
 - A box placed on the deck rides the ship; one placed in the stair's exclusion is refused.
 - A restart with the crew asleep aboard, boxes and a furnace on the deck, magazines half full and a barrel loaded.
+
+**As built (IW1):** `IronWakeTests` has the space, walking up the parked ramp and down again, taking off with someone on
+the deck (their place moves 0.000 mm while the ship climbs, turns and brakes), jumps on a flying deck, stepping off the
+ramp at 10 m (landing at 18 m/s, 19 damage), moving parts (RAMP BLOCKED, a turret pushing someone out), shots through the
+open and the shut ramp, a lag-compensated shot from a deck sliding at 4.7 m/s, rockets on the deck and against the hull,
+and the costs; `IronWakeNetTests` the passenger predicted while another flies and the sleeper aboard across a restart.
+`--view ship --ship iron-wake --tour` walks up the ramp, has a pilot lift off, climb 118 m, turn 44° and brake while you
+stand on Deck A looking out (your place moves 0.000 mm), fly back over the clearing and land, and walks you down the ramp
+onto the ground: it prints this and quits with 0.
 
 **In the game**, once (memory: minimal testing):
 - `--view ship --ship iron-wake --tour`:

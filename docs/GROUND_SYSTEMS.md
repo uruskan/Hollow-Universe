@@ -161,6 +161,17 @@ through its family's `Remove`. Looting a bag or body empty, or harvesting a carc
 animal world's corpse check. The devices' step now looks at the burners and machines alone, `BagsNear` at the loose
 things. Test: `FoundationTests.LifetimesAreOneStepForEveryLooseThing`.
 
+### 3.8 Queries through ships' frames (IW1, IRON_WAKE.md §4.9)
+
+A ship people walk in has its own physics (its space) in its own frame, so a query of the zone's frame alone would pass
+through its hull. Every query that meets the world also enters each ship space its segment or sphere crosses, through one
+shared helper, `ShipQueries` (`Ray`, `Clear`, `Nearest`; the bounding sphere first, then the ray turned into the ship's
+frame): the aim's backdrop (`ShipTargets.Aim`, and the client's through the ships as drawn), reach and sight
+(`TargetSystem.InSight`: a ship's piece hides what is behind it), a blast's line of sight (`BlastSystem.Visible`) and the
+damage pipeline's bullets and arrows (`ShipReceiver.Raycast`, the ship where the pose history had it for a late shot).
+What a character aboard does in the world asks `CharacterWorld` for where its ship carries it (`WorldOf`, `UpOf`,
+`VelocityOf`, `AttackLine`): its feet, its eye where it saw its ship, and the velocity a thrown or shot thing keeps.
+
 ## 4. One radial menu (package P5, first)
 
 One immediate-mode control in RustMVP's look (its pictures: RustMVP

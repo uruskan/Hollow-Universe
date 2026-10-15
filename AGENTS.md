@@ -124,6 +124,7 @@ blender -b --factory-startup --python art/build.py -- iron_wake   # the Iron Wak
                                                  # D:\GameDev\Assets\IronWake_Buildable_R01; art/import/iron_wake.py -- data: the data file alone)
 dotnet run --project tests/Hollow.Tests -- Building   # the building rules, over the network and saved (GROUND.md §6.3, §6.5)
 dotnet run --project tests/Hollow.Tests -- Ship   # G6: the Tin Finch's flight, boarding, building, prediction, storage (GROUND.md §6.7)
+dotnet run --project tests/Hollow.Tests -- IronWake   # IW1: walking aboard the Iron Wake: frames, hand-overs, flight with people aboard, moving parts, shots and blasts through its space, prediction aboard, sleepers aboard (IRON_WAKE.md §4.13)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly   # G6: bots that board their ships and fly loops
 dotnet run --project tests/Hollow.Tests -- Animal   # G7: animals' AI, harvest, cooking, spawning, armour, cost, network and a restart (GROUND.md §6.9)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit --animals 200   # G7: 200 animals among the bots (GROUND.md §5.10)
@@ -172,6 +173,7 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view monuments --focus
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --scene forest --shot forest.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --tour   # the whole flying loop through the keys; exit code 0 when it lands and steps out
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --ship iron-wake --tour   # up the Iron Wake's ramp, a pilot flies it with you on the deck, lands, down the ramp; exit code 0 when every check holds
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view animals --scene wolves --shot wolves.png   # the animal sandbox (GROUND.md §6.9)
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view sounds --sound rifle.shot --distance 320 --ambience --shot sounds.png
 $GODOT --headless --path game -- --view sounds --sound-check   # every sound file loaded and measured in the engine
@@ -315,7 +317,8 @@ Client options (after `--`):
   console a command names its player, and the older `give <name> <item> [count]` forms still work); G7: `learn <name> <item|all>` (blueprints), `world` (props, teams, economy). `--kit build-kit` gives what a base needs (G3). G5: `--raid-bases <n>`
   (and `--raid-radius <m>`; servers without a database) builds claimed huts on a ring for raid tests;
   `raidbase <name> [grade]` builds one in front of a player, listing them.
-  `ship <name>` sets a Tin Finch down beside a player, theirs and fuelled (G6).
+  `ship <name> [kind]` sets a ship down beside a player, theirs and fuelled, its way in toward them: a Tin Finch, or the
+  kind named (`ship <name> iron-wake`, IRON_WAKE.md §5.6; trees and rocks in its way go when nothing else is).
   G7's animals: `--no-animals` (none), `--animals <n> [--animal-radius <m>]` (a fixed population of n round the landing
   site, always out, for load tests); admin `animals` (how many of each, what they cost) and `spawn <species> <name> [n]
   [m]` (a herd of deer, boar, wolf or bear m metres in front of a player).
@@ -325,7 +328,12 @@ Client options (after `--`):
   loop through the keys and prints the measurements). Keys on foot: W A S D, mouse look, E hatch and board, G shut the
   hatch, L lock, R refuel. In the seat: the mouse is the stick, W/S throttle lever (X zero), A/D strafe, Space/C up and
   down, Q/E roll, arrows a keyboard stick, Shift boost, Z flight assist, V cockpit or chase camera, F step out, H hatch,
-  L lock, J descend from orbit; Esc frees the mouse.
+  L lock, J descend from orbit; Esc frees the mouse. `--ship iron-wake` (IRON_WAKE.md §4.13): the Iron Wake parked in a
+  clearing near the landing site on the zone's own ground, you on foot behind its open ramp (walk up it and about its
+  decks; E at the bridge's helm takes it); `--scene parked|ramp|deck|outside` (the open ramp with two of the crew on it;
+  Deck A in flight looking out of the ramp; hovering low from the ground), `--tour` (walks up the ramp, a pilot lifts off,
+  climbs, turns and brakes while you stand on the deck, flies back and lands, walks you down the ramp; prints the
+  measurements, exit code 0 when they hold).
 - Animal sandbox (GROUND.md §6.9): `--view animals`, a local zone on the first world's real surface with scenes at
   clearings near the landing site: `--scene herd|wolves|bear|harvest|cooking` (screenshots wait for the scene's moment:
   the pack stalking, the bear rearing, a cut going in), `--hour <h>` (local solar time; each scene has its own),

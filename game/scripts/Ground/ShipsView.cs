@@ -30,6 +30,10 @@ public partial class ShipsView : Node3D
         public Num.Vector3 Velocity;
         public bool Known;
         public FxHandle Fire;
+
+        // A ship people walk in: its parts' states as last posed, and the server's word they came from.
+        public float[]? Parts;
+        public int PartsVersion = -1;
     }
 
     private readonly Dictionary<uint, Drawn> _drawn = new();
@@ -81,6 +85,14 @@ public partial class ShipsView : Node3D
             d.View.Visible = !ship.Has(ShipNetFlags.InOrbit);
             d.View.FromCockpit = mine && Cockpit;
             d.View.Show(look, delta);
+            if (def.Interior is { } interior && ship.PartsVersion != d.PartsVersion)
+            {
+                // Its ramp, airlock and turrets as the server last said (IRON_WAKE.md §4.7).
+                d.PartsVersion = ship.PartsVersion;
+                d.Parts ??= new float[interior.Parts.Count];
+                ship.PartsInto(interior, d.Parts);
+                d.View.ShowParts(d.Parts);
+            }
             Hear(d, ship, def, look);
         }
         _gone.Clear();

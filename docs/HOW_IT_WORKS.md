@@ -84,9 +84,17 @@ Everything in the table runs on the tick thread, one after another; nothing in t
 - its systems, found by type (`zone.Get<T>()`) or by the accessor each one gives the zone (`zone.Guns()`).
 
 `Zone.Step`: the ground under every character is taken in (tiles built on workers earlier), then, under the physics
-gate, the broadphase is updated and every living, unseated character moves (`CharacterMotor.Step`: the same code the
-client predicts with), then the systems that move bodies (`ShipSystem`); then the ground nobody needs is released; then
-the other systems, in `GroundSystems`' order. A system steps every tick or once a second (`Every`); the host times each.
+gate, the broadphase is updated and every living, unseated character moves (`MoveFrames.Step`: the same code the client
+predicts with), then the systems that move bodies (`ShipSystem`); then the ground nobody needs is released; then the
+other systems, in `GroundSystems`' order. A system steps every tick or once a second (`Every`); the host times each.
+
+**Frames** (IRON_WAKE.md §4). A character moves in the zone's frame or aboard a ship in the ship's frame
+(`CharacterState.Frame`). `MoveFrames.Step` finds the frame (`ZoneMoveFrame`, or a ship's `ShipFrame` with its own small
+physics, a `ShipSpace`), runs `CharacterMotor.Step` there unchanged, and at the end hands the character over between
+frames when it steps onto a parked ship or off a ship's ramp, keeping its pose and velocity in the world. The ship's own
+flight never enters a step aboard. What a character does in the world asks where its ship carries it
+(`CharacterWorld.WorldOf`, `AttackLine`), and every query of the world also enters the ship spaces it crosses
+(`ShipQueries`).
 
 | System | Steps | What it is |
 |---|---|---|
@@ -194,7 +202,10 @@ against the budget of 256.
 nearby physics, sends the input, and when a snapshot says "input 412 processed, you are here", rewinds to that state
 and replays its newer inputs (`Predictor`); small corrections are eased out. Ships are predicted the same way
 (`ShipPredictor`); guns too (`LocalGun`: recoil and spread from the same seed as the server's). Everyone else is drawn
-100 ms in the past, between two snapshots. The client steers its clock so inputs arrive two ticks early.
+100 ms in the past, between two snapshots. The client steers its clock so inputs arrive two ticks early. Aboard a ship
+the prediction runs in the ship's frame through the client's copy of its space (`ClientShipFrame`, kept by the
+`ShipModule` for ships within 300 m), and the character is drawn on the ship as drawn; others aboard are interpolated in
+their ship's frame and placed on it the same way.
 
 ## 8. The client and the game
 
@@ -256,7 +267,7 @@ SQLite (`src/Hollow.Persistence/GameDatabase.cs`), one worker thread, one transa
 prop overrides, the zone's meta, notifications. Each module adds its records to the `ZoneSave` (`BuildingCodec`,
 `ShipCodec`, `ExplosiveCodec`, `TeamCodec`, `WorldCodec`, the character records); on start the host restores the
 character records and each module its own. Deaths commit within a second; the rest every 30 s and at shutdown. A player
-who leaves stays in the world asleep.
+who leaves stays in the world asleep (aboard a ship, in its frame: it comes back with the ship).
 
 ## 11. Performance and what runs in parallel
 

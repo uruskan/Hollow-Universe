@@ -452,6 +452,15 @@ ship's turn is a smallest-three quaternion (`ShipNetState`, §6.7). `BagNet` and
 neighbours are indexed by 3D cubes, and natural objects are queried by sphere
 (`INaturalObjects.Query(centre, radius, into)`).
 
+**IW1 (protocol 22, 15 October 2026; IRON_WAKE.md §4.11, §4.13):** a frame travels with every view and character state:
+`InputCommand.Frame` (the frame the view is in, as the client believed it), `OwnState.Frame`, `CharacterNetState.Frame`
+(aboard, the position and view are the ship frame's), `FireIntent.Frame`, `ThrowIntent.Frame`, each a ship's net ID or 0
+for the zone's; the server maps net IDs to its ships and turns a view given in the other frame on a hand-over's tick. A
+full character state is 199 bits (8 more). `ShipNetState.Body` is a parked ship's body ID (a client's copy takes it, as
+the building's bodies do), and `ShipPartStates` (121, reliable) a ship's moving parts away from rest. Characters aboard
+are relevant while their ship is: `RelevanceGrid` adds an entity with its carrier's anchor and keeps it within 2,000 m
+of it.
+
 ### 4.5 Physics and movement
 
 - **Jolt** through JoltPhysicsSharp 2.23 (joltc 1.1), on the server and in the client's prediction. **The G1 spike
@@ -537,7 +546,16 @@ neighbours are indexed by 3D cubes, and natural objects are queried by sphere
   - *The broadphase is kept in shape* by the broadphase part of Jolt's own update (an update with no time step does
     nothing else; the world is never stepped): only what changed is rebuilt, 0.1–0.4 ms a tick, where a whole
     rebuild took 5–10 ms with 30,000 bodies. Queries find the same bodies whatever the tree's shape.
-- Godot's own physics is used only for cosmetic things: ragdolls and debris.
+- Godot's own physics is used only for cosmetic things: ragdolls and debris (and, on a ship people walk in, its hulls
+  under drawn feet: IRON_WAKE.md §9.8).
+- **Frames (IW1, IRON_WAKE.md §4.2–§4.5, §4.13).** A character moves in the zone's frame or aboard a ship in the ship's
+  frame (`CharacterState.Frame`). `MoveFrames.Step` is the one step the zone and the prediction run: the frame (an
+  `IMoveFrame`: the zone's, or a ship's with +Y up, the decks' gravity and no water) gives `CharacterMotor.Step` its up,
+  gravity, water and its one `CharacterBody` in its physics (the zone's `PhysicsWorld`, or the ship's `ShipSpace`); at
+  the step's end the hand-over moves a character aboard (standing on a parked ship's body, or standing on nothing inside
+  its boarding volume over its deck) or ashore (off the ship and 0.3 m outside its boarding volume, or under the world's
+  ground), keeping its pose and velocity in the world exactly. The movement check's hash is unchanged
+  (0xD16D9135CE374BD2).
 
 ### 4.6 Planet surface
 
@@ -747,6 +765,10 @@ records and the raid alerts waiting in `notifications`). Characters keep their I
 state: a new life, without its inventory, blueprints or markers. Accounts and teams stay. The player record is version
 5: its map markers and the last death's point are body-frame points (an older record's are dropped). A character's
 view is stored as a heading from local north and a pitch where it stands, and comes back exactly there.
+
+Schema 8 (IW1, IRON_WAKE.md §4.11): `characters.frame`, the ship a character was aboard (its ID; 0 none). A character
+logged off aboard is stored in the ship's frame with its view against the deck, and comes back aboard with the ship;
+one whose ship didn't come back wakes at the landing site.
 
 ### 4.8 Characters
 
@@ -3013,6 +3035,7 @@ viewer; the ground mode's hookup comes after it (the list at the end).
 | Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 5 (`ships`) in `GameDatabase.cs`; `ShipModule` loads and saves |
 | Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/ShipModule`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `ShipModule`, `LocalPlayer.Ships.cs` |
 | Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
+| Ships people walk in (IW1) | IRON_WAKE.md §4.13: `ships.json`'s `interior` block and its data file (`ships/iron-wake.json`), `ShipInterior`, `ShipSpace`, `ShipFrame`/`ClientShipFrame`, `MoveFrames`, `ShipQueries`, `ShipSystem.Spaces.cs` (parking, `MovePart`), the sandbox's walk-in mode (`ShipSandbox.Aboard.cs`: `--ship iron-wake`) |
 | Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly), `ShipPersistenceTests.cs` (storage) |
 
 **The flight model** (`ShipMotor.Step`, one 30 Hz tick, a pure function of the state, the pilot's input and the static
@@ -3838,7 +3861,7 @@ the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <nam
 | `save` | | admins | server | Saves the world now. |
 | `ents` | | admins | server | Counts: players and characters (asleep, dead, wounded), animals by species, deployables, world props, loot bags, bodies, building pieces, doors, claims, ships, explosives, changed natural objects, ground tiles, net entities. |
 | `clearinv` | `[player]` | admins | server | Empties an inventory: main, belt and clothing. |
-| `ship` | `[player]` | admins | server | A Tin Finch beside a player, theirs, fuelled, its hatch open (as `spawn tin-finch`). |
+| `ship` | `[player] [kind]` | admins | server | A ship beside a player, theirs, fuelled, its hatch open, its way in toward them: a Tin Finch, or the kind named (`ship Ada iron-wake`, as `spawn iron-wake`; IRON_WAKE.md §5.6). |
 | `raidbase` | `[grade] [player]` | admins | server | A claimed hut 8 m in front, listing the player (`twig`, `wood`, `stone`, `metal`, `armoured` or 0–4; stone by default). |
 | `admin`, `unadmin` | `<name>` | admins | server | Gives or takes admin rights until the server stops (admins.txt keeps them). |
 | `world`, `animals` | | admins | server | The world's props, teams and economy; the animals, by kind, and what they cost. |
@@ -3880,7 +3903,8 @@ Engine-free in `ConsoleCompletion`, with the catalogue, so the tests check it.
 Things come in front of the player who typed the command (or the one named), on the ground, facing them, without the
 placing rules: animals 18 m ahead (wolves and bears 22 m) as a herd of their own (`AnimalWorld.SpawnHerd`, never
 refilled; the world's areas still come and go by themselves); a prop or deployable 2–3 m ahead, several in a row across
-the view, a sleeping bag or bed theirs and ready at once; the Tin Finch beside them where its hull fits; a raid base 8 m
+the view, a sleeping bag or bed theirs and ready at once; a ship of the kind named beside them where its hull fits (as far
+out as its size needs, its way in toward them; for a big ship in a wood, the trees and rocks in its way go); a raid base 8 m
 ahead with its doorway towards them. A barrel or crate spawned this way is the world's to everything else (it breaks,
 spills, empties), but it doesn't come back once gone and isn't kept across a restart (`Zone.SpawnProp`).
 

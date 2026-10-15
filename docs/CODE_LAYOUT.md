@@ -3,19 +3,19 @@
 Generated from the repository: every C# file, the types it declares (nested ones in brackets), its length and its
 own first line of explanation. HOW_IT_WORKS.md says how these run together; this is the map. Regenerate it after
 a package with the script in the session that made it, or by hand: the shape is one table per folder.
-580 files, 157,684 lines of C#.
-
+595 files, 163,676 lines of C#.
 
 ## src/Hollow.Core
 
 The foundations: double-precision vectors, deterministic maths and hashing, random numbers, units.
 
-### src/Hollow.Core (6 files, 571 lines)
+### src/Hollow.Core (7 files, 713 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `DMath.cs` | 296 | DMath | Deterministic maths. Every function here is built only from IEEE 754 operations that are exactly rounded |
 | `Hash64.cs` | 43 | Hash64 | Fixed 64-bit hashing for seeds and streams. Unlike System.HashCode and |
+| `Quantize.cs` | 142 | Quantize | Turning floats into the integers sent on the wire and back. Every conversion is plain IEEE arithmetic with |
 | `Rng.cs` | 119 | Rng | Deterministic random stream (SplitMix64). Seed one per generated object from its address with |
 | `Units.cs` | 26 | Units | Physical constants and unit conversions. SI unless the name says otherwise. |
 | `UniverseTime.cs` | 23 | UniverseTime | Universe time is real UTC (ARCHITECTURE.md §6). Orbits are expressed relative to the J2000 epoch. |
@@ -33,7 +33,7 @@ The 1:1 galaxy: the density model, sectors and cells, the catalogue, names, star
 | `CellGenerator.cs` | 271 | Streams, CellGenerator | Stream tags: every kind of generated object hashes its address with its own tag. |
 | `CellKey.cs` | 238 | SectorGrid, CellKey, SystemAddress | The sector grid (GALAXY.md §5). |
 | `DensityModel.cs` | 250 | DensityModel [Arm] | Number density of star systems (systems per ly³) in the Milky Way, as the sum of six components |
-| `Galaxy.cs` | 257 | SearchResult, Galaxy | A search hit: a system, or a place (a sector or a named region, ) when the text names |
+| `Galaxy.cs` | 257 | SearchResult, Galaxy | A search hit: a system, or a place (a sector or a named region, IsSector) when the text names |
 | `GalaxyFrame.cs` | 86 | GalaxyFrame | The galactic frame and the density model's frame (GALAXY.md §2). |
 | `GalaxyStar.cs` | 47 | GalaxyStar | The primary star of one star system, as the galaxy knows it: enough to draw it on the map and to |
 | `GeneratorVersion.cs` | 39 | GeneratorVersion | Generator versions, one per stage of the universe pipeline (ARCHITECTURE.md §8.4, GALAXY.md §14). Each version is |
@@ -93,15 +93,15 @@ Planets as surfaces: the cube-sphere, terrain, biomes, scatter, the sky, the zon
 
 The rules of the ground game, engine-free: the zone host, its systems, entities, physics, content, events.
 
-### src/Hollow.Simulation (7 files, 1,335 lines)
+### src/Hollow.Simulation (7 files, 1,351 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Beaches.cs` | 124 | Beaches | Where players arrive and respawn "on the beach", as in Rust (GROUND.md §6.1, docs/WHOLE_WORLD.md decision 8): coast |
 | `GroundProbe.cs` | 138 | GroundProbe | The surface's own ground (its heights, not the collision tiles' triangles), asked the same way by the zone and by a |
-| `Outcome.cs` | 281 | OutcomeCode, Outcome, OutcomeCodes | The one answer vocabulary (GROUND_SYSTEMS.md §3.2): every action a player asks for is done, or refused with one of |
+| `Outcome.cs` | 286 | OutcomeCode, Outcome, OutcomeCodes | The one answer vocabulary (GROUND_SYSTEMS.md §3.2): every action a player asks for is done, or refused with one of |
 | `Registry.cs` | 141 | Registry | Handlers found by a list's index (GROUND_SYSTEMS.md §3.5): the list comes from the data (capabilities.json's keys) |
-| `Zone.cs` | 378 | Character, Named, Zone | A character's components: its movement state, this tick's input, its collision and what its last step did. |
+| `Zone.cs` | 389 | Character, Named, Zone | A character's components: its movement state, this tick's input and what its last step did. Its collision is its |
 | `ZoneEvents.cs` | 117 | GainReason, IZoneEvent, ZoneEventHandler, ZoneEvents [Channel, Channel] | Why items arrived, for the UI's notifications. |
 | `ZoneSpec.cs` | 156 | ZoneSpec | Which surface zone this is (GROUND.md §4.2): the body, what the server and every client need to build the same |
 
@@ -123,7 +123,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 |---|---|---|---|
 | `BuildResults.cs` | 126 | Privilege, IBuildingWallet, Wallet, Capsule, BuildingChange, BuildingEvent, IBuildingPart, Removal | Building rights at a place for a player (GROUND.md §8's privilege status). |
 | `BuildingData.cs` | 916 | PieceFamily, PieceShape, Opening, StairsKind, SocketKind, DamageType, SocketDef, PieceDef, Protection, GradeDef, LeafDef, DoorDef, BuildingData [Reader] | What a piece is, structurally (RustMVP's families): it decides its sockets' geometry and its support losses. |
-| `BuildingPhysics.cs` | 282 | RayHit, OverlapHit, BuildingPhysics [OnlyGround, OnlyBuilding, NotGround] | What a ray hit: the body, how far along, where and the surface's normal there. |
+| `BuildingPhysics.cs` | 282 | RayHit, OverlapHit, BuildingPhysics [OnlyGround, NotGround, OnlyBuilding] | What a ray hit: the body, how far along, where and the surface's normal there. |
 | `BuildingWorld.Destroyed.cs` | 59 | RemovedPart, BuildingWorld | A piece or door gone from the building as the Destroyed event names it (GROUND.md §6.4.2, §9.4): what it was (its |
 | `BuildingWorld.Hammer.cs` | 269 | DamageHit, DamageResult, BuildingWorld | A hit on a piece or a door: the attack's direction in the zone (from the attacker toward the target) and its damage by type. |
 | `BuildingWorld.Placement.cs` | 663 | PlacementPlan, BuildingWorld | What a piece's placement would be: the piece, its structure (none yet for a free foundation), its pose in the |
@@ -146,23 +146,23 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `Interactions.Things.cs` | 235 | VerbAction, VerbActions, CapabilityHandlers [Holds, Pickup, Portable, Burner, Machine, Station] | What a verb does, on the server: the context's zone, doer and thing. |
 | `Interactions.World.cs` | 175 | CapabilityHandlers [WoundedCapability, CharacterCapability, DudCapability, ShipCapability, ArrowCapability] | The interaction side of people, explosives, ships and spent arrows (GROUND_SYSTEMS.md §5): helping the wounded up, a |
 
-### src/Hollow.Simulation/Combat (4 files, 1,176 lines)
+### src/Hollow.Simulation/Combat (4 files, 1,309 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Damage.cs` | 171 | DamageDelivery, DestroyCause, TargetFamilies, TargetFamilySets, DamageAmounts, DamageRequest, DamageOutcome | The damage pipeline's common types (GROUND.md §6.4.2, after RustMVP's damage plan, docs/damage_architecture.md): a |
-| `Firearms.cs` | 548 | RecoilState, RecoilSample, Recoil, GunMods, GunState, GunActionKind, GunAction, ShotContext, Shot, FirearmRules, Ballistics | The recoil of the gun in hand (RustMVP weapon_rules.hpp RecoilState): the target the view is kicked to, where |
+| `Firearms.cs` | 551 | RecoilState, RecoilSample, Recoil, GunMods, GunState, GunActionKind, GunAction, ShotContext, Shot, FirearmRules, Ballistics | The recoil of the gun in hand (RustMVP weapon_rules.hpp RecoilState): the target the view is kicked to, where |
 | `Geometry.cs` | 198 | Geometry | Ray tests for hits (melee sweeps, arrows, later bullets): against spheres, capsules and oriented boxes, all in the |
-| `Hitboxes.cs` | 259 | Pose, HitPose, HitShape, Hitboxes, HitboxHistory [Track] | How a body lies, for its hit shapes. |
+| `Hitboxes.cs` | 389 | Pose, HitPose, HitShape, Hitboxes, HitboxHistory [Track, ShipTrack] | How a body lies, for its hit shapes. |
 
-### src/Hollow.Simulation/Content (13 files, 3,078 lines)
+### src/Hollow.Simulation/Content (13 files, 3,103 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Animals.cs` | 257 | Temperament, AttackKind, AttackStats, AnimalSpecies, AnimalSenses, AnimalSpawning, HarvestRates | How an animal meets a threat (GROUND.md §6.9). |
 | `CapabilityData.cs` | 144 | CapabilityData | capabilities.json (GROUND_SYSTEMS.md §2.1): the kinds of behaviour a world thing may have, in their append-only order |
 | `Explosives.cs` | 125 | BlastStats, ThrowableStats, RaidAlertSettings | One explosion (explosives.json blasts, GROUND.md §6.6): how far it reaches, how it falls off, what it does to |
-| `GameContent.cs` | 401 | ContentException, GameContent [Loaded] | The content files have problems; the message lists every one. |
+| `GameContent.cs` | 426 | ContentException, GameContent [Loaded] | The content files have problems; the message lists every one. |
 | `Gather.cs` | 137 | GatherRate, SpotRule, LastHitRule, GatherCue, MarkerLook, FallLook, ShakeLook, GatherLook, GatherRules | Which of a tool's gather rates a class of natural objects takes (items.json tree, ore). |
 | `Interactions.cs` | 113 | VerbSwitch, VerbDef, InteractionData | Which way a verb turns a device's switch: the loot panel's on/off button finds its verb by this. |
 | `ItemDef.cs` | 316 | WearLayer, BodyRegions, HitRegion, MeleeStats, BowStats, AmmoStats, ConsumeStats, WearStats, FuelStats, CookStats, BuildingRole, ItemDef, CharacterTicks | Clothing layers (GROUND.md §6): two worn items may not share a layer, so a shirt and a chest plate go together but |
@@ -173,7 +173,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `Weapons.cs` | 247 | FireMode, RecoilMode, AttachmentSlot, RecoilStep, RecoilStats, SpreadStats, FirearmStats, BulletStats, AttachmentStats | How the trigger works: one shot a press, or shots while held. |
 | `World.cs` | 241 | WorldPropKind, PropDef, RecyclerStats, ResearchStats, TechNode, TechTree, LootSpotSettings, WorldData | What a world prop is (world.json props, GROUND.md §6.8). |
 
-### src/Hollow.Simulation/Content/Readers (22 files, 3,755 lines)
+### src/Hollow.Simulation/Content/Readers (23 files, 4,168 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -193,7 +193,8 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `PlacementReader.cs` | 377 | PlacementReader | placement.json (GROUND_SYSTEMS.md §6): the defaults every placement rule starts from, each kind's block over them, the |
 | `ReaderHelpers.cs` | 74 | ReaderHelpers | Fields more than one reader shares: lists of numbers as vectors (the deployables' bays, the ships) and a ship's turn axis. |
 | `RecipesReader.cs` | 127 | RecipesReader | recipes.json: every recipe (output, amount, seconds, workbench level, ingredients, known from the start, its |
-| `ShipsReader.cs` | 233 | ShipsReader | ships.json (G6): the kinds of ship: mass and inertia, hit points and damage multipliers, thrust and speeds, boost, |
+| `ShipInteriorReader.cs` | 310 | ShipInteriorReader | A ship's data file (IRON_WAKE.md §9.1, game/data/ground/ships/), as a ships.json entry's interior block |
+| `ShipsReader.cs` | 336 | ShipsReader | ships.json (G6): the kinds of ship: mass and inertia, hit points and damage multipliers, thrust and speeds, boost, |
 | `SurfacesReader.cs` | 21 | SurfacesReader | surfaces.json (GROUND.md §6.1): the drawn tops of the outcrops' stage models, measured by the model viewer |
 | `SurvivalReader.cs` | 190 | SurvivalReader | survival.json: vitals, metabolism, bleeding, burning, the wounded state, temperature, the climate stand-in, the |
 | `TextsReader.cs` | 54 | TextsReader | texts.json: the player's lines (GROUND_SYSTEMS.md §3.2), read like the rest but outside the hash (a reworded line or |
@@ -257,14 +258,16 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `LootRules.cs` | 59 | LootKind, LootRules | What is being looted, which decides what may be put in. |
 | `PlayerInventory.cs` | 181 | ContainerRef, PlayerInventory | How an intent names a container: the player's own three, or one of those they are looting. |
 
-### src/Hollow.Simulation/Movement (6 files, 892 lines)
+### src/Hollow.Simulation/Movement (8 files, 1,276 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `CharacterMotor.cs` | 363 | MoveContext, StepEvents, CharacterMotor | What a movement step needs to know about where it happens. |
-| `CharacterState.cs` | 137 | Stance, MoveButtons, MoveFlags, MoveCheats, MoveInput, CharacterState |  |
+| `CharacterMotor.cs` | 360 | MoveContext, StepEvents, CharacterMotor | What a movement step needs to know about where it happens: the frame it runs in (IMoveFrame: the |
+| `CharacterState.cs` | 151 | Stance, MoveButtons, MoveFlags, MoveCheats, MoveInput, CharacterState |  |
+| `CharacterWorld.cs` | 86 | CharacterWorld | A character in the zone's frame, wherever it moves (IRON_WAKE.md §4.2): aboard a ship its state is the ship's frame's, |
 | `Facing.cs` | 96 | Facing | Which way things face on a whole world (docs/WHOLE_WORLD.md §5). A zone's frame is the body's own (+Y the north pole), |
 | `FreeLook.cs` | 58 | FreeLook | Free look (Left Alt held, RustMVP's; GROUND.md §4.5): the mouse turns the head instead of the view, so the camera |
+| `MoveFrames.cs` | 287 | IMoveFrame, ZoneMoveFrame, ShipPose, IShipFrame, MoveFrames | The frame a character moves in (IRON_WAKE.md §4.3): the zone's, or a ship's. It says which way is up, how strong |
 | `MovementCheck.cs` | 111 | MovementCheck [Result] | The physics spike of GROUND.md §4.5, kept as a check: a fixed script of inputs walks a character over ground from |
 | `MovementTuning.cs` | 127 | MovementTuning | The numbers of on-foot movement (GROUND.md §4.5, §6). Rust's movement, through RustMVP's legacy spec |
 
@@ -280,14 +283,15 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `SpotSurfaces.cs` | 410 | ISpotSurface, SpotFrames, TrunkSurface, MeasuredSurface | Where a natural object's weak spot can sit (GROUND.md §6.1): on the surface players see, at the object's current |
 | `StandInNaturalObjects.cs` | 144 | StandInNaturalObjects | Natural objects of the stand-in world (docs/WHOLE_WORLD.md §7.1), placed by a seeded stream per cube-sphere tile of |
 
-### src/Hollow.Simulation/Physics (4 files, 1,022 lines)
+### src/Hollow.Simulation/Physics (5 files, 1,537 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `CharacterBody.cs` | 159 | CharacterBody | A character's collision in a PhysicsWorld: Jolt's virtual character, a kinematic capsule outside the |
+| `CharacterBody.cs` | 174 | CharacterBody | A character's collision in a space (GROUND.md §4.5): Jolt's virtual character, a kinematic capsule outside the |
 | `JoltRuntime.cs` | 51 | JoltRuntime | The process-wide Jolt runtime (GROUND.md §4.5). Jolt is initialised once per process, by whichever world needs it |
 | `PhysicsWorld.cs` | 694 | PhysicsWorld [Prop, Tile, TileBuild] | One zone's Jolt physics system (GROUND.md §4.5): the ground near characters, as static mesh tiles built from the |
 | `Props.cs` | 118 | PropLayer, ITileListener, PropKind, PropShape | Who a prop belongs to: its key is only unique within its layer. |
+| `ShipSpace.cs` | 500 | SpaceHit, ShipSpace [KindShapes] | What a query through a ship's space met: the part (0 the hull), how far along, where and the surface's normal, in the ship's frame. |
 
 ### src/Hollow.Simulation/Placement (9 files, 2,059 lines)
 
@@ -318,46 +322,50 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `Explosive.cs` | 263 | ExplosiveState, LiveExplosive, RaidHit, ExplosiveSave, BlastReport, RaidCounters | Where a thrown or placed explosive is (GROUND.md §6.6). |
 | `TestBases.cs` | 248 | TestBases [Hut] | Small claimed bases built straight through the building rules (no player, no wallet, no placement checks), for the raid |
 
-### src/Hollow.Simulation/Ships (5 files, 1,498 lines)
+### src/Hollow.Simulation/Ships (8 files, 2,157 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `Ship.cs` | 114 | Ship, ShipLink, ShipSeat | A ship in a zone (GROUND.md §6.7): a dynamic entity with its motion (ShipState), its pilot, hatch, lock, |
-| `ShipCollider.cs` | 282 | ShipRayHit, ShipContact, ShipCollider [ExceptBody] | Where a ray from a ship met the world: how far, the point and the surface's normal there. |
-| `ShipDef.cs` | 247 | HullBox, TurnAxis, ShipDef, ShipParts | One box of a ship's hull, in the ship's frame: its centre and half extents. |
-| `ShipMotor.cs` | 677 | ShipContext, ShipMotor [SkidLoad] | What a ship's step needs to know about where it happens. |
+| `Ship.cs` | 131 | Ship, ShipLink, ShipSeat | A ship in a zone (GROUND.md §6.7): a dynamic entity with its motion (ShipState), its pilot, hatch, lock, |
+| `ShipCollider.cs` | 306 | ShipRayHit, ShipContact, ShipCollider [ExceptBody] | Where a ray from a ship met the world: how far, the point and the surface's normal there. |
+| `ShipDef.cs` | 294 | HullBox, TurnAxis, ShipDef, ShipParts | One box of a ship's hull, in the ship's frame: its centre and half extents. |
+| `ShipFrame.cs` | 66 | ShipFrame | A ship's frame in a zone (IRON_WAKE.md §4.3): what characters aboard it move in, keyed by the ship's entity ID. Up is |
+| `ShipInterior.cs` | 290 | ShipPartKind, ShipPartDef, ShipPiece, BoardingBox, ShipSocket, PartPose, ShipInterior | How one of a ship's parts moves (the data file's part kinds, IRON_WAKE.md §9.1). |
+| `ShipMotor.cs` | 757 | ShipContext, ShipMotor [SkidLoad] | What a ship's step needs to know about where it happens. |
+| `ShipQueries.cs` | 135 | ShipQueryHit, ShipQueries | What a query of the zone's frame met in a ship's space: the ship's frame, the hit there, and how far along the query it is. |
 | `ShipState.cs` | 178 | ShipFlags, ShipButtons, ShipInput, ShipState, ShipEvents | What a ship is doing, besides its motion. Some are found by the last step (outputs), some set by the zone. |
 
-### src/Hollow.Simulation/Systems (26 files, 8,956 lines)
+### src/Hollow.Simulation/Systems (27 files, 9,338 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `ActionSystem.cs` | 360 | ActionSystem, ActionSystemAccess [PlayerActor] | Players' actions (ARCHITECTURE.md §11.4: intents): every one checks everything against the server's state and |
-| `AnimalSystem.cs` | 397 | AnimalSystem, AnimalSystemAccess [AnimalReceiver] | Animals in the zone (GROUND.md §6.9): the glue between the animal world (Animals/) and the rest of the game. Players |
+| `AnimalSystem.cs` | 398 | AnimalSystem, AnimalSystemAccess [AnimalReceiver] | Animals in the zone (GROUND.md §6.9): the glue between the animal world (Animals/) and the rest of the game. Players |
 | `ArrowSystem.cs` | 249 | ArrowSystem, ArrowSystemAccess [ArrowTargets] | Spent arrows (GROUND_SYSTEMS.md §5, the owner's): an arrow that stays whole on a hit sticks where it hit, its tip in, |
 | `AutoRespawnSystem.cs` | 42 | AutoRespawnSystem, AutoRespawnSystemAccess | G1's respawn, for a zone without game content (the movement checks, the network tests): a dead character comes back |
-| `BlastSystem.cs` | 216 | BlastSystem, BlastSystemAccess [RaidTallies, RaidTally] | What a blast sees, and the building's side of raiding (GROUND.md §6.6): the explosive channel's fractions of a point, |
+| `BlastSystem.cs` | 222 | BlastSystem, BlastSystemAccess [RaidTallies, RaidTally] | What a blast sees, and the building's side of raiding (GROUND.md §6.6): the explosive channel's fractions of a point, |
 | `BuildingSystem.cs` | 586 | HammerAction, BuildingSystem, BuildingSystemAccess [BuildingReceiver] | What a hammer does to a piece. |
-| `CombatSystem.cs` | 584 | Projectile, TraceHit, CombatSystem, CombatSystemAccess [CharacterReceiver, NatureReceiver, GroundReceiver] | An arrow in flight (later bullets): simulated on the server only (ARCHITECTURE.md §11.5). |
+| `CombatSystem.cs` | 585 | Projectile, TraceHit, CombatSystem, CombatSystemAccess [CharacterReceiver, NatureReceiver, GroundReceiver] | An arrow in flight (later bullets): simulated on the server only (ARCHITECTURE.md §11.5). |
 | `DamageSystem.cs` | 345 | RayQuery, BlastQuery, BlastTarget, DamageSystem, DamageSystemAccess [IDamageReceiver, Blow] | A ray's test for what it meets first (a swing, an arrow's or a bullet's step): from where, which way, how far, how |
-| `ExplosiveSystem.cs` | 579 | ExplosiveSystem, ExplosiveSystemAccess | Raiding (GROUND.md §6.6, G5): explosives thrown, placed and lit again; their flight, bounces and sticking; fuses and |
+| `ExplosiveSystem.cs` | 590 | ExplosiveSystem, ExplosiveSystemAccess | Raiding (GROUND.md §6.6, G5): explosives thrown, placed and lit again; their flight, bounces and sticking; fuses and |
 | `GroundSystems.cs` | 48 | GroundSystems | The zone's systems and their order (GROUND_SYSTEMS.md §12.2, K3), the one place that lists them. The host runs them |
-| `GunSystem.cs` | 591 | Bullet, GunSystem, GunSystemAccess | A bullet in flight (G4): simulated on the server only (ARCHITECTURE.md §11.5); clients draw their own. |
+| `GunSystem.cs` | 604 | Bullet, GunSystem, GunSystemAccess | A bullet in flight (G4): simulated on the server only (ARCHITECTURE.md §11.5); clients draw their own. |
 | `HeldSystem.cs` | 106 | HeldSystem, HeldSystemAccess [IHeldRules, MeleeRules, BowRules, ActsByIntents] | What a held item does in the zone (GROUND_SYSTEMS.md §7): one handler per held behaviour, found by the item's |
-| `HistorySystem.cs` | 50 | HistorySystem, HistorySystemAccess | Records every player's pose at the end of the tick (ARCHITECTURE.md §11.5): the second of poses hits are judged |
+| `HistorySystem.cs` | 70 | HistorySystem, HistorySystemAccess | Records every player's pose at the end of the tick (ARCHITECTURE.md §11.5): the second of poses hits are judged |
 | `InteractionSystem.cs` | 229 | InteractionSystem, InteractionSystemAccess | Interaction (GROUND_SYSTEMS.md §5): one intent, one path. A player names a target and a verb; the server resolves the |
 | `NatureSystem.cs` | 22 | NatureSystem, NatureSystemAccess | The natural objects' own life (GROUND.md §6.1): once a second, what players cut, mined or picked comes back when its |
-| `PlacementSystem.cs` | 259 | PlaceRequest, PlacementSystem, PlacementSystemAccess [ZoneSurroundings] | What a player asks to place (PlaceIntent, GROUND_SYSTEMS.md §6): the slot that pays for it (the item used up, or the |
-| `PlayerSystem.cs` | 430 | PlayerSystem, PlayerSystemAccess | The survival game's players (GROUND.md §6): their lives, sleep, death into a corpse, and respawn at a bag or on the |
-| `ShipSystem.cs` | 887 | ShipEventKind, ShipDamage, ShipEvent, ShipSystem, ShipSystemAccess [ShipReceiver] | What happened to a ship that players should hear about (G6). |
+| `PlacementSystem.cs` | 261 | PlaceRequest, PlacementSystem, PlacementSystemAccess [ZoneSurroundings] | What a player asks to place (PlaceIntent, GROUND_SYSTEMS.md §6): the slot that pays for it (the item used up, or the |
+| `PlayerSystem.cs` | 432 | PlayerSystem, PlayerSystemAccess | The survival game's players (GROUND.md §6): their lives, sleep, death into a corpse, and respawn at a bag or on the |
+| `ShipSystem.Spaces.cs` | 191 | ShipSystem | Ships people walk in (IRON_WAKE.md §4): who is aboard, a parked ship's body in the zone, and the one entry point that |
+| `ShipSystem.cs` | 999 | ShipEventKind, ShipDamage, ShipEvent, ShipSystem, ShipSystemAccess [ShipReceiver] | What happened to a ship that players should hear about (G6). |
 | `SpillSystem.cs` | 235 | SpillSystem, SpillSystemAccess | Loose items on the ground (GROUND.md §6.1). Everything that lands there goes through Spill: a stack dropped from an |
 | `SupportSystem.cs` | 117 | SupportSystem, SupportSystemAccess | Support links (GROUND_SYSTEMS.md §3.6): what rests on or is stuck in what. A dependent keeps its own SupportLink (its |
-| `TargetSystem.cs` | 964 | TargetSystem, TargetSystemAccess [GroundTargets, CharacterTargets, AnimalTargets, NaturalTargets, ThingTargets, PieceTargets, DoorTargets, CupboardTargets, ExplosiveTargets, ShipTargets] | Naming world things (GROUND_SYSTEMS.md §3.1): a TargetRef routes to its family, each family registered once here, which |
+| `TargetSystem.cs` | 977 | TargetSystem, TargetSystemAccess [GroundTargets, CharacterTargets, AnimalTargets, NaturalTargets, ThingTargets, PieceTargets, DoorTargets, CupboardTargets, ExplosiveTargets, ShipTargets] | Naming world things (GROUND_SYSTEMS.md §3.1): a TargetRef routes to its family, each family registered once here, which |
 | `ThingSystem.cs` | 551 | ThingSystem, ThingSystemAccess [DeployableReceiver] | Static things of the survival game (GROUND.md §6): deployables and their devices, dropped items, corpses; warmth and |
-| `VitalsSystem.cs` | 152 | VitalsSystem, VitalsSystemAccess | Survival, once a second (GROUND.md §6): metabolism, temperature, bleeding, healing, and the damage of starvation, |
+| `VitalsSystem.cs` | 153 | VitalsSystem, VitalsSystemAccess | Survival, once a second (GROUND.md §6): metabolism, temperature, bleeding, healing, and the damage of starvation, |
 | `WorldSystem.cs` | 703 | PropOverride, WorldStats, WorldSystem, WorldSystemAccess | What is stored about a world prop (GROUND.md §6.8, ARCHITECTURE.md P1: only changes): gone until a time, or standing |
 | `WoundedSystem.cs` | 120 | WoundedSystem, WoundedSystemAccess | The wounded state (GROUND.md §6.3, Rust's): a lethal hit that is small enough, and isn't a shot to the head, knocks |
-| `ZoneSystem.cs` | 134 | ZoneSystem | One concern of a zone's rules (GROUND_SYSTEMS.md §12.2, K1): its own state, stepped by the host in the host's order. |
+| `ZoneSystem.cs` | 143 | ZoneSystem | One concern of a zone's rules (GROUND_SYSTEMS.md §12.2, K1): its own state, stepped by the host in the host's order. |
 
 ### src/Hollow.Simulation/Targets (3 files, 581 lines)
 
@@ -384,43 +392,42 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 
 The protocol: messages and their generated serializers, bit packing, snapshot deltas, relevance, the relay.
 
-### src/Hollow.Net/Bits (3 files, 504 lines)
+### src/Hollow.Net/Bits (2 files, 364 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `BitReader.cs` | 160 | BitReader | Reads what a BitWriter wrote. Packets come from outside, so nothing here throws on bad data: reading |
-| `BitWriter.cs` | 202 | BitWriter | Packs values into a byte buffer bit by bit, least significant bit first (GROUND.md §4.4). Reuse one per thread or |
-| `Quantize.cs` | 142 | Quantize | Turning floats into the integers sent on the wire and back. Every conversion is plain IEEE arithmetic with |
+| `BitReader.cs` | 161 | BitReader | Reads what a BitWriter wrote. Packets come from outside, so nothing here throws on bad data: reading |
+| `BitWriter.cs` | 203 | BitWriter | Packs values into a byte buffer bit by bit, least significant bit first (GROUND.md §4.4). Reuse one per thread or |
 
-### src/Hollow.Net/Commands (2 files, 387 lines)
-
-| File | Lines | Types | What |
-|---|---|---|---|
-| `ConsoleCatalog.cs` | 207 | CommandSide, ArgKind, ConsoleCommandDef, ConsoleCatalog | Where a console command runs: in the game (the view and its settings) or on the server. |
-| `ConsoleCompletion.cs` | 180 | CompletionSources, Completion, ConsoleCompletion, Spawning | What Tab completes from: the game's data, and the players the server says are on. |
-
-### src/Hollow.Net/Protocol (11 files, 6,908 lines)
+### src/Hollow.Net/Commands (2 files, 395 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `AnimalNet.cs` | 74 | AnimalLook, AnimalNet | An animal as a client sees it (unpacked from its snapshot state). |
+| `ConsoleCatalog.cs` | 210 | CommandSide, ArgKind, ConsoleCommandDef, ConsoleCatalog | Where a console command runs: in the game (the view and its settings) or on the server. |
+| `ConsoleCompletion.cs` | 185 | CompletionSources, Completion, ConsoleCompletion, Spawning | What Tab completes from: the game's data, and the players the server says are on. |
+
+### src/Hollow.Net/Protocol (11 files, 7,072 lines)
+
+| File | Lines | Types | What |
+|---|---|---|---|
+| `AnimalNet.cs` | 75 | AnimalLook, AnimalNet | An animal as a client sees it (unpacked from its snapshot state). |
 | `Attributes.cs` | 76 | NetMessageAttribute, NetStructAttribute, NetStateAttribute, BitsAttribute, SignedAttribute, VarIntAttribute, AngleAttribute, QuantizeAttribute, MaxLengthAttribute, MaxCountAttribute | The vocabulary of message definitions (Messages.cs). tools/Hollow.NetGen reads the definitions as text and writes |
 | `INetMessage.cs` | 24 | INetMessage | A message of the protocol (GROUND.md §4.4): its type byte, its reader and its writers, so a handler registry can |
 | `MessageHandlers.cs` | 71 | MessageHandler, MessageHandlers [Entry, Entry] | What a handler does with a message that arrived, in the context it arrived in (a connection, a client, a server). |
-| `Messages.cs` | 1598 | Hello, Goodbye, ZoneInfo, Welcome, InputCommand, ShipControls, InputPacket, OwnState, SnapshotHeader, OwnShipState, ShipNetState, CharacterNetState, Spawn, Despawn, ChatSend, ChatLine, ThingSpawn, ThingUpdate, WornItem, CharacterLook, NaturalNet, NaturalStates, ProjectileLaunch, ProjectileEnd, TargetNet, MoveItemIntent, QuickMoveIntent, DropIntent, CraftIntent, CancelCraftIntent, CloseIntent, RespawnIntent, IntentResult, ShipIntent, GunNet, SlotNet, ContainerContents, ContainerSlots, LootState, VitalsUpdate, CraftJobNet, CraftQueueState, HitMarker, ItemsChanged, DamageTaken, CraftFinished, BagNet, LifeState, FireIntent, ReloadIntent, AttachIntent, GunUpdate, HammerIntent, BuildFrameNet, BuildFrames, PieceNet, BuildPieces, BuildIdNet, BuildRemoved, DoorNet, BuildDoors, ClaimNet, BuildClaims, ThrowIntent, ExplosiveUpdate, ExplosiveGone, Detonation, RaidAlertNet, RaidAlertMessage, RaidAlertList, TeamIntent, TeamChatSend, MarkerIntent, RecipeNet, BlueprintList, TeamMemberNet, TeamState, TeamInviteNet, TeamInvites, TeammateNet, TeamPositions, MarkerNet, RespawnPointNet, MapState, MachineState, ConsoleRun, ConsoleReply, ServerPlayerNet, ServerState, ZoneClock, InteractIntent, ArrowNet, ArrowStates, ArrowsGone, ThingDestroyed, PoseNet, PlaceIntent, ItemActionIntent, UnloadIntent, DevWatch, DevSectionNet, DevPlayerNet, DevStats, DevInspect, DevLineNet, DevInspected, DevCellNet, DevNav, DevSlotNet, DevAreaNet, DevAreas, DevLog | Every message of the ground game's protocol (GROUND.md §4.4, ARCHITECTURE.md §11). Definitions only: fields with |
-| `Messages.g.cs` | 4559 | Protocol, Hello, Goodbye, ZoneInfo, Welcome, InputCommand, ShipControls, InputPacket, OwnState, SnapshotHeader, OwnShipState, ShipNetState, CharacterNetState, Spawn, Despawn, ChatSend, ChatLine, ThingSpawn, ThingUpdate, WornItem, CharacterLook, NaturalNet, NaturalStates, ProjectileLaunch, ProjectileEnd, TargetNet, MoveItemIntent, QuickMoveIntent, DropIntent, CraftIntent, CancelCraftIntent, CloseIntent, RespawnIntent, IntentResult, ShipIntent, GunNet, SlotNet, ContainerContents, ContainerSlots, LootState, VitalsUpdate, CraftJobNet, CraftQueueState, HitMarker, ItemsChanged, DamageTaken, CraftFinished, BagNet, LifeState, FireIntent, ReloadIntent, AttachIntent, GunUpdate, HammerIntent, BuildFrameNet, BuildFrames, PieceNet, BuildPieces, BuildIdNet, BuildRemoved, DoorNet, BuildDoors, ClaimNet, BuildClaims, ThrowIntent, ExplosiveUpdate, ExplosiveGone, Detonation, RaidAlertNet, RaidAlertMessage, RaidAlertList, TeamIntent, TeamChatSend, MarkerIntent, RecipeNet, BlueprintList, TeamMemberNet, TeamState, TeamInviteNet, TeamInvites, TeammateNet, TeamPositions, MarkerNet, RespawnPointNet, MapState, MachineState, ConsoleRun, ConsoleReply, ServerPlayerNet, ServerState, ZoneClock, InteractIntent, ArrowNet, ArrowStates, ArrowsGone, ThingDestroyed, PoseNet, PlaceIntent, ItemActionIntent, UnloadIntent, DevWatch, DevSectionNet, DevPlayerNet, DevStats, DevInspect, DevLineNet, DevInspected, DevCellNet, DevNav, DevSlotNet, DevAreaNet, DevAreas, DevLog | Written by tools/Hollow.NetGen from Messages.cs. Don't edit: change Messages.cs, then run |
+| `Messages.cs` | 1646 | Hello, Goodbye, ZoneInfo, Welcome, InputCommand, ShipControls, InputPacket, OwnState, SnapshotHeader, OwnShipState, ShipNetState, CharacterNetState, Spawn, Despawn, ChatSend, ChatLine, ThingSpawn, ThingUpdate, WornItem, CharacterLook, NaturalNet, NaturalStates, ProjectileLaunch, ProjectileEnd, TargetNet, MoveItemIntent, QuickMoveIntent, DropIntent, CraftIntent, CancelCraftIntent, CloseIntent, RespawnIntent, IntentResult, ShipIntent, ShipPartStates, ShipPartNet, GunNet, SlotNet, ContainerContents, ContainerSlots, LootState, VitalsUpdate, CraftJobNet, CraftQueueState, HitMarker, ItemsChanged, DamageTaken, CraftFinished, BagNet, LifeState, FireIntent, ReloadIntent, AttachIntent, GunUpdate, HammerIntent, BuildFrameNet, BuildFrames, PieceNet, BuildPieces, BuildIdNet, BuildRemoved, DoorNet, BuildDoors, ClaimNet, BuildClaims, ThrowIntent, ExplosiveUpdate, ExplosiveGone, Detonation, RaidAlertNet, RaidAlertMessage, RaidAlertList, TeamIntent, TeamChatSend, MarkerIntent, RecipeNet, BlueprintList, TeamMemberNet, TeamState, TeamInviteNet, TeamInvites, TeammateNet, TeamPositions, MarkerNet, RespawnPointNet, MapState, MachineState, ConsoleRun, ConsoleReply, ServerPlayerNet, ServerState, ZoneClock, InteractIntent, ArrowNet, ArrowStates, ArrowsGone, ThingDestroyed, PoseNet, PlaceIntent, ItemActionIntent, UnloadIntent, DevWatch, DevSectionNet, DevPlayerNet, DevStats, DevInspect, DevLineNet, DevInspected, DevCellNet, DevNav, DevSlotNet, DevAreaNet, DevAreas, DevLog | Every message of the ground game's protocol (GROUND.md §4.4, ARCHITECTURE.md §11). Definitions only: fields with |
+| `Messages.g.cs` | 4659 | Protocol, Hello, Goodbye, ZoneInfo, Welcome, InputCommand, ShipControls, InputPacket, OwnState, SnapshotHeader, OwnShipState, ShipNetState, CharacterNetState, Spawn, Despawn, ChatSend, ChatLine, ThingSpawn, ThingUpdate, WornItem, CharacterLook, NaturalNet, NaturalStates, ProjectileLaunch, ProjectileEnd, TargetNet, MoveItemIntent, QuickMoveIntent, DropIntent, CraftIntent, CancelCraftIntent, CloseIntent, RespawnIntent, IntentResult, ShipIntent, ShipPartStates, ShipPartNet, GunNet, SlotNet, ContainerContents, ContainerSlots, LootState, VitalsUpdate, CraftJobNet, CraftQueueState, HitMarker, ItemsChanged, DamageTaken, CraftFinished, BagNet, LifeState, FireIntent, ReloadIntent, AttachIntent, GunUpdate, HammerIntent, BuildFrameNet, BuildFrames, PieceNet, BuildPieces, BuildIdNet, BuildRemoved, DoorNet, BuildDoors, ClaimNet, BuildClaims, ThrowIntent, ExplosiveUpdate, ExplosiveGone, Detonation, RaidAlertNet, RaidAlertMessage, RaidAlertList, TeamIntent, TeamChatSend, MarkerIntent, RecipeNet, BlueprintList, TeamMemberNet, TeamState, TeamInviteNet, TeamInvites, TeammateNet, TeamPositions, MarkerNet, RespawnPointNet, MapState, MachineState, ConsoleRun, ConsoleReply, ServerPlayerNet, ServerState, ZoneClock, InteractIntent, ArrowNet, ArrowStates, ArrowsGone, ThingDestroyed, PoseNet, PlaceIntent, ItemActionIntent, UnloadIntent, DevWatch, DevSectionNet, DevPlayerNet, DevStats, DevInspect, DevLineNet, DevInspected, DevCellNet, DevNav, DevSlotNet, DevAreaNet, DevAreas, DevLog | Written by tools/Hollow.NetGen from Messages.cs. Don't edit: change Messages.cs, then run |
 | `NaturalNet.cs` | 27 | NaturalNet |  |
-| `NetConvert.cs` | 173 | NetConvert | Between simulation values and their wire form. The client predicts with ToMoveInput(ToCommand(...)), the |
+| `NetConvert.cs` | 186 | NetConvert | Between simulation values and their wire form. The client predicts with ToMoveInput(ToCommand(...)), the |
 | `NetStates.cs` | 16 | CharacterNetState, ShipNetState | The entity states snapshots carry, as the replication's generic sections see them (their serializers are generated). |
 | `Protocol.cs` | 133 | Protocol, GoodbyeReason, EntityKind, ShipNetFlags, ShipAction, ConsoleReplyKind, ChatKind, TeammateState | Constants of the ground game's protocol (GROUND.md §4.4). |
-| `ShipConvert.cs` | 157 | ShipConvert | Between ships' simulation values and their wire form (G6). A pilot's client predicts with |
+| `ShipConvert.cs` | 159 | ShipConvert | Between ships' simulation values and their wire form (G6). A pilot's client predicts with |
 
-### src/Hollow.Net/Replication (4 files, 656 lines)
+### src/Hollow.Net/Replication (4 files, 691 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `DeltaChannel.cs` | 297 | INetState, IDeltaCandidate, ShipCandidate, DeltaChannel, DeltaKeeper [Sent] | An entity state the generator writes with deltas ([NetState]): what a snapshot section needs of it. |
-| `RelevanceGrid.cs` | 119 | RelevanceGrid | Which entities each client hears about (ARCHITECTURE.md §11.3): a uniform grid of cubes in the zone's frame (the |
+| `RelevanceGrid.cs` | 154 | RelevanceGrid | Which entities each client hears about (ARCHITECTURE.md §11.3): a uniform grid of cubes in the zone's frame (the |
 | `SnapshotReceiver.cs` | 99 | SnapshotReceiver | The client's half of snapshot replication (SnapshotSender): decodes snapshots against the ones it |
 | `SnapshotSender.cs` | 141 | SnapshotCandidate, SnapshotSender | An entity offered to a snapshot: its state now and how much it matters to this client. |
 
@@ -436,14 +443,14 @@ The protocol: messages and their generated serializers, bit packing, snapshot de
 
 SQLite storage: the database, one worker thread, one codec per kind of record.
 
-### src/Hollow.Persistence (8 files, 2,294 lines)
+### src/Hollow.Persistence (8 files, 2,308 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `AnimalCodec.cs` | 73 | CorpseSave, AnimalCodec | An animal's corpse as stored: its species (key), where it lies, what is left to harvest, its timer. |
 | `BuildingCodec.cs` | 332 | BuildingRecord, StoredClaim, ClaimRecord, BuildingCodec | A stored piece, door (with its lock) or claim device (with its list and store): kind and versioned bytes. |
 | `ExplosiveCodec.cs` | 147 | ExplosiveCodec | An explosive's stored form (GROUND.md §6.6, G5): a charge stuck or lying in the world with its fuse left survives a |
-| `GameDatabase.cs` | 877 | CharacterRecord, ThingRecord, NaturalRecord, TeamRecord, PropRecord, ZoneRecord, ZoneSave, ShipRecord, GameDatabase | A stored character (GROUND.md §4.7): where it is on its body, in the body frame (metres from the body's centre, |
+| `GameDatabase.cs` | 891 | CharacterRecord, ThingRecord, NaturalRecord, TeamRecord, PropRecord, ZoneRecord, ZoneSave, ShipRecord, GameDatabase | A stored character (GROUND.md §4.7): where it is on its body, in the body frame (metres from the body's centre, |
 | `PersistenceWorker.cs` | 138 | PersistenceWorker | Owns the GameDatabase on one background thread and runs every request in the order it was made |
 | `ShipCodec.cs` | 163 | StoredShip, ShipCodec | A ship read back from storage, and who was in its seat (the server seats them again if they are there). |
 | `TeamCodec.cs` | 50 | TeamCodec | A stored team (G7, GROUND.md §6.8): its leader and members, oldest first. Invites aren't stored. |
@@ -453,39 +460,39 @@ SQLite storage: the database, one worker thread, one codec per kind of record.
 
 The dedicated server: the host and its modules, sessions, admin commands, notifications.
 
-### src/Hollow.Server (11 files, 2,833 lines)
+### src/Hollow.Server (11 files, 2,896 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `AdminCommands.cs` | 536 | CommandContext, GameServer | Who runs a console command and where its answer goes (GROUND.md §8.2): a player through the F1 console (their own |
-| `CharacterRecords.cs` | 88 | CharacterRecords | How a character is stored and comes back (GROUND.md §4.7): its record from the zone, its survival state from the |
+| `AdminCommands.cs` | 538 | CommandContext, GameServer | Who runs a console command and where its answer goes (GROUND.md §8.2): a player through the F1 console (their own |
+| `CharacterRecords.cs` | 140 | CharacterRecords | How a character is stored and comes back (GROUND.md §4.7): its record from the zone, its survival state from the |
 | `DevInspector.cs` | 192 | DevInspector | Describes a target for the F2 panel's LOOK tab (GROUND.md §8.5): what its family resolves it to and every public |
-| `GameServer.cs` | 1098 | GameServer [NetEntity] | The dedicated server (GROUND.md §4.2): one zone on the first world, ticking at 30 Hz on one thread, with |
-| `NetPresence.cs` | 17 | NetPresence | The server's part of a networked entity: its net ID, view (octahedral, with the head's free look) and owner. |
+| `GameServer.cs` | 1097 | GameServer [NetEntity] | The dedicated server (GROUND.md §4.2): one zone on the first world, ticking at 30 Hz on one thread, with |
+| `NetPresence.cs` | 23 | NetPresence | The server's part of a networked entity: its net ID, view (octahedral, with the head's free look) and owner. |
 | `PlayerSession.cs` | 253 | PlayerSession | One connected player: their connection, character, inputs, budgets and what the host has sent them. What a module |
 | `Program.cs` | 143 | Program | The dedicated server's console program: |
-| `ServerModule.cs` | 275 | ServerModule | One concern of the server (GROUND_SYSTEMS.md §12.5, K10): its own state, its message handlers and event |
+| `ServerModule.cs` | 279 | ServerModule | One concern of the server (GROUND_SYSTEMS.md §12.5, K10): its own state, its message handlers and event |
 | `ServerModules.cs` | 29 | ServerModules | The server's modules and their order (GROUND_SYSTEMS.md §12.5, K10), the one place that lists them. The host calls |
 | `ServerOptions.cs` | 117 | ServerOptions | How a server runs. The console program fills it from its command line; the game fills it for Host mode. |
 | `TickStats.cs` | 85 | TickStats | How long ticks take (GROUND.md §5: ≤ 10 ms typical with 100 bots). Keeps the last few seconds for the console's |
 
-### src/Hollow.Server/Modules (13 files, 4,708 lines)
+### src/Hollow.Server/Modules (13 files, 4,838 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `AnimalModule.cs` | 205 | AnimalModule, AnimalModuleAccess | Animals on the server (GROUND.md §6.9): the zone's population turned on, animals replicated as entities of their own |
 | `ArrowModule.cs` | 128 | ArrowModule, ArrowModuleAccess [ArrowView] | Spent arrows on the server (GROUND_SYSTEMS.md §5): each player is told of the arrows within their range — what holds |
 | `BuildingModule.cs` | 638 | BuildingModule, BuildingModuleAccess [BuildView] | Building on the server (GROUND.md §4.4, §6.3, phase 2): players' building intents (on the same budget as every |
-| `ConsoleModule.cs` | 810 | ConsoleModule, ConsoleModuleAccess [ConsoleBudget] | The F1 console on the server (GROUND.md §8.2): who is an admin, the console's messages (a line in, the answer's lines |
+| `ConsoleModule.cs` | 812 | ConsoleModule, ConsoleModuleAccess [ConsoleBudget] | The F1 console on the server (GROUND.md §8.2): who is an admin, the console's messages (a line in, the answer's lines |
 | `DamageModule.cs` | 48 | DamageModule, DamageModuleAccess | The damage pipeline's replication (GROUND.md §6.4.2): what was destroyed, to the clients that draw it. |
 | `DevModule.cs` | 452 | DevModule, DevModuleAccess [Watch] | The F2 developer panel's server side (GROUND.md §8.5): who watches; every half second the stats (the tick's profile |
-| `GunModule.cs` | 98 | GunModule, GunBudget, GunModuleAccess | Guns on the server (GROUND.md §6.4, G4): shots, reloads and unloads from the player's own gun budget (a refused one |
-| `PlacementModule.cs` | 51 | PlacementModule, PlacementModuleAccess | Placing anything (GROUND_SYSTEMS.md §6): one intent for every placeable, on the general budget, answered by |
-| `RaidModule.cs` | 440 | RaidModule, RaidArena, RaidModuleAccess [ExplosiveView] | Raiding on the server (GROUND.md §6.6, G5): throw and place intents (a dud is lit again by a verb); explosives replicated to everyone in range |
-| `ShipModule.cs` | 331 | ShipModule, ShipModuleAccess [ShipView] | Ships on the server (GROUND.md §6.7): the pilots' controls into their ships, ship intents, ships in every nearby |
+| `GunModule.cs` | 99 | GunModule, GunBudget, GunModuleAccess | Guns on the server (GROUND.md §6.4, G4): shots, reloads and unloads from the player's own gun budget (a refused one |
+| `PlacementModule.cs` | 52 | PlacementModule, PlacementModuleAccess | Placing anything (GROUND_SYSTEMS.md §6): one intent for every placeable, on the general budget, answered by |
+| `RaidModule.cs` | 441 | RaidModule, RaidArena, RaidModuleAccess [ExplosiveView] | Raiding on the server (GROUND.md §6.6, G5): throw and place intents (a dud is lit again by a verb); explosives replicated to everyone in range |
+| `ShipModule.cs` | 454 | ShipModule, ShipModuleAccess [ShipView] | Ships on the server (GROUND.md §6.7): the pilots' controls into their ships, ship intents, ships in every nearby |
 | `SurvivalModule.cs` | 661 | SurvivalModule, GameCounters, SurvivalModuleAccess [OwnState, Looks, PendingRespawn] | The survival game on the server (GROUND.md §4.2, §6): players' intents (inventory, crafting, interaction, closing, |
-| `ThingModule.cs` | 404 | ThingModule, ThingSent, ThingModuleAccess [ThingView] | Static things and natural objects on the server (GROUND.md §4.2, §6.1): every static thing gets a net ID and is |
-| `WorldModule.cs` | 442 | WorldModule, WorldModuleAccess [WorldView] | The world on the server (GROUND.md §6.8, G7): the world's props placed at start as stored (their public state goes |
+| `ThingModule.cs` | 405 | ThingModule, ThingSent, ThingModuleAccess [ThingView] | Static things and natural objects on the server (GROUND.md §4.2, §6.1): every static thing gets a net ID and is |
+| `WorldModule.cs` | 443 | WorldModule, WorldModuleAccess [WorldView] | The world on the server (GROUND.md §6.8, G7): the world's props placed at start as stored (their public state goes |
 
 ### src/Hollow.Server/Notifications (1 files, 369 lines)
 
@@ -497,27 +504,29 @@ The dedicated server: the host and its modules, sessions, admin commands, notifi
 
 The client without graphics: the host and its modules, prediction, the local player, the map, sounds' rules.
 
-### src/Hollow.Client (19 files, 4,423 lines)
+### src/Hollow.Client (21 files, 4,760 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `BuildingReplica.cs` | 212 | DoorState, ClaimState, BuildingReplica | What a client knows of a door beyond its geometry: its lock, and what the server tells this player of it |
 | `ClientModule.cs` | 149 | ClientModule | One concern of the client (GROUND_SYSTEMS.md §12.5, K11): its own state, its message handlers, and hooks the host |
 | `ClientModules.cs` | 29 | ClientModules | The client's modules and their order (GROUND_SYSTEMS.md §12.5, K11), the one place that lists them: the host calls |
+| `ClientShipFrame.cs` | 91 | ClientShipFrame | A ship's frame on a client (IRON_WAKE.md §4.3, §4.8), keyed by the ship's net ID as the wire names frames: its space, |
 | `ClientStats.cs` | 175 | ClientStats | What the network graph shows (GROUND.md §4.4): round trip, snapshot loss and rate, bandwidth both ways (with UDP |
-| `GameClient.cs` | 860 | ClientState, InputFrame, ClientOptions, GameClient |  |
-| `LocalGun.cs` | 613 | ShotEvent, ReloadEvent, UnloadEvent, GunRefusal, LocalGun, RecoilCompensation [Pending] | A shot this client fired, at once (predicted): for the muzzle flash, the sound, the tracer and the kick. |
+| `GameClient.cs` | 848 | ClientState, ClientOptions, GameClient |  |
+| `InputFrame.cs` | 54 | InputFrame | One frame of the player's controls, as the game (or a bot) reads them. |
+| `LocalGun.cs` | 629 | ShotEvent, ReloadEvent, UnloadEvent, GunRefusal, LocalGun, RecoilCompensation [Pending] | A shot this client fired, at once (predicted): for the muzzle flash, the sound, the tracer and the kick. |
 | `LocalPlayer.Building.cs` | 67 | LocalPlayer | The building intents (GROUND.md §6.3, phase 2): the hammer's. Each returns its sequence number (0 if it couldn't be |
 | `LocalPlayer.Interaction.cs` | 32 | LocalPlayer | The one interaction intent (GROUND_SYSTEMS.md §5): a verb done to a target, with a number (a tech tree's recipe) and a |
-| `LocalPlayer.Placement.cs` | 114 | PendingPlacement, LocalPlayer | A placement sent and not yet answered (or answered a moment ago): drawn where it will stand in the ghost's pending look |
-| `LocalPlayer.Raid.cs` | 59 | LocalPlayer | The player's raiding (GROUND.md §6.6, G5): throwing and placing explosives, and the raid alerts of the bases they are |
+| `LocalPlayer.Placement.cs` | 115 | PendingPlacement, LocalPlayer | A placement sent and not yet answered (or answered a moment ago): drawn where it will stand in the ghost's pending look |
+| `LocalPlayer.Raid.cs` | 65 | LocalPlayer | The player's raiding (GROUND.md §6.6, G5): throwing and placing explosives, and the raid alerts of the bases they are |
 | `LocalPlayer.Ships.cs` | 26 | LocalPlayer | The pilot's keys in the seat (GROUND.md §6.7): the hatch, stepping out, the lock, descending from orbit. Each returns its |
-| `LocalPlayer.World.cs` | 301 | TeamMemberView, TeamView, TeamInviteView, TeammateView, MarkerView, RespawnPointView, MachineView, LocalPlayer | A member of the player's team as the interface shows them. |
-| `LocalPlayer.cs` | 809 | VitalsView, CraftJobView, RespawnOption, LifeView, HitMarkerEvent, ItemsChangedEvent, DamageEvent, IntentAnswer, LocalPlayer [Prediction, Pending] | The player's vitals as the UI shows them. |
-| `Predictor.cs` | 240 | Predictor | The player's own character, predicted (GROUND.md §4.3): every tick runs the server's movement code on the client's |
-| `RemoteEntity.cs` | 191 | RemoteEntity | Another entity as this client sees it (GROUND.md §4.3): the states snapshots brought, each at its server tick, and |
+| `LocalPlayer.World.cs` | 302 | TeamMemberView, TeamView, TeamInviteView, TeammateView, MarkerView, RespawnPointView, MachineView, LocalPlayer | A member of the player's team as the interface shows them. |
+| `LocalPlayer.cs` | 812 | VitalsView, CraftJobView, RespawnOption, LifeView, HitMarkerEvent, ItemsChangedEvent, DamageEvent, IntentAnswer, LocalPlayer [Prediction, Pending] | The player's vitals as the UI shows them. |
+| `Predictor.cs` | 278 | Predictor | The player's own character, predicted (GROUND.md §4.3): every tick runs the server's movement code on the client's |
+| `RemoteEntity.cs` | 234 | RemoteEntity | Another entity as this client sees it (GROUND.md §4.3): the states snapshots brought, each at its server tick, and |
 | `RemoteExplosives.cs` | 90 | ClientExplosive, DetonationEvent, RaidAlertView | An explosive in the world as this client knows it (GROUND.md §6.6): a timed charge, bag charge or tin grenade the |
-| `RemoteShip.cs` | 170 | RemoteShip | A ship as this client sees it (GROUND.md §6.7), as RemoteEntity sees a character: the states snapshots |
+| `RemoteShip.cs` | 266 | RemoteShip | A ship as this client sees it (GROUND.md §6.7), as RemoteEntity sees a character: the states snapshots |
 | `RemoteThings.cs` | 141 | RemoteThing, ClientProjectile | A static thing as this client knows it (GROUND.md §6): a deployable, a bag of dropped items or a corpse, sent reliably |
 | `ShipPredictor.cs` | 145 | ShipPredictor | The ship the player flies, predicted (GROUND.md §6.7), as Predictor predicts the character: every tick |
 
@@ -546,7 +555,7 @@ The client without graphics: the host and its modules, prediction, the local pla
 |---|---|---|---|
 | `ZoneMap.cs` | 253 | MapPicture, ZoneMap, ZoneMapImage | A map picture: Size × Size pixels, RGBA, rows from the north edge down. |
 
-### src/Hollow.Client/Modules (14 files, 2,852 lines)
+### src/Hollow.Client/Modules (14 files, 3,042 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -558,11 +567,11 @@ The client without graphics: the host and its modules, prediction, the local pla
 | `DevModule.cs` | 326 | DevPlayerState, ServerSection, ServerPlayer, DevLine, NavWindow, SpawnSlotView, SpawnAreaView, AnsweredIntent, DevModule, DevModuleAccess | A player's state as the F2 panel lists it. |
 | `InteractionModule.cs` | 153 | InteractAim, InteractionModule, InteractionModuleAccess | What the interact key acts on now (GROUND_SYSTEMS.md §5): the target the one query found, what is known of it, and its |
 | `LoadingModule.cs` | 89 | LoadingModule, LoadingModuleAccess [Backlog] | The client's part of the loading pipeline (GROUND.md §4.3.1): the connection (connected, welcomed, the character |
-| `PlacementModule.cs` | 186 | PlacementModule, PlacementModuleAccess [ClientSurroundings] | Placing on the client (GROUND_SYSTEMS.md §6): the placement world over what this client has (its prediction physics |
+| `PlacementModule.cs` | 188 | PlacementModule, PlacementModuleAccess [ClientSurroundings] | Placing on the client (GROUND_SYSTEMS.md §6): the placement world over what this client has (its prediction physics |
 | `RaidModule.cs` | 117 | RaidModule, RaidModuleAccess | Raiding in the client (GROUND.md §6.6, G5): the explosives in range as the server has them (drawn on their arcs, with |
-| `ShipModule.cs` | 248 | ShipModule, ShipModuleAccess | Ships in the client (GROUND.md §6.7): every ship near, interpolated; the one the player flies, predicted (its controls |
-| `SurvivalModule.cs` | 298 | SurvivalModule, SurvivalModuleAccess | The survival game in the client (GROUND.md §4.3, §6): the local player's state and intents (LocalPlayer), static |
-| `TargetModule.cs` | 769 | TargetModule, TargetModuleAccess [GroundView, CharacterView, AnimalView, NaturalView, ThingView, PieceView, DoorView, CupboardView, ExplosiveView, ShipView, ArrowView] | The world's things as this client knows them, named the server's way (GROUND_SYSTEMS.md §3.1, §5): one view per target |
+| `ShipModule.cs` | 423 | ShipModule, ShipModuleAccess | Ships in the client (GROUND.md §6.7): every ship near, interpolated; the one the player flies, predicted (its controls |
+| `SurvivalModule.cs` | 300 | SurvivalModule, SurvivalModuleAccess | The survival game in the client (GROUND.md §4.3, §6): the local player's state and intents (LocalPlayer), static |
+| `TargetModule.cs` | 780 | TargetModule, TargetModuleAccess [GroundView, CharacterView, AnimalView, NaturalView, ThingView, PieceView, DoorView, CupboardView, ExplosiveView, ShipView, ArrowView] | The world's things as this client knows them, named the server's way (GROUND_SYSTEMS.md §3.1, §5): one view per target |
 | `WorldModule.cs` | 101 | WorldModule, WorldModuleAccess | The world in the client (GROUND.md §6.8, G7): the world's props in range (barrels, crates, recyclers: things of kind |
 
 ## game/scripts
@@ -588,7 +597,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `Main.cs` | 379 | Main | Entry point. Loads the galaxy and switches between the galaxy map and the system map. |
 | `UiScaler.cs` | 100 | UiScaler | Keeps Ui.Scale matched to the window (see Automatic), times the player's own |
 
-### game/scripts/Audio (7 files, 1,950 lines)
+### game/scripts/Audio (7 files, 1,961 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -598,7 +607,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `FootstepDriver.cs` | 55 | FootstepDriver | One character's footsteps (GROUND.md §4.9). The ground mode gives it the character's movement every frame with |
 | `SoundLibrary.cs` | 131 | SoundLibrary, VariantBag | The sound catalogue in the game (GROUND.md §4.9): res://data/ground/sounds.json read once, its streams |
 | `SoundMeter.cs` | 80 | SoundMeter | Loudness of the game's own sound files, measured in the engine: each stream is decoded through Godot |
-| `SoundViewer.cs` | 777 | SoundViewer | The audition viewer (--view sounds, GROUND.md §4.9): every event of the catalogue in a list (a click plays |
+| `SoundViewer.cs` | 788 | SoundViewer | The audition viewer (--view sounds, GROUND.md §4.9): every event of the catalogue in a list (a click plays |
 
 ### game/scripts/Build (11 files, 2,694 lines)
 
@@ -616,7 +625,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `CornerPosts.cs` | 161 | CornerPosts [End] | The posts that close the notch walls leave at an outer corner (GROUND.md §6.3, Fit; decision J5). Walls stand centred |
 | `DemoBases.cs` | 217 | DemoBases [House] | Bases the sandbox builds for a look or a screenshot (GROUND.md §6.3), placed through the rules' sockets so every pose |
 
-### game/scripts/Characters (16 files, 5,983 lines)
+### game/scripts/Characters (16 files, 6,001 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -627,7 +636,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `CharacterMaterials.cs` | 234 | CharacterMaterials | Materials of the character surfaces, by the surface (material) names the art scripts export. Skin and garments |
 | `CharacterPoser.cs` | 325 | CharacterPoser | Procedural layer on top of the animation clips, run as the skeleton's modifier (GROUND.md §4.8): |
 | `CharacterRagdoll.cs` | 219 | CharacterRagdoll [Joint] | The limp body after death (GROUND.md §4.8): fourteen capsules on the main bones under a |
-| `CharacterTypes.cs` | 174 | BodyType, CharacterStance, HeldKind, CharacterEvent, CharacterFrame, BodyRegions | Which body a character has (GROUND.md §4.8): each has its own meshes, clothing and clips. |
+| `CharacterTypes.cs` | 192 | BodyType, CharacterStance, HeldKind, CharacterEvent, CharacterFrame, BodyRegions | Which body a character has (GROUND.md §4.8): each has its own meshes, clothing and clips. |
 | `CharacterView.cs` | 1233 | CharacterView [UseMotion] | A player as others see them (GROUND.md §4.8). Give it a CharacterFrame every frame with |
 | `CharacterWarm.cs` | 67 | CharacterWarm | The characters' part of the renderer's warm-up (GROUND.md §4.3.1): each body as others see it and as its own arms in |
 | `HandPoses.cs` | 227 | HandPoses [Grip] | Finger poses for holding things (first person; third person takes its fingers from the clips). The fingers of a |
@@ -648,7 +657,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `UiIcons.cs` | 85 | UiIcon, UiIcons |  |
 | `WarmItem.cs` | 31 | WarmItem, WarmSpot | One thing the game can draw, for the renderer's warm-up (GROUND.md §4.3.1): the files it is made of, loaded on Godot's |
 
-### game/scripts/Fx (18 files, 4,675 lines)
+### game/scripts/Fx (20 files, 5,391 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -662,13 +671,15 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `FxLoops.cs` | 108 | FxHandle, FxLoop, FxFlameMeshes | A running loop (a fire, a trail), as FxDirector.Start returns it. |
 | `FxRandom.cs` | 76 | FxRandom | A small, fast random source for effects (xorshift); seeded, so screenshots repeat. |
 | `FxShake.cs` | 61 | FxShakeEvent, FxShake | A camera shake that started somewhere (GROUND.md §9.3): what the camera hook and other listeners get. |
-| `FxStage.cs` | 344 | FxStation, FxStage | A place in the effects viewer where effects play (GROUND.md §9.3): its props, where and which way an effect plays, |
+| `FxStage.Ship.cs` | 421 | FxRocketLaunch, FxStage | How a battery launches its rocket (IRON_WAKE.md §6.4): the speed the gun gives it, how far out its motor lights, the |
+| `FxStage.cs` | 358 | FxStation, FxStage | A place in the effects viewer where effects play (GROUND.md §9.3): its props, where and which way an effect plays, |
 | `FxTracers.cs` | 178 | FxTracers [Tracer] | Tracers and trails (GROUND.md §9.3): bright streaks that fly the projectile's own path, with the same gravity and |
-| `FxViewer.Action.cs` | 360 | FxViewer | The in-action scenes (--action &lt;family&gt;): each family as it would be seen in play, caught at a telling |
+| `FxViewer.Action.cs` | 363 | FxViewer | The in-action scenes (--action &lt;family&gt;): each family as it would be seen in play, caught at a telling |
 | `FxViewer.Gibs.cs` | 301 | FxViewer [GibCell] | Gibs in the effects viewer (GROUND.md §9.4). --gibs lays out every model that breaks (props, deployables, the |
 | `FxViewer.Sheet.cs` | 266 | FxViewer [Cell] | The contact sheet (--sheet &lt;family&gt;): every effect of a family in its own cell, all caught at their |
-| `FxViewer.Stress.cs` | 305 | FxViewer [Shooter] | The firefight measurement (--stress firefight --measure &lt;s&gt;, GROUND.md §9.3): ten players in two teams |
-| `FxViewer.cs` | 479 | FxViewer | The effects viewer (--view fx, GROUND.md §9.3). By default every effect of the catalogue plays in turn on its |
+| `FxViewer.Ship.cs` | 225 | FxViewer | The Iron Wake in the effects viewer (IRON_WAKE.md §11): --action ship, its siege battery firing over its deck |
+| `FxViewer.Stress.cs` | 333 | FxViewer [Shooter] | The firefight measurement (--stress firefight --measure &lt;s&gt;, GROUND.md §9.3): ten players in two teams |
+| `FxViewer.cs` | 504 | FxViewer | The effects viewer (--view fx, GROUND.md §9.3). By default every effect of the catalogue plays in turn on its |
 | `FxWarm.cs` | 46 | FxWarm | The effects' part of the renderer's warm-up (GROUND.md §4.3.1, §9.3): every effect of fx.json played once, |
 
 ### game/scripts/GalaxyMap (5 files, 2,316 lines)
@@ -689,9 +700,9 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GibDirector.cs` | 98 | GibBreak, GibDirector | What a break did (GROUND.md §9.4): whether pieces were placed or only dust, the middle of what broke, and the sounds |
 | `GibLibrary.cs` | 290 | GibChunk, GibSet, GibLibrary | One piece of a model (GROUND.md §9.4): its mesh (the model's own materials), where it sits in the model |
 | `GibWarm.cs` | 35 | GibWarm | The gibs' part of the renderer's warm-up (GROUND.md §4.3.1, §9.4): every gib file the catalogue names, read, and a |
-| `GibWorld.cs` | 798 | GibFloor, GibWorld [PieceState, Turn, Piece, BreakFloor, Batch] | Where the floor is under a point: a ray from  along  for |
+| `GibWorld.cs` | 798 | GibFloor, GibWorld [PieceState, Turn, Piece, BreakFloor, Batch] | Where the floor is under a point: a ray from from along down for |
 
-### game/scripts/Ground (43 files, 13,529 lines)
+### game/scripts/Ground (43 files, 13,605 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -719,7 +730,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GroundOverlay.cs` | 226 | GroundOverlay [Crosshair] | What the ground game shows besides the RustMVP interface: other players' names over their heads (placed by |
 | `GroundTerrain.cs` | 133 | GroundTerrain [TileArrays] | Placeholder ground (GROUND.md §4.3): the collision tiles of ISurface.GroundCollision around the |
 | `GroundTour.cs` | 2466 | GroundTour | The scripted screenshot run of the ground game (GROUND.md §5, --tour &lt;folder&gt;): on the host, a walk |
-| `GroundView.cs` | 923 | GroundView | The ground game in first person (GROUND.md §4.3), one whole on the first world (the stand-in world until S4, |
+| `GroundView.cs` | 967 | GroundView | The ground game in first person (GROUND.md §4.3), one whole on the first world (the stand-in world until S4, |
 | `GroundWarmup.cs` | 41 | GroundWarmup | Everything the ground game can draw, for the renderer's warm-up (GROUND.md §4.3.1): each library's items, read from its |
 | `GunEffects.cs` | 194 | GunEffects | Shots, hits and guns in hand through the effects library and the model catalogue (GROUND.md §6.4, §9.3): which |
 | `InventoryBody.cs` | 51 | InventoryBody | The player's own body on the inventory screen (GROUND.md §8): the character package's CharacterView |
@@ -731,12 +742,12 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `NatureMarkers.cs` | 226 | NatureMarkers [Marker] | The weak spots drawn (GROUND.md §6.1, §9.3), one generic marker for every class: gather.json's |
 | `NatureView.cs` | 779 | NatureView [PendingSound, Seen, TreeFall] | The natural objects as the game changed them (GROUND.md §6.1). The surface view draws the planet's trees, bushes, |
 | `NetGraph.cs` | 72 | NetGraph | The network graph (GROUND.md §4.4): the last 30 s of round trip, bandwidth down and prediction error, one line each, |
-| `PeopleView.cs` | 509 | PeopleView [Person, Corpse] | The other players (GROUND.md §4.8): each a CharacterView fed every frame from what the client |
+| `PeopleView.cs` | 529 | PeopleView [Person, Corpse] | The other players (GROUND.md §4.8): each a CharacterView fed every frame from what the client |
 | `PlacementGhost.cs` | 192 | PlacementGhost | The one placement ghost (GROUND_SYSTEMS.md §6): whatever is being placed, drawn as its own model in one hologram |
 | `PlacementView.cs` | 118 | PlacementView | Placing in the game (GROUND_SYSTEMS.md §6): the one placement controller, behind IPlacement for the held |
 | `RaidView.cs` | 549 | RaidView, RaidAlertsPanel [Shown, Card] | Raiding in the ground game (GROUND.md §6.6): explosives drawn from the model catalogue on their arcs, stuck to what |
 | `RenderWarmup.cs` | 225 | RenderWarmup | The renderer's warm-up (GROUND.md §4.3.1, the loading stage renderer). Every file the game's libraries list |
-| `ShipsView.cs` | 179 | ShipsView [Drawn] | Ships in the ground game (G6, GROUND.md §6.7): every ship the client knows drawn by a ShipView, others' |
+| `ShipsView.cs` | 191 | ShipsView [Drawn] | Ships in the ground game (G6, GROUND.md §6.7): every ship the client knows drawn by a ShipView, others' |
 | `ThingsView.cs` | 402 | ThingsView | Placed and dropped things (GROUND.md §6.1): deployables and bags of dropped items from GroundModels, a lit |
 
 ### game/scripts/Ground/Held (4 files, 464 lines)
@@ -748,14 +759,14 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `HeldControls.cs` | 209 | MeleeControl, BowControl, FirearmControl, ThrowableControl, PlacerControl, PlannerControl, HammerControl, UsesItsPartControl | The held controls (GROUND_SYSTEMS.md §7), one per held behaviour; registered in HeldControls.Create. |
 | `Placement.cs` | 21 | IPlacement | Placing what is in hand (GROUND_SYSTEMS.md §6, package P2's system): the placer's, the planner's and a charge's one |
 
-### game/scripts/Items (6 files, 1,820 lines)
+### game/scripts/Items (6 files, 1,914 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `CatalogItemIcons.cs` | 119 | CatalogItemIcons | Item icons rendered from the models (GROUND.md §9): the catalogue's PNG nearest above the asked size, resampled |
 | `IconRenderer.cs` | 401 | IconRenderer, IconSheet | The icon tool (--view icons, GROUND.md §9). With --out &lt;dir&gt; it renders every catalogue model |
-| `ModelCatalog.cs` | 523 | Pose, HeldInfo, GripInfo, GibsInfo, ModelEntry, ModelUse, ModelCatalog | A position (metres) and a rotation (degrees, Godot's Euler order YXZ) from the catalogue. |
-| `ModelViewer.cs` | 591 | ModelViewer | The model viewer (--view models, GROUND.md §9). By default every catalogue model stands on the ground in |
+| `ModelCatalog.cs` | 534 | Pose, HeldInfo, GripInfo, GibsInfo, ModelEntry, ModelUse, ModelCatalog | A position (metres) and a rotation (degrees, Godot's Euler order YXZ) from the catalogue. |
+| `ModelViewer.cs` | 674 | ModelViewer | The model viewer (--view models, GROUND.md §9). By default every catalogue model stands on the ground in |
 | `ModelWarm.cs` | 47 | ModelWarm | The model catalogue's part of the renderer's warm-up (GROUND.md §4.3.1): every model of models.json (items, |
 | `SurfaceSurvey.cs` | 139 | SurfaceSurvey | Measures the drawn surfaces of the natural objects the ground game draws from catalogue models (the outcrops at |
 
@@ -765,16 +776,17 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 |---|---|---|---|
 | `MonumentViewer.cs` | 624 | MonumentViewer [Monument] | The monument viewer (--view monuments, MONUMENTS.md §8.5): every monument in data/monuments laid out |
 
-### game/scripts/Ships (7 files, 1,994 lines)
+### game/scripts/Ships (8 files, 2,773 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `ShipCamera.cs` | 88 | ShipCameraMode, ShipCamera |  |
+| `ShipCamera.cs` | 90 | ShipCameraMode, ShipCamera |  |
 | `ShipControls.cs` | 104 | ShipControls | The pilot's keyboard and mouse (G6, GROUND.md §6.7), read into a tick of ShipInput. The mouse is a |
 | `ShipHud.cs` | 343 | ShipHudData, ShipHud | What the flight HUD shows this frame (the host fills it from the zone or the client's prediction). |
+| `ShipSandbox.Aboard.cs` | 644 | ShipSandbox [Walk] | The ship sandbox for a ship people walk in (IRON_WAKE.md §4, IW1): `--view ship --ship iron-wake`. The ship parked in a |
 | `ShipSandbox.Tour.cs` | 217 | ShipSandbox [Leg] | --tour: the sandbox played by a script through the same keys a player presses (Input.ParseInputEvent), to check the |
-| `ShipSandbox.cs` | 860 | ShipSandbox [Site] | The ship sandbox (--view ship, GROUND.md §6.7): the Tin Finch on the first world's ground (the stand-in world |
-| `ShipView.cs` | 354 | ShipLook, ShipView [Drive, Plume] | What a ship is doing this frame, as a ShipView draws it. |
+| `ShipSandbox.cs` | 884 | ShipSandbox [Site] | The ship sandbox (--view ship, GROUND.md §6.7): the Tin Finch on the first world's ground (the stand-in world |
+| `ShipView.cs` | 463 | ShipLook, ShipView [PartNode, Drive, Plume] | What a ship is doing this frame, as a ShipView draws it. |
 | `ShipWarm.cs` | 28 | ShipWarm | The ships' part of the renderer's warm-up (GROUND.md §4.3.1, §6.7): every ship of ships.json as |
 
 ### game/scripts/Surface (15 files, 3,967 lines)
@@ -921,7 +933,7 @@ Tools: the bots and the load test, the message generator, the generator's report
 
 The tests, one file per area (the runner needs no packages).
 
-### tests/Hollow.Tests (49 files, 14,164 lines)
+### tests/Hollow.Tests (51 files, 14,992 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -939,24 +951,26 @@ The tests, one file per area (the runner needs no packages).
 | `DamageTests.cs` | 153 | DamageTests | The damage pipeline's Destroyed event (GROUND.md §6.4.2), in the zone and over the network. |
 | `DevTests.cs` | 63 | DevTests | The F2 developer panel's server side (GROUND.md §8.5), over the network. |
 | `EventTests.cs` | 34 | EventTests |  |
-| `FoundationTests.cs` | 488 | FoundationTests | The ground game's shared foundations (GROUND_SYSTEMS.md §3, package P0), engine-free. |
+| `FoundationTests.cs` | 487 | FoundationTests | The ground game's shared foundations (GROUND_SYSTEMS.md §3, package P0), engine-free. |
 | `GalaxyTests.cs` | 1199 | GalaxyTests |  |
 | `GatheringTests.cs` | 392 | GatheringTests |  |
 | `GibTests.cs` | 204 | GibTests | Gibs (GROUND.md §9.4): everything that can be destroyed has pieces to break into, declared beside its model in the |
 | `Golden.cs` | 66 | Golden | Golden hashes over generated objects. Hashes every stored field (public or private, including the fields behind |
 | `GunNetTests.cs` | 498 | GunNetTests |  |
 | `GunTests.cs` | 431 | Guns, GunTests | Guns in a GameRig: a loaded gun in hand, shots queued for the coming tick as the server would. |
-| `HeldTests.cs` | 404 | HeldTests, Loopback [TestActor] | Held items, item information and inventory actions (GROUND_SYSTEMS.md §7, package P3), engine-free. |
+| `HeldTests.cs` | 403 | HeldTests | Held items, item information and inventory actions (GROUND_SYSTEMS.md §7, package P3), engine-free. |
 | `InteractionTests.cs` | 556 | InteractionTests [Rogue] | The interaction system (GROUND_SYSTEMS.md §5): what the E key does, one rule a test. |
+| `IronWakeNetTests.cs` | 196 | IronWakeNetTests [ShipFacts] | The Iron Wake over the network (IRON_WAKE.md §4.8, §4.11): prediction aboard, and sleepers aboard across a restart. |
+| `IronWakeTests.cs` | 631 | IronWakeRig, IronWakeTests | The Iron Wake on the first world's stand-in ground (IRON_WAKE.md §4, IW1): one parked near the landing site, its nose |
 | `ItemTests.cs` | 161 | ItemTests |  |
 | `LoadingTests.cs` | 240 | LoadingTests [Clock] | The loading pipeline's rules (GROUND.md §4.3.1), without Godot: the game's plan reads and names every stage; the bar |
 | `ModelCatalogueTests.cs` | 247 | ModelCatalogueTests | The ground game's model catalogue (GROUND.md §9), checked without Godot: every model file is a GLB with its LOD |
 | `MovementTests.cs` | 307 | LevelSurface, Lap, MovementRig, MovementTests | A test surface: a smooth sphere whose ground sits at a fixed height, with an optional sea. |
 | `MultiplayerTests.cs` | 307 | LoopbackRig, MultiplayerTests | An in-process server on a background thread, and clients driven from the test's thread. |
-| `NetTests.cs` | 381 | NetTests [Arrivals] |  |
+| `NetTests.cs` | 382 | NetTests [Arrivals] |  |
 | `PersistenceTests.cs` | 65 | TempDatabase, PersistenceTests | A database file in the temp folder, deleted afterwards. |
 | `PhysicsTests.cs` | 126 | PhysicsTests |  |
-| `PlacementTests.cs` | 373 | PlacementTests | The placement system (GROUND_SYSTEMS.md §6): one rule per placeable in data; its solvers, rotations, checks and kinds |
+| `PlacementTests.cs` | 372 | PlacementTests | The placement system (GROUND_SYSTEMS.md §6): one rule per placeable in data; its solvers, rotations, checks and kinds |
 | `PlanetGroundTests.cs` | 214 | PlanetGroundTests | The first world's ground (GROUND.md §3, §6.1): the real planet's own scatter as natural objects, and the whole world |
 | `PlanetSurfaceTests.cs` | 254 | PlanetSurfaceTests | The first world's real surface (GROUND.md §4.6): determinism, tiles, collision, speed. |
 | `RaidAlertTests.cs` | 222 | RigPresence, RaidAlertTests | Who is "online" for a notification service in a GameRig: those awake; what they were sent; what was pushed. |
@@ -972,6 +986,6 @@ The tests, one file per area (the runner needs no packages).
 | `SurvivalTests.cs` | 613 | GameRig, Places, SurvivalTests [FixedClimate] | A survival zone on the first world with players placed by hand, stepped tick by tick. |
 | `TestRunner.cs` | 122 | TestAttribute, TestFailure, Assert, Fixtures, Program | Marks a public static method as a test. |
 | `WorldNetTests.cs` | 250 | WorldNetTests | G7 World over the network and through a restart (GROUND.md §6.8): protocol 9, schema 6. |
-| `WorldTests.cs` | 513 | WorldTests | G7 World, part A (GROUND.md §6.8): loot, the recycler, tech trees and research, teams, the map's markers. |
+| `WorldTests.cs` | 516 | WorldTests | G7 World, part A (GROUND.md §6.8): loot, the recycler, tech trees and research, teams, the map's markers. |
 | `WoundedTests.cs` | 107 | WoundedTests |  |
 
