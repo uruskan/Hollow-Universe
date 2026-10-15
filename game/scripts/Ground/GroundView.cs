@@ -141,6 +141,15 @@ public partial class GroundView : Node3D
     /// <summary>A pitch to look at once the view is restored (--pitch, radians; screenshots).</summary>
     public float? ShotPitch { get; set; }
 
+    /// <summary>
+    /// Screenshots: the heading to turn to once the player has arrived, radians from local north toward the east
+    /// (<c>--yaw</c>, in degrees).
+    /// </summary>
+    public float? ShotYaw { get; set; }
+
+    /// <summary>Cloud cover for this client's sky, 0 (clear) to 1 (overcast); null keeps the default (--clouds).</summary>
+    public float? Clouds { get; set; }
+
     /// <summary>The menu's QUIT.</summary>
     public event Action? QuitRequested;
 
@@ -233,6 +242,10 @@ public partial class GroundView : Node3D
         _world = new SurfaceView { Name = "World", Driven = true };
         AddChild(_world);
         _world.InterfaceVisible = false;
+        if (Clouds is { } clouds)
+        {
+            _world.CloudCoverage = clouds;
+        }
         _warmup = new RenderWarmup(GroundWarmup.Items(Client.Content), plan.Stage(RenderWarmup.Key)) { Name = "Warmup" };
         AddChild(_warmup);
         _worldStages = _world.LoadStages(plan);
@@ -424,6 +437,14 @@ public partial class GroundView : Node3D
             if (ShotPitch is { } pitch)
             {
                 Pitch = pitch;
+            }
+            if (ShotYaw is { } bearing)
+            {
+                Num.Vector3 local = Client.Frame.UpAt(Client.RenderPosition);
+                Num.Vector3 east = Num.Vector3.Cross(Num.Vector3.UnitY, local);
+                east = east.LengthSquared() > 1e-8f ? Num.Vector3.Normalize(east) : -Num.Vector3.UnitZ;
+                Num.Vector3 north = Num.Vector3.Cross(local, east);
+                TurnToward(north * MathF.Cos(bearing) + east * MathF.Sin(bearing));
             }
         }
         if (playing)

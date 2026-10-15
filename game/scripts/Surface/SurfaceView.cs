@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using Hollow.Core;
 using Hollow.Galaxy.Systems;
@@ -23,9 +24,8 @@ public partial class SurfaceView : Node3D
     /// <summary>The far plane on a whole world: its edge is 6.8 km away from the leaving height (docs/WHOLE_WORLD.md §10.5).</summary>
     public const float WorldFar = 15_000;
 
-    /// <summary>The ground's texture layers, colour and normals (a game loads them ahead, GROUND.md §4.3.1).</summary>
-    public static readonly string[] GroundTextures =
-        { "res://assets/surface/ground/ground_albedo.webp", "res://assets/surface/ground/ground_normal.webp" };
+    /// <summary>The ground's sixteen texture layers' files (a game loads them ahead, GROUND.md §4.3.1; GroundLayers).</summary>
+    public static IReadOnlyList<string> GroundTextures => GroundLayers.Files();
 
     private Camera3D _camera = null!;
     private Godot.Environment _environment = null!;
@@ -253,19 +253,15 @@ public partial class SurfaceView : Node3D
         Lap("globals");
         SetupEnvironment();
         _terrainMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_terrain.gdshader") };
-        _groundAlbedo = GD.Load<TextureLayered>(GroundTextures[0]);
-        _groundNormal = GD.Load<TextureLayered>(GroundTextures[1]);
-        _terrainMaterial.SetShaderParameter("albedo_array", _groundAlbedo);
-        _terrainMaterial.SetShaderParameter("normal_array", _groundNormal);
+        _groundAlbedo = GroundLayers.Albedo;
+        _groundNormal = GroundLayers.Normal;
+        GroundLayers.Apply(_terrainMaterial);
         _terrainMaterial.SetShaderParameter("macro_noise", _noise);
         _canopy ??= NoiseTextures.Canopy(13);
         _terrainMaterial.SetShaderParameter("canopy_texture", _canopy);
-        ShaderMaterial? water = null;
-        if (surface.SeaRadius > 0)
-        {
-            water = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_water.gdshader") };
-            water.SetShaderParameter("wave_normals", NoiseTextures.WaveNormals(11));
-        }
+        // One water for the sea, lakes and streams (ISurface.WaterLevelAt; a world without any draws none).
+        var water = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_water.gdshader") };
+        water.SetShaderParameter("wave_normals", NoiseTextures.WaveNormals(11));
         Lap("materials");
         _terrain.Setup(surface, _frame, _terrainMaterial, water);
         _vegetation?.QueueFree();

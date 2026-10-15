@@ -29,6 +29,7 @@ public sealed class TileGrid
         Climate = new byte[n * 4];
         Heights = new float[n];
         FaceMetres = new float[n * 2];
+        WaterLevels = new float[n];
     }
 
     public TileKey Key { get; }
@@ -53,7 +54,10 @@ public sealed class TileGrid
     /// <summary>The parent grid's normal at each vertex (not normalised).</summary>
     public float[] MorphNormals { get; }
 
-    /// <summary>Eight ground material weights per vertex (<see cref="GroundMaterial"/> order), 0–255, adding up to about 255.</summary>
+    /// <summary>
+    /// <see cref="BiomeTable.MaterialCount"/> ground material weights per vertex (<see cref="GroundMaterial"/> order), 0–255,
+    /// adding up to about 255.
+    /// </summary>
     public byte[] Materials { get; }
 
     /// <summary>Per vertex: temperature (−30 to 40 °C as 0–255), moisture, grass density and tree cover (0–255).</summary>
@@ -61,6 +65,22 @@ public sealed class TileGrid
 
     /// <summary>Height above sea level per vertex, metres (above the mean radius on a world without a sea).</summary>
     public float[] Heights { get; }
+
+    /// <summary>
+    /// The water's surface per vertex, metres above sea level (docs/WALKING_GROUND.md §12): one water for the sea, lakes
+    /// and streams, from <see cref="ISurface.WaterLevelAt"/>. Where a vertex is dry but water lies within two vertices,
+    /// that water's level, so shores cut where the ground crosses it; elsewhere 2 m under the ground, hidden. Read only
+    /// when <see cref="HasWater"/>.
+    /// </summary>
+    public float[] WaterLevels { get; }
+
+    /// <summary>Whether any vertex lies under water.</summary>
+    public bool HasWater { get; internal set; }
+
+    /// <summary>The surface's mean radius and its sea's height above it (0 without a sea): what the levels are measured from.</summary>
+    public double Radius { get; internal set; }
+
+    public double SeaLevel { get; internal set; }
 
     /// <summary>
     /// Texture coordinates per vertex: metres along the tile's cube face (u and v, <see cref="TileMesh.FaceMetresOf"/>)
@@ -150,25 +170,32 @@ public static class TileMesh
     public static TileGrid Build(ISurface surface, TileKey key, int cells = PlanetSurface.TileCells)
     {
         var grid = new TileGrid(key, cells);
-        int n = cells + 1, m = cells + 3; // m: with a ring of samples around the tile for normals
+        // m: with two rings of samples around the tile, for normals and for the water's shores.
+        const int Ring = 2;
+        int n = cells + 1, m = cells + 1 + 2 * Ring;
         var points = new Vector3D[m * m];
         var samples = new SurfaceSample[m * m];
         var directions = new Vector3D[m * m];
+        var water = new double[m * m];
+        double seaLevel = surface.SeaRadius > 0 ? surface.SeaRadius - surface.Radius : 0;
         for (int j = 0; j < m; j++)
         {
             for (int i = 0; i < m; i++)
             {
-                Vector3D d = Direction(key, cells, i - 1, j - 1);
+                Vector3D d = Direction(key, cells, i - Ring, j - Ring);
                 SurfaceSample s = surface.Sample(d);
                 int k = j * m + i;
                 directions[k] = d;
                 samples[k] = s;
                 points[k] = d * (surface.Radius + s.Height);
+                water[k] = surface.WaterLevelAt(d);
             }
         }
         Vector3D origin = key.Centre * surface.Radius;
         grid.Origin = origin;
-        double seaLevel = surface.SeaRadius > 0 ? surface.SeaRadius - surface.Radius : 0;
+        grid.Radius = surface.Radius;
+        grid.SeaLevel = seaLevel;
+        WaterLevels(grid, samples, water, m, Ring, seaLevel);
         (double centreU, double centreV) = FaceMetresOf(key.U0 + key.Span / 2, key.V0 + key.Span / 2, surface.Radius);
         double anchorU = Math.Round(centreU / TexturePeriod) * TexturePeriod, anchorV = Math.Round(centreV / TexturePeriod) * TexturePeriod;
         grid.FaceAnchor = (anchorU, anchorV);
@@ -181,7 +208,7 @@ public static class TileMesh
         {
             for (int i = 0; i < n; i++)
             {
-                int k = (j + 1) * m + (i + 1);
+                int k = (j + Ring) * m + (i + Ring);
                 int v = j * n + i;
                 Vector3D p = points[k];
                 Vector3D du = points[k + 1] - points[k - 1], dv = points[k + m] - points[k - m];
@@ -345,6 +372,50 @@ public static class TileMesh
             tiles.Add(TileKey.FromPacked(k)!.Value);
         }
         return tiles;
+    }
+
+    // One water for every vertex (TileGrid.WaterLevels): its own where it lies under water; a dry vertex within two
+    // steps of water takes the highest such level (so the water's triangles stay flat to the shore, and a morph between
+    // levels of detail never lifts water out of the ground); any other sits 2 m under its ground.
+    private static void WaterLevels(TileGrid grid, SurfaceSample[] samples, double[] water, int m, int ring, double seaLevel)
+    {
+        int n = grid.Cells + 1;
+        bool any = false;
+        for (int j = 0; j < n; j++)
+        {
+            for (int i = 0; i < n; i++)
+            {
+                int k = (j + ring) * m + (i + ring);
+                double ground = samples[k].Height;
+                double level;
+                if (water[k] > ground)
+                {
+                    level = water[k];
+                    any = true;
+                }
+                else
+                {
+                    level = double.NegativeInfinity;
+                    for (int b = -2; b <= 2; b++)
+                    {
+                        for (int a = -2; a <= 2; a++)
+                        {
+                            int q = k + b * m + a;
+                            if (water[q] > samples[q].Height && water[q] > level)
+                            {
+                                level = water[q];
+                            }
+                        }
+                    }
+                    if (level == double.NegativeInfinity)
+                    {
+                        level = ground - 2;
+                    }
+                }
+                grid.WaterLevels[j * n + i] = (float)(level - seaLevel);
+            }
+        }
+        grid.HasWater = any;
     }
 
     private static void PackWeights(ReadOnlySpan<double> weights, byte[] target, int offset)

@@ -1,11 +1,12 @@
 # The ground at walking scale (S4)
 
-Status: **design with look-dev renders and a working generator, for the owner's review (15 October 2026).** This is
-package S4 of [SCALE.md](SCALE.md) §6. The owner asked for it on 15 October 2026 ("finish S3c, S3d and S4 right now").
-By the owner's rule for world work, the design and its pictures come first, then the generator. Here both exist: the
-generator (`WalkingWorld` in `Hollow.Surface`) made every picture below, and the game can stand on it behind a switch
-that is off by default (`--ground walking`, §12). Everything marked **Default** is listed in §2 so it can be changed in
-one line. Built on the branch `s4`.
+Status: **design with look-dev renders and a working generator, for the owner's review (15 October 2026); S4c, the
+game drawing it, built the same day (§17).** This is package S4 of [SCALE.md](SCALE.md) §6. The owner asked for it on
+15 October 2026 ("finish S3c, S3d and S4 right now"). By the owner's rule for world work, the design and its pictures
+come first, then the generator. Here both exist: the generator (`WalkingWorld` in `Hollow.Surface`) made every picture
+below, and the hosted game stands on it and draws it behind a switch that is off by default (`--ground walking`, §12),
+with the owned 4K scans as its sixteen ground layers (§8). Everything marked **Default** is listed in §2 so it can be
+changed in one line. S4a merged into `main` on 15 October 2026; S4c built on the branch `s4`.
 
 ---
 
@@ -45,19 +46,19 @@ Each row is a **Default** that the generator uses today. The pictures show the d
 |---|---|---|---|
 | 1 | One generator for small worlds | `WalkingWorld`, a new generator built for a few kilometres; `PlanetSurface` stays for the real-size look-dev views and tools | Retune `PlanetSurface`. Its plates, belts and climate work over 7 to 3,000 km and would all go |
 | 2 | Landmasses | A few continents and many islands: the first octave 2.6 km long (§3) | One large continent; or an archipelago of islands a kilometre or two across |
-| 3 | The relief mix | Shares of plains 0.30, hills 0.34, tablelands 0.16, mountains 0.20, grouped into ranges by an uplift field: on the first world 29 / 31 / 14 / 25 % of dry land (§4) | Fewer mountains (Rust's maps are mostly hills and plains); or more tablelands |
-| 4 | Heights | Hills about 40 m; plateaus 52 m with mesas 30 m on them; mountains up to 400 m (the first world's highest peak is about 330 m); half the land under 21 m | Higher mountains (500 m); lower everything |
+| 3 | The relief mix | Shares of plains 0.30, hills 0.34, tablelands 0.16, mountains 0.20, grouped into ranges by an uplift field: on the first world 28 / 31 / 15 / 27 % of dry land (§4) | Fewer mountains (Rust's maps are mostly hills and plains); or more tablelands |
+| 4 | Heights | Hills about 40 m; plateaus 52 m with mesas 30 m on them; mountains up to 400 m (the first world's highest peak is about 400 m); half the land under 23 m | Higher mountains (500 m); lower everything |
 | 5 | Coasts | Sandy or rocky by a field about a kilometre across; a rocky coast rises in a sea cliff of at most 26 m (§3) | Higher sea cliffs; all coasts sandy |
-| 6 | Streams | Water runs once its catchment reaches 0.26 km²: 34 streams, 12.7 km of them on the first world, 6 to 32 m wide (§5) | More and wider rivers, like Rust's 20 to 50 m: a catchment of 0.15 km² and wider channels |
-| 7 | Lakes | Every hollow at least 2.5 m deep and 1.5 ha large holds a lake: 40 lakes, 2.2 km², 5.6 % of the land (§5) | Fewer lakes (most hollows filled into flat meadows); or more |
+| 6 | Streams | Water runs once its catchment reaches 0.26 km²: 32 streams, 14.2 km of them on the first world, 6 to 32 m wide (§5) | More and wider rivers, like Rust's 20 to 50 m: a catchment of 0.15 km² and wider channels |
+| 7 | Lakes | Every hollow at least 2.5 m deep and 1.5 ha large holds a lake: 35 lakes, 2.4 km², 6 % of the land, frozen where it is cold (§5) | Fewer lakes (most hollows filled into flat meadows); or more |
 | 8 | Canyons and gorges | Water cuts canyons into tablelands (up to 28 m deep, walls of 70°) and gorges into mountains (8 m, 48°) (§5) | Smooth valleys everywhere |
 | 9 | Climate | Real-equivalent heights × 12 (SCALE.md default 5): snow on the highest peaks, ice caps beyond about 67°; the real climate, warm at the equator (18 °C mean) | Lean the first world's climate toward a temperate Rust-like world |
-| 10 | Woods | Closed stands at 45 % of the biome table's density (135 trees a hectare in temperate forest, 300 today); woods cover 18 % of plains, 55 % of hills, 30 % of tablelands, 60 % of mountains: 41 % of dry land, 29 trees a hectare on average (§7) | Denser (60 %); sparser |
+| 10 | Woods | Closed stands at 45 % of the biome table's density (135 trees a hectare in temperate forest, 300 today); woods cover 18 % of plains, 55 % of hills, 30 % of tablelands, 60 % of mountains: 41 % of dry land, 28 trees a hectare on average (§7) | Denser (60 %); sparser |
 | 11 | Scatter | Tiles at the level nearest 120 m (level 5, 118 m on the first world), candidates spaced in metres as on the planet (§7) | — |
 | 12 | Water in the rules | `ISurface.WaterLevelAt` (§9): lakes and streams are water for swimming, as the sea is; built behind the switch | Only the sea is water until S4c |
-| 13 | The landing site | The generator picks it: a meadow 5 to 25 m above the sea at a forest's edge, near the coast and a stream, in the temperate belt; on the first world 53.13° S, 17.94° E (§11) | Choose one by hand from the maps |
-| 14 | Scans | The plan of §8, each Fab listing's licence checked before anything ships | Fewer sets |
-| 15 | Speed | Make the height cheaper before it goes live: a target of 1 µs a height and 5 ms a physics tile (§10) | Go live at today's 1.8 µs and 11 ms if S3b's load tests still hold |
+| 13 | The landing site | The generator picks it: a meadow 5 to 25 m above the sea at a forest's edge, near the coast and a stream, in the temperate belt; on the first world 41.90° S, 21.45° E (§11) | Choose one by hand from the maps |
+| 14 | Scans | Sixteen ground layers from the owned 4K scans, built in S4c (§8); the cliff and rock meshes in S4d | More layers (a 17th needs another vertex channel, §17) |
+| 15 | Speed | Make the height cheaper before it goes live: a target of 1 µs a height and 5 ms a physics tile (§10) | Go live at today's 1.75 µs and 10.5 ms if S3b's load tests still hold |
 | 16 | Going live | Off by default (`--ground walking`) until the owner says go; then the default, and the stand-in stays for tests (§12, §13) | — |
 
 ---
@@ -98,11 +99,11 @@ the north-west. 2,048 pixels for 15.1 km round the equator: 7.4 m a pixel.*
   detail on the flanks and gullies cut by the drainage.
 - **Metre-scale ground:** 0.3 to 1.5 m of noise about 22 m long, rougher on stony and mountain ground.
 
-On the first world: half the land lies under 21 m, 90 % under 78 m, and the highest peak stands about 330 m.
+On the first world: half the land lies under 23 m, 90 % under 120 m, and the highest peak stands about 400 m.
 
 | Measured on the first world | Plains | Hills | Tablelands | Mountains |
 |---|---|---|---|---|
-| Share of dry land | 29 % | 31 % | 14 % | 25 % |
+| Share of dry land | 28 % | 31 % | 15 % | 27 % |
 
 ## 5. Water: streams, lakes, valleys
 
@@ -120,9 +121,11 @@ Water is worked out once when the world is made, on a drainage grid of the cube 
    is the same on every machine.
 3. **Catchments:** the ground each cell drains, summed down the ways in the flood's reverse order.
 4. **Lakes:** cells the flood filled above their own height, joined with neighbours filled to the same level. A hollow at
-   least 2.5 m deep and 1.5 ha large holds a lake at its spill level. Each lake's shore is a smooth field over its cells
-   (a bowl below the water inside, a low lip outside, high ground sloping down to it), so water meets the ground at its
-   edge and nothing lower than the lake lies beside it.
+   least 2.5 m deep and 1.5 ha large holds a lake at its spill level. The ground is not cut for it: the water covers the
+   ground under its level inside a smooth field over the lake's cells, so the lake fills the hollow the relief made and
+   its shores slope down into the water. Ground lower than the lake just outside the field is raised to a lip 0.4 m over
+   its level, so nothing lower than the lake lies beside it. A lake where the mean temperature is under −3 °C is frozen:
+   ice at its level, no water (§17).
 5. **The network:** a cell with a catchment of 4 ha or more starts a dry valley; from 0.26 km² water runs in it. Each
    piece goes from a cell to the cell it drains to. Two passes of smoothing and a wander across the way it runs turn the
    grid's eight directions into curves.
@@ -137,17 +140,19 @@ Water is worked out once when the world is made, on a drainage grid of the cube 
 The pieces are found by tile (level 5, 118 m) when a height is asked for. Every way down ends in the sea or a lake by
 construction; a test walks every stream from its source to check it, and that its water lies in its channel.
 
-On the first world: 34 streams start (23 run to the sea, 11 into lakes), 12.7 km of streams and rivers, 37 km of dry
-valleys, 40 lakes covering 2.2 km² (the largest 26.5 ha and 7.7 m deep). Lakes and streams cover 6.7 % of the land.
+On the first world: 32 streams start (21 run to the sea, 11 into lakes), 14.2 km of streams and rivers, 44 km of dry
+valleys, 35 lakes covering 2.4 km² (the largest 58 ha and 19.6 m deep). Open water of lakes and streams covers 5.9 % of
+the land (frozen lakes are ground).
 
 ![A river valley](images/scale/s4/zoom_valley.png)
 
-*A river valley, 800 m across: the river leaves a lake (left) between wooded slopes; snow on the mountains (bottom).
-Trees are drawn where the scatter puts them. The scale bar is 100 m.*
+*A river valley by the sea, 800 m across: two streams join and run to the sea between dry country (top) and grassland;
+dry valleys in grey, a gorge's wall in black (top). Trees are drawn where the scatter puts them. The scale bar is
+100 m. Rendered again for S4c: the straight-edged shading of the first renders is gone (§17.2).*
 
 ![A lake](images/scale/s4/zoom_lake.png)
 
-*The largest lake, 26.5 ha, in a basin of tablelands and hills.*
+*The largest lake, 58 ha, in its basin: the shores slope down to the water.*
 
 ## 6. Climate and biomes
 
@@ -157,7 +162,7 @@ Trees are drawn where the scatter puts them. The scale bar is 100 m.*
 
 - **Temperature:** the planet's real mean (18 °C on the first world), 42 K between the equator and the poles, patches of
   ±3 K a kilometre or two across, and a fall of 6 K a kilometre at **real-equivalent heights**: a game height × 12, so a
-  330 m peak is cold like a 4 km one (SCALE.md §3.3). The highest peaks carry snow; at the equator they are cold but bare.
+  400 m peak is cold like a 4.8 km one (SCALE.md §3.3). The highest peaks carry snow; at the equator they are cold but bare.
 - **Ice:** the temperature below which the real ice cover (8 %) lies, on 8,192 evenly spread directions: ice caps from
   about 67° and on high ground.
 - **Moisture:** the real latitude bands (wet tropics, dry subtropics, wet mid-latitudes), patches ±0.3 down to a few
@@ -165,8 +170,8 @@ Trees are drawn where the scatter puts them. The scale bar is 100 m.*
 - **Biomes:** the biome table of GROUND.md §4.6, unchanged, read at real-equivalent heights (so alpine ground starts high
   on cold mountains), with beaches on sandy coasts within about 2 m of the sea.
 
-On the first world's dry land: tropical forest 18 %, temperate forest 16 %, boreal forest 15 %, savanna 14 %, shrubland
-11 %, ice 10 %, grassland 8 %, beach 4 %, tundra 2 %, alpine 1 %, desert 1 %.
+On the first world's dry land: tropical forest 18 %, temperate forest 15 %, boreal forest 14 %, savanna 14 %, ice 12 %,
+shrubland 9 %, grassland 9 %, beach 4 %, tundra 2 %, alpine 2 %, desert 1 %.
 
 ![The globe](images/scale/s4/world_globe.png)
 
@@ -178,30 +183,57 @@ On the first world's dry land: tropical forest 18 %, temperate forest 16 %, bore
   where the playtest had 300 everywhere.
 - **Where woods grow:** each relief type has a share of woods (plains 18 %, hills 55 %, tablelands 30 %, mountains 60 %),
   more along streams, in patches about 420 m long with smaller clearings in them, so there are closed stands, edges,
-  clearings, meadows and open plains. On the first world 41 % of dry land is wooded, at 29 trees a hectare on average.
+  clearings, meadows and open plains. On the first world 41 % of dry land is wooded, at 28 trees a hectare on average.
 - **Open ground for sight lines:** plains are mostly open. The horizon is 90 m on flat ground, so the long views come from
   hills, plateau edges and ridges, which the relief has everywhere.
 - **The scatter** is the planet's (`Scatter`), fed by the walking ground (`IScatterField`): tiles at the level nearest
   120 m (level 5, 118 m), candidates spaced in metres as on the planet (trees 3.5 m, bushes 2.4 m, ferns 1.6 m, rocks
   3.2 m, berries 6.4 m, outcrops 12.8 m), so densities per square metre are the planet's. Nothing grows in water. A
-  wooded tile has about 800 objects and takes about 6 ms.
+  wooded tile has about 800 objects and takes about 5 ms.
 
 ![Wooded hills](images/scale/s4/zoom_forest.png)
 
-*Wooded hills, 600 m across: stands, edges and clearings; 63 trees a hectare over the square.*
+*Wooded hills by the sea, 600 m across: a stand with its edges and clearings; 70 trees a hectare over the square.*
 
 ![Open plains](images/scale/s4/zoom_plain.png)
 
-*Open plains under a mountain, a lake and a river, woods at the edges.*
+*Open plains under a mountain, with lakes and a stream, woods at the edges.*
 
-## 8. The scans: a plan
+## 8. The scans
 
-Only 8 of the 34 owned ground sets reach the game today, and none of the 62 scanned cliffs and rocks
-(`game/assets/THIRD_PARTY.md`). The walking ground gives each a place. **Before anything ships, each Fab listing's licence
-is checked** (the 2 October batch is unchecked); the Poly Haven sets are CC0.
+Before S4c only 8 of the 34 owned ground sets reached the game (at 2K, from lossy WebP), and none of the 62 scanned
+cliffs and rocks. Every set in `D:\GameDev\Assets` is bought for this game or CC0; `game/assets/THIRD_PARTY.md` records
+where each came from.
 
-**Ground layers** (today 8 materials, `GroundMaterial`; Proposal: 16, appended, chosen per vertex by biome, slope and
-wetness; the client's terrain array takes 16 layers):
+**Built in S4c: sixteen ground layers at 4K** (`GroundMaterial`, appended; chosen per vertex by biome, slope, wetness and
+the shore through `ISurface.Cover`, so the stand-in and the real planet use them too):
+
+| # | Layer | Scan | Where the walking ground puts it |
+|---|---|---|---|
+| 0–7 | grass, forest floor, soil, granite rock, gravel, beach sand, snow, moss | as before, now at 4K | as before |
+| 8 | wet sand | Wet Plain Sand (`rldas3p0`) | the swash and the waterline on sandy coasts, lake and stream beds |
+| 9 | shingle | Beach Gravel With Pebbles (`tbvqegas`) | the foot of rocky coasts, sea beds by rocky shores, stream beds |
+| 10 | wet grass | Wet Grass Ground (`sjzkdjba`) | stream banks, wet valleys, rainy country |
+| 11 | mossy forest floor | Mossy Ground (`tj4ocdjr`) | wet and cold woods |
+| 12 | tundra | Tundra Mossy Ground (`vjulbjjr`) | the tundra and alpine ground |
+| 13 | sandstone | Canyon Sandstone Rock (`vimldgeg`) | cliffs on tablelands and in dry country (granite elsewhere) |
+| 14 | dry earth | Desert Western Ground Dirt Coarse 07 (`xiqebhm`) | deserts, savanna, shrubland |
+| 15 | ice | Frozen Lake (`tcbkdcfr`) | frozen lakes, bare ice on the ice sheets |
+
+- **Files** (`tools/blender/surface_layers.py`, from the asset folders): each layer's colour and normal map are the
+  scan's own 4K files (the Megascans JPEGs copied byte for byte; the Poly Haven PNGs as lossless WebP); a 2K lossless WebP
+  holds roughness and height. Nothing lossy is written. Godot compresses each for the GPU (BPTC, mipmaps) when it imports
+  it, and `GroundLayers` puts them together into three texture arrays when the game loads (1 to 3.4 s, under the loading
+  screen): colour, normals, roughness with height. About 810 MB on the GPU; 912 MB of files in the repository.
+- **Shading** (`surface_terrain.gdshader`): the scan at its own size near by, over a turned copy at about three times
+  the size (the detail blend), a far turned copy from the air, macro variation of brightness and hue, height-based
+  blending between layers by each scan's own height, roughness from each scan's map, triplanar granite and sandstone on
+  steep ground. Each layer's normals keep their scan's convention (`layers.json` gives the flips; all agree today).
+- **Not yet** (16 is the layers' count for now): the second beach sand and pebbles, coastal rock, the second forest
+  floor, three more tundra sets, red rock, desert gravel and three desert sands, the snow line's icy grass, melting and
+  windswept snow, the snow cliff and the ice wall. A 17th layer needs a 17th channel in the tile's vertex data (§17).
+
+The table of the original plan, kept for the sets above:
 
 | Where | Ground sets (`D:\GameDev\Assets`) |
 |---|---|
@@ -233,7 +265,7 @@ and grass is a shader system.
 
 ![A tableland](images/scale/s4/zoom_tableland.png)
 
-*A tableland, 800 m across: an escarpment, buttes, and a river in a canyon with steep walls.*
+*A tableland, 800 m across: canyons with steep walls (black), dry or with a stream in them, woods and a lake.*
 
 ![Slopes of the tableland](images/scale/s4/slopes_tableland.png)
 
@@ -242,13 +274,14 @@ and grass is a shader system.
 
 ![A mountain](images/scale/s4/zoom_mountain.png)
 
-*The highest mountain, 1 km across: ridges and gullies, snow, a tarn, a sea cliff along the coast.*
+*The highest mountain, 420 m, 1 km across: ridges and gullies, snow, a tarn (left), the coast (right). The hill shading
+makes the mountains' metre-scale detail look crinkled; on the ground they read as rock and snow (§17.5).*
 
 ![Slopes of the mountain](images/scale/s4/slopes_mountain.png)
 
 ![A rocky coast](images/scale/s4/zoom_coast.png)
 
-*A rocky coast under hills: the sea cliff is the dark band along the shore.*
+*A rocky coast under a mountain: the sea cliff is the dark band along the shore.*
 
 ![A sandy beach](images/scale/s4/zoom_beach.png)
 
@@ -291,14 +324,14 @@ Measured on the first world (one thread, warmed up, the best of three runs; the 
 
 | | Walking ground | Stand-in |
 |---|---|---|
-| A height | 1.8 µs | 0.6 µs |
-| A physics tile (level 6, 59 m, a metre grid, 2 m margin) | 11 ms | 3 ms |
+| A height | 1.75 µs | 0.6 µs |
+| A physics tile (level 6, 59 m, a metre grid, 2 m margin) | 10.5 ms | 2.6 ms |
 | Building the world (both the server and every client) | 0.4–0.5 s | under 10 ms |
 | Memory | about 11 MB (the drainage grid) | none |
-| A scatter tile (level 5, a wooded one) | 6 ms, about 800 objects | — |
+| A scatter tile (level 5, a wooded one) | 5 ms, about 800 objects | — |
 
 The real planet's surface costs 3.7 µs a height. The server builds collision tiles all the time on workers (S3b held
-arrivals until their ground was built), so a tile at 11 ms instead of 3 ms is the one cost to watch. A first check ran
+arrivals until their ground was built), so a tile at 10.5 ms instead of 2.6 ms is the one cost to watch. A first check ran
 10 bots on beaches all round the walking ground for 15 s: the server's tick 0.73 ms on average, 2.1 ms at the 99th
 percentile, nobody disconnected, prediction 0.016 mm off on average. It also showed the server's scatter cache (384
 tiles, sized for the planet's level) making 4,209 scatter tiles in the run: it needs sizing for level 5.
@@ -314,14 +347,14 @@ then S3b's load tests with 100 bots on the walking ground, which must hold their
 
 ## 11. What changes when it goes live
 
-- **Golden values:** a new one for the walking ground (`WalkingWorldTests`, 0x9992D00861B4D96D), moved on purpose with
+- **Golden values:** a new one for the walking ground (`WalkingWorldTests`, 0x1D83ABE87CA2D9EA), moved on purpose with
   any change to the generator or its table. The planet's and the stand-in's stay. The movement check stays on the plain
   sphere.
 - **Saves:** positions and bases saved on the stand-in mean nothing on the new ground. Going live wipes the world's rows
   once (a schema step, as schema 7 did; accounts and teams stay; characters start a new life).
 - **The landing site:** chosen again (SCALE.md §4.8). The generator picks it (`LandingSite`): a meadow 5 to 25 m above
   the sea at a forest's edge, near the coast and a stream, in the temperate belt nearest 45°, off the mountains. On the
-  first world it is 53.13° S, 17.94° E, between a lake and two streams, mountains to the south. `FirstWorld`'s landing
+  first world it is 41.90° S, 21.45° E, a meadow 6 m above the sea at a forest's edge. `FirstWorld`'s landing
   latitude and longitude move there; until then a server on the walking ground at the default site uses it.
 - **Arrivals:** beaches all round the world, as now (WHOLE_WORLD.md decision 8); sandy coasts give them (4 % of dry land is
   beach). Beaches lie only by the sea, but the search (`Beaches`) should also skip ground under `WaterLevelAt` (to do in
@@ -335,8 +368,9 @@ then S3b's load tests with 100 bots on the walking ground, which must hold their
 - **The map:** its picture's cache key names the ground and its version. S3d's globe draws `HeightAt`, `BiomeAt` and
   `WaterLevelAt`.
 - **Monuments (M3):** placed on the new ground, on flat or tableland sites.
-- **The client (S4c, needs S3c):** terrain materials from biome weights, slope and wetness (§8); water surfaces for lakes
-  (flat, at their level) and streams (their surface along the channel), drawn on the terrain's tiles as the sea is.
+- **The client (S4c, built, §17):** terrain materials from biome weights, slope and wetness (§8); water surfaces for
+  lakes (flat, at their level) and streams (their surface along the channel), drawn on the terrain's tiles as the sea
+  is.
 
 ## 12. The switch (built)
 
@@ -350,9 +384,10 @@ The game can stand on the walking ground today, off by default:
   picks the surface and `CreateNature` the scatter's natural objects by it. `ZoneInfo.Ground` carries it to clients
   (protocol 24). A server on the walking ground left at the default latitude and longitude lands players at its
   `LandingSite`.
-- **Until S3c** the client still draws the ball as before, so a hosted game on the walking ground shows the new heights
-  with today's terrain materials and no lake or stream water drawn. The ground-level look-dev shots in Godot (a valley
-  with a river, a coast, a cliff, a mountain with snow, a forest edge and a plain) wait for S3c.
+- **The hosted game** draws it (S4c, §17): its sixteen ground layers, lakes' and streams' water with the sea's, and its
+  woods at their densities. To stand somewhere for a picture: `--lat <deg> --lon <deg>` (the hosted server's landing
+  site, where `--spawn origin` arrives), `--yaw <deg>` (the bearing to face on arrival) and `--pitch`, `--hour` (local
+  time there); `walking shots` in the generator report prints the six places below.
 
 ## 13. Order of work after approval
 
@@ -360,7 +395,7 @@ The game can stand on the walking ground today, off by default:
 |---|---|---|
 | S4a | Built: the generator, its test, the look-dev report and the switch | This document's pictures; `WalkingWorld` tests; 10 bots on the ground |
 | S4b | Speed (§10): the slow fields on a lattice, shared collision heights, the scatter cache by size | S3b's load tests with 100 bots on the walking ground |
-| S4c | The client draws it (after S3c): materials from biomes, slope and wetness with the scan sets of §8, lakes' and streams' water, the plants by the new scatter | The six Godot look-dev shots of §12 and the frame time |
+| S4c | Built (§17): the client draws it: sixteen 4K ground layers from the scans, lakes' and streams' water with the sea's, the plants by the new scatter; the renders' two flaws fixed | The six Godot look-dev shots of §17 and the frame time |
 | S4d | Cliffs and rocks: the scanned meshes along cliffs, sea cliffs, canyon and gorge walls, with collision | Shots of each; the load test |
 | S4e | Live: the default ground, the landing site, the wipe, the golden values, the docs | The owner's playtest |
 
@@ -374,8 +409,8 @@ change any of them for one run, to compare pictures: `HOLLOW_WALKING="StreamCatc
 | Landmasses | `ContinentWavelength` 2,600 m, `IslandWavelength` 720 m, `IslandShare` 0.32, `CoastDetail` 0.035 at 210 m, `WarpWavelength` 1,500 m, `WarpReach` 0.09 rad |
 | Coasts | `CoastKindWavelength` 950 m, `SandyShoreRamp` 0.1, `RockyShoreRamp` 0.012, `SeaCliffHeight` 26 m |
 | Provinces | `Provinces` 96, `ProvinceBlend` 300 m, `UpliftWavelength` 3,000 m, shares 0.30 / 0.34 / 0.16 / 0.20 |
-| Relief | `PlainsHeight` 7 m, `KettleDepth` 4.5 m, `HillsHeight` 44 m at 460 m, `PlateauHeight` 52 m, `MesaHeight` 30 m, `CliffShare` 0.75, `MountainHeight` 400 m, `RidgeWavelength` 1,250 m, `RidgeWarp` 110 m, `MountainDetail` 0.12, `GroundDetail` 0.3 m, `StonyDetail` 1.2 m |
-| Water | `DrainageCell` 30 m, `ValleyCatchment` 4 ha, `StreamCatchment` 0.26 km², `LakeMinDepth` 2.5 m, `LakeMinArea` 1.5 ha, stream half-width 3 m (+2.2 a size), drop 0.8 m, depth 0.9 m, valley 45 m (+22), dry valley 26 m, `Meander` 0.35 cells, `RuggedValleyFade` 0.3, `CanyonDepth` 28 m at 0.25 km², `CanyonWall` 2.6, `GorgeDepth` 8 m, `GorgeWall` 1.1 |
+| Relief | `PlainsHeight` 7 m, `KettleDepth` 4.5 m, `HillsHeight` 44 m at 460 m, `PlateauHeight` 52 m, `MesaHeight` 30 m, `CliffShare` 0.75, `MountainHeight` 400 m, `RidgeWavelength` 1,250 m, `RidgeWarp` 110 m, `RidgeCrest` 0.14, `MountainDetail` 0.12, `GroundDetail` 0.3 m, `StonyDetail` 1.2 m |
+| Water | `DrainageCell` 30 m, `ValleyCatchment` 4 ha, `StreamCatchment` 0.26 km², `LakeMinDepth` 2.5 m, `LakeMinArea` 1.5 ha, `FrozenLakeTemperature` −3 °C, stream half-width 3 m (+2.2 a size), drop 0.8 m, depth 0.9 m, valley 45 m (+22), dry valley 26 m, `Meander` 0.35 cells, `RuggedValleyFade` 0.3, `CanyonDepth` 28 m at 0.25 km², `CanyonWall` 2.6, `GorgeDepth` 8 m, `GorgeWall` 1.1 |
 | Climate | `RealHeightFactor` 12, `LapseRate` 6 K/km, `EquatorToPole` 42 K, patches ±3 K and ±0.3 at 1,700 m |
 | Plants | `TreeDensityScale` 0.45, woods 0.18 / 0.55 / 0.30 / 0.60, `WoodsWavelength` 420 m, `ScatterTile` 120 m |
 
@@ -391,6 +426,8 @@ change any of them for one run, to compare pictures: `HOLLOW_WALKING="StreamCatc
 | `zoom lat lon metres [png] [size]` | A close-up at walking scale, with the scatter's trees, outcrops and berries drawn |
 | `slopes lat lon metres [png] [size]` | A close-up by slope class |
 | `spots` | Places for close-ups: the highest peak, a river valley, a rocky coast, a beach, a tableland, the largest lake, a plain, the landing site, wooded hills |
+| `shots` | Places for the game's ground-level shots (§17): a valley with a stream, a coast, a cliff, a snowy mountain, a forest edge, a plain, as `--lat --lon --yaw --pitch` |
+| `cover lat lon` | What the ground looks like at a point (`ISurface.Cover`: biomes and ground materials) and the plants and rocks within 10 m |
 | `closeups [folder]` | Every spot's close-up |
 | `compare [png]` | Today's stand-in above the walking ground |
 | `all [folder]` | The whole set, by default into `docs/images/scale/s4` |
@@ -416,3 +453,142 @@ projection.*
   100,000 points 5 cm apart and finds no step over 0.4 m.
 - **Perched water.** A lake's outlet valley cut its rim below the lake's level, and a stream crossing a hollow could stand
   above the ground beside its channel. Fixed by lakes' shapes with a lip, outlets at the lake's level, and banks.
+
+## 17. S4c as built (15 October 2026)
+
+Built on the branch `s4` after S4a merged into `main`. With `--ground walking` the hosted game draws the new ground: its
+materials, its lakes' and streams' water and its woods. With the switch off nothing changes but the sixteen ground
+layers (§8) and the biome table's new columns, which the stand-in and the real planet use too.
+
+### 17.1 What the game draws
+
+- **The ground's look** comes through `ISurface.Cover`, S3c's drawing contract, which `WalkingWorld` overrides: the
+  client has no path of its own for the walking ground. The rule: ice on frozen lakes; under water a bed (by the sea, wet
+  sand and shingle by the coast's kind; in lakes and streams shingle, wet sand and soil); elsewhere the biome table's
+  materials through the shared rule (`BiomeTable.GroundMaterials`), with sandstone for granite on the cliffs of
+  tablelands and dry country, wet grass and mossy forest floor where the ground is wet or by a stream (mossy floor in
+  the cold too), wet sand and shingle along the sea's edge. `walking cover <lat> <lon>` prints what a point gets, and
+  the plants and rocks within 10 m.
+- **Sixteen layers** (§8). The biome table's rows spread over the new columns, so every world draws tundra ground,
+  mossy boreal woods, dry earth in deserts, savanna and shrubland, and ice on ice sheets. Each new layer belongs to a
+  family among the first eight (`BiomeTable.Family`: wet sand is sand, shingle gravel, wet grass grass, mossy floor
+  forest floor, tundra moss, sandstone rock, dry earth soil, ice snow); footsteps, impacts and the grass read the
+  families, so the sounds and effects need no new rows.
+- **The tile's vertex data:** the sixteen weights as bytes, twelve packed three to a float in `CUSTOM2` (exact integers
+  under 2^24) and four in `CUSTOM3`. A 17th layer needs another channel.
+- **Water, one system, the sea's.** Each terrain tile asks `WaterLevelAt` at every vertex and two vertices beyond its
+  edge (`TileGrid.WaterLevels`): a vertex's water lies at its own level where it is wet, else at the highest wet level
+  within two vertices, else 2 m under the ground, so the water's edge is where the ground cuts it, as the sea's is. Lakes
+  lie flat at their level; streams slope along their channels. The water depth's second channel marks inland water: the
+  sea shader drops its swell, surf and swash there and keeps a third of its foam.
+- **Woods** at the walking ground's densities: the client's plants come from `ScatterFor` at its level (level 5, 118 m),
+  and the server's natural objects (trees to chop, rocks, berries) from the same scatter.
+- **Standing somewhere** in a hosted game: `--lat` and `--lon` (the hosted server's landing site), `--yaw` and
+  `--pitch`, `--hour` (local time there) and `--clouds` (this client's cloud cover). `walking shots` prints the six places
+  below for the player Ada: a player arrives 3 to 8 m from the landing site at a place fixed by the name's hash, so each
+  place is the landing site that brings Ada to open ground with no plant or rock within 3 m and no tree within 6 m.
+
+### 17.2 The renders' two flaws, fixed
+
+- **The straight-edged shading across the mountain** in `zoom_valley.png`: a crease of the ridged noise. Folding the
+  noise at zero makes a sharp crest, and the first octave's crest ran straight for hundreds of metres. `RidgedNoise`
+  turns every octave by its own rotation and rounds the crest (`RidgeCrest` 0.14, halved each octave), so no ridgeline
+  runs straight.
+- **Lakes inside raised rims:** the small fields of the landmass (islands, coast detail) opened pockets of sea deep inland,
+  and the coast's ramp flattened the land round them into rings at sea level; the flood then filled them as lakes
+  inside walls. Those fields now cut into the land only near the continents' coast, and the relief rises inland of the
+  continents' own shore (`PocketMargin` 0.03). Lakes no longer carve a bowl: the water fills the hollow the relief made,
+  so its shores slope down into it, and only ground lower than the lake just outside it is raised to a lip of 0.4 m
+  (§5).
+- **Frozen lakes:** a lake where the mean temperature at its level is under −3 °C (`FrozenLakeTemperature`) is ice at
+  its level, with no water; it is ground to walk on and draws the ice layer.
+
+The views of §3 to §8 and §15 were rendered again with these changes.
+
+### 17.3 The six shots
+
+The hosted game at 1600 × 900 on the RTX 2070 Super, 10 o'clock local time, clear sky (`--clouds 0`). The mountain's
+place was picked again after its first shot faced a hillside, and the first plain shot stood in a fern (§17.5):
+
+```
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- walking shots    # the places
+$GODOT --path game --resolution 1600x900 -- --view ground --name Ada --host --ground walking --spawn origin --hour 10 \
+  --clouds 0 --lat <lat> --lon <lon> --yaw <deg> --pitch <deg> --shot ../docs/images/scale/s4/ground/<name>.png
+```
+
+![A valley with a stream](images/scale/s4/ground/valley.png)
+
+*A valley with a stream (28.85° S, 117.13° E): the stream in its channel, its bed of shingle and wet sand, savanna
+grass and scattered pines and broadleaves; 86 fps.*
+
+![A coast](images/scale/s4/ground/coast.png)
+
+*A sandy coast (41.11° N, 87.07° E): the beach, wet sand at the swash, the sea to the left; 79 fps.*
+
+![A cliff](images/scale/s4/ground/cliff.png)
+
+*A tableland's escarpment, 85 m high, in sandstone (13.37° S, 110.52° W), seen from the wood's edge below it. Its face
+is smooth until S4d puts the scanned cliff meshes along it; 69 fps.*
+
+![A snowy mountain](images/scale/s4/ground/mountain.png)
+
+*A peak of 286 m, −10 °C on top, seen from about 720 m away (62.57° S, 115.70° E), looking north into the morning sun:
+snow lying on the boreal ground in front with grass through it, a lake to the right. On a ball of 2.4 km the ground
+falls away 100 m in 700 m, so a peak shows only from where nothing nearer stands in the line of sight; the place was
+picked for that.*
+
+![A forest edge](images/scale/s4/ground/forest.png)
+
+*A meadow at a wood's edge (40.86° N, 150.89° W): firs, pines, birches and broadleaves, the nearest tree 25 m away;
+78 fps.*
+
+![A plain](images/scale/s4/ground/plain.png)
+
+*Open plains (42.06° S, 10.43° E), looking toward the highest ground in view: grass, flowers, berry bushes, a wood under
+the mountain; 69 fps.*
+
+### 17.4 Costs measured
+
+| | |
+|---|---|
+| The sixteen layers into texture arrays | 1.0 to 3.4 s once a game, under the loading screen |
+| Video memory of the layers | about 810 MB (BPTC, with mipmaps) |
+| The layers' files in the repository | 912 MB (`game/assets/surface/ground/layers`) |
+| Frame rate in the shots (1600 × 900, the game's own counter) | 69 to 89 fps |
+| The hosted server's world props at start (loot spots, recyclers) | 8.7 to 11.3 s on the walking ground; for S4b |
+
+### 17.5 Found while building
+
+- **The game hung on the walking ground:** `ScatterNaturalObjects.Level` gave the planet scatter's level (16), not its
+  own (5), so the client's plants asked for tiles at level 16. Fixed: its level, `InTile` and `TileOf` use the
+  scatter's own level.
+- **Clouds near the ground:** the sky's cloud layer is drawn over the ground a few metres from the camera on the small
+  ball (a bank of white over the beach, a haze over a meadow). The shots use `--clouds 0`; S5 (air, clouds and sky at
+  the new scale) owns it.
+- **A player arriving in a fern** sees its fronds fill the screen: arrivals don't avoid plants (they have no collision).
+  The shots' places allow for it; arrivals could skip plants in S4e.
+- **Crinkled mountains in the close-ups:** the hill shading of the engine-free renders makes the ridged noise's
+  metre-scale octaves on mountains look like crumpled foil (it did before S4c too); from the ground (the mountain shot)
+  they read as rock and snow. Softer high octaves are a look-dev choice for the owner (`MountainDetail`, `RidgeCrest`).
+- **Dashed lines at the waterline on flat beaches:** the swash's foam where the water is a few centimetres deep over
+  the sand draws as short white dashes along the shore (the coast shot). To tune with S5's water.
+- **Grass on the edge of ice and snow:** the grass field samples its density every eight lattice nodes and interpolates,
+  so blades reach a few metres onto a frozen lake from its shore.
+
+### 17.6 What is left
+
+- **S4b, speed:** the slow fields on a lattice, shared collision heights, the scatter cache by size, the server's world
+  props (10 s at start), then S3b's load tests with 100 bots on the walking ground (§10).
+- **S4d, cliffs and rocks:** the scanned cliff and rock meshes along escarpments, sea cliffs, canyon and gorge walls,
+  with collision (§8).
+- **S4e, live:** the default ground, the landing site, the wipe, the golden values, arrivals off lakes and plants, the
+  nav grid on `WaterLevelAt` (§11).
+- More layers than sixteen (a vertex channel more) and the rest of §8's sets.
+
+### 17.7 Checks
+
+By the owner's rule for this package (the weekly usage limit), the checks were cut to the minimum: the solution builds;
+the test filters `Walking` (6 tests), `Architecture` (5), `CollisionMatchesRenderTiles` (the render and collision
+tiles agree, 0.003 mm), `Sound` (5), `StandIn`, `Biome` and `Scatter` passed. Skipped: the full suite, the movement
+check, the network, console and building tests, the 100-bot load tests on the walking ground, the frame-time
+measurement with a crowd, the stand-in and real planet looked at in the game with the sixteen layers.

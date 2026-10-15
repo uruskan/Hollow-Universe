@@ -53,6 +53,12 @@ public static class WalkingReport
             case "closeups":
                 Closeups(world, Arg(2, Folder));
                 return 0;
+            case "shots":
+                foreach (Shot shot in Shots(world))
+                {
+                    Console.WriteLine(shot);
+                }
+                return 0;
             case "spots":
                 foreach (Spot spot in Spots(world))
                 {
@@ -62,6 +68,9 @@ public static class WalkingReport
             case "probe":
                 Probe(world, Num(2, 45), Num(3, -170), Num(4, 800), (int)Num(5, 800), Num(6, 400), Num(7, 380), Num(8, 480));
                 return 0;
+            case "cover":
+                Cover(world, Num(2, 45), Num(3, -170));
+                return 0;
             case "compare":
                 Compare(world, Arg(2, Path.Combine(Folder, "compare_standin.png")), (int)Num(3, 1536));
                 return 0;
@@ -69,8 +78,58 @@ public static class WalkingReport
                 All(world, Arg(2, Folder));
                 return 0;
             default:
-                Console.Error.WriteLine("usage: walking stats | relief|biomes|rivers [png] [width] | globe [png] [size] | zoom|slopes lat lon metres [png] [size] | spots | compare | all");
+                Console.Error.WriteLine("usage: walking stats | relief|biomes|rivers [png] [width] | globe [png] [size] | zoom|slopes lat lon metres [png] [size] | spots | shots | cover lat lon | compare | all");
                 return 2;
+        }
+    }
+
+    // What the ground looks like at a point: its biomes and ground materials (ISurface.Cover), as the client draws them.
+    private static void Cover(WalkingWorld world, double latitude, double longitude)
+    {
+        Vector3D d = ZoneFrame.Direction(latitude * Math.PI / 180, longitude * Math.PI / 180);
+        ISurface surface = world;
+        Span<double> biomes = stackalloc double[BiomeTable.Count];
+        Span<double> materials = stackalloc double[BiomeTable.MaterialCount];
+        SurfaceSample sample = surface.Sample(d);
+        GroundCover cover = surface.Cover(d, sample, 0, biomes, materials);
+        WalkingSample s = world.Fields(d);
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"height {s.Height:0.0} m, water {s.Water:0.0}, ice {s.Ice:0.00}, {cover.Temperature:0.0} °C, moisture {cover.Moisture:0.00}, grass {cover.Grass:0.00}, trees {cover.Trees:0.000}"));
+        for (int i = 0; i < BiomeTable.Count; i++)
+        {
+            if (biomes[i] > 0.005)
+            {
+                Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"  biome  {(Biome)i,-16} {biomes[i]:0.00}"));
+            }
+        }
+        for (int i = 0; i < BiomeTable.MaterialCount; i++)
+        {
+            if (materials[i] > 0.005)
+            {
+                Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"  ground {(GroundMaterial)i,-16} {materials[i]:0.00}"));
+            }
+        }
+        // What the scatter puts down within 10 m.
+        var seen = new HashSet<TileKey>();
+        foreach (double bearing in new[] { 0.0, 90, 180, 270 })
+        {
+            foreach (double metres in new[] { 0.0, 30 })
+            {
+                TileKey tile = TileKey.At(Step(d, bearing, metres, world.Radius), surface.ScatterLevel);
+                if (!seen.Add(tile))
+                {
+                    continue;
+                }
+                foreach (ScatterItem item in surface.ScatterFor(tile))
+                {
+                    double away = Vector3D.Distance(item.Direction, d) * world.Radius;
+                    if (away < 10)
+                    {
+                        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                            $"  {item.Kind,-12} {away:0.0} m away, bearing {Bearing(d, item.Direction):0}, scale {item.Scale:0.00}"));
+                    }
+                }
+            }
         }
     }
 
@@ -807,6 +866,225 @@ public static class WalkingReport
     internal sealed record Spot(string Name, double Latitude, double Longitude, double Metres, string Why)
     {
         public override string ToString() => string.Create(CultureInfo.InvariantCulture, $"{Name,-10} {Latitude,9:0.0000} {Longitude,10:0.0000}  {Why}");
+    }
+
+    // ---------------------------------------------------------------- where to stand for the ground-level shots
+
+    /// <summary>A place to stand on the ground and the bearing to look along (degrees from north toward the east).</summary>
+    internal sealed record Shot(string Name, double Latitude, double Longitude, double Yaw, double Pitch, string Why)
+    {
+        public override string ToString() => string.Create(CultureInfo.InvariantCulture,
+            $"{Name,-9} --lat {Latitude:0.00000} --lon {Longitude:0.00000} --yaw {Yaw:0} --pitch {Pitch:0}   {Why}");
+    }
+
+    private static (Vector3D East, Vector3D North) Axes(Vector3D up)
+    {
+        Vector3D east = Vector3D.Cross(Vector3D.UnitY, up);
+        east = east.LengthSquared > 1e-12 ? east.Normalized : new Vector3D(0, 0, -1);
+        return (east, Vector3D.Cross(up, east));
+    }
+
+    // The bearing from one direction to another, degrees from north toward the east.
+    private static double Bearing(Vector3D from, Vector3D to)
+    {
+        (Vector3D east, Vector3D north) = Axes(from);
+        Vector3D d = to - from;
+        return (Math.Atan2(Vector3D.Dot(d, east), Vector3D.Dot(d, north)) * 180 / Math.PI + 360) % 360;
+    }
+
+    // A point a distance (m) from a direction along a bearing (degrees).
+    private static Vector3D Step(Vector3D from, double bearing, double metres, double radius)
+    {
+        (Vector3D east, Vector3D north) = Axes(from);
+        double b = bearing * Math.PI / 180, a = metres / radius;
+        return (from + (north * Math.Cos(b) + east * Math.Sin(b)) * a).Normalized;
+    }
+
+    // Open, dry ground to stand on: not in water, gentle, few trees about.
+    private static double Openness(WalkingWorld world, Vector3D d)
+    {
+        WalkingSample s = world.Fields(d);
+        if (s.Wetted || s.Ice > 0 || s.Height < 1)
+        {
+            return -1;
+        }
+        double slope = Math.Abs(world.HeightAt(Step(d, 0, 3, world.Radius)) - s.Height) + Math.Abs(world.HeightAt(Step(d, 90, 3, world.Radius)) - s.Height);
+        return 1 - world.ForestCover(d, s) - slope / 6;
+    }
+
+    // Whether an eye on the ground at one direction sees the top share (0 to 1) of a peak at another: the line of sight
+    // to its top clears the ground in front of it (the first 60 % of the way) by that share of the peak's height, growing
+    // toward the peak. In three dimensions: on a ball of 2.4 km the world falls away 100 m in 700 m.
+    private static bool Sees(WalkingWorld world, Vector3D eye, Vector3D peak, double share)
+    {
+        double top = world.HeightAt(peak);
+        Vector3D a = eye * (world.Radius + world.HeightAt(eye) + 1.7), b = peak * (world.Radius + top);
+        for (int k = 1; k <= 24; k++)
+        {
+            double t = k / 40.0;
+            Vector3D p = a + (b - a) * t;
+            if (world.Radius + world.HeightAt(p.Normalized) + share * top * t > p.Length)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    // The distance (m) to the nearest tree the scatter puts down near a direction.
+    private static double NearestTree(WalkingWorld world, Vector3D d) => Nearest(world, d, true);
+
+    // The distance (m) to the nearest tree, or with treesOnly false to anything the scatter puts down (bushes, ferns,
+    // rocks, outcrops), near a direction.
+    private static double Nearest(WalkingWorld world, Vector3D d, bool treesOnly)
+    {
+        ISurface surface = world;
+        double nearest = double.MaxValue;
+        var seen = new HashSet<TileKey>();
+        foreach (double bearing in new[] { 0.0, 90, 180, 270 })
+        {
+            foreach (double metres in new[] { 0.0, 30 })
+            {
+                TileKey tile = TileKey.At(Step(d, bearing, metres, world.Radius), surface.ScatterLevel);
+                if (!seen.Add(tile))
+                {
+                    continue;
+                }
+                foreach (ScatterItem item in surface.ScatterFor(tile, treesOnly))
+                {
+                    nearest = Math.Min(nearest, Vector3D.Distance(item.Direction, d) * world.Radius);
+                }
+            }
+        }
+        return nearest;
+    }
+
+    // The nearest point to a stand (within 16 m) where the camera is clear: open dry ground, no plant or rock within
+    // 3 m and no tree within 6 m (a player arriving in a bush has its leaves in front of the camera).
+    private static Vector3D Clear(WalkingWorld world, Vector3D stand)
+    {
+        foreach (double metres in new[] { 0.0, 2, 4, 6, 8, 10, 12, 14, 16 })
+        {
+            foreach (double bearing in metres == 0 ? new[] { 0.0 } : Enumerable.Range(0, 12).Select(k => k * 30.0))
+            {
+                Vector3D d = Step(stand, bearing, metres, world.Radius);
+                if (Openness(world, d) >= 0 && Nearest(world, d, false) >= 3 && Nearest(world, d, true) >= 6)
+                {
+                    return d;
+                }
+            }
+        }
+        return stand;
+    }
+
+    // Where a new character called name arrives with --spawn origin, from the landing site: the bearing (degrees from
+    // north toward the east) and the distance (m); the same rule as Zone.SpawnPoint with GameServer.ArrivalOf's salt.
+    private static (double Bearing, double Metres) ArrivalOffset(string name)
+    {
+        ulong salt = Hash64.Of(name.ToUpperInvariant());
+        var rng = new Rng(Hash64.Of(salt, 0x5BA77));
+        double angle = rng.NextDouble() * DMath.TwoPi;
+        double radius = rng.Range(3, 8);
+        double east = radius * Math.Cos(angle), south = radius * Math.Sin(angle);
+        return ((Math.Atan2(east, -south) * 180 / Math.PI + 360) % 360, radius);
+    }
+
+    internal static List<Shot> Shots(WalkingWorld world)
+    {
+        Drainage grid = world.DrainageGrid!;
+        int count = grid.CellCount;
+        var fields = new WalkingSample[count];
+        Parallel.For(0, count, i => fields[i] = world.Fields(grid.CellCentre(i)));
+        double Lat(Vector3D d) => Math.Asin(Math.Clamp(d.Y, -1, 1)) * 180 / Math.PI;
+        double Lon(Vector3D d) => Math.Atan2(-d.Z, d.X) * 180 / Math.PI;
+        double Temperate(Vector3D d) => 1 - Math.Clamp(Math.Abs(Math.Abs(Lat(d)) - 42) / 20, 0, 1);
+        double R = world.Radius;
+        var shots = new List<Shot>();
+        // The player arrives on a ring of 3 to 8 m round the landing site, at a place fixed by the name's hash
+        // (Zone.SpawnPoint, GameServer.ArrivalOf): the landing site given is where Ada arrives at the clear stand.
+        (double arriveBearing, double arriveMetres) = ArrivalOffset("Ada");
+        Shot Make(string name, Vector3D stand, double yaw, double pitch, string why)
+        {
+            Vector3D landing = Step(Clear(world, stand), arriveBearing + 180, arriveMetres, R);
+            return new(name, Lat(landing), Lon(landing), yaw, pitch, why);
+        }
+
+        // A valley with a stream: beside a stream in a valley, looking down it.
+        DrainageSegment valley = world.Drainage.Where(s => s.Stream && s.Catchment > 400_000 && world.HeightAt((s.A + s.B).Normalized) > 8)
+            .MaxBy(s => Temperate(s.A) * (world.HeightAt(Step((s.A + s.B).Normalized, Bearing(s.A, s.B) + 90, 120, R))
+                + world.HeightAt(Step((s.A + s.B).Normalized, Bearing(s.A, s.B) - 90, 120, R)) - 2 * s.SurfaceA));
+        Vector3D mid = (valley.A + valley.B).Normalized;
+        double down = Bearing(valley.A, valley.B);
+        Vector3D bank = new[] { 14.0, 20, 28, 36 }.SelectMany(m => new[] { Step(mid, down + 90, m, R), Step(mid, down - 90, m, R) })
+            .MaxBy(d => Openness(world, d));
+        shots.Add(Make("valley", bank, Bearing(bank, Step(mid, down, 120, R)), -4, string.Create(CultureInfo.InvariantCulture,
+            $"a stream draining {valley.Catchment / 1e6:0.00} km², looking down its valley")));
+
+        // A coast: on a sandy shore in the temperate belt, looking along the beach with the sea on one side.
+        int shore = Enumerable.Range(0, count).Where(i => fields[i].Height > 0.5 && fields[i].Height < 3 && fields[i].Rocky < 0.2 && NextToSea(grid, i))
+            .MaxBy(i => Temperate(grid.CellCentre(i)) + Openness(world, grid.CellCentre(i)));
+        Vector3D beach = grid.CellCentre(shore);
+        double toSea = Enumerable.Range(0, 36).Select(k => k * 10.0).MinBy(b => world.HeightAt(Step(beach, b, 60, R)));
+        shots.Add(Make("coast", beach, toSea + 55, -2, "a sandy shore, the sea to the left"));
+
+        // A cliff: at the foot of a tableland's escarpment, facing it.
+        int foot = Enumerable.Range(0, count).Where(i => fields[i].Tableland > 0.7 && !fields[i].Wetted && fields[i].Continent > 0.15)
+            .MaxBy(i => Drop(grid, fields, i));
+        Vector3D top = grid.CellCentre(foot);
+        double fall = Enumerable.Range(0, 36).Select(k => k * 10.0).MinBy(b => world.HeightAt(Step(top, b, 45, R)));
+        // Open ground below it, and open along the way to it (no wood between).
+        Vector3D below = new[] { -30.0, -15, 0, 15, 30 }.SelectMany(turn => new[] { 90.0, 120, 150, 180 }.Select(m => Step(top, fall + turn, m, R)))
+            .MaxBy(d => Openness(world, d) + Openness(world, (d * 2 + top).Normalized) + Openness(world, (d + top).Normalized));
+        shots.Add(Make("cliff", below, Bearing(below, top), 10, string.Create(CultureInfo.InvariantCulture,
+            $"an escarpment {Drop(grid, fields, foot):0} m high")));
+
+        // A snowy mountain: a peak whose summit is about −10 °C (snow on top, green below), seen from open ground 450 to
+        // 750 m away, looking up at it.
+        int peak = Enumerable.Range(0, count).Where(i => fields[i].Height > 200 && Math.Abs(Lat(grid.CellCentre(i))) > 40)
+            .MinBy(i => Math.Abs(world.MeanTemperature(grid.CellCentre(i), fields[i].Height) + 10) - fields[i].Height / 100);
+        Vector3D summit = grid.CellCentre(peak);
+        Vector3D view = Enumerable.Range(0, 36).SelectMany(k => new[] { 450.0, 600, 750 }.Select(m => Step(summit, k * 10.0, m, R)))
+            .MaxBy(d => Openness(world, d) + (Sees(world, d, summit, 0.4) ? 2 : 0) - world.HeightAt(d) / 200);
+        shots.Add(Make("mountain", view, Bearing(view, summit), 12, string.Create(CultureInfo.InvariantCulture,
+            $"a peak of {fields[peak].Height:0} m, {world.MeanTemperature(summit, fields[peak].Height):0} °C on top, {Vector3D.Distance(view, summit) * R:0} m away")));
+
+        // A forest edge: in a meadow facing woods, in the temperate belt, the nearest tree at least 12 m away (so the
+        // camera is not in a crown) and the woods 30 to 80 m ahead.
+        var edges = Enumerable.Range(0, count).Where(i => !fields[i].Wetted && fields[i].Height > 3 && fields[i].Mountains < 0.3)
+            .OrderByDescending(i => Temperate(grid.CellCentre(i)) * 2 - Math.Abs(world.ForestCover(grid.CellCentre(i), fields[i]) - 0.5) * 3)
+            .Take(60).ToList();
+        (Vector3D Stand, double Yaw, double Score) best = (grid.CellCentre(edges[0]), 0, double.MinValue);
+        foreach (int cell in edges)
+        {
+            Vector3D edge = grid.CellCentre(cell);
+            double woods = Enumerable.Range(0, 36).Select(k => k * 10.0)
+                .MaxBy(b => world.ForestCover(Step(edge, b, 40, R), world.Fields(Step(edge, b, 40, R))));
+            Vector3D into = Step(edge, woods, 40, R);
+            foreach (double back in new[] { 20.0, 30, 45, 60 })
+            {
+                Vector3D stand = Step(edge, woods + 180, back, R);
+                double open = Openness(world, stand), tree = NearestTree(world, stand);
+                if (open < 0 || tree < 12)
+                {
+                    continue;
+                }
+                double score = open + Math.Min(tree, 25) / 25 + world.ForestCover(into, world.Fields(into)) - Math.Abs(back - 35) / 60;
+                if (score > best.Score)
+                {
+                    best = (stand, Bearing(stand, into), score);
+                }
+            }
+        }
+        shots.Add(Make("forest", best.Stand, best.Yaw, 2, string.Create(CultureInfo.InvariantCulture,
+            $"a meadow at a wood's edge, the nearest tree {NearestTree(world, best.Stand):0} m away")));
+
+        // A plain: open plains in the temperate belt, looking across them.
+        int plainCell = Enumerable.Range(0, count).Where(i => fields[i].Plains > 0.85 && !fields[i].Wetted && fields[i].Height > 2)
+            .MaxBy(i => Temperate(grid.CellCentre(i)) + Openness(world, grid.CellCentre(i)));
+        Vector3D plain = grid.CellCentre(plainCell);
+        double across = Enumerable.Range(0, 36).Select(k => k * 10.0).MaxBy(b => world.HeightAt(Step(plain, b, 600, R)));
+        shots.Add(Make("plain", plain, across, 0, "open plains, looking toward the highest ground in view"));
+        return shots;
     }
 
     internal static List<Spot> Spots(WalkingWorld world)

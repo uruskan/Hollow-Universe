@@ -184,6 +184,7 @@ public partial class GroundAudio : Node
         Span<double> biomes = stackalloc double[BiomeTable.Count];
         Span<double> materials = stackalloc double[BiomeTable.MaterialCount];
         surface.Cover(p, surface.Sample(p), 0.1, biomes, materials);
+        BiomeTable.FoldFamilies(materials);
         int best = 0;
         for (int i = 1; i < materials.Length; i++)
         {

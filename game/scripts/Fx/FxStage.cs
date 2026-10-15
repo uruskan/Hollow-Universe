@@ -65,8 +65,12 @@ public static partial class FxStage
 
     public static Material GroundMaterial(int layer, Vector3 tint, bool luminance)
     {
-        _albedo ??= ResourceLoader.Exists("res://assets/surface/ground/ground_albedo.webp") ? GD.Load<TextureLayered>("res://assets/surface/ground/ground_albedo.webp") : null;
-        _normal ??= ResourceLoader.Exists("res://assets/surface/ground/ground_normal.webp") ? GD.Load<TextureLayered>("res://assets/surface/ground/ground_normal.webp") : null;
+        // The ground's layers (HollowUniverse.Surface.GroundLayers), when they are built.
+        if (_albedo == null && FileAccess.FileExists(HollowUniverse.Surface.GroundLayers.Folder + "layers.json"))
+        {
+            _albedo = HollowUniverse.Surface.GroundLayers.Albedo;
+            _normal = HollowUniverse.Surface.GroundLayers.Normal;
+        }
         if (_albedo == null)
         {
             return new StandardMaterial3D { AlbedoColor = new Color(tint.X * 0.35f, tint.Y * 0.3f, tint.Z * 0.25f), Roughness = 0.95f };

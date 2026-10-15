@@ -4277,9 +4277,10 @@ costs the server nothing while nobody watches.
 - Sounds (§9.2): free CC0 downloads, approved by the owner on 13 October 2026 (BigSoundBank, the Free Firearm Sound
   Library, Kenney's audio packs, OpenGameArt's CC0 packs), in the same `Downloads` folders, listed in
   `game/assets/THIRD_PARTY.md`.
-- **In the game now:** the ground textures only (six Megascans surfaces and two Poly Haven sets, listed in
-  `game/assets/THIRD_PARTY.md`, built by `tools/blender/surface_ground.py`). Plants, grass, rocks and their textures
-  are made in code (§4.6); the Megascans and LOLIPOP plant models tried earlier were dropped.
+- **In the game now:** the ground textures only: sixteen 4K layers (fourteen Megascans surfaces and two Poly Haven sets,
+  listed in `game/assets/THIRD_PARTY.md`, built by `tools/blender/surface_layers.py`; WALKING_GROUND.md §8). Plants,
+  grass, rocks and their textures are made in code (§4.6); the Megascans and LOLIPOP plant models tried earlier were
+  dropped.
 
 **Never used** (extracted from Rust's game files):
 - RustMVP's player body and first-person arms (`Content/Rust/Character`).

@@ -85,8 +85,11 @@ public static class Footsteps
 {
     public const string SwimKey = "swim.stroke";
 
-    /// <summary>Hollow.Surface's ground materials: forest floor, soil and gravel crunch like a dirt path; moss is soft like grass.</summary>
-    public static FootSurface FromGround(Hollow.Surface.GroundMaterial material) => material switch
+    /// <summary>
+    /// Hollow.Surface's ground materials, by family (BiomeTable.Family: wet sand is a sand, shingle a gravel, ...): forest
+    /// floor, soil and gravel crunch like a dirt path; moss is soft like grass.
+    /// </summary>
+    public static FootSurface FromGround(Hollow.Surface.GroundMaterial material) => Hollow.Surface.BiomeTable.Family(material) switch
     {
         Hollow.Surface.GroundMaterial.Grass => FootSurface.Grass,
         Hollow.Surface.GroundMaterial.Moss => FootSurface.Grass,

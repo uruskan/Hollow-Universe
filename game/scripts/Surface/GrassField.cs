@@ -483,6 +483,7 @@ public sealed partial class GrassField : Node3D
                 double cos = Math.Abs(Vector3D.Dot(normal, d));
                 double slope = Math.Sqrt(Math.Max(0, 1 - cos * cos));
                 GroundCover c = _surface.Cover(d, s, slope, biomes, materials);
+                BiomeTable.FoldFamilies(materials);
                 double ground = 1 - materials[(int)GroundMaterial.Rock] - materials[(int)GroundMaterial.Sand] - materials[(int)GroundMaterial.Snow]
                     - 0.7 * materials[(int)GroundMaterial.Gravel] - 0.8 * materials[(int)GroundMaterial.ForestFloor];
                 double shade = 1 - 0.75 * Math.Clamp(c.Trees / 0.018, 0, 1); // grass thins out under trees
