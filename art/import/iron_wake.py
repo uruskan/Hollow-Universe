@@ -79,11 +79,12 @@ from hollow.export import collection, copy_object, export_glb, keep_uv, select_o
 from hollow.godot import write_material  # noqa: E402
 from hollow.kit import TURN_WORLD, snake  # noqa: E402
 from hollow.large import (Triangles, area, backfaces_seen, batch_remove, carry_ao, contact_ao,  # noqa: E402
-                          decimate_to, delete_faces, drop_unused_slots, face_colours, fix_folds, linear_to_srgb,
-                          outside_faces, repair_shells, shell_report, split_twisted, srgb_to_linear_array, surfaces,
-                          triangles, voxel_shell, write_json)
+                          decimate_to, delete_faces, drop_unused_slots, face_colours, fix_folds, inside_seen,
+                          linear_to_srgb, outside_faces, repair_shells, shell_report, split_twisted,
+                          srgb_to_linear_array, surfaces, triangles, voxel_shell, write_json)
 from hollow.textures import downscale, read, renormalise, write_png, write_texture_import  # noqa: E402
 
+import iron_wake_closures as closures_lib  # noqa: E402
 import iron_wake_data  # noqa: E402
 import iron_wake_surfaces as finishes_lib  # noqa: E402
 
@@ -475,9 +476,12 @@ def build(asset, moving):
     body = [g for g in statics if g not in HOLD]
     hold = [g for g in statics if g in HOLD]
     loaders, additions = loader_parts(asset, moving)
+    # The import's own pieces closing the asset's openings (iron_wake_closures.py, IRON_WAKE.md §9.1 "As built: the
+    # bow and the stern closed"), in the asset's native frame like its groups.
+    closed = closures_lib.build(asset.materials, collection("IRON_WAKE_SCRATCH"), TURN_WORLD, asset.uv_metres)
     for level in range(4):
         parts.setdefault("Body", {"empty": None, "lods": [], "hulls": []})["lods"].append(
-            merged([asset.lods[g][level] for g in body] + additions.get("Body", {}).get(level, []),
+            merged([asset.lods[g][level] for g in body] + additions.get("Body", {}).get(level, []) + [closed[level]],
                    f"Body_lod{level}", out))
         parts.setdefault("Hold", {"empty": None, "lods": [], "hulls": []})["lods"].append(
             merged([asset.lods[g][level] for g in hold], f"Hold_lod{level}", out))
@@ -491,6 +495,7 @@ def build(asset, moving):
                        tiles)
             attach(o, empty)
             rec["lods"].append(o)
+    ramp_clear(closed[0], parts)
     loader_records = []
     for name, parent, e, lods, hulls, sockets in loaders:
         loader_records.append(loader_record(name, parent, e))
@@ -518,6 +523,30 @@ def build(asset, moving):
             if o.parent is None:
                 attach(o, empty)
     return out, parts, loader_records
+
+
+def ramp_clear(closure, parts):
+    """Fails the import when the ramp's leaves touch the closures anywhere in their swing (the CargoRamp_Open clip's
+    poses every 0.05 s, IRON_WAKE.md §9.1): the stern's bulkhead sits under the hinge, its plate under the ramp set
+    back of the hinge barrel."""
+    c = copy_object(closure, "Closures_check", collection("IRON_WAKE_SCRATCH"))
+    c.data.transform(TURN_WORLD)
+    times, main_a, leaf_a = [0, .36, 2.64, 3.0], [0, -3, -113, -114], [0, 4, 176, 180]
+
+    def at(t, vals):
+        for i in range(1, len(times)):
+            if t <= times[i]:
+                return vals[i - 1] + (t - times[i - 1]) / (times[i] - times[i - 1]) * (vals[i] - vals[i - 1])
+        return vals[-1]
+    poses = [(at(i * 0.05, main_a), at(i * 0.05, leaf_a)) for i in range(61)]
+    bpy.context.view_layer.update()
+    ramp = [(parts["Ramp_Main"]["lods"][0], parts["Ramp_Main"]["empty"].matrix_world.translation.copy(), None),
+            (parts["Ramp_Leaf"]["lods"][0], parts["Ramp_Leaf"]["empty"].matrix_world.translation.copy(), 0)]
+    touching = closures_lib.ramp_clear(c, ramp, (1, 0, 0), poses)
+    bpy.data.objects.remove(c)
+    if touching:
+        raise RuntimeError(f"iron_wake: the ramp touches the stern's closure at (main, leaf) degrees {touching[:6]}")
+    log(f"closures: the ramp swings clear ({len(poses)} poses)")
 
 
 def loader_record(name, parent, e):
@@ -687,13 +716,23 @@ def attach_world(o, empty):
 # from the rooms). The far levels are the asset's own decimations and LOD4 a proxy seen from 1.2 km and more, where
 # a pixel is a metre: they are allowed a little more.
 HOLES = {0: (2e-5, 8, 1e-4), 1: (2e-5, 8, 1e-4), 2: (1e-4, 8, 2e-4), 3: (1e-4, 8, 2e-4), 4: (2e-3, 150, 0)}
+# Openings that show the inside (IRON_WAKE.md §9.1 "As built: the bow and the stern closed"). Measured on 15 October
+# 2026 on the exported LOD0 before the closures: 3,400 of 870,000 rays from outside met the hull's inside (the space
+# under Deck A through the bow and the stern, the bow's void through the slots beside the bridge, Deck A's linings
+# through the side panels' seams), in places by the hundred. Allowed now, per level: (inside first, of the rays from
+# outside; rays in one place, a 2 m cell): a handful of rays slipping through the asset's own fine joints, never an
+# opening.
+INSIDE = {0: (2e-4, 15), 1: (2e-4, 15), 2: (4e-4, 25), 3: (4e-4, 25), 4: (1e-3, 40)}
 
 
 def check_holes(asset, parts):
     """Fails the import when a hole comes back (IRON_WAKE.md §9.1 "As built": the holes): every piece of LOD0-3 must
     be a closed solid facing out (shell_report), and at every level rays from all round (64 directions on a 0.2 m grid)
-    and, for LOD0-3, from points in every room (1,200 directions each) must meet front faces first. Returns the
-    measurements by level for the log."""
+    and, for LOD0-3, from points in every room (1,200 directions each) must meet front faces first. And at every level
+    rays from outside (40 directions on a 0.25 m grid, and the six sides on a 0.12 m grid) must not meet the inside
+    first: the hold's mesh, or a surface facing a space inside the hull (iron_wake_closures.air_boxes), other than
+    through the airlock, the ramp's doorway, the open weather door or glass (inside_seen). Returns the measurements by
+    level for the log."""
     ship = iron_wake_data.Ship(asset)
     rooms = []
     for r in iron_wake_data.rooms(ship):
@@ -720,6 +759,19 @@ def check_holes(asset, parts):
         if (r["outsideSky"] > sky or r["outsideBack"] > back * max(r["outside"], 1)
                 or r["insideBack"] > inside * max(r["inside"], 1)):
             failures.append(f"LOD{lv}: {report[lv]}, worst {r['worst'][:4]}")
+        t0 = time.time()
+        s = inside_seen(objs, inside={f"Hold_lod{lv}"}, air=closures_lib.air_boxes(),
+                        allow=closures_lib.allowed_openings(), glass={GLASS}, directions=40, spacing=0.25,
+                        axis_spacing=0.12)
+        report[lv]["insideSeen"] = s["inside"]
+        report[lv]["insideRays"] = s["rays"]
+        log(f"inside LOD{lv}: {s['inside']} of {s['rays']} rays from outside meet the inside first "
+            f"({time.time() - t0:.0f} s)")
+        for w in s["worst"][:6]:
+            log(f"  inside LOD{lv}: {w}")
+        share, most = INSIDE[lv]
+        if s["inside"] > share * max(s["rays"], 1) or (s["worst"] and s["worst"][0][3] > most):
+            failures.append(f"LOD{lv}: {s['inside']} of {s['rays']} rays meet the inside, worst {s['worst'][:4]}")
     if failures:
         raise RuntimeError("iron_wake: holes in the model (IRON_WAKE.md §9.1):\n  " + "\n  ".join(failures))
     return report
@@ -972,6 +1024,8 @@ MATERIALS_INFO = {
 
 def write_data(asset, moving, records, loader_result):
     data = iron_wake_data.build(asset, moving, records, MATERIALS_INFO)
+    # The closures' own collision where a player could fall through one (iron_wake_closures.collision_pieces).
+    data["pieces"] = data["pieces"] + closures_lib.collision_pieces()
     if loader_result:
         data["loaders"] = loader_result
     write_json(DATA, data)

@@ -732,6 +732,114 @@ def backfaces_seen(objects, rooms=(), directions=64, spacing=0.2, room_rays=1200
             "insideBack": in_back, "worst": worst[:24]}
 
 
+def _in_box(p, box, margin=0.0):
+    return all(box[1][i] - margin <= p[i] <= box[2][i] + margin for i in range(3))
+
+
+def _crosses(a, b, box):
+    """Whether the segment a-b passes through the box (name, lo, hi): the slab test."""
+    t0, t1 = 0.0, 1.0
+    for i in range(3):
+        d = b[i] - a[i]
+        if abs(d) < 1e-12:
+            if a[i] < box[1][i] or a[i] > box[2][i]:
+                return False
+            continue
+        u, v = (box[1][i] - a[i]) / d, (box[2][i] - a[i]) / d
+        t0, t1 = max(t0, min(u, v)), min(t1, max(u, v))
+        if t0 > t1:
+            return False
+    return True
+
+
+def inside_seen(objects, inside=(), air=(), allow=(), glass=(), directions=64, spacing=0.2, axis_spacing=0.1):
+    """Openings that show the inside of a hull from outside, which back faces do not reveal (IRON_WAKE.md §9.1 "As
+    built: the bow and the stern closed"): parallel rays from `directions` all round on a grid `spacing` apart, and
+    from the six sides (+-X, +-Y, below and above) on a grid `axis_spacing` apart, whose first hit is a triangle of
+    an object named in `inside` (the hold's mesh, wherever it is met) or a surface whose air side (a centimetre back
+    along the ray) lies in one of the `air` boxes ((name, lo, hi): the spaces inside the hull, in the objects'
+    frame); and a ray that meets nothing at all but crosses one of those spaces (through a crack). A ray that passed
+    through one of the `allow` boxes (a doorway, an airlock) on its way is not counted, nor one that meets a pane of
+    `glass` (material names) first: a window shows the inside on purpose. Returns {"rays": n, "inside": n, "worst":
+    [(space, object, material, rays, centre)] by place (2 m cells), "examples": [(origin, direction)] one ray of
+    each}."""
+    from mathutils.bvhtree import BVHTree
+    verts, tris, owner, mats = [], [], [], []
+    base = 0
+    for o in objects:
+        co, _, tv, ms = mesh_arrays(o)
+        verts.append(co)
+        tris.append(tv + base)
+        owner += [o.name] * len(tv)
+        mats += ms
+        base += len(co)
+    v = np.concatenate(verts)
+    t = np.concatenate(tris)
+    tree = BVHTree.FromPolygons(v.tolist(), t.tolist(), epsilon=0.0)
+    inside = set(inside)
+    lo, hi = v.min(0), v.max(0)
+    c = (lo + hi) / 2
+    R = float(np.linalg.norm(hi - lo)) / 2 + 1.0
+    corners = np.array([[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
+    axes = np.array([[1.0, 0, 0], [-1.0, 0, 0], [0, 1.0, 0], [0, -1.0, 0], [0, 0, 1.0], [0, 0, -1.0]])
+    sets = [(d, spacing) for d in sphere(directions)] + [(d, axis_spacing) for d in axes]
+    found = {}
+    rays = seen = 0
+    for di, (d, step) in enumerate(sets):
+        u = np.cross(d, [0.0, 0.0, 1.0] if abs(d[2]) < 0.9 else [1.0, 0.0, 0.0])
+        u /= np.linalg.norm(u)
+        w = np.cross(d, u)
+        pu, pw = (corners - c) @ u, (corners - c) @ w
+        dv = Vector(d.tolist())
+        k = di % 7
+        for a in np.arange(pu.min() + step * k / 7, pu.max() + step, step):
+            for b in np.arange(pw.min() + step * ((k * 3) % 7) / 7, pw.max() + step, step):
+                p = Vector((c - d * R + u * a + w * b).tolist())
+                hit = tree.ray_cast(p, dv, 2 * R)
+                if hit[0] is None:
+                    # A ray that meets nothing at all but crosses a space inside went through a crack, unless rays
+                    # 2 mm to each side meet something: then it slipped along an edge two faces share, which a
+                    # rasteriser closes (a ray cast is not watertight there).
+                    end = p + dv * (2 * R)
+                    space = next((n for n, *box in air if _crosses(p, end, (n, *box))), None)
+                    if space is None or any(_crosses(p, end, box) for box in allow):
+                        continue
+                    if any(tree.ray_cast(p + Vector(o.tolist()), dv, 2 * R)[0] is not None
+                           for o in (u * 0.002, -u * 0.002, w * 0.002, -w * 0.002)):
+                        continue
+                    rays += 1
+                    seen += 1
+                    box = next(box for n, *box in air if n == space)
+                    mid = (Vector(box[0]) + Vector(box[1])) / 2
+                    q = p + dv * dv.dot(mid - p)
+                    cell = tuple(int(math.floor(x / 2.0)) for x in q)
+                    rec = found.setdefault((space + " (through)", "-", "-", cell),
+                                           [0, np.zeros(3), (tuple(p), tuple(dv))])
+                    rec[0] += 1
+                    rec[1] += np.asarray(q)
+                    continue
+                rays += 1
+                tri = hit[2]
+                if mats[tri] in glass:
+                    continue
+                air_side = hit[0] - dv * 0.01
+                space = next((n for n, *box in air if _in_box(air_side, (n, *box))), None)
+                if space is None and owner[tri] in inside:
+                    space = "hold"
+                if space is None or any(_crosses(p, hit[0], box) for box in allow):
+                    continue
+                seen += 1
+                # By place (cells of 2 m), so separate openings are reported apart.
+                cell = tuple(int(math.floor(x / 2.0)) for x in hit[0])
+                rec = found.setdefault((space, owner[tri], mats[tri], cell), [0, np.zeros(3), (tuple(p), tuple(dv))])
+                rec[0] += 1
+                rec[1] += np.asarray(hit[0])
+    worst = sorted(((s, o, m, n, [round(float(x), 2) for x in q / n], ray)
+                    for (s, o, m, _), (n, q, ray) in found.items()), key=lambda r: -r[3])
+    return {"rays": rays, "inside": seen, "worst": [w[:5] for w in worst[:24]],
+            "examples": [w[5] for w in worst[:24]]}
+
+
 def decimate_to(o, triangles_wanted):
     """Collapse-decimates a mesh object in place to about `triangles_wanted` triangles."""
     o.data.calc_loop_triangles()

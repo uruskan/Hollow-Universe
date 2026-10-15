@@ -1354,6 +1354,65 @@ culled, `art/import/iron_wake_review.py`): `fix-hull-bow.jpg`, `fix-hull-stern.j
 
 ![The stern and the drives, back faces culled](images/iron-wake/fix-hull-stern.jpg)
 
+#### As built: the bow and the stern closed (15 October 2026, after the owner's playtest)
+
+The owner, from outside in the game: the hull "literally open from the front and the back". It was, and no back face
+showed it: the asset leaves the space under Deck A, between the bottom plate (its top at z 2.21) and the deck's floor
+(its underside at 2.98), open at both ends, round the keel lance under the bow and under the ramp's hinge at the stern,
+so one saw the deck's underside, the lance's mount and the far end of the ship through it. A ray scan of the exported
+GLB found more of the same: two slots 0.5 m wide and 8.5 m long beside the bridge, open from the sky to the bottom
+plate and Deck A's floor; a 9 cm slit at the bow's top into the bow's void; the side panels' seams (4 to 5 cm every
+3 m) showing Deck A's linings; two narrow slots along the top; cracks between the bow section's side panels (a 4.6 cm
+seam at y -15 and 4 mm at -18) through which one saw across the void.
+
+**The closures** are the import's own pieces (`art/import/iron_wake_closures.py`), in the asset's language and
+finishes, merged into the Body at every level (LOD0 and LOD1 with their bolts and strips, LOD2 and LOD3 without; LOD4
+is made from LOD3 as before):
+- *The bow*: a recessed armoured housing round the keel lance: oxide side cheeks fitted into the hull's slanted oxide
+  cheeks, a dark steel roof under the brown front plate and a back wall at y -19 that the lance's barrels pass through,
+  an oxide mantlet strip and bolts above them. The muzzles (y -20.5) sit in a closed embrasure 1.5 m ahead of its back.
+- *The stern*: a dark steel bulkhead under the ramp's hinge: two wings from the hull's cheeks to the ramp's width, up
+  under the stern frame, and between them a plate set back under the ramp, its face at y 17.48, 4 cm ahead of the
+  hinge barrel; raised oxide panels and bolts. The import checks the ramp's two leaves against it at 61 poses of the
+  opening clip and fails if they touch (`ramp_clear`).
+- *Beside the bridge*: tread plates over the two slots, 1.5 cm under the bridge floor's ledge, and a cap over Deck A's
+  forward bulkhead where it crosses them. The asset's convex pieces left the slots' aft 2.2 m open behind the side
+  weather plates, where a player could step in and fall into the hold, so the data file gains two pieces
+  (`Closure_BridgeSlot`, the end of `pieces`).
+- *Elsewhere*: a floor for the shelf at the bow's top; a dark steel backing behind the side panels along Deck A (the
+  seams now read as recessed joints; it stops round the airlock's passage); strips under the slots along the top;
+  blocks behind the bow section's panel joints.
+
+**The check** (`inside_seen` in `art/hollow/large.py`, called by `check_holes` at every level): parallel rays from 40
+directions all round on a 0.25 m grid and from the six sides on a 0.12 m grid must not meet the inside first: the
+hold's mesh, a surface facing one of the spaces inside the hull (under Deck A, the bow's void, Deck A, as boxes kept
+clear of the skin), or nothing at all after crossing one (a crack; a ray that slips along an edge two faces share, where
+rays 2 mm to each side meet the hull, does not count). The airlock, the ramp's doorway, the open upper weather door and
+glass are the openings that show the inside on purpose. Allowed: 0.02 % of the rays at LOD0 and LOD1 (0.04 % at LOD2
+and LOD3, 0.1 % at LOD4) and no more than 15 in one 2 m cell (25, 40). On the exported LOD0 before the closures,
+1,613 of 563,316 rays met the inside, up to 75 in one place; after:
+
+| Level | Rays from outside meeting the inside first | Most in one place |
+|---|---|---|
+| LOD0 | 12 of 563,321 (0.002 %) | 4 |
+| LOD1, LOD2, LOD3 | 8, 8 and 9 of about 560,000 | 4 |
+| LOD4 | 148 of 550,133 (0.03 %) | 20 |
+
+What is left at LOD0 to LOD3: single rays slipping between the asset's own parts (the forward bulkhead's top beside
+the bridge, the linings behind a frame), a few centimetres each. At LOD4 the proxy's bottom, which the voxel shell and
+its decimation pull up into the space under the deck: its outside, counted, under a pixel from 1.2 km. The check adds
+about 35 s a level to the import.
+
+The reference scan (`art/import/iron_wake_rayscan_ref.py`, rays along the ship from the front and from the stern on a
+0.75 × 0.5 m grid, LOD0): from the front, nothing above the bottom plate gets past the bow's skin except into the
+embrasure, whose back wall is at y -19.0 (the barrels' muzzles at -20.5); below z 2.03 the rays pass under the bottom
+plate, outside, to the lance's barrels and the keel rails. From the stern, every ray between the bottom plate and the
+deck stops at the bulkhead (y 17.48 under the ramp, 17.72 beside it) or on the ramp.
+
+![The keel lance's embrasure from ahead and below, back faces culled](images/iron-wake/close-bow.jpg)
+
+![The bulkhead under the ramp's hinge, back faces culled](images/iron-wake/close-stern.jpg)
+
 ### 9.2 Materials and textures
 
 - **The sixteen finishes.** The asset's sixteen surface definitions (`material_revision.json`) become shared Godot
