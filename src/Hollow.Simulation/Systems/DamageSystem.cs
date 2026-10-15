@@ -18,6 +18,9 @@ namespace Hollow.Simulation;
 /// </summary>
 internal readonly record struct RayQuery(Vector3 Origin, Vector3 Direction, float Length, float Thickness, EntityId Ignore, double ViewTick, bool Bullet)
 {
+    /// <summary>A ship whose space the ray passes through (its key; 0 none): a battery's rocket leaving its own hull (IW3).</summary>
+    public ulong IgnoreShip { get; init; }
+
     /// <summary>Puts a thing met at <paramref name="t"/> along the ray into <paramref name="best"/> when nearer (a tie keeps the first found).</summary>
     public void Consider(ref TraceHit best, float t, TargetRef target, HitRegion region = HitRegion.None)
     {
@@ -133,9 +136,9 @@ public sealed class DamageSystem : ZoneSystem
     /// building piece, door or claim device, or the ground; each receiver tests its own things. <paramref name="ignore"/>
     /// is the attacker.
     /// </summary>
-    public TraceHit Trace(Vector3 origin, Vector3 direction, float length, float thickness, EntityId ignore, double viewTick, bool bullet = false)
+    public TraceHit Trace(Vector3 origin, Vector3 direction, float length, float thickness, EntityId ignore, double viewTick, bool bullet = false, ulong ignoreShip = 0)
     {
-        var ray = new RayQuery(origin, direction, length, thickness, ignore, viewTick, bullet);
+        var ray = new RayQuery(origin, direction, length, thickness, ignore, viewTick, bullet) { IgnoreShip = ignoreShip };
         var best = new TraceHit { Distance = -1 };
         foreach (IDamageReceiver receiver in _receiverOrder)
         {

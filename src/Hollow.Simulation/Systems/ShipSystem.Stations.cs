@@ -414,7 +414,7 @@ public sealed partial class ShipSystem
         float rewind = c.Actions.ViewDelay / 4f;
         st.Shots++;
         StationGuns.LaunchBattery(p.Id, p.Name, round, battery, profile, origin, pose.DirectionToWorld(direction), pose.VelocityAt(origin), st.Shots, def.Index,
-            barrel, rewind);
+            barrel, rewind, ship.Id.Value);
         st.Chambers[barrel] = 0;
         st.ShotTicks[barrel] = Tick;
         st.NextBarrel = (barrel + 1) % def.Barrels.Count;

@@ -55,6 +55,9 @@ public sealed class Bullet
     /// </summary>
     public RocketMotor? Motor;
     public float Burnt;
+
+    /// <summary>The ship a battery's rocket left (its key), passed through for its first <see cref="GunSystem.OwnHullTicks"/> (IW3).</summary>
+    public ulong OwnShip;
     public int Battery = -1;
     public int Station = -1;
     public int Barrel = -1;
@@ -88,6 +91,9 @@ public sealed class GunSystem : ZoneSystem
     /// still looks back at most the rewind limit (0.25 s).
     /// </summary>
     public const int GunActionLateTicks = 30;
+
+    /// <summary>A battery's rocket passes through its own ship's space for this many ticks (it leaves from inside the barrel; IW3).</summary>
+    public const int OwnHullTicks = 30;
 
     /// <summary>Bullets fly in this many steps a tick.</summary>
     public const int BulletSteps = 2;
@@ -388,7 +394,7 @@ public sealed class GunSystem : ZoneSystem
     /// off where it stops. Its shooter is the gunner; its number is the station's shot's.
     /// </summary>
     public Bullet LaunchBattery(EntityId shooter, string shooterName, ItemDef round, BatteryDef battery, LaunchProfile profile, Vector3 origin, Vector3 direction,
-        Vector3 carried, uint number, int station, int barrel, float rewindTicks)
+        Vector3 carried, uint number, int station, int barrel, float rewindTicks, ulong ownShip = 0)
     {
         var bullet = new Bullet
         {
@@ -409,6 +415,7 @@ public sealed class GunSystem : ZoneSystem
             Battery = battery.Index,
             Station = station,
             Barrel = barrel,
+            OwnShip = ownShip,
         };
         _bullets.Add(bullet);
         Events.Add(new ProjectileLaunched(Shooter: shooter, Projectile: bullet.Id, Ammo: round.Id, Position: bullet.Position, Velocity: bullet.Velocity, Seq: number)
@@ -459,7 +466,8 @@ public sealed class GunSystem : ZoneSystem
                 {
                     Vector3 direction = path / length;
                     float reach = spent ? MathF.Max(0, b.Range - b.Distance) : length;
-                    TraceHit hit = reach > 1e-6f ? Damage.Trace(b.Position, direction, reach, BulletRadius, b.Shooter, Tick - b.RewindTicks, bullet: true)
+                    TraceHit hit = reach > 1e-6f ? Damage.Trace(b.Position, direction, reach, BulletRadius, b.Shooter, Tick - b.RewindTicks, bullet: true,
+                            ignoreShip: b.AgeTicks < OwnHullTicks ? b.OwnShip : 0)
                         : new TraceHit { Distance = -1 };
                     if (hit.Hit)
                     {
