@@ -146,6 +146,8 @@ public static class FxBatches
 
     public static Dictionary<string, FxBatch> Create(Node parent)
     {
+        // The particles fall toward the planet's centre: its globals exist before their shader is loaded.
+        HollowUniverse.Surface.PlanetGlobals.Register();
         var quad = new QuadMesh { Size = Vector2.One };
         Texture2D noise = FxAssets.Texture("textures/noise.png");
         var batches = new Dictionary<string, FxBatch>(StringComparer.Ordinal);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Godot;
+using Hollow.Simulation.Nature;
 using Hollow.Core;
 using Hollow.Galaxy.Systems;
 using Hollow.Simulation;
@@ -126,15 +127,16 @@ public partial class ShipSandbox : Node3D
             return;
         }
 
-        // The planet: the surface view driven in the zone's frame (render coordinates are the zone's), as the ground game
-        // drives it: it draws around the camera this sandbox places.
+        // The world: the surface view drawing the zone's own whole world in its frame (render coordinates are the zone's),
+        // as the ground game does (docs/WHOLE_WORLD.md §10): it draws around the camera this sandbox places.
         _surface = new SurfaceView { Name = "Surface", Driven = true };
         AddChild(_surface);
         // The play clock (the planet turning 24 times faster, as the server keeps it): --time, or the moment after the
         // look-dev date when it is --hour o'clock at the landing site (by default half past nine in the morning).
         double time = Options.TryGetValue("time", out string? t) ? ParseTime(t)
             : PlayTime(found, spec.RotationTimeScale, ParseTime(LookDevTime), Options.TryGetValue("hour", out string? h) ? Parse(h) : 9.5);
-        _surface.OpenZone(found.System, found.Body, found.Surface, _zone.Frame.Origin, time, spec.RotationTimeScale);
+        _surface.OpenWorld(found.System, found.Body, _zone.Surface, new HollowUniverse.Ground.NaturePlants(_zone.Nature!, _content, _zone.Frame, _zone.Surface.Radius),
+            spec.SurfaceSeed, time, spec.RotationTimeScale, (float)(spec.SurfaceGravity * 9.80665));
         if (_shot)
         {
             _surface.SetTime(time, paused: true); // screenshots never wait for the sun
@@ -200,39 +202,45 @@ public partial class ShipSandbox : Node3D
     private readonly record struct Site(Num.Vector3 Ground, float Spread, float Slope, float Footprint, double Trees, float Distance);
 
     /// <summary>
-    /// The best-scoring point on a grid around <paramref name="around"/> (radius and step in metres): each is scored by the
-    /// height spread over a ship's footprint (8 m across), the slope there (degrees) and the planet's tree density.
+    /// The best-scoring point on a grid around <paramref name="around"/> (metres east and south of the landing site along
+    /// the ground, Zone.GroundAt; radius and step in metres): each is scored by the height spread over a ship's footprint
+    /// (8 m across), the slope there (degrees) and the zone's tree density (its own trees within 15 m).
     /// </summary>
     private Num.Vector3 FindSite(Num.Vector3 around, float radius, float step, Func<Site, float> score, Num.Vector3 fallback,
         Func<Num.Vector3, bool>? accept = null)
     {
         int n = (int)(radius / step);
         var candidates = new List<(float Score, Num.Vector3 Ground)>();
-        Span<double> biomes = stackalloc double[BiomeTable.Count];
+        var near = new List<NaturalObject>();
         for (int i = -n; i <= n; i++)
         {
             for (int j = -n; j <= n; j++)
             {
                 float x = around.X + i * step, zc = around.Z + j * step;
                 Num.Vector3 g = _zone.GroundAt(x, zc);
-                float lo = g.Y, hi = g.Y;
+                // Heights as distances from the centre (on a ball +Y is the pole, not up).
+                float Radius(Num.Vector3 p) => (float)_zone.Frame.ToBody(p).Length;
+                float lo = Radius(g), hi = lo;
                 for (int k = 0; k < 8; k++)
                 {
                     float a = k * MathF.PI / 4;
-                    float y = _zone.GroundAt(x + 4 * MathF.Cos(a), zc + 4 * MathF.Sin(a)).Y;
+                    float y = Radius(_zone.GroundAt(x + 4 * MathF.Cos(a), zc + 4 * MathF.Sin(a)));
                     lo = MathF.Min(lo, y);
                     hi = MathF.Max(hi, y);
                 }
                 (_, float slope) = _zone.GroundNormal(g);
-                Vector3D dir = _zone.Frame.ToBody(g).Normalized;
-                SurfaceSample s = _planet.Sample(dir);
-                if (_planet.SeaRadius > 0 && s.Height < 1)
+                if (_zone.Surface.SeaRadius > 0 && lo < _zone.Surface.SeaRadius + 1)
                 {
                     continue;
                 }
-                ClimateSample climate = _planet.Climate(dir, s);
-                _planet.BiomeWeights(dir, s, climate, biomes);
-                double trees = _planet.Vegetation(dir, s, climate, biomes, Math.Sin(slope)).Trees;
+                near.Clear();
+                _zone.Nature!.Query(g, 15, near);
+                int count = 0;
+                foreach (NaturalObject o in near)
+                {
+                    count += _content.Natural(o.Kind)?.Class == NaturalClass.Tree ? 1 : 0;
+                }
+                double trees = count / (MathF.PI * 15 * 15);
                 float footprint = MathF.Atan((hi - lo) / 8) * 180 / MathF.PI;
                 float value = score(new Site(g, hi - lo, slope * 180 / MathF.PI, footprint, trees, new Num.Vector2(i * step, j * step).Length()));
                 if (value > float.MinValue)
@@ -275,12 +283,18 @@ public partial class ShipSandbox : Node3D
             case "cockpit":
             {
                 // Over the forest: the densest trees within 3 km, flown toward at 60–70 m.
-                Num.Vector3 forest = FindSite(Num.Vector3.Zero, 3000, 150,
-                    s => (float)s.Trees - (s.Slope > 30 ? 1 : 0) - s.Distance * 2e-6f, fallback: new Num.Vector3(0, 0, -1500));
+                // Over the forest: the densest trees within 1.5 km of the landing site (a quarter of the way round a 2.41 km
+                // world), flown toward at 40–65 m.
+                Num.Vector3 forest = FindSite(Num.Vector3.Zero, 1500, 75,
+                    s => (float)s.Trees - (s.Slope > 30 ? 1 : 0) - s.Distance * 2e-6f, fallback: _zone.GroundAt(0, -800));
                 bool cockpit = scene == "cockpit";
-                Num.Vector3 heading = Num.Vector3.Normalize(new Num.Vector3(forest.X, 0, forest.Z) + new Num.Vector3(1e-3f, 0, 0));
-                Num.Vector3 start = forest - heading * (cockpit ? 260 : 330);
-                float yaw = MathF.Atan2(-heading.X, -heading.Z);
+                // Toward the forest from the landing site, along the ground there.
+                Num.Vector3 forestUp = _zone.Frame.UpAt(forest);
+                Num.Vector3 away = forest - _zone.Landing;
+                Num.Vector3 heading = away - forestUp * Num.Vector3.Dot(away, forestUp);
+                heading = heading.LengthSquared() > 1 ? Num.Vector3.Normalize(heading) : Facing.Compass(forestUp).North;
+                Num.Vector3 start = _zone.Settle(forest - heading * (cockpit ? 260 : 330));
+                float yaw = Facing.YawOf(heading, _zone.Frame.UpAt(start));
                 float height = cockpit ? 42 : 65;
                 float speed = cockpit ? 55 : 95;
                 Board();
@@ -295,7 +309,7 @@ public partial class ShipSandbox : Node3D
             {
                 // Landed on a hillside: an even slope near 19° (the Tin Finch lands on up to 25°), open if it can be,
                 // within 2 km; set down on it under flight assist (down held until the skids touch, then let go).
-                Num.Vector3 hill = FindSite(Num.Vector3.Zero, 2000, 40,
+                Num.Vector3 hill = FindSite(Num.Vector3.Zero, 1500, 40,
                     s => s.Slope is > 14 and < 24 && MathF.Abs(s.Footprint - s.Slope) < 4
                         ? -MathF.Abs(s.Slope - 19) - (float)s.Trees * 300 - s.Distance * 0.001f : float.MinValue,
                     fallback: _pad, accept: g => _zone.Ships().ShipSpaceClear(def, g, 0));
@@ -305,7 +319,7 @@ public partial class ShipSandbox : Node3D
                 downhill = downhill.LengthSquared() > 1e-6f ? Num.Vector3.Normalize(downhill) : forward;
                 // Nose across the slope, so the tilt shows from the side.
                 Num.Vector3 across = Num.Vector3.Cross(hillUp, downhill);
-                float yaw = MathF.Atan2(-across.X, -across.Z);
+                float yaw = Facing.YawOf(across, hillUp);
                 Board();
                 Teleport(hill + hillUp * (6 + def.CentreOfMass.Y), yaw, Num.Vector3.Zero);
                 Fly(new ShipInput { Vertical = -1 }, 30 * 15, untilLanded: true);

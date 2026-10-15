@@ -51,6 +51,15 @@ public interface INaturalObjects
     /// </summary>
     bool TryGetNear(ulong id, Vector3 point, float radius, out NaturalObject found) =>
         TryGet(id, out found) && Vector3.Distance(found.Position, point) <= radius;
+
+    /// <summary>The cube-sphere level of the tiles the objects are placed by: each object belongs to one tile of it.</summary>
+    int Level { get; }
+
+    /// <summary>The objects of one tile of <see cref="Level"/>, always in the same order (drawing streams them by tile).</summary>
+    IReadOnlyList<NaturalObject> InTile(Surface.TileKey tile);
+
+    /// <summary>The tile an ID names, without making the tile's objects (untrusted: null when it names none of ours).</summary>
+    Surface.TileKey? TileOf(ulong id);
 }
 
 /// <summary>Shapes and derived numbers of natural objects, shared by the server, the client and the physics.</summary>

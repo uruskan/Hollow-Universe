@@ -44,7 +44,7 @@ public partial class SurfaceView
 
     // Coarse to fine: the finest level drawn of the levels there are, short of all while tiles are still coming.
     private double LandProgress() =>
-        _frame == null ? 0 : (double)_terrain.FinestLevel / TerrainLod.MaxLevel * (_terrain.Pending > 0 ? 0.9 : 1);
+        _frame == null ? 0 : (double)_terrain.FinestLevel / Math.Max(1, _terrain.MaxLevel) * (_terrain.Pending > 0 ? 0.9 : 1);
 
     // The library painted, the impostors baked, the scatter laid out (against the most that waited), the grass.
     private double ForestProgress(ref int scatterPeak)

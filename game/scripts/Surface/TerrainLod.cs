@@ -9,15 +9,21 @@ using Hollow.Surface;
 namespace HollowUniverse.Surface;
 
 /// <summary>
-/// Draws a planet's ground out to the horizon (GROUND.md §4.6): a quadtree of tiles on each cube face, split near
-/// the camera and merged far away. Tile grids come from <see cref="TileMesh.Build"/> on worker threads, so the
-/// vertices near the player are exactly the ones collision uses. Vertices morph toward the parent's grid as they
-/// near the distance where the parent takes over, so levels change without popping; skirts close any remaining
-/// cracks between levels.
+/// Draws a planet's ground out to the horizon (GROUND.md §4.6), from any <see cref="ISurface"/> (docs/WHOLE_WORLD.md
+/// §10.1): a quadtree of tiles on each cube face, split near the camera and merged far away. Tile grids come from
+/// <see cref="TileMesh.Build"/> on worker threads; the finest tiles are chosen by size, so their vertices are the
+/// lattice the physics' ground is built on and feet stand on what is drawn. Vertices morph toward the parent's grid as
+/// they near the distance where the parent takes over, so levels change without popping; skirts close any remaining
+/// cracks between levels. Each tile carries its cube face (the instance uniform <c>tile_face</c>) and texture
+/// coordinates in metres on it (UV2), which the shaders blend across face seams.
 /// </summary>
 public sealed partial class TerrainLod : Node3D
 {
-    public const int MaxLevel = PlanetSurface.CollisionLevel;
+    /// <summary>The finest tiles are the level whose edge is nearest this (39 m on the real first world, 30 m on a 2.41 km one).</summary>
+    public const double FinestTileMetres = 36;
+
+    /// <summary>The finest level drawn on this surface (<see cref="FinestTileMetres"/>, by size).</summary>
+    public int MaxLevel { get; private set; } = PlanetSurface.CollisionLevel;
 
     /// <summary>A tile splits when the camera is closer than this many tile edges.</summary>
     private const double SplitFactor = 1.6;
@@ -52,7 +58,9 @@ public sealed partial class TerrainLod : Node3D
         public volatile bool Cancelled;
     }
 
-    private PlanetSurface _surface = null!;
+    private ISurface _surface = null!;
+    private double _seaLevel;
+    private (double Low, double High) _bounds;
     private RenderFrame _frame = null!;
     private ShaderMaterial _material = null!;
     private ShaderMaterial? _waterMaterial;
@@ -85,9 +93,12 @@ public sealed partial class TerrainLod : Node3D
     private long _buildTicks;
     private int _builds;
 
-    public void Setup(PlanetSurface surface, RenderFrame frame, ShaderMaterial material, ShaderMaterial? water)
+    public void Setup(ISurface surface, RenderFrame frame, ShaderMaterial material, ShaderMaterial? water)
     {
         _surface = surface;
+        _seaLevel = surface.SeaRadius > 0 ? surface.SeaRadius - surface.Radius : 0;
+        _bounds = surface.HeightBounds;
+        MaxLevel = TileKey.LevelFor(surface.Radius, FinestTileMetres);
         _frame = frame;
         _material = material;
         _waterMaterial = water;
@@ -117,9 +128,9 @@ public sealed partial class TerrainLod : Node3D
     {
         double edge = TileKey.EdgeLength(key.Level, _surface.Radius);
         var node = new Node { Key = key, Centre = key.Centre * _surface.Radius };
-        // Before its grid exists, a tile's height range is its parent's (or the planet's for the roots).
-        node.MinHeight = parent?.MinHeight ?? -11000;
-        node.MaxHeight = parent?.MaxHeight ?? 9000;
+        // Before its grid exists, a tile's height range is its parent's (or the surface's for the roots).
+        node.MinHeight = parent?.MinHeight ?? (float)_bounds.Low;
+        node.MaxHeight = parent?.MaxHeight ?? (float)_bounds.High;
         node.Radius = edge * 0.75 + Math.Max(Math.Abs(node.MinHeight), Math.Abs(node.MaxHeight));
         return node;
     }
@@ -306,6 +317,7 @@ public sealed partial class TerrainLod : Node3D
                 start = end = 1e12f;
             }
             n.Instance.SetInstanceShaderParameter("morph_range", new Vector2(start, end));
+            n.Instance.SetInstanceShaderParameter("tile_face", (int)n.Key.Face);
             n.Instance.Visible = true;
             if (n.WaterMesh != null && _waterMaterial != null)
             {
@@ -313,6 +325,7 @@ public sealed partial class TerrainLod : Node3D
                 n.WaterInstance.Mesh = n.WaterMesh;
                 n.WaterInstance.Transform = n.Instance.Transform;
                 n.WaterInstance.SetInstanceShaderParameter("morph_range", new Vector2(start, end));
+                n.WaterInstance.SetInstanceShaderParameter("tile_face", (int)n.Key.Face);
                 n.WaterInstance.Visible = true;
             }
         }
@@ -386,6 +399,7 @@ public sealed partial class TerrainLod : Node3D
         arrays[(int)Mesh.ArrayType.Normal] = data.Normals;
         arrays[(int)Mesh.ArrayType.Color] = data.Climate;
         arrays[(int)Mesh.ArrayType.TexUV] = data.Heights;
+        arrays[(int)Mesh.ArrayType.TexUV2] = data.FaceMetres;
         arrays[(int)Mesh.ArrayType.Custom0] = data.MorphPositions;
         arrays[(int)Mesh.ArrayType.Custom1] = data.MorphNormals;
         arrays[(int)Mesh.ArrayType.Custom2] = data.Materials0;
@@ -406,6 +420,7 @@ public sealed partial class TerrainLod : Node3D
             water.Resize((int)Mesh.ArrayType.Max);
             water[(int)Mesh.ArrayType.Vertex] = data.WaterVertices;
             water[(int)Mesh.ArrayType.TexUV] = data.WaterDepth!;
+            water[(int)Mesh.ArrayType.TexUV2] = data.WaterFaceMetres!;
             water[(int)Mesh.ArrayType.Custom0] = data.WaterMorph!;
             water[(int)Mesh.ArrayType.Index] = data.WaterIndices!;
             var waterMesh = new ArrayMesh();
@@ -413,8 +428,9 @@ public sealed partial class TerrainLod : Node3D
                 (Mesh.ArrayFormat)((int)Mesh.ArrayCustomFormat.RgbFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift));
             n.WaterMesh = waterMesh;
         }
-        n.MinHeight = n.Grid!.MinHeight;
-        n.MaxHeight = n.Grid.MaxHeight;
+        // The grid's heights are above the sea; the split test measures from the mean radius.
+        n.MinHeight = n.Grid!.MinHeight + (float)_seaLevel;
+        n.MaxHeight = n.Grid.MaxHeight + (float)_seaLevel;
         n.Centre = n.Grid.Origin;
         n.Radius = n.Grid.BoundingRadius;
         n.Data = null; // the grid stays for re-anchoring; the arrays now live on the GPU
@@ -485,6 +501,7 @@ public sealed class TileMeshData
     public Vector3[] Normals = Array.Empty<Vector3>();
     public Color[] Climate = Array.Empty<Color>();
     public Vector2[] Heights = Array.Empty<Vector2>();
+    public Vector2[] FaceMetres = Array.Empty<Vector2>();
     public float[] MorphPositions = Array.Empty<float>();
     public float[] MorphNormals = Array.Empty<float>();
     public byte[] Materials0 = Array.Empty<byte>();
@@ -495,6 +512,7 @@ public sealed class TileMeshData
     public Vector3[]? WaterVertices;
     public float[]? WaterMorph;
     public Vector2[]? WaterDepth;
+    public Vector2[]? WaterFaceMetres;
     public int[]? WaterIndices;
 
     private static readonly ConcurrentDictionary<int, int[]> IndexCache = new();
@@ -511,6 +529,7 @@ public sealed class TileMeshData
             Normals = new Vector3[total],
             Climate = new Color[total],
             Heights = new Vector2[total],
+            FaceMetres = new Vector2[total],
             MorphPositions = new float[total * 3],
             MorphNormals = new float[total * 3],
             Materials0 = new byte[total * 4],
@@ -545,6 +564,7 @@ public sealed class TileMeshData
         var positions = new Hollow.Core.Vector3D[count];
         d.WaterVertices = new Vector3[count];
         d.WaterDepth = new Vector2[count];
+        d.WaterFaceMetres = new Vector2[count];
         d.WaterMorph = new float[count * 3];
         for (int v = 0; v < count; v++)
         {
@@ -553,6 +573,7 @@ public sealed class TileMeshData
             positions[v] = p;
             d.WaterVertices[v] = new Vector3((float)p.X, (float)p.Y, (float)p.Z);
             d.WaterDepth[v] = new Vector2(-grid.Heights[v], 0);
+            d.WaterFaceMetres[v] = new Vector2(grid.FaceMetres[2 * v], grid.FaceMetres[2 * v + 1]);
         }
         for (int j = 0; j < n; j++)
         {
@@ -602,6 +623,7 @@ public sealed class TileMeshData
         d.Climate[target] = new Color(grid.Climate[4 * source] / 255f, grid.Climate[4 * source + 1] / 255f,
             grid.Climate[4 * source + 2] / 255f, grid.Climate[4 * source + 3] / 255f);
         d.Heights[target] = new Vector2(grid.Heights[source], offset == Vector3.Zero ? 0 : 1);
+        d.FaceMetres[target] = new Vector2(grid.FaceMetres[2 * source], grid.FaceMetres[2 * source + 1]);
     }
 
     // Border vertices in order around the tile: bottom row, right column, top row backwards, left column backwards.

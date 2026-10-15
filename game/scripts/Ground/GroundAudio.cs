@@ -168,23 +168,22 @@ public partial class GroundAudio : Node
     }
 
     /// <summary>What the ground sounds like underfoot at a point (zone frame): the strongest ground material there.</summary>
-    public static FootSurface SurfaceAt(GameClient client, Num.Vector3 local) =>
-        client.Surface is PlanetSurface ? Footsteps.FromGround(MaterialAt(client, local)) : FootSurface.Grass;
+    public static FootSurface SurfaceAt(GameClient client, Num.Vector3 local) => Footsteps.FromGround(MaterialAt(client, local));
 
-    /// <summary>The ground's main material at a point (zone frame): grass, dirt, sand, rock… (grass off the planet).</summary>
+    /// <summary>
+    /// The ground's main material at a point (zone frame): grass, dirt, sand, rock… as the terrain paints it there
+    /// (<see cref="ISurface.Cover"/>, any surface); grass before the world is known.
+    /// </summary>
     public static GroundMaterial MaterialAt(GameClient client, Num.Vector3 local)
     {
-        if (client.Surface is not PlanetSurface planet)
+        if (client.Surface is not { } surface)
         {
             return GroundMaterial.Grass;
         }
         Vector3D p = client.Frame.ToBody(local).Normalized;
-        SurfaceSample s = planet.Sample(p);
-        ClimateSample climate = planet.Climate(p, s);
         Span<double> biomes = stackalloc double[BiomeTable.Count];
-        planet.BiomeWeights(p, s, climate, biomes);
         Span<double> materials = stackalloc double[BiomeTable.MaterialCount];
-        planet.Materials(s, climate, biomes, 0.1, 0.3, materials);
+        surface.Cover(p, surface.Sample(p), 0.1, biomes, materials);
         int best = 0;
         for (int i = 1; i < materials.Length; i++)
         {
@@ -265,7 +264,7 @@ public partial class GroundAudio : Node
     {
         var input = new AmbienceInput { Wind = Wind, Forest = Math.Clamp(trees / 22.0, 0, 1) };
         Vector3D here = frame.ToBody(at).Normalized;
-        input.Biome = surface is PlanetSurface planet ? planet.BiomeAt(here) : Biome.TemperateForest;
+        input.Biome = surface.BiomeAt(here);
         double h0 = surface.HeightAt(here);
         double around = 0;
         double sea = 5000;

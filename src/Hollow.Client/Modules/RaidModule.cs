@@ -73,6 +73,7 @@ public sealed class RaidModule : ClientModule
         e.FuseEndTick = m.FuseEndTick;
         e.FuseTicks = (int)Math.Min(m.FuseTicks, int.MaxValue);
         e.Gravity = -Frame.UpAt(start) * (float)(Zone.SurfaceGravity * 9.80665);
+        e.Centre = Frame.ToLocal(Core.Vector3D.Zero);
         e.Revision++;
         ExplosiveChanged?.Invoke(e);
     }

@@ -175,7 +175,7 @@ public partial class GroundMeasure : Node
         }
         Num.Vector3 centre = others.Aggregate(Num.Vector3.Zero, (a, b) => a + b) / others.Length;
         Num.Vector3 d = centre - client.Character.Position;
-        View.Yaw = MathF.Atan2(-d.X, -d.Z);
+        View.TurnToward(d);
         View.Pitch = -0.08f;
     }
 }

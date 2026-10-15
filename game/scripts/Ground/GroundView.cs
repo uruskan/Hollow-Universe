@@ -19,13 +19,13 @@ using Num = System.Numerics;
 namespace HollowUniverse.Ground;
 
 /// <summary>
-/// The ground game in first person (GROUND.md §4.3), one whole on the first world (the stand-in world until S4,
-/// docs/WHOLE_WORLD.md §4): the surface view draws the world
-/// (terrain, sea, sky at the universe time, plants, grass) in the zone's own frame, so the server's collision and the
-/// drawn ground are the same triangles; the natural objects as the game changed them; deployables, drops and arrows;
-/// the other players as characters; the player's arms and tools; and the RustMVP interface over
-/// <see cref="ClientGroundUi"/>. Mouse look is applied every frame; the camera sits at the predicted eye, blended
-/// between ticks. Zone-frame metres are Godot's coordinates (+X east, +Y up at the zone's origin, +Z south).
+/// The ground game in first person (GROUND.md §4.3), on a whole world (the stand-in world until S4,
+/// docs/WHOLE_WORLD.md §4): the surface view draws the ball (terrain, sea, sky at the universe time, plants, grass;
+/// WHOLE_WORLD.md §10) in the zone's own frame, so the server's collision and the drawn ground are the same lattice;
+/// the natural objects as the game changed them; deployables, drops and arrows; the other players as characters; the
+/// player's arms and tools; and the RustMVP interface over <see cref="ClientGroundUi"/>. Mouse look is applied every
+/// frame; the camera sits at the predicted eye, blended between ticks. Zone-frame metres are Godot's coordinates: the
+/// world's own frame, origin at its centre, +Y its north pole; up is away from the centre.
 /// </summary>
 public partial class GroundView : Node3D
 {
@@ -38,9 +38,6 @@ public partial class GroundView : Node3D
 
     private SurfaceView? _world;
     private Camera3D? _camera;
-    private GroundTerrain? _flat;
-    private Godot.Environment? _flatSky;
-    private DirectionalLight3D? _flatSun;
     private GroundCollision _collision = null!;
     private NatureView _nature = null!;
     private ThingsView _things = null!;
@@ -134,6 +131,15 @@ public partial class GroundView : Node3D
     /// <summary>A universe time to show instead of now (seconds since J2000; screenshots of a time of day).</summary>
     public double? TimeOverride { get; set; }
 
+    /// <summary>
+    /// Metres the camera is lifted along up above the eye (--lift, screenshots: the ball from the leaving height); the
+    /// world streams around the camera, the character stays where it is.
+    /// </summary>
+    public float CameraLift { get; set; }
+
+    /// <summary>A pitch to look at once the view is restored (--pitch, radians; screenshots).</summary>
+    public float? ShotPitch { get; set; }
+
     /// <summary>The menu's QUIT.</summary>
     public event Action? QuitRequested;
 
@@ -171,6 +177,29 @@ public partial class GroundView : Node3D
         _keypad.Ask(title);
     }
 
+    /// <summary>
+    /// Turns the view's heading toward a direction of the world (scripted runs), its pitch kept: the heading is the
+    /// movement code's, from local north (docs/WHOLE_WORLD.md §5), never an angle on a plane.
+    /// </summary>
+    public void TurnToward(Num.Vector3 direction)
+    {
+        if (direction.LengthSquared() > 1e-10f)
+        {
+            Yaw = Heading(_viewFrame, Num.Vector3.Normalize(direction)).Yaw;
+        }
+    }
+
+    /// <summary>Points the view along a direction of the world, heading and pitch (scripted runs).</summary>
+    public void LookToward(Num.Vector3 direction)
+    {
+        if (direction.LengthSquared() > 1e-10f)
+        {
+            (float yaw, float pitch) = Heading(_viewFrame, Num.Vector3.Normalize(direction));
+            Yaw = yaw;
+            Pitch = pitch;
+        }
+    }
+
     /// <summary>The view's yaw and pitch (radians, the movement code's convention); scripted runs set them.</summary>
     public float Yaw
     {
@@ -192,7 +221,7 @@ public partial class GroundView : Node3D
 
     /// <summary>Playing, the world drawn around the player, and the player to face (if any) in view.</summary>
     public bool ReadyForShot =>
-        Client.State == ClientState.Playing && Client.HasCharacter && (_world?.IsReady ?? _flat?.IsSettled ?? false) &&
+        Client.State == ClientState.Playing && Client.HasCharacter && (_world?.IsReady ?? false) &&
         !LoadingShown && (FaceName == null || _faced);
 
     public override void _Ready()
@@ -324,54 +353,36 @@ public partial class GroundView : Node3D
 
     // ---------------------------------------------------------------- the world
 
-    // The world opens once the server has said where the zone is: the planet's own surface view in the zone's frame,
-    // or on the stand-in ground (tests) the old collision-tile terrain under a plain sky.
+    // The world opens once the server has said where the zone is: the surface view draws the zone's own ground, whole,
+    // in the zone's frame (docs/WHOLE_WORLD.md §10), under the sky of the planet the world stands for, with the zone's
+    // natural objects as its plants.
     private void OpenWorld()
     {
-        if (_camera != null || Client.Zone is not { } zone || Client.Surface == null)
+        if (_camera != null || _world == null || Client.Zone is not { } zone || Client.Surface is not { } surface)
         {
+            return;
+        }
+        if (PlanetSurfaces.Find(zone.SystemAddress, zone.BodyPath) is not { } found)
+        {
+            if (!_noPlanet)
+            {
+                _noPlanet = true;
+                GD.PushError($"The zone's body ({zone.SystemAddress:X16}/{zone.BodyPath:X8}) is not in this universe: no sky to draw it under.");
+            }
             return;
         }
         double time = TimeOverride ?? UniverseTime.Now;
         long lap = System.Diagnostics.Stopwatch.GetTimestamp();
-        if (_world != null && Client.Surface is PlanetSurface && PlanetSurfaces.Find(zone.SystemAddress, zone.BodyPath) is { } found)
+        NaturePlants? plants = Client.Survival().Nature is { } nature ? new NaturePlants(nature, Client.Content, Client.Frame, surface.Radius) : null;
+        _world.OpenWorld(found.System, found.Body, surface, plants ?? (IPlantSource)new SurfacePlants(surface), zone.SurfaceSeed, time,
+            zone.RotationTimeScale, (float)(zone.SurfaceGravity * 9.80665));
+        if (Client.Console().Day is { } day)
         {
-            _world.OpenZone(found.System, found.Body, found.Surface, Client.Frame.Origin, time, zone.RotationTimeScale);
-            if (Client.Console().Day is { } day)
-            {
-                ApplyDay(day);
-            }
-            _camera = _world.Camera;
-            _nature.World = _world;
+            ApplyDay(day);
         }
-        else
-        {
-            // The stand-in's flat ground (tests): no surface view, nor its stages, to wait for.
-            if (_world != null)
-            {
-                foreach (LoadStage stage in _worldStages)
-                {
-                    Loading?.Remove(stage);
-                }
-                _world.QueueFree();
-                _world = null;
-            }
-            _flat = new GroundTerrain { Name = "Terrain" };
-            AddChild(_flat);
-            _camera = new Camera3D { Name = "Camera", Far = 4000 };
-            AddChild(_camera);
-            // A plain sky and sun, turned every frame to the up where the player is (TurnFlatSky): S3c draws the
-            // world's own (docs/WHOLE_WORLD.md §10.2).
-            _flatSky = new Godot.Environment
-            {
-                BackgroundMode = Godot.Environment.BGMode.Sky,
-                Sky = new Sky { SkyMaterial = new ProceduralSkyMaterial() },
-                AmbientLightSource = Godot.Environment.AmbientSource.Sky,
-            };
-            AddChild(new WorldEnvironment { Environment = _flatSky });
-            _flatSun = new DirectionalLight3D { Name = "Sun", ShadowEnabled = true };
-            AddChild(_flatSun);
-        }
+        _camera = _world.Camera;
+        _nature.World = _world;
+        _nature.Plants = plants;
         Time("open: the world view", ref lap);
         _camera.Fov = FieldOfView;
         _camera.Near = 0.05f;
@@ -392,22 +403,7 @@ public partial class GroundView : Node3D
         Time("open: the sound", ref lap);
     }
 
-    // The stand-in's sky and sun on the up where the player stands (the world's +Y is its north pole, so a sky left on it
-    // leans everywhere but there): a morning sun to the south-east, 32° up, as the walk-in sandbox has it.
-    private void TurnFlatSky(Num.Vector3 feet)
-    {
-        if (_flatSky == null || _flatSun == null)
-        {
-            return;
-        }
-        Num.Vector3 up = Client.Frame.UpAt(feet);
-        Num.Quaternion tilt = Facing.Turn(Num.Vector3.UnitY, up);
-        _flatSky.SkyRotation = new Basis(new Quaternion(tilt.X, tilt.Y, tilt.Z, tilt.W)).GetEuler();
-        (Num.Vector3 north, Num.Vector3 east) = Facing.Compass(up);
-        float elevation = 32 * MathF.PI / 180, bearing = 125 * MathF.PI / 180;
-        Num.Vector3 sun = up * MathF.Sin(elevation) + (north * MathF.Cos(bearing) + east * MathF.Sin(bearing)) * MathF.Cos(elevation);
-        _flatSun.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(-sun), ToGodot(up)), Vector3.Zero);
-    }
+    private bool _noPlanet;
 
     // ---------------------------------------------------------------- frame
 
@@ -421,6 +417,10 @@ public partial class GroundView : Node3D
             _viewFrame = Client.OwnFrame;
             _yaw = Client.InitialYaw;
             _pitch = Client.InitialPitch;
+            if (ShotPitch is { } pitch)
+            {
+                Pitch = pitch;
+            }
         }
         if (playing)
         {
@@ -497,7 +497,7 @@ public partial class GroundView : Node3D
         Loading?.Follow(feet.X, feet.Y, feet.Z, arrivals: !Client.Ships().Piloting);
         // Up and the eye where the character is drawn: aboard a ship, on its deck as drawn (IRON_WAKE.md §4.8).
         Num.Vector3 up = Client.RenderUp;
-        Num.Vector3 eye = Client.RenderEye;
+        Num.Vector3 eye = Client.RenderEye + up * CameraLift;
         FaceTarget(eye);
         Num.Vector3 forward = Look(_viewFrame, _yaw, _pitch);
         bool piloting = Client.Ships().Piloting && Client.Ships().OwnShipDef != null;
@@ -550,8 +550,6 @@ public partial class GroundView : Node3D
         {
             _collision.Follow(Client.Physics, feet);
             Time("collision", ref t0);
-            _flat?.Follow(Client.Physics, feet);
-            TurnFlatSky(feet);
         }
         _nature.Refresh(feet, delta);
         Time("nature", ref t0);
@@ -836,8 +834,10 @@ public partial class GroundView : Node3D
         d.Height = (float)(Client.Frame.ToBody(s.Position).Length - (Client.Surface?.Radius ?? 0));
         d.Ceiling = def.CeilingOn(Client.Surface?.Radius ?? 0);
         d.OverGround = OverGround(s.Origin(def.CentreOfMass));
+        // The heading from local north (docs/WHOLE_WORLD.md §5); within a metre of a pole there is none (north there).
+        (Num.Vector3 north, Num.Vector3 east) = Facing.Compass(up);
         Num.Vector3 f = s.Forward;
-        d.Heading = MathF.Atan2(f.X, -f.Z) * 180 / MathF.PI;
+        d.Heading = MathF.Atan2(Num.Vector3.Dot(f, east), Num.Vector3.Dot(f, north)) * 180 / MathF.PI;
         d.Throttle = _shipControls.Throttle;
         d.Stick = _shipControls.Stick;
         d.AssistOff = _shipControls.AssistOff;

@@ -459,7 +459,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
                 world.Add(new InfoRow("System", planet != null
                     ? string.Create(CultureInfo.InvariantCulture, $"{planet.System.Name} ({zone.SystemAddress:X16})")
                     : zone.SystemAddress.ToString("X16", CultureInfo.InvariantCulture)));
-                world.Add(new InfoRow("Body", string.Create(CultureInfo.InvariantCulture, $"{zone.BodyPath:X8}, radius {zone.Radius / 1000:0} km, {zone.SurfaceGravity:0.00} g")));
+                world.Add(new InfoRow("Body", string.Create(CultureInfo.InvariantCulture, $"{zone.BodyPath:X8}, radius {zone.Radius:0} m, {zone.SurfaceGravity:0.00} g")));
                 // The zone holds the whole world (docs/WHOLE_WORLD.md); its landing site is this server's (--lat, --lon).
                 world.Add(new InfoRow("Landing site", Degrees(zone.LatitudeDegrees, zone.LongitudeDegrees) + (zone.StandIn ? ", stand-in ground" : "")));
                 world.Add(new InfoRow("Local time", LocalHours?.Invoke() is { } hours ? Clock(hours) + " (local solar time here)" : "not yet"));

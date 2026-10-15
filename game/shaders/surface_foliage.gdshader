@@ -13,7 +13,7 @@ render_mode cull_disabled, depth_draw_opaque, diffuse_burley, specular_schlick_g
 #include "res://shaders/surface_clouds.gdshaderinc"
 
 global uniform vec3 hu_texture_offset;
-global uniform vec4 hu_wind; // xyz: direction the wind blows toward (render space, unit); w: strength (1 = a breeze)
+global uniform vec4 hu_wind; // xyz: direction the wind blows toward (render space, unit, along the ground at the camera); w: strength (1 = a breeze)
 // A tool's blow (GROUND.md §9.3): the plant standing at xyz (render space) sways w metres at its top, away along
 // hu_shake_dir.xyz, settling over the seconds since the blow (hu_shake_dir.w). w = 0: none.
 global uniform vec4 hu_shake_at;
@@ -57,7 +57,9 @@ void vertex() {
 		mat3 m = mat3(MODEL_MATRIX);
 		float s2 = max(dot(m[0], m[0]), 1e-6);
 		vec3 base = origin + hu_texture_offset;
-		vec3 wind = hu_wind.xyz * hu_wind.w;
+		// The wind blows along the ground where the plant stands (its own up is the model's Y).
+		vec3 plant_up = m[1] / sqrt(max(dot(m[1], m[1]), 1e-6));
+		vec3 wind = (hu_wind.xyz - plant_up * dot(hu_wind.xyz, plant_up)) * hu_wind.w;
 		vec3 wl = vec3(dot(m[0], wind), dot(m[1], wind), dot(m[2], wind)) / s2;
 		float ph = dot(base, vec3(0.061, 0.047, 0.053));
 		// Gusts roll across the forest: a slow wave in space and time.
@@ -135,8 +137,7 @@ void fragment() {
 	hu_aerial(v_world, CAMERA_POSITION_WORLD, 6, a, fog);
 	ALBEDO = a;
 	FOG = fog;
-	float altitude = hu_camera_altitude + dot(v_world - hu_camera_position, hu_camera_up);
-	v_cloud = hu_cloud_shadow(v_world, altitude);
+	v_cloud = hu_cloud_shadow(v_world);
 }
 
 void light() {

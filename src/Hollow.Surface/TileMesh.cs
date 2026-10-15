@@ -28,6 +28,7 @@ public sealed class TileGrid
         Materials = new byte[n * BiomeTable.MaterialCount];
         Climate = new byte[n * 4];
         Heights = new float[n];
+        FaceMetres = new float[n * 2];
     }
 
     public TileKey Key { get; }
@@ -58,8 +59,20 @@ public sealed class TileGrid
     /// <summary>Per vertex: temperature (−30 to 40 °C as 0–255), moisture, grass density and tree cover (0–255).</summary>
     public byte[] Climate { get; }
 
-    /// <summary>Height above sea level per vertex, metres.</summary>
+    /// <summary>Height above sea level per vertex, metres (above the mean radius on a world without a sea).</summary>
     public float[] Heights { get; }
+
+    /// <summary>
+    /// Texture coordinates per vertex: metres along the tile's cube face (u and v, <see cref="TileMesh.FaceMetresOf"/>)
+    /// less <see cref="FaceAnchor"/>, so they stay small in floats on a planet of any size (docs/WHOLE_WORLD.md §10.1).
+    /// </summary>
+    public float[] FaceMetres { get; }
+
+    /// <summary>
+    /// Metres along the face taken off <see cref="FaceMetres"/>: the tile centre's, rounded to a multiple of
+    /// <see cref="TileMesh.TexturePeriod"/> (zero everywhere on a world under 8 km across).
+    /// </summary>
+    public (double U, double V) FaceAnchor { get; internal set; }
 
     public float MinHeight { get; internal set; }
     public float MaxHeight { get; internal set; }
@@ -72,9 +85,22 @@ public sealed class TileGrid
         Origin + new Vector3D(Positions[3 * index], Positions[3 * index + 1], Positions[3 * index + 2]);
 }
 
-/// <summary>Builds tile grids and collision from a <see cref="PlanetSurface"/>.</summary>
+/// <summary>Builds tile grids for drawing from any <see cref="ISurface"/>, and collision patches of a tangent plane.</summary>
 public static class TileMesh
 {
+    /// <summary>
+    /// Texture coordinates are kept within this many metres of a multiple of it (<see cref="TileGrid.FaceAnchor"/>), so
+    /// floats hold them to a fraction of a millimetre; a world smaller than it never needs an anchor.
+    /// </summary>
+    public const double TexturePeriod = 4096;
+
+    /// <summary>
+    /// Metres along a cube face for face coordinates (u, v) on a sphere of a radius: π/4 × radius × (u, v), the arc from
+    /// the face's centre along its axes (the cube-sphere's warp is the tangent of π/4 × u). The shaders work out the
+    /// same from a direction, as radius × atan(d·U / d·N).
+    /// </summary>
+    public static (double U, double V) FaceMetresOf(double u, double v, double radius) => (u * DMath.Pi / 4 * radius, v * DMath.Pi / 4 * radius);
+
     /// <summary>
     /// Triangle indices of a grid of <paramref name="cells"/>² quads, each split along its (i, j)–(i+1, j+1)
     /// diagonal, counter-clockwise seen from outside the planet. The same diagonal at every level, so a grid
@@ -117,8 +143,11 @@ public static class TileMesh
         return positions;
     }
 
-    /// <summary>The full grid of a tile for drawing: positions, normals, morph targets, materials and climate.</summary>
-    public static TileGrid Build(PlanetSurface surface, TileKey key, int cells = PlanetSurface.TileCells)
+    /// <summary>
+    /// The full grid of a tile for drawing, from any surface: positions, normals, morph targets, materials and climate
+    /// (<see cref="ISurface.Cover"/>), and texture coordinates on the cube face.
+    /// </summary>
+    public static TileGrid Build(ISurface surface, TileKey key, int cells = PlanetSurface.TileCells)
     {
         var grid = new TileGrid(key, cells);
         int n = cells + 1, m = cells + 3; // m: with a ring of samples around the tile for normals
@@ -139,6 +168,10 @@ public static class TileMesh
         }
         Vector3D origin = key.Centre * surface.Radius;
         grid.Origin = origin;
+        double seaLevel = surface.SeaRadius > 0 ? surface.SeaRadius - surface.Radius : 0;
+        (double centreU, double centreV) = FaceMetresOf(key.U0 + key.Span / 2, key.V0 + key.Span / 2, surface.Radius);
+        double anchorU = Math.Round(centreU / TexturePeriod) * TexturePeriod, anchorV = Math.Round(centreV / TexturePeriod) * TexturePeriod;
+        grid.FaceAnchor = (anchorU, anchorV);
 
         Span<double> biomes = stackalloc double[BiomeTable.Count];
         Span<double> materials = stackalloc double[BiomeTable.MaterialCount];
@@ -162,9 +195,13 @@ public static class TileMesh
                 grid.Normals[3 * v + 1] = (float)normal.Y;
                 grid.Normals[3 * v + 2] = (float)normal.Z;
                 radius = Math.Max(radius, (float)offset.Length);
+                (double fu, double fv) = FaceMetresOf(TileKey.GridCoordinate(key.X, key.Level, i, cells),
+                    TileKey.GridCoordinate(key.Y, key.Level, j, cells), surface.Radius);
+                grid.FaceMetres[2 * v] = (float)(fu - anchorU);
+                grid.FaceMetres[2 * v + 1] = (float)(fv - anchorV);
 
                 SurfaceSample s = samples[k];
-                float h = (float)s.Height;
+                float h = (float)(s.Height - seaLevel);
                 grid.Heights[v] = h;
                 minH = Math.Min(minH, h);
                 maxH = Math.Max(maxH, h);
@@ -172,16 +209,12 @@ public static class TileMesh
                 Vector3D d = directions[k];
                 double up = Vector3D.Dot(normal, d);
                 double slope = Math.Sqrt(Math.Max(0, 1 - up * up));
-                ClimateSample climate = surface.Climate(d, s);
-                surface.BiomeWeights(d, s, climate, biomes);
-                VegetationSample vegetation = surface.Vegetation(d, s, climate, biomes, slope);
-                double treeCover = Math.Clamp(vegetation.Trees / 0.022, 0, 1);
-                surface.Materials(s, climate, biomes, slope, treeCover, materials);
+                GroundCover cover = surface.Cover(d, s, slope, biomes, materials);
                 PackWeights(materials, grid.Materials, v * BiomeTable.MaterialCount);
-                grid.Climate[4 * v] = ToByte((climate.Temperature + 30) / 70);
-                grid.Climate[4 * v + 1] = ToByte(climate.Moisture);
-                grid.Climate[4 * v + 2] = ToByte(vegetation.Grass);
-                grid.Climate[4 * v + 3] = ToByte(treeCover);
+                grid.Climate[4 * v] = ToByte((cover.Temperature + 30) / 70);
+                grid.Climate[4 * v + 1] = ToByte(cover.Moisture);
+                grid.Climate[4 * v + 2] = ToByte(cover.Grass);
+                grid.Climate[4 * v + 3] = ToByte(cover.TreeCover);
             }
         }
         grid.MinHeight = minH;

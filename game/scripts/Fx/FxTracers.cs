@@ -129,18 +129,23 @@ public sealed class FxTracers
         _multimesh.VisibleInstanceCount = count;
     }
 
-    /// <summary>Where the projectile is <paramref name="time"/> seconds after launch, held at its end once stopped.</summary>
+    /// <summary>
+    /// Where the projectile is <paramref name="time"/> seconds after launch, held at its end once stopped. Gravity is
+    /// re-aimed toward the planet's centre as it flies, as the client's projectile does (Hollow.Client.Arc).
+    /// </summary>
     private static Vector3 At(Tracer t, float time)
     {
         Vector3 p;
+        Vector3 away = t.Origin + t.Velocity * (time / 3) - HollowUniverse.Surface.PlanetGlobals.Centre;
+        Vector3 gravity = away.LengthSquared() > 1e-6f ? away.Normalized() * -t.Gravity.Length() : t.Gravity;
         if (t.Drag > 1e-6f)
         {
-            Vector3 g = t.Gravity / t.Drag;
+            Vector3 g = gravity / t.Drag;
             p = t.Origin + g * time + (t.Velocity - g) * ((1f - MathF.Exp(-t.Drag * time)) / t.Drag);
         }
         else
         {
-            p = t.Origin + t.Velocity * time + t.Gravity * (0.5f * time * time);
+            p = t.Origin + t.Velocity * time + gravity * (0.5f * time * time);
         }
         if (t.End is { } end && (p - t.Origin).Length() >= t.EndDistance)
         {

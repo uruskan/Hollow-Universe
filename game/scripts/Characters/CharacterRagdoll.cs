@@ -9,8 +9,9 @@ namespace HollowUniverse.Characters;
 /// <see cref="PhysicalBoneSimulator3D"/>, joined within what a body can do: hinges at the knees and elbows (they bend
 /// one way, and hardly past straight), six-axis joints with separate flexion, abduction and twist limits at the hips
 /// and shoulders (a leg swings far forward but little back; an arm lifts high but not through the chest), cones along
-/// the spine, neck and ankles. Built on first use. Gravity follows the character's up at the moment of death, not the
-/// world's −Y. Ragdolls collide with the world (layer 1) but not with each other or themselves.
+/// the spine, neck and ankles. Built on first use. Gravity is the physics space's where the body lies: on a whole world
+/// a point gravity toward the planet's centre (<c>PlanetGravity</c>, docs/WHOLE_WORLD.md §10.4), on a flat stage −Y.
+/// Ragdolls collide with the world (layer 1) but not with each other or themselves.
 /// </summary>
 public sealed class CharacterRagdoll
 {
@@ -183,15 +184,18 @@ public sealed class CharacterRagdoll
         }
     }
 
-    /// <summary>Goes limp, moving at <paramref name="velocity"/> (world space), falling along −<paramref name="up"/>.</summary>
-    public void Start(Vector3 velocity, Vector3 up, float gravity = 9.0f)
+    /// <summary>
+    /// Goes limp where the skeleton's pose is now, moving at <paramref name="velocity"/> (world space), falling as the
+    /// space's gravity there pulls it (toward the planet's centre on a whole world).
+    /// </summary>
+    public void Start(Vector3 velocity)
     {
         _simulator.Active = true;
         _simulator.PhysicalBonesStartSimulation();
         foreach (PhysicalBone3D body in _bodies)
         {
+            body.GravityScale = 1f;
             body.LinearVelocity = velocity;
-            PhysicsServer3D.BodySetConstantForce(body.GetRid(), -up * gravity * body.Mass);
         }
         Active = true;
     }

@@ -483,12 +483,18 @@ public partial class CharacterView : Node3D
     {
         _ragdoll ??= new CharacterRagdoll(_skeleton);
         Vector3 push = direction.LengthSquared() > 1e-6f ? direction.Normalized() * 2.2f : Vector3.Zero;
+        // Where the body is: the bodies start from the skeleton's pose in the world, and on a whole world the scene's
+        // origin is the planet's centre (finding 15's suspicion), so the view stands where its frame says first.
+        if (_hasFrame)
+        {
+            Transform = new Transform3D(CharacterFrame.BasisOf(_frame.Up, _frame.Yaw), _frame.Position);
+        }
         // Bring the skeleton fully up to date before the bodies take over.
         _tree.Advance(0);
         _skeleton.Advance(0);
         _tree.Active = false;
         _poser.Active = false;
-        _ragdoll.Start(_frame.Velocity + push, _frame.Up.Normalized());
+        _ragdoll.Start(_frame.Velocity + push);
     }
 
     // ---------------------------------------------------------------- frame

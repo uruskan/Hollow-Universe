@@ -48,6 +48,9 @@ public sealed class ClientExplosive
     /// <summary>Gravity along −up where it is (m/s²), for the arc.</summary>
     public Vector3 Gravity { get; internal set; }
 
+    /// <summary>The planet's centre in the zone's frame: gravity is re-aimed toward it along the arc (<see cref="Arc.Gravity"/>).</summary>
+    public Vector3? Centre { get; internal set; }
+
     /// <summary>Raised whenever the server sends it again (thrown, bounced, stuck, a dud, lit again).</summary>
     public uint Revision { get; internal set; }
 
@@ -61,7 +64,7 @@ public sealed class ClientExplosive
             return ArcStart;
         }
         float t = (float)(Math.Max(0, serverTick - StateTick) / Simulation.Movement.CharacterMotor.TickRate);
-        return ArcStart + ArcVelocity * t + Gravity * (0.5f * t * t);
+        return ArcStart + ArcVelocity * t + Arc.Gravity(Gravity, Centre, ArcStart, ArcVelocity, t) * (0.5f * t * t);
     }
 
     /// <summary>Seconds of fuse left at a server tick (for a blinking light that quickens; infinity when not burning).</summary>

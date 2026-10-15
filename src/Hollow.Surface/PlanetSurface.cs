@@ -387,42 +387,26 @@ public sealed class PlanetSurface : ISurface
     /// weights, slope (sine of the ground's tilt) and the local tree cover (0–1).
     /// </summary>
     public void Materials(in SurfaceSample s, in ClimateSample climate, ReadOnlySpan<double> biomes, double slope,
-        double treeCover, Span<double> materials)
+        double treeCover, Span<double> materials) =>
+        BiomeTable.GroundMaterials(biomes, slope, treeCover, climate.Temperature, s.Roughness, materials);
+
+    /// <summary>
+    /// The look of the ground at a point (<see cref="ISurface.Cover"/>): the climate, the biomes' soft weights, the plants'
+    /// densities and the materials, as the terrain and the grass have always been painted.
+    /// </summary>
+    public GroundCover Cover(Vector3D direction, in SurfaceSample sample, double slope, Span<double> biomes, Span<double> materials)
     {
-        materials.Clear();
-        BiomeTable.AddMaterials(biomes, materials);
-        // Under trees the ground is litter and moss; in the open it is grass.
-        double litter = Math.Min(materials[(int)GroundMaterial.ForestFloor], 1);
-        double open = 1 - treeCover;
-        materials[(int)GroundMaterial.Grass] += litter * open * 0.8;
-        materials[(int)GroundMaterial.ForestFloor] = litter * (0.2 + 0.8 * treeCover);
-        // Stony ground in rough places.
-        double stony = 0.25 * s.Roughness * s.Roughness;
-        materials[(int)GroundMaterial.Gravel] += stony;
-        // Snow where it is cold enough to lie (beyond the permanent ice).
-        double snow = DMath.SmoothStep(-1.0, -5.0, climate.Temperature);
-        materials[(int)GroundMaterial.Snow] += 3 * snow;
-        // Slopes: scree, then bare rock; snow slides off cliffs.
-        double scree = DMath.SmoothStep(0.42, 0.6, slope);
-        double cliff = DMath.SmoothStep(0.58, 0.74, slope);
-        double sum = 0;
-        for (int i = 0; i < materials.Length; i++)
-        {
-            sum += materials[i];
-        }
-        if (sum <= 0)
-        {
-            materials[(int)GroundMaterial.Soil] = 1;
-            sum = 1;
-        }
-        double keep = (1 - cliff) * (1 - 0.6 * scree) / sum;
-        for (int i = 0; i < materials.Length; i++)
-        {
-            materials[i] *= keep;
-        }
-        materials[(int)GroundMaterial.Gravel] += (1 - cliff) * 0.6 * scree;
-        materials[(int)GroundMaterial.Rock] += cliff;
+        ClimateSample climate = Climate(direction, sample);
+        BiomeWeights(direction, sample, climate, biomes);
+        VegetationSample vegetation = Vegetation(direction, sample, climate, biomes, slope);
+        Materials(sample, climate, biomes, slope, Math.Clamp(vegetation.Trees / 0.022, 0, 1), materials);
+        return new GroundCover(climate.Temperature, climate.Moisture, vegetation.Grass, vegetation.Trees);
     }
+
+    /// <summary>The trees alone of a scatter tile come faster than the whole tile (far impostors).</summary>
+    public IReadOnlyList<ScatterItem> ScatterFor(TileKey tile, bool treesOnly) => Scatter.ForTile(this, tile, treesOnly);
+
+    public (double Low, double High) HeightBounds => (-11000, 9000);
 
     /// <summary>
     /// Plant and rock densities at a point: the biome's, thinned by clearings, steep ground, the tree line and the
@@ -441,9 +425,7 @@ public sealed class PlanetSurface : ISurface
         double bushes = BiomeTable.Bushes(biomes) * (0.35 + 0.65 * clearing) * shore * gentle;
         double ferns = BiomeTable.Ferns(biomes) * (0.2 + 0.8 * clearing) * shore * gentle;
         double rocks = BiomeTable.Rocks(biomes) * (0.5 + 2.5 * s.Roughness * s.Roughness) * (1 - 0.7 * DMath.SmoothStep(0.62, 0.8, slope));
-        double meadow = biomes[(int)Biome.Grassland] + biomes[(int)Biome.TemperateForest] + 0.8 * biomes[(int)Biome.BorealForest]
-            + 0.7 * biomes[(int)Biome.Savanna] + 0.6 * biomes[(int)Biome.Shrubland] + 0.5 * biomes[(int)Biome.Tundra]
-            + 0.8 * biomes[(int)Biome.TropicalForest] + 0.3 * biomes[(int)Biome.Alpine];
+        double meadow = BiomeTable.Meadow(biomes);
         double grass = Math.Clamp(meadow * shore * gentle * (1 - 0.6 * clearing * BiomeTable.Trees(biomes) / 0.03), 0, 1);
         // Berries like the light at forest edges and in clearings, not deep shade or open grass.
         double edge = 0.35 + 2.6 * clearing * (1 - clearing);

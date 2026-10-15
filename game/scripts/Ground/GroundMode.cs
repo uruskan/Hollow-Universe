@@ -230,6 +230,9 @@ public partial class GroundMode : Node
             SoundTrace = Options.ContainsKey("sound-trace"),
             HostCommand = Command,
             TimeOverride = TimeOption(),
+            // Screenshots from above (docs/WHOLE_WORLD.md §10.5): the camera lifted along up, looking down.
+            CameraLift = (float)Number("lift", 0),
+            ShotPitch = Options.ContainsKey("pitch") ? (float)Number("pitch", 0) * MathF.PI / 180 : null,
             ServerAddress = host == "127.0.0.1" && (_server != null || _child != null)
                 ? $"this computer, port {port} (hosted here)"
                 : $"{host}:{port}",
