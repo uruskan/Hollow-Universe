@@ -5,7 +5,8 @@ mechanisms posed from game/data/ground/batteries.json by the loaders' module, th
 
     blender -b --factory-startup --python art/import/iron_wake_review.py -- [out folder] [names...]
 
-Names: hull-bow, hull-stern, siege-breech, defense-breech, steel-paint (all by default), written as fix-<name>.jpg.
+Names: hull-bow, hull-stern, siege-breech, defense-breech, steel-paint (all by default), written as fix-<name>.jpg;
+close-bow and close-stern (the closures, §9.1 "As built: the bow and the stern closed"), written as <name>.jpg.
 """
 import importlib.util
 import json
@@ -261,8 +262,9 @@ def render(path, size=(1600, 1000)):
 
 def main():
     a = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
-    out = Path(a[0]) if a and not a[0].startswith(("hull", "siege", "defense", "steel")) else REPO / "docs" / "images" / "iron-wake"
-    names = [n for n in a if n.startswith(("hull", "siege", "defense", "steel"))] or \
+    kinds = ("hull", "siege", "defense", "steel", "close")
+    out = Path(a[0]) if a and not a[0].startswith(kinds) else REPO / "docs" / "images" / "iron-wake"
+    names = [n for n in a if n.startswith(kinds)] or \
         ["hull-bow", "hull-stern", "siege-breech", "defense-breech", "steel-paint"]
     cam = setup()
     mod = loaders()
@@ -289,12 +291,18 @@ def main():
             pose(mod, table, "Defense_F_P", "defense", 8.0, t)
             at = world("Defense_F_P_Ram") + Vector((0, -0.45, 0.0))
             aim(cam, at, Vector((1.5, 1.7, 1.4)), 30)
+        elif name == "close-bow":
+            # The keel lance's embrasure under the bow's front plate, from ahead and below.
+            aim(cam, Vector((0, -21.0, 2.7)), Vector((2.6, -9.5, -1.6)), 30)
+        elif name == "close-stern":
+            # The bulkhead under the ramp's hinge, from behind and below.
+            aim(cam, Vector((0, 17.5, 2.7)), Vector((-2.4, 8.5, -1.6)), 30)
         elif name == "steel-paint":
             pose(mod, table, "Siege_Forward", "siege", 10.0, None)
             # The forward siege battery's starboard side: painted armour cheek, the gun house's steel, a trunnion cover.
             at = world("Siege_Forward_Yaw") + Vector((-1.6, 0.4, 1.0))
             aim(cam, at, Vector((-2.6, -1.6, 0.7)), 32)
-        render(out / f"fix-{name}.jpg")
+        render(out / (f"{name}.jpg" if name.startswith("close") else f"fix-{name}.jpg"))
 
 
 main()
