@@ -576,6 +576,27 @@ public partial struct ShipIntent
     [Bits(3)] public ShipAction Action;
 }
 
+/// <summary>
+/// A ship's moving parts away from rest (IRON_WAKE.md §4.7, server → client, reliable ordered): sent when a part moves,
+/// and when a ship whose parts moved comes into range. Every part not listed is at the interior's rest; a listed one
+/// carries its state's bits exactly, so a client's space poses its bodies as the server's and its prediction aboard
+/// stays exact.
+/// </summary>
+[NetMessage(121)]
+public partial struct ShipPartStates
+{
+    [VarInt] public uint Ship;
+    [MaxCount(255)] public ShipPartNet[] Parts;
+}
+
+/// <summary>One part's state: its index in the interior, the float's bits.</summary>
+[NetStruct]
+public partial struct ShipPartNet
+{
+    [VarInt] public uint Part;
+    public uint Bits;
+}
+
 /// <summary>A firearm's magazine and attachments (G4), carried by its slot.</summary>
 [NetStruct]
 public partial struct GunNet

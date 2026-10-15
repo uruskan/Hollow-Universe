@@ -10,7 +10,9 @@ namespace Hollow.Client;
 /// <summary>
 /// Another entity as this client sees it (GROUND.md §4.3): the states snapshots brought, each at its server tick, and
 /// the state drawn now, interpolated <see cref="Protocol.InterpolationDelaySeconds"/> in the past so there is a
-/// snapshot on each side to blend. If snapshots stop, it carries on briefly along its last motion, then holds.
+/// snapshot on each side to blend. If snapshots stop, it carries on briefly along its last motion, then holds. A
+/// character aboard a ship (IRON_WAKE.md §4.8) is interpolated in the ship's frame and placed on the ship as drawn
+/// (<see cref="Place"/>, the ships' module's): a blend in the zone's frame would cut the corner of a turning ship's arc.
 /// </summary>
 public sealed class RemoteEntity
 {
@@ -45,7 +47,19 @@ public sealed class RemoteEntity
 
     // ---------------------------------------------------------------- what is drawn now
 
+    /// <summary>The frame it moves in (IRON_WAKE.md §4.11): its ship's net ID aboard, 0 the zone's.</summary>
+    public uint Frame { get; private set; }
+
+    /// <summary>Its feet and its view in its frame (aboard, the ship's), interpolated there.</summary>
+    public Vector3 LocalPosition { get; private set; }
+
+    public Vector3 LocalView { get; private set; } = Vector3.UnitZ;
+
+    /// <summary>Its feet in the zone's frame, as drawn (aboard, where the ship as drawn carries them).</summary>
     public Vector3 Position { get; private set; }
+
+    /// <summary>Up where it stands as drawn: away from the planet's centre, or aboard the ship's up.</summary>
+    public Vector3 Up { get; private set; } = Vector3.UnitY;
 
     /// <summary>Where it looks, a direction in the zone's frame (docs/WHOLE_WORLD.md §5); <see cref="Yaw"/> and <see cref="Pitch"/> read it where it stands.</summary>
     public Vector3 View { get; private set; } = Vector3.UnitZ;
@@ -154,13 +168,16 @@ public sealed class RemoteEntity
 
     private void Blend(in CharacterNetState a, in CharacterNetState b, float t, in CharacterNetState discrete)
     {
-        Position = Vector3.Lerp(NetConvert.PositionOf(a), NetConvert.PositionOf(b), t);
+        // Within one frame, between the two; across a hand-over (IRON_WAKE.md §4.5) the nearer state alone.
+        bool across = a.Frame != b.Frame;
+        Frame = across ? discrete.Frame : b.Frame;
+        LocalPosition = across ? NetConvert.PositionOf(discrete) : Vector3.Lerp(NetConvert.PositionOf(a), NetConvert.PositionOf(b), t);
         // The views turned between (never angles taken at two places), then read as a heading and pitch where it stands.
-        Vector3 va = NetConvert.ViewOf(a), vb = NetConvert.ViewOf(b);
-        View = Slerp(va, vb, t);
-        Vector3 up = Position.LengthSquared() > 0 ? Vector3.Normalize(Position) : Vector3.UnitY;
-        Yaw = Facing.YawOf(View, up);
-        Pitch = Facing.PitchOf(View, up);
+        LocalView = across ? NetConvert.ViewOf(discrete) : Slerp(NetConvert.ViewOf(a), NetConvert.ViewOf(b), t);
+        if (Frame == 0)
+        {
+            Place(null);
+        }
         // The head's turn is blended, never carried on past the newest state.
         float look = Math.Clamp(t, 0f, 1f);
         LookYaw = NetConvert.FromLook(a.LookYaw) + look * (NetConvert.FromLook(b.LookYaw) - NetConvert.FromLook(a.LookYaw));
@@ -174,6 +191,32 @@ public sealed class RemoteEntity
         Sleeping = discrete.Sleeping;
         Aiming = discrete.Aiming;
         HeldMods = discrete.HeldMods;
+    }
+
+    /// <summary>
+    /// Places it where its frame is drawn (IRON_WAKE.md §4.8): in the zone's frame where it is, aboard on the ship as drawn
+    /// now (<paramref name="ship"/>); aboard a ship not known here, it stays where it was last placed.
+    /// </summary>
+    public void Place(ShipPose? ship)
+    {
+        if (Frame == 0)
+        {
+            Position = LocalPosition;
+            View = LocalView;
+            Up = Position.LengthSquared() > 0 ? Vector3.Normalize(Position) : Vector3.UnitY;
+        }
+        else if (ship is { } pose)
+        {
+            Position = pose.ToWorld(LocalPosition);
+            View = Vector3.Normalize(pose.DirectionToWorld(LocalView));
+            Up = pose.Up;
+        }
+        else
+        {
+            return;
+        }
+        Yaw = Facing.YawOf(View, Up);
+        Pitch = Facing.PitchOf(View, Up);
     }
 
     private static Vector3 Slerp(Vector3 a, Vector3 b, float t)

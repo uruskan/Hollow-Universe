@@ -577,7 +577,7 @@ public sealed class ConsoleModule : ServerModule
         }
         if (Content.Ships.FirstOrDefault(s => s.Key == kind) is { } shipDef)
         {
-            if (Server.Ships().GiveShip(whom) != null)
+            if (Server.Ships().GiveShip(whom, shipDef) != null)
             {
                 ctx.Done($"A {shipDef.Name} beside {front}, fuelled, its hatch open.");
             }

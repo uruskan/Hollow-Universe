@@ -99,6 +99,8 @@
     "Lowered": "The gun is lowered",
     "TooLate": "Too late: the connection is slow",
 
-    "Worn": "You're wearing something there already"
+    "Worn": "You're wearing something there already",
+
+    "RampBlocked": "Ramp blocked: someone is in the way"
   }
 }

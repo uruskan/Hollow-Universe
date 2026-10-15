@@ -19,8 +19,12 @@ namespace Hollow.Client;
 /// <param name="Seq">The gun action's sequence number (the server's projectile messages name it too).</param>
 /// <param name="Origin">The eye, where the server's bullet leaves; draw the tracer from the muzzle towards the same line.</param>
 /// <param name="Direction">Exactly the server's direction when the prediction holds (the same rules and seed).</param>
+/// <param name="Carried">
+/// The velocity the ship the shooter stands on gives the bullet where it leaves (IRON_WAKE.md §4.9); zero ashore. Origin
+/// and direction are then where the player sees them: on the ship as drawn.
+/// </param>
 public readonly record struct ShotEvent(uint Seq, ItemDef Weapon, ItemDef Round, Vector3 Origin, Vector3 Direction, float Speed,
-    bool Silenced, bool Aimed);
+    bool Silenced, bool Aimed, Vector3 Carried = default);
 
 /// <summary>A reload began (predicted, at once) or ended: the gun, the rounds, how long it takes.</summary>
 public readonly record struct ReloadEvent(ItemDef Weapon, ItemDef Round, float Seconds);
@@ -204,9 +208,11 @@ public sealed class LocalGun
     /// <summary>
     /// One tick, after movement was predicted for it: take up what is in hand, end a reload that is due, start one asked
     /// for, and fire if the trigger says so. <paramref name="command"/> is the tick's input as sent (its quantised view and
-    /// buttons), <paramref name="state"/> the character after the tick.
+    /// buttons, in its frame), <paramref name="state"/> the character after the tick (in its frame: aboard a ship, the
+    /// ship's, IRON_WAKE.md §4.2); <paramref name="drawn"/> is that ship as drawn now, where the shot is shown leaving.
     /// </summary>
-    internal void Tick(uint tick, in InputCommand command, in CharacterState state, ZoneFrame frame, MovementTuning tuning, EntityId me, bool canAct)
+    internal void Tick(uint tick, in InputCommand command, in CharacterState state, MoveFrames frames, ShipPose? drawn, MovementTuning tuning,
+        EntityId me, bool canAct)
     {
         _tick = tick;
         GameContent content = _player.Content;
@@ -227,7 +233,7 @@ public sealed class LocalGun
         }
         bool aim = (command.Actions & ActionButtons.Secondary) != 0;
         _aimed = aim && !_state.Reloading && tick >= _state.EquipReadyTick;
-        Vector3 up = frame.UpAt(state.Position);
+        Vector3 up = state.Frame == 0 ? frames.Zone.Frame.UpAt(state.Position) : Vector3.UnitY;
         RecoilSample recoil = Recoil.Sample(_state.Recoil, gun, tick);
         _spread = (float)FirearmRules.Spread(gun, GunMods.Of(content, WeaponStack(), gun), aim, FirearmRules.HorizontalSpeed(state.Velocity, up),
             (state.Flags & (MoveFlags.OnGround | MoveFlags.Swimming)) == 0, state.Stance == Stance.Crouching, recoil.Bloom);
@@ -305,14 +311,16 @@ public sealed class LocalGun
         {
             return;
         }
+        // The command's view as a heading and pitch where the player stands, as the server reads the intent: in the
+        // character's frame (turned into it on the tick of a hand-over, IRON_WAKE.md §4.11).
+        Vector3 view = frames.ViewIn(NetConvert.View(command.ViewU, command.ViewV), command.Frame, state.Frame, tick);
         var context = new ShotContext
         {
             Shooter = me,
             Seq = _nextSeq,
             Tick = tick,
-            // The command's view as a heading and pitch where the player stands, as the server reads the intent.
-            Yaw = Facing.YawOf(NetConvert.View(command.ViewU, command.ViewV), up),
-            Pitch = Facing.PitchOf(NetConvert.View(command.ViewU, command.ViewV), up),
+            Yaw = Facing.YawOf(view, up),
+            Pitch = Facing.PitchOf(view, up),
             Aimed = aim,
             Eye = state.Position + up * tuning.EyeHeight(state.Stance),
             Up = up,
@@ -340,7 +348,15 @@ public sealed class LocalGun
         Owe(_credit.Recover(Recoil.Retained(before.Recoil, gun, tick)));
         _credit.BeginKick();
         _player.Touch();
-        ShotFired?.Invoke(new ShotEvent(context.Seq, gun.Item, shot.Round, shot.Origin, shot.Direction, shot.Speed, shot.Mods.Silenced, aim));
+        // Shown where the player sees it leave: aboard, from the ship as drawn, with the ship's velocity there (§4.9).
+        Vector3 origin = shot.Origin, direction = shot.Direction, carried = Vector3.Zero;
+        if (state.Frame != 0 && drawn is { } ship)
+        {
+            origin = ship.ToWorld(shot.Origin);
+            direction = ship.DirectionToWorld(shot.Direction);
+            carried = ship.VelocityAt(origin);
+        }
+        ShotFired?.Invoke(new ShotEvent(context.Seq, gun.Item, shot.Round, origin, direction, shot.Speed, shot.Mods.Silenced, aim, carried));
     }
 
     /// <summary>The render tick (fractional) the camera's kick and the reload's progress are sampled at.</summary>
@@ -355,7 +371,7 @@ public sealed class LocalGun
             GunActionKind.Fire => _player.SendRaw(w => new FireIntent
             {
                 Seq = seq, Tick = tick, Slot = slot, Item = item, ViewU = command.ViewU, ViewV = command.ViewV,
-                Aimed = (command.Actions & ActionButtons.Secondary) != 0, ViewDelay = command.ViewDelay,
+                Aimed = (command.Actions & ActionButtons.Secondary) != 0, ViewDelay = command.ViewDelay, Frame = command.Frame,
             }.WriteMessage(w)),
             GunActionKind.Reload => _player.SendRaw(w => new ReloadIntent { Seq = seq, Tick = tick, Slot = slot, Item = item, Ammo = ammo }.WriteMessage(w)),
             _ => _player.SendRaw(w => new UnloadIntent { Seq = seq, Tick = tick, Slot = slot, Item = item }.WriteMessage(w)),

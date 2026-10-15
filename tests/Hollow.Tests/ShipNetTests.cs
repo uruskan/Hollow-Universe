@@ -80,7 +80,7 @@ public static class ShipNetTests
         var context = new ShipContext(frame, surface, ShipContext.GravityOf(zone.Spec.SurfaceGravity), (float)zone.Spec.AirDensity,
             (float)zone.Spec.AirScaleHeight, collider);
         var ships = new ShipPredictor(predictor, () => context);
-        predictor.Seat = tick => ships.TryGetState(tick, out ShipState s) ? (s.PointOf(ShipRig.Finch.Seat, ShipRig.Finch.CentreOfMass), s.Velocity) : null;
+        predictor.Seat = tick => ships.TryGetState(tick, out ShipState s) ? (0UL, s.PointOf(ShipRig.Finch.Seat, ShipRig.Finch.CentreOfMass), s.Velocity) : null;
         uint start = (uint)zone.Tick;
         zone.Entities.Get<Character>(ada).State.Health = 100; // as the vitals have it (set above)
         ships.Reset(ShipRig.Finch, 1, start, ship.State, start);

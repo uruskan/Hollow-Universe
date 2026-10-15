@@ -112,7 +112,7 @@ public sealed class BuildingSystem : ZoneSystem
             CharacterState s = characters.Values[i].State;
             if (!s.IsDead)
             {
-                yield return new Capsule(s.Position, Frame.UpAt(s.Position), Tuning.Radius, Tuning.StandingHeight);
+                yield return new Capsule(WorldOf(s), UpOf(s), Tuning.Radius, Tuning.StandingHeight);
             }
         }
     }

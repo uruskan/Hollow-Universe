@@ -185,9 +185,11 @@ public sealed partial class GameServer
                 ClearInventory(ctx, args);
                 break;
             case "ship":
-                if (TargetOrMe(ctx, args, 0) is { } pilot && Alive(ctx, pilot, out _))
+                // ship [player] [kind] (IRON_WAKE.md §5.6): the kind is the last word when it names one (a Tin Finch without).
+                Simulation.Ships.ShipDef? kind = args.Count > 0 ? Content.Ship(args[^1]) : null;
+                if (TargetOrMe(ctx, kind != null ? args.Take(args.Count - 1).ToList() : args, 0) is { } pilot && Alive(ctx, pilot, out _))
                 {
-                    if (this.Ships().GiveShip(pilot) is { } given)
+                    if (this.Ships().GiveShip(pilot, kind) is { } given)
                     {
                         ctx.Done($"A {given.Def.Name} for {pilot.Name} ({given.Id}), beside them, fuelled, its hatch open.");
                     }

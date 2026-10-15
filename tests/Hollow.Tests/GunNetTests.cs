@@ -93,7 +93,7 @@ public static class GunNetTests
             predictor.RecordInput(tick, command);
             predictor.Predict(tick);
             int before = shots.Count;
-            local.Gun.Tick(tick, command, predictor.Latest, predictor.Frame, predictor.Tuning, p.Id, canAct: true);
+            local.Gun.Tick(tick, command, predictor.Latest, predictor.Frames, null, predictor.Tuning, p.Id, canAct: true);
             foreach (byte[] packet in sent)
             {
                 var r = new BitReader(packet);
@@ -258,7 +258,7 @@ public static class GunNetTests
             predictor.RecordInput(tick, command);
             predictor.Predict(tick);
             int before = shots.Count;
-            local.Gun.Tick(tick, command, predictor.Latest, predictor.Frame, predictor.Tuning, p.Id, canAct: true);
+            local.Gun.Tick(tick, command, predictor.Latest, predictor.Frames, null, predictor.Tuning, p.Id, canAct: true);
             foreach (byte[] packet in sent)
             {
                 var r = new BitReader(packet);

@@ -100,8 +100,9 @@ public sealed class SurvivalModule : ClientModule
 
     protected internal override void Despawned(uint netId) => RemoveThing(netId);
 
-    // The eye, for the reach of stations: as the server measures it (Zone.EyeOf).
-    internal Vector3 StationEye => Character.Position + Frame.UpAt(Character.Position) * EyeHeight;
+    // The eye, for the reach of stations: as the server measures it (Zone.EyeOf; aboard a ship, where the ship carries the
+    // player: IRON_WAKE.md §4.8).
+    internal Vector3 StationEye => Prediction?.WorldPose(EyeHeight).Eye ?? default;
 
     // The nearest deployable of a kind within a station's reach, as the server's Zone.Ships().StationNear finds a ship's vehicle
     // workbench.
@@ -280,7 +281,7 @@ public sealed class SurvivalModule : ClientModule
             Shooter = NetId,
             Ammo = shot.Round.Id,
             Origin = shot.Origin,
-            Velocity = shot.Direction * shot.Speed,
+            Velocity = shot.Direction * shot.Speed + shot.Carried,
             Gravity = -Frame.UpAt(shot.Origin) * (float)(Zone.SurfaceGravity * 9.80665 * gun.Gravity),
             Drag = (float)gun.Drag,
             Seq = shot.Seq,

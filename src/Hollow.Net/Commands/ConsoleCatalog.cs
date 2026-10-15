@@ -28,6 +28,9 @@ public enum ArgKind : byte
     Blueprint,
     OnOff,
     Command,
+
+    /// <summary>A ship's kind (ships.json's keys: tin-finch, iron-wake).</summary>
+    Ship,
 }
 
 /// <summary>
@@ -107,8 +110,8 @@ public static class ConsoleCatalog
             "entities", "entity.count", "ent.count"),
         Def("clearinv", ["clearinv [player]"], "Empties an inventory: main, belt and clothing.", true, CommandSide.Server, [ArgKind.Player],
             "inventory.clear", "strip"),
-        Def("ship", ["ship [player]"], "A Tin Finch beside a player, theirs and fuelled, its hatch open.", true, CommandSide.Server,
-            [ArgKind.Player]),
+        Def("ship", ["ship [player] [kind]"], "A ship beside a player, theirs and fuelled, its way in toward them: a Tin Finch, or the kind named (iron-wake).",
+            true, CommandSide.Server, [ArgKind.Player, ArgKind.Ship]),
         Def("raidbase", ["raidbase [grade] [player]"], "A claimed hut 8 m in front of a player, listing them (twig, wood, stone, metal, armoured).",
             true, CommandSide.Server, [ArgKind.Grade, ArgKind.Player]),
         Def("admin", ["admin <name>"], "Gives a player admin rights until the server stops (admins.txt keeps them).", true, CommandSide.Server,

@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xAB32B27925911268UL;
+    public const ulong SchemaHash = 0xAC08D5E6C84F3918UL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -1699,6 +1699,66 @@ partial struct ShipIntent : INetMessage<ShipIntent>
         v.Seq = r.ReadVarUInt();
         v.Ship = r.ReadBits64(64);
         v.Action = (ShipAction)r.ReadBits(3);
+        return v;
+    }
+}
+
+partial struct ShipPartStates : INetMessage<ShipPartStates>
+{
+    public const byte TypeId = 121;
+
+    static byte INetMessage<ShipPartStates>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Ship);
+        int countParts = Parts == null ? 0 : Math.Min(Parts.Length, 255);
+        w.WriteBits((uint)countParts, 8);
+        for (int i = 0; i < countParts; i++)
+        {
+            Parts![i].Write(w);
+        }
+    }
+
+    public static ShipPartStates Read(BitReader r)
+    {
+        var v = new ShipPartStates();
+        v.Ship = r.ReadVarUInt();
+        int countParts = (int)r.ReadBits(8);
+        if (countParts > 255)
+        {
+            r.Fail();
+            countParts = 0;
+        }
+        v.Parts = new ShipPartNet[countParts];
+        for (int i = 0; i < countParts; i++)
+        {
+            v.Parts[i] = ShipPartNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct ShipPartNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Part);
+        w.WriteBits((uint)Bits, 32);
+    }
+
+    public static ShipPartNet Read(BitReader r)
+    {
+        var v = new ShipPartNet();
+        v.Part = r.ReadVarUInt();
+        v.Bits = (uint)r.ReadBits(32);
         return v;
     }
 }

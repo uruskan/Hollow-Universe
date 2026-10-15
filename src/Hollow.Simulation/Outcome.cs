@@ -239,6 +239,11 @@ public enum OutcomeCode : byte
 
     /// <summary>Something worn already covers what that would be worn on.</summary>
     Worn = 108,
+
+    // ---------------------------------------------------------------- ship spaces (IRON_WAKE.md §4)
+
+    /// <summary>A ship's ramp or door would move into a character (§4.7).</summary>
+    RampBlocked = 109,
 }
 
 /// <summary>

@@ -152,8 +152,11 @@ public sealed partial class LocalPlayer
     /// <summary>Sends a message on the reliable channel (set by the client); false when not connected and playing.</summary>
     internal Func<Action<BitWriter>, bool>? Send { get; set; }
 
-    /// <summary>Up where the player's predicted character stands (the client sets it): headings are read there.</summary>
+    /// <summary>Up where the player's predicted character stands, in its frame (the client sets it): headings are read there.</summary>
     internal Func<System.Numerics.Vector3>? Up { get; set; }
+
+    /// <summary>The frame the player's predicted character is in (its ship's net ID aboard, IRON_WAKE.md §4.11): views are given in it.</summary>
+    internal Func<uint>? Frame { get; set; }
 
     /// <summary>Sends a gun intent (reliable, unordered: a lost shot holds nothing else up); falls back to <see cref="Send"/>.</summary>
     internal Func<Action<BitWriter>, bool>? SendGun { get; set; }

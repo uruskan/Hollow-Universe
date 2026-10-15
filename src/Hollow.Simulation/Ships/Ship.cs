@@ -30,8 +30,8 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder
 
     /// <summary>
     /// Its moving parts' states, by the interior's part index (IRON_WAKE.md §4.3): a door's progress from shut (0) to open
-    /// (1), a turret's angle. Data for now (the interior's poses: the ramp open); the ship's rules move them through
-    /// <c>ShipSystem.MovePart</c> (IW2 drives the doors).
+    /// (1), a turret's angle. A new ship's are the interior's poses (the ramp open); the ship's rules move them through
+    /// <c>ShipSystem.MovePart</c>, the one entry point (IW2 drives the doors with it).
     /// </summary>
     public float[] Parts { get; }
 
@@ -98,6 +98,9 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder
 
     /// <summary>Raised on every change others see that isn't in its snapshot state (owner, lock).</summary>
     public uint Revision { get; set; }
+
+    /// <summary>Raised whenever a part moves (<c>ShipSystem.MovePart</c>): the clients that know the ship are sent its parts' states.</summary>
+    public uint PartsRevision { get; internal set; }
 
     public bool Piloted => !Pilot.IsNone;
 

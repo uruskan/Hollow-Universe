@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Threading;
+using Hollow.Core;
+using Hollow.Simulation.Building;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Ships;
 using JoltPhysicsSharp;
@@ -28,6 +30,7 @@ public sealed class ShipSpace : IDisposable
     public const uint HullBody = 0;
 
     private static readonly Dictionary<ShipInterior, KindShapes> Kinds = new(ReferenceEqualityComparer.Instance);
+    private static readonly Dictionary<(ShipInterior, ulong), Shape> ParkedShapes = new();
     private static readonly Lock KindsLock = new();
 
     private readonly ObjectLayerPairFilterTable _layerPairs;
@@ -109,7 +112,8 @@ public sealed class ShipSpace : IDisposable
 
     /// <summary>
     /// Poses the moving parts at their states (the one entry point, IRON_WAKE.md §4.3): a part whose motion changed (its
-    /// own, or a carrier's) is moved. Whether a part may move into a character is the ship's rules' to say first.
+    /// own, or a carrier's) is moved, and the broadphase is brought up to date at once (parts move seldom). Whether a part
+    /// may move into a character is the ship's rules' to say first (<see cref="Sweeps"/>).
     /// </summary>
     public void Pose(ReadOnlySpan<float> states)
     {
@@ -142,7 +146,101 @@ public sealed class ShipSpace : IDisposable
                 bodies.SetPositionAndRotation(id, pose.Translation, pose.Rotation, Activation.DontActivate);
                 _dirty = true;
             }
+            OptimizeBroadPhase();
         }
+    }
+
+    /// <summary>A hinge's or a turret's travel is tried every this many radians, a slide's every <see cref="SweepMetres"/> (§4.7).</summary>
+    public const float SweepRadians = 0.02f;
+
+    public const float SweepMetres = 0.05f;
+
+    /// <summary>
+    /// Whether moving the parts from the states the bodies are posed at to <paramref name="to"/> would carry a piece into a
+    /// character (IRON_WAKE.md §4.7, the building doors' rule): every part whose pose changes on the way (a leaf its main
+    /// leaf carries too) is tried at poses <see cref="SweepRadians"/> or <see cref="SweepMetres"/> apart against each
+    /// character's capsule (feet, up and height in the ship's frame), then put back. Under the gate.
+    /// </summary>
+    public bool Sweeps(ReadOnlySpan<float> to, ReadOnlySpan<Capsule> characters)
+    {
+        if (characters.IsEmpty)
+        {
+            return false;
+        }
+        int samples = 1;
+        for (int part = 1; part < _states.Length && part < to.Length; part++)
+        {
+            float change = MathF.Abs(to[part] - _states[part]);
+            ShipPartDef def = Interior.Parts[part];
+            float travel = def.IsDoor ? change * MathF.Abs(def.Open - def.Closed) : change;
+            float step = def.Kind is ShipPartKind.Slide or ShipPartKind.Recoil ? SweepMetres : SweepRadians;
+            samples = Math.Max(samples, (int)MathF.Min(1024, MathF.Ceiling(travel / step)));
+        }
+        Span<float> at = stackalloc float[_states.Length];
+        Span<bool> moved = stackalloc bool[_poses.Length];
+        BodyInterface bodies = Jolt.BodyInterface;
+        bool met = false;
+        for (int i = 1; i <= samples && !met; i++)
+        {
+            float f = (float)i / samples;
+            for (int p = 0; p < at.Length; p++)
+            {
+                at[p] = p < to.Length ? _states[p] + (to[p] - _states[p]) * f : _states[p];
+            }
+            for (int part = 1; part < _shapes.Parts.Length; part++)
+            {
+                if (_shapes.Parts[part] == null)
+                {
+                    continue;
+                }
+                PartPose pose = Interior.PartPose(part, at);
+                if (pose != _poses[part] || moved[part])
+                {
+                    moved[part] = true;
+                    bodies.SetPositionAndRotation(new BodyID((uint)part), pose.Translation, pose.Rotation, Activation.DontActivate);
+                }
+            }
+            foreach (Capsule c in characters)
+            {
+                if (Meets(c, moved))
+                {
+                    met = true;
+                    break;
+                }
+            }
+        }
+        for (int part = 1; part < moved.Length; part++)
+        {
+            if (moved[part])
+            {
+                bodies.SetPositionAndRotation(new BodyID((uint)part), _poses[part].Translation, _poses[part].Rotation, Activation.DontActivate);
+            }
+        }
+        return met;
+    }
+
+    // Whether a character's capsule overlaps one of the moved parts' bodies (by more than a centimetre).
+    private bool Meets(in Capsule c, ReadOnlySpan<bool> moved)
+    {
+        float half = c.Height / 2;
+        using var capsule = new CapsuleShapeSettings(MathF.Max(0.01f, half - c.Radius), c.Radius);
+        using Shape shape = capsule.Create();
+        Vector3 up = c.Up.LengthSquared() > 1e-6f ? Vector3.Normalize(c.Up) : Vector3.UnitY;
+        Quaternion turn = Facing.Turn(Vector3.UnitY, up);
+        Matrix4x4 at = Matrix4x4.Transpose(Matrix4x4.CreateFromQuaternion(turn) * Matrix4x4.CreateTranslation(c.Feet + up * half));
+        Vector3 scale = Vector3.One, offset = Vector3.Zero;
+        var settings = new CollideShapeSettings { BackFaceMode = BackFaceMode.CollideWithBackFaces, MaxSeparationDistance = 0 };
+        _collides.Clear();
+        Jolt.NarrowPhaseQuery.CollideShape(shape, scale, at, settings, offset, CollisionCollectorType.AllHit, _collides, null, null, null, null);
+        foreach (CollideShapeResult r in _collides)
+        {
+            uint body = r.BodyID2.ID;
+            if (body > 0 && body < moved.Length && moved[(int)body] && r.PenetrationDepth > 0.01f)
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>Where a part's body is now (its motion from rest).</summary>
@@ -340,8 +438,30 @@ public sealed class ShipSpace : IDisposable
         return compound.Create();
     }
 
-    /// <summary>The shape of every piece of a kind at the parts' states, as one compound with its origin at the centre of mass: a parked ship's body in the zone's physics (§4.6).</summary>
+    /// <summary>
+    /// The shape of every piece of a kind at the parts' states, as one compound with its origin at the centre of mass: a
+    /// parked ship's body in the zone's physics (§4.6). Made once for each kind and set of states (the ramp open, shut) and
+    /// shared, so a server and a client make the same body of the same shape.
+    /// </summary>
     public static Shape ParkedShape(ShipInterior interior, ReadOnlySpan<float> states)
+    {
+        ulong key = Hash64.Of((ulong)states.Length);
+        foreach (float state in states)
+        {
+            key = Hash64.Combine(key, BitConverter.SingleToUInt32Bits(state));
+        }
+        lock (KindsLock)
+        {
+            if (!ParkedShapes.TryGetValue((interior, key), out Shape? shape))
+            {
+                shape = MakeParkedShape(interior, states);
+                ParkedShapes.Add((interior, key), shape);
+            }
+            return shape;
+        }
+    }
+
+    private static Shape MakeParkedShape(ShipInterior interior, ReadOnlySpan<float> states)
     {
         KindShapes kind = ShapesOf(interior);
         lock (JoltRuntime.Gate)

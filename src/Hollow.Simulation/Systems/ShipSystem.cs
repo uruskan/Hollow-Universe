@@ -47,7 +47,7 @@ public readonly record struct ShipEvent(ShipEventKind Kind, Ship Ship, float Amo
 // Ships in the zone (GROUND.md §6.7): built at a vehicle workbench, boarded through the hatch, flown by their pilot's
 // inputs, parked on their skids (a static body characters walk into), fuelled, locked, looted, hurt by weapons and
 // crashes, wrecked when the hull goes, parked in orbit above the ceiling.
-public sealed class ShipSystem : ZoneSystem
+public sealed partial class ShipSystem : ZoneSystem
 {
     private DamageSystem? _damageSystem;
     private DamageSystem Damage => _damageSystem ??= Zone.Require<DamageSystem>();
@@ -160,44 +160,6 @@ public sealed class ShipSystem : ZoneSystem
             Entities.Destroy(entity);
         }
         _ships.Remove(ship);
-    }
-
-    /// <summary>Everyone aboard a ship into the zone's frame where it carries them, with its velocity there (a wreck, a ship gone).</summary>
-    private void Ashore(Ship ship)
-    {
-        if (ship.Frame == null)
-        {
-            return;
-        }
-        ComponentPool<Character> characters = Entities.Pool<Character>();
-        Span<Character> values = characters.Values;
-        for (int i = 0; i < values.Length; i++)
-        {
-            ref Character c = ref values[i];
-            if (c.State.Frame == ship.Frame.Key)
-            {
-                if (c.State.Stance == Stance.Seated)
-                {
-                    c.State.Stance = Stance.Standing;
-                    Entities.Remove<ShipSeat>(Entities.AtSlot(characters.Slots[i]));
-                }
-                Zone.ToZoneFrame(ref c.State);
-            }
-        }
-    }
-
-    /// <summary>The characters aboard a ship (the frame's key is its ID), for the rules that touch only them.</summary>
-    public void Aboard(Ship ship, List<Entity> into)
-    {
-        into.Clear();
-        ComponentPool<Character> characters = Entities.Pool<Character>();
-        for (int i = 0; i < characters.Count; i++)
-        {
-            if (characters.Values[i].State.Frame == ship.Id.Value)
-            {
-                into.Add(Entities.AtSlot(characters.Slots[i]));
-            }
-        }
     }
 
     // ---------------------------------------------------------------- each tick
@@ -911,37 +873,6 @@ public sealed class ShipSystem : ZoneSystem
         }
     }
 
-    /// <summary>
-    /// A ship asleep with nobody at the helm becomes a static body in the zone's physics (§4.6): the hull's boxes for a
-    /// ship people only sit in, the whole collision of one they walk in (a compound of its pieces at its parts' poses),
-    /// so people outside walk round its legs and up its ramp, and a character standing on it is aboard. Its pose rests
-    /// on the wire's grid first (<see cref="ShipMotor.RestOnGrid"/>), so every client places the same body.
-    /// </summary>
-    private void Park(Ship ship)
-    {
-        ShipMotor.RestOnGrid(ref ship.State);
-        ship.ParkedBody = ship.Def.Interior is { } interior
-            ? ShipCollider.AddParked(ParkedShape(interior, ship.Parts), ship.State.Position, ship.State.Rotation)
-            : ShipCollider.AddParked(ship.Def, ship.State.Position, ship.State.Rotation);
-    }
-
-    private readonly Dictionary<(ShipInterior, ulong), JoltPhysicsSharp.Shape> _parkedShapes = new();
-
-    // A kind's pieces at its parts' states as one shape, kept for each set of states (the ramp open, shut).
-    private JoltPhysicsSharp.Shape ParkedShape(ShipInterior interior, float[] states)
-    {
-        ulong key = Core.Hash64.Of((ulong)states.Length);
-        foreach (float state in states)
-        {
-            key = Core.Hash64.Combine(key, BitConverter.SingleToUInt32Bits(state));
-        }
-        if (!_parkedShapes.TryGetValue((interior, key), out JoltPhysicsSharp.Shape? shape))
-        {
-            shape = ShipSpace.ParkedShape(interior, states);
-            _parkedShapes.Add((interior, key), shape);
-        }
-        return shape;
-    }
 
     // The hull is gone: the pilot dies in it; its cargo, half its fuel and some of its metal go into a wreck anyone may loot.
     private void Wreck(Ship ship)

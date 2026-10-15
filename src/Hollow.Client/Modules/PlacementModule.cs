@@ -59,7 +59,7 @@ public sealed class PlacementModule : ClientModule
         {
             return null;
         }
-        Vector3 eye = Character.Position + Frame.UpAt(Character.Position) * EyeHeight;
+        Vector3 eye = Prediction!.WorldPose(EyeHeight).Eye; // aboard a ship, where it carries the player (IRON_WAKE.md §4.8)
         return Plan(placeable, eye, point - eye, yaw, turns);
     }
 
@@ -75,7 +75,7 @@ public sealed class PlacementModule : ClientModule
             return null;
         }
         _placementWallet ??= new ItemWallet(Content, Local.Inventory.Carried);
-        Vector3 eye = Character.Position + Frame.UpAt(Character.Position) * EyeHeight;
+        Vector3 eye = Prediction!.WorldPose(EyeHeight).Eye; // aboard a ship, where it carries the player (IRON_WAKE.md §4.8)
         return Placer.Settle(world, new PlacementContext(EntityId.Value, eye, placeable, _placementWallet), claim, out refused);
     }
 
@@ -133,22 +133,24 @@ public sealed class PlacementModule : ClientModule
         public void CharactersNear(Vector3 point, float radius, List<Capsule> into)
         {
             MovementTuning tuning = client.Prediction?.Tuning ?? MovementTuning.Default;
-            void Add(Vector3 feet)
+            // Where each is drawn, upright on what carries them (aboard a ship, its deck: IRON_WAKE.md §4.8).
+            void Add(Vector3 feet, Vector3 up)
             {
                 if (Vector3.DistanceSquared(feet, point) <= radius * radius)
                 {
-                    into.Add(new Capsule(feet, client.Frame.UpAt(feet), tuning.Radius, tuning.StandingHeight));
+                    into.Add(new Capsule(feet, up, tuning.Radius, tuning.StandingHeight));
                 }
             }
-            if (client.HasCharacter && !client.Local.IsDead)
+            if (client.HasCharacter && !client.Local.IsDead && client.Prediction is { } prediction)
             {
-                Add(client.Character.Position);
+                (Vector3 feet, Vector3 up, _) = prediction.WorldPose(0);
+                Add(feet, up);
             }
             foreach (RemoteEntity remote in client.Remotes.Values)
             {
                 if (remote.Spawned && remote.HasState && remote.Kind == EntityKind.Character && (remote.Flags & MoveFlags.Dead) == 0)
                 {
-                    Add(remote.Position);
+                    Add(remote.Position, remote.Up);
                 }
             }
         }

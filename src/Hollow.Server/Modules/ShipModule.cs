@@ -37,10 +37,11 @@ public sealed class ShipModule : ServerModule
 
     public long ShipIntentsRefused { get; private set; }
 
-    /// <summary>The ships (net IDs) this player hears about (G6).</summary>
+    /// <summary>The ships (net IDs) this player hears about (G6), and the revision of each one's parts they were told (IW1).</summary>
     private sealed class ShipView
     {
         public readonly HashSet<uint> Relevant = new();
+        public readonly Dictionary<uint, uint> PartsSent = new();
     }
 
     protected internal override void Init(MessageHandlers<PlayerSession> handlers)
@@ -177,9 +178,11 @@ public sealed class ShipModule : ServerModule
     // The ships near a player: spawned and despawned (reliable), offered to their snapshot by nearness.
     private void ReplicateShips(PlayerSession session, Vector3 centre, List<ShipCandidate> ships)
     {
-        HashSet<uint> relevant = session.State<ShipView>().Relevant;
+        ShipView view = session.State<ShipView>();
+        HashSet<uint> relevant = view.Relevant;
         foreach (uint netId in _shipsGone)
         {
+            view.PartsSent.Remove(netId);
             if (relevant.Remove(netId))
             {
                 session.Snapshots.Forget(netId);
@@ -199,6 +202,7 @@ public sealed class ShipModule : ServerModule
                 new Spawn { NetId = netId, EntityId = ship.Id.Value, Kind = EntityKind.Ship, Name = ship.Def.Key }.WriteMessage(Writer);
                 session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
             }
+            SendParts(session, view, netId, ship);
             float distance = Vector3.Distance(position, centre);
             bool moving = !ship.State.Asleep;
             ships.Add(new ShipCandidate
@@ -219,9 +223,32 @@ public sealed class ShipModule : ServerModule
         foreach (uint netId in _shipsLeaving)
         {
             relevant.Remove(netId);
+            view.PartsSent.Remove(netId);
             session.Snapshots.Forget(netId);
             Despawned(session, netId);
         }
+    }
+
+    // A ship's parts away from rest, to a player who hasn't been told their newest (IRON_WAKE.md §4.7): a client starts a
+    // ship's space at rest, so one never moved needs no message.
+    private void SendParts(PlayerSession session, ShipView view, uint netId, Ship ship)
+    {
+        if (ship.Def.Interior is not { } interior || (view.PartsSent.TryGetValue(netId, out uint sent) ? sent : 0) == ship.PartsRevision)
+        {
+            return;
+        }
+        view.PartsSent[netId] = ship.PartsRevision;
+        var parts = new List<ShipPartNet>();
+        for (int i = 0; i < ship.Parts.Length && i < interior.Rest.Length; i++)
+        {
+            if (ship.Parts[i] != interior.Rest[i])
+            {
+                parts.Add(new ShipPartNet { Part = (uint)i, Bits = BitConverter.SingleToUInt32Bits(ship.Parts[i]) });
+            }
+        }
+        Writer.Reset();
+        new ShipPartStates { Ship = netId, Parts = parts.ToArray() }.WriteMessage(Writer);
+        session.Peer.Send(Writer.Data, DeliveryMethod.ReliableOrdered);
     }
 
     /// <summary>The ship this player flies, exactly, for the snapshot's header (none on foot).</summary>
@@ -346,27 +373,36 @@ public sealed class ShipModule : ServerModule
 
     public long ShipCrashes { get; private set; }
 
-    /// <summary>A Tin Finch beside a player, full, theirs, its hatch open (the admin's <c>ship</c>, and every new player's with <see cref="ServerOptions.ShipOnJoin"/>).</summary>
-    public Ship? GiveShip(PlayerSession session)
+    /// <summary>
+    /// A ship beside a player, full, theirs, its hatch open: the kind asked for (IRON_WAKE.md §5.6: the admin's
+    /// <c>ship [player] [kind]</c>, the F1 panel's spawn), else the first (every new player's Tin Finch with
+    /// <see cref="ServerOptions.ShipOnJoin"/>). It stands on the nearest clear spot of rings round them, as far out as its
+    /// size needs, with its way in toward them (<see cref="WayIn"/>).
+    /// </summary>
+    public Ship? GiveShip(PlayerSession session, ShipDef? kind = null)
     {
         if (!session.Playing || Content.Ships.Count == 0)
         {
             return null;
         }
-        ShipDef def = Content.Ships[0];
+        ShipDef def = kind ?? Content.Ships[0];
         Vector3 feet = Zone.WorldOf(Zone.Entities.Get<Character>(session.Entity).State);
         Vector3 up = Zone.Frame.UpAt(feet);
-        // Beside the player, its hatch (its right side) toward them: rings of spots round them, nearest first.
         (Vector3 north, Vector3 east) = CharacterMotor.HorizontalBasis(0, up);
-        foreach (float distance in new[] { 6f, 9f, 12f, 16f, 22f })
+        // The way in's heading on a ship facing north here: the ship is turned by the rest.
+        Vector3 way = WayIn(def);
+        Vector3 side = Vector3.Normalize(Vector3.Cross(up, north));
+        float wayYaw = way.X * way.X + way.Z * way.Z > 1e-6f ? Facing.YawOf(side * way.X + north * way.Z, up) : 0;
+        float beyond = MathF.Max(0, MathF.Max(def.BoundsHalf.X, def.BoundsHalf.Z) - 4);
+        foreach (float ring in new[] { 6f, 9f, 12f, 16f, 22f })
         {
+            float distance = ring + beyond;
             for (int i = 0; i < 12; i++)
             {
-                float angle = i * MathF.PI / 6 + distance;
+                float angle = i * MathF.PI / 6 + ring;
                 Vector3 at = feet + (north * MathF.Cos(angle) + east * MathF.Sin(angle)) * distance;
                 Vector3 ground = Zone.Settle(at);
-                // The ship's right is (cos yaw, −sin yaw) east and north... in the characters' yaw: point it back at the player.
-                float yaw = MathF.Atan2(-MathF.Cos(angle), -MathF.Sin(angle));
+                float yaw = Facing.YawOf(feet - at, up) - wayYaw;
                 if (Zone.Ships().ShipSpaceClear(def, ground, yaw))
                 {
                     Ship ship = Zone.Ships().SpawnShip(def, ground, yaw, session.EntityId, def.FuelCapacity);
@@ -377,6 +413,27 @@ public sealed class ShipModule : ServerModule
             }
         }
         return null;
+    }
+
+    /// <summary>
+    /// Where a ship is entered, in its frame: the hatch of one people sit in; the lowest box of the boarding volume of one
+    /// they walk in (the Iron Wake's open ramp, down to the ground).
+    /// </summary>
+    public static Vector3 WayIn(ShipDef def)
+    {
+        if (def.Interior is not { Boarding.Count: > 0 } interior)
+        {
+            return def.Hatch;
+        }
+        BoardingBox lowest = interior.Boarding[0];
+        foreach (BoardingBox box in interior.Boarding)
+        {
+            if (box.Min.Y < lowest.Min.Y)
+            {
+                lowest = box;
+            }
+        }
+        return (lowest.Min + lowest.Max) / 2;
     }
 }
 

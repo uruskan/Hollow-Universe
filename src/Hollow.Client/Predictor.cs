@@ -13,7 +13,9 @@ namespace Hollow.Client;
 /// own copy of the ground, at once, with the input that is also sent to the server. When the server says where the
 /// character really was after a tick, the predictor goes back to that state and replays the newer inputs. Movement is
 /// a pure function of state and input (GROUND.md §4.5), so with the same inputs the replay lands exactly where the
-/// server will.
+/// server will. It steps through the same frames as the server's zone (IRON_WAKE.md §4.8): the zone's, or aboard a ship
+/// that ship's space, whose motion never enters the step; the ships' module keeps a frame for every ship near with an
+/// interior, keyed by its net ID as the wire names frames.
 /// </summary>
 public sealed class Predictor : IDisposable
 {
@@ -23,7 +25,6 @@ public sealed class Predictor : IDisposable
     private readonly PhysicsWorld _world;
     private readonly bool _ownsWorld;
     private readonly CharacterBody _body;
-    private readonly MoveContext _context;
     private readonly InputCommand[] _inputs = new InputCommand[History];
     private readonly uint[] _inputTicks = new uint[History];
     private readonly CharacterState[] _states = new CharacterState[History];
@@ -36,15 +37,38 @@ public sealed class Predictor : IDisposable
         Frame = spec.CreateFrame(surface);
         _world = shared ?? new PhysicsWorld(surface, Frame);
         _ownsWorld = shared == null;
-        _context = new MoveContext(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, tuning), tuning);
         _body = new CharacterBody(_world, tuning, Vector3.Zero, Vector3.UnitY);
+        // The zone's frame as the server's zone has it (its radius bounds noclip there too).
+        Frames = new MoveFrames(new ZoneMoveFrame(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, tuning), surface.Radius, _body), tuning);
     }
 
     public ZoneFrame Frame { get; }
 
     public PhysicsWorld World => _world;
 
-    public MovementTuning Tuning => _context.Tuning;
+    /// <summary>The frames the character moves in (IRON_WAKE.md §4.2): the zone's, and the ships' the ships' module adds by net ID.</summary>
+    public MoveFrames Frames { get; }
+
+    public MovementTuning Tuning => Frames.Tuning;
+
+    /// <summary>Up in a frame where the newest predicted state is: the zone's away from the planet (aboard, where the ship carries the character), a ship's +Y.</summary>
+    public Vector3 UpIn(ulong frame) => frame != 0 ? Vector3.UnitY : Frame.UpAt(WorldOf(Latest, LatestTick + 1));
+
+    /// <summary>A predicted state's feet in the zone's frame as its ship stood when the tick began (itself in the zone's frame).</summary>
+    public Vector3 WorldOf(in CharacterState state, long tick) => Frames.ToWorld(state.Position, state.Frame, tick);
+
+    /// <summary>
+    /// The newest predicted state's feet, up and eye (<paramref name="eyeHeight"/> above the feet) in the zone's frame: aboard
+    /// a ship, where it is as the next tick begins (the server measures reach and places things from there, Zone.EyeOf).
+    /// </summary>
+    public (Vector3 Feet, Vector3 Up, Vector3 Eye) WorldPose(float eyeHeight)
+    {
+        CharacterState s = Latest;
+        long tick = LatestTick + 1;
+        Vector3 feet = WorldOf(s, tick);
+        Vector3 up = s.Frame == 0 ? Frame.UpAt(s.Position) : Frames.DirectionToWorld(Vector3.UnitY, s.Frame, tick);
+        return (feet, up, feet + up * eyeHeight);
+    }
 
     /// <summary>True once the server has given a state to start from.</summary>
     public bool HasState { get; private set; }
@@ -57,7 +81,10 @@ public sealed class Predictor : IDisposable
     /// <summary>Ticks replayed after corrections, for statistics.</summary>
     public long Replayed { get; private set; }
 
-    /// <summary>New ticks the character was held because its ground wasn't built yet (arrivals; replays not counted), for statistics.</summary>
+    /// <summary>
+    /// New ticks the character was held because its ground wasn't built yet (arrivals), or its ship not heard of yet (a
+    /// join aboard); replays not counted. For statistics.
+    /// </summary>
     public long HeldForGround { get; private set; }
 
     /// <summary>A tick that starts this far from where the last one did is an arrival (a respawn, a teleport).</summary>
@@ -144,9 +171,10 @@ public sealed class Predictor : IDisposable
 
     /// <summary>
     /// Where the seat of the ship the character sits in is after a tick, and how fast it goes (G6: the ship's
-    /// prediction); null when unknown (the seated character then stays where it was).
+    /// prediction), in its frame: aboard a ship people walk in, the seat in the ship's frame, still (IRON_WAKE.md §4.2);
+    /// null when unknown (the seated character then stays where it was).
     /// </summary>
-    public Func<uint, (Vector3 Position, Vector3 Velocity)?>? Seat { get; set; }
+    public Func<uint, (ulong Frame, Vector3 Position, Vector3 Velocity)?>? Seat { get; set; }
 
     /// <summary>
     /// The input a tick runs with. Ticks skipped when the clock moved forward have none: the server repeats the last
@@ -179,6 +207,7 @@ public sealed class Predictor : IDisposable
             // In a ship's seat (G6): the ship carries the character, as the server's zone does after the ship moves.
             if (Seat?.Invoke(tick) is { } seat)
             {
+                state.Frame = seat.Frame;
                 state.Position = seat.Position;
                 state.Velocity = seat.Velocity;
             }
@@ -186,25 +215,34 @@ public sealed class Predictor : IDisposable
             return true;
         }
         InputCommand command = CommandFor(tick);
-        // The ground first, outside Jolt's lock (a tile being built doesn't hold up a server in the same process). Just
-        // arrived somewhere whose ground isn't built yet (the start, a respawn on a far beach, a teleport), the character
-        // is held until worker threads have built it, as the server holds an arrival (GROUND.md §4.5), and the server's
-        // states correct the wait: a dozen tiles built here would stall the frame, and a swarm of bots arriving all round
-        // the world (docs/WHOLE_WORLD.md decision 8) for longer than a connection lasts. Ground walked into is built now
-        // if it must be, as the server's zone does (the prefetch keeps it ahead).
-        if (!(Vector3.DistanceSquared(state.Position, _lastStep) < ArrivalMetres * ArrivalMetres) && !_world.GroundReady(state.Position))
+        if (state.Frame == 0)
         {
-            return false;
+            // The ground first, outside Jolt's lock (a tile being built doesn't hold up a server in the same process).
+            // Just arrived somewhere whose ground isn't built yet (the start, a respawn on a far beach, a teleport), the
+            // character is held until worker threads have built it, as the server holds an arrival (GROUND.md §4.5), and
+            // the server's states correct the wait: a dozen tiles built here would stall the frame, and a swarm of bots
+            // arriving all round the world (docs/WHOLE_WORLD.md decision 8) for longer than a connection lasts. Ground
+            // walked into is built now if it must be, as the server's zone does (the prefetch keeps it ahead).
+            if (!(Vector3.DistanceSquared(state.Position, _lastStep) < ArrivalMetres * ArrivalMetres) && !_world.GroundReady(state.Position))
+            {
+                return false;
+            }
+            _lastStep = state.Position;
+            _world.EnsureGround(state.Position);
+            _world.Prefetch(state.Position);
         }
-        _lastStep = state.Position;
-        _world.EnsureGround(state.Position);
-        _world.Prefetch(state.Position);
+        else if (Frames.Ship(state.Frame) is { } ship && ship.TryPose(tick, out ShipPose pose))
+        {
+            // Aboard (IRON_WAKE.md §4.8): the ground under the ship is fetched ahead, so stepping off is no arrival.
+            _lastStep = pose.ToWorld(state.Position);
+            _world.Prefetch(_lastStep);
+        }
         lock (JoltRuntime.Gate)
         {
             _world.OptimizeBroadPhase();
-            CharacterMotor.Step(ref state, NetConvert.ToMoveInput(command), _body, _context);
+            // In its frame, then handed over between frames as the server's zone does (a ship not heard of yet: held).
+            return Frames.Step(ref state, NetConvert.ToMoveInput(command), tick, out _);
         }
-        return true;
     }
 
     /// <summary>

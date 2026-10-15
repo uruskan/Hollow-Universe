@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using Hollow.Simulation.Combat;
@@ -46,25 +47,55 @@ public static class ShipQueries
         for (int i = 0; i < ships.Count; i++)
         {
             IShipFrame ship = ships[i];
-            if (ship.Key == ignore || !PoseFor(ship, tick, history, viewTick, out ShipPose pose) ||
-                Geometry.RaySphere(origin, direction, best, pose.Position, ship.Interior.Reach) < 0)
+            if (ship.Key != ignore && PoseFor(ship, tick, history, viewTick, out ShipPose pose))
             {
-                continue;
-            }
-            bool met;
-            SpaceHit local;
-            lock (JoltRuntime.Gate)
-            {
-                met = ship.Space.Ray(pose.ToLocal(origin), pose.DirectionToLocal(direction), best, out local);
-            }
-            if (met && local.Distance < best)
-            {
-                best = local.Distance;
-                hit = new ShipQueryHit(ship, local, local.Distance);
-                found = true;
+                found |= RayOne(ship, pose, origin, direction, ref best, ref hit);
             }
         }
         return found;
+    }
+
+    /// <summary>
+    /// The same through the poses the caller gives (a client's ships as it draws them: what the player sees is what the
+    /// aim meets); a ship whose pose is null is passed by.
+    /// </summary>
+    public static bool Ray(IReadOnlyList<IShipFrame> ships, Func<IShipFrame, ShipPose?> poseOf, Vector3 origin, Vector3 direction, float length,
+        out ShipQueryHit hit, ulong ignore = 0)
+    {
+        hit = default;
+        bool found = false;
+        float best = length;
+        for (int i = 0; i < ships.Count; i++)
+        {
+            IShipFrame ship = ships[i];
+            if (ship.Key != ignore && poseOf(ship) is { } pose)
+            {
+                found |= RayOne(ship, pose, origin, direction, ref best, ref hit);
+            }
+        }
+        return found;
+    }
+
+    // One ship's space against a segment of the zone's frame at a pose (its bounding sphere first): a piece nearer than best.
+    private static bool RayOne(IShipFrame ship, in ShipPose pose, Vector3 origin, Vector3 direction, ref float best, ref ShipQueryHit hit)
+    {
+        if (Geometry.RaySphere(origin, direction, best, pose.Position, ship.Interior.Reach) < 0)
+        {
+            return false;
+        }
+        bool met;
+        SpaceHit local;
+        lock (JoltRuntime.Gate)
+        {
+            met = ship.Space.Ray(pose.ToLocal(origin), pose.DirectionToLocal(direction), best, out local);
+        }
+        if (!met || local.Distance >= best)
+        {
+            return false;
+        }
+        best = local.Distance;
+        hit = new ShipQueryHit(ship, local, local.Distance);
+        return true;
     }
 
     /// <summary>Whether a segment of the zone's frame between two points meets no ship's piece (but <paramref name="ignore"/>'s).</summary>

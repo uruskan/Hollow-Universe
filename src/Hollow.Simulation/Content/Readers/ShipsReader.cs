@@ -246,6 +246,12 @@ internal sealed class ShipsReader : IContentReader
         {
             c.Problem(where + ".interior", "margin 0 … 2 m, gravity 0 … 2 times a character's");
         }
+        if (Vector3.Distance(ship.CentreOfMass, interior.CentreOfMass) > 0.001f)
+        {
+            // The ship's frame is placed by its centre of mass (ShipPose) and its parked body is built round the data
+            // file's: they must be the same point.
+            c.Problem(where + ".centreOfMass", $"must be the centre of mass of {interior.File} ({interior.CentreOfMass})");
+        }
         float[] rest = interior.Rest;
         foreach ((string name, Vector3 point) in new[] { ("seat", ship.Seat), ("eye", ship.Eye) }
                      .Concat(ship.Exits.Select((e, i) => ($"exits[{i}]", e))))
