@@ -50,8 +50,8 @@ public static class Program
             {
                 return LoadTest(count, Number(o, "duration", 60), Number(o, "warmup", 8), script, conditions, (float)Number(o, "relevance", 300),
                     o.GetValueOrDefault("kit") ?? (script == BotScript.Raid ? "raid-kit" : script == BotScript.World ? "world-kit" : null), raidBases, raidRadius,
-                    beaches, o.ContainsKey("stand-in"), fly, Number(o, "storm", 0),
-                    (int)Number(o, "animals", 0));
+                    beaches, o.ContainsKey("stand-in"), fly, Number(o, "storm", 0), (int)Number(o, "animals", 0),
+                    ground: o.GetValueOrDefault("ground", "stand-in") == "walking");
             }
             if (!o.TryGetValue("server", out string? server))
             {
@@ -130,11 +130,11 @@ public static class Program
     /// the bots' own work and garbage collections don't land on the server's ticks), measured after a warm-up.
     /// </summary>
     private static int LoadTest(int count, double duration, double warmup, BotScript script, NetConditions conditions, float relevance, string? kit,
-        int raidBases, float raidRadius, bool beaches, bool standIn, int fly, double storm, int animals = 0)
+        int raidBases, float raidRadius, bool beaches, bool standIn, int fly, double storm, int animals = 0, bool ground = false)
     {
         Console.WriteLine($"Load test: a server and {count} bots ({script}) in another process, {warmup:0} s warm-up, {duration:0} s measured" +
             (conditions.IsNone ? "" : $", bots through a relay: {conditions}") +
-            $", on the whole world (the stand-in ball), arriving {(beaches ? "on beaches all round it" : "at the landing site")}");
+            $", on the whole world ({(ground ? "the walking-scale ground" : "the stand-in ball")}), arriving {(beaches ? "on beaches all round it" : "at the landing site")}");
         // By default everyone arrives (and respawns) at the landing site, so each bot sees all the others (the bandwidth
         // worst case). Fighting bots get their kit with every life, so the firefights go on after the first deaths.
         using var server = new GameServer(new ServerOptions
@@ -142,6 +142,7 @@ public static class Program
             Port = 0, DatabasePath = null, RelevanceRadius = relevance, JoinKit = kit, KitEveryLife = script is BotScript.Fight or BotScript.Raid,
             RaidBases = script == BotScript.Raid ? raidBases : 0, RaidRadius = raidRadius, Log = _ => { },
             SpawnAtOrigin = !beaches, StandIn = standIn,
+            Ground = ground ? Simulation.GroundKind.Walking : Simulation.GroundKind.StandIn,
             ShipOnJoin = script == BotScript.Fly,
             ShipOnJoinFor = fly > 0 ? name => name.StartsWith("bot", StringComparison.Ordinal) && int.TryParse(name.AsSpan(3), out int n) && n <= fly : null,
             // G7's animals (none by default, so the earlier measurements compare): at the landing site a fixed population

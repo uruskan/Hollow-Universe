@@ -5,6 +5,16 @@ using Hollow.Surface;
 
 namespace Hollow.Simulation;
 
+/// <summary>Which ground a zone stands on (<see cref="ZoneSpec.Ground"/>; on the wire, a byte: append only).</summary>
+public enum GroundKind : byte
+{
+    /// <summary>The stand-in world of S3 (docs/WHOLE_WORLD.md §4): the default until the owner approves S4.</summary>
+    StandIn = 0,
+
+    /// <summary>The walking-scale ground of S4 (docs/WALKING_GROUND.md): the server's <c>--ground walking</c>.</summary>
+    Walking = 1,
+}
+
 /// <summary>
 /// Which surface zone this is (GROUND.md §4.2): the body, what the server and every client need to build the same
 /// ground, and where on the body the zone's origin sits. The server sends it to each client on connect.
@@ -57,6 +67,12 @@ public sealed record ZoneSpec
     /// (<see cref="CreateSurface"/>), whatever this says; it is sent to clients with the zone.
     /// </summary>
     public bool StandIn { get; init; }
+
+    /// <summary>
+    /// The ground the zone stands on: the stand-in by default; the walking-scale ground (docs/WALKING_GROUND.md) when the
+    /// server says so (<c>--ground walking</c>), sent to clients with the zone so they build the same.
+    /// </summary>
+    public GroundKind Ground { get; init; }
 
     /// <summary>
     /// How much faster than real the planet turns for play (GROUND.md §1: 24, so the first world's 34.9-hour day
@@ -129,19 +145,25 @@ public sealed record ZoneSpec
     public Core.Vector3D LandingDirection => ZoneFrame.Direction(LatitudeDegrees * Math.PI / 180, LongitudeDegrees * Math.PI / 180);
 
     /// <summary>
-    /// The ground of this zone's body. <b>The one place that picks the surface</b> (GROUND.md §4.6). Until S4 makes the
-    /// real ground at walking scale, every zone stands on the stand-in world (docs/WHOLE_WORLD.md §4): the real
-    /// <see cref="PlanetSurface"/> is built at its real radius, which a zone measured from its centre can't hold.
+    /// The ground of this zone's body. <b>The one place that picks the surface</b> (GROUND.md §4.6). By default the
+    /// stand-in world (docs/WHOLE_WORLD.md §4); with <see cref="GroundKind.Walking"/> the body's walking-scale ground
+    /// (docs/WALKING_GROUND.md), shared by everything in the process (<see cref="WalkingWorlds"/>), or the stand-in if the
+    /// universe doesn't know the body. The real <see cref="PlanetSurface"/> is built at its real radius, which a zone
+    /// measured from its centre can't hold.
     /// </summary>
-    public ISurface CreateSurface() => new StandInWorld(Radius, SurfaceSeed, LandingDirection);
+    public ISurface CreateSurface() =>
+        Ground == GroundKind.Walking && WalkingWorlds.Find(SystemAddress, BodyPath, Radius) is { } walking
+            ? walking
+            : new StandInWorld(Radius, SurfaceSeed, LandingDirection);
 
     /// <summary>
     /// The natural objects of this zone's ground (trees, outcrops, pickups, bushes). <b>The one place that picks
-    /// them</b> (GROUND.md §6.1): the planet's own scatter on a real surface, the stand-in placement on the stand-in.
+    /// them</b> (GROUND.md §6.1): the ground's own scatter on a surface that has one (the real planet's, the
+    /// walking-scale ground's at its level by size), the stand-in placement on the stand-in.
     /// </summary>
     public Nature.INaturalObjects CreateNature(ISurface surface, ZoneFrame frame, Content.GameContent content) =>
-        surface is PlanetSurface planet
-            ? new Nature.ScatterNaturalObjects(planet, frame, content)
+        surface is IScatterField field
+            ? new Nature.ScatterNaturalObjects(field, frame, content)
             : new Nature.StandInNaturalObjects(surface, frame, content, Core.Hash64.Of(SurfaceSeed, 0x7A7), LandingDirection);
 
     /// <summary>
@@ -151,5 +173,5 @@ public sealed record ZoneSpec
     public ZoneFrame CreateFrame(ISurface surface) => ZoneFrame.World;
 
     public override string ToString() => string.Create(CultureInfo.InvariantCulture,
-        $"body {SystemAddress:X16}/{BodyPath:X8}, radius {Radius:0} m, {SurfaceGravity:0.00} g, landing at {LatitudeDegrees:0.####}°, {LongitudeDegrees:0.####}°, {(StandIn ? "stand-in ground" : "day x" + RotationTimeScale.ToString("0.##", CultureInfo.InvariantCulture))}");
+        $"body {SystemAddress:X16}/{BodyPath:X8}, radius {Radius:0} m, {SurfaceGravity:0.00} g, landing at {LatitudeDegrees:0.####}°, {LongitudeDegrees:0.####}°, {(Ground == GroundKind.Walking ? "walking-scale ground" : StandIn ? "stand-in ground" : "day x" + RotationTimeScale.ToString("0.##", CultureInfo.InvariantCulture))}");
 }

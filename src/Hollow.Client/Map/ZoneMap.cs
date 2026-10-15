@@ -34,7 +34,12 @@ public sealed class ZoneMap
         // Everything the picture depends on: the body's surface, where the zone sits, the map's size and its look.
         ulong key = Hash64.Of(spec.SystemAddress, spec.BodyPath, spec.SurfaceSeed, (ulong)BitConverter.DoubleToInt64Bits(spec.LatitudeDegrees));
         key = Hash64.Combine(key, Hash64.Of((ulong)BitConverter.DoubleToInt64Bits(spec.LongitudeDegrees), (ulong)BitConverter.DoubleToInt64Bits(Metres),
-            ZoneMapImage.Version, surface is PlanetSurface ? 1UL : 0UL));
+            ZoneMapImage.Version, surface switch
+            {
+                PlanetSurface => 1UL,
+                WalkingWorld => 2UL | (ulong)WalkingWorld.Version << 8,
+                _ => 0UL,
+            }));
         CacheKey = $"map-{key:X16}";
     }
 

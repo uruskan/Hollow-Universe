@@ -60,6 +60,9 @@ public partial struct ZoneInfo
     /// <summary>The stand-in ground instead of the body's real surface (tests).</summary>
     public bool StandIn;
 
+    /// <summary>The ground the zone stands on (Simulation.GroundKind: 0 the stand-in, 1 the walking-scale ground; S4).</summary>
+    public byte Ground;
+
     /// <summary>How much faster than real the planet turns for play (GROUND.md §1: 24), counted from J2000.</summary>
     public float RotationTimeScale;
     /// <summary>The air's density at the mean radius (kg/m³) and its scale height (m): ships' drag (G6).</summary>

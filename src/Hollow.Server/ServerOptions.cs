@@ -25,6 +25,13 @@ public sealed record ServerOptions
     /// </summary>
     public bool StandIn { get; init; }
 
+    /// <summary>
+    /// The ground the zone stands on: the stand-in by default; <c>--ground walking</c> puts it on the walking-scale ground
+    /// of S4 (docs/WALKING_GROUND.md), told to clients with the zone. Off until the owner approves S4. On that ground, a
+    /// server left at the default latitude and longitude lands players at the ground's own landing site.
+    /// </summary>
+    public Simulation.GroundKind Ground { get; init; }
+
     /// <summary>How much faster than real the planet turns (GROUND.md §1; 1 = its real day).</summary>
     public double RotationTimeScale { get; init; } = Simulation.ZoneSpec.DefaultRotationTimeScale;
 

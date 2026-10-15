@@ -69,6 +69,7 @@ public sealed class WalkingWorld : ISurface, IScatterField
     private readonly double _meanTemperature;
     private readonly bool _hasSea;
     private readonly ScatterPlan _plan;
+    private readonly Lazy<Vector3D> _landing;
 
     /// <summary>
     /// A walking-scale world of a game radius, from its real sea cover (0 for none), ice cover and annual mean
@@ -85,6 +86,7 @@ public sealed class WalkingWorld : ISurface, IScatterField
         _meanTemperature = meanTemperature;
         _provinces = new ReliefProvinces(Hash64.Of(seed, 0x52454C46), radius, _p); // "RELF"
         _plan = ScatterPlan.BySize(radius, _p.ScatterTile);
+        _landing = new Lazy<Vector3D>(FindLanding);
 
         // The coast: the landmass field's level below which the real share of evenly spread directions lies. The
         // relief only rises inland of it, so the sea covers that share (a dry world keeps 2 % of basins).
@@ -153,6 +155,45 @@ public sealed class WalkingWorld : ISurface, IScatterField
     /// over its hollow, a stream's surface in its channel; −∞ on dry ground. Water stands where it is above the ground.
     /// </summary>
     public double WaterLevelAt(Vector3D direction) => Fields(direction).Water;
+
+    /// <summary>
+    /// Where players land on this world (docs/WALKING_GROUND.md §11): a meadow 5 to 25 m above the sea at a forest's
+    /// edge, near the coast and a stream, in the temperate belt (nearest 45° of latitude), off the mountains. Found once
+    /// on the drainage grid, the same on every machine (a fixed order; ties go to the lower cell).
+    /// </summary>
+    public Vector3D LandingSite => _landing.Value;
+
+    private Vector3D FindLanding()
+    {
+        if (_drainage == null)
+        {
+            return Vector3D.UnitX;
+        }
+        Drainage grid = _drainage;
+        int best = -1;
+        double bestScore = double.NegativeInfinity;
+        for (int i = 0; i < grid.CellCount; i++)
+        {
+            Vector3D d = grid.CellCentre(i);
+            double latitude = Math.Abs(DMath.Asin(Math.Clamp(d.Y, -1, 1)) * DMath.RadToDeg);
+            if (latitude < 30 || latitude > 60)
+            {
+                continue;
+            }
+            WalkingSample s = Fields(d);
+            if (s.Wetted || s.Height < 5 || s.Height > 25 || s.Continent > 0.12 || s.Mountains > 0.2)
+            {
+                continue;
+            }
+            double cover = ForestCover(d, s);
+            double score = (1 - Math.Abs(latitude - 45) / 15) + (1 - 2 * Math.Abs(cover - 0.35)) + s.Wet;
+            if (score > bestScore)
+            {
+                (best, bestScore) = (i, score);
+            }
+        }
+        return best >= 0 ? grid.CellCentre(best) : Vector3D.UnitX;
+    }
 
     public SurfaceSample Sample(Vector3D direction)
     {

@@ -165,7 +165,7 @@ public partial class GroundMode : Node
             if (ChildServer.Find(repository) is { } dll)
             {
                 _child = ChildServer.Start(dll, repository, port, System.IO.Path.GetFullPath(database), $"{name}'s game",
-                    Option("spawn", "beach") == "origin", admin: name);
+                    Option("spawn", "beach") == "origin", admin: name, ground: Option("ground", "stand-in"));
                 loading.Add(_child.LoadStage());
                 host = "127.0.0.1";
                 connectNow = false;
@@ -188,6 +188,7 @@ public partial class GroundMode : Node
                     DatabasePath = database,
                     Content = _content,
                     SpawnAtOrigin = Option("spawn", "beach") == "origin",
+                    Ground = Option("ground", "stand-in") == "walking" ? Hollow.Simulation.GroundKind.Walking : Hollow.Simulation.GroundKind.StandIn,
                     // The hosting player is the game's admin (GROUND.md §8.2).
                     Admins = new[] { name },
                     Log = line => GD.Print("[server] " + line),

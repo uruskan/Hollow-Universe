@@ -26,9 +26,10 @@ public static partial class Protocol
     /// interaction (GROUND_SYSTEMS.md §5): one <see cref="InteractIntent"/> for every verb (Open, PickUp, Toggle, HelpUp,
     /// Rearm and Unlock gone; with 18's placing, nothing is left of Door, Lock and Claim; Team doesn't invite, Ship is the
     /// pilot's keys alone), spent arrows (<see cref="ArrowStates"/>, <see cref="ArrowsGone"/>, the Arrow target family), a
-    /// thing's capabilities.
+    /// thing's capabilities; 22: IW1's frames (GROUND.md §4.4); 23: the zone's ground (<see cref="ZoneInfo.Ground"/>: the
+    /// stand-in or the walking-scale ground of S4, docs/WALKING_GROUND.md).
     /// </summary>
-    public const uint Version = 22;
+    public const uint Version = 23;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
