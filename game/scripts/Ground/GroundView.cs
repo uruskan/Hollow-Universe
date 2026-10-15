@@ -292,6 +292,7 @@ public partial class GroundView : Node3D
         AddChild(_fires);
         // Ships (G6): every ship drawn and heard; the flight HUD in place of the belt while piloting.
         _ships = new ShipsView { Name = "Ships", Client = Client };
+        _people.Ships = _ships;
         AddChild(_ships);
         _shipHud = new HollowUniverse.Ships.ShipHud { Name = "ShipHud", Visible = false };
         layer.AddChild(_shipHud);

@@ -108,8 +108,23 @@ public static class CharacterAnimator
             t.AddNode("down", Blend1D(DownPoints), new Vector2(0, 450));
             t.AddNode("sleep", Clip("sleep"), new Vector2(0, 600));
         }
+        // Sitting (IRON_WAKE.md §9.6): the built sit_idle clip.
+        bool sitting = _clips.ContainsKey("sit_idle");
+        if (sitting)
+        {
+            t.AddNode("sit", Clip("sit_idle"), new Vector2(0, 750));
+        }
         var stance = new AnimationNodeTransition { XfadeTime = 0.22f };
-        string[] stances = lying ? new[] { "stand", "crouch", "swim", "down", "sleep" } : new[] { "stand", "crouch", "swim" };
+        var stanceList = new List<string> { "stand", "crouch", "swim" };
+        if (lying)
+        {
+            stanceList.AddRange(new[] { "down", "sleep" });
+        }
+        if (sitting)
+        {
+            stanceList.Add("sit");
+        }
+        string[] stances = stanceList.ToArray();
         foreach (string s in stances)
         {
             stance.AddInput(s);

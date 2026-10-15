@@ -104,7 +104,13 @@ public sealed record StationBarrelData(int RecoilPart, ShipSocket Muzzle, Vector
 /// the bow, + to port) its barrels clear the hull through at level.
 /// </summary>
 public sealed record StationGeometry(string Id, string Kind, float Side, int YawPart, int PitchPart, IReadOnlyList<StationBarrelData> Barrels,
-    ShipSocket Camera, IReadOnlyList<(float From, float To)> Arcs);
+    ShipSocket Camera, IReadOnlyList<(float From, float To)> Arcs)
+{
+    /// <summary>The grips the gunner's hands hold (the data file's <c>grips</c>: left and right as the character's hands), if any.</summary>
+    public ShipSocket? GripLeft { get; init; }
+
+    public ShipSocket? GripRight { get; init; }
+}
 
 /// <summary>A lamp fixture of a ship's data file (IRON_WAKE.md §9.4): its name, where it is, which way it shines (a spot), its room.</summary>
 public sealed record ShipFixture(string Name, Vector3 Position, Vector3 Direction, bool Spot, string Room);

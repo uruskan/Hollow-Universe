@@ -219,6 +219,59 @@ public partial class PeopleView : Node3D
         UpdateCorpses();
     }
 
+    /// <summary>The ships as drawn (seated people sit where their seats are drawn).</summary>
+    public ShipsView? Ships { get; set; }
+
+    // A seated character's frame (IRON_WAKE.md §9.6): the hips on the seat as its ship is drawn (a gunner's seat on its
+    // turning mount), facing the seat's way with the head following the view; a station's gunner with both hands on its
+    // grips (the data file's), a helm's pilot on the controls in front of the seat, a passenger's hands in the lap.
+    private CharacterFrame? SeatedFrame(RemoteEntity e, float viewYaw)
+    {
+        if (Ships == null)
+        {
+            return null;
+        }
+        foreach (RemoteShip ship in Client.Ships().All)
+        {
+            int seat = ship.SeatOf(e.Id);
+            if (seat < 0 || ship.Def is not { } def || Ships.ViewOf(ship.NetId) is not { } view || seat >= def.Seats.Count)
+            {
+                continue;
+            }
+            Hollow.Simulation.Ships.ShipSeatDef s = def.Seats[seat];
+            Transform3D at = view.SocketWorld(s.At);
+            Vector3 up = at.Basis.Y.Normalized(), forward = at.Basis.Z.Normalized();
+            float yaw = CharacterFrame.YawToward(up, forward);
+            var frame = new CharacterFrame
+            {
+                Position = at.Origin,
+                Seat = at.Origin,
+                Up = up,
+                Yaw = yaw,
+                Pitch = e.Pitch,
+                LookYaw = Mathf.AngleDifference(yaw, viewYaw) + e.LookYaw,
+                LookPitch = e.LookPitch,
+                Stance = CharacterStance.Sit,
+                Grounded = true,
+            };
+            if (def.StationOfSeat(seat) is { } station && def.Interior?.StationData.FirstOrDefault(g => g.Id == station.Id) is { GripLeft: { } l, GripRight: { } r })
+            {
+                frame.Grips = true;
+                frame.GripLeft = view.SocketWorld(l);
+                frame.GripRight = view.SocketWorld(r);
+            }
+            else if (s.Flies)
+            {
+                // A helm without grips of its own: the controls in front of the seat, at the hands' height (+X is the left).
+                frame.Grips = true;
+                frame.GripLeft = at * new Transform3D(Basis.Identity, new Vector3(0.2f, 0.32f, 0.42f));
+                frame.GripRight = at * new Transform3D(Basis.Identity, new Vector3(-0.2f, 0.32f, 0.42f));
+            }
+            return frame;
+        }
+        return null;
+    }
+
     private void Update(Person p, RemoteEntity e, float dt)
     {
         if (p.Body != e.Body && !p.Down)
@@ -252,10 +305,19 @@ public partial class PeopleView : Node3D
         p.LastLocal = e.LocalPosition;
         p.LastFrame = e.Frame;
         bool swimming = (e.Flags & MoveFlags.Swimming) != 0;
-        // In a ship's seat (G6): the character contract has no sitting pose, so the pilot isn't drawn (§11).
-        p.View.Visible = e.Stance != Stance.Seated;
+        p.View.Visible = true;
         (HeldKind kind, string? model) = e.Held != 0 && Client.Content.Item(e.Held) is { } item && ItemLooks.Held(item.Key) is { } held
             ? held : (HeldKind.Unarmed, (string?)null);
+        // In a ship's seat (IRON_WAKE.md §9.6): drawn sitting at the seat as the ship is drawn, every ship's.
+        if (e.Stance == Stance.Seated && SeatedFrame(e, facing) is { } seated)
+        {
+            p.View.Apply(seated);
+            // Nothing in hand, no steps; what it did meanwhile isn't replayed when it stands up.
+            Torch(p, null);
+            p.Actions = e.ActionCount;
+            p.Health = e.Health;
+            return;
+        }
         p.View.Apply(new CharacterFrame
         {
             Position = GroundView.ToGodot(e.Position),

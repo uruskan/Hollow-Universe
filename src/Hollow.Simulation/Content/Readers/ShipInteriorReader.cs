@@ -376,7 +376,17 @@ internal static class ShipInteriorReader
                 }
             }
         }
-        return new StationGeometry(id, f.Text(s, "kind", where), Side(f.Text(s, "side", where, "centre")), yaw, pitch, barrels, cameraSocket, arcs);
+        ShipSocket? left = null, right = null;
+        if (f.TryChild(s, "grips", out JsonElement grips) && grips.ValueKind == JsonValueKind.Object)
+        {
+            left = sockets.TryGetValue(f.Text(grips, "left", where + ".grips", ""), out ShipSocket l) ? l : null;
+            right = sockets.TryGetValue(f.Text(grips, "right", where + ".grips", ""), out ShipSocket r) ? r : null;
+        }
+        return new StationGeometry(id, f.Text(s, "kind", where), Side(f.Text(s, "side", where, "centre")), yaw, pitch, barrels, cameraSocket, arcs)
+        {
+            GripLeft = left,
+            GripRight = right,
+        };
     }
 
     // The data file's sides: port is +X, starboard −X.

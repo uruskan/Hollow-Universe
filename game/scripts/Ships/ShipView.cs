@@ -226,6 +226,34 @@ public partial class ShipView : Node3D
         }
     }
 
+    /// <summary>
+    /// A socket of the ship's frame (a seat, a grip) where it is drawn now, in render space: carried by its part as the part
+    /// is posed (a gunner's seat on a turning mount), its axes the socket's (+Z forward, +Y up).
+    /// </summary>
+    public Transform3D SocketWorld(Hollow.Simulation.Ships.ShipSocket socket)
+    {
+        var fwd = new Vector3(socket.Forward.X, socket.Forward.Y, socket.Forward.Z);
+        var up = new Vector3(socket.Up.X, socket.Up.Y, socket.Up.Z);
+        if (fwd.LengthSquared() < 1e-6f)
+        {
+            fwd = Vector3.Back;
+        }
+        if (up.LengthSquared() < 1e-6f || MathF.Abs(up.Normalized().Dot(fwd.Normalized())) > 0.99f)
+        {
+            up = Vector3.Up;
+        }
+        Vector3 z = fwd.Normalized(), x = up.Cross(z).Normalized(), y = z.Cross(x);
+        var local = new Transform3D(new Basis(x, y, z), new Vector3(socket.Position.X, socket.Position.Y, socket.Position.Z));
+        foreach (PartNode p in _parts)
+        {
+            if (p.Part == socket.Part && GodotObject.IsInstanceValid(p.Node))
+            {
+                return _model.GlobalTransform * (InModel(p.Node) * p.Rest.AffineInverse()) * local;
+            }
+        }
+        return _model.GlobalTransform * local;
+    }
+
     // ---------------------------------------------------------------- set-up
 
     private void FindHatch()

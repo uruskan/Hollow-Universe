@@ -506,6 +506,10 @@ public partial class CharacterView : Node3D
             return;
         }
         Transform = new Transform3D(CharacterFrame.BasisOf(_frame.Up, _frame.Yaw), _frame.Position);
+        if (_frame.Stance == CharacterStance.Sit)
+        {
+            Seat();
+        }
         int lod = ForcedLod >= 0 ? ForcedLod : PickLod();
         if (lod != _lod)
         {
@@ -657,6 +661,34 @@ public partial class CharacterView : Node3D
         }
     }
 
+    // Where the pelvis is in the view's own space as last posed (sitting: it is put on the seat), and the bone.
+    private Vector3 _sitPelvis = new(0, 0.55f, 0);
+    private int _pelvisBone = -2;
+
+    /// <summary>The pelvis over the seat's surface (metres): the hip bone sits a little above the cushion.</summary>
+    private const float SitPelvisHeight = 0.1f;
+
+    // Sitting: the root placed so the clip's pelvis lands on the seat (the pelvis measured from the last pose, so any
+    // body and clip fit any seat).
+    private void Seat()
+    {
+        if (_pelvisBone == -2)
+        {
+            _pelvisBone = _skeleton.FindBone("pelvis");
+        }
+        Basis basis = Transform.Basis;
+        if (_pelvisBone >= 0 && _stance == CharacterStance.Sit)
+        {
+            Vector3 pelvis = (Transform.AffineInverse() * _skeleton.GlobalTransform) * _skeleton.GetBoneGlobalPose(_pelvisBone).Origin;
+            if (pelvis.IsFinite() && pelvis.Length() < 2f)
+            {
+                _sitPelvis = _sitPelvis.Lerp(pelvis, 0.5f);
+            }
+        }
+        Vector3 seat = _frame.Seat + basis.Y.Normalized() * SitPelvisHeight;
+        Transform = new Transform3D(basis, seat - basis * _sitPelvis);
+    }
+
     private void Animate(float dt, int lod)
     {
         CharacterFrame f = _frame;
@@ -688,6 +720,7 @@ public partial class CharacterView : Node3D
                 CharacterStance.Swim => "swim",
                 CharacterStance.Crawl => "down",
                 CharacterStance.Sleep => "sleep",
+                CharacterStance.Sit => _assets.Clips.ContainsKey("sit_idle") ? "sit" : "crouch",
                 _ => "stand",
             });
             // Knocked down from standing: the fall; up again from the ground: getting up.
@@ -719,7 +752,8 @@ public partial class CharacterView : Node3D
         _tree.Set(CharacterAnimator.Rate, backwards && !lying ? -rate : rate);
 
         // Air: falling pose blended in; a jump plays its take-off, a landing after a real fall its landing.
-        bool grounded = f.Grounded || stance == CharacterStance.Swim || lying;
+        bool sitting = stance == CharacterStance.Sit;
+        bool grounded = f.Grounded || stance == CharacterStance.Swim || lying || sitting;
         _airTime = grounded ? 0f : _airTime + dt;
         float airTarget = grounded ? 0f : Math.Clamp((_airTime - 0.12f) / 0.2f, 0f, 1f);
         _air += (airTarget - _air) * Math.Min(1f, dt * 10f);
@@ -744,9 +778,9 @@ public partial class CharacterView : Node3D
             CharacterStance.Crawl => Math.Clamp(f.Pitch, -0.4f, 0.5f),
             _ => f.Pitch,
         };
-        _poser.SpinePitchShare = lying ? 0f : _held is HeldKind.Pistol or HeldKind.Rifle || _bowAim > 0.5f ? 0.85f : 0.45f;
+        _poser.SpinePitchShare = lying ? 0f : sitting ? 0.3f : _held is HeldKind.Pistol or HeldKind.Rifle || _bowAim > 0.5f ? 0.85f : 0.45f;
         TurnHead(f, dt);
-        _poser.GroundProbe = _lod == 0 && FootPlacement && !lying ? Probe : null;
+        _poser.GroundProbe = _lod == 0 && FootPlacement && !lying && !sitting ? Probe : null;
         _poser.Active = lod <= 1 || MathF.Abs(_legYaw) > 0.05f || MathF.Abs(f.Pitch) > 0.05f || _held == HeldKind.Rifle ||
             _bowAim > 0f || _thrust >= 0f || _useTime >= 0f || MathF.Abs(_lookYaw) + MathF.Abs(_lookPitch) > 0.01f;
     }
@@ -807,12 +841,13 @@ public partial class CharacterView : Node3D
         if (_item != null)
         {
             // Nothing is held lying down (the wounded can't use items; sleepers hold nothing).
-            _item.Visible = !lying;
+            _item.Visible = !lying && _stance != CharacterStance.Sit;
         }
         bool leftHanded = _itemModel?.LeftHanded == true;
         bool spear = _itemModel?.Class == "spear";
-        float wantR = lying || _held == HeldKind.Unarmed || leftHanded || spear ? 0f : 1f;
-        float wantL = !lying && _held is HeldKind.Pistol or HeldKind.Rifle ? 1f : 0f;
+        bool seated = _stance == CharacterStance.Sit;
+        float wantR = lying || seated || _held == HeldKind.Unarmed || leftHanded || spear ? 0f : 1f;
+        float wantL = !lying && !seated && _held is HeldKind.Pistol or HeldKind.Rifle ? 1f : 0f;
         _holdR += (wantR - _holdR) * Math.Min(1f, dt * 8f);
         _holdL += (wantL - _holdL) * Math.Min(1f, dt * 8f);
         _tree.Set(CharacterAnimator.HoldRight, _holdR);
@@ -877,6 +912,22 @@ public partial class CharacterView : Node3D
             _draw = 0f;
             return;
         }
+        if (_stance == CharacterStance.Sit)
+        {
+            // In a seat (IRON_WAKE.md §9.6): nothing held; at controls, both hands on their grips by the two-bone reach.
+            _bowAim = 0f;
+            _draw = 0f;
+            float grip = f.Grips ? Smooth(_hold) : 0f;
+            if (f.Grips)
+            {
+                Transform3D toSkeleton = _skeleton.GlobalTransform.AffineInverse() * GetParentNode3DOrIdentity();
+                _poser.LeftHand = HandFrame.HandFor(Orthonormal(toSkeleton * f.GripLeft), HandFrame.PowerGrip, _gripL);
+                _poser.RightHand = HandFrame.HandFor(Orthonormal(toSkeleton * f.GripRight), HandFrame.PowerGrip, _gripR);
+            }
+            _poser.RightHandWeight = grip;
+            _poser.LeftHandWeight = grip;
+            return;
+        }
         if (_useTime >= 0f)
         {
             PlaceUse();
@@ -903,6 +954,10 @@ public partial class CharacterView : Node3D
             _poser.LeftHandWeight = 0f;
         }
     }
+
+    private Transform3D GetParentNode3DOrIdentity() => GetParent() is Node3D parent ? parent.GlobalTransform : Transform3D.Identity;
+
+    private static Transform3D Orthonormal(Transform3D t) => new(t.Basis.Orthonormalized(), t.Origin);
 
     /// <summary>The server's reload time (weapons.json: 2.4 s); the pistol's third-person reload is its clip's length.</summary>
     private const float ReloadSeconds = 2.4f, PistolReloadSeconds = 1.67f;

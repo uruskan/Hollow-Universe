@@ -23,6 +23,12 @@ public enum CharacterStance
 
     /// <summary>Asleep (a player logged off): lying on the side, breathing slowly, eyes shut.</summary>
     Sleep,
+
+    /// <summary>
+    /// In a ship's seat (IRON_WAKE.md §9.6): the <c>sit_idle</c> clip, the hips on <see cref="CharacterFrame.Seat"/>, the head
+    /// following the view; a pilot's or gunner's hands on their grips (<see cref="CharacterFrame.Grips"/>).
+    /// </summary>
+    Sit,
 }
 
 /// <summary>What kind of thing a character holds; picks the upper-body pose and the first-person grip.</summary>
@@ -107,6 +113,14 @@ public struct CharacterFrame
     /// <summary>Aiming: a gun raised to the eye, a bow drawn and held (a <see cref="CharacterEvent.Fire"/> looses
     /// it, and while this stays set the next arrow is drawn).</summary>
     public bool Aiming;
+
+    /// <summary>Sitting (<see cref="CharacterStance.Sit"/>): where the hips sit, in the parent's space.</summary>
+    public Vector3 Seat;
+
+    /// <summary>Sitting at controls: the frames the left and right hands grip (handle along +Y), in the parent's space.</summary>
+    public bool Grips;
+
+    public Transform3D GripLeft, GripRight;
 
     public static CharacterFrame Standing(Vector3 position, Vector3 up, float yaw = 0f) => new()
     {
