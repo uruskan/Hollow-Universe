@@ -38,6 +38,34 @@ reset, after the owner's own playtest.
   `PlantSource.cs`, `NaturePlants.cs`, `surface_planet.gdshaderinc`); a native Jolt crash seen once during a test run
   beside three Godot games (KNOWN_PROBLEMS.md).
 
+## 15 October 2026: the Iron Wake finished, unverified in play
+
+Every Iron Wake package is on `main`:
+- the art fixes (closed hull, whole barrels into real breeches, new paint and tread);
+- IW2: seats, doors, the helm's crew list, keys;
+- IW3: the crewed batteries;
+- IW4: the incendiary rocket and fire;
+- IW5: building aboard;
+- IW6: sounds, effects, interior light, people in seats.
+
+Near the week's usage limit the owner asked for the least testing: each package built and ran its own tests once, and
+nothing was looked at or heard in Godot. **For the review after the reset** (each package's "As built" note in
+IRON_WAKE.md lists its own gaps):
+- the new surface shader `iron_wake_surface.gdshader`, never compiled;
+- the loading mechanisms posed in play;
+- the gunner's sight and keys: R tapped or held, Tab;
+- sound levels and the reverb presets;
+- lamp brightness, the probes and occlusion culling through open doors;
+- the seated poses (hips on the seat, hands on the grips);
+- the reworked rocket trails and fires;
+- a gunner firing while the pilot turns hard, and under packet loss.
+
+Not built:
+- the helm's light switch;
+- authored pilot and gunner poses (everyone uses `sit_idle`);
+- first-person hands on the grips;
+- `iw.alarm.fire`.
+
 ## 14 October 2026, late night: the Iron Wake designed
 
 The owner gave the game its benchmark ship, the Iron Wake (`D:\GameDev\Assets\IronWake_Buildable_R01`): a 58 m carrier
