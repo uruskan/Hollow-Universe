@@ -374,7 +374,7 @@ then S3b's load tests with 100 bots on the walking ground, which must hold their
 
 ## 12. The switch (built)
 
-**15 October 2026: the walking ground is the default** (the owner: the game they play must have everything that is built). The server and the hosted game stand on it unless given `--ground stand-in`; a hosted game keeps a save per ground (`hollow-host-walking.db` beside `hollow-host.db`). S4e's other steps (the landing site, arrivals off lakes, the nav grid's water) remain.
+**15 October 2026: the game stands on the walking ground, always** (the owner: the game is its latest version). The server and the hosted game have no ground option any more and use one save; the stand-in world remains only inside the engine-free tests. S4e's other steps (the landing site, arrivals off lakes, the nav grid's water) remain.
 
 The game can stand on the walking ground today, off by default:
 

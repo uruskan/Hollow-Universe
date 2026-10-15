@@ -156,12 +156,10 @@ public partial class GroundMode : Node
     {
         LoadingPipeline loading = BeginLoading();
         // The save: --db, else this branch's own (Checkout.HostedSave: a branch's newer schema never meets an older build).
-        // The walking-scale ground is the default since 15 October 2026 (the owner: play everything that's built);
-        // --ground stand-in plays on the plain stand-in world. Each ground keeps its own save, so places from one never
-        // land on the other.
-        string ground = Option("ground", "walking");
-        string save = ground == "walking" ? Checkout.HostedSave.Replace(".db", "-walking.db") : Checkout.HostedSave;
-        string database = Options.TryGetValue("db", out string? dbOption) && dbOption != "true" ? dbOption : ProjectSettings.GlobalizePath(save);
+        // The game stands on the walking-scale ground, always (the owner, 15 October 2026: the game is its latest
+        // version). The save: --db, else this branch's own (Checkout.HostedSave).
+        const string ground = "walking";
+        string database = Options.TryGetValue("db", out string? dbOption) && dbOption != "true" ? dbOption : ProjectSettings.GlobalizePath(Checkout.HostedSave);
         bool connectNow = true;
         if (host == null && !Options.ContainsKey("in-process"))
         {

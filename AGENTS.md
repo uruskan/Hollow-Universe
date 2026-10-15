@@ -94,8 +94,7 @@ dotnet run --project tools/Hollow.NetGen      # after changing src/Hollow.Net/Pr
 dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server: the first world, whole (2.41 km), on S4's
                                                  # walking-scale ground (the default since 15 October 2026); players arrive on
                                                  # beaches anywhere (--spawn origin: at the landing site, --lat, --lon)
-                                                 # (--no-db, --db <path>, --day-scale <x>, --ground stand-in: the plain
-                                                 # stand-in world; a hosted game keeps one save per ground; type help). F1 console admins:
+                                                 # (--no-db, --db <path>, --day-scale <x>; type help). F1 console admins:
                                                  # --admin <name> (repeatable), admins.txt (or --admins <file>),
                                                  # --dev (everyone is an admin); GROUND.md §8.2
 dotnet run --project tests/Hollow.Tests -- Console    # the F1 console: parsing, completion, rights, commands over the network, god and noclip
