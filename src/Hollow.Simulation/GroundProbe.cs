@@ -131,7 +131,19 @@ public readonly struct GroundProbe(ISurface surface, ZoneFrame frame)
         return -1;
     }
 
-    /// <summary>Whether a point lies under the sea's surface, or less than <paramref name="clearance"/> above it.</summary>
-    public bool InWater(Vector3 point, float clearance = 0.05f) =>
-        Surface.SeaRadius > 0 && Frame.ToBody(point).Length < Surface.SeaRadius + clearance;
+    /// <summary>
+    /// Whether a point lies under the water's surface (the sea's; on the walking-scale ground a lake's or a stream's too,
+    /// <see cref="ISurface.WaterLevelAt"/>), or less than <paramref name="clearance"/> above it.
+    /// </summary>
+    public bool InWater(Vector3 point, float clearance = 0.05f)
+    {
+        Core.Vector3D body = Frame.ToBody(point);
+        double length = body.Length;
+        if (!(length > 0))
+        {
+            return false;
+        }
+        double level = Surface.WaterLevelAt(body / length);
+        return level > double.NegativeInfinity && length < Surface.Radius + level + clearance;
+    }
 }

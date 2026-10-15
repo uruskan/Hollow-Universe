@@ -88,11 +88,24 @@ public sealed class SurfaceSky
     public float Exposure { get; private set; } = 1;
     public double LocalHours { get; private set; }
 
-    /// <summary>Recomputes the sky for a time and a camera (body-frame position), and sets the lights and shader parameters.</summary>
+    /// <summary>
+    /// Recomputes the sky for a time and a camera (body-frame position), and sets the lights and shader parameters.
+    /// <paramref name="groundRadius"/> is the drawn world's: on a small world the sun sets behind it (its horizon lies
+    /// 2.2° below level at eye height, 70° from the leaving height), not behind the air's real-size planet
+    /// (docs/WHOLE_WORLD.md §10.2, §10.5).
+    /// </summary>
     public void Update(double time, Vector3D camera, RenderFrame frame, ShaderMaterial skyMaterial,
-        DirectionalLight3D sunLight, DirectionalLight3D moonLight, float pixelAngle)
+        DirectionalLight3D sunLight, DirectionalLight3D moonLight, float pixelAngle, double groundRadius)
     {
         Vector3D up = camera.Normalized;
+        Vector3 upRender = frame.DirectionToRender(up);
+        // The drawn world's horizon from the camera (cosine of zenith), and the air's own: a light between the two still
+        // shines, through the air as it does at the air's horizon.
+        double r = Math.Max(camera.Length, groundRadius + 0.05);
+        double ballHorizon = -Math.Sqrt(Math.Max(0, 1 - groundRadius * groundRadius / (r * r)));
+        double airHeight = Math.Max(camera.Length - groundRadius, 1);
+        double airHorizon = -Math.Sqrt(airHeight * (2 * _air.BottomRadius + airHeight)) / (_air.BottomRadius + airHeight);
+        double ForAir(double mu) => mu >= ballHorizon ? Math.Max(mu, airHorizon + 5e-4) : mu;
         Vector3D sunBody = _ephemeris.Position(_sun.Index, time);
         double sunDistance = (sunBody - camera).Length;
         Vector3 sunDir = frame.DirectionToRender((sunBody - camera).Normalized);
@@ -102,7 +115,7 @@ public sealed class SurfaceSky
         SunIlluminance = _sunColour * sunE;
         double mus = Vector3D.Dot((sunBody - camera).Normalized, up);
         SunElevation = (float)(Math.Asin(Math.Clamp(mus, -1, 1)) * 180 / Math.PI);
-        double altitude = camera.Length - _air.BottomRadius;
+        double altitude = camera.Length - groundRadius;
         LocalHours = _ephemeris.LocalSolarHours(up, _sun.Index, time);
 
         // The moon: its direction from the planet's centre lights the air; from the camera (with parallax) it is drawn.
@@ -186,17 +199,17 @@ public sealed class SurfaceSky
         skyMaterial.SetShaderParameter("pixel_angle", pixelAngle);
 
         // Lights at the ground: sunlight and moonlight through the air.
-        Vector3 sunT = _air.TransmittanceToSky(altitude, mus);
+        Vector3 sunT = _air.TransmittanceToSky(altitude, ForAir(mus));
         Vector3 sunGround = SunIlluminance * sunT;
-        SetLight(sunLight, sunDir, sunGround, frame);
+        SetLight(sunLight, sunDir, sunGround, upRender, ballHorizon);
         Vector3 moonGround = Vector3.Zero;
         if (_moon != null)
         {
             double mum = Vector3D.Dot(frame.DirectionToBody(MoonDirection), up);
-            moonGround = MoonIlluminance * _air.TransmittanceToSky(altitude, mum);
+            moonGround = MoonIlluminance * _air.TransmittanceToSky(altitude, ForAir(mum));
         }
         // Moonlight reads a little blue, as night vision does (and as in Rust).
-        SetLight(moonLight, MoonDirection, moonGround * MoonLightBoost * new Vector3(0.78f, 0.9f, 1.25f), frame);
+        SetLight(moonLight, MoonDirection, moonGround * MoonLightBoost * new Vector3(0.78f, 0.9f, 1.25f), upRender, ballHorizon);
 
         // Exposure: a camera metering for ground of 15% albedo, but nights stay a few stops darker than days.
         float topLum = AtmosphereModel.Luminance(SunIlluminance);
@@ -214,10 +227,12 @@ public sealed class SurfaceSky
     /// <summary>The moonlit air is brightened much less, so the night sky stays dark around the moon.</summary>
     public const float MoonSkyBoost = 2.5f;
 
-    private static void SetLight(DirectionalLight3D light, Vector3 toLight, Vector3 illuminance, RenderFrame frame)
+    // A light is hidden once it has set behind the drawn world (below its horizon from the camera, not below the render
+    // plane: on a whole world render +Y is the pole).
+    private static void SetLight(DirectionalLight3D light, Vector3 toLight, Vector3 illuminance, Vector3 up, double horizon)
     {
         float energy = AtmosphereModel.Luminance(illuminance);
-        light.Visible = energy > 1e-9f && toLight.Y > -0.2f;
+        light.Visible = energy > 1e-9f && toLight.Dot(up) > horizon - 0.02;
         if (!light.Visible)
         {
             return;
@@ -228,8 +243,8 @@ public sealed class SurfaceSky
         light.LightColor = new Color(colour.X / max, colour.Y / max, colour.Z / max).LinearToSrgb();
         // Godot multiplies light energy by π (so energy 1 lights white to 1); illuminance E gives radiance E/π.
         light.LightEnergy = energy * max / Mathf.Pi;
-        Vector3 up = Math.Abs(toLight.Y) > 0.99f ? Vector3.Forward : Vector3.Up;
-        light.Basis = Basis.LookingAt(-toLight, up);
+        Vector3 roll = Math.Abs(toLight.Y) > 0.99f ? Vector3.Forward : Vector3.Up;
+        light.Basis = Basis.LookingAt(-toLight, roll);
     }
 
     private static Vector4 V4(Vector3 v) => new(v.X, v.Y, v.Z, 0);

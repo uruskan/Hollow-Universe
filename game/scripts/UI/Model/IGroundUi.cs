@@ -179,8 +179,8 @@ public interface IGroundUi
     /// <summary>How many markers the player may put down.</summary>
     int MaxMarkers => 5;
 
-    /// <summary>Puts a marker on the map at a point (0–1 across and down) with a colour (0–5) and a label.</summary>
-    void PlaceMarker(float x, float y, int colour, string label)
+    /// <summary>Puts a marker on the ground under a direction from the world's centre (body frame) with a colour (0–5) and a label.</summary>
+    void PlaceMarker(System.Numerics.Vector3 direction, int colour, string label)
     {
     }
 

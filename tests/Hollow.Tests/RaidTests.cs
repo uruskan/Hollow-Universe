@@ -64,7 +64,8 @@ public static class RaidTests
     /// GROUND.md §6.6, the raid-cost table: how many of each explosive break each grade of wall, hit on its hard side
     /// and on its soft side, and each door. Rust's counts (the owner allows its raid tables) come out exactly on our hit
     /// points: timed charges 1/2/4/8 for wood, stone, metal and armoured walls, rockets 2/4/8/15, bag charges 3/10/23/46,
-    /// tin grenades 13/46/112/223, explosive rounds 49/185/400/799; doors as in the table. Explosives hurt both sides alike
+    /// tin grenades 13/46/112/223, explosive rounds 49/185/400/799; doors as in the table (and ours: the high-velocity
+    /// rocket's, and IW4's incendiary rocket's burst alone, 10/100/500/2000). Explosives hurt both sides alike
     /// (Rust); the soft side counts for blows (a stone wall takes 5% of a pickaxe on its hard side, all of it on its soft side).
     /// </summary>
     [Test]
@@ -82,6 +83,8 @@ public static class RaidTests
             ("tin-grenade", new[] { 1, 13, 46, 112, 223 }),
             ("rifle-ammo-explosive", new[] { 1, 49, 185, 400, 799 }),
             ("rocket-hv", new[] { 1, 4, 12, 23, 45 }),
+            // IW4: the incendiary rocket's burst alone (its fire does the rest to wood: IRON_WAKE.md §7, FireTests).
+            ("rocket-incendiary", new[] { 1, 10, 100, 500, 2000 }),
         };
         // Wooden, sheet metal, garage and armoured doors.
         string[] doorKeys = { "wooden-door", "sheet-metal-door", "garage-door", "armoured-door" };
@@ -93,6 +96,7 @@ public static class RaidTests
             ["tin-grenade"] = new[] { 10, 18, 43, 56 },
             ["rifle-ammo-explosive"] = new[] { 19, 63, 150, 200 },
             ["rocket-hv"] = new[] { 3, 4, 9, 12 },
+            ["rocket-incendiary"] = new[] { 7, 50, 120, 500 },
         };
         var table = new StringBuilder("\n      hits to break        twig  wood stone metal armd | soft side            | wooden metal garage armd door");
         int spot = 0;
@@ -166,7 +170,7 @@ public static class RaidTests
     // Blasts of one kind on a target (stuck to it) until it breaks.
     private static int Count(GameRig rig, BlastStats blast, ushort item, ITargetable target, Vector3 at, Vector3 normal, Func<bool> gone)
     {
-        for (int n = 1; n <= 1000; n++)
+        for (int n = 1; n <= 2500; n++)
         {
             rig.Zone.Damage().Blast(blast, at, normal, target.Ref, target.Ref.Family, EntityId.None, "", item);
             if (gone())
@@ -358,9 +362,10 @@ public static class RaidTests
     }
 
     /// <summary>
-    /// GROUND.md §6.6, rockets: a rocket flies at 18 m/s with a little drop (so 20 m takes 1.1 s), explodes on the wall it
-    /// hits (137 or 138 of a stone wall's 500) and hurts someone standing beside the impact; the launcher holds one and
-    /// reloads in 5 s; a high-velocity rocket flies faster and flatter but hardly scratches stone.
+    /// GROUND.md §6.6, rockets: a rocket flies at 18 m/s and drops (0.3 of the planet's gravity since IW4, the owner's
+    /// direction: 1.7 m over 20 m, so it is aimed that much high), so 20 m takes 1.1 s; it explodes on the wall it hits (137
+    /// or 138 of a stone wall's 500) and hurts someone standing beside the impact; the launcher holds one and reloads in 5 s;
+    /// a high-velocity rocket flies faster and flatter but hardly scratches stone.
     /// </summary>
     [Test]
     public static void RocketsFlyDropAndBlastWalls()
@@ -377,7 +382,7 @@ public static class RaidTests
         Guns.Arm(rig, ada, "rocket-launcher", "rocket", 1);
         rig.Give(ada, "rocket-hv", 1);
         rig.Step(20);
-        rig.Look(ada, face);
+        FireRig.Aim(rig, ada, "rocket", face);
         Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 1), "fired");
         float boBefore = rig.P(bo).Vitals.Health;
         int flight = Raids.StepUntil(rig, () => rig.Zone.Explosives().RaidStats.Detonations == 1, 90, "the rocket's blast");
@@ -393,7 +398,7 @@ public static class RaidTests
         rig.Step(151);
         Assert.Equal(1, (int)rig.P(ada).Inventory.Belt[0].Loaded, "loaded after 5 s");
         double before = east.Health;
-        rig.Look(ada, face);
+        FireRig.Aim(rig, ada, "rocket-hv", face);
         Assert.Equal(OutcomeCode.Done, Guns.Queue(rig, ada, 4), "fired the high-velocity rocket");
         int fast = Raids.StepUntil(rig, () => rig.Zone.Explosives().RaidStats.Detonations == 2, 60, "the high-velocity rocket's blast");
         Assert.InRange(13, 18, fast, "20 m at 40 m/s: about 15 ticks");

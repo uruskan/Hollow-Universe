@@ -42,7 +42,7 @@ public sealed partial class ClientGroundUi
 
     /// <summary>
     /// Every frame, from the eye along the view: what E acts on (none while <paramref name="can"/> is false: dead, down,
-    /// flying), and the prompt for it.
+    /// seated), and the prompt for it.
     /// </summary>
     public void Aim(Num.Vector3 eye, Num.Vector3 direction, bool can)
     {

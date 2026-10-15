@@ -165,7 +165,7 @@ public partial class GroundMode : Node
             if (ChildServer.Find(repository) is { } dll)
             {
                 _child = ChildServer.Start(dll, repository, port, System.IO.Path.GetFullPath(database), $"{name}'s game",
-                    Option("spawn", "beach") == "origin", admin: name);
+                    Option("spawn", "beach") == "origin", admin: name, ground: Option("ground", "stand-in"));
                 loading.Add(_child.LoadStage());
                 host = "127.0.0.1";
                 connectNow = false;
@@ -188,6 +188,7 @@ public partial class GroundMode : Node
                     DatabasePath = database,
                     Content = _content,
                     SpawnAtOrigin = Option("spawn", "beach") == "origin",
+                    Ground = Option("ground", "stand-in") == "walking" ? Hollow.Simulation.GroundKind.Walking : Hollow.Simulation.GroundKind.StandIn,
                     // The hosting player is the game's admin (GROUND.md §8.2).
                     Admins = new[] { name },
                     Log = line => GD.Print("[server] " + line),
@@ -230,6 +231,9 @@ public partial class GroundMode : Node
             SoundTrace = Options.ContainsKey("sound-trace"),
             HostCommand = Command,
             TimeOverride = TimeOption(),
+            // Screenshots from above (docs/WHOLE_WORLD.md §10.5): the camera lifted along up, looking down.
+            CameraLift = (float)Number("lift", 0),
+            ShotPitch = Options.ContainsKey("pitch") ? (float)Number("pitch", 0) * MathF.PI / 180 : null,
             ServerAddress = host == "127.0.0.1" && (_server != null || _child != null)
                 ? $"this computer, port {port} (hosted here)"
                 : $"{host}:{port}",

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Hollow.Client;
+using Hollow.Core;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
 using Hollow.Simulation.Content;
@@ -17,8 +18,9 @@ using UiContainerKind = HollowUniverse.UI.Model.ContainerKind;
 
 namespace HollowUniverse.Ground;
 
-// The interface's G7 members over the client (GROUND.md §6.8): the zone's map and what is on it (the player, teammates,
-// the last death, bags and beds, the player's markers, all through ZoneMap.ToMap), the tech tree of the workbench in
+// The interface's G7 members over the client (GROUND.md §6.8): the map of the whole world and what is on it (the player,
+// teammates, the last death, bags and beds, the player's markers, each as its direction from the world's centre; facings
+// from local north), the tech tree of the workbench in
 // reach, the team and its invites, the recycler's and research table's panels, blueprints drawn as what they teach,
 // and the notices and sounds for blueprints learnt, invites and the team's changes.
 public sealed partial class ClientGroundUi
@@ -59,11 +61,14 @@ public sealed partial class ClientGroundUi
         {
             if (_mapView == null && _client.World().Map is { } map)
             {
-                _mapView = new MapView(map.CacheKey, MapPixels, () => map.Render(MapPixels).Rgba, (float)map.Metres, map.Cells);
+                _mapView = new MapView(map.CacheKey, MapPixels, () => map.Render(MapPixels).Rgba, map.Radius, map.Cells);
             }
             return _mapView;
         }
     }
+
+    /// <summary>Where the camera looks, a direction in the zone's frame (the ground view sets it): the map's arrow faces it.</summary>
+    public Func<Num.Vector3>? ViewDirection { get; set; }
 
     public IReadOnlyList<MapMarkerView> MapMarkers
     {
@@ -76,15 +81,12 @@ public sealed partial class ClientGroundUi
             }
             _mapMarkersAt = now;
             _mapMarkers.Clear();
-            if (_client.World().Map is not { } map)
+            if (_client.World().Map == null)
             {
                 return _mapMarkers;
             }
-            MapMarkerView At(MapMarkerKind kind, Num.Vector3 zone, string label = "", float facing = 0, int colour = 0, int index = -1, bool dim = false)
-            {
-                Num.Vector2 p = map.ToMap(zone);
-                return new MapMarkerView(kind, p.X, p.Y, label, facing, colour, index, dim);
-            }
+            MapMarkerView At(MapMarkerKind kind, Num.Vector3 zone, string label = "", float facing = 0, int colour = 0, int index = -1, bool dim = false) =>
+                new(kind, OnMap(zone), label, facing, colour, index, dim);
             foreach (RespawnPointView point in Me.RespawnPoints)
             {
                 _mapMarkers.Add(At(point.Bed ? MapMarkerKind.Bed : MapMarkerKind.Bag, point.Position,
@@ -122,15 +124,17 @@ public sealed partial class ClientGroundUi
             }
             if (_client.HasCharacter && !Me.IsDead)
             {
+                // Facings measured from local north (docs/WHOLE_WORLD.md §5): flying, the ship's nose; on foot, the view.
                 if (_client.Ships().Piloting && _client.Ships().OwnShipDef != null)
                 {
-                    // Flying: the ship, its nose.
-                    Num.Vector3 nose = _client.Ships().OwnShip.Forward;
-                    _mapMarkers.Add(At(MapMarkerKind.Me, _client.Ships().OwnShipRenderPosition, facing: Degrees(MathF.Atan2(nose.X, -nose.Z))));
+                    Num.Vector3 at = _client.Ships().OwnShipRenderPosition;
+                    _mapMarkers.Add(At(MapMarkerKind.Me, at, facing: Facing(Hollow.Simulation.Movement.Facing.YawOf(_client.Ships().OwnShip.Forward, _client.Frame.UpAt(at)))));
                 }
                 else
                 {
-                    _mapMarkers.Add(At(MapMarkerKind.Me, _client.Character.Position, facing: Facing(ViewYaw())));
+                    Num.Vector3 at = _client.Character.Position;
+                    Num.Vector3 view = ViewDirection?.Invoke() ?? _client.Frame.UpAt(at);
+                    _mapMarkers.Add(At(MapMarkerKind.Me, at, facing: Facing(Hollow.Simulation.Movement.Facing.YawOf(view, _client.Frame.UpAt(at)))));
                 }
             }
             return _mapMarkers;
@@ -139,11 +143,11 @@ public sealed partial class ClientGroundUi
 
     public int MaxMarkers => C.World.MaxMarkers;
 
-    public void PlaceMarker(float x, float y, int colour, string label)
+    public void PlaceMarker(Num.Vector3 direction, int colour, string label)
     {
-        if (_client.World().Map is { } map)
+        if (_client.World().Map is { } map && direction.LengthSquared() > 1e-12f)
         {
-            Me.PlaceMarker(map.ToZone(new Num.Vector2(Math.Clamp(x, 0, 1), Math.Clamp(y, 0, 1))), (byte)Math.Clamp(colour, 0, 5), label);
+            Me.PlaceMarker(map.Ground(new Vector3D(direction.X, direction.Y, direction.Z)), (byte)Math.Clamp(colour, 0, 5), label);
             _mapMarkersAt = double.MinValue;
         }
     }
@@ -154,20 +158,21 @@ public sealed partial class ClientGroundUi
         _mapMarkersAt = double.MinValue;
     }
 
-    // A yaw (radians, anticlockwise from north, the movement code's) as the map's facing: degrees clockwise from north.
+    // A yaw (radians from local north, anticlockwise seen from above: the movement code's) as the map's facing: degrees
+    // clockwise from local north.
     private static float Facing(float yaw) => Degrees(-yaw);
 
     private static float Degrees(float radians) => ((radians * 180 / MathF.PI) % 360 + 360) % 360;
 
-    // A zone point on the map (0–1 across and down), for the death screen's body and bags.
-    private (float X, float Y) OnMap(Num.Vector3 zone)
+    // A point of the zone as the map takes it: its direction from the world's centre, in the body frame.
+    private Num.Vector3 OnMap(Num.Vector3 zone)
     {
         if (_client.World().Map is not { } map)
         {
-            return (0.5f, 0.5f);
+            return Num.Vector3.UnitY;
         }
-        Num.Vector2 p = map.ToMap(zone);
-        return (Math.Clamp(p.X, 0, 1), Math.Clamp(p.Y, 0, 1));
+        Vector3D d = map.DirectionOf(zone);
+        return new Num.Vector3((float)d.X, (float)d.Y, (float)d.Z);
     }
 
     // ---------------------------------------------------------------- the tech tree

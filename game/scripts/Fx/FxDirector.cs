@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Godot;
 using HollowUniverse.Characters;
+using HollowUniverse.Surface;
 
 namespace HollowUniverse.Fx;
 
@@ -30,8 +31,11 @@ public struct FxParams
     /// to where the view model draws its muzzle.</summary>
     public bool FirstPerson;
 
-    /// <summary>The height debris lands on (world Y); unset: the hit point on the ground, 1.2 m below it on a wall.</summary>
-    public float? Floor;
+    /// <summary>
+    /// A point of the floor debris lands on (world): it lands at that height along up (docs/WHOLE_WORLD.md §10.4); unset:
+    /// the hit point on the ground, 1.2 m below it on a wall.
+    /// </summary>
+    public Vector3? Floor;
 
     /// <summary>Loops: stop by themselves after this many seconds (0: run until stopped).</summary>
     public float Duration;
@@ -262,28 +266,13 @@ public partial class FxDirector : Node3D
 
     /// <summary>
     /// A shot's muzzle effect on <paramref name="muzzle"/> (a gun's muzzle socket, +X along the barrel), first or third
-    /// person. <paramref name="key"/> is muzzle.rifle, muzzle.rifle.brake, muzzle.pistol, muzzle.pistol.brake,
-    /// muzzle.silenced or muzzle.rocket; <see cref="MuzzleKey"/> picks it from the gun and its attachments.
+    /// person. <paramref name="key"/> is the gun's own (fx.json items: muzzle.rifle, muzzle.pistol, muzzle.rocket...), or the
+    /// one for the part on its muzzle (a brake's, a silencer's): <c>GunEffects.MuzzleKey</c> picks it.
     /// </summary>
     public static bool Muzzle(string key, Node3D muzzle, bool firstPerson)
     {
         Transform3D t = muzzle.GlobalTransform.Orthonormalized();
         return Play(key, t.Origin, t.Basis.X, new FxParams { Follow = muzzle, FirstPerson = firstPerson, Direction = t.Basis.X });
-    }
-
-    /// <summary>The muzzle effect for a gun: silenced, braked or plain, rifle-sized or pistol-sized.</summary>
-    public static string MuzzleKey(string weaponKey, bool silenced, bool brake)
-    {
-        if (silenced)
-        {
-            return "muzzle.silenced";
-        }
-        if (weaponKey == "rocket-launcher")
-        {
-            return "muzzle.rocket";
-        }
-        string size = weaponKey == "pistol" ? "pistol" : "rifle";
-        return brake ? $"muzzle.{size}.brake" : $"muzzle.{size}";
     }
 
     /// <summary>Whether this shot draws a tracer: some do, as in Rust (every <c>tracerEvery</c>-th per shooter).</summary>
@@ -402,7 +391,7 @@ public partial class FxDirector : Node3D
         public Color Tint;
         public Vector3 Area;
         public Basis AreaBasis;
-        public float Floor;
+        public float Floor; // metres above the planet's mean radius (PlanetGlobals.Height)
         public bool FirstPerson;
         public Node3D? Follow;
         public float Lod;
@@ -510,7 +499,8 @@ public partial class FxDirector : Node3D
             Tint = p.TintOrWhite,
             Area = p.Area,
             AreaBasis = new Basis(t, n, b),
-            Floor = p.Floor ?? (n.Y > 0.6f ? position.Y : position.Y - 1.2f),
+            Floor = p.Floor is { } floor ? PlanetGlobals.Height(floor)
+                : PlanetGlobals.Height(position) - (n.Dot(PlanetGlobals.Up(position)) > 0.6f ? 0f : 1.2f),
             FirstPerson = p.FirstPerson,
             Follow = p.Follow,
             Lod = DistanceLod ? Lod(distance) : 1f,
@@ -637,9 +627,9 @@ public partial class FxDirector : Node3D
         switch (layer.Dir)
         {
             case FxDirection.Up:
-                return _random.InCone(Vector3.Up, layer.Cone);
+                return _random.InCone(PlanetGlobals.Up(spot.Position), layer.Cone);
             case FxDirection.Down:
-                return _random.InCone(Vector3.Down, layer.Cone);
+                return _random.InCone(-PlanetGlobals.Up(spot.Position), layer.Cone);
             case FxDirection.Along:
                 return _random.InCone(spot.Direction.LengthSquared() > 0 ? spot.Direction : spot.Normal, layer.Cone);
             case FxDirection.Back:
@@ -780,15 +770,18 @@ public partial class FxDirector : Node3D
             }
             loop.Accumulators[i] -= n;
             Vector3 at = frame * offset;
+            // Up where the loop burns: on a whole world it is not +Y (docs/WHOLE_WORLD.md §10.4).
+            Vector3 up = PlanetGlobals.Up(at);
+            (Vector3 across, Vector3 along) = FxRandom.Frame(up);
             var spot = new Spot
             {
                 Position = at,
-                Normal = Vector3.Up,
+                Normal = up,
                 Direction = loop.Params.Direction,
                 Scale = loop.Params.ScaleOr1,
                 Tint = loop.Params.TintOrWhite,
-                AreaBasis = new Basis(Vector3.Right, Vector3.Up, Vector3.Back),
-                Floor = at.Y - 1f,
+                AreaBasis = new Basis(across, up, along),
+                Floor = PlanetGlobals.Height(at) - 1f,
                 FirstPerson = loop.Params.FirstPerson,
                 Lod = 1f,
                 Distance = distance,

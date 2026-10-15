@@ -193,9 +193,10 @@ public sealed class WorldData
 
     public int MaxMarkers { get; internal set; } = 5;
 
-    /// <summary>The map's side in metres and its grid's cell.</summary>
-    public double MapMetres { get; internal set; } = 3900;
-
+    /// <summary>
+    /// The map's grid cell in metres, about (docs/WHOLE_WORLD.md decision 6): each cube face of the world has as many
+    /// cells a side as fit (<c>WorldGrid.CellsPerFace</c>: 25 of 151 m on the first world).
+    /// </summary>
     public double MapCell { get; internal set; } = 150;
 
     public PropDef? Prop(int id)

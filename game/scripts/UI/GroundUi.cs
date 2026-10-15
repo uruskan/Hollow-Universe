@@ -16,7 +16,7 @@ public enum GroundScreen
     Death,
     Menu,
 
-    /// <summary>G7: the zone's map with the markers and the team (G, as in Rust).</summary>
+    /// <summary>G7: the map of the whole world with the markers and the team (G, as in Rust).</summary>
     Map,
 
     /// <summary>G7: the tech tree of the workbench in reach.</summary>
@@ -112,6 +112,7 @@ public partial class GroundUi : Control
         AddChild(_blur);
         _canvas = new Painter { Name = "Canvas", Paint = PaintCanvas };
         AddChild(_canvas);
+        CreateGlobe();
         _character = new CharacterPreview { Name = "Character" };
         AddChild(_character);
 
@@ -371,7 +372,9 @@ public partial class GroundUi : Control
         {
             Layout();
         }
+        UpdateGlobe(delta);
         _canvas.QueueRedraw();
+        _globePicture.QueueRedraw();
         _overlay.QueueRedraw();
     }
 
@@ -491,7 +494,7 @@ public partial class GroundUi : Control
     {
         if (button is MouseButton.WheelUp or MouseButton.WheelDown)
         {
-            if (!ZoomMap(button == MouseButton.WheelUp ? -1 : 1) && !ScrollConsole(button == MouseButton.WheelDown ? 1 : -1) &&
+            if (!ZoomGlobe(button == MouseButton.WheelUp ? -1 : 1) && !ScrollConsole(button == MouseButton.WheelDown ? 1 : -1) &&
                 !ScrollDeveloper(button == MouseButton.WheelDown ? 1 : -1))
             {
                 ScrollRecipes(button == MouseButton.WheelDown ? 1 : -1);
@@ -508,14 +511,9 @@ public partial class GroundUi : Control
             PressInventory(h, button);
             return;
         }
-        if (h.Kind == HitKind.Map && Screen == GroundScreen.Map)
+        if (h.Kind == HitKind.Map)
         {
-            PressMap(button);
-            return;
-        }
-        if (h.Kind == HitKind.Map && button == MouseButton.Left)
-        {
-            GrabMap(true);
+            PressGlobe(button);
             return;
         }
         if (button == MouseButton.Left && h.Click != null)
@@ -528,14 +526,7 @@ public partial class GroundUi : Control
     private void Release(MouseButton button)
     {
         ReleaseConsole(button);
-        if (button == MouseButton.Left)
-        {
-            GrabMap(false);
-        }
-        if (Screen == GroundScreen.Map)
-        {
-            ReleaseMap(button);
-        }
+        ReleaseGlobe(button);
         ReleaseInventory(button);
     }
 

@@ -64,9 +64,9 @@ Each family registers an `ITargetFamily`: resolve an id, its pose, the nearest p
 still exists, its capabilities, its model key. This replaces the four resolvers and the per-family fields of `TraceHit`.
 Interaction, placement supports, damage receivers and the Destroyed event all use it.
 
-*As built:* `Targets/TargetRef.cs` and `Zone.Targets.cs`. Eleven families (`TargetFamily`: `Ground`, `Character`, `Animal`,
-`Natural`, `Thing`, `Piece`, `Door`, `Cupboard`, `Explosive`, `Ship`, and P1's `Arrow`; `None` names nothing), each one
-class registered once by its number. `Part` 0 is the whole thing and n is part n − 1: a door's leaf, a body's bone in its hit shapes'
+*As built:* `Targets/TargetRef.cs` and `Zone.Targets.cs`. Twelve families (`TargetFamily`: `Ground`, `Character`, `Animal`,
+`Natural`, `Thing`, `Piece`, `Door`, `Cupboard`, `Explosive`, `Ship`, P1's `Arrow` and IW4's `Fire`, IRON_WAKE.md §7; `None`
+names nothing), each one class registered once by its number, on the server and in a client's `TargetModule`. `Part` 0 is the whole thing and n is part n − 1: a door's leaf, a body's bone in its hit shapes'
 order (`HitShape`, one list the ray test, the nearest point and the bone poses share). Families also say whether their
 things move (§3.6) and take them out of the world (`Remove`, §3.7). Every world thing knows its `Ref`; `Zone.Resolve`,
 `Exists`, `TryPose` and `TryNearest` route by family, and the explosives' scan is a dictionary. The damage receivers are
@@ -95,7 +95,8 @@ what it needs to offer the right options; it is what the code lock was missing.
 
 *As built:* `game/data/ground/capabilities.json` (hashed, append only, at most 64) lists `owned`, `container`, `burner`,
 `machine`, `door`, `key-lock`, `code-lock`, `cupboard`, `ship`, `lifetime` and `explosive` (P1 appends `pickup`,
-`portable`, `station`, `wounded`, `character`, `dud` and `arrow`, §5); each has one handler
+`portable`, `station`, `wounded`, `character`, `dud` and `arrow`, §5; IW4 `fire`: a fire falls when what it burns on goes);
+each has one handler
 (`Capabilities/Handlers.cs`) in a sealed registry, and the zone won't start while one is missing or extra. A thing's set
 (`CapabilitySet`, a 64-bit mask) comes from its definition's blocks (`CapabilityData.Of`: slots, device, recycler or
 research) or, for what the rules make, capabilities.json's own sets (bags, bodies, doors, the cupboard, ships,
@@ -142,8 +143,9 @@ removed or starting to come down; a tree felled; an animal or a character gone) 
 capability's consequence (`IDependentCapability.SupportLost`). Explosives are the first dependents: their `SupportKind`
 switch and fields are gone, a charge follows a door's leaf and falls when its support goes, and `ExplosiveCodec`
 version 2 stores the `TargetRef` (version 1 records come back onto one). Spent arrows are the second (P1, §5): one rides a
-body's bone and falls to the ground when its holder goes. Placement (P2) adds the next. Test:
-`FoundationTests.SupportLinksFollowAndGoWithTheirSupport`.
+body's bone and falls to the ground when its holder goes. Placement (P2) adds the next. Fires (IW4, IRON_WAKE.md §7) are
+held by what they burn on: one rides a ship's deck, and when its floor burns through or its box burns down its fuel falls to
+what is below and burns on. Test: `FoundationTests.SupportLinksFollowAndGoWithTheirSupport`, `FireTests`.
 
 ### 3.7 Lifetimes
 One despawn rule for every loose thing in the world: a `lifetime` from data (survival.json today: dropped items and bags
@@ -660,6 +662,7 @@ Decisions:
 | `CombatSystem` | Zone.Combat.cs | held items' actions (swings, bows), arrows in flight, hits on characters, natural things and the ground |
 | `GunSystem` | Zone.Guns.cs | gun actions and bullets |
 | `ExplosiveSystem` | Zone.Raid.cs | thrown and placed explosives, fuses, detonations |
+| `FireSystem` | (new, IW4) | fires a blast leaves (IRON_WAKE.md §7): where the fuel comes to rest, what each burns every half second through the heat delivery, falling when what holds it goes, water, the zone's most |
 | `BlastSystem` | Zone.Blast.cs | an explosion's reach and line of sight, raid tallies |
 | `WoundedSystem` | Zone.Wounded.cs | the wounded getting up or dying |
 | `AnimalSystem` | Zone.Animals.cs | the animals' AI, attacks, harvest |

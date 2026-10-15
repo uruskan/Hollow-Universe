@@ -15,8 +15,9 @@ using Num = System.Numerics;
 
 namespace HollowUniverse.Animals;
 
-// The sandbox's scenes: each at a clearing near the landing site with trees behind it, found once from the planet's
-// own scatter (the same trees the zone's rules and the surface view have).
+// The sandbox's scenes: each at a clearing near the landing site with trees behind it, found once from the zone's own
+// natural objects (the same trees its rules and the surface view have), searched in metres east and south of the
+// landing site along the ground (Zone.GroundAt, docs/WHOLE_WORLD.md §10.5).
 public partial class AnimalSandbox
 {
     /// <summary>How far from the landing site clearings are looked for, and how far apart the scenes are.</summary>
@@ -31,7 +32,8 @@ public partial class AnimalSandbox
         {
             if (_content.Natural(o.Kind)?.Class == NaturalClass.Tree)
             {
-                trees.Add(o.Position.X, o.Position.Z);
+                (float east, float south) = _zone.OffsetOf(o.Position);
+                trees.Add(east, south);
             }
         }
         var found = new List<(Num.Vector3 Site, Num.Vector3 Toward)>();
@@ -44,7 +46,7 @@ public partial class AnimalSandbox
                 {
                     float angle = MathF.Tau * i / around;
                     float x = r * MathF.Cos(angle), z = r * MathF.Sin(angle);
-                    if (found.Any(f => Flat(f.Site, new Num.Vector3(x, 0, z)) < Apart))
+                    if (found.Any(f => Flat(f.Site, _zone.GroundAt(x, z)) < Apart))
                     {
                         continue;
                     }
@@ -63,7 +65,8 @@ public partial class AnimalSandbox
         {
             // Nowhere better: side by side from the landing site.
             float x = found.Count * Apart;
-            found.Add((_zone.GroundAt(x, 0), new Num.Vector3(0, 0, -1)));
+            Num.Vector3 site = _zone.GroundAt(x, 0);
+            found.Add((site, Facing.Compass(_zone.Frame.UpAt(site)).North));
         }
         GD.Print("Animal sandbox clearings: " + string.Join(", ", found.Select((f, i) => $"{SceneNames[i]} ({f.Site.X:0}, {f.Site.Z:0})")));
         AddHerd(found[0].Site, found[0].Toward);
@@ -77,7 +80,9 @@ public partial class AnimalSandbox
     // Open (no tree within 20 m), gentle, dry, and with trees within 75 m to look across to.
     private bool Clearing(TreeGrid trees, float x, float z, int treesNear, out Num.Vector3 toward)
     {
-        toward = new Num.Vector3(0, 0, -1);
+        Num.Vector3 here = _zone.GroundAt(x, z);
+        (Num.Vector3 north, Num.Vector3 east) = Facing.Compass(_zone.Frame.UpAt(here));
+        toward = north;
         if (trees.Count(x, z, 20, out _) > 0)
         {
             return false;
@@ -99,7 +104,8 @@ public partial class AnimalSandbox
         }
         if (near > 0)
         {
-            var d = new Num.Vector3(centroid.X - x, 0, centroid.Y - z);
+            // Toward the trees, from offsets east and south to a direction along the ground here.
+            Num.Vector3 d = east * (centroid.X - x) - north * (centroid.Y - z);
             if (d.LengthSquared() > 1)
             {
                 toward = Num.Vector3.Normalize(d);
@@ -111,13 +117,14 @@ public partial class AnimalSandbox
     // A campfire's place: among the trees (the grass is thin under them), clear for 3 m, near a clearing.
     private (Num.Vector3 Site, Num.Vector3 Toward) Woods(TreeGrid trees, Num.Vector3 near, Num.Vector3 toward)
     {
+        (float nearEast, float nearSouth) = _zone.OffsetOf(_zone.Settle(near + toward * 30));
         for (float r = 0; r <= 120; r += 4)
         {
             int around = r == 0 ? 1 : (int)(MathF.Tau * r / 4);
             for (int i = 0; i < around; i++)
             {
                 float angle = MathF.Tau * i / around;
-                float x = near.X + toward.X * 30 + r * MathF.Cos(angle), z = near.Z + toward.Z * 30 + r * MathF.Sin(angle);
+                float x = nearEast + r * MathF.Cos(angle), z = nearSouth + r * MathF.Sin(angle);
                 if (trees.Count(x, z, 3, out _) == 0 && trees.Count(x, z, 12, out _) >= 4 && Dry(x, z) &&
                     MathF.Abs(Height(x + 3, z) - Height(x - 3, z)) < 0.6f && MathF.Abs(Height(x, z + 3) - Height(x, z - 3)) < 0.6f)
                 {
@@ -128,7 +135,8 @@ public partial class AnimalSandbox
         return (near, toward);
     }
 
-    private float Height(float x, float z) => Num.Vector3.Dot(_zone.GroundAt(x, z), _zone.Frame.UpAt(new Num.Vector3(x, 0, z)));
+    // The ground's distance from the centre there: differences of it are heights.
+    private float Height(float x, float z) => (float)_zone.Frame.ToBody(_zone.GroundAt(x, z)).Length;
 
     private bool Dry(float x, float z)
     {
@@ -152,7 +160,7 @@ public partial class AnimalSandbox
             herd = _zone.Animals().World!.SpawnHerd(_content.Animal("deer")!, site, 5, range: 40);
             // Boars rooting at the trees' edge across the clearing.
             Num.Vector3 edge = site + toward * 30 + Side(toward, _zone.Frame.UpAt(site)) * 14;
-            _zone.Animals().World.SpawnHerd(_content.Animal("boar")!, _zone.GroundAt(edge.X, edge.Z), 2, range: 30);
+            _zone.Animals().World.SpawnHerd(_content.Animal("boar")!, _zone.Settle(edge), 2, range: 30);
         };
         scene.Camera = () =>
         {
@@ -171,9 +179,9 @@ public partial class AnimalSandbox
         var scene = new Scene { Name = "wolves", Site = site, Toward = toward, Hour = 16.5, Fov = 38 };
         scene.Build = () =>
         {
-            dummy = AddPerson("Dummy", site, YawOf(toward), dummy: true);
-            pack = _zone.Animals().World!.SpawnHerd(_content.Animal("wolf")!, _zone.GroundAt(site.X + toward.X * 42, site.Z + toward.Z * 42), 4,
-                range: 40, facing: YawOf(-toward));
+            dummy = AddPerson("Dummy", site, YawOf(toward, site), dummy: true);
+            pack = _zone.Animals().World!.SpawnHerd(_content.Animal("wolf")!, _zone.Settle(site + toward * 42), 4,
+                range: 40, facing: YawOf(-toward, site));
             foreach (Animal w in pack.Members)
             {
                 w.Hunger = 0.95f;
@@ -200,9 +208,9 @@ public partial class AnimalSandbox
         var scene = new Scene { Name = "bear", Site = site, Toward = toward, Hour = 17.5, Fov = 40 };
         scene.Build = () =>
         {
-            dummy = AddPerson("Dummy", site, YawOf(toward), dummy: true);
-            bear = _zone.Animals().World!.SpawnHerd(_content.Animal("bear")!, _zone.GroundAt(site.X + toward.X * 13.5f, site.Z + toward.Z * 13.5f), 1,
-                range: 30, facing: YawOf(-toward)).Leader!;
+            dummy = AddPerson("Dummy", site, YawOf(toward, site), dummy: true);
+            bear = _zone.Animals().World!.SpawnHerd(_content.Animal("bear")!, _zone.Settle(site + toward * 13.5f), 1,
+                range: 30, facing: YawOf(-toward, site)).Leader!;
             bear.Hunger = 0;
         };
         scene.Camera = () =>
@@ -231,15 +239,15 @@ public partial class AnimalSandbox
         {
             Num.Vector3 up = _zone.Frame.UpAt(site);
             Num.Vector3 at = site + toward * 1.3f;
-            corpse = _zone.Animals().World!.SpawnHerd(_content.Animal("deer")!, _zone.GroundAt(at.X, at.Z), 1, range: 5,
-                facing: YawOf(Side(toward, up))).Leader!;
+            corpse = _zone.Animals().World!.SpawnHerd(_content.Animal("deer")!, _zone.Settle(at), 1, range: 5,
+                facing: YawOf(Side(toward, up), at)).Leader!;
             Player p = butcher!.Player;
             _zone.Animals().DamageAnimal(corpse, 1000, HitRegion.Body, butcher.Current + up * 1.2f, p, p.Id, p.Name);
             _zone.Events.Clear();
         }
         scene.Build = () =>
         {
-            butcher = AddPerson("Butcher", site, YawOf(toward), held: "bone-knife");
+            butcher = AddPerson("Butcher", site, YawOf(toward, site), held: "bone-knife");
             NewCorpse();
         };
         scene.Tick = () =>
@@ -288,7 +296,7 @@ public partial class AnimalSandbox
         Num.Vector3 up = _zone.Frame.UpAt(site);
         Vector3 fire = ToRender(site);
         Vector3 upR = ToRender(up);
-        Basis level = Characters.CharacterFrame.BasisOf(upR, YawOf(toward));
+        Basis level = Characters.CharacterFrame.BasisOf(upR, Characters.CharacterFrame.YawToward(upR, ToRender(toward)));
         float rim = 0.38f;
         var scene = new Scene { Name = "cooking", Site = site, Toward = toward, Hour = 18.3 };
         var wood = new StandardMaterial3D { AlbedoColor = new Color(0.33f, 0.23f, 0.15f), Roughness = 0.9f };
@@ -338,7 +346,7 @@ public partial class AnimalSandbox
             Meat("burnt-wolf-meat", Skewer(5.4f, 0.18f, 0.44f));
             middle = Skewer(3.1f, 0.12f, 0.52f);
             // The cook across the fire, facing it (and the camera), a cooked steak in hand.
-            Person cook = AddPerson("Cook", site + toward * 1.3f + Side(toward, up) * 0.45f, YawOf(-toward), held: "cooked-venison");
+            Person cook = AddPerson("Cook", site + toward * 1.3f + Side(toward, up) * 0.45f, YawOf(-toward, site), held: "cooked-venison");
             Look(cook, site + up * 0.9f);
         };
         // One piece cooks through as the rules have it: raw for 15 s, cooked for 45 s, then burnt.
@@ -382,7 +390,9 @@ public partial class AnimalSandbox
     /// <summary>The right hand of a flat heading.</summary>
     private static Num.Vector3 Side(Num.Vector3 toward, Num.Vector3 up) => Num.Vector3.Normalize(Num.Vector3.Cross(toward, up));
 
-    private static float Flat(Num.Vector3 a, Num.Vector3 b) => MathF.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Z - b.Z) * (a.Z - b.Z));
+    // The distance between two points near each other on the ground (straight, as good as along the ground within a
+    // kilometre on a 2.41 km world).
+    private static float Flat(Num.Vector3 a, Num.Vector3 b) => Num.Vector3.Distance(a, b);
 
     /// <summary>Tree trunks in buckets, for counting those near a point.</summary>
     private sealed class TreeGrid(float cell)

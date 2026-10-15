@@ -1,23 +1,47 @@
 // A layer of fair-weather clouds (GROUND.md §4.6): a shell of cumulus between two altitudes, shaped from a tiling
 // noise texture that drifts with the wind, lit by the sun and the moon through their own thickness and by the sky.
-// The terrain samples the same field for cloud shadows. Needs surface_atmosphere.gdshaderinc first.
+// The terrain samples the same field for cloud shadows. The field is fixed to the planet: sampled by direction from its
+// centre on the cube faces (docs/WHOLE_WORLD.md §10.2), blended across their seams, never on a plane. Needs
+// surface_atmosphere.gdshaderinc first.
+
+#include "res://shaders/surface_planet.gdshaderinc"
 
 global uniform sampler2D hu_cloud_noise;    // r: cover, g: billows, b: detail, a: wisps
-global uniform vec2 hu_cloud_wind;          // metres the field has drifted
+global uniform vec2 hu_cloud_wind;          // metres the field has drifted, along each face's axes
 global uniform float hu_cloud_coverage;     // 0 clear, 1 overcast
 global uniform vec2 hu_cloud_layer;         // bottom and top altitude, metres
 global uniform vec3 hu_camera_position;     // render space
 
 const float HU_CLOUD_EXTINCTION = 0.06;     // per metre at full density
 
-float hu_cloud_density(vec2 xz, float h) {
+// The cover and billows of the field at a point of a face (metres along it).
+float hu_cloud_base(vec2 p) {
+	float cover = texture(hu_cloud_noise, p / 60000.0).r;
+	float billow = texture(hu_cloud_noise, p / 15000.0 + vec2(0.37, 0.71)).g;
+	return cover * 0.62 + billow * 0.38;
+}
+
+// The field's density at a render-space point, h metres up.
+float hu_cloud_density(vec3 point, float h) {
 	float bottom = hu_cloud_layer.x;
 	float top = hu_cloud_layer.y;
 	float hf = clamp((h - bottom) / (top - bottom), 0.0, 1.0);
-	vec2 p = xz + hu_cloud_wind;
-	float cover = texture(hu_cloud_noise, p / 60000.0).r;
-	float billow = texture(hu_cloud_noise, p / 15000.0 + vec2(0.37, 0.71)).g;
-	float base = cover * 0.62 + billow * 0.38;
+	// By direction from the centre, in metres at the layer's middle; faces blend over 150 m of the ground either side
+	// of a seam.
+	vec3 dir = hu_body_direction(point);
+	ivec3 faces;
+	vec3 w;
+	hu_face_blend(dir, 150.0, faces, w);
+	float scale = 1.0 + (bottom + top) * 0.5 / hu_ground_radius;
+	float base = 0.0;
+	vec2 q[3];
+	for (int k = 0; k < 3; k++) {
+		q[k] = vec2(0.0);
+		if (w[k] > 0.0) {
+			q[k] = hu_face_metres(dir, faces[k]) * scale + hu_cloud_wind;
+			base += w[k] * hu_cloud_base(q[k]);
+		}
+	}
 	// Flat bases, rounded tops: the cloud narrows with height.
 	float shape = smoothstep(0.0, 0.12, hf) * (1.0 - smoothstep(0.35, 1.0, hf) * 0.75);
 	float threshold = 1.0 - hu_cloud_coverage * shape;
@@ -25,7 +49,12 @@ float hu_cloud_density(vec2 xz, float h) {
 	if (d <= 0.0) {
 		return 0.0;
 	}
-	float detail = texture(hu_cloud_noise, p / 2600.0 + vec2(hf * 0.13, 0.0)).b;
+	float detail = 0.0;
+	for (int k = 0; k < 3; k++) {
+		if (w[k] > 0.0) {
+			detail += w[k] * texture(hu_cloud_noise, q[k] / 2600.0 + vec2(hf * 0.13, 0.0)).b;
+		}
+	}
 	d = clamp(d - (1.0 - detail) * 0.35 * (1.0 - d), 0.0, 1.0);
 	return d * smoothstep(0.0, 0.08, hf) * smoothstep(1.0, 0.85, hf);
 }
@@ -93,7 +122,7 @@ vec4 hu_clouds(vec3 rd, int steps, int light_steps, float jitter) {
 		float rho2 = max(rho0 + 2.0 * r0 * mu * t + t * t, 0.0);
 		float r = sqrt(R * R + rho2);
 		float h = rho2 / (r + R);
-		float d = hu_cloud_density(p.xz, h);
+		float d = hu_cloud_density(p, h);
 		if (d <= 0.001) {
 			continue;
 		}
@@ -107,7 +136,7 @@ vec4 hu_clouds(vec3 rd, int steps, int light_steps, float jitter) {
 		float ls = (hu_cloud_layer.y - h) / max(mus, 0.12) / float(light_steps);
 		for (int j = 1; j <= light_steps; j++) {
 			vec3 q = p + hu_sun_direction * ls * (float(j) - 0.5);
-			od += hu_cloud_density(q.xz, h + mus * ls * (float(j) - 0.5)) * HU_CLOUD_EXTINCTION * ls;
+			od += hu_cloud_density(q, h + mus * ls * (float(j) - 0.5)) * HU_CLOUD_EXTINCTION * ls;
 		}
 		float beer = exp(-od) * 0.7 + exp(-od * 0.25) * 0.3;   // light leaking deeper than Beer's law alone
 		float powder = 1.0 - exp(-sigma * 120.0);              // dark edges where the cloud is thin toward the light
@@ -134,14 +163,15 @@ vec4 hu_clouds(vec3 rd, int steps, int light_steps, float jitter) {
 	return vec4((light * Ta + L * (1.0 - T)) * far_fade, alpha);
 }
 
-// How much of the sun reaches a point on the ground through the clouds (0–1).
-float hu_cloud_shadow(vec3 world_point, float altitude) {
+// How much of the sun reaches a point through the clouds (0–1): the field where the sun's ray from it crosses the layer.
+float hu_cloud_shadow(vec3 world_point) {
 	if (hu_cloud_coverage <= 0.0) {
 		return 1.0;
 	}
 	float mid = mix(hu_cloud_layer.x, hu_cloud_layer.y, 0.35);
-	float mus = max(dot(hu_sun_direction, hu_camera_up), 0.08);
+	float altitude = hu_height(world_point);
+	float mus = max(dot(hu_sun_direction, hu_up(world_point)), 0.08);
 	vec3 q = world_point + hu_sun_direction * (mid - altitude) / mus;
-	float d = hu_cloud_density(q.xz, mid);
+	float d = hu_cloud_density(q, mid);
 	return exp(-d * HU_CLOUD_EXTINCTION * (hu_cloud_layer.y - hu_cloud_layer.x) * 0.25 / mus);
 }

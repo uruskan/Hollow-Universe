@@ -2,8 +2,9 @@
 
 Status: **approved by the owner on 15 October 2026, with all fourteen defaults of §2.** The art, sound and effects
 (§13: IW-A, IW-S, IW-F) are on `main`. The rules follow on top of S3a (WHOLE_WORLD.md): IW1 (ship spaces) was built on
-`whole-world`, which was merged into `main` on 15 October 2026 at the owner's word; IW2–IW6 follow on `main`. In a hosted
-game the host gets an Iron Wake with `ship iron-wake` (F1).
+`whole-world`, which was merged into `main` on 15 October 2026 at the owner's word; IW2–IW6 follow on `main`. IW4 (the
+incendiary rocket and fire, §7 "As built") was built on the branch `iw4`. In a hosted game the host gets an Iron Wake with
+`ship iron-wake` (F1).
 
 ---
 
@@ -507,8 +508,8 @@ data until IW6 draws them (`LightPower`: the ship's power or the emergency lamps
 - **Every way out is `ShipSystem.Release`:**
   - a death (the `Died` event, at once: the F1 console's `kill`, a wound, a fall);
   - an admin's teleport or noclip (`Zone.Teleport`);
-  - a lost connection (`ServerModule.Leaving`, not a goodbye): the occupant stands at the first clear exit and sleeps
-    there, or sleeps in the seat when none is clear;
+  - a lost connection (not a goodbye: `PlayerSession.LoggedOff`, `ShipModule.Left`): the sleeper stands at the first
+    clear exit, or sleeps in the seat when none is clear;
   - a disabled station (its gunner put out);
   - a wreck, which kills whoever sits in it.
 
@@ -666,8 +667,8 @@ The shoulder launcher's numbers (18 and 40 m/s) don't change. The projectile rea
 
 During the burn gravity is 0.15 × the planet's (the launcher's rule); after it, the whole of it. Drag is 0.0015 a metre.
 On S3's 2.4 km worlds the horizon is 380 m away from 30 m up and 690 m from 100 m, so the siege battery's reach matters
-from height. HV still flies flatter and faster, as the owner's playtest direction asks; its bear-killing damage is
-wave 1's fix (KNOWN_PROBLEMS.md, finding 26).
+from height. HV still flies flatter and faster, as the owner's playtest direction asks; its bear-killing damage and each
+round's own gravity came with IW4 (KNOWN_PROBLEMS.md, finding 26; §7 "As built").
 
 ### 6.5 The magazine and the ready racks
 
@@ -802,7 +803,7 @@ The sight says why, in this order, and the press does nothing:
 - Its model: the rocket's body with a red band and a blunt, frangible nose cap. As built (IW-A part 2,
   `art/models/raid.py`, GROUND.md §9.1): the rocket's motor and fins, a grey steel canister with a filler plug, a pale
   pressed cap scored in four with a crush disc on its nose; `rocket-incendiary` in the model catalogue with its icons.
-  The item and its recipe come with the battery rules (IW3, IW7).
+  The item and its recipe came with IW4 (below), before the batteries.
 
 **Its burst** (`explosives.json` blast `rocket-incendiary`, proposals) is a small blast:
 - radius 2.5 m;
@@ -832,6 +833,68 @@ The fire then does the work.
   lasts 18 s).
 - **Drawn as** `fire.patch` (§11), scaled to the radius, with a flickering light, crackle and roar by size, smoke, and
   `fire.patch.out`'s scorch where it burned.
+
+### As built (IW4, 15 October 2026)
+
+Built on the branch `iw4` from `main` (24df42c). The owner, on 15 October: the incendiary rocket is a standard launcher round
+"just like the high velocity rocket", and the ship will fire the same items later; real ship munitions come later. So it is
+the launcher's round first, and the batteries of IW3 need nothing more of it.
+
+**The item.** `rocket-incendiary` (item 128), "Incendiary rocket", stack 3; the launcher's round (calibre `rocket`,
+`weapons.json`), flying and dropping as the rocket does (18 m/s, 0.3 of the planet's gravity: below). Rust's recipe at
+workbench 2: 2 metal pipes, 150 gunpowder, 75 lamp oil, 10 s; in the second tech tree after the launcher (125 salvage), so
+researchable and found on blueprints of level 2; two in the raid bots' kit (rockets appear in no world loot table). Its model
+and icons are IW-A's. Its item rows show its blast and its fire ("Blast 2.5 m, 60 damage", "Fire 3.5 m for 18 s", "Burns 8 a
+second, and sets people alight", "Burns down wooden things, twig and wood").
+
+**Its burst** is `explosives.json`'s blast `rocket-incendiary`, with the proposals above (2.5 m; 60 to flesh and to
+deployables; twig 500, wood 20, stone 5, metal 2, armoured 1; doors 30, 5, 2), and it names the fire it leaves (`"fire":
+"incendiary"`). Alone it breaks a wood wall in 10 and stone in 100 (GROUND.md §6.6's table, checked by `RaidTests`).
+
+**The fire** is `FireSystem` (a `ZoneSystem`, after `ExplosiveSystem`) and `Raid/Fire.cs`, its kinds and rules in
+`explosives.json` `fires` (GROUND.md §6.6 "Fire" has every rule):
+- it is lit from the `Detonated` event, which now carries the blast: any blast whose data names a fire leaves one, whatever
+  delivered it (the launcher; IW3's batteries through the same projectile system);
+- the fuel rests on the surface the burst met when that faces up within 50°, else runs and falls straight down to the first
+  that does within 12 m (a wall's foot, the floor under a box, the deck under a hull's side);
+- it is a world thing, the twelfth target family (`TargetFamily.Fire`) with the `fire` capability, held by a support link
+  to what it burns on: on a flying Iron Wake's deck it rides the ship (`FireTests`: within 0.2 mm of its place while the ship
+  climbed 63 m); when what holds it goes it falls and burns on, the time it had left going on;
+- every half second it hurts what is within 3.5 m and in its sight (the one reach and sight rule, through ships' spaces) by
+  distance from its middle, through the damage pipeline's new `heat` delivery on the `Heat` channel: people 8 a second less
+  what they wear on the body, 6 of `Burning` a second while in it, killed outright as burning kills; animals 8; deployables
+  whose data `burns` 5; the building 6 through its heat channel, its fractions of a point carried to the next hit; its owner
+  is blamed (kills, raid hits by the rule for blows; a thing burnt down breaks with the new cause `Fire`);
+- water or the sea puts it out at once; at most 64 burn, the oldest going first; it doesn't spread and isn't saved.
+
+**The network** (protocol 23): `FireStarted` (118) and `FireEnded` (119), reliably to everyone within 300 m (each player is
+told of the fires in range as they light or come into range, and again when one falls), with its holder and its place there
+so a client draws it on a ship's deck as drawn; the server's `FireModule`, the client's `FireModule` (`client.Fires()`),
+the client's view of the fire family. `ThingDestroyed`'s cause grew to 4 bits.
+
+**Drawn and heard** (`FiresView`): `fire.patch` on a node placed every frame where the fire burns, `Scale` its radius over
+3.5 m, `Duration` the time it has left, with its flickering light; `fire.ignite` when it is lit and `fire.patch.large` looping
+on it; `fire.patch.out` when it goes out. The burst is `explosion.incendiary` and `rocket.incendiary.burst`. Every rocket now
+roars on its way: `rocket.ignite` where it leaves and `rocket.flight` looping on it until it stops (§10.1). The views take
+every item's effects from fx.json's new `items` (GROUND.md §9.3): `RaidView`'s calibre test, its burst switch by item name and
+`FxDirector.MuzzleKey`'s launcher case are gone, so a new round or explosive is data.
+
+**Finding 26** (KNOWN_PROBLEMS.md), the same data: each round's own gravity (the rocket 0.3, the HV rocket 0.1 of the planet's;
+10.6 and 0.7 m over 50 m, measured), and the HV rocket's 600 to whoever it strikes (a bear and a player in the best armour
+die; `FireTests`). Rust's raid counts are unchanged.
+
+**Measured** (engine-free, `FireTests`; the raid load test, GROUND.md §5.5): a small box struck burns down as its fire dies
+(60 + 90 of 150); a wood wall loses 20 and 108, and a second rocket's fire breaks it 9 s in; stone loses nothing; a bare player
+3 s in a fire loses 30 and is set burning 12, which burns on until the sea puts it out. In the raid load test with 100 bots (the
+bots now fire every rocket they carry in turn) 40 fires were lit in the measured minute, up to 20 burning at once: 0.032 ms a
+tick, against explosives and blasts' 0.078 ms (the PC busy with other work: ticks 10.6 ms on average against 10.4 without
+fires).
+
+**What IW3 needs to know.** A battery fires the same items through the projectile system (§6.3), so its rocket bursts with the
+item's own blast and its fire lights from the `Detonated` event with no further code. A round's `gravity` (weapons.json) is the
+shoulder launcher's drop; a battery's launch profile (§6.4) sets its own gravity, motor and drag per round, and should multiply
+in or replace the round's by its own rule. A fire can be lit by hand with `FireSystem.Ignite(kind, at, facing, item, owner,
+name)`, put out with `PutOut`; fires on a ship ride it and fall when it is wrecked.
 
 ## 8. Building aboard (IW10)
 
@@ -1438,9 +1501,10 @@ bell, so the machinery is modelled in code (`art/audio/machines.py`) and layered
 | `rocket.ignite` (4), `rocket.flight` (2 × 6 s loops), `rocket.incendiary.burst` (4 near, 3 mid, 2 far) | The motor catching a few metres out; a rocket motor's roar and crackle with a gasoline fire's real turbulence; a small blast and the fuel's whoomp, splash and crackle | Ignition at the light-up point; the flight loop on the rocket's node (`Loop`, `Stop` on arrival); the burst at impact, delayed |
 | `fire.ignite` (4), `fire.patch.small`, `.large` (20 and 24 s loops) | Fuel catching with a whoomp; crackle; a roar | The fire's start; its 18 s by size (§7) |
 
-**Not mapped yet.** The `rocket` and `rocket-hv` items' `flight` role still plays `arrow.flight`: `RaidView` plays that role
-once at the launch point (`Sounds.At`), and a loop there would never stop. When the rockets' view loops `rocket.flight`
-on the rocket and stops it on arrival (IW4 or IW6), the role becomes `"flight": "rocket.flight"` in `events.py`'s items.
+**Mapped since IW4.** Every rocket's `ignite` and `flight` roles are `rocket.ignite` (where it leaves) and `rocket.flight`,
+which `RaidView` loops on the rocket and stops where it stops (it played `arrow.flight` once at the launch point before); the
+incendiary rocket's `explode` is `rocket.incendiary.burst`, its fire's `fireStart` `fire.ignite` and its `fire`
+`fire.patch.large` (a 3.5 m pool), in `events.py`'s items and `sounds.json`.
 
 **The listener's spaces** (`sounds.json` → `spaces`, for `AudioBuses.SetSpace`; Godot's `AudioEffectReverb` terms):
 
@@ -1520,6 +1584,9 @@ ms). The siege muzzle stays within one heavy effect's share.
   - **Network.** The ship and its stations cost under 2 kbit/s to a watcher when idle and under 8 kbit/s in a
     firefight.
 
+**As built (IW4).** Protocol 23: `FireStarted` (118) and `FireEnded` (119), the Fire target family on the wire (4 bits, value
+12), `ThingDestroyed`'s cause in 4 bits (`Fire`). Fires aren't saved.
+
 **As built (IW1).** Protocol 22: the frame in the input, the own state, characters' states, `FireIntent` and `ThrowIntent`;
 `ShipNetState.Body`; `ShipPartStates` (121). Schema 8: `characters.frame`. Measured: §4.13.
 
@@ -1563,7 +1630,7 @@ merging them into S3 by hand, line by line. So (IW14):
 | IW1 | Ship spaces: frames, transfers, deck gravity, prediction, queries through frames, history, network, saves (§4) | S3a |
 | IW2 | Ship kinds, seats, parts and doors; the Iron Wake's flight; spawning by kind (§5). Together with wave 1's seats package, which also changes the seat keys | IW1 |
 | IW3 | Crewed batteries (§6) | IW2 |
-| IW4 | The incendiary rocket and fire (§7) | S3a |
+| IW4 | The incendiary rocket and fire (§7); built on `iw4` (§7 "As built") | S3a |
 | IW5 | Building aboard (§8) | IW1 |
 | IW6 | The playable slice: the ship sandbox scene, lights and probes, the sound and effects hooked up, the measurements, the pictures, the owner's playtest | All |
 

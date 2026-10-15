@@ -149,7 +149,7 @@ public partial class FirstPersonView : Node3D
     {
         LocalPlayer me = Client.Local;
         // In a ship's seat the hands are on the stick: nothing held is drawn (G6).
-        ItemDef? item = me.IsDead || Client.Ships().Piloting ? null : me.HeldItem;
+        ItemDef? item = me.IsDead || Client.Ships().Seated ? null : me.HeldItem;
         string? key = item?.Key;
         if (key != _heldKey)
         {

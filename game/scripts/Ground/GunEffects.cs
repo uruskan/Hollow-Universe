@@ -24,7 +24,6 @@ namespace HollowUniverse.Ground;
 public static class GunEffects
 {
     private static GameContent? _content;
-    private static byte _silencers, _brakes;
     private static (byte Bit, string Key)[] _attachments = Array.Empty<(byte, string)>();
     private static readonly string[] Slots = { "sight", "muzzle", "under" };
     private static Vector3 _fleshAt;
@@ -39,15 +38,24 @@ public static class GunEffects
         _content = content;
         List<ItemDef> parts = content.Items.Where(i => i.Attachment != null).ToList();
         _attachments = parts.Select(i => ((byte)(1 << i.Attachment!.Index), i.Key)).ToArray();
-        _silencers = (byte)parts.Where(i => i.Attachment!.Silenced).Aggregate(0, (m, i) => m | 1 << i.Attachment!.Index);
-        _brakes = (byte)parts.Where(i => i.Key == "muzzle-brake").Aggregate(0, (m, i) => m | 1 << i.Attachment!.Index);
     }
 
-    /// <summary>The muzzle effect of a gun with these attachments (<c>GunMods.Bits</c>, <c>RemoteEntity.HeldMods</c>).</summary>
+    /// <summary>
+    /// The muzzle effect of a gun with these attachments (<c>GunMods.Bits</c>, <c>RemoteEntity.HeldMods</c>), from data
+    /// (fx.json items, IW4): the gun's own for the part on its muzzle (<c>muzzle:muzzle-brake</c>), else that part's own on
+    /// any gun (a silencer's), else the gun's own (<c>muzzle</c>).
+    /// </summary>
     public static string MuzzleKey(GameContent content, string weapon, byte mods)
     {
         Know(content);
-        return FxDirector.MuzzleKey(weapon, (mods & _silencers) != 0, (mods & _brakes) != 0);
+        foreach ((byte bit, string key) in _attachments)
+        {
+            if ((mods & bit) != 0 && (FxCatalog.ItemEffect(weapon, "muzzle:" + key) ?? FxCatalog.ItemEffect(key, "muzzle")) is { } fitted)
+            {
+                return fitted;
+            }
+        }
+        return FxCatalog.ItemEffect(weapon, "muzzle") ?? "muzzle.rifle";
     }
 
     /// <summary>A model's socket ("muzzle", "exhaust", "flame", "fuse"), if it has one.</summary>

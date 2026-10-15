@@ -20,6 +20,7 @@
     { "key": "character", "note": "A player awake: the leader of a team invites them into it." },
     { "key": "dud", "note": "An explosive whose fuse went out: anyone lights it again." },
     { "key": "arrow", "note": "A spent arrow stuck where it hit (GROUND_SYSTEMS.md §5), held by what it hit: when that goes it falls to the ground below." },
+    { "key": "fire", "note": "A fire a blast left (explosives.json fires, IW4, IRON_WAKE.md §7), held by what it burns on: when that goes, the burning fuel falls to what is below and burns on, or goes out with nothing near enough below." },
     { "key": "seat", "note": "ships.json parts naming a seat (IRON_WAKE.md §5.2): sat in with the seat's verb (board, take the helm, man, sit in), by those its sitters allow." },
     { "key": "ship-door", "note": "ships.json parts naming a door (IRON_WAKE.md §5.3): opened as its rule allows and shut, locked and unlocked by the ship's crew." },
     { "key": "fuel", "note": "ships.json parts: a ship's tank, filled from the player's fuel." }

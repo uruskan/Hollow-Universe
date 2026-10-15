@@ -4,8 +4,9 @@ Status: **approved by the owner on 14 October 2026; being built.** This is packa
 owner said go on 14 October 2026, after asking why the map still shows a 3.9 km square without proper zoom (finding 1 of
 [KNOWN_PROBLEMS.md](KNOWN_PROBLEMS.md)), and approved the twelve defaults of §2 the same evening, so they are
 decisions. The code was built on the branch `whole-world` and merged into `main` on 15 October 2026, at the owner's
-word, before S3c (so that the game has the Iron Wake). S3a and S3b are built (14 and 15 October 2026; how they differ
-from this design is at the end of §14); S3c and S3d remain, on `main`.
+word, before S3c (so that the game has the Iron Wake). S3a and S3b are built (14 and 15 October 2026), and S3c,
+the client drawing the ball, and S3d, the map, on 15 October 2026 on the branches `s3c` and `s3d`, merged into `main`
+the same day; how each differs from this design is at the end of §14.
 
 Four read-only surveys of the code (14 October 2026: the simulation, the network and saves, the world and the animals,
 the Godot client) found every place that assumes the zone is a flat patch. This design is built on them.
@@ -406,6 +407,7 @@ ship), the procedural sky and the fixed light. Changes:
 - **The grid** (decision 6): faces A to F, each 25 × 25 cells lettered and numbered as in Rust, so "C K12". The console's
   `whereami` and `teleport <cell>` use the same naming function. Today the console has its own copy.
 - **Facing arrows** are measured from local north.
+- **As built** (S3d, 15 October 2026): §14, S3d as built.
 
 ---
 
@@ -417,7 +419,7 @@ The surveys found these on `main` today. S3 did not cause them.
 |---|---|---|
 | Every animal added on the same tick gets the same seed, so a herd's members start on one spot, face one way and think on the same tick | `AnimalWorld.AddMember`: the counter `_localIds` is never incremented | Increment it, on `main` now |
 | In play, the near tree impostors' bounds are ±400 m around the landing site. More than about 400 m from it, they disappear whenever those bounds are out of view. Not yet seen in a run | `Vegetation.Game.RebuildNear` anchors the near set at the frame's origin; the impostors' `CustomAabb` is fixed | Bounds around the camera, on `main` now |
-| The map of a surface without a sea is most likely black: heights become infinite and the shading NaN. Not run | `ZoneMapImage` | In S3: the stand-in gets a sea (§4) and the map reads `SeaRadius` safely |
+| The map of a surface without a sea is most likely black: heights become infinite and the shading NaN. Not run | `ZoneMapImage` | In S3: the stand-in gets a sea (§4) and the map reads `SeaRadius` safely (done in S3d: a world without a sea is all land; a test draws one) |
 | `world.json` says coastal clusters lie within 40 m of the sea; the code uses 35 m | `LootSpots.Classify` | In S3 |
 | The animals' class comment says they think at 8 and 4 Hz; they think at 7.5 and 5 | `AnimalWorld` | In S3 |
 
@@ -457,7 +459,7 @@ On the branch `whole-world`, with `main` merged in regularly. Each step ends gre
 |---|---|---|
 | S3a | The world frame, lengths by size, the view (input, wire, history, hit shapes), the radial ground, physics tiles on the ball, the stand-in world, building, ships, the console, protocol 21, schema 7, the tests' rigs | The tests, the movement check and the walk round the world |
 | S3b | Nature, props, arrivals, animals, the raid ring, the server's 3D grid, bots | The load test on the ball |
-| S3c | The client draws the ball: the render frame, terrain from any surface, texturing, the sea, the sky's minimum, plants and grass, ragdolls, gibs and effects, cameras | Screenshots from the ground and from the leaving height; the frame time |
+| S3c | The client draws the ball: the render frame, terrain from any surface, texturing, the sea, the sky's minimum, plants and grass, ragdolls, gibs and effects, cameras | Screenshots from the ground and from the leaving height; the frame time (built 15 October 2026, below) |
 | S3d | The map | Screenshots of the globe, the chart and the death screen; the interface check |
 
 S3a is the largest, and nothing on `main` changes while the branch is built.
@@ -541,6 +543,130 @@ coordinates, §8), within 256 kbit/s; prediction is exact wherever nothing pushe
 - **Left:** bursts of slow placements when 80 bases start at once on beaches (30 of 3,602 ticks over 33 ms); the
   snapshot's bytes a moving character (about 87 of 99 walkers fit the budget); the animals' cost above the flat
   patch's. KNOWN_PROBLEMS.md lists them.
+
+**S3c as built (15 October 2026, branch `s3c`).** The hosted game draws the whole first world as a ball: the surface
+view opens the zone's own surface in the body's frame (`SurfaceView.OpenWorld`, `RenderFrame.World`), under the sky of
+the planet it stands for, with the zone's natural objects as its plants; `GroundTerrain` and the procedural sky and fixed
+sun left the game (the build sandbox still draws with `GroundTerrain`). Pictures: `docs/images/ground/s3c/`
+(`ground-morning.png`, at the landing site at 10 o'clock, 90 fps, from the last build; `ground-dusk.png`, at 18:36, 84 fps;
+`leaving-height.png`, the camera 4.8 km up, 117 fps; 1600 × 900, RTX 2070 Super, the fps counter's reading). Where the
+build differs from §10, and what was decided on the way:
+- **One way to draw the ground** (§10.1). `ISurface` got a drawing contract with defaults, so S4's generator needs only
+  heights and biomes: `HeightBounds`, `Sample` (a point's height and what the surface works out with it, once) and
+  `Cover` (biome weights, the eight materials' weights, temperature, moisture, grass and trees). The default goes
+  through the biome table from `BiomeAt` (`BiomeTable.Cover`, with the materials' rule `BiomeTable.GroundMaterials` that
+  the real surface now shares); `PlanetSurface` keeps its own soft weights, number for number. The stand-in's biomes
+  are one per point, so its borders are a vertex wide near and blocky in the far tiles seen from the air; its temperate
+  forest draws a closed forest floor although the stand-in's trees stand far apart (it doesn't know gather.json's
+  densities). The finest tiles are the level nearest 36 m (`TerrainLod.FinestTileMetres`: level 7 here, whose 32-cell
+  grid is the physics' 0.92 m lattice).
+- **Texturing** follows the proposal: UV2 holds metres along the tile's face (π/4 × radius × the face coordinate, which
+  `hu_face_metres` gives from a direction as radius × atan(d·U / d·N)), with the tangent along the face's axes; within
+  2 m of a seam (4 m for the sea) the neighbour's coordinates come from the direction and the two blend
+  (`hu_face_blend`). To keep floats exact on a planet of any size, each tile's coordinates are less a multiple of
+  4,096 m (`TileMesh.TexturePeriod`): never on a small world; on the real-size look-dev view textures jump where the
+  anchors change, every 4 km of face, and the seams' blend is good to half a metre there (both far from its spots).
+- **Sky and air** (§10.2): `PlanetGlobals` sets `hu_planet_centre`, `hu_ground_radius`, `hu_planet_k` (heights exact
+  at any size) and `hu_render_to_body`, also before the effects' shaders load. The air keeps the real planet's size and
+  the camera's height above the ball is its altitude (not real-equivalent heights: S5). The sky's ground test is the
+  ball; between the air's own horizon and the ball's edge the sky is the sky mirrored about the air's horizon, so from
+  the leaving height the view past the edge is blue rather than a wall of haze (a stand-in until S5 draws the thin air
+  seen from above). Lights set behind the ball (its horizon from the camera); a sun between the two horizons lights the
+  ground as at the air's horizon. The aerial table reaches 10 km on a whole world, east from the pole axis. Clouds are
+  sampled by direction from the centre on the cube faces, in metres at the layer's middle radius, blended over 150 m at
+  seams; their layer keeps its heights and sizes and is still marched in the air's geometry, so from above they stay
+  hidden (S5). Cloud shadows go by direction, with up per point. The wind blows from the west-south-west at the camera,
+  laid along each plant's ground.
+- **Plants** (§10.3): the surface view draws from a plant source (`IPlantSource`): the look-dev view a surface's own
+  scatter (`SurfacePlants`), the game the zone's natural objects by their tiles (`NaturePlants`, level 6 on the
+  stand-in), each drawn as the first scatter kind gather.json gives its kind. So the trees drawn are the server's, and
+  natural objects with no plant (outcrops, pickups) are `NatureView`'s models; a pickup is its own model or, failing
+  that, the one of what it yields (a tuber). A game on a real `PlanetSurface` zone (none until S4) would lose the
+  scatter's decoration that isn't a natural object (bushes, small rocks): S4 decides how decoration and natural objects
+  meet. Ranges come from the horizon (about 1.2 km from the ground here, 2.2 km at most); the near set and its
+  impostors are anchored at the camera, which closes §12's impostor finding.
+- **Grass** (§10.3): cells of the cube faces at the level nearest 0.46 m (13 here), one grid a face near a seam (up to
+  three at a corner), each drawing the cells whose middles lie on its face; a worker lays out a lattice of the cells'
+  corners round the camera every 14 m, on the drawn ground, with the cover from `ISurface.Cover`; tufts stand along up
+  and turn in their cell's plane; their colour is measured as the terrain's grass layer's, blended across seams the
+  same way. On the real-size look-dev view the nearest level is 24 (0.6 m cells), sparser than its old 0.4 m grid.
+- **Things that fall** (§10.4): ragdolls take the space's gravity (gravity scale 1, no constant force) and the surface
+  view adds a point gravity toward the centre over the whole world (`PlanetGravity`, an `Area3D` replacing the space's
+  −Y); a body's view is placed by its frame before it goes limp. Effects fall toward the centre and land on floors kept
+  as heights above the mean radius (`FxParams.Floor` is a point now); their directions up and down and their loops
+  follow local up; their bounds are ±8 km. Tracers, projectiles and thrown arcs take their gravity at the point a third
+  of the way along their straight flight so far (`Hollow.Client.Arc`), a closed form instead of the server's steps.
+- **Cameras, lights, tools** (§10.5): the far plane is 15 km. The main menu keeps the real-size first world in its
+  tangent frame as its backdrop (prettier than the stand-in, and its camera's up is that frame's +Y); the look-dev view
+  stays as it was. The tour and the measuring tool turn the view toward directions of the world
+  (`GroundView.TurnToward`) and find their spots east and south of the landing site along the ground; the Tin Finch's
+  and the Iron Wake's sandboxes and the animal sandbox open the zone's own world and search round the landing site the
+  same way. The ship's heading, raid alerts' bearings and the hit direction read from local north; the console prints
+  the world's radius in metres. F2's nav window was drawn along the local compass already (S3b). New for pictures from
+  above: `--lift <m>` and `--pitch <deg>` on the ground game. Footsteps and the ambience's biome come from
+  `ISurface.Cover` and `BiomeAt` on any surface.
+- **Checks.** The engine-free tests pass (239), run on S3c's engine-free code as it stands (its later commits touch
+  only the Godot project and docs); a first run beside three Godot games crashed natively in Jolt (KNOWN_PROBLEMS.md).
+  **Not checked** (the owner's word of 15 October 2026, the week's usage nearly spent): Godot's `--physics-check`
+  against the movement check's line, a measured frame time (`--measure`; only the counter's readings above), the
+  tour, the sandboxes (ship, Iron Wake, animals) and the look-dev view (`--view surface`) after their changes, and the
+  map. Godot's `.uid` files for the new scripts and the shader include were not generated (no editor import ran).
+
+**S3d as built (15 October 2026, branch `s3d`).** The map of the whole world, §11, for the G screen and the death screen.
+The checks: the engine-free tests pass (243, four of them new in `MapTests`: the projection and its inverse round
+trip for a globe, Lambert's disc and the chart, about the equator and over a pole, the far side hidden, true to scale at
+the centre; the camera follows, drags, zooms and settles; the grid's names; the picture of the stand-in and of a world
+without a sea); the console test teleports to a cell and reads it back from `whereami`; `--view ui --ui-check` passes
+(26 of 26, five of them new: a marker put down where the map was clicked, taken off, the globe turned); the pictures are
+in `docs/images/ground/s3d/`: `map-globe.jpg` (the viewer zoomed out), `map-chart.jpg` (zoomed in), `death.jpg` (the
+death screen), and `map-open.jpg`, the hosted game's map as G opens it (`--tour ../docs/images/ground/s3d --tour-steps
+map`, run from `game/` with `--view ground --name Ada --host --spawn origin --hour 10`). What was built:
+- **Code.** `WorldGrid` (`Hollow.Surface`): the grid and its one naming function. `GlobeProjection` and `GlobeCamera`
+  (`Hollow.Client/Map`): the projection, its inverse and the view. `ZoneMap` and `ZoneMapImage` rewritten: the six faces
+  by direction. `GroundUi.Globe.cs`: the one map control (picture shader, overlay, input), which `GroundUi.Map.cs` (G)
+  and `GroundUi.Death.cs` use. The death screen's placeholder survey picture (`DeathMap`) is gone. world.json's
+  `map.metres` is gone; `map.cell` (150) is now about how big a cell is.
+- **The projection** (§11's "blends into a flat chart") is one family of azimuthal projections about the view's centre:
+  a point θ from the centre is drawn R·sin(kθ)/k from it. k = 1 is the globe (orthographic, the far side hidden), ½
+  Lambert's equal-area disc of the whole world, k → 0 the azimuthal equidistant chart, and every k is true to scale at
+  the centre, so zooming never changes the size of the land under the view. k is 1 while the view is 2 radii (4.8 km)
+  across and more and 0 from 1 radius (2.4 km) in, smooth between. The shader and the overlay use the same formula.
+- **Zoom:** from 2.25 radii (5.4 km, the whole world with a margin) to 150 m across the map's shorter side. The G screen
+  opens 1.2 km across, following the player; the death screen 900 m across on the body. While following, the wheel
+  zooms about the player; otherwise about the pointer.
+- **Moving it** (a choice §11 left open): a drag turns the globe so the ground under the pointer stays under it, as a
+  trackball, which carries on over the poles. Left alone, the map turns itself back to local north up (as a compass
+  settles, in a fraction of a second), except within 25° of a pole, fading out by 10°, where north turns too quickly
+  to follow; a compass in the corner shows north and a click on it puts north up at once. Following always holds north
+  up. Rust's map is always north up; a ball can't be at the poles, and this keeps it north up everywhere else.
+- **The grid** (decision 6, as §11): the faces are lettered round the equator eastward from the prime meridian, A (0°),
+  B (90° E), C (180°), D (90° W), then E (the north pole's) and F (the south's). On A to D the letters grow eastward and
+  the numbers southward, as on Rust's map. E and F take the cube's own axes, which line up with D's: near A, B and C
+  their cells are turned against north, as any grid of six faces must be somewhere. 25 cells a face on the first world,
+  107 to 151 m (smallest at a face's corners).
+- **The picture** (§11): six faces of 1,024 px by direction, from any `ISurface` (heights, `SeaRadius` read safely,
+  `BiomeAt`). Hill shading takes each pixel's slope from its four neighbours against local up, the light from local
+  north-west; contours every 10 m (faint) and 50 m, since the stand-in's land stands under 40 m; forests are darker
+  biome colours, as `BiomeAt` is all a surface must give (the planet's vegetation density was used before); paper grain
+  and stains are laid on the sphere; the square's darker edge went with the square. On disk it is one strip of the six
+  faces (`user://map-cache/<key>-1024.png`); loading and mipmaps are on the worker, so the main thread only makes the
+  texture array. The shader picks each pixel's mip level from the projection's own scale there (no seams at the faces'
+  edges) and samples bicubically when magnified, so the texels don't show as stairs.
+- **The cache key** (§9) holds the body, the radius, the picture's look (`ZoneMapImage.Version`) and the surface's
+  version. `ISurface` declares no version, so it is measured: the surface's kind, radius, sea and its height and biome at
+  1,024 directions spread evenly over the world. S4's generator gets a new picture without anyone raising a number.
+- **The overlay** is crisp at any scale: grid lines are polylines through the projection, clipped to the map; the faces'
+  edges stay dark and the cells' lines fade in as a cell grows from 14 to 40 px; cells are named in their top-left corner on
+  screen ("K12", "C K12" from 80 px) through the Labeller after the markers' names, and from afar each face shows its
+  letter. A scale bar (true at the centre) sits in the corner. Facing arrows turn from local north as the map draws north
+  there: the camera's view on foot (before, the view's yaw in its carried frame), the ship's nose while flying (before,
+  an angle measured on the old plane).
+- **The console:** `whereami` names the cell as the map does, and `teleport <cell>` (and `teleport <player> <cell>`) goes
+  to the middle of a cell; the console's own copy of the grid is gone. `teleport <x> <z>` stays (S3a kept it).
+- **Found on the way:** the death screen placed sleeping bags at a point made of the bag's X and Y (a leftover of the
+  plane: `RespawnOption.Position` became a 3D point in S3a); they now stand where they are.
+- **Not in S3d:** the map is as good as the ground it draws: until S4 it is the stand-in's continents and bands. The
+  world under the map in the game is the ball S3c draws.
 
 ---
 

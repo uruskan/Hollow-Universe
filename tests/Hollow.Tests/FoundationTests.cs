@@ -93,6 +93,10 @@ public static class FoundationTests
         // A spent arrow stuck in the ground, as one shot down at it leaves it.
         var shot = new Projectile { Id = 1, Ammo = c.ItemByKey("arrow"), Velocity = new Vector3(0, -20, -40) };
         SpentArrow arrow = z.Arrows().StickArrow(shot, new TraceHit { Target = TargetRef.Ground, Point = z.GroundAt(-10, 10) })!;
+        // A fire burning on the ground (IW4), as an incendiary rocket's burst leaves one.
+        Vector3 fireAt = z.GroundAt(-14, -6);
+        Fire fire = z.Fires().Ignite(c.Fire("incendiary")!, fireAt + z.Frame.UpAt(fireAt) * 0.5f, z.Frame.UpAt(fireAt), c.ItemByKey("rocket-incendiary"),
+            rig.P(ada).Id, "Ada")!;
 
         var named = new (TargetRef Target, object? Thing, string What)[]
         {
@@ -106,6 +110,7 @@ public static class FoundationTests
             (charge.Ref, charge, "a charge"),
             (ship.Ref, ship, "a ship"),
             (arrow.Ref, arrow, "a spent arrow"),
+            (fire.Ref, fire, "a fire"),
             (TargetRef.Ground, null, "the ground"),
         };
         Assert.Equal(Enum.GetValues<TargetFamily>().Length - 1, named.Select(n => n.Target.Family).Distinct().Count(), "every family named once");
@@ -269,8 +274,9 @@ public static class FoundationTests
 
         Ship ship = z.Ships().SpawnShip(c.Ship("tin-finch")!, z.GroundAt(30, 30), 0, a.Id, 10);
         ship.Locked = true;
-        Assert.Equal(ViewerFlags.Mine | ViewerFlags.Locked | ViewerFlags.Empty, As(a, ship), "Ada's locked ship, its cargo empty");
-        Assert.Equal(ViewerFlags.Teammate | ViewerFlags.Locked | ViewerFlags.Empty, As(b, ship), "to Bo, his teammate's");
+        // (Since IW2 the cargo is a part of its own, not the whole ship: no Empty on the ship.)
+        Assert.Equal(ViewerFlags.Mine | ViewerFlags.Authorised | ViewerFlags.Locked, As(a, ship), "Ada's locked ship, she on its list (IW2)");
+        Assert.Equal(ViewerFlags.Teammate | ViewerFlags.Locked, As(b, ship), "to Bo, his teammate's");
     }
 
     /// <summary>

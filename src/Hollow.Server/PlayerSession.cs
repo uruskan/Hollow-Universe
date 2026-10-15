@@ -55,6 +55,9 @@ public sealed class PlayerSession
 
     public EntityId EntityId { get; set; }
 
+    /// <summary>It said goodbye (a quit, LiteNetLib's close) rather than losing its connection; set as it leaves.</summary>
+    public bool LoggedOff { get; set; }
+
     public uint NetId { get; set; }
 
     public bool Playing => Entity != Entity.None;

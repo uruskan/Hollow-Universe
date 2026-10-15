@@ -53,6 +53,17 @@ public sealed class StandInWorld : ISurface
     /// <summary>The sea's height above the mean radius, in metres.</summary>
     public double SeaLevel { get; }
 
+    /// <summary>The amplitudes of the continents and the hills either way, and the lift of the landing site on top.</summary>
+    public (double Low, double High) HeightBounds
+    {
+        get
+        {
+            (double low, double high) = _hills.HeightBounds;
+            double continents = ContinentHeight + ShoulderHeight;
+            return (low - continents, high + continents + _lift);
+        }
+    }
+
     public double HeightAt(Vector3D direction)
     {
         double h = BaseHeight(direction);

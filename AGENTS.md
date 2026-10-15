@@ -18,6 +18,8 @@ owner's request, the `ground` branch was merged into `main` so the game lives in
   until S4; views on the wire, tiles on the cube sphere, places, ships and the console on the ball; every load test
   runs on it with 100 bots (`docs/GROUND.md` §5.12). S3c and S3d (the client drawing the ball properly, the globe map)
   remain: until then the game plays under a plain sky on simple ground, and the map is not the whole world yet;
+- the walking-scale ground (S4, `docs/WALKING_GROUND.md`): designed with look-dev renders and built on the branch `s4`
+  (`WalkingWorld`), the game able to stand on it behind `--ground walking` (off by default), for the owner's review;
 - the Iron Wake (`docs/IRON_WAKE.md`): its art, sounds and effects, and walking aboard and flying it with people on
   its decks (IW1). In a hosted game the host gets one with `ship iron-wake` (F1). Its cannons, loading, fire and
   building aboard (IW2 to IW6) come next.
@@ -91,7 +93,8 @@ dotnet run --project tools/Hollow.NetGen      # after changing src/Hollow.Net/Pr
 dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server: the first world, whole (2.41 km; on the
                                                  # whole-world branch, the stand-in world until S4); players arrive on
                                                  # beaches anywhere (--spawn origin: at the landing site, --lat, --lon)
-                                                 # (--no-db, --db <path>, --day-scale <x>; type help). F1 console admins:
+                                                 # (--no-db, --db <path>, --day-scale <x>, --ground walking: S4's ground,
+                                                 # off by default; type help). F1 console admins:
                                                  # --admin <name> (repeatable), admins.txt (or --admins <file>),
                                                  # --dev (everyone is an admin); GROUND.md §8.2
 dotnet run --project tests/Hollow.Tests -- Console    # the F1 console: parsing, completion, rights, commands over the network, god and noclip
@@ -108,6 +111,8 @@ dotnet run --project tests/Hollow.Tests -- Wounded    # G4: down, crawling, help
 dotnet run --project tests/Hollow.Tests -- Damage     # the damage pipeline's Destroyed event, in the zone and over the network (GROUND.md §6.4.2)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 120 --script build --kit build-kit   # G3: bots that build bases (GROUND.md §5.4)
 dotnet run --project tests/Hollow.Tests -- Raid       # G5: raid costs, line of sight, duds, rockets, collapse, alerts, an offline raid, network, restart
+dotnet run --project tests/Hollow.Tests -- Fire       # IW4: the incendiary rocket and its fire (boxes, walls, people, water, a ship's deck, falling,
+                                                 # the network), the HV rocket killing a bear, each rocket's drop (IRON_WAKE.md §7)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script raid   # G5: bots raiding claimed huts (GROUND.md §5.5)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script world   # G7: bots looting, recycling, researching, in teams (GROUND.md §5.9)
 dotnet run --project tests/Hollow.Tests -- ContentTests   # checks game/data/ground: references, ranges, every recipe makeable
@@ -117,6 +122,11 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- bench   # µs pe
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- stats   # what generated systems contain
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- worlds  # one example of each notable kind of world
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- maps    # galaxy-wide maps per level (~4 min)
+dotnet run --project tests/Hollow.Tests -- Walking     # S4: the walking-scale ground: determinism, sea cover, streams to the sea
+                                                 # or a lake, no seams, scatter at the level by size, speed
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- walking stats|relief|biomes|rivers|provinces|globe|zoom|slopes|spots|closeups|compare|all
+                                                 # the walking-scale ground's look-dev (docs/WALKING_GROUND.md §15; `all` writes
+                                                 # docs/images/scale/s4; HOLLOW_WALKING="Name=value;..." changes its table for a run)
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|relief|zoom|stats|bench|site|spot|times
                                                  # the first world's surface: maps, speed, landing site, look-dev
                                                  # spots (forest|meadow|beach|mountain), sun and moon by the hour
@@ -265,11 +275,12 @@ Client options (after `--`):
   dedicated server started as a process of its own; `--in-process` runs it on a thread of the game) or
   `--connect host:port` starts at once. `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad
   network through a local relay), `--netgraph` (open the network graph), `--face <name>` (turn toward a player once
-  seen), `--db <path>` (the hosted server's database; the default is the branch's own: `user://hollow-host.db` on `main`,
+  seen), `--lift <m>` and `--pitch <deg>` (the camera lifted along up and tilted, for pictures from above: `--lift 4800
+  --pitch -62` shows the ball from the leaving height), `--db <path>` (the hosted server's database; the default is the branch's own: `user://hollow-host.db` on `main`,
   `user://hollow-host-<branch>.db` on another, so a branch's newer save never meets an older build), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact,map`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and
   `mine` picture the X, a hit's burst, the fall, the hotspot and a stage breaking, and `--tour-tree <kind>` picks the
@@ -283,7 +294,7 @@ Client options (after `--`):
   code lock on a hut's door, a timed charge on its wall, the Tin Finch's hologram and the ship placed; `interact`
   pictures P1's interaction through the keys: the prompt and E held on a fresh code lock's door (SET CODE first), the
   tool cupboard's options, arrows stuck in a wall (one taken back with E) and in a deer, and a garage door shut through
-  its opening),
+  its opening; `map` pictures the map of the whole world as G opens it, `map-open.jpg`, WHOLE_WORLD.md §11),
   `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
   server's tick; then quits), `--load-trace [s]` (GROUND.md §4.3.1: times the start from the process's start to steady
@@ -315,7 +326,8 @@ Client options (after `--`):
 - Server (G2): `--kit <loot table>` gives every new character a loot table's items; admin commands `give`, `kit`,
   `heal`, `kill` besides G1's (type `help`; every command of the F1 console is in GROUND.md §8.2: `give <item> [amount]
   [player]` (`<item>.blueprint`: its blueprint), `teleport` (`[player] <x> <z>`: metres east and south of the landing site
-  along the ground; `<lat> <lon>` with three decimals or N/S/E/W; a player), `tp2me`, `tpmarker`, `spawn <kind> [count]`, `god`, `noclip`, `time <hour>`
+  along the ground; `<lat> <lon>` with three decimals or N/S/E/W; `<cell>`: a map cell as the map names it, "C K12"; a
+  player), `tp2me`, `tpmarker`, `spawn <kind> [count]`, `god`, `noclip`, `time <hour>`
   (that hour where the admin stands), `timescale`,
   `ents`, `whereami`, `players`, Rust's names such as `inventory.give`, `global.teleport`, `env.time`; at the server's
   console a command names its player, and the older `give <name> <item> [count]` forms still work); G7: `learn <name> <item|all>` (blueprints), `world` (props, teams, economy). `--kit build-kit` gives what a base needs (G3). G5: `--raid-bases <n>`
@@ -363,10 +375,12 @@ Client options (after `--`):
   G7's `map`, `techtree`, `recycler`, `research`, and the F1 panel's `console`, `console-info`, `console-net`,
   `console-items`, `console-tools`, and the F2 panel's `developer`, `developer-players`, `developer-look`,
   `developer-draw`, `developer-log` on sample data);
-  `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
-  `--view ui --ui-check` drives the inventory, crafting and the radial with real input events (drag, middle-drag,
-  split, quick move, drop, craft; the right mouse on the plan, E tapped, held, chosen and cancelled) and quits with
-  exit code 0 when every check passes.
+  `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas; `--across <m>` opens the map's or the
+  death screen's map that many metres across (150 to the whole world, 5,400; WHOLE_WORLD.md §11: a globe from 4.8 km,
+  a flat chart from 2.4 km in). Without `--shot` it's interactive.
+  `--view ui --ui-check` drives the inventory, crafting, the radial and the map with real input events (drag, middle-drag,
+  split, quick move, drop, craft; the right mouse on the plan, E tapped, held, chosen and cancelled; a marker put down
+  on the map where it was clicked and taken off, the globe turned) and quits with exit code 0 when every check passes.
 - Models (GROUND.md §9.1): `--view models` stands every catalogue model on the ground (`--lineup items|world`,
   `--pitch <deg>`); `--model <key>` shows one on a turntable (`--stage <n>`, `--lod <n>`, `--yaw <deg>` holds it at an
   angle, `--zoom <f>` moves the camera, `--anim <clip>` plays a clip such as the Tin Finch's `Hatch_Open`, `--attach a,b`
@@ -384,6 +398,7 @@ Client options (after `--`):
 |---|---|
 | `src/Hollow.Core` | Vectors in double precision, `DMath`, `Hash64`, `Rng`, units |
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
+| `src/Hollow.Surface/Walking` | The walking-scale ground of S4 (docs/WALKING_GROUND.md): `WalkingWorld` (an `ISurface` and `IScatterField`), relief provinces, the drainage (streams, lakes, canyons), its table of numbers (`WalkingParameters`), `WalkingWorlds` (one per body in a process) |
 | `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame` (`World`: the world's own frame, origin at the centre), `PlanetSurface` (plates, climate, biomes), cube-sphere tiles (`TileKey.LevelFor`: levels by size), tile collision (`SurfaceGrid`), scatter, `SkyEphemeris`, the stand-in world every zone stands on until S4 (`StandInWorld`: continents, a sea, latitude bands, over the hills of `SphereSurface`), `FirstWorld` |
 | `src/Hollow.Simulation` | Rules and simulation of the ground game; the zone is a host of `ZoneSystem`s (`Systems/`, listed in `GroundSystems`; GROUND_SYSTEMS.md §12), with its typed events (`Events/`) and one reader per data file (`Content/Readers`): entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation; building in `Building/` (structures, sockets, placement, stability, hammer, doors and locks, the claim device, upkeep and decay; GROUND.md §6.3); G4 (§6.3): firearms (`Combat/Firearms.cs`: recoil, spread, cadence, reload, ballistics), bullets and damage (`GunSystem`), the wounded state (`WoundedSystem`); the damage pipeline (§6.4.2: `Combat/Damage.cs`, `DamageSystem`: one request, one entry point, a receiver per kind of thing in each domain's file, the Destroyed event); G5 (§6.6): explosives, blasts with line of sight, rockets and explosive rounds, raid hits (`ExplosiveSystem`, `BlastSystem`, `Raid/`); G6 (§6.7): ships in `Ships/` (`ShipDef`, `ShipState`, `ShipMotor`, `ShipCollider`) and `ShipSystem`; G7 (§6.8): world props and where they stand (`WorldSystem`, `Nature/LootSpots.cs`, `World/WorldObjects.cs`), the recycler, research and tech trees (`Economy/`, `Items/Blueprints.cs`, `Content/World.cs`), teams (`Teams/`), map markers |
 | `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay; `Commands/`: the F1 console's command catalogue, parsing and Tab completion (§8.2) |

@@ -24,7 +24,7 @@ internal sealed class DeployablesReader : IContentReader
             JsonElement e = list[i];
             string key = f.Text(e, "key", $"deployables.json: deployables[{i}]");
             string where = $"deployables.json: {JsonFields.Quote(key)}";
-            f.OnlyKnown(e, where, "key", "item", "health", "size", "placement", "solid", "respawn", "slots", "device", "workbench", "bay", "pickup");
+            f.OnlyKnown(e, where, "key", "item", "health", "size", "placement", "solid", "respawn", "slots", "device", "workbench", "bay", "pickup", "burns");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             JsonElement[] size = f.List(e, "size", where);
             Vector3 half = Vector3.Zero;
@@ -87,6 +87,7 @@ internal sealed class DeployablesReader : IContentReader
                 Workbench = f.Integer(e, "workbench", where, 0),
                 Bay = bay,
                 Pickup = f.Flag(e, "pickup", where, false),
+                Burns = f.Flag(e, "burns", where, false),
             };
             loaded.Deployables.Add(def);
         }

@@ -67,7 +67,7 @@ public partial class GroundTour : Node
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
             ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("f2", F2), ("look", Look),
-            ("foundations", Foundations), ("held", Held), ("place", Place), ("interact", Interaction),
+            ("foundations", Foundations), ("held", Held), ("place", Place), ("interact", Interaction), ("map", Map),
         };
         _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
@@ -153,7 +153,7 @@ public partial class GroundTour : Node
     // The meadow by the landing site, a berry bush ahead.
     private async Task Hud()
     {
-        NaturalObject? bush = Nearest("red-berry-bush", Num.Vector3.Zero, 120, open: true) ?? Nearest("blue-berry-bush", Num.Vector3.Zero, 120, open: true);
+        NaturalObject? bush = Nearest("red-berry-bush", Landing, 120, open: true) ?? Nearest("blue-berry-bush", Landing, 120, open: true);
         if (bush is not { } b)
         {
             GD.PushWarning("[tour] no berry bush near the landing site");
@@ -484,9 +484,9 @@ public partial class GroundTour : Node
         Admin("give", "building-plan 1");
         Admin("give", "wood 600");
         await Until(() => Count("building-plan") > 0, 5);
-        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(-40, 0, 30));
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Offset(-40, 30));
         await TeleportTo(spot);
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         View.Pitch = -0.12f;
         await Settle();
         await Hold("rock", 0);
@@ -517,9 +517,9 @@ public partial class GroundTour : Node
         Admin("give", "wood 4000");
         Admin("give", "stone 2000");
         await Until(() => Count("building-plan") > 0 && Count("wood") >= 4000, 5);
-        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(45, 0, -35));
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Offset(45, -35));
         await TeleportTo(spot);
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         View.Pitch = -0.3f;
         await Settle();
         await Hold("building-plan", 5);
@@ -554,9 +554,9 @@ public partial class GroundTour : Node
     {
         Admin("give", "code-lock 1");
         await Until(() => Count("code-lock") > 0, 5);
-        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(-40, 0, 45));
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Offset(-40, 45));
         await TeleportTo(spot);
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
@@ -868,7 +868,7 @@ public partial class GroundTour : Node
                 }
                 tries++;
                 await TeleportTo(stand);
-                View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+                View.TurnToward(towards);
                 View.Pitch = -0.2f;
                 await Settle();
                 Num.Vector3 up = Client.Frame.UpAt(Client.Character.Position);
@@ -1122,10 +1122,12 @@ public partial class GroundTour : Node
 
     private static Num.Vector3 At(PlacementPlan plan) => plan.ZoneTransform.Position;
 
-    private static Num.Vector3 FlatUnit(Num.Vector3 d)
+    // A direction laid along the ground where the player is (made unit length).
+    private Num.Vector3 FlatUnit(Num.Vector3 d)
     {
-        d.Y = 0;
-        return d.LengthSquared() > 1e-6f ? Num.Vector3.Normalize(d) : new Num.Vector3(0, 0, 1);
+        Num.Vector3 up = Client.Frame.UpAt(Client.Character.Position);
+        d -= up * Num.Vector3.Dot(d, up);
+        return d.LengthSquared() > 1e-6f ? Num.Vector3.Normalize(d) : Facing.Compass(up).North;
     }
 
     // Takes an item in hand: from the belt if it is there, else moved from the main inventory to a belt slot.
@@ -1288,7 +1290,7 @@ public partial class GroundTour : Node
         }
 
         // The barrels and crate nearest the landing site: the cluster, a barrel broken with the hatchet, the crate opened.
-        RemoteThing? crate = NearestProp(WorldPropKind.Crate, Num.Vector3.Zero);
+        RemoteThing? crate = NearestProp(WorldPropKind.Crate, Landing);
         GD.Print($"[tour] props in range: {Client.World().Props.Count()}, crate at {crate?.Position}");
         if (crate != null)
         {
@@ -1368,7 +1370,7 @@ public partial class GroundTour : Node
         // A workbench, a research table and a sleeping bag in the open.
         (spot, towards) = OpenSpot(Client.Character.Position);
         await TeleportTo(spot);
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         View.Pitch = -0.3f;
         await Settle();
         // Each within placing reach (3 m from the eye): the bag to the left, the bench ahead, the table ahead of a step right.
@@ -1600,7 +1602,7 @@ public partial class GroundTour : Node
         // A level 2 workbench in the open, and a spear (no workbench needed) crafted in a quarter of its time beside it.
         (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Client.Character.Position);
         await TeleportTo(spot);
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         View.Pitch = -0.3f;
         await Settle();
         if (await PlaceNear("workbench-2", spot, towards, View.Yaw) is { } bench)
@@ -1624,6 +1626,19 @@ public partial class GroundTour : Node
         await Shot("death");
     }
 
+    // docs/WHOLE_WORLD.md §11: the map of the whole world as G opens it, following the player, local north up.
+    private async Task Map()
+    {
+        GroundUi ui = View.Interface;
+        ui.HoldPointer(new Vector2(-10000, -10000));
+        ui.ToggleMap();
+        await Until(() => ui.MapReady, 120);
+        await Seconds(1.0);
+        await Shot("map-open");
+        ui.Open(GroundScreen.Hud);
+        await Seconds(0.3);
+    }
+
     // Back on the beach, then the meadow at night by a campfire.
     private async Task Night()
     {
@@ -1633,9 +1648,9 @@ public partial class GroundTour : Node
         Admin("give", "wood 200");
         Admin("give", "woven-shirt 1");
         await Until(() => Count("campfire") > 0 && Count("wood") > 0, 5);
-        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(_bush is { } b ? Away(b.Position, 7f) : Num.Vector3.Zero);
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(_bush is { } b ? Away(b.Position, 7f) : Landing);
         await TeleportTo(spot);
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         View.Pitch = -0.25f;
         await Settle();
         // The fire two metres ahead, lit with wood.
@@ -1705,7 +1720,7 @@ public partial class GroundTour : Node
         if (Client.Entities.FirstOrDefault() is { } host)
         {
             Num.Vector3 d = host.Position - Client.Character.Position;
-            View.Yaw = MathF.Atan2(-d.X, -d.Z);
+            View.TurnToward(d);
             View.Pitch = _guestDressed ? -0.05f : 0;
         }
         if (Me.PendingCount > 0)
@@ -1764,11 +1779,11 @@ public partial class GroundTour : Node
         console.Submit("give rifle");
         await Until(() => Count("rifle") > rifles, 5);
         Check(Count("rifle") > rifles, "give rifle: a rifle in the inventory");
-        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(40, 0, 30));
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Offset(40, 30));
         console.Submit(string.Create(CultureInfo.InvariantCulture, $"teleport {spot.X:0.0} {spot.Z:0.0}"));
         await Until(() => new Num.Vector2(Client.Character.Position.X - spot.X, Client.Character.Position.Z - spot.Z).Length() < 1.5f, 5);
         Check(new Num.Vector2(Client.Character.Position.X - spot.X, Client.Character.Position.Z - spot.Z).Length() < 1.5f, "teleport: there");
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         await Settle();
         int wolves = Client.Animals().All.Count(a => a.SpeciesKey == "wolf" && !a.Dead);
         console.Submit("spawn wolf 2");
@@ -1777,13 +1792,13 @@ public partial class GroundTour : Node
         console.Submit("noclip");
         await Until(() => (Client.Console().Cheats & MoveCheats.Noclip) != 0, 5);
         Check((Client.Console().Cheats & MoveCheats.Noclip) != 0, "noclip: on in the prediction");
-        float before = Client.Character.Position.Y;
+        float before = Client.Character.Position.Length();
         long corrections = Client.Stats.Corrections;
         View.Scripted = new InputFrame { Jump = true };
         await Seconds(0.5);
         View.Scripted = null;
         await Seconds(0.2);
-        Check(Client.Character.Position.Y - before > 3, $"noclip: rose {Client.Character.Position.Y - before:0.0} m, {Client.Stats.Corrections - corrections} corrections");
+        Check(Client.Character.Position.Length() - before > 3, $"noclip: rose {Client.Character.Position.Length() - before:0.0} m, {Client.Stats.Corrections - corrections} corrections");
         console.Submit("noclip");
         await Until(() => (Client.Console().Cheats & MoveCheats.Noclip) == 0, 5);
         await Seconds(1.5);
@@ -1823,7 +1838,7 @@ public partial class GroundTour : Node
         GroundUi ui = View.Interface;
         await Until(() => Client.Console().IsAdmin, 10);
         ui.HoldPointer(new Vector2(-10000, -10000));
-        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(60, 0, -20));
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Offset(60, -20));
         await TeleportTo(spot);
         Face(spot + towards * 8);
         await Settle();
@@ -1881,7 +1896,7 @@ public partial class GroundTour : Node
     // bag with its prompt, then the bag open beside the inventory.
     private async Task Bags()
     {
-        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Num.Vector3.Zero);
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Landing);
         await TeleportTo(spot);
         Face(spot + towards * 3);
         await Settle();
@@ -1929,9 +1944,9 @@ public partial class GroundTour : Node
     {
         Admin("give", "code-lock 1");
         await Until(() => Count("code-lock") > 0, 5);
-        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(40, 0, -40));
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Offset(40, -40));
         await TeleportTo(spot);
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
@@ -2006,9 +2021,9 @@ public partial class GroundTour : Node
             Admin("give", gift);
         }
         await Until(() => Count("tin-finch") > 0 && Count("timed-charge") > 0 && Count("building-plan") > 0 && Count("wood") >= 3000, 5);
-        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(-60, 0, -20));
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Offset(-60, -20));
         await TeleportTo(spot);
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         View.Pitch = -0.3f;
         await Settle();
 
@@ -2054,9 +2069,9 @@ public partial class GroundTour : Node
         await Shot("cupboard");
 
         // A stone hut with a sheet metal door: a code lock's ghost on its door, a timed charge's on its side wall.
-        (Num.Vector3 hutSpot, Num.Vector3 hutTowards) = OpenSpot(new Num.Vector3(-60, 0, 20));
+        (Num.Vector3 hutSpot, Num.Vector3 hutTowards) = OpenSpot(Offset(-60, 20));
         await TeleportTo(hutSpot);
-        View.Yaw = MathF.Atan2(-hutTowards.X, -hutTowards.Z);
+        View.TurnToward(hutTowards);
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
@@ -2087,9 +2102,9 @@ public partial class GroundTour : Node
         }
 
         // The Tin Finch: its hologram on the meadow, then the ship placed there.
-        (Num.Vector3 pad, Num.Vector3 padTowards) = OpenSpot(new Num.Vector3(-20, 0, -70));
+        (Num.Vector3 pad, Num.Vector3 padTowards) = OpenSpot(Offset(-20, -70));
         await TeleportTo(pad);
-        View.Yaw = MathF.Atan2(-padTowards.X, -padTowards.Z);
+        View.TurnToward(padTowards);
         await Settle();
         await Hold("tin-finch", 5);
         Num.Vector3 feet = Client.Character.Position;
@@ -2116,9 +2131,9 @@ public partial class GroundTour : Node
             Admin("give", gift);
         }
         await Until(() => Count("code-lock") > 0 && Count("garage-door") > 0 && Count("bow") > 0 && Count("arrow") >= 24 && Count("wood") >= 2000, 5);
-        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(new Num.Vector3(-70, 0, 30));
+        (Num.Vector3 spot, Num.Vector3 towards) = OpenSpot(Offset(-70, 30));
         await TeleportTo(spot);
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
@@ -2202,9 +2217,9 @@ public partial class GroundTour : Node
 
         // A deer 5 m ahead, met by an arrow loosed as it comes (the bow drawn first, then put away so it hides nothing); the
         // arrow turns with the deer as it turns to run.
-        (spot, towards) = OpenSpot(new Num.Vector3(-40, 0, 70));
+        (spot, towards) = OpenSpot(Offset(-40, 70));
         await TeleportTo(spot);
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         View.Pitch = 0;
         await Settle();
         for (int attempt = 0; attempt < 6; attempt++)
@@ -2245,9 +2260,9 @@ public partial class GroundTour : Node
         View.Scripted = null;
 
         // A garage door in a wall frame on a foundation, rolled up, shut with a tap of E through its opening.
-        (spot, towards) = OpenSpot(new Num.Vector3(60, 0, 60));
+        (spot, towards) = OpenSpot(Offset(60, 60));
         await TeleportTo(spot);
-        View.Yaw = MathF.Atan2(-towards.X, -towards.Z);
+        View.TurnToward(towards);
         View.Pitch = -0.3f;
         await Settle();
         await Hold("building-plan", 5);
@@ -2382,18 +2397,26 @@ public partial class GroundTour : Node
 
     // A spot near a point with nothing solid or bushy within 6 m of it and of the ground 3 m ahead (in the direction
     // returned), for pictures of the open meadow.
+    // The landing site, and a point east and south of it along the ground (docs/WHOLE_WORLD.md §10.5: the tour finds its
+    // spots on the ball, not on a plane through its centre).
+    private Num.Vector3 Landing => Client.Placement().Ground!.Value.On(Client.Zone!.LandingDirection);
+
+    private Num.Vector3 Offset(float east, float south) => Client.Placement().Ground!.Value.Offset(Landing, east, south);
+
     private (Num.Vector3 Spot, Num.Vector3 Towards) OpenSpot(Num.Vector3 near)
     {
         var all = new List<NaturalObject>();
         Client.Survival().Nature!.Query(near, 60, all);
         var blockers = all.Where(o => Client.Content.Natural(o.Kind)!.Class is NaturalClass.Tree or NaturalClass.Boulder or NaturalClass.Bush or NaturalClass.Node).ToList();
+        Hollow.Simulation.GroundProbe ground = Client.Placement().Ground!.Value;
         for (int ring = 0; ring < 12; ring++)
         {
             for (int k = 0; k < 16; k++)
             {
                 float a = k * MathF.Tau / 16;
-                Num.Vector3 spot = near + new Num.Vector3(MathF.Cos(a), 0, MathF.Sin(a)) * (ring * 4f);
-                Num.Vector3 towards = Num.Vector3.Normalize(new Num.Vector3(-MathF.Sin(a + 1), 0, MathF.Cos(a + 1)));
+                Num.Vector3 spot = ground.Offset(near, MathF.Cos(a) * ring * 4f, MathF.Sin(a) * ring * 4f);
+                (Num.Vector3 north, Num.Vector3 east) = Facing.Compass(Client.Frame.UpAt(spot));
+                Num.Vector3 towards = Num.Vector3.Normalize(east * -MathF.Sin(a + 1) - north * MathF.Cos(a + 1));
                 Num.Vector3 front = spot + towards * 3;
                 if (!blockers.Any(o => Flat(o.Position - spot) < 6 || Flat(o.Position - front) < 6))
                 {
@@ -2404,24 +2427,22 @@ public partial class GroundTour : Node
         return (near, Forward());
     }
 
-    private static float Flat(Num.Vector3 d) => new Num.Vector2(d.X, d.Z).Length();
+    // Distances between nearby points (straight: as good as along the ground over metres).
+    private static float Flat(Num.Vector3 d) => d.Length();
 
-    // A point a distance from an object, on the side towards the landing site (usually the open meadow).
+    // A point a distance from an object, on the side towards the landing site (usually the open meadow), along the ground.
     private Num.Vector3 Away(Num.Vector3 target, float distance)
     {
-        Num.Vector3 back = Num.Vector3.Zero - target;
-        back.Y = 0;
-        back = back.LengthSquared() > 0.01f ? Num.Vector3.Normalize(back) : new Num.Vector3(0, 0, 1);
+        Num.Vector3 up = Client.Frame.UpAt(target), back = Landing - target;
+        back -= up * Num.Vector3.Dot(back, up);
+        back = back.LengthSquared() > 0.01f ? Num.Vector3.Normalize(back) : Facing.Compass(up).North;
         return target + back * distance;
     }
 
     private void Face(Num.Vector3 point)
     {
         Num.Vector3 eye = Client.Character.Position + Client.Frame.UpAt(Client.Character.Position) * Client.EyeHeight;
-        Num.Vector3 up = Client.Frame.UpAt(eye), d = point - eye;
-        Num.Vector3 flat = d - up * Num.Vector3.Dot(d, up);
-        View.Yaw = MathF.Atan2(-flat.X, -flat.Z);
-        View.Pitch = MathF.Atan2(Num.Vector3.Dot(d, up), flat.Length());
+        View.LookToward(point - eye);
     }
 
     private async Task TeleportTo(Num.Vector3 point)

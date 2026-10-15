@@ -92,6 +92,12 @@ public sealed class ClientProjectile
     /// <summary>Gravity (m/s², along −up at the origin) and up there.</summary>
     public Vector3 Gravity { get; init; }
 
+    /// <summary>
+    /// The planet's centre in the zone's frame: gravity is re-aimed toward it as the projectile flies, as the server's
+    /// is (docs/WHOLE_WORLD.md §6.3; <see cref="Arc.Gravity"/>). Null: one parabola along <see cref="Gravity"/>.
+    /// </summary>
+    public Vector3? Centre { get; init; }
+
     /// <summary>Speed lost a second, as a fraction (bullets, G4; 0 for arrows).</summary>
     public float Drag { get; init; }
 
@@ -120,9 +126,10 @@ public sealed class ClientProjectile
     public Vector3 PositionAt(double time)
     {
         float t = (float)Math.Max(0, time - LaunchedAt);
+        Vector3 g = Arc.Gravity(Gravity, Centre, Origin, Velocity, t);
         Vector3 onArc = Drag > 1e-6f
-            ? Origin + Gravity / Drag * t + (Velocity - Gravity / Drag) * ((1 - MathF.Exp(-Drag * t)) / Drag)
-            : Origin + Velocity * t + Gravity * (0.5f * t * t);
+            ? Origin + g / Drag * t + (Velocity - g / Drag) * ((1 - MathF.Exp(-Drag * t)) / Drag)
+            : Origin + Velocity * t + g * (0.5f * t * t);
         if (EndedAt is { } end && Vector3.DistanceSquared(Origin, onArc) >= Vector3.DistanceSquared(Origin, end))
         {
             return end;
@@ -134,7 +141,30 @@ public sealed class ClientProjectile
     public Vector3 DirectionAt(double time)
     {
         float t = (float)Math.Max(0, time - LaunchedAt);
-        Vector3 v = Drag > 1e-6f ? Gravity / Drag + (Velocity - Gravity / Drag) * MathF.Exp(-Drag * t) : Velocity + Gravity * t;
+        Vector3 g = Arc.Gravity(Gravity, Centre, Origin, Velocity, t);
+        Vector3 v = Drag > 1e-6f ? g / Drag + (Velocity - g / Drag) * MathF.Exp(-Drag * t) : Velocity + g * t;
         return v.LengthSquared() > 1e-6f ? Vector3.Normalize(v) : Vector3.UnitZ;
+    }
+}
+
+/// <summary>
+/// Arcs drawn under a planet's gravity (docs/WHOLE_WORLD.md §6.3, §10.4): on a small world gravity turns 2.4° every 100 m,
+/// so a projectile's arc can't be one parabola along the gravity where it set off. The server re-aims gravity toward the
+/// centre every tick; drawn in closed form, an arc takes the gravity at the point a third of the way along its straight
+/// flight so far, where the drop it has gathered is weighted (∫(t − s) g(s) ds): good to millimetres over a few hundred
+/// metres on a 2.41 km world.
+/// </summary>
+public static class Arc
+{
+    /// <summary>The gravity to draw an arc with after <paramref name="t"/> seconds: <paramref name="gravity"/>'s strength toward <paramref name="centre"/>.</summary>
+    public static Vector3 Gravity(Vector3 gravity, Vector3? centre, Vector3 origin, Vector3 velocity, float t)
+    {
+        if (centre is not { } c)
+        {
+            return gravity;
+        }
+        Vector3 away = origin + velocity * (t / 3) - c;
+        float length = away.Length();
+        return length > 1e-3f ? away * (-gravity.Length() / length) : gravity;
     }
 }

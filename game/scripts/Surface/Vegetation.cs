@@ -11,8 +11,10 @@ using HollowUniverse.Surface.Flora;
 namespace HollowUniverse.Surface;
 
 /// <summary>
-/// Trees, bushes, berry bushes, ferns and rocks of the surface view (GROUND.md §4.6), from the surface generator's
-/// scatter: the same objects the server will know by tile and index. Each species has seeded variants built in code
+/// Trees, bushes, berry bushes, ferns and rocks of the surface view (GROUND.md §4.6), from a plant source
+/// (<see cref="IPlantSource"/>): a surface's own scatter in the look-dev view, the zone's natural objects in the game, the
+/// same objects the server knows by tile and index. Ranges follow the horizon (docs/WHOLE_WORLD.md §10.3): on a small
+/// world nothing is laid out beyond where the ball hides it. Each species has seeded variants built in code
 /// (<see cref="FloraLibrary"/>) with two meshes; near the camera every object is drawn with the first, farther with the
 /// second, grouped per variant into MultiMeshes rebuilt as the camera moves. Trees then become impostors (eight baked
 /// views): those of the near set with it, farther ones batched per block of scatter tiles, out to
@@ -28,7 +30,12 @@ public sealed partial class Vegetation : Node3D
     private const float NearImpostorEnd = 290; // the near set's impostors hand over to the far blocks here
     private const double NearSetRadius = 300;
     private const double RebuildDistance = 8;
-    private const int BlockLevel = Scatter.Level - 3; // eight scatter tiles a side
+
+    /// <summary>The tallest plant, metres: what pokes up over the horizon.</summary>
+    private const double TallestPlant = 25;
+
+    private int _level;      // the plant source's tiles
+    private int _blockLevel; // impostor blocks: eight tiles a side
 
     // One MultiMesh: a variant of a species at one level of detail.
     private sealed class LodSet
@@ -48,7 +55,9 @@ public sealed partial class Vegetation : Node3D
         public bool Built;
     }
 
-    private PlanetSurface _surface = null!;
+    private ISurface _surface = null!;
+    private IPlantSource _plants = null!;
+    private (double Low, double High) _bounds;
     private RenderFrame _frame = null!;
     private TextureLayered _groundAlbedo = null!;
     private TextureLayered _groundNormal = null!;
@@ -77,8 +86,8 @@ public sealed partial class Vegetation : Node3D
     private ImpostorBaker? _baker;
     private ShaderMaterial? _impostors;
     private ArrayMesh _quad = null!;
-    private readonly ConcurrentDictionary<ulong, List<ScatterItem>> _full = new();
-    private readonly ConcurrentDictionary<ulong, List<ScatterItem>> _trees = new();
+    private readonly ConcurrentDictionary<ulong, IReadOnlyList<ScatterItem>> _full = new();
+    private readonly ConcurrentDictionary<ulong, IReadOnlyList<ScatterItem>> _trees = new();
     private readonly ConcurrentDictionary<ulong, byte> _requested = new();
     private readonly BlockingQueue _jobs = new();
     private readonly List<Thread> _workers = new();
@@ -99,6 +108,9 @@ public sealed partial class Vegetation : Node3D
 
     public FloraLibrary? Library => _library;
 
+    /// <summary>Where the plants come from (the game names the objects it changed through it).</summary>
+    public IPlantSource Source => _plants;
+
     /// <summary>
     /// Look-dev: one of each tree species at this distance (metres) in front of the camera, small plants and a rock
     /// nearer, all at one level of detail (0, 1, or 2 for impostors). Set before the first update.
@@ -107,16 +119,21 @@ public sealed partial class Vegetation : Node3D
 
     private bool _lineupBuilt;
 
-    public void Setup(PlanetSurface surface, RenderFrame frame, TextureLayered groundAlbedo, TextureLayered groundNormal)
+    /// <summary>Starts drawing a source's plants on a surface; <paramref name="seed"/> paints the species' variants.</summary>
+    public void Setup(ISurface surface, IPlantSource plants, ulong seed, RenderFrame frame, TextureLayered groundAlbedo, TextureLayered groundNormal)
     {
         _surface = surface;
+        _plants = plants;
+        _level = plants.Level;
+        _blockLevel = Math.Max(0, _level - 3);
+        _bounds = surface.HeightBounds;
         _frame = frame;
         _groundAlbedo = groundAlbedo;
         _groundNormal = groundNormal;
         _quad = BuildQuad();
         _startUsec = Time.GetTicksUsec();
-        int seed = (int)(surface.Seed & 0x7FFFFFFF);
-        _data = Task.Run(() => FloraLibrary.Build(seed));
+        int librarySeed = (int)(seed & 0x7FFFFFFF);
+        _data = Task.Run(() => FloraLibrary.Build(librarySeed));
         for (int i = 0; i < 2; i++)
         {
             var t = new Thread(Work) { IsBackground = true, Name = $"Scatter {i}", Priority = ThreadPriority.BelowNormal };
@@ -204,14 +221,16 @@ public sealed partial class Vegetation : Node3D
             return;
         }
         RenderingServer.GlobalShaderParameterSet("hu_lod_clock", Clock);
-        double edge = TileKey.EdgeLength(Scatter.Level, _surface.Radius);
+        double edge = TileKey.EdgeLength(_level, _surface.Radius);
         Vector3D up = camera.Normalized;
         Vector3D ground = up * _surface.Radius;
         var zone = new ZoneFrame(ground);
+        _reach = Reach(camera);
+        double nearRadius = Math.Min(NearSetRadius, _reach);
         // Sample at a third of a tile: tiles are turned against the zone's axes and vary in size, so sampling at a
         // whole tile's spacing would skip some.
         double step = edge / 3;
-        int nearSteps = (int)Math.Ceiling((NearSetRadius + edge) / step);
+        int nearSteps = (int)Math.Ceiling((nearRadius + edge) / step);
         _nearMissing = 0;
         var nearTiles = new List<TileKey>();
         var seen = new HashSet<ulong>();
@@ -219,8 +238,8 @@ public sealed partial class Vegetation : Node3D
         {
             for (int i = -nearSteps; i <= nearSteps; i++)
             {
-                TileKey key = TileKey.At(zone.ToBody(i * step, 0, j * step), Scatter.Level);
-                if (!seen.Add(key.Packed) || Vector3D.Distance(key.Centre * _surface.Radius, ground) > NearSetRadius + edge)
+                TileKey key = TileKey.At(zone.ToBody(i * step, 0, j * step), _level);
+                if (!seen.Add(key.Packed) || Vector3D.Distance(key.Centre * _surface.Radius, ground) > nearRadius + edge)
                 {
                     continue;
                 }
@@ -239,13 +258,27 @@ public sealed partial class Vegetation : Node3D
         }
         if (_impostors != null)
         {
-            UpdateBlocks(zone, ground);
+            UpdateBlocks(zone, camera);
         }
         if (Lineup is { } lineup && !_lineupBuilt && (lineup.Lod < 2 || _impostors != null))
         {
             BuildLineup(camera, lineup.Distance, lineup.Lod, lineup.Forward);
             _lineupBuilt = true;
         }
+    }
+
+    // How far plants can be seen from the camera (body frame): over the horizon of the lowest ground there can be to the
+    // tallest plant on the highest ground there can be, at most the impostors' end. On the real first world that is the
+    // impostors' end; on a 2.41 km world, about a kilometre from the ground.
+    private double _reach = ImpostorEnd;
+
+    private double Reach(Vector3D camera)
+    {
+        double r = _surface.Radius;
+        double eye = Math.Max(camera.Length - r - _bounds.Low, 1);
+        double plant = TallestPlant + _bounds.High - _bounds.Low;
+        double reach = Math.Sqrt(2 * r * eye + eye * eye) + Math.Sqrt(2 * r * plant + plant * plant);
+        return Math.Min(ImpostorEnd, reach);
     }
 
     private void BuildLineup(Vector3D camera, float distance, int lod, Vector3 forward)
@@ -314,7 +347,7 @@ public sealed partial class Vegetation : Node3D
             {
                 try
                 {
-                    List<ScatterItem> items = Scatter.ForTile(_surface, key, treesOnly: !full);
+                    IReadOnlyList<ScatterItem> items = _plants.Tile(key, treesOnly: !full);
                     (full ? _full : _trees)[key.Packed] = items;
                 }
                 catch (Exception e)
@@ -344,7 +377,8 @@ public sealed partial class Vegetation : Node3D
     {
         _nearCentre = camera;
         _nearDirty = false;
-        PlaceNear(ComputeNear(tiles, camera, _frame.Origin, Clock, (key, item) => DrawnKind(key, item)));
+        // Anchored at the camera, so the near set's bounds follow it (docs/WHOLE_WORLD.md §12).
+        PlaceNear(ComputeNear(tiles, camera, camera, Clock, (key, item) => DrawnKind(key, item)));
     }
 
     // What the near set draws: each variant's buffers per level, and the near impostors.
@@ -365,7 +399,7 @@ public sealed partial class Vegetation : Node3D
         double margin = 2 * RebuildDistance;
         foreach (TileKey key in tiles)
         {
-            if (!_full.TryGetValue(key.Packed, out List<ScatterItem>? items))
+            if (!_full.TryGetValue(key.Packed, out IReadOnlyList<ScatterItem>? items))
             {
                 continue;
             }
@@ -597,20 +631,21 @@ public sealed partial class Vegetation : Node3D
 
     // ---------------------------------------------------------------- impostor blocks
 
-    private void UpdateBlocks(ZoneFrame zone, Vector3D ground)
+    private void UpdateBlocks(ZoneFrame zone, Vector3D camera)
     {
-        double blockEdge = TileKey.EdgeLength(BlockLevel, _surface.Radius);
+        double blockEdge = TileKey.EdgeLength(_blockLevel, _surface.Radius);
         double step = blockEdge / 3;
-        int steps = (int)Math.Ceiling((ImpostorEnd + blockEdge) / step);
+        // Blocks within reach of the camera (the horizon's), found over the tangent plane under it.
+        int steps = (int)Math.Ceiling((_reach + blockEdge) / step);
         var wanted = new HashSet<ulong>();
         int impostors = 0;
         for (int j = -steps; j <= steps; j++)
         {
             for (int i = -steps; i <= steps; i++)
             {
-                TileKey key = TileKey.At(zone.ToBody(i * step, 0, j * step), BlockLevel);
-                double d = Vector3D.Distance(key.Centre * _surface.Radius, ground);
-                if (d > ImpostorEnd + blockEdge || !wanted.Add(key.Packed))
+                TileKey key = TileKey.At(zone.ToBody(i * step, 0, j * step), _blockLevel);
+                double d = Vector3D.Distance(key.Centre * _surface.Radius, camera);
+                if (d > _reach + blockEdge || !wanted.Add(key.Packed))
                 {
                     continue;
                 }
@@ -644,14 +679,14 @@ public sealed partial class Vegetation : Node3D
 
     private void TryBuildBlock(Block block, double distance)
     {
-        int span = 1 << (Scatter.Level - BlockLevel);
+        int span = 1 << (_level - _blockLevel);
         var tiles = new List<TileKey>(span * span);
         bool ready = true;
         for (int y = 0; y < span; y++)
         {
             for (int x = 0; x < span; x++)
             {
-                var key = new TileKey(block.Key.Face, Scatter.Level, block.Key.X * span + x, block.Key.Y * span + y);
+                var key = new TileKey(block.Key.Face, _level, block.Key.X * span + x, block.Key.Y * span + y);
                 tiles.Add(key);
                 if (!_trees.ContainsKey(key.Packed) && !_full.ContainsKey(key.Packed))
                 {
@@ -675,7 +710,7 @@ public sealed partial class Vegetation : Node3D
                 InstanceCount = buffer.Count / 16,
                 Buffer = buffer.ToArray(),
             };
-            double edge = TileKey.EdgeLength(BlockLevel, _surface.Radius);
+            double edge = TileKey.EdgeLength(_blockLevel, _surface.Radius);
             float half = (float)(edge * 0.75 + 60);
             mm.CustomAabb = new Aabb(new Vector3(-half, -half, -half), new Vector3(2 * half, 2 * half, 2 * half));
             block.Instance = new MultiMeshInstance3D
@@ -699,7 +734,7 @@ public sealed partial class Vegetation : Node3D
         var buffer = new List<float>();
         foreach (TileKey key in tiles)
         {
-            List<ScatterItem>? items = _full.TryGetValue(key.Packed, out var f) ? f : _trees.TryGetValue(key.Packed, out var t) ? t : null;
+            IReadOnlyList<ScatterItem>? items = _full.TryGetValue(key.Packed, out var f) ? f : _trees.TryGetValue(key.Packed, out var t) ? t : null;
             if (items == null)
             {
                 continue;

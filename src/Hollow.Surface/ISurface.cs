@@ -39,14 +39,102 @@ public interface ISurface
     PooledTriangles GroundCollisionPooled(in ZoneFrame frame, TileKey tile, double margin) =>
         PooledTriangles.Of(GroundCollision(frame, tile, margin));
 
+    /// <summary>
+    /// The height above <see cref="Radius"/> of the water's surface over a unit direction, or −∞ where none lies: a point
+    /// below it is in water. By default the sea's level wherever the body has a sea (the sea covers everything below
+    /// it); the walking-scale ground adds its lakes and streams (docs/WALKING_GROUND.md §4).
+    /// </summary>
+    double WaterLevelAt(Vector3D direction) => SeaRadius > 0 ? SeaRadius - Radius : double.NegativeInfinity;
+
     /// <summary>The biome at a unit direction (stand-in surfaces: grassland).</summary>
     Biome BiomeAt(Vector3D direction) => Biome.Grassland;
 
     /// <summary>
-    /// Natural objects (trees, bushes, ferns, rocks) on a scatter tile of <see cref="Scatter.Level"/>, in a fixed
+    /// Natural objects (trees, bushes, ferns, rocks) on a scatter tile of <see cref="ScatterLevel"/>, in a fixed
     /// order; each one's ID is the tile plus its <see cref="ScatterItem.Index"/> (stand-in surfaces: none).
     /// </summary>
     IReadOnlyList<ScatterItem> ScatterFor(TileKey tile) => Array.Empty<ScatterItem>();
+
+    /// <summary>The cube-sphere level of the scatter's tiles (<see cref="ScatterFor"/>).</summary>
+    int ScatterLevel => Scatter.Level;
+
+    /// <summary>
+    /// <see cref="ScatterFor"/>, or with <paramref name="treesOnly"/> its trees alone (what far impostors need; a surface
+    /// may find them faster than the whole tile).
+    /// </summary>
+    IReadOnlyList<ScatterItem> ScatterFor(TileKey tile, bool treesOnly)
+    {
+        IReadOnlyList<ScatterItem> all = ScatterFor(tile);
+        if (!treesOnly || all.Count == 0)
+        {
+            return all;
+        }
+        var trees = new List<ScatterItem>();
+        foreach (ScatterItem item in all)
+        {
+            if (item.Kind <= ScatterKind.Broadleaf)
+            {
+                trees.Add(item);
+            }
+        }
+        return trees;
+    }
+
+    // ---------------------------------------------------------------- drawing (docs/WHOLE_WORLD.md §10.1)
+
+    /// <summary>
+    /// The lowest and highest ground in metres above <see cref="Radius"/>, sea floor included: a drawn tile's bounds
+    /// before its own heights are known. By default half a percent of the radius either way.
+    /// </summary>
+    (double Low, double High) HeightBounds => (-0.005 * Radius, 0.005 * Radius);
+
+    /// <summary>
+    /// A point of the ground for drawing, in one evaluation of the surface: its height above <see cref="Radius"/> and
+    /// whatever else the surface knows there (by default the height alone). <see cref="Cover"/> takes it back, so a
+    /// surface that works out both at once (<see cref="PlanetSurface"/>) does it once.
+    /// </summary>
+    SurfaceSample Sample(Vector3D direction) => new(HeightAt(direction), 0, 0, 0, 0);
+
+    /// <summary>
+    /// What the ground at a point looks like, for drawing (GROUND.md §4.6): the biomes' soft weights
+    /// (<see cref="BiomeTable.Count"/>), the ground materials' weights (<see cref="BiomeTable.MaterialCount"/>, in
+    /// <see cref="GroundMaterial"/> order, adding up to about 1), and the climate and plant cover the shaders tint the
+    /// ground and the grass with. <paramref name="sample"/> is <see cref="Sample"/>'s at <paramref name="direction"/>,
+    /// <paramref name="slope"/> the sine of the ground's tilt there. By default from <see cref="BiomeAt"/> through the
+    /// biome table (<see cref="BiomeTable.Cover"/>); a surface with a climate of its own blends its borders.
+    /// </summary>
+    GroundCover Cover(Vector3D direction, in SurfaceSample sample, double slope, Span<double> biomes, Span<double> materials) =>
+        BiomeTable.Cover(BiomeAt(direction), sample.Height - (SeaRadius > 0 ? SeaRadius - Radius : 0), slope, biomes, materials);
+}
+
+/// <summary>
+/// The climate and plant cover at a point, as drawing reads it (<see cref="ISurface.Cover"/>): what tints the ground,
+/// thickens the grass and darkens the forest floor. Presentation only: no rule of the game reads it.
+/// </summary>
+public readonly struct GroundCover
+{
+    public GroundCover(double temperature, double moisture, double grass, double trees)
+    {
+        Temperature = temperature;
+        Moisture = moisture;
+        Grass = grass;
+        Trees = trees;
+    }
+
+    /// <summary>Annual mean temperature, °C.</summary>
+    public double Temperature { get; }
+
+    /// <summary>How wet the climate is, 0 (desert) to 1 (rainforest).</summary>
+    public double Moisture { get; }
+
+    /// <summary>How thick the grass grows, 0 to 1.</summary>
+    public double Grass { get; }
+
+    /// <summary>Trees per square metre.</summary>
+    public double Trees { get; }
+
+    /// <summary>The tree cover the ground is painted with, 0 (open) to 1 (closed forest).</summary>
+    public double TreeCover => Math.Clamp(Trees / 0.022, 0, 1);
 }
 
 /// <summary>

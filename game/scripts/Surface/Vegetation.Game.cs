@@ -55,7 +55,8 @@ public sealed partial class Vegetation
         _nearDirty = false;
         Func<TileKey, ScatterItem, ScatterKind> kinds = ChangesSnapshot();
         var list = new List<TileKey>(tiles);
-        Vector3D anchor = _frame.Origin;
+        // Anchored at the camera, so the near set's bounds follow it (docs/WHOLE_WORLD.md §12).
+        Vector3D anchor = camera;
         float clock = Clock;
         _nearJob = Task.Run(() => ComputeNear(list, camera, anchor, clock, kinds));
     }
@@ -90,8 +91,12 @@ public sealed partial class Vegetation
         {
             return;
         }
-        int shift = Scatter.Level - BlockLevel;
-        var key = new TileKey(tile.Face, BlockLevel, tile.X >> shift, tile.Y >> shift);
+        if (tile.Level != _level)
+        {
+            return;
+        }
+        int shift = _level - _blockLevel;
+        var key = new TileKey(tile.Face, _blockLevel, tile.X >> shift, tile.Y >> shift);
         if (!_blocks.TryGetValue(key.Packed, out Block? b) || !b.Built || _blockJobs.ContainsKey(key.Packed))
         {
             return; // not built yet: it will be, with the change
@@ -107,7 +112,7 @@ public sealed partial class Vegetation
         {
             for (int x = 0; x < span; x++)
             {
-                tiles.Add(new TileKey(key.Face, Scatter.Level, key.X * span + x, key.Y * span + y));
+                tiles.Add(new TileKey(key.Face, _level, key.X * span + x, key.Y * span + y));
             }
         }
         Func<TileKey, ScatterItem, ScatterKind> kinds = ChangesSnapshot();

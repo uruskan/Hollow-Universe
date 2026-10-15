@@ -69,7 +69,7 @@ public static class ConsoleCatalog
             "You die where you stand: your body keeps what you carried and the respawn screen opens (a bag in a base under attack, say).",
             false, CommandSide.Server, [ArgKind.Player], "global.kill", "suicide"),
         Def("players", ["players"], "Who is on the server.", false, CommandSide.Server, [], "global.players", "global.playerlist"),
-        Def("whereami", ["whereami"], "Where you are: latitude and longitude, the zone position and map cell, the biome, the local time.",
+        Def("whereami", ["whereami"], "Where you are: latitude and longitude, the height, the map cell (\"C K12\"), the way from the landing site, the biome, the local time.",
             false, CommandSide.Server, [], "pos", "global.whereami"),
 
         // ---------------------------------------------------------------- admins
@@ -79,10 +79,10 @@ public static class ConsoleCatalog
             true, CommandSide.Server, [ArgKind.LootTable, ArgKind.Player], "inventory.kit"),
         Def("learn", ["learn <item|all> [player]"], "Learns an item's blueprint, or every one.", true, CommandSide.Server,
             [ArgKind.Blueprint, ArgKind.Player], "blueprint.learn", "unlockall"),
-        Def("teleport", ["teleport <player>", "teleport <x> <z>", "teleport <latitude> <longitude>", "teleport <player> <target player>",
-                "teleport <player> <x> <z>"],
-            "Moves you (or a player) to a player, or to a point of the zone: metres east and south of the landing site along the ground, or a latitude and " +
-            "longitude (three decimals or more, or N, S, E, W).",
+        Def("teleport", ["teleport <player>", "teleport <cell>", "teleport <x> <z>", "teleport <latitude> <longitude>", "teleport <player> <target player>",
+                "teleport <player> <cell>", "teleport <player> <x> <z>"],
+            "Moves you (or a player) to a player, or to a point of the world: the middle of a map cell (\"C K12\", as the map names it), metres east and " +
+            "south of the landing site along the ground, or a latitude and longitude (three decimals or more, or N, S, E, W).",
             true, CommandSide.Server, [ArgKind.Player, ArgKind.Player], "tp", "global.teleport", "teleportpos", "global.teleportpos"),
         Def("tp2me", ["tp2me <player>"], "Brings a player to you.", true, CommandSide.Server, [ArgKind.Player],
             "teleport2me", "global.teleport2me", "bring"),

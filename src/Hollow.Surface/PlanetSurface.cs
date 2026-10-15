@@ -75,7 +75,7 @@ public readonly struct VegetationSample
 /// <see cref="PlanetState.IceCover"/>; moisture from latitude bands, distance inland and noise. A biome table turns
 /// climate into ground materials and plant densities.</para>
 /// </remarks>
-public sealed class PlanetSurface : ISurface
+public sealed class PlanetSurface : ISurface, IScatterField
 {
     /// <summary>Quadtree level of the tiles collision is built from: the finest tiles the client draws.</summary>
     public const int CollisionLevel = 18;
@@ -251,58 +251,12 @@ public sealed class PlanetSurface : ISurface
         return 0.7 * noise + 0.42 * bias * (0.4 + 0.6 * _tectonics);
     }
 
-    /// <summary>
-    /// Eroded ridged noise ("swiss turbulence"): each octave is displaced along the slopes summed so far and damped
-    /// where the sum is low, so ridges are sharp, valleys smooth and side valleys branch like drainage. About 0–1.
-    /// </summary>
-    private double Swiss(Vector3D p, double wavelength, int octaves, double gain, double warp, ulong seed)
-    {
-        double f0 = Radius / wavelength;
-        double bx = p.X * f0, by = p.Y * f0, bz = p.Z * f0;
-        double sum = 0, amplitude = 1, frequency = 1, norm = 0;
-        double sx = 0, sy = 0, sz = 0;
-        for (int i = 0; i < octaves; i++)
-        {
-            ulong s = seed + (ulong)i * 0x632BE59BD9B4E019UL;
-            double o = Noise.Offset(s);
-            double n = Noise.Sample((bx + warp * sx) * frequency + o, (by + warp * sy) * frequency - o,
-                (bz + warp * sz) * frequency + 0.5 * o, s, out double dx, out double dy, out double dz);
-            double r = 1 - Math.Abs(n);
-            sum += amplitude * r * r;
-            norm += amplitude;
-            sx -= amplitude * dx * n;
-            sy -= amplitude * dy * n;
-            sz -= amplitude * dz * n;
-            frequency *= Noise.Lacunarity;
-            amplitude *= gain * Math.Clamp(sum / norm * 1.6, 0, 1);
-        }
-        // (1 − |n|)² sits around 0.6 on average; map so typical valleys are near 0 and crests near 1.
-        return (sum / norm - 0.3) / 0.62;
-    }
+    // Eroded ridged noise and eroded-slope noise on this surface's sphere (Noise.Swiss and Noise.Eroded).
+    private double Swiss(Vector3D p, double wavelength, int octaves, double gain, double warp, ulong seed) =>
+        Noise.Swiss(p, Radius, wavelength, octaves, gain, warp, seed);
 
-    /// <summary>
-    /// Noise with eroded slopes: each octave is damped where the slopes summed so far are steep, so slopes stay
-    /// smooth and detail gathers on flats and crests. About −1 to 1.
-    /// </summary>
-    private double Eroded(Vector3D p, double wavelength, int octaves, double gain, ulong seed)
-    {
-        double f = Radius / wavelength;
-        double sum = 0, amplitude = 1, norm = 0, gx = 0, gy = 0, gz = 0;
-        for (int i = 0; i < octaves; i++)
-        {
-            ulong s = seed + (ulong)i * 0x632BE59BD9B4E019UL;
-            double o = Noise.Offset(s);
-            double n = Noise.Sample(p.X * f + o, p.Y * f - o, p.Z * f + 0.5 * o, s, out double dx, out double dy, out double dz);
-            gx += amplitude * dx;
-            gy += amplitude * dy;
-            gz += amplitude * dz;
-            sum += amplitude * n / (1 + 0.6 * (gx * gx + gy * gy + gz * gz));
-            norm += amplitude;
-            amplitude *= gain;
-            f *= Noise.Lacunarity;
-        }
-        return sum / norm * 1.6;
-    }
+    private double Eroded(Vector3D p, double wavelength, int octaves, double gain, ulong seed) =>
+        Noise.Eroded(p, Radius, wavelength, octaves, gain, seed);
 
     // ---------------------------------------------------------------- climate
 
@@ -330,7 +284,7 @@ public sealed class PlanetSurface : ISurface
     }
 
     // Wet at the equator, dry in the subtropics, wet again in the mid-latitudes, dry and cold at the poles.
-    private static double MoistureBand(double absLatitude)
+    internal static double MoistureBand(double absLatitude)
     {
         ReadOnlySpan<double> lat = stackalloc double[] { 0, 12, 26, 38, 52, 68, 90 };
         ReadOnlySpan<double> m = stackalloc double[] { 0.86, 0.66, 0.26, 0.56, 0.74, 0.56, 0.4 };
@@ -387,42 +341,26 @@ public sealed class PlanetSurface : ISurface
     /// weights, slope (sine of the ground's tilt) and the local tree cover (0–1).
     /// </summary>
     public void Materials(in SurfaceSample s, in ClimateSample climate, ReadOnlySpan<double> biomes, double slope,
-        double treeCover, Span<double> materials)
+        double treeCover, Span<double> materials) =>
+        BiomeTable.GroundMaterials(biomes, slope, treeCover, climate.Temperature, s.Roughness, materials);
+
+    /// <summary>
+    /// The look of the ground at a point (<see cref="ISurface.Cover"/>): the climate, the biomes' soft weights, the plants'
+    /// densities and the materials, as the terrain and the grass have always been painted.
+    /// </summary>
+    public GroundCover Cover(Vector3D direction, in SurfaceSample sample, double slope, Span<double> biomes, Span<double> materials)
     {
-        materials.Clear();
-        BiomeTable.AddMaterials(biomes, materials);
-        // Under trees the ground is litter and moss; in the open it is grass.
-        double litter = Math.Min(materials[(int)GroundMaterial.ForestFloor], 1);
-        double open = 1 - treeCover;
-        materials[(int)GroundMaterial.Grass] += litter * open * 0.8;
-        materials[(int)GroundMaterial.ForestFloor] = litter * (0.2 + 0.8 * treeCover);
-        // Stony ground in rough places.
-        double stony = 0.25 * s.Roughness * s.Roughness;
-        materials[(int)GroundMaterial.Gravel] += stony;
-        // Snow where it is cold enough to lie (beyond the permanent ice).
-        double snow = DMath.SmoothStep(-1.0, -5.0, climate.Temperature);
-        materials[(int)GroundMaterial.Snow] += 3 * snow;
-        // Slopes: scree, then bare rock; snow slides off cliffs.
-        double scree = DMath.SmoothStep(0.42, 0.6, slope);
-        double cliff = DMath.SmoothStep(0.58, 0.74, slope);
-        double sum = 0;
-        for (int i = 0; i < materials.Length; i++)
-        {
-            sum += materials[i];
-        }
-        if (sum <= 0)
-        {
-            materials[(int)GroundMaterial.Soil] = 1;
-            sum = 1;
-        }
-        double keep = (1 - cliff) * (1 - 0.6 * scree) / sum;
-        for (int i = 0; i < materials.Length; i++)
-        {
-            materials[i] *= keep;
-        }
-        materials[(int)GroundMaterial.Gravel] += (1 - cliff) * 0.6 * scree;
-        materials[(int)GroundMaterial.Rock] += cliff;
+        ClimateSample climate = Climate(direction, sample);
+        BiomeWeights(direction, sample, climate, biomes);
+        VegetationSample vegetation = Vegetation(direction, sample, climate, biomes, slope);
+        Materials(sample, climate, biomes, slope, Math.Clamp(vegetation.Trees / 0.022, 0, 1), materials);
+        return new GroundCover(climate.Temperature, climate.Moisture, vegetation.Grass, vegetation.Trees);
     }
+
+    /// <summary>The trees alone of a scatter tile come faster than the whole tile (far impostors).</summary>
+    public IReadOnlyList<ScatterItem> ScatterFor(TileKey tile, bool treesOnly) => Scatter.ForTile(this, tile, treesOnly);
+
+    public (double Low, double High) HeightBounds => (-11000, 9000);
 
     /// <summary>
     /// Plant and rock densities at a point: the biome's, thinned by clearings, steep ground, the tree line and the
@@ -441,9 +379,7 @@ public sealed class PlanetSurface : ISurface
         double bushes = BiomeTable.Bushes(biomes) * (0.35 + 0.65 * clearing) * shore * gentle;
         double ferns = BiomeTable.Ferns(biomes) * (0.2 + 0.8 * clearing) * shore * gentle;
         double rocks = BiomeTable.Rocks(biomes) * (0.5 + 2.5 * s.Roughness * s.Roughness) * (1 - 0.7 * DMath.SmoothStep(0.62, 0.8, slope));
-        double meadow = biomes[(int)Biome.Grassland] + biomes[(int)Biome.TemperateForest] + 0.8 * biomes[(int)Biome.BorealForest]
-            + 0.7 * biomes[(int)Biome.Savanna] + 0.6 * biomes[(int)Biome.Shrubland] + 0.5 * biomes[(int)Biome.Tundra]
-            + 0.8 * biomes[(int)Biome.TropicalForest] + 0.3 * biomes[(int)Biome.Alpine];
+        double meadow = BiomeTable.Meadow(biomes);
         double grass = Math.Clamp(meadow * shore * gentle * (1 - 0.6 * clearing * BiomeTable.Trees(biomes) / 0.03), 0, 1);
         // Berries like the light at forest edges and in clearings, not deep shade or open grass.
         double edge = 0.35 + 2.6 * clearing * (1 - clearing);
@@ -476,6 +412,24 @@ public sealed class PlanetSurface : ISurface
         TileMesh.Collision(this, frame, centreX, centreZ, size, CollisionLevel, TileCells);
 
     public IReadOnlyList<ScatterItem> ScatterFor(TileKey tile) => Scatter.ForTile(this, tile);
+
+    // ---------------------------------------------------------------- scatter
+
+    ulong IScatterField.ScatterSeed => _seed;
+
+    ScatterPlan IScatterField.ScatterPlan => ScatterPlan.Planet;
+
+    /// <summary>What the scatter places at a point: the climate's biomes, their plants thinned by clearings and slope, outcrops.</summary>
+    public ScatterDensity Densities(Vector3D direction, in SurfaceSample sample, double slope)
+    {
+        ClimateSample climate = Climate(direction, sample);
+        Span<double> biomes = stackalloc double[BiomeTable.Count];
+        BiomeWeights(direction, sample, climate, biomes);
+        VegetationSample v = Vegetation(direction, sample, climate, biomes, slope);
+        Span<double> kinds = stackalloc double[4];
+        BiomeTable.TreeKinds(biomes, kinds);
+        return new ScatterDensity(v, kinds, Scatter.Outcrops(sample, biomes, slope), sample.Mountain);
+    }
 
     // ---------------------------------------------------------------- helpers
 

@@ -234,6 +234,84 @@ public static class BiomeTable
         }
     }
 
+    /// <summary>A typical annual mean temperature (°C) and moisture of each biome, for surfaces without a climate model.</summary>
+    private static readonly (double T, double M)[] Typical =
+    {
+        (14, 0.70),  // ocean
+        (16, 0.45),  // beach
+        (-18, 0.35), // ice sheet
+        (-7, 0.40), (2, 0.62), (10, 0.68), (12, 0.40), (18, 0.27), (24, 0.06), (25, 0.38), (26, 0.80),
+        (-3, 0.45),  // alpine
+    };
+
+    /// <summary>How much of a meadow the biomes make: where grass grows thick (0–1 before slope and shade).</summary>
+    public static double Meadow(ReadOnlySpan<double> weights) =>
+        weights[(int)Biome.Grassland] + weights[(int)Biome.TemperateForest] + 0.8 * weights[(int)Biome.BorealForest]
+        + 0.7 * weights[(int)Biome.Savanna] + 0.6 * weights[(int)Biome.Shrubland] + 0.5 * weights[(int)Biome.Tundra]
+        + 0.8 * weights[(int)Biome.TropicalForest] + 0.3 * weights[(int)Biome.Alpine];
+
+    /// <summary>
+    /// Ground material weights (<see cref="MaterialCount"/>, adding up to 1) for biome weights on ground of a slope (the
+    /// sine of its tilt), under a tree cover (0–1), at an annual mean temperature (°C), with a small-scale roughness
+    /// (0–1): the biomes' materials, litter under trees and grass in the open, gravel on rough ground, snow where it is
+    /// cold enough to lie, then scree and bare rock on slopes. One rule for every surface.
+    /// </summary>
+    public static void GroundMaterials(ReadOnlySpan<double> biomes, double slope, double treeCover, double temperature, double roughness,
+        Span<double> materials)
+    {
+        materials.Clear();
+        AddMaterials(biomes, materials);
+        // Under trees the ground is litter and moss; in the open it is grass.
+        double litter = Math.Min(materials[(int)GroundMaterial.ForestFloor], 1);
+        double open = 1 - treeCover;
+        materials[(int)GroundMaterial.Grass] += litter * open * 0.8;
+        materials[(int)GroundMaterial.ForestFloor] = litter * (0.2 + 0.8 * treeCover);
+        // Stony ground in rough places.
+        double stony = 0.25 * roughness * roughness;
+        materials[(int)GroundMaterial.Gravel] += stony;
+        // Snow where it is cold enough to lie (beyond the permanent ice).
+        double snow = DMath.SmoothStep(-1.0, -5.0, temperature);
+        materials[(int)GroundMaterial.Snow] += 3 * snow;
+        // Slopes: scree, then bare rock; snow slides off cliffs.
+        double scree = DMath.SmoothStep(0.42, 0.6, slope);
+        double cliff = DMath.SmoothStep(0.58, 0.74, slope);
+        double sum = 0;
+        for (int i = 0; i < materials.Length; i++)
+        {
+            sum += materials[i];
+        }
+        if (sum <= 0)
+        {
+            materials[(int)GroundMaterial.Soil] = 1;
+            sum = 1;
+        }
+        double keep = (1 - cliff) * (1 - 0.6 * scree) / sum;
+        for (int i = 0; i < materials.Length; i++)
+        {
+            materials[i] *= keep;
+        }
+        materials[(int)GroundMaterial.Gravel] += (1 - cliff) * 0.6 * scree;
+        materials[(int)GroundMaterial.Rock] += cliff;
+    }
+
+    /// <summary>
+    /// The look of the ground (<see cref="ISurface.Cover"/>) for a surface that knows only its biome at a point: that
+    /// biome alone, its typical climate, its trees and meadow thinned on steep ground (none under the sea, at
+    /// <paramref name="heightAboveSea"/> below 0), and the materials by <see cref="GroundMaterials"/>.
+    /// </summary>
+    public static GroundCover Cover(Biome biome, double heightAboveSea, double slope, Span<double> biomes, Span<double> materials)
+    {
+        biomes.Clear();
+        biomes[(int)biome] = 1;
+        (double temperature, double moisture) = Typical[(int)biome];
+        double gentle = 1 - DMath.SmoothStep(0.45, 0.62, slope);
+        double land = heightAboveSea < 0.3 ? 0 : 1;
+        double trees = Trees(biomes) * gentle * land;
+        double grass = Math.Clamp(Meadow(biomes) * gentle * land, 0, 1);
+        GroundMaterials(biomes, slope, Math.Clamp(trees / 0.022, 0, 1), temperature, 0, materials);
+        return new GroundCover(temperature, moisture, grass, trees);
+    }
+
     public static double Trees(ReadOnlySpan<double> weights) => Mix(weights, TreeDensity);
     public static double Bushes(ReadOnlySpan<double> weights) => Mix(weights, BushDensity);
     public static double Ferns(ReadOnlySpan<double> weights) => Mix(weights, FernDensity);

@@ -29,8 +29,20 @@ public sealed class BlastStats
     /// <summary>Damage to a character at the centre, before armour.</summary>
     public double Flesh { get; init; }
 
+    /// <summary>
+    /// Damage to the person or animal a round strikes (or a charge is stuck to), before armour, in place of <see cref="Flesh"/>
+    /// (IW4: the high-velocity rocket kills whoever it strikes, KNOWN_PROBLEMS.md finding 26); 0: the struck take
+    /// <see cref="Flesh"/> whole, as everything else at the centre does.
+    /// </summary>
+    public double Direct { get; init; }
+
     /// <summary>Damage to a deployable at the centre.</summary>
     public double Deployable { get; init; }
+
+    /// <summary>The fire this blast leaves where it went off (explosives.json fires, IW4), by key and resolved; null for none.</summary>
+    public string? FireKey { get; init; }
+
+    public FireDef? Fire { get; internal set; }
 
     /// <summary>The grade keys the piece table names (building.json's grades).</summary>
     public IEnumerable<string> PieceGrades => _pieces.Keys;
@@ -108,6 +120,78 @@ public sealed class ThrowableStats
     public int FuseTicks(double unit) => Math.Max(1, CharacterTicks.From(FuseLeast + (FuseMost - FuseLeast) * Math.Clamp(unit, 0, 1)));
 
     public override string ToString() => Item.Key;
+}
+
+/// <summary>
+/// A kind of fire (explosives.json <c>fires.kinds</c>, IRON_WAKE.md §7, IW4): a pool of burning fuel a blast leaves, of a
+/// radius, burning for a while and hurting what is within its radius and in its sight every so often, by distance from its
+/// middle (full within <see cref="Inner"/> of the radius, nothing at its edge, as a blast's falloff), through the damage
+/// pipeline's heat delivery: people and animals, the burning it sets in people, deployables that burn and the building
+/// through its rules' heat channel. Amounts are a second's, at the middle.
+/// </summary>
+public sealed class FireDef
+{
+    public string Key { get; init; } = "";
+
+    /// <summary>Nothing beyond this many metres of its middle.</summary>
+    public double Radius { get; init; }
+
+    /// <summary>The share of the radius it does all its damage within; then less, down to none at the radius.</summary>
+    public double Inner { get; init; } = 0.4;
+
+    /// <summary>How long it burns.</summary>
+    public double Seconds { get; init; }
+
+    /// <summary>How often it hurts what is in it, in seconds.</summary>
+    public double Every { get; init; } = 0.5;
+
+    /// <summary>To people (before what they wear on the body) and animals, a second.</summary>
+    public double Flesh { get; init; }
+
+    /// <summary>The health set burning in people a second while they are in it (survival.json's burning vital burns it off).</summary>
+    public double Burning { get; init; }
+
+    /// <summary>To deployables whose data says they burn (deployables.json <c>burns</c>), a second.</summary>
+    public double Deployables { get; init; }
+
+    /// <summary>To building pieces, doors and the tool cupboard through the building rules' heat channel, a second.</summary>
+    public double Building { get; init; }
+
+    public int Ticks => Math.Max(1, CharacterTicks.From(Seconds));
+
+    public int EveryTicks => Math.Max(1, CharacterTicks.From(Every));
+
+    /// <summary>The share of a second's damage it does at a distance from its middle: 1 within the inner radius, 0 at the radius.</summary>
+    public double Falloff(double distance)
+    {
+        double inner = Radius * Inner;
+        if (distance <= inner)
+        {
+            return 1;
+        }
+        if (distance >= Radius || Radius <= inner)
+        {
+            return 0;
+        }
+        return 1 - (distance - inner) / (Radius - inner);
+    }
+
+    public override string ToString() => Key;
+}
+
+/// <summary>
+/// How every fire behaves (explosives.json <c>fires</c>, IW4): how many may burn in a zone (the oldest goes first), how far
+/// burning fuel runs and falls from a steep surface or the air to one that holds it, and how steep a surface holds it.
+/// </summary>
+public sealed class FireRules
+{
+    public int Most { get; init; } = 64;
+
+    /// <summary>Metres the fuel falls at most to a surface that holds it; none that near: no fire.</summary>
+    public double RunsDown { get; init; } = 12;
+
+    /// <summary>The steepest surface (degrees from up) that holds burning fuel.</summary>
+    public double SteepestDegrees { get; init; } = 50;
 }
 
 /// <summary>How raid alerts go out (explosives.json <c>alerts</c>): one per base at most every so often, kept for a while for those offline.</summary>

@@ -11,13 +11,14 @@ using Hollow.Surface;
 namespace Hollow.Simulation.Nature;
 
 /// <summary>
-/// The natural objects of a real surface (GROUND.md §6.1): the planet's own scatter (<see cref="Scatter"/>), the same
-/// trees, berry bushes, ferns, boulders and outcrops the client draws, under the same IDs on the server and every
-/// client. gather.json maps scatter kinds onto gameplay kinds (<see cref="NaturalKind.ScatterKinds"/>); scatter
+/// The natural objects of a surface with a scatter (GROUND.md §6.1): the real planet's or the walking-scale ground's
+/// (<see cref="IScatterField"/>, <see cref="Scatter"/>, at the surface's scatter level), the same trees, berry bushes,
+/// ferns, boulders and outcrops the client draws, under the same IDs on the server and every client. gather.json maps scatter kinds onto gameplay kinds (<see cref="NaturalKind.ScatterKinds"/>); scatter
 /// objects of other kinds (plain bushes, small stones) are scenery and not here.
 /// <para>
-/// <b>IDs</b> (ARCHITECTURE.md §7: tile and index): 4 bits tag, 3 bits cube face, 16 bits each of the level-16 tile's
-/// X and Y, 8 bits the scatter kind and 17 bits the candidate cell. An ID from outside is untrusted: one that doesn't
+/// <b>IDs</b> (ARCHITECTURE.md §7: tile and index): 4 bits tag, 3 bits cube face, 16 bits each of the scatter tile's
+/// X and Y (level 16 on the real planet, 5 on the first world's walking-scale ground), 8 bits the scatter kind and 17
+/// bits the candidate cell. An ID from outside is untrusted: one that doesn't
 /// decode to a tile of this zone, a mapped kind and an object that exists is simply not found, and
 /// <see cref="TryGetNear"/> refuses a far one before generating anything.
 /// </para>
@@ -35,7 +36,8 @@ public sealed class ScatterNaturalObjects : INaturalObjects
     private const int KindShift = 17;
     private const ulong CandidateMask = (1UL << KindShift) - 1;
 
-    private readonly PlanetSurface _surface;
+    private readonly IScatterField _surface;
+    private readonly int _level;
     private readonly ZoneFrame _frame;
     private readonly (NaturalKind Kind, float MinScale)?[] _kinds = new (NaturalKind, float)?[256];
     private readonly ConcurrentDictionary<ulong, Lazy<TileObjects>> _tiles = new();
@@ -49,9 +51,10 @@ public sealed class ScatterNaturalObjects : INaturalObjects
         public long LastUsed;
     }
 
-    public ScatterNaturalObjects(PlanetSurface surface, ZoneFrame frame, GameContent content)
+    public ScatterNaturalObjects(IScatterField surface, ZoneFrame frame, GameContent content)
     {
         _surface = surface;
+        _level = surface.ScatterPlan.Level;
         _frame = frame;
         foreach (NaturalKind kind in content.NaturalKinds)
         {
@@ -60,7 +63,7 @@ public sealed class ScatterNaturalObjects : INaturalObjects
                 _kinds[(int)s] = (kind, kind.ScatterMinScale);
             }
         }
-        _tileEdge = TileKey.EdgeLength(Scatter.Level, surface.Radius);
+        _tileEdge = TileKey.EdgeLength(_level, surface.Radius);
     }
 
     /// <summary>Scatter tiles generated and kept now.</summary>
@@ -79,8 +82,8 @@ public sealed class ScatterNaturalObjects : INaturalObjects
         return Tag | (ulong)tile.Face << 57 | (ulong)(uint)tile.X << 41 | (ulong)(uint)tile.Y << 25 | kind << KindShift | (candidate & CandidateMask);
     }
 
-    /// <summary>The scatter tile and item index an ID names, or null if it can't be one of ours.</summary>
-    public static (TileKey Tile, int Index)? Decode(ulong id)
+    /// <summary>The scatter tile (of a scatter level, the real planet's by default) and item index an ID names, or null if it can't be one of ours.</summary>
+    public static (TileKey Tile, int Index)? Decode(ulong id, int level = Scatter.Level)
     {
         if ((id & (0xFUL << 60)) != Tag)
         {
@@ -95,7 +98,7 @@ public sealed class ScatterNaturalObjects : INaturalObjects
         int kind = (int)((id >> KindShift) & 0xFF);
         int candidate = (int)(id & CandidateMask);
         // Untrusted: coordinates outside the face name nothing (never an exception, docs/WHOLE_WORLD.md §3.2).
-        return TileKey.Checked(face, Scatter.Level, x, y) is { } tile ? (tile, kind << 24 | candidate) : null;
+        return TileKey.Checked(face, level, x, y) is { } tile ? (tile, kind << 24 | candidate) : null;
     }
 
     public void Query(Vector3 centre, float radius, List<NaturalObject> into)
@@ -119,11 +122,17 @@ public sealed class ScatterNaturalObjects : INaturalObjects
 
     public bool TryGet(ulong id, out NaturalObject found) => TryGetNear(id, Vector3.Zero, float.PositiveInfinity, out found);
 
+    public int Level => Scatter.Level;
+
+    public IReadOnlyList<NaturalObject> InTile(TileKey tile) => tile.Level == Scatter.Level ? Tile(tile).Objects : Array.Empty<NaturalObject>();
+
+    public TileKey? TileOf(ulong id) => Decode(id)?.Tile;
+
     /// <summary>The object with an ID if its scatter tile is generated already (never generates one: for a frame's work).</summary>
     public bool TryGetCached(ulong id, out NaturalObject found)
     {
         found = default;
-        if (Decode(id) is not var (tile, _) || !_tiles.TryGetValue(tile.Packed, out Lazy<TileObjects>? entry) || !entry.IsValueCreated ||
+        if (Decode(id, _level) is not var (tile, _) || !_tiles.TryGetValue(tile.Packed, out Lazy<TileObjects>? entry) || !entry.IsValueCreated ||
             !entry.Value.ById.TryGetValue(id, out int at))
         {
             return false;
@@ -135,7 +144,7 @@ public sealed class ScatterNaturalObjects : INaturalObjects
     public bool TryGetNear(ulong id, Vector3 point, float radius, out NaturalObject found)
     {
         found = default;
-        if (Decode(id) is not var (tile, index) || _kinds[index >> 24] == null)
+        if (Decode(id, _level) is not var (tile, index) || _kinds[index >> 24] == null)
         {
             return false;
         }
@@ -159,7 +168,7 @@ public sealed class ScatterNaturalObjects : INaturalObjects
     private List<TileKey> TilesCovering(Vector3 centre, float radius)
     {
         var tiles = new List<TileKey>();
-        TileKey.Around(_frame.ToBody(centre), radius, _surface.Radius, Scatter.Level, tiles);
+        TileKey.Around(_frame.ToBody(centre), radius, _surface.Radius, _level, tiles);
         tiles.Sort((a, b) => a.Packed.CompareTo(b.Packed));
         return tiles;
     }

@@ -18,7 +18,9 @@ public readonly record struct Detonated(
     Vector3 Normal = default,
     float Radius = 0,
     TargetRef On = default,
-    bool Round = false) : IZoneEvent
+    bool Round = false,
+    string PlayerName = "",
+    BlastStats? Blast = null) : IZoneEvent
 {
     /// <summary>Whose explosive.</summary>
     public EntityId Player { get; init; } = Player;
@@ -37,4 +39,10 @@ public readonly record struct Detonated(
 
     /// <summary>An explosive round (many, cosmetic) rather than a charge.</summary>
     public bool Round { get; init; } = Round;
+
+    /// <summary>Whose, by name (kept when they have left: a fire it leaves is still theirs, IW4).</summary>
+    public string PlayerName { get; init; } = PlayerName;
+
+    /// <summary>The blast (explosives.json): what a fire it leaves is (IW4, <see cref="FireSystem"/>).</summary>
+    public BlastStats? Blast { get; init; } = Blast;
 }

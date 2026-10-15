@@ -457,13 +457,15 @@ public sealed class CombatSystem : ZoneSystem
                 bool lying = p.Sleeping || p.Wounded;
                 Vector3 chest = feet + up * (seated ? 0.45f : lying ? 0.25f : s.Stance == Stance.Crouching ? 0.7f : 1.15f);
                 Vector3 head = feet + up * (seated ? 0.93f : lying ? 0.3f : s.Stance == Stance.Crouching ? 1.0f : 1.6f);
-                float distance = MathF.Max(0, MathF.Min(Vector3.Distance(chest, blast.At), Vector3.Distance(head, blast.At)) - 0.3f);
+                // Whoever a round struck takes the blast at its middle (IW4: a direct hit is a direct hit, wherever it landed).
+                bool struck = blast.IsStuckTo(p.Ref);
+                float distance = struck ? 0 : MathF.Max(0, MathF.Min(Vector3.Distance(chest, blast.At), Vector3.Distance(head, blast.At)) - 0.3f);
                 if (distance <= blast.Radius)
                 {
                     into.Add(new BlastTarget
                     {
                         Hit = new TraceHit { Target = p.Ref, Region = HitRegion.Body, Point = chest }, Thing = p,
-                        Sight = chest, Sight2 = head, Distance = distance,
+                        Sight = chest, Sight2 = head, Distance = distance, Stuck = struck,
                     });
                 }
             }
@@ -485,9 +487,10 @@ public sealed class CombatSystem : ZoneSystem
             bool wasDown = victim.Wounded;
             victim.Vitals.Bleeding += amount * r.Bleed;
             victim.Vitals.Burning += r.Burn * (1 - protection);
-            // Rust: a projectile to the head kills outright; anything else lethal may knock down instead (G4).
+            // Rust: a projectile to the head kills outright, and so does fire (as the burning vital does); anything else lethal
+            // may knock down instead (G4).
             float taken = zone.Players().Hurt(victimEntity, victim, amount, r.Cause, r.Attacker, r.AttackerName,
-                canWound: !(r.Channel == DamageType.Bullet && region == HitRegion.Head));
+                canWound: !r.Outright && !(r.Channel == DamageType.Bullet && region == HitRegion.Head));
             zone.Events.Add(new Hurt(Player: victim.Id, By: r.ByAnimal?.Id ?? r.Attacker, Amount: amount, Region: region, From: r.From, Weapon: r.Weapon));
             return new DamageOutcome(true, amount, taken, victim.Dead, victim.Wounded && !wasDown, victim.Id);
         }

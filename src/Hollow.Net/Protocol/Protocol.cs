@@ -26,11 +26,16 @@ public static partial class Protocol
     /// interaction (GROUND_SYSTEMS.md §5): one <see cref="InteractIntent"/> for every verb (Open, PickUp, Toggle, HelpUp,
     /// Rearm and Unlock gone; with 18's placing, nothing is left of Door, Lock and Claim; Team doesn't invite, Ship is the
     /// pilot's keys alone), spent arrows (<see cref="ArrowStates"/>, <see cref="ArrowsGone"/>, the Arrow target family), a
-    /// thing's capabilities; 22: ship spaces (IRON_WAKE.md §4.13, IW1): the frame in the input and characters' states, a
-    /// parked ship's body, its parts' states; 23: seats, parts and doors (IRON_WAKE.md §5, IW2): a ship at rest is the
-    /// server's word (<see cref="ShipNetFlags.Still"/>).
+    /// thing's capabilities; 20: the F2 developer panel; 21: S3, the whole world in one zone (views and turns that don't break
+    /// at a pole); 22: IW1, ship spaces (a frame with every view and character state, IRON_WAKE.md §12); 23: IW4,
+    /// fires (<see cref="FireStarted"/>, <see cref="FireEnded"/>, the Fire target family, a thing destroyed by fire) and
+    /// rockets that drop by their own gravity (IRON_WAKE.md §7); 24: S4, the zone's ground
+    /// (<see cref="ZoneInfo.Ground"/>: the stand-in or the walking-scale ground, docs/WALKING_GROUND.md); 25: IW2, seats,
+    /// parts and doors (IRON_WAKE.md §5.7): a ship at rest and slow as the server's word (<see cref="ShipNetFlags.Still"/>,
+    /// <see cref="ShipNetFlags.Slow"/>), the seat in the own state, <see cref="ShipDetails"/> (doors, seats, health), a
+    /// seated player's keys, the hammer's family and part.
     /// </summary>
-    public const uint Version = 23;
+    public const uint Version = 25;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

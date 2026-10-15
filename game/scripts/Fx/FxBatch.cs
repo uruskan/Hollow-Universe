@@ -72,7 +72,7 @@ public sealed class FxBatch
             Interpolate = false,
             Explosiveness = 0,
             DrawOrder = orient == FxOrient.Tumble ? GpuParticles3D.DrawOrderEnum.Index : GpuParticles3D.DrawOrderEnum.ViewDepth,
-            VisibilityAabb = new Aabb(new Vector3(-4000, -4000, -4000), new Vector3(8000, 8000, 8000)),
+            VisibilityAabb = new Aabb(new Vector3(-8000, -8000, -8000), new Vector3(16000, 16000, 16000)), // a whole world, centred on its centre
             CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             Layers = FxDirector.RenderLayer,
             ProcessMaterial = process,
@@ -146,6 +146,8 @@ public static class FxBatches
 
     public static Dictionary<string, FxBatch> Create(Node parent)
     {
+        // The particles fall toward the planet's centre: its globals exist before their shader is loaded.
+        HollowUniverse.Surface.PlanetGlobals.Register();
         var quad = new QuadMesh { Size = Vector2.One };
         Texture2D noise = FxAssets.Texture("textures/noise.png");
         var batches = new Dictionary<string, FxBatch>(StringComparer.Ordinal);

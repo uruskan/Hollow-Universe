@@ -1,15 +1,17 @@
 // The sea (GROUND.md §4.6): a surface at sea level on the terrain's own tile grid. Wind waves (Gerstner swell near
 // the camera, tiling normal maps everywhere), the sky and sun reflected with Fresnel, the sea floor seen through
 // water that absorbs red first, turquoise shallows, surf lines rolling in over the shallows, a swash of foam on the
-// sand, cloud shadows, and the air in front of it.
+// sand, cloud shadows, and the air in front of it. The swell, the ripples and the foam are measured on the tile's cube
+// face along its axes, with up from the planet's centre (docs/WHOLE_WORLD.md §10.1), blended across face seams.
 shader_type spatial;
 render_mode cull_back, depth_draw_always, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/surface_atmosphere.gdshaderinc"
+#include "res://shaders/surface_planet.gdshaderinc"
 #include "res://shaders/surface_clouds.gdshaderinc"
 
 instance uniform vec2 morph_range = vec2(1e12, 2e12);
-global uniform vec3 hu_texture_offset;
+instance uniform int tile_face = 0;
 uniform sampler2D wave_normals : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D screen_texture : hint_screen_texture, filter_linear_mipmap, repeat_disable;
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
@@ -17,17 +19,14 @@ uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_dis
 uniform vec3 absorption = vec3(0.45, 0.10, 0.075);   // per metre
 uniform vec3 scattering = vec3(0.004, 0.022, 0.028); // light the water itself sends back, per unit of light
 uniform float swell = 0.35;                          // metres
+uniform float seam_band = 4.0;                       // metres either side of a face seam the waves blend over
 
 varying vec3 v_world;
 varying float v_floor;
 varying float v_cloud;
+varying vec2 v_face;
 
-vec3 planet_up(vec3 world) {
-	vec3 centre = hu_camera_position - hu_camera_up * (hu_planet_radius + hu_camera_altitude);
-	return normalize(world - centre);
-}
-
-// Swell: a few Gerstner waves, travelling with the wind, only near the camera.
+// Swell: a few Gerstner waves, travelling with the wind, only near the camera: x along the face's u, y up, z along v.
 vec3 gerstner(vec2 p, float t, float amount) {
 	vec3 d = vec3(0.0);
 	const vec4 waves[4] = { vec4(0.94, 0.34, 23.0, 1.0), vec4(0.70, -0.71, 14.0, 0.55), vec4(0.99, 0.12, 8.5, 0.35), vec4(0.45, 0.89, 5.3, 0.22) };
@@ -43,6 +42,11 @@ vec3 gerstner(vec2 p, float t, float amount) {
 	return d;
 }
 
+// Metres on face f of a point: the tile's own from its vertices (own), a neighbour's from the direction.
+vec2 face_metres(vec3 d, int f, int own_face, vec2 own) {
+	return f == own_face ? own : hu_face_metres(d, f);
+}
+
 void vertex() {
 	vec3 fine = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	float dist = length(fine - CAMERA_POSITION_WORLD);
@@ -50,10 +54,25 @@ void vertex() {
 	VERTEX = mix(VERTEX, CUSTOM0.xyz, k);
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_floor = UV.x;
+	v_face = UV2;
 	float near = 1.0 - smoothstep(60.0, 320.0, dist);
 	float shallow = smoothstep(0.0, 3.0, v_floor);
 	if (near * shallow > 0.0) {
-		vec3 swell_offset = gerstner(world.xz + hu_texture_offset.xz, TIME, near * shallow);
+		vec3 d = hu_body_direction(world);
+		vec3 up = hu_up(world);
+		ivec3 faces;
+		vec3 fw;
+		hu_face_blend(d, seam_band, faces, fw);
+		vec3 swell_offset = vec3(0.0);
+		for (int i = 0; i < 3; i++) {
+			if (fw[i] > 0.0) {
+				vec3 t;
+				vec3 b;
+				hu_face_axes(d, faces[i], t, b);
+				vec3 g = gerstner(face_metres(d, faces[i], tile_face, UV2), TIME, near * shallow);
+				swell_offset += (t * g.x + up * g.y + b * g.z) * fw[i];
+			}
+		}
 		world += swell_offset;
 		// The model's basis is a rotation: its transpose takes the offset back to model space.
 		VERTEX += (vec4(swell_offset, 0.0) * MODEL_MATRIX).xyz;
@@ -63,15 +82,41 @@ void vertex() {
 
 void fragment() {
 	float dist = length(v_world - CAMERA_POSITION_WORLD);
-	vec3 up = planet_up(v_world);
-	// Ripples: three scales of the wave map drifting different ways, calmer with distance.
-	vec2 p = v_world.xz + hu_texture_offset.xz;
-	vec2 s1 = texture(wave_normals, p / 37.0 + vec2(0.011, 0.004) * TIME).xy * 2.0 - 1.0;
-	vec2 s2 = texture(wave_normals, p / 15.0 - vec2(0.005, 0.013) * TIME).xy * 2.0 - 1.0;
-	vec2 s3 = texture(wave_normals, p / 5.3 + vec2(0.018, -0.006) * TIME).xy * 2.0 - 1.0;
+	vec3 up = hu_up(v_world);
+	// Ripples: three scales of the wave map drifting different ways, calmer with distance; foam and surf noise. All
+	// measured on the faces this point lies on, blended across a seam.
+	vec3 d = hu_body_direction(v_world);
+	ivec3 faces;
+	vec3 fw;
+	hu_face_blend(d, seam_band, faces, fw);
 	float detail = 1.0 - smoothstep(30.0, 400.0, dist);
-	vec2 slope = (s1 * 0.55 + s2 * 0.45 + s3 * 0.35 * detail) * mix(0.3, 0.1, smoothstep(150.0, 6000.0, dist));
-	vec3 n = normalize(up + vec3(slope.x, 0.0, slope.y));
+	float calm = mix(0.3, 0.1, smoothstep(150.0, 6000.0, dist));
+	vec3 tilt = vec3(0.0);
+	vec2 slope = vec2(0.0);
+	float foam_noise = 0.0;
+	float broken = 0.0;
+	float lace_noise = 0.0;
+	float swash_phase = 0.0;
+	for (int i = 0; i < 3; i++) {
+		if (fw[i] <= 0.0) {
+			continue;
+		}
+		vec2 p = face_metres(d, faces[i], tile_face, v_face);
+		vec3 t;
+		vec3 b;
+		hu_face_axes(d, faces[i], t, b);
+		vec2 s1 = texture(wave_normals, p / 37.0 + vec2(0.011, 0.004) * TIME).xy * 2.0 - 1.0;
+		vec2 s2 = texture(wave_normals, p / 15.0 - vec2(0.005, 0.013) * TIME).xy * 2.0 - 1.0;
+		vec2 s3 = texture(wave_normals, p / 5.3 + vec2(0.018, -0.006) * TIME).xy * 2.0 - 1.0;
+		vec2 sl = (s1 * 0.55 + s2 * 0.45 + s3 * 0.35 * detail) * calm;
+		tilt += (t * sl.x + b * sl.y) * fw[i];
+		slope += sl * fw[i];
+		foam_noise += texture(wave_normals, p / 3.1 + vec2(0.02, 0.0) * TIME).b * fw[i];
+		broken += texture(wave_normals, p / 23.0 + vec2(0.003, 0.001) * TIME).b * fw[i];
+		lace_noise += texture(wave_normals, p / 4.7 - vec2(0.0, 0.05) * TIME).b * fw[i];
+		swash_phase += (p.x * 0.05 + p.y * 0.03) * fw[i];
+	}
+	vec3 n = normalize(up + tilt);
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 
 	// What lies behind the surface: how much water the view ray crosses.
@@ -91,7 +136,7 @@ void fragment() {
 
 	// Light reaching the water: the sun through the air and clouds, and the sky.
 	float mus = dot(hu_sun_direction, up);
-	v_cloud = hu_cloud_shadow(v_world, 0.0);
+	v_cloud = hu_cloud_shadow(v_world);
 	vec3 light = hu_sun_illuminance * hu_light_transmittance(0.0, mus) * max(mus, 0.0) * v_cloud / HU_PI
 		+ hu_sun_illuminance * hu_multiscatter(0.0, mus) * 2.5
 		+ hu_moon_illuminance * hu_light_transmittance(0.0, dot(hu_moon_direction, up)) * max(dot(hu_moon_direction, up), 0.0) / HU_PI;
@@ -105,22 +150,20 @@ void fragment() {
 	float fresnel = 0.02 + 0.98 * pow(1.0 - ndv, 5.0);
 
 	// Foam where the water thins out on the shore, broken by the ripples.
-	float foam_noise = texture(wave_normals, p / 3.1 + vec2(0.02, 0.0) * TIME).b;
-	float foam = (1.0 - smoothstep(0.05, 0.9, path)) * smoothstep(0.35, 0.75, foam_noise + 0.25 * sin(TIME * 1.3 + p.x * 0.15));
+	float foam = (1.0 - smoothstep(0.05, 0.9, path)) * smoothstep(0.35, 0.75, foam_noise + 0.25 * sin(TIME * 1.3 + swash_phase * 3.0));
 	foam = max(foam, (1.0 - smoothstep(0.0, 0.25, path)) * 0.6);
 	// Surf: lines of breaking waves along the depth contours, rolling in toward the beach and fading as they
 	// spread; broken up by the ripples, never closer than a few metres from each other.
 	float depth = max(v_floor, 0.0);
 	float surf_zone = smoothstep(0.08, 0.35, depth) * (1.0 - smoothstep(0.9, 2.8, depth)) * (1.0 - smoothstep(150.0, 600.0, dist));
-	float broken = texture(wave_normals, p / 23.0 + vec2(0.003, 0.001) * TIME).b;
 	float phase = depth * 0.95 + TIME * 0.13 + broken * 0.7;
 	float f = fract(phase);
 	float crest = smoothstep(0.0, 0.03, f) * (1.0 - smoothstep(0.03, 0.2, f));
-	float lace = smoothstep(0.42, 0.75, texture(wave_normals, p / 4.7 - vec2(0.0, 0.05) * TIME).b + crest * 0.25);
+	float lace = smoothstep(0.42, 0.75, lace_noise + crest * 0.25);
 	float runs = smoothstep(0.35, 0.6, broken);
 	foam = max(foam, crest * lace * runs * surf_zone * 0.85);
 	// The swash: a thin sheet of foam running up the sand and back.
-	float swash = 1.0 - smoothstep(0.0, 0.1 + 0.08 * sin(TIME * 0.7 + p.x * 0.05 + p.y * 0.03), depth);
+	float swash = 1.0 - smoothstep(0.0, 0.1 + 0.08 * sin(TIME * 0.7 + swash_phase), depth);
 	foam = max(foam, swash * smoothstep(0.3, 0.6, foam_noise) * 0.8 * (1.0 - smoothstep(80.0, 300.0, dist)));
 
 	ALBEDO = vec3(0.85) * foam;

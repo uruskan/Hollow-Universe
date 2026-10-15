@@ -161,6 +161,7 @@ public static class NetConvert
         LatitudeDegrees = spec.LatitudeDegrees,
         LongitudeDegrees = spec.LongitudeDegrees,
         StandIn = spec.StandIn,
+        Ground = (byte)spec.Ground,
         RotationTimeScale = (float)spec.RotationTimeScale,
         AirDensity = (float)spec.AirDensity,
         AirScaleHeight = (float)spec.AirScaleHeight,
@@ -176,6 +177,8 @@ public static class NetConvert
         LatitudeDegrees = info.LatitudeDegrees,
         LongitudeDegrees = info.LongitudeDegrees,
         StandIn = info.StandIn,
+        // Untrusted: a kind this build doesn't know stands on the stand-in.
+        Ground = info.Ground == (byte)GroundKind.Walking ? GroundKind.Walking : GroundKind.StandIn,
         RotationTimeScale = info.RotationTimeScale > 0 && float.IsFinite(info.RotationTimeScale) ? info.RotationTimeScale : 1,
         AirDensity = info.AirDensity,
         AirScaleHeight = info.AirScaleHeight,

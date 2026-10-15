@@ -226,19 +226,21 @@ Godot.
     (`Checkout.HostedSave`): `user://hollow-host.db` on `main`, `user://hollow-host-<branch>.db` on another, since a
     branch's server may write a newer schema than an older build reads. A server given a save it can't read (a newer
     schema) says so in one line ("error: ...") and stops with exit code 2; the menu shows that line.
-  - **The world** is the planet package's `SurfaceView` driven by the game (`SurfaceView.Driven`, `OpenZone`): its
-    terrain, sea, sky, clouds, plants and grass, with the render frame on the zone's own frame (the same origin and
-    axes, and no floating-origin moves: until S3 the zone kept within 8.2 km of its origin, where floats are good to
-    half a millimetre), so zone-frame metres are Godot's coordinates and the drawn ground is the collision's
-    triangles. The sky shows the universe time on the day of play (§1: × 24 from J2000, as the server's climate), so
-    every player sees the same time of day. The game places the view's camera at the predicted eye every frame. Since
-    S3 (14 October 2026) every zone stands on the stand-in world (§4.6), which this view can't draw yet: the ground
-    mode draws it as it drew the old stand-in, the collision tiles within 200 m coloured by slope (`GroundTerrain`)
-    under a procedural sky and a fixed sun. The client builds, but playing on the ball waits for S3c, which draws it
-    (WHOLE_WORLD.md §10, §14); until then the camera keeps a yaw and pitch, which the client reads from local north
-    where the player stands (§4.5), and the tour and the measuring tool still turn by the old flat formula.
-  - **Natural objects** as the game changed them (`NatureView`): the surface view asks, per scatter object, which
-    kind to draw (`Vegetation.Changes`): felled trees and picked ferns aren't drawn, a picked berry bush is drawn bare
+  - **The world** is the planet package's `SurfaceView` driven by the game (`SurfaceView.OpenWorld`, S3c,
+    WHOLE_WORLD.md §10): the zone's own surface (the stand-in world until S4), whole, drawn in the zone's own frame
+    (`RenderFrame.World`: origin at the centre, the body's axes, no floating origin; a float steps a quarter of a
+    millimetre within 7.3 km of the centre), so zone-frame metres are Godot's coordinates and the drawn ground's finest
+    vertices are the collision's lattice. Its plants are the zone's natural objects (`NaturePlants`, §4.6), its sky the
+    planet the world stands for, at the universe time of the day of play (§1: × 24 from J2000, as the server's
+    climate), so every player sees the same clock, and the hour where each stands. The game places the view's camera at
+    the predicted eye every frame (`--lift <m>` and `--pitch <deg>` raise it along up and tilt it, for pictures from
+    above). The camera keeps a yaw and pitch read from local north where the player stands (§4.5); scripted runs turn it
+    toward a direction of the world (`GroundView.TurnToward`, `LookToward`), never by an angle on a plane.
+  - **Natural objects** as the game changed them (`NatureView`): the surface view draws the zone's trees, berry
+    bushes, ferns and boulders as plants (the kind each is drawn as is the first scatter kind gather.json gives it), and
+    `NatureView` draws the rest as models (outcrops at their stage, pickups by their own model or the one of what they
+    yield); the view asks, per object, which kind to draw (`Vegetation.Changes`, by the object's ID from
+    `IPlantSource.Id`): felled trees and picked ferns aren't drawn, a picked berry bush is drawn bare
     (the same bush without its berries, `FloraLibrary.BareBerryRed` and `BareBerryBlue`); their scatter tiles are drawn
     again when their state changes. A tree felled within 150 m tips over away from the player on its own model and
     sinks into the ground. Outcrops are drawn by the game from `GroundModels`: the model catalogue's stone, metal and
@@ -455,12 +457,16 @@ ship's turn is a smallest-three quaternion (`ShipNetState`, §6.7). `BagNet` and
 neighbours are indexed by 3D cubes, and natural objects are queried by sphere
 (`INaturalObjects.Query(centre, radius, into)`).
 
+**S4 (protocol 24, 15 October 2026; WALKING_GROUND.md §12):** `ZoneInfo.Ground` says which ground the zone stands on
+(0 the stand-in, 1 the walking-scale ground); a kind a client doesn't know stands on the stand-in.
+
 **IW1 (protocol 22, 15 October 2026; IRON_WAKE.md §4.11, §4.13):** a frame travels with every view and character state:
 `InputCommand.Frame` (the frame the view is in, as the client believed it), `OwnState.Frame`, `CharacterNetState.Frame`
 (aboard, the position and view are the ship frame's), `FireIntent.Frame`, `ThrowIntent.Frame`, each a ship's net ID or 0
 for the zone's; the server maps net IDs to its ships and turns a view given in the other frame on a hand-over's tick. A
 full character state is 199 bits (8 more). `ShipNetState.Body` is a parked ship's body ID (a client's copy takes it, as
-the building's bodies do), and `ShipPartStates` (121, reliable) a ship's moving parts away from rest. Characters aboard
+the building's bodies do), and `ShipPartStates` (121, reliable; since IW2 `ShipDetails`, with its doors' motion, its seats
+and its parts' health) a ship's moving parts away from rest. Characters aboard
 are relevant while their ship is: `RelevanceGrid` adds an entity with its carrier's anchor and keeps it within 2,000 m
 of it.
 
@@ -565,8 +571,9 @@ of it.
 `PlanetSurface` in Hollow.Surface is the real surface of a rocky planet. Since S3 (14 October 2026) no zone stands on
 it: it is built at the planet's real radius, which a zone measured from the world's centre can't hold in floats, so
 every zone stands on the stand-in world until S4 makes the real ground at walking scale (WHOLE_WORLD.md §1, §4). The
-surface view and the look-dev views still draw the real planet, in a tangent frame of it (`RenderFrame`), and its
-scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At`).
+look-dev views still draw the real planet, in a tangent frame of it (`RenderFrame(origin)`), and its scatter is still
+code, tested in such a frame at the landing site (`ZoneFrame.At`). Since S3c the surface view draws any `ISurface`: the
+ground game draws the zone's whole world with it, in the body's own frame (`RenderFrame.World`, WHOLE_WORLD.md §10).
 
 **The zone's frame and the stand-in world** (S3, WHOLE_WORLD.md §3, §4):
 - **The world frame** (`ZoneFrame.World`): origin at the planet's centre, the body's own axes, +Y the north pole,
@@ -598,6 +605,13 @@ scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At
   coordinates, a power of two cells a side about a metre apart, widened by whole cells for the 2 m margin, each point
   lifted to the ground along its direction; neighbouring tiles of a face share their grid points bit for bit.
   `PlanetSurface`'s collision of a square of a tangent plane is `PatchCollision` now, for the look-dev tools and tests.
+
+**The walking-scale ground** (S4, [WALKING_GROUND.md](WALKING_GROUND.md); built on the branch `s4`, off by default):
+`WalkingWorld`, the first world's ground made for its 2.41 km: landmasses from the real sea cover, relief provinces
+(plains, hills, tablelands with escarpments, ridged mountains), sandy and rocky coasts, streams from source to the sea or
+a lake, lakes, canyons and gorges cut by water, climate at real-equivalent heights, woods in stands and clearings, and the
+scatter at the level by size. `ZoneSpec.Ground` picks it (`--ground walking` on the server, the game's host and the bots),
+`ZoneInfo.Ground` tells clients (protocol 24), and `ISurface.WaterLevelAt` makes its lakes and streams water.
 
 **The real surface:**
 - **A pure function** of (universe seed, system, body, planet state, `GeneratorVersion.Surface`), built with `DMath`,
@@ -657,9 +671,29 @@ scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At
   ozone, multiple scattering) with the same tables as the aerial perspective on everything under it.
 - **Water:** the sea at `SeaRadius` (sea level), drawn on the terrain's own tiles.
 
-**The surface view** (client, `game/scripts/Surface`; presentation only, never deciding what exists):
-- **Terrain:** a quadtree of the tiles above around the camera, built on worker threads, morphing toward the parent
-  grid with distance (no cracks: skirts), in a floating origin that moves with the camera without turning. Eight
+**The surface view** (client, `game/scripts/Surface`; presentation only, never deciding what exists). Two ways in:
+`Open` (the look-dev view of a real planet: a tangent frame whose origin follows the camera) and `OpenWorld` (the
+ground game's whole world, any `ISurface`, in the body's own frame; WHOLE_WORLD.md §10, §14 has how it differs from the
+real-size view). Both draw with the same parts:
+- **The planet under the drawing** (`PlanetGlobals`, `surface_planet.gdshaderinc`): its centre in render space, its mean
+  radius and the turn from render axes to the body's, as shader globals and for the code that moves things along up.
+  Every shader finds up from the centre (never +Y), a height above the mean radius exactly whatever the planet's size
+  (`hu_height`), and the cube faces textures are measured on.
+- **The drawing contract of `ISurface`** (all with defaults, so S4's generator needs only heights and biomes):
+  `HeightBounds` (a tile's bounds before its heights are known), `Sample` (a point's height and whatever the surface
+  works out with it, in one evaluation) and `Cover` (the biomes' weights, the ground materials' weights and the
+  climate and plant cover the shaders tint with). The default `Cover` takes the biome at the point (`BiomeAt`) through
+  the biome table (`BiomeTable.Cover`: the biome's typical climate, its trees and meadow thinned on slopes, the
+  materials by `BiomeTable.GroundMaterials`, one rule shared with the real surface); `PlanetSurface` gives its own soft
+  weights from its climate, the same numbers as before.
+- **Terrain:** a quadtree of the tiles above around the camera, built on worker threads from any surface
+  (`TileMesh.Build(ISurface)`), the finest level by size (`TerrainLod.FinestTileMetres`, 36 m: level 18 on the real
+  first world, level 7 on a 2.41 km one, whose 32-cell grid is the physics' 0.92 m lattice), morphing toward the parent
+  grid with distance (no cracks: skirts). **Texture coordinates** are metres along the tile's cube face (UV2,
+  π/4 × radius × the face coordinate, less a multiple of 4,096 m so floats keep them; zero on a small world), with the
+  tangent along them; within 2 m of a face seam the shader blends the neighbouring face's (from the direction), so
+  textures neither stretch away from a landing site nor break at a seam. On a planet thousands of kilometres across the
+  anchors change every 4 km of face, where the textures jump. Eight
   ground layers (texture arrays) blended by the vertices' material weights and their own heights, triplanar rock on
   cliffs, two scales near and a larger turned copy far so nothing repeats in rows; the grass layer takes the colour
   of the grass blades (below). The forest floor is brown leaf litter with cushions of moss, and under trees the
@@ -680,7 +714,8 @@ scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At
   so it never blooms over the sky. Exposure meters for the light
   falling on the ground, nights a few stops darker than days.
 - **Water** reflects the sky and sun with Fresnel, shows the sea floor through water that absorbs red first, glows
-  turquoise in the shallows and moves with Gerstner swell near the camera. Surf: broken lines of foam roll in over
+  turquoise in the shallows and moves with Gerstner swell near the camera; swell, ripples and foam are measured on the
+  tile's cube face along its axes, up from the centre, blended across seams as the terrain is. Surf: broken lines of foam roll in over
   the shallows along the depth contours, and a swash of foam runs up the sand and back.
 - **Plants** are made in code after hollow-orbit's flora (no plant models): firs (spruce-like), pines, birches,
   broadleaf trees (oak and beech), bushes, red- and blue-berry bushes, ferns and boulders; two to four seeded variants
@@ -699,16 +734,24 @@ scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At
     at the end. Past 1.6–2.2 km forests are drawn by the ground (above).
   - *Wind:* every vertex carries a bend weight and a flutter weight; the plant bends along the wind with gusts that
     roll across the forest, leaves flutter along their normals.
-  - Each plant is a scatter object, known by tile and index; berry bushes are their own kinds (`BerryRed` 7,
-    `BerryBlue` 8) because they will be food.
-- **Grass and ground cover** are not in the scatter and have no models: `GrassField` draws one MultiMesh of tufts on
-  a 0.4 m grid that follows the camera (to 42 m; they shrink into the ground from 22 m), and a second, flat one of
-  leaf litter, needles and twigs (to 26 m). What grows in each cell (place, height, width, turn, lean, colour,
-  dryness, kind: grass, meadow grass, dry grass, flowers; ferns, herbs and seedlings under trees; dead leaves of the
-  trees around) comes from a hash of the cell in stable coordinates, so nothing shifts as the grid moves. Two field
-  textures (256² at 0.5 m, rebuilt on a worker every 14 m) hold the ground's height (the finest tiles' own
-  triangles, so tufts sit on the drawn ground), the grass density (from the biomes, materials, slope and tree
-  cover), moisture, flowers, forest cover and small plants. Where grass is thin it grows in patches, and a tuft is a
+  - Each plant comes from a plant source (`IPlantSource`: tiles of one level, each a fixed list): a surface's own scatter
+    in the look-dev view (`SurfacePlants`), the zone's natural objects in the game (`NaturePlants`, by the tiles they
+    are placed on, level 6 on the stand-in), so the trees drawn are the trees the server has. Berry bushes are their
+    own kinds (`BerryRed` 7, `BerryBlue` 8) because they are food.
+  - *Ranges follow the horizon* (WHOLE_WORLD.md §10.3): plants are laid out to where the lowest ground there can be
+    hides the tallest plant on the highest, at most the impostors' 2.2 km (about 1.2 km from the ground on a 2.41 km
+    world); the near set and its impostors are anchored at the camera, their bounds following it.
+- **Grass and ground cover** are not in the scatter and have no models: `GrassField` draws tufts on the cells of the
+  cube faces at the level nearest 0.46 m (level 13 on a 2.41 km world, 24 on the real first world) round the camera
+  (to 42 m; they shrink into the ground from 22 m), and a second, flat grid of leaf litter, needles and twigs (to 26 m).
+  What grows in each cell (place, height, width, turn, lean, colour, dryness, kind: grass, meadow grass, dry grass,
+  flowers; ferns, herbs and seedlings under trees; dead leaves of the trees around) comes from a hash of the face and
+  the cell, so nothing shifts as the grid moves; near a seam each face's cells are drawn by a grid of their own (up to
+  three at a corner), each keeping the cells whose middles lie on its face. A worker lays out a lattice of the cells'
+  corners round the camera every 14 m (about 250 a side): each corner on the drawn ground (the finest tiles' own
+  triangles, so tufts sit on it), as offsets from an anchor in render axes, with the grass density, moisture, flowers,
+  forest cover and small plants from `ISurface.Cover`; each tuft stands along up from the centre, turned in the plane
+  of its cell, and the wind bends it along the ground there. Where grass is thin it grows in patches, and a tuft is a
   few narrow cards of ragged blades, not a block. The blades are hollow-orbit's painted blade cards, coloured by one
   function shared with the ground's grass layer (`surface_grass.gdshaderinc`), their foot in the ground's colour,
   normals up on both faces so a field lights as one in sun and shade, light through the tips toward a low sun; wind
@@ -732,7 +775,9 @@ scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At
   - (g) `--view surface --alt 2000 --yaw 20 --pitch -14 --time 2026-10-12T03:00:00Z`.
 - **The interface between the two G1 work packages** is `ISurface` in Hollow.Surface: height at a point, biome at a
   point (`BiomeAt`), collision for a cube-sphere tile (since S3; a square of the zone's plane before), scatter for a
-  tile (`ScatterFor`). The last two have default implementations, so other `ISurface`s keep compiling.
+  tile (`ScatterFor`, at `ScatterLevel`, trees alone on request), and since S3c the drawing contract above
+  (`HeightBounds`, `Sample`, `Cover`). All but the first have default implementations, so other `ISurface`s keep
+  compiling.
 
 ### 4.7 Persistence
 
@@ -795,7 +840,9 @@ aiming: down the sights, or the bow drawn) and `Trigger(Swing | Fire | Reload | 
 the camera's field of view.
 
 "Up" is given per frame and nothing assumes +Y: the view builds its basis from `Up` and `Yaw`, and everything inside
-works in the character's own frame. The ragdoll falls along −`Up` at the moment of death.
+works in the character's own frame. The ragdoll starts where the view stands (its transform is set from its frame
+first) and falls by the physics space's gravity where it lies: on a whole world a point gravity toward the centre
+(`SurfaceView`'s `PlanetGravity` area, WHOLE_WORLD.md §10.4), on a flat stage −Y.
 
 **Body.** A MakeHuman adult male (1.78 m, eyes at 1.67 m), MPFB's game-engine skeleton: 53 bones with UE-style names
 (`pelvis`, `spine_01`…`spine_03`, `neck_01`, `head`, `clavicle_l`, `upperarm_l`, `lowerarm_l`, `hand_l`, three bones per
@@ -1388,6 +1435,14 @@ hits on claimed huts summed into 105 alerts, 210 deliveries to bots in the game 
   changes); the huts' changes come on top.
 - **Prediction** is all but exact: every client has the huts in its prediction physics (phase 2a's replication). Before
   the merge, characters bumping into huts their clients didn't have made 651 corrections.
+
+**IW4 (15 October 2026, on the whole world, the PC busy with other agents' work and its memory 99% used).** The raid kit
+carries two incendiary rockets besides six rockets and two high-velocity ones, and a bot fires every kind it carries in turn,
+so fires burn at the huts. In the measured minute the bots fired 232 rockets: 44 incendiary bursts lit 40 fires (4 fell in the
+sea), up to 20 burning at once, which hurt what was in them 1,021 times (1,825 damage requests): **0.032 ms a tick** on
+average, against explosives' and blasts' 0.078 ms. The tick was 10.6 ms on average (23.5 ms at the 99th percentile, 4 of 1,802
+over 33 ms) against 10.4 ms in a run of the same code a few minutes earlier whose bots never reached their incendiary rockets;
+the load test prints a line of fires.
 
 ### 5.6 G1 and G2 as one game on the first world
 
@@ -2648,19 +2703,21 @@ and one receiver class in each domain's own file.
 
 - **The request** (`DamageRequest`), built by every delivery: who (`By`, the attacking player while in the zone;
   `Attacker` and `AttackerName`, who is blamed, kept when they've left; `ByAnimal`) and with what (`Weapon`, an item);
-  how it came (`Delivery`: melee, arrow, bullet, blast, bite) and the kind of damage (`Channel`: the building rules'
-  melee, bullet or explosive, which armour and grades resist); what each kind of thing takes before its own defences
-  (`Amounts`: flesh, already scaled for the body part; structure, for deployables; building, through the channel; hull);
-  bleeding and burning; how a character dies of it; a blast's own table by grade and door, its falloff, and whether this
-  is the thing hit (`Direct`) or splash; what it met (`Hit`: the kind, the thing, the body part, the point), from where,
-  which way; and which kinds give the attacker a hit marker.
+  how it came (`Delivery`: melee, arrow, bullet, blast, bite; since IW4 heat, a fire's) and the kind of damage (`Channel`:
+  the building rules' melee, bullet, explosive or heat, which armour and grades resist); what each kind of thing takes before
+  its own defences (`Amounts`: flesh, already scaled for the body part; structure, for deployables; building, through the
+  channel; hull); bleeding and burning; how a character dies of it, and whether a lethal blow kills outright rather than
+  knocking down (`Outright`: fire's, IW4); a blast's own table by grade and door, its falloff, and whether this is the thing
+  hit (`Direct`) or splash; what it met (`Hit`: the kind, the thing, the body part, the point), from where, which way; and
+  which kinds give the attacker a hit marker.
 - **One entry point**, `Zone.Damage(in DamageRequest)`: the receiver registered for the thing's kind applies its
   defences, then its consequences, and answers with a `DamageOutcome` (landed, dealt after defences, health taken,
   killed or broken, knocked down, the victim); the shared step after it gives the attacker their hit marker.
 - **The deliveries** build the request from their own data and know nothing of the receivers: a swing (`Strike`), an
   arrow (`ProjectileHit`), a bullet (`BulletRequest`), a blast (`Blast`: each receiver lists its things in reach, all are
   looked at before anything is damaged, each in sight gets its own request), an animal's attack (`AnimalAttacksPlayer`,
-  `DamageAnimal`). The old per-target calls (`DamageCharacter`, `ShootCharacter`, `DamageDeployable`,
+  `DamageAnimal`), a fire's heat (IW4, `FireSystem`: every half second, each receiver's things in its reach, measured by the
+  one reach and sight rule, each a heat request by its distance; §6.6). The old per-target calls (`DamageCharacter`, `ShootCharacter`, `DamageDeployable`,
   `DamageBuildingBy`, `DamageShip`, `DamageAnimal`) stay for tests and tools, as one request each.
 - **The receivers** (`IDamageReceiver`, registered once in `Zone.InitDamage`, in the order a ray tests them): each finds
   its own things along a ray (`Trace` asks each in turn) and within a blast's reach, and takes requests (since P1 an arrow
@@ -2669,11 +2726,11 @@ and one receiver class in each domain's own file.
 
 | Receiver | Found by | Defences | Consequences |
 |---|---|---|---|
-| Characters (`CombatSystem`) | hit shapes where the attacker saw them (lag compensation); chest and head in a blast | what is worn on the part hit, against blows or against projectiles and blasts | health (a lethal hit may knock down, not a projectile to the head), bleeding, burning, the victim's damage indicator |
-| Animals (`AnimalSystem`) | their hit shapes and history; their middle in a blast | none | health, a flinch, turning on the attacker or running, the kill; a tool's blow on a corpse butchers it |
+| Characters (`CombatSystem`) | hit shapes where the attacker saw them (lag compensation); chest and head in a blast (the one a round struck at the middle) | what is worn on the part hit, against blows or against projectiles, blasts and fire | health (a lethal hit may knock down, not a projectile to the head, nor fire), bleeding, burning, the victim's damage indicator |
+| Animals (`AnimalSystem`) | their hit shapes and history; their middle in a blast (the one a round struck at the middle) | none | health, a flinch, turning on the attacker or running, the kill; a tool's blow on a corpse butchers it |
 | Trees and outcrops (`CombatSystem`) | trunks and rocks (a boulder stops a ray like the ground) | — | a tool's blow gathers (§6.1's code, unchanged); arrows and bullets do nothing |
-| Deployables and props (`ThingSystem`) | their boxes | crates and recyclers can't be broken | health; at 0 its contents spill in one bag (§6.1), a research table gives back its work, a barrel goes until its respawn; destroyed |
-| The building (`BuildingSystem`) | pieces, doors and claim devices by their bodies; by nearest point in a blast (a claim device by its box) | a grade's or door's protection by channel, a wall's soft side, whole points; a blast's own table by grade and door, whole on the piece hit and a splash share on the rest, fractions carried to the next hit | the building rules' (breaking, collapse), raid hits (any explosive on a claimed base; a blow, arrow or bullet that took something off one whose claim doesn't list the attacker) |
+| Deployables and props (`ThingSystem`) | their boxes | crates and recyclers can't be broken; only those whose data says they burn take heat (IW4) | health; at 0 its contents spill in one bag (§6.1), a research table gives back its work, a barrel goes until its respawn; destroyed |
+| The building (`BuildingSystem`) | pieces, doors and claim devices by their bodies; by nearest point in a blast (a claim device by its box) | a grade's or door's protection by channel, a wall's soft side, whole points; a blast's own table by grade and door, whole on the piece hit and a splash share on the rest; a blast's and a fire's fractions of a point carried to the next hit, a channel's apart | the building rules' (breaking, collapse), raid hits (any explosive on a claimed base; a blow, arrow, bullet or fire that took something off one whose claim doesn't list the attacker) |
 | Ships (`ShipSystem`) | hull boxes; nearest point in a blast | the hull's share by delivery (ships.json) | hull health, last attacker; at 0 a wreck (the pilot dies, loot); destroyed |
 | The ground (`CombatSystem`) | the surface (a bullet's test steps by height) | — | — (it hides what is behind it) |
 
@@ -2709,7 +2766,7 @@ client raises `GameClient.Destroyed` (a `DestroyedEvent`) and keeps `GameClient.
 | Grade | `Grade` / `Grade` / `Grade` | a piece's grade (0 twig … 4 armoured); 0 otherwise |
 | Position, rotation | `Position`, `Rotation` / `X Y Z`, `Rotation*` / `Position`, `Rotation` | where it stood as it was drawn, zone frame: a piece's, claim device's or ship's own transform (`ZoneTransform`; a ship's frame origin); a door's as drawn: its frame piece's, turned half round when fitted the other way (`Open` says whether its leaves were open); a deployable's or prop's base on the ground, turned as the client turns it (Y along the zone's up there, −Z its yaw's forward) |
 | Direction | `Velocity` / `Direction*` / `Direction` | the blow's direction of travel (unit; from the blast to the thing for an explosion), zero for a collapse, decay, demolition or crash |
-| Cause | `Cause` / `Cause` / `Cause` | `DestroyCause`: `Melee`, `Bullet`, `Arrow`, `Explosion` (the blow's delivery; a door broken with its frame, or a claim device with its piece, takes the blow's), `Collapse`, `Decay`, `Demolish`, `Crash` |
+| Cause | `Cause` / `Cause` / `Cause` | `DestroyCause`: `Melee`, `Bullet`, `Arrow`, `Explosion` (the blow's delivery; a door broken with its frame, or a claim device with its piece, takes the blow's), `Collapse`, `Decay`, `Demolish`, `Crash`, `Fire` (burnt down, IW4: 4 bits on the wire since protocol 23; gibs.json's `fire` cause lets the pieces slump where they stood) |
 | Who, with what | `Player`, `Item` / `Attacker` (net ID), `Item` / `Attacker`, `Item` | the attacking (or demolishing) player, 0 for none or gone; the weapon, tool or explosive's item |
 
 What is destroyed: a deployable or world prop at 0 health (an emptied crate going is not); a building piece, door or
@@ -2731,7 +2788,8 @@ names, by its key and grade; the building's removal message only takes a piece o
 | §7 Damage through GAS (request → effect → armour execution → health; death a tag and an event) | Request → receiver (armour) → `Hurt` (health; `Die` or `Wound` the one place) and events; no GAS (no Unreal) | done, our way |
 | Damage plan: source → delivery → receiver → resolver → consequence owner; one request/result; type apart from delivery; armour by coverage and channel; no weapon-name cases in receivers | As above; armour covers body regions per item, by channel (blows, projectiles and blasts) | done |
 
-Left over: an attack carries one channel (an incendiary round's burning is an effect, not a heat channel); fall damage,
+Left over: an attack carries one channel (an incendiary round's burning is an effect; heat is a fire's own delivery since
+IW4); fall damage,
 cold, hunger and crashes hurt characters directly (`Hurt`) rather than through a request; armour doesn't wear when hit;
 no penetration; durable damage outcomes are the 30-second saves (deaths at once), not RustMVP's journal; the server's
 event dispatch and the client's message dispatch are still switch chains.
@@ -2847,16 +2905,18 @@ foundation and wall at two thirds, a twig foundation gone).
 
 ### 6.6 Raiding (G5)
 
-Explosives and explosive rounds, rockets, damage to building pieces by grade and side, raid alerts and offline raids. The rules
-are `Hollow.Simulation` code (`ExplosiveSystem`, `BlastSystem`; `Raid/`: the explosive entity, raid hits, saves, `TestBases`); the numbers are in
-`explosives.json` and `weapons.json`; the server's side is `RaidModule` and the notification service
-`Hollow.Server/Notifications`; the client's `RaidModule`, `LocalPlayer.Raid.cs` and `RemoteExplosives.cs`.
+Explosives and explosive rounds, rockets, damage to building pieces by grade and side, raid alerts and offline raids; since IW4
+the incendiary rocket and the fires blasts leave (IRON_WAKE.md §7). The rules are `Hollow.Simulation` code (`ExplosiveSystem`,
+`BlastSystem`, `FireSystem`; `Raid/`: the explosive entity, the fire, raid hits, saves, `TestBases`); the numbers are in
+`explosives.json` and `weapons.json`; the server's side is `RaidModule`, `FireModule` and the notification service
+`Hollow.Server/Notifications`; the client's `RaidModule`, `FireModule`, `LocalPlayer.Raid.cs` and `RemoteExplosives.cs`.
 
 | Tests | `dotnet run --project tests/Hollow.Tests -- Raid` |
 |---|---|
 | `RaidTests` | the raid-cost table on every grade, side and door; thrown explosives bouncing, resting and sticking; walls shielding what is behind them; duds lit again; rocket flight and blast; a broken foundation bringing a hut down |
 | `RaidAlertTests` | alerts to owners online and offline, rate-limited per base; a whole offline raid |
 | `RaidNetTests` | raiding over the network (throw, replication, a dud lit again, detonations, a live alert); charges and alerts surviving a restart |
+| `FireTests` (IW4; `-- Fire`) | the incendiary rocket made at workbench 2; its fire burning down the box it struck, about 108 off a wood wall (two break it) and nothing off stone; a player burning and burning on until they swim; a fire on water going out; a fire on a flying Iron Wake's deck riding it and burning the crew; a fire falling when what it burns on goes, the oldest of 64 making way; fires over the network; the high-velocity rocket killing a bear and a player in the best armour; the rocket dropping more than the high-velocity one |
 
 **Sources.** The owner allows Rust's numbers. Rust's well-known raid tables give how many of each explosive break each grade and
 door (the targets below). RustMVP's `docs/architecture/legacy/building_damage.md` gave the timed charge (C4: 250 explosive damage,
@@ -2875,15 +2935,23 @@ high-velocity rocket, explosive rifle rounds, explosives.
 | `timed-charge` | placed (3 m) or thrown (9 m/s), sticks | 10 s, never | 4 m | 275 | 550 | 20 explosives, 5 fibre, 2 refined metal (3) |
 | `bag-charge` | placed or thrown, sticks | 6–12 s, 1 in 5 | 3 m | 120 | 150 | 4 tin grenades, 20 fibre (1) |
 | `tin-grenade` | thrown (15 m/s) or lobbed (6 m/s), bounces | 3.5–4.5 s, 3 in 20 | 3.5 m | 60 | 40 | 60 gunpowder, 20 metal fragments (1) |
-| `rocket` (`rocket-launcher`) | fired, 18 m/s, falls a little | explodes where it hits, or after 5 s | 3 m | 210 | 300 | 10 explosives, 150 gunpowder, 2 refined metal (2) |
-| `rocket-hv` | fired, 40 m/s | as the rocket | 2 m | 175 | 120 | 100 gunpowder, 1 refined metal (2) |
+| `rocket` (`rocket-launcher`) | fired, 18 m/s, drops 0.3 of the planet's gravity (10.4 m over 50 m on the first world) | explodes where it hits, or after 5 s | 3 m | 210 | 300 | 10 explosives, 150 gunpowder, 2 metal pipes (2) |
+| `rocket-hv` | fired, 40 m/s, drops 0.1 (0.7 m over 50 m) | as the rocket | 2 m | 175; 600 to whoever it strikes | 120 | 100 gunpowder, 1 metal pipe (2) |
+| `rocket-incendiary` (IW4) | fired, 18 m/s, drops as the rocket | as the rocket, and leaves a fire (below) | 2.5 m | 60 | 60 | 2 metal pipes, 150 gunpowder, 75 lamp oil (2) |
 | `rifle-ammo-explosive` | the rifle's rounds (×0.6 damage, ×0.6 speed) | bursts where it lands | 0.6 m | 4 | 4 | 10 metal fragments, 20 gunpowder, 10 sulphur → 2 (3) |
 | `explosives` | the compound charges and rockets are made of | | | | | 50 gunpowder, 3 lamp oil, 10 sulphur, 10 metal fragments (2) |
 
-So a timed charge costs 2,200 sulphur, a rocket 1,400, a bag charge 480 and an explosive round 25, as in Rust. The rocket
-launcher (`weapons.json`; 50 refined metal and 100 metal fragments at workbench 2) is a firearm of calibre `rocket`: one in the
-magazine, a 5 s reload, 1 s to take up, no damage of its own; it fires through G4's gun pipeline (fire and reload intents, the
-client's prediction).
+So a timed charge costs 2,200 sulphur, a rocket 1,400, a bag charge 480, an explosive round 25 and an incendiary rocket 300 and
+75 lamp oil, as in Rust. The rocket launcher (`weapons.json`; 40 refined metal and 4 metal pipes at workbench 2) is a firearm of
+calibre `rocket`: one in the magazine, a 5 s reload, 1 s to take up, no damage of its own; it fires through G4's gun pipeline
+(fire and reload intents, the client's prediction). How far a round drops is its own since IW4 (the owner's direction,
+KNOWN_PROBLEMS.md finding 26): a round's `gravity` in `weapons.json` multiplies its gun's (`FirearmStats.GravityOf`, which the
+server's bullets and every client's drawing use), the launcher's is 1, and the slow, heavy rocket and the incendiary rocket fall
+0.3 of the planet's gravity (twice what every rocket fell before), the high-velocity rocket 0.1. Over 50 m on the first world the
+rocket drops 10.4 m and the high-velocity rocket 0.7 m (measured: 10.6 and 0.7, `FireTests`). A blast may have a `direct` damage:
+what the person or animal a round strikes takes in place of its `flesh` (the high-velocity rocket's 600: a bear's 400 and a player
+in the best armour, whose 33% on the body or even the 80% cap leaves 120 of 100, die; the rest in its reach take its 175 by
+distance as before). Whoever a round strikes takes its blast at the middle, wherever it landed.
 
 **Raid costs**, how many break each thing, hit on either side (Rust's counts; the test prints the table):
 
@@ -2895,6 +2963,11 @@ client's prediction).
 | Tin grenade | 1 | 13 | 46 | 112 | 223 | 10 | 18 | 43 | 56 |
 | Explosive rounds | 1 | 49 | 185 | 400 | 799 | 19 | 63 | 150 | 200 |
 | High-velocity rocket (ours) | 1 | 4 | 12 | 23 | 45 | 3 | 4 | 9 | 12 |
+| Incendiary rocket, its burst alone (IW4, ours) | 1 | 10 | 100 | 500 | 2000 | 7 | 50 | 120 | 500 |
+
+With its fire (below), two incendiary rockets break a wood wall (20 + 108 each, of 200) or a wooden door (30 + 108); stone and
+better, and metal doors, don't burn. The raid counts of the other explosives are unchanged by IW4 (`RaidTests` checks every
+row).
 
 The damage of one hit against each grade and door protection is in `explosives.json`, set so these counts come out on our hit
 points (twig 10, wood 200, stone 500, metal 1,000, armoured 2,000; doors 200, 250, 600, 1,000): a charge does 275 to a wall of any
@@ -2939,6 +3012,33 @@ step).
 surface, so its blast starts outside a wall) or at the end of its flight; an explosive round does its bullet's damage to a person
 and bursts where it lands, which is all it does to buildings.
 
+**Fire** (IW4, IRON_WAKE.md §7; `FireSystem`, `Raid/Fire.cs`). A blast whose data names a fire (`explosives.json`: the
+incendiary rocket's `rocket-incendiary` names the kind `incendiary`) leaves one where it went off, whatever delivered it (the
+`FireSystem` listens to the `Detonated` event, which carries the blast: the shoulder launcher today, the Iron Wake's batteries
+with IW3):
+- *Where it burns.* The burning fuel rests on the surface the burst met when that faces up within the rules' 50°; on anything
+  steeper (a wall, a hull's side, a trunk, a body) or in the air it runs and falls straight down to the first surface that does,
+  at most 12 m below (none: no fire). The surfaces are the placement world's (building, deployables, trees and rocks, the
+  ground) and ships' spaces (a deck). A fire there in water or the sea goes out at once.
+- *A world thing.* A fire is the twelfth target family (`TargetFamily.Fire`, GROUND_SYSTEMS.md §3.1), with the `fire`
+  capability, held by what it burns on through a support link (§3.6): a fire on a ship's deck rides the ship; when what holds
+  it goes (a floor burnt through, a box burnt down), its fuel falls to what is below and burns on for the time it had left.
+  At most 64 burn in a zone; a new one puts the oldest out. Fires don't spread and aren't saved.
+- *What it does*, every half second for 18 s, to what is within its 3.5 m and in its sight (the one reach and sight rule,
+  GROUND_SYSTEMS.md §3.4, from 0.3 m above its surface to each thing's nearest point, through ships' spaces), by distance from
+  its middle (all of it within 40% of its radius, as a blast's falloff, nothing at its edge), through the damage pipeline's
+  `heat` delivery on the `Heat` channel (§6.4.2): people 8 a second, less what they wear on the body, and 6 of the burning vital
+  a second while in it (it burns 2 a second until it runs out or they swim; fire kills outright, as burning does, rather than
+  knocking down); animals 8 a second; deployables whose data says they burn (`deployables.json` `burns`: bags, beds, boxes, the
+  wooden workbench) 5 a second; building pieces, doors and the tool cupboard 6 a second through the building rules' heat channel
+  (`building.json`: twig and wood 1, stone and up 0), a fraction of a point carried to the next hit as a blast's are. Its owner
+  (who fired it) is blamed: kills, and raid hits on a claimed base by the rule for blows. A thing burnt down breaks with the
+  cause `Fire`.
+- *Measured* (`FireTests`): a small box the rocket struck takes the burst's 60 and burns down as its fire dies (90); a wood wall
+  loses 20 to the burst and 108 to the fire, and the second rocket's fire breaks it 9 s in; a stone wall in a fire loses
+  nothing; 3 s in a fire cost a bare player 30 health and set 12 burning, which burnt 6 more in the next 3 s until the sea put it
+  out; a fire on a climbing Iron Wake's deck stayed within 0.2 mm of its place and burnt Ada beside it 48 in 5 s.
+
 **Raid alerts** (the notification service, ARCHITECTURE.md §14: `INotificationService`, implemented by `NotificationService`).
 - A claimed structure hurt by any explosive, or by a blow, arrow or bullet of someone its claim device doesn't list, is a raid
   hit: the base (its claim device's ID and place), everyone the device lists at that moment, what was hit and broken, with what,
@@ -2971,6 +3071,11 @@ into a follow-up after the minute), and loots the body; the owner logs in dead t
 - *Detonations* (`Detonation`, reliable to everyone within 600 m; an explosive round's unreliable): position, normal, radius, the
   item (explosive or round), what it was on, whose, and the explosive's ID (none for a rocket or round).
 - *Alerts:* `RaidAlertMessage` (one, live) and `RaidAlertList` (those that waited, at login).
+- *Fires* (protocol 23, IW4): `FireStarted` (118, reliable, to everyone within 300 m when one is lit or comes into range, and
+  again when it falls onto something else): its ID, the item that left it and whose, its middle (zone frame, now) and the
+  surface's normal, its radius, what holds it with its middle's place and turn in that holder's frame (so a client draws it
+  riding a ship's deck), the server ticks it was lit at and burns out at. `FireEnded` (119): its ID, and whether it went out
+  (its scorch is left) or only left the player's range.
 
 **The client API for the visual layer and sound:**
 
@@ -2980,6 +3085,7 @@ into a follow-up after the minute), and loots the body; the owner logs in dead t
 | `GameClient.ExplosiveChanged`, `ExplosiveRemoved` | One appeared or changed (a throw's whoosh, a bounce's clink, the stick of a charge, a fizzle when it turns `Dud`, a hiss when lit again), or went without a blast. |
 | `GameClient.Detonated` (`DetonationEvent`: position, normal, radius, item, target, round, owner), `GameClient.Detonations` | An explosion: flash, smoke, debris and dust by the item and radius (a round's small burst, a rocket's, a charge's), a shake and the sound by distance. |
 | `GameClient.Projectiles` | Rockets in flight are projectiles whose `Ammo` is a rocket: draw the rocket with its smoke trail. |
+| `client.Fires()` (`FireModule`, IW4): `All`, `FireOf(id)` (`ClientFire`: `Id`, `Item`, `Owner`, `Radius`, `Link`, `Pose`, `Position`, `Normal`, `StartTick`, `EndTick`, `SecondsLeft(serverTick)`); `Started` (lit, come into range, or moved), `Ended` (gone out, or out of range) | The fires in range, each where what holds it is now (every frame, riding a ship as drawn): draw the item's fire loop on it for the time it has left, its sound, and the patch it leaves when it goes out. |
 | `Local.Throw(slot, yaw, pitch, lob)`, `Local.PlaceCharge(slot, yaw, pitch)` | Intents; the item leaves the belt at once. On a dud the interact key's prompt says "E  LIGHT BAG CHARGE" and a tap lights it again (`relight`, GROUND_SYSTEMS.md §5). |
 | `Local.RaidAlerts` (`RaidAlertView`: base, where, first and last time, hits, broken, what, item, `WhileAway`), `Local.RaidAlertReceived` | Raid alerts: a notice and a sound when one comes; the list at login for those that waited. |
 | `RemoteEntity.Action == ActionKind.Throw` | Others' throws and placements, to animate. |
@@ -3004,7 +3110,12 @@ CHARGE"); the item's cooldown holds on the client too (§11 84). `Detonated` pla
 `.grenade`, `.rocket` or `.ammo` through the effects library (flash, fireball, smoke, dust along the surface, sparks,
 debris, a scorch mark, a light and the camera's shake, which the ground view adds to the camera every frame) and the
 item's `explode` and `debris` sounds (the blast's near, middle and far layers chosen by distance and delayed by the speed
-of sound). Rockets in flight are the catalogue's rocket, nose first, trailing `trail.rocket`. Raid alerts appear at the
+of sound). Rockets in flight are the catalogue's model of their round, nose first, trailing their flight effect (fx.json items:
+`trail.rocket`), the motor catching where they leave (`rocket.ignite`) and its roar (`rocket.flight`) looping on them until
+they stop (IW4: it played once where they left before); each round's and explosive's burst is its own (`explosion.incendiary`
+for the incendiary rocket). Fires (`FiresView`, IW4) burn with their item's fire loop (`fire.patch`, scaled to their radius
+over 3.5 m, its flickering light) on a node placed every frame where the fire is, for the time they have left, with their
+fuel catching (`fire.ignite`) and their roar (`fire.patch.large`); going out, they leave `fire.patch.out`'s scorch. Raid alerts appear at the
 top right in the interface's manner (`RaidAlertsPanel`): "BASE UNDER ATTACK", what was hit and with what, how far and which
 way, when, the hits and what broke, for ten seconds with a sound; at login, those that waited while the player was away,
 under "RAIDED WHILE YOU WERE AWAY", for twenty.
@@ -3461,28 +3572,34 @@ record's are dropped (§4.7).
 | `Local.Markers`, `Local.PlaceMarker(at, colour, label)`, `Local.RemoveMarker(index)`, `Local.DeathPoint`, `Local.RespawnPoints` | The map's own markers |
 | `GameClient.Props`, `RemoteThing.Prop(content)` | World props in range: barrels, crates, recyclers |
 | `GameClient.AimInteraction`: OPEN on crates and recyclers, INVITE TO TEAM on a player close by (when leading a team) | The interact key (GROUND_SYSTEMS.md §5) |
-| `GameClient.Map` (`ZoneMap`: `Metres`, `Cells`, `ToMap`, `ToZone`, `GridName`, `CacheKey`, `Render(pixels)`) | The map and its picture |
+| `GameClient.Map` (`ZoneMap`: `Radius`, `Cells`, `DirectionOf(point)`, `Ground(direction)`, `GridName(point)`, `CacheKey`, `Render(pixels)`); `GlobeProjection` and `GlobeCamera` (`Hollow.Client.Map`); `WorldGrid` (`Hollow.Surface`) | The map of the whole world, its picture, its projection and inverse, its view, its grid's names (WHOLE_WORLD.md §11) |
 | Events: `Local.BlueprintLearned`, `TeamChanged`, `TeamInviteReceived`, `MapChanged` | For notices and sounds |
 
-**The map's picture** (`ZoneMapImage`, client side): a square of 3.9 km centred on the zone's origin, north up,
-rendered from the surface at any size (1,024 px by default) in Rust's parchment manner: land coloured by its biome
-weights and darker where forest stands (the planet's own vegetation), hill shading from the north-west, faint contours
-every 25 m and stronger every 100 m, the sea in muted teal deepening offshore with a light band at the surf and an inked
-shoreline, and paper grain, stains and a darker edge. Deterministic (Hash64 noise, no platform maths; rows in parallel),
-so the game caches it on disk under `ZoneMap.CacheKey`. The grid (26 × 26 cells of 150 m, lettered A–Z from the west and
-numbered from the north, as Rust's) and every label are drawn by the interface, crisp at any scale. Since S3 (14 October
-2026) the zone's origin is the world's centre, so this square no longer lies round the landing site; S3d replaces it
-with a map of the whole world (WHOLE_WORLD.md §11).
+**The map** is the whole world since S3d (15 October 2026, WHOLE_WORLD.md §11; before, a 3.9 km square round the zone's
+origin). **Its picture** (`ZoneMapImage`, client side) is six squares, one per cube face, 1,024 px a side (3.7 m a
+pixel), rendered from the zone's `ISurface` by direction, in Rust's parchment manner: land coloured by its biome
+(`BiomeAt`), hill shading measured against local up with the light from the north-west, faint contours every 10 m and
+stronger every 50 m, the sea (from `SeaRadius`, read safely: a world without one is all land) in muted teal deepening
+offshore with a light band at the surf and an inked shoreline, and paper grain and stains laid on the sphere, so they
+run on across the faces' seams. It works for any surface. Deterministic (Hash64 noise and DMath; rows in parallel), so
+the game caches it on disk under `ZoneMap.CacheKey`, which holds the body, the radius, the picture's look and the
+surface's version, measured (its kind, radius, sea and its height and biome at 1,024 directions). **Its projection**
+(`GlobeProjection`) is one family of azimuthal projections about the view's centre, r = R·sin(kθ)/k: a globe seen from
+afar (k = 1) while the view is 2 radii across and more, a flat chart (k → 0, every distance from the centre true) from 1
+radius in, true to scale at the centre throughout; the shader draws the picture with it, the overlay places the grid,
+markers and labels with it and reads clicks with its inverse. **Its grid** (`WorldGrid`, `Hollow.Surface`, decision 6):
+faces A to F (A 0°, B 90° E, C 180°, D 90° W round the equator, E the north pole's, F the south's), each `map.cell`
+(150 m) cells a side as fit, 25 on the first world, lettered along the face's u and numbered down its v as in Rust: "C
+K12". The map, `whereami` and `teleport <cell>` use this one naming function.
 
 **What the visual layer does with it** (the Godot work after this package; the screens are built, §8):
 - `ClientGroundUi` implements `IGroundUi`'s G7 members from `GameClient.Local` and `GameClient.Map`: `Map` (the
-  `ZoneMap`'s cache key, `Render`, metres and cells), `MapMarkers` in the map's 0–1 frame (`ToMap`): the player with their
-  yaw, `Teammates`, `DeathPoint`, `RespawnPoints` (bed or bag), `Markers`; `PlaceMarker` and `RemoveMarker` through
-  `ToZone`; `TechTree` from `Content.World.Tree(WorkbenchLevel)` with `Knows` and `CanUnlock` for the states; `Team` and
+  `ZoneMap`'s cache key, `Render`, radius and cells), `MapMarkers` at their directions from the world's centre
+  (`DirectionOf`): the player with their facing from local north, `Teammates`, `DeathPoint`, `RespawnPoints` (bed or
+  bag), `Markers`; `PlaceMarker` (on the ground under a direction, `Ground`) and `RemoveMarker`; `TechTree` from `Content.World.Tree(WorkbenchLevel)` with `Knows` and `CanUnlock` for the states; `Team` and
   `TeamInvites`; the loot kinds `Recycler`, `ResearchTable` and `Crate` with `Machine` (`IsOn`, `Progress`,
   `Researching`, `Cost`, `Reason`); a blueprint stack's `Teaches` (the key of `Content.Recipe(condition).Output`); team
-  chat lines. Once `Map` is given, the death screen draws that map, so the death's and the bags' places must be in its
-  frame too (`ToMap`), not the old survey picture's.
+  chat lines. The death screen draws the same map control, so the death's and the bags' places are directions too.
 - Open the tech tree at a workbench (`GroundUi.OpenTechTree`; the crafting screen has a TECH TREE tab too). G opens the
   map (`GroundUi` handles it).
 - Draw the props from the model catalogue by their key (`loot-barrel-1`, `loot-barrel-2`, `loot-crate`,
@@ -3496,11 +3613,12 @@ with a map of the whole world (WHOLE_WORLD.md §11).
 
 **Hooked up** (integration pass 4, `game/scripts/Ground/ClientGroundUi.World.cs`, `ThingsView`, `PeopleView`,
 `GroundOverlay` and `GroundView`):
-- The map (G): its picture (1,024 px) starts rendering on a worker thread as soon as the zone is known, and comes from the
-  disk cache after; the markers through `ToMap`: bags and beds, the last death, the player's markers, teammates (where
-  they are drawn, else where the server last said; dim and marked while asleep, down or dead) and the player with their
-  facing (the ship's nose while flying). A click puts a marker down (`ToZone`), a right-click takes it off. The death
-  screen draws this map, its body and bags placed through `ToMap`; G2's survey picture is gone (§11 94).
+- The map (G): its picture (six faces of 1,024 px) starts rendering on a worker thread as soon as the zone is known, and
+  comes from the disk cache after; the markers at their directions: bags and beds, the last death, the player's
+  markers, teammates (where they are drawn, else where the server last said; dim and marked while asleep, down or dead)
+  and the player with their facing from local north (the ship's nose while flying). A click puts a marker down on the
+  ground under the pointer (the projection's inverse), a right-click takes it off. The death screen draws this map
+  control, its body and bags placed the same way; G2's survey picture is gone (§11 94).
 - The tech tree: E on a workbench ("OPEN TECH TREE", Rust's) or the crafting screen's TECH TREE tab opens the tree of
   the bench level in reach (`WorkbenchLevel`), its nodes known, open or locked (`Knows`, `TechTrees.CanUnlock`);
   UNLOCK checks `CanUnlock` first and says why not (the salvage, the bench, a node before it). The crafting list holds
@@ -3772,7 +3890,7 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
 | The radial menu (§8.4): the plan's, the hammer's, a door's options | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png`, `docs/evidence/building-repair-2026-10-04/door-lock-context.png` | `radial/plan.jpg`, `radial/hammer.jpg`, `radial/options.jpg`, `radial/ammo.jpg` (and the older `wheel.jpg`, `hammer.jpg`) |
 | Death and respawn | Rust's own, `D:\GameDev\References\RustMVP-2026-09-20\20260920-inventory-controls\10-death-respawn-future.png` | `death.jpg` |
 | Main menu | `logs/ui-polish/menu.png` | `menu.jpg` |
-| Map (G7) | Rust's map: parchment, a lettered and numbered grid, markers; RustMVP's panels beside it | `map.jpg` |
+| Map (G7) | Rust's map: parchment, a lettered and numbered grid, markers; RustMVP's panels beside it | `map.jpg`; the whole world since S3d: `../s3d/map-globe.jpg`, `../s3d/map-chart.jpg`, `../s3d/death.jpg`, in play `../s3d/map-open.jpg` |
 | Tech tree (G7) | Rust's workbench tech tree, drawn with RustMVP's slots and buttons | `techtree.jpg` |
 | Recycler and research table (G7) | Rust's loot panels for them, in the furnace's manner | `recycler.jpg`, `research.jpg` |
 | Other scales | | `crafting-720p.jpg` (scale 0.8), `inventory-1440p.jpg` (scale 1.3125) |
@@ -3819,7 +3937,7 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 | Radials (§8.4) | `Radials`: the held inputs that open a radial menu and what each opens now (`RadialBinding`: the input, its hold time, a function giving an `IRadialSource` or none). A source gives the options in clockwise order (icon: a glyph's name or an item's key; title, description, cost line, the reason it can't be chosen or a warning), the current one, whether twelve o'clock falls between the last and the first, and acts on a choice. |
 | Item panel (P3) | `Rows(slot)`: the INFORMATION of a slot's stack (its parts' describers, GROUND_SYSTEMS.md §7); `Actions(slot)`: its ACTIONS besides DROP (label, what it does, why it can't be done now). |
 | Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `CloseLoot()`, `Say(text)`; an item panel's action and a radial's choice are their own. Each is a request; the answer is a changed read, or a notice. |
-| World (G7, §6.8) | Default members, so models without them still compile. `Map` (`MapView`: cache key, pixels, `Render()` giving RGBA, metres across, grid cells) and `MapMarkers` (me with facing, teammates (dim when offline), the last death, bags, beds, the player's markers with colour 0–5 and index; X and Y 0–1 across and down the map), `MaxMarkers`, `PlaceMarker(x, y, colour, label)`, `RemoveMarker(index, −1 all)`. `TechTree` of the workbench in reach (level, nodes: item, salvage, depth, the nodes before it, known/open/locked; the player's salvage) and `Unlock(key)`. `Team` (members: id, name, online, leader, me; whether the player leads) and `TeamInvites` (team, from, seconds left); `CreateTeam`, `LeaveTeam`, `AcceptInvite`, `DeclineInvite`, `KickFromTeam`, `PromoteInTeam`, `SayTeam(text)`. Loot kinds `Recycler` (0–5 input, 6–11 output; `SetBurning` switches it), `ResearchTable` (0 item, 1 salvage, 2 blueprint; `Researching`, `Cost`, `Reason`; `SetBurning(true)` begins) and `Crate`; a stack's `Teaches` (a blueprint's item); a chat line's `Team`. |
+| World (G7, §6.8) | Default members, so models without them still compile. `Map` (`MapView`: cache key, pixels a face, `Render()` giving the six faces' RGBA, the world's radius, grid cells a face) and `MapMarkers` (me with facing from local north, teammates (dim when offline), the last death, bags, beds, the player's markers with colour 0–5 and index; each `At` a direction from the world's centre, body frame), `MaxMarkers`, `PlaceMarker(direction, colour, label)`, `RemoveMarker(index, −1 all)`. `TechTree` of the workbench in reach (level, nodes: item, salvage, depth, the nodes before it, known/open/locked; the player's salvage) and `Unlock(key)`. `Team` (members: id, name, online, leader, me; whether the player leads) and `TeamInvites` (team, from, seconds left); `CreateTeam`, `LeaveTeam`, `AcceptInvite`, `DeclineInvite`, `KickFromTeam`, `PromoteInTeam`, `SayTeam(text)`. Loot kinds `Recycler` (0–5 input, 6–11 output; `SetBurning` switches it), `ResearchTable` (0 item, 1 salvage, 2 blueprint; `Researching`, `Cost`, `Reason`; `SetBurning(true)` begins) and `Crate`; a stack's `Teaches` (a blueprint's item); a chat line's `Team`. |
 
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
 when it wants the mouse pointer (`WantsCursor`).
@@ -3833,8 +3951,8 @@ moments (hit markers, damage from a bearing, "+20 Wood", crafts, refusals as not
 descriptions and stats come from items.json, the crafting tabs from categories.json. Item icons are the model
 catalogue's renders (`CatalogItemIcons`, §9.1); with `--placeholder-icons`, `ItemIconAliases` maps items.json keys
 onto the placeholder drawings. The inventory shows the player's own body in what they wear (`InventoryBody`, through
-`CharacterPreview.Body`), and the death screen the zone's map (G7: `GameClient.Map`, the map screen's picture, 3.9 km
-across), the body and the bags placed on it through `ZoneMap.ToMap`. Pictures of it in play are in §5.4.
+`CharacterPreview.Body`), and the death screen the map control of the whole world (G7: `GameClient.Map`, the map
+screen's, WHOLE_WORLD.md §11), the body and the bags placed on it at their directions. Pictures of it in play are in §5.4.
 
 ### 8.2 Console (F1)
 
@@ -3873,11 +3991,11 @@ the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <nam
 | `sensitivity` | `[x]` | everyone | game | Mouse look, 0.1–5 (1 = RustMVP's 0.002 rad a count); kept there too. |
 | `kill` | `[player]` | everyone (another player: admins) | server | You die where you stand ("Suicide"): your body keeps what you carried and the respawn screen opens, as Rust's F1 kill: to come back at a bag in a base under attack (GAME_DESIGN.md §5). God mode doesn't stop it. |
 | `players` | | everyone | server | Who is on, admins marked, alive, wounded or dead (admins also see pings), and how many sleep in the world. |
-| `whereami` | | everyone | server | Latitude and longitude (with the `teleport` that comes back here), how far east and north of the landing site along the ground, with its `teleport` too (since S3; before, the zone position), height above the sea, the map cell (of the map's grid laid round the landing site), biome (on the stand-in world "the stand-in ground"), local solar time, the air's temperature. |
+| `whereami` | | everyone | server | Latitude and longitude (with the `teleport` that comes back here), height above the sea, the map cell as the map names it ("C K12", `WorldGrid`, since S3d; before, a cell of a grid laid round the landing site) with its `teleport`, how far east and north of the landing site along the ground with its `teleport` too (since S3; before, the zone position), biome (on the stand-in world "the stand-in ground"), local solar time, the air's temperature. |
 | `give` | `<item> [amount] [player]` | admins | server | Items into an inventory (1–100,000); what doesn't fit drops at the feet (24 stacks at most); "+N" in the pickup feed. `<item>.blueprint` gives that item's blueprint (V12). |
 | `kit` | `<loot table> [player]` | admins | server | A loot table's items (loot.json). |
 | `learn` | `<item\|all> [player]` | admins | server | A blueprint, or every one. |
-| `teleport` | `<player>` · `<x> <z>` · `<lat> <lon>` · `<player> <target>` · `<player> <x> <z>` | admins | server | To a player (1.5 m to their right), or to a point of the world on the ground: a latitude and longitude (marked N, S, E or W, or with three decimals or more on both), else metres east and south of the landing site, measured along the ground (since S3; before, metres east and south of the zone's origin, and only inside the zone). Not out of a ship's seat. |
+| `teleport` | `<player>` · `<cell>` · `<x> <z>` · `<lat> <lon>` · `<player> <target>` · `<player> <cell>` · `<player> <x> <z>` | admins | server | To a player (1.5 m to their right), or to a point of the world on the ground: the middle of a map cell named as the map names it ("C K12" or "CK12", WHOLE_WORLD.md §11; a player of that name wins), a latitude and longitude (marked N, S, E or W, or with three decimals or more on both), else metres east and south of the landing site, measured along the ground (since S3; before, metres east and south of the zone's origin, and only inside the zone). Not out of a ship's seat. |
 | `tp2me` | `<player>` | admins | server | A player to two metres in front of you. |
 | `tpmarker` | `[marker]` | admins | server | To your newest map marker, or the numbered one. |
 | `spawn` | `<kind> [count] [player]`, `spawn raidbase [grade]` | admins | server | In front of you (§8.2.4): an animal herd (`deer`, `boar`, `wolf`, `bear`; up to 12), `tin-finch`, `barrel`, `fuel-barrel`, `crate`, `military-crate`, `recycler`, any deployable by key (up to 10 in a row), or `raidbase`. |
@@ -3991,8 +4109,9 @@ RustMVP's rules, with Rust's where RustMVP had none:
   one-line notices.
 - **Death:** Rust's layout. DEAD, how long the player lived, who killed them, with what and from how far across the
   top; the map with the body and the bags (a ready bag on the map can be clicked); the bags with their cooldowns along
-  the bottom, RESPAWN (a random beach) on the right. The map opens centred on the body and pans by dragging; bag
-  names are placed by the `Labeller`, so they never cover each other or a marker.
+  the bottom, RESPAWN (a random beach) on the right. The map is the G screen's control: it opens on the body, north up,
+  900 m across, a flat chart; dragging turns it and the wheel zooms; bag names are placed by the `Labeller`, so they
+  never cover each other or a marker.
 - **Radials (§8.4):** the right mouse held with the plan or the hammer opens its radial at once; a key held for its hold
   time opens its own (E: the options of what is aimed at, P1; R with a gun: its rounds and UNLOAD, P3, the held item's
   control's); a radial takes the pointer, not the keys: the player walks while choosing (I15). Release (or a left click) chooses; a key let go sooner
@@ -4001,14 +4120,22 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
   port (HOST SOLO or CONNECT); QUIT.
   The name and address are remembered.
-- **Map (G7):** G opens and closes it (Esc closes it). The zone's map (§6.8: heights, sea and beach, hill shading,
-  contours, the grid in 150 m cells lettered across and numbered down) fills a square on the left, following the
-  player until dragged; the wheel zooms. Markers: the player (an arrow with their facing), teammates (dim offline),
-  the last death, bags and beds, and the player's own (up to five, numbered, in six colours); names placed by the
-  `Labeller`. A click puts a marker down in the chosen colour, a right-click on one takes it off. Beside the map: the
-  cell the player is in, FOLLOWING YOU, the markers with their cells (× removes, CLEAR ALL), the team (LEAD and KICK
-  for its leader, LEAVE TEAM, or CREATE TEAM) and the invites (ACCEPT, DECLINE, seconds left). The keys sit at the
-  panel's foot. The death screen draws the same map, with the zone's cells, when the model has one.
+- **Map (G7; the whole world since S3d, WHOLE_WORLD.md §11):** G opens and closes it (Esc closes it). The map control
+  (`GroundUi.Globe.cs`, one for this screen and the death screen) fills a square on the left: the whole world as a globe
+  seen from afar that becomes a flat chart as the wheel zooms in, from 4.8 km across (the whole world, with a margin:
+  5.4 km) down to 150 m; it opens 1.2 km across, following the player with local north up. Dragging turns the globe so
+  the ground under the pointer stays under it (over the poles too) and stops following; left alone away from the poles,
+  north turns back up, as a compass settles; the compass in the top-right corner shows north and a click on it puts
+  north up; a scale bar sits in the bottom-left corner. The picture (§6.8) is drawn by a canvas shader from the six
+  faces; over it, crisp at any scale: the grid (the faces' edges dark, the cells' lines fading in once a cell is large
+  enough to read), the markers, and the cells' names in each cell's top-left corner ("K12", "C K12" once a cell is 80
+  px), placed by the `Labeller` after the markers' names; from afar each face's letter. Markers: the player (an arrow
+  with their facing from local north, turned as the map shows north there), teammates (dim offline), the last death,
+  bags and beds, and the player's own (up to five, numbered, in six colours); names placed by the `Labeller`. A click
+  puts a marker down in the chosen colour, a right-click on one takes it off. Beside the map: the cell the player is
+  in, FOLLOWING YOU (or CENTRE ON ME), the markers with their cells (× removes, CLEAR ALL), the team (LEAD and KICK for
+  its leader, LEAVE TEAM, or CREATE TEAM) and the invites (ACCEPT, DECLINE, seconds left). The keys sit at the panel's
+  foot. `--view ui --screen map --across <m>` opens it that many metres across.
 - **Tech tree (G7):** the crafting screen's TECH TREE tab, when a workbench is in reach (the game also opens it at a
   workbench). Each subtree takes as many columns as it has leaves, its root above them; a node is the item's slot with
   its salvage on a strip below it, green and ticked once known, blueprint blue and dim while locked; lines from the
@@ -4456,7 +4583,8 @@ first use, or `FxDirector.Install(parent)`):
 | `FxDirector.Play(key, position, normal, FxParams p = default)` | A one-shot effect at a point on a surface facing `normal` (up in the open). Returns false when skipped (unknown key, too far, at its cap). |
 | `FxParams` | `Direction` (a bullet's flight, a tree's fall, along a door), `Scale`, `Area` (half extents to spread over, in the frame of the normal and the direction), `Tint`, `Follow` (a node flashes, lights and loops follow), `FirstPerson`, `Floor` (where debris lands), `Duration` (loops), `Seed` |
 | `FxDirector.Impact(surface, position, normal, incoming)` | A bullet's hit on `FxSurface` Dirt, Grass, Sand, Rock, Wood, Metal, Water or Flesh (`impact.bullet.<surface>`) |
-| `FxDirector.Muzzle(key, muzzleSocket, firstPerson)`, `FxDirector.MuzzleKey(weapon, silenced, brake)` | A shot's flash, light, smoke and spark on the gun's muzzle socket |
+| `FxDirector.Muzzle(key, muzzleSocket, firstPerson)` | A shot's flash, light, smoke and spark on the gun's muzzle socket; the key is the gun's own (below) |
+| `FxCatalog.ItemEffect(item, role)` (IW4) | An item's effect for a role, from fx.json's `items` (below): what the views play, so no item is named in their code. `GunEffects.MuzzleKey(content, gun, mods)` picks a shot's from it (`FxDirector.MuzzleKey` and its launcher case are gone) |
 | `FxDirector.WantsTracer(shooter, seq)` | Whether a shot draws a tracer: some do, as in Rust (`tracerEvery` in fx.json: every third, per shooter) |
 | `FxDirector.Tracer(key, origin, velocity, gravity, drag)` → id; `FxDirector.EndTracer(id, at)` | A tracer or trail along the projectile's path; where it stopped |
 | `FxDirector.Start(key, position, normal, p)` → `FxHandle`; `Stop(handle)`, `Move(handle, position)` | Loops: fires, torches, burning, rocket trails, fuses; at a point or on `p.Follow`; they fade in and out |
@@ -4479,7 +4607,7 @@ first use, or `FxDirector.Install(parent)`):
 | A gathering hit (the swing's impact, `ItemsChanged` with `Gather`) | `gather.wood` on trees, `gather.rock` on stone, `gather.sparks` on metal and sulphur ore; `gather.weakspot` too when `WeakSpot` |
 | A tree felled, an outcrop depleted (natural object state) | `gather.tree-fall` where the trunk lands (`Direction` its fall, `Area` half its length); the outcrop's remnant breaks into its gibs (§9.4) |
 | Timed charge, bag charge, tin grenade, rocket, explosive round going off | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`; a dud `explosion.dud`; while a fuse burns, `Start("fuse.burning", Follow = socket_fuse)` |
-| A rocket fired, in flight | `Muzzle("muzzle.rocket", socket_muzzle, first person)`, `Play("backblast.rocket")` on `socket_exhaust` (+X backwards), `Start("trail.rocket", Follow = the rocket)` |
+| A rocket fired, in flight | `Muzzle(the launcher's muzzle: "muzzle.rocket", socket_muzzle, first person)`, `Play(its backblast: "backblast.rocket")` on `socket_exhaust` (+X backwards), `Start(the round's flight: "trail.rocket", Follow = the rocket)` |
 | Campfire, furnace lit and out | `Start("fire.campfire"` / `"fire.furnace", Follow = its model)`, `Stop` |
 | A lit torch in hand | `Start("fire.torch", Follow = socket_flame, FirstPerson)` (third person for others) |
 | A player burning (`Vitals.Burning`) | `Start("fire.burning", Follow = the body)` while it burns |
@@ -4515,11 +4643,23 @@ first use, or `FxDirector.Install(parent)`):
 - *Fires:* `ThingsView` starts `fire.campfire` or `fire.furnace` at the model's `socket_fire` while it is lit (the loop
   outlives the model's rebuilds); a torch in hand burns with `fire.torch` on its `socket_flame` (first person with the
   arms; for others on their torch).
-- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades and doors in
+- *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6), the incendiary rocket's fires in
+  `FiresView` (IW4: `fire.patch` riding what each burns on, `Scale` its radius over 3.5 m, `Duration` the time it has left,
+  `fire.patch.out` when it goes out, §6.6); upgrades and doors in
   `BuildView` (§6.5), and whatever breaks in `GibsView` (§9.4); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
   place and installs the director with the view.
 - *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`, and the Iron Wake's
-  effects (IW-F, below), which its packages IW3, IW4 and IW6 hook up (IRON_WAKE.md §13).
+  effects (IW-F, below), which its packages IW3 and IW6 hook up (IRON_WAKE.md §13); IW4's (`explosion.incendiary`,
+  `fire.patch`, `fire.patch.out`) are hooked up.
+- *Items' effects* (IW4). What an item looks like when it is used is data: fx.json's `items` gives each item its effects by
+  role, read by `FxCatalog.ItemEffect`. A gun: `muzzle` (its shot), `muzzle:<attachment>` (its shot with that part on its
+  muzzle: the pistol's and the rifle's `muzzle-brake`), `backblast` (out of its exhaust socket: the launcher's). An
+  attachment: `muzzle` (its shot on any gun that takes it: the silencer's). A round drawn as its model in flight: `flight` (a
+  loop on it: the rockets' `trail.rocket`; `RaidView.FliesAsModel` asks this, where it asked the calibre). An explosive or a
+  round with a blast: `explode`. What leaves a fire: `fire` and `fireOut`. A deployable that burns fuel: `fire` (the campfire's,
+  the furnace's). So a new gun, round or explosive is a line of data. `EffectsCatalogueTests` checks every item there is one
+  of the game's, every effect it names exists (a loop for `flight` and `fire`), and every gun, explosive, round with a blast,
+  rocket, fire and burner has its roles.
 
 **The Iron Wake's effects** (IW-F, IRON_WAKE.md §11; built 15 October 2026 from the existing batches and the C4 kit's
 flipbooks, with two decals of our own):
@@ -5231,8 +5371,12 @@ Decisions taken for the effects (§9.3) without the owner, to confirm or overtur
 - F6. **Effects draw on render layer 20**, which decals skip: Godot's decals otherwise stain the transparent dust over
   a scorch. Every camera must keep layer 20 in its cull mask (all cameras do by default).
 - F7. **No collision with the world for particles:** debris bounces on a floor each effect gives (the hit's height on
-  the ground, 1.2 m below a hit on a wall, or `FxParams.Floor`). Godot's particle colliders would need the scene
-  rendered into a height field every frame.
+  the ground, 1.2 m below a hit on a wall, or a point of `FxParams.Floor`), kept as a height above the planet's mean
+  radius; particles fall toward the planet's centre and land at that height along up (`fx_process.gdshader` reads the
+  planet's globals; with no planet drawn the centre lies far below, so down is −Y as on the effects' stage;
+  WHOLE_WORLD.md §10.4). Tracers re-aim their gravity toward the centre as they fly, as the client's projectiles and
+  thrown arcs do (`Hollow.Client.Arc`). Godot's particle colliders would need the scene rendered into a height field
+  every frame.
 - F8. **Each decal texture keeps its own pool** (24 decals, 10 for scorch marks): changing a decal's texture made
   Godot rebuild its decal atlas and stalled frames by up to 30 ms in the firefight.
 - F9. **The camera shake is an offset the camera's owner adds**, like the gun's `ViewKick`; the library owns no

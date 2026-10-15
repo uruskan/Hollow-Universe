@@ -8,15 +8,20 @@ using HollowUniverse.Common;
 namespace HollowUniverse.Surface;
 
 /// <summary>
-/// The surface view (GROUND.md §4.6): stand on or fly over a real planet of the universe, with its terrain out to the
-/// horizon, its sea, plants, air, clouds, sun, moon and stars at the universe time. A free camera flies, or walks at
-/// eye height (G). Look-dev for the ground game; the first-person game mode lives in scripts/Ground.
+/// The surface view (GROUND.md §4.6): a planet's ground out to the horizon, its sea, plants, grass, air, clouds, sun, moon
+/// and stars at the universe time. Two ways in: the look-dev view of a real planet of the universe at its real size
+/// (<see cref="Open"/>: a tangent frame whose origin follows a free camera that flies, or walks at eye height, G), and the
+/// ground game's whole world (<see cref="OpenWorld"/>, docs/WHOLE_WORLD.md §10: any <see cref="ISurface"/> drawn in the
+/// body's own frame, origin at the centre, the game placing the camera). Both draw with the same parts.
 /// </summary>
 public partial class SurfaceView : Node3D
 {
     private const float EyeHeight = 1.7f;
     private const double RebaseDistance = 1500;
     private const string SettingsPath = "user://settings.cfg";
+
+    /// <summary>The far plane on a whole world: its edge is 6.8 km away from the leaving height (docs/WHOLE_WORLD.md §10.5).</summary>
+    public const float WorldFar = 15_000;
 
     /// <summary>The ground's texture layers, colour and normals (a game loads them ahead, GROUND.md §4.3.1).</summary>
     public static readonly string[] GroundTextures =
@@ -36,7 +41,7 @@ public partial class SurfaceView : Node3D
     private CanvasLayer _uiLayer = null!;
     private SurfaceUi _ui = null!;
 
-    private PlanetSurface? _surface;
+    private ISurface? _surface;
     private StarSystem? _system;
     private Body? _planet;
     private AtmosphereModel? _air;
@@ -105,7 +110,8 @@ public partial class SurfaceView : Node3D
         }
     }
 
-    public PlanetSurface? Surface => _surface;
+    /// <summary>The ground drawn.</summary>
+    public ISurface? Surface => _surface;
 
     /// <summary>The sun light's colour and energy, for --trace.</summary>
     public string LightDebug => $"sunlight {_sunLight.LightColor} x {_sunLight.LightEnergy:0.000}";
@@ -144,6 +150,14 @@ public partial class SurfaceView : Node3D
         _uiLayer.AddChild(_ui);
     }
 
+    public override void _ExitTree()
+    {
+        if (_frame != null)
+        {
+            PlanetGlobals.Clear();
+        }
+    }
+
     public void SetActive(bool active)
     {
         Visible = active;
@@ -156,12 +170,72 @@ public partial class SurfaceView : Node3D
     }
 
     /// <summary>
-    /// Opens a planet at a latitude and longitude (degrees), <paramref name="altitude"/> metres above the ground,
-    /// looking along <paramref name="yaw"/> (degrees from north toward east) and <paramref name="pitch"/> (degrees up),
-    /// at a universe time (seconds since J2000).
+    /// Opens a real planet at its real size, at a latitude and longitude (degrees), <paramref name="altitude"/> metres
+    /// above the ground, looking along <paramref name="yaw"/> (degrees from north toward east) and
+    /// <paramref name="pitch"/> (degrees up), at a universe time (seconds since J2000): the look-dev view, in a tangent
+    /// frame whose origin follows the camera, its plants the surface's own scatter.
     /// </summary>
     public void Open(StarSystem system, Body planet, PlanetSurface surface, double latitude, double longitude, double altitude,
         double yaw, double pitch, double time)
+    {
+        Vector3D direction = ZoneFrame.Direction(latitude * DMath.DegToRad, longitude * DMath.DegToRad);
+        double ground = Math.Max(surface.HeightAt(direction), 0);
+        var frame = new RenderFrame(direction * (surface.Radius + ground));
+        _walk = altitude <= EyeHeight + 0.01;
+        _yaw = yaw;
+        _pitch = pitch;
+        _camera.Position = new Vector3(0, (float)Math.Max(altitude, 0.5), 0);
+        ApplyCameraRotation();
+        Begin(system, planet, surface, new SurfacePlants(surface), surface.Seed, frame, time);
+    }
+
+    /// <summary>
+    /// Opens a whole world for the ground game (docs/WHOLE_WORLD.md §10): any surface drawn in the body's own frame
+    /// (render coordinates are a zone's: metres from the centre, the body's axes), its plants from
+    /// <paramref name="plants"/> (the zone's natural objects), the air, sun and moon of the planet the world stands for at
+    /// a universe time, the planet turning <paramref name="rotationTimeScale"/> times faster than real counted from
+    /// J2000, as the server's clock. The game drives the camera; nothing moves the origin.
+    /// </summary>
+    public void OpenWorld(StarSystem system, Body planet, ISurface surface, IPlantSource plants, ulong seed, double time, double rotationTimeScale,
+        float gravity)
+    {
+        Driven = true;
+        _walk = true;
+        _camera.Far = WorldFar;
+        Begin(system, planet, surface, plants, seed, RenderFrame.World, time);
+        _sky!.Ephemeris.SetRotationTimeScale(rotationTimeScale, 0);
+        InterfaceVisible = false;
+        // What Godot's own physics drops (ragdolls) falls toward the centre (docs/WHOLE_WORLD.md §10.4).
+        _gravity?.QueueFree();
+        _gravity = PlanetGravity(surface.Radius, gravity);
+        AddChild(_gravity);
+    }
+
+    private Area3D? _gravity;
+
+    // A point gravity toward the world's centre over the whole of it, in place of the physics space's −Y; the ground it
+    // falls on (layer 1) is static and takes no part.
+    private static Area3D PlanetGravity(double radius, float gravity)
+    {
+        var area = new Area3D
+        {
+            Name = "PlanetGravity",
+            GravitySpaceOverride = Area3D.SpaceOverride.Replace,
+            GravityPoint = true,
+            GravityPointCenter = Vector3.Zero,
+            GravityPointUnitDistance = 0,
+            Gravity = gravity,
+            CollisionLayer = 0,
+            CollisionMask = ~1u,
+            Monitoring = true,
+            Monitorable = false,
+        };
+        area.AddChild(new CollisionShape3D { Shape = new SphereShape3D { Radius = (float)(radius * 4) } });
+        return area;
+    }
+
+    // Everything a view of a surface needs, in a render frame.
+    private void Begin(StarSystem system, Body planet, ISurface surface, IPlantSource plants, ulong seed, RenderFrame frame, double time)
     {
         _openTimes.Clear();
         _lapAt = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -169,19 +243,11 @@ public partial class SurfaceView : Node3D
         _planet = planet;
         _surface = surface;
         _time = time;
-        _yaw = yaw;
-        _pitch = pitch;
+        _frame = frame;
         _air = AtmosphereModel.Take(planet);
         _sky = new SurfaceSky(system, planet, _air);
         _sky.Ephemeris.SetRotationTimeScale(RotationTimeScale, time);
         Lap("air");
-
-        Vector3D direction = ZoneFrame.Direction(latitude * DMath.DegToRad, longitude * DMath.DegToRad);
-        double ground = Math.Max(surface.HeightAt(direction), 0);
-        _frame = new RenderFrame(direction * (surface.Radius + ground));
-        _walk = altitude <= EyeHeight + 0.01;
-        _camera.Position = new Vector3(0, (float)Math.Max(altitude, 0.5), 0);
-        ApplyCameraRotation();
 
         SetupGlobals();
         Lap("globals");
@@ -205,7 +271,7 @@ public partial class SurfaceView : Node3D
         _vegetation?.QueueFree();
         _vegetation = new Vegetation { Name = "Vegetation" };
         AddChild(_vegetation);
-        _vegetation.Setup(surface, _frame, _groundAlbedo, _groundNormal);
+        _vegetation.Setup(surface, plants, seed, _frame, _groundAlbedo, _groundNormal);
         _grass?.QueueFree();
         _grass = null;
         _idleFrames = 0;
@@ -218,7 +284,7 @@ public partial class SurfaceView : Node3D
     private readonly System.Text.StringBuilder _openTimes = new();
     private long _lapAt;
 
-    /// <summary>What the last <see cref="Open"/> spent its time on (milliseconds by part), for the start's timeline.</summary>
+    /// <summary>What the last opening spent its time on (milliseconds by part), for the start's timeline.</summary>
     public string OpenTimes => _openTimes.ToString();
 
     private void Lap(string what)
@@ -231,6 +297,9 @@ public partial class SurfaceView : Node3D
 
     // ---------------------------------------------------------------- set-up
 
+    // The cloud field repeats every 780 km of drift (its three scales, 60, 15 and 2.6 km, all divide it): wrapped there.
+    private const double CloudPeriod = 780_000;
+
     private static bool _globals;
     private ImageTexture? _noise;
     private ImageTexture? _canopy;
@@ -239,6 +308,8 @@ public partial class SurfaceView : Node3D
     private void SetupGlobals()
     {
         AtmosphereModel air = _air!;
+        // The planet under the drawn world first: every surface shader reads its up from it.
+        PlanetGlobals.Set(_frame!, _surface!.Radius);
         void Add(string name, RenderingServer.GlobalShaderParameterType type, Variant value)
         {
             if (_globals)
@@ -284,10 +355,12 @@ public partial class SurfaceView : Node3D
         Add("hu_shake_at", V4, Vector4.Zero);
         Add("hu_shake_dir", V4, Vector4.Zero);
         var S3 = RenderingServer.GlobalShaderParameterType.Sampler3D;
-        _aerial = new AerialTable(air);
+        // The aerial-perspective table reaches as far as anything can be seen: the far plane on a whole world.
+        double range = _frame!.IsWorld ? AtmosphereModel.WorldApRange : AtmosphereModel.ApRange;
+        _aerial = new AerialTable(air, range);
         Add("hu_ap_up", V3, Vector3.Up);
         Add("hu_ap_east", V3, Vector3.Right);
-        Add("hu_ap_range", T, (float)AtmosphereModel.ApRange);
+        Add("hu_ap_range", T, (float)range);
         _aerial.Update(0, 2, Vector3.Up, Vector3.Right, Vector3.Up, Vector3.One, Vector3.Down, Vector3.Zero, wait: true);
         Add("hu_ap_inscatter", S3, _aerial.Inscatter);
         Add("hu_ap_transmittance", S3, _aerial.Transmittance);
@@ -342,13 +415,21 @@ public partial class SurfaceView : Node3D
         _idleFrames = _terrain.IsIdle && (_vegetation?.IsIdle ?? true) && (_grass?.IsIdle ?? false) ? _idleFrames + 1 : 0;
     }
 
+    // The ground under a body-frame point, metres above the mean radius: the land, or the sea where it is higher.
+    private double GroundAt(Vector3D direction)
+    {
+        ISurface surface = _surface!;
+        double ground = surface.HeightAt(direction);
+        return surface.SeaRadius > 0 ? Math.Max(ground, surface.SeaRadius - surface.Radius) : ground;
+    }
+
     private void UpdateWorld(double delta)
     {
         RenderFrame frame = _frame!;
-        PlanetSurface surface = _surface!;
-        // Keep the render origin under the camera.
+        ISurface surface = _surface!;
+        // Keep the render origin under the camera (a tangent frame only: the world frame holds a whole world).
         Vector3 cam = _camera.Position;
-        if (!Driven && new Vector2(cam.X, cam.Z).Length() > RebaseDistance)
+        if (!Driven && !frame.IsWorld && new Vector2(cam.X, cam.Z).Length() > RebaseDistance)
         {
             Vector3D body = frame.ToBody(cam);
             Vector3D dir = body.Normalized;
@@ -357,31 +438,33 @@ public partial class SurfaceView : Node3D
             _terrain.Reanchor();
             _vegetation?.Reanchor();
         }
-        Vector3D camera = frame.ToBody(_camera.Position);
+        if (!frame.IsWorld)
+        {
+            PlanetGlobals.Set(frame, surface.Radius);
+        }
+        Vector3D camera = frame.ToBody(_camera.GlobalPosition);
         float pixelAngle = Mathf.DegToRad(_camera.Fov) / Math.Max(GetViewport().GetVisibleRect().Size.Y, 1);
-        _sky!.Update(_time, camera, frame, _skyMaterial, _sunLight, _moonLight, pixelAngle);
-
         double altitude = camera.Length - surface.Radius;
+        _sky!.Update(_time, camera, frame, _skyMaterial, _sunLight, _moonLight, pixelAngle, surface.Radius);
+
+        (Vector3 up, Vector3 east, Vector3 north) = frame.LocalAxes(camera);
         RenderingServer.GlobalShaderParameterSet("hu_camera_altitude", (float)Math.Max(altitude, 0.05));
-        RenderingServer.GlobalShaderParameterSet("hu_camera_up", frame.DirectionToRender(camera.Normalized));
-        RenderingServer.GlobalShaderParameterSet("hu_camera_position", _camera.Position);
+        RenderingServer.GlobalShaderParameterSet("hu_camera_up", up);
+        RenderingServer.GlobalShaderParameterSet("hu_camera_position", _camera.GlobalPosition);
         RenderingServer.GlobalShaderParameterSet("hu_sun_direction", _sky.SunDirection);
         RenderingServer.GlobalShaderParameterSet("hu_sun_illuminance", _sky.SunIlluminance);
         RenderingServer.GlobalShaderParameterSet("hu_moon_direction", _sky.MoonDirection);
         // The air scatters the moon's real light; only the light on the ground is boosted (nights stay dark, the ground
         // readable).
         RenderingServer.GlobalShaderParameterSet("hu_moon_illuminance", _sky.MoonIlluminance * SurfaceSky.MoonSkyBoost);
-        // The table's axes: the camera's up, and east made level there.
-        Vector3 apUp = frame.DirectionToRender(camera.Normalized);
-        Vector3 apEast = (Vector3.Right - apUp * apUp.Dot(Vector3.Right)).Normalized();
-        _aerial!.Update(Time.GetTicksMsec() / 1000.0, Math.Max(altitude, 0.5), apUp, apEast, _sky.SunDirection, _sky.SunIlluminance,
+        // The table's axes: the camera's up, and east there (docs/WHOLE_WORLD.md §3.1: the pole axis crossed with up).
+        _aerial!.Update(Time.GetTicksMsec() / 1000.0, Math.Max(altitude, 0.5), up, east, _sky.SunDirection, _sky.SunIlluminance,
             _sky.MoonDirection, _sky.MoonIlluminance * SurfaceSky.MoonSkyBoost, wait: _firstFrame);
         _firstFrame = false;
-        // Clouds drift with the wind (12 m/s from the west), faster when the day is sped up, and stay put on the
-        // ground when the origin moves.
+        // Clouds drift with the wind (12 m/s), faster when the day is sped up; they are fixed to the planet (sampled by
+        // direction), so moving the origin moves nothing.
         _cloudDrift += (_timeRuns ? delta * RotationTimeScale : 0) * 12;
-        Vector3D travelled = frame.DirectionToRenderD(frame.Travelled);
-        RenderingServer.GlobalShaderParameterSet("hu_cloud_wind", new Vector2((float)(travelled.X - _cloudDrift), (float)travelled.Z));
+        RenderingServer.GlobalShaderParameterSet("hu_cloud_wind", new Vector2((float)-(_cloudDrift % CloudPeriod), 0));
         RenderingServer.GlobalShaderParameterSet("hu_texture_offset", frame.WrappedTravel(4096));
         _environment.TonemapExposure = DebugSky == 15 ? 1 : _sky.Exposure;
         if (DebugSky == 15)
@@ -393,9 +476,10 @@ public partial class SurfaceView : Node3D
         _skyMaterial.SetShaderParameter("debug_view", DebugSky < 10 ? DebugSky : 0);
         _terrainMaterial.SetShaderParameter("debug_view", DebugSky >= 10 ? DebugSky - 10 : 0);
 
-        // A breeze from the west-south-west that rises and falls over minutes.
+        // A breeze from the west-south-west, along the ground where the camera is, that rises and falls over minutes.
         float gusts = (float)(0.85 + 0.3 * Math.Sin(_time * 0.011) * Math.Sin(_time * 0.0037 + 1.3));
-        RenderingServer.GlobalShaderParameterSet("hu_wind", new Vector4(0.86f, 0, -0.5f, gusts));
+        Vector3 wind = (east * 0.86f + north * 0.5f).Normalized();
+        RenderingServer.GlobalShaderParameterSet("hu_wind", new Vector4(wind.X, wind.Y, wind.Z, gusts));
 
         _terrain.UpdateLod(camera);
         _vegetation?.UpdateVegetation(camera);
@@ -404,10 +488,10 @@ public partial class SurfaceView : Node3D
             _terrainMaterial.SetShaderParameter("blade_mean", library.BladeMean);
             _grass = new GrassField { Name = "Grass" };
             AddChild(_grass);
-            _grass.Setup(surface, frame, library, _groundAlbedo, _noise!, library.BladeMean);
+            _grass.Setup(surface, frame, _terrain.MaxLevel, library, _groundAlbedo, _noise!, library.BladeMean);
         }
-        double overGround = camera.Length - surface.Radius - Math.Max(surface.HeightAt(camera.Normalized), 0);
-        _grass?.UpdateGrass(_camera.Position, overGround, _walk);
+        double overGround = camera.Length - surface.Radius - GroundAt(camera.Normalized);
+        _grass?.UpdateGrass(camera, overGround, _walk);
         _ui.Refresh(_planet!, surface, frame, camera, _sky, _time, _frameMs, _terrain, _walk, _timeRuns);
     }
 
@@ -444,8 +528,7 @@ public partial class SurfaceView : Node3D
         // Never below the ground; on foot, at eye height.
         Vector3D body = _frame.ToBody(_camera.Position);
         Vector3D dir = body.Normalized;
-        double ground = Math.Max(_surface.HeightAt(dir), _surface.SeaRadius > 0 ? 0 : double.MinValue);
-        double altitude = body.Length - _surface.Radius - ground;
+        double altitude = body.Length - _surface.Radius - GroundAt(dir);
         double target = _walk ? EyeHeight : Math.Max(altitude, 1.0);
         if (Math.Abs(target - altitude) > 1e-4)
         {

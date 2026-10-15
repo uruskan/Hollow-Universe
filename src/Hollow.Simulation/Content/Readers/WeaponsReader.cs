@@ -71,7 +71,7 @@ internal sealed class WeaponsReader : IContentReader
             JsonElement e = ammo[i];
             string key = f.Text(e, "item", $"{file}: ammo[{i}]");
             string where = $"{file}: ammo {JsonFields.Quote(key)}";
-            f.OnlyKnown(e, where, "item", "calibre", "damage", "speed", "bleed", "burn", "structure", "blast", "note");
+            f.OnlyKnown(e, where, "item", "calibre", "damage", "speed", "gravity", "bleed", "burn", "structure", "blast", "note");
             ItemDef? item = r.Resolve(key, where);
             if (item == null)
             {
@@ -83,6 +83,7 @@ internal sealed class WeaponsReader : IContentReader
                 Calibre = f.Text(e, "calibre", where),
                 Damage = f.Double(e, "damage", where, 1),
                 Speed = f.Double(e, "speed", where, 1),
+                Gravity = f.Double(e, "gravity", where, 1),
                 Bleed = f.Double(e, "bleed", where, 0),
                 Burn = f.Double(e, "burn", where, 0),
                 Structure = f.Double(e, "structure", where, 0),
@@ -285,9 +286,10 @@ internal sealed class WeaponsReader : IContentReader
             {
                 c.Problem(where, $"no weapon fires calibre \"{b.Calibre}\"");
             }
-            if (b.Damage is <= 0 or > 10 || b.Speed is <= 0 or > 10 || b.Bleed is < 0 or > 2 || b.Burn is < 0 or > 100 || b.Structure is < 0 or > 1)
+            if (b.Damage is <= 0 or > 10 || b.Speed is <= 0 or > 10 || b.Gravity is < 0 or > 10 || b.Bleed is < 0 or > 2 || b.Burn is < 0 or > 100 ||
+                b.Structure is < 0 or > 1)
             {
-                c.Problem(where, "damage and speed 0 … 10 times, bleed 0 … 2, burn 0 … 100, structure 0 … 1");
+                c.Problem(where, "damage and speed 0 … 10 times, gravity 0 … 10 times, bleed 0 … 2, burn 0 … 100, structure 0 … 1");
             }
             if (b.Item.Ammo != null || b.Item.Firearm != null)
             {

@@ -19,6 +19,8 @@ namespace Hollow.Simulation;
 // DamageSystem's: every receiver finds its own things in its reach.
 public sealed class BlastSystem : ZoneSystem
 {
+    private static readonly int Channels = Enum.GetValues<DamageType>().Length;
+
     private BuildingSystem? _buildingSystem;
     private BuildingSystem Building => _buildingSystem ??= Zone.Require<BuildingSystem>();
     private CombatSystem? _combatSystem;
@@ -29,20 +31,27 @@ public sealed class BlastSystem : ZoneSystem
     private ExplosiveSystem Explosives => _explosivesSystem ??= Zone.Require<ExplosiveSystem>();
 
     // Damage to a piece, door or claim device, kept to the fraction: the building rules take whole points (rounded up
-    // once, RustMVP's resolver), so the parts of a point are carried to the next hit; Rust's raid counts come out exactly
-    // (a grenade's 8.99 against metal takes 112, not 100). The table's explosive damage goes in through the explosive
-    // channel.
-    internal (double Lost, bool Destroyed) DamageStructure(IBuildingPart part, double amount, Vector3 direction, double now)
+    // once, RustMVP's resolver), so the parts of a point are carried to the next hit, a channel's apart from another's;
+    // Rust's raid counts come out exactly (a grenade's 8.99 against metal takes 112, not 100), and a fire's heat every half
+    // second (IW4) adds up to what a second of it is. The damage goes in through its channel: a blast's table through the
+    // explosive channel, a fire's through the heat channel (which the grade's or door's protection lets through or not).
+    internal (double Lost, bool Destroyed) DamageStructure(IBuildingPart part, double amount, Vector3 direction, double now,
+        DamageType channel = DamageType.Explosive)
     {
         BuildingWorld building = Building.World!;
-        double total = Explosives._blastResidue.GetValueOrDefault(part) + amount;
+        if (!Explosives._blastResidue.TryGetValue(part, out double[]? residue))
+        {
+            residue = new double[Channels];
+            Explosives._blastResidue[part] = residue;
+        }
+        double total = residue[(int)channel] + amount;
         double whole = Math.Floor(total + 1e-9);
-        Explosives._blastResidue[part] = Math.Max(0, total - whole);
+        residue[(int)channel] = Math.Max(0, total - whole);
         if (whole <= 0)
         {
             return (0, false);
         }
-        DamageResult result = building.Damage(part, new DamageHit(direction, Explosive: whole), now);
+        DamageResult result = building.Damage(part, DamageHit.Of(channel, whole, direction), now);
         if (result.Destroyed)
         {
             Explosives._blastResidue.Remove(part);

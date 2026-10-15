@@ -131,6 +131,11 @@ public static class SoundCatalogueTests
         ("furnace", new[] { "place", "loop", "ignite", "extinguish" }),
         ("small-box", new[] { "place", "open", "close" }),
         ("large-box", new[] { "place", "open", "close" }),
+        // IW4: every rocket's motor catching and its roar on it in flight (a loop the rockets' view stops where it stops);
+        // the incendiary rocket's burst, its fuel catching and its fire.
+        ("rocket", new[] { "ignite", "flight", "explode" }),
+        ("rocket-hv", new[] { "ignite", "flight", "explode" }),
+        ("rocket-incendiary", new[] { "ignite", "flight", "explode", "fireStart", "fire" }),
     };
 
     [Test]
@@ -159,6 +164,14 @@ public static class SoundCatalogueTests
         foreach ((string item, string[] roles) in RequiredItems)
         {
             Need(item, roles);
+        }
+        // A rocket's roar follows it, a fire burns on: their roles play loops.
+        foreach ((string item, string role) in new[] { ("rocket", "flight"), ("rocket-hv", "flight"), ("rocket-incendiary", "flight"), ("rocket-incendiary", "fire") })
+        {
+            if (c.ItemEvent(item, role) is { } key && c.Find(key) is { Loop: false })
+            {
+                problems.Add($"{item}: its {role} sound {key} isn't a loop");
+            }
         }
         // Every tool, weapon, deployable, medicine and food of items.json.
         string data = Path.Combine(Game, "data", "ground");

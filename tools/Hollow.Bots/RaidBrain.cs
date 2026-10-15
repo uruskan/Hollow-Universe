@@ -17,8 +17,9 @@ namespace Hollow.Bots;
 /// A bot that raids (GROUND.md §5.5, G5) through the same client API as a player: its kit (charges, bag charges,
 /// grenades, a rocket launcher with rockets, a rifle with explosive rounds) arrives with every life; it runs to the hut of
 /// the next one (<c>--raid-bases</c>; its own is hut <c>index mod huts</c>) and works through it: a timed charge placed on
-/// the door, then stepping back out of the blast; bag charges and grenades thrown at the doorway and the walls; rockets
-/// from fifteen metres; bursts of explosive rounds. Its own hut is raided by the bot before it, and it hears the raid
+/// the door, then stepping back out of the blast; bag charges and grenades thrown at the doorway and the walls; rockets of
+/// every kind it carries in turn from fifteen metres (the incendiary rocket's fire burning at the hut); bursts of explosive
+/// rounds. Its own hut is raided by the bot before it, and it hears the raid
 /// alerts. With the crowd at the landing site the huts stand on the server's ring round it, facing it, so it raids from
 /// the inside of the ring; a bot that arrived on a beach anywhere on the world finds the hut it raids beside that beach,
 /// facing it. It doesn't look at what is still standing, it just goes through its plan. Deterministic per bot.
@@ -160,10 +161,12 @@ public sealed class RaidBrain
             {
                 me.HeldSlot = LauncherSlot;
                 LocalGun gun = me.Gun;
-                if (gun.Weapon != null && gun.Loaded == 0 && !gun.Reloading && gun.Reserve > 0 && time >= _nextReload)
+                // Every kind of rocket it carries in turn (IW4: the incendiary rocket's fires burn at the huts too).
+                ItemDef[] kinds = gun.Weapon?.Ammo.Where(k => me.Inventory.Count(k) > 0).ToArray() ?? Array.Empty<ItemDef>();
+                if (gun.Weapon != null && gun.Loaded == 0 && !gun.Reloading && kinds.Length > 0 && time >= _nextReload)
                 {
                     _nextReload = time + 1;
-                    me.Reload();
+                    me.Reload(kinds[Rockets % kinds.Length]);
                 }
                 else if (gun.Ready && gun.Loaded > 0 && !gun.Reloading)
                 {
@@ -176,7 +179,7 @@ public sealed class RaidBrain
                         _step++;
                     }
                 }
-                else if (gun.Weapon != null && gun.Loaded == 0 && gun.Reserve == 0 && !gun.Reloading)
+                else if (gun.Weapon != null && gun.Loaded == 0 && kinds.Length == 0 && !gun.Reloading)
                 {
                     _step++;
                 }

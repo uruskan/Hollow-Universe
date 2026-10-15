@@ -140,14 +140,14 @@ public readonly record struct CraftCategory(string Name, int Count);
 /// <summary>A job in the crafting queue. The first one is being made; <see cref="Remaining"/> counts down.</summary>
 public sealed record CraftJob(int Ticket, string Key, int Count, float Remaining, float Seconds);
 
-/// <summary>A sleeping bag or bed to respawn at, with its cooldown and its place on the map (0–1 across and down).</summary>
-public sealed record RespawnBag(string Id, string Name, float Cooldown, float MapX, float MapY);
+/// <summary>A sleeping bag or bed to respawn at, with its cooldown and where it is (a body-frame point or direction, for the map).</summary>
+public sealed record RespawnBag(string Id, string Name, float Cooldown, System.Numerics.Vector3 At);
 
 /// <summary>
 /// How the player died. <see cref="KilledBy"/> is a player's name or a cause ("Cold", "Fall"); <see cref="Weapon"/>
-/// an item key, or null. The map position runs 0–1 across and down.
+/// an item key, or null. <see cref="At"/> is where, a body-frame point or direction, for the map.
 /// </summary>
-public sealed record DeathInfo(float AliveSeconds, string KilledBy, string? Weapon, float Distance, float MapX, float MapY);
+public sealed record DeathInfo(float AliveSeconds, string KilledBy, string? Weapon, float Distance, System.Numerics.Vector3 At);
 
 /// <summary>The interaction prompt: "[E]  OPEN", with "Hold [E] for more options" when there are more.</summary>
 public sealed record InteractionPrompt(string Key, string Action, bool MoreOptions = false);

@@ -75,14 +75,14 @@ public sealed class ShipModule : ServerModule
     }
 
     /// <summary>
-    /// A player leaving while seated (IRON_WAKE.md §5.2): logging off keeps the seat, asleep in it; a lost connection stands
-    /// them up at its first clear exit, where they sleep (none clear: they sleep in the seat).
+    /// A player gone while seated (IRON_WAKE.md §5.2): logging off keeps the seat, asleep in it; a lost connection stands
+    /// the sleeper up at its first clear exit (none clear: they sleep in the seat).
     /// </summary>
-    protected internal override void Leaving(PlayerSession session, bool loggedOff)
+    protected internal override void Left(PlayerSession session)
     {
-        if (!loggedOff)
+        if (!session.LoggedOff && Zone.Entities.TryFind(session.EntityId, out Entity sleeper))
         {
-            Zone.Ships().Release(session.Entity, SeatRelease.Disconnected);
+            Zone.Ships().Release(sleeper, SeatRelease.Disconnected);
         }
     }
 

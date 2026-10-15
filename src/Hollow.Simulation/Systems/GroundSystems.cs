@@ -26,6 +26,7 @@ public static class GroundSystems
         new CombatSystem(),
         new GunSystem(),
         new ExplosiveSystem(),
+        new FireSystem(),
         new WoundedSystem(),
         new AnimalSystem(),
         new VitalsSystem(),

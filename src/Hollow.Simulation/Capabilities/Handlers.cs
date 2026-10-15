@@ -64,8 +64,8 @@ public static partial class CapabilityHandlers
                      new Owned(), new Holds(verbs), new Burner(verbs), new Machine(verbs), new DoorCapability(verbs), new KeyLockCapability(verbs),
                      new CodeLockCapability(verbs), new CupboardCapability(verbs), new ShipCapability(), new Lifetime(), new ExplosiveCapability(),
                      new Pickup(verbs), new Portable(verbs, data), new Station(verbs), new WoundedCapability(verbs), new CharacterCapability(verbs),
-                     new DudCapability(verbs), new ArrowCapability(), new Standing(), new SeatCapability(verbs), new ShipDoorCapability(verbs),
-                     new FuelCapability(verbs),
+                     new DudCapability(verbs), new ArrowCapability(), new Standing(), new FireCapability(), new SeatCapability(verbs),
+                     new ShipDoorCapability(verbs), new FuelCapability(verbs),
                  })
         {
             registry.Add(handler.Key, handler);
@@ -211,6 +211,25 @@ public static partial class CapabilityHandlers
             if (thing is Deployable d)
             {
                 zone.Things().Break(d, Combat.DestroyCause.Collapse);
+            }
+        }
+    }
+
+    /// <summary>
+    /// A fire burning on something (IW4, IRON_WAKE.md §7): when what holds it goes, its burning fuel falls to what is below and
+    /// burns on there, or goes out with nothing near enough below (<see cref="FireSystem"/>). Nothing to tell a viewer.
+    /// </summary>
+    private sealed class FireCapability : ICapability, IDependentCapability
+    {
+        public string Key => "fire";
+
+        public ViewerFlags Flags(object thing, in Viewer viewer) => ViewerFlags.None;
+
+        public void SupportLost(Zone zone, in TargetRef dependent, object thing)
+        {
+            if (thing is Fire fire)
+            {
+                zone.Fires().SupportLost(fire);
             }
         }
     }

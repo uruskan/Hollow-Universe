@@ -20,7 +20,8 @@ namespace HollowUniverse.Ground;
 /// they hit or lying where they came to rest; a timed charge's lamp blinking faster as its fuse runs down (and beeping
 /// with it), a bag charge's or tin grenade's fuse sputtering and hissing; their throws, bounces, duds and relighting
 /// heard; detonations through the effects library (flash, fireball, smoke, debris, scorch and the camera's shake) with
-/// the blast's sound layered by distance; rockets drawn with their smoke trail; and raid alerts.
+/// the blast's sound layered by distance, each explosive's and round's own (fx.json and sounds.json items); rockets drawn
+/// with their trail, their motor catching and its roar following them until they stop; and raid alerts.
 /// </summary>
 public partial class RaidView : Node3D
 {
@@ -45,7 +46,7 @@ public partial class RaidView : Node3D
     }
 
     private readonly Dictionary<EntityId, Shown> _shown = new();
-    private readonly Dictionary<ClientProjectile, (Node3D Node, FxHandle Trail)> _rockets = new();
+    private readonly Dictionary<ClientProjectile, (Node3D Node, FxHandle Trail, SoundHandle Roar)> _rockets = new();
     private readonly HashSet<EntityId> _seen = new();
     private readonly List<EntityId> _gone = new();
     private readonly List<ClientProjectile> _rocketsGone = new();
@@ -236,7 +237,9 @@ public partial class RaidView : Node3D
         if (shown.HasPrev && tick < e.StateTick)
         {
             float t = (float)(Math.Max(0, tick - shown.PrevTick) / GameClient.TickRate);
-            at = shown.PrevStart + shown.PrevVelocity * t + shown.PrevGravity * (0.5f * t * t);
+            // Gravity re-aimed toward the centre along the arc, as the client's explosives are (Hollow.Client.Arc).
+            at = shown.PrevStart + shown.PrevVelocity * t
+                + Hollow.Client.Arc.Gravity(shown.PrevGravity, e.Centre, shown.PrevStart, shown.PrevVelocity, t) * (0.5f * t * t);
             flying = true;
         }
         else
@@ -346,14 +349,9 @@ public partial class RaidView : Node3D
         Vector3 at = GroundView.ToGodot(d.Position);
         Vector3 normal = GroundView.ToGodot(d.Normal);
         string? item = d.Item?.Key;
-        string key = d.Round ? "explosion.ammo" : item switch
-        {
-            "timed-charge" => "explosion.timed-charge",
-            "bag-charge" => "explosion.bag-charge",
-            "rocket" or "rocket-hv" => "explosion.rocket",
-            _ => "explosion.grenade",
-        };
-        // The flash, fireball, smoke, dust, debris, scorch and the camera's shake are the effect's (fx.json).
+        // Each explosive's and round's own burst (fx.json items' "explode", IW4: no item named here); the flash, fireball,
+        // smoke, dust, debris, scorch and the camera's shake are the effect's.
+        string key = (item != null ? FxCatalog.ItemEffect(item, "explode") : null) ?? (d.Round ? "explosion.ammo" : "explosion.grenade");
         FxDirector.Play(key, at, normal);
         // The blast's sound has near, middle and far layers chosen by distance, delayed by the speed of sound.
         if (item != null)
@@ -370,16 +368,21 @@ public partial class RaidView : Node3D
 
     // ---------------------------------------------------------------- rockets
 
-    /// <summary>A rocket: a round of the rocket calibre (it is fired like a bullet and explodes where it stops).</summary>
-    public static bool IsRocket(GameClient client, ClientProjectile p) => client.Content.Item(p.Ammo)?.Bullet?.Calibre == "rocket";
+    /// <summary>
+    /// A round drawn as its own model in flight with its flight effect (a rocket: fired like a bullet, it explodes where it
+    /// stops): its item names a flight effect in fx.json's items (IW4: data, not its calibre or its name).
+    /// </summary>
+    public static bool FliesAsModel(GameClient client, ClientProjectile p) =>
+        client.Content.Item(p.Ammo) is { Bullet: not null } round && FxCatalog.ItemEffect(round.Key, "flight") != null;
 
-    // Rockets in flight: the catalogue's rocket, nose first, with its exhaust and smoke trail, until it stops.
+    // Rockets in flight: the catalogue's model of the round, nose first, with its flight effect (its trail) and its motor's
+    // roar following it (sounds.json items: "ignite" where it leaves, "flight" a loop on it), until it stops.
     private void Rockets()
     {
         double now = Client.ClockSeconds;
         foreach (ClientProjectile p in Client.Survival().Projectiles)
         {
-            if (!IsRocket(Client, p))
+            if (!FliesAsModel(Client, p))
             {
                 continue;
             }
@@ -391,8 +394,9 @@ public partial class RaidView : Node3D
                 {
                     continue;
                 }
+                string round = Client.Content.Item(p.Ammo)!.Key;
                 var holder = new Node3D { Name = "Rocket" };
-                if (ModelCatalog.Instantiate(Client.Content.Item(p.Ammo)!.Key) is { } model)
+                if (ModelCatalog.Instantiate(round) is { } model)
                 {
                     // The model lies along Z, nose to −Z, its axis 5 cm above its origin.
                     model.Position = new Vector3(0, -0.05f, 0);
@@ -401,10 +405,12 @@ public partial class RaidView : Node3D
                 AddChild(holder);
                 Vector3 direction = GroundView.ToGodot(p.DirectionAt(now));
                 holder.GlobalTransform = Aligned(direction, GroundView.ToGodot(at));
-                drawn = (holder, FxDirector.Start("trail.rocket", holder.GlobalPosition, Vector3.Up,
-                    new FxParams { Follow = holder, Direction = direction }));
+                FxHandle trail = FxDirector.Start(FxCatalog.ItemEffect(round, "flight")!, holder.GlobalPosition, Vector3.Up,
+                    new FxParams { Follow = holder, Direction = direction });
+                // Its motor catching where it leaves, then its roar on it, stopped where it stops.
+                Sounds.At(Sounds.Item(round, "ignite"), holder.GlobalPosition);
+                drawn = (holder, trail, Sounds.Loop(Sounds.Item(round, "flight"), holder));
                 _rockets[p] = drawn;
-                Sounds.At(Sounds.Item("rocket", "flight"), holder.GlobalPosition);
             }
             if (arrived)
             {
@@ -413,7 +419,7 @@ public partial class RaidView : Node3D
             drawn.Node.GlobalTransform = Aligned(GroundView.ToGodot(p.DirectionAt(now)), GroundView.ToGodot(at));
         }
         _rocketsGone.Clear();
-        foreach ((ClientProjectile p, (Node3D Node, FxHandle Trail) drawn) in _rockets)
+        foreach ((ClientProjectile p, (Node3D Node, FxHandle Trail, SoundHandle Roar) drawn) in _rockets)
         {
             bool live = Client.Survival().Projectiles.Contains(p) && !(p.EndedAt is { } end && Num.Vector3.DistanceSquared(p.PositionAt(now), end) < 0.04f);
             if (!live)
@@ -423,8 +429,9 @@ public partial class RaidView : Node3D
         }
         foreach (ClientProjectile p in _rocketsGone)
         {
-            (Node3D node, FxHandle trail) = _rockets[p];
+            (Node3D node, FxHandle trail, SoundHandle roar) = _rockets[p];
             FxDirector.Stop(trail);
+            Sounds.Stop(roar, 0.12f);
             node.QueueFree();
             _rockets.Remove(p);
         }
@@ -453,10 +460,11 @@ public partial class RaidView : Node3D
     private string Details(RaidAlertView a)
     {
         Num.Vector3 d = a.Where - Client.Character.Position;
-        float metres = new Num.Vector2(d.X, d.Z).Length();
+        float metres = d.Length();
         string[] compass = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
-        // The zone's frame: north is −Z, east +X.
-        double bearing = (Math.Atan2(d.X, -d.Z) * 180 / Math.PI + 360) % 360;
+        // From local north where the player stands (docs/WHOLE_WORLD.md §5).
+        (Num.Vector3 north, Num.Vector3 east) = Hollow.Simulation.Movement.Facing.Compass(Client.Frame.UpAt(Client.Character.Position));
+        double bearing = (Math.Atan2(Num.Vector3.Dot(d, east), Num.Vector3.Dot(d, north)) * 180 / Math.PI + 360) % 360;
         string where = metres < 15 ? "here" : $"{metres:0} m {compass[(int)Math.Round(bearing / 45) % 8]}";
         string broken = a.Destroyed > 0 ? $", {a.Destroyed} broken" : "";
         string hits = a.Hits == 1 ? "1 hit" : $"{a.Hits} hits";

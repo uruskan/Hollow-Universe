@@ -91,7 +91,7 @@ public partial class ShipSandbox
                 Num.Vector3 flat = to - up * Num.Vector3.Dot(to, up);
                 if (flat.Length() > 0.5f && t < 20)
                 {
-                    _yaw = MathF.Atan2(-flat.X, -flat.Z);
+                    _yaw = Facing.YawOf(flat, up);
                     Hold(Godot.Key.W, true);
                     break;
                 }

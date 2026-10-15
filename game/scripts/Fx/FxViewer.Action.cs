@@ -298,7 +298,7 @@ public partial class FxViewer
         At(1.0, () =>
         {
             charge?.QueueFree();
-            FxDirector.Play("explosion.timed-charge", at, Vector3.Back, new FxParams { Floor = 0f });
+            FxDirector.Play("explosion.timed-charge", at, Vector3.Back, new FxParams { Floor = Vector3.Zero });
         });
         _captureAt = 1.0 + 0.26;
     }
@@ -353,7 +353,7 @@ public partial class FxViewer
         At(1.0, () =>
         {
             wall.Root.Visible = false;
-            FxDirector.Play("world.collapse", centre, Vector3.Up, new FxParams { Direction = wall.Root.Basis.X, Area = new Vector3(1.5f, 1.5f, 0.2f), Floor = 0f });
+            FxDirector.Play("world.collapse", centre, Vector3.Up, new FxParams { Direction = wall.Root.Basis.X, Area = new Vector3(1.5f, 1.5f, 0.2f), Floor = Vector3.Zero });
         });
         At(1.45, () => FxDirector.Play("world.upgrade.stone", wood.Root.GlobalPosition + Vector3.Up * 0.75f + wood.Root.Basis.Z * 0.16f, wood.Root.Basis.Z,
             new FxParams { Direction = wood.Root.Basis.X, Area = new Vector3(1.5f, 0.15f, 0.75f) }));

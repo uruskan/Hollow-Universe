@@ -24,6 +24,20 @@ public sealed class SphereSurface : ISurface
 
     public double SeaRadius => 0;
 
+    /// <summary>The amplitudes of the octaves added up, either way.</summary>
+    public (double Low, double High) HeightBounds
+    {
+        get
+        {
+            double sum = 0;
+            foreach ((_, double amplitude) in _octaves)
+            {
+                sum += amplitude;
+            }
+            return (-sum, sum);
+        }
+    }
+
     public double HeightAt(Vector3D direction)
     {
         double h = 0;
@@ -37,7 +51,7 @@ public sealed class SphereSurface : ISurface
     }
 
     /// <summary>Trilinear value noise in [0, 1) with smoothstep weights, on the integer lattice.</summary>
-    internal static double ValueNoise(Vector3D p, ulong seed)
+    public static double ValueNoise(Vector3D p, ulong seed)
     {
         double fx = Math.Floor(p.X), fy = Math.Floor(p.Y), fz = Math.Floor(p.Z);
         long ix = (long)fx, iy = (long)fy, iz = (long)fz;
