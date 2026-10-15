@@ -16,7 +16,7 @@ public static class WalkingWorldTests
 {
     // Pins heights, water and biomes at fixed points of the first world's walking-scale ground. A change to the
     // generator or its table moves this: decide on purpose, then update it (and say so in the commit).
-    private const ulong WalkingGolden = 0xD485AA1EEFD10062UL;
+    private const ulong WalkingGolden = 0x9992D00861B4D96DUL;
 
     /// <summary>The first world's game radius (ZoneSpec.FirstWorldRadius).</summary>
     private const double Radius = 2410;

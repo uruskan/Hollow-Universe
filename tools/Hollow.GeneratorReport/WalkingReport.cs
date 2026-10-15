@@ -38,6 +38,7 @@ public static class WalkingReport
             case "relief":
             case "biomes":
             case "rivers":
+            case "provinces":
                 Map(world, command, Arg(2, Path.Combine(Folder, $"world_{command}.png")), (int)Num(3, 2048));
                 return 0;
             case "globe":
@@ -95,40 +96,48 @@ public static class WalkingReport
 
     private static void Stats(WalkingWorld world)
     {
-        // Speed: one thread, points spread over the land.
+        // Speed: one thread, warmed up first (the JIT optimises after a while), the best of three runs.
         Vector3D[] points = PlanetSurface.FibonacciSphere(40_000);
-        double sink = 0;
-        var watch = Stopwatch.StartNew();
-        foreach (Vector3D d in points)
-        {
-            sink += world.HeightAt(d);
-        }
-        double perHeight = watch.Elapsed.TotalMilliseconds * 1000 / points.Length;
-        watch.Restart();
         var standIn = new StandInWorld(world.Radius, 1);
-        foreach (Vector3D d in points)
-        {
-            sink += standIn.HeightAt(d);
-        }
-        double standInPerHeight = watch.Elapsed.TotalMilliseconds * 1000 / points.Length;
-        // A physics tile (level 6, about 59 m, 64 cells and a 2 m margin), as the server builds them.
         int tileLevel = TileKey.LevelFor(world.Radius, 64);
-        TileKey tile = TileKey.At(ZoneFrame.Direction(45 * DMath.DegToRad, -170 * DMath.DegToRad), tileLevel);
-        watch.Restart();
-        const int Tiles = 6;
-        for (int i = 0; i < Tiles; i++)
+        Vector3D woods = WoodedLand(world);
+        TileKey tile = TileKey.At(woods, tileLevel);
+        const int Tiles = 12;
+        double sink = 0;
+        double Heights(ISurface surface)
         {
-            sink += ((ISurface)world).GroundCollision(ZoneFrame.World, new TileKey(tile.Face, tile.Level, tile.X + i, tile.Y), 2).TriangleCount;
+            var watch = Stopwatch.StartNew();
+            foreach (Vector3D d in points)
+            {
+                sink += surface.HeightAt(d);
+            }
+            return watch.Elapsed.TotalMilliseconds * 1000 / points.Length;
         }
-        double perTile = watch.Elapsed.TotalMilliseconds / Tiles;
-        watch.Restart();
-        for (int i = 0; i < Tiles; i++)
+        double Collision(ISurface surface)
         {
-            sink += ((ISurface)standIn).GroundCollision(ZoneFrame.World, new TileKey(tile.Face, tile.Level, tile.X + i, tile.Y), 2).TriangleCount;
+            var watch = Stopwatch.StartNew();
+            for (int i = 0; i < Tiles; i++)
+            {
+                sink += surface.GroundCollision(ZoneFrame.World, new TileKey(tile.Face, tile.Level, (tile.X + i) % (1 << tile.Level), tile.Y), 2).TriangleCount;
+            }
+            return watch.Elapsed.TotalMilliseconds / Tiles;
         }
-        double standInTile = watch.Elapsed.TotalMilliseconds / Tiles;
+        double perHeight = double.MaxValue, standInPerHeight = double.MaxValue, perTile = double.MaxValue, standInTile = double.MaxValue;
+        for (int run = 0; run < 4; run++)
+        {
+            double a = Heights(world), b = Heights(standIn), c = Collision(world), e = Collision(standIn);
+            if (run == 0)
+            {
+                continue; // warming up
+            }
+            perHeight = Math.Min(perHeight, a);
+            standInPerHeight = Math.Min(standInPerHeight, b);
+            perTile = Math.Min(perTile, c);
+            standInTile = Math.Min(standInTile, e);
+        }
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"speed: {perHeight:0.00} µs a height (stand-in {standInPerHeight:0.00}); physics tile (level {tileLevel}) {perTile:0.0} ms (stand-in {standInTile:0.0}) [{sink:0}]"));
+            $"speed: {perHeight:0.00} µs a height (stand-in {standInPerHeight:0.00}); physics tile (level {tileLevel}, {TileKey.EdgeLength(tileLevel, world.Radius):0} m) {perTile:0.0} ms (stand-in {standInTile:0.0}) [{sink:0}]"));
+        var stopwatch = Stopwatch.StartNew();
 
         // Cover, heights and relief, by area (evenly spread points).
         int land = 0, water = 0;
@@ -213,15 +222,30 @@ public static class WalkingReport
             $"lakes: {lakes.Length}, {lakes.Sum(l => l.Area) / 1e6:0.00} km²; largest {(lakes.Length > 0 ? lakes[0].Area / 1e4 : 0):0.0} ha, {(lakes.Length > 0 ? lakes[0].MaxDepth : 0):0.0} m deep; {lakes.Count(l => l.Area >= 10_000)} of a hectare or more"));
 
         // Scatter: a tile at the landing latitude.
-        TileKey scatter = TileKey.At(ZoneFrame.Direction(45 * DMath.DegToRad, -170 * DMath.DegToRad), world.ScatterPlan.Level);
+        TileKey scatter = TileKey.At(woods, world.ScatterPlan.Level);
+        Stopwatch watch = stopwatch;
         watch.Restart();
         int items = 0;
         for (int i = 0; i < 4; i++)
         {
-            items += world.ScatterFor(new TileKey(scatter.Face, scatter.Level, scatter.X + i, scatter.Y)).Count;
+            items += world.ScatterFor(new TileKey(scatter.Face, scatter.Level, (scatter.X + i) % (1 << scatter.Level), scatter.Y)).Count;
         }
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"scatter: level {world.ScatterPlan.Level} ({TileKey.EdgeLength(world.ScatterPlan.Level, world.Radius):0} m), {watch.Elapsed.TotalMilliseconds / 4:0.0} ms and {items / 4} objects a tile"));
+    }
+
+    // A point on wooded land in the temperate belt, for measuring tiles where there is something to build.
+    private static Vector3D WoodedLand(WalkingWorld world)
+    {
+        foreach (Vector3D d in PlanetSurface.FibonacciSphere(4000))
+        {
+            double latitude = Math.Asin(d.Y) * 180 / Math.PI;
+            if (latitude > 35 && latitude < 55 && world.HeightAt(d) > 8 && world.ForestCover(d, world.Fields(d)) > 0.5)
+            {
+                return d;
+            }
+        }
+        return Vector3D.UnitY;
     }
 
     // ---------------------------------------------------------------- whole-world maps (Mollweide, equal area)
@@ -301,11 +325,12 @@ public static class WalkingReport
         {
             "relief" => Hypsometric(s.Height),
             "rivers" => s.Height < 0 ? (60, 78, 96) : (226, 222, 214),
+            "provinces" => s.Height < 0 ? (60, 78, 96) : ReliefColour(s),
             _ => BiomeColour(world, d, s, biomes),
         };
-        if (s.Wetted && s.Height >= 0 || s.Height < 0 && kind != "rivers")
+        if (s.Wetted && s.Height >= 0 || s.Height < 0 && kind is not ("rivers" or "provinces"))
         {
-            (r, g, b) = Water(s.Water - s.Height, kind == "rivers");
+            (r, g, b) = Water(s.Water - s.Height, kind is "rivers" or "provinces");
         }
         double light = Light(world, d, step);
         if (s.Height < 0)
@@ -341,6 +366,21 @@ public static class WalkingReport
         double n = Math.Max(0, ny * S + up * S);
         double lambert = 0.5 * nw + 0.25 * w + 0.25 * n;
         return Math.Clamp(0.42 + 0.78 * lambert / 0.7071, 0.4, 1.25);
+    }
+
+    // Plains pale green, hills green, tablelands ochre, mountains grey-violet, mixed by their weights.
+    private static (double, double, double) ReliefColour(in WalkingSample s)
+    {
+        (double R, double G, double B)[] c = { (190, 214, 150), (110, 168, 96), (212, 160, 92), (150, 130, 160) };
+        double[] w = { s.Plains, s.Hills, s.Tableland, s.Mountains };
+        double r = 0, g = 0, b = 0;
+        for (int i = 0; i < 4; i++)
+        {
+            r += w[i] * c[i].R;
+            g += w[i] * c[i].G;
+            b += w[i] * c[i].B;
+        }
+        return (r, g, b);
     }
 
     private static (double, double, double) Water(double depth, bool plain)
@@ -816,7 +856,7 @@ public static class WalkingReport
         spots.Add(new Spot("beach", la, lo, 700, "a sandy shore"));
 
         // Tableland cliffs: the steepest drop between neighbouring tableland cells.
-        int mesa = Enumerable.Range(0, count).Where(i => fields[i].Tableland > 0.85 && !fields[i].Wetted)
+        int mesa = Enumerable.Range(0, count).Where(i => fields[i].Tableland > 0.85 && !fields[i].Wetted && fields[i].Continent > 0.18)
             .MaxBy(i => Drop(grid, fields, i));
         (la, lo) = Ll(grid.CellCentre(mesa));
         spots.Add(new Spot("tableland", la, lo, 800, string.Create(CultureInfo.InvariantCulture, $"terraces and cliffs, a {Drop(grid, fields, mesa):0} m drop")));
@@ -835,6 +875,18 @@ public static class WalkingReport
             .MaxBy(i => Temperate(grid.CellCentre(i)) + 0.2 * fields[i].Continent);
         (la, lo) = Ll(grid.CellCentre(plain));
         spots.Add(new Spot("plain", la, lo, 800, "open plains"));
+
+        // A landing site: a temperate meadow 5–25 m above the sea at a forest's edge, near the coast and a stream.
+        int landing = Enumerable.Range(0, count).Where(i => !fields[i].Wetted && fields[i].Height > 5 && fields[i].Height < 25
+                && fields[i].Continent < 0.12 && fields[i].Mountains < 0.2 && Temperate(grid.CellCentre(i)) > 0.6)
+            .MaxBy(i =>
+            {
+                double cover = world.ForestCover(grid.CellCentre(i), fields[i]);
+                return Temperate(grid.CellCentre(i)) + (1 - Math.Abs(cover - 0.35) * 2) + fields[i].Wet;
+            });
+        (la, lo) = Ll(grid.CellCentre(landing));
+        spots.Add(new Spot("landing", la, lo, 800, string.Create(CultureInfo.InvariantCulture,
+            $"a landing site: a meadow {fields[landing].Height:0} m above the sea at a forest edge")));
 
         // Hills with woods and clearings.
         int hills = Enumerable.Range(0, count).Where(i => fields[i].Hills > 0.9 && !fields[i].Wetted)
@@ -859,16 +911,20 @@ public static class WalkingReport
         return false;
     }
 
+    // The largest drop from a cell to the ground one and two cells away.
     private static double Drop(Drainage grid, WalkingSample[] fields, int cell)
     {
         Vector3D d = grid.CellCentre(cell);
         double step = TileKey.EdgeLength(grid.Level, 1);
         Vector3D east = Vector3D.Cross(Vector3D.UnitY, d).Normalized, north = Vector3D.Cross(d, east);
         double drop = 0;
-        foreach ((double a, double b) in new[] { (1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0) })
+        foreach ((double a, double b) in new[] { (1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0), (2.0, 0.0), (-2.0, 0.0), (0.0, 2.0), (0.0, -2.0) })
         {
             int j = grid.CellAt((d + east * (a * step) + north * (b * step)).Normalized);
-            drop = Math.Max(drop, fields[cell].Height - fields[j].Height);
+            if (!fields[j].Wetted)
+            {
+                drop = Math.Max(drop, fields[cell].Height - fields[j].Height);
+            }
         }
         return drop;
     }
@@ -928,6 +984,7 @@ public static class WalkingReport
         Map(world, "relief", Path.Combine(folder, "world_relief.png"), 2048);
         Map(world, "biomes", Path.Combine(folder, "world_biomes.png"), 2048);
         Map(world, "rivers", Path.Combine(folder, "world_rivers.png"), 2048);
+        Map(world, "provinces", Path.Combine(folder, "world_provinces.png"), 2048);
         Globe(world, Path.Combine(folder, "world_globe.png"), 700);
         Compare(world, Path.Combine(folder, "compare_standin.png"), 1536);
         Closeups(world, folder);

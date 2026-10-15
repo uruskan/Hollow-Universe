@@ -76,12 +76,12 @@ public sealed record WalkingParameters
     /// Tablelands: the plateau's height above the lowland around it and the mesas' on top of it. Each rise is an
     /// escarpment: a cliff over a talus slope. Their canyons are cut by the drainage (§4).
     /// </summary>
-    public double PlateauHeight { get; init; } = 38;
+    public double PlateauHeight { get; init; } = 52;
 
-    public double MesaHeight { get; init; } = 24;
+    public double MesaHeight { get; init; } = 30;
 
     /// <summary>How much of an escarpment is cliff (the rest is the talus below it).</summary>
-    public double CliffShare { get; init; } = 0.7;
+    public double CliffShare { get; init; } = 0.75;
 
     /// <summary>Mountains: the highest peaks' height and the ridges' wavelength.</summary>
     public double MountainHeight { get; init; } = 400;
