@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://c7qetsr60xpf0"
-path.s3tc="res://.godot/imported/T_IW_PBR_Steel_BaseColor_2K.png-12f033016bb9098708beb3cafa9b3739.s3tc.ctex"
+uid="uid://cnkaqke35rbny"
+path.s3tc="res://.godot/imported/T_IW_PaintChipped_ORM_2K.png-94ff87c0c139873c6c9787155a512b0d.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://assets/textures/iron_wake/T_IW_PBR_Steel_BaseColor_2K.png"
-dest_files=["res://.godot/imported/T_IW_PBR_Steel_BaseColor_2K.png-12f033016bb9098708beb3cafa9b3739.s3tc.ctex"]
+source_file="res://assets/textures/iron_wake/T_IW_PaintChipped_ORM_2K.png"
+dest_files=["res://.godot/imported/T_IW_PaintChipped_ORM_2K.png-94ff87c0c139873c6c9787155a512b0d.s3tc.ctex"]
 
 [params]
 

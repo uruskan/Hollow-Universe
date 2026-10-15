@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://0d8rjeoa2vom"
-path.s3tc="res://.godot/imported/T_IW_PBR_Tread_NormalGL_2K.png-64d515fccbcaa84b057f948a0b53f1d0.s3tc.ctex"
+uid="uid://befvurlhtqleq"
+path.s3tc="res://.godot/imported/T_IW_Gunmetal_NormalGL_2K.png-a7ebb1febfe5911eb430882d450ffd25.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://assets/textures/iron_wake/T_IW_PBR_Tread_NormalGL_2K.png"
-dest_files=["res://.godot/imported/T_IW_PBR_Tread_NormalGL_2K.png-64d515fccbcaa84b057f948a0b53f1d0.s3tc.ctex"]
+source_file="res://assets/textures/iron_wake/T_IW_Gunmetal_NormalGL_2K.png"
+dest_files=["res://.godot/imported/T_IW_Gunmetal_NormalGL_2K.png-a7ebb1febfe5911eb430882d450ffd25.s3tc.ctex"]
 
 [params]
 

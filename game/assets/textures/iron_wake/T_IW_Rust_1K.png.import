@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://l2f6fu8jtn00"
-path.s3tc="res://.godot/imported/T_IW_PBR_Deck_ORM_2K.png-1dfa799522a6134f20bf1531fa6da1c0.s3tc.ctex"
+uid="uid://tofekce6cnag"
+path.s3tc="res://.godot/imported/T_IW_Rust_1K.png-e5fe96b03514eaeb3b56e95c316fc273.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://assets/textures/iron_wake/T_IW_PBR_Deck_ORM_2K.png"
-dest_files=["res://.godot/imported/T_IW_PBR_Deck_ORM_2K.png-1dfa799522a6134f20bf1531fa6da1c0.s3tc.ctex"]
+source_file="res://assets/textures/iron_wake/T_IW_Rust_1K.png"
+dest_files=["res://.godot/imported/T_IW_Rust_1K.png-e5fe96b03514eaeb3b56e95c316fc273.s3tc.ctex"]
 
 [params]
 

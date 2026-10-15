@@ -14,22 +14,26 @@ Why it is built this way (IRON_WAKE.md §9.5):
   no room behind a breech for a rammer, and nothing of a breech can be seen. So each battery feeds through its
   trunnion, as naval turrets do (the round turns to the gun's elevation on the trunnion axis, so any elevation works),
   and the breech is brought out where it can be seen.
+- What the owner asked of it (15 October 2026): every barrel is whole and runs into a closed breech that is part of the
+  gun; the round goes into the barrel's own chamber; nothing is hollow, floating or open behind a barrel; the round
+  never crosses empty space. So a breech is shut whenever nothing is going into it, a port is gated whenever nothing
+  passes through it, and a round is always carried: by its rack, a tray, a clip or the chamber itself.
 - Siege: a ready rack of three rounds per barrel stands in the open cockpit beside the gunner, a fourth waiting in its
-  hood; a two-stage feed rammer drives the lowest round forward into a port in the gun house; inside, the transfer
-  cradle on the trunnion axis swings it to the barrel's line; a chain rammer drives it out of the receiver's ram port,
-  across the breech (exposed between the receiver and the shortened barrel sleeve) into the chamber; a sliding wedge
-  breech block closes it. The barrel's hidden rear end is moved up to the new chamber mouth.
+  hood; a two-stage feed rammer drives the lowest round forward through the gated feed port into the gun house;
+  inside, the transfer cradle on the trunnion axis swings it to the barrel's line. On the barrel's rear end sits a
+  breech ring with a sliding wedge block; between the receiver's face and the ring is the recoil space, over a cradle
+  trough. A spanning tray (the naval turret's part for this gap) slides out of the gated ram port and across the gap to
+  the chamber's mouth, and the chain rammer drives the round along the tray into the chamber. The barrel's hidden rear
+  end is moved up to the chamber mouth and its sleeve cut back.
 - The 48 cm bore takes the 9 cm rocket in a launch carrier: a discarding sabot of three steel petals on a pusher base
   (one per round, a part of the mechanism); the muzzle's 48 cm hollow bore stays as it is.
-- Defense: the 10.4 cm tubes take the rockets bare, three to a cassette. The cassette sits in an open bay between the
-  receiver and a breech face plate, on a chain conveyor; two latches on pins hold it against the breech face. A feed
-  hood on the mount's outboard flank, a closed box, holds the next filled cassette above its slot (brought up from the
-  mount's base through the trunnion) and lowers it to the slot; the conveyor carries it into the bay and the spent one
-  out through the slot of the spent bin, the hood's twin on the inboard flank, whose lift stows it above the slot. Every
-  cassette appears and disappears inside a box. The tubes' hidden rear ends move up behind a guide yoke, and their
-  sleeves give way to the bay.
-- The ports into the gun house and the receiver are short, with black back walls: a round passing into them passes
-  into darkness, and the space behind them stays free for what turns inside.
+- Defense: the rockets' fins stand 7 cm from their axis, wider than the 10.4 cm bore. So each tube begins with a
+  chamber section 15 cm across, its fins' room (they fold as the rocket leaves it at the shot), under a breech collar
+  with a hinged cap; the asset's tubes are trimmed to begin at the chamber's front. The next clip of three rockets waits
+  in the feed hood, a closed box on the mount's outboard flank; it comes down to the slot, across the loading well and
+  up against the collars, and three ram rods out of the receiver's face push the rockets out of the clip into the
+  chambers. The empty clip goes on into the spent bin, the hood's twin on the inboard flank, whose lift stows it; the
+  caps shut. Every clip appears and disappears inside a box.
 """
 import json
 import math
@@ -59,9 +63,18 @@ SIEGE = {
     "rack_front": -1.27,            # the rack's rounds' front faces; the gun house's rear face is at -1.223
     "rack_y0": -0.04, "pitch": 0.50,  # the delivery slot axis height (above the grips, seen from the seat), the spacing
     "feed": 1.22,                   # the feed rammer's stroke: the round ends inside the gun house
-    "port_r": 0.27,                 # the feed and ram ports' radius
+    "port_r": 0.27,                 # the feed port's radius
     "feed_port": (-1.40, -1.00),    # the feed port in the gun house: (outside, back wall)
-    "ram_port": (1.32, 1.05),       # the ram port in the receiver: (outside, back wall)
+    "feed_gate": (-1.205, -1.186),  # its gate, in the port just behind the face, sliding inboard into the wall
+    "gate_travel": 0.64,            # how far the gates slide
+    "ram_port_r": 0.29,             # the ram port's radius: the spanning tray passes it
+    "ram_port": (1.32, 0.68),       # the ram port in the receiver: (outside, back wall)
+    "gate": (1.232, 1.253),         # its gate, in the port just behind the collar, sliding inboard into the receiver
+    "collar": (1.256, 1.29),        # the ram port's collar, set into the receiver's face (z 1.27)
+    "tray": (0.70, 1.22),           # the spanning tray stowed in the ram port, rear to front
+    "tray_out": 0.56,               # how far it runs out: its lip then rests on the breech ring's rear face
+    "tray_r": (0.252, 0.274),       # its trough's inner and outer radius (the round's driving band is 0.2425)
+    "trough": (1.27, 2.37),         # the cradle trough under the recoil space
     "ram_rest": 0.0,                # the ram carrier's base at rest, inside the receiver, at the transfer cradle
     "mouth": 2.05,                  # the chamber mouth, where the barrel's rear end is moved
     "ring": (1.78, 2.35),           # the breech ring
@@ -76,23 +89,29 @@ SOCKET_DZ, SOCKET_DY = 0.38, -0.0505  # a rocket model's origin: 0.38 ahead of a
 
 # The defense mount: three tubes at x -0.2752, 0, 0.2752 on y 0; o is the side of the feed hood (the station's side).
 DEFENSE = {
-    "L": 0.73, "W": 0.40, "H": 0.085,   # a cassette: length, half width, half height
-    "z0": 0.512,                        # its rear face in the bay before it seats (the receiver's face is at 0.507)
-    "seat": 0.015,                      # it closes up against the breech face by this much
-    "socket": 0.368,                    # the rockets' model origin from the cassette's rear face
-    "lugs": (0.082, 0.096),             # the latches' lugs from the cassette's rear and front faces
-    "latch": (0.535, 1.235),            # the latches' pins
-    "plate": (1.26, 1.29),              # the breech face plate
+    "L": 0.78, "W": 0.40, "H": 0.085,   # a clip: length, half width, half height (the HV rocket is 0.73 with its fuze)
+    "z0": 0.512,                        # its rear face in the loading well (the receiver's face is at 0.507)
+    "dock": 0.015,                      # it closes up against the collars by this much
+    "socket": 0.39,                     # the rockets' model origin from the clip's rear face (an HV rocket's tail 0.045)
+    "ring_r": 0.076,                    # the clip's rings and the chambers: the fins reach 0.070 from the axis
     "face": 0.507,                      # the receiver's front face
+    "collar": (1.307, 1.39, 0.098),     # the breech collars: rear face (the docked clip's front), front, radius
+    "chamber": (2.03, 2.08, 0.090),     # the chamber's cone (bore 0.075 down to the tube's 0.0516), its outer radius
+    "cut": 2.08,                        # the asset's tubes begin here: their hidden rear is trimmed away
+    "coupling": (2.08, 2.15, 0.0655),   # the coupling over the tube's start: from, to, inner radius (the tube's 0.065)
+    "pivot": (0.135, 1.296),            # the caps' hinge (y, z) above each collar's rear face
+    "cap": (0.092, 0.022, 100.0),       # a cap's radius, thickness and how far it swings up (degrees about +X)
+    "ram": 0.82,                        # the ram rods' stroke: an HV rocket's tail ends 0.023 inside its chamber
+    "push": 0.770,                      # how far the rockets go (from the docked clip): the cups meet the charges 0.05 out
     "receiver": (0.79, 0.305),          # it covers the boxes' rear inboard of this x and below this y
-    "tube_rear": 1.50,                  # where the tubes' hidden rear ends are moved
-    "yoke": (1.58, 1.68),               # the tubes' guide yoke
-    "shuttle": 0.885,                   # the conveyor's stroke: hood to bay, bay to bin
-    "lift": 0.195,                      # the filled cassette waits this far above the slot in the hood, and is lowered
-    "stow": 0.195,                      # the bin's lift stows the spent one as far above the slot
-    "window": (-0.095, 0.095),          # the hood's and the bin's slots at the bay's level
-    "box_x": (0.425, 1.40), "box_y": (-0.125, 0.33), "box_z": (0.488, 1.27),   # the hood and the bin, closed boxes
+    "yoke": (1.50, 1.62),               # the tubes' guide yoke, round the chamber sections
+    "shuttle": 0.885,                   # the conveyor's stroke: hood to well, well to bin
+    "lift": 0.195,                      # the clip waits this far above the slot in the hood; the bin's lift stows it so
+    "window": (-0.095, 0.095),          # the hood's and the bin's slots at the well's level
+    "box_x": (0.425, 1.40), "box_y": (-0.125, 0.33), "box_z": (0.488, 1.32),   # the hood and the bin, closed boxes
     "chamfer": 0.10,                    # their outboard top edges, out of the gunner's view at full depression
+    "floor": (-0.183, -0.1775),         # the loading well's floor plates: the tubes' recoil cylinders rest on them
+    "rails": (-0.105, -0.088),          # the conveyor's rails the clip rides on
 }
 TUBES = (-0.2752, 0.0, 0.2752)
 
@@ -289,12 +308,16 @@ class Kit:
             bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-5)
         bm.normal_update()
         uv = bm.loops.layers.uv.new("UV0_Material")
+        # The asset's UV0 holds each finish's own metres per unit (its repeat baked in): the same here.
+        per = getattr(self.ctx, "uv_metres", {}) or {}
+        scale = [per.get(f"M_IronWake_{f}", 1.0) for f in self.mats]
         for f in bm.faces:
             nr = f.normal
             a = max(range(3), key=lambda i: abs(nr[i]))
             iu, iv = ((2, 1), (0, 2), (0, 1))[a]
+            k = scale[f.material_index] if f.material_index < len(scale) else 1.0
             for lp in f.loops:
-                lp[uv].uv = (lp.vert.co[iu], lp.vert.co[iv])
+                lp[uv].uv = (lp.vert.co[iu] / k, lp.vert.co[iv] / k)
         me = bpy.data.meshes.new(name)
         bm.to_mesh(me)
         bm.free()
@@ -650,17 +673,17 @@ def siege(ctx, B, st):
                     and hi.z - lo.z > 1.5,
                     lambda kit, x=x: port_cutter(kit, x, S["rack_y0"], *S["feed_port"], S["port_r"]), f"feed{k}")
             log(f"{st.id}: feed port {k} in {o.name}: {n}")
-        # The receiver: the ram port on the bore line.
+        # The receiver: the ram port on the bore line, deep enough to stow the spanning tray.
         for o in st.lods(pitch_g):
             n = cut(ctx, st, o, lambda lo, hi, f: "Gunmetal" in f and inside(lo, hi, (-1.95, -0.62, -0.35), (1.95, 0.78, 1.26)),
-                    lambda kit, x=x: port_cutter(kit, x, 0.0, *S["ram_port"], S["port_r"]), f"ram{k}")
+                    lambda kit, x=x: port_cutter(kit, x, 0.0, *S["ram_port"], S["ram_port_r"]), f"ram{k}")
             log(f"{st.id}: ram port {k} in {o.name}: {n}")
             # The barrel's sleeve keeps only its front, in front of the breech.
             n = cut(ctx, st, o, lambda lo, hi, f, x=x: "DarkSteel" in f and hi.z - lo.z > 2.5 and abs((lo.x + hi.x) / 2 - x) < 0.06,
                     lambda kit, x=x: kit.box((x - 0.95, -0.95, 0.4), (x + 0.95, 0.95, S["sleeve_cut"]), "DarkSteel"),
                     f"sleeve{k}")
             log(f"{st.id}: sleeve {k} in {o.name}: {n}")
-    # The barrels' hidden rear ends move up to the chamber mouth.
+    # The barrels' hidden rear ends move up to the chamber mouth: each barrel stays whole, from the breech ring on.
     for k, (bx, rec) in enumerate(zip(st.barrels, st.st["recoil_nodes"])):
         for o in st.lods(rec):
             n = move_rear(st, o, bx, 0.01, lambda dx, bx=bx: S["mouth"] - bx.z)
@@ -808,6 +831,23 @@ def siege_barrel(ctx, B, st, k, bx, recoil):
     names[fa.name] = fa
     names[fb.name] = fb
 
+    # ---- the feed port's gate (moving, on the gun house): in the port just behind the face, sliding inboard into the
+    # wall to let the round through, shut again behind the rammer
+    gz0, gz1 = S["feed_gate"]
+    fg = B.node(st, f"{sid}_FeedGate_{kk}", (x, y0, gz0), st.yaw)
+
+    def feed_gate(kit):
+        h = S["port_r"] + 0.05
+        kit.box((x - h, y0 - h, gz0), (x + h, y0 + h, gz1), "Gunmetal", 0.006)
+        # Its face toward the gunner: two stiffeners across the port and the hazard band at its leading edge.
+        for dy in (-0.12, 0.12):
+            kit.box((x - h + 0.04, y0 + dy - 0.016, gz0 - 0.012), (x + h - 0.04, y0 + dy + 0.016, gz0), "Gunmetal",
+                    0.004)
+        lead = x - s * h                           # it slides inboard: its inboard edge leads
+        kit.box((lead, y0 - h + 0.03, gz0 - 0.004), (lead + s * 0.05, y0 + h - 0.03, gz0), "WarningYellow", 0.002)
+    B.mesh(st, fg.name, feed_gate, fg)
+    names[fg.name] = fg
+
     # ---- the chain rammer and the round it rams (moving, on the receiver)
     zr = S["ram_rest"]
     rm = B.node(st, f"{sid}_Rammer_{kk}", (x, 0.0, zr), st.pitch)
@@ -838,14 +878,80 @@ def siege_barrel(ctx, B, st, k, bx, recoil):
     names[rm.name] = rm
     names[rc.name] = rc
 
-    # ---- the ram port's collar on the receiver (static, pitch)
+    # ---- the ram port's collar on the receiver (static, pitch), set into its face
+    c0, c1 = S["collar"]
+    pr = S["ram_port_r"]
+
     def collar(kit):
-        kit.pipe((x, 0.0, 1.225), (x, 0.0, 1.268), S["port_r"] - 0.004, S["port_r"] + 0.06, "BrushedSteel", 40)
+        kit.pipe((x, 0.0, c0), (x, 0.0, c1), pr - 0.004, pr + 0.06, "BrushedSteel", 40)
         for j in range(8):
             a = 2 * math.pi * (j + 0.5) / 8
-            kit.bolt((x + math.cos(a) * (S["port_r"] + 0.035), math.sin(a) * (S["port_r"] + 0.035), 1.268), (0, 0, 1),
-                     r=0.012, h=0.008)
+            kit.bolt((x + math.cos(a) * (pr + 0.035), math.sin(a) * (pr + 0.035), c1), (0, 0, 1), r=0.012, h=0.008)
     B.mesh(st, f"{sid}_RamPortCollar_{kk}", collar, st.pitch)
+
+    # ---- the ram port's gate (moving, on the receiver): behind the collar, sliding inboard into the receiver
+    rg0, rg1 = S["gate"]
+    gt = B.node(st, f"{sid}_Gate_{kk}", (x, 0.0, rg0), st.pitch)
+
+    def gate(kit):
+        h = pr + 0.05
+        kit.box((x - h, -h, rg0), (x + h, h, rg1), "Gunmetal", 0.006)
+        # Hazard stripes across the face the port shows (flush: it slides past the collar).
+        for dy in (-0.16, -0.05, 0.06, 0.17):
+            kit.box((x - 0.22, dy - 0.022, rg1 - 0.0005), (x + 0.22, dy + 0.022, rg1 + 0.0012), "WarningYellow")
+    B.mesh(st, gt.name, gate, gt)
+    names[gt.name] = gt
+
+    # ---- the spanning tray (moving, on the receiver): stowed in the ram port, it runs out across the recoil space
+    # to the breech ring's rear face, so the round is carried all the way into the chamber
+    t0, t1 = S["tray"]
+    ri, ro = S["tray_r"]
+    tr = B.node(st, f"{sid}_Tray_{kk}", (x, 0.0, t0), st.pitch)
+
+    def tray(kit):
+        d = kit.d
+        n = (40, 24, 12)[d]
+        arc = (math.radians(115), math.radians(245))
+        kit.lathe((x, 0.0, t0), (0, 0, 1), [(0, ri), (0, ro), (t1 - t0, ro), (t1 - t0, ri)], "BrushedSteel", n,
+                  closed=True, arc=arc)
+        # Its edge rails, a keel rib under it, the lip at its front that lands on the breech ring.
+        for sx in (-1, 1):
+            ex, ey = x + sx * math.sin(math.radians(115)) * (ri + 0.011), math.cos(math.radians(115)) * (ri + 0.011)
+            kit.box((ex - 0.013, ey - 0.006, t0), (ex + 0.013, ey + 0.016, t1), "Gunmetal", 0.003)
+        kit.box((x - 0.03, -0.282, t0 + 0.02), (x + 0.03, -ro + 0.004, t1 - 0.02), "Gunmetal", 0.004)
+        kit.lathe((x, 0.0, t1 - 0.018), (0, 0, 1), [(0, ri - 0.004), (0, ro + 0.012), (0.018, ro + 0.012), (0.018, ri - 0.004)],
+                  "Gunmetal", n, closed=True, arc=arc)
+        # Its crosshead behind, where the actuator's rod takes it (inside the receiver).
+        kit.box((x - 0.05, -0.282, t0 - 0.06), (x + 0.05, -0.255, t0 + 0.02), "DarkSteel", 0.004)
+        kit.cyl((x, -0.262, t0 - 0.45), (x, -0.262, t0 - 0.06), 0.017, "BrushedSteel", 12)
+    B.mesh(st, tr.name, tray, tr)
+    names[tr.name] = tr
+
+    # ---- the cradle trough under the recoil space (static, pitch): the breech rides over it on its slide rails
+    ta, tb = S["trough"]
+
+    def cradle(kit):
+        d = kit.d
+        wx, fy0, fy1, top = 0.56, -0.60, -0.575, -0.43
+        kit.box((x - wx, fy0, ta), (x + wx, fy1, tb), "DarkSteel", 0.008)
+        for sx in (-1, 1):
+            kit.box((x + sx * wx - (0.032 if sx > 0 else 0.0), fy0, ta), (x + sx * wx + (0.0 if sx > 0 else 0.032), top, tb),
+                    "DarkSteel", 0.008)
+        # The slide rails the breech ring rides on (its underside is 0.53 under the axis) and their wipers.
+        for rx in (-0.30, 0.30):
+            kit.box((x + rx - 0.035, fy1, ta + 0.03), (x + rx + 0.035, -0.542, tb - 0.03), "BrushedSteel", 0.004)
+        # Ribs under the floor and gussets outside the walls.
+        for zc in np.linspace(ta + 0.12, tb - 0.12, 5):
+            kit.box((x - wx, fy0 - 0.045, zc - 0.02), (x + wx, fy0, zc + 0.02), "DarkSteel", 0.004)
+            for sx in (-1, 1):
+                gx = x + sx * wx
+                kit.prism([(0.0, 0.0), (0.06, 0.0), (0.0, 0.12)] if sx > 0 else [(0.0, 0.0), (0.0, 0.12), (-0.06, 0.0)],
+                          (gx, fy0, zc - 0.012), Vector((1, 0, 0)), Vector((0, 1, 0)), 0.024, "DarkSteel", 0.002)
+        if d == 0:
+            for zc in np.linspace(ta + 0.08, tb - 0.08, 6):
+                for sx in (-1, 1):
+                    kit.bolt((x + sx * (wx - 0.016), top, zc), (0, 1, 0), r=0.012, h=0.008)
+    B.mesh(st, f"{sid}_Cradle_{kk}", cradle, st.pitch)
 
     # ---- the breech ring (a node of its own on the barrel, never moving) and its sliding wedge block
     r0, r1 = S["ring"]
@@ -876,22 +982,23 @@ def siege_barrel(ctx, B, st, k, bx, recoil):
         kit.box((e0, hole, r0 + 0.02), (e1, 0.36, sz1 + 0.06), "DarkSteel", 0.006)
         kit.box((e0, -hole, r0 + 0.02), (e1, hole, zm - hole), "DarkSteel", 0.004)
         kit.box((e0, -hole, zm + hole), (e1, hole, sz1 + 0.06), "DarkSteel", 0.004)
-        c0, c1 = x + s * (hw + 0.47), x + s * (hw + 1.12)
+        c0_, c1_ = x + s * (hw + 0.47), x + s * (hw + 1.12)
         f1 = e1 + s * 0.025
         kit.box((e1, -0.09, zm - 0.09), (f1, -hole, zm + 0.09), "DarkSteel", 0.004)
         kit.box((e1, hole, zm - 0.09), (f1, 0.09, zm + 0.09), "DarkSteel", 0.004)
         kit.box((e1, -hole, zm - 0.09), (f1, hole, zm - hole), "DarkSteel", 0.003)
         kit.box((e1, -hole, zm + hole), (f1, hole, zm + 0.09), "DarkSteel", 0.003)
-        kit.pipe((c0, 0.0, zm), (c0 + s * 0.04, 0.0, zm), 0.034, 0.068, "BrushedSteel")
-        kit.pipe((c0, 0.0, zm), (c1, 0.0, zm), 0.034, 0.06, "DarkSteel")
-        kit.cyl((c1, 0.0, zm), (c1 + s * 0.03, 0.0, zm), 0.066, "BrushedSteel")
+        kit.pipe((c0_, 0.0, zm), (c0_ + s * 0.04, 0.0, zm), 0.034, 0.068, "BrushedSteel")
+        kit.pipe((c0_, 0.0, zm), (c1_, 0.0, zm), 0.034, 0.06, "DarkSteel")
+        kit.cyl((c1_, 0.0, zm), (c1_ + s * 0.03, 0.0, zm), 0.066, "BrushedSteel")
         for dy, dz in ((-0.065, -0.065), (-0.065, 0.065), (0.065, -0.065), (0.065, 0.065)):
             kit.bolt((e1 + s * 0.025, dy, zm + dz), (s, 0, 0), r=0.012, h=0.008)
-        # The machined chamber mouth and the forcing cone, seen when the block is open.
-        kit.lathe((x, 0.0, S["mouth"] - 0.004), (0, 0, 1), [(0, 0.46), (0.0, 0.244), (0.06, 0.243)], "BrushedSteel", 40)
+        # The machined chamber mouth and the forcing cone, seen when the block is open: a liner in the front block.
+        kit.lathe((x, 0.0, S["mouth"] - 0.004), (0, 0, 1), [(0, 0.2448), (0, 0.2505), (0.064, 0.2505), (0.064, 0.2448)],
+                  "BrushedSteel", 40, closed=True)
         if d < 2:
             # Its two hoses over the guide to the ring.
-            for dz, xc in ((-0.035, c0 + s * 0.06), (0.035, c1 - s * 0.05)):
+            for dz, xc in ((-0.035, c0_ + s * 0.06), (0.035, c1_ - s * 0.05)):
                 kit.tube([(xc, 0.055, zm + dz), (xc - s * 0.02, 0.25, zm + dz * 2), (x + s * 0.90, 0.40, zm + dz * 2),
                           (x + s * 0.525, 0.42, zm + dz * 2)], 0.012, "Rubber", 8)
         for zc in (r0 + 0.045, r1 - 0.045):
@@ -920,30 +1027,84 @@ def siege_barrel(ctx, B, st, k, bx, recoil):
 # ------------------------------------------------------------------------------------------------ defense mount
 
 
-def cassette(kit, x0, y0, z0):
-    """A defense cassette: a welded steel frame holding three rockets in open chambers, the latches' lugs on top near
-    both ends, lifting lugs on its sides."""
+def trim_rear(st, o, barrel, z_cut, keep=lambda lo, hi: False):
+    """Cuts a tube's hidden rear away up to `z_cut` (pitch frame): pieces wholly behind it go (but those `keep` names,
+    e.g. the recoil piston's lug under the tube), the pieces across it are cut there and closed with the cut's face.
+    Returns (pieces removed, pieces cut)."""
+    behind = []
+    removed = 0
+    for faces, lo, hi, _ in st.pieces(o, lambda lo, hi, f: True):
+        if hi.z <= z_cut + 0.002 and not keep(lo, hi):
+            behind += faces
+            removed += 1
+    delete_faces(o, sorted(behind))
+    across = [faces for faces, lo, hi, _ in st.pieces(o, lambda lo, hi, f: lo.z < z_cut < hi.z and not keep(lo, hi))]
+    if not across:
+        return removed, 0
+    bm = bmesh.new()
+    bm.from_mesh(o.data)
+    bm.faces.ensure_lookup_table()
+    inv = o.matrix_world.inverted()
+    co = inv @ st.native((barrel.x, barrel.y, z_cut))
+    no = (inv.to_3x3() @ (G2N @ Vector((0.0, 0.0, 1.0)))).normalized()
+    cut_n = 0
+    for faces in across:
+        fs = [bm.faces[i] for i in faces]
+        es = list({e for f in fs for e in f.edges})
+        vs = list({v for f in fs for v in f.verts})
+        res = bmesh.ops.bisect_plane(bm, geom=vs + es + fs, dist=1e-6, plane_co=co, plane_no=no, clear_inner=True)
+        edges = [e for e in res["geom_cut"] if isinstance(e, bmesh.types.BMEdge) and e.is_valid and len(e.link_faces) == 1]
+        if edges:
+            try:
+                bmesh.ops.bridge_loops(bm, edges=edges)
+            except RuntimeError:
+                bmesh.ops.holes_fill(bm, edges=edges)
+            cut_n += 1
+        bm.faces.ensure_lookup_table()
+    bm.to_mesh(o.data)
+    bm.free()
+    o.data.update()
+    return removed, cut_n
+
+
+def clip(kit, x0, y0, z0):
+    """A defense clip: a welded frame holding three rockets in ring chambers, open at its front so they can leave it,
+    its rear plate pierced for the ram rods, lifting lugs on its sides, a yellow band near its front."""
     D = DEFENSE
     L, W, H = D["L"], D["W"], D["H"]
+    rr = D["ring_r"]
     d = kit.d
     z1 = z0 + L
-    for za, zz in ((z0, z0 + 0.02), (z1 - 0.02, z1)):
-        kit.box((x0 - W, y0 - H, za), (x0 + W, y0 + H, zz), "DarkSteel", 0.006)
+    nr = (20, 14, 8)[d]
+    # The rear plate: a frame round three bosses the ram rods' cups pass through.
+    t = 0.02
+    kit.box((x0 - W, y0 - H, z0), (x0 + W, y0 - H + 0.025, z0 + t), "DarkSteel", 0.004)
+    kit.box((x0 - W, y0 + H - 0.025, z0), (x0 + W, y0 + H, z0 + t), "DarkSteel", 0.004)
+    for sx in (-1, 1):
+        kit.box((x0 + sx * W - (0.025 if sx > 0 else 0.0), y0 - H, z0), (x0 + sx * W + (0.0 if sx > 0 else 0.025), y0 + H, z0 + t),
+                "DarkSteel", 0.004)
+    for tx in TUBES:
+        kit.pipe((x0 + tx, y0, z0), (x0 + tx, y0, z0 + t), 0.047, 0.066, "DarkSteel", nr)
+    for a_, b_ in ((-0.2752, 0.0), (0.0, 0.2752)):
+        kit.box((x0 + a_ + 0.06, y0 - 0.012, z0), (x0 + b_ - 0.06, y0 + 0.012, z0 + t), "DarkSteel", 0.003)
+    # Rings along the length: the rockets lie in them, their fins clear.
+    for zc in (z0 + 0.20, z0 + 0.48, z1 - 0.012):
+        for tx in TUBES:
+            kit.pipe((x0 + tx, y0, zc - 0.012), (x0 + tx, y0, zc + 0.012), rr, rr + 0.009, "Gunmetal", nr)
+        for a_, b_ in ((-W, -0.2752), (-0.2752, 0.0), (0.0, 0.2752), (0.2752, W)):
+            lo_x = x0 + a_ + (0.0 if a_ == -W else rr + 0.004)
+            hi_x = x0 + b_ - (0.0 if b_ == W else rr + 0.004)
+            if hi_x - lo_x > 0.01:
+                kit.box((lo_x, y0 - 0.012, zc - 0.012), (hi_x, y0 + 0.012, zc + 0.012), "Gunmetal", 0.003)
+    # The rails along its top and bottom (it rides on the conveyor's), and the side plates' strips.
     for sx in (-1, 1):
         xa = x0 + sx * W
-        kit.box((xa, y0 - H, z0 + 0.02), (xa - sx * 0.02, y0 - H + 0.03, z1 - 0.02), "DarkSteel", 0.004)
-        kit.box((xa, y0 + H - 0.03, z0 + 0.02), (xa - sx * 0.02, y0 + H, z1 - 0.02), "DarkSteel", 0.004)
+        kit.box((xa, y0 - H, z0 + t), (xa - sx * 0.022, y0 - H + 0.03, z1), "DarkSteel", 0.004)
+        kit.box((xa, y0 + H - 0.03, z0 + t), (xa - sx * 0.022, y0 + H, z1), "DarkSteel", 0.004)
         kit.box((xa - sx * 0.005, y0 - 0.03, z0 + 0.30), (xa + sx * 0.012, y0 + 0.03, z0 + 0.43), "Gunmetal", 0.004)
     for xm in (-0.1376, 0.1376):
-        kit.box((x0 + xm - 0.01, y0 - H, z0 + 0.02), (x0 + xm + 0.01, y0 - H + 0.02, z1 - 0.02), "DarkSteel", 0.003)
-        kit.box((x0 + xm - 0.01, y0 + H - 0.02, z0 + 0.02), (x0 + xm + 0.01, y0 + H, z1 - 0.02), "DarkSteel", 0.003)
-    nr = (14, 10, 6)[d]
-    for tx in TUBES:
-        for zc, r in ((z0 + 0.06, 0.074), (z0 + 0.38, 0.06), (z1 - 0.05, 0.056)):
-            kit.pipe((x0 + tx, y0, zc - 0.012), (x0 + tx, y0, zc + 0.012), r, r + 0.008, "Gunmetal", nr)
-    # The lugs the latches' tips come down on (DEFENSE["lugs"] from each end).
-    for zc in (z0 + D["lugs"][0], z1 - D["lugs"][1]):
-        kit.box((x0 - 0.05, y0 + H, zc - 0.015), (x0 + 0.05, y0 + H + 0.012, zc + 0.015), "Gunmetal", 0.004)
+        kit.box((x0 + xm - 0.01, y0 - H, z0 + t), (x0 + xm + 0.01, y0 - H + 0.02, z1), "DarkSteel", 0.003)
+        kit.box((x0 + xm - 0.01, y0 + H - 0.02, z0 + t), (x0 + xm + 0.01, y0 + H, z1), "DarkSteel", 0.003)
     # A painted band across the top rails: which way up and which end goes forward.
     kit.box((x0 - W + 0.005, y0 + H, z1 - 0.13), (x0 + W - 0.005, y0 + H + 0.002, z1 - 0.115), "WarningYellow")
 
@@ -953,66 +1114,94 @@ def defense(ctx, B, st):
     log = ctx.log
     o = st.side if st.side != 0 else 1
     pitch_g = st.st["pitch"]
-    # The sleeves and their front collars give way to the bay and the yoke.
+    # The sleeves and their front collars give way to the loading well and the yoke.
     for ob in st.lods(pitch_g):
         n = remove(st, ob, lambda lo, hi, f: abs((lo.y + hi.y) / 2) < 0.03 and lo.z > 0.25 and hi.z < 1.50 and (
             ("DarkSteel" in f and hi.z - lo.z > 1.0) or ("BrushedSteel" in f and lo.z > 1.30 and hi.z < 1.40)))
         log(f"{st.id}: sleeves in {ob.name}: {n} removed")
-    # The tubes' hidden rear ends move up behind the breech face: their thick rear section kept, shorter.
+    # The tubes begin at their chamber sections' front: their hidden rear is trimmed away (the recoil piston's lug
+    # under each tube stays: it joins the tube to its cylinder).
     for k, (bx, rec) in enumerate(zip(st.barrels, st.st["recoil_nodes"])):
-        new = D["tube_rear"] - bx.z
         for ob in st.lods(rec):
-            n = move_rear(st, ob, bx, 1.0, lambda dx, new=new: new + dx * 0.057)
-            log(f"{st.id}: tube {k} rear in {ob.name}: {n} vertices")
+            n = trim_rear(st, ob, bx, D["cut"], keep=lambda lo, hi: (lo.y + hi.y) / 2 < -0.085)
+            log(f"{st.id}: tube {k} rear in {ob.name}: {n[0]} pieces removed, {n[1]} cut")
     sid = st.id
-    z0 = D["z0"]
-    zs = z0 + D["seat"]
-    L = D["L"]
+    z0, L = D["z0"], D["L"]
     xa, xb = D["box_x"]
     h0, h1 = D["box_y"]
     bz0, bz1 = D["box_z"]
-    p0, p1 = D["plate"]
     face = D["face"]
     rx, ry = D["receiver"]
+    zb, zf, rc = D["collar"]
+    rb = D["ring_r"]
 
+    # ---- each tube's chamber section, breech collar and coupling (static additions to the tube: they recoil with it)
+    for k, (tx, rec) in enumerate(zip(TUBES, st.recoils)):
+        def chamber(kit, tx=tx):
+            d = kit.d
+            nn = (32, 20, 12)[d]
+            c0, c1, ro = D["chamber"]
+            u0, u1, ui = D["coupling"]
+            # The chamber: 15 cm across for the rockets' fins, coning down to the tube's bore at its front.
+            kit.lathe((tx, 0.0, zb), (0, 0, 1), [(0, rb), (0, ro), (c1 - zb, ro), (c1 - zb, 0.0516), (c0 - zb, rb)],
+                      "Gunmetal", nn, closed=True)
+            # The breech collar at its rear: the cap seats on its face, its hinge lugs above.
+            kit.pipe((tx, 0.0, zb), (tx, 0.0, zf), rb, rc, "Gunmetal", nn)
+            kit.pipe((tx, 0.0, zb), (tx, 0.0, zb + 0.008), rb - 0.001, rb + 0.006, "BrushedSteel", nn)
+            py, pz = D["pivot"]
+            for sx in (-1, 1):
+                kit.box((tx + sx * 0.030 - 0.008, 0.094, zb - 0.023), (tx + sx * 0.030 + 0.008, py + 0.018, zb + 0.04),
+                        "Gunmetal", 0.003)
+            kit.cyl((tx - 0.042, py, pz), (tx + 0.042, py, pz), 0.0075, "BrushedSteel", 10)
+            # The coupling over the tube's start.
+            kit.pipe((tx, 0.0, u0), (tx, 0.0, u1), ui, ro + 0.004, "BrushedSteel", nn)
+            if d == 0:
+                for j in range(6):
+                    a = 2 * math.pi * (j + 0.5) / 6
+                    kit.bolt((tx + math.cos(a) * (rc - 0.004), math.sin(a) * (rc - 0.004), zf), (0, 0, 1), r=0.009, h=0.006)
+        B.mesh(st, f"{sid}_Chamber_{k:02d}", chamber, rec)
+
+    # ---- the static frame: the hood and the bin, the loading well's floor and the conveyor, the ram's glands, the yoke
     def frame(kit):
         d = kit.d
         nr = (24, 12, 8)[d]
         t = 0.02
-        # The breech face: a plate across the three tubes with their bores.
-        kit.box((-0.47, -0.10, p0), (0.47, 0.11, p1), "Gunmetal", 0.01)
-        for tx in TUBES:
-            kit.pipe((tx, 0.0, p1 - 0.001), (tx, 0.0, p1 + 0.015), 0.055, 0.075, "BrushedSteel", nr)
-        # The guide yoke: collars open below for the recoil pistons' lugs, a top bar, side frames to the breech face.
+        # The guide yoke round the chamber sections: collars open below for the recoil pistons' lugs, a top bar,
+        # side frames down to the well's floor.
         y0_, y1_ = D["yoke"]
-        kit.box((-0.47, 0.105, y0_), (0.47, 0.15, y1_), "Gunmetal", 0.008)
+        kit.box((-0.47, 0.118, y0_), (0.47, 0.16, y1_), "Gunmetal", 0.008)
         for tx in TUBES:
-            kit.lathe((tx, 0.0, y0_), (0, 0, 1), [(0, 0.105), (0, 0.128), (y1_ - y0_, 0.128), (y1_ - y0_, 0.105)],
+            kit.lathe((tx, 0.0, y0_), (0, 0, 1), [(0, 0.094), (0, 0.118), (y1_ - y0_, 0.118), (y1_ - y0_, 0.094)],
                       "Gunmetal", nr, closed=True, arc=(math.radians(215), math.radians(505)))
         for sx in (-1, 1):
-            kit.box((sx * 0.47, -0.12, p0), (sx * 0.50, 0.15, y1_), "DarkSteel", 0.008)
-        # The conveyor across the bay's floor, from the hood into the bin: two rails the cassettes ride on, and between
-        # them the chain's channel with its dogs' chain, its sprockets' housings at both ends inside the boxes.
+            kit.box((sx * 0.47, -0.12, y0_), (sx * 0.50, 0.16, y1_), "DarkSteel", 0.008)
+        # The well's floor, just under the tubes' recoil cylinders, from the receiver's face to the collars: two plates,
+        # the middle cylinder between them over the mount (which rises there at full depression).
+        for sx in (-1, 1):
+            kit.box((sx * xa, D["floor"][0], face + 0.001), (sx * 0.13, D["floor"][1], zb - 0.01), "DarkSteel", 0.004)
+        # The conveyor across the well, from the hood into the bin: two rails the clips ride on on posts from the
+        # floor, and between them the chain's channel with its dogs' chain, its sprockets' housings inside the boxes.
         xr = xb - t
-        for zc in (z0 + 0.012, z0 + L - 0.03):
-            kit.box((-xr, -0.105, zc), (xr, -0.088, zc + 0.03), "BrushedSteel", 0.004)
-        zc = z0 + L / 2
-        kit.box((-xr, -0.105, zc - 0.03), (xr, -0.093, zc + 0.03), "DarkSteel", 0.003)
+        r0_, r1_ = D["rails"]
+        for zc in (z0 + 0.012, z0 + 0.40):
+            kit.box((-xr, r0_, zc), (xr, r1_, zc + 0.03), "BrushedSteel", 0.004)
+            for px in (-0.137, 0.137):
+                kit.box((px - 0.012, D["floor"][1], zc + 0.004), (px + 0.012, r0_, zc + 0.026), "DarkSteel", 0.002)
+        zc = z0 + 0.25
+        kit.box((-xr, r0_, zc - 0.03), (xr, r1_ - 0.005, zc + 0.03), "DarkSteel", 0.003)
         if d == 0:
             n = int(2 * xr / 0.05)
             for i in range(n):
                 xc = -xr + (i + 0.5) * 2 * xr / n
-                kit.box((xc - 0.019, -0.093, zc - 0.012), (xc + 0.019, -0.0895, zc + 0.012), "Gunmetal")
+                kit.box((xc - 0.019, r1_ - 0.005, zc - 0.012), (xc + 0.019, r1_ - 0.0015, zc + 0.012), "Gunmetal")
         for side in (-1, 1):
-            kit.box((side * (xr - 0.075), -0.105, zc - 0.06), (side * xr, -0.06, zc + 0.06), "Gunmetal", 0.006)
-        # The latches' cheeks and pins: on the receiver's face and on the breech face.
-        for zp, za, zz in ((D["latch"][0], face + 0.001, D["latch"][0] + 0.027), (D["latch"][1], D["latch"][1] - 0.027, p0)):
-            for sx in (-1, 1):
-                kit.box((sx * 0.056, 0.095, za), (sx * 0.07, 0.165, zz), "DarkSteel", 0.003)
-            kit.cyl((-0.074, 0.135, zp), (0.074, 0.135, zp), 0.010, "BrushedSteel", 12)
-        # The feed hood and the spent bin: closed boxes either side of the bay, slotted at the bay's level on their
-        # inboard walls. The filled cassette waits in the hood above its slot and is lowered to it; the conveyor carries
-        # it through into the bay and the spent one out into the bin, whose lift stows it above the slot. Every
+            kit.box((side * (xr - 0.075), r0_, zc - 0.06), (side * xr, -0.06, zc + 0.06), "Gunmetal", 0.006)
+        # The ram rods' glands in the receiver's face.
+        for tx in TUBES:
+            kit.pipe((tx, 0.0, face - 0.006), (tx, 0.0, face + 0.002), 0.041, 0.062, "BrushedSteel", nr)
+        # The feed hood and the spent bin: closed boxes either side of the well, slotted at the well's level on their
+        # inboard walls. The next clip waits in the hood above its slot and is lowered to it; the conveyor carries it
+        # through into the well and the spent one on into the bin, whose lift stows it above the slot. Every
         # hand-over happens inside a box. Beside the receiver their rear walls close them; in front of it, its face does.
         win = D["window"]
         c = D["chamfer"]
@@ -1030,8 +1219,8 @@ def defense(ctx, B, st):
             kit.box((xi_, h0, face + 0.001), (xr_, h0 + t, bz1), finish, 0.006)
             kit.box((xr_, h0, bz0), (xo_, h0 + t, bz1), finish, 0.006)
             kit.box((xi_, h1 - t, bz0), (xo_ - side * c, h1, bz1), finish, 0.006)
-            kit.prism(ccw([(xo_ - side * (c + tc), h1 - tc), (xo_ - side * tc, h1 - c - tc), (xo_, h1 - c),
-                           (xo_ - side * c, h1)][::-1]), (0.0, 0.0, bz0), Vector((1, 0, 0)), Vector((0, 1, 0)),
+            kit.prism(ccw([(xo_ - side * c, h1), (xo_, h1 - c), (xo_ - side * tc, h1 - c - tc),
+                           (xo_ - side * (c + tc), h1 - tc)]), (0.0, 0.0, bz0), Vector((1, 0, 0)), Vector((0, 1, 0)),
                       bz1 - bz0, finish, 0.004)
             wall(xi_, bz1 - t)
             wall(xr_, bz0)
@@ -1058,30 +1247,53 @@ def defense(ctx, B, st):
         kit.text("SPENT", (-o * (xb + 0.0005), ym, zm), Vector((0, 0, o)), Vector((0, 1, 0)), 0.06, 0.0015, "IvoryPaint")
         # The bin's unloading hatch on its outer wall.
         kit.box((-o * (xb + 0.001), h0 + 0.05, zm - 0.20), (-o * (xb + 0.008), h1 - c - 0.02, zm + 0.20), "DarkSteel", 0.003)
-    B.mesh(st, f"{sid}_Breech", frame, st.pitch)
+    B.mesh(st, f"{sid}_Well", frame, st.pitch)
 
     nodes = {}
-    bay = B.node(st, f"{sid}_BayCassette", (0.0, 0.0, zs), st.pitch)
-    B.mesh(st, f"{sid}_BayCassette", lambda kit: cassette(kit, 0.0, 0.0, zs), bay)
-    for k, tx in enumerate(TUBES):
-        B.socket(st, f"{sid}_Bay_Slot_{k:02d}", bay, (tx, SOCKET_DY, zs + D["socket"]))
+    # ---- the clip (moving): it waits in the hood above the slot, comes down, across into the well and up against
+    # the collars, and leaves for the bin empty
     fx, fy = o * D["shuttle"], D["lift"]
-    feed = B.node(st, f"{sid}_FeedCassette", (fx, fy, z0), st.pitch)
-    B.mesh(st, f"{sid}_FeedCassette", lambda kit: cassette(kit, fx, fy, z0), feed)
+    cl = B.node(st, f"{sid}_Clip", (fx, fy, z0), st.pitch)
+    B.mesh(st, cl.name, lambda kit: clip(kit, fx, fy, z0), cl)
+    nodes[cl.name] = cl
+    # ---- the rockets (moving): ride the clip in, then the ram rods push them out of it into the chambers, where
+    # they stay when the clip leaves
     for k, tx in enumerate(TUBES):
-        B.socket(st, f"{sid}_Feed_Slot_{k:02d}", feed, (fx + tx, fy + SOCKET_DY, z0 + D["socket"]))
-    for tag, zp, dirz in (("A", D["latch"][0], 1), ("B", D["latch"][1], -1)):
-        e = B.node(st, f"{sid}_Latch_{tag}", (0.0, 0.135, zp), st.pitch)
+        rd = B.node(st, f"{sid}_Round_{k:02d}", (fx + tx, fy, z0), st.pitch)
+        # Its expelling charge, the cartridge its nozzle sits in: what gives it the gun's muzzle speed.
+        B.mesh(st, rd.name, lambda kit, tx=tx: (
+            kit.cyl((fx + tx, fy, z0 + 0.034), (fx + tx, fy, z0 + 0.058), 0.034, "BrushedSteel", (20, 12, 8)[kit.d]),
+            kit.cyl((fx + tx, fy, z0 + 0.031), (fx + tx, fy, z0 + 0.034), 0.026, "Rubber", (20, 12, 8)[kit.d])), rd)
+        B.socket(st, f"{sid}_Round_{k:02d}", rd, (fx + tx, fy + SOCKET_DY, z0 + D["socket"]))
+        nodes[rd.name] = rd
+    # ---- the ram (moving): three rods out of glands in the receiver's face, their cups on the rockets' tails
+    rm = B.node(st, f"{sid}_Ram", (0.0, 0.0, face), st.pitch)
 
-        def latch(kit, zp=zp, dirz=dirz):
-            # A hub turning on the pin, an arm reaching over the cassette's end and a tip down onto its lug.
-            kit.pipe((-0.05, 0.135, zp), (0.05, 0.135, zp), 0.0125, 0.022, "Gunmetal", 16)
-            kit.box((-0.045, 0.122, zp + dirz * 0.018), (0.045, 0.145, zp + dirz * 0.085), "Gunmetal", 0.005)
-            tip = zp + dirz * 0.085
-            kit.box((-0.045, D["H"] + 0.014, tip), (0.045, 0.145, tip - dirz * 0.022), "Gunmetal", 0.004)
-        B.mesh(st, f"{sid}_Latch_{tag}", latch, e)
-        nodes[e.name] = e
-    nodes.update({bay.name: bay, feed.name: feed})
+    def ram(kit):
+        nn = (20, 12, 8)[kit.d]
+        for tx in TUBES:
+            kit.cyl((tx, 0.0, face - 0.88), (tx, 0.0, face - 0.012), 0.024, "BrushedSteel", nn)
+            kit.cyl((tx, 0.0, face - 0.012), (tx, 0.0, face - 0.001), 0.040, "Gunmetal", nn)
+            kit.cyl((tx, 0.0, face - 0.001), (tx, 0.0, face + 0.001), 0.030, "Rubber", nn)
+        # The crosshead that drives them, inside the receiver.
+        kit.box((-0.33, -0.05, face - 0.92), (0.33, 0.05, face - 0.86), "DarkSteel", 0.006)
+    B.mesh(st, rm.name, ram, rm)
+    nodes[rm.name] = rm
+    # ---- the breech caps (moving, each on its tube): hinged on the collar, they swing up and back to open
+    for k, (tx, rec) in enumerate(zip(TUBES, st.recoils)):
+        py, pz = D["pivot"]
+        r, th, _ = D["cap"]
+        cp = B.node(st, f"{sid}_Cap_{k:02d}", (tx, py, pz), rec)
+
+        def cap(kit, tx=tx):
+            nn = (28, 16, 10)[kit.d]
+            kit.cyl((tx, 0.0, zb - th), (tx, 0.0, zb - 0.0005), r, "Gunmetal", nn)
+            kit.cyl((tx, 0.0, zb - th - 0.014), (tx, 0.0, zb - th), r * 0.6, "Gunmetal", nn, r2=r * 0.48)
+            kit.box((tx - 0.016, rc - 0.03, zb - th - 0.012), (tx + 0.016, py - 0.004, zb - th + 0.004), "Gunmetal", 0.003)
+            kit.cyl((tx - 0.021, py, pz), (tx + 0.021, py, pz), 0.012, "Gunmetal", 12)
+            kit.box((tx - 0.012, -r * 0.5, zb - th - 0.03), (tx + 0.012, -r * 0.15, zb - th - 0.012), "BrushedSteel", 0.003)
+        B.mesh(st, cp.name, cap, cp)
+        nodes[cp.name] = cp
     return nodes
 
 
@@ -1328,6 +1540,15 @@ DIRECTIONS = [Vector(d).normalized() for d in ((1, 0, 0), (-1, 0, 0), (0, 1, 0),
 JOINTS = [
     ("{station}_BreechRing_{barrel}", "{station}_Recoil_{barrel}", "the breech ring is screwed onto the barrel's rear end"),
     ("{station}_RamPortCollar_{barrel}", "{station}_Pitch", "the ram port's collar is set into the receiver's face"),
+    ("{station}_Cradle_{barrel}", "{station}_Pitch", "the cradle trough is cast with the receiver's face and the sleeve"),
+    ("{station}_Gate_{barrel}", "{station}_Pitch", "the ram port's gate slides in its slot in the receiver"),
+    ("{station}_Tray_{barrel}", "{station}_Pitch", "the spanning tray is stowed in the ram port"),
+    ("{station}_FeedGate_{barrel}", "{station}_Yaw", "the feed port's gate slides in its slot in the gun house"),
+    ("{station}_Chamber_{barrel}", "{station}_Recoil_{barrel}", "the chamber section is the tube's breech end"),
+    ("{station}_Cap_{barrel}", "{station}_Chamber_{barrel}", "the cap hangs on the collar's hinge pin"),
+    ("{station}_Ram", "{station}_Pitch", "the ram's rods run in glands through the receiver's face"),
+    ("{station}_Ram", "{station}_Well", "the ram's rods run in their glands"),
+    ("{station}_Well", "{station}_Pitch", "the hood, the bin and the loading well are built onto the receiver"),
 ]
 
 
@@ -1725,26 +1946,42 @@ def build(ctx):
 
 
 def check_table(table):
-    """The table's travels are the geometry's: a stroke changed in one place and not the other stops the import."""
+    """The table's travels are the geometry's: a stroke changed in one place and not the other stops the import.
+    (kind, node, phase, axis): the travel's end, metres or degrees."""
+    S, D = SIEGE, DEFENSE
     want = {
-        ("siege", "{station}_Breech_{barrel}", "breechOpen"): SIEGE["block"],
-        ("siege", "{station}_Carrier_{barrel}_00", "fetch"): SIEGE["feed"],
-        ("siege", "{station}_Feed_{barrel}_B", "fetch"): SIEGE["feed"],
-        ("siege", "{station}_Feed_{barrel}_A", "fetch"): SIEGE["feed"] / 2,
-        ("siege", "{station}_Carrier_{barrel}_01", "present"): -SIEGE["pitch"],
-        ("siege", "{station}_Rammer_{barrel}", "ram"): SIEGE["ram"],
-        ("siege", "{station}_RamCarrier_{barrel}", "ram"): SIEGE["ram"],
-        ("defense", "{station}_FeedCassette", "lower"): -DEFENSE["lift"],
-        ("defense", "{station}_FeedCassette", "eject"): -DEFENSE["shuttle"],
-        ("defense", "{station}_BayCassette", "eject"): -DEFENSE["shuttle"],
-        ("defense", "{station}_BayCassette", "seat"): DEFENSE["stow"],
-        ("defense", "{station}_FeedCassette", "seat"): DEFENSE["seat"],
+        ("siege", "{station}_Breech_{barrel}", "breechOpen", "outboard"): S["block"],
+        ("siege", "{station}_Gate_{barrel}", "breechOpen", "outboard"): -S["gate_travel"],
+        ("siege", "{station}_FeedGate_{barrel}", "fetch", "outboard"): -S["gate_travel"],
+        ("siege", "{station}_Carrier_{barrel}_00", "fetch", (0, 0, 1)): S["feed"],
+        ("siege", "{station}_Feed_{barrel}_B", "fetch", (0, 0, 1)): S["feed"],
+        ("siege", "{station}_Feed_{barrel}_A", "fetch", (0, 0, 1)): S["feed"] / 2,
+        ("siege", "{station}_Tray_{barrel}", "transfer", (0, 0, 1)): S["tray_out"],
+        ("siege", "{station}_Carrier_{barrel}_01", "present", (0, 1, 0)): -S["pitch"],
+        ("siege", "{station}_Rammer_{barrel}", "ram", (0, 0, 1)): S["ram"],
+        ("siege", "{station}_RamCarrier_{barrel}", "ram", (0, 0, 1)): S["ram"],
+        ("defense", "{station}_Cap_00", "open", (1, 0, 0)): D["cap"][2],
+        ("defense", "{station}_Clip", "open", (0, 1, 0)): -D["lift"],
+        ("defense", "{station}_Clip", "deliver", (1, 0, 0)): -D["shuttle"],
+        ("defense", "{station}_Clip", "dock", (0, 0, 1)): D["dock"],
+        ("defense", "{station}_Ram", "ram", (0, 0, 1)): D["ram"],
+        ("defense", "{station}_Round_00", "ram", (0, 0, 1)): D["dock"] + D["push"],
+        ("defense", "{station}_Clip", "clear", (1, 0, 0)): -2 * D["shuttle"],
+        ("defense", "{station}_Clip", "clear", (0, 1, 0)): 0.0,
     }
-    for (kind, node, phase), value in want.items():
+    for (kind, node, phase, axis), value in want.items():
         ph = next(p for p in table["batteries"][kind]["loader"]["phases"] if p["name"] == phase)
-        m = next(m for m in ph["motions"] if m["node"] == node)
-        if abs(m["to"] - value) > 1e-6:
-            raise ValueError(f"batteries.json: {kind} {phase} moves {node} to {m['to']}, the mechanism is built for {value}")
+        m = next((m for m in ph["motions"] if m["node"] == node and
+                  (m["axis"] == axis if isinstance(axis, str) else tuple(m["axis"]) == axis)), None)
+        if m is None or abs(m["to"] - value) > 1e-6:
+            raise ValueError(f"batteries.json: {kind} {phase} moves {node} along {axis} to "
+                             f"{None if m is None else m['to']}, the mechanism is built for {value}")
+    # The rockets go as far as the ram rods' cups once these meet them.
+    ph = next(p for p in table["batteries"]["defense"]["loader"]["phases"] if p["name"] == "ram")
+    rnd = next(m for m in ph["motions"] if m["node"] == "{station}_Round_00")
+    if abs((1 - rnd["span"][0]) * D["ram"] - D["push"]) > 1e-3:
+        raise ValueError("batteries.json: the rockets must start moving when the ram's cups meet them "
+                         f"(span from {1 - D['push'] / D['ram']:.4f})")
 
 
 def record(B, table, check):
@@ -1774,7 +2011,8 @@ def record(B, table, check):
         "table": "game/data/ground/batteries.json",
         "module": "art/ships/iron_wake_loaders.py",
         "bore": "siege: a discarding sabot per round, three steel petals on a pusher base sized to the 48 cm bore "
-                "(the muzzle's hollow bore stays as modelled); defense: the rockets bare in the 10.4 cm tubes",
+                "(the muzzle's hollow bore stays as modelled); defense: the rockets bare, each with its expelling "
+                "charge, in a 15 cm chamber section at the rear of each 10.4 cm tube (their fins fold as they leave it)",
         "stations": stations,
         "triangles": {f"lod{k}": v for k, v in sorted(B.tris.items())},
     }

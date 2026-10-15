@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://rgdme3pt6po3"
-path.s3tc="res://.godot/imported/T_IW_PBR_Paint_BaseColor_2K.png-d0aa332f9bbe4562ed676a3cf5c7a619.s3tc.ctex"
+uid="uid://bffjsc08dxwue"
+path.s3tc="res://.godot/imported/T_IW_Gunmetal_BaseColor_2K.png-01cd3a822103e9894f04965b52df9504.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -11,8 +11,8 @@ metadata={
 
 [deps]
 
-source_file="res://assets/textures/iron_wake/T_IW_PBR_Paint_BaseColor_2K.png"
-dest_files=["res://.godot/imported/T_IW_PBR_Paint_BaseColor_2K.png-d0aa332f9bbe4562ed676a3cf5c7a619.s3tc.ctex"]
+source_file="res://assets/textures/iron_wake/T_IW_Gunmetal_BaseColor_2K.png"
+dest_files=["res://.godot/imported/T_IW_Gunmetal_BaseColor_2K.png-01cd3a822103e9894f04965b52df9504.s3tc.ctex"]
 
 [params]
 

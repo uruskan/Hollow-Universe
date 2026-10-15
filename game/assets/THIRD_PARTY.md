@@ -106,6 +106,28 @@ and `material_revision.json` (the derivatives). The originals, as downloaded:
 The licence is https://polyhaven.com/license. The display atlas (`T_IronWake_Markings_*.png`, 2048 px) is the asset's
 own artwork, as is everything else in `ships/iron-wake.glb`.
 
+**Since 15 October 2026** (IRON_WAKE.md §9.2 "As built"; the owner's review: the steels read as blotchy rust) the
+finishes are made by the import itself (`art/import/iron_wake_surfaces.py`) at 2K, from the sets above and two more the
+owner approved that day, downloaded into `D:\GameDev\Assets\Downloads\polyhaven\` and checked against Poly Haven's
+published MD5s. Only the derived maps are in the repository:
+- `T_IW_Gunmetal_*_2K.png` (the steels, louvres and grates, and the bare steel under chipped paint): Blue Metal Plate
+  above, its plate seams painted out, its large blotches flattened, greyed, darkened and made a metal;
+- `T_IW_Rust_1K.png` (rust in cavities and some chips): Rusty Metal Sheet above, its colour at 1K;
+- `T_IW_WearNoise_512.png`: our own noise;
+- `T_IW_PaintChipped_*_2K.png` (every paint) and `T_IW_TreadPlate_*_2K.png` (the deck tread), from:
+
+| Set | Author | Source | File (2K) | MD5 | Licence |
+|---|---|---|---|---|---|
+| Green Metal Rust (the paints: its paint recoloured per finish, its chips and rust kept) | Rob Tuytel | https://polyhaven.com/a/green_metal_rust | `green_metal_rust_diff_2k.png` | `d6b7e4ba43193c1a526bd943f52dc11c` | CC0 1.0 |
+| | | | `green_metal_rust_nor_gl_2k.png` | `7e6eb0c41507137b07c84a4f8956dcb4` | |
+| | | | `green_metal_rust_arm_2k.png` | `580bb5dcfec0c1aa91058b4ad0a40885` | |
+| Metal Plate (the deck's diamond tread, its colour half greyed) | Poly Haven | https://polyhaven.com/a/metal_plate | `metal_plate_diff_2k.png` | `d3b4ffca928122f2428a627867b202fd` | CC0 1.0 |
+| | | | `metal_plate_nor_gl_2k.png` | `f73df0b0ecd4fc29c3620a5e448b1432` | |
+| | | | `metal_plate_arm_2k.png` | `9b137ea97781adce129899d168f2fc9d` | |
+
+The machined metal, rubber and fabric maps and the louvre and grate relief are still the asset's derivatives listed
+above (`T_IW_PBR_*_2K.png`).
+
 ## Sounds (`audio/`)
 
 Downloaded on 13 October 2026 with the owner's approval of free CC0 downloads, each into its own folder under
