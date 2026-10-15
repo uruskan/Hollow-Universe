@@ -131,6 +131,60 @@ internal static class Noise
         return sum / norm;
     }
 
+    /// <summary>
+    /// Eroded ridged noise ("swiss turbulence") at a unit direction on a sphere of <paramref name="radius"/>: each octave
+    /// is displaced along the slopes summed so far and damped where the sum is low, so ridges are sharp, valleys smooth
+    /// and side valleys branch like drainage. About 0 (valleys) to 1 (crests).
+    /// </summary>
+    public static double Swiss(Vector3D p, double radius, double wavelength, int octaves, double gain, double warp, ulong seed)
+    {
+        double f0 = radius / wavelength;
+        double bx = p.X * f0, by = p.Y * f0, bz = p.Z * f0;
+        double sum = 0, amplitude = 1, frequency = 1, norm = 0;
+        double sx = 0, sy = 0, sz = 0;
+        for (int i = 0; i < octaves; i++)
+        {
+            ulong s = seed + (ulong)i * 0x632BE59BD9B4E019UL;
+            double o = Offset(s);
+            double n = Sample((bx + warp * sx) * frequency + o, (by + warp * sy) * frequency - o,
+                (bz + warp * sz) * frequency + 0.5 * o, s, out double dx, out double dy, out double dz);
+            double r = 1 - Math.Abs(n);
+            sum += amplitude * r * r;
+            norm += amplitude;
+            sx -= amplitude * dx * n;
+            sy -= amplitude * dy * n;
+            sz -= amplitude * dz * n;
+            frequency *= Lacunarity;
+            amplitude *= gain * Math.Clamp(sum / norm * 1.6, 0, 1);
+        }
+        // (1 − |n|)² sits around 0.6 on average; map so typical valleys are near 0 and crests near 1.
+        return (sum / norm - 0.3) / 0.62;
+    }
+
+    /// <summary>
+    /// Noise with eroded slopes at a unit direction on a sphere of <paramref name="radius"/>: each octave is damped where
+    /// the slopes summed so far are steep, so slopes stay smooth and detail gathers on flats and crests. About −1 to 1.
+    /// </summary>
+    public static double Eroded(Vector3D p, double radius, double wavelength, int octaves, double gain, ulong seed)
+    {
+        double f = radius / wavelength;
+        double sum = 0, amplitude = 1, norm = 0, gx = 0, gy = 0, gz = 0;
+        for (int i = 0; i < octaves; i++)
+        {
+            ulong s = seed + (ulong)i * 0x632BE59BD9B4E019UL;
+            double o = Offset(s);
+            double n = Sample(p.X * f + o, p.Y * f - o, p.Z * f + 0.5 * o, s, out double dx, out double dy, out double dz);
+            gx += amplitude * dx;
+            gy += amplitude * dy;
+            gz += amplitude * dz;
+            sum += amplitude * n / (1 + 0.6 * (gx * gx + gy * gy + gz * gz));
+            norm += amplitude;
+            amplitude *= gain;
+            f *= Lacunarity;
+        }
+        return sum / norm * 1.6;
+    }
+
     /// <summary>Lacunarity of every octave sum: a little off 2, so the lattices of octaves never line up.</summary>
     public const double Lacunarity = 2.03;
 
