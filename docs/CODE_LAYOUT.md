@@ -3,7 +3,7 @@
 Generated from the repository: every C# file, the types it declares (nested ones in brackets), its length and its
 own first line of explanation. HOW_IT_WORKS.md says how these run together; this is the map. Regenerate it after
 a package with the script in the session that made it, or by hand: the shape is one table per folder.
-595 files, 163,676 lines of C#.
+595 files, 163,708 lines of C#.
 
 ## src/Hollow.Core
 
@@ -33,7 +33,7 @@ The 1:1 galaxy: the density model, sectors and cells, the catalogue, names, star
 | `CellGenerator.cs` | 271 | Streams, CellGenerator | Stream tags: every kind of generated object hashes its address with its own tag. |
 | `CellKey.cs` | 238 | SectorGrid, CellKey, SystemAddress | The sector grid (GALAXY.md §5). |
 | `DensityModel.cs` | 250 | DensityModel [Arm] | Number density of star systems (systems per ly³) in the Milky Way, as the sum of six components |
-| `Galaxy.cs` | 257 | SearchResult, Galaxy | A search hit: a system, or a place (a sector or a named region, IsSector) when the text names |
+| `Galaxy.cs` | 257 | SearchResult, Galaxy | A search hit: a system, or a place (a sector or a named region, ) when the text names |
 | `GalaxyFrame.cs` | 86 | GalaxyFrame | The galactic frame and the density model's frame (GALAXY.md §2). |
 | `GalaxyStar.cs` | 47 | GalaxyStar | The primary star of one star system, as the galaxy knows it: enough to draw it on the map and to |
 | `GeneratorVersion.cs` | 39 | GeneratorVersion | Generator versions, one per stage of the universe pipeline (ARCHITECTURE.md §8.4, GALAXY.md §14). Each version is |
@@ -443,14 +443,14 @@ The protocol: messages and their generated serializers, bit packing, snapshot de
 
 SQLite storage: the database, one worker thread, one codec per kind of record.
 
-### src/Hollow.Persistence (8 files, 2,308 lines)
+### src/Hollow.Persistence (8 files, 2,319 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `AnimalCodec.cs` | 73 | CorpseSave, AnimalCodec | An animal's corpse as stored: its species (key), where it lies, what is left to harvest, its timer. |
 | `BuildingCodec.cs` | 332 | BuildingRecord, StoredClaim, ClaimRecord, BuildingCodec | A stored piece, door (with its lock) or claim device (with its list and store): kind and versioned bytes. |
 | `ExplosiveCodec.cs` | 147 | ExplosiveCodec | An explosive's stored form (GROUND.md §6.6, G5): a charge stuck or lying in the world with its fuse left survives a |
-| `GameDatabase.cs` | 891 | CharacterRecord, ThingRecord, NaturalRecord, TeamRecord, PropRecord, ZoneRecord, ZoneSave, ShipRecord, GameDatabase | A stored character (GROUND.md §4.7): where it is on its body, in the body frame (metres from the body's centre, |
+| `GameDatabase.cs` | 902 | CharacterRecord, ThingRecord, NaturalRecord, TeamRecord, PropRecord, ZoneRecord, ZoneSave, NewerSaveException, ShipRecord, GameDatabase | A stored character (GROUND.md §4.7): where it is on its body, in the body frame (metres from the body's centre, |
 | `PersistenceWorker.cs` | 138 | PersistenceWorker | Owns the GameDatabase on one background thread and runs every request in the order it was made |
 | `ShipCodec.cs` | 163 | StoredShip, ShipCodec | A ship read back from storage, and who was in its seat (the server seats them again if they are there). |
 | `TeamCodec.cs` | 50 | TeamCodec | A stored team (G7, GROUND.md §6.8): its leader and members, oldest first. Invites aren't stored. |
@@ -460,7 +460,7 @@ SQLite storage: the database, one worker thread, one codec per kind of record.
 
 The dedicated server: the host and its modules, sessions, admin commands, notifications.
 
-### src/Hollow.Server (11 files, 2,896 lines)
+### src/Hollow.Server (11 files, 2,908 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -470,7 +470,7 @@ The dedicated server: the host and its modules, sessions, admin commands, notifi
 | `GameServer.cs` | 1097 | GameServer [NetEntity] | The dedicated server (GROUND.md §4.2): one zone on the first world, ticking at 30 Hz on one thread, with |
 | `NetPresence.cs` | 23 | NetPresence | The server's part of a networked entity: its net ID, view (octahedral, with the head's free look) and owner. |
 | `PlayerSession.cs` | 253 | PlayerSession | One connected player: their connection, character, inputs, budgets and what the host has sent them. What a module |
-| `Program.cs` | 143 | Program | The dedicated server's console program: |
+| `Program.cs` | 155 | Program | The dedicated server's console program: |
 | `ServerModule.cs` | 279 | ServerModule | One concern of the server (GROUND_SYSTEMS.md §12.5, K10): its own state, its message handlers and event |
 | `ServerModules.cs` | 29 | ServerModules | The server's modules and their order (GROUND_SYSTEMS.md §12.5, K10), the one place that lists them. The host calls |
 | `ServerOptions.cs` | 117 | ServerOptions | How a server runs. The console program fills it from its command line; the game fills it for Host mode. |
@@ -700,17 +700,17 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GibDirector.cs` | 98 | GibBreak, GibDirector | What a break did (GROUND.md §9.4): whether pieces were placed or only dust, the middle of what broke, and the sounds |
 | `GibLibrary.cs` | 290 | GibChunk, GibSet, GibLibrary | One piece of a model (GROUND.md §9.4): its mesh (the model's own materials), where it sits in the model |
 | `GibWarm.cs` | 35 | GibWarm | The gibs' part of the renderer's warm-up (GROUND.md §4.3.1, §9.4): every gib file the catalogue names, read, and a |
-| `GibWorld.cs` | 798 | GibFloor, GibWorld [PieceState, Turn, Piece, BreakFloor, Batch] | Where the floor is under a point: a ray from from along down for |
+| `GibWorld.cs` | 798 | GibFloor, GibWorld [PieceState, Turn, Piece, BreakFloor, Batch] | Where the floor is under a point: a ray from  along  for |
 
-### game/scripts/Ground (43 files, 13,605 lines)
+### game/scripts/Ground (43 files, 13,611 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `ArrowsView.cs` | 81 | ArrowsView | Spent arrows stuck where they hit (GROUND_SYSTEMS.md §5): every one this client knows, placed each frame where its holder |
 | `BuildPanels.cs` | 232 | Keypad, RectSnapping | The code lock's keypad (GROUND.md §6.5), in the RustMVP interface's manner: a dark dialog in the middle of the |
 | `BuildView.cs` | 363 | BuildView, GodotVectors | Building in the ground game (GROUND.md §6.5, phase 2b): the replicated structures drawn by the building package's |
-| `ChildServer.cs` | 176 | ChildServer | A game hosted on this computer in a process of its own (GROUND.md §4.3): the dedicated server (Hollow.Server, built |
-| `ClientConsole.cs` | 632 | ViewSettings, ClientConsole | The view's settings the console sets (GROUND.md §8.2), kept on this computer: field of view, mouse sensitivity, the frame rate shown. |
+| `ChildServer.cs` | 184 | ChildServer | A game hosted on this computer in a process of its own (GROUND.md §4.3): the dedicated server (Hollow.Server, built |
+| `ClientConsole.cs` | 606 | ViewSettings, ClientConsole | The view's settings the console sets (GROUND.md §8.2), kept on this computer: field of view, mouse sensitivity, the frame rate shown. |
 | `ClientDeveloper.cs` | 327 | ClientDeveloper | The F2 panel's model over the client (GROUND.md §8.5): the server's stats, sections and players as the client's dev |
 | `ClientGroundUi.Interaction.cs` | 229 | ClientGroundUi, InteractionRadial | The interact key in the view model (GROUND_SYSTEMS.md §5, GROUND.md §8.4): every frame the one targeting query says |
 | `ClientGroundUi.World.cs` | 447 | ClientGroundUi | The interface's G7 members over the client (GROUND.md §6.8): the zone's map and what is on it (the player, teammates, |
@@ -725,12 +725,12 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GroundCollision.cs` | 76 | GroundCollision | The ground near the player in Godot's own physics (layer 1), for what Godot simulates: ragdolls of the dead and |
 | `GroundMeasure.cs` | 182 | GroundMeasure [Probe] | Measures the ground game's frame time where it is played (GROUND.md §5, --measure &lt;s&gt;): once the world |
 | `GroundMode.Loading.cs` | 126 | GroundMode | The ground game's start (GROUND.md §4.3.1): one loading pipeline per game, in which the parts that make the game |
-| `GroundMode.cs` | 381 | GroundMode [MenuCamera] | The ground game (GROUND.md §4.3). With neither --host nor --connect it opens the main menu over the |
+| `GroundMode.cs` | 384 | GroundMode [MenuCamera] | The ground game (GROUND.md §4.3). With neither --host nor --connect it opens the main menu over the |
 | `GroundModels.cs` | 266 | IGroundModels, GroundModels, CatalogModels, PlaceholderModels | Where the ground game's world models come from (GROUND.md §9): deployables, bags of dropped items, outcrops and the |
 | `GroundOverlay.cs` | 226 | GroundOverlay [Crosshair] | What the ground game shows besides the RustMVP interface: other players' names over their heads (placed by |
 | `GroundTerrain.cs` | 133 | GroundTerrain [TileArrays] | Placeholder ground (GROUND.md §4.3): the collision tiles of ISurface.GroundCollision around the |
 | `GroundTour.cs` | 2466 | GroundTour | The scripted screenshot run of the ground game (GROUND.md §5, --tour &lt;folder&gt;): on the host, a walk |
-| `GroundView.cs` | 967 | GroundView | The ground game in first person (GROUND.md §4.3), one whole on the first world (the stand-in world until S4, |
+| `GroundView.cs` | 988 | GroundView | The ground game in first person (GROUND.md §4.3), one whole on the first world (the stand-in world until S4, |
 | `GroundWarmup.cs` | 41 | GroundWarmup | Everything the ground game can draw, for the renderer's warm-up (GROUND.md §4.3.1): each library's items, read from its |
 | `GunEffects.cs` | 194 | GunEffects | Shots, hits and guns in hand through the effects library and the model catalogue (GROUND.md §6.4, §9.3): which |
 | `InventoryBody.cs` | 51 | InventoryBody | The player's own body on the inventory screen (GROUND.md §8): the character package's CharacterView |
@@ -789,7 +789,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ShipView.cs` | 463 | ShipLook, ShipView [PartNode, Drive, Plume] | What a ship is doing this frame, as a ShipView draws it. |
 | `ShipWarm.cs` | 28 | ShipWarm | The ships' part of the renderer's warm-up (GROUND.md §4.3.1, §6.7): every ship of ships.json as |
 
-### game/scripts/Surface (15 files, 3,967 lines)
+### game/scripts/Surface (15 files, 3,970 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -804,7 +804,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `SurfaceView.Loading.cs` | 62 | SurfaceView | The surface view's part of the loading pipeline (GROUND.md §4.3.1): what IsReady waits for, as two stages with their |
 | `SurfaceView.cs` | 536 | SurfaceView | The surface view (GROUND.md §4.6): stand on or fly over a real planet of the universe, with its terrain out to the |
 | `TerrainLod.Loading.cs` | 28 | TerrainLod | What the loading pipeline reads of the terrain (GROUND.md §4.3.1). |
-| `TerrainLod.cs` | 644 | TerrainLod, TileMeshData [Node, Job] | Draws a planet's ground out to the horizon (GROUND.md §4.6): a quadtree of tiles on each cube face, split near |
+| `TerrainLod.cs` | 647 | TerrainLod, TileMeshData [Node, Job] | Draws a planet's ground out to the horizon (GROUND.md §4.6): a quadtree of tiles on each cube face, split near |
 | `Vegetation.Game.cs` | 147 | Vegetation | What the ground game changed about scatter objects (GROUND.md §6.1): felled trees, picked ferns and berry bushes. |
 | `Vegetation.Loading.cs` | 17 | Vegetation | What the loading pipeline reads of the plants (GROUND.md §4.3.1). |
 | `Vegetation.cs` | 814 | Vegetation [LodSet, Block, LodState, NearData, BlockingQueue] | Trees, bushes, berry bushes, ferns and rocks of the surface view (GROUND.md §4.6), from the surface generator's |
@@ -958,7 +958,7 @@ The tests, one file per area (the runner needs no packages).
 | `Golden.cs` | 66 | Golden | Golden hashes over generated objects. Hashes every stored field (public or private, including the fields behind |
 | `GunNetTests.cs` | 498 | GunNetTests |  |
 | `GunTests.cs` | 431 | Guns, GunTests | Guns in a GameRig: a loaded gun in hand, shots queued for the coming tick as the server would. |
-| `HeldTests.cs` | 403 | HeldTests | Held items, item information and inventory actions (GROUND_SYSTEMS.md §7, package P3), engine-free. |
+| `HeldTests.cs` | 403 | HeldTests, Loopback [TestActor] | Held items, item information and inventory actions (GROUND_SYSTEMS.md §7, package P3), engine-free. |
 | `InteractionTests.cs` | 556 | InteractionTests [Rogue] | The interaction system (GROUND_SYSTEMS.md §5): what the E key does, one rule a test. |
 | `IronWakeNetTests.cs` | 196 | IronWakeNetTests [ShipFacts] | The Iron Wake over the network (IRON_WAKE.md §4.8, §4.11): prediction aboard, and sleepers aboard across a restart. |
 | `IronWakeTests.cs` | 631 | IronWakeRig, IronWakeTests | The Iron Wake on the first world's stand-in ground (IRON_WAKE.md §4, IW1): one parked near the landing site, its nose |

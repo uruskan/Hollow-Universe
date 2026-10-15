@@ -39,6 +39,8 @@ public partial class GroundView : Node3D
     private SurfaceView? _world;
     private Camera3D? _camera;
     private GroundTerrain? _flat;
+    private Godot.Environment? _flatSky;
+    private DirectionalLight3D? _flatSun;
     private GroundCollision _collision = null!;
     private NatureView _nature = null!;
     private ThingsView _things = null!;
@@ -358,16 +360,17 @@ public partial class GroundView : Node3D
             AddChild(_flat);
             _camera = new Camera3D { Name = "Camera", Far = 4000 };
             AddChild(_camera);
-            AddChild(new WorldEnvironment
+            // A plain sky and sun, turned every frame to the up where the player is (TurnFlatSky): S3c draws the
+            // world's own (docs/WHOLE_WORLD.md §10.2).
+            _flatSky = new Godot.Environment
             {
-                Environment = new Godot.Environment
-                {
-                    BackgroundMode = Godot.Environment.BGMode.Sky,
-                    Sky = new Sky { SkyMaterial = new ProceduralSkyMaterial() },
-                    AmbientLightSource = Godot.Environment.AmbientSource.Sky,
-                },
-            });
-            AddChild(new DirectionalLight3D { RotationDegrees = new Vector3(-40, 140, 0), ShadowEnabled = true });
+                BackgroundMode = Godot.Environment.BGMode.Sky,
+                Sky = new Sky { SkyMaterial = new ProceduralSkyMaterial() },
+                AmbientLightSource = Godot.Environment.AmbientSource.Sky,
+            };
+            AddChild(new WorldEnvironment { Environment = _flatSky });
+            _flatSun = new DirectionalLight3D { Name = "Sun", ShadowEnabled = true };
+            AddChild(_flatSun);
         }
         Time("open: the world view", ref lap);
         _camera.Fov = FieldOfView;
@@ -387,6 +390,23 @@ public partial class GroundView : Node3D
             AddChild(_audio);
         }
         Time("open: the sound", ref lap);
+    }
+
+    // The stand-in's sky and sun on the up where the player stands (the world's +Y is its north pole, so a sky left on it
+    // leans everywhere but there): a morning sun to the south-east, 32° up, as the walk-in sandbox has it.
+    private void TurnFlatSky(Num.Vector3 feet)
+    {
+        if (_flatSky == null || _flatSun == null)
+        {
+            return;
+        }
+        Num.Vector3 up = Client.Frame.UpAt(feet);
+        Num.Quaternion tilt = Facing.Turn(Num.Vector3.UnitY, up);
+        _flatSky.SkyRotation = new Basis(new Quaternion(tilt.X, tilt.Y, tilt.Z, tilt.W)).GetEuler();
+        (Num.Vector3 north, Num.Vector3 east) = Facing.Compass(up);
+        float elevation = 32 * MathF.PI / 180, bearing = 125 * MathF.PI / 180;
+        Num.Vector3 sun = up * MathF.Sin(elevation) + (north * MathF.Cos(bearing) + east * MathF.Sin(bearing)) * MathF.Cos(elevation);
+        _flatSun.GlobalTransform = new Transform3D(Basis.LookingAt(ToGodot(-sun), ToGodot(up)), Vector3.Zero);
     }
 
     // ---------------------------------------------------------------- frame
@@ -531,6 +551,7 @@ public partial class GroundView : Node3D
             _collision.Follow(Client.Physics, feet);
             Time("collision", ref t0);
             _flat?.Follow(Client.Physics, feet);
+            TurnFlatSky(feet);
         }
         _nature.Refresh(feet, delta);
         Time("nature", ref t0);

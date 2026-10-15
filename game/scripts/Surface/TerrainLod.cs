@@ -107,7 +107,10 @@ public sealed partial class TerrainLod : Node3D
     public override void _ExitTree()
     {
         _stopping = true;
-        _signal.Release(_workers.Count);
+        if (_workers.Count > 0)
+        {
+            _signal.Release(_workers.Count); // none were started when it leaves before it was ready
+        }
     }
 
     private Node NewNode(TileKey key, Node? parent)

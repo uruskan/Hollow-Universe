@@ -262,7 +262,8 @@ Client options (after `--`):
   dedicated server started as a process of its own; `--in-process` runs it on a thread of the game) or
   `--connect host:port` starts at once. `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad
   network through a local relay), `--netgraph` (open the network graph), `--face <name>` (turn toward a player once
-  seen), `--db <path>` (the hosted server's database; the default is `user://hollow-host.db`), `--spawn origin` (hosted:
+  seen), `--db <path>` (the hosted server's database; the default is the branch's own: `user://hollow-host.db` on `main`,
+  `user://hollow-host-<branch>.db` on another, so a branch's newer save never meets an older build), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
   with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact`

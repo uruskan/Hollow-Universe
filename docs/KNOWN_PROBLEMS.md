@@ -124,10 +124,16 @@ and fixed on `whole-world` what broke there. Still open:
 
 | What | Cause | Status |
 |---|---|---|
-| In the ground game on the stand-in world (no surface view), every frame throws in `NatureView.Hook`, so the rest of the frame's drawing (people, things, the aim, building, raids, ships) never runs. | `GroundView` sets `NatureView.World` only when it opens a surface view; on the stand-in world `World` is null and `Hook` reads `World.Plants`. | open: S3c draws the world (or a null check meanwhile) |
+| In the ground game on the stand-in world (no surface view), every frame throws in `NatureView.Hook`, so the rest of the frame's drawing (people, things, the aim, building, raids, ships) never runs. | `GroundView` sets `NatureView.World` only when it opens a surface view; on the stand-in world `World` is null and `Hook` reads `World.Plants`. | done (15 October): `NatureView` skips the surface view's plants when there is none; S3c draws the world |
 | Drawn people faced up to 60° away from where they looked on the ball. | `CharacterFrame`'s north is the flat world's −Z laid on the ground; the movement code's is the world's pole. | done for live people (IW1: `CharacterFrame.YawToward` in `PeopleView`); corpses, sleeping bags and other things drawn by a yaw keep the old convention |
-| The ground game's sky has its horizon tilted on the ball. | The stand-in's procedural sky is the world's +Y up, not the landing site's. | open: S3c (the walk-in sandbox turns its sky to the site's up) |
+| The ground game's sky has its horizon tilted on the ball. | The stand-in's procedural sky is the world's +Y up, not the landing site's. | done for now (15 October): the ground game turns its plain sky and sun to the up where the player is, every frame (`GroundView.TurnFlatSky`); S3c draws the world's own sky |
 | An admin's ship spawn found no room for the Iron Wake near the landing site (58 of 60 spots had a tree in its footprint), and on a slope it rested on its hull with a velocity the contacts never let it move by, so it never parked. | The spawn's footprint test refuses any tree; the motor slept only on three loaded skids at under 5 cm/s. | done (IW1: trees and rocks in the way go for an admin's spawn; a ship held still with its engines off sleeps) |
+
+### Found in play (15 October 2026)
+
+| What the owner saw | Cause | Status |
+|---|---|---|
+| Hosting on `main` crashed while starting the world: Windows' error box for `Hollow.Server.exe` (exception 0xe0434352). | Both checkouts host with the same save (`user://hollow-host.db`). This branch's build had upgraded it to schema 8; `main`'s server knows schema 6, threw, and nothing caught it. Leaving the world then threw again in `TerrainLod._ExitTree` (`SemaphoreSlim.Release(0)` when no worker had started). | done (on `main` and here): each branch hosts with its own save, a server says why it refuses a newer save and stops cleanly (the menu shows it), the terrain's exit releases only started workers (GROUND.md §4.3); the upgraded save was moved to `hollow-host-whole-world.db` |
 
 ## 3. Deferred structure and decisions waiting on the owner
 

@@ -157,7 +157,7 @@ public partial class NatureView : Node3D
 
     private void Hook()
     {
-        if (_hooked || World.Plants is not { } plants)
+        if (_hooked || World?.Plants is not { } plants)
         {
             return;
         }
@@ -236,7 +236,7 @@ public partial class NatureView : Node3D
             }
             Num.Vector3 centre = Client.Frame.ToLocal(tile.Centre * Client.Surface!.Radius);
             float distance = Num.Vector3.Distance(centre, feet);
-            bool tree = World.Plants?.Library?.For((ScatterKind)(index >> 24)) is { Tree: true };
+            bool tree = World?.Plants?.Library?.For((ScatterKind)(index >> 24)) is { Tree: true };
             bool falls = false;
             if (distance < FallDistance + 60 && Cached(id, out NaturalObject o))
             {
@@ -432,7 +432,7 @@ public partial class NatureView : Node3D
     // redrawn in one go once the first is due; impostor blocks likewise.
     private void RedrawPlants()
     {
-        if (World.Plants is not { } plants)
+        if (World?.Plants is not { } plants)
         {
             return;
         }
@@ -471,7 +471,7 @@ public partial class NatureView : Node3D
     private void UpdateOutcrops(Num.Vector3 feet, HashSet<TileKey> changed)
     {
         // The placeholders take the plants' rock material: wait for it.
-        PlaceholderModels.Library ??= World.Plants?.Library;
+        PlaceholderModels.Library ??= World?.Plants?.Library;
         if (PlaceholderModels.Library == null && GroundModels.Provider is PlaceholderModels || Client.Surface == null)
         {
             return;
@@ -659,7 +659,7 @@ public partial class NatureView : Node3D
     // The tree's own model (its species and variant, from its scatter item) tips over away from the blow.
     private void StartFall(in NaturalObject o, TileKey tile, Num.Vector3 away, FallLook look)
     {
-        if (World.Surface is not { } surface)
+        if (World?.Surface is not { } surface)
         {
             return;
         }
@@ -728,7 +728,7 @@ public partial class NatureView : Node3D
 
     private bool Build(TreeFall fall, ScatterItem item)
     {
-        FloraLibrary? library = World.Plants?.Library;
+        FloraLibrary? library = World?.Plants?.Library;
         if (library?.For(item.Kind) is not { } species || species.Variants.Count == 0)
         {
             return false;
