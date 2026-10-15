@@ -729,9 +729,9 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GroundMode.cs` | 384 | GroundMode [MenuCamera] | The ground game (GROUND.md §4.3). With neither --host nor --connect it opens the main menu over the |
 | `GroundModels.cs` | 266 | IGroundModels, GroundModels, CatalogModels, PlaceholderModels | Where the ground game's world models come from (GROUND.md §9): deployables, bags of dropped items, outcrops and the |
 | `GroundOverlay.cs` | 226 | GroundOverlay [Crosshair] | What the ground game shows besides the RustMVP interface: other players' names over their heads (placed by |
-| `GroundTerrain.cs` | 133 | GroundTerrain [TileArrays] | Placeholder ground (GROUND.md §4.3): the collision tiles of ISurface.GroundCollision around the |
+| `GroundTerrain.cs` | 132 | GroundTerrain [TileArrays] | Placeholder ground: the collision tiles of ISurface.GroundCollision drawn as plain meshes; only the build sandbox draws with it since S3c |
 | `GroundTour.cs` | 2466 | GroundTour | The scripted screenshot run of the ground game (GROUND.md §5, --tour &lt;folder&gt;): on the host, a walk |
-| `GroundView.cs` | 988 | GroundView | The ground game in first person (GROUND.md §4.3), one whole on the first world (the stand-in world until S4, |
+| `GroundView.cs` | 987 | GroundView | The ground game in first person (GROUND.md §4.3) on a whole world: the surface view draws the ball in the zone's own frame (docs/WHOLE_WORLD.md §10) |
 | `GroundWarmup.cs` | 41 | GroundWarmup | Everything the ground game can draw, for the renderer's warm-up (GROUND.md §4.3.1): each library's items, read from its |
 | `GunEffects.cs` | 194 | GunEffects | Shots, hits and guns in hand through the effects library and the model catalogue (GROUND.md §6.4, §9.3): which |
 | `InventoryBody.cs` | 51 | InventoryBody | The player's own body on the inventory screen (GROUND.md §8): the character package's CharacterView |
@@ -741,7 +741,8 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `MarkerTextures.cs` | 224 | MarkerTextures [Style] | The weak spots' textures (GROUND.md §9.3), painted in code once and kept (our own art): gather.json's |
 | `MenuGroundUi.cs` | 53 | MenuGroundUi | The interface's view model before a game exists (the main menu): nothing carried, nothing to show. |
 | `NatureMarkers.cs` | 226 | NatureMarkers [Marker] | The weak spots drawn (GROUND.md §6.1, §9.3), one generic marker for every class: gather.json's |
-| `NatureView.cs` | 779 | NatureView [PendingSound, Seen, TreeFall] | The natural objects as the game changed them (GROUND.md §6.1). The surface view draws the planet's trees, bushes, |
+| `NaturePlants.cs` | 65 | NaturePlants | The ground game's plants (docs/WHOLE_WORLD.md §10.3): the zone's natural objects, by their tiles, as ScatterItems of the kind gather.json names |
+| `NatureView.cs` | 798 | NatureView [PendingSound, Seen, TreeFall] | The natural objects as the game changed them (GROUND.md §6.1): the plants' changes, outcrops and pickups drawn as models, weak spots, gathering's feedback, falling trees |
 | `NetGraph.cs` | 72 | NetGraph | The network graph (GROUND.md §4.4): the last 30 s of round trip, bandwidth down and prediction error, one line each, |
 | `PeopleView.cs` | 529 | PeopleView [Person, Corpse] | The other players (GROUND.md §4.8): each a CharacterView fed every frame from what the client |
 | `PlacementGhost.cs` | 192 | PlacementGhost | The one placement ghost (GROUND_SYSTEMS.md §6): whatever is being placed, drawn as its own model in one hologram |
@@ -794,21 +795,23 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `AerialTable.cs` | 111 | AerialTable | The aerial-perspective table of the surface view (GROUND.md §4.6): the air's in-scattered light and transmittance |
-| `AtmosphereModel.cs` | 444 | AtmosphereModel | The physically based air of a planet for drawing (GROUND.md §4.6): Rayleigh scattering from its molecules, Mie |
-| `GrassField.cs` | 487 | GrassField [FieldData] | The grass of the surface view (GROUND.md §4.6): presentation only, not part of the scatter. One MultiMesh of blade |
+| `AerialTable.cs` | 114 | AerialTable | The aerial-perspective table of the surface view (GROUND.md §4.6): the air's in-scattered light and transmittance by direction and distance (400 km on a real planet, 10 km on a whole small world) |
+| `AtmosphereModel.cs` | 449 | AtmosphereModel | The physically based air of a planet for drawing (GROUND.md §4.6): Rayleigh scattering from its molecules, Mie |
+| `GrassField.cs` | 560 | GrassField [FaceLattice, FieldData, FaceGrid] | The grass of the surface view (GROUND.md §4.6, docs/WHOLE_WORLD.md §10.3): tufts on cube-face cells (level 13 on a 2.41 km world) placed by the GPU from a lattice of the cells' corners on the drawn ground, one grid a face near a seam |
 | `NoiseTextures.cs` | 211 | NoiseTextures | Tiling noise textures for the surface's shaders (presentation only): the cloud field, and the large-scale |
-| `RenderFrame.cs` | 76 | RenderFrame | The floating origin of the surface view (ARCHITECTURE.md §6): Godot's world is a tangent frame of the planet (+X |
-| `SurfaceSky.cs` | 245 | SurfaceSky | The sky of the surface view at a universe time (GROUND.md §4.6): the real directions of the planet's sun, its moon, |
+| `PlanetGlobals.cs` | 96 | PlanetGlobals | The planet under everything drawn (docs/WHOLE_WORLD.md §10): its centre, radius and axes as shader globals (surface_planet.gdshaderinc) and for what moves along up (effects, gibs, tracers) |
+| `PlantSource.cs` | 37 | IPlantSource, SurfacePlants | Where the surface view's plants come from (docs/WHOLE_WORLD.md §10.3): tiles of ScatterItems; SurfacePlants, a surface's own scatter |
+| `RenderFrame.cs` | 116 | RenderFrame | The frame Godot's world is drawn in (ARCHITECTURE.md §6): World, the body's own frame (the ground game's whole world), or a tangent frame of a large planet whose origin follows the camera (look-dev) |
+| `SurfaceSky.cs` | 259 | SurfaceSky | The sky of the surface view at a universe time (GROUND.md §4.6): the real directions of the planet's sun, its moon, the other suns and planets, as lights hidden below the drawn world's horizon |
 | `SurfaceUi.cs` | 97 | SurfaceUi | The surface view's overlay: where you are, the local time, the sun and moon, and the frame time. |
-| `SurfaceView.Game.cs` | 48 | SurfaceView | The surface view as the ground game's world (GROUND.md §4.3): the game drives the camera and owns the keys; the view |
+| `SurfaceView.Game.cs` | 47 | SurfaceView | The surface view driven by a game (GROUND.md §4.3): the game drives the camera and owns the keys; OpenZone opens a real planet in a tangent frame at a point (the main menu's backdrop) |
 | `SurfaceView.Loading.cs` | 62 | SurfaceView | The surface view's part of the loading pipeline (GROUND.md §4.3.1): what IsReady waits for, as two stages with their |
-| `SurfaceView.cs` | 536 | SurfaceView | The surface view (GROUND.md §4.6): stand on or fly over a real planet of the universe, with its terrain out to the |
+| `SurfaceView.cs` | 618 | SurfaceView | The surface view (GROUND.md §4.6): a planet's ground, sea, plants, grass, air and sky; the look-dev view of a real planet (Open) and the ground game's whole world from any ISurface (OpenWorld, docs/WHOLE_WORLD.md §10) |
 | `TerrainLod.Loading.cs` | 28 | TerrainLod | What the loading pipeline reads of the terrain (GROUND.md §4.3.1). |
-| `TerrainLod.cs` | 647 | TerrainLod, TileMeshData [Node, Job] | Draws a planet's ground out to the horizon (GROUND.md §4.6): a quadtree of tiles on each cube face, split near |
-| `Vegetation.Game.cs` | 147 | Vegetation | What the ground game changed about scatter objects (GROUND.md §6.1): felled trees, picked ferns and berry bushes. |
+| `TerrainLod.cs` | 668 | TerrainLod, TileMeshData [Node, Job] | Draws a planet's ground out to the horizon from any ISurface (GROUND.md §4.6): a quadtree of tiles on each cube face, the finest level by size, each tile with its face and texture coordinates in metres on it (UV2) |
+| `Vegetation.Game.cs` | 151 | Vegetation | What the ground game changed about its plants (GROUND.md §6.1): felled trees, picked ferns and berry bushes; near sets rebuilt on a worker |
 | `Vegetation.Loading.cs` | 17 | Vegetation | What the loading pipeline reads of the plants (GROUND.md §4.3.1). |
-| `Vegetation.cs` | 814 | Vegetation [LodSet, Block, LodState, NearData, BlockingQueue] | Trees, bushes, berry bushes, ferns and rocks of the surface view (GROUND.md §4.6), from the surface generator's |
+| `Vegetation.cs` | 848 | Vegetation [LodSet, Block, LodState, NearData, BlockingQueue] | Trees, bushes, berry bushes, ferns and rocks of the surface view (GROUND.md §4.6) from a plant source (IPlantSource), at its tiles' level, ranges from the horizon |
 
 ### game/scripts/Surface/Flora (5 files, 2,083 lines)
 

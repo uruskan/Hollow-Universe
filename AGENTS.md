@@ -264,7 +264,8 @@ Client options (after `--`):
   dedicated server started as a process of its own; `--in-process` runs it on a thread of the game) or
   `--connect host:port` starts at once. `--lag <ms>`, `--jitter <ms>`, `--loss <percent>` (bad
   network through a local relay), `--netgraph` (open the network graph), `--face <name>` (turn toward a player once
-  seen), `--db <path>` (the hosted server's database; the default is the branch's own: `user://hollow-host.db` on `main`,
+  seen), `--lift <m>` and `--pitch <deg>` (the camera lifted along up and tilted, for pictures from above: `--lift 4800
+  --pitch -62` shows the ball from the leaving height), `--db <path>` (the hosted server's database; the default is the branch's own: `user://hollow-host.db` on `main`,
   `user://hollow-host-<branch>.db` on another, so a branch's newer save never meets an older build), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`

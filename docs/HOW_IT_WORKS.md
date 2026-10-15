@@ -223,9 +223,11 @@ The Godot project (`game/scripts`) draws it: `GroundMode` starts the client (and
 `GroundView` is the scene (the terrain, `PeopleView`, `ThingsView`, `NatureView`, `BuildView`, `ArrowsView`, `GibsView`,
 the first-person view and view model, `FxDirector`, `AudioDirector`), and the interface is `GroundUi` (HUD, inventory,
 crafting, map, death screen, radials, console) drawing an `IGroundUi` model that `ClientGroundUi` fills from the client
-(and `MockGroundUi` fills for screenshots without a server). Every length goes through `Ui.Px`. The Godot side builds
-but does not draw the whole world yet: its render frame, terrain, sea, plants, effects and cameras are S3c's
-(docs/WHOLE_WORLD.md §14), so playing on the ball waits for that step.
+(and `MockGroundUi` fills for screenshots without a server). Every length goes through `Ui.Px`. The world is drawn by
+the surface view (`SurfaceView.OpenWorld`, docs/WHOLE_WORLD.md §10): the zone's surface, whole, in the zone's own frame
+(origin at the centre), its terrain from `ISurface` (`TileMesh.Build`, `ISurface.Cover`), its plants the zone's natural
+objects (`NaturePlants`), grass on the cube faces' cells, the sky of the planet the world stands for; `PlanetGlobals`
+tells every shader and the effects where the planet's centre is, so up, heights and falling follow the ball.
 
 **The data.** 23 JSON files in `game/data/ground` (items, recipes, deployables, weapons, building, animals, world,
 interactions, placement, capabilities, texts...). `GameContent.Load` runs one reader per file (`Content/Readers`,

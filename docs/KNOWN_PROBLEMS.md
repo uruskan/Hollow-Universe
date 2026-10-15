@@ -105,7 +105,7 @@ These are written in GROUND.md as decisions of the form "left for later" and wer
 | What | Cause | Status |
 |---|---|---|
 | A herd's members start on one spot, face one way and think on the same tick. | Every animal added on the same tick gets the same seed: `AnimalWorld.AddMember` hashes the counter `_localIds`, which is never incremented. | fixed (S3a; on `main` since the merge of 15 October) |
-| Near tree impostors most likely disappear more than about 400 m from the landing site whenever the landing site is out of view (not yet seen in a run). | In play the near set is anchored at the frame's origin (`Vegetation.Game.RebuildNear`), and the near impostors' `CustomAabb` is a fixed ±400 m around that anchor, so Godot culls them by the wrong box. | open, small (on `main`) |
+| Near tree impostors most likely disappear more than about 400 m from the landing site whenever the landing site is out of view (not yet seen in a run). | In play the near set is anchored at the frame's origin (`Vegetation.Game.RebuildNear`), and the near impostors' `CustomAabb` is a fixed ±400 m around that anchor, so Godot culls them by the wrong box. | done (S3c, 15 October): the near set is anchored at the camera |
 | The map of a surface without a sea is most likely black (not run). | `ZoneMapImage` takes sea level as −∞ when `SeaRadius` is 0, so heights become infinite and the hill shading NaN; only the `--stand-in` world has no sea. | in S3: since S3a the stand-in world has a sea; the map's safe reading is S3d (WHOLE_WORLD.md §4, §12) |
 
 ### Found by the load test on the whole world (15 October 2026, S3b)
@@ -124,10 +124,19 @@ and fixed on `whole-world` what broke there. Still open:
 
 | What | Cause | Status |
 |---|---|---|
-| In the ground game on the stand-in world (no surface view), every frame throws in `NatureView.Hook`, so the rest of the frame's drawing (people, things, the aim, building, raids, ships) never runs. | `GroundView` sets `NatureView.World` only when it opens a surface view; on the stand-in world `World` is null and `Hook` reads `World.Plants`. | done (15 October): `NatureView` skips the surface view's plants when there is none; S3c draws the world |
+| In the ground game on the stand-in world (no surface view), every frame throws in `NatureView.Hook`, so the rest of the frame's drawing (people, things, the aim, building, raids, ships) never runs. | `GroundView` sets `NatureView.World` only when it opens a surface view; on the stand-in world `World` is null and `Hook` reads `World.Plants`. | done (S3c, 15 October): the surface view draws the stand-in world, its trees, berry bushes and ferns are the zone's natural objects (`NaturePlants`), outcrops and pickups `NatureView`'s models |
 | Drawn people faced up to 60° away from where they looked on the ball. | `CharacterFrame`'s north is the flat world's −Z laid on the ground; the movement code's is the world's pole. | done for live people (IW1: `CharacterFrame.YawToward` in `PeopleView`); corpses, sleeping bags and other things drawn by a yaw keep the old convention |
-| The ground game's sky has its horizon tilted on the ball. | The stand-in's procedural sky is the world's +Y up, not the landing site's. | done for now (15 October): the ground game turns its plain sky and sun to the up where the player is, every frame (`GroundView.TurnFlatSky`); S3c draws the world's own sky |
+| The ground game's sky has its horizon tilted on the ball. | The stand-in's procedural sky is the world's +Y up, not the landing site's. | done (S3c, 15 October): the game draws the planet's own sky over the ball, its ground test and horizon the ball's (WHOLE_WORLD.md §14) |
 | An admin's ship spawn found no room for the Iron Wake near the landing site (58 of 60 spots had a tree in its footprint), and on a slope it rested on its hull with a velocity the contacts never let it move by, so it never parked. | The spawn's footprint test refuses any tree; the motor slept only on three loaded skids at under 5 cm/s. | done (IW1: trees and rocks in the way go for an admin's spawn; a ship held still with its engines off sleeps) |
+
+### Found while building S3c (15 October 2026, the client draws the ball, branch `s3c`)
+
+| What | Cause | Status |
+|---|---|---|
+| The stand-in's temperate forest draws a closed forest floor with ferns, though its trees stand far apart (about 24 a hectare). | The drawn ground takes its tree cover from the biome table (`BiomeTable.Cover`); the stand-in's trees come from gather.json's flat densities, which the surface doesn't know. | open, until S4's ground |
+| From the leaving height the sky past the ball's edge is the sky mirrored about the air's horizon, and clouds stay hidden behind the ball. | The air keeps the real planet's size (WHOLE_WORLD.md §10.2: the minimum); clouds are drawn by the sky, behind all geometry. | S5 |
+| On the real-size look-dev view, ground textures jump on lines every 4 km of a cube face, and the grass grows on 0.6 m cells (sparser than before). | Texture coordinates keep floats exact by a per-tile anchor at multiples of 4,096 m; the grass's cells are the cube faces' at the level nearest 0.46 m (WHOLE_WORLD.md §14). | open, look-dev only |
+| A full test run crashed natively in Jolt (`JPH_MeshShapeSettings_Create2`, access violation) during `SurvivalNetTests.OthersSeeOnlyABag`, while three Godot games ran beside it. | Not traced; the code it ran is unchanged by S3c. Perhaps the Jolt crash under low memory the handoff lists. | open |
 
 ### Found in play (15 October 2026)
 

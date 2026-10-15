@@ -44,7 +44,7 @@ public sealed class FxTracers
             InstanceCount = capacity,
             VisibleInstanceCount = 0,
             Mesh = Strip(),
-            CustomAabb = new Aabb(new Vector3(-4000, -4000, -4000), new Vector3(8000, 8000, 8000)),
+            CustomAabb = new Aabb(new Vector3(-8000, -8000, -8000), new Vector3(16000, 16000, 16000)),
         };
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/fx/shaders/fx_tracer.gdshader"), RenderPriority = 3 };
         _node = new MultiMeshInstance3D
@@ -54,7 +54,7 @@ public sealed class FxTracers
             MaterialOverride = material,
             CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
             Layers = FxDirector.RenderLayer,
-            CustomAabb = new Aabb(new Vector3(-4000, -4000, -4000), new Vector3(8000, 8000, 8000)),
+            CustomAabb = new Aabb(new Vector3(-8000, -8000, -8000), new Vector3(16000, 16000, 16000)),
         };
         parent.AddChild(_node);
     }
