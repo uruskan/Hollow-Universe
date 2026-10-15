@@ -104,27 +104,27 @@
         },
         {
           "key": "forward-battery", "name": "Forward battery", "role": "station:Siege_Forward", "verb": "man", "sitters": "crew", "exposed": true,
-          "at": "Siege_Forward_GunnerSeat", "eye": "Siege_Forward_GunnerCamera", "exits": ["Siege_Forward_GunnerExit", [-1.76, 9.04, 20.75]]
+          "at": "Siege_Forward_GunnerSeat", "eye": { "at": "Siege_Forward_GunnerCamera", "offset": [0, 0.6, 0] }, "exits": ["Siege_Forward_GunnerExit", [-1.76, 9.04, 20.75]]
         },
         {
           "key": "dorsal-battery", "name": "Dorsal battery", "role": "station:Siege_Dorsal", "verb": "man", "sitters": "crew", "exposed": true,
-          "at": "Siege_Dorsal_GunnerSeat", "eye": "Siege_Dorsal_GunnerCamera", "exits": ["Siege_Dorsal_GunnerExit", [-1.76, 12.12, -4.9]]
+          "at": "Siege_Dorsal_GunnerSeat", "eye": { "at": "Siege_Dorsal_GunnerCamera", "offset": [0, 0.6, 0] }, "exits": ["Siege_Dorsal_GunnerExit", [-1.76, 12.12, -4.9]]
         },
         {
           "key": "forward-starboard-mount", "name": "Forward starboard mount", "role": "station:Defense_F_P", "verb": "man", "sitters": "crew", "exposed": true,
-          "at": "Defense_F_P_GunnerSeat", "eye": "Defense_F_P_GunnerCamera", "exits": ["Defense_F_P_GunnerExit", [-6.75, 7.91, 6.0]]
+          "at": "Defense_F_P_GunnerSeat", "eye": { "at": "Defense_F_P_GunnerCamera", "offset": [0, 0.25, 0] }, "exits": ["Defense_F_P_GunnerExit", [-6.75, 7.91, 6.0]]
         },
         {
           "key": "forward-port-mount", "name": "Forward port mount", "role": "station:Defense_F_S", "verb": "man", "sitters": "crew", "exposed": true,
-          "at": "Defense_F_S_GunnerSeat", "eye": "Defense_F_S_GunnerCamera", "exits": ["Defense_F_S_GunnerExit", [6.75, 7.91, 6.0]]
+          "at": "Defense_F_S_GunnerSeat", "eye": { "at": "Defense_F_S_GunnerCamera", "offset": [0, 0.25, 0] }, "exits": ["Defense_F_S_GunnerExit", [6.75, 7.91, 6.0]]
         },
         {
           "key": "aft-starboard-mount", "name": "Aft starboard mount", "role": "station:Defense_A_P", "verb": "man", "sitters": "crew", "exposed": true,
-          "at": "Defense_A_P_GunnerSeat", "eye": "Defense_A_P_GunnerCamera", "exits": ["Defense_A_P_GunnerExit", [-6.75, 8.63, -12.3]]
+          "at": "Defense_A_P_GunnerSeat", "eye": { "at": "Defense_A_P_GunnerCamera", "offset": [0, 0.25, 0] }, "exits": ["Defense_A_P_GunnerExit", [-6.75, 8.63, -12.3]]
         },
         {
           "key": "aft-port-mount", "name": "Aft port mount", "role": "station:Defense_A_S", "verb": "man", "sitters": "crew", "exposed": true,
-          "at": "Defense_A_S_GunnerSeat", "eye": "Defense_A_S_GunnerCamera", "exits": ["Defense_A_S_GunnerExit", [6.75, 8.63, -12.3]]
+          "at": "Defense_A_S_GunnerSeat", "eye": { "at": "Defense_A_S_GunnerCamera", "offset": [0, 0.25, 0] }, "exits": ["Defense_A_S_GunnerExit", [6.75, 8.63, -12.3]]
         }
       ],
       "doors": [

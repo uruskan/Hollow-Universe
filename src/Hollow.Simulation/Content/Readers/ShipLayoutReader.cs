@@ -42,11 +42,24 @@ internal static class ShipLayoutReader
             f.Problem(where, interior == null ? $"names a socket (\"{name}\") but the ship has no interior data file" : $"no socket \"{name}\" in {interior.File}");
             return new ShipSocket(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY, -1);
         }
+        if (v.ValueKind == JsonValueKind.Object && v.TryGetProperty("at", out JsonElement at) && at.ValueKind == JsonValueKind.String)
+        {
+            // A socket moved by an offset in its part's frame, e.g. a gunner's eye raised to see over the gun: it still rides
+            // the part (a turret's yaw) as the socket does.
+            ShipSocket socket = Point(f, at, where, interior);
+            if (v.TryGetProperty("offset", out JsonElement o) && o.ValueKind == JsonValueKind.Array && o.GetArrayLength() == 3
+                && o.EnumerateArray().All(x => x.ValueKind == JsonValueKind.Number))
+            {
+                return socket with { Position = socket.Position + new Vector3((float)o[0].GetDouble(), (float)o[1].GetDouble(), (float)o[2].GetDouble()) };
+            }
+            f.Problem(where, "\"offset\" is three numbers");
+            return socket;
+        }
         if (v.ValueKind == JsonValueKind.Array && v.GetArrayLength() == 3 && v.EnumerateArray().All(x => x.ValueKind == JsonValueKind.Number))
         {
             return new ShipSocket(new Vector3((float)v[0].GetDouble(), (float)v[1].GetDouble(), (float)v[2].GetDouble()), Vector3.UnitZ, Vector3.UnitY, -1);
         }
-        f.Problem(where, "a point is three numbers or a socket's name");
+        f.Problem(where, "a point is three numbers, a socket's name, or { \"at\": a socket, \"offset\": three numbers }");
         return new ShipSocket(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY, -1);
     }
 
