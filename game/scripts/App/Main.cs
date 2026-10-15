@@ -29,6 +29,9 @@ public partial class Main : Node
     private SystemMapView _systemMap = null!;
     private SurfaceView _surfaceView = null!;
     private Dictionary<string, string> _options = new();
+
+    // A clean exit clears the crash marker (GROUND.md §4.3).
+    public override void _ExitTree() => CrashReporter.Stop();
     private double _elapsed;
     private bool _capturing;
     private bool _rescaled;
@@ -46,7 +49,11 @@ public partial class Main : Node
 
     public override void _Ready()
     {
+        // Crash reports first (GROUND.md §4.3): everything after may be what fails.
+        CrashReporter.Install();
         _options = ParseOptions(OS.GetCmdlineUserArgs());
+        CrashReporter.Running = "view " + Option("view", "galaxy") + (_options.ContainsKey("host") ? ", hosting" : "") +
+            (_options.TryGetValue("connect", out string? server) ? ", connected to " + server : "");
         if (_options.ContainsKey("physics-check"))
         {
             GroundChecks.RunPhysicsCheck(this);
