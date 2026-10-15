@@ -125,12 +125,14 @@ Three frames, each with its own type, so they can't be mixed by accident:
 |---|---|---|---|---|
 | **Galactic** | star positions, galaxy map, jumps | `GalacticPosition` (3 × double) | light-year | Sol. +Z toward the Galactic Centre, +Y toward the north galactic pole, +X toward galactic longitude 90° (the direction of the Sun's orbit). Right-handed, Y up, like Godot. |
 | **System** | bodies, stations, ships in supercruise | `SystemPosition` (3 × double) | metre | the root of the system's orbit tree: its only star, or the barycentre of its stars (GALAXY.md §10.1). Reference plane is the system's orbital plane (x–z), +Y is its north. |
-| **Local** | physics, rendering, gameplay | `LocalPosition` (3 × float) | metre | the zone's origin, close to the players. Planet surfaces use a tangent frame: origin on the surface, +Y = local up. |
+| **Local** | physics, rendering, gameplay | `LocalPosition` (3 × float) | metre | the zone's origin. A surface zone uses its world's own frame (`ZoneFrame.World`): origin at the world's centre, the body's axes (+Y towards the north pole, longitude counted eastward from +X), so up is the direction from the centre and changes from point to point. Other zones' origin is close to the players. A tangent frame (`ZoneFrame.At`: origin on the ground, +Y = local up) remains for tools that look at a patch of a large body. |
 
 Rules:
 
-- **Physics only ever sees the local frame.** A zone is at most about 20 km across, so float precision stays
-  near 1 mm.
+- **Physics only ever sees the local frame.** A surface zone measures its whole world from the centre (§10.1): on
+  the first world, 2.41 km in radius, a float steps 0.24 mm at the ground and under 1 mm at 4 world radii, as far as
+  a ship may go (WHOLE_WORLD.md §3.1), so Jolt stays single precision with no floating origin. Other zones are at most
+  about 20 km across, so float precision stays near 1 mm.
 - **Distances in space never reach the physics engine.** Supercruise and jumps work in double precision on the
   system and galactic frames. The engine's world-size limit is irrelevant.
 - **The client renders with a floating origin.** The render origin follows the camera. Large-scale things
@@ -221,7 +223,7 @@ A **zone** is one live simulated area: one physics world, one origin, one thread
 |---|---|---|
 | System space | one star system's supercruise layer | none: bodies on rails, ships on simple supercruise kinematics |
 | Local space | normal space around a point (a station, a ring, a drop point), up to ~20 km | rigid bodies, ships |
-| Surface | a block of surface tiles on one body | characters, buildings, vehicles, terrain |
+| Surface | a whole world: one body, in its own frame (§6) | characters, buildings, vehicles, terrain |
 | Interior (later) | inside a station or a large ship | characters |
 
 **Lifecycle**: requested → loading (generate the natural state, load the diff, apply elapsed time) → active
@@ -230,17 +232,25 @@ A **zone** is one live simulated area: one physics world, one origin, one thread
 **Zones never touch each other directly.** They exchange messages through the zone host: transfers,
 cross-boundary events. This is what lets zones move to other processes later (P7).
 
-**Surface zones** are built from fixed tiles (a cube-sphere quadtree level, about 2 km per tile):
+**A surface zone is a whole world** (since S3, 14 October 2026: SCALE.md §5.1, WHOLE_WORLD.md). Worlds are small
+(the first is 2.41 km in radius, a constant until `GameScale` gives every body its own), so one zone holds all of
+one, measured from its centre:
 
-- If two players are within the **interaction distance** (about 4 km, beyond weapon and building range),
-  they must be in the same zone.
-- Zones grow by taking over tiles, **merge** when their tile sets touch, and **split** when groups drift
-  far apart. Merging moves entities from one physics world to another in a few milliseconds.
-- A zone has a maximum extent (about 20 km) for float precision and a maximum cost of one thread at
-  30 Hz. A big raid (200 players) has to fit in one zone's 33 ms budget. That's the hardest performance
-  target in the project and is load-tested in M3–M4.
-- Far-away bases are shown from a low-frequency "distant view" feed (silhouettes from stored data),
-  not by simulating them.
+- A world has no zone borders. Two players on the same world are always in the same zone, and surface zones
+  don't grow, merge or split. Several zones in one server (the zone host, deferred by the owner) means several
+  worlds in one server.
+- Everything spatial belongs to the ball. The zone's cube-sphere tiles are chosen by size, the level whose edge is
+  nearest a length on that world (`TileKey.LevelFor`), not by level number: the physics tiles of about 64 m (level 6,
+  59 m on the first world), the stand-in's natural objects, the nav grids, the animals' spawn areas, the loot cells.
+  Spatial indexes (relevance, the building, deployables, natural objects' changes, animals) are grids of cubes in 3D
+  with straight-line distances, and natural objects are queried by a sphere.
+- Until S4 makes the real ground at walking scale, every zone stands on the stand-in world (`StandInWorld`:
+  continents, a sea over 45 % of it, climate bands by latitude). The real `PlanetSurface` is built at its real
+  radius, which a zone measured from its centre can't hold.
+- A zone has a maximum cost of one thread at 30 Hz. A big raid (200 players) has to fit in one zone's 33 ms
+  budget. That's the hardest performance target in the project and is load-tested in M3–M4.
+- Far-away bases, beyond a player's relevance (§11.3), are shown from a low-frequency "distant view" feed
+  (silhouettes from stored data), not sent in full.
 
 ### 10.2 Entities
 
@@ -259,8 +269,8 @@ cross-boundary events. This is what lets zones move to other processes later (P7
 ### 10.3 Physics
 
 - **Server**: one Jolt physics system per zone. Characters use Jolt's kinematic character controller.
-  Building parts are static boxes or convex hulls. Terrain is height fields built from the same terrain
-  function the client renders.
+  Building parts are static boxes or convex hulls. Terrain is static mesh tiles, the world's cube-sphere tiles
+  (§10.1), built from the same terrain function the client renders.
 - **Client**: the same physics library runs a small local copy of the nearby collision world, so the
   player's own character and ship are predicted with exactly the server's code. Godot's built-in physics
   is only for cosmetics (debris, ragdolls).
@@ -354,7 +364,7 @@ schedule, and alerts wait for the owners' login.
 
 | Transfer | Trigger | What happens |
 |---|---|---|
-| Surface ↔ surface | zones merge or split | Entities move between physics worlds in one process. The client notices nothing. |
+| Surface ↔ surface | none since S3 (14 October 2026): a surface zone holds its whole world (§10.1) | Nothing: a world has no zone borders. |
 | Local space ↔ surface | descending below the handover altitude (or climbing above it) | Ship and occupants are handed over. The client keeps rendering. |
 | Supercruise ↔ local space | drop out / jump to supercruise | Join the local zone at that point, or create one. Join an existing zone if one is within range. |
 | Star system → star system | frame shift jump | A 10–15 s hyperspace sequence on the client covers loading the target system. |
@@ -451,7 +461,7 @@ Each is an interface from day one, so moving it to its own process later is a de
 | **M1** | **Galaxy** | Galaxy map and system map run; real stars near Sol; ~120 billion procedural systems on demand; deterministic; tested. |
 | M2 | Network core | .NET server, two Godot clients and 100 bots in a flat test zone; predicted movement; snapshot replication; bandwidth and tick measured. |
 | M3 | Zones and persistence | Zones load and unload; place a wall; restart the server; the wall is still there; elapsed-time catch-up works. |
-| M4 | Planets | Land on a procedural planet; walk on a curved surface; surface zones merge and split. |
+| M4 | Planets | Land on a procedural planet; walk on a curved surface; the whole world is one zone (§10.1). |
 | M5 | Ships and travel | Normal flight (6 degrees of freedom, flight assist), supercruise, frame shift jumps between systems, docking. |
 | M6 | Survival core | Gather, craft, inventory, Rust-style building, doors, locks, claims, firearms, death, loot, beds. |
 | M7 | Raiding | Explosives, structure damage, decay and upkeep, raid alerts. |
@@ -462,7 +472,7 @@ start:
 - M2 and M3 become part of G1–G3;
 - M6 and M7 become G2–G5;
 - G1 builds one planet's surface ahead of M4;
-- M4 finishes with G7 (every landable body, zones that merge and split);
+- M4 finishes with G7 (every landable body; since S3, 14 October 2026, each a whole world in one zone, §10.1);
 - M5 (ships) follows.
 
 ---
@@ -474,7 +484,7 @@ start:
 | Physics library | Jolt via a C# binding / BepuPhysics2 (pure C#) | **Decided: Jolt** (JoltPhysicsSharp; the G1 spike passed, GROUND.md §4.5) | done |
 | Entity storage | own archetype store / Arch | **Decided: own, small** — a sparse set per component type (§10.2) | done |
 | Hosting | own machines / rented servers / cloud | rented dedicated servers | M3 |
-| Surface tile size and interaction distance | 1–4 km / 2–6 km | 2 km / 4 km | M4 |
+| Surface tile size and interaction distance | 1–4 km / 2–6 km | **Not needed since S3** (14 October 2026): a surface zone holds its whole world (§10.1) | done |
 | Real-star catalogue | HYG 4.1 (~120k stars) / AT-HYG (~2.5M) | HYG now, AT-HYG later | after M1 |
 | Wipes, shard size | design | — | GAME_DESIGN.md |
 

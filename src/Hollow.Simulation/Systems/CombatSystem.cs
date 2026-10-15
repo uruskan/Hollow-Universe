@@ -154,10 +154,9 @@ public sealed class CombatSystem : ZoneSystem
     private void Strike(Entity entity, ref Character c, Player p, ItemDef item, MeleeStats melee)
     {
         GameContent content = Content;
-        Vector3 up = Frame.UpAt(c.State.Position);
-        Vector3 eye = EyeOf(c.State);
-        Vector3 direction = CharacterMotor.ViewDirection(c.Input.Yaw, c.Input.Pitch, up);
         float rewind = Math.Min(c.Actions.ViewDelay / 4f, MaxRewindTicks);
+        // From the eye along the view, aboard a ship as the player saw it (IRON_WAKE.md §4.9).
+        (Vector3 eye, Vector3 direction, _) = Zone.AttackLine(c, Tick - rewind);
         TraceHit hit = Damage.Trace(eye, direction, melee.Reach, SweepRadius, p.Id, Tick - rewind);
         if (!hit.Hit || hit.Target.Family == TargetFamily.Ground)
         {
@@ -193,7 +192,7 @@ public sealed class CombatSystem : ZoneSystem
     {
         // The swing's own line (the thick ray may have touched the object off it) and the tool (the last hit's bonus).
         ref Character c = ref Entities.Get<Character>(entity);
-        Vector3 view = CharacterMotor.ViewDirection(c.Input.Yaw, c.Input.Pitch, Frame.UpAt(c.State.Position));
+        Vector3 view = Zone.AttackLine(c, Tick).Direction;
         GatherResult result = Natural!.Hit(o, new GatherSwing(p.Held(Content), tool, point, eye, view, UnixMilliseconds, Tick));
         if (!result.Hit)
         {
@@ -271,8 +270,9 @@ public sealed class CombatSystem : ZoneSystem
         }
         // Loose: an arrow from the inventory, from the eye along the view, at the arrow's speed.
         InventoryRules.Take(p.Inventory.Carried, ammo!.Id, 1);
-        Vector3 up = Frame.UpAt(c.State.Position);
-        Vector3 direction = CharacterMotor.ViewDirection(c.Input.Yaw, c.Input.Pitch, up);
+        // Aboard a ship the arrow leaves where the player saw it, with the ship's velocity added (IRON_WAKE.md §4.9).
+        float rewindTicks = Math.Min(c.Actions.ViewDelay / 4f, MaxRewindTicks);
+        (Vector3 eye, Vector3 direction, Vector3 carried) = Zone.AttackLine(c, Tick - rewindTicks);
         var projectile = new Projectile
         {
             Id = _nextProjectile++,
@@ -280,8 +280,8 @@ public sealed class CombatSystem : ZoneSystem
             ShooterName = p.Name,
             Ammo = ammo,
             Damage = ammo.Ammo!.Damage * bow.DamageScale,
-            Position = EyeOf(c.State),
-            Velocity = direction * (ammo.Ammo.Speed * bow.SpeedScale),
+            Position = eye,
+            Velocity = direction * (ammo.Ammo.Speed * bow.SpeedScale) + carried,
             LifetimeTicks = CharacterTicks.From(ammo.Ammo.LifetimeSeconds),
             RewindTicks = Math.Min(c.Actions.ViewDelay / 4f, MaxRewindTicks),
         };
@@ -451,10 +451,11 @@ public sealed class CombatSystem : ZoneSystem
                 {
                     continue;
                 }
-                Vector3 up = zone.Frame.UpAt(s.Position);
+                // Where it is in the world (aboard a ship, where the ship carries it).
+                Vector3 up = zone.UpOf(s), feet = zone.WorldOf(s);
                 bool lying = p.Sleeping || p.Wounded;
-                Vector3 chest = s.Position + up * (lying ? 0.25f : s.Stance == Stance.Crouching ? 0.7f : 1.15f);
-                Vector3 head = s.Position + up * (lying ? 0.3f : s.Stance == Stance.Crouching ? 1.0f : 1.6f);
+                Vector3 chest = feet + up * (lying ? 0.25f : s.Stance == Stance.Crouching ? 0.7f : 1.15f);
+                Vector3 head = feet + up * (lying ? 0.3f : s.Stance == Stance.Crouching ? 1.0f : 1.6f);
                 float distance = MathF.Max(0, MathF.Min(Vector3.Distance(chest, blast.At), Vector3.Distance(head, blast.At)) - 0.3f);
                 if (distance <= blast.Radius)
                 {
@@ -508,8 +509,7 @@ public sealed class CombatSystem : ZoneSystem
             Vector3 end = ray.Origin + ray.Direction * ray.Length;
             float margin = 3f;
             zone.Combat()._traceNature.Clear();
-            zone.Nature!.Query(MathF.Min(ray.Origin.X, end.X) - margin, MathF.Min(ray.Origin.Z, end.Z) - margin,
-                MathF.Max(ray.Origin.X, end.X) + margin, MathF.Max(ray.Origin.Z, end.Z) + margin, zone.Combat()._traceNature);
+            zone.Nature!.Query((ray.Origin + end) / 2, ray.Length / 2 + margin, zone.Combat()._traceNature);
             foreach (NaturalObject o in zone.Combat()._traceNature)
             {
                 NaturalKind? kind = zone.Content!.Natural(o.Kind);

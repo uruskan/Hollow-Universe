@@ -32,6 +32,7 @@ public sealed class BuildingPhysics : IDisposable
     private readonly List<CollideShapeResult> _collide = new();
     private readonly OnlyGround _onlyGround = new();
     private readonly OnlyBuilding _onlyBuilding = new();
+    private readonly NotGround _notGround = new();
     private uint _next = PhysicsWorld.FirstBuildingBody;
     private bool _disposed;
 
@@ -158,8 +159,12 @@ public sealed class BuildingPhysics : IDisposable
         _free.Push(id);
     }
 
-    /// <summary>Every body a shape at a pose overlaps by more than <paramref name="tolerance"/> metres.</summary>
-    public void Overlaps(Shape shape, Vector3 position, Quaternion rotation, float tolerance, List<OverlapHit> into)
+    /// <summary>
+    /// Every body a shape at a pose overlaps by more than <paramref name="tolerance"/> metres; without the ground tiles
+    /// when <paramref name="ground"/> is false (a foundation sits in the ground: colliding a box with the tile's mesh
+    /// under it took 3–90 ms the first time a spot was asked about, S3b's load test on beaches).
+    /// </summary>
+    public void Overlaps(Shape shape, Vector3 position, Quaternion rotation, float tolerance, List<OverlapHit> into, bool ground = true)
     {
         into.Clear();
         // JoltPhysicsSharp reads the matrix column-major (Jolt's own layout): the transpose of System.Numerics'.
@@ -171,7 +176,8 @@ public sealed class BuildingPhysics : IDisposable
             Vector3 scale = Vector3.One, offset = Vector3.Zero;
             // Back faces too: a slab whose middle is below the ground still cuts into it.
             var settings = new CollideShapeSettings { BackFaceMode = BackFaceMode.CollideWithBackFaces };
-            _world.Jolt.NarrowPhaseQuery.CollideShape(shape, scale, com, settings, offset, CollisionCollectorType.AllHit, _collide);
+            _world.Jolt.NarrowPhaseQuery.CollideShape(shape, scale, com, settings, offset, CollisionCollectorType.AllHit, _collide,
+                null, null, ground ? null : _notGround, null);
         }
         foreach (CollideShapeResult hit in _collide)
         {
@@ -246,6 +252,7 @@ public sealed class BuildingPhysics : IDisposable
             _shapes.Clear();
             _onlyGround.Dispose();
             _onlyBuilding.Dispose();
+            _notGround.Dispose();
         }
     }
 
@@ -254,6 +261,13 @@ public sealed class BuildingPhysics : IDisposable
         protected override bool ShouldCollide(BodyID bodyID) => PhysicsWorld.IsGroundBody(bodyID.ID);
 
         protected override bool ShouldCollideLocked(Body body) => body != null && PhysicsWorld.IsGroundBody(body.ID.ID);
+    }
+
+    private sealed class NotGround : BodyFilter
+    {
+        protected override bool ShouldCollide(BodyID bodyID) => !PhysicsWorld.IsGroundBody(bodyID.ID);
+
+        protected override bool ShouldCollideLocked(Body body) => body != null && !PhysicsWorld.IsGroundBody(body.ID.ID);
     }
 
     private sealed class OnlyBuilding : BodyFilter

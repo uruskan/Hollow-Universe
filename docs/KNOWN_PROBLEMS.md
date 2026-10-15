@@ -22,7 +22,7 @@ F2 developer panel (GROUND.md §8.5), none of which touch these findings. Number
 
 | # | What the owner saw | Cause as traced | Package | Status |
 |---|---|---|---|---|
-| 1 | The map does not show the whole world; it is flat on a sphere. | The map covers a 3.9 km square, 6 % of the 16 km zone, and opens zoomed to 1.5 km; flat is right at zone scale (2 ppm distortion). | Scale, package S3: one zone holds the whole 2.4 km world, and one map shows it as a globe that becomes a flat chart as you zoom in (WHOLE_WORLD.md §11). The owner asked again on 14 October 2026, evening, said go for S3 and approved its design. | building (S3 on `whole-world`) |
+| 1 | The map does not show the whole world; it is flat on a sphere. | The map covers a 3.9 km square, 6 % of the 16 km zone, and opens zoomed to 1.5 km; flat is right at zone scale (2 ppm distortion). | Scale, package S3: one zone holds the whole 2.4 km world, and one map shows it as a globe that becomes a flat chart as you zoom in (WHOLE_WORLD.md §11). The owner asked again on 14 October 2026, evening, said go for S3 and approved its design. | building (S3 merged into `main` 15 October: S3a, S3b; the map is S3d) |
 | 3 | 30 to 80 fps, thick forest everywhere, no biomes, valleys, rivers, lakes, cliffs or flat land; the 4K scans unused. | Everything that varies the land changes over 60 to 2,200 km, so a 16 km zone gets one landscape; no code for rivers, lakes, cliffs or plateaus; 8 of 34 scan sets reach the game, none of the 62 scanned cliffs and rocks. | World v3 was to be a design first; the owner's scale decisions of 14 October (small worlds, landmarks) replace it: SCALE.md carries the world's features at walking scale. | waiting (SCALE.md) |
 
 ### Performance and hit feedback (finding 23, plus the frame rate)
@@ -104,9 +104,30 @@ These are written in GROUND.md as decisions of the form "left for later" and wer
 
 | What | Cause | Status |
 |---|---|---|
-| A herd's members start on one spot, face one way and think on the same tick. | Every animal added on the same tick gets the same seed: `AnimalWorld.AddMember` hashes the counter `_localIds`, which is never incremented. | open, small (on `main`) |
+| A herd's members start on one spot, face one way and think on the same tick. | Every animal added on the same tick gets the same seed: `AnimalWorld.AddMember` hashes the counter `_localIds`, which is never incremented. | fixed (S3a; on `main` since the merge of 15 October) |
 | Near tree impostors most likely disappear more than about 400 m from the landing site whenever the landing site is out of view (not yet seen in a run). | In play the near set is anchored at the frame's origin (`Vegetation.Game.RebuildNear`), and the near impostors' `CustomAabb` is a fixed ±400 m around that anchor, so Godot culls them by the wrong box. | open, small (on `main`) |
-| The map of a surface without a sea is most likely black (not run). | `ZoneMapImage` takes sea level as −∞ when `SeaRadius` is 0, so heights become infinite and the hill shading NaN; only the `--stand-in` world has no sea. | in S3 (WHOLE_WORLD.md §4, §12) |
+| The map of a surface without a sea is most likely black (not run). | `ZoneMapImage` takes sea level as −∞ when `SeaRadius` is 0, so heights become infinite and the hill shading NaN; only the `--stand-in` world has no sea. | in S3: since S3a the stand-in world has a sea; the map's safe reading is S3d (WHOLE_WORLD.md §4, §12) |
+
+### Found by the load test on the whole world (15 October 2026, S3b)
+
+S3b ran every load test with 100 bots on the ball, at the landing site and on beaches all round it (GROUND.md §5.12),
+and fixed on `whole-world` what broke there. Still open:
+
+| What | Cause | Status |
+|---|---|---|
+| A moving character costs about half as much again in a snapshot as on the flat patch: 152 kbit/s down with 99 walkers in view (114 before S3), and the 1,200-byte budget holds about 87 of them a snapshot. | A position on a ball changes in all three coordinates, and the view's two octahedral halves both change as it turns (WHOLE_WORLD.md §8). | open: positions coded along the ground |
+| When 80 bases start at once on beaches all round the world, 30 of 3,602 ticks go over 33 ms in receiving (the 99th percentile 27 ms). | A placement's checks against ground the tick hasn't touched yet took 3–30 ms each; a foundation's no longer asks about the ground (S3b). | open |
+| Animals cost 2.0–2.7 µs each a tick, 2.1 on the flat patch. | Every look at the nav grid finds its face coordinates by two arctangents; on the plane it was a division. | open, small |
+| The load test's bots share one copy of the building, which keeps one viewer's flags for a door (the last bot's that heard of it). | `BuildingReplica` keys door states by door only. The bots use their own doors by the verb they know (S3b). | open, bots only |
+
+### Found while building IW1 (15 October 2026, ship spaces on `iw-spaces`)
+
+| What | Cause | Status |
+|---|---|---|
+| In the ground game on the stand-in world (no surface view), every frame throws in `NatureView.Hook`, so the rest of the frame's drawing (people, things, the aim, building, raids, ships) never runs. | `GroundView` sets `NatureView.World` only when it opens a surface view; on the stand-in world `World` is null and `Hook` reads `World.Plants`. | done (15 October): `NatureView` skips the surface view's plants when there is none; S3c draws the world |
+| Drawn people faced up to 60° away from where they looked on the ball. | `CharacterFrame`'s north is the flat world's −Z laid on the ground; the movement code's is the world's pole. | done for live people (IW1: `CharacterFrame.YawToward` in `PeopleView`); corpses, sleeping bags and other things drawn by a yaw keep the old convention |
+| The ground game's sky has its horizon tilted on the ball. | The stand-in's procedural sky is the world's +Y up, not the landing site's. | done for now (15 October): the ground game turns its plain sky and sun to the up where the player is, every frame (`GroundView.TurnFlatSky`); S3c draws the world's own sky |
+| An admin's ship spawn found no room for the Iron Wake near the landing site (58 of 60 spots had a tree in its footprint), and on a slope it rested on its hull with a velocity the contacts never let it move by, so it never parked. | The spawn's footprint test refuses any tree; the motor slept only on three loaded skids at under 5 cm/s. | done (IW1: trees and rocks in the way go for an admin's spawn; a ship held still with its engines off sleeps) |
 
 ### Found in play (15 October 2026)
 
@@ -122,7 +143,7 @@ These are written in GROUND.md as decisions of the form "left for later" and wer
 | P7, characters and held items | Grips, clipping, Rust's closed grip, first-person poses as data, full-body clips from local AI tools. | wave 2, designing |
 | The rename from claim device to tool cupboard in the code | Deferred because another session worked in that code at the time. | open, small |
 | The zone host, transfers between zones, the lifecycle with catch-up (GROUND_SYSTEMS.md K14) | Deferred by the owner on 14 October: one dedicated server for now. | deferred |
-| SCALE.md | The scale proposal (2.4 km worlds, a galaxy of landmarks) decides findings 1 and 3. On 14 October 2026 the owner said go for S3 (one zone for a whole world, the globe map) and approved its design, WHOLE_WORLD.md; it is built on the branch `whole-world`. S4 (the ground at walking scale) is to be talked through with the owner first. | S3 building; the rest waiting |
+| SCALE.md | The scale proposal (2.4 km worlds, a galaxy of landmarks) decides findings 1 and 3. On 14 October 2026 the owner said go for S3 (one zone for a whole world, the globe map) and approved its design, WHOLE_WORLD.md; it was built on the branch `whole-world`, S3a (the zone is the whole world) and S3b (the load tests on the ball, GROUND.md §5.12), and merged into `main` on 15 October 2026 at the owner's word. S4 (the ground at walking scale) is to be talked through with the owner first. | S3 building (S3a and S3b on `main`; S3c and S3d next); the rest waiting |
 | `prototypes/map-ux` | Three web prototypes of the galaxy map wait for the owner's choice. | waiting |
 | The front door | The menu as the default start, a Developer page listing the viewers, a desktop shortcut (asked on 14 October after the F2 panel). | waiting |
 | The owner's window size | Asked in the playtest plan and never answered; the frame-rate work depends on it. | waiting |

@@ -586,8 +586,8 @@ public sealed partial class AnimalWorld
             {
                 continue;
             }
-            Vector3 d = a.Position - other.Position;
-            d.Y = 0;
+            Vector3 up = UpAt(a.Position);
+            Vector3 d = OnGround(a.Position - other.Position, up);
             float apart = d.Length();
             float room = a.Species.Radius + other.Species.Radius + 0.25f;
             if (apart < room)
@@ -595,7 +595,7 @@ public sealed partial class AnimalWorld
                 if (apart < 1e-3f)
                 {
                     float yaw = (float)((a.Seed % 628) / 100.0);
-                    d = new Vector3((float)DMath.Sin(yaw), 0, (float)DMath.Cos(yaw));
+                    d = Facing.Basis(yaw, up).Forward;
                     apart = 1;
                 }
                 aside = a.Position + d / apart * (room + 1.2f);
@@ -611,9 +611,7 @@ public sealed partial class AnimalWorld
         float angle = MathF.PI + (a.Slot % 2 == 0 ? 1 : -1) * (0.45f + 0.35f * (a.Slot / 2));
         float distance = 2.2f + 1.2f * (a.Slot / 2) + a.Species.Length * 0.5f;
         float yaw = leader.Yaw + angle;
-        Vector3 offset = new((float)-DMath.Sin(yaw), 0, (float)-DMath.Cos(yaw));
-        Vector3 p = leader.Position + offset * distance;
-        return new Vector3(p.X, leader.Position.Y, p.Z);
+        return leader.Position + Facing.Basis(yaw, UpAt(leader.Position)).Forward * distance;
     }
 
     // A point within the herd's home range on ground it can walk.
@@ -626,14 +624,14 @@ public sealed partial class AnimalWorld
             // Mostly onward from where it stands, kept within the home range.
             float step = (float)rng.Range(15, 40);
             Vector3 from = Vector3.Distance(a.Position, herd.Home) > herd.Range * 0.7f ? herd.Home : a.Position;
-            float x = from.X + step * (float)DMath.Cos(angle), z = from.Z + step * (float)DMath.Sin(angle);
-            if (Vector3.Distance(new Vector3(x, 0, z), new Vector3(herd.Home.X, 0, herd.Home.Z)) > herd.Range)
+            Vector3 point = Along(from, angle, step);
+            if (Vector3.Distance(point, herd.Home) > herd.Range)
             {
                 continue;
             }
-            if (Nav.Walkable(x, z, a.Species.MaxSlope))
+            if (Nav.Walkable(point, a.Species.MaxSlope))
             {
-                return new Vector3(x, Nav.Height(x, z), z);
+                return Nav.Ground(point);
             }
         }
         return herd.Home;
@@ -675,10 +673,11 @@ public sealed partial class AnimalWorld
 
     private void Face(Animal a, Vector3 at)
     {
-        Vector3 d = at - a.Position;
-        if (d.X * d.X + d.Z * d.Z > 0.01f)
+        Vector3 up = UpAt(a.Position);
+        Vector3 d = OnGround(at - a.Position, up);
+        if (d.LengthSquared() > 0.01f)
         {
-            a.DesiredYaw = YawOf(d);
+            a.DesiredYaw = YawOf(d, up);
         }
         a.DesiredSpeed = 0;
     }

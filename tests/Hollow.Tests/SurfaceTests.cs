@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.Numerics;
 using Hollow.Core;
@@ -53,31 +54,53 @@ public static class SurfaceTests
         Assert.True(north.Y > frame.Origin.Normalized.Y, "−Z points north");
     }
 
-    /// <summary>Collision triangles cover the square asked for, sit on the ground and face up.</summary>
+    /// <summary>
+    /// A cube-sphere tile's collision triangles (docs/WHOLE_WORLD.md §6.1) cover the tile and its margin, sit on the ground
+    /// and face up, in the world's frame; neighbouring tiles of a face share their grid points where they overlap.
+    /// </summary>
     [Test]
     public static void GroundCollisionLiesOnTheGround()
     {
-        var surface = new SphereSurface(6_435_000, 7);
-        ZoneFrame frame = ZoneFrame.At(surface, 0.2, 1.1);
-        TriangleMesh mesh = surface.GroundCollision(frame, 300, -150, 64);
-        float minX = float.MaxValue, maxX = float.MinValue, minZ = float.MaxValue, maxZ = float.MinValue;
+        ISurface surface = new SphereSurface(2410, 7);
+        ZoneFrame frame = ZoneFrame.World;
+        TileKey tile = TileKey.At(ZoneFrame.Direction(0.2, 1.1), 6);
+        TriangleMesh mesh = surface.GroundCollision(frame, tile, 2);
         double worst = 0;
+        var corners = new[] { CubeSphere.Direction(tile.Face, tile.U0, tile.V0), CubeSphere.Direction(tile.Face, tile.U0 + tile.Span, tile.V0 + tile.Span) };
+        var nearest = new double[2] { double.MaxValue, double.MaxValue };
         for (int v = 0; v < mesh.VertexCount; v++)
         {
-            var p = new Vector3(mesh.Positions[3 * v], mesh.Positions[3 * v + 1], mesh.Positions[3 * v + 2]);
-            minX = Math.Min(minX, p.X); maxX = Math.Max(maxX, p.X);
-            minZ = Math.Min(minZ, p.Z); maxZ = Math.Max(maxZ, p.Z);
-            Vector3D body = frame.ToBody(p);
+            Vector3D body = frame.ToBody(Vertex(mesh, v));
             worst = Math.Max(worst, Math.Abs(body.Length - (surface.Radius + surface.HeightAt(body.Normalized))));
+            for (int k = 0; k < 2; k++)
+            {
+                nearest[k] = Math.Min(nearest[k], (body.Normalized - corners[k]).Length * surface.Radius);
+            }
         }
-        Fixtures.Report($"{mesh.TriangleCount} triangles, x {minX:0.0}..{maxX:0.0}, z {minZ:0.0}..{maxZ:0.0}, worst height error {worst * 1000:0.0} mm");
-        Assert.True(minX <= 268.01 && maxX >= 331.99 && minZ <= -181.99 && maxZ >= -118.01, "covers the square");
+        Fixtures.Report($"{mesh.TriangleCount} triangles on {tile}, worst height error {worst * 1000:0.0} mm, corners {nearest[0]:0.00} m and {nearest[1]:0.00} m from a vertex");
         Assert.True(worst < 0.01, "vertices on the ground within 1 cm");
+        Assert.True(nearest[0] < 0.01 && nearest[1] < 0.01, "the grid passes through the tile's corners: it covers the tile");
         for (int t = 0; t < mesh.TriangleCount; t++)
         {
             Vector3 a = Vertex(mesh, mesh.Indices[3 * t]), b = Vertex(mesh, mesh.Indices[3 * t + 1]), c = Vertex(mesh, mesh.Indices[3 * t + 2]);
-            Assert.True(Vector3.Cross(b - a, c - a).Y > 0, "triangles face up");
+            Assert.True(Vector3.Dot(Vector3.Cross(b - a, c - a), frame.UpAt(a)) > 0, "triangles face up");
         }
+        // The tile beside it on the same face: where their margins overlap, their points are the same, bit for bit.
+        var next = new TileKey(tile.Face, tile.Level, tile.X + 1 < (1 << tile.Level) ? tile.X + 1 : tile.X - 1, tile.Y);
+        var mine = new HashSet<(float, float, float)>();
+        for (int v = 0; v < mesh.VertexCount; v++)
+        {
+            Vector3 p = Vertex(mesh, v);
+            mine.Add((p.X, p.Y, p.Z));
+        }
+        TriangleMesh other = surface.GroundCollision(frame, next, 2);
+        int shared = 0;
+        for (int v = 0; v < other.VertexCount; v++)
+        {
+            Vector3 p = Vertex(other, v);
+            shared += mine.Contains((p.X, p.Y, p.Z)) ? 1 : 0;
+        }
+        Assert.True(shared > 100, $"neighbours share their overlap's points ({shared})");
     }
 
     /// <summary>The same direction gives the same height, bit for bit, every time.</summary>

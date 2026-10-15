@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
+using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
 using Hollow.Net.Replication;
@@ -41,9 +42,9 @@ public sealed class ThingModule : ServerModule
     private readonly HashSet<ulong> _savedNaturals = new();
     private readonly HashSet<ulong> _naturalsToSave = new();
     private readonly HashSet<ulong> _naturalsToSend = new();
-    private readonly Dictionary<(int X, int Z), HashSet<ulong>> _overrideCells = new();
+    private readonly Dictionary<(int X, int Y, int Z), HashSet<ulong>> _overrideCells = new();
     private readonly List<NaturalNet> _naturalBatch = new();
-    private readonly List<(int X, int Z)> _cellsLeaving = new();
+    private readonly List<(int X, int Y, int Z)> _cellsLeaving = new();
 
     /// <summary>What this player has of the things and natural objects: the things by net ID with the revision sent, the areas whose overrides they have.</summary>
     private sealed class ThingView
@@ -52,7 +53,7 @@ public sealed class ThingModule : ServerModule
         public readonly Dictionary<uint, ThingSent> ThingsSent = new();
 
         /// <summary>The 64 m cells whose natural overrides this player has.</summary>
-        public readonly HashSet<(int X, int Z)> NatureCells = new();
+        public readonly HashSet<(int X, int Y, int Z)> NatureCells = new();
     }
 
     protected internal override void Init(MessageHandlers<PlayerSession> handlers)
@@ -286,8 +287,12 @@ public sealed class ThingModule : ServerModule
 
     // ---------------------------------------------------------------- natural objects
 
-    private static (int X, int Z) NatureCell(Vector3 p) =>
-        ((int)MathF.Floor(p.X / PhysicsWorld.TileSize), (int)MathF.Floor(p.Z / PhysicsWorld.TileSize));
+    // Overrides are indexed by cubes of the world's frame (docs/WHOLE_WORLD.md §3.3).
+    private static (int X, int Y, int Z) NatureCell(Vector3 p) =>
+        ((int)MathF.Floor(p.X / PhysicsWorld.TileSize), (int)MathF.Floor(p.Y / PhysicsWorld.TileSize), (int)MathF.Floor(p.Z / PhysicsWorld.TileSize));
+
+    private static float CellDistance((int X, int Y, int Z) cell, Vector3 centre) =>
+        Vector3.Distance(new Vector3(cell.X + 0.5f, cell.Y + 0.5f, cell.Z + 0.5f) * PhysicsWorld.TileSize, centre);
 
     // Keeps the index of overrides by area up to date for an object that changed.
     private void IndexOverride(ulong id)
@@ -296,7 +301,7 @@ public sealed class ThingModule : ServerModule
         {
             return;
         }
-        (int, int) cell = NatureCell(o.Position);
+        (int, int, int) cell = NatureCell(o.Position);
         if (Zone.Natural!.TryGetOverride(id, out _))
         {
             if (!_overrideCells.TryGetValue(cell, out HashSet<ulong>? set))
@@ -317,45 +322,45 @@ public sealed class ThingModule : ServerModule
     {
         ThingView view = session.State<ThingView>();
         _naturalBatch.Clear();
-        float radius = Options.RelevanceRadius;
-        int reach = (int)MathF.Ceiling(radius / PhysicsWorld.TileSize);
-        (int cx, int cz) = NatureCell(centre);
-        for (int z = cz - reach; z <= cz + reach; z++)
+        float radius = Options.RelevanceRadius, near = radius + PhysicsWorld.TileSize, far = radius + 3 * PhysicsWorld.TileSize;
+        // The cubes with changed objects that came into range: their changes, once (what changed this tick goes below).
+        foreach (((int X, int Y, int Z) cell, HashSet<ulong> set) in _overrideCells)
         {
-            for (int x = cx - reach; x <= cx + reach; x++)
+            if (set.Count == 0 || CellDistance(cell, centre) > near || !view.NatureCells.Add(cell))
             {
-                float dx = (x + 0.5f) * PhysicsWorld.TileSize - centre.X, dz = (z + 0.5f) * PhysicsWorld.TileSize - centre.Z;
-                if (dx * dx + dz * dz > (radius + PhysicsWorld.TileSize) * (radius + PhysicsWorld.TileSize) || !view.NatureCells.Add((x, z)))
+                continue;
+            }
+            foreach (ulong id in set)
+            {
+                if (!_naturalsToSend.Contains(id))
                 {
-                    continue;
-                }
-                if (_overrideCells.TryGetValue((x, z), out HashSet<ulong>? set))
-                {
-                    foreach (ulong id in set)
-                    {
-                        _naturalBatch.Add(NaturalOf(id));
-                    }
+                    _naturalBatch.Add(NaturalOf(id));
                 }
             }
         }
         _cellsLeaving.Clear();
-        float far = radius + 3 * PhysicsWorld.TileSize;
-        foreach ((int x, int z) in view.NatureCells)
+        foreach ((int X, int Y, int Z) cell in view.NatureCells)
         {
-            float dx = (x + 0.5f) * PhysicsWorld.TileSize - centre.X, dz = (z + 0.5f) * PhysicsWorld.TileSize - centre.Z;
-            if (dx * dx + dz * dz > far * far)
+            if (CellDistance(cell, centre) > far)
             {
-                _cellsLeaving.Add((x, z));
+                _cellsLeaving.Add(cell);
             }
         }
-        foreach ((int, int) cell in _cellsLeaving)
+        foreach ((int, int, int) cell in _cellsLeaving)
         {
             view.NatureCells.Remove(cell);
         }
+        // What changed since the last snapshot, where the player knows the ground or is close.
         foreach (ulong id in _naturalsToSend)
         {
-            if (Zone.Nature!.TryGet(id, out NaturalObject o) && view.NatureCells.Contains(NatureCell(o.Position)))
+            if (!Zone.Nature!.TryGet(id, out NaturalObject o))
             {
+                continue;
+            }
+            (int, int, int) cell = NatureCell(o.Position);
+            if (view.NatureCells.Contains(cell) || Vector3.Distance(o.Position, centre) <= near)
+            {
+                view.NatureCells.Add(cell);
                 _naturalBatch.Add(NaturalOf(id));
             }
         }

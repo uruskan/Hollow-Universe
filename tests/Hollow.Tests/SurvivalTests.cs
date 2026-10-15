@@ -32,7 +32,7 @@ public sealed class GameRig : IDisposable
 
     public GameContent C => ContentFixture.Content;
 
-    /// <summary>A new player standing at a point of the zone's tangent plane (no kit: an empty inventory).</summary>
+    /// <summary>A new player standing x metres east and z metres south of the landing site (no kit: an empty inventory).</summary>
     public Entity Add(string name, float x, float z, bool kit = false)
     {
         Vector3 ground = Zone.GroundAt(x, z);
@@ -69,14 +69,21 @@ public sealed class GameRig : IDisposable
     public void Look(Entity e, Vector3 at)
     {
         ref Character c = ref Ch(e);
-        Vector3 eye = Zone.EyeOf(c.State);
-        Vector3 up = Zone.Frame.UpAt(c.State.Position);
-        Vector3 d = at - eye;
-        Vector3 flat = d - up * Vector3.Dot(d, up);
-        // Yaw about the zone's +Y: 0 faces −Z, growing anticlockwise from above.
-        c.Input.Yaw = MathF.Atan2(-flat.X, -flat.Z);
-        c.Input.Pitch = MathF.Atan2(Vector3.Dot(d, up), flat.Length());
+        Vector3 d = at - Zone.EyeOf(c.State);
+        c.Input.View = d.LengthSquared() > 1e-10f ? Vector3.Normalize(d) : c.Input.View;
     }
+
+    /// <summary>Turns a character to a heading (from local north, anticlockwise from above) and a pitch where it stands.</summary>
+    public void Turn(Entity e, float yaw, float pitch = 0)
+    {
+        ref Character c = ref Ch(e);
+        c.Input.View = Facing.View(yaw, pitch, Zone.Frame.UpAt(c.State.Position));
+    }
+
+    /// <summary>A character's view as a heading and a pitch where it stands.</summary>
+    public float Yaw(Entity e) => Ch(e).Input.YawAt(Zone.Frame.UpAt(Ch(e).State.Position));
+
+    public float Pitch(Entity e) => Ch(e).Input.PitchAt(Zone.Frame.UpAt(Ch(e).State.Position));
 
     public void Give(Entity e, string key, int count) => P(e).Inventory.Give(C, C.ItemByKey(key), count);
 
@@ -100,12 +107,53 @@ public sealed class GameRig : IDisposable
     {
         ItemDef item = C.ItemByKey(itemKey);
         ref Character ch = ref Ch(e);
-        Vector3 direction = CharacterMotor.ViewDirection(ch.Input.Yaw, ch.Input.Pitch, Zone.Frame.UpAt(ch.State.Position));
+        Vector3 direction = CharacterMotor.SafeView(ch.Input.View, Zone.Frame.UpAt(ch.State.Position));
         PlacementCandidate? ghost = Zone.Placement().Aim(e, item.Places!, direction);
         return ghost == null ? OutcomeCode.OutOfReach : Zone.Placement().Place(e, new PlaceRequest(from, slot, item.Id, item.Places!.Index, ghost.Claim));
     }
 
+    /// <summary>
+    /// Fells and breaks, for good, every natural object within <paramref name="radius"/> of a segment: a clear lane for a
+    /// shot through the stand-in nature, wherever its placement put the trees.
+    /// </summary>
+    public void Clear(Vector3 from, Vector3 to, float radius = 3)
+    {
+        var near = new List<Hollow.Simulation.Nature.NaturalObject>();
+        Zone.Nature!.Query((from + to) / 2, Vector3.Distance(from, to) / 2 + radius, near);
+        Vector3 along = to - from;
+        foreach (Hollow.Simulation.Nature.NaturalObject o in near)
+        {
+            float t = Math.Clamp(Vector3.Dot(o.Position - from, along) / Math.Max(along.LengthSquared(), 1e-6f), 0, 1);
+            if (Vector3.Distance(o.Position, from + along * t) <= radius)
+            {
+                Zone.Natural!.Apply(o.Id, new Hollow.Simulation.Nature.NaturalOverride { Depleted = true, RespawnAtUnixMs = long.MaxValue });
+            }
+        }
+    }
+
     public void Dispose() => Zone.Dispose();
+}
+
+/// <summary>Points beside others in the local directions where they stand: a flat zone's offsets on the ball.</summary>
+public static class Places
+{
+    /// <summary>
+    /// The point <paramref name="east"/> metres east, <paramref name="up"/> up and <paramref name="south"/> south of another,
+    /// straight along its local directions: what <c>at + new Vector3(east, up, south)</c> meant in a flat zone.
+    /// </summary>
+    public static Vector3 Beside(this Hollow.Surface.ZoneFrame frame, Vector3 at, float east, float up, float south)
+    {
+        Vector3 u = frame.UpAt(at);
+        (Vector3 north, Vector3 e) = Facing.Compass(u);
+        return at + e * east + u * up - north * south;
+    }
+
+    /// <summary>A direction's part along the ground where a point stands.</summary>
+    public static Vector3 Flat(this Hollow.Surface.ZoneFrame frame, Vector3 at, Vector3 direction)
+    {
+        Vector3 u = frame.UpAt(at);
+        return direction - u * Vector3.Dot(direction, u);
+    }
 }
 
 public static class SurvivalTests
@@ -291,6 +339,7 @@ public static class SurvivalTests
         Vector3 eye = rig.Zone.EyeOf(rig.Ch(ada).State);
         float flight = Vector3.Distance(eye, chest) / 50f;
         Vector3 aim = chest + rig.Zone.Frame.UpAt(chest) * (0.5f * g * flight * flight);
+        rig.Clear(eye, chest);
         void Hold(bool loose, Vector3 at)
         {
             rig.Look(ada, at);
@@ -320,7 +369,8 @@ public static class SurvivalTests
 
         // Flat from the eye: it comes down about 30 m out (the ground is gently hilly).
         rig.Zone.Events.Clear();
-        Vector3 flat = rig.Zone.EyeOf(rig.Ch(ada).State) + new Vector3(1, 0, 0) * 30;
+        Vector3 flat = rig.Zone.Frame.Beside(rig.Zone.EyeOf(rig.Ch(ada).State), 30, 0, 0);
+        rig.Clear(rig.Zone.EyeOf(rig.Ch(ada).State), rig.Zone.Frame.Beside(flat, 15, 0, 0));
         rig.Step(35, () => Hold(false, flat));
         rig.Step(1, () => Hold(true, flat));
         ProjectileEnded? landed = null;
@@ -486,7 +536,7 @@ public static class SurvivalTests
 
         // Three drops from where she stands, turning between them: one bag, the stone's two drops in one stack.
         Assert.Equal(OutcomeCode.Done, rig.Zone.Actions().DropItem(ada, ContainerRef.Main, 1, 120, 0), "stone");
-        rig.Ch(ada).Input.Yaw += 1.2f;
+        rig.Turn(ada, rig.Yaw(ada) + 1.2f);
         Assert.Equal(OutcomeCode.Done, rig.Zone.Actions().DropItem(ada, ContainerRef.Main, 1, 80, 0), "more stone, facing elsewhere");
         Assert.Equal(OutcomeCode.Done, rig.Zone.Actions().DropItem(ada, ContainerRef.Main, 2, 0, 0), "the bandages");
         DroppedBag bag = rig.Zone.Things().Statics().OfType<DroppedBag>().Single();

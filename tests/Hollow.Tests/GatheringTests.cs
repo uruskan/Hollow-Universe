@@ -6,6 +6,7 @@ using System.Numerics;
 using System.Text.Json;
 using Hollow.Simulation;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Physics;
 using Hollow.Surface;
@@ -26,10 +27,14 @@ public static class GatheringTests
         return (spec, surface, frame, spec.CreateNature(surface, frame, C));
     }
 
+    // The landing site's ground (where the stand-in keeps its clearing).
+    private static Vector3 Landing(ZoneSpec spec, ISurface surface, ZoneFrame frame) => new GroundProbe(surface, frame).On(spec.LandingDirection);
+
     private static NaturalObject Find(INaturalObjects objects, string kind)
     {
         var found = new List<NaturalObject>();
-        objects.Query(-200, -200, 200, 200, found);
+        (ZoneSpec spec, ISurface surface, ZoneFrame frame, _) = World();
+        objects.Query(Landing(spec, surface, frame), 280, found);
         ushort index = C.Natural(kind)!.Index;
         return found.First(o => o.Kind == index);
     }
@@ -52,7 +57,7 @@ public static class GatheringTests
     private static GatherResult FromSide(NaturalState state, in NaturalObject o, NaturalKind kind, string tool, float side)
     {
         bool tree = kind.Class == NaturalClass.Tree;
-        Vector3 east = Vector3.UnitX * side;
+        Vector3 east = Facing.Compass(o.Up).East * side;
         Vector3 eye = o.Position + east * (tree ? 2f : 2.2f * o.Scale) + o.Up * 1.6f;
         Vector3 at = o.Position + (tree ? o.Up * 1.3f : east * (0.5f * o.Scale) + o.Up * (0.3f * o.Scale));
         return Swing(state, o, tool, eye, at);
@@ -69,17 +74,20 @@ public static class GatheringTests
         INaturalObjects b = spec.CreateNature(surface, frame, C);
         var first = new List<NaturalObject>();
         var second = new List<NaturalObject>();
-        a.Query(-320, -320, 320, 320, first);
-        b.Query(-320, -320, 320, 320, second);
+        Vector3 landing = Landing(spec, surface, frame);
+        a.Query(landing, 360, first);
+        b.Query(landing, 360, second);
         Assert.True(first.SequenceEqual(second), "two instances place the same objects");
         Assert.True(first.Count > 500, $"a populated ground ({first.Count} objects in 640 × 640 m)");
         foreach (NaturalKind kind in C.NaturalKinds.Where(k => k.StandInPerTile > 0))
         {
             Assert.True(first.Any(o => o.Kind == kind.Index), $"some {kind.Key}");
         }
-        Assert.True(first.All(o => new Vector2(o.Position.X, o.Position.Z).Length() >= StandInNaturalObjects.ClearRadius), "spawn area clear");
+        Assert.True(first.All(o => Vector3.Distance(o.Position, landing) >= StandInNaturalObjects.ClearRadius), "spawn area clear");
         Assert.True(a.TryGet(first[123].Id, out NaturalObject again) && again == first[123], "found by ID");
-        Assert.True(!a.TryGet(0, out _) && !a.TryGet(first[123].Id + (1UL << 20), out _) && !a.TryGet(ulong.MaxValue, out _), "made-up IDs aren't");
+        // Made up: no tag, an index past any tile's objects, a tile past the last, all ones.
+        Assert.True(!a.TryGet(0, out _) && !a.TryGet(first[123].Id | 0xFFFF, out _) && !a.TryGet(StandInNaturalObjects.Tag | 0x00FF_FFFF_FFFF_0000UL, out _) &&
+            !a.TryGet(ulong.MaxValue, out _), "made-up IDs aren't");
         Fixtures.Report($"{first.Count} objects; e.g. {C.Natural(first[0].Kind)!.Key} at {first[0].Position}");
     }
 
@@ -169,8 +177,12 @@ public static class GatheringTests
         GatherResult first = FromSide(state, tree, pine, "rock", 1);
         (Vector3 x, _) = state.WeakSpotAt(tree, pine)!.Value;
         float height = Vector3.Dot(x - tree.Position, tree.Up);
-        Assert.True(!first.WeakSpot && x.X > tree.Position.X && height is >= 0.7f and <= 2.0f && MathF.Abs(height - 1.3f) <= 0.36f,
-            $"the X faces the hitter near the hit's height ({height:0.00} m)");
+        // The swing from 1.6 m, 2 m east, toward the trunk's axis at 1.3 m meets its side a little higher; the X goes
+        // within the spot's follow (0.35 m) of that, a lift's step (1/255 of the band) aside.
+        float met = 1.3f + 0.3f / 2 * pine.Radius * tree.Scale;
+        Vector3 east = Facing.Compass(tree.Up).East;
+        Assert.True(!first.WeakSpot && Vector3.Dot(x - tree.Position, east) > 0 && height is >= 0.7f and <= 2.0f && MathF.Abs(height - met) <= 0.36f,
+            $"the X faces the hitter near the hit's height ({height:0.00} m, the swing met the trunk at {met:0.00} m)");
         var scales = new List<float>();
         int moved = 0;
         for (int i = 0; i < 10; i++)
@@ -187,7 +199,7 @@ public static class GatheringTests
         Assert.True(scales.SequenceEqual(new[] { 1.125f, 1.25f, 1.375f, 1.5f, 1.625f, 1.75f, 1.875f, 2f, 2f, 2f }), "1.125 more for each, up to twice");
         Assert.True(moved >= 9, "every hit on it moves it");
         Vector3 standing = state.WeakSpot(tree, pine)!.Value;
-        GatherResult miss = FromSide(state, tree, pine, "rock", Vector3.Dot(standing - tree.Position, Vector3.UnitX) > 0 ? -1 : 1);
+        GatherResult miss = FromSide(state, tree, pine, "rock", Vector3.Dot(standing - tree.Position, east) > 0 ? -1 : 1);
         Assert.True(!miss.WeakSpot && miss.Scale == 1 && state.WeakSpot(tree, pine) == standing, "a miss pays the plain rate and leaves the X");
         Assert.Equal(1.125f, AtSpot(state, tree, pine, "rock").Scale, "and the run starts again");
     }
@@ -363,7 +375,7 @@ public static class GatheringTests
         using var world = new PhysicsWorld(surface, frame);
         _ = new NaturalBodies(world, state);
         NaturalObject tree = Find(objects, "pine-tree");
-        world.EnsureGround(tree.Position, radius: 0);
+        world.EnsureGroundWithin(tree.Position, 1);
         Assert.True(world.HasProp(PropLayer.Nature, tree.Id), "the tree is solid once its tile exists");
         int solid = world.PropCount;
         MeleeStats axe = C.ItemByKey("metal-hatchet").Melee!;

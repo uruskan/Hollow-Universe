@@ -97,9 +97,11 @@ public sealed class ExplosiveSystem : ZoneSystem
             return check;
         }
         ref Character c = ref Entities.Get<Character>(entity);
-        Vector3 up = Frame.UpAt(c.State.Position);
-        (yaw, pitch) = TrustedView(c, yaw, pitch);
-        Vector3 direction = CharacterMotor.ViewDirection(yaw, pitch, up);
+        // The view's heading and pitch are the thrower's frame's (aboard a ship, its deck's: IRON_WAKE.md §4.2); the throw
+        // then flies in the zone's frame, with the ship's velocity added (§4.9).
+        Vector3 up = c.State.Frame == 0 ? Frame.UpAt(c.State.Position) : Vector3.UnitY;
+        (yaw, pitch) = TrustedView(c, up, yaw, pitch, Zone.Frames.ViewIn(c.Input.View, c.Input.Frame, c.State.Frame, Tick));
+        Vector3 direction = Zone.Frames.DirectionToWorld(CharacterMotor.ViewDirection(yaw, pitch, up), c.State.Frame, Tick);
         Vector3 eye = EyeOf(c.State);
         // From a hand's length in front of the eye, unless something is right there.
         Vector3 start = eye + direction * 0.3f;
@@ -109,7 +111,9 @@ public sealed class ExplosiveSystem : ZoneSystem
         }
         float speed = (float)(lob ? stats!.LobSpeed : stats!.ThrowSpeed);
         TakeOne(p, slot, stats);
-        LiveExplosive e = Spawn(stats, p.Id, p.Name, start, direction * speed + c.State.Velocity * 0.5f);
+        Vector3 walked = Zone.Frames.DirectionToWorld(c.State.Velocity, c.State.Frame, Tick);
+        Vector3 carried = Zone.VelocityOf(c.State) - walked;
+        LiveExplosive e = Spawn(stats, p.Id, p.Name, start, direction * speed + walked * 0.5f + carried);
         Arm(e);
         RaidStats.Thrown++;
         p.ActionCount++;
@@ -191,15 +195,16 @@ public sealed class ExplosiveSystem : ZoneSystem
 
     // The view a throw goes along: the intent's (what the player saw when they clicked), unless it is far from the view
     // the server has for them (then theirs): a client can't throw behind its back.
-    private static (float Yaw, float Pitch) TrustedView(in Character c, float yaw, float pitch)
+    private static (float Yaw, float Pitch) TrustedView(in Character c, Vector3 up, float yaw, float pitch, Vector3 own)
     {
+        float ownYaw = Facing.YawOf(own, up), ownPitch = Facing.PitchOf(own, up);
         if (!float.IsFinite(yaw) || !float.IsFinite(pitch) || MathF.Abs(pitch) > FirearmRules.MaxViewPitch)
         {
-            return (c.Input.Yaw, c.Input.Pitch);
+            return (ownYaw, ownPitch);
         }
-        float dy = yaw - c.Input.Yaw;
+        float dy = yaw - ownYaw;
         dy -= MathF.Round(dy / (2 * MathF.PI)) * 2 * MathF.PI;
-        return MathF.Abs(dy) <= 0.6f && MathF.Abs(pitch - c.Input.Pitch) <= 0.6f ? (yaw, pitch) : (c.Input.Yaw, c.Input.Pitch);
+        return MathF.Abs(dy) <= 0.6f && MathF.Abs(pitch - ownPitch) <= 0.6f ? (yaw, pitch) : (ownYaw, ownPitch);
     }
 
     // ---------------------------------------------------------------- explosives in the world
@@ -483,6 +488,13 @@ public sealed class ExplosiveSystem : ZoneSystem
     {
         Vector3 direction = b.Velocity.LengthSquared() > 1e-6f ? Vector3.Normalize(b.Velocity) : -Frame.UpAt(b.Position);
         Vector3 at = hit.Point - direction * 0.05f;
+        // A round that met a ship where the shooter saw it bursts where that spot of the ship is now (IRON_WAKE.md §4.9).
+        if (hit.Target.Family == TargetFamily.Ship && Zone.Frames.Ship(hit.Target.Id) is { } frame &&
+            Zone.SeenPose(frame.Key, Tick - b.RewindTicks, out ShipPose seen) && frame.TryPose(Tick, out ShipPose now))
+        {
+            at = now.ToWorld(seen.ToLocal(at));
+            direction = now.DirectionToWorld(seen.DirectionToLocal(direction));
+        }
         Damage.Blast(blast, at, -direction, hit.Target, hit.Target.Family, b.Shooter, shooter?.Name ?? b.ShooterName, b.Ammo.Id, round: b.Damage > 0);
     }
 

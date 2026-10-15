@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Simulation;
 using Hollow.Simulation.Movement;
@@ -19,14 +20,31 @@ public static class NetConvert
     /// <summary>A thing named from the wire (untrusted: a family that doesn't exist names nothing).</summary>
     public static Simulation.Targets.TargetRef ToRef(in TargetNet target) => new(target.Family, target.Id, target.Part);
 
-    public static InputCommand ToCommand(in MoveInput input) => new()
+    public static InputCommand ToCommand(in MoveInput input)
     {
-        Forward = Axis(input.Forward),
-        Right = Axis(input.Right),
-        Yaw = Quantize.Angle16(input.Yaw),
-        Pitch = Quantize.Angle16(Math.Clamp(input.Pitch, -1.5533f, 1.5533f)),
-        Buttons = input.Buttons,
-    };
+        (ushort u, ushort v) = Quantize.Octahedral(input.View);
+        return new InputCommand
+        {
+            Forward = Axis(input.Forward),
+            Right = Axis(input.Right),
+            ViewU = u,
+            ViewV = v,
+            Buttons = input.Buttons,
+            Frame = FrameOnWire(input.Frame),
+        };
+    }
+
+    /// <summary>
+    /// A frame's key on the wire: a ship's net ID (a client's prediction keys its frames by them, IRON_WAKE.md §4.11; the
+    /// server turns its own keys, the ships' IDs, into them), 0 the zone's.
+    /// </summary>
+    public static uint FrameOnWire(ulong key) => key <= uint.MaxValue ? (uint)key : 0;
+
+    /// <summary>A view direction from the wire (octahedral: always a unit direction, docs/WHOLE_WORLD.md §5).</summary>
+    public static Vector3 View(ushort u, ushort v) => Quantize.FromOctahedral(u, v);
+
+    /// <summary>A view direction for the wire.</summary>
+    public static (ushort U, ushort V) ToView(Vector3 view) => Quantize.Octahedral(view);
 
     /// <summary>A tick's movement and actions as one command (the actions ride along: G2).</summary>
     public static InputCommand ToCommand(in MoveInput input, in ActionInput actions)
@@ -46,13 +64,14 @@ public static class NetConvert
         ViewDelay = command.ViewDelay,
     };
 
+    /// <summary>A command's movement; its view's frame is the wire's (a ship's net ID: the server maps it to the ship's own key).</summary>
     public static MoveInput ToMoveInput(in InputCommand command) => new()
     {
         Forward = Math.Clamp(command.Forward / 127f, -1f, 1f),
         Right = Math.Clamp(command.Right / 127f, -1f, 1f),
-        Yaw = Quantize.FromAngle16(command.Yaw),
-        Pitch = Quantize.FromAngle16(command.Pitch),
+        View = Quantize.FromOctahedral(command.ViewU, command.ViewV),
         Buttons = command.Buttons & (MoveButtons.Jump | MoveButtons.JumpPressed | MoveButtons.Crouch | MoveButtons.Sprint),
+        Frame = command.Frame,
     };
 
     /// <summary>The exact state, for the player's own reconciliation.</summary>
@@ -68,8 +87,10 @@ public static class NetConvert
         Health = s.Health,
         Flags = s.Flags,
         Cheats = s.Cheats,
+        Frame = FrameOnWire(s.Frame),
     };
 
+    /// <summary>The state an own-state message carries; its frame is the wire's, a ship's net ID (a client's prediction's key).</summary>
     public static CharacterState FromOwn(in OwnState o) => new()
     {
         Position = new Vector3(o.PositionX, o.PositionY, o.PositionZ),
@@ -78,19 +99,27 @@ public static class NetConvert
         Health = o.Health,
         Flags = o.Flags,
         Cheats = o.Cheats & (MoveCheats.God | MoveCheats.Noclip),
+        Frame = o.Frame,
     };
 
     /// <summary>
-    /// A character as others see it; the view angles and the head's free look are those of its last input (the free
-    /// look bounded again: the input is untrusted).
+    /// A character as others see it; the view and the head's free look are those of its last input (the free look
+    /// bounded again: the input is untrusted).
     /// </summary>
-    public static CharacterNetState ToNet(in CharacterState s, ushort yaw, ushort pitch, sbyte lookYaw = 0, sbyte lookPitch = 0) => new()
+    public static CharacterNetState ToNet(in CharacterState s, Vector3 view, sbyte lookYaw = 0, sbyte lookPitch = 0)
+    {
+        (ushort u, ushort v) = Quantize.Octahedral(view);
+        return ToNet(s, u, v, lookYaw, lookPitch);
+    }
+
+    /// <summary>A character as others see it, with its view as it came on the wire (octahedral).</summary>
+    public static CharacterNetState ToNet(in CharacterState s, ushort viewU, ushort viewV, sbyte lookYaw = 0, sbyte lookPitch = 0) => new()
     {
         X = Quantize.Fixed(s.Position.X, Quantize.PositionScale),
         Y = Quantize.Fixed(s.Position.Y, Quantize.PositionScale),
         Z = Quantize.Fixed(s.Position.Z, Quantize.PositionScale),
-        Yaw = yaw,
-        Pitch = pitch,
+        ViewU = viewU,
+        ViewV = viewV,
         LookYaw = BoundLook(lookYaw, FreeLook.MaxYaw),
         LookPitch = BoundLook(lookPitch, FreeLook.MaxPitch),
         Flags = s.Flags,
@@ -113,6 +142,9 @@ public static class NetConvert
         int most = (int)(limit / LookStep + 1e-3f);
         return (sbyte)Math.Clamp((int)steps, -most, most);
     }
+
+    /// <summary>A character's view from the wire.</summary>
+    public static Vector3 ViewOf(in CharacterNetState s) => Quantize.FromOctahedral(s.ViewU, s.ViewV);
 
     public static Vector3 PositionOf(in CharacterNetState s) => new(
         Quantize.FromFixed(s.X, Quantize.PositionScale),

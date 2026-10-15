@@ -112,7 +112,7 @@ public static class PlanetSurfaceTests
     {
         PlanetSurface surface = FirstSurface.Value;
         ZoneFrame frame = ZoneFrame.At(surface, FirstWorld.LandingLatitude * DMath.DegToRad, FirstWorld.LandingLongitude * DMath.DegToRad);
-        TriangleMesh mesh = surface.GroundCollision(frame, 10, -20, 60);
+        TriangleMesh mesh = surface.PatchCollision(frame, 10, -20, 60);
         List<TileKey> tiles = TileMesh.TilesCovering(surface, frame, 10, -20, 60, PlanetSurface.CollisionLevel);
         int n = PlanetSurface.TileCells + 1;
         Assert.Equal(tiles.Count * n * n, mesh.VertexCount, "one vertex per render vertex");
@@ -149,8 +149,8 @@ public static class PlanetSurfaceTests
         Assert.True(up >= mesh.TriangleCount * 0.99, "triangles face up");
         // The physics' pooled copy (GROUND.md §5.11) is the same mesh to the bit, its grids' heights kept from a
         // neighbouring square's.
-        surface.GroundCollisionPooled(frame, 40, -20, 60).Dispose();
-        using PooledTriangles pooled = surface.GroundCollisionPooled(frame, 10, -20, 60);
+        surface.PatchCollisionPooled(frame, 40, -20, 60).Dispose();
+        using PooledTriangles pooled = surface.PatchCollisionPooled(frame, 10, -20, 60);
         bool same = pooled.VertexCount == mesh.VertexCount && pooled.TriangleCount == mesh.TriangleCount;
         for (int i = 0; same && i < mesh.Positions.Length; i++)
         {

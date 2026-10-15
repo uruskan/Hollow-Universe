@@ -15,30 +15,31 @@ namespace Hollow.Simulation.Physics;
 /// One zone's Jolt physics system (GROUND.md §4.5): the ground near characters, as static mesh tiles built from the
 /// surface, and the queries characters move with. The server has one per zone; a client has one for its prediction.
 /// <para>
-/// <b>Ground tiles</b> are squares of <see cref="TileSize"/> metres of the zone's tangent plane, each a static mesh body
-/// built from <see cref="ISurface.GroundCollision"/>. A tile's body ID is a function of its grid position, so the
+/// <b>Ground tiles</b> are the world's cube-sphere tiles at <see cref="Level"/>, the level whose edge is nearest
+/// <see cref="TileSize"/> metres on this world (docs/WHOLE_WORLD.md §6.1: 59 m on a 2.41 km world), each a static mesh
+/// body built from <see cref="ISurface.GroundCollision"/>. A tile's body ID is its place among its level's tiles, so the
 /// server and every client have the same bodies under the same IDs whatever else they hold. Jolt sorts contacts by
 /// body ID, so this keeps a character's movement identical on both sides where tiles meet.
 /// </para>
 /// </summary>
 public sealed class PhysicsWorld : IDisposable
 {
-    /// <summary>Side of a ground tile in metres.</summary>
+    /// <summary>The edge, in metres, a ground tile's level is chosen for.</summary>
     public const float TileSize = 64f;
 
-    /// <summary>Tiles exist from −<see cref="TileRange"/> to <see cref="TileRange"/> − 1 on each axis: ±8.2 km.</summary>
-    public const int TileRange = 128;
+    /// <summary>The deepest level ground tiles take, so every tile of the world has its own body ID (6 × 4⁶ of them).</summary>
+    public const int MaxTileLevel = 6;
 
-    /// <summary>Half the width of the zone that can have ground, in metres.</summary>
-    public const float Extent = TileRange * TileSize;
-
-    /// <summary>A ground tile keeps the surface's triangles this far beyond its square (neighbours overlap by this much).</summary>
+    /// <summary>A ground tile keeps the surface's triangles this far beyond its edges (neighbours overlap by this much).</summary>
     public const float ClipMargin = 2f;
+
+    /// <summary>How far round a point <see cref="EnsureGround"/> makes sure of the ground, and <see cref="Prefetch"/> builds ahead.</summary>
+    public const float EnsureReach = 64f, PrefetchReach = 128f;
 
     internal static readonly ObjectLayer StaticLayer = new(0);
     internal static readonly ObjectLayer MovingLayer = new(1);
 
-    private const int TileIdCount = 2 * TileRange * 2 * TileRange;
+    private const int TileIdCount = 6 << (2 * MaxTileLevel);
 
     /// <summary>Body IDs after the ground tiles' are for props (natural objects, deployables): this many at once.</summary>
     public const int MaxProps = 65536;
@@ -62,10 +63,11 @@ public sealed class PhysicsWorld : IDisposable
     /// <summary>Whether a body is a ground tile.</summary>
     public static bool IsGroundBody(uint id) => id < TileIdCount;
 
-    private readonly Dictionary<(int X, int Z), Tile> _tiles = new();
-    private readonly Dictionary<(int X, int Z), TileBuild> _pending = new();
-    private readonly List<(int X, int Z)> _expired = new();
-    private readonly List<(int X, int Z)> _adopted = new();
+    private readonly Dictionary<TileKey, Tile> _tiles = new();
+    private readonly Dictionary<TileKey, TileBuild> _pending = new();
+    private readonly List<TileKey> _expired = new();
+    private readonly List<TileKey> _adopted = new();
+    private readonly NearTiles _near;
     private readonly Dictionary<(PropLayer, ulong), Prop> _props = new();
     private readonly Dictionary<uint, (PropLayer Layer, ulong Key)> _propOf = new();
     private readonly bool[] _propIdUsed = new bool[MaxProps];
@@ -89,6 +91,8 @@ public sealed class PhysicsWorld : IDisposable
     {
         Surface = surface;
         Frame = frame;
+        Level = LevelOn(surface.Radius);
+        _near = new NearTiles(surface.Radius, Level);
         JoltRuntime.EnsureInitialised();
         lock (JoltRuntime.Gate)
         {
@@ -121,6 +125,12 @@ public sealed class PhysicsWorld : IDisposable
 
     public ZoneFrame Frame { get; }
 
+    /// <summary>The cube-sphere level of the ground tiles on this world.</summary>
+    public int Level { get; }
+
+    /// <summary>The ground tiles' level on a world of this radius (what <see cref="Level"/> is; for code without a world).</summary>
+    public static int LevelOn(double radius) => Math.Min(TileKey.LevelFor(radius, TileSize), MaxTileLevel);
+
     internal PhysicsSystem Jolt { get; }
 
     /// <summary>Times the ground's work on the owning thread (the server's tick; null in a client's prediction).</summary>
@@ -134,47 +144,37 @@ public sealed class PhysicsWorld : IDisposable
 
     public double TileBuildMilliseconds => Interlocked.Read(ref _buildTicks) * 1000.0 / Stopwatch.Frequency;
 
-    /// <summary>The tile holding a local point.</summary>
-    public static (int X, int Z) TileOf(Vector3 position) =>
-        ((int)MathF.Floor(position.X / TileSize), (int)MathF.Floor(position.Z / TileSize));
+    /// <summary>The ground tile holding a point (its direction from the centre).</summary>
+    public TileKey TileOf(Vector3 position) => TileKey.At(Frame.ToBody(position), Level);
+
+    // The tiles within a reach of a point (on the owning thread). Every character on foot asks for 64 and 128 m every
+    // tick, on the server and again in its client's prediction and every replay of it, so the answers are kept by the
+    // fine cell the point lies in (NearTiles).
+    private ReadOnlySpan<TileKey> TilesNear(Vector3 position, float reach) => _near.Around(Frame.ToBody(position), reach);
 
     /// <summary>
-    /// Makes sure the ground exists in the square of tiles within <paramref name="radius"/> tiles of the tile under
-    /// <paramref name="position"/>, and marks those tiles as in use this epoch. Tiles built ahead by
-    /// <see cref="Prefetch"/> are taken in; a tile still missing is built now (or waited for, if already on its way).
+    /// Makes sure the ground exists within <see cref="EnsureReach"/> of <paramref name="position"/>, and marks those
+    /// tiles as in use this epoch. Tiles built ahead by <see cref="Prefetch"/> are taken in; a tile still missing is
+    /// built now (or waited for, if already on its way).
     /// </summary>
-    public void EnsureGround(Vector3 position, int radius = 1)
+    public void EnsureGround(Vector3 position) => EnsureGroundWithin(position, EnsureReach);
+
+    /// <summary><see cref="EnsureGround"/> within a reach of its own, in metres.</summary>
+    public void EnsureGroundWithin(Vector3 position, float reach)
     {
         AdoptPrefetched();
-        (int cx, int cz) = TileOf(position);
-        for (int z = cz - radius; z <= cz + radius; z++)
+        foreach (TileKey tile in TilesNear(position, reach))
         {
-            for (int x = cx - radius; x <= cx + radius; x++)
-            {
-                EnsureTile(x, z);
-            }
+            EnsureTile(tile);
         }
     }
 
     /// <summary>
-    /// Makes sure the ground exists wherever something within <paramref name="reach"/> metres of a point (across the
-    /// zone's tangent plane) could touch it, natural props included (<see cref="PropReach"/>): the tiles a ship's
-    /// queries of this tick can meet, one to four instead of <see cref="EnsureGround"/>'s nine. Marks them in use.
+    /// Makes sure the ground exists wherever something within <paramref name="reach"/> metres of a point could touch
+    /// it, natural props included (<see cref="PropReach"/>): the tiles a ship's queries of this tick can meet. Marks
+    /// them in use.
     /// </summary>
-    public void EnsureGroundAround(Vector3 position, float reach)
-    {
-        AdoptPrefetched();
-        float r = reach + PropReach;
-        (int x0, int z0) = TileOf(new Vector3(position.X - r, 0, position.Z - r));
-        (int x1, int z1) = TileOf(new Vector3(position.X + r, 0, position.Z + r));
-        for (int z = z0; z <= z1; z++)
-        {
-            for (int x = x0; x <= x1; x++)
-            {
-                EnsureTile(x, z);
-            }
-        }
-    }
+    public void EnsureGroundAround(Vector3 position, float reach) => EnsureGroundWithin(position, reach + PropReach);
 
     /// <summary>
     /// How far a natural prop's shape reaches across the ground from its base, the point that puts it in a tile: a
@@ -182,46 +182,41 @@ public sealed class PhysicsWorld : IDisposable
     /// </summary>
     public float PropReach { get; set; } = 3f;
 
-    private void EnsureTile(int x, int z)
+    private void EnsureTile(TileKey key)
     {
-        if (x < -TileRange || x >= TileRange || z < -TileRange || z >= TileRange)
-        {
-            return;
-        }
-        if (!_tiles.TryGetValue((x, z), out Tile? tile))
+        if (!_tiles.TryGetValue(key, out Tile? tile))
         {
             Shape shape;
             using (Profile.Time(ProfileSection.TileWait))
             {
                 // On its way: taken over and built here if no worker has started it yet (it may be queued behind
                 // hundreds of others in a respawn storm), else waited for.
-                shape = _pending.Remove((x, z), out TileBuild? building) ? building.Take()! : BuildShape(x, z);
+                shape = _pending.Remove(key, out TileBuild? building) ? building.Take()! : BuildShape(key);
             }
             TilesBuiltOnDemand++;
             using (Profile.Time(ProfileSection.TileAdd))
             {
-                tile = AddTile(x, z, shape);
-                Listener?.TileAdded(x, z);
+                tile = AddTile(key, shape);
+                Listener?.TileAdded(key);
             }
         }
         tile.LastUsed = _epoch;
     }
 
     /// <summary>
-    /// Starts building, on worker threads, the tiles within <paramref name="radius"/> of a point that don't exist yet,
-    /// so that <see cref="EnsureGround"/> finds them ready and a tick never waits for a tile (about 10 ms each). Tiles
-    /// already there are marked as in use.
+    /// Starts building, on worker threads, the tiles within <see cref="PrefetchReach"/> of a point that don't exist
+    /// yet, so that <see cref="EnsureGround"/> finds them ready and a tick never waits for a tile (about 10 ms each).
+    /// Tiles already there are marked as in use.
     /// </summary>
-    public void Prefetch(Vector3 position, int radius = 2)
+    public void Prefetch(Vector3 position) => PrefetchWithin(position, PrefetchReach);
+
+    /// <summary><see cref="Prefetch"/> within a reach of its own, in metres.</summary>
+    public void PrefetchWithin(Vector3 position, float reach)
     {
         using TickProfile.Scope timed = Profile.Time(ProfileSection.Prefetch);
-        (int cx, int cz) = TileOf(position);
-        for (int z = cz - radius; z <= cz + radius; z++)
+        foreach (TileKey tile in TilesNear(position, reach))
         {
-            for (int x = cx - radius; x <= cx + radius; x++)
-            {
-                PrefetchTile(x, z);
-            }
+            PrefetchTile(tile);
         }
     }
 
@@ -229,29 +224,16 @@ public sealed class PhysicsWorld : IDisposable
     /// <see cref="Prefetch"/> for the tiles <see cref="EnsureGroundAround"/> would want at a point: the ground a ship
     /// will need along its way, built before it gets there.
     /// </summary>
-    public void PrefetchAround(Vector3 position, float reach)
-    {
-        float r = reach + PropReach;
-        (int x0, int z0) = TileOf(new Vector3(position.X - r, 0, position.Z - r));
-        (int x1, int z1) = TileOf(new Vector3(position.X + r, 0, position.Z + r));
-        for (int z = z0; z <= z1; z++)
-        {
-            for (int x = x0; x <= x1; x++)
-            {
-                PrefetchTile(x, z);
-            }
-        }
-    }
+    public void PrefetchAround(Vector3 position, float reach) => PrefetchWithin(position, reach + PropReach);
 
     /// <summary>
-    /// <see cref="PrefetchAround"/> all along a segment: points half a tile apart, each box widened by half that, so
+    /// <see cref="PrefetchAround"/> all along a segment: points half a tile apart, each reach widened by half that, so
     /// together they cover every point within <paramref name="reach"/> of the segment.
     /// </summary>
     public void PrefetchAlong(Vector3 from, Vector3 to, float reach)
     {
-        using TickProfile.Scope timed = Profile.Time(ProfileSection.Prefetch);
         const float step = TileSize / 2;
-        float length = Vector2.Distance(new Vector2(from.X, from.Z), new Vector2(to.X, to.Z));
+        float length = Vector3.Distance(from, to);
         int n = Math.Max(1, (int)MathF.Ceiling(length / step));
         for (int i = 0; i <= n; i++)
         {
@@ -260,56 +242,51 @@ public sealed class PhysicsWorld : IDisposable
     }
 
     /// <summary>
-    /// Whether the ground within <paramref name="radius"/> tiles of a point is ready: in the world, or built and
-    /// waiting to be taken in. What isn't on its way yet is started (<see cref="Prefetch"/>). A respawn or an arrival
-    /// waits for this, so the tick that brings the player in never builds ground itself.
+    /// Whether the ground within <see cref="EnsureReach"/> of a point is ready: in the world, or built and waiting to
+    /// be taken in. What isn't on its way yet is started (<see cref="Prefetch"/>). A respawn or an arrival waits for
+    /// this, so the tick that brings the player in never builds ground itself.
     /// </summary>
-    public bool GroundReady(Vector3 position, int radius = 1)
+    public bool GroundReady(Vector3 position)
     {
-        Prefetch(position, radius);
-        (int cx, int cz) = TileOf(position);
-        for (int z = cz - radius; z <= cz + radius; z++)
+        PrefetchWithin(position, EnsureReach);
+        foreach (TileKey tile in TilesNear(position, EnsureReach))
         {
-            for (int x = cx - radius; x <= cx + radius; x++)
+            if (!_tiles.ContainsKey(tile) && !(_pending.TryGetValue(tile, out TileBuild? build) && build.IsBuilt))
             {
-                if (x >= -TileRange && x < TileRange && z >= -TileRange && z < TileRange && !_tiles.ContainsKey((x, z)) &&
-                    !(_pending.TryGetValue((x, z), out TileBuild? build) && build.IsBuilt))
-                {
-                    return false;
-                }
+                return false;
             }
         }
         return true;
     }
 
-    private void PrefetchTile(int x, int z)
+    private void PrefetchTile(TileKey key)
     {
-        if (x < -TileRange || x >= TileRange || z < -TileRange || z >= TileRange || _pending.ContainsKey((x, z)))
+        if (_pending.ContainsKey(key))
         {
             return;
         }
-        if (_tiles.TryGetValue((x, z), out Tile? tile))
+        if (_tiles.TryGetValue(key, out Tile? tile))
         {
             // Near someone: keep it.
             tile.LastUsed = _epoch;
             return;
         }
-        StartBuild(x, z);
+        StartBuild(key);
     }
 
-    // Apart from PrefetchTile: a lambda capturing x and z there would allocate its closure on every call (every
-    // character asks for 25 tiles a tick), not only for a tile that is started.
-    private void StartBuild(int x, int z)
+    // Apart from PrefetchTile: a lambda capturing the key there would allocate its closure on every call (every
+    // character asks for a few dozen tiles a tick), not only for a tile that is started.
+    private void StartBuild(TileKey key)
     {
         ITileListener? listener = Listener;
-        _pending.Add((x, z), new TileBuild(() =>
+        _pending.Add(key, new TileBuild(() =>
         {
             if (_closing)
             {
                 return null;
             }
-            listener?.TilePreparing(x, z);
-            return BuildShape(x, z);
+            listener?.TilePreparing(key);
+            return BuildShape(key);
         }));
     }
 
@@ -338,7 +315,7 @@ public sealed class PhysicsWorld : IDisposable
             return;
         }
         _adopted.Clear();
-        foreach (((int, int) key, TileBuild build) in _pending)
+        foreach ((TileKey key, TileBuild build) in _pending)
         {
             if (build.IsBuilt)
             {
@@ -349,13 +326,13 @@ public sealed class PhysicsWorld : IDisposable
                 }
             }
         }
-        foreach ((int x, int z) in _adopted)
+        foreach (TileKey key in _adopted)
         {
             using TickProfile.Scope _ = Profile.Time(ProfileSection.TileAdd);
-            _pending.Remove((x, z), out TileBuild? build);
-            Tile tile = AddTile(x, z, build!.Take()!);
+            _pending.Remove(key, out TileBuild? build);
+            Tile tile = AddTile(key, build!.Take()!);
             tile.LastUsed = _epoch;
-            Listener?.TileAdded(x, z);
+            Listener?.TileAdded(key);
             _adoptedThisEpoch++;
         }
     }
@@ -371,7 +348,7 @@ public sealed class PhysicsWorld : IDisposable
     {
         _epoch++;
         _expired.Clear();
-        foreach (((int, int) key, Tile tile) in _tiles)
+        foreach ((TileKey key, Tile tile) in _tiles)
         {
             if (_epoch - tile.LastUsed > keepEpochs)
             {
@@ -384,10 +361,10 @@ public sealed class PhysicsWorld : IDisposable
         }
         lock (JoltRuntime.Gate)
         {
-            foreach ((int X, int Z) key in _expired)
+            foreach (TileKey key in _expired)
             {
                 using TickProfile.Scope _ = Profile.Time(ProfileSection.TileRemove);
-                Listener?.TileRemoved(key.X, key.Z);
+                Listener?.TileRemoved(key);
                 Tile tile = _tiles[key];
                 RemoveStaticBody(tile.Body.ID);
                 tile.Shape.Dispose();
@@ -397,16 +374,16 @@ public sealed class PhysicsWorld : IDisposable
     }
 
     /// <summary>The triangles of a tile, as the surface gives them (also what the client draws as placeholder ground).</summary>
-    public TriangleMesh TileMesh(int x, int z) =>
-        Surface.GroundCollision(Frame, (x + 0.5) * TileSize, (z + 0.5) * TileSize, TileSize);
+    public TriangleMesh TileMesh(TileKey tile) => Surface.GroundCollision(Frame, tile, ClipMargin);
 
-    // The mesh shape of a tile: the surface's triangles, then Jolt's tree over them. Thread-safe (a pure function of
-    // the surface, and Jolt builds shapes without the shared allocator), so prefetching runs it on worker threads.
-    private Shape BuildShape(int x, int z)
+    // The mesh shape of a tile: the surface's triangles over the tile and its margin, then Jolt's tree over them.
+    // Thread-safe (a pure function of the surface, and Jolt builds shapes without the shared allocator), so prefetching
+    // runs it on worker threads.
+    private Shape BuildShape(TileKey tile)
     {
         long start = Stopwatch.GetTimestamp();
         // Pooled, as the arrays below: these are large-object-heap sized, and tiles come and go all the time.
-        using PooledTriangles mesh = Surface.GroundCollisionPooled(Frame, (x + 0.5) * TileSize, (z + 0.5) * TileSize, TileSize);
+        using PooledTriangles mesh = Surface.GroundCollisionPooled(Frame, tile, ClipMargin);
         Vector3[] vertices = ArrayPool<Vector3>.Shared.Rent(mesh.VertexCount);
         IndexedTriangle[] triangles = ArrayPool<IndexedTriangle>.Shared.Rent(mesh.TriangleCount);
         Shape shape;
@@ -416,37 +393,11 @@ public sealed class PhysicsWorld : IDisposable
             {
                 vertices[i] = new Vector3(mesh.Positions[3 * i], mesh.Positions[3 * i + 1], mesh.Positions[3 * i + 2]);
             }
-            // Only the triangles over the tile's square and a margin: a surface's grids cover more than the square
-            // (the planet's level-18 tiles overlap it by up to a tile), and neighbours would otherwise hold the same
-            // triangles twice, which every character's contact query pays for.
-            // The square is the tangent plane's, so each vertex is seen from the body's centre on that plane (on a
-            // small body the ground falls away from the plane and its triangles crowd towards the origin).
-            float x0 = x * TileSize - ClipMargin, x1 = (x + 1) * TileSize + ClipMargin;
-            float z0 = z * TileSize - ClipMargin, z1 = (z + 1) * TileSize + ClipMargin;
-            double r0 = Frame.Origin.Length;
-            Vector2 Plane(Vector3 v) => r0 + v.Y > r0 * 0.01 ? new Vector2(v.X, v.Z) * (float)(r0 / (r0 + v.Y)) : new Vector2(v.X, v.Z);
-            int kept = 0;
             for (int t = 0; t < mesh.TriangleCount; t++)
             {
-                int a = mesh.Indices[3 * t], b = mesh.Indices[3 * t + 1], c = mesh.Indices[3 * t + 2];
-                Vector2 pa = Plane(vertices[a]), pb = Plane(vertices[b]), pc = Plane(vertices[c]);
-                if (MathF.Max(pa.X, MathF.Max(pb.X, pc.X)) < x0 || MathF.Min(pa.X, MathF.Min(pb.X, pc.X)) > x1 ||
-                    MathF.Max(pa.Y, MathF.Max(pb.Y, pc.Y)) < z0 || MathF.Min(pa.Y, MathF.Min(pb.Y, pc.Y)) > z1)
-                {
-                    continue;
-                }
-                triangles[kept++] = new IndexedTriangle(a, b, c, 0, 0);
+                triangles[t] = new IndexedTriangle(mesh.Indices[3 * t], mesh.Indices[3 * t + 1], mesh.Indices[3 * t + 2], 0, 0);
             }
-            if (kept == 0)
-            {
-                // Nothing over the square (it can't happen with a surface that covers it): keep everything.
-                for (int t = 0; t < mesh.TriangleCount; t++)
-                {
-                    triangles[t] = new IndexedTriangle(mesh.Indices[3 * t], mesh.Indices[3 * t + 1], mesh.Indices[3 * t + 2], 0, 0);
-                }
-                kept = mesh.TriangleCount;
-            }
-            using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, kept));
+            using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, mesh.TriangleCount));
             shape = settings.Create();
         }
         finally
@@ -550,13 +501,14 @@ public sealed class PhysicsWorld : IDisposable
         }
     }
 
-    // Adds a built tile to the physics system, under the tile's own body ID. On the owning thread.
-    private Tile AddTile(int x, int z, Shape shape)
+    // Adds a built tile to the physics system, under the tile's own body ID (its place among its level's tiles). On the
+    // owning thread.
+    private Tile AddTile(TileKey key, Shape shape)
     {
-        var id = new BodyID((uint)((x + TileRange) + (z + TileRange) * 2 * TileRange));
+        var id = new BodyID((uint)key.Index);
         AddStaticBody(id.ID, shape, Vector3.Zero, Quaternion.Identity);
         var tile = new Tile(id, shape);
-        _tiles.Add((x, z), tile);
+        _tiles.Add(key, tile);
         return tile;
     }
 
@@ -566,7 +518,10 @@ public sealed class PhysicsWorld : IDisposable
     public ITileListener? Listener { get; set; }
 
     /// <summary>Whether a ground tile is in the world now.</summary>
-    public bool HasTile(int x, int z) => _tiles.ContainsKey((x, z));
+    public bool HasTile(TileKey tile) => _tiles.ContainsKey(tile);
+
+    /// <summary>The ground tiles in the world now (the developer panel draws them).</summary>
+    public IEnumerable<TileKey> Tiles => _tiles.Keys;
 
     /// <summary>Props in the world now.</summary>
     public int PropCount => _props.Count;

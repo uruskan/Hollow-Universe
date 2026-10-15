@@ -28,6 +28,10 @@ public partial class PeopleView : Node3D
     {
         public CharacterView View = null!;
         public Num.Vector3 Last;
+
+        // Aboard a ship (IRON_WAKE.md §4.8): where it last stood in the ship's frame, and that frame.
+        public Num.Vector3 LastLocal;
+        public uint LastFrame;
         public Vector3 Velocity;
         public byte Actions;
         public byte Health = 255;
@@ -227,10 +231,26 @@ public partial class PeopleView : Node3D
             p.Frames = 0;
         }
         p.Frames++;
-        Num.Vector3 up = Client.Frame.UpAt(e.Position);
-        Vector3 seen = GroundView.ToGodot((e.Position - p.Last) / dt);
+        // Up where it stands as drawn (aboard a ship, its deck's: IRON_WAKE.md §4.8), and how it moves there: aboard, its
+        // walk on the deck (the ship's own motion isn't a walk), turned as the ship is drawn.
+        Num.Vector3 up = e.Up;
+        Num.Vector3 moved = (e.Position - p.Last) / dt;
+        if (e.Frame != 0)
+        {
+            moved = e.Frame == p.LastFrame && Client.Ships().DrawnPose(e.Frame) is { } ship
+                ? ship.DirectionToWorld((e.LocalPosition - p.LastLocal) / dt) : Num.Vector3.Zero;
+        }
+        else if (p.LastFrame != 0)
+        {
+            moved = Num.Vector3.Zero; // just stepped off: one frame without a measure
+        }
+        Vector3 seen = GroundView.ToGodot(moved);
+        // Facing where it looks, in the character view's own convention (its north is not the movement code's on a ball).
+        float facing = CharacterFrame.YawToward(GroundView.ToGodot(up), GroundView.ToGodot(e.View));
         p.Velocity = p.Frames < 3 ? Vector3.Zero : p.Velocity.Lerp(seen, 0.3f);
         p.Last = e.Position;
+        p.LastLocal = e.LocalPosition;
+        p.LastFrame = e.Frame;
         bool swimming = (e.Flags & MoveFlags.Swimming) != 0;
         // In a ship's seat (G6): the character contract has no sitting pose, so the pilot isn't drawn (§11).
         p.View.Visible = e.Stance != Stance.Seated;
@@ -240,7 +260,7 @@ public partial class PeopleView : Node3D
         {
             Position = GroundView.ToGodot(e.Position),
             Up = GroundView.ToGodot(up),
-            Yaw = e.Yaw,
+            Yaw = facing,
             Pitch = e.Pitch,
             LookYaw = e.LookYaw,
             LookPitch = e.LookPitch,
@@ -281,7 +301,7 @@ public partial class PeopleView : Node3D
             if (down)
             {
                 // Dead: pushed back from where they faced; asleep: they just lie down.
-                Vector3 push = dead ? -CharacterFrame.Facing(GroundView.ToGodot(up), e.Yaw) * 1.5f : Vector3.Zero;
+                Vector3 push = dead ? -CharacterFrame.Facing(GroundView.ToGodot(up), facing) * 1.5f : Vector3.Zero;
                 p.View.Trigger(CharacterEvent.Death, push);
                 FrameEvents.Note("ragdoll");
             }
@@ -323,14 +343,14 @@ public partial class PeopleView : Node3D
             }
             if (e.Health < p.Health && e.Health > 0)
             {
-                Vector3 facing = CharacterFrame.Facing(GroundView.ToGodot(up), e.Yaw);
-                p.View.Trigger(CharacterEvent.Hit, -facing);
+                Vector3 front = CharacterFrame.Facing(GroundView.ToGodot(up), facing);
+                p.View.Trigger(CharacterEvent.Hit, -front);
                 Sounds.At("survival.hurt", head);
                 // A blow or a bite bleeds here; a bullet's blood was shown where it hit.
                 Vector3 chest = GroundView.ToGodot(e.Position + up * 1.25f);
                 if (!GunEffects.FleshShown(chest, Client.ClockSeconds))
                 {
-                    FxDirector.Play("blood.hit", chest + facing * 0.15f, facing, new FxParams { Direction = facing });
+                    FxDirector.Play("blood.hit", chest + front * 0.15f, front, new FxParams { Direction = front });
                 }
             }
         }

@@ -26,7 +26,7 @@ public partial class AnimalSandbox
     {
         var trees = new TreeGrid(25);
         var objects = new List<NaturalObject>();
-        _zone.Nature!.Query(-SearchRadius - 100, -SearchRadius - 100, SearchRadius + 100, SearchRadius + 100, objects);
+        _zone.Nature!.Query(_zone.Landing, SearchRadius + 100, objects);
         foreach (NaturalObject o in objects)
         {
             if (_content.Natural(o.Kind)?.Class == NaturalClass.Tree)
@@ -249,7 +249,7 @@ public partial class AnimalSandbox
                 return;
             }
             ref Character c = ref _zone.Entities.Get<Character>(butcher.Entity);
-            c.Input = new MoveInput { Buttons = MoveButtons.Crouch, Yaw = c.Input.Yaw, Pitch = c.Input.Pitch };
+            c.Input = new MoveInput { Buttons = MoveButtons.Crouch, View = c.Input.View };
             if (corpse.Removed)
             {
                 // Used up: another in a moment.

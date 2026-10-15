@@ -150,15 +150,59 @@ public static class TestBases
         return true;
     }
 
-    /// <summary>The <paramref name="index"/>-th of <paramref name="count"/> places on a ring around the zone's origin, and the heading that turns a hut's doorway toward the origin.</summary>
-    public static (float X, float Z, double Heading) Ring(int index, int count, float radius)
+    /// <summary>
+    /// The <paramref name="index"/>-th of <paramref name="count"/> places on a ring of <paramref name="radius"/> metres
+    /// round a point of the world (measured along the ground), and the heading that turns a hut's doorway toward it.
+    /// </summary>
+    public static (Vector3 At, double Heading) Ring(GroundProbe ground, Vector3 centre, int index, int count, float radius)
     {
         double angle = DMath.TwoPi * index / Math.Max(1, count);
-        float x = (float)(radius * DMath.Cos(angle)), z = (float)(radius * DMath.Sin(angle));
-        // A hut's +Z (its doorway's outside) is the frame's AxisZ: x0·sin(h) + z0·cos(h) with x0 east and z0 = east × up
-        // (south, +Z of the zone). Pointing it at the origin, (−x, −z): sin(h) = −x/r, cos(h) = −z/r.
-        double heading = DMath.Atan2(-x, -z);
-        return (x, z, heading);
+        Vector3 at = ground.Offset(centre, (float)(radius * DMath.Cos(angle)), (float)(radius * DMath.Sin(angle)));
+        return (at, Facing(ground, at, centre));
+    }
+
+    /// <summary>
+    /// A place for a hut beside a point (the beach where a raider arrives, in the raid load test on a whole world):
+    /// <paramref name="distance"/> metres from it along the ground toward the highest of eight directions (inland, on a
+    /// coast), the next highest where a hut of <paramref name="taken"/> stands within <paramref name="apart"/> metres; and
+    /// the heading that turns its doorway toward the point.
+    /// </summary>
+    public static (Vector3 At, double Heading) Beside(GroundProbe ground, Vector3 point, float distance, IReadOnlyCollection<Vector3> taken,
+        float apart)
+    {
+        var sites = new List<(double Height, int K, Vector3 At)>();
+        for (int k = 0; k < 8; k++)
+        {
+            double angle = DMath.TwoPi * k / 8;
+            Vector3 at = ground.Offset(point, (float)(distance * DMath.Cos(angle)), (float)(distance * DMath.Sin(angle)));
+            sites.Add((ground.Frame.ToBody(at).Length, k, at));
+        }
+        sites.Sort((a, b) => a.Height != b.Height ? b.Height.CompareTo(a.Height) : a.K.CompareTo(b.K));
+        Vector3 site = sites[0].At;
+        foreach ((double _, int _, Vector3 at) in sites)
+        {
+            bool free = true;
+            foreach (Vector3 other in taken)
+            {
+                free &= Vector3.DistanceSquared(other, at) >= apart * apart;
+            }
+            if (free)
+            {
+                site = at;
+                break;
+            }
+        }
+        return (site, Facing(ground, site, point));
+    }
+
+    // The heading that turns a hut at a point to face another along the ground: a hut's +Z (its doorway's outside) is
+    // the frame's AxisZ (BuildingFrame.At).
+    private static double Facing(GroundProbe ground, Vector3 at, Vector3 toward)
+    {
+        Vector3 up = ground.Frame.UpAt(at);
+        Vector3 along = toward - at;
+        along -= up * Vector3.Dot(along, up);
+        return BuildingFrame.HeadingOf(new Vector3D(along.X, along.Y, along.Z), new Vector3D(up.X, up.Y, up.Z));
     }
 
     /// <summary>
@@ -168,7 +212,7 @@ public static class TestBases
     /// </summary>
     public static BuildingFrame FrameOver(Zone zone, BuildingData data, PieceDef foundation, Vector3 at, double heading)
     {
-        Vector3 ground = zone.GroundAt(at.X, at.Z);
+        Vector3 ground = zone.Settle(at);
         Vector3 up = zone.Frame.UpAt(ground);
         var upD = new Vector3D(up.X, up.Y, up.Z);
         BuildingFrame probe = BuildingFrame.At(new Vector3D(ground.X, ground.Y, ground.Z), upD, heading);

@@ -47,7 +47,7 @@ public readonly record struct ShipEvent(ShipEventKind Kind, Ship Ship, float Amo
 // Ships in the zone (GROUND.md §6.7): built at a vehicle workbench, boarded through the hatch, flown by their pilot's
 // inputs, parked on their skids (a static body characters walk into), fuelled, locked, looted, hurt by weapons and
 // crashes, wrecked when the hull goes, parked in orbit above the ceiling.
-public sealed class ShipSystem : ZoneSystem
+public sealed partial class ShipSystem : ZoneSystem
 {
     private DamageSystem? _damageSystem;
     private DamageSystem Damage => _damageSystem ??= Zone.Require<DamageSystem>();
@@ -91,7 +91,10 @@ public sealed class ShipSystem : ZoneSystem
     /// <summary>The ship a character sits in, or null.</summary>
     public Ship? SeatOf(Entity character) => Entities.Has<ShipSeat>(character) ? Entities.Get<ShipSeat>(character).Ship : null;
 
-    /// <summary>Adds a ship (built, or restored from storage).</summary>
+    /// <summary>
+    /// Adds a ship (built, or restored from storage). One people walk in (an <c>interior</c> in ships.json, IRON_WAKE.md
+    /// §4.3) gets its space, posed from its parts' states, and its frame among the zone's.
+    /// </summary>
     public Ship AddShip(Ship ship)
     {
         Entity entity = Entities.Create(ship.Id);
@@ -99,6 +102,12 @@ public sealed class ShipSystem : ZoneSystem
         int at = _ships.FindIndex(s => s.Id.Value > ship.Id.Value);
         _ships.Insert(at < 0 ? _ships.Count : at, ship);
         ship.Revision++;
+        if (ship.Def.Interior is { } interior)
+        {
+            ship.Space = new ShipSpace(interior, ship.Parts, Tuning);
+            ship.Frame = new ShipFrame(ship, ship.Space, Movement.Gravity);
+            Zone.Frames.Add(ship.Frame);
+        }
         return ship;
     }
 
@@ -106,22 +115,30 @@ public sealed class ShipSystem : ZoneSystem
     public Ship SpawnShip(ShipDef def, Vector3 ground, float yaw, EntityId owner, float fuel)
     {
         Vector3 up = Frame.UpAt(ground);
+        ShipState state = ShipMotor.Standing(def, ground + up * 0.02f, up, yaw);
+        // Level where its centre of mass is, the point the motor flies: on a small world the pivot's up is a hair off
+        // (the Tin Finch's 0.28 m is 0.0064° on a 2.41 km world), which flight assist would hold as a slow sink.
+        state.Rotation = Quaternion.Normalize(Facing.Turn(up, Frame.UpAt(state.Position)) * state.Rotation);
         var ship = new Ship(NextId(), def, owner)
         {
-            State = ShipMotor.Standing(def, ground + up * 0.02f, up, yaw),
+            State = state,
         };
         ship.State.Fuel = Math.Clamp(fuel, 0, def.FuelCapacity);
         Physics.EnsureGround(ground);
         return AddShip(ship);
     }
 
-    /// <summary>Takes a ship out of the zone: its pilot steps out where the seat is, its body goes.</summary>
+    /// <summary>
+    /// Takes a ship out of the zone: its pilot steps out where the seat is, everyone else aboard is put ashore where the
+    /// ship carried them (with its velocity there), its body and its space go.
+    /// </summary>
     public void RemoveShip(Ship ship)
     {
         if (ship.Piloted && Entities.TryFind(ship.Pilot, out Entity pilot))
         {
             Unseat(pilot, ship, Settle(ship.Origin) + Frame.UpAt(ship.Origin) * 0.05f);
         }
+        Ashore(ship);
         if (ship.ParkedBody != 0)
         {
             lock (JoltRuntime.Gate)
@@ -130,6 +147,14 @@ public sealed class ShipSystem : ZoneSystem
             }
             ship.ParkedBody = 0;
         }
+        if (ship.Frame != null)
+        {
+            Zone.Frames.Remove(ship.Frame.Key);
+            ship.Frame = null;
+        }
+        ship.Space?.Dispose();
+        ship.Space = null;
+        History.ForgetShip(ship.Id.Value);
         if (Entities.TryFind(ship.Id, out Entity entity))
         {
             Entities.Destroy(entity);
@@ -210,7 +235,7 @@ public sealed class ShipSystem : ZoneSystem
             bool park = ship.State.Asleep && !ship.Piloted && !ship.Autopilot && !ship.Destroyed && !ship.InOrbit;
             if (park && ship.ParkedBody == 0)
             {
-                ship.ParkedBody = ShipCollider.AddParked(ship.Def, ship.State.Position, ship.State.Rotation);
+                Park(ship);
             }
             else if (!park && ship.ParkedBody != 0)
             {
@@ -246,12 +271,23 @@ public sealed class ShipSystem : ZoneSystem
         }
     }
 
-    // The seated character goes where the seat is.
+    // The seated character goes where the seat is: aboard a ship people walk in, at the seat in its frame (the ship's
+    // flight carries it, IRON_WAKE.md §4.2); in one they only sit in, at the seat's point in the zone's frame.
     private void CarryPilot(Entity pilot, Ship ship)
     {
         ref Character c = ref Entities.Get<Character>(pilot);
-        c.State.Position = ship.PointOf(ship.Def.Seat);
-        c.State.Velocity = ship.State.Velocity;
+        if (ship.Frame != null)
+        {
+            c.State.Frame = ship.Frame.Key;
+            c.State.Position = ship.Def.Seat;
+            c.State.Velocity = Vector3.Zero;
+        }
+        else
+        {
+            c.State.Frame = 0;
+            c.State.Position = ship.PointOf(ship.Def.Seat);
+            c.State.Velocity = ship.State.Velocity;
+        }
         c.State.Stance = Stance.Seated;
         c.State.Flags = MoveFlags.None;
     }
@@ -278,9 +314,10 @@ public sealed class ShipSystem : ZoneSystem
         else
         {
             ref Character c = ref Entities.Get<Character>(builder);
-            (Vector3 forward, _) = CharacterMotor.HorizontalBasis(c.Input.Yaw, Frame.UpAt(c.State.Position));
-            at = c.State.Position + forward * 6f;
-            yaw = c.Input.Yaw;
+            Vector3 standing = Frame.UpAt(WorldOf(c.State));
+            (Vector3 forward, _) = Facing.Basis(ViewOf(c), standing);
+            at = WorldOf(c.State) + forward * 6f;
+            yaw = Facing.YawOf(ViewOf(c), standing);
             maxSlope = 20 * MathF.PI / 180;
         }
         Vector3 ground = Settle(at);
@@ -479,13 +516,14 @@ public sealed class ShipSystem : ZoneSystem
         {
             return OutcomeCode.Blocked;
         }
-        Unseat(entity, ship, at);
+        Unseat(entity, ship, at, aboard: ship.Frame != null);
         ship.HatchOpen = true;
         return OutcomeCode.Done;
     }
 
-    // Takes a character out of a ship's seat, standing at a point.
-    private void Unseat(Entity entity, Ship ship, Vector3 at)
+    // Takes a character out of a ship's seat, standing at a point: of the ship's frame when it stays aboard (a ship people
+    // walk in), else of the zone's.
+    private void Unseat(Entity entity, Ship ship, Vector3 at, bool aboard = false)
     {
         if (ship.Pilot == Entities.IdOf(entity))
         {
@@ -494,22 +532,49 @@ public sealed class ShipSystem : ZoneSystem
         ship.Input = default;
         Entities.Remove<ShipSeat>(entity);
         ref Character c = ref Entities.Get<Character>(entity);
-        Vector3 up = Frame.UpAt(at);
         c.State.Position = at;
         c.State.Velocity = Vector3.Zero;
         c.State.Stance = Stance.Standing;
         c.State.Flags = MoveFlags.OnGround;
-        c.Input.Yaw = ShipMotor.YawOf(ship.State.Rotation, up);
-        Physics.EnsureGround(at);
+        if (aboard && ship.Frame != null)
+        {
+            // Facing the bow, in the ship's frame.
+            c.State.Frame = ship.Frame.Key;
+            c.Input.View = Vector3.UnitZ;
+            c.Input.Frame = ship.Frame.Key;
+        }
+        else
+        {
+            Vector3 up = Frame.UpAt(at);
+            c.State.Frame = 0;
+            c.Input.View = Facing.View(ShipMotor.YawOf(ship.State.Rotation, up), 0, up);
+            c.Input.Frame = 0;
+            Physics.EnsureGround(at);
+        }
         WakeShip(ship);
     }
 
-    // The first exit (ships.json, in order) whose spot on the ground is clear of the hull, deployables, trees and walls.
+    // The first exit (ships.json, in order) whose spot on the ground is clear of the hull, deployables, trees and walls;
+    // aboard a ship people walk in, the first whose spot on its deck is clear in its space (a standing capsule over a floor).
     private bool ExitPoint(Ship ship, out Vector3 at)
     {
         Vector3 up = Frame.UpAt(ship.State.Position);
         lock (JoltRuntime.Gate)
         {
+            if (ship.Space is { } space)
+            {
+                foreach (Vector3 exit in ship.Def.Exits)
+                {
+                    Vector3 feet = exit + Vector3.UnitY * 0.05f;
+                    if (space.Ray(feet + Vector3.UnitY * 0.3f, -Vector3.UnitY, 0.6f, out _) && space.CapsuleClear(feet))
+                    {
+                        at = feet;
+                        return true;
+                    }
+                }
+                at = default;
+                return false;
+            }
             foreach (Vector3 exit in ship.Def.Exits)
             {
                 Vector3 point = ship.PointOf(exit);
@@ -648,10 +713,12 @@ public sealed class ShipSystem : ZoneSystem
     // ---------------------------------------------------------------- damage and wrecks
 
     /// <summary>
-    /// Ships' hulls (GROUND.md §6.4.2, §6.7): found by their hull boxes along a ray and by their nearest points in a
-    /// blast's reach (seen from a point just off the hull toward the blast: the hull never hides its own side); a ship in
-    /// orbit or wrecked is out of reach. Its defence: the hull's share by how the blow came (ships.json). Its consequences:
-    /// the hull's health and last attacker; at 0 the ship is wrecked (the pilot dies in it, a wreck to loot) and reported
+    /// Ships' hulls (GROUND.md §6.4.2, §6.7): a ship people walk in is met by its space's pieces along a ray (IRON_WAKE.md
+    /// §4.9: through its open ramp a shot goes on to whoever stands inside; through the hull it meets the hull), any other
+    /// by its hull boxes, each where the attacker saw it (the pose history); and by their nearest points in a blast's reach
+    /// (seen from a point just off the hull toward the blast: the hull never hides its own side); a ship in orbit or
+    /// wrecked is out of reach. Its defence: the hull's share by how the blow came (ships.json). Its consequences: the
+    /// hull's health and last attacker; at 0 the ship is wrecked (the pilot dies in it, a wreck to loot) and reported
     /// destroyed. The pilot inside is the cabin's to protect.
     /// </summary>
     internal sealed class ShipReceiver(Zone zone) : DamageSystem.IDamageReceiver
@@ -660,13 +727,21 @@ public sealed class ShipSystem : ZoneSystem
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
-            if (zone.Ships()._ships.Count > 0)
+            ShipSystem ships = zone.Ships();
+            if (ships._ships.Count == 0)
             {
-                float t = zone.Ships().TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship);
-                if (ship != null)
-                {
-                    ray.Consider(ref best, t, ship.Ref);
-                }
+                return;
+            }
+            if (zone.Frames.Ships.Count > 0 &&
+                ShipQueries.Ray(zone.Frames.Ships, ray.Origin, ray.Direction, ray.Upto(best), zone.Tick, out ShipQueryHit hit, zone.History, ray.ViewTick) &&
+                ships.ShipOf(new EntityId(hit.Key)) is { Destroyed: false, InOrbit: false } walked)
+            {
+                ray.Consider(ref best, hit.Distance, walked.Ref);
+            }
+            float t = ships.TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship, ray.ViewTick);
+            if (ship != null)
+            {
+                ray.Consider(ref best, t, ship.Ref);
             }
         }
 
@@ -678,7 +753,20 @@ public sealed class ShipSystem : ZoneSystem
                 {
                     continue;
                 }
-                Vector3 point = ShipClosestPoint(ship, blast.At);
+                Vector3 point;
+                if (ship.Frame != null)
+                {
+                    // Its pieces' nearest point, within the blast's reach.
+                    if (!ShipQueries.Nearest(ship.Frame, ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass), blast.At, blast.Radius, out point, out _, out _) &&
+                        !blast.IsStuckTo(ship.Ref))
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    point = ShipClosestPoint(ship, blast.At);
+                }
                 bool stuck = blast.IsStuckTo(ship.Ref);
                 float distance = stuck ? 0 : Vector3.Distance(point, blast.At);
                 if (distance > blast.Radius)
@@ -706,8 +794,19 @@ public sealed class ShipSystem : ZoneSystem
         }
     }
 
-    /// <summary>The point of a ship's hull (its boxes) nearest to a point.</summary>
-    public static Vector3 ShipClosestPoint(Ship ship, Vector3 at) => ShipShapes.NearestOnHull(ship.Def, ship.State.Position, ship.State.Rotation, at);
+    /// <summary>The point of a ship's hull nearest to a point: its pieces for a ship people walk in, else its boxes.</summary>
+    public static Vector3 ShipClosestPoint(Ship ship, Vector3 at)
+    {
+        if (ship.Frame != null)
+        {
+            ShipPose pose = ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass);
+            if (ShipQueries.Nearest(ship.Frame, pose, at, Vector3.Distance(at, pose.Position) + 1, out Vector3 point, out _, out _))
+            {
+                return point;
+            }
+        }
+        return ShipShapes.NearestOnHull(ship.Def, ship.State.Position, ship.State.Rotation, at);
+    }
 
     /// <summary>
     /// Damage to a ship's hull from a weapon of a kind (tests): a request through the ships' receiver, with no hit marker.
@@ -774,6 +873,7 @@ public sealed class ShipSystem : ZoneSystem
         }
     }
 
+
     // The hull is gone: the pilot dies in it; its cargo, half its fuel and some of its metal go into a wreck anyone may loot.
     private void Wreck(Ship ship)
     {
@@ -802,6 +902,7 @@ public sealed class ShipSystem : ZoneSystem
             Unseat(pilot, ship, at + up * 0.05f);
             Players.Die(pilot, p, "Went down with the ship", ship.LastAttacker, ship.LastAttackerName);
         }
+        Ashore(ship);
         var stacks = new List<ItemStack>();
         for (int i = 0; i < ship.Cargo.Size; i++)
         {
@@ -833,24 +934,32 @@ public sealed class ShipSystem : ZoneSystem
         ShipEvents.Add(new ShipEvent(ShipEventKind.Destroyed, ship, 0, ship.LastAttacker));
     }
 
-    /// <summary>The ship a ray (thickened) meets first: the distance along it (−1 for none) and the ship.</summary>
-    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit)
+    /// <summary>
+    /// The ship people only sit in that a ray (thickened) meets first, by its hull boxes where the attacker saw it (the
+    /// pose history at <paramref name="viewTick"/>): the distance along it (−1 for none) and the ship. One people walk in
+    /// is met by its space (<see cref="ShipQueries"/>).
+    /// </summary>
+    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit, double viewTick = double.MaxValue)
     {
         hit = null;
         float best = -1;
         foreach (Ship ship in _ships)
         {
-            if (ship.Destroyed || ship.InOrbit ||
-                Geometry.RaySphere(origin, direction, length, ship.State.Position, ship.Def.BoundingRadius + thickness) < 0)
+            if (ship.Frame != null || ship.Destroyed || ship.InOrbit)
             {
                 continue;
             }
-            Vector3 x = Vector3.Transform(Vector3.UnitX, ship.State.Rotation);
-            Vector3 y = Vector3.Transform(Vector3.UnitY, ship.State.Rotation);
-            Vector3 z = Vector3.Transform(Vector3.UnitZ, ship.State.Rotation);
+            ShipPose pose = viewTick < Tick && History.SampleShip(ship.Id.Value, viewTick, out ShipPose then) ? then : ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass);
+            if (Geometry.RaySphere(origin, direction, length, pose.Position, ship.Def.BoundingRadius + thickness) < 0)
+            {
+                continue;
+            }
+            Vector3 x = Vector3.Transform(Vector3.UnitX, pose.Rotation);
+            Vector3 y = Vector3.Transform(Vector3.UnitY, pose.Rotation);
+            Vector3 z = Vector3.Transform(Vector3.UnitZ, pose.Rotation);
             foreach (HullBox box in ship.Def.Hull)
             {
-                float t = Geometry.RayBox(origin, direction, length, ship.PointOf(box.Centre), box.HalfExtents + new Vector3(thickness), x, y, z);
+                float t = Geometry.RayBox(origin, direction, length, pose.ToWorld(box.Centre), box.HalfExtents + new Vector3(thickness), x, y, z);
                 if (t >= 0 && (best < 0 || t < best))
                 {
                     best = t;
@@ -868,7 +977,15 @@ public sealed class ShipSystem : ZoneSystem
         StepShips();
     }
 
-    public override void Dispose() => _shipCollider?.Dispose();
+    public override void Dispose()
+    {
+        foreach (Ship ship in _ships)
+        {
+            ship.Space?.Dispose();
+            ship.Space = null;
+        }
+        _shipCollider?.Dispose();
+    }
 
     /// <summary>The survival state of a character, or null: not a player, or G1's movement-only zone, where ships fly without players.</summary>
     private Player? PlayerOf(Entity entity) => Zone.Get<PlayerSystem>()?.PlayerOf(entity);

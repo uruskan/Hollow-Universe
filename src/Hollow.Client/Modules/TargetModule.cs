@@ -91,11 +91,12 @@ public sealed class TargetModule : ClientModule
         return true;
     }
 
-    // A body drawn now, as the server builds its hit shapes (Zone's CharacterTargets): standing, crouching, or lying.
+    // A body drawn now, as the server builds its hit shapes (Zone's CharacterTargets): standing, crouching, or lying; aboard
+    // a ship, upright on its deck as drawn (IRON_WAKE.md §4.8).
     private HitPose PoseOf(RemoteEntity r) => new()
     {
         Feet = r.Position,
-        Up = Frame.UpAt(r.Position),
+        Up = r.Up,
         Yaw = r.Yaw,
         Pose = r.Sleeping || r.Wounded ? Simulation.Combat.Pose.Lying : r.Stance == Stance.Crouching ? Simulation.Combat.Pose.Crouching : Simulation.Combat.Pose.Standing,
     };
@@ -574,7 +575,7 @@ public sealed class TargetModule : ClientModule
             }
             (Vector3 position, Quaternion rotation) = claim.ZoneTransform;
             Vector3 up = c.Frame.UpAt(position), along = Vector3.Transform(Vector3.UnitZ, rotation);
-            point = Geometry.NearestOnBox(position, up, MathF.Atan2(along.X, along.Z), c.Content.ClaimDeployable.HalfExtents, from);
+            point = Geometry.NearestOnBox(position, up, Facing.YawOf(-along, up), c.Content.ClaimDeployable.HalfExtents, from);
             return true;
         }
 
@@ -678,8 +679,16 @@ public sealed class TargetModule : ClientModule
             return true;
         }
 
+        // A ship as drawn: a ship people walk in hides what is behind its pieces (IRON_WAKE.md §4.9: the view goes on through
+        // its open ramp, not its hull), as the server's family does; then its parts round their points.
         public void Aim(in AimRay ray, ref AimHit best)
         {
+            if (c.Client.Prediction?.Frames.Ships is { Count: > 0 } frames &&
+                ShipQueries.Ray(frames, _drawn ??= f => c.Ships.DrawnPose((uint)f.Key), ray.Origin, ray.Direction, ray.Upto(best), out ShipQueryHit hit) &&
+                hit.Ship is ClientShipFrame { Ship: { Spawned: true } walked } && !walked.Has(ShipNetFlags.Destroyed) && !walked.Has(ShipNetFlags.InOrbit))
+            {
+                ray.Consider(ref best, hit.Distance, new TargetRef(TargetFamily.Ship, walked.Id.Value), AimKind.Backdrop);
+            }
             foreach (RemoteShip ship in c.Ships.Known)
             {
                 if (ship is { Spawned: true, HasState: true, Def: { } def } && !ship.Has(ShipNetFlags.Destroyed) && !ship.Has(ShipNetFlags.InOrbit))
@@ -688,6 +697,8 @@ public sealed class TargetModule : ClientModule
                 }
             }
         }
+
+        private Func<IShipFrame, ShipPose?>? _drawn;
 
         // The cargo is a container's while the hatch is open and the ship at rest (this client knows it landed or asleep).
         public bool TryFacts(in TargetRef target, in Viewer viewer, out TargetFacts facts)

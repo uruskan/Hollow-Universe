@@ -116,7 +116,7 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
         }
         ref Character c = ref Entities.Get<Character>(entity);
         var ctx = new PlacementContext(p.Id.Value, EyeOf(c.State), placeable, new ItemWallet(Content, p.Inventory.Carried));
-        return Placer.Plan(World, ctx, new PlacementAim(direction, c.Input.Yaw, turns));
+        return Placer.Plan(World, ctx, new PlacementAim(direction, Facing.YawOf(ViewOf(c), UpOf(c.State)), turns));
     }
 
     /// <summary>Places from a slot what a candidate (a ghost) says: the intent a client sends for it.</summary>
@@ -204,10 +204,12 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
             ComponentPool<Character> characters = zone.Entities.Pool<Character>();
             for (int i = 0; i < characters.Count; i++)
             {
+                // Where each stands in the world (aboard a ship, where it carries them: IRON_WAKE.md §4.2).
                 CharacterState s = characters.Values[i].State;
-                if (!s.IsDead && Vector3.DistanceSquared(s.Position, point) <= radius * radius)
+                Vector3 feet = zone.WorldOf(s);
+                if (!s.IsDead && Vector3.DistanceSquared(feet, point) <= radius * radius)
                 {
-                    into.Add(new Capsule(s.Position, zone.Frame.UpAt(s.Position), zone.Tuning.Radius, zone.Tuning.StandingHeight));
+                    into.Add(new Capsule(feet, zone.UpOf(s), zone.Tuning.Radius, zone.Tuning.StandingHeight));
                 }
             }
         }

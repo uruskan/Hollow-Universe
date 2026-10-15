@@ -8,6 +8,7 @@ using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Physics;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Targets;
@@ -129,7 +130,7 @@ public sealed class PlayerSystem : ZoneSystem
         p.StrikeTick = -1;
         p.DrawStartTick = -1;
         ref Character c = ref Entities.Get<Character>(entity);
-        c.Input = new MoveInput { Yaw = c.Input.Yaw };
+        c.Input = new MoveInput { View = c.Input.View };
         c.Actions = default;
     }
 
@@ -245,11 +246,13 @@ public sealed class PlayerSystem : ZoneSystem
         }
         bool any = stacks.Exists(s => !s.IsEmpty);
         p.Inventory.Clear();
+        // Where the body is in the world (aboard a ship, where it carried it; IRON_WAKE.md §4.10 links bodies to ships later).
+        Vector3 fell = WorldOf(c.State);
         if (any)
         {
-            Vector3 at = Settle(c.State.Position);
+            Vector3 at = Settle(fell);
             var corpse = new Corpse(NextId(), p.Name, p.Id, stacks.Count,
-                at, Frame.UpAt(at), c.Input.Yaw, content.Survival.BodyLifetime, Tick + content.Survival.BodyLifetime.Ticks);
+                at, Frame.UpAt(at), Facing.YawOf(ViewOf(c), Frame.UpAt(at)), content.Survival.BodyLifetime, Tick + content.Survival.BodyLifetime.Ticks);
             for (int i = 0; i < stacks.Count; i++)
             {
                 corpse.Loot.Set(i, stacks[i]);
@@ -259,7 +262,7 @@ public sealed class PlayerSystem : ZoneSystem
         p.Dead = true;
         p.Wounded = false;
         GunSystem.ResetGun(p);
-        p.DeathPoint = c.State.Position;
+        p.DeathPoint = fell;
         p.MapRevision++;
         p.DeathCause = cause;
         p.KilledBy = byName;
@@ -274,7 +277,7 @@ public sealed class PlayerSystem : ZoneSystem
         c.State.Flags = MoveFlags.Dead;
         History.Forget(p.Id);
         Supports.SupportGone(p.Ref);
-        Events.Add(new Died(Player: p.Id, By: by, Cause: cause, Position: c.State.Position));
+        Events.Add(new Died(Player: p.Id, By: by, Cause: cause, Position: fell));
     }
 
     /// <summary>
@@ -334,10 +337,10 @@ public sealed class PlayerSystem : ZoneSystem
         MoveCheats cheats = c.State.Cheats; // an admin's god mode and noclip last through a death
         c.State = NewCharacter(at);
         c.State.Cheats = cheats;
-        c.Input = new MoveInput { Yaw = yaw };
+        c.Input = new MoveInput { View = Facing.View(yaw, 0, Frame.UpAt(at)) };
         c.Actions = default;
         SyncHealth(ref c, p);
-        Physics.Prefetch(at, 1);
+        Physics.PrefetchWithin(at, PhysicsWorld.EnsureReach);
         Physics.EnsureGround(at);
         return OutcomeCode.Done;
     }
@@ -366,7 +369,7 @@ public sealed class PlayerSystem : ZoneSystem
         return Settle(d.Position + forward * 0.3f) + d.Up * 0.05f;
     }
 
-    /// <summary>A random beach point: the planet's coast (<see cref="Beaches"/>), or on the stand-in ground a ring 15–60 m around the origin.</summary>
+    /// <summary>A random beach point: the world's coast (<see cref="Beaches"/>), or on a world without one a ring 15–60 m around the landing site.</summary>
     public Vector3 BeachPoint(ulong salt)
     {
         if (Beaches != null)

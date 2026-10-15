@@ -55,8 +55,7 @@ public static class HeldTests
         Fixtures.Report($"{c.Items.Count(i => i.Held != HeldUse.None)} of {c.Items.Count} items do something in the hands");
 
         // Two parts that would each say what the hands do: the data is refused.
-        Dictionary<string, string> files = GameContent.Files.Concat(GameContent.Unhashed)
-            .ToDictionary(f => f, f => File.ReadAllText(Path.Combine(ContentFixture.Folder, f)));
+        Dictionary<string, string> files = GameContent.ReadTexts(ContentFixture.Folder);
         const string bow = "\"key\": \"bow\",";
         Assert.True(files["items.json"].Contains(bow, StringComparison.Ordinal), "the bow is in items.json");
         files["items.json"] = files["items.json"].Replace(bow,
@@ -348,8 +347,8 @@ public static class HeldTests
         Entity ada = rig.Add("Ada", 30, 30);
         Player a = rig.P(ada);
         rig.Give(ada, "wood", 500);
-        var bench = new Deployable(rig.Zone.NextId(), c.Deployable("workbench-2")!, rig.Zone.Settle(new Vector3(31.5f, 0, 30)),
-            rig.Zone.Frame.UpAt(new Vector3(31.5f, 0, 30)), 0, a.Id);
+        var bench = new Deployable(rig.Zone.NextId(), c.Deployable("workbench-2")!, rig.Zone.GroundAt(31.5f, 30),
+            rig.Zone.Frame.UpAt(rig.Zone.GroundAt(31.5f, 30)), 0, a.Id);
         rig.Zone.Things().AddStatic(bench);
         Assert.Equal(OutcomeCode.Done, rig.Zone.Actions().Craft(ada, spear.Id, 1, out _), "crafting");
         Assert.Equal(spearTicks[2], a.Crafting.Jobs[0].UnitTicks, "a quarter of the time");

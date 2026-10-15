@@ -444,15 +444,13 @@ public sealed partial class BuildingWorld
     /// </summary>
     private Outcome CheckCollision(PieceDef piece, in BuildingFrame frame, in Pose pose, Vector3 position, Quaternion rotation, Piece? ignore)
     {
-        Physics!.Overlaps(ShapeOf(piece), position, rotation, (float)Data.ContactTolerance, _overlaps);
+        // A foundation is meant to sit in the ground: the ground isn't asked about at all.
+        bool foundation = piece.Family == PieceFamily.Foundation;
+        Physics!.Overlaps(ShapeOf(piece), position, rotation, (float)Data.ContactTolerance, _overlaps, ground: !foundation);
         foreach (OverlapHit hit in _overlaps)
         {
             if (PhysicsWorld.IsGroundBody(hit.Body))
             {
-                if (piece.Family == PieceFamily.Foundation)
-                {
-                    continue;
-                }
                 return OutcomeCode.HitsGround;
             }
             object? owner = Physics.OwnerOf(hit.Body);

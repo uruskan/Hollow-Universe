@@ -25,18 +25,19 @@ public interface ISurface
     double HeightAt(Vector3D direction);
 
     /// <summary>
-    /// Ground triangles in a zone's frame, covering at least the square of side <paramref name="size"/> metres centred
-    /// on (<paramref name="centreX"/>, <paramref name="centreZ"/>) of that frame's tangent plane. Only the ground:
-    /// natural objects and water are separate.
+    /// Ground triangles in a zone's frame covering a cube-sphere tile and <paramref name="margin"/> metres around it
+    /// (neighbouring tiles overlap by that much). Only the ground: natural objects and water are separate. By default
+    /// a grid of about a metre on the surface's heights (<see cref="SurfaceGrid"/>).
     /// </summary>
-    TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size);
+    TriangleMesh GroundCollision(in ZoneFrame frame, TileKey tile, double margin) =>
+        SurfaceGrid.Collision(this, frame, tile, margin, SurfaceGrid.DefaultSpacing);
 
     /// <summary>
     /// <see cref="GroundCollision"/>'s triangles, the same to the bit, perhaps in pooled arrays (the physics builds
     /// tiles all the time); dispose the result. Surfaces that don't override it hand over their mesh's own arrays.
     /// </summary>
-    PooledTriangles GroundCollisionPooled(in ZoneFrame frame, double centreX, double centreZ, double size) =>
-        PooledTriangles.Of(GroundCollision(frame, centreX, centreZ, size));
+    PooledTriangles GroundCollisionPooled(in ZoneFrame frame, TileKey tile, double margin) =>
+        PooledTriangles.Of(GroundCollision(frame, tile, margin));
 
     /// <summary>The biome at a unit direction (stand-in surfaces: grassland).</summary>
     Biome BiomeAt(Vector3D direction) => Biome.Grassland;

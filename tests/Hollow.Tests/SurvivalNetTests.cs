@@ -110,7 +110,7 @@ public static class SurvivalNetTests
         Vector3 Hit(bool atSpot) => rig.Server.Inspect(sv =>
         {
             NaturalKind kind = c.Natural(tree.Kind)!;
-            Vector3 eye = tree.Position + new Vector3(2, 1.6f, 0), at = tree.Position + tree.Up * 1.3f;
+            Vector3 eye = sv.Zone.Frame.Beside(tree.Position, 2, 1.6f, 0), at = tree.Position + tree.Up * 1.3f;
             if (atSpot && sv.Zone.Natural!.WeakSpotAt(tree, kind) is var (spot, normal))
             {
                 (eye, at) = (spot + normal * 1.2f, spot);
@@ -122,8 +122,8 @@ public static class SurvivalNetTests
         tree = rig.Server.Inspect(sv =>
         {
             var found = new List<NaturalObject>();
-            sv.Zone.Nature!.Query(-40, -40, 40, 40, found);
-            return found.Where(o => c.Natural(o.Kind)!.Class == NaturalClass.Tree).MinBy(o => o.Position.Length());
+            sv.Zone.Nature!.Query(sv.Zone.Landing, 56, found);
+            return found.Where(o => c.Natural(o.Kind)!.Class == NaturalClass.Tree).MinBy(o => Vector3.Distance(o.Position, sv.Zone.Landing));
         });
         Hit(atSpot: false);
         RunUntil(rig, () => ada.Survival().Natural!.TryGetOverride(tree.Id, out NaturalOverride o) && o.SeenHits == 1, "the first hit");
@@ -212,7 +212,7 @@ public static class SurvivalNetTests
 
             // Ada: a box with wood in it, a bag, a craft half done, a dropped stone; a tree she hit.
             Vector3 feet = ada.Character.Position;
-            Vector3 boxAt = feet + new Vector3(1.6f, 0, 1.2f), bagAt = feet + new Vector3(-1.5f, 0, 1.5f);
+            Vector3 boxAt = ada.Frame.Beside(feet, 1.6f, 0, 1.2f), bagAt = ada.Frame.Beside(feet, -1.5f, 0, 1.5f);
             // Each where its ghost shows it on the ground (GROUND_SYSTEMS.md §6).
             foreach ((string key, Vector3 at) in new[] { ("small-box", boxAt), ("sleeping-bag", bagAt) })
             {
@@ -232,9 +232,9 @@ public static class SurvivalNetTests
             (treeId, treeHealth) = rig.Server.Inspect(sv =>
             {
                 var found = new List<NaturalObject>();
-                sv.Zone.Nature!.Query(-200, -200, 200, 200, found);
+                sv.Zone.Nature!.Query(sv.Zone.Landing, 280, found);
                 NaturalObject tree = found.First(o => c.Natural(o.Kind)!.Class == NaturalClass.Tree);
-                sv.Zone.Natural!.Hit(tree, c.ItemByKey("stone-hatchet").Melee!, tree.Position, tree.Position + new Vector3(2, 1.6f, 0), sv.Zone.UnixMilliseconds);
+                sv.Zone.Natural!.Hit(tree, c.ItemByKey("stone-hatchet").Melee!, tree.Position, sv.Zone.Frame.Beside(tree.Position, 2, 1.6f, 0), sv.Zone.UnixMilliseconds);
                 return (tree.Id, sv.Zone.Natural.Health(tree, c.Natural(tree.Kind)!));
             });
             rig.Run(1.0, (_, _) => default);
@@ -249,7 +249,7 @@ public static class SurvivalNetTests
                 sv.Zone.Players().TryFindPlayer(boId, out Entity sleeper, out Player p);
                 Assert.True(p.Sleeping, "Bo sleeps in the world");
                 var at = sv.Zone.Entities.Get<Character>(sleeper).State.Position;
-                var corpse = new Corpse(sv.Zone.NextId(), "Cy", EntityId.None, 37, sv.Zone.Settle(at + new Vector3(3, 0, 0)), Vector3.UnitY, 0, c.Survival.BodyLifetime,
+                var corpse = new Corpse(sv.Zone.NextId(), "Cy", EntityId.None, 37, sv.Zone.Settle(sv.Zone.Frame.Beside(at, 3, 0, 0)), sv.Zone.Frame.UpAt(at), 0, c.Survival.BodyLifetime,
                     sv.Zone.Tick + 5000);
                 corpse.Loot.Set(0, ItemStack.Of(c.ItemByKey("bandage"), 2));
                 sv.Zone.Things().AddStatic(corpse);

@@ -97,8 +97,7 @@ public static class PlacementTests
         Assert.True(data.Of(c.Building.Piece("wall")!)!.Rule is { Solver: "socket", Reach: 8, Padding: 2.25f } && data.Of(c.Building.Piece("wall")!)!.Tool?.Key == "building-plan",
             "a wall: the building's sockets, reach and claim padding, with the building plan");
 
-        Dictionary<string, string> files = GameContent.Files.Concat(GameContent.Unhashed)
-            .ToDictionary(f => f, f => File.ReadAllText(Path.Combine(ContentFixture.Folder, f)));
+        Dictionary<string, string> files = GameContent.ReadTexts(ContentFixture.Folder);
         void Reports(Func<string, string> breaking, params string[] expected)
         {
             var texts = new Dictionary<string, string>(files) { ["placement.json"] = breaking(files["placement.json"]) };
@@ -323,12 +322,12 @@ public static class PlacementTests
             Vector3 top;
             (foundationId, top) = rig.Server.Inspect(sv =>
             {
-                Piece f = BuildingNetTests.Foundation(sv.Zone, sv.Zone.Settle(new Vector3(2.6f, 0, 0)), adaId);
+                Piece f = BuildingNetTests.Foundation(sv.Zone, sv.Zone.GroundAt(2.6f, 0), adaId);
                 return (f.Id, Top(sv.Zone, f));
             });
             RunUntil(rig, () => ada.Building().World!.PieceOf(foundationId) != null && ada.Local.Inventory.Count(furnaceItem) == 1 &&
                 ada.Local.Inventory.Count(ContentFixture.Item("wood")) == 1000 &&
-                new Vector2(ada.Character.Position.X, ada.Character.Position.Z).Length() < 0.5f, "the foundation, the furnace and Ada in place");
+                AnimalRig.Flat(ada.Character.Position, rig.Server.Zone.Landing) < 0.5f, "the foundation, the furnace and Ada in place");
             Placeable furnacePlaceable = ada.Content.ItemByKey("furnace").Places!;
             PlacementCandidate? ghost = ada.Placement().PlanAt(furnacePlaceable, top, 0);
             Assert.True(ghost is { Valid: true, Surface: PlacementSurfaces.Floor } && ghost.Support.Id == foundationId.Value, $"the ghost on the foundation ({ghost})");

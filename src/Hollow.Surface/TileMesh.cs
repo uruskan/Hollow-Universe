@@ -8,8 +8,9 @@ using Hollow.Core;
 namespace Hollow.Surface;
 
 /// <summary>
-/// The ground of one tile as a grid of (cells + 1)² vertices (GROUND.md §4.6). The client draws it and the server's
-/// collision is made of the very same vertices, so feet stand on what is drawn. Positions are float offsets from
+/// The ground of one tile as a grid of (cells + 1)² vertices (GROUND.md §4.6), which the client draws. On a whole world
+/// the collision comes from <see cref="SurfaceGrid"/>; drawing the same points is S3c's (docs/WHOLE_WORLD.md §10.1),
+/// so that feet stand on what is drawn again. Positions are float offsets from
 /// <see cref="Origin"/> in body-frame axes; each vertex also carries where it sits in the parent tile's coarser grid
 /// (for morphing between levels of detail), its ground materials and the climate the shader tints with.
 /// </summary>

@@ -12,12 +12,16 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
 using Hollow.Surface;
 
 namespace Hollow.Simulation;
 
-/// <summary>A character's components: its movement state, this tick's input, its collision and what its last step did.</summary>
+/// <summary>
+/// A character's components: its movement state, this tick's input and what its last step did. Its collision is its
+/// frame's (IRON_WAKE.md §4.3): every space has one body the characters stepping in it use in turn.
+/// </summary>
 public struct Character
 {
     public CharacterState State;
@@ -29,8 +33,6 @@ public struct Character
     public ActionInput Actions;
 
     public StepEvents Events;
-
-    public CharacterBody Body;
 
     /// <summary>Ticks left until a dead character comes back (a movement-only zone, <see cref="AutoRespawnSystem"/>).</summary>
     public int RespawnTicks;
@@ -83,8 +85,12 @@ public sealed class Zone : IDisposable
         Surface = surface;
         Frame = spec.CreateFrame(surface);
         Tuning = tuning ?? MovementTuning.Default;
-        Movement = new MoveContext(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, Tuning), Tuning);
+        var zoneFrame = new ZoneMoveFrame(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, Tuning), surface.Radius, surface: surface);
+        Movement = new MoveContext(zoneFrame, Tuning);
         Physics = new PhysicsWorld(surface, Frame);
+        zoneFrame.Body = new CharacterBody(Physics, Tuning, Vector3.Zero, Vector3.UnitY);
+        Frames = new MoveFrames(zoneFrame, Tuning);
+        Landing = Ground.On(spec.LandingDirection);
         Content = content;
         if (content != null)
         {
@@ -120,9 +126,18 @@ public sealed class Zone : IDisposable
 
     public ZoneFrame Frame { get; }
 
+    /// <summary>
+    /// The ground at the spec's latitude and longitude (the landing site): where <see cref="SpawnPoint"/> puts new
+    /// characters when nothing better is known, and where tests lay out their places (docs/WHOLE_WORLD.md §6.7).
+    /// </summary>
+    public Vector3 Landing { get; }
+
     public MovementTuning Tuning { get; }
 
     public MoveContext Movement { get; }
+
+    /// <summary>The frames characters move in: the zone's and every ship's with an interior (IRON_WAKE.md §4.2).</summary>
+    public MoveFrames Frames { get; }
 
     public PhysicsWorld Physics { get; }
 
@@ -148,7 +163,7 @@ public sealed class Zone : IDisposable
     /// <summary>Hands out IDs for new persistent entities (the server's allocator); a counter if not set.</summary>
     public Func<EntityId>? NewEntityId { get; set; }
 
-    /// <summary>A beach point for a respawn (the server sets the planet's real coast, <see cref="Simulation.Beaches"/>); the stand-in ring if not set.</summary>
+    /// <summary>A beach point for a respawn (the server sets the world's coast, <see cref="Simulation.Beaches"/>); if not set, a ring round the landing site.</summary>
     public Func<ulong, Vector3>? Beaches { get; set; }
 
     /// <summary>One second of poses of every character, for hits as the attacker saw them (<see cref="HistorySystem"/> records them).</summary>
@@ -171,21 +186,19 @@ public sealed class Zone : IDisposable
     public Entity AddCharacter(EntityId id, string name, in CharacterState state)
     {
         Entity entity = Entities.Create(id);
-        // The tiles around are built in parallel, then waited for: one tick's hitch at most where nobody was.
-        Physics.Prefetch(state.Position, 1);
-        Physics.EnsureGround(state.Position);
-        var body = new CharacterBody(Physics, Tuning, state.Position, Frame.UpAt(state.Position));
-        Entities.Add(entity, new Character { State = state, Body = body });
+        if (state.Frame == 0)
+        {
+            // The tiles around are built in parallel, then waited for: one tick's hitch at most where nobody was.
+            Physics.PrefetchWithin(state.Position, PhysicsWorld.EnsureReach);
+            Physics.EnsureGround(state.Position);
+        }
+        Entities.Add(entity, new Character { State = state });
         Entities.Add(entity, new Named { Name = name });
         return entity;
     }
 
     public void RemoveCharacter(Entity entity)
     {
-        if (Entities.Has<Character>(entity))
-        {
-            Entities.Get<Character>(entity).Body.Dispose();
-        }
         Get<SupportSystem>()?.SupportGone(new TargetRef(TargetFamily.Character, Entities.IdOf(entity).Value));
         History.Forget(Entities.IdOf(entity));
         Entities.Destroy(entity);
@@ -199,13 +212,14 @@ public sealed class Zone : IDisposable
         Flags = MoveFlags.OnGround,
     };
 
-    /// <summary>Moves a character to a point, at rest (admin teleport, respawn).</summary>
+    /// <summary>Moves a character to a point of the zone's frame, at rest (admin teleport, respawn).</summary>
     public void Teleport(Entity entity, Vector3 position)
     {
         ref Character character = ref Entities.Get<Character>(entity);
         character.State.Position = position;
         character.State.Velocity = Vector3.Zero;
-        Physics.Prefetch(position, 1);
+        character.State.Frame = 0;
+        Physics.PrefetchWithin(position, PhysicsWorld.EnsureReach);
         Physics.EnsureGround(position);
     }
 
@@ -217,22 +231,24 @@ public sealed class Zone : IDisposable
     public void SetCheats(Entity entity, MoveCheats cheats)
     {
         ref Character c = ref Entities.Get<Character>(entity);
+        if ((cheats & MoveCheats.Noclip) != 0 && c.State.Frame != 0)
+        {
+            // Noclip flies in the zone's frame: off the ship first, where it is in the world.
+            this.ToZoneFrame(ref c.State);
+        }
         if (c.State.Has(MoveCheats.Noclip) && (cheats & MoveCheats.Noclip) == 0)
         {
             c.State.Velocity = Vector3.Zero;
             if (HeightAboveGround(c.State.Position) < 0)
             {
-                Vector3 ground = GroundAt(c.State.Position.X, c.State.Position.Z);
+                Vector3 ground = Settle(c.State.Position);
                 c.State.Position = ground + Frame.UpAt(ground) * 0.05f;
             }
-            Physics.Prefetch(c.State.Position, 1);
+            Physics.PrefetchWithin(c.State.Position, PhysicsWorld.EnsureReach);
             Physics.EnsureGround(c.State.Position);
         }
         c.State.Cheats = cheats;
     }
-
-    /// <summary>The ground under a point of the zone's tangent plane, in the zone frame.</summary>
-    public Vector3 GroundAt(float x, float z) => Ground.At(x, z);
 
     /// <summary>The surface's own ground, asked as a client asks it (<see cref="GroundProbe"/>).</summary>
     public GroundProbe Ground => new(Surface, Frame);
@@ -240,17 +256,28 @@ public sealed class Zone : IDisposable
     /// <summary>The point on the ground below (or above) a point.</summary>
     public Vector3 Settle(Vector3 point) => Ground.Settle(point);
 
+    /// <summary>
+    /// The ground <paramref name="east"/> metres east and <paramref name="south"/> metres south of the landing site,
+    /// along the ground (<see cref="GroundProbe.Offset"/>): where tests and tools lay out their places.
+    /// </summary>
+    public Vector3 GroundAt(float east, float south) => Ground.Offset(Landing, east, south);
+
+    /// <summary>How far a point is east and south of the landing site, along the ground (<see cref="GroundAt"/>'s inverse).</summary>
+    public (float East, float South) OffsetOf(Vector3 point) => Ground.OffsetOf(Landing, point);
+
     /// <summary>How far a point is above the ground, in metres (negative below).</summary>
     public float HeightAboveGround(Vector3 point) => Ground.HeightAbove(point);
 
     /// <summary>The ground's up and its slope (radians) under a point, from the surface by finite differences.</summary>
     public (Vector3 Normal, float Slope) GroundNormal(Vector3 point) => Ground.Normal(point);
 
-    /// <summary>The eye of a character now.</summary>
-    public Vector3 EyeOf(in CharacterState state) => state.Position + Frame.UpAt(state.Position) * Tuning.EyeHeight(state.Stance);
+    /// <summary>The eye of a character now, in the zone's frame (aboard a ship, where the ship carries it).</summary>
+    public Vector3 EyeOf(in CharacterState state) => state.Frame == 0
+        ? state.Position + Frame.UpAt(state.Position) * Tuning.EyeHeight(state.Stance)
+        : Frames.ToWorld(state.Position + Vector3.UnitY * Tuning.EyeHeight(state.Stance), state.Frame, Tick);
 
     /// <summary>
-    /// Where a new character appears: on a ring of 3–8 m around the zone's origin, at a place fixed by
+    /// Where a new character appears: on a ring of 3–8 m around the landing site, at a place fixed by
     /// <paramref name="salt"/> (a name's hash), so players arriving together don't stand inside each other.
     /// </summary>
     public Vector3 SpawnPoint(ulong salt)
@@ -279,8 +306,8 @@ public sealed class Zone : IDisposable
         {
             foreach (ref Character character in characters.Values)
             {
-                // A pilot's ground is the ship's business (G6: only near it, ShipMotor).
-                if (!character.State.IsDead && character.State.Stance != Stance.Seated)
+                // A pilot's ground is the ship's business (G6: only near it, ShipMotor); so is a crew's (they step in its space).
+                if (!character.State.IsDead && character.State.Stance != Stance.Seated && character.State.Frame == 0)
                 {
                     Physics.EnsureGround(character.State.Position);
                     Physics.Prefetch(character.State.Position);
@@ -305,7 +332,8 @@ public sealed class Zone : IDisposable
                     character.Events = default;
                     continue;
                 }
-                character.Events = CharacterMotor.Step(ref character.State, character.Input, character.Body, Movement);
+                // In its frame (the zone's, or aboard a ship its space), then handed over between frames (IRON_WAKE.md §4.5).
+                Frames.Step(ref character.State, character.Input, Tick, out character.Events);
             }
             movement.Dispose();
             using (Profile.Time(ProfileSection.Ships))
@@ -354,11 +382,7 @@ public sealed class Zone : IDisposable
         {
             _systems[i].Dispose();
         }
-        ComponentPool<Character> characters = Entities.Pool<Character>();
-        foreach (Character character in characters.Values)
-        {
-            character.Body.Dispose();
-        }
+        Frames.Zone.Body?.Dispose();
         Physics.Dispose();
     }
 }

@@ -851,7 +851,7 @@ public partial class GroundTour : Node
     {
         Num.Vector3 up0 = Client.Frame.UpAt(near);
         var solid = new List<NaturalObject>();
-        Client.Survival().Nature?.Query(near.X - 60, near.Z - 60, near.X + 60, near.Z + 60, solid);
+        Client.Survival().Nature?.Query(near, 60, solid);
         solid.RemoveAll(o => Client.Content.Natural(o.Kind) is not { IsSolid: true });
         int tries = 0;
         for (int ring = 0; ring < 6 && tries < 5; ring++)
@@ -993,7 +993,7 @@ public partial class GroundTour : Node
     private Num.Vector3 ClearSpot(Num.Vector3 near, float clear)
     {
         var all = new List<NaturalObject>();
-        Client.Survival().Nature?.Query(near.X - 50, near.Z - 50, near.X + 50, near.Z + 50, all);
+        Client.Survival().Nature?.Query(near, 50, all);
         List<NaturalObject> solid = all.Where(o => Client.Content.Natural(o.Kind) is { IsSolid: true }).ToList();
         List<Num.Vector3> pieces = Client.Building().World?.AllPieces.Select(Centre).ToList() ?? new List<Num.Vector3>();
         for (int ring = 0; ring < 8; ring++)
@@ -1332,13 +1332,8 @@ public partial class GroundTour : Node
         }
 
         // A recycler at work: gears and pipes in, salvage and metal out.
+        // One recycler stands on each cube face of the world (docs/WHOLE_WORLD.md decision 9): pictured when one is near.
         RemoteThing? recycler = NearestProp(WorldPropKind.Recycler, Client.Character.Position);
-        if (recycler == null && Client.Content.World.RecyclerPoints.Count > 0)
-        {
-            System.Numerics.Vector2 p = Client.Content.World.RecyclerPoints[0];
-            await TeleportTo(new Num.Vector3(p.X, 0, p.Y));
-            await Until(() => (recycler = NearestProp(WorldPropKind.Recycler, Client.Character.Position)) != null, 10);
-        }
         if (recycler != null)
         {
             Num.Vector3 up = Client.Frame.UpAt(recycler.Position);
@@ -1511,7 +1506,7 @@ public partial class GroundTour : Node
     {
         var all = new List<NaturalObject>();
         float r = distance + 4;
-        Client.Survival().Nature!.Query(target.X - r, target.Z - r, target.X + r, target.Z + r, all);
+        Client.Survival().Nature!.Query(target, r, all);
         Num.Vector3 best = Away(target, distance);
         float bestCost = float.MaxValue;
         for (int k = 0; k < 16; k++)
@@ -2373,7 +2368,7 @@ public partial class GroundTour : Node
             return null;
         }
         var all = new List<NaturalObject>();
-        Client.Survival().Nature.Query(near.X - radius, near.Z - radius, near.X + radius, near.Z + radius, all);
+        Client.Survival().Nature.Query(near, radius, all);
         IEnumerable<NaturalObject> candidates = all.Where(o => o.Kind == kind.Index && !Client.Survival().Natural!.IsDepleted(o.Id));
         if (open)
         {
@@ -2389,7 +2384,7 @@ public partial class GroundTour : Node
     private (Num.Vector3 Spot, Num.Vector3 Towards) OpenSpot(Num.Vector3 near)
     {
         var all = new List<NaturalObject>();
-        Client.Survival().Nature!.Query(near.X - 60, near.Z - 60, near.X + 60, near.Z + 60, all);
+        Client.Survival().Nature!.Query(near, 60, all);
         var blockers = all.Where(o => Client.Content.Natural(o.Kind)!.Class is NaturalClass.Tree or NaturalClass.Boulder or NaturalClass.Bush or NaturalClass.Node).ToList();
         for (int ring = 0; ring < 12; ring++)
         {

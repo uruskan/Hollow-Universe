@@ -1,7 +1,9 @@
 using System.Collections.Generic;
+using System.Numerics;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Physics;
+using Hollow.Surface;
 
 namespace Hollow.Simulation.Nature;
 
@@ -9,7 +11,7 @@ namespace Hollow.Simulation.Nature;
 /// Keeps the trees and outcrops of every ground tile in a <see cref="PhysicsWorld"/> as static props, so characters
 /// walk around them: added with their tile, removed with it, and removed or put back as they are felled and grow
 /// back (<see cref="NaturalState.PresenceChanged"/>). The server's zone and every client's prediction run one, so
-/// both collide with the same trees.
+/// both collide with the same trees. An object belongs to the ground tile its base lies in.
 /// </summary>
 public sealed class NaturalBodies : ITileListener
 {
@@ -20,7 +22,7 @@ public sealed class NaturalBodies : ITileListener
 
     // The solid objects of each tile in the world, felled ones too: a tile leaves without asking the scatter again
     // (its scatter tile may have left the cache, and making it again on the tick costs about 15 ms).
-    private readonly Dictionary<(int X, int Z), ulong[]> _solid = new();
+    private readonly Dictionary<TileKey, ulong[]> _solid = new();
 
     public NaturalBodies(PhysicsWorld world, NaturalState state)
     {
@@ -30,9 +32,9 @@ public sealed class NaturalBodies : ITileListener
         state.PresenceChanged += Refresh;
     }
 
-    public void TileAdded(int x, int z)
+    public void TileAdded(TileKey tile)
     {
-        List<NaturalObject> objects = TileObjects(x, z);
+        List<NaturalObject> objects = TileObjects(tile, _scratch);
         using TickProfile.Scope _ = _world.Profile.Time(ProfileSection.PropAdd);
         _ids.Clear();
         foreach (NaturalObject o in objects)
@@ -47,20 +49,16 @@ public sealed class NaturalBodies : ITileListener
                 Add(o);
             }
         }
-        _solid[(x, z)] = _ids.ToArray();
+        _solid[tile] = _ids.ToArray();
     }
 
     /// <summary>On a worker thread: the tile's objects are generated (and cached) before the tick adds the tile.</summary>
-    public void TilePreparing(int x, int z)
-    {
-        var scratch = new List<NaturalObject>();
-        _state.Objects.Query(x * PhysicsWorld.TileSize, z * PhysicsWorld.TileSize, (x + 1) * PhysicsWorld.TileSize, (z + 1) * PhysicsWorld.TileSize, scratch);
-    }
+    public void TilePreparing(TileKey tile) => TileObjects(tile, new List<NaturalObject>(), timed: false);
 
-    public void TileRemoved(int x, int z)
+    public void TileRemoved(TileKey tile)
     {
         using TickProfile.Scope _ = _world.Profile.Time(ProfileSection.PropRemove);
-        if (!_solid.Remove((x, z), out ulong[]? ids))
+        if (!_solid.Remove(tile, out ulong[]? ids))
         {
             return;
         }
@@ -83,8 +81,7 @@ public sealed class NaturalBodies : ITileListener
         {
             return;
         }
-        (int x, int z) = PhysicsWorld.TileOf(o.Position);
-        if (_world.HasTile(x, z))
+        if (_world.HasTile(_world.TileOf(o.Position)))
         {
             Add(o);
         }
@@ -99,21 +96,26 @@ public sealed class NaturalBodies : ITileListener
         }
         if (kind.Class == NaturalClass.Tree)
         {
-            (System.Numerics.Vector3 a, System.Numerics.Vector3 b, float radius) = NaturalShapes.Trunk(o, kind);
+            (Vector3 a, Vector3 b, float radius) = NaturalShapes.Trunk(o, kind);
             _world.AddProp(PropLayer.Nature, o.Id, PropShape.Capsule(a, b, radius, o.Up));
         }
         else
         {
-            (System.Numerics.Vector3 centre, float radius) = NaturalShapes.Rock(o, kind);
+            (Vector3 centre, float radius) = NaturalShapes.Rock(o, kind);
             _world.AddProp(PropLayer.Nature, o.Id, PropShape.Sphere(centre, radius));
         }
     }
 
-    private List<NaturalObject> TileObjects(int x, int z)
+    // The objects whose base lies in a ground tile: those near its centre, kept when the tile holds them. Timed on the
+    // tick's thread only: the profile is that thread's, and a worker preparing a tile would race it and count as the tick.
+    private List<NaturalObject> TileObjects(TileKey tile, List<NaturalObject> into, bool timed = true)
     {
-        using TickProfile.Scope _ = _world.Profile.Time(ProfileSection.NatureQuery);
-        _scratch.Clear();
-        _state.Objects.Query(x * PhysicsWorld.TileSize, z * PhysicsWorld.TileSize, (x + 1) * PhysicsWorld.TileSize, (z + 1) * PhysicsWorld.TileSize, _scratch);
-        return _scratch;
+        using TickProfile.Scope _ = (timed ? _world.Profile : null).Time(ProfileSection.NatureQuery);
+        into.Clear();
+        double edge = TileKey.EdgeLength(tile.Level, _world.Surface.Radius);
+        Vector3 centre = _world.Frame.ToLocal(tile.Centre * _world.Surface.Radius);
+        _state.Objects.Query(centre, (float)(edge * 1.1) + 20f, into);
+        into.RemoveAll(o => _world.TileOf(o.Position) != tile);
+        return into;
     }
 }

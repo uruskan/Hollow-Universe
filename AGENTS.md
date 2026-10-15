@@ -12,9 +12,15 @@ owner's request, the `ground` branch was merged into `main` so the game lives in
   (`docs/SPACE_CONCEPT.md`);
 - the scale proposal (`docs/SCALE.md`): small worlds and a galaxy of landmarks, waiting for the owner's approval;
 - its package S3, one zone for a whole world and a map of the whole world (`docs/WHOLE_WORLD.md`): the owner said go
-  on 14 October 2026 and approved the design the same evening; its code is being built on the branch `whole-world`
-  (worktree `D:\GameDev\Projects\Hollow-wt\whole-world`). Code that S3 rewrites (frames, facings, spatial indexes, the map) is
-  best left alone on `main` meanwhile, or changed knowing it will be merged into that branch.
+  on 14 October 2026 and approved the design the same evening. It was built on the branch `whole-world` and **merged
+  into `main` on 15 October 2026 at the owner's word**, before S3c, so that the game has the Iron Wake: the zone is the
+  whole first world, 2.41 km in radius in its own frame (origin at the centre), standing on the plain stand-in world
+  until S4; views on the wire, tiles on the cube sphere, places, ships and the console on the ball; every load test
+  runs on it with 100 bots (`docs/GROUND.md` §5.12). S3c and S3d (the client drawing the ball properly, the globe map)
+  remain: until then the game plays under a plain sky on simple ground, and the map is not the whole world yet;
+- the Iron Wake (`docs/IRON_WAKE.md`): its art, sounds and effects, and walking aboard and flying it with people on
+  its decks (IW1). In a hosted game the host gets one with `ship iron-wake` (F1). Its cannons, loading, fire and
+  building aboard (IW2 to IW6) come next.
 
 Work happens here, on `main`. A package that needs isolation gets a short-lived branch and worktree under
 `D:\GameDev\Projects\Hollow-wt\`, merged back into `main` when it builds and passes the tests. Sessions commit; the owner
@@ -82,15 +88,19 @@ dotnet run --project tests/Hollow.Tests          # all engine-free tests
 dotnet run --project tests/Hollow.Tests -- Galaxy   # only tests whose name contains "Galaxy"
 dotnet run --project tests/Hollow.Tests -- MovementCheck   # the physics check (GROUND.md §4.5)
 dotnet run --project tools/Hollow.NetGen      # after changing src/Hollow.Net/Protocol/Messages.cs: rewrites Messages.g.cs
-dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server on the first world's landing site (--no-db,
-                                                 # --db <path>, --lat, --lon, --spawn beach|origin, --day-scale <x>,
-                                                 # --stand-in for the old test sphere; type help). F1 console admins:
+dotnet run --project src/Hollow.Server -- --port 27015   # the dedicated server: the first world, whole (2.41 km; on the
+                                                 # whole-world branch, the stand-in world until S4); players arrive on
+                                                 # beaches anywhere (--spawn origin: at the landing site, --lat, --lon)
+                                                 # (--no-db, --db <path>, --day-scale <x>; type help). F1 console admins:
                                                  # --admin <name> (repeatable), admins.txt (or --admins <file>),
                                                  # --dev (everyone is an admin); GROUND.md §8.2
 dotnet run --project tests/Hollow.Tests -- Console    # the F1 console: parsing, completion, rights, commands over the network, god and noclip
 dotnet run -c Release --project tools/Hollow.Bots -- --server 127.0.0.1:27015 --count 100   # bots (--script, --lag/--jitter/--loss)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60   # server + 100 bots at the landing site: tick
-                                                 # time, bandwidth, prediction (--spawn beach, --stand-in)
+                                                 # time, bandwidth, prediction; every load test also takes --spawn beach
+                                                 # (arrivals and respawns on beaches all round the world, each bot playing
+                                                 # round its own; the raid's huts beside them, the animals spawned round
+                                                 # them; GROUND.md §5.12)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit   # G2: bots that gather, craft and fight (GROUND.md §5.2)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script fight --kit gunfight-kit   # G4: bots in firefights, a kit every life (GROUND.md §5.3)
 dotnet run --project tests/Hollow.Tests -- Gun        # G4: ballistics, recoil, damage, armour, refusals, client and server agreeing, a gunfight
@@ -116,6 +126,7 @@ blender -b --factory-startup --python art/build.py -- iron_wake   # the Iron Wak
                                                  # D:\GameDev\Assets\IronWake_Buildable_R01; art/import/iron_wake.py -- data: the data file alone)
 dotnet run --project tests/Hollow.Tests -- Building   # the building rules, over the network and saved (GROUND.md §6.3, §6.5)
 dotnet run --project tests/Hollow.Tests -- Ship   # G6: the Tin Finch's flight, boarding, building, prediction, storage (GROUND.md §6.7)
+dotnet run --project tests/Hollow.Tests -- IronWake   # IW1: walking aboard the Iron Wake: frames, hand-overs, flight with people aboard, moving parts, shots and blasts through its space, prediction aboard, sleepers aboard (IRON_WAKE.md §4.13)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly   # G6: bots that board their ships and fly loops
 dotnet run --project tests/Hollow.Tests -- Animal   # G7: animals' AI, harvest, cooking, spawning, armour, cost, network and a restart (GROUND.md §6.9)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit --animals 200   # G7: 200 animals among the bots (GROUND.md §5.10)
@@ -164,6 +175,7 @@ xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view monuments --focus
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view build --scene house --shot house.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --scene forest --shot forest.png
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --tour   # the whole flying loop through the keys; exit code 0 when it lands and steps out
+xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view ship --ship iron-wake --tour   # up the Iron Wake's ramp, a pilot flies it with you on the deck, lands, down the ramp; exit code 0 when every check holds
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view animals --scene wolves --shot wolves.png   # the animal sandbox (GROUND.md §6.9)
 xvfb-run -a $GODOT --path game --resolution 1600x900 -- --view sounds --sound rifle.shot --distance 320 --ambience --shot sounds.png
 $GODOT --headless --path game -- --view sounds --sound-check   # every sound file loaded and measured in the engine
@@ -301,12 +313,15 @@ Client options (after `--`):
   (`/give rifle`), with the player's rights on any server. A hosted game makes its host the admin.
 - Server (G2): `--kit <loot table>` gives every new character a loot table's items; admin commands `give`, `kit`,
   `heal`, `kill` besides G1's (type `help`; every command of the F1 console is in GROUND.md §8.2: `give <item> [amount]
-  [player]` (`<item>.blueprint`: its blueprint), `teleport`, `tp2me`, `tpmarker`, `spawn <kind> [count]`, `god`, `noclip`, `time <hour>`, `timescale`,
+  [player]` (`<item>.blueprint`: its blueprint), `teleport` (`[player] <x> <z>`: metres east and south of the landing site
+  along the ground; `<lat> <lon>` with three decimals or N/S/E/W; a player), `tp2me`, `tpmarker`, `spawn <kind> [count]`, `god`, `noclip`, `time <hour>`
+  (that hour where the admin stands), `timescale`,
   `ents`, `whereami`, `players`, Rust's names such as `inventory.give`, `global.teleport`, `env.time`; at the server's
   console a command names its player, and the older `give <name> <item> [count]` forms still work); G7: `learn <name> <item|all>` (blueprints), `world` (props, teams, economy). `--kit build-kit` gives what a base needs (G3). G5: `--raid-bases <n>`
   (and `--raid-radius <m>`; servers without a database) builds claimed huts on a ring for raid tests;
   `raidbase <name> [grade]` builds one in front of a player, listing them.
-  `ship <name>` sets a Tin Finch down beside a player, theirs and fuelled (G6).
+  `ship <name> [kind]` sets a ship down beside a player, theirs and fuelled, its way in toward them: a Tin Finch, or the
+  kind named (`ship <name> iron-wake`, IRON_WAKE.md §5.6; trees and rocks in its way go when nothing else is).
   G7's animals: `--no-animals` (none), `--animals <n> [--animal-radius <m>]` (a fixed population of n round the landing
   site, always out, for load tests); admin `animals` (how many of each, what they cost) and `spawn <species> <name> [n]
   [m]` (a herd of deer, boar, wolf or bear m metres in front of a player).
@@ -316,7 +331,12 @@ Client options (after `--`):
   loop through the keys and prints the measurements). Keys on foot: W A S D, mouse look, E hatch and board, G shut the
   hatch, L lock, R refuel. In the seat: the mouse is the stick, W/S throttle lever (X zero), A/D strafe, Space/C up and
   down, Q/E roll, arrows a keyboard stick, Shift boost, Z flight assist, V cockpit or chase camera, F step out, H hatch,
-  L lock, J descend from orbit; Esc frees the mouse.
+  L lock, J descend from orbit; Esc frees the mouse. `--ship iron-wake` (IRON_WAKE.md §4.13): the Iron Wake parked in a
+  clearing near the landing site on the zone's own ground, you on foot behind its open ramp (walk up it and about its
+  decks; E at the bridge's helm takes it); `--scene parked|ramp|deck|outside` (the open ramp with two of the crew on it;
+  Deck A in flight looking out of the ramp; hovering low from the ground), `--tour` (walks up the ramp, a pilot lifts off,
+  climbs, turns and brakes while you stand on the deck, flies back and lands, walks you down the ramp; prints the
+  measurements, exit code 0 when they hold).
 - Animal sandbox (GROUND.md §6.9): `--view animals`, a local zone on the first world's real surface with scenes at
   clearings near the landing site: `--scene herd|wolves|bear|harvest|cooking` (screenshots wait for the scene's moment:
   the pack stalking, the bear rearing, a cut going in), `--hour <h>` (local solar time; each scene has its own),
@@ -363,7 +383,7 @@ Client options (after `--`):
 |---|---|
 | `src/Hollow.Core` | Vectors in double precision, `DMath`, `Hash64`, `Rng`, units |
 | `src/Hollow.Galaxy` | Density model, addresses, sectors, cells, catalogue, names, star systems |
-| `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame`, `PlanetSurface` (plates, climate, biomes), cube-sphere tiles, collision, scatter, `SkyEphemeris`, the stand-in `SphereSurface`, `FirstWorld` |
+| `src/Hollow.Surface` | Planet surfaces (GROUND.md §4.6): `ISurface`, `ZoneFrame` (`World`: the world's own frame, origin at the centre), `PlanetSurface` (plates, climate, biomes), cube-sphere tiles (`TileKey.LevelFor`: levels by size), tile collision (`SurfaceGrid`), scatter, `SkyEphemeris`, the stand-in world every zone stands on until S4 (`StandInWorld`: continents, a sea, latitude bands, over the hills of `SphereSurface`), `FirstWorld` |
 | `src/Hollow.Simulation` | Rules and simulation of the ground game; the zone is a host of `ZoneSystem`s (`Systems/`, listed in `GroundSystems`; GROUND_SYSTEMS.md §12), with its typed events (`Events/`) and one reader per data file (`Content/Readers`): entity store, zones, Jolt physics world and ground tiles, character movement (GROUND.md §4.5); the survival game (§6.1): game data, items and crafting, natural objects and gathering, vitals, deployables, combat with lag compensation; building in `Building/` (structures, sockets, placement, stability, hammer, doors and locks, the claim device, upkeep and decay; GROUND.md §6.3); G4 (§6.3): firearms (`Combat/Firearms.cs`: recoil, spread, cadence, reload, ballistics), bullets and damage (`GunSystem`), the wounded state (`WoundedSystem`); the damage pipeline (§6.4.2: `Combat/Damage.cs`, `DamageSystem`: one request, one entry point, a receiver per kind of thing in each domain's file, the Destroyed event); G5 (§6.6): explosives, blasts with line of sight, rockets and explosive rounds, raid hits (`ExplosiveSystem`, `BlastSystem`, `Raid/`); G6 (§6.7): ships in `Ships/` (`ShipDef`, `ShipState`, `ShipMotor`, `ShipCollider`) and `ShipSystem`; G7 (§6.8): world props and where they stand (`WorldSystem`, `Nature/LootSpots.cs`, `World/WorldObjects.cs`), the recycler, research and tech trees (`Economy/`, `Items/Blueprints.cs`, `Content/World.cs`), teams (`Teams/`), map markers |
 | `src/Hollow.Net` | Protocol (GROUND.md §4.4): message definitions and their generated serializers, bit packing, snapshot delta coding, relevance grid, bad-network relay; `Commands/`: the F1 console's command catalogue, parsing and Tab completion (§8.2) |
 | `src/Hollow.Persistence` | SQLite storage (GROUND.md §4.7): accounts and characters, versioned schema, one worker thread; the building's records (`BuildingCodec`, §6.5); explosives (`ExplosiveCodec`) and queued notifications (§6.6); ships (`ShipCodec`, §6.7); teams and world props' overrides (`TeamCodec`, schema 6, §6.8) |

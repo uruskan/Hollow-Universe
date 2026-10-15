@@ -40,8 +40,8 @@ public enum BotScript
 
 /// <summary>
 /// A bot's scripted controls. Deterministic per bot (seeded by its number), and kept within
-/// <see cref="HomeRadius"/> of the zone's origin, so a crowd of bots stays in each other's view (the bandwidth worst
-/// case).
+/// <see cref="HomeRadius"/> of its home (<see cref="BotGround.Home"/>: where it arrived), so a crowd of bots that arrives
+/// at the landing site stays in each other's view (the bandwidth worst case).
 /// </summary>
 public sealed class BotBrain
 {
@@ -64,7 +64,7 @@ public sealed class BotBrain
         _nextJump = _rng.Range(0, 2);
     }
 
-    public InputFrame Think(double time, double delta, Vector3 position)
+    public InputFrame Think(double time, double delta, Vector3 position, Vector3 home)
     {
         var input = new InputFrame();
         switch (_script)
@@ -82,10 +82,9 @@ public sealed class BotBrain
                     _walking = _rng.Chance(0.85);
                 }
                 // Far from home: head back.
-                var flat = new Vector2(position.X, position.Z);
-                if (flat.Length() > HomeRadius)
+                if (Vector3.Distance(position, home) > HomeRadius)
                 {
-                    _targetYaw = MathF.Atan2(flat.X, flat.Y);
+                    _targetYaw = BotGround.YawTo(position, home);
                     _walking = true;
                 }
                 float turn = WrapAngle(_targetYaw - _yaw);

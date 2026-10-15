@@ -6,10 +6,12 @@ using JoltPhysicsSharp;
 namespace Hollow.Simulation.Physics;
 
 /// <summary>
-/// A character's collision in a <see cref="PhysicsWorld"/>: Jolt's virtual character, a kinematic capsule outside the
-/// rigid-body solver (GROUND.md §4.5). It holds no state between steps that matters: <see cref="Restore"/> puts it
-/// exactly where a <see cref="CharacterState"/> says before every step, so the server and a rewinding client get the
-/// same result. Callers hold <see cref="JoltRuntime.Gate"/>.
+/// A character's collision in a space (GROUND.md §4.5): Jolt's virtual character, a kinematic capsule outside the
+/// rigid-body solver, bound to the physics it steps in: a zone's <see cref="PhysicsWorld"/> or a ship's
+/// <see cref="ShipSpace"/> (IRON_WAKE.md §4.3). It holds no state between steps that matters: <see cref="Restore"/> puts
+/// it exactly where a <see cref="CharacterState"/> says before every step, so the server and a rewinding client get the
+/// same result, and one body serves every character stepping in its space in turn. Callers hold
+/// <see cref="JoltRuntime.Gate"/>.
 /// </summary>
 public sealed class CharacterBody : IDisposable
 {
@@ -17,14 +19,24 @@ public sealed class CharacterBody : IDisposable
     private static Shape? _crouching;
     private static MovementTuning? _shapesFor;
 
-    private readonly PhysicsWorld _world;
+    private readonly PhysicsSystem _system;
     private readonly CharacterVirtual _character;
     private readonly MovementTuning _tuning;
     private Stance _stance;
 
     public CharacterBody(PhysicsWorld world, MovementTuning tuning, Vector3 position, Vector3 up)
+        : this(world.Jolt, tuning, position, up)
     {
-        _world = world;
+    }
+
+    public CharacterBody(ShipSpace space, MovementTuning tuning, Vector3 position, Vector3 up)
+        : this(space.Jolt, tuning, position, up)
+    {
+    }
+
+    private CharacterBody(PhysicsSystem system, MovementTuning tuning, Vector3 position, Vector3 up)
+    {
+        _system = system;
         _tuning = tuning;
         lock (JoltRuntime.Gate)
         {
@@ -43,7 +55,7 @@ public sealed class CharacterBody : IDisposable
                 PredictiveContactDistance = 0.1f,
                 EnhancedInternalEdgeRemoval = true,
             };
-            _character = new CharacterVirtual(settings, position, UpRotation(up), 0, world.Jolt);
+            _character = new CharacterVirtual(settings, position, UpRotation(up), 0, system);
         }
     }
 
@@ -55,6 +67,9 @@ public sealed class CharacterBody : IDisposable
 
     /// <summary>On walkable ground (not a slope too steep to stand on).</summary>
     public bool OnWalkableGround => _character.GroundState == GroundState.OnGround;
+
+    /// <summary>The body under the feet after the last step (a parked ship's, IRON_WAKE.md §4.5), when there is ground.</summary>
+    public uint GroundBody => _character.GroundBodyId;
 
     /// <summary>
     /// Puts the character exactly at a state: up and orientation from <paramref name="up"/>, position, velocity and
@@ -70,10 +85,10 @@ public sealed class CharacterBody : IDisposable
         {
             // Forced: the state says this is the capsule (no room check).
             // A crawling character keeps the crouched capsule (its hit shapes lie down; its body needn't).
-            _character.SetShape(0f, stance == Stance.Standing ? _standing! : _crouching!, float.MaxValue, PhysicsWorld.MovingLayer, _world.Jolt);
+            _character.SetShape(0f, stance == Stance.Standing ? _standing! : _crouching!, float.MaxValue, PhysicsWorld.MovingLayer, _system);
             _stance = stance;
         }
-        _character.RefreshContacts(PhysicsWorld.MovingLayer, _world.Jolt);
+        _character.RefreshContacts(PhysicsWorld.MovingLayer, _system);
     }
 
     /// <summary>Changes the capsule if there is room; false (and unchanged) if standing up is blocked.</summary>
@@ -85,7 +100,7 @@ public sealed class CharacterBody : IDisposable
         }
         Shape shape = stance == Stance.Standing ? _standing! : _crouching!;
         // Allow the padding's worth of overlap, so standing up on uneven ground isn't refused for nothing.
-        if (!_character.SetShape(deltaTime, shape, 1.5f * _character.CharacterPadding, PhysicsWorld.MovingLayer, _world.Jolt))
+        if (!_character.SetShape(deltaTime, shape, 1.5f * _character.CharacterPadding, PhysicsWorld.MovingLayer, _system))
         {
             return false;
         }
@@ -109,7 +124,7 @@ public sealed class CharacterBody : IDisposable
             WalkStairsCosAngleForwardContact = MathF.Cos(75f * MathF.PI / 180f),
             WalkStairsStepDownExtra = Vector3.Zero,
         };
-        _character.ExtendedUpdate(deltaTime, settings, PhysicsWorld.MovingLayer, _world.Jolt);
+        _character.ExtendedUpdate(deltaTime, settings, PhysicsWorld.MovingLayer, _system);
     }
 
     /// <summary>The rotation that turns +Y into <paramref name="up"/> by the shortest arc.</summary>

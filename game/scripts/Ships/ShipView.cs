@@ -14,11 +14,14 @@ public readonly record struct ShipLook(Transform3D Pivot, float Hatch, System.Nu
     bool Piloted, bool Destroyed);
 
 /// <summary>
-/// One ship drawn (G6, GROUND.md §6.7): the catalogue model, whose levels of detail switch by distance; the hatch
-/// swinging by the model's own open clip; a plume on every nozzle of ships.json that grows with the thrust on its axis
-/// (main and side engines forward, lift nozzles up, the small thrusters for sideways, braking and down); the lamps, nav
-/// lights and a landing light while the engines run, and the glow of the lift nozzles on the ground below. Presentation
-/// only: the host gives it a <see cref="ShipLook"/> each frame, from the zone, the client's prediction or a snapshot.
+/// One ship drawn (G6, GROUND.md §6.7): the catalogue model of its kind (ships.json's <c>model</c>), whose levels of detail
+/// switch by distance; the hatch swinging by the model's own open clip; a ship people walk in (IRON_WAKE.md §4) its moving
+/// parts posed from their states as its space has them (the ramp, the airlock, the turrets) and its collision hulls kept
+/// under the parts they ride, for the feet drawn on its decks; a plume on every nozzle of ships.json that grows with the
+/// thrust on its axis (main and side engines forward, lift nozzles up, the small thrusters for sideways, braking and down),
+/// sized to the ship; the lamps, nav lights and a landing light while the engines run, and the glow of the lift nozzles on
+/// the ground below. Presentation only: the host gives it a <see cref="ShipLook"/> each frame, from the zone, the client's
+/// prediction or a snapshot, and the parts' states when they change.
 /// </summary>
 public partial class ShipView : Node3D
 {
@@ -41,6 +44,12 @@ public partial class ShipView : Node3D
     private SpotLight3D _landing = null!;
     private float _lampEnergy = -1;
     private double _time;
+    private PartNode[] _parts = Array.Empty<PartNode>();
+    private float[]? _posedAt;
+
+    // A moving part's node in the model: its part, where it stands at rest in the model's space, and what carries it
+    // there (another part's node, by its index here, or the model's still nodes: their rest in the model's space).
+    private readonly record struct PartNode(int Part, Node3D Node, Transform3D Rest, int Carrier, Transform3D CarrierRest);
 
     private enum Drive : byte { Main, Aux, Lift, RcsLeft, RcsRight }
 
@@ -74,14 +83,105 @@ public partial class ShipView : Node3D
     /// <summary>True in the pilot's own cockpit view: the plumes nearest the eye would fill the screen, so they hide.</summary>
     public bool FromCockpit { get; set; }
 
+    /// <summary>The catalogue key of its model: ships.json's <c>model</c>, else the ship's own key.</summary>
+    private string ModelKey => string.IsNullOrEmpty(_def.Model) ? _def.Key : _def.Model;
+
+    // Plumes and lights grow with the ship: the Tin Finch's sizes, scaled by the square root of how much bigger it is.
+    private float Scale => MathF.Sqrt(MathF.Max(1, _def.BoundingRadius / 3.5f));
+
     public override void _Ready()
     {
-        _model = ModelCatalog.Instantiate(_def.Key) ?? new Node3D { Name = _def.Key };
+        // A ship people walk in keeps its hulls (each under the part it moves with) on the feet's layer.
+        _model = ModelCatalog.Instantiate(ModelKey, use: _def.Interior != null ? ModelUse.Parts : ModelUse.Display) ?? new Node3D { Name = _def.Key };
         AddChild(_model);
         FindHatch();
+        FindParts();
         BuildPlumes();
         BuildLights();
         FindLamps();
+    }
+
+    // ---------------------------------------------------------------- moving parts (IRON_WAKE.md §4.3)
+
+    private void FindParts()
+    {
+        if (_def.Interior is not { } interior)
+        {
+            return;
+        }
+        var nodes = new List<(int Part, Node3D Node)>();
+        for (int part = 1; part < interior.Parts.Count; part++)
+        {
+            if (_model.FindChild(interior.Parts[part].Name, true, false) is Node3D node)
+            {
+                nodes.Add((part, node));
+            }
+        }
+        // Carriers before what they carry: by depth in the model.
+        nodes.Sort((a, b) => Depth(a.Node).CompareTo(Depth(b.Node)));
+        var parts = new List<PartNode>();
+        foreach ((int part, Node3D node) in nodes)
+        {
+            int carrier = -1;
+            for (Node? up = node.GetParent(); up != null && up != _model && carrier < 0; up = up.GetParent())
+            {
+                carrier = parts.FindIndex(p => p.Node == up);
+            }
+            Node3D? parent = node.GetParent() as Node3D;
+            parts.Add(new PartNode(part, node, InModel(node), carrier, parent == null || parent == _model ? Transform3D.Identity : InModel(parent)));
+        }
+        _parts = parts.ToArray();
+        // The model's own clips (the ramp's, the airlock's) are the import's; the view poses the parts from their states.
+        if (_parts.Length > 0 && _model.FindChild("AnimationPlayer", true, false) is AnimationPlayer player)
+        {
+            player.Active = false;
+        }
+        ShowParts(interior.Rest);
+    }
+
+    private int Depth(Node node)
+    {
+        int depth = 0;
+        for (Node? up = node.GetParent(); up != null && up != _model; up = up.GetParent())
+        {
+            depth++;
+        }
+        return depth;
+    }
+
+    // A node's transform in the model's space (the ship's frame), from the model down to it.
+    private Transform3D InModel(Node3D node)
+    {
+        Transform3D t = node.Transform;
+        for (Node? up = node.GetParent(); up is Node3D parent && up != _model; up = up.GetParent())
+        {
+            t = parent.Transform * t;
+        }
+        return t;
+    }
+
+    /// <summary>
+    /// Poses the moving parts at their states (a door's progress, a turret's angle), as the ship's space poses its bodies:
+    /// each part's motion from rest, its carriers' included. Nothing happens when they are as last posed.
+    /// </summary>
+    public void ShowParts(ReadOnlySpan<float> states)
+    {
+        if (_parts.Length == 0 || _def.Interior is not { } interior || (_posedAt != null && states.SequenceEqual(_posedAt)))
+        {
+            return;
+        }
+        _posedAt = states.ToArray();
+        Span<Transform3D> inModel = stackalloc Transform3D[_parts.Length];
+        for (int i = 0; i < _parts.Length; i++)
+        {
+            PartNode p = _parts[i];
+            PartPose pose = interior.PartPose(p.Part, states);
+            var motion = new Transform3D(new Basis(new Quaternion(pose.Rotation.X, pose.Rotation.Y, pose.Rotation.Z, pose.Rotation.W)),
+                new Vector3(pose.Translation.X, pose.Translation.Y, pose.Translation.Z));
+            inModel[i] = motion * p.Rest;
+            Transform3D carrier = p.Carrier >= 0 ? inModel[p.Carrier] * _parts[p.Carrier].Rest.AffineInverse() * p.CarrierRest : p.CarrierRest;
+            p.Node.Transform = carrier.AffineInverse() * inModel[i];
+        }
     }
 
     // ---------------------------------------------------------------- set-up
@@ -166,23 +266,25 @@ public partial class ShipView : Node3D
                 });
             }
         }
-        Add(_def.MainNozzles, Drive.Main, new Vector3(0, 0, -1), 0.5f, 3.4f);
-        Add(_def.AuxNozzles, Drive.Aux, new Vector3(0, 0, -1), 0.24f, 1.9f);
-        Add(_def.LiftNozzles, Drive.Lift, new Vector3(0, -1, 0), 0.3f, 1.7f);
-        Add(_def.RcsNozzles, Drive.RcsLeft, Vector3.Zero, 0.12f, 0.8f);
+        float scale = Scale;
+        Add(_def.MainNozzles, Drive.Main, new Vector3(0, 0, -1), 0.5f * scale, 3.4f * scale);
+        Add(_def.AuxNozzles, Drive.Aux, new Vector3(0, 0, -1), 0.24f * scale, 1.9f * scale);
+        Add(_def.LiftNozzles, Drive.Lift, new Vector3(0, -1, 0), 0.3f * scale, 1.7f * scale);
+        Add(_def.RcsNozzles, Drive.RcsLeft, Vector3.Zero, 0.12f * scale, 0.8f * scale);
     }
 
     private void BuildLights()
     {
         // The lift nozzles' light on the ground below, and a landing light under the nose looking ahead and down.
+        float scale = Scale;
         _belly = new OmniLight3D
         {
             Name = "Belly",
             LightColor = new Color(1f, 0.62f, 0.32f),
-            OmniRange = 14,
+            OmniRange = 14 * scale,
             OmniAttenuation = 1.6f,
             ShadowEnabled = false,
-            Position = new Vector3(0, 0.2f, -0.5f),
+            Position = new Vector3(0, 0.2f, -0.5f) * scale,
             Visible = false,
         };
         _model.AddChild(_belly);
@@ -196,28 +298,35 @@ public partial class ShipView : Node3D
             ShadowEnabled = false,
             Visible = false,
         };
-        _landing.Transform = new Transform3D(Basis.LookingAt(new Vector3(0, -0.55f, 1), Vector3.Up), new Vector3(0, 0.75f, 1.9f));
+        _landing.SpotRange = 90 * scale;
+        _landing.Transform = new Transform3D(Basis.LookingAt(new Vector3(0, -0.55f, 1), Vector3.Up), new Vector3(0, 0.75f, 1.9f) * scale);
         _model.AddChild(_landing);
-        // Nav lights at the tips of the engine pods (red on the left, green on the right), a white beacon on the spine.
-        float podX = 1.18f, podZ = -2.95f;
+        // Nav lights at the tips of the outermost hull boxes (the Tin Finch's engine pods: red on the left, green on the
+        // right), a white beacon over the top of the hull.
+        float podX = 1.18f, podY = 0.97f, podZ = -2.95f, top = 1.845f;
         foreach (HullBox box in _def.Hull)
         {
             if (!box.Skid && MathF.Abs(box.Centre.X) > 0.5f)
             {
                 podX = MathF.Abs(box.Centre.X) + box.HalfExtents.X;
+                podY = box.Centre.Y;
                 podZ = box.Centre.Z - box.HalfExtents.Z;
             }
+            if (!box.Skid)
+            {
+                top = MathF.Max(top, box.Centre.Y + box.HalfExtents.Y);
+            }
         }
-        AddNav(new Vector3(podX, 0.98f, podZ), new Color(1f, 0.08f, 0.04f), 0, 0);
-        AddNav(new Vector3(-podX, 0.98f, podZ), new Color(0.1f, 1f, 0.25f), 0, 0);
-        AddNav(new Vector3(0, 1.92f, -1.4f), new Color(1f, 1f, 1f), 0.15f, 1.6f);
+        AddNav(new Vector3(podX, podY + 0.01f, podZ), new Color(1f, 0.08f, 0.04f), 0, 0, scale);
+        AddNav(new Vector3(-podX, podY + 0.01f, podZ), new Color(0.1f, 1f, 0.25f), 0, 0, scale);
+        AddNav(new Vector3(0, top + 0.075f, -1.4f * scale), new Color(1f, 1f, 1f), 0.15f, 1.6f, scale);
     }
 
-    private void AddNav(Vector3 at, Color colour, float phase, float period)
+    private void AddNav(Vector3 at, Color colour, float phase, float period, float scale)
     {
         MeshInstance3D glow = Quad(_glowMaterial!, $"Nav{_navLights.Count}");
         glow.Position = at;
-        glow.Scale = Vector3.One * 0.32f;
+        glow.Scale = Vector3.One * 0.32f * scale;
         glow.SetInstanceShaderParameter("tint", colour);
         _navLights.Add((glow, colour, phase, period));
     }

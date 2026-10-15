@@ -8,6 +8,7 @@ using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
 using Hollow.Persistence;
 using Hollow.Simulation;
+using Hollow.Simulation.Movement;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
@@ -114,7 +115,7 @@ public sealed class WorldModule : ServerModule
             MarkerIntent m = message;
             Entity me = session.Entity;
             Intent(session, m.Seq,
-                () => m.Remove ? Zone.World().RemoveMarker(me, m.Index) : Zone.World().PlaceMarker(me, new Vector3(m.X, 0, m.Z), m.Colour, m.Label), whileDead: true);
+                () => m.Remove ? Zone.World().RemoveMarker(me, m.Index) : Zone.World().PlaceMarker(me, new Vector3(m.X, m.Y, m.Z), m.Colour, m.Label), whileDead: true);
         });
         handlers.On<TeamChatSend>((PlayerSession session, in TeamChatSend m) =>
         {
@@ -346,13 +347,18 @@ public sealed class WorldModule : ServerModule
                     continue;
                 }
                 ref Character c = ref Zone.Entities.Get<Character>(e);
-                ushort yaw = Zone.Entities.Has<NetPresence>(e) ? Zone.Entities.Get<NetPresence>(e).Yaw : Quantize.Angle16(c.Input.Yaw);
+                // The map's arrow: the view's heading from local north where the mate stands.
+                Vector3 view = Zone.Entities.Has<NetPresence>(e)
+                    ? Quantize.FromOctahedral(Zone.Entities.Get<NetPresence>(e).ViewU, Zone.Entities.Get<NetPresence>(e).ViewV)
+                    : c.Input.View;
+                Vector3 at = Zone.WorldOf(c.State);
+                ushort yaw = Quantize.Angle16(Facing.YawOf(Zone.Frames.DirectionToWorld(view, c.State.Frame, Zone.Tick), Zone.Frame.UpAt(at)));
                 _mates.Add(new TeammateNet
                 {
                     Id = m.Value,
-                    X = c.State.Position.X,
-                    Y = c.State.Position.Y,
-                    Z = c.State.Position.Z,
+                    X = at.X,
+                    Y = at.Y,
+                    Z = at.Z,
                     Yaw = yaw,
                     State = p.Dead ? TeammateState.Dead : p.Wounded ? TeammateState.Down : p.Sleeping ? TeammateState.Asleep : TeammateState.Awake,
                 });

@@ -14,8 +14,9 @@ fourteen defaults (§2). On 15 October 2026 its import (model, materials, LODs, 
 effects were merged into `main` (IW-A part 1, IW-S, IW-F), then the loading mechanisms, the battery table
 (`batteries.json`) and the incendiary rocket's model (IW-A part 2, 2c7677b). IW1 (ship spaces: walking aboard) was
 built on `iw-spaces`, cut from `whole-world` with `main` merged in, and fast-forwarded into `whole-world` (1f7b89a, 239
-tests): people aboard move in the ship's frame, protocol 22, schema 8 (IRON_WAKE.md §4.13). IW2–IW6 follow on
-`whole-world`.
+tests): people aboard move in the ship's frame, protocol 22, schema 8 (IRON_WAKE.md §4.13). **On 15 October 2026 the
+owner had `whole-world` merged into `main`** (S3a, S3b and IW1), so the game has the Iron Wake: the host gets one with
+`ship iron-wake` (F1), on the plain stand-in world until S3c. IW2–IW6, S3c and S3d follow on `main`.
 
 ## 14 October 2026, night: one place (read this first)
 

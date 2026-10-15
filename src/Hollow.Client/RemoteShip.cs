@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using Hollow.Net.Protocol;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Movement;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
 
@@ -79,6 +80,101 @@ public sealed class RemoteShip
 
     /// <summary>A point of the ship's frame (relative to its pivot) in the zone frame.</summary>
     public Vector3 PointOf(Vector3 local) => Def == null ? Position : Position + Vector3.Transform(local - Def.CentreOfMass, Rotation);
+
+    // ---------------------------------------------------------------- its parts (IRON_WAKE.md §4.7)
+
+    private ShipPartNet[] _parts = Array.Empty<ShipPartNet>();
+
+    /// <summary>Raised whenever the server tells this client its parts' states (the space that follows them compares it).</summary>
+    public int PartsVersion { get; private set; }
+
+    /// <summary>The server's word on its moving parts: those listed at their states, every other at rest.</summary>
+    public void SetParts(ShipPartNet[]? parts)
+    {
+        _parts = parts ?? Array.Empty<ShipPartNet>();
+        PartsVersion++;
+    }
+
+    /// <summary>Its parts' states into an array the size of its interior's parts (the interior's rest, then what the server said).</summary>
+    public void PartsInto(ShipInterior interior, float[] into)
+    {
+        interior.Rest.AsSpan(0, Math.Min(interior.Rest.Length, into.Length)).CopyTo(into);
+        foreach (ShipPartNet part in _parts)
+        {
+            if (part.Part < into.Length)
+            {
+                into[part.Part] = BitConverter.UInt32BitsToSingle(part.Bits);
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- where it was at a tick
+
+    /// <summary>At most this many ticks past the newest state are extrapolated for a pose (then it holds).</summary>
+    private const double MaxPoseExtrapolationTicks = 30;
+
+    /// <summary>
+    /// Where it was at a (fractional) server tick, for a client's frame of a ship it doesn't fly (IRON_WAKE.md §4.8): while
+    /// the newest state says it is asleep, exactly that state (the server's parked pose, on the wire's grid, still); else
+    /// between the states either side, or past the newest along its last motion for up to a second, with the velocity
+    /// and turn rate between the two states used. False before any state or kind.
+    /// </summary>
+    public bool TryPoseAt(double tick, out ShipPose pose)
+    {
+        pose = default;
+        if (_count == 0 || Def == null)
+        {
+            return false;
+        }
+        ref readonly ShipNetState newest = ref _states[_newest];
+        if ((newest.Flags & ShipNetFlags.Asleep) != 0 || _count == 1)
+        {
+            pose = new ShipPose(ShipConvert.PositionOf(newest), ShipConvert.RotationOf(newest), Vector3.Zero, Vector3.Zero, Def.CentreOfMass);
+            return true;
+        }
+        int before = -1, after = -1;
+        for (int i = 0; i < _count; i++)
+        {
+            int index = (_newest - i + Samples) % Samples;
+            if (_ticks[index] <= tick)
+            {
+                before = index;
+                break;
+            }
+            after = index;
+        }
+        int a, b;
+        double t;
+        if (before >= 0 && after >= 0)
+        {
+            (a, b) = (before, after);
+            t = (tick - _ticks[a]) / (_ticks[b] - _ticks[a]);
+        }
+        else if (before >= 0)
+        {
+            (a, b) = ((before - 1 + Samples) % Samples, before);
+            t = 1 + Math.Min(tick - _ticks[b], MaxPoseExtrapolationTicks) / Math.Max(1u, _ticks[b] - _ticks[a]);
+        }
+        else
+        {
+            int oldest = (_newest - _count + 1 + Samples) % Samples;
+            (a, b) = (oldest, (oldest + 1) % Samples);
+            t = 0;
+        }
+        Vector3 pa = ShipConvert.PositionOf(_states[a]), pb = ShipConvert.PositionOf(_states[b]);
+        Quaternion qa = ShipConvert.RotationOf(_states[a]), qb = ShipConvert.RotationOf(_states[b]);
+        float span = Math.Max(1u, _ticks[b] - _ticks[a]) / (float)CharacterMotor.TickRate;
+        Quaternion turn = qb * Quaternion.Conjugate(qa);
+        if (turn.W < 0)
+        {
+            turn = new Quaternion(-turn.X, -turn.Y, -turn.Z, -turn.W);
+        }
+        float sin = new Vector3(turn.X, turn.Y, turn.Z).Length();
+        Vector3 spin = sin > 1e-7f ? new Vector3(turn.X, turn.Y, turn.Z) / sin * (2 * MathF.Atan2(sin, turn.W) / span) : Vector3.Zero;
+        Quaternion rotation = t <= 1 ? Quaternion.Slerp(qa, qb, (float)Math.Max(t, 0)) : Extrapolate(qa, qb, (float)t);
+        pose = new ShipPose(pa + (pb - pa) * (float)t, rotation, (pb - pa) / span, spin, Def.CentreOfMass);
+        return true;
+    }
 
     /// <summary>A state from a snapshot at a server tick (older or repeated ticks are ignored).</summary>
     public void Add(uint tick, in ShipNetState state)

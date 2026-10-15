@@ -79,14 +79,14 @@ public partial struct Welcome
     public ZoneInfo Zone;
     [MaxLength(64)] public string ServerName;
 
-    /// <summary>The view the character was saved with (a returning player faces where they left off).</summary>
-    [Angle] public ushort Yaw;
-    [Angle] public ushort Pitch;
+    /// <summary>The view the character was saved with (a returning player faces where they left off), octahedral.</summary>
+    public ushort ViewU;
+    public ushort ViewV;
 }
 
 // ---------------------------------------------------------------- input (client → server, unreliable, every tick)
 
-/// <summary>One tick of a player's input: move axes, view angles and buttons, all quantised.</summary>
+/// <summary>One tick of a player's input: move axes, view direction and buttons, all quantised.</summary>
 [NetStruct]
 public partial struct InputCommand
 {
@@ -96,9 +96,10 @@ public partial struct InputCommand
     /// <summary>−127 … 127: left to right.</summary>
     [Signed(8)] public sbyte Right;
 
-    [Angle] public ushort Yaw;
+    /// <summary>The view, a direction in the zone's frame, octahedral (docs/WHOLE_WORLD.md §5, <c>Quantize.Octahedral</c>).</summary>
+    public ushort ViewU;
 
-    [Angle] public ushort Pitch;
+    public ushort ViewV;
 
     /// <summary>Free look (Alt): the head's turn from the view, in <see cref="NetConvert.LookStep"/>s (cosmetic: the
     /// view above is the aim and the movement's).</summary>
@@ -119,6 +120,12 @@ public partial struct InputCommand
 
     /// <summary>A pilot's controls (G6): one entry while flying a ship, none on foot (a bit).</summary>
     [MaxCount(1)] public ShipControls[] Ship;
+
+    /// <summary>
+    /// The frame the view is in (IRON_WAKE.md §4.11): the one the client believed its character was in, a ship's net ID
+    /// (0 the zone's). On the tick of a hand-over it is the other: the server turns the view through the ship's pose.
+    /// </summary>
+    [VarInt] public uint Frame;
 }
 
 /// <summary>One tick of a pilot's controls (G6), each −127 … 127: stick, throttle lever, strafe, up and down.</summary>
@@ -171,6 +178,9 @@ public partial struct OwnState
 
     /// <summary>An admin's god mode and noclip (GROUND.md §8.2), which the prediction runs with too.</summary>
     [Bits(2)] public MoveCheats Cheats;
+
+    /// <summary>The frame the state is in (IRON_WAKE.md §4.2): aboard, the ship's net ID, and the position and velocity are its frame's; 0 the zone's.</summary>
+    [VarInt] public uint Frame;
 }
 
 /// <summary>
@@ -230,9 +240,9 @@ public partial struct OwnShipState
 }
 
 /// <summary>
-/// A ship as everyone sees it (G6): position on a 1/256 m grid, its turn as yaw, pitch and roll (about the zone's +Y,
-/// then its own x, then its own z), what it is doing, its hatch, its engines' output (±127 = ±2 of each axis's thrust,
-/// boost above 1), its hull (of 255) and its kind (the item).
+/// A ship as everyone sees it (G6): position on a 1/256 m grid, its turn as a smallest-three rotation (no gimbal lock
+/// on a whole world, docs/WHOLE_WORLD.md §5: <c>Quantize.SmallestThree</c>), what it is doing, its hatch, its engines'
+/// output (±127 = ±2 of each axis's thrust, boost above 1), its hull (of 255) and its kind (the item).
 /// </summary>
 [NetState]
 public partial struct ShipNetState
@@ -240,9 +250,10 @@ public partial struct ShipNetState
     [Signed(32)] public int X;
     [Signed(32)] public int Y;
     [Signed(32)] public int Z;
-    [Angle] public ushort Yaw;
-    [Angle] public ushort Pitch;
-    [Angle] public ushort Roll;
+    [Bits(2)] public byte TurnLargest;
+    [Signed(16)] public short TurnA;
+    [Signed(16)] public short TurnB;
+    [Signed(16)] public short TurnC;
     [Bits(10)] public ShipNetFlags Flags;
 
     /// <summary>What the receiver is told of it (GROUND_SYSTEMS.md §3.3): theirs, a teammate's, locked.</summary>
@@ -253,17 +264,25 @@ public partial struct ShipNetState
     [Signed(8)] public sbyte ThrustZ;
     public byte Health;
     [VarInt] public uint Kind;
+
+    /// <summary>
+    /// Its parked body's ID in the zone's physics (0 while it flies): a client makes its copy with the same ID, so its
+    /// prediction meets the same contacts in the same order (as the building's bodies, IRON_WAKE.md §4.6).
+    /// </summary>
+    [VarInt] public uint Body;
 }
 
-/// <summary>A character as other players see it: position on a 1/256 m grid, view angles, what it's doing.</summary>
+/// <summary>A character as other players see it: position on a 1/256 m grid, view direction, what it's doing.</summary>
 [NetState]
 public partial struct CharacterNetState
 {
     [Signed(32)] public int X;
     [Signed(32)] public int Y;
     [Signed(32)] public int Z;
-    [Angle] public ushort Yaw;
-    [Angle] public ushort Pitch;
+
+    /// <summary>The view, a direction in the zone's frame, octahedral (docs/WHOLE_WORLD.md §5).</summary>
+    public ushort ViewU;
+    public ushort ViewV;
 
     /// <summary>Free look (Alt): where the head looks from the view, in <see cref="NetConvert.LookStep"/>s (drawn only).</summary>
     [Signed(8)] public sbyte LookYaw;
@@ -283,6 +302,12 @@ public partial struct CharacterNetState
     /// <summary>G4: aiming a gun down its sights, and the held gun's attachments (bit i: weapons.json's attachment i).</summary>
     public bool Aiming;
     public byte HeldMods;
+
+    /// <summary>
+    /// The frame it moves in (IRON_WAKE.md §4.11): aboard, its ship's net ID, and the position and view above are that
+    /// ship's frame's (the client places it on the ship as it draws it); 0 the zone's.
+    /// </summary>
+    [VarInt] public uint Frame;
 }
 
 // ---------------------------------------------------------------- reliable events
@@ -557,6 +582,27 @@ public partial struct ShipIntent
     [Bits(3)] public ShipAction Action;
 }
 
+/// <summary>
+/// A ship's moving parts away from rest (IRON_WAKE.md §4.7, server → client, reliable ordered): sent when a part moves,
+/// and when a ship whose parts moved comes into range. Every part not listed is at the interior's rest; a listed one
+/// carries its state's bits exactly, so a client's space poses its bodies as the server's and its prediction aboard
+/// stays exact.
+/// </summary>
+[NetMessage(121)]
+public partial struct ShipPartStates
+{
+    [VarInt] public uint Ship;
+    [MaxCount(255)] public ShipPartNet[] Parts;
+}
+
+/// <summary>One part's state: its index in the interior, the float's bits.</summary>
+[NetStruct]
+public partial struct ShipPartNet
+{
+    [VarInt] public uint Part;
+    public uint Bits;
+}
+
 /// <summary>A firearm's magazine and attachments (G4), carried by its slot.</summary>
 [NetStruct]
 public partial struct GunNet
@@ -701,6 +747,7 @@ public partial struct BagNet
 {
     public ulong Id;
     public float X;
+    public float Y;
     public float Z;
     [VarInt] public uint ReadySeconds;
 }
@@ -734,10 +781,15 @@ public partial struct FireIntent
     public uint Tick;
     [Bits(3)] public byte Slot;
     [VarInt] public uint Item;
-    [Angle] public ushort Yaw;
-    [Angle] public ushort Pitch;
+
+    /// <summary>The view the shot left along, octahedral (docs/WHOLE_WORLD.md §5).</summary>
+    public ushort ViewU;
+    public ushort ViewV;
     public bool Aimed;
     public byte ViewDelay;
+
+    /// <summary>The frame the view is in: the ship the client believed its character aboard (its net ID), 0 the zone's (IRON_WAKE.md §4.11).</summary>
+    [VarInt] public uint Frame;
 }
 
 /// <summary>A reload begun on a tick (its gun action sequence number): which rounds (0: the loaded kind, else any).</summary>
@@ -945,9 +997,14 @@ public partial struct ThrowIntent
     [VarInt] public uint Seq;
     [Bits(3)] public byte Slot;
     [VarInt] public uint Expected;
-    [Angle] public ushort Yaw;
-    [Angle] public ushort Pitch;
+
+    /// <summary>The view it was thrown along, octahedral (docs/WHOLE_WORLD.md §5).</summary>
+    public ushort ViewU;
+    public ushort ViewV;
     public bool Lob;
+
+    /// <summary>The frame the view is in: the ship the client believed its character aboard (its net ID), 0 the zone's (IRON_WAKE.md §4.11).</summary>
+    [VarInt] public uint Frame;
 }
 
 /// <summary>
@@ -1066,7 +1123,10 @@ public partial struct MarkerIntent
     [VarInt] public uint Seq;
     public bool Remove;
     [Signed(8)] public sbyte Index;
+
+    /// <summary>The point on the world (the server settles it on the ground).</summary>
     public float X;
+    public float Y;
     public float Z;
     [Bits(3)] public byte Colour;
     [MaxLength(24)] public string Label;
@@ -1532,14 +1592,16 @@ public partial struct DevCellNet
 
 /// <summary>
 /// The animals' nav grid around the watcher (server → the watching admin, once a second while wanted; GROUND.md §6.9): a
-/// square of <see cref="Cells"/> × <see cref="Cells"/> cells of 2 m from the corner (<see cref="OriginX"/>,
-/// <see cref="OriginZ"/>), row by row from there, each cell as its flags.
+/// square of <see cref="Cells"/> × <see cref="Cells"/> cells of 2 m laid flat on the ground round a point
+/// (<see cref="CentreX"/>, <see cref="CentreY"/>, <see cref="CentreZ"/>), columns running east and rows south from its
+/// north-west corner (docs/WHOLE_WORLD.md §7.3), each cell as its flags.
 /// </summary>
 [NetMessage(159)]
 public partial struct DevNav
 {
-    public float OriginX;
-    public float OriginZ;
+    public float CentreX;
+    public float CentreY;
+    public float CentreZ;
     public byte Cells;
     [MaxCount(4096)] public DevCellNet[] Flags;
 }

@@ -43,7 +43,7 @@ public static class ShipPersistenceTests
             RemoteShip seen = ada.Ships().All.Single();
             Vector3 hatch = seen.PointOf(seen.Def!.Hatch);
             Vector3 at = hatch + Vector3.Normalize(Vector3.Transform(-Vector3.UnitX, seen.Rotation)) * 1.6f;
-            rig.Server.Execute(FormattableString.Invariant($"teleport Ada {at.X} {at.Z}"));
+            rig.Teleport("Ada", at);
             rig.Run(0.5, (_, _) => default);
             ada.Local.Interact(new Hollow.Simulation.Targets.TargetRef(Hollow.Simulation.Targets.TargetFamily.Ship, seen.Id.Value, ShipParts.Hatch), "board");
             rig.Run(0.7, (_, _) => default);

@@ -60,10 +60,16 @@ this is the one closest to an Earth-like place to live.
 
 - **Pinned by a test.** A golden test pins the planet's state. If a generator change alters it, the test fails and we
   decide what to do. The ground branch starts from `generator-v2` for this data.
-- **The landing site** (the first zone's origin) is 44.8683° N, 170.0010° W (`FirstWorld.LandingLatitude`,
-  `FirstWorld.LandingLongitude`): the east shore of a bay, 21 m above the sea, on a meadow at a forest edge
-  (birches, oaks, spruces, berry bushes); the bay within 2 km to the west and south-west; forested hills to 365 m
-  nearby and to 1,160 m 18 km to the north-east (`surface site` in the generator report). The golden test of the surface includes points around it.
+- **The landing site** is 44.8683° N, 170.0010° W (`FirstWorld.LandingLatitude`,
+  `FirstWorld.LandingLongitude`; the first zone's origin until S3): the east shore of a bay, 21 m above the sea, on a
+  meadow at a forest edge (birches, oaks, spruces, berry bushes); the bay within 2 km to the west and south-west;
+  forested hills to 365 m nearby and to 1,160 m 18 km to the north-east (`surface site` in the generator report). The
+  golden test of the surface includes points around it.
+- **The game's world** (since S3, 14 October 2026; [WHOLE_WORLD.md](WHOLE_WORLD.md)): one zone holds the whole first
+  world at a game radius of 2,410 m (`ZoneSpec.FirstWorldRadius`, SCALE.md §3.1), in the world's own frame (origin at
+  the centre, §4.6). Until S4 makes the real ground at walking scale every zone stands on the stand-in world (§4.6), and
+  the landing site is the ground there at the zone's latitude and longitude (`Zone.Landing`; these by default). The
+  table above, the bay and the look-dev views below are the real planet at 6,435 km, which the surface view still draws.
 - **Look-dev views** (`docs/images/ground/`, 1600 × 900; commands in §4.6):
   - `a_landing_morning.jpg`: the landing site at 09:25 local time.
   - `b_golden.jpg`: the meadow 700 m south of it at 18:13, looking into the sun (6° up) through the forest edge.
@@ -120,8 +126,9 @@ Godot.
 
 ### 4.2 Server
 
-- One process. A **zone** is one surface region of one body: its entities, one Jolt physics world and the systems
-  that run on them, at a fixed 30 ticks per second, on one thread at a time (ARCHITECTURE.md §10).
+- One process. A **zone** is one body's world (since S3 the whole of it, WHOLE_WORLD.md; before, a region of its
+  surface): its entities, one Jolt physics world and the systems that run on them, at a fixed 30 ticks per second, on
+  one thread at a time (ARCHITECTURE.md §10).
 - **Tick order:** inputs → movement → actions (gather, build, craft, use) → projectiles and damage → survival →
   devices (furnaces, timers) → AI → decay and upkeep (slow) → replication. Dirty entities are saved every 30 s.
 - **Static entities** (building parts, deployables, boxes) cost nothing per tick until something happens to them.
@@ -143,18 +150,20 @@ Godot.
   (the order a client receives a tick in) and found by its accessor (`server.Raid().Notifications`, `server.Ships()`...).
   The host keeps the connection, the logins and spawns, the tick loop, the inputs, the snapshots of the dynamic
   entities, chat, the saves and the console's plumbing.
-- **As built in G1** (`src/Hollow.Server`): a .NET console program and a library. One zone on the first world, its
-  origin at the landing site (§3; `--lat`, `--lon` move it), on the planet's real surface (`ZoneSpec.CreateSurface`:
-  `PlanetSurface`, one instance per process shared by the server, the prediction and the terrain; `--stand-in` gives
-  tests the old hilly sphere). Each tick: receive, finish logins, run admin commands, give every character its input
+- **As built in G1** (`src/Hollow.Server`): a .NET console program and a library. One zone on the first world. Until
+  S3 its origin was the landing site, on the planet's real surface; since S3 (14 October 2026) it holds the whole
+  world in the world's own frame, on the stand-in world (`ZoneSpec.CreateSurface`: `StandInWorld`, §4.6), and `--lat`,
+  `--lon` move the landing site (§3). `--stand-in` now only sets the flag clients are sent: every zone stands on the
+  stand-in world until S4. Each tick: receive, finish logins, run admin commands, give every character its input
   for this tick, step the zone, send snapshots (20 a second), save every 30 s, send. Tick time is measured (average,
   99th percentile, maximum) and profiled by part (`TickProfile`: time, calls and garbage per part, the slow ticks'
   parts, the collections that paused ticks; the load test prints it, §5.11). The tick runs above normal priority and
   with .NET's sustained low-latency collector, as the game does.
-  - **Arrival:** a new character arrives on a random one of the zone's beach points, as in Rust (`Beaches`: up to 24
-    points of sandy shore 0.5–3.5 m above the sea with the water within 30 m, at least 45 m apart, nearest to the
-    origin first; at the landing site they lie 0.3–0.8 km away). `--spawn origin` puts arrivals at the landing site
-    instead (load tests, measurements).
+  - **Arrival:** a new character arrives on a random one of the world's beach points, as in Rust (`Beaches`, since S3:
+    up to 256 points anywhere on the world, of beach 0.5–3.5 m above the sea, gentle, with the water within 30 m, at
+    least 45 m apart, found once on a cube-sphere grid of the level nearest 25 m and spread round the world;
+    WHOLE_WORLD.md decision 8). `--spawn origin` puts arrivals at the landing site instead (load tests, measurements),
+    as does a world without a coast.
   - **Login** is by player name for development: the name is the account, one character per name, refused if in use.
   - **Admin console:** `status`, `kick <name> [reason]`, `teleport <name> <x> <z>` or `teleport <name> <other>`,
     `say <text>`, `save`, `quit`. Ctrl+C or `quit` saves everyone, says goodbye to every client and stops. Since the F1
@@ -165,7 +174,9 @@ Godot.
   - Ground near the spawn is built at start, so the first arrival doesn't stall the tick. A respawn or a login waits
     for the ground where the player comes in: the point is picked when the player asks (the beach as of that tick),
     its tiles are built on worker threads, and the player comes in, and the respawn intent is answered, on the tick
-    they are ready (a second at most; §4.5, §5.11).
+    they are ready (five seconds at most, then the tick builds what is left; §4.5, §5.11). One arrival takes a few
+    tens of milliseconds; a crowd arriving at once all round the world (a busy server's restart, the S3b load test,
+    §5.12) needs a few seconds of the workers' time, which was a second until S3b.
 
 ### 4.3 Client
 
@@ -187,7 +198,12 @@ Godot.
   - **Prediction:** a `Predictor` keeps 4 s of inputs and predicted states. A snapshot brings the server's state of
     the character after some tick; if it differs from the prediction for that tick, the predictor takes the server's
     state and replays the newer inputs. Identical inputs give identical results (§4.5), so on a clean line nothing is
-    ever corrected.
+    ever corrected. Just arrived somewhere whose ground isn't built yet (the start, a respawn on a far beach, a
+    teleport: a tick that starts more than 32 m from the last), the predictor holds the character until worker threads
+    have built the tiles within 64 m (`PhysicsWorld.GroundReady`), as the server holds an arrival, and the server's
+    states correct the wait (S3b, §5.12): building a dozen tiles on the client's own thread would stall a frame, and a
+    process of 100 bots arriving all round the world for longer than a connection lasts. Ground walked into is built at
+    once if the prefetch hasn't, as the server's zone does, so prediction stays exact there.
   - **Smoothing:** a correction under 2 m is added to a visual offset that fades in about 0.1 s; a bigger one (a
     teleport, a respawn) shows at once. The drawn position blends the last two predicted ticks, so movement is smooth
     at any frame rate; the eye height eases between stances (RustMVP's rate 18).
@@ -199,7 +215,7 @@ Godot.
     targets, world, building, placement, interaction, raid, ships, animals, arrows, console, damage, loading), each with
     its message handlers in the host's one table and its hooks called in a fixed order; the presentation reads a module
     through its accessor (`client.Raid().Explosives`, `client.Ships().Piloting`, `client.Building().World`).
-- **The ground mode in Godot** (`game/scripts/Ground/`), one game on the real planet:
+- **The ground mode in Godot** (`game/scripts/Ground/`), one game on the first world (its real planet until S3):
   - **Starting:** `--view ground` alone opens the main menu over the landing site (PLAY hosts a game on this
     computer, CONNECT joins one by address and port, the name is remembered, QUIT). `--host` or `--connect host:port`
     start at once (`play-ground.cmd`, AGENTS.md). Hosting starts the dedicated server (`Hollow.Server`, the newer of
@@ -212,10 +228,15 @@ Godot.
     schema) says so in one line ("error: ...") and stops with exit code 2; the menu shows that line.
   - **The world** is the planet package's `SurfaceView` driven by the game (`SurfaceView.Driven`, `OpenZone`): its
     terrain, sea, sky, clouds, plants and grass, with the render frame on the zone's own frame (the same origin and
-    axes, and no floating-origin moves: the zone keeps within 8.2 km of its origin, where floats are good to half a
-    millimetre), so zone-frame metres are Godot's coordinates and the drawn ground is the collision's triangles. The
-    sky shows the universe time on the day of play (§1: × 24 from J2000, as the server's climate), so every player
-    sees the same time of day. The game places the view's camera at the predicted eye every frame.
+    axes, and no floating-origin moves: until S3 the zone kept within 8.2 km of its origin, where floats are good to
+    half a millimetre), so zone-frame metres are Godot's coordinates and the drawn ground is the collision's
+    triangles. The sky shows the universe time on the day of play (§1: × 24 from J2000, as the server's climate), so
+    every player sees the same time of day. The game places the view's camera at the predicted eye every frame. Since
+    S3 (14 October 2026) every zone stands on the stand-in world (§4.6), which this view can't draw yet: the ground
+    mode draws it as it drew the old stand-in, the collision tiles within 200 m coloured by slope (`GroundTerrain`)
+    under a procedural sky and a fixed sun. The client builds, but playing on the ball waits for S3c, which draws it
+    (WHOLE_WORLD.md §10, §14); until then the camera keeps a yaw and pitch, which the client reads from local north
+    where the player stands (§4.5), and the tour and the measuring tool still turn by the old flat formula.
   - **Natural objects** as the game changed them (`NatureView`): the surface view asks, per scatter object, which
     kind to draw (`Vegetation.Changes`): felled trees and picked ferns aren't drawn, a picked berry bush is drawn bare
     (the same bush without its berries, `FloraLibrary.BareBerryRed` and `BareBerryBlue`); their scatter tiles are drawn
@@ -390,45 +411,70 @@ seconds into play and times the arrival.
   snapshots.
 - **Connecting:** the connection request carries `Hello` (protocol version, the generated schema hash, the name, the body chosen). A
   refusal carries a `Goodbye` with a reason (protocol mismatch, bad name, name in use, server full; also kick and
-  shutdown). An accepted player gets `Welcome`: net and entity IDs, the server tick, the rates, the zone (body, radius,
-  gravity, surface seed, latitude, longitude) and the saved view.
+  shutdown). An accepted player gets `Welcome`: net and entity IDs, the server tick, the rates, the zone (body, radius
+  (the game radius since S3), gravity, surface seed, the landing site's latitude and longitude) and the saved view.
 - **Clocks:** every input is for a tick. The client runs its tick clock ahead of the server's so inputs arrive in
   time: every snapshot says how early this client's inputs arrived (the least over the last half second). The client
   aims for 2 ticks: 4 % faster below, 3 % slower above 4, and it jumps when inputs arrive late or very early. A jump
   forward runs the extra ticks over the next frames (their inputs still go out); one of over a second skips them (the
   server and the prediction both fill skipped ticks by repeating the last input). A jump back pauses. The first lead
   comes from the connect handshake's round trip.
-- **Inputs:** one packet per client tick: the tick's input (move axes in 1/127, yaw and pitch in 1/65,536 of a turn,
-  the head's free look in 1.5° steps, a byte each way, buttons: jump held, jump pressed this tick, crouch, sprint) and
-  the three before it, the snapshot acknowledgements and a client timestamp for measuring the round trip. Only four
-  losses in a row lose an input. The server applies each tick's input on that tick; without one it repeats the last
-  (without the jump press, and after 0.8 s without the free look) and counts a miss.
+- **Inputs:** one packet per client tick: the tick's input (move axes in 1/127, the view: since protocol 21 a
+  direction, octahedral in 2 × 16 bits, before it yaw and pitch in 1/65,536 of a turn, the head's free look in 1.5°
+  steps, a byte each way, buttons: jump held, jump pressed this tick, crouch, sprint) and the three before it, the
+  snapshot acknowledgements and a client timestamp for measuring the round trip. Only four losses in a row lose an
+  input. The server applies each tick's input on that tick; without one it repeats the last (without the jump press,
+  and after 0.8 s without the free look) and counts a miss.
 - **Snapshots:** 20 a second per client (every 1.5 ticks on average). The header has the sequence, the server tick,
   the input margin, the player's own character exactly (floats, for reconciliation) with its tick, and the echo. Then
   the relevant entities, each delta-coded against its newest state the client confirmed (acknowledged by sequence and
   32 bits), highest accumulated priority first, within 1,600 bytes and the path's MTU. Remote positions are on a
-  1/256 m grid; a character's view angles come with its head's free look (two bits while nobody looks round).
-- **Relevance:** a 64 m grid; an entity becomes relevant within 300 m (reliable `Spawn`) and stops beyond 320 m
-  (`Despawn`). Everyone's own character is always theirs.
+  1/256 m grid; a character's view (octahedral since protocol 21) comes with its head's free look (two bits while
+  nobody looks round).
+- **Relevance:** a grid of 64 m cubes in the world's frame, with straight-line distances (since S3; before, squares of
+  the zone's plane and distances across it); an entity becomes relevant within 300 m (reliable `Spawn`) and stops
+  beyond 320 m (`Despawn`). Everyone's own character is always theirs.
 - **Bad network:** `ConditionedRelay`, a local UDP relay below LiteNetLib (whose own simulation is compiled out of its
   release package), adds round-trip latency, jitter and loss in both directions; clients and bots take `--lag <ms>`,
   `--jitter <ms>` and `--loss <percent>`.
 
-**Building (G3, §6.5):** pieces, doors and claim devices are static entities, replicated by 64 m area. When an area
-comes within 300 m its pieces are queued for that player, nearest areas first, and go out within 1,200 bytes a
-snapshot (at most about 190 kbit/s while a base streams in); after that only changes travel, removals first (a
-client's copy may give a freed body ID to a new piece). Positions are exact doubles in exact frames and each piece
-carries the server's Jolt body ID, so a client's copy links, solves and collides exactly as the server's. A
-1,074-piece base reaches a player who joins beside it in about 1.9 s (a test).
+**Building (G3, §6.5):** pieces, doors and claim devices are static entities, replicated by 64 m area (a cube of the
+world's frame since S3). When an area comes within 300 m its pieces are queued for that player, nearest areas first,
+and go out within 1,200 bytes a snapshot (at most about 190 kbit/s while a base streams in); after that only changes
+travel, removals first (a client's copy may give a freed body ID to a new piece). Positions are exact doubles in exact
+frames and each piece carries the server's Jolt body ID, so a client's copy links, solves and collides exactly as the
+server's. A 1,074-piece base reaches a player who joins beside it in about 1.9 s (a test).
+
+**S3 (protocol 21, 14 October 2026; WHOLE_WORLD.md §5, §8):** a view travels as a direction, octahedral in 2 × 16 bits
+(`Quantize.Octahedral`), in `InputCommand`, `CharacterNetState`, `FireIntent`, `ThrowIntent` and `Welcome`. A shot's
+view (`GunAction.View`) is read as a heading and pitch where the shooter stands on that tick, by the server and the
+shooter's client alike, so they agree to the bit; remote views are blended by turning one direction into the other
+(`RemoteEntity.View`), never by mixing angles; an animal's heading goes as a view along the ground (`AnimalNet`). A
+ship's turn is a smallest-three quaternion (`ShipNetState`, §6.7). `BagNet` and `MarkerIntent` carry 3D points,
+`DevNav` a centre. Besides relevance and the building's areas, deployables, natural-object overrides and the animals'
+neighbours are indexed by 3D cubes, and natural objects are queried by sphere
+(`INaturalObjects.Query(centre, radius, into)`).
+
+**IW1 (protocol 22, 15 October 2026; IRON_WAKE.md §4.11, §4.13):** a frame travels with every view and character state:
+`InputCommand.Frame` (the frame the view is in, as the client believed it), `OwnState.Frame`, `CharacterNetState.Frame`
+(aboard, the position and view are the ship frame's), `FireIntent.Frame`, `ThrowIntent.Frame`, each a ship's net ID or 0
+for the zone's; the server maps net IDs to its ships and turns a view given in the other frame on a hand-over's tick. A
+full character state is 199 bits (8 more). `ShipNetState.Body` is a parked ship's body ID (a client's copy takes it, as
+the building's bodies do), and `ShipPartStates` (121, reliable) a ship's moving parts away from rest. Characters aboard
+are relevant while their ship is: `RelevanceGrid` adds an entity with its carrier's anchor and keeps it within 2,000 m
+of it.
 
 ### 4.5 Physics and movement
 
 - **Jolt** through JoltPhysicsSharp 2.23 (joltc 1.1), on the server and in the client's prediction. **The G1 spike
   passed (12 October 2026):** a fixed script of 600 ticks of input (walk, sprint while turning, jumps, crouch, strafe)
   walks a virtual character over mesh ground from `ISurface.GroundCollision`, with up from `ZoneFrame.UpAt`, on a
-  stand-in planet of the first world's size. A .NET console process and the Godot 4.7.2 client (which also loads
-  Godot's own Jolt) print the same final position and the same hash of every state on the way
-  (`0x6E7FDE937D5A46FA` on win-x64 with the movement code of 12 October 2026; any change to movement changes it).
+  plain ball of the first world's size (since S3, 14 October 2026, its game size: 2,410 m of `SphereSurface`'s hills
+  without a sea, `MovementCheck.Radius`, in the world's own frame; before, a 6,435 km sphere seen from a tangent
+  frame). A .NET console process and the Godot 4.7.2 client (which also loads Godot's own Jolt) print the same final
+  position and the same hash of every state on the way
+  (`0xD16D9135CE374BD2` on win-x64 since S3a, 14 October 2026, final position (849.89264, 1428.0099, 1734.6373), which
+  the Godot client hasn't printed yet: S3c; before S3, `0x6E7FDE937D5A46FA`; any change to movement changes it).
   BepuPhysics2 is not needed. The check stays: `dotnet run --project tests/Hollow.Tests -- MovementCheck` and
   `$GODOT --headless --path game -- --physics-check` must print the same line
   (`Hollow.Simulation.Movement.MovementCheck`).
@@ -443,9 +489,16 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   per-caller allocators.
 - **Characters** use Jolt's virtual character, a capsule (radius 0.32 m, 1.76 m standing, 1.10 m crouched) whose
   position is its feet. "Up" is away from the planet's centre at the character, expressed in the zone's frame
-  (`ZoneFrame.UpAt`), so nothing assumes +Y is up; the view's yaw is measured about the zone's +Y and laid onto the
-  local horizontal. Characters don't collide with each other in G1 (§11), so prediction depends only on the static
-  world and the player's own inputs.
+  (`ZoneFrame.UpAt`; since S3 the world's own, §4.6), so nothing assumes +Y is up. Since S3 the input carries the view
+  as a direction in that frame (`MoveInput.View`, WHOLE_WORLD.md §5), not a yaw and pitch, and forward is the view laid
+  onto the local ground (`Facing.Basis`): a direction has no pole or seam, so it means the same on every side of the
+  world and on the server and the client. With the view carried along the ground as the player moves (`Facing.Carry`:
+  the shortest turn between the last up and the new one), walking straight ahead with the mouse still follows a great
+  circle round the world and over the poles (`MovementTests.WalkRoundTheWorld`: a sprint comes back within a metre of
+  its start, facing the way it set off; the Godot camera doesn't carry its view yet: S3c). A heading, where one is kept
+  (things that stand still, the hit history, saves, bots), is measured from local north, anticlockwise seen from
+  above: 0 faces north, π/2 west (`Facing`; within 1e-4 rad of a pole east is the body's −Z). Characters don't collide
+  with each other in G1 (§11), so prediction depends only on the static world and the player's own inputs.
 - **Movement** follows RustMVP's numbers (`MovementTuning`, from `weapons_character_ui.md` §2): walk 2.8 m/s,
   sprint 5.5 m/s (straight forward only), crouch 1.3 m/s, acceleration and braking 60 m/s², ground friction 8, air
   control 0.25, jump 7.0 m/s (7.6 crouched), steps up to 0.40 m, slopes up to 46°.
@@ -457,7 +510,7 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
     threshold), steers in the view direction (look down to dive), rises with jump and sinks with crouch, and floats
     at 75 % depth otherwise. 2.0 m/s, 3.0 m/s with sprint. Landing in water never hurts.
 - **Free look** (Left Alt held; RustMVP's, `FreeLook`): the mouse turns the camera and the head instead of the view,
-  up to 120° either side of it, the pitch so the camera stays within ±85°. The view (the input's yaw and pitch) stays
+  up to 120° either side of it, the pitch so the camera stays within ±85°. The view (the input's view direction) stays
   the movement's basis and the aim of every shot, swing, placement and throw, so a free look never disagrees with them:
   while Alt is held the hands do nothing (`GroundView.Hands`, the one place that decides what the held item does), and
   the recoil's countersteer never sees the mouse. Letting go, or the cursor showing (inventory, crafting, map, menu,
@@ -465,21 +518,30 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   byte each way; the prediction ignores it) and the character's state to everyone else, whose views turn the neck and
   head and ease them back (§4.8). The server bounds it (yaw ±120°, pitch ±170°, RustMVP's) and, after 0.8 s without
   the player's input, lets it go. In the Tin Finch's cockpit the same keys turn the pilot's head about the seat.
-- **Collision:** the ground is static mesh tiles of 64 m built from `ISurface.GroundCollision`, identical on both
-  sides. A tile's Jolt body ID follows from its grid position (Jolt orders contacts by body ID), so tiles agree where
-  they meet whatever else each side holds. Tiles exist within ±8.2 km of the zone's origin. Building parts are boxes
-  and convex hulls from data. Deployables and natural objects use simple shapes.
+- **Collision:** the ground is static mesh tiles built from `ISurface.GroundCollision`, identical on both sides. Since
+  S3 they are the world's cube-sphere tiles of the level whose edge is nearest 64 m (`PhysicsWorld.Level`: level 6 on
+  the first world, about 59 m, 24,576 tiles over the whole world; before, 64 m squares of the zone's plane within
+  ±8.2 km of its origin). A tile's Jolt body ID is its place among its level's tiles (Jolt orders contacts by body ID),
+  so tiles agree where they meet whatever else each side holds. Building parts are boxes and convex hulls from data.
+  Deployables and natural objects use simple shapes.
 - **Streaming the ground** (`PhysicsWorld`, §5.11), the same code on the server and in every client's prediction, so
   both meet the same ground wherever a query can reach:
-  - *Who asks:* a character on foot needs the 3 × 3 tiles round it and builds 5 × 5 ahead; a ship needs only the
-    tiles its queries of the tick can reach (its bounding sphere, a tick's travel, the skids' rays and the widest
-    natural prop's 3 m: one to four tiles, `EnsureGroundAround`) and builds ahead a corridor that wide along the next
-    1.5 s of its way (`PrefetchAlong`); a respawn or a login waits for its 3 × 3 (`GroundReady`, §4.2). A tile with
-    its trees and outcrops comes and goes as one.
-  - *Built on worker threads*, from the planet's pooled collision with neighbouring tiles sharing their grids'
-    heights (§4.6); taken into the world at most 8 a tick. A tile needed now that is still queued is built by the
-    tick itself rather than waited for behind the others (a respawn storm queues hundreds); one a worker is building
-    is waited for. A tile nobody marked for 10 s goes.
+  - *Who asks:* a character on foot needs the tiles within 64 m of it (`EnsureGround`) and builds those within 128 m
+    ahead (`Prefetch`); a ship needs only the tiles its queries of the tick can reach (its bounding sphere, a tick's
+    travel, the skids' rays and the widest natural prop's 3 m: one to four tiles, `EnsureGroundAround`) and builds
+    ahead a corridor that wide along the next 1.5 s of its way (`PrefetchAlong`); a respawn or a login waits for the
+    tiles within 64 m (`GroundReady`, §4.2), and so does a client's prediction (§4.3). The tiles within a reach are
+    found by sampling the local tangent plane a third of a tile apart (`TileKey.Around`), so face seams and the cube's
+    corners need nothing special. That costs about 15 µs for 128 m, and every character asks for 64 and 128 m every
+    tick, on the server and again in its client's prediction and each replay of it; so the answers to searches of a
+    tile's reach or more are kept by the fine cell the point lies in (7.4 m, three levels down), the search going round
+    the cell's middle with the reach widened by the cell's own (`NearTiles`, S3b: 2.2 ms a tick for 100 characters on
+    the server before, 0.1–0.4 ms after; the animals' nav grid asks the same way). A tile with its trees and outcrops
+    comes and goes as one.
+  - *Built on worker threads*, from the surface's collision grid (`SurfaceGrid`: neighbouring tiles of a face share
+    their grid points bit for bit, §4.6); taken into the world at most 8 a tick. A tile needed now that is still
+    queued is built by the tick itself rather than waited for behind the others (a respawn storm queues hundreds); one
+    a worker is building is waited for. A tile nobody marked for 10 s goes.
   - *Bodies are kept once made:* Jolt gives a body the ID asked for by walking its list of free IDs, which cost
     50–70 µs a body with this world's scattered IDs, so a body taken out of the world is parked (out of the
     broadphase, on a tiny shared shape) and put back with its new shape and pose, exactly as a new one (a test). The
@@ -487,29 +549,74 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   - *The broadphase is kept in shape* by the broadphase part of Jolt's own update (an update with no time step does
     nothing else; the world is never stepped): only what changed is rebuilt, 0.1–0.4 ms a tick, where a whole
     rebuild took 5–10 ms with 30,000 bodies. Queries find the same bodies whatever the tree's shape.
-- Godot's own physics is used only for cosmetic things: ragdolls and debris.
+- Godot's own physics is used only for cosmetic things: ragdolls and debris (and, on a ship people walk in, its hulls
+  under drawn feet: IRON_WAKE.md §9.8).
+- **Frames (IW1, IRON_WAKE.md §4.2–§4.5, §4.13).** A character moves in the zone's frame or aboard a ship in the ship's
+  frame (`CharacterState.Frame`). `MoveFrames.Step` is the one step the zone and the prediction run: the frame (an
+  `IMoveFrame`: the zone's, or a ship's with +Y up, the decks' gravity and no water) gives `CharacterMotor.Step` its up,
+  gravity, water and its one `CharacterBody` in its physics (the zone's `PhysicsWorld`, or the ship's `ShipSpace`); at
+  the step's end the hand-over moves a character aboard (standing on a parked ship's body, or standing on nothing inside
+  its boarding volume over its deck) or ashore (off the ship and 0.3 m outside its boarding volume, or under the world's
+  ground), keeping its pose and velocity in the world exactly. The movement check's hash is unchanged
+  (0xD16D9135CE374BD2).
 
 ### 4.6 Planet surface
 
-`PlanetSurface` in Hollow.Surface is the real surface of a rocky planet; `SphereSurface` stays as the stand-in.
+`PlanetSurface` in Hollow.Surface is the real surface of a rocky planet. Since S3 (14 October 2026) no zone stands on
+it: it is built at the planet's real radius, which a zone measured from the world's centre can't hold in floats, so
+every zone stands on the stand-in world until S4 makes the real ground at walking scale (WHOLE_WORLD.md §1, §4). The
+surface view and the look-dev views still draw the real planet, in a tangent frame of it (`RenderFrame`), and its
+scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At`).
 
+**The zone's frame and the stand-in world** (S3, WHOLE_WORLD.md §3, §4):
+- **The world frame** (`ZoneFrame.World`): origin at the planet's centre, the body's own axes, +Y the north pole,
+  longitude counted eastward from +X (`ZoneFrame.Direction`). Every zone uses it (`ZoneSpec.CreateFrame`), so one zone
+  holds the whole world: positions are metres from the centre and up is the direction from it (`ZoneFrame.UpAt`).
+  Within a few kilometres of the centre a float steps about a quarter of a millimetre, so nothing needs a floating
+  origin.
+- **The game radius:** the first world is 2,410 m (`ZoneSpec.FirstWorldRadius`, SCALE.md §3.1) until S1 gives every
+  body its own. A ship leaves it 2 world radii over the mean radius (`ZoneSpec.LeavingRadii`, 4.82 km), and the air's
+  scale height is scaled so that the climb there thins the air as the climb to the old 15 km ceiling did.
+- **The stand-in world** (`StandInWorld`, which `ZoneSpec.CreateSurface` always makes): continents about a kilometre
+  across (±20 m, with a ±6 m shoulder layer) under the plain hills of `SphereSurface`; a sea over 45 % of the world, the
+  first world's cover (`SeaRadius`); the landing site lifted to at least 6 m above the sea, smoothly over 400 m (an
+  island at worst); and biomes by latitude: ocean, beach within 3 m above the sea, ice sheet from 70°, tundra from 55°,
+  boreal forest from 40°, temperate forest and grassland in patches below. A test fixture, deterministic as the rest.
+  `SphereSurface` alone (hills, no sea) stays as the plain world of tests and the movement check.
+- **The landing site** is the ground at the zone's latitude and longitude (`Zone.Landing`). Places are laid out by
+  metres east and south of it, measured along the ground (`Zone.GroundAt(east, south)`, a turn about the centre by that
+  arc; `Zone.OffsetOf` the inverse).
+- **The ground is radial** (`GroundProbe`, one copy for the zone and the client): the ground under a point lies along
+  its direction from the centre (`Settle`), normals are taken along the local compass, and `Crossing` finds where a ray
+  goes under.
+- **Lengths by size, not by level number:** a tiled system takes the cube-sphere level whose tile edge is nearest a
+  length (`TileKey.LevelFor`, + − × ÷ only, so every machine agrees). On the first world: physics ground tiles, the
+  stand-in's natural objects and the animals' nav grid at level 6 (about 59 m, 24,576 tiles), loot cells at level 5
+  (about 118 m), animal spawn areas at level 4 (about 237 m). An ID that carries tile coordinates checks their range: an
+  untrusted one naming a tile outside its face is not found, never an exception.
+- **Collision on any surface** (`SurfaceGrid`, `ISurface.GroundCollision`'s default): a grid of the tile's own face
+  coordinates, a power of two cells a side about a metre apart, widened by whole cells for the 2 m margin, each point
+  lifted to the ground along its direction; neighbouring tiles of a face share their grid points bit for bit.
+  `PlanetSurface`'s collision of a square of a tangent plane is `PatchCollision` now, for the look-dev tools and tests.
+
+**The real surface:**
 - **A pure function** of (universe seed, system, body, planet state, `GeneratorVersion.Surface`), built with `DMath`,
   `Hash64` and gradient noise made of + − × ÷ and floor only (ARCHITECTURE.md §8), so the server's collision and the
   client's terrain agree to the bit. A golden test pins heights and biomes at 600 points.
 - **Cube-sphere:** six faces, each a square of face coordinates (u, v) ∈ [−1, 1]² mapped to the sphere through
   `tan(t·π/4)`, so tiles stay within a factor of 1.5 of the same size. A `TileKey` is face, level (0–28) and x, y;
   every grid coordinate is a dyadic fraction, exact in double, so parents and children share vertices bit for bit.
-  On the first world a level-16 tile is about 154 m across and a level-18 tile about 39 m.
+  On the real first world (6,435 km) a level-16 tile is about 154 m across and a level-18 tile about 39 m.
 - **Tile grids:** 32 × 32 cells, each quad split along the same diagonal at every level. Vertices also carry their
   position on the parent's grid, so the client morphs between levels without popping, plus eight ground-material
   weights and the climate. **Collision is built from the level-18 grids** (1.2 m spacing), exactly the vertices the
-  client draws near the player (`GroundCollision`; a test checks it). Of the grids under a 64 m physics tile, the
-  physics keeps the triangles over the tile's square and 2 m around it, seen from the planet's centre
+  client draws near the player (`PatchCollision` since S3; a test checks it). Of the grids under a square (a 64 m
+  physics tile until S3), it keeps the triangles over the square and 2 m around it, seen from the planet's centre
   (`PhysicsWorld.ClipMargin`): the grids overlap the square by up to one of theirs, and the same ground twice costs
-  every contact query. The physics takes the triangles in pooled arrays (`GroundCollisionPooled`, the same to the
-  bit, a test), and the planet keeps the heights of the last 4,096 grids it sampled for them (`GridHeights`, 36 MB
-  at most): a 64 m tile's nine grids are mostly its neighbours', so a tile costs a worker 16 ms and 63 KB of garbage
-  instead of 42 ms and 600 KB (§5.11).
+  every contact query. The triangles come in pooled arrays (`PatchCollisionPooled`, the same to the bit, a test), and
+  the planet keeps the heights of the last 4,096 grids it sampled for them (`GridHeights`, 36 MB at most): a 64 m
+  tile's nine grids are mostly its neighbours', so a tile costs a worker 16 ms and 63 KB of garbage instead of 42 ms
+  and 600 KB (§5.11).
 - **Height**, in layers:
   - *Plates:* 14–20 plates (Voronoi on the sphere, seen through a warped direction so their edges bend), each
     continental or oceanic with its own Euler pole. Every plate near a point weighs in softly, and each boundary's
@@ -624,8 +731,8 @@ carries the server's Jolt body ID, so a client's copy links, solves and collides
   - (f) `--view surface --lat 44.87400 --lon -169.99949 --alt 1.7 --yaw 120 --pitch 6 --time 2026-10-12T03:00:00Z`;
   - (g) `--view surface --alt 2000 --yaw 20 --pitch -14 --time 2026-10-12T03:00:00Z`.
 - **The interface between the two G1 work packages** is `ISurface` in Hollow.Surface: height at a point, biome at a
-  point (`BiomeAt`), collision for a zone square, scatter for a tile (`ScatterFor`). The last two have default
-  implementations, so other `ISurface`s keep compiling.
+  point (`BiomeAt`), collision for a cube-sphere tile (since S3; a square of the zone's plane before), scatter for a
+  tile (`ScatterFor`). The last two have default implementations, so other `ISurface`s keep compiling.
 
 ### 4.7 Persistence
 
@@ -654,6 +761,17 @@ Schema 5 (G6, §6.7) adds `ships`: a row per ship, in the body frame, with its p
 Schema 6 (G7, §6.8) adds `teams` (the server's teams, not a body's) and `prop_overrides` (world props as players changed
 them: gone until a time, or as left); characters' records keep the blueprints learnt, the map's markers and the last
 death. A database at schema 4 migrates through 5 (ships) to 6.
+
+Schema 7 (S3, WHOLE_WORLD.md decision 1): the world became a 2.41 km ball, where nothing stored on the 6,435 km planet
+has a place, so the step 6 → 7 deletes the world's rows (things, building, ships, both override tables, the zones'
+records and the raid alerts waiting in `notifications`). Characters keep their ID and account but lose their place and
+state: a new life, without its inventory, blueprints or markers. Accounts and teams stay. The player record is version
+5: its map markers and the last death's point are body-frame points (an older record's are dropped). A character's
+view is stored as a heading from local north and a pitch where it stands, and comes back exactly there.
+
+Schema 8 (IW1, IRON_WAKE.md §4.11): `characters.frame`, the ship a character was aboard (its ID; 0 none). A character
+logged off aboard is stored in the ship's frame with its view against the deck, and comes back aboard with the ship;
+one whose ship didn't come back wakes at the landing site.
 
 ### 4.8 Characters
 
@@ -1062,10 +1180,14 @@ Each step is multiplayer and playable. The owner playtests at the end of each on
 | **G5 Raid** | Explosives, damage by grade and weak side, raid alerts, offline raids. | A base can be raided while its owner is offline, and the owner is alerted. |
 | **G6 Ship** | The vehicle workbench crafts the Tin Finch. Board it through its hatch; first-person cockpit; take off, fly and land anywhere on the first world, and climb to orbit. Other players see it fly. | Two players can fly one to the other side of the planet and land beside a base. |
 | **G7 World** | Animals, monuments with loot, guards and radiation, barrels, a recycler, a currency and a tech tree, teams, the map. | |
-| **G8 More worlds** | The same game on any landable body; several zones per planet that merge and split (ARCHITECTURE.md §10.1). The ship reaches the moon and the other planets (supercruise, M5). | |
+| **G8 More worlds** | The same game on any landable body; several zones per planet that merge and split (ARCHITECTURE.md §10.1; since S3 one zone holds a whole world, WHOLE_WORLD.md). The ship reaches the moon and the other planets (supercruise, M5). | |
 
 Later: electricity and turrets, farming, traps, miners (our own feature), ground vehicles. Ships (M5) cover what
 Rust's helicopters do.
+
+The measurements of §5.1–§5.11 were made before S3 (14 October 2026), on the flat patch of the 6,435 km planet or its
+old stand-in sphere: where they say the origin they mean the landing site, and their ground tiles are 64 m squares of
+the zone's plane. §5.12 measures every load test again on the ball (S3b, 15 October 2026).
 
 ### 5.1 G1 network measurements
 
@@ -1509,7 +1631,7 @@ dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --fly 
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --script fly --duration 40 --warmup 15
 # 100 bots raiding 50 huts (§5.5)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --script raid --duration 40 --warmup 20
-# respawn storms: every bot killed at once every 12 s, each respawning on one of the 24 beach points 0.3-0.8 km away
+# respawn storms: every bot killed at once every 12 s, each respawning on a beach point (before S3, 0.3-0.8 km away)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 40 --warmup 15 --storm 12
 ```
 
@@ -1623,6 +1745,118 @@ On the final code, with G7a and G7b merged, one more run of the hardest case on 
 - **The client's prediction** runs the same code: its first prop makes the 65,536 prop bodies (10 MB, 20–50 ms
   once, while the world opens), and its ships ask for the same ground as the server's.
 
+### 5.12 S3b: every load test on the whole world
+
+Measured on the owner's PC (12 threads, 16 GB) on 15 October 2026, on `whole-world` after S3b: one zone holds the whole
+first world, the stand-in ball of 2,410 m (WHOLE_WORLD.md §4), in its own frame. The server runs in the load test's
+process and the bots in a child process (§5.1). Every load test of AGENTS.md ran twice:
+
+- **At the landing site** (`--spawn origin`, the default): every bot arrives there and, since S3b, respawns 15–60 m
+  round it, so each sees the others (the bandwidth worst case), as in §5.1–§5.10.
+- **On beaches all round the world** (`--spawn beach`): each bot arrives at the beach point its name picks (256
+  points at least 45 m apart, on all six faces; 100 names fall on about 83 of them), plays round where it arrived
+  (WHOLE_WORLD.md §13) and respawns on any beach. This is how players arrive (decision 8), and the case S3 changed
+  most: the ground, nature and props stream all over the ball, and each player has a handful of others in range or
+  none.
+
+The PC was quiet for these runs (the memory in use 50–78 %, 86–92 % in two of them), apart from other sessions'
+builds now and then. The bots' process predicts every bot on one copy of the ground, on beaches all round the world.
+
+```bash
+# each with --spawn origin (the default) and with --spawn beach
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script fight --kit gunfight-kit
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 120 --script build --kit build-kit
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script raid
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --warmup 20 --script world
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly
+dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 100 --duration 60 --script survive --kit load-test-kit --animals 200
+```
+
+On beaches the raid's server puts each hut beside the beach where its raider arrives (one a bot), and `--animals 200`
+turns on the server's own rule instead of a population round the landing site: herds come out round the players
+wherever they are (decision 10), held to 200.
+
+**At the landing site**, with the same load test before S3 (§5.1–§5.11; the server's tick in ms, average / 99th
+percentile / worst, and the ticks over 33.3 ms; bandwidth per client down and up; prediction's mean and worst error and
+its corrections):
+
+| Load test | Tick | Before S3 | Down / up kbit/s | Before S3 | Prediction | Before S3 | The bots did |
+|---|---|---|---|---|---|---|---|
+| 100 walking | 5.60 / 9.3 / 11.9, 0 | 4.25 / 10.2 / 26.9 (§5.1, the old stand-in); 5.25 / 11.9 / 31.7 (§5.11, the planet) | 151.6 / 22.0 | 114 / 18 | 0 / 0 mm, 0 | 0 / 0 mm, 0 | |
+| 100 surviving | 6.57 / 11.4 / 25.1, 0 | 5.90 / 12.3 / 65.5, 2 (§5.2); 5.04 / 13.1 / 93.3, 3 (§5.7) | 138.0 / 25.0 | 105 / 24 | 0.016 / 67 mm, 59 | 0.007 / 183 mm, 6 | 1,057 gathering hits |
+| 100 fighting | 7.48 / 12.4 / 15.2, 0 | 8.64 / 18.5 / 227, 7 (§5.3) | 189.0 / 24.8 | 169 / 23 | 0.29 / 1,087 mm, 579 | 0.24 / 307 mm, 525 | 3,958 shots, 2,600 hits, 727 kills; every refused shot "not alive" |
+| 100 building | 7.44 / 22.8 / 40.4, 7 | 7.38 / 21.3 / 68.2, 5 (§5.4) | 109.0 / 24.9 | 83.7 / 23.1 | 0.001 / 61 mm, 23 | 0 / 0 mm, 0 | 947 pieces in 98 bases, 96 doors, 97 claim devices; 1,199 door toggles |
+| 100 raiding | 8.13 / 14.7 / 21.2, 0 | 9.66 / 30.7 / 100, 16 (§5.5) | 178.1 / 26.1 | 157 / 22 | 0.006 / 183 mm, 9 | 0.006 / 157 mm, 10 | 1,647 detonations, 79 raid alerts, 93 huts put back |
+| 100 living off the loot | 5.60 / 9.1 / 15.0, 0 | 5.75 / 18.6 / 48.5, 5 (§5.9) | 147.4 / 22.3 | 100.0 / 20.4 | 0.003 / 111 mm, 7 | 0.012 / 282 mm, 46 | 26 researched, 24 teams; 1 barrel (below) |
+| 20 flying | 1.51 / 3.2 / 4.2, 0 | 1.31 / 4.1 / 13.2, 0 (§5.11) | 73.6 / 28.7 | | 0 / 0 mm, 0; ships corrected 0 times | the same | 51 s flown each |
+| 100 surviving, 200 animals | 8.31 / 13.9 / 24.6, 0 | 9.13 / 27.3 / 181, 13 (§5.10) | 156.1 / 23.9 | 131.8 / 21.6 | 0.018 / 156 mm, 60 | | the animals 0.55 ms a tick, 2.7 µs each (2.1 before) |
+
+**On beaches all round the world** (nothing to compare: before S3 the beaches were within a kilometre of the landing
+site):
+
+| Load test | Tick | Down / up kbit/s | Others in view | Prediction | Ground tiles held | The bots did |
+|---|---|---|---|---|---|---|
+| 100 walking | 4.40 / 7.6 / 12.0, 0 | 15.0 / 21.9 | 1.3 | 0 / 0 mm, 0 | 2,990 | |
+| 100 surviving | 4.50 / 9.5 / 27.7, 0 | 15.1 / 22.5 | 1.3 | 0.017 / 187 mm, 21 | 2,982 | 3,404 gathering hits |
+| 100 fighting | 4.68 / 11.1 / 44.8, 1 | 15.1 / 22.2 | 0.7 | 0.052 / 365 mm, 123 | 3,567 | 1,807 shots, 416 hits, 93 kills |
+| 100 building | 4.39 / 27.0 / 108.5, 30 | 14.0 / 22.1 | 1.3 | 0 / 0 mm, 0 | 2,728 | 796 pieces in 79 bases, 79 doors, 79 claim devices; 1,659 door toggles |
+| 100 raiding | 5.73 / 9.8 / 27.2, 0 | 16.5 / 22.7 | 0.9 | 0.005 / 93 mm, 23 | 3,393 | 1,835 detonations at 100 huts, 139 raid alerts |
+| 100 living off the loot | 4.52 / 7.9 / 14.9, 0 | 14.9 / 22.3 | 1.1 | 0.014 / 308 mm, 21 | 3,159 | 203 barrels broken, 53 crates emptied, 6 recycler batches, 64 researched |
+| 20 flying | 1.90 / 3.9 / 34.6, 1 | 34.7 / 28.5 | 0.3 | 0.005 / 21 mm, 9; ships corrected 9 times | 1,379 | 51 s flown each |
+| 100 surviving, natural spawning to 200 animals | 5.19 / 17.9 / 43.5, 4 | 16.1 / 22.5 | 2.1 | 0.013 / 187 mm, 26 | 3,018 | 766 spawn areas out, 200 animals, 0.40 ms a tick (2.0 µs each) |
+
+Every bot played to the end in every run, and every run meets the targets (≤ 10 ms typical, ≤ 33 ms at the 99th
+percentile).
+- **The tick at the landing site** is what it was on the flat patch or less: replication, now 3–5 ms, is the largest
+  part as before (§5.11), movement about 1.4 ms for 100 characters. On beaches it is lower still (each player has
+  nobody or one other in range), though the server holds about 3,000 ground tiles and 20,000–28,000 props all over the
+  ball.
+- **Down is 12–47 % higher at the landing site**: a moving character's change costs about 11 bytes a snapshot
+  instead of 7, because a position on a ball changes in all three coordinates and the view's two octahedral halves both
+  change as it turns (WHOLE_WORLD.md §8 foresaw it); the 1,200-byte budget holds about 87 of 99 walkers a snapshot.
+  It stays within 256 kbit/s.
+- **Prediction** is exact where nothing pushes a player (walking, flying, building), and the corrections come from
+  knock-downs (fighting, surviving), blasts and arrivals: a character arriving where its client's ground isn't built
+  yet is held until it is (§4.3), 0.2–1.3 s each when 100 arrive all round the world at once.
+- **Building on beaches** loses 30 of 3,602 ticks to bursts in receiving, when 80 bases start at once all round the
+  world: a placement's checks against ground the tick hasn't touched yet took 3–30 ms each.
+- **The world bots at the landing site** broke one barrel: the nearest loot is a cluster 160 m away, and a hundred bots
+  there either hold their swings while another stands at the barrel (friendly fire) or take each other's blows; on
+  beaches they broke 203. No recycler stands within reach of the landing site (decision 9: one a cube face).
+
+**What broke on the ball, and was fixed in S3b:**
+1. **Arrivals all round the world dropped every bot.** The bots' process predicts 100 clients on one thread, and its
+   prediction built a new place's ground there whenever no worker had started it: about a thousand tiles, longer than
+   the ten seconds a connection lasts. Now an arrival's prediction is held until worker threads have built its ground (§4.3),
+   as the server holds a login or a respawn; that wait grew from 1 to 5 s, since a crowd arriving all round the world
+   needs a few seconds of the workers (§4.2).
+2. **The ground under every character cost 2.2 ms a tick** for 100 (0.2 ms on the flat patch), and as much again in
+   every client's prediction: finding the tiles within 64 and 128 m samples the tangent plane about 300 times a
+   character a tick. The answers are kept by the 7.4 m cell a point lies in (`NearTiles`, §4.5): 0.1–0.4 ms a tick.
+3. **A respawn at the landing site went to a beach anywhere on the world**, so a fight scattered its crowd (7 of 99
+   others in view by the end, 37 % of inputs on time while the bots built the far ground). With `SpawnAtOrigin`
+   respawns come back round the landing site.
+4. **Animals cost 6.4 µs each a tick** (2.1 before S3): every look at the nav grid found a direction's face coordinates
+   twice (four deterministic arctangents), and steering looks at about a hundred points a think. Now once, the same
+   answers to the bit, and a path search remembers each cell's walkability: 2.0–2.7 µs. Their prefetch asks
+   `NearTiles` too.
+5. **A foundation's collision check took 3–90 ms** at spots on beaches (its box against the ground tile's mesh): 39 ms
+   at the 99th percentile when 80 bases started at once. A foundation sits in the ground, so its check now leaves the
+   ground out (`BuildingPhysics.Overlaps`): 27 ms.
+6. **The bots** (WHOLE_WORLD.md §13): a bot's home is where it arrived, and again after a respawn elsewhere (every home
+   was the landing site, so bots on beaches walked toward it all run); building plots are the crowd's grid round the
+   landing site on dry ground (the sea is 120 m away), or a bot's own beach; fighting bots go after the nearest player
+   they can see when nobody is in range; surviving bots crawl when knocked down (they went on acting: 412 of 993
+   intents refused, left over from G4); world bots allow for the walk to loot 160 m away (they gave up on the way) and
+   leave a crowded barrel after three seconds; the building bot no longer moved its site along the polar axis.
+7. **The building bots placed one claim device in 98 bases** (G3: 97): placed last, from outside the shut hut, the
+   placement's sight check (P2, after G3) refused it, so it now goes in before the last walls. Their doors: the bots'
+   shared copy of the building cleared a claim's list every time another bot heard of it (a client's mirror now changes
+   only its own entry), and holds one viewer's flags for a door, so a bot uses its own door by the verb it knows.
+8. **The profile** counted tiles prepared on worker threads as the tick's nature lookups, racing its counters.
+
 ---
 
 ## 6. Gameplay rules and their numbers
@@ -1678,22 +1912,25 @@ than holding the queue as RustMVP did). Cancelling any job gives back the ingred
 progress included; what doesn't fit is dropped. At death the queue's ingredients go into the corpse. A workbench counts
 only when the job starts (Rust), within 4 m of its nearest surface (survival.json `reach.station`). Crafting pauses while the player is offline or asleep.
 
-**Gathering** (`Nature/`). Natural objects come from `INaturalObjects`: objects in a rectangle of the zone's tangent
-plane, each with a stable 64-bit ID (tile and index), a kind, a base point, up, size and yaw. `ZoneSpec.CreateNature`
-is the one place that picks the provider:
-- **On the real surface, the planet's own scatter** (`ScatterNaturalObjects`): exactly the objects the client draws,
-  under the same IDs on the server and every client (4 bits tag, cube face, the level-16 tile's X and Y, the scatter
-  kind and the candidate cell). gather.json maps scatter kinds onto gameplay kinds (`scatter`): spruces, pines,
-  birches and broadleaf trees give wood; red and blue berry bushes are picked; ferns are the fibre plants; rocks of size
-  0.9 and more are boulders (`boulder` class: solid, they stop a swing or an arrow, give nothing); outcrops are the
-  scatter's gameplay kinds. Plain bushes and small stones are scenery. Scatter tiles are generated on demand (about
+**Gathering** (`Nature/`). Natural objects come from `INaturalObjects`: the objects within a radius of a point
+(straight-line, since S3; before, a rectangle of the zone's tangent plane), each with a stable 64-bit ID (tile and
+index), a kind, a base point, up, size and yaw. `ZoneSpec.CreateNature` is the one place that picks the provider:
+- **On the real surface, the planet's own scatter** (`ScatterNaturalObjects`; since S3 no zone stands on the real
+  surface, §4.6, so it waits for S4): exactly the objects the client draws, under the same IDs on the server and
+  every client (4 bits tag, cube face, the level-16 tile's X and Y, the scatter kind and the candidate cell).
+  gather.json maps scatter kinds onto gameplay kinds (`scatter`): spruces, pines, birches and broadleaf trees give
+  wood; red and blue berry bushes are picked; ferns are the fibre plants; rocks of size 0.9 and more are boulders
+  (`boulder` class: solid, they stop a swing or an arrow, give nothing); outcrops are the scatter's gameplay kinds.
+  Plain bushes and small stones are scenery. Scatter tiles are generated on demand (about
   15 ms each; ahead on the physics prefetch workers, `ITileListener.TilePreparing`) and cached, at most 384, least
   recently used first out. An ID from outside is untrusted: one that doesn't decode to a mapped object of a tile in the
   zone isn't found, and a pick-up names a place near the player before anything is generated (`TryGetNear`). Around
   the landing site, 800 × 800 m hold about 4,000 trees, 2,000 berry bushes, 19,000 ferns, 800 boulders and 210
   outcrops (111 stone, 69 metal, 30 sulphur).
-- **On the stand-in** (tests), `StandInNaturalObjects` places each kind at its density per 64 m tile from a seeded
-  stream (deterministic), keeping 9 m around the zone's origin clear.
+- **On the stand-in** (every zone since S3, until S4), `StandInNaturalObjects` places each kind at its density per
+  64 m square (gather.json, scaled to the tile's size) on the world's cube-sphere tiles of the level nearest 64 m (level
+  6 on the first world), from a seeded stream (deterministic). An object's ID is a tag byte, the tile's place among its
+  level's tiles and its index in the tile. Nothing grows within 9 m of the landing site, nor under the sea.
 - **One rule for every class** (`NaturalState.Hit`): gather.json's `classes` say, per class of natural object, which tool
   rate it takes, where its weak spot sits and what a hit on it pays, what the last hit pays and how it all shows
   (`look`, §9.3); a kind may replace parts of the look (metal and sulphur outcrops throw sparks). Each harvested kind
@@ -1759,11 +1996,12 @@ starts at 60 / 260 / 160 (hollow-orbit's respawn values).
 - **Temperature**: felt = the air (`IClimate`; on the real planet `PlanetClimate`: the planet's annual mean at the
   place from its latitude and height, about 11 °C at the landing site, ±3.5 °C following the zone's sun at play speed,
   warmest at 14:00 local solar time and coldest at 02:00, so it is cold when it looks dark; the stand-in has the first
-  world's mean 18 °C over a compressed 87-minute day), warmed by a lit campfire (up to +20 °C within 4 m) or furnace but
-  never past 25 °C, and 10 °C colder for two minutes after swimming. Clothing insulation (3–6 °C an item) counts
-  against the cold: with it added, below 5 °C a character gets cold (fully at −10 °C); cold costs calories faster and,
-  past 0.6, 0.15 health a second. There is no overheating yet. The first world is mild, so cold matters on mountains
-  and when wet at night.
+  world's mean 18 °C, ±3.5 °C, which since S3 follows the local solar time where each player stands, warmest at
+  14:00, so night is a place (WHOLE_WORLD.md decision 11); a zone a test makes without a sky keeps one compressed
+  87-minute day for everywhere), warmed by a lit campfire (up to +20 °C within 4 m) or furnace but never past 25 °C,
+  and 10 °C colder for two minutes after swimming. Clothing insulation (3–6 °C an item) counts against the cold: with
+  it added, below 5 °C a character gets cold (fully at −10 °C); cold costs calories faster and, past 0.6, 0.15 health
+  a second. There is no overheating yet. The first world is mild, so cold matters on mountains and when wet at night.
 - Sleepers are left as they are (no hunger, no bleeding) until they wake. Crafting pauses for them too.
 
 **Deployables** (`ThingSystem`; placed through the placement pipeline since P2, §6.10). Placed from an inventory slot
@@ -1812,8 +2050,8 @@ ingredients, go into a corpse where the player fell, laid out as the loot panel 
 clothing 30–36; the queue's ingredients fill empty main slots, then follow), which anyone may take from but not put into;
 it goes when emptied or after 300 s of world time (Rust's corpse lifetime; survival.json `lifetimes.body`). The dead player chooses: a random beach point
 (no wait, as in Rust; survival.json can add one) or one of their own sleeping bags or beds that has cooled down. A new life has
-the spawn vitals, and a rock and a torch on the belt (Rust). The beach points are the real coast's (`Beaches`, §4.2); on the stand-in ground
-"the beach" is a random point 15–60 m from the zone's origin.
+the spawn vitals, and a rock and a torch on the belt (Rust). The beach points are the world's coast's (`Beaches`,
+§4.2); on a world without a coast "the beach" is a random point 15–60 m from the landing site.
 
 **Sleepers**: a player who logs off stays where they were, asleep (lying hit shapes), lootable and killable; looting a
 sleeper shows their main slots, belt and clothing, take only. A sleeper killed leaves a corpse like anyone. Logging in
@@ -1873,11 +2111,12 @@ adds the item in hand, a 4-bit count of swings and shots with the last kind (oth
   GROUND_SYSTEMS.md §3.3) or when what this player is told of them does, and `Despawn`ed when gone or out of range
   (320 m). What is sent of a thing is the thing's own to say (`WorldObject`: its look, health, count,
   burning, whose, and its own name: a body's, a bag's, a world prop's); a bag shows no item (protocol 12).
-- **Natural objects** are generated on both sides; only changes travel: when a 64 m area comes within range its
-  changed objects are sent (health as a fraction, weak-spot moves, depleted), then each change as it happens. Since
-  protocol 13 a change also carries the run of weak-spot hits, where the last hit met the drawn surface (3 cm steps
-  from the base) and how many ticks old that hit was when sent: a client counts a hit as news (`SeenHits`) only when
-  it is at most 30 ticks old, so an area coming into range replays no hits, and no felled tree falls again.
+- **Natural objects** are generated on both sides; only changes travel: when a 64 m area (a cube of the world's frame
+  since S3) comes within range its changed objects are sent (health as a fraction, weak-spot moves, depleted), then
+  each change as it happens. Since protocol 13 a change also carries the run of weak-spot hits, where the last hit met
+  the drawn surface (3 cm steps from the base) and how many ticks old that hit was when sent: a client counts a hit as
+  news (`SeenHits`) only when it is at most 30 ticks old, so an area coming into range replays no hits, and no felled
+  tree falls again.
 - **Clothing** others wear (`CharacterLook`) is sent with a character's spawn and when it changes.
 
 **Server** (`SurvivalModule`). The zone runs with the game data; the server sets its real clock each tick,
@@ -1947,11 +2186,15 @@ hollow-orbit's `construct.js` gave decay times (Rust's 1, 3, 5, 8 and 12 hours),
 its upkeep brackets, the weak side and the key lock. Names are ours.
 
 **Frame.** A structure is the pieces linked to each other through sockets. It has its own frame: its origin is its
-first foundation, +Y the planet's up there (`ZoneFrame.UpAt`), turned to the player's view in 15° steps. Pieces snap
-in that frame, so a base stays square on a curved world; across a 100 m base the curvature is below a millimetre. All
-yaws in a structure are multiples of 30° (squares turn by 90°, triangles by 120°), so they are stored as whole steps
-with exact sines and cosines. Positions are doubles in the frame; Jolt and the renderer get floats. Demolishing a
-connector splits a structure in two with the same frame; a piece linking two structures of one frame joins them.
+first foundation, +Y the planet's up there (`ZoneFrame.UpAt`), turned to the player's view in 15° steps from local
+east (`BuildingFrame.At`; at a pole the body's −Z). Pieces snap in that frame, so a base stays square on a curved
+world. On the 6,435 km planet the curvature across a 100 m base was below a millimetre; on the first world's 2.41 km
+ball (since S3) the ground falls d²/2R below the frame's plane (0.93 m at 67 m from the first foundation), and
+foundations are 1 m deep, so on level ground a base reaches about that far before its pieces are refused as floating
+(WHOLE_WORLD.md §6.4). All yaws in a structure are multiples of 30° (squares turn by 90°, triangles by 120°), so
+they are stored as whole steps with exact sines and cosines. Positions are doubles in the frame; Jolt and the renderer
+get floats. Demolishing a connector splits a structure in two with the same frame; a piece linking two structures of
+one frame joins them.
 
 **Pieces and sockets** (RustMVP's 20, with their ids): square and triangle foundations; square and triangle floors and
 floor frames; wall, half wall, low wall, window, doorway and wall frame; L, U, spiral and triangle spiral stairs, ramp
@@ -2795,6 +3038,7 @@ viewer; the ground mode's hookup comes after it (the list at the end).
 | Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 5 (`ships`) in `GameDatabase.cs`; `ShipModule` loads and saves |
 | Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/ShipModule`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `ShipModule`, `LocalPlayer.Ships.cs` |
 | Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
+| Ships people walk in (IW1) | IRON_WAKE.md §4.13: `ships.json`'s `interior` block and its data file (`ships/iron-wake.json`), `ShipInterior`, `ShipSpace`, `ShipFrame`/`ClientShipFrame`, `MoveFrames`, `ShipQueries`, `ShipSystem.Spaces.cs` (parking, `MovePart`), the sandbox's walk-in mode (`ShipSandbox.Aboard.cs`: `--ship iron-wake`) |
 | Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly), `ShipPersistenceTests.cs` (storage) |
 
 **The flight model** (`ShipMotor.Step`, one 30 Hz tick, a pure function of the state, the pilot's input and the static
@@ -2802,8 +3046,9 @@ world, like a character's step, §4.5). Six degrees of freedom in the zone's fra
 velocity and a turn rate in the ship's own axes (+Z the nose, +Y up, +X the left side, the model's). Forces: the planet's
 gravity along −up (`ZoneFrame.UpAt`; the planet's own 9.0 m/s², not the characters' 1.8 ×), thrust, and the air's drag,
 ½ρv² times a drag area per axis, with the density falling off with height from the planet's surface value (the zone's
-spec carries it: 2.7 kg/m³ at the first world's 2.23 atmospheres, a scale height of 9.4 km). The skiff has no wings:
-it is thrust-borne.
+spec carries it: 2.7 kg/m³ at the first world's 2.23 atmospheres, a scale height of 9.4 km; since S3 that height is
+scaled by the leaving height over the old ceiling, 4.82 km over 15 km, to about 3 km, so the climb to orbit thins the
+air as it did). The skiff has no wings: it is thrust-borne.
 - **Flight assist** (on by default) holds a velocity in the ship's frame: the throttle's forward speed (reverse below 0),
   strafe and up/down at their speeds, and the turn rates the stick asks for, as fast as each axis's thrusters allow,
   counting gravity and drag in. With no input it hovers where it is. Near the ground (30 m) with the throttle closed it
@@ -2824,8 +3069,16 @@ it is thrust-borne.
   a tenth of it.
 - **Sleep:** a ship resting a second (landed, slower than 5 cm/s) sleeps and costs nothing until its pilot asks for
   motion, it is hit or its hatch moves; every two seconds it checks it still has ground under its skids.
-- **The zone's edge:** the ground's tiles end at ±8.2 km, so ships are held inside a ±7.8 km square (G8's zones that
-  follow players lift this).
+- **No edge on the ground** (since S3; before, the ground's tiles ended at ±8.2 km and ships were held inside a
+  ±7.8 km square): a whole world has none. A ship is only held within 4 world radii of the centre
+  (`ShipMotor.EdgeRadii`), its outward speed stopped there; the leaving height parks it in orbit long before.
+- **The ground turns under a ship as it goes** (since S3, WHOLE_WORLD.md §6.5): every substep its attitude and its
+  velocity turn with the ground (`Facing.Turn`), and a straight step over the curve doesn't lift it (only its way up
+  does). So the ball flies as the flat ground did: gravity straight down, no orbit below the leaving height (on a
+  2.41 km world at 0.92 g about 147 m/s would be one, less than the Tin Finch's 160 m/s at full throttle), and straight
+  ahead with the stick still goes round the world at its height (`ShipTests.FlyRoundTheWorld`: a Tin Finch 100 m up
+  comes back over its start within a metre, at its height, facing the way it set off). A new ship stands level at its
+  centre of mass. The pilot's prediction runs the same motor.
 
 | The Tin Finch (ships.json) | |
 |---|---|
@@ -2870,11 +3123,13 @@ is the cabin's to shelter and takes nothing from the blast itself. At 0 the ship
 in it (killed by whoever hurt it last), and a wreck (a corpse anyone may loot, for 300 s) holds the cargo, half the fuel
 and 300 metal fragments and 20 refined metal. The burning hull stays two seconds for everyone to see, then goes.
 
-**Orbit.** Above the ceiling (15 km over the mean radius; the zone is at most 20 km) the ship reaches orbit: it leaves
-the physics and parks at its orbit marker over the spot it left, the pilot still in the seat. **Descend** brings it back
-250 m under the ceiling over the same spot, level, falling at 40 m/s with flight assist on. The seam for the space layer
-(G8, ARCHITECTURE.md §12): `Zone.OrbitTransfer`, asked first; a handler that takes the ship and its pilot to local space
-returns true, and the parking above is what happens without one.
+**Orbit.** Above the ceiling the ship reaches orbit: since S3 the leaving height, ships.json's `ceiling` in world radii
+over the mean radius (read as 1 to 3; 2, 4.82 km on the first world, WHOLE_WORLD.md decision 4; `ShipDef.CeilingOn`);
+before, 15 km in a zone of at most 20 km. It leaves the physics and parks at its orbit marker over the spot it left,
+the pilot still in the seat. **Descend** brings it back 250 m under the ceiling over the same spot, level, falling at
+40 m/s with flight assist on. The seam for the space layer (G8, ARCHITECTURE.md §12): `Zone.OrbitTransfer`, asked
+first; a handler that takes the ship and its pilot to local space returns true, and the parking above is what happens
+without one.
 
 **Network** (protocol 8, `Messages.cs` 120; `Replication/DeltaChannel.cs`, `ShipModule`, `ShipModule`,
 `ShipPredictor.cs`, `RemoteShip.cs`, `LocalPlayer.Ships.cs`):
@@ -2882,9 +3137,11 @@ returns true, and the parking above is what happens without one.
   1/127, boost and flight assist; one bit on foot), and the pilot's client predicts its ship with exactly what the
   server will apply, as it does its character.
 - **Snapshots** carry ships in a section of their own after the characters (`ShipNetState`: the centre of mass on the
-  1/256 m grid, yaw, pitch and roll in 1/65,536 turn, flags, the hatch, the thrust on each axis, the hull and the kind),
-  each delta-coded against its newest state the client confirmed, with its own priorities, within 35 % of the
-  snapshot's budget. Ships are relevant within 2 km (horizontally): `Spawn` with `EntityKind.Ship`, `Despawn`.
+  1/256 m grid, its turn (since protocol 21 a smallest-three quaternion, the largest component's place in 2 bits and
+  the other three in 16 bits each, with no gimbal lock anywhere on the ball; before, yaw, pitch and roll in 1/65,536
+  turn), flags, the hatch, the thrust on each axis, the hull and the kind), each delta-coded against its newest state
+  the client confirmed, with its own priorities, within 35 % of the snapshot's budget. Ships are relevant within 2 km
+  (straight-line since S3; horizontally before): `Spawn` with `EntityKind.Ship`, `Despawn`.
   (The replication became generic over the state type for this: characters and ships are two `DeltaChannel`s
   sharing the snapshots' sequence and acknowledgements.)
 - **The pilot's ship exactly** rides in the header (`OwnShipState`) for reconciliation: `ShipPredictor` keeps 4 s of
@@ -2963,7 +3220,8 @@ reports the rebuilds.
   bottom with the heading above them; the throttle lever on the left with the speed flight assist will hold; fuel and
   hull where the vitals sit, with flight assist, boost (time left, or cooling), landed (or "too steep") and orbit stacked
   above; the stick and a crosshair in the middle; warnings at the top (pull up when the ground is under 4 s away, hull
-  critical, low fuel, the distance to orbit in the last 3 km); the key under the crosshair (step out, descend).
+  critical, low fuel, the distance to orbit in the last kilometre, 3 km before S3); the key under the crosshair (step
+  out, descend).
 - **The sandbox** (`--view ship`, `ShipSandbox`): a local zone on the first world's own ground and nature (its trees
   and rocks are solid where they are drawn; S16), drawn by the integration's driven `SurfaceView` (`OpenZone`: render
   coordinates are the zone's), with the same rules the server runs, on the play clock (24 × the planet's day; `--hour`
@@ -2971,6 +3229,8 @@ reports the rebuilds.
   in the flattest open spot within 90 m of the landing site that nothing of the planet's stands in.
   `--scene pad|hover|forest|cockpit|slope|ceiling` sets up the pictures below (screenshots hold the scene's camera and
   pause the zone); `--tour` plays the whole loop through the same keys a player presses and prints what happened.
+  Since S3 (14 October 2026) its zone stands on the stand-in world, as every zone does; drawing it waits for S3c
+  (WHOLE_WORLD.md §10, §14), so the pictures and the tour below are from before.
 
 | Picture (`docs/images/ground/ship/`) | |
 |---|---|
@@ -3047,7 +3307,7 @@ the server, network, storage and client API follow G2's patterns; the interface'
 | Numbers | `game/data/ground/world.json` (currency, props, recycler, recycle lists, research, tech trees, loot spots, recyclers, teams, map); items 150–171 in `items.json`; `recipes.json`; the world's tables in `loot.json`; the research table in `deployables.json` |
 | Rules | `Content/World.cs` (reader and checks), `Nature/LootSpots.cs` (where props stand), `Economy/Rules.cs` (recycling, research, tech trees), `Items/Blueprints.cs`, `Teams/TeamRegistry.cs`, `Players/MapMarker.cs`, `World/WorldObjects.cs` (`WorldProp`), `WorldSystem` |
 | Server | `WorldModule` (intents, each player's own world state, teammates' positions, team chat, saving, admin `learn` and `world`) |
-| Storage | schema 6: `teams`, `prop_overrides` (`GameDatabase.cs`); `TeamCodec`; `WorldCodec` player records version 4 (blueprints, markers, last death) and `EncodeProp` |
+| Storage | schema 6: `teams`, `prop_overrides` (`GameDatabase.cs`); `TeamCodec`; `WorldCodec` player records version 4 (blueprints, markers, last death; version 5 since S3, the markers and the death's point in the body frame) and `EncodeProp` |
 | Client | `LocalPlayer.World.cs`, `WorldModule`, `Map/ZoneMap.cs` (the map and its picture) |
 | Tests | `tests/Hollow.Tests/WorldTests.cs`, `WorldNetTests.cs` (`dotnet run --project tests/Hollow.Tests -- World`) |
 
@@ -3068,14 +3328,21 @@ the rifle a rifle frame and four springs, sights tech scrap, the silencer a pipe
 rocket launcher four pipes and rockets two, the timed charge two tech scrap, the bag charge rope, the bed a sewing kit. The
 torn and sealed schematics (Rust's blueprint fragments) come from crates; the level 2 and 3 workbenches need three each.
 
-**Loot spots** (`LootSpots`): generated, never stored. One candidate per 130 m cell within 1.6 km of the zone's origin
-(never within 90 m of it, where players arrive), kept by what is round it: the sea within 35 m (a coast, 70 %), a forest
-edge (forest and open biomes side by side, or trees within 22 m but none on the spot; 35 %), or open ground (6 %). A kept
-cluster is two to four barrels (a fifth of them fuel barrels) and, 85 % of the time, a crate (a military one 22 % of
-those), within 6 m, each on dry ground gentler than 22° and clear of trees and outcrops. A cluster always stands about
-130 m from the origin, so arrivals find loot. Three recyclers take the first valid of six fixed points 100–150 m from
-the landing site. Deterministic (Hash64, Rng, DMath and the surface): a spot's ID (a tag byte, the cell, the member)
-names the same place after every restart. On the stand-in surface (§4.6) there are about 580 spots in 150 clusters.
+**Loot spots** (`LootSpots`): generated, never stored. Since S3 one candidate per cube-sphere cell of the level nearest
+130 m (level 5 on the first world, about 118 m) over the whole world (before, per 130 m cell within 1.6 km of the
+zone's origin), never within 90 m of the landing site, where players may arrive, and kept by what is round it: the sea
+within 35 m (a coast, 70 %), a forest edge (forest and open biomes side by side, or trees within 22 m but none on the
+spot; 35 %), or open ground (6 %). A kept cluster is two to four barrels (a fifth of them fuel barrels) and, 85 % of the
+time, a crate (a military one 22 % of those), within 6 m, each on dry ground gentler than 22° and clear of trees and
+outcrops. A cluster always stands near the landing site (130 m east and 40 m south of it, world.json `landing`), so
+arrivals there find loot. One recycler stands on each of the world's six cube faces (world.json `recyclers.perFace`;
+WHOLE_WORLD.md decision 9), on the face's first coastal cell that has room and stands 12 m clear of the clusters, else
+its first such cell (before S3, three recyclers took the first valid of six fixed points 100–150 m from the landing
+site). Each candidate is laid out in its own small frame on the ground (east and south of it, along the ground), so
+nothing depends on where the zone's frame stands. Deterministic (Hash64, Rng, DMath and the surface): a spot's ID (a
+tag byte, the cell, the member; a recycler's, its face) names the same place after every restart. On the first world's
+stand-in that is about 4,000 spots in about 1,050 clusters (4,010 in 882 forest-edge, 131 coast and 38 open ones with
+the loot test's seed, `WorldTests.LootSpotsAreDeterministicClustersAwayFromTheSpawn`), generated in about 0.6 s.
 
 **World props** (`WorldProp`) are deployables to the rules, so blows, arrows, bullets, blasts, opening and replication
 treat them as such; clients see things of kind `Prop` whose look is the prop's number (world.json).
@@ -3123,8 +3390,9 @@ claim device it puts the player and their team on its list (anyone may authorise
 someone the lock knows can, and it adds the team. Friendly fire stays on, as in Rust. Teams belong to the server, not to
 a body, and are saved in `teams`.
 
-**The map's markers**: up to five per player, a point in the zone (on the ground), one of six colours and a label of up
-to 24 characters; one taken off, or all. The map also shows where the player died last and their sleeping bags and beds;
+**The map's markers**: up to five per player, a point anywhere on the world (settled on the ground; a 3D point on the
+wire since protocol 21, where it had to lie in the map's square before), one of six colours and a label of up to 24
+characters; one taken off, or all. The map also shows where the player died last and their sleeping bags and beds;
 all of it is the player's own, saved with the character.
 
 **Network** (protocol 9, `Messages.cs` 130–145):
@@ -3147,7 +3415,8 @@ all of it is the player's own, saved with the character.
 and `prop_overrides` (per body and spot: gone until a time, or health, slots and running, `WorldCodec.EncodeProp`),
 written when changed, deleted when back to as generated. Characters' records (version 4) add the blueprints learnt, the
 markers and the last death's point; decoding keeps only recipes the game has and doesn't teach everyone, and a blueprint
-item of nothing is dropped.
+item of nothing is dropped. Since S3 (version 5) the markers and the death's point are body-frame points, and an older
+record's are dropped (§4.7).
 
 **The client API** (`Hollow.Client`):
 
@@ -3173,7 +3442,9 @@ weights and darker where forest stands (the planet's own vegetation), hill shadi
 every 25 m and stronger every 100 m, the sea in muted teal deepening offshore with a light band at the surf and an inked
 shoreline, and paper grain, stains and a darker edge. Deterministic (Hash64 noise, no platform maths; rows in parallel),
 so the game caches it on disk under `ZoneMap.CacheKey`. The grid (26 × 26 cells of 150 m, lettered A–Z from the west and
-numbered from the north, as Rust's) and every label are drawn by the interface, crisp at any scale.
+numbered from the north, as Rust's) and every label are drawn by the interface, crisp at any scale. Since S3 (14 October
+2026) the zone's origin is the world's centre, so this square no longer lies round the landing site; S3d replaces it
+with a map of the whole world (WHOLE_WORLD.md §11).
 
 **What the visual layer does with it** (the Godot work after this package; the screens are built, §8):
 - `ClientGroundUi` implements `IGroundUi`'s G7 members from `GameClient.Local` and `GameClient.Map`: `Map` (the
@@ -3278,8 +3549,11 @@ set against the player's 5.5 m/s sprint and 100 health. Names are plain words.
   context steering over 16 headings (where it wants to go against what is in the way), a short A* path around trees
   and rocks when the straight line is blocked, a break-away when stuck. In the way: water deeper than 0.35 m, slopes
   steeper than the species takes (36–42°), trunks and boulders (the zone's natural objects: on the planet, its own
-  scatter), building pieces and deployables (traced). The navigation grid is 64 m areas of 2 m cells, built on workers
-  around animals that are awake.
+  scatter), building pieces and deployables (traced). The navigation grid is built on workers around animals that are
+  awake. Since S3 its areas are the world's cube-sphere tiles of the level nearest 64 m (level 6 on the first world,
+  about 59 m), each 32 × 32 cells of about 1.8 m in the tile's own face coordinates, with heights along up and slopes
+  against the local up; a short path is found on a small grid of 2 m cells laid on the ground where it starts, so face
+  seams and corners need nothing special (before, 64 m squares of the zone's plane, slopes against its +Y).
 - Hits: a capsule for the body, a sphere for the head (×2, as on people), capsules for the legs, from the model's
   measured size; lag-compensated like characters' (one second of poses). Every weapon works: blows, arrows, bullets with
   their falloff, blasts. An animal's attack on a player lands at its wind-up's end if the player is still in reach and
@@ -3309,13 +3583,16 @@ charcoal recipe: 3 fat and 1 cloth make 4 in 5 s. A second way to make an item i
 own (`Recipe.Id`, `Recipe.Key`, `GameContent.RecipeByKey`); a tech tree's node names an item's own recipe, and the
 crafting list keys recipes by `Recipe.Key`.
 
-**Spawning** (deterministic, from the planet): the zone is cut into 256 m spawn areas. An area within 380 m of a player
-is surveyed once (its land and biomes from `PlanetSurface`, its tree cover from the vegetation) and gets herds: for
+**Spawning** (deterministic, from the planet): the spawn areas are the world's cube-sphere tiles of the level nearest
+256 m (since S3; level 4 on the first world, about 237 m; before, 256 m squares of the zone's plane). An area within
+380 m of a player is surveyed once (its land and biomes from the surface: `PlanetSurface`'s, or on the stand-in world
+its biome bands; its tree cover from the vegetation, or on the stand-in from the natural objects) and gets herds: for
 each species, its density × the area's land × how well the biomes and the cover suit it, as herds of its size, the
 fraction a seeded draw. An area comes out when its navigation grid is ready, its herds at least 70 m from every player;
 it goes 30 s after the last player is beyond 560 m. A herd killed off comes back after the species' respawn time, never
 above its size. At most 600 animals in a zone. Living animals are not saved (they come back from their areas); corpses
-are, while their timer runs. Round the landing site that makes about 20 animals in the areas near a player.
+are, while their timer runs. Round the landing site that made about 20 animals in the areas near a player (on the real
+planet, before S3).
 
 **Network** (protocol 10): animals are entities of kind `Animal` in the same delta-coded, prioritised snapshots as
 characters (`CharacterNetState` reused; `AnimalNet` says what its fields mean: species, state, alert, warning, health or
@@ -3345,7 +3622,8 @@ Animals are not in `Entities` (characters only).
   rattle, clicks for teeth and a jaw; footsteps are the grass recordings made lighter or heavier (§9.2, N11).
 - The sandbox, `--view animals` (AGENTS.md): a local zone on the real surface with five scenes at clearings near the
   landing site: a deer herd with boars nearby, a hungry pack stalking a test dummy, the bear warning it off, butchering
-  with a bone knife, meat roasting on a campfire.
+  with a bone knife, meat roasting on a campfire. Since S3 (14 October 2026) its zone stands on the stand-in world, as
+  every zone does; drawing it waits for S3c (WHOLE_WORLD.md §14), so the pictures below are from before.
 
 ![A deer herd grazing in a meadow by the forest](images/ground/animals/herd.jpg)
 ![A hungry pack stalking a test dummy across the meadow](images/ground/animals/wolves.jpg)
@@ -3354,7 +3632,7 @@ Animals are not in `Entities` (characters only).
 ![Meat roasting on a campfire at dusk: raw, cooked and burnt](images/ground/animals/cooking.jpg)
 
 **Admin and bots**: `animals` (how many of each, awake, what they cost), `spawn <species> <name> [n] [m]`;
-`loadtest --animals <n>` places n animals round the landing site, always out (§5.10).
+`loadtest --animals <n>` places n animals round the landing site (`Zone.Landing`), always out (§5.10).
 
 ### 6.10 Placement (GROUND_SYSTEMS.md §6, package P2)
 
@@ -3431,7 +3709,7 @@ starts with a `source` note saying where its numbers came from.
 | `categories.json` | The crafting tabs (Construction added in G3). | Rust's grouping |
 | `weapons.json` (G4) | The two firearms (magazine, fire mode and interval, reload and equip times, muzzle speed, drag, gravity, range, lifetime, damage with falloff and head/body/limb multipliers, spread at the hip, aimed, moving, airborne and crouched with bloom, recoil: a straight kick or the AK pattern, its limits, kick, hold and recovery, scaled aimed and crouched, the aimed zoom, the attachments each takes); the rounds of each calibre (normal, high velocity, incendiary: damage and speed multipliers, bleeding, burning, damage to deployables); the attachments (holo sight, 4x scope, silencer, weapon light, muzzle brake: slot, zoom, spread, recoil, speed and damage multipliers, silenced, light). §6.3 has every table. | RustMVP `weapon_definition.hpp` (every field it has, exactly, including the AK pattern); hollow-orbit `combat.js` (falloff, moving spread, aimed and crouched recoil, the random part of a kick); Rust's round speeds; ours for drag, the round and attachment modifiers |
 | `building.json` (G3) | The building rules' numbers (§6.3): module, placement, hammer, stability, materials, grades, the 20 pieces, the wheel, doors, locks (and the key's price), the claim device (health, store, decay schedule). | RustMVP, the PSG kits, hollow-orbit, Rust |
-| `world.json` (G7) | The world's economy and progression (§6.8): the currency (salvage) and the blueprint item; the world props (barrels, crates, the recycler: number, model key, health, size, slots, loot table, respawn); the recycler's slots, pace, share of a recipe and batch; the fixed recycle lists of loot-only components; the research table's slots, time and prices by tier; the three tech trees (node, salvage, the nodes before it); where loot spots are kept (radius, cell, clear ring, chances by kind of place, a cluster's make-up, the landing cluster); the recyclers' points; teams (size, invite time); the map (markers, size, grid). Its checks: props, slots, yields, research slots and prices, trees (a recipe in at most one, at its bench or below, no loops), blueprint loot entries, and that every recipe stays makeable now that loot and the recycler supply parts. | Rust's numbers (scrap, recycler, research, tech tree costs, teams, markers); hollow-orbit `items.js` (`RECYCLE`, `LOOT`, `RESEARCH_COST`, `DEFAULT_KNOWN`) and `devices.js` |
+| `world.json` (G7) | The world's economy and progression (§6.8): the currency (salvage) and the blueprint item; the world props (barrels, crates, the recycler: number, model key, health, size, slots, loot table, respawn); the recycler's slots, pace, share of a recipe and batch; the fixed recycle lists of loot-only components; the research table's slots, time and prices by tier; the three tech trees (node, salvage, the nodes before it); where loot spots are kept (cell, clear ring, chances by kind of place, a cluster's make-up, the landing cluster; since S3 over the whole world, with no radius); the recyclers (since S3 one per cube face, before fixed points); teams (size, invite time); the map (markers, size, grid). Its checks: props, slots, yields, research slots and prices, trees (a recipe in at most one, at its bench or below, no loops), blueprint loot entries, and that every recipe stays makeable now that loot and the recycler supply parts. | Rust's numbers (scrap, recycler, research, tech tree costs, teams, markers); hollow-orbit `items.js` (`RECYCLE`, `LOOT`, `RESEARCH_COST`, `DEFAULT_KNOWN`) and `devices.js` |
 | `explosives.json` (G5) | The blasts (radius, falloff, splash, damage to people and deployables, one hit's damage to a piece of each grade by side and to a door of each protection), the explosives thrown or placed by hand (fuse, dud chance, sticky or not, throw and lob speeds, bounce, size), and how raid alerts go out (cooldown, how long and how many are kept). §6.6 has the tables. | Rust's raid costs; RustMVP `building_damage.md`; hollow-orbit `construct.js` and `items.js`; ours for fuses' spread, throws and alerts |
 | `animals.json` (G7) | The animals (§6.9): how far noises carry to them (`senses`), the spawn areas (`spawning`), what each tool takes off a corpse (`harvest`), and each species: number, key, name, health, size (with where its head is), walk, trot and run speeds, turn rate and acceleration, sight, cone and hearing, temperament, flee, calm and warning distances, when it runs, chase time and range, hunger, prey, group size and cohesion, its attack (kind, damage, reach, rate, wind-up, bleeding, the region it hits, damage to animals), the biomes and cover it likes, density, steepest slope, respawn, corpse time and what its corpse gives. | The Facepunch wiki for health, yields and populations; ours for the rest |
 | `capabilities.json` (P0) | The kinds of behaviour a world thing may have (GROUND_SYSTEMS.md §2.1, §3.3), append only, its index its number: owned, container, burner, machine, door, key-lock, code-lock, cupboard, ship, lifetime, explosive. Each has one handler; the zone won't start while one lacks it. Which things have which comes from their own blocks (a deployable's slots, device, recycler or research). | ours |
@@ -3541,7 +3819,7 @@ allow (§8.2.2). Pictures from the real game (`--tour-steps f1`, 1600 × 900): `
 | Tab | What it shows |
 |---|---|
 | CONSOLE | The log (newest at the bottom; the wheel or Page Up and Page Down scroll it) and the input line. Lines typed show after a red ">", the game's own answers in grey, the server's in pale blue, things done in green, refusals and errors in amber. Up and Down go through the last 100 lines typed (kept in `user://console-history.txt`); Tab completes the word being typed (§8.2.3). |
-| INFO | The game (version, the commit and branch built from and when, protocol and schema, game data hash, engine), this computer (system, processor, graphics and driver, memory, window and interface scale, frame rate), the world (planet, system and its address, body path, radius and gravity, the landing site, the zone's origin, the local solar time here, the day's speed and whether an admin set it, universe time) and the server (name, address, players, tick and snapshot rates, the player's rights). |
+| INFO | The game (version, the commit and branch built from and when, protocol and schema, game data hash, engine), this computer (system, processor, graphics and driver, memory, window and interface scale, frame rate), the world (planet, system and its address, body path, radius and gravity, the landing site (this server's; before S3 also the zone's origin), the local solar time here, the day's speed and whether an admin set it, universe time) and the server (name, address, players, tick and snapshot rates, the player's rights). |
 | NET | Ping, snapshot loss, bandwidth in and out, snapshots a second, prediction error, input margin, clock rate, corrections and teleports, clock jumps, ship corrections, what is in view; and a graph of the last 30 s of round trip, bandwidth down and prediction error, each on its own scale (labelled with its top). |
 | ITEMS | Every item (items.json) as a grid of its catalogue icons and names, in categories with their counts, with a search. The item under the pointer, or the one chosen last, shows on the right: icon, name, key, category, stack size, description, stats. An admin picks an amount (1, 10, 100, 1000) and a click gives it at once (Rust's item list); anyone else browses. |
 | TOOLS | An admin's buttons, each running a console command (it shows in the log as if typed, and its answer under the buttons): god and noclip (lit when on), heal, kill; the zone's time of day as a slider (dragged, set on release) with 06:00, 12:00, 18:00, 00:00 and reset; the time scale (stop, ×1, ×10, ×60); spawning (the animals, the Tin Finch, barrels, crates and the recycler, every deployable, a raid base of each grade); teleporting to each player on, or to the player's map marker; entity counts, save, status, players. Without admin rights it says so and offers kill. |
@@ -3567,18 +3845,18 @@ the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <nam
 | `sensitivity` | `[x]` | everyone | game | Mouse look, 0.1–5 (1 = RustMVP's 0.002 rad a count); kept there too. |
 | `kill` | `[player]` | everyone (another player: admins) | server | You die where you stand ("Suicide"): your body keeps what you carried and the respawn screen opens, as Rust's F1 kill: to come back at a bag in a base under attack (GAME_DESIGN.md §5). God mode doesn't stop it. |
 | `players` | | everyone | server | Who is on, admins marked, alive, wounded or dead (admins also see pings), and how many sleep in the world. |
-| `whereami` | | everyone | server | Latitude and longitude, the zone position (with the `teleport` that comes back here), height above the sea, map cell, biome, local solar time, the air's temperature. |
+| `whereami` | | everyone | server | Latitude and longitude (with the `teleport` that comes back here), how far east and north of the landing site along the ground, with its `teleport` too (since S3; before, the zone position), height above the sea, the map cell (of the map's grid laid round the landing site), biome (on the stand-in world "the stand-in ground"), local solar time, the air's temperature. |
 | `give` | `<item> [amount] [player]` | admins | server | Items into an inventory (1–100,000); what doesn't fit drops at the feet (24 stacks at most); "+N" in the pickup feed. `<item>.blueprint` gives that item's blueprint (V12). |
 | `kit` | `<loot table> [player]` | admins | server | A loot table's items (loot.json). |
 | `learn` | `<item\|all> [player]` | admins | server | A blueprint, or every one. |
-| `teleport` | `<player>` · `<x> <z>` · `<lat> <lon>` · `<player> <target>` · `<player> <x> <z>` | admins | server | To a player (1.5 m east of them), or to a point of the zone on the ground: metres east and south of its origin, or a latitude and longitude (marked N, S, E or W, or with three decimals or more on both and inside the zone). Not out of a ship's seat. |
+| `teleport` | `<player>` · `<x> <z>` · `<lat> <lon>` · `<player> <target>` · `<player> <x> <z>` | admins | server | To a player (1.5 m to their right), or to a point of the world on the ground: a latitude and longitude (marked N, S, E or W, or with three decimals or more on both), else metres east and south of the landing site, measured along the ground (since S3; before, metres east and south of the zone's origin, and only inside the zone). Not out of a ship's seat. |
 | `tp2me` | `<player>` | admins | server | A player to two metres in front of you. |
 | `tpmarker` | `[marker]` | admins | server | To your newest map marker, or the numbered one. |
 | `spawn` | `<kind> [count] [player]`, `spawn raidbase [grade]` | admins | server | In front of you (§8.2.4): an animal herd (`deer`, `boar`, `wolf`, `bear`; up to 12), `tin-finch`, `barrel`, `fuel-barrel`, `crate`, `military-crate`, `recycler`, any deployable by key (up to 10 in a row), or `raidbase`. |
 | `heal` | `[player]` | admins | server | Full health, food and water; no bleeding or burning. |
 | `god` | `[on\|off] [player]` | admins | server | No damage of any kind, falls included (a toggle without on or off). |
 | `noclip` | `[on\|off] [player]` | admins | server | Flies through everything: W A S D along the view, Space up, Ctrl down, Shift fast (10 and 40 m/s). |
-| `time` | (none) · `<hour>` · `reset` | admins | server | The zone's local solar time at its origin, set (0–24, `21` or `21:30`), or back to the planet's own clock (§8.2.5). |
+| `time` | (none) · `<hour>` · `reset` | admins | server | The local solar time at the landing site and where you stand; set where you stand (at the server's console, at the landing site; 0–24, `21` or `21:30`), or back to the planet's own clock (§8.2.5). |
 | `timescale` | `[x]` | admins | server | How fast the zone's day runs: 1 the day of play (×24), 0 stops the sun, up to 1,000. |
 | `status` | | admins | server | Tick time, ground tiles, every player's ping, place, traffic and inputs on time. |
 | `kick` | `<player> [reason]` | admins | server | Disconnects a player. |
@@ -3586,7 +3864,7 @@ the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <nam
 | `save` | | admins | server | Saves the world now. |
 | `ents` | | admins | server | Counts: players and characters (asleep, dead, wounded), animals by species, deployables, world props, loot bags, bodies, building pieces, doors, claims, ships, explosives, changed natural objects, ground tiles, net entities. |
 | `clearinv` | `[player]` | admins | server | Empties an inventory: main, belt and clothing. |
-| `ship` | `[player]` | admins | server | A Tin Finch beside a player, theirs, fuelled, its hatch open (as `spawn tin-finch`). |
+| `ship` | `[player] [kind]` | admins | server | A ship beside a player, theirs, fuelled, its hatch open, its way in toward them: a Tin Finch, or the kind named (`ship Ada iron-wake`, as `spawn iron-wake`; IRON_WAKE.md §5.6). |
 | `raidbase` | `[grade] [player]` | admins | server | A claimed hut 8 m in front, listing the player (`twig`, `wood`, `stone`, `metal`, `armoured` or 0–4; stone by default). |
 | `admin`, `unadmin` | `<name>` | admins | server | Gives or takes admin rights until the server stops (admins.txt keeps them). |
 | `world`, `animals` | | admins | server | The world's props, teams and economy; the animals, by kind, and what they cost. |
@@ -3628,7 +3906,8 @@ Engine-free in `ConsoleCompletion`, with the catalogue, so the tests check it.
 Things come in front of the player who typed the command (or the one named), on the ground, facing them, without the
 placing rules: animals 18 m ahead (wolves and bears 22 m) as a herd of their own (`AnimalWorld.SpawnHerd`, never
 refilled; the world's areas still come and go by themselves); a prop or deployable 2–3 m ahead, several in a row across
-the view, a sleeping bag or bed theirs and ready at once; the Tin Finch beside them where its hull fits; a raid base 8 m
+the view, a sleeping bag or bed theirs and ready at once; a ship of the kind named beside them where its hull fits (as far
+out as its size needs, its way in toward them; for a big ship in a wood, the trees and rocks in its way go); a raid base 8 m
 ahead with its doorway towards them. A barrel or crate spawned this way is the world's to everything else (it breaks,
 spills, empties), but it doesn't come back once gone and isn't kept across a restart (`Zone.SpawnProp`).
 
@@ -3637,16 +3916,19 @@ spills, empties), but it doesn't come back once gone and isn't kept across a res
 - **God mode and noclip** are flags of the character's movement state (`MoveCheats` in `CharacterState`), which only the
   server sets; the player's own state in every snapshot carries them (`OwnState.Cheats`), so the prediction steps with
   them exactly as the server does: one correction when one is switched (as a teleport), none while flying (a test flies
-  through the real ground at the landing site tick for tick, and over the network with no correction). Noclip is a mode
-  of `CharacterMotor`: along the view, no gravity, no collision, within the zone's ground and 20 km of height; leaving it
-  stops the character where it is (put back onto the ground if it was under it). God mode makes `Zone.Hurt` take nothing
-  and a landing cost no health. Both last through a death and a respawn, not a restart.
+  through the ground at the landing site tick for tick, and over the network with no correction). Noclip is a mode of
+  `CharacterMotor`: along the view, no gravity, no collision, since S3 between 500 m under the world's mean radius and
+  three world radii from its centre, the leaving height (`MoveContext` carries the radius; before, within the zone's
+  ground and 20 km of height); leaving it stops the character where it is (put back onto the ground if it was under
+  it). God mode makes `Zone.Hurt` take nothing and a landing cost no health. Both last through a death and a respawn,
+  not a restart.
 - **The zone's clock** is the planet's spin as this zone's server keeps it (`SkyEphemeris.Spin`): `time <hour>` turns the
-  planet, from now on, so that it is that hour of local solar time at the zone's origin; `timescale <x>` makes it turn x
-  times faster than the day of play (0 stops the sun). Only the spin changes: orbits, seasons, the universe's time, and
-  any other zone's sky stay as they are. The climate follows it (it is cold after `time 3`); every client gets it
-  (`ZoneClock`, 153, at joining and when it changes) and turns its sky with it. It isn't saved: a restart, or `time
-  reset`, brings back the planet's own clock.
+  planet, from now on, so that it is that hour of local solar time where the admin stands (since S3, WHOLE_WORLD.md
+  decision 11; at the server's console, at the landing site; before, at the zone's origin); `timescale <x>` makes it turn
+  x times faster than the day of play (0 stops the sun). Only the spin changes: orbits, seasons, the universe's time, and
+  any other zone's sky stay as they are. The climate follows it where each player stands (it is cold after `time 3`);
+  every client gets it (`ZoneClock`, 153, at joining and when it changes) and turns its sky with it. It isn't saved: a
+  restart, or `time reset`, brings back the planet's own clock.
 
 ### 8.3 Behaviour
 
@@ -3782,16 +4064,17 @@ real game (`--tour-steps f2`, 1600 × 900): `docs/images/ground/play/f2-server.j
 | SERVER | The tick, as a graph of the last minute: the average and the longest tick of each half second against the budget (33.3 ms at 30 Hz), the scale growing to the longest shown. Under it the profile's sections as its tree (§5.11: receive, logins, the step with its ground, broadphase, movement, ships, release and game, after the step, replication with its snapshots, things, nature and building, save, send; across them the tiles waited for, added and removed, the natural objects looked up, the ground asked for ahead, the respawns), each with its average and longest over the last half second. On the right what the zone holds (`ents` as numbers: players on; characters in the zone, asleep, dead and wounded; animals alive, awake and lying dead; deployables, world props, loot bags, bodies; building pieces, doors, claim devices; ships, explosives, spent arrows, natural objects changed, ground tiles, net entities, the relevance radius), the game's counters since the server started (gathering hits, items gathered and picked up, crafted, arrows, shots and their hits, hits on players, kills, knocked down and up again, deaths, hits on animals, animals killed), and the process (up for, working set, managed heap, the garbage collector's pauses and the tick's allocation over the last half second, ticks over the budget, the last save). |
 | PLAYERS | Everyone on, a row each: name (admins marked; the player's own row marked), state (logging in, alive, wounded, dead), where (zone metres), ping, down and up (kbit/s to and from them over the last half second), inputs on time, in view (the entities relevant to them). |
 | LOOK | What the crosshair is on, from the one aim E uses (GROUND_SYSTEMS.md §5), as this client sees it, at once: the family, the id and part, the distance and the point hit, and from its replica the name, the capabilities, the viewer's flags, the verbs it offers (refused ones with their reason), the deployable, the lock, open, busy, body. Then, from the server, asked when the target changes (at most four times a second, and again every second): its description, one line per fact: the target, its position, its model, its capabilities, the flags and the verbs as the server computes them for this player, then the object its family resolves it to and every public property and field of that object, by reflection, so every kind of thing is covered without a line of code of its own (a player's name, health and inventory; a deployable's definition, owner, health, storage, fuel; a door's frame, lock and keys; an animal's species, state, herd...). Below, the last eight intents answered: sequence, outcome code, detail and how long ago; refusals in amber. |
-| DRAW | Toggles, each drawn in the world while on, and still on when the panel closes: hitboxes (the capsules of every character and animal in view, as the shots test them, §5.6: the head red, the body orange, the limbs yellow); ground tiles (the collision mesh of the tile under the player and its eight neighbours, as wireframe, §4.5); relevance (the circle of the relevance radius around the player, on the ground, §4.4); nav grid (the animals' cells of 2 m in a 96 m square around the player, from the server: green walkable, orange too steep for any animal, red blocked by a trunk or a rock, blue under water, grey not built yet; steep and blocked cells get a diagonal; §6.9); spawn areas (the animals' spawn areas within 300 m, from the server: each area's centre as a post with a diamond, bright when active, and each slot as the circle of its range around its home with a label of its species and how many of its herd live). The first three are the client's own and need no admin; the last two come from the server. |
+| DRAW | Toggles, each drawn in the world while on, and still on when the panel closes: hitboxes (the capsules of every character and animal in view, as the shots test them, §5.6: the head red, the body orange, the limbs yellow); ground tiles (the collision meshes of the ground tiles within 64 m of the player, as wireframe, §4.5; before S3, the tile under the player and its eight neighbours); relevance (the circle of the relevance radius around the player, on the ground, §4.4); nav grid (the animals' cells of 2 m in a 96 m square laid flat on the ground at the player, columns east and rows south, from the server: green walkable, orange too steep for any animal, red blocked by a trunk or a rock, blue under water, grey not built yet; steep and blocked cells get a diagonal; §6.9); spawn areas (the animals' spawn areas within 300 m, from the server: each area's centre as a post with a diamond, bright when active, and each slot as the circle of its range around its home with a label of its species and how many of its herd live). The first three are the client's own and need no admin; the last two come from the server. |
 | LOG | The server's lines (what its console shows, with the time of day): the last 200 at opening, then each new one as it is logged, the newest at the bottom. |
 
 **Wire (§4.4), protocol 20.** `DevWatch` (client → server, reliable ordered: on or off, and whether the nav grid, the spawn
 areas and the log are wanted); `DevStats` (server → every watching admin, every half second: the tick over the last
 interval, the profile's sections, the garbage collector, what the zone holds, the game's counters, the process, everyone
 on; about 300 bytes plus 40 a player); `DevInspect` and `DevInspected` (a target and its description, at most 64 lines of
-a label and a value); `DevNav` (the 48 × 48 cells of the window, 4 bits each, once a second while wanted: 1.2 KB);
-`DevAreas` (every two seconds while wanted); `DevLog` (lines in batches of 32: the backlog at first, then as they come).
-The server takes at most eight questions a second from one player and ignores the rest.
+a label and a value); `DevNav` (the 48 × 48 cells of the window, 4 bits each, once a second while wanted: 1.2 KB;
+since protocol 21 with the window's centre as a 3D point, where it had the corner's X and Z); `DevAreas` (every two
+seconds while wanted); `DevLog` (lines in batches of 32: the backlog at first, then as they come). The server takes at
+most eight questions a second from one player and ignores the rest.
 
 **As built (14 October 2026):** the server's `DevModule` (`src/Hollow.Server/Modules/DevModule.cs`: the watchers in
 `session.State<T>()`, the stats in `AfterStep` every 15 ticks from the profile's window, `TickProfile.ResetWindow`, the
@@ -4571,7 +4854,8 @@ Decisions taken during G1 without the owner, to confirm or overturn:
    prediction, which are 100 ms old; it comes back with combat (G4) if it's wanted.
 8. **The zone's origin** is 28.4°, −61.7° until the landing site is chosen (the stand-in surface is the same
    everywhere); the server takes `--lat` and `--lon`, and characters are stored in the body frame, so moving the zone
-   later keeps them where they were on the planet.
+   later keeps them where they were on the planet. *Since S3 (14 October 2026) the zone's origin is the world's centre
+   (§4.6), and `--lat` and `--lon` move the landing site.*
 9. **Development login** is the player name alone: no password, one character per name. Real accounts come with the
    account service and connect tokens (ARCHITECTURE.md §11.1).
 10. **Placeholders in the client** until their owners land: the ground drawn from collision tiles and a fixed sun
@@ -4615,7 +4899,8 @@ Decisions taken during G2 (step "Survive") without the owner, to confirm or over
 23. **Sleepers are frozen**: no hunger, thirst or bleeding while logged off; looting them is take only; logging in wakes
     them at once (no key press).
 24. **The beach** is one of the zone's real beach points (§4.2: up to 24, nearest the origin first); a beach respawn
-    has no wait (Rust), and new characters arrive there too.
+    has no wait (Rust), and new characters arrive there too. *Since S3 up to 256 beach points anywhere on the world
+    (§4.2, WHOLE_WORLD.md decision 8).*
 25. **Timers**: corpses and dropped items last 300 s of world time, which pauses while the server is down, as does
     crafting and a fire's fuel; sleeping-bag cooldowns and respawning nature run on the real clock.
 26. **Bleeding and the cold** use our own numbers (survival.json) where neither source had any; a fire warms the air
@@ -4937,13 +5222,16 @@ Decisions taken while joining the pieces into one game on the real planet (G1 an
     boulders can't be mined either). Stone, metal and sulphur come from the outcrops (§4.6), about one per 3,000 m².
 59. **Arrival and respawn on the beach**: as in Rust, new characters arrive on a random beach point, not at the landing
     site; the nearest beach is 0.3 km from it. The landing site is the zone's origin and the place of the screenshots.
+    *Since S3 the beaches lie all round the world and the zone's origin is the world's centre (§4.2, §4.6).*
 60. **The day of play** is the planet's rotation × 24 counted from J2000 (`ZoneSpec.RotationTimeScale`, sent to clients
     with the zone, `--day-scale` on the server), so every player sees the same time of day and the air is cold when it
     is dark. The server's climate is the real planet's mean at the place (11 °C at the landing site, not the stand-in's
-    18 °C) with the same ±3.5 °C day swing.
+    18 °C) with the same ±3.5 °C day swing. *Since S3 every zone stands on the stand-in world, whose 18 °C swings with
+    the local solar time where each player stands (§6.1).*
 61. **The stand-in stays for tests**: the old hilly sphere and its natural objects (`ZoneSpec.StandIn`,
     `ServerOptions.StandIn`) keep the network and survival tests plain and quick; the game, the dedicated server and
-    the load test run on the planet.
+    the load test run on the planet. *Since S3 every zone, the game's too, stands on the stand-in world until S4 (§4.6);
+    `--stand-in` only sets the flag clients are sent.*
 62. **Rust's hands**: the attack button places a held deployable and uses held food or medicine (Rust), so F, G and H
     are gone; a tap of E acts, holding E on a fire or furnace lights it or puts it out (Rust's "more options"); the death
     screen's buttons respawn (B is gone); Esc closes what is open, then opens the menu.
@@ -5052,9 +5340,10 @@ Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn 
   There is no ejecting yet. A pilot who logs off stays in the seat and the engines hold the ship where it is.
 - S7. **Orbit is a parked marker until G8:** above 15 km over the mean radius the ship leaves the physics and waits over
   where it left; Descend brings it back 250 m under the ceiling over the same spot. `Zone.OrbitTransfer` is the seam for
-  the space layer.
+  the space layer. *Since S3 the ceiling is the leaving height, 2 world radii (§6.7).*
 - S8. **The zone's edge holds ships** inside a ±7.8 km square, where the ground's tiles end, until zones follow players
-  (G8): "the other side of the planet" in G6's "done when" needs that, or a hop through orbit.
+  (G8): "the other side of the planet" in G6's "done when" needs that, or a hop through orbit. *Since S3 a whole world
+  has no edge on the ground (§6.7).*
 - S9. **Flying ships don't collide with characters** (as characters don't with each other, §11 7); a parked ship is a
   static body everyone walks into.
 - S10. **Crashes:** impacts over 6 m/s cost (speed − 6)² × 2.5 of the hull (a 7.8 m/s drop costs 8, 26 m/s wrecks it); the
@@ -5076,7 +5365,7 @@ Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn 
 - S16. **The ship sandbox is a local zone with the server's rules** on the planet's own ground and nature, drawn by the
   integration's driven surface view, not a hosted game: it starts in seconds and its scenes set any state. Its scenes
   look for their spots (a flat clearing, a hillside near 19°, the thickest forest) on the planet and check them clear
-  of the planet's trees and rocks.
+  of the planet's trees and rocks. *Since S3 its zone stands on the stand-in world; drawing it waits for S3c (§6.7).*
 - S17. **The cameras:** the cockpit is the model's pilot-camera socket, looking 4° down; the chase camera follows the
   heading and half the climb, not the roll (rolling into a turn tilts the ship, not the world).
 - S18. **A pilot's ground is the ship's business:** the zone's ground pass skips seated characters (a pilot at 150 m
@@ -5104,13 +5393,15 @@ confirm or overturn (numbered W1 on):
 - W7. **The recycler**: Rust's fixed lists for loot-only components; half a crafted item's recipe, scaled by its
   condition, a fraction of a unit coming out as a seeded chance (hollow-orbit rounds down); a tenth of the item's stack
   per 5 s batch; it stops at once when empty or when its outputs can't take a batch. Public and unbreakable; three stand
-  at fixed points 100–150 m from the landing site until monuments bring their own.
+  at fixed points 100–150 m from the landing site until monuments bring their own. *Since S3 one stands on each cube
+  face (§6.8, WHOLE_WORLD.md decision 9).*
 - W8. **Barrels** have 25 health (a rock's five blows), spill their loot on the ground (Rust's) and come back after 20
   minutes; **crates** can't be broken, take nothing, go once empty and come back after 30 (45 military); a prop never comes
   back on top of a player, a deployable or a building piece. Respawns run on the real clock, as nature's.
 - W9. **Loot spots** are generated clusters (coasts, forest edges, the open), within 1.6 km of the zone's origin and never
   within 90 m of it, where players arrive (and the tests play); one cluster always about 130 m out. Barrels and crates
-  stand anywhere a cluster is kept, not along roads (there are none).
+  stand anywhere a cluster is kept, not along roads (there are none). *Since S3 over the whole world, never within 90 m
+  of the landing site (§6.8).*
 - W10. **World props are deployables to the rules** (hits, blasts, opening, replication). Clients see them as things of
   kind `Prop`. They are solid on the server and in every client's prediction, as boxes and furnaces now are: a solid
   deployable or prop reaching a client gets the server's box (same place, up and yaw) in its prediction physics, and
@@ -5121,10 +5412,12 @@ confirm or overturn (numbered W1 on):
   may authorise there); on a code lock only someone it knows can. Friendly fire stays on. Teammates' positions go to
   members twice a second, unreliably. Teams are the server's, not a body's.
 - W12. **Map markers**: five, each a point, one of six colours and a label (Rust's markers in kind); saved with the
-  character in the zone frame (a moved zone would move them), as the last death's point.
+  character in the zone frame (a moved zone would move them), as the last death's point. *Since S3 both are saved in
+  the body frame (§4.7).*
 - W13. **The map** is 3.9 km across, centred on the zone's origin, with 26 × 26 cells of 150 m (Rust's 146 m) lettered
   from the west and numbered from the north; its picture is rendered by each client from the surface (deterministic,
-  cached on disk), not sent by the server.
+  cached on disk), not sent by the server. *Since S3 the zone's origin is the world's centre; S3d makes the map of the
+  whole world (§6.8).*
 - W14. **Stand-in models and sounds** for the new items until the assets and sound packages make them (`models.json`
   `standIn`, `sounds.json` and `art/audio/events.py`): metal fragments for salvage and tech scrap, refined metal for the
   metal components, fibre for rope, cloth and the sewing kit, the building plan for schematics and blueprints, the
@@ -5231,13 +5524,16 @@ Decisions taken for the F1 console (§8.2) without the owner, to confirm or over
 - K5. **God mode and noclip live in the movement state** (`MoveCheats`), not in a server table: the prediction then runs
   them as the server does, so flying has no corrections. Noclip is 10 m/s (40 with Shift), along the view, within the
   zone's ground; god mode blocks every damage through `Zone.Hurt` and the landing's. Both last through a respawn, not a
-  restart.
+  restart. *Since S3 noclip stays between 500 m under the mean radius and three world radii from the centre
+  (§8.2.5).*
 - K6. **The zone's clock is the planet's spin, per zone** (`time`, `timescale`): orbits, seasons and universe time stay
   global, and the sky of every client turns with the zone's (`ZoneClock`). Not saved: a restart brings back the planet's
-  own clock. `time` is local solar time at the zone's origin, as the map and the climate count it.
+  own clock. `time` is local solar time at the zone's origin, as the map and the climate count it. *Since S3 where the
+  admin stands (§8.2.5).*
 - K7. **Two numbers after teleport are metres** east and south of the zone's origin (as the old admin command), unless
   they read as a latitude and longitude: marked N, S, E or W, or both with three decimals or more and inside the zone
-  that way. `whereami` prints both forms ready to paste.
+  that way. `whereami` prints both forms ready to paste. *Since S3 the metres are east and south of the landing site
+  along the ground, and a latitude and longitude may be anywhere on the world (§8.2.1).*
 - K8. **Spawned herds are one-off** (`SpawnHerd`, not a refilled slot as the old `spawn` made), so a pack spawned to test
   a fight doesn't come back; spawned barrels and crates don't come back either and aren't saved. Things are placed
   without the placing rules, an admin's privilege.

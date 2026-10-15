@@ -35,20 +35,27 @@ public static class WorldNetTests
 
     private static T OnServer<T>(LoopbackRig rig, Func<GameServer, T> look) => rig.Server.Inspect(look);
 
-    // Teleports a player next to a world prop (on the server) and waits until their client has them there.
+    // Teleports a player next to the world prop of a kind nearest the landing site, on its side toward the landing site,
+    // and waits until their client has them there.
     private static Vector3 NextTo(LoopbackRig rig, GameClient client, WorldPropKind kind, out EntityId prop)
     {
-        (EntityId id, Vector3 at) = OnServer(rig, sv =>
+        (EntityId id, Vector3 at, Vector3 stand) = OnServer(rig, sv =>
         {
-            WorldProp p = sv.Zone.World().Props.Where(x => x.Prop.Kind == kind).OrderBy(x => x.Position.Length()).First();
-            return (p.Id, p.Position);
+            WorldProp p = sv.Zone.World().Props.Where(x => x.Prop.Kind == kind).OrderBy(x => Vector3.Distance(x.Position, sv.Zone.Landing)).First();
+            Vector3 toward = Vector3.Normalize(sv.Zone.Frame.Flat(p.Position, sv.Zone.Landing - p.Position));
+            return (p.Id, p.Position, sv.Zone.Settle(p.Position + toward * 1.4f));
         });
         prop = id;
-        Vector3 away = Vector3.Normalize(new Vector3(-at.X, 0, -at.Z));
-        Vector3 stand = at + away * 1.4f;
-        rig.Server.Execute(FormattableString.Invariant($"teleport {client.Name} {stand.X} {stand.Z}"));
-        RunUntil(rig, () => new Vector2(client.Character.Position.X - stand.X, client.Character.Position.Z - stand.Z).Length() < 0.5f, "the teleport");
+        rig.Teleport(client.Name, stand);
+        RunUntil(rig, () => Vector3.Distance(client.Character.Position, stand) < 0.5f, "the teleport");
         return at;
+    }
+
+    // The ground so many metres east and south of the landing site, as a client finds it.
+    private static Vector3 FromLanding(GameClient client, float east, float south)
+    {
+        GroundProbe ground = client.Placement().Ground!.Value;
+        return ground.Offset(ground.On(client.Zone!.LandingDirection), east, south);
     }
 
     /// <summary>
@@ -118,7 +125,7 @@ public static class WorldNetTests
         rig.Server.Execute("give Ada workbench-1 1");
         RunUntil(rig, () => me.Inventory.Count(c.ItemByKey("workbench-1")) == 1 && me.Inventory.Count(c.ItemByKey("salvage")) >= 100, "the bench and salvage");
         Vector3 feet = ada.Character.Position;
-        Vector3 away = Vector3.Normalize(new Vector3(-machine.X, 0, -machine.Z));
+        Vector3 away = Vector3.Normalize(ada.Frame.Flat(machine, FromLanding(ada, 0, 0) - machine));
         Simulation.Placement.PlacementCandidate? bench = ada.Placement().PlanAt(c.ItemByKey("workbench-1").Places!, ada.Placement().Ground!.Value.Settle(feet + away * 2.2f), 0);
         Assert.True(bench is { Valid: true }, $"the bench's ghost fits ({bench})");
         me.Place(bench!, ContainerRef.Main, SlotOf(me.Inventory.Main, "workbench-1"));
@@ -168,12 +175,13 @@ public static class WorldNetTests
         Assert.True(heard["Ada"].Any(l => l.Kind == ChatKind.Team && l.Text == "meet at the recycler") && heard["Cy"].Count == 0, "to the team alone");
 
         // The map: a marker, then gone.
-        me.PlaceMarker(new Vector3(200, 0, -300), 2, "base");
+        Vector3 basePoint = FromLanding(ada, 200, -300);
+        me.PlaceMarker(basePoint, 2, "base");
         RunUntil(rig, () => me.Markers.Count == 1, "the marker");
-        Assert.True(me.Markers[0].Label == "base" && me.Markers[0].Colour == 2 && Math.Abs(me.Markers[0].Position.X - 200) < 0.01f, "as placed");
+        Assert.True(me.Markers[0].Label == "base" && me.Markers[0].Colour == 2 && Vector3.Distance(me.Markers[0].Position, basePoint) < 0.05f, "as placed");
         me.RemoveMarker(0);
         RunUntil(rig, () => me.Markers.Count == 0, "the marker gone");
-        Assert.True(ada.World().Map!.GridName(ada.World().Map!.ToMap(Vector3.Zero)).Length >= 2, "the map names a grid cell");
+        Assert.True(ada.World().Map!.GridName(ada.World().Map!.ToMap(ada.Character.Position)).Length >= 2, "the map names a grid cell");
     }
 
     /// <summary>
@@ -198,7 +206,7 @@ public static class WorldNetTests
             rig.Server.Execute("learn Ada metal-hatchet");
             rig.Server.Execute("learn Ada pistol");
             RunUntil(rig, () => ada.Local.Blueprints.Learnt.Count == 2, "two blueprints");
-            ada.Local.PlaceMarker(new Vector3(-150, 0, 80), 4, "lake");
+            ada.Local.PlaceMarker(FromLanding(ada, -150, 80), 4, "lake");
             ada.Local.CreateTeam();
             RunUntil(rig, () => ada.Local.LeadsTeam && ada.Local.Markers.Count == 1 && ada.Entities.Any(e => e.Name == "Bo"), "a team and a marker");
             ada.Local.Interact(new TargetRef(TargetFamily.Character, bo.EntityId.Value), "invite");

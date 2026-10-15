@@ -1,0 +1,309 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Numerics;
+using System.Text.Json;
+using Hollow.Simulation.Ships;
+
+namespace Hollow.Simulation.Content.Readers;
+
+/// <summary>
+/// A ship's data file (IRON_WAKE.md §9.1, <c>game/data/ground/ships/</c>), as a ships.json entry's <c>interior</c> block
+/// names it: what the rules take of it (the parts and how they move, the convex pieces, the boarding volume, the sockets,
+/// the hull's sweep boxes and the landing pads, the centre of mass) and the block's own fields (the margin, the decks'
+/// gravity, the parts' states as a ship is made, the boarding volume's conditions). The import writes the file; the rest
+/// of it (rooms, stations, loaders, lights...) is the views' and the later packages'. Part of ShipsReader's file.
+/// </summary>
+internal static class ShipInteriorReader
+{
+    private const float Degrees = MathF.PI / 180;
+
+    /// <summary>The interior a ships.json entry's <c>interior</c> block describes, or null with every problem noted.</summary>
+    public static ShipInterior? Read(ContentReading r, JsonElement block, string where)
+    {
+        JsonFields f = r.Fields;
+        f.OnlyKnown(block, where, "file", "margin", "gravity", "poses", "conditions");
+        string file = f.Text(block, "file", where);
+        if (file.Length == 0)
+        {
+            return null;
+        }
+        if (!r.Documents.TryGetValue(file, out JsonElement root) || root.ValueKind != JsonValueKind.Object)
+        {
+            f.Problem(where + ".file", $"no data file \"{file}\" (game/data/ground/{file})");
+            return null;
+        }
+        string at = file;
+
+        // The parts, the hull first (the import writes it first, "body", static).
+        var parts = new List<ShipPartDef>();
+        JsonElement[] partList = f.List(root, "parts", at);
+        var names = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (int i = 0; i < partList.Length; i++)
+        {
+            names.TryAdd(f.Text(partList[i], "name", $"{at}: parts[{i}]"), i);
+        }
+        for (int i = 0; i < partList.Length; i++)
+        {
+            JsonElement p = partList[i];
+            string name = f.Text(p, "name", $"{at}: parts[{i}]");
+            string partAt = $"{at}: part {JsonFields.Quote(name)}";
+            ShipPartKind kind = Kind(f, f.Text(p, "kind", partAt), partAt);
+            int parent = -1;
+            if (p.TryGetProperty("parent", out JsonElement parentName) && parentName.ValueKind == JsonValueKind.String)
+            {
+                parent = names.GetValueOrDefault(parentName.GetString() ?? "", -1);
+                if (parent < 0 || parent >= i)
+                {
+                    f.Problem(partAt, $"its parent \"{parentName.GetString()}\" isn't a part listed before it");
+                    parent = -1;
+                }
+            }
+            bool moves = kind is not (ShipPartKind.Static or ShipPartKind.Loader);
+            Vector3 axis = moves || f.Has(p, "axis") ? f.Vector(p, "axis", partAt) : Vector3.UnitY;
+            if (moves && MathF.Abs(axis.Length() - 1) > 1e-3f)
+            {
+                f.Problem(partAt, "\"axis\" must be a unit vector");
+                axis = Vector3.UnitY;
+            }
+            float scale = kind == ShipPartKind.Hinge ? Degrees : 1;
+            parts.Add(new ShipPartDef
+            {
+                Name = name,
+                Index = i,
+                Parent = parent,
+                Kind = kind,
+                Pivot = f.Has(p, "pivot") ? f.Vector(p, "pivot", partAt) : Vector3.Zero,
+                Axis = axis,
+                Closed = kind is ShipPartKind.Hinge or ShipPartKind.Slide ? f.Number(p, "closed", partAt) * scale : 0,
+                Open = kind is ShipPartKind.Hinge or ShipPartKind.Slide ? f.Number(p, "open", partAt) * scale : 0,
+            });
+        }
+        if (parts.Count == 0 || parts[0].Kind != ShipPartKind.Static)
+        {
+            f.Problem(at, "the first part must be the static hull");
+        }
+
+        // The convex pieces by part.
+        var pieces = new List<ShipPiece>();
+        foreach (JsonElement p in f.List(root, "pieces", at))
+        {
+            string name = f.Text(p, "name", at + ": pieces", "");
+            string pieceAt = $"{at}: piece {JsonFields.Quote(name)}";
+            int part = names.GetValueOrDefault(f.Text(p, "part", pieceAt), -1);
+            if (part < 0)
+            {
+                f.Problem(pieceAt, "its part isn't one of the parts");
+                continue;
+            }
+            Vector3[] points = f.Vectors(p, "points", pieceAt);
+            if (points.Length < 4)
+            {
+                f.Problem(pieceAt, "a convex piece needs at least four points");
+                continue;
+            }
+            pieces.Add(new ShipPiece(part, name, points, f.Flag(p, "glass", pieceAt, false)));
+        }
+
+        // The block's own fields: the conditions (a boarding box's "when") name parts that must be open.
+        var conditions = new Dictionary<string, int>(StringComparer.Ordinal);
+        if (f.TryChild(block, "conditions", out JsonElement conditionBlock))
+        {
+            foreach (JsonProperty c in conditionBlock.EnumerateObject())
+            {
+                int part = c.Value.ValueKind == JsonValueKind.String ? names.GetValueOrDefault(c.Value.GetString() ?? "", -1) : -1;
+                if (part < 0 || !parts[part].IsDoor)
+                {
+                    f.Problem($"{where}.conditions.{c.Name}", "must name a hinge or slide part of the data file");
+                    continue;
+                }
+                conditions[c.Name] = part;
+            }
+        }
+
+        // The boarding volume.
+        var boarding = new List<BoardingBox>();
+        foreach (JsonElement b in f.List(root, "boarding", at))
+        {
+            string name = f.Text(b, "name", at + ": boarding", "");
+            string boxAt = $"{at}: boarding {JsonFields.Quote(name)}";
+            Vector3 min = f.Vector(b, "min", boxAt), max = f.Vector(b, "max", boxAt);
+            if (max.X < min.X || max.Y < min.Y || max.Z < min.Z)
+            {
+                f.Problem(boxAt, "min must be below max");
+                continue;
+            }
+            int part = -1;
+            if (f.Has(b, "part"))
+            {
+                part = names.GetValueOrDefault(f.Text(b, "part", boxAt), -1);
+                if (part < 0)
+                {
+                    f.Problem(boxAt, "its part isn't one of the parts");
+                }
+            }
+            int when = -1;
+            if (f.Has(b, "when"))
+            {
+                string condition = f.Text(b, "when", boxAt);
+                if (!conditions.TryGetValue(condition, out when))
+                {
+                    f.Problem(boxAt, $"its condition \"{condition}\" isn't in {where}.conditions");
+                    when = -1;
+                }
+            }
+            boarding.Add(new BoardingBox(min, max, part, when));
+        }
+
+        // The sockets, with what carries them.
+        var sockets = new Dictionary<string, ShipSocket>(StringComparer.Ordinal);
+        if (f.TryChild(root, "sockets", out JsonElement socketBlock))
+        {
+            foreach (JsonProperty s in socketBlock.EnumerateObject())
+            {
+                string socketAt = $"{at}: socket {JsonFields.Quote(s.Name)}";
+                int part = f.Has(s.Value, "part") ? names.GetValueOrDefault(f.Text(s.Value, "part", socketAt), -1) : -1;
+                sockets[s.Name] = new ShipSocket(f.Vector(s.Value, "position", socketAt), f.Vector(s.Value, "forward", socketAt),
+                    f.Vector(s.Value, "up", socketAt), part);
+            }
+        }
+        else
+        {
+            f.Problem(at, "\"sockets\" is missing");
+        }
+
+        // The hull's sweep boxes and the landing pads (IRON_WAKE.md §5.4).
+        var hullBoxes = new List<HullBox>();
+        var pads = new List<Vector3>();
+        var padSizes = new List<Vector2>();
+        if (f.TryChild(root, "hull", out JsonElement hull))
+        {
+            foreach (JsonElement b in f.List(hull, "boxes", at + ": hull"))
+            {
+                string boxAt = $"{at}: hull box {JsonFields.Quote(f.Text(b, "name", at + ": hull", ""))}";
+                Vector3 min = f.Vector(b, "min", boxAt), max = f.Vector(b, "max", boxAt);
+                hullBoxes.Add(new HullBox((min + max) / 2, (max - min) / 2, false));
+            }
+            foreach (JsonElement pad in f.List(hull, "pads", at + ": hull"))
+            {
+                string padAt = $"{at}: pad {JsonFields.Quote(f.Text(pad, "name", at + ": hull", ""))}";
+                pads.Add(f.Vector(pad, "foot", padAt));
+                double[]? size = f.Numbers(pad, "size", padAt, 2);
+                padSizes.Add(size == null ? new Vector2(1, 1) : new Vector2((float)size[0], (float)size[1]));
+            }
+        }
+        else
+        {
+            f.Problem(at, "\"hull\" is missing");
+        }
+
+        // The parts' states as a ship is made: by name, a door's progress (0 shut … 1 open), a turret's angle in degrees.
+        float[] rest = new float[parts.Count];
+        if (f.TryChild(block, "poses", out JsonElement poses))
+        {
+            foreach (JsonProperty pose in poses.EnumerateObject())
+            {
+                int part = names.GetValueOrDefault(pose.Name, -1);
+                if (part < 0 || pose.Value.ValueKind != JsonValueKind.Number)
+                {
+                    f.Problem($"{where}.poses.{pose.Name}", "must name a part of the data file and give a number");
+                    continue;
+                }
+                float value = (float)pose.Value.GetDouble();
+                ShipPartDef def = parts[part];
+                if (def.IsDoor && value is < 0 or > 1)
+                {
+                    f.Problem($"{where}.poses.{pose.Name}", "a door's state is 0 (shut) … 1 (open)");
+                }
+                rest[part] = def.Kind is ShipPartKind.Yaw or ShipPartKind.Pitch ? value * Degrees : value;
+            }
+        }
+
+        var interior = new ShipInterior
+        {
+            File = file,
+            Parts = parts,
+            Pieces = pieces,
+            Boarding = boarding,
+            Sockets = sockets,
+            HullBoxes = hullBoxes,
+            Pads = pads,
+            PadSizes = padSizes,
+            CentreOfMass = f.Vector(root, "centreOfMass", at),
+            Margin = f.Number(block, "margin", where, 0.3f),
+            DeckGravity = f.Number(block, "gravity", where, 1f),
+            Rest = rest,
+        };
+        interior.Finish();
+        return interior;
+    }
+
+    private static ShipPartKind Kind(JsonFields f, string kind, string where)
+    {
+        switch (kind)
+        {
+            case "static":
+                return ShipPartKind.Static;
+            case "hinge":
+                return ShipPartKind.Hinge;
+            case "slide":
+                return ShipPartKind.Slide;
+            case "yaw":
+                return ShipPartKind.Yaw;
+            case "pitch":
+                return ShipPartKind.Pitch;
+            case "recoil":
+                return ShipPartKind.Recoil;
+            case "loader":
+                return ShipPartKind.Loader;
+            default:
+                f.Problem(where, $"unknown kind \"{kind}\" (static, hinge, slide, yaw, pitch, recoil, loader)");
+                return ShipPartKind.Static;
+        }
+    }
+
+    /// <summary>
+    /// A ships.json point that may name one of the data file's sockets instead of giving three numbers (IRON_WAKE.md
+    /// §5.1: the sockets come from the generated file, not hand-copied numbers).
+    /// </summary>
+    public static Vector3 Point(JsonFields f, JsonElement o, string name, string where, ShipInterior? interior)
+    {
+        if (o.ValueKind == JsonValueKind.Object && o.TryGetProperty(name, out JsonElement v) && v.ValueKind == JsonValueKind.String)
+        {
+            return Socket(f, v.GetString() ?? "", $"{where}.{name}", interior);
+        }
+        return f.Vector(o, name, where);
+    }
+
+    /// <summary>A ships.json list of points, each three numbers or a socket's name.</summary>
+    public static Vector3[] Points(JsonFields f, JsonElement o, string name, string where, ShipInterior? interior, bool required = true)
+    {
+        var result = new List<Vector3>();
+        foreach (JsonElement v in f.List(o, name, where, required))
+        {
+            if (v.ValueKind == JsonValueKind.String)
+            {
+                result.Add(Socket(f, v.GetString() ?? "", $"{where}.{name}", interior));
+            }
+            else if (v.ValueKind == JsonValueKind.Array && v.GetArrayLength() == 3 && v.EnumerateArray().All(x => x.ValueKind == JsonValueKind.Number))
+            {
+                result.Add(new Vector3((float)v[0].GetDouble(), (float)v[1].GetDouble(), (float)v[2].GetDouble()));
+            }
+            else
+            {
+                f.Problem(where, $"each of \"{name}\" is three numbers or a socket's name");
+            }
+        }
+        return result.ToArray();
+    }
+
+    private static Vector3 Socket(JsonFields f, string socket, string where, ShipInterior? interior)
+    {
+        if (interior != null && interior.Sockets.TryGetValue(socket, out ShipSocket s))
+        {
+            return s.Position;
+        }
+        f.Problem(where, interior == null ? $"names a socket (\"{socket}\") but the ship has no interior data file" : $"no socket \"{socket}\" in {interior.File}");
+        return Vector3.Zero;
+    }
+}

@@ -14,6 +14,9 @@ public sealed class CompletionSources
     public IReadOnlyList<string> Spawnables { get; init; } = Array.Empty<string>();
     public IReadOnlyList<string> Blueprints { get; init; } = Array.Empty<string>();
 
+    /// <summary>The ships' kinds (IRON_WAKE.md §5.6).</summary>
+    public IReadOnlyList<string> Ships { get; init; } = Array.Empty<string>();
+
     /// <summary>The building grades by name, for <c>raidbase</c> (0 twig … 4 armoured).</summary>
     public static readonly string[] Grades = ["twig", "wood", "stone", "metal", "armoured"];
 
@@ -25,6 +28,7 @@ public sealed class CompletionSources
         LootTables = content.LootTables.Select(t => t.Key).ToArray(),
         Spawnables = Spawning.Kinds(content),
         Blueprints = content.Recipes.Where(r => !r.Known).Select(r => r.Output.Key).Distinct().Prepend("all").ToArray(),
+        Ships = content.Ships.Select(s => s.Key).ToArray(),
     };
 
     public IReadOnlyList<string> Of(ArgKind kind) => kind switch
@@ -36,6 +40,7 @@ public sealed class CompletionSources
         ArgKind.Blueprint => Blueprints,
         ArgKind.Grade => Grades,
         ArgKind.OnOff => ["on", "off"],
+        ArgKind.Ship => Ships,
         ArgKind.Command => ConsoleCatalog.All.Select(c => c.Name).ToArray(),
         _ => Array.Empty<string>(),
     };

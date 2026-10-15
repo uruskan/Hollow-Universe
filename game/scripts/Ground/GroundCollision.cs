@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using Hollow.Simulation.Physics;
+using Hollow.Surface;
 using Num = System.Numerics;
 
 namespace HollowUniverse.Ground;
@@ -16,27 +17,26 @@ namespace HollowUniverse.Ground;
 /// </summary>
 public partial class GroundCollision : Node3D
 {
-    /// <summary>Tiles kept out from the player's tile: 5 × 5 tiles, 320 m across.</summary>
-    private const int Radius = 2;
+    /// <summary>Tiles kept within this many metres of the player.</summary>
+    private const float Reach = 140;
 
-    private readonly Dictionary<(int X, int Z), StaticBody3D> _tiles = new();
-    private readonly Dictionary<(int X, int Z), Task<Vector3[]>> _building = new();
+    private readonly Dictionary<TileKey, StaticBody3D> _tiles = new();
+    private readonly Dictionary<TileKey, Task<Vector3[]>> _building = new();
+    private readonly List<TileKey> _near = new();
 
     public void Follow(PhysicsWorld world, Num.Vector3 feet)
     {
-        (int cx, int cz) = PhysicsWorld.TileOf(feet);
-        for (int z = cz - Radius; z <= cz + Radius; z++)
+        _near.Clear();
+        TileKey.Around(world.Frame.ToBody(feet), Reach, world.Surface.Radius, world.Level, _near);
+        foreach (TileKey key in _near)
         {
-            for (int x = cx - Radius; x <= cx + Radius; x++)
+            if (!_tiles.ContainsKey(key) && !_building.ContainsKey(key))
             {
-                if (!_tiles.ContainsKey((x, z)) && !_building.ContainsKey((x, z)))
-                {
-                    int tx = x, tz = z;
-                    _building.Add((x, z), Task.Run(() => Faces(world, tx, tz)));
-                }
+                TileKey tile = key;
+                _building.Add(key, Task.Run(() => Faces(world, tile)));
             }
         }
-        foreach (((int, int) key, Task<Vector3[]> task) in _building.Where(b => b.Value.IsCompleted).Take(1).ToList())
+        foreach ((TileKey key, Task<Vector3[]> task) in _building.Where(b => b.Value.IsCompleted).Take(1).ToList())
         {
             _building.Remove(key);
             if (task.IsCompletedSuccessfully)
@@ -49,7 +49,8 @@ public partial class GroundCollision : Node3D
                 _tiles[key] = body;
             }
         }
-        foreach ((int X, int Z) key in _tiles.Keys.Where(k => Math.Max(Math.Abs(k.X - cx), Math.Abs(k.Z - cz)) > Radius + 1).ToList())
+        double radius = world.Surface.Radius;
+        foreach (TileKey key in _tiles.Keys.Where(k => Num.Vector3.Distance(world.Frame.ToLocal(k.Centre * radius), feet) > Reach + 120).ToList())
         {
             _tiles[key].QueueFree();
             _tiles.Remove(key);
@@ -57,9 +58,9 @@ public partial class GroundCollision : Node3D
     }
 
     // On a worker: the tile's triangles as a soup, wound as Godot expects.
-    private static Vector3[] Faces(PhysicsWorld world, int tx, int tz)
+    private static Vector3[] Faces(PhysicsWorld world, TileKey tile)
     {
-        Hollow.Surface.TriangleMesh mesh = world.TileMesh(tx, tz);
+        Hollow.Surface.TriangleMesh mesh = world.TileMesh(tile);
         var faces = new Vector3[mesh.Indices.Length];
         float[] p = mesh.Positions;
         for (int t = 0; t < mesh.TriangleCount; t++)

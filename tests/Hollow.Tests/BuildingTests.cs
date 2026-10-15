@@ -37,7 +37,7 @@ public static class BuildingTests
     }
 
     private static Piece First(BuildingWorld world, string key = "foundation", int grade = 0, double x = 0, double z = 0, double now = 0) =>
-        world.AddFirst(BuildingFrame.At(new Vector3D(x, 0, z), Vector3D.UnitY, 0), P(key), grade, Ada, now);
+        world.AddFirst(BuildingFrame.At(new Vector3D(x, 0, z), Vector3D.UnitY, -Math.PI / 2), P(key), grade, Ada, now);
 
     /// <summary>Adds a piece on a socket of another, without checks.</summary>
     private static Piece On(BuildingWorld world, Piece parent, SocketId socket, string key, int orientation = 0, int grade = 0, double now = 0)
@@ -51,12 +51,20 @@ public static class BuildingTests
 
     // ---------------------------------------------------------------- the placement pipeline (GROUND_SYSTEMS.md §6)
 
-    /// <summary>A placement world of a building alone (its collision if it has any), on a ground and frame (flat by default).</summary>
+    /// <summary>A placement world of a building alone (its collision if it has any), on a ground (flat by default), in the world's frame.</summary>
     private static PlacementWorld Placing(BuildingWorld world, ISurface? surface = null)
     {
-        ISurface ground = surface ?? new CliffSurface(6_435_000);
-        return new PlacementWorld(ContentFixture.Content, ZoneFrame.At(ground, 0, 0), ground, world.Physics?.World, world, new Alone(world));
+        ISurface ground = surface ?? new CliffSurface(ZoneSpec.FirstWorldRadius);
+        return new PlacementWorld(ContentFixture.Content, ZoneFrame.World, ground, world.Physics?.World, world, new Alone(world));
     }
+
+    // Tests on a ground of their own stand at 0°, 0° of a small world, written in that spot's tangent frame (x east, y up,
+    // z south): these turn its points and directions into the world's frame, which every zone uses (docs/WHOLE_WORLD.md).
+    private static Vector3 W(ZoneFrame spot, Vector3 local) => BuildingWorld_F(spot.ToBody(local));
+
+    private static Vector3 WD(ZoneFrame spot, Vector3 local) => BuildingWorld_F(spot.ToBody(local) - spot.Origin);
+
+    private static Vector3 L(ZoneFrame spot, Vector3 world) => spot.ToLocal(new Vector3D(world.X, world.Y, world.Z));
 
     private static PlacementContext Context(PieceDef piece, ulong player, Vector3 eye, IBuildingWallet? wallet) =>
         new(player, eye, ContentFixture.Content.Placement.Of(piece)!, wallet);
@@ -573,8 +581,6 @@ public static class BuildingTests
             return local.X > 12 ? -3 : 0;
         }
 
-        public TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size) =>
-            SphereSurface.GridCollision(this, frame, centreX, centreZ, size, spacing: 1.0);
     }
 
     /// <summary>
@@ -584,10 +590,10 @@ public static class BuildingTests
     [Test]
     public static void PlacementIsRefusedWithAReason()
     {
-        var surface = new CliffSurface(6_435_000);
-        ZoneFrame zone = ZoneFrame.At(surface, 0, 0);
-        using var physics = new PhysicsWorld(surface, zone);
-        physics.EnsureGround(Vector3.Zero, 1);
+        var surface = new CliffSurface(ZoneSpec.FirstWorldRadius);
+        ZoneFrame spot = ZoneFrame.At(surface, 0, 0);
+        using var physics = new PhysicsWorld(surface, ZoneFrame.World);
+        physics.EnsureGroundWithin(W(spot, Vector3.Zero), 96);
         ulong next = 0;
         using var world = new BuildingWorld(Data, physics, () => new EntityId(++next));
         var players = new List<Capsule>();
@@ -605,16 +611,15 @@ public static class BuildingTests
         }
 
         // A free foundation where the player looks, 3 m ahead on the flat.
-        var standing = new Vector3(6, 0, 4);
-        Vector3 eye = standing + new Vector3(0, 1.6f, 0);
-        PlacementCandidate? ghost = Ghost(placing, P("foundation"), eye, new Vector3(0, -1.6f, -3), wallet);
+        Vector3 eye = W(spot, new Vector3(6, 1.6f, 4));
+        PlacementCandidate? ghost = Ghost(placing, P("foundation"), eye, WD(spot, new Vector3(0, -1.6f, -3)), wallet);
         PlacementPlan? first = ghost?.Detail as PlacementPlan;
         Assert.True(ghost is { Valid: true } && first is { Support: null }, "free foundation: " + ghost);
         Assert.True(world.Place(first!, Ada, wallet, now: 0, out Piece? f).Ok, "placed");
         Assert.Equal(10_000 - 50, wallet["wood"], "paid 50 wood");
         (Vector3 fPosition, _) = f!.ZoneTransform;
-        Fixtures.Report($"free foundation at {fPosition}, its top {fPosition.Y:0.000} m above the flat ground");
-        Assert.InRange(Data.FoundationClearance, Data.FoundationClearance + 0.05, fPosition.Y, "just above the ground");
+        Fixtures.Report($"free foundation at {L(spot, fPosition)}, its top {L(spot, fPosition).Y:0.000} m above the flat ground");
+        Assert.InRange(Data.FoundationClearance, Data.FoundationClearance + 0.05, L(spot, fPosition).Y, "just above the ground");
 
         // Aiming at its east edge with a wall plan picks that edge.
         Vector3 east = f.Structure.Frame.ToZone(PieceGeometry.ToFrame(f.Pose, new Vector3D(1.5, 0.6, 0))) is var e ? BuildingWorld_F(e) : default;
@@ -624,39 +629,40 @@ public static class BuildingTests
         world.Place(wallPlan!, Ada, wallet, now: 1, out Piece? eastWall);
 
         Expect(OutcomeCode.Occupied, world.FromIntent(P("wall"), f, Edge(1), 1), eye);
-        Expect(OutcomeCode.OutOfReach, world.FromIntent(P("wall"), f, Edge(3), 0), fPosition + new Vector3(-20, 1.6f, 0));
-        Vector3 behind = fPosition + new Vector3(4.5f, 1.6f, 0);
+        Expect(OutcomeCode.OutOfReach, world.FromIntent(P("wall"), f, Edge(3), 0), fPosition + WD(spot, new Vector3(-20, 1.6f, 0)));
+        Vector3 behind = fPosition + WD(spot, new Vector3(4.5f, 1.6f, 0));
         Expect(OutcomeCode.OutOfSight, world.FromIntent(P("wall"), f, Edge(3), 0), behind);
 
         // East of x = 12 the ground drops 3 m: a foundation there would float; one half a storey down on the flat would be buried.
         Piece f2 = world.Add(f.Structure, P("foundation"), 0, world.FromIntent(P("foundation"), f, Facing(f, -1, 0), 0)!.Pose, Ada, 2);
         Piece east1 = world.Add(f.Structure, P("foundation"), 0, world.FromIntent(P("foundation"), f, Facing(f, 1, 0), 0)!.Pose, Ada, 2);
         PlacementPlan? overCliff = world.FromIntent(P("foundation"), east1, Facing(east1, 1, 0), 0);
-        Expect(OutcomeCode.Floating, overCliff, ZoneOf(overCliff!) + new Vector3(-3, 1.6f, 0));
+        Expect(OutcomeCode.Floating, overCliff, ZoneOf(overCliff!) + WD(spot, new Vector3(-3, 1.6f, 0)));
         PlacementPlan? sunk = world.FromIntent(P("foundation"), f2, new SocketId(SocketKind.EdgeDown, Facing(f2, 0, -1).Edge), 0);
-        Expect(OutcomeCode.Buried, sunk, ZoneOf(sunk!) + new Vector3(0, 3, -3));
+        Expect(OutcomeCode.Buried, sunk, ZoneOf(sunk!) + WD(spot, new Vector3(0, 3, -3)));
 
         // A floor out from a foundation's edge lies in the ground; a foundation of another frame overlapping this one cuts into it.
         PlacementPlan? lowFloor = world.FromIntent(P("floor"), f2, Facing(f2, 0, 1), 0);
-        Expect(OutcomeCode.HitsGround, lowFloor, ZoneOf(lowFloor!) + new Vector3(0, 1.6f, 3));
+        Expect(OutcomeCode.HitsGround, lowFloor, ZoneOf(lowFloor!) + WD(spot, new Vector3(0, 1.6f, 3)));
+        Vector3 skewAt = fPosition + WD(spot, new Vector3(1.5f, 0, -1.5f));
         var skew = new PlacementPlan
         {
             Piece = P("foundation"),
-            Frame = BuildingFrame.At(new Vector3D(fPosition.X + 1.5, fPosition.Y, fPosition.Z - 1.5), Vector3D.UnitY, 0.4),
+            Frame = BuildingFrame.At(new Vector3D(skewAt.X, skewAt.Y, skewAt.Z), spot.Up, 0.4),
             Pose = new Pose(Vector3D.Zero, 0),
         };
         Expect(OutcomeCode.HitsPiece, skew, eye);
 
         // Someone standing on the edge where a wall would go.
         PlacementPlan? southWall = world.FromIntent(P("wall"), f, Edge(0), 0);
-        players.Add(new Capsule(ZoneOf(southWall!) + new Vector3(0, 0.05f, -0.2f), Vector3.UnitY, 0.32f, 1.76f));
+        players.Add(new Capsule(ZoneOf(southWall!) + WD(spot, new Vector3(0, 0.05f, -0.2f)), WD(spot, Vector3.UnitY), 0.32f, 1.76f));
         Expect(OutcomeCode.PlayerInTheWay, southWall, eye);
         players.Clear();
         Expect(OutcomeCode.NotEnough, southWall, eye, new Wallet());
         Assert.Equal("Not enough wood", Line(Verdict(placing, southWall!, Ada, eye, new Wallet())), "names the material");
         Outcome fits = Verdict(placing, southWall!, Ada, eye, wallet);
         Assert.True(fits.Ok, "with the player gone and wood paid, the wall fits: " + fits);
-        Assert.True(Ghost(placing, P("wall"), eye, new Vector3(0, 1, 0), wallet) == null, "a wall aimed at the sky: nothing to place");
+        Assert.True(Ghost(placing, P("wall"), eye, WD(spot, new Vector3(0, 1, 0)), wallet) == null, "a wall aimed at the sky: nothing to place");
         Fixtures.Report(string.Join(" | ", refusals));
         Assert.Equal(eastWall!.Body != 0, true, "pieces have bodies");
     }
@@ -680,8 +686,6 @@ public static class BuildingTests
 
         public double HeightAt(Vector3D direction) => _frame.ToLocal(direction * Radius).X * _slope;
 
-        public TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size) =>
-            SphereSurface.GridCollision(this, frame, centreX, centreZ, size, spacing: 1.0);
     }
 
     /// <summary>
@@ -693,26 +697,26 @@ public static class BuildingTests
     public static void FreeFoundationRisesWithTheAim()
     {
         const double slope = 0.08;
-        var surface = new RampSurface(6_435_000, slope);
-        ZoneFrame zone = ZoneFrame.At(surface, 0, 0);
-        using var physics = new PhysicsWorld(surface, zone);
-        physics.EnsureGround(Vector3.Zero, 1);
+        var surface = new RampSurface(ZoneSpec.FirstWorldRadius, slope);
+        ZoneFrame spot = ZoneFrame.At(surface, 0, 0);
+        using var physics = new PhysicsWorld(surface, ZoneFrame.World);
+        physics.EnsureGroundWithin(W(spot, Vector3.Zero), 96);
         ulong next = 0;
         using var world = new BuildingWorld(Data, physics, () => new EntityId(++next));
         var wallet = new Wallet { ["wood"] = 10_000 };
         // Standing where the ground is at zero height, looking north along the level line of the slope.
-        Vector3 eye = new(0, 1.6f, 4);
+        Vector3 eye = W(spot, new Vector3(0, 1.6f, 4));
         double rise = slope * Data.Width / 2, clearance = Data.FoundationClearance, depth = Data.FoundationDepth;
         double lowest = rise + clearance, highest = depth - rise;
         PlacementWorld placing = Placing(world, surface);
         double Top(Vector3 aim, string what)
         {
-            PlacementCandidate? ghost = Ghost(placing, P("foundation"), eye, aim, wallet);
+            PlacementCandidate? ghost = Ghost(placing, P("foundation"), eye, WD(spot, aim), wallet);
             PlacementPlan? plan = ghost?.Detail as PlacementPlan;
             Assert.True(ghost is { Valid: true } && plan is { Support: null }, $"{what}: a valid free foundation, not {ghost}");
             PlacementPlan again = world.FoundationAt(P("foundation"), plan!.Point, plan.HeadingSteps * BuildingWorld.HeadingStep)!;
             Assert.True(again.Frame.Equals(plan.Frame), $"{what}: the server's foundation from the plan's point is the ghost's");
-            double top = plan.Frame.Origin.Y;
+            double top = L(spot, BuildingWorld_F(plan.Frame.Origin)).Y;
             Fixtures.Report($"{what}: top {top:0.000} m over the ground at its centre");
             return top;
         }

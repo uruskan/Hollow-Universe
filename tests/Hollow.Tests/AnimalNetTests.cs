@@ -10,6 +10,7 @@ using Hollow.Simulation.Animals;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Players;
+using Hollow.Surface;
 
 namespace Hollow.Tests;
 
@@ -26,8 +27,9 @@ public static class AnimalNetTests
     }
 
     /// <summary>
-    /// GROUND.md §6.9 on the real planet: a player at the landing site has the spawn areas around her surveyed from the
-    /// planet's own biomes and forests, and herds come out in them, none nearer than 70 m; walking up to one, her client
+    /// GROUND.md §6.9 on a whole world's server: a player arrives on a beach, goes to the nearest area its survey gives
+    /// herds (the stand-in world's habitat is thin: S4 brings back the real planet's biomes and forests,
+    /// docs/WHOLE_WORLD.md §4), and the areas around her come out, none nearer than 70 m; walking up to one, her client
     /// sees it.
     /// </summary>
     [Test]
@@ -38,15 +40,28 @@ public static class AnimalNetTests
         rig.WaitUntilPlaying();
         var id = new EntityId(ada.EntityId.Value);
         Vector3 Her(Hollow.Server.GameServer sv) => sv.Zone.Players().TryFindPlayer(id, out Entity e, out _) ? sv.Zone.Entities.Get<Character>(e).State.Position : default;
-        // To the landing site, inland (she arrived on a beach).
-        rig.Server.Inspect(sv =>
+        // She arrived on a beach; to the dry middle of the area nearest the landing site that the survey gives herds.
+        string place = rig.Server.Inspect(sv =>
         {
+            AnimalWorld animals = sv.Zone.Animals().World!;
+            var tiles = new List<TileKey>();
+            TileKey.Around(sv.Zone.Frame.ToBody(sv.Zone.Landing), 1500, sv.Zone.Surface.Radius, animals.AreaLevel, tiles);
+            SpawnArea area = tiles.Select(animals.Survey).Where(a => a.Slots.Count > 0 && a.Land >= 0.75f && !sv.Zone.Ground.InWater(a.Centre, 1))
+                .OrderBy(a => Vector3.Distance(a.Centre, sv.Zone.Landing)).First();
             sv.Zone.Players().TryFindPlayer(id, out Entity e, out _);
-            Vector3 ground = sv.Zone.GroundAt(0, 0);
-            sv.Zone.Teleport(e, ground + sv.Zone.Frame.UpAt(ground) * 0.05f);
-            return 0;
+            sv.Zone.Teleport(e, area.Centre + sv.Zone.Frame.UpAt(area.Centre) * 0.05f);
+            return $"{area.Tile}, {Vector3.Distance(area.Centre, sv.Zone.Landing):0} m from the landing site, {area.Slots.Count} herds";
         });
-        RunUntil(rig, () => rig.Server.Inspect(sv => sv.Zone.Animals().World!.Count) > 0, "herds out around the landing site", 20);
+        Fixtures.Report($"to {place}");
+        try
+        {
+            RunUntil(rig, () => rig.Server.Inspect(sv => sv.Zone.Animals().World!.Count) > 0, "herds out around her", 20);
+        }
+        catch (TestFailure e)
+        {
+            throw new TestFailure($"{e.Message}: {rig.Server.Inspect(sv => sv.Animals().AnimalStatus() + "; areas " +
+                string.Join(", ", sv.Zone.Animals().World!.Areas.Select(a => $"{a.Tile} land {a.Land:0.00} cover {a.TreeCover:0.00} herds {a.Slots.Count}")))}");
+        }
         rig.Run(1, (_, _) => default);
         (string status, float nearest, Vector3 herd) = rig.Server.Inspect(sv =>
         {
@@ -54,7 +69,7 @@ public static class AnimalNetTests
             Animal a = sv.Zone.Animals().World!.All.OrderBy(x => Vector3.Distance(x.Position, her)).First();
             return (sv.Animals().AnimalStatus(), Vector3.Distance(a.Position, her), a.Position);
         });
-        Fixtures.Report($"around the landing site: {status}; the nearest {nearest:0} m away");
+        Fixtures.Report($"around her: {status}; the nearest {nearest:0} m away");
         Assert.True(nearest >= 60, $"none came out on top of her ({nearest:0} m)");
 
         // She goes up to the nearest herd: it comes into her view.
@@ -62,8 +77,8 @@ public static class AnimalNetTests
         {
             sv.Zone.Players().TryFindPlayer(id, out Entity e, out _);
             Vector3 her = Her(sv);
-            Vector3 d = Vector3.Normalize(new Vector3(her.X - herd.X, 0, her.Z - herd.Z));
-            Vector3 ground = sv.Zone.GroundAt(herd.X + d.X * 45, herd.Z + d.Z * 45);
+            Vector3 d = Vector3.Normalize(sv.Zone.Frame.Flat(herd, her - herd));
+            Vector3 ground = sv.Zone.Settle(herd + d * 45);
             sv.Zone.Teleport(e, ground + sv.Zone.Frame.UpAt(ground) * 0.05f);
             return 0;
         });
@@ -106,7 +121,7 @@ public static class AnimalNetTests
         {
             sv.Zone.Players().TryFindPlayer(new EntityId(ada.EntityId.Value), out _, out Player p);
             Animal deer = sv.Zone.Animals().World!.Find(target.Id)!;
-            return sv.Zone.Animals().DamageAnimal(deer, 40, HitRegion.Body, deer.Position + new Vector3(0, 1, 30), p, p.Id, p.Name);
+            return sv.Zone.Animals().DamageAnimal(deer, 40, HitRegion.Body, sv.Zone.Frame.Beside(deer.Position, 0, 1, 30), p, p.Id, p.Name);
         });
         RunUntil(rig, () => events.Any(e => e.Kind == AnimalEventKind.Hurt && e.Animal == target), "the flinch");
         RunUntil(rig, () => ada.Animals().All.Count(a => a.State == AnimalState.Flee) == 3, "the herd's flight");

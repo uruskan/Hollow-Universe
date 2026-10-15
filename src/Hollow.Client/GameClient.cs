@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Numerics;
+using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
 using Hollow.Net.Replication;
@@ -26,42 +27,6 @@ public enum ClientState
     Joining,
     Playing,
     Disconnected,
-}
-
-/// <summary>One frame of the player's controls, as the game (or a bot) reads them.</summary>
-public struct InputFrame
-{
-    /// <summary>−1 … 1: back to forward, left to right.</summary>
-    public float Forward;
-    public float Right;
-
-    /// <summary>The view now, in radians (see <see cref="MoveInput.Yaw"/>).</summary>
-    public float Yaw;
-    public float Pitch;
-
-    /// <summary>
-    /// Free look (Alt, <see cref="FreeLook"/>): the camera's and the head's turn from the view, in radians. Others see the
-    /// head turn; the view above stays the aim and the movement's.
-    /// </summary>
-    public float LookYaw;
-    public float LookPitch;
-
-    public bool Jump;
-    public bool Crouch;
-    public bool Sprint;
-
-    /// <summary>Jump went down this frame; kept until the next tick uses it, so a quick tap is never lost.</summary>
-    public bool JumpPressed;
-
-    /// <summary>Attack (left mouse) and aim or draw (right mouse) are held (G2).</summary>
-    public bool Primary;
-    public bool Secondary;
-
-    /// <summary>Attack went down this frame (kept until a tick uses it, as jump is).</summary>
-    public bool PrimaryPressed;
-
-    /// <summary>A pilot's controls (G6): sent with every tick's input while the player flies a ship.</summary>
-    public Simulation.Ships.ShipInput Ship;
 }
 
 /// <summary>How a client runs.</summary>
@@ -216,9 +181,32 @@ public sealed class GameClient : INetEventListener, IDisposable
     public EntityId EntityId { get; private set; }
 
     /// <summary>The view the server restored (to turn the camera to on joining).</summary>
-    public float InitialYaw { get; private set; }
+    public float InitialYaw => Facing.YawOf(InitialView, OwnUp);
 
-    public float InitialPitch { get; private set; }
+    public float InitialPitch => Facing.PitchOf(InitialView, OwnUp);
+
+    /// <summary>The view the character was saved with, a direction in the zone's frame (the Welcome's).</summary>
+    public Vector3 InitialView { get; private set; } = Vector3.UnitZ;
+
+    /// <summary>Up where the player's predicted character stands, in its frame (aboard, the deck's +Y); the zone's +Y before the first state.</summary>
+    public Vector3 OwnUp => _predictor is { HasState: true } p ? p.UpIn(p.Latest.Frame) : Vector3.UnitY;
+
+    /// <summary>The frame the newest predicted state is in (IRON_WAKE.md §4.2): its ship's net ID aboard, 0 the zone's.</summary>
+    public uint OwnFrame => (uint)Character.Frame;
+
+    // The input's view in a frame: the camera's carried direction, or a heading and pitch read where the player stands.
+    private Vector3 ViewOf(in InputFrame frame, uint viewFrame)
+    {
+        float length = frame.View.Length();
+        return length > 1e-6f && float.IsFinite(length) ? frame.View / length
+            : Facing.View(frame.Yaw, frame.Pitch, _predictor is { HasState: true } p ? p.UpIn(viewFrame) : Vector3.UnitY);
+    }
+
+    /// <summary>Where a ship's frame is drawn now (IRON_WAKE.md §4.8), by its net ID: the ships' module's; null for one not known.</summary>
+    internal Func<uint, ShipPose?>? DrawnFrame { get; set; }
+
+    /// <summary>A point of a frame where it is drawn now: aboard a ship, on the ship as drawn; the zone's frame's, itself.</summary>
+    public Vector3 Drawn(uint frame, Vector3 local) => frame != 0 && DrawnFrame?.Invoke(frame) is { } ship ? ship.ToWorld(local) : local;
 
     public ClientStats Stats { get; } = new();
 
@@ -271,8 +259,20 @@ public sealed class GameClient : INetEventListener, IDisposable
     /// <summary>The newest predicted tick.</summary>
     public uint PredictedTick => _predictor?.LatestTick ?? 0;
 
-    /// <summary>The feet to draw now: between the last two predicted ticks, plus what is left of a smoothed correction.</summary>
-    public Vector3 RenderPosition { get; private set; }
+    /// <summary>
+    /// The feet to draw now, in the world: between the last two predicted ticks plus what is left of a smoothed correction,
+    /// in the character's frame (<see cref="RenderLocal"/>), placed where that frame is drawn (aboard, on the ship).
+    /// </summary>
+    public Vector3 RenderPosition => Drawn(RenderFrame, RenderLocal);
+
+    public Vector3 RenderLocal { get; private set; }
+
+    public uint RenderFrame { get; private set; }
+
+    /// <summary>Up at the feet as drawn (aboard, the ship's), and the eye there.</summary>
+    public Vector3 RenderUp => RenderFrame != 0 && DrawnFrame?.Invoke(RenderFrame) is { } ship ? ship.Up : Frame.UpAt(RenderPosition);
+
+    public Vector3 RenderEye => RenderPosition + RenderUp * EyeHeight;
 
     /// <summary>The eye's height above the feet, easing between stances.</summary>
     public float EyeHeight => _eyeHeight;
@@ -458,13 +458,15 @@ public sealed class GameClient : INetEventListener, IDisposable
             ViewDelay = ViewDelay(tick),
         };
         _primaryLatched = false;
+        // The view in the frame the camera holds it in: on the tick of a hand-over, the server and the prediction turn it.
+        uint viewFrame = frame.ViewFrame ?? OwnFrame;
         InputCommand command = NetConvert.ToCommand(new MoveInput
         {
             Forward = frame.Forward,
             Right = frame.Right,
-            Yaw = frame.Yaw,
-            Pitch = frame.Pitch,
+            View = ViewOf(frame, viewFrame),
             Buttons = buttons,
+            Frame = viewFrame,
         }, actions);
         // Free look rides with the view, for others to see the head turn (the prediction never uses it).
         command.LookYaw = NetConvert.ToLook(frame.LookYaw, FreeLook.MaxYaw);
@@ -493,7 +495,8 @@ public sealed class GameClient : INetEventListener, IDisposable
         if (_predictor.HasState)
         {
             // G4: the gun in hand fires (or reloads) on this tick's predicted state, and sends its intent for this tick.
-            Local.Gun.Tick(tick, command, _predictor.Latest, _predictor.Frame, _predictor.Tuning, EntityId, !Local.IsDead && !Local.IsWounded && !seated);
+            Local.Gun.Tick(tick, command, _predictor.Latest, _predictor.Frames, DrawnFrame?.Invoke(OwnFrame), _predictor.Tuning, EntityId,
+                !Local.IsDead && !Local.IsWounded && !seated);
         }
 
         // The packet: this tick's input and the three before it, and which snapshots arrived.
@@ -541,7 +544,11 @@ public sealed class GameClient : INetEventListener, IDisposable
         uint latest = _predictor.LatestTick;
         CharacterState current = _predictor.Latest;
         Vector3 position = current.Position;
-        if (_predictor.TryGetState(latest - 1, out CharacterState previous))
+        if ((uint)current.Frame != RenderFrame)
+        {
+            _smoothing = Vector3.Zero; // handed over between frames: what was left to ease out was the other frame's
+        }
+        if (_predictor.TryGetState(latest - 1, out CharacterState previous) && previous.Frame == current.Frame)
         {
             // The newest tick is shown when the clock reaches the next one: blend by how far it has got.
             float alpha = (float)Math.Clamp(_tickClock - _nextTick + 1, 0, 1);
@@ -552,7 +559,8 @@ public sealed class GameClient : INetEventListener, IDisposable
         {
             _smoothing = Vector3.Zero;
         }
-        RenderPosition = position + _smoothing;
+        RenderFrame = (uint)current.Frame;
+        RenderLocal = position + _smoothing;
         MovementTuning tuning = _predictor.Tuning;
         float eye = tuning.EyeHeight(current.Stance);
         _eyeHeight += (eye - _eyeHeight) * (float)(1 - Math.Exp(-delta * tuning.EyeHeightRate));
@@ -617,8 +625,9 @@ public sealed class GameClient : INetEventListener, IDisposable
         EntityId = new EntityId(welcome.EntityId);
         Local.EntityId = EntityId;
         ServerName = welcome.ServerName;
-        InitialYaw = Quantize.FromAngle16(welcome.Yaw);
-        InitialPitch = Quantize.FromAngle16(welcome.Pitch);
+        InitialView = Quantize.FromOctahedral(welcome.ViewU, welcome.ViewV);
+        Local.Up = () => OwnUp;
+        Local.Frame = () => OwnFrame;
         foreach (ClientModule module in _modules)
         {
             module.Welcome();
@@ -705,15 +714,16 @@ public sealed class GameClient : INetEventListener, IDisposable
         if (!_predictor.HasState)
         {
             _predictor.Reset(header.OwnTick, server, _nextTick - 1);
-            RenderPosition = _predictor.Latest.Position;
+            (RenderFrame, RenderLocal) = ((uint)_predictor.Latest.Frame, _predictor.Latest.Position);
             return;
         }
-        Vector3 before = _predictor.Latest.Position;
+        CharacterState before = _predictor.Latest;
         float? error = _predictor.Reconcile(header.OwnTick, server);
         Stats.Prediction(error);
-        Vector3 jump = before - _predictor.Latest.Position;
-        // Small corrections are eased out over a few frames; big ones (a teleport, a respawn) happen at once.
-        _smoothing = (_smoothing + jump).LengthSquared() < 4f ? _smoothing + jump : Vector3.Zero;
+        Vector3 jump = before.Position - _predictor.Latest.Position;
+        // Small corrections are eased out over a few frames, within one frame; big ones (a teleport, a respawn) and a
+        // change of frame happen at once.
+        _smoothing = before.Frame == _predictor.Latest.Frame && (_smoothing + jump).LengthSquared() < 4f ? _smoothing + jump : Vector3.Zero;
     }
 
     /// <summary>

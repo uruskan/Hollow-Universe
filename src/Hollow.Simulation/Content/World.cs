@@ -129,11 +129,9 @@ public sealed class TechTree
 /// <summary>Where barrels and crates gather (world.json <c>loot</c>): the clusters' search and their make-up.</summary>
 public sealed class LootSpotSettings
 {
-    public double Radius { get; init; } = 1600;
-
     public double Cell { get; init; } = 110;
 
-    /// <summary>No loot this close to the zone's origin (where players arrive).</summary>
+    /// <summary>No loot this close to the landing site (where players may arrive).</summary>
     public double Clear { get; init; } = 90;
 
     /// <summary>Barrels and the crate stand within this of the cluster's middle.</summary>
@@ -156,7 +154,7 @@ public sealed class LootSpotSettings
 
     public double Military { get; init; } = 0.22;
 
-    /// <summary>A cluster always kept near the origin (zone-frame metres x, y ignored, z), or null.</summary>
+    /// <summary>A cluster always kept near the landing site (metres east, unused, south of it), or null.</summary>
     public Vector3? Landing { get; init; }
 }
 
@@ -186,10 +184,8 @@ public sealed class WorldData
 
     public LootSpotSettings Loot { get; internal set; } = new();
 
-    /// <summary>How many recyclers stand near the landing site, and the points (zone-frame x, z) tried in order.</summary>
+    /// <summary>How many recyclers stand on the world: one per cube face, or none (docs/WHOLE_WORLD.md decision 9).</summary>
     public int RecyclerCount { get; internal set; }
-
-    public IReadOnlyList<Vector2> RecyclerPoints { get; internal set; } = Array.Empty<Vector2>();
 
     public int TeamSize { get; internal set; } = 8;
 

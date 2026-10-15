@@ -39,7 +39,7 @@ public sealed class ThingSystem : ZoneSystem
     /// <summary>Side of the cells deployables are indexed by, for placement checks and hit tests.</summary>
     private const float ThingCell = 16f;
 
-    private readonly Dictionary<(int X, int Z), List<Deployable>> _deployableCells = new();
+    private readonly Dictionary<(int X, int Y, int Z), List<Deployable>> _deployableCells = new();
     internal readonly List<ILifetime> _loose = new();
     private readonly List<ILifetime> _over = new();
     private readonly List<Deployable> _workers = new();
@@ -119,7 +119,7 @@ public sealed class ThingSystem : ZoneSystem
 
     private List<Deployable> Cell(Vector3 position)
     {
-        (int, int) key = ((int)MathF.Floor(position.X / ThingCell), (int)MathF.Floor(position.Z / ThingCell));
+        (int, int, int) key = ThingCellOf(position);
         if (!_deployableCells.TryGetValue(key, out List<Deployable>? cell))
         {
             cell = new List<Deployable>();
@@ -128,23 +128,46 @@ public sealed class ThingSystem : ZoneSystem
         return cell;
     }
 
-    /// <summary>Deployables whose base is within <paramref name="radius"/> of a point (horizontally, by cells).</summary>
+    // Deployables are indexed by cubes of the world's frame (docs/WHOLE_WORLD.md §3.3).
+    private static (int X, int Y, int Z) ThingCellOf(Vector3 p) =>
+        ((int)MathF.Floor(p.X / ThingCell), (int)MathF.Floor(p.Y / ThingCell), (int)MathF.Floor(p.Z / ThingCell));
+
+    /// <summary>Deployables whose base is within <paramref name="radius"/> of a point (straight-line, by cubes).</summary>
     public void DeployablesNear(Vector3 point, float radius, List<Deployable> into)
     {
-        int x0 = (int)MathF.Floor((point.X - radius) / ThingCell), x1 = (int)MathF.Floor((point.X + radius) / ThingCell);
-        int z0 = (int)MathF.Floor((point.Z - radius) / ThingCell), z1 = (int)MathF.Floor((point.Z + radius) / ThingCell);
+        (int x0, int y0, int z0) = ThingCellOf(point - new Vector3(radius));
+        (int x1, int y1, int z1) = ThingCellOf(point + new Vector3(radius));
+        void Take(List<Deployable> cell, List<Deployable> found)
+        {
+            foreach (Deployable d in cell)
+            {
+                if (Vector3.DistanceSquared(d.Position, point) <= radius * radius)
+                {
+                    found.Add(d);
+                }
+            }
+        }
+        long volume = (long)(x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1);
+        if (volume > _deployableCells.Count)
+        {
+            foreach (((int X, int Y, int Z) key, List<Deployable> cell) in _deployableCells)
+            {
+                if (key.X >= x0 && key.X <= x1 && key.Y >= y0 && key.Y <= y1 && key.Z >= z0 && key.Z <= z1)
+                {
+                    Take(cell, into);
+                }
+            }
+            return;
+        }
         for (int z = z0; z <= z1; z++)
         {
-            for (int x = x0; x <= x1; x++)
+            for (int y = y0; y <= y1; y++)
             {
-                if (_deployableCells.TryGetValue((x, z), out List<Deployable>? cell))
+                for (int x = x0; x <= x1; x++)
                 {
-                    foreach (Deployable d in cell)
+                    if (_deployableCells.TryGetValue((x, y, z), out List<Deployable>? cell))
                     {
-                        if (Vector3.DistanceSquared(d.Position, point) <= radius * radius)
-                        {
-                            into.Add(d);
-                        }
+                        Take(cell, into);
                     }
                 }
             }

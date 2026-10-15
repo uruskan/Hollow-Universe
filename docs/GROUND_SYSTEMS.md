@@ -161,6 +161,17 @@ through its family's `Remove`. Looting a bag or body empty, or harvesting a carc
 animal world's corpse check. The devices' step now looks at the burners and machines alone, `BagsNear` at the loose
 things. Test: `FoundationTests.LifetimesAreOneStepForEveryLooseThing`.
 
+### 3.8 Queries through ships' frames (IW1, IRON_WAKE.md §4.9)
+
+A ship people walk in has its own physics (its space) in its own frame, so a query of the zone's frame alone would pass
+through its hull. Every query that meets the world also enters each ship space its segment or sphere crosses, through one
+shared helper, `ShipQueries` (`Ray`, `Clear`, `Nearest`; the bounding sphere first, then the ray turned into the ship's
+frame): the aim's backdrop (`ShipTargets.Aim`, and the client's through the ships as drawn), reach and sight
+(`TargetSystem.InSight`: a ship's piece hides what is behind it), a blast's line of sight (`BlastSystem.Visible`) and the
+damage pipeline's bullets and arrows (`ShipReceiver.Raycast`, the ship where the pose history had it for a late shot).
+What a character aboard does in the world asks `CharacterWorld` for where its ship carries it (`WorldOf`, `UpOf`,
+`VelocityOf`, `AttackLine`): its feet, its eye where it saw its ship, and the velocity a thrown or shot thing keeps.
+
 ## 4. One radial menu (package P5, first)
 
 One immediate-mode control in RustMVP's look (its pictures: RustMVP
@@ -276,12 +287,16 @@ the server the zone, the player and the thing.
 *Targeting:* every family is an `ITargetView` (`TryPose`, `TryNearest`, `Aim`, `TryFacts`; `ITargetFamily` extends it), and
 `Targeting.Aim(views, ray)` keeps the nearest hit of all, as far as the longest verb reaches, past the one looking. The
 shapes are shared so both sides meet the same thing (`AimShapes`: boxes, balls for bags and bodies, capsules for arrows;
-`DoorShapes`, a door's leaves and its opening; `ShipShapes`, the hull and its parts; `NaturalAim`; `BuildingAim`, one
-building ray; the ground by P2's `GroundProbe`, shared with placing). A hit says what it is to the view (`AimKind`): something to act on, a backdrop (the ground,
+`DoorShapes`, a door's leaves and its opening; `ShipShapes`, the hull and its parts; `NaturalAim`, the natural objects
+within a sphere round the ray; `BuildingAim`, one building ray; the ground by P2's `GroundProbe`, shared with placing). A hit says what it is to the view (`AimKind`): something to act on, a backdrop (the ground,
 pieces, trees and rocks, animals: they stop the view and offer nothing) or an open door's opening, through which the view
 goes on: the door is met there only when nothing beyond is to act on. `Zone.Aim`, `GameClient.Aim` and
 `GameClient.AimInteraction` (the target, its facts, its options within each verb's reach, the primary: the prompt's and
-the radial's), 23 µs a frame in the test's fan of views.
+the radial's), 23 µs a frame in the test's fan of views. Since S3 (14 October 2026) a zone is a whole world in its own
+frame (ARCHITECTURE.md §6, §10.1), so these queries are in three dimensions: natural objects are found by a sphere
+(`INaturalObjects.Query(centre, radius, into)`), for the aim as for the damage pipeline's rays and the placement world's,
+and deployables, the building's pieces, natural objects' changes, animals and relevance are indexed by cubes with
+straight-line distances.
 
 *The intent:* `InteractIntent` (210) `{ Seq, Target, Verb, Arg, Code }`, sent by `LocalPlayer.Interact(target, verb, arg,
 code)`; on the server `Zone.Interact` (`Zone.Interaction.cs`): a verb it knows, the gates, a panel's verb refused (the
@@ -356,7 +371,8 @@ claims); the server runs it again and accepts only a pose within a small toleran
 straight down from a little above it to what it would stand on within the step; under a ceiling, from just under it),
 `socket` (the building's own scoring of every compatible socket near the aim, or a free foundation), `opening` (the
 doorway or wall frame the aim passes through), `attach` (the door aimed at, at its lock spot) and `sweep` (the
-explosives' own sweep to the first surface). **Rotations** (`Rotations.cs`): `free` (the view's yaw plus R's turns),
+explosives' own sweep to the first surface). **Rotations** (`Rotations.cs`): `free` (the view's yaw plus R's turns; since
+S3 a placement's yaw is a heading from local north, `Facing`),
 `steps`, `support` (square to the piece under it, in its 30° steps), `flip` (a door's side) and `fixed` (as the solver
 found it: a piece's orientation on its socket, which R cycles, or a lock's spot). **Checks** (`Checks.cs`), in
 placement.json's order: reach (to the footprint's nearest point), surface, step, slope, water, overlap, support (every
@@ -395,8 +411,9 @@ PlaceIntent, PlacePieceIntent, DoorIntent.Place, LockIntent.Attach, ClaimIntent.
 stays its own action and keeps the shared sweep for sticking.
 
 *As built:* message 220 (protocol 18): the slot that pays and the item seen there, the placeable's number, the support
-(`TargetNet`), the socket's code, the pose (`PoseNet`: a point in the zone frame and a 16-bit yaw) and the variant (a
-piece's orientation or a free foundation's heading, a door's side, a turn in the support's steps), answered by
+(`TargetNet`), the socket's code, the pose (`PoseNet`: a point in the zone frame, the world's own since S3, and a 16-bit
+yaw from local north) and the variant (a piece's orientation or a free foundation's heading, a door's side, a turn in the
+support's steps), answered by
 `IntentResult`. Messages 59, 90 and 111 are free; `DoorIntent`, `LockIntent` and `ClaimIntent` lost their placing
 actions (and, with P1's verbs, everything else: 92–94 are free too, §5). The server's handler (`PlacementModule`) is one call, `Zone.Place(entity, PlaceRequest)`: the slot must
 hold the placeable's item (or its tool), the solver settles the claim, every check passes, the kind puts it, then the

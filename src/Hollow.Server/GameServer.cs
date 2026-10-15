@@ -22,6 +22,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
 using Hollow.Surface;
@@ -99,7 +100,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             UnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             NewEntityId = _ids.Next,
         };
-        _grid = new RelevanceGrid(options.RelevanceRadius);
+        _grid = new RelevanceGrid(options.RelevanceRadius, farRadius: ShipModule.ShipRelevanceRadius, farHysteresis: 100f);
         if (options.DatabasePath != null)
         {
             _persistence = new PersistenceWorker(options.DatabasePath, () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), Log);
@@ -120,29 +121,29 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             throw new SocketException((int)SocketError.AddressAlreadyInUse);
         }
         Port = _net.LocalPort;
-        // The real planet (GROUND.md §6.1): its climate follows the sun of the zone's sky, and players arrive and
-        // respawn on its real beaches near the zone.
-        // The zone's sky: its spin is the zone's clock (GROUND.md §8.2: admins set it), which the climate follows.
+        // The zone's sky: its spin is the zone's clock (GROUND.md §8.2: admins set it), which the climate follows, the
+        // local solar time where each player stands (docs/WHOLE_WORLD.md decision 11): the real planet's air, or the
+        // stand-in's in short.
         Sky = Spec.CreateSky();
-        if (Zone.Surface is PlanetSurface planet)
+        if (Sky != null)
         {
-            if (Sky != null)
-            {
-                Zone.Climate = new PlanetClimate(Content.Survival, planet, Zone.Frame, Sky);
-            }
-            Beaches = Simulation.Beaches.Find(planet, Zone.Frame);
-            if (Beaches.Points.Count > 0)
-            {
-                Zone.Beaches = salt => Beaches.Pick(salt)!.Value;
-            }
-            Log($"{Beaches.Points.Count} beach points within {Beaches.SearchedRadius / 1000:0} km" +
-                (Beaches.Points.Count > 0 ? $", the nearest {Beaches.Points[0].Length():0} m from the landing site" : ": players arrive at the landing site"));
+            Zone.Climate = Zone.Surface is PlanetSurface planet
+                ? new PlanetClimate(Content.Survival, planet, Zone.Frame, Sky)
+                : new StandInClimate(Content.Survival, Zone.Frame, Zone.Surface.Radius, Sky);
         }
+        // Beaches anywhere on the world (docs/WHOLE_WORLD.md decision 8): where players arrive and respawn; with everyone
+        // kept in one place (SpawnAtOrigin), respawns too come back round the landing site.
+        Beaches = Simulation.Beaches.Find(Zone.Surface, Zone.Frame);
+        if (Beaches.Points.Count > 0 && !options.SpawnAtOrigin)
+        {
+            Zone.Beaches = salt => Beaches.Pick(salt)!.Value;
+        }
+        Log($"{Beaches.Points.Count} beach points on the world" + (Zone.Beaches == null ? ": players arrive and respawn at the landing site" : ""));
         // Build the ground where players arrive now (and warm the code up), so the first arrival doesn't stall the
         // tick loop.
         Vector3 arrival = Arrival(0);
-        Zone.Physics.Prefetch(arrival, radius: 2);
-        Zone.Physics.EnsureGround(arrival, radius: 2);
+        Zone.Physics.PrefetchWithin(arrival, 2 * PhysicsWorld.PrefetchReach);
+        Zone.Physics.EnsureGroundWithin(arrival, PhysicsWorld.PrefetchReach);
         // The modules (GROUND_SYSTEMS.md §12.5): attached, their messages and subscriptions registered after the host's
         // own, the stored world restored into them, then started.
         _modules = ServerModules.All();
@@ -190,11 +191,15 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     internal BitWriter Writer => _writer;
 
     /// <summary>
-    /// Where a new character arrives: a beach point picked by <paramref name="salt"/>, as in Rust; at the landing site
-    /// with <see cref="ServerOptions.SpawnAtOrigin"/>, on the stand-in ground, or with no coast near.
+    /// Where a new character arrives: a beach point anywhere on the world picked by <paramref name="salt"/>, as in Rust
+    /// (docs/WHOLE_WORLD.md decision 8); at the landing site with <see cref="ServerOptions.SpawnAtOrigin"/> or on a world
+    /// without a coast.
     /// </summary>
     public Vector3 Arrival(ulong salt) =>
         !_options.SpawnAtOrigin && Beaches?.Pick(salt) is { } beach ? beach : Zone.SpawnPoint(salt);
+
+    /// <summary>Where a new character called <paramref name="name"/> arrives (<see cref="Arrival"/>, picked by the name).</summary>
+    public Vector3 ArrivalOf(string name) => Arrival(Hash64.Of(name.ToUpperInvariant()));
 
     /// <summary>The UDP port the server listens on.</summary>
     public int Port { get; }
@@ -368,8 +373,8 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             character.Input = NetConvert.ToMoveInput(input);
             character.Actions = NetConvert.ToActions(input);
             ref NetPresence presence = ref Zone.Entities.Get<NetPresence>(session.Entity);
-            presence.Yaw = input.Yaw;
-            presence.Pitch = input.Pitch;
+            presence.ViewU = input.ViewU;
+            presence.ViewV = input.ViewV;
             presence.LookYaw = input.LookYaw;
             presence.LookPitch = input.LookPitch;
             foreach (ServerModule module in _onInput)
@@ -496,9 +501,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 continue;
             }
             (long account, CharacterRecord? record) = login.Result;
-            // The ground where the player comes in is built first, on worker threads (GROUND.md §4.6): the login
-            // waits for it, a second at most, so a crowd joining at once doesn't stall the tick.
-            if (session.ArrivalWait < TickRate && ArrivalPoint(session, record) is { } at && !Zone.Physics.GroundReady(at))
+            // The ground where the player comes in is built first, on worker threads (GROUND.md §4.5): the login
+            // waits for it, so a crowd joining at once doesn't stall the tick.
+            if (session.ArrivalWait < PlayerSession.ArrivalWaitTicks && ArrivalPoint(session, record) is { } at && !Zone.Physics.GroundReady(at))
             {
                 session.ArrivalWait++;
                 continue;
@@ -516,7 +521,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         {
             return null;
         }
-        return record != null && CharacterRecords.Restorable(Zone, Spec, record, out Vector3 local) ? local : Arrival(Hash64.Of(session.Name.ToUpperInvariant()));
+        return record != null && CharacterRecords.Restorable(Zone, Spec, record, out CharacterState stored) ? Zone.WorldOf(stored) : ArrivalOf(session.Name);
     }
 
     /// <summary>
@@ -528,34 +533,32 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     {
         EntityId id;
         Entity entity;
-        float yaw = 0, pitch = 0;
+        Vector3 view;
         string how;
         if (record != null && Zone.Players().TryFindPlayer(record.Id, out entity, out Player _))
         {
             id = record.Id;
             Zone.Players().Wake(entity);
-            yaw = Zone.Entities.Get<Character>(entity).Input.Yaw;
-            pitch = record.Pitch;
+            ref Character woken = ref Zone.Entities.Get<Character>(entity);
+            view = CharacterRecords.WokenView(Zone, woken, record.Pitch);
             how = "woke";
         }
         else
         {
             CharacterState state;
             Player? player = null;
-            if (record != null && CharacterRecords.Restorable(Zone, Spec, record, out Vector3 local))
+            if (record != null && CharacterRecords.Restorable(Zone, Spec, record, out state))
             {
                 id = record.Id;
-                state = Zone.NewCharacter(local + Zone.Frame.UpAt(local) * 0.02f);
-                state.Stance = (Stance)Math.Min(record.Stance, (byte)Stance.Crouching);
                 player = CharacterRecords.Decode(record, Content, Log);
-                yaw = record.Yaw;
-                pitch = record.Pitch;
+                view = CharacterRecords.ViewOf(Zone, record, state);
                 how = "restored";
             }
             else
             {
                 id = record?.Id ?? _ids.Next();
-                state = Zone.NewCharacter(Arrival(Hash64.Of(session.Name.ToUpperInvariant())));
+                state = Zone.NewCharacter(ArrivalOf(session.Name));
+                view = Facing.View(0, 0, Zone.Frame.UpAt(state.Position));
                 how = "new";
             }
             if (Zone.Entities.TryFind(id, out _))
@@ -563,7 +566,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 id = _ids.Next();
             }
             entity = Zone.Players().AddPlayer(id, session.Name, state, player);
-            Zone.Entities.Get<Character>(entity).Input.Yaw = yaw;
+            Zone.Entities.Get<Character>(entity).Input = new MoveInput { View = view, Frame = state.Frame };
         }
         if (Zone.Players().PlayerOf(entity) is { } chosen)
         {
@@ -575,8 +578,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }
         ref NetPresence presence = ref Zone.Entities.Get<NetPresence>(entity);
         presence.Owner = session;
-        presence.Yaw = Quantize.Angle16(yaw);
-        presence.Pitch = Quantize.Angle16(pitch);
+        (presence.ViewU, presence.ViewV) = Quantize.Octahedral(view);
         session.Entity = entity;
         session.EntityId = id;
         session.NetId = presence.NetId;
@@ -593,11 +595,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             SnapshotRate = Protocol.SnapshotRate,
             Zone = NetConvert.ToInfo(Spec),
             ServerName = _options.Name,
-            Yaw = Quantize.Angle16(yaw),
-            Pitch = Quantize.Angle16(pitch),
+            ViewU = presence.ViewU,
+            ViewV = presence.ViewV,
         }.WriteMessage(_writer);
         session.Peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
-        Log($"{session.Name} joined from {session.Peer} as {id} ({how}) at {Format(Zone.Entities.Get<Character>(entity).State.Position)}" +
+        Log($"{session.Name} joined from {session.Peer} as {id} ({how}) at {Format(Zone.WorldOf(Zone.Entities.Get<Character>(entity).State))}" +
             (this.Console().IsAdmin(session) ? " (admin)" : ""));
         foreach (ServerModule module in _modules)
         {
@@ -758,8 +760,10 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         {
             Entity entity = Zone.Entities.AtSlot(slots[i]);
             ref Character character = ref Zone.Entities.Get<Character>(entity);
-            _grid.Add(values[i].NetId, character.State.Position);
-            CharacterNetState state = NetConvert.ToNet(character.State, values[i].Yaw, values[i].Pitch, values[i].LookYaw, values[i].LookPitch);
+            // Aboard a ship (IRON_WAKE.md §4.11): in its frame, heard of wherever the ship is.
+            _grid.Add(values[i].NetId, Zone.WorldOf(character.State), Zone.AnchorOf(character.State));
+            CharacterNetState state = NetConvert.ToNet(character.State, values[i].ViewU, values[i].ViewV, values[i].LookYaw, values[i].LookPitch);
+            state.Frame = values[i].Frame;
             if (Zone.Players().PlayerOf(entity) is { } p)
             {
                 state.Held = p.IsAwakeAndAlive ? p.HeldItem : (ushort)0;
@@ -787,7 +791,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
                 continue;
             }
             ref Character own = ref Zone.Entities.Get<Character>(session.Entity);
-            Vector3 centre = own.State.Position;
+            Vector3 centre = Zone.WorldOf(own.State);
             ViewAs(session);
 
             // Relevance: who this player should hear about now, and the spawns and despawns that changes.
@@ -923,16 +927,17 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         int sleepers = 0;
         foreach (CharacterRecord r in stored.Characters)
         {
-            if (!CharacterRecords.Restorable(Zone, Spec, r, out Vector3 local) || Zone.Entities.TryFind(r.Id, out _))
+            // Aboard a ship, in its frame: the ship comes back with the modules below (IRON_WAKE.md §4.11).
+            if (!CharacterRecords.Restorable(Zone, Spec, r, out CharacterState state, pending: true) || Zone.Entities.TryFind(r.Id, out _))
             {
                 continue;
             }
-            CharacterState state = Zone.NewCharacter(local + Zone.Frame.UpAt(local) * 0.02f);
-            state.Stance = (Stance)Math.Min(r.Stance, (byte)Stance.Crouching);
             Entity entity = Zone.Players().AddPlayer(r.Id, r.Name, state, CharacterRecords.Decode(r, Content, Log));
-            Zone.Entities.Get<Character>(entity).Input.Yaw = r.Yaw;
+            Vector3 sleeperView = CharacterRecords.ViewOf(Zone, r, state);
+            Zone.Entities.Get<Character>(entity).Input = new MoveInput { View = sleeperView, Frame = state.Frame };
             Zone.Players().Sleep(entity);
-            Zone.Entities.Add(entity, new NetPresence { NetId = _nextNetId++, Yaw = Quantize.Angle16(r.Yaw), Pitch = Quantize.Angle16(r.Pitch) });
+            (ushort su, ushort sv) = Quantize.Octahedral(sleeperView);
+            Zone.Entities.Add(entity, new NetPresence { NetId = _nextNetId++, ViewU = su, ViewV = sv });
             _accountOf[r.Id] = r.AccountId;
             sleepers++;
         }

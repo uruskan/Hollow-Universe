@@ -76,11 +76,13 @@ public sealed record ModelEntry(
 }
 
 /// <summary>What a model instance is for: <see cref="Display"/> drops the collision hulls, <see cref="Static"/>
-/// gathers them under one StaticBody3D.</summary>
+/// gathers them under one StaticBody3D, <see cref="Parts"/> keeps each where it is (under the part it moves with) on the
+/// feet's layer only: a ship people walk on, its decks under drawn feet (IRON_WAKE.md §9.8).</summary>
 public enum ModelUse
 {
     Display,
     Static,
+    Parts,
 }
 
 /// <summary>
@@ -340,6 +342,15 @@ public static class ModelCatalog
         }
         if (bodies.Count == 0)
         {
+            return;
+        }
+        if (use == ModelUse.Parts)
+        {
+            foreach (StaticBody3D body in bodies)
+            {
+                body.CollisionLayer = 1;
+                body.CollisionMask = 0;
+            }
             return;
         }
         StaticBody3D? merged = null;

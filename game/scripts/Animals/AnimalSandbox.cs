@@ -23,7 +23,8 @@ namespace HollowUniverse.Animals;
 
 /// <summary>
 /// The animal sandbox (GROUND.md §6.9): <c>--view animals</c>. A zone of the game's rules runs in this process on the
-/// first world's real surface, drawn by the surface view in the zone's frame, with its animals drawn by
+/// first world's ground (the stand-in world until S4, docs/WHOLE_WORLD.md §4), drawn by the surface view in the zone's
+/// frame, with its animals drawn by
 /// <see cref="AnimalsView"/> exactly as the ground game draws replicated ones. Scenes, each at its own clearing found
 /// near the landing site (<c>--scene</c>, or the keys 1-5):
 /// <list type="bullet">
@@ -330,7 +331,7 @@ public partial class AnimalSandbox : Node3D
             _zone.Actions().MoveItem(e, Hollow.Simulation.Items.ContainerRef.Main, 0, Hollow.Simulation.Items.ContainerRef.Belt, 0, 0, 0);
         }
         ref Character c = ref _zone.Entities.Get<Character>(e);
-        c.Input = new MoveInput { Yaw = yaw };
+        c.Input = new MoveInput { View = Facing.View(yaw, 0, _zone.Frame.UpAt(ground)) };
         c.Actions = new ActionInput { HeldSlot = held != null ? (byte)0 : ActionInput.NoSlot };
         var view = new CharacterView { Name = name, Body = BodyType.Male };
         AddChild(view);
@@ -353,9 +354,7 @@ public partial class AnimalSandbox : Node3D
         Num.Vector3 eye = _zone.EyeOf(c.State);
         Num.Vector3 up = _zone.Frame.UpAt(c.State.Position);
         Num.Vector3 d = at - eye;
-        Num.Vector3 flat = d - up * Num.Vector3.Dot(d, up);
-        c.Input.Yaw = YawOf(flat);
-        c.Input.Pitch = MathF.Atan2(Num.Vector3.Dot(d, up), flat.Length());
+        c.Input.View = d.LengthSquared() > 1e-8f ? Num.Vector3.Normalize(d) : Facing.Compass(up).North;
     }
 
     private void DrawPeople(float alpha)
@@ -369,8 +368,8 @@ public partial class AnimalSandbox : Node3D
             {
                 Position = ToRender(position),
                 Up = ToRender(up),
-                Yaw = c.Input.Yaw,
-                Pitch = c.Input.Pitch,
+                Yaw = c.Input.YawAt(up),
+                Pitch = c.Input.PitchAt(up),
                 Velocity = ToRender(c.State.Velocity),
                 Stance = c.State.Stance is Stance.Crouching or Stance.Crawling ? CharacterStance.Crouch : CharacterStance.Stand,
                 Grounded = true,

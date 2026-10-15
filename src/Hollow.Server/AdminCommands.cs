@@ -185,9 +185,11 @@ public sealed partial class GameServer
                 ClearInventory(ctx, args);
                 break;
             case "ship":
-                if (TargetOrMe(ctx, args, 0) is { } pilot && Alive(ctx, pilot, out _))
+                // ship [player] [kind] (IRON_WAKE.md §5.6): the kind is the last word when it names one (a Tin Finch without).
+                Simulation.Ships.ShipDef? kind = args.Count > 0 ? Content.Ship(args[^1]) : null;
+                if (TargetOrMe(ctx, kind != null ? args.Take(args.Count - 1).ToList() : args, 0) is { } pilot && Alive(ctx, pilot, out _))
                 {
-                    if (this.Ships().GiveShip(pilot) is { } given)
+                    if (this.Ships().GiveShip(pilot, kind) is { } given)
                     {
                         ctx.Done($"A {given.Def.Name} for {pilot.Name} ({given.Id}), beside them, fuelled, its hatch open.");
                     }
@@ -524,7 +526,7 @@ public sealed partial class GameServer
         foreach (PlayerSession s in _sessions.Values)
         {
             NetStatistics stats = s.Peer.Statistics;
-            string where = s.Playing ? Format(Zone.Entities.Get<Character>(s.Entity).State.Position) : "logging in";
+            string where = s.Playing ? Format(Zone.WorldOf(Zone.Entities.Get<Character>(s.Entity).State)) : "logging in";
             double onTime = s.InputsApplied + s.InputsMissing == 0 ? 100 : 100.0 * s.InputsApplied / (s.InputsApplied + s.InputsMissing);
             text.Append(CultureInfo.InvariantCulture,
                 $"\n  {s.Name,-16} ping {s.Peer.RoundTripTime,4} ms  at {where}  sent {stats.BytesSent / 1024.0:0} KiB  " +

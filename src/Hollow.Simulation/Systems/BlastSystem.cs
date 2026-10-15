@@ -8,6 +8,7 @@ using Hollow.Simulation.Combat;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Raid;
+using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
 
@@ -151,7 +152,8 @@ public sealed class BlastSystem : ZoneSystem
     /// <summary>Whether a blast sees a point: no building piece or door and no ground in between (G6: ships' hulls).</summary>
     private bool BlastSees(Vector3 from, Vector3 to) => Visible(from, to, null);
 
-    // Nothing of the building (but the target itself) nor the ground between a blast and a point.
+    // Nothing of the building (but the target itself), of a ship's pieces (IRON_WAKE.md §4.9: a burst on the deck sees
+    // the deck, one against the hull's outside nobody inside) nor the ground between a blast and a point.
     internal bool Visible(Vector3 from, Vector3 to, object? target)
     {
         Vector3 d = to - from;
@@ -169,6 +171,10 @@ public sealed class BlastSystem : ZoneSystem
             {
                 return false;
             }
+        }
+        if (Zone.Frames.Ships.Count > 0 && ShipQueries.Ray(Zone.Frames.Ships, from, direction, length - 0.02f, Tick, out _))
+        {
+            return false;
         }
         return Combat.GroundCrossing(from, direction, length) < 0;
     }

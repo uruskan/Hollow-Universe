@@ -16,15 +16,15 @@ public enum PropLayer : byte
 /// <summary>Told when ground tiles are added to or removed from a <see cref="PhysicsWorld"/>, on its owning thread.</summary>
 public interface ITileListener
 {
-    void TileAdded(int x, int z);
+    void TileAdded(Hollow.Surface.TileKey tile);
 
-    void TileRemoved(int x, int z);
+    void TileRemoved(Hollow.Surface.TileKey tile);
 
     /// <summary>
     /// A tile is being built ahead on a worker thread: prepare what <see cref="TileAdded"/> will need (pure work
     /// only, such as generating its natural objects), so the tick that adds it doesn't wait.
     /// </summary>
-    void TilePreparing(int x, int z)
+    void TilePreparing(Hollow.Surface.TileKey tile)
     {
     }
 }
@@ -73,11 +73,11 @@ public readonly record struct PropShape
         Radius = radius,
     };
 
-    /// <summary>A box standing on <paramref name="up"/>, turned by <paramref name="yaw"/> as the characters' yaw is.</summary>
+    /// <summary>A box standing on <paramref name="up"/>, turned by <paramref name="yaw"/> from local north (<see cref="Movement.Facing"/>).</summary>
     public static PropShape Box(Vector3 centre, Vector3 halfExtents, Vector3 up, float yaw)
     {
-        // The box's local +Z is its "along" axis; the yaw convention is the characters' (0 faces −Z).
-        (Vector3 forward, Vector3 right) = Movement.CharacterMotor.HorizontalBasis(yaw, up);
+        // The box's local −Z is its forward.
+        (Vector3 forward, Vector3 right) = Movement.Facing.Basis(yaw, up);
         var basis = new Matrix4x4(
             right.X, right.Y, right.Z, 0,
             up.X, up.Y, up.Z, 0,

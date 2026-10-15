@@ -8,6 +8,7 @@ using Hollow.Core;
 using Hollow.Net.Commands;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
+using Hollow.Simulation.Building;
 using Hollow.Simulation.Animals;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
@@ -226,8 +227,16 @@ public sealed class ConsoleModule : ServerModule
         }
     }
 
-    /// <summary>The local solar time (hours) at the zone's origin now, by the zone's clock; null without a sky.</summary>
-    public double? ZoneHours => Sky?.LocalSolarHours(Zone.Frame.Origin.Normalized, Sky.Sun.Index, UniverseSeconds);
+    /// <summary>The local solar time (hours) at the landing site now, by the zone's clock; null without a sky.</summary>
+    public double? ZoneHours => Sky?.LocalSolarHours(Spec.LandingDirection, Sky.Sun.Index, UniverseSeconds);
+
+    // Where a command's clock is read and set (docs/WHOLE_WORLD.md decision 11): where the caller stands, or at the
+    // server's console the landing site.
+    private Vector3D ClockPoint(CommandContext ctx) => ctx.Caller is { Playing: true } me
+        ? Zone.Frame.ToBody(Zone.WorldOf(Zone.Entities.Get<Character>(me.Entity).State)).Normalized
+        : Spec.LandingDirection;
+
+    private static string ClockPlace(CommandContext ctx) => ctx.Caller is { Playing: true } ? "where you stand" : "at the landing site";
 
     // time; time <hour>; time reset.
     internal void Time(CommandContext ctx, IReadOnlyList<string> args)
@@ -238,7 +247,7 @@ public sealed class ConsoleModule : ServerModule
             return;
         }
         double now = UniverseSeconds;
-        Vector3D origin = Zone.Frame.Origin.Normalized;
+        Vector3D origin = ClockPoint(ctx);
         if (args.Count == 0)
         {
             ctx.Out(ClockLine(ctx));
@@ -249,7 +258,7 @@ public sealed class ConsoleModule : ServerModule
             Sky.SetSpin(0, 0, Spec.RotationTimeScale);
             _clockOverridden = false;
             SendClockToAll();
-            ctx.Done($"The zone's day is the planet's own again: {Hours(Sky.LocalSolarHours(origin, Sky.Sun.Index, now))} at its origin.");
+            ctx.Done($"The zone's day is the planet's own again: {Hours(Sky.LocalSolarHours(origin, Sky.Sun.Index, now))} {ClockPlace(ctx)}.");
             return;
         }
         if (!TryHours(args[0], out double hours))
@@ -260,7 +269,7 @@ public sealed class ConsoleModule : ServerModule
         Sky.SetLocalSolarHours(origin, Sky.Sun.Index, now, hours);
         _clockOverridden = true;
         SendClockToAll();
-        ctx.Done($"It is {Hours(Sky.LocalSolarHours(origin, Sky.Sun.Index, now))} at the zone's origin now: this zone's sun only, universe time unchanged.");
+        ctx.Done($"It is {Hours(Sky.LocalSolarHours(origin, Sky.Sun.Index, now))} {ClockPlace(ctx)} now: this zone's sun only, universe time unchanged.");
     }
 
     // timescale; timescale <x> (x times the day of play; 0 stops the sun).
@@ -294,10 +303,10 @@ public sealed class ConsoleModule : ServerModule
     private string ClockLine(CommandContext ctx)
     {
         double now = UniverseSeconds;
-        string line = $"It is {Hours(Sky!.LocalSolarHours(Zone.Frame.Origin.Normalized, Sky.Sun.Index, now))} at the zone's origin";
+        string line = $"It is {Hours(Sky!.LocalSolarHours(Spec.LandingDirection, Sky.Sun.Index, now))} at the landing site";
         if (ctx.Caller is { Playing: true } me)
         {
-            Vector3D here = Zone.Frame.ToBody(Zone.Entities.Get<Character>(me.Entity).State.Position).Normalized;
+            Vector3D here = Zone.Frame.ToBody(Zone.WorldOf(Zone.Entities.Get<Character>(me.Entity).State)).Normalized;
             line += $", {Hours(Sky.LocalSolarHours(here, Sky.Sun.Index, now))} where you stand";
         }
         double factor = Sky.RotationTimeScale / Spec.RotationTimeScale;
@@ -401,9 +410,10 @@ public sealed class ConsoleModule : ServerModule
             return;
         }
         ref Character c = ref Zone.Entities.Get<Character>(me.Entity);
-        Vector3 up = Zone.Frame.UpAt(c.State.Position);
-        Vector3 at = c.State.Position + CharacterMotor.ViewDirection(c.Input.Yaw, 0, up) * 2;
-        MoveTo(ctx, whom, Zone.GroundAt(at.X, at.Z), "you");
+        Vector3 feet = Zone.WorldOf(c.State);
+        Vector3 up = Zone.Frame.UpAt(feet);
+        Vector3 at = feet + Facing.Basis(Zone.ViewOf(c), up).Forward * 2;
+        MoveTo(ctx, whom, Zone.Settle(at), "you");
     }
 
     // tpmarker [n]: the caller's newest map marker, or the one with that number.
@@ -430,7 +440,7 @@ public sealed class ConsoleModule : ServerModule
             index = int.Parse(args[0], CultureInfo.InvariantCulture) - 1;
         }
         MapMarker marker = p.Markers[index];
-        MoveTo(ctx, me, Zone.GroundAt(marker.Position.X, marker.Position.Z),
+        MoveTo(ctx, me, Zone.Settle(marker.Position),
             $"marker {index + 1}" + (string.IsNullOrWhiteSpace(marker.Label) ? "" : $" ({marker.Label})"));
     }
 
@@ -442,49 +452,38 @@ public sealed class ConsoleModule : ServerModule
             ctx.Error($"{target.Name} isn't in the world yet.");
             return null;
         }
-        Vector3 to = Zone.Entities.Get<Character>(target.Entity).State.Position;
-        return Zone.GroundAt(to.X + 1.5f, to.Z);
+        ref Character beside = ref Zone.Entities.Get<Character>(target.Entity);
+        Vector3 to = Zone.WorldOf(beside.State);
+        // 1.5 m to their right.
+        return Zone.Settle(to + Facing.Basis(Zone.ViewOf(beside), Zone.Frame.UpAt(to)).Right * 1.5f);
     }
 
-    // A point of the zone from two words: metres east and south of its origin, or a latitude and longitude: marked with
-    // N, S, E or W (or a degree sign), or both with three decimals or more and inside the zone as degrees. Null, said
-    // why, when it isn't in the zone.
+    // A point of the world from two words: a latitude and longitude, marked with N, S, E or W (or a degree sign), or both
+    // with three decimals or more; else metres east and south of the landing site, along the ground (docs/WHOLE_WORLD.md
+    // §6.7: the whole world is the zone). Null, said why, when the words aren't numbers.
     private (Vector3 Ground, string Where)? Point(CommandContext ctx, string a, string b)
     {
         if (!TryNumber(Degrees(a), out float first) || !TryNumber(Degrees(b), out float second))
         {
-            ctx.Error("Two numbers: metres east and south of the zone's origin, or a latitude and longitude.");
+            ctx.Error("Two numbers: a latitude and longitude, or metres east and south of the landing site.");
             return null;
         }
-        float reach = Simulation.Physics.PhysicsWorld.Extent - 2 * Simulation.Physics.PhysicsWorld.TileSize;
         double latitude = first * Sign(a), longitude = second * Sign(b);
         bool marked = Marked(a) || Marked(b);
-        Vector3? asDegrees = null;
-        if (Math.Abs(latitude) <= 90 && Math.Abs(longitude) <= 180)
+        bool degrees = Math.Abs(latitude) <= 90 && Math.Abs(longitude) <= 180;
+        if (degrees && (marked || (Decimals(a) >= 3 && Decimals(b) >= 3)))
         {
             Vector3D direction = ZoneFrame.Direction(latitude * DMath.DegToRad, longitude * DMath.DegToRad);
-            Vector3 local = Zone.Frame.ToLocal(direction * (Zone.Surface.Radius + Zone.Surface.HeightAt(direction)));
-            asDegrees = Vector3D.Dot(direction, Zone.Frame.Origin.Normalized) > 0 ? local : new Vector3(float.MaxValue);
-        }
-        bool inZone = asDegrees is { } d && Math.Abs(d.X) <= reach && Math.Abs(d.Z) <= reach;
-        if (marked || (inZone && Decimals(a) >= 3 && Decimals(b) >= 3))
-        {
             string where = string.Create(CultureInfo.InvariantCulture,
                 $"{Math.Abs(latitude):0.0000}° {(latitude >= 0 ? 'N' : 'S')}, {Math.Abs(longitude):0.0000}° {(longitude >= 0 ? 'E' : 'W')}");
-            if (!inZone)
-            {
-                ctx.Error(string.Create(CultureInfo.InvariantCulture,
-                    $"{where} isn't in this zone: it reaches {reach / 1000:0.0} km from its origin ({Spec.LatitudeDegrees:0.0000}°, {Spec.LongitudeDegrees:0.0000}°)."));
-                return null;
-            }
-            return (Zone.GroundAt(asDegrees!.Value.X, asDegrees.Value.Z), where);
+            return (Zone.Ground.On(direction), where);
         }
-        if (Math.Abs(first) > reach || Math.Abs(second) > reach)
+        if (marked)
         {
-            ctx.Error(string.Create(CultureInfo.InvariantCulture, $"{first:0}, {second:0} is outside the zone: it reaches {reach:0} m from its origin."));
+            ctx.Error("A latitude is −90 … 90 and a longitude −180 … 180.");
             return null;
         }
-        return (Zone.GroundAt(first, second), string.Create(CultureInfo.InvariantCulture, $"{first:0.#}, {second:0.#}"));
+        return (Zone.GroundAt(first, second), string.Create(CultureInfo.InvariantCulture, $"{first:0.#} m east, {second:0.#} m south of the landing site"));
     }
 
     private static bool Marked(string w) => w.Length > 0 && "NSEWnsew°".Contains(w[^1], StringComparison.Ordinal);
@@ -555,9 +554,9 @@ public sealed class ConsoleModule : ServerModule
             return;
         }
         ref Character c = ref Zone.Entities.Get<Character>(whom!.Entity);
-        Vector3 feet = c.State.Position;
+        Vector3 feet = Zone.WorldOf(c.State);
         Vector3 up = Zone.Frame.UpAt(feet);
-        float yaw = c.Input.Yaw;
+        float yaw = Facing.YawOf(Zone.ViewOf(c), up);
         (Vector3 forward, Vector3 right) = CharacterMotor.HorizontalBasis(yaw, up);
         string front = GameServer.IsMe(ctx, whom) ? "you" : whom.Name;
 
@@ -572,13 +571,13 @@ public sealed class ConsoleModule : ServerModule
             float ahead = metres ?? (species.Key is "bear" or "wolf" ? 22 : 18);
             Vector3 at = feet + forward * ahead;
             // A herd of its own: not refilled when killed, as the world's are.
-            animals.SpawnHerd(species, Zone.GroundAt(at.X, at.Z), count, facing: yaw + MathF.PI);
+            animals.SpawnHerd(species, Zone.Settle(at), count, facing: yaw + MathF.PI);
             ctx.Done($"{count} {(count == 1 ? species.Name.ToLowerInvariant() : Plural(species.Name.ToLowerInvariant()))} {ahead:0} m in front of {front}.");
             return;
         }
         if (Content.Ships.FirstOrDefault(s => s.Key == kind) is { } shipDef)
         {
-            if (Server.Ships().GiveShip(whom) != null)
+            if (Server.Ships().GiveShip(whom, shipDef) != null)
             {
                 ctx.Done($"A {shipDef.Name} beside {front}, fuelled, its hatch open.");
             }
@@ -601,7 +600,7 @@ public sealed class ConsoleModule : ServerModule
         for (int i = 0; i < count; i++)
         {
             Vector3 at = feet + forward * depth + right * ((i - (count - 1) / 2f) * width);
-            Vector3 ground = Zone.GroundAt(at.X, at.Z);
+            Vector3 ground = Zone.Settle(at);
             if (prop != null)
             {
                 Zone.Players().SpawnProp(prop, ground, yaw);
@@ -653,10 +652,14 @@ public sealed class ConsoleModule : ServerModule
             return;
         }
         ref Character c = ref Zone.Entities.Get<Character>(whom!.Entity);
-        Vector3 up = Zone.Frame.UpAt(c.State.Position);
-        Vector3 ahead = c.State.Position + CharacterMotor.ViewDirection(c.Input.Yaw, 0, up) * 8;
-        TestBases.Hut? hut = TestBases.Build(Zone, Zone.GroundAt(ahead.X, ahead.Z),
-            Math.Atan2(c.State.Position.X - ahead.X, c.State.Position.Z - ahead.Z), grade, owner.Id.Value);
+        Vector3 feet = Zone.WorldOf(c.State);
+        Vector3 up = Zone.Frame.UpAt(feet);
+        Vector3 ahead = Zone.Settle(feet + Facing.Basis(Zone.ViewOf(c), up).Forward * 8);
+        // Its doorway toward the player.
+        Vector3 aheadUp = Zone.Frame.UpAt(ahead), back = feet - ahead;
+        back -= aheadUp * Vector3.Dot(back, aheadUp);
+        TestBases.Hut? hut = TestBases.Build(Zone, ahead,
+            BuildingFrame.HeadingOf(new Vector3D(back.X, back.Y, back.Z), new Vector3D(aheadUp.X, aheadUp.Y, aheadUp.Z)), grade, owner.Id.Value);
         if (hut != null)
         {
             ctx.Done($"A claimed {Content.Building.Grades[grade].Name.ToLowerInvariant()} hut 8 m in front of {GameServer.Whom(ctx, whom)}, listing {GameServer.Whom(ctx, whom)}.");
@@ -736,7 +739,7 @@ public sealed class ConsoleModule : ServerModule
             ctx.Error("Only a player in the world is somewhere.");
             return;
         }
-        Vector3 at = Zone.Entities.Get<Character>(me.Entity).State.Position;
+        Vector3 at = Zone.WorldOf(Zone.Entities.Get<Character>(me.Entity).State);
         Vector3D body = Zone.Frame.ToBody(at);
         Vector3D direction = body.Normalized;
         double latitude = DMath.Asin(direction.Y) * DMath.RadToDeg, longitude = DMath.Atan2(-direction.Z, direction.X) * DMath.RadToDeg;
@@ -744,22 +747,24 @@ public sealed class ConsoleModule : ServerModule
             $"{Math.Abs(latitude):0.00000}° {(latitude >= 0 ? 'N' : 'S')}, {Math.Abs(longitude):0.00000}° {(longitude >= 0 ? 'E' : 'W')} " +
             $"(teleport {latitude:0.00000} {longitude:0.00000})"));
         double sea = Zone.Surface.SeaRadius > 0 ? body.Length - Zone.Surface.SeaRadius : body.Length - Zone.Surface.Radius;
+        (float east, float south) = Zone.OffsetOf(at);
         ctx.Out(string.Create(CultureInfo.InvariantCulture,
-            $"Zone position {at.X:0.0} m east, {-at.Z:0.0} m north of its origin, {at.Y:0.0} m up (teleport {at.X:0.0} {at.Z:0.0}); " +
-            $"{sea:0} m above the sea; map cell {MapCell(at)}."));
-        string biome = Zone.Surface is PlanetSurface planet ? Words(planet.BiomeAt(direction).ToString()) : "the stand-in ground";
+            $"{east:0.0} m east, {-south:0.0} m north of the landing site along the ground (teleport {east:0.0} {south:0.0}); " +
+            $"{sea:0} m above the sea; map cell {MapCell(east, south)}."));
+        string biome = Words(Zone.Surface.BiomeAt(direction).ToString());
         string time = Sky != null ? $"{Hours(Sky.LocalSolarHours(direction, Sky.Sun.Index, UniverseSeconds))} local solar time" : "no sky here";
         float air = Zone.Climate?.TemperatureAt(at, Zone.UnixMilliseconds / 1000.0) ?? float.NaN;
         ctx.Out(string.Create(CultureInfo.InvariantCulture, $"{biome}; {time}; the air {air:0} °C."));
     }
 
-    // A map cell's name, as the map draws its grid: columns lettered from the west, rows numbered from the north.
-    private string MapCell(Vector3 at)
+    // A map cell's name, as the map draws its grid round the landing site: columns lettered from the west, rows numbered
+    // from the north.
+    private string MapCell(float east, float south)
     {
         double metres = Content.World.MapMetres;
         int cells = Math.Max(1, (int)Math.Round(metres / Content.World.MapCell));
-        int column = Math.Clamp((int)Math.Floor((at.X + metres / 2) / metres * cells), 0, cells - 1);
-        int row = Math.Clamp((int)Math.Floor((at.Z + metres / 2) / metres * cells), 0, cells - 1);
+        int column = Math.Clamp((int)Math.Floor((east + metres / 2) / metres * cells), 0, cells - 1);
+        int row = Math.Clamp((int)Math.Floor((south + metres / 2) / metres * cells), 0, cells - 1);
         return Column(column) + row.ToString(CultureInfo.InvariantCulture);
     }
 

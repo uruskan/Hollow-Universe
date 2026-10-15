@@ -52,7 +52,7 @@ public static class WoundedTests
 
         // Helped up by Ada (within reach), back on his feet with the health he had.
         float downHealth = b.Vitals.Health;
-        rig.Zone.Teleport(ada, rig.Ch(bo).State.Position + new Vector3(1, 0, 0));
+        rig.Zone.Teleport(ada, rig.Zone.Frame.Beside(rig.Ch(bo).State.Position, 1, 0, 0));
         Assert.Equal(OutcomeCode.Done, rig.Zone.Interaction().Interact(ada, b.Ref, "help-up"), "help up");
         Assert.True(!b.Wounded && !b.Dead && b.Vitals.Health == downHealth, "up again");
         rig.Step(2, () => rig.Ch(bo).Input = default);

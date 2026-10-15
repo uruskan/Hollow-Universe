@@ -9,24 +9,27 @@ using Hollow.Surface;
 namespace Hollow.Simulation.Animals;
 
 /// <summary>
-/// A square of the zone where animals live (GROUND.md §6.9): its habitat (biomes, tree cover, land) worked out once from
-/// the planet, and the herds it holds (its slots). Its animals are out while a player is near and go when everyone has
-/// left; the slots remember who is alive and who is waiting to come back.
+/// A cube-sphere tile of the world where animals live (GROUND.md §6.9, docs/WHOLE_WORLD.md §7.3: the level nearest the
+/// spawning's area size, 237 m on a 2.41 km world): its habitat (biomes, tree cover, land) worked out once from the
+/// planet, and the herds it holds (its slots). Its animals are out while a player is near and go when everyone has left;
+/// the slots remember who is alive and who is waiting to come back.
 /// </summary>
 public sealed class SpawnArea
 {
-    public SpawnArea(int x, int z, Vector3 centre)
+    public SpawnArea(TileKey tile, Vector3 centre, float radius)
     {
-        X = x;
-        Z = z;
+        Tile = tile;
         Centre = centre;
+        Radius = radius;
     }
 
-    public int X { get; }
+    /// <summary>The tile it covers.</summary>
+    public TileKey Tile { get; }
 
-    public int Z { get; }
-
+    /// <summary>The ground at the tile's middle, and how far its corners lie from it at most.</summary>
     public Vector3 Centre { get; }
+
+    public float Radius { get; }
 
     public List<SpawnSlot> Slots { get; } = new();
 
@@ -88,18 +91,31 @@ public sealed class SpawnSlot
         Respawns.Add(world.TickNow + CharacterTicks.From(Species.RespawnSeconds));
 }
 
-// The population (GROUND.md §6.9): spawn areas on a grid over the zone, each with herds sized from its habitat and the
+// The population (GROUND.md §6.9): spawn areas on the world's cube-sphere tiles, each with herds sized from its habitat and the
 // species' densities (Rust's population a square kilometre), out while a player is within reach and gone when nobody
 // is; the dead replaced after their species' respawn time, never above an area's numbers and never within sight of a
 // player. Deterministic: an area's herds come from the zone's seed, the area and the planet.
 public sealed partial class AnimalWorld
 {
-    private readonly Dictionary<(int X, int Z), SpawnArea> _areas = new();
+    private readonly Dictionary<TileKey, SpawnArea> _areas = new();
     private readonly List<SpawnSlot> _manual = new();
-    private readonly HashSet<(int X, int Z)> _nearAreas = new();
+    private readonly HashSet<TileKey> _nearAreas = new();
+    private readonly List<TileKey> _tiles = new();
+
+    /// <summary>The cube-sphere level of the spawn areas on this world.</summary>
+    public int AreaLevel => TileKey.LevelFor(_zone.Surface.Radius, Content.AnimalSpawning.AreaSize, 16);
 
     /// <summary>Animals come and go with the players by themselves (the server turns it on; tests and sandboxes may not).</summary>
     public bool NaturalSpawning { get; set; }
+
+    /// <summary>The most animals the world brings out (animals.json's <c>spawning.max</c>); a server may hold fewer (a load test).</summary>
+    public int MaxAnimals
+    {
+        get => _maxAnimals ?? Content.AnimalSpawning.MaxAnimals;
+        set => _maxAnimals = value;
+    }
+
+    private int? _maxAnimals;
 
     /// <summary>The spawn areas looked at so far.</summary>
     public IReadOnlyCollection<SpawnArea> Areas => _areas.Values;
@@ -152,11 +168,11 @@ public sealed partial class AnimalWorld
             {
                 double angle = rng.NextDouble() * DMath.TwoPi;
                 float r = radius * (float)Math.Sqrt(rng.NextDouble());
-                float x = centre.X + r * (float)DMath.Cos(angle), z = centre.Z + r * (float)DMath.Sin(angle);
-                Nav.Ensure(x, z);
-                if (Nav.Walkable(x, z, species.MaxSlope))
+                Vector3 point = Along(centre, angle, r);
+                Nav.Ensure(point);
+                if (Nav.Walkable(point, species.MaxSlope))
                 {
-                    AddSlot(species, new Vector3(x, Nav.Height(x, z), z), size, MathF.Min(radius, 90));
+                    AddSlot(species, Nav.Ground(point), size, MathF.Min(radius, 90));
                     placed += size;
                     break;
                 }
@@ -190,32 +206,29 @@ public sealed partial class AnimalWorld
     private void UpdateAreas()
     {
         AnimalSpawning spawning = Content.AnimalSpawning;
-        float size = spawning.AreaSize;
+        int level = AreaLevel;
         _nearAreas.Clear();
         foreach (AnimalObserver o in Observers)
         {
-            int x0 = (int)MathF.Floor((o.Position.X - spawning.Activate) / size), x1 = (int)MathF.Floor((o.Position.X + spawning.Activate) / size);
-            int z0 = (int)MathF.Floor((o.Position.Z - spawning.Activate) / size), z1 = (int)MathF.Floor((o.Position.Z + spawning.Activate) / size);
-            for (int z = z0; z <= z1; z++)
+            _tiles.Clear();
+            TileKey.Around(_zone.Frame.ToBody(o.Position), spawning.Activate, _zone.Surface.Radius, level, _tiles);
+            foreach (TileKey tile in _tiles)
             {
-                for (int x = x0; x <= x1; x++)
+                if (DistanceToArea(o.Position, tile) <= spawning.Activate)
                 {
-                    if (DistanceToArea(o.Position, x, z, size) <= spawning.Activate)
-                    {
-                        _nearAreas.Add((x, z));
-                    }
+                    _nearAreas.Add(tile);
                 }
             }
         }
-        foreach ((int x, int z) in _nearAreas)
+        foreach (TileKey tile in _nearAreas)
         {
-            if (!_areas.TryGetValue((x, z), out SpawnArea? area))
+            if (!_areas.TryGetValue(tile, out SpawnArea? area))
             {
-                area = Survey(x, z);
-                _areas.Add((x, z), area);
+                area = Survey(tile);
+                _areas.Add(tile, area);
             }
             area.LastNear = Tick;
-            if (!area.Active && _animals.Count < spawning.MaxAnimals)
+            if (!area.Active && _animals.Count < MaxAnimals)
             {
                 Activate(area);
             }
@@ -223,14 +236,14 @@ public sealed partial class AnimalWorld
         long linger = CharacterTicks.From(spawning.LingerSeconds);
         foreach (SpawnArea area in _areas.Values)
         {
-            if (!area.Active || _nearAreas.Contains((area.X, area.Z)))
+            if (!area.Active || _nearAreas.Contains(area.Tile))
             {
                 continue;
             }
             bool anyone = false;
             foreach (AnimalObserver o in Observers)
             {
-                anyone |= DistanceToArea(o.Position, area.X, area.Z, size) <= spawning.Deactivate;
+                anyone |= DistanceToArea(o.Position, area) <= spawning.Deactivate;
             }
             if (anyone)
             {
@@ -243,22 +256,26 @@ public sealed partial class AnimalWorld
         }
     }
 
-    private static float DistanceToArea(Vector3 p, int x, int z, float size)
-    {
-        float dx = MathF.Max(0, MathF.Max(x * size - p.X, p.X - (x + 1) * size));
-        float dz = MathF.Max(0, MathF.Max(z * size - p.Z, p.Z - (z + 1) * size));
-        return MathF.Sqrt(dx * dx + dz * dz);
-    }
+    // How far a point is from an area: from its middle less the area's reach (near enough for whether anyone is close).
+    private static float DistanceToArea(Vector3 p, SpawnArea area) => MathF.Max(0, Vector3.Distance(p, area.Centre) - area.Radius);
+
+    private float DistanceToArea(Vector3 p, TileKey tile) =>
+        _areas.TryGetValue(tile, out SpawnArea? area) ? DistanceToArea(p, area) : MathF.Max(0, Vector3.Distance(p, Middle(tile)) - Reach(tile));
+
+    // A tile's middle on the ground, and the farthest its corners lie from it (the warp makes tiles a little uneven).
+    private Vector3 Middle(TileKey tile) => _zone.Ground.On(tile.Centre);
+
+    private float Reach(TileKey tile) => (float)(TileKey.EdgeLength(tile.Level, _zone.Surface.Radius) * 0.8);
 
     /// <summary>
     /// An area's habitat and herds, worked out once: biome shares and land from the surface, tree cover from the
     /// planet's vegetation (or the natural objects on a stand-in surface), and for each species a number of herds from
     /// its density and how well it likes the place (a seeded draw for the fraction).
     /// </summary>
-    internal SpawnArea Survey(int x, int z)
+    internal SpawnArea Survey(TileKey tile)
     {
-        float size = Content.AnimalSpawning.AreaSize;
-        var area = new SpawnArea(x, z, _zone.GroundAt((x + 0.5f) * size, (z + 0.5f) * size));
+        double edge = TileKey.EdgeLength(tile.Level, _zone.Surface.Radius);
+        var area = new SpawnArea(tile, Middle(tile), Reach(tile));
         ISurface surface = _zone.Surface;
         const int samples = 4;
         int land = 0;
@@ -268,8 +285,7 @@ public sealed partial class AnimalWorld
         {
             for (int i = 0; i < samples; i++)
             {
-                double px = (x + (i + 0.5) / samples) * size, pz = (z + (j + 0.5) / samples) * size;
-                Vector3D direction = _zone.Frame.ToBody(px, 0, pz).Normalized;
+                Vector3D direction = CubeSphere.Direction(tile.Face, tile.U0 + tile.Span * (i + 0.5) / samples, tile.V0 + tile.Span * (j + 0.5) / samples);
                 if (surface is PlanetSurface planet)
                 {
                     SurfaceSample sample = planet.Sample(direction);
@@ -305,13 +321,14 @@ public sealed partial class AnimalWorld
                 area.Biomes[b] /= land;
             }
         }
-        area.TreeCover = surface is PlanetSurface ? (float)(cover / Math.Max(1, land)) : StandInCover(x, z, size);
+        area.TreeCover = surface is PlanetSurface ? (float)(cover / Math.Max(1, land)) : StandInCover(area, edge);
 
         // The herds: expected animals from the density, as herds of the species' size.
-        float km2 = size * size / 1_000_000f;
+        float km2 = (float)(edge * edge / 1_000_000);
+        float size = (float)edge;
         foreach (AnimalSpecies s in Content.Animals)
         {
-            var rng = new Rng(Hash64.Of(_seed, (ulong)(uint)x, (ulong)(uint)z, s.Id));
+            var rng = new Rng(Hash64.Of(_seed, tile.Packed, s.Id));
             float expected = s.Density * km2 * area.Land * s.Suitability(area.Biomes, area.TreeCover);
             float meanGroup = (s.GroupLeast + s.GroupMost) / 2f;
             float herds = expected / meanGroup;
@@ -333,29 +350,31 @@ public sealed partial class AnimalWorld
     public const double ClosedForest = 0.005;
 
     // Tree cover on a stand-in surface: the natural objects' trees in the area against a closed forest's 200 a hectare.
-    private float StandInCover(int x, int z, float size)
+    private float StandInCover(SpawnArea area, double edge)
     {
         if (_zone.Nature == null)
         {
             return 0;
         }
         var objects = new List<NaturalObject>();
-        _zone.Nature.Query(x * size, z * size, (x + 1) * size, (z + 1) * size, objects);
+        _zone.Nature.Query(area.Centre, area.Radius, objects);
         int trees = 0;
         foreach (NaturalObject o in objects)
         {
-            trees += Content.Natural(o.Kind)?.Class == NaturalClass.Tree ? 1 : 0;
+            if (Content.Natural(o.Kind)?.Class == NaturalClass.Tree && TileKey.At(_zone.Frame.ToBody(o.Position), area.Tile.Level) == area.Tile)
+            {
+                trees++;
+            }
         }
-        float hectares = size * size / 10_000f;
-        return Math.Clamp(trees / hectares / 200f, 0, 1);
+        double hectares = edge * edge / 10_000;
+        return (float)Math.Clamp(trees / hectares / 200, 0, 1);
     }
 
     private void Activate(SpawnArea area)
     {
         // Its ground mapped first (on workers); the herds come out once it is.
-        float half = Content.AnimalSpawning.AreaSize / 2;
-        Nav.Prefetch(area.Centre, half + 8);
-        if (!Nav.IsReady(area.Centre.X, area.Centre.Z))
+        Nav.Prefetch(area.Centre, area.Radius + 8);
+        if (!Nav.IsReady(area.Centre))
         {
             return;
         }
@@ -400,7 +419,7 @@ public sealed partial class AnimalWorld
         }
         for (int i = slot.Respawns.Count - 1; i >= 0; i--)
         {
-            if (Tick < slot.Respawns[i] || _animals.Count >= Content.AnimalSpawning.MaxAnimals)
+            if (Tick < slot.Respawns[i] || _animals.Count >= MaxAnimals)
             {
                 continue;
             }
@@ -427,34 +446,32 @@ public sealed partial class AnimalWorld
     // Where a slot's herd appears: a seeded point in its area (or around its home) on ground it walks, out of players' sight.
     private bool PlaceSlot(SpawnSlot slot, out Vector3 at)
     {
-        float size = Content.AnimalSpawning.AreaSize;
         for (int attempt = 0; attempt < 10; attempt++)
         {
-            var rng = new Rng(Hash64.Of(_seed, (ulong)(slot.Area?.X ?? 0) * 7919 + (ulong)(slot.Area?.Z ?? 0), (ulong)slot.Index,
-                (ulong)(slot.Spawns * 16 + attempt)));
-            float x, z;
+            var rng = new Rng(Hash64.Of(_seed, slot.Area?.Tile.Packed ?? 0, (ulong)slot.Index, (ulong)(slot.Spawns * 16 + attempt)));
+            Vector3 candidate;
             if (slot.Area is { } area)
             {
-                x = (area.X + (float)rng.Range(0.1, 0.9)) * size;
-                z = (area.Z + (float)rng.Range(0.1, 0.9)) * size;
+                TileKey t = area.Tile;
+                Vector3D direction = CubeSphere.Direction(t.Face, t.U0 + t.Span * rng.Range(0.1, 0.9), t.V0 + t.Span * rng.Range(0.1, 0.9));
+                candidate = _zone.Ground.On(direction);
             }
             else
             {
                 double angle = rng.NextDouble() * DMath.TwoPi;
                 float r = slot.Range * 0.5f * (float)Math.Sqrt(rng.NextDouble());
-                x = slot.Home.X + r * (float)DMath.Cos(angle);
-                z = slot.Home.Z + r * (float)DMath.Sin(angle);
+                candidate = Along(slot.Home, angle, r);
             }
-            if (!Nav.IsReady(x, z))
+            if (!Nav.IsReady(candidate))
             {
-                Nav.Prefetch(new Vector3(x, 0, z), 8);
+                Nav.Prefetch(candidate, 8);
                 continue;
             }
-            if (!Nav.Walkable(x, z, slot.Species.MaxSlope))
+            if (!Nav.Walkable(candidate, slot.Species.MaxSlope))
             {
                 continue;
             }
-            var point = new Vector3(x, Nav.Height(x, z), z);
+            Vector3 point = Nav.Ground(candidate);
             if (PlayerWithin(point, Content.AnimalSpawning.AwayFromPlayers))
             {
                 continue;
@@ -470,8 +487,7 @@ public sealed partial class AnimalWorld
     {
         foreach (AnimalObserver o in Observers)
         {
-            float dx = o.Position.X - point.X, dz = o.Position.Z - point.Z;
-            if (dx * dx + dz * dz < radius * radius)
+            if (Vector3.DistanceSquared(o.Position, point) < radius * radius)
             {
                 return true;
             }

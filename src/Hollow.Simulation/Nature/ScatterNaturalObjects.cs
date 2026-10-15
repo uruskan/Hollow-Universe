@@ -94,20 +94,22 @@ public sealed class ScatterNaturalObjects : INaturalObjects
         int x = (int)((id >> 41) & 0xFFFF), y = (int)((id >> 25) & 0xFFFF);
         int kind = (int)((id >> KindShift) & 0xFF);
         int candidate = (int)(id & CandidateMask);
-        return (new TileKey(face, Scatter.Level, x, y), kind << 24 | candidate);
+        // Untrusted: coordinates outside the face name nothing (never an exception, docs/WHOLE_WORLD.md §3.2).
+        return TileKey.Checked(face, Scatter.Level, x, y) is { } tile ? (tile, kind << 24 | candidate) : null;
     }
 
-    public void Query(float minX, float minZ, float maxX, float maxZ, List<NaturalObject> into)
+    public void Query(Vector3 centre, float radius, List<NaturalObject> into)
     {
-        if (maxX <= minX || maxZ <= minZ)
+        if (!(radius > 0))
         {
             return;
         }
-        foreach (TileKey key in TilesCovering(minX, minZ, maxX, maxZ))
+        float r2 = radius * radius;
+        foreach (TileKey key in TilesCovering(centre, radius))
         {
             foreach (NaturalObject o in Tile(key).Objects)
             {
-                if (o.Position.X >= minX && o.Position.X < maxX && o.Position.Z >= minZ && o.Position.Z < maxZ)
+                if (Vector3.DistanceSquared(o.Position, centre) <= r2)
                 {
                     into.Add(o);
                 }
@@ -137,11 +139,10 @@ public sealed class ScatterNaturalObjects : INaturalObjects
         {
             return false;
         }
-        // The tile must lie in this zone, and near the point: checked on its centre, before generating anything.
+        // The tile must lie near the point: checked on its centre, before generating anything.
         Vector3 centre = _frame.ToLocal(tile.Centre * _surface.Radius);
         float reach = (float)(_tileEdge * 0.75);
-        if (MathF.Abs(centre.X) > PhysicsWorld.Extent + reach || MathF.Abs(centre.Z) > PhysicsWorld.Extent + reach ||
-            Vector2.Distance(new Vector2(centre.X, centre.Z), new Vector2(point.X, point.Z)) > radius + reach)
+        if (Vector3.Distance(centre, point) > radius + reach + 100)
         {
             return false;
         }
@@ -154,26 +155,12 @@ public sealed class ScatterNaturalObjects : INaturalObjects
         return Vector3.Distance(found.Position, point) <= radius;
     }
 
-    // The scatter tiles a rectangle of the tangent plane touches, in a fixed order (by key). Sampled at a third of a
-    // tile, since tiles are turned against the zone's axes and vary in size.
-    private List<TileKey> TilesCovering(float minX, float minZ, float maxX, float maxZ)
+    // The scatter tiles within a reach of a point, in a fixed order (by key).
+    private List<TileKey> TilesCovering(Vector3 centre, float radius)
     {
-        var keys = new SortedSet<ulong>();
-        double step = _tileEdge / 3;
-        int nx = Math.Max(1, (int)Math.Ceiling((maxX - minX) / step)), nz = Math.Max(1, (int)Math.Ceiling((maxZ - minZ) / step));
-        for (int j = 0; j <= nz; j++)
-        {
-            for (int i = 0; i <= nx; i++)
-            {
-                double x = minX + (double)(maxX - minX) * i / nx, z = minZ + (double)(maxZ - minZ) * j / nz;
-                keys.Add(TileKey.At(_frame.ToBody(x, 0, z), Scatter.Level).Packed);
-            }
-        }
-        var tiles = new List<TileKey>(keys.Count);
-        foreach (ulong k in keys)
-        {
-            tiles.Add(TileKey.FromPacked(k)!.Value);
-        }
+        var tiles = new List<TileKey>();
+        TileKey.Around(_frame.ToBody(centre), radius, _surface.Radius, Scatter.Level, tiles);
+        tiles.Sort((a, b) => a.Packed.CompareTo(b.Packed));
         return tiles;
     }
 

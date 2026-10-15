@@ -3,8 +3,9 @@
 Status: **approved by the owner on 14 October 2026; being built.** This is package S3 of [SCALE.md](SCALE.md) §6. The
 owner said go on 14 October 2026, after asking why the map still shows a 3.9 km square without proper zoom (finding 1 of
 [KNOWN_PROBLEMS.md](KNOWN_PROBLEMS.md)), and approved the twelve defaults of §2 the same evening, so they are
-decisions. The code is built on the branch `whole-world` (worktree `D:\GameDev\Projects\Hollow-wt\whole-world`),
-starting with S3a (§14).
+decisions. The code was built on the branch `whole-world` and merged into `main` on 15 October 2026, at the owner's
+word, before S3c (so that the game has the Iron Wake). S3a and S3b are built (14 and 15 October 2026; how they differ
+from this design is at the end of §14); S3c and S3d remain, on `main`.
 
 Four read-only surveys of the code (14 October 2026: the simulation, the network and saves, the world and the animals,
 the Godot client) found every place that assumes the zone is a flat patch. This design is built on them.
@@ -470,7 +471,76 @@ S3 also changes:
 They reach `whole-world` when `main` is merged in, so conflicts stay in those three places.
 
 **Into `main`.** The branch merges when the owner says: together with S4's ground, or earlier if they accept playing on
-the stand-in.
+the stand-in. **Merged on 15 October 2026**, after S3b and the Iron Wake's IW1: the owner wanted the Iron Wake in the
+game and took the plain stand-in until S3c.
+
+**S3a as built (14 October 2026).** The checks: the 227 tests pass; the movement check's line is now
+`0xD16D9135CE374BD2` (final position 849.89264, 1428.0099, 1734.6373); the walk round the world brings the character
+back within 61 cm and the Tin Finch, 100 m up, within 9 cm and at its height, both facing the way they set off.
+Godot's `--physics-check` hasn't been run against the new line (S3c), nor the load test with 100 bots surviving,
+building, fighting, raiding and flying (S3b); 20 walking bots ran for 20 seconds at 1.6 ms a tick, their prediction
+exact. Where the build differs from the design above:
+- **Things that stand still** keep a yaw, measured from local north (§5 has them carry a forward direction). Their point
+  never moves, so its north never changes; the wire and the saves for them stay as they were.
+- **Ships** (§6.5): the ground turns under a ship as it goes. Every substep its attitude and its velocity turn with the
+  ground, and a straight step over the curve doesn't lift it, only its way up does. Without this, the Tin Finch's
+  160 m/s at full throttle is faster than an orbit of the first world (about 147 m/s at 0.92 g) and its nose pitches
+  against the horizon. So the ball flies as the flat ground did, and a ship flown straight ahead goes round the world
+  at its height. A new ship
+  stands level at its centre of mass: from its pivot, 0.28 m behind, the up is 0.0064° off, which flight assist held as
+  a sink of a metre a minute.
+- **Scatter levels by size** (§3.2) wait for S4: zones don't use the real planet's scatter until then.
+- **The climate** (§6.6) follows the zone's sky where each player stands on every server; a zone a test makes without a
+  sky keeps one compressed day.
+- **Schema 7** (§9) gives characters a new life by clearing their place and state, so blueprints go with the inventory
+  and markers. The player codec is version 5; markers and the death's point in older states are dropped.
+- **The tests:** stand-in servers in tests arrive at the landing site, where the tests lay out their places
+  (`LoopbackRig`'s `SpawnAtOrigin`); `GameRig.Clear` fells trees along a test's line of fire, since the stand-in's
+  placement moved them; the animals' network test goes to the nearest area its survey gives herds (the stand-in's
+  habitat is thin); the real-planet tests read the planet's scatter in a frame at the landing site, and walk, swim and
+  find beaches on the stand-in.
+- **Found while converting:** the nature changes' replication, rewritten for 3D cubes, sent a fresh hit twice, once
+  for its cube coming into range and once as this tick's change (fixed); the X's height test passed by luck (its
+  bound now follows where the swing meets the trunk).
+
+**S3b as built (15 October 2026).** The check: every load test of AGENTS.md ran on the ball with 100 bots (20 for
+flying), each twice: with every bot at the landing site, and with arrivals on beaches all round the world, each bot
+playing round its own. All 16 runs keep every bot to the end and meet the targets; GROUND.md §5.12 has the tables and
+the comparison with the flat patch. In short, at the landing site and on beaches (the server's tick, average / 99th
+percentile, ms):
+
+| Load test | Landing site | Before S3 | Beaches |
+|---|---|---|---|
+| 100 walking | 5.60 / 9.3 | 4.25 / 10.2 | 4.40 / 7.6 |
+| 100 surviving | 6.57 / 11.4 | 5.90 / 12.3 | 4.50 / 9.5 |
+| 100 fighting | 7.48 / 12.4 | 8.64 / 18.5 | 4.68 / 11.1 |
+| 100 building | 7.44 / 22.8 | 7.38 / 21.3 | 4.39 / 27.0 |
+| 100 raiding | 8.13 / 14.7 | 9.66 / 30.7 | 5.73 / 9.8 |
+| 100 living off the loot | 5.60 / 9.1 | 5.75 / 18.6 | 4.52 / 7.9 |
+| 20 flying | 1.51 / 3.2 | 1.31 / 4.1 | 1.90 / 3.9 |
+| 100 surviving and 200 animals | 8.31 / 13.9 | 9.13 / 27.3 | 5.19 / 17.9 |
+
+Bandwidth down at the landing site is 12–47 % higher than on the flat patch (a position on a ball changes in all three
+coordinates, §8), within 256 kbit/s; prediction is exact wherever nothing pushes a player. The engine-free tests pass
+(227). What S3b changed, besides measuring:
+- **Arrivals:** a client's prediction holds an arrival (the start, a respawn on a far beach, a teleport) until worker
+  threads have built its ground, as the server holds a login or a respawn, whose wait went from 1 to 5 s. Without it
+  100 bots arriving all round the world lost their connections: their one process built about a thousand tiles itself.
+- **The tiles near a point** (§6.1) are kept by the 7.4 m cell it lies in (`NearTiles`): the search went 2.2 → 0.1–0.4
+  ms a tick for 100 characters on the server, and in every client's prediction. The nav grid asks the same way.
+- **A server that keeps everyone in one place** (`SpawnAtOrigin`) respawns them round the landing site too, or a fight
+  scattered its crowd over the world.
+- **Animals** (§7.3): a nav lookup finds its face coordinates once instead of twice, and a path search remembers each
+  cell's walkability: 6.4 → 2.0–2.7 µs an animal a tick (2.1 on the flat patch).
+- **A foundation's collision check** leaves the ground out (it sits in it): bases started at once on beaches spent
+  3–90 ms on a box against a tile's mesh.
+- **The bots** (§13): a bot's home is where it arrived, renewed after a respawn elsewhere; the build plots are a grid
+  round the landing site on dry ground for the crowd there, else the bot's own beach; on beaches the raid arena puts each
+  hut beside its raider's beach (`TestBases.Beside`), one hut a bot; the animal test on beaches uses natural spawning,
+  held to its population (`ServerOptions.AnimalCap`). Older bot faults the ball showed are in GROUND.md §5.12.
+- **Left:** bursts of slow placements when 80 bases start at once on beaches (30 of 3,602 ticks over 33 ms); the
+  snapshot's bytes a moving character (about 87 of 99 walkers fit the budget); the animals' cost above the flat
+  patch's. KNOWN_PROBLEMS.md lists them.
 
 ---
 

@@ -26,8 +26,68 @@ public sealed class LevelSurface : ISurface
 
     public double HeightAt(Vector3D direction) => _height;
 
-    public TriangleMesh GroundCollision(in ZoneFrame frame, double centreX, double centreZ, double size) =>
-        SphereSurface.GridCollision(this, frame, centreX, centreZ, size, spacing: 2.0);
+}
+
+/// <summary>
+/// A lap round a whole world along the great circle a start and a heading make (docs/WHOLE_WORLD.md §13): how far round
+/// a point has gone in the circle's plane, how far it strayed from that plane, how near it passed the poles' axis, and
+/// how near its start it came once round.
+/// </summary>
+public sealed class Lap
+{
+    private readonly Vector3 _start, _up, _ahead, _axis;
+    private Vector3 _previous;
+
+    public Lap(Vector3 start, Vector3 forward)
+    {
+        _start = _previous = start;
+        _up = Vector3.Normalize(start);
+        _ahead = Vector3.Normalize(forward - _up * Vector3.Dot(forward, _up));
+        _axis = Vector3.Cross(_up, _ahead);
+    }
+
+    /// <summary>How far round, in radians.</summary>
+    public double Angle { get; private set; }
+
+    public bool Round => Angle >= 2 * Math.PI;
+
+    /// <summary>The most it strayed from the circle's plane, in metres.</summary>
+    public float Astray { get; private set; }
+
+    /// <summary>The nearest its steps passed the poles' axis on the north and the south side, in metres.</summary>
+    public float North { get; private set; } = float.MaxValue;
+
+    public float South { get; private set; } = float.MaxValue;
+
+    /// <summary>The nearest it came to its start once round, in metres.</summary>
+    public float Back { get; private set; } = float.MaxValue;
+
+    public void Add(Vector3 p)
+    {
+        double turned = Math.Atan2(Vector3.Dot(p, _ahead), Vector3.Dot(p, _up)) - Math.Atan2(Vector3.Dot(_previous, _ahead), Vector3.Dot(_previous, _up));
+        Angle += turned > Math.PI ? turned - 2 * Math.PI : turned < -Math.PI ? turned + 2 * Math.PI : turned;
+        Astray = MathF.Max(Astray, MathF.Abs(Vector3.Dot(p, _axis)));
+        // The step seen from above the poles: how near it passes their axis.
+        Vector2 a = new(_previous.X, _previous.Z), b = new(p.X, p.Z), ab = b - a;
+        float u = Math.Clamp(-Vector2.Dot(a, ab) / Math.Max(ab.LengthSquared(), 1e-12f), 0, 1);
+        float fromAxis = (a + ab * u).Length();
+        if (p.Y > 0)
+        {
+            North = MathF.Min(North, fromAxis);
+        }
+        else
+        {
+            South = MathF.Min(South, fromAxis);
+        }
+        if (Round)
+        {
+            // The step that came round passes the start between its ends.
+            Vector3 along = p - _previous;
+            float t = Math.Clamp(Vector3.Dot(_start - _previous, along) / Math.Max(along.LengthSquared(), 1e-12f), 0, 1);
+            Back = MathF.Min(Back, Vector3.Distance(_start, _previous + along * t));
+        }
+        _previous = p;
+    }
 }
 
 /// <summary>A zone with one character, stepped by hand.</summary>
@@ -77,7 +137,7 @@ public sealed class MovementRig : IDisposable
 
 public static class MovementTests
 {
-    private const double Earthlike = 6_435_000;
+    private const double Earthlike = ZoneSpec.FirstWorldRadius;
 
     /// <summary>GROUND.md §4.5: walking, sprinting and crouching reach RustMVP's speeds; sprint needs straight forward.</summary>
     [Test]
@@ -106,13 +166,13 @@ public static class MovementTests
     {
         using var rig = new MovementRig(new LevelSurface(Earthlike));
         rig.Run(new MoveInput(), 5);
-        float start = rig.State.Position.Y, top = start;
+        float start = rig.State.Position.Length(), top = start;
         rig.Character.Input = new MoveInput { Buttons = MoveButtons.Jump | MoveButtons.JumpPressed };
         for (int i = 0; i < 60; i++)
         {
             rig.Zone.Step();
             rig.Character.Input = new MoveInput { Buttons = MoveButtons.Jump };
-            top = Math.Max(top, rig.State.Position.Y);
+            top = Math.Max(top, rig.State.Position.Length());
         }
         float g = rig.Zone.Movement.Gravity;
         double expected = MovementTuning.Default.JumpSpeed * MovementTuning.Default.JumpSpeed / (2 * g);
@@ -120,6 +180,37 @@ public static class MovementTests
         Assert.Near(expected, top - start, 0.02, "jump height");
         Assert.True((rig.State.Flags & MoveFlags.OnGround) != 0, "landed again");
         Assert.Equal(100, (int)rig.State.Health, "a jump doesn't hurt");
+    }
+
+    /// <summary>
+    /// docs/WHOLE_WORLD.md §13, the walk round the world: a character sprints straight ahead with the mouse still, its view
+    /// carried along the ground as the client's camera carries it (<see cref="Facing.Carry"/>), north over the pole,
+    /// through the far side and over the other pole. It comes back to its start within a metre, facing the way it set off.
+    /// </summary>
+    [Test]
+    public static void WalkRoundTheWorld()
+    {
+        using var rig = new MovementRig(new LevelSurface(Earthlike));
+        rig.Run(new MoveInput(), 5);
+        Vector3 view = Facing.View(0, 0, rig.Zone.Frame.UpAt(rig.State.Position)), set = view;
+        var lap = new Lap(rig.State.Position, view);
+        int ticks = 0;
+        while (!lap.Round && ticks++ < 150_000)
+        {
+            Vector3 before = rig.Zone.Frame.UpAt(rig.State.Position);
+            rig.Character.Input = new MoveInput { Forward = 1, Buttons = MoveButtons.Sprint, View = view };
+            rig.Zone.Step();
+            view = Facing.Carry(view, before, rig.Zone.Frame.UpAt(rig.State.Position));
+            lap.Add(rig.State.Position);
+        }
+        float facing = MathF.Acos(Math.Clamp(Vector3.Dot(view, set), -1, 1)) * 180 / MathF.PI;
+        Fixtures.Report($"round the world in {ticks / 30.0 / 60:0.0} min of sprinting: back {lap.Back * 100:0.0} cm from the start, at most " +
+            $"{lap.Astray * 100:0.0} cm off its circle, over the poles {lap.North * 100:0.0} and {lap.South * 100:0.0} cm from their axis; " +
+            $"facing {facing:0.000} degrees from the way it set off");
+        Assert.True(lap.Round, "went round");
+        Assert.True(lap.Back < 1, "back at its start within a metre");
+        Assert.True(lap.North < 1 && lap.South < 1, "over both poles");
+        Assert.True(facing < 0.5f, "facing the way it set off");
     }
 
     /// <summary>Fall damage follows Rust's rule: nothing from 5 m, most of the health from 30 m, death from 40 m.</summary>

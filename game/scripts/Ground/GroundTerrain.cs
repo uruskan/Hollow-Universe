@@ -17,15 +17,15 @@ namespace HollowUniverse.Ground;
 /// </summary>
 public partial class GroundTerrain : Node3D
 {
-    /// <summary>Tiles drawn out from the player's tile: 7 × 7 tiles, 448 m across.</summary>
-    private const int Radius = 3;
+    /// <summary>Tiles drawn within this many metres of the player (docs/WHOLE_WORLD.md §10.1 replaces this with the terrain).</summary>
+    private const float Reach = 200;
 
     private const int MeshesPerFrame = 2;
 
-    private readonly Dictionary<(int X, int Z), MeshInstance3D> _tiles = new();
-    private readonly Dictionary<(int X, int Z), Task<TileArrays>> _building = new();
+    private readonly Dictionary<TileKey, MeshInstance3D> _tiles = new();
+    private readonly Dictionary<TileKey, Task<TileArrays>> _building = new();
+    private readonly List<TileKey> _near = new();
     private StandardMaterial3D? _material;
-    private (int X, int Z) _centre = (int.MinValue, 0);
 
     /// <summary>Every tile around the player is drawn.</summary>
     public bool IsSettled { get; private set; }
@@ -33,23 +33,22 @@ public partial class GroundTerrain : Node3D
     public void Follow(PhysicsWorld world, Num.Vector3 feet)
     {
         _material ??= new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = 0.95f };
-        _centre = PhysicsWorld.TileOf(feet);
-        for (int z = _centre.Z - Radius; z <= _centre.Z + Radius; z++)
+        _near.Clear();
+        TileKey.Around(world.Frame.ToBody(feet), Reach, world.Surface.Radius, world.Level, _near);
+        foreach (TileKey key in _near)
         {
-            for (int x = _centre.X - Radius; x <= _centre.X + Radius; x++)
+            if (!_tiles.ContainsKey(key) && !_building.ContainsKey(key))
             {
-                if (!_tiles.ContainsKey((x, z)) && !_building.ContainsKey((x, z)))
-                {
-                    int tx = x, tz = z;
-                    _building.Add((x, z), Task.Run(() => Build(world, tx, tz)));
-                }
+                TileKey tile = key;
+                _building.Add(key, Task.Run(() => Build(world, tile)));
             }
         }
 
         // Nearest finished tiles first, a few a frame.
+        double radius = world.Surface.Radius;
+        float Distance(TileKey key) => Num.Vector3.Distance(world.Frame.ToLocal(key.Centre * radius), feet);
         int made = 0;
-        foreach (((int, int) key, Task<TileArrays> task) in _building.Where(b => b.Value.IsCompleted)
-            .OrderBy(b => Math.Abs(b.Key.X - _centre.X) + Math.Abs(b.Key.Z - _centre.Z)).ToList())
+        foreach ((TileKey key, Task<TileArrays> task) in _building.Where(b => b.Value.IsCompleted).OrderBy(b => Distance(b.Key)).ToList())
         {
             if (made++ >= MeshesPerFrame)
             {
@@ -62,15 +61,15 @@ public partial class GroundTerrain : Node3D
             }
         }
 
-        foreach ((int X, int Z) key in _tiles.Keys.Where(k => Math.Max(Math.Abs(k.X - _centre.X), Math.Abs(k.Z - _centre.Z)) > Radius + 1).ToList())
+        foreach (TileKey key in _tiles.Keys.Where(k => Distance(k) > Reach + 120).ToList())
         {
             _tiles[key].QueueFree();
             _tiles.Remove(key);
         }
-        IsSettled = _building.Count == 0 && _tiles.Count >= (2 * Radius + 1) * (2 * Radius + 1);
+        IsSettled = _building.Count == 0 && _near.All(_tiles.ContainsKey);
     }
 
-    private void AddTile((int X, int Z) key, TileArrays arrays)
+    private void AddTile(TileKey key, TileArrays arrays)
     {
         var data = new Godot.Collections.Array();
         data.Resize((int)Mesh.ArrayType.Max);
@@ -80,7 +79,7 @@ public partial class GroundTerrain : Node3D
         data[(int)Mesh.ArrayType.Index] = arrays.Indices;
         var mesh = new ArrayMesh();
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, data);
-        var instance = new MeshInstance3D { Mesh = mesh, MaterialOverride = _material, Name = $"Tile {key.X},{key.Z}" };
+        var instance = new MeshInstance3D { Mesh = mesh, MaterialOverride = _material, Name = $"Tile {key}" };
         AddChild(instance);
         _tiles.Add(key, instance);
     }
@@ -88,9 +87,9 @@ public partial class GroundTerrain : Node3D
     private readonly record struct TileArrays(Vector3[] Vertices, Vector3[] Normals, Color[] Colours, int[] Indices);
 
     // On a worker thread: the tile's triangles, smooth normals, and a colour from slope and a little noise.
-    private static TileArrays Build(PhysicsWorld world, int tx, int tz)
+    private static TileArrays Build(PhysicsWorld world, TileKey tile)
     {
-        Hollow.Surface.TriangleMesh mesh = world.TileMesh(tx, tz);
+        Hollow.Surface.TriangleMesh mesh = world.TileMesh(tile);
         int count = mesh.VertexCount;
         var vertices = new Vector3[count];
         var normals = new Vector3[count];

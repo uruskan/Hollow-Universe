@@ -67,7 +67,7 @@ public static class ContentTests
     [Test]
     public static void BrokenDataIsReported()
     {
-        Dictionary<string, string> texts = GameContent.Files.ToDictionary(f => f, f => File.ReadAllText(Path.Combine(ContentFixture.Folder, f)));
+        Dictionary<string, string> texts = GameContent.ReadTexts(ContentFixture.Folder);
         texts["items.json"] = texts["items.json"]
             .Replace("\"id\": 2, \"key\": \"stone\"", "\"id\": 1, \"key\": \"stone\"", StringComparison.Ordinal)
             .Replace("\"into\": \"sulphur\"", "\"into\": \"brimstone\"", StringComparison.Ordinal)

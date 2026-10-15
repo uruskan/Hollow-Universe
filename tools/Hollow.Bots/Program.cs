@@ -21,9 +21,12 @@ namespace Hollow.Bots;
 /// </list>
 /// Both take <c>--script wander|circle|jump|mixed|survive|fight|raid|fly|world</c> and <c>--lag</c>, <c>--jitter</c>, <c>--loss</c>; the load
 /// test takes <c>--kit</c> (a loot table every new character gets; with <c>fight</c> and <c>raid</c>, every new life too),
-/// <c>--spawn origin|beach</c> (where bots arrive: the landing site, the default, or the beaches) and <c>--stand-in</c>. With
-/// <c>raid</c> the server builds <c>--raid-bases</c> huts (half the bots by default) on a ring of <c>--raid-radius</c> metres,
-/// and each bot raids the next one's hut. <c>--animals &lt;n&gt;</c> puts n animals in herds within 220 m of the origin (G7, GROUND.md §5.6).
+/// <c>--spawn origin|beach</c> (where bots arrive and respawn: the landing site, the default, or beaches anywhere on the
+/// world, each bot then playing round its own) and <c>--stand-in</c>. With <c>raid</c> the server builds
+/// <c>--raid-bases</c> huts (half the bots by default) on a ring of <c>--raid-radius</c> metres round the landing site, and
+/// each bot raids the next one's hut; on beaches, a hut beside each bot's beach (one a bot by default).
+/// <c>--animals &lt;n&gt;</c> puts n animals in herds within 220 m of the landing site; on beaches, natural spawning brings
+/// herds out round the bots, at most n (G7, GROUND.md §5.10).
 /// </summary>
 public static class Program
 {
@@ -33,7 +36,10 @@ public static class Program
         var script = Enum.TryParse(o.GetValueOrDefault("script", "mixed"), true, out BotScript s) ? s : BotScript.Mixed;
         NetConditions conditions = NetConditions.FromOptions(key => o.GetValueOrDefault(key));
         int count = (int)Number(o, "count", 100);
-        int raidBases = (int)Number(o, "raid-bases", script == BotScript.Raid ? Math.Max(1, count / 2) : 0);
+        bool beaches = o.GetValueOrDefault("spawn", "origin") == "beach";
+        // Raiders at the landing site share a ring of huts, two to a hut; on beaches all round the world each finds its
+        // own beside its beach.
+        int raidBases = (int)Number(o, "raid-bases", script != BotScript.Raid ? 0 : beaches ? count : Math.Max(1, count / 2));
         float raidRadius = (float)Number(o, "raid-radius", 70);
         // --fly n: the first n bots fly (each gets a ship), the rest play --script (GROUND.md §5.11).
         int fly = (int)Number(o, "fly", script == BotScript.Fly ? count : 0);
@@ -44,7 +50,7 @@ public static class Program
             {
                 return LoadTest(count, Number(o, "duration", 60), Number(o, "warmup", 8), script, conditions, (float)Number(o, "relevance", 300),
                     o.GetValueOrDefault("kit") ?? (script == BotScript.Raid ? "raid-kit" : script == BotScript.World ? "world-kit" : null), raidBases, raidRadius,
-                    o.GetValueOrDefault("spawn", "origin") == "beach", o.ContainsKey("stand-in"), fly, Number(o, "storm", 0),
+                    beaches, o.ContainsKey("stand-in"), fly, Number(o, "storm", 0),
                     (int)Number(o, "animals", 0));
             }
             if (!o.TryGetValue("server", out string? server))
@@ -96,7 +102,8 @@ public static class Program
                 $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building().World?.PieceCount ?? 0)} " +
                 $"{swarm.Raids.Placed} {swarm.Raids.Thrown} {swarm.Raids.Rockets} {swarm.Raids.Bursts} {swarm.Raids.Alerts} " +
                 $"{swarm.Flights.Boardings} {swarm.Flights.Flying} {swarm.Flights.Seconds:R} {swarm.Flights.Corrections} " +
-                $"{swarm.World.Broken} {swarm.World.Emptied} {swarm.World.Picked} {swarm.World.Recycled} {swarm.World.Researched} {swarm.World.Learnt} {swarm.World.Teamed}"));
+                $"{swarm.World.Broken} {swarm.World.Emptied} {swarm.World.Picked} {swarm.World.Recycled} {swarm.World.Researched} {swarm.World.Learnt} {swarm.World.Teamed} " +
+                $"{all.Sum(c => c.Prediction?.HeldForGround ?? 0)}"));
             return 0;
         }
         Console.CancelKeyPress += (_, _) => Console.WriteLine(swarm.BuildProgress);
@@ -127,9 +134,9 @@ public static class Program
     {
         Console.WriteLine($"Load test: a server and {count} bots ({script}) in another process, {warmup:0} s warm-up, {duration:0} s measured" +
             (conditions.IsNone ? "" : $", bots through a relay: {conditions}") +
-            (standIn ? ", on the stand-in ground" : $", on the first world, arriving {(beaches ? "on the beaches" : "at the landing site")}"));
-        // By default everyone arrives at the landing site, so each bot sees all the others (the bandwidth worst case).
-        // Fighting bots get their kit with every life, so the firefights go on after the first deaths.
+            $", on the whole world (the stand-in ball), arriving {(beaches ? "on beaches all round it" : "at the landing site")}");
+        // By default everyone arrives (and respawns) at the landing site, so each bot sees all the others (the bandwidth
+        // worst case). Fighting bots get their kit with every life, so the firefights go on after the first deaths.
         using var server = new GameServer(new ServerOptions
         {
             Port = 0, DatabasePath = null, RelevanceRadius = relevance, JoinKit = kit, KitEveryLife = script is BotScript.Fight or BotScript.Raid,
@@ -137,8 +144,10 @@ public static class Program
             SpawnAtOrigin = !beaches, StandIn = standIn,
             ShipOnJoin = script == BotScript.Fly,
             ShipOnJoinFor = fly > 0 ? name => name.StartsWith("bot", StringComparison.Ordinal) && int.TryParse(name.AsSpan(3), out int n) && n <= fly : null,
-            // G7: a fixed population for the animal load test (none by default, so the earlier measurements compare).
-            Animals = false, AnimalPopulation = animals,
+            // G7's animals (none by default, so the earlier measurements compare): at the landing site a fixed population
+            // round it, always out, so every bot has most of it in range; on beaches the server's own rule, herds coming
+            // out round the players wherever they are (docs/WHOLE_WORLD.md decision 10), held to that many.
+            Animals = beaches && animals > 0, AnimalPopulation = beaches ? 0 : animals, AnimalCap = beaches ? animals : 0,
         });
         server.StartThread();
 
@@ -328,7 +337,8 @@ public static class Program
             $"snapshots received {F(6):0.0}/s per bot, {F(9):0.0} % lost\n" +
             $"Inputs applied on their tick: {100.0 * applied / Math.Max(1, applied + missing):0.00} % ({missing} missing)\n" +
             $"Prediction: {F(1):0} reconciliations, mean error {meanError * 1000:0.000} mm, worst {F(3) * 1000:0.0} mm, " +
-            $"{F(4):0} corrections; round trip {F(5):0} ms; {F(10):0} clock jumps\n" +
+            $"{F(4):0} corrections; round trip {F(5):0} ms; {F(10):0} clock jumps; " +
+            $"{(r.Length > 39 ? F(39) : 0):0} ticks held for their ground at arrivals (whole run)\n" +
             $"Bots: {F(7):0} playing, {F(8):0} disconnected"));
         if (r.Length > 18)
         {

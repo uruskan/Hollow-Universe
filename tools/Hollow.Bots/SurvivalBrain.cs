@@ -16,8 +16,9 @@ namespace Hollow.Bots;
 /// A bot that plays the survival game (GROUND.md §6) through the same client API as a player: it walks to trees and
 /// outcrops and hits their weak spots, picks pickups and berry bushes, crafts stone tools, bandages and arrows,
 /// eats and bandages itself, lights a campfire now and then, and once in a while picks a fight with a bot nearby,
-/// with a spear or the bow. Deterministic per bot (seeded by its number); stays within
-/// <see cref="BotBrain.HomeRadius"/> of the zone's origin so the crowd stays in view of itself (the bandwidth worst case).
+/// with a spear or the bow; knocked down, it crawls until it is helped up or dies. Deterministic per bot (seeded by its
+/// number); stays within <see cref="BotBrain.HomeRadius"/> of its home (<see cref="BotGround.Home"/>), so a crowd that
+/// arrives at the landing site stays in view of itself (the bandwidth worst case).
 /// </summary>
 public sealed class SurvivalBrain
 {
@@ -68,6 +69,12 @@ public sealed class SurvivalBrain
                 _nextChore = time + 2;
                 me.Respawn();
             }
+            return input;
+        }
+        if (me.IsWounded)
+        {
+            // Down: nothing but crawling works until it is helped up (or bleeds out).
+            input.Forward = 1;
             return input;
         }
         if (time >= _nextChore && me.PendingCount == 0)
@@ -138,7 +145,7 @@ public sealed class SurvivalBrain
             }
             default:
                 _goal = Goal.Wander;
-                Wander(ref input, feet, delta);
+                Wander(ref input, feet, BotGround.Home(client), delta);
                 break;
         }
         _yaw = input.Yaw;
@@ -170,15 +177,16 @@ public sealed class SurvivalBrain
             }
         }
         _nearby.Clear();
-        client.Survival().Nature!.Query(feet.X - 40, feet.Z - 40, feet.X + 40, feet.Z + 40, _nearby);
-        bool home = new Vector2(feet.X, feet.Z).Length() < BotBrain.HomeRadius;
+        client.Survival().Nature!.Query(feet, 40, _nearby);
+        Vector3 homePoint = BotGround.Home(client);
+        bool home = Vector3.Distance(feet, homePoint) < BotBrain.HomeRadius;
         bool wantsOre = me.Inventory.Count(client.Content.ItemByKey("stone")) < me.Inventory.Count(client.Content.ItemByKey("wood"));
         NaturalObject? best = null;
         float bestScore = float.MaxValue;
         foreach (NaturalObject o in _nearby)
         {
             NaturalKind kind = client.Content.Natural(o.Kind)!;
-            if (client.Survival().Natural!.IsDepleted(o.Id) || (!home && new Vector2(o.Position.X, o.Position.Z).Length() > BotBrain.HomeRadius))
+            if (client.Survival().Natural!.IsDepleted(o.Id) || (!home && Vector3.Distance(o.Position, homePoint) > BotBrain.HomeRadius))
             {
                 continue;
             }
@@ -327,13 +335,12 @@ public sealed class SurvivalBrain
     // Walks toward a point until within reach of it; true once there.
     private bool Steer(ref InputFrame input, Vector3 feet, Vector3 to, float reach, double delta)
     {
-        Vector3 d = to - feet;
-        var flat = new Vector2(d.X, d.Z);
+        Vector3 flat = BotGround.Flat(to - feet, feet);
         if (flat.Length() <= reach)
         {
             return true;
         }
-        float wanted = MathF.Atan2(-flat.X, -flat.Y);
+        float wanted = BotGround.YawTo(feet, to);
         input.Yaw = _yaw + Math.Clamp(Wrap(wanted - _yaw), -(float)delta * 4, (float)delta * 4);
         input.Pitch = 0;
         input.Forward = 1;
@@ -343,17 +350,13 @@ public sealed class SurvivalBrain
 
     private static void Look(ref InputFrame input, Vector3 eye, Vector3 at, Vector3 up)
     {
-        Vector3 d = at - eye;
-        Vector3 flat = d - up * Vector3.Dot(d, up);
-        input.Yaw = MathF.Atan2(-flat.X, -flat.Z);
-        input.Pitch = MathF.Atan2(Vector3.Dot(d, up), flat.Length());
+        (input.Yaw, input.Pitch) = BotGround.LookAt(eye, at);
         input.Forward = 0;
     }
 
-    private void Wander(ref InputFrame input, Vector3 feet, double delta)
+    private void Wander(ref InputFrame input, Vector3 feet, Vector3 home, double delta)
     {
-        var flat = new Vector2(feet.X, feet.Z);
-        float wanted = flat.Length() > BotBrain.HomeRadius * 0.8f ? MathF.Atan2(flat.X, flat.Y) : _yaw + (float)_rng.Range(-0.3, 0.3);
+        float wanted = Vector3.Distance(feet, home) > BotBrain.HomeRadius * 0.8f ? BotGround.YawTo(feet, home) : _yaw + (float)_rng.Range(-0.3, 0.3);
         input.Yaw = _yaw + Math.Clamp(Wrap(wanted - _yaw), -(float)delta * 2, (float)delta * 2);
         input.Pitch = 0;
         input.Forward = 1;

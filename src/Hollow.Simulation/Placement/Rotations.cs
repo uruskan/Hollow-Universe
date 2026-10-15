@@ -99,7 +99,8 @@ internal static class Rotations
             c.Variant = PieceGeometry.Wrap(steps);
             (_, Quaternion rotation) = piece.Structure.Frame.ToZone(new Pose(Vector3D.Zero, c.Variant));
             Vector3 back = Vector3.Transform(Vector3.UnitZ, rotation);
-            c.Yaw = MathF.Atan2(back.X, back.Z);
+            Vector3D axis = piece.Structure.Frame.AxisY;
+            c.Yaw = Movement.Facing.YawOf(-back, new Vector3((float)axis.X, (float)axis.Y, (float)axis.Z));
         }
     }
 

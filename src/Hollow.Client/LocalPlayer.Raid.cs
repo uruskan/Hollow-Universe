@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using Hollow.Core;
 using Hollow.Net.Bits;
+using Hollow.Simulation.Movement;
 using Hollow.Net.Protocol;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
@@ -21,16 +23,26 @@ public sealed partial class LocalPlayer
     public event Action<RaidAlertView>? RaidAlertReceived;
 
     /// <summary>
-    /// Throws the explosive in a belt slot (a timed charge, bag charge or tin grenade) along a view (yaw and pitch in
-    /// radians, as the input carries them; the camera's), gently with <paramref name="lob"/>. It leaves the belt at once;
-    /// the explosive appears in <see cref="GameClient.Explosives"/> when the server says so.
+    /// Throws the explosive in a belt slot (a timed charge, bag charge or tin grenade) along a view (a heading from local
+    /// north and a pitch in radians where the player stands, in their frame: aboard a ship, against its deck; the
+    /// camera's), gently with <paramref name="lob"/>. It leaves the belt at once; the explosive appears in
+    /// <see cref="GameClient.Explosives"/> when the server says so.
     /// </summary>
-    public uint Throw(int slot, float yaw, float pitch, bool lob = false)
+    public uint Throw(int slot, float yaw, float pitch, bool lob = false) =>
+        Throw(slot, Facing.View(yaw, pitch, Up?.Invoke() ?? System.Numerics.Vector3.UnitY), lob);
+
+    /// <summary>
+    /// Throws along a view direction in the frame the player's character is in (docs/WHOLE_WORLD.md §5; aboard a ship, the
+    /// ship's, IRON_WAKE.md §4.11).
+    /// </summary>
+    public uint Throw(int slot, System.Numerics.Vector3 view, bool lob = false)
     {
         ushort expected = ItemAt(ContainerRef.Belt, slot);
+        (ushort u, ushort v) = Quantize.Octahedral(view);
+        uint frame = Frame?.Invoke() ?? 0;
         return Intend(new Pending(p => p.TakeThrowable(slot, expected)), w => new ThrowIntent
         {
-            Seq = _nextSeq, Slot = (byte)Math.Clamp(slot, 0, 7), Expected = expected, Yaw = Quantize.Angle16(yaw), Pitch = Quantize.Angle16(pitch), Lob = lob,
+            Seq = _nextSeq, Slot = (byte)Math.Clamp(slot, 0, 7), Expected = expected, ViewU = u, ViewV = v, Lob = lob, Frame = frame,
         }.WriteMessage(w));
     }
 

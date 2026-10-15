@@ -3,6 +3,9 @@ using System.Linq;
 using System.Numerics;
 using Hollow.Client;
 using Hollow.Core;
+using Hollow.Server;
+using Hollow.Simulation;
+using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
@@ -13,11 +16,12 @@ namespace Hollow.Bots;
 /// <summary>
 /// A bot that raids (GROUND.md §5.5, G5) through the same client API as a player: its kit (charges, bag charges,
 /// grenades, a rocket launcher with rockets, a rifle with explosive rounds) arrives with every life; it runs to the hut of
-/// the next one on the server's ring (<c>--raid-bases</c>; its own is hut <c>index mod huts</c>) and works through it: a timed charge placed on the door, then
-/// stepping back out of the blast; bag charges and grenades thrown at the doorway and the walls; rockets from fifteen
-/// metres; bursts of explosive rounds. Its own hut is raided by the bot before it, and it hears the raid alerts. The huts
-/// face the zone's origin, so it raids from the inside of the ring; it doesn't look at what is still standing, it just
-/// goes through its plan. Deterministic per bot.
+/// the next one (<c>--raid-bases</c>; its own is hut <c>index mod huts</c>) and works through it: a timed charge placed on
+/// the door, then stepping back out of the blast; bag charges and grenades thrown at the doorway and the walls; rockets
+/// from fifteen metres; bursts of explosive rounds. Its own hut is raided by the bot before it, and it hears the raid
+/// alerts. With the crowd at the landing site the huts stand on the server's ring round it, facing it, so it raids from
+/// the inside of the ring; a bot that arrived on a beach anywhere on the world finds the hut it raids beside that beach,
+/// facing it. It doesn't look at what is still standing, it just goes through its plan. Deterministic per bot.
 /// </summary>
 public sealed class RaidBrain
 {
@@ -36,6 +40,7 @@ public sealed class RaidBrain
     private bool _arrived;
     private float _yaw;
     private float _pitch;
+    private Piece? _hut;
 
     public RaidBrain(int index, int huts, float radius)
     {
@@ -80,13 +85,17 @@ public sealed class RaidBrain
             Chores(client.Content, me);
         }
 
-        // The target: the next bot's hut on the ring; its doorway faces the origin.
-        (float hx, float hz, double _) = TestBases.Ring((_index + 1) % _huts, _huts, _radius);
         Vector3 feet = client.Character.Position;
         Vector3 up = client.Frame.UpAt(feet);
         Vector3 eye = feet + up * client.EyeHeight;
-        var centre = new Vector3(hx, Ground(client, hx, hz), hz);
-        Vector3 outward = Vector3.Normalize(new Vector3(-hx, 0, -hz));
+        if (Target(client) is not { } target)
+        {
+            // Not in view yet (streaming in, or far away after a respawn on another beach): back to where it arrived.
+            _arrived = false;
+            Steer(ref input, feet, BotGround.FirstArrival(client), 2f, delta);
+            return Remember(input);
+        }
+        (Vector3 centre, Vector3 outward) = target;
         Vector3 right = Vector3.Cross(up, outward);
         // The plan: (stand off how far, aim at which face, what).
         (float stand, Vector3 aim, int slot) = (_step % 5) switch
@@ -209,6 +218,34 @@ public sealed class RaidBrain
         return Remember(input);
     }
 
+    // The hut it raids: its middle on the ground and the way its doorway faces. With the crowd at the landing site, the
+    // next bot's hut on the server's ring round it (bot n raids hut n mod huts), its doorway facing the landing site.
+    // Arrived on a beach of its own, the hut the server put beside that beach (RaidArena), its doorway facing the beach,
+    // as the bot's copy of the building shows it; null until it does.
+    private (Vector3 Centre, Vector3 Outward)? Target(GameClient client)
+    {
+        GroundProbe ground = client.Placement().Ground!.Value;
+        if (BotGround.ArrivedAtLanding(client))
+        {
+            (Vector3 at, double _) = TestBases.Ring(ground, BotGround.Landing, (_index + 1) % _huts, _huts, _radius);
+            return (at, Vector3.Normalize(BotGround.Flat(BotGround.Landing - at, at)));
+        }
+        if (_hut is not { Gone: false })
+        {
+            Vector3 beach = BotGround.FirstArrival(client);
+            _hut = client.Building().World?.AllPieces
+                .Where(p => !p.Gone && p.Def.Family == PieceFamily.Foundation && Vector3.Distance(p.ZoneTransform.Position, beach) < 2 * RaidArena.BesideBeach)
+                .MinBy(p => Vector3.DistanceSquared(p.ZoneTransform.Position, beach));
+        }
+        if (_hut == null)
+        {
+            return null;
+        }
+        // The doorway is on the foundation's +Z edge (TestBases.Hut).
+        (Vector3 position, Quaternion rotation) = _hut.ZoneTransform;
+        return (ground.Settle(position), Vector3.Normalize(Vector3.Transform(Vector3.UnitZ, rotation)));
+    }
+
     private InputFrame Remember(in InputFrame input)
     {
         _yaw = input.Yaw;
@@ -236,21 +273,14 @@ public sealed class RaidBrain
         }
     }
 
-    // The ground's height under a point (the client's own surface).
-    private static float Ground(GameClient client, float x, float z)
-    {
-        return client.Placement().Ground?.Settle(new Vector3(x, 0, z)).Y ?? client.Character.Position.Y;
-    }
-
     private bool Steer(ref InputFrame input, Vector3 feet, Vector3 to, float reach, double delta)
     {
-        Vector3 d = to - feet;
-        var flat = new Vector2(d.X, d.Z);
+        Vector3 flat = BotGround.Flat(to - feet, feet);
         if (flat.Length() <= reach)
         {
             return true;
         }
-        float wanted = MathF.Atan2(-flat.X, -flat.Y);
+        float wanted = BotGround.YawTo(feet, to);
         input.Yaw = _yaw + Math.Clamp(Wrap(wanted - _yaw), -(float)delta * 5, (float)delta * 5);
         input.Pitch = 0;
         input.Forward = 1;
@@ -260,10 +290,7 @@ public sealed class RaidBrain
 
     private static void Look(ref InputFrame input, Vector3 eye, Vector3 at, Vector3 up)
     {
-        Vector3 d = at - eye;
-        Vector3 flat = d - up * Vector3.Dot(d, up);
-        input.Yaw = MathF.Atan2(-flat.X, -flat.Z);
-        input.Pitch = MathF.Atan2(Vector3.Dot(d, up), flat.Length());
+        (input.Yaw, input.Pitch) = BotGround.LookAt(eye, at);
         input.Forward = 0;
         input.Sprint = false;
     }

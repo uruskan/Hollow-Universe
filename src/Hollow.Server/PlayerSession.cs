@@ -43,6 +43,12 @@ public sealed class PlayerSession
     /// <summary>Ticks the login has waited for the ground where the player comes in (GameServer.FinishLogins).</summary>
     public int ArrivalWait { get; set; }
 
+    /// <summary>
+    /// A login or a respawn waits at most this long for its ground, built on worker threads, then the tick builds what is
+    /// left: one arrival takes a few tens of milliseconds, a crowd arriving all round the world at once a few seconds.
+    /// </summary>
+    public const int ArrivalWaitTicks = 5 * GameServer.TickRate;
+
     public long AccountId { get; set; }
 
     public Entity Entity { get; set; } = Entity.None;

@@ -24,8 +24,9 @@ using Num = System.Numerics;
 namespace HollowUniverse.Ships;
 
 /// <summary>
-/// The ship sandbox (<c>--view ship</c>, GROUND.md §6.7): the Tin Finch on the first world's real surface. A local zone
-/// on the planet's own ground and nature (its trees stand where they are drawn) runs the same rules the server does; the
+/// The ship sandbox (<c>--view ship</c>, GROUND.md §6.7): the Tin Finch on the first world's ground (the stand-in world
+/// until S4, docs/WHOLE_WORLD.md §4). A local zone on the world's own ground and nature (its trees stand where they are
+/// drawn) runs the same rules the server does; the
 /// planet is drawn by a <see cref="SurfaceView"/> driven in the zone's frame, as the ground game drives it. You start on
 /// foot beside your ship, parked on the bay of a vehicle workbench at the landing site: open the hatch and board (E),
 /// lift off, fly, land anywhere, step out (F).
@@ -33,7 +34,8 @@ namespace HollowUniverse.Ships;
 /// In the seat: the mouse is the stick; W/S the throttle lever, X lever to zero; A/D sideways; Space/C rise and sink;
 /// Q/E roll; arrows a keyboard stick; Shift boost; Z flight assist; V cockpit or chase camera; H the hatch; L the lock;
 /// J descend from orbit; F step out. Esc frees the mouse. Options (after "--"): <c>--scene
-/// pad|hover|forest|cockpit|slope|ceiling</c> (screenshots hold the scene's camera), <c>--time</c>, <c>--trace</c>.
+/// pad|hover|forest|cockpit|slope|ceiling</c> (screenshots hold the scene's camera), <c>--time</c>, <c>--trace</c>;
+/// <c>--ship iron-wake</c> a ship people walk in instead (ShipSandbox.Aboard.cs: <c>--scene parked|ramp|deck|outside</c>).
 /// </para>
 /// </summary>
 public partial class ShipSandbox : Node3D
@@ -87,7 +89,7 @@ public partial class ShipSandbox : Node3D
     public Dictionary<string, string> Options { get; set; } = new();
 
     /// <summary>For automated screenshots: the scene set up, the ground, plants and grass around the camera streamed.</summary>
-    public bool ReadyForShot => _frames > 30 && _surface.IsReady;
+    public bool ReadyForShot => _frames > 30 && (_aboard ? _ground?.IsSettled ?? true : _surface.IsReady);
 
     private bool Seated => _zone.Ships().SeatOf(_player) == _ship;
 
@@ -105,6 +107,24 @@ public partial class ShipSandbox : Node3D
         _content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
         _zone = new Zone(spec, content: _content);
         _planet = found.Surface;
+        // --ship names the kind: one people walk in (IRON_WAKE.md §4) parks in a clearing with you behind its ramp, on the
+        // zone's own ground drawn as the ground game draws it; the Tin Finch stands on its workbench's bay.
+        ShipDef? kind = Options.TryGetValue("ship", out string? key) ? _content.Ship(key) : null;
+        if (key != null && kind == null)
+        {
+            GD.PushError($"--ship {key}: no such ship in ships.json");
+        }
+        if (kind?.Interior != null)
+        {
+            OpenGround();
+            _layer = new CanvasLayer { Name = "Interface" };
+            AddChild(_layer);
+            _hud = new ShipHud { Name = "ShipHud" };
+            _layer.AddChild(_hud);
+            BuildAboard(kind);
+            SetSceneAboard(_scene);
+            return;
+        }
 
         // The planet: the surface view driven in the zone's frame (render coordinates are the zone's), as the ground game
         // drives it: it draws around the camera this sandbox places.
@@ -302,8 +322,8 @@ public partial class ShipSandbox : Node3D
             {
                 // High up, climbing for the ceiling: 600 m short of orbit.
                 Board();
-                float height = def.Ceiling - 600;
-                Num.Vector3 at = up * (float)(height - (_zone.Frame.ToBody(_pad).Length - _planet.Radius)) + _pad;
+                float height = def.CeilingOn(_zone.Surface.Radius) - 600;
+                Num.Vector3 at = up * (float)(height - (_zone.Frame.ToBody(_pad).Length - _zone.Surface.Radius)) + _pad;
                 float yaw = _padYaw + 0.6f;
                 (Num.Vector3 ahead, _) = CharacterMotor.HorizontalBasis(yaw, up);
                 Teleport(at, yaw, up * 20 + ahead * 60);
@@ -359,7 +379,7 @@ public partial class ShipSandbox : Node3D
         s.AngularVelocity = Num.Vector3.Zero;
         s.RestTicks = 0;
         s.Flags &= ~(ShipFlags.Landed | ShipFlags.Touching);
-        _zone.Physics.EnsureGround(_zone.Settle(centre), 1);
+        _zone.Physics.EnsureGroundWithin(_zone.Settle(centre), 96);
     }
 
     // Steps the zone with the pilot holding an input for some ticks, or (landing) until the skids touch, letting go then,
@@ -408,6 +428,11 @@ public partial class ShipSandbox : Node3D
         }
         _frames++;
         _clock += delta;
+        if (_aboard)
+        {
+            ProcessAboard(delta);
+            return;
+        }
         if (_touring)
         {
             Tour();
@@ -539,7 +564,7 @@ public partial class ShipSandbox : Node3D
 
     private MoveInput ReadWalk()
     {
-        var input = new MoveInput { Yaw = _yaw, Pitch = _pitch };
+        var input = new MoveInput { View = Facing.View(_yaw, _pitch, _zone.Frame.UpAt(_feetNow)) };
         if (_shot || (!_touring && Input.MouseMode != Input.MouseModeEnum.Captured))
         {
             return input;
@@ -637,13 +662,16 @@ public partial class ShipSandbox : Node3D
         d.VerticalSpeed = Num.Vector3.Dot(s.Velocity, up);
         Vector3D body = _zone.Frame.ToBody(s.Origin(def.CentreOfMass));
         double r = body.Length;
-        double ground = _planet.HeightAt(body / r);
-        if (_planet.SeaRadius > 0)
+        // Heights over the zone's own ground (the stand-in world since S3a), the one the ship flies over.
+        ISurface surface = _zone.Surface;
+        double ground = surface.HeightAt(body / r);
+        if (surface.SeaRadius > 0)
         {
-            ground = Math.Max(ground, 0);
+            ground = Math.Max(ground, surface.SeaRadius - surface.Radius);
         }
-        d.Height = (float)(_zone.Frame.ToBody(s.Position).Length - _planet.Radius);
-        d.OverGround = (float)(r - _planet.Radius - ground);
+        d.Height = (float)(_zone.Frame.ToBody(s.Position).Length - surface.Radius);
+        d.Ceiling = _ship.Def.CeilingOn(surface.Radius);
+        d.OverGround = (float)(r - surface.Radius - ground);
         Num.Vector3 f = s.Forward;
         d.Heading = MathF.Atan2(f.X, -f.Z) * 180 / MathF.PI;
         d.Throttle = _controls.Throttle;

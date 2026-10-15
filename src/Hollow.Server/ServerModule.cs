@@ -162,11 +162,29 @@ public abstract class ServerModule : IDisposable
         float radius = Options.RelevanceRadius;
         foreach (PlayerSession session in Players)
         {
-            if (session.Playing && Vector3.DistanceSquared(Zone.Entities.Get<Character>(session.Entity).State.Position, point) <= radius * radius)
+            if (session.Playing && Vector3.DistanceSquared(Zone.WorldOf(Zone.Entities.Get<Character>(session.Entity).State), point) <= radius * radius)
             {
                 session.Peer.Send(Writer.Data, method);
             }
         }
+    }
+
+    /// <summary>
+    /// A view from the wire as a heading from local north and a pitch where a player's character stands
+    /// (docs/WHOLE_WORLD.md §5): what the zone's rules take for a shot or a throw. Aboard a ship (IRON_WAKE.md §4.11) the
+    /// view is turned into the ship's frame if the client gave it in another (<paramref name="frame"/>, a ship's net ID),
+    /// and read against the deck's up.
+    /// </summary>
+    protected (float Yaw, float Pitch) ViewAt(PlayerSession session, Vector3 view, uint frame = 0)
+    {
+        if (!session.Playing || !Zone.Entities.Has<Character>(session.Entity))
+        {
+            return (0, 0);
+        }
+        CharacterState state = Zone.Entities.Get<Character>(session.Entity).State;
+        view = Zone.Frames.ViewIn(view, Server.Ships().FrameKey(frame), state.Frame, Zone.Tick);
+        Vector3 up = state.Frame == 0 ? Zone.Frame.UpAt(state.Position) : Vector3.UnitY;
+        return (Facing.YawOf(view, up), Facing.PitchOf(view, up));
     }
 
     /// <summary>A chat line to everyone.</summary>

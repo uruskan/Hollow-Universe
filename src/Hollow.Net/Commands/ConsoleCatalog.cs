@@ -28,6 +28,9 @@ public enum ArgKind : byte
     Blueprint,
     OnOff,
     Command,
+
+    /// <summary>A ship's kind (ships.json's keys: tin-finch, iron-wake).</summary>
+    Ship,
 }
 
 /// <summary>
@@ -78,7 +81,7 @@ public static class ConsoleCatalog
             [ArgKind.Blueprint, ArgKind.Player], "blueprint.learn", "unlockall"),
         Def("teleport", ["teleport <player>", "teleport <x> <z>", "teleport <latitude> <longitude>", "teleport <player> <target player>",
                 "teleport <player> <x> <z>"],
-            "Moves you (or a player) to a player, or to a point of the zone: metres east and south of its origin, or a latitude and " +
+            "Moves you (or a player) to a player, or to a point of the zone: metres east and south of the landing site along the ground, or a latitude and " +
             "longitude (three decimals or more, or N, S, E, W).",
             true, CommandSide.Server, [ArgKind.Player, ArgKind.Player], "tp", "global.teleport", "teleportpos", "global.teleportpos"),
         Def("tp2me", ["tp2me <player>"], "Brings a player to you.", true, CommandSide.Server, [ArgKind.Player],
@@ -95,7 +98,7 @@ public static class ConsoleCatalog
             "Flies through everything: W A S D along the view, Space up, Ctrl down, Shift fast.", true, CommandSide.Server,
             [ArgKind.OnOff, ArgKind.Player], "global.noclip", "fly"),
         Def("time", ["time", "time <hour>", "time reset"],
-            "The zone's time of day (local solar time at its origin): this zone's sun only; universe time stays as it is.",
+            "The zone's time of day (local solar time where you stand; at the server's console, the landing site): this zone's sun only; universe time stays as it is.",
             true, CommandSide.Server, [ArgKind.Number], "env.time"),
         Def("timescale", ["timescale [x]"], "How fast the zone's day runs: 1 the day of play, 0 stops the sun, 60 a minute an hour.",
             true, CommandSide.Server, [ArgKind.Number], "env.timescale"),
@@ -107,8 +110,8 @@ public static class ConsoleCatalog
             "entities", "entity.count", "ent.count"),
         Def("clearinv", ["clearinv [player]"], "Empties an inventory: main, belt and clothing.", true, CommandSide.Server, [ArgKind.Player],
             "inventory.clear", "strip"),
-        Def("ship", ["ship [player]"], "A Tin Finch beside a player, theirs and fuelled, its hatch open.", true, CommandSide.Server,
-            [ArgKind.Player]),
+        Def("ship", ["ship [player] [kind]"], "A ship beside a player, theirs and fuelled, its way in toward them: a Tin Finch, or the kind named (iron-wake).",
+            true, CommandSide.Server, [ArgKind.Player, ArgKind.Ship]),
         Def("raidbase", ["raidbase [grade] [player]"], "A claimed hut 8 m in front of a player, listing them (twig, wood, stone, metal, armoured).",
             true, CommandSide.Server, [ArgKind.Grade, ArgKind.Player]),
         Def("admin", ["admin <name>"], "Gives a player admin rights until the server stops (admins.txt keeps them).", true, CommandSide.Server,

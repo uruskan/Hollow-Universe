@@ -112,7 +112,7 @@ public sealed class BuildingSystem : ZoneSystem
             CharacterState s = characters.Values[i].State;
             if (!s.IsDead)
             {
-                yield return new Capsule(s.Position, Frame.UpAt(s.Position), Tuning.Radius, Tuning.StandingHeight);
+                yield return new Capsule(WorldOf(s), UpOf(s), Tuning.Radius, Tuning.StandingHeight);
             }
         }
     }
@@ -140,7 +140,7 @@ public sealed class BuildingSystem : ZoneSystem
                 (Vector3 position, Quaternion rotation) = claim.ZoneTransform;
                 Vector3 up = Frame.UpAt(position);
                 Vector3 along = Vector3.Transform(Vector3.UnitZ, rotation);
-                var d = new Deployable(claim.Id, Content.ClaimDeployable, position, up, MathF.Atan2(along.X, along.Z), new EntityId(claim.Owner))
+                var d = new Deployable(claim.Id, Content.ClaimDeployable, position, up, Facing.YawOf(-along, up), new EntityId(claim.Owner))
                 {
                     Health = (float)claim.Health,
                 };

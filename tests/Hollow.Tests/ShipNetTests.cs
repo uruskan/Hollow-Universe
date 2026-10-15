@@ -80,7 +80,7 @@ public static class ShipNetTests
         var context = new ShipContext(frame, surface, ShipContext.GravityOf(zone.Spec.SurfaceGravity), (float)zone.Spec.AirDensity,
             (float)zone.Spec.AirScaleHeight, collider);
         var ships = new ShipPredictor(predictor, () => context);
-        predictor.Seat = tick => ships.TryGetState(tick, out ShipState s) ? (s.PointOf(ShipRig.Finch.Seat, ShipRig.Finch.CentreOfMass), s.Velocity) : null;
+        predictor.Seat = tick => ships.TryGetState(tick, out ShipState s) ? (0UL, s.PointOf(ShipRig.Finch.Seat, ShipRig.Finch.CentreOfMass), s.Velocity) : null;
         uint start = (uint)zone.Tick;
         zone.Entities.Get<Character>(ada).State.Health = 100; // as the vitals have it (set above)
         ships.Reset(ShipRig.Finch, 1, start, ship.State, start);
@@ -92,7 +92,7 @@ public static class ShipNetTests
         {
             int t = (int)(tick - start);
             ShipInput input = Script(t);
-            InputCommand command = NetConvert.ToCommand(new MoveInput { Yaw = 0.3f }, new ActionInput { HeldSlot = ActionInput.NoSlot });
+            InputCommand command = NetConvert.ToCommand(new MoveInput { View = Vector3.UnitZ }, new ActionInput { HeldSlot = ActionInput.NoSlot });
             command.Ship = new[] { ShipConvert.ToControls(input) };
             predictor.RecordInput(tick, command);
             ships.Predict(tick);
@@ -148,7 +148,7 @@ public static class ShipNetTests
         Vector3 hatch = ship.PointOf(ship.Def!.Hatch);
         Vector3 out_ = Vector3.Normalize(Vector3.Transform(-Vector3.UnitX, ship.Rotation));
         Vector3 at = hatch + out_ * 1.6f;
-        rig.Server.Execute(FormattableString.Invariant($"teleport Ada {at.X} {at.Z}"));
+        rig.Teleport("Ada", at);
         rig.Run(0.5, (_, _) => default);
         ada.Local.Interact(new TargetRef(TargetFamily.Ship, ship.Id.Value, ShipParts.Hatch), "board");
         rig.Run(0.5, (_, _) => default);
@@ -156,7 +156,7 @@ public static class ShipNetTests
         long corrections = ada.Stats.ShipCorrections;
 
         // Up, then forward and round.
-        float startHeight = ship.Position.Y;
+        float startHeight = ship.Position.Length();
         rig.Run(4.0, (client, time) => client == ada
             ? new InputFrame { Ship = new ShipInput { Vertical = time < 2 ? 1 : 0, Throttle = time < 2 ? 0 : 0.4f, Yaw = 0.3f } }
             : default);
@@ -164,10 +164,10 @@ public static class ShipNetTests
         Assert.True(bosView != null, "Bo sees the ship");
         Vector3 aboveGround = bosView!.Position;
         Fixtures.Report(string.Create(System.Globalization.CultureInfo.InvariantCulture,
-            $"Bo sees it {bosView.Position.Y - startHeight:0.0} m up, going {bosView.Velocity.Length():0.0} m/s, engines {(bosView.Has(ShipNetFlags.EnginesOn) ? "on" : "off")}; " +
+            $"Bo sees it {bosView.Position.Length() - startHeight:0.0} m up, going {bosView.Velocity.Length():0.0} m/s, engines {(bosView.Has(ShipNetFlags.EnginesOn) ? "on" : "off")}; " +
             $"Ada's ship corrections {ada.Stats.ShipCorrections - corrections}, predicted at {Vector3.Distance(ada.Ships().OwnShip.Position, bosView.Position):0.0} m from Bo's view"));
         Assert.True(bosView.Has(ShipNetFlags.Piloted) && bosView.Has(ShipNetFlags.EnginesOn), "Bo sees it piloted, engines on");
-        Assert.True(bosView.Position.Y - startHeight > 10, "Bo sees it climb");
+        Assert.True(bosView.Position.Length() - startHeight > 10, "Bo sees it climb");
         Assert.True(bosView.Velocity.Length() > 5, "and fly");
         Assert.Equal(0L, ada.Stats.ShipCorrections - corrections, "Ada's prediction held on a clean line");
         _ = aboveGround;

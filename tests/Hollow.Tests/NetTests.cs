@@ -121,7 +121,7 @@ public static class NetTests
                     s.X += rng.NextInt(140) - 70;
                     s.Z += rng.NextInt(140) - 70;
                     s.Y += rng.NextInt(10) - 5;
-                    s.Yaw = (ushort)(s.Yaw + rng.NextInt(2000) - 1000);
+                    s.ViewU = (ushort)(s.ViewU + rng.NextInt(2000) - 1000);
                 }
                 if (rng.Chance(0.02))
                 {
@@ -182,9 +182,10 @@ public static class NetTests
             .Select(i => new SnapshotCandidate { NetId = 1 + (uint)i * 50_000, State = new CharacterNetState { X = i * 1000, Health = 100 }, Weight = 1 })
             .ToArray();
         var seen = new HashSet<uint>();
-        // 300 entities at about 19 a snapshot (a character's state is 191 bits in full since free look): all within 18.
+        // 300 entities at about 16 a snapshot (a character's state is 199 bits in full since IW1's frame, IRON_WAKE.md
+        // §4.11, a byte while aboard nothing): all within 19.
         int rounds = 0;
-        for (int round = 0; round < 18 && seen.Count < crowd.Length; round++, rounds++)
+        for (int round = 0; round < 19 && seen.Count < crowd.Length; round++, rounds++)
         {
             writer.Reset();
             sender.Write(writer, new SnapshotHeader(), crowd, 600);

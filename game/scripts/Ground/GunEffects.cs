@@ -176,7 +176,7 @@ public static class GunEffects
             return null;
         }
         var near = new List<NaturalObject>();
-        client.Survival().Nature.Query(point.X - 3, point.Z - 3, point.X + 3, point.Z + 3, near);
+        client.Survival().Nature.Query(point, 3, near);
         NaturalObject? best = null;
         float bestDistance = float.MaxValue;
         foreach (NaturalObject o in near)

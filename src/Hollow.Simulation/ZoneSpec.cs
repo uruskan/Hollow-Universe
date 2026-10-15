@@ -52,8 +52,9 @@ public sealed record ZoneSpec
     }
 
     /// <summary>
-    /// The stand-in ground (a hilly sphere without a sea, and stand-in natural objects) instead of the body's real
-    /// surface: for tests and benchmarks that want a plain, predictable world. Sent to clients with the zone.
+    /// Marks a zone on the stand-in ground (<see cref="StandInWorld"/>: continents, a sea and climate bands, with stand-in
+    /// natural objects). Until S4 makes the real ground at walking scale every zone stands on it
+    /// (<see cref="CreateSurface"/>), whatever this says; it is sent to clients with the zone.
     /// </summary>
     public bool StandIn { get; init; }
 
@@ -98,24 +99,41 @@ public sealed record ZoneSpec
         return new ZoneSpec
         {
             AirDensity = density,
-            AirScaleHeight = scaleHeight,
+            // Real-equivalent heights (docs/WHOLE_WORLD.md §6.5): the climb to the leaving height thins the air as the
+            // climb to the old 15 km ceiling did.
+            AirScaleHeight = scaleHeight * (LeavingRadii * FirstWorldRadius / RealCeiling),
             SystemAddress = system.Address.Value,
             BodyPath = planet.Path,
-            Radius = planet.Radius,
+            Radius = FirstWorldRadius,
             SurfaceGravity = planet.SurfaceGravity,
             SurfaceSeed = Core.Hash64.Of(system.Address.Value, planet.Path),
             LatitudeDegrees = latitudeDegrees,
             LongitudeDegrees = longitudeDegrees,
+            StandIn = true,
         };
     }
 
     /// <summary>
-    /// The ground of this zone's body. <b>The one place that picks the surface</b> (GROUND.md §4.6): the body's real
-    /// surface (<see cref="PlanetSurface"/>, shared within the process), or the stand-in sphere for
-    /// <see cref="StandIn"/> zones and bodies the universe doesn't know.
+    /// The first world's game radius in metres (SCALE.md §3.1, docs/WHOLE_WORLD.md §1): a constant until S1's
+    /// <c>GameScale</c> gives every body its own.
     /// </summary>
-    public ISurface CreateSurface() =>
-        !StandIn && PlanetSurfaces.Find(SystemAddress, BodyPath) is { } real ? real.Surface : new SphereSurface(Radius, SurfaceSeed);
+    public const double FirstWorldRadius = 2410;
+
+    /// <summary>A ship leaves the world this many world radii above the ground (docs/WHOLE_WORLD.md decision 4).</summary>
+    public const double LeavingRadii = 2;
+
+    /// <summary>The ceiling ships had on the real-size first world, in metres: what real-equivalent heights compare with.</summary>
+    public const double RealCeiling = 15_000;
+
+    /// <summary>The unit direction of the spec's latitude and longitude (the landing site) in the body frame.</summary>
+    public Core.Vector3D LandingDirection => ZoneFrame.Direction(LatitudeDegrees * Math.PI / 180, LongitudeDegrees * Math.PI / 180);
+
+    /// <summary>
+    /// The ground of this zone's body. <b>The one place that picks the surface</b> (GROUND.md §4.6). Until S4 makes the
+    /// real ground at walking scale, every zone stands on the stand-in world (docs/WHOLE_WORLD.md §4): the real
+    /// <see cref="PlanetSurface"/> is built at its real radius, which a zone measured from its centre can't hold.
+    /// </summary>
+    public ISurface CreateSurface() => new StandInWorld(Radius, SurfaceSeed, LandingDirection);
 
     /// <summary>
     /// The natural objects of this zone's ground (trees, outcrops, pickups, bushes). <b>The one place that picks
@@ -124,12 +142,14 @@ public sealed record ZoneSpec
     public Nature.INaturalObjects CreateNature(ISurface surface, ZoneFrame frame, Content.GameContent content) =>
         surface is PlanetSurface planet
             ? new Nature.ScatterNaturalObjects(planet, frame, content)
-            : new Nature.StandInNaturalObjects(surface, frame, content, Core.Hash64.Of(SurfaceSeed, 0x7A7));
+            : new Nature.StandInNaturalObjects(surface, frame, content, Core.Hash64.Of(SurfaceSeed, 0x7A7), LandingDirection);
 
-    /// <summary>The zone's frame on a surface built by <see cref="CreateSurface"/>.</summary>
-    public ZoneFrame CreateFrame(ISurface surface) =>
-        ZoneFrame.At(surface, LatitudeDegrees * Math.PI / 180, LongitudeDegrees * Math.PI / 180);
+    /// <summary>
+    /// The zone's frame: the body's own (docs/WHOLE_WORLD.md §3.1), origin at the centre, so one zone holds the whole
+    /// world. The surface is not needed any more; the parameter stays for callers that build a zone's parts.
+    /// </summary>
+    public ZoneFrame CreateFrame(ISurface surface) => ZoneFrame.World;
 
     public override string ToString() => string.Create(CultureInfo.InvariantCulture,
-        $"body {SystemAddress:X16}/{BodyPath:X8}, radius {Radius / 1000:0} km, {SurfaceGravity:0.00} g, at {LatitudeDegrees:0.####}°, {LongitudeDegrees:0.####}°, {(StandIn ? "stand-in ground" : "day x" + RotationTimeScale.ToString("0.##", CultureInfo.InvariantCulture))}");
+        $"body {SystemAddress:X16}/{BodyPath:X8}, radius {Radius:0} m, {SurfaceGravity:0.00} g, landing at {LatitudeDegrees:0.####}°, {LongitudeDegrees:0.####}°, {(StandIn ? "stand-in ground" : "day x" + RotationTimeScale.ToString("0.##", CultureInfo.InvariantCulture))}");
 }

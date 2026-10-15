@@ -61,6 +61,7 @@ public static class BuildingNetTests
     internal static Piece Foundation(Zone zone, Vector3 at, ulong owner, int grade = 0)
     {
         BuildingWorld b = zone.Building().World!;
+        zone.Physics.EnsureGround(at); // the ground's collision there, as a player near it has it
         PlacementPlan plan = b.FoundationAt(Piece(zone, "foundation"), at, 0) ?? throw new TestFailure($"no ground for a foundation at {at}");
         return b.AddFirst(plan.Frame, plan.Piece, grade, owner, zone.Building().BuildingNow);
     }
@@ -135,7 +136,7 @@ public static class BuildingNetTests
         var refused = new List<IntentAnswer>();
         bo.Local.IntentRejected += refused.Add;
         Vector3 boEye = Eye(bo);
-        Vector3 boGround = bo.Character.Position + new Vector3(3.5f, 0, 0);
+        Vector3 boGround = bo.Frame.Beside(bo.Character.Position, 3.5f, 0, 0);
         PlacementCandidate? boPlan = Ghost(bo, "foundation", boEye, Vector3.Normalize(boGround - boEye));
         Assert.True(boPlan is { Valid: false } && boPlan.Outcome.Code == OutcomeCode.NotEnough, $"Bo's ghost says why ({boPlan})");
         uint boSeq = PlacePiece(bo, boPlan!);
@@ -148,7 +149,7 @@ public static class BuildingNetTests
         var answers = new List<IntentAnswer>();
         ada.Local.IntentAnswered += answers.Add;
         Vector3 eye = Eye(ada), up = ada.Frame.UpAt(eye);
-        Vector3 ground = ada.Character.Position + new Vector3(3.5f, 0, 0);
+        Vector3 ground = ada.Frame.Beside(ada.Character.Position, 3.5f, 0, 0);
         PlacementCandidate? plan = Ghost(ada, "foundation", eye, Vector3.Normalize(ground - eye));
         Assert.True(plan is { Valid: true, Detail: PlacementPlan { Support: null } }, $"the ghost: a free foundation ({plan})");
         uint seq = PlacePiece(ada, plan!);
@@ -163,7 +164,7 @@ public static class BuildingNetTests
         (Vector3 centre, _) = foundation.ZoneTransform;
         eye = Eye(ada);
         Vector3 toward = Vector3.Normalize(centre - eye);
-        Vector3 edge = centre - new Vector3(toward.X, 0, toward.Z) * 1.4f + up * 1.2f;
+        Vector3 edge = centre - ada.Frame.Flat(centre, toward) * 1.4f + up * 1.2f;
         PlacementCandidate? wall = Ghost(ada, "wall", eye, Vector3.Normalize(edge - eye));
         PlacementPlan? wallPlan = wall?.Detail as PlacementPlan;
         Assert.True(wall is { Valid: true } && wallPlan!.Support == foundation, $"the ghost: a wall on the foundation ({wall})");
@@ -206,7 +207,7 @@ public static class BuildingNetTests
         Vector3 adaAt = ada.Character.Position;
         EntityId doorwayId = rig.Server.Inspect(sv =>
         {
-            Piece f = Foundation(sv.Zone, sv.Zone.Settle(new Vector3(0, 0, 3)), adaId);
+            Piece f = Foundation(sv.Zone, sv.Zone.GroundAt(0, 3), adaId);
             return On(sv.Zone, f, Nearest(f, adaAt), "doorway", adaId).Id;
         });
         RunUntil(rig, () => ada.Building().World!.PieceOf(doorwayId) != null && bo.Building().World!.PieceOf(doorwayId) != null, "the doorway");
@@ -234,7 +235,7 @@ public static class BuildingNetTests
         // The claim device placed from her floor, in sight of it (the doorway's wall and its shut door hide the floor from
         // outside), beside her.
         Vector3 floorMiddle = BuildingWorld.F(floor.Structure.Frame.ToZone(floor.Pose.Position));
-        rig.Server.Execute(FormattableString.Invariant($"teleport Ada {floorMiddle.X:0.00} {floorMiddle.Z:0.00}"));
+        rig.Teleport("Ada", floorMiddle);
         rig.Run(0.6, (_, _) => default);
         Vector3 claimAt = BuildingWorld.F(floor.Structure.Frame.ToZone(floor.Pose.Position + new Vector3D(0.8, 0, 0.8)));
         Ask(PlaceItem(ada, "claim-device", claimAt), "the claim device placed");
@@ -259,7 +260,7 @@ public static class BuildingNetTests
         Vector3 middle = BuildingWorld.F(floor.Structure.Frame.ToZone(floor.Pose.Position));
         Vector3 outward = Vector3.Normalize(new Vector3(doorAt.X - middle.X, 0, doorAt.Z - middle.Z));
         Vector3 outside = doorAt + outward * 2.2f;
-        rig.Server.Execute(FormattableString.Invariant($"teleport Bo {outside.X:0.00} {outside.Z:0.00}"));
+        rig.Teleport("Bo", outside);
         rig.Run(0.6, (_, _) => default);
         var bos = new List<IntentAnswer>();
         bo.Local.IntentAnswered += bos.Add;
@@ -282,7 +283,7 @@ public static class BuildingNetTests
         // The claim: Bo may not build on Ada's base (he aims at its far side, away from the doorway).
         Vector3 far = middle - outward * 1.5f;
         Vector3 side = -outward;
-        rig.Server.Execute(FormattableString.Invariant($"teleport Bo {far.X + side.X * 2.5f:0.00} {far.Z + side.Z * 2.5f:0.00}"));
+        rig.Teleport("Bo", far + side * 2.5f);
         rig.Run(0.6, (_, _) => default);
         Vector3 boEye = Eye(bo);
         Vector3 target = far + ada.Frame.UpAt(far) * 0.6f;
@@ -310,7 +311,7 @@ public static class BuildingNetTests
             {
                 for (int j = 0; j < 10; j++)
                 {
-                    grid[i, j] = i == 0 && j == 0 ? Foundation(z, z.Settle(new Vector3(20, 0, -15)), 1)
+                    grid[i, j] = i == 0 && j == 0 ? Foundation(z, z.GroundAt(20, -15), 1)
                         : i > 0 ? On(z, grid[i - 1, j], Facing(grid[i - 1, j], 1, 0), "foundation", 1)
                         : On(z, grid[i, j - 1], Facing(grid[i, j - 1], 0, 1), "foundation", 1);
                 }

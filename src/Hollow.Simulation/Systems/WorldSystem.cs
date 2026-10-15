@@ -112,7 +112,7 @@ public sealed class WorldSystem : ZoneSystem
         {
             return;
         }
-        LootSpots = Hollow.Simulation.Nature.LootSpots.Generate(Surface, Frame, Nature!, Content, Hash64.Of(Spec.SurfaceSeed, 0x1007));
+        LootSpots = Hollow.Simulation.Nature.LootSpots.Generate(Surface, Frame, Nature!, Content, Hash64.Of(Spec.SurfaceSeed, 0x1007), Spec.LandingDirection);
         foreach (LootSpot spot in LootSpots.Spots)
         {
             _spots[spot.Id] = spot;
@@ -269,7 +269,7 @@ public sealed class WorldSystem : ZoneSystem
         for (int i = 0; i < characters.Count; i++)
         {
             ref Character c = ref characters.Values[i];
-            if (!c.State.IsDead && Combat.Geometry.BoxCylinderOverlap(centre, def.HalfExtents, spot.Yaw, c.State.Position, Tuning.Radius, Tuning.StandingHeight, spot.Up))
+            if (!c.State.IsDead && Combat.Geometry.BoxCylinderOverlap(centre, def.HalfExtents, spot.Yaw, WorldOf(c.State), Tuning.Radius, Tuning.StandingHeight, spot.Up))
             {
                 return false;
             }
@@ -630,8 +630,10 @@ public sealed class WorldSystem : ZoneSystem
             return OutcomeCode.Invalid;
         }
         WorldData world = Content.World;
-        float half = (float)(world.MapMetres / 2);
-        if (!float.IsFinite(at.X) || !float.IsFinite(at.Z) || MathF.Abs(at.X) > half || MathF.Abs(at.Z) > half || colour >= MapMarker.Colours)
+        // A point of the world (docs/WHOLE_WORLD.md §6.7): anywhere, settled on the ground; untrusted, so a broken one or
+        // one near the centre, where it has no direction, is refused.
+        float r = at.Length();
+        if (!float.IsFinite(r) || r < Surface.Radius * 0.5f || colour >= MapMarker.Colours)
         {
             return OutcomeCode.Invalid;
         }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
@@ -156,7 +157,7 @@ public sealed partial class LocalPlayer
         string text = label.Length > MapMarker.MaxLabel ? label[..MapMarker.MaxLabel] : label;
         return Intend(null, w => new MarkerIntent
         {
-            Seq = _nextSeq, Remove = false, X = at.X, Z = at.Z, Colour = (byte)Math.Clamp((int)colour, 0, MapMarker.Colours - 1), Label = text,
+            Seq = _nextSeq, Remove = false, X = at.X, Y = at.Y, Z = at.Z, Colour = (byte)Math.Clamp((int)colour, 0, MapMarker.Colours - 1), Label = text,
         }.WriteMessage(w));
     }
 

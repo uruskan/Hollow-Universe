@@ -17,12 +17,16 @@ namespace Hollow.Tests;
 /// <summary>An in-process server on a background thread, and clients driven from the test's thread.</summary>
 public sealed class LoopbackRig : IDisposable
 {
-    /// <summary>A server on the stand-in ground (plain and quick), or on the first world's real surface; no animals unless a test asks for them (G7).</summary>
+    /// <summary>
+    /// A server on the stand-in ground (plain and quick; players arrive at the landing site, where the tests lay out their
+    /// places), or on the first world's real surface (on its beaches); no animals unless a test asks for them (G7).
+    /// </summary>
     public LoopbackRig(string? database = null, bool planet = false, bool animals = false, IReadOnlyCollection<string>? admins = null)
     {
         Server = new GameServer(new ServerOptions
         {
-            Port = 0, DatabasePath = database, StandIn = !planet, Animals = animals, Admins = admins ?? Array.Empty<string>(), Log = _ => { },
+            Port = 0, DatabasePath = database, StandIn = !planet, SpawnAtOrigin = !planet, Animals = animals, Admins = admins ?? Array.Empty<string>(),
+            Log = _ => { },
         }, Fixtures.Galaxy);
         Server.StartThread();
     }
@@ -67,6 +71,16 @@ public sealed class LoopbackRig : IDisposable
         }
     }
 
+    /// <summary>
+    /// The console's teleport of a player onto the ground under a zone point (and so many metres further east and south):
+    /// the point in the console's terms, metres east and south of the landing site along the ground.
+    /// </summary>
+    public void Teleport(string name, Vector3 at, float east = 0, float south = 0)
+    {
+        (float e, float s) = Server.Inspect(sv => sv.Zone.OffsetOf(at));
+        Server.Execute(FormattableString.Invariant($"teleport {name} {e + east:0.00} {s + south:0.00}"));
+    }
+
     /// <summary>Runs until every client plays and has its character, or fails after a few seconds.</summary>
     public void WaitUntilPlaying()
     {
@@ -106,11 +120,13 @@ public static class MultiplayerTests
         using var zone = new Zone(spec);
         Entity entity = zone.AddCharacter(new EntityId(7), "server", zone.NewCharacter(zone.SpawnPoint(1)));
         using var predictor = new Predictor(spec, spec.CreateSurface(), null);
+        // The client's ground first, as its loading screen waits for it (GROUND.md §4.3: the prediction holds without it).
+        predictor.World.EnsureGround(zone.Entities.Get<Character>(entity).State.Position);
         predictor.Reset(0, zone.Entities.Get<Character>(entity).State, 0);
         var commands = new InputCommand[601];
         for (uint tick = 1; tick <= 600; tick++)
         {
-            commands[tick] = NetConvert.ToCommand(MovementCheck.Script((int)tick));
+            commands[tick] = NetConvert.ToCommand(MovementCheck.Script((int)tick, zone.Frame.UpAt(zone.Entities.Get<Character>(entity).State.Position)));
             ref Character c = ref zone.Entities.Get<Character>(entity);
             c.Input = NetConvert.ToMoveInput(commands[tick]);
             zone.Step();
@@ -154,6 +170,7 @@ public static class MultiplayerTests
         rig.Run(1.5, (_, _) => default);
         ada.Stats.ResetTotals();
         bo.Stats.ResetTotals();
+        var starts = new Dictionary<GameClient, Vector3> { [ada] = ada.Character.Position, [bo] = bo.Character.Position };
         rig.Run(3.0, (client, t) => client == ada
             ? new InputFrame { Forward = t < 2.0 ? 1 : 0, Yaw = 0.5f, Sprint = true }
             : new InputFrame { Right = t < 2.0 ? 1 : 0, Yaw = -1f, JumpPressed = t is > 0.5 and < 0.53, Jump = t is > 0.5 and < 0.6 });
@@ -168,7 +185,7 @@ public static class MultiplayerTests
                 $"{viewer.Name}: {viewer.Stats.Snapshots} snapshots, prediction error mean {viewer.Stats.PredictionErrorMean * 1000:0.00} mm, " +
                 $"worst {viewer.Stats.PredictionErrorWorst * 1000:0.0} mm, {viewer.Stats.Corrections} corrections, ping {viewer.Stats.RoundTripMs} ms");
             Assert.True(gap < 0.02f, $"{viewer.Name} sees {other.Name} within 2 cm");
-            Assert.True(other.Character.Position.Length() > 3, $"{other.Name} moved");
+            Assert.True(Vector3.Distance(other.Character.Position, starts[other]) > 3, $"{other.Name} moved");
         }
         Assert.True(ada.Stats.PredictionErrorMean < 0.001, "on a clean line prediction is exact");
         Assert.True(bo.Stats.PredictionErrorMean < 0.01, "at 150 ms and 5 % loss prediction holds");
@@ -277,8 +294,9 @@ public static class MultiplayerTests
         rig.Run(1.0, (_, _) => default);
         Fixtures.Report($"chat: {string.Join(" | ", lines)}; after teleport at {ada.Character.Position}");
         Assert.True(lines.Contains("Ada: hello") && lines.Contains("Server: welcome"), "both chat lines arrived");
-        Assert.Near(40, ada.Character.Position.X, 0.05, "teleported east");
-        Assert.Near(-25, ada.Character.Position.Z, 0.05, "teleported north");
+        (float east, float south) = rig.Server.Inspect(sv => sv.Zone.OffsetOf(ada.Character.Position));
+        Assert.Near(40, east, 0.05, "teleported east");
+        Assert.Near(-25, south, 0.05, "teleported north");
         rig.Server.Execute("kick Ada testing");
         rig.Run(1.0, (_, _) => default);
         Assert.Equal(ClientState.Disconnected, ada.State, "kicked");

@@ -33,10 +33,14 @@ public sealed class AnimalModule : ServerModule
             return;
         }
         animals.NaturalSpawning = Options.Animals;
+        if (Options.AnimalCap > 0)
+        {
+            animals.MaxAnimals = Math.Min(Options.AnimalCap, animals.MaxAnimals);
+        }
         if (Options.AnimalPopulation > 0)
         {
-            animals.Populate(Vector3.Zero, Options.AnimalRadius, Options.AnimalPopulation);
-            Log($"{animals.Count} animals placed around the origin");
+            animals.Populate(Zone.Landing, Options.AnimalRadius, Options.AnimalPopulation);
+            Log($"{animals.Count} animals placed around the landing site");
         }
     }
 

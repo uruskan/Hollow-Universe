@@ -16,8 +16,10 @@ namespace Hollow.Bots;
 /// range and shoots at them in bursts (aimed beyond a dozen metres), with an aim that wanders by a degree or two and
 /// pulls only part of the recoil back, so it misses as players do; it strafes, reloads when empty, switches to the pistol
 /// when the rifle is dry, bandages, now and then helps a downed bot up or finishes one off, crawls when down and respawns
-/// when dead. Deterministic per bot (seeded by its number); stays within <see cref="BotBrain.HomeRadius"/> of the origin
-/// so the crowd sees itself (the bandwidth worst case).
+/// when dead. With nobody in range it goes after the nearest player it can see (bots that arrive on beaches all round
+/// the world are spread out), and with nobody in sight it stays within <see cref="BotBrain.HomeRadius"/> of its home, so
+/// a crowd that arrives at the landing site sees itself (the bandwidth worst case). Deterministic per bot (seeded by its
+/// number).
 /// </summary>
 public sealed class FightBrain
 {
@@ -32,6 +34,7 @@ public sealed class FightBrain
     private double _nextReload;
     private float _strafe;
     private uint _target;
+    private uint _seek;
     private bool _assist;
     private float _yaw;
     private float _pitch;
@@ -90,7 +93,15 @@ public sealed class FightBrain
         if (target == null || target.Sleeping || (target.Flags & MoveFlags.Dead) != 0)
         {
             _target = 0;
-            Wander(ref input, feet, delta);
+            if (_seek != 0 && client.Entities.FirstOrDefault(e => e.NetId == _seek) is { Sleeping: false } sought &&
+                (sought.Flags & MoveFlags.Dead) == 0)
+            {
+                Steer(ref input, feet, sought.Position, Range * 0.8f, delta);
+            }
+            else
+            {
+                Wander(ref input, feet, BotGround.Home(client), delta);
+            }
             return Remember(input);
         }
         float distance = Vector3.Distance(target.Position, feet);
@@ -157,12 +168,14 @@ public sealed class FightBrain
         return input with { Pitch = _pitch };
     }
 
-    // Who to fight: the nearest awake player in range; now and then a downed one to help up instead.
+    // Who to fight: the nearest awake player in range; now and then a downed one to help up instead. Nobody in range: the
+    // nearest awake one in sight, to go after.
     private void Plan(GameClient client, Vector3 feet)
     {
-        List<RemoteEntity> near = client.Entities
-            .Where(e => !e.Sleeping && (e.Flags & MoveFlags.Dead) == 0 && Vector3.Distance(e.Position, feet) < Range)
+        List<RemoteEntity> awake = client.Entities
+            .Where(e => !e.Sleeping && (e.Flags & MoveFlags.Dead) == 0)
             .OrderBy(e => Vector3.Distance(e.Position, feet)).ToList();
+        List<RemoteEntity> near = awake.Where(e => Vector3.Distance(e.Position, feet) < Range).ToList();
         RemoteEntity? downed = near.FirstOrDefault(e => e.Wounded);
         if (downed != null && _rng.Chance(0.3))
         {
@@ -173,6 +186,7 @@ public sealed class FightBrain
         _assist = false;
         RemoteEntity? enemy = near.FirstOrDefault(e => !e.Wounded) ?? (_rng.Chance(0.5) ? downed : null);
         _target = enemy?.NetId ?? 0;
+        _seek = enemy == null ? awake.FirstOrDefault(e => !e.Wounded)?.NetId ?? 0 : 0;
     }
 
     // Guns on the belt (the rifle in slot 0, the pistol in 1), the holo sight on the rifle, armour on, bandages.
@@ -258,13 +272,12 @@ public sealed class FightBrain
 
     private bool Steer(ref InputFrame input, Vector3 feet, Vector3 to, float reach, double delta)
     {
-        Vector3 d = to - feet;
-        var flat = new Vector2(d.X, d.Z);
+        Vector3 flat = BotGround.Flat(to - feet, feet);
         if (flat.Length() <= reach)
         {
             return true;
         }
-        float wanted = MathF.Atan2(-flat.X, -flat.Y);
+        float wanted = BotGround.YawTo(feet, to);
         input.Yaw = _yaw + Math.Clamp(Wrap(wanted - _yaw), -(float)delta * 4, (float)delta * 4);
         input.Pitch = 0;
         input.Forward = 1;
@@ -274,16 +287,12 @@ public sealed class FightBrain
 
     private static void Look(ref InputFrame input, Vector3 eye, Vector3 at, Vector3 up)
     {
-        Vector3 d = at - eye;
-        Vector3 flat = d - up * Vector3.Dot(d, up);
-        input.Yaw = MathF.Atan2(-flat.X, -flat.Z);
-        input.Pitch = MathF.Atan2(Vector3.Dot(d, up), flat.Length());
+        (input.Yaw, input.Pitch) = BotGround.LookAt(eye, at);
     }
 
-    private void Wander(ref InputFrame input, Vector3 feet, double delta)
+    private void Wander(ref InputFrame input, Vector3 feet, Vector3 home, double delta)
     {
-        var flat = new Vector2(feet.X, feet.Z);
-        float wanted = flat.Length() > BotBrain.HomeRadius * 0.8f ? MathF.Atan2(flat.X, flat.Y) : _yaw + (float)_rng.Range(-0.3, 0.3);
+        float wanted = Vector3.Distance(feet, home) > BotBrain.HomeRadius * 0.8f ? BotGround.YawTo(feet, home) : _yaw + (float)_rng.Range(-0.3, 0.3);
         input.Yaw = _yaw + Math.Clamp(Wrap(wanted - _yaw), -(float)delta * 2, (float)delta * 2);
         input.Pitch = 0;
         input.Forward = 1;
