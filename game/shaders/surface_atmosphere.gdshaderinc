@@ -4,7 +4,11 @@
 // and "up" come from the CPU in double precision, so heights stay exact although the planet's centre is thousands
 // of kilometres away. Units: metres; light in the same units as the sun's illuminance.
 
-global uniform float hu_planet_radius;      // sea level
+// The drawn world may be smaller than its air (docs/WHOLE_WORLD.md §10.2): the ground is the world's ball
+// (surface_planet.gdshaderinc), the air keeps the real planet's size.
+#include "res://shaders/surface_planet.gdshaderinc"
+
+global uniform float hu_planet_radius;      // the air's sea level (the real planet's radius)
 global uniform float hu_atmosphere_top;     // radius of the top of the air
 global uniform float hu_camera_altitude;    // above sea level
 global uniform vec3 hu_camera_up;           // unit, render space
@@ -84,19 +88,35 @@ float hu_mie_phase(float nu) {
 	return 3.0 / (8.0 * HU_PI) * ((1.0 - g2) * (1.0 + nu * nu)) / ((2.0 + g2) * pow(max(1.0 + g2 - 2.0 * g * nu, 1e-4), 1.5));
 }
 
-// Distance from the camera along rd to the top of the air (or to the sea-level sphere when ground is true).
-float hu_ray_length(vec3 rd, out bool ground) {
+// Distance from the camera along rd to the drawn world's ground (ground true), or else to the top of the air along
+// air_rd. The ground is the world's ball (hu_ground_radius, the camera hu_camera_altitude above it); the air is the real
+// planet's (hu_planet_radius). On a world smaller than its air, the sky shows below level down to the ball's edge; there
+// the air is seen as the sky mirrored about its own horizon (air_rd), so looking down past the edge from high up shows
+// the sky's blue, not a wall of haze (docs/WHOLE_WORLD.md §10.2; S5 draws the thin air seen from above). On a planet at
+// its real size the two horizons are the same and air_rd is rd.
+float hu_ray_length(vec3 rd, out bool ground, out vec3 air_rd) {
+	float mu = dot(rd, hu_camera_up);
+	float hg = hu_camera_altitude;
+	float rg = hu_ground_radius + hg;
+	float disc_ground = rg * rg * mu * mu - hg * (2.0 * hu_ground_radius + hg);
+	ground = mu < 0.0 && disc_ground >= 0.0;
+	air_rd = rd;
+	if (ground) {
+		return max(-rg * mu - sqrt(disc_ground), 0.0);
+	}
 	float R = hu_planet_radius;
 	float h0 = hu_camera_altitude;
 	float r0 = R + h0;
-	float mu = dot(rd, hu_camera_up);
 	float rho0 = h0 * (2.0 * R + h0);
-	float H2 = (hu_atmosphere_top - R) * (hu_atmosphere_top + R);
-	float discGround = r0 * r0 * mu * mu - rho0;
-	ground = mu < 0.0 && discGround >= 0.0;
-	if (ground) {
-		return max(-r0 * mu - sqrt(discGround), 0.0);
+	float horizon = -sqrt(rho0) / r0 + 1e-4;
+	if (mu < horizon) {
+		vec3 level = rd - hu_camera_up * mu;
+		float l = length(level);
+		vec3 across = l > 1e-6 ? level / l : normalize(cross(hu_camera_up, vec3(0.0, 0.0, 1.0)) + vec3(1e-4));
+		mu = min(2.0 * horizon - mu, 1.0);
+		air_rd = across * sqrt(max(1.0 - mu * mu, 0.0)) + hu_camera_up * mu;
 	}
+	float H2 = (hu_atmosphere_top - R) * (hu_atmosphere_top + R);
 	return max(-r0 * mu + sqrt(max(H2 - rho0 + r0 * r0 * mu * mu, 0.0)), 0.0);
 }
 

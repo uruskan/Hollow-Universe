@@ -237,7 +237,9 @@ public partial class RaidView : Node3D
         if (shown.HasPrev && tick < e.StateTick)
         {
             float t = (float)(Math.Max(0, tick - shown.PrevTick) / GameClient.TickRate);
-            at = shown.PrevStart + shown.PrevVelocity * t + shown.PrevGravity * (0.5f * t * t);
+            // Gravity re-aimed toward the centre along the arc, as the client's explosives are (Hollow.Client.Arc).
+            at = shown.PrevStart + shown.PrevVelocity * t
+                + Hollow.Client.Arc.Gravity(shown.PrevGravity, e.Centre, shown.PrevStart, shown.PrevVelocity, t) * (0.5f * t * t);
             flying = true;
         }
         else
@@ -458,10 +460,11 @@ public partial class RaidView : Node3D
     private string Details(RaidAlertView a)
     {
         Num.Vector3 d = a.Where - Client.Character.Position;
-        float metres = new Num.Vector2(d.X, d.Z).Length();
+        float metres = d.Length();
         string[] compass = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
-        // The zone's frame: north is −Z, east +X.
-        double bearing = (Math.Atan2(d.X, -d.Z) * 180 / Math.PI + 360) % 360;
+        // From local north where the player stands (docs/WHOLE_WORLD.md §5).
+        (Num.Vector3 north, Num.Vector3 east) = Hollow.Simulation.Movement.Facing.Compass(Client.Frame.UpAt(Client.Character.Position));
+        double bearing = (Math.Atan2(Num.Vector3.Dot(d, east), Num.Vector3.Dot(d, north)) * 180 / Math.PI + 360) % 360;
         string where = metres < 15 ? "here" : $"{metres:0} m {compass[(int)Math.Round(bearing / 45) % 8]}";
         string broken = a.Destroyed > 0 ? $", {a.Destroyed} broken" : "";
         string hits = a.Hits == 1 ? "1 hit" : $"{a.Hits} hits";

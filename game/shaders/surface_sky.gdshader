@@ -125,30 +125,32 @@ void sky() {
 	vec3 rd = normalize(EYEDIR);
 	if (AT_CUBEMAP_PASS) {
 		bool ground;
-		float t = hu_ray_length(rd, ground);
+		vec3 air_rd;
+		float t = hu_ray_length(rd, ground, air_rd);
 		vec3 L;
 		vec3 T;
-		hu_atmosphere(rd, t, 10, L, T);
+		hu_atmosphere(air_rd, t, 10, L, T);
 		if (ground) {
 			// The ground below the horizon, for reflections and ambient light: lit by the sun through the air.
 			float mus = dot(hu_sun_direction, hu_camera_up);
 			L += T * hu_sun_illuminance * hu_light_transmittance(0.0, mus) * max(mus, 0.0) * vec3(0.12, 0.14, 0.11) / HU_PI;
 		}
-		vec4 cloud = hu_clouds(rd, 6, 2, 0.5);
+		vec4 cloud = hu_clouds(air_rd, 6, 2, 0.5);
 		COLOR = L * (1.0 - cloud.a) + cloud.rgb;
 	} else if (AT_QUARTER_RES_PASS) {
 		bool ground;
-		float t = hu_ray_length(rd, ground);
+		vec3 air_rd;
+		float t = hu_ray_length(rd, ground, air_rd);
 		vec3 L;
 		vec3 T;
-		hu_atmosphere(rd, t, 32, L, T);
+		hu_atmosphere(air_rd, t, 32, L, T);
 		if (ground) {
 			float mus = dot(hu_sun_direction, hu_camera_up);
 			L += T * hu_sun_illuminance * hu_light_transmittance(0.0, mus) * max(mus, 0.0) * vec3(0.10, 0.12, 0.09) / HU_PI;
 		}
 		// Interleaved gradient noise spreads the march's samples, so its steps don't show as slices.
 		float jitter = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));
-		vec4 cloud = hu_clouds(rd, 28, 4, jitter);
+		vec4 cloud = hu_clouds(air_rd, 28, 4, jitter);
 		COLOR = L * (1.0 - cloud.a) + cloud.rgb;
 		ALPHA = cloud.a;
 	} else if (debug_view == 1) {
@@ -157,10 +159,11 @@ void sky() {
 		COLOR = hu_transmittance(hu_camera_altitude, dot(rd, hu_camera_up));
 	} else if (debug_view == 3) {
 		bool g;
-		float t = hu_ray_length(rd, g);
+		vec3 air_rd;
+		float t = hu_ray_length(rd, g, air_rd);
 		vec3 L;
 		vec3 T;
-		hu_atmosphere(rd, t, 16, L, T);
+		hu_atmosphere(air_rd, t, 16, L, T);
 		COLOR = L * 4.0;
 	} else if (debug_view == 4) {
 		COLOR = vec3(hu_multiscatter(hu_camera_altitude, dot(hu_sun_direction, hu_camera_up)) * 50.0);
@@ -170,10 +173,11 @@ void sky() {
 		vec4 base = QUARTER_RES_COLOR;
 		vec3 colour = base.rgb;
 		float clear = 1.0 - base.a;
-		float mu = dot(rd, hu_camera_up);
-		vec3 T = hu_transmittance(hu_camera_altitude, mu);
 		bool ground;
-		hu_ray_length(rd, ground);
+		vec3 air_rd;
+		hu_ray_length(rd, ground, air_rd);
+		float mu = dot(air_rd, hu_camera_up);
+		vec3 T = hu_transmittance(hu_camera_altitude, mu);
 		if (!ground) {
 			// The sun's disc, darker at its limb.
 			float cs = dot(rd, hu_sun_direction);

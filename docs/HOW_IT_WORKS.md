@@ -229,9 +229,11 @@ crafting, map, death screen, radials, console) drawing an `IGroundUi` model that
 (and `MockGroundUi` fills for screenshots without a server). Every length goes through `Ui.Px`. The map (G) and the
 death screen share one map control of the whole world (`GroundUi.Globe.cs`, docs/WHOLE_WORLD.md §11): its view is a
 `GlobeCamera`, a canvas shader draws the six faces' picture through `GlobeProjection`, and the overlay places the grid
-(`WorldGrid`), markers and labels with the same projection and reads clicks with its inverse. The Godot side builds
-but does not draw the whole world yet: its render frame, terrain, sea, plants, effects and cameras are S3c's
-(docs/WHOLE_WORLD.md §14), so playing on the ball waits for that step.
+(`WorldGrid`), markers and labels with the same projection and reads clicks with its inverse. The world is drawn by
+the surface view (`SurfaceView.OpenWorld`, docs/WHOLE_WORLD.md §10): the zone's surface, whole, in the zone's own frame
+(origin at the centre), its terrain from `ISurface` (`TileMesh.Build`, `ISurface.Cover`), its plants the zone's natural
+objects (`NaturePlants`), grass on the cube faces' cells, the sky of the planet the world stands for; `PlanetGlobals`
+tells every shader and the effects where the planet's centre is, so up, heights and falling follow the ball.
 
 **The data.** 23 JSON files in `game/data/ground` (items, recipes, deployables, weapons, building, animals, world,
 interactions, placement, capabilities, texts...). `GameContent.Load` runs one reader per file (`Content/Readers`,

@@ -3,12 +3,16 @@
 //   TRANSFORM  position; the basis carries the size (billboards: uniform scale and nothing else; streaks: the base
 //              length in X, the streak in Y; chunks: turn and size; rings: Y is the ring's normal)
 //   VELOCITY   metres a second (world)
-//   COLOR      tint and opacity; chunks keep the floor's height in A
+//   COLOR      tint and opacity; chunks keep the floor's height in A (metres above the planet's mean radius)
 //   CUSTOM     x lifetime (s), y age (s), z random 0..1, w the batch's own parameter (growth, width)
+// Down is toward the planet's centre and a floor is a height along up (docs/WHOLE_WORLD.md §10.4): with no planet drawn
+// the centre lies far below, so down is −Y and a height is Y, as on the effects' own stage.
 shader_type particles;
 render_mode disable_velocity, disable_force;
 
-uniform float gravity = 0.0;          // m/s² downwards; negative rises
+#include "res://shaders/surface_planet.gdshaderinc"
+
+uniform float gravity = 0.0;          // m/s² toward the planet's centre; negative rises
 uniform float drag = 0.0;             // share of the velocity lost a second
 uniform float turbulence = 0.0;       // m/s² of slow wander
 uniform float turbulence_scale = 2.0; // metres per noise cell
@@ -39,7 +43,8 @@ void process() {
 	}
 	vec3 v = VELOCITY;
 	vec3 p = TRANSFORM[3].xyz;
-	v.y -= gravity * DELTA;
+	vec3 up = hu_up(p);
+	v -= up * (gravity * DELTA);
 	if (turbulence > 0.0) {
 		vec2 a = p.xz / turbulence_scale + vec2(CUSTOM.z * 5.3, TIME * 0.11);
 		vec2 b = p.zy / turbulence_scale + vec2(TIME * 0.09, CUSTOM.z * 3.1);
@@ -48,14 +53,19 @@ void process() {
 	}
 	v /= 1.0 + drag * DELTA;
 	p += v * DELTA;
-	if (collide && p.y < COLOR.a) {
-		p.y = COLOR.a;
-		if (v.y < 0.0) {
-			v.y = -v.y * bounce;
-			v.xz *= friction;
-			if (v.y < 0.6) {
-				v.y = 0.0;
-				v.xz *= 0.7;
+	if (collide) {
+		float h = hu_height(p);
+		if (h < COLOR.a) {
+			p += up * (COLOR.a - h);
+			float vu = dot(v, up);
+			if (vu < 0.0) {
+				vec3 along = (v - up * vu) * friction;
+				vu = -vu * bounce;
+				if (vu < 0.6) {
+					vu = 0.0;
+					along *= 0.7;
+				}
+				v = along + up * vu;
 			}
 		}
 	}
@@ -64,7 +74,7 @@ void process() {
 	if (align == 1) {
 		float base = length(TRANSFORM[0].xyz);
 		float speed = length(v);
-		vec3 dir = speed > 0.001 ? v / speed : normalize(TRANSFORM[1].xyz + vec3(0.0, 1e-5, 0.0));
+		vec3 dir = speed > 0.001 ? v / speed : normalize(TRANSFORM[1].xyz + up * 1e-5);
 		TRANSFORM[1].xyz = dir * (base + speed * stretch);
 	} else if (align == 2) {
 		float speed = length(v);

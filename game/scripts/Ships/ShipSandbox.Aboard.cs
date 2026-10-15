@@ -33,45 +33,12 @@ public partial class ShipSandbox
 
     // ---------------------------------------------------------------- set-up
 
-    private HollowUniverse.Ground.GroundTerrain? _ground;
-
-    // The zone's own ground (the stand-in world) drawn round the camera as the ground game draws it (docs/WHOLE_WORLD.md
-    // §10.1 replaces both with the world's terrain, S3c), under a sky and a morning sun turned to the landing site's up.
+    // The zone's own whole world, drawn by the surface view as the ground game draws it (docs/WHOLE_WORLD.md §10, S3c):
+    // its ground, sea, sky and sun at the play clock's hour, and its natural objects as the plants (the view is opened
+    // before this, for both kinds of ship).
     private void OpenGround()
     {
         _aboard = true;
-        _ground = new HollowUniverse.Ground.GroundTerrain { Name = "Terrain" };
-        AddChild(_ground);
-        _camera = new Camera3D { Name = "Camera", Far = 6000, Near = 0.05f, Fov = 70 };
-        AddChild(_camera);
-        _camera.MakeCurrent();
-        Num.Vector3 up = _zone.Frame.UpAt(_zone.Landing);
-        (Num.Vector3 north, Num.Vector3 east) = Facing.Compass(up);
-        float elevation = 32 * MathF.PI / 180, bearing = 125 * MathF.PI / 180;
-        Num.Vector3 sun = up * MathF.Sin(elevation) + (north * MathF.Cos(bearing) + east * MathF.Sin(bearing)) * MathF.Cos(elevation);
-        Num.Quaternion tilt = Facing.Turn(Num.Vector3.UnitY, up);
-        AddChild(new WorldEnvironment
-        {
-            Environment = new Godot.Environment
-            {
-                BackgroundMode = Godot.Environment.BGMode.Sky,
-                Sky = new Sky { SkyMaterial = new ProceduralSkyMaterial { SunAngleMax = 20, GroundBottomColor = new Color(0.18f, 0.2f, 0.16f) } },
-                SkyRotation = new Basis(new Quaternion(tilt.X, tilt.Y, tilt.Z, tilt.W)).GetEuler(),
-                AmbientLightSource = Godot.Environment.AmbientSource.Sky,
-                TonemapMode = Godot.Environment.ToneMapper.Filmic,
-                FogEnabled = true,
-                FogDensity = 0.0006f,
-                FogLightColor = new Color(0.62f, 0.7f, 0.8f),
-            },
-        });
-        AddChild(new DirectionalLight3D
-        {
-            Name = "Sun",
-            Transform = new Transform3D(Basis.LookingAt(Dir(-sun), Dir(up)), Vector3.Zero),
-            ShadowEnabled = true,
-            DirectionalShadowMaxDistance = 220,
-            LightEnergy = 1.25f,
-        });
     }
 
     // The flattest ground near the landing site a ship of this size finds (rings out to 30 m from its centre), what grows
@@ -293,8 +260,7 @@ public partial class ShipSandbox
         ShipState shown = Interpolate(_shipBefore, _shipNow, alpha);
         ShipPose drawn = PoseOf(shown);
         PlaceCameraAboard(shown, drawn, (float)delta, alpha);
-        ShipView.Exposure = 1;
-        _ground?.Follow(_zone.Physics, R2(_camera.GlobalPosition));
+        ShipView.Exposure = _surface.Sky?.Exposure ?? 1;
         _shipView.Visible = _zone.Ships().All.Contains(_ship);
         _shipView.FromCockpit = Seated && _shipCamera.Mode == ShipCameraMode.Cockpit && _observer == null;
         _shipView.Show(new ShipLook(Pivot(shown), _ship.HatchProgress / (float)Ship.HatchTicks, shown.Thrust,

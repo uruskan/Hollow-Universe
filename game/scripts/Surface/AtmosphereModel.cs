@@ -268,8 +268,14 @@ public sealed class AtmosphereModel
     public const int ApZeniths = 48;
     public const int ApDistances = 32;
 
-    /// <summary>Distance the aerial-perspective table reaches (metres).</summary>
+    /// <summary>Distance the aerial-perspective table reaches on a planet at its real size (metres).</summary>
     public const double ApRange = 400_000;
+
+    /// <summary>
+    /// Distance the table reaches on a whole small world (docs/WHOLE_WORLD.md §10.2): nothing is farther than 7 km from a
+    /// camera at the leaving height, so its distance slices are spent there.
+    /// </summary>
+    public const double WorldApRange = 10_000;
 
     private Vector3 SampleMultiScattering(double h, double mus)
     {
@@ -297,12 +303,12 @@ public sealed class AtmosphereModel
 
     /// <summary>
     /// Light scattered toward a camera at <paramref name="altitude"/> along every direction, and the transmittance,
-    /// out to <see cref="ApRange"/>: a table indexed by azimuth (around <paramref name="up"/>, from
+    /// out to <paramref name="range"/>: a table indexed by azimuth (around <paramref name="up"/>, from
     /// <paramref name="east"/>), cosine of zenith (square-root mapped, finer near the horizon) and distance
     /// (square-root mapped). Directions and lights are in render axes. About 20 ms; run it off the main thread.
     /// </summary>
     public void AerialPerspective(double altitude, Vector3 up, Vector3 east, Vector3 sunDirection, Vector3 sunIlluminance,
-        Vector3 moonDirection, Vector3 moonIlluminance, float[] inscatter, float[] transmittance)
+        Vector3 moonDirection, Vector3 moonIlluminance, float[] inscatter, float[] transmittance, double range = ApRange)
     {
         Vector3 north = up.Cross(east).Normalized();
         double r0 = BottomRadius + Math.Max(altitude, 0.5);
@@ -325,7 +331,7 @@ public sealed class AtmosphereModel
                 for (int k = 0; k < ApDistances; k++)
                 {
                     double w = (double)k / (ApDistances - 1);
-                    double target = w * w * ApRange;
+                    double target = w * w * range;
                     double dt = (target - previous) / Sub;
                     for (int s = 0; s < Sub && dt > 0; s++)
                     {

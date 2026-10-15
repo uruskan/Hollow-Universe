@@ -25,9 +25,13 @@ public sealed class AerialTable
     private double _lastAltitude = -1;
     private bool _created;
 
-    public AerialTable(AtmosphereModel air)
+    private readonly double _range;
+
+    /// <summary>The table of an air out to a distance (metres).</summary>
+    public AerialTable(AtmosphereModel air, double range = AtmosphereModel.ApRange)
     {
         _air = air;
+        _range = range;
     }
 
     public Texture3D Inscatter => _inscatter;
@@ -58,7 +62,7 @@ public sealed class AerialTable
             {
                 var l = new float[_count];
                 var t = new float[_count];
-                _air.AerialPerspective(altitude, up, east, sun, sunE, moon, moonE, l, t);
+                _air.AerialPerspective(altitude, up, east, sun, sunE, moon, moonE, l, t, _range);
                 return (l, t, up, east);
             });
             if (wait)

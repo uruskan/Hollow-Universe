@@ -226,19 +226,21 @@ Godot.
     (`Checkout.HostedSave`): `user://hollow-host.db` on `main`, `user://hollow-host-<branch>.db` on another, since a
     branch's server may write a newer schema than an older build reads. A server given a save it can't read (a newer
     schema) says so in one line ("error: ...") and stops with exit code 2; the menu shows that line.
-  - **The world** is the planet package's `SurfaceView` driven by the game (`SurfaceView.Driven`, `OpenZone`): its
-    terrain, sea, sky, clouds, plants and grass, with the render frame on the zone's own frame (the same origin and
-    axes, and no floating-origin moves: until S3 the zone kept within 8.2 km of its origin, where floats are good to
-    half a millimetre), so zone-frame metres are Godot's coordinates and the drawn ground is the collision's
-    triangles. The sky shows the universe time on the day of play (§1: × 24 from J2000, as the server's climate), so
-    every player sees the same time of day. The game places the view's camera at the predicted eye every frame. Since
-    S3 (14 October 2026) every zone stands on the stand-in world (§4.6), which this view can't draw yet: the ground
-    mode draws it as it drew the old stand-in, the collision tiles within 200 m coloured by slope (`GroundTerrain`)
-    under a procedural sky and a fixed sun. The client builds, but playing on the ball waits for S3c, which draws it
-    (WHOLE_WORLD.md §10, §14); until then the camera keeps a yaw and pitch, which the client reads from local north
-    where the player stands (§4.5), and the tour and the measuring tool still turn by the old flat formula.
-  - **Natural objects** as the game changed them (`NatureView`): the surface view asks, per scatter object, which
-    kind to draw (`Vegetation.Changes`): felled trees and picked ferns aren't drawn, a picked berry bush is drawn bare
+  - **The world** is the planet package's `SurfaceView` driven by the game (`SurfaceView.OpenWorld`, S3c,
+    WHOLE_WORLD.md §10): the zone's own surface (the stand-in world until S4), whole, drawn in the zone's own frame
+    (`RenderFrame.World`: origin at the centre, the body's axes, no floating origin; a float steps a quarter of a
+    millimetre within 7.3 km of the centre), so zone-frame metres are Godot's coordinates and the drawn ground's finest
+    vertices are the collision's lattice. Its plants are the zone's natural objects (`NaturePlants`, §4.6), its sky the
+    planet the world stands for, at the universe time of the day of play (§1: × 24 from J2000, as the server's
+    climate), so every player sees the same clock, and the hour where each stands. The game places the view's camera at
+    the predicted eye every frame (`--lift <m>` and `--pitch <deg>` raise it along up and tilt it, for pictures from
+    above). The camera keeps a yaw and pitch read from local north where the player stands (§4.5); scripted runs turn it
+    toward a direction of the world (`GroundView.TurnToward`, `LookToward`), never by an angle on a plane.
+  - **Natural objects** as the game changed them (`NatureView`): the surface view draws the zone's trees, berry
+    bushes, ferns and boulders as plants (the kind each is drawn as is the first scatter kind gather.json gives it), and
+    `NatureView` draws the rest as models (outcrops at their stage, pickups by their own model or the one of what they
+    yield); the view asks, per object, which kind to draw (`Vegetation.Changes`, by the object's ID from
+    `IPlantSource.Id`): felled trees and picked ferns aren't drawn, a picked berry bush is drawn bare
     (the same bush without its berries, `FloraLibrary.BareBerryRed` and `BareBerryBlue`); their scatter tiles are drawn
     again when their state changes. A tree felled within 150 m tips over away from the player on its own model and
     sinks into the ground. Outcrops are drawn by the game from `GroundModels`: the model catalogue's stone, metal and
@@ -565,8 +567,9 @@ of it.
 `PlanetSurface` in Hollow.Surface is the real surface of a rocky planet. Since S3 (14 October 2026) no zone stands on
 it: it is built at the planet's real radius, which a zone measured from the world's centre can't hold in floats, so
 every zone stands on the stand-in world until S4 makes the real ground at walking scale (WHOLE_WORLD.md §1, §4). The
-surface view and the look-dev views still draw the real planet, in a tangent frame of it (`RenderFrame`), and its
-scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At`).
+look-dev views still draw the real planet, in a tangent frame of it (`RenderFrame(origin)`), and its scatter is still
+code, tested in such a frame at the landing site (`ZoneFrame.At`). Since S3c the surface view draws any `ISurface`: the
+ground game draws the zone's whole world with it, in the body's own frame (`RenderFrame.World`, WHOLE_WORLD.md §10).
 
 **The zone's frame and the stand-in world** (S3, WHOLE_WORLD.md §3, §4):
 - **The world frame** (`ZoneFrame.World`): origin at the planet's centre, the body's own axes, +Y the north pole,
@@ -657,9 +660,29 @@ scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At
   ozone, multiple scattering) with the same tables as the aerial perspective on everything under it.
 - **Water:** the sea at `SeaRadius` (sea level), drawn on the terrain's own tiles.
 
-**The surface view** (client, `game/scripts/Surface`; presentation only, never deciding what exists):
-- **Terrain:** a quadtree of the tiles above around the camera, built on worker threads, morphing toward the parent
-  grid with distance (no cracks: skirts), in a floating origin that moves with the camera without turning. Eight
+**The surface view** (client, `game/scripts/Surface`; presentation only, never deciding what exists). Two ways in:
+`Open` (the look-dev view of a real planet: a tangent frame whose origin follows the camera) and `OpenWorld` (the
+ground game's whole world, any `ISurface`, in the body's own frame; WHOLE_WORLD.md §10, §14 has how it differs from the
+real-size view). Both draw with the same parts:
+- **The planet under the drawing** (`PlanetGlobals`, `surface_planet.gdshaderinc`): its centre in render space, its mean
+  radius and the turn from render axes to the body's, as shader globals and for the code that moves things along up.
+  Every shader finds up from the centre (never +Y), a height above the mean radius exactly whatever the planet's size
+  (`hu_height`), and the cube faces textures are measured on.
+- **The drawing contract of `ISurface`** (all with defaults, so S4's generator needs only heights and biomes):
+  `HeightBounds` (a tile's bounds before its heights are known), `Sample` (a point's height and whatever the surface
+  works out with it, in one evaluation) and `Cover` (the biomes' weights, the ground materials' weights and the
+  climate and plant cover the shaders tint with). The default `Cover` takes the biome at the point (`BiomeAt`) through
+  the biome table (`BiomeTable.Cover`: the biome's typical climate, its trees and meadow thinned on slopes, the
+  materials by `BiomeTable.GroundMaterials`, one rule shared with the real surface); `PlanetSurface` gives its own soft
+  weights from its climate, the same numbers as before.
+- **Terrain:** a quadtree of the tiles above around the camera, built on worker threads from any surface
+  (`TileMesh.Build(ISurface)`), the finest level by size (`TerrainLod.FinestTileMetres`, 36 m: level 18 on the real
+  first world, level 7 on a 2.41 km one, whose 32-cell grid is the physics' 0.92 m lattice), morphing toward the parent
+  grid with distance (no cracks: skirts). **Texture coordinates** are metres along the tile's cube face (UV2,
+  π/4 × radius × the face coordinate, less a multiple of 4,096 m so floats keep them; zero on a small world), with the
+  tangent along them; within 2 m of a face seam the shader blends the neighbouring face's (from the direction), so
+  textures neither stretch away from a landing site nor break at a seam. On a planet thousands of kilometres across the
+  anchors change every 4 km of face, where the textures jump. Eight
   ground layers (texture arrays) blended by the vertices' material weights and their own heights, triplanar rock on
   cliffs, two scales near and a larger turned copy far so nothing repeats in rows; the grass layer takes the colour
   of the grass blades (below). The forest floor is brown leaf litter with cushions of moss, and under trees the
@@ -680,7 +703,8 @@ scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At
   so it never blooms over the sky. Exposure meters for the light
   falling on the ground, nights a few stops darker than days.
 - **Water** reflects the sky and sun with Fresnel, shows the sea floor through water that absorbs red first, glows
-  turquoise in the shallows and moves with Gerstner swell near the camera. Surf: broken lines of foam roll in over
+  turquoise in the shallows and moves with Gerstner swell near the camera; swell, ripples and foam are measured on the
+  tile's cube face along its axes, up from the centre, blended across seams as the terrain is. Surf: broken lines of foam roll in over
   the shallows along the depth contours, and a swash of foam runs up the sand and back.
 - **Plants** are made in code after hollow-orbit's flora (no plant models): firs (spruce-like), pines, birches,
   broadleaf trees (oak and beech), bushes, red- and blue-berry bushes, ferns and boulders; two to four seeded variants
@@ -699,16 +723,24 @@ scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At
     at the end. Past 1.6–2.2 km forests are drawn by the ground (above).
   - *Wind:* every vertex carries a bend weight and a flutter weight; the plant bends along the wind with gusts that
     roll across the forest, leaves flutter along their normals.
-  - Each plant is a scatter object, known by tile and index; berry bushes are their own kinds (`BerryRed` 7,
-    `BerryBlue` 8) because they will be food.
-- **Grass and ground cover** are not in the scatter and have no models: `GrassField` draws one MultiMesh of tufts on
-  a 0.4 m grid that follows the camera (to 42 m; they shrink into the ground from 22 m), and a second, flat one of
-  leaf litter, needles and twigs (to 26 m). What grows in each cell (place, height, width, turn, lean, colour,
-  dryness, kind: grass, meadow grass, dry grass, flowers; ferns, herbs and seedlings under trees; dead leaves of the
-  trees around) comes from a hash of the cell in stable coordinates, so nothing shifts as the grid moves. Two field
-  textures (256² at 0.5 m, rebuilt on a worker every 14 m) hold the ground's height (the finest tiles' own
-  triangles, so tufts sit on the drawn ground), the grass density (from the biomes, materials, slope and tree
-  cover), moisture, flowers, forest cover and small plants. Where grass is thin it grows in patches, and a tuft is a
+  - Each plant comes from a plant source (`IPlantSource`: tiles of one level, each a fixed list): a surface's own scatter
+    in the look-dev view (`SurfacePlants`), the zone's natural objects in the game (`NaturePlants`, by the tiles they
+    are placed on, level 6 on the stand-in), so the trees drawn are the trees the server has. Berry bushes are their
+    own kinds (`BerryRed` 7, `BerryBlue` 8) because they are food.
+  - *Ranges follow the horizon* (WHOLE_WORLD.md §10.3): plants are laid out to where the lowest ground there can be
+    hides the tallest plant on the highest, at most the impostors' 2.2 km (about 1.2 km from the ground on a 2.41 km
+    world); the near set and its impostors are anchored at the camera, their bounds following it.
+- **Grass and ground cover** are not in the scatter and have no models: `GrassField` draws tufts on the cells of the
+  cube faces at the level nearest 0.46 m (level 13 on a 2.41 km world, 24 on the real first world) round the camera
+  (to 42 m; they shrink into the ground from 22 m), and a second, flat grid of leaf litter, needles and twigs (to 26 m).
+  What grows in each cell (place, height, width, turn, lean, colour, dryness, kind: grass, meadow grass, dry grass,
+  flowers; ferns, herbs and seedlings under trees; dead leaves of the trees around) comes from a hash of the face and
+  the cell, so nothing shifts as the grid moves; near a seam each face's cells are drawn by a grid of their own (up to
+  three at a corner), each keeping the cells whose middles lie on its face. A worker lays out a lattice of the cells'
+  corners round the camera every 14 m (about 250 a side): each corner on the drawn ground (the finest tiles' own
+  triangles, so tufts sit on it), as offsets from an anchor in render axes, with the grass density, moisture, flowers,
+  forest cover and small plants from `ISurface.Cover`; each tuft stands along up from the centre, turned in the plane
+  of its cell, and the wind bends it along the ground there. Where grass is thin it grows in patches, and a tuft is a
   few narrow cards of ragged blades, not a block. The blades are hollow-orbit's painted blade cards, coloured by one
   function shared with the ground's grass layer (`surface_grass.gdshaderinc`), their foot in the ground's colour,
   normals up on both faces so a field lights as one in sun and shade, light through the tips toward a low sun; wind
@@ -732,7 +764,9 @@ scatter is still code, tested in such a frame at the landing site (`ZoneFrame.At
   - (g) `--view surface --alt 2000 --yaw 20 --pitch -14 --time 2026-10-12T03:00:00Z`.
 - **The interface between the two G1 work packages** is `ISurface` in Hollow.Surface: height at a point, biome at a
   point (`BiomeAt`), collision for a cube-sphere tile (since S3; a square of the zone's plane before), scatter for a
-  tile (`ScatterFor`). The last two have default implementations, so other `ISurface`s keep compiling.
+  tile (`ScatterFor`, at `ScatterLevel`, trees alone on request), and since S3c the drawing contract above
+  (`HeightBounds`, `Sample`, `Cover`). All but the first have default implementations, so other `ISurface`s keep
+  compiling.
 
 ### 4.7 Persistence
 
@@ -795,7 +829,9 @@ aiming: down the sights, or the bow drawn) and `Trigger(Swing | Fire | Reload | 
 the camera's field of view.
 
 "Up" is given per frame and nothing assumes +Y: the view builds its basis from `Up` and `Yaw`, and everything inside
-works in the character's own frame. The ragdoll falls along −`Up` at the moment of death.
+works in the character's own frame. The ragdoll starts where the view stands (its transform is set from its frame
+first) and falls by the physics space's gravity where it lies: on a whole world a point gravity toward the centre
+(`SurfaceView`'s `PlanetGravity` area, WHOLE_WORLD.md §10.4), on a flat stage −Y.
 
 **Body.** A MakeHuman adult male (1.78 m, eyes at 1.67 m), MPFB's game-engine skeleton: 53 bones with UE-style names
 (`pelvis`, `spine_01`…`spine_03`, `neck_01`, `head`, `clavicle_l`, `upperarm_l`, `lowerarm_l`, `hand_l`, three bones per
@@ -5296,8 +5332,12 @@ Decisions taken for the effects (§9.3) without the owner, to confirm or overtur
 - F6. **Effects draw on render layer 20**, which decals skip: Godot's decals otherwise stain the transparent dust over
   a scorch. Every camera must keep layer 20 in its cull mask (all cameras do by default).
 - F7. **No collision with the world for particles:** debris bounces on a floor each effect gives (the hit's height on
-  the ground, 1.2 m below a hit on a wall, or `FxParams.Floor`). Godot's particle colliders would need the scene
-  rendered into a height field every frame.
+  the ground, 1.2 m below a hit on a wall, or a point of `FxParams.Floor`), kept as a height above the planet's mean
+  radius; particles fall toward the planet's centre and land at that height along up (`fx_process.gdshader` reads the
+  planet's globals; with no planet drawn the centre lies far below, so down is −Y as on the effects' stage;
+  WHOLE_WORLD.md §10.4). Tracers re-aim their gravity toward the centre as they fly, as the client's projectiles and
+  thrown arcs do (`Hollow.Client.Arc`). Godot's particle colliders would need the scene rendered into a height field
+  every frame.
 - F8. **Each decal texture keeps its own pool** (24 decals, 10 for scorch marks): changing a decal's texture made
   Godot rebuild its decal atlas and stalled frames by up to 30 ms in the firefight.
 - F9. **The camera shake is an offset the camera's owner adds**, like the gun's `ViewKick`; the library owns no

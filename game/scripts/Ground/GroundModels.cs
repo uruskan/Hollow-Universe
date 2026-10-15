@@ -33,6 +33,12 @@ public interface IGroundModels
 
     /// <summary>What a dead player's things lie in once the body is gone (Rust's backpack), its base at the origin.</summary>
     Node3D? Backpack();
+
+    /// <summary>
+    /// A natural object picked up whole (a pile of wood, an ore lump, a tuber), lying on the ground at its true size, its
+    /// base at the origin: its own model, else the model of what it yields; null to draw nothing.
+    /// </summary>
+    Node3D? Pickup(Hollow.Simulation.Content.NaturalKind kind);
 }
 
 /// <summary>The ground game's model provider: the catalogue's models, with placeholders for what it lacks.</summary>
@@ -70,6 +76,9 @@ public sealed class CatalogModels(IGroundModels fallback) : IGroundModels
     }
 
     public Node3D? Backpack() => ModelCatalog.Instantiate("loot-sack") ?? Fallback.Backpack();
+
+    public Node3D? Pickup(Hollow.Simulation.Content.NaturalKind kind) =>
+        ModelCatalog.Instantiate(kind.Key) ?? (kind.Yield.Count > 0 ? ModelCatalog.Instantiate(kind.Yield[0].Item.Key) : null) ?? Fallback.Pickup(kind);
 }
 
 /// <summary>
@@ -157,6 +166,9 @@ public sealed class PlaceholderModels : IGroundModels
         Add(root, Box(new Vector3(0.05f, 0.23f, 0.33f)), new Vector3(0, 0.1f, 0), Vector3.One, 0, new Color(0.30f, 0.22f, 0.15f));
         return root;
     }
+
+    /// <summary>Pickups have no placeholder: they aren't drawn without the catalogue.</summary>
+    public Node3D? Pickup(Hollow.Simulation.Content.NaturalKind kind) => null;
 
     public Node3D? Backpack()
     {

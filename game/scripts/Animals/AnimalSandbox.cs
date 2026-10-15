@@ -115,9 +115,12 @@ public partial class AnimalSandbox : Node3D
         PlanetSurfaces.Entry found = PlanetSurfaces.Find(spec.SystemAddress, spec.BodyPath)
             ?? throw new InvalidOperationException("The first world has no surface.");
 
+        // The zone's own whole world, drawn as the ground game draws it (docs/WHOLE_WORLD.md §10): its ground, and its
+        // natural objects as the plants.
         _world = new SurfaceView { Name = "World", Driven = true };
         AddChild(_world);
-        _world.OpenZone(found.System, found.Body, found.Surface, _zone.Frame.Origin, Hollow.Core.UniverseTime.Now, spec.RotationTimeScale);
+        _world.OpenWorld(found.System, found.Body, _zone.Surface, new HollowUniverse.Ground.NaturePlants(_zone.Nature!, _content, _zone.Frame, _zone.Surface.Radius),
+            spec.SurfaceSeed, Hollow.Core.UniverseTime.Now, spec.RotationTimeScale, (float)(spec.SurfaceGravity * 9.80665));
         _world.Camera.Fov = 50;
         _world.Camera.Near = 0.05f;
         _world.Camera.Current = true;
@@ -320,7 +323,7 @@ public partial class AnimalSandbox : Node3D
 
     private Person AddPerson(string name, Num.Vector3 at, float yaw, string? held = null, bool dummy = false)
     {
-        Num.Vector3 ground = _zone.GroundAt(at.X, at.Z);
+        Num.Vector3 ground = _zone.Settle(at);
         Entity e = _zone.Players().AddPlayer(_zone.NextId(), name, _zone.NewCharacter(ground + _zone.Frame.UpAt(ground) * 0.02f));
         Player player = _zone.Players().PlayerOf(e)!;
         player.Inventory.Clear();
@@ -405,7 +408,7 @@ public partial class AnimalSandbox : Node3D
         _at = _cameraPlaced ? _at.Lerp(at, k) : at;
         _cameraPlaced = true;
         // Never under the ground.
-        Num.Vector3 ground = _zone.GroundAt(_eye.X, _eye.Z);
+        Num.Vector3 ground = _zone.Settle(ToZone(_eye));
         Vector3 floor = ToRender(ground) + up * 0.4f;
         if ((_eye - floor).Dot(up) < 0)
         {
@@ -442,8 +445,8 @@ public partial class AnimalSandbox : Node3D
 
     public static Num.Vector3 ToZone(Vector3 v) => new(v.X, v.Y, v.Z);
 
-    /// <summary>The characters' yaw of a flat direction: 0 faces −Z, anticlockwise from above.</summary>
-    public static float YawOf(Num.Vector3 d) => MathF.Atan2(-d.X, -d.Z);
+    /// <summary>The characters' yaw of a direction at a point: from local north, anticlockwise from above (Facing).</summary>
+    private float YawOf(Num.Vector3 d, Num.Vector3 at) => Facing.YawOf(d, _zone.Frame.UpAt(at));
 }
 
 /// <summary>Angles for drawing: the shortest turn between two headings.</summary>

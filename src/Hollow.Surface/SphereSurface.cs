@@ -24,6 +24,20 @@ public sealed class SphereSurface : ISurface
 
     public double SeaRadius => 0;
 
+    /// <summary>The amplitudes of the octaves added up, either way.</summary>
+    public (double Low, double High) HeightBounds
+    {
+        get
+        {
+            double sum = 0;
+            foreach ((_, double amplitude) in _octaves)
+            {
+                sum += amplitude;
+            }
+            return (-sum, sum);
+        }
+    }
+
     public double HeightAt(Vector3D direction)
     {
         double h = 0;

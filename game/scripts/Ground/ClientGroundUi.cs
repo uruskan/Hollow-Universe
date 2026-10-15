@@ -350,8 +350,8 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         {
             return;
         }
-        // The bearing from the view's facing, clockwise: yaw grows anticlockwise from −Z.
-        float towards = MathF.Atan2(-d.X, -d.Z);
+        // The bearing from the view's facing, clockwise: yaw grows anticlockwise from local north (the view's convention).
+        float towards = Hollow.Simulation.Movement.Facing.YawOf(d, up);
         float bearing = (ViewYaw() - towards) * 180 / MathF.PI;
         Damaged?.Invoke((bearing % 360 + 540) % 360 - 180);
     }

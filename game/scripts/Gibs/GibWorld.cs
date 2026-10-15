@@ -230,7 +230,7 @@ public partial class GibWorld : Node3D
         Vector3 flat = new Vector3(MathF.Max(half.X, half.Z), half.Y, MathF.Max(half.X, half.Z));
         FxDirector.Play(material.Dust, centre, up, new FxParams
         {
-            Area = flat * 0.8f, Tint = material.Colour, Direction = blow, Scale = size * cause.Dust, Floor = (at.Origin - up * 0.02f).Y,
+            Area = flat * 0.8f, Tint = material.Colour, Direction = blow, Scale = size * cause.Dust, Floor = at.Origin - up * 0.02f,
         });
         if (distance > GibCatalog.Near)
         {

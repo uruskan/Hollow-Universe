@@ -64,7 +64,7 @@ public partial class SurfaceUi : Control
         AddChild(hints);
     }
 
-    public void Refresh(Body planet, PlanetSurface surface, RenderFrame frame, Vector3D camera, SurfaceSky sky, double time,
+    public void Refresh(Body planet, ISurface surface, RenderFrame frame, Vector3D camera, SurfaceSky sky, double time,
         float frameMs, TerrainLod terrain, bool walking, bool timeRuns)
     {
         double now = Time.GetTicksMsec() / 1000.0;

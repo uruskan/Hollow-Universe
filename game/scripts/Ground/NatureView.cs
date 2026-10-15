@@ -18,10 +18,11 @@ using Num = System.Numerics;
 namespace HollowUniverse.Ground;
 
 /// <summary>
-/// The natural objects as the game changed them (GROUND.md §6.1). The surface view draws the planet's trees, bushes,
-/// ferns and rocks; this tells it which ones are gone (felled, picked) or bare (a picked berry bush), redraws their
-/// scatter tiles when that changes, and draws what the surface view doesn't: the outcrops at their depletion stage
-/// (<see cref="GroundModels"/>), the weak spots near the player (<see cref="NatureMarkers"/>), and gathering's feedback.
+/// The natural objects as the game changed them (GROUND.md §6.1). The surface view draws the zone's trees, berry bushes,
+/// ferns and boulders from <see cref="Plants"/> (the server's own objects, docs/WHOLE_WORLD.md §10.3); this tells it
+/// which ones are gone (felled, picked) or bare (a picked berry bush), redraws their tiles when that changes, and draws
+/// what the plants don't: outcrops at their depletion stage and pickups lying on the ground (<see cref="GroundModels"/>),
+/// the weak spots near the player (<see cref="NatureMarkers"/>), and gathering's feedback.
 /// Every hit plays its kind's look from gather.json where it met the drawn surface (effects, sounds, a run of weak-spot
 /// hits rising in pitch, a stage breaking, the crown shaking), and a felled tree near the player tips over, lands and
 /// goes. Nothing here knows trees from outcrops: the look says what to do.
@@ -60,7 +61,10 @@ public partial class NatureView : Node3D
     public GameClient Client { get; set; } = null!;
 
     /// <summary>The surface view whose plants this changes.</summary>
-    public SurfaceView World { get; set; } = null!;
+    public SurfaceView? World { get; set; }
+
+    /// <summary>The zone's natural objects as plants (what the surface view draws them from, and how they are named).</summary>
+    public NaturePlants? Plants { get; set; }
 
     public override void _Ready()
     {
@@ -181,11 +185,11 @@ public partial class NatureView : Node3D
                 }
             }
         }
-        if (gone.Count == 0)
+        if (gone.Count == 0 || Plants is not { } plants)
         {
             return static (_, item) => item.Kind;
         }
-        return (tile, item) => !gone.Contains(ScatterNaturalObjects.IdOf(tile, item.Index)) ? item.Kind : Picked(item.Kind);
+        return (tile, item) => !gone.Contains(plants.Id(tile, item)) ? item.Kind : Picked(item.Kind);
     }
 
     // What a felled or picked scatter object is drawn as: a berry bush bare, anything else not at all.
@@ -200,11 +204,11 @@ public partial class NatureView : Node3D
     private ScatterKind DrawnKind(TileKey tile, ScatterItem item)
     {
         NaturalState? state = Client.Survival().Natural;
-        if (state == null || state.Count == 0 && _falling.Count == 0)
+        if (state == null || state.Count == 0 && _falling.Count == 0 || Plants == null)
         {
             return item.Kind;
         }
-        ulong id = ScatterNaturalObjects.IdOf(tile, item.Index);
+        ulong id = Plants.Id(tile, item);
         if (_falling.Contains(id))
         {
             return Vegetation.NotDrawn;
@@ -229,17 +233,19 @@ public partial class NatureView : Node3D
         _revision = state.Revision;
         foreach (ulong id in state.Changed)
         {
-            // The ID names the scatter tile and kind: no generating a far tile on this thread just to look at it.
-            if (ScatterNaturalObjects.Decode(id) is not var (tile, index))
+            // The ID names its tile: no generating a far tile on this thread just to look at it.
+            if (Client.Survival().Nature?.TileOf(id) is not { } tile)
             {
                 continue;
             }
             Num.Vector3 centre = Client.Frame.ToLocal(tile.Centre * Client.Surface!.Radius);
             float distance = Num.Vector3.Distance(centre, feet);
-            bool tree = World?.Plants?.Library?.For((ScatterKind)(index >> 24)) is { Tree: true };
             bool falls = false;
+            // A far object counts as a tree (its impostor block is drawn again) unless it is known not to be one.
+            bool tree = true;
             if (distance < FallDistance + 60 && Cached(id, out NaturalObject o))
             {
+                tree = Client.Content.Natural(o.Kind)?.Class == NaturalClass.Tree;
                 _changedTiles.Add(TileOf(o.Position));
                 distance = Num.Vector3.Distance(o.Position, feet);
                 falls = React(o, tile, distance);
@@ -307,7 +313,8 @@ public partial class NatureView : Node3D
         GatherLook look = rules.Look;
         Num.Vector3 point = o.Position + now.LastHit;
         Num.Vector3 normal = rules.Spot.Surface.NormalAt(o, kind, current.Stage, point);
-        float ground = GroundView.ToGodot(o.Position).Y;
+        // Debris lands on the ground under the object (a height along up, docs/WHOLE_WORLD.md §10.4).
+        Vector3 ground = GroundView.ToGodot(o.Position + o.Up * 0.02f);
         if (distance < CueDistance)
         {
             Cue(look.Hit, point, normal, ground);
@@ -350,7 +357,7 @@ public partial class NatureView : Node3D
     }
 
     // One cue of a look: its effect (debris landing on the ground under the object) and its sound, at a point.
-    private void Cue(GatherCue? cue, Num.Vector3 at, Num.Vector3 normal, float ground, float pitch = 1, float scale = 1, int stage = -1)
+    private void Cue(GatherCue? cue, Num.Vector3 at, Num.Vector3 normal, Vector3 ground, float pitch = 1, float scale = 1, int stage = -1)
     {
         if (cue == null)
         {
@@ -359,7 +366,7 @@ public partial class NatureView : Node3D
         Vector3 point = GroundView.ToGodot(at), n = GroundView.ToGodot(normal);
         if (cue.Fx != null)
         {
-            FxDirector.Play(cue.Fx, point, n, new FxParams { Scale = cue.FxScale * scale, Floor = ground + 0.02f });
+            FxDirector.Play(cue.Fx, point, n, new FxParams { Scale = cue.FxScale * scale, Floor = ground });
         }
         if (cue.Sound == null)
         {
@@ -463,11 +470,12 @@ public partial class NatureView : Node3D
         }
     }
 
-    // ---------------------------------------------------------------- outcrops
+    // ---------------------------------------------------------------- outcrops and pickups
 
     // The ground tile (the physics' level) a point lies in.
     private TileKey TileOf(Num.Vector3 p) => TileKey.At(Client.Frame.ToBody(p), PhysicsWorld.LevelOn(Client.Surface!.Radius));
 
+    // Objects drawn as models rather than plants (outcrops, pickups), tile by tile within a few tiles of the player.
     private void UpdateOutcrops(Num.Vector3 feet, HashSet<TileKey> changed)
     {
         // The placeholders take the plants' rock material: wait for it.
@@ -525,7 +533,8 @@ public partial class NatureView : Node3D
         NaturalState state = Client.Survival().Natural!;
         foreach (NaturalObject o in _scratch)
         {
-            if (Client.Content.Natural(o.Kind) is not { Class: NaturalClass.Node } kind || state.IsDepleted(o.Id))
+            // The plants draw what they can; the rest are models.
+            if (Client.Content.Natural(o.Kind) is not { } kind || Plants?.Draws(o.Kind) != false || state.IsDepleted(o.Id))
             {
                 continue;
             }
@@ -537,7 +546,8 @@ public partial class NatureView : Node3D
             }
             kept.Node?.QueueFree();
             int variant = (int)(o.Id % 6);
-            Node3D? node = GroundModels.Provider.Outcrop(kind.Key, stage, variant);
+            // Something broken up in stages (an outcrop) shows its stage; anything else lies there whole (a pickup).
+            Node3D? node = kind.Stages > 1 ? GroundModels.Provider.Outcrop(kind.Key, stage, variant) : GroundModels.Provider.Pickup(kind);
             if (node == null)
             {
                 continue;
@@ -656,15 +666,15 @@ public partial class NatureView : Node3D
         public double Time;
     }
 
-    // The tree's own model (its species and variant, from its scatter item) tips over away from the blow.
+    // The tree's own model (its species and variant, from its plant) tips over away from the blow.
     private void StartFall(in NaturalObject o, TileKey tile, Num.Vector3 away, FallLook look)
     {
-        if (World?.Surface is not { } surface)
+        if (Plants is not { } plants)
         {
             return;
         }
         _falling.Add(o.Id);
-        (TileKey _, int index) = ScatterNaturalObjects.Decode(o.Id)!.Value;
+        ulong id = o.Id;
         away -= o.Up * Num.Vector3.Dot(away, o.Up);
         if (away.LengthSquared() < 0.01f)
         {
@@ -679,7 +689,17 @@ public partial class NatureView : Node3D
             Up = up,
             Away = dir,
             Base = new Transform3D(Basis.Identity, GroundView.ToGodot(o.Position)),
-            Item = Task.Run(() => (ScatterItem?)surface.ScatterFor(tile).FirstOrDefault(i => i.Index == index)),
+            Item = Task.Run(() =>
+            {
+                foreach (ScatterItem item in plants.Tile(tile, treesOnly: false))
+                {
+                    if (plants.Id(tile, item) == id)
+                    {
+                        return (ScatterItem?)item;
+                    }
+                }
+                return null;
+            }),
         });
     }
 
@@ -736,7 +756,7 @@ public partial class NatureView : Node3D
         FloraLibrary.Variant variant = species.Variants[item.Variant % species.Variants.Count];
         float scale = item.Scale * species.Scale;
         fall.Height = Math.Max(2f, variant.Height * scale);
-        Vector3 up = World.Frame!.DirectionToRender(item.Direction);
+        Vector3 up = World!.Frame!.DirectionToRender(item.Direction);
         Vector3 reference = Math.Abs(up.Z) < 0.9f ? Vector3.Back : Vector3.Right;
         Vector3 x = reference.Cross(up).Normalized();
         Vector3 z = x.Cross(up);

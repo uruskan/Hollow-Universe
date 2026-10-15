@@ -76,10 +76,14 @@ public sealed class StandInNaturalObjects : INaturalObjects
         }
     }
 
+    public IReadOnlyList<NaturalObject> InTile(TileKey tile) => tile.Level == Level ? Tile(tile) : Array.Empty<NaturalObject>();
+
+    public TileKey? TileOf(ulong id) => (id & (0xFFUL << 56)) != Tag ? null : TileKey.FromIndex(Level, (long)((id >> IndexBits) & TileMask));
+
     public bool TryGet(ulong id, out NaturalObject found)
     {
         found = default;
-        if ((id & (0xFFUL << 56)) != Tag || TileKey.FromIndex(Level, (long)((id >> IndexBits) & TileMask)) is not { } tile)
+        if (TileOf(id) is not { } tile)
         {
             return false;
         }

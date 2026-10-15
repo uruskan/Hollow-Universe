@@ -105,8 +105,7 @@ void fragment() {
 	hu_aerial(v_world, CAMERA_POSITION_WORLD, 6, a, fog);
 	ALBEDO = a;
 	FOG = fog;
-	float altitude = hu_camera_altitude + dot(v_world - hu_camera_position, hu_camera_up);
-	v_cloud = hu_cloud_shadow(v_world, altitude);
+	v_cloud = hu_cloud_shadow(v_world);
 }
 
 void light() {
