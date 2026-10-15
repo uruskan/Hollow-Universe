@@ -905,8 +905,8 @@ public static class FxSurfaces
         _ => "dirt",
     };
 
-    /// <summary>The surface of a ground material (Hollow.Surface's eight layers).</summary>
-    public static FxSurface Of(Hollow.Surface.GroundMaterial m) => m switch
+    /// <summary>The surface of a ground material, by its family (Hollow.Surface's BiomeTable.Family).</summary>
+    public static FxSurface Of(Hollow.Surface.GroundMaterial m) => Hollow.Surface.BiomeTable.Family(m) switch
     {
         Hollow.Surface.GroundMaterial.Grass or Hollow.Surface.GroundMaterial.Moss => FxSurface.Grass,
         Hollow.Surface.GroundMaterial.Rock or Hollow.Surface.GroundMaterial.Gravel => FxSurface.Rock,

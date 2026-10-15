@@ -16,7 +16,8 @@ public readonly record struct WalkingSample(
     double Mountains,
     double Rocky,
     double Roughness,
-    double Wet)
+    double Wet,
+    double Ice = 0)
 {
     /// <summary>Whether the ground lies under water: the sea, a lake or a stream.</summary>
     public bool Wetted => Water > Height;
@@ -56,6 +57,9 @@ public sealed class WalkingWorld : ISurface, IScatterField
 
     private const int CalibrationSamples = 8192;
 
+    /// <summary>How far inside the continents' coast (landmass units) a pocket of sea no longer flattens the relief round it.</summary>
+    private const double PocketMargin = 0.03;
+
     // Landmass field (relative to the coast) → height: sea floor, shore, coastal lowland. Monotone, 0 at the coast.
     private static readonly MonotoneCurve CoastCurve = new(
         new[] { -1.2, -0.5, -0.22, -0.09, -0.03, 0, 0.03, 0.1, 0.25, 0.55, 1.2 },
@@ -65,11 +69,19 @@ public sealed class WalkingWorld : ISurface, IScatterField
     private readonly WalkingParameters _p;
     private readonly ReliefProvinces _provinces;
     private readonly double _threshold;
+    private readonly double _continentsCoast;
     private readonly Drainage? _drainage;
     private readonly double _meanTemperature;
     private readonly bool _hasSea;
     private readonly ScatterPlan _plan;
     private readonly Lazy<Vector3D> _landing;
+    private readonly RidgedNoise _ridges;
+    private readonly (double Low, double High) _bounds;
+
+    // The last point asked for on this thread: drawing asks Sample, Cover and WaterLevelAt at the same point in a row.
+    [ThreadStatic] private static WalkingWorld? _lastWorld;
+    [ThreadStatic] private static Vector3D _lastDirection;
+    [ThreadStatic] private static WalkingSample _lastSample;
 
     /// <summary>
     /// A walking-scale world of a game radius, from its real sea cover (0 for none), ice cover and annual mean
@@ -87,11 +99,18 @@ public sealed class WalkingWorld : ISurface, IScatterField
         _provinces = new ReliefProvinces(Hash64.Of(seed, 0x52454C46), radius, _p); // "RELF"
         _plan = ScatterPlan.BySize(radius, _p.ScatterTile);
         _landing = new Lazy<Vector3D>(FindLanding);
+        _ridges = new RidgedNoise(_seed + 50, 7, 0.55, 0.25, _p.RidgeCrest);
 
         // The coast: the landmass field's level below which the real share of evenly spread directions lies. The
         // relief only rises inland of it, so the sea covers that share (a dry world keeps 2 % of basins).
         Vector3D[] directions = PlanetSurface.FibonacciSphere(CalibrationSamples);
         var values = new double[CalibrationSamples];
+        for (int i = 0; i < CalibrationSamples; i++)
+        {
+            values[i] = Continents(Warp(directions[i]));
+        }
+        Array.Sort(values);
+        _continentsCoast = Quantile(values, _hasSea ? Math.Clamp(oceanCover, 0, 0.98) : 0.02);
         for (int i = 0; i < CalibrationSamples; i++)
         {
             values[i] = Landmass(Warp(directions[i]));
@@ -104,13 +123,22 @@ public sealed class WalkingWorld : ISurface, IScatterField
             WalkingSample s = Compute(d, carve: false, detail: false);
             return (s.Height, s.Mountains, s.Tableland);
         }, water: _hasSea);
+        // Lakes whose water lies below freezing all year are ice to walk on.
+        _drainage.Freeze(lake => MeanTemperature(lake.Centre, Math.Max(0, lake.Level)) < _p.FrozenLakeTemperature);
 
         // The ice line: the temperature below which the real ice cover lies, at the ground's real-equivalent height.
         var temperatures = new double[CalibrationSamples];
+        double low = 0, high = 0;
         for (int i = 0; i < CalibrationSamples; i++)
         {
-            temperatures[i] = MeanTemperature(directions[i], Math.Max(0, HeightAt(directions[i])));
+            double h = HeightAt(directions[i]);
+            low = Math.Min(low, h);
+            high = Math.Max(high, h);
+            temperatures[i] = MeanTemperature(directions[i], Math.Max(0, h));
         }
+        // Drawn tiles' bounds before their heights are known: what the evenly spread directions found, with room for
+        // the peaks and deeps between them.
+        _bounds = (Math.Min(-200, low - 30), high + Math.Max(80, 0.3 * high));
         Array.Sort(temperatures);
         IceTemperature = iceCover > 0.001 ? Quantile(temperatures, iceCover) : -1000;
     }
@@ -145,10 +173,24 @@ public sealed class WalkingWorld : ISurface, IScatterField
 
     internal Drainage? DrainageGrid => _drainage;
 
-    public double HeightAt(Vector3D direction) => Compute(direction, carve: true, detail: true).Height;
+    public double HeightAt(Vector3D direction) => Fields(direction).Height;
 
-    /// <summary>Everything about a point: its ground, water, landmass, relief, coast, roughness and streams.</summary>
-    public WalkingSample Fields(Vector3D direction) => Compute(direction, carve: true, detail: true);
+    /// <summary>The lowest and highest ground, for drawing tiles before their heights are known.</summary>
+    public (double Low, double High) HeightBounds => _bounds;
+
+    /// <summary>Everything about a point: its ground, water, landmass, relief, coast, roughness, streams and ice.</summary>
+    public WalkingSample Fields(Vector3D direction)
+    {
+        if (ReferenceEquals(_lastWorld, this) && _lastDirection.Equals(direction))
+        {
+            return _lastSample;
+        }
+        WalkingSample s = Compute(direction, carve: true, detail: true);
+        _lastWorld = this;
+        _lastDirection = direction;
+        _lastSample = s;
+        return s;
+    }
 
     /// <summary>
     /// The water's surface over a point, metres above the sea: the sea (0) where the ground is below it, a lake's level
@@ -206,22 +248,34 @@ public sealed class WalkingWorld : ISurface, IScatterField
     private Vector3D Warp(Vector3D p) =>
         (p + Noise.Vector(p, Radius, _p.WarpWavelength, 2, 0.5, _seed + 1, NoiseBasis.Corners) * _p.WarpReach).Normalized;
 
-    private double Landmass(Vector3D q) =>
-        (1 - _p.IslandShare) * Noise.Fbm(q, Radius, _p.ContinentWavelength, 4, 0.5, _seed + 2, NoiseBasis.Corners)
-        + _p.IslandShare * Noise.Fbm(q, Radius, _p.IslandWavelength, 3, 0.5, _seed + 3, NoiseBasis.Corners)
-        + _p.CoastDetail * Noise.Fbm(q, Radius, _p.CoastDetailWavelength, 3, 0.5, _seed + 7, NoiseBasis.Corners);
+    // The continents' field, before the smaller ones (its first part).
+    private double Continents(Vector3D q) =>
+        (1 - _p.IslandShare) * Noise.Fbm(q, Radius, _p.ContinentWavelength, 4, 0.5, _seed + 2, NoiseBasis.Corners);
+
+    // The landmass field: the continents', with the islands' and the coast's smaller fields over it. Those may cut into
+    // the land only near the continents' coast: deep inland a hole of sea would be a crater at sea level among the hills.
+    private double Landmass(Vector3D q)
+    {
+        double continents = Continents(q);
+        double small = _p.IslandShare * Noise.Fbm(q, Radius, _p.IslandWavelength, 3, 0.5, _seed + 3, NoiseBasis.Corners)
+            + _p.CoastDetail * Noise.Fbm(q, Radius, _p.CoastDetailWavelength, 3, 0.5, _seed + 7, NoiseBasis.Corners);
+        return continents + (small < 0 ? small * DMath.SmoothStep(0.09, 0.0, continents - _continentsCoast) : small);
+    }
 
     private WalkingSample Compute(Vector3D p, bool carve, bool detail)
     {
         Vector3D q = Warp(p);
         double c = Landmass(q) - _threshold;
         double h = CoastCurve.Evaluate(c);
+        // The relief rises inland of the continents' coast, over any pocket of sea inside it (which it lifts out of the
+        // sea where the land is high: no crater at sea level among the hills), and inland of the coast itself near it.
+        double shore = Math.Max(c, Continents(q) - _continentsCoast - PocketMargin);
         double rocky = DMath.SmoothStep(-0.2, 0.25, Noise.Fbm(p, Radius, _p.CoastKindWavelength, 2, 0.5, _seed + 4, NoiseBasis.Corners));
         Span<double> w = stackalloc double[ReliefProvinces.TypeCount];
         Span<double> a = stackalloc double[ReliefProvinces.TypeCount];
         Span<double> centre = stackalloc double[ReliefProvinces.TypeCount];
         double rough = 0;
-        if (c > 0)
+        if (shore > 0)
         {
             // Relief rises inland of the coast: within a few metres on rocky coasts (sea cliffs where the land is high),
             // over a hundred on sandy ones (a low shore and beaches).
@@ -245,8 +299,8 @@ public sealed class WalkingWorld : ISurface, IScatterField
                 relief += w[(int)Relief.Mountains] * a[(int)Relief.Mountains] * Mountains(p, centre[(int)Relief.Mountains]);
             }
             // Sandy coasts rise slowly; rocky ones in a sea cliff (at most SeaCliffHeight), the rest of the land behind it.
-            double slow = DMath.SmoothStep(0, _p.SandyShoreRamp, c);
-            double cliff = relief > 0 ? Math.Min(1, _p.SeaCliffHeight / relief) * DMath.SmoothStep(0, _p.RockyShoreRamp, c) : 0;
+            double slow = DMath.SmoothStep(0, _p.SandyShoreRamp, shore);
+            double cliff = relief > 0 ? Math.Min(1, _p.SeaCliffHeight / relief) * DMath.SmoothStep(0, _p.RockyShoreRamp, shore) : 0;
             double inland = slow + (1 - slow) * rocky * cliff;
             h += inland * relief;
             rough = Math.Clamp(0.3 + 0.4 * Noise.Fbm(p, Radius, 1500, 2, 0.5, _seed + 5, NoiseBasis.Corners) + 0.7 * w[(int)Relief.Mountains]
@@ -255,18 +309,19 @@ public sealed class WalkingWorld : ISurface, IScatterField
             {
                 // Metre-scale ground, rougher on stony ground; none at the waterline.
                 h += (_p.GroundDetail + _p.StonyDetail * rough) * Noise.Fbm(p, Radius, 22, 3, 0.5, _seed + 6, NoiseBasis.Corners)
-                    * DMath.SmoothStep(0, 0.02, c);
+                    * DMath.SmoothStep(0, 0.02, shore);
             }
         }
         double water = _hasSea && h < 0 ? 0 : double.NegativeInfinity;
         double wet = 0;
+        bool ice = false;
         if (carve && _drainage != null)
         {
-            h = _drainage.Shape(p, h, out double inland, out wet);
+            h = _drainage.Shape(p, h, out double inland, out wet, out ice);
             water = _hasSea && h < 0 ? Math.Max(0, inland) : inland;
         }
         return new WalkingSample(h, water, c, w[(int)Relief.Plains], w[(int)Relief.Hills], w[(int)Relief.Tableland],
-            w[(int)Relief.Mountains], rocky, rough, wet);
+            w[(int)Relief.Mountains], rocky, rough, wet, ice ? 1 : 0);
     }
 
     /// <summary>The parts of a height, for finding faults in look-dev: base (uncarved), the mountain relief's ridge, massif and centrality.</summary>
@@ -278,7 +333,7 @@ public sealed class WalkingWorld : ISurface, IScatterField
         Span<double> centre = stackalloc double[ReliefProvinces.TypeCount];
         _provinces.Weights(q, w, a, centre);
         Vector3D bent = (p + Noise.Vector(p, Radius, 650, 2, 0.5, _seed + 52, NoiseBasis.Corners) * (_p.RidgeWarp / Radius)).Normalized;
-        double ridge = Noise.Swiss(bent, Radius, _p.RidgeWavelength, 7, 0.52, 0.25, _seed + 50, NoiseBasis.Corners);
+        double ridge = _ridges.At(bent, Radius, _p.RidgeWavelength, NoiseBasis.Corners);
         double massif = 0.75 + 0.35 * Noise.Fbm(p, Radius, 1900, 2, 0.5, _seed + 51, NoiseBasis.Corners);
         return (Compute(p, carve: false, detail: true).Height, ridge, massif, centre[(int)Relief.Mountains], Mountains(p, centre[(int)Relief.Mountains]));
     }
@@ -322,7 +377,7 @@ public sealed class WalkingWorld : ISurface, IScatterField
     private double Mountains(Vector3D p, double centrality)
     {
         Vector3D bent = (p + Noise.Vector(p, Radius, 650, 2, 0.5, _seed + 52, NoiseBasis.Corners) * (_p.RidgeWarp / Radius)).Normalized;
-        double ridge = Math.Clamp(Noise.Swiss(bent, Radius, _p.RidgeWavelength, 7, 0.52, 0.25, _seed + 50, NoiseBasis.Corners), 0, 1.15);
+        double ridge = Math.Clamp(_ridges.At(bent, Radius, _p.RidgeWavelength, NoiseBasis.Corners), 0, 1.15);
         double massif = 0.75 + 0.35 * Noise.Fbm(p, Radius, 1900, 2, 0.5, _seed + 51, NoiseBasis.Corners);
         double dome = 0.6 + 0.4 * centrality;
         double shape = ridge * (0.45 + 0.55 * ridge);
@@ -363,6 +418,12 @@ public sealed class WalkingWorld : ISurface, IScatterField
         {
             weights.Clear();
             weights[(int)Biome.Ocean] = 1;
+            return;
+        }
+        if (s.Ice > 0)
+        {
+            weights.Clear();
+            weights[(int)Biome.IceSheet] = 1; // a frozen lake
             return;
         }
         BiomeTable.Weights(climate, s.Height * _p.RealHeightFactor, IceTemperature, weights);
@@ -410,7 +471,7 @@ public sealed class WalkingWorld : ISurface, IScatterField
     /// <summary>Plant and rock densities at a point, per square metre: the biomes', in woods and open ground, thinned on slopes, at the tree line, on shores and in water.</summary>
     public VegetationSample Vegetation(Vector3D p, in WalkingSample s, in ClimateSample climate, ReadOnlySpan<double> biomes, double slope)
     {
-        if (s.Water > s.Height - 0.2 || (_hasSea && s.Height < 0.3))
+        if (s.Water > s.Height - 0.2 || (_hasSea && s.Height < 0.3) || s.Ice > 0)
         {
             return new VegetationSample(0, 0, 0, 0, 0);
         }
@@ -454,6 +515,95 @@ public sealed class WalkingWorld : ISurface, IScatterField
     }
 
     public IReadOnlyList<ScatterItem> ScatterFor(TileKey tile) => Scatter.ForTile(this, tile);
+
+    /// <summary>The trees alone of a scatter tile (far impostors), the same trees as the whole tile's.</summary>
+    public IReadOnlyList<ScatterItem> ScatterFor(TileKey tile, bool treesOnly) => Scatter.ForTile(this, tile, treesOnly);
+
+    /// <summary>The scatter's level for drawing (<see cref="ISurface.ScatterLevel"/>): the plan's, by size.</summary>
+    public int ScatterLevel => _plan.Level;
+
+    // ---------------------------------------------------------------- drawing
+
+    /// <summary>
+    /// What the ground looks like (docs/WALKING_GROUND.md §8): the biome table's materials through the shared rule, with
+    /// sandstone cliffs on tablelands and in dry country; wet grass and mossy forest floor where it is wet or near a
+    /// stream (mossy also where it is cold); wet sand along sandy shores and shingle at the foot of rocky ones; beds of
+    /// shingle, wet sand and mud under water; ice on frozen lakes.
+    /// </summary>
+    public GroundCover Cover(Vector3D direction, in SurfaceSample sample, double slope, Span<double> biomes, Span<double> materials)
+    {
+        WalkingSample s = Fields(direction);
+        ClimateSample climate = Climate(direction, s);
+        BiomeWeights(s, climate, biomes);
+        VegetationSample v = Vegetation(direction, s, climate, biomes, slope);
+        if (s.Ice > 0)
+        {
+            materials.Clear();
+            materials[(int)GroundMaterial.Ice] = 0.85;
+            materials[(int)GroundMaterial.Snow] = 0.15;
+            return new GroundCover(climate.Temperature, climate.Moisture, 0, 0);
+        }
+        if (s.Water > s.Height)
+        {
+            // A bed: the sea's sand and shingle by the coast's kind; lakes' and streams' shingle, wet sand and mud.
+            materials.Clear();
+            if (s.Height < 0 && s.Water <= 0)
+            {
+                materials[(int)GroundMaterial.WetSand] = 0.6 * (1 - s.Rocky) + 0.1;
+                materials[(int)GroundMaterial.Shingle] = 0.5 * s.Rocky + 0.1;
+                materials[(int)GroundMaterial.Sand] = 0.2 * (1 - s.Rocky);
+                materials[(int)GroundMaterial.Rock] = 0.1 * s.Rocky;
+            }
+            else
+            {
+                materials[(int)GroundMaterial.Shingle] = 0.45;
+                materials[(int)GroundMaterial.WetSand] = 0.25;
+                materials[(int)GroundMaterial.Soil] = 0.3;
+            }
+            Normalise(materials);
+            return new GroundCover(climate.Temperature, climate.Moisture, 0, 0);
+        }
+        double woods = ForestCover(direction, s) * climate.TreeLine * Math.Clamp(BiomeTable.Trees(biomes) / 0.02, 0, 1);
+        double dry = biomes[(int)Biome.Desert] + biomes[(int)Biome.Savanna] + 0.7 * biomes[(int)Biome.Shrubland];
+        double sandstone = Math.Clamp(1.4 * s.Tableland + dry, 0, 1);
+        BiomeTable.GroundMaterials(biomes, slope, woods, climate.Temperature, s.Roughness, materials, sandstone);
+        // Wet country, and the banks of streams: wet grass, mossy forest floor (mossy in the cold too).
+        double wet = Math.Max(s.Wet, DMath.SmoothStep(0.6, 0.9, climate.Moisture));
+        Move(materials, GroundMaterial.Grass, GroundMaterial.WetGrass, 0.85 * wet);
+        Move(materials, GroundMaterial.ForestFloor, GroundMaterial.MossyFloor, 0.7 * Math.Max(wet, DMath.SmoothStep(4, -2, climate.Temperature)));
+        if (_hasSea && s.Continent < 0.06)
+        {
+            // The sea's edge: the swash's wet sand on sandy shores, shingle at the foot of rocky ones.
+            double edge = DMath.SmoothStep(0.06, 0.02, s.Continent);
+            materials[(int)GroundMaterial.WetSand] += 1.2 * DMath.SmoothStep(1.4, 0.3, s.Height) * (1 - s.Rocky) * edge;
+            materials[(int)GroundMaterial.Shingle] += DMath.SmoothStep(2.5, 0.5, s.Height) * s.Rocky * edge;
+        }
+        Normalise(materials);
+        return new GroundCover(climate.Temperature, climate.Moisture, v.Grass, v.Trees);
+    }
+
+    private static void Move(Span<double> materials, GroundMaterial from, GroundMaterial to, double share)
+    {
+        double moved = materials[(int)from] * Math.Clamp(share, 0, 1);
+        materials[(int)from] -= moved;
+        materials[(int)to] += moved;
+    }
+
+    private static void Normalise(Span<double> materials)
+    {
+        double sum = 0;
+        foreach (double m in materials)
+        {
+            sum += m;
+        }
+        if (sum > 0)
+        {
+            for (int i = 0; i < materials.Length; i++)
+            {
+                materials[i] /= sum;
+            }
+        }
+    }
 
     private static double Quantile(double[] sorted, double fraction) =>
         sorted[Math.Clamp((int)Math.Floor(fraction * sorted.Length), 0, sorted.Length - 1)];

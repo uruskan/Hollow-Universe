@@ -402,13 +402,13 @@ public sealed partial class TerrainLod : Node3D
         arrays[(int)Mesh.ArrayType.TexUV2] = data.FaceMetres;
         arrays[(int)Mesh.ArrayType.Custom0] = data.MorphPositions;
         arrays[(int)Mesh.ArrayType.Custom1] = data.MorphNormals;
-        arrays[(int)Mesh.ArrayType.Custom2] = data.Materials0;
-        arrays[(int)Mesh.ArrayType.Custom3] = data.Materials1;
+        arrays[(int)Mesh.ArrayType.Custom2] = data.MaterialsPacked;
+        arrays[(int)Mesh.ArrayType.Custom3] = data.MaterialsLast;
         arrays[(int)Mesh.ArrayType.Index] = data.Indices;
         var format = (Mesh.ArrayFormat)(
             ((int)Mesh.ArrayCustomFormat.RgbFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift)
             | ((int)Mesh.ArrayCustomFormat.RgbFloat << (int)Mesh.ArrayFormat.FormatCustom1Shift)
-            | ((int)Mesh.ArrayCustomFormat.Rgba8Unorm << (int)Mesh.ArrayFormat.FormatCustom2Shift)
+            | ((int)Mesh.ArrayCustomFormat.RgbaFloat << (int)Mesh.ArrayFormat.FormatCustom2Shift)
             | ((int)Mesh.ArrayCustomFormat.Rgba8Unorm << (int)Mesh.ArrayFormat.FormatCustom3Shift));
         var mesh = new ArrayMesh();
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, format);
@@ -479,7 +479,7 @@ public sealed partial class TerrainLod : Node3D
             {
                 long start = System.Diagnostics.Stopwatch.GetTimestamp();
                 TileGrid grid = TileMesh.Build(_surface, job.Node.Key);
-                job.Node.Data = TileMeshData.From(grid, _surface.SeaRadius);
+                job.Node.Data = TileMeshData.From(grid);
                 job.Node.Grid = grid;
                 Interlocked.Add(ref _buildTicks, System.Diagnostics.Stopwatch.GetTimestamp() - start);
                 int builds = Interlocked.Increment(ref _builds);
@@ -504,11 +504,18 @@ public sealed class TileMeshData
     public Vector2[] FaceMetres = Array.Empty<Vector2>();
     public float[] MorphPositions = Array.Empty<float>();
     public float[] MorphNormals = Array.Empty<float>();
-    public byte[] Materials0 = Array.Empty<byte>();
-    public byte[] Materials1 = Array.Empty<byte>();
+    /// <summary>
+    /// The sixteen ground materials' weights (GroundMaterial order): the first twelve three to a float, as the exact
+    /// integer w₀ + 256 w₁ + 65,536 w₂ (CUSTOM2, four floats); the last four as bytes (CUSTOM3).
+    /// </summary>
+    public float[] MaterialsPacked = Array.Empty<float>();
+    public byte[] MaterialsLast = Array.Empty<byte>();
     public int[] Indices = Array.Empty<int>();
 
-    /// <summary>The sea surface over this tile, when any of it lies below sea level (null otherwise).</summary>
+    /// <summary>
+    /// The water over this tile (the sea, lakes and streams: one surface at the grid's water levels), when any of it lies
+    /// under water (null otherwise). Its depth's second channel is how inland it is: 0 the sea, 1 a lake's or a stream's.
+    /// </summary>
     public Vector3[]? WaterVertices;
     public float[]? WaterMorph;
     public Vector2[]? WaterDepth;
@@ -518,7 +525,7 @@ public sealed class TileMeshData
     private static readonly ConcurrentDictionary<int, int[]> IndexCache = new();
     private static readonly ConcurrentDictionary<int, int[]> WaterIndexCache = new();
 
-    public static TileMeshData From(TileGrid grid, double seaRadius)
+    public static TileMeshData From(TileGrid grid)
     {
         int cells = grid.Cells, n = cells + 1, count = n * n;
         int border = 4 * cells;
@@ -532,8 +539,8 @@ public sealed class TileMeshData
             FaceMetres = new Vector2[total],
             MorphPositions = new float[total * 3],
             MorphNormals = new float[total * 3],
-            Materials0 = new byte[total * 4],
-            Materials1 = new byte[total * 4],
+            MaterialsPacked = new float[total * 4],
+            MaterialsLast = new byte[total * 4],
         };
         for (int v = 0; v < count; v++)
         {
@@ -549,16 +556,17 @@ public sealed class TileMeshData
             Copy(grid, d, ring[i], count + i, down);
         }
         d.Indices = IndexCache.GetOrAdd(cells, BuildIndices);
-        if (seaRadius > 0 && grid.MinHeight < 1)
+        if (grid.HasWater)
         {
-            BuildWater(grid, d, seaRadius);
+            BuildWater(grid, d);
         }
         return d;
     }
 
-    // The sea's surface on the same grid as the ground (so they cut each other the same way at every level), with
-    // the same morph toward the parent's grid. Depth below it per vertex, for shallows and foam.
-    private static void BuildWater(TileGrid grid, TileMeshData d, double seaRadius)
+    // The water's surface on the same grid as the ground (so they cut each other the same way at every level), at each
+    // vertex's water level (the sea's, a lake's, a stream's), with the same morph toward the parent's grid. Depth below
+    // it per vertex, for shallows and foam, and how far above the sea it lies (inland water has no swell or surf).
+    private static void BuildWater(TileGrid grid, TileMeshData d)
     {
         int n = grid.Cells + 1, count = n * n;
         var positions = new Hollow.Core.Vector3D[count];
@@ -569,10 +577,12 @@ public sealed class TileMeshData
         for (int v = 0; v < count; v++)
         {
             Hollow.Core.Vector3D body = grid.Vertex(v);
-            Hollow.Core.Vector3D p = body.Normalized * seaRadius - grid.Origin;
+            float level = grid.WaterLevels[v];
+            Hollow.Core.Vector3D p = body.Normalized * (grid.Radius + grid.SeaLevel + level) - grid.Origin;
             positions[v] = p;
             d.WaterVertices[v] = new Vector3((float)p.X, (float)p.Y, (float)p.Z);
-            d.WaterDepth[v] = new Vector2(-grid.Heights[v], 0);
+            float inland = Math.Clamp((level - 0.05f) / 0.55f, 0f, 1f);
+            d.WaterDepth[v] = new Vector2(level - grid.Heights[v], inland * inland * (3 - 2 * inland));
             d.WaterFaceMetres[v] = new Vector2(grid.FaceMetres[2 * v], grid.FaceMetres[2 * v + 1]);
         }
         for (int j = 0; j < n; j++)
@@ -615,10 +625,11 @@ public sealed class TileMeshData
         d.MorphNormals[3 * target] = grid.MorphNormals[3 * source];
         d.MorphNormals[3 * target + 1] = grid.MorphNormals[3 * source + 1];
         d.MorphNormals[3 * target + 2] = grid.MorphNormals[3 * source + 2];
+        int stride = Hollow.Surface.BiomeTable.MaterialCount, at = stride * source;
         for (int k = 0; k < 4; k++)
         {
-            d.Materials0[4 * target + k] = grid.Materials[8 * source + k];
-            d.Materials1[4 * target + k] = grid.Materials[8 * source + 4 + k];
+            d.MaterialsPacked[4 * target + k] = grid.Materials[at + 3 * k] + 256f * grid.Materials[at + 3 * k + 1] + 65536f * grid.Materials[at + 3 * k + 2];
+            d.MaterialsLast[4 * target + k] = grid.Materials[at + 12 + k];
         }
         d.Climate[target] = new Color(grid.Climate[4 * source] / 255f, grid.Climate[4 * source + 1] / 255f,
             grid.Climate[4 * source + 2] / 255f, grid.Climate[4 * source + 3] / 255f);

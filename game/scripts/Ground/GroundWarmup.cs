@@ -27,7 +27,9 @@ public static class GroundWarmup
     /// files are in by the time the server welcomes the player; then the rest; the sounds, many small files, last.
     /// </summary>
     public static IEnumerable<WarmItem> Items(GameContent content) =>
-        new[] { WarmItem.Load("the ground's textures", SurfaceView.GroundTextures) }
+        // The ground's layers are put into their arrays here, under the loading screen (GroundLayers reads them back from
+        // the GPU once; held by the warm-up as files, they would stay in memory twice).
+        new[] { new WarmItem("the ground's textures", _ => { GroundLayers.Warm(); return null; }) }
             .Concat(CharacterWarm.Items())
             .Concat(BuildingWarm.Items(content.Building))
             .Concat(ModelWarm.Items())

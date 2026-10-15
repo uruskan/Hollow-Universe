@@ -68,11 +68,11 @@ The 1:1 galaxy: the density model, sectors and cells, the catalogue, names, star
 
 Planets as surfaces: the cube-sphere, terrain, biomes, scatter, the sky, the zone frame.
 
-### src/Hollow.Surface (17 files, 3,106 lines)
+### src/Hollow.Surface (17 files, 3,569 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `Biomes.cs` | 272 | Biome, GroundMaterial, ScatterKind, ClimateSample, BiomeTable | Land biomes (GROUND.md §4.6), picked from the climate: annual mean temperature, moisture and height. |
+| `Biomes.cs` | 402 | Biome, GroundMaterial, ScatterKind, ClimateSample, BiomeTable | Land biomes (GROUND.md §4.6), picked from the climate: annual mean temperature, moisture and height. |
 | `CubeSphere.cs` | 263 | CubeSphere, TileKey | The cube-sphere of a planet surface (GROUND.md §4.6): six faces, each a square of face coordinates |
 | `FirstWorld.cs` | 32 | FirstWorld | The ground game's first world (GROUND.md §3): Nolcas Peris CQ-SLY 7-0 B 3, a breathable Earth-like planet |
 | `ISurface.cs` | 123 | ISurface, TriangleMesh, PooledTriangles | A body's ground as a pure function (GROUND.md §4.6): the server builds collision from it and the client draws it, |
@@ -86,20 +86,21 @@ Planets as surfaces: the cube-sphere, terrain, biomes, scatter, the sky, the zon
 | `SphereSurface.cs` | 59 | SphereSurface | A plain surface: a sphere with gentle hills from value noise and no sea. Tests use it as a simple |
 | `StandInWorld.cs` | 126 | StandInWorld | The stand-in world S3 plays on until S4 makes the real ground at walking scale (docs/WHOLE_WORLD.md §4): a small |
 | `SurfaceGrid.cs` | 73 | SurfaceGrid | Ground triangles of a cube-sphere tile from any surface's heights (docs/WHOLE_WORLD.md §6.1): a grid of the face's |
-| `TileMesh.cs` | 398 | TileGrid, TileMesh, GridHeights [Grid] | The ground of one tile as a grid of (cells + 1)² vertices (GROUND.md §4.6), which the client draws. On a whole world |
+| `TileMesh.cs` | 502 | TileGrid, TileMesh, GridHeights [Grid] | The ground of one tile as a grid of (cells + 1)² vertices (GROUND.md §4.6), which the client draws. On a whole world |
 | `ZoneFrame.cs` | 88 | ZoneFrame | The frame a zone's floats are measured in (ARCHITECTURE.md §6, docs/WHOLE_WORLD.md §3.1). A zone uses |
 | `WorldGrid.cs` | 140 | WorldGrid [Cell] | The map's grid on a whole world (docs/WHOLE_WORLD.md §11, decision 6): the six faces of the cube-sphere, named A to F, |
 
-### src/Hollow.Surface/Walking (5 files, 1,621 lines)
+### src/Hollow.Surface/Walking (6 files, 1,891 lines)
 
 The walking-scale ground of S4 ([WALKING_GROUND.md](WALKING_GROUND.md)).
 
 | File | Lines | Types | What |
 |---|---|---|---|
-| `Drainage.cs` | 810 | WalkingLake, DrainageSegment, Drainage | Where water goes, worked out once: a priority flood on a cube-sphere grid of about 30 m, catchments, lakes in hollows with smooth shores, streams and dry valleys from source to the sea or a lake, canyons and gorges; `Shape` cuts them into a height |
+| `Drainage.cs` | 837 | WalkingLake, DrainageSegment, Drainage | Where water goes, worked out once: a priority flood on a cube-sphere grid of about 30 m, catchments, lakes in hollows with smooth shores, streams and dry valleys from source to the sea or a lake, canyons and gorges; `Shape` cuts them into a height |
 | `ReliefProvinces.cs` | 133 | Relief, ReliefProvinces | Plains, hills, tablelands and mountains: provinces spread over the sphere, picked by shares and an uplift field, blended by normalised Gaussian weights |
-| `WalkingParameters.cs` | 198 | WalkingParameters | The walking-scale ground's numbers in one table |
-| `WalkingWorld.cs` | 460 | WalkingSample, WalkingWorld | The ground of a small world at walking scale: an `ISurface` and `IScatterField` from landmasses, provinces, coasts and the drainage; climate at real-equivalent heights, biomes, woods, the landing site |
+| `RidgedNoise.cs` | 87 | RidgedNoise | Eroded ridged noise for the walking ground's mountains: every octave turned by its own rotation and crests rounded, so no ridgeline runs straight |
+| `WalkingParameters.cs` | 204 | WalkingParameters | The walking-scale ground's numbers in one table |
+| `WalkingWorld.cs` | 610 | WalkingSample, WalkingWorld | The ground of a small world at walking scale: an `ISurface` and `IScatterField` from landmasses, provinces, coasts and the drainage; climate at real-equivalent heights, biomes, woods, the landing site |
 | `WalkingWorlds.cs` | 20 | WalkingWorlds | The walking-scale grounds of bodies, built once per process and shared |
 
 ## src/Hollow.Simulation
@@ -286,7 +287,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `MovementCheck.cs` | 111 | MovementCheck [Result] | The physics spike of GROUND.md §4.5, kept as a check: a fixed script of inputs walks a character over ground from |
 | `MovementTuning.cs` | 127 | MovementTuning | The numbers of on-foot movement (GROUND.md §4.5, §6). Rust's movement, through RustMVP's legacy spec |
 
-### src/Hollow.Simulation/Nature (7 files, 1,731 lines)
+### src/Hollow.Simulation/Nature (7 files, 1,746 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -294,7 +295,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `NaturalBodies.cs` | 122 | NaturalBodies | Keeps the trees and outcrops of every ground tile in a PhysicsWorld as static props, so characters |
 | `NaturalObjects.cs` | 116 | NaturalObject, INaturalObjects, NaturalShapes | One natural object (GROUND.md §4.6): a tree, an outcrop, a pickup or a bush, generated from the surface, never |
 | `NaturalState.cs` | 310 | NaturalOverride, GatherSwing, GatherResult, NaturalState | A player change to a natural object (ARCHITECTURE.md P1: only changes are stored). |
-| `ScatterNaturalObjects.cs` | 226 | ScatterNaturalObjects [TileObjects] | The natural objects of a real surface (GROUND.md §6.1): the planet's own scatter (Scatter), the same |
+| `ScatterNaturalObjects.cs` | 234 | ScatterNaturalObjects [TileObjects] | The natural objects of a real surface (GROUND.md §6.1): the planet's own scatter (Scatter), the same |
 | `SpotSurfaces.cs` | 410 | ISpotSurface, SpotFrames, TrunkSurface, MeasuredSurface | Where a natural object's weak spot can sit (GROUND.md §6.1): on the surface players see, at the object's current |
 | `StandInNaturalObjects.cs` | 144 | StandInNaturalObjects | Natural objects of the stand-in world (docs/WHOLE_WORLD.md §7.1), placed by a seeded stream per cube-sphere tile of |
 
@@ -548,14 +549,14 @@ The client without graphics: the host and its modules, prediction, the local pla
 | `RemoteThings.cs` | 141 | RemoteThing, ClientProjectile | A static thing as this client knows it (GROUND.md §6): a deployable, a bag of dropped items or a corpse, sent reliably |
 | `ShipPredictor.cs` | 145 | ShipPredictor | The ship the player flies, predicted (GROUND.md §6.7), as Predictor predicts the character: every tick |
 
-### src/Hollow.Client/Audio (4 files, 925 lines)
+### src/Hollow.Client/Audio (4 files, 924 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `AmbienceMix.cs` | 168 | AmbienceInput, AmbienceLevels, AmbienceMix | Where the listener is, for the ambience (GROUND.md §4.9). Distances in metres, angles in degrees. |
 | `Loudness.cs` | 238 | LoudnessResult, Loudness [KWeighting] | A sound's loudness (ITU-R BS.1770), as the sound pipeline measures it with ffmpeg's ebur128. |
 | `SoundCatalogData.cs` | 261 | SoundCategory, SoundLayer, SoundEventData, SoundCatalogData | How loud the files of one category are made (GROUND.md §4.9): a metric, a target and a range in LUFS. |
-| `SoundRules.cs` | 258 | DistanceLayers, FootSurface, FootGait, FootInput, FootEvent, Footsteps, FootstepCadence | Distance layering of loud sounds (GROUND.md §4.9): which layers play at a distance, and when they arrive. |
+| `SoundRules.cs` | 260 | DistanceLayers, FootSurface, FootGait, FootInput, FootEvent, Footsteps, FootstepCadence | Distance layering of loud sounds (GROUND.md §4.9): which layers play at a distance, and when they arrive. |
 
 ### src/Hollow.Client/Loading (5 files, 634 lines)
 
@@ -679,7 +680,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `UiIcons.cs` | 85 | UiIcon, UiIcons |  |
 | `WarmItem.cs` | 31 | WarmItem, WarmSpot | One thing the game can draw, for the renderer's warm-up (GROUND.md §4.3.1): the files it is made of, loaded on Godot's |
 
-### game/scripts/Fx (20 files, 5,411 lines)
+### game/scripts/Fx (20 files, 5,410 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -687,14 +688,14 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `FxBatch.cs` | 260 | FxBatch, FxOrient, FxBatches | One kind of particle for the whole world (GROUND.md §9.3): a GPUParticles3D in world space that never emits by |
 | `FxCatalog.cs` | 436 | FxDirection, FxLayerType, FxLayer, FxLoopDef, FxTracerDef, FxDef, FxCatalog [Flame] | Where a layer's particles fly (GROUND.md §9.3). |
 | `FxDecals.cs` | 172 | FxDecals [Entry, Pool] | Decals (GROUND.md §9.3): bullet holes, blood, scuffs and scorch marks projected onto what was hit. Each texture has |
-| `FxDirector.cs` | 917 | FxParams, FxSurface, FxDirector, FxSurfaces [Spot] | Optional details of an effect (GROUND.md §9.3). Every field may be left at its default. |
+| `FxDirector.cs` | 924 | FxParams, FxSurface, FxDirector, FxSurfaces [Spot] | Optional details of an effect (GROUND.md §9.3). Every field may be left at its default. |
 | `FxFlashes.cs` | 201 | FxFlashes [Entry] | Muzzle flashes (GROUND.md §9.3): a pool of small card meshes that sit on a gun's muzzle socket (+X along the barrel) |
 | `FxLights.cs` | 122 | FxLights [Entry] | Short lights for flashes and blasts (GROUND.md §9.3): a pool of shadowless omni lights that rise over an attack time |
 | `FxLoops.cs` | 108 | FxHandle, FxLoop, FxFlameMeshes | A running loop (a fire, a trail), as FxDirector.Start returns it. |
 | `FxRandom.cs` | 76 | FxRandom | A small, fast random source for effects (xorshift); seeded, so screenshots repeat. |
 | `FxShake.cs` | 61 | FxShakeEvent, FxShake | A camera shake that started somewhere (GROUND.md §9.3): what the camera hook and other listeners get. |
 | `FxStage.Ship.cs` | 421 | FxRocketLaunch, FxStage | How a battery launches its rocket (IRON_WAKE.md §6.4): the speed the gun gives it, how far out its motor lights, the |
-| `FxStage.cs` | 358 | FxStation, FxStage | A place in the effects viewer where effects play (GROUND.md §9.3): its props, where and which way an effect plays, |
+| `FxStage.cs` | 361 | FxStation, FxStage | A place in the effects viewer where effects play (GROUND.md §9.3): its props, where and which way an effect plays, |
 | `FxTracers.cs` | 178 | FxTracers [Tracer] | Tracers and trails (GROUND.md §9.3): bright streaks that fly the projectile's own path, with the same gravity and |
 | `FxViewer.Action.cs` | 363 | FxViewer | The in-action scenes (--action &lt;family&gt;): each family as it would be seen in play, caught at a telling |
 | `FxViewer.Gibs.cs` | 301 | FxViewer [GibCell] | Gibs in the effects viewer (GROUND.md §9.4). --gibs lays out every model that breaks (props, deployables, the |
@@ -724,14 +725,14 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GibWarm.cs` | 35 | GibWarm | The gibs' part of the renderer's warm-up (GROUND.md §4.3.1, §9.4): every gib file the catalogue names, read, and a |
 | `GibWorld.cs` | 798 | GibFloor, GibWorld [PieceState, Turn, Piece, BreakFloor, Batch] | Where the floor is under a point: a ray from  along  for |
 
-### game/scripts/Ground (44 files, 13,768 lines)
+### game/scripts/Ground (45 files, 13,900 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `ArrowsView.cs` | 81 | ArrowsView | Spent arrows stuck where they hit (GROUND_SYSTEMS.md §5): every one this client knows, placed each frame where its holder |
 | `BuildPanels.cs` | 232 | Keypad, RectSnapping | The code lock's keypad (GROUND.md §6.5), in the RustMVP interface's manner: a dark dialog in the middle of the |
 | `BuildView.cs` | 363 | BuildView, GodotVectors | Building in the ground game (GROUND.md §6.5, phase 2b): the replicated structures drawn by the building package's |
-| `ChildServer.cs` | 184 | ChildServer | A game hosted on this computer in a process of its own (GROUND.md §4.3): the dedicated server (Hollow.Server, built |
+| `ChildServer.cs` | 188 | ChildServer | A game hosted on this computer in a process of its own (GROUND.md §4.3): the dedicated server (Hollow.Server, built |
 | `ClientConsole.cs` | 606 | ViewSettings, ClientConsole | The view's settings the console sets (GROUND.md §8.2), kept on this computer: field of view, mouse sensitivity, the frame rate shown. |
 | `ClientDeveloper.cs` | 327 | ClientDeveloper | The F2 panel's model over the client (GROUND.md §8.5): the server's stats, sections and players as the client's dev |
 | `ClientGroundUi.Interaction.cs` | 229 | ClientGroundUi, InteractionRadial | The interact key in the view model (GROUND_SYSTEMS.md §5, GROUND.md §8.4): every frame the one targeting query says |
@@ -743,18 +744,18 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `FrameEvents.cs` | 29 | FrameEvents | What happened in this frame that may cost time (for --measure's report of the slowest frames). |
 | `GibsView.cs` | 53 | GibsView | Things breaking apart in the ground game (GROUND.md §9.4): whatever the damage pipeline's Destroyed event names |
 | `Glow.cs` | 52 | Glow | Light and glow in the planet's own units (GROUND.md §4.6): the sky meters the camera like an eye, a few thousand |
-| `GroundAudio.cs` | 403 | GroundAudio, Sounds | The ground game's sound (GROUND.md §4.9), through the audio package: one AudioDirector listening at |
+| `GroundAudio.cs` | 402 | GroundAudio, Sounds | The ground game's sound (GROUND.md §4.9), through the audio package: one AudioDirector listening at |
 | `GroundChecks.cs` | 20 | GroundChecks | Checks of the ground game that run inside the client process. |
 | `GroundCollision.cs` | 76 | GroundCollision | The ground near the player in Godot's own physics (layer 1), for what Godot simulates: ragdolls of the dead and |
 | `GroundMeasure.cs` | 182 | GroundMeasure [Probe] | Measures the ground game's frame time where it is played (GROUND.md §5, --measure &lt;s&gt;): once the world |
 | `GroundMode.Loading.cs` | 126 | GroundMode | The ground game's start (GROUND.md §4.3.1): one loading pipeline per game, in which the parts that make the game |
-| `GroundMode.cs` | 384 | GroundMode [MenuCamera] | The ground game (GROUND.md §4.3). With neither --host nor --connect it opens the main menu over the |
+| `GroundMode.cs` | 407 | GroundMode [MenuCamera] | The ground game (GROUND.md §4.3). With neither --host nor --connect it opens the main menu over the |
 | `GroundModels.cs` | 266 | IGroundModels, GroundModels, CatalogModels, PlaceholderModels | Where the ground game's world models come from (GROUND.md §9): deployables, bags of dropped items, outcrops and the |
 | `GroundOverlay.cs` | 226 | GroundOverlay [Crosshair] | What the ground game shows besides the RustMVP interface: other players' names over their heads (placed by |
 | `GroundTerrain.cs` | 132 | GroundTerrain [TileArrays] | Placeholder ground: the collision tiles of ISurface.GroundCollision drawn as plain meshes; only the build sandbox draws with it since S3c |
 | `GroundTour.cs` | 2466 | GroundTour | The scripted screenshot run of the ground game (GROUND.md §5, --tour &lt;folder&gt;): on the host, a walk |
-| `GroundView.cs` | 993 | GroundView | The ground game in first person (GROUND.md §4.3) on a whole world: the surface view draws the ball in the zone's own frame (docs/WHOLE_WORLD.md §10) |
-| `GroundWarmup.cs` | 41 | GroundWarmup | Everything the ground game can draw, for the renderer's warm-up (GROUND.md §4.3.1): each library's items, read from its |
+| `GroundView.cs` | 1014 | GroundView | The ground game in first person (GROUND.md §4.3) on a whole world: the surface view draws the ball in the zone's own frame (docs/WHOLE_WORLD.md §10) |
+| `GroundWarmup.cs` | 42 | GroundWarmup | Everything the ground game can draw, for the renderer's warm-up (GROUND.md §4.3.1): each library's items, read from its |
 | `GunEffects.cs` | 202 | GunEffects | Shots, hits and guns in hand through the effects library and the model catalogue (GROUND.md §6.4, §9.3): which |
 | `InventoryBody.cs` | 51 | InventoryBody | The player's own body on the inventory screen (GROUND.md §8): the character package's CharacterView |
 | `ItemIconAliases.cs` | 103 | ItemIconAliases | The ground game's item icons until the assets package renders them from our models (GROUND.md §8): items.json keys |
@@ -813,13 +814,14 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ShipView.cs` | 463 | ShipLook, ShipView [PartNode, Drive, Plume] | What a ship is doing this frame, as a ShipView draws it. |
 | `ShipWarm.cs` | 28 | ShipWarm | The ships' part of the renderer's warm-up (GROUND.md §4.3.1, §6.7): every ship of ships.json as |
 
-### game/scripts/Surface (15 files, 3,970 lines)
+### game/scripts/Surface (18 files, 4,501 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `AerialTable.cs` | 114 | AerialTable | The aerial-perspective table of the surface view (GROUND.md §4.6): the air's in-scattered light and transmittance by direction and distance (400 km on a real planet, 10 km on a whole small world) |
 | `AtmosphereModel.cs` | 449 | AtmosphereModel | The physically based air of a planet for drawing (GROUND.md §4.6): Rayleigh scattering from its molecules, Mie |
-| `GrassField.cs` | 560 | GrassField [FaceLattice, FieldData, FaceGrid] | The grass of the surface view (GROUND.md §4.6, docs/WHOLE_WORLD.md §10.3): tufts on cube-face cells (level 13 on a 2.41 km world) placed by the GPU from a lattice of the cells' corners on the drawn ground, one grid a face near a seam |
+| `GroundLayers.cs` | 120 | GroundLayers | The ground's sixteen 4K texture layers (WALKING_GROUND.md §8), read from their imported files into three texture arrays every ground material shares: colour, normals, roughness and height; the layers' sizes and normal flips |
+| `GrassField.cs` | 561 | GrassField [FaceLattice, FieldData, FaceGrid] | The grass of the surface view (GROUND.md §4.6, docs/WHOLE_WORLD.md §10.3): tufts on cube-face cells (level 13 on a 2.41 km world) placed by the GPU from a lattice of the cells' corners on the drawn ground, one grid a face near a seam |
 | `NoiseTextures.cs` | 211 | NoiseTextures | Tiling noise textures for the surface's shaders (presentation only): the cloud field, and the large-scale |
 | `PlanetGlobals.cs` | 96 | PlanetGlobals | The planet under everything drawn (docs/WHOLE_WORLD.md §10): its centre, radius and axes as shader globals (surface_planet.gdshaderinc) and for what moves along up (effects, gibs, tracers) |
 | `PlantSource.cs` | 37 | IPlantSource, SurfacePlants | Where the surface view's plants come from (docs/WHOLE_WORLD.md §10.3): tiles of ScatterItems; SurfacePlants, a surface's own scatter |
@@ -828,9 +830,9 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `SurfaceUi.cs` | 97 | SurfaceUi | The surface view's overlay: where you are, the local time, the sun and moon, and the frame time. |
 | `SurfaceView.Game.cs` | 47 | SurfaceView | The surface view driven by a game (GROUND.md §4.3): the game drives the camera and owns the keys; OpenZone opens a real planet in a tangent frame at a point (the main menu's backdrop) |
 | `SurfaceView.Loading.cs` | 62 | SurfaceView | The surface view's part of the loading pipeline (GROUND.md §4.3.1): what IsReady waits for, as two stages with their |
-| `SurfaceView.cs` | 618 | SurfaceView | The surface view (GROUND.md §4.6): a planet's ground, sea, plants, grass, air and sky; the look-dev view of a real planet (Open) and the ground game's whole world from any ISurface (OpenWorld, docs/WHOLE_WORLD.md §10) |
+| `SurfaceView.cs` | 614 | SurfaceView | The surface view (GROUND.md §4.6): a planet's ground, sea, plants, grass, air and sky; the look-dev view of a real planet (Open) and the ground game's whole world from any ISurface (OpenWorld, docs/WHOLE_WORLD.md §10) |
 | `TerrainLod.Loading.cs` | 28 | TerrainLod | What the loading pipeline reads of the terrain (GROUND.md §4.3.1). |
-| `TerrainLod.cs` | 668 | TerrainLod, TileMeshData [Node, Job] | Draws a planet's ground out to the horizon from any ISurface (GROUND.md §4.6): a quadtree of tiles on each cube face, the finest level by size, each tile with its face and texture coordinates in metres on it (UV2) |
+| `TerrainLod.cs` | 679 | TerrainLod, TileMeshData [Node, Job] | Draws a planet's ground out to the horizon from any ISurface (GROUND.md §4.6): a quadtree of tiles on each cube face, the finest level by size, each tile with its face and texture coordinates in metres on it (UV2) |
 | `Vegetation.Game.cs` | 151 | Vegetation | What the ground game changed about its plants (GROUND.md §6.1): felled trees, picked ferns and berry bushes; near sets rebuilt on a worker |
 | `Vegetation.Loading.cs` | 17 | Vegetation | What the loading pipeline reads of the plants (GROUND.md §4.3.1). |
 | `Vegetation.cs` | 848 | Vegetation [LodSet, Block, LodState, NearData, BlockingQueue] | Trees, bushes, berry bushes, ferns and rocks of the surface view (GROUND.md §4.6) from a plant source (IPlantSource), at its tiles' level, ranges from the horizon |
@@ -927,7 +929,7 @@ Tools: the bots and the load test, the message generator, the generator's report
 |---|---|---|---|
 | `Program.cs` | 948 | Program [Row] | Converts a star catalogue (CSV) into Hollow Universe's compact catalogue (GALAXY.md §8). |
 
-### tools/Hollow.GeneratorReport (6 files, 1,782 lines)
+### tools/Hollow.GeneratorReport (7 files, 3,070 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -937,7 +939,7 @@ Tools: the bots and the load test, the message generator, the generator's report
 | `Program.cs` | 481 | Program | Measurements of the generator that are too slow or too visual for the test suite: generation speed, and later |
 | `Shells.cs` | 170 | Shells | Real plus generated stars per level in shells around Sol, against what the density model expects |
 | `SurfaceReport.cs` | 564 | SurfaceReport | The first world's surface (GROUND.md §3, §4.6): maps, speed, the landing-site search and the times of day used for |
-| `WalkingReport.cs` | 1000 | WalkingReport [Spot] | The walking-scale ground (WALKING_GROUND.md §15): equal-area maps, globe views, close-ups with the scatter, slope maps, places for close-ups, the stand-in beside it, speed and numbers |
+| `WalkingReport.cs` | 1278 | WalkingReport [Shot, Spot] | The walking-scale ground (WALKING_GROUND.md §15): equal-area maps, globe views, close-ups with the scatter, slope maps, places for close-ups and for the game's ground-level shots, the ground's materials and plants at a point, the stand-in beside it, speed and numbers |
 
 ### tools/Hollow.MapExport (4 files, 1,404 lines)
 
