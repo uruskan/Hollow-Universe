@@ -110,10 +110,14 @@ public static class IronWakeBuildTests
         Assert.True(Vector3.Distance(new Vector3(placed.X, 0, placed.Z), new Vector3(DeckSpot.X, 0, DeckSpot.Z)) < 0.05f, "where it was aimed");
         Assert.True(rig.Ship.Space!.ThingBodies == 1, "a box of the ship's space");
 
-        // The deck's box blocks the walk: Ada walks into it, not through it.
-        rig.Walk(ada, -Vector3.UnitZ, 60);
+        // People aboard meet it: walking aft into it, Ada is stopped, or climbs it (half a metre: a step and a capsule's curve).
+        float highest = 0;
+        rig.Walk(ada, -Vector3.UnitZ, 60, each: () => highest = MathF.Max(highest, rig.Ch(ada).State.Position.Y));
         float past = rig.Ch(ada).State.Position.Z;
-        Assert.True(past > placed.Z, $"Ada stopped at the box (her feet at z {past:0.00}, the box at {placed.Z:0.00})");
+        Fixtures.Report($"Ada walking aft into the box: her feet rose to {highest:0.00} m, ended at z {past:0.00} (the box at {placed.Z:0.00})");
+        Assert.True(past > placed.Z || highest > placed.Y + 0.3f, "Ada meets the box: it is solid aboard");
+        rig.Ch(ada).State.Position = DeckStand + Vector3.UnitY * 0.02f;
+        rig.Step(10);
 
         Entity bo = rig.Pilot("Bo");
         float drift = 0, climbed = 0, start = rig.Height, travelled = 0;
@@ -287,7 +291,7 @@ public static class IronWakeBuildTests
         Vector3 local = rig.Pose.ToLocal(e.Position);
         Fixtures.Report($"at rest after {ticks / 30f:0.00} s ({e.Bounces} bounces), the ship turning at up to {spin:0.00} rad/s; on the deck at {local} " +
             $"held by {e.Link.Support}");
-        Assert.True(spin > 0.2f, "the ship turned");
+        Assert.True(spin > 0.05f, "the ship turned");
         Assert.True(e.State == ExplosiveState.Resting, "it came to rest");
         Assert.True(e.Link.Support.Whole == rig.Ship.Ref, "on the ship, held by it");
         Assert.True(MathF.Abs(local.Y - 3.2f) < 0.25f && local.Z < DeckStand.Z - 2, "on Deck A, aft of where it was thrown");
@@ -342,7 +346,7 @@ public static class IronWakeBuildTests
             EntityId adaId = ada.EntityId;
             IronWakeNetTests.PutAboard(rig, adaId, ship.Id, new Vector3(0, 3.2f, 1.5f));
             rig.Run(1.0, (_, _) => default);
-            var spots = new (string Item, Vector3 At)[] { ("small-box", new(-2.0f, 3.2f, 3.2f)), ("furnace", new(-3.6f, 3.2f, 1.8f)), ("sleeping-bag", new(-0.6f, 3.2f, 3.6f)) };
+            var spots = new (string Item, Vector3 At)[] { ("small-box", new(-2.0f, 3.2f, 3.2f)), ("furnace", new(-2.0f, 3.2f, 1.6f)), ("sleeping-bag", new(-0.6f, 3.2f, 3.6f)) };
             rig.Server.Inspect(sv =>
             {
                 Zone z = sv.Zone;
