@@ -885,7 +885,10 @@ chambers, loaders finishing by the tick on the same timeline, the predicted moun
 of the space) plays at once: the recoil, the flash, the report and a rocket tagged with the next number. The server's
 `TurretShot` of that number confirms it and plays nothing; one not confirmed 15 ticks after the server has had its input
 is taken back with its rocket, and the server's reason shows. Others play shots from `TurretShot` and draw the rockets from
-the projectile messages (deduplicated by battery and number).
+the projectile messages (deduplicated by battery and number). A seated character's place is the seat rule's: when a
+reconciliation finds the predicted and the server's states differing only in a seated character's place (a gunner's
+mount turns on the server against the ship as the server has it, which a client only estimates), nothing is corrected
+(`Predictor.Reconcile`).
 
 **Saves.** `ShipCodec` 3 adds each station: the chosen kind, the aim, the shots, each chamber, each loader (at work,
 waiting, reversed, seconds into its cycle then, what it carries) and the magazine; a loader's cycle goes on from the tick
@@ -923,11 +926,21 @@ magazine, Space leaves.
 places and levels, the sight's layout at every scale, the radial's tap telling (it tells a tap from a choice by how often
 the radial was read), the ripple and the alternation by hand, a gunner's prediction under loss.
 
-**Checks** (engine-free and over the loopback, `BatteryTests`): the aim held while the ship yaws; alternation and the loader
-against the table; EMPTY and DISABLED; LOADING, LIMIT, TRAVERSING and HULL BLOCKED (the dorsal battery laid forward and
-down across the bridge); a rocket striking a hut 75 m ahead with its burst, a rocket drawn back and an incendiary loaded
-and leaving a fire; a defense mount rippling three and changing its clip in the table's time; six predicted shots over
-120 ms each matched by number; a stored ship's magazine, loaded barrel and mid-cycle loader.
+**Checks** (engine-free and over the loopback, `BatteryTests`; measured on this PC):
+- the aim held while the pilot yaws the flying ship 24°: the barrels at most 0.19° off the asked direction (alignment 0.5°);
+- both siege barrels loaded from empty breeches in 3.33 s; a press each, barrel 0 then barrel 1; barrel 0's phases began at
+  exactly the table's ticks (0, 27, 39, 63, 75, 98, 114, 126), its round taken at 39 and loaded at 138 (4.6 s);
+- EMPTY with both loaders waiting at "fetch", DISABLED before it; LOADING (43 %), LIMIT astern, TRAVERSING on a 70° swing,
+  HULL BLOCKED with the dorsal battery laid 0° and −7.9° across the bridge;
+- a rocket from the forward battery struck a wooden hut's wall 78 m off within a centimetre of the laid point (200 → 63);
+  the incendiary chosen with a tap, barrel 1's rocket drawn back into the magazine, an incendiary loaded and its strike
+  leaving a fire;
+- a defense mount rippled three 8 ticks apart (0.25 s) in the table's order and was loaded again 76 ticks after the third
+  (2.52 s), its magazine three rockets the poorer;
+- over the loopback with 120 ms of latency six presses: six shots on the server, six predicted, six confirmed by number,
+  none taken back, none unpredicted;
+- a stored ship (1,080 bytes) kept its 15 HV rockets, the chosen kind, barrel 1 loaded and barrel 0's loader 1.53 s in;
+  added back, that barrel loaded 3.07 s on, as was left.
 
 ## 7. The incendiary rocket and fire
 

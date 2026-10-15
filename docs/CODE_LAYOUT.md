@@ -166,6 +166,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 |---|---|---|---|
 | `Damage.cs` | 183 | DamageDelivery, DestroyCause, TargetFamilies, TargetFamilySets, DamageAmounts, DamageRequest, DamageOutcome | The damage pipeline's common types (GROUND.md §6.4.2, after RustMVP's damage plan, docs/damage_architecture.md): a |
 | `Firearms.cs` | 551 | RecoilState, RecoilSample, Recoil, GunMods, GunState, GunActionKind, GunAction, ShotContext, Shot, FirearmRules, Ballistics | The recoil of the gun in hand (RustMVP weapon_rules.hpp RecoilState): the target the view is kicked to, where |
+| `Rockets.cs` | 46 | RocketMotor, RocketFlight | A battery's rocket motor (IRON_WAKE.md §6.4) and the one step the server flies it and clients draw it with. |
 | `Geometry.cs` | 198 | Geometry | Ray tests for hits (melee sweeps, arrows, later bullets): against spheres, capsules and oriented boxes, all in the |
 | `Hitboxes.cs` | 405 | Pose, HitPose, HitShape, Hitboxes, HitboxHistory [Track, ShipTrack] | How a body lies, for its hit shapes. |
 
@@ -176,6 +177,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `Animals.cs` | 257 | Temperament, AttackKind, AttackStats, AnimalSpecies, AnimalSenses, AnimalSpawning, HarvestRates | How an animal meets a threat (GROUND.md §6.9). |
 | `CapabilityData.cs` | 144 | CapabilityData | capabilities.json (GROUND_SYSTEMS.md §2.1): the kinds of behaviour a world thing may have, in their append-only order |
 | `Explosives.cs` | 209 | BlastStats, ThrowableStats, FireDef, FireRules, RaidAlertSettings | One explosion (explosives.json blasts, GROUND.md §6.6): how far it reaches, how it falls off, what it does to |
+| `Batteries.cs` | 377 | BatteryFire, LoaderPer, LoaderEase, RecoilCurve, LaunchProfile, BatteryLaunch, BatteryMount, LoaderMotion, LoaderPhase, LoaderHolder, BatteryLoader, BatteryDef | The crewed batteries' kinds (batteries.json, IRON_WAKE.md §6): launch profiles, mount, recoil, loader phases and holders. |
 | `GameContent.cs` | 448 | ContentException, GameContent [Loaded] | The content files have problems; the message lists every one. |
 | `Gather.cs` | 137 | GatherRate, SpotRule, LastHitRule, GatherCue, MarkerLook, FallLook, ShakeLook, GatherLook, GatherRules | Which of a tool's gather rates a class of natural objects takes (items.json tree, ore). |
 | `Interactions.cs` | 113 | VerbSwitch, VerbDef, InteractionData | Which way a verb turns a device's switch: the loot panel's on/off button finds its verb by this. |
@@ -199,6 +201,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `CrossChecks.cs` | 97 | CrossChecks | The checks across the files, last (GROUND.md §7): every recipe can be made from what can be gathered. Starting from |
 | `DeployablesReader.cs` | 168 | DeployablesReader | deployables.json: everything placed from the inventory (bags, beds, fires, furnaces, boxes, workbenches, the |
 | `ExplosivesReader.cs` | 279 | ExplosivesReader | Reads explosives.json (G5) and links rounds' blasts (weapons.json) to it; checks both against building.json's grades. |
+| `BatteriesReader.cs` | 365 | BatteriesReader | Reads batteries.json (IW3) and checks it: profiles for every rocket, the phases against the mount, named phases. |
 | `GatherReader.cs` | 368 | GatherReader | gather.json: the natural kinds (trees, outcrops, pickups, bushes, boulders) with their health, yields, stages, |
 | `IContentReader.cs` | 89 | IContentReader, ContentReading, ContentChecking | One data file's reader (GROUND_SYSTEMS.md §12.6, decision K12): every file in GameContent.Files and the |
 | `InteractionsReader.cs` | 103 | InteractionsReader | Reads interactions.json (GROUND_SYSTEMS.md §5) once survival.json's reaches are known (a verb names one of them). |
@@ -252,6 +255,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `Notice.cs` | 18 | Notice | To a player: a line to read (a built ship waiting for room, G6). (GROUND_SYSTEMS.md §12.3) |
 | `ProjectileEnded.cs` | 26 | ProjectileEnded | To everyone near: a projectile stopped. (GROUND_SYSTEMS.md §12.3) |
 | `ProjectileLaunched.cs` | 25 | ProjectileLaunched | To everyone near: a projectile was loosed (an arrow, or a bullet with its shot's sequence number). (GROUND_SYSTEMS.md §12.3) |
+| `TurretFired.cs` | 17 | TurretFired | A crewed battery fired (IW3): ship, station, barrel, the shot's number, tick, round, gunner. |
 | `WentDown.cs` | 20 | WentDown | To a player: they were knocked down, wounded. (GROUND_SYSTEMS.md §12.3) |
 
 ### src/Hollow.Simulation/Interaction (1 files, 242 lines)
@@ -352,6 +356,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `ShipLayout.cs` | 276 | SeatRole, SeatSitters, SeatWorks, DoorOpens, DoorEase, ShipPartHealth, ShipSeatDef, ShipDoorDef, ShipTargetPart, NozzleDrive, ShipNozzle, LightPower, ShipLight | What a seat's occupant does (ships.json seats' role, IRON_WAKE.md §5.2). |
 | `ShipMotor.cs` | 793 | ShipContext, ShipMotor [SkidLoad] | What a ship's step needs to know about where it happens. |
 | `ShipQueries.cs` | 155 | ShipQueryHit, ShipQueries | What a query of the zone's frame met in a ship's space: the ship's frame, the hit there, and how far along the query it is. |
+| `ShipStations.cs` | 605 | StationBarrel, ShipStationDef, StationInput, LoaderState, StationState, StationRules, LoaderPoses [NodePose, HolderView] | A ship's stations (IRON_WAKE.md §6): defs, state, loader records, the mount and fire rules both sides run, the mechanism's poses. |
 | `ShipState.cs` | 178 | ShipFlags, ShipButtons, ShipInput, ShipState, ShipEvents | What a ship is doing, besides its motion. Some are found by the last step (outputs), some set by the zone. |
 
 ### src/Hollow.Simulation/Systems (31 files, 10,679 lines)
@@ -380,6 +385,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `ShipSystem.Parts.cs` | 330 | ShipSystem [ShipReceiver] | A ship's crew, lock and parts (IRON_WAKE.md §5.2, §5.5): its list of authorised players (the tool cupboard's verbs at its |
 | `ShipSystem.Seats.cs` | 500 | SeatRelease, ShipSystem, ShipSeats | Why a seat's occupant leaves it (IRON_WAKE.md §5.2): every way out goes through ShipSystem.Release. |
 | `ShipSystem.Spaces.cs` | 194 | ShipSystem | Ships people walk in (IRON_WAKE.md §4): who is aboard, a parked ship's body in the zone, and the one entry point that |
+| `ShipSystem.Stations.cs` | 468 | ShipSystem | Crewed batteries each tick (IW3): the gunner's controls, the mount, the loaders, the trigger and its refusals, the magazine. |
 | `ShipSystem.cs` | 656 | ShipEventKind, ShipDamage, ShipEvent, ShipSystem, ShipSystemAccess | What happened to a ship that players should hear about (G6). |
 | `SpillSystem.cs` | 235 | SpillSystem, SpillSystemAccess | Loose items on the ground (GROUND.md §6.1). Everything that lands there goes through Spill: a stack dropped from an |
 | `SupportSystem.cs` | 117 | SupportSystem, SupportSystemAccess | Support links (GROUND_SYSTEMS.md §3.6): what rests on or is stuck in what. A dependent keeps its own SupportLink (its |
@@ -444,6 +450,7 @@ The protocol: messages and their generated serializers, bit packing, snapshot de
 | `NetStates.cs` | 16 | CharacterNetState, ShipNetState | The entity states snapshots carry, as the replication's generic sections see them (their serializers are generated). |
 | `Protocol.cs` | 152 | Protocol, GoodbyeReason, EntityKind, ShipNetFlags, ShipAction, ConsoleReplyKind, ChatKind, TeammateState | Constants of the ground game's protocol (GROUND.md §4.4). |
 | `ShipConvert.cs` | 235 | ShipConvert | Between ships' simulation values and their wire form (G6). A pilot's client predicts with |
+| `StationConvert.cs` | 126 | StationConvert | Between the batteries' values and their wire form (IW3): a gunner's controls, the stations' records. |
 
 ### src/Hollow.Net/Replication (4 files, 691 lines)
 
@@ -597,6 +604,7 @@ The client without graphics: the host and its modules, prediction, the local pla
 | `PlacementModule.cs` | 188 | PlacementModule, PlacementModuleAccess [ClientSurroundings] | Placing on the client (GROUND_SYSTEMS.md §6): the placement world over what this client has (its prediction physics |
 | `RaidModule.cs` | 117 | RaidModule, RaidModuleAccess | Raiding in the client (GROUND.md §6.6, G5): the explosives in range as the server has them (drawn on their arcs, with |
 | `ShipModule.cs` | 511 | ShipModule, ShipModuleAccess | Ships in the client (GROUND.md §6.7): every ship near, interpolated, with its details (doors, seats, health; IRON_WAKE.md |
+| `StationModule.cs` | 535 | StationShotView, StationModule, StationModuleAccess [Pending] | The batteries in the client (IW3): records, others' shots, the gunner's predicted mount and shots matched by number. |
 | `SurvivalModule.cs` | 303 | SurvivalModule, SurvivalModuleAccess | The survival game in the client (GROUND.md §4.3, §6): the local player's state and intents (LocalPlayer), static |
 | `TargetModule.cs` | 887 | TargetModule, TargetModuleAccess [GroundView, CharacterView, AnimalView, NaturalView, ThingView, PieceView, DoorView, CupboardView, ExplosiveView, ShipView, ArrowView, FireView] | The world's things as this client knows them, named the server's way (GROUND_SYSTEMS.md §3.1, §5): one view per target |
 | `WorldModule.cs` | 101 | WorldModule, WorldModuleAccess | The world in the client (GROUND.md §6.8, G7): the world's props in range (barrels, crates, recyclers: things of kind |
@@ -814,10 +822,13 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ShipCamera.cs` | 89 | ShipCameraMode, ShipCamera | First person, from the pilot's eye in the cockpit, looking along the nose. |
 | `ShipControls.cs` | 104 | ShipControls | The pilot's keyboard and mouse (G6, GROUND.md §6.7), read into a tick of ShipInput. The mouse is a |
 | `ShipHud.cs` | 343 | ShipHudData, ShipHud | What the flight HUD shows this frame (the host fills it from the zone or the client's prediction). |
+| `StationAmmoRadial.cs` | 94 | StationAmmoRadial | A gunner's rockets (IW3), R held at a station: the kinds and counts; a tap cycles. |
+| `StationSight.cs` | 243 | SightBarrel, SightKind, StationSightData, StationSight | The gunner's sight (IW3, IRON_WAKE.md §6.8) in the ground interface's style. |
 | `ShipSandbox.Aboard.cs` | 609 | ShipSandbox [Walk] | The ship sandbox for a ship people walk in (IRON_WAKE.md §4, IW1): `--view ship --ship iron-wake`. The ship parked in a |
 | `ShipSandbox.Tour.cs` | 215 | ShipSandbox [Leg] | --tour: the sandbox played by a script through the same keys a player presses (Input.ParseInputEvent), to check the |
 | `ShipSandbox.cs` | 899 | ShipSandbox [Site] | The ship sandbox (--view ship, GROUND.md §6.7): the Tin Finch on the first world's ground (the stand-in world |
 | `ShipView.cs` | 461 | ShipLook, ShipView [PartNode, Drive, Plume] | What a ship is doing this frame, as a ShipView draws it. |
+| `StationsView.cs` | 337 | StationsView [LoaderSeen, SlotModel, StationSeen, ShipSeen] | The batteries drawn and heard (IW3): mounts, recoil, loader pieces by the table, rockets in slots, phases' sounds, shots. |
 | `ShipWarm.cs` | 28 | ShipWarm | The ships' part of the renderer's warm-up (GROUND.md §4.3.1, §6.7): every ship of ships.json as |
 
 ### game/scripts/Surface (18 files, 4,501 lines)
@@ -1018,6 +1029,7 @@ The tests, one file per area (the runner needs no packages).
 | `ShipGameTests.cs` | 244 | ShipGameTests | Ships in the survival game (GROUND.md §6.7): built at the vehicle workbench, boarded, flown, left, locked, hurt. |
 | `ShipNetTests.cs` | 174 | ShipNetTests | A pilot's controls over a flight: lift off, climb, turn, cruise, boost, flight assist off and on, strafe, roll, |
 | `ShipPartsTests.cs` | 384 | ShipPartsTests | IW2 (IRON_WAKE.md §5): the Iron Wake's seats, parts, doors, its helm's list and its parts' health, engine-free and over |
+| `BatteryTests.cs` | 590 | BatteryTests | IW3 (IRON_WAKE.md §6): the aim held in the world, alternation and the loader's table, every refusal, a strike, a ripple, prediction, a restart. |
 | `ShipPersistenceTests.cs` | 102 | ShipPersistenceTests | Ships in storage (GROUND.md §4.7, §6.7). |
 | `ShipTestParts.cs` | 25 | ShipTestParts | A ship kind's parts and seats by what the tests call them (ships.json's data, IRON_WAKE.md §5.1). |
 | `ShipTests.cs` | 293 | SlopeSurface, ShipRig, PipeExtensions, ShipTests | A test ground tilted about the north–south line through the landing site: it rises toward the east by |

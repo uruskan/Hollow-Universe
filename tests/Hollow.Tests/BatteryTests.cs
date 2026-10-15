@@ -381,7 +381,7 @@ public static class BatteryTests
     }
 
     /// <summary>
-    /// IRON_WAKE.md §6.3, §7: from the parked Iron Wake's forward battery a rocket strikes a wooden hut 75 m ahead with its
+    /// IRON_WAKE.md §6.3, §7: from the parked Iron Wake's forward battery a rocket strikes a wooden hut some 75 m ahead with its
     /// burst (the wall it meets loses health, the blast is the rocket's own); then the gunner chooses incendiary rockets,
     /// the other barrel's rocket is drawn back into the magazine by the mechanism in reverse, and the incendiary that loads
     /// leaves a fire where it strikes.
