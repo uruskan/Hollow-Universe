@@ -14,8 +14,11 @@ namespace HollowUniverse.Fx;
 /// caught <c>--at &lt;s&gt;</c> after it starts (its catalogue <c>hero</c> moment by default). Other modes:
 /// <c>--sheet &lt;family&gt;</c> (every effect of a family at its hero moment, one cell each), <c>--action
 /// &lt;family&gt;</c> (a scene of the family in use) and <c>--stress firefight --measure &lt;s&gt;</c> (ten players
-/// fighting: frame time with and without the effects). <c>--night</c> lights it by the moon. Keys: ← → effect, ↑ ↓
-/// family, Space replay, P pause, N night, R reload fx.json.
+/// fighting: frame time with and without the effects; <c>--stress battery</c>: the Iron Wake's guns in a fight).
+/// <c>--night</c> lights it by the moon; <c>--scale &lt;f&gt;</c> plays every effect that much bigger (a fire's radius
+/// over its default); <c>--gunner</c> watches a battery's effects from its gunner's seat. The Iron Wake's effects play
+/// on stand-ins of its batteries, hull and lift engines at their real size, as its views will play them
+/// (FxStage.Ship.cs). Keys: ← → effect, ↑ ↓ family, Space replay, P pause, N night, R reload fx.json.
 /// </summary>
 public partial class FxViewer : Node3D
 {
@@ -197,12 +200,19 @@ public partial class FxViewer : Node3D
 
     private void StartTurntable()
     {
-        // The stations stand round a wide ring, each facing the middle.
+        // The stations stand round a wide ring, each facing the middle; the Iron Wake's, whose effects reach tens of
+        // metres, round a ring of their own further out.
         for (int i = 0; i < StationKinds.Length; i++)
         {
             float a = MathF.Tau * i / StationKinds.Length;
             var at = new Vector3(MathF.Sin(a) * 26f, 0, MathF.Cos(a) * 26f);
             _stations[StationKinds[i]] = FxStage.Build(this, StationKinds[i], at, a + MathF.PI);
+        }
+        for (int i = 0; i < FxStage.ShipKinds.Length; i++)
+        {
+            float a = MathF.Tau * (i + 0.5f) / FxStage.ShipKinds.Length;
+            var at = new Vector3(MathF.Sin(a) * 110f, 0, MathF.Cos(a) * 110f);
+            _stations[FxStage.ShipKinds[i]] = FxStage.Build(this, FxStage.ShipKinds[i], at, a + MathF.PI);
         }
         _effects = FxCatalog.All.ToList();
         if (Options.TryGetValue("fx", out string? key))
@@ -251,6 +261,11 @@ public partial class FxViewer : Node3D
     /// muzzle, loops on their prop, tracers flying past, the world's effects over the wall.</summary>
     private FxHandle PlayAt(FxDef def, FxStation st, FxRandom random, ulong seed = 0, bool scatter = true)
     {
+        if (st.Play != null)
+        {
+            // The station plays it as its own view will (the Iron Wake's batteries, FxStage.Ship.cs).
+            return st.Play(def, new FxParams { Seed = seed, Scale = ViewScale }, scatter ? random : new FxRandom(7), At);
+        }
         if (def.IsTracer)
         {
             float speed = def.Key == "trail.arrow" ? 55f : 300f;
@@ -269,9 +284,9 @@ public partial class FxViewer : Node3D
                 return default;
             }
             Node3D? follow = st.Follow;
-            return FxDirector.Start(def.Key, st.Spot, Vector3.Up, new FxParams { Follow = follow, Seed = seed });
+            return FxDirector.Start(def.Key, st.Spot, Vector3.Up, new FxParams { Follow = follow, Seed = seed, Scale = ViewScale });
         }
-        var p = new FxParams { Seed = seed, Direction = st.Direction };
+        var p = new FxParams { Seed = seed, Direction = st.Direction, Scale = ViewScale };
         Vector3 at = st.Spot, normal = st.Normal;
         switch (def.Family)
         {
@@ -399,6 +414,13 @@ public partial class FxViewer : Node3D
         {
             _orbit += delta * 14.0;
         }
+        if (Options.ContainsKey("gunner") && st.Sockets.TryGetValue("eye", out Node3D? eye) && st.Follow != null)
+        {
+            // The gunner's seat (--gunner): the battery's own view of its shot.
+            _camera.GlobalPosition = eye.GlobalPosition;
+            _camera.LookAt(st.Follow.GlobalPosition + st.Follow.GlobalBasis.X * 40f, Vector3.Up);
+            return;
+        }
         float yaw = st.FullTurn ? (float)_orbit : 35f * MathF.Sin((float)_orbit * 0.05f);
         Aim(_camera, st, yaw, st.Pitch, st.Distance * Zoom(def));
     }
@@ -475,4 +497,7 @@ public partial class FxViewer : Node3D
     }
 
     private void At(double seconds, Action act) => _schedule.Add((_clock + seconds, act));
+
+    /// <summary>The effects' size (<c>--scale &lt;f&gt;</c>, FxParams.Scale: a fire's radius over its default); 0 is 1.</summary>
+    private float ViewScale => Options.TryGetValue("scale", out string? s) ? float.Parse(s, CultureInfo.InvariantCulture) : 0f;
 }

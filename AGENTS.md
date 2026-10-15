@@ -119,6 +119,9 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|reli
                                                  # the first world's surface: maps, speed, landing site, look-dev
                                                  # spots (forest|meadow|beach|mountain), sun and moon by the hour
 blender -b --factory-startup --python art/build.py   # every item and world model → game/assets/items, world (GROUND.md §9.1)
+blender -b --factory-startup --python art/build.py -- iron_wake   # the Iron Wake → game/assets/ships, its materials, and
+                                                 # game/data/ground/ships/iron-wake.json (IRON_WAKE.md §9.1; 5 min; from
+                                                 # D:\GameDev\Assets\IronWake_Buildable_R01; art/import/iron_wake.py -- data: the data file alone)
 dotnet run --project tests/Hollow.Tests -- Building   # the building rules, over the network and saved (GROUND.md §6.3, §6.5)
 dotnet run --project tests/Hollow.Tests -- Ship   # G6: the Tin Finch's flight, boarding, building, prediction, storage (GROUND.md §6.7)
 dotnet run -c Release --project tools/Hollow.Bots -- loadtest --count 20 --duration 40 --warmup 15 --script fly   # G6: bots that board their ships and fly loops
@@ -356,7 +359,8 @@ Client options (after `--`):
   `--pitch <deg>`); `--model <key>` shows one on a turntable (`--stage <n>`, `--lod <n>`, `--yaw <deg>` holds it at an
   angle, `--zoom <f>` moves the camera, `--anim <clip>` plays a clip such as the Tin Finch's `Hatch_Open`, `--attach a,b`
   mounts attachments on a gun, `--upright` shows a held item as held, `--first-person` shows a held item at its
-  first-person pose; keys Tab, ←/→, ↑/↓, 0/1/2, A, Space, F, H).
+  first-person pose, `--from=x,y,z --at=x,y,z` puts the camera in the model's frame and holds the turntable, `--fov
+  <deg>`; keys Tab, ←/→, ↑/↓, 0–4, A, Space, F, H).
   `--survey-surfaces res://data/ground/surfaces.json` measures the outcrops' stage models for the weak spot (GROUND.md
   §6.1; run it whenever those models change) and quits.
   `--view icons --out <dir>` renders every item icon at 128 and 256 px (`--only a,b` for some) and then shows the
@@ -399,7 +403,7 @@ Client options (after `--`):
 | `game/data/ground` | The ground game's data (GROUND.md §7): items, recipes, natural objects, deployables, loot, survival constants, crafting tabs, weapons, building, explosives and raid alerts, the world's economy and progression (`world.json`, G7) (JSON, read by server and client); `sounds.json`, the sound catalogue (client only, §4.9); `loading.json`, the loading screen's stages, weights, tips and picture (client only, §4.3.1) |
 | `game/scripts/Audio` | The sound (GROUND.md §4.9): `AudioDirector` (pooled voices, limits, priorities, distance layers, occlusion), `AudioBuses`, `FootstepDriver`, `AmbienceDirector`, `SoundLibrary`, `SoundMeter`, the viewer (`--view sounds`) |
 | `game/assets/audio` | The sound files (Ogg Vorbis, 48 kHz; interface clicks WAV) and `levels.json`, their measurements; built by `art/audio` |
-| `art/audio` | The sound pipeline (GROUND.md §9.2): sources and their checksums, recipes (`events.py`), the build, our 7z reader, sounds made in code, `inspect.py` (waveform and spectrogram pictures) |
+| `art/audio` | The sound pipeline (GROUND.md §9.2): sources and their checksums, recipes (`events.py`), the build, our 7z reader, sounds made in code (`synth.py`, `animal_voices.py`, and `machines.py`: the Iron Wake's machinery, IRON_WAKE.md §10.1), `inspect.py` (waveform and spectrogram pictures) |
 | `game/scripts/Surface` | The surface view: terrain LOD, water, sky and air, lights, clouds, plants (`Vegetation`), shader grass (`GrassField`), look-dev camera, time controls |
 | `game/scripts/Surface/Flora` | Plants made in code after hollow-orbit's flora: painted atlas and bark (`FloraTextures`, `Painter`), geometry (`FloraGeometry`), species and variants (`FloraLibrary`), impostors baked at start (`ImpostorBaker`) |
 | `game/assets/surface/ground` | The eight ground texture layers (Megascans and Poly Haven, `game/assets/THIRD_PARTY.md`), built by `tools/blender/surface_ground.py` |
@@ -409,6 +413,7 @@ Client options (after `--`):
 | `game/scripts/Gibs` | Gibs (GROUND.md §9.4): `GibDirector` (the API: `Break` what the Destroyed event names), `GibWorld` (every piece: integrator, floors, batched drawing), `GibLibrary` (the sets by key and grade), `GibCatalog` (`data/ground/gibs.json`); the hookup is `Ground/GibsView.cs` |
 | `game/assets/gibs`, `art/gibs` | The pieces things break into (one GLB per model or kit, parts by key), built by `art/gibs/build.py` from the models themselves |
 | `game/assets/items`, `game/assets/world` | Item and world models (GLB with LODs, hulls and sockets) and the item icons (`items/icons/128`, `items/icons/256`), built by `art/` |
+| `game/assets/ships`, `game/data/ground/ships` | The Iron Wake's model and its data file (rooms, boarding, build zones, stations, hull boxes, lights; true sides), both written by `art/import/iron_wake.py` (IRON_WAKE.md §9.1) |
 | `game/assets/materials`, `game/assets/textures` | The shared Godot materials the models' `.import` files map to, and their textures (2K at most) |
 | `tests/Hollow.Tests` | Test runner (no NuGet packages needed) |
 | `tools/Hollow.CatalogBuilder` | Converts the HYG star catalogue (or AT-HYG) plus a hand-entered supplement (`supplement.csv`) into `game/data/catalog/hyg41.bin.gz` |

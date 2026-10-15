@@ -223,6 +223,8 @@
       "icon": { "view": [-38, 28, 0] }, "source": "Hollow (art/models/raid.py), G5" },
     { "key": "rocket-hv", "kind": "item", "class": "ammo", "file": "res://assets/items/rocket-hv.glb", "lods": 3, "collision": "convex",
       "icon": { "view": [-38, 28, 0] }, "source": "Hollow (art/models/raid.py), G5" },
+    { "key": "rocket-incendiary", "kind": "item", "class": "ammo", "file": "res://assets/items/rocket-incendiary.glb", "lods": 3, "collision": "convex",
+      "icon": { "view": [-38, 28, 0] }, "source": "Hollow (art/models/raid.py), IW-A: the Iron Wake's incendiary rocket (IRON_WAKE.md §6.3); its item and recipe come with the battery rules" },
     { "key": "key-lock", "kind": "item", "class": "lock", "file": "res://assets/items/key-lock.glb", "lods": 3, "collision": "convex",
       "icon": { "view": [32, 12, 0] },
       "held": { "firstPerson": { "position": [0.15, -0.196, -0.4], "rotation": [0, 0, 0] }, "thirdPerson": { "position": [0, 0, 0], "rotation": [0, 0, 0] } },
@@ -403,6 +405,9 @@
       "gibs": { "file": "res://assets/gibs/doors-garage.glb", "material": "metal", "budget": 800 }, "source": "PSG Door & Window Kit R01 (art/import): the garage door; its parts are building.json's doors drawn from it" },
 
     { "key": "tin-finch", "kind": "world", "class": "vehicle", "file": "res://assets/world/tin-finch.glb", "lods": 3, "collision": "convex",
-      "icon": { "view": [38, 22, 0] }, "lodDistances": [60, 160, 0], "source": "Tin Finch TF-01 (our own, converted)" }
+      "icon": { "view": [38, 22, 0] }, "lodDistances": [60, 160, 0], "source": "Tin Finch TF-01 (our own, converted)" },
+    { "key": "iron-wake", "kind": "world", "class": "vehicle", "file": "res://assets/ships/iron-wake.glb", "lods": 5, "collision": "convex",
+      "icon": { "view": [38, 22, 0] }, "lodDistances": [70, 180, 450, 1200, 4000],
+      "source": "Iron Wake Buildable Shell R01 (the owner's own Iron Wake, converted by art/import/iron_wake.py; Poly Haven CC0 materials)" }
   ]
 }

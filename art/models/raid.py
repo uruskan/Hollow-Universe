@@ -1,4 +1,5 @@
-"""G5 raid items: bag charge, tin grenade, rocket launcher, rockets (GROUND.md §9.1). Our own designs.
+"""G5 raid items: bag charge, tin grenade, rocket launcher, rockets (GROUND.md §9.1), and the incendiary rocket the
+Iron Wake's batteries fire (IRON_WAKE.md §6.3). Our own designs.
 
 Held items follow the character package's frame: authored pointing +Y with the right palm at the origin (the launcher)
 or with a palm socket at their middle (the thrown charges, like the timed charge), exported pointing +X. Rockets are
@@ -24,6 +25,7 @@ KHAKI = (0.78, 0.7, 0.52)
 TAPE = (0.36, 0.37, 0.38)
 YELLOW = (0.95, 0.74, 0.12)
 BLUE = (0.16, 0.34, 0.78)
+RED = (0.78, 0.12, 0.07)
 
 
 def ring(m, radius, width, at, rot=(0, 0, 0), depth=0.003, **kw):
@@ -323,10 +325,66 @@ def rocket(key, seed, hv=False):
     m.export(floor=True)
 
 
+def incendiary_rocket(key="rocket-incendiary", seed=141):
+    """The incendiary rocket (IRON_WAKE.md §6.3): the standard rocket's motor, nozzle and folding fins, and in place of
+    its ogive a blunt steel canister of incendiary filling under a frangible nose cap, a thin pressed shell scored in
+    four so it splits on impact; a red band where the others carry theirs, a filler plug on the canister's side."""
+    m = Model(key, seed=seed)
+    rm, rw = 0.032, 0.045
+    fin_r = rm + 0.038
+    z = max(rw, fin_r * 0.7071) + 0.001
+    rot = (-90, 0, 0)
+    tail, joint, cap, nose = -0.3, 0.1, 0.262, 0.304
+    # Nozzle and motor, as the standard rocket's.
+    m.lathe([(0.0, tail - 0.005), (rm * 0.55, tail - 0.005), (rm * 0.8, tail), (rm * 0.75, tail + 0.03), (rm, tail + 0.045),
+             (rm, joint - 0.012), (rm * 1.05, joint - 0.008), (rm * 1.05, joint), (0.0, joint)], (0, 0, z), rot, sides=24,
+            tile=TEAL, tint=(0.5, 0.53, 0.47), metres=0.4, vary=0.05, sharp=40)
+    m.lathe([(0.0, tail - 0.004), (rm * 0.5, tail - 0.004), (rm * 0.5, tail + 0.02), (0.0, tail + 0.02)], (0, 0, z), rot, sides=16,
+            tile=GUNMETAL, tint=(0.1, 0.09, 0.08), metres=0.1)
+    # The canister: a short shoulder up from the motor, straight walls, a rolled crimp where the cap is seated.
+    can = [(0.0, joint), (rm * 1.06, joint), (rw * 0.9, joint + 0.012), (rw, joint + 0.024), (rw, cap - 0.016),
+           (rw * 0.965, cap - 0.012), (rw * 0.965, cap - 0.006), (rw * 1.012, cap - 0.003), (rw * 1.012, cap), (0.0, cap)]
+    m.lathe(can, (0, 0, z), rot, sides=28, tile=TEAL, tint=(0.44, 0.45, 0.42), metres=0.3, vary=0.05, sharp=30)
+    length = 0.3 - joint
+    ring(m, rw * 0.98, 0.016, (0, joint + length * 0.2, z), rot, depth=0.0012, sides=28, tile=IVORY, tint=RED, metres=0.05)
+    ring(m, rw * 0.98, 0.006, (0, joint + length * 0.2 + 0.016, z), rot, depth=0.0012, sides=28, tile=IVORY, tint=RED,
+         metres=0.05)
+    # The frangible cap: a blunt pressed dome, pale, with a crush disc on its nose.
+    dome = [(rw * 1.0, cap), (rw * 0.99, cap + 0.008), (rw * 0.93, cap + 0.02), (rw * 0.78, cap + 0.031),
+            (rw * 0.52, cap + 0.039), (rw * 0.26, nose - 0.001), (0.0, nose)]
+    m.lathe([(0.0, cap - 0.002), (rw * 1.0, cap - 0.002)] + dome, (0, 0, z), rot, sides=28, tile=IVORY,
+            tint=(0.8, 0.78, 0.72), metres=0.08, vary=0.04, sharp=60)
+    m.cylinder(0.011, 0.0022, (0, nose - 0.0004, z), (-90, 0, 0), sides=16, bevel=0.0006, tile=GUNMETAL,
+               tint=(0.45, 0.44, 0.42), metres=0.03)
+    # Its four score lines, pressed in from the crimp to the crush disc.
+    for k in range(4):
+        a = math.radians(45 + 90 * k)
+        line = []
+        for r_, y_ in dome[:-1]:
+            rr = r_ + 0.0004
+            line.append((rr * math.cos(a), y_, z + rr * math.sin(a)))
+        m.tube(line, 0.0008, sides=4, tile=GUNMETAL, tint=(0.25, 0.24, 0.22), metres=0.03)
+    # The filler plug on the canister's side, a hex head.
+    m.cylinder(0.0065, 0.004, (rw + 0.0015, joint + length * 0.55, z), (0, 90, 0), sides=6, bevel=0.0006, tile=STEEL,
+               tint=(0.7, 0.68, 0.62), metres=0.03)
+    # Four folding fins at 45 degrees, so it rests on two of them (as the standard rocket's).
+    root = 0.075
+    fin = [(0.0, 0.0), (root, 0.0), (root * 0.8, fin_r - rm), (-0.012, fin_r - rm)]
+    for k in range(4):
+        a = 45 + 90 * k
+        f = m.extrude([(y, r) for y, r in fin], 0.0032, bevel=0.0007, tile=STEEL, tint=(0.78, 0.8, 0.76), metres=0.1, uv="box")
+        f.data.transform(Matrix.Rotation(math.radians(90), 4, "Z"))
+        f.data.transform(Matrix.Translation((0, tail + 0.016, rm - 0.001)))
+        f.data.transform(Matrix.Translation((0, 0, z)) @ Matrix.Rotation(math.radians(a), 4, "Y"))
+        f.data.update()
+    m.export(floor=True)
+
+
 # ---------------------------------------------------------------- catalogue
 
 ALL = {"bag-charge": bag_charge, "tin-grenade": tin_grenade, "rocket-launcher": rocket_launcher,
-       "rocket": lambda: rocket("rocket", 137), "rocket-hv": lambda: rocket("rocket-hv", 139, hv=True)}
+       "rocket": lambda: rocket("rocket", 137), "rocket-hv": lambda: rocket("rocket-hv", 139, hv=True),
+       "rocket-incendiary": incendiary_rocket}
 
 for key in script_args() or list(ALL):
     ALL[key]()

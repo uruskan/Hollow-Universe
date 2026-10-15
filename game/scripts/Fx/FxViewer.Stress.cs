@@ -43,6 +43,8 @@ public partial class FxViewer
     private readonly Dictionary<int, (double Frame, double Frame95, double Gpu, double Fx)> _results = new();
     private int _shotsThisPhase;
     private readonly FxRandom _fight = new(99);
+    private readonly List<long> _emitted = new();
+    private long _lastEmitted;
 
     /// <summary>Phase 0 warms up (on), then off, on, off, on.</summary>
     private bool EffectsOn => _phase is 0 or 2 or 4;
@@ -58,6 +60,12 @@ public partial class FxViewer
         {
             // GROUND.md §9.4: a raid wall and ten barrels breaking at once, gibs (pieces and dust) off and on.
             StartGibStress();
+            return;
+        }
+        if (kind == "battery")
+        {
+            // IRON_WAKE.md §11: the Iron Wake's guns in a fight (FxViewer.Ship.cs).
+            StartBatteryStress();
             return;
         }
         BuildArena();
@@ -164,6 +172,13 @@ public partial class FxViewer
             _gpuMs.Add(RenderingServer.ViewportGetMeasuredRenderTimeGpu(GetViewport().GetViewportRid()));
             _fxUs.Add(_fx.LastFrameMicroseconds);
         }
+        // Particles put into the batches since the last frame: what the frame budget (1,500) is measured against.
+        long emitted = _fx.Batches.Values.Sum(b => b.EmittedTotal);
+        if (_phase > 0 && _lastEmitted > 0)
+        {
+            _emitted.Add(emitted - _lastEmitted);
+        }
+        _lastEmitted = emitted;
         if (t >= (_phase == 0 ? 4 : _measureSeconds))
         {
             EndPhase();
@@ -175,6 +190,11 @@ public partial class FxViewer
         if (_gibStress)
         {
             UpdateGibStress();
+            return;
+        }
+        if (_batteryStress)
+        {
+            UpdateBatteryStress();
             return;
         }
         FireRound();
@@ -192,8 +212,10 @@ public partial class FxViewer
                     + $"(95%: {p95:0.00}), GPU {_gpuMs.Average():0.00} ms, effects {_fxUs.Average():0} µs{GibPhaseLine()}"
                 : $"[fx-measure] phase {_phase} ({(EffectsOn ? "effects on" : "effects off")}): {_frameMs.Count} frames, frame {_frameMs.Average():0.00} ms "
                     + $"(95%: {p95:0.00}), GPU {_gpuMs.Average():0.00} ms, director {_fxUs.Average():0} µs, {_shotsThisPhase} shots, "
-                    + $"lights {_fx.ActiveLights}, decals {_fx.ActiveDecals}, tracers {_fx.ActiveTracers}");
+                    + $"lights {_fx.ActiveLights}, decals {_fx.ActiveDecals}, tracers {_fx.ActiveTracers}, loops {_fx.ActiveLoops}, "
+                    + $"particles {(_emitted.Count > 0 ? _emitted.Average() : 0):0} a frame (most {(_emitted.Count > 0 ? _emitted.Max() : 0)})");
         }
+        _emitted.Clear();
         _frameMs.Clear();
         _gpuMs.Clear();
         _fxUs.Clear();
@@ -207,6 +229,10 @@ public partial class FxViewer
         if (_gibStress)
         {
             EndGibPhase();
+        }
+        if (_batteryStress)
+        {
+            ResetBatterySchedules();
         }
         if (_phase > 4)
         {
@@ -222,7 +248,9 @@ public partial class FxViewer
         double p95Off = off.Average(r => r.Frame95), p95On = on.Average(r => r.Frame95);
         double gpuOff = off.Average(r => r.Gpu), gpuOn = on.Average(r => r.Gpu);
         double fx = on.Average(r => r.Fx);
-        string what = _gibStress ? "[gibs-measure] RESULT a raid wall and ten barrels every 2.5 s" : "[fx-measure] RESULT firefight, 10 players";
+        string what = _gibStress ? "[gibs-measure] RESULT a raid wall and ten barrels every 2.5 s"
+            : _batteryStress ? "[fx-measure] RESULT the Iron Wake's guns: 2 siege batteries, 4 defense mounts, fires, hull hits, wash"
+            : "[fx-measure] RESULT firefight, 10 players";
         GD.Print($"{what}, {_measureSeconds:0} s a phase, vsync off: frame {frameOff:0.00} → {frameOn:0.00} ms "
             + $"(+{frameOn - frameOff:0.00} ms; 95th percentile {p95Off:0.00} → {p95On:0.00}), GPU {gpuOff:0.00} → {gpuOn:0.00} ms (+{gpuOn - gpuOff:0.00} ms), "
             + $"director CPU {fx / 1000.0:0.000} ms a frame");

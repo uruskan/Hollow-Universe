@@ -994,8 +994,8 @@ recordings (§9.2); the ground mode calls it (`GroundAudio` and the views, the h
 
 | Part | Where |
 |---|---|
-| Sound files: 463, Ogg Vorbis q5 at 48 kHz (interface clicks 16-bit WAV), 12.6 MB | `game/assets/audio/` |
-| The catalogue: 138 events with their variants, volume, random pitch and volume, attenuation, bus, priority, voice limit; distance layers; loudness categories; what each item plays | `game/data/ground/sounds.json` |
+| Sound files: 761, Ogg Vorbis q5 at 48 kHz (interface clicks 16-bit WAV), 21.0 MB; the Iron Wake's 198 (7.3 MB) in `iron-wake/` | `game/assets/audio/` |
+| The catalogue: 227 events with their variants, volume, random pitch and volume, attenuation, bus, priority, voice limit; distance layers; loudness categories; the listener's spaces; what each item plays | `game/data/ground/sounds.json` |
 | Every file's measurements (loudness, true peak, spectrum, lead, tail, SHA-256) | `game/assets/audio/levels.json` |
 | The pipeline that builds both (§9.2) | `art/audio/` |
 | Engine-free rules: the catalogue model, a BS.1770 meter, distance layers, footstep surfaces and cadence, the ambience mix | `src/Hollow.Client/Audio/` |
@@ -1010,7 +1010,10 @@ recordings (§9.2); the ground mode calls it (`GroundAudio` and the views, the h
 (`from`, `to`, `fade`), its own volume and falloff. `items` maps item keys and door kinds to roles and events
 (`"stone-hatchet": {"swing": "melee.swing.heavy", "hitWood": "gather.wood.hit", …}`), so the game asks
 `SoundCatalogData.ItemEvent(item, role)` instead of knowing keys. The build owns each event's files and category and
-the item map; every other field may be tuned by hand and is kept when the build runs again.
+the item map; every other field may be tuned by hand and is kept when the build runs again. `spaces` holds the
+listener's reverb presets for `AudioBuses.SetSpace` (outside, deck and bridge, in the terms of Godot's
+`AudioEffectReverb`, with `structureDb`, how loud structure-borne sounds are there; IRON_WAKE.md §10): the build adds a
+missing preset or field and keeps the ones edited here. The catalogue's reader ignores the block until the game uses it.
 
 **Events.** Footsteps: walk, run, crouch and land on grass, dirt, sand, rock, snow, wood, metal and shallow water, and a
 swim stroke. Gathering: wood hit, a tree falling, stone hit, ore hit, an outcrop breaking at each of its three stages,
@@ -1023,9 +1026,13 @@ three layers and silenced, reload parts (magazine out and in, slide or bolt), dr
 flesh, wood, stone, metal, dirt and water, the hit marker, a head shot and a kill. Explosives: the fuse, the timer's
 beep, the blast in three layers, debris. Interface (Rust's manner: quiet clicks, cloth for the inventory): click,
 hover, drag, drop, craft started and finished, error, inventory open and close, a notice. Ambience: calm, strong and
-high wind, meadow and forest birds, night insects, near and far surf, leaves; owls, crows and distant thunder.
+high wind, meadow and forest birds, night insects, near and far surf, leaves; owls, crows and distant thunder. The Iron
+Wake (IRON_WAKE.md §10, 56 events): its drives (start, idle, load, release, shutdown, lift engines, manoeuvring puffs,
+boost), its hull (strain, touchdown, the ventilation and machinery inside), the ramp and the airlock, the hull and fire
+alarms, the siege batteries and their loaders, the defense mounts, the turrets' traverse and stops, rockets (ignition, a
+flight loop, the incendiary's burst) and fire.
 
-**Loudness** (ITU-R BS.1770, measured with ffmpeg after encoding; the engine's own decode agrees within 0.7 LU,
+**Loudness** (ITU-R BS.1770, measured with ffmpeg after encoding; the engine's own decode agrees within 0.9 LU,
 `--sound-check`). A one-shot's *event loudness* is its highest momentary loudness corrected for sounds shorter than
 the 400 ms window (down to 100 ms), a loop's is its integrated loudness. Every file peaks under −1 dBTP (highest
 −1.10).
@@ -1037,14 +1044,18 @@ the 400 ms window (down to 100 ms), a loop's is its integrated loudness. Every f
 | click (reloads, locks, cases) | event | −27 | −33 … −21 | −32.0 … −26.9 |
 | gather (chops, picks, building) | event | −19 | −23 … −15 | −22.4 … −18.9 |
 | impact (hits, bullet impacts) | event | −21 | −27 … −17 | −25.6 … −20.9 |
-| voice | event | −21 | −25 … −17 | −21.4 … −21.0 |
-| gunshot (near) | event | −20 | −25 … −16 | −24.3 … −22.2 |
+| voice | event | −21 | −25 … −17 | −21.4 … −20.9 |
+| gunshot (near) | event | −20 | −25 … −16 | −24.3 … −21.8 |
 | distant (mid and far layers) | event | −22 | −27 … −17 | −25.8 … −21.9 |
-| explosion (near) | event | −13 | −18 … −9 | −14.8 … −13.4 |
+| explosion (near) | event | −13 | −18 … −9 | −14.9 … −13.4 |
 | ui, marker | event | −27, −23 | −33 … −21, −28 … −18 | −27.9 … −26.9, −23.5 … −23.0 |
 | loop (fires, fuse) | integrated | −29 | −34 … −24 | −32.6 … −29.0 |
-| ambience (beds) | integrated | −30 | −34 … −26 | −30.5 … −30.1 |
+| ambience (beds) | integrated | −30 | −34 … −26 | −30.5 … −30.0 |
 | accent | event | −27 | −32 … −22 | −27.3 … −26.9 |
+| machine (the Iron Wake's drives' one-shots, hull, doors) | event | −21 | −26 … −16 | −21.5 … −20.9 |
+| mechanism (loaders, latches, breeches, stops) | event | −25 | −31 … −20 | −25.4 … −25.0 |
+| engine (the drives', lift engines', ramp's and rocket's loops, a large fire) | integrated | −25 | −30 … −21 | −25.3 … −25.0 |
+| alarm (klaxon, bell) | event | −20 | −24 … −16 | −20.1 … −19.9 |
 
 A recorded gunshot is a few milliseconds of blast: at −1 dBTP its event loudness is about −22 LUFS, and no more than
 6 dB of limiting is allowed, so shots aren't squashed. They are louder in the game than the numbers say: their
@@ -1085,8 +1096,9 @@ near trees, crows by day, thunder only in a storm (no weather yet, so none).
 **Viewer** (`--view sounds`, options in AGENTS.md): every event in a list, a click plays it; its settings, layers, and
 each variant's loudness from the pipeline beside the engine's decode; a source walking away from the listener (posts at
 10 m to 1.5 km; layer weights and the arrival delay shown); the ambience by biome, hour, wind, sea, forest, height and
-storm with every bed's level. `--sound-check` loads and measures all 463 files in the engine and quits with 0 when they
-agree with the pipeline.
+storm with every bed's level. The list follows the selection (`--sound`, the arrow keys) and groups the events (the
+Iron Wake's under Iron Wake, Batteries, Rockets and Fire). `--sound-check` loads and measures all 761 files in the engine
+and quits with 0 when they agree with the pipeline.
 
 ![The audition viewer: the rifle at 320 m (mid 98 %, far 45 %, arriving after 933 ms) and a forest morning](images/ground/audio/sounds.jpg)
 
@@ -4123,7 +4135,8 @@ Every item key and world object has a model, an icon if it's an item, and a line
 rebuilt by scripts:
 
 ```bash
-blender -b --factory-startup --python art/build.py                 # every model (30 s; 2 min converting the textures)
+blender -b --factory-startup --python art/build.py                 # every model (30 s, the Iron Wake 5 min more;
+                                                                   # 2 min converting the textures)
 blender -b --factory-startup --python art/build.py -- tools        # one script (names below)
 $GODOT --path game -- --view icons --out game/assets/items/icons   # every icon (a real window; --only a,b for some)
 $GODOT --path game --resolution 1600x900 -- --view icons --shot icons.png       # the contact sheet
@@ -4139,6 +4152,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `import/starter_kit.py` | The PSG Starter Kit's 17 items (all but the AK and the solar panel) |
 | `import/frontier_rifle.py` | The rifle, from the PSG Frontier AK |
 | `import/tin_finch.py` | The Tin Finch: hull and hatch with their LODs, 26 hulls, 10 sockets, the hatch's open and close clips |
+| `import/iron_wake.py` | The Iron Wake (docs/IRON_WAKE.md §9.1–§9.3): body, hold and 31 moving parts with five LODs, 358 hulls, 91 sockets, occluders, 20 clips, its sixteen finishes, and the ship's data file `game/data/ground/ships/iron-wake.json` (`-- data` writes the data file alone); with `ships/iron_wake_loaders.py`, its hook, the batteries' loading mechanisms (§9.5, IW-A part 2): 56 more moving parts, 48 slot and breech sockets, 8 review clips, checked for clearance at every import |
 | `models/resources.py` | The twelve resources as small piles (their dropped look; gunpowder a heap on an opened paper), and the four world pickups as bigger piles |
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
 | `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
@@ -4147,7 +4161,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
 | `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
-| `models/raid.py` | G5 raid items: bag charge, tin grenade, rocket launcher, rocket and high-velocity rocket |
+| `models/raid.py` | G5 raid items: bag charge, tin grenade, rocket launcher, rocket and high-velocity rocket; the incendiary rocket (IW-A) |
 
 **Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
 rifle's LOD1–LOD3, as the character package chose; the building kit's pieces then fitted to their slots, §6.3 Fit);
@@ -4174,7 +4188,10 @@ recipe (Windows: System.Drawing and Consolas).
   (`psg_surface` and `psg_markings`, the PSG atlas; `frontier_metal` and `frontier_furniture`; `tin_finch_*`;
   `hollow_rock`, a tiling CC0 rock; `hollow_glossy`, plain). Our own models use the PSG atlas's sixteen material tiles
   (timber, rusted steel, gunmetal, enamel, canvas, leather, basalt...) tinted per vertex; the vertex colour also
-  carries baked occlusion. Godot stores glTF vertex colours as sRGB, so these materials set `vertex_color_is_srgb`.
+  carries baked occlusion. These materials set `vertex_color_is_srgb`, taking Godot to store glTF vertex colours as
+  sRGB. Measured for the Iron Wake (15 October 2026), Godot 4.7.2 keeps them as the file has them, linear, so the flag
+  decodes them once more and darkens them. These models were tuned with it on and keep it; the Iron Wake's materials
+  leave it off (IRON_WAKE.md §9.2).
 
 **Catalogue:** `game/data/ground/models.json`, read by `game/scripts/Items/ModelCatalog.cs`. One entry per item key
 (kind `item`) or world object (kind `world`):
@@ -4209,7 +4226,11 @@ flared venturi, a canvas heat sleeve where it rests on the shoulder, a pistol gr
 fore grip (`grip_l`), a folding frame sight on the left (`sight`, `eye`), `muzzle` at the front and `exhaust` at the back
 (+X pointing backwards, for the back blast); class `gun`, so the character package holds it two-handed like the rifle.
 The rockets lie on the ground along their length: an olive warhead with a yellow band, or for `rocket-hv` a slimmer
-pointed one with a blue band, on a motor with four fins.
+pointed one with a blue band, on a motor with four fins. The incendiary rocket (`rocket-incendiary`, IW-A,
+docs/IRON_WAKE.md §7) has the rocket's motor and fins and, in place of the ogive, a blunt grey steel canister with a
+filler plug under a pale frangible nose cap, a thin pressed shell scored in four with a crush disc on its nose, and a
+red band where the others carry theirs. Its model and icons come before its item, which the battery rules' package
+adds with its recipe (the catalogue needs a model for every item, not an item for every model).
 
 **The loot bag** (`dropped-bag`, U4; remade on 13 October 2026 to read like the owner's picture of a strapped bundle,
 our own design): 0.42 × 0.32 × 0.30 m, a khaki canvas tarp over a box-like load, wrapped like a parcel. Its ends are
@@ -4219,6 +4240,15 @@ in, so it pillows between them. Each has an iron buckle: the cross strap's on to
 layer is laid on what is already there by casting rays: the folds and the hem on the cloth, the long strap over the
 folds, the cross strap over the long strap. The cloth's texture is laid on as it wraps, over the top and down the front
 and back as one sheet, so no box-projection seam runs along the top's edges. LODs: 6,242, 3,120 and 1,366 triangles.
+
+**The Iron Wake** (`iron-wake`, class `vehicle`; `import/iron_wake.py`, docs/IRON_WAKE.md §9.1–§9.3) is the first
+model converted from a whole ship asset: the owner's own Iron Wake, 58 m long, with the revision's Poly Haven
+finishes at 2K (`game/assets/textures/iron_wake`, 66.7 MiB in video memory). Its GLB (`game/assets/ships`) keeps
+five levels for every part (`lodDistances` 70, 180, 450, 1,200 and 4,000 m; LOD4 is a coloured shell made by the
+import) and its moving parts under empties at their pivots. What the rules need (rooms, boarding, build zones,
+stations, the hull's boxes, lights) goes to its own data file, `game/data/ground/ships/iron-wake.json`, written
+deterministically from the same asset. The asset's port and starboard names are mirrored; the data file records the
+true sides.
 
 `ModelCatalog.Instantiate(key, stage, use)` gives a ready node: LOD visibility ranges set, hulls dropped (`Display`) or
 merged into one static body (`Static`). `CatalogItemIcons` serves the interface's `ItemIcons` from the rendered PNGs,
@@ -4239,9 +4269,13 @@ from the lower right with the head toward the middle, guns point in toward the c
 angles.
 
 **Viewer** (`--view models`): every model on the ground in groups by size with a 1.8 m figure for scale, or one on a
-turntable (`--model <key>`, Tab); LOD keys 0, 1, 2 and A; F (or `--first-person`) shows a held item at its first-person
-pose; H (or `--anim <clip>`) plays a model's clips, such as the Tin Finch's `Hatch_Open`; the ship stands on a plain
-stand. `tests/Hollow.Tests/ModelCatalogueTests.cs` checks that every file is there,
+turntable (`--model <key>`, Tab); LOD keys 0 to 4 and A; F (or `--first-person`) shows a held item at its first-person
+pose; H (or `--anim <clip>`) plays a model's clips, such as the Tin Finch's `Hatch_Open` (`--anim-time <s>` holds it at
+that moment); `--slots a,b` puts those models on a ship's ammunition slots in turn (the Iron Wake's racks and
+cassettes, IRON_WAKE.md §9.5); a vehicle under 25 m stands
+on a plain stand, the Iron Wake on its own legs. `--from=x,y,z --at=x,y,z` put the camera in the model's own frame
+(metres, +Z its front) and hold the turntable, for a close look at one place; `--fov <deg>` sets the lens.
+`tests/Hollow.Tests/ModelCatalogueTests.cs` checks that every file is there,
 has its LODs, hulls, palm sockets and mapped materials, that icons are square RGBA PNGs at both sizes, and that every
 item key (and every item of `items.json` when present) has a model.
 
@@ -4249,7 +4283,8 @@ Screenshots (`docs/images/ground/assets/`): `icons.jpg` (the contact sheet), `ic
 the reworked icons), `icons-g5.jpg` (the G5 raid items and the models that replaced the last stand-ins: gunpowder, the
 metal mask, incendiary pistol rounds), `attachments.jpg` (attachments mounted on the rifle and pistol, and a scope in first person),
 `models.jpg` (everything on the ground),
-`items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand).
+`items.jpg` (the carried items closer), `tin-finch.jpg` (the ship on its stand). The Iron Wake's are in
+`docs/images/iron-wake/` (IRON_WAKE.md §9.3).
 
 ### 9.2 Sounds, as built
 
@@ -4289,6 +4324,25 @@ piezo tones (the code lock's verdicts and the charge's timer). No sound comes fr
 Archives are unpacked into `art/.cache/audio/src` by Python's `zipfile` and our own 7z reader (`art/audio/sevenzip.py`:
 LZMA, LZMA2, BCJ, Delta; names kept inside the folder); nothing in a download is ever run. The waveform and
 spectrogram pictures (`inspect.py`) were how cuts and layers were checked, since nobody listened while they were made.
+
+**The Iron Wake** (IRON_WAKE.md §10, 15 October 2026): 56 events, 198 files in `iron-wake/`. What no recording on this
+PC holds (a ship's drive, a cannon, a klaxon, an alarm bell, servos, chains) is made in code by `art/audio/machines.py`:
+rotating machines as a shaft whose running phase drives their orders (hum and harmonics, a turbine's blade-pass whine
+with sidebands, a gear's mesh, a pump's strokes), combustion and gas as shaped noise moved by turbulence, steel as modes
+struck by a pulse, contactors, sparks, a klaxon's toothed wheel on a diaphragm, a trembler bell's gong, the beds' fans,
+ducts and machinery, a steel space's impulse response. `events.py`'s `iron_wake()` layers them with recordings of real
+mechanisms (bolts, drawers on steel rails, creaking steel, steam, anvils, shotguns and rifles, explosions, fires). The
+pipeline gained:
+- **Loops periodic by construction.** In `machines.py` every random source repeats with the loop's period and every tone
+  completes a whole number of cycles in it; a recording in such a loop is made periodic first (`machines.looped`, an
+  equal-power crossfade). An `Out` whose `loop` is `(length, 0, skip)` is cut to one period after `skip` seconds, once
+  every filter has settled, and not crossfaded (`build.make_loop`); the older loops keep their crossfade.
+- **Attacks aligned.** Recorded shots and latches start at their measured attack (`_onset` in `events.py`), so a rifle's
+  crack and a slowed shotgun's body, or a clack and a made clank, land together.
+- **Four loudness categories** (machine, mechanism, engine, alarm; §4.9) and the `spaces` block (`events.SPACES`).
+- **A cache by code.** Made sounds are cached in `art/.cache/audio/synth/iw_*` under a hash of their arguments and of
+  the code they depend on (`machines._sources`), so an edit remakes exactly the sounds it can change. A first build
+  makes them all in about six minutes.
 
 ### 9.3 Effects
 
@@ -4379,6 +4433,14 @@ first use, or `FxDirector.Install(parent)`):
 | A door shut | `world.door-slam` at its foot (`Direction` along it, `Area` half its width) |
 | A step on sand (footsteps) | `world.footstep.sand` |
 | Every frame | the camera: rotation += `FxDirector.CameraShake(camera position)` |
+| The Iron Wake's siege battery fires a barrel (IRON_WAKE.md §6) | `Muzzle("muzzle.siege", the barrel's muzzle socket, false)`; `Play("muzzle.siege.dust", the deck or ground under the muzzle, its normal)` with `Direction` the barrel's direction along it, `Tint` the ground's dust colour and `Scale` 1 for a muzzle up to 4 m over it, falling to 0.4 at 15 m (none higher) |
+| A battery rocket's motor lights (its launch profile's distance, IRON_WAKE.md §6.4) | `Play("ignite.rocket", the rocket's tail, its flight)` with `Direction` its flight and `Follow` the tail; `Start("trail.rocket", Follow = the tail, Direction = its flight)`, stopped when the motor burns out (1.0 to 1.4 s) |
+| A defense mount fires a barrel (each of a ripple) | `Muzzle("muzzle.defense", the barrel's muzzle socket, false)`; its rocket as above |
+| A siege barrel's loader reaches "breech open" (IRON_WAKE.md §6.6) | `Play("breech.smoke", the breech socket, out of it, Follow = it)`; `Start("breech.smoke.wisps", Follow = the breech socket, Duration = until "ram")` |
+| A lift engine pushes near the ground | `Start("wash.lift", the ground under the nozzle, its normal, Tint = the ground's dust colour)`, `Move` it as the ship moves, `Stop` it above 25 m or at no thrust; its rate by thrust and nearness waits for a loop intensity (below) |
+| An incendiary rocket bursts; its fire starts and ends (IRON_WAKE.md §7) | `explosion.incendiary`; on `FireStarted` `Start("fire.patch", the fire's point, its normal, Duration = 18, Scale = radius ÷ 3.5)`, on `FireEnded` `Stop` it and `Play("fire.patch.out", the same point, Scale)` |
+| A bullet on the Iron Wake's hull | `Play("impact.hull", the hit, its normal, Direction = the bullet's flight)` |
+| A battery disabled, the hull below a quarter | `Start("smoke.damaged", Follow = the battery's gun house or the hull's damage socket)` until repaired |
 
 **Hooked up in the game** (pass 3):
 - *Shots:* `FirstPersonView.OnShot` plays `Muzzle(GunEffects.MuzzleKey(gun, its attachments), the muzzle of the gun the
@@ -4401,21 +4463,78 @@ first use, or `FxDirector.Install(parent)`):
 - *Raiding and building:* blasts, fuses, duds and rocket trails in `RaidView` (§6.6); upgrades and doors in
   `BuildView` (§6.5), and whatever breaks in `GibsView` (§9.4); the camera's shake in `GroundView`, which also warms the effects' materials once the camera is in
   place and installs the director with the view.
-- *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`.
+- *Not yet:* `fire.burning` (nothing in the protocol says a player burns), `world.footstep.sand`, and the Iron Wake's
+  effects (IW-F, below), which its packages IW3, IW4 and IW6 hook up (IRON_WAKE.md §13).
+
+**The Iron Wake's effects** (IW-F, IRON_WAKE.md §11; built 15 October 2026 from the existing batches and the C4 kit's
+flipbooks, with two decals of our own):
+- *`muzzle.siege`*, along the barrel (`Muzzle` on its socket): a 5 m star flash and a light of energy 22 for 0.2 s; a
+  fireball rolled 2 to 6 m down the bore from the C4 fire flipbook, with a ring of flame round the muzzle; the shock as
+  a fast ring of dust thrown out across the bore (a drawn ring read as a hoop by night); a doughnut of smoke round the
+  muzzle, a cone of gun smoke driven 6 to 24 m ahead (pale, with sooty puffs), a cloud round the muzzle and smoke that
+  lingers 8 to 12 s and rises; fast sparks, slow burning flecks of propellant and embers; a shake of 0.75 to 40 m. About
+  210 particles a shot. From the gunner's seat, 13 m behind the muzzles, it never hides the target for more than a
+  moment.
+- *`muzzle.siege.dust`*, its partner on the deck or ground under the muzzle: a low sheet of dust swept out in a ring,
+  more of it ahead, rising billows, streaks of grit, chips and flakes, a pressure ring.
+- *`muzzle.defense`*, per barrel: a 2 m flash for 35 ms, a jet of flame, the crack of a fast ring of dust across the
+  bore, a quick puff of smoke, sparks, a short light and a small shake; a ripple a quarter second apart reads as three
+  shots.
+- *`ignite.rocket`*: a burst out of the nozzle a few metres from the muzzle (flash, a cough of flame and sparks back
+  along the path, a ring and a puff of smoke, a light); `trail.rocket` takes over.
+- *`trail.rocket`*, reworked (it read as a string of separate puffs): a white-hot nozzle, a tongue of flame (thick spark
+  streaks blasted back), flame puffs, sparks and a pale, continuous trail of dust-batch smoke blasted back along the
+  path at two speeds, so it stays whole at the shoulder launcher's 18 to 40 m/s and fills its gaps within a few frames
+  at the batteries' 70 to 260 m/s. Stop it when the motor burns out; its smoke hangs and spreads.
+- *`breech.smoke`* and *`breech.smoke.wisps`*: a puff rolling out of the breech when it opens, then a loop of thin smoke
+  trailing from it, on its socket, until the rammer closes it.
+- *`wash.lift`*, a loop on the ground under a lift nozzle: a fast, low sheet of dust driven out to 20 m, billows rising
+  at its edge, streaks of sand and grit, bits of grass and leaves.
+- *`explosion.incendiary`*: a smaller blast than the rocket's, a tall fuel fireball, 50 to 70 glowing globs of burning
+  fuel thrown out in arcs (thick spark streaks cooling to red), black oily smoke, embers and a scorch.
+- *`fire.patch`*, a loop over 3.5 m: 53 flame cards overlapping into a burning pool (tallest in the middle), 70 small
+  rolling C4 fireballs a second over it with bigger gouts, embers, a column of black smoke and a flickering light of 16
+  m. *`fire.patch.out`* leaves the burnt patch: a 7 m decal of our own (`decals/scorch_fire`: a charred pool, cracked
+  crust, ash, fuel splashed out in fingers and drops, embers glowing that die down), the last smoke and embers.
+- *`impact.hull`*: a hard spray of sparks off the plate, a flash and a small light, a puff of paint and grit, flecks,
+  and a strike mark of our own (`decals/strike_hull_0`, `_1`: a bright dent smeared with lead, paint chipped round it,
+  soot), 20 cm.
+- *`smoke.damaged`*, a loop: heavy black smoke pouring up, a lighter grey with it, embers and a dim flickering glow.
+
+**What the library can't do yet** (code for the packages that hook these up; IW-F changed only `fx.json`, the assets and
+the viewer):
+- *A loop's intensity.* A loop fades in and out but takes no rate: `wash.lift` needs `FxDirector.SetIntensity(handle,
+  k)` (or `FxParams.Intensity` with a setter) multiplying its emit rates and light, k = thrust share × nearness (1 at 4
+  m, 0 at 25 m). Until then the view starts it at full thrust under 25 m and stops it otherwise.
+- *Trails at speed.* A loop emits where its node is each frame, so a trail behind a 140 to 260 m/s rocket is laid in
+  steps of 2 to 4 m at 60 frames a second; `trail.rocket`'s backward speeds fill them within a few frames, but the first
+  10 m behind a fast rocket still show beads. The fix is in `UpdateLoop`: spread each frame's particles along the
+  segment from where the loop emitted last (`FxLoop.LastEmit` is there, unused).
+- *Scaled loops.* `FxParams.Scale` sizes a loop's particles but not its flame cards or light: `fire.patch` at another
+  radius than 3.5 m needs the flames' transform and the light's range scaled in `UpdateLoop`.
+- *Moving ships.* Particles are in the world and start with their own velocity only; a shot from a ship at speed leaves
+  its blast behind at once (as smoke in the air should, but the fireball too). `FxParams.Velocity`, added to every
+  particle, would carry the first moments with the muzzle. None of the ship's one-shots has a delayed layer, so nothing
+  appears where the ship was.
+- *A soft puff.* The `smoke` batch's frames are the C4 blast's flat-bottomed clouds, which clump when spread thin, and
+  `dust` has its puff's dark core; the trail and the wash would be smoother from a batch of its own with a round, soft
+  smoke flipbook (rendered in Blender as the kit was), and a pool of fire smoother if flame cards could dim their feet
+  (the shader makes every card hottest at its foot, so 50 overlapping cards show bright domes at their bases).
 
 **The effects** (`fx.json`; each has an `about` line there):
 
 | Family | Keys |
 |---|---|
 | muzzle | `muzzle.rifle`, `muzzle.rifle.brake`, `muzzle.pistol`, `muzzle.pistol.brake`, `muzzle.silenced` (no flash, no light, a little smoke), `muzzle.rocket`, `backblast.rocket`; each first or third person |
-| tracer | `tracer.bullet`, `tracer.incendiary`, `trail.arrow`, `trail.rocket` (a loop) |
+| tracer | `tracer.bullet`, `tracer.incendiary`, `trail.arrow`, `trail.rocket` (a loop; reworked for IW-F, above) |
 | impact | `impact.bullet.dirt`, `.grass`, `.sand`, `.rock`, `.wood`, `.metal`, `.water`, `.flesh`, `impact.incendiary`: debris, dust and a decal where right (holes in wood, rock and metal, a scuff in earth) |
 | blood | `blood.hit`, `blood.hit.heavy` (a short mist and a few drops, restrained), `blood.drip` (a drop and a stain) |
 | gather | `gather.wood`, `gather.rock`, `gather.sparks`, `gather.weakspot`, `gather.tree-fall`, `gather.node-break` |
-| explosion | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`, `.dud`, `fuse.burning` (a loop): flash, fireball, smoke column and puffs, dust thrown along the ground, pressure ring, heat haze, sparks, debris, embers, scorch, a short light and a camera shake |
-| fire | `fire.campfire`, `fire.furnace`, `fire.torch`, `fire.burning` (loops) |
+| explosion | `explosion.timed-charge`, `.bag-charge`, `.grenade`, `.rocket`, `.ammo`, `.dud`, `.incendiary` (IW-F), `fuse.burning` (a loop): flash, fireball, smoke column and puffs, dust thrown along the ground, pressure ring, heat haze, sparks, debris, embers, scorch, a short light and a camera shake |
+| fire | `fire.campfire`, `fire.furnace`, `fire.torch`, `fire.burning`, `fire.patch` (loops), `fire.patch.out` (IW-F) |
 | world | `world.collapse`, `world.upgrade.wood`, `.stone`, `.metal`, `.armoured`, `world.door-slam`, `world.footstep.sand` |
 | gibs | `gibs.dust.wood`, `.stone`, `.metal`, `.rock`, `.cloth`, `.ash`: the dust of something breaking apart (§9.4), tinted by its material, over its size |
+| ship | `muzzle.siege`, `muzzle.siege.dust`, `muzzle.defense`, `ignite.rocket`, `breech.smoke`, `breech.smoke.wisps` (a loop), `wash.lift` (a loop), `impact.hull`, `smoke.damaged` (a loop): the Iron Wake's (IW-F, above) |
 
 **Assets** (`art/fx/build.py`, about 15 s):
 - *The PSG C4 VFX kit* (`D:\GameDev\Assets\PSG_C4VFX_R01`, made for this project: a Mantaflow simulation rendered by
@@ -4428,21 +4547,35 @@ first use, or `FxDirector.Install(parent)`):
   noise and a fire colour ramp), tileable noise, a soft dot, a droplet; decals with normal maps: bullet holes in wood
   (fibres torn along the grain, splinters), rock (a crushed crater with cracks) and metal (a punched hole with a torn
   bright rim and chipped paint), blood stains, a dirt scuff; debris: rock chips and clods, wood splinters and bark, torn
-  tin.
+  tin. For the Iron Wake (IW-F): bullet strikes on its hull plate (`strike_hull_0`, `_1`: a dent scoured bright and
+  smeared with lead, splash streaks, paint chipped off in a ragged ring and flakes, soot) and the burnt patch an
+  incendiary fire leaves (`scorch_fire`, 1024 px for 7 m: a charred pool, its crust cracked, ash, fuel splashed out in
+  fingers and drops, a brown scorch round it, with `_glow` embers and `_normal` relief).
 
 **The viewer** (`--view fx`): every effect in turn on its station while the camera turns about it. The stations: ground
 of each kind with the planet's own textures, rock, wood, metal and stone walls from the building kit, water, a target
-dummy, the guns, the campfire, furnace and torch. Options: `--fx <key>` (start there; with `--shot`, caught `--at <s>`
-after it starts, its `hero` moment by default), `--sheet <family>` (a contact sheet: every effect of a family in its
-own cell at its hero moment, muzzle flashes in first and third person), `--strip <key> --times a,b,c` (one effect at
-several moments), `--action <family>` (a scene of the family in use), `--stress firefight --measure <s>` (below),
-`--night`, `--only-batch <name>` (tuning), `--spikes` (with `--stress`: print every frame over 12 ms). Keys: ← → effect, ↑ ↓ family, Space replay, P pause, N night, R reload
-fx.json.
+dummy, the guns, the campfire, furnace and torch; and on a ring of their own, the Iron Wake's (`FxStage.Ship.cs`):
+stand-ins of its siege battery (scale 1.05: two barrels 2 m apart, the muzzles 2.3 m over its deck) played at the muzzle
+(`siege`), on the deck under it (`siege-deck`), at the breech (`siege-breech`), on a rocket fired at the battery's 70
+m/s that lights 4 m out (`ignite`) and on the gun house (`damaged`); a defense mount (scale 0.43, three tubes 0.275 m
+apart) that ripples its barrels a quarter second apart; a panel of hull plate; a lift nozzle 6 m over the ground
+(`wash`); open ground to burn (`patch`). Each plays its effects as the ship's views will, on named sockets
+(`FxStation.Sockets`). Options: `--fx <key>` (start there; with `--shot`, caught `--at <s>` after it starts, its `hero`
+moment by default), `--sheet <family>` (a contact sheet: every effect of a family in its own cell at its hero moment,
+muzzle flashes in first and third person), `--strip <key> --times a,b,c` (one effect at several moments), `--action
+<family>` (a scene of the family in use; `ship`: the siege battery firing over its deck beside a rippling defense mount,
+fires burning downrange), `--stress firefight --measure <s>` (below), `--stress battery --measure <s>` (the Iron Wake's
+guns in a fight, below; `--battery-parts siege,defense,fires,hull,wash,smoke` plays some), `--gunner` (a battery's
+effects from its gunner's seat), `--scale <f>` (every effect that much bigger), `--night`, `--only-batch <name>`
+(tuning), `--spikes` (with `--stress`: print every frame over 12 ms). Keys: ← → effect, ↑ ↓ family, Space replay, P
+pause, N night, R reload fx.json.
 
 ```bash
 $GODOT --path game --resolution 1600x900 -- --view fx --sheet explosion --shot sheet.png
 $GODOT --path game --resolution 1600x900 -- --view fx --action fire --shot fire.png
 $GODOT --path game --resolution 1600x900 -- --view fx --stress firefight --measure 8
+$GODOT --path game --resolution 1600x900 -- --view fx --fx muzzle.siege --gunner --at 0.05 --shot gunner.png
+$GODOT --path game --resolution 1600x900 -- --view fx --stress battery --measure 8
 blender -b --factory-startup --python art/fx/build.py        # the effects' assets (-- c4 | textures | decals | chunks)
 ```
 
@@ -4461,8 +4594,30 @@ So a ten-player firefight's effects cost about 0.3 ms a frame, well inside the 2
 tuning measured +0.41 ms). The figures are the means of the two halves of a run (`[fx-measure] RESULT` in the log);
 other programs busy on the PC move them by a few tenths and can add stalls to either half.
 
+`--stress battery` (IW-F, 15 October 2026) is the Iron Wake's guns in a fight, everything at once: both siege
+batteries firing every 2.3 s and the four defense mounts rippling three rockets every 3 s (40 shots in 8 s, each with
+its muzzle, the siege shots' deck dust, every rocket's ignition and trail until burnout, every siege breech's smoke);
+an incendiary rocket bursting downrange every 3 s with six fires burning; a bullet on the hull every tenth of a second;
+two hulks smoking; four lift engines' wash at full thrust. Same PC and settings, the PC otherwise idle; the firefight
+measured +0.23 ms in the same session:
+
+| | Frame, average | Frame, 95th percentile | GPU | The library's CPU time |
+|---|---|---|---|---|
+| Effects off | 2.22 ms | 2.38 ms | 1.67 ms | |
+| Effects on | 3.04 ms | 3.33 ms | 2.48 ms | 0.09 ms |
+| **What the effects cost** | **+0.81 ms** | +0.95 ms | +0.81 ms | |
+
+By part (`--battery-parts`, one at a time): the two siege batteries +0.16 ms, the four defense mounts and their twelve
+rockets every 3 s +0.26 ms, the six fires +0.07 ms, the four washes +0.34 ms (each wash about 0.09 ms; a loop
+intensity will scale them with height and thrust). A frame emitted 7 particles on average at about 330 frames a second
+and 216 at most (a siege shot with its dust and ignition), against the budget of 1,500; the lights in use stayed under
+the pool's 24.
+
 Screenshots (`docs/images/ground/fx/`): `sheet-<family>.jpg` (each family's contact sheet) and `action-<family>.jpg`
-(each family in use), for muzzle, tracer, impact, blood, gather, explosion, fire and world.
+(each family in use), for muzzle, tracer, impact, blood, gather, explosion, fire and world. The Iron Wake's
+(`docs/images/iron-wake/fx-*.jpg`): one per effect by day (`fx-<key>.jpg`), the siege shot and the fires also at night
+(`-night`), the siege shot from the gunner's seat and over time (`-gunner`, `-strip`), the trail at both speeds, the
+contact sheets of the ship, fire and explosion families and the scene (`fx-action-ship.jpg`).
 
 ![Camp at night: campfire, furnace and a torch in hand](images/ground/fx/action-fire.jpg)
 

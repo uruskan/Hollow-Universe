@@ -26,11 +26,22 @@ public sealed class FxStation
 
     /// <summary>A fresh hit point and its normal on the station's surface (impacts land on different spots).</summary>
     public Func<FxRandom, (Vector3 Position, Vector3 Normal)>? Scatter;
+
+    /// <summary>
+    /// Plays an effect the way the station's own view will (the Iron Wake's batteries: a muzzle socket, a rocket flying
+    /// out, a ripple of barrels; FxStage.Ship.cs); null: the viewer's usual rules. It gets the effect, the viewer's
+    /// parameters (seed, scale), the viewer's random source and a way to do something a little later, and returns a
+    /// loop's handle.
+    /// </summary>
+    public Func<FxDef, FxParams, FxRandom, Action<double, Action>, FxHandle>? Play;
+
+    /// <summary>The station's named places (a battery's muzzles and breeches), for scenes that fire it.</summary>
+    public Dictionary<string, Node3D> Sockets { get; } = new(StringComparer.Ordinal);
 }
 
 /// <summary>Builds the viewer's stations: ground patches of the planet's own textures, rock, walls from the building kit,
-/// water, a target dummy, the guns, the campfire, furnace and torch.</summary>
-public static class FxStage
+/// water, a target dummy, the guns, the campfire, furnace and torch, and the Iron Wake's (FxStage.Ship.cs).</summary>
+public static partial class FxStage
 {
     private static TextureLayered? _albedo, _normal;
     private static readonly Dictionary<string, Mesh?> Walls = new(StringComparer.Ordinal);
@@ -265,6 +276,9 @@ public static class FxStage
                 s.Pitch = 8f;
                 break;
             }
+            case var ship when Array.IndexOf(ShipKinds, ship) >= 0:
+                BuildShip(s, root, kind);
+                break;
             default:
                 s.Spot = at + Vector3.Up * 1.5f;
                 s.Look = at + Vector3.Up * 1.5f;

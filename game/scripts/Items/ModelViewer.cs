@@ -14,9 +14,12 @@ namespace HollowUniverse.Items;
 /// LODs by distance, Space pauses the turntable, F shows a held item in first person at its catalogue pose, the mouse
 /// wheel zooms. Options: <c>--stage n</c>, <c>--lod n</c>, <c>--yaw deg</c> (the turntable's angle, paused, for a
 /// screenshot), <c>--zoom f</c> (the turntable camera's distance, 1 fits the model), <c>--anim name</c> (play one of
-/// the model's clips; H plays the next), <c>--attach a,b</c> (mount attachments on a gun), <c>--upright</c> (a held
+/// the model's clips; H plays the next; <c>--anim-time s</c> holds it at s seconds), <c>--slots a,b</c> (rocket models
+/// in a ship's ammunition slots, in turn), <c>--attach a,b</c> (mount attachments on a gun), <c>--upright</c> (a held
 /// item as it is held, not lying down), <c>--first-person</c>,
-/// <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera). <c>--survey-surfaces &lt;path&gt;</c> measures the
+/// <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera). <c>--from=x,y,z --at=x,y,z</c> place the turntable's
+/// camera in the model's own frame (metres, its +Z the front) and hold the turntable still, for a close look at one place
+/// (a turret, a deck); <c>--fov deg</c> sets the camera's field of view. <c>--survey-surfaces &lt;path&gt;</c> measures the
 /// outcrops' drawn surfaces for the rules (<see cref="SurfaceSurvey"/>) and quits.
 /// </summary>
 public partial class ModelViewer : Node3D
@@ -41,7 +44,11 @@ public partial class ModelViewer : Node3D
     private bool _firstPerson;
     private int _clip;
     private Node3D? _shown;
+    private Node3D? _shownModel;
     private Aabb _shownBounds;
+    private DirectionalLight3D _sun = null!;
+    private Vector3? _from;
+    private Vector3? _at;
 
     public override void _Ready()
     {
@@ -76,6 +83,17 @@ public partial class ModelViewer : Node3D
             _index = Math.Max(0, _entries.FindIndex(e => e.Key == key));
             _turntable = true;
         }
+        if (Options.TryGetValue("from", out string? from) && Options.TryGetValue("at", out string? at))
+        {
+            _from = ParseVector(from);
+            _at = ParseVector(at);
+            _angle = 0;
+            _paused = true;
+        }
+        if (Options.TryGetValue("fov", out string? fov))
+        {
+            _camera.Fov = float.Parse(fov, CultureInfo.InvariantCulture);
+        }
         _firstPerson = Options.ContainsKey("first-person");
         Rebuild();
     }
@@ -102,7 +120,7 @@ public partial class ModelViewer : Node3D
             SsaoIntensity = 1.6f,
         };
         AddChild(new WorldEnvironment { Environment = environment });
-        var sun = new DirectionalLight3D
+        _sun = new DirectionalLight3D
         {
             Name = "Sun",
             LightEnergy = 1.25f,
@@ -110,8 +128,8 @@ public partial class ModelViewer : Node3D
             ShadowEnabled = true,
             DirectionalShadowMaxDistance = 70,
         };
-        AddChild(sun);
-        sun.LookAtFromPosition(new Vector3(-0.55f, 1f, 0.75f), Vector3.Zero, Vector3.Up);
+        AddChild(_sun);
+        _sun.LookAtFromPosition(new Vector3(-0.55f, 1f, 0.75f), Vector3.Zero, Vector3.Up);
         var ground = new MeshInstance3D
         {
             Name = "Ground",
@@ -136,7 +154,7 @@ public partial class ModelViewer : Node3D
         _detail = Ui.Label("", TextStyle.Secondary);
         content.AddChild(_title);
         content.AddChild(_detail);
-        content.AddChild(Ui.KeyHints(("Tab", "lineup / turntable"), ("← →", "model"), ("↑ ↓", "stage"), ("0 1 2", "LOD"),
+        content.AddChild(Ui.KeyHints(("Tab", "lineup / turntable"), ("← →", "model"), ("↑ ↓", "stage"), ("0–4", "LOD"),
             ("A", "auto LOD"), ("Space", "pause"), ("F", "first person"), ("H", "clip")));
     }
 
@@ -180,7 +198,8 @@ public partial class ModelViewer : Node3D
         var pivot = new Node3D { Name = "Turntable" };
         _content.AddChild(pivot);
         Aabb bounds = ModelCatalog.LocalBounds(model);
-        if (entry.Class == "vehicle")
+        // A small vehicle stands on a plain stand; a ship big enough to carry its own landing legs stands on them.
+        if (entry.Class == "vehicle" && bounds.Size.Z < 25)
         {
             float lift = 0.45f;
             pivot.AddChild(Stand(bounds, lift));
@@ -196,11 +215,21 @@ public partial class ModelViewer : Node3D
         }
         pivot.AddChild(model);
         Mount(entry, model);
+        Slots(model);
         ApplyLod(model);
         PlayClip(model);
         _shown = pivot;
+        _shownModel = model;
         _shownBounds = ModelCatalog.LocalBounds(model);
         _shownBounds.Position += model.Position;
+        // Shadows reach past the whole model from wherever the turntable's camera stands (a ship is 60 m long).
+        _sun.DirectionalShadowMaxDistance = MathF.Max(70, _shownBounds.Size.Length() * 2.5f);
+    }
+
+    private static Vector3 ParseVector(string text)
+    {
+        float[] v = text.Split(',').Select(p => float.Parse(p, NumberStyles.Float, CultureInfo.InvariantCulture)).ToArray();
+        return new Vector3(v[0], v[1], v[2]);
     }
 
     /// <summary>Mounts the attachments named by <c>--attach a,b</c> on a gun at their sockets (catalogue slots).</summary>
@@ -241,9 +270,53 @@ public partial class ModelViewer : Node3D
             return;
         }
         player.Play(clip);
-        if (Options.ContainsKey("shot"))
+        if (Options.TryGetValue("anim-time", out string? at))
+        {
+            // Held at one moment of the clip (a loader mid-cycle, say).
+            player.Seek(Math.Clamp(float.Parse(at, CultureInfo.InvariantCulture), 0f, (float)player.GetAnimation(clip).Length), true);
+            player.Pause();
+        }
+        else if (Options.ContainsKey("shot"))
         {
             player.Seek(player.GetAnimation(clip).Length, true);
+        }
+    }
+
+    /// <summary>
+    /// Fills a model's ammunition slots for a look at its loaders (<c>--slots rocket,rocket-hv</c>): every
+    /// <c>socket_*_Slot_*</c> node gets the next model of the list as its child, with no offset, as the battery view
+    /// attaches rockets (IRON_WAKE.md §9.5).
+    /// </summary>
+    private void Slots(Node3D model)
+    {
+        if (!Options.TryGetValue("slots", out string? list))
+        {
+            return;
+        }
+        string[] keys = list.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var sockets = new List<Node3D>();
+        var stack = new Stack<Node>();
+        stack.Push(model);
+        while (stack.Count > 0)
+        {
+            Node node = stack.Pop();
+            string name = node.Name;
+            if (node is Node3D socket && name.StartsWith("socket_", StringComparison.Ordinal) && name.Contains("_Slot_", StringComparison.Ordinal))
+            {
+                sockets.Add(socket);
+            }
+            foreach (Node child in node.GetChildren())
+            {
+                stack.Push(child);
+            }
+        }
+        int i = 0;
+        foreach (Node3D socket in sockets.OrderBy(s => s.Name.ToString(), StringComparer.Ordinal))
+        {
+            if (keys.Length > 0 && ModelCatalog.Instantiate(keys[i++ % keys.Length]) is Node3D round)
+            {
+                socket.AddChild(round);
+            }
         }
     }
 
@@ -536,7 +609,7 @@ public partial class ModelViewer : Node3D
             case Key.Down:
                 _stage = Math.Max(0, _stage - 1);
                 break;
-            case Key.Key0 or Key.Key1 or Key.Key2:
+            case Key.Key0 or Key.Key1 or Key.Key2 or Key.Key3 or Key.Key4:
                 _lod = (int)(key.Keycode - Key.Key0);
                 break;
             case Key.A:
@@ -580,9 +653,19 @@ public partial class ModelViewer : Node3D
             _angle += (float)delta * 24f;
         }
         _shown.Rotation = new Vector3(0, Mathf.DegToRad(_angle), 0);
+        if (_from is Vector3 from && _at is Vector3 at && _shownModel != null)
+        {
+            // The camera in the model's own frame (--from, --at).
+            Transform3D frame = _shownModel.GlobalTransform;
+            _camera.Position = frame * from;
+            _camera.LookAt(frame * at, Vector3.Up);
+            return;
+        }
         Vector3 size = _shownBounds.Size;
         float radius = Math.Max(0.05f, size.Length() * 0.5f);
         float distance = radius / MathF.Tan(Mathf.DegToRad(_camera.Fov * 0.5f)) * 1.15f * _zoom;
+        // A far zoom (a ship at its LOD3 and LOD4 distances) stays inside the camera's range.
+        _camera.Far = MathF.Max(600, distance * 3);
         Vector3 target = new(0, _shownBounds.GetCenter().Y, 0);
         _camera.Position = target + new Vector3(0, distance * 0.38f, distance);
         _camera.LookAt(target, Vector3.Up);

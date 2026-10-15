@@ -1,0 +1,143 @@
+[remap]
+
+importer="scene"
+importer_version=1
+type="PackedScene"
+uid="uid://dn4cd63gyl35k"
+path="res://.godot/imported/iron-wake.glb-f1b8c512d0a64d3070049a84cd60622c.scn"
+
+[deps]
+
+source_file="res://assets/ships/iron-wake.glb"
+dest_files=["res://.godot/imported/iron-wake.glb-f1b8c512d0a64d3070049a84cd60622c.scn"]
+
+[params]
+
+nodes/root_type=""
+nodes/root_name=""
+nodes/root_script=null
+mesh_library/use_node_names_as_mesh_names=false
+array_mesh/deduplicate_surfaces=true
+nodes/apply_root_scale=true
+nodes/root_scale=1.0
+nodes/import_as_skeleton_bones=false
+nodes/use_name_suffixes=true
+nodes/use_node_type_suffixes=true
+meshes/ensure_tangents=true
+meshes/generate_lods=false
+meshes/create_shadow_meshes=true
+meshes/light_baking=1
+meshes/lightmap_texel_size=0.2
+meshes/force_disable_compression=true
+skins/use_named_skins=true
+animation/import=true
+animation/fps=30
+animation/trimming=false
+animation/remove_immutable_tracks=true
+animation/import_rest_as_RESET=false
+import_script/path=""
+materials/extract=0
+materials/extract_format=0
+materials/extract_path=""
+_subresources={
+"materials": {
+"M_IronWake_BlackPaint": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_black_paint.tres",
+"use_external/path": "res://assets/materials/iron_wake_black_paint.tres"
+},
+"M_IronWake_BrushedSteel": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_brushed_steel.tres",
+"use_external/path": "res://assets/materials/iron_wake_brushed_steel.tres"
+},
+"M_IronWake_DarkSteel": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_dark_steel.tres",
+"use_external/path": "res://assets/materials/iron_wake_dark_steel.tres"
+},
+"M_IronWake_Distant": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_distant.tres",
+"use_external/path": "res://assets/materials/iron_wake_distant.tres"
+},
+"M_IronWake_EngineGlow": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_engine_glow.tres",
+"use_external/path": "res://assets/materials/iron_wake_engine_glow.tres"
+},
+"M_IronWake_Glass": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_glass.tres",
+"use_external/path": "res://assets/materials/iron_wake_glass.tres"
+},
+"M_IronWake_Gunmetal": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_gunmetal.tres",
+"use_external/path": "res://assets/materials/iron_wake_gunmetal.tres"
+},
+"M_IronWake_InteriorPaint": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_interior_paint.tres",
+"use_external/path": "res://assets/materials/iron_wake_interior_paint.tres"
+},
+"M_IronWake_IvoryPaint": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_ivory_paint.tres",
+"use_external/path": "res://assets/materials/iron_wake_ivory_paint.tres"
+},
+"M_IronWake_Lamps": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_lamps.tres",
+"use_external/path": "res://assets/materials/iron_wake_lamps.tres"
+},
+"M_IronWake_LouvredSteel": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_louvred_steel.tres",
+"use_external/path": "res://assets/materials/iron_wake_louvred_steel.tres"
+},
+"M_IronWake_Markings": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_displays.tres",
+"use_external/path": "res://assets/materials/iron_wake_displays.tres"
+},
+"M_IronWake_OlivePaint": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_olive_paint.tres",
+"use_external/path": "res://assets/materials/iron_wake_olive_paint.tres"
+},
+"M_IronWake_OxidePaint": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_oxide_paint.tres",
+"use_external/path": "res://assets/materials/iron_wake_oxide_paint.tres"
+},
+"M_IronWake_Rubber": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_rubber.tres",
+"use_external/path": "res://assets/materials/iron_wake_rubber.tres"
+},
+"M_IronWake_SeatFabric": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_seat_fabric.tres",
+"use_external/path": "res://assets/materials/iron_wake_seat_fabric.tres"
+},
+"M_IronWake_TealPaint": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_teal_paint.tres",
+"use_external/path": "res://assets/materials/iron_wake_teal_paint.tres"
+},
+"M_IronWake_TreadSteel": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_tread_steel.tres",
+"use_external/path": "res://assets/materials/iron_wake_tread_steel.tres"
+},
+"M_IronWake_WarningYellow": {
+"use_external/enabled": true,
+"use_external/fallback_path": "res://assets/materials/iron_wake_warning_yellow.tres",
+"use_external/path": "res://assets/materials/iron_wake_warning_yellow.tres"
+}
+}
+}
+gltf/naming_version=2
+gltf/embedded_image_handling=0
+gltf/texture_map_mode=0
