@@ -78,6 +78,17 @@ public readonly record struct BoardingBox(Vector3 Min, Vector3 Max, int Part, in
 /// <summary>A named point of a ship's model, with its orientation, and the part that carries it (−1 the hull).</summary>
 public readonly record struct ShipSocket(Vector3 Position, Vector3 Forward, Vector3 Up, int Part);
 
+/// <summary>One barrel of a station as the data file has it: its recoil part, its muzzle, its breech end at rest, its side of the mount (+1 port), its length.</summary>
+public sealed record StationBarrelData(int RecoilPart, ShipSocket Muzzle, Vector3 Breech, float Side, float Length);
+
+/// <summary>
+/// A station as the data file has it (IRON_WAKE.md §6.1, the import's <c>stations</c>): its id, its battery's kind, its side
+/// (+1 port, −1 starboard, 0 centre), its yaw and pitch parts, its barrels, its gunner's camera, and the arcs (degrees from
+/// the bow, + to port) its barrels clear the hull through at level.
+/// </summary>
+public sealed record StationGeometry(string Id, string Kind, float Side, int YawPart, int PitchPart, IReadOnlyList<StationBarrelData> Barrels,
+    ShipSocket Camera, IReadOnlyList<(float From, float To)> Arcs);
+
 /// <summary>A lamp fixture of a ship's data file (IRON_WAKE.md §9.4): its name, where it is, which way it shines (a spot), its room.</summary>
 public sealed record ShipFixture(string Name, Vector3 Position, Vector3 Direction, bool Spot, string Room);
 
@@ -130,6 +141,25 @@ public sealed class ShipInterior
 
     /// <summary>The data file's stations by their ids (IRON_WAKE.md §6.1): what a station's seat names.</summary>
     public IReadOnlySet<string> Stations { get; init; } = new HashSet<string>();
+
+    /// <summary>The data file's stations (IRON_WAKE.md §6.1), in its order: what ships.json's stations are made from (IW3).</summary>
+    public IReadOnlyList<StationGeometry> StationData { get; init; } = Array.Empty<StationGeometry>();
+
+    /// <summary>
+    /// Whether a part is a station's mount (its yaw or pitch): a parked ship's body keeps them at rest, so a gunner's aim
+    /// never makes the body again (IRON_WAKE.md §6.2).
+    /// </summary>
+    public bool IsMount(int part)
+    {
+        foreach (StationGeometry s in StationData)
+        {
+            if (s.YawPart == part || s.PitchPart == part)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /// <summary>The data file's lamp fixtures, its drive glows left out (IRON_WAKE.md §9.4): what ships.json's lights light.</summary>
     public IReadOnlyList<ShipFixture> Fixtures { get; init; } = Array.Empty<ShipFixture>();

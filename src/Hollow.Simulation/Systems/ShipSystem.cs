@@ -106,6 +106,14 @@ public sealed partial class ShipSystem : ZoneSystem
             // A door's record counts from the zone's tick it arrives at (a stored one's ticks were another run's).
             ship.Doors[i].Since = Tick;
         }
+        foreach (StationState station in ship.Stations)
+        {
+            // So do the loaders' (a stored cycle goes on from where it was).
+            for (int i = 0; i < station.Loaders.Length; i++)
+            {
+                station.Loaders[i].Since = Tick;
+            }
+        }
         if (ship.Def.Interior is { } interior)
         {
             DoorParts(ship, Tick, ship.Parts);
@@ -216,6 +224,7 @@ public sealed partial class ShipSystem : ZoneSystem
             ship.Events = ShipMotor.Step(ref ship.State, input, ship.Def, context, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody);
             ShipSteps++;
             StepDoors(ship);
+            StepStations(ship);
             if (ship.Events.CrashDamage > 0)
             {
                 ShipEvents.Add(new ShipEvent(ShipEventKind.Crashed, ship, ship.Events.CrashDamage));
@@ -383,20 +392,27 @@ public sealed partial class ShipSystem : ZoneSystem
         return OutcomeCode.Done;
     }
 
-    /// <summary>The ship whose cargo a player has open, or null.</summary>
+    /// <summary>The ship whose cargo (or a station's magazine) a player has open, or null.</summary>
     public Ship? LootShip(Player p) => p.Looting.IsNone ? null : ShipOf(p.Looting) is { Destroyed: false } ship ? ship : null;
 
-    // Whether a player looting a ship's cargo may go on (CheckLoot, once a second): from one of its seats, or beside it while
-    // it is at rest, its cargo's part within the reach that keeps a container open (GROUND_SYSTEMS.md §3.4).
-    internal bool StillAtShip(Entity entity, Ship ship)
+    /// <summary>What a player looting a ship has open: a station's magazine at the part they opened (IRON_WAKE.md §6.5), else its cargo.</summary>
+    public Container LootContainer(Player p, Ship ship) =>
+        p.LootPart > 0 && p.LootPart < ship.Def.Parts.Count && ship.Def.Parts[p.LootPart].Station is >= 0 and var station && station < ship.Stations.Length
+            ? ship.Stations[station].Magazine : ship.Cargo;
+
+    // Whether a player looting a ship's cargo or a magazine may go on (CheckLoot, once a second): from one of its seats, or
+    // beside its part within the reach that keeps a container open (GROUND_SYSTEMS.md §3.4), the cargo of one people sit in
+    // only while it is at rest.
+    internal bool StillAtShip(Entity entity, Ship ship, int part = 0)
     {
         if (SeatOf(entity) == ship)
         {
             return true;
         }
-        int cargo = ship.Def.CargoPart;
-        return cargo > 0 && Content != null && !ship.InOrbit && ShipStill(ship) &&
-            Targets.Reach(EyeOf(Entities.Get<Character>(entity).State), new TargetRef(TargetFamily.Ship, ship.Id.Value, (byte)cargo), Content.Survival.KeepOpenReach,
+        bool magazine = part > 0 && part < ship.Def.Parts.Count && ship.Def.Parts[part].Station >= 0;
+        int at = magazine ? part : ship.Def.CargoPart;
+        return at > 0 && Content != null && !ship.InOrbit && (magazine || ShipStill(ship)) &&
+            Targets.Reach(EyeOf(Entities.Get<Character>(entity).State), new TargetRef(TargetFamily.Ship, ship.Id.Value, (byte)at), Content.Survival.KeepOpenReach,
                 sight: false).Ok;
     }
 
@@ -565,6 +581,17 @@ public sealed partial class ShipSystem : ZoneSystem
             if (!ship.Cargo[i].IsEmpty)
             {
                 stacks.Add(ship.Cargo[i]);
+            }
+        }
+        foreach (StationState station in ship.Stations)
+        {
+            // The stations' magazines (IRON_WAKE.md §5.5).
+            foreach (ItemStack s in station.Magazine.Slots)
+            {
+                if (!s.IsEmpty)
+                {
+                    stacks.Add(s);
+                }
             }
         }
         int fuel = (int)MathF.Floor(ship.State.Fuel * 0.5f);

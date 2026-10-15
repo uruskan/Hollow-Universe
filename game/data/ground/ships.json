@@ -146,32 +146,32 @@
         { "key": "airlock", "name": "Airlock", "pieces": ["Airlock_Door"], "capabilities": ["ship-door"], "door": "airlock" },
         {
           "key": "forward-battery", "name": "Forward battery", "pieces": ["Siege_Forward_Yaw"], "at": "Siege_Forward_GunnerInteraction", "radius": 0.5,
-          "capabilities": ["seat"], "seat": "forward-battery",
+          "capabilities": ["seat", "magazine"], "seat": "forward-battery",
           "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
         },
         {
           "key": "dorsal-battery", "name": "Dorsal battery", "pieces": ["Siege_Dorsal_Yaw"], "at": "Siege_Dorsal_GunnerInteraction", "radius": 0.5,
-          "capabilities": ["seat"], "seat": "dorsal-battery",
+          "capabilities": ["seat", "magazine"], "seat": "dorsal-battery",
           "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
         },
         {
           "key": "forward-starboard-mount", "name": "Forward starboard mount", "pieces": ["Defense_F_P_Yaw"], "at": "Defense_F_P_GunnerInteraction", "radius": 0.5,
-          "capabilities": ["seat"], "seat": "forward-starboard-mount",
+          "capabilities": ["seat", "magazine"], "seat": "forward-starboard-mount",
           "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
         },
         {
           "key": "forward-port-mount", "name": "Forward port mount", "pieces": ["Defense_F_S_Yaw"], "at": "Defense_F_S_GunnerInteraction", "radius": 0.5,
-          "capabilities": ["seat"], "seat": "forward-port-mount",
+          "capabilities": ["seat", "magazine"], "seat": "forward-port-mount",
           "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
         },
         {
           "key": "aft-starboard-mount", "name": "Aft starboard mount", "pieces": ["Defense_A_P_Yaw"], "at": "Defense_A_P_GunnerInteraction", "radius": 0.5,
-          "capabilities": ["seat"], "seat": "aft-starboard-mount",
+          "capabilities": ["seat", "magazine"], "seat": "aft-starboard-mount",
           "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
         },
         {
           "key": "aft-port-mount", "name": "Aft port mount", "pieces": ["Defense_A_S_Yaw"], "at": "Defense_A_S_GunnerInteraction", "radius": 0.5,
-          "capabilities": ["seat"], "seat": "aft-port-mount",
+          "capabilities": ["seat", "magazine"], "seat": "aft-port-mount",
           "health": { "max": 1500, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 300] }
         },
         { "key": "fuel", "name": "Fuel cap", "at": [6.3, 2.7, -15.0], "radius": 0.45, "capabilities": ["fuel"] }

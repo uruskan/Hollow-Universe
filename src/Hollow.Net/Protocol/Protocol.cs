@@ -122,6 +122,9 @@ public enum ShipAction : byte
     Leave,
     Lock,
     Descend,
+
+    /// <summary>A gunner opens their station's magazine (Tab, IRON_WAKE.md §6.5).</summary>
+    Magazine,
 }
 
 /// <summary>What a line of the console's answer is (GROUND.md §8.2): plain output, a refusal or error, or something done.</summary>

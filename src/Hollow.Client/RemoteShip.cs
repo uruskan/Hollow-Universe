@@ -114,7 +114,7 @@ public sealed class RemoteShip
     /// <summary>The server's word on its details (<see cref="ShipDetails"/>).</summary>
     public void SetDetails(in ShipDetails details)
     {
-        bool partsMoved = !_hasDetails || !SameParts(_details.Parts, details.Parts);
+        bool partsMoved = !_hasDetails || !SameParts(_details.Parts, details.Parts, _def?.Interior);
         _details = details;
         _hasDetails = true;
         DetailsVersion++;
@@ -125,22 +125,34 @@ public sealed class RemoteShip
         ApplyDetails();
     }
 
-    private static bool SameParts(ShipPartNet[]? a, ShipPartNet[]? b)
+    // Whether two lists of parts away from rest are the same but for the stations' mounts (a gunner's aim moves them every
+    // tick; the parked body keeps them at rest, IRON_WAKE.md §6.2).
+    private static bool SameParts(ShipPartNet[]? a, ShipPartNet[]? b, ShipInterior? interior)
     {
         a ??= Array.Empty<ShipPartNet>();
         b ??= Array.Empty<ShipPartNet>();
-        if (a.Length != b.Length)
+        int i = 0, j = 0;
+        while (true)
         {
-            return false;
-        }
-        for (int i = 0; i < a.Length; i++)
-        {
-            if (a[i].Part != b[i].Part || a[i].Bits != b[i].Bits)
+            while (i < a.Length && interior != null && interior.IsMount((int)a[i].Part))
+            {
+                i++;
+            }
+            while (j < b.Length && interior != null && interior.IsMount((int)b[j].Part))
+            {
+                j++;
+            }
+            if (i >= a.Length || j >= b.Length)
+            {
+                return i >= a.Length && j >= b.Length;
+            }
+            if (a[i].Part != b[j].Part || a[i].Bits != b[j].Bits)
             {
                 return false;
             }
+            i++;
+            j++;
         }
-        return true;
     }
 
     // The details for its kind (once both are known): doors, seats and health sized to its kind's; before any word from

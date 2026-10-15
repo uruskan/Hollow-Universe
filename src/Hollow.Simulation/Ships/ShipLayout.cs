@@ -242,6 +242,9 @@ public sealed class ShipTargetPart
     /// <summary>Its own health (a battery's); a door's part takes its door's.</summary>
     public ShipPartHealth? Health { get; init; }
 
+    /// <summary>The station whose seat it sits in (its magazine opens here, IRON_WAKE.md §6.5), or −1.</summary>
+    public int Station { get; internal set; } = -1;
+
     public bool HasBall => Radius > 0;
 
     public override string ToString() => Key;

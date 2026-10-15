@@ -31,6 +31,7 @@ public sealed partial class GameContent
         "capabilities.json",
         Content.InteractionData.File,
         "placement.json",
+        "batteries.json",
     };
 
     /// <summary>Files read with the rest but not part of <see cref="Hash"/>: the player's lines (a translation may differ).</summary>
@@ -57,6 +58,7 @@ public sealed partial class GameContent
         Bullets = loaded.Bullets;
         Attachments = loaded.Attachments;
         Ships = loaded.Ships;
+        Batteries = loaded.Batteries;
         Blasts = loaded.Blasts;
         Throwables = loaded.Throwables;
         Fires = loaded.Fires;
@@ -119,6 +121,13 @@ public sealed partial class GameContent
 
     /// <summary>The kinds of ship (ships.json, G6); each also hangs off its item.</summary>
     public IReadOnlyList<Ships.ShipDef> Ships { get; }
+
+    /// <summary>The crewed batteries' kinds (batteries.json, IRON_WAKE.md §6, IW3): a ship's stations name one.</summary>
+    public IReadOnlyList<BatteryDef> Batteries { get; }
+
+    /// <summary>A battery kind by its number (the wire's), or null.</summary>
+    public BatteryDef? Battery(int index) => index >= 0 && index < Batteries.Count ? Batteries[index] : null;
+
     /// <summary>G5 (explosives.json): every blast, the explosives thrown or placed by hand, and how raid alerts go out.</summary>
     public IReadOnlyList<BlastStats> Blasts { get; }
 
@@ -415,6 +424,7 @@ public sealed partial class GameContent
         public List<BulletStats> Bullets = new();
         public List<AttachmentStats> Attachments = new();
         public List<Ships.ShipDef> Ships = new();
+        public List<BatteryDef> Batteries = new();
         public List<BlastStats> Blasts = new();
         public List<ThrowableStats> Throwables = new();
         public List<FireDef> Fires = new();

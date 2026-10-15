@@ -201,6 +201,22 @@ public sealed class ShipDef
     /// </summary>
     public IReadOnlyList<ShipTargetPart> Parts { get; init; } = Array.Empty<ShipTargetPart>();
 
+    /// <summary>Its crewed batteries (IRON_WAKE.md §6, IW3): by index, the wire's and the saves' number.</summary>
+    public IReadOnlyList<ShipStationDef> Stations { get; init; } = Array.Empty<ShipStationDef>();
+
+    /// <summary>The station a seat works, or null.</summary>
+    public ShipStationDef? StationOfSeat(int seat)
+    {
+        foreach (ShipStationDef s in Stations)
+        {
+            if (s.Seat == seat)
+            {
+                return s;
+            }
+        }
+        return null;
+    }
+
     /// <summary>The target part its cargo is opened at (the one with the container capability), or 0: none.</summary>
     public int CargoPart { get; init; }
 

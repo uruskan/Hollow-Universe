@@ -134,9 +134,10 @@ public sealed class InteractionSystem : ZoneSystem
     // ---------------------------------------------------------------- what the handlers do here
 
     /// <summary>Opens what a player loots: a box, a device, a body, a sleeper, the cupboard's store, a ship's cargo.</summary>
-    internal Outcome OpenLoot(Player p, EntityId target)
+    internal Outcome OpenLoot(Player p, EntityId target, int part = 0)
     {
         p.Looting = target;
+        p.LootPart = part;
         p.LootRevision++;
         return Outcome.Done;
     }

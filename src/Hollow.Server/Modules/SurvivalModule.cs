@@ -324,7 +324,7 @@ public sealed class SurvivalModule : ServerModule
             Send(session);
             if (ship != null)
             {
-                SendContents(session, ContainerRef.Loot, ship.Cargo); // a ship's cargo (G6)
+                SendContents(session, ContainerRef.Loot, Zone.Ships().LootContainer(p, ship)); // a ship's cargo (G6), a station's magazine (IW3)
             }
             else if (thing?.Container is { } container)
             {

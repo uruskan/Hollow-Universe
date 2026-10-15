@@ -264,6 +264,18 @@ public enum OutcomeCode : byte
 
     /// <summary>The ship's crew alone (those authorised at its helm).</summary>
     NotCrew = 115,
+
+    /// <summary>A crewed battery: no barrel loaded yet, the loader at work (the detail: its progress, a percentage; IRON_WAKE.md §6.7).</summary>
+    Loading = 116,
+
+    /// <summary>A crewed battery: the asked direction beyond the mount's arcs.</summary>
+    Limit = 117,
+
+    /// <summary>A crewed battery: no loaded barrel within the alignment tolerance of the asked direction yet.</summary>
+    Traversing = 118,
+
+    /// <summary>A crewed battery: the barrel's line, from the breech to 6 m past the muzzle, meets the ship's own space.</summary>
+    HullBlocked = 119,
 }
 
 /// <summary>

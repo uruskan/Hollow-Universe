@@ -65,7 +65,7 @@ public sealed class ActionSystem : ZoneSystem
     {
         if (Ships.LootShip(p) is { } ship)
         {
-            return LootRules.KindOf(ship.Cargo);
+            return LootRules.KindOf(Ships.LootContainer(p, ship));
         }
         (WorldObject? thing, Player? sleeper, _) = LootTarget(p);
         return thing?.Container is { } container ? LootRules.KindOf(container) : sleeper != null ? LootKind.Sleeper : LootKind.None;
@@ -83,7 +83,7 @@ public sealed class ActionSystem : ZoneSystem
         }
         if (Ships.LootShip(p) is { } ship)
         {
-            return which == ContainerRef.Loot ? ship.Cargo : null;
+            return which == ContainerRef.Loot ? Ships.LootContainer(p, ship) : null;
         }
         (WorldObject? thing, Player? sleeper, _) = LootTarget(p);
         if (thing != null)
@@ -288,7 +288,7 @@ public sealed class ActionSystem : ZoneSystem
             if (Ships.ShipOf(p.Looting) is { } ship)
             {
                 // A ship's cargo (G6): open while at its hatch, or in its seat.
-                if (ship.Destroyed || !p.IsAwakeAndAlive || !Ships.StillAtShip(Entities.AtSlot(players.Slots[i]), ship))
+                if (ship.Destroyed || !p.IsAwakeAndAlive || !Ships.StillAtShip(Entities.AtSlot(players.Slots[i]), ship, p.LootPart))
                 {
                     p.Looting = EntityId.None;
                     p.LootRevision++;

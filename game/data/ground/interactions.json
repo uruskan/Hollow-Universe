@@ -43,6 +43,7 @@
     { "key": "ship-unlock", "label": "Unlock", "glyph": "unlock", "description": "Anyone may open its doors.", "priority": 20 },
     { "key": "take-helm", "label": "Take the helm", "named": false, "glyph": "board", "description": "Fly it: its crew alone.", "priority": 70 },
     { "key": "man", "label": "Man", "glyph": "board", "description": "Sit at its gun: its crew alone.", "priority": 70 },
-    { "key": "sit", "label": "Sit in", "glyph": "board", "description": "A seat for the ride.", "priority": 70 }
+    { "key": "sit", "label": "Sit in", "glyph": "board", "description": "A seat for the ride.", "priority": 70 },
+    { "key": "open-magazine", "label": "Open magazine", "glyph": "open", "description": "Its rockets: its crew and its gunner fill it.", "priority": 40 }
   ]
 }

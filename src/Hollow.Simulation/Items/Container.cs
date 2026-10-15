@@ -115,6 +115,9 @@ public enum ContainerKind : byte
 
     /// <summary>Take only, gone once empty: a world crate (G7), a bag of dropped items (GROUND.md §6.1).</summary>
     Crate,
+
+    /// <summary>A crewed battery's magazine (IRON_WAKE.md §6.5): only the rockets its battery takes (<see cref="Container.Takes"/>).</summary>
+    Magazine,
 }
 
 /// <summary>
@@ -146,6 +149,9 @@ public sealed class Container
 
     /// <summary>The deployable this is the storage of (a device's slots come from it).</summary>
     public DeployableDef? Deployable { get; }
+
+    /// <summary>What a magazine takes (its battery's rockets), by item ID; null for every other kind.</summary>
+    public IReadOnlySet<ushort>? Takes { get; init; }
 
     /// <summary>Raised on every change.</summary>
     public uint Revision { get; private set; }
@@ -272,6 +278,8 @@ public sealed class Container
                 return true;
             case ContainerKind.Corpse or ContainerKind.Crate:
                 return false;
+            case ContainerKind.Magazine:
+                return Takes != null && Takes.Contains(item.Id);
             case ContainerKind.Device when Deployable?.Recycler is { } recycler:
                 // Anything the recycler takes apart into its inputs; nothing into its outputs (G7).
                 return Contains(recycler.InputSlots, slot) && Economy.Recycling.CanRecycle(content, item);

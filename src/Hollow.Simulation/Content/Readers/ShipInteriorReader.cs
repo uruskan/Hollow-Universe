@@ -221,9 +221,15 @@ internal static class ShipInteriorReader
 
         // The stations' ids (a station's seat names one) and the lamps' fixtures (ships.json's lights), the drive glows left out.
         var stations = new HashSet<string>(StringComparer.Ordinal);
+        var stationData = new List<StationGeometry>();
         foreach (JsonElement s in f.List(root, "stations", at, required: false))
         {
-            stations.Add(f.Text(s, "id", at + ": stations"));
+            string id = f.Text(s, "id", at + ": stations");
+            stations.Add(id);
+            if (Station(f, s, id, $"{at}: station {JsonFields.Quote(id)}", names, sockets, partList) is { } station)
+            {
+                stationData.Add(station);
+            }
         }
         var fixtures = new List<ShipFixture>();
         foreach (JsonElement l in f.List(root, "lights", at, required: false))
@@ -253,11 +259,78 @@ internal static class ShipInteriorReader
             DeckGravity = f.Number(block, "gravity", where, 1f),
             Rest = rest,
             Stations = stations,
+            StationData = stationData,
             Fixtures = fixtures,
         };
         interior.Finish();
         return interior;
     }
+
+    // A station of the data file (IRON_WAKE.md §6.1): its parts by name, its barrels (their recoil parts, muzzle sockets,
+    // breeches and sides; their lengths from the receiver), its camera socket, and its level arcs (its clearance's, else its
+    // yaw part's).
+    private static StationGeometry? Station(JsonFields f, JsonElement s, string id, string where, Dictionary<string, int> names,
+        Dictionary<string, ShipSocket> sockets, JsonElement[] partList)
+    {
+        int yaw = names.GetValueOrDefault(f.Text(s, "yaw", where), -1), pitch = names.GetValueOrDefault(f.Text(s, "pitch", where), -1);
+        if (yaw < 0 || pitch < 0)
+        {
+            f.Problem(where, "its yaw and pitch must be parts of the data file");
+            return null;
+        }
+        var lengths = new Dictionary<string, float>(StringComparer.Ordinal);
+        if (f.TryChild(s, "receiver", out JsonElement receiver))
+        {
+            foreach (JsonElement b in f.List(receiver, "barrels", where + ".receiver", required: false))
+            {
+                lengths[f.Text(b, "recoil", where + ".receiver", "")] = f.Number(b, "length", where + ".receiver", 0);
+            }
+        }
+        var barrels = new List<StationBarrelData>();
+        foreach (JsonElement b in f.List(s, "barrels", where))
+        {
+            string recoil = f.Text(b, "recoil", where + ".barrels");
+            string muzzle = f.Text(b, "muzzle", where + ".barrels");
+            if (!sockets.TryGetValue(muzzle, out ShipSocket muzzleSocket))
+            {
+                f.Problem(where + ".barrels", $"no socket \"{muzzle}\"");
+                continue;
+            }
+            barrels.Add(new StationBarrelData(names.GetValueOrDefault(recoil, -1), muzzleSocket, f.Vector(b, "breech", where + ".barrels"),
+                Side(f.Text(b, "mountSide", where + ".barrels", "centre")), lengths.GetValueOrDefault(recoil, 0)));
+        }
+        string camera = f.Text(s, "camera", where, "");
+        sockets.TryGetValue(camera, out ShipSocket cameraSocket);
+        var arcs = new List<(float, float)>();
+        JsonElement arcList = default;
+        if (f.TryChild(s, "clearance", out JsonElement clearance) && clearance.TryGetProperty("levelArcs", out JsonElement found))
+        {
+            arcList = found;
+        }
+        else if (partList[yaw].TryGetProperty("levelArcs", out JsonElement onYaw))
+        {
+            arcList = onYaw;
+        }
+        if (arcList.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement arc in arcList.EnumerateArray())
+            {
+                if (arc.ValueKind == JsonValueKind.Array && arc.GetArrayLength() == 2)
+                {
+                    arcs.Add(((float)arc[0].GetDouble(), (float)arc[1].GetDouble()));
+                }
+            }
+        }
+        return new StationGeometry(id, f.Text(s, "kind", where), Side(f.Text(s, "side", where, "centre")), yaw, pitch, barrels, cameraSocket, arcs);
+    }
+
+    // The data file's sides: port is +X, starboard −X.
+    private static float Side(string side) => side switch
+    {
+        "port" => 1,
+        "starboard" => -1,
+        _ => 0,
+    };
 
     private static ShipPartKind Kind(JsonFields f, string kind, string where)
     {

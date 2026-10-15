@@ -95,7 +95,7 @@ public sealed class SurvivalModule : ClientModule
         Local.Update();
         Local.UpdatePlacements();
         double now = ClockSeconds;
-        _projectiles.RemoveAll(p => (p.EndedAt != null && now - p.EndedTime > 1.0) || now - p.LaunchedAt > 8);
+        _projectiles.RemoveAll(p => (p.EndedAt != null && now - p.EndedTime > 1.0) || now - p.LaunchedAt > 15);
     }
 
     protected internal override void Despawned(uint netId) => RemoveThing(netId);

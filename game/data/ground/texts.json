@@ -108,6 +108,11 @@
     "Jammed": "Jammed open: mend it with a hammer",
     "Disabled": "Disabled: mend it with a hammer",
     "TooFast": "Too fast or too high: slow down near the ground",
-    "NotCrew": "Its crew only: authorise at its helm"
+    "NotCrew": "Its crew only: authorise at its helm",
+
+    "Loading": "Loading: {n}%",
+    "Limit": "Limit: beyond its arcs",
+    "Traversing": "Traversing: not on the mark yet",
+    "HullBlocked": "Hull blocked: the ship is in the line of fire"
   }
 }
