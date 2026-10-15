@@ -379,8 +379,11 @@ public sealed partial class ShipSystem : ZoneSystem
     // On foot these are verbs (GROUND_SYSTEMS.md §5: the ship capability offers them by part, the interaction's one path
     // checks reach and sight to the part); from the seat, the pilot's keys (ShipIntent).
 
-    /// <summary>A ship is still enough to open its hatch, step out or reach in: barely moving, near the ground or on the sea.</summary>
-    internal bool ShipStill(Ship ship)
+    /// <summary>
+    /// A ship is still enough to open its hatch, step out or reach in: landed, asleep, or barely moving near the ground or
+    /// on the sea. The one rule: clients are told it (<c>ShipNetFlags.Still</c>), so they offer what it allows.
+    /// </summary>
+    public bool ShipStill(Ship ship)
     {
         if (ship.State.Has(ShipFlags.Landed) || ship.State.Asleep)
         {
@@ -423,7 +426,7 @@ public sealed partial class ShipSystem : ZoneSystem
         {
             if (!ShipStill(ship))
             {
-                return OutcomeCode.NotLanded;
+                return inside ? OutcomeCode.NotLanded : OutcomeCode.ShipMoving;
             }
             if (ship.Locked && p.Id != ship.Owner && !inside)
             {
@@ -459,7 +462,7 @@ public sealed partial class ShipSystem : ZoneSystem
         }
         if (!ShipStill(ship))
         {
-            return OutcomeCode.NotLanded;
+            return OutcomeCode.ShipMoving;
         }
         Seat(entity, p, ship);
         ship.HatchOpen = false;

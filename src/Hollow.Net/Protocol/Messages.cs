@@ -254,7 +254,7 @@ public partial struct ShipNetState
     [Signed(16)] public short TurnA;
     [Signed(16)] public short TurnB;
     [Signed(16)] public short TurnC;
-    [Bits(10)] public ShipNetFlags Flags;
+    [Bits(11)] public ShipNetFlags Flags;
 
     /// <summary>What the receiver is told of it (GROUND_SYSTEMS.md §3.3): theirs, a teammate's, locked.</summary>
     [Bits(8)] public ViewerFlags Viewer;

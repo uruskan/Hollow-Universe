@@ -26,9 +26,11 @@ public static partial class Protocol
     /// interaction (GROUND_SYSTEMS.md §5): one <see cref="InteractIntent"/> for every verb (Open, PickUp, Toggle, HelpUp,
     /// Rearm and Unlock gone; with 18's placing, nothing is left of Door, Lock and Claim; Team doesn't invite, Ship is the
     /// pilot's keys alone), spent arrows (<see cref="ArrowStates"/>, <see cref="ArrowsGone"/>, the Arrow target family), a
-    /// thing's capabilities.
+    /// thing's capabilities; 22: ship spaces (IRON_WAKE.md §4.13, IW1): the frame in the input and characters' states, a
+    /// parked ship's body, its parts' states; 23: seats, parts and doors (IRON_WAKE.md §5, IW2): a ship at rest is the
+    /// server's word (<see cref="ShipNetFlags.Still"/>).
     /// </summary>
-    public const uint Version = 22;
+    public const uint Version = 23;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -93,6 +95,13 @@ public enum ShipNetFlags : ushort
     AssistOff = 128,
     Wet = 256,
     Asleep = 512,
+
+    /// <summary>
+    /// At rest as the server judges it (<c>ShipSystem.ShipStill</c>: landed, asleep, or barely moving near the ground or
+    /// afloat): its hatch opens, its seat is reached and its cargo opened only then. One rule on both sides: a client
+    /// told only landed and asleep refused what the server allowed (the F1-kill finding, KNOWN_PROBLEMS.md).
+    /// </summary>
+    Still = 1024,
 }
 
 /// <summary>A pilot's key in the seat (<see cref="ShipIntent"/>); on foot a ship's hatch, seat, tank and lock are verbs.</summary>

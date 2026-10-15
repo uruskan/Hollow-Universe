@@ -72,10 +72,25 @@ public static class ShipMotor
     /// <summary>The skids' rays start this far above each pad.</summary>
     public const float SkidProbe = 0.5f;
 
-    /// <summary>A ship with its engines off that moves less than this in a tick (metres, radians) is held where it stands.</summary>
-    public const float HeldMetres = 0.001f;
+    /// <summary>
+    /// A ship with its engines off that touches something and moves less than this in a tick (metres, radians) is held
+    /// where it stands: its contacts push it about a few millimetres a tick while it goes nowhere (IRON_WAKE.md §5.4).
+    /// </summary>
+    public const float HeldMetres = 0.005f;
 
-    public const float HeldTurn = 0.0003f;
+    public const float HeldTurn = 0.002f;
+
+    /// <summary>
+    /// A ship with its engines off that touches something (its skids or its hull) and goes slower than this (m/s, rad/s)
+    /// is at rest, whatever its contacts do to its position: a carrier on uneven ground, its hull pushed out of a bump
+    /// beside its pads a millimetre or a few centimetres a tick, never moves off (IRON_WAKE.md §5.4, the F1-kill finding).
+    /// </summary>
+    public const float RestSpeed = 0.25f;
+
+    public const float RestSpin = 0.03f;
+
+    /// <summary>A sleeping ship's hull, lowered this far, still overlapping what it rests on: it is supported there.</summary>
+    public const float SupportProbe = 0.03f;
 
     /// <summary>Flight assist's gentle descent works below this height over the ground.</summary>
     public const float LandingAssistHeight = 30f;
@@ -241,6 +256,8 @@ public static class ShipMotor
         int loaded = 0;
         float closing = 0;
         Vector3 groundNormal = Vector3.Zero;
+        // The hull met something this tick (a sweep's contact or an overlap pushed out): it rests on it, if slow.
+        bool touched = false;
         for (int step = 0; step < steps; step++)
         {
             Vector3 from = s.Position, under = ctx.Frame.UpAt(from);
@@ -320,6 +337,7 @@ public static class ShipMotor
                     s.Position += move * fraction + hit.Normal * 0.002f;
                     float impact = Collide(ref s, def, hit.Point - s.Position, hit.Normal, Restitution);
                     events.ImpactSpeed = MathF.Max(events.ImpactSpeed, impact);
+                    touched = true;
                 }
                 else
                 {
@@ -327,6 +345,7 @@ public static class ShipMotor
                 }
                 // Out of anything the hull ended up in (a turn into the ground, a pad pressed past its travel).
                 int found = collider!.Overlaps(def, s.Position, s.Rotation, ignoreBody, contacts);
+                touched |= found > 0;
                 Vector3 push = Vector3.Zero;
                 for (int i = 0; i < found; i++)
                 {
@@ -386,10 +405,15 @@ public static class ShipMotor
         }
         // At rest: on its skids, slow and level enough (landed); or, its engines off, held where it stands by its skids and
         // whatever else it touches (a big ship's hull on a bump of the ground beside its pads, IRON_WAKE.md §5.4: such a
-        // contact keeps a velocity the ground never lets it move by).
-        bool held = !input.Engines && loaded > 0 && Vector3.DistanceSquared(s.Position, start.Position) < HeldMetres * HeldMetres &&
+        // contact keeps a velocity the ground never lets it move by, or pushes the hull out of the ground a few millimetres
+        // every tick while it goes nowhere; a ship left on its side, on its hull alone). A ship with nobody at its helm
+        // that never rested never slept: it never parked, and a client, which knows a ship at rest by its sleep, offered
+        // nothing at it but "land first" (the F1-kill finding, KNOWN_PROBLEMS.md).
+        bool barely = Vector3.DistanceSquared(s.Position, start.Position) < HeldMetres * HeldMetres &&
             Vector3.DistanceSquared(Vector3.Transform(Vector3.UnitZ, s.Rotation), Vector3.Transform(Vector3.UnitZ, start.Rotation)) < HeldTurn * HeldTurn &&
             Vector3.DistanceSquared(Vector3.Transform(Vector3.UnitY, s.Rotation), Vector3.Transform(Vector3.UnitY, start.Rotation)) < HeldTurn * HeldTurn;
+        bool slow = speed < RestSpeed && s.AngularVelocity.Length() < RestSpin;
+        bool held = !input.Engines && (loaded > 0 || touched || submerged > 0) && (barely || slow);
         if ((landed && speed < 0.05f && s.AngularVelocity.Length() < 0.02f && !input.WantsMotion) || held)
         {
             s.RestTicks++;
@@ -526,7 +550,11 @@ public static class ShipMotor
     public static float Reach(ShipDef def, float speed) =>
         def.BoundingRadius + (speed + 2f) * CharacterMotor.DeltaTime + SkidProbe + def.SkidTravel + 0.5f;
 
-    /// <summary>Whether the skids still find ground below (a sleeping ship checks now and then).</summary>
+    /// <summary>
+    /// Whether what a sleeping ship rests on is still there (it checks now and then): three of its skids find ground below,
+    /// the sea holds it up, or its hull, lowered <see cref="SupportProbe"/>, still meets what it lay on (a ship held on its
+    /// hull beside its pads, or on its side).
+    /// </summary>
     private static bool Supported(in ShipState s, ShipDef def, in ShipContext ctx, uint ignoreBody)
     {
         ctx.Collider!.World.EnsureGroundAround(s.Position, Reach(def, 0));
@@ -541,7 +569,16 @@ public static class ShipMotor
                 touching++;
             }
         }
-        return touching >= 3;
+        if (touching >= 3)
+        {
+            return true;
+        }
+        if (ctx.Surface.SeaRadius > 0 && ctx.Surface.SeaRadius + def.WaterBelow > ctx.Frame.ToBody(s.Position).Length)
+        {
+            return true; // afloat
+        }
+        Span<ShipContact> contacts = stackalloc ShipContact[1];
+        return ctx.Collider.Overlaps(def, s.Position - ctx.Frame.UpAt(s.Position) * SupportProbe, s.Rotation, ignoreBody, contacts) > 0;
     }
 
     /// <summary>The ship's inverse inertia applied to a world-frame vector.</summary>

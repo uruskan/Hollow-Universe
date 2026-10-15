@@ -101,6 +101,8 @@
 
     "Worn": "You're wearing something there already",
 
-    "RampBlocked": "Ramp blocked: someone is in the way"
+    "RampBlocked": "Ramp blocked: someone is in the way",
+
+    "ShipMoving": "Not while it moves: wait until it is at rest"
   }
 }

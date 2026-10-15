@@ -244,6 +244,11 @@ public enum OutcomeCode : byte
 
     /// <summary>A ship's ramp or door would move into a character (§4.7).</summary>
     RampBlocked = 109,
+
+    // ---------------------------------------------------------------- seats, parts and doors (IRON_WAKE.md §5, IW2)
+
+    /// <summary>On foot at a ship that isn't at rest: its hatch opens, and its seat is reached, only when it is.</summary>
+    ShipMoving = 110,
 }
 
 /// <summary>

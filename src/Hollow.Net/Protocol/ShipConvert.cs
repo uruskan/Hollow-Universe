@@ -88,8 +88,11 @@ public static class ShipConvert
         };
     }
 
-    /// <summary>A ship as one viewer sees it: its state, and what they are told of it (<paramref name="viewer"/>).</summary>
-    public static ShipNetState ToNet(Ship ship, ViewerFlags viewer)
+    /// <summary>
+    /// A ship as one viewer sees it: its state, what they are told of it (<paramref name="viewer"/>), and whether the
+    /// server has it at rest (<paramref name="still"/>, its one rule).
+    /// </summary>
+    public static ShipNetState ToNet(Ship ship, ViewerFlags viewer, bool still)
     {
         ShipState s = ship.State;
         (byte largest, short a, short b, short c) = Quantize.SmallestThree(s.Rotation);
@@ -97,7 +100,7 @@ public static class ShipConvert
             | (s.Has(ShipFlags.Landed) ? ShipNetFlags.Landed : 0) | (s.Has(ShipFlags.Destroyed) ? ShipNetFlags.Destroyed : 0)
             | (s.Has(ShipFlags.InOrbit) ? ShipNetFlags.InOrbit : 0) | (s.Has(ShipFlags.Boosting) ? ShipNetFlags.Boosting : 0)
             | (s.Has(ShipFlags.EnginesOn) ? ShipNetFlags.EnginesOn : 0) | (s.Has(ShipFlags.AssistOff) ? ShipNetFlags.AssistOff : 0)
-            | (s.Has(ShipFlags.Wet) ? ShipNetFlags.Wet : 0) | (s.Asleep ? ShipNetFlags.Asleep : 0);
+            | (s.Has(ShipFlags.Wet) ? ShipNetFlags.Wet : 0) | (s.Asleep ? ShipNetFlags.Asleep : 0) | (still ? ShipNetFlags.Still : 0);
         return new ShipNetState
         {
             X = Quantize.Fixed(s.Position.X, Quantize.PositionScale),

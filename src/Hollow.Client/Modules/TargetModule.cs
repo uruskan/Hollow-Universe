@@ -709,10 +709,11 @@ public sealed class TargetModule : ClientModule
                 return false;
             }
             CapabilityData data = c.Content.Capabilities;
-            bool open = ship.Has(ShipNetFlags.HatchOpen), still = ship.Has(ShipNetFlags.Landed) || ship.Has(ShipNetFlags.Asleep);
+            // At rest as the server judges it (its one rule, ShipNetFlags.Still).
+            bool open = ship.Has(ShipNetFlags.HatchOpen), still = ship.Has(ShipNetFlags.Still);
             facts = new TargetFacts
             {
-                Capabilities = target.Part == ShipParts.Cargo && open && still ? data.Ship : data.ShipPart, Flags = ship.Viewer, Name = def.Name, Open = open,
+                Capabilities = target.Part == ShipParts.Cargo && def.CargoSlots > 0 && open && still ? data.Ship : data.ShipPart, Flags = ship.Viewer, Name = def.Name, Open = open,
                 Busy = ship.Has(ShipNetFlags.Piloted), Still = still, Position = ship.Position,
             };
             return true;

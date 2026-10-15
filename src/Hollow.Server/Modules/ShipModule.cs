@@ -208,7 +208,7 @@ public sealed class ShipModule : ServerModule
             ships.Add(new ShipCandidate
             {
                 NetId = netId,
-                State = ShipConvert.ToNet(ship, Zone.Targets().FlagsFor(ship.Ref, session.Viewer)),
+                State = ShipConvert.ToNet(ship, Zone.Targets().FlagsFor(ship.Ref, session.Viewer), Zone.Ships().ShipStill(ship)),
                 Weight = (moving ? 3f : 0.5f) + 4f * MathF.Max(0f, 1f - distance / ShipRelevanceRadius) + (ship.Pilot == session.EntityId ? 10f : 0f),
             });
         }

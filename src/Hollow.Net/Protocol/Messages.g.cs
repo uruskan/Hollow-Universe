@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x8708B158DCCB4222UL;
+    public const ulong SchemaHash = 0x31A34CE3FFC792C3UL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -441,7 +441,7 @@ partial struct ShipNetState
         w.WriteSigned(TurnA, 16);
         w.WriteSigned(TurnB, 16);
         w.WriteSigned(TurnC, 16);
-        w.WriteBits((uint)Flags, 10);
+        w.WriteBits((uint)Flags, 11);
         w.WriteBits((uint)Viewer, 8);
         w.WriteBits((uint)Hatch, 5);
         w.WriteSigned(ThrustX, 8);
@@ -462,7 +462,7 @@ partial struct ShipNetState
         v.TurnA = (short)r.ReadSigned(16);
         v.TurnB = (short)r.ReadSigned(16);
         v.TurnC = (short)r.ReadSigned(16);
-        v.Flags = (ShipNetFlags)r.ReadBits(10);
+        v.Flags = (ShipNetFlags)r.ReadBits(11);
         v.Viewer = (ViewerFlags)r.ReadBits(8);
         v.Hatch = (byte)r.ReadBits(5);
         v.ThrustX = (sbyte)r.ReadSigned(8);
@@ -543,7 +543,7 @@ partial struct ShipNetState
         if (Flags != b.Flags)
         {
             w.WriteBool(true);
-            w.WriteBits((uint)Flags, 10);
+            w.WriteBits((uint)Flags, 11);
         }
         else
         {
@@ -656,7 +656,7 @@ partial struct ShipNetState
         }
         if (r.ReadBool())
         {
-            v.Flags = (ShipNetFlags)r.ReadBits(10);
+            v.Flags = (ShipNetFlags)r.ReadBits(11);
         }
         if (r.ReadBool())
         {
@@ -706,7 +706,7 @@ partial struct ShipNetState
         bits += TurnA == b.TurnA ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)TurnA - (int)b.TurnA));
         bits += TurnB == b.TurnB ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)TurnB - (int)b.TurnB));
         bits += TurnC == b.TurnC ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)TurnC - (int)b.TurnC));
-        bits += Flags == b.Flags ? 1 : 11;
+        bits += Flags == b.Flags ? 1 : 12;
         bits += Viewer == b.Viewer ? 1 : 9;
         bits += Hatch == b.Hatch ? 1 : 6;
         bits += ThrustX == b.ThrustX ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustX - (int)b.ThrustX));
@@ -719,7 +719,7 @@ partial struct ShipNetState
     }
 
     /// <summary>The bits <see cref="Write"/> takes.</summary>
-    public const int FullBits = 281;
+    public const int FullBits = 282;
 }
 
 partial struct CharacterNetState

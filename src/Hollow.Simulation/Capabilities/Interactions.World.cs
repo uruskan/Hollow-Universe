@@ -127,9 +127,9 @@ public static partial class CapabilityHandlers
             bool atHatch = ctx.Target.Part is ShipParts.Hull or ShipParts.Hatch, lockedOut = ctx.Has(ViewerFlags.Locked) && !ctx.Has(ViewerFlags.Mine);
             // The hatch: opened at rest (by its owner when locked), shut by anyone; the seat through it, a tap's once it is open.
             into.Add(f.Open ? InteractOption.Can(_close)
-                : new InteractOption(_open, !f.Still ? OutcomeCode.NotLanded : lockedOut ? OutcomeCode.Locked : Outcome.Done, Primary: atHatch));
+                : new InteractOption(_open, !f.Still ? OutcomeCode.ShipMoving : lockedOut ? OutcomeCode.Locked : Outcome.Done, Primary: atHatch));
             Outcome seat = f.Busy ? OutcomeCode.SeatTaken : lockedOut ? OutcomeCode.Locked : !f.Open ? OutcomeCode.HatchShut
-                : !f.Still ? OutcomeCode.NotLanded : Outcome.Done;
+                : !f.Still ? OutcomeCode.ShipMoving : Outcome.Done;
             into.Add(new InteractOption(_board, seat, Primary: atHatch && f.Open));
             into.Add(InteractOption.Can(_refuel, primary: ctx.Target.Part == ShipParts.FuelCap));
             if (ctx.Has(ViewerFlags.Mine))
