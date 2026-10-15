@@ -19,6 +19,7 @@ public static class ClientModules
         new RaidModule(),
         new FireModule(),
         new ShipModule(),
+        new StationModule(),
         new AnimalModule(),
         new ArrowModule(),
         new ConsoleModule(),

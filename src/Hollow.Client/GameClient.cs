@@ -485,6 +485,10 @@ public sealed class GameClient : INetEventListener, IDisposable
             // it, so the seated character goes where its seat is.
             command.Ship = new[] { ShipConvert.ToControls(frame.Ship) };
         }
+        foreach (ClientModule module in _modules)
+        {
+            module.Command(tick, ref command, frame);
+        }
         _predictor!.RecordInput(tick, command);
         if (_predictor.HasState)
         {

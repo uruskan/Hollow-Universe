@@ -243,7 +243,7 @@ public sealed partial class ShipSystem
                 return;
             }
             if (zone.Frames.Ships.Count > 0 &&
-                ShipQueries.Ray(zone.Frames.Ships, ray.Origin, ray.Direction, ray.Upto(best), zone.Tick, out ShipQueryHit hit, zone.History, ray.ViewTick) &&
+                ShipQueries.Ray(zone.Frames.Ships, ray.Origin, ray.Direction, ray.Upto(best), zone.Tick, out ShipQueryHit hit, zone.History, ray.ViewTick, ray.IgnoreShip) &&
                 ships.ShipOf(new EntityId(hit.Key)) is { Destroyed: false, InOrbit: false } walked)
             {
                 ray.Consider(ref best, hit.Distance, walked.Ref with { Part = (byte)walked.Def.PartOfPieces(hit.Hit.Part) });

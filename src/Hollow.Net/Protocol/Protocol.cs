@@ -35,9 +35,12 @@ public static partial class Protocol
     /// <see cref="ShipNetFlags.Slow"/>), the seat in the own state, <see cref="ShipDetails"/> (doors, seats, health), a
     /// seated player's keys, the hammer's family and part; 26: IW5, building aboard (IRON_WAKE.md §8): a thing whose
     /// support is a ship comes in its pose in the ship's frame (<see cref="ThingSpawn"/>), and a placement claimed on a ship
-    /// in it (<see cref="PlaceIntent"/>).
+    /// in it (<see cref="PlaceIntent"/>);
+    /// 27: IW3, crewed batteries (IRON_WAKE.md §6): a gunner's controls
+    /// in the input (<see cref="StationControls"/>), the stations' records (<see cref="ShipStations"/>), shots
+    /// (<see cref="TurretShot"/>), a battery's rocket named in its launch, a seated gunner's Tab (<see cref="ShipAction.Magazine"/>).
     /// </summary>
-    public const uint Version = 26;
+    public const uint Version = 27;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -124,6 +127,9 @@ public enum ShipAction : byte
     Leave,
     Lock,
     Descend,
+
+    /// <summary>A gunner opens their station's magazine (Tab, IRON_WAKE.md §6.5).</summary>
+    Magazine,
 }
 
 /// <summary>What a line of the console's answer is (GROUND.md §8.2): plain output, a refusal or error, or something done.</summary>

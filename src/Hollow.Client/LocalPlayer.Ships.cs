@@ -22,6 +22,9 @@ public sealed partial class LocalPlayer
     /// <summary>From orbit, back down over where the ship left (the helm).</summary>
     public uint Descend() => ShipAct(ShipAction.Descend, EntityId.None);
 
+    /// <summary>A gunner's Tab (IW3): their station's magazine opens as loot beside the inventory.</summary>
+    public uint OpenMagazine(EntityId ship) => ShipAct(ShipAction.Magazine, ship);
+
     private uint ShipAct(ShipAction action, EntityId ship, int arg = 0) =>
         Intend(null, w => new ShipIntent { Seq = _nextSeq, Ship = ship.Value, Action = action, Arg = (byte)Math.Clamp(arg, 0, 15) }.WriteMessage(w));
 }

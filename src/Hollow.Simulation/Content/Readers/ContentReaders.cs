@@ -24,6 +24,7 @@ internal static class ContentReaders
         new InteractionsReader(),
         new WeaponsReader(),
         new ExplosivesReader(),
+        new BatteriesReader(),
         new ShipsReader(),
         new WorldReader(),
         new AnimalsReader(),

@@ -158,6 +158,14 @@ public sealed class Predictor : IDisposable
         {
             return 0f;
         }
+        if (predicted.Stance == Stance.Seated && server.Stance == Stance.Seated && predicted.Frame == server.Frame &&
+            (predicted with { Position = server.Position, Velocity = server.Velocity }).Equals(server))
+        {
+            // Seated, only the seat's place differs: the seat rule puts the character there each tick from the ship and its
+            // parts, and a gunner's mount (IW3) turns on the server from the ship as the server has it, which this client
+            // only estimates. Nothing of the player's own to correct.
+            return 0f;
+        }
         Store(tick, server);
         CharacterState state = server;
         for (uint t = tick + 1; t <= LatestTick; t++)

@@ -3240,6 +3240,27 @@ hatch or from the seat.
 
 The paragraphs above (the hatch, the seat, the lock) are the Tin Finch's case of these rules.
 
+**Crewed batteries** (IW3, 15 October 2026; IRON_WAKE.md §6 "As built"). A ship's stations are the data file's, each of
+a kind of `batteries.json` (read by `BatteriesReader`), worked from its seat:
+- **The mount** holds the gunner's aim in the world: the input's view (sent in the zone's frame) is turned through the
+  ship's pose into a yaw and pitch, clamped to the arcs, and slewed at the motor's rates with its acceleration, braking
+  and the target's own motion fed forward (`StationRules.Slew`, the server's and the gunner's client's). The yaw and
+  pitch are the ship's parts (`ShipSystem.MoveParts`; a parked body keeps every mount at rest).
+- **The loaders** run the table's phases on the server (`ShipSystem.Stations.cs`): a round taken at the start of its
+  `waitsBefore` phase, a wait there with nothing to load, rounds of another kind drawn back by the phases in reverse, a
+  barrel loaded at the last phase's end. Their records go to clients on change (`ShipStations`, 122), as doors' do.
+- **Shots** are the projectile system's rockets (`GunSystem.LaunchBattery`): from the barrel's muzzle along the barrel at
+  the launch profile's speed plus the ship's velocity there, flown under their motor (`RocketFlight`: the motor lights a
+  few metres out, gravity 0.15 of the planet's while it burns and the whole after, drag a metre), passing through their
+  own ship for a second, bursting as the launcher's do. `TurretShot` (123) tells everyone near; the gunner's client
+  predicted it and matches it by its number.
+- **Refusals**, in order: DISABLED, EMPTY, LOADING, LIMIT, TRAVERSING, HULL BLOCKED (`OutcomeCode` 113, 102, 116–119).
+- **The magazine** is a container of its own kind (it takes the battery's rockets alone), opened at the station's part
+  with E (`open-magazine`, the `magazine` capability) or from the seat with Tab, by the crew and the gunner.
+- **Keys at a station:** the mouse aims (held in the world), the left button fires, the right zooms (×3 siege, ×2
+  defense, the mouse turned down with it), R tapped cycles the kind (drawing other kinds back), R held opens the ammo
+  radial, Tab the magazine, Space leaves.
+
 **Without a pilot** a ship's engines are off: it rests on its skids, or falls if it was left in the air. A parked ship
 (asleep, nobody in the seat) is a static Jolt body of its hull, from `PhysicsWorld.FirstShipBody` on, so characters walk
 into it; a flown one isn't. A pilot who logs off stays in the seat; the engines then hold the ship where it was, with

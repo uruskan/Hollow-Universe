@@ -236,9 +236,9 @@ internal sealed class WeaponsReader : IContentReader
             {
                 c.Problem(where, "magazine 1 … 255, interval and reload positive, equip not negative");
             }
-            if (g.Speed is <= 0 or > 2000 || g.Drag is < 0 or > 5 || g.Gravity is < 0 or > 10 || g.Range <= 0 || g.LifetimeSeconds is <= 0 or > 5)
+            if (g.Speed is <= 0 or > 2000 || g.Drag is < 0 or > 5 || g.Gravity is < 0 or > 10 || g.Range <= 0 || g.LifetimeSeconds is <= 0 or > 15)
             {
-                c.Problem(where, "speed 0 … 2000 m/s, drag 0 … 5, gravity 0 … 10, range positive, lifetime 0 … 5 s");
+                c.Problem(where, "speed 0 … 2000 m/s, drag 0 … 5, gravity 0 … 10, range positive, lifetime 0 … 15 s");
             }
             if (g.Damage < 0 || g.FalloffStart < 0 || g.FalloffEnd < g.FalloffStart || g.FalloffLeast is <= 0 or > 1 ||
                 new[] { g.Head, g.Body, g.Limb }.Any(m => m is < 0 or > 10))

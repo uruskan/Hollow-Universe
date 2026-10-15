@@ -141,6 +141,8 @@ internal sealed class ShipsReader : IContentReader
             // Its seats, doors and target parts (IRON_WAKE.md §5.1), its nozzles and lamps.
             (List<Ships.ShipSeatDef> seats, List<Ships.ShipDoorDef> doors, List<Ships.ShipTargetPart> parts) =
                 ShipLayoutReader.Read(r, e, where, item.Name, interior);
+            // Its crewed batteries (IRON_WAKE.md §6, IW3): the data file's stations that a seat works, each of a kind of batteries.json.
+            List<Ships.ShipStationDef> stations = Stations(r, where, interior, seats, parts);
             var def = new Ships.ShipDef
             {
                 Key = key,
@@ -204,6 +206,7 @@ internal sealed class ShipsReader : IContentReader
                 Seats = seats,
                 Doors = doors,
                 Parts = parts,
+                Stations = stations,
                 CargoPart = parts.FirstOrDefault(p => p.Capabilities.Has(r.Loaded.Capabilities?.Index("container") ?? -1))?.Index ?? 0,
                 Nozzles = ShipLayoutReader.Nozzles(f, nozzles, where + ".nozzles", interior),
                 Lights = ShipLayoutReader.Lights(f, e, where, interior),
@@ -230,6 +233,111 @@ internal sealed class ShipsReader : IContentReader
             }
             item.Ship = def;
         }
+    }
+
+    // The stations a ship's seats work (IRON_WAKE.md §6.1): the data file's geometry, the battery its kind names, the seat
+    // and the target part (its health, its magazine) and the yaw's limits: its level arcs' span, and for a battery that
+    // turns a set way from its beam, that much each way from the station's side within them.
+    private static List<Ships.ShipStationDef> Stations(ContentReading r, string where, Ships.ShipInterior? interior,
+        List<Ships.ShipSeatDef> seats, List<Ships.ShipTargetPart> parts)
+    {
+        var stations = new List<Ships.ShipStationDef>();
+        if (interior == null)
+        {
+            return stations;
+        }
+        JsonFields f = r.Fields;
+        const float Degrees = MathF.PI / 180;
+        foreach (Ships.StationGeometry g in interior.StationData)
+        {
+            Ships.ShipSeatDef? seat = seats.FirstOrDefault(s => s.Role == Ships.SeatRole.Station && s.Station == g.Id);
+            if (seat == null)
+            {
+                continue; // a station nobody can sit at: decoration
+            }
+            string at = $"{where}: station {JsonFields.Quote(g.Id)}";
+            BatteryDef? battery = r.Loaded.Batteries.FirstOrDefault(b => b.Key == g.Kind);
+            if (battery == null)
+            {
+                f.Problem(at, $"no battery \"{g.Kind}\" in batteries.json");
+                continue;
+            }
+            Ships.ShipTargetPart? part = parts.FirstOrDefault(p => p.Seat == seat.Index);
+            if (part == null)
+            {
+                f.Problem(at, $"no part names its seat \"{seat.Key}\"");
+                continue;
+            }
+            if (g.Barrels.Count == 0 || g.Barrels.Count > 8)
+            {
+                f.Problem(at, "one to eight barrels");
+                continue;
+            }
+            // The yaw's span: its arcs (an arc whose end is below its start runs through the stern), none a full circle.
+            float lo = -180, hi = 180;
+            if (g.Arcs.Count > 0)
+            {
+                lo = float.MaxValue;
+                hi = float.MinValue;
+                foreach ((float from, float to) in g.Arcs)
+                {
+                    float end = to < from ? to + 360 : to;
+                    lo = MathF.Min(lo, from);
+                    hi = MathF.Max(hi, end);
+                }
+            }
+            if (battery.Mount.Outboard > 0 && g.Side != 0)
+            {
+                float beam = g.Side > 0 ? 90 : -90, each = battery.Mount.Outboard / Degrees;
+                float best = -1, bestLo = lo, bestHi = hi;
+                foreach (float turn in new[] { -360f, 0f, 360f })
+                {
+                    float a = MathF.Max(lo, beam - each + turn), b = MathF.Min(hi, beam + each + turn);
+                    if (b - a > best)
+                    {
+                        (best, bestLo, bestHi) = (b - a, a, b);
+                    }
+                }
+                if (best <= 0)
+                {
+                    f.Problem(at, "its beam's turn and its arcs don't meet");
+                    continue;
+                }
+                (lo, hi) = (bestLo, bestHi);
+            }
+            if (hi - lo >= 360)
+            {
+                (lo, hi) = (-180, 180);
+            }
+            var barrels = new List<Ships.StationBarrel>();
+            for (int i = 0; i < g.Barrels.Count; i++)
+            {
+                Ships.StationBarrelData b = g.Barrels[i];
+                barrels.Add(new Ships.StationBarrel { Index = i, RecoilPart = b.RecoilPart, Muzzle = b.Muzzle, Breech = b.Breech, Side = b.Side, Length = b.Length });
+            }
+            var station = new Ships.ShipStationDef
+            {
+                Index = stations.Count,
+                Id = g.Id,
+                Battery = battery,
+                Seat = seat.Index,
+                Part = part.Index,
+                YawPart = g.YawPart,
+                PitchPart = g.PitchPart,
+                Side = g.Side,
+                YawMin = lo * Degrees,
+                YawMax = hi * Degrees,
+                Barrels = barrels,
+                Camera = g.Camera,
+            };
+            part.Station = station.Index;
+            stations.Add(station);
+        }
+        if (stations.Count > 15)
+        {
+            f.Problem(where, "at most 15 stations (a shot names its station in four bits)");
+        }
+        return stations;
     }
 
     // A ship people walk in (IRON_WAKE.md §4.3, §9.1): pieces to stand on, a boarding volume, sane margins, and the seat,

@@ -19,6 +19,9 @@ public readonly record struct ProjectileLaunched(
     uint Seq = 0,
     bool Silenced = false) : IZoneEvent
 {
-    /// <summary>A bullet's shot: the shooter's gun action sequence number (0 for arrows), so their client knows it.</summary>
+    /// <summary>A bullet's shot: the shooter's gun action sequence number (0 for arrows), so their client knows it; a battery's shot's number.</summary>
     public uint Seq { get; init; } = Seq;
+
+    /// <summary>A battery's rocket: its battery's number + 1 (0: a gun's or a bow's), so clients fly it under its motor (IW3).</summary>
+    public int Battery { get; init; }
 }

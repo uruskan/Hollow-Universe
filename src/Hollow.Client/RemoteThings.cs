@@ -102,7 +102,7 @@ public sealed class RemoteThing
 /// A projectile in flight as this client draws it: from where and how fast it was loosed, under the planet's gravity,
 /// until the server says where it stopped. The server alone decides what it hits.
 /// </summary>
-public sealed class ClientProjectile
+public sealed partial class ClientProjectile
 {
     /// <summary>The server's ID (0 for our own shot until the server's launch message names it).</summary>
     public uint Id { get; set; }
@@ -136,6 +136,18 @@ public sealed class ClientProjectile
     /// <summary>Fired through a silencer: no muzzle flash, a quiet shot.</summary>
     public bool Silenced { get; init; }
 
+    /// <summary>
+    /// A battery's rocket (IW3, IRON_WAKE.md §6.4): its battery's number + 1 (0: a gun's or a bow's), and its motor, under
+    /// which it is drawn by the server's own steps (<see cref="Simulation.Combat.RocketFlight"/>); <see cref="Seq"/> is its
+    /// shot's number.
+    /// </summary>
+    public int Battery { get; init; }
+
+    public Simulation.Combat.RocketMotor? Motor { get; init; }
+
+    /// <summary>A rocket's flight as the server steps it (positions and velocities a step apart), made when first drawn.</summary>
+    private Vector3[]? _flight;
+
     public bool IsBullet => Seq != 0;
 
     /// <summary>The client's clock (seconds) when it was loosed.</summary>
@@ -153,6 +165,11 @@ public sealed class ClientProjectile
     public Vector3 PositionAt(double time)
     {
         float t = (float)Math.Max(0, time - LaunchedAt);
+        if (Motor != null)
+        {
+            (Vector3 at, _) = Flown(t);
+            return EndedAt is { } stop && Vector3.DistanceSquared(Origin, at) >= Vector3.DistanceSquared(Origin, stop) ? stop : at;
+        }
         Vector3 g = Arc.Gravity(Gravity, Centre, Origin, Velocity, t);
         Vector3 onArc = Drag > 1e-6f
             ? Origin + g / Drag * t + (Velocity - g / Drag) * ((1 - MathF.Exp(-Drag * t)) / Drag)
@@ -168,9 +185,50 @@ public sealed class ClientProjectile
     public Vector3 DirectionAt(double time)
     {
         float t = (float)Math.Max(0, time - LaunchedAt);
+        if (Motor != null)
+        {
+            (_, Vector3 velocity) = Flown(t);
+            return velocity.LengthSquared() > 1e-6f ? Vector3.Normalize(velocity) : Vector3.UnitZ;
+        }
         Vector3 g = Arc.Gravity(Gravity, Centre, Origin, Velocity, t);
         Vector3 v = Drag > 1e-6f ? g / Drag + (Velocity - g / Drag) * MathF.Exp(-Drag * t) : Velocity + g * t;
         return v.LengthSquared() > 1e-6f ? Vector3.Normalize(v) : Vector3.UnitZ;
+    }
+}
+
+public sealed partial class ClientProjectile
+{
+    /// <summary>The longest a rocket is drawn flying (the projectiles' lifetime cap, IRON_WAKE.md §6.4).</summary>
+    public const float MostSeconds = 15f;
+
+    // A rocket's place and velocity <paramref name="t"/> seconds after it left, between the server's steps (its motor, the
+    // gravity toward the planet's centre, its drag), the steps made once up to the cap.
+    private (Vector3 Position, Vector3 Velocity) Flown(float t)
+    {
+        const float h = Simulation.Combat.RocketFlight.StepSeconds;
+        if (_flight == null)
+        {
+            int steps = (int)(MostSeconds / h) + 1;
+            var flight = new Vector3[2 * (steps + 1)];
+            Vector3 p = Origin, v = Velocity;
+            float flown = 0, burnt = 0, g = Gravity.Length();
+            flight[0] = p;
+            flight[1] = v;
+            for (int i = 1; i <= steps; i++)
+            {
+                Vector3 down = Centre is { } c && (p - c).LengthSquared() > 1 ? Vector3.Normalize(c - p) : (g > 1e-6f ? Gravity / g : -Vector3.UnitY);
+                (Vector3 next, Vector3 nextVelocity, burnt) = Simulation.Combat.RocketFlight.Step(p, v, down, g, Motor!, flown, burnt, h);
+                flown += (next - p).Length();
+                (p, v) = (next, nextVelocity);
+                flight[2 * i] = p;
+                flight[2 * i + 1] = v;
+            }
+            _flight = flight;
+        }
+        float at = Math.Clamp(t / h, 0, _flight.Length / 2 - 1.001f);
+        int k = (int)at;
+        float f = at - k;
+        return (Vector3.Lerp(_flight[2 * k], _flight[2 * k + 2], f), Vector3.Lerp(_flight[2 * k + 1], _flight[2 * k + 3], f));
     }
 }
 

@@ -15,6 +15,12 @@ public enum SeatAction : byte
     Lock,
     Descend,
     Camera,
+
+    /// <summary>A station's rockets (IW3): tap R to cycle, hold for the ammo radial (the interface's binding).</summary>
+    Ammo,
+
+    /// <summary>A station's magazine (Tab, IW3): it opens beside the inventory.</summary>
+    Magazine,
 }
 
 /// <summary>A seat's key: the key, what it does (a door: which), and what the screen calls it.</summary>
@@ -63,6 +69,12 @@ public static class SeatKeys
             keys.Add(new SeatKey(Key.V, SeatAction.Camera, -1, "CAMERA"));
             keys.Add(new SeatKey(Key.J, SeatAction.Descend, -1, "DESCEND FROM ORBIT"));
         }
+        if (seat.Role == SeatRole.Station)
+        {
+            // A gunner's (IW3): the mouse aims, the left button fires and the right zooms (read as held); R the rockets, Tab the magazine.
+            keys.Add(new SeatKey(Key.R, SeatAction.Ammo, -1, "ROCKETS (HOLD: CHOOSE)"));
+            keys.Add(new SeatKey(Key.Tab, SeatAction.Magazine, -1, "MAGAZINE"));
+        }
         return keys;
     }
 
@@ -99,6 +111,9 @@ public static class SeatKeys
         }
         return line.ToString();
     }
+
+    /// <summary>A gunner's mouse, for the seat's line (IW3).</summary>
+    public const string StationMouse = "LMB  FIRE     RMB  ZOOM     ";
 
     /// <summary>The helm's flight keys, for the flight HUD's corner.</summary>
     public static string FlightHints(bool cockpit) =>

@@ -26,6 +26,9 @@ public static class KeyContexts
     /// <summary>Q crafting and the held E radial: the hands' keys, on foot alone (Q and E roll the ship at the helm).</summary>
     public static bool Hands(KeyContext context) => context == KeyContext.OnFoot;
 
+    /// <summary>Held radials (R's rounds; the right mouse's and E's on foot): on foot, and at a station (R: its rockets, IW3).</summary>
+    public static bool Radials(KeyContext context) => context is KeyContext.OnFoot or KeyContext.Station;
+
     /// <summary>1–6 the belt: on foot alone (seated, the number keys are the seat's doors).</summary>
     public static bool Belt(KeyContext context) => context == KeyContext.OnFoot;
 

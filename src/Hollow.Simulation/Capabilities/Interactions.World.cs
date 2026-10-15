@@ -209,6 +209,44 @@ public static partial class CapabilityHandlers
             ctx.Thing is Ship ship ? ctx.Zone!.Ships().SetShipLock(ctx.Player!, ship, locked) : OutcomeCode.NotFound;
     }
 
+    /// <summary>
+    /// A crewed battery's magazine (IRON_WAKE.md §6.5, IW3), at its station's part: opened by the ship's crew (and its gunner,
+    /// from the seat with Tab) as a box that takes only the battery's rockets.
+    /// </summary>
+    private sealed class MagazineCapability : ICapability, IInteractCapability
+    {
+        private readonly VerbActions _verbs;
+        private readonly int _open;
+
+        public MagazineCapability(InteractionData data)
+        {
+            _verbs = new VerbActions(data, ("open-magazine", Open));
+            _open = _verbs["open-magazine"];
+        }
+
+        public string Key => "magazine";
+
+        public ViewerFlags Flags(object thing, in Viewer viewer) => ViewerFlags.None;
+
+        public IReadOnlyList<string> Verbs => _verbs.Keys;
+
+        public void Offer(in InteractContext ctx, List<InteractOption> into)
+        {
+            TargetFacts f = ctx.Facts;
+            if (f.Ship is not { } ship || ctx.Target.Part >= ship.Parts.Count || ship.Parts[ctx.Target.Part].Station < 0)
+            {
+                return;
+            }
+            Outcome why = ctx.Has(ViewerFlags.Authorised) ? Outcome.Done : OutcomeCode.NotCrew;
+            into.Add(new InteractOption(_open, why, Name: ship.Parts[ctx.Target.Part].Name));
+        }
+
+        public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
+
+        private static Outcome Open(in InteractContext ctx, in InteractArgs args) =>
+            ctx.Thing is Ship ship ? ctx.Zone!.Ships().OpenMagazine(ctx.Entity, ctx.Player!, ship, ctx.Target.Part) : OutcomeCode.NotFound;
+    }
+
     /// <summary>A ship's tank, at its fuel cap: filled from the player's fuel (lamp oil).</summary>
     private sealed class FuelCapability : ICapability, IInteractCapability
     {

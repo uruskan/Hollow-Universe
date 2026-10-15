@@ -390,6 +390,30 @@ public sealed class ShipSpace : IDisposable
     }
 
     /// <summary>
+    /// The nearest piece along a ray of the ship's frame that isn't one of the parts <paramref name="skip"/> names (a
+    /// battery's own, for its hull-blocked line, IRON_WAKE.md §6.7): the ray goes on past each skipped piece. Under the gate.
+    /// </summary>
+    public bool RayPast(Vector3 origin, Vector3 direction, float length, Func<int, bool> skip, out SpaceHit hit)
+    {
+        float travelled = 0;
+        for (int i = 0; i < 32 && travelled < length; i++)
+        {
+            if (!Ray(origin + direction * travelled, direction, length - travelled, out SpaceHit found))
+            {
+                break;
+            }
+            if (!skip(found.Part))
+            {
+                hit = found with { Distance = travelled + found.Distance };
+                return true;
+            }
+            travelled += found.Distance + 0.002f;
+        }
+        hit = default;
+        return false;
+    }
+
+    /// <summary>
     /// The point of the ship's pieces nearest a point of its frame, within <paramref name="radius"/> (a blast's reach,
     /// the nearest surface reach is measured to): its part and the distance (0 inside a piece). Under the gate.
     /// </summary>
@@ -609,8 +633,18 @@ public sealed class ShipSpace : IDisposable
     /// parked ship's body in the zone's physics (§4.6). Made once for each kind and set of states (the ramp open, shut) and
     /// shared, so a server and a client make the same body of the same shape.
     /// </summary>
-    public static Shape ParkedShape(ShipInterior interior, ReadOnlySpan<float> states)
+    public static Shape ParkedShape(ShipInterior interior, ReadOnlySpan<float> given)
     {
+        // A station's mount stands at rest in the parked body (IRON_WAKE.md §6.2: a gunner's aim never makes it again).
+        Span<float> states = stackalloc float[given.Length];
+        given.CopyTo(states);
+        for (int i = 0; i < states.Length; i++)
+        {
+            if (interior.IsMount(i))
+            {
+                states[i] = i < interior.Rest.Length ? interior.Rest[i] : 0;
+            }
+        }
         ulong key = Hash64.Of((ulong)states.Length);
         foreach (float state in states)
         {

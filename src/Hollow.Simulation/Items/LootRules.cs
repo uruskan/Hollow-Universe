@@ -32,7 +32,7 @@ public static class LootRules
     /// <summary>How a container lying or standing in the world is looted, from what kind of container it is.</summary>
     public static LootKind KindOf(Container container) => container.Kind switch
     {
-        ContainerKind.Box => LootKind.Box,
+        ContainerKind.Box or ContainerKind.Magazine => LootKind.Box,
         ContainerKind.Device => LootKind.Device,
         ContainerKind.Corpse => LootKind.Corpse,
         ContainerKind.Crate => LootKind.Crate,

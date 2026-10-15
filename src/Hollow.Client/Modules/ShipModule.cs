@@ -204,6 +204,8 @@ public sealed class ShipModule : ClientModule
             _seatParts = new float[interior.Parts.Count];
         }
         ship.PartsInto(interior, _seatParts, tick);
+        // A gunner's own mount as predicted (IW3): the seat and the camera turn with the aim at once.
+        Client.Stations().OverlayMount(ship.NetId, _seatParts);
         return _seatParts;
     }
 
@@ -215,7 +217,14 @@ public sealed class ShipModule : ClientModule
         {
             return null;
         }
-        ReadOnlySpan<float> parts = _frames.TryGetValue(ship.NetId, out ClientShipFrame? frame) ? frame.States : SeatParts(ship, def, (long)Client.RenderTick);
+        ReadOnlySpan<float> parts = SeatParts(ship, def, (long)Client.RenderTick);
+        if (_frames.TryGetValue(ship.NetId, out ClientShipFrame? frame))
+        {
+            // The space's states as posed (the doors where they are met), the gunner's own mount as predicted.
+            frame.States.CopyTo(_seatParts, 0);
+            Client.Stations().OverlayMount(ship.NetId, _seatParts);
+            parts = _seatParts;
+        }
         return pose.ToWorld(ShipSeats.EyeInFrame(def, _ownSeat, parts));
     }
 

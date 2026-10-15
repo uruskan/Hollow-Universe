@@ -329,7 +329,11 @@ Client options (after `--`):
   history, Esc or F1 closes); F2 the developer panel (GROUND.md §8.5: SERVER, PLAYERS, LOOK, DRAW and LOG tabs; the
   server's side for admins; the DRAW toggles stay on when it closes); Esc back, then the menu; F3 network graph; the death screen's buttons respawn. At a ship, E at a part does that part's verbs: a door opens or shuts, a seat is sat in (board, take the helm, man, sit), the tank refuels, the cargo opens, the helm keeps the ship's list (authorise, as at a tool cupboard); with the hammer, the attack mends a broken door or battery. In any seat (IW2): Space stands up, 1–9 work the doors of a seat that works them (1 the hatch or the ramp, 2 the airlock), L the lock; Q, E and 1–6 open nothing; the seat's keys are shown. Flying (G6): the mouse is the
   stick, W/S move the throttle lever (X: zero), A/D slide, Shift/Ctrl rise and sink, Q/E roll, B boosts, Z switches
-  flight assist, V the camera (chase or cockpit), J descends from orbit. Chat lines starting with `/` run as console commands
+  flight assist, V the camera (chase or cockpit), J descends from orbit. At a battery's station (IW3, IRON_WAKE.md §6.8):
+  the mouse aims (held in the world while the ship turns), the left mouse fires (the siege battery a barrel a press, the
+  defense mount rippling while held), the right mouse zooms (×3, ×2), R tapped cycles the rocket (rounds of another kind
+  drawn back), R held opens the ammo radial, Tab opens the magazine; on foot E at the station mans it, held E opens its
+  magazine (OPEN MAGAZINE, the crew's). Chat lines starting with `/` run as console commands
   (`/give rifle`), with the player's rights on any server. A hosted game makes its host the admin.
 - Server (G2): `--kit <loot table>` gives every new character a loot table's items; admin commands `give`, `kit`,
   `heal`, `kill` besides G1's (type `help`; every command of the F1 console is in GROUND.md §8.2: `give <item> [amount]

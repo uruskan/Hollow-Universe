@@ -112,6 +112,10 @@
     "NotInBuildZone": "Not here: build aboard in its bays and on its decks",
     "KeepClear": "Keep this clear: a way through the ship",
     "TooTall": "Too tall for this deck: only the high bay has the headroom",
-    "ShipFull": "The ship can't hold another {item|one of these}"
+    "ShipFull": "The ship can't hold another {item|one of these}",
+    "Loading": "Loading: {n}%",
+    "Limit": "Limit: beyond its arcs",
+    "Traversing": "Traversing: not on the mark yet",
+    "HullBlocked": "Hull blocked: the ship is in the line of fire"
   }
 }

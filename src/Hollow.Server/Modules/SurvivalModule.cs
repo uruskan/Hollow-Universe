@@ -196,9 +196,10 @@ public sealed class SurvivalModule : ServerModule
             {
                 Id = e.Projectile, Shooter = shooter, Ammo = e.Ammo, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z,
                 VelocityX = e.Velocity.X, VelocityY = e.Velocity.Y, VelocityZ = e.Velocity.Z, Seq = e.Seq, Silenced = e.Silenced && e.Seq != 0,
+                Battery = (byte)Math.Clamp(e.Battery, 0, 15),
             }.WriteMessage(Writer);
-            // Bullets are cosmetic to others and many: unreliable (ARCHITECTURE.md §11.3); arrows stay reliable.
-            SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
+            // Bullets are cosmetic to others and many: unreliable (ARCHITECTURE.md §11.3); arrows and batteries' rockets stay reliable.
+            SendNear(e.Position, e.Seq != 0 && e.Battery == 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
         });
         events.On<ProjectileEnded>((in ProjectileEnded e) =>
         {
@@ -324,7 +325,7 @@ public sealed class SurvivalModule : ServerModule
             Send(session);
             if (ship != null)
             {
-                SendContents(session, ContainerRef.Loot, ship.Cargo); // a ship's cargo (G6)
+                SendContents(session, ContainerRef.Loot, Zone.Ships().LootContainer(p, ship)); // a ship's cargo (G6), a station's magazine (IW3)
             }
             else if (thing?.Container is { } container)
             {

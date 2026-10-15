@@ -65,7 +65,7 @@ public static partial class CapabilityHandlers
                      new CodeLockCapability(verbs), new CupboardCapability(verbs), new ShipCapability(), new Lifetime(), new ExplosiveCapability(),
                      new Pickup(verbs), new Portable(verbs, data), new Station(verbs), new WoundedCapability(verbs), new CharacterCapability(verbs),
                      new DudCapability(verbs), new ArrowCapability(), new Standing(), new FireCapability(), new SeatCapability(verbs),
-                     new ShipDoorCapability(verbs), new FuelCapability(verbs),
+                     new ShipDoorCapability(verbs), new FuelCapability(verbs), new MagazineCapability(verbs),
                  })
         {
             registry.Add(handler.Key, handler);

@@ -48,6 +48,19 @@ public sealed class Bullet
     /// <summary>Characters are tested where they were this many ticks before (what the shooter saw).</summary>
     public float RewindTicks;
     public bool Silenced;
+
+    /// <summary>
+    /// A battery's rocket (IRON_WAKE.md §6.4, IW3): its motor (null for a gun's round, flown with drag and drop alone), the
+    /// burn used so far, the battery's number and the station and barrel it left (a shot's number is <see cref="Seq"/>).
+    /// </summary>
+    public RocketMotor? Motor;
+    public float Burnt;
+
+    /// <summary>The ship a battery's rocket left (its key), passed through for its first <see cref="GunSystem.OwnHullTicks"/> (IW3).</summary>
+    public ulong OwnShip;
+    public int Battery = -1;
+    public int Station = -1;
+    public int Barrel = -1;
 }
 
 // Firearms (GROUND.md §6.3): shots and reloads the clients asked for, applied at the tick they happened on with the
@@ -78,6 +91,9 @@ public sealed class GunSystem : ZoneSystem
     /// still looks back at most the rewind limit (0.25 s).
     /// </summary>
     public const int GunActionLateTicks = 30;
+
+    /// <summary>A battery's rocket passes through its own ship's space for this many ticks (it leaves from inside the barrel; IW3).</summary>
+    public const int OwnHullTicks = 30;
 
     /// <summary>Bullets fly in this many steps a tick.</summary>
     public const int BulletSteps = 2;
@@ -371,6 +387,44 @@ public sealed class GunSystem : ZoneSystem
         Events.Add(new ProjectileLaunched(Shooter: p.Id, Projectile: bullet.Id, Ammo: shot.Round.Id, Position: bullet.Position, Velocity: bullet.Velocity, Seq: a.Seq, Silenced: bullet.Silenced));
     }
 
+    /// <summary>
+    /// A battery's rocket (IRON_WAKE.md §6.3, §6.4): the projectile system's own, so its blast, raid hits, alerts and fire are
+    /// what they are for the shoulder launcher's. It leaves a barrel's muzzle along the barrel at the profile's muzzle speed
+    /// with the ship's velocity there, flies under its motor (<see cref="RocketFlight"/>) for the profile's lifetime, and goes
+    /// off where it stops. Its shooter is the gunner; its number is the station's shot's.
+    /// </summary>
+    public Bullet LaunchBattery(EntityId shooter, string shooterName, ItemDef round, BatteryDef battery, LaunchProfile profile, Vector3 origin, Vector3 direction,
+        Vector3 carried, uint number, int station, int barrel, float rewindTicks, ulong ownShip = 0)
+    {
+        var bullet = new Bullet
+        {
+            Id = Combat._nextProjectile++,
+            Shooter = shooter,
+            ShooterName = shooterName,
+            Seq = number,
+            Round = round.Bullet!,
+            Ammo = round,
+            Origin = origin,
+            Position = origin,
+            Velocity = direction * profile.Muzzle + carried,
+            Damage = 0,
+            Range = float.MaxValue,
+            LifetimeTicks = Math.Max(1, CharacterTicks.From(profile.Lifetime)),
+            RewindTicks = Math.Min(rewindTicks, Combat.MaxRewindTicks),
+            Motor = RocketMotor.Of(battery.Launch, profile),
+            Battery = battery.Index,
+            Station = station,
+            Barrel = barrel,
+            OwnShip = ownShip,
+        };
+        _bullets.Add(bullet);
+        Events.Add(new ProjectileLaunched(Shooter: shooter, Projectile: bullet.Id, Ammo: round.Id, Position: bullet.Position, Velocity: bullet.Velocity, Seq: number)
+        {
+            Battery = battery.Index + 1,
+        });
+        return bullet;
+    }
+
     // Bullets fly in two steps a tick, with gravity and drag integrated exactly, tested against the world now and
     // against characters where the shooter saw them, until they hit, fly their range or run out of time.
     private void StepBullets()
@@ -387,8 +441,18 @@ public sealed class GunSystem : ZoneSystem
             bool ended = false;
             for (int s = 0; s < BulletSteps && !ended; s++)
             {
-                Vector3 gravity = -Frame.UpAt(b.Position) * b.Gravity;
-                (Vector3 next, Vector3 velocity) = Ballistics.Step(b.Position, b.Velocity, gravity, b.Drag, b.Decay, BulletStepSeconds);
+                Vector3 next, velocity;
+                if (b.Motor is { } motor)
+                {
+                    // A battery's rocket under its motor (IRON_WAKE.md §6.4).
+                    (next, velocity, b.Burnt) = RocketFlight.Step(b.Position, b.Velocity, -Frame.UpAt(b.Position), (float)(Spec.SurfaceGravity * 9.80665),
+                        motor, b.Distance, b.Burnt, BulletStepSeconds);
+                }
+                else
+                {
+                    Vector3 gravity = -Frame.UpAt(b.Position) * b.Gravity;
+                    (next, velocity) = Ballistics.Step(b.Position, b.Velocity, gravity, b.Drag, b.Decay, BulletStepSeconds);
+                }
                 Vector3 path = next - b.Position;
                 float length = path.Length();
                 bool spent = false;
@@ -402,7 +466,8 @@ public sealed class GunSystem : ZoneSystem
                 {
                     Vector3 direction = path / length;
                     float reach = spent ? MathF.Max(0, b.Range - b.Distance) : length;
-                    TraceHit hit = reach > 1e-6f ? Damage.Trace(b.Position, direction, reach, BulletRadius, b.Shooter, Tick - b.RewindTicks, bullet: true)
+                    TraceHit hit = reach > 1e-6f ? Damage.Trace(b.Position, direction, reach, BulletRadius, b.Shooter, Tick - b.RewindTicks, bullet: true,
+                            ignoreShip: b.AgeTicks < OwnHullTicks ? b.OwnShip : 0)
                         : new TraceHit { Distance = -1 };
                     if (hit.Hit)
                     {

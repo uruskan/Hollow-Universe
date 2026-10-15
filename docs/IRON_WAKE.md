@@ -821,6 +821,141 @@ The sight says why, in this order, and the press does nothing:
 | Health | 1,500 | 1,500 |
 | Zoom | ×3 | ×2 |
 
+### 6.11 As built (IW3, 15 October 2026)
+
+Built on the branch `iw3` from `main` (5357624, with IW1, IW2 and IW4), main's art fixes (iw-art2, 1dfebdf) merged in
+before the view was wired. Everything of §6.1–§6.9 with the fourteen defaults.
+
+**The data.** `batteries.json` is read by `BatteriesReader` (`Content/Batteries.cs`: `BatteryDef`, its `LaunchProfile`s,
+`BatteryMount`, `BatteryLoader` with its `LoaderPhase`s, `LoaderMotion`s and `LoaderHolder`s, the `RecoilCurve`), checked:
+a profile for every rocket (lifetime at most 15 s), every rocket a round with a blast, the phases' total the mount's
+`loaderSeconds`, the `waitsBefore`, loop and holder phases named. A load's rounds are a clip's (or a cassette's) on a mount,
+one a barrel. The data file's `stations` are read with the interior (`StationGeometry`: yaw and pitch parts, barrels with
+their recoil parts, muzzle sockets, breeches and sides, the camera, the level arcs); `ShipsReader` makes a `ShipStationDef`
+for each station a seat works, with the battery its `kind` names, the target part whose seat it is (its health, its
+magazine) and the yaw's limits: the span of its level arcs (an arc whose end is below its start runs through the stern),
+and on a battery with `yaw.outboard` that much each way from its side's beam within them. Forward siege −98° … 130°, dorsal
+−95° … 152°, the mounts 100° each way from their beams within their arcs. Nothing tests a station's or battery's name.
+
+**The mount** (`StationRules.Slew`, `Ships/ShipStations.cs`, the server's and the gunner's client's). The asked direction is
+the input's view in the zone's frame (a gunner's client holds its view in the world: `GroundView.FollowFrame`), turned
+through the ship's turn into a yaw and a pitch by the parts' own axes, clamped to the limits (LIMIT when it had to be). Each
+axis slews toward its target at the motor's rate: the target's own motion fed forward (the ship turning under it), plus
+what closes the gap no faster than the axis can brake in the distance left, the speed changing by at most the acceleration
+a tick, landing on the target when it reaches it. Measured in `BatteryTests`: while the pilot yaws the flying ship the
+barrels stay within the alignment (0.5°) of the asked direction. The yaw and pitch are the ship's parts, moved with
+`ShipSystem.MoveParts` (several parts at once, the space posed once); a parked ship's body keeps every mount at rest
+(`ShipInterior.IsMount`, `ShipSpace.ParkedShape`), so a gunner's aim never makes it again, on the server or a client.
+A disabled station's mount doesn't turn.
+
+**The loaders** (`ShipSystem.Stations.cs`), one a barrel or one a mount, as the table's `per` says. A `LoaderState` is a
+record like a door's: at work, waiting or in reverse, seconds into the cycle at a tick, the round(s) it carries; its time at
+any tick follows from it, and it goes to clients when it changes. Each tick:
+- an idle loader whose barrels are all empty starts at the end of its first phase (nothing to recover from: a new ship, a
+  restored one, after rounds were drawn back);
+- a shot starts its barrel's loader from 0 (a mount's once its last barrel is empty);
+- at the start of the `waitsBefore` phase it takes a load of the chosen kind from the magazine (a round; a clip of up to
+  the table's three), or waits there, its breech open, until the magazine has one;
+- at the last phase's end its barrels are loaded with what it carries.
+
+A tap of R (the input's cycle counter) or the radial's choice sets the chosen kind; the tap also draws back chambered rounds
+of another kind: an idle loaded barrel's loader runs from the end back to where rounds are taken, gives them back to the
+magazine (what doesn't fit falls in a bag), then loads the chosen kind forward from there; a loader carrying another kind
+reverses from where it is.
+
+**Shots** (§6.3). The siege battery fires the next loaded barrel in turn at each press; the defense mount ripples while
+the trigger is held, in the table's order, the interval apart (8 ticks). A press is refused, said (`StationState.Refused`,
+sent with the records) and forgotten, in §6.7's order: DISABLED (113), EMPTY (`OutcomeCode.Empty`, 102: no barrel loaded,
+nothing carried, none in the magazine), LOADING (116, with the busiest loader's progress), LIMIT (117), TRAVERSING (118:
+the barrels more than the alignment off the asked direction), HULL BLOCKED (119: the barrel's line, breech to 6 m past the
+muzzle, meets the ship's space, the station's own parts passed through: `ShipSpace.RayPast`). A shot is
+`GunSystem.LaunchBattery`: a `Bullet` with a `RocketMotor` from the barrel's muzzle (the ship's pose × the mount × the
+barrel), along the barrel at the profile's muzzle speed plus the ship's velocity there; its shooter is the gunner, its
+number (`Seq`) the station's count. It flies by `RocketFlight.Step` (two steps a tick): the motor lights `ignite` metres out
+and pushes `accel` along the flight for `burn` seconds; gravity is `gravityBurning` of the planet's while it burns and
+`gravity` after (the profile's rule replaces the round's own launcher gravity); drag takes `drag` of the speed a metre; at
+the profile's lifetime it goes off where it is. For its first second it passes through its own ship's space (it leaves
+from inside the barrel). Its blast, raid hits, alerts and an incendiary's fire are the launcher's (`ExplosiveSystem`,
+`FireSystem`), unchanged. The weapons reader's lifetime cap and the client's cut-off are 15 s.
+
+**The magazine** (§6.5) is a container of its own kind (`ContainerKind.Magazine`: only the battery's rockets), looted as a
+box. It opens at the station's part with the `magazine` capability's `open-magazine` (held E on foot; appended to
+`capabilities.json` and `interactions.json`) and from the seat with Tab (`ShipAction.Magazine`), for the crew and the
+gunner (`Player.LootPart` names the part; `ShipSystem.LootContainer`). A wreck holds the magazines' rockets.
+
+**The network** (protocol 26). The gunner's controls ride beside the view (`InputCommand.Station`: fire, zoom, the kind asked
+for, the cycle counter); the server turns the view into the world and gives them to the station. `ShipStations` (122,
+reliable, when a station's record or its magazine changes): each station's chosen kind, shots, LIMIT, each barrel's round
+and last shot's tick, each loader's record, the magazine's count of each kind, the last refusal. `TurretShot` (123,
+reliable, to everyone the ship is relevant to): ship, station, barrel, number, tick, round, gunner. A rocket's
+`ProjectileLaunch` names its battery, so every client flies it under its motor (`ClientProjectile`: the server's steps made
+once and sampled). The yaw and pitch reach clients as the ship's parts (`ShipDetails`); a client ignores a mount's turn
+when deciding to make a parked body again.
+
+**Prediction** (§6.9, `StationModule`). The gunner's client predicts its mount from its own input with `StationRules.Slew`
+against the ship as it extrapolates it, easing toward the server's only when they are more than 5° apart (the cross is
+the input's; the seat and the camera turn with the prediction). A press its copy of the rules allows (the records'
+chambers, loaders finishing by the tick on the same timeline, the predicted mount, the hull's line through its own copy
+of the space) plays at once: the recoil, the flash, the report and a rocket tagged with the next number. The server's
+`TurretShot` of that number confirms it and plays nothing; one not confirmed 15 ticks after the server has had its input
+is taken back with its rocket, and the server's reason shows. Others play shots from `TurretShot` and draw the rockets from
+the projectile messages (deduplicated by battery and number). A seated character's place is the seat rule's: when a
+reconciliation finds the predicted and the server's states differing only in a seated character's place (a gunner's
+mount turns on the server against the ship as the server has it, which a client only estimates), nothing is corrected
+(`Predictor.Reconcile`).
+
+**Saves.** `ShipCodec` 3 adds each station: the chosen kind, the aim, the shots, each chamber, each loader (at work,
+waiting, reversed, seconds into its cycle then, what it carries) and the magazine; a loader's cycle goes on from the tick
+the ship is added (as a door's). Versions 1 and 2 read as before, their stations empty.
+
+**The view** (`StationsView`, through `ShipsView`, and `ShipView.ShowParts` with each loader piece's own motion). Every
+frame, from the records (the gunner's own as predicted, at the predicted tick; others' 100 ms behind):
+- the mount's yaw and pitch, each barrel's recoil node by the battery's curve from its last shot;
+- each loader piece by `LoaderPoses.Pose`: for every phase begun, each motion's value (its ease over its span; the last per
+  node and axis), summed per node in its own axes on top of rest; `outboard` and `mirror` by the loader's side; the recoil
+  curve's motions are left to the barrels' shots;
+- each holder shown or hidden and each slot's rocket by `LoaderPoses.Holders`: loads counted from the cycle's own (what it
+  carries once taken, else the magazine's), the magazine's rounds of the chosen kind dealt in turn between the loaders that
+  share it; a clip's rounds numbered across the holders that show it in the same window; the rocket the item's catalogue
+  model at its `socket_<slot>`;
+- each phase's sound and effects as it begins, at the first piece it moves, its end sound, the loop effect (the breech's
+  wisps) until the phase the table names; the phases heard again when drawn back;
+- the traverse's whine while a mount turns (fast past half its rate) and the limit's clunk;
+- each shot: `muzzle.<battery>` (and `muzzle.<battery>.dust` where fx.json has it) along the barrel,
+  `<battery>.fire.report` and `.fire.mechanism` (the gunner hears `.fire.interior` too), `ignite.rocket` where the motor
+  lights; the rocket's flight and roar are RaidView's, as for the launcher.
+
+**The sight** (`StationSight`, the ground interface's style, every length through `Ui.Px`): the cross in the view's middle,
+a ring where the barrels point (green; amber while refused), the chosen rocket's path marked every 100 m (`RocketFlight`
+from the muzzle), each barrel loaded (the round's icon), loading (its progress) or empty, the battery's kinds with the
+magazine's counts and the chosen one marked, the refusal's line for two seconds, a dial of the arcs within 15° of a limit or
+past it, the ship's heading and speed at the side. The camera is the station's camera socket with the view's direction;
+the right mouse zooms by the battery's `zoom` with the mouse turned down by as much.
+
+**Keys** (`SeatKeys`: the station's role): the mouse aims, left fires, right zooms, R tapped cycles and held opens the ammo
+radial (`StationAmmoRadial`: the kinds with their counts; held radials work at a station, `KeyContexts.Radials`), Tab the
+magazine, Space leaves.
+
+**Not verified in play** (the owner's playtest): how the mechanisms read at speed in the game, the sounds' and effects'
+places and levels, the sight's layout at every scale, the radial's tap telling (it tells a tap from a choice by how often
+the radial was read), the ripple and the alternation by hand, a gunner's prediction under loss.
+
+**Checks** (engine-free and over the loopback, `BatteryTests`; measured on this PC):
+- the aim held while the pilot yaws the flying ship 24°: the barrels at most 0.19° off the asked direction (alignment 0.5°);
+- both siege barrels loaded from empty breeches in 3.33 s; a press each, barrel 0 then barrel 1; barrel 0's phases began at
+  exactly the table's ticks (0, 27, 39, 63, 75, 98, 114, 126), its round taken at 39 and loaded at 138 (4.6 s);
+- EMPTY with both loaders waiting at "fetch", DISABLED before it; LOADING (43 %), LIMIT astern, TRAVERSING on a 70° swing,
+  HULL BLOCKED with the dorsal battery laid 0° and −7.9° across the bridge;
+- a rocket from the forward battery struck a wooden hut's wall 78 m off within a centimetre of the laid point (200 → 63);
+  the incendiary chosen with a tap, barrel 1's rocket drawn back into the magazine, an incendiary loaded and its strike
+  leaving a fire;
+- a defense mount rippled three 8 ticks apart (0.25 s) in the table's order and was loaded again 76 ticks after the third
+  (2.52 s), its magazine three rockets the poorer;
+- over the loopback with 120 ms of latency six presses: six shots on the server, six predicted, six confirmed by number,
+  none taken back, none unpredicted;
+- a stored ship (1,080 bytes) kept its 15 HV rockets, the chosen kind, barrel 1 loaded and barrel 0's loader 1.53 s in;
+  added back, that barrel loaded 3.07 s on, as was left.
+
 ## 7. The incendiary rocket and fire
 
 **The item.**

@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xB65665F081367D66UL;
+    public const ulong SchemaHash = 0x3029010657E2F1DDUL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -188,6 +188,12 @@ partial struct InputCommand
         {
             Ship![i].Write(w);
         }
+        int countStation = Station == null ? 0 : Math.Min(Station.Length, 1);
+        w.WriteBits((uint)countStation, 1);
+        for (int i = 0; i < countStation; i++)
+        {
+            Station![i].Write(w);
+        }
         w.WriteVarUInt(Frame);
     }
 
@@ -214,6 +220,17 @@ partial struct InputCommand
         for (int i = 0; i < countShip; i++)
         {
             v.Ship[i] = ShipControls.Read(r);
+        }
+        int countStation = (int)r.ReadBits(1);
+        if (countStation > 1)
+        {
+            r.Fail();
+            countStation = 0;
+        }
+        v.Station = new StationControls[countStation];
+        for (int i = 0; i < countStation; i++)
+        {
+            v.Station[i] = StationControls.Read(r);
         }
         v.Frame = r.ReadVarUInt();
         return v;
@@ -243,6 +260,27 @@ partial struct ShipControls
         v.Strafe = (sbyte)r.ReadSigned(8);
         v.Vertical = (sbyte)r.ReadSigned(8);
         v.Buttons = (ShipButtons)r.ReadBits(2);
+        return v;
+    }
+}
+
+partial struct StationControls
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBool(Fire);
+        w.WriteBool(Zoom);
+        w.WriteBits((uint)Choice, 2);
+        w.WriteBits((uint)Cycle, 2);
+    }
+
+    public static StationControls Read(BitReader r)
+    {
+        var v = new StationControls();
+        v.Fire = r.ReadBool();
+        v.Zoom = r.ReadBool();
+        v.Choice = (byte)r.ReadBits(2);
+        v.Cycle = (byte)r.ReadBits(2);
         return v;
     }
 }
@@ -1358,6 +1396,7 @@ partial struct ProjectileLaunch : INetMessage<ProjectileLaunch>
         w.WriteFloat(VelocityZ);
         w.WriteVarUInt(Seq);
         w.WriteBool(Silenced);
+        w.WriteBits((uint)Battery, 4);
     }
 
     public static ProjectileLaunch Read(BitReader r)
@@ -1374,6 +1413,7 @@ partial struct ProjectileLaunch : INetMessage<ProjectileLaunch>
         v.VelocityZ = r.ReadFloat();
         v.Seq = r.ReadVarUInt();
         v.Silenced = r.ReadBool();
+        v.Battery = (byte)r.ReadBits(4);
         return v;
     }
 }
@@ -1873,6 +1913,224 @@ partial struct ShipPartHealthNet
         var v = new ShipPartHealthNet();
         v.Part = (byte)r.ReadBits(8);
         v.Health = (byte)r.ReadBits(8);
+        return v;
+    }
+}
+
+partial struct ShipStations : INetMessage<ShipStations>
+{
+    public const byte TypeId = 122;
+
+    static byte INetMessage<ShipStations>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Ship);
+        int countStations = Stations == null ? 0 : Math.Min(Stations.Length, 15);
+        w.WriteBits((uint)countStations, 4);
+        for (int i = 0; i < countStations; i++)
+        {
+            Stations![i].Write(w);
+        }
+    }
+
+    public static ShipStations Read(BitReader r)
+    {
+        var v = new ShipStations();
+        v.Ship = r.ReadVarUInt();
+        int countStations = (int)r.ReadBits(4);
+        if (countStations > 15)
+        {
+            r.Fail();
+            countStations = 0;
+        }
+        v.Stations = new StationNet[countStations];
+        for (int i = 0; i < countStations; i++)
+        {
+            v.Stations[i] = StationNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct StationNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Station, 4);
+        w.WriteBits((uint)Chosen, 2);
+        w.WriteVarUInt(Shots);
+        w.WriteBool(Limit);
+        int countBarrels = Barrels == null ? 0 : Math.Min(Barrels.Length, 8);
+        w.WriteBits((uint)countBarrels, 4);
+        for (int i = 0; i < countBarrels; i++)
+        {
+            Barrels![i].Write(w);
+        }
+        int countLoaders = Loaders == null ? 0 : Math.Min(Loaders.Length, 8);
+        w.WriteBits((uint)countLoaders, 4);
+        for (int i = 0; i < countLoaders; i++)
+        {
+            Loaders![i].Write(w);
+        }
+        int countCounts = Counts == null ? 0 : Math.Min(Counts.Length, 3);
+        w.WriteBits((uint)countCounts, 2);
+        for (int i = 0; i < countCounts; i++)
+        {
+            Counts![i].Write(w);
+        }
+        w.WriteBits((uint)Refused, 7);
+        w.WriteVarUInt(RefusedDetail);
+        w.WriteBits((uint)RefusedTick, 32);
+    }
+
+    public static StationNet Read(BitReader r)
+    {
+        var v = new StationNet();
+        v.Station = (byte)r.ReadBits(4);
+        v.Chosen = (byte)r.ReadBits(2);
+        v.Shots = r.ReadVarUInt();
+        v.Limit = r.ReadBool();
+        int countBarrels = (int)r.ReadBits(4);
+        if (countBarrels > 8)
+        {
+            r.Fail();
+            countBarrels = 0;
+        }
+        v.Barrels = new StationBarrelNet[countBarrels];
+        for (int i = 0; i < countBarrels; i++)
+        {
+            v.Barrels[i] = StationBarrelNet.Read(r);
+        }
+        int countLoaders = (int)r.ReadBits(4);
+        if (countLoaders > 8)
+        {
+            r.Fail();
+            countLoaders = 0;
+        }
+        v.Loaders = new LoaderNet[countLoaders];
+        for (int i = 0; i < countLoaders; i++)
+        {
+            v.Loaders[i] = LoaderNet.Read(r);
+        }
+        int countCounts = (int)r.ReadBits(2);
+        if (countCounts > 3)
+        {
+            r.Fail();
+            countCounts = 0;
+        }
+        v.Counts = new MagazineCountNet[countCounts];
+        for (int i = 0; i < countCounts; i++)
+        {
+            v.Counts[i] = MagazineCountNet.Read(r);
+        }
+        v.Refused = (OutcomeCode)r.ReadBits(7);
+        v.RefusedDetail = r.ReadVarUInt();
+        v.RefusedTick = (uint)r.ReadBits(32);
+        return v;
+    }
+}
+
+partial struct StationBarrelNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Chamber);
+        w.WriteBits((uint)ShotTick, 32);
+    }
+
+    public static StationBarrelNet Read(BitReader r)
+    {
+        var v = new StationBarrelNet();
+        v.Chamber = r.ReadVarUInt();
+        v.ShotTick = (uint)r.ReadBits(32);
+        return v;
+    }
+}
+
+partial struct LoaderNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBool(Active);
+        w.WriteBool(Waiting);
+        w.WriteBool(Reverse);
+        w.WriteBits((uint)Since, 32);
+        w.WriteBits((uint)At, 32);
+        w.WriteVarUInt(Kind);
+        w.WriteBits((uint)Count, 4);
+    }
+
+    public static LoaderNet Read(BitReader r)
+    {
+        var v = new LoaderNet();
+        v.Active = r.ReadBool();
+        v.Waiting = r.ReadBool();
+        v.Reverse = r.ReadBool();
+        v.Since = (uint)r.ReadBits(32);
+        v.At = (uint)r.ReadBits(32);
+        v.Kind = r.ReadVarUInt();
+        v.Count = (byte)r.ReadBits(4);
+        return v;
+    }
+}
+
+partial struct MagazineCountNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Count);
+    }
+
+    public static MagazineCountNet Read(BitReader r)
+    {
+        var v = new MagazineCountNet();
+        v.Count = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct TurretShot : INetMessage<TurretShot>
+{
+    public const byte TypeId = 123;
+
+    static byte INetMessage<TurretShot>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Ship);
+        w.WriteBits((uint)Station, 4);
+        w.WriteBits((uint)Barrel, 3);
+        w.WriteVarUInt(Number);
+        w.WriteBits((uint)Tick, 32);
+        w.WriteVarUInt(Kind);
+        w.WriteVarUInt(Gunner);
+    }
+
+    public static TurretShot Read(BitReader r)
+    {
+        var v = new TurretShot();
+        v.Ship = r.ReadVarUInt();
+        v.Station = (byte)r.ReadBits(4);
+        v.Barrel = (byte)r.ReadBits(3);
+        v.Number = r.ReadVarUInt();
+        v.Tick = (uint)r.ReadBits(32);
+        v.Kind = r.ReadVarUInt();
+        v.Gunner = r.ReadVarUInt();
         return v;
     }
 }

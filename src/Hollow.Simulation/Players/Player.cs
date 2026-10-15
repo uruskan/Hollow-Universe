@@ -140,6 +140,9 @@ public sealed class Player : ITargetable
     /// <summary>Raised whenever <see cref="Looting"/> changes, so the server knows to send contents.</summary>
     public uint LootRevision { get; set; }
 
+    /// <summary>The part of a ship looted (a station's magazine, IRON_WAKE.md §6.5), or 0: the whole (its cargo).</summary>
+    public int LootPart { get; set; }
+
     // ---------------------------------------------------------------- held item and its actions
 
     /// <summary>The belt slot in hand and the item that was in it when taken up (a change re-equips).</summary>

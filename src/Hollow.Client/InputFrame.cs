@@ -50,4 +50,10 @@ public struct InputFrame
 
     /// <summary>A pilot's controls (G6): sent with every tick's input while the player flies a ship.</summary>
     public Simulation.Ships.ShipInput Ship;
+
+    /// <summary>
+    /// A gunner's trigger and zoom (IW3, IRON_WAKE.md §6.8), sent with every tick's input while the player sits at a
+    /// station; its ammo choice and cycle tap are the stations' module's, its asked direction the view.
+    /// </summary>
+    public Simulation.Ships.StationInput Station;
 }

@@ -75,37 +75,60 @@ public sealed partial class ShipSystem
     /// parked ship's body in the zone is made again at the new states, and the clients that know the ship are told
     /// (<see cref="Ship.PartsRevision"/>). Callers hold <see cref="JoltRuntime.Gate"/> or run outside the step.
     /// </summary>
-    public Outcome MovePart(Ship ship, int part, float state)
+    public Outcome MovePart(Ship ship, int part, float state) => MoveParts(ship, stackalloc int[] { part }, stackalloc float[] { state });
+
+    /// <summary>
+    /// Moves several of a ship's parts at once (<see cref="MovePart"/>'s rules for each; a battery's yaw and pitch together,
+    /// IRON_WAKE.md §6.2): the space is posed once, and a parked ship's body is made again only when a part besides a
+    /// station's mount moved (the parked body keeps the mounts at rest).
+    /// </summary>
+    public Outcome MoveParts(Ship ship, ReadOnlySpan<int> parts, ReadOnlySpan<float> states)
     {
-        if (ship.Def.Interior is not { } interior || ship.Space is not { } space || part <= 0 || part >= interior.Parts.Count ||
-            !float.IsFinite(state))
+        if (ship.Def.Interior is not { } interior || ship.Space is not { } space || parts.Length != states.Length)
         {
             return OutcomeCode.Invalid;
         }
-        if (ship.Def.DoorOfPart(part) >= 0)
+        float[]? to = null;
+        bool door = false, body = false;
+        for (int i = 0; i < parts.Length; i++)
         {
-            return OutcomeCode.NotAllowed; // its door's to move (SetDoor), as every machine works it out
+            int part = parts[i];
+            float state = states[i];
+            if (part <= 0 || part >= interior.Parts.Count || !float.IsFinite(state))
+            {
+                return OutcomeCode.Invalid;
+            }
+            if (ship.Def.DoorOfPart(part) >= 0)
+            {
+                return OutcomeCode.NotAllowed; // its door's to move (SetDoor), as every machine works it out
+            }
+            ShipPartDef def = interior.Parts[part];
+            if (def.IsDoor)
+            {
+                state = Math.Clamp(state, 0f, 1f);
+            }
+            if (ship.Parts[part] == state)
+            {
+                continue;
+            }
+            to ??= (float[])ship.Parts.Clone();
+            to[part] = state;
+            door |= def.IsDoor;
+            body |= !interior.IsMount(part);
         }
-        ShipPartDef def = interior.Parts[part];
-        if (def.IsDoor)
-        {
-            state = Math.Clamp(state, 0f, 1f);
-        }
-        if (ship.Parts[part] == state)
+        if (to == null)
         {
             return Outcome.Done;
         }
-        float[] to = (float[])ship.Parts.Clone();
-        to[part] = state;
         lock (JoltRuntime.Gate)
         {
-            if (def.IsDoor && space.Sweeps(to, CapsulesNear(ship)))
+            if (door && space.Sweeps(to, CapsulesNear(ship)))
             {
                 return OutcomeCode.RampBlocked;
             }
-            ship.Parts[part] = state;
+            to.CopyTo(ship.Parts, 0);
             space.Pose(ship.Parts);
-            if (ship.ParkedBody != 0)
+            if (ship.ParkedBody != 0 && body)
             {
                 ShipCollider.RemoveParked(ship.ParkedBody);
                 Park(ship);

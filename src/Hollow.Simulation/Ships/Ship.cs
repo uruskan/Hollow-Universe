@@ -86,8 +86,24 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder, IAuthorisation
         {
             PartHealth[i] = def.Parts[i].Health?.Max ?? 0;
         }
+        Stations = new StationState[def.Stations.Count];
+        for (int i = 0; i < Stations.Length; i++)
+        {
+            StationState st = Stations[i] = new StationState(def.Stations[i]);
+            st.Yaw = st.Def.YawPart >= 0 && st.Def.YawPart < Parts.Length ? Parts[st.Def.YawPart] : 0;
+            st.Pitch = st.Def.PitchPart >= 0 && st.Def.PitchPart < Parts.Length ? Parts[st.Def.PitchPart] : 0;
+        }
         Owner = owner;
     }
+
+    /// <summary>Its crewed batteries' states (<see cref="ShipDef.Stations"/>' order, IRON_WAKE.md §6).</summary>
+    public StationState[] Stations { get; }
+
+    /// <summary>
+    /// Raised whenever a station's record changes that clients draw or predict from (a shot, a loader's cycle, the chosen
+    /// kind, a refusal): the clients that know the ship are sent its stations (<c>ShipStations</c>).
+    /// </summary>
+    public uint StationsRevision { get; set; }
 
     /// <summary>
     /// Its moving parts' states, by the interior's part index (IRON_WAKE.md §4.3): a door's part as its door's progress
