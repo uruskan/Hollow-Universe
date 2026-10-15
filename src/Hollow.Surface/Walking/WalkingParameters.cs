@@ -91,6 +91,9 @@ public sealed record WalkingParameters
     /// <summary>Eroded detail on the mountains' flanks, as a share of their height.</summary>
     public double MountainDetail { get; init; } = 0.12;
 
+    /// <summary>How round the mountains' largest crests are (the width of a smooth |n|; each smaller octave's is half).</summary>
+    public double RidgeCrest { get; init; } = 0.14;
+
     /// <summary>How far (m) the ridges' domain is bent, so no ridgeline runs straight.</summary>
     public double RidgeWarp { get; init; } = 110;
 
@@ -113,6 +116,9 @@ public sealed record WalkingParameters
     public double LakeMinDepth { get; init; } = 2.5;
 
     public double LakeMinArea { get; init; } = 15_000;
+
+    /// <summary>A lake whose water's mean temperature is below this (°C) lies frozen all year: ice to walk on.</summary>
+    public double FrozenLakeTemperature { get; init; } = -3;
 
     /// <summary>The stream's half-width (m) at the stream catchment and how it grows with the root of the catchment.</summary>
     public double StreamHalfWidth { get; init; } = 3;

@@ -124,7 +124,7 @@ internal sealed class Drainage
     /// Lakes' shapes: each lake cell weighs (1 − x²)² out to this many cells; water lies where the sum passes the
     /// threshold (give or take the shore's noise), a bowl below it and a lip of this height just outside.
     /// </summary>
-    private const double LakeReach = 1.5, LakeThreshold = 0.8, ShoreNoise = 0.3, LipHeight = 0.4, ShoreRise = 9;
+    private const double LakeReach = 1.6, LakeThreshold = 0.45, ShoreNoise = 0.3, LipHeight = 0.4;
 
     private readonly double _radius;
     private readonly int _n;
@@ -146,7 +146,7 @@ internal sealed class Drainage
     private readonly ulong _seed;
     private readonly double _lakeReach; // metres
     private readonly int[]?[] _lakeCellsNear;
-    private readonly double[] _bowl;
+    private readonly bool[] _frozen;
 
     public Drainage(ulong seed, double radius, WalkingParameters p, Func<Vector3D, (double Height, double Rugged, double Mesa)> ground,
         bool water)
@@ -238,11 +238,7 @@ internal sealed class Drainage
         _lakeOf = water ? FindLakes(p, area) : NoLakes(count);
         _lakeReach = LakeReach * TileKey.EdgeLength(Level, radius);
         _lakeCellsNear = LakeCellsNear(count);
-        _bowl = new double[_lakes.Count];
-        for (int k = 0; k < _lakes.Count; k++)
-        {
-            _bowl[k] = Math.Clamp(_lakes[k].MaxDepth + 0.5, 1.5, 6);
-        }
+        _frozen = new bool[_lakes.Count];
         // A lake's outlet: the cell its water leaves by starts at the lake's level.
         var outletLevel = new double[count];
         Array.Fill(outletLevel, double.NegativeInfinity);
@@ -374,9 +370,16 @@ internal sealed class Drainage
     /// valleys. Also the water's surface there (a lake's level or a stream's surface where it is above the ground, else
     /// −∞; the sea is the caller's) and how near a stream it lies (0 far, 1 in its channel).
     /// </summary>
-    public double Shape(Vector3D p, double h, out double water, out double wet)
+    public double Shape(Vector3D p, double h, out double water, out double wet, out bool ice)
     {
-        h = LakeShape(p, h, out double lake);
+        h = LakeShape(p, h, out double lake, out ice);
+        if (ice)
+        {
+            // A frozen lake is ground: its ice, flat at the lake's level, with nothing cut into it.
+            water = double.NegativeInfinity;
+            wet = 0;
+            return h;
+        }
         h = Carve(p, h, lake > double.NegativeInfinity, out double stream, out wet);
         water = double.NegativeInfinity;
         if (lake > h)
@@ -390,12 +393,26 @@ internal sealed class Drainage
         return h;
     }
 
-    // A lake's shape: the field of its cells near the point. Inside the shore (the field over the threshold, which the
-    // shore's noise moves a little) the ground is cut into a bowl below the water; just outside it rises to a low lip,
-    // so the shore lies where the water meets the ground and nothing below the lake's level lies outside it.
-    private double LakeShape(Vector3D p, double h, out double level)
+    /// <summary>Marks the lakes that lie frozen all year: their surface is ice to walk on, not water (§5).</summary>
+    public void Freeze(Func<WalkingLake, bool> frozen)
+    {
+        for (int k = 0; k < _lakes.Count; k++)
+        {
+            _frozen[k] = frozen(_lakes[k]);
+        }
+    }
+
+    /// <summary>Whether a lake is frozen (its surface ice).</summary>
+    public bool IsFrozen(int lake) => _frozen[lake];
+
+    // A lake's bounds: the field of its cells near the point, generous so it holds the whole hollow. Within them the water
+    // stands at the lake's level wherever the ground lies lower (a frozen lake's ice there), so the shore follows the
+    // ground's own contour and its slopes run down into the water as they are; just beyond them, ground lower than the
+    // lake rises to a low lip, so no water stands against a wall at the bounds' edge.
+    private double LakeShape(Vector3D p, double h, out double level, out bool ice)
     {
         level = double.NegativeInfinity;
+        ice = false;
         int[]? near = _lakeCellsNear[CellAt(p)];
         if (near == null)
         {
@@ -438,15 +455,25 @@ internal sealed class Drainage
             double l = _lakes[ids[slot]].Level, f = field[slot];
             if (f > t)
             {
-                h = Math.Min(h, l - _bowl[ids[slot]] * DMath.SmoothStep(t, t + 1.2, f));
-                level = Math.Max(level, l);
+                // Within the lake's bounds the water fills the hollow to its level: the shore is wherever the ground
+                // itself rises past it. A frozen lake's ice is that water's surface, flat.
+                if (_frozen[ids[slot]])
+                {
+                    if (h < l)
+                    {
+                        h = l;
+                        ice = true;
+                    }
+                }
+                else
+                {
+                    level = Math.Max(level, l);
+                }
             }
-            else
+            else if (h < l)
             {
-                // Outside the shore: high ground slopes down to the water (at most ShoreRise over the band), and low
-                // ground rises to a lip, so the water meets the ground at its edge.
-                h = Math.Min(h, l + ShoreRise * DMath.SmoothStep(t, 0.3 * t, f) + LipHeight);
-                h = Math.Max(h, l + LipHeight * DMath.SmoothStep(0.15 * t, 0.5 * t, f) * DMath.SmoothStep(t, 0.6 * t, f));
+                // Just beyond the bounds, ground lower than the lake rises to a low lip (none of the lake stands above it).
+                h = Math.Max(h, l + LipHeight * DMath.SmoothStep(0.1 * t, 0.5 * t, f) * DMath.SmoothStep(t, 0.6 * t, f));
             }
         }
         return h;

@@ -165,7 +165,7 @@ public partial class GroundMode : Node
             if (ChildServer.Find(repository) is { } dll)
             {
                 _child = ChildServer.Start(dll, repository, port, System.IO.Path.GetFullPath(database), $"{name}'s game",
-                    Option("spawn", "beach") == "origin", admin: name, ground: Option("ground", "stand-in"));
+                    Option("spawn", "beach") == "origin", admin: name, ground: Option("ground", "stand-in"), extra: ServerPlace());
                 loading.Add(_child.LoadStage());
                 host = "127.0.0.1";
                 connectNow = false;
@@ -189,6 +189,8 @@ public partial class GroundMode : Node
                     Content = _content,
                     SpawnAtOrigin = Option("spawn", "beach") == "origin",
                     Ground = Option("ground", "stand-in") == "walking" ? Hollow.Simulation.GroundKind.Walking : Hollow.Simulation.GroundKind.StandIn,
+                    Latitude = Number("lat", FirstWorld.LandingLatitude),
+                    Longitude = Number("lon", FirstWorld.LandingLongitude),
                     // The hosting player is the game's admin (GROUND.md §8.2).
                     Admins = new[] { name },
                     Log = line => GD.Print("[server] " + line),
@@ -234,6 +236,8 @@ public partial class GroundMode : Node
             // Screenshots from above (docs/WHOLE_WORLD.md §10.5): the camera lifted along up, looking down.
             CameraLift = (float)Number("lift", 0),
             ShotPitch = Options.ContainsKey("pitch") ? (float)Number("pitch", 0) * MathF.PI / 180 : null,
+            ShotYaw = Options.ContainsKey("yaw") ? (float)Number("yaw", 0) * MathF.PI / 180 : null,
+            Clouds = Options.ContainsKey("clouds") ? (float)Number("clouds", 0.35) : null,
             ServerAddress = host == "127.0.0.1" && (_server != null || _child != null)
                 ? $"this computer, port {port} (hosted here)"
                 : $"{host}:{port}",
@@ -352,6 +356,21 @@ public partial class GroundMode : Node
 
     // --time <UTC>, or --hour <h>: the next moment it is h o'clock, local solar time, at the landing site (on the
     // compressed day of play, as the server keeps it).
+    // --lat and --lon for the hosted server: where it lands players (with --spawn origin, where the host arrives).
+    private string[] ServerPlace()
+    {
+        var args = new System.Collections.Generic.List<string>();
+        foreach (string key in new[] { "lat", "lon" })
+        {
+            if (Options.TryGetValue(key, out string? value) && value != "true")
+            {
+                args.Add("--" + key);
+                args.Add(value);
+            }
+        }
+        return args.ToArray();
+    }
+
     private double? TimeOption()
     {
         if (Options.TryGetValue("time", out string? t) && t != "true")
@@ -365,7 +384,8 @@ public partial class GroundMode : Node
         double hour = Number("hour", 10);
         var sky = new SkyEphemeris(planet.System, planet.Body);
         sky.SetRotationTimeScale(ZoneSpec.DefaultRotationTimeScale, 0);
-        Vector3D site = ZoneFrame.Direction(FirstWorld.LandingLatitude * Math.PI / 180, FirstWorld.LandingLongitude * Math.PI / 180);
+        // The hour where the game lands (--lat and --lon, else the first world's landing site).
+        Vector3D site = ZoneFrame.Direction(Number("lat", FirstWorld.LandingLatitude) * Math.PI / 180, Number("lon", FirstWorld.LandingLongitude) * Math.PI / 180);
         double now = UniverseTime.Now, best = now, bestError = double.MaxValue;
         for (double s = 0; s < 6 * 3600; s += 20)
         {

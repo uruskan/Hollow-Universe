@@ -66,7 +66,7 @@ public sealed class ChildServer : IDisposable
     /// hosting player, may run the F1 console's admin commands (GROUND.md §8.2).
     /// </summary>
     public static ChildServer Start(string serverDll, string repository, int port, string database, string name, bool spawnAtOrigin, string admin,
-        string ground = "stand-in")
+        string ground = "stand-in", System.Collections.Generic.IReadOnlyList<string>? extra = null)
     {
         string exe = Path.ChangeExtension(serverDll, OperatingSystem.IsWindows() ? ".exe" : null);
         var info = new ProcessStartInfo
@@ -89,6 +89,10 @@ public sealed class ChildServer : IDisposable
                      "--spawn", spawnAtOrigin ? "origin" : "beach", "--parent", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture),
                      "--admin", admin, "--ground", ground,
                  })
+        {
+            info.ArgumentList.Add(a);
+        }
+        foreach (string a in extra ?? Array.Empty<string>())
         {
             info.ArgumentList.Add(a);
         }

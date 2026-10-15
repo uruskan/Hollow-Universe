@@ -12,3 +12,4 @@
 *.dll binary
 *.so binary
 *.cmd text eol=crlf
+*.webp binary

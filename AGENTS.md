@@ -18,8 +18,9 @@ owner's request, the `ground` branch was merged into `main` so the game lives in
   until S4; views on the wire, tiles on the cube sphere, places, ships and the console on the ball; every load test
   runs on it with 100 bots (`docs/GROUND.md` §5.12). S3c and S3d (the client drawing the ball properly, the globe map)
   remain: until then the game plays under a plain sky on simple ground, and the map is not the whole world yet;
-- the walking-scale ground (S4, `docs/WALKING_GROUND.md`): designed with look-dev renders and built on the branch `s4`
-  (`WalkingWorld`), the game able to stand on it behind `--ground walking` (off by default), for the owner's review;
+- the walking-scale ground (S4, `docs/WALKING_GROUND.md`): designed with look-dev renders (`WalkingWorld`, S4a, on
+  `main`), and the game drawing it with sixteen 4K ground layers from the owned scans and its lakes' and streams' water
+  (S4c, on the branch `s4`), behind `--ground walking` (off by default), for the owner's review;
 - the Iron Wake (`docs/IRON_WAKE.md`): its art, sounds and effects, and walking aboard and flying it with people on
   its decks (IW1). In a hosted game the host gets one with `ship iron-wake` (F1). Its cannons, loading, fire and
   building aboard (IW2 to IW6) come next.
@@ -124,12 +125,14 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- worlds  # one ex
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- maps    # galaxy-wide maps per level (~4 min)
 dotnet run --project tests/Hollow.Tests -- Walking     # S4: the walking-scale ground: determinism, sea cover, streams to the sea
                                                  # or a lake, no seams, scatter at the level by size, speed
-dotnet run -c Release --project tools/Hollow.GeneratorReport -- walking stats|relief|biomes|rivers|provinces|globe|zoom|slopes|spots|closeups|compare|all
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- walking stats|relief|biomes|rivers|provinces|globe|zoom|slopes|spots|shots|closeups|compare|all
                                                  # the walking-scale ground's look-dev (docs/WALKING_GROUND.md §15; `all` writes
                                                  # docs/images/scale/s4; HOLLOW_WALKING="Name=value;..." changes its table for a run)
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|relief|zoom|stats|bench|site|spot|times
                                                  # the first world's surface: maps, speed, landing site, look-dev
                                                  # spots (forest|meadow|beach|mountain), sun and moon by the hour
+blender -b --factory-startup --python tools/blender/surface_layers.py -- D:/GameDev/Assets game/assets/surface/ground/layers <scratch>
+                                                 # the ground's sixteen 4K layers from the owned scans (docs/WALKING_GROUND.md §8)
 blender -b --factory-startup --python art/build.py   # every item and world model → game/assets/items, world (GROUND.md §9.1)
 blender -b --factory-startup --python art/build.py -- iron_wake   # the Iron Wake → game/assets/ships, its materials, and
                                                  # game/data/ground/ships/iron-wake.json (IRON_WAKE.md §9.1; 5 min; from
@@ -278,8 +281,12 @@ Client options (after `--`):
   seen), `--lift <m>` and `--pitch <deg>` (the camera lifted along up and tilted, for pictures from above: `--lift 4800
   --pitch -62` shows the ball from the leaving height), `--db <path>` (the hosted server's database; the default is the branch's own: `user://hollow-host.db` on `main`,
   `user://hollow-host-<branch>.db` on another, so a branch's newer save never meets an older build), `--spawn origin` (hosted:
-  arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
-  universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
+  arrive at the landing site rather than on a beach), `--ground walking` (hosted: S4's walking-scale ground, off by
+  default; docs/WALKING_GROUND.md §12), `--lat <deg> --lon <deg>` (hosted: the server's landing site, where `--spawn
+  origin` arrives), `--yaw <deg>` (screenshots: turn to that bearing from north on arrival), `--clouds <0–1>` (this client's cloud
+  cover), `--time <UTC>` or `--hour <h>`
+  (show another time of day: a universe time, or the next time it is h o'clock at the landing site, or at `--lat`/`--lon`;
+  this client's sky only), `--tour <folder>`
   with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact,map`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and
@@ -433,7 +440,7 @@ Client options (after `--`):
 | `art/audio` | The sound pipeline (GROUND.md §9.2): sources and their checksums, recipes (`events.py`), the build, our 7z reader, sounds made in code (`synth.py`, `animal_voices.py`, and `machines.py`: the Iron Wake's machinery, IRON_WAKE.md §10.1), `inspect.py` (waveform and spectrogram pictures) |
 | `game/scripts/Surface` | The surface view: terrain LOD, water, sky and air, lights, clouds, plants (`Vegetation`), shader grass (`GrassField`), look-dev camera, time controls |
 | `game/scripts/Surface/Flora` | Plants made in code after hollow-orbit's flora: painted atlas and bark (`FloraTextures`, `Painter`), geometry (`FloraGeometry`), species and variants (`FloraLibrary`), impostors baked at start (`ImpostorBaker`) |
-| `game/assets/surface/ground` | The eight ground texture layers (Megascans and Poly Haven, `game/assets/THIRD_PARTY.md`), built by `tools/blender/surface_ground.py` |
+| `game/assets/surface/ground/layers` | The sixteen ground texture layers at 4K (the owned Megascans and Poly Haven scans, `game/assets/THIRD_PARTY.md`; docs/WALKING_GROUND.md §8), built by `tools/blender/surface_layers.py` and put into texture arrays by `GroundLayers` |
 | `game/scripts/Items` | Item and world models (GROUND.md §9.1): `ModelCatalog` (reads `data/ground/models.json`), `CatalogItemIcons`, the icon renderer (`--view icons`) and the model viewer (`--view models`) |
 | `game/scripts/Fx` | The effects library (GROUND.md §9.3): `FxDirector` (the API: `Play`, `Impact`, `Muzzle`, `Tracer`, `Start`/`Stop`, `CameraShake`), world particle batches, muzzle flashes, tracers, decals, lights, fire loops, the catalogue (`data/ground/fx.json`) and the viewer (`--view fx`) |
 | `game/assets/fx` | The effects' textures (the PSG C4 VFX kit converted, our own flash atlas, noise and decals), debris meshes and shaders, built by `art/fx/build.py` |

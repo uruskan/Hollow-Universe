@@ -23,6 +23,7 @@ uniform float seam_band = 4.0;                       // metres either side of a 
 
 varying vec3 v_world;
 varying float v_floor;
+varying float v_inland; // 0 the sea, 1 a lake's or a stream's water (TileMeshData.WaterDepth.y)
 varying float v_cloud;
 varying vec2 v_face;
 
@@ -54,8 +55,9 @@ void vertex() {
 	VERTEX = mix(VERTEX, CUSTOM0.xyz, k);
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_floor = UV.x;
+	v_inland = UV.y;
 	v_face = UV2;
-	float near = 1.0 - smoothstep(60.0, 320.0, dist);
+	float near = (1.0 - smoothstep(60.0, 320.0, dist)) * (1.0 - v_inland);
 	float shallow = smoothstep(0.0, 3.0, v_floor);
 	if (near * shallow > 0.0) {
 		vec3 d = hu_body_direction(world);
@@ -90,7 +92,7 @@ void fragment() {
 	vec3 fw;
 	hu_face_blend(d, seam_band, faces, fw);
 	float detail = 1.0 - smoothstep(30.0, 400.0, dist);
-	float calm = mix(0.3, 0.1, smoothstep(150.0, 6000.0, dist));
+	float calm = mix(0.3, 0.1, smoothstep(150.0, 6000.0, dist)) * mix(1.0, 0.45, v_inland);
 	vec3 tilt = vec3(0.0);
 	vec2 slope = vec2(0.0);
 	float foam_noise = 0.0;
@@ -155,7 +157,7 @@ void fragment() {
 	// Surf: lines of breaking waves along the depth contours, rolling in toward the beach and fading as they
 	// spread; broken up by the ripples, never closer than a few metres from each other.
 	float depth = max(v_floor, 0.0);
-	float surf_zone = smoothstep(0.08, 0.35, depth) * (1.0 - smoothstep(0.9, 2.8, depth)) * (1.0 - smoothstep(150.0, 600.0, dist));
+	float surf_zone = smoothstep(0.08, 0.35, depth) * (1.0 - smoothstep(0.9, 2.8, depth)) * (1.0 - smoothstep(150.0, 600.0, dist)) * (1.0 - v_inland);
 	float phase = depth * 0.95 + TIME * 0.13 + broken * 0.7;
 	float f = fract(phase);
 	float crest = smoothstep(0.0, 0.03, f) * (1.0 - smoothstep(0.03, 0.2, f));
@@ -164,7 +166,9 @@ void fragment() {
 	foam = max(foam, crest * lace * runs * surf_zone * 0.85);
 	// The swash: a thin sheet of foam running up the sand and back.
 	float swash = 1.0 - smoothstep(0.0, 0.1 + 0.08 * sin(TIME * 0.7 + swash_phase), depth);
-	foam = max(foam, swash * smoothstep(0.3, 0.6, foam_noise) * 0.8 * (1.0 - smoothstep(80.0, 300.0, dist)));
+	foam = max(foam, swash * smoothstep(0.3, 0.6, foam_noise) * 0.8 * (1.0 - smoothstep(80.0, 300.0, dist)) * (1.0 - v_inland));
+	// Inland water only thins out at its edge, without the sea's foam.
+	foam *= mix(1.0, 0.35, v_inland);
 
 	ALBEDO = vec3(0.85) * foam;
 	EMISSION = body * (1.0 - fresnel) * (1.0 - foam);

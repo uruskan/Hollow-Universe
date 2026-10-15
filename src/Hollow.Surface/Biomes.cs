@@ -20,7 +20,11 @@ public enum Biome : byte
     Alpine = 11,
 }
 
-/// <summary>Ground materials the terrain is painted with; weights per vertex, eight in all.</summary>
+/// <summary>
+/// Ground materials the terrain is painted with; weights per vertex, sixteen in all, each a scanned 4K layer (GROUND.md
+/// §9, docs/WALKING_GROUND.md §8). The last eight (S4c) each belong to one of the first eight's families
+/// (<see cref="BiomeTable.Family"/>), which is what footsteps, effects and the grass read. Append only.
+/// </summary>
 public enum GroundMaterial : byte
 {
     Grass = 0,
@@ -31,6 +35,30 @@ public enum GroundMaterial : byte
     Sand = 5,
     Snow = 6,
     Moss = 7,
+
+    /// <summary>Wet sand: the swash, the waterline and below it (a sand).</summary>
+    WetSand = 8,
+
+    /// <summary>Shingle: pebbles and gravel of rocky coves and stream beds (a gravel).</summary>
+    Shingle = 9,
+
+    /// <summary>Wet grass: stream banks, wet valleys, rainy country (a grass).</summary>
+    WetGrass = 10,
+
+    /// <summary>Mossy forest floor: wet and cool woods (a forest floor).</summary>
+    MossyFloor = 11,
+
+    /// <summary>Tundra: mossy, stony ground of the cold (a moss).</summary>
+    Tundra = 12,
+
+    /// <summary>Sandstone: tablelands' escarpments, canyons and dry country's cliffs (a rock).</summary>
+    Sandstone = 13,
+
+    /// <summary>Dry earth: the coarse, stony dirt of deserts, savanna and shrubland (a soil).</summary>
+    DryEarth = 14,
+
+    /// <summary>Ice: frozen lakes and the ice sheets' bare ice (a snow).</summary>
+    Ice = 15,
 }
 
 /// <summary>Kinds of natural objects the scatter places (GROUND.md §4.6).</summary>
@@ -103,7 +131,29 @@ public readonly struct ClimateSample
 public static class BiomeTable
 {
     public const int Count = 12;
-    public const int MaterialCount = 8;
+    public const int MaterialCount = 16;
+
+    /// <summary>The family each material belongs to (one of the first eight), in <see cref="GroundMaterial"/> order.</summary>
+    private static readonly GroundMaterial[] Families =
+    {
+        GroundMaterial.Grass, GroundMaterial.ForestFloor, GroundMaterial.Soil, GroundMaterial.Rock,
+        GroundMaterial.Gravel, GroundMaterial.Sand, GroundMaterial.Snow, GroundMaterial.Moss,
+        GroundMaterial.Sand, GroundMaterial.Gravel, GroundMaterial.Grass, GroundMaterial.ForestFloor,
+        GroundMaterial.Moss, GroundMaterial.Rock, GroundMaterial.Soil, GroundMaterial.Snow,
+    };
+
+    /// <summary>The material's family: itself for the first eight, the one it looks and sounds like for the others.</summary>
+    public static GroundMaterial Family(GroundMaterial material) => Families[(int)material];
+
+    /// <summary>Adds every material's weight into its family's (the first eight), leaving the others at 0.</summary>
+    public static void FoldFamilies(Span<double> materials)
+    {
+        for (int i = 8; i < MaterialCount; i++)
+        {
+            materials[(int)Families[i]] += materials[i];
+            materials[i] = 0;
+        }
+    }
 
     // Centre of each land biome in (temperature °C, moisture); Ocean, Beach, IceSheet and Alpine are placed by rules.
     private static readonly (double T, double M)[] Centres =
@@ -126,18 +176,19 @@ public static class BiomeTable
     /// <summary>Ground materials of each biome on gentle ground, in <see cref="GroundMaterial"/> order.</summary>
     private static readonly float[][] Materials =
     {
-        new[] { 0f, 0f, 0f, 0.2f, 0.3f, 0.5f, 0f, 0f },       // ocean floor
-        new[] { 0f, 0f, 0f, 0f, 0.1f, 0.9f, 0f, 0f },         // beach
-        new[] { 0f, 0f, 0f, 0f, 0f, 0f, 1f, 0f },             // ice sheet
-        new[] { 0.15f, 0f, 0f, 0.05f, 0.25f, 0f, 0f, 0.55f }, // tundra
-        new[] { 0.15f, 0.55f, 0f, 0f, 0.05f, 0f, 0f, 0.25f }, // boreal forest
-        new[] { 0.45f, 0.42f, 0.08f, 0f, 0f, 0f, 0f, 0.05f }, // temperate forest
-        new[] { 0.85f, 0f, 0.12f, 0f, 0.03f, 0f, 0f, 0f },    // grassland
-        new[] { 0.35f, 0f, 0.45f, 0f, 0.2f, 0f, 0f, 0f },     // shrubland
-        new[] { 0f, 0f, 0.1f, 0.05f, 0.15f, 0.7f, 0f, 0f },   // desert
-        new[] { 0.55f, 0f, 0.4f, 0f, 0.05f, 0f, 0f, 0f },     // savanna
-        new[] { 0.25f, 0.65f, 0.1f, 0f, 0f, 0f, 0f, 0f },     // tropical forest
-        new[] { 0.1f, 0f, 0f, 0.4f, 0.4f, 0f, 0f, 0.1f },     // alpine
+        //         grass forest soil  rock gravel sand  snow  moss | wet sand shingle wet grass mossy tundra sandstone dry earth ice
+        new[] { 0f, 0f, 0f, 0.1f, 0.2f, 0.3f, 0f, 0f, 0.3f, 0.1f, 0f, 0f, 0f, 0f, 0f, 0f },              // ocean floor
+        new[] { 0f, 0f, 0f, 0f, 0.05f, 0.9f, 0f, 0f, 0f, 0.05f, 0f, 0f, 0f, 0f, 0f, 0f },                 // beach
+        new[] { 0f, 0f, 0f, 0f, 0f, 0f, 0.8f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0.2f },                     // ice sheet
+        new[] { 0.1f, 0f, 0f, 0.05f, 0.15f, 0f, 0f, 0.15f, 0f, 0f, 0f, 0f, 0.55f, 0f, 0f, 0f },           // tundra
+        new[] { 0.15f, 0.4f, 0f, 0f, 0.05f, 0f, 0f, 0.1f, 0f, 0f, 0f, 0.3f, 0f, 0f, 0f, 0f },             // boreal forest
+        new[] { 0.45f, 0.37f, 0.08f, 0f, 0f, 0f, 0f, 0.05f, 0f, 0f, 0f, 0.05f, 0f, 0f, 0f, 0f },          // temperate forest
+        new[] { 0.85f, 0f, 0.12f, 0f, 0.03f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f },                // grassland
+        new[] { 0.3f, 0f, 0.15f, 0f, 0.15f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0.4f, 0f },               // shrubland
+        new[] { 0f, 0f, 0.05f, 0.05f, 0.1f, 0.45f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0.35f, 0f },           // desert
+        new[] { 0.55f, 0f, 0.05f, 0f, 0.05f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0.35f, 0f },             // savanna
+        new[] { 0.25f, 0.45f, 0.1f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0.2f, 0f, 0f, 0f, 0f },               // tropical forest
+        new[] { 0.1f, 0f, 0f, 0.35f, 0.3f, 0f, 0f, 0.1f, 0f, 0f, 0f, 0f, 0.15f, 0f, 0f, 0f },             // alpine
     };
 
     /// <summary>Trees per square metre at full cover, before clearings, slope and tree line.</summary>
@@ -257,7 +308,7 @@ public static class BiomeTable
     /// cold enough to lie, then scree and bare rock on slopes. One rule for every surface.
     /// </summary>
     public static void GroundMaterials(ReadOnlySpan<double> biomes, double slope, double treeCover, double temperature, double roughness,
-        Span<double> materials)
+        Span<double> materials, double sandstone = 0)
     {
         materials.Clear();
         AddMaterials(biomes, materials);
@@ -291,7 +342,9 @@ public static class BiomeTable
             materials[i] *= keep;
         }
         materials[(int)GroundMaterial.Gravel] += (1 - cliff) * 0.6 * scree;
-        materials[(int)GroundMaterial.Rock] += cliff;
+        // Cliffs are bare rock: sandstone in dry country and on tablelands (the caller's share), granite elsewhere.
+        materials[(int)GroundMaterial.Rock] += cliff * (1 - sandstone);
+        materials[(int)GroundMaterial.Sandstone] += cliff * sandstone;
     }
 
     /// <summary>

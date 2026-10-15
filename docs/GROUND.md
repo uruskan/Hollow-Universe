@@ -4277,9 +4277,10 @@ costs the server nothing while nobody watches.
 - Sounds (§9.2): free CC0 downloads, approved by the owner on 13 October 2026 (BigSoundBank, the Free Firearm Sound
   Library, Kenney's audio packs, OpenGameArt's CC0 packs), in the same `Downloads` folders, listed in
   `game/assets/THIRD_PARTY.md`.
-- **In the game now:** the ground textures only (six Megascans surfaces and two Poly Haven sets, listed in
-  `game/assets/THIRD_PARTY.md`, built by `tools/blender/surface_ground.py`). Plants, grass, rocks and their textures
-  are made in code (§4.6); the Megascans and LOLIPOP plant models tried earlier were dropped.
+- **In the game now:** the ground textures only: sixteen 4K layers (fourteen Megascans surfaces and two Poly Haven sets,
+  listed in `game/assets/THIRD_PARTY.md`, built by `tools/blender/surface_layers.py`; WALKING_GROUND.md §8). Plants,
+  grass, rocks and their textures are made in code (§4.6); the Megascans and LOLIPOP plant models tried earlier were
+  dropped.
 
 **Never used** (extracted from Rust's game files):
 - RustMVP's player body and first-person arms (`Content/Rust/Character`).
@@ -4334,7 +4335,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `import/starter_kit.py` | The PSG Starter Kit's 17 items (all but the AK and the solar panel) |
 | `import/frontier_rifle.py` | The rifle, from the PSG Frontier AK |
 | `import/tin_finch.py` | The Tin Finch: hull and hatch with their LODs, 26 hulls, 10 sockets, the hatch's open and close clips |
-| `import/iron_wake.py` | The Iron Wake (docs/IRON_WAKE.md §9.1–§9.3): body, hold and 31 moving parts with five LODs, 358 hulls, 91 sockets, occluders, 20 clips, its sixteen finishes, and the ship's data file `game/data/ground/ships/iron-wake.json` (`-- data` writes the data file alone); with `ships/iron_wake_loaders.py`, its hook, the batteries' loading mechanisms (§9.5, IW-A part 2): 56 more moving parts, 48 slot and breech sockets, 8 review clips, checked for clearance at every import |
+| `import/iron_wake.py` | The Iron Wake (docs/IRON_WAKE.md §9.1–§9.3): body, hold and 31 moving parts with five LODs, 358 hulls, 91 sockets, occluders, 20 clips, its sixteen finishes on one shader (`iron_wake_surfaces.py`: the derived maps, the curvature masks, the ShaderMaterials; `iron_wake_finishes.json`: the asset's finishes and display tiles as the import keeps them), and the ship's data file `game/data/ground/ships/iron-wake.json` (`-- data` writes the data file alone). Every merged mesh is repaired into closed solids facing out, and the import fails when rays from outside or from the rooms meet back faces at any level (§9.1 "As built: the holes"). With `ships/iron_wake_loaders.py`, its hook, the batteries' loading mechanisms (§9.5, rebuilt 15 October 2026: whole barrels into closed breeches): 84 more moving parts, 36 slot and breech sockets, 8 review clips, checked for clearance at every import. `iron_wake_review.py` renders the exported GLB as Godot draws it (back faces culled) for the review pictures |
 | `models/resources.py` | The twelve resources as small piles (their dropped look; gunpowder a heap on an opened paper), and the four world pickups as bigger piles |
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
 | `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
@@ -4424,8 +4425,12 @@ folds, the cross strap over the long strap. The cloth's texture is laid on as it
 and back as one sheet, so no box-projection seam runs along the top's edges. LODs: 6,242, 3,120 and 1,366 triangles.
 
 **The Iron Wake** (`iron-wake`, class `vehicle`; `import/iron_wake.py`, docs/IRON_WAKE.md §9.1–§9.3) is the first
-model converted from a whole ship asset: the owner's own Iron Wake, 58 m long, with the revision's Poly Haven
-finishes at 2K (`game/assets/textures/iron_wake`, 66.7 MiB in video memory). Its GLB (`game/assets/ships`) keeps
+model converted from a whole ship asset: the owner's own Iron Wake, 58 m long. Its sixteen finishes share one
+shader, `game/shaders/iron_wake_surface.gdshader` (Godot's own lighting: chipped paint and worn steel at tight
+bevels, dirt and rust in the contact shadow), on 2K maps derived from Poly Haven CC0 sets: worn gunmetal from Blue
+Metal Plate, chipped ship paint from Green Metal Rust, diamond tread from Metal Plate (`game/assets/textures/iron_wake`;
+IRON_WAKE.md §9.2 "As built"). Every mesh is made closed and facing out before export, and the import fails if a back
+face is what a ray from outside or from a room meets (§9.1 "As built: the holes"). Its GLB (`game/assets/ships`) keeps
 five levels for every part (`lodDistances` 70, 180, 450, 1,200 and 4,000 m; LOD4 is a coloured shell made by the
 import) and its moving parts under empties at their pivots. What the rules need (rooms, boarding, build zones,
 stations, the hull's boxes, lights) goes to its own data file, `game/data/ground/ships/iron-wake.json`, written

@@ -1,17 +1,25 @@
-[gd_resource type="ORMMaterial3D" load_steps=4 format=3]
+[gd_resource type="ShaderMaterial" load_steps=7 format=3]
 
-[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IW_PBR_Steel_BaseColor_2K.png" id="1"]
-[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IW_PBR_Deck_ORM_2K.png" id="2"]
-[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IW_PBR_Grate_NormalGL_2K.png" id="3"]
+[ext_resource type="Shader" path="res://shaders/iron_wake_surface.gdshader" id="1"]
+[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IW_Gunmetal_BaseColor_2K.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IW_Gunmetal_ORM_2K.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IW_PBR_Grate_NormalGL_2K.png" id="4"]
+[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IW_Rust_1K.png" id="5"]
+[ext_resource type="Texture2D" path="res://assets/textures/iron_wake/T_IW_WearNoise_512.png" id="6"]
 
 [resource]
 resource_name = "M_IronWake_GrateSteel"
-vertex_color_use_as_albedo = true
-albedo_color = Color(0.797738, 0.82098, 0.809468, 1)
-albedo_texture = ExtResource("1")
-orm_texture = ExtResource("2")
-ao_enabled = true
-normal_enabled = true
-normal_scale = 0.75
-normal_texture = ExtResource("3")
-texture_filter = 5
+shader = ExtResource("1")
+shader_parameter/albedo_tex = ExtResource("2")
+shader_parameter/orm_tex = ExtResource("3")
+shader_parameter/normal_tex = ExtResource("4")
+shader_parameter/steel_tex = ExtResource("2")
+shader_parameter/rust_tex = ExtResource("5")
+shader_parameter/noise_tex = ExtResource("6")
+shader_parameter/tint = Color(0.797738, 0.82098, 0.809468, 1)
+shader_parameter/uv_scale = 1
+shader_parameter/normal_strength = 0.75
+shader_parameter/painted = 0
+shader_parameter/chip = 0.45
+shader_parameter/rust = 0.45
+shader_parameter/grime = 0.5

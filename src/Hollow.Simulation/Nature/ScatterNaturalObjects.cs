@@ -122,11 +122,11 @@ public sealed class ScatterNaturalObjects : INaturalObjects
 
     public bool TryGet(ulong id, out NaturalObject found) => TryGetNear(id, Vector3.Zero, float.PositiveInfinity, out found);
 
-    public int Level => Scatter.Level;
+    public int Level => _level;
 
-    public IReadOnlyList<NaturalObject> InTile(TileKey tile) => tile.Level == Scatter.Level ? Tile(tile).Objects : Array.Empty<NaturalObject>();
+    public IReadOnlyList<NaturalObject> InTile(TileKey tile) => tile.Level == _level ? Tile(tile).Objects : Array.Empty<NaturalObject>();
 
-    public TileKey? TileOf(ulong id) => Decode(id)?.Tile;
+    public TileKey? TileOf(ulong id) => Decode(id, _level)?.Tile;
 
     /// <summary>The object with an ID if its scatter tile is generated already (never generates one: for a frame's work).</summary>
     public bool TryGetCached(ulong id, out NaturalObject found)

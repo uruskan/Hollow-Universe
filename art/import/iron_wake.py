@@ -78,12 +78,14 @@ from hollow import ASSETS, GAME, SOURCES, TEXTURES, log, script_args  # noqa: E4
 from hollow.export import collection, copy_object, export_glb, keep_uv, select_only, set_export_colour  # noqa: E402
 from hollow.godot import write_material  # noqa: E402
 from hollow.kit import TURN_WORLD, snake  # noqa: E402
-from hollow.large import (Triangles, area, batch_remove, carry_ao, contact_ao, decimate_to,  # noqa: E402
-                          delete_faces, drop_unused_slots, face_colours, linear_to_srgb, outside_faces,
-                          srgb_to_linear_array, surfaces, triangles, voxel_shell, write_json)
+from hollow.large import (Triangles, area, backfaces_seen, batch_remove, carry_ao, contact_ao,  # noqa: E402
+                          decimate_to, delete_faces, drop_unused_slots, face_colours, fix_folds, linear_to_srgb,
+                          outside_faces, repair_shells, shell_report, split_twisted, srgb_to_linear_array, surfaces,
+                          triangles, voxel_shell, write_json)
 from hollow.textures import downscale, read, renormalise, write_png, write_texture_import  # noqa: E402
 
 import iron_wake_data  # noqa: E402
+import iron_wake_surfaces as finishes_lib  # noqa: E402
 
 SOURCE = SOURCES / "IronWake_Buildable_R01"
 BLEND = SOURCE / "IronWake_Buildable_R01.blend"
@@ -97,8 +99,8 @@ AO_SAMPLES = 40
 AO_DISTANCE = 1.2
 AO_STRENGTH = 0.42
 ORM_OCCLUSION = 0.65        # the asset's portable materials read the ORM's occlusion at this strength
-LOD4_BODY = 5500            # triangles of the static shell at LOD4
-LOD4_MOVING = 2600          # triangles of every moving part at LOD4 together
+LOD4_BODY = 9000            # triangles of the static shell at LOD4 (closed, its inside too)
+LOD4_MOVING = 6000          # triangles of every moving part at LOD4 together (fewer folded thin slabs)
 # The distant shell lacks LOD3's fine shading (normal maps, small parts' shadows and the occlusion between them): with
 # the finishes' plain average it rendered 1.38 times as bright (linear) as LOD3 at 1 km in the model viewer.
 LOD4_SHADE = 0.72
@@ -123,8 +125,11 @@ class Asset:
         self.manifest = json.loads((DOCS / "asset_manifest.json").read_text(encoding="utf-8"))
         self.layout = json.loads((DOCS / "gunner_station_layout.json").read_text(encoding="utf-8"))
         self.motion = json.loads((DOCS / "weapon_motion.json").read_text(encoding="utf-8"))
-        self.revision = json.loads((DOCS / "material_revision.json").read_text(encoding="utf-8"))
-        self.displays = json.loads((DOCS / "display_artwork.json").read_text(encoding="utf-8"))
+        # The finishes and the display tiles as the import keeps them (iron_wake_finishes.json): the asset's folder
+        # was restored on 15 October 2026 to a snapshot without them (IRON_WAKE.md 9.2).
+        kept = finishes_lib.finishes()
+        self.revision = {"materials": kept["materials"]}
+        self.display_tiles = kept["displayTiles"]
         self.groups = self.manifest["groups"]
         self.objects = {g: bpy.data.objects.get(f"SM_IW_{g}") for g in self.groups}
         self.lods = {g: [self.objects[g]] + [bpy.data.objects.get(f"SM_IW_{g}_LOD{n}") for n in (1, 2, 3)]
@@ -190,10 +195,15 @@ def run_loaders(asset):
 
 
 def texture(name, kind):
-    """A 4K derivative filtered to 2K once into game/assets/textures/iron_wake (kind: colour, orm or normal)."""
+    """A 2K map in game/assets/textures/iron_wake: made once from the asset's 4K derivative (kind: colour, orm or
+    normal); a later run keeps it. The asset's folder no longer holds the derivatives (restored 15 October 2026), so a
+    missing map is an error rather than a silent change."""
     target = OUT_TEX / name.replace("_4K.png", "_2K.png")
     if not target.exists():
-        px = downscale(read(SOURCE / "Textures" / name), 2048)
+        src = SOURCE / "Textures" / name
+        if not src.exists():
+            raise RuntimeError(f"iron_wake: {target.name} is missing and {src} is not there to make it from")
+        px = downscale(read(src), 2048)
         if kind == "normal":
             px = renormalise(px)
         if kind == "orm" and "_PBR_" in name:
@@ -211,51 +221,34 @@ def means(path, srgb):
 
 
 def vram(path, normal):
-    """Bytes of a 2048 px block-compressed texture with mipmaps (BC1 for colour and ORM, BC5 for normal maps)."""
-    return int(2048 * 2048 * (1.0 if normal else 0.5) * 4 / 3)
+    """Bytes of a block-compressed texture with mipmaps (BC1 for colour and ORM, BC3 with alpha, BC5 for normals)."""
+    w = 2048 if "_2K" in path.name else 1024 if "_1K" in path.name else 512
+    alpha = "PaintChipped_BaseColor" in path.name
+    return int(w * w * (1.0 if normal or alpha else 0.5) * 4 / 3)
 
 
-def materials(asset):
+def materials(asset, metres_per_uv):
     """Writes the shared materials; returns ({Blender material: .tres}, {material: (albedo linear, rough, metal)},
-    {texture path: bytes in video memory})."""
-    tex, info, mem = {}, {}, {}
-    rev = asset.revision
-    for m in rev["materials"]:
-        files = m["files"]
-        albedo = texture(files["base_color"], "colour")
-        orm = texture(files["orm"], "orm")
-        normal = texture(files["normal_gl"], "normal")
-        for p, n in ((albedo, False), (orm, False), (normal, True)):
-            mem[p] = vram(p, n)
-        tint = m["tint"]
-        name = f"M_IronWake_{m['name']}"
-        tex[name] = write_material(
-            f"iron_wake_{snake(m['name'])}", name, albedo=albedo, orm=orm, normal=normal,
-            colour=tuple(linear_to_srgb(c) for c in tint) + (1,), vertex_colour=True, vertex_colour_srgb=False, ao=True,
-            normal_scale=m["normal_strength"])
-        a = means(albedo, True) * np.array(tint)
-        o = means(orm, False)
-        info[name] = (a, float(o[1]), float(o[2]))
+    {texture path: bytes in video memory}). The sixteen finishes are ShaderMaterials on the Iron Wake's surface shader
+    (iron_wake_surfaces.py); the displays, glass, lamps and drive glow stay standard materials the views drive, and
+    read no vertex colour (it holds the finishes' occlusion and curvature)."""
+    maps = finishes_lib.textures()
+    tex, info = finishes_lib.materials(asset.revision, maps, metres_per_uv)
+    mem = {p: vram(p, "Normal" in p.name) for p in maps.values()}
     # The instrument displays (the asset's markings atlas, now only screens): lit by their emissive art, tinted as the
-    # asset's emissive factor; their energy is the ship's power to drive (iron-wake.json "materials"). A map that is
-    # uniform over the whole image is dropped for its value: the atlas's normal map is flat (the screens are smooth),
-    # 5.6 MB less in video memory for the same look; an ORM that were uniform would become roughness and metalness.
-    src_orm = read(SOURCE / "Textures" / "T_IronWake_Markings_ORM.png")[..., :3]
-    src_nrm = read(SOURCE / "Textures" / "T_IronWake_Markings_NormalGL.png")[..., :3]
-    uniform_orm = float(src_orm.reshape(-1, 3).std(axis=0).max()) < 0.01
-    flat_normal = float(np.abs(src_nrm.reshape(-1, 3) - np.array([0.5, 0.5, 1.0])).max()) < 0.02
-    kinds = [("BaseColor", "colour"), ("Emissive", "colour")]
-    kinds += [] if uniform_orm else [("ORM", "orm")]
-    kinds += [] if flat_normal else [("NormalGL", "normal")]
-    mk = {k: texture(f"T_IronWake_Markings_{k}.png", kind) for k, kind in kinds}
+    # asset's emissive factor; their energy is the ship's power to drive (iron-wake.json "materials"). The atlas's
+    # normal map is flat (the screens are smooth) and is not used; its ORM is.
+    mk = {k: OUT_TEX / f"T_IronWake_Markings_{k}.png" for k in ("BaseColor", "Emissive", "ORM")}
     for k, p in mk.items():
-        mem[p] = vram(p, k == "NormalGL")
-    o = src_orm.reshape(-1, 3).mean(axis=0) if uniform_orm else means(mk["ORM"], False)
+        if not p.exists():
+            raise RuntimeError(f"iron_wake: {p} is missing")
+        write_texture_import(p)
+        mem[p] = vram(p, False)
+    o = means(mk["ORM"], False)
     tex["M_IronWake_Markings"] = write_material(
-        SPECIAL["Markings"], "M_IronWake_Markings", albedo=mk["BaseColor"], orm=mk.get("ORM"),
-        normal=mk.get("NormalGL"), emission=mk["Emissive"], emission_energy=DISPLAY_ENERGY, vertex_colour=True,
-        vertex_colour_srgb=False, ao="ORM" in mk, roughness=round(float(o[1]), 3), metallic=round(float(o[2]), 3),
-        emission_colour=tuple(linear_to_srgb(c) for c in (0.45, 1.0, 0.6)))
+        SPECIAL["Markings"], "M_IronWake_Markings", albedo=mk["BaseColor"], orm=mk["ORM"], emission=mk["Emissive"],
+        emission_energy=DISPLAY_ENERGY, vertex_colour=False, ao=True, roughness=round(float(o[1]), 3),
+        metallic=round(float(o[2]), 3), emission_colour=tuple(linear_to_srgb(c) for c in (0.45, 1.0, 0.6)))
     info["M_IronWake_Markings"] = (means(mk["BaseColor"], True), float(o[1]), float(o[2]))
     glass = (0.10, 0.20, 0.22)
     tex[GLASS] = write_material(
@@ -265,7 +258,7 @@ def materials(asset):
     lamp = (0.72, 0.53, 0.28)
     tex["M_IronWake_Lamps"] = write_material(
         SPECIAL["Lamps"], "M_IronWake_Lamps", colour=tuple(linear_to_srgb(c) for c in lamp) + (1,), roughness=0.25,
-        metallic=0.0, vertex_colour=True, vertex_colour_srgb=False, emission_energy=LAMP_ENERGY,
+        metallic=0.0, vertex_colour=False, emission_energy=LAMP_ENERGY,
         emission_colour=tuple(linear_to_srgb(c) for c in (1.0, 0.66, 0.32)))
     info["M_IronWake_Lamps"] = (np.array(lamp), 0.25, 0.0)
     # The drives' glow plates: the lamps' faces inside the nozzles, sooty steel when cold, lit with the drives' thrust
@@ -273,7 +266,7 @@ def materials(asset):
     soot = (0.045, 0.042, 0.04)
     tex[ENGINE_GLOW] = write_material(
         "iron_wake_engine_glow", ENGINE_GLOW, colour=tuple(linear_to_srgb(c) for c in soot) + (1,), roughness=0.55,
-        metallic=0.7, vertex_colour=True, vertex_colour_srgb=False, emission_energy=0.0,
+        metallic=0.7, vertex_colour=False, emission_energy=0.0,
         emission_colour=tuple(linear_to_srgb(c) for c in (1.0, 0.62, 0.3)))
     info[ENGINE_GLOW] = (np.array(soot), 0.55, 0.7)
     return tex, info, mem
@@ -332,6 +325,7 @@ def merged(sources, name, out, tiles=None):
             for k, m in enumerate(c.data.materials):
                 if m is not None and m.name == "M_IronWake_Lamps":
                     c.data.materials[k] = glow
+        repair(c, s.name)
         copies.append(c)
     bake_world(copies, TURN_WORLD)
     if len(copies) > 1:
@@ -343,6 +337,24 @@ def merged(sources, name, out, tiles=None):
     o.data.name = name
     drop_unused_slots(o)
     return o
+
+
+# What repair() changed, for the log (IRON_WAKE.md §9.1 "As built": the holes).
+REPAIRS = {"folds": 0, "split": 0, "reversed": 0, "rewound": 0, "closed": 0, "faces": 0}
+REPAIRED = {}
+
+
+def repair(o, source):
+    """Every piece a closed solid facing out, as Godot draws them (back faces culled; art/hollow/large.py): the
+    asset's quads split along their inner diagonal turned (the bridge's port window crossed itself), twisted faces
+    split outward, pieces wound inside out reversed, and single skins (the drives' jacket sectors, the gunners' and
+    pilots' screens) given a back skin."""
+    stats = {"folds": fix_folds(o), "split": split_twisted(o)}
+    stats.update(repair_shells(o))
+    for k, v in stats.items():
+        REPAIRS[k] += v
+    if stats["reversed"] or stats["rewound"] or stats["closed"]:
+        REPAIRED[source] = {k: v for k, v in stats.items() if v}
 
 
 def attach(o, empty):
@@ -444,7 +456,7 @@ def sight_tiles(asset):
     """{asset object: atlas tile} for the gunners' sight displays: their battery's screen as display_artwork.json binds
     the roles (defense_gunner 5, siege_gunner 6) and the asset's Source/make_ironwake.py builds them; the .blend's
     stations point at the pilot's navigation screen (tile 3) instead."""
-    by_role = {t["role"]: t["tile"] for t in asset.displays["tiles"]}
+    by_role = asset.display_tiles
     out = {}
     for s in asset.stations.values():
         tile = by_role.get(f"{s['weapon_class']}_gunner")
@@ -522,18 +534,32 @@ def loader_record(name, parent, e):
 
 
 def contact_darkening(parts):
+    """The vertex colour every finish reads (game/shaders/iron_wake_surface.gdshader): R the contact occlusion (40 rays
+    per vertex to 1.2 m at LOD0, the monument kit's walk-through of buried vertices), G how convex and B how concave
+    the surface is round the vertex; all carried to LOD1-3 by the nearest point of LOD0. Returns the occlusion by
+    object (LOD4 shades its colours with it)."""
     levels = [[rec["lods"][lv] for rec in parts.values() if rec["lods"][lv].type == "MESH"] for lv in range(4)]
     t0 = time.time()
     occ0 = Triangles(levels[0], skip_materials={GLASS})
     ao = contact_ao(levels[0], occ0, AO_SAMPLES, AO_DISTANCE)
     log(f"occlusion LOD0: {sum(len(v) for v in ao.values())} vertices in {time.time() - t0:.0f} s")
+    masks = {}
+    for o in levels[0]:
+        convex, concave = finishes_lib.curvature(o)
+        masks[o] = np.stack([ao[o], convex, concave], axis=1)
+    source = Triangles(levels[0])
     for lv in (1, 2, 3):
-        ao.update(carry_ao(occ0, ao, levels[lv]))
-    for o, values in ao.items():
-        shade = 1 - AO_STRENGTH + AO_STRENGTH * values
-        rgba = np.ones((len(values), 4), np.float32)
-        rgba[:, 0] = rgba[:, 1] = rgba[:, 2] = shade
+        carried = finishes_lib.carry(source, masks, levels[lv])
+        masks.update(carried)
+        for o, v in carried.items():
+            ao[o] = v[:, 0]
+    for o, v in masks.items():
+        rgba = np.ones((len(v), 4), np.float32)
+        rgba[:, :3] = v
         set_export_colour(o, rgba, "POINT")
+    log(f"curvature: {sum(float((v[:, 1] > 0.5).sum()) for v in masks.values()):.0f} convex and "
+        f"{sum(float((v[:, 2] > 0.5).sum()) for v in masks.values()):.0f} concave vertices of "
+        f"{sum(len(v) for v in masks.values())}")
     return ao
 
 
@@ -566,8 +592,14 @@ def split_faces(o, name, out, material):
 def lod4(parts, info, out, ao):
     """LOD4 of every part but the hold, from its LOD3: the closed surface round the union of its pieces (a voxel
     remesh, so overlapping pieces and thin shells such as the barrels' heat shields fuse instead of folding into
-    slivers), only what can be seen from outside (the glass blocking the view in), decimated; each face coloured by the
-    finish of the nearest LOD3 face (its average colour) times the contact darkening there; one material."""
+    slivers; voxels of 6 cm at least, so thin walls fuse rather than stay slabs a decimation folds through
+    themselves), decimated and kept closed, its quads split outward (fix_folds); each face coloured by the finish of the
+    nearest LOD3 face (its average colour) times the contact darkening there; one material.
+
+    The first build deleted the faces it thought hidden (24 directions, against every part at the parked pose) and then
+    decimated the open shells, which dragged their open edges about: 2.2 % of the rays that met LOD4 met a back face,
+    4,321 of them through to the sky (IRON_WAKE.md §9.1 "As built: the holes"). Closed shells cost the triangles inside
+    the hull too (hence the budgets) and cannot open, however the parts turn."""
     # The loaders' moving pieces have no LOD3 or LOD4 (see build()): what stands still of them is part of the gun
     # house's and the receiver's shells.
     names = [n for n in parts if n != "Hold" and not parts[n].get("loader")]
@@ -584,29 +616,30 @@ def lod4(parts, info, out, ao):
     weights = {}
     for m, a in zip(source.materials, areas.tolist()):
         weights[m] = weights.get(m, 0.0) + a
-    shells, panes = {}, []
+    shells = {}
     for n in names:
         o = copy_object(src3[n], f"{n}_lod4", out)
         select_only([o])
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
         # Thin panes would vanish in the shell: the glass stays as it is, beside it.
         glass = split_faces(o, f"{n}_lod4_glass", out, GLASS)
-        if glass is not None:
-            panes.append(glass)
         lo, hi = Vector(o.bound_box[0]), Vector(o.bound_box[6])
-        voxel = min(0.15, max(0.025, (hi - lo).length / 400))
+        # Coarse enough that thin pieces (a 3 cm wall, a rail) fuse into the solid round them rather than stay
+        # slabs a decimation folds through themselves; at 1.2 km and more a voxel of 6 cm is under a pixel.
+        voxel = min(0.15, max(0.06, (hi - lo).length / 400))
         voxel_shell(o, voxel, 60000 if n == "Body" else 2000)
         shells[n] = (o, glass)
-    blockers = Triangles([o for o, _ in shells.values()] + panes)
-    for o, _ in shells.values():
-        delete_faces(o, outside_faces([o], blockers, directions=24)[o])
     # The moving parts share their budget by the area they show, so a long barrel keeps its tube.
     moving_area = sum(area(o) for n, (o, _) in shells.items() if n != "Body")
     for n, (o, glass) in shells.items():
         budget = LOD4_BODY if n == "Body" else max(48, int(LOD4_MOVING * area(o) / max(moving_area, 1e-6)))
+        # Every shell stays closed whole: one opened where nothing seemed to see it showed the sky through its open
+        # edges once decimated, and a moving part turns what was hidden into view.
         decimate_to(o, budget)
+        fix_folds(o, max_fold=45.0)
+        own = Triangles([o] + ([glass] if glass is not None else []))
         if glass is not None:
-            delete_faces(glass, outside_faces([glass], blockers, directions=24)[glass])
+            delete_faces(glass, outside_faces([glass], own, directions=64, corners=True)[glass])
             select_only([o, glass])
             bpy.context.view_layer.objects.active = o
             bpy.ops.object.join()
@@ -641,6 +674,55 @@ def attach_world(o, empty):
     o.parent = empty
     o.matrix_parent_inverse = Matrix.Identity(4)
     o.matrix_basis = Matrix.Identity(4)
+
+
+# ------------------------------------------------------------------------------------------------ the holes check
+
+
+# Godot culls back faces: where a ray from outside, or from inside a room, meets a back face first, the game shows
+# what lies behind it or the sky. Measured on 15 October 2026 before the repair: 0.48 % of the rays that met LOD0-3
+# from outside (the bridge's port window crossing itself, the drives' open jacket sectors; 115 rays through to the
+# sky) and 2.2 % of LOD4's (4,321 through to the sky). Allowed now: a handful of rays grazing an edge.
+# Per level: (back faces first, of the rays from outside; rays through to the sky; back faces first, of the rays
+# from the rooms). The far levels are the asset's own decimations and LOD4 a proxy seen from 1.2 km and more, where
+# a pixel is a metre: they are allowed a little more.
+HOLES = {0: (2e-5, 8, 1e-4), 1: (2e-5, 8, 1e-4), 2: (1e-4, 8, 2e-4), 3: (1e-4, 8, 2e-4), 4: (2e-3, 150, 0)}
+
+
+def check_holes(asset, parts):
+    """Fails the import when a hole comes back (IRON_WAKE.md §9.1 "As built": the holes): every piece of LOD0-3 must
+    be a closed solid facing out (shell_report), and at every level rays from all round (64 directions on a 0.2 m grid)
+    and, for LOD0-3, from points in every room (1,200 directions each) must meet front faces first. Returns the
+    measurements by level for the log."""
+    ship = iron_wake_data.Ship(asset)
+    rooms = []
+    for r in iron_wake_data.rooms(ship):
+        a, b = r["min"], r["max"]
+        # Game axes in the export's Blender frame: (x, -z, y).
+        rooms.append((r["id"], Vector((a[0], -b[2], a[1])), Vector((b[0], -a[2], b[1]))))
+    bpy.context.view_layer.update()
+    report, failures = {}, []
+    for lv in range(5):
+        objs = [rec["lods"][lv] for rec in parts.values() if lv < len(rec["lods"]) and rec["lods"][lv].type == "MESH"]
+        if lv < 4:
+            for o in objs:
+                opened, inverted, _ = shell_report(o)
+                if opened or inverted:
+                    failures.append(f"{o.name}: {opened} open pieces, {inverted} inside out")
+        t0 = time.time()
+        r = backfaces_seen(objs, rooms if lv < 4 else (), directions=64, spacing=0.2)
+        report[lv] = {k: v for k, v in r.items() if k != "worst"}
+        log(f"holes LOD{lv}: outside {r['outsideBack']} of {r['outside']} rays meet a back face first "
+            f"({r['outsideSky']} through to the sky); inside {r['insideBack']} of {r['inside']} ({time.time() - t0:.0f} s)")
+        for w in r["worst"][:6]:
+            log(f"  holes LOD{lv}: {w}")
+        back, sky, inside = HOLES[lv]
+        if (r["outsideSky"] > sky or r["outsideBack"] > back * max(r["outside"], 1)
+                or r["insideBack"] > inside * max(r["inside"], 1)):
+            failures.append(f"LOD{lv}: {report[lv]}, worst {r['worst'][:4]}")
+    if failures:
+        raise RuntimeError("iron_wake: holes in the model (IRON_WAKE.md §9.1):\n  " + "\n  ".join(failures))
+    return report
 
 
 # ------------------------------------------------------------------------------------------------ hulls, sockets, occluders
@@ -900,6 +982,10 @@ def main():
     load()
     asset = Asset()
     moving = moving_parts(asset)
+    # Metres of surface per UV unit, per finish: the asset bakes each finish's repeat into UV0, and the loaders'
+    # meshes are given the same.
+    asset.uv_metres = finishes_lib.uv_metres([asset.objects[g] for g in asset.groups if asset.objects[g] is not None])
+    log("metres per UV unit: " + ", ".join(f"{k[11:]} {v:.3f}" for k, v in asset.uv_metres.items()))
     loaders, loader_result = run_loaders(asset)
     if "data" in script_args():
         # Only the data file (iterating on it): blender -b --factory-startup --python art/import/iron_wake.py -- data
@@ -907,7 +993,7 @@ def main():
         write_data(asset, moving, [loader_record(n, p, e) for n, p, e, *_ in pieces], loader_result)
         log(f"done in {time.time() - t0:.0f} s")
         return
-    tex, info, mem = materials(asset)
+    tex, info, mem = materials(asset, asset.uv_metres)
     out, parts, loader_records = build(asset, moving)
     ao = contact_darkening(parts)
     weights = lod4(parts, info, out, ao)
@@ -915,6 +1001,8 @@ def main():
     hull_objs = hulls(asset, moving, parts, out)
     socket_objs = sockets(asset, moving, parts, out)
     occ = occluders(parts, out)
+    log(f"repaired: {REPAIRS}; by source: {REPAIRED}")
+    check_holes(asset, parts)
     clips(asset, parts, loaders)
     objects = []
     for rec in parts.values():

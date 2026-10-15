@@ -1,7 +1,8 @@
 // The ground of a planet (GROUND.md §4.6): tiles from TerrainLod, morphing toward their parent's grid with distance;
-// eight ground materials (texture arrays, in Hollow.Surface.GroundMaterial order) blended by the weights the surface
-// gives each vertex, refined per pixel by slope and by the materials' own heights; triplanar rock on steep ground; two
-// scales and large-scale variation so repetition doesn't show; cloud shadows; the planet's air in front. Textures are
+// sixteen ground materials (the scans' 4K layers in texture arrays, in Hollow.Surface.GroundMaterial order: colour,
+// normals, roughness and height; GroundLayers) blended by the weights the surface gives each vertex, refined per pixel
+// by slope and by the materials' own heights; triplanar rock and sandstone on steep ground; two scales, a far turned copy
+// and large-scale variation so repetition doesn't show; cloud shadows; the planet's air in front. Textures are
 // measured in metres on the tile's cube face (UV2, docs/WHOLE_WORLD.md §10.1), with the tangent along them, and blended
 // with the neighbouring face's within a couple of metres of a seam, so they neither stretch nor break anywhere on a ball.
 shader_type spatial;
@@ -18,6 +19,9 @@ global uniform vec3 hu_texture_offset;
 
 uniform sampler2DArray albedo_array : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2DArray normal_array : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2DArray rough_height_array : filter_linear_mipmap_anisotropic, repeat_enable; // r roughness, g height
+uniform float layer_metres[16];                       // metres covered by one repeat of each layer (layers.json)
+uniform vec2 layer_flip[16];                          // each layer's normal axes against the first layer's
 uniform sampler2D macro_noise : filter_linear_mipmap, repeat_enable;
 uniform float normal_strength = 1.0;
 uniform vec2 normal_sign = vec2(1.0, -1.0);
@@ -29,13 +33,11 @@ uniform sampler2D canopy_texture : filter_linear_mipmap_anisotropic, repeat_enab
 uniform float canopy_tile = 150.0;                    // metres covered by the crown texture
 uniform float seam_band = 2.0;                        // metres either side of a face seam the textures blend over
 
-// Metres covered by one repeat of each layer (the scans' own sizes), and their roughness.
-const float layer_size[8] = { 4.0, 3.0, 2.0, 2.4, 4.0, 4.0, 2.0, 4.0 };
-const float layer_rough[8] = { 0.94, 0.86, 0.80, 0.80, 0.85, 0.80, 0.55, 0.90 };
-
 varying vec3 v_world;
 varying vec4 v_m0;
 varying vec4 v_m1;
+varying vec4 v_m2;
+varying vec4 v_m3;
 varying vec4 v_climate;
 varying float v_height;
 varying float v_cloud;
@@ -48,8 +50,12 @@ void vertex() {
 	VERTEX = mix(VERTEX, CUSTOM0.xyz, k);
 	NORMAL = normalize(mix(NORMAL, CUSTOM1.xyz, k));
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	v_m0 = CUSTOM2;
-	v_m1 = CUSTOM3;
+	// Sixteen weights: twelve three to a float (w0 + 256 w1 + 65536 w2, exact integers), four as bytes.
+	uvec4 p = uvec4(CUSTOM2 + 0.5);
+	v_m0 = vec4(float(p.x & 255u), float((p.x >> 8u) & 255u), float(p.x >> 16u), float(p.y & 255u)) / 255.0;
+	v_m1 = vec4(float((p.y >> 8u) & 255u), float(p.y >> 16u), float(p.z & 255u), float((p.z >> 8u) & 255u)) / 255.0;
+	v_m2 = vec4(float(p.z >> 16u), float(p.w & 255u), float((p.w >> 8u) & 255u), float(p.w >> 16u)) / 255.0;
+	v_m3 = CUSTOM3;
 	v_climate = COLOR;
 	v_height = UV.x;
 	v_face = UV2;
@@ -70,29 +76,38 @@ struct Look {
 };
 
 // The vertex data comes in as arguments (world point, materials, climate, height above the sea).
-Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, float far_fade, vec3 world, vec4 m0, vec4 m1, vec4 climate,
-		float sea_height) {
+Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, float far_fade, vec3 world, vec4 m0, vec4 m1,
+		vec4 m2, vec4 m3, vec4 climate, float sea_height) {
 	vec3 wp3 = world + hu_texture_offset;
 	// Large-scale variation: brightness, hue and patchiness that never repeat within view.
 	vec4 macro = texture(macro_noise, wp / 1730.0);
 	vec4 macro2 = texture(macro_noise, wp / 211.0 + vec2(0.31, 0.77));
 	vec4 macro3 = texture(macro_noise, wp / 37.0 + vec2(0.13, 0.41));
 
-	float w[8] = { m0.r, m0.g, m0.b, m0.a, m1.r, m1.g, m1.b, m1.a };
-	// Patchy borders between materials, and bare rock where the pixel's own slope is steep.
+	float w[16] = { m0.r, m0.g, m0.b, m0.a, m1.r, m1.g, m1.b, m1.a, m2.r, m2.g, m2.b, m2.a, m3.r, m3.g, m3.b, m3.a };
+	// Patchy borders between materials (each kind like its family), and bare rock where the pixel's own slope is steep:
+	// sandstone where the vertex has more of it than of granite.
 	w[0] *= 0.55 + 0.9 * macro2.r;
+	w[10] *= 0.55 + 0.9 * macro2.r;
 	w[1] *= 0.55 + 0.9 * macro2.g;
+	w[11] *= 0.55 + 0.9 * macro2.g;
 	w[2] *= 0.4 + 1.2 * macro2.b * macro3.a;
+	w[14] *= 0.4 + 1.2 * macro2.b * macro3.a;
 	w[4] *= 0.5 + 1.0 * macro3.g;
+	w[9] *= 0.5 + 1.0 * macro3.g;
 	w[7] *= 0.5 + 1.0 * macro2.a;
+	w[12] *= 0.5 + 1.0 * macro2.a;
 	float cliff = smoothstep(0.30, 0.48, slope + (macro3.r - 0.5) * 0.12);
-	w[3] = mix(w[3], 1.6, cliff);
+	float sandstone = w[13] / max(w[3] + w[13], 1e-4);
+	w[3] = mix(w[3], 1.6 * (1.0 - sandstone), cliff);
+	w[13] = mix(w[13], 1.6 * sandstone, cliff);
 	w[6] *= 1.0 - cliff * 0.8;
+	w[15] *= 1.0 - cliff * 0.8;
 	float total = 0.0;
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 16; i++) {
 		total += w[i];
 	}
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 16; i++) {
 		w[i] /= max(total, 1e-4);
 	}
 
@@ -105,51 +120,62 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 	mat2 rot = rotation(1.7);
 	mat2 rot_huge = rotation(0.6);
 	float huge = smoothstep(90.0, 380.0, dist) * (1.0 - far);
-	vec3 colours[8];
-	vec2 normals[8];
-	float heights[8];
+	vec3 colours[16];
+	vec2 normals[16];
+	float heights[16];
+	float roughs[16];
 	float best = -1.0;
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 16; i++) {
 		colours[i] = vec3(0.0);
 		normals[i] = vec2(0.0);
 		heights[i] = 0.0;
+		roughs[i] = 0.0;
 		if (w[i] < 0.02) {
 			continue;
 		}
 		float layer = float(i);
-		vec2 uv = wp / layer_size[i];
+		vec2 uv = wp / layer_metres[i];
 		vec2 uv_large = rot * uv * 0.29 + vec2(0.37, 0.11);
 		vec3 c;
 		vec3 tn;
+		vec2 rh;
 		if (far >= 1.0) {
 			c = textureLod(albedo_array, vec3(uv_large, layer), 10.0).rgb;
-			tn = vec3(0.5, 0.5, 0.5);
-		} else if (i == 3 && cliff > 0.05) {
-			// Rock on cliffs: three projections, so steep faces aren't smeared.
+			tn = vec3(0.5, 0.5, 1.0);
+			rh = textureLod(rough_height_array, vec3(uv_large, layer), 9.0).rg;
+		} else if ((i == 3 || i == 13) && cliff > 0.05) {
+			// Rock and sandstone on cliffs: three projections, so steep faces aren't smeared.
 			vec3 bw = pow(abs(n_geo), vec3(4.0));
 			bw /= dot(bw, vec3(1.0));
-			vec2 ux = wp3.zy / layer_size[i] * 0.5;
-			vec2 uy = wp3.xz / layer_size[i] * 0.5;
-			vec2 uz = wp3.xy / layer_size[i] * 0.5;
+			vec2 ux = wp3.zy / layer_metres[i] * 0.5;
+			vec2 uy = wp3.xz / layer_metres[i] * 0.5;
+			vec2 uz = wp3.xy / layer_metres[i] * 0.5;
 			c = texture(albedo_array, vec3(ux, layer)).rgb * bw.x + texture(albedo_array, vec3(uy, layer)).rgb * bw.y
 				+ texture(albedo_array, vec3(uz, layer)).rgb * bw.z;
 			tn = texture(normal_array, vec3(ux, layer)).rgb * bw.x + texture(normal_array, vec3(uy, layer)).rgb * bw.y
 				+ texture(normal_array, vec3(uz, layer)).rgb * bw.z;
+			rh = texture(rough_height_array, vec3(ux, layer)).rg * bw.x + texture(rough_height_array, vec3(uy, layer)).rg * bw.y
+				+ texture(rough_height_array, vec3(uz, layer)).rg * bw.z;
 			if (far > 0.0) {
 				c = mix(c, textureLod(albedo_array, vec3(uv_large, layer), 10.0).rgb, far);
-				tn = mix(tn, vec3(0.5, 0.5, 0.5), far);
+				tn = mix(tn, vec3(0.5, 0.5, 1.0), far);
 			}
 		} else {
 			vec3 c_large = texture(albedo_array, vec3(uv_large, layer)).rgb;
 			vec3 t_large = texture(normal_array, vec3(uv_large, layer)).rgb;
+			vec2 r_large = texture(rough_height_array, vec3(uv_large, layer)).rg;
 			c = c_large;
 			tn = t_large;
+			rh = r_large;
 			if (near > 0.0) {
+				// Near: the scan at its own size over the large, turned copy (the detail blend).
 				vec3 c_small = texture(albedo_array, vec3(uv, layer)).rgb;
 				vec3 t_small = texture(normal_array, vec3(uv, layer)).rgb;
+				vec2 r_small = texture(rough_height_array, vec3(uv, layer)).rg;
 				float m = 0.62 * (0.45 + 0.55 * macro3.b) * near;
 				c = mix(c_large, c_small, m);
 				tn = mix(t_large, t_small, m);
+				rh = mix(r_large, r_small, m);
 			}
 			if (huge > 0.0) {
 				// From the air the large scale would repeat in rows: blend in a much larger, turned copy.
@@ -159,7 +185,7 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 			}
 			if (far > 0.0) {
 				c = mix(c, textureLod(albedo_array, vec3(uv_large, layer), 10.0).rgb, far);
-				tn = mix(tn, vec3(0.5, 0.5, 0.5), far);
+				tn = mix(tn, vec3(0.5, 0.5, 1.0), far);
 			}
 		}
 		if (i == 1) {
@@ -171,14 +197,15 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 			vec3 moss_colour = vec3(0.05, 0.085, 0.02) * clamp(lum1 / 0.09, 0.5, 1.7);
 			c = mix(litter, moss_colour, moss * 0.85);
 		}
-		if (i == 0) {
-			// The grass layer takes the blades' colour: its texture only gives the detail.
+		if (i == 0 || i == 10) {
+			// The grass layers take the blades' colour (the wet one a little): their textures give the detail.
 			float lum = dot(c, vec3(0.2126, 0.7152, 0.0722)) / grass_layer_luminance;
 			lum = mix(lum, 1.0, smoothstep(150.0, 900.0, dist) * 0.55);
-			c = clamp(lum, 0.4, 1.8) * grass_colour;
+			vec3 blades = clamp(lum, 0.4, 1.8) * grass_colour;
+			c = i == 0 ? blades : mix(c, blades, 0.45);
 		}
 		colours[i] = c;
-		normals[i] = vec2((tn.r * 2.0 - 1.0) * normal_sign.x, (tn.g * 2.0 - 1.0) * normal_sign.y);
+		normals[i] = vec2((tn.r * 2.0 - 1.0) * normal_sign.x * layer_flip[i].x, (tn.g * 2.0 - 1.0) * normal_sign.y * layer_flip[i].y);
 		if (i == 5) {
 			// Beach sand: lighter and warmer than the scan, with wind ripples across it near by.
 			colours[i] *= vec3(1.5, 1.42, 1.25);
@@ -187,8 +214,9 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 			float ripple_mask = smoothstep(0.35, 0.65, texture(macro_noise, wp / 17.0 + vec2(0.3, 0.6)).b);
 			normals[i] += rd * cos(rp) * 0.12 * ripple_mask * (1.0 - smoothstep(4.0, 14.0, dist));
 		}
-		heights[i] = tn.b;
-		best = max(best, w[i] * 1.6 + tn.b);
+		heights[i] = rh.g;
+		roughs[i] = rh.r;
+		best = max(best, w[i] * 1.6 + rh.g);
 	}
 	// Height blending: where layers meet, the higher grains of each poke through.
 	vec3 albedo = vec3(0.0);
@@ -196,7 +224,7 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 	float height = 0.0;
 	float rough = 0.0;
 	float sum = 0.0;
-	for (int i = 0; i < 8; i++) {
+	for (int i = 0; i < 16; i++) {
 		if (w[i] < 0.02) {
 			continue;
 		}
@@ -204,7 +232,7 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 		albedo += colours[i] * bl;
 		nrm += normals[i] * bl;
 		height += heights[i] * bl;
-		rough += layer_rough[i] * bl;
+		rough += roughs[i] * bl;
 		sum += bl;
 	}
 	albedo /= max(sum, 1e-4);
@@ -217,7 +245,7 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 	vec3 dry = vec3(1.20, 1.02, 0.62);
 	vec3 tint = mix(dry, lush, smoothstep(0.25, 0.7, climate.g + (macro.g - 0.5) * 0.3));
 	albedo *= mix(vec3(1.0), tint, clamp(w[7], 0.0, 1.0));
-	float others = 1.0 - clamp(w[0], 0.0, 1.0);
+	float others = 1.0 - clamp(w[0] + w[10], 0.0, 1.0);
 	albedo *= mix(1.0, 0.82 + 0.36 * macro.r, others);
 	albedo = mix(albedo, albedo * vec3(1.06, 1.0, 0.9), macro.b * others);
 	// Far forests: where the trees' impostors end, the canopy is drawn on the ground: crowns (a tiling crown map with
@@ -226,7 +254,7 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 	float edge_noise = texture(macro_noise, wp / 97.0 + vec2(0.17, 0.53)).g * 0.6 + texture(macro_noise, wp / 23.0 + vec2(0.61, 0.07)).b * 0.4;
 	float cover = climate.a + (edge_noise - 0.5) * 0.4;
 	float forest = smoothstep(0.4, 0.5, cover);
-	float canopy = far_fade * forest * (1.0 - cliff) * (1.0 - w[6]);
+	float canopy = far_fade * forest * (1.0 - cliff) * (1.0 - w[6] - w[15]);
 	vec4 crowns = texture(canopy_texture, wp / canopy_tile);
 	// Groves at a larger scale, so the canopy keeps its texture where single crowns blur together.
 	vec4 groves = texture(canopy_texture, wp / (canopy_tile * 6.0) + vec2(0.37, 0.11));
@@ -249,7 +277,7 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 	albedo *= 1.0 - 0.45 * wet;
 	rough = mix(rough, 0.16, wet);
 	float residue = smoothstep(0.92, 1.0, sin(sea_height * 38.0 + texture(macro_noise, wp / 3.0).g * 7.0)) * smoothstep(0.15, 0.3, sea_height)
-		* (1.0 - smoothstep(0.45, 0.7, sea_height)) * w[5] * (1.0 - smoothstep(20.0, 60.0, dist));
+		* (1.0 - smoothstep(0.45, 0.7, sea_height)) * (w[5] + w[8]) * (1.0 - smoothstep(20.0, 60.0, dist));
 	albedo = mix(albedo, vec3(0.6, 0.6, 0.58), residue * 0.6);
 
 	// The materials' bumps (fading with distance) and the crowns' slopes, along this face's axes.
@@ -294,7 +322,7 @@ void fragment() {
 		vec3 t;
 		vec3 b;
 		hu_face_axes(d, f, t, b);
-		Look look = ground_look(wp, t, b, n_geo, slope, dist, far_fade, v_world, v_m0, v_m1, v_climate, v_height);
+		Look look = ground_look(wp, t, b, n_geo, slope, dist, far_fade, v_world, v_m0, v_m1, v_m2, v_m3, v_climate, v_height);
 		albedo += look.albedo * fw[k];
 		bump += look.bump * fw[k];
 		rough += look.rough * fw[k];

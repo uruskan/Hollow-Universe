@@ -1,5 +1,5 @@
 {
-  "source": "docs/IRON_WAKE.md §6.3-§6.6, §6.10 and §9.5 (IW-A part 2, 15 October 2026). The crewed batteries' kinds: the loader's timing and the motions it drives, the recoil, the slots, the accepted rockets, their launch profiles and the mount's rates and limits. The one timing definition: the rules (IW3) step the loader by its phases' seconds; the view (IW6) poses the mechanism from the same phases; art/ships/iron_wake_loaders.py builds the mechanism, checks its clearances and bakes the review clips from it. Recoil curves are the asset's (Documentation/weapon_motion.json). Launch and mount numbers are §6.4's and §6.10's proposals, tuned in play.",
+  "source": "docs/IRON_WAKE.md §6.3-§6.6, §6.10 and §9.5 (IW-A part 2, 15 October 2026; the mechanisms rebuilt after the owner's review the same day: whole barrels into closed breeches, every round carried into its chamber). The crewed batteries' kinds: the loader's timing and the motions it drives, the recoil, the slots, the accepted rockets, their launch profiles and the mount's rates and limits. The one timing definition: the rules (IW3) step the loader by its phases' seconds; the view (IW6) poses the mechanism from the same phases; art/ships/iron_wake_loaders.py builds the mechanism, checks its clearances and bakes the review clips from it. Recoil curves are the asset's (Documentation/weapon_motion.json). Launch and mount numbers are §6.4's and §6.10's proposals, tuned in play.",
   "format": 1,
   "conventions": {
     "nodes": "Node names are patterns: {station} is the station's id (Siege_Forward), {barrel} its barrel's two-digit index (00). They name nodes of res://assets/ships/iron-wake.glb: the asset's recoil nodes and the loaders' parts, listed with their pivots and axes in the data file's parts (kind loader).",
@@ -7,140 +7,141 @@
     "motions": "During its phase a motion takes its node from 'from' to 'to' (metres along 'axis' for translate, degrees about it for rotate) with its easing over the fraction 'span' of the phase (default the whole phase). Afterwards the node keeps 'to' until another motion of that node about or along the same axis starts. A node's pose is the sum of its motions' current values on top of its rest pose. 'curve' samples the battery's recoil curve over the phase instead of from, to and ease. 'mirror': on a loader whose side is starboard (mountSide, or the station's side for a mount loader), translations along X and rotations about Y and Z change sign.",
     "easing": "linear; in: t^3; out: 1-(1-t)^3; inOut: 3t^2-2t^3 (smoothstep).",
     "cycle": "A cycle starts at the shot that makes the loader work (siege: that barrel's shot; defense: the third rocket of the cassette) and ends at the end of the last phase, when the barrel or mount counts as loaded. At the end every node is back at rest. With an empty magazine the loader stops before the phase named in 'waitsBefore' until a round of the chosen kind is there.",
-    "holders": "Holders are the nodes that carry rounds: the siege battery's launch carriers (a round each) and the defense mount's cassettes (up to three rockets each). Each lists its slot empties socket_<slot>, where the rocket item's model is attached as a child with an identity transform: the catalogue models are authored nose along -Z, up +Y, their origin on the ground under the rocket. A holder is shown from the start of phase 'from' (default: the cycle's start) to the end of phase 'until' (default: the cycle's end), and only while it holds a load; otherwise it is hidden with its slots. 'what' counts loads of the chosen kind from the one this cycle loads (0), the next (1) and so on; a load is a round on the siege battery and a cassette of up to three rockets on the defense mount. 'current' is the load in the breech now; on the defense mount it stays shown once its rockets are fired, as an empty cassette, until it is stowed. A slot shows its rocket while that round is there and not fired. Outside a cycle every node is at rest and each holder shows what it shows at a cycle's start, counted from the next load. Every holder appears and disappears inside a housing (the gun house, the receiver, the defense mount's hood and bin), so nothing pops in view."
+    "holders": "Holders are the nodes that carry rounds: the siege battery's launch carriers (a round each), and the defense mount's clip and its three rockets (one node each, so that they stay in the chambers when the empty clip leaves). Each lists its slot empties socket_<slot>, where the rocket item's model is attached as a child with an identity transform: the catalogue models are authored nose along -Z, up +Y, their origin on the ground under the rocket. A holder is shown from the start of phase 'from' (default: the cycle's start) to the end of phase 'until' (default: the cycle's end), and only while it holds a load; otherwise it is hidden with its slots. 'what' counts loads of the chosen kind from the one this cycle loads (0), the next (1) and so on; a load is a round on the siege battery and a clip of up to three rockets on the defense mount. A slot shows its rocket while that round is there and not fired. Outside a cycle every node is at rest and each holder shows what it shows at a cycle's start, counted from the next load; rounds already in a chamber are not shown, a breech being shut on them. Every holder appears and disappears inside a housing or a shut breech (the gun house, the receiver, a breech ring, a chamber, the defense mount's hood and bin), so nothing pops in view."
   },
   "batteries": {
     "siege": {
       "ammo": ["rocket", "rocket-hv", "rocket-incendiary"],
       "carrier": "sabot: the 48 cm bore takes each rocket in a launch carrier, three steel petals on a pusher base that open and fall away at the muzzle (IRON_WAKE.md §6.6); the carriers are the mechanism's own parts, one per round",
-      "fire": { "mode": "alternate", "note": "one barrel per press, the next loaded one in turn" },
-      "recoil": { "travel": 0.48, "axis": [0, 0, -1], "seconds": 0.9,
-        "times": [0.0, 0.02, 0.055, 0.08, 0.13, 0.22, 0.4, 0.62, 0.8, 0.9],
-        "fractions": [0.0, 0.46, 0.94, 1.0, 0.98, 0.89, 0.63, 0.3, 0.06, 0.0] },
-      "slots": { "rack": 3, "hood": 1, "perBarrel": "a ready rack of three rounds and a fourth waiting in its hood", "magazine": 12, "stack": 3 },
-      "launch": {
-        "gravityBurning": 0.15, "gravity": 1.0, "drag": 0.0015,
-        "profiles": {
-          "rocket": { "muzzle": 70, "ignite": 4.0, "accel": 60, "burn": 1.2, "top": 142, "lifetime": 12, "reach": 900 },
-          "rocket-incendiary": { "muzzle": 70, "ignite": 4.0, "accel": 60, "burn": 1.2, "top": 142, "lifetime": 12, "reach": 900 },
-          "rocket-hv": { "muzzle": 120, "ignite": 4.0, "accel": 100, "burn": 1.4, "top": 260, "lifetime": 12, "reach": 1350 }
-        }
-      },
-      "mount": {
-        "yaw": { "arcs": "the data file's levelArcs for the station", "rate": 24, "accel": 40 },
-        "pitch": { "min": -8, "max": 40, "rate": 16, "accel": 30 },
-        "alignment": 0.5, "loaderSeconds": 4.6, "health": 1500, "zoom": 3
-      },
+      "fire": {"mode": "alternate", "note": "one barrel per press, the next loaded one in turn"},
+      "recoil": {"travel": 0.48, "axis": [0, 0, -1], "seconds": 0.9, "times": [0.0, 0.02, 0.055, 0.08, 0.13, 0.22, 0.4, 0.62, 0.8, 0.9], "fractions": [0.0, 0.46, 0.94, 1.0, 0.98, 0.89, 0.63, 0.3, 0.06, 0.0]},
+      "slots": {"rack": 3, "hood": 1, "perBarrel": "a ready rack of three rounds and a fourth waiting in its hood", "magazine": 12, "stack": 3},
+      "launch": {"gravityBurning": 0.15, "gravity": 1.0, "drag": 0.0015, "profiles": {"rocket": {"muzzle": 70, "ignite": 4.0, "accel": 60, "burn": 1.2, "top": 142, "lifetime": 12, "reach": 900}, "rocket-incendiary": {"muzzle": 70, "ignite": 4.0, "accel": 60, "burn": 1.2, "top": 142, "lifetime": 12, "reach": 900}, "rocket-hv": {"muzzle": 120, "ignite": 4.0, "accel": 100, "burn": 1.4, "top": 260, "lifetime": 12, "reach": 1350}}},
+      "mount": {"yaw": {"arcs": "the data file's levelArcs for the station", "rate": 24, "accel": 40}, "pitch": {"min": -8, "max": 40, "rate": 16, "accel": 30}, "alignment": 0.5, "loaderSeconds": 4.6, "health": 1500, "zoom": 3},
       "loader": {
         "per": "barrel",
         "waitsBefore": "fetch",
         "phases": [
-          { "name": "recover", "seconds": 0.9, "sound": "siege.recover", "endSound": "siege.latch",
-            "note": "The barrel recoils and runs back to battery.",
+          {"name": "recover", "seconds": 0.9, "sound": "siege.recover", "endSound": "siege.latch", "note": "The barrel recoils and runs back to battery; the breech ring rides back over the cradle trough.",
             "motions": [
-              { "node": "{station}_Recoil_{barrel}", "kind": "translate", "axis": [0, 0, -1], "curve": "recoil" } ] },
-          { "name": "breechOpen", "seconds": 0.45, "sound": "loader.breech.open", "effects": ["breech.smoke"], "loop": { "effect": "breech.smoke.wisps", "until": "ram" },
-            "note": "The sliding wedge breech block runs outboard and opens the chamber.",
+              {"node": "{station}_Recoil_{barrel}", "kind": "translate", "axis": [0, 0, -1], "curve": "recoil"}
+            ] },
+          {"name": "breechOpen", "seconds": 0.4, "sound": "loader.breech.open", "effects": ["breech.smoke"], "loop": {"effect": "breech.smoke.wisps", "until": "ram"}, "note": "The sliding wedge breech block runs outboard and opens the chamber; the ram port's gate slides inboard into the receiver.",
             "motions": [
-              { "node": "{station}_Breech_{barrel}", "kind": "translate", "axis": "outboard", "from": 0, "to": 0.58, "ease": "inOut" } ] },
-          { "name": "fetch", "seconds": 0.8, "sound": "loader.arm.swing",
-            "note": "The feed rammer drives the ready rack's lowest round forward through the gun house's feed port into the trunnion transfer.",
+              {"node": "{station}_Breech_{barrel}", "kind": "translate", "axis": "outboard", "from": 0, "to": 0.58, "ease": "inOut"},
+              {"node": "{station}_Gate_{barrel}", "kind": "translate", "axis": "outboard", "from": 0, "to": -0.64, "ease": "inOut", "span": [0.25, 1.0]}
+            ] },
+          {"name": "fetch", "seconds": 0.8, "sound": "loader.arm.swing", "note": "The feed port's gate slides open; the feed rammer drives the ready rack's lowest round forward through it into the gun house, to the trunnion transfer.",
             "motions": [
-              { "node": "{station}_Carrier_{barrel}_00", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 1.22, "ease": "inOut" },
-              { "node": "{station}_Feed_{barrel}_A", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 0.61, "ease": "inOut" },
-              { "node": "{station}_Feed_{barrel}_B", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 1.22, "ease": "inOut" } ] },
-          { "name": "transfer", "seconds": 0.4, "sound": "loader.transfer",
-            "note": "Inside the receiver the transfer cradle on the trunnion axis takes the round; the feed rammer withdraws.",
+              {"node": "{station}_FeedGate_{barrel}", "kind": "translate", "axis": "outboard", "from": 0, "to": -0.64, "ease": "inOut", "span": [0.0, 0.3]},
+              {"node": "{station}_Carrier_{barrel}_00", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 1.22, "ease": "inOut", "span": [0.3, 1.0]},
+              {"node": "{station}_Feed_{barrel}_A", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 0.61, "ease": "inOut", "span": [0.3, 1.0]},
+              {"node": "{station}_Feed_{barrel}_B", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 1.22, "ease": "inOut", "span": [0.3, 1.0]}
+            ] },
+          {"name": "transfer", "seconds": 0.4, "sound": "loader.transfer", "note": "Inside, the transfer cradle on the trunnion axis takes the round; the feed rammer withdraws and the feed gate shuts behind it. The spanning tray runs out of the ram port across the recoil space and lands its lip on the breech ring.",
             "motions": [
-              { "node": "{station}_Feed_{barrel}_A", "kind": "translate", "axis": [0, 0, 1], "from": 0.61, "to": 0, "ease": "inOut" },
-              { "node": "{station}_Feed_{barrel}_B", "kind": "translate", "axis": [0, 0, 1], "from": 1.22, "to": 0, "ease": "inOut" } ] },
-          { "name": "present", "seconds": 0.8, "sound": "loader.rack.index",
-            "note": "The cradle swings the round to the barrel's line at the current elevation (it turns on the trunnion axis, so any elevation works); the rack indexes: its rounds step down one place and the round waiting in the hood comes down into view.",
+              {"node": "{station}_Feed_{barrel}_A", "kind": "translate", "axis": [0, 0, 1], "from": 0.61, "to": 0, "ease": "inOut"},
+              {"node": "{station}_Feed_{barrel}_B", "kind": "translate", "axis": [0, 0, 1], "from": 1.22, "to": 0, "ease": "inOut"},
+              {"node": "{station}_FeedGate_{barrel}", "kind": "translate", "axis": "outboard", "from": -0.64, "to": 0, "ease": "inOut", "span": [0.6, 1.0]},
+              {"node": "{station}_Tray_{barrel}", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 0.56, "ease": "inOut", "span": [0.1, 1.0]}
+            ] },
+          {"name": "present", "seconds": 0.75, "sound": "loader.rack.index", "note": "The cradle swings the round to the barrel's line at the current elevation (it turns on the trunnion axis, so any elevation works); the rack indexes: its rounds step down one place and the round waiting in the hood comes down into view.",
             "motions": [
-              { "node": "{station}_Carrier_{barrel}_01", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": -0.5, "ease": "inOut" },
-              { "node": "{station}_Carrier_{barrel}_02", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": -0.5, "ease": "inOut" },
-              { "node": "{station}_Carrier_{barrel}_03", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": -0.5, "ease": "inOut" } ] },
-          { "name": "ram", "seconds": 0.5, "sound": "loader.ram",
-            "note": "The chain rammer drives the round out of the receiver's ram port, across the open breech and into the chamber.",
+              {"node": "{station}_Carrier_{barrel}_01", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": -0.5, "ease": "inOut"},
+              {"node": "{station}_Carrier_{barrel}_02", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": -0.5, "ease": "inOut"},
+              {"node": "{station}_Carrier_{barrel}_03", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": -0.5, "ease": "inOut"}
+            ] },
+          {"name": "ram", "seconds": 0.55, "sound": "loader.ram", "note": "The chain rammer drives the round out of the ram port along the spanning tray and into the chamber: it is carried all the way.",
             "motions": [
-              { "node": "{station}_Rammer_{barrel}", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 2.05, "ease": "inOut" },
-              { "node": "{station}_RamCarrier_{barrel}", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 2.05, "ease": "inOut" } ] },
-          { "name": "retract", "seconds": 0.4, "sound": "loader.retract",
-            "note": "The rammer withdraws into the receiver; the round stays seated.",
+              {"node": "{station}_Rammer_{barrel}", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 2.05, "ease": "inOut"},
+              {"node": "{station}_RamCarrier_{barrel}", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 2.05, "ease": "inOut"}
+            ] },
+          {"name": "retract", "seconds": 0.4, "sound": "loader.retract", "note": "The rammer withdraws into the receiver and the tray after it; the round stays seated.",
             "motions": [
-              { "node": "{station}_Rammer_{barrel}", "kind": "translate", "axis": [0, 0, 1], "from": 2.05, "to": 0, "ease": "inOut" } ] },
-          { "name": "breechClose", "seconds": 0.35, "sound": "loader.breech.close",
-            "note": "The block runs back across the chamber and locks.",
+              {"node": "{station}_Rammer_{barrel}", "kind": "translate", "axis": [0, 0, 1], "from": 2.05, "to": 0, "ease": "inOut"},
+              {"node": "{station}_Tray_{barrel}", "kind": "translate", "axis": [0, 0, 1], "from": 0.56, "to": 0, "ease": "inOut", "span": [0.3, 1.0]}
+            ] },
+          {"name": "breechClose", "seconds": 0.4, "sound": "loader.breech.close", "note": "The block runs back across the chamber and locks; the ram port's gate shuts.",
             "motions": [
-              { "node": "{station}_Breech_{barrel}", "kind": "translate", "axis": "outboard", "from": 0.58, "to": 0, "ease": "inOut" } ] }
+              {"node": "{station}_Breech_{barrel}", "kind": "translate", "axis": "outboard", "from": 0.58, "to": 0, "ease": "inOut"},
+              {"node": "{station}_Gate_{barrel}", "kind": "translate", "axis": "outboard", "from": -0.64, "to": 0, "ease": "inOut", "span": [0.0, 0.6]}
+            ] }
         ],
         "holders": [
-          { "node": "{station}_Carrier_{barrel}_00", "slots": ["{station}_Rack_{barrel}_Slot_00"], "what": 0, "until": "fetch" },
-          { "node": "{station}_Carrier_{barrel}_01", "slots": ["{station}_Rack_{barrel}_Slot_01"], "what": 1 },
-          { "node": "{station}_Carrier_{barrel}_02", "slots": ["{station}_Rack_{barrel}_Slot_02"], "what": 2 },
-          { "node": "{station}_Carrier_{barrel}_03", "slots": ["{station}_Rack_{barrel}_Slot_03"], "what": 3 },
-          { "node": "{station}_RamCarrier_{barrel}", "slots": ["{station}_Ram_{barrel}_Slot_00"], "what": 0, "from": "ram", "until": "ram" }
+          {"node": "{station}_Carrier_{barrel}_00", "slots": ["{station}_Rack_{barrel}_Slot_00"], "what": 0, "until": "fetch"},
+          {"node": "{station}_Carrier_{barrel}_01", "slots": ["{station}_Rack_{barrel}_Slot_01"], "what": 1},
+          {"node": "{station}_Carrier_{barrel}_02", "slots": ["{station}_Rack_{barrel}_Slot_02"], "what": 2},
+          {"node": "{station}_Carrier_{barrel}_03", "slots": ["{station}_Rack_{barrel}_Slot_03"], "what": 3},
+          {"node": "{station}_RamCarrier_{barrel}", "slots": ["{station}_Ram_{barrel}_Slot_00"], "what": 0, "from": "ram", "until": "breechClose"}
         ]
       }
     },
     "defense": {
       "ammo": ["rocket", "rocket-hv", "rocket-incendiary"],
-      "carrier": "none: the 10.4 cm tubes take the rockets as they are, three to a cassette",
-      "fire": { "mode": "ripple", "interval": 0.25, "order": [0, 1, 2], "note": "while the trigger is held, each tube as soon as it is loaded" },
-      "recoil": { "travel": 0.19, "axis": [0, 0, -1], "seconds": 0.32,
-        "times": [0.0, 0.012, 0.025, 0.04, 0.065, 0.1, 0.15, 0.21, 0.28, 0.32],
-        "fractions": [0.0, 0.5, 0.96, 1.0, 0.94, 0.78, 0.5, 0.22, 0.04, 0.0] },
-      "slots": { "cassette": 3, "waiting": 1, "perMount": "the cassette in the breech and the one waiting in the feed hood", "magazine": 6, "stack": 3 },
-      "launch": {
-        "gravityBurning": 0.15, "gravity": 1.0, "drag": 0.0015,
-        "profiles": {
-          "rocket": { "muzzle": 35, "ignite": 2.5, "accel": 40, "burn": 1.0, "top": 75, "lifetime": 7, "reach": 400 },
-          "rocket-incendiary": { "muzzle": 35, "ignite": 2.5, "accel": 40, "burn": 1.0, "top": 75, "lifetime": 7, "reach": 400 },
-          "rocket-hv": { "muzzle": 60, "ignite": 2.5, "accel": 60, "burn": 1.2, "top": 132, "lifetime": 7, "reach": 650 }
-        }
-      },
-      "mount": {
-        "yaw": { "arcs": "100 degrees each way from the station's outboard beam, within the data file's levelArcs", "outboard": 100, "rate": 80, "accel": 240 },
-        "pitch": { "min": -15, "max": 65, "rate": 60, "accel": 180 },
-        "alignment": 1.5, "loaderSeconds": 2.52, "health": 1500, "zoom": 2
-      },
+      "carrier": "none: the rockets go bare, each on its expelling charge, into a 15 cm chamber at the rear of each 10.4 cm tube; three to a clip",
+      "fire": {"mode": "ripple", "interval": 0.25, "order": [0, 1, 2], "note": "while the trigger is held, each tube as soon as it is loaded"},
+      "recoil": {"travel": 0.19, "axis": [0, 0, -1], "seconds": 0.32, "times": [0.0, 0.012, 0.025, 0.04, 0.065, 0.1, 0.15, 0.21, 0.28, 0.32], "fractions": [0.0, 0.5, 0.96, 1.0, 0.94, 0.78, 0.5, 0.22, 0.04, 0.0]},
+      "slots": {"clip": 3, "waiting": 1, "perMount": "the clip waiting in the feed hood; the three rockets in the chambers are not shown", "magazine": 6, "stack": 3},
+      "launch": {"gravityBurning": 0.15, "gravity": 1.0, "drag": 0.0015, "profiles": {"rocket": {"muzzle": 35, "ignite": 2.5, "accel": 40, "burn": 1.0, "top": 75, "lifetime": 7, "reach": 400}, "rocket-incendiary": {"muzzle": 35, "ignite": 2.5, "accel": 40, "burn": 1.0, "top": 75, "lifetime": 7, "reach": 400}, "rocket-hv": {"muzzle": 60, "ignite": 2.5, "accel": 60, "burn": 1.2, "top": 132, "lifetime": 7, "reach": 650}}},
+      "mount": {"yaw": {"arcs": "100 degrees each way from the station's outboard beam, within the data file's levelArcs", "outboard": 100, "rate": 80, "accel": 240}, "pitch": {"min": -15, "max": 65, "rate": 60, "accel": 180}, "alignment": 1.5, "loaderSeconds": 2.52, "health": 1500, "zoom": 2},
       "loader": {
         "per": "mount",
-        "waitsBefore": "lower",
+        "waitsBefore": "open",
         "phases": [
-          { "name": "recover", "seconds": 0.32,
-            "note": "The third tube's recoil (each tube recoils at its own shot of the ripple by the same curve).",
+          {"name": "recover", "seconds": 0.32, "note": "The third tube's recoil (each tube recoils at its own shot of the ripple by the same curve).",
             "motions": [
-              { "node": "{station}_Recoil_02", "kind": "translate", "axis": [0, 0, -1], "curve": "recoil" } ] },
-          { "name": "release", "seconds": 0.3, "sound": "loader.cassette.release",
-            "note": "The two latches swing up off the cassette's lugs; the spent cassette backs off the breech face.",
+              {"node": "{station}_Recoil_02", "kind": "translate", "axis": [0, 0, -1], "curve": "recoil"}
+            ] },
+          {"name": "open", "seconds": 0.3, "sound": "loader.cassette.release", "note": "The three breech caps swing up and back off the chambers on their hinges; in the feed hood, a closed box on the mount's outboard flank, the hoist lowers the next clip of three rockets to the slot.",
             "motions": [
-              { "node": "{station}_Latch_A", "kind": "rotate", "axis": [1, 0, 0], "from": 0, "to": -80, "ease": "inOut" },
-              { "node": "{station}_Latch_B", "kind": "rotate", "axis": [1, 0, 0], "from": 0, "to": 80, "ease": "inOut" },
-              { "node": "{station}_BayCassette", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": -0.015, "ease": "inOut", "span": [0.5, 1.0] } ] },
-          { "name": "lower", "seconds": 0.7, "sound": "loader.cassette.raise",
-            "note": "Inside the feed hood (a closed box on the mount's outboard flank) the hoist lowers the filled cassette, brought up from the mount's base through the trunnion, from above the hood's slot to the bay's level.",
+              {"node": "{station}_Cap_00", "kind": "rotate", "axis": [1, 0, 0], "from": 0, "to": 100, "ease": "inOut"},
+              {"node": "{station}_Cap_01", "kind": "rotate", "axis": [1, 0, 0], "from": 0, "to": 100, "ease": "inOut"},
+              {"node": "{station}_Cap_02", "kind": "rotate", "axis": [1, 0, 0], "from": 0, "to": 100, "ease": "inOut"},
+              {"node": "{station}_Clip", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": -0.195, "ease": "inOut"},
+              {"node": "{station}_Round_00", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": -0.195, "ease": "inOut"},
+              {"node": "{station}_Round_01", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": -0.195, "ease": "inOut"},
+              {"node": "{station}_Round_02", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": -0.195, "ease": "inOut"}
+            ] },
+          {"name": "deliver", "seconds": 0.45, "sound": "loader.cassette.eject", "note": "The conveyor carries the clip out through the hood's slot into the loading well behind the open chambers.",
             "motions": [
-              { "node": "{station}_FeedCassette", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": -0.195, "ease": "inOut", "span": [0.15, 1.0] } ] },
-          { "name": "eject", "seconds": 0.45, "sound": "loader.cassette.eject",
-            "note": "The conveyor under the bay's floor carries the filled cassette out through the hood's slot into the bay, and the spent one out through the bin's slot into the spent bin.",
+              {"node": "{station}_Clip", "kind": "translate", "axis": [1, 0, 0], "from": 0, "to": -0.885, "ease": "inOut", "mirror": true},
+              {"node": "{station}_Round_00", "kind": "translate", "axis": [1, 0, 0], "from": 0, "to": -0.885, "ease": "inOut", "mirror": true},
+              {"node": "{station}_Round_01", "kind": "translate", "axis": [1, 0, 0], "from": 0, "to": -0.885, "ease": "inOut", "mirror": true},
+              {"node": "{station}_Round_02", "kind": "translate", "axis": [1, 0, 0], "from": 0, "to": -0.885, "ease": "inOut", "mirror": true}
+            ] },
+          {"name": "dock", "seconds": 0.15, "sound": "loader.cassette.seat", "note": "The clip closes up against the breech collars: its rings line up with the chambers.",
             "motions": [
-              { "node": "{station}_FeedCassette", "kind": "translate", "axis": [1, 0, 0], "from": 0, "to": -0.885, "ease": "inOut", "mirror": true },
-              { "node": "{station}_BayCassette", "kind": "translate", "axis": [1, 0, 0], "from": 0, "to": -0.885, "ease": "inOut", "mirror": true } ] },
-          { "name": "seat", "seconds": 0.45, "sound": "loader.cassette.seat",
-            "note": "The cassette closes up against the breech face, its rockets' noses at the face's bores; inside the bin the lift stows the spent cassette above the slot.",
+              {"node": "{station}_Clip", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 0.015, "ease": "inOut"},
+              {"node": "{station}_Round_00", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 0.015, "ease": "inOut"},
+              {"node": "{station}_Round_01", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 0.015, "ease": "inOut"},
+              {"node": "{station}_Round_02", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 0.015, "ease": "inOut"}
+            ] },
+          {"name": "ram", "seconds": 0.5, "sound": "loader.ram", "note": "Three ram rods run out of the receiver's face through the clip and push the rockets, each on its expelling charge, out of the clip into the chambers.",
             "motions": [
-              { "node": "{station}_FeedCassette", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 0.015, "ease": "inOut", "span": [0.0, 0.5] },
-              { "node": "{station}_BayCassette", "kind": "translate", "axis": [0, 1, 0], "from": 0, "to": 0.195, "ease": "inOut", "span": [0.1, 1.0] } ] },
-          { "name": "lock", "seconds": 0.3, "sound": "loader.cassette.lock",
-            "note": "The latches come down over the cassette's lugs.",
+              {"node": "{station}_Ram", "kind": "translate", "axis": [0, 0, 1], "from": 0, "to": 0.82, "ease": "linear"},
+              {"node": "{station}_Round_00", "kind": "translate", "axis": [0, 0, 1], "from": 0.015, "to": 0.785, "ease": "linear", "span": [0.06098, 1.0]},
+              {"node": "{station}_Round_01", "kind": "translate", "axis": [0, 0, 1], "from": 0.015, "to": 0.785, "ease": "linear", "span": [0.06098, 1.0]},
+              {"node": "{station}_Round_02", "kind": "translate", "axis": [0, 0, 1], "from": 0.015, "to": 0.785, "ease": "linear", "span": [0.06098, 1.0]}
+            ] },
+          {"name": "withdraw", "seconds": 0.3, "sound": "loader.retract", "note": "The rods withdraw into the receiver; the empty clip backs off the collars. The rockets stay in their chambers.",
             "motions": [
-              { "node": "{station}_Latch_A", "kind": "rotate", "axis": [1, 0, 0], "from": -80, "to": 0, "ease": "inOut" },
-              { "node": "{station}_Latch_B", "kind": "rotate", "axis": [1, 0, 0], "from": 80, "to": 0, "ease": "inOut" } ] }
+              {"node": "{station}_Ram", "kind": "translate", "axis": [0, 0, 1], "from": 0.82, "to": 0, "ease": "inOut"},
+              {"node": "{station}_Clip", "kind": "translate", "axis": [0, 0, 1], "from": 0.015, "to": 0, "ease": "inOut", "span": [0.5, 1.0]}
+            ] },
+          {"name": "clear", "seconds": 0.5, "sound": "loader.cassette.raise", "endSound": "loader.cassette.lock", "note": "The conveyor carries the empty clip on through the spent bin's slot and the bin's lift stows it; the caps swing down and lock on the chambers.",
+            "motions": [
+              {"node": "{station}_Clip", "kind": "translate", "axis": [1, 0, 0], "from": -0.885, "to": -1.77, "ease": "inOut", "span": [0.0, 0.6], "mirror": true},
+              {"node": "{station}_Clip", "kind": "translate", "axis": [0, 1, 0], "from": -0.195, "to": 0, "ease": "inOut", "span": [0.6, 1.0]},
+              {"node": "{station}_Cap_00", "kind": "rotate", "axis": [1, 0, 0], "from": 100, "to": 0, "ease": "inOut", "span": [0.55, 1.0]},
+              {"node": "{station}_Cap_01", "kind": "rotate", "axis": [1, 0, 0], "from": 100, "to": 0, "ease": "inOut", "span": [0.55, 1.0]},
+              {"node": "{station}_Cap_02", "kind": "rotate", "axis": [1, 0, 0], "from": 100, "to": 0, "ease": "inOut", "span": [0.55, 1.0]}
+            ] }
         ],
         "holders": [
-          { "node": "{station}_BayCassette", "slots": ["{station}_Bay_Slot_00", "{station}_Bay_Slot_01", "{station}_Bay_Slot_02"], "what": "current", "until": "seat" },
-          { "node": "{station}_FeedCassette", "slots": ["{station}_Feed_Slot_00", "{station}_Feed_Slot_01", "{station}_Feed_Slot_02"], "what": 0 }
+          {"node": "{station}_Clip", "slots": [], "what": 0, "until": "clear"},
+          {"node": "{station}_Round_00", "slots": ["{station}_Round_00"], "what": 0, "until": "clear"},
+          {"node": "{station}_Round_01", "slots": ["{station}_Round_01"], "what": 0, "until": "clear"},
+          {"node": "{station}_Round_02", "slots": ["{station}_Round_02"], "what": 0, "until": "clear"}
         ]
       }
     }
