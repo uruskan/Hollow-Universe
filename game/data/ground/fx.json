@@ -573,7 +573,7 @@
     { "key": "fire.patch", "family": "fire",
       "about": "An incendiary fire (IRON_WAKE.md §7; a loop, Duration 18, Scale its radius over 3.5 m): burning fuel over the patch, rolling flames, tongues of fire, embers, a column of oily black smoke, a flickering light.",
       "cap": 64, "cull": 450, "hero": 4.0, "stage": "patch",
-      "loop": { "flameBrightness": 1.9, "flameSpeed": 0.8, "fadeIn": 0.6, "fadeOut": 2.5,
+      "loop": { "flameBrightness": 1.9, "flameSpeed": 0.8, "flameFoot": 0.3, "fadeIn": 0.6, "fadeOut": 2.5,
         "flames": [
           {"at": [0.0, 0.0, 0.0], "size": [2.61, 3.09], "power": 0.62},
           {"at": [-0.55, 0.0, 0.49], "size": [1.7, 2.59], "power": 0.53},
