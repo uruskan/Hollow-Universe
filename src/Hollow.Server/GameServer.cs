@@ -87,16 +87,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     {
         _options = options;
         galaxy ??= new Galaxy.Galaxy(options.CataloguePath != null ? Galaxy.StarCatalogue.Load(options.CataloguePath) : null);
-        (double latitude, double longitude) = (options.Latitude, options.Longitude);
-        if (options.Ground == GroundKind.Walking && latitude == Surface.FirstWorld.LandingLatitude && longitude == Surface.FirstWorld.LandingLongitude
-            && Surface.FirstWorld.Find(galaxy) is var (firstSystem, firstPlanet)
-            && Surface.WalkingWorlds.Find(firstSystem.Address.Value, firstPlanet.Path, ZoneSpec.FirstWorldRadius) is { } walking)
-        {
-            // The walking-scale ground has its own landing site (docs/WALKING_GROUND.md §11) unless --lat and --lon name one.
-            Core.Vector3D site = walking.LandingSite;
-            latitude = Core.DMath.Asin(Math.Clamp(site.Y, -1, 1)) * Core.DMath.RadToDeg;
-            longitude = Core.DMath.Atan2(-site.Z, site.X) * Core.DMath.RadToDeg;
-        }
+        (double latitude, double longitude) = ZoneSpec.LandingFor(options.Ground, galaxy, options.Latitude, options.Longitude);
         Spec = (ZoneSpec.FirstWorld(galaxy, latitude, longitude)
             ?? throw new InvalidOperationException("The generator no longer makes the first world (GROUND.md §3).")) with
             {

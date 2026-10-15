@@ -876,17 +876,12 @@ public static class WalkingReport
         (la, lo) = Ll(grid.CellCentre(plain));
         spots.Add(new Spot("plain", la, lo, 800, "open plains"));
 
-        // A landing site: a temperate meadow 5–25 m above the sea at a forest's edge, near the coast and a stream.
-        int landing = Enumerable.Range(0, count).Where(i => !fields[i].Wetted && fields[i].Height > 5 && fields[i].Height < 25
-                && fields[i].Continent < 0.12 && fields[i].Mountains < 0.2 && Temperate(grid.CellCentre(i)) > 0.6)
-            .MaxBy(i =>
-            {
-                double cover = world.ForestCover(grid.CellCentre(i), fields[i]);
-                return Temperate(grid.CellCentre(i)) + (1 - Math.Abs(cover - 0.35) * 2) + fields[i].Wet;
-            });
-        (la, lo) = Ll(grid.CellCentre(landing));
+        // The landing site the generator picks (WalkingWorld.LandingSite): a meadow at a forest's edge near the coast.
+        Vector3D site = world.LandingSite;
+        WalkingSample atSite = world.Fields(site);
+        (la, lo) = Ll(site);
         spots.Add(new Spot("landing", la, lo, 800, string.Create(CultureInfo.InvariantCulture,
-            $"a landing site: a meadow {fields[landing].Height:0} m above the sea at a forest edge")));
+            $"the landing site: a meadow {atSite.Height:0} m above the sea at a forest edge")));
 
         // Hills with woods and clearings.
         int hills = Enumerable.Range(0, count).Where(i => fields[i].Hills > 0.9 && !fields[i].Wetted)

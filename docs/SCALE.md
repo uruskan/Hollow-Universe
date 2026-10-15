@@ -104,8 +104,13 @@ now the size of four Rust maps, so Rust's maps are the right reference for its f
 - **Tile levels by size, not by number.** The cube-sphere levels that mean 154 m (scatter) and 39 m (collision) on today's
   world would mean 6 cm and 1.4 cm on a 2.4 km one. Each fixed level becomes "the level whose tiles are about N metres on
   this world". Since S3a, `TileKey.LevelFor(radius, metres)` gives that level: the zone's physics tiles, nav grids,
-  animal spawn areas, loot cells and the stand-in's nature use it; the scatter waits for this ground.
+  animal spawn areas, loot cells and the stand-in's nature use it; on the walking-scale ground the scatter does too
+  (`ScatterPlan.BySize`: level 5, 118 m).
 - **First a design document with look-dev renders**, as the owner asked for any world work, then the generator.
+- **Where it stands (15 October 2026):** the design is [WALKING_GROUND.md](WALKING_GROUND.md), with its look-dev renders
+  and a list of decisions for the owner. The generator is built (`WalkingWorld` in `Hollow.Surface`), and the game can
+  stand on it behind a switch that is off by default (`--ground walking`), on the branch `s4`. The client's drawing of it
+  waits for S3c.
 
 ### 3.4 Air, clouds and sky
 
@@ -395,7 +400,7 @@ Each package ends green with one check, on its own branch, as usual.
 | S1 | `GameScale` and the landmark layer, engine-free, with GALAXY.md and GAME_DESIGN.md | Approval | A generator report listing every landmark and system |
 | S2 | The galaxy map on the list (Godot) | S1 | One screenshot |
 | S3 | The zone as a whole ball (§5.1), on a 2.4 km stand-in sphere: movement, building, guns, raiding, ships, animals, saves. Designed in [WHOLE_WORLD.md](WHOLE_WORLD.md) (approved by the owner on 14 October 2026; being built on the branch `whole-world`: S3a and S3b are built, S3c and S3d remain, §5.1) | Approval | The bots' load test on the ball, and a walk round it |
-| S4 | The ground at walking scale (§3.3): its design document with look-dev renders first, then the generator | S3 | The look-dev views, judged by the owner |
+| S4 | The ground at walking scale (§3.3): its design document with look-dev renders first, then the generator. Designed in [WALKING_GROUND.md](WALKING_GROUND.md) (15 October 2026); the generator and an off-by-default switch are built on the branch `s4`, waiting for the owner's review | S3 | The look-dev views, judged by the owner |
 | S5 | Air, clouds, sky and moons at the new scale (§3.4, §3.6) | S4 | The look-dev views at morning, golden hour, night and from 2 km up |
 | S6 | Clean-up: the 1:1 path out of the game, the docs, the golden values | S2, S5 | Build and tests |
 

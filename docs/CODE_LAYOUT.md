@@ -75,19 +75,31 @@ Planets as surfaces: the cube-sphere, terrain, biomes, scatter, the sky, the zon
 | `Biomes.cs` | 272 | Biome, GroundMaterial, ScatterKind, ClimateSample, BiomeTable | Land biomes (GROUND.md §4.6), picked from the climate: annual mean temperature, moisture and height. |
 | `CubeSphere.cs` | 263 | CubeSphere, TileKey | The cube-sphere of a planet surface (GROUND.md §4.6): six faces, each a square of face coordinates |
 | `FirstWorld.cs` | 32 | FirstWorld | The ground game's first world (GROUND.md §3): Nolcas Peris CQ-SLY 7-0 B 3, a breathable Earth-like planet |
-| `ISurface.cs` | 117 | ISurface, TriangleMesh, PooledTriangles | A body's ground as a pure function (GROUND.md §4.6): the server builds collision from it and the client draws it, |
+| `ISurface.cs` | 123 | ISurface, TriangleMesh, PooledTriangles | A body's ground as a pure function (GROUND.md §4.6): the server builds collision from it and the client draws it, |
 | `NearTiles.cs` | 71 | NearTiles | TileKey.Around for searches repeated from about the same place every tick (a character's ground, an |
-| `Noise.cs` | 146 | Noise | Deterministic 3D gradient noise with its analytic gradient (Perlin's lattice gradients, quintic fade), and the |
+| `Noise.cs` | 232 | NoiseBasis, Noise | The lattice gradients a noise is made of (Perlin's, or the cube's corners for the walking-scale ground), and deterministic 3D gradient noise with its gradient, its octave sums, ridged and eroded noise |
 | `PlanetSurface.cs` | 562 | SurfaceSample, VegetationSample, PlanetSurface, MonotoneCurve | What the height function knows about a point, besides its height. |
 | `PlanetSurfaces.cs` | 51 | PlanetSurfaces [Entry] | The real surfaces of bodies, built once per process and shared (GROUND.md §4.6): the server's zone, the client's |
 | `Plates.cs` | 204 | Plates | Tectonic plates of a surface (GROUND.md §4.6): plate centres on the sphere (a Voronoi partition), each plate's |
-| `Scatter.cs` | 282 | ScatterItem, Scatter [Densities] | One natural object placed by the scatter (GROUND.md §4.6). Its identity is its tile plus Index |
+| `Scatter.cs` | 369 | ScatterItem, IScatterField, ScatterDensity, ScatterPlan, Scatter [Densities] | One natural object placed by the scatter (GROUND.md §4.6); what the scatter reads from a surface; a surface's scatter level and candidate cells (levels by size); the scatter itself |
 | `SkyEphemeris.cs` | 222 | SkyEphemeris | Where everything in a planet's sky is at a universe time (GROUND.md §4.6): the planet's spin turns its body frame |
 | `SphereSurface.cs` | 60 | SphereSurface | A plain surface: a sphere with gentle hills from value noise and no sea. Tests use it as a simple |
 | `StandInWorld.cs` | 126 | StandInWorld | The stand-in world S3 plays on until S4 makes the real ground at walking scale (docs/WHOLE_WORLD.md §4): a small |
 | `SurfaceGrid.cs` | 73 | SurfaceGrid | Ground triangles of a cube-sphere tile from any surface's heights (docs/WHOLE_WORLD.md §6.1): a grid of the face's |
 | `TileMesh.cs` | 398 | TileGrid, TileMesh, GridHeights [Grid] | The ground of one tile as a grid of (cells + 1)² vertices (GROUND.md §4.6), which the client draws. On a whole world |
 | `ZoneFrame.cs` | 88 | ZoneFrame | The frame a zone's floats are measured in (ARCHITECTURE.md §6, docs/WHOLE_WORLD.md §3.1). A zone uses |
+
+### src/Hollow.Surface/Walking (5 files, 1,621 lines)
+
+The walking-scale ground of S4 ([WALKING_GROUND.md](WALKING_GROUND.md)).
+
+| File | Lines | Types | What |
+|---|---|---|---|
+| `Drainage.cs` | 810 | WalkingLake, DrainageSegment, Drainage | Where water goes, worked out once: a priority flood on a cube-sphere grid of about 30 m, catchments, lakes in hollows with smooth shores, streams and dry valleys from source to the sea or a lake, canyons and gorges; `Shape` cuts them into a height |
+| `ReliefProvinces.cs` | 133 | Relief, ReliefProvinces | Plains, hills, tablelands and mountains: provinces spread over the sphere, picked by shares and an uplift field, blended by normalised Gaussian weights |
+| `WalkingParameters.cs` | 198 | WalkingParameters | The walking-scale ground's numbers in one table |
+| `WalkingWorld.cs` | 460 | WalkingSample, WalkingWorld | The ground of a small world at walking scale: an `ISurface` and `IScatterField` from landmasses, provinces, coasts and the drainage; climate at real-equivalent heights, biomes, woods, the landing site |
+| `WalkingWorlds.cs` | 20 | WalkingWorlds | The walking-scale grounds of bodies, built once per process and shared |
 
 ## src/Hollow.Simulation
 
@@ -908,10 +920,11 @@ Tools: the bots and the load test, the message generator, the generator's report
 |---|---|---|---|
 | `Calibrate.cs` | 80 | Calibrate | The class table against the real neighbourhood: per level, inside the distance where the catalogue is complete |
 | `Maps.cs` | 408 | Maps [Layer] | Galaxy-wide maps of what the generator makes, one tile per level (GALAXY.md §7.1): generated stars seen face-on |
-| `Png.cs` | 79 | Png | A minimal PNG writer (8-bit RGB, no filtering): enough for the generator's maps. |
+| `Png.cs` | 92 | Png | A minimal PNG writer (8-bit RGB, Paeth-filtered rows): enough for the generator's maps. |
 | `Program.cs` | 481 | Program | Measurements of the generator that are too slow or too visual for the test suite: generation speed, and later |
 | `Shells.cs` | 170 | Shells | Real plus generated stars per level in shells around Sol, against what the density model expects |
 | `SurfaceReport.cs` | 564 | SurfaceReport | The first world's surface (GROUND.md §3, §4.6): maps, speed, the landing-site search and the times of day used for |
+| `WalkingReport.cs` | 1000 | WalkingReport [Spot] | The walking-scale ground (WALKING_GROUND.md §15): equal-area maps, globe views, close-ups with the scatter, slope maps, places for close-ups, the stand-in beside it, speed and numbers |
 
 ### tools/Hollow.MapExport (4 files, 1,404 lines)
 
@@ -988,5 +1001,6 @@ The tests, one file per area (the runner needs no packages).
 | `TestRunner.cs` | 122 | TestAttribute, TestFailure, Assert, Fixtures, Program | Marks a public static method as a test. |
 | `WorldNetTests.cs` | 250 | WorldNetTests | G7 World over the network and through a restart (GROUND.md §6.8): protocol 9, schema 6. |
 | `WorldTests.cs` | 516 | WorldTests | G7 World, part A (GROUND.md §6.8): loot, the recycler, tech trees and research, teams, the map's markers. |
+| `WalkingWorldTests.cs` | 234 | WalkingWorldTests | The walking-scale ground (WALKING_GROUND.md): determinism and its golden hash, sea cover and heights, streams to the sea or a lake, no seams, scatter at the level by size, speed. |
 | `WoundedTests.cs` | 107 | WoundedTests |  |
 

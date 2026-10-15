@@ -130,6 +130,22 @@ public sealed record ZoneSpec
     }
 
     /// <summary>
+    /// Where a server on a ground lands players: the latitude and longitude it was given, except that on the walking-scale
+    /// ground the first world's default site gives way to the ground's own landing site (docs/WALKING_GROUND.md §11).
+    /// </summary>
+    public static (double Latitude, double Longitude) LandingFor(GroundKind ground, Galaxy.Galaxy galaxy, double latitude, double longitude)
+    {
+        if (ground != GroundKind.Walking || latitude != Hollow.Surface.FirstWorld.LandingLatitude || longitude != Hollow.Surface.FirstWorld.LandingLongitude
+            || Hollow.Surface.FirstWorld.Find(galaxy) is not var (system, planet)
+            || WalkingWorlds.Find(system.Address.Value, planet.Path, FirstWorldRadius) is not { } walking)
+        {
+            return (latitude, longitude);
+        }
+        Core.Vector3D site = walking.LandingSite;
+        return (Core.DMath.Asin(Math.Clamp(site.Y, -1, 1)) * Core.DMath.RadToDeg, Core.DMath.Atan2(-site.Z, site.X) * Core.DMath.RadToDeg);
+    }
+
+    /// <summary>
     /// The first world's game radius in metres (SCALE.md §3.1, docs/WHOLE_WORLD.md §1): a constant until S1's
     /// <c>GameScale</c> gives every body its own.
     /// </summary>
