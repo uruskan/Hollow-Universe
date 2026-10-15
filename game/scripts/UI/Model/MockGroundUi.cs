@@ -412,11 +412,11 @@ public sealed partial class MockGroundUi : IGroundUi
     public void Die()
     {
         Vitals = Vitals with { Health = 0, Bleeding = 0 };
-        Death = new DeathInfo(730, "Ada", "pistol", 23.4f, 0.47f, 0.43f);
+        Death = new DeathInfo(730, "Ada", "pistol", 23.4f, Near(-60, -120));
         _bags.Clear();
-        _bags.Add(new RespawnBag("bag-1", "Sleeping Bag", 0, 0.36f, 0.56f));
-        _bags.Add(new RespawnBag("bag-2", "Hill Base", 143, 0.63f, 0.33f));
-        _bags.Add(new RespawnBag("bag-3", "River Camp", 47, 0.24f, 0.30f));
+        _bags.Add(new RespawnBag("bag-1", "Sleeping Bag", 0, Near(-260, 180)));
+        _bags.Add(new RespawnBag("bag-2", "Hill Base", 143, Near(380, -330)));
+        _bags.Add(new RespawnBag("bag-3", "River Camp", 47, Near(-640, -380)));
     }
 
     /// <summary>A cold, wet survivor who was just shot at in their base: the HUD's sample.</summary>

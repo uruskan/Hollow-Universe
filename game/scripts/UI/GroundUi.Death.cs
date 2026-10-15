@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using Godot;
 using HollowUniverse.Common;
 using HollowUniverse.UI.Model;
@@ -9,7 +8,8 @@ using G = HollowUniverse.Common.Ui.Ground;
 namespace HollowUniverse.UI;
 
 // The death screen in Rust's layout: DEAD and how it happened across the top, the map with the body and the
-// sleeping bags in the middle, the bags and RESPAWN (a random beach) along the bottom. RustMVP's own death panel
+// sleeping bags in the middle (the map control, GroundUi.Globe.cs, as on G: it opens on the body, north up, close in,
+// and turns and zooms the same way), the bags and RESPAWN (a random beach) along the bottom. RustMVP's own death panel
 // had the same choices (beach, bags with cooldowns) in a simpler card.
 public partial class GroundUi
 {
@@ -24,8 +24,10 @@ public partial class GroundUi
     {
         DeathInfo? death = Model.Death;
         _p.DrawRect(new Rect2(Vector2.Zero, Size), DeathBar);
-        float top = Ui.Px(124), bottom = Size.Y - Ui.Px(106);
-        PaintDeathMap(new Rect2(0, top, Size.X, bottom - top), death);
+        // The map's place (its picture is the globe's layer, its markers the overlay's: PaintDeathOverlay).
+        Rect2 map = DeathMapArea();
+        _p.DrawRect(map, Model.Map == null ? MapBlank : MapBackdrop);
+        _hits.Add(new Hit(map, HitKind.Map));
 
         _o = Vector2.Zero;
         Text("DEAD", 150, 28, 60, new Color(0.58f, 0.59f, 0.59f), bold: true, condensed: true);
@@ -112,80 +114,33 @@ public partial class GroundUi
         }
     }
 
-    // The map: the picture, a lettered grid, where the body lies and the bags (click a ready bag to respawn there).
-    // It is larger than its window and starts centred on the body; dragging pans it.
-    private Vector2 _mapPan;
-    private Vector2? _mapGrab;
-    private Vector2 _mapGrabPan;
-
-    private void PaintDeathMap(Rect2 area, DeathInfo? death)
+    // The map's overlay: the grid, where the body lies and the bags (click a ready bag to respawn there), names by the
+    // Labeller, then the cells' names where they fit.
+    private void PaintDeathOverlay()
     {
-        // G7: the zone's parchment map when the model has it (the map screen's), else the survey picture.
-        MapView? view = Model.Map;
-        Texture2D picture = MapTexture(view) ?? DeathMap.Texture;
-        var size = new Vector2(area.Size.X * 1.6f, area.Size.X * 1.6f * picture.GetHeight() / picture.GetWidth());
-        size.Y = Math.Max(size.Y, area.Size.Y);
-        Vector2 focus = death != null ? new Vector2(death.MapX, death.MapY) : new Vector2(0.5f, 0.5f);
-        Vector2 origin = area.GetCenter() - focus * size + _mapPan;
-        origin = new Vector2(
-            Math.Clamp(origin.X, area.End.X - size.X, area.Position.X),
-            Math.Clamp(origin.Y, area.End.Y - size.Y, area.Position.Y)).Round();
-        _mapPan = origin - (area.GetCenter() - focus * size);
-        var texture = new Vector2(picture.GetWidth(), picture.GetHeight());
-        _p.DrawTextureRectRegion(picture, area, new Rect2((area.Position - origin) / size * texture, area.Size / size * texture));
-        _hits.Add(new Hit(area, HitKind.Map));
-
-        // Grid lines and labels every 230 design pixels of the map (the zone map's own cells when it is drawn), lettered
-        // across and numbered down.
-        float cell = view != null && picture != DeathMap.Texture ? size.X / view.Cells : Ui.Px(230);
-        var line = new Color(0.1f, 0.1f, 0.1f, 0.35f);
-        int first = (int)MathF.Floor((area.Position.X - origin.X) / cell), top = (int)MathF.Floor((area.Position.Y - origin.Y) / cell);
-        for (int column = first; origin.X + column * cell < area.End.X; column++)
+        if (Model.Map is not { } view || _deathGlobe.Camera == null)
         {
-            float x = MathF.Round(origin.X + column * cell);
-            if (x > area.Position.X)
-            {
-                _p.DrawRect(new Rect2(x, area.Position.Y, 1, area.Size.Y), line);
-            }
-            for (int row = top; origin.Y + row * cell < area.End.Y; row++)
-            {
-                float y = MathF.Round(origin.Y + row * cell);
-                if (column == first && y > area.Position.Y)
-                {
-                    _p.DrawRect(new Rect2(area.Position.X, y, area.Size.X, 1), line);
-                }
-                var label = new Vector2(x + Ui.Px(14), y + Ui.Px(8));
-                if (area.Grow(-Ui.Px(4)).HasPoint(label) && area.HasPoint(label + new Vector2(Ui.Px(40), Ui.Px(22))))
-                {
-                    _o = label;
-                    Text(((char)('A' + Math.Clamp(column, 0, 25))).ToString() + row.ToString(CultureInfo.InvariantCulture), 0, 0, 18,
-                        new Color(0.12f, 0.12f, 0.12f, 0.7f));
-                }
-            }
+            return;
         }
-
-        Vector2 MapPoint(float u, float v) => (origin + new Vector2(u, v) * size).Round();
-        Rect2 inside = area.Grow(-Ui.Px(20));
-        // Bag names go through the Labeller, as every label over a map does: the markers and the bars are taken first,
-        // then each name takes the first free side of its bag, or is left out.
-        var labeller = new Labeller(Size);
-        labeller.Block(new Rect2(0, 0, Size.X, area.Position.Y));
-        labeller.Block(new Rect2(0, area.End.Y, Size.X, Size.Y - area.End.Y));
+        GlobeFrame f = BeginGlobe(_deathGlobe, view);
+        DeathInfo? death = Model.Death;
         float r = Ui.Pxf(15);
-        Vector2? body = death != null ? MapPoint(death.MapX, death.MapY) : null;
-        if (body is Vector2 b && inside.HasPoint(b))
+        Vector2? body = death != null ? OnGlobe(f, death.At, Ui.Px(20)) : null;
+        if (body is Vector2 b)
         {
-            labeller.Block(b - new Vector2(0, Ui.Pxf(4)), Ui.Pxf(20));
+            f.Labeller.Block(b - new Vector2(0, Ui.Pxf(4)), Ui.Pxf(20));
         }
         foreach (RespawnBag bag in Model.Bags)
         {
-            labeller.Block(MapPoint(bag.MapX, bag.MapY), r + Ui.Pxf(2));
+            if (OnGlobe(f, bag.At) is Vector2 at)
+            {
+                f.Labeller.Block(at, r + Ui.Pxf(2));
+            }
         }
         ReadOnlySpan<LabelSide> sides = stackalloc[] { LabelSide.Below, LabelSide.Above, LabelSide.Right, LabelSide.Left };
         foreach (RespawnBag bag in Model.Bags)
         {
-            Vector2 at = MapPoint(bag.MapX, bag.MapY);
-            if (!inside.HasPoint(at))
+            if (OnGlobe(f, bag.At, Ui.Px(20)) is not Vector2 at)
             {
                 continue;
             }
@@ -195,7 +150,7 @@ public partial class GroundUi
             _o = at;
             Glyph("bag", -10, -10, 20, ready ? G.Ink : G.Muted);
             string state = ready ? bag.Name : $"{bag.Name}  {Clock(bag.Cooldown)}";
-            if (labeller.TryPlaceAround(at, r + Ui.Pxf(2), state, G.Ink, 16, MapLabel.Strong, sides, out MapOverlay.Text placed))
+            if (f.Labeller.TryPlaceAround(at, r + Ui.Pxf(2), state, G.Ink, 16, MapLabel.Strong, sides, out MapOverlay.Text placed))
             {
                 // The Labeller measures with the maps' font; the name is drawn in Barlow on the spot it took.
                 FontFile font = G.SemiBold;
@@ -214,28 +169,14 @@ public partial class GroundUi
                 _hits.Add(new Hit(new Rect2(at - new Vector2(r, r), new Vector2(2 * r, 2 * r)), HitKind.Button, () => Model.Respawn(id)));
             }
         }
-        if (body is Vector2 grave && inside.HasPoint(grave))
+        if (body is Vector2 grave)
         {
             _p.DrawLine(grave + new Vector2(0, Ui.Pxf(10)), grave + new Vector2(0, Ui.Pxf(30)), G.Red, Ui.Pxf(3), true);
             _p.DrawCircle(grave, Ui.Pxf(16), G.Red, true, -1, true);
             _o = grave;
             Glyph("skull", -10, -11, 20, G.Ink);
         }
-    }
-
-    /// <summary>Starts or ends dragging the map (from the press on it).</summary>
-    private void GrabMap(bool grab)
-    {
-        _mapGrab = grab ? Pointer : null;
-        _mapGrabPan = _mapPan;
-    }
-
-    private void PanMap()
-    {
-        if (_mapGrab is Vector2 grab)
-        {
-            _mapPan = _mapGrabPan + (Pointer - grab);
-        }
+        EndGlobe(f, view);
     }
 
     private static string Duration(float seconds)

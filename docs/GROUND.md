@@ -3497,28 +3497,34 @@ record's are dropped (§4.7).
 | `Local.Markers`, `Local.PlaceMarker(at, colour, label)`, `Local.RemoveMarker(index)`, `Local.DeathPoint`, `Local.RespawnPoints` | The map's own markers |
 | `GameClient.Props`, `RemoteThing.Prop(content)` | World props in range: barrels, crates, recyclers |
 | `GameClient.AimInteraction`: OPEN on crates and recyclers, INVITE TO TEAM on a player close by (when leading a team) | The interact key (GROUND_SYSTEMS.md §5) |
-| `GameClient.Map` (`ZoneMap`: `Metres`, `Cells`, `ToMap`, `ToZone`, `GridName`, `CacheKey`, `Render(pixels)`) | The map and its picture |
+| `GameClient.Map` (`ZoneMap`: `Radius`, `Cells`, `DirectionOf(point)`, `Ground(direction)`, `GridName(point)`, `CacheKey`, `Render(pixels)`); `GlobeProjection` and `GlobeCamera` (`Hollow.Client.Map`); `WorldGrid` (`Hollow.Surface`) | The map of the whole world, its picture, its projection and inverse, its view, its grid's names (WHOLE_WORLD.md §11) |
 | Events: `Local.BlueprintLearned`, `TeamChanged`, `TeamInviteReceived`, `MapChanged` | For notices and sounds |
 
-**The map's picture** (`ZoneMapImage`, client side): a square of 3.9 km centred on the zone's origin, north up,
-rendered from the surface at any size (1,024 px by default) in Rust's parchment manner: land coloured by its biome
-weights and darker where forest stands (the planet's own vegetation), hill shading from the north-west, faint contours
-every 25 m and stronger every 100 m, the sea in muted teal deepening offshore with a light band at the surf and an inked
-shoreline, and paper grain, stains and a darker edge. Deterministic (Hash64 noise, no platform maths; rows in parallel),
-so the game caches it on disk under `ZoneMap.CacheKey`. The grid (26 × 26 cells of 150 m, lettered A–Z from the west and
-numbered from the north, as Rust's) and every label are drawn by the interface, crisp at any scale. Since S3 (14 October
-2026) the zone's origin is the world's centre, so this square no longer lies round the landing site; S3d replaces it
-with a map of the whole world (WHOLE_WORLD.md §11).
+**The map** is the whole world since S3d (15 October 2026, WHOLE_WORLD.md §11; before, a 3.9 km square round the zone's
+origin). **Its picture** (`ZoneMapImage`, client side) is six squares, one per cube face, 1,024 px a side (3.7 m a
+pixel), rendered from the zone's `ISurface` by direction, in Rust's parchment manner: land coloured by its biome
+(`BiomeAt`), hill shading measured against local up with the light from the north-west, faint contours every 10 m and
+stronger every 50 m, the sea (from `SeaRadius`, read safely: a world without one is all land) in muted teal deepening
+offshore with a light band at the surf and an inked shoreline, and paper grain and stains laid on the sphere, so they
+run on across the faces' seams. It works for any surface. Deterministic (Hash64 noise and DMath; rows in parallel), so
+the game caches it on disk under `ZoneMap.CacheKey`, which holds the body, the radius, the picture's look and the
+surface's version, measured (its kind, radius, sea and its height and biome at 1,024 directions). **Its projection**
+(`GlobeProjection`) is one family of azimuthal projections about the view's centre, r = R·sin(kθ)/k: a globe seen from
+afar (k = 1) while the view is 2 radii across and more, a flat chart (k → 0, every distance from the centre true) from 1
+radius in, true to scale at the centre throughout; the shader draws the picture with it, the overlay places the grid,
+markers and labels with it and reads clicks with its inverse. **Its grid** (`WorldGrid`, `Hollow.Surface`, decision 6):
+faces A to F (A 0°, B 90° E, C 180°, D 90° W round the equator, E the north pole's, F the south's), each `map.cell`
+(150 m) cells a side as fit, 25 on the first world, lettered along the face's u and numbered down its v as in Rust: "C
+K12". The map, `whereami` and `teleport <cell>` use this one naming function.
 
 **What the visual layer does with it** (the Godot work after this package; the screens are built, §8):
 - `ClientGroundUi` implements `IGroundUi`'s G7 members from `GameClient.Local` and `GameClient.Map`: `Map` (the
-  `ZoneMap`'s cache key, `Render`, metres and cells), `MapMarkers` in the map's 0–1 frame (`ToMap`): the player with their
-  yaw, `Teammates`, `DeathPoint`, `RespawnPoints` (bed or bag), `Markers`; `PlaceMarker` and `RemoveMarker` through
-  `ToZone`; `TechTree` from `Content.World.Tree(WorkbenchLevel)` with `Knows` and `CanUnlock` for the states; `Team` and
+  `ZoneMap`'s cache key, `Render`, radius and cells), `MapMarkers` at their directions from the world's centre
+  (`DirectionOf`): the player with their facing from local north, `Teammates`, `DeathPoint`, `RespawnPoints` (bed or
+  bag), `Markers`; `PlaceMarker` (on the ground under a direction, `Ground`) and `RemoveMarker`; `TechTree` from `Content.World.Tree(WorkbenchLevel)` with `Knows` and `CanUnlock` for the states; `Team` and
   `TeamInvites`; the loot kinds `Recycler`, `ResearchTable` and `Crate` with `Machine` (`IsOn`, `Progress`,
   `Researching`, `Cost`, `Reason`); a blueprint stack's `Teaches` (the key of `Content.Recipe(condition).Output`); team
-  chat lines. Once `Map` is given, the death screen draws that map, so the death's and the bags' places must be in its
-  frame too (`ToMap`), not the old survey picture's.
+  chat lines. The death screen draws the same map control, so the death's and the bags' places are directions too.
 - Open the tech tree at a workbench (`GroundUi.OpenTechTree`; the crafting screen has a TECH TREE tab too). G opens the
   map (`GroundUi` handles it).
 - Draw the props from the model catalogue by their key (`loot-barrel-1`, `loot-barrel-2`, `loot-crate`,
@@ -3532,11 +3538,12 @@ with a map of the whole world (WHOLE_WORLD.md §11).
 
 **Hooked up** (integration pass 4, `game/scripts/Ground/ClientGroundUi.World.cs`, `ThingsView`, `PeopleView`,
 `GroundOverlay` and `GroundView`):
-- The map (G): its picture (1,024 px) starts rendering on a worker thread as soon as the zone is known, and comes from the
-  disk cache after; the markers through `ToMap`: bags and beds, the last death, the player's markers, teammates (where
-  they are drawn, else where the server last said; dim and marked while asleep, down or dead) and the player with their
-  facing (the ship's nose while flying). A click puts a marker down (`ToZone`), a right-click takes it off. The death
-  screen draws this map, its body and bags placed through `ToMap`; G2's survey picture is gone (§11 94).
+- The map (G): its picture (six faces of 1,024 px) starts rendering on a worker thread as soon as the zone is known, and
+  comes from the disk cache after; the markers at their directions: bags and beds, the last death, the player's
+  markers, teammates (where they are drawn, else where the server last said; dim and marked while asleep, down or dead)
+  and the player with their facing from local north (the ship's nose while flying). A click puts a marker down on the
+  ground under the pointer (the projection's inverse), a right-click takes it off. The death screen draws this map
+  control, its body and bags placed the same way; G2's survey picture is gone (§11 94).
 - The tech tree: E on a workbench ("OPEN TECH TREE", Rust's) or the crafting screen's TECH TREE tab opens the tree of
   the bench level in reach (`WorkbenchLevel`), its nodes known, open or locked (`Knows`, `TechTrees.CanUnlock`);
   UNLOCK checks `CanUnlock` first and says why not (the salvage, the bench, a node before it). The crafting list holds
@@ -3808,7 +3815,7 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
 | The radial menu (§8.4): the plan's, the hammer's, a door's options | `docs/evidence/building-2026-10-04/plan-wheel-build4-image-1.png`, `hammer-wheel-build4-image-1.png`, `docs/evidence/building-repair-2026-10-04/door-lock-context.png` | `radial/plan.jpg`, `radial/hammer.jpg`, `radial/options.jpg`, `radial/ammo.jpg` (and the older `wheel.jpg`, `hammer.jpg`) |
 | Death and respawn | Rust's own, `D:\GameDev\References\RustMVP-2026-09-20\20260920-inventory-controls\10-death-respawn-future.png` | `death.jpg` |
 | Main menu | `logs/ui-polish/menu.png` | `menu.jpg` |
-| Map (G7) | Rust's map: parchment, a lettered and numbered grid, markers; RustMVP's panels beside it | `map.jpg` |
+| Map (G7) | Rust's map: parchment, a lettered and numbered grid, markers; RustMVP's panels beside it | `map.jpg`; the whole world since S3d: `../s3d/map-globe.jpg`, `../s3d/map-chart.jpg`, `../s3d/death.jpg`, in play `../s3d/map-open.jpg` |
 | Tech tree (G7) | Rust's workbench tech tree, drawn with RustMVP's slots and buttons | `techtree.jpg` |
 | Recycler and research table (G7) | Rust's loot panels for them, in the furnace's manner | `recycler.jpg`, `research.jpg` |
 | Other scales | | `crafting-720p.jpg` (scale 0.8), `inventory-1440p.jpg` (scale 1.3125) |
@@ -3855,7 +3862,7 @@ local rules (stacking, swapping, splitting, quick moves, a crafting queue with r
 | Radials (§8.4) | `Radials`: the held inputs that open a radial menu and what each opens now (`RadialBinding`: the input, its hold time, a function giving an `IRadialSource` or none). A source gives the options in clockwise order (icon: a glyph's name or an item's key; title, description, cost line, the reason it can't be chosen or a warning), the current one, whether twelve o'clock falls between the last and the first, and acts on a choice. |
 | Item panel (P3) | `Rows(slot)`: the INFORMATION of a slot's stack (its parts' describers, GROUND_SYSTEMS.md §7); `Actions(slot)`: its ACTIONS besides DROP (label, what it does, why it can't be done now). |
 | Actions | `Move(from, to, amount)`, `Split(slot, amount)`, `Drop(slot, amount)`, `QuickMove(slot)`, `Craft(key, amount)`, `CancelCraft(ticket)`, `Respawn(bag or beach)`, `SelectBelt(i)`, `SetBurning(on)`, `CloseLoot()`, `Say(text)`; an item panel's action and a radial's choice are their own. Each is a request; the answer is a changed read, or a notice. |
-| World (G7, §6.8) | Default members, so models without them still compile. `Map` (`MapView`: cache key, pixels, `Render()` giving RGBA, metres across, grid cells) and `MapMarkers` (me with facing, teammates (dim when offline), the last death, bags, beds, the player's markers with colour 0–5 and index; X and Y 0–1 across and down the map), `MaxMarkers`, `PlaceMarker(x, y, colour, label)`, `RemoveMarker(index, −1 all)`. `TechTree` of the workbench in reach (level, nodes: item, salvage, depth, the nodes before it, known/open/locked; the player's salvage) and `Unlock(key)`. `Team` (members: id, name, online, leader, me; whether the player leads) and `TeamInvites` (team, from, seconds left); `CreateTeam`, `LeaveTeam`, `AcceptInvite`, `DeclineInvite`, `KickFromTeam`, `PromoteInTeam`, `SayTeam(text)`. Loot kinds `Recycler` (0–5 input, 6–11 output; `SetBurning` switches it), `ResearchTable` (0 item, 1 salvage, 2 blueprint; `Researching`, `Cost`, `Reason`; `SetBurning(true)` begins) and `Crate`; a stack's `Teaches` (a blueprint's item); a chat line's `Team`. |
+| World (G7, §6.8) | Default members, so models without them still compile. `Map` (`MapView`: cache key, pixels a face, `Render()` giving the six faces' RGBA, the world's radius, grid cells a face) and `MapMarkers` (me with facing from local north, teammates (dim when offline), the last death, bags, beds, the player's markers with colour 0–5 and index; each `At` a direction from the world's centre, body frame), `MaxMarkers`, `PlaceMarker(direction, colour, label)`, `RemoveMarker(index, −1 all)`. `TechTree` of the workbench in reach (level, nodes: item, salvage, depth, the nodes before it, known/open/locked; the player's salvage) and `Unlock(key)`. `Team` (members: id, name, online, leader, me; whether the player leads) and `TeamInvites` (team, from, seconds left); `CreateTeam`, `LeaveTeam`, `AcceptInvite`, `DeclineInvite`, `KickFromTeam`, `PromoteInTeam`, `SayTeam(text)`. Loot kinds `Recycler` (0–5 input, 6–11 output; `SetBurning` switches it), `ResearchTable` (0 item, 1 salvage, 2 blueprint; `Researching`, `Cost`, `Reason`; `SetBurning(true)` begins) and `Crate`; a stack's `Teaches` (a blueprint's item); a chat line's `Team`. |
 
 `GroundUi` itself raises the menu's requests (host solo, connect with name, address and port, quit) and tells the game
 when it wants the mouse pointer (`WantsCursor`).
@@ -3869,8 +3876,8 @@ moments (hit markers, damage from a bearing, "+20 Wood", crafts, refusals as not
 descriptions and stats come from items.json, the crafting tabs from categories.json. Item icons are the model
 catalogue's renders (`CatalogItemIcons`, §9.1); with `--placeholder-icons`, `ItemIconAliases` maps items.json keys
 onto the placeholder drawings. The inventory shows the player's own body in what they wear (`InventoryBody`, through
-`CharacterPreview.Body`), and the death screen the zone's map (G7: `GameClient.Map`, the map screen's picture, 3.9 km
-across), the body and the bags placed on it through `ZoneMap.ToMap`. Pictures of it in play are in §5.4.
+`CharacterPreview.Body`), and the death screen the map control of the whole world (G7: `GameClient.Map`, the map
+screen's, WHOLE_WORLD.md §11), the body and the bags placed on it at their directions. Pictures of it in play are in §5.4.
 
 ### 8.2 Console (F1)
 
@@ -3909,11 +3916,11 @@ the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <nam
 | `sensitivity` | `[x]` | everyone | game | Mouse look, 0.1–5 (1 = RustMVP's 0.002 rad a count); kept there too. |
 | `kill` | `[player]` | everyone (another player: admins) | server | You die where you stand ("Suicide"): your body keeps what you carried and the respawn screen opens, as Rust's F1 kill: to come back at a bag in a base under attack (GAME_DESIGN.md §5). God mode doesn't stop it. |
 | `players` | | everyone | server | Who is on, admins marked, alive, wounded or dead (admins also see pings), and how many sleep in the world. |
-| `whereami` | | everyone | server | Latitude and longitude (with the `teleport` that comes back here), how far east and north of the landing site along the ground, with its `teleport` too (since S3; before, the zone position), height above the sea, the map cell (of the map's grid laid round the landing site), biome (on the stand-in world "the stand-in ground"), local solar time, the air's temperature. |
+| `whereami` | | everyone | server | Latitude and longitude (with the `teleport` that comes back here), height above the sea, the map cell as the map names it ("C K12", `WorldGrid`, since S3d; before, a cell of a grid laid round the landing site) with its `teleport`, how far east and north of the landing site along the ground with its `teleport` too (since S3; before, the zone position), biome (on the stand-in world "the stand-in ground"), local solar time, the air's temperature. |
 | `give` | `<item> [amount] [player]` | admins | server | Items into an inventory (1–100,000); what doesn't fit drops at the feet (24 stacks at most); "+N" in the pickup feed. `<item>.blueprint` gives that item's blueprint (V12). |
 | `kit` | `<loot table> [player]` | admins | server | A loot table's items (loot.json). |
 | `learn` | `<item\|all> [player]` | admins | server | A blueprint, or every one. |
-| `teleport` | `<player>` · `<x> <z>` · `<lat> <lon>` · `<player> <target>` · `<player> <x> <z>` | admins | server | To a player (1.5 m to their right), or to a point of the world on the ground: a latitude and longitude (marked N, S, E or W, or with three decimals or more on both), else metres east and south of the landing site, measured along the ground (since S3; before, metres east and south of the zone's origin, and only inside the zone). Not out of a ship's seat. |
+| `teleport` | `<player>` · `<cell>` · `<x> <z>` · `<lat> <lon>` · `<player> <target>` · `<player> <cell>` · `<player> <x> <z>` | admins | server | To a player (1.5 m to their right), or to a point of the world on the ground: the middle of a map cell named as the map names it ("C K12" or "CK12", WHOLE_WORLD.md §11; a player of that name wins), a latitude and longitude (marked N, S, E or W, or with three decimals or more on both), else metres east and south of the landing site, measured along the ground (since S3; before, metres east and south of the zone's origin, and only inside the zone). Not out of a ship's seat. |
 | `tp2me` | `<player>` | admins | server | A player to two metres in front of you. |
 | `tpmarker` | `[marker]` | admins | server | To your newest map marker, or the numbered one. |
 | `spawn` | `<kind> [count] [player]`, `spawn raidbase [grade]` | admins | server | In front of you (§8.2.4): an animal herd (`deer`, `boar`, `wolf`, `bear`; up to 12), `tin-finch`, `barrel`, `fuel-barrel`, `crate`, `military-crate`, `recycler`, any deployable by key (up to 10 in a row), or `raidbase`. |
@@ -4027,8 +4034,9 @@ RustMVP's rules, with Rust's where RustMVP had none:
   one-line notices.
 - **Death:** Rust's layout. DEAD, how long the player lived, who killed them, with what and from how far across the
   top; the map with the body and the bags (a ready bag on the map can be clicked); the bags with their cooldowns along
-  the bottom, RESPAWN (a random beach) on the right. The map opens centred on the body and pans by dragging; bag
-  names are placed by the `Labeller`, so they never cover each other or a marker.
+  the bottom, RESPAWN (a random beach) on the right. The map is the G screen's control: it opens on the body, north up,
+  900 m across, a flat chart; dragging turns it and the wheel zooms; bag names are placed by the `Labeller`, so they
+  never cover each other or a marker.
 - **Radials (§8.4):** the right mouse held with the plan or the hammer opens its radial at once; a key held for its hold
   time opens its own (E: the options of what is aimed at, P1; R with a gun: its rounds and UNLOAD, P3, the held item's
   control's); a radial takes the pointer, not the keys: the player walks while choosing (I15). Release (or a left click) chooses; a key let go sooner
@@ -4037,14 +4045,22 @@ RustMVP's rules, with Rust's where RustMVP had none:
 - **Menu:** PLAY hosts a solo game; CONNECT opens the panel with name, body (MALE or FEMALE, a toggle), address and
   port (HOST SOLO or CONNECT); QUIT.
   The name and address are remembered.
-- **Map (G7):** G opens and closes it (Esc closes it). The zone's map (§6.8: heights, sea and beach, hill shading,
-  contours, the grid in 150 m cells lettered across and numbered down) fills a square on the left, following the
-  player until dragged; the wheel zooms. Markers: the player (an arrow with their facing), teammates (dim offline),
-  the last death, bags and beds, and the player's own (up to five, numbered, in six colours); names placed by the
-  `Labeller`. A click puts a marker down in the chosen colour, a right-click on one takes it off. Beside the map: the
-  cell the player is in, FOLLOWING YOU, the markers with their cells (× removes, CLEAR ALL), the team (LEAD and KICK
-  for its leader, LEAVE TEAM, or CREATE TEAM) and the invites (ACCEPT, DECLINE, seconds left). The keys sit at the
-  panel's foot. The death screen draws the same map, with the zone's cells, when the model has one.
+- **Map (G7; the whole world since S3d, WHOLE_WORLD.md §11):** G opens and closes it (Esc closes it). The map control
+  (`GroundUi.Globe.cs`, one for this screen and the death screen) fills a square on the left: the whole world as a globe
+  seen from afar that becomes a flat chart as the wheel zooms in, from 4.8 km across (the whole world, with a margin:
+  5.4 km) down to 150 m; it opens 1.2 km across, following the player with local north up. Dragging turns the globe so
+  the ground under the pointer stays under it (over the poles too) and stops following; left alone away from the poles,
+  north turns back up, as a compass settles; the compass in the top-right corner shows north and a click on it puts
+  north up; a scale bar sits in the bottom-left corner. The picture (§6.8) is drawn by a canvas shader from the six
+  faces; over it, crisp at any scale: the grid (the faces' edges dark, the cells' lines fading in once a cell is large
+  enough to read), the markers, and the cells' names in each cell's top-left corner ("K12", "C K12" once a cell is 80
+  px), placed by the `Labeller` after the markers' names; from afar each face's letter. Markers: the player (an arrow
+  with their facing from local north, turned as the map shows north there), teammates (dim offline), the last death,
+  bags and beds, and the player's own (up to five, numbered, in six colours); names placed by the `Labeller`. A click
+  puts a marker down in the chosen colour, a right-click on one takes it off. Beside the map: the cell the player is
+  in, FOLLOWING YOU (or CENTRE ON ME), the markers with their cells (× removes, CLEAR ALL), the team (LEAD and KICK for
+  its leader, LEAVE TEAM, or CREATE TEAM) and the invites (ACCEPT, DECLINE, seconds left). The keys sit at the panel's
+  foot. `--view ui --screen map --across <m>` opens it that many metres across.
 - **Tech tree (G7):** the crafting screen's TECH TREE tab, when a workbench is in reach (the game also opens it at a
   workbench). Each subtree takes as many columns as it has leaves, its root above them; a node is the item's slot with
   its salvage on a strip below it, green and ticked once known, blueprint blue and dim while locked; lines from the

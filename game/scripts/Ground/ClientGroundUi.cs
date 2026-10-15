@@ -291,8 +291,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
                     continue;
                 }
                 string name = _client.Survival().ThingOf(option.Bag)?.Deployable(C)?.Item.Name ?? "Sleeping bag";
-                (float x, float y) = OnMap(new System.Numerics.Vector3(option.Position.X, 0, option.Position.Y));
-                _bags.Add(new RespawnBag(option.Bag.Value.ToString(CultureInfo.InvariantCulture), name, (float)Me.SecondsUntilReady(option), x, y));
+                _bags.Add(new RespawnBag(option.Bag.Value.ToString(CultureInfo.InvariantCulture), name, (float)Me.SecondsUntilReady(option), OnMap(option.Position)));
             }
             return _bags;
         }
@@ -662,7 +661,6 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         {
             distance = System.Numerics.Vector3.Distance(at, _lastDamage.Value.From);
         }
-        (float x, float y) = OnMap(at);
-        return new DeathInfo((float)Math.Max(0, _client.ClockSeconds - _aliveSince), by, weapon, distance, x, y);
+        return new DeathInfo((float)Math.Max(0, _client.ClockSeconds - _aliveSince), by, weapon, distance, OnMap(at));
     }
 }

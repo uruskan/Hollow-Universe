@@ -12,6 +12,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
+using Hollow.Surface;
 
 namespace Hollow.Tests;
 
@@ -197,6 +198,17 @@ public static class ConsoleTests
         ZoneSpec spec = rig.Server.Spec;
         Run(rig, ada, FormattableString.Invariant($"teleport {spec.LatitudeDegrees:0.000000} {spec.LongitudeDegrees:0.000000}"));
         RunUntil(rig, () => FromLanding(rig, ServerPosition(rig, ada)).Length() < 1, "Ada at the landing site");
+
+        // A map cell, named as the map names it (docs/WHOLE_WORLD.md §11): the one beside the landing site's.
+        int cells = WorldGrid.CellsPerFace(spec.Radius, c.World.MapCell);
+        WorldGrid.Cell landing = WorldGrid.CellAt(spec.LandingDirection, cells);
+        var next = landing with { Column = landing.Column == 0 ? 1 : landing.Column - 1 };
+        Assert.True(Run(rig, ada, "teleport " + WorldGrid.Name(next)).Any(a => a.Kind == ConsoleReplyKind.Success), "teleported to a cell");
+        RunUntil(rig, () => ServerPosition(rig, ada) is var at && WorldGrid.Name(new Hollow.Core.Vector3D(at.X, at.Y, at.Z), cells) == WorldGrid.Name(next),
+            "Ada in that cell (the zone's frame is the world's)");
+        Assert.True(Run(rig, ada, "whereami").Any(a => a.Text.Contains("map cell " + WorldGrid.Name(next), StringComparison.Ordinal)), "whereami names it");
+        Run(rig, ada, FormattableString.Invariant($"teleport {spec.LatitudeDegrees:0.000000} {spec.LongitudeDegrees:0.000000}"));
+        RunUntil(rig, () => FromLanding(rig, ServerPosition(rig, ada)).Length() < 1, "Ada back at the landing site, where the clock is read below");
 
         // Spawning: a wolf pack 22 m in front of her, a box at her feet.
         List<ConsoleAnswer> wolves = Run(rig, ada, "spawn wolf 2");

@@ -1,20 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Threading.Tasks;
 using Godot;
+using Hollow.Surface;
 using HollowUniverse.Common;
 using HollowUniverse.UI.Model;
 using G = HollowUniverse.Common.Ui.Ground;
 
 namespace HollowUniverse.UI;
 
-// The map (G7, GROUND.md §6.8), on G as in Rust: the zone's parchment map as large as the window allows, its grid
-// lettered from the west and numbered from the north, the player and their facing, teammates with their names, the
-// last death, sleeping bags and beds and the player's own markers (names placed by the Labeller, so they never overlap);
-// beside it the grid cell the player stands in, the markers with their colours, and the team (members, invites, create,
-// leave, promote, kick). A click on the map puts a marker down, a right-click on one takes it off; dragging pans,
-// the wheel zooms. The death screen draws its map with the same painter (PaintMapPicture).
+// The map (G7, GROUND.md §6.8; the whole world since S3d, docs/WHOLE_WORLD.md §11), on G as in Rust: the map control
+// (GroundUi.Globe.cs) as large as the window allows, following the player with local north up; on it the player and
+// their facing, teammates with their names, the last death, sleeping bags and beds and the player's own markers (names
+// placed by the Labeller, so they never overlap); beside it the grid cell the player stands in ("C K12"), the markers
+// with their colours and cells, and the team (members, invites, create, leave, promote, kick). A click on the map puts a
+// marker down, a right-click on one takes it off; dragging turns the globe, the wheel zooms.
 public partial class GroundUi
 {
     /// <summary>The six marker colours (MapMarkerView.Colour), RustMVP's palette in kind.</summary>
@@ -24,199 +24,84 @@ public partial class GroundUi
         new(0.70f, 0.45f, 0.85f), new(0.92f, 0.90f, 0.85f),
     };
 
-    private static readonly Color MapBackdrop = new(0.095f, 0.10f, 0.10f);
-    private static readonly Color GridInk = new(0.16f, 0.13f, 0.09f, 0.38f);
-    private static readonly Color LabelInk = new(0.16f, 0.13f, 0.09f, 0.72f);
-    private static readonly Dictionary<string, Texture2D> MapTextures = new();
-    private static readonly Dictionary<string, Task<Image?>> MapRenders = new();
-
-    private Vector2 _worldMapCentre = new(0.5f, 0.5f);
-    private float _worldMapZoom = 2.5f;
-    private bool _worldMapFollow = true;
-    private Vector2? _worldMapPress;
-    private Vector2 _worldMapPressCentre;
-    private Rect2 _worldMapArea;
     private int _markerColour;
-
-    /// <summary>Whether the model's map picture is ready (or there is none): screenshots of the map wait for it.</summary>
-    public bool MapReady => Model.Map == null || MapTexture(Model.Map) != null;
 
     /// <summary>Opens the map (G), centred on the player.</summary>
     public void ToggleMap() => Open(Screen == GroundScreen.Map ? GroundScreen.Hud : GroundScreen.Map);
 
-    /// <summary>The map picture for a view, once rendered (on a worker thread the first time, then from the disk cache).</summary>
-    private static Texture2D? MapTexture(MapView? view)
-    {
-        if (view == null)
-        {
-            return null;
-        }
-        string key = $"{view.CacheKey}-{view.Pixels}";
-        if (MapTextures.TryGetValue(key, out Texture2D? texture))
-        {
-            return texture;
-        }
-        string path = $"user://map-cache/{key}.png";
-        if (!MapRenders.TryGetValue(key, out Task<Image?>? render))
-        {
-            if (FileAccess.FileExists(path) && Image.LoadFromFile(ProjectSettings.GlobalizePath(path)) is { } cached && !cached.IsEmpty())
-            {
-                return MapTextures[key] = ImageTexture.CreateFromImage(cached);
-            }
-            render = Task.Run(() =>
-            {
-                byte[] rgba = view.Render();
-                return rgba.Length == view.Pixels * view.Pixels * 4 ? Image.CreateFromData(view.Pixels, view.Pixels, false, Image.Format.Rgba8, rgba) : null;
-            });
-            MapRenders[key] = render;
-        }
-        if (!render.IsCompleted)
-        {
-            return null;
-        }
-        MapRenders.Remove(key);
-        if (render.IsCompletedSuccessfully && render.Result is { } image)
-        {
-            DirAccess.MakeDirRecursiveAbsolute(ProjectSettings.GlobalizePath("user://map-cache"));
-            image.SavePng(path);
-            return MapTextures[key] = ImageTexture.CreateFromImage(image);
-        }
-        return null;
-    }
-
+    // The canvas's part: the backdrop, the frame round the map, its hit area and the panel beside it. The picture is the
+    // globe's layer above; the grid and markers are the overlay's (PaintMapOverlay).
     private void PaintMap()
     {
         _p.DrawRect(new Rect2(Vector2.Zero, Size), MapBackdrop);
         MapView? view = Model.Map;
-        Texture2D? picture = MapTexture(view);
-        float margin = Ui.Px(24), panel = Ui.Px(420);
-        float side = MathF.Floor(MathF.Min(Size.Y - 2 * margin - Ui.Px(36), Size.X - panel - 3 * margin));
-        var area = new Rect2(MathF.Floor((Size.X - panel - margin - side) / 2), margin, side, side);
-        _worldMapArea = area;
-        IReadOnlyList<MapMarkerView> markers = Model.MapMarkers;
+        Rect2 area = MapArea();
+        float margin = Ui.Px(24);
+        _p.DrawRect(area.Grow(Ui.Px(3)), new Color(0.32f, 0.27f, 0.20f));
+        _p.DrawRect(area, MapBackdrop);
+        if (view == null)
+        {
+            _p.DrawRect(area, MapBlank);
+            _o = area.Position;
+            TextIn("NO MAP HERE", 0, area.Size.Y / Ui.Scale / 2 - 20, area.Size.X / Ui.Scale, 30, LabelInk, HorizontalAlignment.Center, bold: true, condensed: true);
+        }
+        _hits.Add(new Hit(area, HitKind.Map));
+
         MapMarkerView? me = null;
-        foreach (MapMarkerView m in markers)
+        foreach (MapMarkerView m in Model.MapMarkers)
         {
             if (m.Kind == MapMarkerKind.Me)
             {
                 me = m;
             }
         }
-        if (_worldMapFollow && me != null)
-        {
-            _worldMapCentre = new Vector2(me.X, me.Y);
-        }
-        _worldMapZoom = Math.Clamp(_worldMapZoom, 1, 8);
-        float half = 0.5f / _worldMapZoom;
-        _worldMapCentre = new Vector2(Math.Clamp(_worldMapCentre.X, half, 1 - half), Math.Clamp(_worldMapCentre.Y, half, 1 - half));
-        Vector2 corner = _worldMapCentre - new Vector2(half, half);
-        Vector2 ToScreen(float u, float v) => (area.Position + (new Vector2(u, v) - corner) * _worldMapZoom * area.Size).Round();
-
-        // The picture, its frame and grid.
-        _p.DrawRect(area.Grow(Ui.Px(3)), new Color(0.32f, 0.27f, 0.20f));
-        if (picture != null)
-        {
-            var source = new Vector2(picture.GetWidth(), picture.GetHeight());
-            _p.DrawTextureRectRegion(picture, area, new Rect2(corner * source, source / _worldMapZoom));
-        }
-        else
-        {
-            _p.DrawRect(area, new Color(0.78f, 0.72f, 0.58f));
-            _o = area.Position;
-            TextIn(view == null ? "NO MAP HERE" : "DRAWING THE MAP…", 0, side / Ui.Scale / 2 - 20, side / Ui.Scale, 30, LabelInk,
-                HorizontalAlignment.Center, bold: true, condensed: true);
-        }
-        _hits.Add(new Hit(area, HitKind.Map));
-        int cells = view?.Cells ?? 26;
-        float cell = area.Size.X * _worldMapZoom / cells;
-        int c0 = (int)MathF.Floor(corner.X * cells), r0 = (int)MathF.Floor(corner.Y * cells);
-        for (int i = c0; i <= c0 + cells / _worldMapZoom + 1 && i <= cells; i++)
-        {
-            float x = ToScreen(i / (float)cells, 0).X;
-            if (x > area.Position.X && x < area.End.X)
-            {
-                _p.DrawRect(new Rect2(x, area.Position.Y, 1, area.Size.Y), GridInk);
-            }
-        }
-        for (int j = r0; j <= r0 + cells / _worldMapZoom + 1 && j <= cells; j++)
-        {
-            float y = ToScreen(0, j / (float)cells).Y;
-            if (y > area.Position.Y && y < area.End.Y)
-            {
-                _p.DrawRect(new Rect2(area.Position.X, y, area.Size.X, 1), GridInk);
-            }
-        }
-        // Cell names in each cell's corner when the cells are big enough, else along the edges.
-        bool inCells = cell >= Ui.Px(44);
-        for (int i = Math.Max(0, c0); i < cells && i <= c0 + cells / _worldMapZoom + 1; i++)
-        {
-            for (int j = Math.Max(0, r0); j < cells && j <= r0 + cells / _worldMapZoom + 1; j++)
-            {
-                if (!inCells && i != Math.Max(0, c0) && j != Math.Max(0, r0))
-                {
-                    continue;
-                }
-                Vector2 at = ToScreen(i / (float)cells, j / (float)cells) + new Vector2(Ui.Px(4), Ui.Px(2));
-                if (!area.Grow(-Ui.Px(2)).HasPoint(at) || !area.HasPoint(at + new Vector2(Ui.Px(26), Ui.Px(14))))
-                {
-                    continue;
-                }
-                _o = at;
-                string name = !inCells ? i == Math.Max(0, c0) && j == Math.Max(0, r0) ? Cell(i, j) : j == Math.Max(0, r0) ? Column(i) : Row(j) : Cell(i, j);
-                Text(name, 0, 0, 13, LabelInk, bold: true);
-            }
-        }
-
-        // Markers, nearest last: bags and beds, the death, the player's markers, teammates, the player.
-        var labeller = new Labeller(Size);
-        labeller.Block(new Rect2(0, 0, Size.X, area.Position.Y));
-        labeller.Block(new Rect2(area.End.X, 0, Size.X - area.End.X, Size.Y));
-        labeller.Block(new Rect2(0, area.End.Y, Size.X, Size.Y - area.End.Y));
-        labeller.Block(new Rect2(0, 0, area.Position.X, Size.Y));
-        float r = Ui.Pxf(11);
-        foreach (MapMarkerView m in markers)
-        {
-            labeller.Block(ToScreen(m.X, m.Y), r + Ui.Pxf(2));
-        }
-        Rect2 inside = area.Grow(-Ui.Px(6));
-        foreach (MapMarkerKind kind in new[] { MapMarkerKind.Bag, MapMarkerKind.Bed, MapMarkerKind.Death, MapMarkerKind.Marker, MapMarkerKind.Teammate, MapMarkerKind.Me })
-        {
-            foreach (MapMarkerView m in markers)
-            {
-                if (m.Kind != kind)
-                {
-                    continue;
-                }
-                Vector2 at = ToScreen(m.X, m.Y);
-                if (!inside.HasPoint(at))
-                {
-                    continue;
-                }
-                PaintMapMarker(m, at, r, labeller);
-            }
-        }
-
         // Beside the map: where the player is, the markers, the team.
         var info = new Rect2(area.End.X + margin, margin, Size.X - area.End.X - 2 * margin, Size.Y - 2 * margin);
         PaintMapPanel(info, view, me);
         // The keys at the foot of the panel (the toasts keep the bottom left).
         _o = new Vector2(info.Position.X, info.End.Y - Ui.Px(40));
         Text("CLICK  PLACE A MARKER     RIGHT-CLICK  REMOVE IT", 0, 0, 14, G.Muted, bold: true);
-        Text("DRAG  PAN     WHEEL  ZOOM     G  CLOSE", 0, 22, 14, G.Muted, bold: true);
+        Text("DRAG  TURN     WHEEL  ZOOM     G  CLOSE", 0, 22, 14, G.Muted, bold: true);
     }
 
-    private static string Column(int i) => Hollow.Client.Map.ZoneMap.Column(i);
+    // The overlay's part: the grid, then the markers nearest last (bags and beds, the death, the player's markers,
+    // teammates, the player), then the cells' names where they fit.
+    private void PaintMapOverlay()
+    {
+        if (Model.Map is not { } view || _mapGlobe.Camera == null)
+        {
+            return;
+        }
+        GlobeFrame f = BeginGlobe(_mapGlobe, view);
+        IReadOnlyList<MapMarkerView> markers = Model.MapMarkers;
+        float r = Ui.Pxf(11);
+        foreach (MapMarkerView m in markers)
+        {
+            if (OnGlobe(f, m.At) is Vector2 at)
+            {
+                f.Labeller.Block(at, r + Ui.Pxf(2));
+            }
+        }
+        foreach (MapMarkerKind kind in new[] { MapMarkerKind.Bag, MapMarkerKind.Bed, MapMarkerKind.Death, MapMarkerKind.Marker, MapMarkerKind.Teammate, MapMarkerKind.Me })
+        {
+            foreach (MapMarkerView m in markers)
+            {
+                if (m.Kind == kind && OnGlobe(f, m.At, Ui.Px(6)) is Vector2 at)
+                {
+                    PaintMapMarker(m, at, NorthOnGlobe(f, m.At), r, f.Labeller);
+                }
+            }
+        }
+        EndGlobe(f, view);
+    }
 
-    private static string Row(int j) => j.ToString(CultureInfo.InvariantCulture);
+    /// <summary>A grid cell's name for a point of the map ("C K12").</summary>
+    private static string CellOf(System.Numerics.Vector3 at, MapView? view) =>
+        view == null ? "" : WorldGrid.Name(Direction(at), view.Cells);
 
-    private static string Cell(int i, int j) => Column(i) + Row(j);
-
-    /// <summary>A grid cell's name for a map point (0–1 across and down).</summary>
-    private static string CellAt(float u, float v, int cells) =>
-        Cell(Math.Clamp((int)MathF.Floor(u * cells), 0, cells - 1), Math.Clamp((int)MathF.Floor(v * cells), 0, cells - 1));
-
-    // One marker as Rust draws them: a disc with a glyph or a number, the player an arrow, names by the Labeller.
-    private void PaintMapMarker(MapMarkerView m, Vector2 at, float r, Labeller labeller)
+    // One marker as Rust draws them: a disc with a glyph or a number, the player an arrow turned from local north as the
+    // map shows it there, names by the Labeller.
+    private void PaintMapMarker(MapMarkerView m, Vector2 at, Vector2 north, float r, Labeller labeller)
     {
         ReadOnlySpan<LabelSide> sides = stackalloc[] { LabelSide.Right, LabelSide.Below, LabelSide.Above, LabelSide.Left };
         Color outline = new(0.08f, 0.07f, 0.06f, 0.9f);
@@ -225,8 +110,10 @@ public partial class GroundUi
         {
             case MapMarkerKind.Me:
             {
+                // The facing is clockwise from north; on screen (y down) that turn is the usual rotation.
                 float a = m.Facing * MathF.PI / 180;
-                Vector2 f = new(MathF.Sin(a), -MathF.Cos(a)), s = new(-f.Y, f.X);
+                Vector2 f = new Vector2(north.X * MathF.Cos(a) - north.Y * MathF.Sin(a), north.X * MathF.Sin(a) + north.Y * MathF.Cos(a)).Normalized();
+                Vector2 s = new(-f.Y, f.X);
                 float size = Ui.Pxf(15);
                 Vector2[] tip = { at + f * size, at - f * size * 0.6f + s * size * 0.7f, at - f * size * 0.3f, at - f * size * 0.6f - s * size * 0.7f };
                 Vector2[] shadow = Array.ConvertAll(tip, p => p + (p - at).Normalized() * Ui.Pxf(2.5f));
@@ -285,16 +172,19 @@ public partial class GroundUi
     {
         _o = panel.Position;
         float w = panel.Size.X / Ui.Scale;
-        int cells = view?.Cells ?? 26;
         Text("MAP", 0, 0, 40, G.Ink, bold: true, condensed: true);
-        if (me != null)
+        if (me != null && view != null)
         {
-            TextIn("YOU ARE IN " + CellAt(me.X, me.Y, cells), 0, 12, w, 20, G.Ink, HorizontalAlignment.Right, bold: true);
+            TextIn("YOU ARE IN " + CellOf(me.At, view), 0, 12, w, 20, G.Ink, HorizontalAlignment.Right, bold: true);
         }
-        Button(_worldMapFollow ? "FOLLOWING YOU" : "CENTRE ON ME", 0, 56, w, 34, () =>
+        bool following = _mapGlobe.Camera?.Following ?? true;
+        Button(following ? "FOLLOWING YOU" : "CENTRE ON ME", 0, 56, w, 34, () =>
         {
-            _worldMapFollow = true;
-        }, 16, _worldMapFollow ? new Color(G.Selected, 0.5f) : G.Panel);
+            if (_mapGlobe.Camera != null)
+            {
+                _mapGlobe.Camera.Following = true;
+            }
+        }, 16, following ? new Color(G.Selected, 0.5f) : G.Panel);
 
         // Markers.
         float y = 104;
@@ -323,7 +213,7 @@ public partial class GroundUi
             Rect(0, y, w, 30, G.Panel);
             Rect(6, y + 6, 18, 18, MarkerColours[Math.Clamp(m.Colour, 0, MarkerColours.Length - 1)]);
             Text(m.Label.Length > 0 ? m.Label : $"Marker {m.Index + 1}", 34, y + 4, 17, G.Ink, bold: true);
-            TextIn(CellAt(m.X, m.Y, cells), w - 110, y + 5, 64, 16, G.Muted, HorizontalAlignment.Right, bold: true);
+            TextIn(CellOf(m.At, view), w - 120, y + 5, 76, 16, G.Muted, HorizontalAlignment.Right, bold: true);
             int index = m.Index;
             Button("×", w - 34, y + 2, 30, 26, () => Model.RemoveMarker(index), 20);
             y += 34;
@@ -379,93 +269,5 @@ public partial class GroundUi
             y += 70;
         }
         PanelArea(0, 0, w, Math.Max(y, 40));
-    }
-
-    // ---------------------------------------------------------------- input (from GroundUi's Press, Release and wheel)
-
-    private void PressMap(MouseButton button)
-    {
-        if (button == MouseButton.Left)
-        {
-            _worldMapPress = Pointer;
-            _worldMapPressCentre = _worldMapCentre;
-        }
-        else if (button == MouseButton.Right)
-        {
-            // The marker nearest the pointer, within its disc, comes off.
-            float best = Ui.Pxf(16);
-            int index = -1;
-            foreach (MapMarkerView m in Model.MapMarkers)
-            {
-                float d = MapToScreen(m.X, m.Y).DistanceTo(Pointer);
-                if (m.Kind == MapMarkerKind.Marker && d < best)
-                {
-                    best = d;
-                    index = m.Index;
-                }
-            }
-            if (index >= 0)
-            {
-                Model.RemoveMarker(index);
-            }
-        }
-    }
-
-    private void ReleaseMap(MouseButton button)
-    {
-        if (button != MouseButton.Left || _worldMapPress is not Vector2 pressed)
-        {
-            return;
-        }
-        _worldMapPress = null;
-        if (pressed.DistanceTo(Pointer) < Ui.Pxf(5) && _worldMapArea.HasPoint(Pointer))
-        {
-            Vector2 at = ScreenToMap(Pointer);
-            int count = 0;
-            foreach (MapMarkerView m in Model.MapMarkers)
-            {
-                count += m.Kind == MapMarkerKind.Marker ? 1 : 0;
-            }
-            if (count < Model.MaxMarkers)
-            {
-                Model.PlaceMarker(at.X, at.Y, _markerColour, "");
-            }
-        }
-    }
-
-    private void DragMap()
-    {
-        if (_worldMapPress is Vector2 pressed && pressed.DistanceTo(Pointer) >= Ui.Pxf(5))
-        {
-            _worldMapFollow = false;
-            _worldMapCentre = _worldMapPressCentre - (Pointer - pressed) / (_worldMapArea.Size * _worldMapZoom);
-        }
-    }
-
-    private bool ZoomMap(int steps)
-    {
-        if (Screen != GroundScreen.Map || !_worldMapArea.HasPoint(Pointer))
-        {
-            return false;
-        }
-        Vector2 before = ScreenToMap(Pointer);
-        _worldMapZoom = Math.Clamp(_worldMapZoom * (steps < 0 ? 1.25f : 0.8f), 1, 8);
-        // Keep the point under the pointer where it was.
-        Vector2 after = ScreenToMap(Pointer);
-        _worldMapCentre += before - after;
-        _worldMapFollow = false;
-        return true;
-    }
-
-    private Vector2 MapToScreen(float u, float v)
-    {
-        Vector2 corner = _worldMapCentre - new Vector2(0.5f, 0.5f) / _worldMapZoom;
-        return _worldMapArea.Position + (new Vector2(u, v) - corner) * _worldMapZoom * _worldMapArea.Size;
-    }
-
-    private Vector2 ScreenToMap(Vector2 screen)
-    {
-        Vector2 corner = _worldMapCentre - new Vector2(0.5f, 0.5f) / _worldMapZoom;
-        return corner + (screen - _worldMapArea.Position) / (_worldMapZoom * _worldMapArea.Size);
     }
 }

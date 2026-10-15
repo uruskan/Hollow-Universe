@@ -270,7 +270,7 @@ Client options (after `--`):
   `user://hollow-host-<branch>.db` on another, so a branch's newer save never meets an older build), `--spawn origin` (hosted:
   arrive at the landing site rather than on a beach), `--time <UTC>` or `--hour <h>` (show another time of day: a
   universe time, or the next time it is h o'clock at the landing site; this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact,map`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and
   `mine` picture the X, a hit's burst, the fall, the hotspot and a stage breaking, and `--tour-tree <kind>` picks the
@@ -284,7 +284,7 @@ Client options (after `--`):
   code lock on a hut's door, a timed charge on its wall, the Tin Finch's hologram and the ship placed; `interact`
   pictures P1's interaction through the keys: the prompt and E held on a fresh code lock's door (SET CODE first), the
   tool cupboard's options, arrows stuck in a wall (one taken back with E) and in a deer, and a garage door shut through
-  its opening),
+  its opening; `map` pictures the map of the whole world as G opens it, `map-open.jpg`, WHOLE_WORLD.md §11),
   `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
   server's tick; then quits), `--load-trace [s]` (GROUND.md §4.3.1: times the start from the process's start to steady
@@ -316,7 +316,8 @@ Client options (after `--`):
 - Server (G2): `--kit <loot table>` gives every new character a loot table's items; admin commands `give`, `kit`,
   `heal`, `kill` besides G1's (type `help`; every command of the F1 console is in GROUND.md §8.2: `give <item> [amount]
   [player]` (`<item>.blueprint`: its blueprint), `teleport` (`[player] <x> <z>`: metres east and south of the landing site
-  along the ground; `<lat> <lon>` with three decimals or N/S/E/W; a player), `tp2me`, `tpmarker`, `spawn <kind> [count]`, `god`, `noclip`, `time <hour>`
+  along the ground; `<lat> <lon>` with three decimals or N/S/E/W; `<cell>`: a map cell as the map names it, "C K12"; a
+  player), `tp2me`, `tpmarker`, `spawn <kind> [count]`, `god`, `noclip`, `time <hour>`
   (that hour where the admin stands), `timescale`,
   `ents`, `whereami`, `players`, Rust's names such as `inventory.give`, `global.teleport`, `env.time`; at the server's
   console a command names its player, and the older `give <name> <item> [count]` forms still work); G7: `learn <name> <item|all>` (blueprints), `world` (props, teams, economy). `--kit build-kit` gives what a base needs (G3). G5: `--raid-bases <n>`
@@ -364,10 +365,12 @@ Client options (after `--`):
   G7's `map`, `techtree`, `recycler`, `research`, and the F1 panel's `console`, `console-info`, `console-net`,
   `console-items`, `console-tools`, and the F2 panel's `developer`, `developer-players`, `developer-look`,
   `developer-draw`, `developer-log` on sample data);
-  `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas. Without `--shot` it's interactive.
-  `--view ui --ui-check` drives the inventory, crafting and the radial with real input events (drag, middle-drag,
-  split, quick move, drop, craft; the right mouse on the plan, E tapped, held, chosen and cancelled) and quits with
-  exit code 0 when every check passes.
+  `--pointer x,y` holds the pointer at a point of the 1600 × 900 design canvas; `--across <m>` opens the map's or the
+  death screen's map that many metres across (150 to the whole world, 5,400; WHOLE_WORLD.md §11: a globe from 4.8 km,
+  a flat chart from 2.4 km in). Without `--shot` it's interactive.
+  `--view ui --ui-check` drives the inventory, crafting, the radial and the map with real input events (drag, middle-drag,
+  split, quick move, drop, craft; the right mouse on the plan, E tapped, held, chosen and cancelled; a marker put down
+  on the map where it was clicked and taken off, the globe turned) and quits with exit code 0 when every check passes.
 - Models (GROUND.md §9.1): `--view models` stands every catalogue model on the ground (`--lineup items|world`,
   `--pitch <deg>`); `--model <key>` shows one on a turntable (`--stage <n>`, `--lod <n>`, `--yaw <deg>` holds it at an
   angle, `--zoom <f>` moves the camera, `--anim <clip>` plays a clip such as the Tin Finch's `Hatch_Open`, `--attach a,b`

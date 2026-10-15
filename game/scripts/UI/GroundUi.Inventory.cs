@@ -368,8 +368,7 @@ public partial class GroundUi
         {
             UpdateSplit();
         }
-        PanMap();
-        DragMap();
+        DragGlobe();
         DragConsoleSlider();
     }
 
