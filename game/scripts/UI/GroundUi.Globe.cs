@@ -374,7 +374,7 @@ public partial class GroundUi
     private void PaintGridLines(in GlobeFrame f)
     {
         float cell = CellPixels(f);
-        float fade = Math.Clamp((cell - Ui.Pxf(9)) / Ui.Pxf(18), 0, 1);
+        float fade = Math.Clamp((cell - Ui.Pxf(14)) / Ui.Pxf(26), 0, 1);
         float width = Ui.Pxf(1.2f);
         var run = new List<Vector2>(GridSide);
         for (int face = 0; face < CubeSphere.FaceCount; face++)
@@ -447,8 +447,11 @@ public partial class GroundUi
             int px = Ui.Px(40);
             for (int face = 0; face < CubeSphere.FaceCount; face++)
             {
+                // A face's letter in its middle, unless that is near the globe's edge, where it would be squeezed or cut.
                 int middle = _gridCells * GridSide + _gridCells;
-                if (!_faceNear[face] || !_gridShown[face][middle] || !inside.HasPoint(_gridScreen[face][middle]))
+                double fromCentre = DMath.Acos(Math.Clamp(Vector3D.Dot(CubeSphere.Normal(face), f.Projection.Centre), -1, 1));
+                if (!_faceNear[face] || !_gridShown[face][middle] || !inside.HasPoint(_gridScreen[face][middle]) ||
+                    fromCentre > f.Projection.Reach - 0.25)
                 {
                     continue;
                 }
@@ -525,7 +528,10 @@ public partial class GroundUi
         int px = Ui.Px(12);
         Vector2 letter = at + north * (r + Ui.Pxf(9));
         float w = font.GetStringSize("N", HorizontalAlignment.Left, -1, px).X;
-        _p.DrawString(font, (letter + new Vector2(-w / 2, font.GetAscent(px) * 0.36f)).Round(), "N", HorizontalAlignment.Left, -1, px, G.Ink);
+        Vector2 baseline = (letter + new Vector2(-w / 2, font.GetAscent(px) * 0.36f)).Round();
+        // Outlined, so it reads on pale land as on the sea.
+        _p.DrawStringOutline(font, baseline, "N", HorizontalAlignment.Left, -1, px, Ui.Px(4), new Color(0.08f, 0.07f, 0.06f, 0.9f));
+        _p.DrawString(font, baseline, "N", HorizontalAlignment.Left, -1, px, G.Ink);
         f.Labeller.Block(at, r + Ui.Pxf(14));
         Globe g = f.Globe;
         _hits.Add(new Hit(new Rect2(at - new Vector2(r, r), new Vector2(2 * r, 2 * r)), HitKind.Button, () => g.Camera?.NorthUp()));

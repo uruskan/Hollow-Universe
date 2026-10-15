@@ -552,7 +552,7 @@ without a sea); the console test teleports to a cell and reads it back from `whe
 (26 of 26, five of them new: a marker put down where the map was clicked, taken off, the globe turned); the pictures are
 in `docs/images/ground/s3d/`: `map-globe.jpg` (the viewer zoomed out), `map-chart.jpg` (zoomed in), `death.jpg` (the
 death screen), and `map-open.jpg`, the hosted game's map as G opens it (`--tour ../docs/images/ground/s3d --tour-steps
-map`). What was built:
+map`, run from `game/` with `--view ground --name Ada --host --spawn origin --hour 10`). What was built:
 - **Code.** `WorldGrid` (`Hollow.Surface`): the grid and its one naming function. `GlobeProjection` and `GlobeCamera`
   (`Hollow.Client/Map`): the projection, its inverse and the view. `ZoneMap` and `ZoneMapImage` rewritten: the six faces
   by direction. `GroundUi.Globe.cs`: the one map control (picture shader, overlay, input), which `GroundUi.Map.cs` (G)
@@ -588,7 +588,7 @@ map`). What was built:
   version. `ISurface` declares no version, so it is measured: the surface's kind, radius, sea and its height and biome at
   1,024 directions spread evenly over the world. S4's generator gets a new picture without anyone raising a number.
 - **The overlay** is crisp at any scale: grid lines are polylines through the projection, clipped to the map; the faces'
-  edges stay dark and the cells' lines fade in as a cell grows from 9 to 27 px; cells are named in their top-left corner on
+  edges stay dark and the cells' lines fade in as a cell grows from 14 to 40 px; cells are named in their top-left corner on
   screen ("K12", "C K12" from 80 px) through the Labeller after the markers' names, and from afar each face shows its
   letter. A scale bar (true at the centre) sits in the corner. Facing arrows turn from local north as the map draws north
   there: the camera's view on foot (before, the view's yaw in its carried frame), the ship's nose while flying (before,
