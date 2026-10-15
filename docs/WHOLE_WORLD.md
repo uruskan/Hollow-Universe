@@ -604,10 +604,12 @@ build differs from §10, and what was decided on the way:
   the world's radius in metres. F2's nav window was drawn along the local compass already (S3b). New for pictures from
   above: `--lift <m>` and `--pitch <deg>` on the ground game. Footsteps and the ambience's biome come from
   `ISurface.Cover` and `BiomeAt` on any surface.
-- **Not checked** (the owner's word of 15 October 2026, the week's usage nearly spent): the full test suite after the
-  last changes, Godot's `--physics-check`, a measured frame time (`--measure`; only the counter's readings above), and
-  the screenshot set beyond the three pictures. Godot's `.uid` files for the new scripts and the shader include were
-  not generated (no editor import ran).
+- **Checks.** The engine-free tests pass (239), run on S3c's engine-free code as it stands (its later commits touch
+  only the Godot project and docs); a first run beside three Godot games crashed natively in Jolt (KNOWN_PROBLEMS.md).
+  **Not checked** (the owner's word of 15 October 2026, the week's usage nearly spent): Godot's `--physics-check`
+  against the movement check's line, a measured frame time (`--measure`; only the counter's readings above), the
+  tour, the sandboxes (ship, Iron Wake, animals) and the look-dev view (`--view surface`) after their changes, and the
+  map. Godot's `.uid` files for the new scripts and the shader include were not generated (no editor import ran).
 
 ---
 

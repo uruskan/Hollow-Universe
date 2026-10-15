@@ -136,7 +136,7 @@ and fixed on `whole-world` what broke there. Still open:
 | The stand-in's temperate forest draws a closed forest floor with ferns, though its trees stand far apart (about 24 a hectare). | The drawn ground takes its tree cover from the biome table (`BiomeTable.Cover`); the stand-in's trees come from gather.json's flat densities, which the surface doesn't know. | open, until S4's ground |
 | From the leaving height the sky past the ball's edge is the sky mirrored about the air's horizon, and clouds stay hidden behind the ball. | The air keeps the real planet's size (WHOLE_WORLD.md §10.2: the minimum); clouds are drawn by the sky, behind all geometry. | S5 |
 | On the real-size look-dev view, ground textures jump on lines every 4 km of a cube face, and the grass grows on 0.6 m cells (sparser than before). | Texture coordinates keep floats exact by a per-tile anchor at multiples of 4,096 m; the grass's cells are the cube faces' at the level nearest 0.46 m (WHOLE_WORLD.md §14). | open, look-dev only |
-| A full test run crashed natively in Jolt (`JPH_MeshShapeSettings_Create2`, access violation) during `SurvivalNetTests.OthersSeeOnlyABag`, while three Godot games ran beside it. | Not traced; the code it ran is unchanged by S3c. Perhaps the Jolt crash under low memory the handoff lists. | open |
+| A full test run crashed natively in Jolt (`JPH_MeshShapeSettings_Create2`, access violation) during `SurvivalNetTests.OthersSeeOnlyABag`, while three Godot games ran beside it. | Not traced; the code it ran is unchanged by S3c, and the next full run, alone, passed (239). Perhaps the Jolt crash under low memory the handoff lists. | open |
 
 ### Found in play (15 October 2026)
 
