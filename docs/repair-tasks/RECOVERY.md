@@ -1,5 +1,131 @@
 # Recovery after the computer restart
 
+**22:34 footer build passed; captures blocked before launch:** root reviewed the footer-only
+change and isolated capture host. The shared solution build passed zero warnings/errors in
+**10.84 seconds**, minimum **5.745 GiB free / 54% commit**; evidence:
+`.artifacts/recovery/integrated-checks/20261016-222628-build.*`. The scratch build also passed
+zero warnings/errors in **4.242 seconds**, minimum **6.205 GiB / 52%**, with unchanged inputs
+and real preferences: `.artifacts/admin-settings-footer/runs/build-r1/`.
+
+The first `automatic900-r1` capture was refused by its 5.5 GiB starting preflight before
+creating its output directory or starting Godot. A follow-up sample at 22:34:14 local found
+**5.277 GiB free / 58% commit**, no heavy process and no capture directory; retained in
+`.artifacts/recovery/footer-capture-preflight-20261016-2230.json`. There are no new screenshots
+and no native visual result. This is a resource hold, not a failed native run. No retry or
+heavy slot remains outstanding; user applications are untouched.
+
+The 126-input checkpoint is `.artifacts/recovery/source-freeze-20261016-2234.json`; all 125
+prior inputs are unchanged, adding only `GroundUi.Settings.cs`. Its hash is
+`E6925A498AF88A4F9AB88CEB26D4198B67C2EBC7C8B3EDDBA12596EC5AE7B3F2`, and the built game DLL is
+`DE6EAC4B61EE868ADBE9FFE8D6C085210199ECCF779E4F246CE875D441368F8A`. The 25-path staged patch
+is still byte-identical. Source and scratch harness are frozen. Once a fresh preflight has
+at least 5.5 GiB free and no heavy job, resume the unused `automatic900-r1` case using
+`build-r1` and that exact DLL hash, then review before the 720 and scaled-1080 cases.
+Do not rebuild unchanged inputs. Commands are in `.artifacts/admin-settings-footer/README.md`.
+The separate Maximum world startup still requires 8 GiB. The coordinator remains scheduled.
+
+**22:17 footer repair source grant:** the admin/UI owner confirmed the reproduced overlap
+and a one-file remedy. Root grants only the footer hunk in `GroundUi.Settings.cs`: derive
+the text column from the unchanged button group with a 16-design-pixel gap, keep the full
+compact APPLY/Escape instruction visible, and fit the GPU description to that column.
+Font sizes/colors and button positions/actions stay unchanged. The owner may prepare an
+isolated scratch capture host, without changing P8's retained harness or production entry
+points. Validation must cover 1600x900 automatic, 1280x720 automatic and 1920x1080 at 1.25
+UI preference, including dirty and saved/cancel states. No heavy slot is granted yet.
+Memory was **7.089 GiB available / 49% commit**, with no heavy process. Root retains shared
+build scheduling; other production inputs and the shared staged set remain frozen. The
+Maximum startup requirement is still 8 GiB.
+
+**22:10 N11 settings persistence validated — no heavy slot outstanding:** after the reviewed
+scratch-only assembly-identity correction, build-r2 passed zero warnings/errors. The actual
+production settings panel passed **49/49 APPLY checks** and a distinct native process passed
+**36/36 restart checks**. MIN/MAX and clamps, Escape cancellation, saving 30%, and loading
+saved 30% after quitting with an unapplied 100% preview all passed. Root and P8 inspected all
+six retained 1600x900 captures. Evidence: `.artifacts/p8-gibs/settings-acceptance-runs/`
+`{build-r2,apply-r2,restart-r2}/` and [P8's report](../repair-results/P8-performance.md).
+
+The three jobs took 4.256 / 5.652 / 2.839 seconds; native minima were 6.929 / 7.112 GiB free,
+at most 51% commit, with empty stderr and no guard stop. All real preferences, frozen DLLs
+and the 125 production inputs stayed unchanged; the shared 25-path staged patch remains
+byte-identical. Only isolated v2 preference files were saved. The failed r1 receipts and v1
+directory remain intact. This is actual UI code with Godot-injected events, not physical
+mouse or in-world destruction/damage/loot/sound acceptance; those N11 limits remain open.
+
+Review found a separate existing UI defect: the orange NOT APPLIED sentence extends beneath
+the APPLY button. It is recorded in KNOWN_PROBLEMS and routed to the admin/UI owner for
+read-only scope review; no production edit/runtime slot is granted for it. At 22:10 memory
+was **7.585 GiB free / 49% commit**, with no heavy process. Maximum world startup remains
+below its unchanged 8 GiB floor. The repair queue and follow-up schedule remain active.
+
+**22:00 P8 diagnostic failure routed — no heavy slot outstanding:** the isolated settings
+harness built successfully (zero warnings/errors, 4.247 seconds, minimum 6.966 GiB free).
+Its first native Apply process exited 1 after eight isolation checks, before settings loaded:
+Godot's loaded game assembly exposes an empty `Assembly.Location`, and the harness attempted
+to hash that empty path. This is a diagnostic-host error, not a gib-setting regression.
+The run took 2.856 seconds, minimum 6.938 GiB, with all real preferences/source/binaries
+unchanged. Evidence is in `.artifacts/p8-gibs/settings-acceptance-runs/{build-r1,apply-r1}/`.
+P8 has a scratch-only correction grant to verify the copied DLL and its loaded module
+identity without requiring `Assembly.Location`, and to fix its null console summary.
+Original receipts and the v1 isolated directory must stay intact; corrected first use needs
+a fresh v2 directory and a reviewed checkpoint. No retry/build/native slot is granted yet.
+
+**21:49 next bounded step — P8 settings persistence:** compact worker checks found all six
+leads idle with no new results. Resources were **6.707 GiB available / 48% commit**, with no
+Godot, actual Blender, build or Hollow runtime; the Maximum 8 GiB hold is unchanged. P8 now
+has a diagnostic-only source grant under `.artifacts/p8-gibs` to prepare verification of the
+actual GIB AMOUNT row, APPLY input path, process restart and unapplied-preview cancellation.
+It must reuse production code and a provably isolated user-data directory, preserving the
+real preference files and capturing the settings UI. No production source change or heavy
+job is granted yet. A necessary Main entry point would need a separate scope review. Normal
+destruction/gameplay and physical-user-input acceptance must remain distinct from this check.
+
+**21:39 validated layer-lifetime checkpoint — no heavy slot outstanding:** P2's isolated
+harness build passed with zero warnings/errors, and its native Forward+ run passed all **48
+layers**. Source and uploaded-array bytes/metadata matched; all 48 shader comparisons after
+temporary disposal had zero difference and three positive controls passed. The run exited
+zero in **8.41 seconds**, minimum **5.188 GiB free**, maximum **57% commit**, with empty stderr.
+Evidence: `.artifacts/p2-environment/layer-check-runs/layer-lifetime-r1/` and
+[P2's report](../repair-results/P2-environment.md). This proves isolated data/usability, not
+an old-versus-new peak-memory saving or full-world startup.
+
+The subsequent shared solution build also passed **zero warnings/errors**, 38.82 seconds,
+minimum **5.408 GiB free** / maximum **54% commit**. Evidence:
+`.artifacts/recovery/integrated-checks/20261016-213646-build.*`. The new 125-input checkpoint
+is `.artifacts/recovery/source-freeze-20261016-2139.json`; all 124 prior inputs are unchanged,
+with only the repaired `GroundLayers.cs` added. The shared 25-path staged patch remains
+byte-identical to the saved evening patch. No full suite was rerun for this presentation-only
+resource-lifetime change; native checks above cover its changed behavior.
+
+At 21:39, available RAM was **6.640 GiB**, commit **50%**, with no actual heavy process.
+The **8 GiB Maximum startup floor remains**: the isolated check does not justify lowering it.
+P2's material/grass/water candidates and all other production sources remain frozen. The next
+world attempt needs fresh resource/process checks and a new label; do not reuse failed r3.
+The recurring coordinator remains active because gameplay/visual repairs are still open.
+
+**21:32 P2 isolated validation slot:** the one-file loader repair and scratch harness are
+prepared and reviewed, but not validated. P2 now holds the sole heavy slot for a guarded
+60-second standalone harness build, followed only on success by one fresh 90-second native
+48-layer check. Both require at least 5.5 GiB free / at most 80% commit and retain the
+2 GiB / 85% stop guard. No full-world run or import is granted. Root will handle the shared
+solution build after that slot is released. Actual Blender processes must block launches;
+the unrelated `blender-mcp.exe` connector helpers are not Blender render jobs. All source
+edits are frozen during validation. The staged patch still matches its preserved SHA-256.
+
+**21:16 heartbeat — one narrow source step resumed:** compact checks found the five other
+repair leads idle with no new results; P2's last hold was unchanged. No Godot, Blender,
+dotnet/MSBuild or Hollow runtime was active. Available RAM was **7.251 GiB**, commit **45%**,
+so the Maximum world retry remains below its 8 GiB start floor and was not launched.
+
+The coordinator reviewed `GroundLayers.Load` and granted its existing P2 owner a source-only
+temporary-lifetime repair: upload one texture-array channel at a time, release readback Images
+and containers after upload, handle failed uploads/partial arrays, and preserve all source
+bytes, mipmaps, compression, layer order and material metadata. This supersedes the previous
+no-source-edits checkpoint **only for that file**, its scratch validation harness/wrapper and
+P2's result report. P2 must prepare isolated native verification before any runtime grant.
+The wrapper must enforce the 8 GiB Maximum floor and also exclude active Blender jobs.
+Other sources and P2's visual candidates remain frozen. No build/import/render/test slot is
+outstanding, no LOD work is added, and the shared 25-path staged set remains untouched.
+
 Periodic coordination is now active in this same chat through the app heartbeat
 `coordinate-hollow-universe-repairs`, every ten minutes. It checks existing workers/resources,
 advances only authorized work under the single-heavy-job limits, and stays quiet on unchanged

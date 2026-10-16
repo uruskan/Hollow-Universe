@@ -19,6 +19,20 @@ The resulting transport-liveness and foliage temporary-allocation repairs now bu
 needs a native rerun with sufficient memory; P2 visual candidates remain staged. Current evidence and job limits are in
 [RECOVERY.md](repair-tasks/RECOVERY.md).
 
+The heartbeat completed a narrow P2 terrain-array temporary-resource cleanup: all 48 layers
+passed native byte/metadata/shader comparisons after cleanup, and the shared solution build
+passed with zero warnings/errors. Full-world startup and measured peak-memory/FPS improvement
+remain unverified. Maximum world startup stays gated on 8 GiB available RAM; no visual
+candidate or new LOD system is part of this step.
+
+N11's actual settings APPLY/restart checks now pass (49/49 and 36/36 in separate native
+processes using the production UI and isolated preferences). MIN/MAX, cancel and persistent
+30% were verified in six captures. In-world destruction/loot/sound acceptance remains open.
+The captures also exposed a settings-footer text overlap. Its one-file fix and both shared/
+scratch builds now pass; three-size visual verification remains unrun because available RAM
+fell below the 5.5 GiB UI-capture preflight. Source/harness are frozen; see RECOVERY and
+KNOWN_PROBLEMS for exact evidence and the next commands.
+
 The owner now accepts the axe animation they used and rejects the pickaxes, inconsistent
 first-person tool sizes, oversized holo and current environment quality. Preserve the accepted
 axe motion. Earlier assistant-approved screenshots do not overrule this review. Approval of
@@ -53,7 +67,7 @@ and its results must be inspected before another owner changes it.
 | N8 | Smaller usable holo and readable optimized ballistic flight, especially incendiary rounds | P4 + P5 | Holo quality reopened; projectile physics exists, visibility remains open |
 | N9 | Unattended zero-thrust attitude hold with assist ON; useful turret sightlines | P6 | Open; existing auto-level behavior conflicts with the requested hold |
 | N10 | Roofs without side panels, joining and stacking side by side | P7 | Open; both authored geometry and collision need changing |
-| N11 | Player-controlled minimum/maximum gib detail or budget | P8 | Verify; user-facing slider implemented, native diagnostic 44/44 and settings capture pass; gameplay/APPLY/restart acceptance remains |
+| N11 | Player-controlled minimum/maximum gib detail or budget | P8 | Verify; native renderer checks 44/44, actual UI APPLY 49/49 and restart 36/36 pass; in-world destruction/loot/sound acceptance remains |
 | N12 | Recover performance without sacrificing accepted visual quality | P8 + each owner | Open; establish controlled CPU/GPU baselines and measurable causes |
 
 ## Packages and acceptance
