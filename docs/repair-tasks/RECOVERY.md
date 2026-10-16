@@ -1,5 +1,37 @@
 # Recovery after the computer restart
 
+**17 October, 00:41 local — P7/N10 source preparation resumed:** the existing **Audit building
+asset library** chat (`01a14478-1506-7da3-9201-ed36246af8dd`) completed the read-only roof
+review in `docs/repair-results/P7-building.md`. The panels are generated gables in both roof
+shapes, every grade and authored LOD, with matching authoritative/imported hulls and gibs.
+Direct lateral roof sockets are absent; the existing square Top stacking poses must stay.
+Admin and P8 reviewed ownership and released the narrow source/exporter hunks below.
+
+Admin also identified a concrete compatibility risk: Restore calls Add before cupboards
+load; new lateral links can merge old separate claimed structures, then RestoreClaim can
+reject the second cupboard and the server can delete that saved record. Root requires both
+legacy bases, cupboards, authorization, inventories and debt to survive. **Production
+`building.json` remains frozen: no lateral socket activation until a reviewed preservation
+mechanism and actual-save regression are ready.** The admin chat is doing read-only design
+review of this mechanism; no persistence/claim source edits are granted.
+
+P7 may prepare only the narrow hunks proposed in its report in `art/import/building_kit.py`,
+`art/gibs/build.py`, `PieceShapes.cs`, `BuildingData.cs`, and `PieceGeometry.cs`, plus new
+`tools/repair_roof_assets.py`, `RoofBuildingTests.cs` and `RoofAssetTests.cs`. New socket
+behavior is exercised through test-only catalogue data, retaining all legacy poses/codes.
+Exporter modes must select staged input/output explicitly, preserve seeds and unrelated
+materials/import settings, and reject out-of-scope output. No installed GLB/data/material,
+runtime gib/settings, protocol, staged admin path or other source may change. P7 updates
+only its result report; root owns integration docs. Freeze the candidate for review before
+execution. This is source preparation, not a completed or runnable visual roof repair.
+
+Pre-edit receipt: `.artifacts/recovery/p7-preimplementation-20261017.json`; all **138**
+previously frozen inputs and the **25-path** staged patch matched before this grant. At
+00:37 there were **4.630 GiB available / 62% commit**, with no heavy process. **No build,
+test, import, Blender or Godot slot is granted.** Maximum startup still needs 8 GiB and
+small native/generation work at least 5.5 GiB. No new chat, subagent or LOD project was
+started. Prior P6 and other production work remains frozen. The queue is still active.
+
 **17 October, 00:07 local — N9 attitude candidate builds and passes 46 checks:** the existing
 P6/Earth chat implemented the captured-target controller in its twelve granted source/test
 files. Root reviewed the diff. The first build found a missing namespace import in one new
