@@ -29,9 +29,11 @@ N11's actual settings APPLY/restart checks now pass (49/49 and 36/36 in separate
 processes using the production UI and isolated preferences). MIN/MAX, cancel and persistent
 30% were verified in six captures. In-world destruction/loot/sound acceptance remains open.
 The captures also exposed a settings-footer text overlap. Its one-file fix and both shared/
-scratch builds now pass; three-size visual verification remains unrun because available RAM
-fell below the 5.5 GiB UI-capture preflight. Source/harness are frozen; see RECOVERY and
-KNOWN_PROBLEMS for exact evidence and the next commands.
+scratch builds pass; the three-size native verification has now passed 116/116 assertions.
+Root inspected all nine dirty/saved/canceled captures at 1600x900, 1280x720 and 1920x1080
+with 1.25 UI scale: the footer text and buttons no longer overlap. This scoped defect is
+closed; source/harness and real preferences remain unchanged. See RECOVERY and
+KNOWN_PROBLEMS for evidence and the separate outstanding world/gameplay checks.
 
 The owner now accepts the axe animation they used and rejects the pickaxes, inconsistent
 first-person tool sizes, oversized holo and current environment quality. Preserve the accepted

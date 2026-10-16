@@ -1,5 +1,27 @@
 # Recovery after the computer restart
 
+**23:01 settings-footer visual verification complete:** after RAM recovered above the
+documented 5.5 GiB UI threshold, root ran the three prepared native cases sequentially,
+without rebuilding or importing. `automatic900-r1`, `automatic720-r1` and `scaled1080-r1`
+all exited zero: **38/38, 39/39 and 39/39** assertions respectively. Root inspected all nine
+dirty/saved/after-cancel PNGs. The full APPLY/Escape instruction, saved text, GPU line and
+all four button labels remain visible without footer overlap at 1600x900 scale 1,
+1280x720 scale 0.8125 and 1920x1080 scale 1.25. This closes the reproduced footer defect.
+
+Evidence: `.artifacts/admin-settings-footer/runs/` under those three labels, plus
+`.artifacts/recovery/footer-visual-acceptance-20261016-2300.json`. Run durations were
+**4.365 / 4.254 / 4.203 seconds**, minimum free RAM **5.548 / 5.698 / 5.810 GiB**, maximum
+commit **58 / 56 / 56%**. Each separate launch passed its fresh process/resource guard;
+stderr is empty, no guard stopped a job, and real preferences, production binaries and
+all 126 frozen inputs remain unchanged. The 25-path staged patch is still byte-identical.
+The admin/UI owner has only a report-update request, with source and harness frozen.
+
+The six worker leads had no new implementation results; no heavy slot remains active.
+At 22:59 the machine had **6.389 GiB available / 53% commit** and no heavy process. The
+Maximum world startup remains below its **8 GiB** floor. Actual UI input was injected
+through Godot; physical input and N11 in-world destruction/damage/loot/sound acceptance
+remain open, along with the other backlog packages. The coordination schedule stays active.
+
 **22:34 footer build passed; captures blocked before launch:** root reviewed the footer-only
 change and isolated capture host. The shared solution build passed zero warnings/errors in
 **10.84 seconds**, minimum **5.745 GiB free / 54% commit**; evidence:
