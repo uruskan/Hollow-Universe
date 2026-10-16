@@ -1,5 +1,77 @@
 # Recovery after the computer restart
 
+**17 October, 00:07 local — N9 attitude candidate builds and passes 46 checks:** the existing
+P6/Earth chat implemented the captured-target controller in its twelve granted source/test
+files. Root reviewed the diff. The first build found a missing namespace import in one new
+network test (two compile errors, no guard stop); the owner added only that import. The
+failed `20261016-235119-build.*` receipt remains intact. The corrected shared build
+`20261016-235806-build.*` passed zero warnings/errors in **5.76 s**, minimum **5.826 GiB /
+58% commit**. Two subsequent serialized batches passed: **34/34** state/persistence/fuel/
+control/architecture checks (`20261017-000010-attitude-state.*`, 2.84 s, minimum 5.844 GiB,
+maximum 60%) and **12/12** network/parts/restart checks (`20261017-000306-attitude-net.*`,
+47.04 s, minimum 4.969 GiB, maximum 62%). No job was stopped by a guard.
+
+These include all 19 new tests, return to the captured release attitude after coupled spin,
+planetary transport, real release/retake transitions, engine/fuel/contact limits, v1–6 save
+handling, actual two-client observation/takeover, and unchanged exact pilot prediction.
+They do **not** establish loaded-cannon gameplay, native visual acceptance or clear gunner
+sightlines. Camera/art/quality data remain unchanged. P6 is updating only its report; all
+source is frozen again. No heavy slot remains outstanding.
+
+The 138-input checkpoint is `.artifacts/recovery/source-freeze-p6-r2-20261016.json`; the
+post-validation receipt is `.artifacts/recovery/p6-validation-20261017.json`. Built game DLL:
+`3937ED307F56DE5B19C6D80AD7C52E4FCE423F9D834EE2C3B5721FE931807029`. Earlier 126 inputs
+were unchanged before adding P6's twelve; all 138 match after validation. The shared 25-path
+staged patch is byte-identical. At 00:07, free RAM was **5.089 GiB / 61% commit**, no heavy
+process. Maximum world startup remains below its unchanged **8 GiB** requirement. Keep the
+coordination schedule active for native checks, camera reproduction and the remaining queue.
+
+**P6 captured-attitude source grant, after the 20:07 UTC review:** P5 confirmed that the
+unpiloted target need not be transmitted: only the helmsman receives OwnShipState, and
+hold must clear before awake takeover, the first own snapshot and piloted integration.
+P6's existing Earth chat now owns the reviewed C# implementation and meaningful tests.
+Existing granted files: `ShipState.cs`, `ShipMotor.cs`, `ShipSystem.cs`,
+`ShipSystem.Seats.cs`, `ShipSystem.Engine.cs`, and `ShipCodec.cs`; only the legacy fixture
+construction in `ShipFuelTests.cs`; optional inactive initialization/documentation in
+`ShipConvert.cs`. New files: `ShipAttitudeHold.cs`, `ShipSystem.Attitude.cs`, and the
+`ShipAttitudeTests`, `ShipAttitudePersistenceTests`, `ShipAttitudeNetTests` test classes.
+The precise hunk boundaries and behavior are in P6's report and the coordinator message.
+
+This is the only production source-freeze exception. Prior input hashes remain evidence of
+the earlier build, not a validation claim for the new work. Pre-edit hashes and absent new
+paths are recorded in `.artifacts/recovery/p6-preimplementation-20261016.json`. The target
+is captured at successful release and transported with each existing planetary carry;
+bounded physical torque returns to it after residual spin. Explicit off/fuel exhaustion,
+landing and manual/autopilot/nonneutral takeover end the hold. Save format v6 appends its
+target after v5 fuel data; preserve restored sleeper targets and valid legacy migration.
+
+Protocol stays 33 with schema `895BF6382E0F2DBC`; no NetGen, new flag bit or payload change.
+P5 attack/queue/ammo modules, staged admin ShipRepairTests/GroundView, Earth generation/save
+identity and camera/art/data are excluded. Root records the design in REPAIR_SHIPS; P6 may
+update its own result report. **No build/test/import/render/staging/commit slot is granted.**
+P6 must freeze its completed candidate and report hashes/test filters for root review.
+The unchanged Maximum startup threshold is 8 GiB; no native acceptance is claimed.
+
+**20:07 UTC heartbeat — P6/N9 review resumed through existing chats:** all existing worker
+results are unchanged; the admin report now includes the passing footer captures. At 23:09
+local there were **5.850 GiB available / 53% commit**, with no heavy process. Maximum world
+startup remains held below 8 GiB. Root verified all 126 frozen inputs and the 25-path staged
+patch unchanged; receipt: `.artifacts/recovery/p6-review-preflight-20261016-2312.json`.
+
+The existing **Check Earth planet surface area** chat (`01a1446b-92fd-70a0-a864-77427e7f5ac5`)
+completed a read-only N9 review in `docs/repair-results/P6-ships.md`. Earth/save source stays
+frozen. The code cause is confirmed: Unattended clears turning controls, then HoldLevel
+interprets those neutral controls as return-to-level. Gunner eye offsets already apply through
+their mounted sockets; no new camera offsets are justified without reproducing the obstruction.
+
+Root selected a captured attitude target in the transported local planetary frame, preserving
+bounded torque, fuel, gravity, contacts and manual takeover. Simply skipping automatic levelling
+would allow residual spin to change the chosen angle and does not meet that contract. P6 is
+preparing the precise target-state/controller/save proposal in its report; the existing P5 chat
+is reviewing prediction/wire boundaries and the exact ownership transfer. **Only review reports
+may change; production/test/data/harness source remains frozen and no heavy slot is granted.**
+No new chat, subagent or LOD work was started. The coordinated queue remains active.
+
 **23:01 settings-footer visual verification complete:** after RAM recovered above the
 documented 5.5 GiB UI threshold, root ran the three prepared native cases sequentially,
 without rebuilding or importing. `automatic900-r1`, `automatic720-r1` and `scaled1080-r1`

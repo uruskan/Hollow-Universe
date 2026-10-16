@@ -35,6 +35,12 @@ with 1.25 UI scale: the footer text and buttons no longer overlap. This scoped d
 closed; source/harness and real preferences remain unchanged. See RECOVERY and
 KNOWN_PROBLEMS for evidence and the separate outstanding world/gameplay checks.
 
+N9's captured-attitude controller now builds and passes 46 focused state/network regression
+checks, including all 19 new tests. The ship returns to the release angle through bounded
+torque, retains the target through v6 saves and clears it for manual takeover without a wire
+change. Actual loaded-gun gameplay and gunner sightline acceptance remain open. P6's source
+is frozen after validation; the shared staged changes are preserved. See its report and RECOVERY.
+
 The owner now accepts the axe animation they used and rejects the pickaxes, inconsistent
 first-person tool sizes, oversized holo and current environment quality. Preserve the accepted
 axe motion. Earlier assistant-approved screenshots do not overrule this review. Approval of
@@ -67,7 +73,7 @@ and its results must be inspected before another owner changes it.
 | N6 | Grass with convincing height, rooting, density and lighting even at Maximum | P2 | Open; preserve quality while profiling cost |
 | N7 | Consistent professional first-person composition across tools | P4 | Open; preserve accepted axe animation and establish a reference composition |
 | N8 | Smaller usable holo and readable optimized ballistic flight, especially incendiary rounds | P4 + P5 | Holo quality reopened; projectile physics exists, visibility remains open |
-| N9 | Unattended zero-thrust attitude hold with assist ON; useful turret sightlines | P6 | Open; existing auto-level behavior conflicts with the requested hold |
+| N9 | Unattended zero-thrust attitude hold with assist ON; useful turret sightlines | P6 | Verify attitude: build and 46 state/network checks pass; native loaded-gun sequence and gunner sightline reproduction remain open |
 | N10 | Roofs without side panels, joining and stacking side by side | P7 | Open; both authored geometry and collision need changing |
 | N11 | Player-controlled minimum/maximum gib detail or budget | P8 | Verify; native renderer checks 44/44, actual UI APPLY 49/49 and restart 36/36 pass; in-world destruction/loot/sound acceptance remains |
 | N12 | Recover performance without sacrificing accepted visual quality | P8 + each owner | Open; establish controlled CPU/GPU baselines and measurable causes |
@@ -98,11 +104,12 @@ Check working-tree changes and the latest handoffs at the start of every package
 | P4 | Coordinate checklist tasks — `01a1447b-3abc-7672-a5c7-571c01807f1d` | Tool motion/framing and holo; exclude active combat event routing |
 | P5 lifecycle | Investigate weapon hit sync — `01a14453-042b-7b42-b6de-60c543f8f849` | Existing active attack lifecycle implementation; do not start a duplicate |
 | Planet terrain/save identity | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Existing active WalkingWorld/parameters and terrain-save changes |
+| P6 | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Captured-attitude source frozen after build and 46 passing checks; Earth source frozen; no wire change; native/camera checks pending, no runtime grant |
 | Admin placement/crafting | Add F1 build grade and free crafting — `01a14468-ab3d-7bb2-8cb4-61997af8619d` | Existing active admin/placement/protocol work; P7 coordinates before overlap |
 | Building asset survey | Audit building asset library — `01a14478-1506-7da3-9201-ed36246af8dd` | Completed survey; reuse results before importing roof/building assets |
 | Menu/startup | Add disconnect option — `01a1446b-1a10-7800-b535-568d73554782` | Completed and committed disconnect feature; startup observations feed P8 |
 | P8 | Contact review checklist session — `01a14485-dcd2-7b60-a3d1-fb2fe458859d` | Recovery resource inventory first; performance/gibs scope, heavy work queued |
-| P3, P6, P7; P5 audio/visibility | Unassigned by this coordinator | Prepared prompts; inspect existing owners before starting |
+| P3, P7; P5 audio/visibility | Unassigned by this coordinator | Prepared prompts; inspect existing owners before starting |
 
 P1, P2, P4, P5 and P8 have acknowledged their assignments. Preparing the remaining prompts does
 not launch chats. During recovery, leads work without additional agents and serialize heavy
