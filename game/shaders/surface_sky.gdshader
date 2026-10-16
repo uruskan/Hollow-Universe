@@ -214,8 +214,8 @@ void sky() {
 			vec3 night = vec3(0.0);
 			vec3 c = celestial * rd;
 			night += star_layer(c, 9.0, 0.32, -0.6, 2.6, 1.0);
-			night += star_layer(c, 34.0, 0.5, 2.6, 4.8, 2.0);
-			night += star_layer(c, 110.0, 0.45, 4.8, 6.4, 3.0);
+			night += star_layer(c, 34.0, 0.12, 2.6, 4.8, 2.0);
+			night += star_layer(c, 110.0, 0.07, 4.8, 6.4, 3.0);
 			night += galaxy_band(c);
 			for (int i = 0; i < 8; i++) {
 				if (i >= point_count) {

@@ -1,0 +1,6 @@
+  RUN  HeldActionTimingTests.MeleeHitMarkerCarriesTheAuthoritativeToolTickAndContactPoint
+  ok   HeldActionTimingTests.MeleeHitMarkerCarriesTheAuthoritativeToolTickAndContactPoint (4380 ms)
+  RUN  MultiplayerTests.FreeLookTurnsTheHeadOthersSee
+      Bo sees Ada's view at 0.500, 0.300 rad and her head turned 2.094, 1.178 rad; her prediction error 0.000 mm
+  ok   MultiplayerTests.FreeLookTurnsTheHeadOthersSee (5379 ms)
+2/2 passed in 9.8 s.

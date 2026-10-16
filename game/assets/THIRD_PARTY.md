@@ -358,3 +358,37 @@ Three variants per family retain authored UVs, opacity and lower LODs. Original 
 unchanged. `surface/ground-cover/catalog.json` contains archive hashes, verified input hashes and output hashes;
 `tools/blender/environment_ground_cover.py` reproduces metre normalization and 2048-pixel texture derivatives.
 No commercial-game extraction, remote generation or provider job was used.
+
+### Scanned geology (16 October 2026)
+
+`surface/rocks/` uses the owner's Poly Haven Rock Moss Set 02 (CC0-1.0,
+https://polyhaven.com/a/rock_moss_set_02), Tundra Boulder `vixsch3dw` and Tundra
+Lichened Boulder `vivvbfhaw` (owner-supplied Fab Standard License library). The seven
+moss variants share an atlas; the two tundra scans keep their original PBR maps.
+`catalog.json` records source/dependency and exported glTF/buffer/texture SHA-256s.
+
+The external glTFs in `surface/cliffs/` add Huge Nordic Coastal Cliff `vefkehbva`,
+Huge Nordic Coastal Cliff `ullqbb1ga`, and Nordic Forest Cliff Large `xibjbg3` from
+the same owner-supplied Fab library. The first two are also used by RustMVP's local
+scan replacement pipeline. The earlier two Poly Haven cliff sources remain CC0.
+`provenance.json` records individual licenses and hashes. Fab scans are not CC0;
+they ship only as part of the game. Originals remain unchanged in `D:/GameDev/Assets`.
+No Rust geometry, textures, map data, Unreal packages or provider generation was copied.
+
+### Authored trees (16 October 2026)
+
+`surface/trees/` contains three fir and three birch variants derived from the owner's
+LOLIPOP Fir Trees and Five Birch Trees packs in `D:/GameDev/Assets/Fab/LOLIPOP`.
+Their original UVs, texture maps and supplied LODs are retained under the owner's
+supplied-asset authorization; these commercial pack derivatives are not CC0.
+
+The pine derives from the documented Poly Haven pine-forest source through the
+owner's existing `RustMVP/assets/SourceWorld/extras/pine_forest/mature_pine_a.glb`.
+That source receipt describes scanned bark and authored twig cards, and notes that
+the archive's exact origin was not independently authenticated. No Facepunch Rust
+asset is used. Original libraries and the reference checkout remain unchanged.
+
+`surface/trees/catalog.json` records source and exported dependency hashes, native
+material inputs, dimensions and stem fitting. Conversion and import settings are
+reproducible with `tools/blender/environment_trees.py` and
+`tools/blender/environment_tree_import_settings.py`; see `docs/REPAIR_TREES.md`.

@@ -69,7 +69,6 @@ varying vec4 v_cell;
 varying vec3 v_tint;
 varying vec3 v_ground;
 varying float v_t;
-varying float v_cloud;
 varying float v_kind;               // 0 grass, 1 plant, 2 litter (faded to browns)
 varying float v_cover;              // forest cover: the canopy keeps sky light off the floor
 varying float v_seed;               // per tuft, for the ragged outline of its blades
@@ -177,7 +176,11 @@ void vertex() {
 		float r_kind = rnd(s);
 		float dry = dry_face;
 		float lush = 1.0 - dry;
-		float height = (0.28 + 0.26 * rnd(s)) * (0.7 + 0.45 * density) * (0.75 + 0.35 * lush);
+		// Keep the continuous base below the authored crowns so their different silhouettes remain visible.
+		float height_roll = rnd(s);
+		float basal_height = mix(0.18, 0.32, height_roll);
+		float height = (blade_underlayer ? basal_height : 0.28 + 0.26 * height_roll)
+			* (0.7 + 0.45 * density) * (0.75 + 0.35 * lush);
 		float width = 0.8 + 0.4 * rnd(s);
 		float yaw = rnd(s) * 6.2831853;
 		float lean_a = rnd(s) * 6.2831853;
@@ -315,12 +318,12 @@ void fragment() {
 	hu_aerial(v_world, CAMERA_POSITION_WORLD, 6, a, fog);
 	ALBEDO = a;
 	FOG = fog;
-	v_cloud = hu_cloud_shadow(v_world);
+
 }
 
 void light() {
 	float ndl = dot(NORMAL, LIGHT);
-	float cloud = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
+	float cloud = LIGHT_IS_DIRECTIONAL ? hu_cloud_shadow(v_world, normalize((INV_VIEW_MATRIX * vec4(LIGHT, 0.0)).xyz)) : 1.0;
 	vec3 light = LIGHT_COLOR * ATTENUATION * cloud / HU_PI;
 	DIFFUSE_LIGHT += light * clamp(ndl, 0.0, 1.0);
 	if (v_kind < 1.5) {

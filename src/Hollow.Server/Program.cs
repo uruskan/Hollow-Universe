@@ -14,7 +14,10 @@ public static class Program
 {
     public static int Main(string[] args)
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        Console.OutputEncoding = new System.Text.UTF8Encoding(false);
+        // Hosted commands arrive through ChildServer's UTF-8 pipe (including degree suffixes and player names).
+        // A directly opened interactive console keeps its own input code page.
+        if (Console.IsInputRedirected) Console.InputEncoding = new System.Text.UTF8Encoding(false);
         Dictionary<string, string> o = ParseOptions(args);
         if (o.ContainsKey("help"))
         {

@@ -197,6 +197,7 @@ public sealed partial class Vegetation : Node3D
         material.SetShaderParameter("colour_atlas", result.Colour);
         material.SetShaderParameter("normal_atlas", result.Normal);
         material.SetShaderParameter("rows", (float)result.Rows);
+        material.SetShaderParameter("native_rows", result.NativeRows);
         material.SetShaderParameter("views", (float)ImpostorBaker.Views);
         material.SetShaderParameter("fade_out", ImpostorEnd);
         _impostors = material;

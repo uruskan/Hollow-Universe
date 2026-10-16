@@ -16,7 +16,6 @@ varying vec3 v_world;
 varying vec3 v_normal;
 varying vec3 v_tint;
 varying float v_tip;
-varying float v_cloud;
 
 void vertex() {
     vec3 base = MODEL_MATRIX[3].xyz;
@@ -64,12 +63,12 @@ void fragment() {
     hu_aerial(v_world, CAMERA_POSITION_WORLD, 6, a, fog);
     ALBEDO = a;
     FOG = fog;
-    v_cloud = hu_cloud_shadow(v_world);
+
 }
 
 void light() {
     float ndl = dot(NORMAL, LIGHT);
-    float cloud = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
+    float cloud = LIGHT_IS_DIRECTIONAL ? hu_cloud_shadow(v_world, normalize((INV_VIEW_MATRIX * vec4(LIGHT, 0.0)).xyz)) : 1.0;
     vec3 light = LIGHT_COLOR * ATTENUATION * cloud / HU_PI;
     DIFFUSE_LIGHT += light * max(ndl, 0.0);
     // Modest transmitted light; the scan supplies the leaf colour instead of an invented yellow-green tint.

@@ -432,6 +432,15 @@ last inspected preference was false and was not changed by the audit.
 This handoff is documentation only. Validation checks its complete R1–R17/L1–L30 coverage, referenced files and
 diff formatting; no new build, test-suite, audio-listening or rendering acceptance is claimed.
 
+
+## Scanned rocks and vertically filled cliffs — 16 October 2026
+
+Integrated the isolated geology repair after checking each affected active file against its pre-edit hash. Nine authored rock variants (seven moss scans and two tundra boulders) replace the ordinary procedural boulders. Nordic cliff scans from the owner library now form overlapping contour columns and descending rows, following the owner's request to fill the full bare cliff face vertically. Shared server/prediction collision uses the same component transforms; terrain heights and natural-object IDs are unchanged. Source approach and two Nordic models were reused from RustMVP's local-scan replacement path; no Rust extraction or reference-map placement data was copied.
+
+Verified in the isolated checkout: solution build with zero warnings/errors; GeologyPort, EarthCliffs and Architecture checks 8/8; 30 sampled formations, 402 components and 24 tiered faces. Actual Earth captures finished with streaming ready. A hosted game connected, drew the new geology, saved its capture and disconnected/stopped normally without loading timeout or renderer error. Its shutdown still reported 7 texture RIDs and 2 ObjectDB leaks; this is not a leak-free/full-suite/performance acceptance claim. Earlier failed captures exposed lossless texture imports and an export bug; final assets use shared external 4K maps with checked-in GPU-compressed/mipmapped imports and asynchronous cliff loading.
+
+Evidence: `docs/images/repairs/geology/hosted-cliff.png`, `tiered-cliff.png`, `scanned-rock.png`; logs and exact integration hashes in `.artifacts/geology-port/`. Details/reproduction/limits: `docs/REPAIR_GEOLOGY.md`. Ordinary rock colliders remain the existing approximate spheres. Talus, vegetation pockets, broader terrain/grass/tree quality and global composition remain unfinished. The active running game was not stopped or rebuilt; restart through `play-ground.cmd` to build and import this source/assets update. No unrelated files or original Hollow Universe/RustMVP files were edited.
+
 ## Seated orbit mouse correction — 16 October 2026
 
 At the owner's correction, all seated third-person orbit cameras now use held right mouse to change angle.
@@ -563,6 +572,34 @@ CC0; Adobe lists Mixamo as free with royalty-free game use. The locally recorded
 Starter Pack listing explicitly says UE-Only, so it is not a Godot source candidate. No assets were
 purchased/downloaded/copied, no runtime profiles changed, and no build/GPU process was started.
 This follow-up changes status documentation only; git diff --check is the relevant validation.
+
+## 16 October 2026 — verified environment integration
+
+Installed seven authored fir/birch/pine variants, preserved native material channels and shared
+standing/falling trees, corrected pine crown simplification and taper after rejecting real renders,
+and retained the validated chopping band. Rebalanced existing grass heights and native ground
+scan colour without removing cells/instances; corrected periodic wave normals and per-light cloud
+shadows; reduced the procedural night star field. Existing geology work is preserved.
+
+Normal child-host Earth1200 route completed baseline/final High-day and Maximum-night at 1600x900.
+All six checkpoints were ready and grounded; no route teleport/noclip. Original frames, raw
+samples and measured regressions are retained under docs/images/repairs/environment-2026-10-16.
+High woodland median 15.50→17.68 ms; Maximum/night woodland 28.04→36.20 ms, so dense-canopy cost is
+explicitly unfinished. Broadleaf art, foam, night readability and exit leaks also remain.
+
+The pine chop tour caught Windows child-pipe degree-symbol decoding and false-positive screenshots.
+Explicit UTF-8 pipe/redirected-input encoding plus arrival/hit/depletion assertions fix the diagnostic
+and actual hosted command path. Final tour accepted hits/X chain, depleted the tree, awarded 125 wood
+on its last hit, and captured the new falling mesh. User saves were not used for diagnostics.
+
+Build 0 warnings/errors; imports passed. Full tests 389/391 with both timing-sensitive failures passing
+isolated 2/2; final Console/Gather/EnvironmentRoute 18/18. Independent final pine 128/128 rays and
+source-card/UV/winding/hash checks passed. Later shared-checkout suites passed 392/392 and 394/394;
+their logs preserve those later checkpoints. Forced near/medium/far tree captures loaded successfully,
+but medium birch density and distant foliage brightness still need tuning. This is not finished
+art quality. See docs/REPAIR_ENVIRONMENT_2026-10-16.md, REPAIR_TREES.md and ENVIRONMENT_ROUTE.md for scope,
+rejected versions, reproduction and limitations. Audio was validated first in the coordinated
+chat; held-item animation is separate ongoing owner-directed work.
 
 ## Quaternius metal-hatchet pilot and smaller FPS framing — 16 October 2026
 

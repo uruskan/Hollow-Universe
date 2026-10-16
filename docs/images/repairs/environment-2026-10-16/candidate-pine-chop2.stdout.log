@@ -1,0 +1,44 @@
+Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+Vulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER
+
+Hollow Universe 1.0.0+7affa1714d833feb6773aeb5af304103cd277c06
+Galaxy ready: 99142 catalogue stars, loaded in 670 ms.
+[server] Hollow.Server 1.0.0+7affa1714d833feb6773aeb5af304103cd277c06
+[server] 76 beach points on the world: players arrive and respawn at the landing site
+[server] admins: EnvironmentChop
+[server] loaded 0 things and 0 changed natural objects
+[server] loaded the building: 0 pieces, 0 doors, 0 claim devices (0 left out); 0.0 h of upkeep and decay caught up, 0 pieces stand
+[server] loaded 0 teams and 0 changed world props
+[server] loaded 0 sleepers
+[server] world props: 574 spots (31 coast, 41 forest-edge and 19 open clusters), 574 standing, in 1736 ms
+[server] EnvironmentChop's game: zone on body 8000000000000000/10300000, radius 1200 m, 1.00 g, landing at 40.6843°, 105.3861°, walking-scale ground, port 27047, database D:\GameDev\Projects\HollowUniverseABTestB\.artifacts\environment-pass\candidate-pine-chop2.db, data BDA5596A98F3DEEB
+[server] Ready. Type help for commands.
+[client] connecting to 127.0.0.1:27047
+[client] connected; joining
+[server] EnvironmentChop joined from 127.0.0.1:59253 as #02E6A663A0004000 (new) at (-237.8, 785.0, -882.3) (admin)
+[client] joined EnvironmentChop's game as #02E6A663A0004000 on body 8000000000000000/10300000, radius 1200 m, 1.00 g, landing at 40.6843°, 105.3861°, walking-scale ground
+[ground] 16 layers in arrays in 3338 ms
+[characters] Male: loaded 41 meshes, 43 clips in 130 ms
+[characters] Female: loaded 41 meshes, 43 clips in 97 ms
+[animals] first animal drawn: deer
+[cover] 2809/2809 authored plants; LOD 143/971/1695; 34 draws; 1089122 submitted triangles; batch 2.6 ms
+[client] clock moved by 103 ticks (inputs reached the server -100 ticks early)
+[server] Gave EnvironmentChop 1 Stone Axe.
+[server] Gave EnvironmentChop 1 Stone Pickaxe.
+[server] Gave EnvironmentChop 3 Bandage.
+[server] Gave EnvironmentChop 600 Wood.
+[server] Gave EnvironmentChop 250 Stone.
+[server] Gave EnvironmentChop 40 Plant fibre.
+[server] Gave EnvironmentChop 1 Woven shirt.
+[server] Gave EnvironmentChop 1 Woven trousers.
+[server] Gave EnvironmentChop 1 Campfire.
+[server] teleported EnvironmentChop to 40.6754° N, 105.4017° E (-242.6, 784.9, -880.5)
+[server] Teleported EnvironmentChop to 40.6754° N, 105.4017° E.
+[tour] saved D:\GameDev\Projects\HollowUniverseABTestB\.artifacts\environment-pass\candidate-pine-chop2\chop-x.jpg
+[tour] saved D:\GameDev\Projects\HollowUniverseABTestB\.artifacts\environment-pass\candidate-pine-chop2\chop-hit.jpg
+[tour] chop: wood a hit 17(X1) 10(X2) 12(X3) 12(X4) 13(X5) 15(X6) 15(X7) 16(X8); depleted=True; final-hit wood 125
+[tour] saved D:\GameDev\Projects\HollowUniverseABTestB\.artifacts\environment-pass\candidate-pine-chop2\chop-falling.jpg
+[tour] saved D:\GameDev\Projects\HollowUniverseABTestB\.artifacts\environment-pass\candidate-pine-chop2\chop-landed.jpg
+[tour] saved D:\GameDev\Projects\HollowUniverseABTestB\.artifacts\environment-pass\candidate-pine-chop2\chopped.jpg
+[tour] done
+[client] disconnected (DisconnectPeerCalled)

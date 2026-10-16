@@ -13,11 +13,24 @@ public sealed class CliffGeometry
     public static IReadOnlyList<CliffGeometry> All => Loaded.Value;
     public string Key { get; }
     public double Height { get; }
+    public double Width { get; }
+    public double Depth { get; }
     internal Vector3D[] Positions { get; }
     internal int[] Indices { get; }
 
     private CliffGeometry(string key, double height, Vector3D[] positions, int[] indices)
-        => (Key, Height, Positions, Indices) = (key, height, positions, indices);
+    {
+        (Key, Height, Positions, Indices) = (key, height, positions, indices);
+        double minX = double.PositiveInfinity, maxX = double.NegativeInfinity;
+        double minZ = double.PositiveInfinity, maxZ = double.NegativeInfinity;
+        foreach (Vector3D p in positions)
+        {
+            minX = Math.Min(minX, p.X); maxX = Math.Max(maxX, p.X);
+            minZ = Math.Min(minZ, p.Z); maxZ = Math.Max(maxZ, p.Z);
+        }
+        Width = maxX - minX;
+        Depth = maxZ - minZ;
+    }
 
     private static CliffGeometry[] Read()
     {

@@ -420,7 +420,8 @@ public partial class SurfaceView : Node3D
             HollowUniverse.Settings.GraphicsSettings.ApplyTo(environment, values, FogLook());
         }
         HollowUniverse.Settings.GraphicsSettings.ApplyTo(_sunLight, values);
-        _moonLight.ShadowEnabled = values.Shadows > 0;
+        HollowUniverse.Settings.GraphicsSettings.ApplyTo(_moonLight,
+            values with { ShadowDistance = Math.Min(values.ShadowDistance, 300) });
         if (_grass != null && _grass.BuiltWith != (values.GrassDistance, values.GrassDensity))
         {
             _grass.QueueFree();

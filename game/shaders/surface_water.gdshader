@@ -24,7 +24,6 @@ uniform float seam_band = 4.0;                       // metres either side of a 
 varying vec3 v_world;
 varying float v_floor;
 varying float v_inland; // 0 the sea, 1 a lake's or a stream's water (TileMeshData.WaterDepth.y)
-varying float v_cloud;
 varying vec2 v_face;
 
 // Swell: a few Gerstner waves, travelling with the wind, only near the camera: x along the face's u, y up, z along v.
@@ -153,7 +152,6 @@ void fragment() {
 	hu_aerial(v_world, CAMERA_POSITION_WORLD, 8, dummy, fog);
 	vec3 clear_floor = max(floor_colour - fog.rgb * fog.a, vec3(0.0)) / max(1.0 - fog.a, 0.05);
 
-	v_cloud = hu_cloud_shadow(v_world);
 	vec3 through = exp(-absorption * path);
 	float depth_mix = 1.0 - dot(through, vec3(1.0 / 3.0));
 	// The water body is lit by the same sun, moon and ambient light as the ground. The old emission-only body
@@ -191,7 +189,7 @@ void fragment() {
 
 void light() {
 	float ndl = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
-	float cloud = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
+	float cloud = LIGHT_IS_DIRECTIONAL ? hu_cloud_shadow(v_world, normalize((INV_VIEW_MATRIX * vec4(LIGHT, 0.0)).xyz)) : 1.0;
 	DIFFUSE_LIGHT += LIGHT_COLOR * ATTENUATION * ndl * cloud / HU_PI;
 	vec3 hv = normalize(VIEW + LIGHT);
 	float ndh = clamp(dot(NORMAL, hv), 0.0, 1.0);

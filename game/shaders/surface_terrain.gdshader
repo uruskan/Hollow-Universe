@@ -43,7 +43,6 @@ varying vec4 v_m2;
 varying vec4 v_m3;
 varying vec4 v_climate;
 varying float v_height;
-varying float v_cloud;
 varying float v_reflection_weight;
 varying vec2 v_face;
 
@@ -203,11 +202,13 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 			c = mix(litter, moss_colour, moss * 0.85);
 		}
 		if (i == 0 || i == 10) {
-			// The grass layers take the blades' colour (the wet one a little): their textures give the detail.
+			// Retain nearby soil/straw colour variation with a partial blade tint, avoiding both a
+			// uniform green floor and bare brown meadow. Reach the old match as base grass thins out.
 			float lum = dot(c, vec3(0.2126, 0.7152, 0.0722)) / grass_layer_luminance;
 			lum = mix(lum, 1.0, smoothstep(150.0, 900.0, dist) * 0.55);
 			vec3 blades = clamp(lum, 0.4, 1.8) * grass_colour;
-			c = i == 0 ? blades : mix(c, blades, 0.45);
+			float blade_match = mix(0.45, 1.0, smoothstep(22.0, 42.0, dist));
+			c = mix(c, blades, blade_match * (i == 0 ? 1.0 : 0.45));
 		}
 		colours[i] = c;
 		normals[i] = vec2((tn.r * 2.0 - 1.0) * normal_sign.x * layer_flip[i].x, (tn.g * 2.0 - 1.0) * normal_sign.y * layer_flip[i].y);
@@ -354,7 +355,7 @@ void fragment() {
 	hu_aerial(v_world, CAMERA_POSITION_WORLD, 8, a, fog);
 	ALBEDO = a;
 	FOG = fog;
-	v_cloud = hu_cloud_shadow(v_world);
+
 	if (debug_view == 1) {
 		ALBEDO = v_m0.rgb;
 		FOG = vec4(0.0);
@@ -386,7 +387,7 @@ void light() {
 		}
 	} else {
 	float ndl = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
-	float cloud = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
+	float cloud = LIGHT_IS_DIRECTIONAL ? hu_cloud_shadow(v_world, normalize((INV_VIEW_MATRIX * vec4(LIGHT, 0.0)).xyz)) : 1.0;
 	DIFFUSE_LIGHT += LIGHT_COLOR * ATTENUATION * ndl * cloud / HU_PI;
 	vec3 h = normalize(VIEW + LIGHT);
 	float ndh = clamp(dot(NORMAL, h), 0.0, 1.0);

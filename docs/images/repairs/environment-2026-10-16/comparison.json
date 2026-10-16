@@ -1,0 +1,1444 @@
+{
+  "pairs": [
+    {
+      "pair": "High / day",
+      "baselineName": "baseline-route-high2",
+      "candidateName": "candidate-route-high2",
+      "status": "available",
+      "baseline": {
+        "report": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\docs\\images\\repairs\\environment-2026-10-16\\baseline-route-high2\\environment-route.json",
+        "technicalChecksPassed": true,
+        "failure": null,
+        "elapsedSeconds": 162.69685199999998,
+        "version": "1.0.0+bb3b57b8017e8093f17a5c46b022dfbdb491fe21",
+        "runtimeModuleVersionId": "941987cd-d4a3-4f02-baa7-be25640a83a8",
+        "runtimeHash": null,
+        "launchBinarySha256": "C72D6DDA8DE621E1B0175D5CB849541937DEFB20FD0D527DDE588A64BC622F0B",
+        "launchUtc": "2026-10-16T08:40:07.5740620Z",
+        "mode": "connected-walk",
+        "graphics": {
+          "Preset": 2,
+          "AntiAliasing": 3,
+          "RenderScale": 1,
+          "Sharpen": true,
+          "SharpenStrength": 0.25,
+          "Glow": true,
+          "GlowStrength": 1,
+          "Ssao": true,
+          "Ssil": false,
+          "Sdfgi": false,
+          "Reflections": false,
+          "Fog": false,
+          "EffectQuality": 1,
+          "Shadows": 2,
+          "ShadowDistance": 1600,
+          "TerrainDetail": 1,
+          "PlantDistance": 1,
+          "GrassDensity": 1,
+          "GrassDistance": 1,
+          "ModelDetail": 1,
+          "Anisotropy": 2,
+          "WindowMode": 0,
+          "VSync": 0,
+          "FrameCap": 0,
+          "FieldOfView": 90,
+          "InterfaceScale": 1
+        },
+        "displayVsync": "Disabled",
+        "frameCap": 0,
+        "requestedHour": "10",
+        "requestedClouds": "0.25",
+        "requestedProfileSeconds": "20",
+        "readyCheckpoints": 6,
+        "checkpoints": 6,
+        "groundedCheckpoints": 6,
+        "trajectorySamples": 254,
+        "sampledGrounded": 254,
+        "sampledOtherFrames": 0,
+        "sampledCheats": [
+          "None"
+        ],
+        "spawnConnectorMetres": 4.662933384973981,
+        "vramTelemetry": null
+      },
+      "candidate": {
+        "report": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\docs\\images\\repairs\\environment-2026-10-16\\candidate-route-high2\\environment-route.json",
+        "technicalChecksPassed": true,
+        "failure": null,
+        "elapsedSeconds": 168.33600800000002,
+        "version": "1.0.0+58c9bb92c5749f023429d1c664ae9ab3244a28db",
+        "runtimeModuleVersionId": "8440a614-9c73-4eee-8c2a-fbadd1cdff33",
+        "runtimeHash": null,
+        "launchBinarySha256": "B13D492BA961BC1CD8B3E86FAE7F7E3B5656B5E08F698ECB23B6F639EC33B0BB",
+        "launchUtc": "2026-10-16T09:30:11.9647702Z",
+        "mode": "connected-walk",
+        "graphics": {
+          "Preset": 2,
+          "AntiAliasing": 3,
+          "RenderScale": 1,
+          "Sharpen": true,
+          "SharpenStrength": 0.25,
+          "Glow": true,
+          "GlowStrength": 1,
+          "Ssao": true,
+          "Ssil": false,
+          "Sdfgi": false,
+          "Reflections": false,
+          "Fog": false,
+          "EffectQuality": 1,
+          "Shadows": 2,
+          "ShadowDistance": 1600,
+          "TerrainDetail": 1,
+          "PlantDistance": 1,
+          "GrassDensity": 1,
+          "GrassDistance": 1,
+          "ModelDetail": 1,
+          "Anisotropy": 2,
+          "WindowMode": 0,
+          "VSync": 0,
+          "FrameCap": 0,
+          "FieldOfView": 90,
+          "InterfaceScale": 1
+        },
+        "displayVsync": "Disabled",
+        "frameCap": 0,
+        "requestedHour": "10",
+        "requestedClouds": "0.25",
+        "requestedProfileSeconds": "20",
+        "readyCheckpoints": 6,
+        "checkpoints": 6,
+        "groundedCheckpoints": 6,
+        "trajectorySamples": 254,
+        "sampledGrounded": 253,
+        "sampledOtherFrames": 0,
+        "sampledCheats": [
+          "None"
+        ],
+        "spawnConnectorMetres": 4.662933384973981,
+        "vramTelemetry": null
+      },
+      "graphicsDifferences": {},
+      "samePlannedRoute": true,
+      "elapsedDeltaSeconds": 5.6391560000000425,
+      "runSettingDifferences": {},
+      "checkpointDifferences": [
+        {
+          "label": "00-beach",
+          "matched": true,
+          "playerOffsetMetres": 0.0,
+          "cameraOffsetMetres": 0.0,
+          "forwardAngleDegrees": 0.0010167422558087298,
+          "upAngleDegrees": 0.0010091395025958695,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 9.99924720248682,
+            "SunElevation": 58.24816,
+            "MoonElevation": -67.311844,
+            "MoonPhase": 0.95207775,
+            "Exposure": 1.9948405,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.963502e-06,
+              6.5105382e-06,
+              5.7978814e-06
+            ],
+            "light": "sunlight (0.99999994, 0.93133616, 0.8272398, 1) x 0.950"
+          },
+          "candidateLighting": {
+            "LocalHours": 9.99924720248682,
+            "SunElevation": 58.24816,
+            "MoonElevation": -67.311844,
+            "MoonPhase": 0.95207775,
+            "Exposure": 1.9948405,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.963502e-06,
+              6.5105382e-06,
+              5.7978814e-06
+            ],
+            "light": "sunlight (0.99999994, 0.93133616, 0.8272398, 1) x 0.950"
+          },
+          "lightingDelta": {
+            "LocalHours": 0.0,
+            "SunElevation": 0.0,
+            "MoonElevation": 0.0,
+            "MoonPhase": 0.0,
+            "Exposure": 0.0
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        },
+        {
+          "label": "01-woodland",
+          "matched": true,
+          "playerOffsetMetres": 0.0001360147050761976,
+          "cameraOffsetMetres": 0.00016401219466344118,
+          "forwardAngleDegrees": 9.699259425426107e-05,
+          "upAngleDegrees": 7.602901059160523e-05,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 9.956540396232404,
+            "SunElevation": 58.246254,
+            "MoonElevation": -68.15924,
+            "MoonPhase": 0.95207775,
+            "Exposure": 1.9947914,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.963501e-06,
+              6.510538e-06,
+              5.797881e-06
+            ],
+            "light": "sunlight (0.99999994, 0.9313481, 0.827278, 1) x 0.950"
+          },
+          "candidateLighting": {
+            "LocalHours": 9.956539842926857,
+            "SunElevation": 58.246246,
+            "MoonElevation": -68.15923,
+            "MoonPhase": 0.95207775,
+            "Exposure": 1.9947914,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.963501e-06,
+              6.510538e-06,
+              5.797881e-06
+            ],
+            "light": "sunlight (0.99999994, 0.9313481, 0.82727796, 1) x 0.950"
+          },
+          "lightingDelta": {
+            "LocalHours": -5.533055471573789e-07,
+            "SunElevation": -8.000000001118224e-06,
+            "MoonElevation": 1.0000000003174137e-05,
+            "MoonPhase": 0.0,
+            "Exposure": 0.0
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        },
+        {
+          "label": "02-clearing",
+          "matched": true,
+          "playerOffsetMetres": 0.02995817918366435,
+          "cameraOffsetMetres": 0.029996859835663803,
+          "forwardAngleDegrees": 0.037864865885229894,
+          "upAngleDegrees": 0.011288701422054782,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 9.378408922802036,
+            "SunElevation": 52.76488,
+            "MoonElevation": -67.917175,
+            "MoonPhase": 0.9520776,
+            "Exposure": 2.1033945,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9635e-06,
+              6.5105364e-06,
+              5.79788e-06
+            ],
+            "light": "sunlight (0.99999994, 0.92876583, 0.82127637, 1) x 0.946"
+          },
+          "candidateLighting": {
+            "LocalHours": 9.378528844304023,
+            "SunElevation": 52.76623,
+            "MoonElevation": -67.91788,
+            "MoonPhase": 0.9520776,
+            "Exposure": 2.1033642,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9635e-06,
+              6.5105364e-06,
+              5.79788e-06
+            ],
+            "light": "sunlight (0.99999994, 0.92876655, 0.82127815, 1) x 0.946"
+          },
+          "lightingDelta": {
+            "LocalHours": 0.0001199215019873634,
+            "SunElevation": 0.0013500000000021828,
+            "MoonElevation": -0.000704999999996403,
+            "MoonPhase": 0.0,
+            "Exposure": -3.0299999999705562e-05
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        },
+        {
+          "label": "03-water",
+          "matched": true,
+          "playerOffsetMetres": 0.07463726549119121,
+          "cameraOffsetMetres": 0.07466878397290963,
+          "forwardAngleDegrees": 0.11967447295350372,
+          "upAngleDegrees": 0.10197421943307322,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 9.450556908902389,
+            "SunElevation": 53.462948,
+            "MoonElevation": -67.96084,
+            "MoonPhase": 0.9520777,
+            "Exposure": 2.0879576,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9635003e-06,
+              6.510537e-06,
+              5.79788e-06
+            ],
+            "light": "sunlight (0.99999994, 0.9291361, 0.8221377, 1) x 0.947"
+          },
+          "candidateLighting": {
+            "LocalHours": 9.450357372236505,
+            "SunElevation": 53.461372,
+            "MoonElevation": -67.96183,
+            "MoonPhase": 0.9520777,
+            "Exposure": 2.0879917,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9635003e-06,
+              6.510537e-06,
+              5.79788e-06
+            ],
+            "light": "sunlight (0.99999994, 0.92913526, 0.8221359, 1) x 0.947"
+          },
+          "lightingDelta": {
+            "LocalHours": -0.00019953666588357066,
+            "SunElevation": -0.0015760000000000218,
+            "MoonElevation": -0.0009900000000016007,
+            "MoonPhase": 0.0,
+            "Exposure": 3.409999999970381e-05
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        },
+        {
+          "label": "04-cliff",
+          "matched": true,
+          "playerOffsetMetres": 0.04450494916299573,
+          "cameraOffsetMetres": 0.04458449169831774,
+          "forwardAngleDegrees": 0.033726390570369226,
+          "upAngleDegrees": 0.01659300725249767,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 9.5375803122628,
+            "SunElevation": 55.54671,
+            "MoonElevation": -72.49072,
+            "MoonPhase": 0.9520776,
+            "Exposure": 2.0446305,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.963499e-06,
+              6.5105355e-06,
+              5.797879e-06
+            ],
+            "light": "sunlight (0.99999994, 0.9301876, 0.8245983, 1) x 0.948"
+          },
+          "candidateLighting": {
+            "LocalHours": 9.537560625479124,
+            "SunElevation": 55.546124,
+            "MoonElevation": -72.489,
+            "MoonPhase": 0.9520776,
+            "Exposure": 2.0446417,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.963499e-06,
+              6.5105355e-06,
+              5.797879e-06
+            ],
+            "light": "sunlight (0.99999994, 0.93018734, 0.8245978, 1) x 0.948"
+          },
+          "lightingDelta": {
+            "LocalHours": -1.9686783677030917e-05,
+            "SunElevation": -0.0005859999999984211,
+            "MoonElevation": 0.0017199999999917281,
+            "MoonPhase": 0.0,
+            "Exposure": 1.1200000000322063e-05
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        },
+        {
+          "label": "05-monument",
+          "matched": true,
+          "playerOffsetMetres": 0.03271169974178662,
+          "cameraOffsetMetres": 0.03273640939392275,
+          "forwardAngleDegrees": 0.04600097877749363,
+          "upAngleDegrees": 0.001445502070943189,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 9.497789404719592,
+            "SunElevation": 54.7108,
+            "MoonElevation": -70.71791,
+            "MoonPhase": 0.9520776,
+            "Exposure": 2.0614727,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9634993e-06,
+              6.510536e-06,
+              5.7978796e-06
+            ],
+            "light": "sunlight (0.99999994, 0.92978364, 0.823657, 1) x 0.948"
+          },
+          "candidateLighting": {
+            "LocalHours": 9.49776032154812,
+            "SunElevation": 54.71078,
+            "MoonElevation": -70.718994,
+            "MoonPhase": 0.9520776,
+            "Exposure": 2.061473,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9634993e-06,
+              6.510536e-06,
+              5.7978796e-06
+            ],
+            "light": "sunlight (0.99999994, 0.92978364, 0.823657, 1) x 0.948"
+          },
+          "lightingDelta": {
+            "LocalHours": -2.9083171472876757e-05,
+            "SunElevation": -1.9999999999242846e-05,
+            "MoonElevation": -0.0010839999999916472,
+            "MoonPhase": 0.0,
+            "Exposure": 2.9999999995311555e-07
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        }
+      ],
+      "profileDifferences": [
+        {
+          "stage": "spawn-to-beach",
+          "baseline": {
+            "rawCount": 81,
+            "validCount": 81,
+            "invalidCount": 0,
+            "measuredSeconds": 1.2669449999999998,
+            "elapsedSeconds": 1.266964999999999,
+            "meanMs": 15.641296296296293,
+            "medianMs": 15.58199999999843,
+            "p95Ms": 16.78100000000171,
+            "p99Ms": 32.35999999999706,
+            "worstMs": 32.35999999999706,
+            "gpuMs": 14.650814845238203,
+            "renderCpuMs": 1.7516543257913468,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 70,
+            "validCount": 70,
+            "invalidCount": 0,
+            "measuredSeconds": 1.2507160000000042,
+            "elapsedSeconds": 1.2507370000000009,
+            "meanMs": 17.867371428571488,
+            "medianMs": 18.093999999997834,
+            "p95Ms": 19.218000000002178,
+            "p99Ms": 35.685000000000855,
+            "worstMs": 35.685000000000855,
+            "gpuMs": 16.401485742841448,
+            "renderCpuMs": 1.9705857283047261,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": -11,
+            "measuredSeconds": -0.016228999999995608,
+            "elapsedSeconds": -0.016227999999998133,
+            "medianMs": 2.5119999999994036,
+            "p95Ms": 2.4370000000004666,
+            "p99Ms": 3.325000000003797,
+            "worstMs": 3.325000000003797
+          }
+        },
+        {
+          "stage": "woodland",
+          "baseline": {
+            "rawCount": 542,
+            "validCount": 542,
+            "invalidCount": 0,
+            "measuredSeconds": 8.445433999999999,
+            "elapsedSeconds": 8.445449000000004,
+            "meanMs": 15.581981549815497,
+            "medianMs": 15.503999999999962,
+            "p95Ms": 16.728999999997995,
+            "p99Ms": 17.711999999995953,
+            "worstMs": 29.572000000001708,
+            "gpuMs": 15.096232474070193,
+            "renderCpuMs": 2.0875664227633486,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 478,
+            "validCount": 478,
+            "invalidCount": 0,
+            "measuredSeconds": 8.458558000000004,
+            "elapsedSeconds": 8.458571,
+            "meanMs": 17.695728033472808,
+            "medianMs": 17.679999999998586,
+            "p95Ms": 19.892999999996164,
+            "p99Ms": 20.807999999995275,
+            "worstMs": 34.22199999999975,
+            "gpuMs": 17.05736609782135,
+            "renderCpuMs": 2.148046026852341,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": -64,
+            "measuredSeconds": 0.013124000000004798,
+            "elapsedSeconds": 0.013121999999995637,
+            "medianMs": 2.1759999999986235,
+            "p95Ms": 3.1639999999981683,
+            "p99Ms": 3.0959999999993215,
+            "worstMs": 4.649999999998045
+          }
+        },
+        {
+          "stage": "clearing",
+          "baseline": {
+            "rawCount": 1291,
+            "validCount": 1291,
+            "invalidCount": 0,
+            "measuredSeconds": 19.993600999999998,
+            "elapsedSeconds": 59.33331,
+            "meanMs": 15.486910147172733,
+            "medianMs": 15.201000000004683,
+            "p95Ms": 17.693999999998766,
+            "p99Ms": 19.052999999999543,
+            "worstMs": 25.99100000000476,
+            "gpuMs": 14.922496520115551,
+            "renderCpuMs": 2.1240077477107207,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 1174,
+            "validCount": 1174,
+            "invalidCount": 0,
+            "measuredSeconds": 19.999271,
+            "elapsedSeconds": 59.380818,
+            "meanMs": 17.03515417376491,
+            "medianMs": 17.057999999998685,
+            "p95Ms": 18.735999999996977,
+            "p99Ms": 19.733999999999696,
+            "worstMs": 29.45299999999662,
+            "gpuMs": 16.448511919739705,
+            "renderCpuMs": 2.137833046318526,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": -117,
+            "measuredSeconds": 0.005670000000002062,
+            "elapsedSeconds": 0.04750800000000055,
+            "medianMs": 1.8569999999940023,
+            "p95Ms": 1.041999999998211,
+            "p99Ms": 0.6810000000001537,
+            "worstMs": 3.4619999999918605
+          }
+        },
+        {
+          "stage": "water",
+          "baseline": {
+            "rawCount": 488,
+            "validCount": 488,
+            "invalidCount": 0,
+            "measuredSeconds": 7.670493999999991,
+            "elapsedSeconds": 7.670503999999994,
+            "meanMs": 15.718225409836046,
+            "medianMs": 15.407000000010385,
+            "p95Ms": 17.385000000004425,
+            "p99Ms": 25.891999999998916,
+            "worstMs": 28.78299999999001,
+            "gpuMs": 15.196024566400247,
+            "renderCpuMs": 2.021116806260874,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 456,
+            "validCount": 456,
+            "invalidCount": 0,
+            "measuredSeconds": 7.641423000000003,
+            "elapsedSeconds": 7.641434000000004,
+            "meanMs": 16.757506578947375,
+            "medianMs": 16.77800000000218,
+            "p95Ms": 18.656999999990376,
+            "p99Ms": 20.1720000000023,
+            "worstMs": 27.289999999993597,
+            "gpuMs": 16.215717114900286,
+            "renderCpuMs": 2.09035745557358,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": -32,
+            "measuredSeconds": -0.029070999999987635,
+            "elapsedSeconds": -0.02906999999999016,
+            "medianMs": 1.3709999999917954,
+            "p95Ms": 1.271999999985951,
+            "p99Ms": -5.719999999996617,
+            "worstMs": -1.4929999999964139
+          }
+        },
+        {
+          "stage": "cliff",
+          "baseline": {
+            "rawCount": 1346,
+            "validCount": 1346,
+            "invalidCount": 0,
+            "measuredSeconds": 19.989779,
+            "elapsedSeconds": 38.308588000000015,
+            "meanMs": 14.851247399702823,
+            "medianMs": 14.718999999999482,
+            "p95Ms": 16.584000000008814,
+            "p99Ms": 17.4119999999931,
+            "worstMs": 24.883000000002653,
+            "gpuMs": 14.298058677747026,
+            "renderCpuMs": 1.894507426934293,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 1273,
+            "validCount": 1273,
+            "invalidCount": 0,
+            "measuredSeconds": 19.99311399999999,
+            "elapsedSeconds": 38.28758500000001,
+            "meanMs": 15.705509819324423,
+            "medianMs": 15.649999999993724,
+            "p95Ms": 17.575999999991154,
+            "p99Ms": 18.406999999996287,
+            "worstMs": 28.596000000007393,
+            "gpuMs": 15.12300628578204,
+            "renderCpuMs": 1.9807446988099047,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": -73,
+            "measuredSeconds": 0.0033349999999927604,
+            "elapsedSeconds": -0.021003000000007432,
+            "medianMs": 0.930999999994242,
+            "p95Ms": 0.9919999999823403,
+            "p99Ms": 0.9950000000031878,
+            "worstMs": 3.7130000000047403
+          }
+        },
+        {
+          "stage": "monument",
+          "baseline": {
+            "rawCount": 1047,
+            "validCount": 1047,
+            "invalidCount": 0,
+            "measuredSeconds": 14.896193000000011,
+            "elapsedSeconds": 14.896205000000009,
+            "meanMs": 14.227500477554928,
+            "medianMs": 14.248000000009142,
+            "p95Ms": 16.1070000000052,
+            "p99Ms": 17.670999999978676,
+            "worstMs": 25.035000000002583,
+            "gpuMs": 13.719199605065521,
+            "renderCpuMs": 1.8412043931217785,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 979,
+            "validCount": 979,
+            "invalidCount": 0,
+            "measuredSeconds": 14.894672000000012,
+            "elapsedSeconds": 14.894681999999989,
+            "meanMs": 15.214169560776316,
+            "medianMs": 15.192000000013195,
+            "p95Ms": 16.953000000000884,
+            "p99Ms": 17.81200000002059,
+            "worstMs": 24.95100000001571,
+            "gpuMs": 14.649496431126657,
+            "renderCpuMs": 1.9103636366100867,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": -68,
+            "measuredSeconds": -0.0015209999999985513,
+            "elapsedSeconds": -0.0015230000000201471,
+            "medianMs": 0.9440000000040527,
+            "p95Ms": 0.8459999999956835,
+            "p99Ms": 0.14100000004191315,
+            "worstMs": -0.08399999998687235
+          }
+        }
+      ]
+    },
+    {
+      "pair": "Maximum / night",
+      "baselineName": "baseline-route-max-night",
+      "candidateName": "candidate-route-max-night",
+      "status": "available",
+      "baseline": {
+        "report": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\docs\\images\\repairs\\environment-2026-10-16\\baseline-route-max-night\\environment-route.json",
+        "technicalChecksPassed": true,
+        "failure": null,
+        "elapsedSeconds": 164.490243,
+        "version": "1.0.0+bb3b57b8017e8093f17a5c46b022dfbdb491fe21",
+        "runtimeModuleVersionId": "941987cd-d4a3-4f02-baa7-be25640a83a8",
+        "runtimeHash": null,
+        "launchBinarySha256": "C72D6DDA8DE621E1B0175D5CB849541937DEFB20FD0D527DDE588A64BC622F0B",
+        "launchUtc": "2026-10-16T08:45:38.4328715Z",
+        "mode": "connected-walk",
+        "graphics": {
+          "Preset": 4,
+          "AntiAliasing": 4,
+          "RenderScale": 1,
+          "Sharpen": true,
+          "SharpenStrength": 0.35,
+          "Glow": true,
+          "GlowStrength": 1,
+          "Ssao": true,
+          "Ssil": true,
+          "Sdfgi": true,
+          "Reflections": true,
+          "Fog": true,
+          "EffectQuality": 2,
+          "Shadows": 4,
+          "ShadowDistance": 2000,
+          "TerrainDetail": 1.35,
+          "PlantDistance": 1.3,
+          "GrassDensity": 1,
+          "GrassDistance": 1.4,
+          "ModelDetail": 1.5,
+          "Anisotropy": 4,
+          "WindowMode": 0,
+          "VSync": 0,
+          "FrameCap": 0,
+          "FieldOfView": 90,
+          "InterfaceScale": 1
+        },
+        "displayVsync": "Disabled",
+        "frameCap": 0,
+        "requestedHour": "0",
+        "requestedClouds": "0.25",
+        "requestedProfileSeconds": "20",
+        "readyCheckpoints": 6,
+        "checkpoints": 6,
+        "groundedCheckpoints": 6,
+        "trajectorySamples": 251,
+        "sampledGrounded": 250,
+        "sampledOtherFrames": 0,
+        "sampledCheats": [
+          "None"
+        ],
+        "spawnConnectorMetres": 4.6629295329267615,
+        "vramTelemetry": null
+      },
+      "candidate": {
+        "report": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\docs\\images\\repairs\\environment-2026-10-16\\candidate-route-max-night\\environment-route.json",
+        "technicalChecksPassed": true,
+        "failure": null,
+        "elapsedSeconds": 167.68456300000003,
+        "version": "1.0.0+58c9bb92c5749f023429d1c664ae9ab3244a28db",
+        "runtimeModuleVersionId": "8440a614-9c73-4eee-8c2a-fbadd1cdff33",
+        "runtimeHash": null,
+        "launchBinarySha256": "B13D492BA961BC1CD8B3E86FAE7F7E3B5656B5E08F698ECB23B6F639EC33B0BB",
+        "launchUtc": "2026-10-16T09:36:57.0773437Z",
+        "mode": "connected-walk",
+        "graphics": {
+          "Preset": 4,
+          "AntiAliasing": 4,
+          "RenderScale": 1,
+          "Sharpen": true,
+          "SharpenStrength": 0.35,
+          "Glow": true,
+          "GlowStrength": 1,
+          "Ssao": true,
+          "Ssil": true,
+          "Sdfgi": true,
+          "Reflections": true,
+          "Fog": true,
+          "EffectQuality": 2,
+          "Shadows": 4,
+          "ShadowDistance": 2000,
+          "TerrainDetail": 1.35,
+          "PlantDistance": 1.3,
+          "GrassDensity": 1,
+          "GrassDistance": 1.4,
+          "ModelDetail": 1.5,
+          "Anisotropy": 4,
+          "WindowMode": 0,
+          "VSync": 0,
+          "FrameCap": 0,
+          "FieldOfView": 90,
+          "InterfaceScale": 1
+        },
+        "displayVsync": "Disabled",
+        "frameCap": 0,
+        "requestedHour": "0",
+        "requestedClouds": "0.25",
+        "requestedProfileSeconds": "20",
+        "readyCheckpoints": 6,
+        "checkpoints": 6,
+        "groundedCheckpoints": 6,
+        "trajectorySamples": 251,
+        "sampledGrounded": 250,
+        "sampledOtherFrames": 0,
+        "sampledCheats": [
+          "None"
+        ],
+        "spawnConnectorMetres": 4.662933384973981,
+        "vramTelemetry": null
+      },
+      "graphicsDifferences": {},
+      "samePlannedRoute": true,
+      "elapsedDeltaSeconds": 3.194320000000033,
+      "runSettingDifferences": {},
+      "checkpointDifferences": [
+        {
+          "label": "00-beach",
+          "matched": true,
+          "playerOffsetMetres": 2.0000000006348273e-05,
+          "cameraOffsetMetres": 4.472135956419096e-05,
+          "forwardAngleDegrees": 6.14717025301177e-05,
+          "upAngleDegrees": 1.1643920115677386e-05,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 23.99924720551362,
+            "SunElevation": -26.118088,
+            "MoonElevation": 24.315985,
+            "MoonPhase": 0.9520776,
+            "Exposure": 8827.441,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9635553e-06,
+              6.5105883e-06,
+              5.797926e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "candidateLighting": {
+            "LocalHours": 23.9992472678223,
+            "SunElevation": -26.11809,
+            "MoonElevation": 24.315987,
+            "MoonPhase": 0.9520776,
+            "Exposure": 8827.441,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9635553e-06,
+              6.5105883e-06,
+              5.797926e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "lightingDelta": {
+            "LocalHours": 6.230868265788558e-08,
+            "SunElevation": -1.999999998503199e-06,
+            "MoonElevation": 1.999999998503199e-06,
+            "MoonPhase": 0.0,
+            "Exposure": 0.0
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        },
+        {
+          "label": "01-woodland",
+          "matched": true,
+          "playerOffsetMetres": 0.002229394536677382,
+          "cameraOffsetMetres": 0.002179013538308883,
+          "forwardAngleDegrees": 0.0007952772050045989,
+          "upAngleDegrees": 0.00044184415345189127,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 23.95653982017874,
+            "SunElevation": -27.044178,
+            "MoonElevation": 25.362598,
+            "MoonPhase": 0.9520776,
+            "Exposure": 8749.232,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.963556e-06,
+              6.5105887e-06,
+              5.7979264e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "candidateLighting": {
+            "LocalHours": 23.95654608052783,
+            "SunElevation": -27.044102,
+            "MoonElevation": 25.362497,
+            "MoonPhase": 0.9520776,
+            "Exposure": 8749.24,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.963556e-06,
+              6.5105887e-06,
+              5.7979264e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "lightingDelta": {
+            "LocalHours": 6.260349088904604e-06,
+            "SunElevation": 7.599999999996498e-05,
+            "MoonElevation": -0.00010099999999724218,
+            "MoonPhase": 0.0,
+            "Exposure": 0.007999999999810825
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        },
+        {
+          "label": "02-clearing",
+          "matched": true,
+          "playerOffsetMetres": 0.0014942556675473892,
+          "cameraOffsetMetres": 0.0014908641789036883,
+          "forwardAngleDegrees": 0.0020454027213589253,
+          "upAngleDegrees": 0.002015326859791024,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 23.378409746516382,
+            "SunElevation": -28.741394,
+            "MoonElevation": 30.151834,
+            "MoonPhase": 0.9520777,
+            "Exposure": 8467.381,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9635603e-06,
+              6.510593e-06,
+              5.79793e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "candidateLighting": {
+            "LocalHours": 23.378415688369856,
+            "SunElevation": -28.741411,
+            "MoonElevation": 30.151815,
+            "MoonPhase": 0.9520777,
+            "Exposure": 8467.382,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9635603e-06,
+              6.510593e-06,
+              5.79793e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "lightingDelta": {
+            "LocalHours": 5.941853473245828e-06,
+            "SunElevation": -1.699999999971169e-05,
+            "MoonElevation": -1.9000000001767603e-05,
+            "MoonPhase": 0.0,
+            "Exposure": 0.0010000000002037268
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        },
+        {
+          "label": "03-water",
+          "matched": true,
+          "playerOffsetMetres": 0.0008880315309729199,
+          "cameraOffsetMetres": 0.0008553361912738847,
+          "forwardAngleDegrees": 0.0015200930879819329,
+          "upAngleDegrees": 0.0012549345800672745,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 23.450558278926216,
+            "SunElevation": -28.424234,
+            "MoonElevation": 29.433105,
+            "MoonPhase": 0.9520777,
+            "Exposure": 8503.183,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.96356e-06,
+              6.5105924e-06,
+              5.7979296e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "candidateLighting": {
+            "LocalHours": 23.450561292744993,
+            "SunElevation": -28.42422,
+            "MoonElevation": 29.433075,
+            "MoonPhase": 0.9520777,
+            "Exposure": 8503.184,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.96356e-06,
+              6.5105924e-06,
+              5.7979296e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "lightingDelta": {
+            "LocalHours": 3.013818776764765e-06,
+            "SunElevation": 1.4000000000180535e-05,
+            "MoonElevation": -3.0000000002416982e-05,
+            "MoonPhase": 0.0,
+            "Exposure": 0.0009999999983847374
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        },
+        {
+          "label": "04-cliff",
+          "matched": true,
+          "playerOffsetMetres": 0.0002334523505886718,
+          "cameraOffsetMetres": 0.00022383029288767725,
+          "forwardAngleDegrees": 0.000292470751941722,
+          "upAngleDegrees": 0.000284943037283559,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 23.53757921222454,
+            "SunElevation": -33.18644,
+            "MoonElevation": 33.38321,
+            "MoonPhase": 0.9520776,
+            "Exposure": 8327.807,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9635616e-06,
+              6.510594e-06,
+              5.7979314e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "candidateLighting": {
+            "LocalHours": 23.537579761879364,
+            "SunElevation": -33.18643,
+            "MoonElevation": 33.383198,
+            "MoonPhase": 0.9520776,
+            "Exposure": 8327.807,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.9635616e-06,
+              6.510594e-06,
+              5.7979314e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "lightingDelta": {
+            "LocalHours": 5.496548247663213e-07,
+            "SunElevation": 9.999999996068709e-06,
+            "MoonElevation": -1.1999999998124622e-05,
+            "MoonPhase": 0.0,
+            "Exposure": 0.0
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        },
+        {
+          "label": "05-monument",
+          "matched": true,
+          "playerOffsetMetres": 0.0674452726289938,
+          "cameraOffsetMetres": 0.06754805770712279,
+          "forwardAngleDegrees": 0.08797515030644966,
+          "upAngleDegrees": 0.0037016598777146166,
+          "fovDeltaDegrees": 0,
+          "sameResolution": true,
+          "baselineReady": true,
+          "candidateReady": true,
+          "baselineLighting": {
+            "LocalHours": 23.49776482390333,
+            "SunElevation": -31.349676,
+            "MoonElevation": 31.914368,
+            "MoonPhase": 0.9520776,
+            "Exposure": 8387.165,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.963561e-06,
+              6.5105937e-06,
+              5.797931e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "candidateLighting": {
+            "LocalHours": 23.497789839967556,
+            "SunElevation": -31.346598,
+            "MoonElevation": 31.911325,
+            "MoonPhase": 0.9520776,
+            "Exposure": 8387.293,
+            "sun": [
+              3.1979747,
+              2.989952,
+              2.6626658
+            ],
+            "moon": [
+              6.963561e-06,
+              6.5105937e-06,
+              5.797931e-06
+            ],
+            "light": "sunlight (0.99999994, 0.32195434, 0.005394786, 1) x 0.141"
+          },
+          "lightingDelta": {
+            "LocalHours": 2.501606422455893e-05,
+            "SunElevation": 0.003077999999998582,
+            "MoonElevation": -0.0030429999999981305,
+            "MoonPhase": 0.0,
+            "Exposure": 0.1279999999987922
+          },
+          "sunIlluminanceVectorDelta": 0.0,
+          "moonIlluminanceVectorDelta": 0.0
+        }
+      ],
+      "profileDifferences": [
+        {
+          "stage": "spawn-to-beach",
+          "baseline": {
+            "rawCount": 42,
+            "validCount": 42,
+            "invalidCount": 0,
+            "measuredSeconds": 1.256969000000005,
+            "elapsedSeconds": 1.2569909999999993,
+            "meanMs": 29.927833333333453,
+            "medianMs": 29.27400000000091,
+            "p95Ms": 33.17000000000547,
+            "p99Ms": 86.60400000000124,
+            "worstMs": 86.60400000000124,
+            "gpuMs": 27.046095348539808,
+            "renderCpuMs": 2.1776190419651207,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 35,
+            "validCount": 35,
+            "invalidCount": 0,
+            "measuredSeconds": 1.248818,
+            "elapsedSeconds": 1.2488480000000024,
+            "meanMs": 35.68051428571429,
+            "medianMs": 35.42799999999602,
+            "p95Ms": 38.69399999999956,
+            "p99Ms": 103.88000000000375,
+            "worstMs": 103.88000000000375,
+            "gpuMs": 31.21731436593192,
+            "renderCpuMs": 2.313857139478411,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": -7,
+            "measuredSeconds": -0.008151000000005126,
+            "elapsedSeconds": -0.008142999999996903,
+            "medianMs": 6.153999999995108,
+            "p95Ms": 5.523999999994089,
+            "p99Ms": 17.27600000000251,
+            "worstMs": 17.27600000000251
+          }
+        },
+        {
+          "stage": "woodland",
+          "baseline": {
+            "rawCount": 297,
+            "validCount": 297,
+            "invalidCount": 0,
+            "measuredSeconds": 8.426707999999998,
+            "elapsedSeconds": 8.426720999999993,
+            "meanMs": 28.372754208754206,
+            "medianMs": 28.04299999999671,
+            "p95Ms": 32.02200000000488,
+            "p99Ms": 34.28399999999954,
+            "worstMs": 39.816999999999325,
+            "gpuMs": 27.91560270649817,
+            "renderCpuMs": 2.134063969618545,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 232,
+            "validCount": 232,
+            "invalidCount": 0,
+            "measuredSeconds": 8.462096000000003,
+            "elapsedSeconds": 8.462111999999998,
+            "meanMs": 36.474551724137946,
+            "medianMs": 36.2000000000009,
+            "p95Ms": 40.61899999999952,
+            "p99Ms": 42.19799999999907,
+            "worstMs": 49.56800000000072,
+            "gpuMs": 35.34360352877913,
+            "renderCpuMs": 2.268043102239744,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": -65,
+            "measuredSeconds": 0.03538800000000464,
+            "elapsedSeconds": 0.03539100000000417,
+            "medianMs": 8.157000000004189,
+            "p95Ms": 8.596999999994637,
+            "p99Ms": 7.9139999999995325,
+            "worstMs": 9.751000000001397
+          }
+        },
+        {
+          "stage": "clearing",
+          "baseline": {
+            "rawCount": 715,
+            "validCount": 715,
+            "invalidCount": 0,
+            "measuredSeconds": 19.991265,
+            "elapsedSeconds": 59.333927,
+            "meanMs": 27.959811188811187,
+            "medianMs": 27.380000000000848,
+            "p95Ms": 32.86699999999598,
+            "p99Ms": 35.62000000000154,
+            "worstMs": 39.652000000003795,
+            "gpuMs": 27.420163636107546,
+            "renderCpuMs": 2.0357734252649635,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 572,
+            "validCount": 572,
+            "invalidCount": 0,
+            "measuredSeconds": 19.982419999999998,
+            "elapsedSeconds": 59.28850500000001,
+            "meanMs": 34.9343006993007,
+            "medianMs": 34.20000000000556,
+            "p95Ms": 39.547999999996364,
+            "p99Ms": 41.12900000000508,
+            "worstMs": 45.50100000000157,
+            "gpuMs": 33.6812711295548,
+            "renderCpuMs": 2.225589163054956,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": -143,
+            "measuredSeconds": -0.00884500000000088,
+            "elapsedSeconds": -0.045421999999994966,
+            "medianMs": 6.820000000004711,
+            "p95Ms": 6.681000000000381,
+            "p99Ms": 5.509000000003539,
+            "worstMs": 5.848999999997773
+          }
+        },
+        {
+          "stage": "water",
+          "baseline": {
+            "rawCount": 254,
+            "validCount": 254,
+            "invalidCount": 0,
+            "measuredSeconds": 7.673935,
+            "elapsedSeconds": 7.673947999999996,
+            "meanMs": 30.21234251968504,
+            "medianMs": 29.902999999990243,
+            "p95Ms": 35.96600000000194,
+            "p99Ms": 38.07299999999714,
+            "worstMs": 40.13700000000142,
+            "gpuMs": 29.669433053084244,
+            "renderCpuMs": 2.285814957329609,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 277,
+            "validCount": 277,
+            "invalidCount": 0,
+            "measuredSeconds": 7.684832,
+            "elapsedSeconds": 7.684860999999998,
+            "meanMs": 27.74307581227437,
+            "medianMs": 27.78700000000356,
+            "p95Ms": 31.120999999998844,
+            "p99Ms": 32.95599999999865,
+            "worstMs": 36.64100000000303,
+            "gpuMs": 27.40913354618885,
+            "renderCpuMs": 2.054974728264104,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": 23,
+            "measuredSeconds": 0.010896999999999935,
+            "elapsedSeconds": 0.010913000000002171,
+            "medianMs": -2.115999999986684,
+            "p95Ms": -4.845000000003097,
+            "p99Ms": -5.116999999998484,
+            "worstMs": -3.4959999999983893
+          }
+        },
+        {
+          "stage": "cliff",
+          "baseline": {
+            "rawCount": 685,
+            "validCount": 685,
+            "invalidCount": 0,
+            "measuredSeconds": 19.975161,
+            "elapsedSeconds": 38.41540400000001,
+            "meanMs": 29.16081897810219,
+            "medianMs": 29.2519999999854,
+            "p95Ms": 34.354000000007545,
+            "p99Ms": 42.24499999999409,
+            "worstMs": 69.29599999999425,
+            "gpuMs": 28.373642304691955,
+            "renderCpuMs": 2.218535765874821,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 733,
+            "validCount": 733,
+            "invalidCount": 0,
+            "measuredSeconds": 19.982654999999994,
+            "elapsedSeconds": 38.35764399999999,
+            "meanMs": 27.261466575716227,
+            "medianMs": 26.392000000001303,
+            "p95Ms": 32.64900000002058,
+            "p99Ms": 35.362000000020544,
+            "worstMs": 37.13499999999215,
+            "gpuMs": 26.776502034186016,
+            "renderCpuMs": 2.048480215762193,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": 48,
+            "measuredSeconds": 0.0074939999999941165,
+            "elapsedSeconds": -0.05776000000001602,
+            "medianMs": -2.8599999999840975,
+            "p95Ms": -1.704999999986967,
+            "p99Ms": -6.882999999973549,
+            "worstMs": -32.161000000002105
+          }
+        },
+        {
+          "stage": "monument",
+          "baseline": {
+            "rawCount": 604,
+            "validCount": 604,
+            "invalidCount": 0,
+            "measuredSeconds": 14.914220000000002,
+            "elapsedSeconds": 14.914228000000008,
+            "meanMs": 24.69241721854305,
+            "medianMs": 24.61599999998043,
+            "p95Ms": 27.463999999980615,
+            "p99Ms": 28.50100000000566,
+            "worstMs": 35.31300000000215,
+            "gpuMs": 24.213160565357335,
+            "renderCpuMs": 1.942279801889762,
+            "reportedStatisticsAgree": true
+          },
+          "candidate": {
+            "rawCount": 541,
+            "validCount": 541,
+            "invalidCount": 0,
+            "measuredSeconds": 14.917546000000018,
+            "elapsedSeconds": 14.917597,
+            "meanMs": 27.574022181146056,
+            "medianMs": 26.439000000010537,
+            "p95Ms": 32.65399999997953,
+            "p99Ms": 35.351000000019894,
+            "worstMs": 39.11199999998871,
+            "gpuMs": 27.028560024973647,
+            "renderCpuMs": 2.0383881664716825,
+            "reportedStatisticsAgree": true
+          },
+          "candidateMinusBaseline": {
+            "validCount": -63,
+            "measuredSeconds": 0.0033260000000154832,
+            "elapsedSeconds": 0.003368999999992184,
+            "medianMs": 1.823000000030106,
+            "p95Ms": 5.189999999998918,
+            "p99Ms": 6.850000000014234,
+            "worstMs": 3.798999999986563
+          }
+        }
+      ]
+    }
+  ]
+}

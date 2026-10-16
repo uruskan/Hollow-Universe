@@ -1,0 +1,86 @@
+{
+  "method": "Independent NumPy read of installed glTF/bin and original source GLB; no Blender/Godot.",
+  "installed_geometry_sha256": "5f5b345e593b03add4eadafbc60aa714718f5fd3fd449468753b4f0ca5bc1ac7",
+  "installed_gltf_sha256": "c4d4d7cb6d883fe6fc623e6571da42c70150c190c135559969e23344808538eb",
+  "manifest_files_verified": 8,
+  "protected_dependencies_verified": 20,
+  "lods": [
+    {
+      "lod": 0,
+      "triangles": 25776,
+      "immutable_stem": {
+        "positions_at_or_below_2_1m": 2498,
+        "position_max_difference_m": 0.0,
+        "all_stem_uvs_and_indices_identical": true
+      },
+      "stem_rays": {
+        "hits": 64,
+        "max_radius_error_m": 0.020601880949013163,
+        "min_normal_outward_dot": 0.7970341496589128,
+        "min_winding_outward_dot": 0.542122103896598
+      },
+      "branches": [
+        {
+          "material": "pine_bark_0",
+          "triangles": 14238,
+          "source_triangles": 14238,
+          "exact_original_position_uv_winding_subset": true,
+          "max_triangle_area_m2": 0.01262064278125763
+        },
+        {
+          "material": "pine_bark_1",
+          "triangles": 2306,
+          "source_triangles": 2306,
+          "exact_original_position_uv_winding_subset": true,
+          "max_triangle_area_m2": 0.007346688769757748
+        }
+      ],
+      "leaves": {
+        "complete_source_quads": 2210,
+        "triangles": 4420,
+        "exact_original_position_uv_winding_subset": true,
+        "partial_quads": 0
+      }
+    },
+    {
+      "lod": 1,
+      "triangles": 7521,
+      "immutable_stem": {
+        "positions_at_or_below_2_1m": 1305,
+        "position_max_difference_m": 0.0,
+        "all_stem_uvs_and_indices_identical": true
+      },
+      "stem_rays": {
+        "hits": 64,
+        "max_radius_error_m": 0.015291559724515735,
+        "min_normal_outward_dot": 0.9550349664270269,
+        "min_winding_outward_dot": 0.5071659138502577
+      },
+      "branches": [
+        {
+          "material": "pine_bark_0",
+          "triangles": 2180,
+          "source_triangles": 14238,
+          "exact_original_position_uv_winding_subset": true,
+          "max_triangle_area_m2": 0.01262064278125763
+        },
+        {
+          "material": "pine_bark_1",
+          "triangles": 450,
+          "source_triangles": 2306,
+          "exact_original_position_uv_winding_subset": true,
+          "max_triangle_area_m2": 0.007346688769757748
+        }
+      ],
+      "leaves": {
+        "complete_source_quads": 1193,
+        "triangles": 2386,
+        "exact_original_position_uv_winding_subset": true,
+        "partial_quads": 0
+      }
+    }
+  ],
+  "limits": [
+    "Visual silhouette and runtime performance are assessed by the root-controlled captures, not this CPU audit."
+  ]
+}

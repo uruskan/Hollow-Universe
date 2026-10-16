@@ -21,6 +21,7 @@ public sealed partial class ImpostorBaker : Node
         public ImageTexture Colour = null!;
         public ImageTexture Normal = null!;
         public int Rows;
+        public Vector2 NativeRows;
     }
 
     /// <summary>Bakes the atlases; assigns each tree variant its row.</summary>
@@ -64,23 +65,40 @@ public sealed partial class ImpostorBaker : Node
 
         Shader shader = GD.Load<Shader>("res://shaders/surface_impostor_bake.gdshader");
         var materials = new List<ShaderMaterial>();
-        ShaderMaterial Bake(ShaderMaterial source, int mode)
+        var bySource = new Dictionary<ShaderMaterial, ShaderMaterial>();
+        ShaderMaterial Bake(ShaderMaterial source)
         {
+            if (bySource.TryGetValue(source, out ShaderMaterial? cached)) return cached;
+            int mode = (int)source.GetShaderParameter("mode");
             var m = new ShaderMaterial { Shader = shader };
             m.SetShaderParameter("mode", mode);
             if (mode != 2)
             {
                 m.SetShaderParameter("albedo_texture", source.GetShaderParameter("albedo_texture"));
             }
+            if (source.HasMeta("native_tree"))
+            {
+                m.SetShaderParameter("albedo_factor", source.GetMeta("bake_albedo_factor"));
+                m.SetShaderParameter("alpha_cutoff", source.GetMeta("bake_alpha_cutoff"));
+                m.SetShaderParameter("vertex_colour", false);
+            }
             materials.Add(m);
+            bySource.Add(source, m);
             return m;
         }
-        ShaderMaterial leaves = Bake(library.Leaves, 0), bark = Bake(library.Bark, 1), birch = Bake(library.BirchBark, 1);
-        ShaderMaterial berries = Bake(library.Berries, 2);
+        int nativeStart = rows, nativeEnd = rows;
 
         for (int r = 0; r < rows; r++)
         {
             (FloraLibrary.Species species, FloraLibrary.Variant variant) = variants[r];
+            bool native = variant.Lod0.SurfaceGetMaterial(0).HasMeta("native_tree");
+            if (native)
+            {
+                nativeStart = Math.Min(nativeStart, r);
+                nativeEnd = r + 1;
+            }
+            else if (nativeStart < r)
+                throw new InvalidOperationException("Native tree atlas rows must be contiguous.");
             float k = Spacing / variant.Extent;
             for (int c = 0; c < Views; c++)
             {
@@ -92,15 +110,15 @@ public sealed partial class ImpostorBaker : Node
                 var mi = new MeshInstance3D { Mesh = variant.Lod0, Transform = new Transform3D(basis, origin) };
                 for (int s = 0; s < variant.Lod0.GetSurfaceCount(); s++)
                 {
-                    Material m = variant.Lod0.SurfaceGetMaterial(s);
-                    mi.SetSurfaceOverrideMaterial(s, m == library.Leaves ? leaves : m == library.Berries ? berries
-                        : m == library.BirchBark ? birch : bark);
+                    if (variant.Lod0.SurfaceGetMaterial(s) is not ShaderMaterial source)
+                        throw new InvalidOperationException("Tree surface has no bakeable material.");
+                    mi.SetSurfaceOverrideMaterial(s, Bake(source));
                 }
                 viewport.AddChild(mi);
             }
         }
 
-        var result = new Result { Rows = rows };
+        var result = new Result { Rows = rows, NativeRows = new Vector2(nativeStart, nativeEnd) };
         for (int pass = 0; pass < 2; pass++)
         {
             foreach (ShaderMaterial m in materials)

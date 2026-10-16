@@ -12,7 +12,7 @@ namespace HollowUniverse.Surface.Flora;
 /// boulders), several seeded variants each, two levels of detail per variant, and the shared materials. Which object
 /// stands where comes from the scatter; this only decides what it looks like.
 /// </summary>
-public sealed class FloraLibrary
+public sealed partial class FloraLibrary
 {
     /// <summary>Distances (metres) at which a species' levels hand over: mesh 0 to mesh 1, mesh 1 to impostor or nothing.</summary>
     public readonly struct Bands
@@ -162,12 +162,7 @@ public sealed class FloraLibrary
             FloraGeometry.Bush(new FloraGeometry.Shrub { Seed = s, R = 0.85f, H = 1.05f, Cards = 12, Size = 0.95f, Cell = FloraTextures.Berry }, lod),
             seedKind: ScatterKind.BerryBlue);
         Add(data, "fern", ScatterKind.Fern, 1.0f, new Bands(24, 75, impostor: false), false, "bark", 3, (s, lod) => FloraGeometry.Fern(s, lod));
-        Add(data, "rock", ScatterKind.Rock, 1.0f, new Bands(40, 200, impostor: false), false, "rock", 4, (s, lod) =>
-        {
-            var r = new Rng(Hash64.Of((ulong)s, 0x524F434B));
-            float R() => (float)r.NextDouble();
-            return FloraGeometry.Boulder(s, lod ? 1 : 3, 0.85f + 0.3f * R(), 0.55f + 0.3f * R(), 0.85f + 0.3f * R(), 0.22f + 0.1f * R());
-        });
+        // Ordinary rocks are authored scans loaded on the main thread, not procedural ellipsoids.
         return data;
     }
 
@@ -254,8 +249,12 @@ public sealed class FloraLibrary
         lib.Rock.SetShaderParameter("normal_array", groundNormal);
 
         var all = new List<Species>();
+        IReadOnlyList<Species> authoredTrees = LoadAuthoredTrees();
+        var authoredKinds = new HashSet<ScatterKind>();
+        foreach (Species tree in authoredTrees) authoredKinds.Add(tree.Kind);
         foreach (var s in data.Species)
         {
+            if (authoredKinds.Contains(s.Kind)) continue;
             var species = new Species { Name = s.Name, Kind = s.Kind, Scale = s.Scale, Bands = s.Bands, Tree = s.Tree };
             Material?[] materials = s.Bark switch
             {
@@ -270,6 +269,16 @@ public sealed class FloraLibrary
             all.Add(species);
             lib._byKind[s.Kind] = species;
         }
+        // Authored rows stay together after legacy species for the shared far
+        // atlas. Existing scatter, fall and refresh paths consume this library.
+        foreach (Species tree in authoredTrees)
+        {
+            all.Add(tree);
+            lib._byKind[tree.Kind] = tree;
+        }
+        Species rocks = LoadAuthoredRocks();
+        all.Add(rocks);
+        lib._byKind[ScatterKind.Rock] = rocks;
         lib.All = all;
         return lib;
     }

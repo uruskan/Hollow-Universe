@@ -1,25 +1,82 @@
 {
-  "license": "CC0-1.0",
-  "license_url": "https://polyhaven.com/license",
+  "method": "source PBR preservation and local-scan reuse from RustMVP; no Rust art or placements",
   "assets": [
     {
       "key": "coastal_cliff_04",
       "source": "D:\\GameDev\\Assets\\coastal_cliff_04_4k.gltf\\coastal_cliff_04_4k.gltf",
       "source_sha256": "3efdb7aea58441981d99351cda2af27b12b1d727595b3374babdf1e9c94ab978",
-      "source_url": "https://polyhaven.com/a/coastal_cliff_04",
+      "license": "CC0-1.0",
+      "inputs": [
+        {
+          "file": "D:\\GameDev\\Assets\\coastal_cliff_04_4k.gltf\\coastal_cliff_04_4k.gltf",
+          "sha256": "3efdb7aea58441981d99351cda2af27b12b1d727595b3374babdf1e9c94ab978"
+        },
+        {
+          "file": "D:\\GameDev\\Assets\\coastal_cliff_04_4k.gltf\\coastal_cliff_04.bin",
+          "sha256": "f7c3a18acc848552b91b0de931ba8439d5f2a8849bd0d4ac718878aa4a90abcf"
+        },
+        {
+          "file": "D:\\GameDev\\Assets\\coastal_cliff_04_4k.gltf\\textures\\coastal_cliff_04_nor_gl_4k.jpg",
+          "sha256": "3411428345224fda1c3ef7e37df357eb5f6e0aa3d53c3e3e14a435bc1b77b9f3"
+        },
+        {
+          "file": "D:\\GameDev\\Assets\\coastal_cliff_04_4k.gltf\\textures\\coastal_cliff_04_diff_4k.jpg",
+          "sha256": "d28647527aba03f67726bef5c1f317fdc7a1ba48a08382612d7bc7315f37fa47"
+        },
+        {
+          "file": "D:\\GameDev\\Assets\\coastal_cliff_04_4k.gltf\\textures\\coastal_cliff_04_arm_4k.jpg",
+          "sha256": "5710e5cfe931992b2b7aa0c947b8089e7afe84508ea217cfb2112addef6ce525"
+        }
+      ],
       "width": 22.0,
       "height": 2.723763,
       "collision_triangles": 700,
       "outputs": [
         {
-          "file": "game/assets/surface/cliffs/coastal_cliff_04_lod0.glb",
-          "sha256": "445f4c15fcee5aab5d9f049dd0342c1098c5d732c57eacd14f189fe5d6138c55",
-          "triangles": 12000
+          "file": "game/assets/surface/cliffs/coastal_cliff_04_lod0.gltf",
+          "sha256": "6fa7568996bd8902e91755f5b75341fbd8f63861451df5e31929209112ff3a33",
+          "triangles": 24000,
+          "dependencies": [
+            {
+              "file": "game/assets/surface/cliffs/coastal_cliff_04_lod0.bin",
+              "sha256": "8f536ae3b5886af310bdb24931635e3582b92ccdf4c777a17b99d40cf4bdba3f"
+            },
+            {
+              "file": "game/assets/surface/cliffs/coastal_cliff_04_nor_gl_4k.jpg",
+              "sha256": "3411428345224fda1c3ef7e37df357eb5f6e0aa3d53c3e3e14a435bc1b77b9f3"
+            },
+            {
+              "file": "game/assets/surface/cliffs/coastal_cliff_04_diff_4k.jpg",
+              "sha256": "d28647527aba03f67726bef5c1f317fdc7a1ba48a08382612d7bc7315f37fa47"
+            },
+            {
+              "file": "game/assets/surface/cliffs/coastal_cliff_04_arm_4k.jpg",
+              "sha256": "5710e5cfe931992b2b7aa0c947b8089e7afe84508ea217cfb2112addef6ce525"
+            }
+          ]
         },
         {
-          "file": "game/assets/surface/cliffs/coastal_cliff_04_lod1.glb",
-          "sha256": "75f3bc910bfa1e6193a24c9b2667a5fd80d7a63fa65fad49898a511a8d9fbe4f",
-          "triangles": 2500
+          "file": "game/assets/surface/cliffs/coastal_cliff_04_lod1.gltf",
+          "sha256": "30506e03ff1ba8631cb907c98d91d21562dcec31c8220e4c2f1b48db038ed76d",
+          "triangles": 3500,
+          "dependencies": [
+            {
+              "file": "game/assets/surface/cliffs/coastal_cliff_04_lod1.bin",
+              "sha256": "bb3c3c88bdc7ed90b289722c7323d30c43da485b56a5e65d0a086ed1cb7c958f"
+            },
+            {
+              "file": "game/assets/surface/cliffs/coastal_cliff_04_nor_gl_4k.jpg",
+              "sha256": "3411428345224fda1c3ef7e37df357eb5f6e0aa3d53c3e3e14a435bc1b77b9f3"
+            },
+            {
+              "file": "game/assets/surface/cliffs/coastal_cliff_04_diff_4k.jpg",
+              "sha256": "d28647527aba03f67726bef5c1f317fdc7a1ba48a08382612d7bc7315f37fa47"
+            },
+            {
+              "file": "game/assets/surface/cliffs/coastal_cliff_04_arm_4k.jpg",
+              "sha256": "5710e5cfe931992b2b7aa0c947b8089e7afe84508ea217cfb2112addef6ce525"
+            }
+          ]
         }
       ]
     },
@@ -27,23 +84,270 @@
       "key": "namaqualand_cliff_02",
       "source": "D:\\GameDev\\Assets\\namaqualand_cliff_02_4k.gltf\\namaqualand_cliff_02_4k.gltf",
       "source_sha256": "d0179af559464fa66473d74a0fe4570f38ad91169709df7fd685e4ba3649957f",
-      "source_url": "https://polyhaven.com/a/namaqualand_cliff_02",
+      "license": "CC0-1.0",
+      "inputs": [
+        {
+          "file": "D:\\GameDev\\Assets\\namaqualand_cliff_02_4k.gltf\\namaqualand_cliff_02_4k.gltf",
+          "sha256": "d0179af559464fa66473d74a0fe4570f38ad91169709df7fd685e4ba3649957f"
+        },
+        {
+          "file": "D:\\GameDev\\Assets\\namaqualand_cliff_02_4k.gltf\\namaqualand_cliff_02.bin",
+          "sha256": "da05a038b3a1f3b46cd8cf074d20b8d3e2b2148d30806e1feb0309e941200595"
+        },
+        {
+          "file": "D:\\GameDev\\Assets\\namaqualand_cliff_02_4k.gltf\\textures\\namaqualand_cliff_02_nor_gl_4k.jpg",
+          "sha256": "0daa71a79abc85c7b05e59127c964848cb984f4d5668d3bbfa58b6e472848a40"
+        },
+        {
+          "file": "D:\\GameDev\\Assets\\namaqualand_cliff_02_4k.gltf\\textures\\namaqualand_cliff_02_diff_4k.jpg",
+          "sha256": "735a8c00b8e3e82e2c6c4ab7228dbe6c068b7eef8c985f0b6ba777b6f7188fd1"
+        },
+        {
+          "file": "D:\\GameDev\\Assets\\namaqualand_cliff_02_4k.gltf\\textures\\namaqualand_cliff_02_arm_4k.jpg",
+          "sha256": "7ec0bbaf2dddb203ed136e4962dc44967322bc08896cc7e8ab594845100e1485"
+        }
+      ],
       "width": 18.0,
       "height": 6.366317,
       "collision_triangles": 700,
       "outputs": [
         {
-          "file": "game/assets/surface/cliffs/namaqualand_cliff_02_lod0.glb",
-          "sha256": "3e60d39f609caca9884ad0a353fa648fec0736f83ea710925b32d4796fd7143b",
-          "triangles": 12000
+          "file": "game/assets/surface/cliffs/namaqualand_cliff_02_lod0.gltf",
+          "sha256": "dad42a69721a583e91e6034f1ecc1f46d25087c6391c6d4c2c7828eb282e80f8",
+          "triangles": 23999,
+          "dependencies": [
+            {
+              "file": "game/assets/surface/cliffs/namaqualand_cliff_02_lod0.bin",
+              "sha256": "2a7bb0dfa9a97bb3301e86080532385c6b78f425062be6ad187d13ffbfebb816"
+            },
+            {
+              "file": "game/assets/surface/cliffs/namaqualand_cliff_02_nor_gl_4k.jpg",
+              "sha256": "0daa71a79abc85c7b05e59127c964848cb984f4d5668d3bbfa58b6e472848a40"
+            },
+            {
+              "file": "game/assets/surface/cliffs/namaqualand_cliff_02_diff_4k.jpg",
+              "sha256": "735a8c00b8e3e82e2c6c4ab7228dbe6c068b7eef8c985f0b6ba777b6f7188fd1"
+            },
+            {
+              "file": "game/assets/surface/cliffs/namaqualand_cliff_02_arm_4k.jpg",
+              "sha256": "7ec0bbaf2dddb203ed136e4962dc44967322bc08896cc7e8ab594845100e1485"
+            }
+          ]
         },
         {
-          "file": "game/assets/surface/cliffs/namaqualand_cliff_02_lod1.glb",
-          "sha256": "8d5919abc7dddeb3c75befa47cf8ecd3cf510e4eae526ad433b0f4daf2069c53",
-          "triangles": 2500
+          "file": "game/assets/surface/cliffs/namaqualand_cliff_02_lod1.gltf",
+          "sha256": "50e0e4e4e794728a1b13a22c78245795c220657d514681c1a1d03ce68f38e7de",
+          "triangles": 3500,
+          "dependencies": [
+            {
+              "file": "game/assets/surface/cliffs/namaqualand_cliff_02_lod1.bin",
+              "sha256": "7cb8431c368c643c619907abedfc0c8cd48999b06c6481df95d8cb1a0020a17d"
+            },
+            {
+              "file": "game/assets/surface/cliffs/namaqualand_cliff_02_nor_gl_4k.jpg",
+              "sha256": "0daa71a79abc85c7b05e59127c964848cb984f4d5668d3bbfa58b6e472848a40"
+            },
+            {
+              "file": "game/assets/surface/cliffs/namaqualand_cliff_02_diff_4k.jpg",
+              "sha256": "735a8c00b8e3e82e2c6c4ab7228dbe6c068b7eef8c985f0b6ba777b6f7188fd1"
+            },
+            {
+              "file": "game/assets/surface/cliffs/namaqualand_cliff_02_arm_4k.jpg",
+              "sha256": "7ec0bbaf2dddb203ed136e4962dc44967322bc08896cc7e8ab594845100e1485"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "nordic_broad",
+      "source": "D:\\GameDev\\Assets\\huge_nordic_coastal_cliff_vefkehbva_high.glb",
+      "source_sha256": "8a71225c828e8e63878c014b11a17c32a50fa30df295b51b58c3d0da7d16b9bc",
+      "license": "Fab Standard License (owner library)",
+      "inputs": [
+        {
+          "file": "D:\\GameDev\\Assets\\huge_nordic_coastal_cliff_vefkehbva_high.glb",
+          "sha256": "8a71225c828e8e63878c014b11a17c32a50fa30df295b51b58c3d0da7d16b9bc"
+        }
+      ],
+      "width": 24.0,
+      "height": 12.884359,
+      "collision_triangles": 700,
+      "outputs": [
+        {
+          "file": "game/assets/surface/cliffs/nordic_broad_lod0.gltf",
+          "sha256": "6a27cdd0e637e451cb744a5c4120956f54776f07b2e6785b6837c8dbd54488f5",
+          "triangles": 24000,
+          "dependencies": [
+            {
+              "file": "game/assets/surface/cliffs/nordic_broad_lod0.bin",
+              "sha256": "7f4db5e76f4e55186a9b14fd81f02042fcad3f07c24f1d205a6145d86d671ac0"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_broad_Image_2.jpg",
+              "sha256": "cf6b53b1925a2826c8b63ae6513e98f132e186f22a057fbcd40e302e3377d272"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_broad_Image_1.png",
+              "sha256": "01cc7529a1150b90a9099c527d7af737be210e87cc981e16f73dd215921facaf"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_broad_Image_0.jpg",
+              "sha256": "81bab54cf89c8e8672c124153b8b3d3267cd9b9770133bbb109294a6ec0f7f98"
+            }
+          ]
+        },
+        {
+          "file": "game/assets/surface/cliffs/nordic_broad_lod1.gltf",
+          "sha256": "1f24ef0c9be7c92601277906c0430a36ccafee2169e185d9feb47bc126b9a2ce",
+          "triangles": 3498,
+          "dependencies": [
+            {
+              "file": "game/assets/surface/cliffs/nordic_broad_lod1.bin",
+              "sha256": "a4de23379ce14f045093c883ee8ea4f882ab77a09f20e9b3b27c07606b9d91cd"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_broad_Image_2.jpg",
+              "sha256": "cf6b53b1925a2826c8b63ae6513e98f132e186f22a057fbcd40e302e3377d272"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_broad_Image_1.png",
+              "sha256": "01cc7529a1150b90a9099c527d7af737be210e87cc981e16f73dd215921facaf"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_broad_Image_0.jpg",
+              "sha256": "81bab54cf89c8e8672c124153b8b3d3267cd9b9770133bbb109294a6ec0f7f98"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "nordic_tall",
+      "source": "D:\\GameDev\\Assets\\huge_nordic_coastal_cliff_ullqbb1ga_high.glb",
+      "source_sha256": "7f5a8e48c01223523bcf59b89aecfc0a1b9f7048c8f2a3ea37dd11ad15a9a6a7",
+      "license": "Fab Standard License (owner library)",
+      "inputs": [
+        {
+          "file": "D:\\GameDev\\Assets\\huge_nordic_coastal_cliff_ullqbb1ga_high.glb",
+          "sha256": "7f5a8e48c01223523bcf59b89aecfc0a1b9f7048c8f2a3ea37dd11ad15a9a6a7"
+        }
+      ],
+      "width": 22.0,
+      "height": 12.141623,
+      "collision_triangles": 699,
+      "outputs": [
+        {
+          "file": "game/assets/surface/cliffs/nordic_tall_lod0.gltf",
+          "sha256": "6a1084d84673c572e4e6e179f7745d88765a05d90b0a220a4207cdea6bccbe41",
+          "triangles": 24000,
+          "dependencies": [
+            {
+              "file": "game/assets/surface/cliffs/nordic_tall_lod0.bin",
+              "sha256": "8d3d67cbd82840d9f940b3442b90a1357e5fc49d4bdc6eccf2a3a9774dbc705c"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_tall_Image_2.jpg",
+              "sha256": "14d788d4325d4da1b55cdc2022fd29f4eb8f7f0215b9285f92b1a90920e31921"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_tall_Image_1.png",
+              "sha256": "bb54bcd4d9a9dbde0757d3a27d2717aa785b6390cf9399bdef6a5177e886dc48"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_tall_Image_0.jpg",
+              "sha256": "624762f9069f7d86326d2c300568b19bf96f3a29289f2fb6bca9b64daf173a4e"
+            }
+          ]
+        },
+        {
+          "file": "game/assets/surface/cliffs/nordic_tall_lod1.gltf",
+          "sha256": "980678400d2b70bff27d3339e83dcaff82843468c6cb0e3b21dced612b63d625",
+          "triangles": 3499,
+          "dependencies": [
+            {
+              "file": "game/assets/surface/cliffs/nordic_tall_lod1.bin",
+              "sha256": "3b7dcbc256a7f4d9eca124c764d1cf49b03a6b67c01bdb59867f27e6d38b35ed"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_tall_Image_2.jpg",
+              "sha256": "14d788d4325d4da1b55cdc2022fd29f4eb8f7f0215b9285f92b1a90920e31921"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_tall_Image_1.png",
+              "sha256": "bb54bcd4d9a9dbde0757d3a27d2717aa785b6390cf9399bdef6a5177e886dc48"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_tall_Image_0.jpg",
+              "sha256": "624762f9069f7d86326d2c300568b19bf96f3a29289f2fb6bca9b64daf173a4e"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "key": "nordic_forest_ledge",
+      "source": "D:\\GameDev\\Assets\\nordic_forest_cliff_large_xibjbg3_high.glb",
+      "source_sha256": "aac97527786ca144dfa0f992e02de9bde29005bdb92bf14853741e4b17045bed",
+      "license": "Fab Standard License (owner library)",
+      "inputs": [
+        {
+          "file": "D:\\GameDev\\Assets\\nordic_forest_cliff_large_xibjbg3_high.glb",
+          "sha256": "aac97527786ca144dfa0f992e02de9bde29005bdb92bf14853741e4b17045bed"
+        }
+      ],
+      "width": 20.0,
+      "height": 5.798969,
+      "collision_triangles": 700,
+      "outputs": [
+        {
+          "file": "game/assets/surface/cliffs/nordic_forest_ledge_lod0.gltf",
+          "sha256": "4ec1ce193afe9b6c7bd2a9f95a9824728487fa53a18e8a7434056fdbbea81971",
+          "triangles": 20614,
+          "dependencies": [
+            {
+              "file": "game/assets/surface/cliffs/nordic_forest_ledge_lod0.bin",
+              "sha256": "855c049efb152ba096cf307e7d308d51b3ec02f21f0dc39aacb9984897e9acd0"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_forest_ledge_Image_2.jpg",
+              "sha256": "2e536f18d8745a7ea056afdd8e887126fa0761dfa63e729b108d1b8ef93853bf"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_forest_ledge_Image_1.png",
+              "sha256": "1fbffdd837e4b80f4714fe02f60e8c379f6472435af575782a1a93e459310781"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_forest_ledge_Image_0.jpg",
+              "sha256": "b5deb195697660606d15733a0312d442f33caeb7f6a021e922d56f23a56c2a6d"
+            }
+          ]
+        },
+        {
+          "file": "game/assets/surface/cliffs/nordic_forest_ledge_lod1.gltf",
+          "sha256": "fc0698e41f251933a9a7b0797031336706aee99915f32534164c6b95eb381ffe",
+          "triangles": 3500,
+          "dependencies": [
+            {
+              "file": "game/assets/surface/cliffs/nordic_forest_ledge_lod1.bin",
+              "sha256": "a8783a60c03d8f5789fa3c066e7e0368b56e0b5f491312ff988e23734c36652e"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_forest_ledge_Image_2.jpg",
+              "sha256": "2e536f18d8745a7ea056afdd8e887126fa0761dfa63e729b108d1b8ef93853bf"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_forest_ledge_Image_1.png",
+              "sha256": "1fbffdd837e4b80f4714fe02f60e8c379f6472435af575782a1a93e459310781"
+            },
+            {
+              "file": "game/assets/surface/cliffs/nordic_forest_ledge_Image_0.jpg",
+              "sha256": "b5deb195697660606d15733a0312d442f33caeb7f6a021e922d56f23a56c2a6d"
+            }
+          ]
         }
       ]
     }
   ],
-  "collision_sha256": "3098463e50dd85b1579177518e99a559eafe2ad8b97093a72edae1b97d51f95b"
+  "collision_sha256": "a79994d93df3e5edd640efcefa3db0287ce47db02691d42690b39f63d200bb4e"
 }

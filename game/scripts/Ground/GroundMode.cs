@@ -38,6 +38,7 @@ public partial class GroundMode : Node
     private GameClient? _client;
     private GroundView? _view;
     private GroundTour? _tour;
+    private EnvironmentRoute? _environmentRoute;
     private Node3D? _menu;
     private GameContent _content = null!;
 
@@ -57,15 +58,19 @@ public partial class GroundMode : Node
     }
 
     /// <summary>For automated screenshots: playing, the world drawn, and the player to face (if any) in view.</summary>
-    public bool ReadyForShot => _tour == null && (_view?.ReadyForShot ?? _menuWorld?.IsReady ?? _menu != null);
+    public bool ReadyForShot => _tour == null && _environmentRoute == null && (_view?.ReadyForShot ?? _menuWorld?.IsReady ?? _menu != null);
 
     private SurfaceView? _menuWorld;
 
     /// <summary>The scripted screenshot run takes its own shots (Main doesn't).</summary>
-    public bool TakesOwnShots => Options.ContainsKey("tour");
+    public bool TakesOwnShots => Options.ContainsKey("tour") || Options.ContainsKey("environment-route");
 
     public override void _Ready()
     {
+        if (Options.TryGetValue("environment-route", out string? routeFolder) &&
+            (routeFolder == "true" || Options.ContainsKey("shot") || Options.ContainsKey("tour") ||
+             Options.ContainsKey("measure") || Options.ContainsKey("tour-profile")))
+            throw new InvalidOperationException("--environment-route needs a folder and cannot share --shot, --tour or --measure");
         StartLoadTrace();
         Prefetch();
         // A game: no blocking full collections in the middle of play where they can be avoided.
@@ -292,6 +297,16 @@ public partial class GroundMode : Node
             };
             AddChild(_tour);
         }
+        if (Options.TryGetValue("environment-route", out string? routeFolder))
+        {
+            _environmentRoute = new EnvironmentRoute
+            {
+                Name = "EnvironmentRoute", View = _view, Folder = routeFolder,
+                ProfileSeconds = Number("environment-profile", 20),
+                ObserveSeconds = Number("environment-observe", 0), SolarHour = Number("hour", 10),
+            };
+            AddChild(_environmentRoute);
+        }
         ShowLoading(_server != null || _child != null ? $"{name}'s game, on this computer" : $"{host}:{port}");
     }
 
@@ -353,6 +368,9 @@ public partial class GroundMode : Node
     private void Stop()
     {
         EndLoading();
+        _environmentRoute?.Cancel();
+        _environmentRoute?.QueueFree();
+        _environmentRoute = null;
         _tour?.QueueFree();
         _tour = null;
         _view?.QueueFree();

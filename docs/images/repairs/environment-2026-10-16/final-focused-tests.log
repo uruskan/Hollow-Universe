@@ -1,0 +1,91 @@
+  RUN  AdminInputTests.ConsoleBindingsNormalizeChordsAndKeepServerCommandsOnTheServer
+  ok   AdminInputTests.ConsoleBindingsNormalizeChordsAndKeepServerCommandsOnTheServer (12 ms)
+  RUN  ConsoleTests.ConsoleParsesLinesAndRustAliases
+  ok   ConsoleTests.ConsoleParsesLinesAndRustAliases (1 ms)
+  RUN  ConsoleTests.ConsoleCompletesCommandsItemsPlayersAndKinds
+  ok   ConsoleTests.ConsoleCompletesCommandsItemsPlayersAndKinds (298 ms)
+  RUN  ConsoleTests.ANonAdminIsRefused
+      Bo> give rifle: [Error] 'give' needs admin rights on this server, which you don't have.
+      Bo> teleport 10 10: [Error] 'teleport' needs admin rights on this server, which you don't have.
+      Bo> spawn wolf 2: [Error] 'spawn' needs admin rights on this server, which you don't have.
+      Bo> noclip: [Error] 'noclip' needs admin rights on this server, which you don't have.
+      Bo> god: [Error] 'god' needs admin rights on this server, which you don't have.
+      Bo> time 21: [Error] 'time' needs admin rights on this server, which you don't have.
+      Bo> kill Ada: [Error] Killing another player needs admin rights; 'kill' alone kills you.
+      Bo> inventory.give rifle: [Error] 'give' needs admin rights on this server, which you don't have.
+      Bo> players: [Output] 1 of 128 players on: / [Output]   Bo: alive
+      Bo> whereami: [Output] 45.11795° N, 169.89871° W (teleport 45.11795 -169.89871) / [Output] 6 m above the sea; map cell E A7 (teleport E A7); 1.5 m east, 5.2 m north of the landing site along the ground (teleport 1.5 -5.2). / [Output] boreal forest; 02:23 local solar time; the air 15 °C.
+      Bo> frobnicate: [Error] Unknown command 'frobnicate' (help lists them, find searches them).
+      Bo> kill: [Success] You died. Choose where to respawn.
+  ok   ConsoleTests.ANonAdminIsRefused (5047 ms)
+  RUN  ConsoleTests.AdminCommandsWorkOverTheNetwork
+      Ada> give rifle: [Success] Gave you 1 Frontier rifle.
+      Ada> inventory.give rifle-ammo 64: [Success] Gave you 64 Rifle rounds.
+      Ada> give wood 300 Bo: [Success] Gave Bo 300 Wood.
+      Ada> teleport 30 -40: [Success] Teleported you to 30 m east, -40 m south of the landing site.
+      Bo> teleport 0 0: [Error] 'teleport' needs admin rights on this server, which you don't have.
+      Ada> tp2me Bo: [Success] Teleported Bo to you (-804.1, 877.4, 172.2).
+      Ada> teleport 5 5: [Success] Teleported you to 5 m east, 5 m south of the landing site.
+      Ada> global.teleport Bo: [Success] Teleported you to Bo (-803.8, 877.4, 173.7).
+      Ada> teleport 44.868300 -170.001000: [Success] Teleported you to 44.8683° N, 170.0010° W.
+      Ada> teleport E B7: [Success] Teleported you to the middle of map cell E B7 (-677.4, 981.4, 119.2).
+      Ada> whereami: [Output] 54.97541° N, 170.02315° W (teleport 54.97541 -170.02315) / [Output] 2 m above the sea; map cell E B7 (teleport E B7); -0.3 m east, 211.7 m north of the landing site along the ground (teleport -0.3 -211.7). / [Output] beach; 02:24 local solar time; the air 15 °C.
+      Ada> teleport 44.868300 -170.001000: [Success] Teleported you to 44.8683° N, 170.0010° W.
+      Ada> spawn wolf 2: [Success] 2 wolves 22 m in front of you.
+      Ada> spawn: [Error] Usage: spawn <kind> [count] [player]: deer, boar, wolf, bear, tin-finch, iron-wake, barrel, fuel-barrel, crate, military-crate, recycler, sleeping-bag, bed, campfire, furnace, small-box, large-box, workbench-1, workbench-2, workbench-3, vehicle-workbench, research-table, engineering-workbench, raidbase
+      Ada> spawn small-box: [Success] A small box in front of you.
+      Ada> spawn crate: [Success] A crate in front of you.
+      Ada> kill Bo: [Success] Killed Bo.
+      the planet's own clock: 2.42 h at the landing site
+      Ada> time 21: [Success] It is 21:00 where you stand now: this zone's sun only, universe time unchanged.
+      Ada> timescale 0: [Success] The zone's sun stands still (timescale 1 lets it go on).
+      Ada> time reset: [Success] The zone's day is the planet's own again: 02:25 where you stand.
+  ok   ConsoleTests.AdminCommandsWorkOverTheNetwork (5536 ms)
+  RUN  ConsoleTests.GodAndNoclipMatchThePrediction
+      Ada> noclip: [Success] Noclip on. W A S D along the view, Space up, Ctrl down, Shift fast.
+      Ada> global.god on: [Success] God mode on.
+      flew 48.8 m, 0 corrections, worst error 40.3 mm
+      Ada> noclip off: [Success] Noclip off.
+  ok   ConsoleTests.GodAndNoclipMatchThePrediction (4083 ms)
+  RUN  EnvironmentRouteTests.ActualEarthHasOneConnectedSampledEnvironmentRoute
+      route beach: --lat 41.596451 --lon 106.092227; height=1.43 grade=0.148 grass=0.00 woodland=1.00 trees18m=8 feature=Beach
+      route woodland: --lat 40.684345 --lon 105.386096; height=4.26 grade=0.106 grass=0.24 woodland=1.00 trees18m=9 feature=TemperateForest
+      route clearing: --lat 38.400842 --lon 96.694376; height=15.50 grade=0.190 grass=0.85 woodland=0.18 trees18m=1 feature=TemperateForest
+      route water: --lat 38.902857 --lon 97.899158; height=13.65 grade=0.545 grass=0.33 woodland=0.22 trees18m=1 feature=TemperateForest
+      route cliff: --lat 34.144385 --lon 99.162322; height=18.43 grade=0.631 grass=0.00 woodland=1.00 trees18m=6 feature=nordic_broad
+      route monument: --lat 36.047505 --lon 98.557676; height=19.16 grade=0.072 grass=0.25 woodland=1.00 trees18m=9 feature=service-substation
+      Connected route service-substation/tile 5/3/4/7; 360.6m; 1 candidates; heightfield feasibility only, hosted object collision and visual quality remain unverified
+  ok   EnvironmentRouteTests.ActualEarthHasOneConnectedSampledEnvironmentRoute (865 ms)
+  RUN  EnvironmentRouteTests.RouteRejectsLegacyWorldAndInWaterCorridor
+  ok   EnvironmentRouteTests.RouteRejectsLegacyWorldAndInWaterCorridor (338 ms)
+  RUN  GatheringTests.StandInNatureIsStable
+      1870 objects; e.g. pine-tree at <713.0452, 1074.0509, 2036.6884>
+  ok   GatheringTests.StandInNatureIsStable (27 ms)
+  RUN  GatheringTests.GatheringYieldDepletionAndRespawn
+      a 0.95-size pine: 210 wood; rock 32 hits, stone hatchet 13, metal hatchet 9
+  ok   GatheringTests.GatheringYieldDepletionAndRespawn (27 ms)
+  RUN  GatheringTests.TreeMarkPaysMoreForEveryHitOnItInARow
+      X hits in a row pay 1.125, 1.25, 1.375, 1.5, 1.625, 1.75, 1.875, 2, 2, 2; the X moved 9 times of 10
+  ok   GatheringTests.TreeMarkPaysMoreForEveryHitOnItInARow (10 ms)
+  RUN  GatheringTests.OreHotspotBreaksTheNodeInFewerHits
+      a 0.85-size stone outcrop: 36 hits with a rock, 14 on the hotspot (pays 1.5, 2, 2.5, 3, 3)
+  ok   GatheringTests.OreHotspotBreaksTheNodeInFewerHits (10 ms)
+  RUN  GatheringTests.FelledTreePaysHalfItsWood
+      a broadleaf tree of 295 wood: 143 from the hits, 152 as it falls
+  ok   GatheringTests.FelledTreePaysHalfItsWood (7 ms)
+  RUN  GatheringTests.ProperToolFinishesAnOutcropWithABonus
+      a sulphur outcrop of 250 ore: 250 with a rock, 300 with a stone pickaxe
+  ok   GatheringTests.ProperToolFinishesAnOutcropWithABonus (8 ms)
+  RUN  GatheringTests.OutcropSpotsSitOnTheDrawnRock
+      12 spots on the measured rock
+  ok   GatheringTests.OutcropSpotsSitOnTheDrawnRock (17 ms)
+  RUN  GatheringTests.GatherLooksNameRealEffectsAndSounds
+      80 effects and sounds named by the looks
+  ok   GatheringTests.GatherLooksNameRealEffectsAndSounds (2 ms)
+  RUN  GatheringTests.NaturalObjectsCollide
+      23 solid natural objects in the tile under a pine
+  ok   GatheringTests.NaturalObjectsCollide (46 ms)
+  RUN  SurvivalNetTests.GatherHitsReachClientsOnceWhileFresh
+      the X hit met the trunk 1.39 m from the base; the client has it 1.7 cm off
+  ok   SurvivalNetTests.GatherHitsReachClientsOnceWhileFresh (2810 ms)
+18/18 passed in 19.2 s.

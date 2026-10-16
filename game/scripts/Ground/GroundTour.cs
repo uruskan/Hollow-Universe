@@ -292,9 +292,7 @@ public partial class GroundTour : Node
         }
         if (tree is not { } trunk)
         {
-            if (Profile) throw new InvalidOperationException("tour profile needs a nearby tree; choose a forest landing site");
-            GD.PushWarning("[tour] no tree to chop");
-            return;
+            throw new InvalidOperationException("chop tour needs a nearby tree; choose a forest landing site");
         }
         NaturalKind kind = Client.Content.Natural(trunk.Kind)!;
         float radius = kind.Radius * trunk.Scale;
@@ -348,6 +346,8 @@ public partial class GroundTour : Node
         View.Scripted = new InputFrame { Primary = true };
         await Until(() => Hits(trunk.Id).Seen >= 1, 5);
         View.Scripted = null;
+        if (Hits(trunk.Id).Seen < 1)
+            throw new InvalidOperationException($"chop tour received no accepted hit on {kind.Key} {trunk.Id} within5s; player={Client.Character.Position}, tree={trunk.Position}");
         await Seconds(1.0);
         if (Client.Survival().Natural?.WeakSpot(trunk, kind) is { } x)
         {
@@ -382,12 +382,15 @@ public partial class GroundTour : Node
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
         View.Scripted = null;
-        GD.Print($"[tour] chop: wood a hit {string.Join(" ", log)}; felled {Count("wood") - wood}");
+        bool depleted = Client.Survival().Natural?.IsDepleted(trunk.Id) == true;
+        GD.Print($"[tour] chop: wood a hit {string.Join(" ", log)}; depleted={depleted}; final-hit wood {Count("wood") - wood}");
         if (Profile && profileMeasure != null)
         {
             await Until(() => profileMeasure.Complete, profileMeasure.Seconds + 2);
             return; // Keep the final hit-point view for the rest of the comparison window.
         }
+        if (!depleted)
+            throw new InvalidOperationException($"chop tour did not deplete {kind.Key} {trunk.Id} within60s; accepted hits={Hits(trunk.Id).Seen}; no falling/landed shots taken");
         // It tips away from the blow and lands along the ground.
         Num.Vector3 away = trunk.Position - Client.Character.Position;
         away = Num.Vector3.Normalize(away - trunk.Up * Num.Vector3.Dot(away, trunk.Up));
@@ -2533,12 +2536,16 @@ public partial class GroundTour : Node
         Vector3D body = Client.Frame.ToBody(point).Normalized;
         double latitude = Math.Asin(Math.Clamp(body.Y, -1, 1)) * 180 / Math.PI;
         double longitude = Math.Atan2(-body.Z, body.X) * 180 / Math.PI;
-        Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"teleport {Client.Name} {latitude:0.000000}° {longitude:0.000000}°"));
-        await Until(() =>
+        if (Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"teleport {Client.Name} {latitude:0.000000}° {longitude:0.000000}°")) != true)
+            throw new InvalidOperationException("Tour could not submit its teleport command to the hosted server");
+        float DistanceFromTarget()
         {
             Num.Vector3 difference = Client.Character.Position - point, up = Client.Frame.UpAt(point);
-            return (difference - up * Num.Vector3.Dot(difference, up)).Length() < 1.5f;
-        }, 5);
+            return (difference - up * Num.Vector3.Dot(difference, up)).Length();
+        }
+        await Until(() => DistanceFromTarget() < 1.5f, 5);
+        if (DistanceFromTarget() >= 1.5f)
+            throw new TimeoutException($"Tour teleport did not arrive within5s: target={point}, actual={Client.Character.Position}, tangent error={DistanceFromTarget():0.00}m");
         await Seconds(0.5);
     }
 

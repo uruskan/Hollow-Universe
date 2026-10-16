@@ -25,7 +25,6 @@ varying vec3 v_local;
 varying vec3 v_local_normal;
 varying float v_fade_in;
 varying float v_fade_out;
-varying float v_cloud;
 varying float v_tint;
 
 void vertex() {
@@ -80,12 +79,12 @@ void fragment() {
 	hu_aerial(v_world, CAMERA_POSITION_WORLD, 6, a, fog);
 	ALBEDO = a;
 	FOG = fog;
-	v_cloud = hu_cloud_shadow(v_world);
+
 }
 
 void light() {
 	float ndl = clamp(dot(NORMAL, LIGHT), 0.0, 1.0);
-	float cloud = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
+	float cloud = LIGHT_IS_DIRECTIONAL ? hu_cloud_shadow(v_world, normalize((INV_VIEW_MATRIX * vec4(LIGHT, 0.0)).xyz)) : 1.0;
 	DIFFUSE_LIGHT += LIGHT_COLOR * ATTENUATION * cloud * ndl / HU_PI;
 	SPECULAR_LIGHT += LIGHT_COLOR * ATTENUATION * cloud * hu_specular(NORMAL, VIEW, LIGHT, ROUGHNESS) * 0.5;
 }
