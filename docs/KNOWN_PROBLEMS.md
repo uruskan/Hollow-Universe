@@ -249,3 +249,12 @@ not override the current design or the owner's authorized repair work.
 - God-mode immunity, ordinary death/respawn and the complete corpse-to-backpack sequence pass their recorded tests.
   The original reported native crash still has no supplied stack trace; known engine exit resource warnings are
   retained in the evidence, not represented as a clean shutdown result.
+
+## Normal-ground contact resonance — 16 October 2026
+
+The owner reported a strong "boink" on ordinary walking and jumps. Removing generic heavy-impact layers alone
+failed the owner's first listening comparison. Grass/dirt now use different short recorded contacts and single
+landings. The owner confirmed both source samples lack the defect, then confirmed it is also absent in the actual
+`gameplay-grass-mix.wav` recording. Two hosted movement/cadence captures and final file measurements pass.
+This closes the reported boink for that grass gameplay sample; dirt runtime, other materials and the wider sound
+mix remain open. [Implementation and listening evidence](REPAIR_AUDIO.md); [full action audit](reports/audio-action-checklist.md).

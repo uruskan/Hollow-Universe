@@ -78,7 +78,6 @@ public partial class FirstPersonView : Node3D
         if (projectile.Shooter == Client.NetId && Client.Content.Item(projectile.Ammo)?.Ammo != null && _arms?.Model?.LeftHanded == true)
         {
             _arms.Trigger(CharacterEvent.Fire);
-            Sounds.Flat(Sounds.Item(_arms.Model.Id, "release") ?? "bow.release");
         }
     }
 

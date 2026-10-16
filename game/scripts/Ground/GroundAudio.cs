@@ -75,6 +75,7 @@ public partial class GroundAudio : Node
         }
 
         LocalPlayer me = Client.Local;
+        me.Gun.DryFired += OnDryFire;
         me.ItemsChanged += OnItems;
         me.HitMarker += OnHitMarker;
         me.DamageTaken += OnDamage;
@@ -93,6 +94,7 @@ public partial class GroundAudio : Node
             GroundUi.Sound = null;
         }
         LocalPlayer me = Client.Local;
+        me.Gun.DryFired -= OnDryFire;
         me.ItemsChanged -= OnItems;
         me.HitMarker -= OnHitMarker;
         me.DamageTaken -= OnDamage;
@@ -295,11 +297,14 @@ public partial class GroundAudio : Node
             return;
         }
         _director.Play2D(e.Killed ? "hit.kill" : e.Region == HitRegion.Head ? "hit.headshot" : "hit.marker");
-        if (Client.Local.HeldItem is { Melee: not null } melee)
+        // Confirmation can arrive after the player has changed tools; the accepted attack owns its contact sound.
+        if (Client.Content.Item(e.Weapon) is { Melee: not null } melee)
         {
             _director.Play2D(Sounds.Item(melee.Key, "hitFlesh") ?? "melee.hit.flesh", -4);
         }
     }
+
+    private void OnDryFire(ItemDef weapon) => Sounds.Flat(Sounds.Item(weapon.Key, "dryFire"));
 
     private void OnDamage(DamageEvent e) => _director.Play2D("survival.hurt");
 

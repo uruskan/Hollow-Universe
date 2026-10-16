@@ -150,6 +150,14 @@ injector, launcher and recycler's dedicated sounds. The recycler additionally us
 SHA-256 `1e37e32462a455daa53c2f514d02df2220781c02f98b4b647fbb02fb797d6f94`.
 Its recorded source is https://bigsoundbank.com/s0304.html; no new download was required.
 
+AB Test B footstep repair (16 October 2026): grass uses four selected contacts from BigSoundBank 2889,
+already listed below. Dirt uses four contacts from Joseph Sardin's BigSoundBank 1117, "Footsteps on gravels #2",
+CC0 1.0: https://bigsoundbank.com/s1117.html, source https://bigsoundbank.com/UPLOAD/bwf-en/1117.wav,
+SHA-256 `44237b5bb27a5e5690acb8b816a0a737d51cf6cdc47adcedcf27e3b1499c88f3`.
+Both were already in the verified local source catalogue. `art/audio/events.py` records the filtering,
+selection and gait recipes; `docs/reports/audio-action-checklist.json` includes exact cuts and source hashes.
+Earlier recordings remain credited below as provenance of the retained before/after review evidence.
+
 | Download | Licence | SHA-256 | Used for |
 |---|---|---|---|
 | Kenney (kenney.nl), Impact Sounds: `kenney_impact-sounds.zip`, https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip (page: https://kenney.nl/assets/impact-sounds), 800,850 bytes | CC0 1.0 | `029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8` | 70 files: `impactGlass_light_000.ogg`, `impactGlass_light_001.ogg`, `impactMetal_heavy_000.ogg`, `impactMetal_heavy_001.ogg`, `impactMetal_heavy_002.ogg`, `impactMetal_heavy_003.ogg`, `impactMetal_heavy_004.ogg`, `impactMetal_light_000.ogg`, `impactMetal_light_001.ogg`, `impactMetal_light_002.ogg`, `impactMetal_light_003.ogg`, `impactMetal_light_004.ogg` ... |

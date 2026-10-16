@@ -31,8 +31,8 @@
     "stone-hatchet": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "stone-pickaxe": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "metal-hatchet": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
-    "salvaged-axe": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "metal-pickaxe": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
+    "salvaged-axe": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "wooden-spear": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "stone-spear": {"swing": "melee.swing.heavy", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
     "machete": {"swing": "melee.swing", "hitFlesh": "melee.hit.flesh", "hitHard": "melee.hit.hard", "hitWood": "gather.wood.hit", "hitStone": "gather.stone.hit", "hitOre": "gather.ore.hit", "weakSpot": "gather.weakspot"},
@@ -115,15 +115,13 @@
       "maxDistance": 30.0,
       "priority": 30,
       "limit": 8,
-      "pitch": [0.94, 1.06],
-      "jitter": 1.5,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.8,
       "files": [
         "res://assets/audio/footstep/grass/walk_01.ogg",
         "res://assets/audio/footstep/grass/walk_02.ogg",
         "res://assets/audio/footstep/grass/walk_03.ogg",
-        "res://assets/audio/footstep/grass/walk_04.ogg",
-        "res://assets/audio/footstep/grass/walk_05.ogg",
-        "res://assets/audio/footstep/grass/walk_06.ogg"
+        "res://assets/audio/footstep/grass/walk_04.ogg"
       ]
     },
     {
@@ -135,15 +133,13 @@
       "maxDistance": 45.0,
       "priority": 30,
       "limit": 8,
-      "pitch": [0.94, 1.06],
-      "jitter": 1.5,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.8,
       "files": [
         "res://assets/audio/footstep/grass/run_01.ogg",
         "res://assets/audio/footstep/grass/run_02.ogg",
         "res://assets/audio/footstep/grass/run_03.ogg",
-        "res://assets/audio/footstep/grass/run_04.ogg",
-        "res://assets/audio/footstep/grass/run_05.ogg",
-        "res://assets/audio/footstep/grass/run_06.ogg"
+        "res://assets/audio/footstep/grass/run_04.ogg"
       ]
     },
     {
@@ -155,8 +151,8 @@
       "maxDistance": 14.0,
       "priority": 30,
       "limit": 8,
-      "pitch": [0.94, 1.06],
-      "jitter": 1.5,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.8,
       "files": [
         "res://assets/audio/footstep/grass/crouch_01.ogg",
         "res://assets/audio/footstep/grass/crouch_02.ogg",
@@ -173,8 +169,8 @@
       "maxDistance": 45.0,
       "priority": 30,
       "limit": 8,
-      "pitch": [0.94, 1.06],
-      "jitter": 1.5,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.8,
       "files": [
         "res://assets/audio/footstep/grass/land_01.ogg",
         "res://assets/audio/footstep/grass/land_02.ogg",
@@ -190,15 +186,13 @@
       "maxDistance": 30.0,
       "priority": 30,
       "limit": 8,
-      "pitch": [0.94, 1.06],
-      "jitter": 1.5,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.8,
       "files": [
         "res://assets/audio/footstep/dirt/walk_01.ogg",
         "res://assets/audio/footstep/dirt/walk_02.ogg",
         "res://assets/audio/footstep/dirt/walk_03.ogg",
-        "res://assets/audio/footstep/dirt/walk_04.ogg",
-        "res://assets/audio/footstep/dirt/walk_05.ogg",
-        "res://assets/audio/footstep/dirt/walk_06.ogg"
+        "res://assets/audio/footstep/dirt/walk_04.ogg"
       ]
     },
     {
@@ -210,15 +204,13 @@
       "maxDistance": 45.0,
       "priority": 30,
       "limit": 8,
-      "pitch": [0.94, 1.06],
-      "jitter": 1.5,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.8,
       "files": [
         "res://assets/audio/footstep/dirt/run_01.ogg",
         "res://assets/audio/footstep/dirt/run_02.ogg",
         "res://assets/audio/footstep/dirt/run_03.ogg",
-        "res://assets/audio/footstep/dirt/run_04.ogg",
-        "res://assets/audio/footstep/dirt/run_05.ogg",
-        "res://assets/audio/footstep/dirt/run_06.ogg"
+        "res://assets/audio/footstep/dirt/run_04.ogg"
       ]
     },
     {
@@ -230,8 +222,8 @@
       "maxDistance": 14.0,
       "priority": 30,
       "limit": 8,
-      "pitch": [0.94, 1.06],
-      "jitter": 1.5,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.8,
       "files": [
         "res://assets/audio/footstep/dirt/crouch_01.ogg",
         "res://assets/audio/footstep/dirt/crouch_02.ogg",
@@ -248,8 +240,8 @@
       "maxDistance": 45.0,
       "priority": 30,
       "limit": 8,
-      "pitch": [0.94, 1.06],
-      "jitter": 1.5,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.8,
       "files": [
         "res://assets/audio/footstep/dirt/land_01.ogg",
         "res://assets/audio/footstep/dirt/land_02.ogg",

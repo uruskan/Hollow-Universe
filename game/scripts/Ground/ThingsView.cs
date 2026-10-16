@@ -376,7 +376,9 @@ public partial class ThingsView : Node3D
             if (_loosed.Add(p))
             {
                 Vector3 from = GroundView.ToGodot(p.Origin);
-                if (p.Own)
+                // Accepted arrows are never predicted (Own is false); Shooter identifies the local archer.
+                // This view owns release audio for both listeners; the arms only play the release animation.
+                if (p.Shooter == Client.NetId)
                 {
                     Sounds.Flat("bow.release");
                 }

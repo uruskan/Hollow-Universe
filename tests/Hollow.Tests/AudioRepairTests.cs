@@ -108,6 +108,70 @@ public static class AudioRepairTests
         }
     }
 
+    [Test]
+    public static void RealMovementHasNoLandingChatterAndOneSoundPerJump()
+    {
+        // Drive Jolt on a small planet, including gentle slopes and collision tile seams. Synthetic input alone
+        // cannot establish whether real ground contact briefly drops and produces repeated landing sounds.
+        foreach (ISurface surface in new ISurface[] { new LevelSurface(1200), new RollingAudioSurface() })
+        {
+            using var rig = new MovementRig(surface);
+            rig.Run(new MoveInput(), 15);
+            var cadence = new FootstepCadence();
+            Vector3 view = Facing.View(0.65f, 0, rig.Zone.Frame.UpAt(rig.State.Position));
+            foreach ((MoveButtons buttons, string gait) in new[]
+            {
+                (MoveButtons.None, "walk"), (MoveButtons.Sprint, "run"), (MoveButtons.Crouch, "crouch"),
+            })
+            {
+                int steps = 0;
+                for (int i = 0; i < 10 * CharacterMotor.TickRate; i++)
+                {
+                    FootEvent? heard = Tick(new MoveInput { Forward = 1, Buttons = buttons, View = view });
+                    if (heard is not { } foot) continue;
+                    Assert.True(foot.Key.StartsWith("footstep." + gait + ".", StringComparison.Ordinal),
+                        $"{surface.GetType().Name}: ordinary {gait} must not emit a landing ({foot.Key})");
+                    Assert.True((rig.State.Flags & MoveFlags.OnGround) != 0, "real movement steps require contact");
+                    steps++;
+                }
+                Assert.True(steps >= 10, $"{surface.GetType().Name}: actual {gait} emits a sustained cadence");
+            }
+            for (int i = 0; i < CharacterMotor.TickRate; i++) Tick(new MoveInput { View = view });
+            for (int jump = 0; jump < 3; jump++)
+            {
+                int landings = 0;
+                for (int i = 0; i < 3 * CharacterMotor.TickRate; i++)
+                {
+                    FootEvent? heard = Tick(new MoveInput { View = view,
+                        Buttons = i == 0 ? MoveButtons.Jump | MoveButtons.JumpPressed : MoveButtons.None });
+                    if (heard is not { } foot) continue;
+                    Assert.True(foot.Key.StartsWith("footstep.land.", StringComparison.Ordinal), "stationary jump has no walking footfalls");
+                    landings++;
+                }
+                Assert.Equal(1, landings, $"{surface.GetType().Name}: a real jump produces exactly one landing");
+            }
+
+            FootEvent? Tick(MoveInput input)
+            {
+                Vector3 before = rig.Zone.Frame.UpAt(rig.State.Position);
+                rig.Character.Input = input;
+                rig.Zone.Step();
+                view = Facing.Carry(view, before, rig.Zone.Frame.UpAt(rig.State.Position));
+                FootSurface material = FootstepEnvironment.At(surface, rig.Zone.Frame, null, rig.State.Position);
+                Assert.True(material != FootSurface.Metal && material != FootSurface.Wood, "natural ground is not a constructed deck");
+                FootInput feet = Footsteps.Input(rig.State, rig.Zone.Frame, (rig.State.Flags & MoveFlags.Sprinting) != 0, material, 0);
+                return cadence.Update(CharacterMotor.DeltaTime, feet);
+            }
+        }
+    }
+
+    private sealed class RollingAudioSurface : ISurface
+    {
+        public double Radius => 1200;
+        public double SeaRadius => 0;
+        public double HeightAt(Vector3D direction) => 3 + 0.6 * DMath.Sin(direction.X * Radius / 8) + 0.2 * DMath.Sin(direction.Z * Radius / 3);
+    }
+
     private sealed class LakeSurface : ISurface
     {
         public double Radius => 1200;

@@ -1,0 +1,24 @@
+  RUN  AudioRepairTests.DistinctActionsUseDedicatedNonemptyVariantSets
+  ok   AudioRepairTests.DistinctActionsUseDedicatedNonemptyVariantSets (26 ms)
+  RUN  AudioRepairTests.FootstepsUseRelativeVelocityOnPlanetsAndShipDecks
+  ok   AudioRepairTests.FootstepsUseRelativeVelocityOnPlanetsAndShipDecks (2 ms)
+  RUN  AudioRepairTests.FootstepsDoNotPlayInAirOrReplaySeatLandings
+  ok   AudioRepairTests.FootstepsDoNotPlayInAirOrReplaySeatLandings (1 ms)
+  RUN  AudioRepairTests.FootContactsResolveActualFloorGradesAndInlandWater
+  ok   AudioRepairTests.FootContactsResolveActualFloorGradesAndInlandWater (372 ms)
+  RUN  AudioRepairTests.RealMovementHasNoLandingChatterAndOneSoundPerJump
+  ok   AudioRepairTests.RealMovementHasNoLandingChatterAndOneSoundPerJump (260 ms)
+  RUN  DryFireAudioTests.EmptyGunsClickOncePerPressWithoutFiringOrSendingIntents
+  ok   DryFireAudioTests.EmptyGunsClickOncePerPressWithoutFiringOrSendingIntents (1552 ms)
+  RUN  DryFireAudioTests.DryFireRespectsEquipReloadCadenceAndCharacterGates
+  ok   DryFireAudioTests.DryFireRespectsEquipReloadCadenceAndCharacterGates (177 ms)
+  RUN  SoundCatalogueTests.SoundFilesExistAndImport
+      235 events, 775 files
+  ok   SoundCatalogueTests.SoundFilesExistAndImport (351 ms)
+  RUN  SoundCatalogueTests.SoundPeaksAndLoudnessInRange
+      775 files in range, highest true peak -1.10 dBTP; 9 WAV files measured here too
+  ok   SoundCatalogueTests.SoundPeaksAndLoudnessInRange (145 ms)
+  RUN  SoundCatalogueTests.SoundCatalogueCoversItems
+      78 items and door kinds with sounds
+  ok   SoundCatalogueTests.SoundCatalogueCoversItems (30 ms)
+10/10 passed in 2.9 s.

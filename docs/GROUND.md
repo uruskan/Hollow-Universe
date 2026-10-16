@@ -1170,6 +1170,15 @@ floor, soil and gravel → dirt; rock → rock; sand → sand; snow → snow (`F
 vertex's eight weights, `FromBiome` when only the biome is known); building floors by grade (twig and wood → wood, stone
 → rock, metal and armoured → metal, `FromGrade`). The player's own feet play flat, 3 dB down; others' at their feet.
 
+AB Test B audio follow-up (16 October 2026): grass/dirt walk, run, crouch and land now use short recorded contacts
+from BSB 2889/1117, whose audition samples the owner confirmed have no "boink". Generic soft-heavy impact layers
+are removed from footsteps; grass/dirt landings use single contacts. `LocalGun.DryFired` now feeds the
+item's `dryFire` role on fresh empty trigger presses; held triggers and action refusals do not repeat it. Accepted
+hit contacts use the event's weapon rather than the currently held item. `ThingsView` alone owns bow release audio,
+using accepted-projectile `Shooter` for the local/remote choice. The opt-in hosted `audio-movement` tour records
+real prediction, emitted events and unedited mix/footstep WAVs. These are technical changes; listening acceptance
+and remaining catalogue gaps are tracked in [REPAIR_AUDIO.md](REPAIR_AUDIO.md).
+
 **Ambience** (`AmbienceDirector`, rules in `AmbienceMix`): flat loops on the Ambience bus, gliding to their levels over
 1.5 s, started when heard and stopped after 4 s unheard. Wind always (stronger with wind, height and exposure; a strong
 bed from 400 m up and in wind, a high whistle on exposed heights); meadow birds by day in the open, forest birds among

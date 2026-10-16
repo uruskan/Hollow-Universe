@@ -72,7 +72,8 @@ public partial class GroundTour : Node
             ("repair-corpses", RepairCorpses),
             ("repair-attachments", RepairAttachments),
         };
-        _steps.Enqueue(Prepare);
+        // The movement-audio diagnostic needs no inventory grants or equipment changes.
+        if (Only?.SetEquals(new[] { "audio-movement" }) != true) _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
         {
             if (Only == null || Only.Contains(name))
@@ -80,6 +81,7 @@ public partial class GroundTour : Node
                 _steps.Enqueue(step);
             }
         }
+        if (Only?.Contains("audio-movement") == true) _steps.Enqueue(AudioMovement);
     }
 
     /// <summary>Only these steps (names, comma-separated on the command line: <c>--tour-steps hud,player</c>); null: all.</summary>

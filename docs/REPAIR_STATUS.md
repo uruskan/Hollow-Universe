@@ -3,9 +3,12 @@
 Current requirements: [17 owner reports](reports/current-17-issues.md), plus
 [30 inherited reports](reports/legacy-30-issues.txt). The old investigation is a source of hypotheses,
 not evidence that a bug remains or has been fixed. Campaign starting baseline: commit 27487dcf, 298 passing tests.
-Latest compiled checkpoint: build 18, zero warnings/errors; Release server also builds cleanly.
-The shared full run passed 384/384 on build16. Subsequent renderer/capture changes built cleanly and the final
-attachment/render-state/streaming focused run passed 8/8. Visual acceptance is recorded separately below.
+Latest audio continuation build: zero warnings/errors; Release server also built cleanly. The shared full run
+passed 389/389 before the final grass/dirt asset revision; final asset/routing checks passed 10/10 and Godot loaded
+235 events / 775 files with zero measurement problems. Actual hosted grass movement/landing capture passed.
+The owner confirmed the boink absent in both new source sets and the actual grass gameplay recording;
+other materials and the broader mix remain unaccepted.
+Historical build16/18 and visual evidence are recorded below rather than treated as current artistic acceptance.
 
 Owner priority, 16 October 2026: **audio first**. The source/routing work and engine audit did not finish sound
 design or listening acceptance. The owner also confirmed grass is present, while rejecting the overall visual
@@ -24,7 +27,7 @@ The complete continuation prompt, including all 17 current and 30 legacy reports
 | Salvaged axe | coordinated “Add salvaged axe” chat | Additional owner request | Integrated model, icons, recipe/research/loot, audio and held profile; eight focused checks and actual captures passed. |
 | Immunity, drowning, animal frames/attack feasibility | root | R10, R14, R16; L30 | Survival/animal/network regressions pass. Herd and chasing-pack captures show upright, grounded animals on the planet frame; this is not final animal art or every attack scenario. Original native crash cause is not proven without its stack trace. |
 | Noclip speed and persistent F1 bindings | engine_reuse_audit | R12; L29 | Implemented; admin permissions, input and prediction checks passed. |
-| Sound library and surface footsteps | client_quality | R9; L19, L21 | All 263 source hashes audited; contact/frame routing corrected and 22 dedicated action variants added. Engine check loaded 235 events/783 files with zero problems. Audition and recorded animal voices remain. |
+| Sound library and surface footsteps | audio-first root and agents | R9; L19, L21 | New grass/dirt contacts installed; first thump-only revision was rejected. Owner confirms boink absent in both source sample sets and actual grass gameplay-grass-mix.wav. Bow release duplication, delayed-hit weapon selection and empty-trigger feedback repaired. 263 source hashes verified; final engine audit 235/775, zero problems. Two grass walk/run/crouch/three-landing runs passed. Whole-catalogue checklist enumerates routes/gaps. Dirt gameplay, other materials, combat mix and recorded animal voices remain open. |
 | Building placement, support and meshes | engine_reuse_audit | L2, L4–11, L14 | Structural support, placement, network and fit regressions pass. Actual stone hut and 45 LOD0 joint views across all five grades captured; 73 diagnostic images retained. Solid-grade joints are visually continuous. Twig aliasing/residual flicker and targeted window/stair/roof/placement checks remain. |
 | Bed names and draggable attachment sockets | client_quality; engine_reuse_audit optics/light | L12, L17 | Four attachment and three rename integration tests pass; actual UI47 and inspected captures passed. Redundant live REMOVE action is filtered. Build17 actual holo/scope ADS and true-night light off/on/detach passed and six frames were visually accepted; full rear field, native eye and both hands verified. Final focused 8/8 includes both attachment tests. Male/female base-gun regressions each pass 12 actions / 200 FPS/TPS samples. [Optics evidence](REPAIR_ATTACHMENTS.md). Friend-assignment action has not been added. |
 | Player corpse lifecycle | engine_reuse_audit | L15 | Eight integration and three lifecycle tests pass, including roof/deployable/ship support, exact loot, harvesting, restart and late join. Build15 live death/respawn/body/loot/harvest/health-bar/same-container backpack flow passed and frames were accepted. |

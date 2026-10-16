@@ -450,3 +450,52 @@ preceded queued MMB delivery), which was corrected; two subsequent landing-site 
 The final run at 40.6263, 99.4565 completed normally. Existing SSS/7 texture RID/2 ObjectDB exit warnings remain.
 No full-suite or performance acceptance is claimed. Validation used separate binaries and fresh saves; the
 owner's running game was preserved. Restart through play-ground.cmd to build and use the corrected controls.
+
+## Normal-ground audio and action feedback — 16 October 2026
+
+The owner rejected the first thump-removal comparison: the boink remained throughout, especially walking/jumping.
+After auditioning four dry and four organic contacts in a new six-second reel, they replied **"Neither set has it"**.
+Those exact source selections now replace grass/dirt walk, run and crouch; the first three supply single-contact
+landings. Generic soft-heavy impact layers are removed from footsteps. The new short contacts avoid lowered gait
+pitch and stacked landings; pitch/jitter are constrained. Dry contacts received additional gentle compression after
+the approved reel to satisfy the unchanged level bounds. Source-sample feedback is not final-file/gameplay approval.
+See [REPAIR_AUDIO.md](REPAIR_AUDIO.md) for the filters, rejected attempt and acceptance boundary.
+
+Three action defects also changed: one owner for bow-release playback, accepted-hit weapon identity for melee
+contact sounds, and data-driven empty-trigger feedback once per press. Shared movement, authority, shuffle bags,
+attenuation and voice budgets remain. There are 52 modified footstep files, eight obsolete files/imports removed,
+and 96 unchanged footstep/swim files. The [whole-catalogue audit](reports/audio-action-checklist.md) enumerates all
+235 events / 775 files and inspected action routes; exact recipe/source hashes cover the 148 footstep/swim outputs.
+Unconsumed shell/repair actions, animal recordings and broader combat/material/mix listening remain open.
+
+Technical verification: clean solution build and Release server (zero warnings/errors); 389/389 engine-free tests
+in 442.1 s before the final asset-only revision; 10/10 audio/routing/catalogue tests after it. The final solution
+rebuild includes recorder cleanup/duration guards. Godot's final sound audit loaded 235 events / 775 files with
+zero problems, largest measurement difference 0.9 LU and highest true peak -1.14 dBTP. All 263 source downloads
+matched their recorded hashes. No measurement limit was relaxed. The initial build failed on a concurrently edited
+held-pose dependency and passed after that dependency arrived; the full recipe enumeration was stopped before
+asset writes and replaced by the bounded shared-encoder command, not counted as a successful build.
+
+Two isolated, fresh-save, ordinary hosted clients at 31.61184/132.47481 (High, 1280×720, hour10) completed the new
+opt-in `audio-movement` tour without a loading timeout. Each walked 11.25 m, ran 21.81 m, crouched 5.20 m and produced
+exactly one landing event for each of three jumps, with no idle steps. The first run's unedited
+[Master mix](audio/repairs/2026-10-16/gameplay-grass-mix.wav) and
+[Footsteps bus](audio/repairs/2026-10-16/gameplay-grass-feet.wav) were 26.848/26.933 s, nonzero and without clipped
+PCM samples. The revised recorder stops both buses before saving; its repeat produced matching 26.848 s files
+(26.858 s measured scenario), valid PCM activity and passing displacement/cadence checks. Start-request timestamps
+are not sample-accurate audible onset. These runs cover grass and no remote listener; dirt and other material
+gameplay auditions remain open.
+
+After the initial audio embed failed to display, the recording was supplied through the native player and a direct
+file link. The owner confirmed **"okay gameplay-grass-mix.wav doesnt have it"**: boink absence is accepted for that
+actual grass gameplay recording. This does not approve the second verification recording or the wider audio mix.
+The [approved source reel](audio/repairs/2026-10-16/approved-source-contacts.wav), raw game recordings, traces,
+validation logs and hashes are retained under `docs/audio/repairs/2026-10-16`. Four unchanged start/end screenshots
+were inspected under `docs/images/abtest-b/repairs/audio`: ordinary rendered ground, displacement and preserved HUD
+are visible, but these are not environment quality acceptance. Both runs retain the existing seven Texture RID
+and two ObjectDB exit warnings; no leak-free or broad performance claim is made.
+
+Root serialized shared builds/imports/GPU runs and then released the slot to the held/environment work. Their
+unrelated edits, geology integration and original-project files were preserved. The environment coordinator owns
+reopening the user's normal session after the remaining shared runtime checks. This batch does not close the
+complete audio programme, R9/L19/L21, the environment/held quality work or all 47 reported issues.

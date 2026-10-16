@@ -150,6 +150,9 @@ public sealed class LocalGun
 
     public event Action<ShotEvent>? ShotFired;
 
+    /// <summary>A fresh trigger press on a ready, empty gun; feedback only, with no fire intent or recoil.</summary>
+    public event Action<ItemDef>? DryFired;
+
     public event Action<ReloadEvent>? ReloadStarted;
 
     public event Action<ReloadEvent>? ReloadFinished;
@@ -224,7 +227,7 @@ public sealed class LocalGun
             Restart(stack);
         }
         _aimed = false;
-        if (gun == null || !canAct || state.IsDead || state.Stance == Stance.Crawling)
+        if (gun == null || !canAct || state.IsDead || state.Stance is Stance.Crawling or Stance.Seated)
         {
             _wantReload = false;
             _wantUnload = false;
@@ -306,9 +309,15 @@ public sealed class LocalGun
             _armed = true;
         }
         bool trigger = (pressed || held) && _armed;
-        if (!trigger || (state.Flags & (MoveFlags.Sprinting | MoveFlags.Swimming)) != 0 ||
-            FirearmRules.CanFire(_state, WeaponStack(), gun, tick) != OutcomeCode.Done)
+        if (!trigger || (state.Flags & (MoveFlags.Sprinting | MoveFlags.Swimming)) != 0)
         {
+            return;
+        }
+        OutcomeCode fire = FirearmRules.CanFire(_state, WeaponStack(), gun, tick);
+        if (fire != OutcomeCode.Done)
+        {
+            // An empty automatic weapon stays quiet while held. Equip, reload and cadence refusals are not dry fire.
+            if (pressed && fire == OutcomeCode.Empty) DryFired?.Invoke(gun.Item);
             return;
         }
         // The command's view as a heading and pitch where the player stands, as the server reads the intent: in the

@@ -81,3 +81,84 @@ The new files were imported, and the recycler's `.ogg.import` loop flag was set 
 Not completed by this pass: a human listening pass on every event, species-specific recorded animal voices, every
 natural prop's exact foot material, or a complete gunplay/animation redesign. Current automatic checks establish
 correct routing and technically valid audio, not final subjective sound quality.
+
+## Normal-ground "boink" and action feedback — 16 October 2026
+
+The owner specifically rejected ordinary walking/jumping sounds. Removing the generic Kenney `impactSoft_heavy`
+layer was insufficient: the owner heard the boink throughout the first A/B reel. That first comparison is rejected.
+The recordings themselves retained tonal body, and landings combined two unrelated contacts. A second six-second
+reel used four contacts each from BSB 1117 (dry gravel) and BSB 2889 (leaf cover), with controlled filtering and no
+doubled contact. The owner replied **"Neither set has it"** when asked about the boink. That is acceptance of the
+sample sets for this defect, not acceptance of the entire game mix or every material.
+
+Those four selected contacts now drive dirt and grass walk/run/crouch; their first three supply single-contact
+landings. Contact duration is capped at 0.32 s, without varispeed gait changes. Gait intensity still uses the existing
+cadence/level and landing-force rules. Pitch variation narrows to 0.98–1.02 and jitter to 0.8 dB for these materials.
+Dry contacts additionally receive gentle transient compression: one auditioned cut measured -30.1 LUFS, just below
+the existing -30 minimum; the final cut is -28.5 with -1.9 dBTP. No validation range was weakened. Crouch retains a
+12 ms onset fade and lower runtime level. These processing differences are separate from the approved source reel.
+
+Against the starting checkpoint, **52 footstep variants changed, eight obsolete variants/imports were removed,
+and 96 footstep/swim files are unchanged**. Other materials retain their original contact recordings with the
+generic soft-heavy thump removed; their quality remains unaccepted. Metal retains its separate contact ring.
+Shuffle bags, spatial attenuation, authority and movement routing are preserved. No source original changed.
+
+`python -I art/audio/repair_footsteps.py` rebuilds only changed footsteps through the existing measured encoder.
+The full `build.py` uses the same `events.py` recipes; its whole-catalogue recipe enumeration was stopped before
+asset writes because it spends several minutes evaluating unrelated synthesis. The bounded command preserves
+other catalogue entries, measurements and hand-tuned playback settings. All 263 source downloads verify.
+
+Three adjacent feedback defects are repaired:
+
+- `ThingsView` owns one bow release; `Shooter` identifies the local accepted arrow. The first-person view retains
+  the release animation, avoiding its former extra sound alongside the spatial release.
+- Accepted melee contact uses `HitMarkerEvent.Weapon`, so changing held items before confirmation cannot turn a
+  rifle hit into a melee thump or suppress a genuine melee contact. Existing body/head/kill markers remain.
+- Shared `LocalGun.DryFired` now consumes the existing data-driven `dryFire` role once per fresh empty trigger
+  press. Held input, equip/reload/cooldown refusals, sprint/swim, seats, wounded/dead and disabled actions stay silent.
+  Empty feedback creates no shot, recoil, ammunition change or fire intent.
+
+The complete [action checklist](reports/audio-action-checklist.md) and its JSON enumerate 235 events / 775 files,
+with actual inspected routes, mix/distance/variation, defects and review disposition. Exact source segments and
+license/hash provenance are exported for all 148 footstep/swim outputs. Other outputs retain explicit recipe-section
+pointers; their per-file source reconstruction and listening are still open. The audit found dormant/unconsumed
+shell and successful-repair sounds, among other gaps; a file existing is not a working gameplay trigger.
+
+### Reproduction and acceptance boundary
+
+Run an ordinary hosted client with a fresh or copied save, unique port, sound enabled and:
+
+```text
+--view ground --host --name AudioReview --spawn origin --port 27386
+--db <absolute-new-save-path> --tour <absolute-output-folder> --tour-steps audio-movement --sound-trace
+```
+
+`audio-movement` is explicitly opt-in. It sends normal predicted movement for idle/walk/run/crouch and three jumps,
+records the unedited Godot Master and Footsteps buses as WAV, and saves timestamps, movement, sound events, bus
+levels and start/end screenshots. It checks silent idle, displacement for each gait, exactly one landing per jump,
+and recorded PCM activity/duration. Run alone: event logging includes every voice. Timestamps mark sound start
+requests, not sample-accurate audible onset; audio buffering and spatial delay still apply. It does not
+grant items, teleport, change settings or inject individual sounds. Its JSON always leaves `qualityAccepted=false`.
+The Jolt regression independently checks ordinary spherical-ground walk/run and real jumps for landing chatter.
+
+The sample A/B reel is generated by `art/audio/footstep_comparison.py` from preserved before/current outputs at
+identical pitch/order/gain. It is labelled by timestamps and hashes and is **not gameplay**. The rejected first
+reel and the later owner-reviewed source reel are retained separately. Hosted recordings supply actual playback
+evidence; recording and technical checks alone do not establish an audible-quality verdict.
+
+The first ordinary hosted grass run passed: 11.25 m walking, 21.81 m running, 5.20 m crouching and three individual
+landing events. Idle emitted no footsteps. Its unedited [game mix](audio/repairs/2026-10-16/gameplay-grass-mix.wav),
+[isolated feet](audio/repairs/2026-10-16/gameplay-grass-feet.wav) and
+[trace](audio/repairs/2026-10-16/gameplay-grass.json) are retained. The 26.85/26.93 s WAVs contain nonzero audio with
+no clipped PCM samples. The owner-reviewed [source reel](audio/repairs/2026-10-16/approved-source-contacts.wav)
+is separately retained. The owner then confirmed **"okay gameplay-grass-mix.wav doesnt have it"**. The reported
+boink is therefore accepted as absent in this actual grass walk/run/crouch/jump recording. This is not acceptance
+of every material, the dry-contact runtime mix or the entire audio library.
+Start/end screenshots were inspected for real ground, character movement and preserved HUD; they are not
+environment-art acceptance. Existing exit warnings still report seven Texture RIDs and two ObjectDB instances.
+The final recorder-guard repeat also passed: both buses captured 26.848 s against 26.858 s elapsed, with nonzero
+PCM activity. Its raw files, trace and validation logs are in `audio/repairs/2026-10-16/verification`.
+
+Current validation and retained gameplay evidence are recorded in DEVELOPMENT.md. Remaining quality work includes
+other walk source auditions, all material boundaries and remote listeners, combat masking/timing, recorded animal
+voices, unconsumed actions and the broader library mix. This batch does not finish R9/L19/L21 or all 47 reports.

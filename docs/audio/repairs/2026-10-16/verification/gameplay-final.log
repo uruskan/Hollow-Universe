@@ -1,0 +1,126 @@
+Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+Vulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER
+
+Hollow Universe 1.0.0+b05a92fe28b8a4718097291ee44acbd7e18ca3fe
+Galaxy ready: 99142 catalogue stars, loaded in 577 ms.
+[server] 76 beach points on the world: players arrive and respawn at the landing site
+[server] admins: AudioFinal
+[server] loaded 0 things and 0 changed natural objects
+[server] loaded the building: 0 pieces, 0 doors, 0 claim devices (0 left out); 0.0 h of upkeep and decay caught up, 0 pieces stand
+[server] loaded 0 teams and 0 changed world props
+[server] loaded 0 sleepers
+[server] world props: 574 spots (31 coast, 41 forest-edge and 19 open clusters), 574 standing, in 1747 ms
+[server] AudioFinal's game: zone on body 8000000000000000/10300000, radius 1200 m, 1.00 g, landing at 31.6118°, 132.4748°, walking-scale ground, port 27386, database D:/GameDev/Projects/HollowUniverseABTestB/.artifacts/audio-first/movement-review-final.db, data BDA5596A98F3DEEB
+[client] connecting to 127.0.0.1:27386
+[server] AudioFinal joined from 127.0.0.1:51470 as #02E67AA14F804000 (new) at (-690.4, 636.3, -757.2) (admin)
+[client] connected; joining
+[client] joined AudioFinal's game as #02E67AA14F804000 on body 8000000000000000/10300000, radius 1200 m, 1.00 g, landing at 31.6118°, 132.4748°, walking-scale ground
+[ground] 16 layers in arrays in 903 ms
+[characters] Male: loaded 41 meshes, 43 clips in 104 ms
+[characters] Female: loaded 41 meshes, 43 clips in 94 ms
+[animals] first animal drawn: boar
+[sound] amb.wind.calm 0.0 dB at 0 m
+[sound] amb.birds.meadow 0.0 dB at 0 m
+[cover] 2701/2701 authored plants; LOD 131/742/1828; 24 draws; 903496 submitted triangles; batch 2.2 ms
+[sound] amb.surf.near 0.0 dB at 0 m
+[sound] amb.surf.far 0.0 dB at 0 m
+[sound] amb.birds.forest 0.0 dB at 0 m
+[sound] amb.leaves 0.0 dB at 0 m
+[sound] amb.crow 0.0 dB at 79 m
+[tour] saved D:/GameDev/Projects/HollowUniverseABTestB/.artifacts/audio-first/gameplay-final\audio-movement-start.jpg
+[audio-movement] 0.002s begin idle
+[audio-movement] 2.009s end idle, displaced 0.00m
+[audio-movement] 2.009s begin walk
+[sound] footstep.walk.grass -2.6 dB at 0 m
+[audio-movement] 2.306s walk: footstep.walk.grass (-2.6 dB, pitch 1.002)
+[sound] footstep.walk.grass -3.1 dB at 0 m
+[audio-movement] 2.719s walk: footstep.walk.grass (-3.1 dB, pitch 0.986)
+[sound] footstep.walk.grass -2.6 dB at 0 m
+[audio-movement] 3.139s walk: footstep.walk.grass (-2.6 dB, pitch 0.991)
+[sound] footstep.walk.grass -3.5 dB at 0 m
+[audio-movement] 3.559s walk: footstep.walk.grass (-3.5 dB, pitch 0.995)
+[sound] footstep.walk.grass -3.7 dB at 0 m
+[audio-movement] 3.980s walk: footstep.walk.grass (-3.7 dB, pitch 1.005)
+[sound] footstep.walk.grass -3.5 dB at 0 m
+[audio-movement] 4.394s walk: footstep.walk.grass (-3.5 dB, pitch 1.008)
+[sound] footstep.walk.grass -3.2 dB at 0 m
+[audio-movement] 4.815s walk: footstep.walk.grass (-3.2 dB, pitch 1.008)
+[sound] footstep.walk.grass -2.6 dB at 0 m
+[audio-movement] 5.232s walk: footstep.walk.grass (-2.6 dB, pitch 0.991)
+[sound] footstep.walk.grass -3.0 dB at 0 m
+[audio-movement] 5.636s walk: footstep.walk.grass (-3.0 dB, pitch 0.982)
+[audio-movement] 6.009s end walk, displaced 11.15m
+[audio-movement] 6.009s begin stop-walk
+[audio-movement] 7.009s end stop-walk, displaced 0.00m
+[audio-movement] 7.009s begin run
+[sound] footstep.run.grass 0.5 dB at 0 m
+[audio-movement] 7.298s run: footstep.run.grass (0.5 dB, pitch 0.994)
+[sound] footstep.run.grass 0.0 dB at 0 m
+[audio-movement] 7.824s run: footstep.run.grass (0.0 dB, pitch 1.012)
+[sound] footstep.run.grass 0.1 dB at 0 m
+[audio-movement] 8.133s run: footstep.run.grass (0.1 dB, pitch 1.010)
+[sound] footstep.run.grass -0.5 dB at 0 m
+[audio-movement] 8.455s run: footstep.run.grass (-0.5 dB, pitch 0.995)
+[sound] footstep.run.grass 0.5 dB at 0 m
+[audio-movement] 8.770s run: footstep.run.grass (0.5 dB, pitch 1.019)
+[sound] footstep.run.grass 0.2 dB at 0 m
+[audio-movement] 9.083s run: footstep.run.grass (0.2 dB, pitch 0.991)
+[sound] footstep.run.grass 0.0 dB at 0 m
+[audio-movement] 9.414s run: footstep.run.grass (0.0 dB, pitch 0.984)
+[sound] footstep.run.grass -0.6 dB at 0 m
+[audio-movement] 9.730s run: footstep.run.grass (-0.6 dB, pitch 1.007)
+[sound] footstep.run.grass 0.5 dB at 0 m
+[audio-movement] 10.052s run: footstep.run.grass (0.5 dB, pitch 1.009)
+[sound] footstep.run.grass 0.5 dB at 0 m
+[audio-movement] 10.590s run: footstep.run.grass (0.5 dB, pitch 0.992)
+[sound] footstep.run.grass 0.5 dB at 0 m
+[audio-movement] 10.916s run: footstep.run.grass (0.5 dB, pitch 1.002)
+[audio-movement] 11.019s end run, displaced 21.81m
+[audio-movement] 11.019s begin stop-run
+[audio-movement] 12.025s end stop-run, displaced 0.02m
+[audio-movement] 12.025s begin crouch
+[sound] footstep.crouch.grass -10.8 dB at 0 m
+[audio-movement] 12.335s crouch: footstep.crouch.grass (-10.8 dB, pitch 1.018)
+[sound] footstep.crouch.grass -10.8 dB at 0 m
+[audio-movement] 12.874s crouch: footstep.crouch.grass (-10.8 dB, pitch 1.011)
+[sound] footstep.crouch.grass -9.3 dB at 0 m
+[audio-movement] 13.426s crouch: footstep.crouch.grass (-9.3 dB, pitch 1.011)
+[sound] footstep.crouch.grass -10.2 dB at 0 m
+[audio-movement] 13.985s crouch: footstep.crouch.grass (-10.2 dB, pitch 1.002)
+[sound] footstep.crouch.grass -9.9 dB at 0 m
+[audio-movement] 14.520s crouch: footstep.crouch.grass (-9.9 dB, pitch 1.006)
+[sound] footstep.crouch.grass -10.7 dB at 0 m
+[audio-movement] 15.071s crouch: footstep.crouch.grass (-10.7 dB, pitch 0.998)
+[sound] footstep.crouch.grass -10.2 dB at 0 m
+[audio-movement] 15.618s crouch: footstep.crouch.grass (-10.2 dB, pitch 0.990)
+[audio-movement] 16.032s end crouch, displaced 5.20m
+[audio-movement] 16.032s begin stop-crouch
+[audio-movement] 17.032s end stop-crouch, displaced 0.00m
+[audio-movement] 17.032s begin jump-1
+[sound] footstep.land.grass -0.3 dB at 0 m
+[audio-movement] 17.812s jump-1: footstep.land.grass (-0.3 dB, pitch 0.999)
+[audio-movement] 19.642s end jump-1, displaced 0.00m
+[audio-movement] 19.642s begin jump-2
+[sound] footstep.land.grass -0.5 dB at 0 m
+[audio-movement] 20.410s jump-2: footstep.land.grass (-0.5 dB, pitch 0.984)
+[audio-movement] 22.247s end jump-2, displaced 0.00m
+[audio-movement] 22.247s begin jump-3
+[sound] footstep.land.grass -1.0 dB at 0 m
+[audio-movement] 23.018s jump-3: footstep.land.grass (-1.0 dB, pitch 1.018)
+[audio-movement] 24.848s end jump-3, displaced 0.00m
+[audio-movement] 24.848s begin idle-end
+[audio-movement] 26.855s end idle-end, displaced 0.00m
+[audio-movement] recording Ok: D:/GameDev/Projects/HollowUniverseABTestB/.artifacts/audio-first/gameplay-final\audio-movement-mix.wav (26.848s / 26.858s expected, 2575088/2577408 active samples)
+[audio-movement] recording Ok: D:/GameDev/Projects/HollowUniverseABTestB/.artifacts/audio-first/gameplay-final\audio-movement-feet.wav (26.848s / 26.858s expected, 1236689/2577408 active samples)
+[tour] saved D:/GameDev/Projects/HollowUniverseABTestB/.artifacts/audio-first/gameplay-final\audio-movement-end.jpg
+[audio-movement] technical movement/cadence checks passed; audible quality remains a listening decision
+[tour] done
+[client] clock moved by 7 ticks (inputs reached the server -4 ticks early)
+[client] disconnected (DisconnectPeerCalled)
+[server] shutting down: saving the world
+[server] AudioFinal left (DisconnectPeerCalled)
+[server] server stopped
+WARNING: 7 RIDs of type "Texture" were leaked.
+   at: finalize (servers/rendering/rendering_device.cpp:8900)
+WARNING: 2 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)

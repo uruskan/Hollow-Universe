@@ -1,0 +1,201 @@
+{
+  "date": "2026-10-16",
+  "baseCommit": "b05a92fe28b8a4718097291ee44acbd7e18ca3fe",
+  "scope": "Normal-ground footstep source repair and adjacent action audio feedback. Shared checkout also includes coordinated geology/held/environment work.",
+  "sourceSampleVerdict": {
+    "quote": "Neither set has it",
+    "meaning": "Owner confirms the boink absent in both four-contact processed source sets in approved-source-contacts.wav. Not approval of all source recordings or final gameplay."
+  },
+  "initialRevision": "Thump-only repair was rejected: owner heard boink throughout its A/B reel.",
+  "gameplayVerdict": {
+    "quote": "okay gameplay-grass-mix.wav doesnt have it",
+    "file": "docs/audio/repairs/2026-10-16/gameplay-grass-mix.wav",
+    "sha256": "9696aa14e7e392b779039e57027e2ac68798e1a555acb2520983fb7d3cd7915a",
+    "acceptedDefect": "Reported boink absent in this actual grass movement and jump-landing recording.",
+    "limits": "Not approval of all audio quality, other surfaces, dry-contact runtime, combat or the second verification recording. No assistant listening claim."
+  },
+  "visualReview": "Four raw start/end screenshots inspected for actual ground, displacement and preserved HUD. No environment-art acceptance.",
+  "runtime": {
+    "location": [
+      31.61184,
+      132.47481
+    ],
+    "quality": "High",
+    "resolution": [
+      1280,
+      720
+    ],
+    "hourArgument": 10,
+    "port": 27386,
+    "host": "in-process dedicated simulation, ordinary network client and prediction",
+    "save": "fresh isolated .artifacts saves; never user save",
+    "runs": 2,
+    "surfacesObserved": [
+      "Grass"
+    ],
+    "remoteListeners": 0,
+    "flags": "No mute, headless or screenshot-isolation flag; normal audio driver.",
+    "eventTiming": "Sound start requests, not sample-accurate audible onset."
+  },
+  "technical": {
+    "fullTests": "389/389 before final asset-only revision and later capture-harness guards",
+    "finalFocused": "10/10 AudioRepair/DryFireAudio/SoundCatalogue after asset revision",
+    "finalBuild": "0 warnings, 0 errors including final capture harness",
+    "releaseServer": "0 warnings, 0 errors",
+    "sourceHashes": "263 verified, 0 missing",
+    "engineAudit": {
+      "events": 235,
+      "files": 775,
+      "problems": 0,
+      "maxDifferenceLU": 0.9,
+      "highestTruePeakDbtp": -1.14
+    },
+    "gameplayChecks": "Both runs: real gait displacement, silent idle, exactly one landing per jump. Final harness additionally verifies recorded duration and PCM activity."
+  },
+  "knownDiagnostics": [
+    "Seven Texture RID and two ObjectDB exit leaks in both runs; retained in logs."
+  ],
+  "stillOpen": [
+    "Dirt and other material gameplay captures",
+    "Remote listeners and material boundaries",
+    "Combat mix/timing acceptance",
+    "Species-recorded animal audio and remaining action gaps"
+  ],
+  "files": [
+    {
+      "path": "docs/audio/repairs/2026-10-16/approved-source-contacts.wav",
+      "bytes": 614444,
+      "sha256": "e0399edbc23ff216dd77f22773d62828a15af65c01198e3e20856c3264b9f9b3",
+      "pcm": {
+        "durationSeconds": 6.4,
+        "sampleRate": 48000,
+        "channels": 1,
+        "peakSample": 18513,
+        "clippedSamples": 0,
+        "nonzeroSamples": 111513
+      }
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/approved-source-timeline.json",
+      "bytes": 340,
+      "sha256": "23e647d05dfda74aa5f4339fe28c9c4170a2c3576ff73804d287618cad4a80fb"
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/gameplay-grass-feet.wav",
+      "bytes": 5171244,
+      "sha256": "0bbbf03fd7470d3eb5d81198f44ee5e4514dd832bdc8bc58f8b0541eb0990b7c",
+      "pcm": {
+        "durationSeconds": 26.933333333333334,
+        "sampleRate": 48000,
+        "channels": 2,
+        "peakSample": 11666,
+        "clippedSamples": 0,
+        "nonzeroSamples": 1208227
+      }
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/gameplay-grass-mix.wav",
+      "bytes": 5154860,
+      "sha256": "9696aa14e7e392b779039e57027e2ac68798e1a555acb2520983fb7d3cd7915a",
+      "pcm": {
+        "durationSeconds": 26.848,
+        "sampleRate": 48000,
+        "channels": 2,
+        "peakSample": 11989,
+        "clippedSamples": 0,
+        "nonzeroSamples": 2574998
+      }
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/gameplay-grass.json",
+      "bytes": 1267721,
+      "sha256": "b5c4b2b87bd649f81c437facfc7a74ff885e14945ce9d91813b53aab78257f22"
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/verification/engine-sound-check-final.log",
+      "bytes": 286,
+      "sha256": "3d4dc45df120a2e9d69b30005647316174d1cfa7f522112d615170c96d7a6c92"
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/verification/final-focused.log",
+      "bytes": 1648,
+      "sha256": "b36b0528824948403f670335e747468633a1c2997663c3c2a497fc5542e99328"
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/verification/full-tests.log",
+      "bytes": 83489,
+      "sha256": "8a1ed15ae3193625d5ff4126a6d504d03122cff93c84462463a1698bb8988a16"
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/verification/gameplay-final.log",
+      "bytes": 7776,
+      "sha256": "fef1fb459ba8a8c4220dbd3fa80f7347298d35df42c9c8d09a8319588b12a5e8"
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/verification/gameplay.log",
+      "bytes": 7515,
+      "sha256": "b4cc3872c1fc2f63d05e64c5998007bb9427b7e78ac8af3009ff12b5c72c3725"
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/verification/grass-feet.wav",
+      "bytes": 5154860,
+      "sha256": "b1c0fa7058cd82bf01bd6a015bfa24e8cbbb3021e2b3e5ffa3e63fe8d8eab586",
+      "pcm": {
+        "durationSeconds": 26.848,
+        "sampleRate": 48000,
+        "channels": 2,
+        "peakSample": 12607,
+        "clippedSamples": 0,
+        "nonzeroSamples": 1236689
+      }
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/verification/grass-mix.wav",
+      "bytes": 5154860,
+      "sha256": "ffa1be96429fe9a3ee3974e48225fd5f575814e0ea7f53ed8c89842dd7a16162",
+      "pcm": {
+        "durationSeconds": 26.848,
+        "sampleRate": 48000,
+        "channels": 2,
+        "peakSample": 13448,
+        "clippedSamples": 0,
+        "nonzeroSamples": 2575088
+      }
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/verification/grass.json",
+      "bytes": 1048068,
+      "sha256": "e0f6446b15e03395a040417d066723d1ad7c562ab20eba132d403ca50d915d37"
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/verification/server-build.log",
+      "bytes": 1005,
+      "sha256": "558ac86c193433baa18c2bcf1648b738f63a81f9e000dfcdf7b77d94818660b1"
+    },
+    {
+      "path": "docs/audio/repairs/2026-10-16/verification/solution-build-final.log",
+      "bytes": 1980,
+      "sha256": "2d74c9532438d6ad7cc3f5ff58843525e88dbc4bf1cb78b67710464152d2a4c1"
+    },
+    {
+      "path": "docs/images/abtest-b/repairs/audio/grass-end.jpg",
+      "bytes": 332252,
+      "sha256": "64c4bd9323292dd634bd01c71629f86fc42cf62c3606ab0a2b684cd174f24423"
+    },
+    {
+      "path": "docs/images/abtest-b/repairs/audio/grass-start.jpg",
+      "bytes": 246087,
+      "sha256": "adff3e57ee5519414b44df0f1d20d958a146820c7bb5af3f91e66237abd2cdb8"
+    },
+    {
+      "path": "docs/images/abtest-b/repairs/audio/verification-grass-end.jpg",
+      "bytes": 303305,
+      "sha256": "cdaa36761e4a56efae1961c51979d88bb6df51953e402339ddadc92b957f8635"
+    },
+    {
+      "path": "docs/images/abtest-b/repairs/audio/verification-grass-start.jpg",
+      "bytes": 299913,
+      "sha256": "29555a7088bac5f5115f3e5a4c74b90f309414656c7cef86c2a9698ef5846cc2"
+    }
+  ]
+}
