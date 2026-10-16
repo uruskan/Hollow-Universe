@@ -535,3 +535,31 @@ Owner visual acceptance remains pending. Salvaged-axe wind-up still crops its he
 contact has a thin silhouette. One-handed free-left FPS motion remains unsupported. Existing
 ObjectDB/Jolt exit warnings remain (one ObjectDB and one or two Jolt shapes in these runs).
 This six-tool candidate does not close all 41 profiles, broader animation quality or other repair work.
+
+## Held-workshop rejection and animation-source audit — 16 October 2026
+
+The owner rejected the latest six-tool result and said the workshop is not usable to correct it,
+including difficulty dragging through the UI. Earlier assistant visual judgments and numerical
+attachment checks did not establish acceptable animation. The drag failure was not reproduced
+with actual mouse input in this follow-up; source inspection confirms only an opt-in translation
+handle, with no direct bone posing or rotation handles.
+
+Read-only audit: the MakeHuman/MPFB character uses a 53-bone game_engine rig; 37 Quaternius UAL1/UAL2
+clips plus six scripted clips already ship. The downloaded Standard packs include CC0 licenses,
+and chop is already retargeted from TreeChopping_Loop. FPS resets its skeleton and solves arms to
+JSON item transforms instead of playing these clips. Profile events also bypass normal TPS action
+clips. CharacterAssets.LoadAnimations retains rotations and pelvis translation only, discarding
+prop/camera translations needed by many first-person packs.
+
+Recommended direction, not an implemented or approved design: select source motion before
+integration; prove one axe sequence using authored skeletal playback, preserving arm motion and
+using IK only for bounded grip corrections. Keep gameplay authority and timing unchanged. Existing
+full-body chopping is a pipeline test candidate, not evidence of finished FPS quality. A dedicated
+first-person tool pack or animator-authored arms/prop clips may still be required. The workshop
+should support preview/clip assignment/offsets rather than require the owner to author animation.
+
+Official source checks: Godot supports humanoid retargeting; Quaternius lists Godot exports and
+CC0; Adobe lists Mixamo as free with royalty-free game use. The locally recorded Epic Animation
+Starter Pack listing explicitly says UE-Only, so it is not a Godot source candidate. No assets were
+purchased/downloaded/copied, no runtime profiles changed, and no build/GPU process was started.
+This follow-up changes status documentation only; git diff --check is the relevant validation.

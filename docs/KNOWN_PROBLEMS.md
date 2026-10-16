@@ -25,11 +25,17 @@ tick-aligned contact and the workshop.
 The rifle's real magazine now moves with the support hand; full-cycle captures checked the
 reload camera-clipping repair. Those inspections were assistant acceptance, not owner acceptance.
 
-Status: **six-tool candidate ready for review; visual quality open, 16 October 2026**. The owner says the workshop pass
+Status: **latest six-tool candidate rejected; authoring workflow inadequate, 16 October 2026**. The owner says the workshop pass
 did not produce good results and everything looks almost the same. The first requested priority is
 **rock and gathering tools: carry, grip and swing**. Six rock/axe/pick profiles now have revised
-carry, finger fits and swing curves. New FPS/TPS sheets and gameplay-timed workshop recordings
-show a visible improvement; owner acceptance and actual gameplay feel remain open.
+carry, finger fits and swing curves. The assistant judged the new captures improved, but the owner
+rejected the result and reports inability to drag/use the workshop to correct it. The UI has only
+an opt-in FPS translation gizmo, without direct skeletal posing or rotation handles; the reported
+drag failure itself has not been reproduced through real mouse input in this follow-up.
+Read-only audit found standard Quaternius clips already imported but bypassed by the profile-driven
+held actions. Authored skeletal playback with a dedicated first-person clip path is the proposed
+replacement; it is not implemented. The current loader also discards non-pelvis translation tracks,
+so a first-person arms/prop pack cannot simply be dropped into the existing body-clip loader.
 The workshop now exposes primary-palm gap, wrist bend and reach correction, plus an undoable
 finger-fit command. Clean build, focused 27/27 and final male/female 24-action / 404-sample checks
 pass; see the current evidence and limits below. One-handed items still do not consume

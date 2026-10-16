@@ -8,7 +8,16 @@ and selected **rock and gathering tools: carry, grip and swing** as the first re
 The workshop and technical checks below remain useful; the earlier assistant review did not
 establish owner acceptance. Six rock, axe and pick profiles now have revised carry, finger fits
 and swing curves, with current captures and checks below and in [DEVELOPMENT.md](DEVELOPMENT.md).
-This is a concrete candidate for owner review, not acceptance of all held-item visuals.
+**Subsequent owner review, 16 October:** the owner rejects the latest result and says the workshop
+is not usable for correcting it, including difficulty dragging through the UI. The six-tool pass
+is not visually accepted. Technical checks below remain historical diagnostics, not quality approval.
+
+Read-only follow-up found that reusable Quaternius clips already exist, including `chop` from
+`TreeChopping_Loop`, but FPS resets the skeleton and solves arms to the profile-driven item path.
+Profile events also bypass the normal TPS action clips. Proposed replacement: imported skeletal
+clips drive the arms/item, with limited grip correction; prove one axe before wider integration.
+The existing full-body chopping clip is a test candidate, not a proven first-person solution.
+This replacement has not been implemented or approved as a final design.
 
 ## Contract
 
@@ -209,7 +218,7 @@ shows the holding fist through the sampled swings and reduces the hanging thumb/
   [pick recording](images/held-items/2026-10-16/metal-pickaxe-swing.mp4) repeat each sampled cycle
   four times at 24 fps; they are workshop playback through the gameplay rigs, not a hosted combat test.
 
-Owner acceptance is pending. Remaining polish includes the salvaged axe head leaving the top of
+The owner subsequently rejected this candidate. Recorded review concerns include the salvaged axe head leaving the top of
 the frame during wind-up and the metal axe's thin strike silhouette. Free-left FPS motion remains
 unsupported. Existing ObjectDB/Jolt exit warnings remain. This does not close all 41 profiles.
 
