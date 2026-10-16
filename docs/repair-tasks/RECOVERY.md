@@ -1,5 +1,85 @@
 # Recovery after the computer restart
 
+Periodic coordination is now active in this same chat through the app heartbeat
+`coordinate-hollow-universe-repairs`, every ten minutes. It checks existing workers/resources,
+advances only authorized work under the single-heavy-job limits, and stays quiet on unchanged
+holds. This replaces the earlier unmonitored idle gap; it does not grant simultaneous runtimes,
+user-app cleanup or a LOD rewrite. The local computer and app must remain running. Stop the
+follow-up schedule when the queue is finished or only explicit owner acceptance remains.
+
+**20:50 validated startup repair checkpoint:** the shared build passed zero warnings/errors
+(`20261016-203812-build.*`). Transport/loading/architecture checks passed **15/15**
+(`20261016-204130-startup.*`), including a real 12-second client-update stall: the manual
+control timed out while background transport retained its session; callbacks remained on
+the caller, and disconnect/disposal completed. The actual built dilation kernel matched the
+retained original **bit-for-bit in 120 cases**, with all four allocation checks passing
+(`.artifacts/p8-startup/dilation-result-01.json`). Pixel output is preserved; allocation
+volume is measured separately from peak RAM. These changes have not yet passed a native
+Maximum world startup. The 124-input source checkpoint is
+`.artifacts/recovery/source-freeze-20261016-205044.json`; no inspected text contains NULs.
+
+Another Maximum world run is deferred while idle headroom is around 6 GiB. Its previous
+observed available-memory fall was approximately 5.8 GiB, so use **at least 8 GiB free** for
+that specific retry while retaining the 2 GiB stop guard. This workload-specific requirement
+does not block the smaller validated jobs. No runtime slot remains outstanding; no new
+source edits are authorized by this checkpoint. Remaining visual/gameplay checks and the
+full suite are still open. Do not label the earlier failed world run an accepted baseline.
+
+**20:35 current queue:** P4's incremental import refreshed only the holo, and both male/female
+editor checks passed 16 actions / 372 FPS/TPS samples each. Axe, pickaxe and holo-mount images
+were inspected; actual hosted contact/ADS and physical-mouse acceptance remain open. Admin's
+full UI check passed 67/67, including crafting's 16 cases; three HUD and three offline clan-base
+captures passed inspection. User preferences remained unchanged. See the P4 and admin reports.
+
+P2's Maximum/day baseline began with 7.651 GiB available, but the server timed out during
+world loading. The client then received PeerNotFound. A secondary memory observation around
+1.8 GiB triggered termination of only the owned process after 49.79 seconds. No ready
+screenshots or frame profiles exist. Both the original receipt (sampled minimum 2.034 GiB,
+null stop reason) and the explanatory intervention are preserved in
+`docs/images/repairs/p2-environment/baseline-max-day-r3/`. No quality improvement is claimed.
+
+P8 now owns a narrow source repair: opt-in background transport for the game while callbacks
+remain queued/main-thread and deterministic clients keep manual transport; normal timeouts
+remain 10 seconds. It also owns bit-preserving scratch reuse in `FloraTextures.Dilate`.
+P2's renderer candidate files remain frozen. These repairs need a fresh build, targeted
+regressions and a separate bounded startup capture before the environment route resumes.
+
+**19:22 coordination restart:** the owner asked why coordination had gone idle. The
+coordinator had ended its earlier turn while workers were waiting for validation slots;
+there was no ongoing monitor. Fresh available memory recovered to 7.436 GiB with no heavy
+job active. The new shared build including P5's sequencing repair **passed, zero warnings
+and errors**, in 38.95 seconds, minimum 6.245 GiB available / maximum 50% commit. Evidence:
+`.artifacts/recovery/integrated-checks/20261016-192147-build.*`. The 122-input source
+comparison has only the expected four P5 source/test changes since the prior build.
+P5 has the exclusive guarded combat rerun slot; the coordinator remains active to advance
+the shared foundation checks and then bounded visual validation. The earlier memory holds
+below are historical observations, not the current queue state.
+
+The combat rerun completed **68/68** in 82.9 seconds, including the repaired rifle ordering
+case and three new regressions. Evidence: `.artifacts/attack-system/recovery-combat-20261016-1923.*`.
+The foundation batch completed **61/64** in 14.8 seconds; two cliff-coverage failures and one
+clan-base occupied-site test were returned to their owners. Earth/save, environment-route,
+architecture, camera, held-item, loading, streaming and gib catalogue checks passed in that
+batch. Evidence: `.artifacts/recovery/integrated-checks/20261016-192939-foundation.*`.
+P8's native diagnostic and settings capture ran serially. Settings fit and user preferences
+were preserved; five renderer-count assertions failed. P8 corrected the diagnostic to query
+the rendering RID rather than resource metadata, preserving the cap/clear assertions; a
+new build and native rerun were required. P4's subsequent import/editor slot did not start
+because its 5.5 GiB preflight floor was not met; it was returned without launching a process.
+
+**19:55 completed checks:** after the P1 fitting/fixture, clan-base fixture and P8 diagnostic
+corrections, the shared build passed again (zero warnings/errors, 16.96 seconds, minimum
+4.014 GiB available). The foundation rerun passed **64/64** in 16.0 seconds, including all
+three previously failing cases. Evidence: `20261016-194953-build.*` and
+`20261016-195242-foundation.*` under `.artifacts/recovery/integrated-checks/`.
+The coordinator then ran P8's corrected native diagnostic: **44/44**, zero failures,
+2.51 seconds, minimum 4.91 GiB available. The saturated maximum/10-percent/zero renderer
+counts now match the live limits; the cleared image was inspected and contains no fragments.
+All three user preference files remained byte-identical. Evidence:
+`.artifacts/p8-gibs/20261016-02-gibs/`. These are isolated diagnostic passes, not full gameplay
+or overall FPS acceptance. P4 import/editor/capture and P2's Maximum route remain queued
+pending sufficient headroom for those larger jobs.
+
 **17:18 update:** the owner reported Blender export work complete and explicitly requested
 resuming all coordinated development. A fresh check found 9.1 GiB free / 37% commit and no
 Blender, build or game process. Seven development leads and the asset-audit chat resumed.
@@ -24,6 +104,13 @@ authored FBX LODs are optional fallbacks. Extracted Rust content in the recovery
 excluded. See the report for actual files, provenance limitations and useful plant candidates.
 No full-suite, visual-quality or performance acceptance follows from a build pass.
 
+P8's bounded 17:31 resource audit found 2.56 GiB available and hundreds of helper processes
+whose ancestry leads to live Codex/Claude applications. No sizable safely disposable orphan
+tree was established. Summed working sets are not reclaim estimates. No app or helper cleanup
+was performed or authorized; further heavy validation still requires restored headroom.
+See [P8's report](../repair-results/P8-performance.md). The owner's LOD clarification means
+routine existing-LOD verification during asset integration only, not a new Nanite/LOD project.
+
 16 October 2026, 15:18 Europe/Istanbul. The owner requested resuming interrupted chats after
 the computer crashed. Windows reports a boot at 15:10. The exact crash cause is not proven.
 Prior logs include overlapping full suites/rendering, native failures and memory exhaustion.
@@ -42,6 +129,17 @@ do not commit or unstage it accidentally. The current HEAD is `6746ea3f` at this
 ## Temporary execution limits
 
 These limits supersede the earlier three-subagents-per-chat plan during recovery.
+
+**19:48 bounded-job refinement:** measured successful runs reduced available RAM by
+1.693 GiB for the single-worker incremental build, 1.137 GiB for the foundation batch,
+and 0.433 GiB for P8's isolated gib diagnostic. With 4.974 GiB currently available and no
+heavy process, the coordinator permits a **4.5 GiB start floor only for these same bounded
+jobs**, retaining the 2 GiB / 85% commit stop guard and serialized execution. The root
+wrapper samples every second. This is not permission for a full suite, import, character
+or world render at that floor; those retain the 5.5 GiB floor. Current workload and memory
+are checked again before each job. The purpose is to keep measured small work moving while
+the larger jobs remain deferred; the previous blanket floor was unnecessarily restrictive
+for these specific observed jobs.
 
 - Resume the existing lead chats and their saved work. Do not spawn or resume subagents yet.
 - Parallel light reading/editing is permitted within the existing file claims.

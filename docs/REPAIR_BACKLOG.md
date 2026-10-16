@@ -9,6 +9,16 @@ This is the current repair queue for AB Test B. It merges the original thirty fi
 reproduced defects. These are 59 source reports with overlapping subjects, not 59 independent bugs.
 The full feature roadmap in DESIGN.md remains separate.
 
+Current coordinated validation: the fresh shared build passed with zero warnings/errors;
+combat passed 68/68, the repaired foundation batch 64/64, and the native gib-budget diagnostic
+44/44. Both-body held-editor checks passed 16 actions / 372 poses each. These are bounded
+checks, not a completed full suite or visual acceptance. P2's Maximum/day world baseline
+failed during startup with Timeout/PeerNotFound and memory pressure before any ready capture.
+The resulting transport-liveness and foliage temporary-allocation repairs now build and pass
+15 focused checks plus 120 actual-kernel bitwise comparisons. Maximum world startup still
+needs a native rerun with sufficient memory; P2 visual candidates remain staged. Current evidence and job limits are in
+[RECOVERY.md](repair-tasks/RECOVERY.md).
+
 The owner now accepts the axe animation they used and rejects the pickaxes, inconsistent
 first-person tool sizes, oversized holo and current environment quality. Preserve the accepted
 axe motion. Earlier assistant-approved screenshots do not overrule this review. Approval of
@@ -43,7 +53,7 @@ and its results must be inspected before another owner changes it.
 | N8 | Smaller usable holo and readable optimized ballistic flight, especially incendiary rounds | P4 + P5 | Holo quality reopened; projectile physics exists, visibility remains open |
 | N9 | Unattended zero-thrust attitude hold with assist ON; useful turret sightlines | P6 | Open; existing auto-level behavior conflicts with the requested hold |
 | N10 | Roofs without side panels, joining and stacking side by side | P7 | Open; both authored geometry and collision need changing |
-| N11 | Player-controlled minimum/maximum gib detail or budget | P8 | Open; current catalogue limits are not user-facing settings |
+| N11 | Player-controlled minimum/maximum gib detail or budget | P8 | Verify; user-facing slider implemented, native diagnostic 44/44 and settings capture pass; gameplay/APPLY/restart acceptance remains |
 | N12 | Recover performance without sacrificing accepted visual quality | P8 + each owner | Open; establish controlled CPU/GPU baselines and measurable causes |
 
 ## Packages and acceptance
@@ -201,8 +211,9 @@ turning input, activating that return. N9 explicitly requests retaining the chos
 zero thrust while unattended. Do not implement the opposite fix or silently switch assist off.
 
 Roof gables are authored in both `art/import/building_kit.py` and shared `PieceShapes.cs`.
-Removing only rendered panels leaves invisible collision. Gibs currently use catalogue limits
-(640 pieces, 70 m piece range, 170 m dust range), with no dedicated player setting.
+Removing only rendered panels leaves invisible collision. The new gib amount slider ranges
+from zero mesh fragments to the catalogue cap (640); dust/sound remain at minimum. Its isolated
+44-check diagnostic verifies live renderer counts and clearing. Gameplay acceptance is pending.
 
 ## First-person composition decision
 
