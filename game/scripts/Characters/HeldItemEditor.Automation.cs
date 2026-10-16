@@ -27,21 +27,28 @@ public partial class HeldItemEditor
         try
         {
             SetPlaying(false);
-            float originalX = _profile.FirstPerson.Position.X;
+            string placementItem = _held.Id, placementAction = _action;
+            float originalX = FpsPlacementPosition.X;
             if (_testPositionX == null) throw new InvalidOperationException("FPS X control was not built.");
             _testPositionX.Value = originalX + 0.013f;
-            Require(MathF.Abs(HeldPresentations.Get(_held.Id).FirstPerson.Position.X - (originalX + 0.013f)) < 0.0001f, "Changing the actual FPS X control must update the live catalog.");
+            Require(MathF.Abs(EditorPlacementPosition(HeldPresentations.Get(_held.Id), _action).X - (originalX + 0.013f)) < 0.0001f, "Changing the actual FPS X control must update the live catalog.");
             await Settle(2);
-            Require(_viewmodel.CurrentPresentation != null && MathF.Abs(_viewmodel.CurrentPresentation.FirstPerson.Position.X - (originalX + 0.013f)) < 0.0001f, "FPS renderer must see the edited profile.");
+            Require(_viewmodel.CurrentPresentation != null && MathF.Abs(EditorPlacementPosition(_viewmodel.CurrentPresentation, _action).X - (originalX + 0.013f)) < 0.0001f, "FPS renderer must see the edited profile.");
             Undo();
-            Require(MathF.Abs(_profile.FirstPerson.Position.X - originalX) < 0.0001f, "Undo must restore the original pose.");
+            Require(MathF.Abs(FpsPlacementPosition.X - originalX) < 0.0001f, "Undo must restore the original pose.");
             Redo();
-            Require(MathF.Abs(_profile.FirstPerson.Position.X - (originalX + 0.013f)) < 0.0001f, "Redo must restore the edited pose.");
+            Require(MathF.Abs(FpsPlacementPosition.X - (originalX + 0.013f)) < 0.0001f, "Redo must restore the edited pose.");
+            var savedSources = HeldItems.All.ToDictionary(i => i.Id, i => HeldPresentations.Clone(HeldPresentations.Get(i.Id)), StringComparer.Ordinal);
             HeldPresentations.Save(temporary);
             _testPositionX.Value = originalX + 0.029f;
             HeldPresentations.Reload(temporary);
-            Require(MathF.Abs(HeldPresentations.Get(_held.Id).FirstPerson.Position.X - (originalX + 0.013f)) < 0.0001f, "Validated atomic save/reload must retain the edited pose.");
-            SelectItem(_held);
+            Require(MathF.Abs(EditorPlacementPosition(HeldPresentations.Get(_held.Id), _action).X - (originalX + 0.013f)) < 0.0001f, "Validated atomic save/reload must retain the edited pose.");
+            CheckSkeletalRoundTrip(savedSources);
+            // Source actions intentionally do not edit numerical motion keys. Exercise those controls on a legacy
+            // profile, then return to the selected source profile for the actual placement gizmo.
+            SelectItem(HeldItems.Find("stone-hatchet")!);
+            SelectAction("swing");
+            Require(Clip.Skeletal == null, "The legacy key-edit fixture must remain an unbound profile.");
             int originalKeys = Clip.Keys.Count;
             float insertedAt = 0.413f;
             while (Clip.Keys.Any(k => MathF.Abs(k.At - insertedAt) < 0.001f)) insertedAt += 0.013f;
@@ -55,6 +62,8 @@ public partial class HeldItemEditor
             Require(Clip.Keys.Count == originalKeys, "Delete key must remove only the selected interior key.");
             Undo();
             Require(Clip.Keys.Count == originalKeys + 1, "Undo must restore a deleted key.");
+            SelectItem(HeldItems.Find(placementItem)!);
+            SelectAction(placementAction);
             SetPhase(0);
             SetView(1);
             _showGizmo = true;
@@ -64,23 +73,23 @@ public partial class HeldItemEditor
             int dragAxis = Enumerable.Range(0, 3).OrderByDescending(i => ProjectViewmodel(_gizmo.GlobalPosition + GizmoAxes[i] * GizmoArm).DistanceTo(gripScreen)).First();
             Vector2 tipScreen = ProjectViewmodel(_gizmo.GlobalPosition + GizmoAxes[dragAxis] * GizmoArm);
             Vector2 screenDelta = tipScreen - gripScreen;
-            Vector3 beforeDrag = _profile.FirstPerson.Position;
+            Vector3 beforeDrag = FpsPlacementPosition;
             _previewContainer.EmitSignal(Control.SignalName.GuiInput, new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = tipScreen });
             Require(_dragAxis == dragAxis, "Clicking the rendered gizmo tip must select its axis.");
             Vector2 dragEnd = tipScreen + screenDelta.Normalized() * (screenDelta.Length() / GizmoArm * 0.02f);
             _previewContainer.EmitSignal(Control.SignalName.GuiInput, new InputEventMouseMotion { Position = dragEnd, ButtonMask = MouseButtonMask.Left });
             _previewContainer.EmitSignal(Control.SignalName.GuiInput, new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = dragEnd });
-            Require(MathF.Abs(_profile.FirstPerson.Position[dragAxis] - beforeDrag[dragAxis] - 0.02f) < 0.0002f, "Dragging an axis must move the FPS grip by the projected distance.");
+            Require(MathF.Abs(FpsPlacementPosition[dragAxis] - beforeDrag[dragAxis] - 0.02f) < 0.0002f, "Dragging an axis must move the FPS placement by the projected distance.");
             _testPositionX!.GetLineEdit().GrabFocus();
             _Input(new InputEventKey { Keycode = Key.Z, CtrlPressed = true, Pressed = true });
-            Require(_profile.FirstPerson.Position.DistanceTo(beforeDrag) < 0.0002f, "Ctrl+Z while a numeric field has focus must undo the gizmo edit.");
+            Require(FpsPlacementPosition.DistanceTo(beforeDrag) < 0.0002f, "Ctrl+Z while a numeric field has focus must undo the gizmo edit.");
             _showGizmo = false;
             foreach (HeldPresentationProfile original in originals.Values) HeldPresentations.Replace(HeldPresentations.Clone(original));
             _dirty.Clear(); _undo.Clear(); _redo.Clear();
 
             // A wrist can reach its edited IK target while the palm floats off the handle. Check this distinction
             // in the actual rig so the new contact diagnostic cannot silently become another wrist-target check.
-            SelectItem(HeldItems.Find("metal-hatchet")!);
+            SelectItem(HeldItems.Find("stone-hatchet")!);
             SelectAction("idle"); SetView(0); SetPhase(0);
             _hand = 0;
             float[] originalCurls = Enumerable.Repeat(1f, 15).ToArray();
@@ -105,7 +114,7 @@ public partial class HeldItemEditor
             Require(_viewmodel.PrimaryHandAttachmentError < 0.002f, "The displaced wrist must still reach its own target.");
             Require(MathF.Abs(_viewmodel.PrimaryPalmContactError - 0.03f) < 0.002f,
                 "A 30 mm wrist offset must report a 30 mm palm gap, even when wrist-target attachment passes.");
-            HeldPresentations.Replace(HeldPresentations.Clone(originals["metal-hatchet"]));
+            HeldPresentations.Replace(HeldPresentations.Clone(originals["stone-hatchet"]));
             _dirty.Clear();
 
             // Cover every held item and every authored action through both gameplay rendering paths.
@@ -131,6 +140,12 @@ public partial class HeldItemEditor
                         .Concat(Clip.Keys.Zip(Clip.Keys.Skip(1), (a, b) => (a.At + b.At) * 0.5f))
                         .Append(Clip.Marker >= 0 ? Clip.Marker : 0.35f).Append(0.65f)
                         .Distinct().Order().ToArray();
+                    if (Clip.Skeletal != null)
+                    {
+                        phases = phases.Concat(new[] { 0f, 0.125f, 0.25f, 0.5f, 0.75f, 0.875f, 1f }).Distinct().Order().ToArray();
+                        await CheckSkeletalCurveIsolation();
+                        CheckSkeletalGameplayTiming();
+                    }
                     foreach (int camera in new[] { 0, 2 })
                     {
                         SetView(camera);
@@ -139,6 +154,7 @@ public partial class HeldItemEditor
                             SetPhase(phase);
                             await Settle(2);
                             CheckFinite(camera == 0 ? _viewmodel : _character, $"{item.Id}/{action}/{camera}/{phase}");
+                            if (Clip.Skeletal != null) CheckSkeletalSourcePose(camera, phase, $"{item.Id}/{action}/{camera}/{phase}");
                             if (action == "reload")
                             {
                                 bool hasMagazine = camera == 0 ? _viewmodel.HasReloadMagazine : _character.HasReloadMagazine;
@@ -203,7 +219,7 @@ public partial class HeldItemEditor
             GD.Print($"[held-editor-attachment] max={maxAttachmentError:0.0000} m at {maxAttachmentContext}; {attachmentWarnings} connected FPS samples exceed 0.025 m.");
             GD.Print($"[held-editor-reach] largest authored-pose correction={maxReachCorrection:0.0000} m at {maxReachContext}; corrections above 0.005 m are visible editor warnings.");
             Require(attachmentWarnings == 0, $"A holding hand detached by more than 0.025 m in {attachmentWarnings} samples; worst {maxAttachmentError:0.0000} m at {maxAttachmentContext}.");
-            GD.Print($"[held-editor-check] PASS: numeric UI edit, live preview, undo, redo, key add/update/move/delete/undo, actual gizmo drag, Ctrl+Z with field focus, finger-fit button/undo, displaced palm diagnostic, atomic temporary save/reload; {actions} actions, {samples} FPS/TPS samples with finite transforms and attached holding hands.");
+            GD.Print($"[held-editor-check] PASS: numeric UI edit, live preview, undo, redo, legacy key add/update/move/delete/undo, gizmo input-event drag, Ctrl+Z with field focus, finger-fit button/undo, displaced palm diagnostic, atomic temporary save/reload including source bindings, bound source-bone fidelity/curve isolation/gameplay timing; {actions} actions, {samples} FPS/TPS samples with finite transforms and attached holding hands.");
             _statusText = $"Editor check passed · {actions} actions · {samples} FPS/TPS samples";
         }
         catch (Exception error)
@@ -287,8 +303,9 @@ public partial class HeldItemEditor
                     for (int col = 0; col < phases.Length; col++)
                     {
                         SetPhase(phases[col]);
-                        _captureCaption.Text = $"{_held.Name} · {(camera == 0 ? "FPS" : camera == 1 ? "arms orbit" : "TPS")}\n{action} · {phases[col] * 100:0.#}%" + (col == 2 && Clip.Marker >= 0 ? " · EVENT" : "");
+                        _captureCaption.Text = $"{_held.Name} · {(camera == 0 ? "FPS" : camera == 1 ? "arms orbit" : "TPS")}\n{action} · {phases[col] * 100:0.#}%" + (col == 2 && Clip.Marker >= 0 ? " · EVENT" : "") + CaptureSourceCaption();
                         await Settle(3);
+                        if (Clip.Skeletal != null) CheckSkeletalSourcePose(camera, phases[col], $"sheet/{_held.Id}/{action}/{camera}/{phases[col]}");
                         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
                         Image frame = _preview.GetTexture().GetImage();
                         frame.Convert(Image.Format.Rgba8);
@@ -373,8 +390,9 @@ public partial class HeldItemEditor
                 if (cycle == "bow" && action == "idle") phase = (float)((time - segmentStart) % Clip.Duration / Clip.Duration);
                 float marker = _gameTiming ? GameplayMarker() : -1;
                 SetPhase(marker >= 0 ? Clip.AlignMarker(phase, marker) : phase);
-                _captureCaption.Text = $"{_held.Name} · {cameraName.ToUpperInvariant()}\n{action} · {time:0.000} s · {_phase * 100:0.0}%";
+                _captureCaption.Text = $"{_held.Name} · {cameraName.ToUpperInvariant()}\n{action} · {time:0.000} s · {_phase * 100:0.0}%" + CaptureSourceCaption();
                 await Settle(2);
+                if (Clip.Skeletal != null) CheckSkeletalSourcePose(_view, _phase, $"animation/{_held.Id}/{action}/{_view}/{_phase}");
                 await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
                 CheckFinite(_view == 2 ? _character : _viewmodel, $"animation/{_held.Id}/{action}/{_phase}");
                 using Image image = _preview.GetTexture().GetImage();
@@ -388,7 +406,7 @@ public partial class HeldItemEditor
                 sampledSeconds = secondsToCapture, playbackSeconds = frameCount / (double)fps,
                 requestedSeconds, truncated = requestedSeconds > secondsToCapture,
                 gameplayTiming = _gameTiming, aiming = _aiming,
-                segments = segments.Select(s => new { action = s.Action, seconds = s.Seconds }),
+                segments = segments.Select(s => new { action = s.Action, seconds = s.Seconds, skeletal = _profile.Actions[s.Action].Skeletal }),
             }, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(Path.Combine(output, "manifest.json"), manifest + System.Environment.NewLine);
             GD.Print($"[held-editor-animation] Saved {frameCount} frames at {fps} fps to {output}; {secondsToCapture:0.000}s sampled, camera={cameraName}, cycle={cycle}.");

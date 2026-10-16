@@ -49,11 +49,27 @@ public sealed class HeldPresentationKey
     public string Ease { get; set; } = "smooth";
 }
 
+/// <summary>A normalized segment of an existing, body-retargeted skeletal animation. Equal endpoints hold a
+/// source pose. The action's marker maps gameplay phase into this segment; this binding never changes game timing.</summary>
+public sealed class HeldSkeletalClip
+{
+    public string Clip { get; set; } = "";
+    public float Start { get; set; }
+    public float End { get; set; } = 1f;
+    /// <summary>Cross the source loop boundary. Equal endpoints then play one complete cycle.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool Wrap { get; set; }
+}
+
 public sealed class HeldPresentationClip
 {
     public float Duration { get; set; } = 1f;
     /// <summary>Authored contact/release point, remapped to the simulation's strike timing for melee; -1 for none.</summary>
     public float Marker { get; set; } = -1f;
+    /// <summary>When present, source skeleton motion drives the arms and the held item follows the hand.
+    /// Item position/rotation curves remain available as a fallback for missing source assets.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public HeldSkeletalClip? Skeletal { get; set; }
     public List<HeldPresentationKey> Keys { get; set; } = new();
 
     public HeldPresentationKey Sample(float time, float[]? rightRest = null, float[]? leftRest = null)
@@ -108,6 +124,10 @@ public sealed class HeldPresentationProfile
     public string Item { get; set; } = "";
     public string Family { get; set; } = "";
     public HeldPresentationPose FirstPerson { get; set; } = new();
+    /// <summary>Camera-space composition offset applied before the body's default eye-centred first-person rig.
+    /// It moves the complete authored rig, preserving its shoulder, elbow and wrist relationships.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public HeldPresentationPose? FirstPersonRig { get; set; }
     public HeldPresentationPose ThirdPerson { get; set; } = new();
     public HeldPresentationPose AimOffset { get; set; } = new();
     public float BowDrawDistance { get; set; } = 0.42f;
@@ -252,6 +272,7 @@ public static class HeldPresentations
         }
         if (string.IsNullOrWhiteSpace(profile.Item) || string.IsNullOrWhiteSpace(profile.Family)) Error("Item and family are required.");
         Pose(profile.FirstPerson, "firstPerson"); Pose(profile.ThirdPerson, "thirdPerson"); Pose(profile.AimOffset, "aimOffset");
+        if (profile.FirstPersonRig != null) Pose(profile.FirstPersonRig, "firstPersonRig");
         if (!float.IsFinite(profile.BowDrawDistance) || profile.BowDrawDistance <= 0 || profile.BowDrawDistance > 1) Error("Bow draw distance must be in (0,1] m.");
         foreach ((HeldPresentationHand? hand, string name) in new[] { (profile.RightHand, "rightHand"), (profile.LeftHand, "leftHand") })
         {
@@ -270,6 +291,8 @@ public static class HeldPresentations
             if (clip == null || !float.IsFinite(clip.Duration) || clip.Duration <= 0 || clip.Duration > 30f ||
                 !float.IsFinite(clip.Marker) || clip.Marker < -1 || clip.Marker > 1 || clip.Keys == null || clip.Keys.Count < 2)
             { Error($"Action {name} requires duration (0,30], marker [-1,1], and at least two keys."); continue; }
+            if (clip.Skeletal is { } skeletal && !HeldSkeletalMotion.ValidBinding(skeletal))
+                Error($"Action {name} skeletal binding requires a simple clip name and valid start/end/wrap in [0,1].");
             if (clip.Keys[0] == null || clip.Keys[^1] == null || clip.Keys[0].At != 0 || clip.Keys[^1].At != 1) Error($"Action {name} needs keys at 0 and 1.");
             float previous = -1;
             foreach (HeldPresentationKey key in clip.Keys)

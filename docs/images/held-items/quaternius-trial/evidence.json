@@ -1,0 +1,125 @@
+{
+  "createdUtc": "2026-10-16T10:13:35.038242+00:00",
+  "baseCommit": "7affa1714d833feb6773aeb5af304103cd277c06",
+  "scope": "metal-hatchet Quaternius source motion and smaller FPS framing pilot",
+  "source": "UAL2/TreeChopping_Loop (installed Standard, CC0)",
+  "installedRuntimeClips": 43,
+  "runtimeQuaterniusClips": 37,
+  "sourceContactSeconds": 0.16666666666666666,
+  "contactEvidence": "Inferred from attached axe-tip slowdown; no source contact event",
+  "frozenCarrySeconds": 0.43,
+  "firstPersonRig": {
+    "position": [
+      -0.04,
+      -0.14,
+      -0.25
+    ],
+    "rotation": [
+      25,
+      0,
+      0
+    ]
+  },
+  "videos": {
+    "fps": {
+      "version": 1,
+      "item": "metal-hatchet",
+      "camera": "fps",
+      "cycle": "",
+      "fps": 24,
+      "frameCount": 20,
+      "width": 1280,
+      "height": 720,
+      "framePattern": "frame-%04d.png",
+      "sampledSeconds": 0.800000011920929,
+      "playbackSeconds": 0.8333333333333334,
+      "requestedSeconds": 0.800000011920929,
+      "truncated": false,
+      "gameplayTiming": true,
+      "aiming": false,
+      "segments": [
+        {
+          "action": "swing",
+          "seconds": 0.800000011920929,
+          "skeletal": {
+            "Clip": "chop",
+            "Start": 0.4448276,
+            "End": 0.4448276,
+            "Wrap": true
+          }
+        }
+      ],
+      "reviewRepeats": 6,
+      "sha256": "745722c7e00a332e924a284185c976132e52a78d669a78b13e7203340746b359"
+    },
+    "tps": {
+      "version": 1,
+      "item": "metal-hatchet",
+      "camera": "tps",
+      "cycle": "",
+      "fps": 24,
+      "frameCount": 20,
+      "width": 1280,
+      "height": 720,
+      "framePattern": "frame-%04d.png",
+      "sampledSeconds": 0.800000011920929,
+      "playbackSeconds": 0.8333333333333334,
+      "requestedSeconds": 0.800000011920929,
+      "truncated": false,
+      "gameplayTiming": true,
+      "aiming": false,
+      "segments": [
+        {
+          "action": "swing",
+          "seconds": 0.800000011920929,
+          "skeletal": {
+            "Clip": "chop",
+            "Start": 0.4448276,
+            "End": 0.4448276,
+            "Wrap": true
+          }
+        }
+      ],
+      "reviewRepeats": 6,
+      "sha256": "07b2fd135cd7ff7f40d42d2aa262e7440e44637263267313137d34a00efeacee"
+    }
+  },
+  "sourceSha256": {
+    "game/data/ground/held-presentations.json": "2b89921275ceebc426e42412d50baf1e475e1a502d520b5ea727337387947556",
+    "game/assets/characters/animations.glb": "64c04afa690ab9bdce0d3409735ef9dfccd3d72f6077e961d6fa0cf65b41826a",
+    "game/assets/characters/animations_female.glb": "2eedfb00c22186fff27f8f87ddd24a1463836491d6dd12a2abe26642c3db6fe6",
+    "game/assets/characters/animations.json": "2aa4f40a2e22df32a72886e1a355e30211f779b4a797816ff821b4af0f4b9f59",
+    "game/assets/characters/animations_female.json": "16f6bd2a064872571d5223cece87bc224b53b6ae786c8ca3e7eb6b95a410c656",
+    "game/scripts/Characters/HeldItemEditor.SkeletalChecks.cs": "053e4a3c796696057d5cf4108fa9db5cf5dc0c46dcc9630e8700ee9976c238ed",
+    "game/scripts/Characters/HeldSkeletalMotion.cs": "b5c0c0ac3be9c8783aeb8a9922c2881d38a702f82243f889bf4b7d63412fac9f",
+    "game/scripts/Characters/ViewmodelView.SkeletalMotion.cs": "59931c3e56a3c4f53be32b798d631693f1004a3714e0a2b55e00f17e5362c829",
+    "game/scripts/Characters/ViewmodelView.cs": "01abf515535d32d26427031908e0ff3cf4c42a1d329d9dac7405257dfcce22ef",
+    "game/scripts/Characters/HeldPresentationViewmodel.cs": "17086ef53af89d0974a748d866a91b6f241831fd466a4900264a93ff6f185e5b",
+    "game/scripts/Characters/CharacterView.cs": "70f8454e9c0b187f0f2c887b2c39dd7eff4621cf3c5b907687686203b8f31374",
+    "game/scripts/Characters/CharacterView.HeldPresentation.cs": "fb7c91c379b301b79426af195181092538d1c947a8234d50359d2e157c557d06",
+    "game/scripts/Characters/HeldPresentations.cs": "9335840e699f75449164a2c235b3b65311a51ed9aee5a183705711a785e1e7f0"
+  },
+  "limits": [
+    "Full-body source windup leaves FPS frame",
+    "Carry/equip/sprint use a frozen source pose; no authored transitions",
+    "Source FPS omits sway/bob/equip/sprint overlays",
+    "No spatial contact correction",
+    "Original physical mouse issue not reproduced; synthetic UI input checked",
+    "One ObjectDB exit warning remains"
+  ],
+  "validation": {
+    "build": "0 warnings, 0 errors",
+    "maleEditor": {
+      "actions": 8,
+      "fpsTpsSamples": 164
+    },
+    "femaleEditor": {
+      "actions": 4,
+      "fpsTpsSamples": 100
+    },
+    "sourceArmRotationToleranceDegrees": 0.1,
+    "finalFpsVideoFramesChecked": 20,
+    "focusedTests": "27/28 initial; observer reload timeout passed isolated 1/1",
+    "fullTests": "392/392 passed in 420.4 seconds"
+  }
+}

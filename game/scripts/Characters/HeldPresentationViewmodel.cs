@@ -109,6 +109,8 @@ public partial class ViewmodelView
 
     public void CancelActions()
     {
+        UsingSkeletalMotion = false;
+        SkeletalMotionError = null;
         _action = _previewAction = null;
         _actionPhase = 0;
         _actionPhaseSought = false;
@@ -200,7 +202,7 @@ public partial class ViewmodelView
         SynchronizeAction();
     }
 
-    private void SynchronizeAction()
+    private void SynchronizeAction(bool allowSkeletal = true)
     {
         if (_model == null) return;
         string action = ActiveAction;
@@ -229,7 +231,10 @@ public partial class ViewmodelView
         {
             sampleAt = clip.AlignMarker(t, HeldActionTiming.CommitFraction(action, _actionDuration));
         }
-        _presentationSample = clip?.Sample(sampleAt, _model.Presentation.RightHand.Fingers, _model.Presentation.LeftHand.Fingers) ?? new HeldPresentationKey();
+        // Source-bound actions bypass the item/hand curves entirely. Keep the shared marker-aligned clock.
+        _presentationSample = allowSkeletal && clip?.Skeletal != null ? new HeldPresentationKey { At = sampleAt }
+            : clip?.Sample(sampleAt, _model.Presentation.RightHand.Fingers, _model.Presentation.LeftHand.Fingers) ?? new HeldPresentationKey();
+        if (allowSkeletal && clip?.Skeletal != null) return;
         _handSample = new HeldPresentationKey
         {
             RightHandPosition = _presentationSample.RightHandPosition, RightHandRotation = _presentationSample.RightHandRotation,

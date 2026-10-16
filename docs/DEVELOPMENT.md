@@ -563,3 +563,41 @@ CC0; Adobe lists Mixamo as free with royalty-free game use. The locally recorded
 Starter Pack listing explicitly says UE-Only, so it is not a Godot source candidate. No assets were
 purchased/downloaded/copied, no runtime profiles changed, and no build/GPU process was started.
 This follow-up changes status documentation only; git diff --check is the relevant validation.
+
+## Quaternius metal-hatchet pilot and smaller FPS framing — 16 October 2026
+
+The owner requested trying the installed Quaternius animations instead of replacing their motion
+with held-item curves. They subsequently described the test as much better but the axe/hand as
+too large. The new pilot enables only metal-hatchet. UAL2 TreeChopping_Loop (runtime chop) drives
+actual rotations in both views; the tool follows the hand, with static holding-finger fitting.
+FPS skips arm IK and the old item/shoulder/wrist curves; TPS samples upper-body rotations after
+locomotion and preserves whole-body action priority. Missing sources report a fallback explicitly.
+
+The wrapped source cycle begins and ends at its 0.43-second recovery pose, also used as frozen
+carry. Geometric slowdown at source 0.166667 seconds supplies an inferred contact marker, mapped
+to the unchanged gameplay strike tick. The FPS rig offset is (-0.04,-0.14,-0.25) metres with
+25 degrees X rotation: farther away and lower on screen. Source arms include the upper-arm mesh;
+initial captures exposed the old elbow cut, so those captures were rejected before final framing.
+Workshop placement and translation handles now edit the complete source rig. Ignored motion-key,
+wrist, shoulder and elbow fields are hidden; source identity, holding grip and fingers remain.
+
+Verified installed inventory: Standard UAL1 has 46 clip entries and Standard UAL2 has 43, including
+reference poses and variants. Runtime contains 37 Quaternius clips and 6 scripted clips, not the
+full 120-animation edition advertised by the store. No new assets, downloads or purchases.
+
+Validation: solution build: 0 warnings / 0 errors. Male editor checks passed 8 actions / 164 samples (source
+hatchet plus legacy stone hatchet); female passed 4 source actions / 100 samples. Every sampled source
+upper arm, forearm and wrist matches its imported local rotation within 0.1 degree, including
+perturbed legacy curves and actual gameplay strike entry points. Numeric controls, UI-event gizmo
+drag, undo/redo and temporary save/reload preserve source bindings/rig offsets. Every final video
+frame and both final sheets also run source-fidelity assertions. Initial focused suite: 27/28 had
+one observer reload timeout; its isolated rerun passed 1/1. The final complete suite passed 392/392 in 420.4 seconds.
+
+Evidence: docs/images/held-items/quaternius-trial contains the smaller FPS and TPS recordings,
+male/female sheets, workshop screenshot and hashed evidence.json. Movies repeat a 20-frame 24 fps
+capture six times (0.8 seconds sampled, 0.833 seconds encoded per repeat). Scope limits remain:
+full-body windup leaves FPS frame; carry/equip/sprint are held source poses, with no gameplay
+sway/bob/equip/sprint overlay or spatial contact adaptation. Other held profiles remain unchanged.
+The original physical mouse failure was not reproduced; injected UI events are not a claim of
+manual drag verification. One ObjectDB shutdown warning remains. Wider animation quality and
+workshop usability are still open; this records a bounded trial, not final owner acceptance.

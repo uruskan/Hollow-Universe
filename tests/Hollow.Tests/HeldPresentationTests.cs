@@ -33,6 +33,11 @@ public static class HeldPresentationTests
                 Vector(profile.GetProperty(view).GetProperty("position"), item + "." + view);
                 Vector(profile.GetProperty(view).GetProperty("rotation"), item + "." + view);
             }
+            if (profile.TryGetProperty("firstPersonRig", out JsonElement rig) && rig.ValueKind != JsonValueKind.Null)
+            {
+                Vector(rig.GetProperty("position"), item + ".firstPersonRig.position");
+                Vector(rig.GetProperty("rotation"), item + ".firstPersonRig.rotation");
+            }
             foreach (string hand in new[] { "rightHand", "leftHand" })
             {
                 JsonElement h = profile.GetProperty(hand);
@@ -114,6 +119,54 @@ public static class HeldPresentationTests
             }
         }
         Fixtures.Report($"{actionsChecked} authored action curves cover their whole normalized timeline");
+    }
+
+    [Test]
+    public static void HeldSkeletalBindingsResolveToBothBodyArmAnimations()
+    {
+        using JsonDocument art = Read("held-presentations.json");
+        var bindings = new List<(string Label, string Clip)>();
+        foreach (JsonElement profile in art.RootElement.GetProperty("profiles").EnumerateArray())
+            foreach (JsonProperty action in profile.GetProperty("actions").EnumerateObject())
+            {
+                if (!action.Value.TryGetProperty("skeletal", out JsonElement skeletal) || skeletal.ValueKind == JsonValueKind.Null) continue;
+                string label = profile.GetProperty("item").GetString() + "." + action.Name;
+                string clip = skeletal.GetProperty("clip").GetString() ?? "";
+                Assert.True(!string.IsNullOrWhiteSpace(clip) && clip.Length <= 128 &&
+                    clip.IndexOfAny(new[] { '/', '\\', ':', '[', ']', ',' }) < 0, label + ": simple skeletal clip name");
+                float start = skeletal.TryGetProperty("start", out JsonElement startValue) ? startValue.GetSingle() : 0f;
+                float end = skeletal.TryGetProperty("end", out JsonElement endValue) ? endValue.GetSingle() : 1f;
+                bool wrap = skeletal.TryGetProperty("wrap", out JsonElement wrapValue) && wrapValue.GetBoolean();
+                Assert.True(float.IsFinite(start) && float.IsFinite(end) && start >= 0 && start <= 1 && end >= 0 && end <= 1 &&
+                    (wrap ? end <= start : start <= end), label + ": source segment must be valid within [0,1]");
+                bindings.Add((label, clip));
+            }
+        foreach (string stem in new[] { "animations", "animations_female" })
+        {
+            string folder = Path.Combine(Fixtures.Root, "game", "assets", "characters");
+            using JsonDocument metadata = JsonDocument.Parse(File.ReadAllText(Path.Combine(folder, stem + ".json")));
+            byte[] bytes = File.ReadAllBytes(Path.Combine(folder, stem + ".glb"));
+            int jsonLength = BitConverter.ToInt32(bytes, 12);
+            using JsonDocument glb = JsonDocument.Parse(new ReadOnlyMemory<byte>(bytes, 20, jsonLength));
+            JsonElement[] nodes = glb.RootElement.GetProperty("nodes").EnumerateArray().ToArray();
+            var animations = glb.RootElement.GetProperty("animations").EnumerateArray()
+                .ToDictionary(a => a.GetProperty("name").GetString()!, a => a);
+            foreach ((string label, string clip) in bindings)
+            {
+                Assert.True(metadata.RootElement.GetProperty("clips").TryGetProperty(clip, out JsonElement source) &&
+                    source.GetProperty("length").GetDouble() > 0, label + ": source metadata in " + stem);
+                Assert.True(animations.TryGetValue(clip, out JsonElement animation), label + ": source animation in " + stem);
+                var rotations = animation.GetProperty("channels").EnumerateArray()
+                    .Select(c => c.GetProperty("target"))
+                    .Where(t => t.GetProperty("path").GetString() == "rotation")
+                    .Select(t => nodes[t.GetProperty("node").GetInt32()].GetProperty("name").GetString())
+                    .ToHashSet();
+                foreach (string bone in new[] { "spine_01", "clavicle_r", "upperarm_r", "lowerarm_r", "hand_r",
+                    "clavicle_l", "upperarm_l", "lowerarm_l", "hand_l" })
+                    Assert.True(rotations.Contains(bone), label + ": authored " + bone + " rotation in " + stem);
+            }
+        }
+        Fixtures.Report($"{bindings.Count} skeletal held-action bindings resolve on both bodies with authored torso and arm rotations");
     }
 
     private static void Vector(JsonElement element, string label)

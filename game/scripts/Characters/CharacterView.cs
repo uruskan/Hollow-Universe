@@ -544,8 +544,10 @@ public partial class CharacterView : Node3D
         }
         Animate(dt, lod);
         _tree.Advance(dt);
+        ApplySkeletalHeldMotion();
         PoseHeldFingers();
         _skeleton.Advance(dt);
+        UpdateSkeletalHeldItem();
         if (_reloadMagazineHand is Transform3D seated && _poser.LeftHandWeight > 0.001f)
             _reloadParts?.Update(_reload, _skeleton.GlobalTransform * _skeleton.GetBoneGlobalPose(_skeleton.FindBone("hand_l")), seated);
     }

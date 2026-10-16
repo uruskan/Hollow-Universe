@@ -25,7 +25,7 @@ tick-aligned contact and the workshop.
 The rifle's real magazine now moves with the support hand; full-cycle captures checked the
 reload camera-clipping repair. Those inspections were assistant acceptance, not owner acceptance.
 
-Status: **latest six-tool candidate rejected; authoring workflow inadequate, 16 October 2026**. The owner says the workshop pass
+Status: **six-tool curves rejected; Quaternius metal-hatchet pilot under review, 16 October 2026**. The owner says the workshop pass
 did not produce good results and everything looks almost the same. The first requested priority is
 **rock and gathering tools: carry, grip and swing**. Six rock/axe/pick profiles now have revised
 carry, finger fits and swing curves. The assistant judged the new captures improved, but the owner
@@ -33,13 +33,18 @@ rejected the result and reports inability to drag/use the workshop to correct it
 an opt-in FPS translation gizmo, without direct skeletal posing or rotation handles; the reported
 drag failure itself has not been reproduced through real mouse input in this follow-up.
 Read-only audit found standard Quaternius clips already imported but bypassed by the profile-driven
-held actions. Authored skeletal playback with a dedicated first-person clip path is the proposed
-replacement; it is not implemented. The current loader also discards non-pelvis translation tracks,
+held actions. The owner requested a Quaternius trial and subsequently called the test much better,
+but found the axe/hand too large. The metal-hatchet pilot now samples imported arm rotations in
+FPS/TPS and attaches the item to the hand; its complete FPS rig is framed smaller/lower. Source
+fidelity and strike timing are checked on both bodies. Carry is a frozen source pose and the
+windup leaves the FPS frame; rock/other tools and the wider authoring workflow remain open.
+The current loader also discards non-pelvis translation tracks,
 so a first-person arms/prop pack cannot simply be dropped into the existing body-clip loader.
 The workshop now exposes primary-palm gap, wrist bend and reach correction, plus an undoable
 finger-fit command. Clean build, focused 27/27 and final male/female 24-action / 404-sample checks
-pass; see the current evidence and limits below. One-handed items still do not consume
-free left-hand position/rotation motion in FPS, and TPS grip is not covered by a measured guarantee.
+pass; these are historical checks of the rejected curves. Legacy one-handed profiles still do not
+consume free left-hand position/rotation channels in FPS; the skeletal pilot preserves the source's
+free-arm motion. TPS grip is not covered by a measured guarantee.
 See [HELD_ITEMS.md](HELD_ITEMS.md) for workshop instructions, historical tests, captures,
 adaptive reach behaviour and the existing ObjectDB/Jolt shutdown warnings.
 

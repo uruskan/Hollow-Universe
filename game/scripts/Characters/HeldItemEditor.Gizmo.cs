@@ -49,7 +49,7 @@ public partial class HeldItemEditor
     {
         if (_gizmo == null || _profile == null) return;
         _gizmo.Visible = _showGizmo && _view != 2;
-        _gizmo.GlobalPosition = _viewmodel.PresentedGrip?.Origin ?? _eyes.Position + _profile.FirstPerson.Position;
+        _gizmo.GlobalPosition = _viewmodel.PresentedGrip?.Origin ?? _eyes.Position + FpsPlacementPosition;
         _contactGizmo.Visible = _gizmo.Visible && _viewmodel.PresentedContact != null;
         if (_viewmodel.PresentedContact is Vector3 contact) _contactGizmo.GlobalPosition = contact;
     }
@@ -87,7 +87,7 @@ public partial class HeldItemEditor
             SetPlaying(false);
             _dragAxis = closest;
             _dragStart = button.Position;
-            _dragOriginal = _profile.FirstPerson.Position;
+            _dragOriginal = FpsPlacementPosition;
             Vector2 delta = ProjectViewmodel(_gizmo.GlobalPosition + GizmoAxes[closest] * GizmoArm) - center;
             _dragScreenDirection = delta.Normalized();
             _dragPixelsPerMetre = delta.Length() / GizmoArm;
@@ -100,7 +100,7 @@ public partial class HeldItemEditor
             Vector3 position = _dragOriginal;
             position[_dragAxis] += displacement;
             if (motion.CtrlPressed) position[_dragAxis] = MathF.Round(position[_dragAxis] * 100) / 100;
-            Edit("gizmo." + _dragAxis, p => p.FirstPerson.Position = position);
+            Edit("gizmo." + _dragAxis, p => SetFpsPlacementPosition(p, position));
             UpdateGizmo();
             return true;
         }

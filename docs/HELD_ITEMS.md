@@ -17,7 +17,56 @@ Read-only follow-up found that reusable Quaternius clips already exist, includin
 Profile events also bypass the normal TPS action clips. Proposed replacement: imported skeletal
 clips drive the arms/item, with limited grip correction; prove one axe before wider integration.
 The existing full-body chopping clip is a test candidate, not a proven first-person solution.
-This replacement has not been implemented or approved as a final design.
+The owner has now requested a trial using the installed Quaternius pack. The first pilot is the
+metal hatchet: imported bone rotations drive its arms, and the item follows the resulting hand.
+This is a source-animation trial, not acceptance of its first-person framing or a final design.
+
+For an action with an optional `skeletal` binding, `clip` names an existing retargeted library
+animation and `start`/`end` select its normalized source segment. `wrap: true` crosses the source
+loop boundary, allowing a full cycle to begin and end at its carry pose; equal endpoints without
+wrapping hold that source pose. The normal gameplay action
+clock and contact-marker mapping remain authoritative. FPS samples source rotations directly;
+TPS replaces the upper-body rotations after locomotion. Neither path applies the old item,
+shoulder or wrist curves or arm IK over a successfully sampled skeletal action. Only the holding
+fingers retain static grip fitting. `firstPersonRig` is a static camera-space offset multiplied
+by the body's default eye-centered rig; it moves the complete performance without altering bones.
+Profiles without bindings retain their existing path. Missing clips report an explicit error
+and use the legacy fallback; they must never be reported as successful skeletal playback.
+
+### Quaternius metal-hatchet pilot — 16 October 2026
+
+The owner requested existing Quaternius motion, then described the test as much better but the
+axe and hand as too large on screen. Only `metal-hatchet` opts into this pilot. Its `chop` source
+is UAL2 `TreeChopping_Loop`, already retargeted onto both bodies. The one-handed source cycle
+starts and ends at its 0.43-second recovery pose, also used as a frozen carry. Contact is inferred
+at source 0.166667 seconds from the axe-tip slowdown; it is not an event supplied by Quaternius.
+The wrapped-cycle marker maps that pose to the existing gameplay strike tick.
+
+The latest FPS framing uses position `(-0.04, -0.14, -0.25)` metres and rotation `(25, 0, 0)` degrees.
+The forward offset reduces screen coverage; lowering the complete rig keeps its shoulder outside
+the frame. Skeletal playback draws full arms so an elbow brought into view does not expose the
+legacy forearm-only mesh cut. Static grip fitting changes only holding fingers. Both arms' six
+upper/lower/wrist local rotations match the source within the runtime check's 0.1-degree tolerance,
+including after deliberately distorting ignored legacy curves and at the gameplay strike phase.
+
+In this pilot, **Placement → Position Z** adjusts size through camera distance: more negative
+is smaller/farther away. **Move FPS rig** exposes the translation handles. The source clip is shown
+in the preview and Motion tab; ignored per-key item, wrist and shoulder controls are hidden.
+Base grip/finger controls remain available. UI-event drag, numeric fields, undo/redo and temporary
+save/reload are tested; this does not claim that the owner's original physical mouse issue was reproduced.
+
+Limits: this remains a full-body source clip; its windup leaves the first-person frame. Carry is
+a held source pose, and equip/sprint previews hold that pose too. Gameplay sway/bob/equip/sprint
+overlays are intentionally absent on this source path, with no authored transitions claimed.
+Spatial contact adaptation is disabled to preserve the performance. Rock, other axes and picks
+remain on their prior profiles. No claim of complete animation or workshop acceptance follows.
+
+Evidence: [smaller FPS swing](images/held-items/quaternius-trial/axe-fps.mp4),
+[TPS swing](images/held-items/quaternius-trial/axe-tps.mp4),
+[male sheet](images/held-items/quaternius-trial/male-axe.png),
+[female sheet](images/held-items/quaternius-trial/female-axe.png),
+[workshop](images/held-items/quaternius-trial/workshop.png).
+Each movie repeats the same 20-frame, 24 fps gameplay-timed capture six times for review.
 
 ## Contract
 
@@ -79,6 +128,8 @@ metal hatchet, without a server or save game. To start on the rock, run this fro
    right-drag turns the orbit and the wheel changes its distance. Watch the displayed reach
    correction: the renderer can move an unreachable assembly, masking an overextended pose.
 3. Select `swing`, then **Motion**. Scrub the timeline to inspect the wind-up, contact and recovery.
+   On the Quaternius pilot, the source clip owns the motion: its numerical keys are disabled.
+   The following key-edit controls apply to unbound legacy profiles.
    Edit **First-person item motion** or **Third-person item motion** at the playhead; these are
    offsets from the base placement. Editing between keys inserts a key automatically. **Add /
    update key** records the sampled pose; only interior keys can move or be deleted. Animated

@@ -17,23 +17,26 @@ public partial class HeldItemEditor
         _refreshing = false;
         _refreshFields.Clear();
         VBoxContainer placement = Tab("Placement");
-        Note(placement, "Base placement at rest. FPS uses camera space: +X right, +Y up, −Z forward. TPS adjusts the character's held attachment.");
+        Note(placement, "FPS uses camera space: +X right, +Y up, −Z forward. Placement edits apply throughout the selected action.");
         Heading(placement, "First person");
-        VectorField(placement, "Position · m", () => _profile.FirstPerson.Position, v => Edit("fps.position", p => p.FirstPerson.Position = v));
-        VectorField(placement, "Rotation · degrees", () => _profile.FirstPerson.Rotation, v => Edit("fps.rotation", p => p.FirstPerson.Rotation = v), degrees: true);
+        VBoxContainer sourcePlacement = ConditionalSection(placement, () => SkeletalClipSelected);
+        Note(sourcePlacement, "Move and rotate the complete animated rig in camera space. This keeps the source shoulder, elbow and wrist motion intact. Drag the coloured handles in the preview to move it.");
+        VectorField(placement, "Position · m", () => FpsPlacementPosition, v => Edit("fps.position", p => SetFpsPlacementPosition(p, v)));
+        VectorField(placement, "Rotation · degrees", () => FpsPlacementRotation, v => Edit("fps.rotation", p => SetFpsPlacementRotation(p, v)), degrees: true);
+        VBoxContainer legacyPlacement = ConditionalSection(placement, () => !SkeletalClipSelected);
         if (_held.Kind is HeldKind.Pistol or HeldKind.Rifle || _held.LeftHanded)
         {
-            Heading(placement, "Aimed / drawn placement");
-            Note(placement, "Offsets from the sight or bow aim pose. Preview with Aim / draw or its action clip.");
-            VectorField(placement, "Aim position offset · m", () => _profile.AimOffset.Position, v => Edit("aim.position", p => p.AimOffset.Position = v));
-            VectorField(placement, "Aim rotation offset · degrees", () => _profile.AimOffset.Rotation, v => Edit("aim.rotation", p => p.AimOffset.Rotation = v), degrees: true);
-            if (_held.LeftHanded) ScalarField(placement, "Bow string draw distance · m", () => _profile.BowDrawDistance, v => Edit("bow.draw", p => p.BowDrawDistance = v), 0.01, 1, 0.005);
+            Heading(legacyPlacement, "Aimed / drawn placement");
+            Note(legacyPlacement, "Offsets from the sight or bow aim pose. Preview with Aim / draw or its action clip.");
+            VectorField(legacyPlacement, "Aim position offset · m", () => _profile.AimOffset.Position, v => Edit("aim.position", p => p.AimOffset.Position = v));
+            VectorField(legacyPlacement, "Aim rotation offset · degrees", () => _profile.AimOffset.Rotation, v => Edit("aim.rotation", p => p.AimOffset.Rotation = v), degrees: true);
+            if (_held.LeftHanded) ScalarField(legacyPlacement, "Bow string draw distance · m", () => _profile.BowDrawDistance, v => Edit("bow.draw", p => p.BowDrawDistance = v), 0.01, 1, 0.005);
         }
-        Heading(placement, "Third person");
-        VectorField(placement, "Attachment offset · m", () => _profile.ThirdPerson.Position, v => Edit("tps.position", p => p.ThirdPerson.Position = v));
-        VectorField(placement, "Attachment rotation · degrees", () => _profile.ThirdPerson.Rotation, v => Edit("tps.rotation", p => p.ThirdPerson.Rotation = v), degrees: true);
-        Heading(placement, "Swing pivot");
-        VectorField(placement, "Item-local pivot · m", () => _profile.SwingPivot, v => Edit("pivot", p => p.SwingPivot = v));
+        Heading(legacyPlacement, "Third person");
+        VectorField(legacyPlacement, "Attachment offset · m", () => _profile.ThirdPerson.Position, v => Edit("tps.position", p => p.ThirdPerson.Position = v));
+        VectorField(legacyPlacement, "Attachment rotation · degrees", () => _profile.ThirdPerson.Rotation, v => Edit("tps.rotation", p => p.ThirdPerson.Rotation = v), degrees: true);
+        Heading(legacyPlacement, "Swing pivot");
+        VectorField(legacyPlacement, "Item-local pivot · m", () => _profile.SwingPivot, v => Edit("pivot", p => p.SwingPivot = v));
         placement.AddChild(Ui.Label("Contact socket", TextStyle.Secondary));
         _contactSocketField = new LineEdit { Text = _profile.ContactSocket, PlaceholderText = "impact / tip / flame" };
         void CommitSocket()
@@ -44,7 +47,7 @@ public partial class HeldItemEditor
         _contactSocketField.FocusExited += CommitSocket;
         _refreshFields.Add(() => _contactSocketField.Text = _profile.ContactSocket);
         placement.AddChild(_contactSocketField);
-        Note(placement, "The item socket used for the event pose: impact for axe heads, tip for spears, flame for torches. Its actual position appears as an orange dot when Move grip is on.");
+        Note(placement, "The contact socket: impact for axe heads, tip for spears, flame for torches. Its actual position appears as an orange dot when the move handles are on.");
         Note(placement, "Changing this item does not alter another item in its family. Save all commits every dirty profile.");
         placement.AddChild(Button("Restore this item's saved profile", () =>
         {
@@ -56,19 +59,28 @@ public partial class HeldItemEditor
         }));
 
         VBoxContainer hands = Tab("Hands");
-        Note(hands, "Grip offsets are relative to the item's grip socket. Wrist offsets and elbow hints refine the arm solve. These settings are shared by FPS and TPS.");
+        Label handNote = Note(hands, "");
+        _refreshFields.Add(() => handNote.Text = SkeletalClipSelected
+            ? "Adjust the holding hand's grip and finger fit. The other hand, wrists, elbows and shoulders keep their source animation."
+            : "Grip offsets are relative to the item's grip socket. Wrist offsets and elbow hints refine the arm solve. These settings are shared by FPS and TPS.");
         var hand = new OptionButton(); hand.AddItem("Right hand"); hand.AddItem("Left / support hand"); hand.Select(_hand);
         hand.ItemSelected += i => { _hand = (int)i; RefreshFields(); };
-        _refreshFields.Add(() => hand.Select(_hand));
+        _refreshFields.Add(() =>
+        {
+            if (SkeletalClipSelected) _hand = _held.LeftHanded ? 1 : 0;
+            hand.Disabled = SkeletalClipSelected;
+            hand.Select(_hand);
+        });
         hands.AddChild(hand);
-        Heading(hands, "Grip and wrist");
+        Heading(hands, "Grip fit");
         VectorField(hands, "Grip offset · m", () => Hand.GripOffset.Position, v => EditHand("grip.position", h => h.GripOffset.Position = v));
         VectorField(hands, "Grip orientation · degrees", () => Hand.GripOffset.Rotation, v => EditHand("grip.rotation", h => h.GripOffset.Rotation = v), degrees: true);
-        VectorField(hands, "Wrist offset · m", () => Hand.WristOffset.Position, v => EditHand("wrist.position", h => h.WristOffset.Position = v));
-        VectorField(hands, "Wrist rotation · degrees", () => Hand.WristOffset.Rotation, v => EditHand("wrist.rotation", h => h.WristOffset.Rotation = v), degrees: true);
-        Heading(hands, "Arm solve");
-        VectorField(hands, "Elbow pole · m", () => Hand.Pole, v => EditHand("pole", h => h.Pole = v));
-        VectorField(hands, "Shoulder offset · m", () => Hand.Shoulder, v => EditHand("shoulder", h => h.Shoulder = v));
+        VBoxContainer armSolve = ConditionalSection(hands, () => !SkeletalClipSelected);
+        VectorField(armSolve, "Wrist offset · m", () => Hand.WristOffset.Position, v => EditHand("wrist.position", h => h.WristOffset.Position = v));
+        VectorField(armSolve, "Wrist rotation · degrees", () => Hand.WristOffset.Rotation, v => EditHand("wrist.rotation", h => h.WristOffset.Rotation = v), degrees: true);
+        Heading(armSolve, "Arm solve");
+        VectorField(armSolve, "Elbow pole · m", () => Hand.Pole, v => EditHand("pole", h => h.Pole = v));
+        VectorField(armSolve, "Shoulder offset · m", () => Hand.Shoulder, v => EditHand("shoulder", h => h.Shoulder = v));
         ScalarField(hands, "Handle radius · m", () => Hand.Radius, v => EditHand("radius", h => h.Radius = v), 0, 0.15, 0.001);
         ScalarField(hands, "Palm seat · m", () => Hand.Seat, v => EditHand("seat", h => h.Seat = v), 0, 0.2, 0.001);
         Note(hands, "Radius and seat edits keep authored curls unchanged. Fit wraps handle grips for this body; open/support grips use their preset. Refine the joints below and inspect from orbit. Undo restores the previous curls.");
@@ -92,16 +104,22 @@ public partial class HeldItemEditor
         }
 
         VBoxContainer motion = Tab("Motion");
-        Note(motion, "Scrub the timeline, then edit a value to add or update a key at that time. Base placement is kept separate from these motion offsets.");
+        VBoxContainer motionPanel = motion;
+        Label motionNote = Note(motion, "");
+        _refreshFields.Add(() => motionNote.Text = Clip.Skeletal is { } source
+            ? $"Source animation: {SkeletalClipDescription(source)}. Scrub or play the imported skeletal motion. Item and hand motion keys do not apply; adjust composition in Placement and grip fit in Hands."
+            : "Scrub the timeline, then edit a value to add or update a key at that time. Base placement is kept separate from these motion offsets.");
         ScalarField(motion, "Authored clip duration · seconds", () => Clip.Duration, v => Edit("duration", p => p.Actions[_action].Duration = v), 0.05, 20, 0.01);
         ScalarField(motion, "Authored event pose · fraction (−1 = none)", () => Clip.Marker, v => Edit("marker", p => p.Actions[_action].Marker = v), -1, 1, 0.001);
-        ScalarField(motion, "Move selected key to phase", () => _phase, MoveKey, 0, 1, 0.001);
+        VBoxContainer keyMotion = ConditionalSection(motion, () => !SkeletalClipSelected);
+        ScalarField(keyMotion, "Move selected key to phase", () => _phase, MoveKey, 0, 1, 0.001);
         var ease = new OptionButton();
         ease.AddItem("Smooth interpolation"); ease.AddItem("Linear interpolation"); ease.AddItem("Ease in"); ease.AddItem("Ease out");
         string[] easeValues = { "smooth", "linear", "in", "out" };
         ease.ItemSelected += i => { if (!_refreshing) EditKey("ease", k => k.Ease = easeValues[(int)i]); };
         _refreshFields.Add(() => ease.Select(Math.Max(0, Array.IndexOf(easeValues, Clip.Sample(_phase).Ease))));
-        motion.AddChild(ease);
+        keyMotion.AddChild(ease);
+        motion = keyMotion;
         Heading(motion, "First-person item motion");
         VectorField(motion, "Position offset · m", () => Clip.Sample(_phase).Position, v => EditKey("key.fps.position", k => k.Position = v));
         VectorField(motion, "Rotation offset · degrees", () => Clip.Sample(_phase).Rotation, v => EditKey("key.fps.rotation", k => k.Rotation = v), degrees: true);
@@ -153,12 +171,38 @@ public partial class HeldItemEditor
                 if (_hand == 0) key.RightFingers = values; else key.LeftFingers = values;
             }), degrees: true, axisLabels: false, min: -30, max: 140);
         }
-        Note(motion, "This timeline edits the animation. Gameplay keeps its own authoritative durations and hit times; the animation is retimed to place this event pose at the gameplay event. Changing this marker does not change damage timing.");
+        Note(motionPanel, "Gameplay keeps its own authoritative durations and hit times; the animation is retimed to place this event pose at the gameplay event. Changing this marker does not change damage timing.");
         _tabs.CurrentTab = Math.Min(selected, 2);
         RefreshFields();
     }
 
     private HeldPresentationHand Hand => _hand == 0 ? _profile.RightHand : _profile.LeftHand;
+    private bool SkeletalClipSelected => Clip.Skeletal != null;
+    private static string SkeletalClipDescription(HeldSkeletalClip source) =>
+        $"{source.Clip} · {source.Start * 100:0.0}–{source.End * 100:0.0}%" +
+        (source.Wrap ? " · wrapped loop" : source.Start == source.End ? " · held pose" : "");
+    private Vector3 FpsPlacementPosition => SkeletalClipSelected ? _profile.FirstPersonRig?.Position ?? Vector3.Zero : _profile.FirstPerson.Position;
+    private Vector3 FpsPlacementRotation => SkeletalClipSelected ? _profile.FirstPersonRig?.Rotation ?? Vector3.Zero : _profile.FirstPerson.Rotation;
+
+    private void SetFpsPlacementPosition(HeldPresentationProfile profile, Vector3 value)
+    {
+        if (SkeletalClipSelected) (profile.FirstPersonRig ??= new HeldPresentationPose()).Position = value;
+        else profile.FirstPerson.Position = value;
+    }
+
+    private void SetFpsPlacementRotation(HeldPresentationProfile profile, Vector3 value)
+    {
+        if (SkeletalClipSelected) (profile.FirstPersonRig ??= new HeldPresentationPose()).Rotation = value;
+        else profile.FirstPerson.Rotation = value;
+    }
+
+    private VBoxContainer ConditionalSection(VBoxContainer parent, Func<bool> visible)
+    {
+        VBoxContainer section = VBox(6);
+        parent.AddChild(section);
+        _refreshFields.Add(() => section.Visible = visible());
+        return section;
+    }
 
     private VBoxContainer Tab(string title)
     {
@@ -174,11 +218,12 @@ public partial class HeldItemEditor
         parent.AddChild(Ui.Separator()); parent.AddChild(Ui.Label(title, TextStyle.Overline));
     }
 
-    private static void Note(VBoxContainer parent, string text)
+    private static Label Note(VBoxContainer parent, string text)
     {
         var label = Ui.Label(text, TextStyle.Caption);
         label.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         parent.AddChild(label);
+        return label;
     }
 
     private void VectorField(VBoxContainer parent, string name, Func<Vector3> get, Action<Vector3> set, bool degrees = false, bool axisLabels = true, double? min = null, double? max = null)
@@ -218,7 +263,8 @@ public partial class HeldItemEditor
         _refreshing = true;
         foreach (Action refresh in _refreshFields) refresh();
         int key = Clip.Keys.FindIndex(k => MathF.Abs(k.At - _phase) < 0.0005f);
-        if (key >= 0) _keys.Select(key);
+        if (SkeletalClipSelected) _keys.Select(0);
+        else if (key >= 0) _keys.Select(key);
         else _keys.Select(-1);
         _refreshing = false;
     }
@@ -227,12 +273,15 @@ public partial class HeldItemEditor
     {
         _refreshing = true;
         _keys.Clear();
-        for (int i = 0; i < Clip.Keys.Count; i++)
+        _keys.Disabled = _addKeyButton.Disabled = _deleteKeyButton.Disabled = SkeletalClipSelected;
+        if (Clip.Skeletal is { } source)
+            _keys.AddItem("Source: " + SkeletalClipDescription(source));
+        else for (int i = 0; i < Clip.Keys.Count; i++)
         {
             HeldPresentationKey key = Clip.Keys[i];
             _keys.AddItem($"Key {i + 1}  ·  {key.At * 100:0.0}%  ·  {key.At * Clip.Duration:0.000} s");
         }
-        _ticks.Keys = Clip.Keys.Select(k => k.At).ToArray();
+        _ticks.Keys = SkeletalClipSelected ? Array.Empty<float>() : Clip.Keys.Select(k => k.At).ToArray();
         _ticks.Marker = Clip.Marker;
         _ticks.QueueRedraw();
         _refreshing = false;

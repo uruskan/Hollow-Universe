@@ -50,6 +50,9 @@ public partial class HeldItemEditor : Node3D
     private HeldItemEditorTimeline _ticks = null!;
     private Label _status = null!, _selection = null!, _clock = null!, _previewLabel = null!;
     private Button _play = null!, _save = null!, _undoButton = null!, _redoButton = null!;
+    private Button _addKeyButton = null!, _deleteKeyButton = null!;
+    private CheckButton _gizmoToggle = null!;
+    private CheckButton _contactToggle = null!;
     private TabContainer _tabs = null!;
     private ConfirmationDialog _discard = null!;
     private AcceptDialog _error = null!;
@@ -222,10 +225,9 @@ public partial class HeldItemEditor : Node3D
         _views.Select(_view);
         _views.ItemSelected += i => SetView((int)i);
         previewBar.AddChild(_views);
-        var gizmo = new CheckButton { Text = "Move FPS grip", ButtonPressed = _showGizmo };
-        gizmo.TooltipText = "Drag the red / green / blue tips to move the FPS grip. Use arms orbit to adjust depth. Shift drags slowly; Ctrl snaps to centimetres.";
-        gizmo.Toggled += value => { _showGizmo = value; if (!value) _dragAxis = -1; UpdateGizmo(); };
-        previewBar.AddChild(gizmo);
+        _gizmoToggle = new CheckButton { Text = "Move FPS grip", ButtonPressed = _showGizmo };
+        _gizmoToggle.Toggled += value => { _showGizmo = value; if (!value) _dragAxis = -1; UpdateGizmo(); };
+        previewBar.AddChild(_gizmoToggle);
         previewBar.AddChild(Button("Reset camera", ResetCamera));
         _previewContainer = new SubViewportContainer
         {
@@ -267,10 +269,9 @@ public partial class HeldItemEditor : Node3D
         var aim = new CheckButton { Text = "Aim / draw", ButtonPressed = _aiming };
         aim.Toggled += v => _aiming = v;
         targetBar.AddChild(aim);
-        var contact = new CheckButton { Text = "Contact solve", ButtonPressed = _contactPreview };
-        contact.TooltipText = "Preview the FPS correction toward the target. This does not simulate a server hit.";
-        contact.Toggled += v => { _contactPreview = v; RefreshTarget(); };
-        targetBar.AddChild(contact);
+        _contactToggle = new CheckButton { Text = "Contact solve", ButtonPressed = _contactPreview };
+        _contactToggle.Toggled += v => { _contactPreview = v; RefreshTarget(); };
+        targetBar.AddChild(_contactToggle);
 
         (PanelContainer inspectorPanel, VBoxContainer inspector) = Ui.Card(6);
         Ui.Size(inspectorPanel, 380);
@@ -319,8 +320,10 @@ public partial class HeldItemEditor : Node3D
         _keys = new OptionButton { SizeFlagsHorizontal = Control.SizeFlags.ExpandFill };
         _keys.ItemSelected += i => { if (!_refreshing && i < Clip.Keys.Count) SetPhase(Clip.Keys[(int)i].At); };
         keybar.AddChild(_keys);
-        keybar.AddChild(Button("Add / update key", UpsertKey, "Record the current sampled motion at the playhead; motion field edits do this automatically"));
-        keybar.AddChild(Button("Delete key", DeleteKey, "Delete the key at the playhead; endpoint keys are retained"));
+        _addKeyButton = Button("Add / update key", UpsertKey, "Record the current sampled motion at the playhead; motion field edits do this automatically");
+        keybar.AddChild(_addKeyButton);
+        _deleteKeyButton = Button("Delete key", DeleteKey, "Delete the key at the playhead; endpoint keys are retained");
+        keybar.AddChild(_deleteKeyButton);
         _status = Ui.Label(_statusText, TextStyle.Caption);
         _status.AutowrapMode = TextServer.AutowrapMode.WordSmart;
         layout.AddChild(_status);
@@ -448,6 +451,15 @@ public partial class HeldItemEditor : Node3D
     {
         CommitFocusedField();
         _action = _profile.Actions.ContainsKey(action) ? action : _profile.Actions.Keys.First();
+        _dragAxis = -1;
+        _gizmoToggle.Text = SkeletalClipSelected ? "Move FPS rig" : "Move FPS grip";
+        _gizmoToggle.TooltipText = "Drag the red / green / blue tips to move " +
+            (SkeletalClipSelected ? "the complete animated rig" : "the FPS grip") +
+            ". Use arms orbit to adjust depth. Shift drags slowly; Ctrl snaps to centimetres.";
+        _contactToggle.Disabled = SkeletalClipSelected;
+        _contactToggle.TooltipText = SkeletalClipSelected
+            ? "The source animation drives the arms; target correction does not apply."
+            : "Preview the FPS correction toward the target. This does not simulate a server hit.";
         _actions.Select(_actionNames.IndexOf(_action));
         _phase = Math.Clamp(_phase, 0, 1);
         SetPlaying(false);
@@ -481,12 +493,16 @@ public partial class HeldItemEditor : Node3D
         float correction = _viewmodel.AuthoredReachCorrection;
         float wrist = _viewmodel.PrimaryWristBendDegrees, palm = _viewmodel.PrimaryPalmContactError;
         string help = _view == 0 ? "Live gameplay FPS renderer · cyan cross = target contact point" : "Right-drag to orbit · wheel to zoom · live gameplay renderer";
+        string? sourceError = _view == 2 ? _character.SkeletalMotionError : _viewmodel.SkeletalMotionError;
+        if (Clip.Skeletal is { } source)
+            help += sourceError != null ? "\nSource unavailable; using motion curves: " + sourceError :
+                "\nSource animation: " + SkeletalClipDescription(source);
         if (_view != 2)
             help += $"\nWrist bend {wrist:0}° · palm / grip gap {palm * 1000:0.0} mm · reach correction {correction * 100:0.0} cm";
         if (_previewLabel.Text != help)
         {
             _previewLabel.Text = help;
-            _previewLabel.AddThemeColorOverride("font_color", _view != 2 && (correction > 0.005f || wrist > 65 || palm > 0.025f) ? Ui.Warm : Ui.Tertiary);
+            _previewLabel.AddThemeColorOverride("font_color", sourceError != null || _view != 2 && (correction > 0.005f || wrist > 65 || palm > 0.025f) ? Ui.Warm : Ui.Tertiary);
         }
         _ticks.Phase = _phase;
         _ticks.QueueRedraw();

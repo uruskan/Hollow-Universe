@@ -15,6 +15,16 @@ public partial class CharacterView
     private float _actionCarryRemaining;
     private string? _actionCarryItem;
     private HeldPresentationKey? _sampledPresentation;
+    private readonly HeldSkeletalMotion _heldSkeletalMotion = new();
+    private HeldSkeletalClip? _pendingSkeletalMotion;
+    private float _pendingSkeletalPhase;
+    private bool _sourceHeldSuppressed;
+
+    /// <summary>True only after the configured source animation was successfully sampled this frame.</summary>
+    public bool UsingSkeletalMotion { get; private set; }
+    public string? SkeletalMotionClip => UsingSkeletalMotion ? _pendingSkeletalMotion?.Clip : null;
+    public string? SkeletalMotionError { get; private set; }
+    public double SkeletalSourceTime => UsingSkeletalMotion ? _heldSkeletalMotion.SourceTime : 0;
 
     public HeldPresentationProfile? CurrentPresentation => _itemModel == null ? null : HeldPresentations.Get(_itemModel.Id);
 
@@ -84,6 +94,10 @@ public partial class CharacterView
         _use = UseMotion.None;
         _reloadMagazineHand = null;
         _reloadParts?.Restore();
+        _pendingSkeletalMotion = null;
+        _sourceHeldSuppressed = false;
+        UsingSkeletalMotion = false;
+        SkeletalMotionError = null;
         if (_ready) _tree.Set(CharacterAnimator.Action, (int)AnimationNodeOneShot.OneShotRequest.Abort);
     }
 
@@ -156,7 +170,7 @@ public partial class CharacterView
         }
     }
 
-    private HeldPresentationKey PresentationKey(HeldPresentationProfile profile)
+    private (HeldPresentationClip Clip, float Phase) PresentationSample(HeldPresentationProfile profile)
     {
         string action = _previewAction ?? _presentationAction ??
             (_frame.Aiming && _itemModel?.LeftHanded == true ? "draw" : _frame.Aiming && profile.Actions.ContainsKey("aim") ? "aim" : "idle");
@@ -169,11 +183,14 @@ public partial class CharacterView
         }
         else if (_previewAction == null && _presentationAction != null && HeldActionTiming.AnticipationSeconds(action) > 0)
             phase = clip.AlignMarker(phase, HeldActionTiming.CommitFraction(action, _presentationDuration));
-        return clip.Sample(phase, profile.RightHand.Fingers, profile.LeftHand.Fingers);
+        return (clip, phase);
     }
 
-    private void ApplyHeldPresentation()
+    private void ApplyHeldPresentation(bool allowSkeletal = true)
     {
+        _pendingSkeletalMotion = null;
+        _sourceHeldSuppressed = false;
+        UsingSkeletalMotion = false;
         if (_item == null || _itemModel == null || CurrentPresentation is not { } profile || Lying || _stance == CharacterStance.Sit) return;
         if (_presentationRevision != HeldPresentations.Revision)
         {
@@ -189,7 +206,26 @@ public partial class CharacterView
                 _item.Transform = HandFrame.HandFor(grip, HandFrame.PowerGrip, _itemModel.LeftHanded ? _gripL : _gripR).AffineInverse();
             }
         }
-        HeldPresentationKey key = _sampledPresentation = PresentationKey(profile);
+        (HeldPresentationClip clip, float phase) = PresentationSample(profile);
+        _sampledPresentation = null;
+        if (allowSkeletal && clip.Skeletal is { } skeletal)
+        {
+            // The source clip owns the torso, shoulders, elbows and wrists. An item follows that hand; asking the
+            // IK solver to reach the old item curve here would erase the authored animation again.
+            if (!BodyActing)
+            {
+                _pendingSkeletalMotion = skeletal;
+                _pendingSkeletalPhase = phase;
+            }
+            else
+            {
+                _sourceHeldSuppressed = true;
+                _poser.RightHandWeight = _poser.LeftHandWeight = 0f;
+            }
+            return;
+        }
+        if (allowSkeletal) SkeletalMotionError = null;
+        HeldPresentationKey key = _sampledPresentation = clip.Sample(phase, profile.RightHand.Fingers, profile.LeftHand.Fingers);
         Vector3 anchor = _skeleton.GetBoneGlobalPose(_skeleton.FindBone("spine_03")).Origin;
         bool left = _itemModel.LeftHanded;
         Transform3D item;
@@ -261,6 +297,46 @@ public partial class CharacterView
         _poser.LeftPole = new Vector3(Math.Abs(profile.LeftHand.Pole.X), profile.LeftHand.Pole.Y, -profile.LeftHand.Pole.Z);
     }
 
+    /// <summary>Runs after the locomotion tree, before the normal aim/leg/foot modifier.</summary>
+    private void ApplySkeletalHeldMotion()
+    {
+        if (_pendingSkeletalMotion is not { } skeletal) return;
+        // A whole-body request can become active only when the tree advances. Check again at the application seam
+        // so the first frame of helping up or getting up is not overwritten by a held-action pose.
+        if (BodyActing)
+        {
+            _pendingSkeletalMotion = null;
+            _sourceHeldSuppressed = true;
+            _poser.RightHandWeight = _poser.LeftHandWeight = 0f;
+            return;
+        }
+        if (!_heldSkeletalMotion.Apply(_skeleton, _assets.Library, skeletal, _pendingSkeletalPhase, upperBodyOnly: true))
+        {
+            string error = _heldSkeletalMotion.LastError;
+            if (SkeletalMotionError != error) GD.PushWarning($"Held animation '{skeletal.Clip}' could not play: {error}");
+            SkeletalMotionError = error;
+            ApplyHeldPresentation(allowSkeletal: false);
+            return;
+        }
+        UsingSkeletalMotion = true;
+        SkeletalMotionError = null;
+        _poser.RightHandWeight = _poser.LeftHandWeight = 0f;
+        // The imported clips animate rotations. Remove any shoulder translation left by a previous curve profile.
+        int rightShoulder = _skeleton.FindBone("upperarm_r"), leftShoulder = _skeleton.FindBone("upperarm_l");
+        _skeleton.SetBonePosePosition(rightShoulder, _skeleton.GetBoneRest(rightShoulder).Origin);
+        _skeleton.SetBonePosePosition(leftShoulder, _skeleton.GetBoneRest(leftShoulder).Origin);
+    }
+
+    private void UpdateSkeletalHeldItem()
+    {
+        if (!UsingSkeletalMotion || _item == null || _itemModel == null || _item.GetParent() != _carry) return;
+        // One-handed models already ride a BoneAttachment3D. Models normally carried independently (for example a
+        // rifle) must likewise follow their primary authored hand after aim and the skeleton modifier have run.
+        bool left = _itemModel.LeftHanded;
+        Transform3D handInItem = HandFrame.HandFor(HeldItems.Grip(_item, _itemModel), HandFrame.PowerGrip, left ? _gripL : _gripR);
+        _item.Transform = _skeleton.GetBoneGlobalPose(_skeleton.FindBone(left ? "hand_l" : "hand_r")) * handInItem.AffineInverse();
+    }
+
     private static Transform3D OffsetHand(Transform3D hand, HeldPresentationHand profile, Vector3 position, Vector3 rotation)
     {
         hand *= profile.WristOffset.Transform;
@@ -270,6 +346,16 @@ public partial class CharacterView
     private void PoseHeldFingers()
     {
         if (CurrentPresentation is not { } profile || Lying || _stance == CharacterStance.Sit) return;
+        if (_sourceHeldSuppressed) return;
+        if (UsingSkeletalMotion)
+        {
+            // Static grip fitting is deliberately limited to the holding fingers; the other hand keeps its source
+            // performance, and profile shoulder/wrist offsets must not replace the source arm motion.
+            bool right = !_itemModel!.LeftHanded;
+            HeldPresentationHand hand = right ? profile.RightHand : profile.LeftHand;
+            HandPoses.Apply(_skeleton, _itemModel.Fingers, right, radius: hand.Radius, seat: hand.Seat, curlDegrees: hand.Fingers);
+            return;
+        }
         OffsetShoulder(true, profile.RightHand.Shoulder - new Vector3(-0.03f, -0.1f, -0.06f));
         OffsetShoulder(false, profile.LeftHand.Shoulder - new Vector3(0.1f, -0.12f, -0.08f));
         HandPoses.Apply(_skeleton, _itemModel!.Fingers, true, radius: profile.RightHand.Radius, seat: profile.RightHand.Seat,

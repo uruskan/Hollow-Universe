@@ -26,8 +26,8 @@ public struct ViewmodelFrame
 /// The first-person arms and the held item (GROUND.md §4.8). A child of the player's camera: its local space is the
 /// camera's. The arms are the player body's own (the same meshes and skin, only the arm regions drawn, with the worn
 /// sleeves), on render layer 2, drawn with their own field of view and pulled towards the near plane so they never
-/// clip into walls. Both hands reach the item's grips by IK; the shared editable presentation supplies item and hand
-/// action poses, with procedural sway, walk bob, sight alignment and articulated weapon parts layered over them.
+/// clip into walls. A skeletal action plays the imported arm performance and attaches the item to its hand.
+/// Other profiles use item curves and hand IK with sway, walk bob, sight alignment and articulated weapon parts.
 /// </summary>
 public partial class ViewmodelView : Node3D
 {
@@ -128,6 +128,7 @@ public partial class ViewmodelView : Node3D
         int head = _skeleton.FindBone("head");
         Vector3 eye = new(0f, _assets.EyeHeight, _skeleton.GetBoneGlobalRest(head).Origin.Z + 0.09f);
         _rig.Transform = new Transform3D(new Basis(Vector3.Up, MathF.PI), Vector3.Zero) * new Transform3D(Basis.Identity, -eye);
+        _defaultRigTransform = _rig.Transform;
         MeshPart body = _assets.Part("body_lod0")!;
         _arms.Add(Instance(body));
         // In first person the fist closes tightly, so the handle sits further into the palm, across its crease.
@@ -255,13 +256,16 @@ public partial class ViewmodelView : Node3D
 
     /// <summary>What first person draws: forearms and hands. Upper arms would only fill the view near the camera.</summary>
     private const BodyRegions Shown = BodyRegions.Forearm | BodyRegions.Hand;
+    private bool _sourceArmsVisible;
 
     private void ApplyRegions()
     {
-        BodyRegions hidden = BodyRegions.All & ~Shown;
+        // Source clips can bring an elbow into view. Preserve the complete arm so it does not end in an open cut.
+        BodyRegions shown = _sourceArmsVisible ? BodyRegions.Arms : Shown;
+        BodyRegions hidden = BodyRegions.All & ~shown;
         foreach (Wearable w in _worn)
         {
-            hidden |= w.Hides & Shown;
+            hidden |= w.Hides & shown;
         }
         foreach (MeshInstance3D arm in _arms)
         {
@@ -269,7 +273,7 @@ public partial class ViewmodelView : Node3D
         }
         foreach ((MeshInstance3D mesh, _) in _sleeves)
         {
-            mesh.SetInstanceShaderParameter("hidden_regions", (int)(BodyRegions.All & ~Shown));
+            mesh.SetInstanceShaderParameter("hidden_regions", (int)(BodyRegions.All & ~shown));
         }
     }
 
@@ -468,6 +472,7 @@ public partial class ViewmodelView : Node3D
 
     private void Pose()
     {
+        if (PoseSkeletalMotion()) return;
         // Hands onto the grips (camera space → skeleton space), from shoulders set lower and further forward than the
         // body's, so the forearms rise into view from the lower corners as in Rust (only forearms and hands are drawn;
         // nobody sees the shoulders move).

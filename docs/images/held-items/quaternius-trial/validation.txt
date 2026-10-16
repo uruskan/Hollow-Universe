@@ -1,0 +1,23 @@
+=== build-final.log ===
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+=== male-check.log ===
+[held-source-timing] metal-hatchet/swing gameplayStrike=0.267s duration=0.800s mapsToArt=0.727586
+[held-editor-check] PASS: numeric UI edit, live preview, undo, redo, legacy key add/update/move/delete/undo, gizmo input-event drag, Ctrl+Z with field focus, finger-fit button/undo, displaced palm diagnostic, atomic temporary save/reload including source bindings, bound source-bone fidelity/curve isolation/gameplay timing; 8 actions, 164 FPS/TPS samples with finite transforms and attached holding hands.
+=== female-check.log ===
+[held-source-timing] metal-hatchet/swing gameplayStrike=0.267s duration=0.800s mapsToArt=0.727586
+[held-editor-check] PASS: numeric UI edit, live preview, undo, redo, legacy key add/update/move/delete/undo, gizmo input-event drag, Ctrl+Z with field focus, finger-fit button/undo, displaced palm diagnostic, atomic temporary save/reload including source bindings, bound source-bone fidelity/curve isolation/gameplay timing; 4 actions, 100 FPS/TPS samples with finite transforms and attached holding hands.
+=== fps-framed.log ===
+[held-editor-animation] Saved 20 frames at 24 fps to D:\GameDev\Projects\HollowUniverseABTestB\.artifacts\held-quaternius\fps-framed-motion; 0.800s sampled, camera=fps, cycle=.
+=== tps.log ===
+[held-editor-animation] Saved 20 frames at 24 fps to D:\GameDev\Projects\HollowUniverseABTestB\.artifacts\held-quaternius\tps-motion; 0.800s sampled, camera=tps, cycle=.
+=== sheet-framed.log ===
+[held-editor-sheet] Saved ../.artifacts/held-quaternius/axe-sheet-framed.png: 1 actions, 2 views, 5 phases.
+=== female-framed.log ===
+[held-editor-sheet] Saved ../.artifacts/held-quaternius/female-framed.png: 1 actions, 2 views, 5 phases.
+=== reload-rerun.log ===
+1/1 passed in 7.5 s.
+
+=== full-tests.log ===
+392/392 passed in 420.4 s.

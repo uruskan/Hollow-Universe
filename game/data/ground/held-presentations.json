@@ -3784,7 +3784,12 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "equip": {
           "duration": 0.3,
@@ -3928,7 +3933,12 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "sprint": {
           "duration": 0.25,
@@ -4026,11 +4036,16 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "swing": {
           "duration": 0.8,
-          "marker": 0.35,
+          "marker": 0.7275862,
           "keys": [
             {
               "at": 0,
@@ -4354,7 +4369,13 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276,
+            "wrap": true
+          }
         }
       },
       "contactSocket": "impact",
@@ -4370,7 +4391,19 @@
           0
         ]
       },
-      "bowDrawDistance": 0.42
+      "bowDrawDistance": 0.42,
+      "firstPersonRig": {
+        "position": [
+          -0.04,
+          -0.14,
+          -0.25
+        ],
+        "rotation": [
+          25,
+          0,
+          0
+        ]
+      }
     },
     {
       "item": "metal-pickaxe",
