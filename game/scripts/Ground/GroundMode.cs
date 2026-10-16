@@ -304,6 +304,9 @@ public partial class GroundMode : Node
                 Name = "EnvironmentRoute", View = _view, Folder = routeFolder,
                 ProfileSeconds = Number("environment-profile", 20),
                 ObserveSeconds = Number("environment-observe", 0), SolarHour = Number("hour", 10),
+                PerformanceBreakdown = Options.ContainsKey("environment-breakdown"),
+                PerformanceBaselineOnly = Option("environment-breakdown", "") == "baseline",
+                PerformanceShadowSweep = Option("environment-breakdown", "") == "shadows",
             };
             AddChild(_environmentRoute);
         }

@@ -70,6 +70,15 @@ public sealed record GraphicsValues
     /// <summary>How far the sun's shadows reach, metres.</summary>
     public float ShadowDistance { get; set; } = 1600;
 
+    /// <summary>Directional shadow maps per light: 1, 2 or 4, independent of texture/filter quality.</summary>
+    public int ShadowCascades { get; set; } = 4;
+
+    /// <summary>Maximum local lights with real-time shadows at once; illumination is unaffected.</summary>
+    public int MaxShadowLights { get; set; } = 2;
+
+    /// <summary>Maximum camera distance from a local light's influence for its shadows, metres.</summary>
+    public float LocalShadowDistance { get; set; } = 40;
+
     /// <summary>Times the terrain's split distances (0.6–1.6): finer ground farther away.</summary>
     public float TerrainDetail { get; set; } = 1;
 
@@ -172,6 +181,9 @@ public static class GraphicsSettings
             EffectQuality = Pick(0, 1, 1, 2, 2),
             Shadows = Pick(1, 2, 2, 3, 4),
             ShadowDistance = Pick(600f, 1000f, 1600f, 1600f, 2000f),
+            ShadowCascades = Pick(1, 2, 2, 4, 4),
+            MaxShadowLights = Pick(0, 1, 2, 4, 6),
+            LocalShadowDistance = Pick(20f, 30f, 40f, 60f, 80f),
             TerrainDetail = Pick(0.75f, 0.9f, 1f, 1.15f, 1.35f),
             PlantDistance = Pick(0.75f, 0.9f, 1f, 1.15f, 1.3f),
             GrassDensity = Pick(0.6f, 0.8f, 1f, 1f, 1f),
@@ -235,7 +247,11 @@ public static class GraphicsSettings
                 Fog = B("fog", d.Fog),
                 EffectQuality = I("effect_quality", d.EffectQuality, 0, 3),
                 Shadows = I("shadows", d.Shadows, 0, 4),
-                ShadowDistance = F("shadow_distance", d.ShadowDistance, 300, 3000),
+                ShadowDistance = F("shadow_distance", d.ShadowDistance, 50, 3000),
+                // Old saves had four cascades. Keep their appearance until the player chooses a setting/preset.
+                ShadowCascades = Cascades(I("shadow_cascades", 4, 1, 4)),
+                MaxShadowLights = I("max_shadow_lights", d.MaxShadowLights, 0, 8),
+                LocalShadowDistance = F("local_shadow_distance", d.LocalShadowDistance, 10, 100),
                 TerrainDetail = F("terrain_detail", d.TerrainDetail, 0.6f, 1.6f),
                 PlantDistance = F("plant_distance", d.PlantDistance, 0.6f, 1.4f),
                 GrassDensity = F("grass_density", d.GrassDensity, 0.4f, 1f),
@@ -295,6 +311,9 @@ public static class GraphicsSettings
         file.SetValue("graphics", "effect_quality", v.EffectQuality);
         file.SetValue("graphics", "shadows", v.Shadows);
         file.SetValue("graphics", "shadow_distance", v.ShadowDistance);
+        file.SetValue("graphics", "shadow_cascades", v.ShadowCascades);
+        file.SetValue("graphics", "max_shadow_lights", v.MaxShadowLights);
+        file.SetValue("graphics", "local_shadow_distance", v.LocalShadowDistance);
         file.SetValue("graphics", "terrain_detail", v.TerrainDetail);
         file.SetValue("graphics", "plant_distance", v.PlantDistance);
         file.SetValue("graphics", "grass_density", v.GrassDensity);
@@ -385,6 +404,7 @@ public static class GraphicsSettings
         RenderingServer.DirectionalShadowAtlasSetSize(atlas, true);
         RenderingServer.DirectionalSoftShadowFilterSetQuality(filter);
         RenderingServer.PositionalSoftShadowFilterSetQuality(filter);
+        viewport.PositionalShadowAtlasSize = v.Shadows > 0 && v.MaxShadowLights > 0 ? Math.Min(atlas, 2048) : 0;
 
         int q = Math.Clamp(v.EffectQuality, 0, 3);
         RenderingServer.EnvironmentSetSsaoQuality((RenderingServer.EnvironmentSsaoQuality)(q + 1), q == 0, 0.5f, 2, 50, 300);
@@ -518,6 +538,13 @@ public static class GraphicsSettings
     {
         sun.ShadowEnabled = v.Shadows > 0;
         sun.DirectionalShadowMaxDistance = v.ShadowDistance;
+        sun.DirectionalShadowMode = Cascades(v.ShadowCascades) switch
+        {
+            1 => DirectionalLight3D.ShadowMode.Orthogonal,
+            2 => DirectionalLight3D.ShadowMode.Parallel2Splits,
+            _ => DirectionalLight3D.ShadowMode.Parallel4Splits,
+        };
+        sun.DirectionalShadowBlendSplits = v.Shadows >= 2 && v.ShadowCascades > 1;
         bool tight = v.Shadows >= 4;
         // Godot's own splits at 1,600 m put the first cascade's edge 160 m out; ultra keeps it near 80 m however far
         // the shadows reach, so the ground at the feet stays sharp.
@@ -525,4 +552,6 @@ public static class GraphicsSettings
         sun.DirectionalShadowSplit2 = tight ? Math.Clamp(260f / v.ShadowDistance, 0.06f, 0.2f) : 0.2f;
         sun.DirectionalShadowSplit3 = tight ? 0.45f : 0.5f;
     }
+
+    private static int Cascades(int value) => value <= 1 ? 1 : value <= 2 ? 2 : 4;
 }

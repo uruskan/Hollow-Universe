@@ -121,7 +121,7 @@ public static class SettingRows
         new("SHADOW QUALITY", "The sun's shadows: resolution and softness. Off saves most.", SettingKind.Choice,
             v => v.Shadows, (v, x) => v with { Shadows = (int)x }, Options: new[] { "OFF", "LOW", "MEDIUM", "HIGH", "ULTRA" }),
         new("SHADOW DISTANCE", "How far from you the sun's shadows reach.", SettingKind.Slider,
-            v => v.ShadowDistance, (v, x) => v with { ShadowDistance = x }, 300, 3000, 100, Format: Metres, Active: v => v.Shadows > 0),
+            v => v.ShadowDistance, (v, x) => v with { ShadowDistance = x }, 50, 3000, 50, Format: Metres, Active: v => v.Shadows > 0),
         new("TERRAIN DETAIL", "How far the ground keeps its finest shape.", SettingKind.Slider,
             v => v.TerrainDetail, (v, x) => v with { TerrainDetail = x }, 0.6f, 1.6f, 0.05f, Format: Percent),
         new("TREES AND PLANTS", "How far trees and plants keep their full detail.", SettingKind.Slider,
@@ -141,6 +141,25 @@ public static class SettingRows
             Options: Array.ConvertAll(GraphicsSettings.FrameCaps, c => c == 0 ? "NONE" : c.ToString(CultureInfo.InvariantCulture))),
         new("FIELD OF VIEW", "How wide you see on foot, in vertical degrees.", SettingKind.Slider,
             v => v.FieldOfView, (v, x) => v with { FieldOfView = x }, 60, 100, 1, Format: x => x.ToString("0", CultureInfo.InvariantCulture) + "°"),
+    };
+
+    /// <summary>Shadow cost controls; quality, reach, cascades and local-light count remain independent.</summary>
+    public static readonly SettingRow[] Shadows =
+    {
+        new("SHADOW QUALITY", "Shadow resolution and softness; Off disables shadows.", SettingKind.Choice,
+            v => v.Shadows, (v, x) => v with { Shadows = (int)x }, Options: new[] { "OFF", "LOW", "MEDIUM", "HIGH", "ULTRA" }),
+        new("SHADOW DISTANCE", "Sun and moon shadow reach; shorter keeps detail close.", SettingKind.Slider,
+            v => v.ShadowDistance, (v, x) => v with { ShadowDistance = x }, 50, 3000, 50, Format: Metres, Active: v => v.Shadows > 0),
+        new("SHADOW CASCADES", "More cascades improve detail at a greater rendering cost.", SettingKind.Choice,
+            v => v.ShadowCascades <= 1 ? 0 : v.ShadowCascades <= 2 ? 1 : 2,
+            (v, x) => v with { ShadowCascades = (int)x switch { 0 => 1, 1 => 2, _ => 4 } },
+            Options: new[] { "1", "2", "4" }, Active: v => v.Shadows > 0),
+        new("MAX SHADOW LIGHTS", "Local lights casting shadows at once; light stays visible.", SettingKind.Slider,
+            v => v.MaxShadowLights, (v, x) => v with { MaxShadowLights = (int)x }, 0, 8, 1,
+            Active: v => v.Shadows > 0),
+        new("LOCAL SHADOW DISTANCE", "Shadow reach beyond nearby lamps and torch light.", SettingKind.Slider,
+            v => v.LocalShadowDistance, (v, x) => v with { LocalShadowDistance = x }, 10, 100, 5, Format: Metres,
+            Active: v => v.Shadows > 0 && v.MaxShadowLights > 0),
     };
 
     /// <summary>The INTERFACE tab.</summary>

@@ -69,6 +69,16 @@ public partial class Main : Node
             HollowUniverse.Settings.GraphicsSettings.Preview(HollowUniverse.Settings.GraphicsSettings.Current with
                 { WindowMode = HollowUniverse.Settings.GameWindowMode.Windowed });
         AddChild(new HollowUniverse.Settings.GraphicsNode { Name = "Graphics" });
+        if (_options.ContainsKey("shadow-budget-check"))
+        {
+            AddChild(new HollowUniverse.Settings.ShadowBudgetCheck
+            {
+                Name = "ShadowBudgetCheck", OutputPath = Option("shadow-budget-check", ""),
+                ScreenshotPath = Option("shot", ""),
+            });
+            SetProcess(false);
+            return;
+        }
         if (isolatedShot) AddChild(new CaptureIsolation { Name = "CaptureIsolation", Resolution = captureResolution });
         // The interface scale has to be known before any interface is built.
         _scaler = new UiScaler { Name = "UiScaler" };

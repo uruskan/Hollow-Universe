@@ -269,7 +269,9 @@ public partial class GroundView : Node3D
         _worldStages = _world.LoadStages(plan);
         Loading?.Add(_worldStages);
         Loading?.Add(_warmup.Stage());
-        Loading?.Add(SteadyFrames.Stage(plan));
+        Loading?.Add(SteadyFrames.Stage(plan, frames => GD.Print(
+            $"[load] world ready; frame settling reached its {frames.MostSeconds:0.0}s limit " +
+            $"(target {frames.FrameMs:0.0}ms). Starting play.")));
         _collision = new GroundCollision { Name = "GroundCollision" };
         AddChild(_collision);
         _nature = new NatureView { Name = "Nature", Client = Client };

@@ -345,7 +345,13 @@ menu as before. Neither the screen nor the hand-over knows which parts exist.
 | `land` | Painting the land | `SurfaceView.LoadStages` | the terrain idle for 10 frames (progress: the finest level drawn) | arrival |
 | `forest` | Growing the forest | `SurfaceView.LoadStages` | the plants (library, impostor bake, scatter) and the grass idle for 10 frames | arrival |
 | `renderer` | Warming up the renderer | `RenderWarmup.Stage` (the ground view) | everything shown, then 10 frames without a pipeline built (40 s at most) | start |
-| `steady` | Arriving | `SteadyFrames.Stage` (the ground view) | 0.75 s of frames each under 33.4 ms, counted once every other stage is done | start |
+| `steady` | Arriving | `SteadyFrames.Stage` (the ground view) | 0.75 s of frames each under 33.4 ms, or 5 s spent waiting after every other stage is done | start |
+
+The final settling stage has a five-second upper bound (`steady.mostSeconds`, added 16 October 2026). Previously,
+every frame above 33.4 ms reset its only completion condition, so a fully loaded world below 30 FPS could stay at
+97% forever. The bound starts only after every preceding stage is ready; it does not skip world streaming or renderer
+warm-up. A normal smooth start still completes after 0.75 s. This prevents a loading lockout; it does not improve the
+frame rate itself.
 
 A joined game (`play-ground.cmd join`) has no `server` stage; `--in-process` builds its server before the first frame
 (O16).
@@ -4298,7 +4304,7 @@ costs the server nothing while nobody watches.
 ### 8.6 Settings
 
 SETTINGS in the main menu and in the Esc menu opens a panel over the menu, in the ground interface's style
-(`GroundUi.Settings.cs`). Its tabs: **GRAPHICS** and **INTERFACE**. Every row shows its value and one line saying what
+(`GroundUi.Settings.cs`). Its tabs: **GRAPHICS**, **INTERFACE**, **DISPLAY** and **SHADOWS**. Every row shows its value and one line saying what
 it does; the rows are data (`game/scripts/Settings/SettingRows.cs`: a switch, a choice or a slider, read and written as
 a number), the panel one loop over them. Changes show at once; **APPLY** saves them, **REVERT** goes back to what is
 saved, **DEFAULTS** to this computer's preset; Esc or BACK closes and drops what was not applied. Keys: Up and Down
@@ -4321,7 +4327,7 @@ choose a row, Left and Right change it, Enter flips or steps it, Tab the other t
 - **Presets:** Low, Medium, High, Ultra and Maximum; any single change makes it Custom (and a change that lands on a
   preset's values shows that preset). High is the game as it looked before the settings. Vsync, the frame cap, the
   field of view and the interface scale are the player's own; no preset touches them. With nothing saved, the
-  computer's preset is Maximum on a discrete graphics card, Medium on an integrated one, else High.
+  computer's preset is High on a discrete graphics card and Medium on an integrated one.
   `--quality low|medium|high|ultra|maximum` shows a preset for one run without saving it (screenshots).
 
 | | Low | Medium | High | Ultra | Maximum |
@@ -4333,9 +4339,29 @@ choose a row, Left and Right change it, Enter flips or steps it, Tab the other t
 | Reflections, fog | –, – | –, – | –, – | on, on | on, on |
 | Effect quality | low | medium | medium | high | high |
 | Shadows | low (2048, soft very low), 600 m | medium (4096, soft low), 1,000 m | medium, 1,600 m | high (soft medium), 1,600 m | ultra (soft high, tight cascades), 2,000 m |
+| Sun shadow cascades | 1 | 2 | 2 | 4 | 4 |
+| Maximum local shadow lights | 0 | 1 | 2 | 4 | 6 |
+| Local shadow influence distance | 20 m | 30 m | 40 m | 60 m | 80 m |
 | Terrain, plants, grass reach, models | 75, 75, 70, 75 % | 90, 90, 85, 90 % | 100 % | 115, 115, 120, 125 % | 135, 130, 140, 150 % |
 | Grass density | 60 % | 80 % | 100 % | 100 % | 100 % |
 | Texture filtering | 2× | 4× | 4× | 8× | 16× |
+
+**Shadow budgets (AB Test B, 16 October 2026).** Cascade count is independent of shadow texture/filter quality;
+the sun supports 1/2/4 cascades, while the moon retains one cascade and at most 300 m reach. Split blending is used
+only at Medium shadow quality and above. Existing settings files without a cascade value retain four sun cascades until
+the player chooses a new value or preset. The SHADOWS tab also exposes sun distance (50–3,000 m), maximum local
+shadow lights (0–8), and local shadow influence distance (10–100 m). Shadows OFF disables both directional shadows
+and the shared local budget. This does not disable the lights' illumination.
+
+`LocalShadowBudget` is the single registry for eligible FX loop, ship and first-person attachment lights. Owners
+register their authored shadow capability once. Torch light now opts into this data flag. `GraphicsNode` selects after light transforms update, using the
+active viewport/camera, visibility, energy, influence distance, priority and proximity. The player's held light has
+priority; 10% incumbent distance hysteresis avoids repeated swaps between nearly equal candidates. Freed lights
+unregister. The engine-free `LocalShadowSelector` uses reusable/stack buffers and O(n × 8) bounded selection; no
+scene-wide search or per-item shadow rule is introduced. New eligible light owners must use this registry.
+
+Godot's baked LightmapGI shadowmask is not enabled: the generated terrain, moving sun, trees and player structures
+have no static lightmap bake. A shadowmask switch without those data would not provide this feature.
 
 - **On the ball world:** SDFGI's cascades follow the camera along the world's axes, which are nowhere the local up but
   at the poles, so its vertical scale stays 100 % (the flat-world 50 % would halve its detail sideways where the
@@ -6212,8 +6238,9 @@ overturn (numbered O1 on):
 - O3. **Play waits for every stage**: no input is read, the mouse stays free, mouse look and keys do nothing, and the
   character stands where it arrived. The interface is drawn all along under the screen (its first draw would otherwise be
   the first frame of play) and greets the player at the hand-over, rather than at its start, unseen.
-- O4. **The last stage is 0.75 s of steady frames** (each under 33.4 ms, the measurements' budget), counted only once
-  every other stage is done: streaming and warming end with a quiet world, and play starts on smooth frames.
+- O4. **The last stage aims for 0.75 s of steady frames** (each under 33.4 ms, the measurements' budget), counted only
+  once every other stage is done. Since 16 October 2026 it waits at most five seconds after that point, so a ready
+  world remains accessible on machines below the target frame rate.
 - O5. **The world's things are in when nothing new came for 0.5 s** after the character arrived (6 s at most in a place
   that never goes quiet). The server sends its backlog a part every snapshot while there is one, so no message or
   protocol change was needed.

@@ -147,3 +147,9 @@ No process belonging to that other task was stopped. The candidate reported 620 
 the competing-workload limit especially clear. These timing values are retained for audit, not used for an FPS claim.
 The first hit's cue/marker preparation still cost 11.6 ms in total in this run; it is a separate remaining profiling
 candidate. A clean before/after timing comparison and the wider cause of intermittent stutter remain unverified.
+
+## 16 October loading and shadow follow-up
+
+The separate [loading and shadow report](REPAIR_LOADING_SHADOWS.md) records the 97% stall fix,
+shadow controls, light budgets and stationary Custom/Low measurements. The historical gathering
+measurements and their limitations above remain unchanged.

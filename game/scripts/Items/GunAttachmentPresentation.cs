@@ -83,6 +83,7 @@ public partial class WeaponAttachmentLight : Node3D
             DistanceFadeShadow = 20,
         };
         AddChild(_light);
+        if (FirstPerson) HollowUniverse.Settings.LocalShadowBudget.Track(_light, Definition.Range, priority: 10);
         _Process(0);
     }
 

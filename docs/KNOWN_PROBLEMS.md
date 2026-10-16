@@ -1,5 +1,21 @@
 # Known problems and the plan for them (14 October 2026)
 
+## AB Test B loading at 97% and reduced FPS — 16 October 2026
+
+The owner reports loading held at 97% and substantially reduced frame rate compared with the beginning of this
+project (80–144 FPS, possibly on Low). The final `steady` loading stage formerly required 0.75 consecutive seconds
+of frames below 33.4 ms with no maximum wait. All assets could be ready while a slower renderer prevented play
+indefinitely. Its data-driven five-second limit now applies only after every preceding loading stage finishes;
+regressions cover slow frames, unfinished dependencies, reset and normal smooth completion.
+
+The owner's recent log also contains a null scene-tree error in gib warm-up. Loading now owns its gib preview nodes
+instead of calling the deferred live gib singleton before insertion. This is a separate startup defect.
+
+Rendering diagnosis compares the saved custom settings and Low independently. The saved custom settings enable
+SDFGI and raise terrain/plant/grass/model detail; earlier High/Maximum route timings are not the owner's original
+Low baseline. See [REPAIR_PERFORMANCE.md](REPAIR_PERFORMANCE.md) and [DEVELOPMENT.md](DEVELOPMENT.md) for current
+measurements and validation. Neither a loading timeout fix nor reduced detail alone establishes restored FPS.
+
 ## AB Test B throttle at first boarding — 15 October 2026
 
 The owner reports that W/S would not adjust throttle immediately after entering a ship until boost was used.

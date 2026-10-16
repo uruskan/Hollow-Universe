@@ -11,7 +11,7 @@
     { "key": "land", "title": "Painting the land", "weight": 4.7, "idleFrames": 10 },
     { "key": "forest", "title": "Growing the forest", "weight": 6.1, "idleFrames": 10 },
     { "key": "renderer", "title": "Warming up the renderer", "weight": 5.2, "settleFrames": 10, "perFrame": 12, "loadsAtOnce": 6, "mostSeconds": 40 },
-    { "key": "steady", "title": "Arriving", "weight": 0.75, "seconds": 0.75, "frameMs": 33.4 }
+    { "key": "steady", "title": "Arriving", "weight": 0.75, "seconds": 0.75, "frameMs": 33.4, "mostSeconds": 5 }
   ],
   "tips": [
     "Hit the X on a tree, or the bright spot on a rock, and you gather faster.",

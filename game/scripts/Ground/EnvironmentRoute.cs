@@ -41,7 +41,7 @@ public sealed partial class EnvironmentRoute : Node
     public override void _Ready()
     {
         Directory.CreateDirectory(Folder);
-        if (ObserveSeconds <= 0)
+        if (ObserveSeconds <= 0 || PerformanceBreakdown)
         {
             View.Scripted = new InputFrame();
             AddChild(new CaptureIsolation { Name = "RouteInputIsolation", Resolution = CaptureIsolation.RequestedResolution(new Vector2I(1600, 900)) });
@@ -61,7 +61,12 @@ public sealed partial class EnvironmentRoute : Node
             var renderWorld = View.World;
             if (renderWorld?.Surface is not WalkingWorld world || Math.Abs(world.Radius - 1200) > 0.01)
                 throw new InvalidOperationException("Environment route requires live Earth1200.");
-            if (ObserveSeconds > 0)
+            if (PerformanceBreakdown)
+            {
+                View.Interface.Open(GroundScreen.Hud);
+                await RunPerformanceBreakdown();
+            }
+            else if (ObserveSeconds > 0)
             {
                 // Deliberately preserve ordinary input, settings, camera, survival, location and time of day.
                 await Capture("ordinary-host-start");
@@ -137,7 +142,7 @@ public sealed partial class EnvironmentRoute : Node
                 {
                     technicalChecksPassed = _failure == null, visualQualityAccepted = false, failure = _failure,
                     evidence = "Normal hosted simulation/prediction. Route inputs are scripted, observation inputs are human. No spawn teleport, noclip, placement or density overrides. Screenshots are outside frame measurements. Sampling alone is not navigation or art acceptance.",
-                    mode = ObserveSeconds > 0 ? "ordinary-host-observation" : "connected-walk",
+                    mode = PerformanceBreakdown ? "stationary-render-breakdown" : ObserveSeconds > 0 ? "ordinary-host-observation" : "connected-walk",
                     version = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
                     runtimeModuleVersionId = assembly.ManifestModule.ModuleVersionId,
                     runtimeAssemblyLocation = location, runtimeHash = AssemblyHash(location), args = OS.GetCmdlineUserArgs(),
@@ -317,7 +322,7 @@ public sealed partial class EnvironmentRoute : Node
         if (image.SavePng(path) != Error.Ok) throw new IOException("Cannot save " + path);
         var sky = View.World?.Sky;
         var camera = View.Camera;
-        if (requireReady && ObserveSeconds <= 0 && sky != null &&
+        if (requireReady && ObserveSeconds <= 0 && !PerformanceBreakdown && sky != null &&
             ((SolarHour == 0 && sky.SunElevation >= -6) || (SolarHour == 10 && sky.SunElevation <= 10)))
             throw new InvalidOperationException($"{label}: actual sun elevation {sky.SunElevation:0.0} disagrees with requested hour {SolarHour}");
         var record = new { label, path, sha256 = Hash(path), width = image.GetWidth(), height = image.GetHeight(),

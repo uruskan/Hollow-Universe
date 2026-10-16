@@ -8,6 +8,12 @@ namespace HollowUniverse.App;
 public partial class CaptureIsolation : Node
 {
     public Vector2I Resolution { get; set; }
+    private Viewport? _viewport;
+    private Window? _window;
+    private bool _guiDisabled;
+    private bool _unresizable;
+    private Window.ModeEnum _windowMode;
+    private Vector2I _windowSize, _windowPosition;
 
     public static bool Requested(IReadOnlyDictionary<string, string> options) =>
         !options.ContainsKey("ui-check") && !options.ContainsKey("window-check") &&
@@ -32,10 +38,40 @@ public partial class CaptureIsolation : Node
     public override void _Ready()
     {
         ProcessPriority = int.MinValue;
-        GetViewport().GuiDisableInput = true;
-        GetWindow().Unresizable = true;
+        _viewport = GetViewport();
+        _window = GetWindow();
+        _guiDisabled = _viewport.GuiDisableInput;
+        _unresizable = _window.Unresizable;
+        _windowMode = _window.Mode;
+        _windowSize = _window.Size;
+        _windowPosition = _window.Position;
+        _viewport.GuiDisableInput = true;
+        _window.Unresizable = true;
         EnforceWindow();
         GD.Print($"[capture] isolated input; requested resolution={Resolution}; preferences are not saved");
+    }
+
+    public override void _ExitTree()
+    {
+        // A cancelled route can return to the menu in this process. Return the shared viewport/window to their
+        // previous state as well as releasing this node's input handler; no player preference is written.
+        if (_viewport != null && GodotObject.IsInstanceValid(_viewport))
+            _viewport.GuiDisableInput = _guiDisabled;
+        if (_window != null && GodotObject.IsInstanceValid(_window))
+        {
+            _window.Unresizable = _unresizable;
+            if (DisplayServer.GetName() != "headless")
+            {
+                // A graphics preview can change mode between enforcement frames. Restore geometry while
+                // windowed, then restore maximized/fullscreen mode so the platform accepts the dimensions.
+                if (_window.Mode != Window.ModeEnum.Windowed) _window.Mode = Window.ModeEnum.Windowed;
+                _window.Size = _windowSize;
+                _window.Position = _windowPosition;
+                _window.Mode = _windowMode;
+            }
+        }
+        _viewport = null;
+        _window = null;
     }
 
     public override void _Process(double delta) => EnforceWindow();

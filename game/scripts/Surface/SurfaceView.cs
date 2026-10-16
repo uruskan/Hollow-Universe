@@ -421,7 +421,7 @@ public partial class SurfaceView : Node3D
         }
         HollowUniverse.Settings.GraphicsSettings.ApplyTo(_sunLight, values);
         HollowUniverse.Settings.GraphicsSettings.ApplyTo(_moonLight,
-            values with { ShadowDistance = Math.Min(values.ShadowDistance, 300) });
+            values with { ShadowDistance = Math.Min(values.ShadowDistance, 300), ShadowCascades = 1 });
         if (_grass != null && _grass.BuiltWith != (values.GrassDistance, values.GrassDensity))
         {
             _grass.QueueFree();
@@ -661,10 +661,11 @@ public partial class SurfaceView : Node3D
     }
 
     /// <summary>Sets the universe time and whether it runs (screenshots pause it: they never wait for time).</summary>
-    public void SetTime(double time, bool paused)
+    public void SetTime(double time, bool paused, bool resetCloudDrift = false)
     {
         _time = time;
         _timeRuns = !paused;
+        if (resetCloudDrift) _cloudDrift = 0;
         _sky?.Ephemeris.SetRotationTimeScale(RotationTimeScale, time);
     }
 }

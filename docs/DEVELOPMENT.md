@@ -638,3 +638,37 @@ sway/bob/equip/sprint overlay or spatial contact adaptation. Other held profiles
 The original physical mouse failure was not reproduced; injected UI events are not a claim of
 manual drag verification. One ObjectDB shutdown warning remains. Wider animation quality and
 workshop usability are still open; this records a bounded trial, not final owner acceptance.
+
+## 16 October 2026 — 97% loading fix and shadow budgets
+
+The final steady-frame loading stage could wait forever below 30 FPS after all assets were ready.
+It now has a data-driven five-second deadline after dependencies complete; its normal smooth-frame
+path remains. Gib warm-up now uses previews owned by the loading stage, fixing the reported null
+scene-tree error from the deferred live gib singleton. Diagnostics also restore GUI/window state
+when capture isolation exits and keep timing uncapped after temporary graphics previews.
+
+Added the SHADOWS tab: independent sun cascades 1/2/4, shadow quality/distance, maximum local shadow
+lights 0–8 and local influence distance. A shared camera/world-aware budget covers authored ship
+lamps, weapon attachment beams and torch light, with held-light priority, stable distance selection
+and automatic cleanup. Low/Medium/High now use 1/2/2 sun cascades rather than always 4. The moon keeps
+one cascade and 300 m maximum reach. Existing saved settings remain intact until changed. Baked
+shadowmask remains unimplemented because there is no valid static lighting bake for this world.
+
+Isolated copies of the player's save at the same pose/time, 1600×900, RTX 2070 SUPER: final Low 185.0 FPS
+(mean 5.41 ms, p95 6.31 ms, GPU 4.48 ms), Custom about 61 FPS. Low uses 75% render scale and reduced detail;
+this is not a shadow-only optimization gain or proof against the unrecorded early-project baseline.
+Custom two-cascade shadows reduced draw calls 1,561→1,161 and mean 16.40→15.73 ms; tighter distances
+cut geometry further without a reliable additional GPU gain. Grass/SDFGI remain meaningful costs.
+Rejected spatial tree batching because it increased calls without demonstrated benefit. Final
+Low reached play in 19.91 seconds; ground runs still report pre-existing shutdown resource leaks.
+
+Validation: solution build: 0 warnings/errors; focused loading/architecture/local-shadow 19/19;
+Godot shadow/torch/capture-isolation check 59/59, with unchanged preference hashes. SHADOWS UI and
+forest screenshots inspected. Final full suite: 397/398 in 418.3 seconds; the existing
+`HeldActionTimingTests.MeleeHitMarkerCarriesTheAuthoritativeToolTickAndContactPoint` failed to start
+its swing in the full run, then passed alone 1/1 in 4.8 seconds. This is not a clean full-suite pass;
+the unrelated timing test was not changed by this repair. Earlier loading-only checkpoint passed
+394/394. Both final logs are retained with the evidence. Evidence and
+reproduction: [REPAIR_LOADING_SHADOWS.md](REPAIR_LOADING_SHADOWS.md) and
+[raw samples/screenshots](images/repairs/performance-2026-10-16). This is a bounded loading/shadow
+repair, not completion of dense-canopy performance work or a guarantee of 80–144 FPS in every scene.

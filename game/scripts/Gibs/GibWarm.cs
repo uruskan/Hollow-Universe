@@ -22,12 +22,13 @@ public static class GibWarm
             {
                 continue;
             }
-            yield return new WarmItem($"gibs of {entry.Key}", new[] { gibs.File }, spot =>
+            yield return new WarmItem($"gibs of {entry.Key}", new[] { gibs.File }, _ =>
             {
                 IEnumerable<string> parts = entry.IsKit ? GibLibrary.Parts(entry.Key) : new[] { "" };
                 List<GibSet> sets = parts.Select(p => GibLibrary.Get(entry.Key, p)).OfType<GibSet>().ToList();
-                GibDirector.World.Warm(spot.Camera, sets);
-                return null;
+                // RenderWarmup owns the preview and frees it with its holder. Do not create the live gib world:
+                // its deferred insertion has not entered the scene tree when this callback first runs.
+                return GibWorld.CreateWarmup(sets);
             });
         }
     }

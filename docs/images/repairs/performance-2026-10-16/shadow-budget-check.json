@@ -1,0 +1,303 @@
+{
+  "diagnostic": "shadow-budget-check",
+  "passed": true,
+  "checks": 59,
+  "failures": 0,
+  "results": [
+    {
+      "Name": "isolated camera",
+      "Passed": true,
+      "Detail": "test camera belongs to its own viewport/world"
+    },
+    {
+      "Name": "registry registration",
+      "Passed": true,
+      "Detail": "added 10 lights"
+    },
+    {
+      "Name": "cascade preview 1",
+      "Passed": true,
+      "Detail": "mode=Orthogonal, blend=False"
+    },
+    {
+      "Name": "cascade preview 2",
+      "Passed": true,
+      "Detail": "mode=Parallel2Splits, blend=True"
+    },
+    {
+      "Name": "cascade preview 4",
+      "Passed": true,
+      "Detail": "mode=Parallel4Splits, blend=True"
+    },
+    {
+      "Name": "local cap 0",
+      "Passed": true,
+      "Detail": "expected=0, actual=0"
+    },
+    {
+      "Name": "local cap 0: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "local cap 1",
+      "Passed": true,
+      "Detail": "expected=1, actual=1"
+    },
+    {
+      "Name": "local cap 1: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "closest 1",
+      "Passed": true,
+      "Detail": "nearest lights win"
+    },
+    {
+      "Name": "local cap 2",
+      "Passed": true,
+      "Detail": "expected=2, actual=2"
+    },
+    {
+      "Name": "local cap 2: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "closest 2",
+      "Passed": true,
+      "Detail": "nearest lights win"
+    },
+    {
+      "Name": "local cap 8",
+      "Passed": true,
+      "Detail": "expected=8, actual=8"
+    },
+    {
+      "Name": "local cap 8: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "shadows off",
+      "Passed": true,
+      "Detail": "expected=0, actual=0"
+    },
+    {
+      "Name": "shadows off: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "directional shadows off",
+      "Passed": true,
+      "Detail": "sun disabled by the same shadow setting"
+    },
+    {
+      "Name": "priority",
+      "Passed": true,
+      "Detail": "expected=1, actual=1"
+    },
+    {
+      "Name": "priority: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "priority beats distance",
+      "Passed": true,
+      "Detail": "farther priority light selected"
+    },
+    {
+      "Name": "zero energy, hidden parent, outside range",
+      "Passed": true,
+      "Detail": "expected=7, actual=7"
+    },
+    {
+      "Name": "zero energy, hidden parent, outside range: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "ineligible shadows disabled",
+      "Passed": true,
+      "Detail": "all three ineligible lights remain unshadowed"
+    },
+    {
+      "Name": "eligibility restored",
+      "Passed": true,
+      "Detail": "expected=8, actual=8"
+    },
+    {
+      "Name": "eligibility restored: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "influence reaches shadow distance",
+      "Passed": true,
+      "Detail": "expected=1, actual=1"
+    },
+    {
+      "Name": "influence reaches shadow distance: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "distance preview excludes light",
+      "Passed": true,
+      "Detail": "expected=0, actual=0"
+    },
+    {
+      "Name": "distance preview excludes light: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "distance preview restores light",
+      "Passed": true,
+      "Detail": "expected=1, actual=1"
+    },
+    {
+      "Name": "distance preview restores light: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "before other viewport update",
+      "Passed": true,
+      "Detail": "expected=2, actual=2"
+    },
+    {
+      "Name": "before other viewport update: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "viewport isolation",
+      "Passed": true,
+      "Detail": "another viewport cannot toggle test-world shadows"
+    },
+    {
+      "Name": "no camera",
+      "Passed": true,
+      "Detail": "expected=0, actual=0"
+    },
+    {
+      "Name": "no camera: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "camera restored",
+      "Passed": true,
+      "Detail": "expected=2, actual=2"
+    },
+    {
+      "Name": "camera restored: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "freed light replaced",
+      "Passed": true,
+      "Detail": "expected=2, actual=2"
+    },
+    {
+      "Name": "freed light replaced: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "freed light unregistered",
+      "Passed": true,
+      "Detail": "TreeExiting removes the registry entry"
+    },
+    {
+      "Name": "explicit untrack replaced",
+      "Passed": true,
+      "Detail": "expected=2, actual=2"
+    },
+    {
+      "Name": "explicit untrack replaced: energy unchanged",
+      "Passed": true,
+      "Detail": "shadow selection preserves illumination"
+    },
+    {
+      "Name": "untracked light stays illuminated",
+      "Passed": true,
+      "Detail": "withdrawing shadow eligibility keeps light energy"
+    },
+    {
+      "Name": "torch loop created",
+      "Passed": true,
+      "Detail": "real fire.torch catalogue entry and FxDirector loop"
+    },
+    {
+      "Name": "torch registered",
+      "Passed": true,
+      "Detail": "catalogue shadow flag registers the actual loop light"
+    },
+    {
+      "Name": "torch cap zero",
+      "Passed": true,
+      "Detail": "cap zero removes shadows while the real torch stays lit"
+    },
+    {
+      "Name": "held torch priority",
+      "Passed": true,
+      "Detail": "first-person torch wins the single slot over closer ordinary lights without changing energy"
+    },
+    {
+      "Name": "torch loop cleanup",
+      "Passed": true,
+      "Detail": "expired loop frees and unregisters its light"
+    },
+    {
+      "Name": "capture input isolation",
+      "Passed": true,
+      "Detail": "capture child disables GUI input and window resize"
+    },
+    {
+      "Name": "capture window enforcement",
+      "Passed": true,
+      "Detail": "capture size=(1520, 840), requested=(1520, 840)"
+    },
+    {
+      "Name": "capture input restoration",
+      "Passed": true,
+      "Detail": "GUI input and resize flags restored after child exit"
+    },
+    {
+      "Name": "capture window restoration",
+      "Passed": true,
+      "Detail": "mode=Windowed, size=(1600, 900), position=(480, 250)"
+    },
+    {
+      "Name": "screenshot",
+      "Passed": true,
+      "Detail": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\loading-performance\\shadow-budget-check.png: Ok"
+    },
+    {
+      "Name": "preview restored",
+      "Passed": true,
+      "Detail": "original current values restored"
+    },
+    {
+      "Name": "saved values unchanged",
+      "Passed": true,
+      "Detail": "no Save call during diagnostics"
+    },
+    {
+      "Name": "preference files unchanged",
+      "Passed": true,
+      "Detail": "graphics, ground and interface preference file hashes match"
+    },
+    {
+      "Name": "registry cleanup",
+      "Passed": true,
+      "Detail": "only this diagnostic\u0027s entries removed"
+    }
+  ]
+}

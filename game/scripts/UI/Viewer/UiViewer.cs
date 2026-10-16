@@ -173,8 +173,8 @@ public partial class UiViewer : Node
             case "menu":
                 _ui.ShowMenu(inGame: false);
                 break;
-            case "settings" or "settings-display":
-                _ui.ShowSettings(screen == "settings-display" ? 2 : 0);
+            case "settings" or "settings-display" or "settings-shadows":
+                _ui.ShowSettings(screen == "settings-shadows" ? 3 : screen == "settings-display" ? 2 : 0);
                 break;
             case "map":
                 // G7: the map with markers, teammates and the team panel.

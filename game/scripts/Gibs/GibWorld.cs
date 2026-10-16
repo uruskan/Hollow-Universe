@@ -777,8 +777,31 @@ public partial class GibWorld : Node3D
     /// </summary>
     public void Warm(Camera3D camera, IEnumerable<GibSet> sets)
     {
-        var holder = new Node3D { Name = "GibWarmup", Position = new Vector3(0, 0, -2), Scale = Vector3.One * 0.004f };
+        if (!camera.IsInsideTree())
+        {
+            throw new InvalidOperationException("Gib warm-up needs a camera in the scene tree.");
+        }
+        Node3D holder = CreateWarmup(sets);
+        holder.Position = new Vector3(0, 0, -2);
+        holder.Scale = Vector3.One * 0.004f;
         camera.AddChild(holder);
+        // World can still be awaiting GibDirector's deferred AddChild. The camera already owns this preview.
+        camera.GetTree().CreateTimer(1.5).Timeout += () =>
+        {
+            if (GodotObject.IsInstanceValid(holder) && !holder.IsQueuedForDeletion())
+            {
+                holder.QueueFree();
+            }
+        };
+    }
+
+    /// <summary>
+    /// Creates an unscaled preview of one piece from each set. Its caller owns the node and its lifetime; no live
+    /// gib world or scene tree is needed, so the loading stage can own and free all its previews together.
+    /// </summary>
+    public static Node3D CreateWarmup(IEnumerable<GibSet> sets)
+    {
+        var holder = new Node3D { Name = "GibWarmup" };
         float x = 0;
         var seen = new HashSet<Mesh>();
         foreach (GibSet set in sets)
@@ -792,6 +815,6 @@ public partial class GibWorld : Node3D
             mm.SetInstanceTransform(0, Transform3D.Identity);
             holder.AddChild(new MultiMeshInstance3D { Multimesh = mm, Position = new Vector3(x += 1.5f, 0, 0) });
         }
-        GetTree().CreateTimer(1.5).Timeout += holder.QueueFree;
+        return holder;
     }
 }

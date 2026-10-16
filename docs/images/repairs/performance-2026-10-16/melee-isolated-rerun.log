@@ -1,0 +1,3 @@
+  RUN  HeldActionTimingTests.MeleeHitMarkerCarriesTheAuthoritativeToolTickAndContactPoint
+  ok   HeldActionTimingTests.MeleeHitMarkerCarriesTheAuthoritativeToolTickAndContactPoint (4841 ms)
+1/1 passed in 4.8 s.

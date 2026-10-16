@@ -749,6 +749,8 @@ public partial class FxDirector : Node3D
                 DistanceFadeLength = 30f,
             };
             AddChild(loop.Light);
+            if (def.Loop.LightShadows)
+                HollowUniverse.Settings.LocalShadowBudget.Track(loop.Light, loop.Light.OmniRange, p.FirstPerson ? 10 : 0);
         }
         _loops[loop.Id] = loop;
         UpdateLoop(loop, 0f);

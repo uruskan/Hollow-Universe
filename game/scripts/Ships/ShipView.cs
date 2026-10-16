@@ -452,6 +452,7 @@ public partial class ShipView : Node3D
                 light.DistanceFadeShadow = 40;
             }
             _model.AddChild(light);
+            if (l.Shadows) HollowUniverse.Settings.LocalShadowBudget.Track(light, l.Range);
             _lights.Add((light, l));
         }
     }

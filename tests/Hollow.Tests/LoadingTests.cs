@@ -137,6 +137,64 @@ public static class LoadingTests
     }
 
     [Test]
+    public static void SlowFramesCannotHoldAReadyWorldAtNinetySevenPercent()
+    {
+        var clock = new Clock();
+        var pipeline = new LoadingPipeline(Plan(
+            "{ \"key\": \"world\", \"title\": \"World\", \"weight\": 21.1 }, { \"key\": \"steady\", \"title\": \"Arriving\", \"weight\": 0.75, \"seconds\": 0.75, \"frameMs\": 33.4, \"mostSeconds\": 1 }"),
+            () => clock.Now);
+        bool worldReady = false;
+        int timeouts = 0;
+        double timedOutAfter = 0;
+        pipeline.Add(new LoadStage("world", () => worldReady));
+        pipeline.Add(SteadyFrames.Stage(pipeline.Plan, frames =>
+        {
+            timeouts++;
+            timedOutAfter = frames.Elapsed;
+        }));
+        void SlowFrames(int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                clock.Now += 0.125;
+                pipeline.Update(0.125);
+            }
+        }
+
+        SlowFrames(80);
+        Assert.True(pipeline.Blocking, "the limit must never bypass an unfinished world stage");
+        Assert.Equal(0, timeouts, "the steady wait has not started while the world loads");
+        worldReady = true;
+        SlowFrames(1);
+        Assert.Equal("Arriving", pipeline.Current?.Title, "the steady stage begins only when the world is ready");
+        SlowFrames(7);
+        Assert.True(pipeline.Blocking, "slow frames still get the configured settling time");
+        Assert.Near(97, Math.Round(pipeline.Progress * 100), 1e-9, "the reported stall's final percentage");
+        SlowFrames(1);
+        Assert.True(pipeline.Playing, "a ready world enters play even at eight frames per second");
+        Assert.Near(1, pipeline.Progress, 1e-9, "the loading bar completes");
+        Assert.Near(1, timedOutAfter, 1e-9, "the limit is measured after the world became ready");
+        SlowFrames(20);
+        Assert.Equal(1, timeouts, "the fallback diagnostic is emitted once");
+    }
+
+    [Test]
+    public static void ResettingSteadyFramesClearsTheLongestWait()
+    {
+        var frames = new SteadyFrames(0.75, 33.4, 1);
+        frames.Frame(1);
+        Assert.True(frames.Done && frames.TimedOut, "a slow frame reaches the longest wait");
+        frames.Reset();
+        Assert.True(!frames.Done && !frames.TimedOut, "the next start gets its own settling period");
+        Assert.Near(0, frames.Elapsed, 1e-9, "elapsed time resets");
+        for (int i = 0; i < 48; i++)
+        {
+            frames.Frame(1 / 64.0);
+        }
+        Assert.True(frames.Done && !frames.TimedOut, "smooth frames finish normally before the time limit");
+    }
+
+    [Test]
     public static void AFarJumpRunsTheArrivalStagesAgain()
     {
         var clock = new Clock();

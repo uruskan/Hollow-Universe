@@ -14,6 +14,7 @@ public partial class GraphicsNode : Node
 
     public override void _Ready()
     {
+        ProcessPriority = int.MaxValue;
         _sharpen = new ShaderMaterial { Shader = new Shader { Code = SharpenShader } };
         _layer = new CanvasLayer { Name = "Sharpen", Layer = -100 };
         var rect = new ColorRect { Name = "Pass", Material = _sharpen, MouseFilter = Control.MouseFilterEnum.Ignore };
@@ -24,7 +25,13 @@ public partial class GraphicsNode : Node
         Apply(GraphicsSettings.Current);
     }
 
-    public override void _ExitTree() => GraphicsSettings.Changed -= Apply;
+    public override void _Process(double delta) => LocalShadowBudget.Update(GetViewport());
+
+    public override void _ExitTree()
+    {
+        GraphicsSettings.Changed -= Apply;
+        LocalShadowBudget.Clear();
+    }
 
     private void Apply(GraphicsValues values)
     {

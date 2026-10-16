@@ -552,7 +552,7 @@
           { "batch": "smoke", "rate": 2, "at": [0.0, 0.2, 0.0], "size": [0.08, 0.14], "grow": 4, "life": [1.5, 2.5], "speed": [0.3, 0.6], "dir": "up",
             "cone": 12, "color": [0.5, 0.48, 0.46], "alpha": [0.1, 0.16] }
         ],
-        "light": {"color": [1.0, 0.58, 0.25], "energy": 1.5, "range": 6, "flicker": 0.3, "at": [0.0, 0.1, 0.0]} } },
+        "light": {"color": [1.0, 0.58, 0.25], "energy": 1.5, "range": 6, "shadows": true, "flicker": 0.3, "at": [0.0, 0.1, 0.0]} } },
     { "key": "fire.burning", "family": "fire",
       "about": "Something burning (an incendiary hit, a burning player): a few licks of flame, embers, dark smoke.", "cap": 32, "cull": 200, "hero": 1.2,
       "stage": "dirt",
