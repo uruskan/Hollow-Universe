@@ -125,15 +125,30 @@ public partial class GroundTour
         var beforeDrag = View.SeatOrbitState;
         Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true });
         await Seconds(0.1);
-        RequireRepair(View.SeatOrbitState.Dragging, "left press starts orbit dragging");
-        Input.ParseInputEvent(new InputEventMouseMotion { Relative = new Vector2(220, -35), ButtonMask = MouseButtonMask.Left });
+        RequireRepair(!View.SeatOrbitState.Dragging, "left press leaves orbit dragging off");
+        Input.ParseInputEvent(new InputEventMouseMotion { Relative = new Vector2(24, -6), ButtonMask = MouseButtonMask.Left });
         await Seconds(0.15);
+        RequireRepair(View.SeatOrbitState.Yaw == beforeDrag.Yaw && View.SeatOrbitState.Pitch == beforeDrag.Pitch,
+            "left mouse motion preserves the orbit angle");
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Middle, Pressed = true });
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Middle, Pressed = false });
+        await Seconds(0.1);
+        Vector2 steering = View.ShipControls.Stick;
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true });
+        await Seconds(0.1);
+        RequireRepair(View.SeatOrbitState.Dragging, "right press starts orbit dragging while left is also held");
         Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false });
+        await Seconds(0.1);
+        RequireRepair(View.SeatOrbitState.Dragging, "left release does not cancel a held right-button orbit drag");
+        Input.ParseInputEvent(new InputEventMouseMotion { Relative = new Vector2(220, -35), ButtonMask = MouseButtonMask.Right });
+        await Seconds(0.15);
+        RequireRepair(View.ShipControls.Stick == steering, "right orbit drag preserves the pilot steering request");
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false });
         await Seconds(0.15);
         var afterDrag = View.SeatOrbitState;
         RequireRepair(MathF.Abs(afterDrag.Yaw - beforeDrag.Yaw) > 0.1f && MathF.Abs(afterDrag.Pitch - beforeDrag.Pitch) > 0.01f,
-            "left drag changes orbit yaw and pitch independently of ship motion");
-        RequireRepair(!afterDrag.Dragging, "left release ends orbit dragging");
+            "right drag changes orbit yaw and pitch independently of ship motion");
+        RequireRepair(!afterDrag.Dragging, "right release ends orbit dragging");
         float beforeWheel = afterDrag.Distance;
         Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.WheelDown, Pressed = true });
         Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.WheelDown, Pressed = false });
@@ -158,6 +173,77 @@ public partial class GroundTour
         Face(ship.Position);
         await Shot("repair-unattended-flight");
         GD.Print("[repair-check] PASS fuel inventory, pilot camera drag/zoom, airborne exit and unattended flight");
+        await RepairStationMouse();
+    }
+
+    private async Task RepairStationMouse()
+    {
+        await TeleportTo(Offset(70, 0));
+        var old = Client.Ships().All.Select(s => s.Id).ToHashSet();
+        Admin("ship", "iron-wake");
+        await Until(() => Client.Ships().All.Any(s => !old.Contains(s.Id) && s.Def is { Stations.Count: > 0 }), 8);
+        RemoteShip ship = Client.Ships().All.FirstOrDefault(s => !old.Contains(s.Id) && s.Def is { Stations.Count: > 0 })
+            ?? throw new InvalidOperationException("repair-ships: station craft did not replicate");
+        ShipDef def = ship.Def!;
+        ShipSeatDef seat = def.Seats.First(s => s.Role == SeatRole.Station);
+        Num.Vector3 entry = ship.PointOf(def.Interior!.SocketAt(seat.Exits[0], def.Interior.Rest));
+        await TeleportTo(entry);
+        View.Console.Submit("noclip");
+        await Until(() => Client.Character.Has(MoveCheats.Noclip), 5);
+        RequireRepair(Client.Character.Has(MoveCheats.Noclip), "station setup can reach its authored deck entry");
+        double approachAt = Time.GetTicksMsec() / 1000.0;
+        while (Num.Vector3.Distance(Client.RenderPosition, entry) > 0.25f && Time.GetTicksMsec() / 1000.0 - approachAt < 15)
+        {
+            entry = ship.PointOf(def.Interior.SocketAt(seat.Exits[0], def.Interior.Rest));
+            View.Scripted = new InputFrame { View = Num.Vector3.Normalize(entry - Client.RenderPosition), Forward = 1, NoclipSpeed = 3 };
+            await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+        }
+        View.Scripted = new InputFrame();
+        RequireRepair(Num.Vector3.Distance(Client.RenderPosition, entry) < 0.6f, "station setup reaches the authored entry");
+        byte part = (byte)def.PartOfSeat(seat.Index);
+        Face(ship.PointOf(def.PartPoint(part)));
+        Me.Interact(new TargetRef(TargetFamily.Ship, ship.Id.Value, part), seat.VerbKey);
+        await Until(() => Client.Stations().AtStation, 5);
+        RequireRepair(Client.Stations().AtStation, "gunner boards through the ordinary station interaction");
+        View.Console.Submit("noclip");
+        await Until(() => !Client.Character.Has(MoveCheats.Noclip), 5);
+        RequireRepair(!Client.Character.Has(MoveCheats.Noclip), "station input uses normal seated movement state");
+        View.ShipCamera.Mode = ShipCameraMode.Chase;
+        await RepairDeviceInput();
+        await Seconds(0.2);
+
+        void CheckStation(bool fire, bool zoom, string requirement)
+        {
+            var command = Client.Prediction!.CommandFor(Client.PredictedTick);
+            RequireRepair(command.Station is { Length: > 0 } controls && controls[0].Fire == fire && controls[0].Zoom == zoom,
+                requirement);
+        }
+
+        var orbit = View.SeatOrbitState;
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true });
+        await Seconds(0.2);
+        CheckStation(true, false, "left mouse sends ordinary station fire in orbit view");
+        RequireRepair(!View.SeatOrbitState.Dragging && View.SeatOrbitState.Yaw == orbit.Yaw && View.SeatOrbitState.Pitch == orbit.Pitch,
+            "station fire leaves the orbit angle unchanged");
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true });
+        Input.ParseInputEvent(new InputEventMouseMotion { Relative = new Vector2(80, -20), ButtonMask = MouseButtonMask.Left | MouseButtonMask.Right });
+        await Seconds(0.2);
+        CheckStation(true, false, "right orbit drag preserves held station fire without requesting station zoom");
+        RequireRepair(View.SeatOrbitState.Dragging && MathF.Abs(View.SeatOrbitState.Yaw - orbit.Yaw) > 0.1f,
+            "the gunner can orbit with right mouse while holding left to fire");
+        await Shot("repair-station-orbit");
+        await RepairKey(Key.V);
+        CheckStation(true, false, "held left fire survives V while held orbit right mouse cannot start first-person zoom");
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false });
+        await Seconds(0.15);
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true });
+        await Seconds(0.2);
+        CheckStation(true, true, "a fresh right press restores normal first-person station zoom alongside left fire");
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false });
+        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false });
+        await Seconds(0.2);
+        CheckStation(false, false, "releasing both buttons clears station fire and zoom");
+        GD.Print("[repair-check] PASS station device-input routing; outgoing fire/zoom commands checked without loading ammunition");
     }
 
     private async Task RepairKey(Key key, double heldSeconds = 0.1)

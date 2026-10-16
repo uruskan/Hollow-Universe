@@ -327,7 +327,8 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     public bool SeatOrbit { get; set; }
 
     public string? SeatLine => Keys is KeyContext.Seat or KeyContext.Station && _client.Ships() is { SeatShip.Def: { } def, Seat: { } seat }
-        ? (SeatOrbit ? "LMB DRAG  ORBIT     WHEEL  ZOOM     " : seat.Role == Hollow.Simulation.Ships.SeatRole.Station ? SeatKeys.StationMouse : "")
+        ? (SeatOrbit ? (seat.Role == Hollow.Simulation.Ships.SeatRole.Station ? "LMB  FIRE     " : "") + "RMB DRAG  ORBIT     WHEEL  ZOOM     "
+            : seat.Role == Hollow.Simulation.Ships.SeatRole.Station ? SeatKeys.StationMouse : "")
             + SeatKeys.Line(SeatKeys.Of(def, seat), inOrbit: false) : null;
 
     public bool StationNear(string station) => C.Deployable(station) is { } def && (Me.StationNear?.Invoke(def) ?? 0) != 0;

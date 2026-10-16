@@ -431,3 +431,22 @@ last inspected preference was false and was not changed by the audit.
 
 This handoff is documentation only. Validation checks its complete R1–R17/L1–L30 coverage, referenced files and
 diff formatting; no new build, test-suite, audio-listening or rendering acceptance is claimed.
+
+## Seated orbit mouse correction — 16 October 2026
+
+At the owner's correction, all seated third-person orbit cameras now use held right mouse to change angle.
+Left mouse retains the seat's normal primary action, including turret fire while orbiting and across V camera
+changes. Right orbit drag does not alter steering or turret aim, and a held right button cannot become station
+zoom on a camera switch until released and pressed again. Pilot/passenger/station hints now name RMB; the station
+hint still shows LMB FIRE. The first-person ground interface and existing on-foot actions are unchanged.
+
+Validation: isolated-output solution build and final client build passed with zero warnings/errors; focused
+ShipRepair/Station/Architecture selection passed 14/14. The actual hosted repair-ships tour passed all 36 checks,
+including pilot button independence/steering/zoom/exit and ordinary Iron Wake station boarding with outgoing
+fire/zoom input checks. No ammunition was loaded, so this is input-routing verification, not a projectile test.
+Screenshots were inspected and retained in docs/images/abtest-b/seated-camera; details are in REPAIR_SHIPS.md.
+Logs/builds are under .artifacts/seat-camera. The first tour exposed a test timing error (the steering sample
+preceded queued MMB delivery), which was corrected; two subsequent landing-site runs disconnected during loading.
+The final run at 40.6263, 99.4565 completed normally. Existing SSS/7 texture RID/2 ObjectDB exit warnings remain.
+No full-suite or performance acceptance is claimed. Validation used separate binaries and fresh saves; the
+owner's running game was preserved. Restart through play-ground.cmd to build and use the corrected controls.

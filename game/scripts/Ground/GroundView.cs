@@ -64,7 +64,7 @@ public partial class GroundView : Node3D
     private uint _cameraSeatShip;
     private int _cameraSeat = -1;
     private Num.Vector3 _seatOrbitFacing = -Num.Vector3.UnitZ;
-    private bool _seatPrimaryCaptured;
+    private bool _seatSecondaryCaptured;
     private bool SeatThirdPerson => Client.Ships().Seated && _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Chase;
     private RenderWarmup _warmup = null!;
     private System.Collections.Generic.IReadOnlyList<LoadStage> _worldStages = Array.Empty<LoadStage>();
@@ -718,9 +718,9 @@ public partial class GroundView : Node3D
     private InputFrame ReadInput(double delta)
     {
         if (IsolatedCapture) return new InputFrame { Yaw = _yaw, Pitch = _pitch, ViewFrame = _viewFrame };
-        if (!Input.IsMouseButtonPressed(MouseButton.Left))
+        if (!Input.IsMouseButtonPressed(MouseButton.Right))
         {
-            _seatPrimaryCaptured = false;
+            _seatSecondaryCaptured = false;
             _seatOrbit.Dragging = false;
         }
         if (_ui.WantsCursor || _keypad.Visible || !GetWindow().HasFocus()) _seatOrbit.Dragging = false;
@@ -761,11 +761,11 @@ public partial class GroundView : Node3D
         if (Client.Ships().Seated)
         {
             // In a seat that doesn't fly (IRON_WAKE.md §5.2): the view alone; the seat holds the body. At a station (IW3)
-            // the left button fires and the right zooms, held, while the game has the mouse and no radial is open.
-            if (!SeatThirdPerson && Client.Stations().AtStation && !_ui.WantsCursor && !_keypad.Visible && GetWindow().HasFocus() && _ui.Radial == null)
+            // the left button fires in either camera; the right zooms only in first person (orbit uses it to drag).
+            if (Client.Stations().AtStation && !_ui.WantsCursor && !_keypad.Visible && GetWindow().HasFocus() && _ui.Radial == null)
             {
-                input.Station.Fire = !_seatPrimaryCaptured && Input.IsMouseButtonPressed(MouseButton.Left);
-                input.Station.Zoom = Input.IsMouseButtonPressed(MouseButton.Right);
+                input.Station.Fire = Input.IsMouseButtonPressed(MouseButton.Left);
+                input.Station.Zoom = !SeatThirdPerson && !_seatSecondaryCaptured && Input.IsMouseButtonPressed(MouseButton.Right);
             }
             return input;
         }
@@ -830,7 +830,7 @@ public partial class GroundView : Node3D
 
     // The battery's zoom while the right mouse is held at a station, else null.
     private float? StationZoom() =>
-        !IsolatedCapture && !SeatThirdPerson && Client.Stations().Own is { } own && !_ui.WantsCursor && Input.IsMouseButtonPressed(MouseButton.Right) ? Math.Max(1, own.Station.Battery.Mount.Zoom) : null;
+        !IsolatedCapture && !SeatThirdPerson && !_seatSecondaryCaptured && Client.Stations().Own is { } own && !_ui.WantsCursor && Input.IsMouseButtonPressed(MouseButton.Right) ? Math.Max(1, own.Station.Battery.Mount.Zoom) : null;
 
     // The gunner's sight from the station as drawn (its mount the player's own prediction), and Tab opening the magazine
     // with the inventory.
@@ -962,9 +962,9 @@ public partial class GroundView : Node3D
         bool helm = Client.Ships().Piloting;
         switch (e)
         {
-            case InputEventMouseButton { ButtonIndex: MouseButton.Left } button when SeatThirdPerson:
+            case InputEventMouseButton { ButtonIndex: MouseButton.Right } button when SeatThirdPerson:
                 _seatOrbit.Dragging = button.Pressed;
-                _seatPrimaryCaptured = button.Pressed;
+                _seatSecondaryCaptured = button.Pressed;
                 return true;
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.WheelUp } when SeatThirdPerson:
                 _seatOrbit.Zoom(1);
@@ -1025,7 +1025,7 @@ public partial class GroundView : Node3D
                             ? HollowUniverse.Ships.ShipCameraMode.Cockpit : HollowUniverse.Ships.ShipCameraMode.Chase;
                         _shipCamera.Reset();
                         _seatOrbit.Dragging = false;
-                        _seatPrimaryCaptured |= Input.IsMouseButtonPressed(MouseButton.Left);
+                        _seatSecondaryCaptured |= Input.IsMouseButtonPressed(MouseButton.Right);
                         _seatOrbitFacing = helm ? OwnShipShown().Forward : Look(_viewFrame, _yaw, _pitch);
                         break;
                 }

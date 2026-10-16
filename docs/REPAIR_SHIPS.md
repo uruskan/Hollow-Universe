@@ -12,9 +12,9 @@ Mouse steering is a persistent cursor with an 80 ms response constant. Moving ri
 
 The reference is the developer-authored BSGO **Developer Blog 8 — Strike Controls**, dated 30 August 2013, preserved in an [archival reproduction](https://bsgo.fandom.com/wiki/Dev_Blog_8). It describes cursor displacement controlling pitch/yaw and separates steering engagement from looking. The original official page was not available in the search results. This implementation adapts that directional behavior; it does not claim an exact reproduction of the old client or its optional dead-zone setting.
 
-Every ship seat, including passenger and turret seats, has **V** to switch between first-person and a player-centred third-person orbit. In third person, hold LMB and drag to orbit; wheel changes distance from 1.5 to 120 metres. The local seated character uses the same socket, clothing and grips as remote players. The camera follows the player's position, not the ship centre, and its heading is independent of subsequent ship turns. Its eye remains above terrain. Zoom can pass through ship geometry for inspection; collision-aware interior camera occlusion remains a presentation limitation.
+Every ship seat, including passenger and turret seats, has **V** to switch between first-person and a player-centred third-person orbit. In third person, hold RMB and drag to orbit; wheel changes distance from 1.5 to 120 metres. The owner corrected the original LMB binding on 16 October 2026 so left-click keeps its normal action. The local seated character uses the same socket, clothing and grips as remote players. The camera follows the player's position, not the ship centre, and its heading is independent of subsequent ship turns. Its eye remains above terrain. Zoom can pass through ship geometry for inspection; collision-aware interior camera occlusion remains a presentation limitation.
 
-Third-person mouse gestures never change turret aim/fire or steering. A pilot's existing steering request and keyboard flight controls continue while orbiting. Turret shooting/zoom operate in first person; changing camera modes while LMB is held cannot fire until the button has been released. Q/E retain their flight roles; the engine radial is used after leaving the seat. The standalone `--view ship` development sandbox retains its legacy ship-centred chase camera; these general seated controls belong to hosted/dedicated gameplay.
+Right-dragging the orbit camera never changes turret aim or steering. A pilot's existing steering request and keyboard flight controls continue while orbiting. LMB still fires a turret along its existing aim in either camera, including while RMB is held. Turret RMB zoom operates in first person; changing camera modes while RMB is held cannot zoom until the button has been released and pressed again. Q/E retain their flight roles; the engine radial is used after leaving the seat. The standalone `--view ship` development sandbox retains its legacy ship-centred chase camera; these general seated controls belong to hosted/dedicated gameplay.
 
 Space also leaves small aircraft in flight, using a clear authored exit beside the hull and inheriting the craft's velocity at that point. It never teleports the player down to terrain. This releases the seat and allows normal gravity/fall consequences; a fully blocked exit still refuses.
 
@@ -72,3 +72,12 @@ Final build18 ship run: `.artifacts/repair-ships18.log` passed the full actual f
 airborne-exit/unattended-motion sequence. Current cockpit/orbit hints were visually inspected. Four untouched
 captures are retained in `docs/images/abtest-b/repairs/ships`. Passenger/turret runtime camera validation remains
 separate from this pilot sequence; shared rule/input tests do not substitute for those captures.
+
+16 October control correction: the updated `repair-ships` tour passed pilot RMB orbit/independent button releases,
+unchanged steering, wheel zoom and flight/exit checks, then ordinary Iron Wake station boarding and actual outgoing
+station commands: LMB fire in orbit, simultaneous RMB drag without zoom, held fire across V and fresh first-person
+RMB zoom. No ammunition was loaded; the station check validates input routing, not projectile firing. The final
+run used a fresh isolated save at latitude 40.6263, longitude 99.4565, Low quality, 1280 × 720; logs are
+`.artifacts/seat-camera/runtime4.log`. Visually inspected captures:
+[pilot orbit](images/abtest-b/seated-camera/pilot-orbit.jpg) and
+[station orbit](images/abtest-b/seated-camera/station-orbit.jpg). Passenger-specific live coverage remains separate.
