@@ -1,6 +1,32 @@
 # Quality repair campaign
 
-Current requirements: [17 owner reports](reports/current-17-issues.md), plus
+## Current queue as of the new 16 October playtest
+
+Use [REPAIR_BACKLOG.md](REPAIR_BACKLOG.md) for current status, all original report mappings,
+the twelve new reports, acceptance criteria, file ownership and separate-chat assignments.
+The [new report record](reports/playtest-2026-10-16.md) retains the eleven original screenshots.
+
+- The owner now accepts the observed axe animation. Pickaxes, other tool framing and the
+  oversized holo remain open. Preserve accepted motion; the authored axe pilot is implemented.
+- Trees, scanned geology, reduced stars and directional moon/cloud shadows are installed.
+  The new playtest rejects cliff composition, terrain tiling and grass quality; installed
+  assets and previous assistant acceptance do not close those reports.
+- Pilot and turret input routing have a newer 36-check hosted pass. Passenger verification
+  remains; chosen-angle hold and gunner eye height are new ship requirements.
+- The node package is found and integrated. Decorative-rock identity versus harvestable
+  nodes must be verified in gameplay. Finite-speed ballistic bullets already exist;
+  optimized flight/drop readability and combat synchronization remain open.
+- Roof side panels, general positional snapping, the optional bed-friend entry, gib
+  preferences, broader audio/weapon feel, forest/stall cost and runtime reliability remain.
+- The last reviewed full suite is 397/398 with isolated 1/1 afterward; a later combat
+  investigation passed focused 41/41. Active changes require fresh integrated validation.
+
+## Historical campaign record
+
+The following package table, evidence and earlier priorities record previous checkpoints.
+Their pending/accepted labels are superseded by the current queue above where they disagree.
+
+Starting requirements: [17 owner reports](reports/current-17-issues.md), plus
 [30 inherited reports](reports/legacy-30-issues.txt). The old investigation is a source of hypotheses,
 not evidence that a bug remains or has been fixed. Campaign starting baseline: commit 27487dcf, 298 passing tests.
 Latest audio continuation build: zero warnings/errors; Release server also built cleanly. The shared full run
@@ -134,7 +160,9 @@ Root coordinates builds, imports and captures because all agents share this chec
 - No claim is made that the whole game/design document or all 47 reports are finished. Hit-frame performance,
   subjective weapon/audio feel, broad environment art direction and final runtime regressions remain tracked work.
 
-## Remaining work, in priority order
+## Earlier remaining work and priorities
+
+This historical queue is superseded by [the consolidated backlog](REPAIR_BACKLOG.md).
 
 The latest held-item request takes priority in this repair session: obtain owner feedback on the
 source animation options and prove one authored axe sequence after rejection of the procedural candidate.

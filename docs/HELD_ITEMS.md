@@ -1,5 +1,12 @@
 # Held-item animation and authoring
 
+**Latest owner review, 16 October 2026:** the owner says the axe animations are now great.
+Preserve the accepted observed axe motion. Pickaxes remain rejected for grip, angle and
+apparent reach; other tools are too large relative to the smaller axe, and the holo takes
+too much screen space. See [N2/N7/N8 and package P4](REPAIR_BACKLOG.md) and the
+[new screenshots](reports/playtest-2026-10-16.md). This acceptance supersedes the earlier
+blanket rejection below for the reviewed axe, not every profile/action or workshop behavior.
+
 Implementation started 15 October 2026 at the owner's request. This document describes the
 shared FPS/TPS presentation work; the validation section records what has actually been checked.
 
