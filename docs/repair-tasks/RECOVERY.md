@@ -27,6 +27,8 @@ These limits supersede the earlier three-subagents-per-chat plan during recovery
   heavy job. At creation of this recovery note, no runtime slot is granted.
 - Prefer single-worker builds and bounded scenarios. Do not run several full suites for
   different packages; obtain one stable integrated snapshot and one serialized suite.
+- After the guarded build below, require at least **5.5 GiB available RAM** before requesting
+  another runtime/build slot. Stop the owned job below 2 GiB free or above 85% commit.
 - Check available RAM before and during large jobs; stop the job you own on escalating
   memory pressure rather than launching another. Do not kill another chat's/user's processes.
 - Git staging and commits also need an exclusive coordinator slot because the index is shared.
@@ -58,8 +60,31 @@ See [P8's inventory](../repair-results/P8-performance.md) for timestamped resour
 Windows recorded bugcheck `0x0000003b`; its cause has not been established. The dump was not
 analyzed. Historical allocation failures and native test crashes are separate evidence.
 
-P1/P2/Earth have reported source checkpoints. P4/P8/admin are finishing independent source
-work. Queue one integrated single-worker build after an explicit common source freeze, then
-focused checks covering attack/held timing, terrain/save/architecture, cliffs/routes and gibs.
+P1/P2/Earth/P4/P8/admin and P5 reported coherent source checkpoints. Queue a completed
+integrated single-worker build when memory headroom permits, then focused checks covering
+attack/held timing, terrain/save/architecture, cliffs/routes, clan-base layout and gibs.
 No previous incomplete full-suite run counts as a pass. GPU scenarios remain separate slots
 with fresh memory checks; the user's Blender process remains untouched.
+
+## First integrated recovery build — stopped, not passed
+
+The coordinator committed the merged checklist, prompts and eleven original screenshots in
+`86d2d9f1`. The pre-existing 25-path staged admin-camera binary patch remained byte-identical.
+A wider scan of 124 changed/new repository text files found no empty or NUL-filled files
+after reconstruction. A later common checkpoint hashed 113 changed source/data inputs at
+`.artifacts/recovery/integrated-source-freeze.json`.
+
+At 15:35:54 local, the root launched one Debug solution build with one MSBuild worker,
+shared compilation/build servers disabled and a 180-second bound. Its memory monitor stopped
+the owned process tree after 34.69 seconds: the sampled available RAM reached **1.566 GiB**
+(74% commit). The log emitted core/server/test/client DLL paths but has no completed solution
+summary. **This is an interrupted build, not successful integrated validation.** No focused
+tests, Godot, GPU, import or load job followed; a process check found no remaining dotnet,
+MSBuild, compiler-server, Hollow or Godot process. A subsequent sample had about 1 GiB free.
+
+Evidence: [build receipt](../../.artifacts/recovery/integrated-checks/20261016-153554-build.receipt.json),
+[stdout](../../.artifacts/recovery/integrated-checks/20261016-153554-build.stdout.log),
+[memory samples](../../.artifacts/recovery/integrated-checks/20261016-153554-build.memory.csv).
+No automatic retry or heavy slot is granted. Compilation freeze is released for light owned
+source/docs work; any change invalidates that source checkpoint. Existing user applications
+were left untouched. Restart heavy validation only with the headroom and explicit slot above.
