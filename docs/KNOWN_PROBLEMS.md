@@ -19,6 +19,13 @@ See [COMBAT_SYNC_AUDIT.md](COMBAT_SYNC_AUDIT.md) for evidence, limits and repair
 
 ## AB Test B loading at 97% and reduced FPS — 16 October 2026
 
+During the disconnect-menu check on 16 October, two direct `--host` starts lost their connection
+while initial ground/character/plant assets loaded, before the menu action was tested. The server
+reported `Timeout` and the client `PeerNotFound`; both transports use a ten-second timeout. The
+engine-free suite was running concurrently, so this does not establish ordinary startup frequency.
+This separate startup-liveness issue remains open; disconnect does not change transport timeouts.
+Diagnostic logs: `.artifacts/disconnect-check/cold-start.log` and `second-direct-start.log`.
+
 The owner reports loading held at 97% and substantially reduced frame rate compared with the beginning of this
 project (80–144 FPS, possibly on Low). The final `steady` loading stage formerly required 0.75 consecutive seconds
 of frames below 33.4 ms with no maximum wait. All assets could be ready while a slower renderer prevented play

@@ -25,9 +25,14 @@ public partial class GroundUi
         Text("HOLLOW", 96, 101, 112, G.Ink, bold: true);
         Text("UNIVERSE", 106, 247, 30, G.Muted);
         Button(_inGame ? "RESUME" : "PLAY", 90, 385, 360, 80, _inGame ? () => Open(GroundScreen.Hud) : Host, 55, Transparent, left: true);
-        Button("CONNECT", 90, 499, 360, 65, () =>
+        Button(_inGame ? "DISCONNECT" : "CONNECT", 90, 499, 360, 65, () =>
         {
             CloseSettings();
+            if (_inGame)
+            {
+                DisconnectRequested?.Invoke();
+                return;
+            }
             _menuEntry = !_menuEntry;
             Layout();
         }, 39, Transparent, left: true);

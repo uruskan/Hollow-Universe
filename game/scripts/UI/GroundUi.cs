@@ -68,6 +68,9 @@ public partial class GroundUi : Control
     /// <summary>The menu's CONNECT: player name, address and port.</summary>
     public event Action<string, string, int>? ConnectRequested;
 
+    /// <summary>The connected menu's DISCONNECT: leave this session and return to the main menu.</summary>
+    public event Action? DisconnectRequested;
+
     public event Action? QuitRequested;
 
     /// <summary>

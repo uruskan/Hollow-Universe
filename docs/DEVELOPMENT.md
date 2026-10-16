@@ -738,3 +738,32 @@ in 8.5 seconds, including reconnect defaults. Godot `--view ui --ui-check` passe
 were unchanged by that final lifecycle fix. Logs are in .artifacts/admin-building.
 Reproduce the focused checks with `dotnet run --project tests/Hollow.Tests -- AdminBuild`;
 viewer captures use `--screen console-tools-stone` and `--screen crafting-free`.
+
+## Disconnect from the ground menu — 16 October 2026
+
+Added DISCONNECT to the connected Esc menu, in the existing CONNECT position. It returns to
+PLAY / CONNECT with the address form open, without exiting the application. QUIT remains
+available. Disconnect uses the existing client/server shutdown: a locally hosted server saves
+and stops, while a remote server remains running. Unapplied settings previews are closed first.
+The old menu/view now leaves the scene tree synchronously before a replacement is created;
+this prevents old exit hooks from clearing the new session's inventory preview, audio and
+planet render globals. Connection preferences and the existing ground UI layout are retained.
+
+Validation: final solution build passed with 0 warnings/errors; Architecture, Loading and
+Multiplayer tests passed 20/20 in 27.9 seconds. A temporary native Godot runner drove real Esc
+and mouse events through HOST SOLO, DISCONNECT, CONNECT to a second independent server,
+DISCONNECT and HOST SOLO again on the original port. It verified client/view teardown, visible
+cursor/address form, hosted process exit, independent server survival, restored inventory-preview
+registration and a saved player waking on rehost. This check passed in 32.2 seconds with 3D
+presentation updates suppressed and the real client network pumped by the runner; it does not
+validate fully rendered world transitions. The normal renderer captured the actual GroundUi on
+the UI viewer's sample backdrop: [connected menu](images/disconnect/connected-menu.png), inspected
+at 1600 x 900. Temporary diagnostic hooks were removed, and the final production build passed.
+The saved ground-ui.cfg SHA-256 matches its pre-check backup; all servers used temporary databases.
+
+The attempted full suite ended out of memory after 381 successful tests, with no final suite
+result. Full-world attempts also encountered startup transport timeouts and a rendering allocation
+failure during concurrent work; see KNOWN_PROBLEMS.md. A headless rendering attempt produced RID
+errors, so the passing lifecycle check used the native renderer with world updates suppressed.
+One ObjectDB shutdown warning remains. None of these runs establishes a clean full-world or full-suite
+pass. Local runner, build/test logs and temporary saves are in .artifacts/disconnect-check.

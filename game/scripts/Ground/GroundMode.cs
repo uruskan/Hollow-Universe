@@ -168,11 +168,27 @@ public partial class GroundMode : Node
         _female = female;
         Callable.From(() =>
         {
-            _menu?.QueueFree();
+            if (_menu != null)
+            {
+                RemoveChild(_menu);
+                _menu.QueueFree();
+            }
             _menu = null;
             _menuWorld = null;
             Stop();
             Start(name, host, port);
+        }).CallDeferred();
+    }
+
+    private void Disconnect()
+    {
+        if (IsolatedShot) return;
+        // Defer teardown until the menu has finished handling this click.
+        Callable.From(() =>
+        {
+            if (_view == null) return;
+            Stop();
+            ShowMenu();
         }).CallDeferred();
     }
 
@@ -275,6 +291,7 @@ public partial class GroundMode : Node
         };
         _view.QuitRequested += () => GetTree().Quit();
         AddChild(_view);
+        _view.Interface.DisconnectRequested += Disconnect;
         _view.Interface.HostRequested += player => Begin(player, null, Protocol.DefaultPort, _view.Interface.FemaleBody);
         _view.Interface.ConnectRequested += (player, address, p) => Begin(player, address, p, _view.Interface.FemaleBody);
         bool tourProfile = Options.ContainsKey("tour-profile");
@@ -376,7 +393,13 @@ public partial class GroundMode : Node
         _environmentRoute = null;
         _tour?.QueueFree();
         _tour = null;
-        _view?.QueueFree();
+        if (_view != null)
+        {
+            // Exit hooks release session-wide audio/UI/render state before a replacement is created.
+            // They also unsubscribe from the client while its modules are still alive.
+            if (_view.IsInsideTree()) RemoveChild(_view);
+            _view.QueueFree();
+        }
         _view = null;
         _client?.Dispose();
         _client = null;
