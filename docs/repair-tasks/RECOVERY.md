@@ -1,5 +1,26 @@
 # Recovery after the computer restart
 
+**17 October, 01:26 local — P7 tooling prepared and frozen:** the two exporters, new GLB
+staging/merge helper and synthetic-control source are ready for bounded validation. Root
+read their changes/controls and verified the reported hashes. No control, generator, build,
+test, import or render ran. Gameplay collision/sockets, production catalogue and installed
+meshes/gibs/materials/import settings remain unchanged, so no source/art mismatch exists.
+No structural support, save, wire or LOD work was restored. P7 is idle with no edit/job grant.
+
+The current checkpoint is `.artifacts/recovery/source-freeze-p7-tools-20261017.json`: **142
+inputs**, including four prepared P7 files and all 138 prior inputs unchanged. Exact copies
+and the report are backed up under `.artifacts/recovery/p7-tooling-checkpoint-20261017/`.
+The **25 staged paths** are byte-identical. Available RAM at 01:26 was **3.962 GiB / 63%
+commit**, no heavy process. Execution remains held; the Maximum startup floor is still 8 GiB.
+
+Next: separately grant the tiny synthetic merge controls with a fresh label and 30-second
+bound when resources permit, then review their result before a one-grade twig generation
+calibration (at least 5.5 GiB free, existing 600-second ceiling, owned-job 2 GiB/85% guard).
+Exact source hashes/commands are in P7's report. Later merge, fracture, other grades and
+import are not chained grants. The helper preserves obsolete unreferenced buffers; no asset
+size/memory/performance reduction is claimed. Actual roof geometry, fractures, matching
+collision integration, normal placement and visual acceptance remain outstanding.
+
 **17 October, 01:17 local — narrow P7 asset-source preparation only:** all eight existing
 leads are idle with no new implementation results. Available RAM is **3.720 GiB / 65%
 commit**, with no heavy process; every runtime/generation/build slot remains held. Root's

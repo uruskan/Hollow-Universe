@@ -62,6 +62,11 @@ installed assets and all other source remain frozen until matching assets are ve
 No build/test/generation/import/render slot is granted at 3.720 GiB available RAM. This
 advances preparation without reviving structural/save/network scope or changing the game.
 
+That preparation is now frozen after root's source review: two exporters, the merge helper
+and synthetic-control source, backed up with exact hashes. The checkpoint has 142 inputs,
+all previous 138 and the 25 staged paths unchanged. Nothing has run; validation remains
+queued at 3.962 GiB available RAM / 63% commit. See RECOVERY for the separate next jobs.
+
 The owner now accepts the axe animation they used and rejects the pickaxes, inconsistent
 first-person tool sizes, oversized holo and current environment quality. Preserve the accepted
 axe motion. Earlier assistant-approved screenshots do not overrule this review. Approval of
@@ -95,7 +100,7 @@ and its results must be inspected before another owner changes it.
 | N7 | Consistent professional first-person composition across tools | P4 | Open; preserve accepted axe animation and establish a reference composition |
 | N8 | Smaller usable holo and readable optimized ballistic flight, especially incendiary rounds | P4 + P5 | Holo quality reopened; projectile physics exists, visibility remains open |
 | N9 | Unattended zero-thrust attitude hold with assist ON; useful turret sightlines | P6 | Verify attitude: build and 46 state/network checks pass; native loaded-gun sequence and gunner sightline reproduction remain open |
-| N10 | Roofs without side panels, joining and stacking side by side | P7 | Narrow asset-tooling preparation active; installed meshes/collision unchanged; generation/native verification held by memory |
+| N10 | Roofs without side panels, joining and stacking side by side | P7 | Narrow asset tooling prepared and frozen; installed meshes/collision unchanged; controls/generation/native verification pending memory headroom |
 | N11 | Player-controlled minimum/maximum gib detail or budget | P8 | Verify; native renderer checks 44/44, actual UI APPLY 49/49 and restart 36/36 pass; in-world destruction/loot/sound acceptance remains |
 | N12 | Recover performance without sacrificing accepted visual quality | P8 + each owner | Open; establish controlled CPU/GPU baselines and measurable causes |
 
@@ -127,7 +132,7 @@ Check working-tree changes and the latest handoffs at the start of every package
 | Planet terrain/save identity | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Existing active WalkingWorld/parameters and terrain-save changes |
 | P6 | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Captured-attitude source frozen after build and 46 passing checks; Earth source frozen; no wire change; native/camera checks pending, no runtime grant |
 | Admin placement/crafting | Add F1 build grade and free crafting — `01a14468-ab3d-7bb2-8cb4-61997af8619d` | Existing active admin/placement/protocol work; P7 coordinates before overlap |
-| P7 / building asset survey | Audit building asset library — `01a14478-1506-7da3-9201-ed36246af8dd` | Narrow geometry/exporter preparation only; gameplay source and installed assets frozen; no runtime slot |
+| P7 / building asset survey | Audit building asset library — `01a14478-1506-7da3-9201-ed36246af8dd` | Narrow asset tooling prepared/frozen; gameplay source and installed assets unchanged; no edit/runtime slot |
 | Menu/startup | Add disconnect option — `01a1446b-1a10-7800-b535-568d73554782` | Completed and committed disconnect feature; startup observations feed P8 |
 | P8 | Contact review checklist session — `01a14485-dcd2-7b60-a3d1-fb2fe458859d` | Recovery resource inventory first; performance/gibs scope, heavy work queued |
 | P3; P5 audio/visibility | Unassigned by this coordinator | Prepared prompts; inspect existing owners before starting |
