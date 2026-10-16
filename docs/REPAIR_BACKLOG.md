@@ -162,6 +162,21 @@ jobs under [RECOVERY.md](repair-tasks/RECOVERY.md). Use
 
 ## Verified implementation facts
 
+The [new compound kit and recovered-file review](repair-results/Asset-recovery-review.md)
+verifies twelve original-model compound/utility assemblies in
+`D:/GameDev/Assets/PSG_Compound_Utilities_R02` (228 delivery entries hash-checked). The wider
+transfer mixes models, Unreal packages, textures, support files and duplicates; explicitly
+identified extracted Rust content is excluded. Prepared exports for twelve vegetation families
+are P2 candidates after provenance/quality checks, not an instruction to replace current art.
+
+Godot automatic mesh LOD is already configured by `GraphicsSettings.MeshLodThreshold`; custom
+terrain, vegetation/impostor and cliff near/far systems also exist. This is not a custom
+Nanite-style virtualized renderer. For new rigid compound props, prefer generating render LODs
+from the detailed GLBs and evaluating silhouettes/materials at distance. Keep supplied authored
+LODs as optional comparison/fallback. Their absence from a GLB is not itself a defect; collision
+hulls and articulated/socket behavior remain separate integration work. Do not change the
+existing environment LOD baseline before measuring it.
+
 The source node package is `D:/GameDev/Assets/PSG_ResourceNodes_R01`. All twelve source blend
 and twelve installed stage GLB hashes matched its integration receipt during this audit.
 Installed files are `game/assets/world/{stone,metal,sulphur,high-grade}-node-{1,2,3}.glb`.

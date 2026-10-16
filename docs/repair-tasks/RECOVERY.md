@@ -1,5 +1,29 @@
 # Recovery after the computer restart
 
+**17:18 update:** the owner reported Blender export work complete and explicitly requested
+resuming all coordinated development. A fresh check found 9.1 GiB free / 37% commit and no
+Blender, build or game process. Seven development leads and the asset-audit chat resumed.
+After correcting one missing namespace import in the clan-base tour, the shared incremental
+solution build **passed with zero warnings and errors**. The guarded run took 12.87 seconds,
+with at least 5.983 GiB available and at most 48% commit. Evidence is in
+`.artifacts/recovery/integrated-checks/20261016-171805-build.*`; that 122-input checkpoint
+is `.artifacts/recovery/source-freeze-20261016T141805Z.json`.
+
+The initial memory hold below is historical. One-heavy-job scheduling remains active.
+P5's guarded focused run then completed **64/65**, revealing a real reordered-gun-input
+sequencing failure (nine predicted shots for eight authoritative shots). The owner prepared a
+shared sequencing correction and three regressions; these changes invalidate that build
+checkpoint and need a fresh completed build/test run. Test evidence:
+`.artifacts/attack-system/recovery-combat-20261016-1719.*` (80.6 seconds, no memory-stop).
+The coordinator's foundation batch did not launch because its next preflight had 4.902 GiB
+free, below the retained 5.5 GiB starting floor. No GPU job has been granted.
+
+The [read-only asset review](../repair-results/Asset-recovery-review.md) is complete. No package
+has been imported into the project. New compound GLBs can use Godot's automatic mesh LOD;
+authored FBX LODs are optional fallbacks. Extracted Rust content in the recovery inventory is
+excluded. See the report for actual files, provenance limitations and useful plant candidates.
+No full-suite, visual-quality or performance acceptance follows from a build pass.
+
 16 October 2026, 15:18 Europe/Istanbul. The owner requested resuming interrupted chats after
 the computer crashed. Windows reports a boot at 15:10. The exact crash cause is not proven.
 Prior logs include overlapping full suites/rendering, native failures and memory exhaustion.
@@ -63,6 +87,13 @@ analyzed. Historical allocation failures and native test crashes are separate ev
 P1/P2/Earth/P4/P8/admin and P5 reported coherent source checkpoints. Queue a completed
 integrated single-worker build when memory headroom permits, then focused checks covering
 attack/held timing, terrain/save/architecture, cliffs/routes, clan-base layout and gibs.
+The admin/UI owner has also implemented the directly requested crafting HUD beside the vitals.
+Its source checkpoint includes active output counts, produced-item inventory counts and compact
+layout. Queue its existing UI-viewer `--view ui --crafting-hud-check` scenario (16 checks), then
+separate 1600×900 and narrow-layout captures. The checks have been written, not run. Details
+and exact source ownership are in [CRAFTING_HUD.md](../CRAFTING_HUD.md) and
+[the admin handoff](../repair-results/Admin-tools-recovery.md). This invalidates earlier
+source manifests; capture fresh inputs before the next integrated build.
 No previous incomplete full-suite run counts as a pass. GPU scenarios remain separate slots
 with fresh memory checks; the user's Blender process remains untouched.
 
