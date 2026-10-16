@@ -1,5 +1,26 @@
 # Recovery after the computer restart
 
+**17 October, 01:17 local — narrow P7 asset-source preparation only:** all eight existing
+leads are idle with no new implementation results. Available RAM is **3.720 GiB / 65%
+commit**, with no heavy process; every runtime/generation/build slot remains held. Root's
+previous static review is recorded in `.artifacts/recovery/heartbeat-20261017-0106.json`.
+It did not execute the parked code or claim validation. The existing P7 chat may now prepare
+only `art/import/building_kit.py`, `art/gibs/build.py` and new `tools/repair_roof_assets.py`
+for the already requested gable removal and matching roof fractures. Reuse only the parked
+geometry/export parts, preserving normal exporter behavior, deterministic seeds, materials,
+unrelated meshes and all existing LOD names. No structural socket/save/network work.
+
+**Gameplay source stays frozen:** do not change PieceShapes, BuildingData, PieceGeometry,
+building.json, installed GLBs, imports or materials. The matching collision-only patch is
+already parked; integrate it only with verified matching mesh/gib candidates. Preparing
+asset scripts must not reintroduce a source/art mismatch. P7 may also prepare small isolated
+merge-preservation fixtures under `.artifacts/p7-roofs/preparation-r1/` and update its report,
+but may not execute those fixtures or any generator/test/build/import/render. Root reviews
+the exact bounded commands and input hashes before a later resource-gated execution grant.
+The frozen-input/index preflight is `.artifacts/recovery/p7-narrow-preflight-20261017.json`.
+This precise asset-tooling exception supersedes the blanket source hold below; no other
+ownership changes. All 138 prior frozen inputs and the 25-path staged patch are preserved.
+
 **17 October, 01:00 local — P7 candidate parked; narrow repair identified:** P7 confirmed
 that normal adjacent-supported roofs already meet along the building module. Removing the
 generated gables and matching hulls/fragments, then verifying the normal visible join, is
