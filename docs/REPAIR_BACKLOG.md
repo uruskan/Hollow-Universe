@@ -41,12 +41,20 @@ torque, retains the target through v6 saves and clears it for manual takeover wi
 change. Actual loaded-gun gameplay and gunner sightline acceptance remain open. P6's source
 is frozen after validation; the shared staged changes are preserved. See its report and RECOVERY.
 
-P7's existing asset-audit chat has completed the N10 source review and is preparing the
-roof geometry/collision/exporter and shared socket candidate. Installed assets and the
-production socket catalogue remain frozen. A dependency review found that new lateral
-links could merge two legacy claimed bases during restore and lose a cupboard; the admin
-owner is reviewing a preservation mechanism before socket activation. No repaired roof
+P7's existing asset-audit chat completed the N10 source review and began a source candidate.
+The owner's subsequent clarification in the admin chat asks for automatic joining when
+roofs are placed side by side. Root froze further edits and requested the smallest visual/
+geometry repair using existing adjacent supports. New structural connections and a support-
+rule persistence/replication proposal are not established requirements or approved changes.
+Installed assets and the production socket catalogue remain unchanged. No repaired roof
 has been generated, built, tested or visually accepted. See P7's report and RECOVERY.
+
+P7 confirmed the adjacent-supported case needs only geometry/collision/fragment repair,
+with no new structural links. Root parked all six unvalidated source candidates with hashes
+and restored the five previously-clean files to their pre-grant bytes; all 138 previously
+frozen inputs match again. At 00:53 only 1.480 GiB was available, with no heavy process.
+Asset generation and native verification remain held. The existing chat retains the narrow
+roof scope, while its larger socket/save/network proposal is set aside.
 
 The owner now accepts the axe animation they used and rejects the pickaxes, inconsistent
 first-person tool sizes, oversized holo and current environment quality. Preserve the accepted
@@ -81,7 +89,7 @@ and its results must be inspected before another owner changes it.
 | N7 | Consistent professional first-person composition across tools | P4 | Open; preserve accepted axe animation and establish a reference composition |
 | N8 | Smaller usable holo and readable optimized ballistic flight, especially incendiary rounds | P4 + P5 | Holo quality reopened; projectile physics exists, visibility remains open |
 | N9 | Unattended zero-thrust attitude hold with assist ON; useful turret sightlines | P6 | Verify attitude: build and 46 state/network checks pass; native loaded-gun sequence and gunner sightline reproduction remain open |
-| N10 | Roofs without side panels, joining and stacking side by side | P7 | Active source preparation; geometry/collision/gibs and lateral sockets identified; production sockets held for legacy-claim preservation; no new runtime evidence |
+| N10 | Roofs without side panels, joining and stacking side by side | P7 | Open; minimal geometry/collision/gib repair identified, prior candidate parked and source restored; generation/native verification held by memory |
 | N11 | Player-controlled minimum/maximum gib detail or budget | P8 | Verify; native renderer checks 44/44, actual UI APPLY 49/49 and restart 36/36 pass; in-world destruction/loot/sound acceptance remains |
 | N12 | Recover performance without sacrificing accepted visual quality | P8 + each owner | Open; establish controlled CPU/GPU baselines and measurable causes |
 
@@ -113,7 +121,7 @@ Check working-tree changes and the latest handoffs at the start of every package
 | Planet terrain/save identity | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Existing active WalkingWorld/parameters and terrain-save changes |
 | P6 | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Captured-attitude source frozen after build and 46 passing checks; Earth source frozen; no wire change; native/camera checks pending, no runtime grant |
 | Admin placement/crafting | Add F1 build grade and free crafting — `01a14468-ab3d-7bb2-8cb4-61997af8619d` | Existing active admin/placement/protocol work; P7 coordinates before overlap |
-| P7 / building asset survey | Audit building asset library — `01a14478-1506-7da3-9201-ed36246af8dd` | Survey and roof review complete; narrow N10 source preparation granted; no installed assets/catalogue or runtime slot |
+| P7 / building asset survey | Audit building asset library — `01a14478-1506-7da3-9201-ed36246af8dd` | Survey and narrow roof review complete; candidate parked, production source restored; report only, no source or runtime slot |
 | Menu/startup | Add disconnect option — `01a1446b-1a10-7800-b535-568d73554782` | Completed and committed disconnect feature; startup observations feed P8 |
 | P8 | Contact review checklist session — `01a14485-dcd2-7b60-a3d1-fb2fe458859d` | Recovery resource inventory first; performance/gibs scope, heavy work queued |
 | P3; P5 audio/visibility | Unassigned by this coordinator | Prepared prompts; inspect existing owners before starting |

@@ -1,5 +1,40 @@
 # Recovery after the computer restart
 
+**17 October, 01:00 local — P7 candidate parked; narrow repair identified:** P7 confirmed
+that normal adjacent-supported roofs already meet along the building module. Removing the
+generated gables and matching hulls/fragments, then verifying the normal visible join, is
+the smallest repair for that case. No new structural socket/support relation or save/wire
+extension is needed. The admin chat is handling the owner's clarification; do not revive
+the larger proposal without a concrete unmet placement requirement.
+
+Root preserved all six unvalidated source candidates, byte-verified, in
+`.artifacts/recovery/p7-paused-source-20261017/` with `manifest.json`. Only the five
+previously-clean P7 tracked files were restored to their pre-grant hashes; the new merge
+helper was removed from `tools/` after verifying its identical parked copy. All **138 prior
+frozen inputs** and production `building.json` match again. The source/art collision
+mismatch is removed. No installed assets, import settings, built binaries, persistence or
+network data changed. P7 has only a report-update request; all source/harness work is frozen.
+
+At 00:53 the machine had **1.480 GiB available / 73% commit**, with no heavy process. No
+owned job existed to stop and no user application was closed. No build/test/import/render
+or generation job ran in this heartbeat. All execution remains held until the documented
+workload floor is met. The useful next roof step is review of the parked geometry-only
+export changes and bounded matching asset generation, not structural-support migration.
+The broader repair queue remains unfinished; keep the existing coordination schedule.
+
+**17 October, 00:52 local — P7 source grant paused for the owner's roof clarification:**
+the owner asked in **Add F1 build grade and free crafting** for roofs placed side by side to
+join automatically, and questioned the expanded work. Root immediately told P7 to freeze
+its source preparation, preserve the current edits and reassess the minimum visual/geometry
+change using existing adjacent supports. **This hold supersedes the source grant below.**
+No further roof source/exporter/socket edits or execution are authorized pending root review
+of that reassessment. P7 may report its current changes and the read-only minimal proposal.
+The proposed per-piece support-rule stamp remains an unimplemented admin review proposal;
+no persistence, claim migration or network change has been granted. Installed assets and
+production socket data are unchanged. No roof build/test/import/render has run. Do not
+treat expanded roof-to-roof structural support as an established requirement merely because
+it appeared in the initial implementation proposal. Preserve all shared and staged changes.
+
 **17 October, 00:41 local — P7/N10 source preparation resumed:** the existing **Audit building
 asset library** chat (`01a14478-1506-7da3-9201-ed36246af8dd`) completed the read-only roof
 review in `docs/repair-results/P7-building.md`. The panels are generated gables in both roof
