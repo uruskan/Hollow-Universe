@@ -672,3 +672,29 @@ the unrelated timing test was not changed by this repair. Earlier loading-only c
 reproduction: [REPAIR_LOADING_SHADOWS.md](REPAIR_LOADING_SHADOWS.md) and
 [raw samples/screenshots](images/repairs/performance-2026-10-16). This is a bounded loading/shadow
 repair, not completion of dense-canopy performance work or a guarantee of 80–144 FPS in every scene.
+
+## Combat synchronization investigation — 16 October 2026
+
+Investigated the owner's melee/hit-feedback concern and three visual shots from the Iron Wake's
+two-barrel cannon. No gameplay repair was made. Deterministic production-client probes reproduce
+three firing events from two chambers, while the real authoritative station fires twice and
+refuses the third press. Two causes are established: confirmation removes predicted chamber
+reservations before matching state, and fresh siege stations predict the opposite first barrel.
+The latter also reproduces with the actual first server shot and updated state delivered.
+
+A real simulation/local-melee probe reproduced a one-tick start disagreement across two
+damaging swings; the FPS contact guard rejects the mismatched action ticks. It also reproduced
+ignored fast taps carrying only PrimaryPressed. A shoulder-launcher probe using real LocalGun
+prediction and serialized message dispatch restored ammo on refusal but retained the visual
+rocket. Lost launch, lost endpoint and endpoint-before-launch each leave the rocket without
+terminal reconciliation; an ordered baseline binds one projectile correctly. These tests expose
+presentation/prediction defects, not extra server-authoritative ammunition or damage.
+
+Solution build: zero warnings/errors. Existing HeldActionTiming/Gun/Battery/Raid/BowPresentation
+tests: 41/41 in 70.3 seconds, including the previously intermittent melee hit-marker test. Three
+standalone diagnostic projects reproduce the reported gaps; their successful exits assert the
+faulty current behavior, not a fix. No full-suite rerun or Godot capture was made, and the user's
+running game, saves, original checkout and unrelated environment-document edit were preserved.
+Local sources/logs are retained in .artifacts/combat-sync-audit. See
+[COMBAT_SYNC_AUDIT.md](COMBAT_SYNC_AUDIT.md) for exact scope, evidence, remaining source findings,
+and the proposed shared attack identity/lifecycle repair. Known-problem status remains open.

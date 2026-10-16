@@ -1,5 +1,22 @@
 # Known problems and the plan for them (14 October 2026)
 
+## AB Test B combat synchronization — investigated 16 October 2026
+
+**Open; reproduced, not repaired.** Rapid twin-cannon clicks can produce three client firing
+events from two chambered rounds while authority permits only two. Client prediction removes
+a chamber reservation on confirmation before matching state arrives, and fresh siege stations
+also predict the opposite first barrel from authority. The latter reproduces even when the
+updated station record is delivered. Successful-shot counters are insufficient attempt IDs.
+
+Melee's shared strike timing remains, but independent local/server starts can diverge after
+missing input; a one-tick mismatch persisted across two real damaging swings and fails the
+FPS contact-feedback guard. A latched short click without held Primary starts no melee swing.
+Rejected launcher shots restore ammo but leave a predicted rocket, and missing/reordered
+projectile terminal messages leave rockets without endpoints. No extra authoritative damage
+was demonstrated. Build and existing focused tests pass (41/41); deterministic diagnostics
+expose cases those tests omit. Gameplay/rendered network validation and fixes remain open.
+See [COMBAT_SYNC_AUDIT.md](COMBAT_SYNC_AUDIT.md) for evidence, limits and repair priorities.
+
 ## AB Test B loading at 97% and reduced FPS — 16 October 2026
 
 The owner reports loading held at 97% and substantially reduced frame rate compared with the beginning of this
