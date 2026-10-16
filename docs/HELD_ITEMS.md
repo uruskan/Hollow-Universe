@@ -3,6 +3,13 @@
 Implementation started 15 October 2026 at the owner's request. This document describes the
 shared FPS/TPS presentation work; the validation section records what has actually been checked.
 
+**Reopened, 16 October 2026:** the owner rejected the previous visual result as nearly unchanged
+and selected **rock and gathering tools: carry, grip and swing** as the first repair priority.
+The workshop and technical checks below remain useful; the earlier assistant review did not
+establish owner acceptance. Six rock, axe and pick profiles now have revised carry, finger fits
+and swing curves, with current captures and checks below and in [DEVELOPMENT.md](DEVELOPMENT.md).
+This is a concrete candidate for owner review, not acceptance of all held-item visuals.
+
 ## Contract
 
 Gameplay remains in the engine-free simulation and its held-behaviour registries. Presentation
@@ -37,29 +44,62 @@ presentation only; the server's result is authoritative.
 
 ## Editor
 
-Double-click `Edit-Held-Items.cmd` in the project root. It builds the C# client and opens a
-standalone workshop with no server or save-game dependency. PowerShell also accepts
-`./Edit-Held-Items.ps1 -Item bow`. Saved profiles are project content; restart an already-running
-game to load saved changes.
+Double-click [Edit-Held-Items.cmd](../Edit-Held-Items.cmd) in
+`D:\GameDev\Projects\HollowUniverseABTestB`. It builds the client and opens the workshop on the
+metal hatchet, without a server or save game. To start on the rock, run this from the project root:
 
-1. Search the item library and select an item. Choose a body, outfit, and FPS, arms-orbit, or TPS view.
-2. **Placement** changes the base grip position/orientation, TPS attachment offset, swing pivot,
-   and the named contact socket. **Move grip** exposes draggable RGB translation axes in FPS/orbit;
-   Shift gives fine movement and Ctrl snaps to centimetres. Right-drag orbits, and the wheel zooms.
-3. **Hands** selects either hand and edits its socket offset, wrist, elbow pole, shoulder, palm seat,
-   handle radius, and fifteen finger-joint curls. Grip offsets move the hand relative to the item;
-   placement moves the held assembly in view.
-   Aim placement and bow string travel are editable too. If a pose asks the arms to reach too far,
-   the renderer moves the held assembly within reach and the workshop displays the correction.
-4. Select an action at the bottom and scrub the timeline. **Motion** edits FPS/TPS motion and each
-   hand's offsets/finger poses. Editing between keys inserts a key. Add/update, move, or delete
-   keys; endpoints stay at 0 and 1. Finger keys can inherit the rest grip.
-5. Play to review anticipation, event, and recovery. **Gameplay timing** retimes the event pose
-   to the simulation clock. The target and reach guide are previews, not a server hit. The contact
-   solve toggle demonstrates the small visual adjustment toward a target.
-6. **Save all** or Ctrl+S writes validated JSON atomically, retaining the previous file as `.bak`.
-   Ctrl+Z/Ctrl+Y undo/redo; item switching retains each item's edits. External file changes are
-   detected before saving. Reload/close asks before discarding unsaved changes.
+```powershell
+.\Edit-Held-Items.ps1 -Item rock
+```
+
+1. Select an item in **ITEM LIBRARY**, set **ACTION** to `idle`, and use **First person**.
+   In **Placement**, change **Position · m** and **Rotation · degrees** to compose the carry.
+   FPS position uses camera axes: **+X right, +Y up, −Z forward**; more negative Z moves it
+   farther from the face. Rotation X/Y/Z rotates about those axes in degrees. **Move grip**
+   exposes red X, green Y and blue +Z handles; use arms orbit to see depth, Shift for 10× finer
+   dragging, and Ctrl to snap to centimetres. Placement moves the held assembly.
+2. In **Hands**, choose **Right hand** or **Left / support hand**. **Grip offset** moves that
+   hand relative to the item's grip socket, so its axes follow the socket rather than the screen.
+   Refine wrist orientation, palm seat and handle radius, then use **Fit fingers to handle** to
+   replace this hand's explicit curls with its fallback pose. Cylindrical and pistol grips use
+   measured wrapping from the selected body's bones and current radius/seat; the pistol's index
+   finger keeps its trigger pose. Support/open grips retain preset fallback curls rather than a
+   measured handle wrap. This is undoable; changing radius or seat alone keeps explicit curls.
+   Refine the resulting joints: each finger row is knuckle / middle / tip in degrees.
+   Use **First-person arms · orbit** to inspect both sides;
+   right-drag turns the orbit and the wheel changes its distance. Watch the displayed reach
+   correction: the renderer can move an unreachable assembly, masking an overextended pose.
+3. Select `swing`, then **Motion**. Scrub the timeline to inspect the wind-up, contact and recovery.
+   Edit **First-person item motion** or **Third-person item motion** at the playhead; these are
+   offsets from the base placement. Editing between keys inserts a key automatically. **Add /
+   update key** records the sampled pose; only interior keys can move or be deleted. Animated
+   hand/finger fields edit the selected action; empty finger channels inherit the base grip.
+4. **Marker** jumps to the authored contact pose. **Play** (Space) reviews the whole action;
+   reduce **Speed** to inspect it. Enable **Gameplay timing** to review its retiming to the
+   simulation's strike tick. Moving the marker or changing the authored duration does not alter
+   gameplay damage timing or reach. The target/contact solve is a visual preview, not a server hit.
+5. Compare **First person**, **First-person arms · orbit**, and **Third person · orbit**, then
+   another body/outfit. Check the carry again after the swing: FPS and TPS have separate placement
+   and motion fields, while the base hand settings are shared.
+6. **Save all** / Ctrl+S writes every edited profile to
+   `game/data/ground/held-presentations.json`, validates it, and atomically keeps the previous file
+   as `.bak`. Restart an already-running game to load it. Ctrl+Z / Ctrl+Y undo/redo the selected
+   item's edits; switching items keeps unsaved edits. **Restore this item's saved profile** resets
+   only that item and is undoable. **Reload** replaces all edits from disk and clears undo history;
+   reload/close asks before discarding changes. A disk change since opening blocks saving, so avoid
+   simultaneous workshop and external JSON edits.
+
+FPS and arms-orbit always show **palm / grip gap**, **wrist bend** and **reach correction**.
+The gap measures the actual solved primary palm seat against the item's primary grip, including
+authored offsets; a wrist reaching its own target can still leave a palm gap. Wrist bend is the
+angle between the solved forearm and wrist-to-knuckle direction, with 0° straight. It is a diagnostic,
+not an anatomical acceptance test. Reach correction is how far the renderer shifted the authored
+assembly to make it reachable. These numbers do not establish finger contact or visual quality.
+
+Current limitation: for a one-handed item, the free left-hand motion position/rotation fields are
+not consumed by the FPS pose. TPS has no measured wrist/palm attachment guarantee; inspect it
+visually. The new diagnostics and fitting control passed the six-tool checks recorded below;
+those checks do not establish finished animation quality.
 
 ## Timing and authority
 
@@ -105,6 +145,18 @@ a diagnostic run. `--editor-sheet ../docs/images/held-items/axe-swing.png --item
 --action swing` captures both views at five action phases. `--body female --outfit 4` checks a
 body/clothing variant. `--shot PATH` captures the whole editor.
 
+The check also reports maximum FPS primary-palm gap, wrist bend and authored reach correction
+per action. Optional `--editor-check-max-reach <metres>`, `--editor-check-max-palm <metres>` and
+`--editor-check-max-wrist <degrees>` fail the selected run when a sampled value exceeds that
+limit; combine with `--editor-check-only rock,metal-hatchet,metal-pickaxe` to scope it. No limit
+for these three diagnostics is enforced unless its flag is supplied. Palm/wrist maxima include
+only phases when the primary hand should remain attached. These are sampled diagnostic bounds,
+not continuous-motion or TPS guarantees.
+
+`--editor-check-grip-margin 0.06` additionally bounds the sampled FPS primary-grip origin inside
+the middle 88% of each image axis during `idle` and `swing`. This uses the viewmodel projection;
+it does not measure the complete hand/tool silhouette or continuous motion. Inspect frames too.
+
 For a motion recording, `--item bow --editor-cycle bow --editor-animation-dir PATH` exports the
 actual preview at 1280×720 and 24 fps: carry, draw, release, recovery. The destination must be
 empty. Numbered PNGs and `manifest.json` record the sampled timings; use `--camera tps` for the
@@ -129,9 +181,45 @@ attachment passes; it must still be reviewed visually.
 
 ## Validation
 
+### Six-tool repair candidate — 16 October 2026
+
+Rock, stone/metal hatchets, salvaged axe and stone/metal pickaxes now have separate carry and
+wind-up/contact/recovery poses, with measured primary-hand finger fits. Only these six profiles
+changed; every authored duration and marker is preserved. Gameplay reach and damage timing are
+unchanged. The first attempt was rejected during review for cropped hands; the retained revision
+shows the holding fist through the sampled swings and reduces the hanging thumb/hooked fingers.
+
+- Solution build: zero warnings/errors. Focused Held/Content/Architecture checks: **27/27** in
+  21.6 s. An earlier shared full run passed 389/389 before the later held diagnostic/test edits;
+  it is not a final full-suite run for this revision.
+- Final male and female runs each pass **24 actions / 404 FPS/TPS samples**, including actual
+  finger-fit button/undo and a displaced-palm regression. Requested limits: 8 cm authored reach
+  correction, 25 mm palm gap, 65° wrist diagnostic and 6% primary-grip frame margin in idle/swing.
+  Maximum reach correction is 0 cm male / 7.11 cm female; maximum wrist diagnostic is
+  61.6° / 64.6°. Palm gaps round to 0.0 mm. TPS is checked for finite transforms and inspected
+  visually, without a measured contact guarantee. Logs: `.artifacts/held-tools-review/review-male.log`,
+  `review-female.log`, `build-final.log` and `focused-tests.log`.
+- Six FPS/TPS sheets, a clothed female pick sheet and three 1280×720 gameplay-timed swing
+  sequences were rendered and inspected. [Workshop](images/held-items/2026-10-16/workshop.png),
+  [rock](images/held-items/2026-10-16/rock.png), [axe](images/held-items/2026-10-16/metal-hatchet.png),
+  [pick](images/held-items/2026-10-16/metal-pickaxe.png),
+  [female pick](images/held-items/2026-10-16/female-pick.png).
+  [Rock recording](images/held-items/2026-10-16/rock-swing.mp4),
+  [axe recording](images/held-items/2026-10-16/metal-hatchet-swing.mp4),
+  [pick recording](images/held-items/2026-10-16/metal-pickaxe-swing.mp4) repeat each sampled cycle
+  four times at 24 fps; they are workshop playback through the gameplay rigs, not a hosted combat test.
+
+Owner acceptance is pending. Remaining polish includes the salvaged axe head leaving the top of
+the frame during wind-up and the metal axe's thin strike silhouette. Free-left FPS motion remains
+unsupported. Existing ObjectDB/Jolt exit warnings remain. This does not close all 41 profiles.
+
+### Historical implementation evidence — 15 October 2026
+
 The following evidence was captured from the integrated AB Test B working tree on 15 October 2026.
 The combined repair session owns the final integration commit; these checks describe the held-item
-implementation and do not certify unrelated work added after this checkpoint.
+implementation and do not certify unrelated work added after this checkpoint. The visual inspections
+were assistant judgments; the owner's rejection on 16 October reopens visual quality despite the
+technical passes below. They are historical evidence, not validation of the new repair.
 
 - The integrated engine-free suite passed **376/376** (`.artifacts/repair-full2.log`), including
   real two-client hit markers and switching between identical guns during reload. The focused

@@ -479,12 +479,14 @@ public partial class HeldItemEditor : Node3D
         _viewmodel.Visible = _view != 2;
         _clock.Text = $"{_phase * Clip.Duration:0.000} / {Clip.Duration:0.000} s  ·  {_phase * 100:0.0}%";
         float correction = _viewmodel.AuthoredReachCorrection;
+        float wrist = _viewmodel.PrimaryWristBendDegrees, palm = _viewmodel.PrimaryPalmContactError;
         string help = _view == 0 ? "Live gameplay FPS renderer · cyan cross = target contact point" : "Right-drag to orbit · wheel to zoom · live gameplay renderer";
-        if (_view != 2 && correction > 0.005f) help += $"\nArm reach correction: {correction * 100:0.0} cm. Adjust the authored grip or shoulder to reduce it.";
+        if (_view != 2)
+            help += $"\nWrist bend {wrist:0}° · palm / grip gap {palm * 1000:0.0} mm · reach correction {correction * 100:0.0} cm";
         if (_previewLabel.Text != help)
         {
             _previewLabel.Text = help;
-            _previewLabel.AddThemeColorOverride("font_color", _view != 2 && correction > 0.005f ? Ui.Warm : Ui.Tertiary);
+            _previewLabel.AddThemeColorOverride("font_color", _view != 2 && (correction > 0.005f || wrist > 65 || palm > 0.025f) ? Ui.Warm : Ui.Tertiary);
         }
         _ticks.Phase = _phase;
         _ticks.QueueRedraw();

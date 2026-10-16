@@ -78,6 +78,36 @@ public partial class HeldItemEditor
             foreach (HeldPresentationProfile original in originals.Values) HeldPresentations.Replace(HeldPresentations.Clone(original));
             _dirty.Clear(); _undo.Clear(); _redo.Clear();
 
+            // A wrist can reach its edited IK target while the palm floats off the handle. Check this distinction
+            // in the actual rig so the new contact diagnostic cannot silently become another wrist-target check.
+            SelectItem(HeldItems.Find("metal-hatchet")!);
+            SelectAction("idle"); SetView(0); SetPhase(0);
+            _hand = 0;
+            float[] originalCurls = Enumerable.Repeat(1f, 15).ToArray();
+            _profile.RightHand.Fingers = (float[])originalCurls.Clone();
+            Commit("Checking finger fitting from a deliberately different pose.");
+            Button fit = _tabs.FindChildren("*", "Button", true, false).OfType<Button>()
+                .Single(button => button.Text == "Fit fingers to handle");
+            fit.EmitSignal(BaseButton.SignalName.Pressed);
+            Require(!_profile.RightHand.Fingers.SequenceEqual(originalCurls), "The fit button must actually change the deliberately different finger pose.");
+            Require(_profile.RightHand.Fingers.SequenceEqual(_viewmodel.MeasureFingerWrap(true)),
+                "The finger-fit button must copy the selected body's measured wrap into the live profile.");
+            Undo();
+            Require(_profile.RightHand.Fingers.SequenceEqual(originalCurls), "Undo must restore the original finger pose after fitting.");
+            _profile.RightHand.WristOffset.Position = Vector3.Zero;
+            _profile.RightHand.WristOffset.Rotation = Vector3.Zero;
+            Commit("Checking palm contact measurement.");
+            await Settle(2);
+            Require(_viewmodel.PrimaryPalmContactError < 0.002f, "An unoffset holding palm must meet its grip.");
+            _profile.RightHand.WristOffset.Position = new Vector3(0.03f, 0, 0);
+            Commit("Checking displaced palm measurement.");
+            await Settle(2);
+            Require(_viewmodel.PrimaryHandAttachmentError < 0.002f, "The displaced wrist must still reach its own target.");
+            Require(MathF.Abs(_viewmodel.PrimaryPalmContactError - 0.03f) < 0.002f,
+                "A 30 mm wrist offset must report a 30 mm palm gap, even when wrist-target attachment passes.");
+            HeldPresentations.Replace(HeldPresentations.Clone(originals["metal-hatchet"]));
+            _dirty.Clear();
+
             // Cover every held item and every authored action through both gameplay rendering paths.
             // --editor-check-only can narrow an interactive debugging run; the default is exhaustive.
             string[] only = Option("editor-check-only", "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -85,6 +115,7 @@ public partial class HeldItemEditor
             {
                 if (only.Length > 0 && !only.Contains(item.Id, StringComparer.Ordinal)) continue;
                 SelectItem(item);
+                GD.Print($"[held-finger-wrap] {item.Id} right={JsonSerializer.Serialize(_viewmodel.MeasureFingerWrap(true))}");
                 foreach (string action in _actionNames.ToArray())
                 {
                     SelectAction(action);
@@ -93,6 +124,9 @@ public partial class HeldItemEditor
                     int actionAttachmentWarnings = 0;
                     int actionAttachmentChecks = 0;
                     float actionReachCorrection = 0;
+                    float actionPalmError = 0, actionWristBend = 0;
+                    Vector2 gripMin = new(float.PositiveInfinity, float.PositiveInfinity);
+                    Vector2 gripMax = new(float.NegativeInfinity, float.NegativeInfinity);
                     float[] phases = Clip.Keys.Select(k => k.At)
                         .Concat(Clip.Keys.Zip(Clip.Keys.Skip(1), (a, b) => (a.At + b.At) * 0.5f))
                         .Append(Clip.Marker >= 0 ? Clip.Marker : 0.35f).Append(0.65f)
@@ -133,19 +167,43 @@ public partial class HeldItemEditor
                                 float correction = _viewmodel.AuthoredReachCorrection;
                                 actionReachCorrection = Math.Max(actionReachCorrection, correction);
                                 if (correction > maxReachCorrection) { maxReachCorrection = correction; maxReachContext = $"{item.Id}/{action}/{phase}"; }
+                                if (_viewmodel.PrimaryHandShouldAttach)
+                                {
+                                    actionPalmError = Math.Max(actionPalmError, _viewmodel.PrimaryPalmContactError);
+                                    actionWristBend = Math.Max(actionWristBend, _viewmodel.PrimaryWristBendDegrees);
+                                    if (_viewmodel.PresentedGrip is Transform3D grip)
+                                    {
+                                        Vector2 normalized = ProjectViewmodel(grip.Origin) / (Vector2)_preview.Size;
+                                        gripMin = new Vector2(Math.Min(gripMin.X, normalized.X), Math.Min(gripMin.Y, normalized.Y));
+                                        gripMax = new Vector2(Math.Max(gripMax.X, normalized.X), Math.Max(gripMax.Y, normalized.Y));
+                                    }
+                                }
                             }
                             Require(camera == 0 ? _viewmodel.CurrentPresentation?.Item == item.Id : _character.CurrentPresentation?.Item == item.Id,
                                 "The preview renderer must use the selected item's profile.");
                             samples++;
                         }
                     }
-                    GD.Print($"[held-attachment-action] {item.Id}/{action} max={actionAttachmentMax:0.0000} m phase={actionAttachmentPhase:0.000}; over25mm={actionAttachmentWarnings}/{actionAttachmentChecks}; authoredReachCorrection={actionReachCorrection:0.0000} m");
+                    GD.Print($"[held-attachment-action] {item.Id}/{action} max={actionAttachmentMax:0.0000} m phase={actionAttachmentPhase:0.000}; over25mm={actionAttachmentWarnings}/{actionAttachmentChecks}; authoredReachCorrection={actionReachCorrection:0.0000} m; palmGap={actionPalmError:0.0000} m; wristBend={actionWristBend:0.0} deg");
+                    GD.Print($"[held-grip-framing] {item.Id}/{action} normalized bounds {gripMin} to {gripMax}");
+                    if (_options.ContainsKey("editor-check-grip-margin") && (action is "idle" or "swing"))
+                    {
+                        float margin = (float)Number("editor-check-grip-margin", 0.06);
+                        Require(gripMin.X >= margin && gripMin.Y >= margin && gripMax.X <= 1 - margin && gripMax.Y <= 1 - margin,
+                            $"{item.Id}/{action}: primary grip leaves the requested visible frame margin ({gripMin} to {gripMax}).");
+                    }
+                    if (_options.ContainsKey("editor-check-max-reach"))
+                        Require(actionReachCorrection <= Number("editor-check-max-reach", 0.08), $"{item.Id}/{action}: reach correction {actionReachCorrection:0.0000} m exceeds the requested authoring limit.");
+                    if (_options.ContainsKey("editor-check-max-palm"))
+                        Require(actionPalmError <= Number("editor-check-max-palm", 0.025), $"{item.Id}/{action}: palm gap {actionPalmError:0.0000} m exceeds the requested authoring limit.");
+                    if (_options.ContainsKey("editor-check-max-wrist"))
+                        Require(actionWristBend <= Number("editor-check-max-wrist", 65), $"{item.Id}/{action}: wrist bend {actionWristBend:0.0} degrees exceeds the requested authoring limit.");
                 }
             }
             GD.Print($"[held-editor-attachment] max={maxAttachmentError:0.0000} m at {maxAttachmentContext}; {attachmentWarnings} connected FPS samples exceed 0.025 m.");
             GD.Print($"[held-editor-reach] largest authored-pose correction={maxReachCorrection:0.0000} m at {maxReachContext}; corrections above 0.005 m are visible editor warnings.");
             Require(attachmentWarnings == 0, $"A holding hand detached by more than 0.025 m in {attachmentWarnings} samples; worst {maxAttachmentError:0.0000} m at {maxAttachmentContext}.");
-            GD.Print($"[held-editor-check] PASS: numeric UI edit, live preview, undo, redo, key add/update/move/delete/undo, actual gizmo drag, Ctrl+Z with field focus, atomic temporary save/reload; {actions} actions, {samples} FPS/TPS samples with finite transforms and attached holding hands.");
+            GD.Print($"[held-editor-check] PASS: numeric UI edit, live preview, undo, redo, key add/update/move/delete/undo, actual gizmo drag, Ctrl+Z with field focus, finger-fit button/undo, displaced palm diagnostic, atomic temporary save/reload; {actions} actions, {samples} FPS/TPS samples with finite transforms and attached holding hands.");
             _statusText = $"Editor check passed · {actions} actions · {samples} FPS/TPS samples";
         }
         catch (Exception error)

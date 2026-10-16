@@ -12,18 +12,29 @@ neutral and permits the next held frame to leave it. This report adds dedicated 
 both directions, 30–240 FPS, neutral crossings, retained position, limits and tiny changes accumulated before
 network quantization. Build/test evidence and the live-validation limit are recorded in [DEVELOPMENT.md](DEVELOPMENT.md).
 
-## AB Test B held items — 15 October 2026
+## AB Test B held items — reopened 16 October 2026
 
 The owner reports poor first-person grip/composition, swing motion, and visible hit contact.
 Source investigation confirmed that handle-held tools ignore catalogue first-person placement;
 the item-only preview and gameplay disagree; fingers and swings are rebuilt procedurally;
 the swing's cosmetic impact shake also plays on misses; and remote action timing does not
 retain the item consumed/thrown from the final stack. The approved repair covers every held
-item and includes a visual authoring editor. Status: **implemented and verified, 15 October 2026**
-(working tree; combined repair session owns the integration commit). All 41 held-model profiles,
-175 authored actions, separate FPS/TPS renderers, tick-aligned contact and the workshop are wired.
-The rifle's real magazine now moves with the support hand; full-cycle captures verified the
-reload camera-clipping repair. See [HELD_ITEMS.md](HELD_ITEMS.md) for exact tests, captures,
+item and includes a visual authoring editor. The 15 October technical implementation and assistant
+review covered all 41 held-model profiles, 175 authored actions, separate FPS/TPS renderers,
+tick-aligned contact and the workshop.
+The rifle's real magazine now moves with the support hand; full-cycle captures checked the
+reload camera-clipping repair. Those inspections were assistant acceptance, not owner acceptance.
+
+Status: **six-tool candidate ready for review; visual quality open, 16 October 2026**. The owner says the workshop pass
+did not produce good results and everything looks almost the same. The first requested priority is
+**rock and gathering tools: carry, grip and swing**. Six rock/axe/pick profiles now have revised
+carry, finger fits and swing curves. New FPS/TPS sheets and gameplay-timed workshop recordings
+show a visible improvement; owner acceptance and actual gameplay feel remain open.
+The workshop now exposes primary-palm gap, wrist bend and reach correction, plus an undoable
+finger-fit command. Clean build, focused 27/27 and final male/female 24-action / 404-sample checks
+pass; see the current evidence and limits below. One-handed items still do not consume
+free left-hand position/rotation motion in FPS, and TPS grip is not covered by a measured guarantee.
+See [HELD_ITEMS.md](HELD_ITEMS.md) for workshop instructions, historical tests, captures,
 adaptive reach behaviour and the existing ObjectDB/Jolt shutdown warnings.
 
 One place for everything that is known to be wrong or missing in the ground game, where it was found, what causes it,

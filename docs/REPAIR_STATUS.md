@@ -10,6 +10,17 @@ The owner confirmed the boink absent in both new source sets and the actual gras
 other materials and the broader mix remain unaccepted.
 Historical build16/18 and visual evidence are recorded below rather than treated as current artistic acceptance.
 
+Latest held-item request, 16 October 2026: the owner rejected the previous workshop result as
+nearly unchanged and selected **rock and gathering tools: carry, grip and swing** for immediate
+work. Six rock/axe/pick carry, grip and swing profiles are reauthored and rendered for review.
+Clean build, focused 27/27 and final male/female 24-action / 404-sample checks pass. New sheets and
+gameplay-timed workshop recordings show improved composition/fingers, but owner acceptance is
+pending. See [HELD_ITEMS.md](HELD_ITEMS.md) for using the workshop, evidence and remaining polish,
+and [DEVELOPMENT.md](DEVELOPMENT.md) for the current repair record.
+The workshop adds palm/wrist/reach diagnostics and undoable finger fitting; these do not establish
+visual acceptance. Free left-hand motion on one-handed FPS items remains unsupported, and TPS
+has no measured grip guarantee.
+
 Owner priority, 16 October 2026: **audio first**. The source/routing work and engine audit did not finish sound
 design or listening acceptance. The owner also confirmed grass is present, while rejecting the overall visual
 quality. The current-build restored Maximum/night session was verified; it differs from prior controlled
@@ -23,7 +34,7 @@ The complete continuation prompt, including all 17 current and 30 legacy reports
 | Ship motion, mouse control, all-seat orbit camera, fuel inventory | engine_reuse_audit | R1, R3–5, L27–29 | Simulation, persistence and strict prediction regressions pass. Corrected actual ship tour passed fuel opening/filter, boarding, cockpit/V/drag/zoom, W throttle, airborne exit and unattended powered flight. Passenger/turret camera isolation still needs its live check. |
 | Terrain, vegetation, water, resources and monuments | survival_progression | R2, R6, R10–11; L3 | Four ores, scanned cliffs, six monument families and R01 substation installed. Controlled build14 captures accepted the bounded reduction in dry-ground sheen and grass coloring while retaining coverage; underwater underside accepted. Large legacy grass blades, coarse trees/rocks and excessive night stars still limit realism. |
 | Inventory rotation, H latch, protection stats, radial text, display modes | client_quality | R7, R15, R17; L20, L25 | Implemented; expanded actual UI input check passed 47/47, including the live attachment action provider, and all three native window modes passed. |
-| Held poses, actions, bow, animation editor | coordinated “Clarify the problem” chat | R8; L16, L18, L22 | Final held/bow/rifle presentation accepted by the coordinated review. Both bodies passed 175 actions / 2,762 sampled poses each; all 56 rifle reload frames inspected. Optic ADS is a separate new integration gate. |
+| Held poses, actions, bow, animation editor | held-item repair | R8; L16, L18, L22 | Six rock/axe/pick profiles reauthored with visible hands, measured finger fits and distinct swings. Clean build, focused 27/27, male/female 24-action / 404-sample checks and retained renders. Owner acceptance and broader animation quality remain open; see HELD_ITEMS.md. |
 | Salvaged axe | coordinated “Add salvaged axe” chat | Additional owner request | Integrated model, icons, recipe/research/loot, audio and held profile; eight focused checks and actual captures passed. |
 | Immunity, drowning, animal frames/attack feasibility | root | R10, R14, R16; L30 | Survival/animal/network regressions pass. Herd and chasing-pack captures show upright, grounded animals on the planet frame; this is not final animal art or every attack scenario. Original native crash cause is not proven without its stack trace. |
 | Noclip speed and persistent F1 bindings | engine_reuse_audit | R12; L29 | Implemented; admin permissions, input and prediction checks passed. |
@@ -123,6 +134,11 @@ Root coordinates builds, imports and captures because all agents share this chec
   subjective weapon/audio feel, broad environment art direction and final runtime regressions remain tracked work.
 
 ## Remaining work, in priority order
+
+The latest held-item request takes priority in this repair session: obtain owner feedback on the
+six-tool carry/grip/swing candidate and review its feel during actual gameplay strikes.
+The audio-first campaign queue below remains tracked separately; it does not close the reopened
+held-item report.
 
 1. **Finish the audio listening and action-feedback pass (R9/L19/L21).** Source hashes and event routing are
    checked, but hit/headshot prominence, timing and overall weapon feel have not been accepted by listening.

@@ -71,6 +71,12 @@ public partial class HeldItemEditor
         VectorField(hands, "Shoulder offset · m", () => Hand.Shoulder, v => EditHand("shoulder", h => h.Shoulder = v));
         ScalarField(hands, "Handle radius · m", () => Hand.Radius, v => EditHand("radius", h => h.Radius = v), 0, 0.15, 0.001);
         ScalarField(hands, "Palm seat · m", () => Hand.Seat, v => EditHand("seat", h => h.Seat = v), 0, 0.2, 0.001);
+        Note(hands, "Radius and seat edits keep authored curls unchanged. Fit wraps handle grips for this body; open/support grips use their preset. Refine the joints below and inspect from orbit. Undo restores the previous curls.");
+        hands.AddChild(Button("Fit fingers to handle", () =>
+        {
+            float[] curls = _viewmodel.MeasureFingerWrap(_hand == 0);
+            EditHand("fingers.fit", h => h.Fingers = curls);
+        }));
         Heading(hands, "Finger joints · degrees");
         Note(hands, "Each row: knuckle / middle / tip. Changes are explicit poses; inspect the fingers from the orbit camera.");
         string[] names = { "Thumb", "Index", "Middle", "Ring", "Little" };

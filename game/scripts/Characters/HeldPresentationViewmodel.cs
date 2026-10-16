@@ -33,6 +33,49 @@ public partial class ViewmodelView
         _model.Kind is HeldKind.Pistol or HeldKind.Rifle && (_reload < 0 || Math.Abs(_reload - 0.28f) < 0.01f || Math.Abs(_reload - 0.62f) < 0.01f)
             && _item != null && HeldItems.HasSocket(_item, "grip_l"));
     public float AuthoredReachCorrection { get; private set; }
+    /// <summary>Actual solved palm seat versus the primary item grip; unlike wrist-target error this includes
+    /// authored wrist/hand offsets. Diagnostic only: it never changes the rig or gameplay.</summary>
+    public float PrimaryPalmContactError
+    {
+        get
+        {
+            if (_item == null || _model == null) return 0;
+            bool left = _model.LeftHanded;
+            int hand = left ? _handL : _handR;
+            var measured = left ? _gripL : _palmR;
+            Transform3D solved = _skeleton.GetBoneGlobalPose(hand);
+            Vector3 palm = solved.Origin + solved.Basis * measured.FrameToBone.Inverse() * measured.Palm;
+            return (_skeleton.GlobalTransform * palm).DistanceTo((_item.GlobalTransform * _grip).Origin);
+        }
+    }
+
+    /// <summary>Angle between the solved forearm and the wrist-to-knuckle axis. Zero is straight.
+    /// This exposes a bent wrist even when the IK target is reached; it is not a clinical joint limit.</summary>
+    public float PrimaryWristBendDegrees
+    {
+        get
+        {
+            if (_item == null || _model == null) return 0;
+            bool left = _model.LeftHanded;
+            int hand = left ? _handL : _handR, lower = left ? _lowerL : _lowerR;
+            var measured = left ? _gripL : _palmR;
+            Transform3D solved = _skeleton.GetBoneGlobalPose(hand);
+            Vector3 forearm = (solved.Origin - _skeleton.GetBoneGlobalPose(lower).Origin).Normalized();
+            Vector3 fingers = (solved.Basis * measured.FrameToBone.Inverse()).X.Normalized();
+            return Mathf.RadToDeg(MathF.Acos(Math.Clamp(forearm.Dot(fingers), -1f, 1f)));
+        }
+    }
+
+    /// <summary>Starting finger curls fitted to the selected body's bones and the profile's handle radius/seat.
+    /// The workshop can snapshot these as editable curls; this does not replace gameplay's authored pose.</summary>
+    public float[] MeasureFingerWrap(bool right)
+    {
+        if (_model == null) return Array.Empty<float>();
+        HeldPresentationHand hand = right ? _model.Presentation.RightHand : _model.Presentation.LeftHand;
+        HandPoses.Grip grip = _model.LeftHanded ? right ? HandPoses.Grip.Support : HandPoses.Grip.Fist
+            : right ? _model.Fingers : HandPoses.Grip.Support;
+        return HandPoses.MeasureCurlDegrees(_skeleton, grip, right, hand.Radius, hand.Seat);
+    }
     /// <summary>Fitted-optic ADS shoulder accommodation; limb lengths and the native optical eye stay unchanged.</summary>
     public float OpticShoulderAccommodation { get; private set; }
     public string? PreviewAction => _previewAction;

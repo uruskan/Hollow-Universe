@@ -499,3 +499,39 @@ Root serialized shared builds/imports/GPU runs and then released the slot to the
 unrelated edits, geology integration and original-project files were preserved. The environment coordinator owns
 reopening the user's normal session after the remaining shared runtime checks. This batch does not close the
 complete audio programme, R9/L19/L21, the environment/held quality work or all 47 reported issues.
+
+## Held-item workshop and gathering tools — 16 October 2026
+
+The owner rejected the previous workshop result as nearly unchanged and selected rock/gathering-tool
+carry, grip and swing. Reauthored six profiles: rock, stone/metal hatchets, salvaged axe and stone/metal
+pickaxes. Carries now keep the holding hand visible, rock/axe/pick swings have separate paths, and
+measured primary-hand curls replace the hanging thumb and overcurled finger templates. All other
+profiles and all authored durations/markers are unchanged; no simulation reach, damage or cooldown changed.
+
+The workshop now displays actual primary-palm gap, wrist bend and authored reach correction, with
+an undoable finger-fit control and practical launch/edit/save instructions in HELD_ITEMS.md. Finger
+fitting uses the selected body's measured cylindrical grip; support/open grips keep preset fallback
+curls. Fallback posing stays allocation-free. Its UI regression seeds a different pose, presses the
+real fit button and checks undo; another regression proves a 30 mm offset reports an actual palm gap
+even when the old wrist-to-target metric passes. Optional limits also check projected grip framing.
+
+Validation: solution build with zero warnings/errors (`.artifacts/held-tools-review/build-final.log`);
+focused Held/Content/Architecture 27/27 in 21.6 s (`focused-tests.log`); final data recheck 3/3
+(`final-data-tests.log`). The shared audio full run 389/389 in 442.1 s preceded later held diagnostic/test
+edits and is an earlier checkpoint, not a final full-suite claim. Final male/female selected checks
+each pass 24 actions / 404 FPS/TPS samples (`review-male.log`, `review-female.log`) under 8 cm reach
+correction, 25 mm palm gap, 65 degree wrist diagnostic and 6% projected grip margin in idle/swing.
+Max correction 0 cm / 7.11 cm; max wrist 61.6 / 64.6 degrees; palm gaps round to 0.0 mm.
+These are sampled bounds, not clinical joint limits
+or whole-mesh visibility tests. TPS transforms are finite and visually inspected, not contact-measured.
+
+First renders were rejected for cropped hands. The final six FPS/TPS sheets, clothed female pick
+sheet, workshop screenshot and three 1280x720 gameplay-timed swing sequences were inspected, including
+independent finger/grip review. Retained in docs/images/held-items/2026-10-16; each MP4 repeats its
+24 fps sampled cycle four times. The recordings use gameplay rigs in the workshop, not a hosted
+combat test. The evidence manifest records source hashes and reproduction commands.
+
+Owner visual acceptance remains pending. Salvaged-axe wind-up still crops its head and metal-axe
+contact has a thin silhouette. One-handed free-left FPS motion remains unsupported. Existing
+ObjectDB/Jolt exit warnings remain (one ObjectDB and one or two Jolt shapes in these runs).
+This six-tool candidate does not close all 41 profiles, broader animation quality or other repair work.

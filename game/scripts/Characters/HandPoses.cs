@@ -72,7 +72,40 @@ public static class HandPoses
     public static void Apply(Skeleton3D s, Grip grip, bool right, float weight = 1f, float radius = 0f, float seat = -1f,
         IReadOnlyList<float>? curlDegrees = null)
     {
-        (float[] finger, float[] index, float[] thumb) = Curls[grip];
+        bool authored = curlDegrees?.Count == 15;
+        var curls = Curls[grip];
+        (float[][]? wrap, float thumbCurl) = authored ? (null, 1f) : MeasureFallback(s, grip, right, radius, seat);
+        foreach ((int bone, Quaternion rest, Vector3 axis, int joint, int kind, int f) in Rig(s, right))
+        {
+            // Explicit authoring wins over the generic cylinder wrap. Fitting in the workshop copies that same
+            // measured wrap into the profile, after which every joint remains independently editable.
+            int finger = kind == 0 ? 0 : f + 1;
+            float degrees = (authored ? curlDegrees![finger * 3 + joint]
+                : ResolveCurl(curls, grip, wrap, thumbCurl, finger, joint)) * weight;
+            s.SetBonePoseRotation(bone, rest * new Quaternion(axis, Mathf.DegToRad(degrees)));
+        }
+    }
+
+    /// <summary>Returns the fifteen fallback curls used by <see cref="Apply"/>, in thumb/index/middle/ring/little
+    /// order. Authors can save these measured values as an explicit pose without changing how playback works.</summary>
+    public static float[] MeasureCurlDegrees(Skeleton3D s, Grip grip, bool right, float radius = 0f, float seat = -1f)
+    {
+        var defaults = Curls[grip];
+        (float[][]? wrap, float thumbCurl) = MeasureFallback(s, grip, right, radius, seat);
+        var curls = new float[15];
+        for (int f = 0; f < 5; f++)
+        {
+            for (int joint = 0; joint < 3; joint++)
+                curls[f * 3 + joint] = ResolveCurl(defaults, grip, wrap, thumbCurl, f, joint);
+        }
+        return curls;
+    }
+
+    // Cached wrap geometry and value tuples keep ordinary per-frame fallback posing allocation-free.
+    // Only the explicit authoring snapshot above creates a new fifteen-angle array.
+    private static (float[][]? Wrap, float ThumbCurl) MeasureFallback(Skeleton3D s, Grip grip, bool right,
+        float radius, float seat)
+    {
         if (radius <= 0f)
         {
             radius = DefaultRadius(grip);
@@ -80,21 +113,18 @@ public static class HandPoses
         float[][]? wrap = HandleRadius.ContainsKey(grip) ? Wrap(s, grip, right, radius, seat < 0f ? HandleSeat : seat) : null;
         // The thumb lies along something thick instead of closing over it (a rock: about half the fist's curl).
         float thumbCurl = 1f - 0.6f * Math.Clamp((radius - DefaultRadius(grip)) / 0.03f, 0f, 1f);
-        foreach ((int bone, Quaternion rest, Vector3 axis, int joint, int kind, int f) in Rig(s, right))
-        {
-            // Explicit authoring wins over the generic cylinder wrap. Every current held profile supplies all
-            // fifteen curls, so changing a finger in the editor is the same operation used by gameplay.
-            float degrees = (curlDegrees?.Count == 15 ? curlDegrees[(kind == 0 ? 0 : f + 1) * 3 + joint] : kind switch
-            {
-                0 => thumb[joint] * thumbCurl,
-                1 when grip == Grip.Pistol => index[joint],
-                _ when wrap != null => wrap[f][joint],
-                1 => index[joint],
-                _ => finger[joint],
-            }) * weight;
-            s.SetBonePoseRotation(bone, rest * new Quaternion(axis, Mathf.DegToRad(degrees)));
-        }
+        return (wrap, thumbCurl);
     }
+
+    private static float ResolveCurl((float[] Finger, float[] Index, float[] Thumb) curls, Grip grip,
+        float[][]? wrap, float thumbCurl, int finger, int joint) => finger switch
+    {
+        0 => curls.Thumb[joint] * thumbCurl,
+        1 when grip == Grip.Pistol => curls.Index[joint],
+        _ when wrap != null => wrap[finger - 1][joint],
+        1 => curls.Index[joint],
+        _ => curls.Finger[joint],
+    };
 
     /// <summary>For each finger (index … pinky), the bend of its three joints (degrees) that wraps it round what the grip
     /// holds (<paramref name="holding"/> its radius), whose axis lies across the palm where <see cref="Seat"/> puts it.</summary>
