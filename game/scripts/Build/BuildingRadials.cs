@@ -18,7 +18,7 @@ public interface IHammerActions
 
 /// <summary>
 /// The building plan's radial (GROUND.md §6.3, §8): every piece of building.json's wheel in its clockwise order
-/// (RustMVP's, matched to Rust's), drawn by its key's glyph, with its description and its twig cost against what the
+/// (RustMVP's, matched to Rust's), drawn by its key's glyph, with its description and its selected grade's cost against what the
 /// player carries; choosing one makes it the plan's piece, affordable or not (the ghost then says why it can't be
 /// placed). Twelve o'clock falls between the first piece and the last. Written once for the game (<c>BuildView</c>) and
 /// the build sandbox.
@@ -27,13 +27,19 @@ public sealed class PlanRadial : IRadialSource
 {
     private readonly BuildingData _data;
     private readonly IBuildingWallet _wallet;
+    private readonly Func<int>? _buildGrade;
+    private readonly Func<bool>? _freeBuild;
     private RadialOption[] _options = Array.Empty<RadialOption>();
     private int _owned = -1;
+    private int _grade = int.MinValue;
+    private bool _free;
 
-    public PlanRadial(BuildingData data, IBuildingWallet wallet)
+    public PlanRadial(BuildingData data, IBuildingWallet wallet, Func<int>? buildGrade = null, Func<bool>? freeBuild = null)
     {
         _data = data;
         _wallet = wallet;
+        _buildGrade = buildGrade;
+        _freeBuild = freeBuild;
     }
 
     /// <summary>The chosen piece: an index into the data's wheel.</summary>
@@ -49,21 +55,28 @@ public sealed class PlanRadial : IRadialSource
     {
         get
         {
-            GradeDef twig = _data.Grades[0];
-            int owned = _wallet.Count(twig.Material);
-            if (owned == _owned)
+            int selectedGrade = _buildGrade?.Invoke() ?? -1;
+            int grade = Math.Clamp(selectedGrade, 0, _data.Grades.Count - 1);
+            GradeDef chosen = _data.Grades[grade];
+            bool free = _freeBuild?.Invoke() ?? false;
+            int owned = _wallet.Count(chosen.Material);
+            if (owned == _owned && selectedGrade == _grade && free == _free)
             {
                 return _options;
             }
             _owned = owned;
-            string material = _data.MaterialName(twig.Material);
+            _grade = selectedGrade;
+            _free = free;
+            string material = _data.MaterialName(chosen.Material);
             _options = new RadialOption[_data.Wheel.Count];
             for (int i = 0; i < _options.Length; i++)
             {
                 PieceDef piece = _data.Wheel[i];
-                int cost = _data.CostOf(piece, 0);
-                _options[i] = new RadialOption(RadialIcon.Glyph(piece.Key), piece.Name, piece.Description, BuildingRadials.CostLine(cost, material, owned),
-                    Warning: owned < cost ? $"Not enough {material.ToLowerInvariant()}" : null);
+                int cost = _data.CostOf(piece, grade);
+                string price = (selectedGrade >= 0 ? chosen.Name.ToUpperInvariant() + "  ·  " : "") +
+                    (free ? "FREE BUILD" : BuildingRadials.CostLine(cost, material, owned));
+                _options[i] = new RadialOption(RadialIcon.Glyph(piece.Key), piece.Name, piece.Description, price,
+                    Warning: !free && owned < cost ? $"Not enough {material.ToLowerInvariant()}" : null);
             }
             return _options;
         }
@@ -92,10 +105,12 @@ public static class BuildingRadials
     /// that grade or stronger, not enough of the material, a piece that doesn't turn, or the 10 minutes after placing
     /// are over.
     /// </summary>
-    public static IRadialSource Hammer(Func<Piece?> target, BuildingData data, IBuildingWallet wallet, Func<double> clock, IHammerActions act) =>
+    public static IRadialSource Hammer(Func<Piece?> target, BuildingData data, IBuildingWallet wallet, Func<double> clock, IHammerActions act,
+        Func<bool>? freeBuild = null) =>
         new RadialMenu(menu =>
         {
             Piece? piece = target();
+            bool free = freeBuild?.Invoke() ?? false;
             // What an option does to the piece (nothing without one: the radial never chooses those, a script might).
             Action On(Action<Piece> does) => () =>
             {
@@ -111,10 +126,10 @@ public static class BuildingRadials
                 int cost = piece == null ? 0 : data.CostOf(piece.Def, grade), owned = wallet.Count(g.Material), to = grade;
                 string? reason = piece == null ? AimAtPiece
                     : piece.Grade >= grade ? "Already at this grade or stronger"
-                    : owned < cost ? $"Not enough {material.ToLowerInvariant()}"
+                    : !free && owned < cost ? $"Not enough {material.ToLowerInvariant()}"
                     : null;
                 menu.Add(new RadialOption(RadialIcon.Glyph("upgrade"), $"UPGRADE TO {g.Name.ToUpperInvariant()}", "Improve this piece's strength",
-                    piece == null ? null : CostLine(cost, material, owned), reason), On(p => act.Upgrade(p, to)));
+                    piece == null ? null : free ? "FREE BUILD" : CostLine(cost, material, owned), reason), On(p => act.Upgrade(p, to)));
             }
             bool late = piece != null && clock() - piece.PlacedAt > data.EditWindow;
             menu.Add(new RadialOption(RadialIcon.Glyph("rotate"), "ROTATE", "Turn this piece around",

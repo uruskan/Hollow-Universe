@@ -69,6 +69,15 @@ public sealed record ToolGroup(string Title, IReadOnlyList<ToolButton> Buttons);
 public sealed record ToolsView(bool God, bool Noclip, double Hour, double TimeScale, bool ClockSet, IReadOnlyList<string> Players,
     IReadOnlyList<ToolGroup> Spawns)
 {
+    /// <summary>The server allows building and crafting without their resource costs or recipe prerequisites.</summary>
+    public bool FreeBuild { get; init; }
+
+    /// <summary>The selected building grade's catalogue index; -1 uses normal placement.</summary>
+    public int BuildGrade { get; init; } = -1;
+
+    /// <summary>The building catalogue's grades in index order, each with its bgrade command.</summary>
+    public IReadOnlyList<ToolButton> BuildGrades { get; init; } = Array.Empty<ToolButton>();
+
     public static readonly ToolsView Empty = new(false, false, 12, 1, false, Array.Empty<string>(), Array.Empty<ToolGroup>());
 }
 

@@ -535,6 +535,18 @@ and hitscan behavior have not been selected by this requirement.
 
 ## Base Building
 
+### Admin Construction Tools — confirmed 16 October 2026
+
+The F1 admin TOOLS panel provides BGrade selection: new structural pieces are built directly
+at the selected tier (Twig, Wood, Stone, Metal or Armoured). Admins can build and craft without
+resources or crafting prerequisites. These privileges are limited to admins; ordinary players
+continue to use the survival building and crafting rules.
+
+Implementation controls: FREE BUILD starts on for an admin session and can be switched off;
+BGRADE starts off (normal twig placement). Free crafting keeps the normal queue and duration.
+The building paper, hammer or placeable item still selects the action, and placement still
+requires valid space, support, reach and cupboard authorization.
+
 ### BUILD-01 — Foundation and Research Direction
 
 Rust's **building and raiding rules** are the default baseline. Specific

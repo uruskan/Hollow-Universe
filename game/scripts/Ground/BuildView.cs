@@ -40,7 +40,7 @@ public partial class BuildView : Node3D, IHammerActions
     private double _since;
     private object? _target;
     private RayHit _hit;
-    private ItemWallet? _wallet;
+    private IBuildingWallet? _wallet;
     private PlanRadial? _planRadial;
     private IRadialSource? _hammer;
 
@@ -73,7 +73,8 @@ public partial class BuildView : Node3D, IHammerActions
     public PlanRadial Plan => _planRadial ??= NewPlan();
 
     /// <summary>The hammer's radial: upgrade, turn or demolish the piece aimed at.</summary>
-    public IRadialSource HammerRadial => _hammer ??= BuildingRadials.Hammer(() => _target as Piece, Data, Wallet, () => Client.ClockSeconds, this);
+    public IRadialSource HammerRadial => _hammer ??= BuildingRadials.Hammer(() => _target as Piece, Data, Wallet, () => Client.ClockSeconds, this,
+        () => Client.Local.FreeBuild);
 
     /// <summary>What the held item does in building (none: not a building tool).</summary>
     public BuildingRole Held { get; private set; }
@@ -137,9 +138,21 @@ public partial class BuildView : Node3D, IHammerActions
     private void PlacingLines(Hollow.Simulation.Placement.Placeable placing, ItemDef? item)
     {
         string line = placing.Name.ToUpperInvariant();
-        foreach (Hollow.Simulation.Placement.PlacementCost cost in placing.Costs)
+        int grade = Math.Clamp(Client.Local.BuildGrade, 0, Data.Grades.Count - 1);
+        if (Client.Local.BuildGrade >= 0 && placing.GradeCosts.Count > 0)
         {
-            line += $"  ·  {cost.Amount} {Data.MaterialName(cost.Material).ToUpperInvariant()} ({Owned(cost.Material):N0})";
+            line += $"  ·  {Data.Grades[grade].Name.ToUpperInvariant()}";
+        }
+        if (Client.Local.FreeBuild && placing.Kind.RetainItemWhenFree)
+        {
+            line += "  ·  FREE BUILD";
+        }
+        else
+        {
+            foreach (Hollow.Simulation.Placement.PlacementCost cost in placing.CostsFor(grade))
+            {
+                line += $"  ·  {cost.Amount} {Data.MaterialName(cost.Material).ToUpperInvariant()} ({Owned(cost.Material):N0})";
+            }
         }
         Hud.Line = line;
         Hud.Reason = Placing.Reason;
@@ -309,9 +322,22 @@ public partial class BuildView : Node3D, IHammerActions
     private PieceDef ChosenPiece => Plan.Chosen;
 
     // What the player carries, counted as the building rules count it.
-    private ItemWallet Wallet => _wallet ??= new ItemWallet(Client.Content, Client.Local.Inventory.Carried);
+    private IBuildingWallet Wallet => _wallet ??= new LiveBuildingWallet(Client);
 
-    private PlanRadial NewPlan() => new(Data, Wallet);
+    private PlanRadial NewPlan() => new(Data, Wallet, () => Client.Local.BuildGrade, () => Client.Local.FreeBuild);
+
+    // Radials retain this wallet, so every query must see the current session toggle without replacing it each frame.
+    private sealed class LiveBuildingWallet(GameClient client) : IBuildingWallet
+    {
+        private readonly ItemWallet _paid = new(client.Content, client.Local.Inventory.Carried);
+        private readonly ItemWallet _free = new(client.Content, client.Local.Inventory.Carried, free: true);
+
+        private ItemWallet Current => client.Local.FreeBuild ? _free : _paid;
+
+        public int Count(string material) => Current.Count(material);
+
+        public bool Take(string material, int amount) => Current.Take(material, amount);
+    }
 
     void IHammerActions.Upgrade(Piece piece, int grade) => Client.Local.Upgrade(piece, grade);
 

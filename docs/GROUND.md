@@ -226,6 +226,11 @@ Godot.
     (`Checkout.HostedSave`): `user://hollow-host.db` on `main`, `user://hollow-host-<branch>.db` on another, since a
     branch's server may write a newer schema than an older build reads. A server given a save it can't read (a newer
     schema) says so in one line ("error: ...") and stops with exit code 2; the menu shows that line.
+  - **Leaving a session:** Esc opens RESUME, DISCONNECT, SETTINGS and QUIT. DISCONNECT closes the client and
+    returns to the main menu with the connection form open, so another server can be joined without restarting.
+    A server hosted by this client saves and stops through the normal shutdown path; a remote server keeps running.
+    The old view leaves the scene tree before the next menu or session is created, releasing its shared UI/audio
+    state before the replacement registers its own. QUIT still exits the application.
   - **The world** is the planet package's `SurfaceView` driven by the game (`SurfaceView.OpenWorld`, S3c,
     WHOLE_WORLD.md §10): the zone's own surface (the stand-in world until S4), whole, drawn in the zone's own frame
     (`RenderFrame.World`: origin at the centre, the body's axes, no floating origin; a float steps a quarter of a
@@ -4025,6 +4030,28 @@ allow (§8.2.2). Pictures from the real game (`--tour-steps f1`, 1600 × 900): `
 | TOOLS | An admin's buttons, each running a console command (it shows in the log as if typed, and its answer under the buttons): god and noclip (lit when on), heal, kill; the zone's time of day as a slider (dragged, set on release) with 06:00, 12:00, 18:00, 00:00 and reset; the time scale (stop, ×1, ×10, ×60); spawning (the animals, the Tin Finch, barrels, crates and the recycler, every deployable, a raid base of each grade); teleporting to each player on, or to the player's map marker; entity counts, save, status, players. Without admin rights it says so and offers kill. |
 
 #### 8.2.1 Commands
+
+**AB Test B, 16 October 2026:** TOOLS also has a BUILDING section. `freebuild [on|off] [player]`
+toggles resource-free construction and crafting (on by default for admins when joining or granted
+rights). `bgrade [off|twig|wood|stone|metal|armoured] [player]` selects the grade of new structural
+pieces; no argument reports the current grade, and off restores ordinary twig placement. Both
+commands require admin rights and only affect an admin target. Revocation/disconnect clears the
+session tools; they are not stored with the character. BGrade applies full health immediately,
+and costs the chosen grade's materials when FREE BUILD is off.
+
+Free building covers structural placement, upgrades, hammer repairs, key cutting and retention
+of placed deployables/doors/locks/cupboards/ships; placed explosive charges are still consumed.
+Tools or a placeable item must still be carried. Reach, sight, collision, claim authorization,
+support and ownership limits remain enforced. Free crafting exposes every recipe and bypasses
+ingredients, learning and workbench requirements, while retaining queue/count limits and time.
+A free ship craft without a vehicle bench produces its placeable inventory item. At a bench,
+the normal launch delivery applies. Paid jobs still refund normally; free jobs never refund
+ingredients on cancel or death, including after turning the option off or reloading a save.
+
+Protocol 30 carries authoritative FreeBuild/BGrade in ServerState and the free-payment marker
+in CraftJobNet. Player record version 7 retains each craft job's payment marker and station;
+older records remain readable as paid jobs. Placement grade and cost use the shared pipeline,
+and client prediction/UI use server-acknowledged privileges.
 
 Words are split at spaces; "double quotes" keep a name with spaces whole; a leading slash is ignored (so chat's
 `/give rifle` works too). Names and aliases are any case. Where a command takes a player, a part of the name is enough

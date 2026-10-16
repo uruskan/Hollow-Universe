@@ -243,13 +243,16 @@ public sealed class ActionSystem : ZoneSystem
         if (Content.Recipe(recipe) is { Station: { } needs })
         {
             // Made at a station (a ship at the vehicle workbench, G6): the nearest within reach builds it.
-            if (Ships.StationNear(at, needs) is not { } found)
+            if (Ships.StationNear(at, needs) is { } found)
+            {
+                station = found.Id.Value;
+            }
+            else if (!p.FreeBuild)
             {
                 return OutcomeCode.NeedsStation.With(needs.Item.Id);
             }
-            station = found.Id.Value;
         }
-        return p.Crafting.Start(Content, p.Inventory, recipe, count, bench, out ticket, p.Blueprints, station);
+        return p.Crafting.Start(Content, p.Inventory, recipe, count, bench, out ticket, p.Blueprints, station, p.FreeBuild);
     }
 
     public Outcome CancelCraft(Entity entity, uint ticket)

@@ -64,7 +64,7 @@ public static class RenameTests
             Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, bag.Ref, "retrieve").Code, "actual retrieve action");
             Assert.Equal(before + 1, owner.Inventory.Count(bag.Def.Item), "retrieved item is returned");
         }
-        Assert.Equal((byte)6, WorldCodec.PlayerVersion, "breathing player-save version unchanged");
+        Assert.True(WorldCodec.PlayerVersion >= 6, "player saves retain the breathing state introduced in version 6");
     }
 
     [Test]

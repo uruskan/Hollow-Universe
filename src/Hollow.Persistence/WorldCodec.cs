@@ -27,9 +27,10 @@ public static class WorldCodec
     /// attachments in its stack; a character's burning and being down. 3: the body the player chose. 4 (G7): the
     /// blueprints learnt, the map's markers and the last death's point. 5 (S3): the same layout, the markers and the
     /// death's point in the body frame (a whole world's zone frame, docs/WHOLE_WORLD.md §9); an older state's are
-    /// dropped, being in a frame at the old landing site.
+    /// dropped, being in a frame at the old landing site. 6: breathing state. 7: craft job payment provenance
+    /// (free jobs never refund ingredients) and the delivery station.
     /// </summary>
-    public const byte PlayerVersion = 6;
+    public const byte PlayerVersion = 7;
 
     /// <summary>A world prop's stored state (G7, <see cref="EncodeProp"/>).</summary>
     public const byte PropVersion = 1;
@@ -80,6 +81,8 @@ public static class WorldCodec
                 w.Write(job.Count);
                 w.Write(job.TicksLeft);
                 w.Write(job.UnitTicks);
+                w.Write(job.Free);
+                w.Write(job.Station);
             }
             w.Write(p.Body);
             // 4 (G7): blueprints, markers (zone frame), the last death's point.
@@ -149,6 +152,11 @@ public static class WorldCodec
         for (int i = 0; i < jobs; i++)
         {
             var job = new CraftJob { Ticket = r.ReadUInt32(), Recipe = r.ReadUInt16(), Count = r.ReadInt32(), TicksLeft = r.ReadInt32(), UnitTicks = r.ReadInt32() };
+            if (version >= 7)
+            {
+                job.Free = r.ReadBoolean();
+                job.Station = r.ReadUInt64();
+            }
             if (content.Recipe(job.Recipe) != null && job.Count is > 0 and <= CraftQueue.MaxCount && job.UnitTicks > 0 && job.TicksLeft is > 0)
             {
                 job.TicksLeft = Math.Min(job.TicksLeft, job.UnitTicks);

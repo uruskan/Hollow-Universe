@@ -698,3 +698,43 @@ running game, saves, original checkout and unrelated environment-document edit w
 Local sources/logs are retained in .artifacts/combat-sync-audit. See
 [COMBAT_SYNC_AUDIT.md](COMBAT_SYNC_AUDIT.md) for exact scope, evidence, remaining source findings,
 and the proposed shared attack identity/lifecycle repair. Known-problem status remains open.
+
+## F1 admin BGrade and free construction — 16 October 2026
+
+Added BUILDING controls under F1 → TOOLS. BGRADE selects OFF, Twig, Wood, Stone,
+Metal or Armoured from the building catalogue. Structural pieces are placed at the
+chosen tier with full health. FREE BUILD starts on for admin sessions and can be
+disabled; it covers construction, upgrades, hammer repairs, keys and repeated
+deployable placement. The required tool/item still selects the action. Explosive
+charges remain consumable, and reach, collision, support, claim authorization,
+ownership limits and repair cooldown remain enforced.
+
+Free crafting exposes all recipes, bypasses ingredients, learned blueprints and
+workbench requirements, and keeps ordinary crafting durations and queue limits.
+Ships crafted freely without a launch bench become placeable inventory items.
+F1 controls, crafting controls, placement ghosts, plan/hammer radials and predicted
+inventory payment read the server-confirmed state. With FREE BUILD off, BGRADE
+charges the chosen tier's materials. Admin revocation and disconnect clear the
+session flags; reconnect starts free ON and grade OFF without writing cheats to saves.
+
+Protocol 30 adds authoritative construction state and a free-payment marker per
+craft job. Player save version 7 retains payment provenance and delivery station,
+reading older jobs as paid. Cancellation/death never refunds unpaid inputs even
+after disabling free crafting or reloading. No galaxy output/golden values changed.
+
+Validation was isolated in a managed worktree because separate combat/menu work
+was changing shared source files during this task. Only this feature's patch was
+applied there. No original-project files or player saves were used. Screenshots
+under docs/images/admin-building are Godot UI-viewer captures (1600×900), visually
+inspected; they are not a claim of manual gameplay testing. Engine-free loopback
+tests exercise the actual server/client commands, prediction and placement.
+
+Validation: the isolated solution build passed with 0 warnings/errors; the complete
+engine-free suite passed 406/406 in 461.4 seconds. Review then corrected disconnect
+cleanup to use the persistent player ID after the host detached the entity; the
+final rebuild passed with 0 warnings/errors, and all nine admin regressions passed
+in 8.5 seconds, including reconnect defaults. Godot `--view ui --ui-check` passed
+51/51, including free crafting/MAX/cancel/off interaction checks. The visual changes
+were unchanged by that final lifecycle fix. Logs are in .artifacts/admin-building.
+Reproduce the focused checks with `dotnet run --project tests/Hollow.Tests -- AdminBuild`;
+viewer captures use `--screen console-tools-stone` and `--screen crafting-free`.

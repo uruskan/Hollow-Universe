@@ -106,6 +106,17 @@ public readonly record struct IntentAnswer(uint Seq, OutcomeCode Code, int Detai
 /// </summary>
 public sealed partial class LocalPlayer
 {
+    /// <summary>Session-only building tools, accepted from the server's admin state.</summary>
+    public bool FreeBuild { get; private set; }
+    public int BuildGrade { get; private set; } = -1;
+
+    internal void SetAdminBuilding(bool freeBuild, int buildGrade)
+    {
+        FreeBuild = freeBuild;
+        BuildGrade = buildGrade;
+        _dirty = true;
+    }
+
     private readonly PlayerInventory _server = new();
     private readonly CraftQueue _serverCraft = new();
     private readonly CraftQueue _craft = new();
@@ -344,21 +355,25 @@ public sealed partial class LocalPlayer
 
     /// <summary>Starts crafting <paramref name="count"/> of a recipe (by its output item's ID).</summary>
     public uint Craft(int recipeId, int count = 1) =>
-        Intend(new Pending(p => p._craft.Start(p.Content, p.Inventory, recipeId, count, p.WorkbenchLevel, out _, p.Blueprints, p.StationFor(recipeId)) == OutcomeCode.Done),
+        Intend(new Pending(p => p._craft.Start(p.Content, p.Inventory, recipeId, count, p.WorkbenchLevel, out _, p.Blueprints, p.StationFor(recipeId), p.FreeBuild) == OutcomeCode.Done),
             w => new CraftIntent { Seq = _nextSeq, Recipe = (uint)Math.Max(0, recipeId), Count = (uint)Math.Max(0, count) }.WriteMessage(w));
 
     /// <summary>Whether a recipe could start now (known, bench in reach, materials for <paramref name="count"/>), as the UI shows it.</summary>
     public Outcome CanCraft(Recipe recipe, int count = 1)
     {
-        if (!Blueprints.Knows(recipe))
+        if (count is < 1 or > CraftQueue.MaxCount)
+        {
+            return OutcomeCode.Invalid;
+        }
+        if (!FreeBuild && !Blueprints.Knows(recipe))
         {
             return OutcomeCode.UnknownRecipe;
         }
-        if (WorkbenchLevel < recipe.Workbench)
+        if (!FreeBuild && WorkbenchLevel < recipe.Workbench)
         {
             return OutcomeCode.NeedsWorkbench.With(recipe.Workbench);
         }
-        if (recipe.Station is { } needs && (StationNear?.Invoke(needs) ?? 0) == 0)
+        if (!FreeBuild && recipe.Station is { } needs && (StationNear?.Invoke(needs) ?? 0) == 0)
         {
             return OutcomeCode.NeedsStation.With(needs.Item.Id);
         }
@@ -366,7 +381,7 @@ public sealed partial class LocalPlayer
         {
             return OutcomeCode.QueueFull;
         }
-        return Inventory.Has(recipe.Ingredients, count) ? OutcomeCode.Done : OutcomeCode.NotEnough;
+        return FreeBuild || Inventory.Has(recipe.Ingredients, count) ? OutcomeCode.Done : OutcomeCode.NotEnough;
     }
 
     /// <summary>Cancels a job (its ingredients come back).</summary>
@@ -722,6 +737,7 @@ public sealed partial class LocalPlayer
             {
                 Ticket = j.Ticket, Recipe = (ushort)Math.Min(j.Recipe, ushort.MaxValue), Count = (int)Math.Min(j.Count, int.MaxValue),
                 TicksLeft = (int)Math.Min(j.TicksLeft, int.MaxValue), UnitTicks = (int)Math.Min(j.UnitTicks, int.MaxValue),
+                Free = j.Free,
             });
         }
         _serverCraft.Set(jobs, m.NextTicket);

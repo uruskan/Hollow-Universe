@@ -12,8 +12,8 @@ namespace HollowUniverse.UI.Viewer;
 /// <summary>
 /// The interface viewer (<c>--view ui</c>, GROUND.md §8): the ground interface on <see cref="MockGroundUi"/> over a
 /// plain backdrop, opened on one screen for a look or a screenshot. Options (after "--"):
-/// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|death|wheel|hammer|options|ammo|menu|map|techtree|recycler|research</c>,
-/// the F1 panel's <c>console|console-info|console-net|console-items|console-tools</c>, the F2 panel's
+/// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|crafting-free|death|wheel|hammer|options|ammo|menu|map|techtree|recycler|research</c>,
+/// the F1 panel's <c>console|console-info|console-net|console-items|console-tools|console-tools-stone</c>, the F2 panel's
 /// <c>developer|developer-players|developer-look|developer-draw|developer-log</c>, and
 /// <c>--pointer x,y</c> to hold the pointer at a design-canvas point (hover states, radial sectors), and
 /// <c>--across &lt;m&gt;</c> to open the map or death screen's map that many metres across (150 m to the whole world).
@@ -147,6 +147,12 @@ public partial class UiViewer : Node
                 _ui.SelectRecipe("bandage");
                 _ui.Open(GroundScreen.Crafting);
                 break;
+            case "crafting-free":
+                _model.Console?.Run("freebuild on");
+                _model.Workbench = 0;
+                _ui.SelectRecipe("rifle");
+                _ui.Open(GroundScreen.Crafting);
+                break;
             case "death":
                 _model.Die();
                 break;
@@ -196,16 +202,21 @@ public partial class UiViewer : Node
                 _ui.Open(GroundScreen.Inventory);
                 _ui.Select(new SlotRef(ContainerId.Loot, 2));
                 break;
-            case "console" or "console-info" or "console-net" or "console-items" or "console-tools":
+            case "console" or "console-info" or "console-net" or "console-items" or "console-tools" or "console-tools-stone":
                 // The F1 panel (GROUND.md §8.2) on sample data.
                 _model.HudSample();
+                if (screen == "console-tools-stone")
+                {
+                    _model.Console?.Run("freebuild on");
+                    _model.Console?.Run("bgrade stone");
+                }
                 _ui.ToggleConsole();
                 _ui.ConsoleTab = screen switch
                 {
                     "console-info" => ConsoleTab.Info,
                     "console-net" => ConsoleTab.Net,
                     "console-items" => ConsoleTab.Items,
-                    "console-tools" => ConsoleTab.Tools,
+                    "console-tools" or "console-tools-stone" => ConsoleTab.Tools,
                     _ => ConsoleTab.Console,
                 };
                 break;
@@ -323,6 +334,29 @@ public partial class UiViewer : Node
         Expect(_ui.Screen == GroundScreen.Crafting, "Q opens crafting");
         await Click(Point(1368 + 59, 710 + 20));
         Expect(_model.Queue.Count == queued + 1, "CRAFT queues the recipe");
+        // An admin can use the same crafting controls with no bench or resources; turning it off restores the gate.
+        int bench = _model.Workbench;
+        _model.Workbench = 0;
+        _model.Console?.Run("freebuild on");
+        _ui.SelectRecipe("rifle");
+        await Frames(3);
+        int metalBefore = _model.Have("metal.refined");
+        int woodBefore = _model.Have("wood");
+        await Click(Point(1016, 730));
+        await Click(Point(1427, 730));
+        CraftJob freeJob = _model.Queue.Last();
+        Expect(freeJob.Key == "rifle" && freeJob.Count == 999 && _model.Queue.Count == queued + 2,
+            "free crafting enables a workbench-three recipe and MAX selects 999");
+        Expect(_model.Have("metal.refined") == metalBefore && _model.Have("wood") == woodBefore,
+            "free crafting consumes no ingredients");
+        _model.Console?.Run("freebuild off");
+        _model.CancelCraft(freeJob.Ticket);
+        Expect(_model.Have("metal.refined") == metalBefore && _model.Have("wood") == woodBefore,
+            "cancelling a free craft after switching off does not refund unspent resources");
+        await Frames(3);
+        await Click(Point(1427, 730));
+        Expect(_model.Queue.Count == queued + 1, "turning off free crafting restores recipe requirements");
+        _model.Workbench = bench;
         await Key(Godot.Key.Tab);
         Expect(_ui.Screen == GroundScreen.Hud, "Tab closes the screen");
 

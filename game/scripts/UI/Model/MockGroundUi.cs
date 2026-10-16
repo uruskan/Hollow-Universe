@@ -24,6 +24,7 @@ public sealed partial class MockGroundUi : IGroundUi
     private ItemStack[] _loot = Array.Empty<ItemStack>();
     private readonly List<Recipe> _recipes = new();
     private readonly List<CraftJob> _queue = new();
+    private readonly HashSet<int> _freeCrafts = new();
     private readonly List<RespawnBag> _bags = new();
     private int _nextTicket = 1;
 
@@ -65,6 +66,8 @@ public sealed partial class MockGroundUi : IGroundUi
     public IReadOnlyList<Recipe> Recipes => _recipes;
 
     public int Workbench { get; set; } = 1;
+
+    public bool FreeCrafting { get; set; }
 
     public IReadOnlyList<CraftJob> Queue => _queue;
 
@@ -274,23 +277,30 @@ public sealed partial class MockGroundUi : IGroundUi
     public void Craft(string key, int amount)
     {
         Recipe? recipe = _recipes.FirstOrDefault(r => r.Key == key);
-        if (recipe == null || amount < 1)
+        if (recipe == null || amount is < 1 or > 999 || Death != null)
         {
             return;
         }
-        if (recipe.Workbench > Workbench)
+        if (!FreeCrafting && recipe.Workbench > Workbench)
         {
             Notice?.Invoke($"Needs a level {recipe.Workbench} workbench.");
             return;
         }
-        if (recipe.Ingredients.Any(i => Have(i.Key) < i.Amount * amount))
+        if (!FreeCrafting && recipe.Ingredients.Any(i => Have(i.Key) < i.Amount * amount))
         {
             Notice?.Invoke("Not enough resources.");
             return;
         }
-        foreach (Ingredient ingredient in recipe.Ingredients)
+        if (FreeCrafting)
         {
-            Consume(ingredient.Key, ingredient.Amount * amount);
+            _freeCrafts.Add(_nextTicket);
+        }
+        else
+        {
+            foreach (Ingredient ingredient in recipe.Ingredients)
+            {
+                Consume(ingredient.Key, ingredient.Amount * amount);
+            }
         }
         _queue.Add(new CraftJob(_nextTicket++, key, amount * recipe.Yield, recipe.Seconds * amount, recipe.Seconds * amount));
     }
@@ -305,7 +315,7 @@ public sealed partial class MockGroundUi : IGroundUi
         CraftJob job = _queue[index];
         _queue.RemoveAt(index);
         Recipe? recipe = _recipes.FirstOrDefault(r => r.Key == job.Key);
-        if (recipe != null)
+        if (recipe != null && !_freeCrafts.Remove(ticket))
         {
             int times = Math.Max(1, job.Count / Math.Max(1, recipe.Yield));
             foreach (Ingredient ingredient in recipe.Ingredients)
@@ -459,6 +469,7 @@ public sealed partial class MockGroundUi : IGroundUi
             else
             {
                 _queue.RemoveAt(0);
+                _freeCrafts.Remove(job.Ticket);
                 Give(job.Key, job.Count);
                 Crafted?.Invoke(job.Key, job.Count);
             }

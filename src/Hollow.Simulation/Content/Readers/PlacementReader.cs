@@ -140,6 +140,7 @@ internal sealed class PlacementReader : IContentReader
                 Item = resolved.Item,
                 Tool = resolved.Tool,
                 Costs = resolved.Costs,
+                GradeCosts = resolved.GradeCosts ?? Array.Empty<IReadOnlyList<PlacementCost>>(),
                 Footprint = footprint,
                 ModelKey = resolved.ModelKey,
                 Name = resolved.Name,

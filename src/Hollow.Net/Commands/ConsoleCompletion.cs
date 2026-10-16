@@ -19,6 +19,7 @@ public sealed class CompletionSources
 
     /// <summary>The building grades by name, for <c>raidbase</c> (0 twig … 4 armoured).</summary>
     public static readonly string[] Grades = ["twig", "wood", "stone", "metal", "armoured"];
+    public IReadOnlyList<string> BuildGrades { get; init; } = Grades;
 
     /// <summary>Everything the game's data offers, and the players on.</summary>
     public static CompletionSources From(GameContent content, IEnumerable<string> players) => new()
@@ -29,6 +30,7 @@ public sealed class CompletionSources
         Spawnables = Spawning.Kinds(content),
         Blueprints = content.Recipes.Where(r => !r.Known).Select(r => r.Output.Key).Distinct().Prepend("all").ToArray(),
         Ships = content.Ships.Select(s => s.Key).ToArray(),
+        BuildGrades = content.Building.Grades.Select(g => g.Key).Prepend("off").ToArray(),
     };
 
     public IReadOnlyList<string> Of(ArgKind kind) => kind switch
@@ -38,7 +40,7 @@ public sealed class CompletionSources
         ArgKind.LootTable => LootTables,
         ArgKind.Spawnable => Spawnables,
         ArgKind.Blueprint => Blueprints,
-        ArgKind.Grade => Grades,
+        ArgKind.Grade => BuildGrades,
         ArgKind.OnOff => ["on", "off"],
         ArgKind.Ship => Ships,
         ArgKind.Command => ConsoleCatalog.All.Select(c => c.Name).ToArray(),

@@ -236,7 +236,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         }
     }
 
-    /// <summary>The recipes the player knows (from the start, or learnt: G7), again whenever a blueprint is learnt.</summary>
+    /// <summary>The player's available recipes, refreshed when blueprints or admin free crafting change.</summary>
     public IReadOnlyList<UiRecipe> Recipes
     {
         get
@@ -263,6 +263,8 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     }
 
     public int Workbench => Me.WorkbenchLevel;
+
+    public bool FreeCrafting => Me.FreeBuild;
 
     public float SecondsHere(UiRecipe recipe) =>
         C.RecipeByKey(recipe.Key) is { } r ? CraftingSpeed.Seconds(C, r, Me.WorkbenchLevel) : recipe.Seconds;

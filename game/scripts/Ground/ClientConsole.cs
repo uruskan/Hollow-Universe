@@ -90,6 +90,7 @@ public sealed partial class ClientConsole : IConsoleModel, IDisposable
     private SkyEphemeris? _sky;
     private ZoneDay? _skyDay;
     private IReadOnlyList<ToolGroup>? _spawns;
+    private IReadOnlyList<ToolButton>? _buildGrades;
 
     public ClientConsole(GameClient client, ViewSettings settings)
     {
@@ -576,7 +577,13 @@ public sealed partial class ClientConsole : IConsoleModel, IDisposable
             double factor = day is { } d && _client.Zone is { RotationTimeScale: > 0 } z ? d.Scale / z.RotationTimeScale : 1;
             return new ToolsView((cheats & MoveCheats.God) != 0, (cheats & MoveCheats.Noclip) != 0, ZoneHours() ?? 12, factor, day?.Overridden ?? false,
                 _client.Console().ServerPlayers.Select(p => p.Name).Where(n => !string.Equals(n, _client.Name, StringComparison.OrdinalIgnoreCase)).ToArray(),
-                _spawns ??= SpawnGroups(_client.Content));
+                _spawns ??= SpawnGroups(_client.Content))
+            {
+                FreeBuild = _client.Console().FreeBuild,
+                BuildGrade = _client.Console().BuildGrade,
+                BuildGrades = _buildGrades ??= _client.Content.Building.Grades
+                    .Select(g => new ToolButton(g.Name.ToUpperInvariant(), $"bgrade {g.Key}")).ToArray(),
+            };
         }
     }
 

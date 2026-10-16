@@ -861,6 +861,7 @@ public partial struct CraftJobNet
     [VarInt] public uint Count;
     [VarInt] public uint TicksLeft;
     [VarInt] public uint UnitTicks;
+    public bool Free;
 }
 
 /// <summary>The crafting queue, when it changes: <c>TicksLeft</c> counts from <c>ServerTick</c>.</summary>
@@ -1521,6 +1522,9 @@ public partial struct ServerPlayerNet
 public partial struct ServerState
 {
     public bool Admin;
+    public bool FreeBuild;
+    /// <summary>Zero for normal placement, otherwise the selected building grade index plus one.</summary>
+    [Bits(8)] public byte BuildGrade;
     [VarInt] public uint MaxPlayers;
     [MaxCount(256)] public ServerPlayerNet[] Players;
 }

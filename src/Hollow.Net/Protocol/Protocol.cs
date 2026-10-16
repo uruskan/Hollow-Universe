@@ -43,7 +43,8 @@ public static partial class Protocol
     // 28: persistent unattended cruise, breath state and bounded admin flight input;
     // shared scanned cliff collision changes geometry beyond the JSON content hash.
     // 29: held action item/start tick, including accepted uses and repairs.
-    public const uint Version = 29;
+    // 30: admin construction tools and craft-job payment provenance.
+    public const uint Version = 30;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;

@@ -127,6 +127,12 @@ public sealed class Player : ITargetable
 
     public CraftQueue Crafting { get; } = new();
 
+    /// <summary>Session-only admin permission to build and craft without costs or crafting prerequisites.</summary>
+    public bool FreeBuild { get; set; }
+
+    /// <summary>Session-only admin grade for new structural pieces; -1 means ordinary twig placement.</summary>
+    public int BuildGrade { get; set; } = -1;
+
     public Vitals Vitals;
 
     /// <summary>Dead: the body became a corpse; waits for a respawn.</summary>

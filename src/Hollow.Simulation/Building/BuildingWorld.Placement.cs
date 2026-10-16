@@ -16,6 +16,9 @@ public sealed class PlacementPlan
 {
     public required PieceDef Piece { get; init; }
 
+    /// <summary>The structural grade selected by the server or shared placement context; ordinary placement is twig.</summary>
+    public int Grade { get; internal set; }
+
     /// <summary>The structure it joins, or null when it starts a new one (a free foundation).</summary>
     public Structure? Structure { get; init; }
 
@@ -336,6 +339,10 @@ public sealed partial class BuildingWorld
 
     private Outcome CheckRules(PlacementPlan plan, IBuildingWallet? wallet)
     {
+        if ((uint)plan.Grade >= (uint)Data.Grades.Count)
+        {
+            return OutcomeCode.Invalid;
+        }
         PieceDef piece = plan.Piece;
         BuildingFrame frame = plan.Frame;
         Pose pose = plan.Pose;
@@ -398,14 +405,14 @@ public sealed partial class BuildingWorld
             return OutcomeCode.JoinsClaims;
         }
 
-        // The price: a twig piece's cost in its material.
+        // The price: the chosen grade's cost in its material.
         if (wallet != null)
         {
-            GradeDef twig = Data.Grades[0];
-            int cost = Data.CostOf(piece, 0);
-            if (wallet.Count(twig.Material) < cost)
+            GradeDef grade = Data.Grades[plan.Grade];
+            int cost = Data.CostOf(piece, plan.Grade);
+            if (wallet.Count(grade.Material) < cost)
             {
-                return OutcomeCode.NotEnough.With(Data.MaterialItem(twig.Material));
+                return OutcomeCode.NotEnough.With(Data.MaterialItem(grade.Material));
             }
         }
         return Outcome.Done;
@@ -553,7 +560,7 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>
-    /// Places a planned piece after checking the building's rules again (<see cref="CheckBuilding"/>), paying its twig cost:
+    /// Places a planned piece after checking the building's rules again (<see cref="CheckBuilding"/>), paying its grade's cost:
     /// the sandbox's and the tests' way; the game places through the placement pipeline, which checks reach, sight and rights
     /// too and takes the price itself (<see cref="Build"/>).
     /// </summary>
@@ -564,16 +571,16 @@ public sealed partial class BuildingWorld
         {
             return plan.Outcome;
         }
-        GradeDef twig = Data.Grades[0];
-        if (!wallet.Take(twig.Material, Data.CostOf(plan.Piece, 0)))
+        GradeDef grade = Data.Grades[plan.Grade];
+        if (!wallet.Take(grade.Material, Data.CostOf(plan.Piece, plan.Grade)))
         {
-            return OutcomeCode.NotEnough.With(Data.MaterialItem(twig.Material));
+            return OutcomeCode.NotEnough.With(Data.MaterialItem(grade.Material));
         }
         return Build(plan, player, now, out piece);
     }
 
     /// <summary>
-    /// Adds a planned piece at full twig health, after checking the building's rules again (without its price: the caller
+    /// Adds a planned piece at full health in its chosen grade, after checking the building's rules again (without its price: the caller
     /// takes it): a new structure for a free foundation, else onto its support's.
     /// </summary>
     public Outcome Build(PlacementPlan plan, ulong player, double now, out Piece? piece)
@@ -584,8 +591,8 @@ public sealed partial class BuildingWorld
             return plan.Outcome;
         }
         piece = plan.Structure == null
-            ? AddFirst(plan.Frame, plan.Piece, 0, player, now)
-            : Add(plan.Structure, plan.Piece, 0, plan.Pose, player, now);
+            ? AddFirst(plan.Frame, plan.Piece, plan.Grade, player, now)
+            : Add(plan.Structure, plan.Piece, plan.Grade, plan.Pose, player, now);
         return Outcome.Done;
     }
 

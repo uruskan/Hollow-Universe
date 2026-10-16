@@ -132,6 +132,12 @@ public sealed partial class GameServer
             case "god":
                 this.Console().Cheat(ctx, args, Simulation.Movement.MoveCheats.God, "God mode");
                 break;
+            case "freebuild":
+                this.Console().FreeBuild(ctx, args);
+                break;
+            case "bgrade":
+                this.Console().BuildGrade(ctx, args);
+                break;
             case "noclip":
                 this.Console().Cheat(ctx, args, Simulation.Movement.MoveCheats.Noclip, "Noclip");
                 break;

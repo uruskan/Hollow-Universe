@@ -67,7 +67,7 @@ public sealed partial class LocalPlayer
     public BlueprintBook Blueprints { get; } = new();
 
     /// <summary>Whether a recipe can be crafted as far as knowing it goes (default or learnt).</summary>
-    public bool Knows(Recipe recipe) => Blueprints.Knows(recipe);
+    public bool Knows(Recipe recipe) => FreeBuild || Blueprints.Knows(recipe);
 
     /// <summary>The player's team, or null.</summary>
     public TeamView? Team { get; private set; }

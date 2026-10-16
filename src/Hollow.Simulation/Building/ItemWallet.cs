@@ -8,21 +8,23 @@ namespace Hollow.Simulation.Building;
 /// Building materials as items in containers (GROUND.md §6.3, phase 2): a player's main and belt slots pay for placing,
 /// upgrading, repairing and keys; a claim device's store pays its upkeep. A material is the item with its key; it is
 /// taken in slot order, all or nothing (<see cref="InventoryRules.Take"/>), so the client's optimistic copy takes the
-/// same stacks the server does.
+/// same stacks the server does. A free admin wallet permits known materials without reading or spending carried stacks.
 /// </summary>
 public sealed class ItemWallet : IBuildingWallet
 {
     private readonly GameContent _content;
     private readonly IReadOnlyList<Container> _containers;
+    private readonly bool _free;
 
-    public ItemWallet(GameContent content, IReadOnlyList<Container> containers)
+    public ItemWallet(GameContent content, IReadOnlyList<Container> containers, bool free = false)
     {
         _content = content;
         _containers = containers;
+        _free = free;
     }
 
-    public int Count(string material) => _content.Item(material) is { } item ? InventoryRules.Count(_containers, item.Id) : 0;
+    public int Count(string material) => _content.Item(material) is { } item ? _free ? int.MaxValue : InventoryRules.Count(_containers, item.Id) : 0;
 
     public bool Take(string material, int amount) =>
-        amount <= 0 || (_content.Item(material) is { } item && InventoryRules.Take(_containers, item.Id, amount));
+        amount <= 0 || (_content.Item(material) is { } item && (_free || InventoryRules.Take(_containers, item.Id, amount)));
 }

@@ -82,8 +82,8 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
         {
             return placeable.Item == null ? OutcomeCode.NoTool.With(needs.Id) : OutcomeCode.NotUsable;
         }
-        var wallet = new ItemWallet(Content, p.Inventory.Carried);
-        var ctx = new PlacementContext(p.Id.Value, EyeOf(Entities.Get<Character>(entity).State), placeable, wallet);
+        var wallet = new ItemWallet(Content, p.Inventory.Carried, p.FreeBuild);
+        var ctx = new PlacementContext(p.Id.Value, EyeOf(Entities.Get<Character>(entity).State), placeable, wallet, p.BuildGrade);
         if (Placer.Settle(World, ctx, request.Claim, out Outcome refused) is not { } candidate)
         {
             return refused;
@@ -93,11 +93,11 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
         {
             return put;
         }
-        if (placeable.Item != null)
+        if (placeable.Item != null && !(p.FreeBuild && placeable.Kind.RetainItemWhenFree))
         {
             InventoryRules.Remove(source, request.Slot, 1, 0, out _);
         }
-        foreach (PlacementCost cost in placeable.Costs)
+        foreach (PlacementCost cost in ctx.Costs)
         {
             wallet.Take(cost.Material, cost.Amount);
         }
@@ -117,7 +117,7 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
             return null;
         }
         ref Character c = ref Entities.Get<Character>(entity);
-        var ctx = new PlacementContext(p.Id.Value, EyeOf(c.State), placeable, new ItemWallet(Content, p.Inventory.Carried));
+        var ctx = new PlacementContext(p.Id.Value, EyeOf(c.State), placeable, new ItemWallet(Content, p.Inventory.Carried, p.FreeBuild), p.BuildGrade);
         return Placer.Plan(World, ctx, new PlacementAim(direction, Facing.YawOf(ViewOf(c), UpOf(c.State)), turns));
     }
 

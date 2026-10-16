@@ -78,8 +78,11 @@ public interface IGroundUi
     /// <summary>The crafting categories in display order, each with its number of recipes.</summary>
     IReadOnlyList<CraftCategory> Categories { get; }
 
-    /// <summary>The recipes the player knows.</summary>
+    /// <summary>The recipes the player knows, or every recipe when free crafting is authorised.</summary>
     IReadOnlyList<Recipe> Recipes { get; }
+
+    /// <summary>The server authorises crafting without ingredients, learned blueprints or a workbench.</summary>
+    bool FreeCrafting => false;
 
     /// <summary>The level of the workbench in reach, 0 for none.</summary>
     int Workbench { get; }

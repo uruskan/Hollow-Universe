@@ -15,7 +15,7 @@ public sealed class MockConsole : IConsoleModel
     {
         "help", "find", "clear", "quit", "fps", "netgraph", "fov", "sensitivity", "kill", "players", "whereami", "give", "kit",
         "learn", "teleport", "tp2me", "tpmarker", "spawn", "heal", "god", "noclip", "time", "timescale", "status", "kick", "say",
-        "save", "ents",
+        "save", "ents", "freebuild", "bgrade",
     };
 
     private readonly MockGroundUi _ui;
@@ -81,12 +81,43 @@ public sealed class MockConsole : IConsoleModel
         Add(line, ConsoleLineKind.Input);
         _answer.Clear();
         _answer.Add(new ConsoleLine(line, ConsoleLineKind.Input));
-        string word = line.Split(' ')[0];
+        string[] words = line.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        string word = words.FirstOrDefault()?.ToLowerInvariant() ?? "";
         var answer = Commands.Contains(word)
             ? new ConsoleLine($"(The viewer has no server: '{line}' would run there.)", ConsoleLineKind.Server)
             : new ConsoleLine($"Unknown command '{word}' (help lists them, find searches them).", ConsoleLineKind.Error);
+        if (word is "freebuild" or "bgrade")
+        {
+            answer = Admin ? BuildingTool(word, words.Skip(1).ToArray())
+                : new ConsoleLine("This command needs admin rights.", ConsoleLineKind.Error);
+        }
         Add(answer.Text, answer.Kind);
         _answer.Add(answer);
+    }
+
+    private ConsoleLine BuildingTool(string command, string[] args)
+    {
+        if (command == "freebuild")
+        {
+            if (args.Length > 1 || args.Length == 1 && !new[] { "on", "off" }.Contains(args[0], StringComparer.OrdinalIgnoreCase))
+            {
+                return new ConsoleLine("Usage: freebuild [on|off]", ConsoleLineKind.Error);
+            }
+            bool enabled = args.Length == 0 ? !Tools.FreeBuild : string.Equals(args[0], "on", StringComparison.OrdinalIgnoreCase);
+            Tools = Tools with { FreeBuild = enabled };
+            _ui.FreeCrafting = enabled;
+            return new ConsoleLine($"Free build {(enabled ? "on" : "off")} (viewer sample).", ConsoleLineKind.Success);
+        }
+        if (args.Length == 1)
+        {
+            int grade = Tools.BuildGrades.ToList().FindIndex(g => string.Equals(g.Command, "bgrade " + args[0], StringComparison.OrdinalIgnoreCase));
+            if (grade >= 0 || string.Equals(args[0], "off", StringComparison.OrdinalIgnoreCase))
+            {
+                Tools = Tools with { BuildGrade = grade };
+                return new ConsoleLine($"BGrade {(grade < 0 ? "off" : Tools.BuildGrades[grade].Label)} (viewer sample).", ConsoleLineKind.Success);
+            }
+        }
+        return new ConsoleLine("Usage: bgrade off|<grade>", ConsoleLineKind.Error);
     }
 
     public string? History(int step, string typed)
@@ -149,12 +180,20 @@ public sealed class MockConsole : IConsoleModel
 
     public void Give(string key, int amount) => Run($"give {key} {amount}");
 
-    public ToolsView Tools { get; } = new(true, false, 10.2, 1, false, new[] { "Bo", "Cy" }, new[]
+    public ToolsView Tools { get; private set; } = new(true, false, 10.2, 1, false, new[] { "Bo", "Cy" }, new[]
     {
         new ToolGroup("ANIMALS", new ToolButton[] { new("DEER", "spawn deer 2"), new("BOAR", "spawn boar 2"), new("WOLF", "spawn wolf 2"), new("BEAR", "spawn bear 1") }),
         new ToolGroup("SHIPS", new ToolButton[] { new("TIN FINCH", "spawn tin-finch") }),
         new ToolGroup("LOOT", new ToolButton[] { new("BARREL", "spawn barrel"), new("FUEL BARREL", "spawn fuel-barrel"), new("CRATE", "spawn crate"), new("MILITARY CRATE", "spawn military-crate"), new("RECYCLER", "spawn recycler") }),
         new ToolGroup("DEPLOYABLES", new ToolButton[] { new("SLEEPING BAG", "spawn sleeping-bag"), new("CAMPFIRE", "spawn campfire"), new("FURNACE", "spawn furnace"), new("SMALL BOX", "spawn small-box") }),
         new ToolGroup("RAID BASE (A CLAIMED HUT)", new ToolButton[] { new("TWIG", "spawn raidbase 0"), new("WOOD", "spawn raidbase 1"), new("STONE", "spawn raidbase 2"), new("METAL", "spawn raidbase 3"), new("ARMOURED", "spawn raidbase 4") }),
-    });
+    })
+    {
+        FreeBuild = true,
+        BuildGrades = new ToolButton[]
+        {
+            new("TWIG", "bgrade twig"), new("WOOD", "bgrade wood"), new("STONE", "bgrade stone"),
+            new("METAL", "bgrade metal"), new("ARMOURED", "bgrade armoured"),
+        },
+    };
 }

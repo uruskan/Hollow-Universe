@@ -60,12 +60,12 @@ public sealed partial class LocalPlayer
     private bool PayFor(Placeable placeable, ContainerRef from, int slot, ushort expected)
     {
         if (from is not (ContainerRef.Main or ContainerRef.Belt) || Resolve(from) is not { } source ||
-            (placeable.Item != null && InventoryRules.Remove(source, slot, 1, expected, out _) != OutcomeCode.Done))
+            (placeable.Item != null && !(FreeBuild && placeable.Kind.RetainItemWhenFree) && InventoryRules.Remove(source, slot, 1, expected, out _) != OutcomeCode.Done))
         {
             return false;
         }
-        var wallet = new ItemWallet(Content, Inventory.Carried);
-        foreach (PlacementCost cost in placeable.Costs)
+        var wallet = new ItemWallet(Content, Inventory.Carried, FreeBuild);
+        foreach (PlacementCost cost in placeable.CostsFor(BuildGrade))
         {
             if (!wallet.Take(cost.Material, cost.Amount))
             {

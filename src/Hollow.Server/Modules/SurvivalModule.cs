@@ -372,7 +372,7 @@ public sealed class SurvivalModule : ServerModule
             for (int i = 0; i < jobs.Length; i++)
             {
                 CraftJob j = p.Crafting.Jobs[i];
-                jobs[i] = new CraftJobNet { Ticket = j.Ticket, Recipe = j.Recipe, Count = (uint)j.Count, TicksLeft = (uint)j.TicksLeft, UnitTicks = (uint)j.UnitTicks };
+                jobs[i] = new CraftJobNet { Ticket = j.Ticket, Recipe = j.Recipe, Count = (uint)j.Count, TicksLeft = (uint)j.TicksLeft, UnitTicks = (uint)j.UnitTicks, Free = j.Free };
             }
             Writer.Reset();
             new CraftQueueState { LastSeq = session.LastIntentSeq, ServerTick = (uint)Zone.Tick, NextTicket = p.Crafting.NextTicket, Jobs = jobs }.WriteMessage(Writer);

@@ -90,11 +90,30 @@ public sealed class ConsoleModule : ServerModule
     /// <summary>A player joined: the zone's clock for them, and who is on for everyone (the F1 console's view, GROUND.md §8.2).</summary>
     protected internal override void Joined(PlayerSession session, bool newCharacter)
     {
+        ResetBuildingTools(session);
         SendClock(session);
         SendServerStateToAll();
     }
 
-    protected internal override void Left(PlayerSession session) => SendServerStateToAll();
+    protected internal override void Left(PlayerSession session)
+    {
+        // The host has already detached session.Entity; the persistent ID still names its sleeper.
+        if (Zone.Players().TryFindPlayer(session.EntityId, out _, out Player player))
+        {
+            player.FreeBuild = false;
+            player.BuildGrade = -1;
+        }
+        SendServerStateToAll();
+    }
+
+    private void ResetBuildingTools(PlayerSession session)
+    {
+        if (Zone.Players().PlayerOf(session.Entity) is { } player)
+        {
+            player.FreeBuild = IsAdmin(session);
+            player.BuildGrade = -1;
+        }
+    }
 
     // ---------------------------------------------------------------- admins
 
@@ -147,6 +166,10 @@ public sealed class ConsoleModule : ServerModule
             : $"{name} {(admin ? "was an admin already" : "wasn't an admin")}.");
         if (changed)
         {
+            foreach (PlayerSession session in Players.Where(s => s.Playing && string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                ResetBuildingTools(session);
+            }
             SendServerStateToAll();
         }
     }
@@ -182,10 +205,13 @@ public sealed class ConsoleModule : ServerModule
     // The console's view of the server: this player's rights and who is on.
     private void SendServerState(PlayerSession session)
     {
+        Player? player = Zone.Players().PlayerOf(session.Entity);
         Writer.Reset();
         new ServerState
         {
             Admin = IsAdmin(session),
+            FreeBuild = IsAdmin(session) && player?.FreeBuild == true,
+            BuildGrade = IsAdmin(session) && player is { BuildGrade: >= 0 } ? (byte)(player.BuildGrade + 1) : (byte)0,
             MaxPlayers = (uint)Math.Max(0, Options.MaxPlayers),
             Players = Players.Where(s => s.Playing).OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
                 .Take(256).Select(s => new ServerPlayerNet { Name = s.Name, Admin = IsAdmin(s) }).ToArray(),
@@ -704,6 +730,58 @@ public sealed class ConsoleModule : ServerModule
         : Array.IndexOf(CompletionSources.Grades, word.ToLowerInvariant()) is var i and >= 0 ? i : null;
 
     // ---------------------------------------------------------------- cheats
+
+    private Player? BuildingAdmin(CommandContext ctx, IReadOnlyList<string> args, int playerAt, out PlayerSession? session)
+    {
+        session = Server.TargetOrMe(ctx, args, playerAt);
+        if (session == null) return null;
+        if (!IsAdmin(session))
+        {
+            ctx.Error("Building tools can only be enabled for an admin.");
+            return null;
+        }
+        if (!session.Playing || Zone.Players().PlayerOf(session.Entity) is not { } player)
+        {
+            ctx.Error($"{session.Name} isn't in the world yet.");
+            return null;
+        }
+        return player;
+    }
+
+    internal void FreeBuild(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        bool? wanted = args.Count > 0 ? OnOff(args[0]) : null;
+        if (args.Count > 0 && wanted == null)
+        {
+            ctx.Error("Usage: freebuild [on|off] [player]");
+            return;
+        }
+        if (BuildingAdmin(ctx, args, args.Count > 0 ? 1 : 0, out PlayerSession? session) is not { } player) return;
+        player.FreeBuild = wanted ?? !player.FreeBuild;
+        SendServerState(session!);
+        ctx.Done($"Free building and crafting {(player.FreeBuild ? "on" : "off")} for {session!.Name}.");
+    }
+
+    internal void BuildGrade(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        int grade = -1;
+        if (args.Count > 0 && !string.Equals(args[0], "off", StringComparison.OrdinalIgnoreCase))
+        {
+            string key = args[0].ToLowerInvariant();
+            if (key == "wooden") key = "wood";
+            if (key == "armored") key = "armoured";
+            grade = Content.Building.Grades.ToList().FindIndex(g => string.Equals(g.Key, key, StringComparison.OrdinalIgnoreCase));
+            if (grade < 0 && (!int.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out grade) || grade < 0 || grade >= Content.Building.Grades.Count))
+            {
+                ctx.Error("Choose off or a building grade: " + string.Join(", ", Content.Building.Grades.Select(g => g.Key)) + ".");
+                return;
+            }
+        }
+        if (BuildingAdmin(ctx, args, args.Count > 0 ? 1 : 0, out PlayerSession? session) is not { } player) return;
+        if (args.Count > 0) player.BuildGrade = grade;
+        SendServerState(session!);
+        ctx.Done($"BGrade {(player.BuildGrade < 0 ? "off (normal twig)" : Content.Building.Grades[player.BuildGrade].Name)} for {session!.Name}.");
+    }
 
     // god|noclip [on|off] [player]: a toggle without on or off.
     internal void Cheat(CommandContext ctx, IReadOnlyList<string> args, MoveCheats cheat, string name)

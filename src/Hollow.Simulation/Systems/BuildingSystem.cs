@@ -473,7 +473,7 @@ public sealed class BuildingSystem : ZoneSystem
             return OutcomeCode.NotUsable;
         }
         Outcome reach = Zone.Targets().Reach(eye, target, (float)Content!.Building.Reach);
-        Outcome result = reach.Ok ? family.Repair(entity, p, target, new ItemWallet(Content, p.Inventory.Carried)) : reach;
+        Outcome result = reach.Ok ? family.Repair(entity, p, target, new ItemWallet(Content, p.Inventory.Carried, p.FreeBuild)) : reach;
         if (result.Ok)
         {
             p.RecordAction(ActionKind.Repair, p.HeldItem, Tick);
@@ -497,7 +497,7 @@ public sealed class BuildingSystem : ZoneSystem
         {
             return OutcomeCode.NotFound;
         }
-        var wallet = new ItemWallet(Content, p.Inventory.Carried);
+        var wallet = new ItemWallet(Content, p.Inventory.Carried, p.FreeBuild);
         return action switch
         {
             HammerAction.Upgrade => building.Upgrade(p.Id.Value, piece, grade, wallet, eye),
@@ -548,7 +548,7 @@ public sealed class BuildingSystem : ZoneSystem
         {
             return OutcomeCode.Invalid;
         }
-        if (!new ItemWallet(Content, p.Inventory.Carried).Take(data.KeyCostMaterial, data.KeyCost))
+        if (!new ItemWallet(Content, p.Inventory.Carried, p.FreeBuild).Take(data.KeyCostMaterial, data.KeyCost))
         {
             return OutcomeCode.NotEnough.With(data.MaterialItem(data.KeyCostMaterial));
         }

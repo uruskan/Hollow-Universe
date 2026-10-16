@@ -231,7 +231,7 @@ public sealed partial class ClientGroundUi
         Me.Unlock(_techBench, node.Recipe.Id);
     }
 
-    // What the player has learnt, as one number (the same set gives the same number, in any order).
+    // Available knowledge, including the admin override (the same learnt set gives the same number in any order).
     private long KnownSignature()
     {
         IReadOnlyCollection<ushort> learnt = Me.Blueprints.Learnt;
@@ -241,7 +241,7 @@ public sealed partial class ClientGroundUi
             sum += id;
             mix ^= (id * 2654435761L) & 0xFFFFFFFF;
         }
-        return ((long)learnt.Count << 40) ^ (sum << 20) ^ mix;
+        return ((long)learnt.Count << 40) ^ (sum << 20) ^ mix ^ (Me.FreeBuild ? long.MinValue : 0);
     }
 
     // ---------------------------------------------------------------- the team

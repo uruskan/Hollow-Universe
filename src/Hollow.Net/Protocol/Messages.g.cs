@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x86163895D1FE53D9UL;
+    public const ulong SchemaHash = 0x0E40D22A444A554DUL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -2488,6 +2488,7 @@ partial struct CraftJobNet
         w.WriteVarUInt(Count);
         w.WriteVarUInt(TicksLeft);
         w.WriteVarUInt(UnitTicks);
+        w.WriteBool(Free);
     }
 
     public static CraftJobNet Read(BitReader r)
@@ -2498,6 +2499,7 @@ partial struct CraftJobNet
         v.Count = r.ReadVarUInt();
         v.TicksLeft = r.ReadVarUInt();
         v.UnitTicks = r.ReadVarUInt();
+        v.Free = r.ReadBool();
         return v;
     }
 }
@@ -4342,6 +4344,8 @@ partial struct ServerState : INetMessage<ServerState>
     public readonly void Write(BitWriter w)
     {
         w.WriteBool(Admin);
+        w.WriteBool(FreeBuild);
+        w.WriteBits((uint)BuildGrade, 8);
         w.WriteVarUInt(MaxPlayers);
         int countPlayers = Players == null ? 0 : Math.Min(Players.Length, 256);
         w.WriteBits((uint)countPlayers, 9);
@@ -4355,6 +4359,8 @@ partial struct ServerState : INetMessage<ServerState>
     {
         var v = new ServerState();
         v.Admin = r.ReadBool();
+        v.FreeBuild = r.ReadBool();
+        v.BuildGrade = (byte)r.ReadBits(8);
         v.MaxPlayers = r.ReadVarUInt();
         int countPlayers = (int)r.ReadBits(9);
         if (countPlayers > 256)

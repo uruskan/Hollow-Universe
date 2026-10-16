@@ -33,8 +33,9 @@ public partial class GroundUi
     }
 
     private bool CanCraft(Recipe recipe, int amount) =>
-        Model.Death == null && Model.Workbench >= recipe.Workbench && (recipe.Station == null || Model.StationNear(recipe.Station)) &&
-        recipe.Ingredients.All(i => Model.Have(i.Key) >= i.Amount * amount);
+        Model.Death == null && amount is >= 1 and <= 999 && (Model.FreeCrafting ||
+        Model.Workbench >= recipe.Workbench && (recipe.Station == null || Model.StationNear(recipe.Station)) &&
+        recipe.Ingredients.All(i => Model.Have(i.Key) >= i.Amount * amount));
 
     private List<Recipe> VisibleRecipes()
     {
@@ -124,7 +125,12 @@ public partial class GroundUi
             SavePreferences();
         }, 11);
         StarShape(811, 153, 5, favourite ? G.Green : G.Ink);
-        if (recipe.Station != null)
+        if (Model.FreeCrafting)
+        {
+            Rect(991, 133, 345, 22, new Color(0.31f, 0.44f, 0.18f, 0.72f));
+            TextIn("FREE CRAFTING", 991, 133, 345, 16, G.Ink, HorizontalAlignment.Center, bold: true);
+        }
+        else if (recipe.Station != null)
         {
             // Made at a station (a ship at the vehicle workbench, G6): it rolls out onto the bench's bay.
             bool near = Model.StationNear(recipe.Station);
@@ -168,11 +174,12 @@ public partial class GroundUi
         {
             Ingredient ingredient = recipe.Ingredients[i];
             int have = Model.Have(ingredient.Key);
-            Color colour = have >= ingredient.Amount * _amount ? G.Ink : G.Short;
+            int cost = Model.FreeCrafting ? 0 : ingredient.Amount;
+            Color colour = have >= cost * _amount ? G.Ink : G.Short;
             float y = 584 + i * step + (step - 29) / 2;
-            TextIn(ingredient.Amount.ToString(CultureInfo.InvariantCulture), 799, y, 129, 19, colour, HorizontalAlignment.Right);
+            TextIn(cost.ToString(CultureInfo.InvariantCulture), 799, y, 129, 19, colour, HorizontalAlignment.Right);
             Text(Model.Item(ingredient.Key).Name, 937, y, 19, colour);
-            Text((ingredient.Amount * _amount).ToString(CultureInfo.InvariantCulture), 1222, y, 19, colour);
+            Text((cost * _amount).ToString(CultureInfo.InvariantCulture), 1222, y, 19, colour);
             Text(have.ToString(CultureInfo.InvariantCulture), 1357, y, 19, colour);
         }
 
@@ -187,6 +194,10 @@ public partial class GroundUi
 
     private int MaxCraft(Recipe recipe)
     {
+        if (Model.FreeCrafting)
+        {
+            return 999;
+        }
         int most = 999;
         foreach (Ingredient ingredient in recipe.Ingredients)
         {
