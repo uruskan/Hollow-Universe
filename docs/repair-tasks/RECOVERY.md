@@ -1,5 +1,31 @@
 # Recovery after the computer restart
 
+**17 October, 01:58 local — memory stop thresholds crossed; no owned job to stop:**
+the 01:43 sample was **0.938 GiB available / 88% commit**; 01:49 was 1.870 GiB / 86%,
+and 01:58 was **1.112 GiB / 87%**. A normal ground session (Godot PID 22472), its hosted
+server (22604, persistent AB Test B earth-v3 save), and eleven reusable MSBuild nodes had
+started after the previous quiet check. All eight repair leads were idle; root granted
+none of these processes. Their original launch parents are gone, so ownership cannot be
+established. Normal launcher arguments are consistent with Play.ps1, not proof of who
+launched it. No process was stopped and no build/test/import/render slot was granted.
+
+P8 reviewed the normal launch scripts, then received a separate source-only grant for
+their four build invocations. Only Play.ps1 and play-ground.cmd changed: each existing
+build now adds `--disable-build-servers -m:1 -nodeReuse:false -p:UseSharedCompilation=false`.
+This bounds future MSBuild concurrency and disables build-server reuse. It does not bound
+Godot/server memory or establish the cause of the present pressure. P8's PowerShell parse
+and byte-preservation review passed; root reviewed the four-line diff, whitespace and hashes.
+Neither launcher was executed; runtime behavior and memory/FPS impact remain unmeasured.
+P8 is idle again with no further edit or job grant; all execution remains held.
+
+The current freeze is `.artifacts/recovery/source-freeze-launchers-20261017.json`: **144
+inputs**, retaining all prior 142 hashes unchanged and adding the two prepared launchers.
+Copies are in `.artifacts/recovery/launcher-checkpoint-20261017/`; the **25 staged paths**
+remain byte-identical. Evidence is `.artifacts/recovery/heartbeat-20261017-0142.json`.
+P7's synthetic controls, roof generation and native acceptance remain queued. Existing
+workload floors and the **8 GiB Maximum startup floor** are unchanged. Keep the follow-up
+active; do not close user apps or unknown-owned jobs to make room.
+
 **17 October, 01:26 local — P7 tooling prepared and frozen:** the two exporters, new GLB
 staging/merge helper and synthetic-control source are ready for bounded validation. Root
 read their changes/controls and verified the reported hashes. No control, generator, build,

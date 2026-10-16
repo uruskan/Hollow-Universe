@@ -9,6 +9,15 @@ This is the current repair queue for AB Test B. It merges the original thirty fi
 reproduced defects. These are 59 source reports with overlapping subjects, not 59 independent bugs.
 The full feature roadmap in DESIGN.md remains separate.
 
+The 17 October 01:43–01:58 follow-up found **0.938–1.870 GiB free / 86–88% commit**
+with a normal game/server session and eleven reusable MSBuild nodes. No coordinated job
+owned these processes; their launch parents are gone, so they remain untouched. P8 prepared
+a four-command change in the two normal launchers to use one MSBuild worker and disable
+build-server reuse. Syntax/diff review passed; launcher execution and memory impact remain
+unverified. This is not evidence that the build nodes caused the pressure or that N12 is
+resolved. All execution slots remain held, Maximum still requires 8 GiB, and the new freeze
+contains 144 inputs with all prior 142 and the 25 staged paths preserved. See RECOVERY.
+
 Current coordinated validation: the fresh shared build passed with zero warnings/errors;
 combat passed 68/68, the repaired foundation batch 64/64, and the native gib-budget diagnostic
 44/44. Both-body held-editor checks passed 16 actions / 372 poses each. These are bounded
