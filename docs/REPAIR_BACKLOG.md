@@ -9,6 +9,19 @@ This is the current repair queue for AB Test B. It merges the original thirty fi
 reproduced defects. These are 59 source reports with overlapping subjects, not 59 independent bugs.
 The full feature roadmap in DESIGN.md remains separate.
 
+**Current world validation, 17 October:** the first completed Maximum/day route after the
+transport and allocation/lifetime repairs passed technically: six stops, 628.031 m, 18 ready
+1600x900 captures, normal timeouts and unchanged quality. Native exit 0 after 350.475 seconds;
+267 samples reached minimum 3.3355 GiB available / maximum 75% commit, with no guard stop.
+All 6,275 protected inputs and staged 25-path bytes are preserved. This is one in-process
+hosted route, not complete normal child-server startup or prolonged-play validation.
+The six stationary views average about 33–40 FPS; there is no matched old-versus-new gain.
+Terrain repetition, clipped-looking grass, foliage silhouettes, shoreline artifacts and
+the monument ground-patch border remain visible. P2 candidates are still staged and visual
+acceptance is false. Shutdown's 7 Texture RID / 2 ObjectDB warnings are routed to P8,
+separately from the roof viewer's warning. See RECOVERY and P2's report. No heavy job is active;
+future Maximum startup still requires 8 GiB. The dated checkpoints below retain prior evidence.
+
 **Current roof state, 17 October:** the ten reviewed building/debris packs are installed
 for all five grades, together with removal of the matching authoritative gable collision.
 Roof slabs, existing placement/support/Top poses, unrelated geometry, import/material settings,
@@ -68,14 +81,14 @@ combat passed 68/68, the repaired foundation batch 64/64, and the native gib-bud
 checks, not a completed full suite or visual acceptance. P2's Maximum/day world baseline
 failed during startup with Timeout/PeerNotFound and memory pressure before any ready capture.
 The resulting transport-liveness and foliage temporary-allocation repairs now build and pass
-15 focused checks plus 120 actual-kernel bitwise comparisons. Maximum world startup still
-needs a native rerun with sufficient memory; P2 visual candidates remain staged. Current evidence and job limits are in
+15 focused checks plus 120 actual-kernel bitwise comparisons. The 17 October r4 route above
+now supplies the native in-process follow-up; P2 visual candidates remain staged. Current evidence and job limits are in
 [RECOVERY.md](repair-tasks/RECOVERY.md).
 
 The heartbeat completed a narrow P2 terrain-array temporary-resource cleanup: all 48 layers
 passed native byte/metadata/shader comparisons after cleanup, and the shared solution build
-passed with zero warnings/errors. Full-world startup and measured peak-memory/FPS improvement
-remain unverified. Maximum world startup stays gated on 8 GiB available RAM; no visual
+passed with zero warnings/errors. The r4 world route now passes technically; measured
+old-versus-new peak-memory/FPS improvement remains unverified. Maximum startup stays gated on 8 GiB available RAM; no visual
 candidate or new LOD system is part of this step.
 
 N11's actual settings APPLY/restart checks now pass (49/49 and 36/36 in separate native

@@ -1,5 +1,69 @@
 # Recovery after the computer restart
 
+**17 October, 16:06 local — Maximum world route passed technically; graphics work remains open:**
+P2 completed its one `baseline-max-day-r4` native in-process run and released the heavy slot.
+The existing built transport, foliage-dilation and terrain-array lifetime repairs reached
+Playing and completed the 628.031 m connected route with normal timeouts and unchanged
+Maximum settings. All six stops produced their normal/root/elevated views: **18 ready
+1600x900 PNGs**. The route reports `technicalChecksPassed=true`, `failure=null` and
+`visualQualityAccepted=false`. No build, import, candidate installation or source change ran.
+
+Preflight was **8.976 GiB / 38% commit**. Native exit 0 after **350.475 s**; route-clock
+time 339.952 s. Across 267 samples, minimum available memory was **3.3355 GiB** and maximum
+commit **75%**, with no guard stop/error or process termination. These are sampled bounds.
+The 480-second outer limit, 8 GiB launch floor and 2 GiB/85% stops were unchanged. Eight
+guard fixture groups passed; actual client/dependency binaries and resources were pinned.
+Root independently rehashed all **6,275 protected inputs** and **24 evidence outputs** with
+zero drift, including the 158-input freeze, 19 DLLs, settings, imported cache, old r3 evidence
+and staged 25-path patch. No native heavy process remained after the run.
+
+Six stationary frame means are **24.93–30.20 ms** (about 33–40 FPS), with mean GPU time
+24.36–29.63 ms. This establishes a usable baseline, not an old-versus-new FPS or allocation
+gain. Root inspected all six normal views and woodland roots: texture bands, clipped-looking
+grass rows, sparse/jagged trees, patterned foam and a stepped water edge remain visible.
+The wellhead ground patch has a hard scalloped border. P2's visual candidates remain staged;
+day/night, broader biome, cliff coverage and quality acceptance remain open. The shared-position
+water-to-cliff leg has zero frames and is excluded from performance interpretation.
+
+Shutdown still reports **7 leaked Texture RIDs / 2 ObjectDB instances**. P8 completed its
+read-only review and is idle. The route already disposes captured Images; the other viewer's
+undisposed-Image suspect does not transfer here. This is distinct from the roof viewer's
+30 ObjectDB warning, and neither establishes a cause or FPS impact. Five clock corrections occurred,
+but there was no route timeout/lost connection. Normal child-server startup, prolonged play,
+full-suite validation and overall performance remain open. Keep the >=8 GiB world gate.
+All heavy slots are released; P7 candidate regeneration and P8 verbose capture remain queued.
+Next environment step is review of staged candidates against this baseline before a separately
+granted build/import/capture. No unchanged baseline retry or new LOD project is authorized.
+
+Evidence: `docs/images/repairs/p2-environment/baseline-max-day-r4/environment-route.json`,
+`.artifacts/p2-environment/baseline-max-day-r4/run/`, P2's report and root
+`.artifacts/recovery/world-route-r4-root-review-20261017.json`. The existing follow-up remains
+useful because implementation and validation work remain, not only user acceptance.
+
+**17 October, 15:40 local — Maximum world validation assigned to P2 after headroom recovery:**
+Eight compact statuses are unchanged. Root measured **9.192 GiB available / 37% commit**
+with no heavy process, and verified all 158 frozen inputs and the staged 25-path patch.
+Use this resource window for the long-deferred world startup/route after the already built
+transport, foliage-dilation and terrain-array lifetime repairs. P2 owns one separately
+guarded native attempt, with a fresh >=8 GiB / <=80% preflight. P7/P8 have no heavy slot.
+
+Retain r3's exact in-process hosted route parameters: 1600x900 Maximum, hour 10, clouds
+0.25, spawn origin at latitude -30.486486 / longitude 43.059333, port 27182, profile20,
+detail views. Use a new `baseline-max-day-r4` folder and isolated database. Normal transport/
+readiness limits and the original 480-second outer bound remain unchanged. Do not add
+load-trace (it quits early), change quality/LOD, install visual candidates or run another job.
+
+Prepare a fresh scratch copy of the validated coplanar-r2 guard for this exact Godot command,
+8 GiB start and 480-second bound, retaining durable primary/secondary evidence, owned PID/
+start identities, exact helper classification, runtime competing-job checks and 2 GiB/85%
+stops. Validate the adapted fixtures before launch. Keep the old route wrapper/evidence.
+Pin actual client/dependency DLLs and all source/settings/import inputs; r3 was in-process,
+so do not accidentally switch hosting mode or assume a Release child-server binary. Refuse
+occupied port/existing output or database/overrides. One attempt only, then review actual
+route status, captures, warnings and resource/setting preservation; exit0 alone is insufficient.
+This is a changed-code checkpoint after validated allocation/liveness repairs, not an unchanged
+retry of r3 or proof of an FPS improvement. Release on completion, refusal or first failure.
+
 **17 October, 15:29 local — roof clipping tool corrected and focused regression passed:**
 P7 changed one expression to select the projection axis from the rounded plane key, with
 one explanatory comment. The retained old tool reproduces missing backing on raw metal
