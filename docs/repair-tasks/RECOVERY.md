@@ -1,5 +1,41 @@
 # Recovery after the computer restart
 
+**17 October, 18:28 local — native grass preparation reviewed; external play session holds execution:**
+P2 prepared a scratch C# fixture and released ownership without a build, actual test,
+import or native run. It calls compiled production TuftMesh/LitterMesh, checks retained
+arrays and UV2, and proposes 14 Forward+ 1600x900 captures using unchanged grass shaders
+on explicit flat/sloped/folded patches. Wind/time/trample responses, exact repeat and
+retained-shader litter equality are planned. Root requested an immutable measured initial
+shader TIME baseline; that correction is present, with the previous revision retained.
+Both adapted guards passed eight lightweight fixture groups. Root reviewed the harness,
+commands and guard diffs and verified all 102 handoff artifacts, the P2 report, all 163
+source-freeze inputs and the original 25-path staged patch with zero drift.
+
+During preparation an external build changed shared outputs. P2's immutable 9,771-input
+snapshot comparison records 369 bin/obj changes and nine runtime DLL pin mismatches;
+it found no drift outside bin/obj at that sample. Root did not repeat that entire scan.
+The current client SHA is `47D6FD1BEEE55B85DE201474466F784B0BE4B496B96317B7A4703176D75F7BB2`.
+This is an observed external rebuild, not another coordinator-validated build. Preserve it
+and the old evidence. The prepared fixture deliberately still requires the previously
+reviewed `8C8B4529...635234` module/MVID and must not run with stale expectations.
+
+P2 observed unowned import PID 21212; root subsequently observed normal game PID 21924,
+started 18:23:11 local from this project's `game` directory, on port 27025. Its child
+server PID 9188 started 18:24:27 with the isolated AB Test B save. Neither is owned by
+the repair queue. At 18:27:38, available memory was **2.6923 GiB / 80% commit**.
+No coordinated heavy job was launched and no process was stopped. Hold all automated
+build/test/import/render jobs while this session runs; do not touch user processes/saves.
+
+Evidence: `.artifacts/p2-environment/grass-native-prep-r1/handoff.json` and
+`.artifacts/recovery/grass-native-preparation-root-review-20261017.json`.
+Once the external job ends and headroom recovers, reconcile actual source/output identity
+and create an explicit successor binding/manifests without erasing the originals. Then
+separately grant the prepared scratch build and native check, sequentially. No main-solution
+rebuild or implicit import retry is needed merely because documentation changed.
+These fixtures remain unbuilt/unrun; morphed world terrain, crease-crossing roots, artistic
+acceptance and GPU cost are still open. Maximum world startup still requires 8 GiB.
+Keep follow-up active; all coordinated slots are released and P2 is idle.
+
 **17 October, 18:01 local — grass build and seven focused checks passed:**
 After headroom recovered, P2 completed the fresh build and conditional tests sequentially
 and released its slot. The solution build exited 0 with zero warnings/errors in 38.184 s

@@ -9,10 +9,21 @@ This is the current repair queue for AB Test B. It merges the original thirty fi
 reproduced defects. These are 59 source reports with overlapping subjects, not 59 independent bugs.
 The full feature roadmap in DESIGN.md remains separate.
 
+**Execution hold, 17 October, 18:28 local:** an external normal AB Test B game and its
+child server are running on port 27025. Automated heavy jobs remain held while the user
+plays; no user process was stopped. A preceding external build replaced shared binaries,
+while all 163 frozen source inputs and 25 staged paths still match. The grass native
+fixture is prepared and root-reviewed, with both guards' eight fixture groups passing,
+but it has not been compiled or rendered. Its old DLL binding must be reconciled against
+the new outputs before a later grant. The latest resource sample is 2.6923 GiB available /
+80% commit. See RECOVERY and `grass-native-prep-r1/handoff.json`; this is no additional
+visual or performance pass. The 8 GiB Maximum startup gate and repair follow-up remain.
+
 **Shared checkout update, 17 October:** the independently user-started chat
 **Fix ship controls in TPS view** completed and is idle. Root reconciled its source changes,
-solution build, 33 focused tests and 27 native input/HUD assertions; current client DLL
-matches the retained fixture copy. That fixture omits world rendering/network/flight;
+solution build, 33 focused tests and 27 native input/HUD assertions; the client DLL at that
+validation matched the retained fixture copy. Later builds are recorded separately.
+That fixture omits world rendering/network/flight;
 its Low-preset hosted diagnostic stopped on memory before reaching the controls check.
 The 25-path staged patch is preserved. Ship input work is included in the explicit successor
 source checkpoint; it does not supersede Maximum visual validation or the recorded r4 result.
