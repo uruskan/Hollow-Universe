@@ -9,13 +9,13 @@ This is the current repair queue for AB Test B. It merges the original thirty fi
 reproduced defects. These are 59 source reports with overlapping subjects, not 59 independent bugs.
 The full feature roadmap in DESIGN.md remains separate.
 
-**Shared checkout update, 17 October, 17:19:** the independently user-started chat
-**Fix ship controls in TPS view** is editing ship input and has rebuilt shared binaries.
-`GroundView.cs` now differs from the retained 158-input source freeze; preserve that work
-and reconcile its eventual handoff before further coordinated launches. The 25-path staged
-patch remains unchanged. Its separate Low-preset control diagnostic hit its owned memory
-stop before reaching the check; that owner is handling it. This neither supersedes Maximum
-visual validation nor invalidates the recorded r4 result for its pinned prior inputs.
+**Shared checkout update, 17 October:** the independently user-started chat
+**Fix ship controls in TPS view** completed and is idle. Root reconciled its source changes,
+solution build, 33 focused tests and 27 native input/HUD assertions; current client DLL
+matches the retained fixture copy. That fixture omits world rendering/network/flight;
+its Low-preset hosted diagnostic stopped on memory before reaching the controls check.
+The 25-path staged patch is preserved. Ship input work is included in the explicit successor
+source checkpoint; it does not supersede Maximum visual validation or the recorded r4 result.
 
 **Current world validation, 17 October:** the first completed Maximum/day route after the
 transport and allocation/lifetime repairs passed technically: six stops, 628.031 m, 18 ready
@@ -25,18 +25,25 @@ All 6,275 protected inputs and staged 25-path bytes are preserved. This is one i
 hosted route, not complete normal child-server startup or prolonged-play validation.
 The six stationary views average about 33–40 FPS; there is no matched old-versus-new gain.
 Terrain repetition, clipped-looking grass, foliage silhouettes, shoreline artifacts and
-the monument ground-patch border remain visible. P2 candidates are still staged and visual
-acceptance is false. Shutdown's 7 Texture RID / 2 ObjectDB warnings are routed to P8,
+the monument ground-patch border remain visible. The two-file grass candidate below is now
+applied and compiled; native visual acceptance remains pending and other P2 candidates are uninstalled.
+Shutdown's 7 Texture RID / 2 ObjectDB warnings are routed to P8,
 separately from the roof viewer's warning. See RECOVERY and P2's report. No heavy job is active;
 future Maximum startup still requires 8 GiB. The dated checkpoints below retain prior evidence.
 
-**First environment batch prepared, 17 October:** P2 narrowed the retained candidates to
-an atomic two-file procedural-grass proposal: `GrassField.cs` supplies authored lean/curl
+**First environment batch built; visual checks pending, 17 October:** P2 integrated the exact
+reviewed two-file procedural-grass patch: `GrassField.cs` supplies authored lean/curl
 in UV2; its shader scales growth/bend with blade height, attaches upright roots to the
 sampled triangle plane, reduces burial and tapers the blade silhouette. Existing height
 multiplier, litter, density, cards, LOD and quality settings are preserved. Root source review,
-206 protected-input/five-output hashes and patch applicability passed. It is not applied,
-built or rendered. Exact root attachment and silhouette/wind/trample behavior need native
+206 protected-input/five-output hashes and patch applicability passed. A duplicate-path
+snapshot error was corrected without reapplying the patch. The first build was then refused
+before launch at 5.0365 GiB available, below its 5.5 GiB gate. After headroom recovered,
+a fresh sequential build passed with zero warnings/errors, followed by **7/7** focused
+Architecture/EnvironmentRoute checks. Root verified 9,760 protected inputs, including the
+896 built outputs; only expected output hashes changed. No native/import/render ran.
+The current 163-input `source-freeze-grass-built-20261017.json` records the compiled state.
+Exact root attachment and silhouette/wind/trample behavior need native
 checks, followed by a separately guarded Maximum comparison and GPU cost review. Identical
 route settings alone do not provide identical camera/character/time. Authored-cover, terrain
 and water changes remain deferred; the foliage candidate removing alpha-to-coverage is

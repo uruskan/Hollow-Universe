@@ -1,5 +1,125 @@
 # Recovery after the computer restart
 
+**17 October, 18:01 local — grass build and seven focused checks passed:**
+After headroom recovered, P2 completed the fresh build and conditional tests sequentially
+and released its slot. The solution build exited 0 with zero warnings/errors in 38.184 s
+(MSBuild 37.19 s); preflight 6.8183 GiB / 45%, 29 samples minimum 5.9982 GiB / maximum 48%.
+The no-build checks passed **7/7** (five Architecture, two EnvironmentRoute), exit 0 in
+2.950 s guarded / 1.6 s tests; preflight/minimum 6.4408 GiB, maximum commit 46%, four samples.
+Both stderr files are empty, with no guard stop/error or process termination. Unchanged
+guards reused their eight-group proofs with recorded provenance; no fixture rerun occurred.
+
+Root reviewed preparation, receipts and logs, then independently rehashed all **9,760**
+test inputs, which include all **8,854** build-protected inputs and all **896** output files,
+with zero unexpected drift. The build changed 265 output hashes and no output inventory;
+tests changed none. Receipt and finalization hashes match. Shared source/assets/import
+cache/preferences and staged 25-path bytes are preserved; old preparation/refusal evidence
+remains. No source reapply, import or renderer ran. The grass C# UV2 producer is now compiled.
+
+Current client SHA `8C8B4529DE908ACB29F515154564C68099BEAAB1E4C85020C377AF989D635234`,
+MVID `356e7687-a76d-49c3-8293-781d0f5db768`. The new
+`.artifacts/recovery/source-freeze-grass-built-20261017.json` retains the same 163 inputs
+and binds the compiled result, SHA `C6668F6495C883CACD83103D15F7133BB097342BA68256A5AD8B104929518E07`.
+Evidence: `grass-build-r2/handoff.json`, `grass-build-r2/run/receipt.json`,
+`grass-tests-r2/run/receipt.json` under `.artifacts/p2-environment/`, plus root
+`.artifacts/recovery/grass-build-root-review-20261017.json` and P2's report.
+
+This is compilation and focused architecture/heightfield-route evidence only. Actual
+shader compilation/rendering, production TuftMesh/UV2 inspection, root attachment,
+silhouettes, wind/trample/litter invariance and GPU cost still require a separately granted
+native check. Maximum/day comparison and exact-pose acceptance remain open; r4 is the old
+baseline. All coordinated slots are released and P2 is idle. Next grant may advance that
+bounded native grass check or roof visuals; no full world startup below 8 GiB, quality
+reduction, unchanged failed retry or new LOD project. Keep follow-up active.
+
+**17 October, 17:54 local — headroom recovered; one fresh first-build attempt granted:**
+The closing sample changed to **6.846 GiB / 45%**, 26 exact helpers and no competing
+process. All 163 current sources and staged 25-path bytes match. P2 may make one fresh
+`grass-build-r2` attempt and, only after success, the conditional `grass-tests-r2` no-build
+checks. Use fresh evidence and manifests based on the reconciled canonical identities;
+preserve r1's refusal and all original evidence. Guard source may be copied byte-identically
+with the existing matching eight-group fixture proof, recording that reuse rather than
+claiming new fixture execution. Refresh all actual inputs/output inventory before launch.
+No source reapply or guard-policy change. Retain >=5.5 GiB / <=80% each launch, owned-only
+2 GiB/85%/competition stops, 300-second process bounds and single-worker/no-server build.
+This new grant follows changed memory conditions, not an unchanged refusal retry. Release
+on completion or first failure/refusal; no further attempt is granted this heartbeat.
+
+**17 October, 17:50 local — grass integration preserved; first build refused for RAM:**
+P2 completed the scratch manifest correction, then released its slot after the unchanged
+5.5 GiB build preflight refused at **5.0365 GiB / 51% commit**, with no competing process.
+No dotnet, test, import or renderer launched. Compiler exit is null; wrapper exit 1 is a
+preflight refusal, not a failed compilation. Two preflight/final samples reached minimum
+5.0140 GiB / maximum 51%, with no secondary error or process termination. Do not retry
+under unchanged headroom or reapply the already integrated source patch.
+
+Root reviewed the corrected absolute-path/OrdinalIgnoreCase manifest logic, which rejects
+conflicting aliases before updating the two exact approved source expectations. The old
+failure, source snapshots and eight-group guard proofs are retained. Root independently
+rehashed **8,832 protected inputs**, **896 build-output files** and bound evidence with
+zero drift. The client remains the earlier ship-controls DLL (`0C502CB0...F75E61A`, MVID
+`f167402c-c435-487d-9f79-68d3eb569c1e`); it does not contain the new grass UV2 producer.
+Both source files match the reviewed patch, but compiler, shader, native and visual checks
+are still pending. The two files must be built/validated together before acceptance.
+
+The new `.artifacts/recovery/source-freeze-grass-pending-20261017.json` records 163 inputs,
+preserving 161 and explicitly updating the two grass files, without claiming a validated
+build. SHA `AEFB9A0DFAD2BA2537937915180F8790138BC188EA249D909E31C64099471AA5`.
+Evidence: P2's report, `grass-build-r1/handoff-r2.json`, its refused `run/receipt.json`,
+and `.artifacts/recovery/grass-build-refusal-root-review-20261017.json`. All coordinated
+slots are released. Next useful execution is a separately granted first build and
+conditional filtered tests with fresh manifests/output after >=5.5 GiB headroom recovers;
+preserve all failed/refused evidence. Maximum world startup remains >=8 GiB. Keep follow-up
+active; roof validation, grass/native quality checks and P8 attribution also remain queued.
+
+**17 October, 17:40 local — grass patch applied; snapshot alias error reviewed:**
+P2 applied the exact two-file candidate, then stopped before any build/test when its
+preservation map retained old hashes under backslash aliases of those same files. Root
+independently resolved all 12,623 entries to 8,821 Windows file identities and rehashed
+them: only the two approved source files changed, with exact candidate hashes; all other
+inputs match. All 896 build-output files still match the prior ship build. Eight fixture
+groups for each guard passed and remain valid; no actual check was launched. Preserve
+the failed preparation and evidence. See `.artifacts/recovery/grass-alias-root-review-20261017.json`.
+
+P2 is assigned a narrow scratch-only manifest correction: use absolute Windows paths with
+case-insensitive identity, reject conflicting aliases, and update only the two exact
+candidate expectations. Do not reapply the patch, change production, alter the validated
+guards or overwrite failure/before evidence. Create a new reconciliation record and the
+previously missing execution manifests, pinning the corrected snapshot and failure records.
+Then run the **first** guarded solution build and, on success only, the **first** no-build
+Architecture/EnvironmentRoute checks under the unchanged limits below. Recheck actual RAM
+and competing processes before each launch. The existing unchanged guards/fixture proofs
+can be reused; no unchanged failed runtime retry is involved. Release on completion or
+first new failure/refusal. No native/import/render slot is granted.
+
+**17 October, 17:28 local — ship handoff reconciled; grass integration assigned to P2:**
+The independent ship-controls chat is now idle. Root reviewed its production changes,
+solution build (0 warnings/errors), 33 focused tests and the 27-assertion native input/HUD
+fixture. Current client SHA `0C502CB0...F75E61A` matches the fixture's retained DLL copy.
+That fixture excludes world rendering, network and flight simulation; the memory-stopped
+hosted tour remains unvalidated. Existing staged bytes still match. The explicit successor
+`.artifacts/recovery/source-freeze-ship-tps-20261017.json` preserves 157 prior inputs,
+updates the reviewed `GroundView.cs`, and adds ship controls/keys/tour plus both proposed
+grass sources: **163 inputs**, hash `836873424C08A085C1749182F26C71B0447D93EAF4E8A732D3C49045F6964872`.
+Previous manifests and results remain retained. See `ship-tps-root-review-20261017.json`.
+
+Fresh inspection found 6.709 GiB / 46% commit, 34 exact approved helpers and no competing
+job. P2 alone owns integration of the exact reviewed `candidate-review-r1/grass-first.patch`
+(SHA `9A73C9617BA432E90F803F9CD32E222637E42DE4103FDB6AFF329B561BB078C6`), changing
+only `GrassField.cs` and `surface_grass.gdshader`. Recheck hashes/applicability; preserve
+both original candidates, source copies, shared index and all unrelated work. After
+integration it may run **one single-worker solution build**, then only if successful
+**one no-build Architecture + EnvironmentRoute filtered test process**, strictly sequential.
+Use fresh scratch receipts and the validated guard machinery; preserve normal test timeouts,
+300-second outer ceiling per process, fresh >=5.5 GiB / <=80% launch, owned-only 2 GiB/85%
+and competing-job stops. Keep exact helper identity/classification and durable error
+handling; validate adapted guard fixtures. Build outputs are expected writes and must be
+pinned before/after; source/assets/import settings/cache/preferences/index are protected
+except the two granted sources. Stop and report first failure/refusal without retry or
+broader edits. No native render/import, density/quality/LOD retuning or runtime acceptance
+is granted. Release after this pair of checks. All other coordinated owners remain idle;
+Maximum world startup still needs >=8 GiB and a separate grant.
+
 **17 October, 17:19 local — independent ship-controls work changed the shared checkout:**
 Closing inspection found a new user-started chat, **Fix ship controls in TPS view**
 (`01a14a36-763b-7632-9783-dac4f69cbac8`), working in this same project. Its source edits
