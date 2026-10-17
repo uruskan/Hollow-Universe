@@ -9,6 +9,15 @@ This is the current repair queue for AB Test B. It merges the original thirty fi
 reproduced defects. These are 59 source reports with overlapping subjects, not 59 independent bugs.
 The full feature roadmap in DESIGN.md remains separate.
 
+The actual twig roof-pack scratch merge now passes preservation checks, and matching roof
+fragments were generated (nine per shape). Nothing is installed. P7 flagged a 5.222/3.138 mm
+square-fragment extent difference from the original LOD2; transforms check out and full-
+height gables are absent, but intermediate geometry is needed to distinguish simplification
+from cap movement. P8 confirmed the existing 1000-triangle value is a soft pre-fracture
+target, not an exported cap; final triangle counts decreased versus the installed roofs,
+without establishing an FPS gain. All protected/frozen files remain unchanged. Both owners
+are idle; the next bounded diagnostic is queued below its 5.5 GiB memory floor. See RECOVERY.
+
 P7's roof merge helper now passes **41/41 synthetic controls** (02:22 local, exit 0,
 empty stderr, 0.321-second guarded run). Root reviewed the receipt and preserved-input
 hashes. This covers synthetic file preservation and rejection guards, not repaired roof
@@ -119,7 +128,7 @@ and its results must be inspected before another owner changes it.
 | N7 | Consistent professional first-person composition across tools | P4 | Open; preserve accepted axe animation and establish a reference composition |
 | N8 | Smaller usable holo and readable optimized ballistic flight, especially incendiary rounds | P4 + P5 | Holo quality reopened; projectile physics exists, visibility remains open |
 | N9 | Unattended zero-thrust attitude hold with assist ON; useful turret sightlines | P6 | Verify attitude: build and 46 state/network checks pass; native loaded-gun sequence and gunner sightline reproduction remain open |
-| N10 | Roofs without side panels, joining and stacking side by side | P7 | Merge helper passes 41 synthetic checks; first twig roof candidate generated without full-height gables; installed meshes/collision unchanged; fractures, remaining grades and native verification pending |
+| N10 | Roofs without side panels, joining and stacking side by side | P7 | Twig roof scratch pack merged and 18 fragments generated without full-height gables; small fragment-bound deviation under diagnosis; nothing installed; remaining grades and native verification pending |
 | N11 | Player-controlled minimum/maximum gib detail or budget | P8 | Verify; native renderer checks 44/44, actual UI APPLY 49/49 and restart 36/36 pass; in-world destruction/loot/sound acceptance remains |
 | N12 | Recover performance without sacrificing accepted visual quality | P8 + each owner | Open; establish controlled CPU/GPU baselines and measurable causes |
 

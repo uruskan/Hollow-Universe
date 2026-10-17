@@ -1,5 +1,66 @@
 # Recovery after the computer restart
 
+**17 October, 11:47 local — twig fragments generated; diagnostic finding remains open:**
+the one fracture run exited 0 in **8.338 seconds**, empty stderr, minimum sampled **6.219
+GiB free / maximum 41% commit**, no guard stop. It exported two groups of nine fragments
+(6,264 actual triangles), with all 144 frozen inputs and 63 protected production files
+unchanged. Candidate `.artifacts/p7-roofs/twig-gibs-r1/roof-gibs-twig.glb` is 417,308 bytes,
+hash `E356F506B3F873F85E07A2B6207565898AED5E41F84162433BCB005D2918E530`.
+The slot is released; nothing is installed and no execution/source-edit grant remains.
+
+P7's transform-aware inspection found square-fragment bounds extending **5.222 mm in Y
+and 3.138 mm in Z** beyond the original LOD2 mesh, exceeding its 2 mm diagnostic threshold.
+That threshold is not an approved art/gameplay specification. Read-only diagnosis confirms
+the coordinate conversion and transforms, and the fragments fit within LOD0/LOD1 AABBs.
+All full-height gable geometry is excluded by the thin slope-band bounds. The small LOD2
+deviation is not localized: simplification and cap dressing can move vertices, and the
+limited intermediate mesh was not recorded. Do not loosen the threshold or rewrite the
+decimator merely to pass. The smallest next diagnostic measures square-roof bounds before/
+after gathering and simplification, stopping before fracture; it needs a separate grant.
+
+P8's separate read-only review confirms the **1000** value is a soft pre-fracture target
+with an existing 50% reduction floor, not a final exported cap. Candidate triangle totals
+decrease versus installed roofs: square 3,862 -> 3,682; triangle 2,843 -> 2,582, retaining
+nine fragments each. Square vertex entries rise 6,656 -> 6,728, so no performance gain is
+claimed. The receipt's 2,588 triangle value is intermediate; final GLB has 2,582. Preserve
+budgets/quality and report both counts; no regeneration solely to force 1000 is justified.
+
+Both owners are idle again; the candidate stays unaccepted pending diagnosis and normal
+visual/fracture checks. At 11:46 memory was **5.391 GiB / 45% commit**, below the 5.5 GiB
+start floor for the next job. Receipt: `.artifacts/recovery/heartbeat-20261017-1134.json`;
+P7/P8 reports retain the detailed evidence. The user's apps remain untouched and Maximum
+world startup still requires 8 GiB. Keep the follow-up active; the queue is unfinished.
+
+**17 October, 11:39 local — twig merge reviewed; separate fracture calibration granted:**
+the actual scratch merge passed in **3.584 seconds**, exit 0, empty stderr, minimum sampled
+6.638 GiB / maximum 39% commit. All 112 unrelated nodes, original BIN/mesh/accessor/view/
+material records and 63 protected files are preserved. The scratch candidate is 16,411,848
+bytes (+10.758% from retained unused old roof data), hash
+`0CAE9522B4CF9F55CEF07FF6CDCDA997F8F3E3AE21A13E3D47A2FE46F947B1E7`.
+No optimization or installed-repair claim follows. Root reviewed receipts and P7's findings;
+the merge slot is closed and all 144 frozen inputs remain unchanged.
+
+Fresh resources are **6.734 GiB / 39% commit**, no heavy job. P7 now owns one separate twig
+roof-fragment calibration using `art/gibs/build.py -- --roof-only --grade twig` and the
+reviewed staged merged pack/receipt, writing only fresh `.artifacts/p7-roofs/twig-gibs-r1/`.
+Retain nine requested fragments, twig's 1000-triangle budget and existing seeds/materials.
+Require fresh >=5.5 GiB / <=80% commit / no competing job, a 600-second ceiling, owned-job
+2 GiB/85% stop guard and stop only this job if the user's game/build starts. Inspect actual
+fragment counts/budgets/transforms and protected hashes afterward. No gib merge, install,
+other grade, import, runtime check, source change or retry is granted. Release after one job.
+
+**17 October, 11:34 local — one actual twig scratch merge granted:** all eight leads have
+no new results, all 144 frozen inputs and 25 staged paths match, and memory is **7.715 GiB
+free / 35% commit** with no heavy process. P7 owns the sole slot for `repair_roof_assets.py
+merge --kind building --grade twig`, using the reviewed twig-source-r1 candidate and writing
+only fresh `.artifacts/p7-roofs/twig-merge-r1/building_twig.glb` plus receipts. Fresh preflight
+requires >=5.5 GiB / <=80% commit and no competing job; this first actual-pack merge has a
+120-second ceiling and existing owned-job 2 GiB/85% stop guard. Stop only the owned check
+if the user's game/build starts. Verify receipt chain and unrelated content/protected-file
+preservation read-only afterward. No fracture, generation, import, installation, source
+change or retry is granted. Existing unused roof buffers remain; no size/performance gain
+is claimed. Release the slot after this one run and report its actual outcome.
+
 **17 October, 11:29 local — twig roof-source calibration complete; no slot outstanding:**
 the one guarded Blender run exited 0 in **9.469 seconds**, with minimum sampled **6.933
 GiB free / maximum 37% commit**, no guard stop, unchanged input hashes and unchanged
