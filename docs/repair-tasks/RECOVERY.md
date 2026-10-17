@@ -1,5 +1,57 @@
 # Recovery after the computer restart
 
+**17 October, 14:55 local — first native roof image reviewed; inherited slit defect identified:**
+The separately granted `native-r2` capture completed once with Vulkan Forward+, Maximum
+requested quality, metal square LOD0, 1600x900, ready=True at 2.01 s and native exit 0.
+Guarded duration was 7.932 s; eight samples show minimum 5.045 GiB / maximum 53% commit,
+after a 6.312 GiB / 47% launch preflight. No guard error/stop occurred. Root viewed the
+actual PNG: the front gable is open and both roof slopes render. The camera also exposes
+an apex notch and bright slope slits. This is scoped image evidence, not N10 completion.
+
+Root verified the one-line output-path guard change, seven fixture groups, logs, receipt,
+image hash and all 2,034 protected hashes. The 156 freeze inputs, 19 actual DLLs, 20 cache
+files, user configurations, prior refusal and staged 25-path patch remain unchanged.
+Image: `.artifacts/p7-roofs/native-r2/metal-square-gable-lod0.png`; SHA-256
+`468AA171A4A6B71530C0648BE8FED043F2399DEBFD6722BD3D20A87E926AB37D`.
+Quality is evidenced by arguments and pinned code/binaries; no independent numeric
+runtime quality telemetry was emitted. No build/import or production edit occurred.
+
+Two existing owners completed light follow-up diagnoses. P7 traced a representative slit
+to the inherited coplanar repair: rounded-identical plane groups contain polygons projected
+onto different axes, causing false subtraction. Raw metal roof triangles 11378 and 4177
+demonstrate this; the backing is missing in both old and current repaired packs. The apex
+deck coordinates are unchanged. Next: a narrow deterministic per-group projection fix with
+the actual failing pair/coverage and overlap-preservation checks, before any regeneration.
+Do not add ridge geometry, sockets or collision changes to conceal this defect. See P7's report.
+
+The runtime also reported 30 leaked ObjectDB instances at exit. P8 found the same count in
+an older disconnect run, which does not establish identical objects or roof causality.
+Static GibDirector callback retention and the captured Image lifetime are candidates only.
+Next diagnostic, separately granted: same capture with engine --verbose for object identities;
+no unchanged retry or speculative resource-disposal fix. P8's report records source/evidence.
+
+Both owners are idle, all slots released, other six chats unchanged. At 14:55, 6.713 GiB /
+45% commit and no heavy process. General native floor remains 5.5 GiB; full Maximum world
+startup remains 8 GiB. No user apps were closed. Other grades/shapes/LODs, hidden joins,
+normal hosted placement/walking/shot/fracture acceptance and overall FPS remain open.
+Keep follow-up active. Root evidence: `.artifacts/recovery/heartbeat-20261017-1427.json`.
+
+**17 October, 14:35 local — renewed slot for the still-unexecuted roof capture:**
+All eight compact worker statuses are unchanged. Available RAM has recovered to
+**6.521 GiB / 45% commit**, with no heavy process. All 156 frozen inputs and the
+25-path staged patch match. P7 owns one fresh guarded attempt of the already reviewed
+metal-square LOD0 build-sandbox scenario, using separate `native-r2` evidence. Preserve
+the `native-r1` preflight refusal and its files. Copy the reviewed r5 guard with only
+fresh output-path changes, rebind its fixtures/hash, and refresh the current index/input
+snapshot (the root documentation checkpoint changed the index since r1). Verify prior
+production/dependency/cache/configuration hashes before launch; no source/art edits.
+
+The same fresh >=5.5 GiB / <=80% preflight, owned-only 2 GiB/85% stops, competing-user-job
+priority, Maximum quality and normal 2+90 s readiness / 120 s external limit apply.
+One native capture only; no build/import or automatic retry. Inspect actual readiness,
+image, camera/resolution, logs and preservation evidence, then release. Full Maximum
+world startup still requires 8 GiB. The other seven chats have no heavy-job grant.
+
 **17 October, 14:22 local — native roof capture held before launch; no image:**
 P7 prepared the bounded metal-square LOD0 capture, pinned 19 actual client/dependency DLLs,
 20 imported cache files, user configuration and source/index inputs, and passed all seven

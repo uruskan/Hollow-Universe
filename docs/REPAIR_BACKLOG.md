@@ -21,10 +21,17 @@ both later test runs completed with exit 0 and no guard errors/stops. This is fo
 validation, not a completed full suite. A subsequent incremental Godot import passed for
 all ten packs in 11.902 seconds without warnings/errors; source and destination cache
 checksums match. All 1,723 import settings, 156 frozen inputs and 25 staged paths are
-preserved. The first native metal-roof capture was prepared but refused before launch at
-5.493 GiB free, below its 5.5 GiB floor; no image or visual result exists. P7 is idle with
-no execution/edit slot. Actual visual/placement/walk/shot/fracture acceptance remains open.
-See RECOVERY for the prepared scenario, resource limits and retained refusal evidence.
+preserved. After the first attempt was refused before launch at 5.493 GiB free, a fresh
+separately guarded attempt produced a reviewed 1600x900 Maximum/LOD0 metal-roof image:
+ready=True, exit 0, 7.932 seconds. The visible gable is open. A representative bright slit
+was traced to an inherited coplanar-repair projection bug, present in old and current
+repaired geometry; a narrow correction and regenerated validation are still needed. The
+apex profile uses unchanged deck coordinates. Godot also reports 30 leaked ObjectDB
+instances at exit, an older warning class now routed to P8 for attribution. No clean-log
+or complete visual/gameplay acceptance is claimed. All 2,034 capture inputs are unchanged.
+P7/P8 are idle with no execution/edit slot. See RECOVERY and their reports for the image,
+concrete follow-ups, resource limits and retained refusal. Other grades/shapes/LODs and
+normal placement/walk/shot/fracture acceptance remain open.
 
 The packs passed structural/provenance/preservation inspection before installation, retaining
 nine fragments per shape and all unrelated content. The earlier 5.222/3.138 mm extent changes
