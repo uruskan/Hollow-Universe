@@ -1,5 +1,56 @@
 # Recovery after the computer restart
 
+**17 October — metal roof candidate restores the diagnosed backing; not installed:**
+P7 completed the one granted scratch repair/inspection and released its slot. The corrected
+tool ran once on the preserved metal roof subset (six render meshes and two hulls): exit 0,
+5.461 s guarded / 1.247 s repair, empty stderr, no guard error/stop. Eight adapted fixture
+groups passed. Preflight was 8.989 GiB / 38% commit; six samples reached minimum 8.737 GiB /
+maximum 39%. No user/helper process was stopped. No Blender, build, import or render ran.
+
+The known raw 11378 backing point is absent in old repaired geometry and present in the
+candidate. All **4,608 deterministic surface probes** are covered; the old subset misses
+three, all now covered. Metadata/materials/transforms and both hulls match exactly, indices
+and attributes are valid/finite, and live bounds have zero observed change. Root reviewed
+the runner, guard diff, fixtures, logs and full inspection, then independently rehashed all
+**6,295 protected inputs** with zero drift. All 158 frozen inputs and staged 25 paths remain
+unchanged. Candidate SHA-256: `2BD9275628251C9A8C27195B8E2DAC91A7090639B9844876CEC71F39BF33E8F0`.
+
+This is sampled geometry evidence, not a visual or exhaustive surface-union pass. **93**
+samples have multiple same-facing interiors within 10-micrometre tolerance (old 111/raw180);
+square LOD0 has 12 versus old11. Three near-zero-area triangles remain, with the same per-node
+counts as old geometry, which does not prove identical faces. No automatic pruning followed.
+Next P7 step is narrow provenance/plane/intersection review of the recorded residual pairs
+and degenerate faces before deciding whether another correction is needed or the candidate
+can proceed to merge/fracture/native validation. Do not broaden this into a general mesh
+or LOD project, repeat the successful repair, or install the candidate under the old grant.
+
+Evidence: `.artifacts/p7-roofs/metal-clip-r1/`, P7's report and root
+`.artifacts/recovery/metal-candidate-root-review-20261017.json`. Installed assets still contain
+the slit. All heavy slots are released; P2 candidate review and P8 verbose attribution remain
+queued. Full-world Maximum startup retains the 8 GiB gate. The follow-up remains active.
+
+**17 October, 16:24 local — one scratch metal-roof repair/inspection assigned to P7:**
+All eight compact worker statuses are unchanged. Initial headroom was 8.74 GiB / 39%
+commit, with only known Python service helpers and no native heavy job. The 158-input
+freeze and 25-path staged patch match. P7 owns the only heavy slot for one Python process
+repairing the preserved six-mesh raw metal roof subset with the already validated tool,
+then inspecting that scratch candidate. No production asset replacement or source edit.
+
+Use a fresh scratch folder and a narrow copy of the validated coplanar-r2 guard, retaining
+exact helper classification, durable errors/receipts, PID/start ownership, runtime competition
+checks, >=5.5 GiB / <=80% launch and 2 GiB/85% stops. Bound the one repair/inspection process
+to 120 seconds and validate adapted guard fixtures before launch. Pin the raw input, tool,
+158 frozen inputs, installed packs, import settings, DLLs, preferences and staged index.
+Keep all prior evidence. Do not invoke the repair tool's all-building-pack CLI entry point.
+
+Inspect both shapes/all three existing LODs, hull/metadata/material/attribute preservation,
+finite geometry/index validity, bounds, actual missing-backing coverage and any remaining
+overlap/coverage limits. Compare against raw and preserved old repaired geometry without
+regenerating the old result. Preserve all outputs on refusal/failure; no retry, Blender,
+fracture, build/import/render, quality/LOD/socket change or source-library write is granted.
+Release after this one candidate and report concrete findings. P2/P8 remain ungranted;
+full Maximum world startup still requires 8 GiB and no new baseline repeat is scheduled.
+
 **17 October, 16:06 local — Maximum world route passed technically; graphics work remains open:**
 P2 completed its one `baseline-max-day-r4` native in-process run and released the heavy slot.
 The existing built transport, foliage-dilation and terrain-array lifetime repairs reached
