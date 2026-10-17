@@ -1,5 +1,54 @@
 # Recovery after the computer restart
 
+**17 October, 12:36 local — all five roof/debris grades staged; slot released:**
+P7 finished **16/16** sequential stages for wood, stone, metal and armoured, with all
+processes exiting 0 and all structural/provenance/preservation inspections passing.
+The batch took **248.049 seconds** including inspections (87.733 seconds of guarded
+process time). Across 91 samples, minimum available memory was **5.868 GiB**, maximum
+commit **46%**; no retry, overlap, timeout or guard stop occurred. The only stderr was
+the existing material-API deprecation in each source exporter. Root reviewed every stage
+receipt/inspection, output hashes, geometry findings and logs. Together with twig, all
+five grades now have scratch building/debris pairs: six render meshes, two slab hulls
+and eighteen roof fragments per grade, with full-height panels absent.
+
+All 144 frozen inputs, 63 protected production files and 25 staged paths are unchanged.
+No installed assets, collision/gameplay code, original project or source library changed.
+P7 is idle; no edit/execution grant remains. Preserved obsolete data increases these
+building pack sizes by 8.136–16.955% and gib packs by 4.769–8.782%; no performance claim.
+The next bounded step is matching minimal authoritative collision plus integration/native
+validation of the ten candidate packs. Root's read-only source review found the existing
+`PieceShapes.For` roof branch still adds `Gables`; remove those panels while retaining
+`Roof`, placement/support/catalogue behavior and Top poses. Do not restore the parked
+socket/save/network expansion. Build, focused collision/placement checks, imports and
+actual screenshots/gameplay are still required before claiming N10 complete.
+
+At 12:35, **7.074 GiB / 42% commit**, no heavy process; Maximum startup remains at 8 GiB.
+Actual per-stage evidence is summarized in
+`.artifacts/p7-roofs/guard-armoured-gibs-merge-r1/batch-summary.json` and P7's report;
+root receipt: `.artifacts/recovery/heartbeat-20261017-1224.json`. Keep follow-up active.
+
+**17 October, 12:27 local — remaining four roof grades: one bounded serial staging slot:**
+all eight owners are unchanged; all 144 frozen inputs and 25 staged paths match. Fresh
+resources are **6.055 GiB / 45% commit**, no heavy job. The twig source/merge/fracture/merge
+path has now been calibrated and inspected. P7 owns the sole heavy slot to repeat that
+unchanged path for **wood, stone, metal, armoured**, in that order, in fresh per-grade
+scratch directories. Maximum 16 stages: source generation, building merge, fragment
+generation, gib merge for each grade. No two jobs overlap; the next stage requires a fresh
+>=5.5 GiB / <=80% preflight, no competing process and passing prior-stage artifact/input
+inspection. Preserve existing grade recipes, seeds, materials, detail levels and budgets.
+Each Blender stage retains 600 seconds, each merge 120 seconds; total slot at most
+30 minutes. A preflight failure, process/structural/provenance failure, resource stop or
+timeout ends the batch immediately, preserving partial evidence without retry.
+
+Use the existing hidden owned-process guard, stop only its job below 2 GiB / above 85%
+commit or if the user's game/build starts. Source changes, installation, import/render,
+collision edits and further diagnostics are outside this grant. Preserve production,
+original project, 144 frozen inputs and 63 protected files. Record all stage receipts and
+per-grade inspection findings; release on completion or first stop. Small pre-limit bounds
+differences are recorded honestly, not automatically treated as a new gameplay requirement;
+unexpected gables, unrelated edits, bad transforms or invalid geometry still fail the stage.
+Maximum world startup remains 8 GiB. This grant does not close visual/gameplay acceptance.
+
 **17 October, 12:21 local — twig scratch roof/debris pair complete; both slots released:**
 the separate gib merge passed in **1.227 seconds**, exit 0, empty stderr, minimum sampled
 **6.577 GiB / maximum 43% commit**, no guard stop. All 18 replacement roof fragments keep
