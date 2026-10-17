@@ -9,6 +9,14 @@ This is the current repair queue for AB Test B. It merges the original thirty fi
 reproduced defects. These are 59 source reports with overlapping subjects, not 59 independent bugs.
 The full feature roadmap in DESIGN.md remains separate.
 
+**Shared checkout update, 17 October, 17:19:** the independently user-started chat
+**Fix ship controls in TPS view** is editing ship input and has rebuilt shared binaries.
+`GroundView.cs` now differs from the retained 158-input source freeze; preserve that work
+and reconcile its eventual handoff before further coordinated launches. The 25-path staged
+patch remains unchanged. Its separate Low-preset control diagnostic hit its owned memory
+stop before reaching the check; that owner is handling it. This neither supersedes Maximum
+visual validation nor invalidates the recorded r4 result for its pinned prior inputs.
+
 **Current world validation, 17 October:** the first completed Maximum/day route after the
 transport and allocation/lifetime repairs passed technically: six stops, 628.031 m, 18 ready
 1600x900 captures, normal timeouts and unchanged quality. Native exit 0 after 350.475 seconds;
@@ -21,6 +29,18 @@ the monument ground-patch border remain visible. P2 candidates are still staged 
 acceptance is false. Shutdown's 7 Texture RID / 2 ObjectDB warnings are routed to P8,
 separately from the roof viewer's warning. See RECOVERY and P2's report. No heavy job is active;
 future Maximum startup still requires 8 GiB. The dated checkpoints below retain prior evidence.
+
+**First environment batch prepared, 17 October:** P2 narrowed the retained candidates to
+an atomic two-file procedural-grass proposal: `GrassField.cs` supplies authored lean/curl
+in UV2; its shader scales growth/bend with blade height, attaches upright roots to the
+sampled triangle plane, reduces burial and tapers the blade silhouette. Existing height
+multiplier, litter, density, cards, LOD and quality settings are preserved. Root source review,
+206 protected-input/five-output hashes and patch applicability passed. It is not applied,
+built or rendered. Exact root attachment and silhouette/wind/trample behavior need native
+checks, followed by a separately guarded Maximum comparison and GPU cost review. Identical
+route settings alone do not provide identical camera/character/time. Authored-cover, terrain
+and water changes remain deferred; the foliage candidate removing alpha-to-coverage is
+excluded. See P2's report and `.artifacts/p2-environment/candidate-review-r1/`.
 
 **Current roof state, 17 October:** the ten reviewed building/debris packs are installed
 for all five grades, together with removal of the matching authoritative gable collision.
@@ -42,9 +62,14 @@ repaired geometry. The one-expression tool correction now passes five focused re
 groups (36 tiny repairs), including the actual raw triangle pair and old-behavior negative
 control. A scratch metal subset has now been repaired once: the known backing is restored
 and all 4,608 surface samples are covered, with unchanged bounds, metadata and two hulls.
-Root verified all 6,295 protected inputs. The candidate remains uninstalled: 93 sampled
-multiple-interior locations and three near-zero-area triangles require focused review;
-sampling does not prove exhaustive coverage. Other-grade repair, merge/fracture and native
+Root verified all 6,295 protected inputs. A subsequent bounded read-only diagnosis classified
+the 93 locations as 92 near-coincident pairs: none exactly coplanar, all with positive
+projected intersections and local raw-surface equivalents. The two extra square-LOD0
+samples restore raw backing removed by the old repair. All three small triangles are
+exactly zero-area with identical old geometry and full attributes. Root independently
+verified 6,347 protected entries. No further geometry correction is justified by those
+residuals before controlled engine review. The candidate remains uninstalled; sampling
+does not prove exhaustive coverage or absence of z-fighting. Other-grade repair, merge/fracture and native
 validation remain needed. The checkpoint preserves 156 prior inputs and adds the tool
 and regression for 158 total. The
 apex profile uses unchanged deck coordinates. Godot also reports 30 leaked ObjectDB

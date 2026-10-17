@@ -1,5 +1,81 @@
 # Recovery after the computer restart
 
+**17 October, 17:19 local — independent ship-controls work changed the shared checkout:**
+Closing inspection found a new user-started chat, **Fix ship controls in TPS view**
+(`01a14a36-763b-7632-9783-dac4f69cbac8`), working in this same project. Its source edits
+include `GroundView.cs`, now the sole mismatch against the 158-input source freeze, and it
+rebuilt shared binaries. Preserve these changes; do not restore the old freeze or claim
+the earlier source/binary manifest still describes the current checkout. The P2/P7 review
+hashes above/below describe their recorded verification times before this later change.
+
+A separate dotnet build was observed at 17:16 and was gone by 17:17. The new chat then
+reported its Low-preset hosted control diagnostic stopped by its own memory guard at
+1,928 MiB available, before the control check. It is handling that failure. This is not
+Maximum quality evidence or a failure of the completed r4 route. Root launched no competing
+job and stopped no process. At 17:18:49, 7.252 GiB was available / 44% commit, 32 exact
+approved helpers and no heavy process remained. Withhold further coordinated launches
+while this independent work is active, then reconcile its source/binary evidence before
+granting the next slot. The original 25-path staged patch still matches exactly.
+
+**17 October, 17:14 local — roof residuals classified; first grass batch prepared:**
+P7 and P2 completed their bounded assignments and returned idle. Both grants below are
+consumed; all coordinated heavy slots are released. These assignments changed no production
+source/assets, import settings, binaries, preferences or staged work. No new slot is granted.
+
+P7's one read-only diagnosis exited 0 after 5.444 s under the 60-second guard, with empty
+stderr and no guard error/stop. Eight adapted fixture groups passed. Preflight was
+9.034 GiB / 39% commit; six samples reached minimum 8.804 GiB / maximum 40%.
+Root independently rehashed all 6,347 protected entries with zero drift and reviewed the
+exact-plane/projection calculations and provenance limits. The 93 recorded locations
+represent 92 near-coincident triangle pairs: all have positive projected intersections,
+but none are exactly parallel/coplanar in stored coordinates. All 92 have local raw-surface
+equivalents (80 exact raw face pairs); 90 have local old-surface equivalents. The two
+additional square-LOD0 samples are restored raw backing faces missing from the faulty old
+repair. The three small triangles are exactly zero-area and match old geometry and full
+vertex attributes. No repair or pruning ran. These findings justify no additional geometry
+correction before separately granted engine visual review; they do not prove absence of
+z-fighting or exhaustive surface coverage. The candidate hash remains `2BD92756...E8F0`.
+Installed metal still contains the slit; merge/fracture, other grades and N10 remain open.
+
+P2 prepared an atomic two-file proposal for `GrassField.cs` and `surface_grass.gdshader`:
+UV2 separates authored lean/curl from root spread, so growth and bend scale with live blade
+height; upright roots follow the sampled triangle plane, burial becomes 5 mm, and the
+analytic silhouette tapers to its own top. Existing height multiplier, litter placement,
+density, cards, radii, LOD and shading settings stay unchanged. Root reviewed the patch,
+verified all 206 protected inputs and five outputs, and ran `git apply --check` successfully.
+The patch is **not applied, built or rendered**. Native root/silhouette/wind/trample checks
+and GPU measurements are required; exposed pixels and extra vertex work can cost more.
+Authored-cover, terrain and water proposals remain deferred; removing foliage
+alpha-to-coverage is excluded. Repeating the route does not guarantee identical camera,
+character or shader time, so exact paired-image acceptance remains separately qualified.
+
+Evidence: `.artifacts/p7-roofs/metal-residual-r1/`,
+`.artifacts/recovery/metal-residual-root-review-20261017.json`,
+`.artifacts/p2-environment/candidate-review-r1/` and
+`.artifacts/recovery/grass-candidate-root-review-20261017.json`, plus both owner reports.
+Next steps require explicit coordinator grants for the reviewed grass integration/checks
+or controlled roof visual validation. P8 attribution remains queued. Keep the 8 GiB
+Maximum world launch gate and this follow-up: implementation and technical validation remain.
+
+**17 October, 16:48 local — focused roof diagnosis and read-only environment review:**
+Eight compact statuses are unchanged; 8.779 GiB available / 39% commit, 24 exact known
+Python helpers and no competing job. The 158-input freeze, staged 25 paths and metal
+candidate hash match. P7 owns one bounded read-only geometry diagnosis, using preserved
+raw/old/candidate subsets to classify the 93 multiple-interior samples and three near-zero
+faces. No repair function, regeneration, installation or source mutation is granted.
+Use a fresh scratch guard/runner, 60-second ceiling, >=5.5 GiB / <=80% launch and owned-only
+2 GiB/85% stops, exact helper classifier, runtime competition/identity checks and durable
+receipts. Validate adapted fixtures, pin all inputs and release on completion or first failure.
+Classify actual plane separation/intersection and old/raw provenance; distinguish tolerance
+matches from proven surface overlap, without automatic pruning or broader mesh work.
+
+P2 separately owns read-only review of its retained terrain/grass/water candidates against
+r4 images/timings and the current frozen sources. It may write only its report and fresh
+scratch proposal/diff, preserving original staged candidates. Identify one coherent first
+integration batch, dependencies and bounded checks; do not install, edit production,
+build/test/import/render, change quality or start LOD work. P2 has no heavy slot. P8 stays
+queued. Root reviews both results; all other owners and the original project stay unchanged.
+
 **17 October — metal roof candidate restores the diagnosed backing; not installed:**
 P7 completed the one granted scratch repair/inspection and released its slot. The corrected
 tool ran once on the preserved metal roof subset (six render meshes and two hulls): exit 0,
