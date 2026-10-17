@@ -1,5 +1,73 @@
 # Recovery after the computer restart
 
+**17 October, 15:29 local — roof clipping tool corrected and focused regression passed:**
+P7 changed one expression to select the projection axis from the rounded plane key, with
+one explanatory comment. The retained old tool reproduces missing backing on raw metal
+triangles 4177/11378; the corrected tool preserves that surface. All **five regression
+groups** passed in **36 tiny repair calls**, each at most three triangles / 2,120 bytes.
+Checks cover the actual defect, twelve order/winding variants, twenty true-overlap/axis/tie
+variants, attributes/material/node metadata, opposite faces and byte determinism.
+One guarded Python run exited 0 in **1.445 s**, empty stderr, no guard errors/stops. Three
+samples: minimum **7.662 GiB / maximum 43% commit**, preflight 7.672 GiB / 43%.
+
+Root reviewed source/test logic, the corrected exact-service classifier, eight guard fixture
+groups, logs/results/receipt and independently rehashed all **2,137** protected inputs with
+zero drift. The earlier r1 false-positive preflight refusal remains intact; helpers were
+never stopped. The same full-command classifier now runs at preflight and runtime, with
+unknown Python/native heavy jobs still blocking. All prior assets/settings/DLLs/index remain
+unchanged. No Blender, Godot, build/import/render or full-pack repair ran this turn.
+
+New immutable checkpoint: `.artifacts/recovery/source-freeze-roof-clip-20261017.json`,
+**158 inputs**, SHA-256 `3851D4378CA544C0FC4AB2BC90DF69134EDFF11603DF2AC435AE74368D3BE56C`.
+It preserves all prior 156 and adds the corrected tool plus `tools/check_coplanar_repair.py`.
+Old checkpoints remain unchanged. Tool SHA `BD15CEE2778C8A15E7F56A28EB6392056F74B938342E1C15B4101F157CA09F89`;
+regression SHA `8F3489074C061FBC36B527D64AE2C83A8FE00E3C9E74521DB077419788F419D3`.
+
+Installed roof packs still contain the diagnosed slit. Next is one separately guarded
+scratch repair of preserved `metal-source-r1/roof-source-metal.raw.glb`, then full candidate
+geometry/coverage comparison before installation or fracture regeneration. Do not re-run
+the passing tiny regression without new changes, fill gables or change roof collision,
+ridge design, sockets, LODs or quality. P8's verbose shutdown diagnostic remains queued.
+P7 is idle; all eight chats have no execution/edit slot. Last observation at 15:25: 8.250 GiB /
+41% commit, no heavy process. Any Maximum world startup still needs a fresh >=8 GiB check.
+Other validation remains open. Root evidence: `.artifacts/recovery/heartbeat-20261017-1503.json`.
+
+**17 October, 15:18 local — Python helper classification corrected for the unexecuted check:**
+P7 prepared the one-line repair and regression, but r1 preflight refused before launching:
+its new broad Python-name filter matched persistent MCP/catalog services. No regression
+result, process termination or retry occurred; original refusal remains in `coplanar-r1/run`.
+Root reviewed complete Python command lines and wrote the exact six executable/command
+tuples at `.artifacts/recovery/python-services-20261017-1516.json` (SHA-256
+`B1B00FD4E3F4CF40DCB8E3D804AC65E49EFEF92CCD112D9A22228A6F1D36408B`).
+The 24 current instances are existing service helpers, not game/build/test jobs.
+
+P7 may prepare a fresh r2 guard with exact matching of these approved full tuples; unknown
+or unreadable Python commands still block, as do native Blender/Godot/build/game jobs.
+Use the same classifier at preflight and runtime and pin the allowlist; no process killing
+or broad Python exclusion. Add focused classification fixtures, preserving ownership/error/
+resource/timeout handling. Then one fresh guarded run of the still-unexecuted regression
+is granted under the same 5.5/80 start, 2/85 stop and 60-second limits. Fresh resources at
+15:18 were 7.753 GiB / 43%, no heavy job. Source/test logic and all assets remain unchanged
+during this guard correction; preserve old refusal and staged/frozen inputs. Release on
+completion or first failure. This is a reviewed guard correction, not an unchanged test retry.
+
+**17 October, 15:07 local — narrow roof clipping correction assigned to P7:**
+Eight compact statuses are unchanged; 6.880 GiB / 44% commit and no heavy process.
+All 156 frozen inputs and staged 25 paths match. P7 owns only the deterministic shared
+projection-axis correction in `tools/repair_building_glbs.py`, a focused standard-library
+regression script and its report/repair note. The existing tool is not in the 156-input
+freeze; preserve its old bytes/hash and every frozen input. No asset, runtime C#, import
+setting, socket, collision, source library or original-project change is granted.
+
+One bounded synthetic/extracted-pair Python check may run after a fresh >=5.5 GiB / <=80%
+preflight and no competing job, using the tested owned-process guard and a 60-second bound.
+Retain the 2 GiB/85% stop limits and user-job priority. Check actual raw triangles 11378/
+4177 and backing coverage, real overlap subtraction, opposite winding, stable projection
+under ties/order changes and unchanged attributes/metadata. Record an old-behavior negative
+control without running the whole asset pipeline. No full-pack repair/regeneration, Blender,
+Godot, build/import/capture, retry or new LOD work. Release after checks or first failure;
+root reviews the patch/results before any asset generation. P8's verbose capture remains queued.
+
 **17 October, 14:55 local — first native roof image reviewed; inherited slit defect identified:**
 The separately granted `native-r2` capture completed once with Vulkan Forward+, Maximum
 requested quality, metal square LOD0, 1600x900, ready=True at 2.01 s and native exit 0.

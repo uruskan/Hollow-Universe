@@ -25,7 +25,11 @@ preserved. After the first attempt was refused before launch at 5.493 GiB free, 
 separately guarded attempt produced a reviewed 1600x900 Maximum/LOD0 metal-roof image:
 ready=True, exit 0, 7.932 seconds. The visible gable is open. A representative bright slit
 was traced to an inherited coplanar-repair projection bug, present in old and current
-repaired geometry; a narrow correction and regenerated validation are still needed. The
+repaired geometry. The one-expression tool correction now passes five focused regression
+groups (36 tiny repairs), including the actual raw triangle pair and old-behavior negative
+control. Installed packs are unchanged: full candidate repair, coverage checks and native
+validation remain needed. The new checkpoint preserves 156 prior inputs and adds the tool
+and regression for 158 total. The
 apex profile uses unchanged deck coordinates. Godot also reports 30 leaked ObjectDB
 instances at exit, an older warning class now routed to P8 for attribution. No clean-log
 or complete visual/gameplay acceptance is claimed. All 2,034 capture inputs are unchanged.
