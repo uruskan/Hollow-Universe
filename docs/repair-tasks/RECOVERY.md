@@ -1,5 +1,51 @@
 # Recovery after the computer restart
 
+**17 October, 14:22 local — native roof capture held before launch; no image:**
+P7 prepared the bounded metal-square LOD0 capture, pinned 19 actual client/dependency DLLs,
+20 imported cache files, user configuration and source/index inputs, and passed all seven
+guard fixtures. Root reviewed the prepared arguments, diff and refusal evidence. The actual
+launch preflight fell to **5.493 GiB / 49% commit**, below the unchanged **5.5 GiB** native
+floor; no competing heavy process was present. The second sample was 5.484 GiB. The guard
+refused before starting Godot: Launched=false, no PID/native exit, no stopped processes,
+no secondary error, PNG absent. This is a resource refusal, not a rendering/gameplay failure.
+
+All 1,989 recorded input hashes match, including the user's graphics/configuration files,
+imported roof resources and index. All 156 frozen inputs and staged 25 paths are unchanged.
+Prepared guard: `.artifacts/p7-roofs/native-r1/Run-RoofCapture-r5.ps1`, SHA-256
+`999BDD1FB110740F028AAC67D9546CD6ABAF550BB7F4370A118534BDD645E4D9`.
+Refusal/inspection: `native-r1/capture/`. No image/readiness/camera/quality observation or
+visual acceptance can be claimed. No retry, delayed launch, source edit or reduced floor.
+
+P7 is idle and the sole capture slot is released; all other chats remain unchanged.
+At 14:20 resources remained below the floor, **5.251 GiB / 51% commit**, no heavy process.
+A later fresh grant may resume the still-unexecuted scenario with separate evidence after
+headroom returns; preserve this refusal and normal 2+90 s readiness / 120 s external limit.
+Full Maximum world startup still requires 8 GiB. No user app was closed. Keep follow-up
+active. Root evidence: `.artifacts/recovery/heartbeat-20261017-1407.json`.
+
+**17 October, 14:15 local — one existing build-sandbox roof capture assigned to P7:**
+Eight compact chat statuses are unchanged, 156 frozen inputs and staged 25 paths match.
+Initial resources: 7.093 GiB / 42% commit, no heavy job. Root reviewed BuildSandbox,
+DemoBases.TwoStorey, GroundTerrain and the existing screenshot path. The house has four
+metal square roofs and the sandbox uses plain collision tiles within 200 m, without the
+full terrain/foliage renderer. This is a bounded viewer workload under the general 5.5 GiB
+floor; full Maximum world startup remains at 8 GiB. No .game-dev adapter is installed;
+reuse the game's existing native capture, without adding an adapter or production code.
+
+P7 owns one guarded 1600x900 Maximum-quality capture using the existing compiled game:
+`--view build --scene house --quality maximum --lod 0 --from=-8,7.5,1.5 --at=0,7.2,1.5`
+plus `--shot` to a fresh `native-r1/metal-square-gable-lod0.png`. Use the normal renderer
+(no headless/dummy backend), unchanged render scale and existing isolated-input capture.
+Keep the game's normal readiness timeout; external ceiling 120 s covers its 2+90 s wait.
+Fresh >=5.5 GiB / <=80% and no competing job before launch; owned-only 2 GiB/85% and user
+game/build priority stops. Preserve source/art/settings/index, previous evidence and
+imported resource hashes. Pin actual client/dependency binaries and capture arguments.
+Adapt a fresh copy of the tested guard narrowly for this job and run its lightweight
+fixtures first. One render only, no build/import/source edit/retry. Require ready=True,
+successful PNG save, correct resolution/camera/quality and clean logs; inspect the image.
+Record the scope honestly: metal square roofs at LOD0, not all grades/shapes or gameplay.
+Release after completion or first failure; root reviews the capture before further work.
+
 **17 October, 14:02 local — ten roof/debris packs imported; slot released:**
 The single incremental Godot 4.7.2 .NET import passed in **11.902 seconds**, exit 0,
 without primary/secondary guard errors, resource/competing stops, warnings or stderr.

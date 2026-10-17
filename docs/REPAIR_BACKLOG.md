@@ -21,8 +21,10 @@ both later test runs completed with exit 0 and no guard errors/stops. This is fo
 validation, not a completed full suite. A subsequent incremental Godot import passed for
 all ten packs in 11.902 seconds without warnings/errors; source and destination cache
 checksums match. All 1,723 import settings, 156 frozen inputs and 25 staged paths are
-preserved. P7 is idle with no execution/edit slot. Actual visual/placement/walk/shot/fracture
-acceptance remains open. See RECOVERY.
+preserved. The first native metal-roof capture was prepared but refused before launch at
+5.493 GiB free, below its 5.5 GiB floor; no image or visual result exists. P7 is idle with
+no execution/edit slot. Actual visual/placement/walk/shot/fracture acceptance remains open.
+See RECOVERY for the prepared scenario, resource limits and retained refusal evidence.
 
 The packs passed structural/provenance/preservation inspection before installation, retaining
 nine fragments per shape and all unrelated content. The earlier 5.222/3.138 mm extent changes
@@ -172,7 +174,7 @@ Check working-tree changes and the latest handoffs at the start of every package
 | Planet terrain/save identity | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Existing active WalkingWorld/parameters and terrain-save changes |
 | P6 | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Captured-attitude source frozen after build and 46 passing checks; Earth source frozen; no wire change; native/camera checks pending, no runtime grant |
 | Admin placement/crafting | Add F1 build grade and free crafting — `01a14468-ab3d-7bb2-8cb4-61997af8619d` | Existing active admin/placement/protocol work; P7 coordinates before overlap |
-| P7 / building asset survey | Audit building asset library — `01a14478-1506-7da3-9201-ed36246af8dd` | Roof packs/collision installed and imported; focused tests pass; idle, no edit/execution grant; actual visual/gameplay verification next |
+| P7 / building asset survey | Audit building asset library — `01a14478-1506-7da3-9201-ed36246af8dd` | Roof packs/collision installed/imported, focused tests pass; prepared native capture refused for RAM before launch; idle, no edit/execution grant |
 | Menu/startup | Add disconnect option — `01a1446b-1a10-7800-b535-568d73554782` | Completed and committed disconnect feature; startup observations feed P8 |
 | P8 | Contact review checklist session — `01a14485-dcd2-7b60-a3d1-fb2fe458859d` | Recovery resource inventory first; performance/gibs scope, heavy work queued |
 | P3; P5 audio/visibility | Unassigned by this coordinator | Prepared prompts; inspect existing owners before starting |
