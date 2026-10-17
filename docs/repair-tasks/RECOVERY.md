@@ -1,5 +1,28 @@
 # Recovery after the computer restart
 
+**17 October, 11:56 local — next roof diagnostic prepared, execution still held:**
+P7 completed the source-only preparation granted at 11:50 and is idle again. The isolated
+driver `.artifacts/p7-roofs/diagnostic-preparation-r1/square_limit_bounds.py` is frozen at
+SHA-256 `E27B82AFD34B35D90C569D38E1903F67F9A833BADF6651381CDFD3A58B4FCAE3`.
+Root reviewed its loading boundaries and the original shared modules: it checks exact
+source/dependency hashes, removes only the original final `main()` AST expression, and
+uses the unchanged square-roof selection, gather and limit functions. It records coordinates,
+counts, AABBs and slope bands at each stage and stops before fracture, export or material
+writes. The only planned output is fresh scratch JSON; the detailed command is in P7's report.
+This was source inspection only: neither parsing nor execution has been validated.
+
+At 11:54 only **4.743 GiB was available / 49% commit**, with no heavy build, game or Blender
+job (the listed `blender-mcp.exe` processes are connector services). The 5.5 GiB execution
+floor remains unmet. No execution slot or further edit grant is outstanding. A later run
+requires a fresh separate grant, the documented process/resource guard and 600-second
+ceiling. Do not run this driver without that guard, retry the prior fracture, alter its
+parameters, or install candidates. Maximum world startup still requires 8 GiB.
+
+All existing 144 frozen inputs and the 25 staged paths remain byte-identical; the existing
+freeze file is unchanged because the diagnostic pins it. The new driver hash is recorded
+separately in `.artifacts/recovery/heartbeat-20261017-1149.json`. No production file changed,
+no user app was closed, and the remaining queue stays active.
+
 **17 October, 11:47 local — twig fragments generated; diagnostic finding remains open:**
 the one fracture run exited 0 in **8.338 seconds**, empty stderr, minimum sampled **6.219
 GiB free / maximum 41% commit**, no guard stop. It exported two groups of nine fragments

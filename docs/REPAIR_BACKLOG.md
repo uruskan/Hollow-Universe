@@ -15,8 +15,11 @@ square-fragment extent difference from the original LOD2; transforms check out a
 height gables are absent, but intermediate geometry is needed to distinguish simplification
 from cap movement. P8 confirmed the existing 1000-triangle value is a soft pre-fracture
 target, not an exported cap; final triangle counts decreased versus the installed roofs,
-without establishing an FPS gain. All protected/frozen files remain unchanged. Both owners
-are idle; the next bounded diagnostic is queued below its 5.5 GiB memory floor. See RECOVERY.
+without establishing an FPS gain. All protected/frozen files remain unchanged. P7 has now
+prepared and frozen the isolated gather/limit measurement driver; root reviewed its source
+and loading boundaries. It has not been parsed or executed. Both owners are idle again;
+execution remains queued below its 5.5 GiB memory floor (4.743 GiB free at 11:54). No
+candidate is installed and no production change follows from preparation. See RECOVERY.
 
 P7's roof merge helper now passes **41/41 synthetic controls** (02:22 local, exit 0,
 empty stderr, 0.321-second guarded run). Root reviewed the receipt and preserved-input
