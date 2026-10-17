@@ -9,18 +9,24 @@ This is the current repair queue for AB Test B. It merges the original thirty fi
 reproduced defects. These are 59 source reports with overlapping subjects, not 59 independent bugs.
 The full feature roadmap in DESIGN.md remains separate.
 
-All five roof grades now have building and matching debris scratch packs that pass
-structural/provenance/preservation checks, retaining nine fragments per roof shape and
-all unrelated content. The four-grade follow-up passed 16/16 serial stages without retry
-or resource stop. Nothing is installed. The bounded
-diagnostic localized the earlier 5.222/3.138 mm extent differences to the existing mesh
-simplification step before fracture; final vertices match within 0.00033 mm. This resolves
-the cause without changing quality settings or treating an invented diagnostic tolerance
-as an art requirement. Full-height gables are absent. The existing 1000-triangle value is
-a soft pre-fracture target, not a final cap; no FPS gain is claimed. The merged debris pack
-grows 9.10% because obsolete data is retained. All frozen/protected files and staged changes
-remain unchanged. P7's staging slot is released. Matching authoritative collision, integration,
-build/tests/imports and normal visual/placement/fracture checks remain open. See RECOVERY.
+**Current roof state, 17 October:** the ten reviewed building/debris packs are installed
+for all five grades, together with removal of the matching authoritative gable collision.
+Roof slabs, existing placement/support/Top poses, unrelated geometry, import/material settings,
+wire and saves are unchanged. All **four new roof checks** and **20 remaining building,
+network, persistence and gib checks** now pass in two guarded runs. Five architecture checks
+and the 298-mesh building-fit check passed in the earlier interrupted attempt. The compiler
+reported zero warnings/errors; its failed final guard record and the first incomplete test
+record remain retained. The repaired guard passed seven fixture groups before execution;
+both later test runs completed with exit 0 and no guard errors/stops. This is focused
+validation, not a completed full suite. P7 is idle with no execution/edit slot. Imports and
+actual visual/placement/fracture acceptance remain open. All 156 current frozen inputs and
+25 staged paths are preserved. See RECOVERY.
+
+The packs passed structural/provenance/preservation inspection before installation, retaining
+nine fragments per shape and all unrelated content. The earlier 5.222/3.138 mm extent changes
+were localized to existing simplification before fracture; final vertices match within
+0.00033 mm. Quality settings are unchanged. Retaining obsolete data increases pack sizes;
+no FPS improvement is claimed. The following dated notes are historical checkpoints.
 
 P7's roof merge helper now passes **41/41 synthetic controls** (02:22 local, exit 0,
 empty stderr, 0.321-second guarded run). Root reviewed the receipt and preserved-input
@@ -132,7 +138,7 @@ and its results must be inspected before another owner changes it.
 | N7 | Consistent professional first-person composition across tools | P4 | Open; preserve accepted axe animation and establish a reference composition |
 | N8 | Smaller usable holo and readable optimized ballistic flight, especially incendiary rounds | P4 + P5 | Holo quality reopened; projectile physics exists, visibility remains open |
 | N9 | Unattended zero-thrust attitude hold with assist ON; useful turret sightlines | P6 | Verify attitude: build and 46 state/network checks pass; native loaded-gun sequence and gunner sightline reproduction remain open |
-| N10 | Roofs without side panels, joining and stacking side by side | P7 | All five roof/debris scratch pairs pass structural/preservation checks; nothing installed; matching collision, integration and native verification pending |
+| N10 | Roofs without side panels, joining and stacking side by side | P7 | Five grades and matching collision installed; 4 roof + 20 building/network/persistence/gib checks pass; architecture/fit passed earlier; import/native acceptance open |
 | N11 | Player-controlled minimum/maximum gib detail or budget | P8 | Verify; native renderer checks 44/44, actual UI APPLY 49/49 and restart 36/36 pass; in-world destruction/loot/sound acceptance remains |
 | N12 | Recover performance without sacrificing accepted visual quality | P8 + each owner | Open; establish controlled CPU/GPU baselines and measurable causes |
 
@@ -164,7 +170,7 @@ Check working-tree changes and the latest handoffs at the start of every package
 | Planet terrain/save identity | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Existing active WalkingWorld/parameters and terrain-save changes |
 | P6 | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Captured-attitude source frozen after build and 46 passing checks; Earth source frozen; no wire change; native/camera checks pending, no runtime grant |
 | Admin placement/crafting | Add F1 build grade and free crafting — `01a14468-ab3d-7bb2-8cb4-61997af8619d` | Existing active admin/placement/protocol work; P7 coordinates before overlap |
-| P7 / building asset survey | Audit building asset library — `01a14478-1506-7da3-9201-ed36246af8dd` | All five scratch roof/debris pairs prepared and inspected; gameplay source and installed assets unchanged; no edit/runtime slot |
+| P7 / building asset survey | Audit building asset library — `01a14478-1506-7da3-9201-ed36246af8dd` | Roof packs/collision installed; focused tests pass; idle, no edit/execution grant; Godot import and actual visual/gameplay verification next |
 | Menu/startup | Add disconnect option — `01a1446b-1a10-7800-b535-568d73554782` | Completed and committed disconnect feature; startup observations feed P8 |
 | P8 | Contact review checklist session — `01a14485-dcd2-7b60-a3d1-fb2fe458859d` | Recovery resource inventory first; performance/gibs scope, heavy work queued |
 | P3; P5 audio/visibility | Unassigned by this coordinator | Prepared prompts; inspect existing owners before starting |

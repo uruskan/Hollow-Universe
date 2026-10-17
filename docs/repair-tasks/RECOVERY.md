@@ -1,5 +1,135 @@
 # Recovery after the computer restart
 
+**17 October, 13:36 local — roof integration and focused regressions verified; slots released:**
+The remaining building/network/persistence/gib batch passed **20/20 in 15.9 seconds**.
+Guard r3 completed in 16.800 s with exit 0, no primary/secondary error or stop, empty stderr,
+and all 228 recorded hashes unchanged. Its 15 samples show minimum **6.969 GiB** and maximum
+**42% commit**. Root inspected the exact r2-to-r3 diff (only filter/directory strings), seven
+fixture groups, logs, receipt and report. This includes the network test interrupted in r1;
+that earlier unrecorded exit still cannot be reconstructed or retroactively called a pass.
+
+Together with the separate **4/4 roof checks**, this verifies the focused roof/building
+regressions. Architecture 5/5 and building fit (298 meshes) passed in the earlier incomplete
+attempt. These results do not establish a completed full suite. Build stdout success and
+both original guard failures remain recorded unchanged. The repaired guard now preserves
+primary outcomes before cleanup and supports shared-file stdout reading.
+
+All five roof/debris pairs and minimal simulation collision are installed on `abtest-b`.
+All **156 current frozen inputs**, other protected files and staged **25 paths** are intact.
+P7 is idle; all preparation/execution grants are released. No Godot import/render or normal
+hosted visual acceptance ran this turn. Next is a separately guarded incremental import of
+the changed packs, then existing viewer and hosted placement/walk/shot/fracture captures.
+Preserve existing quality, sockets/support/save/wire and the original project. Do not create
+a new LOD project or revive the parked structural expansion. Fresh resource checks remain
+mandatory; Maximum world startup still requires 8 GiB. Other seven chats are unchanged.
+Keep follow-up active: automated implementation/validation work remains beyond user acceptance.
+Root checkpoint evidence: `.artifacts/recovery/heartbeat-20261017-1242.json`.
+
+**17 October, 13:28 local — roof checks pass; one remaining regression batch:**
+All four RoofPanelTests passed (0.5 s test time, 1.415 s guard time, exit 0), including
+real Jolt side/deck rays, adjacent supported placement, unchanged stacking poses and all
+five installed hull/LOD packs. The r2 guard completed without primary/secondary error or
+stop; 228 recorded input hashes remained unchanged. Three samples show minimum 8.122 GiB,
+maximum 39% commit. Root reviewed logs and receipt. Earlier failed evidence remains retained.
+
+Fresh check: 7.907 GiB / 40% commit, no heavy process. P7 owns one remaining regression
+batch against the same compiled DLL: BuildingTests BuildingPersistenceTests BuildingNetTests
+GibTests. Use a new exact copy of r2 changing only the test filter string and fresh r3 fixture/
+output directory labels. Re-run the lightweight guard fixtures to bind the copy's hash; abort
+if unexpected differences or failed fixtures appear. Then one guarded execution with the same
+300 s ceiling, >=5.5 GiB / <=80% fresh preflight, owned-only 2 GiB/85% and competing-job stops.
+No build, production/art change, import/render, passed roof/architecture/fit rerun or retry.
+Release after the batch or first failure. N10 visual and actual hosted acceptance remain open.
+
+**17 October, 13:23 local — repaired guard reviewed; one roof-only test slot:**
+P7's new `integration-r1/Run-FocusedRoofCheck-r2.ps1` at SHA-256
+`D29821FB062AB21DD4037198AA6029464B96279930D596EF2A731E4DE54017EF`
+passes seven lightweight fixture groups using the actual receipt/aggregation/finalization
+functions. Root reviewed those functions and the execution path. The old shared-file reader
+reproduces a sharing violation under a live writer, a possible earlier r1 cause rather than
+proof of its lost primary error. The old aggregation also reproduces independently.
+
+Fresh resources: 8.345 GiB / 38% commit, no heavy process; all 156 inputs and staged 25 paths
+match. P7 owns one execution of the exact r2 guard in Execute mode: existing compiled
+`Hollow.Tests.dll RoofPanelTests` only, in fresh `guard-roof-only-r2` evidence. No rebuild,
+already-passed architecture/fit checks, source/art edits, imports or renders. Retain 300 s,
+>=5.5 GiB / <=80% launch, 2 GiB / 85% owned-only stops and no competing user/game/build.
+Recheck immediately before launch; release after completion or first failure, no retry.
+Previous failed evidence stays unchanged; native/visual acceptance remains separately open.
+
+**17 October, 13:16 local — focused test attempt incomplete; guard repair only:**
+The separate test attempt passed five architecture checks and the building-fit check
+(298 meshes), then logged the start of BuildingNetTests.PlacingGoesThroughTheServer.
+It did not reach RoofPanelTests or a batch summary. Stderr is empty, with no FAIL line.
+The final guard aggregation rejected AvailableGiB on ordered-dictionary samples under
+StrictMode. Its finalization exception masked any earlier error/stop reason and actual
+test-process exit code. Those remain unknown; do not label this a network/gameplay failure.
+The preserved running receipt and post-run inspection under
+`integration-r1/guard-tests-r1` record the limitation. Three durable samples span 0.733 s,
+minimum observed 7.909 GiB / maximum 39% commit, not full-suite resource coverage.
+
+No retry/rebuild/import/render followed; the slot is released. Root grants existing P7
+only a new scratch guard revision and lightweight in-process fixtures for real aggregation,
+receipt finalization, primary/secondary exception preservation and shared-file stdout reads.
+Preserve both failed attempts and old guard bytes. Persist primary outcomes before cleanup;
+test the actual finalization path, not only serialization of manually filled example fields.
+The proposed next execution is RoofPanelTests alone, but remains ungranted pending review.
+No production/source/art/index edit is allowed in this preparation.
+
+The current freeze is `.artifacts/recovery/source-freeze-roofs-20261017.json`: 156 inputs,
+including the ten installed packs and two source/test additions. The prior 144-input
+manifest remains immutable. Other protected files and the 25 staged paths are preserved.
+At 13:16, 7.955 GiB / 37% commit, no heavy process. Maximum startup still requires 8 GiB.
+N10 is integrated but not accepted; imports and native visual/gameplay checks remain open.
+
+**17 October, 13:00 local — integrated; build output successful, receipt failure retained:**
+P7 promoted the ten reviewed packs and removed only the authoritative gable collision,
+retaining the roof slab bytes. Four new `RoofPanelTests` compiled. Backups and promotion
+manifests are under `.artifacts/p7-roofs/integration-r1/`. Exactly ten protected assets
+changed; the other 53, import/material settings, all prior 144 inputs and staged 25 paths
+are unchanged. Root reviewed the source diff and tests. No socket/support/save/wire change.
+
+Build stdout reports success, zero warnings/errors, 37.55 seconds. The wrapper then failed
+serializing integer PID keys into JSON; its exit was 1 and its original receipt still
+says running. Only the initial sample was saved. Preserve the failed receipt and separate
+post-run inspection; do not invent a dotnet exit code or full resource coverage. Tests did
+not run. The build process is gone and its produced test binary hash matches the inspection.
+
+Root grants P7 a corrected, persisted guard plus one focused test run of those existing
+binaries, **without rebuilding**. Serialize process identities as records/string keys and
+validate representative receipt serialization before launch; flush samples durably so a
+final logging failure cannot erase them. Fresh sample: **8.162 GiB / 39% commit**, no heavy
+job. Tests require >=5.5 GiB / <=80% and no competing job, 300-second ceiling, existing owned
+2 GiB/85% stop guard. Use fresh `integration-r1/guard-tests-r1` evidence; retain the earlier
+failure unchanged. No source/game/art changes, additional build, import/render or retries
+are granted. Release after tests or first failure. N10 native/visual acceptance remains open.
+
+**17 October, 12:47 local — P7 owns narrow integration and two serial validation stages:**
+fresh preflight is **7.672 GiB / 42% commit**, no heavy process; eight owners unchanged,
+144 frozen inputs and staged 25-path bytes match. P7 may integrate the ten inspected
+building/gib GLBs for all five grades together with the minimal `PieceShapes.cs` gable
+removal, add `tests/Hollow.Tests/RoofPanelTests.cs`, and update its report plus
+`docs/REPAIR_BUILDING.md`. Preserve the existing roof slab, footprint, Top poses, shared
+placement/support/catalogue, wire and persistence behavior. Do not restore parked broader
+socket/geometry changes. No Git/index operation is granted to P7.
+
+Before mutation, verify source/candidate/receipt hashes and back up all eleven existing
+targets plus import settings under fresh `.artifacts/p7-roofs/integration-r1/`; retain
+before/after manifests. Stop on unexpected edits or an active user game/build. Promote
+only the ten reviewed final packs; leave import settings/materials unchanged. Verify that
+the other 53 protected files and all 144 prior frozen inputs still match. An interrupted
+promotion must restore only this operation's verified own replacements from its backups,
+never overwrite subsequent user edits. No user process may be stopped.
+
+Then P7 owns the sole heavy slot for one guarded incremental shared build (180 seconds,
+>=4.5 GiB preflight) and, only if successful, one focused roof/building/fit/net/persistence/
+architecture/gib test batch (300 seconds, >=5.5 GiB preflight). Each requires <=80% commit
+and no competing job, single-worker/no reusable build servers, owned-job 2 GiB/85% stop
+guards and full logs/receipts. Stop/report after any failure; no unchanged retry. Release
+after the two stages. Import, game render, screenshots and hosted acceptance require a
+later separate slot. Maximum world startup stays at 8 GiB. This is integration work, not
+a completed N10 claim; root owns the updated freeze and final documentation checkpoint.
+
 **17 October, 12:36 local — all five roof/debris grades staged; slot released:**
 P7 finished **16/16** sequential stages for wood, stone, metal and armoured, with all
 processes exiting 0 and all structural/provenance/preservation inspections passing.
