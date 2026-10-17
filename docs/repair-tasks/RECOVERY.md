@@ -1,5 +1,51 @@
 # Recovery after the computer restart
 
+**17 October, 14:02 local — ten roof/debris packs imported; slot released:**
+The single incremental Godot 4.7.2 .NET import passed in **11.902 seconds**, exit 0,
+without primary/secondary guard errors, resource/competing stops, warnings or stderr.
+Exactly ten scenes were imported. Eleven durable samples show minimum **6.279 GiB** and
+maximum **45% commit**; launch was 7.761 GiB / 39%. The established 60-second import
+ceiling was retained. Root reviewed the guard diff, seven fixture groups, logs, receipt,
+cache inspection and P7 report. Evidence is `integration-r1/guard-roof-import-r4`.
+
+All ten cache source MD5s now match the integrated GLBs and destination MD5s match their
+new scene bytes. Among 3,498 cache files, only ten scene caches and their ten MD5 records
+changed, with none added/removed. All ten UIDs, 1,723 import-settings files, 156 frozen
+inputs, 228 guard inputs and the staged 25-path patch are unchanged. No source/art edits,
+forced reimport, cache deletion, build, render, gameplay run or new LOD work occurred.
+P7 updated its report and current REPAIR_BUILDING validation paragraph and is idle.
+No preparation/execution slot remains; the other seven chats are unchanged.
+
+Native visual/placement/walk/shot/fracture acceptance remains open. The existing build
+sandbox draws a 200 m plain collision-tile ground, rather than the full terrain/foliage
+renderer; a bounded viewer capture can be reviewed separately under the general native
+limit. It is not a full Maximum world startup or hosted acceptance. ChildServer.Find selects
+the newer Debug/Release server DLL; verify its actual binary before any later hosted run.
+Do not assume a Release build is selected or start an unnecessary rebuild. At 13:59,
+6.296 GiB / 47% commit, no heavy process; full Maximum startup remains gated at 8 GiB.
+Keep the schedule active; automated work remains. Root evidence:
+`.artifacts/recovery/heartbeat-20261017-1343.json`.
+
+**17 October, 13:50 local — one incremental roof import slot assigned to P7:**
+All eight chat statuses are unchanged, all 156 frozen inputs match, and the staged 25-path
+patch matches its checkpoint. Initial resources: 7.703 GiB / 40% commit, no heavy process.
+P7 owns one normal incremental Godot import, after fresh >=5.5 GiB / <=80% preflight and
+no competing job. Command: the existing Godot 4.7.2 .NET executable with
+`--path game --headless --editor --import`. Keep the established 60-second import limit,
+owned-job stops below 2 GiB / above 85% commit and priority for any user game/build.
+
+Adapt only a fresh scratch copy of the validated r3 guard for this executable/arguments,
+import naming, fixture/output directories and 60-second limit; preserve primary/secondary
+error handling, ownership and durable samples. Validate its lightweight fixtures first and
+record the exact diff/hash. Stop if those fail, inputs drift or the preflight fails; no retry.
+Before import, record the ten source GLB hashes, .import settings/UIDs and existing imported
+cache/MD5 records. Permit normal generated Godot cache updates only, preserving production
+source/art/settings and prior evidence. Inspect which resources actually reimported and
+the resulting cache/source checksums, all warnings/errors and frozen/index preservation.
+No forced/full reimport, cache deletion, source change, new LOD work, build, game render or
+hosted session is granted. Release after this one import. N10 remains visually unaccepted;
+Maximum world startup still needs 8 GiB. Root will review the actual import result.
+
 **17 October, 13:36 local — roof integration and focused regressions verified; slots released:**
 The remaining building/network/persistence/gib batch passed **20/20 in 15.9 seconds**.
 Guard r3 completed in 16.800 s with exit 0, no primary/secondary error or stop, empty stderr,
