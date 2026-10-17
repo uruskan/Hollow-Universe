@@ -1,5 +1,50 @@
 # Recovery after the computer restart
 
+**17 October, 11:29 local — twig roof-source calibration complete; no slot outstanding:**
+the one guarded Blender run exited 0 in **9.469 seconds**, with minimum sampled **6.933
+GiB free / maximum 37% commit**, no guard stop, unchanged input hashes and unchanged
+1,187-file watched inventory. It produced six roof render meshes across the existing
+LOD0/1/2 names and two slab hulls, with no full-height gable geometry. The only stderr
+message is Blender's future `Material.use_nodes` deprecation warning. The 1,594,840-byte
+candidate remains at `.artifacts/p7-roofs/twig-source-r1/roof-source-twig.glb` (SHA-256
+`79CD9457B9F5E2484EB9F1104B2B336BAA13A53E97B432908BD4D31F984BEA78`).
+
+Root reviewed the generation and guard receipts/logs and P7's structural findings. This
+is source-generation evidence only: no merge, fracture, installed asset, other grade,
+Godot import, screenshot or gameplay/visual acceptance follows from it. P7 released the
+slot and is idle. All 144 frozen inputs and the 25 staged paths are preserved; no gameplay
+source/art mismatch was introduced. At 11:28, 7.174 GiB was free / 35% commit, no heavy job.
+Evidence: `.artifacts/recovery/heartbeat-20261017-1123.json` and P7's result report.
+Next is a separately guarded scratch merge review, then a separately granted roof-fracture
+calibration. Do not install or chain later stages automatically. Existing workload floors,
+600-second generation ceiling and 8 GiB Maximum startup requirement remain unchanged.
+
+**17 October, 11:23 local — controls reviewed; one twig source calibration granted:**
+P7's `controls-r1` completed at 02:22: **41/41 synthetic checks**, exit 0, empty stderr,
+0.321 s guarded elapsed, minimum sampled 7.130 GiB / maximum 51% commit. Root reviewed
+the result/guard receipt; all four tool sources and all 144 frozen inputs remain unchanged.
+This validates the synthetic merge core/guards only, not real meshes, collision or visuals.
+The 25-path staged patch is byte-identical; no installed assets changed.
+
+All eight existing chats have no new results after that run. Fresh resources are **6.625
+GiB available / 40% commit**, with no heavy process. Root granted P7 one twig source-only
+Blender calibration into the fresh `.artifacts/p7-roofs/twig-source-r1/` directory, using
+the reviewed `--roof-only --grade twig` command. Fresh preflight requires >=5.5 GiB,
+<=80% commit and no competing job. Preserve the 600-second ceiling and owned-job 2 GiB/
+85% guard; if the user's game/build starts, stop only this owned job. Capture actual output,
+source hashes and resource evidence. No merge, fracture, install, import, other grade,
+runtime check, source fix or automatic retry is authorized. Maximum still requires 8 GiB.
+
+**17 October, 02:16 local — P7 synthetic controls slot:** no game/server/build process
+remains; available RAM is **6.759 GiB / 53% commit**. All eight leads were idle and all
+144 frozen inputs / 25 staged paths match. Root granted only the existing P7 chat one run
+of `python -I .artifacts/p7-roofs/preparation-r1/merge_controls.py --label controls-r1`.
+Fresh preflight still requires at least 5.5 GiB, at most 80% commit and no competing job;
+the ceiling is 30 seconds with the existing owned-job 2 GiB/85% guard. If the user's game
+returns, stop only the owned check. No generator, launcher, import, other test or source
+edit is granted. Retain output/resource evidence and release the slot after this run.
+This does not authorize the separately queued twig calibration or Maximum startup.
+
 **17 October, 01:58 local — memory stop thresholds crossed; no owned job to stop:**
 the 01:43 sample was **0.938 GiB available / 88% commit**; 01:49 was 1.870 GiB / 86%,
 and 01:58 was **1.112 GiB / 87%**. A normal ground session (Godot PID 22472), its hosted

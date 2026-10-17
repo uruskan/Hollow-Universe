@@ -9,6 +9,16 @@ This is the current repair queue for AB Test B. It merges the original thirty fi
 reproduced defects. These are 59 source reports with overlapping subjects, not 59 independent bugs.
 The full feature roadmap in DESIGN.md remains separate.
 
+P7's roof merge helper now passes **41/41 synthetic controls** (02:22 local, exit 0,
+empty stderr, 0.321-second guarded run). Root reviewed the receipt and preserved-input
+hashes. This covers synthetic file preservation and rejection guards, not repaired roof
+geometry or gameplay. At 11:23, with 6.625 GiB free / 40% commit and no heavy process,
+the existing P7 chat received one separate twig source-generation calibration slot.
+That calibration completed successfully in 9.469 seconds, producing six twig roof meshes
+and two slab hulls without full-height gables. Protected production files stayed unchanged.
+P7 released its slot; this candidate is not installed. Merging, fractures, installation,
+other grades and native acceptance remain separately queued. See RECOVERY and P7's report.
+
 The 17 October 01:43–01:58 follow-up found **0.938–1.870 GiB free / 86–88% commit**
 with a normal game/server session and eleven reusable MSBuild nodes. No coordinated job
 owned these processes; their launch parents are gone, so they remain untouched. P8 prepared
@@ -109,7 +119,7 @@ and its results must be inspected before another owner changes it.
 | N7 | Consistent professional first-person composition across tools | P4 | Open; preserve accepted axe animation and establish a reference composition |
 | N8 | Smaller usable holo and readable optimized ballistic flight, especially incendiary rounds | P4 + P5 | Holo quality reopened; projectile physics exists, visibility remains open |
 | N9 | Unattended zero-thrust attitude hold with assist ON; useful turret sightlines | P6 | Verify attitude: build and 46 state/network checks pass; native loaded-gun sequence and gunner sightline reproduction remain open |
-| N10 | Roofs without side panels, joining and stacking side by side | P7 | Narrow asset tooling prepared and frozen; installed meshes/collision unchanged; controls/generation/native verification pending memory headroom |
+| N10 | Roofs without side panels, joining and stacking side by side | P7 | Merge helper passes 41 synthetic checks; first twig roof candidate generated without full-height gables; installed meshes/collision unchanged; fractures, remaining grades and native verification pending |
 | N11 | Player-controlled minimum/maximum gib detail or budget | P8 | Verify; native renderer checks 44/44, actual UI APPLY 49/49 and restart 36/36 pass; in-world destruction/loot/sound acceptance remains |
 | N12 | Recover performance without sacrificing accepted visual quality | P8 + each owner | Open; establish controlled CPU/GPU baselines and measurable causes |
 
