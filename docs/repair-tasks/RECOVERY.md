@@ -1,5 +1,61 @@
 # Recovery after the computer restart
 
+**17 October, 12:21 local — twig scratch roof/debris pair complete; both slots released:**
+the separate gib merge passed in **1.227 seconds**, exit 0, empty stderr, minimum sampled
+**6.577 GiB / maximum 43% commit**, no guard stop. All 18 replacement roof fragments keep
+their geometry/transforms; all 18 unrelated groups (180 nodes), original BIN/mesh/accessor/
+material records, 144 frozen inputs and 63 protected production files are unchanged.
+The scratch pack is 4,956,292 bytes, SHA-256
+`CE34135FCC86ACB8AFA72B532CCA585269B8B8DCA067DCE5C404B36888EC6C76`.
+Retained obsolete data adds 413,404 bytes (9.10%); this is not a performance improvement.
+Root reviewed the diagnostic and merge receipts, logs, coordinate measurements and
+preservation inspection. The existing limiter explains the earlier tiny extent flag;
+no parameter/geometry rewrite was made to force that diagnostic to pass.
+
+P7 is idle; no edit or execution grant remains. Nothing was installed. The twig pair still
+needs normal visual, collision and fracture acceptance; wood/stone/metal/armoured staging
+and the matching minimal authoritative collision change remain open. Keep the N10 scope
+to roof side-panel removal and existing adjacent-supported placement; do not restore the
+parked socket/support/save/network expansion. Next work should advance those remaining
+assets and native checks through the existing P7 chat, with a separate bounded slot and
+fresh resource/process preflight. At 12:20 resources were **6.333 GiB / 44% commit**, no
+heavy process. All 25 staged paths remain byte-identical. Maximum world startup still
+requires 8 GiB. Evidence: `.artifacts/recovery/heartbeat-20261017-1210.json`; follow-up stays active.
+
+**17 October, 12:17 local — bounds cause localized; one scratch gib merge granted:**
+the square diagnostic completed in **8.329 seconds**, exit 0, empty stderr, minimum
+**5.837 GiB free / maximum 45% commit**, no guard stop. Gathering retains the original
+bounds. The unchanged limiter produces the two flagged extrema before fracture; their
+positions match retained final-fragment vertices within **0.00033 mm**. This explains the
+5.222/3.138 mm expansion without a transform or cap repair. Preserve this diagnostic
+evidence and existing simplifier/quality; do not invent a new acceptance threshold or
+generalized decimator project. Normal visual/collision/fracture acceptance remains open.
+All 144 frozen inputs, the driver and 63 protected files are unchanged; diagnostic slot
+released. Evidence: `guard-twig-limit-diagnostic-r1` and `twig-limit-diagnostic-r1/bounds.json`
+under `.artifacts/p7-roofs/`; output hash
+`F641A572C10D1E9A619744C37B6B7E2C0052BCD02A25E08CA57590A458EA64A4`.
+
+Fresh resources are **6.849 GiB / 42% commit**, no competing job. P7 may perform one
+separate actual twig scratch gib merge with the existing helper and retained fragment
+candidate, writing only fresh `.artifacts/p7-roofs/twig-gibs-merge-r1/building-twig.glb`
+and guard/inspection receipts. Use >=5.5 GiB / <=80% fresh preflight, 120-second ceiling
+and the same owned-job 2 GiB/85% stop guard. Verify unrelated groups/data/materials and
+protected hashes afterward. No source edit, regeneration, installation, import, render,
+other grade or retry is granted. Release after that single merge; Maximum still needs 8 GiB.
+
+**17 October, 12:12 local — one square-roof diagnostic slot granted to P7:**
+fresh preflight reports **6.075 GiB available / 43% commit**, no heavy job; all eight leads
+have unchanged status, all 144 frozen inputs match and the 25 staged paths are preserved.
+The prepared driver hash below matches and its output/guard directories are absent.
+P7 may run that exact driver once, writing only fresh `twig-limit-diagnostic-r1/bounds.json`
+and `guard-twig-limit-diagnostic-r1` evidence. Recheck >=5.5 GiB / <=80% commit and no
+competing job immediately before launch; use the external owned-process guard and a
+600-second ceiling, stop only the owned job below 2 GiB / above 85% commit or on a user's
+game/build start. Record the original gather/limit measurements, source/output hashes,
+logs, exit/duration and resource samples, then release the slot. No source edits, fracture,
+export, installation, other grade, import, native check or retry is granted. A diagnostic
+failure ends this one slot with evidence retained. Maximum startup remains held at 8 GiB.
+
 **17 October, 11:56 local — next roof diagnostic prepared, execution still held:**
 P7 completed the source-only preparation granted at 11:50 and is idle again. The isolated
 driver `.artifacts/p7-roofs/diagnostic-preparation-r1/square_limit_bounds.py` is frozen at

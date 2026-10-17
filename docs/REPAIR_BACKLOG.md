@@ -9,17 +9,16 @@ This is the current repair queue for AB Test B. It merges the original thirty fi
 reproduced defects. These are 59 source reports with overlapping subjects, not 59 independent bugs.
 The full feature roadmap in DESIGN.md remains separate.
 
-The actual twig roof-pack scratch merge now passes preservation checks, and matching roof
-fragments were generated (nine per shape). Nothing is installed. P7 flagged a 5.222/3.138 mm
-square-fragment extent difference from the original LOD2; transforms check out and full-
-height gables are absent, but intermediate geometry is needed to distinguish simplification
-from cap movement. P8 confirmed the existing 1000-triangle value is a soft pre-fracture
-target, not an exported cap; final triangle counts decreased versus the installed roofs,
-without establishing an FPS gain. All protected/frozen files remain unchanged. P7 has now
-prepared and frozen the isolated gather/limit measurement driver; root reviewed its source
-and loading boundaries. It has not been parsed or executed. Both owners are idle again;
-execution remains queued below its 5.5 GiB memory floor (4.743 GiB free at 11:54). No
-candidate is installed and no production change follows from preparation. See RECOVERY.
+The twig roof and matching debris scratch packs now pass preservation checks, retaining
+nine fragments per roof shape and all unrelated content. Nothing is installed. The bounded
+diagnostic localized the earlier 5.222/3.138 mm extent differences to the existing mesh
+simplification step before fracture; final vertices match within 0.00033 mm. This resolves
+the cause without changing quality settings or treating an invented diagnostic tolerance
+as an art requirement. Full-height gables are absent. The existing 1000-triangle value is
+a soft pre-fracture target, not a final cap; no FPS gain is claimed. The merged debris pack
+grows 9.10% because obsolete data is retained. All frozen/protected files and staged changes
+remain unchanged. Both P7 slots are released; remaining grades, matching authoritative
+collision and normal visual/placement/fracture checks remain open. See RECOVERY.
 
 P7's roof merge helper now passes **41/41 synthetic controls** (02:22 local, exit 0,
 empty stderr, 0.321-second guarded run). Root reviewed the receipt and preserved-input
@@ -131,7 +130,7 @@ and its results must be inspected before another owner changes it.
 | N7 | Consistent professional first-person composition across tools | P4 | Open; preserve accepted axe animation and establish a reference composition |
 | N8 | Smaller usable holo and readable optimized ballistic flight, especially incendiary rounds | P4 + P5 | Holo quality reopened; projectile physics exists, visibility remains open |
 | N9 | Unattended zero-thrust attitude hold with assist ON; useful turret sightlines | P6 | Verify attitude: build and 46 state/network checks pass; native loaded-gun sequence and gunner sightline reproduction remain open |
-| N10 | Roofs without side panels, joining and stacking side by side | P7 | Twig roof scratch pack merged and 18 fragments generated without full-height gables; small fragment-bound deviation under diagnosis; nothing installed; remaining grades and native verification pending |
+| N10 | Roofs without side panels, joining and stacking side by side | P7 | Twig roof/debris scratch pair passes preservation checks; small bounds difference traced to existing simplifier; nothing installed; other grades, matching collision and native verification pending |
 | N11 | Player-controlled minimum/maximum gib detail or budget | P8 | Verify; native renderer checks 44/44, actual UI APPLY 49/49 and restart 36/36 pass; in-world destruction/loot/sound acceptance remains |
 | N12 | Recover performance without sacrificing accepted visual quality | P8 + each owner | Open; establish controlled CPU/GPU baselines and measurable causes |
 
@@ -163,7 +162,7 @@ Check working-tree changes and the latest handoffs at the start of every package
 | Planet terrain/save identity | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Existing active WalkingWorld/parameters and terrain-save changes |
 | P6 | Check Earth planet surface area — `01a1446b-92fd-70a0-a864-77427e7f5ac5` | Captured-attitude source frozen after build and 46 passing checks; Earth source frozen; no wire change; native/camera checks pending, no runtime grant |
 | Admin placement/crafting | Add F1 build grade and free crafting — `01a14468-ab3d-7bb2-8cb4-61997af8619d` | Existing active admin/placement/protocol work; P7 coordinates before overlap |
-| P7 / building asset survey | Audit building asset library — `01a14478-1506-7da3-9201-ed36246af8dd` | Narrow asset tooling prepared/frozen; gameplay source and installed assets unchanged; no edit/runtime slot |
+| P7 / building asset survey | Audit building asset library — `01a14478-1506-7da3-9201-ed36246af8dd` | Twig scratch roof/debris pair prepared and inspected; gameplay source and installed assets unchanged; no edit/runtime slot |
 | Menu/startup | Add disconnect option — `01a1446b-1a10-7800-b535-568d73554782` | Completed and committed disconnect feature; startup observations feed P8 |
 | P8 | Contact review checklist session — `01a14485-dcd2-7b60-a3d1-fb2fe458859d` | Recovery resource inventory first; performance/gibs scope, heavy work queued |
 | P3; P5 audio/visibility | Unassigned by this coordinator | Prepared prompts; inspect existing owners before starting |
