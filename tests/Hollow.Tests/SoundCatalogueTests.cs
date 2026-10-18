@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Hollow.Client.Audio;
+using Hollow.Simulation.Content;
 
 namespace Hollow.Tests;
 
@@ -248,6 +249,43 @@ public static class SoundCatalogueTests
         }
         Assert.True(problems.Count == 0, string.Join("; ", problems));
         Fixtures.Report($"{c.Items.Count} items and door kinds with sounds");
+    }
+
+    [Test]
+    public static void SoundCatalogueCoversBatteryFire()
+    {
+        SoundCatalogData c = Catalogue();
+        IReadOnlyList<BatteryDef> batteries = ContentFixture.Content.Batteries;
+        Assert.True(batteries.Count > 0, "no batteries loaded for sound coverage");
+        var problems = new List<string>();
+        foreach (BatteryDef battery in batteries)
+        {
+            foreach (string role in new[] { "report", "mechanism", "interior" })
+            {
+                string key = $"{battery.Key}.fire.{role}";
+                SoundEventData? sound = c.Find(key);
+                if (sound == null)
+                {
+                    problems.Add($"no event {key}");
+                    continue;
+                }
+                if (!sound.AllFiles.Any())
+                {
+                    problems.Add($"{key}: no playable files");
+                }
+                if (sound.Loop)
+                {
+                    problems.Add($"{key}: a battery shot must not loop");
+                }
+                // StationsView plays the interior with Play2D, which selects top-level files only.
+                if (role == "interior" && (sound.Layered || sound.Files.Count == 0))
+                {
+                    problems.Add($"{key}: interior needs non-layered top-level files for Play2D");
+                }
+            }
+        }
+        Assert.True(problems.Count == 0, string.Join("; ", problems));
+        Fixtures.Report($"{batteries.Count} batteries with report, mechanism and interior shot sounds");
     }
 
     private static string Local(string res)

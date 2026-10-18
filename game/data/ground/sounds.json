@@ -4126,6 +4126,25 @@
       ]
     },
     {
+      "key": "defense.fire.interior",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 30.0,
+      "maxDistance": 120.0,
+      "priority": 84,
+      "limit": 6,
+      "pitch": [0.97, 1.03],
+      "jitter": 0.8,
+      "occlude": false,
+      "files": [
+        "res://assets/audio/iron-wake/defense_interior_01.ogg",
+        "res://assets/audio/iron-wake/defense_interior_02.ogg",
+        "res://assets/audio/iron-wake/defense_interior_03.ogg",
+        "res://assets/audio/iron-wake/defense_interior_04.ogg"
+      ]
+    },
+    {
       "key": "turret.traverse.slow",
       "category": "loop",
       "bus": "SFX",

@@ -904,7 +904,7 @@ def iron_wake():
     _iw_alarms(m)
     _iw_siege(m, hull_ir, ir)
     _iw_loader(m)
-    _iw_defense(m, ir)
+    _iw_defense(m, hull_ir, ir)
     _iw_turret(m)
     _iw_rockets(m, ir)
     _iw_fire(m)
@@ -1499,7 +1499,7 @@ def _iw_loader(m):
         Seg(bsb("1988"), 0.27, 0.2, pitch=0.7, gain=-6, at=0.16)], 0.30)
 
 
-def _iw_defense(m, ir):
+def _iw_defense(m, hull_ir, ir):
     # The defense mount's report: sharper and smaller than the siege gun's and its own: a rifle's hard crack, the
     # launch tube's steel ring and the rocket's hiss tearing out of it ("tchang-fsss"), a small blast and a short
     # push of air. Rippled three at a time a quarter second apart.
@@ -1555,6 +1555,28 @@ def _iw_defense(m, ir):
             fx="highpass=f=60", tail_db=-50, max_fade=0.2))
     event("defense.fire.mechanism", outs, "SFX", 0.0, unitSize=4.0, maxDistance=80.0, priority=72, limit=6,
           pitch=[0.97, 1.03], jitter=1.0)
+    _iw_defense_interior(m, hull_ir)
+
+
+def _iw_defense_interior(m, hull_ir):
+    # The smaller mount transmitted through the hull: a muffled rifle body, a short plate response and fittings
+    # shaken by the launch. Keep it distinct from both the outside report and the siege gun's heavier interior.
+    outs = []
+    for k in range(4):
+        rf, rfs = _first_shot(RIFLES_NEAR[k], 0)
+        outs.append(Out(IW + numbered("defense_interior", k), "impact", [
+            Seg(rf, rfs, 0.55, pitch=0.72, fx="lowpass=f=650,lowpass=f=650", ir=hull_ir, wet=0.2, dry=1.0),
+            Seg(m.boom("def_in_sub_%d" % k, seconds=0.45, seed=1001 + k, f_start=92.0, f_end=64.0,
+                       decay_s=0.22), gain=-4),
+            Seg(m.strike("def_in_plate_%d" % k, seconds=0.75, seed=1011 + k, f0=(145.0, 160.0, 136.0, 174.0)[k],
+                         ratios=m.PLATE, decay_s=0.42, hardness=0.35), gain=-12, ir=hull_ir, wet=0.2, dry=1.0),
+            Seg(m.rattle_burst("def_in_rattle_%d" % k, seconds=0.45, seed=1021 + k, rate=38.0,
+                               f0=(1.1, 1.2, 1.05, 1.25)[k], decay_s=0.25), gain=-14, at=0.025),
+            Seg(kenney("impactMetal_light_%03d.ogg" % k), pitch=0.65, gain=-18, at=0.035,
+                fx="lowpass=f=2500")],
+            fx="highpass=f=40,lowpass=f=4500", tail_db=-52, max_fade=0.35))
+    event("defense.fire.interior", outs, "SFX", -3.0, unitSize=30.0, maxDistance=120.0, priority=84, limit=6,
+          pitch=[0.97, 1.03], jitter=0.8, occlude=False)
 
 
 def _iw_turret(m):

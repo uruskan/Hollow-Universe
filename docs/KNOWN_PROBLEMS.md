@@ -76,6 +76,17 @@ acceptance. Preserved evidence: `.artifacts/recovery/user-play-log-20261017-1835
 and `p5-defense-interior-preparation-root-review-20261017.json` beside it. See RECOVERY
 for execution gates and P5 ownership.
 
+**Installed 19 October 2026.** P5's recipe (`_iw_defense_interior` in `art/audio/events.py`)
+was applied unchanged and built with the normal pipeline: four top-level files,
+`iron-wake/defense_interior_01–04.ogg` (impact, -21.0 LUFS, true peaks -3.5 to -4.1 dBTP,
+0.85–0.95 s), no new sources (the same CC0 firearm and Kenney recordings the defense report
+and mechanism already use, and our own synthesis). `SoundCatalogueCoversBatteryFire` requires
+report, mechanism and a non-layered interior for every battery in `batteries.json` (siege and
+defense, the only batteries StationsView fires); it failed on the old catalogue and passes now.
+`Sound` tests 8/8 and the in-engine `--sound-check` (332 events, 1771 files, 0 problems) pass.
+Status: fixed in data; listening (own gunner, crew elsewhere aboard, the ripple overlapping the
+siege gun) and the mix values (-3 dB, priority 84, six voices) await the owner's approval.
+
 ## Bow points left of the crosshair — 17 October 2026
 
 The owner's screenshot reproduced in the FPS workshop: the drawn arrow points about 26°

@@ -1,5 +1,19 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — Defense battery interior sound installed
+
+`defense.fire.interior` existed nowhere, so StationsView's own-hull shot played nothing and
+logged `No sound event`. Installed P5's prepared recipe from `.artifacts/p5-defense-interior-prep-r1`
+unchanged (it still fit the current `_iw_defense`): four files built by `art/audio/build.py
+--only iron-wake/defense_interior`, imported by Godot, rebuilt as a no-op. The build re-sorted the
+footstep events Codex had committed in another order; only the new event was inserted, so the
+catalogue's diff is that one entry (a later full build will make the re-sort). New check
+`SoundCatalogueTests.SoundCatalogueCoversBatteryFire`. Validation: red on the old catalogue,
+`Sound` 8/8, `--sound-check` 0 problems. Python here can't open the worktree's long cache paths
+(over 260 characters), so the build ran in a short-path detached worktree and its exact diff was
+copied back. Listening and mix acceptance remain with the owner. Details in
+[KNOWN_PROBLEMS.md](KNOWN_PROBLEMS.md#defense-battery-interior-sound-is-missing--17-october-2026).
+
 ## 19 October 2026 — T2 second iteration: sea-cliff toes, intended rock, the formation map
 
 A coastal face's toe may stand in the surf (up to 40% of a piece's fit points over water, measured from a metre
