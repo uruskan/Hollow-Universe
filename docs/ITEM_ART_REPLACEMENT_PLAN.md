@@ -8,8 +8,9 @@ two share the same shape, materials and construction.
 is planned. The owner requested this plan and its audit evidence be saved and committed.
 Cloth now has its own original model and rendered PNGs; see
 [its specification, evidence and validation limits](ITEM_ART_CLOTH.md). Its live
-inventory check and owner visual acceptance remain pending. Other replacements
-remain planned.
+inventory check and owner visual acceptance remain pending. Sewing Kit now has its
+own spool-and-needle model and rendered icons; see [its asset record](ITEM_ART_SEWING_KIT.md).
+Other replacements remain planned. Artistic acceptance remains with the owner.
 [DESIGN.md](DESIGN.md), especially ART-01 and the ground UI requirement, remains authoritative.
 
 ## Current assets
@@ -44,7 +45,7 @@ remain subject to visual review.
 | Batch | Item key | Current model or icon gap | Proposed appearance |
 |---|---|---|---|
 | 1 | `cloth` | Fibre model and SVG icon | A roll or folded bolt of rough woven cloth, with visible thickness, folds and restrained fraying. |
-| 1 | `sewing-kit` | Fibre model and SVG icon | A small tin containing thread spools, needles and fabric patches; readable as one kit. |
+| 1 | `sewing-kit` | Replaced: original model and rendered PNGs | Wooden mending spool, sage thread and steel needle; revised from the tin proposal after inspecting the Rust reference. |
 | 1 | `metal-blade` | Refined-metal ingots and SVG icon | A distinct spring-steel machine or saw blade, with a readable cutting edge and mounting features. |
 | 1 | `sign-plate` | Refined-metal ingots and SVG icon | A bent road-sign panel with original markings, mounting holes and localized wear. |
 | 1 | `receiver` | Refined-metal ingots and SVG icon | A semi-automatic gun frame, with recognizable slide and barrel interfaces. |

@@ -24,6 +24,7 @@ SCRIPTS = {
     "iron_wake": "import/iron_wake.py",
     "resources": "models/resources.py",
     "cloth": "models/cloth.py",
+    "sewing_kit": "models/sewing_kit.py",
     "tools": "models/tools.py",
     "supplies": "models/supplies.py",
     "clothing": "models/clothing.py",

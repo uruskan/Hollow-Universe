@@ -1,0 +1,296 @@
+{
+  "scope": "Sewing kit only; serial below-normal two-core jobs with CPU/memory gating and owned-child memory guard",
+  "jobs": [
+    {
+      "name": "model-build-final",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "-b",
+        "--factory-startup",
+        "-t",
+        "2",
+        "--python",
+        "art/models/sewing_kit.py"
+      ],
+      "owned_pid": 13400,
+      "closed": true,
+      "wait_seconds": 81.04,
+      "cpu_before": 1.6,
+      "free_gib_before": 2.85,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "review-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\sewing-kit-r01\\review\\SewingKitReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 35468,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 8.2,
+      "free_gib_before": 2.73,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "textures-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\sewing-kit-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 13332,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 2.0,
+      "free_gib_before": 3.15,
+      "exit_code": 0,
+      "run_seconds": 5.0
+    },
+    {
+      "name": "model-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\sewing-kit-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 15588,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 10.0,
+      "free_gib_before": 2.97,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "lod0",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\sewing-kit-r01\\review",
+        "--",
+        "--lod=0",
+        "--output=sewing-kit-lod0.png"
+      ],
+      "owned_pid": 26124,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 2.4,
+      "free_gib_before": 2.8,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod1",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\sewing-kit-r01\\review",
+        "--",
+        "--lod=1",
+        "--output=sewing-kit-lod1.png"
+      ],
+      "owned_pid": 17020,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 9.4,
+      "free_gib_before": 2.8,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod2",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\sewing-kit-r01\\review",
+        "--",
+        "--lod=2",
+        "--output=sewing-kit-lod2.png"
+      ],
+      "owned_pid": 37512,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 3.3,
+      "free_gib_before": 2.91,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-render",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\sewing-kit-r01\\review",
+        "--",
+        "--icons",
+        "--output=icons-render.png"
+      ],
+      "owned_pid": 20160,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 21.0,
+      "free_gib_before": 2.92,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\sewing-kit-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 35728,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 13.7,
+      "free_gib_before": 2.75,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "slots",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\sewing-kit-r01\\review",
+        "--",
+        "--slots",
+        "--output=icon-slots.png"
+      ],
+      "owned_pid": 34864,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 6.1,
+      "free_gib_before": 2.9,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "checks-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\sewing-kit-r01\\SewingKitChecks.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 7108,
+      "closed": true,
+      "wait_seconds": 11.01,
+      "cpu_before": 7.7,
+      "free_gib_before": 2.92,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "catalogue-content-tests",
+      "command": [
+        "dotnet",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\sewing-kit-r01\\checks-bin\\net10.0\\Hollow.Tests.dll"
+      ],
+      "owned_pid": 13576,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 7.1,
+      "free_gib_before": 2.77,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    }
+  ],
+  "icon_checks": {
+    "128": {
+      "dimensions": [
+        128,
+        128
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "bounds": [
+        24,
+        9,
+        104,
+        119
+      ],
+      "unclipped": true
+    },
+    "256": {
+      "dimensions": [
+        256,
+        256
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "bounds": [
+        48,
+        18,
+        208,
+        238
+      ],
+      "unclipped": true
+    }
+  },
+  "catalogue_content_tests": "  RUN  ContentTests.GroundDataIsComplete\n      137 items, 94 recipes, 17 natural kinds, 24 deployables, 11 loot tables; hash 905585BCBC659DCB\n  ok   ContentTests.GroundDataIsComplete (425 ms)\n  RUN  ContentTests.BrokenDataIsReported\n      42 problems found, e.g. items.json: \"arrow\": unknown field \"stak\" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship, wiring)\n  ok   ContentTests.BrokenDataIsReported (59 ms)\n  RUN  ContentTests.EveryDataFileHasOneReader\n      22 readers for 21 files, and the checks across them\n  ok   ContentTests.EveryDataFileHasOneReader (1 ms)\n  RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (7 ms)\n  RUN  ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 254 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (677 ms)\n6/6 passed in 1.2 s.\n",
+  "provider_check": "Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org\nVulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER\n\nsewing-kit rendered provider: 32px PASS\nsewing-kit rendered provider: 48px PASS\nsewing-kit rendered provider: 64px PASS\nsewing-kit rendered provider: 96px PASS\nsewing-kit rendered provider: 128px PASS\nsewing-kit rendered provider: 256px PASS\nsewing-kit capture: D:/GameDev/Projects/HollowUniverseABTestB/.artifacts/sewing-kit-r01/review/../icon-slots.png, Ok\n",
+  "review_input_assemblies": {
+    "Hollow.Client.dll": "213e31fe50dc12c4be6682da5012814d7567af4e03e7bcb9ffcc83ff6fd4ac98",
+    "Hollow.Core.dll": "185cca682dbbcdb6f18a3a64a51b80225d5a0f80a67345468a8865715d7a4020",
+    "Hollow.Galaxy.dll": "633435a1ceeba0e26c35aa153f9378e4a5803588b25acabd046e7dd3afbbfcb0",
+    "Hollow.Net.dll": "048ff26629512d817f02e35c9b7fd90ec2af6a2da5eddd43df1a24a8bdbec4d0",
+    "Hollow.Persistence.dll": "b43b5a7ec863181a00d7875aae77e0e265c00b6412592db60108ed77b1cb2822",
+    "Hollow.Server.dll": "9ce3ebfccae7a4fd486d8140d6f4c340be319ada04819473dd08136990932cdc",
+    "Hollow.Simulation.dll": "8cc5c90c3bc7f83f5df70cd7a83599323459b36acc700a16dd4e63c9915227ea",
+    "Hollow.Surface.dll": "eb63aebda5a20063d96c98cea80984cfcf211e5f77cccf786a8663ae40a02f9f",
+    "HollowUniverse.dll": "571a134411f9128639dacc83bba92e93f4f16a377080d56e56fed80739cc79a3",
+    "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+    "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+    "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+    "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+    "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+    "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+  },
+  "compiled_test_sources": {
+    "tests/Hollow.Tests/TestRunner.cs": "2d0ceee0cbd64c3ccecb62f566f49541957ac100289e4dcb4fbcd8d0554e16f2",
+    "tests/Hollow.Tests/ModelCatalogueTests.cs": "ea24292ec9ee5c1fe636c04e0a9bbebe4e0f4cb00c4371eba35fa8dffcb188a3",
+    "tests/Hollow.Tests/ContentTests.cs": "5f84b75009fff31b9e653affaef56be7b1f96a3e93569471b27d9f304dfc5bc6"
+  },
+  "captures": {
+    "icon-slots.png": "567c29b27e2a2ab5ea3ff9bc0b66f43872b3bc350de30570fd42de4dcf1a51ca",
+    "sewing-kit-lod0.png": "f774f1a8da4515be9bb6fedbef8a7d4e4d38c29993aa11a7e0f628a840ac3428",
+    "sewing-kit-lod1.png": "86e3793dd0653a232737dbe0ec8386011f4108f22d946197811a689de5bbb85d",
+    "sewing-kit-lod2.png": "5e8462d883f99e87e6dc0e91dcc2a9b826b51a4cf8035f95b73936f529ea81c7"
+  },
+  "limits": [
+    "Native captures use the production ModelViewer, IconRenderer and CatalogItemIcons in a sewing-kit-only harness with existing compiled game assemblies.",
+    "The slot screenshot is a native diagnostic control, not a live inventory gameplay screenshot. No world/server was launched.",
+    "Full solution rebuild and full gameplay test suite were not run by this art task, to limit load while other sessions work. Review harness and current catalogue/content tests were freshly built.",
+    "Artistic acceptance remains with the owner."
+  ],
+  "cleanup": {
+    "processes": "All owned heavy jobs exited; reference tab closed",
+    "caches": "Retained: automatic approval review rejected scoped removal as blocked by policy; no workaround attempted"
+  }
+}

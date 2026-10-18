@@ -35,7 +35,7 @@ public static class ModelCatalogueTests
     };
 
     // Models that replaced stand-ins: none of them may be marked as a stand-in again.
-    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth" };
+    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit" };
 
     [Test]
     public static void ClothHasItsOwnModelAndRenderedIcon()
@@ -47,6 +47,18 @@ public static class ModelCatalogueTests
         Assert.Equal("res://assets/items/cloth.glb", cloth.GetProperty("file").GetString(), "cloth model identity");
         Assert.True(!cloth.GetProperty("icon").TryGetProperty("key", out _), "cloth must render its own icon, not borrow another item's");
         Assert.True(!cloth.TryGetProperty("standIn", out _), "cloth must not return to the fibre stand-in");
+    }
+
+    [Test]
+    public static void SewingKitHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement kit = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "sewing-kit");
+        Assert.Equal("res://assets/items/sewing-kit.glb", kit.GetProperty("file").GetString(), "sewing kit model identity");
+        Assert.True(!kit.GetProperty("icon").TryGetProperty("key", out _), "sewing kit must render its own icon");
+        Assert.True(!kit.TryGetProperty("standIn", out _), "sewing kit must not return to the fibre stand-in");
     }
 
     // World objects the gathering rules place (gather.json) and the ship.

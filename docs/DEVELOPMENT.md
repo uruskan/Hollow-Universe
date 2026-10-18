@@ -1,5 +1,36 @@
 # Hollow Universe AB Test B
 
+## 18 October 2026 — original Sewing Kit model and inventory icons
+
+Replaced Sewing Kit's fibre stand-in and flat SVG presentation with an original wooden
+mending spool, sage thread, a steel needle with a modeled eye, and a loose thread loop.
+Inspected Facepunch's actual Rust item image before authoring; links and observations
+are in `docs/ITEM_ART_SEWING_KIT.md`. No reference game asset files were imported.
+The item description now matches the spool. ID 156, stack size, recipes and behavior
+are unchanged. The default SVG remains available as fallback; catalogue PNGs now win.
+
+One original 512px PBR atlas/material; 7,200 / 2,892 / 944 triangles and a 54-triangle
+convex hull. Repeatable source: `art/models/sewing_kit.py`; installed hashes:
+`game/assets/items/sewing-kit.provenance.json`. Both transparent icon sizes were
+rendered from the selected model using production IconRenderer.
+
+Validation: isolated review and focused test builds passed with zero warnings/errors;
+6/6 current catalogue/content tests passed. Native Godot imports and all three LOD
+captures passed. CatalogItemIcons with SVG fallback disabled loaded 32–256px icons;
+PNG transparency and bounds checked. Screenshots and measured receipts are under
+`docs/images/item-art-sewing-kit-20261018/`. A UV atlas orientation error was caught
+and fixed before final export; the first scratch test build needed the existing
+friend-assembly name (`Hollow.Tests`) to compile internal content-reader tests.
+
+Resource use: serial below-normal jobs on two CPU cores, with CPU/memory gating;
+Blender, Godot and test children exited after each bounded job. The reference tab was
+closed. Full solution rebuild/full gameplay suite and live gameplay inventory were
+not run in this art task; the native icon diagnostic uses the real production providers
+in an isolated project with copied compiled game assemblies. Owner art acceptance
+remains pending. Automatic approval review rejected removal of this task's temporary
+review caches as "blocked by policy"; caches were retained without a workaround.
+
+
 ## Cloth item art replacement — 18 October 2026
 
 Implemented the first item only, following the owner's request to work serially at

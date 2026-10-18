@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "item": "sewing-kit",
+  "date": "2026-10-18",
+  "authorship": "Original project-authored geometry, procedural atlas and rendered icons; no external asset files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/sewingkit",
+    "image": "https://files.facepunch.com/rust/item/sewingkit_512.png",
+    "use": "Visual observation only; reference tab closed; no reference pixels or meshes included"
+  },
+  "authoring_source": {
+    "path": "art/models/sewing_kit.py",
+    "sha256": "e65f29b09a639323d848046b0b3acb3813c2c57f617a0f2432ac46aeab102506"
+  },
+  "geometry": {
+    "asset": "sewing-kit",
+    "dimensions_blender_xyz_m": [
+      0.10701815783977509,
+      0.09032359719276428,
+      0.14000000059604645
+    ],
+    "texture_size": 512,
+    "material_count": 1,
+    "lod_triangles": {
+      "SewingKit_lod0": 7200,
+      "SewingKit_lod1": 2892,
+      "SewingKit_lod2": 944
+    },
+    "hull_triangles": 54
+  },
+  "files": {
+    "game/assets/items/sewing-kit.glb": {
+      "sha256": "24552d929e5e03221005ed05923605b0df07ba9c6e60b10c313dfdc93d248546",
+      "bytes": 326948
+    },
+    "game/assets/items/sewing-kit.glb.import": {
+      "sha256": "5e82b6c6fd3562173755ced473b930200c6a4acbe17674f1eb06b840c4581b1e",
+      "bytes": 1368
+    },
+    "game/assets/materials/sewing-kit.tres": {
+      "sha256": "33e4c08a25f98d8d88b1fb5f8578ddcb72b45d163fbb5dd30465afe1a1b1848a",
+      "bytes": 634
+    },
+    "game/assets/textures/sewing-kit/sewing_kit_albedo.png": {
+      "sha256": "e42c32068b66f8e014a413be5e0c84869f43cd2e8198c7012e5b7c13615a9071",
+      "bytes": 98761
+    },
+    "game/assets/textures/sewing-kit/sewing_kit_albedo.png.import": {
+      "sha256": "a5bb56f1710d5bca5b6edc726840367a00be2c4ccf20fab0679561da7dcdd919",
+      "bytes": 1030
+    },
+    "game/assets/textures/sewing-kit/sewing_kit_normal.png": {
+      "sha256": "d1f63a6948d69180481645d04ea77c55f486d987792f3511f3fe0a6800698e83",
+      "bytes": 33792
+    },
+    "game/assets/textures/sewing-kit/sewing_kit_normal.png.import": {
+      "sha256": "feaecaaf430f9b414f52cee70f162578883adfd68dba01323408182206c2f043",
+      "bytes": 1030
+    },
+    "game/assets/textures/sewing-kit/sewing_kit_orm.png": {
+      "sha256": "0e7b848edb01b14f69bcdf4d6c6d88a3fd76e813a45b646b227ab9657e38c1e6",
+      "bytes": 1507
+    },
+    "game/assets/textures/sewing-kit/sewing_kit_orm.png.import": {
+      "sha256": "9766a4e7a4fdafb438b66b89ed6227b66b7a7dc6abbefb2ff9bcdfb8f717f9d5",
+      "bytes": 1021
+    },
+    "game/assets/items/icons/128/sewing-kit.png": {
+      "sha256": "1484e57bd097afd63d8c8f626948f35a4e08c4a7d165f64dbbae21a958fc4b78",
+      "bytes": 16915
+    },
+    "game/assets/items/icons/128/sewing-kit.png.import": {
+      "sha256": "25c120d363344212aa6021cf9afbf815861cfc507e453f44b48e190fefe72ae2",
+      "bytes": 956
+    },
+    "game/assets/items/icons/256/sewing-kit.png": {
+      "sha256": "6befc88420dd8e95d6cad94d769fa27998e42599694cebac214d0415cca43cf1",
+      "bytes": 51801
+    },
+    "game/assets/items/icons/256/sewing-kit.png.import": {
+      "sha256": "f6995c6fddeb10e8d45f8b925da19e185dae7363ae8d95ad312c2f065111449c",
+      "bytes": 957
+    }
+  }
+}

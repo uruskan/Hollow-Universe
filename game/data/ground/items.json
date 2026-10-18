@@ -251,7 +251,7 @@
     { "id": 155, "key": "cloth", "name": "Cloth", "category": "components", "stack": 50,
       "description": "A bolt of rough cloth woven from plant fibre." },
     { "id": 156, "key": "sewing-kit", "name": "Sewing kit", "category": "components", "stack": 20,
-      "description": "Needles, thread and patches in a tin." },
+      "description": "A wooden spool of tough thread and a steel mending needle." },
     { "id": 157, "key": "tech-scrap", "name": "Tech scrap", "category": "components", "stack": 50,
       "description": "Circuit boards and broken electronics. Sights and timed charges need what is on them." },
     { "id": 158, "key": "metal-blade", "name": "Metal blade", "category": "components", "stack": 20,
