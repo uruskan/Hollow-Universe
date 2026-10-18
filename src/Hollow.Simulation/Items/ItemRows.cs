@@ -67,6 +67,7 @@ public static class ItemRows
         registry.Add((int)ItemPart.Door, new DoorRows());
         registry.Add((int)ItemPart.Blueprint, new BlueprintRows());
         registry.Add((int)ItemPart.Component, new ComponentRows());
+        registry.Add((int)ItemPart.Wiring, new WiringRows());
         return registry.Seal();
     }
 
@@ -88,6 +89,16 @@ public static class ItemRows
     }
 
     // ---------------------------------------------------------------- formatting
+
+    private sealed class WiringRows : IItemDescriber
+    {
+        public void Describe(in ItemDescription d, List<ItemRow> into)
+        {
+            into.Add(new ItemRow("Cable endpoint span", "20 m"));
+            into.Add(new ItemRow("Tool reach", Metres(d.Item.Wiring!.Reach)));
+            into.Add(new ItemRow("Routing points", N(d.Item.Wiring.MaxAnchors)));
+        }
+    }
 
     /// <summary>A number as the panel shows it: whole when whole, else to <paramref name="format"/>.</summary>
     internal static string N(double v, string format = "0.##") => v.ToString(v % 1 == 0 ? "0" : format, CultureInfo.InvariantCulture);

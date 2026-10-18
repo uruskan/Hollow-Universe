@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Simulation.Content;
@@ -90,12 +91,21 @@ public struct GatherResult
 public sealed class NaturalState
 {
     private readonly Dictionary<ulong, NaturalOverride> _overrides = new();
+    private readonly ReadOnlyDictionary<ulong, NaturalOverride> _readOnlyOverrides;
     private readonly List<ulong> _expired = new();
+    internal object CollisionIdentity { get; } = new();
+
+    /// <summary>
+    /// Nonwrapping local presence version for collision snapshots. Conservatively includes pickups/bushes too;
+    /// health-only changes do not invalidate collision. Independent of saved/network Revision semantics.
+    /// </summary>
+    public ulong CollisionPresenceVersion { get; private set; }
 
     public NaturalState(GameContent content, INaturalObjects objects)
     {
         Content = content;
         Objects = objects;
+        _readOnlyOverrides = new ReadOnlyDictionary<ulong, NaturalOverride>(_overrides);
     }
 
     public GameContent Content { get; }
@@ -104,7 +114,7 @@ public sealed class NaturalState
 
     public int Count => _overrides.Count;
 
-    public IReadOnlyDictionary<ulong, NaturalOverride> Overrides => _overrides;
+    public IReadOnlyDictionary<ulong, NaturalOverride> Overrides => _readOnlyOverrides;
 
     /// <summary>IDs whose state changed since the owner last took them (replication and saving).</summary>
     public HashSet<ulong> Changed { get; } = new();
@@ -261,8 +271,11 @@ public sealed class NaturalState
                 _expired.Add(id);
             }
         }
+        // Refuse an exhausted presence clock before partially applying this respawn batch.
+        _ = checked(CollisionPresenceVersion + (ulong)_expired.Count);
         foreach (ulong id in _expired)
         {
+            CollisionPresenceVersion = checked(CollisionPresenceVersion + 1);
             _overrides.Remove(id);
             Revision++;
             Changed.Add(id);
@@ -275,6 +288,8 @@ public sealed class NaturalState
     public void Apply(ulong id, NaturalOverride? value)
     {
         bool wasDepleted = IsDepleted(id);
+        bool depleted = value?.Depleted ?? false;
+        if (wasDepleted != depleted) CollisionPresenceVersion = checked(CollisionPresenceVersion + 1);
         Revision++;
         Changed.Add(id);
         if (value is { } v)
@@ -293,6 +308,7 @@ public sealed class NaturalState
 
     private void Set(ulong id, NaturalOverride value, bool presence)
     {
+        if (IsDepleted(id) != value.Depleted) CollisionPresenceVersion = checked(CollisionPresenceVersion + 1);
         _overrides[id] = value;
         Revision++;
         Changed.Add(id);

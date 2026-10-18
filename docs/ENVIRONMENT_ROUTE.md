@@ -1,5 +1,11 @@
 # Hosted environment route — 16 October 2026
 
+Earth terrain revision 2 supersedes the coordinates and geography in the historical captures below.
+The selector still runs against the current Earth and its route tests pass; the new sampled route is
+786.5 m through the wellhead region. Run `dotnet run --project tests/Hollow.Tests -- EnvironmentRoute`
+for its current coordinates. The earlier hosted timings remain evidence for the old terrain only;
+the revision-2 route has not yet been driven by the full hosted harness. See [EARTH_TERRAIN.md](EARTH_TERRAIN.md).
+
 This diagnostic responds to the owner's rejection of isolated scenic captures as proof of ordinary gameplay quality.
 It is not an environment art change. Existing uncommitted geology and the separate audio pass are preserved.
 The source is integrated in the client and game; the original isolated selector probe remains under

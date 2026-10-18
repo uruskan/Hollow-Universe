@@ -79,6 +79,10 @@ internal static class Checks
             PlacementSurfaces allowed = ctx.Rule.Surfaces;
             if ((allowed & c.Surface) != 0)
             {
+                // Climbable wall mounts can use structural walls or a deployable's vertical face, never its top.
+                if (ctx.Placeable.Definition is Content.DeployableDef { Climb: not null } &&
+                    MathF.Abs(Vector3.Dot(c.Normal, world.Frame.UpAt(c.Nearest))) > .2f)
+                    return OutcomeCode.BadPlacement;
                 return Outcome.Done;
             }
             bool floorsOnly = (allowed & PlacementSurfaces.Floor) != 0 && (allowed & PlacementSurfaces.Terrain) == 0;

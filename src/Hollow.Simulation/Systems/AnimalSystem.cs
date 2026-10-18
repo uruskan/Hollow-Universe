@@ -11,6 +11,7 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
+using Hollow.Simulation.Physics;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
 
@@ -37,6 +38,7 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
     private readonly List<Piece> _animalPieces = new();
     private readonly List<Deployable> _animalThings = new();
     internal readonly List<Animal> _animalTrace = new();
+    private bool _disposed;
 
     /// <summary>The zone's animals (null in a movement-only zone).</summary>
     public AnimalWorld World { get; private set; } = null!;
@@ -112,15 +114,20 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
     {
         Events.On<ProjectileLaunched>((in ProjectileLaunched e) =>
         {
+            if (_disposed) return;
             AnimalSenses senses = Content.AnimalSenses;
             World.Noises.Add(e.Seq != 0
                 ? new AnimalNoise { Position = e.Position, Radius = e.Silenced ? senses.Silenced : senses.Gunshot, Tick = Tick, Source = e.Shooter, Loud = !e.Silenced }
                 : new AnimalNoise { Position = e.Position, Radius = senses.Bow, Tick = Tick, Source = e.Shooter });
         });
         Events.On<Detonated>((in Detonated e) =>
-            World.Noises.Add(new AnimalNoise { Position = e.Position, Radius = Content.AnimalSenses.Explosion, Tick = Tick, Source = e.Player, Loud = true }));
+        {
+            if (_disposed) return;
+            World.Noises.Add(new AnimalNoise { Position = e.Position, Radius = Content.AnimalSenses.Explosion, Tick = Tick, Source = e.Player, Loud = true });
+        });
         Events.On<HitConfirmed>((in HitConfirmed e) =>
         {
+            if (_disposed) return;
             AnimalSenses senses = Content.AnimalSenses;
             if (e.Target.Family == TargetFamily.Natural)
             {
@@ -279,9 +286,9 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
             if (zone.Animals().World != null && zone.Animals().TraceAnimal(ray.Origin, ray.Direction, ray.Length, ray.Thickness, ray.ViewTick, out float at, out Animal? animal,
-                out HitRegion region, out int shape))
+                out HitRegion region, out int shape, out Vector3 normal))
             {
-                ray.Consider(ref best, at, new TargetRef(TargetFamily.Animal, animal!.Id.Value, (byte)(shape + 1)), region);
+                ray.Consider(ref best, at, new TargetRef(TargetFamily.Animal, animal!.Id.Value, (byte)(shape + 1)), region, normal);
             }
         }
 
@@ -365,15 +372,17 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
     /// animals' hit history); corpses as they lie now.
     /// </summary>
     internal bool TraceAnimal(Vector3 origin, Vector3 direction, float length, float thickness, double viewTick, out float distance,
-        out Animal? hit, out HitRegion region, out int shape)
+        out Animal? hit, out HitRegion region, out int shape, out Vector3 normal)
     {
         distance = -1;
         hit = null;
         region = HitRegion.None;
         shape = -1;
+        normal = -direction;
         AnimalWorld animals = World!;
         Vector3 middle = origin + direction * (length / 2);
         animals.Near(middle, length / 2 + 4f, _animalTrace);
+        Span<HitShape> shapes = stackalloc HitShape[Hitboxes.MostShapes];
         foreach (Animal a in _animalTrace)
         {
             if (a.Removed)
@@ -392,6 +401,8 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
                 hit = a;
                 region = r;
                 shape = s;
+                AnimalHitboxes.Shapes(a.Species, pose, shapes);
+                normal = ContactGeometry.CapsuleNormal(origin + direction * t, shapes[s].A, shapes[s].B, -direction);
             }
         }
         return hit != null;
@@ -404,6 +415,29 @@ public sealed class AnimalSystem : ZoneSystem, IAnimalHost
     protected internal override void Step()
     {
         StepAnimals();
+    }
+
+    public override void Dispose()
+    {
+        if (_disposed) return;
+        if (JoltRuntime.Gate.IsHeldByCurrentThread)
+            throw new InvalidOperationException("Animal system retirement must run outside the Jolt gate.");
+        _disposed = true;
+        AnimalWorld? world = World;
+        World = null!;
+        try { world?.Dispose(); }
+        finally
+        {
+            _animalPieces.Clear();
+            _animalThings.Clear();
+            _animalTrace.Clear();
+            _buildingSystem = null;
+            _combatSystem = null;
+            _damageSystem = null;
+            _playersSystem = null;
+            _supportsSystem = null;
+            _thingsSystem = null;
+        }
     }
 }
 

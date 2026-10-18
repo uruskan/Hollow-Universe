@@ -8,6 +8,24 @@ incendiary rocket and fire, §7 "As built") was built on the branch `iw4`. In a 
 
 ---
 
+## Camera-centre aiming update — 17 October 2026
+
+Manual stations now resolve the centre ray from the moving station seat-eye socket.
+Authority queries the world independently; the owning client predicts the same
+target. Each physical muzzle converges on that point, with a 2 km fallback for sky.
+Mount slew and arc restrictions still apply. A target before the muzzle refuses
+the shot, and both the physical barrel clearance and the converged exit ray must
+clear the firing ship. Projectile gravity, launch speed and inherited ship velocity
+remain unchanged. The sight's trajectory marks use the predicted launch line;
+the mount ring continues to report physical barrel alignment. Historical descriptions
+below of strictly parallel barrel firing are superseded by this update.
+
+The mount tracks from its pitch pivot while preserving authored transverse barrel
+offsets. Its moving muzzle is used for each launch, not as the tracking origin:
+using muzzle motion as target motion caused near-target slew oscillation and
+alternating ready/traversing decisions. A stepped regression checks stable alignment
+at 20 m, 30 m and 2 km in two hull orientations.
+
 ## 1. What the owner asked for
 
 On 14 October 2026 the owner gave the Iron Wake asset (`D:\GameDev\Assets\IronWake_Buildable_R01`) to the game:

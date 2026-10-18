@@ -75,6 +75,26 @@ public partial class RaidView : Node3D
         Client.Raid().Detonated -= OnDetonated;
         Client.Raid().ExplosiveRemoved -= OnRemoved;
         Client.Local.RaidAlertReceived -= OnAlert;
+        RetireWorld();
+    }
+
+    /// <summary>Explosives, projectiles and delayed alerts are scoped to the retiring world session.</summary>
+    public void RetireWorld()
+    {
+        foreach (Shown shown in _shown.Values)
+        {
+            FxDirector.Stop(shown.Fuse, immediate: true);
+            Sounds.Stop(shown.FuseSound, 0);
+        }
+        foreach (var rocket in _rockets.Values)
+        {
+            FxDirector.Stop(rocket.Trail, immediate: true);
+            Sounds.Stop(rocket.Roar, 0);
+        }
+        foreach (Node child in GetChildren()) { RemoveChild(child); child.QueueFree(); }
+        _shown.Clear(); _rockets.Clear(); _seen.Clear(); _gone.Clear(); _rocketsGone.Clear();
+        _awaySeen = _awayShown = 0; _awaySince = 0;
+        Alerts?.RetireWorld();
     }
 
     /// <summary>Every frame: the explosives in range, rockets in flight, the alerts that waited.</summary>
@@ -484,6 +504,12 @@ public partial class RaidAlertsPanel : Control
 
     private readonly List<Card> _cards = new();
     private double _now;
+
+    public void RetireWorld()
+    {
+        _cards.Clear(); _now = 0;
+        QueueRedraw();
+    }
 
     public override void _Ready()
     {

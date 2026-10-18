@@ -149,31 +149,7 @@ public static class BuildingCodec
         w.Write(d.Open);
         w.Write(d.Health);
         w.Write(d.Owner);
-        switch (d.Lock)
-        {
-            case KeyLock key:
-                w.Write((byte)LockKind.Key);
-                w.Write(key.Id.Value);
-                w.Write(key.Owner);
-                w.Write(key.Locked);
-                w.Write(key.KeyCode);
-                break;
-            case CodeLock code:
-                w.Write((byte)LockKind.Code);
-                w.Write(code.Id.Value);
-                w.Write(code.Owner);
-                w.Write(code.Locked);
-                w.Write(code.CodeHash);
-                w.Write((ushort)code.Authorised.Count);
-                foreach (ulong player in code.Authorised)
-                {
-                    w.Write(player);
-                }
-                break;
-            default:
-                w.Write((byte)LockKind.None);
-                break;
-        }
+        LockCodec.Write(w, d.Lock);
     });
 
     /// <summary>Puts a stored door (and its lock) back on its frame piece; null when the piece or the door's kind is gone.</summary>
@@ -195,26 +171,9 @@ public static class BuildingCodec
         {
             return null;
         }
-        switch ((LockKind)r.ReadByte())
-        {
-            case LockKind.Key:
-            {
-                var lockId = new EntityId(r.ReadUInt64());
-                ulong lockOwner = r.ReadUInt64();
-                bool locked = r.ReadBoolean();
-                building.RestoreKeyLock(door, lockId, lockOwner, r.ReadInt32(), locked);
-                break;
-            }
-            case LockKind.Code:
-            {
-                var lockId = new EntityId(r.ReadUInt64());
-                ulong lockOwner = r.ReadUInt64();
-                bool locked = r.ReadBoolean();
-                ulong hash = r.ReadUInt64();
-                building.RestoreCodeLock(door, lockId, lockOwner, hash, locked, ReadPlayers(r));
-                break;
-            }
-        }
+        ((ILockHost)door).Lock = LockCodec.Read(r, building.Data.LockMaxAuthorised);
+        building.ObserveLock(door.Lock);
+        ((ILockHost)door).LockChanged();
         return door;
     }
 

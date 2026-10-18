@@ -68,9 +68,10 @@ public sealed class ShipControls
         AssistOff = false;
     }
 
-    /// <summary>Reads this frame's controls and smoothly follows the persistent steering cursor.</summary>
-    public ShipInput Read(double delta)
+    /// <summary>Reads the flight keys; only the cockpit uses the persistent mouse cursor. Camera-only views release it.</summary>
+    public ShipInput Read(double delta, bool mouseSteering = true)
     {
+        if (!mouseSteering) CentreSteering();
         static float Held(Key key) => Input.IsPhysicalKeyPressed(key) ? 1 : 0;
         float lever = Held(Godot.Key.W) - Held(Godot.Key.S);
         Throttle = Hollow.Client.PilotSteering.AdjustThrottle(Throttle, lever * (float)delta * 2 / ThrottleStroke);

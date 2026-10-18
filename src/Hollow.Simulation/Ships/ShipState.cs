@@ -111,6 +111,12 @@ public struct ShipState : IEquatable<ShipState>
     /// <summary>Radians per second about the ship's own x (+ nose down), y (+ nose left) and z (+ roll right) axes.</summary>
     public Vector3 AngularVelocity;
 
+    /// <summary>Unattended powered assist has a captured orientation to return to after angular braking.</summary>
+    public bool AttitudeHoldActive;
+
+    /// <summary>Captured ship-to-zone orientation, transported with the local planetary frame. Unused when inactive.</summary>
+    public Quaternion AttitudeHoldRotation;
+
     public float Health;
 
     /// <summary>Units of fuel in the tank.</summary>
@@ -155,11 +161,14 @@ public struct ShipState : IEquatable<ShipState>
     public readonly bool Equals(ShipState o) =>
         Position.Equals(o.Position) && Rotation.Equals(o.Rotation) && Velocity.Equals(o.Velocity) && AngularVelocity.Equals(o.AngularVelocity) &&
         Health.Equals(o.Health) && Fuel.Equals(o.Fuel) && FuelReserve.Equals(o.FuelReserve) && BoostTicks == o.BoostTicks && CooldownTicks == o.CooldownTicks &&
-        RestTicks == o.RestTicks && Flags == o.Flags;
+        RestTicks == o.RestTicks && Flags == o.Flags && AttitudeHoldActive == o.AttitudeHoldActive &&
+        (!AttitudeHoldActive || AttitudeHoldRotation.Equals(o.AttitudeHoldRotation));
 
     public override readonly bool Equals(object? obj) => obj is ShipState s && Equals(s);
 
-    public override readonly int GetHashCode() => HashCode.Combine(Position, Rotation, Velocity, AngularVelocity, Health, Fuel, RestTicks, Flags);
+    public override readonly int GetHashCode() => HashCode.Combine(
+        HashCode.Combine(Position, Rotation, Velocity, AngularVelocity, Health, Fuel, RestTicks, Flags),
+        FuelReserve, BoostTicks, CooldownTicks, AttitudeHoldActive, AttitudeHoldActive ? AttitudeHoldRotation : default);
 
     public override readonly string ToString() => string.Create(CultureInfo.InvariantCulture,
         $"at ({Position.X:0.00}, {Position.Y:0.00}, {Position.Z:0.00}) moving ({Velocity.X:0.00}, {Velocity.Y:0.00}, {Velocity.Z:0.00}) " +

@@ -16,7 +16,12 @@ public static class FxWarm
     private const float Tiny = 0.003f;
 
     public static IEnumerable<WarmItem> Items() =>
-        FxCatalog.All.Select(def => new WarmItem($"effect {def.Key}", spot => Play(def, spot)));
+        FxCatalog.All.Select(def => new WarmItem($"effect {def.Key}", spot => Play(def, spot))
+        {
+            // Wait for deferred layers and the existing brief loop preview before counting its final draw frames.
+            // Tiny-scaled low-rate emitters can still emit no particles during that interval.
+            MinimumPreviewSeconds = def.IsLoop ? 1.5 : def.Layers.Select(layer => (double)layer.Delay).DefaultIfEmpty(0).Max() + 0.05,
+        });
 
     private static Node3D? Play(FxDef def, WarmSpot spot)
     {
@@ -52,7 +57,9 @@ public static class FxWarm
     private static FxDirector Director(WarmSpot spot)
     {
         const string name = "EffectsWarmup";
-        if (spot.Holder.GetNodeOrNull<FxDirector>(name) is { } existing)
+        // Pools are shared by all warm effects. A new director per temporary item would multiply every pool.
+        Node3D shared = spot.SharedHolder ?? spot.Holder;
+        if (shared.GetNodeOrNull<FxDirector>(name) is { } existing)
         {
             return existing;
         }
@@ -64,7 +71,7 @@ public static class FxWarm
             PreviewOnly = true,
         };
         // Do not Install this director: the game's singleton must keep its own persistent loops and handles.
-        spot.Holder.AddChild(director);
+        shared.AddChild(director);
         director.GlobalTransform = Transform3D.Identity;
         return director;
     }

@@ -146,8 +146,20 @@ public sealed record Recipe(string Key, string Category, float Seconds, IReadOnl
 /// <summary>A crafting category and how many recipes it holds.</summary>
 public readonly record struct CraftCategory(string Name, int Count);
 
-/// <summary>A job in the crafting queue. The first one is being made; <see cref="Remaining"/> counts down.</summary>
-public sealed record CraftJob(int Ticket, string Key, int Count, float Remaining, float Seconds);
+/// <summary>
+/// A job in the crafting queue. Key identifies the recipe; Count is the remaining output units (yield already
+/// applied). The first job is being made; Remaining counts down the seconds for all its remaining crafts.
+/// </summary>
+public sealed record CraftJob(int Ticket, string Key, int Count, float Remaining, float Seconds)
+{
+    public string OutputKey { get; init; } = Key;
+
+    /// <summary>Progress toward the next recipe completion, from 0 to 1.</summary>
+    public float UnitProgress { get; init; }
+}
+
+/// <summary>The active craft and actual carried output count, as painted on the normal ground HUD.</summary>
+public sealed record CraftingHudStatus(CraftJob Job, int Owned);
 
 /// <summary>A sleeping bag or bed to respawn at, with its cooldown and where it is (a body-frame point or direction, for the map).</summary>
 public sealed record RespawnBag(string Id, string Name, float Cooldown, System.Numerics.Vector3 At);

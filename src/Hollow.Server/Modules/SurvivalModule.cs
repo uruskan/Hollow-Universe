@@ -26,6 +26,8 @@ namespace Hollow.Server;
 /// </summary>
 public sealed class SurvivalModule : ServerModule
 {
+    // Only important rockets need observer terminal recovery outside their eventual impact relevance.
+    private readonly Dictionary<uint, HashSet<PlayerSession>> _projectileViewers = new();
     private readonly Dictionary<Container, List<(PlayerSession Session, ContainerRef Which)>> _watchers = new();
     private readonly List<int> _dirty = new();
     private readonly List<SlotNet> _slots = new();
@@ -157,7 +159,10 @@ public sealed class SurvivalModule : ServerModule
                 new HitMarker
                 {
                     Weapon = e.Weapon,
-                    ActionTick = Zone.Players().PlayerOf(to.Entity)?.LastActionTick ?? 0,
+                    ActionTick = e.ActionTick,
+                    AttackKind = e.Attack.Kind,
+                    AttackSeq = e.Attack.Sequence,
+                    AttackSession = e.Attack.Session,
                     PointX = e.Point.X,
                     PointY = e.Point.Y,
                     PointZ = e.Point.Z,
@@ -214,22 +219,54 @@ public sealed class SurvivalModule : ServerModule
             Writer.Reset();
             new ProjectileLaunch
             {
+                AttackKind = e.Attack.Kind, AttackSeq = e.Attack.Sequence, AttackSession = e.Attack.Session, Tick = e.Tick,
+                Weapon = e.Weapon, Gravity = e.Gravity, Drag = e.Drag,
                 Id = e.Projectile, Shooter = shooter, Ammo = e.Ammo, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z,
                 VelocityX = e.Velocity.X, VelocityY = e.Velocity.Y, VelocityZ = e.Velocity.Z, Seq = e.Seq, Silenced = e.Silenced && e.Seq != 0,
                 Battery = (byte)Math.Clamp(e.Battery, 0, 15),
             }.WriteMessage(Writer);
-            // Bullets are cosmetic to others and many: unreliable (ARCHITECTURE.md §11.3); arrows and batteries' rockets stay reliable.
-            SendNear(e.Position, e.Seq != 0 && e.Battery == 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
+            bool important = e.Battery != 0 || Content.Item(e.Ammo)?.Bullet?.Blast != null;
+            SendProjectile(e.Projectile, e.Shooter, e.Position, important, terminal: false, arrow: e.Seq == 0);
         });
         events.On<ProjectileEnded>((in ProjectileEnded e) =>
         {
             Writer.Reset();
-            new ProjectileEnd { Id = e.Projectile, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z, Target = e.Target.Family }.WriteMessage(Writer);
-            SendNear(e.Position, e.Seq != 0 ? DeliveryMethod.Unreliable : DeliveryMethod.ReliableOrdered);
+            uint shooter = Zone.Entities.TryFind(e.Shooter, out Entity s) && Zone.Entities.Has<NetPresence>(s) ? Zone.Entities.Get<NetPresence>(s).NetId : 0;
+            new ProjectileEnd
+            {
+                Id = e.Projectile, X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z, Target = e.Target.Family,
+                Contact = SurfaceContactNet.Of(e.Contact),
+                AttackKind = e.Attack.Kind, AttackSeq = e.Attack.Sequence, AttackSession = e.Attack.Session, Shooter = shooter, Tick = e.Tick,
+                Battery = (byte)Math.Clamp(e.Battery, 0, 15),
+            }.WriteMessage(Writer);
+            bool important = e.Battery != 0 || Content.Item(e.Ammo)?.Bullet?.Blast != null || _projectileViewers.ContainsKey(e.Projectile);
+            SendProjectile(e.Projectile, e.Shooter, e.Position, important, terminal: true, arrow: e.Seq == 0);
         });
         events.On<Notice>((in Notice e) => Notify(e.Player, e.Text));
         events.On<WentDown>((in WentDown e) => Log($"{NameOf(e.Player)} is down: {e.Cause}" + (e.By.IsNone ? "" : $", by {NameOf(e.By)}")));
         events.On<GotUp>((in GotUp e) => Log($"{NameOf(e.Player)} is up again" + (e.Helper.IsNone ? "" : $", helped by {NameOf(e.Helper)}")));
+    }
+
+    private void SendProjectile(uint projectile, EntityId shooter, Vector3 position, bool important, bool terminal, bool arrow)
+    {
+        PlayerSession? owner = SessionOf(shooter);
+        _projectileViewers.TryGetValue(projectile, out HashSet<PlayerSession>? viewers);
+        if (important && !terminal && viewers == null)
+        {
+            viewers = new HashSet<PlayerSession>();
+            _projectileViewers.Add(projectile, viewers);
+        }
+        float radius = Options.RelevanceRadius;
+        foreach (PlayerSession session in Players)
+        {
+            if (!session.Playing) continue;
+            bool own = session == owner;
+            bool near = Vector3.DistanceSquared(Zone.WorldOf(Zone.Entities.Get<Character>(session.Entity).State), position) <= radius * radius;
+            if (!own && !near && !(terminal && viewers?.Contains(session) == true)) continue;
+            session.Peer.Send(Writer.Data, own || important || arrow ? DeliveryMethod.ReliableUnordered : DeliveryMethod.Unreliable);
+            if (!terminal) viewers?.Add(session);
+        }
+        if (terminal) _projectileViewers.Remove(projectile);
     }
 
     /// <summary>A new character gets the join kit (the load test's full inventories, <see cref="ServerOptions.JoinKit"/>).</summary>

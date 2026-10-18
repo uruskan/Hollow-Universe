@@ -1,5 +1,6 @@
-// Lens-local +X is the optical axis. The virtual reticle is collimated: it moves
-// within the real opening when the eye moves, and cannot draw outside that mesh.
+// Lens-local +X is the optical axis. First-person reticles follow the camera's
+// aim ray; other held views keep a collimated reticle on the authored optical axis.
+// Both remain clipped by the real aperture mesh, including while the gun recoils.
 uniform vec3 glass_colour : source_color = vec3(0.18, 0.35, 0.38);
 uniform float glass_alpha : hint_range(0.0, 0.2) = 0.025;
 uniform vec3 reticle_colour : source_color = vec3(1.0, 0.12, 0.025);
@@ -7,8 +8,7 @@ uniform int reticle_style = 0; // 0 ring/dot, 1 crosshair
 // Local magnified optics supply a linear HDR world image only while aiming. Holo/TPS remain glass.
 uniform sampler2D optical_image : filter_linear, repeat_disable;
 uniform bool optical_image_enabled = false;
-uniform vec3 optical_centre = vec3(0.0);
-uniform vec2 optical_size = vec2(1.0);
+uniform float optical_image_scale = 1.0;
 instance uniform float optic_exposure = 1.0;
 varying vec3 lens_point;
 varying vec3 lens_eye;
@@ -33,6 +33,12 @@ void vertex() {
 void fragment() {
     vec3 ray = lens_point - lens_eye;
     vec2 angular = ray.yz / max(ray.x, 0.0001);
+#ifdef VIEWMODEL
+    // Use the same angular mark size as the viewmodel lens, independent of world zoom.
+    // Recoil can move the physical sight around the aim ray but cannot move its aiming mark.
+    angular = (SCREEN_UV - vec2(0.5)) * vec2(VIEWPORT_SIZE.x / VIEWPORT_SIZE.y, 1.0)
+        * (2.0 * tan(radians(viewmodel_fov) * 0.5));
+#endif
     float radius = length(angular);
     float aa = max(length(fwidth(angular)), 0.00012);
     float mark = 0.0;
@@ -52,8 +58,8 @@ void fragment() {
     ALBEDO = mix(glass_colour, reticle_colour, mark) / max(optic_exposure, 0.001);
     ALPHA = max(glass_alpha, mark);
     if (optical_image_enabled) {
-        vec3 point = lens_point - optical_centre;
-        vec2 image_uv = vec2(point.z, -point.y) / optical_size + vec2(0.5);
+        vec2 image_uv = (SCREEN_UV - vec2(0.5)) * vec2(VIEWPORT_SIZE.x / VIEWPORT_SIZE.y, 1.0)
+            / optical_image_scale + vec2(0.5);
         vec3 world = texture(optical_image, image_uv).rgb;
         ALBEDO = mix(world, reticle_colour / max(optic_exposure, 0.001), mark);
         ALPHA = 1.0;

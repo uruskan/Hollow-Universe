@@ -694,6 +694,7 @@ public partial class CharacterLab : Node3D
             _viewmodel.Apply(new ViewmodelFrame
             {
                 LocalVelocity = local,
+                GroundSpeed = (frame.Velocity - up * frame.Velocity.Dot(up)).Length(),
                 Grounded = frame.Grounded,
                 Sprinting = Motions[_motion] == "sprint",
                 Crouching = frame.Stance == CharacterStance.Crouch,

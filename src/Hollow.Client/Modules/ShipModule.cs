@@ -30,6 +30,7 @@ public sealed class ShipModule : ClientModule
 
     private readonly Dictionary<uint, RemoteShip> _ships = new();
     private readonly Dictionary<uint, uint> _parkedBodies = new();
+    private readonly Dictionary<uint, uint> _shipsByBody = new();
     private readonly Dictionary<uint, ClientShipFrame> _frames = new();
     private readonly List<uint> _framesGone = new();
     private float[] _scratchParts = Array.Empty<float>();
@@ -51,6 +52,9 @@ public sealed class ShipModule : ClientModule
 
     /// <summary>A ship by its net ID (the wire's name for it, and for its frame), or null.</summary>
     public RemoteShip? ShipByNetId(uint netId) => _ships.GetValueOrDefault(netId);
+
+    /// <summary>A parked collision body's ship, including ships without walkable interiors.</summary>
+    public RemoteShip? ShipForBody(uint body) => _shipsByBody.TryGetValue(body, out uint netId) ? ShipByNetId(netId) : null;
 
     /// <summary>The ships' frames this client keeps (IRON_WAKE.md §4.3): their spaces, for the aim and the views.</summary>
     public IReadOnlyCollection<ClientShipFrame> Frames => _frames.Values;
@@ -165,12 +169,13 @@ public sealed class ShipModule : ClientModule
             {
                 foreach (uint body in _parkedBodies.Values)
                 {
-                    _shipCollider.RemoveParked(body);
+                    if (_ownsShipBodies) _shipCollider.RemoveParked(body);
                 }
             }
             _shipCollider.Dispose();
         }
         _parkedBodies.Clear();
+        _shipsByBody.Clear();
         _ships.Clear();
         _shipCollider = null;
         _shipPredictor = null;
@@ -342,17 +347,19 @@ public sealed class ShipModule : ClientModule
     // the server's body ID (the same contacts in the same order). Another ship's body holding that ID here is a stale one.
     private void Park(uint netId, RemoteShip ship, in ShipNetState state)
     {
-        if (!_ownsShipBodies || ship.Def == null || _shipCollider == null || state.Body == 0)
+        if (ship.Def == null || _shipCollider == null || state.Body == 0)
         {
             return;
         }
-        foreach ((uint other, uint held) in _parkedBodies)
+        if (_shipsByBody.TryGetValue(state.Body, out uint other) && other != netId)
         {
-            if (held == state.Body && other != netId)
-            {
-                Unpark(other);
-                break;
-            }
+            Unpark(other);
+        }
+        if (!_ownsShipBodies)
+        {
+            _parkedBodies.Add(netId, state.Body);
+            _shipsByBody.Add(state.Body, netId);
+            return;
         }
         Shape shape;
         if (ship.Def.Interior is { } interior)
@@ -373,6 +380,7 @@ public sealed class ShipModule : ClientModule
             if (_shipCollider.AddParkedAt(state.Body, shape, ShipConvert.PositionOf(state), ShipConvert.RotationOf(state)))
             {
                 _parkedBodies.Add(netId, state.Body);
+                _shipsByBody.Add(state.Body, netId);
             }
         }
     }
@@ -381,9 +389,10 @@ public sealed class ShipModule : ClientModule
     {
         if (_parkedBodies.Remove(netId, out uint body))
         {
+            _shipsByBody.Remove(body);
             lock (JoltRuntime.Gate)
             {
-                _shipCollider?.RemoveParked(body);
+                if (_ownsShipBodies) _shipCollider?.RemoveParked(body);
             }
         }
     }

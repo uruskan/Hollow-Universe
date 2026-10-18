@@ -1,8 +1,42 @@
 # Hollow Universe — the ground game's shared systems
 
+**Shared electricity and device authorization, 18 October 2026:**
+[ELECTRICITY_AND_AUTHORIZATION.md](ELECTRICITY_AND_AUTHORIZATION.md) extends the existing
+capability, held-tool, targeting and radial foundations with explicit ports/cables and
+separate friendship/control policies. `ElectricalGraph` owns indexed directed topology and
+dirty-circuit flow; `WiringSystem` owns bounded tool drafts and authoritative port/anchor
+validation. `DeviceAuthorizationSystem` owns revocable friendship independently of management.
+Windmill, turret and SAM use explicit data ports. Clearing a device overrides cupboard
+inheritance; defense targeting uses player or pilot/owner identity, without team immunity.
+Wire Tool held controls and physical cube/cable rendering extend the existing registries.
+Protocol 36 / thing codec 10 carry routes, per-viewer access facts and persisted policy.
+See DEVELOPMENT.md for measured validation and remaining scope limits.
+
+AB Test B, 17 October 2026: `compound.json` is a hashed catalogue of named assemblies, pivots,
+sockets and convex collision hulls. Optional deployable blocks bind electricity (`PowerSystem`),
+automated weapons (`DefenseSystem`), articulated entrances and climbing (`CompoundInteractionSystem`),
+and contact damage (`ContactHazardSystem`). No item key selects gameplay behaviour. The shared
+projectile/damage pipeline handles defensive weapons; the common movement motor handles ladders.
+`CompoundGeometry` supplies the same open/closed hulls to server movement, prediction and targeting.
+Gate, electrical and defense verbs use the existing interaction registry. Optional `UtilityState`
+is replicated with things under protocol 35; persistent wiring, charge, switches, gate state,
+repair delay and locks use thing codec 9. `ILockHost` lets structural doors and compound gates
+share the existing key/code handlers and allocator. `LockMounts` resolves authored sockets on
+moving leaves. Dynamic lock capabilities are sent to already connected clients, and a locked
+host cannot be picked up around its access rules.
+Fixed window fittings reuse the existing aperture attachment entity with `opens:false` and
+`lockable:false`; convex leaf parts preserve their shooting holes. Deployable hammer repair uses
+the same material wallet, permission, reach and post-damage delay rules as other repairable targets.
+
 Status: **approved by the owner on 13 October 2026**, with the defaults of §11; being built (§10). It changes how the
 ground game ([GROUND.md](GROUND.md)) is put together, not what it plays like. Where it and GROUND.md disagree on
 structure, this document wins.
+
+AB Test B, 16 October 2026: melee, firearms/shoulder launchers and crewed cannons use the
+[shared attack lifecycle](ATTACK_SYSTEM.md). `AttackId`, `AttackLedger`, `AttackJournal` and
+`AttackResolved` own identity, prediction, duplicate suppression and decisions. Existing
+capability handlers own cadence, resources and damage; successful-shot counts never identify
+input attempts. This extends the shared systems below without item-name routing.
 
 ---
 
@@ -475,6 +509,28 @@ building's full checks (about 0.45 ms, as before P2). The server's verdict is on
 
 ## 7. Held items, item information, inventory actions (package P3)
 
+**Admire (17 October 2026):** N defaults to the local `admire` command; the existing
+`bind`/`unbind` commands can change it. Every held model declares an `admire` clip in
+`held-presentations.json`. The FPS renderer samples its camera-space offset over the
+actual idle pose, including skeletal idles and fitted attachments. It transforms the
+existing wrist-to-item relation and solves the holding arms while keeping shoulders
+rooted; a shared reach constraint keeps both holding hands attached. It never enters the gameplay action queue or
+sends an intent. Attack, aim, reload, sprint, swimming, menus, lost focus, free look,
+changing the belt slot/item, death/wounding and seats interrupt it. Busy hands cannot
+start it, and repeated presses do not restart an active inspection. This is local
+first-person presentation; remote players continue to see the ordinary held pose.
+
+**Bow aiming (17 October 2026):** the camera-attached arrow converges toward screen
+centre at a 10 m presentation reference distance after authored motion and reach solving.
+The shared bow rig preserves the authored cant and both hand attachments; this cosmetic
+constraint never changes projectile velocity, gravity, damage or the server's aim line.
+An optional hand `firstPersonShoulderOffset` (metres in camera space) adjusts procedural
+FPS reach independently of the shared shoulder placement and full-body animation. It is
+validated, saved and editable in the workshop; omitted values are zero. Native
+`--view held-editor --bow-check --bow-check-out <empty-folder>` measures the actual arrow
+axis/projection, hand attachment and camera clearance. The hosted `bow-alignment` tour
+checks real input through firing, redraw and admire interruption.
+
 **Held behaviour from parts.** Each item part that gives a held behaviour registers one handler: melee, bow, firearm,
 throwable, placer (deployables, doors, locks, the cupboard, ships), planner, hammer, consumable, blueprint. A load-time
 check allows at most one per item. The handler owns the client's mouse, R tap, R hold and radial options, the first-person
@@ -740,6 +796,13 @@ Decisions:
   snapshots of dynamic entities, saving and the console's plumbing.
 - **K11.** `ClientModule` likewise for `GameClient` (`Init`, `Update`, `Welcome`, `Dispose`); the presentation reads a
   module's state through its accessor (`client.Raid().Explosives`).
+
+The environment handshake has separate owned state objects, `ClientWorldHandshake` and
+`ServerWorldHandshake`. They validate offers, acceptance tokens, deadlines and admission
+without owning world leases or gameplay modules. The hosts retain world publication,
+persistence login, player creation and retirement. `ClientTransport` supplies stateless
+transport setup/update/send mechanics; the client remains responsible for disposing its
+transport and optional relay. These are collaborators, not hidden partial host files.
 
 ### 12.6 K4: one reader per data file
 

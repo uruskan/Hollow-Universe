@@ -179,7 +179,7 @@ public sealed record ShipRecord(EntityId Id, byte[] Data);
 public sealed class GameDatabase : IDisposable
 {
     /// <summary>The schema this build writes. Each step up is a migration in <see cref="Migrations"/>.</summary>
-    public const int SchemaVersion = 8;
+    public const int SchemaVersion = 10;
 
     private static readonly string[] Migrations =
     {
@@ -307,23 +307,47 @@ public sealed class GameDatabase : IDisposable
         """
         ALTER TABLE characters ADD COLUMN frame INTEGER NOT NULL DEFAULT 0;
         """,
+        // 8 → 9: a body's playable terrain identity. Existing rows are preserved; unversioned populated bodies are
+        // checked read-only before migration when a server requests a revision, never assigned a new terrain silently.
+        """
+        CREATE TABLE IF NOT EXISTS terrain_revisions (
+            system_address INTEGER NOT NULL,
+            body_path INTEGER NOT NULL,
+            revision INTEGER NOT NULL,
+            PRIMARY KEY (system_address, body_path)
+        );
+        """,
+        // 9 → 10: complete physical identity. No legacy row is assigned an identity by migration.
+        """
+        CREATE TABLE IF NOT EXISTS terrain_identities (
+            system_address INTEGER NOT NULL,
+            body_path INTEGER NOT NULL,
+            canonical_schema INTEGER NOT NULL,
+            canonical_identity TEXT NOT NULL,
+            identity TEXT NOT NULL,
+            PRIMARY KEY (system_address, body_path)
+        );
+        """,
     };
 
     private const string CharacterColumns =
         "id, account_id, name, system_address, body_path, body_x, body_y, body_z, yaw, pitch, stance, health, saved_at, dead, state, frame";
 
     private readonly SqliteConnection _connection;
+    private readonly TerrainIdentity? _terrain;
 
-    private GameDatabase(SqliteConnection connection)
+    private GameDatabase(SqliteConnection connection, TerrainIdentity? terrain)
     {
         _connection = connection;
+        _terrain = terrain;
     }
 
     public string Path => _connection.DataSource;
 
-    /// <summary>Opens (creating if needed) the database at <paramref name="path"/> and migrates it.</summary>
-    public static GameDatabase Open(string path)
+    /// <summary>Checks a requested terrain read-only, then opens (creating if needed) and migrates the database.</summary>
+    public static GameDatabase Open(string path, TerrainIdentity? terrain = null)
     {
+        TerrainSave.Preflight(path, terrain);
         var builder = new SqliteConnectionStringBuilder
         {
             DataSource = path,
@@ -332,11 +356,18 @@ public sealed class GameDatabase : IDisposable
         };
         var connection = new SqliteConnection(builder.ToString());
         connection.Open();
-        var database = new GameDatabase(connection);
+        var database = new GameDatabase(connection, terrain);
         try
         {
+            // Reserve the writer before rechecking. No migration, stamp or PRAGMA mutation precedes this check.
+            using (SqliteTransaction transaction = connection.BeginTransaction(deferred: false))
+            {
+                TerrainSave.Check(connection, transaction, path, terrain, allowNewIdentity: true);
+                database.Migrate(transaction);
+                if (terrain is { } identity) TerrainSave.Stamp(connection, transaction, identity);
+                transaction.Commit();
+            }
             database.Execute("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;");
-            database.Migrate();
         }
         catch
         {
@@ -348,49 +379,58 @@ public sealed class GameDatabase : IDisposable
 
     public int Version => Convert.ToInt32(Scalar("PRAGMA user_version"), CultureInfo.InvariantCulture);
 
-    private void Migrate()
+    private void Migrate(SqliteTransaction transaction)
     {
-        int version = Version;
+        int version = Convert.ToInt32(Scalar("PRAGMA user_version", transaction), CultureInfo.InvariantCulture);
         if (version > SchemaVersion)
         {
             throw new NewerSaveException(Path, version, SchemaVersion);
         }
         for (; version < SchemaVersion; version++)
         {
-            using SqliteTransaction transaction = _connection.BeginTransaction();
             Execute(Migrations[version], transaction);
             Execute($"PRAGMA user_version = {version + 1}", transaction);
-            transaction.Commit();
         }
     }
 
     /// <summary>The account of a player name (case-insensitive), created on first use.</summary>
     public long GetOrCreateAccount(string name, long nowUnixMilliseconds)
     {
+        using SqliteTransaction transaction = _connection.BeginTransaction(deferred: false);
+        CheckIdentity(transaction);
         using SqliteCommand insert = _connection.CreateCommand();
+        insert.Transaction = transaction;
         insert.CommandText = "INSERT INTO accounts (name, created_at) VALUES ($name, $now) ON CONFLICT(name) DO NOTHING";
         insert.Parameters.AddWithValue("$name", name);
         insert.Parameters.AddWithValue("$now", nowUnixMilliseconds);
         insert.ExecuteNonQuery();
         using SqliteCommand select = _connection.CreateCommand();
+        select.Transaction = transaction;
         select.CommandText = "SELECT id FROM accounts WHERE name = $name";
         select.Parameters.AddWithValue("$name", name);
-        return Convert.ToInt64(select.ExecuteScalar(), CultureInfo.InvariantCulture);
+        long account = Convert.ToInt64(select.ExecuteScalar(), CultureInfo.InvariantCulture);
+        transaction.Commit();
+        return account;
     }
 
     /// <summary>The account's character, or null if it has none yet.</summary>
     public CharacterRecord? LoadCharacter(long accountId)
     {
+        CheckIdentity();
         using SqliteCommand command = _connection.CreateCommand();
         command.CommandText = $"SELECT {CharacterColumns} FROM characters WHERE account_id = $account";
         command.Parameters.AddWithValue("$account", accountId);
         using SqliteDataReader reader = command.ExecuteReader();
-        return reader.Read() ? ReadCharacter(reader) : null;
+        CharacterRecord? character = reader.Read() ? ReadCharacter(reader) : null;
+        if (character != null) CheckBody(character.SystemAddress, character.BodyPath);
+        return character;
     }
 
     /// <summary>Every character on a body (at start, they all come back as sleepers or the dead).</summary>
     public List<CharacterRecord> LoadCharacters(ulong systemAddress, uint bodyPath)
     {
+        CheckBody(systemAddress, bodyPath);
+        CheckIdentity();
         using SqliteCommand command = _connection.CreateCommand();
         command.CommandText = $"SELECT {CharacterColumns} FROM characters WHERE system_address = $system AND body_path = $body ORDER BY id";
         command.Parameters.AddWithValue("$system", unchecked((long)systemAddress));
@@ -431,13 +471,19 @@ public sealed class GameDatabase : IDisposable
         {
             return;
         }
-        using SqliteTransaction transaction = _connection.BeginTransaction();
+        using SqliteTransaction transaction = _connection.BeginTransaction(deferred: false);
+        CheckIdentity(transaction);
         WriteCharacters(records, transaction);
         transaction.Commit();
     }
 
     private void WriteCharacters(IReadOnlyList<CharacterRecord> records, SqliteTransaction transaction)
     {
+        foreach (CharacterRecord record in records)
+        {
+            CheckBody(record.SystemAddress, record.BodyPath);
+            CheckStoredBody("characters", record.Id, transaction, record.AccountId);
+        }
         using SqliteCommand command = _connection.CreateCommand();
         command.Transaction = transaction;
         command.CommandText = """
@@ -490,6 +536,8 @@ public sealed class GameDatabase : IDisposable
     /// <summary>Everything stored about a body's zone: its characters, things, natural overrides and metadata.</summary>
     public ZoneRecord LoadZone(ulong systemAddress, uint bodyPath)
     {
+        CheckBody(systemAddress, bodyPath);
+        CheckIdentity();
         var zone = new ZoneRecord();
         zone.Characters.AddRange(LoadCharacters(systemAddress, bodyPath));
         long system = unchecked((long)systemAddress), body = bodyPath;
@@ -583,7 +631,19 @@ public sealed class GameDatabase : IDisposable
     /// <summary>Writes a zone's save in one transaction (ARCHITECTURE.md §13: one transaction per zone per flush).</summary>
     public void SaveZone(ZoneSave save)
     {
-        using SqliteTransaction transaction = _connection.BeginTransaction();
+        CheckBody(save.SystemAddress, save.BodyPath);
+        using SqliteTransaction transaction = _connection.BeginTransaction(deferred: false);
+        CheckIdentity(transaction);
+        foreach (ThingRecord thing in save.Things)
+        {
+            CheckBody(thing.SystemAddress, thing.BodyPath);
+            CheckStoredBody("things", thing.Id, transaction);
+        }
+        foreach (EntityId id in save.RemovedThings) CheckStoredBody("things", id, transaction);
+        foreach (BuildingRecord building in save.Building) CheckStoredBody("building", building.Id, transaction);
+        foreach (EntityId id in save.RemovedBuilding) CheckStoredBody("building", id, transaction);
+        foreach (ShipRecord ship in save.Ships) CheckStoredBody("ships", ship.Id, transaction);
+        foreach (EntityId id in save.RemovedShips) CheckStoredBody("ships", id, transaction);
         WriteCharacters(save.Characters, transaction);
         long system = unchecked((long)save.SystemAddress), body = save.BodyPath;
         if (save.Things.Count > 0)
@@ -815,7 +875,8 @@ public sealed class GameDatabase : IDisposable
     /// </summary>
     public void QueueNotification(ulong player, byte kind, long createdAt, byte[] data, int keep)
     {
-        using SqliteTransaction transaction = _connection.BeginTransaction();
+        using SqliteTransaction transaction = _connection.BeginTransaction(deferred: false);
+        CheckIdentity(transaction);
         using (SqliteCommand insert = _connection.CreateCommand())
         {
             insert.Transaction = transaction;
@@ -844,7 +905,8 @@ public sealed class GameDatabase : IDisposable
     public List<(byte Kind, long CreatedAt, byte[] Data)> TakeNotifications(ulong player, long since)
     {
         var result = new List<(byte, long, byte[])>();
-        using SqliteTransaction transaction = _connection.BeginTransaction();
+        using SqliteTransaction transaction = _connection.BeginTransaction(deferred: false);
+        CheckIdentity(transaction);
         using (SqliteCommand select = _connection.CreateCommand())
         {
             select.Transaction = transaction;
@@ -890,11 +952,35 @@ public sealed class GameDatabase : IDisposable
         command.ExecuteNonQuery();
     }
 
-    private object? Scalar(string sql)
+    private object? Scalar(string sql, SqliteTransaction? transaction = null)
     {
         using SqliteCommand command = _connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = sql;
         return command.ExecuteScalar();
+    }
+
+    private void CheckIdentity(SqliteTransaction? transaction = null) =>
+        TerrainSave.Check(_connection, transaction, Path, _terrain);
+
+    private void CheckBody(ulong systemAddress, uint bodyPath)
+    {
+        if (_terrain is { } terrain && (terrain.SystemAddress != systemAddress || terrain.BodyPath != bodyPath))
+            throw new InvalidOperationException("Persistence is bound to the acquired body's terrain identity; another body's spatial state is not authorized.");
+    }
+
+    private void CheckStoredBody(string table, EntityId id, SqliteTransaction transaction, long? account = null)
+    {
+        if (_terrain == null) return;
+        using SqliteCommand command = _connection.CreateCommand();
+        command.Transaction = transaction;
+        // Table names are private literals; a reused ID must not move or remove another body's spatial row.
+        command.CommandText = $"SELECT system_address, body_path FROM {table} WHERE id = $id" +
+            (account.HasValue ? " OR account_id = $account" : "");
+        command.Parameters.AddWithValue("$id", unchecked((long)id.Value));
+        if (account.HasValue) command.Parameters.AddWithValue("$account", account.Value);
+        using SqliteDataReader reader = command.ExecuteReader();
+        while (reader.Read()) CheckBody(unchecked((ulong)reader.GetInt64(0)), checked((uint)reader.GetInt64(1)));
     }
 
     public void Dispose() => _connection.Dispose();

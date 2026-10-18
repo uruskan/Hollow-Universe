@@ -11,9 +11,11 @@ public static class ServerModules
 {
     public static ServerModule[] All() => new ServerModule[]
     {
+        new AttackModule(),
         new ThingModule(),
         new BuildingModule(),
         new PlacementModule(),
+        new WiringModule(),
         new ShipModule(),
         new RaidModule(),
         new FireModule(),

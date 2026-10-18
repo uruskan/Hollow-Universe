@@ -1,0 +1,56 @@
+{
+  "body": "Earth",
+  "system": "8000000000000000",
+  "path": "10300000",
+  "radiusMetres": 1200,
+  "totalKm2": 18.09557368467721,
+  "physicalReferenceOceanFraction": 0.71,
+  "targetOceanFraction": 0.35,
+  "count": 40000,
+  "seaFraction": 0.3488,
+  "inlandWaterFraction": 0.06275,
+  "dryFraction": 0.58845,
+  "dryKm2": 10.648340334748303,
+  "inlandWaterKm2": 1.1354972487134949,
+  "seaKm2": 6.311736101215411,
+  "drySquareEquivalentSideKm": 3.2631794824600595,
+  "dryHeightMin": 0.0015413144151656874,
+  "dryHeightMax": 171.2213725202647,
+  "reliefDryCounts": [
+    6386,
+    13037,
+    3525,
+    590
+  ],
+  "referenceWorldTotalKm2": 72.98673716525951,
+  "referenceWorldLandBeforeInlandWaterKm2": 40.14270544089273,
+  "maximumCapLandAtEarthWaterRatioKm2": 6.6815999999999995
+}
+{
+  "body": "Earth",
+  "system": "8000000000000000",
+  "path": "10300000",
+  "radiusMetres": 1200,
+  "totalKm2": 18.09557368467721,
+  "physicalReferenceOceanFraction": 0.71,
+  "targetOceanFraction": 0.35,
+  "count": 160000,
+  "seaFraction": 0.34911875,
+  "inlandWaterFraction": 0.06263125,
+  "dryFraction": 0.58825,
+  "dryKm2": 10.64472122001137,
+  "inlandWaterKm2": 1.1333483993384394,
+  "seaKm2": 6.317504065327402,
+  "drySquareEquivalentSideKm": 3.2626248972279006,
+  "dryHeightMin": 0.001096845480472457,
+  "dryHeightMax": 172.13535071680724,
+  "reliefDryCounts": [
+    25492,
+    52169,
+    14109,
+    2350
+  ],
+  "referenceWorldTotalKm2": 72.98673716525951,
+  "referenceWorldLandBeforeInlandWaterKm2": 40.14270544089273,
+  "maximumCapLandAtEarthWaterRatioKm2": 6.6815999999999995
+}

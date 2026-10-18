@@ -60,8 +60,9 @@ motivation behind the preferred name.
   stations; the Iron Wake's largest cannons are operated by players at
   their individual stations. Aiming uses a crosshair and readable shot feedback.
 - Space travel.
-- Direct flight between planets and star systems, without a separate
-  supercruise mode, within travel times that are not excessively long.
+- Elite Dangerous-inspired space travel: normal flight, supercruise
+  within a star system, and charged frame shift drive jumps between
+  systems, with fuel scooping and travel times that are not excessively long.
 - 24/7 online play.
 - Full-loot player-versus-player combat.
 - Rapid progression through defeating better-equipped players or offline
@@ -84,11 +85,18 @@ motivation behind the preferred name.
 - Deployable placement within a Tool Cupboard's claim requires authorization
   on that cupboard, with an exception for ladders placed on walls.
 - An Auto Turret that consumes 10 energy, fires its installed weapon and
-  ammunition at enemies, and does not fire at players authorized on its
-  associated Tool Cupboard.
+  ammunition at enemies, and automatically protects players authorized on
+  its associated Tool Cupboard, subject to per-device clearing in AUTH-01.
 - A Rust-based electricity system with solar panels and wind turbines
   for generation, batteries for storage, and cables supplying devices
   such as Auto Turrets.
+- A Wire Tool connecting physical cube ports, with visual cable-routing
+  anchors and a maximum of 20 m between endpoint ports; generators have
+  one output, batteries one input/one output, and Auto Turrets/SAM sites
+  one input/one passthrough each.
+- Shared defense authorization: automatic Tool Cupboard protection by
+  default, with per-device self-authorization, self-clear, clear-all and
+  enable/disable actions. Clearing removes inherited protection too.
 - Electricity and technology systems inspired broadly by Rust,
   Dune: Awakening, Astroneer, and Empyrion - Galactic Survival.
 - Player-made, craftable technology with a visibly handmade character.
@@ -285,6 +293,28 @@ and the established planetary and biome requirements. The particular
 visual and experiential qualities responsible for the desired feeling
 remain to be identified in more detail through reference examples.
 
+### ART-03 — Tool Handling and Detailed Gameplay References
+
+On 17 October 2026, the creator accepted the metal hatchet and metal pickaxe
+**holding poses shown in their screenshots** as the local baseline, while
+rejecting the angle/position of other tools. This acceptance does not cover
+the complete equip, walk, run, strike and recovery performances.
+
+The creator supplied [HOW TO chop trees in RUST](https://www.youtube.com/watch?v=JTTJlCEwfUE)
+(VID-TOOLS-01, especially 25.73–36.60 seconds for chopping and movement) and
+[Rust Official Trailer](https://www.youtube.com/watch?v=LGcECozNXEw)
+(VID-WORLD-01, especially 7.47–21.28 seconds for tool handling; detailed world
+and action references throughout) for close study. Use these to inform hand
+choreography, movement, contact feedback, sound and world presentation,
+alongside ART-02 and the existing ground UI requirement.
+
+[Tool handling and world presentation study](REFERENCE_STUDY_TOOLS_WORLD.md)
+records the accepted captures, timestamped observations, implementation audit,
+proposed repairs and remaining audio/validation limits. Its proposed details
+do not automatically become confirmed mechanics or authorize importing the
+reference game's assets. Every tool must be evaluated for its own geometry
+and task; a shared implementation must still support distinct performances.
+
 ### Reference Intent
 
 The creator describes the broad premise as Rust-like survival and
@@ -328,11 +358,13 @@ combination is still to be developed into the game's own map design.
 
 Reference project: `D:\GameDev\Projects\Hollow Universe`.
 
-The previous project drew inspiration from Elite Dangerous. The creator
-was dissatisfied with its space scale, travel between planets and star
-systems, and galaxy map, and found that approach difficult to simplify.
-These areas will be redesigned using the Stellaris-inspired presentation
-direction while retaining selected ideas from the previous project.
+The previous project drew inspiration from Elite Dangerous. The creator's
+earlier dissatisfaction with its scale, travel and galaxy map led to the
+initial direct-flight design. On **18 October 2026**, the creator chose
+Elite Dangerous-inspired travel again, specifically including frame shift
+drive charging and fuel scooping, as defined in TRAVEL-02 through TRAVEL-05.
+Galaxy-map presentation continues to follow GAL-02. The older project's
+travel plans are reference material, not evidence of implemented travel.
 
 The previous project's star counts and implementation choices are
 reference material; the choices for this design will be specified here.
@@ -375,6 +407,12 @@ is approximately **1.354 km**, and its diameter is approximately
 
 The precise scaling function relating real planet sizes to game sizes
 has not yet been defined.
+
+On 16 October 2026, the creator approved increasing Earth's land proportion
+and generating larger connected landmasses, while retaining the **23.04 km²
+maximum total surface area**. Earth's playable geography may therefore differ
+from its physical ocean-cover metadata. The exact land percentage and terrain
+parameters are implementation tuning, to be measured and playtested.
 
 ### WORLD-02 — Monument Generation
 
@@ -461,21 +499,104 @@ Both descent and ascent must be continuous and realistic, with no
 loading screen during either transition. The player can leave the
 surface in their ship, reach orbit, and continue into space.
 
-### TRAVEL-02 — Direct Flight Between Planets and Star Systems
+The travel modes in TRAVEL-02 may change during the journey, with visible
+entry/exit effects and appropriate flight controls. The player stays with
+the same ship and crew. This continuity requirement does not require one
+flight speed or one physics region for the whole journey. An interstellar
+hyperspace sequence is part of travel, rather than planetary descent/ascent.
 
-Players travel between **planets and star systems by directly flying
-their spacecraft**, without a separate **supercruise** travel mode.
-These journeys must be possible in times that are **not excessively
-long**. Playable distances and flight speeds must be designed together
-to achieve this experience.
+### TRAVEL-02 — Normal Flight, Supercruise and Interstellar Jumps
 
-The galaxy's layout and scale can be adapted to support direct flight
-(GAL-01). Stellaris remains the reference for presenting the galaxy,
-stars, systems, and planets clearly in the map and UI.
+**Confirmed revision, 18 October 2026:** the creator requested an
+Elite Dangerous-inspired travel experience, including frame shift drive
+charging and fuel scooping. This replaces the former requirement for
+direct compressed-distance flight without supercruise.
 
-Exact distances, speeds, travel durations, handling, and fuel rules
-remain to be specified. Continuous planetary descent and ascent
-remain required under TRAVEL-01.
+The travel model has three modes:
+
+| Mode | Purpose |
+| --- | --- |
+| **Normal flight** | Ship handling, combat, close manoeuvring, planetary takeoff and landing. |
+| **Supercruise** | Pilot-controlled fast travel between planets and other destinations within the same star system, with entry from and exit to normal flight. |
+| **Interstellar jump** | A charged drive jump to a selected star system, shown through a hyperspace travel sequence and arrival in that system. |
+
+Travel must have readable preparation, movement and arrival, with journey
+times that are **not excessively long**. System distances, supercruise
+speed and acceleration, jump range and route lengths must be tuned together.
+Neither real astronomical distances nor the former compressed-flight scale
+are mandated by this revision. Map diagram coordinates are not flight distances.
+
+The galaxy remains limited to **1,000 stars**, planets to **23.04 km² total
+surface area**, and initial spawn remains Earth with one rock and one torch.
+GAL-02 continues to govern map presentation and UI-01 the ground interface.
+Adopting this travel model does not restore all historical design decisions.
+
+### TRAVEL-03 — Drive Charging and Jump Experience
+
+Drive charging is an explicit part of the player's flight experience.
+The pilot selects the intended travel mode/destination, initiates the drive,
+sees charging and readiness feedback, and then enters supercruise or commits
+to an interstellar jump. An interstellar jump has a readable countdown,
+departure, hyperspace sequence and arrival. The interface must explain why
+activation cannot proceed and allow cancellation before commitment.
+
+Ship travel consumes fuel; interstellar jumps have a fuel cost and range
+limit. The ship, crew, cargo and deployed contents remain the same persistent
+objects throughout the journey. The reference term **frame shift drive
+(FSD)** is used in these design notes; the final in-universe equipment name
+and its crafting/unlock details remain to be chosen under SHIP-01/02.
+
+Exact charge, countdown and cooldown durations, jump range, fuel formula,
+arrival position and speed, and the rules for interruption are open. A
+visible hyperspace sequence may cover destination preparation; its duration
+and failure behaviour must be defined and tested, not hidden in a claim
+that a map selection already transports the player.
+
+### TRAVEL-04 — Fuel Scooping
+
+**Fuel scooping is a confirmed feature.** Players can replenish spacecraft
+fuel by flying near eligible stars with suitable ship equipment, supporting
+exploration and return journeys. The flight interface must show whether
+scooping is available/active, fuel gained and remaining tank capacity.
+
+Proposed handling baseline: a fitted scoop collects while the pilot remains
+in a suitable stellar region in supercruise; closer approaches trade higher
+collection rate for heat exposure. The pilot manages position, fuel and
+temperature, with clear warnings before dangerous exposure. This baseline
+is a proposal for implementation and playtesting, not fixed balance.
+
+Eligible star classes, scoop fitting/unlocks, collection rates, heat and
+damage rules, and the fuel commodity remain open. The existing local-flight
+fuel inventory is not proof of scoop support. Its relationship to scooped
+fuel must be specified, with one authoritative fuel accounting system.
+
+### TRAVEL-05 — Navigation, Handling Proposals and Completion
+
+Navigation must support selecting bodies within a system and plotting
+interstellar routes subject to drive range and fuel. It should expose
+reachable destinations and refuelling opportunities. Charging, arrival,
+scooping and warnings need clear visual/audio feedback using our own assets;
+ship travel displays belong in the ship/map interface while preserving UI-01.
+
+Reference-inspired proposals to resolve: mass-based limits on drive
+activation, alignment/throttle requirements, slower supercruise near large
+bodies, safe disengagement windows, emergency drops, heat damage and drive
+cooldowns. Their exact rules, including effects on PvP escape, are not yet
+confirmed. Interdiction, automatic route flying/scooping, neutron boosting
+and supercruise overcharge are also undecided.
+
+Reference: Frontier's [Elite Dangerous Player's Guide](https://hosting.zaonce.net/elite/website/assets/English-PlayersGuide_v2.00-Horizons.pdf),
+flight manual pp. 68–69, describes the three travel modes and drive charging.
+It informs this direction; its full equipment catalogue, numerical balance
+and other mechanics are not automatically requirements for Hollow Universe.
+
+**Implementation status:** the galaxy generator and map viewers exist, and
+ships can cross the local orbital-altitude marker. The current four-radius
+flight boundary remains. Connected space, supercruise, interstellar jumps,
+drive charging and fuel scooping are not implemented by this documentation
+change. [TRAVEL_IMPLEMENTATION.md](TRAVEL_IMPLEMENTATION.md) proposes the
+integration and validation work; [LOCAL_FLIGHT.md](LOCAL_FLIGHT.md) records
+the existing foundation.
 
 ## Player Interface
 
@@ -500,6 +621,10 @@ inventory. It drops every backpack stack onto the ground while keeping
 the six **hotbar** slots (called the belt internally) and all equipped
 clothing/armor. The creator explicitly confirmed backpack contents only.
 Dropped items follow the shared lootbag rules in LOOT-01.
+
+On 17 October 2026, the creator requested a held-item **admire** action,
+bound to **N** by default: the player raises and turns the item to inspect it.
+This is a cosmetic first-person action; ordinary item use takes priority.
 
 ### UI-02 — Radial Menus
 
@@ -539,6 +664,20 @@ Reticle design, projectile behavior, and the exact feedback presentation
 remain to be specified. Automatic lead/impact prediction, aim assistance,
 and hitscan behavior have not been selected by this requirement.
 
+### UI-05 — Weapon Aim and Optic Presentation
+
+On 17 October 2026 the creator requested a consistent screen-centre aim reference
+for projectile weapons, including player-operated gun stations. The holosight dot
+must show that reference; the 4× scope image and reticle must stay synchronized
+with the camera while the scope remains rigidly mounted to the gun. Repeated shots
+must not teleport the weapon back to the start of its recoil animation.
+
+Attachment magnification may change zoom but must not automatically change mouse
+sensitivity. Visual recoil is separate from the authoritative recoil pattern.
+The implementation retains spread, projectile drop and physical muzzle obstruction;
+screen centre is the aiming reference, not a promise that every projectile hits it.
+Autonomous turrets aim at their selected target rather than a player's camera.
+
 ### UI-06 — Customizable Ground Crosshair
 
 On **18 October 2026**, the creator requested one customizable HUD crosshair,
@@ -551,7 +690,7 @@ The implementation offers dot, cross, ring and combined shapes, an Off choice,
 colour and dimension controls, opacity and outline, a live preview, and optional
 visibility while aiming or expansion with weapon spread. These controls are
 implementation choices supporting the request; physical optic reticles and
-weapon simulation rules remain separate.
+UI-05's weapon simulation rules remain separate.
 
 ## Base Building
 
@@ -617,8 +756,9 @@ resources, and building tools. Detailed upkeep rates and inventory
 capacity have not yet been defined.
 
 Auto Turrets follow the shared deployable placement authorization rule
-in BUILD-05. They do not fire at players authorized on the associated
-Tool Cupboard (ITEM-01).
+in BUILD-05. Auto Turrets and SAM sites automatically protect players
+authorized on the associated Tool Cupboard, subject to the explicit
+per-device clearing rules in AUTH-01.
 
 ### BUILD-05 — Structural Building and Deployable Items
 
@@ -1281,7 +1421,72 @@ through cables.
 
 The Auto Turret's consumption remains **10 energy**, as specified in
 ITEM-01. Generation rates, battery capacities, energy units and time basis,
-and detailed wiring rules remain to be specified.
+and storage dispatch rules remain to be specified. The confirmed initial
+wiring rules follow in ELEC-02–03.
+
+### ELEC-02 — Physical Ports and the Wire Tool
+
+Confirmed by the owner on **18 October 2026**:
+
+| Device role | Electrical ports |
+| --- | --- |
+| Wind Turbine and every other generator | Exactly one output |
+| Battery | Exactly one input and one output |
+| Auto Turret and SAM site | Exactly one input and one passthrough output |
+
+Each port is a small physical cube on the item itself. Players use a
+**Wire Tool** to click an output, optionally click surfaces to attach
+visual cable-routing points, and finally click the receiving input.
+The maximum connection span is **20 m between the physical endpoint
+ports**, explicitly confirmed by the owner; it is not a limit on total
+routed cable length or on each decorative segment. Routing points are
+for cable management only and do not become electrical junctions.
+
+The architecture must support later branches, splitters and combiners
+without per-item hardcoded paths. Those additional devices are outside
+the initial delivery. Batteries are a required architectural role; this
+confirmation does not imply a playable battery item already exists.
+
+### ELEC-03 — Shared Electrical Architecture and Scope
+
+Electricity uses shared, efficient, modular, scalable systems with
+data-declared ports and behavior. Power generation, distribution and
+consumption must not be separately hardcoded for each item. Physical
+ports, cable editing and presentation use the shared interaction and
+held-tool foundations, preserving the ground UI.
+
+The current request is to work on **architecture and general logic first**.
+[Electricity and device authorization](ELECTRICITY_AND_AUTHORIZATION.md)
+records the source audit, proposed directed graph, wire transactions,
+permission boundaries, persistence/migration and validation sequence.
+That document is a plan, not an implementation-completion claim.
+Disabled-device passthrough, partial-power handling, wire removal controls,
+port dimensions, routing limits, costs and balance remain proposals/open
+details unless separately confirmed.
+
+### AUTH-01 — Automatic and Per-Device Defense Authorization
+
+Confirmed by the owner on **18 October 2026**: when an Auto Turret or
+SAM site is placed in a base where the placer has Tool Cupboard building
+privilege, the placer and everyone authorized on the associated cupboard
+are automatically protected by default.
+
+Each device also offers these actions through its own **hold-E radial**:
+authorize yourself, clear your authorization, clear all authorization,
+and enable/disable the device. The owner explicitly clarified that
+clearing authorization must remove **inherited Tool Cupboard protection
+as well**, on that device. Clearing yourself must therefore override your
+cupboard-derived protection; clearing all must stop automatic inheritance
+for that device. It does not clear the cupboard's building-privilege list
+or authorization on other devices.
+
+The proposed architecture separates target friendship from permission
+to configure the device. It uses local grants/exclusions and an explicit
+inheritance mode so clearing is not silently undone by a later power,
+cupboard, reconnect or restart event. Exact management/enrollment rights,
+overlapping-cupboard association, an optional restore-inheritance action,
+and how SAMs classify a ship with different crew members remain proposed
+details in the architecture document.
 
 ## Items and Deployable Equipment
 
@@ -1295,7 +1500,7 @@ The **Auto Turret** is a deployable automated defense item.
 | Electricity supply | Connected to an electricity supply by cable, following ELEC-01 |
 | Weapon and ammunition | Automatically fires at enemies using the weapon and ammunition placed inside it |
 | Placement | Follows the shared deployable rule in BUILD-05: placement within a Tool Cupboard's claim area requires authorization on that cupboard |
-| Authorization | Does not fire at players authorized on that Tool Cupboard |
+| Authorization | Automatic Tool Cupboard protection, with explicit per-device authorization and clearing under AUTH-01 |
 
 The Tool Cupboard placement rule refers to its claim area. Targeting
 range, weapon compatibility, and further targeting and power-system
@@ -1317,8 +1522,8 @@ Astroneer, and Satisfactory**. Satisfactory is specifically included
 as a reference for factory production, automation, and optimization.
 
 This goal applies to the existing online sandbox. Full-loot PvP, offline
-raiding, physical cargo transport, persistent bases and ships, direct
-flight, and the absence of an authored storyline remain in effect.
+raiding, physical cargo transport, persistent bases and ships, the travel
+model in TRAVEL-01–05, and the absence of an authored storyline remain in effect.
 
 **Status:** PLAY-01 records the creator's confirmed direction. PLAY-02
 is source research. PLAY-03 through PLAY-06 are proposed additions and
@@ -1561,6 +1766,9 @@ describing what matters. For videos, include the relevant timestamps.
 | Reference ID | File | Related design |
 | --- | --- | --- |
 | IMG-BUILD-01 | [Rust build radial screenshot](media/build-01-rust-radial.png) | BUILD-02, BUILD-03, UI-01 |
+| IMG-TOOLS-01 / 02 | [Accepted Hollow metal-tool captures](REFERENCE_STUDY_TOOLS_WORLD.md#references-and-review-coverage) | ART-03 |
+| VID-TOOLS-01 | [Continuous axe gathering reference](https://www.youtube.com/watch?v=JTTJlCEwfUE&t=25s) | ART-03; carry, chopping, recovery and traversal |
+| VID-WORLD-01 | [Detailed trailer reference ledger](REFERENCE_STUDY_TOOLS_WORLD.md#trailer-lessons-by-concern) | ART-02, ART-03; tools, terrain, lighting, materials and actions |
 
 ## Open Decisions
 
@@ -1591,7 +1799,12 @@ describing what matters. For videos, include the relevant timestamps.
 - Auto Turret targeting range, weapon compatibility, further targeting
   rules, and the energy unit and time basis for its consumption of 10.
 - Electricity generation rates, battery capacities, energy units and time
-  basis, and detailed wiring rules.
+  basis, storage dispatch, disabled/undersupplied-device passthrough,
+  wire-removal controls, port dimensions and Wire Tool costs. The 20 m
+  endpoint span and initial port counts are settled in ELEC-02.
+- Defense management/enrollment rights, overlapping-cupboard association,
+  optional restoration of inherited protection, and aircraft identity for
+  SAM targeting. Clearing inherited protection is settled in AUTH-01.
 - Final selection of space-oriented building extensions from the research.
 - Selection and detailed rules for the proposed low-population gameplay
   additions in PLAY-03, including surveying, wreck recovery, repeatable
@@ -1615,9 +1828,10 @@ describing what matters. For videos, include the relevant timestamps.
 - Specific biome, fauna, and resource rules; ore extraction and replenishment.
 - Hunger/thirst rules, equipment oxygen capacities and consumption/refilling,
   and suffocation timing and damage.
-- Playable space scale, distances, speeds, fuel rules, and travel durations
-  for direct interplanetary/interstellar flight; implementation of
-  continuous descent and ascent.
+- Playable space scale, supercruise speeds and handling, drive charge/cooldown
+  times, jump ranges/costs, fuel type, scoop equipment/star eligibility/rates,
+  heat and emergency-drop rules; implementation of continuous planetary
+  descent/ascent and persistent transfers under TRAVEL-01–05.
 - Further survival, combat, and loot rules; detailed application of the
   Rust building/raiding baseline and explicit Hollow Universe adaptations.
 - Server structure, wipe policy, and the character's state while offline.

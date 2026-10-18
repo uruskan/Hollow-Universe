@@ -22,6 +22,7 @@ namespace Hollow.Bots;
 /// </summary>
 public sealed class SurvivalBrain
 {
+    private readonly BotGround _ground;
     private enum Goal
     {
         Gather,
@@ -43,8 +44,9 @@ public sealed class SurvivalBrain
     private float _pitch;
     private bool _campfire;
 
-    public SurvivalBrain(int index)
+    public SurvivalBrain(int index, BotGround ground)
     {
+        _ground = ground;
         _rng = new Rng(Hash64.Of((ulong)index, 0x5B07));
         _yaw = (float)_rng.Range(-Math.PI, Math.PI);
         _nextPlan = _rng.Range(0, 1);
@@ -145,7 +147,7 @@ public sealed class SurvivalBrain
             }
             default:
                 _goal = Goal.Wander;
-                Wander(ref input, feet, BotGround.Home(client), delta);
+                Wander(ref input, feet, _ground.Home(client), delta);
                 break;
         }
         _yaw = input.Yaw;
@@ -178,7 +180,7 @@ public sealed class SurvivalBrain
         }
         _nearby.Clear();
         client.Survival().Nature!.Query(feet, 40, _nearby);
-        Vector3 homePoint = BotGround.Home(client);
+        Vector3 homePoint = _ground.Home(client);
         bool home = Vector3.Distance(feet, homePoint) < BotBrain.HomeRadius;
         bool wantsOre = me.Inventory.Count(client.Content.ItemByKey("stone")) < me.Inventory.Count(client.Content.ItemByKey("wood"));
         NaturalObject? best = null;

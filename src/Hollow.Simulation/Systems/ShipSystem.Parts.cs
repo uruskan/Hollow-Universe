@@ -246,12 +246,14 @@ public sealed partial class ShipSystem
                 ShipQueries.Ray(zone.Frames.Ships, ray.Origin, ray.Direction, ray.Upto(best), zone.Tick, out ShipQueryHit hit, zone.History, ray.ViewTick, ray.IgnoreShip) &&
                 ships.ShipOf(new EntityId(hit.Key)) is { Destroyed: false, InOrbit: false } walked)
             {
-                ray.Consider(ref best, hit.Distance, walked.Ref with { Part = (byte)walked.Def.PartOfPieces(hit.Hit.Part) });
+                ShipQueries.PoseFor(hit.Ship, zone.Tick, zone.History, ray.ViewTick, out ShipPose pose);
+                ray.Consider(ref best, hit.Distance, walked.Ref with { Part = (byte)walked.Def.PartOfPieces(hit.Hit.Part) },
+                    normal: pose.DirectionToWorld(hit.Hit.Normal));
             }
-            float t = ships.TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship, ray.ViewTick);
+            float t = ships.TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship, out Vector3 normal, ray.ViewTick);
             if (ship != null)
             {
-                ray.Consider(ref best, t, ship.Ref);
+                ray.Consider(ref best, t, ship.Ref, normal: normal);
             }
         }
 

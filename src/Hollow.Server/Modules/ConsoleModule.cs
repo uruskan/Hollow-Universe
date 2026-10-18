@@ -674,9 +674,14 @@ public sealed class ConsoleModule : ServerModule
         : name.EndsWith("f", StringComparison.Ordinal) ? name[..^1] + "ves"
         : name + "s";
 
-    // raidbase [grade] [player], or the older raidbase <player> [grade]: a claimed hut 8 m in front, its doorway facing them.
+    private BuildingBlueprint? _clanBase;
+
+    // raidbase [clan|hut] [grade] [player]; the default is the large admin preset.
     internal void RaidBase(CommandContext ctx, IReadOnlyList<string> args)
     {
+        bool hutPreset = args.Count > 0 && args[0].Equals("hut", StringComparison.OrdinalIgnoreCase);
+        if (hutPreset || (args.Count > 0 && args[0].Equals("clan", StringComparison.OrdinalIgnoreCase)))
+            args = args.Skip(1).ToArray();
         int grade = 2;
         PlayerSession? whom;
         if (args.Count > 0 && Grade(args[0]) is { } g)
@@ -708,12 +713,29 @@ public sealed class ConsoleModule : ServerModule
         ref Character c = ref Zone.Entities.Get<Character>(whom!.Entity);
         Vector3 feet = Zone.WorldOf(c.State);
         Vector3 up = Zone.Frame.UpAt(feet);
-        Vector3 ahead = Zone.Settle(feet + Facing.Basis(Zone.ViewOf(c), up).Forward * 8);
+        float distance = hutPreset ? 8 : 26;
+        Vector3 ahead = Zone.Settle(feet + Facing.Basis(Zone.ViewOf(c), up).Forward * distance);
         // Its doorway toward the player.
         Vector3 aheadUp = Zone.Frame.UpAt(ahead), back = feet - ahead;
         back -= aheadUp * Vector3.Dot(back, aheadUp);
-        TestBases.Hut? hut = TestBases.Build(Zone, ahead,
-            BuildingFrame.HeadingOf(new Vector3D(back.X, back.Y, back.Z), new Vector3D(aheadUp.X, aheadUp.Y, aheadUp.Z)), grade, owner.Id.Value);
+        double heading = BuildingFrame.HeadingOf(new Vector3D(back.X, back.Y, back.Z), new Vector3D(aheadUp.X, aheadUp.Y, aheadUp.Z));
+        if (!hutPreset)
+        {
+            try
+            {
+                _clanBase ??= BuildingBlueprint.Parse(Content.Building, File.ReadAllText(Path.Combine(
+                    GameContent.FindFolder() ?? throw new ContentException("Ground data folder not found."), "admin-bases", "clan-3x3.json")));
+                if (BuildingBlueprintSpawner.TryPlace(Zone, _clanBase, ahead, heading, grade, owner.Id.Value, out var pieces, out string reason))
+                    ctx.Done($"A claimed {Content.Building.Grades[grade].Name.ToLowerInvariant()} 3×3 clan base ({pieces.Count} pieces) 26 m in front of {GameServer.Whom(ctx, whom)}. Cupboard authorized; airlock, stairs, shooting floor and roof peeks ready.");
+                else ctx.Error(reason);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or ContentException)
+            {
+                ctx.Error("Cannot load the clan-base preset: " + e.Message);
+            }
+            return;
+        }
+        TestBases.Hut? hut = TestBases.Build(Zone, ahead, heading, grade, owner.Id.Value);
         if (hut != null)
         {
             ctx.Done($"A claimed {Content.Building.Grades[grade].Name.ToLowerInvariant()} hut 8 m in front of {GameServer.Whom(ctx, whom)}, listing {GameServer.Whom(ctx, whom)}.");

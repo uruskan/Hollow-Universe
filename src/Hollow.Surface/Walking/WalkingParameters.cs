@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Hollow.Surface;
 
 /// <summary>
@@ -9,6 +11,40 @@ namespace Hollow.Surface;
 public sealed record WalkingParameters
 {
     public static WalkingParameters Default { get; } = new();
+
+    /// <summary>Earth revision 5: layout variant 5, with corrected ice/alpine biome allocation and generated populations.</summary>
+    public static WalkingParameters Earth { get; } = new()
+    {
+        TerrainRevision = 5,
+        LayoutVariant = 5,
+        OceanCover = 0.35,
+        ContinentWavelength = 3200,
+        IslandShare = 0.12,
+        CoastDetail = 0.02,
+    };
+
+    private static readonly IReadOnlyDictionary<(ulong System, uint Body), WalkingParameters> Profiles =
+        new Dictionary<(ulong, uint), WalkingParameters>
+        {
+            [(StartingWorld.System.Value, StartingWorld.BodyPath)] = Earth,
+        };
+
+    /// <summary>Shared body-specific tuning; addresses, never display names, select a profile.</summary>
+    public static WalkingParameters ForBody(ulong systemAddress, uint bodyPath) =>
+        Profiles.TryGetValue((systemAddress, bodyPath), out WalkingParameters? profile) ? profile : Default;
+
+    /// <summary>
+    /// Save compatibility includes heights, generated solids and populations. Revision 1 fences CliffPlacements
+    /// generation 2; revision 2 corrects biome allocation. Zero is legacy walking or stand-in ground.
+    /// </summary>
+    public int TerrainRevision { get; init; } = 2;
+
+    /// <summary>Optional deterministic geography variation. Zero preserves the existing world exactly.
+    /// Earth candidates set this explicitly; selecting one for production also requires a new terrain/save revision.</summary>
+    public int LayoutVariant { get; init; }
+
+    /// <summary>Optional playable ocean target, independent of the body's physical reference metadata.</summary>
+    public double? OceanCover { get; init; }
 
     /// <summary>Small original monuments per candidate cell; tune world dressing without changing galaxy seeds.</summary>
     public double MonumentSpacing { get; init; } = 300;

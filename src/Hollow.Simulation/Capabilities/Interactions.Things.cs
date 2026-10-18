@@ -65,6 +65,7 @@ public static partial class CapabilityHandlers
         // (and those on its list).
         public void Offer(in InteractContext ctx, List<InteractOption> into)
         {
+            if (ctx.Facts.DeviceAccess.Present) return; // Its shared access capability supplies the storage action.
             int verb = ctx.Facts.Body ? _loot : _open;
             bool lockedOut = ctx.Has(ViewerFlags.Locked) && !ctx.Has(ViewerFlags.Mine) && !ctx.Has(ViewerFlags.Authorised);
             into.Add(lockedOut ? InteractOption.Cannot(verb, OutcomeCode.Locked, primary: true) : InteractOption.Can(verb, primary: true));
@@ -72,7 +73,9 @@ public static partial class CapabilityHandlers
 
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
-        private static Outcome Open(in InteractContext ctx, in InteractArgs args) => ctx.Zone!.Interaction().OpenLoot(ctx.Player!, new EntityId(ctx.Target.Id));
+        private static Outcome Open(in InteractContext ctx, in InteractArgs args) =>
+            ctx.Thing is Deployable { Def.Defense: not null } device && !ctx.Zone!.DeviceAuthorization().CanManage(device, ctx.Doer.Id)
+                ? OutcomeCode.NotAuthorised : ctx.Zone!.Interaction().OpenLoot(ctx.Player!, new EntityId(ctx.Target.Id));
     }
 
     /// <summary>Taken whole with E: a natural pickup, a berry bush (picked bare), a bag of dropped items (all that fits), a spent arrow.</summary>
@@ -126,7 +129,13 @@ public static partial class CapabilityHandlers
         {
             // Aboard a ship its crew takes things up (IRON_WAKE.md §8: its list is its claim); elsewhere, where no one
             // else's claim covers.
-            Outcome why = ctx.Facts.Capabilities.Has(_container) && !ctx.Has(ViewerFlags.Empty) ? OutcomeCode.NotEmpty
+            bool restrictedUtility = (ctx.Facts.Deployable?.Defense != null || ctx.Facts.Deployable?.Power != null) &&
+                !ctx.Has(ViewerFlags.Mine) && !ctx.Has(ViewerFlags.Authorised) && !ctx.Has(ViewerFlags.Teammate) &&
+                ctx.Building?.PrivilegeAt(ctx.Doer.Id.Value, ctx.Facts.Position) != Privilege.Allowed;
+            Outcome why = ctx.Facts.Lock != LockKind.None ? OutcomeCode.RemoveLockFirst
+                : ctx.Facts.Deployable?.Gate != null && !ctx.Facts.Open ? OutcomeCode.OpenItFirst
+                : restrictedUtility ? OutcomeCode.NotAuthorised
+                : ctx.Facts.Capabilities.Has(_container) && !ctx.Has(ViewerFlags.Empty) ? OutcomeCode.NotEmpty
                 : ctx.Facts.Aboard ? ctx.Has(ViewerFlags.Authorised) ? Outcome.Done : OutcomeCode.NotCrew
                 : ctx.Building?.PrivilegeAt(ctx.Doer.Id.Value, ctx.Facts.Position) == Privilege.Blocked ? OutcomeCode.BuildingBlocked
                 : Outcome.Done;

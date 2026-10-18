@@ -21,6 +21,8 @@ public sealed class FxDecals
         public float Glow;
         public float Alpha;
         public bool Active;
+        public Func<Transform3D?>? Pose;
+        public Transform3D LocalTransform;
     }
 
     private sealed class Pool
@@ -82,10 +84,14 @@ public sealed class FxDecals
     /// <summary>
     /// A decal of <paramref name="texture"/> (a path under assets/fx without ".png"; "_normal" and "_glow" beside it
     /// are used when present) on the surface at <paramref name="position"/> facing <paramref name="normal"/>.
+    /// With a moving owner, <paramref name="referencePose"/> is its pose when that world contact was captured;
+    /// delayed layers therefore appear at the same local contact after the owner has moved.
     /// </summary>
     public void Place(double now, string texture, Vector3 position, Vector3 normal, float size, float depth, float life, float fade,
-        float glow, float roll, Color tint)
+        float glow, float roll, Color tint, Func<Transform3D?>? pose = null, Transform3D? referencePose = null)
     {
+        Transform3D? anchor = pose?.Invoke();
+        if (pose != null && anchor == null) return; // The confirmed target has already disappeared.
         Pool pool = PoolFor(texture);
         Entry? pick = null;
         foreach (Entry e in pool.Entries)
@@ -108,7 +114,10 @@ public sealed class FxDecals
         (Vector3 t, Vector3 _) = FxRandom.Frame(n);
         // Right-handed, Y out of the surface: a decal projects along its -Y.
         var basis = new Basis(t, n, t.Cross(n)) * new Basis(Vector3.Up, roll);
-        d.GlobalTransform = new Transform3D(basis, position);
+        var captured = new Transform3D(basis, position);
+        pick.Pose = pose;
+        pick.LocalTransform = anchor is { } frame ? (referencePose ?? frame).AffineInverse() * captured : captured;
+        d.GlobalTransform = anchor is { } current ? current * pick.LocalTransform : captured;
         d.Modulate = tint;
         d.Visible = true;
         pick.Start = now;
@@ -131,12 +140,15 @@ public sealed class FxDecals
                     continue;
                 }
                 float t = (float)(now - e.Start);
-                if (t >= e.Life)
+                Transform3D? anchor = e.Pose?.Invoke();
+                if (t >= e.Life || (e.Pose != null && anchor == null))
                 {
                     e.Active = false;
                     e.Decal.Visible = false;
+                    e.Pose = null;
                     continue;
                 }
+                if (anchor is { } frame) e.Decal.GlobalTransform = frame * e.LocalTransform;
                 active++;
                 float left = e.Life - t;
                 if (left < e.Fade)
@@ -159,12 +171,14 @@ public sealed class FxDecals
     /// <summary>Clears every decal (the viewer between scenes).</summary>
     public void Clear()
     {
+        Active = 0;
         foreach (Pool pool in _pools.Values)
         {
             foreach (Entry e in pool.Entries)
             {
                 e.Active = false;
                 e.Decal.Visible = false;
+                e.Pose = null;
             }
         }
     }

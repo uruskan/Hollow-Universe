@@ -167,6 +167,17 @@ public sealed class DeployableDef
 
     public DeviceStats? Device { get; init; }
 
+    /// <summary>Optional shared electrical, defense and compound-assembly behaviors.</summary>
+    public PowerStats? Power { get; init; }
+    public DefenseStats? Defense { get; init; }
+    public string? Assembly { get; init; }
+    public CompoundGateStats? Gate { get; init; }
+    public CompoundClimbStats? Climb { get; init; }
+    public ContactHazardStats? ContactHazard { get; init; }
+
+    /// <summary>Full material basis for hammer repairs; the shared building fraction and restored health scale it.</summary>
+    public IReadOnlyList<ItemAmount> RepairCost { get; init; } = Array.Empty<ItemAmount>();
+
     /// <summary>The workbench level it gives within reach (0: not a workbench).</summary>
     public int Workbench { get; init; }
 

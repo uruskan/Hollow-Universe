@@ -19,13 +19,12 @@ public static class Checkout
     public static string? Commit => Head.Commit;
 
     /// <summary>
-    /// The hosted game's save: <c>user://hollow-host.db</c> on <c>main</c> (or when the branch can't be read), else the
-    /// branch's own (<c>user://hollow-host-whole-world.db</c>). A branch's server may write a newer schema, which an older
-    /// build's server refuses; with a save each, switching between checkouts never meets that.
+    /// The hosted save is isolated by branch and Earth terrain revision. Height or solid-cliff changes start a new world without
+    /// opening or overwriting the previous map's characters and buildings.
     /// </summary>
     public static string HostedSave => Branch is { } branch && branch != "main"
-        ? $"user://hollow-host-{string.Concat(branch.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '-'))}.db"
-        : "user://hollow-host.db";
+        ? $"user://hollow-host-{string.Concat(branch.Select(c => char.IsLetterOrDigit(c) || c is '-' or '_' or '.' ? c : '-'))}-earth-v{Hollow.Surface.WalkingParameters.Earth.TerrainRevision}.db"
+        : $"user://hollow-host-earth-v{Hollow.Surface.WalkingParameters.Earth.TerrainRevision}.db";
 
     private static (string? Branch, string? Commit) Head => _head ??= Read();
 

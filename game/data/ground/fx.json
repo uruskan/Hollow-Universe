@@ -16,7 +16,8 @@
     "bag-charge": { "explode": "explosion.bag-charge" },
     "tin-grenade": { "explode": "explosion.grenade" },
     "campfire": { "fire": "fire.campfire" },
-    "furnace": { "fire": "fire.furnace" }
+    "furnace": { "fire": "fire.furnace" },
+    "large-furnace": { "fire": "fire.furnace" }
   },
   "effects": [
     { "key": "muzzle.rifle", "family": "muzzle", "about": "Rifle shot: a long flame, a flicker of light, a wisp of smoke, now and then a spark.",

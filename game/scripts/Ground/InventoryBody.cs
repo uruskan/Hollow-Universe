@@ -14,6 +14,7 @@ namespace HollowUniverse.Ground;
 /// </summary>
 public partial class InventoryBody : Node3D
 {
+    private static long _nextOwner, _owner;
     private readonly GameClient _client;
     private readonly string? _held;
 
@@ -24,14 +25,18 @@ public partial class InventoryBody : Node3D
     }
 
     /// <summary>Makes the inventory screen show the player's body (until <see cref="Release"/>).</summary>
-    public static void Use(GameClient client)
+    public static long Use(GameClient client)
     {
+        _owner = System.Threading.Interlocked.Increment(ref _nextOwner);
         CharacterPreview.Body = held => new InventoryBody(client, held);
         CharacterPreview.BodyLook = () => string.Join(",", client.Local.Inventory.Wear.Slots.ToArray().Select(s => s.Item));
+        return _owner;
     }
 
-    public static void Release()
+    public static void Release(long owner)
     {
+        if (owner == 0 || owner != _owner) return;
+        _owner = 0;
         CharacterPreview.Body = null;
         CharacterPreview.BodyLook = null;
     }

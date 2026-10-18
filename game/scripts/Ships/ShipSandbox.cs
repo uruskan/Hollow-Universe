@@ -47,7 +47,6 @@ public partial class ShipSandbox : Node3D
     private const int MaxTicksPerFrame = 6;
 
     private GameContent _content = null!;
-    private PlanetSurface _planet = null!;
     private Zone _zone = null!;
     private SurfaceView _surface = null!;
     private Camera3D _camera = null!;
@@ -100,14 +99,13 @@ public partial class ShipSandbox : Node3D
         _touring = Options.ContainsKey("tour");
         _scene = Options.TryGetValue("scene", out string? scene) ? scene : "pad";
         ZoneSpec? spec = ZoneSpec.FirstWorld(GalaxyService.Galaxy, FirstWorld.LandingLatitude, FirstWorld.LandingLongitude);
-        if (spec == null || PlanetSurfaces.Find(spec.SystemAddress, spec.BodyPath) is not { } found)
+        if (spec == null || PlanetBodies.Find(spec.SystemAddress, spec.BodyPath) is not { } found)
         {
             GD.PushError("--view ship: the first world is not in this universe.");
             return;
         }
         _content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
         _zone = new Zone(spec, content: _content);
-        _planet = found.Surface;
         // --ship names the kind: one people walk in (IRON_WAKE.md §4) parks in a clearing with you behind its ramp, on the
         // zone's own ground drawn as the ground game draws it; the Tin Finch stands on its workbench's bay.
         ShipDef? kind = Options.TryGetValue("ship", out string? key) ? _content.Ship(key) : null;
@@ -878,7 +876,7 @@ public partial class ShipSandbox : Node3D
     private static double Parse(string text) => double.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
 
     /// <summary>The first moment from <paramref name="from"/> when it is <paramref name="hour"/> o'clock, local solar time, at the landing site on the play clock.</summary>
-    private static double PlayTime(PlanetSurfaces.Entry planet, double rotationTimeScale, double from, double hour)
+    private static double PlayTime(PlanetBodies.Entry planet, double rotationTimeScale, double from, double hour)
     {
         var sky = new SkyEphemeris(planet.System, planet.Body);
         sky.SetRotationTimeScale(rotationTimeScale, 0);

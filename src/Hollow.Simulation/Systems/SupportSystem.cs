@@ -84,6 +84,7 @@ public sealed class SupportSystem : ZoneSystem
     /// </summary>
     internal void SupportGone(in TargetRef support)
     {
+        Zone.Get<PowerSystem>()?.SupportGone(support);
         if (_dependents.Count == 0 || !_dependents.Remove(support.Whole, out List<TargetRef>? list))
         {
             return;

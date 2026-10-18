@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Godot;
 using Hollow.Core;
 using Hollow.Galaxy.Systems;
@@ -40,6 +41,7 @@ public partial class SurfaceView : Node3D
     private TextureLayered _groundAlbedo = null!;
     private TextureLayered _groundNormal = null!;
     private ShaderMaterial _terrainMaterial = null!;
+    private SurfaceWorldPhases? _worldPhases;
     private CanvasLayer _uiLayer = null!;
     private SurfaceUi _ui = null!;
 
@@ -49,6 +51,8 @@ public partial class SurfaceView : Node3D
     private AtmosphereModel? _air;
     private SurfaceSky? _sky;
     private RenderFrame? _frame;
+    private ViewLifetime? _lifetime;
+    private long _planetOwner;
     private double _time;
     private bool _timeRuns = true;
     private double _yaw;
@@ -76,9 +80,20 @@ public partial class SurfaceView : Node3D
     public int DebugSky { get; set; }
 
     /// <summary>True once the terrain, plants and grass around the camera have finished streaming (for screenshots).</summary>
-    public bool IsReady => _frame != null && _idleFrames > 20;
+    public bool IsReady => _frame != null && PlanetGlobals.IsOwner(_planetOwner) && _idleFrames > 20;
+
+    /// <summary>
+    /// Current opening's stable completion handle. Stop closes admission; completion includes every retired field
+    /// from quality changes and previous openings, then releases the transferred world lease. Never wait synchronously.
+    /// </summary>
+    public Task WorkersStopped => _lifetime?.Stopped ?? Task.CompletedTask;
 
     public GrassField? Grass => _grass;
+
+    // Sealed cliff soil shares the exact same phase owner as the terrain. The returned registration is borrowed:
+    // release it before disposing the material, and before publishing a replacement into this view.
+    internal IDisposable BindGroundPhase(ShaderMaterial material) =>
+        (_worldPhases ?? throw new InvalidOperationException("No active surface phase owner.")).BindGround(material);
 
     /// <summary>Shows or hides the interface (H), e.g. for clean screenshots.</summary>
     public bool InterfaceVisible
@@ -94,7 +109,7 @@ public partial class SurfaceView : Node3D
         set
         {
             _cloudCoverage = Math.Clamp(value, 0, 1);
-            if (_globals)
+            if (_globals && PlanetGlobals.IsOwner(_planetOwner))
             {
                 RenderingServer.GlobalShaderParameterSet("hu_cloud_coverage", _cloudCoverage);
             }
@@ -157,11 +172,135 @@ public partial class SurfaceView : Node3D
 
     public override void _ExitTree()
     {
+        Stop();
         HollowUniverse.Settings.GraphicsSettings.Changed -= ApplyGraphics;
-        if (_frame != null)
+    }
+
+    // Only this managed holder survives retirement. It holds no Node, native resource, frame or callback into a view.
+    private sealed class ViewLifetime
+    {
+        private readonly List<Task> _work = new();
+        private readonly TaskCompletionSource<bool> _stopped = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private WorldLease? _lease;
+        public bool Retired { get; private set; }
+        public Task Stopped => _stopped.Task;
+        public ViewLifetime(WorldLease? lease, Task previous)
         {
-            PlanetGlobals.Clear();
+            _lease = lease;
+            Add(previous);
         }
+        public bool Owns(WorldLease lease) => ReferenceEquals(_lease, lease);
+        public void Add(Task work)
+        {
+            if (Retired) throw new InvalidOperationException("Retired surface views cannot accept work.");
+            // Successful finished handles retain no query ownership and need not accumulate across quality changes.
+            _work.RemoveAll(static task => task.IsCompletedSuccessfully);
+            if (!work.IsCompletedSuccessfully) _work.Add(work);
+        }
+        public void Stop()
+        {
+            if (Retired) return;
+            Retired = true;
+            Task pending = Task.WhenAll(_work);
+            _work.Clear();
+            WorldLease? lease = _lease;
+            _lease = null;
+            _ = Release(pending, lease, _stopped);
+        }
+        private static async Task Release(Task pending, WorldLease? lease, TaskCompletionSource<bool> stopped)
+        {
+            Exception? failure = null;
+            try { await pending.ConfigureAwait(false); }
+            catch (Exception error) { failure = pending.Exception ?? error; }
+            finally
+            {
+                try { lease?.Dispose(); }
+                catch (Exception error) { failure = failure == null ? error : new AggregateException(failure, error); }
+            }
+            if (failure != null) stopped.TrySetException(failure);
+            else stopped.TrySetResult(true);
+        }
+    }
+
+    private void ValidateLease(ISurface surface, WorldLease? lease)
+    {
+        if (lease == null) return; // Explicit borrowed-source path for diagnostic and legacy look-dev callers.
+        if (_lifetime?.Owns(lease) == true)
+            throw new ArgumentException("A new opening requires its own world lease; fork before passing it.", nameof(lease));
+        try
+        {
+            if (!ReferenceEquals(surface, lease.Surface))
+                throw new ArgumentException("The transferred lease must own the surface being opened.", nameof(lease));
+        }
+        catch { lease.Dispose(); throw; }
+    }
+
+    private void RetireGrass()
+    {
+        if (_grass is not { } grass) return;
+        grass.Stop();
+        _lifetime?.Add(grass.WorkMonitor.WhenIdle);
+        grass.QueueFree();
+        _grass = null;
+    }
+
+    private void BeginLifetime(WorldLease? lease)
+    {
+        Stop();
+        _lifetime = new ViewLifetime(lease, WorkersStopped);
+    }
+
+    // Native lifetime probe: use the production holder/quality-retirement/Stop paths without loading a planet's art.
+    internal void SetupLifecycleFixture(WorldLease lease, GrassField? grass = null, Task? pending = null)
+    {
+        ISurface surface = lease.Surface;
+        ValidateLease(surface, lease);
+        BeginLifetime(lease);
+        _surface = surface;
+        if (grass != null) { AddChild(grass); _grass = grass; }
+        if (pending != null) _lifetime!.Add(pending);
+    }
+
+    internal void RetireLifecycleGrass() => RetireGrass();
+
+    /// <summary>
+    /// Main-thread retirement closes every world's producer before freeing children. Running queries finish against
+    /// their original inputs; their managed barriers retain the world lease until the last completion, including faults.
+    /// </summary>
+    public void Stop()
+    {
+        if (_lifetime is not { Retired: false } lifetime) return;
+        RetireGrass();
+        _terrain.Stop();
+        lifetime.Add(_terrain.WorkersStopped);
+        if (_vegetation is { } vegetation)
+        {
+            vegetation.Stop();
+            lifetime.Add(vegetation.WorkersStopped);
+            vegetation.QueueFree();
+            _vegetation = null;
+        }
+        if (_cliffs is { } cliffs)
+        {
+            cliffs.Stop();
+            lifetime.Add(cliffs.WorkersStopped);
+            cliffs.QueueFree();
+            _cliffs = null;
+        }
+        _monuments?.Stop();
+        _monuments?.QueueFree();
+        _monuments = null;
+        _gravity?.QueueFree();
+        _gravity = null;
+        _worldPhases?.Dispose();
+        _worldPhases = null;
+        PlanetGlobals.Clear(_planetOwner);
+        _planetOwner = 0;
+        _surface = null; _frame = null; _system = null; _planet = null; _sky = null; _air = null;
+        // Aerial work owns only an atmosphere/value snapshot, never this world's query source or lease.
+        _aerial = null;
+        _idleFrames = 0;
+        lifetime.Stop();
     }
 
     public void SetActive(bool active)
@@ -180,20 +319,33 @@ public partial class SurfaceView : Node3D
     /// Opens a real planet at its real size, at a latitude and longitude (degrees), <paramref name="altitude"/> metres
     /// above the ground, looking along <paramref name="yaw"/> (degrees from north toward east) and
     /// <paramref name="pitch"/> (degrees up), at a universe time (seconds since J2000): the look-dev view, in a tangent
-    /// frame whose origin follows the camera, its plants the surface's own scatter.
+    /// frame whose origin follows the camera, its plants the surface's own scatter. An optional lease transfers ownership
+    /// to this view, including cleanup if opening fails; otherwise the surface is explicitly borrowed.
     /// </summary>
     public void Open(StarSystem system, Body planet, PlanetSurface surface, double latitude, double longitude, double altitude,
-        double yaw, double pitch, double time)
+        double yaw, double pitch, double time, WorldLease? lease = null)
     {
-        Vector3D direction = ZoneFrame.Direction(latitude * DMath.DegToRad, longitude * DMath.DegToRad);
-        double ground = Math.Max(surface.HeightAt(direction), 0);
-        var frame = new RenderFrame(direction * (surface.Radius + ground));
-        _walk = altitude <= EyeHeight + 0.01;
-        _yaw = yaw;
-        _pitch = pitch;
-        _camera.Position = new Vector3(0, (float)Math.Max(altitude, 0.5), 0);
-        ApplyCameraRotation();
-        Begin(system, planet, surface, new SurfacePlants(surface), surface.Seed, frame, time);
+        ValidateLease(surface, lease);
+        ViewLifetime? previous = _lifetime;
+        try
+        {
+            Vector3D direction = ZoneFrame.Direction(latitude * DMath.DegToRad, longitude * DMath.DegToRad);
+            double ground = Math.Max(surface.HeightAt(direction), 0);
+            var frame = new RenderFrame(direction * (surface.Radius + ground));
+            _walk = altitude <= EyeHeight + 0.01;
+            _yaw = yaw;
+            _pitch = pitch;
+            _camera.Position = new Vector3(0, (float)Math.Max(altitude, 0.5), 0);
+            ApplyCameraRotation();
+            Begin(system, planet, surface, new SurfacePlants(surface), surface.Seed, frame, time, lease);
+        }
+        catch
+        {
+            // Begin owns the lease as soon as it starts; before that this call owns it.
+            if (!ReferenceEquals(_lifetime, previous)) Stop();
+            else lease?.Dispose();
+            throw;
+        }
     }
 
     /// <summary>
@@ -201,21 +353,33 @@ public partial class SurfaceView : Node3D
     /// (render coordinates are a zone's: metres from the centre, the body's axes), its plants from
     /// <paramref name="plants"/> (the zone's natural objects), the air, sun and moon of the planet the world stands for at
     /// a universe time, the planet turning <paramref name="rotationTimeScale"/> times faster than real counted from
-    /// J2000, as the server's clock. The game drives the camera; nothing moves the origin.
+    /// J2000, as the server's clock. The game drives the camera; nothing moves the origin. An optional lease transfers
+    /// ownership to this view, including cleanup if opening fails; otherwise the surface is explicitly borrowed.
     /// </summary>
     public void OpenWorld(StarSystem system, Body planet, ISurface surface, IPlantSource plants, ulong seed, double time, double rotationTimeScale,
-        float gravity)
+        float gravity, WorldLease? lease = null)
     {
-        Driven = true;
-        _walk = true;
-        _camera.Far = WorldFar;
-        Begin(system, planet, surface, plants, seed, RenderFrame.World, time);
-        _sky!.Ephemeris.SetRotationTimeScale(rotationTimeScale, 0);
-        InterfaceVisible = false;
-        // What Godot's own physics drops (ragdolls) falls toward the centre (docs/WHOLE_WORLD.md §10.4).
-        _gravity?.QueueFree();
-        _gravity = PlanetGravity(surface.Radius, gravity);
-        AddChild(_gravity);
+        ValidateLease(surface, lease);
+        ViewLifetime? previous = _lifetime;
+        try
+        {
+            Driven = true;
+            _walk = true;
+            _camera.Far = WorldFar;
+            Begin(system, planet, surface, plants, seed, RenderFrame.World, time, lease);
+            _sky!.Ephemeris.SetRotationTimeScale(rotationTimeScale, 0);
+            InterfaceVisible = false;
+            // What Godot's own physics drops (ragdolls) falls toward the centre (docs/WHOLE_WORLD.md §10.4).
+            _gravity?.QueueFree();
+            _gravity = PlanetGravity(surface.Radius, gravity);
+            AddChild(_gravity);
+        }
+        catch
+        {
+            if (!ReferenceEquals(_lifetime, previous)) Stop();
+            else lease?.Dispose();
+            throw;
+        }
     }
 
     private Area3D? _gravity;
@@ -242,8 +406,10 @@ public partial class SurfaceView : Node3D
     }
 
     // Everything a view of a surface needs, in a render frame.
-    private void Begin(StarSystem system, Body planet, ISurface surface, IPlantSource plants, ulong seed, RenderFrame frame, double time)
+    private void Begin(StarSystem system, Body planet, ISurface surface, IPlantSource plants, ulong seed, RenderFrame frame, double time,
+        WorldLease? lease)
     {
+        BeginLifetime(lease);
         _openTimes.Clear();
         _lapAt = System.Diagnostics.Stopwatch.GetTimestamp();
         _system = system;
@@ -263,6 +429,9 @@ public partial class SurfaceView : Node3D
         _groundAlbedo = GroundLayers.Albedo;
         _groundNormal = GroundLayers.Normal;
         GroundLayers.Apply(_terrainMaterial);
+        _worldPhases = new SurfaceWorldPhases(_planetOwner, GroundLayers.Metres);
+        _worldPhases.Update(frame, new Vector3(.86f, 0, -.5f));
+        _worldPhases.BindGround(_terrainMaterial);
         _terrainMaterial.SetShaderParameter("macro_noise", _noise ?? throw new InvalidOperationException("Surface noise was not initialized."));
         _canopy ??= NoiseTextures.Canopy(13);
         _terrainMaterial.SetShaderParameter("canopy_texture", _canopy);
@@ -271,14 +440,9 @@ public partial class SurfaceView : Node3D
         water.SetShaderParameter("wave_normals", NoiseTextures.WaveNormals(11));
         Lap("materials");
         _terrain.Setup(surface, _frame, _terrainMaterial, water);
-        _vegetation?.QueueFree();
         _vegetation = new Vegetation { Name = "Vegetation" };
         AddChild(_vegetation);
         _vegetation.Setup(surface, plants, seed, _frame, _groundAlbedo, _groundNormal);
-        _cliffs?.QueueFree();
-        _cliffs = null;
-        _monuments?.QueueFree();
-        _monuments = null;
         if (surface is WalkingWorld walking)
         {
             _cliffs = new CliffField { Name = "Cliffs" };
@@ -288,8 +452,6 @@ public partial class SurfaceView : Node3D
             AddChild(_monuments);
             _monuments.Setup(walking.Monuments, frame);
         }
-        _grass?.QueueFree();
-        _grass = null;
         _idleFrames = 0;
         _firstFrame = true;
         Lap("terrain and plants");
@@ -325,7 +487,7 @@ public partial class SurfaceView : Node3D
     {
         AtmosphereModel air = _air!;
         // The planet under the drawn world first: every surface shader reads its up from it.
-        PlanetGlobals.Set(_frame!, _surface!.Radius);
+        _planetOwner = PlanetGlobals.Claim(_frame!, _surface!.Radius);
         void Add(string name, RenderingServer.GlobalShaderParameterType type, Variant value)
         {
             if (_globals)
@@ -364,7 +526,10 @@ public partial class SurfaceView : Node3D
         Add("hu_cloud_wind", V2, Vector2.Zero);
         Add("hu_cloud_coverage", T, _cloudCoverage);
         Add("hu_cloud_layer", V2, new Vector2(1600, 2900));
-        Add("hu_texture_offset", V3, Vector3.Zero);
+        Add("hu_phase_wave_main", V3, SurfaceWorldPhases.MainWave);
+        Add("hu_phase_wave_foliage", V3, SurfaceWorldPhases.FoliageDetailWave);
+        Add("hu_phase_wave_tree", V3, Vector3.Zero);
+        Add("hu_phase_wave_angles", V3, Vector3.Zero);
         Add("hu_wind", V4, new Vector4(0.86f, 0, -0.5f, 1));
         Add("hu_lod_clock", T, 0f);
         // A tool's blow shaking one plant's crown (the ground game's NatureView sets them; GROUND.md §9.3).
@@ -424,8 +589,7 @@ public partial class SurfaceView : Node3D
             values with { ShadowDistance = Math.Min(values.ShadowDistance, 300), ShadowCascades = 1 });
         if (_grass != null && _grass.BuiltWith != (values.GrassDistance, values.GrassDensity))
         {
-            _grass.QueueFree();
-            _grass = null;
+            RetireGrass();
         }
     }
 
@@ -449,7 +613,7 @@ public partial class SurfaceView : Node3D
 
     public override void _Process(double delta)
     {
-        if (_frame == null)
+        if (_frame == null || !PlanetGlobals.IsOwner(_planetOwner))
         {
             return;
         }
@@ -489,7 +653,7 @@ public partial class SurfaceView : Node3D
         }
         if (!frame.IsWorld)
         {
-            PlanetGlobals.Set(frame, surface.Radius);
+            PlanetGlobals.Set(_planetOwner, frame, surface.Radius);
         }
         Vector3D camera = frame.ToBody(_camera.GlobalPosition);
         float pixelAngle = Mathf.DegToRad(_camera.Fov) / Math.Max(GetViewport().GetVisibleRect().Size.Y, 1);
@@ -514,7 +678,6 @@ public partial class SurfaceView : Node3D
         // direction), so moving the origin moves nothing.
         _cloudDrift += (_timeRuns ? delta * RotationTimeScale : 0) * 12;
         RenderingServer.GlobalShaderParameterSet("hu_cloud_wind", new Vector2((float)-(_cloudDrift % CloudPeriod), 0));
-        RenderingServer.GlobalShaderParameterSet("hu_texture_offset", frame.WrappedTravel(4096));
         _environment.TonemapExposure = DebugSky == 15 ? 1 : _sky.Exposure;
         UpdateWaterView(camera);
         if (DebugSky == 15)
@@ -528,8 +691,11 @@ public partial class SurfaceView : Node3D
 
         // A breeze from the west-south-west, along the ground where the camera is, that rises and falls over minutes.
         float gusts = (float)(0.85 + 0.3 * Math.Sin(_time * 0.011) * Math.Sin(_time * 0.0037 + 1.3));
-        Vector3 wind = (east * 0.86f + north * 0.5f).Normalized();
+        var windFrame = new ZoneFrame(camera);
+        Vector3D bodyWind = (windFrame.East * 0.86 - windFrame.South * 0.5).Normalized;
+        Vector3 wind = frame.DirectionToRender(bodyWind).Normalized();
         RenderingServer.GlobalShaderParameterSet("hu_wind", new Vector4(wind.X, wind.Y, wind.Z, gusts));
+        _worldPhases!.Update(frame, new Vector3((float)bodyWind.X, (float)bodyWind.Y, (float)bodyWind.Z));
 
         _terrain.UpdateLod(camera);
         _vegetation?.UpdateVegetation(camera);
@@ -543,6 +709,7 @@ public partial class SurfaceView : Node3D
             _grass.Setup(surface, frame, _terrain.MaxLevel, library, _groundAlbedo, _noise!, library.BladeMean);
         }
         double overGround = camera.Length - surface.Radius - GroundAt(camera.Normalized);
+        _grass?.UpdateDrawnContact(_terrain, camera, overGround);
         _grass?.UpdateGrass(camera, overGround, _walk);
         _ui.Refresh(_planet!, surface, frame, camera, _sky, _time, _frameMs, _terrain, _walk, _timeRuns);
     }

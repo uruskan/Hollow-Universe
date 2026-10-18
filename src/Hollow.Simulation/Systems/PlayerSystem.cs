@@ -100,7 +100,7 @@ public sealed class PlayerSystem : ZoneSystem
         p.StrikeTick = -1;
         p.DrawStartTick = -1;
         p.VitalsRevision++;
-        GunSystem.ResetGun(p);
+        Zone.Guns().ResetGun(p);
         p.Wounded = false;
         if (Content.Loot(s.RespawnKitKey) is { } kit)
         {
@@ -144,7 +144,8 @@ public sealed class PlayerSystem : ZoneSystem
             p.Sleeping = false;
             p.VitalsRevision++;
             // A new connection numbers its gun actions from 1 again, and takes up what it holds afresh.
-            GunSystem.ResetGun(p);
+            Zone.Guns().ResetGun(p);
+            p.GunAttackJournal.Clear();
             p.Gun.LastSeq = 0;
             p.GunRefusedSeq = 0;
             p.HeldSlot = ActionInput.NoSlot;
@@ -264,7 +265,7 @@ public sealed class PlayerSystem : ZoneSystem
         Things.AddStatic(corpse);
         p.Dead = true;
         p.Wounded = false;
-        GunSystem.ResetGun(p);
+        Zone.Guns().ResetGun(p);
         p.DeathPoint = fell;
         p.MapRevision++;
         p.DeathCause = cause;

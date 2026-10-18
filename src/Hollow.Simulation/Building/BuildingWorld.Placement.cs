@@ -602,7 +602,7 @@ public sealed partial class BuildingWorld
     /// </summary>
     public Piece? OpeningAimed(Vector3 eye, Vector3 direction, float reach)
     {
-        if (Target(eye, direction, reach, out _) is Piece { Def.Opening: Opening.Door or Opening.Double } aimed)
+        if (Target(eye, direction, reach, out _) is Piece aimed && Data.TryOpening(aimed.Def.Opening, out _))
         {
             return aimed;
         }
@@ -612,14 +612,14 @@ public sealed partial class BuildingWorld
         double nearest = double.MaxValue;
         foreach (Piece p in _aimed)
         {
-            if (p.Gone || p.Collapsing || p.Def.Opening is not (Opening.Door or Opening.Double))
+            if (p.Gone || p.Collapsing || !Data.TryOpening(p.Def.Opening, out var aperture))
             {
                 continue;
             }
-            (double w, double h) = p.Def.Opening == Opening.Door ? Data.DoorOpening : Data.DoubleOpening;
             BuildingFrame frame = p.Structure.Frame;
             Vector3D from = D(eye);
-            if (PieceGeometry.RayOpening(p.Pose, w, h, frame.ToLocal(from), frame.ToLocal(D(end)), out Vector3D hit))
+            Pose opening = p.Pose with { Position = p.Pose.Position + Vector3D.UnitY * aperture.Sill };
+            if (PieceGeometry.RayOpening(opening, aperture.Width, aperture.Height, frame.ToLocal(from), frame.ToLocal(D(end)), out Vector3D hit))
             {
                 double distance = (frame.ToZone(hit) - from).Length;
                 if (distance < nearest)

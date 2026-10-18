@@ -110,14 +110,26 @@ public sealed class FxFlashes
             float t = (float)(now - e.Start) / e.Life;
             if (t >= 1f || (e.Follow != null && !GodotObject.IsInstanceValid(e.Follow)))
             {
-                e.Active = false;
-                e.Mesh.Visible = false;
+                Retire(e);
                 continue;
             }
             // Full on the first frame, then gone fast; it grows a little as it goes.
             e.Mesh.SetInstanceShaderParameter("fx_intensity", (1f - t) * (1f - t * 0.5f) * FxDirector.Brightness);
             Place(e, t);
         }
+    }
+
+    /// <summary>Retires every muzzle flash and its followed owner, retaining the allocated pool and shared meshes.</summary>
+    public void Clear()
+    {
+        foreach (Entry entry in _pool) Retire(entry);
+    }
+
+    private static void Retire(Entry entry)
+    {
+        entry.Active = false;
+        entry.Follow = null;
+        entry.Mesh.Visible = false;
     }
 
     private static void Place(Entry e, float t)

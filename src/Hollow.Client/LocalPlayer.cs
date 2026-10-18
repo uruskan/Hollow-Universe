@@ -72,7 +72,7 @@ public sealed record LifeView
 
 /// <summary>A hit landed (the UI's hit marker): <paramref name="Downed"/> when it knocked the player down (G4).</summary>
 public readonly record struct HitMarkerEvent(TargetFamily Target, HitRegion Region, float Damage, bool Killed, bool WeakSpot, bool Downed = false,
-    ushort Weapon = 0, uint ActionTick = 0, Vector3 Point = default);
+    ushort Weapon = 0, uint ActionTick = 0, Vector3 Point = default, AttackId Attack = default);
 
 /// <summary>Items gained (gathered, picked up, crafted, refunded) or lost (a tool broke), for the notifications.</summary>
 public readonly record struct ItemsChangedEvent(ItemDef Item, int Count, GainReason Reason, bool WeakSpot);
@@ -106,6 +106,7 @@ public readonly record struct IntentAnswer(uint Seq, OutcomeCode Code, int Detai
 /// </summary>
 public sealed partial class LocalPlayer
 {
+    public AttackLedger Attacks { get; } = new();
     /// <summary>Session-only building tools, accepted from the server's admin state.</summary>
     public bool FreeBuild { get; private set; }
     public int BuildGrade { get; private set; } = -1;
@@ -490,6 +491,19 @@ public sealed partial class LocalPlayer
         return true;
     }
 
+    /// <summary>Unanswered world actions cannot retain old pieces or redraw ghosts after a replacement Welcome.</summary>
+    internal void RetireWorldIntents()
+    {
+        _pending.Clear();
+        _pendingPlacements.Clear();
+        _targets.Clear();
+        _scratch.Clear();
+        _serverLoot = _serverLootBelt = _serverLootWear = null;
+        _openedPending = false;
+        ApplyClose();
+        _dirty = true;
+    }
+
     // The server's copy, then every intent not yet answered on top.
     private void Rebuild()
     {
@@ -817,7 +831,7 @@ public sealed partial class LocalPlayer
     public double SecondsUntilReady(RespawnOption option) => Math.Max(0, option.ReadyAtSeconds - ClockSeconds);
 
     internal void OnHitMarker(in HitMarker m) => HitMarker?.Invoke(new HitMarkerEvent(m.Target, m.Region, m.Damage / 10f, m.Killed, m.WeakSpot, m.Downed,
-        m.Weapon, m.ActionTick, new Vector3(m.PointX, m.PointY, m.PointZ)));
+        m.Weapon, m.ActionTick, new Vector3(m.PointX, m.PointY, m.PointZ), new AttackId(m.AttackKind, m.AttackSeq, m.AttackSession)));
 
     internal void OnItemsChanged(in ItemsChanged m)
     {

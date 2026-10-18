@@ -82,37 +82,57 @@ public sealed class GeometryBuilder
     }
 
     /// <summary>The mesh: a surface per part that has triangles, with the given materials (null for parts not used).</summary>
-    public ArrayMesh Build(Material?[] materials)
+    public ArrayMesh Build(Material?[] materials, FloraAppearanceInputs? inputs = null)
     {
-        var mesh = new ArrayMesh();
-        for (int m = 0; m < _parts.Length; m++)
+        var mesh = inputs?.CreateProceduralMesh() ?? new ArrayMesh();
+        try
         {
-            Part part = _parts[m];
-            if (part.I.Count == 0)
+            for (int m = 0; m < _parts.Length; m++)
             {
-                continue;
+                Part part = _parts[m];
+                if (part.I.Count == 0)
+                {
+                    continue;
+                }
+                Vector3[] positions = part.P.ToArray();
+                Vector3[] normals = part.N.ToArray();
+                Vector2[] uv = part.T.ToArray();
+                Color[] colours = part.C.ToArray();
+                float[] wind = part.W.ToArray();
+                // Godot draws clockwise faces as fronts; these were built counter-clockwise.
+                var indices = new int[part.I.Count];
+                for (int t = 0; t < indices.Length; t += 3)
+                {
+                    indices[t] = part.I[t];
+                    indices[t + 1] = part.I[t + 2];
+                    indices[t + 2] = part.I[t + 1];
+                }
+                if (inputs != null)
+                {
+                    inputs.AddProceduralSurface(mesh, positions, normals, uv, colours, wind, indices);
+                }
+                else
+                {
+                    using var arrays = new Godot.Collections.Array();
+                    arrays.Resize((int)Mesh.ArrayType.Max);
+                    arrays[(int)Mesh.ArrayType.Vertex] = positions;
+                    arrays[(int)Mesh.ArrayType.Normal] = normals;
+                    arrays[(int)Mesh.ArrayType.TexUV] = uv;
+                    arrays[(int)Mesh.ArrayType.Color] = colours;
+                    arrays[(int)Mesh.ArrayType.Custom0] = wind;
+                    arrays[(int)Mesh.ArrayType.Index] = indices;
+                    mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null,
+                        (Mesh.ArrayFormat)((int)Mesh.ArrayCustomFormat.RgFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift));
+                }
+                mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, materials.Length > m ? materials[m] : null);
             }
-            var arrays = new Godot.Collections.Array();
-            arrays.Resize((int)Mesh.ArrayType.Max);
-            arrays[(int)Mesh.ArrayType.Vertex] = part.P.ToArray();
-            arrays[(int)Mesh.ArrayType.Normal] = part.N.ToArray();
-            arrays[(int)Mesh.ArrayType.TexUV] = part.T.ToArray();
-            arrays[(int)Mesh.ArrayType.Color] = part.C.ToArray();
-            arrays[(int)Mesh.ArrayType.Custom0] = part.W.ToArray();
-            // Godot draws clockwise faces as fronts; these were built counter-clockwise.
-            var indices = new int[part.I.Count];
-            for (int t = 0; t < indices.Length; t += 3)
-            {
-                indices[t] = part.I[t];
-                indices[t + 1] = part.I[t + 2];
-                indices[t + 2] = part.I[t + 1];
-            }
-            arrays[(int)Mesh.ArrayType.Index] = indices;
-            mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null,
-                (Mesh.ArrayFormat)((int)Mesh.ArrayCustomFormat.RgFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift));
-            mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, materials.Length > m ? materials[m] : null);
+            return mesh;
         }
-        return mesh;
+        catch
+        {
+            mesh.Dispose();
+            throw;
+        }
     }
 
     // ---------------------------------------------------------------- primitives

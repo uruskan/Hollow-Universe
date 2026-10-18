@@ -103,7 +103,9 @@ public static class AudioRepairTests
                 Vector3 at = origin + axis * (grade * 8);
                 building.AddFirst(BuildingFrame.At(new Vector3D(at.X, at.Y, at.Z), new Vector3D(up.X, up.Y, up.Z), 0), data.Piece("foundation")!, grade, 1, 0);
                 Assert.True(building.Physics!.Ray(at + up * 3, -up, 6, out RayHit hit), "real foundation collision");
-                Assert.Equal(Footsteps.FromGrade(data.Grades[grade].Key), FootstepEnvironment.At(surface, ZoneFrame.World, building, hit.Point), "footsteps use the floor grade at any latitude");
+                var responses = Hollow.Client.Feedback.ContactResponseData.Load(System.IO.Path.Combine(Fixtures.Root, "game/data/ground/contact-responses.json"));
+                FootSurface expected = data.Grades[grade].Key switch { "stone" => FootSurface.Rock, "metal" or "armoured" => FootSurface.Metal, _ => FootSurface.Wood };
+                Assert.Equal(expected, FootstepEnvironment.At(ContentFixture.Content, responses, surface, ZoneFrame.World, building, hit.Point), "footsteps use the floor grade at any latitude");
             }
         }
     }
@@ -111,6 +113,7 @@ public static class AudioRepairTests
     [Test]
     public static void RealMovementHasNoLandingChatterAndOneSoundPerJump()
     {
+        var responses = Hollow.Client.Feedback.ContactResponseData.Load(System.IO.Path.Combine(Fixtures.Root, "game/data/ground/contact-responses.json"));
         // Drive Jolt on a small planet, including gentle slopes and collision tile seams. Synthetic input alone
         // cannot establish whether real ground contact briefly drops and produces repeated landing sounds.
         foreach (ISurface surface in new ISurface[] { new LevelSurface(1200), new RollingAudioSurface() })
@@ -157,7 +160,7 @@ public static class AudioRepairTests
                 rig.Character.Input = input;
                 rig.Zone.Step();
                 view = Facing.Carry(view, before, rig.Zone.Frame.UpAt(rig.State.Position));
-                FootSurface material = FootstepEnvironment.At(surface, rig.Zone.Frame, null, rig.State.Position);
+                FootSurface material = FootstepEnvironment.At(ContentFixture.Content, responses, surface, rig.Zone.Frame, null, rig.State.Position);
                 Assert.True(material != FootSurface.Metal && material != FootSurface.Wood, "natural ground is not a constructed deck");
                 FootInput feet = Footsteps.Input(rig.State, rig.Zone.Frame, (rig.State.Flags & MoveFlags.Sprinting) != 0, material, 0);
                 return cadence.Update(CharacterMotor.DeltaTime, feet);

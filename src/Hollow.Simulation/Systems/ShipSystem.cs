@@ -247,6 +247,7 @@ public sealed partial class ShipSystem : ZoneSystem
         {
             if (ship.Destroyed)
             {
+                ShipAttitudeHold.Clear(ref ship.State);
                 if (++ship.WreckAge >= Ship.WreckTicks)
                 {
                     _shipsGone.Add(ship);
@@ -265,6 +266,7 @@ public sealed partial class ShipSystem : ZoneSystem
             ShipInput input = pilot is { Sleeping: false } || ship.Autopilot ? ship.Input : ship.Input.Unattended();
             input.Engines = !ship.State.Has(ShipFlags.EngineStopped)
                 && (pilot != null || ship.Autopilot || ship.State.Has(ShipFlags.EnginesOn));
+            ReconcileAttitudeHold(ship, input, pilot);
             if (ship.ParkedBody != 0 && input.Engines)
             {
                 ShipCollider.RemoveParked(ship.ParkedBody);
@@ -664,9 +666,10 @@ public sealed partial class ShipSystem : ZoneSystem
     /// pose history at <paramref name="viewTick"/>): the distance along it (−1 for none) and the ship. One people walk in
     /// is met by its space (<see cref="ShipQueries"/>).
     /// </summary>
-    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit, double viewTick = double.MaxValue)
+    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit, out Vector3 normal, double viewTick = double.MaxValue)
     {
         hit = null;
+        normal = -direction;
         float best = -1;
         foreach (Ship ship in _ships)
         {
@@ -689,6 +692,7 @@ public sealed partial class ShipSystem : ZoneSystem
                 {
                     best = t;
                     hit = ship;
+                    normal = ContactGeometry.BoxNormal(origin + direction * t, pose.ToWorld(box.Centre), box.HalfExtents + new Vector3(thickness), x, y, z);
                 }
             }
         }

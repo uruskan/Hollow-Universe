@@ -41,6 +41,7 @@ public partial class GroundMode : Node
     private EnvironmentRoute? _environmentRoute;
     private Node3D? _menu;
     private GameContent _content = null!;
+    private readonly WorldStore _worldStore = new(new WorldStoreOptions());
 
     // The body chosen in the menu (or with --body female|male), sent at connect.
     private bool _female;
@@ -107,22 +108,23 @@ public partial class GroundMode : Node
 
     // ---------------------------------------------------------------- the main menu
 
-    private void ShowMenu()
+    private void ShowMenu(string? status = null)
     {
         _menu = new Node3D { Name = "Menu" };
         AddChild(_menu);
         // Behind the menu: the landing site, the camera turning slowly at eye height.
-        if (PlanetSurfaces.Find(StartingWorld.System.Value, StartingWorld.BodyPath) is { } planet)
+        if (PlanetBodies.Find(StartingWorld.System.Value, StartingWorld.BodyPath) is { } planet)
         {
-            ZoneSpec spec = ZoneSpec.StartingWorld(StartingWorld.LandingLatitude, StartingWorld.LandingLongitude);
-            WalkingWorld surface = WalkingWorlds.Find(spec.SystemAddress, spec.BodyPath, spec.Radius)!;
+            ZoneSpec spec = ZoneSpec.StartingWorld(StartingWorld.LandingLatitude, StartingWorld.LandingLongitude) with { Ground = GroundKind.Walking };
+            using WorldLease lease = _worldStore.Acquire(spec.EnvironmentDescriptor());
+            WalkingWorld surface = (WalkingWorld)lease.Surface;
             var world = new SurfaceView { Name = "World", Driven = true };
             _menu.AddChild(world);
             _menuWorld = world;
             Vector3D direction = surface.LandingSite;
             Vector3D origin = direction * (surface.Radius + surface.HeightAt(direction));
             world.OpenWorld(planet.System, planet.Body, surface, new SurfacePlants(surface), spec.SurfaceSeed,
-                TimeOption() ?? UniverseTime.Now, spec.RotationTimeScale, (float)(spec.SurfaceGravity * Units.StandardGravity));
+                TimeOption() ?? UniverseTime.Now, spec.RotationTimeScale, (float)(spec.SurfaceGravity * Units.StandardGravity), lease: lease.Fork());
             world.Camera.Current = true;
             world.Camera.Fov = 70;
             var frame = new ZoneFrame(origin);
@@ -140,6 +142,7 @@ public partial class GroundMode : Node
         };
         layer.AddChild(ui);
         ui.ShowMenu(inGame: false);
+        if (status != null) ui.SetMenuStatus(status);
         ui.HostRequested += player => Begin(player, null, ui.ConnectionPort, ui.FemaleBody);
         ui.ConnectRequested += (player, host, port) => Begin(player, host, port, ui.FemaleBody);
         ui.QuitRequested += () => GetTree().Quit();
@@ -229,6 +232,7 @@ public partial class GroundMode : Node
             {
                 _server = new GameServer(new ServerOptions
                 {
+                    WorldStore = _worldStore,
                     Port = port,
                     Name = $"{name}'s game",
                     DatabasePath = database,
@@ -249,6 +253,13 @@ public partial class GroundMode : Node
                 Start(name, "127.0.0.1", port);
                 return;
             }
+            catch (Exception e) when (e is Hollow.Persistence.TerrainMismatchException or Hollow.Persistence.NewerSaveException)
+            {
+                EndLoading();
+                GD.PushWarning(e.Message);
+                ShowMenu(e.Message);
+                return;
+            }
             _server.StartThread();
             port = _server.Port;
             host = "127.0.0.1";
@@ -256,7 +267,9 @@ public partial class GroundMode : Node
         NetConditions conditions = NetConditions.FromOptions(key => Options.TryGetValue(key, out string? v) ? v : null);
         _client = new GameClient(new ClientOptions
         {
+            WorldStore = _worldStore,
             Name = name,
+            BackgroundTransport = true,
             Body = (byte)(_female ? 1 : 0),
             Conditions = conditions,
             Content = _content,
@@ -387,37 +400,52 @@ public partial class GroundMode : Node
 
     private void Stop()
     {
-        EndLoading();
-        _environmentRoute?.Cancel();
-        _environmentRoute?.QueueFree();
+        var failures = new System.Collections.Generic.List<Exception>();
+        void Clean(Action action)
+        {
+            try { action(); }
+            catch (Exception error) { failures.Add(error); }
+        }
+        Clean(EndLoading);
+        Clean(() => _environmentRoute?.Cancel());
+        Clean(() => _environmentRoute?.QueueFree());
         _environmentRoute = null;
-        _tour?.QueueFree();
+        Clean(() => _tour?.QueueFree());
         _tour = null;
         if (_view != null)
         {
             // Exit hooks release session-wide audio/UI/render state before a replacement is created.
             // They also unsubscribe from the client while its modules are still alive.
-            if (_view.IsInsideTree()) RemoveChild(_view);
-            _view.QueueFree();
+            Clean(() => { if (_view.IsInsideTree()) RemoveChild(_view); });
+            Clean(_view.QueueFree);
         }
         _view = null;
-        _client?.Dispose();
+        Clean(() => _client?.Dispose());
         _client = null;
         _connectWhenReady = null;
         if (_server != null)
         {
-            _server.Stop();
-            _server.Dispose();
+            Clean(_server.Stop);
+            Clean(_server.Dispose);
             _server = null;
         }
         if (_child != null)
         {
-            _child.Dispose();
+            Clean(_child.Dispose);
             _child = null;
         }
+        if (failures.Count != 0) throw new AggregateException("Ground session shutdown failed after all owners retired.", failures).Flatten();
     }
 
-    public override void _ExitTree() => Stop();
+    public override void _ExitTree()
+    {
+        try { Stop(); }
+        finally
+        {
+            try { _menuWorld?.Stop(); }
+            finally { _worldStore.Dispose(); }
+        }
+    }
 
     public override void _Notification(int what)
     {
@@ -450,7 +478,7 @@ public partial class GroundMode : Node
         {
             return UniverseTime.SecondsSinceJ2000(DateTime.Parse(t, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal));
         }
-        if (!Options.ContainsKey("hour") || PlanetSurfaces.Find(StartingWorld.System.Value, StartingWorld.BodyPath) is not { } planet)
+        if (!Options.ContainsKey("hour") || PlanetBodies.Find(StartingWorld.System.Value, StartingWorld.BodyPath) is not { } planet)
         {
             return null;
         }
@@ -460,9 +488,12 @@ public partial class GroundMode : Node
         // Match the live walking world's dry landing site for --spawn origin and the menu preview.
         double latitude = Number("lat", StartingWorld.LandingLatitude), longitude = Number("lon", StartingWorld.LandingLongitude);
         Vector3D site = ZoneFrame.Direction(latitude * Math.PI / 180, longitude * Math.PI / 180);
-        if (latitude == StartingWorld.LandingLatitude && longitude == StartingWorld.LandingLongitude
-            && WalkingWorlds.Find(StartingWorld.System.Value, StartingWorld.BodyPath, Hollow.Galaxy.GameScale.DefaultEarthRadius) is { } walking)
-            site = walking.LandingSite;
+        if (latitude == StartingWorld.LandingLatitude && longitude == StartingWorld.LandingLongitude)
+        {
+            ZoneSpec spec = ZoneSpec.StartingWorld(latitude, longitude) with { Ground = GroundKind.Walking };
+            using WorldLease lease = _worldStore.Acquire(spec.EnvironmentDescriptor());
+            site = ((WalkingWorld)lease.Surface).LandingSite;
+        }
         double now = UniverseTime.Now, best = now, bestError = double.MaxValue;
         for (double s = 0; s < 6 * 3600; s += 20)
         {

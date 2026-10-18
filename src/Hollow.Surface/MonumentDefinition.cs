@@ -13,7 +13,7 @@ public readonly record struct MonumentLoot(Vector3D At, float Yaw, string Table)
 /// <summary>Original Hollow assemblies: presentation, usable loot anchors and authored solid collision together.</summary>
 public sealed class MonumentDefinition
 {
-    private static readonly Lazy<MonumentDefinition[]> Loaded = new(Read);
+    private static readonly Lazy<IReadOnlyList<MonumentDefinition>> Loaded = new(() => Array.AsReadOnly(Read()));
     public static IReadOnlyList<MonumentDefinition> All => Loaded.Value;
     public string Key { get; private init; } = "";
     public string Title { get; private init; } = "";

@@ -122,6 +122,7 @@ public sealed class TargetSystem : ZoneSystem
     internal sealed class GroundTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Ground;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Content!.Surfaces.AtGround(zone.Surface, zone.Frame, point);
 
         public bool Moves => false;
 
@@ -160,6 +161,7 @@ public sealed class TargetSystem : ZoneSystem
     internal sealed class CharacterTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Character;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Content!.Surfaces.FleshId;
 
         public bool Moves => true;
 
@@ -277,6 +279,7 @@ public sealed class TargetSystem : ZoneSystem
     internal sealed class AnimalTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Animal;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Content!.Surfaces.FleshId;
 
         public bool Moves => true;
 
@@ -379,6 +382,7 @@ public sealed class TargetSystem : ZoneSystem
     internal sealed class NaturalTargets(Zone zone) : ITargetFamily, IPickupFamily
     {
         public TargetFamily Family => TargetFamily.Natural;
+        public byte Surface(in TargetRef target, Vector3 point) => Find(target.Id, out _, out NaturalKind? kind) ? zone.Content!.Surfaces.FromNatural(kind!.Key) : (byte)0;
 
         public bool Moves => false;
 
@@ -461,9 +465,14 @@ public sealed class TargetSystem : ZoneSystem
     }
 
     /// <summary>The static things of the entity store: deployables, world props, bags of dropped items, bodies.</summary>
-    internal sealed class ThingTargets(Zone zone) : ITargetFamily, IPickupFamily
+    internal sealed class ThingTargets(Zone zone) : ITargetFamily, IPickupFamily, IRepairFamily
     {
+        public Outcome Repair(Entity entity, Player p, in TargetRef target, IBuildingWallet wallet) =>
+            zone.Things().StaticOf(new EntityId(target.Id)) is Deployable d
+                ? zone.Things().RepairDeployable(p.Id, d, wallet) : OutcomeCode.NotUsable;
+
         public TargetFamily Family => TargetFamily.Thing;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Things().StaticOf(new EntityId(target.Id))?.ContactSurface(zone.Content!.Surfaces, target.Part) ?? 0;
 
         public bool Moves => false;
 
@@ -478,6 +487,7 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
+            if (thing is Deployable d) return CompoundGeometry.TryPartPose(zone.Content!, d.Def, d.Open, d.Position, d.Up, d.Yaw, target.Part, out pose);
             pose = new TargetPose(thing.Position, Geometry.Upright(thing.Up, thing.Yaw));
             return true;
         }
@@ -489,7 +499,7 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
-            point = thing.Nearest(from);
+            point = thing is Deployable d ? CompoundGeometry.Nearest(zone.Content!, d.Def, d.Open, d.Position, d.Up, d.Yaw, from) : thing.Nearest(from);
             return true;
         }
 
@@ -503,12 +513,13 @@ public sealed class TargetSystem : ZoneSystem
         {
             float length = ray.Upto(best);
             zone.Interaction()._aimThings.Clear();
-            zone.Things().DeployablesNear(ray.Origin + ray.Direction * (length / 2), length / 2 + 2f, zone.Interaction()._aimThings);
+            zone.Things().DeployablesNear(ray.Origin + ray.Direction * (length / 2), length / 2 + zone.Things().BoundsRadius, zone.Interaction()._aimThings);
             foreach (Deployable d in zone.Interaction()._aimThings)
             {
                 if (zone.Building().ClaimOf(d) == null)
                 {
-                    ray.Consider(ref best, AimShapes.Box(ray, d.Position, d.Up, d.Yaw, d.Def.HalfExtents), d.Ref);
+                    ray.Consider(ref best, CompoundGeometry.Ray(zone.Content!, d.Def, d.Open, d.Position, d.Up, d.Yaw,
+                        ray.Origin, ray.Direction, ray.Length, ray.AttackRadius ?? 0), d.Ref);
                 }
             }
             foreach (ILifetime loose in zone.Things()._loose)
@@ -536,6 +547,9 @@ public sealed class TargetSystem : ZoneSystem
                 Capabilities = thing.CapabilitiesIn(zone.Content!.Capabilities), Flags = zone.Targets().FlagsFor(target, viewer) | crew,
                 Name = thing.Name.Length > 0 ? thing.Name : def?.Item.Name ?? "", Count = thing.ShownCount,
                 Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position, Aboard = ship != null,
+                DeviceAccess = thing is Deployable device ? zone.DeviceAuthorization().Facts(device, viewer.Id) : default,
+                Open = thing is Deployable { Open: true },
+                Lock = (thing as ILockHost)?.Lock?.Kind ?? LockKind.None,
                 Vitality = thing is Deployable d ? new TargetVitality(d.Health, d.Def.Health) :
                     thing is Corpse { Life: { IsBody: true } life } ? new TargetVitality(life.HarvestLeft, life.Tuning.HarvestHealth) : null,
             };
@@ -564,6 +578,7 @@ public sealed class TargetSystem : ZoneSystem
             zone.Building().Hammer(entity, HammerAction.Repair, new EntityId(target.Id), 0);
 
         public TargetFamily Family => TargetFamily.Piece;
+        public byte Surface(in TargetRef target, Vector3 point) => Find(target.Id) is { } piece ? zone.Content!.Surfaces.FromGrade(zone.Content.Building.Grades[piece.Grade].Key) : (byte)0;
 
         public bool Moves => false;
 
@@ -622,9 +637,14 @@ public sealed class TargetSystem : ZoneSystem
     }
 
     /// <summary>Doors in their frames; a door's parts are its leaves (part i + 1: leaf i), which swing.</summary>
-    internal sealed class DoorTargets(Zone zone) : ITargetFamily
+    internal sealed class DoorTargets(Zone zone) : ITargetFamily, IRepairFamily
     {
+        public Outcome Repair(Entity entity, Player p, in TargetRef target, IBuildingWallet wallet) =>
+            Find(target.Id) is { } door && zone.Building().World is { } building
+                ? building.Repair(p.Id.Value, door, wallet, zone.Building().BuildingNow) : OutcomeCode.NotFound;
+
         public TargetFamily Family => TargetFamily.Door;
+        public byte Surface(in TargetRef target, Vector3 point) => Find(target.Id) is { } door ? zone.Content!.Surfaces.FromDoor(door.Def.Key) : (byte)0;
 
         public bool Moves => true;
 
@@ -716,6 +736,7 @@ public sealed class TargetSystem : ZoneSystem
             Find(target.Id) is { } claim ? zone.Building().World!.ClearAuthorised(p.Id.Value, claim) : OutcomeCode.NotFound;
 
         public TargetFamily Family => TargetFamily.Cupboard;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Content!.Surfaces.FromDeployable(zone.Content.ClaimDeployable.Key);
 
         public bool Moves => false;
 
@@ -862,6 +883,7 @@ public sealed class TargetSystem : ZoneSystem
         private readonly List<(int Part, Vector3 Point, float Distance)> _near = new();
 
         public TargetFamily Family => TargetFamily.Ship;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Ships().ShipOf(new EntityId(target.Id)) is { } ship ? zone.Content!.Surfaces.FromShip(ship.Def.Key, target.Part) : (byte)0;
 
         public bool Moves => true;
 
@@ -879,6 +901,15 @@ public sealed class TargetSystem : ZoneSystem
             }
             pose = target.Part == ShipParts.Hull ? new TargetPose(ship.Origin, ship.State.Rotation)
                 : ShipAim.PartPose(ship.Def, target.Part, ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass), ship.Parts);
+            return true;
+        }
+
+        public bool TryPoseAt(in TargetRef target, double viewTick, out TargetPose pose)
+        {
+            if (zone.Ships().ShipOf(new EntityId(target.Id)) is not { } ship || viewTick >= zone.Tick || !zone.History.SampleShip(target.Id, viewTick, out ShipPose then))
+                return TryPose(target, out pose);
+            pose = target.Part == ShipParts.Hull ? new TargetPose(then.ToWorld(Vector3.Zero), then.Rotation)
+                : ShipAim.PartPose(ship.Def, target.Part, then, ship.Parts);
             return true;
         }
 

@@ -69,6 +69,9 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public void Dispose()
     {
+        _mapView = null;
+        _mapSource = null;
+        _mapMarkers.Clear();
         LocalPlayer me = _client.Local;
         me.HitMarker -= OnHitMarker;
         me.DamageTaken -= OnDamage;
@@ -281,11 +284,18 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             _queue.Clear();
             foreach (CraftJobView job in Me.Crafting)
             {
-                _queue.Add(new CraftJob((int)job.Ticket, job.Recipe.Key, job.Count * job.Recipe.Amount, job.SecondsLeft, job.Count * job.UnitSeconds));
+                _queue.Add(ToUiCraftJob(job));
             }
             return _queue;
         }
     }
+
+    internal static CraftJob ToUiCraftJob(CraftJobView job) =>
+        new((int)job.Ticket, job.Recipe.Key, job.Count * job.Recipe.Amount, job.SecondsLeft, job.Count * job.UnitSeconds)
+        {
+            OutputKey = job.Recipe.Output.Key,
+            UnitProgress = job.UnitProgress,
+        };
 
     public DeathInfo? Death
     {

@@ -30,6 +30,9 @@ public struct HitPose
     public Vector3 Up;
     public float Yaw;
     public Pose Pose;
+    /// <summary>Movement state in this pose's frame, retained for late firing rules as well as hit shapes.</summary>
+    public Vector3 Velocity;
+    public MoveFlags Flags;
 }
 
 /// <summary>
@@ -242,6 +245,14 @@ public sealed class HitboxHistory
         return _tracks.TryGetValue(id, out Track? track) && track.Sample(tick, out pose, out frame);
     }
 
+    /// <summary>A recorded shot tick, without substituting an older/newer pose outside the retained history.</summary>
+    public bool SampleLocalAtTick(EntityId id, long tick, out HitPose pose, out ulong frame)
+    {
+        pose = default;
+        frame = 0;
+        return _tracks.TryGetValue(id, out Track? track) && track.SampleAtTick(tick, out pose, out frame);
+    }
+
     public IEnumerable<EntityId> Characters => _tracks.Keys;
 
     /// <summary>A character's newest recorded feet in the zone's frame (a cheap first test before sampling); false with no samples.</summary>
@@ -270,6 +281,7 @@ public sealed class HitboxHistory
         Vector3 forward = Movement.Facing.Basis(pose.Yaw, pose.Up).Forward;
         Vector3 up = ship.DirectionToWorld(pose.Up);
         pose.Feet = ship.ToWorld(pose.Feet);
+        pose.Velocity = ship.DirectionToWorld(pose.Velocity) + ship.VelocityAt(pose.Feet);
         pose.Up = up;
         pose.Yaw = Movement.Facing.YawOf(ship.DirectionToWorld(forward), up);
         return true;
@@ -306,6 +318,21 @@ public sealed class HitboxHistory
             return _count > 0;
         }
 
+        public bool SampleAtTick(long tick, out HitPose pose, out ulong frame)
+        {
+            for (int i = 0; i < _count; i++)
+            {
+                int index = (_newest - i + Length) % Length;
+                if (_ticks[index] != tick) continue;
+                pose = _poses[index];
+                frame = _frames[index];
+                return true;
+            }
+            pose = default;
+            frame = 0;
+            return false;
+        }
+
         public bool Sample(double tick, out HitPose pose, out ulong frame)
         {
             pose = default;
@@ -338,6 +365,7 @@ public sealed class HitboxHistory
                     HitPose a = _poses[index], b = _poses[after];
                     pose = b;
                     pose.Feet = Vector3.Lerp(a.Feet, b.Feet, (float)t);
+                    pose.Velocity = Vector3.Lerp(a.Velocity, b.Velocity, (float)t);
                     frame = _frames[after];
                     return true;
                 }

@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using Hollow.Client;
 using Hollow.Simulation.Building;
+using Hollow.Simulation.Targets;
 using Num = System.Numerics;
 
 namespace HollowUniverse.Build;
@@ -67,35 +69,50 @@ public partial class BuildingRenderer : Node3D
 
     /// <summary>Draws every piece at this level only, at any distance (to check the art); −1 for the usual ranges.</summary>
     public int OnlyLod { get; set; } = -1;
+    public TargetModule? PresentationTargets { get; set; }
 
     public void Attach(BuildingWorld world, BuildingAssets assets)
     {
+        RetireWorld();
         _world = world;
         _assets = assets;
         _corners = new CornerPosts(this, assets);
         _cornersDirty = true;
-        foreach (Piece p in world.AllPieces)
+        ProcessMode = ProcessModeEnum.Inherit;
+        Visible = true;
+        try
         {
-            Add(p);
-            if (p.Door != null)
+            foreach (Piece p in world.AllPieces)
             {
-                AddDoor(p.Door);
+                Add(p);
+                if (p.Door != null)
+                {
+                    AddDoor(p.Door);
+                }
             }
+            foreach (ClaimDevice c in world.Claims)
+            {
+                AddClaim(c);
+            }
+            world.Changed += OnChanged;
         }
-        foreach (ClaimDevice c in world.Claims)
-        {
-            AddClaim(c);
-        }
-        world.Changed += OnChanged;
+        catch { RetireWorld(); throw; }
     }
 
-    public override void _ExitTree()
+    /// <summary>Detach before the replicated world's physics is disposed; this renderer may be attached again.</summary>
+    public void RetireWorld()
     {
-        if (_world != null)
-        {
-            _world.Changed -= OnChanged;
-        }
+        if (_world != null) _world.Changed -= OnChanged;
+        _world = null!;
+        ProcessMode = ProcessModeEnum.Disabled;
+        Visible = false;
+        foreach (DoorView door in _doors.Values) door.RetirePresentation();
+        foreach (Node child in GetChildren()) { RemoveChild(child); child.QueueFree(); }
+        _batches.Clear(); _of.Clear(); _dirty.Clear(); _doors.Clear(); _claims.Clear();
+        _corners = null!; _assets = null!; _cornersDirty = false;
     }
+
+    public override void _ExitTree() => RetireWorld();
 
     /// <summary>Colours every piece by its stability.</summary>
     public bool StabilityOverlay
@@ -108,7 +125,7 @@ public partial class BuildingRenderer : Node3D
                 return;
             }
             _overlay = value;
-            _corners.Hidden = value;
+            if (_corners != null) _corners.Hidden = value;
             foreach (Batch b in _batches.Values)
             {
                 foreach (MultiMeshInstance3D m in b.Lods)
@@ -151,6 +168,7 @@ public partial class BuildingRenderer : Node3D
             case BuildingChange.DoorRemoved:
                 if (_doors.Remove(e.Door!, out DoorView? view))
                 {
+                    view.RetirePresentation();
                     view.QueueFree();
                 }
                 break;
@@ -221,7 +239,8 @@ public partial class BuildingRenderer : Node3D
 
     private void AddDoor(Door door)
     {
-        var view = new DoorView { Name = "Door " + door.Id, Door = door, Assets = _assets, Target = door.Open };
+        var view = new DoorView { Name = "Door " + door.Id, Door = door, Assets = _assets, Target = door.Open,
+            PresentationTargets = PresentationTargets };
         AddChild(view);
         _doors[door] = view;
     }
@@ -243,6 +262,7 @@ public partial class BuildingRenderer : Node3D
 
     public override void _Process(double delta)
     {
+        if (_world == null) return;
         foreach (Batch batch in _dirty)
         {
             Rebuild(batch);
@@ -344,6 +364,8 @@ public partial class DoorView : Node3D
     private AnimationPlayer? _garage;
     private float _swing;
     private bool _shown;
+    private readonly List<IDisposable> _presentation = new();
+    public TargetModule? PresentationTargets { get; set; }
 
     public Door Door { get; set; } = null!;
 
@@ -357,8 +379,34 @@ public partial class DoorView : Node3D
         (Num.Vector3 position, Num.Quaternion rotation) = Door.Frame.ZoneTransform;
         Transform = BuildingRenderer.ToGodot(position, rotation).RotatedLocal(Vector3.Up, Door.Flip * Mathf.Pi);
         _garage = Parts(Door.Def, Assets, this, _leaves);
+        if (PresentationTargets is { } targets)
+        {
+            int mesh = 0;
+            for (int i = 0; i < Door.Def.Leaves.Count; i++)
+            {
+                TargetRef target = Door.Ref with { Part = (byte)(i + 1) };
+                if (_garage != null)
+                {
+                    // A skinned curtain has no single rigid pose. Suppress rigid attachments instead of floating marks.
+                    _presentation.Add(targets.RegisterPresentationPose(target, () => null));
+                    continue;
+                }
+                (Num.Vector3 at, Num.Quaternion turn) = Door.Leaf(i, false);
+                _presentation.Add(RenderedTargetFrame.Register(targets, target, _leaves[mesh].Leaf, new TargetPose(at, turn)));
+                mesh += 1 + Door.Def.Leaves[i].AdditionalMeshes.Count;
+            }
+        }
         _swing = Target ? 1 : 0;
+        _Process(0);
     }
+
+    public void RetirePresentation()
+    {
+        foreach (IDisposable token in _presentation) token.Dispose();
+        _presentation.Clear();
+    }
+
+    public override void _ExitTree() => RetirePresentation();
 
     /// <summary>
     /// A door's kit parts under a node (in the frame piece's frame, flipped by the caller): its frame and its leaves on their
@@ -384,15 +432,20 @@ public partial class DoorView : Node3D
         }
         foreach (LeafDef leaf in def.Leaves)
         {
-            Mesh mesh = assets.Part(leaf.Mesh) ?? new BoxMesh { Size = new Vector3(Math.Abs(leaf.Size.X), leaf.Size.Y, leaf.Size.Z) };
-            var node = new MeshInstance3D
+            void AddLeafMesh(string name)
             {
-                Mesh = mesh,
-                MaterialOverride = assets.PartMaterial(mesh),
-                Position = new Vector3(leaf.Hinge.X, leaf.Hinge.Y, leaf.Hinge.Z),
-            };
-            into.AddChild(node);
-            leaves?.Add((node, Mathf.DegToRad((float)leaf.OpenYaw)));
+                Mesh mesh = assets.Part(name) ?? new BoxMesh { Size = new Vector3(Math.Abs(leaf.Size.X), leaf.Size.Y, leaf.Size.Z) };
+                var node = new MeshInstance3D
+                {
+                    Mesh = mesh,
+                    MaterialOverride = assets.PartMaterial(mesh),
+                    Position = new Vector3(leaf.Hinge.X, leaf.Hinge.Y, leaf.Hinge.Z),
+                };
+                into.AddChild(node);
+                leaves?.Add((node, Mathf.DegToRad((float)leaf.OpenYaw)));
+            }
+            AddLeafMesh(leaf.Mesh);
+            foreach (string mesh in leaf.AdditionalMeshes) AddLeafMesh(mesh);
         }
         return null;
     }
@@ -425,5 +478,22 @@ public partial class DoorView : Node3D
         {
             leaf.Rotation = new Vector3(0, openYaw * eased, 0);
         }
+    }
+}
+
+/// <summary>Calibrates a physical target frame against its rendered node once, then follows the actual animated transform.</summary>
+public static class RenderedTargetFrame
+{
+    public static IDisposable Register(TargetModule targets, TargetRef target, Node3D node, TargetPose closedPhysicalPose)
+    {
+        Transform3D offset = node.GlobalTransform.AffineInverse() * BuildingRenderer.ToGodot(closedPhysicalPose.Position, closedPhysicalPose.Rotation);
+        return targets.RegisterPresentationPose(target, () =>
+        {
+            if (!GodotObject.IsInstanceValid(node) || !node.IsInsideTree() || node.IsQueuedForDeletion()) return null;
+            Transform3D pose = node.GlobalTransform * offset;
+            Quaternion rotation = pose.Basis.Orthonormalized().GetRotationQuaternion();
+            return new TargetPose(new Num.Vector3(pose.Origin.X, pose.Origin.Y, pose.Origin.Z),
+                new Num.Quaternion(rotation.X, rotation.Y, rotation.Z, rotation.W));
+        });
     }
 }

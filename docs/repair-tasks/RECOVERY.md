@@ -1,5 +1,355 @@
 # Recovery after the computer restart
 
+**STOP renewed, 18 October 2026.** The user's latest instruction is to stop every
+session and all work coordinated here immediately. Any intervening tool/video resume
+and all earlier execution grants are revoked. Study Rust gameplay references has
+confirmed it stopped; the other coordinated repair chats are inactive. Preserve all
+saved changes and leave the user's running game and unrelated apps untouched. Do not
+restart this queue without a new explicit human instruction after this stop.
+
+**STOPPED by the user, 17 October 2026.** The user explicitly ordered every coordinated
+session and all work to stop immediately. All earlier assignments and execution grants
+are revoked. The repair heartbeat automation has been deleted. Preserve existing work;
+do not resume preparation, implementation or validation without a new explicit human
+instruction. All coordinated owners were idle at the stop check and received the stop
+instruction. The last single solution-build slot had already been released.
+
+**17 October, 21:34 local — game ended; one tool-candidate build slot reserved:**
+The user game/server are no longer running. A fresh root check at 21:34:33 found
+6.6649 GiB available / 57% commit, fifty exact helpers and no heavy process; the
+only active listed chat was this coordinator. All 1,013 source pins and twelve GLBs
+still match the tool seal, as do HEAD, staged bytes and the reviewed r2 guard.
+Root reserves the single heavy slot for **Study Rust gameplay references** to run
+only its first 180-second, single-worker, no-restore solution build through r2.
+The owner must repeat the fresh 5.5 GiB / <=80% preflight before launching and retain
+the existing owned-process stop limits. No focused test, import, native capture,
+retry, staging or second job is granted. P2/P5 remain idle. Evidence:
+`.artifacts/recovery/video-tools-build-preflight-20261017-1832.json`.
+This reservation is not a build result or visual acceptance; Maximum still needs 8 GiB.
+
+**17 October, 21:21 local — tool guard successor statically reviewed:**
+Root reviewed `run-guarded-r2.ps1` and its narrow diff. The requested competitor,
+live parent-identity and prior-output protections are addressed in source. Five
+handoff reference hashes and all fourteen owned source hashes match; PowerShell
+parsing is clean. No wrapper, guard test, build or native job ran. Polling still
+does not guarantee containment of never-observed orphans from short-lived parents.
+The owner is idle with no further preparation requested and no execution grant.
+At 21:20:17 the same user game/server remained active, with **1.4210 GiB available /
+85% commit** and 44 exact helpers. Nothing was stopped. Preserve the existing hold
+and fresh checks before a future job. Review:
+`.artifacts/recovery/video-tools-guard-r2-root-review-20261017.json`, SHA
+`B4B83C2C2BD8AB9C21A0DB7CAB1EF29A6A7BC1F3BAB26F15593F809BEEE6EC57`.
+
+**17 October, 21:15 local — user game running; tool source seal verified:**
+A normal AB Test B game started outside the coordinated queue at 21:09:50: Godot
+PID 30648, port 27025, with child server PID 1044 using the isolated AB Test B save.
+At 21:10:32 there was also an unrecognized short-lived Python process; it was absent
+at the later sample. No coordinator-owned heavy job is running or granted. At
+**21:15:03 available RAM was 1.5024 GiB / 87% commit**. Do not stop the user game,
+its server, helpers or other applications. Coordinated heavy execution stays held
+until the game ends and the usual fresh resource/process checks pass.
+
+Root verified the tool chat's sealed **1,013 source/data inputs and twelve GLBs**
+with no drift. Independent raw JSON comparison confirms that only stone-hatchet
+and salvaged-axe profiles changed; the other 39, including both accepted metal holds
+and bow, are byte-identical to its saved baseline. Staged patch and HEAD are unchanged.
+This verifies preservation, not compilation or visual acceptance. The shared client
+DLL was externally replaced at 21:09:28 (SHA `0439FEDA92BD05073FDB6557D25322A2BADF70C261F36B302335A886F279137A`);
+its presence/live game does not establish a validated build of the sealed candidate.
+Retain P2's old frozen binaries and reconcile explicitly before any later run.
+
+Root found gaps in the tool chat's scratch launch guard: incomplete competitor
+classification, descendant ownership based on a historical parent PID without checking
+that parent's current creation identity, and incomplete protection of old refusal/log
+outputs. The owner is preparing a narrow preserved successor; no guard test or process
+launch is authorized. P2/P5 remain idle. Root's seal/guard review and resource evidence:
+`.artifacts/recovery/video-tools-seal-root-review-20261017.json`, SHA
+`1FDCF4FA46CB051442F48672E70A2290248C275BE46FFDB0A87B077E951BFD1D`.
+Maximum remains gated at 8 GiB; no quality/timeouts changed and no checklist item closes.
+
+**17 October, 21:06 local — audio caller correction reviewed; tool work queued:**
+Root reviewed P5's r4 narrow correction: the scoped adapter now preserves `PIPE`,
+and prepared checks call the actual pinned `audiolib.run` and `decode` helpers through
+an intercepted Windows CreateProcess boundary. Root rehashed all 45 handoff artifacts,
+97 prior artifacts and 162 input pins with zero drift. Staged patch bytes and HEAD
+remain unchanged. This is static review only: guard fixtures, native containment,
+audio generation/import and listening have not run. P5 remains idle for a separate
+validation grant. Evidence: `.artifacts/recovery/p5-audio-caller-r4-root-review-20261017.json`,
+SHA `C690025206FF1E4109ED194A89C7B5A1A2D4874568B2697E6C6BC7200B66CD90`.
+
+The existing **Study Rust gameplay references** chat (`01a14a7e-1a36-7130-86c1-04ae939ed486`)
+requested coordination after the user explicitly authorized it. Root verified that
+human reply and queued its tool-presentation build/focused-test/workshop sequence,
+with **no execution grant**. Its source work affects held-presentation profiles,
+viewmodel/editor movement and melee swish timing; accepted metal holds, bow profiles,
+impact authority and audio recipes are to remain preserved. Environment/audio owners
+retain their claims. A sealed source handoff is required before one bounded job can
+be granted; the whole sequence is not pre-approved for execution. This chat reports
+three existing source-only subagents; root created or resumed none.
+
+P2 was informed that live-source manifests are stale again. Preserve its built seed
+fixture, immutable runtime copies and refused native preflight; do not rewrite old
+evidence or launch from that old manifest. Reconciliation waits for the tool source
+handoff. At 21:02:10 memory was 5.2448 GiB / 60%; by **21:06:12** it was **6.0243 GiB /
+57% commit**, with 40 exact known helpers and no heavy process. All heavy slots remain
+released pending the handoff. The 5.5 GiB / <=80% start checks, owned-job 2 GiB / >85%
+stop limits and Maximum's 8 GiB startup floor are unchanged. No user process was
+stopped and no new gameplay/visual acceptance is claimed. Snapshot:
+`.artifacts/recovery/heartbeat-20261017-1752-review.json`. Follow-up remains active.
+
+**17 October, 20:47 local — seed fixture built; native launch refused on memory:**
+Root reviewed the seed-only experiment's 57 artifacts/48 runtime pins and exact
+one-word shader change. Both adapted guards differ only in owned payload paths and
+passed eight fixture groups each. The single scratch build then passed with zero
+warnings/errors: 3.41 s compiler / 4.665 s guarded, minimum 7.0862 GiB / maximum 55%
+commit. All 10,638 effective input pins stayed unchanged. PE/PDB, four present source
+checksums, 24 runtime copies, two SDK copies and nine production module identities
+matched; eight absent generated paths remain unverified. Root rehashed the full
+191-artifact build handoff. No production rebuild or shader compilation is claimed.
+
+A separate four-capture native grant was **refused before launch** at **20:37:59**:
+**5.0412 GiB available**, below the 5.5 GiB gate; 63% commit, 50 exact helpers, no heavy
+competitor. All 10,697 manifest pins matched. Execute was never invoked: zero native
+processes, captures or draws. Root verified the 195-artifact refusal handoff and absent
+run/capture directories. The hypothesis remains untested. All slots are released; no
+retry, helper/app stop or quality/timeout change occurred. A later root sample at
+20:38:57 was 4.8789 GiB / 64%. Preserve this refusal; reconsider only after resource
+recovery and a separate fresh preflight. Maximum startup remains >=8 GiB.
+Root evidence: `grass-seed-{preparation,build,refusal}-root-review-20261017.json`
+under `.artifacts/recovery/`; worker evidence is under
+`.artifacts/p2-environment/grass-seed-prep-r1/`.
+
+P5's scoped audio caller remains unexecuted. Root caught a Windows Popen audit mismatch
+in r2: the installed interpreter audits serialized string arguments and may report
+executable=None. The r3 successor adds structured validation before serialization and
+an explicit executable. Root then caught a missing `PIPE` constant in its audio-helper
+replacement. P5 now prepares the narrow correction and checks through the real staged
+helper call paths, with no Python/native/audio execution granted. r1/r2/r3 evidence and
+production are preserved. Reviews: `p5-audio-caller-r{2,3}-root-review-20261017.json`.
+These are scratch-tool findings, not gameplay failures or accepted sound fixes. Other
+workers remain idle/not loaded; root docs remain uncommitted and follow-up stays active.
+
+**17 October, 20:18 local — two bounded scratch preparations, no execution grant:**
+P2 completed read-only closeup analysis. The existing atlas alpha is multiplied by an
+independent procedural blade mask; their intersection can fragment coverage. An
+interpolated seed feeding a sensitive fragment hash is another hypothesis, not a proven
+GPU fault. Root reviewed the note and production fragment code. P2 now prepares only
+the proposed four-capture current-versus-non-interpolated-seed experiment, keeping
+all other mesh/atlas/taper/AA/lighting/framing inputs fixed in a new scratch successor.
+No repeatable improvement would reject it as a demonstrated fix. Prior evidence and
+production remain unchanged; neither a build nor native run is granted.
+
+In parallel, P5 prepares its already-reviewed defense-interior proposal's isolated,
+sequential staging caller and resource guard in new scratch, with an exact four-output
+allowlist and one catalog addition. No synthesis, Python import, ffmpeg, guard-fixture
+test, build or Godot run is granted. Root retains coordination-doc ownership. Other
+workers are unchanged. At **20:15:19**, available memory was **6.8946 GiB / 56% commit**,
+40 exact helpers and no heavy process. Maximum retains its 8 GiB floor. Evidence:
+`.artifacts/p2-environment/grass-visual-cause-r1.md` and
+`.artifacts/recovery/heartbeat-20261017-2018-preparation.json`. No new visual/FPS result
+or completed sound fix is claimed; continue quiet follow-up while preparation proceeds.
+
+**17 October, 20:13 local — repaired grass fixture passed; closeup quality remains open:**
+P2's r3 scratch repair separates expected output-file SHA checks from loaded assembly
+FullName/MVID checks, preserving the earlier failed evidence and all visual assertions.
+The separately granted build passed with zero warnings/errors in 3.54 s compiler /
+4.712 s guarded time. Root verified its 193-artifact handoff before granting one native
+run. No production source changed or main solution rebuild occurred in these steps.
+
+That native run passed on Godot 4.7.2 Vulkan/Forward+: **287 assertions, fourteen
+1600x900 captures and 84 controlled draws**, exit 0, clean stdout and empty stderr.
+Both loaded client/Core identities matched despite empty Assembly.Location. Production
+ArrayMesh readbacks, controlled shader TIME and seven raster comparisons passed;
+calm repeat and both litter comparisons were exact. Guard duration was 6.438 s,
+minimum **5.8218 GiB available / maximum 59% commit**, with no stop/error outcome.
+The owned Godot process exited. P2 verified all 10,395 effective pins unchanged.
+
+Root independently verified all 226 final artifact hashes, all 74 isolated-user hashes,
+all fourteen PNG hashes/dimensions, the report and unchanged HEAD/staged patch. Root
+inspected eight original images, confirming visible distance shrink/trample response
+but also **broad angular blades and speckled/disconnected-looking tips** in closeups
+04/06. Bounded mesh/TIME/raster validation is complete; high-fidelity grass appearance,
+full-world lighting/density/LOD, morphed-terrain root contact and GPU cost remain open.
+Finite fixture edges are not themselves proof of a world defect. No FPS gain is claimed.
+
+Evidence: `grass-native-prep-r3/native/native-handoff.json` under
+`.artifacts/p2-environment/`, SHA `D905E10E75136FDF276F71374686394E85C82B554F02B06111B54E1920F0B4B8`;
+root review `.artifacts/recovery/grass-native-r3-native-root-review-20261017.json`,
+SHA `CB60FE0D26C9E7116E59396A6F2EC959E912AF2C2F1C85D8FB1A69DDE68A33BB`.
+The heavy slot is released. P2 now owns read-only analysis of those silhouette/tip
+concerns and a narrow candidate/check proposal, writing only a new scratch note and
+its report. No further build/test/import/render is granted. Other coordinated workers
+remain idle/not loaded. Latest completed post-run sample at **20:07:49** was
+**6.9823 GiB / 55% commit**, 38 exact helpers, no competing heavy process.
+Maximum startup still requires 8 GiB. Root docs remain uncommitted; all shared staged
+and working changes and the original project's read-only status remain preserved.
+The queue still needs implementation and validation, so follow-up remains active.
+
+**17 October, 19:51 local — scratch build passed; native fixture hit a binding-path error:**
+After RAM recovered, P2 ran the one granted scratch build: exit 0, zero warnings/errors,
+3.37 s compiler / 4.958 s guarded duration, minimum 6.0458 GiB / maximum 61% commit.
+All 10,049 effective input pins were unchanged. Metadata-only inspection matched the
+fixture PE/PDB, four present sources, all 24 copied runtime/PDB files and both Godot
+SDK DLLs; eight generated source paths remain unverified. Root verified the 203-artifact
+handoff. Fixture SHA `B526188BE85639F7F1EE1DFF900D80EAF89BEA1E137182D6E55F7BA540CBFCC4`,
+MVID `ef8979fc-9cac-4ff5-b719-9b9b3df8b4a8`. No main solution rebuild occurred.
+
+A separate native grant then started Godot 4.7.2 Vulkan/Forward+ successfully but failed
+in **GrassCheck.cs:62**: `File.ReadAllBytes(typeof(GrassField).Assembly.Location)`
+received an empty path. This is a scratch-harness assumption failure, before loaded
+client/Core identity checks, meshes, texture loading, shader TIME controls or captures.
+There are **0/14 PNGs and zero draws**; 52 preliminary setup/file-pin checks passed.
+Do not treat those checks or successful renderer initialization as grass acceptance.
+
+The guard recorded exit 1 / first failure, 2.342 s, minimum 6.6449 GiB / maximum 57%
+commit, no guard errors or process-stop actions. All 10,116 effective pins are unchanged.
+Root reviewed all 217 failure-handoff artifact hashes with zero drift. Evidence:
+`grass-native-prep-r2/native/failure-handoff.json` under `.artifacts/p2-environment/`
+and `grass-native-successor-{build,failure}-root-review-20261017.json` under
+`.artifacts/recovery/`. Failed r2 and all earlier evidence remain preserved.
+
+The heavy slot is released. P2 now has **scratch-only successor repair/preparation**:
+hash explicit immutable output DLL files and check loaded assembly identity/MVID
+separately, covering client and Core without skipping mismatch/missing-file failures.
+Keep all visual assertions and the initial TIME correction. No retry/build/import/native
+execution is granted for that repair. Latest P2 sample at 19:47:21 was 7.0882 GiB / 55%,
+36 exact helpers, no competing heavy job. Fresh gates still apply; Maximum needs 8 GiB.
+Root docs remain uncommitted and shared staged/source/settings/assets remain preserved.
+Queue stays open; fixture repair and all grass visual/world/GPU acceptance are pending.
+
+**17 October, 19:22 local — external bow work reconciled; grass fixture ready for a later build slot:**
+The independent admire/bow and reference-study chats are idle. Root reviewed the bow
+handoff: clean 12.13 s build, 26 focused passes, 220 native samples with zero recorded
+violations, 492 admire samples and the hosted real-input firing/redraw/interruption
+tour. The native profile fingerprint matches current data. Root viewed the final
+female draw and hosted after-admire images; the centre crosshair is unobscured. This
+does not close broader tool performance/art direction or Maximum world validation.
+Known shutdown warnings remain. Evidence: `bow-correction-external-review-20261017.json`
+under `.artifacts/recovery/`. DESIGN ART-03 and the reference study now distinguish
+accepted metal-tool holding poses from still-open complete animation acceptance.
+
+P2 reconciled the external source/build changes into **grass-native-prep-r2**, preserving
+r1 and every original receipt. The current client is `ED66A9DE...A67882C0`, MVID
+`2577686e-3f9f-4ba7-8382-f3d4aba9b745`; 24 small managed runtime/PDB copies bind the
+fixture independently of later shared output writes. Metadata inspection matched all
+nine PE/PDB IDs and 679 present source checksums; 544 absent generated paths remain
+unverified. Grass mesh/shader and selected called dependencies are byte-identical to
+the reviewed patch. The successor retains the initial shader TIME correction. Root
+verified 63 published artifacts and 47 runtime pins; guard differences are only owned
+r1-to-r2 command paths. Both adapted guards then passed all eight lightweight fixture
+groups. Root verified all 135 preparation artifacts and proof/manifest hashes.
+
+`grass-native-prep-r2/build/before.json` binds 10,048 inputs, including seven new source/
+test files, 896 production outputs and the unchanged staged patch. Its SHA is
+`C925C8173C1EBE76A612C0F85486A5B205879E6DDD8E279A1D6A13891BB2849C`.
+Root review receipts: `grass-native-successor-root-review-20261017.json` and
+`grass-native-successor-fixtures-root-review-20261017.json` in `.artifacts/recovery/`.
+No build/test/import/render ran. At **19:19:58**, memory was **4.2504 GiB / 63% commit**,
+with no competing heavy process and 54 exact known helpers. The 5.5 GiB build/native
+launch gate is not met; Maximum remains >=8 GiB. P2 is idle, all slots released.
+
+Next: fresh process/memory/input verification, then a separately granted scratch build;
+review its outputs before granting native capture. No automatic launch or retry. The
+absolute read-only ctex load and shader/visual/world/GPU checks remain unexercised.
+User preference changes and external source edits are preserved. Root docs remain
+uncommitted so the prepared HEAD/index/ref pins stay valid; a later commit requires an
+explicit preserved successor manifest. The missing defense-interior finding is now
+also recorded in KNOWN_PROBLEMS. P5's proposed repair remains uninstalled. Keep follow-up
+active; the queue still has implementation and validation work.
+
+**17 October, 19:02 local — sound repair prepared; execution still held for independent bow work:**
+P5 completed the scratch-only preparation and returned idle (cursor
+`dc940240-b1c2-4fba-9ee1-dd4fffa6a702:3`). The proposed two-file patch adds one
+shared defense-interior recipe, four non-layered variants and a catalogue regression
+over every battery's report/mechanism/interior. It is **not applied**. The plan calls
+the existing single-output builder sequentially in a fresh staging mirror, avoiding
+the full pipeline's six-worker generation and global maintenance. A scoped caller
+and its guard still need implementation/review before a separately granted run.
+
+Root reviewed the patch and API/data contracts, repeated its applicability check,
+and verified **41** artifact/protected/dependency/cache/archive hashes with zero
+drift. Both source archives match their existing records; cached member fidelity to
+fresh extraction and listening remain unverified. The original 25-path staged patch
+is unchanged. No production edit, Python import, audio generation, build, test,
+Godot import/render or process stop occurred. Mix, loudness, loadability, same-hull
+listening and network presentation acceptance remain pending. Evidence:
+`.artifacts/p5-defense-interior-prep-r1/validation.json` and
+`.artifacts/recovery/p5-defense-interior-preparation-root-review-20261017.json`
+(SHA `EE41D8A7C7DEDF139BE6D74FC26A5DF10152B926376E67A0021AB4007E1C5D06`).
+
+Root also independently reconciled the completed admire turn's 18 recorded test
+logs: all log hashes match, and **502 unique passes** match its 502-name manifest,
+with no recorded failed/missing/unexpected names. That aggregate includes 238
+completed tests from an interrupted full run plus subsequent batches; it is not a
+single uninterrupted suite. It is historical coverage, **not validation of the
+subsequent bow correction or a current binary binding**. See
+`.artifacts/recovery/admire-test-evidence-review-20261017.json`.
+
+**Add held-item admire key** is now actively fixing the user's reported bow aiming
+misalignment and checking real input (cursor `ef80e02f-ce50-4e22-bf80-140a30c14e2f:4`).
+Do not insert coordinated heavy work between that owner's builds/renders or alter
+its shared changes. At 19:01:36, memory was **5.7798 GiB / 60% commit**, 50 exact known
+helpers and no heavy process at that instant. This is not an execution grant.
+The grass fixture's stale source/binary binding still needs reconciliation after
+the external handoff. Root's two coordination docs remain uncommitted while that
+work is active; HEAD remains e6818b6f. KNOWN_PROBLEMS remains with its active owner.
+All coordinated execution slots are released. Preserve the 8 GiB Maximum startup
+gate, normal timeouts, quality and the original project's read-only status. Keep
+the follow-up active; visual/gameplay acceptance and prepared repairs remain open.
+
+**17 October, 18:46 local — P5 diagnosis complete; external validation still occupies execution:**
+P5 returned idle without modifying files or launching anything. The defense interior sound
+is omitted from `_iw_defense` in `art/audio/events.py`, so neither its catalog event nor
+generated files exist. Root confirmed the generator/caller/catalog mismatch. A later P5
+repair should supply a distinct non-layered interior recipe/files and a catalogue check
+for every battery's report/mechanism/interior. Simply aliasing the layered report would
+still be silent: Play2D consumes top-level Files. Existing firearm/Kenney source records
+are labelled CC0 locally; provenance verification and actual gunner/same-hull/offship
+listening remain required. `build.py --only` still performs global maintenance and uses
+six workers, so do not execute it without a bounded plan and explicit output ownership.
+
+The prior user game/server ended. P5 observed an external full test at 18:42; root then
+observed **Add held-item admire key** running native PID 24408 at 18:44:34, with an isolated
+AdmireCheck tour/save, Medium quality and port 27035. Memory was 2.5795 GiB / 81% commit.
+That chat remains active; its tests/renders are not this queue's validation or Maximum
+quality evidence. No coordinated grant is available alongside it. Keep source changes,
+all staged bytes and original project untouched. Root recovery/backlog updates remain
+uncommitted while independent shared-checkout work is active; HEAD was e6818b6f and the
+25-path staged patch still matched at 18:43:27. A KNOWN_PROBLEMS entry for the sound
+finding should be reconciled after its active external documentation owner releases.
+
+**17 October, 18:39 local — play-session pressure; new external work and station-audio finding:**
+The same unowned game PID 21924 and child server PID 9188 remain running. Resource samples
+at 18:33:26 and 18:34:30 were **1.1324 / 1.0497 GiB available, 87% commit**; a later
+18:36:36 sample recovered to 1.9869 GiB / 81%. No coordinated heavy job ran and no process
+was stopped. Keep all heavy grants held. The original workers' compact statuses were
+unchanged before the read-only assignment below.
+
+A new user-started chat, **Add held-item admire key** (`01a14a7d-2dc1-7022-9fae-f79bdded3694`),
+is active in the shared project; **Study Rust gameplay references** is also active. The
+admire chat reports stopping its full tests after memory fell below 1 GiB and has asked
+the user about closing the old running game. Leave that request with the user. Do not
+assume this independently started work belongs to the coordinated execution slot.
+At 18:37:24 seven entries differed from the 163-input freeze: held-presentations.json,
+HeldPresentationViewmodel.cs, ViewmodelView.cs, ClientConsole.cs, FirstPersonView.cs,
+GroundView.cs and ConsoleCatalog.cs. Preserve these changes; do not restore old hashes.
+Observed current client SHA is `B346AF75840F6B7AF68D7E78D92976C981ED597E93470D64ABF91455C6A301F7`.
+The prepared grass harness binding remains stale. Reconcile the external handoff after
+that work is idle and before any future grant; do not rebuild to refresh document versions.
+
+The user's log was rotated by a later held-editor capture. Root retained the earlier
+7,078-byte play log at `.artifacts/recovery/user-play-log-20261017-1835.txt`. It reports
+world-ready and a concrete warning: missing `defense.fire.interior`, requested from
+StationsView.Shot through Sounds.Flat/AudioDirector.Play2D. The catalog has the defense
+report/mechanism and siege interior events, but no defense interior event. This is a
+missing sound route, not evidence of an extra shot, a memory leak or a crash.
+P5's existing chat has a **read-only** diagnosis assignment: identify the narrow shared
+audio/data fix, existing asset provenance and later checks; only its report/scratch may
+change. No production edit or execution slot is granted. P2/P7/P8 remain idle.
+Evidence: `.artifacts/recovery/heartbeat-20261017-1832-processes.json`,
+`heartbeat-20261017-1832-pressure.json` and the retained log. All prior evidence stays;
+Maximum startup remains >=8 GiB and the follow-up remains active.
+
 **17 October, 18:28 local — native grass preparation reviewed; external play session holds execution:**
 P2 prepared a scratch C# fixture and released ownership without a build, actual test,
 import or native run. It calls compiled production TuftMesh/LitterMesh, checks retained

@@ -16,6 +16,8 @@ public readonly record struct AimRay(Vector3 Origin, Vector3 Direction, float Le
 {
     /// <summary>When set, preview a damage query rather than an interaction: solid objects, with this attack radius.</summary>
     public float? AttackRadius { get; init; }
+    /// <summary>Ship excluded when resolving a mounted weapon's aim point; its muzzle obstruction is checked separately.</summary>
+    public ulong IgnoreShip { get; init; }
     /// <summary>How far along a hit must be to beat the best so far.</summary>
     public float Upto(in AimHit best) => best.Hit ? MathF.Min(Length, best.Distance) : Length;
 
@@ -111,6 +113,7 @@ public struct TargetFacts
 
     /// <summary>The deployable it is, if one (a workbench's level, a machine's kind).</summary>
     public DeployableDef? Deployable;
+    public Authorization.DeviceAccessFacts DeviceAccess;
 
     /// <summary>
     /// Built or lying aboard a ship (IRON_WAKE.md §8): its crew's to pick up, not a building claim's; the viewer's flags
@@ -158,16 +161,16 @@ public static class DoorShapes
             LeafDef leaf = door.Def.Leaves[i];
             (Vector3 position, Quaternion rotation) = door.Leaf(i, door.Open);
             Vector3 local = Vector3.Transform(at - position, Quaternion.Inverse(rotation));
-            Vector3 size = leaf.Size;
-            var min = new Vector3(MathF.Min(0, size.X), 0, -MathF.Abs(size.Z) / 2);
-            var max = new Vector3(MathF.Max(0, size.X), size.Y, MathF.Abs(size.Z) / 2);
-            Vector3 clamped = Vector3.Clamp(local, min, max);
-            Vector3 point = position + Vector3.Transform(clamped, rotation);
-            float d = Vector3.DistanceSquared(point, at);
-            if (d < nearest)
+            foreach (ConvexPart part in leaf.Parts)
             {
-                nearest = d;
-                best = (point, position + Vector3.Transform((min + max) / 2, rotation));
+                Vector3 clamped = Vector3.Clamp(local, part.Min, part.Max);
+                Vector3 point = position + Vector3.Transform(clamped, rotation);
+                float d = Vector3.DistanceSquared(point, at);
+                if (d < nearest)
+                {
+                    nearest = d;
+                    best = (point, position + Vector3.Transform((part.Min + part.Max) / 2, rotation));
+                }
             }
         }
         return best;
@@ -210,9 +213,19 @@ public static class NaturalAim
     {
         float length = ray.Upto(best);
         Vector3 end = ray.Origin + ray.Direction * length;
-        const float margin = 4f;
         scratch.Clear();
-        nature.Query((ray.Origin + end) / 2, length / 2 + margin, scratch);
+        // Derive reach from the very shapes tested below: pickup/bush centres can lie above the root, and trunk
+        // caps or buried rock spheres can extend below it. A long sky ray must not generate an entire surface disk.
+        var largest = new Nature.NaturalObject { Up = Vector3.UnitY, Scale = Nature.NaturalShapes.MaximumGeneratedScale };
+        float rootReach = 0;
+        foreach (NaturalKind kind in content.NaturalKinds)
+        {
+            if (ray.AttackRadius != null && !kind.IsSolid) continue;
+            Combat.HitShape shape = Nature.NaturalShapes.Bounds(largest, kind);
+            float grow = ray.AttackRadius ?? (kind.IsPicked ? AimShapes.PickupMargin : 0);
+            rootReach = MathF.Max(rootReach, MathF.Max(shape.A.Length(), shape.B.Length()) + shape.Radius + grow);
+        }
+        nature.QueryAlong(ray.Origin, end, MathF.BitIncrement(rootReach), scratch);
         foreach (Nature.NaturalObject o in scratch)
         {
             if (content.Natural(o.Kind) is not { } kind || state.IsDepleted(o.Id) || ray.AttackRadius != null && !kind.IsSolid)
@@ -254,7 +267,8 @@ public static class BuildingAim
         {
             if (piece.Door is { Gone: false } door)
             {
-                ray.Consider(ref best, AimShapes.Doorway(within, building.Data, piece), door.Ref, door.Open ? AimKind.Opening : AimKind.Thing);
+                ray.Consider(ref best, AimShapes.Doorway(within, building.Data, piece), door.Ref,
+                    door.Open || !door.Def.Opens ? AimKind.Opening : AimKind.Thing);
             }
         }
     }
@@ -466,15 +480,15 @@ public static class AimShapes
     /// </summary>
     public static float Doorway(in AimRay ray, BuildingData data, Piece frame)
     {
-        if (frame.Def.Opening is not (Building.Opening.Door or Building.Opening.Double))
+        if (!data.TryOpening(frame.Def.Opening, out var aperture))
         {
             return -1;
         }
-        (double w, double h) = frame.Def.Opening == Building.Opening.Door ? data.DoorOpening : data.DoubleOpening;
         BuildingFrame f = frame.Structure.Frame;
         Vector3 end = ray.Origin + ray.Direction * ray.Length;
         Core.Vector3D eye = new(ray.Origin.X, ray.Origin.Y, ray.Origin.Z), far = new(end.X, end.Y, end.Z);
-        if (!PieceGeometry.RayOpening(frame.Pose, w, h, f.ToLocal(eye), f.ToLocal(far), out Core.Vector3D hit))
+        Pose opening = frame.Pose with { Position = frame.Pose.Position + Core.Vector3D.UnitY * aperture.Sill };
+        if (!PieceGeometry.RayOpening(opening, aperture.Width, aperture.Height, f.ToLocal(eye), f.ToLocal(far), out Core.Vector3D hit))
         {
             return -1;
         }
@@ -485,14 +499,14 @@ public static class AimShapes
     public static bool NearestInDoorway(BuildingData data, Piece frame, Vector3 from, out Vector3 point)
     {
         point = from;
-        if (frame.Def.Opening is not (Building.Opening.Door or Building.Opening.Double))
+        if (!data.TryOpening(frame.Def.Opening, out var aperture))
         {
             return false;
         }
-        (double w, double h) = frame.Def.Opening == Building.Opening.Door ? data.DoorOpening : data.DoubleOpening;
         BuildingFrame f = frame.Structure.Frame;
         Core.Vector3D local = PieceGeometry.ToLocal(frame.Pose, f.ToLocal(new Core.Vector3D(from.X, from.Y, from.Z)));
-        var clamped = new Core.Vector3D(Math.Clamp(local.X, -w / 2, w / 2), Math.Clamp(local.Y, 0, h), 0);
+        var clamped = new Core.Vector3D(Math.Clamp(local.X, -aperture.Width / 2, aperture.Width / 2),
+            Math.Clamp(local.Y, aperture.Sill, aperture.Sill + aperture.Height), 0);
         Core.Vector3D zone = f.ToZone(PieceGeometry.ToFrame(frame.Pose, clamped));
         point = new Vector3((float)zone.X, (float)zone.Y, (float)zone.Z);
         return true;

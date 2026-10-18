@@ -101,7 +101,7 @@ public sealed class CodeLock : DoorLock
 /// upgraded. Its leaves swing on the hinges from the kit's assembly manifest; open or shut they collide, so an open
 /// door still blocks (RustMVP's rule).
 /// </summary>
-public sealed class Door : IBuildingPart, IOwned
+public sealed class Door : IBuildingPart, IOwned, ILockHost
 {
     internal uint[] Bodies;
 
@@ -142,6 +142,11 @@ public sealed class Door : IBuildingPart, IOwned
 
     public DoorLock? Lock { get; internal set; }
 
+    DoorLock? ILockHost.Lock { get => Lock; set => Lock = value; }
+    bool ILockHost.Lockable => Def.Lockable;
+    bool ILockHost.LockGone => Gone;
+    void ILockHost.LockChanged() => Frame.Structure.World.NotifyLockChanged(this);
+
     public bool Gone { get; internal set; }
 
     /// <summary>The claim device of its frame's structure, or null.</summary>
@@ -159,6 +164,7 @@ public sealed class Door : IBuildingPart, IOwned
         LeafDef leaf = Def.Leaves[index];
         (Vector3 position, Quaternion rotation) = Frame.ZoneTransform;
         Quaternion flip = Quaternion.CreateFromAxisAngle(Vector3.UnitY, Flip * MathF.PI);
+        open &= Def.Opens;
         Quaternion swing = Quaternion.CreateFromAxisAngle(Vector3.UnitY, open && !Def.Rolls ? (float)(leaf.OpenYaw * Math.PI / 180) : 0f);
         Vector3 hinge = leaf.Hinge;
         if (open && Def.Rolls)
@@ -232,13 +238,14 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.NotFound;
         }
-        if (frame.Def.Opening is not (Opening.Door or Opening.Double))
+        if (!Data.TryOpening(frame.Def.Opening, out _))
         {
             return OutcomeCode.NotAnOpening;
         }
         if (frame.Def.Opening != def.Opening)
         {
-            return def.Opening == Opening.Door ? OutcomeCode.NeedsDoorway : OutcomeCode.NeedsWallFrame;
+            return def.Opening == Opening.Door ? OutcomeCode.NeedsDoorway
+                : def.Opening == Opening.Double ? OutcomeCode.NeedsWallFrame : OutcomeCode.NotAnOpening;
         }
         if (frame.Door != null)
         {
@@ -272,7 +279,7 @@ public sealed partial class BuildingWorld
     {
         if (!_leafParts.TryGetValue(leaf, out ConvexPart[]? parts))
         {
-            parts = new[] { PieceShapes.Leaf(leaf) };
+            parts = leaf.Parts;
             _leafParts.Add(leaf, parts);
         }
         return parts;
@@ -318,6 +325,10 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.NotFound;
         }
+        if (!door.Def.Opens)
+        {
+            return OutcomeCode.NotUsable;
+        }
         if (!CanUse(player, door, keys))
         {
             return OutcomeCode.Locked;
@@ -343,7 +354,7 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>Whether a player can open and shut a door now.</summary>
-    public static bool CanUse(ulong player, Door door, IReadOnlyCollection<int>? keys = null) => door.Lock switch
+    public static bool CanUse(ulong player, ILockHost door, IReadOnlyCollection<int>? keys = null) => door.Lock switch
     {
         null => true,
         KeyLock key => key.CanUse(player, keys),
@@ -362,9 +373,13 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.RemoveLockFirst;
         }
-        if (!door.Open)
+        if (door.Def.Opens && !door.Open)
         {
             return OutcomeCode.OpenItFirst;
+        }
+        if (!door.Def.Opens && PrivilegeAt(player, door.Frame.ZoneTransform.Position) == Privilege.Blocked)
+        {
+            return OutcomeCode.BuildingBlocked;
         }
         RemoveDoor(door);
         return Outcome.Done;
@@ -395,6 +410,9 @@ public sealed partial class BuildingWorld
         (world, owner) => new CodeLock(world._newId(), owner),
     };
 
+    internal void NotifyLockChanged(Door door) =>
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+
     private int NextKeyCode()
     {
         int code = _nextKeyCode;
@@ -406,12 +424,16 @@ public sealed partial class BuildingWorld
     /// Fits a lock of a kind to a door without one: a key lock unlocked, its owner the fitter; a code lock with no code yet,
     /// unlocked, its owner authorised. Building rights are the placement pipeline's (GROUND_SYSTEMS.md §6).
     /// </summary>
-    public Outcome AttachLock(ulong player, Door door, LockKind kind, out DoorLock? fitted)
+    public Outcome AttachLock(ulong player, ILockHost door, LockKind kind, out DoorLock? fitted)
     {
         fitted = null;
-        if (door.Gone)
+        if (door.LockGone)
         {
             return OutcomeCode.NotFound;
+        }
+        if (!door.Lockable)
+        {
+            return OutcomeCode.NotUsable;
         }
         if (door.Lock != null)
         {
@@ -423,12 +445,12 @@ public sealed partial class BuildingWorld
         }
         fitted = make(this, player);
         door.Lock = fitted;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        door.LockChanged();
         return Outcome.Done;
     }
 
     /// <summary>Fits a key lock (<see cref="AttachLock"/>).</summary>
-    public Outcome AttachKeyLock(ulong player, Door door, out KeyLock? keyLock)
+    public Outcome AttachKeyLock(ulong player, ILockHost door, out KeyLock? keyLock)
     {
         Outcome done = AttachLock(player, door, LockKind.Key, out DoorLock? fitted);
         keyLock = fitted as KeyLock;
@@ -436,7 +458,7 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>Fits a code lock (<see cref="AttachLock"/>).</summary>
-    public Outcome AttachCodeLock(ulong player, Door door, out CodeLock? codeLock)
+    public Outcome AttachCodeLock(ulong player, ILockHost door, out CodeLock? codeLock)
     {
         Outcome done = AttachLock(player, door, LockKind.Code, out DoorLock? fitted);
         codeLock = fitted as CodeLock;
@@ -447,7 +469,7 @@ public sealed partial class BuildingWorld
     /// Sets or changes a code lock's code: four digits, by an authorised player, while it's unlocked. It locks at once
     /// and only the setter stays authorised (RustMVP's rule).
     /// </summary>
-    public Outcome SetCode(ulong player, Door door, string code)
+    public Outcome SetCode(ulong player, ILockHost door, string code)
     {
         if (door.Lock is not CodeLock codeLock)
         {
@@ -469,7 +491,7 @@ public sealed partial class BuildingWorld
         codeLock.Locked = true;
         codeLock.AuthorisedList.Clear();
         codeLock.AuthorisedList.Add(player);
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        door.LockChanged();
         return Outcome.Done;
     }
 
@@ -477,7 +499,7 @@ public sealed partial class BuildingWorld
     /// Enters a code: the right one authorises the player (up to the list's limit); a wrong one makes them wait 1, then
     /// 5, then 30 seconds before the next try (<see cref="BuildingData.WrongCodeWait"/>).
     /// </summary>
-    public Outcome EnterCode(ulong player, Door door, string code, double now)
+    public Outcome EnterCode(ulong player, ILockHost door, string code, double now)
     {
         if (door.Lock is not CodeLock codeLock)
         {
@@ -501,7 +523,7 @@ public sealed partial class BuildingWorld
                     return OutcomeCode.ListFull;
                 }
                 codeLock.AuthorisedList.Add(player);
-                Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+                door.LockChanged();
             }
             return Outcome.Done;
         }
@@ -515,7 +537,7 @@ public sealed partial class BuildingWorld
     /// "Authorise team" (G7, Rust's): a player on a code lock's list puts the members of their team on it too, up to the
     /// list's limit. Refused for a stranger (it would be a way round the code) or a key lock.
     /// </summary>
-    public Outcome AuthoriseOnLock(ulong player, Door door, IEnumerable<ulong> members)
+    public Outcome AuthoriseOnLock(ulong player, ILockHost door, IEnumerable<ulong> members)
     {
         if (door.Lock is not CodeLock codeLock)
         {
@@ -542,13 +564,13 @@ public sealed partial class BuildingWorld
         }
         if (changed)
         {
-            Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+            door.LockChanged();
         }
         return full && !changed ? OutcomeCode.ListFull : Outcome.Done;
     }
 
     /// <summary>Locks a lock: a code lock by an authorised player once it has a code; a key lock by its owner or a key holder.</summary>
-    public Outcome SetLocked(ulong player, Door door, bool locked, IReadOnlyCollection<int>? keys = null)
+    public Outcome SetLocked(ulong player, ILockHost door, bool locked, IReadOnlyCollection<int>? keys = null)
     {
         switch (door.Lock)
         {
@@ -572,12 +594,12 @@ public sealed partial class BuildingWorld
                 return OutcomeCode.NoLock;
         }
         door.Lock.Locked = locked;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        door.LockChanged();
         return Outcome.Done;
     }
 
     /// <summary>Takes a lock off: unlocked, by an authorised player (a code lock) or its owner (a key lock). It comes back as an item.</summary>
-    public Outcome RemoveLock(ulong player, Door door)
+    public Outcome RemoveLock(ulong player, ILockHost door)
     {
         switch (door.Lock)
         {
@@ -592,7 +614,7 @@ public sealed partial class BuildingWorld
             return OutcomeCode.UnlockItFirst;
         }
         door.Lock = null;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        door.LockChanged();
         return Outcome.Done;
     }
 
@@ -620,6 +642,25 @@ public sealed partial class BuildingWorld
             Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
         }
         return new DamageResult(loss, false, destroyed);
+    }
+
+    /// <summary>Repairs any fitted attachment through the shared hammer, with its data-defined material and full-repair cost.</summary>
+    public Outcome Repair(ulong player, Door door, IBuildingWallet wallet, double now)
+    {
+        if (door.Gone || door.Frame.Gone || door.Frame.Collapsing) return OutcomeCode.NotFound;
+        if (PrivilegeAt(player, door.Frame.ZoneTransform.Position, Data.ClaimPadding) == Privilege.Blocked)
+            return OutcomeCode.BuildingBlocked;
+        if (door.Health >= door.Def.Health) return OutcomeCode.FullHealth;
+        double wait = door.LastDamagedAt + Data.RepairDelay - now;
+        if (wait > 0) return OutcomeCode.RecentlyDamaged.With((int)Math.Ceiling(wait));
+        double restored = Math.Min(Data.RepairPerHit, door.Def.Health - door.Health);
+        int cost = (int)Math.Max(1, Math.Ceiling(door.Def.RepairFull * restored / door.Def.Health - 1e-9));
+        string material = door.Def.RepairMaterial;
+        if (wallet.Count(material) < cost || !wallet.Take(material, cost))
+            return OutcomeCode.NotEnough.With(Data.MaterialItem(material));
+        door.Health = Math.Min(door.Def.Health, door.Health + restored);
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        return Outcome.Done;
     }
 
     private bool ValidCode(string code)

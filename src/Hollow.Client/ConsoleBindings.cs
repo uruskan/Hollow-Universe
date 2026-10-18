@@ -8,8 +8,29 @@ namespace Hollow.Client;
 /// <summary>Saved press-to-run console shortcuts. Commands still use the ordinary client/server permission path.</summary>
 public sealed class ConsoleBindings
 {
+    private static readonly IReadOnlyDictionary<string, string> Defaults = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["N"] = "admire",
+    };
     private readonly SortedDictionary<string, string> _commands = new(StringComparer.Ordinal);
+    private readonly SortedSet<string> _unboundDefaults = new(StringComparer.Ordinal);
     public IReadOnlyDictionary<string, string> Commands => _commands;
+    /// <summary>Explicit removals of defaults survive a reload and future default merging.</summary>
+    public IReadOnlyCollection<string> UnboundDefaults => _unboundDefaults;
+
+    public ConsoleBindings() => Restore(Array.Empty<KeyValuePair<string, string>>());
+
+    /// <summary>Merge saved bindings over current defaults. Older files need no migration;
+    /// explicit removals stay removed, and a saved binding takes precedence over a stale removal.</summary>
+    public void Restore(IEnumerable<KeyValuePair<string, string>> saved, IEnumerable<string>? unbound = null)
+    {
+        _commands.Clear();
+        _unboundDefaults.Clear();
+        foreach ((string key, string command) in Defaults) _commands[key] = command;
+        if (unbound != null)
+            foreach (string key in unbound) Remove(key);
+        foreach ((string key, string command) in saved) Set(key, command, out _);
+    }
 
     public bool Set(string key, string command, out string error)
     {
@@ -26,16 +47,23 @@ public sealed class ConsoleBindings
             error = "Bind one known console command, at most 512 characters. Type help to list commands.";
             return false;
         }
-        if (!_commands.ContainsKey(normal) && _commands.Count >= 128)
+        if (!_commands.ContainsKey(normal) && _commands.Count >= 128 + Defaults.Count)
         {
-            error = "At most 128 shortcuts can be saved; unbind one first.";
+            error = "At most 128 additional shortcuts can be saved; unbind one first.";
             return false;
         }
         _commands[normal] = command;
+        _unboundDefaults.Remove(normal);
         return true;
     }
 
-    public bool Remove(string key) => Normalize(key) is { } normal && _commands.Remove(normal);
+    public bool Remove(string key)
+    {
+        if (Normalize(key) is not { } normal) return false;
+        bool removed = _commands.Remove(normal);
+        if (Defaults.ContainsKey(normal)) _unboundDefaults.Add(normal);
+        return removed;
+    }
     public string? Find(string key) => Normalize(key) is { } normal && _commands.TryGetValue(normal, out string? command) ? command : null;
 
     public static string? Normalize(string key)

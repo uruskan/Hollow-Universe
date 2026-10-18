@@ -1,0 +1,68 @@
+  RUN  EarthTerrainTests.EarthHasMoreDryGroundWithinTheTotalSurfaceLimit
+      Earth: 18.10 km² total, 58.8% dry (10.63 km²), 35.0% ocean
+  ok   EarthTerrainTests.EarthHasMoreDryGroundWithinTheTotalSurfaceLimit (495 ms)
+  RUN  EarthTerrainTests.EarthHasALargeConnectedLandmass
+      Earth at ~15 m: 10 dry components, largest 10.64 km² (99.9% of dry ground)
+  ok   EarthTerrainTests.EarthHasALargeConnectedLandmass (788 ms)
+  RUN  EarthTerrainTests.EarthTerrainRemainsDeterministic
+      Earth terrain hash 0x3D5174066B119948; 14 lakes, 588 drainage pieces
+  ok   EarthTerrainTests.EarthTerrainRemainsDeterministic (243 ms)
+  RUN  EarthTerrainTests.EarthProfileLeavesPhysicalDataAndExplicitOverridesIntact
+  ok   EarthTerrainTests.EarthProfileLeavesPhysicalDataAndExplicitOverridesIntact (224 ms)
+  RUN  EarthTerrainTests.EarthProfileDoesNotChangeOtherWorlds
+  ok   EarthTerrainTests.EarthProfileDoesNotChangeOtherWorlds (3197 ms)
+  RUN  EnvironmentDetailTests.AuthoredGroundCoverHasBoundedCompleteLods
+      4 authored families, 36 bounded LOD meshes; textures 2048 px
+  ok   EnvironmentDetailTests.AuthoredGroundCoverHasBoundedCompleteLods (13 ms)
+  RUN  EnvironmentDetailTests.MonumentArtAndCollisionHaveCompleteLocalDependencies
+      6 monument types, 77 local art dependencies
+  ok   EnvironmentDetailTests.MonumentArtAndCollisionHaveCompleteLocalDependencies (1195 ms)
+  RUN  EnvironmentDetailTests.EarthMonumentsSharePadsClearingsCollisionAndAuthoritativeLoot
+      hab-pods: --lat -14.1804 --lon 39.6578
+      weather-station: --lat -1.9010 --lon 40.2736
+      service-substation: --lat 6.5564 --lon 42.4617
+      wellhead: --lat 17.8920 --lon 27.8135
+      relay-mast: --lat 26.7512 --lon 26.2814
+      crashed-skiff: --lat 29.6255 --lon 40.1788
+      substation exterior: --lat 6.246767 --lon 41.352456 --yaw 78.923 --pitch -8.002 --lift 3.0
+      underwater: --lat 43.259420 --lon 4.999952 --yaw 0 --pitch -8 --lift -1.4 (bed depth 2.37 m)
+      Earth monuments 131, persistent loot anchors 475
+  ok   EnvironmentDetailTests.EarthMonumentsSharePadsClearingsCollisionAndAuthoritativeLoot (3044 ms)
+  RUN  EnvironmentDetailTests.EarthHasAllFourHarvestableOresWithCompatibleIds
+      HQ node exterior: --lat 50.914728 --lon 94.699519 --yaw -89.600 --pitch -14.380 --lift 0.0
+  ok   EnvironmentDetailTests.EarthHasAllFourHarvestableOresWithCompatibleIds (279 ms)
+  RUN  EnvironmentDetailTests.EarthCliffsHaveStablePlacementsAndSharedCollision
+      Earth scanned formations 79; first -21.9429, 37.7694; collision adds 3500 triangles
+      cliff exterior: --lat -21.967219 --lon 36.232912 --yaw 89.310 --pitch 6.765 --lift 1.5
+  ok   EnvironmentDetailTests.EarthCliffsHaveStablePlacementsAndSharedCollision (380 ms)
+  RUN  EnvironmentDetailTests.WoodlandGrassIsNotSuppressedThreeTimesAndWaterHasNoGroundCover
+  ok   EnvironmentDetailTests.WoodlandGrassIsNotSuppressedThreeTimesAndWaterHasNoGroundCover (1 ms)
+  RUN  EnvironmentRouteTests.ActualEarthHasOneConnectedSampledEnvironmentRoute
+      route beach: --lat -30.486486 --lon 43.059333; height=1.39 grade=0.076 grass=0.01 woodland=0.00 trees18m=0 feature=Beach
+      route woodland: --lat -34.176574 --lon 47.662370; height=3.65 grade=0.070 grass=0.23 woodland=1.00 trees18m=3 feature=Grassland
+      route clearing: --lat -32.783967 --lon 47.028200; height=2.58 grade=0.091 grass=0.42 woodland=0.22 trees18m=0 feature=Grassland
+      route water: --lat -19.952945 --lon 36.987604; height=-0.10 grade=0.032 grass=0.00 woodland=0.00 trees18m=0 feature=Ocean
+      route cliff: --lat -19.952945 --lon 36.987604; height=-0.10 grade=0.032 grass=0.00 woodland=0.00 trees18m=0 feature=nordic_forest_ledge
+      route monument: --lat -30.445650 --lon 45.823593; height=1.98 grade=0.068 grass=0.22 woodland=0.00 trees18m=0 feature=wellhead
+      Connected route wellhead/tile 5/3/0/0; 786.5m; 2 candidates; heightfield feasibility only, hosted object collision and visual quality remain unverified
+  ok   EnvironmentRouteTests.ActualEarthHasOneConnectedSampledEnvironmentRoute (599 ms)
+  RUN  EnvironmentRouteTests.RouteRejectsLegacyWorldAndInWaterCorridor
+  ok   EnvironmentRouteTests.RouteRejectsLegacyWorldAndInWaterCorridor (347 ms)
+  RUN  GameScaleTests.EarthMovementPredictionUsesTheScaledWalkingTerrain
+      Earth radius 1200 m; walked 22.2 m; 360 exact prediction ticks
+  ok   GameScaleTests.EarthMovementPredictionUsesTheScaledWalkingTerrain (1024 ms)
+  RUN  GameScaleTests.EveryPlanetFitsTheEntireSurfaceAreaBudget
+  ok   GameScaleTests.EveryPlanetFitsTheEntireSurfaceAreaBudget (0 ms)
+  RUN  GameScaleTests.InvalidScaleInputsAreRejected
+  ok   GameScaleTests.InvalidScaleInputsAreRejected (1 ms)
+  RUN  GameScaleTests.EarthStartsWithoutAnOptionalCatalogue
+  ok   GameScaleTests.EarthStartsWithoutAnOptionalCatalogue (2 ms)
+  RUN  GameScaleTests.ScalingLeavesGeneratedPhysicsUnchanged
+  ok   GameScaleTests.ScalingLeavesGeneratedPhysicsUnchanged (0 ms)
+  RUN  GeologyPortTests.ScannedRockCatalogMatchesRealMeshAndMaterialData
+      9 real rock variants, 18 LOD meshes; native PBR textures; source/output hashes recorded
+  ok   GeologyPortTests.ScannedRockCatalogMatchesRealMeshAndMaterialData (484 ms)
+  RUN  GeologyPortTests.CliffChainsHaveDistinctStablePartsAndStreamAcrossCellEdges
+      30 checked connected formations, 345 shared render/collision pieces, 24 tiered faces
+  ok   GeologyPortTests.CliffChainsHaveDistinctStablePartsAndStreamAcrossCellEdges (254 ms)
+20/20 passed in 12.6 s.

@@ -35,7 +35,7 @@ public enum GameWindowMode
 
 /// <summary>
 /// One set of graphics settings (GROUND.md §8.6). The presets set everything above <see cref="VSync"/>; vsync, the frame
-/// cap, field of view, interface scale and crosshair are the player's own and no preset touches them.
+/// cap, gib amount, field of view, interface scale and crosshair are the player's own and no preset touches them.
 /// </summary>
 public sealed record GraphicsValues
 {
@@ -99,6 +99,9 @@ public sealed record GraphicsValues
 
     // ------------------------------------------------ the player's own (no preset sets them)
 
+    /// <summary>Maximum live cosmetic fragments as a percentage of the gib catalogue cap (0–100); zero keeps dust and sound.</summary>
+    public int GibAmount { get; set; } = 100;
+
     public GameWindowMode WindowMode { get; set; } = GameWindowMode.Windowed;
 
     /// <summary>0 off, 1 on, 2 adaptive, 3 mailbox.</summary>
@@ -157,7 +160,7 @@ public static class GraphicsSettings
 
     /// <summary>
     /// <paramref name="values"/> with <paramref name="preset"/>'s settings; the player's own (vsync, frame cap, field of
-    /// view, interface scale, crosshair) kept. High is the game as it looked before the settings existed.
+    /// view, interface scale, gib amount, crosshair) kept. High is the game as it looked before the settings existed.
     /// </summary>
     public static GraphicsValues WithPreset(GraphicsValues values, QualityPreset preset)
     {
@@ -249,6 +252,7 @@ public static class GraphicsSettings
                 Reflections = B("reflections", d.Reflections),
                 Fog = B("fog", d.Fog),
                 EffectQuality = I("effect_quality", d.EffectQuality, 0, 3),
+                GibAmount = ReadGibAmount(file),
                 Shadows = I("shadows", d.Shadows, 0, 4),
                 ShadowDistance = F("shadow_distance", d.ShadowDistance, 50, 3000),
                 // Old saves had four cascades. Keep their appearance until the player chooses a setting/preset.
@@ -288,6 +292,7 @@ public static class GraphicsSettings
     {
         GraphicsValues bounded = values with
         {
+            GibAmount = Math.Clamp(values.GibAmount, 0, 100),
             Crosshair = values.Crosshair.Normalize(),
         };
         GraphicsValues shown = bounded with { Preset = Match(bounded) };
@@ -317,6 +322,7 @@ public static class GraphicsSettings
         file.SetValue("graphics", "reflections", v.Reflections);
         file.SetValue("graphics", "fog", v.Fog);
         file.SetValue("graphics", "effect_quality", v.EffectQuality);
+        WriteGibAmount(file, v.GibAmount);
         file.SetValue("graphics", "shadows", v.Shadows);
         file.SetValue("graphics", "shadow_distance", v.ShadowDistance);
         file.SetValue("graphics", "shadow_cascades", v.ShadowCascades);
@@ -346,6 +352,22 @@ public static class GraphicsSettings
 
     /// <summary>Back to what is saved.</summary>
     public static void Revert() => Preview(Saved);
+
+    // Old preferences keep the full catalogue budget. Reject non-numeric/non-finite values without unsafe Variant casts.
+    internal static int ReadGibAmount(ConfigFile file)
+    {
+        Variant value = file.GetValue("graphics", "gib_amount", 100);
+        double amount = value.VariantType switch
+        {
+            Variant.Type.Int => value.AsInt64(),
+            Variant.Type.Float => value.AsDouble(),
+            _ => 100,
+        };
+        return double.IsFinite(amount) ? (int)Math.Clamp(amount, 0, 100) : 100;
+    }
+
+    internal static void WriteGibAmount(ConfigFile file, int amount) =>
+        file.SetValue("graphics", "gib_amount", Math.Clamp(amount, 0, 100));
 
     /// <summary>Old saves receive a centred dot; malformed preferences cannot reach the painter.</summary>
     internal static CrosshairValues ReadCrosshair(ConfigFile file)

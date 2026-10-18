@@ -30,7 +30,8 @@ public sealed partial class Vegetation
     /// <summary>
     /// Set by the ground game: the meshes near the camera are then rebuilt on a worker thread (10–15 ms of work every
     /// 8 m walked and whenever the game changes a plant), and the old ones show until the new are ready. It returns
-    /// <see cref="Changes"/> frozen as they are when a rebuild starts: a function safe to call from another thread.
+    /// <see cref="Changes"/> frozen as they are when a rebuild starts. That function is evaluated on the main thread;
+    /// workers receive only copied kind decisions, placement values, appearance scalars and their own LOD history.
     /// Null: rebuilt on the main thread, as the planet viewer does.
     /// </summary>
     public Func<Func<TileKey, ScatterItem, ScatterKind>>? ChangesSnapshot { get; set; }
@@ -49,29 +50,24 @@ public sealed partial class Vegetation
 
     private void RebuildNear(List<TileKey> tiles, Vector3D camera)
     {
+        if (_stopping || _requiredFailed || _nearJob != null) return;
         if (ChangesSnapshot == null)
         {
             BuildNear(tiles, camera);
             NearBuilds++;
             return;
         }
-        if (_nearJob != null)
-        {
-            return; // one at a time: what asked for this one is still there when it lands
-        }
         _nearCentre = camera;
         _nearDirty = false;
         Func<TileKey, ScatterItem, ScatterKind> kinds = ChangesSnapshot();
-        var list = new List<TileKey>(tiles);
-        // Anchored at the camera, so the near set's bounds follow it (docs/WHOLE_WORLD.md §12).
-        Vector3D anchor = camera;
-        float clock = Clock;
-        _nearJob = Task.Run(() => ComputeNear(list, camera, anchor, clock, kinds));
+        NearInput input = CaptureNear(tiles, camera, kinds);
+        _nearJob = _jobs.Run(input, static (snapshot, token) => ComputeNear(snapshot, token));
     }
 
     // Puts a near set laid out on a worker in place (the upload of its buffers).
     private void ApplyNear()
     {
+        if (_stopping) return;
         if (_nearJob is not { IsCompleted: true } job)
         {
             return;
@@ -79,7 +75,7 @@ public sealed partial class Vegetation
         _nearJob = null;
         if (!job.IsCompletedSuccessfully)
         {
-            _nearDirty = true;
+            _requiredFailed = true;
             return;
         }
         bool measure = MeasureRefreshes;
@@ -102,6 +98,7 @@ public sealed partial class Vegetation
     /// </summary>
     public void Refresh(TileKey tile, bool near = true, bool trees = true)
     {
+        if (_stopping || _requiredFailed) return;
         _nearDirty |= near;
         if (!trees)
         {
@@ -138,13 +135,14 @@ public sealed partial class Vegetation
             }
         }
         Func<TileKey, ScatterItem, ScatterKind> kinds = ChangesSnapshot();
-        Vector3D anchor = b.Anchor;
-        _blockJobs[key.Packed] = (Task.Run(() => ImpostorBuffer(tiles, anchor, kinds)), b);
+        BlockInput input = CaptureBlock(tiles, b.Anchor, kinds);
+        _blockJobs[key.Packed] = (_jobs.Run(input, static (snapshot, token) => ImpostorBuffer(snapshot, token)), b);
     }
 
     /// <summary>Puts impostor blocks laid out on workers in place (call every frame).</summary>
     public void ApplyRefreshes()
     {
+        if (_stopping) return;
         if (_blockJobs.Count == 0)
         {
             return;

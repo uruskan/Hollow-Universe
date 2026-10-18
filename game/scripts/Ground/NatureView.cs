@@ -56,6 +56,30 @@ public partial class NatureView : Node3D
     private Num.Vector3 _markedAt = new(float.MaxValue);
     private Num.Vector3 _scannedAt = new(float.MaxValue);
     private bool _hooked;
+    private bool _stopped;
+    public Task WorkersStopped { get; private set; } = Task.CompletedTask;
+
+    public void Stop()
+    {
+        if (_stopped) return;
+        _stopped = true;
+        if (World?.Plants is { } vegetation)
+        {
+            vegetation.Changes = null;
+            vegetation.ChangesSnapshot = null;
+        }
+        WorkersStopped = Task.WhenAll(_falls.Where(f => f.Item != null).Select(f => (Task)f.Item!));
+        _ = WorkersStopped.ContinueWith(static task => { _ = task.Exception; },
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+        foreach (TreeFall fall in _falls) fall.Instance?.QueueFree();
+        _falls.Clear();
+        _falling.Clear();
+        _pending.Clear();
+        Plants = null;
+        World = null;
+    }
+
+    public override void _ExitTree() => Stop();
     private readonly NaturalRenderState _renderState = new();
 
     private readonly record struct PendingSound(double At, string Key, Vector3 Position);
@@ -112,6 +136,7 @@ public partial class NatureView : Node3D
     /// <summary>Where the player is (feet), for what is drawn near them.</summary>
     public void Refresh(Num.Vector3 feet, double delta)
     {
+        if (_stopped) return;
         if (Client.Survival().Nature == null || Client.Survival().Natural is not { } natural)
         {
             return;
@@ -164,10 +189,11 @@ public partial class NatureView : Node3D
 
     private void Hook()
     {
-        if (_hooked || World?.Plants is not { } plants)
+        if (_hooked || World?.Plants is not { Library: { } library } plants)
         {
             return;
         }
+        Plants?.BindLibrary(library);
         _hooked = true;
         plants.Changes = DrawnKind;
         plants.ChangesSnapshot = FrozenKinds;
@@ -514,7 +540,7 @@ public partial class NatureView : Node3D
     {
         // The placeholders take the plants' rock material: wait for it.
         PlaceholderModels.Library ??= World?.Plants?.Library;
-        if (PlaceholderModels.Library == null && GroundModels.Provider is PlaceholderModels || Client.Surface == null)
+        if (Plants is { Ready: false } || PlaceholderModels.Library == null && GroundModels.Provider is PlaceholderModels || Client.Surface == null)
         {
             return;
         }
@@ -750,6 +776,7 @@ public partial class NatureView : Node3D
                 }
                 if (!task.IsCompletedSuccessfully || task.Result is not { } item || !Build(fall, item))
                 {
+                    if (task.IsFaulted) GD.PushWarning($"Falling-tree lookup failed: {task.Exception}");
                     End(i);
                     continue;
                 }

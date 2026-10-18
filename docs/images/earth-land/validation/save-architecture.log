@@ -1,0 +1,25 @@
+  RUN  ArchitectureTests.EngineFreeLibrariesDoNotReferenceGodot
+  ok   ArchitectureTests.EngineFreeLibrariesDoNotReferenceGodot (4 ms)
+  RUN  ArchitectureTests.GenerationCodeUsesOnlyDeterministicApis
+      79 source files checked
+  ok   ArchitectureTests.GenerationCodeUsesOnlyDeterministicApis (62 ms)
+  RUN  ArchitectureTests.TheZoneIsAHost
+      25 systems, 24 in the game's list; the host is 400 lines
+  ok   ArchitectureTests.TheZoneIsAHost (25 ms)
+  RUN  ArchitectureTests.TheClientIsAHost
+      17 modules, all listed once; the host is 868 lines
+  ok   ArchitectureTests.TheClientIsAHost (9 ms)
+  RUN  ArchitectureTests.TheServerIsAHost
+      15 modules, 15 in the list; the host is 1093 lines
+  ok   ArchitectureTests.TheServerIsAHost (10 ms)
+  RUN  TerrainSaveTests.FreshTerrainSaveReopensWithItsContents
+  ok   TerrainSaveTests.FreshTerrainSaveReopensWithItsContents (64 ms)
+  RUN  TerrainSaveTests.ChangedTerrainRevisionRejectsBeforeWriting
+  ok   TerrainSaveTests.ChangedTerrainRevisionRejectsBeforeWriting (12 ms)
+  RUN  TerrainSaveTests.InheritedTerrainCannotOpenARevisionedEarthSave
+  ok   TerrainSaveTests.InheritedTerrainCannotOpenARevisionedEarthSave (10 ms)
+  RUN  TerrainSaveTests.InheritedTerrainRetainsUnversionedStateAndStampsRevisionZero
+  ok   TerrainSaveTests.InheritedTerrainRetainsUnversionedStateAndStampsRevisionZero (13 ms)
+  RUN  TerrainSaveTests.PopulatedLegacyTerrainIsRejectedWithoutMigrationOrByteChanges
+  ok   TerrainSaveTests.PopulatedLegacyTerrainIsRejectedWithoutMigrationOrByteChanges (14 ms)
+10/10 passed in 0.2 s.

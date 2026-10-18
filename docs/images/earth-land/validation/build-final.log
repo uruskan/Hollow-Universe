@@ -1,0 +1,21 @@
+  Hollow.NetGen -> D:\GameDev\Projects\HollowUniverseABTestB\tools\Hollow.NetGen\bin\Debug\net10.0\Hollow.NetGen.dll
+  Hollow.Core -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Core\bin\Debug\net10.0\Hollow.Core.dll
+  Hollow.Galaxy -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Galaxy\bin\Debug\net10.0\Hollow.Galaxy.dll
+  Hollow.CatalogBuilder -> D:\GameDev\Projects\HollowUniverseABTestB\tools\Hollow.CatalogBuilder\bin\Debug\net10.0\Hollow.CatalogBuilder.dll
+  Hollow.Surface -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Surface\bin\Debug\net10.0\Hollow.Surface.dll
+  Hollow.MapExport -> D:\GameDev\Projects\HollowUniverseABTestB\tools\Hollow.MapExport\bin\Debug\net10.0\Hollow.MapExport.dll
+  Hollow.GeneratorReport -> D:\GameDev\Projects\HollowUniverseABTestB\tools\Hollow.GeneratorReport\bin\Debug\net10.0\Hollow.GeneratorReport.dll
+  Hollow.Simulation -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Simulation\bin\Debug\net10.0\Hollow.Simulation.dll
+  Hollow.Persistence -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Persistence\bin\Debug\net10.0\Hollow.Persistence.dll
+  Hollow.Net -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Net\bin\Debug\net10.0\Hollow.Net.dll
+  Hollow.Server -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Server\bin\Debug\net10.0\Hollow.Server.dll
+  Hollow.Client -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Client\bin\Debug\net10.0\Hollow.Client.dll
+  Hollow.Bots -> D:\GameDev\Projects\HollowUniverseABTestB\tools\Hollow.Bots\bin\Debug\net10.0\Hollow.Bots.dll
+  Hollow.Tests -> D:\GameDev\Projects\HollowUniverseABTestB\tests\Hollow.Tests\bin\Debug\net10.0\Hollow.Tests.dll
+  HollowUniverse -> D:\GameDev\Projects\HollowUniverseABTestB\game\.godot\mono\temp\bin\Debug\HollowUniverse.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:07.30

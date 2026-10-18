@@ -28,6 +28,7 @@ public sealed class HeldSystem : ZoneSystem
         _held = Registry<IHeldRules>.ForEnum<HeldUse>("held behaviours", complete: true, HeldUse.None);
         _held.Add((int)HeldUse.Melee, new MeleeRules(Zone));
         _held.Add((int)HeldUse.Bow, new BowRules(Zone));
+        _held.Add((int)HeldUse.Wiring, new WiringRules(Zone));
         // The rest act by their intents, each checked by the behaviour that sends it (ItemFor): the gun's shots, reloads
         // and unloads on its own timeline (GunSystem), throws, placing, the hammer's work, eating and learning.
         var byIntents = new ActsByIntents();
@@ -91,6 +92,12 @@ public sealed class HeldSystem : ZoneSystem
         public void PutAway(Player p)
         {
         }
+    }
+
+    internal sealed class WiringRules(Zone zone) : IHeldRules
+    {
+        public void Step(Entity entity, ref Character c, Player p, ItemDef item) { }
+        public void PutAway(Player p) => zone.Wiring().Cancel(p.Id);
     }
 
     public override int InitOrder => 80;

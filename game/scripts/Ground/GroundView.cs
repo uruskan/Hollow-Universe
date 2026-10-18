@@ -1,5 +1,7 @@
 using System;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using Godot;
 using Hollow.Client;
 using Hollow.Client.Loading;
@@ -41,6 +43,7 @@ public partial class GroundView : Node3D
     private GroundCollision _collision = null!;
     private NatureView _nature = null!;
     private ThingsView _things = null!;
+    private FxDirector? _effects;
     private ArrowsView _arrows = null!;
     private PeopleView _people = null!;
     private HollowUniverse.Animals.AnimalsView _animals = null!;
@@ -69,6 +72,10 @@ public partial class GroundView : Node3D
     private RenderWarmup _warmup = null!;
     private System.Collections.Generic.IReadOnlyList<LoadStage> _worldStages = Array.Empty<LoadStage>();
     private bool _greeted;
+    private WorldLease? _worldLease;
+    public Task WorkersStopped { get; private set; } = Task.CompletedTask;
+    private bool _replaceWorldReaders;
+    private long _inventoryBodyOwner;
 
     // What the item in hand does (GROUND_SYSTEMS.md §7): a control per held behaviour, and what they see.
     private readonly Hollow.Simulation.Registry<IHeldControl> _held = HeldControls.Create();
@@ -254,6 +261,7 @@ public partial class GroundView : Node3D
 
     public override void _Ready()
     {
+        Client.WorldRetiring += RetireWorld;
         // The world's view (GROUND.md §4.6) exists from the start, so its loading stages are known; it opens once the
         // server says where the zone is. The renderer's warm-up starts loading every file the game can draw now.
         LoadingPlan plan = Loading?.Plan ?? LoadingPlan.Empty;
@@ -318,7 +326,7 @@ public partial class GroundView : Node3D
         _stationSight = new HollowUniverse.Ships.StationSight { Name = "StationSight", Visible = false };
         layer.AddChild(_stationSight);
         // The effects library, ready before the first shot or blast; without heat haze, which draws black here (§11).
-        FxDirector.Install(this);
+        _effects = FxDirector.Install(this);
         FxDirector.HeatHaze = false;
         // Things breaking apart (GROUND.md §9.4): every destruction the server reports, one path.
         AddChild(new GibsView { Name = "Gibs", Client = Client });
@@ -340,6 +348,7 @@ public partial class GroundView : Node3D
             Address = ServerAddress,
             ThirdPerson = () => AdminThirdPerson,
             SetThirdPerson = SetAdminThirdPerson,
+            Admire = TryAdmire,
         };
         _model.Console = _console;
         // The F2 panel (GROUND.md §8.5): its model over the client's dev module, and its drawings in the world.
@@ -374,24 +383,80 @@ public partial class GroundView : Node3D
                 _entryWasText = _keypad.TextMode;
             }
         };
-        Client.Local.IntentAnswered += answer =>
-        {
-            if (answer.Seq == _codeSeq && _codeSeq != 0)
-            {
-                Sounds.Flat(_entryWasText ? (answer.Done ? "ui.click" : "ui.error") : (answer.Done ? "codelock.accept" : "codelock.deny"));
-                _codeSeq = 0;
-            }
-        };
+        Client.Local.IntentAnswered += AnswerIntent;
         _overlay.ShowNetGraph = ShowNetGraph;
-        InventoryBody.Use(Client);
+        _inventoryBodyOwner = InventoryBody.Use(Client);
+    }
+
+    private void AnswerIntent(IntentAnswer answer)
+    {
+        if (answer.Seq != _codeSeq || _codeSeq == 0) return;
+        Sounds.Flat(_entryWasText ? (answer.Done ? "ui.click" : "ui.error") : (answer.Done ? "codelock.accept" : "codelock.deny"));
+        _codeSeq = 0;
     }
 
     public override void _ExitTree()
     {
+        Client.WorldRetiring -= RetireWorld;
+        Client.Local.IntentAnswered -= AnswerIntent;
         Client.Console().ZoneDayChanged -= ApplyDay;
-        _console.Dispose();
-        _model.Dispose();
-        InventoryBody.Release();
+        var failures = new System.Collections.Generic.List<Exception>();
+        void Clean(Action action)
+        {
+            try { action(); }
+            catch (Exception error) { failures.Add(error); }
+        }
+        Clean(RetireWorld);
+        Clean(() => _ui?.StopMapWork());
+        Clean(() => _console?.Dispose());
+        Clean(() => _model?.Dispose());
+        InventoryBody.Release(_inventoryBodyOwner);
+        if (failures.Count != 0) throw new AggregateException("Ground view exit failed after retiring its readers.", failures).Flatten();
+    }
+
+    // Runs before the client changes its world. Reader tasks hold this pin until all old readers have returned.
+    internal void RetireWorld()
+    {
+        var failures = new System.Collections.Generic.List<Exception>();
+        void Clean(Action action)
+        {
+            try { action(); }
+            catch (Exception error) { failures.Add(error); }
+        }
+        Clean(() => _build?.RetireWorld());
+        Clean(() => _things?.RetireWorld());
+        Clean(() => _ships?.RetireWorld());
+        Clean(() => _placing?.RetireWorld());
+        Clean(() => _people?.RetireWorld());
+        Clean(() => _fires?.RetireWorld());
+        Clean(() => _raid?.RetireWorld());
+        Clean(() => _effects?.ClearAll());
+        Clean(() => _devDraw?.RetireWorld());
+        Clean(() => _warmup?.RetirePreview());
+        Clean(() => _nature?.Stop());
+        Clean(() => _collision?.Stop());
+        Clean(() => _world?.Stop());
+        Task maps = Task.CompletedTask;
+        Clean(() => maps = _ui?.ResetMapWork() ?? Task.CompletedTask);
+        Task readers = Task.WhenAll(WorkersStopped, maps, _nature?.WorkersStopped ?? Task.CompletedTask,
+            _collision?.WorkersStopped ?? Task.CompletedTask, _world?.WorkersStopped ?? Task.CompletedTask);
+        WorldLease? lease = _worldLease;
+        _worldLease = null;
+        WorkersStopped = readers.ContinueWith(static (done, state) =>
+        {
+            try { done.GetAwaiter().GetResult(); }
+            finally { ((WorldLease?)state)?.Dispose(); }
+        }, lease, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        _ = WorkersStopped.ContinueWith(static done => { _ = done.Exception; }, CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        _camera = null;
+        Clean(() => _audio?.QueueFree());
+        _audio = null;
+        _keypadSends = null;
+        _codeSeq = 0;
+        _viewRestored = _faced = _mapWarm = _greeted = false;
+        _replaceWorldReaders = true;
+        if (failures.Count != 0) throw new AggregateException("Ground view retirement failed after stopping all readers.", failures).Flatten();
     }
 
     // The zone's map picture (G7) is warmed once the zone is known: rendered on a worker thread, or read from the disk.
@@ -408,7 +473,7 @@ public partial class GroundView : Node3D
         {
             return;
         }
-        if (PlanetSurfaces.Find(zone.SystemAddress, zone.BodyPath) is not { } found)
+        if (PlanetBodies.Find(zone.SystemAddress, zone.BodyPath) is not { } found)
         {
             if (!_noPlanet)
             {
@@ -418,10 +483,24 @@ public partial class GroundView : Node3D
             return;
         }
         double time = TimeOverride ?? UniverseTime.Now;
+        if (_replaceWorldReaders)
+        {
+            _collision.QueueFree();
+            _nature.QueueFree();
+            _collision = new GroundCollision { Name = "GroundCollision" };
+            _nature = new NatureView { Name = "Nature", Client = Client };
+            AddChild(_collision);
+            AddChild(_nature);
+            _replaceWorldReaders = false;
+        }
+        if (_worldLease != null) throw new InvalidOperationException("The previous ground view must retire before opening another world.");
+        _worldLease = Client.ForkWorldLease();
+        try
+        {
         long lap = System.Diagnostics.Stopwatch.GetTimestamp();
         NaturePlants? plants = Client.Survival().Nature is { } nature ? new NaturePlants(nature, Client.Content, Client.Frame, surface.Radius) : null;
         _world.OpenWorld(found.System, found.Body, surface, plants ?? (IPlantSource)new SurfacePlants(surface), zone.SurfaceSeed, time,
-            zone.RotationTimeScale, (float)(zone.SurfaceGravity * 9.80665));
+            zone.RotationTimeScale, (float)(zone.SurfaceGravity * 9.80665), lease: Client.ForkWorldLease());
         if (Client.Console().Day is { } day)
         {
             ApplyDay(day);
@@ -436,6 +515,7 @@ public partial class GroundView : Node3D
         _firstPerson.Attach(_camera);
         _things.Muzzle = _firstPerson.Muzzle;
         _things.TheirMuzzle = _people.MuzzleOf;
+        _people.Contacts = _things.Contacts;
         _warmup.Begin(_camera);
         Time("open: the arms", ref lap);
         _people.MakeSpares();
@@ -447,6 +527,13 @@ public partial class GroundView : Node3D
             AddChild(_audio);
         }
         Time("open: the sound", ref lap);
+        }
+        catch (Exception opening)
+        {
+            try { RetireWorld(); }
+            catch (Exception cleanup) { throw new AggregateException("Ground presentation opening and retirement failed.", opening, cleanup); }
+            throw;
+        }
     }
 
     private bool _noPlanet;
@@ -497,6 +584,8 @@ public partial class GroundView : Node3D
         _freeLook.Hold(!AdminThirdPerson && !IsolatedCapture && Input.IsPhysicalKeyPressed(Key.Alt) && Input.MouseMode == Input.MouseModeEnum.Captured &&
             (!Client.Ships().Piloting || _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit));
         InputFrame input = ReadInput(delta);
+        if (!AdmireAvailable || input.Primary || input.PrimaryPressed || input.Secondary || input.Sprint ||
+            _presses != HandPress.None) _firstPerson.CancelAdmire();
         if (!IsolatedCapture) Hands(ref input, _presses);
         _presses = HandPress.None;
         long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -710,6 +799,17 @@ public partial class GroundView : Node3D
             Allocations[part] = System.Collections.Generic.CollectionExtensions.GetValueOrDefault(Allocations, part) + allocated - _allocatedBefore;
         }
         _allocatedBefore = allocated;
+        if (IsolatedCapture && part.StartsWith("open:", StringComparison.Ordinal))
+        {
+            using var process = System.Diagnostics.Process.GetCurrentProcess();
+            GD.Print("[load-memory] " + System.Text.Json.JsonSerializer.Serialize(new
+            {
+                stage = part, milliseconds = ms, workingSetMiB = process.WorkingSet64 / 1048576.0,
+                privateMiB = process.PrivateMemorySize64 / 1048576.0,
+                managedMiB = GC.GetTotalMemory(false) / 1048576.0,
+                managedCommittedMiB = GC.GetGCMemoryInfo().TotalCommittedBytes / 1048576.0,
+            }));
+        }
     }
 
     // The game has the mouse unless the interface wants it (inventory, crafting, menu, death, chat) or the window is
@@ -742,7 +842,7 @@ public partial class GroundView : Node3D
         {
             scripted.Yaw = _yaw;
             scripted.Pitch = _pitch;
-            scripted.ViewFrame = _viewFrame;
+            scripted.ViewFrame ??= _viewFrame;
             return scripted;
         }
         var input = new InputFrame { Yaw = _yaw, Pitch = _pitch, ViewFrame = _viewFrame, LookYaw = _freeLook.Yaw, LookPitch = _freeLook.Pitch,
@@ -764,7 +864,7 @@ public partial class GroundView : Node3D
             // Flying (G6): the stick, the lever and the thrusters instead of walking. With the interface open the lever
             // stays where it was and the stick lets go.
             bool hands = !_ui.WantsCursor && !_keypad.Visible && GetWindow().HasFocus();
-            input.Ship = hands ? _shipControls.Read(delta) : new ShipInput
+            input.Ship = hands ? _shipControls.Read(delta, mouseSteering: !SeatThirdPerson) : new ShipInput
             {
                 Throttle = _shipControls.Throttle,
                 Buttons = _shipControls.AssistOff ? ShipButtons.AssistOff : ShipButtons.None,
@@ -779,6 +879,7 @@ public partial class GroundView : Node3D
             if (Client.Stations().AtStation && !_ui.WantsCursor && !_keypad.Visible && GetWindow().HasFocus() && _ui.Radial == null)
             {
                 input.Station.Fire = !_adminCamera.PrimaryCaptured && Input.IsMouseButtonPressed(MouseButton.Left);
+                input.Station.FirePressed = (_presses & HandPress.Attack) != 0;
                 input.Station.Zoom = !SeatThirdPerson && !_seatSecondaryCaptured && !_adminCamera.SecondaryCaptured && Input.IsMouseButtonPressed(MouseButton.Right);
             }
             return input;
@@ -801,6 +902,17 @@ public partial class GroundView : Node3D
     }
 
     // ---------------------------------------------------------------- the hands
+
+    private bool AdmireAvailable => !IsolatedCapture && !Blocked && Client.HasCharacter &&
+        Client.State == ClientState.Playing && !_ui.WantsCursor && !_ui.TakesKeys && !_keypad.Visible &&
+        GetWindow().HasFocus() && !_freeLook.Active && !AdminThirdPerson && !Client.Ships().Seated &&
+        (Client.Character.Flags & (MoveFlags.Sprinting | MoveFlags.Swimming)) == 0;
+
+    private bool TryAdmire() => AdmireAvailable && _presses == HandPress.None &&
+        !Input.IsMouseButtonPressed(MouseButton.Left) && !Input.IsMouseButtonPressed(MouseButton.Right) &&
+        !Input.IsPhysicalKeyPressed(Key.Alt) && _firstPerson.Admire();
+
+    public bool Admiring => _firstPerson.Admiring;
 
     /// <summary>
     /// The hands (Rust's, GROUND_SYSTEMS.md §7): what the item in hand does this frame with the attack button (left), the aim
@@ -875,7 +987,7 @@ public partial class GroundView : Node3D
         _stationSight.Visible = d.Show;
         d.Name = (def.Seats[s.Seat].Name ?? s.Id).ToUpperInvariant();
         d.Zoom = StationZoom() ?? 1;
-        // Where the barrels point, and the chosen rocket's path from the muzzle, through the ship as drawn.
+        // The ring reports physical mount alignment; the trajectory uses the same muzzle convergence as firing.
         float[] parts = new float[interior.Parts.Count];
         own.Ship.PartsInto(interior, parts, (long)Client.RenderTick);
         Client.Stations().OverlayMount(own.Ship.NetId, parts);
@@ -888,6 +1000,11 @@ public partial class GroundView : Node3D
         ushort chosen = st.ChosenItem.Id;
         if (battery.Launch.Of(chosen) is { } profile && Client.Zone is { } zone)
         {
+            if (Client.Stations().OwnLaunchLine() is { } launch)
+            {
+                muzzle = launch.Origin;
+                barrel = launch.Direction;
+            }
             var motor = Hollow.Simulation.Combat.RocketMotor.Of(battery.Launch, profile);
             Num.Vector3 p = muzzle, v = barrel * profile.Muzzle + pose.VelocityAt(muzzle);
             Num.Vector3 centre = Client.Frame.ToLocal(Vector3D.Zero);
@@ -968,7 +1085,8 @@ public partial class GroundView : Node3D
     public HollowUniverse.Ships.ShipControls ShipControls => _shipControls;
 
     // A seated player's input (KNOWN_PROBLEMS.md finding 28: the keys in one place, SeatKeys). At the helm the mouse is the
-    // stick (Alt: free look) and the flight keys are ShipControls' (W S A D, Shift Ctrl, Q E, B, Z, X, read each frame); in
+    // stick only in the cockpit (Alt: free look); third person uses the mouse only for RMB orbit. The flight keys are
+    // ShipControls' (W S A D, Shift Ctrl, Q E, arrows, B, Z, X, read each frame); in
     // any other seat the mouse looks, as on foot. The seat's own keys come from its data: Space leaves, 1–9 the doors it
     // works, L the lock, V the camera, J the descent; the hands' keys (E, R, Q, the buttons) do nothing.
     private bool SeatInput(InputEvent e)
@@ -992,8 +1110,8 @@ public partial class GroundView : Node3D
             case InputEventMouseMotion motion when SeatThirdPerson && _seatOrbit.Dragging && Input.MouseMode == Input.MouseModeEnum.Captured:
                 _seatOrbit.Drag(-motion.Relative.X * MouseSensitivity, motion.Relative.Y * MouseSensitivity);
                 return true;
-            case InputEventMouseMotion when SeatThirdPerson && !helm:
-                return true; // inspection never turns a gunner's aim or a passenger's body
+            case InputEventMouseMotion when SeatThirdPerson:
+                return true; // orbit input never steers the ship, turns a gunner's aim or a passenger's body
             case InputEventMouseMotion motion when helm && Input.MouseMode == Input.MouseModeEnum.Captured && _freeLook.Active:
                 // Free look in the cockpit: the head turns about the seat, the stick lets go.
                 _freeLook.Turn(-motion.Relative.X * MouseSensitivity, -motion.Relative.Y * MouseSensitivity, 0);
@@ -1037,6 +1155,7 @@ public partial class GroundView : Node3D
                     case SeatAction.Camera:
                         _shipCamera.Mode = _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Chase
                             ? HollowUniverse.Ships.ShipCameraMode.Cockpit : HollowUniverse.Ships.ShipCameraMode.Chase;
+                        _shipControls.CentreSteering();
                         _shipCamera.Reset();
                         _seatOrbit.Dragging = false;
                         _seatSecondaryCaptured |= Input.IsMouseButtonPressed(MouseButton.Right);
@@ -1140,9 +1259,8 @@ public partial class GroundView : Node3D
         {
             case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured:
             {
-                // Held optics and station sights preserve mouse precision at their actual magnification.
-                float zoom = StationZoom() ?? (Client.Local.Gun.Aimed ? Math.Max(1, Client.Local.Gun.Zoom) : 1);
-                float sensitivity = MouseSensitivity / zoom;
+                // Magnification changes projection, never the player's configured angular mouse sensitivity.
+                float sensitivity = MouseSensitivity;
                 float yaw = -motion.Relative.X * sensitivity, pitch = -motion.Relative.Y * sensitivity;
                 if (_freeLook.Active)
                 {

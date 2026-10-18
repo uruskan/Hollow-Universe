@@ -71,6 +71,74 @@ public sealed partial class ShipSystem
         return true;
     }
 
+    /// <summary>
+    /// Applies one identified network fire attempt after this tick's mount and loaders have stepped. The input tick
+    /// never backdates ammunition or cadence: the barrel fires from its authoritative pose and state now.
+    /// </summary>
+    public AttackResolution FireStation(Entity gunner, in AttackRequest request)
+    {
+        OutcomeCode refusal = OutcomeCode.Done;
+        Player? player = PlayerOf(gunner);
+        StationState? station = StationOf(gunner, out Ship ship);
+        if (player is not { CanAct: true })
+        {
+            refusal = OutcomeCode.Dead;
+        }
+        else if (request.Id.IsNone || request.Id.Kind != AttackDomain.Station || request.Id.Session != player.AttackSession)
+        {
+            refusal = OutcomeCode.Invalid;
+        }
+        else if (station == null || ship.Id != request.Source || station.Def.Index != request.Station)
+        {
+            refusal = OutcomeCode.NotFound;
+        }
+        else if (request.Tick > Tick || request.Tick < Tick - GunSystem.GunActionLateTicks)
+        {
+            refusal = request.Tick > Tick ? OutcomeCode.Invalid : OutcomeCode.TooLate;
+        }
+        else if (Tick < station.NextRippleTick)
+        {
+            refusal = OutcomeCode.Cooldown;
+        }
+        else
+        {
+            Vector3 view = Zone.Frames.ViewIn(request.View, request.Frame, 0, request.Tick);
+            float length = view.Length();
+            if (!float.IsFinite(length) || length < 0.5f)
+            {
+                refusal = OutcomeCode.Invalid;
+            }
+            else
+            {
+                // Validate this attempt's requested aim against the current mount without changing its slew target.
+                Vector3 previous = station.Input.View;
+                StationAim previousAim = station.Aim;
+                station.Input.View = view / length;
+                ShipPose pose = ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass);
+                float rewind = request.ViewDelay / 4f + Math.Max(0, Tick - request.Tick);
+                ResolveStationAim(ship, station, player, pose, Tick - rewind);
+                Outcome check = CanFire(ship, station, SeatDisabled(ship, station.Def.Seat), Tick, out int barrel);
+                refusal = check.Code;
+                if (check.Ok)
+                {
+                    Fire(ship, station, barrel, gunner, player, pose, request.Id, rewind);
+                    station.Input.View = previous;
+                    station.Aim = previousAim;
+                    return new AttackResolution(request.Id, OutcomeCode.Done, request.Tick,
+                        StartTick: (uint)Tick, ContactTick: (uint)Tick, ReadyTick: (uint)station.NextRippleTick,
+                        StateSequence: station.Shots, Barrel: barrel);
+                }
+                station.Input.View = previous;
+                station.Aim = previousAim;
+                station.Refused = check.Code;
+                station.RefusedDetail = check.Detail;
+                station.RefusedTick = Tick;
+                ship.StationsRevision++;
+            }
+        }
+        return new AttackResolution(request.Id, refusal, request.Tick, ReadyTick: (uint)Math.Max(0, station?.NextRippleTick ?? 0));
+    }
+
     // ---------------------------------------------------------------- each tick
 
     // After the ship's own step and its doors: every station's controls, mount, loaders and trigger, before the seated are
@@ -96,21 +164,38 @@ public sealed partial class ShipSystem
             {
                 // Nobody at the guns (or asleep, down): the mount holds, the trigger is let go, the next gunner's taps start afresh.
                 st.Input = default;
+                st.Aim = default;
                 st.CycleSeenSet = false;
             }
             else
             {
                 ApplyChoice(ship, st);
+                ResolveStationAim(ship, st, p, pose, Tick);
             }
             // The mount, unless the station is disabled (it can't turn).
             if (!disabled && StationRules.Slew(interior, st, pose.Rotation))
             {
                 (_mountParts[0], _mountParts[1], _mountStates[0], _mountStates[1]) = (def.YawPart, def.PitchPart, st.Yaw, st.Pitch);
                 MoveParts(ship, _mountParts, _mountStates);
+                if (p != null) ResolveStationAim(ship, st, p, pose, Tick);
             }
             StepLoaders(ship, st);
             StepTrigger(ship, st, gunner, p, disabled, pose);
         }
+    }
+
+    // The camera lives at the station's seat-eye socket, including its moving mount, just as the client renders it.
+    // Only the direction comes from input. The authority independently resolves geometry and the muzzle convergence.
+    private void ResolveStationAim(Ship ship, StationState st, Player player, in ShipPose pose, double viewTick)
+    {
+        if (st.Input.View.LengthSquared() < 0.25f)
+        {
+            st.Aim = default;
+            return;
+        }
+        Vector3 eye = pose.ToWorld(ShipSeats.EyeInFrame(ship.Def, st.Def.Seat, ship.Parts));
+        TraceHit hit = Damage.Trace(eye, st.Input.View, StationRules.AimDistance, 0, player.Id, viewTick, ignoreShip: ship.Id.Value);
+        st.Aim = StationRules.AimAt(ship.Def.Interior!, st.Def, ship.Parts, pose, eye, st.Input.View, hit.Hit ? hit.Distance : StationRules.AimDistance);
     }
 
     // The gunner's choice of kind, and a tap of R (its counter changed): rounds of another kind already chambered, or carried
@@ -376,7 +461,10 @@ public sealed partial class ShipSystem
         int yaw = st.Def.YawPart;
         lock (JoltRuntime.Gate)
         {
-            return space.RayPast(breech, along, length + StationRules.HullLinePast, part => Carries(interior, yaw, part), out _);
+            if (space.RayPast(breech, along, length + StationRules.HullLinePast, part => Carries(interior, yaw, part), out _)) return true;
+            ShipPose pose = ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass);
+            Vector3 launch = StationRules.LaunchDirection(st.Aim, pose.ToWorld(muzzle), pose.DirectionToWorld(along));
+            return space.RayPast(muzzle, pose.DirectionToLocal(launch), StationRules.HullLinePast, part => Carries(interior, yaw, part), out _);
         }
     }
 
@@ -396,7 +484,7 @@ public sealed partial class ShipSystem
     // A shot (§6.3): from the barrel's muzzle (the ship's pose × the mount × the barrel), along the barrel at the launch
     // profile's muzzle speed with the ship's velocity there, the chambered round as the projectile system's rocket; the
     // barrel recoils and its loader starts (a mount's once its last barrel is empty).
-    private void Fire(Ship ship, StationState st, int barrel, Entity gunner, Player p, in ShipPose pose)
+    private void Fire(Ship ship, StationState st, int barrel, Entity gunner, Player p, in ShipPose pose, AttackId attack = default, float rewindTicks = -1)
     {
         ShipInterior interior = ship.Def.Interior!;
         ShipStationDef def = st.Def;
@@ -408,13 +496,13 @@ public sealed partial class ShipSystem
             return;
         }
         (Vector3 muzzle, _) = StationRules.BarrelLine(interior, def, barrel, ship.Parts);
-        Vector3 direction = StationRules.BarrelDirection(interior, def, ship.Parts);
         Vector3 origin = pose.ToWorld(muzzle);
+        Vector3 direction = StationRules.LaunchDirection(st.Aim, origin, pose.DirectionToWorld(StationRules.BarrelDirection(interior, def, ship.Parts)));
         ref Character c = ref Entities.Get<Character>(gunner);
-        float rewind = c.Actions.ViewDelay / 4f;
+        float rewind = rewindTicks >= 0 ? rewindTicks : c.Actions.ViewDelay / 4f;
         st.Shots++;
-        StationGuns.LaunchBattery(p.Id, p.Name, round, battery, profile, origin, pose.DirectionToWorld(direction), pose.VelocityAt(origin), st.Shots, def.Index,
-            barrel, rewind, ship.Id.Value);
+        StationGuns.LaunchBattery(p.Id, p.Name, round, battery, profile, origin, direction, pose.VelocityAt(origin), st.Shots, def.Index,
+            barrel, rewind, ship.Id.Value, attack);
         st.Chambers[barrel] = 0;
         st.ShotTicks[barrel] = Tick;
         st.NextBarrel = (barrel + 1) % def.Barrels.Count;
@@ -432,7 +520,10 @@ public sealed partial class ShipSystem
             st.Loaders[li] = new LoaderState { Active = true, Since = Tick, At = 0 };
         }
         ship.StationsRevision++;
-        Events.Add(new TurretFired(Ship: ship.Id, Station: def.Index, Barrel: barrel, Number: st.Shots, Tick: Tick, Kind: kind, Gunner: p.Id));
+        Events.Add(new TurretFired(Ship: ship.Id, Station: def.Index, Barrel: barrel, Number: st.Shots, Tick: Tick, Kind: kind, Gunner: p.Id)
+        {
+            Attack = attack, Origin = origin, Direction = direction,
+        });
     }
 
     // ---------------------------------------------------------------- the magazine (§6.5)

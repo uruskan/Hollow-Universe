@@ -17,9 +17,9 @@ public sealed partial class TerrainLod
     {
         get
         {
-            lock (_lock)
-                return $"idle={IsIdle} pending={Pending} queued={_queue.Count} uploads={_done.Count} drawn={_drawn.Count} " +
-                    $"finest={FinestLevel}/{MaxLevel} camera={_camera}";
+            var counts = _work?.QueueCounts ?? (Queued: 0, Completed: 0);
+            return $"idle={IsIdle} pending={Pending} queued={counts.Queued} uploads={counts.Completed} drawn={_drawn.Count} " +
+                $"failed={FailedBuilds} historicalFaults={_work?.Failed ?? 0} finest={FinestLevel}/{MaxLevel} camera={_camera}";
         }
     }
 }
@@ -34,7 +34,10 @@ public sealed partial class Vegetation
 public sealed partial class GrassField
 {
     public string StreamingStatus => $"idle={IsIdle} near={_near} ready={_ready} " +
-        $"job={_job?.Status.ToString() ?? "none"} centre={_centre}";
+        $"job={_job?.Status.ToString() ?? "none"} centre={_centre} " +
+        $"contactRequired={_contactRequired} contactReady={ContactReady} contactTiles={_contact?.ResidentTiles ?? 0} " +
+        $"contactPending={_contact?.PendingTiles ?? 0} contactUploadedBytes={_contact?.UploadedBytes ?? 0} " +
+        $"contactFailure={_contact?.Failure ?? "none"}";
 }
 
 public sealed partial class CliffField

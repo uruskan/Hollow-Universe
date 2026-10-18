@@ -114,7 +114,7 @@ public partial class AnimalSandbox : Node3D
         ZoneSpec spec = ZoneSpec.FirstWorld(GalaxyService.Galaxy, FirstWorld.LandingLatitude, FirstWorld.LandingLongitude)
             ?? throw new InvalidOperationException("The generator no longer makes the first world.");
         _zone = new Zone(spec, content: _content) { UnixMilliseconds = 1_800_000_000_000 };
-        PlanetSurfaces.Entry found = PlanetSurfaces.Find(spec.SystemAddress, spec.BodyPath)
+        PlanetBodies.Entry found = PlanetBodies.Find(spec.SystemAddress, spec.BodyPath)
             ?? throw new InvalidOperationException("The first world has no surface.");
 
         // The zone's own whole world, drawn as the ground game draws it (docs/WHOLE_WORLD.md §10): its ground, and its

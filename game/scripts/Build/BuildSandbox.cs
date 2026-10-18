@@ -43,6 +43,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
     private Texts _texts = null!;
     private Zone _zone = null!;
     private BuildingWorld _world = null!;
+    private Func<EntityId> _nextBuildId = null!;
     private BuildingAssets _assets = null!;
     private BuildingRenderer _renderer = null!;
     private PlacementGhost _ghost = null!;
@@ -100,7 +101,8 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         };
         _zone = new Zone(spec);
         ulong next = 0;
-        _world = new BuildingWorld(_data, _zone.Physics, () => new EntityId(++next)) { Characters = Capsules };
+        _nextBuildId = () => new EntityId(++next);
+        _world = new BuildingWorld(_data, _zone.Physics, _nextBuildId) { Characters = Capsules };
         _placement = new PlacementWorld(content, _zone.Frame, _zone.Surface, _zone.Physics, _world, new Surroundings(this));
 
         BuildEnvironment();
@@ -258,6 +260,10 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         BuildingFrame frame = first.Frame;
         switch (_scene)
         {
+            case "clan":
+                ClanBase(frame);
+                spawn = F(frame.ToZone(new Vector3D(0, 0.5, 11)));
+                break;
             case "empty":
                 // Nothing built: the first foundation's frame only measures --from and --at (a free foundation's ghost).
                 spawn = Offset(0, 0.5f, 6);

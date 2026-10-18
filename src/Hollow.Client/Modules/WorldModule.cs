@@ -25,7 +25,13 @@ public sealed class WorldModule : ClientModule
     /// The zone's map (GROUND.md §6.8): its square and grid, conversions between zone metres and the map, and the
     /// picture, rendered from the surface on demand (<see cref="ZoneMap.Render"/>); null before joining.
     /// </summary>
-    public ZoneMap? Map => _map ??= Zone != null && Surface != null ? new ZoneMap(Zone, Surface, Frame, Content.World) : null;
+    public ZoneMap? Map => _map ??= Zone != null && Surface != null ? new ZoneMap(Zone, Client.ForkWorldLease(), Frame, Content.World) : null;
+
+    public override void Dispose()
+    {
+        _map?.Dispose();
+        _map = null;
+    }
 
     /// <summary>The world props in range: barrels, crates, recyclers.</summary>
     public IEnumerable<RemoteThing> Props => Survival.Things.Where(t => t.Kind == StaticKind.Prop);
@@ -58,7 +64,15 @@ public sealed class WorldModule : ClientModule
         Dictionary<ulong, int> held = ThingBodies.GetOrCreateValue(physics);
         held[thing.Id.Value] = held.GetValueOrDefault(thing.Id.Value) + 1;
         Vector3 up = Frame.UpAt(thing.Position);
-        physics.AddProp(PropLayer.Deployable, thing.Id.Value, PropShape.Box(thing.Position + up * def.HalfExtents.Y, def.HalfExtents, up, thing.Yaw));
+        physics.AddProp(PropLayer.Deployable, thing.Id.Value, CompoundGeometry.Shape(Content, def, thing.Position, up, thing.Yaw, thing.Utility.Open));
+    }
+
+    internal void ThingBodyUpdated(RemoteThing thing)
+    {
+        if (Physics is not { } physics || thing.Aboard || thing.Deployable(Content) is not { Solid: true } def) return;
+        physics.RemoveProp(PropLayer.Deployable, thing.Id.Value);
+        physics.AddProp(PropLayer.Deployable, thing.Id.Value, CompoundGeometry.Shape(Content, def,
+            thing.Position, thing.Up, thing.Yaw, thing.Utility.Open));
     }
 
     internal void ThingBodyRemoved(RemoteThing thing)

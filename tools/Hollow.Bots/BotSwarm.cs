@@ -7,7 +7,6 @@ using Hollow.Client;
 using Hollow.Net.Transport;
 using Hollow.Simulation;
 using Hollow.Simulation.Content;
-using Hollow.Simulation.Nature;
 using Hollow.Simulation.Physics;
 using Hollow.Surface;
 
@@ -25,55 +24,78 @@ public sealed class BotSwarm : IDisposable
     private readonly Dictionary<GameClient, WorldBrain> _world = new();
     private readonly ConditionedRelay? _relay;
     private readonly GameContent _content = GameContent.LoadDefault();
-    private PhysicsWorld? _ground;
-    private NaturalState? _nature;
-    private BuildingReplica? _building;
+    private readonly BotWorlds _worlds;
+    private readonly BotGround _homes = new();
+    private readonly Dictionary<GameClient, PlanetEnvironmentDescriptor> _clientWorlds = new();
+    private bool _disposed;
+    private bool _worldsChanged;
     private readonly Stopwatch _time = Stopwatch.StartNew();
     private double _last;
 
     public BotSwarm(string host, int port, int count, BotScript script, NetConditions conditions, string prefix, Action<string> log,
         int raidBases = 0, float raidRadius = 70, int fly = 0)
     {
-        if (!conditions.IsNone)
+        _worlds = new BotWorlds(_content);
+        try
         {
-            IPAddress address = IPAddress.TryParse(host, out IPAddress? parsed) ? parsed : Dns.GetHostAddresses(host)[0];
-            _relay = new ConditionedRelay(new IPEndPoint(address, port), conditions, 0xB075);
+            if (!conditions.IsNone)
+            {
+                IPAddress address = IPAddress.TryParse(host, out IPAddress? parsed) ? parsed : Dns.GetHostAddresses(host)[0];
+                _relay = new ConditionedRelay(new IPEndPoint(address, port), conditions, 0xB075);
+            }
+            for (int i = 0; i < count; i++)
+            {
+                GameClient? client = null;
+                client = new GameClient(new ClientOptions
+                {
+                    Name = $"{prefix}{i + 1:000}",
+                    Body = (byte)(i % 3 == 1 ? 1 : 0), // a third of the crowd female
+                    SharedRelay = _relay,
+                    WorldStore = _worlds.Store,
+                    SharedPhysics = (spec, surface) => SharedWorld(client!, spec, surface).Physics,
+                    SharedNature = (spec, surface) => SharedWorld(client!, spec, surface).Nature,
+                    SharedBuilding = (spec, surface, physics) => SharedBuilding(client!, spec, surface, physics),
+                    Content = _content,
+                    Log = i == 0 ? log : _ => { },
+                });
+                client.WorldRetiring += () =>
+                {
+                    _clientWorlds.Remove(client);
+                    _homes.Forget(client);
+                    _worldsChanged = true;
+                };
+                bool tell = i < 3 || Environment.GetEnvironmentVariable("HOLLOW_BOT_REFUSALS") != null;
+                if (tell)
+                {
+                    client.Local.IntentRejected += a => log($"{client.Name}: intent {a.Seq} refused: {a.Code} ({_content.Texts.Line(a.Outcome)})");
+                }
+                _bots.Add((client, new BotBrain(i, script), script == BotScript.Survive ? new SurvivalBrain(i, _homes) : null,
+                    script == BotScript.Fight ? new FightBrain(i, _homes) : null,
+                    script == BotScript.Build ? new BuildBrain(i, _homes) { Log = tell ? log : null } : null,
+                    script == BotScript.Raid ? new RaidBrain(i, raidBases, raidRadius, _homes) : null));
+                client.Connect(host, port);
+                if (script == BotScript.Fly || i < fly)
+                {
+                    _pilots.Add(client, new FlyBrain(i, _homes));
+                }
+                if (script == BotScript.World)
+                {
+                    _world[client] = new WorldBrain(i, _homes);
+                }
+            }
         }
-        for (int i = 0; i < count; i++)
+        catch (Exception construction)
         {
-            var client = new GameClient(new ClientOptions
-            {
-                Name = $"{prefix}{i + 1:000}",
-                Body = (byte)(i % 3 == 1 ? 1 : 0), // a third of the crowd female
-                SharedRelay = _relay,
-                SharedPhysics = SharedGround,
-                SharedNature = SharedNature,
-                SharedBuilding = SharedBuilding,
-                Content = _content,
-                Log = i == 0 ? log : _ => { },
-            });
-            bool tell = i < 3 || Environment.GetEnvironmentVariable("HOLLOW_BOT_REFUSALS") != null;
-            if (tell)
-            {
-                client.Local.IntentRejected += a => log($"{client.Name}: intent {a.Seq} refused: {a.Code} ({_content.Texts.Line(a.Outcome)})");
-            }
-            client.Connect(host, port);
-            _bots.Add((client, new BotBrain(i, script), script == BotScript.Survive ? new SurvivalBrain(i) : null,
-                script == BotScript.Fight ? new FightBrain(i) : null,
-                script == BotScript.Build ? new BuildBrain(i) { Log = tell ? log : null } : null,
-                script == BotScript.Raid ? new RaidBrain(i, raidBases, raidRadius) : null));
-            if (script == BotScript.Fly || i < fly)
-            {
-                _pilots.Add(client, new FlyBrain(i));
-            }
-            if (script == BotScript.World)
-            {
-                _world[client] = new WorldBrain(i);
-            }
+            try { Dispose(); }
+            catch (Exception cleanup) { throw new AggregateException(construction, cleanup); }
+            throw;
         }
     }
 
     public IReadOnlyList<GameClient> Clients => _bots.Select(b => b.Client).ToList();
+
+    /// <summary>Completion and cleanup errors from the session store after this swarm has been disposed.</summary>
+    public System.Threading.Tasks.Task EnvironmentRetirement => _worlds.Store.Retirement;
 
     /// <summary>What the survival bots did: crafts started, pickups, fights picked.</summary>
     public (int Crafts, int Picks, int Fights) Survival =>
@@ -111,26 +133,28 @@ public sealed class BotSwarm : IDisposable
 
     public int Disconnected => _bots.Count(b => b.Client.State == ClientState.Disconnected);
 
-    private PhysicsWorld SharedGround(ZoneSpec spec, ISurface surface) =>
-        _ground ??= new PhysicsWorld(surface, spec.CreateFrame(surface));
-
-    // One copy of the natural objects' changes for the shared ground: every bot applies the server's (the same)
-    // changes to it, and its trees and outcrops stay solid in the shared physics.
-    private NaturalState SharedNature(ZoneSpec spec, ISurface surface)
+    private BotWorldContext SharedWorld(GameClient client, ZoneSpec spec, ISurface surface)
     {
-        if (_nature == null)
-        {
-            ZoneFrame frame = spec.CreateFrame(surface);
-            _nature = new NaturalState(_content, spec.CreateNature(surface, frame, _content));
-            _ = new NaturalBodies(SharedGround(spec, surface), _nature);
-        }
-        return _nature;
+        using WorldLease lease = client.ForkWorldLease();
+        if (!ReferenceEquals(lease.Surface, surface))
+            throw new InvalidOperationException("The bot callback does not match its active world lease.");
+        BotWorldContext context = _worlds.Get(spec, lease);
+        _homes.Bind(client, lease.Descriptor, spec);
+        if (!_clientWorlds.TryGetValue(client, out PlanetEnvironmentDescriptor? previous) || !previous.Equals(lease.Descriptor))
+            _worldsChanged = true;
+        _clientWorlds[client] = lease.Descriptor;
+        return context;
     }
 
     // One copy of the building for the shared ground: every bot applies what the server sends it (idempotently), so
     // the walls are solid in the shared prediction physics.
-    private BuildingReplica SharedBuilding(ZoneSpec spec, ISurface surface, PhysicsWorld physics) =>
-        _building ??= new BuildingReplica(_content.Building, physics, shared: true);
+    private BuildingReplica SharedBuilding(GameClient client, ZoneSpec spec, ISurface surface, PhysicsWorld physics)
+    {
+        BotWorldContext context = SharedWorld(client, spec, surface);
+        if (!ReferenceEquals(context.Physics, physics))
+            throw new InvalidOperationException("The bot building and predictor must share the same world.");
+        return context.Building;
+    }
 
     private readonly Dictionary<GameClient, double> _respawnAsked = new();
 
@@ -139,7 +163,7 @@ public sealed class BotSwarm : IDisposable
     {
         if (!client.Local.IsDead)
         {
-            return brain.Think(now, delta, client.Character.Position, BotGround.Home(client));
+            return brain.Think(now, delta, client.Character.Position, _homes.Home(client));
         }
         if (now >= _respawnAsked.GetValueOrDefault(client) + 2)
         {
@@ -152,6 +176,7 @@ public sealed class BotSwarm : IDisposable
     /// <summary>Runs every bot at about 60 frames a second for a while.</summary>
     public void Run(double seconds, Func<bool>? stop = null)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         double start = _time.Elapsed.TotalSeconds;
         while (_time.Elapsed.TotalSeconds - start < seconds && stop?.Invoke() != true)
         {
@@ -162,7 +187,7 @@ public sealed class BotSwarm : IDisposable
             {
                 if (client.HasCharacter)
                 {
-                    BotGround.Follow(client); // home: where it arrived (docs/WHOLE_WORLD.md §13)
+                    _homes.Follow(client); // home: where it arrived (docs/WHOLE_WORLD.md §13)
                 }
                 InputFrame input = !client.HasCharacter ? default
                     : _world.TryGetValue(client, out WorldBrain? world) ? world.Think(now, delta, client)
@@ -174,25 +199,38 @@ public sealed class BotSwarm : IDisposable
                     : Wander(brain, now, delta, client);
                 client.Update(delta, input);
             }
-            if (_ground != null)
+            if (_worldsChanged)
             {
-                lock (JoltRuntime.Gate)
-                {
-                    _ground.ReleaseUnusedGround(20 * 60);
-                }
+                var retained = _clientWorlds.Values.ToHashSet();
+                _worlds.RetireExcept(retained);
+                _homes.RetireExcept(retained);
+                _worldsChanged = false;
             }
+            _worlds.ReleaseUnusedGround();
             TimerResolution.WaitUntil(Stopwatch.GetTimestamp() + Stopwatch.Frequency / 60);
         }
     }
 
     public void Dispose()
     {
+        if (_disposed) return;
+        if (JoltRuntime.Gate.IsHeldByCurrentThread)
+            throw new InvalidOperationException("Bot swarm retirement must run outside the Jolt gate.");
+        _disposed = true;
+        var errors = new List<Exception>();
+        void Clean(Action action) { try { action(); } catch (Exception error) { errors.Add(error); } }
         foreach ((GameClient client, BotBrain _, SurvivalBrain? _, FightBrain? _, BuildBrain? _, RaidBrain? _) in _bots)
         {
-            client.Dispose();
+            Clean(client.Dispose);
         }
-        _building?.Dispose();
-        _relay?.Dispose();
-        _ground?.Dispose();
+        _bots.Clear();
+        _pilots.Clear();
+        _world.Clear();
+        _respawnAsked.Clear();
+        _clientWorlds.Clear();
+        Clean(_homes.Dispose);
+        Clean(_worlds.Dispose);
+        if (_relay != null) Clean(_relay.Dispose);
+        if (errors.Count != 0) throw new AggregateException("Bot swarm retirement failed after cleanup.", errors);
     }
 }

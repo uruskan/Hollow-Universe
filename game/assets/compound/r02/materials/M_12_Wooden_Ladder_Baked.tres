@@ -1,0 +1,26 @@
+[gd_resource type="StandardMaterial3D" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/2ec9fc5898289c315d9917301fd7b4f7aa24c1ebd14104e285ff86a7baefbc14.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/a005166472dedf64d3d22d6b419b2f5e3c86a69fefe5228f28daf657c5a60bc4.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/1b20edee44e9affbeb179ad1673b44957a5aec04a9ccf8e125ff58ce27218963.png" id="3"]
+
+[resource]
+resource_name = "M_12_Wooden_Ladder_Baked"
+cull_mode = 2
+texture_filter = 5
+vertex_color_use_as_albedo = false
+albedo_color = Color(1, 1, 1, 1)
+metallic = 1
+roughness = 1
+albedo_texture = ExtResource("1")
+normal_texture = ExtResource("2")
+normal_enabled = true
+normal_scale = 1
+ao_texture = ExtResource("3")
+ao_enabled = true
+ao_texture_channel = 0
+ao_light_affect = 0.0
+roughness_texture = ExtResource("3")
+metallic_texture = ExtResource("3")
+roughness_texture_channel = 1
+metallic_texture_channel = 2

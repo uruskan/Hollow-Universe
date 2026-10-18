@@ -118,7 +118,7 @@ public static class SeatKeys
     /// <summary>The helm's flight keys, for the flight HUD's corner.</summary>
     public static string FlightHints(bool cockpit) =>
         "W/S throttle · A/D slide · SHIFT/CTRL climb/descend · Q/E roll · B boost · Z assist · X zero throttle\n" +
-        (cockpit ? "Mouse steer · ALT look · MMB centre · V orbit" : "Mouse steer · RMB drag orbit · Wheel zoom · MMB centre · V cockpit") +
+        (cockpit ? "Mouse steer · ALT look · MMB centre · V orbit" : "Arrows steer · RMB drag orbit · Wheel zoom · V cockpit") +
         " · SPACE leave";
 
     private static string Name(Key key) => key switch

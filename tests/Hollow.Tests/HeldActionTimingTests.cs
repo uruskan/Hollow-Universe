@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using Hollow.Client;
 using Hollow.Simulation;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
@@ -168,7 +169,11 @@ public static class HeldActionTimingTests
             Loopback.RunUntil(rig, () => user.Local.Inventory.Belt[belt].Item == pistol.Id, "gun placed in distinct belt slot");
         }
         user.Local.HeldSlot = 2;
-        rig.Run(0.7, (_, _) => default);
+        Loopback.RunUntil(rig, () => user.Local.Gun.Ready && rig.Server.Inspect(sv =>
+        {
+            sv.Zone.Players().TryFindPlayer(user.EntityId, out _, out Player p);
+            return p.HeldSlot == 2 && p.HeldItem == pistol.Id && sv.Zone.Tick >= p.Gun.EquipReadyTick;
+        }), "both sides have equipped the first pistol before requesting reload");
         user.Local.Reload();
         Loopback.RunUntil(rig, () => observer.Entities.Any(e => e.NetId == user.NetId && e.Action == ActionKind.Reload), "observer sees reload start");
         RemoteEntity remote = observer.Entities.Single(e => e.NetId == user.NetId);
@@ -233,14 +238,17 @@ public static class HeldActionTimingTests
             return Vector3.Normalize(at + sv.Zone.Frame.UpAt(at) * 1.15f - eye);
         });
         var markers = new List<HitMarkerEvent>();
-        var predicted = new List<uint>();
+        var predicted = new List<AttackId>();
         user.Local.HitMarker += markers.Add;
-        user.Melee.Started += _ => predicted.Add(user.Melee.ActionTick);
+        user.Melee.Started += _ => predicted.Add(user.Melee.AttackId);
+        bool pressed = false;
         rig.Run(0.3, (who, time) =>
         {
             if (who != user) return default;
             // Both actors stand still: use the known world aim, independent of teleport correction smoothing.
-            return new InputFrame { View = strikeDirection, ViewFrame = 0, Primary = time < 0.1 };
+            bool edge = !pressed;
+            pressed = true;
+            return new InputFrame { View = strikeDirection, ViewFrame = 0, PrimaryPressed = edge };
         });
         var deadline = Stopwatch.StartNew();
         while (markers.Count == 0 && deadline.Elapsed.TotalSeconds < 5)
@@ -261,7 +269,9 @@ public static class HeldActionTimingTests
         Assert.Equal(tool.Id, marker.Weapon, "network marker identifies held weapon");
         Assert.Equal(actual.Tick, marker.ActionTick, "network marker carries accepted action timestamp");
         Assert.True(Vector3.Distance(actual.Hit.Point, marker.Point) < 0.001f, "network contact is the actual damage trace point");
-        Assert.True(predicted.Contains(marker.ActionTick), "authoritative marker correlates with a predicted swing");
+        Assert.True(predicted.Contains(marker.Attack), "authoritative marker correlates with the predicted attempt identity");
+        Assert.True(user.Attacks.TryGet(marker.Attack, out var attack) && attack.Resolution?.StartTick == marker.ActionTick,
+            "marker uses the accepted start tick even if the server retimed the prediction");
         Assert.Equal(1, markers.Count, "one real contact produces one feedback marker");
     }
 

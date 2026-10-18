@@ -1,0 +1,55 @@
+[gd_scene load_steps=8 format=3]
+
+[sub_resource type="StandardMaterial3D" id="Body"]
+albedo_color = Color(0.12, 0.22, 0.24, 1)
+roughness = 0.7
+
+[sub_resource type="StandardMaterial3D" id="Metal"]
+albedo_color = Color(0.5, 0.53, 0.55, 1)
+metallic = 0.7
+roughness = 0.35
+
+[sub_resource type="StandardMaterial3D" id="Screen"]
+albedo_color = Color(0.12, 0.7, 0.65, 1)
+emission_enabled = true
+emission = Color(0.03, 0.3, 0.24, 1)
+
+[sub_resource type="BoxMesh" id="Grip"]
+material = SubResource("Body")
+size = Vector3(0.065, 0.18, 0.06)
+
+[sub_resource type="BoxMesh" id="Head"]
+material = SubResource("Body")
+size = Vector3(0.11, 0.075, 0.06)
+
+[sub_resource type="BoxMesh" id="Display"]
+material = SubResource("Screen")
+size = Vector3(0.08, 0.04, 0.004)
+
+[sub_resource type="CylinderMesh" id="Probe"]
+material = SubResource("Metal")
+top_radius = 0.006
+bottom_radius = 0.012
+height = 0.13
+
+[node name="WireTool" type="Node3D"]
+
+[node name="grip" type="Marker3D" parent="."]
+
+[node name="probe" type="Marker3D" parent="."]
+position = Vector3(0, 0.275, 0)
+
+[node name="Grip" type="MeshInstance3D" parent="."]
+mesh = SubResource("Grip")
+
+[node name="Head" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.11, 0)
+mesh = SubResource("Head")
+
+[node name="Display" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.11, 0.032)
+mesh = SubResource("Display")
+
+[node name="Probe" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0.21, 0)
+mesh = SubResource("Probe")

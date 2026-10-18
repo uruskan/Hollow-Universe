@@ -76,7 +76,7 @@ public partial class ViewmodelView
             : right ? _model.Fingers : HandPoses.Grip.Support;
         return HandPoses.MeasureCurlDegrees(_skeleton, grip, right, hand.Radius, hand.Seat);
     }
-    /// <summary>Fitted-optic ADS shoulder accommodation; limb lengths and the native optical eye stay unchanged.</summary>
+    /// <summary>ADS shoulder accommodation for both iron sights and optics; limb lengths stay unchanged.</summary>
     public float OpticShoulderAccommodation { get; private set; }
     public string? PreviewAction => _previewAction;
     public float PreviewTime => _previewTime;
@@ -85,6 +85,13 @@ public partial class ViewmodelView
     public float ActivePhase => _previewAction != null ? _previewTime : _action != null ? _actionPhase :
         ActiveAction == "draw" ? _draw : ActiveAction == "aim" ? _aim :
         CurrentPresentation is { } p ? _idleTime % p.Actions["idle"].Duration / p.Actions["idle"].Duration : 0;
+
+    // Admire is an additive presentation over the actual idle, including source-bound skeletal idles.
+    // Its action clock stays independent; switching to the legacy procedural rest would visibly snap tools.
+    private string BaseAction => ActiveAction == "admire" ? "idle" : ActiveAction;
+    private float BasePhase => ActiveAction == "admire" && CurrentPresentation is { } profile
+        ? _previewAction != null ? 0 : _idleTime % profile.Actions["idle"].Duration / profile.Actions["idle"].Duration
+        : ActivePhase;
 
     /// <summary>Start a presentation action. A gameplay duration overrides the art preview's duration.</summary>
     public void PlayAction(string action, float duration = 0f, float? phase = null)
@@ -96,6 +103,9 @@ public partial class ViewmodelView
         _actionPhaseSought = phase.HasValue;
         _actionDuration = duration > 0 && float.IsFinite(duration) ? duration : action == "swing"
             ? (float)HeldActionTiming.Quantize(_model.SwingTime) : clip.Duration;
+        if (action == "fire" && clip.Skeletal == null) _firePulses.Add(new FirePulse(clip, _actionDuration)
+            { Age = _actionPhase * _actionDuration, PhaseSought = _actionPhaseSought });
+        else _firePulses.Clear();
         if (action is "swing" or "repair") { _contactTarget = null; _contactConfirmed = false; }
         if (action == "release")
         {
@@ -120,7 +130,7 @@ public partial class ViewmodelView
         _contactTarget = null;
         _contactConfirmed = false;
         _contactAge = 10f;
-        _kick = _kickVelocity = Vector3.Zero;
+        _firePulses.Clear();
         _slideKick = 0;
     }
 
@@ -134,7 +144,7 @@ public partial class ViewmodelView
         _equip = 1;
         _sway = _swayVelocity = Vector2.Zero;
         _bobAmount = _sprint = _crouch = 0;
-        _kick = _kickVelocity = Vector3.Zero;
+        _firePulses.Clear();
         _aim = action == "aim" ? _previewTime : _frame.Aiming && action != "reload" ? 1f : 0;
         _bowAim = action == "draw" ? Math.Clamp(_previewTime / 0.25f, 0, 1)
             : action == "release" ? (_frame.Aiming ? 1f : 1f - Smooth(Math.Clamp((_previewTime - 0.2f) / 0.8f, 0, 1)))
@@ -189,6 +199,7 @@ public partial class ViewmodelView
         if (_previewAction == null)
         {
             _idleTime += dt;
+            AdvanceFirePulses(dt);
             _contactAge += dt;
             if (_action != null)
             {
@@ -205,8 +216,8 @@ public partial class ViewmodelView
     private void SynchronizeAction(bool allowSkeletal = true)
     {
         if (_model == null) return;
-        string action = ActiveAction;
-        float t = ActivePhase;
+        string action = BaseAction;
+        float t = BasePhase;
         HeldPresentationClip? clip = _model.Presentation.Actions.GetValueOrDefault(action);
         float seconds = _previewAction != null ? clip?.Duration ?? 1f : _actionDuration;
         _swing = action is "swing" or "repair" ? t : -1;
@@ -235,6 +246,7 @@ public partial class ViewmodelView
         _presentationSample = allowSkeletal && clip?.Skeletal != null ? new HeldPresentationKey { At = sampleAt }
             : clip?.Sample(sampleAt, _model.Presentation.RightHand.Fingers, _model.Presentation.LeftHand.Fingers) ?? new HeldPresentationKey();
         if (allowSkeletal && clip?.Skeletal != null) return;
+        if (_previewAction == null && action == "fire") _presentationSample = SampleFirePulses();
         _handSample = new HeldPresentationKey
         {
             RightHandPosition = _presentationSample.RightHandPosition, RightHandRotation = _presentationSample.RightHandRotation,
@@ -245,7 +257,7 @@ public partial class ViewmodelView
         if (_previewAction == null)
         {
             HeldPresentationProfile p = _model.Presentation;
-            if (_action != null) LayerHands(p.Actions["idle"], _idleTime % p.Actions["idle"].Duration / p.Actions["idle"].Duration);
+            if ((_action != null || BaseAction == "aim") && ActiveAction != "admire") LayerHands(p.Actions["idle"], _idleTime % p.Actions["idle"].Duration / p.Actions["idle"].Duration);
             if (_sprint > 0 && p.Actions.TryGetValue("sprint", out HeldPresentationClip? sprint)) LayerHands(sprint, Smooth(_sprint));
             if (_equip < 1 && p.Actions.TryGetValue("equip", out HeldPresentationClip? equip)) LayerHands(equip, _equip);
         }
@@ -266,9 +278,9 @@ public partial class ViewmodelView
     {
         HeldPresentationProfile profile = _model!.Presentation;
         HeldPresentationKey sample = _presentationSample;
-        if (_previewAction == null && _action != null)
+        if (_previewAction == null && (_action != null || BaseAction == "aim") && ActiveAction != "admire")
             place = ApplyKey(place, profile.Actions["idle"].Sample(_idleTime % profile.Actions["idle"].Duration / profile.Actions["idle"].Duration));
-        place = ApplyKey(place, sample);
+        place = ApplyKey(place, sample, fireMotion: BaseAction == "fire");
         if (_previewAction == null && _sprint > 0 && profile.Actions.TryGetValue("sprint", out HeldPresentationClip? sprint))
             place = ApplyKey(place, sprint.Sample(Smooth(_sprint)));
         if (_previewAction == null && _equip < 1 && profile.Actions.TryGetValue("equip", out HeldPresentationClip? equip))
@@ -279,7 +291,8 @@ public partial class ViewmodelView
             float at = sample.At;
             float window = 1f - Smooth(Math.Clamp(Math.Abs(at - attack.Marker) / 0.16f, 0, 1));
             Transform3D socket = HeldItems.HasSocket(_item!, profile.ContactSocket) ? HeldItems.Socket(_item!, profile.ContactSocket) : _grip;
-            Vector3 contact = place * socket.Origin;
+            Transform3D composition = ProceduralComposition;
+            Vector3 contact = composition * (place * socket.Origin);
             // Viewmodels have their own FOV and shallow depth. Match the target's screen ray at the natural
             // head depth, rather than extending arms to gameplay reach or changing the server's hit result.
             if (target.Z < -0.01f && contact.Z < -0.01f)
@@ -290,7 +303,7 @@ public partial class ViewmodelView
                 float cameraFov = (aimCamera ?? GetViewport().GetCamera3D())?.Fov ?? Fov;
                 float projection = MathF.Tan(Mathf.DegToRad(Fov) * 0.5f) / MathF.Tan(Mathf.DegToRad(cameraFov) * 0.5f);
                 Vector3 projected = new(target.X * contact.Z / target.Z * projection, target.Y * contact.Z / target.Z * projection, contact.Z);
-                place.Origin += (projected - contact).LimitLength(0.20f) * window;
+                place.Origin += composition.Basis.Inverse() * (projected - contact).LimitLength(0.20f) * window;
             }
         }
         if (_contactConfirmed && _contactAge < 0.16f && _previewAction == null)
@@ -301,11 +314,17 @@ public partial class ViewmodelView
         return place;
     }
 
-    private Transform3D ApplyKey(Transform3D place, HeldPresentationKey key)
+    private Transform3D ApplyKey(Transform3D place, HeldPresentationKey key, bool fireMotion = false)
     {
-        Basis turn = Basis.FromEuler(key.Rotation * (MathF.PI / 180f));
+        float positionScale = 1, rotationScale = 1;
+        if (fireMotion && _model!.Presentation.Actions.TryGetValue("fire", out HeldPresentationClip? fire))
+        {
+            positionScale = Mathf.Lerp(1, fire.AimPositionScale, Smooth(_aim));
+            rotationScale = Mathf.Lerp(1, fire.AimRotationScale, Smooth(_aim));
+        }
+        Basis turn = Basis.FromEuler(key.Rotation * (rotationScale * MathF.PI / 180f));
         Vector3 pivot = place * _grip.Origin + _model!.Presentation.SwingPivot;
-        return new Transform3D(turn * place.Basis, pivot + turn * (place.Origin - pivot) + key.Position);
+        return new Transform3D(turn * place.Basis, pivot + turn * (place.Origin - pivot) + key.Position * positionScale);
     }
 
     private Transform3D ArtHand(Transform3D handCamera, bool right)
@@ -417,11 +436,11 @@ public partial class ViewmodelView
             }
         }
 
-        if (_aim > 0 && _reload < 0 && GunAttachmentPresentation.TryEye(_item!, _model.Id, out _))
+        if (_model.Kind is HeldKind.Pistol or HeldKind.Rifle)
         {
-            // The aligned optic fixes the gun relative to the camera. Translating it toward the native gun sight
-            // can pull the eyepiece through the near plane. The same feasible hand/shoulder separation can instead
-            // come from leaning the FPS shoulders toward the fixed grips, without lengthening either arm.
+            // Guns use the closest feasible correction continuously, at hip and through ADS. Projecting onto
+            // the contact ray can jump between disjoint feasible ray intervals as the barrel recoils.
+            // When aiming, accommodate the shoulders first, consistently for irons and fitted optics.
             // Blend as ADS engages; malformed/outlying poses retain the ordinary bounded item correction.
             Vector3 accommodation = nearest.LimitLength(0.12f) * Smooth(_aim);
             Shoulder(left ? _upperL : _upperR, -accommodation, toSkeleton);
@@ -455,16 +474,6 @@ public partial class ViewmodelView
             // Fade to the closest feasible point near tangency, where a ray ceases to intersect the reach volume.
             // Both endpoints are feasible and the volume is convex, so their blend preserves hand attachment.
             float rayPreference = Smooth(Math.Clamp(clearance / 0.04f, 0, 1));
-            if (supportedGun && _reload >= 0)
-            {
-                // A reload has no target screen pixel to preserve. As the support hand moves between the foregrip,
-                // magazine and receiver, a screen ray can require a large camera-ward translation even when a short
-                // sideways correction reaches both wrists. Prefer the nearest feasible pose throughout the action;
-                // blend only at its ends while the hand remains on its ordinary support grip.
-                float reloading = Smooth(Math.Clamp(_reload / 0.12f, 0, 1))
-                    * (1f - Smooth(Math.Clamp((_reload - 0.92f) / 0.08f, 0, 1)));
-                rayPreference *= 1f - reloading;
-            }
             shift = nearest.Lerp(onRay, rayPreference);
         }
         item.Origin += shift;

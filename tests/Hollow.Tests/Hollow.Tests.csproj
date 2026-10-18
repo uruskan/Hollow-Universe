@@ -4,7 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>Hollow.Tests</RootNamespace>
-    <ServerGarbageCollection>true</ServerGarbageCollection>
+    <!-- Match the dedicated server. One test process must not reserve a server-GC heap per CPU while
+         the editor and hosted game share a workstation. This changes collection policy, not test coverage. -->
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Hollow.Core/Hollow.Core.csproj" />
@@ -16,5 +19,6 @@
     <ProjectReference Include="../../src/Hollow.Client/Hollow.Client.csproj" />
     <ProjectReference Include="../../src/Hollow.Server/Hollow.Server.csproj" />
     <ProjectReference Include="../../tools/Hollow.NetGen/Hollow.NetGen.csproj" />
+    <ProjectReference Include="../../tools/Hollow.Bots/Hollow.Bots.csproj" />
   </ItemGroup>
 </Project>

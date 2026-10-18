@@ -174,6 +174,19 @@ public sealed class Player : ITargetable
     public long NextSwingTick;
     public long StrikeTick = -1;
 
+    /// <summary>Network players use reliable, identified attempts; direct simulation callers may still supply held input.</summary>
+    public bool MeleeByIntents;
+    /// <summary>Server-assigned connection epoch. Old in-flight attacks cannot alias a new connection's sequence.</summary>
+    public uint AttackSession;
+    public AttackId MeleeAttack;
+    public uint MeleeActionTick;
+    public uint MeleeRequestedTick;
+    /// <summary>Unfinished attempts through this sequence are cancelled, including requests still in flight.</summary>
+    public uint MeleeCancelledThrough;
+    public bool MeleeContactPending;
+    public List<AttackRequest> MeleeQueue { get; } = new();
+    public AttackJournal MeleeJournal { get; } = new();
+
     /// <summary>Tick the bow started being drawn (−1: not drawing).</summary>
     public long DrawStartTick = -1;
 
@@ -201,6 +214,9 @@ public sealed class Player : ITargetable
 
     /// <summary>Shots and reloads that arrived, in order, waiting for their tick.</summary>
     public List<GunAction> GunQueue { get; } = new();
+
+    /// <summary>Bounded per-attempt outcomes, so retries receive their original firearm answer.</summary>
+    public AttackJournal GunAttackJournal { get; } = new();
 
     /// <summary>Raised whenever <see cref="Gun"/> changes in a way the owner should hear (the server sends it then).</summary>
     public uint GunRevision { get; set; }

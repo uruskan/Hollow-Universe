@@ -16,12 +16,14 @@ public sealed partial class MonumentField : Node3D
     private MonumentPlacements _source = null!;
     private RenderFrame _frame = null!;
     private Vector3D _centre = new(double.MaxValue, 0, 0);
-    public bool IsIdle => _pending.Count == 0;
+    private bool _stopped;
+    public bool IsIdle => !_stopped && _pending.Count == 0;
 
     public void Setup(MonumentPlacements source, RenderFrame frame) => (_source, _frame) = (source, frame);
 
     public void Follow(Vector3D camera)
     {
+        if (_stopped) return;
         if (Vector3D.Distance(camera, _centre) > 30)
         {
             _centre = camera;
@@ -51,6 +53,21 @@ public sealed partial class MonumentField : Node3D
                 instance.Transform = new Transform3D(new Basis(_frame.DirectionToRender(site.Right), _frame.DirectionToRender(site.Up),
                     _frame.DirectionToRender(site.Forward)), _frame.ToRender(site.Position));
     }
+
+    /// <summary>Main-thread only: monuments perform no background queries and release their source immediately.</summary>
+    public void Stop()
+    {
+        if (_stopped) return;
+        _stopped = true;
+        _pending.Clear();
+        _source = null!;
+        _frame = null!;
+        _models.Clear();
+        _instances.Clear();
+        Visible = false;
+    }
+
+    public override void _ExitTree() => Stop();
 
     private void AddModel(Node3D parent, string path, Vector3 position, Quaternion rotation)
     {

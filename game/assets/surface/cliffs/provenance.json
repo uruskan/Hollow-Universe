@@ -349,5 +349,47 @@
       ]
     }
   ],
-  "collision_sha256": "a79994d93df3e5edd640efcefa3db0287ce47db02691d42690b39f63d200bb4e"
+  "collision_sha256": "233858e2fc095f5577b6c9e68b301c78db0bebb990810901bfe363a16295a3f5",
+  "placement_metadata_revision": {
+    "date": "2026-10-16",
+    "previous_collision_sha256": "a79994d93df3e5edd640efcefa3db0287ce47db02691d42690b39f63d200bb4e",
+    "change": "Authored facing, slope suitability, selection weight and compatible material family added; positions, indices, heights and exported visuals unchanged. No Blender re-export performed.",
+    "profiles": {
+      "coastal_cliff_04": {
+        "facing": 1,
+        "minimumGradient": 0.35,
+        "maximumGradient": 0.85,
+        "selectionWeight": 0.35,
+        "materialFamily": "coastal"
+      },
+      "namaqualand_cliff_02": {
+        "facing": 1,
+        "minimumGradient": 0.7,
+        "maximumGradient": 2.4,
+        "selectionWeight": 0.45,
+        "materialFamily": "sandstone"
+      },
+      "nordic_broad": {
+        "facing": 1,
+        "minimumGradient": 0.55,
+        "maximumGradient": 2.2,
+        "selectionWeight": 1,
+        "materialFamily": "nordic"
+      },
+      "nordic_tall": {
+        "facing": -1,
+        "minimumGradient": 0.9,
+        "maximumGradient": 12,
+        "selectionWeight": 0.8,
+        "materialFamily": "nordic"
+      },
+      "nordic_forest_ledge": {
+        "facing": 1,
+        "minimumGradient": 0.35,
+        "maximumGradient": 1.45,
+        "selectionWeight": 0.65,
+        "materialFamily": "forest"
+      }
+    }
+  }
 }

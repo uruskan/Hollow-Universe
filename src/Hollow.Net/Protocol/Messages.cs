@@ -70,10 +70,40 @@ public partial struct ZoneInfo
     public float AirScaleHeight;
 }
 
-/// <summary>The server's first message to an accepted client.</summary>
+/// <summary>Bounded compatibility facts; qualification is separate from physical generation identity.</summary>
+[NetStruct]
+public partial struct EnvironmentIdentity
+{
+    public int DescriptorSchema;
+    [MaxLength(64)] public string DescriptorIdentity;
+    [MaxLength(64)] public string ProfileId;
+    [MaxLength(64)] public string QualificationIdentity;
+}
+
+/// <summary>The server offers its acquired world before login or player publication.</summary>
+[NetMessage(4)]
+public partial struct WorldOffer
+{
+    public uint OfferId;
+    public ZoneInfo Zone;
+    public EnvironmentIdentity Environment;
+}
+
+/// <summary>The client has reconstructed and verified this offer without acquiring a world.</summary>
+[NetMessage(5)]
+public partial struct WorldAccept
+{
+    public uint OfferId;
+    public EnvironmentIdentity Environment;
+}
+
+/// <summary>Player publication after accepting the offered world.</summary>
 [NetMessage(3)]
 public partial struct Welcome
 {
+    public uint OfferId;
+    public EnvironmentIdentity Environment;
+    [VarInt] public uint AttackSession;
     [VarInt] public uint NetId;
     public ulong EntityId;
     public uint ServerTick;
@@ -427,6 +457,7 @@ public partial struct ThingSpawn
     /// <summary>Authoritative body phase; wrecks and expired player bodies are bags.</summary>
     public bool IsBody;
     [MaxCount(1)] public CorpseAppearance[] Corpse;
+    [MaxCount(1)] public UtilityState[] Utility;
 }
 
 /// <summary>A relevant static thing changed: health, count, or what the receiver is told of it.</summary>
@@ -439,6 +470,77 @@ public partial struct ThingUpdate
     [Bits(8)] public ViewerFlags Flags;
     [MaxLength(192)] public string Name;
     public bool IsBody;
+    [VarInt] public ulong Capabilities;
+    [MaxCount(1)] public UtilityState[] Utility;
+}
+
+/// <summary>Optional state of a placed utility; simulation remains authoritative.</summary>
+[NetStruct]
+public partial struct UtilityState
+{
+    [VarInt] public ulong PowerSource;
+    public bool Powered;
+    public bool PowerEnabled;
+    public float PowerOutput;
+    public float PowerInput;
+    public float PowerConsumed;
+    public float StoredEnergy;
+    public bool HasCableUpdate;
+    [MaxCount(1)] public PowerCableNet[] Cables;
+    public bool AuthorizationPresent;
+    public bool Friendly;
+    public bool CanManage;
+    public bool FollowsCupboard;
+    [VarInt] public uint AuthorizationRevision;
+    public bool DefenseEnabled;
+    public float DefenseYaw;
+    public float DefensePitch;
+    public long DefenseLastFireTick;
+    [VarInt] public uint InstalledWeapon;
+    public bool Open;
+    [Bits(2)] public LockKind Lock;
+}
+
+/// <summary>One directed cable owned by its input device. Anchors only describe its visible route.</summary>
+[NetStruct]
+public partial struct PowerCableNet
+{
+    [VarInt] public ulong CableId;
+    [VarInt] public uint Revision;
+    [VarInt] public ulong OutputEntity;
+    public ushort OutputPort;
+    public float OutputX;
+    public float OutputY;
+    public float OutputZ;
+    [VarInt] public ulong InputEntity;
+    public ushort InputPort;
+    [MaxCount(32)] public CableAnchorNet[] Anchors;
+}
+
+[NetStruct]
+public partial struct CableAnchorNet
+{
+    public TargetNet Support;
+    public float X;
+    public float Y;
+    public float Z;
+    public float WorldX;
+    public float WorldY;
+    public float WorldZ;
+}
+
+/// <summary>Wire Tool intent; the server validates actor, tool, physical hit, permissions and topology.</summary>
+[NetMessage(232)]
+public partial struct WireIntent
+{
+    [VarInt] public uint Seq;
+    public byte Operation;
+    public TargetNet Target;
+    public ushort Port;
+    public float X;
+    public float Y;
+    public float Z;
+    [VarInt] public uint Revision;
 }
 
 /// <summary>Appearance saved at death, independent of the former player's connection or later inventory.</summary>
@@ -506,6 +608,13 @@ public partial struct NaturalStates
 [NetMessage(41)]
 public partial struct ProjectileLaunch
 {
+    [VarInt] public uint AttackSession;
+    [Bits(2)] public AttackDomain AttackKind;
+    [VarInt] public uint AttackSeq;
+    public uint Tick;
+    [VarInt] public uint Weapon;
+    public float Gravity;
+    public float Drag;
     [VarInt] public uint Id;
     [VarInt] public uint Shooter;
     [VarInt] public uint Ammo;
@@ -528,11 +637,36 @@ public partial struct ProjectileLaunch
 [NetMessage(42)]
 public partial struct ProjectileEnd
 {
+    [VarInt] public uint AttackSession;
+    [Bits(2)] public AttackDomain AttackKind;
+    [VarInt] public uint AttackSeq;
+    [VarInt] public uint Shooter;
+    public uint Tick;
+    [Bits(4)] public byte Battery;
     [VarInt] public uint Id;
     public float X;
     public float Y;
     public float Z;
     [Bits(4)] public TargetFamily Target;
+    public SurfaceContactNet Contact;
+}
+
+/// <summary>Authoritative contact metadata; the enclosing terminal carries its world point.</summary>
+[NetStruct]
+public partial struct SurfaceContactNet
+{
+    public TargetNet Target;
+    public byte Surface;
+    [Quantize(-1, 1, 12)] public float NormalX;
+    [Quantize(-1, 1, 12)] public float NormalY;
+    [Quantize(-1, 1, 12)] public float NormalZ;
+    public TargetNet Anchor;
+    public float LocalX;
+    public float LocalY;
+    public float LocalZ;
+    [Quantize(-1, 1, 12)] public float LocalNormalX;
+    [Quantize(-1, 1, 12)] public float LocalNormalY;
+    [Quantize(-1, 1, 12)] public float LocalNormalZ;
 }
 
 /// <summary>A thing named on the wire (GROUND_SYSTEMS.md §3.1): its family, its ID, and a part of it (0: the whole).</summary>
@@ -721,6 +855,7 @@ public partial struct ShipStations
 [NetStruct]
 public partial struct StationNet
 {
+    [Bits(3)] public byte NextBarrel;
     [Bits(4)] public byte Station;
     [Bits(2)] public byte Chosen;
     [VarInt] public uint Shots;
@@ -769,6 +904,15 @@ public partial struct MagazineCountNet
 [NetMessage(123)]
 public partial struct TurretShot
 {
+    [VarInt] public uint AttackSession;
+    [Bits(2)] public AttackDomain AttackKind;
+    [VarInt] public uint AttackSeq;
+    public float OriginX;
+    public float OriginY;
+    public float OriginZ;
+    public float DirectionX;
+    public float DirectionY;
+    public float DirectionZ;
     [VarInt] public uint Ship;
     [Bits(4)] public byte Station;
     [Bits(3)] public byte Barrel;
@@ -886,6 +1030,9 @@ public partial struct CraftQueueState
 [NetMessage(76)]
 public partial struct HitMarker
 {
+    [VarInt] public uint AttackSession;
+    [Bits(2)] public AttackDomain AttackKind;
+    [VarInt] public uint AttackSeq;
     public ushort Weapon;
     [VarInt] public uint ActionTick;
     public float PointX;
@@ -899,6 +1046,42 @@ public partial struct HitMarker
 
     /// <summary>The hit knocked the player down (G4).</summary>
     public bool Downed;
+}
+
+/// <summary>Explicit attack/cancellation, reliably unordered; movement and continuous aim stay in inputs.</summary>
+[NetMessage(162)]
+public partial struct AttackIntent
+{
+    [VarInt] public uint Session;
+    [Bits(2)] public AttackDomain Kind;
+    [VarInt] public uint Seq;
+    public uint Tick;
+    public byte Slot;
+    [VarInt] public uint Item;
+    public ushort ViewU;
+    public ushort ViewV;
+    [VarInt] public uint Frame;
+    public byte ViewDelay;
+    [VarInt] public uint Ship;
+    [Bits(4)] public byte Station;
+    public bool Cancel;
+}
+
+/// <summary>One attack decision, reliably unordered to its owner; independent of coalesced resource snapshots.</summary>
+[NetMessage(163)]
+public partial struct AttackResult
+{
+    [VarInt] public uint Session;
+    [Bits(2)] public AttackDomain Kind;
+    [VarInt] public uint Seq;
+    [Bits(7)] public OutcomeCode Code;
+    public uint RequestedTick;
+    public uint StartTick;
+    public uint ContactTick;
+    public uint ReadyTick;
+    [VarInt] public uint StateSequence;
+    public sbyte Barrel;
+    public bool Cancelled;
 }
 
 /// <summary>Items gained or lost and why (gathered, picked up, crafted; a tool broke), for notifications.</summary>

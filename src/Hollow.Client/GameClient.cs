@@ -29,41 +29,6 @@ public enum ClientState
     Disconnected,
 }
 
-/// <summary>How a client runs.</summary>
-public sealed record ClientOptions
-{
-    public string Name { get; init; } = "Player";
-
-    /// <summary>The body the player chose (0 male, 1 female; GROUND.md §4.8), sent at connect.</summary>
-    public byte Body { get; init; }
-
-    /// <summary>Bad-network simulation (through a local relay), or none.</summary>
-    public NetConditions Conditions { get; init; } = NetConditions.None;
-
-    /// <summary>A relay shared by many clients in one process (bots), instead of one of its own.</summary>
-    public ConditionedRelay? SharedRelay { get; init; }
-
-    /// <summary>Ground shared by many clients in one process (bots); the owner releases unused tiles.</summary>
-    public Func<ZoneSpec, ISurface, PhysicsWorld>? SharedPhysics { get; init; }
-
-    /// <summary>
-    /// The natural objects' state shared by many clients with <see cref="SharedPhysics"/> (bots): its owner keeps the
-    /// shared ground's trees in step with it. Null: an own one on the client's own ground.
-    /// </summary>
-    public Func<ZoneSpec, ISurface, Simulation.Nature.NaturalState>? SharedNature { get; init; }
-
-    /// <summary>
-    /// The replicated building shared by many clients with <see cref="SharedPhysics"/> (bots), on that physics world.
-    /// Null: an own one on the client's own ground.
-    /// </summary>
-    public Func<ZoneSpec, ISurface, PhysicsWorld, BuildingReplica>? SharedBuilding { get; init; }
-
-    /// <summary>The game's data (the server must have the same); null finds and loads game/data/ground.</summary>
-    public GameContent? Content { get; init; }
-
-    public Action<string> Log { get; init; } = _ => { };
-}
-
 /// <summary>
 /// The client without graphics (GROUND.md §4.3): the connection, clock synchronisation with the server's ticks, input
 /// sent every tick, prediction and reconciliation of the player's own character, interpolation of everyone else 100 ms
@@ -76,7 +41,8 @@ public sealed record ClientOptions
 public sealed class GameClient : INetEventListener, IDisposable
 {
     public const int TickRate = CharacterMotor.TickRate;
-    public LocalMelee Melee { get; } = new();
+    public LocalMelee Melee { get; }
+    public AttackLedger Attacks => Local.Attacks;
 
     /// <summary>The prediction clock aims to have inputs reach the server this many ticks early, at the latest.</summary>
     public const int TargetInputMargin = 2;
@@ -85,22 +51,24 @@ public sealed class GameClient : INetEventListener, IDisposable
     private const int MaxTicksPerUpdate = 8;
 
     private readonly ClientOptions _options;
-    private readonly NetManager _net;
+    private readonly NetManager _net = null!;
     private readonly BitWriter _writer = new(512);
     private readonly BitReader _reader = new();
-    private readonly SnapshotReceiver _snapshots = new();
+    private SnapshotReceiver _snapshots = new();
     private readonly List<(uint NetId, CharacterNetState State)> _decoded = new();
     private readonly List<(uint NetId, ShipNetState State)> _decodedShips = new();
     private readonly Dictionary<uint, RemoteEntity> _remotes = new();
     private readonly InputCommand[] _sent = new InputCommand[Protocol.RedundantInputs + 1];
     private readonly MessageHandlers<GameClient> _handlers = new();
-    private readonly ClientModule[] _modules;
+    private readonly ClientModule[] _modules = Array.Empty<ClientModule>();
     private readonly Dictionary<Type, ClientModule> _byType = new();
     private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
     private ConditionedRelay? _ownRelay;
     private NetPeer? _peer;
-    private Predictor? _predictor;
-    private ISurface? _surface;
+    private readonly ClientWorldSession _worldSession;
+    private readonly ClientWorldHandshake _worldHandshake = new();
+    private Predictor? _predictor => _worldSession.Prediction;
+    private ISurface? _surface => _worldSession.Surface;
     private uint _nextTick;
     private double _tickClock;
     private double _rate = 1;
@@ -109,6 +77,7 @@ public sealed class GameClient : INetEventListener, IDisposable
     private bool _remoteClockStarted;
     private bool _jumpLatched;
     private bool _primaryLatched;
+    private bool _stationPressLatched, _stationFireWasFrame;
     private Vector3 _smoothing;
     private float _eyeHeight = MovementTuning.Default.StandingEyeHeight;
     private double _lastMarginLog;
@@ -121,36 +90,42 @@ public sealed class GameClient : INetEventListener, IDisposable
 
     public GameClient(ClientOptions options)
     {
+        ArgumentNullException.ThrowIfNull(options);
         _options = options;
-        _net = new NetManager(this)
+        _worldSession = new ClientWorldSession(options, ClearWorldReplication);
+        try
         {
-            AutoRecycle = true,
-            EnableStatistics = true,
-            DisconnectTimeout = 10_000,
-            IPv6Enabled = false,
-            UnconnectedMessagesEnabled = false,
-        };
-        _net.StartInManualMode(0);
-        Content = options.Content ?? GameContent.LoadDefault();
-        Local = new LocalPlayer(Content) { Send = SendReliable, SendGun = SendUnordered };
-        // The host's own messages; the snapshot is read apart (OnNetworkReceive); every other type is a module's.
-        _handlers
-            .On<Welcome>(static (GameClient client, in Welcome m) => client.OnWelcome(m))
-            .On<Spawn>(static (GameClient client, in Spawn m) => client.OnSpawn(m))
-            .On<Despawn>(static (GameClient client, in Despawn m) => client.OnDespawn(m.NetId))
-            .On<ChatLine>(static (GameClient client, in ChatLine m) => client.ChatReceived?.Invoke(m));
-        _modules = ClientModules.All();
-        foreach (ClientModule module in _modules)
-        {
-            if (!_byType.TryAdd(module.GetType(), module))
+            _net = ClientTransport.CreateNetwork(this);
+            Content = options.Content ?? GameContent.LoadDefault();
+            Local = new LocalPlayer(Content) { Send = SendReliable, SendGun = SendUnordered };
+            Melee = new LocalMelee(Attacks);
+            // The host's own messages; the snapshot is read apart (OnNetworkReceive); every other type is a module's.
+            _handlers
+                .On<WorldOffer>(static (GameClient client, in WorldOffer m) => client.OnWorldOffer(m))
+                .On<Welcome>(static (GameClient client, in Welcome m) => client.OnWelcome(m))
+                .On<Spawn>(static (GameClient client, in Spawn m) => client.OnSpawn(m))
+                .On<Despawn>(static (GameClient client, in Despawn m) => client.OnDespawn(m.NetId))
+                .On<ChatLine>(static (GameClient client, in ChatLine m) => client.ChatReceived?.Invoke(m));
+            _modules = ClientModules.All();
+            foreach (ClientModule module in _modules)
             {
-                throw new InvalidOperationException($"{module.GetType().Name} is in the client's list twice (GROUND_SYSTEMS.md §12.5)");
+                if (!_byType.TryAdd(module.GetType(), module))
+                {
+                    throw new InvalidOperationException($"{module.GetType().Name} is in the client's list twice (GROUND_SYSTEMS.md §12.5)");
+                }
+                module.Attach(this);
             }
-            module.Attach(this);
+            foreach (ClientModule module in _modules)
+            {
+                _worldSession.Initialize(module, _handlers);
+            }
+            bool started = options.BackgroundTransport ? _net.Start(0) : _net.StartInManualMode(0);
+            if (!started) throw new SocketException((int)SocketError.AddressAlreadyInUse);
         }
-        foreach (ClientModule module in _modules)
+        catch (Exception opening)
         {
-            module.Init(_handlers);
+            _worldSession.Rollback(opening, () => _net?.Stop());
+            throw;
         }
     }
 
@@ -168,9 +143,21 @@ public sealed class GameClient : INetEventListener, IDisposable
 
     public string ServerName { get; private set; } = "";
 
-    public ZoneSpec? Zone { get; private set; }
+    public ZoneSpec? Zone => _worldSession.Zone;
 
     public ISurface? Surface => _surface;
+
+    /// <summary>Independent ownership for maps, rendering and shared physics. Release after their workers retire.</summary>
+    public WorldLease ForkWorldLease() => _worldSession.ForkLease();
+
+    /// <summary>Owner-thread notification before modules and physics retire; views stop work and keep their own pins.</summary>
+    public event Action? WorldRetiring
+    {
+        add => _worldSession.WorldRetiring += value;
+        remove => _worldSession.WorldRetiring -= value;
+    }
+
+    public System.Threading.Tasks.Task EnvironmentRetirement => _worldSession.Retirement;
 
     public ZoneFrame Frame => _predictor?.Frame ?? default;
 
@@ -301,23 +288,10 @@ public sealed class GameClient : INetEventListener, IDisposable
     /// <summary>Connects to a server (through a bad-network relay if the options ask for one).</summary>
     public void Connect(string host, int port)
     {
-        IPAddress address = IPAddress.TryParse(host, out IPAddress? parsed)
-            ? parsed
-            : Dns.GetHostAddresses(host).First(a => a.AddressFamily == AddressFamily.InterNetwork);
-        var server = new IPEndPoint(address, port);
-        IPEndPoint target = server;
-        if (_options.SharedRelay != null)
-        {
-            target = _options.SharedRelay.LocalEndPoint;
-        }
-        else if (!_options.Conditions.IsNone)
-        {
-            _ownRelay = new ConditionedRelay(server, _options.Conditions, (ulong)Environment.ProcessId);
-            target = _ownRelay.LocalEndPoint;
-        }
-        _writer.Reset();
-        new Hello { ProtocolVersion = Protocol.Version, SchemaHash = Protocol.SchemaHash, PlayerName = _options.Name, ContentHash = Content.Hash, Body = _options.Body }.WriteMessage(_writer);
-        _peer = _net.Connect(target, _writer.Data);
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        _worldHandshake.Reset(_clock.Elapsed.TotalSeconds);
+        _peer = ClientTransport.Connect(_net, _options, Content.Hash, _writer, host, port, ref _ownRelay,
+            out IPEndPoint server, out IPEndPoint target);
         _connectStarted = _clock.Elapsed.TotalMilliseconds;
         State = ClientState.Connecting;
         _options.Log($"connecting to {server}" + (target != server ? $" through a relay ({_ownRelay?.Conditions ?? _options.SharedRelay?.Conditions})" : ""));
@@ -326,19 +300,15 @@ public sealed class GameClient : INetEventListener, IDisposable
     public void Disconnect()
     {
         _peer?.Disconnect();
-        _net.ManualUpdate(0);
+        UpdateTransport(0);
     }
 
-    public void SendChat(string text)
-    {
-        if (_peer == null || State != ClientState.Playing || string.IsNullOrWhiteSpace(text))
-        {
-            return;
-        }
-        _writer.Reset();
-        new ChatSend { Text = text.Trim() }.WriteMessage(_writer);
-        _peer.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
-    }
+    // Normal mode owns its update thread; never run ManualUpdate concurrently with it. Application events remain
+    // queued for Update's PollEvents, so no simulation or presentation callback moves to a transport thread.
+    private void UpdateTransport(float elapsedMilliseconds) =>
+        ClientTransport.Update(_net, _options.BackgroundTransport, elapsedMilliseconds);
+
+    public void SendChat(string text) => ClientTransport.SendChat(_peer, State, _writer, text);
 
     // ---------------------------------------------------------------- sending
 
@@ -366,26 +336,21 @@ public sealed class GameClient : INetEventListener, IDisposable
     /// <summary>A module's message, reliable but unordered; false, and nothing sent, while not playing.</summary>
     internal bool SendUnordered<T>(in T message) where T : struct, INetMessage<T> => Send(message, DeliveryMethod.ReliableUnordered);
 
-    private bool Send<T>(in T message, DeliveryMethod method) where T : struct, INetMessage<T>
-    {
-        if (_peer == null || State != ClientState.Playing)
-        {
-            return false;
-        }
-        _writer.Reset();
-        message.WriteMessage(_writer);
-        _peer.Send(_writer.Data, method);
-        return true;
-    }
+    private bool Send<T>(in T message, DeliveryMethod method) where T : struct, INetMessage<T> =>
+        ClientTransport.Send(_peer, State, _writer, message, method);
 
     // ---------------------------------------------------------------- every frame
 
     /// <summary>Receives, runs the ticks that are due (each sending its input), and advances what is drawn.</summary>
     public void Update(double delta, in InputFrame input)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _jumpLatched |= input.JumpPressed;
         _primaryLatched |= input.PrimaryPressed;
+        _stationPressLatched |= input.Station.FirePressed || (input.Station.Fire && !_stationFireWasFrame);
+        _stationFireWasFrame = input.Station.Fire;
         _net.PollEvents();
+        CheckWorldHandshakeTimeout(_clock.Elapsed.TotalSeconds);
         Local.AfterMessages();
         if (State == ClientState.Playing)
         {
@@ -430,11 +395,14 @@ public sealed class GameClient : INetEventListener, IDisposable
         }
         NetStatistics traffic = _net.Statistics;
         Stats.Update(delta, traffic.BytesReceived, traffic.BytesSent, traffic.PacketsReceived, traffic.PacketsSent);
-        _net.ManualUpdate((float)(delta * 1000));
+        UpdateTransport((float)(delta * 1000));
     }
 
     private void RunTick(uint tick, in InputFrame frame)
     {
+        InputFrame tickFrame = frame;
+        tickFrame.Station.FirePressed = _stationPressLatched;
+        _stationPressLatched = false;
         var buttons = MoveButtons.None;
         if (frame.Jump)
         {
@@ -489,7 +457,7 @@ public sealed class GameClient : INetEventListener, IDisposable
         }
         foreach (ClientModule module in _modules)
         {
-            module.Command(tick, ref command, frame);
+            module.Command(tick, ref command, tickFrame);
         }
         _predictor!.RecordInput(tick, command);
         if (_predictor.HasState)
@@ -506,7 +474,7 @@ public sealed class GameClient : INetEventListener, IDisposable
             // G4: the gun in hand fires (or reloads) on this tick's predicted state, and sends its intent for this tick.
             Local.Gun.Tick(tick, command, _predictor.Latest, _predictor.Frames, DrawnFrame?.Invoke(OwnFrame), _predictor.Tuning, EntityId,
                 !Local.IsDead && !Local.IsWounded && !this.Ships().Seated);
-            Melee.Tick(tick, Local.HeldItem, Local.HeldSlot, (command.Actions & ActionButtons.Primary) != 0,
+            Melee.Tick(tick, Local.HeldItem, Local.HeldSlot, (command.Actions & (ActionButtons.Primary | ActionButtons.PrimaryPressed)) != 0,
                 !Local.IsDead && !Local.IsWounded && !this.Ships().Seated, Content.Survival.EquipSeconds);
         }
 
@@ -581,68 +549,119 @@ public sealed class GameClient : INetEventListener, IDisposable
 
     public void OnPeerConnected(NetPeer peer)
     {
+        if (peer != _peer || _disposed) return;
         // The handshake took about a round trip: the first estimate, until snapshots echo inputs.
         _roundTrip = _clock.Elapsed.TotalMilliseconds - _connectStarted;
         State = ClientState.Joining;
+        _worldHandshake.Connected(_clock.Elapsed.TotalSeconds);
         _options.Log("connected; joining");
     }
 
     public void OnPeerDisconnected(NetPeer peer, DisconnectInfo info)
     {
+        if (peer != _peer) return;
+        _worldHandshake.ClearOffer();
         State = ClientState.Disconnected;
         DisconnectReason = info.Reason.ToString();
-        if (info.AdditionalData.AvailableBytes > 0)
-        {
-            byte[] data = info.AdditionalData.GetRemainingBytes();
-            _reader.Reset(data, 0, data.Length);
-            if (_reader.ReadBits(8) == Net.Protocol.Goodbye.TypeId)
-            {
-                Goodbye bye = Net.Protocol.Goodbye.Read(_reader);
-                if (!_reader.Failed)
-                {
-                    Goodbye = bye.Reason;
-                    DisconnectReason = $"{bye.Reason}: {bye.Text}";
-                }
-            }
-        }
-        _options.Log($"disconnected ({DisconnectReason})");
+        (Goodbye, DisconnectReason) = _worldHandshake.Disconnected(info, Goodbye);
+        try { _options.Log($"disconnected ({DisconnectReason})"); }
+        finally { RetireWorld(); }
     }
 
     public void OnNetworkReceive(NetPeer peer, NetPacketReader packet, byte channel, DeliveryMethod method)
     {
+        if (_disposed || peer != _peer || State is ClientState.Disconnected or ClientState.Idle) return;
         // Read in place: the transport recycles the packet after this returns.
         _reader.Reset(packet.RawData, packet.Position, packet.AvailableBytes);
         uint type = _reader.ReadBits(8);
+        if (!ClientWorldHandshake.AdmitPacket(type, packet.AvailableBytes, method, State, out string? rejection))
+        {
+            if (rejection != null) RejectWorldHandshake(rejection);
+            else Stats.UnhandledMessages++;
+            return;
+        }
         if (type == Protocol.SnapshotTypeId)
         {
             OnSnapshot();
         }
         else if (!_handlers.Dispatch((byte)type, _reader, this))
         {
+            if (ClientWorldHandshake.IsHandshake(type))
+            {
+                RejectWorldHandshake("Malformed world handshake packet.");
+                return;
+            }
             // No module handles the type, or the message didn't read: dropped, as a bad packet (GROUND_SYSTEMS.md §12.4).
             Stats.UnhandledMessages++;
         }
     }
 
+    private void OnWorldOffer(in WorldOffer offer)
+    {
+        if (_disposed || !_worldSession.CanOpen) return;
+        if (!_worldHandshake.TryOffer(offer, _clock.Elapsed.TotalSeconds, out string? rejection))
+        {
+            if (rejection != null) RejectWorldHandshake(rejection);
+            return;
+        }
+        State = ClientState.Joining;
+        _writer.Reset();
+        new WorldAccept { OfferId = offer.OfferId, Environment = offer.Environment }.WriteMessage(_writer);
+        _peer?.Send(_writer.Data, DeliveryMethod.ReliableOrdered);
+    }
+
+    private void CheckWorldHandshakeTimeout(double now)
+    {
+        if (_worldHandshake.Timeout(now, State) is { } reason) RejectWorldHandshake(reason);
+    }
+
+    private void RejectWorldHandshake(string reason)
+    {
+        _worldHandshake.Reject(reason);
+        Disconnect();
+        Goodbye = GoodbyeReason.EnvironmentMismatch;
+        DisconnectReason = reason;
+        State = ClientState.Disconnected;
+        RetireWorld();
+    }
+
     private void OnWelcome(in Welcome welcome)
     {
-        Zone = NetConvert.FromInfo(welcome.Zone);
-        _surface = Zone.CreateSurface();
-        // The modules let go of what they made on the last zone's world before it goes, then make it anew on this one.
-        DisposeModules();
-        _predictor?.Dispose();
-        _predictor = new Predictor(Zone, _surface, _options.SharedPhysics?.Invoke(Zone, _surface));
-        NetId = welcome.NetId;
-        EntityId = new EntityId(welcome.EntityId);
-        Local.EntityId = EntityId;
-        ServerName = welcome.ServerName;
-        InitialView = Quantize.FromOctahedral(welcome.ViewU, welcome.ViewV);
-        Local.Up = () => OwnUp;
-        Local.Frame = () => OwnFrame;
-        foreach (ClientModule module in _modules)
+        if (_disposed || !_worldSession.CanOpen) return;
+        if (!_worldHandshake.ValidateWelcome(welcome, out string? refusal))
         {
-            module.Welcome();
+            if (refusal != null) RejectWorldHandshake(refusal);
+            return;
         }
+        _jumpLatched = _primaryLatched = _stationPressLatched = _stationFireWasFrame = false;
+        Welcome message = welcome;
+        if (!_worldSession.TryOpen(message.Zone, message.Environment, () => Attacks.BeginSession(message.AttackSession), () =>
+        {
+            NetId = message.NetId;
+            EntityId = new EntityId(message.EntityId);
+            Local.EntityId = EntityId;
+            ServerName = message.ServerName;
+            InitialView = Quantize.FromOctahedral(message.ViewU, message.ViewV);
+            Local.Up = () => OwnUp;
+            Local.Frame = () => OwnFrame;
+            foreach (ClientModule module in _modules)
+            {
+                if (_disposed) return;
+                module.Welcome();
+            }
+        }, out string? rejection))
+        {
+            if (rejection != null)
+            {
+                DisconnectReason = rejection;
+                _options.Log(DisconnectReason);
+                Disconnect();
+                State = ClientState.Disconnected;
+                RetireWorld();
+            }
+            return;
+        }
+        _worldHandshake.ConsumeWelcome();
         // Start ahead of the Welcome's tick by a round trip (the Welcome came one way, inputs go the other) and the
         // margin; the server's reports refine it.
         double trip = (_roundTrip >= 0 ? _roundTrip : _peer?.RoundTripTime ?? 100) / 1000.0 * TickRate;
@@ -832,13 +851,17 @@ public sealed class GameClient : INetEventListener, IDisposable
     {
     }
 
-    // The modules let go of what Welcome made, last first (as the zone's systems do).
-    private void DisposeModules()
+    private void RetireWorld() => _worldSession.Retire();
+
+    private void ClearWorldReplication()
     {
-        for (int i = _modules.Length - 1; i >= 0; i--)
-        {
-            _modules[i].Dispose();
-        }
+        _remotes.Clear();
+        _decoded.Clear();
+        _decodedShips.Clear();
+        _snapshots = new SnapshotReceiver();
+        _remoteClockStarted = false;
+        _smoothing = Vector3.Zero;
+        Local?.RetireWorldIntents();
     }
 
     public void Dispose()
@@ -847,12 +870,19 @@ public sealed class GameClient : INetEventListener, IDisposable
         {
             return;
         }
+        _worldSession.CloseAdmission();
+        _worldHandshake.ClearOffer();
         _disposed = true;
-        _peer?.Disconnect();
-        _net.ManualUpdate(0);
-        _net.Stop();
-        DisposeModules();
-        _predictor?.Dispose();
-        _ownRelay?.Dispose();
+        State = ClientState.Disconnected;
+        List<Exception> failures = new();
+        void Clean(Action action) { try { action(); } catch (Exception error) { failures.Add(error); } }
+        Clean(() => _peer?.Disconnect());
+        Clean(() => UpdateTransport(0));
+        Clean(() => _net.Stop());
+        Clean(_worldSession.Dispose);
+        if (_ownRelay != null) Clean(_ownRelay.Dispose);
+        _ownRelay = null;
+        _peer = null;
+        if (failures.Count != 0) throw new AggregateException("Client disposal failed after retiring all owners.", failures).Flatten();
     }
 }

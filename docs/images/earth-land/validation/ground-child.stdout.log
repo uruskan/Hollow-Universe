@@ -1,0 +1,27 @@
+Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+Vulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER
+
+Hollow Universe 1.0.0+6746ea3f35a57247db29ca9e390a0f6576cf7d6d
+[capture] isolated input; requested resolution=(1600, 900); preferences are not saved
+Galaxy ready: 99142 catalogue stars, loaded in 626 ms.
+[server] Hollow.Server 1.0.0+6746ea3f35a57247db29ca9e390a0f6576cf7d6d
+[server] 50 beach points on the world: players arrive and respawn at the landing site
+[server] admins: EarthLandCapture
+[server] loaded 0 things and 0 changed natural objects
+[server] loaded the building: 0 pieces, 0 doors, 0 claim devices (0 left out); 0.0 h of upkeep and decay caught up, 0 pieces stand
+[server] loaded 0 teams and 0 changed world props
+[server] loaded 0 sleepers
+[server] world props: 1001 spots (21 coast, 78 forest-edge and 32 open clusters), 1001 standing, in 4235 ms
+[server] EarthLandCapture's game: zone on body 8000000000000000/10300000, radius 1200 m, 1.00 g, landing at -36.3957°, -61.1719°, walking-scale ground, port 27169, database D:\GameDev\Projects\HollowUniverseABTestB\.artifacts\earth-land-tuning\ground-child-v2.db, data BDA5596A98F3DEEB
+[server] Ready. Type help for commands.
+[client] connecting to 127.0.0.1:27169
+[client] connected; joining
+[server] EarthLandCapture joined from 127.0.0.1:53284 as #02E6D22B34804000 (new) at (470.9, -719.8, 846.5) (admin)
+[client] joined EarthLandCapture's game as #02E6D22B34804000 on body 8000000000000000/10300000, radius 1200 m, 1.00 g, landing at -36.3957°, -61.1719°, walking-scale ground
+[ground] 16 layers in arrays in 2968 ms
+[characters] Male: loaded 41 meshes, 43 clips in 111 ms
+[characters] Female: loaded 41 meshes, 43 clips in 97 ms
+[animals] first animal drawn: deer
+[server] EarthLandCapture left (Timeout)
+[cover] 8249/8249 authored plants; LOD 303/1933/6013; 25 draws; 2004687 submitted triangles; batch 9.7 ms
+[client] disconnected (PeerNotFound)

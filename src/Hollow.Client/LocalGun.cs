@@ -24,7 +24,10 @@ namespace Hollow.Client;
 /// and direction are then where the player sees them: on the ship as drawn.
 /// </param>
 public readonly record struct ShotEvent(uint Seq, ItemDef Weapon, ItemDef Round, Vector3 Origin, Vector3 Direction, float Speed,
-    bool Silenced, bool Aimed, Vector3 Carried = default);
+    bool Silenced, bool Aimed, Vector3 Carried = default)
+{
+    public AttackId Attack { get; init; }
+}
 
 /// <summary>A reload began (predicted, at once) or ended: the gun, the rounds, how long it takes.</summary>
 public readonly record struct ReloadEvent(ItemDef Weapon, ItemDef Round, float Seconds);
@@ -55,6 +58,7 @@ public readonly record struct GunRefusal(uint Seq, OutcomeCode Result);
 /// </summary>
 public sealed class LocalGun
 {
+    public const int MaxPendingActions = GunSystem.MaxQueuedGunActions;
     private readonly LocalPlayer _player;
     private readonly List<Pending> _pending = new();
     private GunState _server = GunState.None;
@@ -78,6 +82,7 @@ public sealed class LocalGun
     internal LocalGun(LocalPlayer player)
     {
         _player = player;
+        player.Attacks.Resolved += OnAttackResolved;
     }
 
     // ---------------------------------------------------------------- what the HUD and the views read
@@ -259,6 +264,7 @@ public sealed class LocalGun
             ItemStack weapon = WeaponStack();
             ushort ammo = FirearmRules.ReloadAmmo(weapon, gun, _wantAmmo, Count);
             int reserve = ammo == 0 ? 0 : Count(ammo) - (ammo == _loadedAmmo ? _taken : 0);
+            GunState beforeReload = _state;
             OutcomeCode result = FirearmRules.BeginReload(ref _state, weapon, gun, ammo, reserve, tick);
             if (result == OutcomeCode.Done && Send(GunActionKind.Reload, tick, slot, stack.Item, command, ammo, default))
             {
@@ -268,6 +274,10 @@ public sealed class LocalGun
             else if (result != OutcomeCode.Done)
             {
                 Refused?.Invoke(new GunRefusal(0, result));
+            }
+            else
+            {
+                _state = beforeReload;
             }
         }
 
@@ -365,7 +375,11 @@ public sealed class LocalGun
             direction = ship.DirectionToWorld(shot.Direction);
             carried = ship.VelocityAt(origin);
         }
-        ShotFired?.Invoke(new ShotEvent(context.Seq, gun.Item, shot.Round, origin, direction, shot.Speed, shot.Mods.Silenced, aim, carried));
+        AttackId attack = _player.Attacks.Id(AttackDomain.Firearm, context.Seq);
+        if (_player.Attacks.TryPresent(attack))
+        {
+            ShotFired?.Invoke(new ShotEvent(context.Seq, gun.Item, shot.Round, origin, direction, shot.Speed, shot.Mods.Silenced, aim, carried) { Attack = attack });
+        }
     }
 
     /// <summary>The render tick (fractional) the camera's kick and the reload's progress are sampled at.</summary>
@@ -375,6 +389,8 @@ public sealed class LocalGun
     private bool Send(GunActionKind kind, uint tick, byte slot, ushort item, InputCommand command, ushort ammo, in ShotContext context)
     {
         uint seq = _nextSeq;
+        AttackId attack = _player.Attacks.Id(AttackDomain.Firearm, seq);
+        if (_pending.Count >= MaxPendingActions || kind == GunActionKind.Fire && !_player.Attacks.CanPredict(attack)) return false;
         bool sent = kind switch
         {
             GunActionKind.Fire => _player.SendRaw(w => new FireIntent
@@ -389,12 +405,33 @@ public sealed class LocalGun
         {
             return false;
         }
+        if (kind == GunActionKind.Fire)
+        {
+            // SendRaw only serializes/enqueues on this same client thread; admission cannot change between the
+            // preflight and registration. Check the invariant rather than allowing an invisible sent attack.
+            if (!_player.Attacks.Predict(attack, tick)) throw new InvalidOperationException("Attack admission changed during synchronous gun send");
+        }
         _pending.Add(new Pending(seq, kind, tick, ammo, context));
         _nextSeq++;
         return true;
     }
 
     // ---------------------------------------------------------------- the server's word
+
+    private void OnAttackResolved(AttackResolution result)
+    {
+        if (result.Id.Kind != AttackDomain.Firearm || result.Code == OutcomeCode.Done && !result.Cancelled) return;
+        // A per-attempt refusal can precede the next coalesced gun state. Remove exactly this reservation;
+        // accepted attempts remain pending until their authoritative ammunition snapshot incorporates them.
+        if (_pending.RemoveAll(p => p.Kind == GunActionKind.Fire && p.Seq == result.Id.Sequence) > 0 &&
+            _server.Slot == _state.Slot && _server.Item == _state.Item) Replay();
+        if (result.Id.Sequence > _refusedSeen)
+        {
+            _refusedSeen = result.Id.Sequence;
+            Refused?.Invoke(new GunRefusal(result.Id.Sequence, result.Code));
+        }
+        _player.Touch();
+    }
 
     internal void OnUpdate(in GunUpdate m)
     {

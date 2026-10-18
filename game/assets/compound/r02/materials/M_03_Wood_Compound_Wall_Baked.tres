@@ -1,0 +1,26 @@
+[gd_resource type="StandardMaterial3D" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/c2ff604f46e1609dacb896d9a377cfd4705991435e8c0ac06dc1b6d8c314a83e.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/8416170abcf8429fd5d9bc90a5b8c0fbf265ab3492a979329b482bd35f33a96f.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/def2da4a41779e1eae3119b75e45cc89bf3c39869eef9c52a25eb8e630d7d900.png" id="3"]
+
+[resource]
+resource_name = "M_03_Wood_Compound_Wall_Baked"
+cull_mode = 2
+texture_filter = 5
+vertex_color_use_as_albedo = false
+albedo_color = Color(1, 1, 1, 1)
+metallic = 1
+roughness = 1
+albedo_texture = ExtResource("1")
+normal_texture = ExtResource("2")
+normal_enabled = true
+normal_scale = 1
+ao_texture = ExtResource("3")
+ao_enabled = true
+ao_texture_channel = 0
+ao_light_affect = 0.0
+roughness_texture = ExtResource("3")
+metallic_texture = ExtResource("3")
+roughness_texture_channel = 1
+metallic_texture_channel = 2

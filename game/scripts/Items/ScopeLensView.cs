@@ -14,6 +14,8 @@ public partial class ScopeLensView : Node
     public bool Rendering => _viewport?.RenderTargetUpdateMode == SubViewport.UpdateMode.Always;
     public Camera3D OpticalCamera => _camera;
     public SubViewport OpticalViewport => _viewport;
+    /// <summary>Square camera-centred crop width/height, measured against the main viewport's height.</summary>
+    public float OpticalImageScale { get; private set; }
     private MeshInstance3D _lens = null!;
     private ShaderMaterial _material = null!;
     private ViewmodelView? _viewmodel;
@@ -32,8 +34,6 @@ public partial class ScopeLensView : Node
         _material = (ShaderMaterial)_lens.GetActiveMaterial(0).Duplicate();
         for (int i = 0; i < _lens.GetSurfaceOverrideMaterialCount(); i++)
             _lens.SetSurfaceOverrideMaterial(i, _material);
-        _material.SetShaderParameter("optical_centre", _aperture.GetCenter());
-        _material.SetShaderParameter("optical_size", new Vector2(_aperture.Size.Z, _aperture.Size.Y));
         for (Node? parent = GetParent(); parent != null; parent = parent.GetParent())
             if (parent is ViewmodelView viewmodel) { _viewmodel = viewmodel; break; }
         _viewport = new SubViewport
@@ -42,7 +42,7 @@ public partial class ScopeLensView : Node
             World3D = GetViewport().FindWorld3D(), RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled,
         };
         AddChild(_viewport);
-        _camera = new Camera3D { Name = "OpticalCamera", Current = true };
+        _camera = new Camera3D { Name = "OpticalCamera", Current = true, KeepAspect = Camera3D.KeepAspectEnum.Height };
         _viewport.AddChild(_camera);
         _material.SetShaderParameter("optical_image", _viewport.GetTexture());
     }
@@ -61,18 +61,26 @@ public partial class ScopeLensView : Node
         bool active = eye != null && _viewmodel is { AimAmount: > .98f } &&
             _viewmodel.ActiveAction != "reload" && _lens.IsVisibleInTree();
         if (!active) { SetActive(false); return; }
-        Vector3 centre = eye!.GlobalTransform.AffineInverse() * (_lens.GlobalTransform * _aperture.GetCenter());
-        float depth = -centre.Z;
-        if (depth <= eye.Near * .25f) { SetActive(false); return; }
+        Transform3D lensToEye = eye!.GlobalTransform.AffineInverse() * _lens.GlobalTransform;
         float modelTangent = MathF.Tan(Mathf.DegToRad(viewmodelFov) * .5f);
         float worldTangent = MathF.Tan(Mathf.DegToRad(eye.Fov) * .5f);
-        float radius = _aperture.Size.Y * .5f * _lens.GlobalBasis.Y.Length();
-        // The main camera already applies the attachment's zoom. Match its angular image scale at the
-        // projected aperture size instead of multiplying that zoom a second time inside the scope.
-        float projectedDiameter = radius / depth / modelTangent;
-        _camera.Fov = Mathf.RadToDeg(2 * MathF.Atan(worldTangent * projectedDiameter));
-        Vector3 ray = new(centre.X * worldTangent / modelTangent, centre.Y * worldTangent / modelTangent, centre.Z);
-        _camera.GlobalTransform = new Transform3D(Basis.LookingAt(eye.GlobalBasis * ray.Normalized(), eye.GlobalBasis.Y), eye.GlobalPosition);
+        // Keep the optical camera on the player's aim ray. Rotating it toward the recoiling lens and
+        // stretching its image across lens-local UVs made the scene slide/shear independently of the gun.
+        // Instead render a square crop of the main camera, large enough to cover every projected lens
+        // corner. The shader samples it in screen space, so lens translation/rotation only changes the
+        // aperture; the scene and reticle keep the exact same camera aim and existing attachment zoom.
+        float imageScale = .01f;
+        for (int corner = 0; corner < 8; corner++)
+        {
+            Vector3 point = lensToEye * _aperture.GetEndpoint(corner);
+            float depth = -point.Z;
+            if (depth <= eye.Near * .25f) { SetActive(false); return; }
+            imageScale = Math.Max(imageScale, Math.Max(MathF.Abs(point.X), MathF.Abs(point.Y)) / (depth * modelTangent));
+        }
+        _camera.Fov = Math.Clamp(Mathf.RadToDeg(2 * MathF.Atan(worldTangent * imageScale * 1.04f)), 1, 179);
+        OpticalImageScale = MathF.Tan(Mathf.DegToRad(_camera.Fov) * .5f) / worldTangent;
+        _material.SetShaderParameter("optical_image_scale", OpticalImageScale);
+        _camera.GlobalTransform = eye.GlobalTransform;
         _camera.Near = eye.Near;
         _camera.Far = eye.Far;
         _camera.CullMask = eye.CullMask & ~ViewmodelView.RenderLayer;

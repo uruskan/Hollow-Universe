@@ -332,6 +332,26 @@
       "melee": { "damage": 16, "reach": 1.5, "swing": 0.6, "strike": 0.2, "tree": 4, "ore": 1, "structure": 3, "bleed": 0.5 } },
     { "id": 216, "key": "bone-club", "name": "Bone club", "category": "weapons", "condition": 150,
       "description": "A heavy thigh bone with a knob at the end. Hits hard for something so simple.",
-      "melee": { "damage": 24, "reach": 1.6, "swing": 0.9, "strike": 0.33, "tree": 6, "ore": 5, "structure": 6, "bleed": 0 } }
+      "melee": { "damage": 24, "reach": 1.6, "swing": 0.9, "strike": 0.33, "tree": 6, "ore": 5, "structure": 6, "bleed": 0 } },
+    {"id": 217, "key": "metal-window-bars", "name": "Metal window bars", "category": "construction", "description": "Fits a window opening. Repair with a hammer; pick up with building permission.", "building": "door", "door": "metal-window-bars"},
+    {"id": 218, "key": "armoured-window-bars", "name": "Armoured window bars", "category": "construction", "description": "Fits a window opening. Repair with a hammer; pick up with building permission.", "building": "door", "door": "armoured-window-bars"},
+    {"id": 219, "key": "reinforced-glass-window", "name": "Reinforced glass window", "category": "construction", "description": "Fits a window opening. Repair with a hammer; pick up with building permission.", "building": "door", "door": "reinforced-glass-window"},
+    {"id": 237, "key": "horizontal-embrasure", "name": "Horizontal embrasure", "category": "construction", "description": "Fits a window opening. Repair with a hammer; pick up with building permission.", "building": "door", "door": "horizontal-embrasure"},
+    {"id": 236, "key": "vertical-embrasure", "name": "Vertical embrasure", "category": "construction", "description": "Fits a window opening. Repair with a hammer; pick up with building permission.", "building": "door", "door": "vertical-embrasure"},
+    {"id": 222, "key": "wooden-double-door", "name": "Wooden Double Door", "category": "construction", "description": "Fits a wall frame.", "building": "door", "door": "wooden-double-door"},
+    {"id": 223, "key": "armoured-double-door", "name": "Armoured Double Door", "category": "construction", "description": "Fits a wall frame.", "building": "door", "door": "armoured-double-door"},
+    {"id": 224, "key": "large-furnace", "name": "Large furnace", "category": "construction", "description": "Smelts several ore stacks at once. Fuel it with wood.", "deploys": "large-furnace"},
+    {"id": 225, "key": "wooden-barricade", "name": "Wooden barricade", "category": "construction", "description": "A solid timber barrier.", "deploys": "wooden-barricade"},
+    {"id": 226, "key": "wood-compound-wall", "name": "Wood compound wall", "category": "construction", "description": "A tall perimeter wall.", "deploys": "wood-compound-wall"},
+    {"id": 227, "key": "wood-compound-gate", "name": "Wood compound gate", "category": "construction", "description": "A wide double gate for a compound entrance.", "deploys": "wood-compound-gate"},
+    {"id": 228, "key": "stone-compound-wall", "name": "Stone compound wall", "category": "construction", "description": "A tall masonry perimeter wall.", "deploys": "stone-compound-wall"},
+    {"id": 229, "key": "stone-compound-gate", "name": "Stone compound gate", "category": "construction", "description": "A masonry gate with two opening leaves.", "deploys": "stone-compound-gate"},
+    {"id": 230, "key": "windmill", "name": "Wind turbine", "category": "construction", "description": "Produces electricity through one output. Use a Wire Tool to connect its physical port.", "deploys": "windmill"},
+    {"id": 231, "key": "sam-site", "name": "SAM site", "category": "construction", "description": "A powered air defense launcher. Load high velocity rockets; friendly aircraft are excluded.", "deploys": "sam-site"},
+    {"id": 232, "key": "wood-spike-barricade", "name": "Wood spike barricade", "category": "construction", "description": "A spiked timber barrier.", "deploys": "wood-spike-barricade"},
+    {"id": 233, "key": "metal-barricade", "name": "Metal barricade", "category": "construction", "description": "A reinforced metal barrier.", "deploys": "metal-barricade"},
+    {"id": 234, "key": "auto-turret", "name": "Auto turret", "category": "construction", "description": "Uses 10 electricity and passes the remainder onward. Install a firearm and matching ammunition. Hold E to manage power and cupboard-derived or local authorization.", "deploys": "auto-turret"},
+    {"id": 235, "key": "wooden-ladder", "name": "Wooden ladder", "category": "construction", "description": "Place against a wall. Move forward to climb, back to descend, jump to leave.", "deploys": "wooden-ladder"},
+    {"id":238,"key":"wire-tool","name":"Wire Tool","category":"construction","description":"Click an output port, add optional surface routing points, then click an input. Maximum 20 m between ports. Right-click cancels; R disconnects the aimed port.","wiring":{"reach":4,"maxAnchors":32,"draftSeconds":120}}
   ]
 }

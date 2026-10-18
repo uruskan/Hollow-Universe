@@ -5,6 +5,7 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.Capabilities;
+using Hollow.Simulation.Building;
 
 namespace Hollow.Simulation.World;
 
@@ -41,6 +42,7 @@ public abstract class WorldObject : ITargetable, IContainerHolder
 
     /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
     public TargetRef Ref => new(TargetFamily.Thing, Id.Value);
+    public virtual byte ContactSurface(PhysicalSurfaceData data, byte part = 0) => 0;
 
     public abstract StaticKind Kind { get; }
 
@@ -142,8 +144,9 @@ public abstract class WorldObject : ITargetable, IContainerHolder
 /// A placed object (GROUND.md §6): sleeping bag, campfire, furnace, box, workbench, research table; and (G7) the
 /// world's own props (<see cref="WorldProp"/>), which hits, blasts, opening and replication treat the same way.
 /// </summary>
-public class Deployable : WorldObject, IOwned, ICustomNamed
+public class Deployable : WorldObject, IOwned, ICustomNamed, ILockHost
 {
+    public override byte ContactSurface(PhysicalSurfaceData data, byte part = 0) => data.FromDeployable(Def.Key, part);
     public Deployable(EntityId id, DeployableDef def, Vector3 position, Vector3 up, float yaw, EntityId owner)
         : base(id, position, up, yaw)
     {
@@ -182,6 +185,9 @@ public class Deployable : WorldObject, IOwned, ICustomNamed
 
     public float Health { get; set; }
 
+    /// <summary>Authoritative damage time for the shared raid repair delay; saved independently of zone ticks.</summary>
+    public long LastDamagedAtUnixMs { get; set; } = long.MinValue;
+
     public Container? Storage { get; }
 
     public override Container? Container => Storage;
@@ -192,9 +198,15 @@ public class Deployable : WorldObject, IOwned, ICustomNamed
 
     public override string ModelKey => Def.Key;
 
-    public override CapabilitySet CapabilitiesIn(CapabilityData data) => data.Of(Def);
+    public override CapabilitySet CapabilitiesIn(CapabilityData data) => data.Of(Def).With(data.Lock(Lock?.Kind ?? LockKind.None));
 
-    ulong IOwned.OwnerId => Owner.Value;
+    ulong IOwned.OwnerId => Lock?.Owner ?? Owner.Value;
+
+    public DoorLock? Lock { get; internal set; }
+    DoorLock? ILockHost.Lock { get => Lock; set => Lock = value; }
+    bool ILockHost.Lockable => Def.Gate?.LockSocket != null;
+    bool ILockHost.LockGone => Health <= 0;
+    void ILockHost.LockChanged() => Revision++;
 
     /// <summary>The nearest point of its box.</summary>
     public override Vector3 Nearest(Vector3 from) => Combat.Geometry.NearestOnBox(Position, Up, Yaw, Def.HalfExtents, from);
@@ -205,6 +217,26 @@ public class Deployable : WorldObject, IOwned, ICustomNamed
 
     /// <summary>A device burning its fuel.</summary>
     public bool Lit { get; set; }
+
+    /// <summary>Persistent electrical input, switch and storage; delivery/output are derived by PowerSystem.</summary>
+    public ulong PowerSourceEntityId { get; set; }
+    public Electricity.CableRecord? PowerCable { get; set; }
+    public float PowerInput { get; set; }
+    public float PowerConsumed { get; set; }
+    public Authorization.DeviceAuthorizationState Authorization { get; } = new();
+    public bool PowerEnabled { get; set; } = true;
+    public float StoredEnergy { get; set; }
+    public bool Powered { get; set; }
+    public float PowerOutput { get; set; }
+
+    public bool DefenseEnabled { get; set; } = true;
+    public float DefenseYaw { get; set; }
+    public float DefensePitch { get; set; }
+    public long DefenseLastFireTick { get; set; } = -1;
+    public ushort InstalledWeapon { get; set; }
+
+    /// <summary>The compound gate's saved target state.</summary>
+    public bool Open { get; set; }
 
     /// <summary>Ticks until the fuel burning now is spent.</summary>
     public int BurnTicksLeft { get; set; }
@@ -356,6 +388,7 @@ public sealed class DroppedBag : DroppedContainer
 /// <summary>A dead player's body with everything they carried (GROUND.md §6): anyone may take from it.</summary>
 public sealed class Corpse : DroppedContainer
 {
+    public override byte ContactSurface(PhysicalSurfaceData data, byte part = 0) => IsBody ? data.FleshId : data.Find("cloth")?.Id ?? 0;
     public Corpse(EntityId id, string name, EntityId of, int slots, Vector3 position, Vector3 up, float yaw, LifetimeRule lifetime, long despawnTick)
         : base(id, ContainerKind.Corpse, slots, position, up, yaw, lifetime, despawnTick)
     {

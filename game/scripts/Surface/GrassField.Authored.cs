@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using Godot;
 using Hollow.Core;
 using Hollow.Surface;
@@ -97,44 +98,48 @@ public sealed partial class GrassField
         return low * (1 - v) + high * v;
     }
 
-    private void PopulateAuthoredCover(FaceLattice lattice, Vector3D[] points, bool[] bare)
+    private static void PopulateAuthoredCover(BuildContext context, FaceLattice lattice, Vector3D[] points,
+        bool[] bare, CancellationToken cancellation)
     {
-        int n = _latticeSize;
+        int n = context.LatticeSize;
         for (int y = 0; y < n - 1; y++)
-        for (int x = 0; x < n - 1; x++)
         {
-            int a = y * n + x, b = a + 1, c = a + n, d = c + 1;
-            if (bare[a] || bare[b] || bare[c] || bare[d]) continue;
-            long gx = lattice.CornerX + x, gy = lattice.CornerY + y;
-            var r = new Rng(Hash64.Of(0x4752415353UL, (ulong)lattice.Face, unchecked((ulong)gx), unchecked((ulong)gy)));
-            double u = r.Range(0.12, 0.88), v = r.Range(0.12, 0.88);
-            Vector3D at = (points[a] * (1 - u) + points[b] * u) * (1 - v) + (points[c] * (1 - u) + points[d] * u) * v;
-            if (CubeSphere.FromDirection(at.Normalized).Face != lattice.Face) continue;
-            float Value(float[] values, int channel) =>
-                (float)((values[a * 4 + channel] * (1 - u) + values[b * 4 + channel] * u) * (1 - v)
-                    + (values[c * 4 + channel] * (1 - u) + values[d * 4 + channel] * u) * v);
-            double grass = Value(lattice.Nodes, 3), moisture = Value(lattice.Cover, 0);
-            double forest = Value(lattice.Cover, 2), plants = Value(lattice.Cover, 3);
-            double patch = CoverPatch(lattice.Face, (gx + u) / 32, (gy + v) / 32);
-            // The shorter blade layer keeps the meadow closed; authored crowns give it species and height diversity.
-            double density = Math.Clamp(grass * (0.18 + patch * 0.36) + plants * 0.08, 0, 0.6) * BuiltWith.Density;
-            if (!r.Chance(density)) continue;
-            int family = forest > 0.22 && r.Chance(plants * 0.22) ? 3
-                : moisture > 0.48 && patch > 0.55 && r.Chance(0.13) ? 1
-                : patch < 0.38 || (moisture < 0.4 && r.Chance(0.55)) ? 2 : 0;
-            // Fern crowns cover over a metre: sparse groups belong under trees, not one in every grass cell.
-            if (family == 3 && !r.Chance(0.28)) continue;
-            float scale = (float)r.Range(0.8, 1.25);
-            if (family == 0) scale *= 1.25f;
-            if (family == 2) scale *= 0.75f;
-            lattice.Plants.Add(new CoverPlant(at - at.Normalized * 0.025, family, r.NextInt(CoverVariants),
-                (float)r.Range(0, DMath.TwoPi), scale, (float)(0.84 + 0.18 * patch + r.Range(-0.06, 0.06)), (float)r.NextDouble()));
+            cancellation.ThrowIfCancellationRequested();
+            for (int x = 0; x < n - 1; x++)
+            {
+                int a = y * n + x, b = a + 1, c = a + n, d = c + 1;
+                if (bare[a] || bare[b] || bare[c] || bare[d]) continue;
+                long gx = lattice.CornerX + x, gy = lattice.CornerY + y;
+                var r = new Rng(Hash64.Of(0x4752415353UL, (ulong)lattice.Face, unchecked((ulong)gx), unchecked((ulong)gy)));
+                double u = r.Range(0.12, 0.88), v = r.Range(0.12, 0.88);
+                Vector3D at = (points[a] * (1 - u) + points[b] * u) * (1 - v) + (points[c] * (1 - u) + points[d] * u) * v;
+                if (CubeSphere.FromDirection(at.Normalized).Face != lattice.Face) continue;
+                float Value(float[] values, int channel) =>
+                    (float)((values[a * 4 + channel] * (1 - u) + values[b * 4 + channel] * u) * (1 - v)
+                        + (values[c * 4 + channel] * (1 - u) + values[d * 4 + channel] * u) * v);
+                double grass = Value(lattice.Nodes, 3), moisture = Value(lattice.Cover, 0);
+                double forest = Value(lattice.Cover, 2), plants = Value(lattice.Cover, 3);
+                double patch = CoverPatch(lattice.Face, (gx + u) / 32, (gy + v) / 32);
+                // The shorter blade layer keeps the meadow closed; authored crowns give it species and height diversity.
+                double density = Math.Clamp(grass * (0.18 + patch * 0.36) + plants * 0.08, 0, 0.6) * context.Density;
+                if (!r.Chance(density)) continue;
+                int family = forest > 0.22 && r.Chance(plants * 0.22) ? 3
+                    : moisture > 0.48 && patch > 0.55 && r.Chance(0.13) ? 1
+                    : patch < 0.38 || (moisture < 0.4 && r.Chance(0.55)) ? 2 : 0;
+                // Fern crowns cover over a metre: sparse groups belong under trees, not one in every grass cell.
+                if (family == 3 && !r.Chance(0.28)) continue;
+                float scale = (float)r.Range(0.8, 1.25);
+                if (family == 0) scale *= 1.25f;
+                if (family == 2) scale *= 0.75f;
+                lattice.Plants.Add(new CoverPlant(at - at.Normalized * 0.025, family, r.NextInt(CoverVariants),
+                    (float)r.Range(0, DMath.TwoPi), scale, (float)(0.84 + 0.18 * patch + r.Range(-0.06, 0.06)), (float)r.NextDouble()));
+            }
         }
     }
 
     private void UpdateAuthoredCover(Vector3D camera, bool show)
     {
-        _coverRoot.Visible = show;
+        _coverRoot.Visible = show && (_diagnosticLayers & GroundCoverLayers.Authored) != 0;
         if (!show || _field == null) return;
         _coverRoot.Transform = _frame.Anchor(_field.Anchor);
         if (!_coverDirty && Vector3D.Distance(camera, _coverCamera) < 2) return;

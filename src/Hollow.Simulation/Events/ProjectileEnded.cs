@@ -17,7 +17,12 @@ public readonly record struct ProjectileEnded(
     TargetRef Target = default,
     uint Seq = 0) : IZoneEvent
 {
-    /// <summary>What it ended on (only the family matters).</summary>
+    public AttackId Attack { get; init; }
+    public uint Tick { get; init; }
+    public int Battery { get; init; }
+    public ushort Ammo { get; init; }
+    public SurfaceContact Contact { get; init; }
+    /// <summary>What it ended on, before damage could remove it.</summary>
     public TargetRef Target { get; init; } = Target;
 
     /// <summary>0 for an arrow.</summary>

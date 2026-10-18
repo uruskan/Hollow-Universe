@@ -1,0 +1,77 @@
+{
+  "schema": "hollow.cover-root-preview-candidates.v1",
+  "status": "unreviewed-logical-group-candidates",
+  "runtimeAdmitted": false,
+  "catalogSha256": "11f87351b1bf2486dd645c12d46edcaf2c0457c2f66db987dbf0dfbba6599239",
+  "inspectionSha256": "32ba9fa1c9d62b87ee5bacff5d20bd4d618a4951db05d75168e26964a5fa4a86",
+  "coordinateSpace": "Source node TRS applied; glTF Y-up metres. Preview only changes basis to Blender Z-up; no placement, scaling, root snapping or deformation.",
+  "sourceWindSemantics": "Unknown; raw source bytes remain authenticated and are not used as root, phase or parent identifiers.",
+  "notes": [
+    "Root centres are means of explicitly selected support corners, except named basal components which retain their unreviewed proposal root. These are candidates for textured review, not approved recipes.",
+    "The cotton central crown intentionally moves all central stalks and detached flower geometry together. It does not infer which stalk owns each flower fragment.",
+    "Every source triangle is assigned once. Group tint preserves the material alpha cutoff. Root markers are annotations, not source geometry.",
+    "Near/mid fern source geometry matches, but every proposal hash is bound independently. Cotton has explicit separate near/mid triangle maps.",
+    "This file is not accepted by ground_cover_roots.py --review. Review, export/import identity and drawn-terrain contact remain outstanding."
+  ],
+  "billboardPlan": {
+    "status": "proposal-only; no billboard in this harness",
+    "anchor": "Carry a variant-level logical crown anchor from the reviewed near mesh into every LOD. The billboard plane boundary is not a root: fern v0's bottom is about -0.16 m and includes transparent padding and frond silhouette.",
+    "schema": "Add an explicit bounded virtual support point representation for billboard intent, alongside the existing corner-supported stem representation. Bind the virtual anchor and support points to the near geometry/review hashes and logical plant key. Never synthesize roots from an alpha bounding box or lowest polygon vertex.",
+    "transform": "Resolve the variant anchor against drawn terrain once, then rotate the billboard's authored vertex-minus-anchor around that resolved anchor. Camera-facing rotation must not move the anchor. Preserve authored vertical and horizontal offsets; no bottom-edge snapping.",
+    "groups": "A far cotton billboard represents the complete clump, including the separate near basal blades. Its recipe needs a reviewed clump footprint and maximum support-height/crease difference; a single far plane cannot reproduce independent near-blade deformation.",
+    "validation": "Review the actual alpha texture and virtual anchor together. Render near/mid/far overlap on flat and two-direction slopes, terrain morph/seam/rebase, and camera orbit. Reject the complete billboard coherently if required support is missing. Do not silently stretch a billboard over unsupported soil.",
+    "admission": "No schema or runtime admission until the selected virtual support points, LOD correspondence and rendered transitions are explicitly reviewed."
+  },
+  "meshes": [
+    {
+      "meshKey": "fern/fern_v0_lod0",
+      "proposalSha256": "0969399a882163a0cf474d501f3967edc8e4ea068afc7458b5f55a12593224c7",
+      "geometrySha256": "31261f5dc90dc788226654bdd0ae48d36539ebfab51e969bf78d1c983315aca2",
+      "groups": [{"key": "central-stem", "triangleRanges": [[0,87]], "supportCornerIds": [43,44]}]
+    },
+    {
+      "meshKey": "fern/fern_v0_lod1",
+      "proposalSha256": "cf152e49527c8c9ab37625ac12445213eca7c9d52bf8143c4d4be008e5a4b282",
+      "geometrySha256": "31261f5dc90dc788226654bdd0ae48d36539ebfab51e969bf78d1c983315aca2",
+      "groups": [{"key": "central-stem", "triangleRanges": [[0,87]], "supportCornerIds": [43,44]}]
+    },
+    {
+      "meshKey": "fern/fern_v1_lod0",
+      "proposalSha256": "e06d8c2ea676a9d396ab15e52aa750e762b1d4221b3625563998ea85537cc8ff",
+      "geometrySha256": "6d4f57fd9dc3e48517da2573b0d630b17e220fe816abea65325789635beaf87e",
+      "groups": [{"key": "central-stem", "triangleRanges": [[0,71]], "supportCornerIds": [97,98]}]
+    },
+    {
+      "meshKey": "fern/fern_v1_lod1",
+      "proposalSha256": "cad21529a65f11b920d2d7414221583bbb85b777d3d2409039d398c4f26652f3",
+      "geometrySha256": "6d4f57fd9dc3e48517da2573b0d630b17e220fe816abea65325789635beaf87e",
+      "groups": [{"key": "central-stem", "triangleRanges": [[0,71]], "supportCornerIds": [97,98]}]
+    },
+    {
+      "meshKey": "fern/fern_v2_lod0",
+      "proposalSha256": "ed5577e2d045bff692ad1b19386e33135134c86737024882b2debe09026730e7",
+      "geometrySha256": "25948a9d5eb1c74a0977554825ea27948812f630ff2016888f056f89de9d1aa8",
+      "groups": [{"key": "central-stem", "triangleRanges": [[0,57]], "supportCornerIds": [7,11]}]
+    },
+    {
+      "meshKey": "fern/fern_v2_lod1",
+      "proposalSha256": "4484440677df1eb55f66106da6badb38afec379f99fbb8deac99f974b4c39eb8",
+      "geometrySha256": "25948a9d5eb1c74a0977554825ea27948812f630ff2016888f056f89de9d1aa8",
+      "groups": [{"key": "central-stem", "triangleRanges": [[0,57]], "supportCornerIds": [7,11]}]
+    },
+    {
+      "meshKey": "cotton/cotton_v2_lod0",
+      "proposalSha256": "924ab97272bdbfe01825a2d167b3cdf0f1bd425b5f1b2d121f2d2a08bc41fb14",
+      "geometrySha256": "be4aeccfddaa764ff5aa3596c1bd20a9fcabfa34b42a073003e0ac5aa0957aec",
+      "groups": [{"key": "central-crown", "triangleRanges": [[0,879],[1440,2368]], "supportCornerIds": [2103,2101,2205,2203,2301,2299,2397,2395,4335,4333,4461,4459,4575,4573,4707,4705]}],
+      "basalProposalComponents": ["component-880","component-908","component-936","component-964","component-992","component-1020","component-1048","component-1076","component-1104","component-1132","component-1160","component-1188","component-1216","component-1244","component-1272","component-1300","component-1328","component-1356","component-1384","component-1412"]
+    },
+    {
+      "meshKey": "cotton/cotton_v2_lod1",
+      "proposalSha256": "a4e0b1ca58c71b6d5f1e8263338b0d7cdd631d0953e73f64bbc80c5c2bd27e8f",
+      "geometrySha256": "4ab3c9d17abd1b8542d8a2fecba37d1d175416288e228c570e2d1d69060746a2",
+      "groups": [{"key": "central-crown", "triangleRanges": [[0,839],[1240,2120]], "supportCornerIds": [2103,2101,2175,2173,2239,2241,2307,2305,3730,3732,3819,3817,3903,3901,3997,3999]}],
+      "basalProposalComponents": ["component-840","component-860","component-880","component-900","component-920","component-940","component-960","component-980","component-1000","component-1020","component-1040","component-1060","component-1080","component-1100","component-1120","component-1140","component-1160","component-1180","component-1200","component-1220"]
+    }
+  ]
+}

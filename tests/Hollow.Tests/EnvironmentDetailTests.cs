@@ -75,7 +75,7 @@ public static class EnvironmentDetailTests
     {
         var (system, earth) = StartingWorld.Find();
         WalkingWorld world = WalkingWorld.For(system, earth, 1200);
-        var independent = new MonumentPlacements(world, WalkingWorld.SeedFor(Hash64.Of(system.Address.Value, earth.Path)));
+        MonumentPlacements independent = WalkingWorld.For(system, earth, world.Radius, world.Parameters).Monuments;
         Assert.True(world.Monuments.All.SequenceEqual(independent.All), "independent server/client sites agree");
         Assert.True(world.Monuments.All.Count >= 8, "a planet has explorable sites, not a single showcase");
         Assert.True(world.Monuments.All.Select(p => p.Model).Distinct().Count() >= 3, "multiple original monument types appear");
@@ -157,9 +157,12 @@ public static class EnvironmentDetailTests
     {
         var (system, earth) = StartingWorld.Find();
         WalkingWorld world = WalkingWorld.For(system, earth, 1200);
-        var independent = new CliffPlacements(world, WalkingWorld.SeedFor(Hash64.Of(system.Address.Value, earth.Path)));
+        CliffPlacements independent = WalkingWorld.For(system, earth, world.Radius, world.Parameters).Cliffs;
         CliffPlacement? first = null;
         int count = 0;
+        int totalPieces = 0;
+        var modelCounts = new Dictionary<string, int>();
+        var reviewSites = new Dictionary<string, CliffPlacement>();
         for (long i = 0; i < TileKey.CountAt(world.Cliffs.Level); i++)
         {
             TileKey key = TileKey.FromIndex(world.Cliffs.Level, i)!.Value;
@@ -168,6 +171,13 @@ public static class EnvironmentDetailTests
             if (placement is not { } cliff) continue;
             first ??= cliff;
             count++;
+            foreach (CliffPlacement member in world.Cliffs.FormationAt(key))
+            {
+                totalPieces++;
+                string model = CliffGeometry.All[member.Model].Key;
+                modelCounts[model] = modelCounts.GetValueOrDefault(model) + 1;
+                reviewSites.TryAdd(model, member);
+            }
             Assert.Near(1, Vector3D.Dot(Vector3D.Cross(cliff.Right, cliff.Up), cliff.Forward), 1e-10, "right-handed planet-relative basis");
             foreach (Vector3D vertex in CliffGeometry.All[cliff.Model].Positions)
                 Assert.True(vertex.Length * cliff.Scale <= CliffPlacements.MaximumExtent, "shared streaming/collision bound contains scan");
@@ -183,8 +193,19 @@ public static class EnvironmentDetailTests
         double lat = DMath.Asin(sample.Up.Y) * DMath.RadToDeg;
         double lon = DMath.Atan2(-sample.Up.Z, sample.Up.X) * DMath.RadToDeg;
         Fixtures.Report($"Earth scanned formations {count}; first {lat:0.0000}, {lon:0.0000}; collision adds {actual.TriangleCount - baseMesh.TriangleCount} triangles");
+        Fixtures.Report($"Earth cliff pieces {totalPieces}: " + string.Join(", ", modelCounts.Select(p => $"{p.Key}={p.Value}")));
+        foreach (var (model, site) in reviewSites)
+        {
+            double siteHeight = CliffGeometry.All[site.Model].Height * site.Scale;
+            ReportCapture(model + " base/close", world, site.Position + site.Downslope * 18,
+                site.Position + site.Up * siteHeight * 0.25, 0);
+            ReportCapture(model + " face/medium", world, site.Position + site.Downslope * 42,
+                site.Position + site.Up * siteHeight * 0.55, 2);
+            ReportCapture(model + " top/distant", world, site.Position + site.Downslope * 110,
+                site.Position + site.Up * siteHeight, siteHeight);
+        }
         double height = CliffGeometry.All[sample.Model].Height * sample.Scale;
-        ReportCapture("cliff exterior", world, sample.Position + sample.Up * height * 0.55 + sample.Forward * 30,
+        ReportCapture("cliff exterior", world, sample.Position + sample.Up * height * 0.55 + sample.Downslope * 30,
             sample.Position + sample.Up * height * 0.7, 1.5);
     }
 

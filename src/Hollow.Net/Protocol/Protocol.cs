@@ -44,7 +44,23 @@ public static partial class Protocol
     // shared scanned cliff collision changes geometry beyond the JSON content hash.
     // 29: held action item/start tick, including accepted uses and repairs.
     // 30: admin construction tools and craft-job payment provenance.
-    public const uint Version = 30;
+    // 31: explicit attack identity, reconciliation and authoritative projectile lifecycle.
+    // 32: Earth terrain revision 2; peers must generate identical coastlines and collision.
+    // 33: cliff formation generation revision 2 changes transformed collision solids on every WalkingWorld body.
+    // 34: replicated compound power, defense and articulation; Earth layout variant 5 / terrain revision 4.
+    // 35: dynamic deployable capabilities and the shared key/code lock kind on compound gates.
+    // 36: port-addressed cables, Wire Tool intents and separate per-device authorization facts.
+    // 37: normalized ice/alpine biome allocation changes generated populations (Earth save revision 5, others 2).
+    // 38: verify physical descriptor and qualification compatibility before login and world publication.
+    // 39: authoritative projectile material, target, normal and moving-surface attachment metadata.
+    public const uint Version = 39;
+
+    /// <summary>Fixed upper bound for Hello, WorldOffer, WorldAccept and Welcome, including their type byte.</summary>
+    public const int MaxWorldHandshakeBytes = 512;
+
+    /// <summary>Live connections awaiting world acceptance have a separate finite count and deadline.</summary>
+    public const int MaxPendingWorldJoins = 128;
+    public const int WorldHandshakeTimeoutSeconds = 10;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -78,6 +94,7 @@ public enum GoodbyeReason : byte
     ServerShutdown,
     Timeout,
     ContentMismatch,
+    EnvironmentMismatch,
 }
 
 public enum EntityKind : byte
@@ -161,4 +178,3 @@ public enum TeammateState : byte
     Down,
     Dead,
 }
-

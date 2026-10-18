@@ -22,11 +22,12 @@ internal readonly record struct RayQuery(Vector3 Origin, Vector3 Direction, floa
     public ulong IgnoreShip { get; init; }
 
     /// <summary>Puts a thing met at <paramref name="t"/> along the ray into <paramref name="best"/> when nearer (a tie keeps the first found).</summary>
-    public void Consider(ref TraceHit best, float t, TargetRef target, HitRegion region = HitRegion.None)
+    public void Consider(ref TraceHit best, float t, TargetRef target, HitRegion region = HitRegion.None, Vector3 normal = default, byte surface = 0, TargetRef contactTarget = default)
     {
         if (t >= 0 && (best.Distance < 0 || t < best.Distance))
         {
-            best = new TraceHit { Target = target, Region = region, Distance = t, Point = Origin + Direction * t };
+            best = new TraceHit { Target = target, ContactTarget = contactTarget.IsNone ? target : contactTarget, Region = region, Distance = t, Point = Origin + Direction * t,
+                Normal = normal.LengthSquared() > 1e-12f ? Vector3.Normalize(normal) : -Direction, Surface = surface };
         }
     }
 
@@ -113,7 +114,9 @@ public sealed class DamageSystem : ZoneSystem
         _receivers = Registry<IDamageReceiver>.ForEnum<TargetFamily>("damage receivers", complete: false, TargetFamily.None);
         Register(new CombatSystem.CharacterReceiver(Zone));
         Register(new AnimalSystem.AnimalReceiver(Zone));
-        Register(new CombatSystem.NatureReceiver(Zone));
+        // Movement-only zones have no natural provider or content catalogue. Their damage pipeline still
+        // exists for ship collisions, but must not construct a receiver which depends on those resources.
+        if (Zone.Nature != null) Register(new CombatSystem.NatureReceiver(Zone));
         Register(new ThingSystem.DeployableReceiver(Zone));
         Register(new ShipSystem.ShipReceiver(Zone));
         Register(new BuildingSystem.BuildingReceiver(Zone));
@@ -144,6 +147,15 @@ public sealed class DamageSystem : ZoneSystem
         {
             receiver.Raycast(ray, ref best);
         }
+        if (best.Hit)
+        {
+            TargetRef contactTarget = best.ContactTarget.IsNone ? best.Target : best.ContactTarget;
+            ITargetFamily? family = Zone.Content == null ? null : Zone.Targets().FamilyOf(contactTarget.Family);
+            byte surface = best.Surface != 0 ? best.Surface : family?.Surface(contactTarget, best.Point) ?? 0;
+            TargetPose? pose = null;
+            if (contactTarget.Family != TargetFamily.Ground && family != null && family.TryPoseAt(contactTarget, viewTick, out TargetPose at)) pose = at;
+            best.Contact = SurfaceContact.At(contactTarget, surface, best.Point, best.Normal, pose);
+        }
         return best;
     }
 
@@ -171,7 +183,8 @@ public sealed class DamageSystem : ZoneSystem
         }
         if (result.Landed && request.By is { } by && result.Victim != by.Id && request.Markers.Has(request.Hit.Target.Family))
         {
-            Events.Add(new HitConfirmed(By: by.Id, Victim: result.Victim, Target: request.Hit.Target, Region: request.Hit.Region, Amount: result.Dealt, Flag: result.Killed, Downed: result.Downed, Point: request.Hit.Point, Weapon: request.Weapon));
+            Events.Add(new HitConfirmed(By: by.Id, Victim: result.Victim, Target: request.Hit.Target, Region: request.Hit.Region, Amount: result.Dealt, Flag: result.Killed, Downed: result.Downed, Point: request.Hit.Point, Weapon: request.Weapon)
+            { Attack = request.Attack, ActionTick = request.ActionTick });
         }
         return result;
     }
@@ -231,13 +244,13 @@ public sealed class DamageSystem : ZoneSystem
     /// <param name="stuckTo">What the explosive was stuck to (it takes the table whole), or none.</param>
     /// <param name="on">What it went off on (the family, for the explosion's look): what it was stuck to or lay on.</param>
     public BlastReport Blast(BlastStats blast, Vector3 at, Vector3 normal, TargetRef stuckTo, TargetFamily on, EntityId attacker, string attackerName,
-        ushort item, EntityId explosive = default, bool round = false)
+        ushort item, EntityId explosive = default, bool round = false, AttackId attack = default, uint actionTick = 0)
     {
         // (A blast set off by another's consequences gets a list of its own.)
         List<BlastTarget> targets = _blasts++ == 0 ? _blastTargets : new List<BlastTarget>();
         try
         {
-            return Blast(targets, blast, at, normal, stuckTo, on, attacker, attackerName, item, explosive, round);
+            return Blast(targets, blast, at, normal, stuckTo, on, attacker, attackerName, item, explosive, round, attack, actionTick);
         }
         finally
         {
@@ -246,7 +259,7 @@ public sealed class DamageSystem : ZoneSystem
     }
 
     internal BlastReport Blast(List<BlastTarget> targets, BlastStats blast, Vector3 at, Vector3 normal, TargetRef stuckTo, TargetFamily on,
-        EntityId attacker, string attackerName, ushort item, EntityId explosive, bool round)
+        EntityId attacker, string attackerName, ushort item, EntityId explosive, bool round, AttackId attack = default, uint actionTick = 0)
     {
         var report = new BlastReport();
         float radius = (float)blast.Radius;
@@ -302,6 +315,8 @@ public sealed class DamageSystem : ZoneSystem
                 Attacker = attacker,
                 AttackerName = attackerName,
                 Weapon = item,
+                Attack = attack,
+                ActionTick = actionTick,
                 Delivery = DamageDelivery.Blast,
                 Channel = DamageType.Explosive,
                 Amounts = new DamageAmounts

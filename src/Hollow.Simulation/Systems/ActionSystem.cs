@@ -51,6 +51,8 @@ public sealed class ActionSystem : ZoneSystem
         }
         if (Things.StaticOf(e) is { Container: not null } thing)
         {
+            if (thing is Deployable { Def.Defense: not null } defense && !Zone.Defenses().CanManage(defense, p.Id))
+                return default;
             return (thing, null, e);
         }
         if (Players.PlayerOf(e) is { Dead: false } sleeper && (sleeper.Sleeping || sleeper.Wounded))

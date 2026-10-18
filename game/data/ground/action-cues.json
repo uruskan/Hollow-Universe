@@ -1,0 +1,10 @@
+{
+  "source": "Fractions of the shared gameplay duration. Both local and remote presentations consume these cues, cancelling with their owning action. Past cues are skipped when joining an action late.",
+  "actions": {
+    "reload": [
+      { "at": 0, "role": "magOut" },
+      { "at": 0.55, "role": "magIn" },
+      { "at": 0.85, "role": "rack" }
+    ]
+  }
+}

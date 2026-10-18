@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Threading;
 
 namespace HollowUniverse.UI.Model;
 
@@ -14,7 +15,8 @@ namespace HollowUniverse.UI.Model;
 /// <see cref="Radius"/> in metres; and its grid of <see cref="Cells"/> × <see cref="Cells"/> cells a face, named by
 /// <c>WorldGrid</c> ("C K12").
 /// </summary>
-public sealed record MapView(string CacheKey, int Pixels, Func<byte[]> Render, double Radius, int Cells);
+public sealed record MapView(string CacheKey, int Pixels, Func<byte[]> Render, double Radius, int Cells,
+    Func<CancellationToken, byte[]>? RenderCancellable = null);
 
 /// <summary>What a map marker is.</summary>
 public enum MapMarkerKind : byte

@@ -107,7 +107,7 @@ public sealed partial class BuildingWorld
         }
         var door = new Door(id, def, frame, flip & 1, owner)
         {
-            Open = open,
+            Open = open && def.Opens,
             Health = Math.Clamp(health, 0, def.Health),
         };
         frame.Door = door;
@@ -128,33 +128,30 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>Puts a key lock back on a door, with its number (later locks get higher ones).</summary>
-    public KeyLock RestoreKeyLock(Door door, EntityId id, ulong owner, int keyCode, bool locked)
+    public KeyLock RestoreKeyLock(ILockHost door, EntityId id, ulong owner, int keyCode, bool locked)
     {
-        keyCode = Math.Clamp(keyCode, 1, MaxKeyCode);
-        var keyLock = new KeyLock(id, owner, keyCode) { Locked = locked };
+        var keyLock = LockState.RestoreKey(id, owner, keyCode, locked);
         door.Lock = keyLock;
-        if (keyCode >= _nextKeyCode)
-        {
-            _nextKeyCode = keyCode % MaxKeyCode + 1;
-        }
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        ObserveLock(keyLock);
+        door.LockChanged();
         return keyLock;
     }
 
-    /// <summary>Puts a code lock back on a door: its code's hash (0: none set), locked or not, and who it lets in.</summary>
-    public CodeLock RestoreCodeLock(Door door, EntityId id, ulong owner, ulong codeHash, bool locked, IEnumerable<ulong> authorised)
+    /// <summary>Advances the shared key allocator past a restored lock on any host.</summary>
+    public void ObserveLock(DoorLock? fitted)
     {
-        var codeLock = new CodeLock(id, owner) { CodeHash = codeHash, Locked = locked && codeHash != 0 };
-        codeLock.AuthorisedList.Clear();
-        foreach (ulong player in authorised.Distinct().Take(Data.LockMaxAuthorised))
-        {
-            codeLock.AuthorisedList.Add(player);
-        }
-        door.Lock = codeLock;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
-        return codeLock;
+        if (fitted is KeyLock key && key.KeyCode >= _nextKeyCode)
+            _nextKeyCode = key.KeyCode % MaxKeyCode + 1;
     }
 
+    /// <summary>Puts a code lock back on its host without exposing its secrets to clients.</summary>
+    public CodeLock RestoreCodeLock(ILockHost door, EntityId id, ulong owner, ulong codeHash, bool locked, IEnumerable<ulong> authorised)
+    {
+        var codeLock = LockState.RestoreCode(id, owner, codeHash, locked, authorised, Data.LockMaxAuthorised);
+        door.Lock = codeLock;
+        door.LockChanged();
+        return codeLock;
+    }
     /// <summary>
     /// Puts a claim device back on its piece: where it stood in the frame, its health and authorised list; a mirror
     /// passes the server's body. Null when the piece already has one or isn't a slab.

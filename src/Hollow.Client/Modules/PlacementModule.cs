@@ -123,7 +123,8 @@ public sealed class PlacementModule : ClientModule
             {
                 if (Vector3.DistanceSquared(thing.Position, point) <= radius * radius && thing.Deployable(client.Content) is { } def)
                 {
-                    into.Add(new PlacedThing(new TargetRef(TargetFamily.Thing, thing.Id.Value), def, thing.Position, thing.Up, thing.Yaw));
+                    into.Add(new PlacedThing(new TargetRef(TargetFamily.Thing, thing.Id.Value), def, thing.Position, thing.Up, thing.Yaw,
+                        thing.Utility.Open, thing.Utility.Lock));
                 }
             }
         }

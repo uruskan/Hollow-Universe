@@ -215,7 +215,8 @@ public static class SoundCatalogueTests
                         Need(key, "shot", "magOut", "magIn", "rack", "dryFire");
                         break;
                     case "door":
-                        Need(key, "open", "close");
+                        Need(key, "place");
+                        if (ContentFixture.Content.Building.Door(key)?.Opens != false) Need(key, "open", "close");
                         break;
                     case "lock":
                     case "explosive":
@@ -224,13 +225,17 @@ public static class SoundCatalogueTests
                 }
             }
         }
-        // Every door kind of the building rules.
-        using (JsonDocument building = JsonDocument.Parse(File.ReadAllText(Path.Combine(data, "building.json"))))
+        // Follow the rule capability: stationary window fittings are placed but cannot open or close.
+        foreach (var door in ContentFixture.Content.Building.Doors)
         {
-            foreach (JsonElement door in building.RootElement.GetProperty("doors").EnumerateArray())
-            {
-                Need(door.GetProperty("key").GetString()!, "open", "close");
-            }
+            Need(door.Key, "place");
+            if (door.Opens) Need(door.Key, "open", "close");
+        }
+        // Compound gates and fuelled devices extend the same roles; adding a variant cannot silently omit them.
+        foreach (var deployable in ContentFixture.Content.Deployables)
+        {
+            if (deployable.Gate != null) Need(deployable.Key, "place", "open", "close");
+            if (deployable.Device != null) Need(deployable.Key, "loop", "ignite", "extinguish", "open", "close");
         }
         // Every footstep the rules can ask for, and every ambience bed and accent.
         foreach (string key in Footsteps.AllKeys().Concat(new AmbienceLevels().Beds().Select(b => b.Key))

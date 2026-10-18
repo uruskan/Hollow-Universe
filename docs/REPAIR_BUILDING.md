@@ -1,5 +1,57 @@
 # Building repair — 15 October 2026
 
+## N10 roof integration — 17 October 2026
+
+**12:54 local: all five matching building/debris pairs and minimal authoritative collision
+change are installed. Validation stopped after a guard receipt error; N10 remains open.**
+Square and triangular roofs retain their sloping decks, pivots, materials, eave/seam detail
+and render LODs. Full-height gable panels, imported/simulation gable hulls and their fragments
+were removed together. The private `PieceShapes.Roof` method is byte-identical; its roof
+branch no longer adds `Gables`, and the unused helper/constant were removed.
+
+Placement, support, footprints, catalogue/socket declarations, square Top poses, wire IDs
+and persistence are unchanged. Adjacent supported roofs use the existing placement path.
+The broader side-socket/support/save proposal was set aside at 01:00; the parked source
+under `.artifacts/recovery/p7-paused-source-20261017/` was not restored.
+
+All ten final candidates and twenty source/merge/fragment receipt chains were verified.
+Eleven original targets and ten import settings were backed up under
+`.artifacts/p7-roofs/integration-r1/`. Only ten GLBs changed among the 63 protected files;
+the other 53 files and all 144 prior frozen inputs still match. The old freeze is preserved.
+
+Current validation (17 October, 14:38 local): **4/4 RoofPanelTests** and **20/20 building,
+network, persistence and gib tests** passed using the existing compiled DLL. Five architecture
+checks and the building-fit check also passed in the earlier incomplete attempt; that failed
+wrapper record remains preserved. The original build stdout reports success with zero
+warnings/errors in 37.55 seconds, alongside its retained receipt-serialization failure.
+One incremental **Godot 4.7.2 .NET import passed in 11.902 seconds, exit 0**, importing exactly
+the ten roof/debris packs without warnings/errors. Their ten refreshed scene caches match
+both the current GLB source checksums and recorded destination checksums. All ten UIDs,
+1,723 import-settings files, 156 frozen inputs and the staged index are unchanged.
+A separate 1600x900 Maximum/LOD0 metal-square house capture now saved with ready=True and
+exit 0 through Vulkan Forward+; the front gable is visibly open. A subsequent read-only
+geometry comparison found unchanged apex/deck coordinates and a representative backing
+slit already present in the old repaired metal roof. The preserved raw backing face exists;
+the existing coplanar repair groups faces whose individually chosen projection axes differ,
+causing a false overlap/subtraction. P7 records the exact raw triangle pair and coordinates.
+The one-expression correction now chooses a consistent projection axis per rounded plane
+key. The initial 15:12 broad-Python-filter refusal is preserved. After root reviewed an
+exact helper-service allowlist, all eight r2 guard fixture groups passed and the separately
+granted 15:21 regression passed **5/5 groups, 36 tiny repair calls, exit 0**, in 1.445 seconds.
+The retained old tool reproduced missing backing coverage; the correction preserved it.
+Overlap union, winding, axis ties/orders, attributes/metadata and byte determinism passed.
+All 2,137 pinned inputs remained unchanged. **Installed assets were not repaired or replaced**;
+full-pack/candidate geometry and visual acceptance still require separate bounded work.
+No process was stopped, no new cap/slab geometry was added, and the slot is released.
+Godot also reported **30 ObjectDB instances leaked at exit**, routed separately to P8.
+Source, user graphics preferences and index were preserved. **This one view and bounded
+geometry diagnosis do not establish clean-log acceptance or coverage of other grades/shapes,
+hosted placement, walking/shot collision or fracture behavior; N10 remains open.**
+
+See [P7's report](repair-results/P7-building.md) and the retained
+`integration-r1/guard-build/post-run-inspection.json` for the stop/release evidence.
+Further execution requires a separate coordinator grant.
+
 The historical L2/L4–11 report is evidence of symptoms, not a completed-fix checklist.
 This batch changes the shared engine-free placement/stability rules and the actual building meshes.
 

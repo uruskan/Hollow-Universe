@@ -184,8 +184,9 @@ public partial class CharacterPoser : SkeletonModifier3D
     /// <summary>
     /// Two-bone IK: the hand reaches <paramref name="target"/> (skeleton space) with the elbow bent towards
     /// <paramref name="poleDirection"/> (relative to the shoulder), and takes the target's orientation.
+    /// Zero wristTwist preserves the base forearm twist for an additive pose such as item inspection.
     /// </summary>
-    public static void ReachArm(Skeleton3D s, int upper, int lower, int hand, Transform3D target, float weight, Vector3 poleDirection)
+    public static void ReachArm(Skeleton3D s, int upper, int lower, int hand, Transform3D target, float weight, Vector3 poleDirection, float wristTwist = 0.65f)
     {
         Vector3 shoulder = s.GetBoneGlobalPose(upper).Origin;
         Vector3 elbow = s.GetBoneGlobalPose(lower).Origin;
@@ -202,7 +203,7 @@ public partial class CharacterPoser : SkeletonModifier3D
         Quaternion neutralFore = to * restRelative.Inverse();
         Quaternion delta = neutralFore * fore.Basis.GetRotationQuaternion().Inverse();
         float twist = 2f * MathF.Atan2(new Vector3(delta.X, delta.Y, delta.Z).Dot(axis), delta.W);
-        Turn(s, lower, new Quaternion(axis, Wrap(twist) * 0.65f));
+        Turn(s, lower, new Quaternion(axis, Wrap(twist) * wristTwist));
         SetGlobalBasis(s, hand, new Basis(to));
     }
 

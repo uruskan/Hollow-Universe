@@ -24,6 +24,12 @@ public partial class HeldItemEditor
         VectorField(placement, "Position · m", () => FpsPlacementPosition, v => Edit("fps.position", p => SetFpsPlacementPosition(p, v)));
         VectorField(placement, "Rotation · degrees", () => FpsPlacementRotation, v => Edit("fps.rotation", p => SetFpsPlacementRotation(p, v)), degrees: true);
         VBoxContainer legacyPlacement = ConditionalSection(placement, () => !SkeletalClipSelected);
+        Heading(legacyPlacement, "Complete first-person rig");
+        Note(legacyPlacement, "Compose the solved arms and item together. More negative Z makes the complete assembly smaller on screen without stretching its grip. This offset fades out when aiming.");
+        VectorField(legacyPlacement, "Rig position · m", () => _profile.FirstPersonRig?.Position ?? Vector3.Zero,
+            v => Edit("rig.position", p => (p.FirstPersonRig ??= new HeldPresentationPose()).Position = v));
+        VectorField(legacyPlacement, "Rig rotation · degrees", () => _profile.FirstPersonRig?.Rotation ?? Vector3.Zero,
+            v => Edit("rig.rotation", p => (p.FirstPersonRig ??= new HeldPresentationPose()).Rotation = v), degrees: true);
         if (_held.Kind is HeldKind.Pistol or HeldKind.Rifle || _held.LeftHanded)
         {
             Heading(legacyPlacement, "Aimed / drawn placement");
@@ -62,7 +68,7 @@ public partial class HeldItemEditor
         Label handNote = Note(hands, "");
         _refreshFields.Add(() => handNote.Text = SkeletalClipSelected
             ? "Adjust the holding hand's grip and finger fit. The other hand, wrists, elbows and shoulders keep their source animation."
-            : "Grip offsets are relative to the item's grip socket. Wrist offsets and elbow hints refine the arm solve. These settings are shared by FPS and TPS.");
+            : "Grip offsets are relative to the item's grip socket. Wrist offsets and elbow hints refine the arm solve. These settings are shared by FPS and TPS, except the additional FPS shoulder offset.");
         var hand = new OptionButton(); hand.AddItem("Right hand"); hand.AddItem("Left / support hand"); hand.Select(_hand);
         hand.ItemSelected += i => { _hand = (int)i; RefreshFields(); };
         _refreshFields.Add(() =>
@@ -81,6 +87,8 @@ public partial class HeldItemEditor
         Heading(armSolve, "Arm solve");
         VectorField(armSolve, "Elbow pole · m", () => Hand.Pole, v => EditHand("pole", h => h.Pole = v));
         VectorField(armSolve, "Shoulder offset · m", () => Hand.Shoulder, v => EditHand("shoulder", h => h.Shoulder = v));
+        VectorField(armSolve, "Additional shoulder offset · FPS only · m", () => Hand.FirstPersonShoulderOffset,
+            v => EditHand("firstPersonShoulder", h => h.FirstPersonShoulderOffset = v));
         ScalarField(hands, "Handle radius · m", () => Hand.Radius, v => EditHand("radius", h => h.Radius = v), 0, 0.15, 0.001);
         ScalarField(hands, "Palm seat · m", () => Hand.Seat, v => EditHand("seat", h => h.Seat = v), 0, 0.2, 0.001);
         Note(hands, "Radius and seat edits keep authored curls unchanged. Fit wraps handle grips for this body; open/support grips use their preset. Refine the joints below and inspect from orbit. Undo restores the previous curls.");

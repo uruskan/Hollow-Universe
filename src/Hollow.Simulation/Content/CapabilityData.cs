@@ -141,6 +141,9 @@ public sealed class CapabilityData
             set = set.With(_portable);
         }
         if (def.IsRespawnPoint) set = set.With(_nameable);
+        if (def.Power != null) set = set.With(Set("electric"));
+        if (def.Defense != null) set = set.With(Set("defense"));
+        if (def.Gate != null) set = set.With(Set("gate"));
         return set;
     }
 }

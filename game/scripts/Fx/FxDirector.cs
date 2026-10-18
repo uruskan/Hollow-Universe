@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using Godot;
+using Hollow.Client.Effects;
 using HollowUniverse.Characters;
 using HollowUniverse.Surface;
 
@@ -26,6 +27,9 @@ public struct FxParams
 
     /// <summary>Flashes, lights and loops follow this node (a muzzle socket, a torch's flame socket, a burning body).</summary>
     public Node3D? Follow;
+
+    /// <summary>The struck target's current pose; null pose retires the decal when its owner is removed.</summary>
+    public Func<Transform3D?>? DecalPose;
 
     /// <summary>The first-person version: flashes and flames on the view model's layer and field of view, particles moved
     /// to where the view model draws its muzzle.</summary>
@@ -104,11 +108,10 @@ public partial class FxDirector : Node3D
     private readonly List<(string Key, Vector3 Position, Vector3 Normal, FxParams Params)> _early = new();
     private double _time;
     private int _nextLoop = 1;
-    private int _frameParticles;
     private bool _ready;
 
-    /// <summary>Particles a frame may emit before further particle layers are skipped.</summary>
-    public int FrameBudget { get; set; } = 1500;
+    /// <summary>Strict shared particle ceiling for bursts, delayed layers and continuous emitters.</summary>
+    public int FrameBudget { get => _frameBudgetOverride ?? BudgetSettings.ParticlesPerFrame; set => _frameBudgetOverride = Math.Max(0, value); }
 
     /// <summary>
     /// Heat haze: the screen bent over blasts and fires (the haze and haze_rise batches). The ground game turns it off,
@@ -193,7 +196,10 @@ public partial class FxDirector : Node3D
 
     public int ActiveTracers => _tracers.Active;
 
-    public int ActiveLoops => _loops.Count;
+    public int ActiveLoops => _activeLoopCount;
+
+    /// <summary>Owned handles, including virtual effects waiting for a render slot.</summary>
+    public int LogicalLoops => _loops.Count;
 
     /// <summary>The director, created under the scene tree's root on first use.</summary>
     public static FxDirector Instance
@@ -255,6 +261,7 @@ public partial class FxDirector : Node3D
 
     public override void _ExitTree()
     {
+        if (_ready) ClearAll();
         if (_instance == this)
         {
             _instance = null;
@@ -311,8 +318,19 @@ public partial class FxDirector : Node3D
     {
         if (id != 0 && _instance != null && _instance._ready)
         {
-            _instance._tracers.End(id, at);
+            _instance._tracers.End(id, at, _instance._time);
         }
+    }
+
+    public static void CorrectTracer(int id, Vector3 origin, Vector3 velocity, Vector3 gravity, float drag, double age)
+    {
+        if (id != 0 && _instance is { _ready: true } fx)
+            fx._tracers.Correct(id, fx._time, origin, velocity, gravity, drag, age);
+    }
+
+    public static void RemoveTracer(int id)
+    {
+        if (id != 0 && _instance is { _ready: true } fx) fx._tracers.Remove(id);
     }
 
     /// <summary>
@@ -324,10 +342,12 @@ public partial class FxDirector : Node3D
     /// <summary>Stops a loop: it fades out (at once with <paramref name="immediate"/>).</summary>
     public static void Stop(FxHandle handle, bool immediate = false)
     {
-        if (_instance == null || !_instance._loops.TryGetValue(handle.Id, out FxLoop? loop))
-        {
-            return;
-        }
+        _instance?.StopNow(handle, immediate);
+    }
+
+    internal void StopNow(FxHandle handle, bool immediate = false)
+    {
+        if (!_loops.TryGetValue(handle.Id, out FxLoop? loop)) return;
         loop.Stopping = true;
         if (immediate)
         {
@@ -383,12 +403,19 @@ public partial class FxDirector : Node3D
     /// <summary>Removes every effect (the viewer between scenes).</summary>
     public void ClearAll()
     {
+        _early.Clear();
         _pending.Clear();
         foreach (FxLoop loop in _loops.Values)
         {
             FreeLoop(loop);
         }
         _loops.Clear();
+        _activeLoopCount = 0;
+        _renderedLoops.Clear();
+        _loopCandidates.Clear();
+        _loopBudget.Select(_loopCandidates, BudgetSettings, _time);
+        _lights.Clear();
+        _flashes.Clear();
         _decals.Clear();
         _tracers.Clear();
         _shake.Clear();
@@ -418,6 +445,8 @@ public partial class FxDirector : Node3D
         public float Floor; // metres above the planet's mean radius (PlanetGlobals.Height)
         public bool FirstPerson;
         public Node3D? Follow;
+        public Func<Transform3D?>? DecalPose;
+        public Transform3D? DecalReferencePose;
         public float Lod;
         public float Distance;
         public Vector3 Velocity;
@@ -528,6 +557,8 @@ public partial class FxDirector : Node3D
                 : PlanetGlobals.Height(position) - (n.Dot(PlanetGlobals.Up(position)) > 0.6f ? 0f : 1.2f),
             FirstPerson = p.FirstPerson,
             Follow = p.Follow,
+            DecalPose = p.DecalPose,
+            DecalReferencePose = p.DecalPose?.Invoke(),
             Lod = DistanceLod ? Lod(distance) : 1f,
             Distance = distance,
             Velocity = p.Velocity,
@@ -558,13 +589,15 @@ public partial class FxDirector : Node3D
                 }
                 return;
             case FxLayerType.Decal:
+                // Preserve the contact's frame when this effect starts, including layers emitted after a delay.
+                if (spot.DecalPose != null && spot.DecalReferencePose == null) return;
                 if ((!Culling || spot.Distance < 70f) && layer.Textures.Length > 0)
                 {
                     string tex = layer.Textures[(int)(_random.Next() * layer.Textures.Length) % layer.Textures.Length];
                     Color c = layer.Color * spot.Tint;
                     c.A = _random.Range(layer.Alpha);
                     _decals.Place(_time, tex, spot.Position, spot.Normal, _random.Range(layer.Size) * spot.Scale, layer.Depth * Math.Max(1f, spot.Scale),
-                        _random.Range(layer.Life), layer.Fade, layer.Glow, _random.Range(0f, MathF.Tau), c);
+                        _random.Range(layer.Life), layer.Fade, layer.Glow, _random.Range(0f, MathF.Tau), c, spot.DecalPose, spot.DecalReferencePose);
                 }
                 return;
             case FxLayerType.Shake:
@@ -598,12 +631,8 @@ public partial class FxDirector : Node3D
         {
             return;
         }
-        float lod = spot.Lod;
-        if (_frameParticles > FrameBudget)
-        {
-            return;
-        }
-        int count = _random.Count(layer.Count, lod);
+        BeginParticleFrame();
+        int count = _particleBudget.Take(Math.Min(_random.Count(layer.Count, spot.Lod), batch.Capacity - batch.EmittedThisFrame));
         Vector3 origin = spot.FirstPerson ? ViewmodelToWorld(spot.Position) : spot.Position;
         for (int i = 0; i < count; i++)
         {
@@ -648,7 +677,6 @@ public partial class FxDirector : Node3D
             // A moving shooter's velocity carries its blast's first moments along (the batches' drag slows it).
             batch.Emit(pos, size, dir * speed + spot.Velocity, c, life, _random.Next(), parameter, spot.Normal, turn);
         }
-        _frameParticles += count;
     }
 
     private Vector3 Direction(FxLayer layer, in Spot spot)
@@ -694,11 +722,6 @@ public partial class FxDirector : Node3D
 
     internal FxHandle StartNow(string key, Vector3 position, Vector3 normal, FxParams p)
     {
-        if (!_ready)
-        {
-            _early.Add((key, position, normal, p));
-            return default;
-        }
         FxDef? def = FxCatalog.Find(key);
         if (def?.Loop == null)
         {
@@ -717,60 +740,18 @@ public partial class FxDirector : Node3D
             Accumulators = new float[def.Loop.Emit.Count],
             FlickerPhase = _random.Range(0f, 100f),
         };
-        if (def.Loop.Flames.Count > 0)
-        {
-            loop.Flames = new MeshInstance3D
-            {
-                Name = $"Flames{loop.Id}",
-                Mesh = FxFlameMeshes.For(def),
-                MaterialOverride = FxFlameMeshes.Material(p.FirstPerson),
-                CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-                Layers = p.FirstPerson ? ViewmodelView.RenderLayer : RenderLayer,
-                ExtraCullMargin = 3f,
-            };
-            loop.Flames.SetInstanceShaderParameter("fx_brightness", def.Loop.FlameBrightness);
-            loop.Flames.SetInstanceShaderParameter("fx_speed", def.Loop.FlameSpeed);
-            loop.Flames.SetInstanceShaderParameter("fx_strength", 0f);
-            loop.Flames.SetInstanceShaderParameter("fx_foot", def.Loop.FlameFoot);
-            AddChild(loop.Flames);
-        }
-        if (def.Loop.LightEnergy > 0)
-        {
-            loop.Light = new OmniLight3D
-            {
-                Name = $"LoopLight{loop.Id}",
-                LightColor = def.Loop.LightColor,
-                OmniRange = def.Loop.LightRange * p.ScaleOr1,
-                LightEnergy = 0,
-                ShadowEnabled = def.Loop.LightShadows,
-                OmniAttenuation = 1.4f,
-                DistanceFadeEnabled = true,
-                DistanceFadeBegin = 70f,
-                DistanceFadeLength = 30f,
-            };
-            AddChild(loop.Light);
-            if (def.Loop.LightShadows)
-                HollowUniverse.Settings.LocalShadowBudget.Track(loop.Light, loop.Light.OmniRange, p.FirstPerson ? 10 : 0);
-        }
         _loops[loop.Id] = loop;
-        UpdateLoop(loop, 0f);
         return new FxHandle(loop.Id);
     }
 
     private void UpdateLoop(FxLoop loop, float dt)
     {
         FxLoopDef def = loop.Def.Loop!;
-        if (_time >= loop.StopAt || (loop.Params.Follow != null && !IsInstanceValid(loop.Params.Follow)))
-        {
-            loop.Stopping = true;
-        }
-        float target = loop.Stopping ? 0f : 1f;
-        float rate = loop.Stopping ? 1f / Math.Max(0.05f, def.FadeOut) : 1f / Math.Max(0.05f, def.FadeIn);
-        loop.Strength = Mathf.MoveToward(loop.Strength, target, rate * dt);
         Transform3D frame = loop.Frame();
         // A loop scaled whole (a fire of another radius): its flames, its emitters' places and its light's reach.
         float scale = loop.Params.ScaleOr1;
-        float give = loop.Strength * loop.Intensity;
+        loop.RenderStrength = Mathf.MoveToward(loop.RenderStrength, 1f, dt / Math.Max(0.05f, def.FadeIn));
+        float give = loop.Strength * loop.Intensity * loop.RenderStrength;
         if (loop.Flames != null)
         {
             loop.Flames.GlobalTransform = new Transform3D(frame.Basis.Scaled(Vector3.One * scale), frame.Origin);
@@ -829,10 +810,12 @@ public partial class FxDirector : Node3D
                 Distance = distance,
             };
             FxLayer once = layer;
-            for (int k = 0; k < n; k++)
+            // Do not spin through an arbitrary catch-up count after a slow frame; unused debt is discarded.
+            int admitted = Math.Min(n, _particleBudget.Remaining);
+            for (int k = 0; k < admitted; k++)
             {
                 // Spread along the path since the last frame (nothing to spread when it stood still).
-                spot.Position = at + back * (1f - (k + _random.Next()) / n);
+                spot.Position = at + back * (1f - (k + _random.Next()) / admitted);
                 EmitLoopParticle(once, spot);
             }
         }
@@ -841,10 +824,13 @@ public partial class FxDirector : Node3D
     /// <summary>One particle of a loop's emitter (the layer's count is ignored: the rate decides).</summary>
     private void EmitLoopParticle(FxLayer layer, in Spot spot)
     {
-        if (!_batches.TryGetValue(layer.Batch, out FxBatch? batch) || !HeatHaze && layer.Batch.StartsWith("haze", StringComparison.Ordinal))
+        if (!_batches.TryGetValue(layer.Batch, out FxBatch? batch) || OnlyBatch != null && OnlyBatch != layer.Batch ||
+            !HeatHaze && layer.Batch.StartsWith("haze", StringComparison.Ordinal))
         {
             return;
         }
+        BeginParticleFrame();
+        if (batch.EmittedThisFrame >= batch.Capacity || _particleBudget.Take(1) == 0) return;
         Vector3 origin = spot.FirstPerson ? ViewmodelToWorld(spot.Position) : spot.Position;
         Vector3 dir = Direction(layer, spot);
         Vector3 pos = origin;
@@ -862,13 +848,11 @@ public partial class FxDirector : Node3D
         float parameter = batch.Orient == FxOrient.Streak ? layer.Width * spot.Scale : layer.Grow;
         batch.Emit(pos, _random.Range(layer.Size) * spot.Scale, dir * _random.Range(layer.Speed), c, _random.Range(layer.Life), _random.Next(),
             parameter, spot.Normal, Basis.Identity);
-        _frameParticles++;
     }
 
     private void FreeLoop(FxLoop loop)
     {
-        loop.Flames?.QueueFree();
-        loop.Light?.QueueFree();
+        ReleaseLoopResources(loop);
     }
 
     // ---------------------------------------------------------------- the frame
@@ -882,10 +866,7 @@ public partial class FxDirector : Node3D
         long started = Stopwatch.GetTimestamp();
         float dt = _paused ? 0f : (float)delta;
         _time += dt;
-        foreach (FxBatch b in _batches.Values)
-        {
-            b.EmittedThisFrame = 0;
-        }
+        BeginParticleFrame();
         for (int i = _pending.Count - 1; i >= 0; i--)
         {
             if (_pending[i].At <= _time)
@@ -899,20 +880,7 @@ public partial class FxDirector : Node3D
                 EmitLayer(layer, spot);
             }
         }
-        _done.Clear();
-        foreach (FxLoop loop in _loops.Values)
-        {
-            UpdateLoop(loop, dt);
-            if (loop.Stopping && loop.Strength <= 0f)
-            {
-                _done.Add(loop.Id);
-            }
-        }
-        foreach (int id in _done)
-        {
-            FreeLoop(_loops[id]);
-            _loops.Remove(id);
-        }
+        UpdateBudgetedLoops(dt);
         if (MathF.Abs(_brightness - _appliedBrightness) > _appliedBrightness * 0.01f)
         {
             _appliedBrightness = _brightness;
@@ -927,14 +895,13 @@ public partial class FxDirector : Node3D
         _tracers.Update(_time);
         PlayedThisFrame = _played;
         _played = 0;
-        _frameParticles = 0;
         LastPlayMicroseconds = _playTicks * 1e6 / Stopwatch.Frequency;
         LastFrameMicroseconds = (Stopwatch.GetTimestamp() - started + _playTicks) * 1e6 / Stopwatch.Frequency;
         _playTicks = 0;
     }
 }
 
-/// <summary>Surfaces by name and from what the game knows of a hit (GROUND.md §9.3).</summary>
+/// <summary>Legacy effect-viewer surface names. Gameplay resolves physical contacts through contact-responses.json.</summary>
 public static class FxSurfaces
 {
     public static string Name(FxSurface s) => s switch
@@ -949,30 +916,4 @@ public static class FxSurfaces
         _ => "dirt",
     };
 
-    /// <summary>The surface of a ground material, by its family (Hollow.Surface's BiomeTable.Family).</summary>
-    public static FxSurface Of(Hollow.Surface.GroundMaterial m) => Hollow.Surface.BiomeTable.Family(m) switch
-    {
-        Hollow.Surface.GroundMaterial.Grass or Hollow.Surface.GroundMaterial.Moss => FxSurface.Grass,
-        Hollow.Surface.GroundMaterial.Rock or Hollow.Surface.GroundMaterial.Gravel => FxSurface.Rock,
-        Hollow.Surface.GroundMaterial.Sand or Hollow.Surface.GroundMaterial.Snow => FxSurface.Sand,
-        _ => FxSurface.Dirt,
-    };
-
-    /// <summary>The colour of the dust a surface throws up (a lift engine's wash, a muzzle's blast on the ground).</summary>
-    public static Color Dust(FxSurface s) => s switch
-    {
-        FxSurface.Sand => new Color(0.86f, 0.78f, 0.62f),
-        FxSurface.Rock => new Color(0.66f, 0.64f, 0.6f),
-        FxSurface.Grass => new Color(0.62f, 0.58f, 0.46f),
-        FxSurface.Water => new Color(0.85f, 0.9f, 0.95f),
-        _ => new Color(0.6f, 0.5f, 0.4f),
-    };
-
-    /// <summary>The surface of a building grade (building.json: twig, wood, stone, metal, armoured).</summary>
-    public static FxSurface OfGrade(string grade) => grade switch
-    {
-        "stone" => FxSurface.Rock,
-        "metal" or "armoured" => FxSurface.Metal,
-        _ => FxSurface.Wood,
-    };
 }

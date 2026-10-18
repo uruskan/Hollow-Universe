@@ -33,6 +33,7 @@ public sealed partial class ClientGroundUi
     private const double QuietSeconds = 3;
 
     private MapView? _mapView;
+    private Hollow.Client.Map.ZoneMap? _mapSource;
     private readonly List<MapMarkerView> _mapMarkers = new();
     private double _mapMarkersAt = double.MinValue;
     private TechTreeView? _tree;
@@ -61,9 +62,16 @@ public sealed partial class ClientGroundUi
     {
         get
         {
-            if (_mapView == null && _client.World().Map is { } map)
+            if (_client.World().Map is not { } map)
             {
-                _mapView = new MapView(map.CacheKey, MapPixels, () => map.Render(MapPixels).Rgba, map.Radius, map.Cells);
+                _mapSource = null;
+                return _mapView = null;
+            }
+            if (_mapView == null || !ReferenceEquals(_mapSource, map))
+            {
+                _mapSource = map;
+                _mapView = new MapView(map.CacheKey, MapPixels, () => map.Render(MapPixels).Rgba, map.Radius, map.Cells,
+                    token => map.Render(MapPixels, token).Rgba);
             }
             return _mapView;
         }

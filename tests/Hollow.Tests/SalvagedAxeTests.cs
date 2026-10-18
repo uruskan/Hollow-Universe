@@ -24,7 +24,7 @@ public static class SalvagedAxeTests
     {
         GameContent c = ContentFixture.Content;
         ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, 28.4, -61.7)! with { StandIn = true };
-        ISurface surface = spec.CreateSurface();
+        ISurface surface = spec.CreateSurface(diagnostic: true);
         ZoneFrame frame = spec.CreateFrame(surface);
         INaturalObjects objects = spec.CreateNature(surface, frame, c);
         var near = new List<NaturalObject>();

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "units": "camera-space metres and Euler YXZ degrees; look channels per radian/second; response times in seconds",
+  "profiles": [
+    {
+      "name": "source-tool-carry",
+      "families": ["axe", "pick"],
+      "pivot": [0.08, -0.22, -0.38],
+      "walkPosition": [0.012, 0.009, 0.004],
+      "walkRotation": [0.6, 0.35, 0.8],
+      "sprintPosition": [0.02, -0.035, 0.025],
+      "sprintRotation": [-4, 3, -5],
+      "lookPosition": [0.008, 0.006, 0],
+      "lookRotation": [0.8, 1.1, 0.5],
+      "referenceSpeed": 3,
+      "minimumSpeed": 0.25,
+      "sprintMinimumSpeed": 3,
+      "sprintGaitScale": 1.4,
+      "crouchGaitScale": 0.55,
+      "gaitResponseSeconds": 0.12,
+      "sprintResponseSeconds": 0.16,
+      "lookResponseSeconds": 0.08,
+      "maximumLookRate": 3,
+      "actionFadeOutSeconds": 0.06,
+      "actionFadeInSeconds": 0.18,
+      "actionWeights": { "idle": 1, "sprint": 1 }
+    }
+  ]
+}

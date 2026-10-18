@@ -150,14 +150,18 @@ public static class TileMesh
     /// <summary>Body-frame positions of a tile's (cells + 1)² vertices, row-major: what collision is built from.</summary>
     public static Vector3D[] Positions(ISurface surface, TileKey key, int cells)
     {
+        TerrainLattice? lattice = TerrainLattice.Of(surface);
+        TerrainPinSet? pins = TerrainPinSet.Of(surface);
+        lattice?.ValidateSampleGrid(key, cells);
         int n = cells + 1;
         var positions = new Vector3D[n * n];
         for (int j = 0; j < n; j++)
         {
             for (int i = 0; i < n; i++)
             {
-                Vector3D d = Direction(key, cells, i, j);
-                positions[j * n + i] = d * (surface.Radius + surface.HeightAt(d));
+                Vector3D d = lattice?.GridDirection(key, cells, i, j) ?? Direction(key, cells, i, j);
+                positions[j * n + i] = pins != null && lattice!.TryGridVertex(key, cells, i, j, out CubeVertexKey vertex) &&
+                    pins.TryGet(vertex, out TerrainPinnedVertex pin) ? pin.Position : d * (surface.Radius + surface.HeightAt(d));
             }
         }
         return positions;
@@ -169,6 +173,9 @@ public static class TileMesh
     /// </summary>
     public static TileGrid Build(ISurface surface, TileKey key, int cells = PlanetSurface.TileCells)
     {
+        TerrainLattice? lattice = TerrainLattice.Of(surface);
+        TerrainPinSet? pins = TerrainPinSet.Of(surface);
+        lattice?.ValidateRenderGrid(key, cells);
         var grid = new TileGrid(key, cells);
         // m: with two rings of samples around the tile, for normals and for the water's shores.
         const int Ring = 2;
@@ -182,12 +189,13 @@ public static class TileMesh
         {
             for (int i = 0; i < m; i++)
             {
-                Vector3D d = Direction(key, cells, i - Ring, j - Ring);
+                Vector3D d = lattice?.GridDirection(key, cells, i - Ring, j - Ring) ?? Direction(key, cells, i - Ring, j - Ring);
                 SurfaceSample s = surface.Sample(d);
                 int k = j * m + i;
                 directions[k] = d;
                 samples[k] = s;
-                points[k] = d * (surface.Radius + s.Height);
+                points[k] = pins != null && lattice!.TryGridVertex(key, cells, i - Ring, j - Ring, out CubeVertexKey vertex) &&
+                    pins.TryGet(vertex, out TerrainPinnedVertex pin) ? pin.Position : d * (surface.Radius + s.Height);
                 water[k] = surface.WaterLevelAt(d);
             }
         }
@@ -213,6 +221,8 @@ public static class TileMesh
                 Vector3D p = points[k];
                 Vector3D du = points[k + 1] - points[k - 1], dv = points[k + m] - points[k - m];
                 Vector3D normal = Vector3D.Cross(du, dv).Normalized;
+                if (pins != null && lattice!.TryGridVertex(key, cells, i, j, out CubeVertexKey vertex) &&
+                    pins.TryGet(vertex, out TerrainPinnedVertex pin)) normal = pin.Normal;
                 normals[v] = normal;
                 Vector3D offset = p - origin;
                 grid.Positions[3 * v] = (float)offset.X;
@@ -280,6 +290,12 @@ public static class TileMesh
                     grid.MorphPositions[3 * v + c] = (grid.Positions[3 * a + c] + grid.Positions[3 * b + c]) * 0.5f;
                     grid.MorphNormals[3 * v + c] = (grid.Normals[3 * a + c] + grid.Normals[3 * b + c]) * 0.5f;
                 }
+                if (pins != null && lattice!.TryGridVertex(key, cells, i, j, out CubeVertexKey vertex) && pins.TryGet(vertex, out _))
+                    for (int c = 0; c < 3; c++)
+                    {
+                        grid.MorphPositions[3 * v + c] = grid.Positions[3 * v + c];
+                        grid.MorphNormals[3 * v + c] = grid.Normals[3 * v + c];
+                    }
             }
         }
         return grid;

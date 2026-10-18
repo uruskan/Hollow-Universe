@@ -26,9 +26,9 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
 }
 
 Write-Host 'Building Hollow Universe...'
-& dotnet build HollowUniverse.sln -nologo -v quiet
+& dotnet build HollowUniverse.sln -nologo -v quiet --disable-build-servers -m:1 -nodeReuse:false -p:UseSharedCompilation=false
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-& dotnet build src/Hollow.Server -c Release -nologo -v quiet
+& dotnet build src/Hollow.Server -c Release -nologo -v quiet --disable-build-servers -m:1 -nodeReuse:false -p:UseSharedCompilation=false
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
 $artifactDirectory = Join-Path $PSScriptRoot '.artifacts'

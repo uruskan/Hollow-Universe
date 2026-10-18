@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using Godot;
 using HollowUniverse.Fx;
+using HollowUniverse.Settings;
 
 namespace HollowUniverse.Gibs;
 
@@ -149,10 +150,13 @@ public partial class GibWorld : Node3D
     /// <summary>Pieces alive now.</summary>
     public int Live { get; private set; }
 
+    /// <summary>Maximum live cosmetic pieces at the current user setting, bounded by the catalogue's allocated cap.</summary>
+    public int PieceLimit { get; private set; }
+
     /// <summary>Of <see cref="Live"/>, those still moving in the last frame (in flight or settling).</summary>
     public int Moving { get; private set; }
 
-    /// <summary>Pieces recycled while still alive because the cap was reached.</summary>
+    /// <summary>Pieces recycled while still alive because the cap was reached or lowered.</summary>
     public long Recycled { get; private set; }
 
     /// <summary>Batches drawn now (one draw call each per pass).</summary>
@@ -175,16 +179,58 @@ public partial class GibWorld : Node3D
 
     private long _breakTicks;
 
-    public override void _Ready()
+    public override void _EnterTree()
     {
-        if (_pieces.Length == 0)
-        {
-            _pieces = new Piece[GibCatalog.MaxPieces];
-        }
+        EnsurePieces();
+        ApplyBudget(GraphicsSettings.Current);
+        GraphicsSettings.Changed += ApplyBudget;
+    }
+
+    public override void _ExitTree() => GraphicsSettings.Changed -= ApplyBudget;
+
+    private void EnsurePieces()
+    {
+        if (_pieces.Length != 0) return;
+        // Install can enter the tree before GibLibrary.Request loads the catalogue.
+        _ = GibCatalog.Material(null);
+        _pieces = new Piece[GibCatalog.MaxPieces];
+        PieceLimit = _pieces.Length * Math.Clamp(GraphicsSettings.Current.GibAmount, 0, 100) / 100;
+        ResetFloors();
+    }
+
+    private void ResetFloors()
+    {
         for (int b = 0; b < _breaks.Length; b++)
         {
             _breaks[b].Wait = -1;
         }
+    }
+
+    private void ApplyBudget(GraphicsValues values)
+    {
+        int limit = _pieces.Length * Math.Clamp(values.GibAmount, 0, 100) / 100;
+        if (limit == PieceLimit) return;
+        PieceLimit = limit;
+        // Stable ring order, settled debris first. Two linear passes also bound the cost of a large live reduction.
+        for (int pass = 0; pass < 2 && Live > limit; pass++)
+        {
+            for (int offset = 0; offset < _pieces.Length && Live > limit; offset++)
+            {
+                int i = (_next + offset) % _pieces.Length;
+                PieceState state = _pieces[i].State;
+                if (state != PieceState.Free && (pass == 1 || state != PieceState.Flying))
+                {
+                    Recycled++;
+                    Release(i);
+                }
+            }
+        }
+        Moving = 0;
+        for (int i = 0; i < _pieces.Length; i++)
+            if (_pieces[i].State == PieceState.Flying) Moving++;
+        if (Live == 0) ResetFloors();
+        // Preview/revert must update visible counts even when the integrator is paused.
+        Upload();
     }
 
     // ---------------------------------------------------------------- breaking
@@ -210,10 +256,7 @@ public partial class GibWorld : Node3D
 
     private bool Place(GibSet set, Transform3D at, Vector3 blow, GibCause cause, Vector3 up, float gravity, ulong seed, out Vector3 centre)
     {
-        if (_pieces.Length == 0)
-        {
-            _Ready();
-        }
+        EnsurePieces();
         float scale = MathF.Max(0.01f, at.Basis.Scale.X);
         Basis turn = at.Basis.Orthonormalized();
         centre = at * set.Bounds.GetCenter();
@@ -232,12 +275,12 @@ public partial class GibWorld : Node3D
         {
             Area = flat * 0.8f, Tint = material.Colour, Direction = blow, Scale = size * cause.Dust, Floor = at.Origin - up * 0.02f,
         });
-        if (distance > GibCatalog.Near)
+        if (distance > GibCatalog.Near || PieceLimit == 0)
         {
             return false;
         }
         _random.Reseed(seed != 0 ? seed : (ulong)Stopwatch.GetTimestamp());
-        bool busy = Live > GibCatalog.Busy * _pieces.Length;
+        bool busy = Live > GibCatalog.Busy * PieceLimit;
         int b = _nextBreak;
         _nextBreak = (_nextBreak + 1) % _breaks.Length;
         _breaks[b] = new BreakFloor { Centre = centre, Up = up, Base = at.Origin, Wait = FloorWaitFrames };
@@ -287,23 +330,30 @@ public partial class GibWorld : Node3D
     // A free slot: the next in the ring; a live piece there (the oldest, near enough) goes.
     private int Claim()
     {
+        bool room = Live < PieceLimit;
+        int lastLive = -1;
         for (int tries = 0; tries < _pieces.Length; tries++)
         {
             int i = _next;
             _next = (_next + 1) % _pieces.Length;
             if (_pieces[i].State == PieceState.Free)
             {
-                return i;
+                if (room) return i;
+                continue;
             }
-            if (tries == _pieces.Length - 1 || _pieces[i].State != PieceState.Flying)
+            lastLive = i;
+            if (_pieces[i].State != PieceState.Flying)
             {
                 Recycled++;
                 Release(i);
                 return i;
             }
         }
-        Release(_next);
-        return _next;
+        // With a reduced cap there can be unused physical slots while the live budget is full.
+        if (lastLive < 0) throw new InvalidOperationException("No gib slot is available within the live budget.");
+        Recycled++;
+        Release(lastLive);
+        return lastLive;
     }
 
     private void Release(int index)
@@ -408,6 +458,8 @@ public partial class GibWorld : Node3D
         {
             Release(i);
         }
+        Moving = 0;
+        ResetFloors();
         Upload();
     }
 
@@ -421,7 +473,7 @@ public partial class GibWorld : Node3D
         int collections = GC.CollectionCount(0);
         long started = Stopwatch.GetTimestamp();
         float dt = Paused ? 0f : MathF.Min((float)delta, 1f / 30f);
-        if (dt > 0)
+        if (dt > 0 && Live > 0)
         {
             _airDrag = 1f - GibCatalog.AirDrag * dt;
             _spinDrag = 1f - GibCatalog.SpinDrag * dt;

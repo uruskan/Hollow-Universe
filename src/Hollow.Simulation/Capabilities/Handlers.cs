@@ -66,6 +66,7 @@ public static partial class CapabilityHandlers
                      new Pickup(verbs), new Portable(verbs, data), new Station(verbs), new WoundedCapability(verbs), new CharacterCapability(verbs),
                      new DudCapability(verbs), new ArrowCapability(), new Standing(), new FireCapability(), new SeatCapability(verbs),
                      new ShipDoorCapability(verbs), new FuelCapability(verbs), new MagazineCapability(verbs), new Nameable(verbs),
+                     new ElectricCapability(verbs), new DefenseCapability(verbs), new GateCapability(verbs),
                  })
         {
             registry.Add(handler.Key, handler);
@@ -143,7 +144,7 @@ public static partial class CapabilityHandlers
         public string Key => "key-lock";
 
         public ViewerFlags Flags(object thing, in Viewer viewer) =>
-            thing is Door { Lock: KeyLock { Locked: true } } ? ViewerFlags.Locked : ViewerFlags.None;
+            thing is ILockHost { Lock: KeyLock { Locked: true } } ? ViewerFlags.Locked : ViewerFlags.None;
     }
 
     /// <summary>A code lock on a door: Locked; HasCode once set; Authorised when the viewer is on its list.</summary>
@@ -153,7 +154,7 @@ public static partial class CapabilityHandlers
 
         public ViewerFlags Flags(object thing, in Viewer viewer)
         {
-            if (thing is not Door { Lock: CodeLock code })
+            if (thing is not ILockHost { Lock: CodeLock code })
             {
                 return ViewerFlags.None;
             }

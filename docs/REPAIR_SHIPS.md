@@ -1,5 +1,38 @@
 # Ship handling and seated cameras — 15 October 2026
 
+## N9 captured attitude — implemented, focused validation 17 October 2026
+
+The owner's later N9 request supersedes automatic return-to-level during unattended,
+assisted zero-command hover. A successful helm release captures the ship's full attitude;
+an active target is parallel-transported by the motor's existing per-substep planetary
+carry, so it retains orientation relative to the local horizon. Residual spin is braked
+and corrected toward that target through the ordinary bounded angular-rate/torque path.
+Gravity compensation, fuel consumption, collision and grounding remain physical; the
+controller does not snap rotation or erase velocity. Nonzero retained translation and
+scripted autopilot preserve their existing behavior. Manual takeover, engine off, fuel
+exhaustion and landing end the hold; a later activation captures a fresh current pose.
+
+The reviewed implementation uses separate active/target fields in engine-free ship state,
+with inactive target values excluded from state equality. ShipCodec v6 appends a fixed
+active/quaternion trailer after the v5 fuel fields, converting the target through the same
+body/zone frame as rotation. Versions 1–5 remain readable with an initially inactive hold.
+A saved target displaced from the current pose during braking must survive restart, including
+restored sleeping occupants. Invalid targets disable hold; truncated records remain errors.
+This changes only the ship payload; terrain/save identity remains unchanged.
+
+P5's reviewed network boundary permits protocol 33 and OwnShipState to remain unchanged:
+gunners and passengers receive physical ship poses, and active hold must clear before an
+awake pilot's first snapshot or motor step, including early returns/reconnect. Tests must
+prove these ownership transitions and normal exact pilot prediction. The implementation is
+assigned to P6 in the existing Earth chat with isolated file ownership in RECOVERY. The corrected
+shared build passed zero warnings/errors and 46 focused checks passed (34 state/persistence/
+fuel/control/architecture, 12 network/parts/restart), including all 19 new tests. Exact pilot
+prediction, actual two-client release/hold/takeover, coupled-spin return and genuine old save
+formats pass. The first missing-test-import build failure is retained separately. Receipts
+are listed in RECOVERY and `repair-results/P6-ships.md`. Native loaded-gun gameplay, visuals
+and six-station sightline checks remain unrun for this candidate. Current gunner eye offsets
+already apply through mounted sockets; camera numbers await reproduced sightline evidence.
+
 Current requests R1, R3, R4 and R5 are recorded in `reports/current-17-issues.md`. The current design and these requests override inherited Elite-style control descriptions.
 
 Leaving the helm now retains throttle, lateral/climb commands and flight-assist mode. Turning and held boost are released. The ship keeps simulating and consuming fuel with an empty helm. Its crew can hold E while looking at the ship or a part aboard and choose **Engine off**; this disables thrust/assist without deleting momentum. **Engine on** restarts it if fuel remains. Sitting does not override an explicit off switch. Shared interaction reach, sight and authorization gates apply, and this is the existing ship capability rather than a second interaction path. Grounding and collisions still affect flight. This is local flight, not autonomous obstacle avoidance or interplanetary navigation.
@@ -14,9 +47,17 @@ The reference is the developer-authored BSGO **Developer Blog 8 — Strike Contr
 
 Every ship seat, including passenger and turret seats, has **V** to switch between first-person and a player-centred third-person orbit. In third person, hold RMB and drag to orbit; wheel changes distance from 1.5 to 120 metres. The owner corrected the original LMB binding on 16 October 2026 so left-click keeps its normal action. The local seated character uses the same socket, clothing and grips as remote players. The camera follows the player's position, not the ship centre, and its heading is independent of subsequent ship turns. Its eye remains above terrain. Zoom can pass through ship geometry for inspection; collision-aware interior camera occlusion remains a presentation limitation.
 
-Right-dragging the orbit camera never changes turret aim or steering. A pilot's existing steering request and keyboard flight controls continue while orbiting. LMB still fires a turret along its existing aim in either camera, including while RMB is held. Turret RMB zoom operates in first person; changing camera modes while RMB is held cannot zoom until the button has been released and pressed again. Q/E retain their flight roles; the engine radial is used after leaving the seat. The standalone `--view ship` development sandbox retains its legacy ship-centred chase camera; these general seated controls belong to hosted/dedicated gameplay.
+The third-person orbit camera owns all mouse motion: RMB drag orbits, and movement without RMB never steers the ship or changes turret aim. Switching views clears the cockpit's persistent steering cursor and its smoothed output; returning to the cockpit starts with a neutral mouse stick. Keyboard flight controls remain active in third person: arrows pitch/yaw, W/S throttle, A/D slide, Shift/Ctrl rise/sink and Q/E roll. Throttle and assist settings survive camera changes. This corrects the owner's 17 October report: previously unheld mouse movement still steered in TPS and the prior cockpit turn continued while orbiting. LMB still fires a turret along its existing aim in either camera, including while RMB is held. Turret RMB zoom operates in first person; changing camera modes while RMB is held cannot zoom until the button has been released and pressed again. The engine radial is used after leaving the seat. The standalone `--view ship` development sandbox retains its legacy ship-centred chase camera; these general seated controls belong to hosted/dedicated gameplay.
 
 Space also leaves small aircraft in flight, using a clear authored exit beside the hull and inheriting the craft's velocity at that point. It never teleports the player down to terrain. This releases the seat and allows normal gravity/fall consequences; a fully blocked exit still refuses.
+
+17 October TPS correction validation: full solution build clean; 33 focused checks pass;
+27 native Godot fixture assertions pass against the production input handlers, with
+[cockpit](images/ship-tps-input/cockpit-hints.png) and
+[TPS](images/ship-tps-input/third-person-hints.png) HUD captures visually checked.
+The expanded hosted tour was stopped by the memory guard during world loading, before
+its input checks. Complete flight validation remains pending memory headroom; the native
+fixture omits terrain/simulation/network. See DEVELOPMENT for receipts and scope.
 
 Validation: the coordinated production build succeeded and focused tests passed, including all seven `ShipRepairTests` and three `AdminInputTests`. Ship cases cover actual empty-helm flight, small-craft airborne exit/momentum, fuel exhaustion/engine switch/reseating, persistent saves, frame-rate-independent steering and throttle, a bounded 90-degree carrier turn, engine-off prediction parity and camera orbit geometry at arbitrary planetary up. UI gesture behavior still requires the coordinated live client check, beyond the engine-free tests.
 

@@ -202,7 +202,7 @@ public sealed class MockConsole : IConsoleModel
         new ToolGroup("SHIPS", new ToolButton[] { new("TIN FINCH", "spawn tin-finch") }),
         new ToolGroup("LOOT", new ToolButton[] { new("BARREL", "spawn barrel"), new("FUEL BARREL", "spawn fuel-barrel"), new("CRATE", "spawn crate"), new("MILITARY CRATE", "spawn military-crate"), new("RECYCLER", "spawn recycler") }),
         new ToolGroup("DEPLOYABLES", new ToolButton[] { new("SLEEPING BAG", "spawn sleeping-bag"), new("CAMPFIRE", "spawn campfire"), new("FURNACE", "spawn furnace"), new("SMALL BOX", "spawn small-box") }),
-        new ToolGroup("RAID BASE (A CLAIMED HUT)", new ToolButton[] { new("TWIG", "spawn raidbase 0"), new("WOOD", "spawn raidbase 1"), new("STONE", "spawn raidbase 2"), new("METAL", "spawn raidbase 3"), new("ARMOURED", "spawn raidbase 4") }),
+        new ToolGroup("CLAN BASE (3×3 CORE)", new ToolButton[] { new("TWIG", "spawn raidbase 0"), new("WOOD", "spawn raidbase 1"), new("STONE", "spawn raidbase 2"), new("METAL", "spawn raidbase 3"), new("ARMOURED", "spawn raidbase 4") }),
     })
     {
         FreeBuild = true,

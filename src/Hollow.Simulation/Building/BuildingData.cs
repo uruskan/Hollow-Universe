@@ -179,7 +179,12 @@ public sealed class GradeDef
 /// <summary>A door leaf: its mesh, its hinge in the frame's piece-local metres, its size and how far it swings open.</summary>
 public sealed class LeafDef
 {
+    private ConvexPart[]? _fallbackCollision;
+
     public string Mesh { get; init; } = "";
+
+    /// <summary>Additional meshes sharing this leaf's pose and physics body (for example a reinforced pane and its wire).</summary>
+    public IReadOnlyList<string> AdditionalMeshes { get; init; } = Array.Empty<string>();
 
     /// <summary>The hinge (the leaf's origin) in the doorway's frame: metres, Y up, outside +Z.</summary>
     public System.Numerics.Vector3 Hinge { get; init; }
@@ -189,9 +194,15 @@ public sealed class LeafDef
 
     /// <summary>Yaw of the open leaf about its hinge, degrees (from the kit's assembly manifest).</summary>
     public double OpenYaw { get; init; }
+
+    /// <summary>Authored convex parts in leaf-local metres. Omitted for the existing solid rectangular leaves.</summary>
+    public ConvexPart[] Collision { get; init; } = Array.Empty<ConvexPart>();
+
+    /// <summary>The same solid parts for authoritative collision, placement and targeting; openings stay empty.</summary>
+    public ConvexPart[] Parts => Collision.Length > 0 ? Collision : _fallbackCollision ??= new[] { PieceShapes.Leaf(this) };
 }
 
-/// <summary>A door: a deployable item fitted into a doorway (single) or a wall frame (double, garage).</summary>
+/// <summary>A fitted aperture attachment: a swinging/rolling door or a stationary window insert.</summary>
 public sealed class DoorDef
 {
     public string Key { get; init; } = "";
@@ -213,6 +224,12 @@ public sealed class DoorDef
     /// <summary>A garage door rolls up instead of swinging.</summary>
     public bool Rolls { get; init; }
 
+    /// <summary>Whether this attachment can open. Stationary inserts still share placement, damage, repair and persistence.</summary>
+    public bool Opens { get; init; } = true;
+
+    /// <summary>Whether a key/code lock may be fitted.</summary>
+    public bool Lockable { get; init; } = true;
+
     public IReadOnlyList<LeafDef> Leaves { get; init; } = Array.Empty<LeafDef>();
 
     public string FrameMesh { get; init; } = "";
@@ -225,6 +242,7 @@ public sealed class BuildingData
 
     private readonly Dictionary<string, PieceDef> _pieces = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DoorDef> _doors = new(StringComparer.Ordinal);
+    private readonly Dictionary<Opening, (double Width, double Height, double Sill)> _apertures = new();
     private readonly Dictionary<string, string> _materialNames = new(StringComparer.Ordinal);
 
     private BuildingData()
@@ -249,6 +267,9 @@ public sealed class BuildingData
     public (double Width, double Height) DoubleOpening { get; private set; } = (2.7, 2.85);
     public (double Width, double Height) WindowOpening { get; private set; } = (1.8, 1.2);
     public double WindowSill { get; private set; } = 0.9;
+
+    /// <summary>The registered wall aperture's clear rectangle in piece-local metres.</summary>
+    public bool TryOpening(Opening opening, out (double Width, double Height, double Sill) bounds) => _apertures.TryGetValue(opening, out bounds);
 
     // ---------------------------------------------------------------- placement
 
@@ -459,6 +480,9 @@ public sealed class BuildingData
         DoubleOpening = r.Pair(m, "doubleOpening", DoubleOpening);
         WindowOpening = r.Pair(m, "windowOpening", WindowOpening);
         WindowSill = r.Number(m, "windowSill", 0.9);
+        _apertures[Opening.Door] = (DoorOpening.Width, DoorOpening.Height, 0);
+        _apertures[Opening.Double] = (DoubleOpening.Width, DoubleOpening.Height, 0);
+        _apertures[Opening.Window] = (WindowOpening.Width, WindowOpening.Height, WindowSill);
 
         JsonElement p = r.Object(root, "placement");
         SocketAimRadius = r.Number(p, "socketAimRadius", 1.75);
@@ -653,6 +677,9 @@ public sealed class BuildingData
                     Hinge = r.Vector(l, "hinge"),
                     Size = r.Vector(l, "size"),
                     OpenYaw = r.Number(l, "openYaw", 0),
+                    AdditionalMeshes = r.Array(l, "additionalMeshes").Select(e => e.ValueKind == JsonValueKind.String
+                        ? e.GetString() ?? "" : Bad(r, "attachment mesh name must be text", "")).ToArray(),
+                    Collision = ReadLeafCollision(r, l),
                 });
             }
             string protection = r.Text(d, "protection", "wood");
@@ -666,12 +693,14 @@ public sealed class BuildingData
             {
                 Key = key,
                 Name = r.Text(d, "name", key),
-                Opening = r.Text(d, "opening", "door") == "double" ? Opening.Double : Opening.Door,
+                Opening = r.Enum(d, "opening", Opening.Door),
                 Health = r.Number(d, "health", 100),
                 Protection = grade ?? (Grades.Count > 0 ? Grades[0] : new GradeDef()),
                 RepairMaterial = r.Text(repair, "material", "wood"),
                 RepairFull = (int)r.Number(repair, "full", 1),
                 Rolls = d.TryGetProperty("rolls", out JsonElement rolls) && rolls.ValueKind == JsonValueKind.True,
+                Opens = r.Boolean(d, "opens", true),
+                Lockable = r.Boolean(d, "lockable", true),
                 Leaves = leaves,
                 FrameMesh = r.Text(d, "frameMesh", ""),
             };
@@ -679,6 +708,28 @@ public sealed class BuildingData
             _doors[key] = door;
         }
         Doors = doors;
+    }
+
+    private static ConvexPart[] ReadLeafCollision(Reader r, JsonElement leaf)
+    {
+        var parts = new List<ConvexPart>();
+        foreach (JsonElement hull in r.Array(leaf, "collision"))
+        {
+            System.Numerics.Vector3[] points = r.Array(hull, "points").Select(r.Point).Distinct().ToArray();
+            if (points.Length is < 4 or > 64)
+            {
+                r.Problem("attachment collision needs 4 to 64 distinct finite points per convex part");
+                continue;
+            }
+            var part = new ConvexPart(points);
+            if (part.Planes.Length < 4 || part.Min.X >= part.Max.X || part.Min.Y >= part.Max.Y || part.Min.Z >= part.Max.Z)
+            {
+                r.Problem("attachment collision must enclose a three-dimensional convex solid");
+                continue;
+            }
+            parts.Add(part);
+        }
+        return parts.ToArray();
     }
 
     private void ReadLocks(Reader r, JsonElement root)
@@ -800,6 +851,14 @@ public sealed class BuildingData
             {
                 problems.Add($"door {d.Key}: needs at least one leaf");
             }
+            if (d.Leaves.Count > 2)
+            {
+                problems.Add($"door {d.Key}: at most two physics leaves fit the shared network state; group fixed meshes into additionalMeshes");
+            }
+            if (d.Opening == Opening.None || (!d.Opens && (d.Rolls || d.Lockable || d.Leaves.Any(l => l.OpenYaw != 0))))
+            {
+                problems.Add($"door {d.Key}: needs an aperture and consistent opening/locking capabilities");
+            }
             if (!Materials.Contains(d.RepairMaterial))
             {
                 problems.Add($"door {d.Key}: unknown repair material \"{d.RepairMaterial}\"");
@@ -877,6 +936,26 @@ public sealed class BuildingData
                 problems.Add($"\"{name}\" must be text");
             }
             return fallback;
+        }
+
+        public bool Boolean(JsonElement o, string name, bool fallback)
+        {
+            if (o.ValueKind != JsonValueKind.Object || !o.TryGetProperty(name, out JsonElement v)) return fallback;
+            if (v.ValueKind is JsonValueKind.True or JsonValueKind.False) return v.GetBoolean();
+            problems.Add($"\"{name}\" must be true or false");
+            return fallback;
+        }
+
+        public System.Numerics.Vector3 Point(JsonElement value)
+        {
+            if (value.ValueKind == JsonValueKind.Array)
+            {
+                double[] xyz = value.EnumerateArray().Select(e => e.ValueKind == JsonValueKind.Number && e.TryGetDouble(out double v) ? v : double.NaN).ToArray();
+                if (xyz.Length == 3 && xyz.All(v => double.IsFinite(v) && Math.Abs(v) <= float.MaxValue))
+                    return new System.Numerics.Vector3((float)xyz[0], (float)xyz[1], (float)xyz[2]);
+            }
+            problems.Add("collision point must be three finite numbers");
+            return default;
         }
 
         public (double, double) Pair(JsonElement o, string name, (double, double) fallback)

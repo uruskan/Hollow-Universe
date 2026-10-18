@@ -65,10 +65,61 @@ public partial class Main : Node
         }
         // The graphics settings (GROUND.md §8.6), saved or this computer's defaults; --quality <preset> for this run.
         HollowUniverse.Settings.GraphicsSettings.Load(HollowUniverse.Settings.GraphicsSettings.ParsePreset(Option("quality", "")));
-        if (isolatedShot)
+        if (isolatedShot || Array.IndexOf(OS.GetCmdlineArgs(), "--windowed") >= 0)
             HollowUniverse.Settings.GraphicsSettings.Preview(HollowUniverse.Settings.GraphicsSettings.Current with
                 { WindowMode = HollowUniverse.Settings.GameWindowMode.Windowed });
         AddChild(new HollowUniverse.Settings.GraphicsNode { Name = "Graphics" });
+        if (_options.TryGetValue("flora-impostor-export", out string? exportDirectory))
+        {
+            string seedOption = Option("flora-seed", "");
+            int exportSeed;
+            if (seedOption == "earth") exportSeed = (int)(Hollow.Simulation.ZoneSpec.StartingWorld(0, 0).SurfaceSeed & 0x7FFFFFFF);
+            else if (!int.TryParse(seedOption, NumberStyles.Integer, CultureInfo.InvariantCulture, out exportSeed))
+            { GD.PushError("--flora-impostor-export requires --flora-seed earth or an integer."); GetTree().Quit(1); return; }
+            AddChild(new HollowUniverse.Surface.Flora.FloraImpostorExport { OutputDirectory = exportDirectory, LibrarySeed = exportSeed });
+            SetProcess(false);
+            return;
+        }
+        if (_options.TryGetValue("environment-lifetime-check", out string? lifetimeOutput))
+        {
+            AddChild(new EnvironmentLifetimeCheck { OutputPath = lifetimeOutput });
+            SetProcess(false);
+            return;
+        }
+        if (_options.ContainsKey("gib-budget-check"))
+        {
+            AddChild(new HollowUniverse.Gibs.GibBudgetCheck
+            {
+                Name = "GibBudgetCheck", OutputPath = Option("gib-budget-check", ""),
+                ScreenshotPath = Option("shot", ""),
+            });
+            SetProcess(false);
+            return;
+        }
+        if (_options.ContainsKey("audio-loop-check"))
+        {
+            AddChild(new HollowUniverse.Audio.AudioLoopCheck());
+            SetProcess(false);
+            return;
+        }
+        if (_options.ContainsKey("fx-budget-check"))
+        {
+            AddChild(new HollowUniverse.Fx.FxBudgetCheck
+            {
+                OutputPath = Option("fx-budget-check", ""), ScreenshotPath = Option("shot", ""),
+            });
+            SetProcess(false);
+            return;
+        }
+        if (_options.ContainsKey("contact-feedback-check"))
+        {
+            AddChild(new ContactFeedbackCheck
+            {
+                OutputPath = Option("contact-feedback-check", ""), ScreenshotPath = Option("shot", ""),
+            });
+            SetProcess(false);
+            return;
+        }
         if (_options.ContainsKey("shadow-budget-check"))
         {
             AddChild(new HollowUniverse.Settings.ShadowBudgetCheck
@@ -87,6 +138,19 @@ public partial class Main : Node
             _scaler.Override = (float)Number("ui-scale", 1);
         }
         AddChild(_scaler);
+        if (_options.ContainsKey("build-wire-tool"))
+        {
+            WireToolAssetBuilder.Build();
+            GetTree().Quit();
+            SetProcess(false);
+            return;
+        }
+        if (_options.TryGetValue("electricity-review", out string? electricityOutput))
+        {
+            AddChild(new ElectricityReview { OutputDirectory = electricityOutput });
+            SetProcess(false);
+            return;
+        }
         // Item icons rendered from the models (GROUND.md §9); --placeholder-icons keeps the vector drawings.
         if (!_options.ContainsKey("placeholder-icons"))
         {
@@ -370,18 +434,41 @@ public partial class Main : Node
 
     private async void Capture(string path, bool ready)
     {
+        // Opt-in phase markers distinguish readiness from a stalled frame/readback/save. They do not force drawing.
+        bool trace = _options.ContainsKey("capture-trace");
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        void Progress(string stage)
+        {
+            if (!trace) return;
+            GD.Print("[capture-progress] " + System.Text.Json.JsonSerializer.Serialize(new
+            {
+                stage, ready, captureSeconds = clock.Elapsed.TotalSeconds, sceneSeconds = _elapsed,
+                processId = System.Environment.ProcessId, processFrame = Engine.GetProcessFrames(), path,
+                windowVisible = GetWindow().Visible, windowMode = GetWindow().Mode.ToString(),
+                renderLoopEnabled = RenderingServer.RenderLoopEnabled,
+            }));
+        }
+        Progress("begin");
         // Let a few frames settle after streaming finished.
         for (int i = 0; i < 3; i++)
         {
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            Progress($"settled-frame-{i + 1}");
         }
+        Progress("await-frame-post-draw");
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+        Progress("frame-post-draw");
         GD.Print($"[capture] ready={ready} elapsed={_elapsed:0.00}s path={path}");
         CaptureIsolation.Report(GetViewport());
         _ground?.ReportCapture();
-        Image image = GetViewport().GetTexture().GetImage();
+        Progress("readback-begin");
+        using Image image = GetViewport().GetTexture().GetImage();
+        Progress("readback-complete");
+        Progress("save-begin");
         Error error = path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? image.SaveJpg(path, 0.9f) : image.SavePng(path);
+        Progress(error == Error.Ok ? "save-complete" : "save-failed");
         GD.Print(error == Error.Ok ? $"Saved screenshot {path} ({image.GetWidth()}x{image.GetHeight()})." : $"Could not save {path}: {error}");
+        Progress("quit-requested");
         GetTree().Quit(error == Error.Ok && ready ? 0 : 1);
     }
 

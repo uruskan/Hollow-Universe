@@ -29,7 +29,7 @@ internal sealed class ItemsReader : IContentReader
             string key = f.Text(e, "key", $"items.json: items[{i}]");
             string where = $"items.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "id", "key", "name", "description", "category", "stack", "condition", "melee", "bow", "ammo",
-                "consume", "wear", "fuel", "cook", "deploys", "building", "door", "ship");
+                "consume", "wear", "fuel", "cook", "deploys", "building", "door", "ship", "wiring");
             int id = f.Integer(e, "id", where);
             if (id is < 1 or > ushort.MaxValue)
             {
@@ -45,6 +45,7 @@ internal sealed class ItemsReader : IContentReader
                 StackSize = f.Integer(e, "stack", where, 1),
                 MaxCondition = f.Integer(e, "condition", where, 0),
                 Melee = f.TryChild(e, "melee", out JsonElement melee) ? Melee(f, melee, where + ".melee") : null,
+                Wiring = f.TryChild(e, "wiring", out JsonElement wiring) ? WiringStats.Read(f, wiring, where + ".wiring") : null,
                 Bow = f.TryChild(e, "bow", out JsonElement bow) ? Bow(f, bow, where + ".bow") : null,
                 Ammo = f.TryChild(e, "ammo", out JsonElement ammo) ? Ammo(f, ammo, where + ".ammo") : null,
                 Consume = f.TryChild(e, "consume", out JsonElement consume) ? Consume(f, consume, where + ".consume") : null,

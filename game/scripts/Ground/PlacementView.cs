@@ -54,7 +54,25 @@ public partial class PlacementView : Node3D, IPlacement
         Client.Local.IntentRejected += Rejected;
     }
 
-    public override void _ExitTree() => Client.Local.IntentRejected -= Rejected;
+    public override void _ExitTree()
+    {
+        Client.Local.IntentRejected -= Rejected;
+        RetireWorld();
+    }
+
+    /// <summary>Placement details may hold the old world's sockets and pieces; no candidate survives retirement.</summary>
+    public void RetireWorld()
+    {
+        _aimed = _samePlacement = false;
+        _lastPlaced = null;
+        Placeable = null; Current = null; Turns = 0;
+        if (_ghost != null)
+        {
+            _ghost.Show(null);
+            _ghost.ShowPending(Array.Empty<PendingPlacement>());
+            _ghost.Assets = null;
+        }
+    }
 
     private void Rejected(IntentAnswer answer)
     {

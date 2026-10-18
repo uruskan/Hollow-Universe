@@ -1,38 +1,44 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using Hollow.Core;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Targets;
 
 namespace Hollow.Client;
 
 /// <summary>A battery's shot as the views play it (IW3): the ship, its station and barrel, the round, the muzzle and the way it left (world), whose.</summary>
-public readonly record struct StationShotView(uint Ship, int Station, int Barrel, uint Number, ushort Kind, Vector3 Origin, Vector3 Direction, bool Own, bool Predicted);
+public readonly record struct StationShotView(uint Ship, int Station, int Barrel, uint Number, ushort Kind, Vector3 Origin, Vector3 Direction, bool Own, bool Predicted)
+{
+    public AttackId Attack { get; init; }
+}
 
 // The crewed batteries in the client (IW3, IRON_WAKE.md §6.8, §6.9): each ship's stations as the server last said
 // (ShipStations: their loaders' records, chambers, shots, kinds, magazines' counts, refusals), the shots others fire
 // (TurretShot), and the player's own station when they sit at one: its controls into each tick's input, its mount
 // predicted from the player's own aim by the same rule as the server's, and its shots predicted on the same loader
-// timeline (a press the rules say fires plays at once with its rocket, tagged with its number; the server's shot of that
-// number confirms it and plays nothing again; one that doesn't come takes it back).
+// timeline. Each press has an actor-scoped attempt identity, independent of accepted shot counts. An accepted shot
+// keeps its chamber reservation until the matching station state arrives; only an explicit refusal takes it back.
 public sealed class StationModule : ClientModule
 {
-    /// <summary>A predicted shot the server hasn't confirmed this many ticks after its own tick was taken back.</summary>
-    public const int UndoTicks = 15;
-
     private sealed class Pending
     {
+        public AttackId Attack;
         public uint Ship;
         public int Station;
         public uint Number;
-        public int Barrel;
+        public int Barrel = -1;
         public long Tick;
         public ushort Kind;
         public ClientProjectile? Rocket;
+        public bool Predicted;
+        public bool Confirmed;
     }
 
     private readonly Dictionary<uint, StationState[]> _records = new();
@@ -44,7 +50,8 @@ public sealed class StationModule : ClientModule
     private byte _choice, _cycle;
     private bool _fireWas;
     private long _nextRipple;
-    private uint _ackTick;
+    private uint _nextAttack = 1;
+    private byte _viewDelay;
     private float[] _scratch = Array.Empty<float>();
     private ShipModule? _shipModule;
     private ShipModule Ships => _shipModule ??= Client.Require<ShipModule>();
@@ -68,8 +75,11 @@ public sealed class StationModule : ClientModule
 
     public long ShotsUnpredicted { get; private set; }
 
-    protected internal override void Init(MessageHandlers<GameClient> handlers) =>
+    protected internal override void Init(MessageHandlers<GameClient> handlers)
+    {
         handlers.On<ShipStations>((_, in m) => OnStations(m)).On<TurretShot>((_, in m) => OnShot(m));
+        Client.Attacks.Resolved += OnResolved;
+    }
 
     public override void Dispose()
     {
@@ -77,6 +87,9 @@ public sealed class StationModule : ClientModule
         _pending.Clear();
         _display.Clear();
         _mount = null;
+        _fireWas = false;
+        _nextRipple = 0;
+        _nextAttack = 1;
     }
 
     protected internal override void Despawned(uint netId)
@@ -114,23 +127,27 @@ public sealed class StationModule : ClientModule
         }
         foreach (StationNet net in m.Stations ?? Array.Empty<StationNet>())
         {
-            if (net.Station < states.Length)
+            if (net.Station < states.Length && net.Shots >= states[net.Station].Shots)
             {
                 StationConvert.Apply(net, states[net.Station], Content);
             }
         }
+        RetireReservations(m.Ship, states);
     }
 
     private void OnShot(TurretShot m)
     {
-        if (m.Gunner == NetId && _pending.Find(p => p.Ship == m.Ship && p.Station == m.Station && p.Number == m.Number) is { } mine)
+        var attack = new AttackId(m.AttackKind, m.AttackSeq, m.AttackSession);
+        bool own = m.Gunner == NetId && attack.Session == Client.Attacks.Session;
+        if (own && !attack.IsNone && _pending.Find(p => p.Attack == attack && p.Ship == m.Ship && p.Station == m.Station) is { } mine)
         {
-            // Our own shot, played when we fired it: confirmed, nothing again (its rocket gets the server's ID by its launch).
-            _pending.Remove(mine);
-            ShotsConfirmed++;
-            return;
+            Confirm(mine, m.Number, m.Barrel, m.Tick);
         }
-        if (m.Gunner == NetId)
+        if (own && !Client.Attacks.TryPresent(attack))
+        {
+            return; // Presentation history outlives both reservation retirement and reliable retransmission.
+        }
+        if (own)
         {
             ShotsUnpredicted++;
         }
@@ -144,8 +161,54 @@ public sealed class StationModule : ClientModule
             StationState st = states[m.Station];
             st.ShotTicks[m.Barrel] = m.Tick;
         }
-        (Vector3 origin, Vector3 direction) = Muzzle(ship, def, interior, m.Station, m.Barrel, Display(ship, m.Station));
-        Shot?.Invoke(new StationShotView(m.Ship, m.Station, m.Barrel, m.Number, (ushort)Math.Min(m.Kind, ushort.MaxValue), origin, direction, m.Gunner == NetId, false));
+        Vector3 origin = new(m.OriginX, m.OriginY, m.OriginZ);
+        Vector3 direction = new(m.DirectionX, m.DirectionY, m.DirectionZ);
+        Shot?.Invoke(new StationShotView(m.Ship, m.Station, m.Barrel, m.Number, (ushort)Math.Min(m.Kind, ushort.MaxValue), origin, direction, own, false) { Attack = attack });
+    }
+
+    private void Confirm(Pending pending, uint number, int barrel, long tick)
+    {
+        if (!pending.Confirmed && pending.Predicted)
+        {
+            ShotsConfirmed++;
+        }
+        pending.Confirmed = true;
+        pending.Number = number;
+        pending.Barrel = barrel;
+        pending.Tick = tick;
+        if (_records.TryGetValue(pending.Ship, out StationState[]? states))
+        {
+            RetireReservations(pending.Ship, states);
+        }
+    }
+
+    private void RetireReservations(uint ship, StationState[] states) =>
+        _pending.RemoveAll(p => p.Ship == ship && p.Confirmed && p.Station < states.Length && p.Number <= states[p.Station].Shots);
+
+    private void OnResolved(AttackResolution resolution)
+    {
+        if (resolution.Id.Kind != Hollow.Simulation.Combat.AttackDomain.Station ||
+            _pending.Find(p => p.Attack == resolution.Id) is not { } pending)
+        {
+            return;
+        }
+        if (resolution.Code == OutcomeCode.Done && !resolution.Cancelled)
+        {
+            Confirm(pending, resolution.StateSequence, resolution.Barrel, resolution.StartTick);
+            _nextRipple = Math.Max(_nextRipple, resolution.ReadyTick);
+            return;
+        }
+        _pending.Remove(pending);
+        if (pending.Predicted)
+        {
+            ShotsUndone++;
+            if (pending.Rocket != null)
+            {
+                Survival.RemoveOwnRocket(pending.Rocket);
+            }
+        }
+        Refused = new Outcome(resolution.Code);
+        RefusedAt = ClockSeconds;
     }
 
     // ---------------------------------------------------------------- the player's own station
@@ -223,7 +286,8 @@ public sealed class StationModule : ClientModule
         Copy(record, shown);
         foreach (Pending p in _pending)
         {
-            if (p.Ship != ship.NetId || p.Station != station || p.Number <= record.Shots)
+            if (p.Ship != ship.NetId || p.Station != station || p.Barrel < 0 ||
+                !p.Predicted && !p.Confirmed || p.Confirmed && p.Number <= record.Shots)
             {
                 continue;
             }
@@ -241,11 +305,20 @@ public sealed class StationModule : ClientModule
     // mount's once its last barrel is empty), as the server's Fire does.
     private static void Overlay(StationState st, int barrel, long tick)
     {
+        int li = st.Def.LoaderOf(barrel);
+        (int first, int count) = st.Def.LoaderBarrels(li);
+        LoaderState completed = st.Loaders[li];
+        if (completed.Active && !completed.Reverse && !completed.Waiting && completed.Kind != 0 &&
+            completed.Elapsed(tick) >= st.Def.Battery.Loader.Seconds)
+        {
+            // A carried cassette may have finished since the last station record. Materialize all its chambers
+            // before reserving one, so its remaining rounds do not disappear behind a restarted shared loader.
+            for (int b = 0; b < count && b < completed.Count; b++) st.Chambers[first + b] = completed.Kind;
+            st.Loaders[li] = default;
+        }
         st.Chambers[barrel] = 0;
         st.ShotTicks[barrel] = tick;
         st.NextBarrel = (barrel + 1) % st.Def.Barrels.Count;
-        int li = st.Def.LoaderOf(barrel);
-        (int first, int count) = st.Def.LoaderBarrels(li);
         bool empty = true;
         for (int b = first; b < first + count; b++)
         {
@@ -265,15 +338,7 @@ public sealed class StationModule : ClientModule
         from.Loaders.CopyTo(to.Loaders, 0);
         to.Magazine.CopyFrom(from.Magazine);
         (to.Refused, to.RefusedDetail, to.RefusedTick) = (from.Refused, from.RefusedDetail, from.RefusedTick);
-        long latest = long.MinValue;
-        for (int b = 0; b < from.ShotTicks.Length; b++)
-        {
-            if (from.ShotTicks[b] > latest)
-            {
-                latest = from.ShotTicks[b];
-                to.NextBarrel = (b + 1) % from.ShotTicks.Length;
-            }
-        }
+        to.NextBarrel = from.NextBarrel;
     }
 
     /// <summary>A ship's parts with the player's own mount as predicted put in (the seat, the camera and the view turn with it).</summary>
@@ -299,7 +364,7 @@ public sealed class StationModule : ClientModule
         }
         RemoteShip ship = own.Ship;
         ShipStationDef def = own.Station;
-        var input = new StationInput { Fire = frame.Station.Fire, Zoom = frame.Station.Zoom, Choice = _choice, Cycle = _cycle };
+        var input = new StationInput { Fire = frame.Station.Fire, FirePressed = frame.Station.FirePressed, Zoom = frame.Station.Zoom, Choice = _choice, Cycle = _cycle };
         command.Station = new[] { StationConvert.ToControls(input) };
         Vector3 view = NetConvert.View(command.ViewU, command.ViewV);
         if (command.Frame != 0 && Ships.DrawnPose(command.Frame) is { } seen)
@@ -319,9 +384,36 @@ public sealed class StationModule : ClientModule
             _fireWas = false;
         }
         _mount.Input = input;
+        _viewDelay = command.ViewDelay;
+        PartsOf(ship, interior);
+        StationRules.Into(_mount, _scratch);
+        ResolveAim(ship, def, interior, _mount, _scratch);
         StationRules.Slew(interior, _mount, rotation);
         Correct(ship, interior, def);
+        StationRules.Into(_mount, _scratch);
+        ResolveAim(ship, def, interior, _mount, _scratch);
         PredictTrigger(tick, ship, def, interior, input, rotation);
+    }
+
+    private void ResolveAim(RemoteShip ship, ShipStationDef def, ShipInterior interior, StationState mount, ReadOnlySpan<float> parts)
+    {
+        if (mount.Input.View.LengthSquared() < 0.25f)
+        {
+            mount.Aim = default;
+            return;
+        }
+        ShipPose pose = Ships.DrawnPose(ship.NetId) ?? new ShipPose(ship.Position, ship.Rotation, ship.Velocity, Vector3.Zero, ship.Def!.CentreOfMass);
+        Vector3 eye = pose.ToWorld(ShipSeats.EyeInFrame(ship.Def!, def.Seat, parts));
+        AimHit hit = Client.Targets().PredictProjectileAim(eye, mount.Input.View, StationRules.AimDistance, ship.Id.Value);
+        mount.Aim = StationRules.AimAt(interior, def, parts, pose, eye, mount.Input.View, hit.Hit ? hit.Distance : StationRules.AimDistance);
+    }
+
+    /// <summary>The own station's physical muzzle and converged shot line, for the sight's ballistic marks.</summary>
+    public (Vector3 Origin, Vector3 Direction)? OwnLaunchLine(int barrel = 0)
+    {
+        if (Own is not { } own || own.Ship.Def is not { Interior: { } interior } def || _mount == null ||
+            barrel < 0 || barrel >= own.Station.Barrels.Count) return null;
+        return Muzzle(own.Ship, def, interior, own.Station.Index, barrel, _mount);
     }
 
     // The server's mount, when it is far from the prediction (a limit the client didn't know of, a seat taken over): eased
@@ -354,12 +446,24 @@ public sealed class StationModule : ClientModule
     {
         BatteryDef battery = def.Battery;
         bool held = input.Fire;
-        bool press = held && !_fireWas;
+        bool press = input.FirePressed || held && !_fireWas;
         _fireWas = held;
-        bool wants = battery.Fire == BatteryFire.Alternate ? press : held && tick >= _nextRipple;
+        bool wants = battery.Fire == BatteryFire.Alternate ? press : (held || input.FirePressed) && tick >= _nextRipple;
+        if (press && tick < _nextRipple)
+        {
+            Refused = OutcomeCode.Cooldown;
+            RefusedAt = ClockSeconds;
+            return;
+        }
         if (!wants || Display(ship, def.Index) is not { } st)
         {
             return;
+        }
+        // Attempts and successful shots are different sequences. Only a locally valid press submits an attempt;
+        // an empty press must not become an unexpected later shot if an older prediction is refused.
+        if (_nextAttack == 0 || _pending.Count >= AttackLedger.PendingLimit)
+        {
+            return; // Bound accepted reservations too: their resource state may follow the unordered outcome later.
         }
         BatteryLoader loader = battery.Loader;
         Span<bool> loaded = stackalloc bool[def.Barrels.Count];
@@ -395,6 +499,7 @@ public sealed class StationModule : ClientModule
         StationRules.Into(_mount!, _scratch);
         float misalignment = StationRules.Misalignment(interior, _mount!, _scratch, rotation);
         st.Limit = _mount!.Limit;
+        st.Aim = _mount.Aim;
         int partIndex = def.Part;
         bool disabled = partIndex < ship.PartHealth.Length && ship.Def!.Parts[partIndex].Health != null && ship.PartHealth[partIndex] <= 0;
         Outcome why = StationRules.Check(st, disabled, loaded, progress, hasRounds, misalignment, out int barrel);
@@ -408,24 +513,36 @@ public sealed class StationModule : ClientModule
             RefusedAt = ClockSeconds;
             return;
         }
+        AttackId attack = Client.Attacks.Id(AttackDomain.Station, _nextAttack);
+        if (!Client.Attacks.Predict(attack, tick))
+        {
+            return;
+        }
+        _nextAttack++;
+        _nextRipple = tick + battery.IntervalTicks;
+        var pending = new Pending { Attack = attack, Ship = ship.NetId, Station = def.Index, Tick = tick };
+        _pending.Add(pending);
+        (ushort viewU, ushort viewV) = Quantize.Octahedral(input.View);
+        SendUnordered(new AttackIntent
+        {
+            Kind = attack.Kind, Seq = attack.Sequence, Session = attack.Session, Tick = tick, Ship = ship.NetId, Station = (byte)def.Index,
+            ViewU = viewU, ViewV = viewV, Frame = 0, ViewDelay = _viewDelay,
+        });
         Refused = Outcome.Done;
         ushort kind = kinds[barrel];
-        uint number = st.Shots + 1;
-        foreach (Pending p in _pending)
-        {
-            if (p.Ship == ship.NetId && p.Station == def.Index)
-            {
-                number = Math.Max(number, p.Number + 1);
-            }
-        }
         (Vector3 origin, Vector3 direction) = Muzzle(ship, ship.Def!, interior, def.Index, barrel, _scratch);
         Vector3 carriedVelocity = Ships.DrawnPose(ship.NetId) is { } drawn ? drawn.VelocityAt(origin) : ship.Velocity;
         ClientProjectile? rocket = battery.Launch.Of(kind) is { } profile
-            ? Survival.AddOwnRocket(battery, kind, origin, direction * profile.Muzzle + carriedVelocity, number) : null;
-        _pending.Add(new Pending { Ship = ship.NetId, Station = def.Index, Number = number, Barrel = barrel, Tick = tick, Kind = kind, Rocket = rocket });
-        _nextRipple = tick + battery.IntervalTicks;
+            ? Survival.AddOwnRocket(battery, kind, origin, direction * profile.Muzzle + carriedVelocity, attack.Sequence, attack) : null;
+        pending.Barrel = barrel;
+        pending.Kind = kind;
+        pending.Rocket = rocket;
+        pending.Predicted = true;
         ShotsPredicted++;
-        Shot?.Invoke(new StationShotView(ship.NetId, def.Index, barrel, number, kind, origin, direction, true, true));
+        if (Client.Attacks.TryPresent(attack))
+        {
+            Shot?.Invoke(new StationShotView(ship.NetId, def.Index, barrel, attack.Sequence, kind, origin, direction, true, true) { Attack = attack });
+        }
     }
 
     // The hull's line through the client's copy of the ship's space (a ship near the player keeps one, IRON_WAKE.md §4.3);
@@ -446,7 +563,10 @@ public sealed class StationModule : ClientModule
         int yaw = def.YawPart;
         lock (JoltRuntime.Gate)
         {
-            return frame.Space.RayPast(breech, line / length, length + StationRules.HullLinePast, part => Carried(interior, yaw, part), out _);
+            if (frame.Space.RayPast(breech, line / length, length + StationRules.HullLinePast, part => Carried(interior, yaw, part), out _)) return true;
+            ShipPose pose = Ships.DrawnPose(ship.NetId) ?? new ShipPose(ship.Position, ship.Rotation, ship.Velocity, Vector3.Zero, ship.Def!.CentreOfMass);
+            Vector3 launch = StationRules.LaunchDirection(_mount?.Aim ?? default, pose.ToWorld(muzzle), pose.DirectionToWorld(line / length));
+            return frame.Space.RayPast(muzzle, pose.DirectionToLocal(launch), StationRules.HullLinePast, part => Carried(interior, yaw, part), out _);
         }
     }
 
@@ -481,40 +601,13 @@ public sealed class StationModule : ClientModule
         (Vector3 muzzle, _) = StationRules.BarrelLine(interior, s, barrel, parts);
         Vector3 direction = StationRules.BarrelDirection(interior, s, parts);
         ShipPose pose = Ships.DrawnPose(ship.NetId) ?? new ShipPose(ship.Position, ship.Rotation, ship.Velocity, Vector3.Zero, def.CentreOfMass);
-        return (pose.ToWorld(muzzle), Vector3.Normalize(pose.DirectionToWorld(direction)));
+        Vector3 origin = pose.ToWorld(muzzle), worldDirection = Vector3.Normalize(pose.DirectionToWorld(direction));
+        if (_mount != null && _mountShip == ship.NetId && _mountStation == station)
+            worldDirection = StationRules.LaunchDirection(_mount.Aim, origin, worldDirection);
+        return (origin, worldDirection);
     }
 
-    // Each snapshot: predicted shots the server has had time to fire and didn't are taken back with their rockets, and the
-    // server's reason shows.
-    protected internal override void AfterSnapshot(in SnapshotHeader header)
-    {
-        if (header.OwnTick == 0)
-        {
-            return;
-        }
-        _ackTick = header.OwnTick;
-        for (int i = _pending.Count - 1; i >= 0; i--)
-        {
-            Pending p = _pending[i];
-            if (p.Tick + UndoTicks > _ackTick)
-            {
-                continue;
-            }
-            _pending.RemoveAt(i);
-            ShotsUndone++;
-            if (p.Rocket != null)
-            {
-                Survival.RemoveOwnRocket(p.Rocket);
-            }
-            if (Ships.ShipByNetId(p.Ship) is { } ship && Records(ship) is { } states && p.Station < states.Length && states[p.Station].RefusedTick >= p.Tick)
-            {
-                Refused = new Outcome(states[p.Station].Refused, states[p.Station].RefusedDetail);
-                RefusedAt = ClockSeconds;
-            }
-        }
-    }
-
-    /// <summary>Predicted shots waiting for the server's word (tests).</summary>
+    /// <summary>Attempts waiting for a decision, or accepted reservations waiting for their state (tests).</summary>
     public int PendingShots => _pending.Count;
 
     /// <summary>

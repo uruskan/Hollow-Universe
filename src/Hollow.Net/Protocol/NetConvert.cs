@@ -5,6 +5,7 @@ using Hollow.Net.Bits;
 using Hollow.Simulation;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
+using Hollow.Surface;
 
 namespace Hollow.Net.Protocol;
 
@@ -14,6 +15,80 @@ namespace Hollow.Net.Protocol;
 /// </summary>
 public static class NetConvert
 {
+    /// <summary>Uses the descriptor owned by the session, never a digest as a procedural seed.</summary>
+    public static EnvironmentIdentity ToEnvironment(PlanetEnvironmentDescriptor descriptor)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+        var identity = new EnvironmentIdentity
+        {
+            DescriptorSchema = descriptor.CanonicalSchema,
+            DescriptorIdentity = descriptor.Identity,
+            ProfileId = descriptor.ProfileId,
+            QualificationIdentity = descriptor.QualificationIdentity,
+        };
+        if (!descriptor.IsLegacyMultiplayerCompatible || !ValidEnvironment(identity))
+            throw new ArgumentException("The acquired environment cannot be represented by this protocol.", nameof(descriptor));
+        return identity;
+    }
+
+    /// <summary>Metadata-only validation before any world acquisition, physics or player publication.</summary>
+    public static bool TryResolveEnvironment(in ZoneInfo info, in EnvironmentIdentity identity,
+        out ZoneSpec? zone, out PlanetEnvironmentDescriptor? descriptor, out string? rejection)
+    {
+        zone = null;
+        descriptor = null;
+        rejection = null;
+        if (!ValidEnvironment(identity)) { rejection = "Malformed or unknown environment identity."; return false; }
+        // The inherited FromInfo fallback maps zero to one; do not negotiate a clock the peers would interpret differently.
+        if (info.Ground > (byte)GroundKind.Walking || !float.IsFinite(info.RotationTimeScale) || info.RotationTimeScale <= 0)
+        { rejection = "Unknown terrain generator or invalid zone clock."; return false; }
+        try
+        {
+            ZoneSpec resolvedZone = FromInfo(info);
+            PlanetEnvironmentDescriptor resolved = resolvedZone.EnvironmentDescriptor();
+            if (!resolved.IsLegacyMultiplayerCompatible || !SameEnvironment(identity, ToEnvironment(resolved)))
+            { rejection = "The server's physical environment or qualification contract differs from this build."; return false; }
+            zone = resolvedZone;
+            descriptor = resolved;
+            return true;
+        }
+        catch (ArgumentException) { rejection = "Invalid world description."; return false; }
+        catch (InvalidOperationException) { rejection = "Unsupported world description."; return false; }
+        catch (NotSupportedException) { rejection = "Unsupported environment profile."; return false; }
+    }
+
+    public static bool ValidEnvironment(in EnvironmentIdentity identity) =>
+        identity.DescriptorSchema == PlanetEnvironmentDescriptor.DescriptorSchema &&
+        IsDigest(identity.DescriptorIdentity) && IsDigest(identity.QualificationIdentity) &&
+        identity.ProfileId is { Length: > 0 and <= 64 } && IsProfile(identity.ProfileId);
+
+    public static bool SameEnvironment(in EnvironmentIdentity a, in EnvironmentIdentity b) =>
+        ValidEnvironment(a) && ValidEnvironment(b) && a.DescriptorSchema == b.DescriptorSchema &&
+        string.Equals(a.DescriptorIdentity, b.DescriptorIdentity, StringComparison.Ordinal) &&
+        string.Equals(a.ProfileId, b.ProfileId, StringComparison.Ordinal) &&
+        string.Equals(a.QualificationIdentity, b.QualificationIdentity, StringComparison.Ordinal);
+
+    /// <summary>Welcome must repeat the exact wire offer, including physics values outside the terrain descriptor.</summary>
+    public static bool SameZone(in ZoneInfo a, in ZoneInfo b) =>
+        a.SystemAddress == b.SystemAddress && a.BodyPath == b.BodyPath && a.Radius == b.Radius &&
+        a.SurfaceGravity == b.SurfaceGravity && a.SurfaceSeed == b.SurfaceSeed &&
+        a.LatitudeDegrees == b.LatitudeDegrees && a.LongitudeDegrees == b.LongitudeDegrees &&
+        a.StandIn == b.StandIn && a.Ground == b.Ground && a.RotationTimeScale == b.RotationTimeScale &&
+        a.AirDensity == b.AirDensity && a.AirScaleHeight == b.AirScaleHeight;
+
+    private static bool IsDigest(string? value)
+    {
+        if (value is not { Length: 64 }) return false;
+        foreach (char c in value) if (!(c is >= '0' and <= '9' or >= 'A' and <= 'F')) return false;
+        return true;
+    }
+
+    private static bool IsProfile(string value)
+    {
+        foreach (char c in value) if (!(c is >= 'a' and <= 'z' or >= '0' and <= '9' or '-')) return false;
+        return true;
+    }
+
     /// <summary>A thing named on the wire (GROUND_SYSTEMS.md §3.1).</summary>
     public static TargetNet ToNet(in Simulation.Targets.TargetRef target) => new() { Family = target.Family, Id = target.Id, Part = target.Part };
 

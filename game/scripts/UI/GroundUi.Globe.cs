@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Godot;
 using Hollow.Client.Map;
@@ -27,9 +29,51 @@ public partial class GroundUi
     private static readonly Color GridInk = new(0.16f, 0.13f, 0.09f, 0.38f);
     private static readonly Color FaceInk = new(0.16f, 0.13f, 0.09f, 0.75f);
     private static readonly Color LabelInk = new(0.16f, 0.13f, 0.09f, 0.72f);
-    private static readonly Dictionary<string, Texture2DArray> GlobeTextures = new();
-    private static readonly Dictionary<string, Task<Image[]?>> GlobeRenders = new();
-    private static readonly HashSet<string> GlobeFailed = new();
+    private readonly Dictionary<string, Texture2DArray> GlobeTextures = new();
+    private readonly Dictionary<string, Task<byte[]>> GlobeRenders = new();
+    private readonly HashSet<string> GlobeFailed = new();
+    private readonly List<Task> _mapJobs = new();
+    private CancellationTokenSource _mapCancellation = new();
+    private string? _pictureKey;
+    private bool _mapsStopped;
+    public Task MapWorkersStopped { get; private set; } = Task.CompletedTask;
+
+    public void StopMapWork()
+    {
+        if (_mapsStopped) return;
+        _mapsStopped = true;
+        RetireMapPicture();
+        MapWorkersStopped = Task.WhenAll(_mapJobs);
+    }
+
+    public Task ResetMapWork()
+    {
+        if (_mapsStopped) return MapWorkersStopped;
+        RetireMapPicture();
+        _mapGlobe.Camera = null;
+        _deathGlobe.Camera = null;
+        return Task.WhenAll(_mapJobs);
+    }
+
+    private void RetireMapPicture()
+    {
+        CancellationTokenSource cancellation = _mapCancellation;
+        cancellation.Cancel();
+        Task pending = Task.WhenAll(_mapJobs);
+        _ = pending.ContinueWith(task => { _ = task.Exception; cancellation.Dispose(); },
+            CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        foreach (Texture2DArray texture in GlobeTextures.Values) texture.Dispose();
+        if (_globeMaterial != null)
+        {
+            _globeMaterial.SetShaderParameter("faces", default(Variant));
+            _globeMaterial.SetShaderParameter("ready", false);
+        }
+        GlobeTextures.Clear();
+        GlobeRenders.Clear();
+        GlobeFailed.Clear();
+        _pictureKey = null;
+        if (!_mapsStopped) _mapCancellation = new();
+    }
 
     /// <summary>One screen's map: where it looks, where it is drawn, its drag, and whether a click puts a marker down.</summary>
     private sealed class Globe
@@ -137,7 +181,7 @@ public partial class GroundUi
             g.Camera.Across = across;
             _zoomTo = null;
         }
-        g.Camera.Settle(delta);
+        g.Camera.Settle(delta, g.Dragging);
 
         GlobeProjection p = g.Projection;
         Texture2DArray? picture = GlobePicture(view);
@@ -186,13 +230,18 @@ public partial class GroundUi
     private static string PictureKey(MapView view) => $"{view.CacheKey}-{view.Pixels}";
 
     /// <summary>The map's six faces as a texture array, once ready (rendered on a worker the first time, then read from disk).</summary>
-    private static Texture2DArray? GlobePicture(MapView? view)
+    private Texture2DArray? GlobePicture(MapView? view)
     {
-        if (view == null)
+        if (view == null || _mapsStopped)
         {
             return null;
         }
         string key = PictureKey(view);
+        if (_pictureKey != key)
+        {
+            RetireMapPicture();
+            _pictureKey = key;
+        }
         if (GlobeTextures.TryGetValue(key, out Texture2DArray? texture))
         {
             return texture;
@@ -201,10 +250,24 @@ public partial class GroundUi
         {
             return null;
         }
-        if (!GlobeRenders.TryGetValue(key, out Task<Image[]?>? render))
+        string path = ProjectSettings.GlobalizePath($"user://map-cache/{key}.png");
+        if (!GlobeRenders.TryGetValue(key, out Task<byte[]>? render))
         {
-            string path = ProjectSettings.GlobalizePath($"user://map-cache/{key}.png");
-            render = Task.Run(() => LoadOrRender(view, path));
+            if (File.Exists(path))
+            {
+                using Image strip = Image.LoadFromFile(path);
+                if (strip != null && !strip.IsEmpty() && strip.GetWidth() == view.Pixels && strip.GetHeight() == CubeSphere.FaceCount * view.Pixels)
+                {
+                    strip.Convert(Image.Format.Rgba8);
+                    if (MakeMapTexture(strip, view.Pixels) is { } cached) return GlobeTextures[key] = cached;
+                }
+            }
+            CancellationToken token = _mapCancellation.Token;
+            render = Task.Run(() => view.RenderCancellable != null ? view.RenderCancellable(token) : view.Render(), token);
+            _mapJobs.RemoveAll(task => task.IsCompleted);
+            _mapJobs.Add(render);
+            _ = render.ContinueWith(static task => { _ = task.Exception; },
+                CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
             GlobeRenders[key] = render;
         }
         if (!render.IsCompleted)
@@ -212,55 +275,52 @@ public partial class GroundUi
             return null;
         }
         GlobeRenders.Remove(key);
-        if (render.IsCompletedSuccessfully && render.Result is { } faces)
+        if (render.IsCompletedSuccessfully && render.Result.Length == view.Pixels * view.Pixels * CubeSphere.FaceCount * 4)
         {
-            var array = new Texture2DArray();
-            if (array.CreateFromImages(new Godot.Collections.Array<Image>(faces)) == Error.Ok)
+            using Image strip = Image.CreateFromData(view.Pixels, CubeSphere.FaceCount * view.Pixels, false, Image.Format.Rgba8, render.Result);
+            if (MakeMapTexture(strip, view.Pixels) is { } made)
             {
-                return GlobeTextures[key] = array;
+                GlobeTextures[key] = made;
+                try
+                {
+                    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                    Error saved = strip.SavePng(path);
+                    if (saved != Error.Ok) GD.PushWarning($"[map] picture ready but its disk cache could not be saved: {saved}");
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                { GD.PushWarning($"[map] picture ready but its disk cache could not be saved: {error.Message}"); }
+                return made;
             }
         }
+        if (render.IsFaulted) GD.PushWarning($"[map] {render.Exception}");
         GD.PushWarning($"[map] the picture {key} could not be made");
         GlobeFailed.Add(key);
         return null;
     }
 
-    // On a worker: the strip of six faces from the disk, or rendered from the surface and saved; then each face with its
-    // mipmaps (the shader picks the level from the projection's scale, so seams between faces don't flicker).
-    private static Image[]? LoadOrRender(MapView view, string path)
+    // Native images, mipmaps and textures belong to the presentation thread. Workers return only RGBA bytes.
+    private static Texture2DArray? MakeMapTexture(Image strip, int size)
     {
-        int size = view.Pixels;
-        Image? strip = null;
-        if (File.Exists(path))
+        var faces = new Image[CubeSphere.FaceCount];
+        try
         {
-            strip = Image.LoadFromFile(path);
-            if (strip == null || strip.IsEmpty() || strip.GetWidth() != size || strip.GetHeight() != CubeSphere.FaceCount * size)
+            for (int f = 0; f < faces.Length; f++)
             {
-                strip = null;
+                faces[f] = strip.GetRegion(new Rect2I(0, f * size, size, size));
+                faces[f].GenerateMipmaps();
             }
-            else
+            var images = new Godot.Collections.Array<Image>(faces);
+            var array = new Texture2DArray();
+            try
             {
-                strip.Convert(Image.Format.Rgba8);
-            }
-        }
-        if (strip == null)
-        {
-            byte[] rgba = view.Render();
-            if (rgba.Length != size * size * CubeSphere.FaceCount * 4)
-            {
+                if (array.CreateFromImages(images) == Error.Ok) return array;
+                array.Dispose();
                 return null;
             }
-            strip = Image.CreateFromData(size, CubeSphere.FaceCount * size, false, Image.Format.Rgba8, rgba);
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            strip.SavePng(path);
+            catch { array.Dispose(); throw; }
+            finally { images.Clear(); }
         }
-        var faces = new Image[CubeSphere.FaceCount];
-        for (int f = 0; f < faces.Length; f++)
-        {
-            faces[f] = strip.GetRegion(new Rect2I(0, f * size, size, size));
-            faces[f].GenerateMipmaps();
-        }
-        return faces;
+        finally { foreach (Image? face in faces) face?.Dispose(); }
     }
 
     // ---------------------------------------------------------------- the overlay
@@ -271,6 +331,7 @@ public partial class GroundUi
     // Starts the overlay: the grid's lines under everything else.
     private GlobeFrame BeginGlobe(Globe g, MapView view)
     {
+        BeginMapDrawMeasurement();
         var labeller = new Labeller(Size);
         Rect2 a = g.Area;
         labeller.Block(new Rect2(0, 0, Size.X, a.Position.Y));
@@ -296,6 +357,7 @@ public partial class GroundUi
             TextIn(GlobeFailed.Contains(PictureKey(view)) ? "NO MAP PICTURE" : "DRAWING THE MAP…", 0, f.Globe.Area.Size.Y / Ui.Scale / 2 - 20, w, 30,
                 LabelInk, HorizontalAlignment.Center, bold: true, condensed: true);
         }
+        EndMapDrawMeasurement();
     }
 
     /// <summary>A point on the map's screen, or null when it is hidden or outside the map's area.</summary>

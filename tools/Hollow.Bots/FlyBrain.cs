@@ -16,6 +16,7 @@ namespace Hollow.Bots;
 /// </summary>
 public sealed class FlyBrain
 {
+    private readonly BotGround _ground;
     private const float HomeRadius = 900f;
 
     private readonly int _index;
@@ -26,8 +27,9 @@ public sealed class FlyBrain
     private float _turn;
     private Vector3 _home;
 
-    public FlyBrain(int index)
+    public FlyBrain(int index, BotGround ground)
     {
+        _ground = ground;
         _index = index;
         _rng = new Rng(Hash64.Of((ulong)index, 0xF1E5));
         _turn = (index % 2 == 0 ? 1 : -1) * (float)_rng.Range(0.25, 0.55);
@@ -50,7 +52,7 @@ public sealed class FlyBrain
         {
             _boardedAt = time;
             Boardings++;
-            _home = BotGround.Home(client); // where it arrived: its ship was set down beside it
+            _home = _ground.Home(client); // where it arrived: its ship was set down beside it
         }
         return Fly(time, delta, client);
     }

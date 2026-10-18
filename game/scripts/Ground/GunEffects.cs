@@ -26,8 +26,6 @@ public static class GunEffects
     private static GameContent? _content;
     private static (byte Bit, string Key)[] _attachments = Array.Empty<(byte, string)>();
     private static readonly string[] Slots = { "sight", "muzzle", "under" };
-    private static Vector3 _fleshAt;
-    private static double _fleshTime = double.NegativeInfinity;
 
     private static void Know(GameContent content)
     {
@@ -117,90 +115,4 @@ public static class GunEffects
         }
     }
 
-    /// <summary>A bullet's blood was shown on a body here just now (impacts note it; flinches then don't add their own).</summary>
-    public static void NoteFlesh(Vector3 at, double time)
-    {
-        _fleshAt = at;
-        _fleshTime = time;
-    }
-
-    public static bool FleshShown(Vector3 near, double time) => time - _fleshTime < 0.4 && near.DistanceTo(_fleshAt) < 1.5f;
-
-    /// <summary>
-    /// The surface a projectile stopped on, for its impact effect, and the way that surface faces there (the ground's up;
-    /// back along the flight for the rest).
-    /// </summary>
-    public static FxSurface SurfaceOf(GameClient client, ClientProjectile p, Num.Vector3 end, out Num.Vector3 normal)
-    {
-        Num.Vector3 dir = p.DirectionAt(p.EndedTime);
-        normal = -dir;
-        switch (p.EndTarget)
-        {
-            case TargetFamily.Character:
-                return FxSurface.Flesh;
-            case TargetFamily.Natural:
-                return NaturalAt(client, end) switch
-                {
-                    NaturalClass.Tree => FxSurface.Wood,
-                    NaturalClass.Bush => FxSurface.Grass,
-                    _ => FxSurface.Rock,
-                };
-            case TargetFamily.Thing:
-            {
-                RemoteThing? thing = null;
-                float best = 2.5f;
-                foreach (RemoteThing t in client.Survival().Things)
-                {
-                    float d = Num.Vector3.Distance(t.Position, end);
-                    if (d < best && t.Kind is StaticKind.Deployable or StaticKind.Prop)
-                    {
-                        (best, thing) = (d, t);
-                    }
-                }
-                return thing?.Deployable(client.Content)?.Key switch
-                {
-                    "furnace" => FxSurface.Rock,
-                    "workbench-2" or "workbench-3" or "vehicle-workbench" or "engineering-workbench" or "research-table" => FxSurface.Metal,
-                    "loot-barrel-1" or "loot-barrel-2" or "military-crate" or "recycler" => FxSurface.Metal,
-                    "sleeping-bag" => FxSurface.Dirt,
-                    _ => FxSurface.Wood,
-                };
-            }
-            case TargetFamily.Ship:
-                return FxSurface.Metal;
-            case TargetFamily.Piece or TargetFamily.Door or TargetFamily.Cupboard:
-                return client.Building().AimBuilding(end - dir * 0.4f, dir) switch
-                {
-                    Piece piece => FxSurfaces.OfGrade(client.Content.Building.Grades[Math.Clamp(piece.Grade, 0, client.Content.Building.Grades.Count - 1)].Key),
-                    Door door => door.Def.Key.Contains("wood", StringComparison.Ordinal) ? FxSurface.Wood : FxSurface.Metal,
-                    _ => FxSurface.Wood,
-                };
-            default:
-                normal = client.Frame.UpAt(end);
-                return GroundAudio.WaterDepth(client, end) > 0.05 ? FxSurface.Water : FxSurfaces.Of(GroundAudio.MaterialAt(client, end));
-        }
-    }
-
-    /// <summary>The class of the natural object nearest a point within 3 m (a tree, an outcrop, a bush), if any.</summary>
-    public static NaturalClass? NaturalAt(GameClient client, Num.Vector3 point)
-    {
-        if (client.Survival().Nature is not { } nature)
-        {
-            return null;
-        }
-        var near = new List<NaturalObject>();
-        nature.Query(point, 3, near);
-        NaturalObject? best = null;
-        float bestDistance = float.MaxValue;
-        foreach (NaturalObject o in near)
-        {
-            float d = Num.Vector3.Distance(o.Position, point);
-            if (d < bestDistance)
-            {
-                bestDistance = d;
-                best = o;
-            }
-        }
-        return best is { } b ? client.Content.Natural(b.Kind)?.Class : null;
-    }
 }

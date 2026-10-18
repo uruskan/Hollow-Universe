@@ -1,0 +1,55 @@
+  RUN  ArchitectureTests.EngineFreeLibrariesDoNotReferenceGodot
+  ok   ArchitectureTests.EngineFreeLibrariesDoNotReferenceGodot (4 ms)
+  RUN  ArchitectureTests.GenerationCodeUsesOnlyDeterministicApis
+      79 source files checked
+  ok   ArchitectureTests.GenerationCodeUsesOnlyDeterministicApis (61 ms)
+  RUN  ArchitectureTests.TheZoneIsAHost
+      25 systems, 24 in the game's list; the host is 400 lines
+  ok   ArchitectureTests.TheZoneIsAHost (20 ms)
+  RUN  ArchitectureTests.TheClientIsAHost
+      17 modules, all listed once; the host is 867 lines
+  ok   ArchitectureTests.TheClientIsAHost (9 ms)
+  RUN  ArchitectureTests.TheServerIsAHost
+  FAIL ArchitectureTests.TheServerIsAHost: GameServer.cs has 1101 lines: concerns are creeping back into the host
+  RUN  EarthTerrainTests.EarthHasMoreDryGroundWithinTheTotalSurfaceLimit
+      Earth: 18.10 km² total, 58.8% dry (10.63 km²), 35.0% ocean
+  ok   EarthTerrainTests.EarthHasMoreDryGroundWithinTheTotalSurfaceLimit (480 ms)
+  RUN  EarthTerrainTests.EarthHasALargeConnectedLandmass
+      Earth at ~15 m: 10 dry components, largest 10.64 km² (99.9% of dry ground)
+  ok   EarthTerrainTests.EarthHasALargeConnectedLandmass (435 ms)
+  RUN  EarthTerrainTests.EarthTerrainRemainsDeterministic
+      Earth terrain hash 0x3D5174066B119948; 14 lakes, 588 drainage pieces
+  ok   EarthTerrainTests.EarthTerrainRemainsDeterministic (136 ms)
+  RUN  EarthTerrainTests.EarthProfileLeavesPhysicalDataAndExplicitOverridesIntact
+  ok   EarthTerrainTests.EarthProfileLeavesPhysicalDataAndExplicitOverridesIntact (139 ms)
+  RUN  EarthTerrainTests.EarthProfileDoesNotChangeOtherWorlds
+  ok   EarthTerrainTests.EarthProfileDoesNotChangeOtherWorlds (1202 ms)
+  RUN  EnvironmentRouteTests.ActualEarthHasOneConnectedSampledEnvironmentRoute
+      route beach: --lat -30.486486 --lon 43.059333; height=1.39 grade=0.076 grass=0.01 woodland=0.00 trees18m=0 feature=Beach
+      route woodland: --lat -34.176574 --lon 47.662370; height=3.65 grade=0.070 grass=0.23 woodland=1.00 trees18m=3 feature=Grassland
+      route clearing: --lat -32.783967 --lon 47.028200; height=2.58 grade=0.091 grass=0.42 woodland=0.22 trees18m=0 feature=Grassland
+      route water: --lat -19.952945 --lon 36.987604; height=-0.10 grade=0.032 grass=0.00 woodland=0.00 trees18m=0 feature=Ocean
+      route cliff: --lat -19.952945 --lon 36.987604; height=-0.10 grade=0.032 grass=0.00 woodland=0.00 trees18m=0 feature=nordic_forest_ledge
+      route monument: --lat -30.445650 --lon 45.823593; height=1.98 grade=0.068 grass=0.22 woodland=0.00 trees18m=0 feature=wellhead
+      Connected route wellhead/tile 5/3/0/0; 786.5m; 2 candidates; heightfield feasibility only, hosted object collision and visual quality remain unverified
+  ok   EnvironmentRouteTests.ActualEarthHasOneConnectedSampledEnvironmentRoute (570 ms)
+  RUN  EnvironmentRouteTests.RouteRejectsLegacyWorldAndInWaterCorridor
+  ok   EnvironmentRouteTests.RouteRejectsLegacyWorldAndInWaterCorridor (299 ms)
+  RUN  GameScaleTests.EarthMovementPredictionUsesTheScaledWalkingTerrain
+      Earth radius 1200 m; walked 22.2 m; 360 exact prediction ticks
+  ok   GameScaleTests.EarthMovementPredictionUsesTheScaledWalkingTerrain (821 ms)
+  RUN  GameScaleTests.EveryPlanetFitsTheEntireSurfaceAreaBudget
+  ok   GameScaleTests.EveryPlanetFitsTheEntireSurfaceAreaBudget (0 ms)
+  RUN  GameScaleTests.InvalidScaleInputsAreRejected
+  ok   GameScaleTests.InvalidScaleInputsAreRejected (7 ms)
+  RUN  GameScaleTests.EarthStartsWithoutAnOptionalCatalogue
+  ok   GameScaleTests.EarthStartsWithoutAnOptionalCatalogue (1 ms)
+  RUN  GameScaleTests.ScalingLeavesGeneratedPhysicsUnchanged
+  ok   GameScaleTests.ScalingLeavesGeneratedPhysicsUnchanged (0 ms)
+  RUN  TerrainSaveTests.FreshTerrainSaveReopensWithItsContents
+  ok   TerrainSaveTests.FreshTerrainSaveReopensWithItsContents (85 ms)
+  RUN  TerrainSaveTests.ChangedTerrainRevisionRejectsBeforeWriting
+  ok   TerrainSaveTests.ChangedTerrainRevisionRejectsBeforeWriting (12 ms)
+  RUN  TerrainSaveTests.PopulatedLegacyTerrainIsRejectedWithoutMigrationOrByteChanges
+  ok   TerrainSaveTests.PopulatedLegacyTerrainIsRejectedWithoutMigrationOrByteChanges (14 ms)
+19/20 passed in 4.3 s.

@@ -12,7 +12,7 @@ namespace HollowUniverse.UI.Viewer;
 /// <summary>
 /// The interface viewer (<c>--view ui</c>, GROUND.md §8): the ground interface on <see cref="MockGroundUi"/> over a
 /// plain backdrop, opened on one screen for a look or a screenshot. Options (after "--"):
-/// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|crafting-free|death|wheel|hammer|options|ammo|menu|map|techtree|recycler|research</c>,
+/// <c>--screen hud|hud-crafting|hud-crafting-next|inventory|loot|corpse|furnace|campfire|crafting|crafting-free|death|wheel|hammer|options|ammo|menu|map|techtree|recycler|research</c>,
 /// the F1 panel's <c>console|console-info|console-net|console-items|console-tools|console-tools-stone</c>, the F2 panel's
 /// <c>developer|developer-players|developer-look|developer-draw|developer-log</c>, settings tabs
 /// <c>settings|settings-display|settings-shadows|settings-crosshair</c>, and
@@ -39,7 +39,7 @@ public partial class UiViewer : Node
     public override void _Ready()
     {
         _shot = Options.ContainsKey("shot");
-        _checking = Options.ContainsKey("ui-check") || Options.ContainsKey("crosshair-check");
+        _checking = Options.ContainsKey("ui-check") || Options.ContainsKey("crafting-hud-check") || Options.ContainsKey("crosshair-check");
         AddChild(new UiBackdrop { Name = "Backdrop" });
         var layer = new CanvasLayer { Name = "Interface" };
         AddChild(layer);
@@ -52,6 +52,11 @@ public partial class UiViewer : Node
         if (Options.TryGetValue("across", out string? across) && double.TryParse(across, NumberStyles.Float, CultureInfo.InvariantCulture, out double metres))
         {
             _ui.ZoomMapTo(metres);
+        }
+        if (Options.ContainsKey("crafting-hud-check"))
+        {
+            RunCraftingHudCheck();
+            return;
         }
         if (Options.ContainsKey("crosshair-check"))
         {
@@ -121,6 +126,10 @@ public partial class UiViewer : Node
     {
         switch (screen)
         {
+            case "hud-crafting" or "hud-crafting-next":
+                PrepareCraftingHud(_model);
+                _model.Tick(screen == "hud-crafting-next" ? 7 : 2);
+                break;
             case "inventory":
                 _ui.Open(GroundScreen.Inventory);
                 _ui.Select(new SlotRef(ContainerId.Belt, 5));
@@ -533,6 +542,7 @@ public partial class UiViewer : Node
             "empty-backpack DROP ALL cannot drop hotbar items");
         _ui.Hide();
 
+        await CheckCraftingHud(Expect);
         GD.Print($"ui-check: {checks - failures.Count}/{checks} passed");
         GetTree().Quit(failures.Count == 0 ? 0 : 1);
     }

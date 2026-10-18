@@ -32,6 +32,8 @@ public sealed partial class GameContent
         Content.InteractionData.File,
         "placement.json",
         "batteries.json",
+        "compound.json",
+        PhysicalSurfaceData.FileName,
     };
 
     /// <summary>Files read with the rest but not part of <see cref="Hash"/>: the player's lines (a translation may differ).</summary>
@@ -79,6 +81,8 @@ public sealed partial class GameContent
         Placement = loaded.Placement ?? Simulation.Placement.PlacementData.Empty;
         ItemActions = loaded.Actions ?? global::Hollow.Simulation.Items.ItemActions.Bind(Array.Empty<global::Hollow.Simulation.Items.ItemActionDef>(), new List<string>());
         Building = loaded.Building ?? BuildingData.Parse("{}");
+        Compound = loaded.Compound ?? CompoundCatalog.Empty;
+        Surfaces = loaded.Surfaces ?? PhysicalSurfaceData.Empty;
         ClaimDeployable = loaded.ClaimDeployable ?? new DeployableDef { Key = "claim-device", Item = new ItemDef { Key = "claim-device" }, Health = 200, Slots = 24 };
         _byId = new ItemDef?[ushort.MaxValue + 1];
         _byKey = new Dictionary<string, ItemDef>(StringComparer.Ordinal);
@@ -101,6 +105,7 @@ public sealed partial class GameContent
     }
 
     public IReadOnlyList<ItemDef> Items { get; }
+    public PhysicalSurfaceData Surfaces { get; }
 
     public IReadOnlyList<Recipe> Recipes { get; }
 
@@ -219,6 +224,8 @@ public sealed partial class GameContent
 
     /// <summary>The building rules' numbers (building.json, GROUND.md §6.3).</summary>
     public BuildingData Building { get; }
+
+    public CompoundCatalog Compound { get; }
 
     /// <summary>The claim device as the zone keeps it: a deployable whose storage is its upkeep store (never placed on the ground).</summary>
     public DeployableDef ClaimDeployable { get; }
@@ -437,6 +444,8 @@ public sealed partial class GameContent
         public HarvestRates HarvestRates = new();
         public SurvivalTuning Survival = new();
         public BuildingData? Building;
+        public CompoundCatalog? Compound;
+        public PhysicalSurfaceData? Surfaces;
         public DeployableDef? ClaimDeployable;
         public Texts? Texts;
         public CapabilityData? Capabilities;

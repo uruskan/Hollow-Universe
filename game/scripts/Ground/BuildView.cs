@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Hollow.Client;
+using Hollow.Client.Feedback;
 using Hollow.Core;
 using Hollow.Simulation;
 using Hollow.Simulation.Building;
@@ -43,8 +44,17 @@ public partial class BuildView : Node3D, IHammerActions
     private IBuildingWallet? _wallet;
     private PlanRadial? _planRadial;
     private IRadialSource? _hammer;
+    private readonly ConfirmedFeedback _confirmedCues = new();
 
     public GameClient Client { get; set; } = null!;
+
+    public override void _Ready() => Client.Local.IntentAnswered += OnIntentAnswered;
+
+    private void OnIntentAnswered(IntentAnswer answer)
+    {
+        if (_confirmedCues.Complete(answer.Seq, answer.Done, Client.ClockSeconds) is { } cue)
+            Sounds.At(cue.Sound, GroundView.ToGodot(cue.Point));
+    }
 
     /// <summary>The placement controller (GROUND_SYSTEMS.md §6): what the held item places, its ghost and verdict.</summary>
     public PlacementView Placing { get; set; } = null!;
@@ -221,15 +231,26 @@ public partial class BuildView : Node3D, IHammerActions
 
     private void Attach()
     {
-        if (_world != null || Client.Building().World is not { } world)
+        BuildingWorld? world = Client.Building().World;
+        if (ReferenceEquals(_world, world)) return;
+        RetireWorld();
+        if (world == null) return;
+        try
         {
-            return;
+            _assets = BuildingAssets.Load(Data);
+            _renderer = new BuildingRenderer { Name = "Buildings", PresentationTargets = Client.Targets() };
+            AddChild(_renderer);
+            _renderer.Attach(world, _assets);
+            BindWorld(world);
         }
+        catch { RetireWorld(); throw; }
+    }
+
+    // Binding is independent of art, so retirement can also be checked with an empty native fixture.
+    internal void BindWorld(BuildingWorld world)
+    {
+        if (_world != null) throw new InvalidOperationException("Retire the previous building view before binding another world.");
         _world = world;
-        _assets = BuildingAssets.Load(Data);
-        _renderer = new BuildingRenderer { Name = "Buildings" };
-        AddChild(_renderer);
-        _renderer.Attach(world, _assets);
         foreach (Piece p in world.AllPieces)
         {
             _grades[p] = p.Grade;
@@ -241,12 +262,29 @@ public partial class BuildView : Node3D, IHammerActions
         world.Changed += OnChanged;
     }
 
+    /// <summary>Release world objects and event bindings before the client's building replica is disposed.</summary>
+    public void RetireWorld()
+    {
+        if (_world != null) _world.Changed -= OnChanged;
+        _world = null;
+        if (_renderer is { } renderer)
+        {
+            _renderer = null;
+            renderer.RetireWorld();
+            if (renderer.GetParent() == this) RemoveChild(renderer);
+            renderer.QueueFree();
+        }
+        _grades.Clear(); _open.Clear();
+        _confirmedCues.Clear();
+        _target = null; _hit = default; _assets = null;
+        _since = _lockSync = 0;
+        Held = BuildingRole.None; Aimed = default;
+    }
+
     public override void _ExitTree()
     {
-        if (_world != null)
-        {
-            _world.Changed -= OnChanged;
-        }
+        Client.Local.IntentAnswered -= OnIntentAnswered;
+        RetireWorld();
     }
 
     // What happens to the building sounds and shows: a piece placed (once the world is in) or upgraded; a door opened or
@@ -376,11 +414,16 @@ public partial class BuildView : Node3D, IHammerActions
         }
         if (_target is Piece piece)
         {
-            return Client.Local.Repair(piece);
+            uint sequence = Client.Local.Repair(piece);
+            _confirmedCues.Track(sequence, Sounds.Item(Client.Local.HeldItem?.Key ?? "", "repair"), _hit.Point, Client.ClockSeconds);
+            return sequence;
         }
         else if (Mendable(out _) is { } thing)
         {
-            return Client.Local.Repair(thing);
+            uint sequence = Client.Local.Repair(thing);
+            Num.Vector3 point = Client.Targets().TryPose(thing, out TargetPose pose) ? pose.Position : Client.Character.Position;
+            _confirmedCues.Track(sequence, Sounds.Item(Client.Local.HeldItem?.Key ?? "", "repair"), point, Client.ClockSeconds);
+            return sequence;
         }
         return 0;
     }

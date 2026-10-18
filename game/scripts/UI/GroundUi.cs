@@ -176,6 +176,7 @@ public partial class GroundUi : Control
 
     public override void _ExitTree()
     {
+        StopMapWork();
         Model.HitConfirmed -= OnHit;
         Model.Damaged -= OnDamaged;
         Model.Gathered -= OnGathered;

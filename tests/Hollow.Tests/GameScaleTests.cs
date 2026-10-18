@@ -18,38 +18,45 @@ public static class GameScaleTests
     [Test]
     public static void EarthMovementPredictionUsesTheScaledWalkingTerrain()
     {
-        ZoneSpec spec = ZoneSpec.StartingWorld(StartingWorld.LandingLatitude, StartingWorld.LandingLongitude);
-        WalkingWorld surface = WalkingWorlds.Find(spec.SystemAddress, spec.BodyPath, spec.Radius)!;
-        Vector3D site = surface.LandingSite;
-        spec = spec with
+        ZoneSpec spec = ZoneSpec.StartingWorld(StartingWorld.LandingLatitude, StartingWorld.LandingLongitude)
+            with { Ground = GroundKind.Walking };
+        var store = new WorldStore(new WorldStoreOptions());
+        try
         {
-            Ground = GroundKind.Walking,
-            LatitudeDegrees = DMath.Asin(site.Y) * DMath.RadToDeg,
-            LongitudeDegrees = DMath.Atan2(-site.Z, site.X) * DMath.RadToDeg,
-        };
-        using var zone = new Zone(surface, spec);
-        Vector3 start = zone.Landing + zone.Frame.UpAt(zone.Landing) * 0.02f;
-        Entity entity = zone.AddCharacter(new EntityId(7), "Earth walker", zone.NewCharacter(start));
-        using var predictor = new Predictor(spec, surface, null);
-        predictor.World.EnsureGround(start);
-        predictor.Reset(0, zone.Entities.Get<Character>(entity).State, 0);
-        for (uint tick = 1; tick <= 360; tick++)
-        {
-            ref Character character = ref zone.Entities.Get<Character>(entity);
-            Vector3 up = zone.Frame.UpAt(character.State.Position);
-            var move = new MoveInput { Forward = tick <= 240 ? 1 : 0, View = Facing.View(0.3f, 0, up) };
-            InputCommand command = NetConvert.ToCommand(move);
-            character.Input = NetConvert.ToMoveInput(command);
-            zone.Step();
-            predictor.RecordInput(tick, command);
-            predictor.Predict(tick);
-            Assert.True(predictor.Latest.Equals(zone.Entities.Get<Character>(entity).State), $"Earth movement predicted exactly at tick {tick}");
+            // Predictor currently borrows the surface. Keep this pin until it and the zone have drained physics.
+            using WorldLease lease = store.Acquire(spec.EnvironmentDescriptor());
+            var surface = (WalkingWorld)lease.Surface;
+            Vector3D site = surface.LandingSite;
+            spec = spec with
+            {
+                LatitudeDegrees = DMath.Asin(site.Y) * DMath.RadToDeg,
+                LongitudeDegrees = DMath.Atan2(-site.Z, site.X) * DMath.RadToDeg,
+            };
+            using var zone = new Zone(lease.Fork(), spec);
+            Vector3 start = zone.Landing + zone.Frame.UpAt(zone.Landing) * 0.02f;
+            Entity entity = zone.AddCharacter(new EntityId(7), "Earth walker", zone.NewCharacter(start));
+            using var predictor = new Predictor(spec, surface, null);
+            predictor.World.EnsureGround(start);
+            predictor.Reset(0, zone.Entities.Get<Character>(entity).State, 0);
+            for (uint tick = 1; tick <= 360; tick++)
+            {
+                ref Character character = ref zone.Entities.Get<Character>(entity);
+                Vector3 up = zone.Frame.UpAt(character.State.Position);
+                var move = new MoveInput { Forward = tick <= 240 ? 1 : 0, View = Facing.View(0.3f, 0, up) };
+                InputCommand command = NetConvert.ToCommand(move);
+                character.Input = NetConvert.ToMoveInput(command);
+                zone.Step();
+                predictor.RecordInput(tick, command);
+                predictor.Predict(tick);
+                Assert.True(predictor.Latest.Equals(zone.Entities.Get<Character>(entity).State), $"Earth movement predicted exactly at tick {tick}");
+            }
+            Vector3 end = zone.Entities.Get<Character>(entity).State.Position;
+            Assert.Near(1200, zone.Surface.Radius, 1e-8, "live Earth radius, not the reference-world fixture");
+            Assert.True(Vector3.Distance(start, end) > 5, "walked across scaled terrain");
+            Assert.True(Vector3.Distance(zone.Frame.UpAt(start), zone.Frame.UpAt(end)) > 0.003f, "radial up follows the small world's curvature");
+            Fixtures.Report($"Earth radius {zone.Surface.Radius:0} m; walked {Vector3.Distance(start, end):0.0} m; 360 exact prediction ticks");
         }
-        Vector3 end = zone.Entities.Get<Character>(entity).State.Position;
-        Assert.Near(1200, zone.Surface.Radius, 1e-8, "live Earth radius, not the reference-world fixture");
-        Assert.True(Vector3.Distance(start, end) > 5, "walked across scaled terrain");
-        Assert.True(Vector3.Distance(zone.Frame.UpAt(start), zone.Frame.UpAt(end)) > 0.003f, "radial up follows the small world's curvature");
-        Fixtures.Report($"Earth radius {zone.Surface.Radius:0} m; walked {Vector3.Distance(start, end):0.0} m; 360 exact prediction ticks");
+        finally { store.DisposeAsync().GetAwaiter().GetResult(); }
     }
 
     [Test]
@@ -100,10 +107,10 @@ public static class GameScaleTests
         Assert.Equal(StartingWorld.BodyPath, spec.BodyPath, "server sends Earth identity");
         Assert.Near(GameScale.PlanetRadius(earth), spec.Radius, 0, "server uses shared game scale");
         Assert.Near(earth.SurfaceGravity, spec.SurfaceGravity, 0, "real gravity remains independent of game radius");
-        PlanetSurfaces.Entry? surface = PlanetSurfaces.Find(spec.SystemAddress, spec.BodyPath);
-        Assert.True(surface != null && surface.Body.Name == "Earth", "client and server resolve built-in Earth without HYG");
+        PlanetBodies.Entry? metadata = PlanetBodies.Find(spec.SystemAddress, spec.BodyPath);
+        Assert.True(metadata != null && metadata.Body.Name == "Earth", "client and server resolve built-in Earth without HYG");
         Assert.True(spec.CreateSky() != null, "Earth's sky uses the existing real Solar System");
-        Assert.True(PlanetSurfaces.Find(ulong.MaxValue, uint.MaxValue) == null, "untrusted identities remain rejected");
+        Assert.True(PlanetBodies.Find(ulong.MaxValue, uint.MaxValue) == null, "untrusted identities remain rejected");
     }
 
     [Test]

@@ -1,0 +1,733 @@
+  RUN  AdminBuildTests.AdminBuildCommandsRequireAdminAndReplicateRevocation
+  ok   AdminBuildTests.AdminBuildCommandsRequireAdminAndReplicateRevocation (4405 ms)
+  RUN  AdminBuildTests.AdminBuildDisconnectClearsSleeperAndReconnectUsesDefaults
+  ok   AdminBuildTests.AdminBuildDisconnectClearsSleeperAndReconnectUsesDefaults (1088 ms)
+  RUN  AdminBuildTests.AdminBuildGradePlacesFreeAndChargesChosenTierWhenDisabled
+  ok   AdminBuildTests.AdminBuildGradePlacesFreeAndChargesChosenTierWhenDisabled (1553 ms)
+  RUN  AdminBuildTests.AdminBuildFreeCraftPredictionNeverRefundsUnspentIngredients
+  ok   AdminBuildTests.AdminBuildFreeCraftPredictionNeverRefundsUnspentIngredients (759 ms)
+  RUN  AdminBuildTests.AdminBuildFreeCraftKeepsTimingLimitsAndNormalCraftRules
+  ok   AdminBuildTests.AdminBuildFreeCraftKeepsTimingLimitsAndNormalCraftRules (1 ms)
+  RUN  AdminBuildTests.AdminBuildPersistedFreeJobsCannotTurnIntoPaidRefunds
+  ok   AdminBuildTests.AdminBuildPersistedFreeJobsCannotTurnIntoPaidRefunds (6 ms)
+  RUN  AdminBuildTests.AdminBuildLegacyVersionSixJobsRemainPaid
+  ok   AdminBuildTests.AdminBuildLegacyVersionSixJobsRemainPaid (0 ms)
+  RUN  AdminBuildTests.AdminBuildEveryTierPlacesAtFullHealthAndHammerUsesFreeResources
+  ok   AdminBuildTests.AdminBuildEveryTierPlacesAtFullHealthAndHammerUsesFreeResources (358 ms)
+  RUN  AdminBuildTests.AdminBuildFreeDeployablesStillRespectReachAndDoNotConsumeItems
+  ok   AdminBuildTests.AdminBuildFreeDeployablesStillRespectReachAndDoNotConsumeItems (90 ms)
+  RUN  AdminInputTests.NoclipSpeedChangesPredictExactlyAndStayBounded
+  ok   AdminInputTests.NoclipSpeedChangesPredictExactlyAndStayBounded (313 ms)
+  RUN  AdminInputTests.FlightSpeedInputDoesNotGrantNoclipOrAccelerateWalking
+  ok   AdminInputTests.FlightSpeedInputDoesNotGrantNoclipOrAccelerateWalking (206 ms)
+  RUN  AdminInputTests.ConsoleBindingsNormalizeChordsAndKeepServerCommandsOnTheServer
+  ok   AdminInputTests.ConsoleBindingsNormalizeChordsAndKeepServerCommandsOnTheServer (4 ms)
+  RUN  AnimalNetTests.AnimalsComeOutOnThePlanet
+      to tile 2/3/0/3, 125 m from the landing site, 1 herds
+      around her: 3 animals (3 awake): 3 boar; spawning on, 21 areas out; 0.205 ms a tick on animals; 0 attacks landed, 0 killed; the nearest 92 m away
+  ok   AnimalNetTests.AnimalsComeOutOnThePlanet (3631 ms)
+  RUN  AnimalNetTests.AnimalsReplicateWithTheirEvents
+      10 events: 3 Appeared, 2 Hurt, 3 Fled, 1 Died, 1 Gone
+  ok   AnimalNetTests.AnimalsReplicateWithTheirEvents (2390 ms)
+  RUN  AnimalNetTests.CorpsesSurviveARestart
+      after the restart: wolf corpse 110 left, 300 s
+  ok   AnimalNetTests.CorpsesSurviveARestart (1257 ms)
+  RUN  AnimalTests.DeerFleeWhenShot
+      distances before and 2.5 s after the shot: 52 → 72 m, 53 → 73 m, 54 → 75 m, 54 → 75 m
+  ok   AnimalTests.DeerFleeWhenShot (216 ms)
+  RUN  AnimalTests.BoarChargesWhenHurt
+      the boar hit her 4.0 s into the run, 2 attacks in all
+  ok   AnimalTests.BoarChargesWhenHurt (228 ms)
+  RUN  AnimalTests.WolvesHuntWhenHungryAndBiteWhenProvoked
+      a hunting pack of four: at most 2 biting at once; 39 damage in 6 s (standing)
+  ok   AnimalTests.WolvesHuntWhenHungryAndBiteWhenProvoked (477 ms)
+  RUN  AnimalTests.HerdsAndPacksStayTogether
+      two minutes: deer at most 5.2 m from their herd's middle (cohesion 14), wolves 4.2 m (14); closest two 0.96 m apart (deer 1 Wander 1.2 / 3 Wander 0.6 at 18 s); the herd walked 94 m
+  ok   AnimalTests.HerdsAndPacksStayTogether (540 ms)
+  RUN  AnimalTests.HarvestYields
+      bone-knife: 7 hits, 4 raw-venison, 50 hide, 50 bone-fragments, 10 animal-fat
+      rock: 25 hits, 4 raw-venison, 50 hide, 50 bone-fragments, 10 animal-fat
+  ok   AnimalTests.HarvestYields (593 ms)
+  RUN  AnimalTests.CookingAndBurning
+  ok   AnimalTests.CookingAndBurning (154 ms)
+  RUN  AnimalTests.SpawnCapsAndRespawn
+      19 areas out, 5 herds: 3 boar, 2 wolf, 7 deer; 12 animals; tree cover 0.08
+  ok   AnimalTests.SpawnCapsAndRespawn (3775 ms)
+  RUN  AnimalTests.AttackDamageWithArmour
+      a wolf's bite: 12 bare, 11.0 through trousers; a bear's swipe: 30 bare, 18.6 through a chest plate and shirt
+  ok   AnimalTests.AttackDamageWithArmour (200 ms)
+  RUN  AnimalTests.AiCostPerAnimal
+      200 animals (200 awake): 0.844 ms a tick for all of them, 4.2 µs an animal a tick; 5.7 thinks an animal a second; the zone's whole step 1.01 ms a tick; 137 grid areas (137 built on demand)
+  ok   AnimalTests.AiCostPerAnimal (1051 ms)
+  RUN  ArchitectureTests.EngineFreeLibrariesDoNotReferenceGodot
+  ok   ArchitectureTests.EngineFreeLibrariesDoNotReferenceGodot (2 ms)
+  RUN  ArchitectureTests.GenerationCodeUsesOnlyDeterministicApis
+      79 source files checked
+  ok   ArchitectureTests.GenerationCodeUsesOnlyDeterministicApis (82 ms)
+  RUN  ArchitectureTests.TheZoneIsAHost
+      25 systems, 24 in the game's list; the host is 400 lines
+  ok   ArchitectureTests.TheZoneIsAHost (3 ms)
+  RUN  ArchitectureTests.TheClientIsAHost
+      17 modules, all listed once; the host is 868 lines
+  ok   ArchitectureTests.TheClientIsAHost (2 ms)
+  RUN  ArchitectureTests.TheServerIsAHost
+      15 modules, 15 in the list; the host is 1093 lines
+  ok   ArchitectureTests.TheServerIsAHost (1 ms)
+  RUN  AttachmentPresentationTests.HeldOpticAndLightReplicationFollowAttachDetachHolsterAndDeath
+  ok   AttachmentPresentationTests.HeldOpticAndLightReplicationFollowAttachDetachHolsterAndDeath (2639 ms)
+  RUN  AttachmentPresentationTests.EveryOpticHasARealLensAndAnUnobstructedNativeEyeAtEveryLod
+  ok   AttachmentPresentationTests.EveryOpticHasARealLensAndAnUnobstructedNativeEyeAtEveryLod (29 ms)
+  RUN  AttachmentTransferTests.ExplicitSocketsSwapDetachAndPreserveTheWholeWeapon
+  ok   AttachmentTransferTests.ExplicitSocketsSwapDetachAndPreserveTheWholeWeapon (0 ms)
+  RUN  AttachmentTransferTests.RejectionsAreAtomicAndCheckEveryAffectedStack
+  ok   AttachmentTransferTests.RejectionsAreAtomicAndCheckEveryAffectedStack (0 ms)
+  RUN  AttachmentTransferTests.ServerStoragePermissionsAndExistingSavesKeepAttachments
+  ok   AttachmentTransferTests.ServerStoragePermissionsAndExistingSavesKeepAttachments (64 ms)
+  RUN  AttachmentTransferTests.AttachmentIntentsAreAcceptedOrRolledBackWithoutLoss
+  ok   AttachmentTransferTests.AttachmentIntentsAreAcceptedOrRolledBackWithoutLoss (919 ms)
+  RUN  AttackLifecycleTests.ReconnectStartsANewIdentitySpaceWithoutAcceptingOldDecisions
+  ok   AttackLifecycleTests.ReconnectStartsANewIdentitySpaceWithoutAcceptingOldDecisions (3 ms)
+  RUN  AttackLifecycleTests.OnePresentationPerAttemptAcrossReorderedDecisionsAndDomains
+  ok   AttackLifecycleTests.OnePresentationPerAttemptAcrossReorderedDecisionsAndDomains (1 ms)
+  RUN  AttackLifecycleTests.CancelledAttemptsCannotBeResurrectedAndOutstandingWorkIsBounded
+  ok   AttackLifecycleTests.CancelledAttemptsCannotBeResurrectedAndOutstandingWorkIsBounded (0 ms)
+  RUN  AttackLifecycleTests.EvictedIdentitiesRemainOldAndReorderingInsideHistoryRemainsValid
+  ok   AttackLifecycleTests.EvictedIdentitiesRemainOldAndReorderingInsideHistoryRemainsValid (3 ms)
+  RUN  AttackLifecycleTests.LifecycleCostAndWireSizeAreMeasured
+      attack lifecycle: 0.797 us/attempt; 72.0 allocated bytes/attempt; request 18 B, result 25 B before transport/acks/retransmission; client/server histories bounded
+  ok   AttackLifecycleTests.LifecycleCostAndWireSizeAreMeasured (84 ms)
+  RUN  AttackMeleeTests.DelayedMeleeAttemptReconcilesByIdentityAndKeepsItsDamageMetadata
+  ok   AttackMeleeTests.DelayedMeleeAttemptReconcilesByIdentityAndKeepsItsDamageMetadata (120 ms)
+  RUN  AttackMeleeTests.DuplicateMeleeRequestsAndRepeatedMovementInputProduceOnlyOneSwing
+  ok   AttackMeleeTests.DuplicateMeleeRequestsAndRepeatedMovementInputProduceOnlyOneSwing (105 ms)
+  RUN  AttackMeleeTests.CancellationThatOvertakesRequestCannotBeResurrectedByRetries
+  ok   AttackMeleeTests.CancellationThatOvertakesRequestCannotBeResurrectedByRetries (106 ms)
+  RUN  AttackMeleeTests.EquipAndDeathCancelAcceptedPendingMeleeContacts
+  ok   AttackMeleeTests.EquipAndDeathCancelAcceptedPendingMeleeContacts (336 ms)
+  RUN  AttackMeleeTests.MeleeSpamHonoursCadenceAndCachesBudgetRefusals
+  ok   AttackMeleeTests.MeleeSpamHonoursCadenceAndCachesBudgetRefusals (170 ms)
+  RUN  AttackMeleeTests.LocalMeleeCancelsRequestsInFlightWithoutRevivingOnLateAcceptance
+  ok   AttackMeleeTests.LocalMeleeCancelsRequestsInFlightWithoutRevivingOnLateAcceptance (281 ms)
+  RUN  AttackMeleeTests.MeleeRefusalCarriesTheAuthoritativeEquipCooldown
+  ok   AttackMeleeTests.MeleeRefusalCarriesTheAuthoritativeEquipCooldown (97 ms)
+  RUN  AttackMeleeTests.CancellationAfterPredictedContactStillStopsAnAcceptedAuthoritativeWindup
+  ok   AttackMeleeTests.CancellationAfterPredictedContactStillStopsAnAcceptedAuthoritativeWindup (96 ms)
+  RUN  AttackMeleeTests.ReliableMeleeAttemptsSettleUnderLatencyJitterAndLossIncludingFastTap
+      180 ms RTT, 40 ms jitter, 10% loss: 8 attempts, 7 contacts, no pending outcomes
+  ok   AttackMeleeTests.ReliableMeleeAttemptsSettleUnderLatencyJitterAndLossIncludingFastTap (11747 ms)
+  RUN  AttackProjectileTests.FullAttackLedgerSendsNoInvisibleGunAttemptAndFailedReloadDoesNotStart
+  ok   AttackProjectileTests.FullAttackLedgerSendsNoInvisibleGunAttemptAndFailedReloadDoesNotStart (18 ms)
+  RUN  AttackProjectileTests.EveryRefusedPredictedRocketIsRemovedBeforeTheGunSnapshot
+  ok   AttackProjectileTests.EveryRefusedPredictedRocketIsRemovedBeforeTheGunSnapshot (10 ms)
+  RUN  AttackProjectileTests.ProjectileTerminalCanPrecedeOrReplaceItsLaunchAndIsIdempotent
+  ok   AttackProjectileTests.ProjectileTerminalCanPrecedeOrReplaceItsLaunchAndIsIdempotent (14 ms)
+  RUN  AttackProjectileTests.AuthoritativeProjectileLaunchReplacesTrajectoryAndClockWithoutReplayingEffects
+  ok   AttackProjectileTests.AuthoritativeProjectileLaunchReplacesTrajectoryAndClockWithoutReplayingEffects (5 ms)
+  RUN  AttackProjectileTests.ProjectileTerminalHistoryIsBoundedAndCannotResurrectOldLaunches
+  ok   AttackProjectileTests.ProjectileTerminalHistoryIsBoundedAndCannotResurrectOldLaunches (6 ms)
+  RUN  AttackProjectileTests.ActiveRocketStillReceivesItsEndpointAfterThousandsOfNewerBullets
+  ok   AttackProjectileTests.ActiveRocketStillReceivesItsEndpointAfterThousandsOfNewerBullets (6 ms)
+  RUN  AttackProjectileTests.PreviousSessionProjectileCannotBindReusedAttackSequenceAfterReconnect
+  ok   AttackProjectileTests.PreviousSessionProjectileCannotBindReusedAttackSequenceAfterReconnect (10 ms)
+  RUN  AttackProjectileTests.GunAttemptJournalAnswersEveryRejectionAndReplaysAcceptanceWithoutAnotherRound
+  ok   AttackProjectileTests.GunAttemptJournalAnswersEveryRejectionAndReplaysAcceptanceWithoutAnotherRound (145 ms)
+  RUN  AttackProjectileTests.LateGunShotUsesHistoricalMovementForSpreadAndLowering
+  ok   AttackProjectileTests.LateGunShotUsesHistoricalMovementForSpreadAndLowering (105 ms)
+  RUN  AttackProjectileTests.LateGunHandoverUsesHistoricalShipRotationForTheInputFrame
+  ok   AttackProjectileTests.LateGunHandoverUsesHistoricalShipRotationForTheInputFrame (366 ms)
+  RUN  AttackProjectileTests.GunAndRocketLifecycleSettlesThroughLatencyJitterAndLoss
+      5 gun/rocket predictions resolved under 120 ms RTT, 40 ms jitter and 12% datagram loss; no unbound or lingering projectiles
+  ok   AttackProjectileTests.GunAndRocketLifecycleSettlesThroughLatencyJitterAndLoss (6525 ms)
+  RUN  AttackStationTests.AcceptedReservationsSurviveConfirmationBeforeStateAndLateDuplicates
+  ok   AttackStationTests.AcceptedReservationsSurviveConfirmationBeforeStateAndLateDuplicates (81 ms)
+  RUN  AttackStationTests.RefusedAttemptsDoNotConsumeTheNextShotsIdentityAndServerBarrelCorrectsReservation
+  ok   AttackStationTests.RefusedAttemptsDoNotConsumeTheNextShotsIdentityAndServerBarrelCorrectsReservation (0 ms)
+  RUN  AttackStationTests.StateBeforeAcceptancePreservesReservationsUntilTheExactAttemptIsKnown
+  ok   AttackStationTests.StateBeforeAcceptancePreservesReservationsUntilTheExactAttemptIsKnown (0 ms)
+  RUN  AttackStationTests.CompletedSharedLoaderPreservesAllThreePredictedRippleRoundsBeforeState
+  ok   AttackStationTests.CompletedSharedLoaderPreservesAllThreePredictedRippleRoundsBeforeState (2 ms)
+  RUN  AttackStationTests.AuthorityUsesCurrentCadenceAndRejectsTheWrongSeat
+  ok   AttackStationTests.AuthorityUsesCurrentCadenceAndRejectsTheWrongSeat (460 ms)
+  RUN  AttackStationTests.SpamCannotProduceMoreThanTwoShotsAcrossLatencyJitterAndLoss
+      +0 ms ping, ±0 ms jitter, 0 % loss: visuals 2, authority 2, confirmed 2, pending 0
+      station visual identities/barrels: 1/b0, 2/b1
+      station authoritative identities/barrels/ticks: 1/b0@79, 2/b1@81
+      station decisions: 1:Done/b0 requested=79 start=79, 2:Done/b1 requested=81 start=81, 3:Loading/b-1 requested=88 start=0, 4:Loading/b-1 requested=93 start=0, 5:Loading/b-1 requested=100 start=0, 6:Loading/b-1 requested=105 start=0, 7:Loading/b-1 requested=112 start=0
+      +180 ms ping, ±35 ms jitter, 15 % loss: visuals 2, authority 2, confirmed 2, pending 0
+      station visual identities/barrels: 1/b0, 2/b1
+      station authoritative identities/barrels/ticks: 1/b0@135, 2/b1@137
+      station decisions: 1:Done/b0 requested=135 start=135, 2:Done/b1 requested=137 start=137, 3:Loading/b-1 requested=143 start=0, 4:Loading/b-1 requested=149 start=0, 5:Loading/b-1 requested=155 start=0, 6:Loading/b-1 requested=161 start=0, 7:Loading/b-1 requested=167 start=0
+  ok   AttackStationTests.SpamCannotProduceMoreThanTwoShotsAcrossLatencyJitterAndLoss (10563 ms)
+  RUN  AudioRepairTests.DistinctActionsUseDedicatedNonemptyVariantSets
+  ok   AudioRepairTests.DistinctActionsUseDedicatedNonemptyVariantSets (9 ms)
+  RUN  AudioRepairTests.FootstepsUseRelativeVelocityOnPlanetsAndShipDecks
+  ok   AudioRepairTests.FootstepsUseRelativeVelocityOnPlanetsAndShipDecks (0 ms)
+  RUN  AudioRepairTests.FootstepsDoNotPlayInAirOrReplaySeatLandings
+  ok   AudioRepairTests.FootstepsDoNotPlayInAirOrReplaySeatLandings (1 ms)
+  RUN  AudioRepairTests.FootContactsResolveActualFloorGradesAndInlandWater
+  ok   AudioRepairTests.FootContactsResolveActualFloorGradesAndInlandWater (14 ms)
+  RUN  AudioRepairTests.RealMovementHasNoLandingChatterAndOneSoundPerJump
+  ok   AudioRepairTests.RealMovementHasNoLandingChatterAndOneSoundPerJump (251 ms)
+  RUN  BatteryTests.TheAimIsHeldInTheWorldWhileTheShipYaws
+      settled 0.000°; the ship yawed 109.3°, the mount turned 109.3° against it; the barrels at most 0.020° off the asked direction while it turned (alignment 0.5°)
+  ok   BatteryTests.TheAimIsHeldInTheWorldWhileTheShipYaws (395 ms)
+  RUN  BatteryTests.ShipRepairBatteryTracksCurrentPoseThroughAccelerationAndReversal
+      battery error through full-rate starts/reversals: 0.028 degrees
+  ok   BatteryTests.ShipRepairBatteryTracksCurrentPoseThroughAccelerationAndReversal (0 ms)
+  RUN  BatteryTests.FiringAlternatesAndTheLoaderFollowsTheTable
+      loaded both from empty in 3.33 s; barrel 0's phases began at ticks (seen/table) recover 0/0, breechOpen 27/27, fetch 39/39, transfer 63/63, present 75/75, ram 98/98, retract 114/114, breechClose 126/126; its round taken at 39 (table 39), loaded at 138 (table 138)
+  ok   BatteryTests.FiringAlternatesAndTheLoaderFollowsTheTable (413 ms)
+  RUN  BatteryTests.EmptyWithAnEmptyMagazine
+  ok   BatteryTests.EmptyWithAnEmptyMagazine (420 ms)
+  RUN  BatteryTests.EachRefusal
+      LOADING at 43%; the dorsal battery's line meets the ship laid 0° and -7.9°: HullBlocked
+  ok   BatteryTests.EachRefusal (519 ms)
+  RUN  BatteryTests.ARocketStrikesAHutAndAnIncendiaryLeavesAFire
+      the press: Done, misaligned 0.00°, limit False, laid -5.37° up
+      muzzle 8.9 m up, the target 1.6 m up 78.0 m away; the rocket ended at 0.0 m from the target, 1.6 m up
+      launched at <3.9870052, 8.363963, 34.153255> going <29.116243, -6.826824, 63.290123>; ended at <36.3861, -0.40268707, 104.52467>; the target at <36.386185, -0.40373993, 104.531784>
+      the rocket ended on Piece; the wall 200 → 63; blasts 1; the magazine: 2 rockets, 1 incendiary
+      fires burning: 1 (before 0)
+  ok   BatteryTests.ARocketStrikesAHutAndAnIncendiaryLeavesAFire (755 ms)
+  RUN  BatteryTests.ADefenseMountRipplesThreeThenChangesItsClip
+      shots at ticks 0, 8, 16 (barrels 0, 1, 2); loaded again 76 ticks after the third (table 76); 0 left
+  ok   BatteryTests.ADefenseMountRipplesThreeThenChangesItsClip (432 ms)
+  RUN  BatteryTests.PredictedShotsMatchTheServersOverALaggedLoopback
+      the server fired 6; Ada's client predicted 6, confirmed 6, took back 0, saw unpredicted 0, waiting 0
+  ok   BatteryTests.PredictedShotsMatchTheServersOverALaggedLoopback (29982 ms)
+  RUN  BatteryTests.ARestartKeepsAHalfFullMagazineAndALoadedBarrel
+      stored: chosen rocket-hv, magazine 15, chambers 0, 126, loader 0 1.53s@0 126x1 (was 0.00s@235 126x1), aim 15.0°, 8.0°; 1101 bytes
+      after the restart barrel 0 loaded 3.07 s on (3.07 s were left)
+  ok   BatteryTests.ARestartKeepsAHalfFullMagazineAndALoadedBarrel (486 ms)
+  RUN  BowPresentationTests.DrawAndAcceptedReleaseReachTheClients
+  ok   BowPresentationTests.DrawAndAcceptedReleaseReachTheClients (3068 ms)
+  RUN  BuildingFitTests.EveryPieceFillsItsSlot
+      298 building meshes fill their slots
+  ok   BuildingFitTests.EveryPieceFillsItsSlot (339 ms)
+  RUN  BuildingNetTests.PlacingGoesThroughTheServer
+      Bo was told: "Not enough wood"
+  ok   BuildingNetTests.PlacingGoesThroughTheServer (1693 ms)
+  RUN  BuildingNetTests.CodeLocksKeepStrangersOut
+  ok   BuildingNetTests.CodeLocksKeepStrangersOut (5983 ms)
+  RUN  BuildingNetTests.ABigBaseStreamsIn
+      1074 pieces streamed in 1.80 s (31 frames with new pieces); server tick worst 67.1 ms, 99th percentile 67.1 ms
+  ok   BuildingNetTests.ABigBaseStreamsIn (3452 ms)
+  RUN  BuildingPersistenceTests.ABaseSurvivesARestart
+      saved 6 pieces, 2 doors and a claim device
+      after the restart: 6 pieces, stability 1000/900
+  ok   BuildingPersistenceTests.ABaseSurvivesARestart (2848 ms)
+  RUN  BuildingPersistenceTests.DecayCatchesUpOnLoad
+      after an hour away: twig foundation gone, wood foundation 133.3/200, wall 133.3/200
+  ok   BuildingPersistenceTests.DecayCatchesUpOnLoad (2777 ms)
+  RUN  BuildingTests.BuildingDataIsSound
+  ok   BuildingTests.BuildingDataIsSound (18 ms)
+  RUN  BuildingTests.SocketsSnapPiecesTogether
+  ok   BuildingTests.SocketsSnapPiecesTogether (5 ms)
+  RUN  BuildingTests.StabilityOfAKnownSmallBase
+      foundation 100%, walls 100%, ceiling 90%, reaching out 90% 70% 50% 30% 10%, then Not stable enough (0%); spiral 90%, landing 80%
+  ok   BuildingTests.StabilityOfAKnownSmallBase (14 ms)
+  RUN  BuildingTests.RemovingSupportCollapsesInSequence
+  ok   BuildingTests.RemovingSupportCollapsesInSequence (7 ms)
+  RUN  BuildingTests.HammerKeepsItsWindows
+  ok   BuildingTests.HammerKeepsItsWindows (3 ms)
+  RUN  BuildingTests.ClaimGivesBuildingRights
+  ok   BuildingTests.ClaimGivesBuildingRights (13 ms)
+  RUN  BuildingTests.DecayCatchUpMatchesLiveTicking
+      upkeep a day: 120 stone, 14 metal-fragments, 82.5 wood; protected 0.0 h; 10 pieces
+      after 82 h: 4 pieces left; catch-up 0.11 ms, 29520 live steps 98 ms; stock 0 wood, 0 stone, 0 metal-fragments, 0 refined-metal
+  ok   BuildingTests.DecayCatchUpMatchesLiveTicking (118 ms)
+  RUN  BuildingTests.DoorLocksAndAuthorisation
+  ok   BuildingTests.DoorLocksAndAuthorisation (4 ms)
+  RUN  BuildingTests.WallsHaveASoftSide
+      stone wall, 100 melee: 5 from outside, 100 from inside
+  ok   BuildingTests.WallsHaveASoftSide (3 ms)
+  RUN  BuildingTests.PiecesCostNothingPerTick
+      1024 pieces, 1 structure: 0.011 µs a tick, 0 pieces touched
+  ok   BuildingTests.PiecesCostNothingPerTick (1278 ms)
+  RUN  BuildingTests.PlacementIsRefusedWithAReason
+      free foundation at <6.000174, 0.06225586, 0.98535293>, its top 0.062 m above the flat ground
+      Something is already built there | Too far away | Something is in the way | The foundation would float: the ground is too far below | The foundation would be buried: the ground is too high | It would cut into the ground | It would cut into another piece | A player is in the way | Not enough wood
+  ok   BuildingTests.PlacementIsRefusedWithAReason (351 ms)
+  RUN  BuildingTests.FreeFoundationRisesWithTheAim
+      aimed at the ground: top 0.189 m over the ground at its centre
+      aimed a little higher: top 0.550 m over the ground at its centre
+      aimed higher: top 2.859 m over the ground at its centre
+      aimed at the sky: top 2.859 m over the ground at its centre
+  ok   BuildingTests.FreeFoundationRisesWithTheAim (308 ms)
+  RUN  BuildingTests.BuildingRepairFloorKeepsEveryBearingWall
+  ok   BuildingTests.BuildingRepairFloorKeepsEveryBearingWall (2 ms)
+  RUN  BuildingTests.BuildingRepairFreeFoundationFollowsViewAndWireHeading
+  ok   BuildingTests.BuildingRepairFreeFoundationFollowsViewAndWireHeading (52 ms)
+  RUN  CharacterAssetTests.CharacterFilesAgreeWithTheClient
+      male: 14 regions, 17 body meshes, 5 hair styles, 24 garment meshes, 43 clips
+      female: 14 regions, 17 body meshes, 5 hair styles, 24 garment meshes, 43 clips
+  ok   CharacterAssetTests.CharacterFilesAgreeWithTheClient (52 ms)
+  RUN  ConsoleTests.ConsoleParsesLinesAndRustAliases
+  ok   ConsoleTests.ConsoleParsesLinesAndRustAliases (20 ms)
+  RUN  ConsoleTests.ConsoleCompletesCommandsItemsPlayersAndKinds
+  ok   ConsoleTests.ConsoleCompletesCommandsItemsPlayersAndKinds (92 ms)
+  RUN  ConsoleTests.ANonAdminIsRefused
+      Bo> give rifle: [Error] 'give' needs admin rights on this server, which you don't have.
+      Bo> teleport 10 10: [Error] 'teleport' needs admin rights on this server, which you don't have.
+      Bo> spawn wolf 2: [Error] 'spawn' needs admin rights on this server, which you don't have.
+      Bo> noclip: [Error] 'noclip' needs admin rights on this server, which you don't have.
+      Bo> god: [Error] 'god' needs admin rights on this server, which you don't have.
+      Bo> time 21: [Error] 'time' needs admin rights on this server, which you don't have.
+      Bo> kill Ada: [Error] Killing another player needs admin rights; 'kill' alone kills you.
+      Bo> inventory.give rifle: [Error] 'give' needs admin rights on this server, which you don't have.
+      Bo> players: [Output] 1 of 128 players on: / [Output]   Bo: alive
+      Bo> whereami: [Output] 45.11795° N, 169.89871° W (teleport 45.11795 -169.89871) / [Output] 6 m above the sea; map cell E A7 (teleport E A7); 1.5 m east, 5.2 m north of the landing site along the ground (teleport 1.5 -5.2). / [Output] boreal forest; 23:57 local solar time; the air 15 °C.
+      Bo> frobnicate: [Error] Unknown command 'frobnicate' (help lists them, find searches them).
+      Bo> kill: [Success] You died. Choose where to respawn.
+  ok   ConsoleTests.ANonAdminIsRefused (3622 ms)
+  RUN  ConsoleTests.AdminCommandsWorkOverTheNetwork
+      Ada> give rifle: [Success] Gave you 1 Frontier rifle.
+      Ada> inventory.give rifle-ammo 64: [Success] Gave you 64 Rifle rounds.
+      Ada> give wood 300 Bo: [Success] Gave Bo 300 Wood.
+      Ada> teleport 30 -40: [Success] Teleported you to 30 m east, -40 m south of the landing site.
+      Bo> teleport 0 0: [Error] 'teleport' needs admin rights on this server, which you don't have.
+      Ada> tp2me Bo: [Success] Teleported Bo to you (-804.1, 877.4, 172.3).
+      Ada> teleport 5 5: [Success] Teleported you to 5 m east, 5 m south of the landing site.
+      Ada> global.teleport Bo: [Success] Teleported you to Bo (-803.8, 877.4, 173.8).
+      Ada> teleport 44.868300 -170.001000: [Success] Teleported you to 44.8683° N, 170.0010° W.
+      Ada> teleport E B7: [Success] Teleported you to the middle of map cell E B7 (-677.4, 981.4, 119.2).
+      Ada> whereami: [Output] 54.97541° N, 170.02315° W (teleport 54.97541 -170.02315) / [Output] 2 m above the sea; map cell E B7 (teleport E B7); -0.3 m east, 211.7 m north of the landing site along the ground (teleport -0.3 -211.7). / [Output] beach; 23:58 local solar time; the air 15 °C.
+      Ada> teleport 44.868300 -170.001000: [Success] Teleported you to 44.8683° N, 170.0010° W.
+      Ada> spawn wolf 2: [Success] 2 wolves 22 m in front of you.
+      Ada> spawn: [Error] Usage: spawn <kind> [count] [player]: deer, boar, wolf, bear, tin-finch, iron-wake, barrel, fuel-barrel, crate, military-crate, recycler, sleeping-bag, bed, campfire, furnace, small-box, large-box, workbench-1, workbench-2, workbench-3, vehicle-workbench, research-table, engineering-workbench, raidbase
+      Ada> spawn small-box: [Success] A small box in front of you.
+      Ada> spawn crate: [Success] A crate in front of you.
+      Ada> kill Bo: [Success] Killed Bo.
+      the planet's own clock: 23.98 h at the landing site
+      Ada> time 21: [Success] It is 21:00 where you stand now: this zone's sun only, universe time unchanged.
+      Ada> timescale 0: [Success] The zone's sun stands still (timescale 1 lets it go on).
+      Ada> time reset: [Success] The zone's day is the planet's own again: 23:59 where you stand.
+  ok   ConsoleTests.AdminCommandsWorkOverTheNetwork (5962 ms)
+  RUN  ConsoleTests.GodAndNoclipMatchThePrediction
+      Ada> noclip: [Success] Noclip on. W A S D along the view, Space up, Ctrl down, Shift fast.
+      Ada> global.god on: [Success] God mode on.
+      flew 47.5 m, 0 corrections, worst error 40.3 mm
+      Ada> noclip off: [Success] Noclip off.
+  ok   ConsoleTests.GodAndNoclipMatchThePrediction (5664 ms)
+  RUN  ContentTests.GroundDataIsComplete
+      117 items, 74 recipes, 17 natural kinds, 12 deployables, 11 loot tables; hash BDA5596A98F3DEEB
+  ok   ContentTests.GroundDataIsComplete (92 ms)
+  RUN  ContentTests.BrokenDataIsReported
+      30 problems found, e.g. items.json: "arrow": unknown field "stak" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship)
+  ok   ContentTests.BrokenDataIsReported (314 ms)
+  RUN  ContentTests.EveryDataFileHasOneReader
+      20 readers for 19 files, and the checks across them
+  ok   ContentTests.EveryDataFileHasOneReader (8 ms)
+  RUN  CoreTests.DMathMatchesPlatformMaths
+      worst error: 3.0 ulp
+  ok   CoreTests.DMathMatchesPlatformMaths (99 ms)
+  RUN  CoreTests.DMathIsBitIdenticalToGolden
+      hash 0xAFF50095664D5483
+  ok   CoreTests.DMathIsBitIdenticalToGolden (5 ms)
+  RUN  CoreTests.RngAndHashAreStable
+      hash 0x158A24BA981B6D2B
+  ok   CoreTests.RngAndHashAreStable (0 ms)
+  RUN  CoreTests.PoissonHasTheRightMean
+  ok   CoreTests.PoissonHasTheRightMean (10 ms)
+  RUN  CorpseIntegrationTests.CorpseNetworkPhaseAndAppearanceSurviveALateJoin
+  ok   CorpseIntegrationTests.CorpseNetworkPhaseAndAppearanceSurviveALateJoin (2191 ms)
+  RUN  CorpseIntegrationTests.CorpseEmptyDeathLeavesHarvestableBodyAndGodDeathLeavesNothing
+  ok   CorpseIntegrationTests.CorpseEmptyDeathLeavesHarvestableBodyAndGodDeathLeavesNothing (268 ms)
+  RUN  CorpseIntegrationTests.CorpseKeepsFoundationSupportAndFallsOnlyWhenItGoes
+  ok   CorpseIntegrationTests.CorpseKeepsFoundationSupportAndFallsOnlyWhenItGoes (280 ms)
+  RUN  CorpseIntegrationTests.CorpseFallingFromHighAboveLandsOnTheRoofBeforeTheTerrain
+  ok   CorpseIntegrationTests.CorpseFallingFromHighAboveLandsOnTheRoofBeforeTheTerrain (275 ms)
+  RUN  CorpseIntegrationTests.CorpseOnAStorageBoxPersistsItsSupportAndFallsWhenTheBoxGoes
+  ok   CorpseIntegrationTests.CorpseOnAStorageBoxPersistsItsSupportAndFallsWhenTheBoxGoes (202 ms)
+  RUN  CorpseIntegrationTests.CorpseHarvestUsesSharedDamageAndNeverConsumesTheLoot
+  ok   CorpseIntegrationTests.CorpseHarvestUsesSharedDamageAndNeverConsumesTheLoot (175 ms)
+  RUN  CorpseIntegrationTests.CorpseSaveKeepsPhaseHarvestAppearanceAndExactLoot
+  ok   CorpseIntegrationTests.CorpseSaveKeepsPhaseHarvestAppearanceAndExactLoot (139 ms)
+  RUN  CorpseIntegrationTests.CorpseAboardKeepsItsDeckPoseThroughFlightAndBagConversion
+  ok   CorpseIntegrationTests.CorpseAboardKeepsItsDeckPoseThroughFlightAndBagConversion (488 ms)
+  RUN  CorpseLifecycleTests.CorpseLifecycleConvertsOnceAtAuthoritativeTime
+  ok   CorpseLifecycleTests.CorpseLifecycleConvertsOnceAtAuthoritativeTime (27 ms)
+  RUN  CorpseLifecycleTests.CorpseLifecycleToolSpeedCannotDuplicateYieldOrHarvestABag
+  ok   CorpseLifecycleTests.CorpseLifecycleToolSpeedCannotDuplicateYieldOrHarvestABag (2 ms)
+  RUN  CorpseLifecycleTests.CorpseLifecycleRestoreKeepsRemainingTimeAndPartialYield
+  ok   CorpseLifecycleTests.CorpseLifecycleRestoreKeepsRemainingTimeAndPartialYield (0 ms)
+  RUN  DamageTests.DestroyedEventsSayWhatBrokeHowAndWhere
+      door: Explosion; box: Melee; roof: Demolish; foundation and claim device: Melee; 4 walls brought down within 7 ticks
+  ok   DamageTests.DestroyedEventsSayWhatBrokeHowAndWhere (440 ms)
+  RUN  DamageTests.DestroyedReachesClientsInRange
+      loot-barrel-1 broken 2.0 m from Ada reached her client
+  ok   DamageTests.DestroyedReachesClientsInRange (1205 ms)
+  RUN  DevTests.TheServerAnswersAWatchingAdmin
+      stats: tick 15, 10.86 ms average, 26 sections, 2 players; 59 lines on Bo; 5 log lines
+  ok   DevTests.TheServerAnswersAWatchingAdmin (3210 ms)
+  RUN  DryFireAudioTests.EmptyGunsClickOncePerPressWithoutFiringOrSendingIntents
+  ok   DryFireAudioTests.EmptyGunsClickOncePerPressWithoutFiringOrSendingIntents (479 ms)
+  RUN  DryFireAudioTests.DryFireRespectsEquipReloadCadenceAndCharacterGates
+  ok   DryFireAudioTests.DryFireRespectsEquipReloadCadenceAndCharacterGates (272 ms)
+  RUN  EarthTerrainTests.EarthHasMoreDryGroundWithinTheTotalSurfaceLimit
+      Earth: 18.10 km² total, 58.8% dry (10.63 km²), 35.0% ocean
+  ok   EarthTerrainTests.EarthHasMoreDryGroundWithinTheTotalSurfaceLimit (1045 ms)
+  RUN  EarthTerrainTests.EarthHasALargeConnectedLandmass
+      Earth at ~15 m: 10 dry components, largest 10.64 km² (99.9% of dry ground)
+  ok   EarthTerrainTests.EarthHasALargeConnectedLandmass (394 ms)
+  RUN  EarthTerrainTests.EarthTerrainRemainsDeterministic
+      Earth terrain hash 0x3D5174066B119948; 14 lakes, 588 drainage pieces
+  ok   EarthTerrainTests.EarthTerrainRemainsDeterministic (174 ms)
+  RUN  EarthTerrainTests.EarthProfileLeavesPhysicalDataAndExplicitOverridesIntact
+  ok   EarthTerrainTests.EarthProfileLeavesPhysicalDataAndExplicitOverridesIntact (118 ms)
+  RUN  EarthTerrainTests.EarthProfileDoesNotChangeOtherWorlds
+  ok   EarthTerrainTests.EarthProfileDoesNotChangeOtherWorlds (434 ms)
+  RUN  EffectsCatalogueTests.EveryItemNamesItsEffects
+      13 items name 21 effects of 67
+  ok   EffectsCatalogueTests.EveryItemNamesItsEffects (110 ms)
+  RUN  EnvironmentDetailTests.AuthoredGroundCoverHasBoundedCompleteLods
+      4 authored families, 36 bounded LOD meshes; textures 2048 px
+  ok   EnvironmentDetailTests.AuthoredGroundCoverHasBoundedCompleteLods (1 ms)
+  RUN  EnvironmentDetailTests.MonumentArtAndCollisionHaveCompleteLocalDependencies
+      6 monument types, 77 local art dependencies
+  ok   EnvironmentDetailTests.MonumentArtAndCollisionHaveCompleteLocalDependencies (221 ms)
+  RUN  EnvironmentDetailTests.EarthMonumentsSharePadsClearingsCollisionAndAuthoritativeLoot
+      hab-pods: --lat -14.1804 --lon 39.6578
+      weather-station: --lat -1.9010 --lon 40.2736
+      service-substation: --lat 6.5564 --lon 42.4617
+      wellhead: --lat 17.8920 --lon 27.8135
+      relay-mast: --lat 26.7512 --lon 26.2814
+      crashed-skiff: --lat 29.6255 --lon 40.1788
+      substation exterior: --lat 6.246767 --lon 41.352456 --yaw 78.923 --pitch -8.002 --lift 3.0
+      underwater: --lat 43.259420 --lon 4.999952 --yaw 0 --pitch -8 --lift -1.4 (bed depth 2.37 m)
+      Earth monuments 131, persistent loot anchors 475
+  ok   EnvironmentDetailTests.EarthMonumentsSharePadsClearingsCollisionAndAuthoritativeLoot (732 ms)
+  RUN  EnvironmentDetailTests.EarthHasAllFourHarvestableOresWithCompatibleIds
+      HQ node exterior: --lat 50.914728 --lon 94.699519 --yaw -89.600 --pitch -14.380 --lift 0.0
+  ok   EnvironmentDetailTests.EarthHasAllFourHarvestableOresWithCompatibleIds (148 ms)
+  RUN  EnvironmentDetailTests.EarthCliffsHaveStablePlacementsAndSharedCollision
+      Earth scanned formations 79; first -21.9429, 37.7694; collision adds 3500 triangles
+      cliff exterior: --lat -21.967219 --lon 36.232912 --yaw 89.310 --pitch 6.765 --lift 1.5
+  ok   EnvironmentDetailTests.EarthCliffsHaveStablePlacementsAndSharedCollision (380 ms)
+  RUN  EnvironmentDetailTests.WoodlandGrassIsNotSuppressedThreeTimesAndWaterHasNoGroundCover
+  ok   EnvironmentDetailTests.WoodlandGrassIsNotSuppressedThreeTimesAndWaterHasNoGroundCover (1 ms)
+  RUN  EnvironmentRouteTests.ActualEarthHasOneConnectedSampledEnvironmentRoute
+      route beach: --lat -30.486486 --lon 43.059333; height=1.39 grade=0.076 grass=0.01 woodland=0.00 trees18m=0 feature=Beach
+      route woodland: --lat -34.176574 --lon 47.662370; height=3.65 grade=0.070 grass=0.23 woodland=1.00 trees18m=3 feature=Grassland
+      route clearing: --lat -32.783967 --lon 47.028200; height=2.58 grade=0.091 grass=0.42 woodland=0.22 trees18m=0 feature=Grassland
+      route water: --lat -19.952945 --lon 36.987604; height=-0.10 grade=0.032 grass=0.00 woodland=0.00 trees18m=0 feature=Ocean
+      route cliff: --lat -19.952945 --lon 36.987604; height=-0.10 grade=0.032 grass=0.00 woodland=0.00 trees18m=0 feature=nordic_forest_ledge
+      route monument: --lat -30.445650 --lon 45.823593; height=1.98 grade=0.068 grass=0.22 woodland=0.00 trees18m=0 feature=wellhead
+      Connected route wellhead/tile 5/3/0/0; 786.5m; 2 candidates; heightfield feasibility only, hosted object collision and visual quality remain unverified
+  ok   EnvironmentRouteTests.ActualEarthHasOneConnectedSampledEnvironmentRoute (620 ms)
+  RUN  EnvironmentRouteTests.RouteRejectsLegacyWorldAndInWaterCorridor
+  ok   EnvironmentRouteTests.RouteRejectsLegacyWorldAndInWaterCorridor (271 ms)
+  RUN  EventTests.EventsAreTypedAndHeard
+  ok   EventTests.EventsAreTypedAndHeard (3 ms)
+  RUN  FireTests.TheIncendiaryRocketIsALauncherRoundMadeAtWorkbenchTwo
+      For: Rocket launcher; Speed: 18 m/s; Blast: 2.5 m, 60 damage; Deployables: 60; Fire: 3.5 m for 18 s; Burns: 8 a second, and sets people alight; Burns down: wooden things, twig and wood
+  ok   FireTests.TheIncendiaryRocketIsALauncherRoundMadeAtWorkbenchTwo (269 ms)
+  RUN  FireTests.ARocketsFireBurnsDownTheBoxItStruck
+      the rocket flew 12 ticks; the fire 0.10 m from the box, on Ground; burnt 18.0 s; 1 fires lit of 1 bursts (0 with nothing to burn on), 0 in water, 1 burnt out, 0 replaced, 0 fell to nothing, 0 fell onto something else, 0 put out; 36 hurts, 36 damage requests
+  ok   FireTests.ARocketsFireBurnsDownTheBoxItStruck (269 ms)
+  RUN  FireTests.AWoodWallBurnsTwoFiresBreakItAStoneWallDoesNot
+      wood: 200 → 180 after the burst → 72 after its fire (−108); the second fire broke it 9.0 s in; stone: 500; 3 fires lit of 3 bursts (0 with nothing to burn on), 0 in water, 3 burnt out, 0 replaced, 0 fell to nothing, 0 fell onto something else, 0 put out; 108 hurts, 200 damage requests
+  ok   FireTests.AWoodWallBurnsTwoFiresBreakItAStoneWallDoesNot (506 ms)
+  RUN  FireTests.APlayerInAFireBurnsAndKeepsBurningUntilTheySwim
+      3 s in the fire: −29.9 health, 12.0 set burning; 3 s out of it: −5.9; in the sea: out
+  ok   FireTests.APlayerInAFireBurnsAndKeepsBurningUntilTheySwim (477 ms)
+  RUN  FireTests.AFireFallsWhenWhatItBurnsOnGoesAndTheOldestMakesWay
+      the fire fell 3.0 m from the roof onto Piece; 66 fires lit of 66 bursts (0 with nothing to burn on), 0 in water, 0 burnt out, 2 replaced, 0 fell to nothing, 2 fell onto something else, 0 put out; 6 hurts, 24 damage requests
+  ok   FireTests.AFireFallsWhenWhatItBurnsOnGoesAndTheOldestMakesWay (310 ms)
+  RUN  FireTests.AFireOnWaterGoesOut
+  ok   FireTests.AFireOnWaterGoesOut (157 ms)
+  RUN  FireTests.AFireOnAFlyingDeckRidesTheShipAndBurnsTheCrew
+      climbed 63.1 m in 5 s; the fire 0.17 mm off its place on Deck A; Ada −49.8, burning 20.0
+  ok   FireTests.AFireOnAFlyingDeckRidesTheShipAndBurnsTheCrew (442 ms)
+  RUN  FireTests.TheHighVelocityRocketKillsABearAndAnArmouredPlayer
+      the bear struck after 7 ticks: dead; Bo with 33% on the body: dead
+  ok   FireTests.TheHighVelocityRocketKillsABearAndAnArmouredPlayer (277 ms)
+  RUN  FireTests.TheRegularRocketDropsMoreThanTheHighVelocityOne
+      over 50 m: the rocket drops 10.59 m, the high-velocity rocket 0.72 m
+  ok   FireTests.TheRegularRocketDropsMoreThanTheHighVelocityOne (217 ms)
+  RUN  FireTests.FiresReachClientsAndEndThere
+      Ada's client: fire #02E6D972E2004000 of rocket-incendiary at <-841.3163, 845.4222, 152.40143>, 3.5 m, on Ground #0000000000000000; out after 130 ms
+  ok   FireTests.FiresReachClientsAndEndThere (2289 ms)
+  RUN  FoundationTests.EveryAnswerHasALine
+      3 problems, e.g. texts.json: outcomes.Stail: no such answer code (OutcomeCode)
+  ok   FoundationTests.EveryAnswerHasALine (55 ms)
+  RUN  FoundationTests.EveryFamilyNamesItsThings
+      12 families named; Ada's head 1.60 m above her feet
+  ok   FoundationTests.EveryFamilyNamesItsThings (363 ms)
+  RUN  FoundationTests.ReachIsToTheNearestSurfaceInSight
+      reach 3.5 m to the side: 4.43 m from its centre is too far
+  ok   FoundationTests.ReachIsToTheNearestSurfaceInSight (308 ms)
+  RUN  FoundationTests.ViewerFlagsComeFromCapabilities
+  ok   FoundationTests.ViewerFlagsComeFromCapabilities (301 ms)
+  RUN  FoundationTests.ViewerFlagsReachEachPlayer
+      Ada's door to her: Mine, Authorised, HasCode, Locked, CanUse; to Bo: HasCode, Locked; her bag to Bo now: Teammate
+  ok   FoundationTests.ViewerFlagsReachEachPlayer (2368 ms)
+  RUN  FoundationTests.SupportLinksFollowAndGoWithTheirSupport
+      the charge swung 1.25 m with the leaf; the deer walked 1.5 m
+  ok   FoundationTests.SupportLinksFollowAndGoWithTheirSupport (392 ms)
+  RUN  FoundationTests.LifetimesAreOneStepForEveryLooseThing
+      loose things by family: a bag and a body (things), a dud (explosive), a carcass (animal), ended within a second of their time
+  ok   FoundationTests.LifetimesAreOneStepForEveryLooseThing (307 ms)
+  RUN  GalaxyTests.GalacticCentreAndPoleConvertToTheirAxes
+  ok   GalaxyTests.GalacticCentreAndPoleConvertToTheirAxes (0 ms)
+  RUN  GalaxyTests.SunSitsAboveTheMidplane
+  ok   GalaxyTests.SunSitsAboveTheMidplane (5 ms)
+  RUN  GalaxyTests.AddressesRoundTrip
+  ok   GalaxyTests.AddressesRoundTrip (26 ms)
+  RUN  GalaxyTests.SectorNamesAreUniqueAndParse
+      Sol's sector: Nolcas Peris; centre: Jorver Irum; next to Sol: Koryth Jasia
+  ok   GalaxyTests.SectorNamesAreUniqueAndParse (298 ms)
+  RUN  GalaxyTests.SystemNamesRoundTrip
+  ok   GalaxyTests.SystemNamesRoundTrip (37 ms)
+  RUN  GalaxyTests.LocalDensityMatchesTheSolarNeighbourhood
+      density at Sol 2.330E-003 /ly³, at the centre 1.000E+000 /ly³
+  ok   GalaxyTests.LocalDensityMatchesTheSolarNeighbourhood (17 ms)
+  RUN  GalaxyTests.TotalSystemCountIsMilkyWayLike
+      systems in the galaxy: 1.219E+011
+  ok   GalaxyTests.TotalSystemCountIsMilkyWayLike (240 ms)
+  RUN  GalaxyTests.NeighbourhoodCountsAreRealistic
+      within 10 ly: 10 (10 real); within 50 ly: 1220 (870 real)
+  ok   GalaxyTests.NeighbourhoodCountsAreRealistic (182 ms)
+  RUN  GalaxyTests.CellGenerationIsDeterministic
+      80388 stars in 40 cells, hash 0xF3C42388CE7F958C
+  ok   GalaxyTests.CellGenerationIsDeterministic (200 ms)
+  RUN  GalaxyTests.GeneratedStarsMatchTheirCellAndLevel
+  ok   GalaxyTests.GeneratedStarsMatchTheirCellAndLevel (207 ms)
+  RUN  GalaxyTests.SamplerFollowsTheDensity
+      7476 level-0 stars: 2808 within 165 ly of the midplane, density says 2816, uniform 2405
+  ok   GalaxyTests.SamplerFollowsTheDensity (30 ms)
+  RUN  GalaxyTests.AgesFollowPopulationsAndEvolution
+      3648 stars checked, 85 old-population giants near 1 M☉; 529 companions, 20 remnants
+  ok   GalaxyTests.AgesFollowPopulationsAndEvolution (187 ms)
+  RUN  GalaxyTests.ClassMixMatchesTheNeighbourhood
+      class mix (levels 3–7): M 59.0%, K 17.1%, L 13.9%, G 4.3%, D 2.8%, F 2.4%, A 0.4%
+  ok   GalaxyTests.ClassMixMatchesTheNeighbourhood (17 ms)
+  RUN  GalaxyTests.ProceduralStarsDoNotDependOnTheCatalogue
+      2755 generated stars around the catalogue's edge compared
+  ok   GalaxyTests.ProceduralStarsDoNotDependOnTheCatalogue (69 ms)
+  RUN  GalaxyTests.RealAndGeneratedStarsAddUpToTheModel
+      L2 500–800 ly: 9120 real + 5246 generated = 1.00 × model; L2 800–1500 ly: 18229 real + 73494 generated = 1.01 × model; L4 250–400 ly: 6970 real + 5717 generated = 1.00 × model; L4 400–800 ly: 8228 real + 107098 generated = 1.01 × model; L6 20–65 ly: 294 real + 221 generated = 1.11 × model; L6 65–250 ly: 3694 real + 23018 generated = 1.01 × model; L7 25–50 ly: 516 real + 260 generated = 1.00 × model; L7 50–100 ly: 1167 real + 5065 generated = 1.00 × model
+  ok   GalaxyTests.RealAndGeneratedStarsAddUpToTheModel (4829 ms)
+  RUN  GalaxyTests.SuppressionLeavesSurvivingStarsUnchanged
+      1754 stars kept, 2075 left to the catalogue
+  ok   GalaxyTests.SuppressionLeavesSurvivingStarsUnchanged (33 ms)
+  RUN  GalaxyTests.StarCountProfileMatchesTheDensity
+      L7 within 60 ly of (0, 0, 0): profile 1.537E+003, integral 1.537E+003
+      L4 within 600 ly of (0, 0, 0): profile 5.632E+004, integral 5.640E+004
+      L1 within 1800 ly of (0, 0, 0): profile 1.105E+004, integral 1.113E+004
+      L5 within 400 ly of (500, 300, 9000): profile 8.797E+004, integral 8.804E+004
+      L7 within 40 ly of (-26, -21, 26673): profile 2.019E+005, integral 2.019E+005
+      L2 within 1500 ly of (-26, -21, 24173): profile 5.059E+006, integral 5.078E+006
+  ok   GalaxyTests.StarCountProfileMatchesTheDensity (808 ms)
+  RUN  GalaxyTests.UntrustedCatalogueAddressesAreRejected
+  ok   GalaxyTests.UntrustedCatalogueAddressesAreRejected (4 ms)
+  RUN  GalaxyTests.CatalogueHasTheNeighbours
+      99142 catalogue stars, 98697 systems
+  ok   GalaxyTests.CatalogueHasTheNeighbours (13 ms)
+  RUN  GalaxyTests.SearchFindsCatalogueProceduralAndSectorNames
+  ok   GalaxyTests.SearchFindsCatalogueProceduralAndSectorNames (3 ms)
+  RUN  GalaxyTests.NearbyDwarfsAndRealCompanions
+      658 catalogue stars listed alone checked, 215 with unseen companions
+  ok   GalaxyTests.NearbyDwarfsAndRealCompanions (90 ms)
+  RUN  GalaxyTests.AuthoredSystemsAndRegions
+      8 authored systems, 39 regions, 27 generated systems named after the Pleiades
+  ok   GalaxyTests.AuthoredSystemsAndRegions (18 ms)
+  RUN  GalaxyTests.SolSystemIsReal
+  ok   GalaxyTests.SolSystemIsReal (1 ms)
+  RUN  GalaxyTests.GeneratedSystemsArePlausible
+      22101 systems, 79309 planets, 86430 moons, 123 Earth-like, 151 gas giants above 1,000 K; Rocky world 27384, Gas giant 15413, Icy world 11138, Ice giant 8225, Metal-rich world 7336, Gas dwarf 4700, Rocky ice world 1985, Lava world 1721, Water world 942, Ammonia world 342, Earth-like world 123; liquids: None 157560, Water 4708, Magma 2636, Hydrocarbons 493, AmmoniaWater 342; 1143 with life, 30656 subsurface oceans
+  ok   GalaxyTests.GeneratedSystemsArePlausible (2262 ms)
+  RUN  GalaxyTests.WorldsMatchTheSolarSystem
+      of 20: temperate Earths 20, hothouse Venuses 20, desert Marses 20, airless Moons 20, Titans with air 20
+  ok   GalaxyTests.WorldsMatchTheSolarSystem (1 ms)
+  RUN  GalaxyTests.OrbitsNeverCross
+      6760 systems (3410 multiple), 14722 neighbouring orbits checked
+  ok   GalaxyTests.OrbitsNeverCross (512 ms)
+  RUN  GalaxyTests.MultipleStarsFormABarycentricTree
+      757 multiple systems (212 with three or more stars), 1335 planets around companions, 462 circumbinary planets, 17 airless planets warmed by a companion, 921 moons with atmospheres
+  ok   GalaxyTests.MultipleStarsFormABarycentricTree (192 ms)
+  RUN  GalaxyTests.SystemGenerationIsDeterministic
+      45 systems, hash 0x3672732AE16E55F1
+  ok   GalaxyTests.SystemGenerationIsDeterministic (49 ms)
+  RUN  GalaxyTests.RealSystemsMatchTheirGolden
+      Sol (33), Alpha Centauri (24), Luhman 16 (3), Epsilon Indi (7), Barnard's Star (2), Sirius (8), Procyon (3), Tau Ceti (6), Ran (8), 61 Cygni (20), Vega (5), Capella (13), Castor (22), Mizar (5), Albireo (7), Polaris (2), Betelgeuse (1), Rigel (2): hash 0x32A5776B1B463E3B
+  ok   GalaxyTests.RealSystemsMatchTheirGolden (3 ms)
+  RUN  GalaxyTests.VersionsSeedTheirStage
+  ok   GalaxyTests.VersionsSeedTheirStage (0 ms)
+  RUN  GameScaleTests.EarthMovementPredictionUsesTheScaledWalkingTerrain
+      Earth radius 1200 m; walked 22.2 m; 360 exact prediction ticks
+  ok   GameScaleTests.EarthMovementPredictionUsesTheScaledWalkingTerrain (977 ms)
+  RUN  GameScaleTests.EveryPlanetFitsTheEntireSurfaceAreaBudget
+  ok   GameScaleTests.EveryPlanetFitsTheEntireSurfaceAreaBudget (0 ms)
+  RUN  GameScaleTests.InvalidScaleInputsAreRejected
+  ok   GameScaleTests.InvalidScaleInputsAreRejected (4 ms)
+  RUN  GameScaleTests.EarthStartsWithoutAnOptionalCatalogue
+  ok   GameScaleTests.EarthStartsWithoutAnOptionalCatalogue (0 ms)
+  RUN  GameScaleTests.ScalingLeavesGeneratedPhysicsUnchanged
+  ok   GameScaleTests.ScalingLeavesGeneratedPhysicsUnchanged (0 ms)
+  RUN  GatheringTests.StandInNatureIsStable
+      1870 objects; e.g. pine-tree at <713.0452, 1074.0509, 2036.6884>
+  ok   GatheringTests.StandInNatureIsStable (13 ms)
+  RUN  GatheringTests.GatheringYieldDepletionAndRespawn
+      a 0.95-size pine: 210 wood; rock 32 hits, stone hatchet 13, metal hatchet 9
+  ok   GatheringTests.GatheringYieldDepletionAndRespawn (50 ms)
+  RUN  GatheringTests.TreeMarkPaysMoreForEveryHitOnItInARow
+      X hits in a row pay 1.125, 1.25, 1.375, 1.5, 1.625, 1.75, 1.875, 2, 2, 2; the X moved 9 times of 10
+  ok   GatheringTests.TreeMarkPaysMoreForEveryHitOnItInARow (11 ms)
+  RUN  GatheringTests.OreHotspotBreaksTheNodeInFewerHits
+      a 0.85-size stone outcrop: 36 hits with a rock, 14 on the hotspot (pays 1.5, 2, 2.5, 3, 3)
+  ok   GatheringTests.OreHotspotBreaksTheNodeInFewerHits (17 ms)
+  RUN  GatheringTests.FelledTreePaysHalfItsWood
+      a broadleaf tree of 295 wood: 143 from the hits, 152 as it falls
+  ok   GatheringTests.FelledTreePaysHalfItsWood (8 ms)
+  RUN  GatheringTests.ProperToolFinishesAnOutcropWithABonus
+      a sulphur outcrop of 250 ore: 250 with a rock, 300 with a stone pickaxe
+  ok   GatheringTests.ProperToolFinishesAnOutcropWithABonus (8 ms)
+  RUN  GatheringTests.OutcropSpotsSitOnTheDrawnRock
+      12 spots on the measured rock
+  ok   GatheringTests.OutcropSpotsSitOnTheDrawnRock (20 ms)
+  RUN  GatheringTests.GatherLooksNameRealEffectsAndSounds
+      80 effects and sounds named by the looks
+  ok   GatheringTests.GatherLooksNameRealEffectsAndSounds (25 ms)
+  RUN  GatheringTests.NaturalObjectsCollide
+      23 solid natural objects in the tile under a pine
+  ok   GatheringTests.NaturalObjectsCollide (89 ms)
+  RUN  GeologyPortTests.ScannedRockCatalogMatchesRealMeshAndMaterialData
+      9 real rock variants, 18 LOD meshes; native PBR textures; source/output hashes recorded
+  ok   GeologyPortTests.ScannedRockCatalogMatchesRealMeshAndMaterialData (305 ms)
+  RUN  GeologyPortTests.CliffChainsHaveDistinctStablePartsAndStreamAcrossCellEdges
+      30 checked connected formations, 345 shared render/collision pieces, 24 tiered faces
+  ok   GeologyPortTests.CliffChainsHaveDistinctStablePartsAndStreamAcrossCellEdges (150 ms)
+  RUN  GibTests.EverythingThatBreaksHasGibs
+      129 gib sets in 30 files: 1106 pieces, 285,952 triangles, 18.4 MB
+  ok   GibTests.EverythingThatBreaksHasGibs (99 ms)
+  RUN  GunNetTests.ClientAndServerAgreeOnRecoilAndDirections
+      22 shots and 1 reload in 8 s of recorded input, every one the same on both sides; 14 ticks of sprinting with the trigger held fired nothing on either side
+  ok   GunNetTests.ClientAndServerAgreeOnRecoilAndDirections (658 ms)
+  RUN  GunNetTests.AkSprayMatchesRustMvpTable
+      two 30-round sprays (hip; aimed and crouched): every view before a shot on RustMVP's table within 0.0e0°, client and server to the bit; it ends 29.368° up, 0.614° right
+  ok   GunNetTests.AkSprayMatchesRustMvpTable (597 ms)
+  RUN  GunNetTests.GunfightOverTheNetwork
+  FAIL GunNetTests.GunfightOverTheNetwork: reloading at once
+  RUN  GunNetTests.WeaponsKeepTheirMagazinesAndAttachments
+  ok   GunNetTests.WeaponsKeepTheirMagazinesAndAttachments (214 ms)
+  RUN  GunTests.BulletDropFollowsGravityAndDrag
+      pistol-ammo at 300 m/s: drop 50 m 0.15 m (0.18 s), 100 m 0.58 m (0.37 s), 150 m 1.34 m (0.57 s), 200 m 2.50 m (0.78 s)
+      pistol-ammo-hv at 399 m/s: drop 50 m 0.08 m (0.13 s), 100 m 0.31 m (0.27 s), 150 m 0.74 m (0.42 s), 200 m 1.34 m (0.57 s)
+      pistol-ammo-incendiary at 225 m/s: drop 50 m 0.24 m (0.23 s), 100 m 1.06 m (0.50 s), 150 m 2.50 m (0.78 s), 200 m 4.74 m (1.10 s)
+      rifle-ammo at 300 m/s: drop 50 m 0.15 m (0.18 s), 100 m 0.58 m (0.37 s), 150 m 1.29 m (0.55 s), 200 m 2.36 m (0.75 s)
+      rifle-ammo-hv at 360 m/s: drop 50 m 0.10 m (0.15 s), 100 m 0.39 m (0.30 s), 150 m 0.87 m (0.45 s), 200 m 1.61 m (0.62 s)
+      rifle-ammo-incendiary at 180 m/s: drop 50 m 0.39 m (0.30 s), 100 m 1.61 m (0.62 s), 150 m 3.83 m (0.97 s), 200 m 7.38 m (1.37 s)
+      zone bullet after 0.4 s: 112.4 m out, 2.621 mm from the integral
+  ok   GunTests.BulletDropFollowsGravityAndDrag (201 ms)
+  RUN  GunTests.LagCompensatedHitOnATargetThatMoved
+      view delay 4 ticks: Bo took 35.0; hit marker True
+      view delay 0 ticks: Bo took 0.0; hit marker False
+  ok   GunTests.LagCompensatedHitOnATargetThatMoved (472 ms)
+  RUN  GunTests.RecoilFollowsThePattern
+      30 shots: recoil 29.368° up, 0.614° right (pattern sum 29.368°, 0.615°)
+  ok   GunTests.RecoilFollowsThePattern (397 ms)
+  RUN  GunTests.HeadChestAndLimbDamage
+  ok   GunTests.HeadChestAndLimbDamage (217 ms)
+  RUN  GunTests.ArmourReducesBulletDamage
+      body 35.0 → 24.85 (chest plate and shirt), head 70.0 → 35.0 (metal mask), limb 16.80 (shirt sleeves)
+  ok   GunTests.ArmourReducesBulletDamage (164 ms)
+  RUN  GunTests.FireRateAmmoAndReloadAreChecked
+  ok   GunTests.FireRateAmmoAndReloadAreChecked (207 ms)
+  RUN  GunTests.AttachmentsGoOnAndChangeTheGun
+  ok   GunTests.AttachmentsGoOnAndChangeTheGun (247 ms)
+  RUN  HeldActionTimingTests.PresentationUsesTheSameMeleeContactTickAsAuthority
+  ok   HeldActionTimingTests.PresentationUsesTheSameMeleeContactTickAsAuthority (5 ms)
+  RUN  HeldActionTimingTests.AuthoredContactCanBeRetimedWithoutMovingItsPose
+  ok   HeldActionTimingTests.AuthoredContactCanBeRetimedWithoutMovingItsPose (0 ms)
+  RUN  HeldActionTimingTests.MeleePredictionUsesTicksAndCancelsPendingContacts
+  ok   HeldActionTimingTests.MeleePredictionUsesTicksAndCancelsPendingContacts (6 ms)
+  RUN  HeldActionTimingTests.HeldWindupCommitsOnceAtTheRuleTickAndCancellationSendsNothing
+  ok   HeldActionTimingTests.HeldWindupCommitsOnceAtTheRuleTickAndCancellationSendsNothing (1 ms)
+  RUN  HeldActionTimingTests.MeleeAuthorityMissesOutsideReachAndCancelsBeforeContact
+  ok   HeldActionTimingTests.MeleeAuthorityMissesOutsideReachAndCancelsBeforeContact (787 ms)
+  RUN  HeldActionTimingTests.SwitchingIdenticalGunsReplicatesReloadCancellationWithoutLoadingEitherOne
+  ok   HeldActionTimingTests.SwitchingIdenticalGunsReplicatesReloadCancellationWithoutLoadingEitherOne (5630 ms)
+  RUN  HeldActionTimingTests.MeleeHitMarkerCarriesTheAuthoritativeToolTickAndContactPoint
+  ok   HeldActionTimingTests.MeleeHitMarkerCarriesTheAuthoritativeToolTickAndContactPoint (3220 ms)
+  RUN  HeldActionTimingTests.AcceptedUseRetainsConsumedItemForObserversAndRefusalDoesNotReplay
+  ok   HeldActionTimingTests.AcceptedUseRetainsConsumedItemForObserversAndRefusalDoesNotReplay (4202 ms)
+  RUN  HeldPresentationTests.EveryHeldModelHasAnExplicitPresentation
+      41 held models have explicit editable profiles
+  ok   HeldPresentationTests.EveryHeldModelHasAnExplicitPresentation (16 ms)
+  RUN  HeldPresentationTests.HeldActionsCoverGameplayAndHaveContinuousTimelines
+      175 authored action curves cover their whole normalized timeline
+  ok   HeldPresentationTests.HeldActionsCoverGameplayAndHaveContinuousTimelines (10 ms)
+  RUN  HeldPresentationTests.HeldSkeletalBindingsResolveToBothBodyArmAnimations
+      4 skeletal held-action bindings resolve on both bodies with authored torso and arm rotations
+  ok   HeldPresentationTests.HeldSkeletalBindingsResolveToBothBodyArmAnimations (55 ms)
+  RUN  HeldPresentationTests.ReloadableMagazinesAreSeparateMeshesAtEveryLod
+  ok   HeldPresentationTests.ReloadableMagazinesAreSeparateMeshesAtEveryLod (7 ms)
+  RUN  HeldTests.HeldBehaviourComesFromOnePart
+      62 of 117 items do something in the hands
+      items.json: "bow": its items.json melee and its items.json bow would both say what it does in the hands (an item has one held behaviour, GROUND_SYSTEMS.md §7)
+  ok   HeldTests.HeldBehaviourComesFromOnePart (224 ms)
+  RUN  HeldTests.EveryPartIsDescribed
+      1 items have no part (hide)
+      AK: Damage 35; Fire Auto, 450 rpm; Magazine 30; Reload 2.4 s; Aim cone 1.5° hip, 0.18° aimed; Range 200 m, full to 70 m; Recoil 29° up, a set pattern; Loaded 30 rifle rounds; Fitted holo sight; Takes rifle rounds, 4 kinds; Condition 100%
+      bag charge: Fuse 6–12 s, 20% duds; Blast 3 m, 120 damage; Deployables 150; Twig wall 1 breaks it; Wood wall 3 to break; Stone wall 10 to break; Metal wall 23 to break; Armoured wall 46 to break; Doors wood 2, metal 4, armoured 12
+  ok   HeldTests.EveryPartIsDescribed (267 ms)
+  RUN  HeldTests.InventoryActionsComeFromParts
+  ok   HeldTests.InventoryActionsComeFromParts (1712 ms)
+  RUN  HeldTests.UnloadReturnsTheRounds
+  ok   HeldTests.UnloadReturnsTheRounds (4909 ms)
+  RUN  HeldTests.HeldItemsShowFromTheCatalogue
+  ok   HeldTests.HeldItemsShowFromTheCatalogue (10 ms)
+  RUN  HeldTests.AWorkbenchAboveTheRecipeCraftsFaster
+      a wooden spear: 10 s, 5 s, 2.5 s, 2.5 s at workbenches 0-3; metal-hatchet (level 1): 30 s, 15 s, 7.5 s at 1-3
+  ok   HeldTests.AWorkbenchAboveTheRecipeCraftsFaster (279 ms)
+  RUN  InteractionTests.EveryVerbHasExactlyOneHandler
+      47 verbs; a broken set: interaction verbs: a handler (Rogue) for "knock", which isn't in the list;interaction verbs: "door-open" has two handlers (Rogue, DoorCapability);interaction verbs: "loot" has no handler
+  ok   InteractionTests.EveryVerbHasExactlyOneHandler (6 ms)
+  RUN  InteractionTests.OneQueryMeetsTheNearestThing
+  ok   InteractionTests.OneQueryMeetsTheNearestThing (173 ms)
+  RUN  InteractionTests.GarageDoorClosesThroughItsOpening
+  ok   InteractionTests.GarageDoorClosesThroughItsOpening (305 ms)
+  RUN  InteractionTests.OneIntentPassesGatesReachAndTheOffer
+  ok   InteractionTests.OneIntentPassesGatesReachAndTheOffer (348 ms)
+  RUN  InteractionTests.FreshCodeLockSetsItsCodeFirst
+  ok   InteractionTests.FreshCodeLockSetsItsCodeFirst (228 ms)
+  RUN  InteractionTests.CupboardAuthorisesFirstThenOpens
+  ok   InteractionTests.CupboardAuthorisesFirstThenOpens (222 ms)
+  RUN  InteractionTests.DeployablesArePickedUpEmptyWhereOneMayBuild
+  ok   InteractionTests.DeployablesArePickedUpEmptyWhereOneMayBuild (352 ms)
+  RUN  InteractionTests.SpentArrowsStickRideAndAreTakenBack
+      shots until one stuck in the wall: 1; arrows left: 0
+  ok   InteractionTests.SpentArrowsStickRideAndAreTakenBack (437 ms)
+  RUN  InteractionTests.ClientAimsAndOffersAsTheServer
+      50 views met a thing with options, of 2 families (Thing, Arrow); a frame's query and options 15 µs
+  ok   InteractionTests.ClientAimsAndOffersAsTheServer (2001 ms)
+  RUN  IronWakeBuildTests.ABoxOnDeckARidesTheShipAndOpensInFlight
+      Ada walking aft into the box: her feet rose to 3.71 m, ended at z 1.48 (the box at 4.82)
+      climbed 83.8 m, turned 134°, the box carried 84.5 m through the world and 0.150 mm off its place on the deck; landed at -0.17 m; opened in flight: done
+  ok   IronWakeBuildTests.ABoxOnDeckARidesTheShipAndOpensInFlight (761 ms)
+  RUN  IronWakeBuildTests.RefusalsAboardEachWithItsLine
+      at the stair's foot: KeepClear "Keep this clear: a way through the ship"
+      on the ramp: KeepClear on body 1 "Keep this clear: a way through the ship"
+      a stranger: NotCrew "Its crew only: authorise at its helm"
+      past 80: ShipFull (73) "The ship can't hold another small box"
+      a tall furnace on the forward deck: TooTall "Too tall for this deck: only the high bay has the headroom"
+      in the bay: done
+  ok   IronWakeBuildTests.RefusalsAboardEachWithItsLine (890 ms)
+  RUN  IronWakeBuildTests.AFurnaceAboardSmeltsInFlight
+      in 25 s of flight (104 m up) the furnace made 6 metal fragments; lit True
+  ok   IronWakeBuildTests.AFurnaceAboardSmeltsInFlight (605 ms)
+  RUN  IronWakeBuildTests.ASleepingBagAboardRespawnsItsOwnerAboard
+      back aboard True at <-2.0000226, 3.2, 4.5158486> (0.30 m from the bag), 94 m up
+  ok   IronWakeBuildTests.ASleepingBagAboardRespawnsItsOwnerAboard (484 ms)
+  RUN  IronWakeBuildTests.AGrenadeThrownAlongATurningDeckLandsOnTheDeck
+      at rest after 1.83 s (5 bounces), the ship turning at up to 0.56 rad/s; on the deck at <-1.464803, 3.27002, -2.2099018> held by Ship #0000000001000001
+  ok   IronWakeBuildTests.AGrenadeThrownAlongATurningDeckLandsOnTheDeck (513 ms)
+  RUN  IronWakeBuildTests.AWreckSpillsWhatWasAboard
+      2 bags after the wreck: the box's at <878.05115, 1239.3539, 1879.9437> (0.00 m up), the dropped one at -0.00 m up, riding False
+  ok   IronWakeBuildTests.AWreckSpillsWhatWasAboard (552 ms)
+  RUN  IronWakeBuildTests.ARestartKeepsTheBoxTheFurnaceAndTheBagAboard
+      after the restart: small-box at <-1.9871817, 3.2, 3.1891046>; furnace at <-1.9847846, 3.2, 1.5992359>; sleeping-bag at <-0.5956878, 3.2, 3.5848525>; 2 boxes in the ship's space
+  ok   IronWakeBuildTests.ARestartKeepsTheBoxTheFurnaceAndTheBagAboard (8248 ms)
+  RUN  IronWakeNetTests.APassengerIsPredictedExactlyWhileAnotherFlies
+      up the ramp: 0 corrections, 3 ticks replayed; on the server at (-0.004, 3.200, -13.539) moving (0.00, 0.00, 0.00) Standing 100 hp OnGround aboard 2E6D9EA7A804000

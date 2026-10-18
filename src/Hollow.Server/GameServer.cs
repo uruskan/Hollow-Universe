@@ -45,7 +45,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     public const int TickRate = CharacterMotor.TickRate;
 
     private readonly ServerOptions _options;
-    private readonly NetManager _net;
+    private readonly NetManager _net = null!;
     private readonly PersistenceWorker? _persistence;
     private readonly EntityIdAllocator _ids;
     private readonly Dictionary<NetPeer, PlayerSession> _sessions = new();
@@ -54,7 +54,9 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     private readonly ConcurrentQueue<string> _commands = new();
     private readonly ConcurrentQueue<Action> _inspections = new();
     private readonly MessageHandlers<PlayerSession> _handlers = new();
-    private readonly ServerModule[] _modules;
+    private readonly ServerModule[] _modules = Array.Empty<ServerModule>();
+    private readonly ServerSessionResources _resources;
+    private readonly ServerWorldHandshake _worldHandshake;
     private readonly Dictionary<Type, ServerModule> _byType = new();
     private readonly ServerModule[] _onInput;
     private readonly ServerModule[] _onSeen;
@@ -70,6 +72,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     private readonly HashSet<EntityId> _savedThings = new();
     private readonly CancellationTokenSource _stop = new();
     private uint _nextNetId = 1;
+    private uint _nextAttackSession = 1;
     private double _snapshotAccumulator;
     private long _lastSave;
     private readonly long _started = Stopwatch.GetTimestamp();
@@ -78,6 +81,8 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     private long _lastDeathSave;
     private Thread? _thread;
     private bool _shutDown;
+    private bool _disposed;
+    private Exception? _threadFailure;
     private int _failedTicks;
 
     /// <summary>A dynamic entity in this snapshot: a character (its entity), or one a module presented (an animal: no zone entity, its presenter).</summary>
@@ -85,91 +90,81 @@ public sealed partial class GameServer : INetEventListener, IDisposable
 
     public GameServer(ServerOptions options, Galaxy.Galaxy? galaxy = null)
     {
+        ArgumentNullException.ThrowIfNull(options);
         _options = options;
-        galaxy ??= new Galaxy.Galaxy(options.CataloguePath != null ? Galaxy.StarCatalogue.Load(options.CataloguePath) : null);
-        (double latitude, double longitude) = ZoneSpec.LandingFor(options.Ground, galaxy, options.Latitude, options.Longitude);
-        Spec = ZoneSpec.StartingWorld(latitude, longitude) with
+        _resources = new ServerSessionResources(options.WorldStore);
+        try
+        {
+            galaxy ??= new Galaxy.Galaxy(options.CataloguePath != null ? Galaxy.StarCatalogue.Load(options.CataloguePath) : null);
+            Spec = _resources.ResolveLanding(options);
+            _worldHandshake = new ServerWorldHandshake(NetConvert.ToInfo(Spec), NetConvert.ToEnvironment(_resources.EnvironmentDescriptor));
+            Content = options.Content ?? GameContent.LoadDefault();
+            _ids = new EntityIdAllocator(1, () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
+            Zone = _resources.CreateZone(Spec, Content);
+            Zone.UnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            Zone.NewEntityId = _ids.Next;
+            _grid = new RelevanceGrid(options.RelevanceRadius, farRadius: ShipModule.ShipRelevanceRadius, farHysteresis: 100f);
+            if (options.DatabasePath != null)
             {
-                StandIn = options.StandIn,
-                Ground = options.Ground,
-                RotationTimeScale = options.RotationTimeScale,
-            };
-        Content = options.Content ?? GameContent.LoadDefault();
-        _ids = new EntityIdAllocator(1, () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
-        Zone = new Zone(Spec, content: Content)
-        {
-            UnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-            NewEntityId = _ids.Next,
-        };
-        _grid = new RelevanceGrid(options.RelevanceRadius, farRadius: ShipModule.ShipRelevanceRadius, farHysteresis: 100f);
-        if (options.DatabasePath != null)
-        {
-            _persistence = new PersistenceWorker(options.DatabasePath, () => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(), Log);
+                _persistence = _resources.OpenPersistence(options.DatabasePath, Spec, Log);
+            }
+            _net = _resources.StartNetwork(this, options.Port);
+            Port = _net.LocalPort;
+            // The zone's sky: its spin is the zone's clock (GROUND.md §8.2: admins set it), which the climate follows, the
+            // local solar time where each player stands (docs/WHOLE_WORLD.md decision 11): the real planet's air, or the
+            // stand-in's in short.
+            Sky = Spec.CreateSky();
+            if (Sky != null)
+            {
+                Zone.Climate = Zone.Surface is PlanetSurface planet
+                    ? new PlanetClimate(Content.Survival, planet, Zone.Frame, Sky)
+                    : new StandInClimate(Content.Survival, Zone.Frame, Zone.Surface.Radius, Sky);
+            }
+            // Beaches anywhere on the world (docs/WHOLE_WORLD.md decision 8): where players arrive and respawn; with everyone
+            // kept in one place (SpawnAtOrigin), respawns too come back round the landing site.
+            Beaches = Simulation.Beaches.Find(Zone.Surface, Zone.Frame);
+            if (Beaches.Points.Count > 0 && !options.SpawnAtOrigin)
+            {
+                Zone.Beaches = salt => Beaches.Pick(salt)!.Value;
+            }
+            Log($"{Beaches.Points.Count} beach points on the world" + (Zone.Beaches == null ? ": players arrive and respawn at the landing site" : ""));
+            // Build the ground where players arrive now (and warm the code up), so the first arrival doesn't stall the
+            // tick loop.
+            Vector3 arrival = Arrival(0);
+            Zone.Physics.PrefetchWithin(arrival, 2 * PhysicsWorld.PrefetchReach);
+            Zone.Physics.EnsureGroundWithin(arrival, PhysicsWorld.PrefetchReach);
+            // The modules (GROUND_SYSTEMS.md §12.5): attached, their messages and subscriptions registered after the host's
+            // own, the stored world restored into them, then started.
+            _modules = ServerModules.All();
+            foreach (ServerModule module in _modules)
+            {
+                module.Attach(this);
+                _byType.Add(module.GetType(), module);
+            }
+            _onInput = Overriding(nameof(ServerModule.Input));
+            _onSeen = Overriding(nameof(ServerModule.Seen));
+            RegisterMessages();
+            foreach (ServerModule module in _modules)
+            {
+                _resources.Initialize(module, _handlers);
+            }
+            LoadWorld();
+            foreach (ServerModule module in _modules)
+            {
+                module.Start();
+            }
+            Zone.Profile = Profile;
+            _lastSave = Stopwatch.GetTimestamp();
+            _lastNetUpdate = Stopwatch.GetTimestamp();
+            Log($"{options.Name}: zone on {Spec}, port {Port}, " +
+                (options.DatabasePath != null ? $"database {options.DatabasePath}" : "no persistence") + $", data {Content.Hash:X16}");
         }
-        _net = new NetManager(this)
+        catch (Exception error)
         {
-            AutoRecycle = true,
-            EnableStatistics = true,
-            DisconnectTimeout = 10_000,
-            UpdateTime = 1,
-            IPv6Enabled = false,
-            UnconnectedMessagesEnabled = false,
-        };
-        if (!_net.StartInManualMode(IPAddress.Any, IPAddress.IPv6Any, options.Port))
-        {
-            _persistence?.Dispose();
-            Zone.Dispose();
-            throw new SocketException((int)SocketError.AddressAlreadyInUse);
+            try { _resources.Rollback(error); }
+            finally { _stop.Dispose(); }
+            throw;
         }
-        Port = _net.LocalPort;
-        // The zone's sky: its spin is the zone's clock (GROUND.md §8.2: admins set it), which the climate follows, the
-        // local solar time where each player stands (docs/WHOLE_WORLD.md decision 11): the real planet's air, or the
-        // stand-in's in short.
-        Sky = Spec.CreateSky();
-        if (Sky != null)
-        {
-            Zone.Climate = Zone.Surface is PlanetSurface planet
-                ? new PlanetClimate(Content.Survival, planet, Zone.Frame, Sky)
-                : new StandInClimate(Content.Survival, Zone.Frame, Zone.Surface.Radius, Sky);
-        }
-        // Beaches anywhere on the world (docs/WHOLE_WORLD.md decision 8): where players arrive and respawn; with everyone
-        // kept in one place (SpawnAtOrigin), respawns too come back round the landing site.
-        Beaches = Simulation.Beaches.Find(Zone.Surface, Zone.Frame);
-        if (Beaches.Points.Count > 0 && !options.SpawnAtOrigin)
-        {
-            Zone.Beaches = salt => Beaches.Pick(salt)!.Value;
-        }
-        Log($"{Beaches.Points.Count} beach points on the world" + (Zone.Beaches == null ? ": players arrive and respawn at the landing site" : ""));
-        // Build the ground where players arrive now (and warm the code up), so the first arrival doesn't stall the
-        // tick loop.
-        Vector3 arrival = Arrival(0);
-        Zone.Physics.PrefetchWithin(arrival, 2 * PhysicsWorld.PrefetchReach);
-        Zone.Physics.EnsureGroundWithin(arrival, PhysicsWorld.PrefetchReach);
-        // The modules (GROUND_SYSTEMS.md §12.5): attached, their messages and subscriptions registered after the host's
-        // own, the stored world restored into them, then started.
-        _modules = ServerModules.All();
-        foreach (ServerModule module in _modules)
-        {
-            module.Attach(this);
-            _byType.Add(module.GetType(), module);
-        }
-        _onInput = Overriding(nameof(ServerModule.Input));
-        _onSeen = Overriding(nameof(ServerModule.Seen));
-        RegisterMessages();
-        foreach (ServerModule module in _modules)
-        {
-            module.Init(_handlers);
-        }
-        LoadWorld();
-        foreach (ServerModule module in _modules)
-        {
-            module.Start();
-        }
-        Zone.Profile = Profile;
-        _lastSave = Stopwatch.GetTimestamp();
-        _lastNetUpdate = Stopwatch.GetTimestamp();
-        Log($"{options.Name}: zone on {Spec}, port {Port}, " +
-            (options.DatabasePath != null ? $"database {options.DatabasePath}" : "no persistence") + $", data {Content.Hash:X16}");
     }
 
     public ZoneSpec Spec { get; }
@@ -283,27 +278,49 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         }
         finally
         {
-            Shutdown();
-            TimerResolution.End();
+            try { Shutdown(); }
+            finally { TimerResolution.End(); }
         }
     }
 
     /// <summary>Host mode: runs on a background thread.</summary>
     public void StartThread()
     {
-        _thread = new Thread(Run) { IsBackground = true, Name = "Hollow server" };
+        ObjectDisposedException.ThrowIf(_disposed || _shutDown, this);
+        if (_thread != null) throw new InvalidOperationException("The server already has a running thread.");
+        _thread = new Thread(() =>
+        {
+            try { Run(); }
+            catch (Exception error)
+            {
+                // A teardown failure must reach the joining owner instead of escaping a background thread.
+                _threadFailure = error;
+                try { Log($"server stopped with a failure: {error}"); } catch { }
+            }
+        }) { IsBackground = true, Name = "Hollow server" };
         _thread.Start();
     }
 
     /// <summary>Asks the loop to stop; it saves everyone and disconnects them first.</summary>
-    public void RequestStop() => _stop.Cancel();
+    public void RequestStop()
+    {
+        if (!_disposed) _stop.Cancel();
+    }
 
     /// <summary>Stops and waits for the loop (Host mode and tests).</summary>
     public void Stop()
     {
+        if (_disposed) return;
+        if (JoltRuntime.Gate.IsHeldByCurrentThread)
+            throw new InvalidOperationException("Join the server outside the Jolt gate.");
         RequestStop();
         _thread?.Join();
         _thread = null;
+        if (_threadFailure is { } failure)
+        {
+            _threadFailure = null;
+            throw new AggregateException("The server thread failed after resource retirement.", failure).Flatten();
+        }
     }
 
     /// <summary>Queues an admin command (from any thread); it runs at the start of the next tick.</summary>
@@ -430,65 +447,38 @@ public sealed partial class GameServer : INetEventListener, IDisposable
 
     // ---------------------------------------------------------------- connecting and logging in
 
-    public void OnConnectionRequest(ConnectionRequest request)
+    public void OnConnectionRequest(ConnectionRequest request) =>
+        _worldHandshake.Request(request, Content.Hash, _sessions.Values.Select(s => s.Name), _sessions.Count, _options.MaxPlayers, Log);
+
+    public static bool IsValidName(string name) => ServerWorldHandshake.IsValidName(name);
+
+    /// <summary>Transport peers awaiting compatibility; none has a player session or persistence login.</summary>
+    public int PendingWorldJoins => _worldHandshake.PendingCount;
+
+    private void ReceiveWorldAccept(NetPeer peer, NetPacketReader packet, DeliveryMethod method)
     {
-        byte[] data = request.Data.GetRemainingBytes();
-        _reader.Reset(data, 0, data.Length);
-        Hello hello = default;
-        bool parsed = _reader.ReadBits(8) == Hello.TypeId;
-        if (parsed)
+        if (!_worldHandshake.TryAccept(peer, packet, method, out var join)) return;
+        try
         {
-            hello = Hello.Read(_reader);
-            parsed = !_reader.Failed;
+            var session = new PlayerSession(peer, join.Name) { Body = join.Body };
+            session.Login = _persistence != null ? _persistence.Login(join.Name)
+                : Task.FromResult<(long, CharacterRecord?)>((0, null));
+            _worldHandshake.Confirm(peer, join);
+            _sessions.Add(peer, session);
         }
-        if (!parsed || hello.ProtocolVersion != Protocol.Version || hello.SchemaHash != Protocol.SchemaHash)
+        catch (Exception)
         {
-            Refuse(request, GoodbyeReason.ProtocolMismatch, $"This server speaks protocol {Protocol.Version} ({Protocol.SchemaHash:X16}); update the game.");
-            return;
+            _worldHandshake.ForgetAccepted(peer);
+            _worldHandshake.Refuse(peer, GoodbyeReason.Unknown, "The server could not begin login.");
+            throw;
         }
-        if (hello.ContentHash != Content.Hash)
-        {
-            Refuse(request, GoodbyeReason.ContentMismatch, $"This server runs other game data ({Content.Hash:X16}); update the game.");
-            return;
-        }
-        string name = (hello.PlayerName ?? "").Trim();
-        if (!IsValidName(name))
-        {
-            Refuse(request, GoodbyeReason.BadName, "Names are 1 to 32 letters, digits, spaces, '-', '_' or '.'.");
-            return;
-        }
-        if (_sessions.Values.Any(s => string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)))
-        {
-            Refuse(request, GoodbyeReason.NameInUse, $"{name} is already playing.");
-            return;
-        }
-        if (_sessions.Count >= _options.MaxPlayers)
-        {
-            Refuse(request, GoodbyeReason.ServerFull, "The server is full.");
-            return;
-        }
-        NetPeer peer = request.Accept();
-        var session = new PlayerSession(peer, name) { Body = Math.Min(hello.Body, (byte)1) };
-        session.Login = _persistence != null
-            ? _persistence.Login(name)
-            : Task.FromResult<(long, CharacterRecord?)>((0, null));
-        _sessions.Add(peer, session);
     }
 
-    private void Refuse(ConnectionRequest request, GoodbyeReason reason, string text)
-    {
-        Log($"refused {request.RemoteEndPoint}: {reason}");
-        _writer.Reset();
-        new Goodbye { Reason = reason, Text = text }.WriteMessage(_writer);
-        request.Reject(_writer.ToArray());
-    }
-
-    public static bool IsValidName(string name) =>
-        name.Length is >= 1 and <= Protocol.MaxPlayerNameBytes && name == name.Trim() &&
-        name.All(c => char.IsAsciiLetterOrDigit(c) || c is ' ' or '-' or '_' or '.');
+    private void ExpireWorldOffers(long now) => _worldHandshake.Expire(now);
 
     private void FinishLogins()
     {
+        ExpireWorldOffers(Stopwatch.GetTimestamp());
         foreach (PlayerSession session in _sessions.Values)
         {
             if (session.Playing || session.Login is not { IsCompleted: true } login)
@@ -532,6 +522,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     /// </summary>
     private void Spawn(PlayerSession session, CharacterRecord? record)
     {
+        WorldOffer offer = _worldHandshake.AcceptedOffer(session.Peer);
         EntityId id;
         Entity entity;
         Vector3 view;
@@ -569,9 +560,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
             entity = Zone.Players().AddPlayer(id, session.Name, state, player);
             Zone.Entities.Get<Character>(entity).Input = new MoveInput { View = view, Frame = state.Frame };
         }
+        uint attackSession = _nextAttackSession++;
         if (Zone.Players().PlayerOf(entity) is { } chosen)
         {
             chosen.Body = session.Body; // the body chosen in the menu, kept with the character
+            chosen.AttackSession = attackSession;
         }
         if (!Zone.Entities.Has<NetPresence>(entity))
         {
@@ -589,12 +582,15 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         _writer.Reset();
         new Welcome
         {
+            OfferId = offer.OfferId,
+            Environment = offer.Environment,
             NetId = presence.NetId,
+            AttackSession = attackSession,
             EntityId = id.Value,
             ServerTick = (uint)Zone.Tick,
             TickRate = TickRate,
             SnapshotRate = Protocol.SnapshotRate,
-            Zone = NetConvert.ToInfo(Spec),
+            Zone = offer.Zone,
             ServerName = _options.Name,
             ViewU = presence.ViewU,
             ViewV = presence.ViewV,
@@ -615,6 +611,7 @@ public sealed partial class GameServer : INetEventListener, IDisposable
     /// <summary>A player left: their character stays in the world, asleep (GROUND.md §6), and is saved.</summary>
     public void OnPeerDisconnected(NetPeer peer, DisconnectInfo info)
     {
+        if (_worldHandshake.RemovePeer(peer)) return;
         if (!_sessions.Remove(peer, out PlayerSession? session))
         {
             return;
@@ -670,6 +667,11 @@ public sealed partial class GameServer : INetEventListener, IDisposable
 
     public void OnNetworkReceive(NetPeer peer, NetPacketReader packet, byte channel, DeliveryMethod method)
     {
+        if (_worldHandshake.IsPending(peer))
+        {
+            ReceiveWorldAccept(peer, packet, method);
+            return;
+        }
         if (!_sessions.TryGetValue(peer, out PlayerSession? session))
         {
             return;
@@ -677,6 +679,8 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         // Read in place: the transport recycles the packet after this returns.
         _reader.Reset(packet.RawData, packet.Position, packet.AvailableBytes);
         byte type = (byte)_reader.ReadBits(8);
+        // A duplicate reliable confirmation cannot restart persistence login or create another player.
+        if (type == WorldAccept.TypeId) return;
         if (!_handlers.Dispatch(type, _reader, session))
         {
             session.BadPackets++;
@@ -1005,47 +1009,39 @@ public sealed partial class GameServer : INetEventListener, IDisposable
         {
             return;
         }
+        if (JoltRuntime.Gate.IsHeldByCurrentThread)
+            throw new InvalidOperationException("Retire the server outside the Jolt gate.");
         _shutDown = true;
-        Log("shutting down: saving the world");
-        try
-        {
-            SaveAll().Wait(TimeSpan.FromSeconds(10));
-        }
-        catch (AggregateException e)
-        {
-            Log($"saving failed: {e.InnerException?.Message}");
-        }
+        var failures = new List<Exception>();
+        ServerSessionResources.Attempt(_worldHandshake.ClosePending, failures);
+        ServerSessionResources.Attempt(() => Log("shutting down: saving the world"), failures);
+        ServerSessionResources.Attempt(() => ServerSessionResources.WaitForSave(SaveAll()), failures);
         foreach (PlayerSession session in _sessions.Values.ToList())
         {
-            Kick(session, GoodbyeReason.ServerShutdown, "The server is shutting down.");
+            ServerSessionResources.Attempt(() => Kick(session, GoodbyeReason.ServerShutdown, "The server is shutting down."), failures);
         }
-        // Let the goodbyes go out.
-        for (int i = 0; i < 5; i++)
-        {
-            _net.ManualUpdate(10);
-            Thread.Sleep(10);
-        }
-        _net.Stop();
-        for (int i = _modules.Length - 1; i >= 0; i--)
-        {
-            _modules[i].Dispose();
-        }
-        _persistence?.Dispose();
-        Zone.Dispose();
-        Log("server stopped");
+        _resources.FlushGoodbyes(failures);
+        ServerSessionResources.Attempt(_resources.Dispose, failures);
+        _worldHandshake.ClearAccepted();
+        ServerSessionResources.Attempt(() => Log("server stopped"), failures);
+        if (failures.Count != 0) throw new AggregateException("Server shutdown failed after resource retirement.", failures).Flatten();
     }
 
     public void Dispose()
     {
-        if (_thread != null)
+        if (_disposed) return;
+        if (JoltRuntime.Gate.IsHeldByCurrentThread)
+            throw new InvalidOperationException("Dispose the server outside the Jolt gate.");
+        try
         {
-            Stop();
+            if (_thread != null) Stop();
+            else Shutdown();
         }
-        else
+        finally
         {
-            Shutdown();
+            _disposed = true;
+            _stop.Dispose();
         }
-        _stop.Dispose();
     }
 
     // ---------------------------------------------------------------- the rest of the listener

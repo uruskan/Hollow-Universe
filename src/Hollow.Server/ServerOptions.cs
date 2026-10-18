@@ -42,11 +42,20 @@ public sealed record ServerOptions
     /// </summary>
     public bool SpawnAtOrigin { get; init; }
 
+    /// <summary>The default save is isolated from older Earth heights or solid cliff placement; existing saves are retained.</summary>
+    public static string DefaultDatabasePath => $"hollow-server-earth-v{Hollow.Surface.WalkingParameters.Earth.TerrainRevision}.db";
+
     /// <summary>The SQLite database; null runs without persistence (characters start fresh every time).</summary>
-    public string? DatabasePath { get; init; } = "hollow-server.db";
+    public string? DatabasePath { get; init; } = DefaultDatabasePath;
 
     /// <summary>The real-star catalogue; the first world doesn't need it, so it is optional.</summary>
     public string? CataloguePath { get; init; }
+
+    /// <summary>
+    /// Optional environment session shared with other owners. The caller retains store ownership; this server releases
+    /// only its leases. When absent the server creates and retires its own bounded store. Never a process-wide cache.
+    /// </summary>
+    public Surface.WorldStore? WorldStore { get; init; }
 
     public int MaxPlayers { get; init; } = 128;
 

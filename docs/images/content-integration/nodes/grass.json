@@ -1,0 +1,61 @@
+{
+  "kind": "actual-production-grass-inputs",
+  "valid": true,
+  "scope": "CPU mesh and uploaded lattice inputs only; final vertex deformation, silhouette, lighting and GPU cost require native captures.",
+  "shaderSha256": "4F4A4DD25925A3FE3F92EFF982B978EB258B693170E96DC9B98806CA89671A64",
+  "bladeUnderlayer": true,
+  "distance": 0.85,
+  "density": 0.8,
+  "cellMetres": 0.46019423636569234,
+  "vertexCount": 40,
+  "triangleCount": 30,
+  "rootCount": 10,
+  "meshHeight": 1.1950307,
+  "rootMaximumError": 0,
+  "faces": [
+    {
+      "Face": 2,
+      "CornerX": 2794,
+      "CornerY": 3876,
+      "latticeNodes": 48400,
+      "grass": {
+        "minimum": 0.264955,
+        "maximum": 1,
+        "mean": 0.6432838205020289
+      },
+      "moisture": {
+        "minimum": 0.49371165,
+        "maximum": 0.6148471,
+        "mean": 0.5564635847385757
+      },
+      "woodlandLitter": {
+        "minimum": 0,
+        "maximum": 0.47207004,
+        "mean": 0.19409854185796105
+      },
+      "authoredAccents": 8898
+    },
+    {
+      "Face": 5,
+      "CornerX": 1012,
+      "CornerY": 4095,
+      "latticeNodes": 48400,
+      "grass": {
+        "minimum": 0.26526463,
+        "maximum": 1,
+        "mean": 0.6561185190013864
+      },
+      "moisture": {
+        "minimum": 0.4881456,
+        "maximum": 0.61861247,
+        "mean": 0.5550283338462025
+      },
+      "woodlandLitter": {
+        "minimum": 0,
+        "maximum": 0.47113293,
+        "mean": 0.180757473200091
+      },
+      "authoredAccents": 76
+    }
+  ]
+}

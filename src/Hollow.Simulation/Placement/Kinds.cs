@@ -33,6 +33,10 @@ public interface IPlacementSite
     Outcome PutCharge(ulong player, ThrowableStats stats, PlacementCandidate c);
 
     Outcome PutShip(ulong player, ShipDef def, PlacementCandidate c);
+
+    Outcome PutLock(ulong player, LockKind kind, in TargetRef target) =>
+        target.Family == TargetFamily.Door && Building is { } building && building.DoorOf(new EntityId(target.Id)) is { } door
+            ? building.AttachLock(player, door, kind, out _) : OutcomeCode.NotFound;
 }
 
 /// <summary>The game data a kind resolves its keys in, while it is read.</summary>
@@ -240,14 +244,14 @@ internal sealed class LockPlacement : PlaceableKind
         sources.Building.Lock(key) is { } def ? sources.OwnAt("building.json", "locks", def.Field) : default;
 
     // As it sits at its spot on the door's first leaf.
-    public override Quaternion Orient(PlacementCandidate c) => c.Detail is Door door ? door.LockSpot.Rotation : base.Orient(c);
+    public override Quaternion Orient(PlacementCandidate c) => c.Detail is LockMount mount ? mount.Pose.Rotation : base.Orient(c);
 
     public override Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) =>
-        c.Detail is Door door ? door.Lock != null ? OutcomeCode.HasLock : Outcome.Done : OutcomeCode.NotFound;
+        c.Detail is LockMount mount ? !mount.Lockable ? OutcomeCode.NotUsable : mount.Lock != LockKind.None ? OutcomeCode.HasLock : Outcome.Done : OutcomeCode.NotFound;
 
     public override Outcome Put(IPlacementSite site, ulong player, PlacementCandidate c) =>
-        c.Detail is Door door && site.Building is { } building
-            ? building.AttachLock(player, door, ((LockDef)c.Placeable.Definition).Kind, out _)
+        c.Detail is LockMount mount
+            ? site.PutLock(player, ((LockDef)c.Placeable.Definition).Kind, mount.Target)
             : OutcomeCode.NotFound;
 }
 

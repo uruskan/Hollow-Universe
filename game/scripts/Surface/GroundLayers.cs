@@ -33,6 +33,9 @@ public static class GroundLayers
     /// <summary>Roughness (r) and height (g).</summary>
     public static Texture2DArray RoughHeight => Load().RoughHeight;
 
+    // Read-only borrowed data for the view-owned canonical sampler phase compiler.
+    internal static ReadOnlySpan<float> Metres => Load().Metres;
+
     /// <summary>Every layer's file, for the loading screen to read ahead on a worker thread (GROUND.md §4.3.1).</summary>
     public static IReadOnlyList<string> Files()
     {
@@ -67,29 +70,71 @@ public static class GroundLayers
             return _loaded;
         }
         List<Entry> table = Table();
-        var albedo = new Godot.Collections.Array<Image>();
-        var normal = new Godot.Collections.Array<Image>();
-        var roughHeight = new Godot.Collections.Array<Image>();
         var metres = new float[Count];
         var flip = new Vector2[Count];
         var watch = System.Diagnostics.Stopwatch.StartNew();
         for (int i = 0; i < table.Count; i++)
         {
-            albedo.Add(Read(table[i].Albedo));
-            normal.Add(Read(table[i].Normal));
-            roughHeight.Add(Read(table[i].RoughHeight));
             metres[i] = table[i].Metres;
             flip[i] = table[i].Flip;
         }
-        var a = new Texture2DArray();
-        a.CreateFromImages(albedo);
-        var n = new Texture2DArray();
-        n.CreateFromImages(normal);
-        var r = new Texture2DArray();
-        r.CreateFromImages(roughHeight);
-        _loaded = new Loaded(a, n, r, metres, flip);
+        Texture2DArray? albedo = null, normal = null, roughHeight = null;
+        try
+        {
+            // Finish and release each channel's readback images before starting the next channel.
+            albedo = Upload(table, static e => e.Albedo, "albedo");
+            normal = Upload(table, static e => e.Normal, "normal");
+            roughHeight = Upload(table, static e => e.RoughHeight, "roughness/height");
+            _loaded = new Loaded(albedo, normal, roughHeight, metres, flip);
+        }
+        catch
+        {
+            roughHeight?.Dispose();
+            normal?.Dispose();
+            albedo?.Dispose();
+            throw;
+        }
         GD.Print($"[ground] {Count} layers in arrays in {watch.ElapsedMilliseconds} ms");
         return _loaded;
+    }
+
+    private static Texture2DArray Upload(IReadOnlyList<Entry> table, Func<Entry, string> file, string channel)
+    {
+        RenderMemoryTrace.Mark($"ground-{channel}:begin");
+        var ownedImages = new List<Image>(table.Count);
+        var images = new Godot.Collections.Array<Image>();
+        // Array<T> itself is not IDisposable; this is its underlying native-reference container.
+        using var imageReferences = (Godot.Collections.Array)images;
+        Texture2DArray? texture = null;
+        try
+        {
+            foreach (Entry entry in table)
+            {
+                Image image = Read(file(entry));
+                ownedImages.Add(image);
+                images.Add(image);
+            }
+            RenderMemoryTrace.Mark($"ground-{channel}:readbacks-ready");
+            texture = new Texture2DArray();
+            Error error = texture.CreateFromImages(images);
+            if (error != Error.Ok)
+                throw new InvalidOperationException($"Ground {channel} array upload failed: {error}.");
+            RenderMemoryTrace.Mark($"ground-{channel}:array-uploaded");
+            return texture;
+        }
+        catch
+        {
+            texture?.Dispose();
+            throw;
+        }
+        finally
+        {
+            // GetImage returns owned copies. The uploaded texture has its own rendering resource;
+            // release both the array's native references and our managed wrappers on every path.
+            imageReferences.Clear();
+            foreach (Image image in ownedImages) image.Dispose();
+            RenderMemoryTrace.Mark($"ground-{channel}:readbacks-released");
+        }
     }
 
     // A layer's file as an image (VRAM-compressed, with its mipmaps), the texture let go at once: the arrays hold the copy.

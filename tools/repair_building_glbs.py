@@ -155,7 +155,8 @@ def repair(source, destination=None):
                     continue
                 normal = [n/size for n in normal]
                 key = tuple(round(n, 5) for n in normal + [sum(normal[k]*a[k] for k in range(3))])
-                axis = max(range(3), key=lambda k: abs(normal[k]))
+                # One projection basis per rounded plane group, including near-tied normals.
+                axis = max(range(3), key=lambda k: abs(key[k]))
                 original_poly = [tuple(p[k] for k in range(3) if k != axis) for p in tri]
                 poly = list(original_poly)
                 reverse = sum(a[0]*b[1]-a[1]*b[0] for a, b in zip(poly, poly[1:]+poly[:1])) < 0

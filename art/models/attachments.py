@@ -46,10 +46,18 @@ def holo_sight(seed=301):
     bm.faces.new(verts)
     m.add(bm, (0, 0.03, 0.045), material=GLOSSY, tint=(1, 1, 1), smooth=False)
     m.part("Body")
-    m.box((0.026, 0.024, 0.022), (0, -0.022, 0.032), bevel=0.003, tile=GUNMETAL, tint=DARK, metres=0.48)
-    m.cylinder(0.006, 0.008, (0.021, -0.022, 0.038), (0, 90, 0), sides=14, bevel=0.001, tile=RUBBER, tint=(0.6, 0.6, 0.6), metres=0.12)
-    m.cylinder(0.0035, 0.004, (0, -0.035, 0.04), (90, 0, 0), sides=10, tile=GUNMETAL, tint=(0.55, 0.15, 0.12), metres=0.12)
-    m.socket("eye", (0, -0.12, 0.045))
+    # Keep the complete rear emitter below the aperture's 27 mm lower edge. Its old 43.5 mm
+    # upper edge left just 1.5 mm below the optical axis and hid the aiming dot during recoil.
+    # The optical eye, glass, housing and rail mount retain their authored positions.
+    emitter_drop = 0.018
+    m.box((0.026, 0.024, 0.022), (0, -0.022, 0.032 - emitter_drop), bevel=0.003, tile=GUNMETAL, tint=DARK, metres=0.48)
+    m.cylinder(0.006, 0.008, (0.021, -0.022, 0.038 - emitter_drop), (0, 90, 0), sides=14, bevel=0.001, tile=RUBBER, tint=(0.6, 0.6, 0.6), metres=0.12)
+    m.cylinder(0.0035, 0.004, (0, -0.035, 0.04 - emitter_drop), (90, 0, 0), sides=10, tile=GUNMETAL, tint=(0.55, 0.15, 0.12), metres=0.12)
+    # The eye stays on the optical axis, 27 cm behind the lens. At the shared 60-degree
+    # vertical viewmodel FOV this gives the aperture 11.5% of the image height and the
+    # complete housing 27.2%, instead of 20.8% / 58.7% with the old 12 cm mount offset.
+    # Only ADS eye relief changes: the rail pivot, physical mesh and TPS mount stay fixed.
+    m.socket("eye", (0, -0.24, 0.045))
     m.export(floor=False)
 
 

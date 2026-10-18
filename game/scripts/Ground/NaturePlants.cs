@@ -4,15 +4,16 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Nature;
 using Hollow.Surface;
 using HollowUniverse.Surface;
+using HollowUniverse.Surface.Flora;
 
 namespace HollowUniverse.Ground;
 
 /// <summary>
 /// The ground game's plants (docs/WHOLE_WORLD.md §10.3): the zone's natural objects, the very ones its server has
 /// (<see cref="ZoneSpec.CreateNature"/>: the planet's scatter on a real surface, the stand-in's placement on the stand-in
-/// world), by the tiles they are placed on. An object is a plant when its kind names a scatter kind in gather.json
-/// (<see cref="NaturalKind.ScatterKinds"/>: trees, berry bushes, ferns, boulders) and is drawn as the first of them; the
-/// rest (outcrops, pickups) are <see cref="NatureView"/>'s models. Its index in its tile is its place in the tile's list.
+/// world), by the tiles they are placed on. Scatter mappings describe placement, not renderer ownership. Only kinds
+/// the actual flora library can draw belong to vegetation; the rest (outcrops, pickups) are <see cref="NatureView"/>'s
+/// models. Its index in its tile is its place in the tile's list.
 /// </summary>
 public sealed class NaturePlants : IPlantSource
 {
@@ -20,6 +21,7 @@ public sealed class NaturePlants : IPlantSource
     private readonly ZoneFrame _frame;
     private readonly double _radius;
     private readonly ScatterKind?[] _kinds;
+    private HashSet<ScatterKind>? _drawnKinds;
 
     public NaturePlants(INaturalObjects nature, GameContent content, ZoneFrame frame, double radius)
     {
@@ -35,8 +37,20 @@ public sealed class NaturePlants : IPlantSource
 
     public int Level => _nature.Level;
 
-    /// <summary>Whether objects of a natural kind are drawn as plants (the rest are models).</summary>
-    public bool Draws(ushort kind) => kind < _kinds.Length && _kinds[kind] != null;
+    /// <summary>Renderer ownership is known once the world's actual flora library has been built.</summary>
+    public bool Ready => _drawnKinds != null;
+
+    public void BindLibrary(FloraLibrary library)
+    {
+        var drawn = new HashSet<ScatterKind>();
+        foreach (ScatterKind? kind in _kinds)
+            if (kind is { } value && library.For(value) is { Variants.Count: > 0 }) drawn.Add(value);
+        _drawnKinds = drawn;
+    }
+
+    /// <summary>Whether the active flora renderer has geometry for this natural kind (the rest are models).</summary>
+    public bool Draws(ushort kind) => kind < _kinds.Length && _kinds[kind] is { } scatter &&
+        _drawnKinds?.Contains(scatter) == true;
 
     public IReadOnlyList<ScatterItem> Tile(TileKey tile, bool treesOnly)
     {

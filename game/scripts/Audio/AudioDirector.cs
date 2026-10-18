@@ -19,8 +19,8 @@ public readonly record struct SoundHandle(int Id)
 /// <list type="bullet">
 /// <item>Pools of <see cref="AudioStreamPlayer3D"/> and <see cref="AudioStreamPlayer"/> voices: nothing is created
 /// while playing.</item>
-/// <item>Voice limits: each event at most its <c>limit</c> at once (the oldest is cut); when the pool is full a sound
-/// takes the voice of the lowest priority (then the oldest), or isn't played if all are more important.</item>
+/// <item>Voice limits: audibility and priority choose voices within the pool and event limits. Loops keep their
+/// logical handles while virtual and automatically resume when audible and a voice becomes available.</item>
 /// <item>Variants in shuffled rounds (<see cref="VariantBag"/>), random pitch and volume per play.</item>
 /// <item>Distance layers for gunshots and explosions: each layer weighted by the distance to the listener
 /// (<see cref="DistanceLayers"/>) and started after the time sound takes to get there.</item>
@@ -32,10 +32,16 @@ public readonly record struct SoundHandle(int Id)
 public partial class AudioDirector : Node
 {
     public static AudioDirector? Instance { get; private set; }
+    private static readonly List<AudioDirector> Directors = new();
 
     /// <summary>Voices placed in the world, and flat (interface, ambience beds, the player's own feet).</summary>
-    public int Voices3D { get; init; } = 56;
-    public int Voices2D { get; init; } = 20;
+    private int? _voices3DOverride, _voices2DOverride;
+    public int Voices3D { get => _voices3DOverride ?? Budget.SpatialVoices; init => _voices3DOverride = Math.Clamp(value, 0, 512); }
+    public int Voices2D { get => _voices2DOverride ?? Budget.FlatVoices; init => _voices2DOverride = Math.Clamp(value, 0, 512); }
+    public AudioVoiceBudget Budget { get; init; } = SoundLibrary.VoiceBudget;
+
+    /// <summary>Optional catalogue adapter for isolated native checks; ordinary scenes use SoundLibrary.</summary>
+    public Func<string, SoundEventData?>? EventLookup { get; init; }
 
     /// <summary>Where the ears are; by default the viewport's current camera.</summary>
     public Node3D? Listener { get; set; }
@@ -75,6 +81,10 @@ public partial class AudioDirector : Node
         public bool Occludable;
         public bool Occluded;
         public double NextOcclusion;
+        public float UnitSize;
+        public float MaxDistance;
+        public int Limit;
+        public float Pitch;
 
         public void Apply()
         {
@@ -90,11 +100,32 @@ public partial class AudioDirector : Node
         }
     }
 
+    private sealed class LogicalLoop
+    {
+        public required SoundHandle Handle;
+        public required SoundEventData Event;
+        public required SoundLoopEnvelope Envelope;
+        public required string File;
+        public float BaseDb;
+        public bool Positional;
+        public Node3D? Follow;
+        public ulong EmitterId;
+        public Vector3 Position;
+        public Voice? Voice;
+        public double RetryAt;
+    }
+
     private readonly List<Voice> _voices3D = new();
     private readonly List<Voice> _voices2D = new();
     private readonly Dictionary<string, VariantBag> _bags = new(StringComparer.Ordinal);
     private readonly Dictionary<string, double> _lastPlayed = new(StringComparer.Ordinal);
     private readonly HashSet<string> _warned = new(StringComparer.Ordinal);
+    private readonly Dictionary<int, LogicalLoop> _loops = new();
+    private readonly Dictionary<(ulong Emitter, string Event), int> _emitterLoops = new();
+    private readonly List<int> _retiredLoops = new();
+    private readonly SoundVoiceScheduler _scheduler = new();
+    private double _scheduleIn;
+    private bool _loopsDirty;
     private Random _rng = new();
     private double _time;
     private int _nextHandle = 1;
@@ -104,6 +135,7 @@ public partial class AudioDirector : Node
 
     public override void _EnterTree()
     {
+        Directors.Add(this);
         Instance ??= this;
     }
 
@@ -121,15 +153,14 @@ public partial class AudioDirector : Node
                 v.P2.Stream = null;
             }
         }
-        if (Instance == this)
-        {
-            Instance = null;
-            SoundLibrary.Release();
-        }
+        Directors.Remove(this);
+        if (Instance == this) Instance = Directors.Count > 0 ? Directors[0] : null;
+        if (Directors.Count == 0) SoundLibrary.Release();
     }
 
     public override void _Ready()
     {
+        Budget.Validate();
         AudioBuses.Ensure();
         for (int i = 0; i < Voices3D; i++)
         {
@@ -165,6 +196,7 @@ public partial class AudioDirector : Node
         {
             return SoundHandle.None;
         }
+        if (e.Loop) return CreateLoop(e, null, position, e.Positional, volumeDb, 0, pitch);
         if (!e.Positional)
         {
             return Start2D(e, volumeDb, pitch, loop: false);
@@ -206,6 +238,7 @@ public partial class AudioDirector : Node
         {
             return SoundHandle.None;
         }
+        if (e.Loop) return CreateLoop(e, null, Vector3.Zero, false, volumeDb, 0, pitch);
         return Start2D(e, volumeDb, pitch * RandomPitch(e), loop: false);
     }
 
@@ -216,40 +249,8 @@ public partial class AudioDirector : Node
     public SoundHandle Loop(string key, Node3D node, float volumeDb = 0f, float startGainDb = 0f)
     {
         SoundEventData? e = Event(key);
-        if (e == null)
-        {
-            return SoundHandle.None;
-        }
-        SoundHandle handle;
-        if (!e.Positional)
-        {
-            handle = Start2D(e, volumeDb, 1f, loop: true);
-        }
-        else
-        {
-            handle = new SoundHandle(_nextHandle++);
-            Vector3 at = node.GlobalPosition;
-            float distance = ListenerPosition().DistanceTo(at);
-            bool ok = Start3D(e, handle, "", e.Files, 0, at, node, (float)e.Volume + volumeDb, 1f, (float)e.UnitSize,
-                (float)e.MaxDistance, 0, distance, airAbsorption: true, loop: true);
-            if (!ok)
-            {
-                return SoundHandle.None;
-            }
-        }
-        if (startGainDb != 0f)
-        {
-            foreach (Voice v in AllVoices())
-            {
-                if (v.Active && v.Handle == handle.Id)
-                {
-                    v.GainDb = startGainDb;
-                    v.TargetDb = startGainDb;
-                    v.Apply();
-                }
-            }
-        }
-        return handle;
+        return e == null || !IsInstanceValid(node) || !node.IsInsideTree() ? SoundHandle.None
+            : CreateLoop(e, node, node.GlobalPosition, e.Positional, volumeDb, startGainDb, 1);
     }
 
     /// <summary>
@@ -259,20 +260,25 @@ public partial class AudioDirector : Node
     public SoundHandle Loop2D(string key, float volumeDb = 0f, float startGainDb = 0f)
     {
         SoundEventData? e = Event(key);
-        if (e == null)
+        return e == null ? SoundHandle.None : CreateLoop(e, null, Vector3.Zero, false, volumeDb, startGainDb, 1);
+    }
+
+    private SoundHandle CreateLoop(SoundEventData e, Node3D? follow, Vector3 position, bool positional, float db, float gain, float pitch)
+    {
+        if (e.Files.Count == 0) return SoundHandle.None;
+        ulong emitter = follow?.GetInstanceId() ?? 0;
+        if (emitter != 0 && _emitterLoops.TryGetValue((emitter, e.Key), out int existing) &&
+            _loops.TryGetValue(existing, out LogicalLoop? active) && !active.Envelope.Stopping) return active.Handle;
+        var handle = new SoundHandle(_nextHandle++);
+        var loop = new LogicalLoop
         {
-            return SoundHandle.None;
-        }
-        SoundHandle handle = Start2D(e, volumeDb, 1f, loop: true);
-        foreach (Voice v in _voices2D)
-        {
-            if (v.Active && v.Handle == handle.Id)
-            {
-                v.GainDb = startGainDb;
-                v.TargetDb = startGainDb;
-                v.Apply();
-            }
-        }
+            Handle = handle, Event = e, Envelope = new SoundLoopEnvelope(gain, pitch),
+            File = PickFile(e, 0, e.Files), BaseDb = (float)e.Volume + db, Positional = positional,
+            Follow = follow, EmitterId = emitter, Position = position,
+        };
+        _loops.Add(handle.Id, loop);
+        if (emitter != 0) _emitterLoops[(emitter, e.Key)] = handle.Id;
+        _loopsDirty = true;
         return handle;
     }
 
@@ -281,6 +287,13 @@ public partial class AudioDirector : Node
     {
         if (!handle.IsValid)
         {
+            return;
+        }
+        if (_loops.TryGetValue(handle.Id, out LogicalLoop? loop))
+        {
+            loop.Envelope.Stop(fade);
+            if (loop.Envelope.Finished) RetireLoop(loop);
+            _loopsDirty = true;
             return;
         }
         foreach (Voice v in AllVoices())
@@ -297,6 +310,11 @@ public partial class AudioDirector : Node
     /// <summary>Moves a playing sound's extra gain to <paramref name="db"/> over <paramref name="fade"/> seconds.</summary>
     public void SetGain(SoundHandle handle, float db, float fade = 0.5f)
     {
+        if (_loops.TryGetValue(handle.Id, out LogicalLoop? loop))
+        {
+            loop.Envelope.SetGain(db, fade);
+            return;
+        }
         foreach (Voice v in AllVoices())
         {
             if (v.Active && v.Handle == handle.Id && !v.Stopping)
@@ -310,6 +328,7 @@ public partial class AudioDirector : Node
     /// <summary>The volume a sound plays at now (its event and caller dB plus its gain), or null when it isn't playing.</summary>
     public float? VolumeOf(SoundHandle handle)
     {
+        if (_loops.TryGetValue(handle.Id, out LogicalLoop? loop)) return loop.BaseDb + loop.Envelope.GainDb;
         foreach (Voice v in AllVoices())
         {
             if (v.Active && v.Handle == handle.Id)
@@ -320,7 +339,14 @@ public partial class AudioDirector : Node
         return null;
     }
 
+    /// <summary>True for a retained loop, including a virtual one. Use HasVoice to inspect physical playback.</summary>
     public bool IsPlaying(SoundHandle handle)
+    {
+        if (_loops.ContainsKey(handle.Id)) return true;
+        return HasVoice(handle);
+    }
+
+    public bool HasVoice(SoundHandle handle)
     {
         foreach (Voice v in AllVoices())
         {
@@ -330,6 +356,30 @@ public partial class AudioDirector : Node
             }
         }
         return false;
+    }
+
+    /// <summary>Changes playback rate, including the playhead of virtual loops; 1 is the original rate.</summary>
+    public void SetPitch(SoundHandle handle, float pitch)
+    {
+        if (_loops.TryGetValue(handle.Id, out LogicalLoop? loop)) loop.Envelope.SetPitch(pitch);
+        float value = float.IsFinite(pitch) ? Math.Clamp(pitch, 0.05f, 8f) : 1;
+        foreach (Voice v in AllVoices())
+        {
+            if (!v.Active || v.Handle != handle.Id) continue;
+            v.Pitch = value;
+            if (v.P3 != null) v.P3.PitchScale = value;
+            if (v.P2 != null) v.P2.PitchScale = value;
+        }
+    }
+
+    public (int Logical, int Physical, int Virtual) Loops
+    {
+        get
+        {
+            int physical = 0;
+            foreach (LogicalLoop loop in _loops.Values) if (loop.Voice != null) physical++;
+            return (_loops.Count, physical, _loops.Count - physical);
+        }
     }
 
     /// <summary>Voices in use, placed and flat.</summary>
@@ -357,6 +407,8 @@ public partial class AudioDirector : Node
         {
             Free(v);
         }
+        _loops.Clear(); _emitterLoops.Clear(); _retiredLoops.Clear();
+        _loopsDirty = false;
     }
 
     // ---------------------------------------------------------------- every frame
@@ -365,6 +417,7 @@ public partial class AudioDirector : Node
     {
         _time += delta;
         Vector3 ear = ListenerPosition();
+        UpdateLoops(delta);
         foreach (Voice v in AllVoices())
         {
             if (!v.Active)
@@ -393,7 +446,7 @@ public partial class AudioDirector : Node
                 }
                 continue;
             }
-            if (v.GainDb != v.TargetDb)
+            if (!v.Loop && v.GainDb != v.TargetDb)
             {
                 float step = v.FadeRate * (float)delta;
                 v.GainDb = v.GainDb < v.TargetDb ? Math.Min(v.TargetDb, v.GainDb + step) : Math.Max(v.TargetDb, v.GainDb - step);
@@ -405,7 +458,7 @@ public partial class AudioDirector : Node
                 continue;
             }
             bool playing = v.P3?.Playing ?? v.P2?.Playing ?? false;
-            if (!playing && !v.Loop)
+            if (!playing)
             {
                 Free(v);
                 continue;
@@ -421,6 +474,138 @@ public partial class AudioDirector : Node
                 }
             }
         }
+        _scheduleIn -= delta;
+        if (_scheduleIn <= 0 || _loopsDirty)
+        {
+            _scheduleIn = 1 / Budget.UpdateHz;
+            _loopsDirty = false;
+            ReconcileLoops(_voices3D, true, ear);
+            ReconcileLoops(_voices2D, false, ear);
+        }
+    }
+
+    private void UpdateLoops(double delta)
+    {
+        _retiredLoops.Clear();
+        foreach (LogicalLoop loop in _loops.Values)
+        {
+            if (loop.Follow != null)
+            {
+                if (!IsInstanceValid(loop.Follow) || !loop.Follow.IsInsideTree())
+                {
+                    _retiredLoops.Add(loop.Handle.Id);
+                    continue;
+                }
+                loop.Position = loop.Follow.GlobalPosition;
+            }
+            loop.Envelope.Advance(delta);
+            if (loop.Envelope.Finished)
+            {
+                _retiredLoops.Add(loop.Handle.Id);
+                continue;
+            }
+            if (loop.Voice is { } v)
+            {
+                v.Position = loop.Position;
+                v.GainDb = loop.Envelope.GainDb;
+                v.Pitch = loop.Envelope.Pitch;
+                if (v.P3 != null) { v.P3.GlobalPosition = loop.Position; v.P3.PitchScale = v.Pitch; }
+                if (v.P2 != null) v.P2.PitchScale = v.Pitch;
+                v.Apply();
+            }
+        }
+        foreach (int id in _retiredLoops) RetireLoop(_loops[id]);
+    }
+
+    private void RetireLoop(LogicalLoop loop)
+    {
+        if (loop.Voice is { } voice) Free(voice);
+        _loops.Remove(loop.Handle.Id);
+        if (loop.EmitterId != 0 && _emitterLoops.TryGetValue((loop.EmitterId, loop.Event.Key), out int id) && id == loop.Handle.Id)
+            _emitterLoops.Remove((loop.EmitterId, loop.Event.Key));
+        _loopsDirty = true;
+    }
+
+    private static int CandidateId(Voice voice, int index) => voice.Loop ? voice.Handle : -index - 1;
+
+    private SoundVoiceCandidate Candidate(Voice voice, int index, Vector3 ear)
+    {
+        double distance = voice.P3 == null ? 0 : ear.DistanceTo(voice.Position);
+        double db = SoundVoiceScheduler.AudibleDb(voice.BaseDb + voice.GainDb, distance, voice.UnitSize, voice.MaxDistance, voice.P3 != null);
+        return new SoundVoiceCandidate(CandidateId(voice, index), voice.Key, voice.Limit, voice.Priority, db, voice.Loop, voice.Handle);
+    }
+
+    private IEnumerable<SoundVoiceCandidate> Candidates(List<Voice> pool, bool positional, Vector3 ear, bool includeVirtual)
+    {
+        for (int i = 0; i < pool.Count; i++)
+        {
+            Voice v = pool[i];
+            if (v.Active && (!includeVirtual || !v.Loop)) yield return Candidate(v, i, ear);
+        }
+        if (!includeVirtual) yield break;
+        foreach (LogicalLoop loop in _loops.Values)
+        {
+            if (loop.Positional != positional || loop.RetryAt > _time) continue;
+            double distance = positional ? ear.DistanceTo(loop.Position) : 0;
+            double db = SoundVoiceScheduler.AudibleDb(loop.BaseDb + loop.Envelope.GainDb, distance,
+                loop.Event.UnitSize, loop.Event.MaxDistance, positional);
+            yield return new SoundVoiceCandidate(loop.Handle.Id, loop.Event.Key, loop.Event.Limit, loop.Event.Priority,
+                db, loop.Voice != null, loop.Handle.Id);
+        }
+    }
+
+    private void ReconcileLoops(List<Voice> pool, bool positional, Vector3 ear)
+    {
+        _scheduler.Select(Candidates(pool, positional, ear, includeVirtual: true), pool.Count, Budget);
+        for (int i = 0; i < pool.Count; i++)
+        {
+            Voice v = pool[i];
+            if (v.Active && !_scheduler.Selected(CandidateId(v, i))) Free(v);
+        }
+        foreach (LogicalLoop loop in _loops.Values)
+        {
+            if (loop.Positional != positional || loop.Voice != null || !_scheduler.Selected(loop.Handle.Id)) continue;
+            Voice? available = pool.Find(v => !v.Active);
+            if (available == null) break;
+            ActivateLoop(loop, available, ear);
+        }
+    }
+
+    private void ActivateLoop(LogicalLoop loop, Voice voice, Vector3 ear)
+    {
+        AudioStream? stream = SoundLibrary.Stream(loop.File, loop: true);
+        if (stream == null)
+        {
+            loop.RetryAt = _time + 5; // Missing content cannot cause a per-frame load/retry storm.
+            return;
+        }
+        SoundEventData e = loop.Event;
+        Fill(voice, e, loop.Handle, "", loop.BaseDb, 0, loop: true);
+        voice.GainDb = loop.Envelope.GainDb;
+        voice.Pitch = loop.Envelope.Pitch;
+        voice.Position = loop.Position;
+        voice.Follow = loop.Follow;
+        if (voice.P3 is { } p3)
+        {
+            p3.Stream = stream;
+            p3.UnitSize = voice.UnitSize;
+            p3.MaxDistance = voice.MaxDistance;
+            p3.GlobalPosition = loop.Position;
+            p3.PitchScale = voice.Pitch;
+            p3.AttenuationFilterCutoffHz = 7000;
+            p3.AttenuationFilterDb = -12;
+        }
+        else if (voice.P2 is { } p2)
+        {
+            p2.Stream = stream;
+            p2.PitchScale = voice.Pitch;
+            voice.Occludable = false;
+        }
+        loop.Voice = voice;
+        double length = stream.GetLength();
+        float cursor = length > 0 ? (float)(loop.Envelope.Cursor % length) : 0;
+        Started?.Invoke(e.Key, "", loop.Positional ? ear.DistanceTo(loop.Position) : 0, voice.BaseDb + voice.GainDb, voice.Pitch);
+        StartVoice(voice, ear, cursor);
     }
 
     // ---------------------------------------------------------------- voices
@@ -434,7 +619,7 @@ public partial class AudioDirector : Node
         {
             return false;
         }
-        Voice? v = Allocate(_voices3D, e);
+        Voice? v = Allocate(_voices3D, e, position, db, unitSize, maxDistance);
         if (v == null)
         {
             return false;
@@ -449,6 +634,9 @@ public partial class AudioDirector : Node
         p.AttenuationFilterDb = airAbsorption ? -12f : 0f;
         p.GlobalPosition = position;
         Fill(v, e, handle, layer, db, delay, loop);
+        v.UnitSize = unitSize;
+        v.MaxDistance = maxDistance;
+        v.Pitch = pitch;
         v.Follow = follow;
         v.Position = position;
         Started?.Invoke(e.Key, layer, distance, db, pitch);
@@ -466,7 +654,8 @@ public partial class AudioDirector : Node
         {
             return SoundHandle.None;
         }
-        Voice? v = Allocate(_voices2D, e);
+        float db = (float)(e.Volume + Jitter(e)) + volumeDb;
+        Voice? v = Allocate(_voices2D, e, Vector3.Zero, db, 1, 1);
         if (v == null)
         {
             return SoundHandle.None;
@@ -475,8 +664,8 @@ public partial class AudioDirector : Node
         AudioStreamPlayer p = v.P2!;
         p.Stream = stream;
         p.PitchScale = Math.Max(0.05f, pitch);
-        float db = (float)(e.Volume + Jitter(e)) + volumeDb;
         Fill(v, e, handle, "", db, 0, loop || e.Loop);
+        v.Pitch = pitch;
         v.Occludable = false;
         Started?.Invoke(e.Key, "", 0f, db, pitch);
         StartVoice(v, Vector3.Zero);
@@ -492,6 +681,9 @@ public partial class AudioDirector : Node
         v.Layer = layer;
         v.Bus = e.Bus;
         v.Priority = e.Priority;
+        v.Limit = e.Limit;
+        v.UnitSize = (float)e.UnitSize;
+        v.MaxDistance = (float)e.MaxDistance;
         v.StartedAt = _time;
         v.Loop = loop || e.Loop;
         v.Delay = delay;
@@ -507,7 +699,7 @@ public partial class AudioDirector : Node
         _lastPlayed[e.Key] = _time;
     }
 
-    private void StartVoice(Voice v, Vector3 ear)
+    private void StartVoice(Voice v, Vector3 ear, float cursor = 0)
     {
         v.Playing = true;
         if (v.P3 != null)
@@ -515,65 +707,52 @@ public partial class AudioDirector : Node
             v.Occluded = v.Occludable && Blocked(ear, v.Position);
             v.P3.Bus = AudioBuses.For(v.Bus, v.Occluded);
             v.Apply();
-            v.P3.Play();
+            v.P3.Play(cursor);
         }
         else if (v.P2 != null)
         {
             v.P2.Bus = v.Bus;
             v.Apply();
-            v.P2.Play();
+            v.P2.Play(cursor);
         }
     }
 
-    /// <summary>A free voice for an event, after its own limit and the pool's priorities.</summary>
-    private Voice? Allocate(List<Voice> pool, SoundEventData e)
+    /// <summary>One-shot admission uses the same audibility, event limits and ranking as persistent loops.</summary>
+    private Voice? Allocate(List<Voice> pool, SoundEventData e, Vector3 position, float db, float unitSize, float maxDistance)
     {
-        int same = 0;
-        Voice? oldestSame = null;
-        foreach (Voice v in pool)
+        bool positional = ReferenceEquals(pool, _voices3D);
+        Vector3 ear = ListenerPosition();
+        double audible = SoundVoiceScheduler.AudibleDb(db, positional ? ear.DistanceTo(position) : 0, unitSize, maxDistance, positional);
+        var incoming = new SoundVoiceCandidate(int.MinValue, e.Key, e.Limit, e.Priority, audible, false, _nextHandle);
+        _scheduler.Select(WithIncoming(), pool.Count, Budget);
+        if (!_scheduler.Selected(int.MinValue)) return null;
+        Voice? available = null;
+        for (int i = 0; i < pool.Count; i++)
         {
-            if (v.Active && v.Key == e.Key && !v.Stopping)
-            {
-                same++;
-                if (oldestSame == null || v.StartedAt < oldestSame.StartedAt)
-                {
-                    oldestSame = v;
-                }
-            }
+            Voice v = pool[i];
+            if (v.Active && !_scheduler.Selected(CandidateId(v, i))) Free(v);
+            if (!v.Active) available ??= v;
         }
-        if (same >= e.Limit && oldestSame != null)
+        return available;
+
+        IEnumerable<SoundVoiceCandidate> WithIncoming()
         {
-            if (oldestSame.Loop)
-            {
-                return null;
-            }
-            Free(oldestSame);
-            return oldestSame;
+            foreach (SoundVoiceCandidate candidate in Candidates(pool, positional, ear, includeVirtual: false)) yield return candidate;
+            yield return incoming;
         }
-        Voice? victim = null;
-        foreach (Voice v in pool)
-        {
-            if (!v.Active)
-            {
-                return v;
-            }
-            if (victim == null || v.Priority < victim.Priority || (v.Priority == victim.Priority && v.StartedAt < victim.StartedAt))
-            {
-                victim = v;
-            }
-        }
-        if (victim == null || victim.Priority > e.Priority)
-        {
-            return null;
-        }
-        Free(victim);
-        return victim;
     }
 
     private void Free(Voice v)
     {
+        if (v.Loop && _loops.TryGetValue(v.Handle, out LogicalLoop? loop))
+        {
+            loop.Voice = null;
+            _loopsDirty = true;
+        }
         v.P3?.Stop();
         v.P2?.Stop();
+        if (v.P3 != null) v.P3.Stream = null;
+        if (v.P2 != null) v.P2.Stream = null;
         v.Active = false;
         v.Playing = false;
         v.Follow = null;
@@ -597,7 +776,7 @@ public partial class AudioDirector : Node
 
     private SoundEventData? Event(string key)
     {
-        SoundEventData? e = SoundLibrary.Find(key);
+        SoundEventData? e = EventLookup != null ? EventLookup(key) : SoundLibrary.Find(key);
         if (e == null && _warned.Add(key))
         {
             GD.PushWarning($"No sound event '{key}' in {SoundLibrary.DataPath}.");
@@ -614,13 +793,18 @@ public partial class AudioDirector : Node
         {
             return null;
         }
+        return SoundLibrary.Stream(PickFile(e, layer, files), e.Loop);
+    }
+
+    private string PickFile(SoundEventData e, int layer, IReadOnlyList<string> files)
+    {
         string bagKey = e.Key + "#" + layer;
         if (!_bags.TryGetValue(bagKey, out VariantBag? bag))
         {
             bag = new VariantBag(files.Count);
             _bags[bagKey] = bag;
         }
-        return SoundLibrary.Stream(files[bag.Next(_rng)], e.Loop);
+        return files[bag.Next(_rng)];
     }
 
     private float RandomPitch(SoundEventData e) => (float)(e.PitchMin + (e.PitchMax - e.PitchMin) * _rng.NextDouble());

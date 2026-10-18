@@ -23,6 +23,7 @@ public sealed class FxTracers
         public double Start;
         public Vector3? End;
         public float EndDistance;
+        public double EndTime;
         public Color Tint;
     }
 
@@ -83,7 +84,7 @@ public sealed class FxTracers
     }
 
     /// <summary>The projectile stopped at <paramref name="at"/>: the head stays there, the tail catches up.</summary>
-    public void End(int id, Vector3 at)
+    public void End(int id, Vector3 at, double now)
     {
         foreach (Tracer t in _live)
         {
@@ -91,6 +92,7 @@ public sealed class FxTracers
             {
                 t.End = at;
                 t.EndDistance = (at - t.Origin).Length();
+                t.EndTime = now;
                 return;
             }
         }
@@ -103,9 +105,7 @@ public sealed class FxTracers
         {
             Tracer t = _live[i];
             float age = (float)(now - t.Start);
-            float tailAge = Math.Max(0f, age - t.Def.Length);
-            Vector3 tail = At(t, tailAge);
-            bool tailDone = t.End != null && (tail - t.Origin).Length() >= t.EndDistance;
+            bool tailDone = t.End != null && now - t.EndTime >= t.Def.Length;
             if (age > t.Def.MaxTime + t.Def.Length || tailDone)
             {
                 _live.RemoveAt(i);
@@ -114,8 +114,10 @@ public sealed class FxTracers
         foreach (Tracer t in _live)
         {
             float age = (float)(now - t.Start);
-            Vector3 head = At(t, age);
+            Vector3 head = t.End ?? At(t, age);
             Vector3 tail = At(t, Math.Max(0f, age - t.Def.Length));
+            if (t.End is { } end)
+                tail = tail.Lerp(end, (float)Math.Clamp((now - t.EndTime) / Math.Max(1e-3f, t.Def.Length), 0, 1));
             float fade = t.Def.FadeIn > 0 ? Math.Clamp(age / t.Def.FadeIn, 0f, 1f) : 1f;
             if (age > t.Def.MaxTime)
             {
@@ -127,6 +129,26 @@ public sealed class FxTracers
             count++;
         }
         _multimesh.VisibleInstanceCount = count;
+    }
+
+    public void Correct(int id, double now, Vector3 origin, Vector3 velocity, Vector3 gravity, float drag, double age)
+    {
+        foreach (Tracer t in _live)
+        {
+            if (t.Id != id) continue;
+            t.Origin = origin;
+            t.Velocity = velocity;
+            t.Gravity = gravity;
+            t.Drag = drag;
+            t.Start = now - Math.Max(0, age);
+            if (t.End is { } end) t.EndDistance = (end - origin).Length();
+            return;
+        }
+    }
+
+    public void Remove(int id)
+    {
+        for (int i = _live.Count - 1; i >= 0; i--) if (_live[i].Id == id) { _live.RemoveAt(i); return; }
     }
 
     /// <summary>

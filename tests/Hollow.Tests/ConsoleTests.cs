@@ -255,11 +255,11 @@ public static class ConsoleTests
     public static void GodAndNoclipMatchThePrediction()
     {
         ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, Surface.FirstWorld.LandingLatitude, Surface.FirstWorld.LandingLongitude)!;
-        using (var zone = new Zone(spec))
+        using (var zone = new Zone(spec.CreateSurface(diagnostic: true), spec))
         {
             Entity entity = zone.AddCharacter(new EntityId(7), "server", zone.NewCharacter(zone.SpawnPoint(1)));
             zone.SetCheats(entity, MoveCheats.Noclip | MoveCheats.God);
-            using var predictor = new Predictor(spec, spec.CreateSurface(), null);
+            using var predictor = new Predictor(spec, spec.CreateSurface(diagnostic: true), null);
             // The client's ground first, as its loading screen waits for it (GROUND.md §4.3: the prediction holds without it).
             predictor.World.EnsureGround(zone.Entities.Get<Character>(entity).State.Position);
             predictor.Reset(0, zone.Entities.Get<Character>(entity).State, 0);

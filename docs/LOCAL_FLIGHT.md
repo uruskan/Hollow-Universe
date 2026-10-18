@@ -1,5 +1,10 @@
 # Continuous local flight
 
+Implementation record, with design context updated **18 October 2026**: DESIGN.md TRAVEL-01–05 now requires normal
+flight, supercruise, charged interstellar jumps and fuel scooping. This page describes only existing planetary flight;
+its single motor and local boundary are not the complete future travel model. See TRAVEL_IMPLEMENTATION.md for the
+proposed integration. The documentation revision does not change the running game's boundary.
+
 The first travel foundation for DESIGN.md TRAVEL-01 removes the inherited orbit parking transition. A piloted ship
 continues under the same flight motor as it climbs through the orbital-altitude marker, and descends with its ordinary
 controls. Position, attitude, velocity, passenger frames, inventory, and ownership stay in the existing world.

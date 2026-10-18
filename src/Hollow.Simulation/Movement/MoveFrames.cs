@@ -145,6 +145,8 @@ public sealed class MoveFrames
 
     public MovementTuning Tuning { get; }
 
+    public Climbing? Climbs { get; set; }
+
     /// <summary>The ships' frames, in the order they were added (stable: the hand-over tests them in it).</summary>
     public IReadOnlyList<IShipFrame> Ships => _order;
 
@@ -194,7 +196,7 @@ public sealed class MoveFrames
             turned.View = ViewIn(input.View, input.Frame, state.Frame, tick);
         }
         turned.Frame = state.Frame;
-        events = CharacterMotor.Step(ref state, turned, body, new MoveContext(frame, Tuning));
+        events = CharacterMotor.Step(ref state, turned, body, new MoveContext(frame, Tuning, Climbs));
         if (!state.IsDead && state.Stance != Stance.Seated && !state.Has(MoveCheats.Noclip))
         {
             HandOver(ref state, frame, body, tick);

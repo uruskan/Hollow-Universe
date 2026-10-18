@@ -1,0 +1,25 @@
+  RUN  AttackMeleeTests.ReliableMeleeAttemptsSettleUnderLatencyJitterAndLossIncludingFastTap
+      180 ms RTT, 40 ms jitter, 10% loss: 8 attempts, 7 contacts, no pending outcomes
+  ok   AttackMeleeTests.ReliableMeleeAttemptsSettleUnderLatencyJitterAndLossIncludingFastTap (14121 ms)
+  RUN  AttackStationTests.SpamCannotProduceMoreThanTwoShotsAcrossLatencyJitterAndLoss
+      +0 ms ping, ±0 ms jitter, 0 % loss: visuals 2, authority 2, confirmed 2, pending 0
+      station visual identities/barrels: 1/b0, 2/b1
+      station authoritative identities/barrels/ticks: 1/b0@79, 2/b1@81
+      station decisions: 1:Done/b0 requested=79 start=79, 2:Done/b1 requested=81 start=81, 3:Loading/b-1 requested=87 start=0, 4:Loading/b-1 requested=93 start=0, 5:Loading/b-1 requested=99 start=0, 6:Loading/b-1 requested=105 start=0, 7:Loading/b-1 requested=111 start=0
+      +180 ms ping, ±35 ms jitter, 15 % loss: visuals 2, authority 2, confirmed 2, pending 0
+      station visual identities/barrels: 1/b0, 2/b1
+      station authoritative identities/barrels/ticks: 1/b0@175, 2/b1@188
+      station decisions: 1:Done/b0 requested=175 start=175, 2:Done/b1 requested=177 start=188, 3:Loading/b-1 requested=183 start=0, 4:Loading/b-1 requested=189 start=0, 5:Loading/b-1 requested=195 start=0, 6:Loading/b-1 requested=201 start=0, 7:Loading/b-1 requested=207 start=0
+  ok   AttackStationTests.SpamCannotProduceMoreThanTwoShotsAcrossLatencyJitterAndLoss (11715 ms)
+  RUN  BatteryTests.PredictedShotsMatchTheServersOverALaggedLoopback
+      the server fired 6; Ada's client predicted 6, confirmed 6, took back 0, saw unpredicted 0, waiting 0
+  ok   BatteryTests.PredictedShotsMatchTheServersOverALaggedLoopback (29919 ms)
+  RUN  HeldActionTimingTests.MeleeHitMarkerCarriesTheAuthoritativeToolTickAndContactPoint
+  ok   HeldActionTimingTests.MeleeHitMarkerCarriesTheAuthoritativeToolTickAndContactPoint (2318 ms)
+  RUN  NetTests.EveryMessageSurvivesARoundTrip
+      130 types, 2409 bits on average
+  ok   NetTests.EveryMessageSurvivesARoundTrip (7746 ms)
+  RUN  RaidAlertTests.AlertsReachOnlineAndOfflineOwners
+      alerts: "Stone wall"; then "Stone wall broken" (2 hits); 3 raid hits made 2 alerts: 2 to players in the game, 2 queued for players offline (2 handed over at login)
+  ok   RaidAlertTests.AlertsReachOnlineAndOfflineOwners (128 ms)
+6/6 passed in 66.0 s.

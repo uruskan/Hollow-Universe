@@ -311,9 +311,10 @@ internal sealed class AttachSolver : IPlacementSolver
 
     public void Aim(PlacementWorld world, in PlacementContext ctx, in PlacementAim aim, List<PlacementCandidate> into)
     {
-        if (world.Building?.Target(ctx.Eye, aim.Direction, ctx.Rule.Reach + Solvers.AimSlack, out _) is Door door)
+        if (world.Ray(ctx.Eye, aim.Direction, ctx.Rule.Reach + Solvers.AimSlack, out PlacementHit hit) &&
+            world.TryLockMount(hit.Target, ctx.Eye, out LockMount mount))
         {
-            PlacementCandidate c = Of(ctx, door);
+            PlacementCandidate c = Of(ctx, mount);
             Solvers.Turn(world, ctx, aim, c);
             into.Add(c);
         }
@@ -322,11 +323,11 @@ internal sealed class AttachSolver : IPlacementSolver
     public PlacementCandidate? Settle(PlacementWorld world, in PlacementContext ctx, in PlacementClaim claim, out Outcome refused)
     {
         refused = OutcomeCode.NotFound;
-        if (claim.Support.Family != TargetFamily.Door || world.Building?.DoorOf(new EntityId(claim.Support.Id)) is not { Gone: false } door)
+        if (!world.TryLockMount(claim.Support, ctx.Eye, out LockMount mount))
         {
             return null;
         }
-        PlacementCandidate c = Of(ctx, door);
+        PlacementCandidate c = Of(ctx, mount);
         if (!Solvers.Agrees(ctx, c.Position, claim.Position))
         {
             refused = OutcomeCode.Misplaced;
@@ -337,9 +338,10 @@ internal sealed class AttachSolver : IPlacementSolver
         return c;
     }
 
-    private static PlacementCandidate Of(in PlacementContext ctx, Door door)
+    private static PlacementCandidate Of(in PlacementContext ctx, in LockMount mount)
     {
-        (Vector3 position, Quaternion rotation) = door.LockSpot;
+        Vector3 position = mount.Pose.Position;
+        Quaternion rotation = mount.Pose.Rotation;
         Vector3 up = Vector3.Transform(Vector3.UnitY, rotation);
         return new PlacementCandidate(ctx.Placeable)
         {
@@ -347,11 +349,11 @@ internal sealed class AttachSolver : IPlacementSolver
             Rotation = rotation,
             Up = up,
             Normal = up,
-            Support = door.Ref with { Part = 1 },
+            Support = mount.Target,
             Surface = PlacementSurfaces.Door,
             SightThroughSupport = true,
             Nearest = position,
-            Detail = door,
+            Detail = mount,
         };
     }
 }
@@ -385,7 +387,17 @@ internal sealed class SweepSolver : IPlacementSolver
         {
             return null;
         }
-        Vector3 toward = claim.Position - ctx.Eye;
+        Vector3 probe = claim.Position;
+        if (ctx.Placeable.Definition is Content.DeployableDef { Climb: not null })
+        {
+            if (!float.IsFinite(claim.Yaw)) return null;
+            Vector3 up = world.Frame.UpAt(claim.Position);
+            Vector3 outward = Vector3.Transform(Vector3.UnitZ, Combat.Geometry.Upright(up, claim.Yaw));
+            // The wire carries the model's base. Reconstruct the original wall contact at its centre.
+            Vector3 half = ctx.Placeable.Footprint.HalfExtents;
+            probe += up * half.Y - outward * (half.Z + ExplosiveSystem.StuckOffset);
+        }
+        Vector3 toward = probe - ctx.Eye;
         float distance = toward.Length();
         if (distance < 1e-3f)
         {
@@ -406,14 +418,28 @@ internal sealed class SweepSolver : IPlacementSolver
         return c;
     }
 
-    private static PlacementCandidate Of(PlacementWorld world, in PlacementContext ctx, in PlacementHit hit) => new(ctx.Placeable)
+    private static PlacementCandidate Of(PlacementWorld world, in PlacementContext ctx, in PlacementHit hit)
     {
-        Position = hit.Point + hit.Normal * ExplosiveSystem.StuckOffset,
-        Nearest = hit.Point,
-        Normal = hit.Normal,
-        Up = ctx.Rule.Align == AlignMode.Normal ? hit.Normal : world.Frame.UpAt(hit.Point),
-        Support = hit.Target,
-        Surface = hit.Surface,
-        Detail = hit.Point,
-    };
+        var c = new PlacementCandidate(ctx.Placeable)
+        {
+            Position = hit.Point + hit.Normal * ExplosiveSystem.StuckOffset,
+            Nearest = hit.Point, Normal = hit.Normal,
+            Up = ctx.Rule.Align == AlignMode.Normal ? hit.Normal : world.Frame.UpAt(hit.Point),
+            Support = hit.Target, Surface = hit.Surface, Detail = hit.Point,
+        };
+        if (ctx.Placeable.Definition is Content.DeployableDef { Climb: not null })
+        {
+            // A climbable span stays upright and faces out from the contacted wall; its cursor is its centre.
+            c.Up = world.Frame.UpAt(hit.Point);
+            Vector3 half = ctx.Placeable.Footprint.HalfExtents;
+            Vector3 outward = hit.Normal - c.Up * Vector3.Dot(hit.Normal, c.Up);
+            if (outward.LengthSquared() > .01f)
+            {
+                outward = Vector3.Normalize(outward);
+                c.Position = hit.Point + outward * (half.Z + ExplosiveSystem.StuckOffset) - c.Up * half.Y;
+                c.Yaw = Movement.Facing.YawOf(-outward, c.Up);
+            }
+        }
+        return c;
+    }
 }

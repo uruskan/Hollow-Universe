@@ -1,4 +1,6 @@
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Combat;
+using System.Numerics;
 
 namespace Hollow.Simulation;
 
@@ -14,4 +16,9 @@ public readonly record struct TurretFired(
     uint Number = 0,
     long Tick = 0,
     ushort Kind = 0,
-    EntityId Gunner = default) : IZoneEvent;
+    EntityId Gunner = default) : IZoneEvent
+{
+    public AttackId Attack { get; init; }
+    public Vector3 Origin { get; init; }
+    public Vector3 Direction { get; init; }
+}

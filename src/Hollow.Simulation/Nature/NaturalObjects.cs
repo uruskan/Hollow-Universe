@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Threading;
 using Hollow.Simulation.Content;
 
 namespace Hollow.Simulation.Nature;
@@ -42,6 +44,18 @@ public interface INaturalObjects
     /// </summary>
     void Query(Vector3 centre, float radius, List<NaturalObject> into);
 
+    /// <summary>
+    /// Candidates whose roots may lie within <paramref name="rootReach"/> of a segment. The reach must enclose the
+    /// full hit shape about its root, including the ray's thickness. Providers with a spherical surface traverse
+    /// conservative tile bounds before generating anything. Other providers retain the enclosing-sphere fallback.
+    /// Exact hit testing remains the caller's responsibility; candidates keep the provider's canonical tile order.
+    /// </summary>
+    void QueryAlong(Vector3 from, Vector3 to, float rootReach, List<NaturalObject> into)
+    {
+        if (NaturalSegmentQuery.EnclosingSphere(from, to, rootReach, out Vector3 centre, out float radius))
+            Query(centre, radius, into);
+    }
+
     /// <summary>The object with an ID (from outside: untrusted, so a made-up one is simply not found).</summary>
     bool TryGet(ulong id, out NaturalObject found);
 
@@ -62,14 +76,48 @@ public interface INaturalObjects
     Surface.TileKey? TileOf(ulong id);
 }
 
+/// <summary>All-or-fail collision planning; source pins and complete root-tile coverage belong to the caller.</summary>
+public interface IPlannedNaturalCollision : INaturalObjects
+{
+    NaturalCollisionPlan PrepareCollision(ReadOnlySpan<Surface.TileKey> completeRootTiles, NaturalCollisionLimits limits,
+        CancellationToken cancellation = default);
+    NaturalCollisionSnapshot CaptureDepletion(NaturalCollisionPlan plan, NaturalState state, CancellationToken cancellation = default);
+    bool IsCurrent(NaturalCollisionSnapshot snapshot, NaturalState state);
+}
+
 /// <summary>Shapes and derived numbers of natural objects, shared by the server, the client and the physics.</summary>
 public static class NaturalShapes
 {
+    /// <summary>
+    /// Largest scale produced by either natural-object generator: scatter rocks reach 2.45; scatter trees 1.3,
+    /// other plants 1.4, outcrops 1.25, and stand-in objects at most 1.25. Changing generation must update this bound.
+    /// </summary>
+    public const float MaximumGeneratedScale = 2.45f;
+
+    /// <summary>
+    /// Conservative distance from the root to every point tested by NatureReceiver: a tree's two trunk caps, or
+    /// the full offset rock/outcrop sphere. This includes short, wide trunks whose caps extend past their height.
+    /// </summary>
+    public static float RayRootReach(NaturalKind kind, float scale) => kind.Class == NaturalClass.Tree
+        ? System.MathF.Max(kind.Height, 2 * kind.Radius) * scale
+        : 1.35f * kind.Radius * scale;
+
+    public static float MaximumRayRootReach(IEnumerable<NaturalKind> kinds)
+    {
+        float reach = 0;
+        foreach (NaturalKind kind in kinds)
+            if (kind.IsSolid) reach = System.MathF.Max(reach, RayRootReach(kind, MaximumGeneratedScale));
+        return reach;
+    }
+
     /// <summary>A tree's trunk: a vertical capsule from its base up.</summary>
     public static (Vector3 A, Vector3 B, float Radius) Trunk(in NaturalObject o, NaturalKind kind)
+        => Trunk(o, kind.Radius, kind.Height);
+
+    internal static (Vector3 A, Vector3 B, float Radius) Trunk(in NaturalObject o, float baseRadius, float baseHeight)
     {
-        float radius = kind.Radius * o.Scale;
-        float height = kind.Height * o.Scale;
+        float radius = baseRadius * o.Scale;
+        float height = baseHeight * o.Scale;
         return (o.Position + o.Up * radius, o.Position + o.Up * (height - radius), radius);
     }
 
@@ -78,9 +126,12 @@ public static class NaturalShapes
     /// above the ground), as the planet draws its rocks.
     /// </summary>
     public static (Vector3 Centre, float Radius) Rock(in NaturalObject o, NaturalKind kind)
+        => Rock(o, kind.Radius, kind.Class == NaturalClass.Boulder);
+
+    internal static (Vector3 Centre, float Radius) Rock(in NaturalObject o, float baseRadius, bool boulder)
     {
-        float radius = kind.Radius * o.Scale;
-        float lift = kind.Class == NaturalClass.Boulder ? -0.35f : 0.35f;
+        float radius = baseRadius * o.Scale;
+        float lift = boulder ? -0.35f : 0.35f;
         return (o.Position + o.Up * (radius * lift), radius);
     }
 

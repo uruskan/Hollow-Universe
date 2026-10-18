@@ -1,5 +1,9 @@
 # Scale: small worlds in a galaxy of landmarks
 
+**Historical source-project scale proposal.** AB Test B's authoritative limits are in [DESIGN.md](DESIGN.md), with
+the current implementation in IMPLEMENTATION_SCALE.md. The 18 October 2026 travel revision uses supercruise and
+charged interstellar jumps but does not reinstate the old radii, star counts or fixed orbital-distance policy below.
+
 Status: **proposal of 14 October 2026, for the owner's review.** Nothing in it is built except S3's first step: the owner
 approved S3, the zone as a whole ball, on 14 October 2026, and S3a is built on the branch `whole-world` (§5.1, §6). Rows
 marked **Decided** are the owner's answers of 14 October 2026 (the questions are in [SCALE_DECISIONS.md](SCALE_DECISIONS.md)).

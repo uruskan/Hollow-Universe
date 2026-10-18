@@ -26,6 +26,10 @@ public sealed class HeldPresentationHand
     public HeldPresentationPose WristOffset { get; set; } = new();
     public Vector3 Pole { get; set; }
     public Vector3 Shoulder { get; set; }
+    /// <summary>Additional camera-space shoulder placement for procedural first-person arms only.
+    /// The full-body pose and source-bound skeletal actions keep their existing shoulder placement.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public Vector3 FirstPersonShoulderOffset { get; set; }
     public float Radius { get; set; } = 0.018f;
     public float Seat { get; set; } = 0.018f;
     public float[] Fingers { get; set; } = Array.Empty<float>();
@@ -64,6 +68,9 @@ public sealed class HeldSkeletalClip
 public sealed class HeldPresentationClip
 {
     public float Duration { get; set; } = 1f;
+    /// <summary>First-person fire motion while aiming. Camera/simulation recoil is independent.</summary>
+    public float AimPositionScale { get; set; } = 1f;
+    public float AimRotationScale { get; set; } = 1f;
     /// <summary>Authored contact/release point, remapped to the simulation's strike timing for melee; -1 for none.</summary>
     public float Marker { get; set; } = -1f;
     /// <summary>When present, source skeleton motion drives the arms and the held item follows the hand.
@@ -125,7 +132,8 @@ public sealed class HeldPresentationProfile
     public string Family { get; set; } = "";
     public HeldPresentationPose FirstPerson { get; set; } = new();
     /// <summary>Camera-space composition offset applied before the body's default eye-centred first-person rig.
-    /// It moves the complete authored rig, preserving its shoulder, elbow and wrist relationships.</summary>
+    /// It moves the complete authored rig, preserving its shoulder, elbow and wrist relationships.
+    /// Procedural poses apply it after solving, fading it out during aim to retain optical alignment.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public HeldPresentationPose? FirstPersonRig { get; set; }
     public HeldPresentationPose ThirdPerson { get; set; } = new();
@@ -168,6 +176,9 @@ public static class HeldPresentations
         }
     }
     private static readonly JsonSerializerOptions Json = Options();
+
+    /// <summary>Stable authored data for capture provenance, using the catalogue's vector encoding.</summary>
+    public static string Serialize(HeldPresentationProfile profile) => JsonSerializer.Serialize(profile, Json);
     private static Dictionary<string, HeldPresentationProfile>? _profiles;
     public static int Revision { get; private set; }
     public static string FilePath => ProjectSettings.GlobalizePath(ResourcePath);
@@ -279,6 +290,7 @@ public static class HeldPresentations
             if (hand == null) { Error($"{name} is required."); continue; }
             Pose(hand.GripOffset, name + ".gripOffset"); Pose(hand.WristOffset, name + ".wristOffset");
             if (!Finite(hand.Pole) || hand.Pole.LengthSquared() < 0.001f || !Finite(hand.Shoulder)) Error($"{name} needs a finite nonzero elbow pole and shoulder.");
+            if (!Finite(hand.FirstPersonShoulderOffset)) Error($"{name}.firstPersonShoulderOffset must be finite.");
             if (!float.IsFinite(hand.Radius) || hand.Radius < 0 || hand.Radius > 0.2f || !float.IsFinite(hand.Seat) || hand.Seat < 0 || hand.Seat > 0.2f) Error($"{name} radius/seat must be 0–0.2 m.");
             if (hand.Fingers == null || (hand.Fingers.Length != 0 && hand.Fingers.Length != 15) || hand.Fingers.Any(x => !float.IsFinite(x) || x < -30 || x > 140)) Error($"{name} fingers require 0 or 15 finite curls in -30–140 degrees.");
         }
@@ -293,6 +305,9 @@ public static class HeldPresentations
             { Error($"Action {name} requires duration (0,30], marker [-1,1], and at least two keys."); continue; }
             if (clip.Skeletal is { } skeletal && !HeldSkeletalMotion.ValidBinding(skeletal))
                 Error($"Action {name} skeletal binding requires a simple clip name and valid start/end/wrap in [0,1].");
+            if (!float.IsFinite(clip.AimPositionScale) || clip.AimPositionScale < 0 || clip.AimPositionScale > 1 ||
+                !float.IsFinite(clip.AimRotationScale) || clip.AimRotationScale < 0 || clip.AimRotationScale > 1)
+                Error($"Action {name} aimed visual motion scales must be in [0,1].");
             if (clip.Keys[0] == null || clip.Keys[^1] == null || clip.Keys[0].At != 0 || clip.Keys[^1].At != 1) Error($"Action {name} needs keys at 0 and 1.");
             float previous = -1;
             foreach (HeldPresentationKey key in clip.Keys)

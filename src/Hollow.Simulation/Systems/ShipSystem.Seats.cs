@@ -150,6 +150,8 @@ public sealed partial class ShipSystem
         if (ship.Def.Seats[seat].Flies)
         {
             ship.Input = ship.Input.Unattended();
+            // Restore seats sleepers before their reconnect; preserve their saved target until they actually wake.
+            if (!p.Sleeping) ShipAttitudeHold.Clear(ref ship.State);
         }
         ship.DetailsRevision++;
         Carry(entity, ship, seat);
@@ -241,6 +243,7 @@ public sealed partial class ShipSystem
             if (ship.Def.Seats[seat].Flies)
             {
                 ship.Input = ship.Input.Unattended();
+                ReconcileAttitudeHold(ship);
             }
         }
         if (Entities.Has<ShipSeat>(entity))
@@ -303,6 +306,7 @@ public sealed partial class ShipSystem
                 if (ship.Def.Seats[seat].Flies)
                 {
                     ship.Input = ship.Input.Unattended();
+                    ReconcileAttitudeHold(ship);
                 }
                 continue;
             }
@@ -317,6 +321,11 @@ public sealed partial class ShipSystem
                 {
                     ship.Occupants[seat] = EntityId.None;
                     ship.DetailsRevision++;
+                    if (ship.Def.Seats[seat].Flies)
+                    {
+                        ship.Input = ship.Input.Unattended();
+                        ReconcileAttitudeHold(ship);
+                    }
                 }
             }
         }

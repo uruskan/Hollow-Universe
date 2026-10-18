@@ -88,7 +88,7 @@ public static class PlanetGroundTests
     public static void BeachesAreRealCoast()
     {
         ZoneSpec spec = Landing;
-        ISurface surface = spec.CreateSurface();
+        ISurface surface = spec.CreateSurface(diagnostic: true);
         ZoneFrame frame = spec.CreateFrame(surface);
         Beaches beaches = Beaches.Find(surface, frame);
         Assert.True(beaches.Points.Count >= 20, $"beach points all round ({beaches.Points.Count})");
@@ -114,7 +114,7 @@ public static class PlanetGroundTests
     public static void WalkSwimAndFallOnTheRealGround()
     {
         ZoneSpec spec = Landing;
-        using var zone = new Zone(spec);
+        using var zone = new Zone(spec.CreateSurface(diagnostic: true), spec);
         ISurface surface = zone.Surface;
 
         // Walk north-east for 15 s from the landing site.

@@ -14,8 +14,8 @@ namespace HollowUniverse.UI.Model;
 // workbench's tech tree as world.json has it, and a recycler and research table to open.
 public sealed partial class MockGroundUi
 {
-    private static MapView? _map;
-    private static bool _mapTried;
+    private MapView? _map;
+    private bool _mapTried;
     private readonly List<MapMarkerView> _markers = new();
     private readonly List<TeamInviteInfo> _invites = new();
     private readonly List<(string Key, int Cost, string[] After)> _treeNodes = new()
@@ -47,9 +47,10 @@ public sealed partial class MockGroundUi
             if (!_mapTried)
             {
                 _mapTried = true;
-                ISurface surface = SampleZone.CreateSurface();
+                ISurface surface = SampleZone.CreateSurface(diagnostic: true);
                 var map = new Hollow.Client.Map.ZoneMap(SampleZone, surface, ZoneFrame.World, new WorldData());
-                _map = new MapView(map.CacheKey, 1024, () => map.Render(1024).Rgba, map.Radius, map.Cells);
+                _map = new MapView(map.CacheKey, 1024, () => map.Render(1024).Rgba, map.Radius, map.Cells,
+                    RenderCancellable: cancellation => map.Render(1024, cancellation).Rgba);
             }
             return _map;
         }

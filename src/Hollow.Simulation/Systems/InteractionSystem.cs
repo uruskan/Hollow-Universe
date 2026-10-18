@@ -177,6 +177,8 @@ public sealed class InteractionSystem : ZoneSystem
     /// <summary>A deployable picked back up as its item (GROUND_SYSTEMS.md §11.3): it goes, its item into the player's slots.</summary>
     internal Outcome TakeDeployable(Entity entity, Player p, Deployable d)
     {
+        if (d.Lock != null) return OutcomeCode.RemoveLockFirst;
+        if (d.Def.Gate != null && !d.Open) return OutcomeCode.OpenItFirst;
         Things.RemoveStatic(d);
         Spill.GiveOrDrop(entity, p, ItemStack.Of(d.Def.Item, 1));
         Events.Add(new ItemsGained(Player: p.Id, Item: d.Def.Item.Id, Count: 1, Reason: GainReason.PickedUp));

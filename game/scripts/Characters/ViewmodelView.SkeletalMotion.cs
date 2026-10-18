@@ -15,9 +15,10 @@ public partial class ViewmodelView
     private bool PoseSkeletalMotion()
     {
         UsingSkeletalMotion = false;
+        SkeletalLocomotionTransform = Transform3D.Identity;
         _rig.Transform = _defaultRigTransform;
         if (_model == null || _item == null ||
-            !_model.Presentation.Actions.TryGetValue(ActiveAction, out HeldPresentationClip? clip) ||
+            !_model.Presentation.Actions.TryGetValue(BaseAction, out HeldPresentationClip? clip) ||
             clip.Skeletal is not { } skeletal)
         {
             SkeletalMotionError = null;
@@ -34,7 +35,9 @@ public partial class ViewmodelView
             return false;
         }
 
-        _rig.Transform = (_model.Presentation.FirstPersonRig?.Transform ?? Transform3D.Identity) * _defaultRigTransform;
+        SkeletalLocomotionTransform = ComposeSkeletalLocomotion();
+        _rig.Transform = SkeletalLocomotionTransform *
+            (_model.Presentation.FirstPersonRig?.Transform ?? Transform3D.Identity) * _defaultRigTransform;
         UsingSkeletalMotion = true;
         ShowSourceArms(true);
         SkeletalMotionError = null;

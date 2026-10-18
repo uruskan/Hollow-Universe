@@ -13,7 +13,7 @@ using Hollow.Surface;
 namespace Hollow.Simulation.Placement;
 
 /// <summary>A deployable or prop as placement sees it: what it is named, its box (on its base, along up, turned by yaw).</summary>
-public readonly record struct PlacedThing(TargetRef Ref, DeployableDef Def, Vector3 Position, Vector3 Up, float Yaw)
+public readonly record struct PlacedThing(TargetRef Ref, DeployableDef Def, Vector3 Position, Vector3 Up, float Yaw, bool Open = false, LockKind Lock = LockKind.None)
 {
     public Vector3 Centre => Position + Up * Def.HalfExtents.Y;
 }
@@ -23,6 +23,9 @@ public readonly record struct PlacedShip(ShipDef Def, Vector3 Position, Quaterni
 
 /// <summary>What the world along a ray first meets: how far, where, its normal, what it is named and what surface it is.</summary>
 public readonly record struct PlacementHit(float Distance, Vector3 Point, Vector3 Normal, TargetRef Target, PlacementSurfaces Surface);
+
+/// <summary>A lock mount as the shared placement solver sees it, without server secrets.</summary>
+public readonly record struct LockMount(TargetRef Target, TargetPose Pose, bool Lockable, LockKind Lock);
 
 /// <summary>
 /// What the placement world knows only from one side (GROUND_SYSTEMS.md §6): the server from its zone, a client from what it
@@ -119,6 +122,28 @@ public sealed class PlacementWorld
         _things.Clear();
         Around.ThingsNear(point, radius, _things);
         return _things;
+    }
+
+    /// <summary>Resolves an authored mount from the server or client's current target snapshot.</summary>
+    public bool TryLockMount(in TargetRef target, Vector3 near, out LockMount mount)
+    {
+        mount = default;
+        if (target.Family == TargetFamily.Door && Building?.DoorOf(new Entities.EntityId(target.Id)) is { Gone: false } door)
+        {
+            var (position, rotation) = door.LockSpot;
+            mount = new LockMount(door.Ref with { Part = 1 }, new TargetPose(position, rotation), door.Def.Lockable, door.Lock?.Kind ?? LockKind.None);
+            return true;
+        }
+        foreach (PlacedThing thing in ThingsNear(near, 64))
+        {
+            if (thing.Ref.Whole == target.Whole && LockMounts.TryCompoundPose(Content, thing.Def, thing.Open,
+                thing.Position, thing.Up, thing.Yaw, out TargetPose pose))
+            {
+                mount = new LockMount(thing.Ref.Whole, pose, true, thing.Lock);
+                return true;
+            }
+        }
+        return false;
     }
 
     private readonly List<PlacedSpace> _spaces = new();
@@ -280,17 +305,11 @@ public sealed class PlacementWorld
         float reach = MathF.Min(length, best.Distance);
         foreach (PlacedThing thing in ThingsNear((from + to) / 2, length / 2 + 2f))
         {
-            (Vector3 right, Vector3 forward) = Geometry.Axes(thing.Up, thing.Yaw);
-            Vector3 half = thing.Def.HalfExtents + new Vector3(radius);
-            Vector3 centre = thing.Centre;
-            float t = Geometry.RayBox(from, direction, reach, centre, half, right, thing.Up, forward);
+            float t = CompoundGeometry.Ray(Content, thing.Def, thing.Open, thing.Position, thing.Up, thing.Yaw,
+                from, direction, reach, radius, out Vector3 normal);
             if (t >= 0 && t < best.Distance)
             {
                 Vector3 point = from + direction * t;
-                Vector3 local = point - centre;
-                float x = Vector3.Dot(local, right) / half.X, y = Vector3.Dot(local, thing.Up) / half.Y, z = Vector3.Dot(local, forward) / half.Z;
-                Vector3 normal = MathF.Abs(x) >= MathF.Abs(y) && MathF.Abs(x) >= MathF.Abs(z) ? right * MathF.Sign(x)
-                    : MathF.Abs(y) >= MathF.Abs(z) ? thing.Up * MathF.Sign(y) : forward * MathF.Sign(z);
                 if (t <= 0 && Vector3.Dot(direction, normal) >= 0)
                 {
                     continue; // touching it and moving away

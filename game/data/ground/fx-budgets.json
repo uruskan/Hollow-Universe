@@ -1,0 +1,8 @@
+{
+  "particlesPerFrame": 1500,
+  "activeLoops": 64,
+  "loopFlames": 48,
+  "loopLights": 32,
+  "distanceBand": 10,
+  "leaseSeconds": 2
+}

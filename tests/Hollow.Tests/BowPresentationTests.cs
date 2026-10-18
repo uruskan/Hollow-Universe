@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Numerics;
 using Hollow.Client;
 using Hollow.Simulation;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Movement;
 
 namespace Hollow.Tests;
 
@@ -39,7 +41,11 @@ public static class BowPresentationTests
         Until(() => observer.Entities.Any(e => e.NetId == archer.NetId && e.Held == bow), "equipped bow");
         var accepted = new List<ClientProjectile>();
         archer.Survival().ProjectileLaunched += accepted.Add;
-        InputFrame Draw(GameClient who, double _) => who == archer ? new InputFrame { Secondary = true, Pitch = 0.5f } : default;
+        // Use a fixed zone-space view with nonzero yaw/pitch: neither local +X nor an assumed world-forward
+        // direction can accidentally satisfy the launch-direction check.
+        Vector3 requestedView = CharacterMotor.ViewDirection(0.7f, 0.5f, archer.Frame.UpAt(archer.Character.Position));
+        InputFrame Draw(GameClient who, double _) => who == archer
+            ? new InputFrame { Secondary = true, View = requestedView, ViewFrame = 0 } : default;
         // Equipping and the first delivered draw input each take their own ticks. Wait for the real
         // draw duration, rather than starting a wall-clock timer when the remote held item appears.
         Until(() => rig.Server.Inspect(server =>
@@ -50,12 +56,25 @@ public static class BowPresentationTests
         Until(() => observer.Entities.Single(e => e.NetId == archer.NetId).Aiming, "replicated draw", Draw);
         Assert.True(observer.Entities.Single(e => e.NetId == archer.NetId).Aiming, "bow drawing is replicated to other characters");
         Assert.Equal(0, accepted.Count, "drawing alone does not play a release");
-        rig.Run(0.1, (who, time) => who == archer ? new InputFrame { Secondary = true, Primary = true, PrimaryPressed = true, Pitch = 0.5f } : default);
+        Vector3 carried = rig.Server.Inspect(server =>
+        {
+            server.Zone.Players().TryFindPlayer(archer.EntityId, out var entity, out _);
+            ref Character character = ref server.Zone.Entities.Get<Character>(entity);
+            Assert.Equal(0UL, character.State.Frame, "this direction fixture remains ashore, with no changing carrier velocity");
+            return server.Zone.AttackLine(character, server.Zone.Tick).Carried;
+        });
+        rig.Run(0.1, (who, time) => who == archer
+            ? new InputFrame { Secondary = true, Primary = true, PrimaryPressed = true, View = requestedView, ViewFrame = 0 } : default);
         Until(() => accepted.Count != 0, "accepted arrow release", Draw);
         Until(() => archer.Local.Inventory.Count(archer.Content.ItemByKey("arrow")) == 3, "one consumed arrow", Draw);
         Assert.Equal(1, accepted.Count, "one accepted shot produces one release event");
         Assert.Equal(archer.NetId, accepted[0].Shooter, "the release identifies the local archer");
         Assert.Equal(archer.Content.ItemByKey("arrow").Id, accepted[0].Ammo, "the release identifies the actual arrow");
+        Vector3 initialVelocity = accepted[0].Velocity - carried;
+        float expectedSpeed = archer.Content.ItemByKey("arrow").Ammo!.Speed * archer.Content.ItemByKey("bow").Bow!.SpeedScale;
+        Assert.Near(expectedSpeed, initialVelocity.Length(), 0.01, "the replicated launch preserves the bow's arrow speed");
+        Assert.True(Vector3.Dot(Vector3.Normalize(initialVelocity), requestedView) > 0.99999f,
+            $"the authoritative arrow follows the submitted camera view, independently of held art: velocity {initialVelocity}, view {requestedView}");
         Until(() => !observer.Entities.Single(e => e.NetId == archer.NetId).Aiming, "draw cancellation");
     }
 }

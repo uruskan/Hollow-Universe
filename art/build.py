@@ -31,6 +31,7 @@ SCRIPTS = {
     "rifle_frame": "models/rifle_frame.py",
     "torn_schematic": "models/torn_schematic.py",
     "sealed_schematic": "models/sealed_schematic.py",
+    "salvage": "models/salvage.py",
     "tools": "models/tools.py",
     "supplies": "models/supplies.py",
     "clothing": "models/clothing.py",

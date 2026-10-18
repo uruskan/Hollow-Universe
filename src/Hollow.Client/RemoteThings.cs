@@ -5,6 +5,8 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.Combat;
+using Hollow.Simulation.Authorization;
 
 namespace Hollow.Client;
 
@@ -79,6 +81,25 @@ public sealed class RemoteThing
 
     public bool Lit => (Flags & ViewerFlags.Lit) != 0;
 
+    private UtilityState _utility;
+    public UtilityState Utility
+    {
+        get => _utility;
+        set
+        {
+            // Power/aim updates omit unchanged routes. An explicit empty route update removes the cable.
+            if (!value.HasCableUpdate) value.Cables = _utility.Cables;
+            _utility = value;
+        }
+    }
+
+    /// <summary>Only this viewer's protection and controls; it never grants generic owner/crew permissions.</summary>
+    public DeviceAccessFacts DeviceAccess => new(Utility.AuthorizationPresent, Utility.Friendly, Utility.CanManage,
+        Utility.PowerEnabled, Utility.FollowsCupboard, Utility.AuthorizationRevision);
+
+    /// <summary>The authoritative incoming cable, retained even while its source has not streamed in.</summary>
+    public PowerCableNet? PowerCable => Utility.Cables is { Length: > 0 } cables ? cables[0] : null;
+
     /// <summary>The receiving player's own (their sleeping bag).</summary>
     public bool Mine => (Flags & ViewerFlags.Mine) != 0;
 
@@ -115,40 +136,47 @@ public sealed partial class ClientProjectile
     /// <summary>Who loosed it (a character's net ID; 0 if not known).</summary>
     public uint Shooter { get; init; }
 
-    public ushort Ammo { get; init; }
+    public ushort Ammo { get; set; }
+    public ushort Weapon { get; set; }
+    public AttackId Attack { get; set; }
 
-    public Vector3 Origin { get; init; }
+    public Vector3 Origin { get; set; }
 
-    public Vector3 Velocity { get; init; }
+    public Vector3 Velocity { get; set; }
 
     /// <summary>Gravity (m/s², along −up at the origin) and up there.</summary>
-    public Vector3 Gravity { get; init; }
+    public Vector3 Gravity { get; set; }
 
     /// <summary>
     /// The planet's centre in the zone's frame: gravity is re-aimed toward it as the projectile flies, as the server's
     /// is (docs/WHOLE_WORLD.md §6.3; <see cref="Arc.Gravity"/>). Null: one parabola along <see cref="Gravity"/>.
     /// </summary>
-    public Vector3? Centre { get; init; }
+    public Vector3? Centre { get; set; }
 
     /// <summary>Speed lost a second, as a fraction (bullets, G4; 0 for arrows).</summary>
-    public float Drag { get; init; }
+    public float Drag { get; set; }
 
     /// <summary>A bullet's shot: the shooter's gun action (0 for arrows); ours when <see cref="Own"/> (drawn since we fired).</summary>
-    public uint Seq { get; init; }
+    public uint Seq { get; set; }
 
     public bool Own { get; init; }
 
     /// <summary>Fired through a silencer: no muzzle flash, a quiet shot.</summary>
-    public bool Silenced { get; init; }
+    public bool Silenced { get; set; }
 
     /// <summary>
     /// A battery's rocket (IW3, IRON_WAKE.md §6.4): its battery's number + 1 (0: a gun's or a bow's), and its motor, under
     /// which it is drawn by the server's own steps (<see cref="Simulation.Combat.RocketFlight"/>); <see cref="Seq"/> is its
     /// shot's number.
     /// </summary>
-    public int Battery { get; init; }
+    public int Battery { get; set; }
 
-    public Simulation.Combat.RocketMotor? Motor { get; init; }
+    public Simulation.Combat.RocketMotor? Motor { get; set; }
+
+    /// <summary>Changes when authority replaces a predicted trajectory; views retarget without replaying a shot.</summary>
+    public uint Revision { get; private set; }
+    public uint LaunchTick { get; set; }
+    public bool LaunchConfirmed { get; set; }
 
     /// <summary>A rocket's flight as the server steps it (positions and velocities a step apart), made when first drawn.</summary>
     private Vector3[]? _flight;
@@ -156,33 +184,56 @@ public sealed partial class ClientProjectile
     public bool IsBullet => Seq != 0;
 
     /// <summary>The client's clock (seconds) when it was loosed.</summary>
-    public double LaunchedAt { get; init; }
+    public double LaunchedAt { get; set; }
 
     /// <summary>Where it stopped, once known, and when the server said so.</summary>
     public Vector3? EndedAt { get; set; }
 
     public double EndedTime { get; set; }
+    public double? EndedFlightSeconds { get; set; }
 
     /// <summary>The family of what it stopped on (none: out of range or time).</summary>
     public Simulation.Targets.TargetFamily EndTarget { get; set; }
+    public Simulation.Targets.SurfaceContact Contact { get; set; }
+
+    /// <summary>Keep the same presentation object while replacing every authoritative flight parameter.</summary>
+    public void Confirm(ClientProjectile authority)
+    {
+        Id = authority.Id;
+        Ammo = authority.Ammo;
+        Weapon = authority.Weapon;
+        Attack = authority.Attack;
+        Origin = authority.Origin;
+        Velocity = authority.Velocity;
+        Gravity = authority.Gravity;
+        Centre = authority.Centre;
+        Drag = authority.Drag;
+        Seq = authority.Seq;
+        Silenced = authority.Silenced;
+        Battery = authority.Battery;
+        Motor = authority.Motor;
+        LaunchTick = authority.LaunchTick;
+        LaunchConfirmed = true;
+        LaunchedAt = authority.LaunchedAt;
+        _flight = null;
+        Revision++;
+    }
 
     /// <summary>Where it is drawn at a time on the client's clock: on its arc, held at its end once stopped.</summary>
     public Vector3 PositionAt(double time)
     {
+        // A confirmed terminal state is final, even when receipt beats an interpolated visual's flight.
+        if (EndedAt is { } ended) return ended;
         float t = (float)Math.Max(0, time - LaunchedAt);
         if (Motor != null)
         {
             (Vector3 at, _) = Flown(t);
-            return EndedAt is { } stop && Vector3.DistanceSquared(Origin, at) >= Vector3.DistanceSquared(Origin, stop) ? stop : at;
+            return at;
         }
         Vector3 g = Arc.Gravity(Gravity, Centre, Origin, Velocity, t);
         Vector3 onArc = Drag > 1e-6f
             ? Origin + g / Drag * t + (Velocity - g / Drag) * ((1 - MathF.Exp(-Drag * t)) / Drag)
             : Origin + Velocity * t + g * (0.5f * t * t);
-        if (EndedAt is { } end && Vector3.DistanceSquared(Origin, onArc) >= Vector3.DistanceSquared(Origin, end))
-        {
-            return end;
-        }
         return onArc;
     }
 
@@ -190,6 +241,7 @@ public sealed partial class ClientProjectile
     public Vector3 DirectionAt(double time)
     {
         float t = (float)Math.Max(0, time - LaunchedAt);
+        if (EndedFlightSeconds is { } end) t = (float)Math.Min(t, end);
         if (Motor != null)
         {
             (_, Vector3 velocity) = Flown(t);

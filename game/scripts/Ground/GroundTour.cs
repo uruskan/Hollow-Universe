@@ -72,6 +72,15 @@ public partial class GroundTour : Node
             ("repair-corpses", RepairCorpses),
             ("repair-attachments", RepairAttachments),
             ("admin-camera", AdminCamera),
+            ("admire", AdmireTour),
+            ("bow-alignment", BowAlignmentTour),
+            ("clan-base", ClanBaseTour),
+            ("attack-sync", AttackSync),
+            ("attack-launcher", AttackLauncher),
+            ("resources", Resources),
+            ("map-drag", MapDrag),
+            ("fitted", FittedTour),
+            ("compound", Compound),
         };
         // The movement-audio diagnostic needs no inventory grants or equipment changes.
         if (Only?.SetEquals(new[] { "audio-movement" }) != true) _steps.Enqueue(Prepare);
@@ -638,7 +647,7 @@ public partial class GroundTour : Node
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
-        Admin("raidbase", "2");
+        Admin("raidbase", "hut 2");
         await Until(() => Doors().Count() > doors, 5);
         await Settle();
         if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)
@@ -2035,7 +2044,7 @@ public partial class GroundTour : Node
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
-        Admin("raidbase", "1");
+        Admin("raidbase", "hut 1");
         await Until(() => Doors().Count() > doors, 5);
         await Settle();
         if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)
@@ -2160,7 +2169,7 @@ public partial class GroundTour : Node
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
-        Admin("raidbase", "2");
+        Admin("raidbase", "hut 2");
         await Until(() => Doors().Count() > doors, 5);
         await Settle();
         if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)
@@ -2222,7 +2231,7 @@ public partial class GroundTour : Node
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
-        Admin("raidbase", "1");
+        Admin("raidbase", "hut 1");
         await Until(() => Doors().Count() > doors, 5);
         await Settle();
         if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)

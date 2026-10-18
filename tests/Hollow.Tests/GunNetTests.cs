@@ -44,7 +44,7 @@ public static class GunNetTests
         rig.Give(ada, "rifle-ammo", 60);
 
         // The client: its own ground and predictor, and the local player with the inventory the server would send.
-        using var predictor = new Predictor(rig.Zone.Spec, rig.Zone.Spec.CreateSurface(), null);
+        using var predictor = new Predictor(rig.Zone.Spec, rig.Zone.Spec.CreateSurface(diagnostic: true), null);
         uint start = (uint)rig.Zone.Tick;
         // Its ground first, as the client's loading screen waits for it (GROUND.md §4.3: the prediction holds without it).
         predictor.World.EnsureGround(rig.Ch(ada).State.Position);
@@ -205,7 +205,7 @@ public static class GunNetTests
         p.Inventory.Belt.Set(0, rifle);
         rig.Give(ada, "rifle-ammo", 30);
 
-        using var predictor = new Predictor(rig.Zone.Spec, rig.Zone.Spec.CreateSurface(), null);
+        using var predictor = new Predictor(rig.Zone.Spec, rig.Zone.Spec.CreateSurface(diagnostic: true), null);
         uint start = (uint)rig.Zone.Tick;
         // Its ground first, as the client's loading screen waits for it (GROUND.md §4.3: the prediction holds without it).
         predictor.World.EnsureGround(rig.Ch(ada).State.Position);

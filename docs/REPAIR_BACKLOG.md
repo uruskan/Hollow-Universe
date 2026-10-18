@@ -9,6 +9,95 @@ This is the current repair queue for AB Test B. It merges the original thirty fi
 reproduced defects. These are 59 source reports with overlapping subjects, not 59 independent bugs.
 The full feature roadmap in DESIGN.md remains separate.
 
+**17 October, 21:21 local:** the tool guard successor addresses the requested safeguards
+in static review; its execution is untested. Source preservation checks still match.
+The user game remains active at 1.4210 GiB available / 85% commit, so all coordinated
+heavy jobs stay held. The tool owner is idle awaiting a separate first-job grant.
+
+**17 October, 21:15 local:** the user game and its server are running; automated heavy
+jobs remain held. Latest resources are 1.5024 GiB available / 87% commit; no user process
+was stopped. Root verified the tool source seal and preservation of 39 unchanged held
+profiles, while requesting narrow corrections to its scratch execution guard. No build,
+test or visual acceptance is claimed. The externally replaced client DLL also requires
+explicit reconciliation with future grass validation. RECOVERY records the evidence.
+
+**17 October, 21:06 local:** P5's corrected scoped audio caller passed root's static
+review and preservation hashing; execution and sound acceptance remain pending. The
+user-authorized **Study Rust gameplay references** chat is preparing tool/movement/
+swish candidates and a sealed source handoff for serialized validation. No heavy slot
+is granted. Its live changes invalidate earlier source manifests; P2 preserves its
+built grass fixture and refused native run pending reconciliation. Latest RAM is
+6.0243 GiB / 57% commit with no heavy process; Maximum still needs 8 GiB. RECOVERY
+records ownership, hashes and the actual validation limits. No checklist item closes.
+
+**17 October, 20:47 local:** the seed-comparison fixture built cleanly and its
+metadata/artifacts were reviewed. Native launch was refused before starting at
+5.0412 GiB available, below the existing 5.5 GiB gate: no new captures or visual result.
+All heavy slots are released. P5 is correcting a second statically found integration
+issue in its isolated audio caller; no audio generation or production change has run.
+RECOVERY preserves the build/refusal evidence and exact next steps. Maximum still
+requires 8 GiB; no quality, timeout or resource limit was relaxed.
+
+**17 October, 20:18 local:** P2 is preparing a controlled seed-interpolation comparison
+from its read-only grass analysis; causes remain hypotheses. P5 is preparing the scoped
+sound staging caller/guard. Both assignments are scratch-only, with no heavy execution
+grant or production change. Existing visual/gameplay acceptance remains open; RECOVERY
+records ownership, resource evidence and the unchanged Maximum startup gate.
+
+**17 October, 20:13 local update:** the repaired grass fixture now passes all **287
+native assertions**, with fourteen 1600x900 captures and clean logs. Root verified the
+226-artifact handoff and inspected eight captures. Mesh attributes, shader TIME,
+repeatability, wind/trample response and retained litter comparisons passed in the
+isolated fixture. Closeups still show angular blades and speckled/disconnected-looking
+tips, so N6 remains open. Full-world appearance and GPU cost are untested. P2 is assigned
+read-only cause analysis and a narrow candidate/check proposal; no further heavy slot
+is granted. The previous failed run is preserved, shared changes are intact and Maximum
+startup still requires 8 GiB. See RECOVERY for the actual run and review evidence.
+
+**17 October, 19:51 local update:** the isolated grass fixture built cleanly, then its
+separately granted native run stopped on an empty `Assembly.Location` used by the test
+harness. It reached Forward+ initialization but produced no captures or mesh/shader
+validation. Production grass quality is still unassessed by this fixture. Shared input
+pins and staged bytes remain unchanged. P2 is preparing a separate scratch repair to
+the binding check; no retry or further heavy execution is granted. Failure evidence is
+preserved in RECOVERY. Maximum startup remains gated at 8 GiB.
+
+**17 October, 19:22 local update:** the independent bow correction is complete and its
+focused/native/input evidence has been reviewed; full tool-motion and art acceptance
+remain open under DESIGN ART-03. P2 has reconciled the external build into a preserved
+successor grass fixture with matching source/PDB evidence, immutable runtime copies,
+two passing eight-group guard proofs and a 10,048-input build manifest. The fixture is
+still unbuilt/unrendered. Latest availability is **4.2504 GiB / 63% commit**, below its
+5.5 GiB launch gate; no heavy job was started. P2 is idle for a separate build grant.
+Maximum startup still requires 8 GiB. The sound repair remains prepared but uninstalled;
+its concrete missing-event finding is also in KNOWN_PROBLEMS. See RECOVERY for receipts.
+
+**17 October, 19:02 local update:** P5's missing defense-interior repair is prepared
+in scratch and root-reviewed, with patch applicability and 41 preservation/provenance
+hash checks passing. It proposes four distinct variants and a battery-wide catalogue
+check; production is unchanged. Scoped generation, compilation, imports and listening
+remain pending. The independent **Add held-item admire key** chat is actively correcting
+the user's bow aiming report, so coordinated heavy execution remains held even between
+its jobs. Root verified 502 unique historical test passes across that chat's 18 retained
+logs, matching its manifest; this does not validate the later bow changes or current
+binary. At 19:01:36 memory was 5.7798 GiB / 60% commit; Maximum startup still needs 8 GiB.
+Shared staged bytes remain unchanged. See RECOVERY for receipts and the unresolved
+grass fixture binding. The queue remains open; no new visual or sound acceptance is claimed.
+
+**18:46 update:** P5 confirmed that the defense interior sound recipe is missing from
+the generator; production remains unchanged. The fix needs a distinct non-layered event
+and a catalogue regression check, then listening validation. The user game has ended,
+but the independently started **Add held-item admire key** chat is running its own
+tests/render validation, so coordinated heavy execution remains held. Its source/binary
+handoff and the stale grass fixture binding still need reconciliation afterward.
+
+**17 October, 18:39 local update:** the user game continues; memory reached 1.05 GiB free /
+87% commit, so all coordinated heavy jobs remain held. Independently started held-item
+work has changed seven frozen inputs and rebuilt binaries; preserve it and reconcile its
+handoff before refreshing the grass fixture. The live play log also revealed a missing
+`defense.fire.interior` sound event. P5 is assigned read-only diagnosis; no fix or listening
+acceptance is claimed. See RECOVERY for evidence and ownership.
+
 **Execution hold, 17 October, 18:28 local:** an external normal AB Test B game and its
 child server are running on port 27025. Automated heavy jobs remain held while the user
 plays; no user process was stopped. A preceding external build replaced shared binaries,
@@ -325,12 +414,18 @@ jobs under [RECOVERY.md](repair-tasks/RECOVERY.md). Use
   identity, melee start disagreement/fast taps, refused and unterminated cosmetic rockets.
   [Attack lifecycle](ATTACK_SYSTEM.md) work is active; implementation text is not validation.
   The audit demonstrated no extra authoritative damage or ammunition. P5 owns closure.
+- The play log reports missing `defense.fire.interior`: the generator omits the event
+  required by the existing same-hull/own-shot route. P5's distinct interior recipe and
+  battery-wide catalogue check are prepared only; generation and listening remain open.
 - Ground shutdown texture/ObjectDB warnings, first-hit stalls and dense-canopy cost remain P8.
 - Cold startup host disconnects (Timeout/PeerNotFound during loading) are separately recorded in
   KNOWN_PROBLEMS.md. The bounded 97% steady-frame fix does not close startup transport liveness.
-- Latest reviewed full-suite checkpoint: 397/398, failing melee case then isolated 1/1.
-  The later combat investigation passed focused 41/41; neither is a new clean complete run.
-  Active changes must obtain their own final build/test/runtime evidence.
+- Historical full-suite checkpoint: 397/398, failing melee case then isolated 1/1;
+  the later combat investigation passed focused 41/41. On 17 October root reconciled
+  502 unique passing tests across the completed admire turn's 18 retained logs against
+  its manifest. That includes partial progress from an interrupted run plus batches,
+  not one uninterrupted run. The subsequent bow correction passed 26 focused checks;
+  the 502-test evidence does not automatically validate that later source state.
 
 ## Verified implementation facts
 

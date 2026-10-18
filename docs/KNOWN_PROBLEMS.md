@@ -1,21 +1,218 @@
 # Known problems and the plan for them (14 October 2026)
 
-## AB Test B combat synchronization — investigated 16 October 2026
+## Long full-suite native mesh-build crash — 18 October 2026
 
-**Open; reproduced, not repaired.** Rapid twin-cannon clicks can produce three client firing
-events from two chambered rounds while authority permits only two. Client prediction removes
-a chamber reservation on confirmation before matching state arrives, and fresh siege stations
-also predict the opposite first barrel from authority. The latter reproduces even when the
-updated station record is delivered. Successful-shot counters are insufficient attempt IDs.
+The audio/VFX architecture validation run exited with native `0xC0000005` in
+`JPH_MeshShapeSettings_CreateShape` / `PhysicsWorld.BuildShape` during
+`PlanetGroundTests.ArriveOnTheBeachOverTheNetwork`, after 582 passing tests. The exact
+case passed in isolation, remaining classes passed in fresh processes, and a combined
+shared-footstep/physics-lifetime/planet-ground run passed 14/14. Cause is unestablished;
+do not infer that this is an audio/contact regression or a proven terrain defect. A
+reproduction with a native dump is still needed. Receipts and the separate existing
+host-size guard failures are recorded in [DEVELOPMENT.md](DEVELOPMENT.md).
 
-Melee's shared strike timing remains, but independent local/server starts can diverge after
-missing input; a one-tick mismatch persisted across two real damaging swings and fails the
-FPS contact-feedback guard. A latched short click without held Primary starts no melee swing.
-Rejected launcher shots restore ammo but leave a predicted rocket, and missing/reordered
-projectile terminal messages leave rockets without endpoints. No extra authoritative damage
-was demonstrated. Build and existing focused tests pass (41/41); deterministic diagnostics
-expose cases those tests omit. Gameplay/rendered network validation and fixes remain open.
-See [COMBAT_SYNC_AUDIT.md](COMBAT_SYNC_AUDIT.md) for evidence, limits and repair priorities.
+## Concealment bushes absent from normal ground play — 18 October 2026
+
+The owner reports missing bushes and requests hiding vegetation around monuments. Source
+review confirms ordinary bushes exist in scatter/FloraLibrary, but GroundView's NaturePlants
+enumerates only resource-mapped natural objects, excluding ordinary bushes. Monument placement
+also clears vegetation across whole bounding circles. Foundation-driven foliage suppression is
+not connected, and existing quality-dependent shrub LODs would produce unequal concealment if
+enabled unchanged. [Investigation and proposed integration](TERRAIN_SCENERY_PLAN.md#concealment-bushes-investigation--18-october-2026)
+records evidence, resource/scenery ID hazards, shared clearance and visibility requirements.
+Status: open; source/published-reference review only, no implementation or new runtime validation.
+
+## Grass remains sparse, clipped-looking and costly — 18 October 2026
+
+The owner reports poor coverage, apparent burial and weak lighting/color variety.
+[Current investigation](GRASS_INVESTIGATION.md) identifies fixed procedural instance
+grids with shader-only rejection, repeated coverage thinning, flattening distance fade,
+uncorrected authored-crown slope contact, nearly uniform upward normals and inconsistent
+palettes. The procedural root repair does not cover authored crowns. Saved Low settings
+compound sparse coverage; no preferences were changed. Historical captures/timings and
+current source facts are distinguished from pending measurements. No repair, build/test
+or new renderer benchmark was performed. N6 and grass performance acceptance remain open.
+
+## Frontier AK recoil jumps and drifting optics — 17 October 2026
+
+Owner report: iron sights vibrate/teleport, the 4× image seems disconnected from
+the weapon, and the holosight dot misses screen centre. Reproduced live procedural
+shot-reset discontinuities in hip/iron/holo/scope and an additional hip reach
+correction jump. The first candidate overlaps fire recovery, uses continuous gun
+reach correction, centres reticles on camera aim and registers the scope image
+to that camera. Both bodies pass the native recoil/optical checks after lowering
+the holo emitter below its glass opening. These checks do not establish visual acceptance:
+the owner then rejected the support hand in the captures. The rifle profile now
+approaches from below-left with its palm toward the fore-end and wider finger curl.
+Side/underside captures were inspected, and both bodies pass the final burst checks
+with that grip. Owner review is still pending. The station's near-target traverse
+oscillation was also fixed by tracking from its pitch pivot rather than the moving
+muzzle. The final build and all 60 focused checks pass. One earlier lossy test run
+hit request deadlines; its single-test rerun and final grouped run passed without
+transport-rule changes. These timings are recorded in the validation logs.
+See [HELD_ITEMS.md](HELD_ITEMS.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
+
+## Defense battery interior sound is missing — 17 October 2026
+
+The user's play log reports `No sound event 'defense.fire.interior'` when
+StationsView.Shot requests the own-shot/same-hull sound through Sounds.Flat and
+AudioDirector.Play2D. The defense generator emits report and mechanism events but
+omits the interior recipe; the catalogue and its generated files are absent. This
+warning does not establish an extra authoritative shot, memory leak or crash.
+
+P5 has prepared a distinct four-variant interior recipe and a registry-wide battery
+sound check in `.artifacts/p5-defense-interior-prep-r1`; neither is installed. Play2D
+needs top-level files, so aliasing a layered report would still be silent. Generation,
+focused tests, import, measured audio limits and own/same-hull/offship listening remain
+pending. Existing source archives match their recorded hashes; that is not listening
+acceptance. Preserved evidence: `.artifacts/recovery/user-play-log-20261017-1835.txt`
+and `p5-defense-interior-preparation-root-review-20261017.json` beside it. See RECOVERY
+for execution gates and P5 ownership.
+
+## Bow points left of the crosshair — 17 October 2026
+
+The owner's screenshot reproduced in the FPS workshop: the drawn arrow points about 26°
+left, while its large near-camera fletching fills the right side. The existing bow profile
+adds 27° aiming yaw, -38° roll and 20 cm toward the camera after the forward aim placement.
+Those values predate admire. Bow/arrow model axes are correct; the server launches along
+the player's view independently of these visual offsets. Existing tests checked hand
+attachment and release/ammo behavior, but never the rendered arrow's aim. Corrected the
+profile and added a final bow-axis constraint with two-hand reach solving. The camera
+clearance adjustment is FPS-only, preserving full-body shoulder placement. Final validation
+passed: 220 native bow samples, 492 admire samples, 26 focused tests and an isolated hosted
+real-input firing/redraw/admire tour. The nock remains at least 22 cm from the camera in
+the raised-pose matrix; both bodies' final screenshots were inspected. Accepted images:
+`docs/images/bow-alignment/final` and `bow-drawn.jpg` / `bow-after-admire.jpg` beside it.
+
+## Held-item workshop shutdown warning — 17 October 2026
+
+The admire validation runs and contact-sheet captures exit successfully but report one
+ObjectDB instance leaked at exit. No resource/class attribution has been established;
+this remains an editor cleanup warning, not a claim of a gameplay leak. Evidence:
+`.artifacts/admire/native-rooted-{male,female}.err` and `rooted-*.err`.
+The intermediate admire candidate also exposed forearm cut ends by moving the complete
+FPS rig; that candidate was replaced with rooted arm solving and the final images are
+in `docs/images/admire`. Both bodies pass 492 combined pose samples with stationary
+shoulders, preserved grips and exact idle endpoints.
+
+## Pilot cockpit steering leaked into third-person orbit — 17 October 2026
+
+The owner reported unusable ship controls in TPS. The input route consumed RMB orbit
+motion but allowed every other pilot mouse motion to reach the persistent cockpit stick;
+the existing turn also survived V. Hosted gameplay now consumes all third-person mouse
+motion in the orbit route, clears both cursor and smoothed steering on camera changes,
+and excludes mouse steering when reading TPS flight input. Arrows still pitch/yaw, the
+other flight keys still work, and throttle/assist survive switching. The TPS hint now
+names arrow steering, RMB orbit and wheel zoom. See [REPAIR_SHIPS.md](REPAIR_SHIPS.md).
+
+The full solution builds without warnings/errors and 33 focused checks pass. The
+expanded hosted `repair-ships` tour asserts actual outgoing yaw/pitch for both cameras,
+all mouse-button cases, arrow keys and releases. Its first run was stopped by the
+memory guard during world loading, before reaching these assertions; it is not a
+passed gameplay run. A bounded native Godot scene then passed 27 assertions against the
+actual production input handlers, including both camera transitions, all mouse routes,
+arrow steering/release and retained throttle/assist. Its production HUD captures were
+visually checked. This fixture omits world simulation/network; the complete hosted tour
+remains pending memory headroom. Evidence and limits are recorded in DEVELOPMENT.
+
+## New owner playtest and merged repair queue — 16 October 2026
+
+The owner supplied twelve further reports and eleven screenshots. Current tracking is in
+[REPAIR_BACKLOG.md](REPAIR_BACKLOG.md); the numbered source and original images are in
+[playtest-2026-10-16.md](reports/playtest-2026-10-16.md). This queue supersedes historical
+planned/done labels below where newer evidence or owner rejection disagrees.
+
+Cliff coverage/composition, terrain tiling, grass quality, pickaxe poses/reach, other tool
+framing and oversized holo remain open. The owner now accepts the observed axe animation.
+New requirements are readable ballistic flight, unattended chosen-angle hold with flight
+assist ON, higher/clearer gunner views, roofs without side panels, and min/max gib control.
+Overall performance must improve without hiding a quality downgrade. The dedicated node
+pack exists and is installed; screenshot 3's entity still needs identification. These are
+recorded requests and source findings, not repairs completed by this checklist update.
+
+## Maximum world route: startup pass and remaining graphics issues — 17 October 2026
+
+After the built transport-liveness, foliage temporary-allocation and terrain-array lifetime
+repairs, one unchanged-quality Maximum/day in-process hosted route completed at normal
+timeouts: six stops, 18 ready captures, 628.031 m, native exit 0. This closes the missing
+follow-up evidence for that route; it does not establish normal child-server startup,
+prolonged-play stability or a measured memory/FPS improvement. The earlier failures remain
+retained. The 8 GiB world launch requirement remains in force.
+
+The new baseline still shows parallel terrain texture bands, short/clipped-looking grass
+rows, sparse/jagged foliage, strongly patterned foam, a stepped distant water edge and a
+hard scalloped monument ground-patch border. Six stationary means are 24.93–30.20 ms,
+with GPU means 24.36–29.63 ms. These observations do not isolate a cause. P2's staged visual
+candidates had not been applied for that baseline; N3/N6/N12 and broader environment
+acceptance stay open.
+
+Read-only source review has now selected a two-file procedural-grass candidate addressing
+root attachment, growth/bend scaling and the clipped blade silhouette, while retaining the
+existing height multiplier, litter, density and quality settings. Root verified protected
+inputs, reviewed the proposal and checked patch applicability. The exact two-file patch is
+now applied. A duplicate-path preservation-map error was corrected; the first build was
+then refused before launch at 5.0365 GiB available, below its 5.5 GiB threshold. After
+headroom recovered, a fresh solution build passed with zero warnings/errors and the
+Architecture/EnvironmentRoute checks passed 7/7. Root rehashed 9,760 protected inputs,
+including the 896 built outputs. No native/import/render ran. Shader output, terrain
+attachment, silhouettes, wind/trample behavior and GPU cost remain unverified.
+The separate foliage proposal that removes alpha-to-coverage is excluded. Evidence is in
+`.artifacts/p2-environment/candidate-review-r1/` and P2's report.
+
+At shutdown the same run reports seven leaked Texture RIDs and two ObjectDB instances.
+P8 reviewed this evidence separately from the 30-instance roof-viewer warning: this route's
+capture method already disposes its Image, so the other viewer's Image-lifetime suspect
+does not apply without further evidence. No verbose class attribution, leak fix or
+FPS-causality claim exists yet. Five clock corrections
+occurred, without route timeout or lost connection. Evidence and exact limits are in
+[P2's report](repair-results/P2-environment.md), `docs/images/repairs/p2-environment/baseline-max-day-r4/`
+and `.artifacts/p2-environment/baseline-max-day-r4/run/`.
+
+## Roof backing slits and viewer shutdown warning — 17 October 2026
+
+The first reviewed native metal-square LOD0 roof capture shows the removed gable open,
+but also bright slits in the slopes. P7 traced a representative missing backing face to
+`tools/repair_building_glbs.py`: triangles in the same rounded coplanar group choose
+different projection axes from their unrounded normals, so incompatible 2D polygons
+are subtracted. The raw face exists; both the preserved old and current repaired roof
+lack it. The deterministic per-group basis correction passed five focused regression groups
+(36 tiny repairs), reproducing the old defect and preserving the corrected backing while
+retaining real overlap subtraction, winding and attributes. A scratch metal candidate now
+restores the known backing and all 4,608 sampled surface points, preserving bounds, hulls
+and metadata. The subsequent read-only diagnosis resolves the 93 sampled locations into
+92 near-coincident pairs with positive projected intersections, none exactly coplanar in
+stored coordinates. All have local raw-surface equivalents; the two additional square-LOD0
+samples restore backing removed by the old repair. Three small triangles are exactly
+zero-area and match old geometry and full vertex attributes. These findings support
+controlled visual review without another geometry correction; they do not establish
+exhaustive coverage or absence of z-fighting. Root verified all 6,347 protected inputs.
+No further pruning or installation occurred. Installed roof packs remain unchanged; other-grade,
+merge/fracture and native visual validation remain open. The apex
+profile uses unchanged deck coordinates.
+See [P7's evidence](repair-results/P7-building.md); N10 remains open.
+
+The same capture saved successfully with ready=True and exit 0, then reported 30 ObjectDB
+instances leaked at exit. An older disconnect run reports the same count, without proving
+the objects or cause are identical. P8 identified static gib-world/callback retention and
+captured-Image lifetime as candidates; neither explains the warning conclusively. A separate
+verbose diagnostic is pending, with no production fix or rerun yet. See
+[P8's evidence](repair-results/P8-performance.md). No roof-causality or FPS claim follows.
+
+## AB Test B combat synchronization — implemented 16 October 2026
+
+The [shared attack lifecycle](ATTACK_SYSTEM.md) replaces successful-shot identity and timeout
+guessing with connection-scoped attempt IDs, authoritative results, resource reservations and
+once-only presentation. Cannon acceptance retains its chamber reservation until matching state
+arrives; barrel selection is replicated. Locally empty/cooldown cannon presses submit no delayed
+fire request. Melee uses reliable identified starts and cancellation, with authoritative contact
+timing and identity-based hit feedback. Rejected speculative projectiles are removed, and reliable
+owner/rocket endpoints reconcile through loss, duplication, reordering and reconnects.
+
+The original reproduction remains in [COMBAT_SYNC_AUDIT.md](COMBAT_SYNC_AUDIT.md). Current test,
+render and performance evidence, including native test-run/startup failures, is recorded in
+[DEVELOPMENT.md](DEVELOPMENT.md). Prediction remains provisional: authority can refuse stale,
+invalid or expired attempts, and corrected effects cannot erase a muzzle flash already seen.
+This repair does not claim a new physical melee collision model or unlimited packet-loss tolerance.
 
 ## AB Test B loading at 97% and reduced FPS — 16 October 2026
 
@@ -33,6 +230,13 @@ reported `Timeout` and the client `PeerNotFound`; both transports use a ten-seco
 engine-free suite was running concurrently, so this does not establish ordinary startup frequency.
 This separate startup-liveness issue remains open; disconnect does not change transport timeouts.
 Diagnostic logs: `.artifacts/disconnect-check/cold-start.log` and `second-direct-start.log`.
+
+Earth terrain revision 2 reproduced the same timeout during two High-quality captures at its generated
+inland landing site (in-process and child-server hosting), before dense nearby cover finished loading.
+Those runs are rejected as visual evidence. Separate Low-quality child-server captures at the new route's
+beach and from orbit both reached Playing/ready and saved screenshots. This does not resolve or establish
+the exact cause of the inland loading stall. Logs: `.artifacts/earth-land-tuning/ground*.log`,
+`beach*.log`, and `globe*.log`; accepted images and scope: [EARTH_TERRAIN.md](EARTH_TERRAIN.md).
 
 The owner reports loading held at 97% and substantially reduced frame rate compared with the beginning of this
 project (80–144 FPS, possibly on Low). The final `steady` loading stage formerly required 0.75 consecutive seconds
@@ -328,3 +532,50 @@ landings. The owner confirmed both source samples lack the defect, then confirme
 `gameplay-grass-mix.wav` recording. Two hosted movement/cadence captures and final file measurements pass.
 This closes the reported boink for that grass gameplay sample; dirt runtime, other materials and the wider sound
 mix remain open. [Implementation and listening evidence](REPAIR_AUDIO.md); [full action audit](reports/audio-action-checklist.md).
+
+## Settings footer text overlaps APPLY — 16 October 2026
+
+Fixed and visually verified in the three specified window/scale cases. At native 1600x900,
+changing a graphics setting previously showed a long orange NOT APPLIED sentence
+that extends underneath the APPLY button, obscuring its ending about Escape discarding changes.
+Reproduced during N11's actual production-UI acceptance check in
+`.artifacts/p8-gibs/settings-acceptance-runs/apply-r2/02-thirty-unapplied.png` (also captures 01
+and 04). `GroundUi.Settings.cs` draws that sentence from design x=506 without a width limit;
+footer buttons begin at x=934. Saved-state text fits. APPLY/cancel/persistence passed, so this
+is a layout defect rather than a settings-save failure. The admin/UI owner implemented a
+footer-only candidate with compact complete APPLY/Escape guidance and a measured GPU-text
+column ending 16 design pixels before the unchanged buttons. Shared and isolated capture-host
+builds pass. After the earlier resource preflight hold, all three native captures completed:
+1600x900 scale 1, 1280x720 scale 0.8125 and 1920x1080 scale 1.25. Root inspected all nine
+dirty/saved/after-cancel images: the complete status and GPU line remain clear of the four
+buttons. Actual APPLY and Escape input paths passed in each process (116/116 combined
+assertions), with unchanged real preferences and empty stderr. Receipts and images:
+`.artifacts/admin-settings-footer/runs/{automatic900-r1,automatic720-r1,scaled1080-r1}/`.
+This closes the footer layout defect; broader physical-input and in-world settings acceptance
+are separate. See RECOVERY for resource measurements and checkpoint preservation.
+
+## Environment foundation validation and remaining gates — 18 October 2026
+
+Biome weights previously exceeded one when ice and alpine overlapped. Corrected the
+remaining-land partition and explicitly initialized offshore relief fields. Independent
+world/sample tests pass; generated population compatibility advances Earth to save revision
+5, other walking bodies to 2 and protocol to 37 without changing landform seeds/heights.
+Previous saves are preserved and refused. Terrain/grass job retirement and physics disposal
+now pass targeted native/lifetime checks. WORLD_ENVIRONMENT_ARCHITECTURE.md records the
+implemented foundation and the unimplemented bounded-store/scenery work.
+
+Full acceptance remains open: the broad suite did not complete under available memory;
+large-furnace fire-effect catalogue and station-firing checks reported failures. A standalone
+BatteryTests process also reached the memory guard. Hosted capture attempts produced no
+usable screenshot (first outer timeout, then memory-guarded retries); they establish no
+visual or GPU performance claim. The earlier Jolt native mesh-shape abort is still unassigned,
+even though disposal now drains workers after managed failures. See DEVELOPMENT.md's
+Environment architecture and T0 checkpoint for commands, evidence paths and exact limits.
+
+Follow-up: hosted High capture r13 now produced an inspected 1600×900 baseline after
+replacing a timed-out WMI memory query with direct Windows memory counters, with unchanged
+guard limits. The view confirms the long straight cliff wall, disconnected rock dressing
+and uneven grass coverage are still open defects. The new closed module is not active.
+The capture also logged an unrelated missing metal-blade import and exit resource warnings;
+it is useful visual evidence, not clean acceptance or a performance measurement. The item
+was subsequently imported. See `.artifacts/environment-ownership/hosted-high-r13/`.

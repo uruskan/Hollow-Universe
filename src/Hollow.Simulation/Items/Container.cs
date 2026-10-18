@@ -280,6 +280,10 @@ public sealed class Container
         {
             return false;
         }
+        if (Deployable?.Defense is { } defense)
+        {
+            return defense.Accepts(content, this, slot, stack);
+        }
         switch (Kind)
         {
             case ContainerKind.Wear:

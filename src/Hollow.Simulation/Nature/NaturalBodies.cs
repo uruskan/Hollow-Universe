@@ -1,5 +1,7 @@
+using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Threading;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Physics;
@@ -13,10 +15,13 @@ namespace Hollow.Simulation.Nature;
 /// back (<see cref="NaturalState.PresenceChanged"/>). The server's zone and every client's prediction run one, so
 /// both collide with the same trees. An object belongs to the ground tile its base lies in.
 /// </summary>
-public sealed class NaturalBodies : ITileListener
+public sealed class NaturalBodies : ITileListener, IDisposable
 {
-    private readonly PhysicsWorld _world;
-    private readonly NaturalState _state;
+    private PhysicsWorld? _world;
+    private NaturalState? _state;
+    private readonly object _lifetime = new();
+    private int _callbacks;
+    private bool _stopped, _disposed;
     private readonly List<NaturalObject> _scratch = new();
     private readonly List<ulong> _ids = new();
 
@@ -34,62 +39,64 @@ public sealed class NaturalBodies : ITileListener
 
     public void TileAdded(TileKey tile)
     {
-        List<NaturalObject> objects = TileObjects(tile, _scratch);
-        using TickProfile.Scope _ = _world.Profile.Time(ProfileSection.PropAdd);
-        _ids.Clear();
-        foreach (NaturalObject o in objects)
+        if (!Enter(out PhysicsWorld world, out NaturalState state)) return;
+        try
         {
-            if (_state.Content.Natural(o.Kind) is not { IsSolid: true })
+            List<NaturalObject> objects = TileObjects(world, state, tile, _scratch);
+            using TickProfile.Scope _ = world.Profile.Time(ProfileSection.PropAdd);
+            _ids.Clear();
+            foreach (NaturalObject o in objects)
             {
-                continue;
+                if (state.Content.Natural(o.Kind) is not { IsSolid: true }) continue;
+                _ids.Add(o.Id);
+                if (!state.IsDepleted(o.Id)) Add(world, state, o);
             }
-            _ids.Add(o.Id);
-            if (!_state.IsDepleted(o.Id))
-            {
-                Add(o);
-            }
+            _solid[tile] = _ids.ToArray();
         }
-        _solid[tile] = _ids.ToArray();
+        finally { Leave(); }
     }
 
     /// <summary>On a worker thread: the tile's objects are generated (and cached) before the tick adds the tile.</summary>
-    public void TilePreparing(TileKey tile) => TileObjects(tile, new List<NaturalObject>(), timed: false);
+    public void TilePreparing(TileKey tile)
+    {
+        if (!Enter(out PhysicsWorld world, out NaturalState state)) return;
+        try { TileObjects(world, state, tile, new List<NaturalObject>(), timed: false); }
+        finally { Leave(); }
+    }
 
     public void TileRemoved(TileKey tile)
     {
-        using TickProfile.Scope _ = _world.Profile.Time(ProfileSection.PropRemove);
-        if (!_solid.Remove(tile, out ulong[]? ids))
+        if (!Enter(out PhysicsWorld world, out _)) return;
+        try
         {
-            return;
+            using TickProfile.Scope _ = world.Profile.Time(ProfileSection.PropRemove);
+            if (!_solid.Remove(tile, out ulong[]? ids)) return;
+            foreach (ulong id in ids) world.RemoveProp(PropLayer.Nature, id);
         }
-        foreach (ulong id in ids)
-        {
-            _world.RemoveProp(PropLayer.Nature, id);
-        }
+        finally { Leave(); }
     }
 
     /// <summary>An object was felled or grew back: follow it, if its tile is in the world.</summary>
     public void Refresh(ulong id)
     {
-        if (_state.IsDepleted(id))
+        if (!Enter(out PhysicsWorld world, out NaturalState state)) return;
+        try
         {
-            // Felled: its body goes, if it has one (nothing to look up for that).
-            _world.RemoveProp(PropLayer.Nature, id);
-            return;
+            if (state.IsDepleted(id))
+            {
+                // Felled: its body goes, if it has one (nothing to look up for that).
+                world.RemoveProp(PropLayer.Nature, id);
+                return;
+            }
+            if (state.Objects.TryGet(id, out NaturalObject o) && world.HasTile(world.TileOf(o.Position)))
+                Add(world, state, o);
         }
-        if (!_state.Objects.TryGet(id, out NaturalObject o))
-        {
-            return;
-        }
-        if (_world.HasTile(_world.TileOf(o.Position)))
-        {
-            Add(o);
-        }
+        finally { Leave(); }
     }
 
-    private void Add(in NaturalObject o)
+    private static void Add(PhysicsWorld world, NaturalState state, in NaturalObject o)
     {
-        NaturalKind? kind = _state.Content.Natural(o.Kind);
+        NaturalKind? kind = state.Content.Natural(o.Kind);
         if (kind == null || !kind.IsSolid)
         {
             return;
@@ -97,25 +104,82 @@ public sealed class NaturalBodies : ITileListener
         if (kind.Class == NaturalClass.Tree)
         {
             (Vector3 a, Vector3 b, float radius) = NaturalShapes.Trunk(o, kind);
-            _world.AddProp(PropLayer.Nature, o.Id, PropShape.Capsule(a, b, radius, o.Up));
+            world.AddProp(PropLayer.Nature, o.Id, PropShape.Capsule(a, b, radius, o.Up));
         }
         else
         {
             (Vector3 centre, float radius) = NaturalShapes.Rock(o, kind);
-            _world.AddProp(PropLayer.Nature, o.Id, PropShape.Sphere(centre, radius));
+            world.AddProp(PropLayer.Nature, o.Id, PropShape.Sphere(centre, radius));
         }
     }
 
     // The objects whose base lies in a ground tile: those near its centre, kept when the tile holds them. Timed on the
     // tick's thread only: the profile is that thread's, and a worker preparing a tile would race it and count as the tick.
-    private List<NaturalObject> TileObjects(TileKey tile, List<NaturalObject> into, bool timed = true)
+    private static List<NaturalObject> TileObjects(PhysicsWorld world, NaturalState state, TileKey tile, List<NaturalObject> into, bool timed = true)
     {
-        using TickProfile.Scope _ = (timed ? _world.Profile : null).Time(ProfileSection.NatureQuery);
+        using TickProfile.Scope _ = (timed ? world.Profile : null).Time(ProfileSection.NatureQuery);
         into.Clear();
-        double edge = TileKey.EdgeLength(tile.Level, _world.Surface.Radius);
-        Vector3 centre = _world.Frame.ToLocal(tile.Centre * _world.Surface.Radius);
-        _state.Objects.Query(centre, (float)(edge * 1.1) + 20f, into);
-        into.RemoveAll(o => _world.TileOf(o.Position) != tile);
+        double edge = TileKey.EdgeLength(tile.Level, world.Surface.Radius);
+        Vector3 centre = world.Frame.ToLocal(tile.Centre * world.Surface.Radius);
+        state.Objects.Query(centre, (float)(edge * 1.1) + 20f, into);
+        into.RemoveAll(o => world.TileOf(o.Position) != tile);
         return into;
+    }
+
+    private bool Enter(out PhysicsWorld world, out NaturalState state)
+    {
+        lock (_lifetime)
+        {
+            world = _world!;
+            state = _state!;
+            if (_stopped) return false;
+            _callbacks++;
+            return true;
+        }
+    }
+
+    private void Leave()
+    {
+        lock (_lifetime)
+        {
+            if (--_callbacks == 0) Monitor.PulseAll(_lifetime);
+        }
+    }
+
+    /// <summary>Detaches the owning-thread subscriptions and refuses even callbacks captured before retirement.</summary>
+    public void Stop()
+    {
+        lock (_lifetime)
+        {
+            if (_stopped) return;
+            _stopped = true;
+            NaturalState state = _state!;
+            PhysicsWorld world = _world!;
+            state.PresenceChanged -= Refresh;
+            if (ReferenceEquals(world.Listener, this)) world.Listener = null;
+        }
+    }
+
+    /// <summary>
+    /// Drains admitted callbacks outside the physics gate, then releases their source references. Existing prop
+    /// bodies remain owned by PhysicsWorld and are released by its teardown; this listener does not own the world.
+    /// </summary>
+    public void Dispose()
+    {
+        lock (_lifetime) { if (_disposed) return; }
+        if (JoltRuntime.Gate.IsHeldByCurrentThread)
+            throw new InvalidOperationException("Natural body retirement must run outside the Jolt gate.");
+        Stop();
+        lock (_lifetime)
+        {
+            while (_callbacks != 0) Monitor.Wait(_lifetime);
+            if (_disposed) return;
+            _world = null;
+            _state = null;
+            _scratch.Clear();
+            _ids.Clear();
+            _solid.Clear();
+            _disposed = true;
+        }
     }
 }

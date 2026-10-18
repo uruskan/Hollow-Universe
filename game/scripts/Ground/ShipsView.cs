@@ -58,17 +58,36 @@ public partial class ShipsView : Node3D
             if (_stations == null)
             {
                 _stations = new StationsView { Client = Client };
-                Client.Stations().Shot += shot =>
-                {
-                    if (Client.Ships().ShipByNetId(shot.Ship)?.Def is { } def)
-                    {
-                        _stations.Shot(shot, def);
-                    }
-                };
+                Client.Stations().Shot += OnStationShot;
             }
             return _stations;
         }
     }
+
+    private void OnStationShot(StationShotView shot)
+    {
+        if (Client.Ships().ShipByNetId(shot.Ship)?.Def is { } def) _stations?.Shot(shot, def);
+    }
+
+    /// <summary>Ship IDs, station state and their native views belong to the retiring session.</summary>
+    public void RetireWorld()
+    {
+        if (_stations != null) Client.Stations().Shot -= OnStationShot;
+        foreach ((uint id, Drawn drawn) in _drawn)
+        {
+            drawn.Sounds?.StopAll();
+            StopEffects(drawn);
+            FxDirector.Stop(drawn.Fire, immediate: true);
+            _stations?.Forget(id);
+            if (drawn.View.GetParent() == this) RemoveChild(drawn.View);
+            drawn.View.QueueFree();
+        }
+        _drawn.Clear(); _seen.Clear(); _gone.Clear();
+        _stations = null;
+        _space = SoundSpace.Open; _delta = 0; Cockpit = false;
+    }
+
+    public override void _ExitTree() => RetireWorld();
 
     /// <summary>The player's own ship is seen from its cockpit: its plumes nearest the eye hide.</summary>
     public bool Cockpit { get; set; }
@@ -220,8 +239,8 @@ public partial class ShipsView : Node3D
             Vector3 point = GroundView.ToGodot(under), normal = GroundView.ToGodot(ground.Value.Normal(under).Normal);
             if (!d.Wash[i].IsValid)
             {
-                FxSurface surface = GroundAudio.WaterDepth(Client, under) > 0.05 ? FxSurface.Water : FxSurfaces.Of(GroundAudio.MaterialAt(Client, under));
-                d.Wash[i] = FxDirector.Start("wash.lift", point, normal, new FxParams { Tint = FxSurfaces.Dust(surface) });
+                string surface = GroundAudio.PhysicalSurfaceAt(Client, under);
+                d.Wash[i] = FxDirector.Start("wash.lift", point, normal, new FxParams { Tint = ContactFeedback.Dust(surface) });
             }
             FxDirector.Move(d.Wash[i], point);
             FxDirector.SetIntensity(d.Wash[i], k);

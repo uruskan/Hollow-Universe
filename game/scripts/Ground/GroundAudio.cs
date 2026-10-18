@@ -147,7 +147,7 @@ public partial class GroundAudio : Node
             _surfaceAt = feet;
             _surfaceFrame = c.Frame;
             _surfaceIn = 0.25;
-            _surface = SurfaceAt(Client, feet, c.Frame);
+            _surface = SurfaceAt(Client, feet, c.Frame, c.Position);
         }
         FootInput input = Footsteps.Input(c, Client.Frame, sprinting, _surface, c.Frame == 0 ? WaterDepth(Client, feet) : 0);
         input.FootwearProfile = SoundLibrary.Footwear.Profile(Client.Content, Client.Local.Inventory.Wear.Slots);
@@ -155,20 +155,21 @@ public partial class GroundAudio : Node
     }
 
     /// <summary>What the ground sounds like underfoot at a point (zone frame): the strongest ground material there.</summary>
-    public static FootSurface SurfaceAt(GameClient client, Num.Vector3 local, ulong movementFrame = 0) =>
-        client.Surface is { } surface ? FootstepEnvironment.At(surface, client.Frame, client.Building().World, local, movementFrame) : FootSurface.Grass;
+    public static FootSurface SurfaceAt(GameClient client, Num.Vector3 local, ulong movementFrame = 0, Num.Vector3? frameFeet = null) =>
+        client.Surface is { } surface ? FootstepEnvironment.At(client.Content, ContactFeedback.Data, surface, client.Frame,
+            client.Building().World, local, movementFrame, client.Ships(), client.Survival(), frameFeet) : FootSurface.Grass;
 
     /// <summary>
     /// The ground's main material at a point (zone frame): grass, dirt, sand, rock… as the terrain paints it there
     /// (<see cref="ISurface.Cover"/>, any surface); grass before the world is known.
     /// </summary>
-    public static GroundMaterial MaterialAt(GameClient client, Num.Vector3 local)
+    public static string PhysicalSurfaceAt(GameClient client, Num.Vector3 local)
     {
         if (client.Surface is not { } surface)
         {
-            return GroundMaterial.Grass;
+            return "unknown";
         }
-        return FootstepEnvironment.MaterialAt(surface, client.Frame, local);
+        return client.Content.Surfaces.Key(client.Content.Surfaces.AtGround(surface, client.Frame, local));
     }
 
     /// <summary>Sea or inland water over a point (zone frame), metres; 0 on land.</summary>

@@ -1,0 +1,19 @@
+{
+  "schema": "forest-source-normal-repair-v1",
+  "status": "proposed-unadmitted",
+  "baseModuleReceiptSha256": "3d2e6b018f87eb7a263808a3023ec744003a8f260ac1b934c8518d8d48e00494",
+  "diagnosticReceiptSha256": "e31eaecfef97d1fc46d65db90ef3d5c3c117f86836d580666ca6fb5b1e5a0d93",
+  "policy": {
+    "algorithm": "exact-minimum-change-incident-halfspaces-v1",
+    "marginDivisor": 256,
+    "maximumAffectedVerticesPerLod": 64,
+    "maximumIncidentFacesPerVertex": 32,
+    "maximumCandidates": 65536,
+    "maximumConstraintTests": 1000000,
+    "maximumCornerTests": 600000,
+    "maximumArithmeticOperations": 16000000,
+    "maximumRationalBits": 8192,
+    "maximumExtraReservedBytes": 67108864
+  },
+  "artReview": "Only exact defective original indexed vertex normals may change. All incident faces constrain each repair. Preserve POSITION, UV, index/corner order, closure and physical/contact geometry. Regenerate Mikk and inspect before/after normal and grazing PBR views; mathematical outwardness does not approve appearance."
+}

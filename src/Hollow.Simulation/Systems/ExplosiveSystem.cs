@@ -615,7 +615,8 @@ public sealed class ExplosiveSystem : ZoneSystem
             at = now.ToWorld(seen.ToLocal(at));
             direction = now.DirectionToWorld(seen.DirectionToLocal(direction));
         }
-        Damage.Blast(blast, at, -direction, hit.Target, hit.Target.Family, b.Shooter, shooter?.Name ?? b.ShooterName, b.Ammo.Id, round: b.Damage > 0);
+        Damage.Blast(blast, at, -direction, hit.Target, hit.Target.Family, b.Shooter, shooter?.Name ?? b.ShooterName, b.Ammo.Id,
+            round: b.Damage > 0, attack: b.Attack, actionTick: b.ActionTick);
     }
 
     // ---------------------------------------------------------------- saving and loading

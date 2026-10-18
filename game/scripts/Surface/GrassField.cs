@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Godot;
 using Hollow.Core;
@@ -10,7 +11,7 @@ namespace HollowUniverse.Surface;
 
 /// <summary>
 /// The grass of the surface view (GROUND.md §4.6, docs/WHOLE_WORLD.md §10.3): presentation only, not part of the scatter,
-/// with a dense short blade underlayer and diverse authored grass/fern crowns around the camera.
+/// with a continuous vertex-shader grass field and diverse authored grass/fern crowns around the camera.
 /// Every tuft belongs to a cell of a cube face at the level nearest 0.46 m (level 13 on a 2.41 km world), so what grows
 /// in it (place, size, lean, colour, kind) comes from a hash of the cell and never shifts as the camera moves; near a
 /// face seam each face's cells are drawn by a grid of their own (up to three at a corner), each keeping the cells whose
@@ -57,6 +58,7 @@ public sealed partial class GrassField : Node3D
     {
         public Vector3D Anchor; // body-frame point the nodes are measured from
         public readonly List<FaceLattice> Faces = new();
+        public readonly List<SpatialTileData> SpatialTiles = new();
     }
 
     // What draws one face's cells: the grass and the litter grids, and the face's lattice textures.
@@ -68,7 +70,6 @@ public sealed partial class GrassField : Node3D
         public ShaderMaterial LitterMaterial = null!;
         public Image? Nodes, Cover;
         public ImageTexture? NodesTexture, CoverTexture;
-        public FaceLattice? Lattice;
     }
 
     private ISurface _surface = null!;
@@ -89,13 +90,14 @@ public sealed partial class GrassField : Node3D
     public int Tufts => _coverCount;
 
     /// <summary>True when the field around the camera is in place (or the camera is too high for grass).</summary>
-    public bool IsIdle => !_near || (_ready && _job == null);
+    public bool IsIdle => _setupComplete && !_stopped && ContactReady && (!_near || (_ready && _job == null && _spatialStaging == null && !_requiredJobFailed));
 
     /// <summary>The cube-sphere level of the grass's cells.</summary>
     public int Level => _level;
 
     public void Setup(ISurface surface, RenderFrame frame, int finestLevel, FloraLibrary library, TextureLayered groundAlbedo, Texture noise, Vector3 bladeMean)
     {
+        BeginSetup();
         // Render diagnosis only: retain loading, generation and readiness while exposing the identical terrain.
         Visible = Array.IndexOf(OS.GetCmdlineUserArgs(), "--hide-ground-cover") < 0;
         _surface = surface;
@@ -114,6 +116,8 @@ public sealed partial class GrassField : Node3D
         _gridWidth = (int)Math.Ceiling(2 * _far / _cellMetres) + 2;
         _litterWidth = (int)Math.Ceiling(2 * _litterFar / _cellMetres) + 2;
         _latticeSize = (int)Math.Ceiling(2 * (_far + Recentre) / _cellMetres) + 4;
+        ConfigureSpatialDiagnostics(OS.GetCmdlineUserArgs());
+        _buildContext = CaptureBuildContext(surface, frame);
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_grass.gdshader") };
         material.SetShaderParameter("grid_width", _gridWidth);
         material.SetShaderParameter("far_radius", _far);
@@ -140,8 +144,9 @@ public sealed partial class GrassField : Node3D
         material.SetShaderParameter("ground_albedo", groundAlbedo);
         material.SetShaderParameter("macro_noise", noise);
         material.SetShaderParameter("blade_mean", bladeMean);
-        Mesh tuft = TuftMesh(), litter = LitterMesh();
-        for (int g = 0; g < _grids.Length; g++)
+        Mesh tuft = TuftMesh(_spatialCells == 0), litter = LitterMesh(_spatialCells == 0);
+        if (_spatialCells != 0) SetupSpatialResources(material, tuft, litter);
+        for (int g = 0; _spatialCells == 0 && g < _grids.Length; g++)
         {
             var grid = new FaceGrid { GrassMaterial = (ShaderMaterial)material.Duplicate() };
             grid.Grass = Instance(tuft, grid.GrassMaterial, _gridWidth);
@@ -155,6 +160,7 @@ public sealed partial class GrassField : Node3D
             _grids[g] = grid;
         }
         SetupAuthoredCover();
+        _setupComplete = true;
     }
 
     // A grid of width² instances, every instance placed by the shader (the transforms are identity).
@@ -188,7 +194,7 @@ public sealed partial class GrassField : Node3D
 
     // Litter pieces lying on the ground: three cards of the atlas at random turns and places in the cell, their ends
     // curling up a little. UV as the tufts' (x across, y along); colour alpha 0 (no blade gradient).
-    private static ArrayMesh LitterMesh()
+    private static ArrayMesh LitterMesh(bool wholeFaceBounds = true)
     {
         var positions = new List<Vector3>();
         var normals = new List<Vector3>();
@@ -236,17 +242,21 @@ public sealed partial class GrassField : Node3D
         arrays[(int)Mesh.ArrayType.Index] = indices.ToArray();
         var mesh = new ArrayMesh();
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
-        mesh.CustomAabb = new Aabb(new Vector3(-6000, -6000, -6000), new Vector3(12000, 12000, 12000));
+        if (wholeFaceBounds) mesh.CustomAabb = new Aabb(new Vector3(-6000, -6000, -6000), new Vector3(12000, 12000, 12000));
         return mesh;
     }
 
     // A tuft at unit height: hollow-orbit's grass clump, cards leaning out around the centre with a curved profile.
     // UV: x across the card, y from the foot (0) to the tip (1); colour alpha: the same height fraction.
-    private static ArrayMesh TuftMesh()
+    // CUSTOM0.xy/zw: this side's and the opposite side's constant foot XZ, before taper/growth.
+    // Paired feet let every vertex reject the whole card when either endpoint lacks drawn-terrain support.
+    private static ArrayMesh TuftMesh(bool wholeFaceBounds = true)
     {
         var positions = new List<Vector3>();
         var normals = new List<Vector3>();
         var uvs = new List<Vector2>();
+        var growth = new List<Vector2>();
+        var feet = new List<float>();
         var colours = new List<Color>();
         var indices = new List<int>();
         var r = new Rng(201);
@@ -278,6 +288,13 @@ public sealed partial class GrassField : Node3D
                     positions.Add(c + side * (sd == 0 ? -1 : 1) * (1 - 0.3f * t));
                     normals.Add(normal);
                     uvs.Add(new Vector2(sd == 0 ? u0 : u1, t));
+                    // Separate authored lean/curl from root spread and blade width. Shortening a tuft
+                    // must shorten that growth too, or upright blades become flattened ribbons.
+                    Vector3 bend = up * t + curl * (t * t);
+                    growth.Add(new Vector2(bend.X, bend.Z));
+                    Vector3 foot = offset + side * (sd == 0 ? -1 : 1);
+                    Vector3 oppositeFoot = offset + side * (sd == 0 ? 1 : -1);
+                    feet.Add(foot.X); feet.Add(foot.Z); feet.Add(oppositeFoot.X); feet.Add(oppositeFoot.Z);
                     colours.Add(new Color(1, 1, 1, t));
                 }
             }
@@ -292,12 +309,15 @@ public sealed partial class GrassField : Node3D
         arrays[(int)Mesh.ArrayType.Vertex] = positions.ToArray();
         arrays[(int)Mesh.ArrayType.Normal] = normals.ToArray();
         arrays[(int)Mesh.ArrayType.TexUV] = uvs.ToArray();
+        arrays[(int)Mesh.ArrayType.TexUV2] = growth.ToArray();
+        arrays[(int)Mesh.ArrayType.Custom0] = feet.ToArray();
         arrays[(int)Mesh.ArrayType.Color] = colours.ToArray();
         arrays[(int)Mesh.ArrayType.Index] = indices.ToArray();
         var mesh = new ArrayMesh();
-        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
+        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null,
+            (Mesh.ArrayFormat)((int)Mesh.ArrayCustomFormat.RgbaFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift));
         // Placed by the shader anywhere: never culled by the mesh's own small box.
-        mesh.CustomAabb = new Aabb(new Vector3(-6000, -6000, -6000), new Vector3(12000, 12000, 12000));
+        if (wholeFaceBounds) mesh.CustomAabb = new Aabb(new Vector3(-6000, -6000, -6000), new Vector3(12000, 12000, 12000));
         return mesh;
     }
 
@@ -309,37 +329,51 @@ public sealed partial class GrassField : Node3D
     /// </summary>
     public void UpdateGrass(Vector3D camera, double altitude, bool walking)
     {
+        if (!_setupComplete || _stopped) return;
         bool near = altitude < _far;
         _near = near;
         if (_job != null && _job.IsCompleted)
         {
-            if (!_job.IsFaulted)
+            if (_jobEpoch != _epoch)
             {
-                _field = _job.Result;
-                Upload(_field);
-                _coverDirty = true;
+                _workers.Monitor.Discarded();
+            }
+            else if (_job.IsCompletedSuccessfully)
+            {
+                if (_spatialCells != 0) BeginSpatialUpload(_job.Result);
+                else
+                {
+                    _field = _job.Result;
+                    Upload(_field);
+                    _coverDirty = true;
+                    _requiredJobFailed = false;
+                }
             }
             else
             {
-                GD.PushError($"Grass field failed: {_job.Exception}");
+                _requiredJobFailed = true;
+                if (_job.IsFaulted) GD.PushError($"Grass field failed: {_job.Exception}");
             }
             _job = null;
         }
+        if (_spatialCells != 0) ContinueSpatialUpload();
         Vector3D ground = camera.Normalized * (_surface.Radius + _surface.HeightAt(camera.Normalized));
-        if (near && _job == null && Vector3D.Distance(ground, _centre) > Recentre)
+        if (near && _job == null && _spatialStaging == null && !_requiredJobFailed && Vector3D.Distance(ground, _centre) > Recentre)
         {
             _centre = ground;
-            _job = Task.Run(() => Build(ground));
+            _jobEpoch = _epoch;
+            _job = _workers.Start(_buildContext!, ground);
         }
         _ready = _field != null;
         bool show = near && _field != null;
         Vector3 cameraRender = _frame.ToRender(camera);
-        for (int g = 0; g < _grids.Length; g++)
+        if (_spatialCells != 0) UpdateSpatialVisibility(camera, cameraRender, walking, show);
+        for (int g = 0; _spatialCells == 0 && g < _grids.Length; g++)
         {
             FaceGrid grid = _grids[g];
             FaceLattice? lattice = show && g < _field!.Faces.Count ? _field.Faces[g] : null;
-            grid.Grass.Visible = lattice != null;
-            grid.Litter.Visible = lattice != null;
+            grid.Grass.Visible = lattice != null && (_diagnosticLayers & GroundCoverLayers.Grass) != 0;
+            grid.Litter.Visible = lattice != null && (_diagnosticLayers & GroundCoverLayers.Litter) != 0;
             if (lattice == null)
             {
                 continue;
@@ -363,6 +397,9 @@ public sealed partial class GrassField : Node3D
 
     // A body-frame point's place on a face, in cells (fractional; may lie beyond the face's edge).
     private (double U, double V) CellOn(int face, Vector3D point)
+        => CellOn(_faceCells, face, point);
+
+    private static (double U, double V) CellOn(long faceCells, int face, Vector3D point)
     {
         Vector3D n = CubeSphere.Normal(face);
         double dn = Vector3D.Dot(point, n);
@@ -372,7 +409,7 @@ public sealed partial class GrassField : Node3D
         }
         double u = CubeSphere.Unwarp(Vector3D.Dot(point, CubeSphere.AxisU(face)) / dn);
         double v = CubeSphere.Unwarp(Vector3D.Dot(point, CubeSphere.AxisV(face)) / dn);
-        return ((u + 1) * 0.5 * _faceCells, (v + 1) * 0.5 * _faceCells);
+        return ((u + 1) * 0.5 * faceCells, (v + 1) * 0.5 * faceCells);
     }
 
     private void Upload(FieldData field)
@@ -381,7 +418,6 @@ public sealed partial class GrassField : Node3D
         {
             FaceGrid grid = _grids[g];
             FaceLattice lattice = field.Faces[g];
-            grid.Lattice = lattice;
             byte[] nodes = new byte[lattice.Nodes.Length * 4];
             Buffer.BlockCopy(lattice.Nodes, 0, nodes, 0, nodes.Length);
             byte[] cover = new byte[lattice.Cover.Length * 4];
@@ -413,31 +449,39 @@ public sealed partial class GrassField : Node3D
                 material.SetShaderParameter("face_origin", new Vector2((float)lattice.OriginU, (float)lattice.OriginV));
             }
         }
+        WriteAppearanceDiagnostic(field);
     }
 
     // ---------------------------------------------------------------- the lattice (worker thread)
 
-    private FieldData Build(Vector3D anchor)
+    private static FieldData Build(BuildContext context, Vector3D anchor, CancellationToken cancellation)
     {
+        cancellation.ThrowIfCancellationRequested();
         var field = new FieldData { Anchor = anchor };
         var heights = new Dictionary<(int, long, long), (double Height, double Water)>();
-        foreach (int face in FacesNear(anchor))
+        List<int> faces = FacesNear(context, anchor);
+        if (context.SpatialCells != 0 && faces.Count > context.MaximumFaces)
+            throw new InvalidOperationException("The diagnostic grass window crosses more than three cube faces; this field cannot admit it completely.");
+        foreach (int face in faces)
         {
-            if (field.Faces.Count < _grids.Length)
+            cancellation.ThrowIfCancellationRequested();
+            if (field.Faces.Count < context.MaximumFaces)
             {
-                field.Faces.Add(BuildFace(face, anchor, heights));
+                field.Faces.Add(BuildFace(context, face, anchor, heights, cancellation));
             }
         }
+        if (context.SpatialCells != 0) BuildSpatialTiles(context, field, cancellation);
+        cancellation.ThrowIfCancellationRequested();
         return field;
     }
 
     // The faces whose cells lie within the lattice's reach of a point: its own, and those across a seam or a corner near
     // it (found by sampling the square around it on its own face, whose coordinates run on past the edge).
-    private List<int> FacesNear(Vector3D point)
+    private static List<int> FacesNear(BuildContext context, Vector3D point)
     {
         (int face, double u, double v) = CubeSphere.FromDirection(point);
         var faces = new List<int> { face };
-        double reach = (_latticeSize / 2 + 1) * 2.0 / _faceCells;
+        double reach = (context.LatticeSize / 2 + 1) * 2.0 / context.FaceCells;
         for (int j = -4; j <= 4; j++)
         {
             for (int i = -4; i <= 4; i++)
@@ -453,10 +497,12 @@ public sealed partial class GrassField : Node3D
         return faces;
     }
 
-    private FaceLattice BuildFace(int face, Vector3D anchor, Dictionary<(int, long, long), (double Height, double Water)> heights)
+    private static FaceLattice BuildFace(BuildContext context, int face, Vector3D anchor,
+        Dictionary<(int, long, long), (double Height, double Water)> heights, CancellationToken cancellation)
     {
-        int n = _latticeSize;
-        (double cu, double cv) = CellOn(face, anchor);
+        int n = context.LatticeSize;
+        ISurface surface = context.Surface;
+        (double cu, double cv) = CellOn(context.FaceCells, face, anchor);
         var lattice = new FaceLattice
         {
             Face = face,
@@ -465,28 +511,29 @@ public sealed partial class GrassField : Node3D
             Nodes = new float[n * n * 4],
             Cover = new float[n * n * 4],
         };
-        double span = 2.0 / _faceCells;
+        double span = 2.0 / context.FaceCells;
         double U(long cell) => -1 + cell * span;
-        (double ou, double ov) = TileMesh.FaceMetresOf(U(lattice.CornerX), U(lattice.CornerY), _surface.Radius);
+        (double ou, double ov) = TileMesh.FaceMetresOf(U(lattice.CornerX), U(lattice.CornerY), surface.Radius);
         lattice.OriginU = ou - Math.Round(ou / TileMesh.TexturePeriod) * TileMesh.TexturePeriod;
         lattice.OriginV = ov - Math.Round(ov / TileMesh.TexturePeriod) * TileMesh.TexturePeriod;
         var points = new Vector3D[n * n];
         var bare = new bool[n * n];
-        WalkingWorld? walking = _surface as WalkingWorld;
+        WalkingWorld? walking = surface as WalkingWorld;
         for (int b = 0; b < n; b++)
         {
+            cancellation.ThrowIfCancellationRequested();
             for (int a = 0; a < n; a++)
             {
                 Vector3D d = CubeSphere.Direction(face, U(lattice.CornerX + a), U(lattice.CornerY + b));
-                double h = TriangleHeight(d, heights, out double water);
-                Vector3D p = d * (_surface.Radius + h);
+                double h = TriangleHeight(context, d, heights, out double water);
+                Vector3D p = d * (surface.Radius + h);
                 points[b * n + a] = p;
                 bare[b * n + a] = h < water + 0.12 || walking?.Monuments.At(d, 2) != null;
-                Vector3 local = _frame.DirectionToRender(p - anchor);
+                Vector3D local = p - anchor;
                 int k = (b * n + a) * 4;
-                lattice.Nodes[k] = local.X;
-                lattice.Nodes[k + 1] = local.Y;
-                lattice.Nodes[k + 2] = local.Z;
+                lattice.Nodes[k] = (float)Vector3D.Dot(local, context.East);
+                lattice.Nodes[k + 1] = (float)Vector3D.Dot(local, context.Up);
+                lattice.Nodes[k + 2] = (float)Vector3D.Dot(local, context.South);
             }
         }
         // Grass density, moisture, flowers, litter and small plants on a coarser grid, then spread bilinearly.
@@ -497,20 +544,21 @@ public sealed partial class GrassField : Node3D
         Span<double> materials = stackalloc double[BiomeTable.MaterialCount];
         for (int b = 0; b < coarse; b++)
         {
+            cancellation.ThrowIfCancellationRequested();
             for (int a = 0; a < coarse; a++)
             {
                 int ta = Math.Min(a * CoarseStep, n - 1), tb = Math.Min(b * CoarseStep, n - 1);
                 Vector3D p = points[tb * n + ta];
                 Vector3D d = p.Normalized;
-                SurfaceSample s = _surface.Sample(d);
+                SurfaceSample s = surface.Sample(d);
                 // Slope from the lattice's own points, over a couple of metres.
                 int a0 = Math.Max(ta - 2, 0), a1 = Math.Min(ta + 2, n - 1), b0 = Math.Max(tb - 2, 0), b1 = Math.Min(tb + 2, n - 1);
                 Vector3D normal = Vector3D.Cross(points[tb * n + a1] - points[tb * n + a0], points[b1 * n + ta] - points[b0 * n + ta]).Normalized;
                 double cos = Math.Abs(Vector3D.Dot(normal, d));
                 double slope = Math.Sqrt(Math.Max(0, 1 - cos * cos));
-                GroundCover c = _surface.Cover(d, s, slope, biomes, materials);
+                GroundCover c = surface.Cover(d, s, slope, biomes, materials);
                 BiomeTable.FoldFamilies(materials);
-                GroundDetailCover detail = GroundDetailCover.At(c, slope, s.Height - _surface.WaterLevelAt(d), biomes, materials);
+                GroundDetailCover detail = GroundDetailCover.At(c, slope, s.Height - surface.WaterLevelAt(d), biomes, materials);
                 int k = (b * coarse + a) * Channels;
                 climate[k] = (float)detail.Grass;
                 climate[k + 1] = (float)c.Moisture;
@@ -521,6 +569,7 @@ public sealed partial class GrassField : Node3D
         }
         for (int b = 0; b < n; b++)
         {
+            cancellation.ThrowIfCancellationRequested();
             for (int a = 0; a < n; a++)
             {
                 float fa = a / (float)CoarseStep, fb = b / (float)CoarseStep;
@@ -546,15 +595,16 @@ public sealed partial class GrassField : Node3D
                 }
             }
         }
-        PopulateAuthoredCover(lattice, points, bare);
+        PopulateAuthoredCover(context, lattice, points, bare, cancellation);
         return lattice;
     }
 
     // Height above the mean radius of the drawn ground along a direction: the finest tiles' triangles, which follow the
     // surface's heights at their vertex lattice (TileMesh: 32 cells a tile, the same diagonal everywhere), interpolated.
-    private double TriangleHeight(Vector3D d, Dictionary<(int, long, long), (double Height, double Water)> cache, out double water)
+    private static double TriangleHeight(BuildContext context, Vector3D d,
+        Dictionary<(int, long, long), (double Height, double Water)> cache, out double water)
     {
-        double n = 1L << _heightShift;
+        double n = 1L << context.HeightShift;
         (int face, double u, double v) = CubeSphere.FromDirection(d);
         double gu = (u + 1) * 0.5 * n, gv = (v + 1) * 0.5 * n;
         long i = (long)Math.Floor(gu), j = (long)Math.Floor(gv);
@@ -564,7 +614,7 @@ public sealed partial class GrassField : Node3D
             if (!cache.TryGetValue((face, a, b), out var h))
             {
                 Vector3D at = CubeSphere.Direction(face, -1 + 2.0 * a / n, -1 + 2.0 * b / n);
-                h = (_surface.HeightAt(at), _surface.WaterLevelAt(at));
+                h = (context.Surface.HeightAt(at), context.Surface.WaterLevelAt(at));
                 cache[(face, a, b)] = h;
             }
             return h;

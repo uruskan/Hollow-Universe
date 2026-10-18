@@ -33,9 +33,11 @@ public static class ShipCodec
     /// <summary>
     /// Raised by hand when the layout changes; decoding reads every older version. 2: seats, doors, parts, crew (IW2); 3: the
     /// crewed batteries' stations (IW3): the chosen kind, the mount's aim, the shots, each chamber, each loader's cycle and
-    /// the magazine. 4: unattended controls. 5: the fuel tank's items and fractional burn reserve.
+    /// the magazine. 4: unattended controls. 5: the fuel tank's items and fractional burn reserve. 6: captured attitude.
     /// </summary>
-    public const byte Version = 5;
+    public const byte Version = 6;
+
+    public const int AttitudeTrailerBytes = 17;
 
     private const int HatchTicksV1 = 30;
 
@@ -126,6 +128,10 @@ public static class ShipCodec
             // Version 5: unopened fuel items and a non-withdrawable partial unit. The earlier float is only a cache.
             w.Write(ship.Fuel.Units);
             w.Write(ship.Fuel.Reserve);
+            // Version 6: a fixed trailer; both physical and commanded orientation live in the body's frame on disk.
+            bool hold = s.AttitudeHoldActive && ShipAttitudeHold.Valid(s.AttitudeHoldRotation);
+            w.Write((byte)(hold ? 1 : 0));
+            Write(w, hold ? Quaternion.Normalize(toBody * s.AttitudeHoldRotation) : Quaternion.Identity);
         }
         return stream.ToArray();
     }
@@ -245,6 +251,19 @@ public static class ShipCodec
         else
         {
             ship.LoadFuel(fuel);
+        }
+        ShipAttitudeHold.Clear(ref ship.State);
+        if (version >= 6)
+        {
+            byte active = r.ReadByte();
+            // Read raw: ReadQ repairs invalid rotations to identity, which would invent a target for malformed data.
+            var target = new Quaternion(r.ReadSingle(), r.ReadSingle(), r.ReadSingle(), r.ReadSingle());
+            if (active > 1) throw new InvalidDataException("invalid ship attitude hold activation");
+            if (active == 1 && ShipAttitudeHold.Valid(target))
+            {
+                ship.State.AttitudeHoldRotation = Quaternion.Normalize(toZone * target);
+                ship.State.AttitudeHoldActive = true;
+            }
         }
         // The moving parts first (a turret's angle), then the doors over theirs (their parts follow their progress).
         for (int i = 0; i < parts.Count && i < ship.Parts.Length; i++)

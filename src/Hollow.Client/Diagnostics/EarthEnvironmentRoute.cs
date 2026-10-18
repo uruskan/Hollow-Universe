@@ -151,7 +151,7 @@ public static class EarthEnvironmentRoute
                 i => Distance(_cells[i].Position, _cells[woods].Position));
             if (clearing < 0) { reason = "no reachable grassy clearing"; return false; }
             int cliff = Choose(i => Distance(_cells[i].Position, candidate.Cliff.Position) is >= 22 and <= 65 &&
-                Vector3D.Dot(_cells[i].Position - candidate.Cliff.Position, candidate.Cliff.Forward) > 12,
+                Vector3D.Dot(_cells[i].Position - candidate.Cliff.Position, candidate.Cliff.Downslope) > 12,
                 i => Distance(_cells[i].Position, _cells[clearing].Position));
             if (cliff < 0) { reason = "no reachable front of scanned cliff"; return false; }
             int monument = Choose(i => Distance(_cells[i].Position, candidate.Monument.Position) > candidate.Monument.Definition.Radius + 3 &&

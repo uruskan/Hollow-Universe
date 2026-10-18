@@ -8,6 +8,7 @@ using Godot;
 using Hollow.Simulation;
 using Hollow.Simulation.Content;
 using HollowUniverse.Common;
+using HollowUniverse.Ground;
 
 namespace HollowUniverse.Characters;
 
@@ -61,6 +62,7 @@ public partial class HeldItemEditor : Node3D
     private SpinBox? _testPositionX;
     private Label _captureCaption = null!;
     private GameContent _content = null!;
+    private ItemDef? _previewAttachment;
     private Label _timing = null!;
     private MeshInstance3D _reach = null!;
     private bool _gameTiming;
@@ -86,7 +88,7 @@ public partial class HeldItemEditor : Node3D
             SetProcess(false); SetProcessInput(false); SetProcessUnhandledKeyInput(false);
             GetTree().Root.CloseRequested -= RequestClose;
             GetTree().AutoAcceptQuit = true;
-            if (_options.ContainsKey("editor-check") || _options.ContainsKey("editor-sheet") || _options.ContainsKey("editor-animation-dir") || _options.ContainsKey("shot"))
+            if (_options.ContainsKey("recoil-check") || _options.ContainsKey("locomotion-check") || _options.ContainsKey("bow-check") || _options.ContainsKey("admire-check") || _options.ContainsKey("editor-check") || _options.ContainsKey("editor-sheet") || _options.ContainsKey("editor-animation-dir") || _options.ContainsKey("shot"))
             {
                 GetTree().Quit(1);
                 return;
@@ -120,6 +122,7 @@ public partial class HeldItemEditor : Node3D
         _phase = Math.Clamp((float)Number("phase", 0), 0, 1);
         _targetDistance = Math.Clamp((float)Number("target-distance", 1.1), 0.2f, 3.0f);
         _content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
+        ConfigureInspection();
         foreach (HeldItemModel item in HeldItems.All)
         {
             _saved[item.Id] = HeldPresentations.Clone(HeldPresentations.Get(item.Id));
@@ -130,6 +133,8 @@ public partial class HeldItemEditor : Node3D
         BuildCharacters();
         FilterItems("");
         SelectItem(HeldItems.Find(Option("item", "metal-hatchet")) ?? HeldItems.Find("stone-hatchet") ?? HeldItems.All[0]);
+        Require(_previewAttachment == null || _content.Item(_held.Id)?.Firearm?.Takes(_previewAttachment) == true,
+            $"{_held.Id} does not support attachment {_previewAttachment?.Key}.");
         string wantedAction = Option("action", "idle");
         if (_profile.Actions.ContainsKey(wantedAction)) SelectAction(wantedAction);
         SetPhase((float)Number("phase", 0));
@@ -474,6 +479,12 @@ public partial class HeldItemEditor : Node3D
         if (_held == null || _viewmodel == null) return;
         _viewmodel.Hold(_held.Kind, _held.Id);
         _viewmodel.RefreshPresentation();
+        if (_previewAttachment != null && _viewmodel.GetNodeOrNull<Node3D>(_held.Id) is { } gun)
+        {
+            byte mods = _content.Item(_held.Id)?.Firearm?.Takes(_previewAttachment) == true
+                ? (byte)(1 << _previewAttachment.Attachment!.Index) : (byte)0;
+            GunEffects.Dress(_content, gun, _held.Id, mods, ViewmodelView.PrepareItem, firstPerson: true);
+        }
         _character.RefreshPresentation();
         SamplePreview();
     }
@@ -685,6 +696,26 @@ public partial class HeldItemEditor : Node3D
         UpdateCamera();
         SamplePreview();
         UpdateGizmo();
+        if (!_automating && _options.ContainsKey("recoil-check") && _elapsed > 0.8)
+        {
+            _automating = true;
+            RunRecoilChecks();
+        }
+        if (!_automating && _options.ContainsKey("locomotion-check") && _elapsed > 0.8)
+        {
+            _automating = true;
+            RunLocomotionChecks();
+        }
+        if (!_automating && _options.ContainsKey("bow-check") && _elapsed > 0.8)
+        {
+            _automating = true;
+            RunBowChecks();
+        }
+        if (!_automating && _options.ContainsKey("admire-check") && _elapsed > 0.8)
+        {
+            _automating = true;
+            RunAdmireChecks();
+        }
         if (!_automating && _options.ContainsKey("editor-check") && _elapsed > 0.8)
         {
             _automating = true;
@@ -700,7 +731,7 @@ public partial class HeldItemEditor : Node3D
             _automating = true;
             CaptureAnimation(animationDirectory);
         }
-        if (!_capturing && !_options.ContainsKey("editor-check") && !_options.ContainsKey("editor-sheet") && !_options.ContainsKey("editor-animation-dir") && _options.TryGetValue("shot", out string? path) && _elapsed > Number("wait", 2))
+        if (!_capturing && !_options.ContainsKey("recoil-check") && !_options.ContainsKey("locomotion-check") && !_options.ContainsKey("bow-check") && !_options.ContainsKey("admire-check") && !_options.ContainsKey("editor-check") && !_options.ContainsKey("editor-sheet") && !_options.ContainsKey("editor-animation-dir") && _options.TryGetValue("shot", out string? path) && _elapsed > Number("wait", 2))
         {
             _capturing = true;
             Capture(path);

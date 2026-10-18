@@ -431,9 +431,16 @@ seconds into play and times the arrival.
 - For testing, the transport can add latency, jitter and packet loss, and the client shows a network graph.
 
 **As built in G1** (`src/Hollow.Net`):
-- **Transport:** LiteNetLib 2.1 in manual mode (no background threads: the server polls once a tick, a client once a
-  frame). Reliable ordered: `Welcome`, `Spawn`, `Despawn`, chat. Sequenced (unreliable, newest wins): inputs and
-  snapshots.
+- **Transport:** LiteNetLib 2.1.4. The server polls in manual mode once a tick; manual mode remains the default for
+  bots and engine-free tests. The graphical client opts into background transport so asset/shader stalls do not stop
+  receive/send or keepalives. All unsynchronized-event options are false: `GameClient.Update` still dispatches queued
+  gameplay events on its caller's thread, then runs prediction/modules there. Background mode triggers its own send
+  loop rather than calling `ManualUpdate`; disconnect/disposal use the same distinction, and transport stops before
+  simulation resources are released. Both peers retain the 10-second timeout. Reliable ordered: `Welcome`, `Spawn`,
+  `Despawn`, chat. Sequenced (unreliable, newest wins): inputs and snapshots. The coordinated 16 October startup/loading/
+  architecture batch passed 15/15: a 12-second stalled caller preserved the background session while the manual control
+  timed out; queued callbacks, resumed messaging, disconnect and disposal passed. Native Maximum world-startup acceptance
+  remains pending ([P8 evidence](repair-results/P8-performance.md)).
 - **Connecting:** the connection request carries `Hello` (protocol version, the generated schema hash, the name, the body chosen). A
   refusal carries a `Goodbye` with a reason (protocol mismatch, bad name, name in use, server full; also kick and
   shutdown). An accepted player gets `Welcome`: net and entity IDs, the server tick, the rates, the zone (body, radius
@@ -4190,6 +4197,12 @@ spills, empties), but it doesn't come back once gone and isn't kept across a res
 
 ### 8.3 Behaviour
 
+- **Admire:** press **N** to raise and turn the held item for a short inspection, then
+  return to the resting pose. Item use and aiming interrupt it immediately. It is
+  unavailable while hands are busy, menus are open, sprinting, swimming, free looking,
+  wounded/dead or seated. This cosmetic action spends no items or ammunition. To remap
+  it in F1, use `bind J admire` and `unbind N`; both persist on this computer.
+
 RustMVP's rules, with Rust's where RustMVP had none:
 
 - **Keys:** Tab opens and closes the inventory (even from a text field); Q opens crafting, and again returns to the
@@ -4376,7 +4389,7 @@ Ring + Dot; six colours; arm length/ring radius, dot diameter, line thickness, c
 Show While Aiming defaults on; switching it off hides the HUD crosshair during ADS. Dynamic Spread defaults off;
 when on, a cross's gap or ring's radius follows the firearm cone while hip-firing. The dot stays at screen centre.
 These preferences are saved in `[crosshair]` in `user://graphics.cfg` and are independent of graphics presets.
-Inventory, menus, radials, death, the helm, weapon stations and hidden-camera contexts do not draw this ground aiming marker.
+Inventory, menus, radials, death, the helm, weapon stations and the admin self-camera do not draw this ground aiming marker.
 Physical optic reticles and ship station sights keep their own presentation. Reload progress and hit feedback
 remain independent of crosshair style. `--view ui --screen settings-crosshair --shot <path>` captures the panel;
 `--view ui --crosshair-check [--crosshair-shots <folder>]` runs the native regression checks.

@@ -11,6 +11,10 @@ public struct ViewmodelFrame
     /// <summary>Velocity in the camera's frame (m/s): x right, y up, z backwards.</summary>
     public Vector3 LocalVelocity;
 
+    /// <summary>Speed parallel to the character's gravity plane, independent of camera pitch.
+    /// Synthetic previews may omit it and use camera XZ velocity.</summary>
+    public float? GroundSpeed;
+
     /// <summary>How fast the view turned this frame (radians per second): x yaw (left positive), y pitch (up positive).</summary>
     public Vector2 LookRate;
 
@@ -71,7 +75,6 @@ public partial class ViewmodelView : Node3D
     /// <summary>How far the string comes back in first person (of a full draw): the drawing hand stops in front of the
     /// face instead of behind the camera.</summary>
     private float FirstPersonDraw => _model?.Presentation.BowDrawDistance ?? 0.42f;
-    private Vector3 _kick, _kickVelocity;
     private float _slideKick;
     private float _equip = 1f;
 
@@ -204,6 +207,7 @@ public partial class ViewmodelView : Node3D
         _reloadParts = null;
         _model = model;
         CancelActions();
+        ResetSkeletalLocomotion();
         _equip = 0f;
         _swing = _reload = -1f;
         Visible = model != null;
@@ -331,6 +335,7 @@ public partial class ViewmodelView : Node3D
         float elapsed = (float)Math.Max(0, delta);
         if (_previewAction == null) Animate(dt, elapsed);
         AdvancePresentation(elapsed);
+        AdvanceSkeletalLocomotion(elapsed);
         _skeleton.ResetBonePoses();
         Pose();
         _skeleton.Advance(dt);
@@ -359,10 +364,6 @@ public partial class ViewmodelView : Node3D
         _bobAmount = Approach(_bobAmount, bobTarget, dt * 5f);
         _bobPhase += dt * (speed > 0.1f ? 2.1f + speed * 0.85f : 0f) * MathF.PI;
 
-        // Recoil: a kick on a stiff spring.
-        Vector3 kickForce = -_kick * 260f - _kickVelocity * 24f;
-        _kickVelocity += kickForce * dt;
-        _kick += _kickVelocity * dt;
         _slideKick = Math.Max(0f, _slideKick - dt * 14f);
 
         if (_model.LeftHanded)
@@ -472,15 +473,79 @@ public partial class ViewmodelView : Node3D
 
     private void Pose()
     {
-        if (PoseSkeletalMotion()) return;
+        if (!PoseSkeletalMotion())
+        {
+            PoseProcedural();
+            // Compose the finished performance, including both arms and held parts. Moving only
+            // the item would make the reach solver pull it back or stretch the hands toward it.
+            Transform3D composition = ProceduralComposition;
+            _rig.Transform = composition * _rig.Transform;
+            _item!.Transform = composition * _item.Transform;
+        }
+        PoseAdmire();
+    }
+
+    private void PoseAdmire()
+    {
+        if (ActiveAction != "admire" || _item == null || _model == null ||
+            !_model.Presentation.Actions.TryGetValue("admire", out HeldPresentationClip? clip)) return;
+        HeldPresentationKey sample = clip.Sample(ActivePhase);
+        if (sample.Position.IsZeroApprox() && sample.Rotation.IsZeroApprox()) return;
+        Basis turn = Basis.FromEuler(sample.Rotation * (MathF.PI / 180f));
+        Vector3 pivot = _item.Transform * _grip.Origin;
+        var offset = new Transform3D(turn, pivot - turn * pivot + sample.Position);
+        // Keep shoulders rooted: rotating the whole rig exposes the cut ends of FPS forearms.
+        // Transform the existing wrist-to-item relationship, then solve the holding arms only.
+        Transform3D toCamera = _rig.Transform * _skeleton.Transform;
+        Transform3D toSkeleton = toCamera.AffineInverse();
+        bool left = _model.LeftHanded;
+        var primary = (Upper: left ? _upperL : _upperR, Lower: left ? _lowerL : _lowerR, Hand: left ? _handL : _handR);
+        var secondary = (Upper: left ? _upperR : _upperL, Lower: left ? _lowerR : _lowerL, Hand: left ? _handR : _handL);
+        bool both = SecondaryHandShouldAttach;
+        Transform3D target = toSkeleton * offset * toCamera * _skeleton.GetBoneGlobalPose(primary.Hand);
+        Transform3D other = toSkeleton * offset * toCamera * _skeleton.GetBoneGlobalPose(secondary.Hand);
+        Vector3 correction = Vector3.Zero;
+        void Limit((int Upper, int Lower, int Hand) arm, Vector3 wrist)
+        {
+            Vector3 shoulder = _skeleton.GetBoneGlobalPose(arm.Upper).Origin;
+            Vector3 elbow = _skeleton.GetBoneGlobalPose(arm.Lower).Origin;
+            float reach = shoulder.DistanceTo(elbow) + elbow.DistanceTo(_skeleton.GetBoneGlobalPose(arm.Hand).Origin) - 0.002f;
+            Vector3 relative = wrist + correction - shoulder;
+            correction += relative.LimitLength(reach) - relative;
+        }
+        for (int i = 0; i < 24; i++)
+        {
+            Limit(primary, target.Origin);
+            if (both) Limit(secondary, other.Origin);
+        }
+        offset.Origin += toCamera.Basis * correction;
+        target.Origin += correction;
+        other.Origin += correction;
+        void Reach((int Upper, int Lower, int Hand) arm, Transform3D wrist)
+        {
+            Vector3 pole = _skeleton.GetBoneGlobalPose(arm.Lower).Origin - _skeleton.GetBoneGlobalPose(arm.Upper).Origin;
+            CharacterPoser.ReachArm(_skeleton, arm.Upper, arm.Lower, arm.Hand, wrist, 1, pole, wristTwist: 0);
+        }
+        Reach(primary, target);
+        if (both) Reach(secondary, other);
+        _item.Transform = offset * _item.Transform;
+    }
+
+    private Transform3D ProceduralComposition =>
+        (_model?.Presentation.FirstPersonRig?.Transform ?? Transform3D.Identity)
+            .InterpolateWith(Transform3D.Identity, Smooth(Math.Max(_aim, _bowAim)));
+
+    private void PoseProcedural()
+    {
         // Hands onto the grips (camera space → skeleton space), from shoulders set lower and further forward than the
         // body's, so the forearms rise into view from the lower corners as in Rust (only forearms and hands are drawn;
         // nobody sees the shoulders move).
         Transform3D toSkeleton = (_rig.Transform * _skeleton.Transform).AffineInverse();
         HeldPresentationProfile profile = _model!.Presentation;
-        Shoulder(_upperR, profile.RightHand.Shoulder, toSkeleton);
-        Shoulder(_upperL, profile.LeftHand.Shoulder, toSkeleton);
+        Shoulder(_upperR, profile.RightHand.Shoulder + profile.RightHand.FirstPersonShoulderOffset, toSkeleton);
+        Shoulder(_upperL, profile.LeftHand.Shoulder + profile.LeftHand.FirstPersonShoulderOffset, toSkeleton);
         Transform3D item = ConstrainReach(ItemPlacement(), toSkeleton);
+        item = AlignBowAim(item, toSkeleton);
         _item!.Transform = item;
         _item.Visible = PrimaryHandShouldAttach;
         PrimaryHandAttachmentError = SecondaryHandAttachmentError = 0;

@@ -474,6 +474,9 @@ def write_catalogue(events_list, items, spaces=None, replace_prefixes=()):
         "items": items,
         "events": merged,
     }
+    # Runtime scheduling is authored alongside mix settings, never reset by an asset rebuild.
+    if "voiceBudget" in old:
+        data["voiceBudget"] = old["voiceBudget"]
     keys = {e["key"] for e in merged}
     for item, roles in items.items():
         for role, key in roles.items():
@@ -484,7 +487,10 @@ def write_catalogue(events_list, items, spaces=None, replace_prefixes=()):
 
 def write_catalogue_json(data):
     """Readable JSON: one line per event field, files on their own lines."""
-    lines = ["{", '  "source": %s,' % json.dumps(data["source"], ensure_ascii=False), '  "categories": {']
+    lines = ["{", '  "source": %s,' % json.dumps(data["source"], ensure_ascii=False)]
+    if "voiceBudget" in data:
+        lines.append('  "voiceBudget": %s,' % json.dumps(data["voiceBudget"]))
+    lines.append('  "categories": {')
     cats = list(data["categories"].items())
     for i, (k, v) in enumerate(cats):
         lines.append('    %s: %s%s' % (json.dumps(k), json.dumps(v), "," if i < len(cats) - 1 else ""))

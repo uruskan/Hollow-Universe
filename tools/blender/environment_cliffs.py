@@ -18,6 +18,20 @@ SOURCES = [('coastal_cliff_04', 22.0, 'coastal_cliff_04_4k.gltf/coastal_cliff_04
            ('nordic_tall', 22.0, 'huge_nordic_coastal_cliff_ullqbb1ga_high.glb'),
            ('nordic_forest_ledge', 20.0, 'nordic_forest_cliff_large_xibjbg3_high.glb')]
 
+# Authored front and compatible geology; kept with the recipe so re-export cannot erase placement policy.
+PLACEMENT = {
+    'coastal_cliff_04': (1, .35, .85, .35, 'coastal'),
+    'namaqualand_cliff_02': (1, .7, 2.4, .45, 'sandstone'),
+    'nordic_broad': (1, .55, 2.2, 1.0, 'nordic'),
+    'nordic_tall': (-1, .9, 12.0, .8, 'nordic'),
+    'nordic_forest_ledge': (1, .35, 1.45, .65, 'forest'),
+}
+
+
+def placement_profile(key):
+    return dict(zip(('facing', 'minimumGradient', 'maximumGradient', 'selectionWeight', 'materialFamily'),
+                    PLACEMENT[key]))
+
 
 def digest(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -89,7 +103,8 @@ def main():
         positions = [[round(v.co.x, 6), round(v.co.z, 6), round(-v.co.y, 6)] for v in collider.data.vertices]
         indices = [i for tri in collider.data.loop_triangles for i in tri.vertices]
         height = max(p[1] for p in positions)
-        colliders.append({'key': key, 'height': height, 'positions': positions, 'indices': indices})
+        colliders.append({'key': key, 'height': height, 'positions': positions, 'indices': indices,
+                          'placement': placement_profile(key)})
         dependencies = [path]
         if path.suffix == '.gltf':
             document = json.loads(path.read_text())

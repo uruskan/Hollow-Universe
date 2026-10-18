@@ -8,7 +8,7 @@ namespace HollowUniverse.Surface;
 /// The planet under everything drawn (docs/WHOLE_WORLD.md §10.1–10.4): its centre in render space, its mean radius, and
 /// what turns render axes into the body's, both as shader globals (<c>surface_planet.gdshaderinc</c>: up, heights, the
 /// cube faces textures are measured on) and for the code that moves things along up (effects, gibs, ragdolls). The view
-/// that draws a planet sets it (<see cref="Set"/>); until then, and in views without one, the centre lies 6,371 km below
+/// that draws a planet claims it (<see cref="Claim"/>); until then, and in views without one, the centre lies 6,371 km below
 /// the origin, so up is +Y and a height is Y, as a flat stage expects.
 /// </summary>
 public static class PlanetGlobals
@@ -17,6 +17,7 @@ public static class PlanetGlobals
     public const double NoPlanetRadius = 6_371_000;
 
     private static bool _registered;
+    private static long _sequence, _owner;
 
     /// <summary>The planet's centre in render space.</summary>
     public static Vector3 Centre { get; private set; } = new(0, -(float)NoPlanetRadius, 0);
@@ -52,9 +53,21 @@ public static class PlanetGlobals
     /// <summary>A point moved along up so that it stands at a height above the mean radius.</summary>
     public static Vector3 AtHeight(Vector3 p, float height) => p + Up(p) * (height - Height(p));
 
-    /// <summary>The planet under a render frame: <paramref name="radius"/> is the mean radius heights are measured from.</summary>
-    public static void Set(RenderFrame frame, double radius)
+    /// <summary>Main-thread ownership stamp. Only numbers are retained; an old view cannot clear its successor.</summary>
+    public static long Claim(RenderFrame frame, double radius)
     {
+        long owner = checked(++_sequence);
+        _owner = owner;
+        Set(owner, frame, radius);
+        return owner;
+    }
+
+    public static bool IsOwner(long owner) => owner != 0 && _owner == owner;
+
+    /// <summary>Updates the current owner's frame; retired owners have no effect on the shared shader state.</summary>
+    public static void Set(long owner, RenderFrame frame, double radius)
+    {
+        if (!IsOwner(owner)) return;
         Centre = frame.Centre;
         Radius = radius;
         double o = frame.Origin.Length;
@@ -63,9 +76,11 @@ public static class PlanetGlobals
         Register();
     }
 
-    /// <summary>Back to no planet (a view that drew one closed).</summary>
-    public static void Clear()
+    /// <summary>Back to no planet, only when the view closing still owns the shared shader state.</summary>
+    public static void Clear(long owner)
     {
+        if (!IsOwner(owner)) return;
+        _owner = 0;
         Centre = new Vector3(0, -(float)NoPlanetRadius, 0);
         Radius = NoPlanetRadius;
         K = 0;

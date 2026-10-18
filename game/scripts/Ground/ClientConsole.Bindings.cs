@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using Godot;
 using Hollow.Client;
+using Hollow.Net.Commands;
 
 namespace HollowUniverse.Ground;
 
@@ -14,6 +15,13 @@ public sealed partial class ClientConsole
     public bool RunBinding(string key)
     {
         if (_bindings.Find(key) is not { } command) return false;
+        // A normal inspect key press is a cosmetic input, with no console or HUD log entry.
+        var parsed = ConsoleCatalog.Parse(command);
+        if (parsed.Command?.Name == "admire" && parsed.Args.Count == 0)
+        {
+            Admire?.Invoke();
+            return true;
+        }
         Execute(command, toast: true);
         return true;
     }
@@ -60,15 +68,23 @@ public sealed partial class ClientConsole
     private void LoadBindings()
     {
         var file = new ConfigFile();
-        if (file.Load(BindingsPath) != Error.Ok || !file.HasSection("bindings")) return;
-        foreach (string key in file.GetSectionKeys("bindings"))
-            _bindings.Set(key, file.GetValue("bindings", key).AsString(), out _);
+        if (file.Load(BindingsPath) != Error.Ok) return;
+        var saved = new List<KeyValuePair<string, string>>();
+        if (file.HasSection("bindings"))
+            foreach (string key in file.GetSectionKeys("bindings"))
+                saved.Add(new KeyValuePair<string, string>(key, file.GetValue("bindings", key).AsString()));
+        var unbound = new List<string>();
+        if (file.HasSection("unbound"))
+            foreach (string key in file.GetSectionKeys("unbound"))
+                if (file.GetValue("unbound", key).AsBool()) unbound.Add(key);
+        _bindings.Restore(saved, unbound);
     }
 
     private void SaveBindings()
     {
         var file = new ConfigFile();
         foreach ((string key, string command) in _bindings.Commands) file.SetValue("bindings", key, command);
+        foreach (string key in _bindings.UnboundDefaults) file.SetValue("unbound", key, true);
         file.Save(BindingsPath);
     }
 }

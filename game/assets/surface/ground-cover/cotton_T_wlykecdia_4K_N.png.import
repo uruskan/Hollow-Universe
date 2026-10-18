@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cxv5t6nl5wm3x"
-path="res://.godot/imported/cotton_T_wlykecdia_4K_N.png-1af375b7c01c1d556cfb068f8a5d2563.ctex"
+path.s3tc="res://.godot/imported/cotton_T_wlykecdia_4K_N.png-1af375b7c01c1d556cfb068f8a5d2563.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "e2da8d2ef5279d0029a8485ce9baca9b"
@@ -14,17 +15,17 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/surface/ground-cover/cotton_T_wlykecdia_4K_N.png"
-dest_files=["res://.godot/imported/cotton_T_wlykecdia_4K_N.png-1af375b7c01c1d556cfb068f8a5d2563.ctex"]
+dest_files=["res://.godot/imported/cotton_T_wlykecdia_4K_N.png-1af375b7c01c1d556cfb068f8a5d2563.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=1
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

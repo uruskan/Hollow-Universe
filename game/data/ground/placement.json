@@ -78,6 +78,25 @@
     { "kind": "charge", "key": "bag-charge" },
     { "kind": "ship", "key": "tin-finch" },
     { "kind": "ship", "key": "iron-wake" },
-    { "kind": "deployable", "key": "engineering-workbench" }
+    { "kind": "deployable", "key": "engineering-workbench" },
+    {"kind": "door", "key": "metal-window-bars"},
+    {"kind": "door", "key": "armoured-window-bars"},
+    {"kind": "door", "key": "reinforced-glass-window"},
+    {"kind": "door", "key": "horizontal-embrasure"},
+    {"kind": "door", "key": "vertical-embrasure"},
+    {"kind": "door", "key": "wooden-double-door"},
+    {"kind": "door", "key": "armoured-double-door"},
+    {"kind": "deployable", "key": "large-furnace"},
+    {"kind": "deployable", "key": "wooden-barricade"},
+    {"kind": "deployable", "key": "wood-compound-wall"},
+    {"kind": "deployable", "key": "wood-compound-gate"},
+    {"kind": "deployable", "key": "stone-compound-wall"},
+    {"kind": "deployable", "key": "stone-compound-gate"},
+    {"kind": "deployable", "key": "windmill"},
+    {"kind": "deployable", "key": "sam-site"},
+    {"kind": "deployable", "key": "wood-spike-barricade"},
+    {"kind": "deployable", "key": "metal-barricade"},
+    {"kind": "deployable", "key": "auto-turret"},
+    {"kind": "deployable", "key": "wooden-ladder"}
   ]
 }

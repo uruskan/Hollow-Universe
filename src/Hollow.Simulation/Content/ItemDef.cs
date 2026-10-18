@@ -252,6 +252,7 @@ public sealed class ItemDef
     public int MaxCondition { get; init; }
 
     public MeleeStats? Melee { get; init; }
+    public WiringStats? Wiring { get; init; }
 
     public BowStats? Bow { get; init; }
 

@@ -8,15 +8,19 @@ namespace HollowUniverse.Surface.Flora;
 
 public sealed partial class FloraLibrary
 {
-    private static Species LoadAuthoredRocks()
+    private static Species LoadAuthoredRocks(Action<Resource> own, Action<IDisposable> ownCleanup)
     {
+        ArgumentNullException.ThrowIfNull(own);
+        ArgumentNullException.ThrowIfNull(ownCleanup);
         using JsonDocument catalog = JsonDocument.Parse(FileAccess.GetFileAsString("res://assets/surface/rocks/catalog.json"));
         var rocks = new Species { Name = "rock", Kind = ScatterKind.Rock, Scale = 1,
             Bands = new Bands(55, 230, false), Tree = false };
-        Node3D root = GD.Load<PackedScene>(catalog.RootElement.GetProperty("model").GetString()!).Instantiate<Node3D>();
         var meshes = new Dictionary<string, ArrayMesh>(StringComparer.Ordinal);
         var materials = new Dictionary<Material, ShaderMaterial>();
         Shader shader = GD.Load<Shader>("res://shaders/surface_scanned_rock.gdshader");
+        var retirement = new ImportedSceneRetirement();
+        ownCleanup(retirement);
+        Exception? failure = null;
         void Visit(Node node)
         {
             if (node is MeshInstance3D instance && instance.Mesh is ArrayMesh source)
@@ -25,13 +29,16 @@ public sealed partial class FloraLibrary
                 if (!instance.Transform.IsEqualApprox(Transform3D.Identity))
                     throw new InvalidOperationException("Rock export contains an unbaked transform: " + instance.Name);
                 var mesh = (ArrayMesh)source.Duplicate();
+                own(mesh);
                 for (int i = 0; i < mesh.GetSurfaceCount(); i++)
                 {
                     if (source.SurfaceGetMaterial(i) is not StandardMaterial3D scan)
                         throw new InvalidOperationException("Rock is missing its scanned PBR material: " + instance.Name);
                     if (!materials.TryGetValue(scan, out ShaderMaterial? material))
                     {
-                        material = new ShaderMaterial { Shader = shader };
+                        material = new ShaderMaterial();
+                        own(material);
+                        material.Shader = shader;
                         material.SetShaderParameter("albedo_map", scan.AlbedoTexture);
                         material.SetShaderParameter("normal_map", scan.NormalTexture);
                         material.SetShaderParameter("roughness_map", scan.RoughnessTexture);
@@ -52,6 +59,8 @@ public sealed partial class FloraLibrary
         }
         try
         {
+            Node3D root = GD.Load<PackedScene>(catalog.RootElement.GetProperty("model").GetString()!).Instantiate<Node3D>();
+            retirement.Attach(root);
             Visit(root);
             foreach (JsonElement row in catalog.RootElement.GetProperty("variants").EnumerateArray())
             {
@@ -61,7 +70,8 @@ public sealed partial class FloraLibrary
                     Height = levels[0].GetProperty("height").GetSingle(), Extent = levels[0].GetProperty("extent").GetSingle() });
             }
         }
-        finally { root.Free(); }
+        catch (Exception error) { failure = error; throw; }
+        finally { RetireImportedScene(retirement, failure); }
         return rocks;
     }
 

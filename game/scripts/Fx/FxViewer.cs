@@ -382,7 +382,7 @@ public partial class FxViewer : Node3D
                 UpdateGibs(delta);
                 return;
         }
-        _stats.Text = $"{Engine.GetFramesPerSecond():0} fps · fx {_fx.LastFrameMicroseconds:0} µs · lights {_fx.ActiveLights} · decals {_fx.ActiveDecals} · tracers {_fx.ActiveTracers} · loops {_fx.ActiveLoops}";
+        _stats.Text = $"{Engine.GetFramesPerSecond():0} fps · fx {_fx.LastFrameMicroseconds:0} µs · lights {_fx.ActiveLights} · decals {_fx.ActiveDecals} · tracers {_fx.ActiveTracers} · loops {_fx.ActiveLoops}/{_fx.LogicalLoops}";
     }
 
     private void UpdateTurntable(double delta)

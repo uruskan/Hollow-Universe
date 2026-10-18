@@ -38,8 +38,8 @@ public sealed partial class MockGroundUi : IGroundUi
             .Select(name => new CraftCategory(name, _recipes.Count(r => r.Category == name)))
             .ToArray();
         FillInventory();
-        _queue.Add(new CraftJob(_nextTicket++, "bandage", 2, 7.5f, 10f));
-        _queue.Add(new CraftJob(_nextTicket++, "arrow.wooden", 6, 30f, 30f));
+        _queue.Add(new CraftJob(_nextTicket++, "bandage", 2, 7.5f, 10f) { UnitProgress = .5f });
+        _queue.Add(new CraftJob(_nextTicket++, "arrow.wooden", 6, 15f, 15f));
     }
 
     // ---------------------------------------------------------------- reads
@@ -469,20 +469,42 @@ public sealed partial class MockGroundUi : IGroundUi
     public void Tick(double delta)
     {
         float dt = (float)delta;
-        if (_queue.Count > 0)
+        float craftTime = Math.Max(0, dt);
+        while (_queue.Count > 0 && craftTime > 0)
         {
             CraftJob job = _queue[0];
-            float remaining = job.Remaining - dt;
-            if (remaining > 0)
+            Recipe recipe = _recipes.First(r => r.Key == job.Key);
+            int yield = Math.Max(1, recipe.Yield);
+            int units = (job.Count + yield - 1) / yield;
+            float unitSeconds = job.Seconds / units;
+            float untilNext = Math.Max(0, job.Remaining - (units - 1) * unitSeconds);
+            if (craftTime < untilNext)
             {
-                _queue[0] = job with { Remaining = remaining };
+                _queue[0] = job with
+                {
+                    Remaining = job.Remaining - craftTime,
+                    UnitProgress = 1 - (untilNext - craftTime) / Math.Max(.001f, unitSeconds),
+                };
+                break;
             }
-            else
+            craftTime -= untilNext;
+            int produced = Math.Min(yield, job.Count);
+            Give(job.OutputKey, produced);
+            Crafted?.Invoke(job.OutputKey, produced);
+            if (produced == job.Count)
             {
                 _queue.RemoveAt(0);
                 _freeCrafts.Remove(job.Ticket);
-                Give(job.Key, job.Count);
-                Crafted?.Invoke(job.Key, job.Count);
+            }
+            else
+            {
+                _queue[0] = job with
+                {
+                    Count = job.Count - produced,
+                    Remaining = (units - 1) * unitSeconds,
+                    Seconds = (units - 1) * unitSeconds,
+                    UnitProgress = 0,
+                };
             }
         }
         for (int i = 0; i < _bags.Count; i++)

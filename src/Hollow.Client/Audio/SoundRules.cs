@@ -72,7 +72,7 @@ public struct FootInput
     /// <summary>Seats, noclip and absent/dead characters stop and clear the cadence, including pending landings.</summary>
     public bool Suppressed;
 
-    /// <summary>The ground under the feet (<see cref="Footsteps.FromGround"/>, a building floor's grade...).</summary>
+    /// <summary>The ground under the feet (the shared physical surface/response tables).</summary>
     public FootSurface Surface;
 
     /// <summary>Worn foot-contact profile; null uses the audio registry's default (bare feet).</summary>
@@ -111,57 +111,6 @@ public static class Footsteps
             Surface = surface, WaterDepth = state.Frame == 0 ? waterDepth : 0,
         };
     }
-
-    /// <summary>
-    /// Hollow.Surface's ground materials, by family (BiomeTable.Family: wet sand is a sand, shingle a gravel, ...): forest
-    /// floor, soil and gravel crunch like a dirt path; moss is soft like grass.
-    /// </summary>
-    public static FootSurface FromGround(Hollow.Surface.GroundMaterial material) => Hollow.Surface.BiomeTable.Family(material) switch
-    {
-        Hollow.Surface.GroundMaterial.Grass => FootSurface.Grass,
-        Hollow.Surface.GroundMaterial.Moss => FootSurface.Grass,
-        Hollow.Surface.GroundMaterial.ForestFloor => FootSurface.Dirt,
-        Hollow.Surface.GroundMaterial.Soil => FootSurface.Dirt,
-        Hollow.Surface.GroundMaterial.Gravel => FootSurface.Dirt,
-        Hollow.Surface.GroundMaterial.Rock => FootSurface.Rock,
-        Hollow.Surface.GroundMaterial.Sand => FootSurface.Sand,
-        Hollow.Surface.GroundMaterial.Snow => FootSurface.Snow,
-        _ => FootSurface.Dirt,
-    };
-
-    /// <summary>The surface of the heaviest of a vertex's eight material weights (<see cref="Hollow.Surface.GroundMaterial"/> order).</summary>
-    public static FootSurface FromWeights(ReadOnlySpan<float> weights)
-    {
-        int best = 0;
-        for (int i = 1; i < weights.Length; i++)
-        {
-            if (weights[i] > weights[best])
-            {
-                best = i;
-            }
-        }
-        return FromGround((Hollow.Surface.GroundMaterial)best);
-    }
-
-    /// <summary>A biome's usual ground, when only the biome is known.</summary>
-    public static FootSurface FromBiome(Hollow.Surface.Biome biome) => biome switch
-    {
-        Hollow.Surface.Biome.Beach or Hollow.Surface.Biome.Desert => FootSurface.Sand,
-        Hollow.Surface.Biome.IceSheet => FootSurface.Snow,
-        Hollow.Surface.Biome.Alpine => FootSurface.Rock,
-        Hollow.Surface.Biome.Ocean => FootSurface.Water,
-        Hollow.Surface.Biome.BorealForest or Hollow.Surface.Biome.TemperateForest or Hollow.Surface.Biome.TropicalForest
-            => FootSurface.Dirt,
-        _ => FootSurface.Grass,
-    };
-
-    /// <summary>A building floor by grade (building.json): twig and wood are wood, stone is rock, metal and armoured are metal.</summary>
-    public static FootSurface FromGrade(string grade) => grade switch
-    {
-        "stone" => FootSurface.Rock,
-        "metal" or "armoured" => FootSurface.Metal,
-        _ => FootSurface.Wood,
-    };
 
     /// <summary>Metres between footfalls: a longer stride the faster one goes, shorter crouched.</summary>
     public static double Stride(double speed, bool crouching) =>

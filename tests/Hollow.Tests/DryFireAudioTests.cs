@@ -89,7 +89,7 @@ public static class DryFireAudioTests
         public GunAudioRig(string key, ushort loaded = 0, uint reserve = 0)
         {
             _player = _rig.Add("Audio", 0, 0);
-            _predictor = new Predictor(_rig.Zone.Spec, _rig.Zone.Spec.CreateSurface(), null);
+            _predictor = new Predictor(_rig.Zone.Spec, _rig.Zone.Spec.CreateSurface(diagnostic: true), null);
             Weapon = _rig.C.ItemByKey(key).Id;
             Local = new LocalPlayer(_rig.C) { Send = _ => { Sent++; return true; } };
             Local.OnContents(new ContainerContents

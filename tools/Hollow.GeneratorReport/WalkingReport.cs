@@ -21,15 +21,17 @@ public static class WalkingReport
 
     private static string Folder => Path.Combine(Program.RepoRoot(), "docs", "images", "scale", "s4");
 
-    public static int Run(string[] args)
+    public static int Run(string[] args, bool earth = false)
     {
         string command = args.Length > 1 ? args[1] : "stats";
+        if (earth && command == "candidates") return EarthCandidatesReport.Run(args);
         string Arg(int i, string fallback) => args.Length > i ? args[i] : fallback;
         double Num(int i, double fallback) => args.Length > i ? double.Parse(args[i], CultureInfo.InvariantCulture) : fallback;
         var watch = Stopwatch.StartNew();
-        WalkingWorld world = Build();
+        WalkingWorld world = Build(earth);
+        string Folder = earth ? Path.Combine(Program.RepoRoot(), "docs", "images", "earth-land") : WalkingReport.Folder;
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"Walking-scale first world: radius {world.Radius:0} m, built in {watch.ElapsedMilliseconds} ms, ice below {world.IceTemperature:0.0} °C"));
+            $"Walking-scale {(earth ? "Earth" : "legacy first world")}: radius {world.Radius:0} m, ocean target {world.OceanCover:P0}, built in {watch.ElapsedMilliseconds} ms, ice below {world.IceTemperature:0.0} °C"));
         switch (command)
         {
             case "stats":
@@ -78,7 +80,7 @@ public static class WalkingReport
                 All(world, Arg(2, Folder));
                 return 0;
             default:
-                Console.Error.WriteLine("usage: walking stats | relief|biomes|rivers [png] [width] | globe [png] [size] | zoom|slopes lat lon metres [png] [size] | spots | shots | cover lat lon | compare | all");
+                Console.Error.WriteLine("usage: walking stats | relief|biomes|rivers [png] [width] | globe [png] [size] | zoom|slopes lat lon metres [png] [size] | spots | shots | cover lat lon | compare | all; earth candidates <new-folder> [samples:2000..16000] [map-width:256..1024]");
                 return 2;
         }
     }
@@ -133,11 +135,11 @@ public static class WalkingReport
         }
     }
 
-    internal static WalkingWorld Build()
+    internal static WalkingWorld Build(bool earth = false)
     {
         var galaxy = new Galaxy.Galaxy(null);
-        var found = FirstWorld.Find(galaxy) ?? throw new InvalidOperationException("The first world is gone.");
-        WalkingParameters parameters = WalkingParameters.Default;
+        var found = earth ? StartingWorld.Find() : FirstWorld.Find(galaxy) ?? throw new InvalidOperationException("The first world is gone.");
+        WalkingParameters parameters = WalkingParameters.ForBody(found.System.Address.Value, found.Planet.Path);
         // Look-dev: HOLLOW_WALKING="StreamValley=20;Meander=0" changes numbers of the table for one run.
         foreach (string pair in (Environment.GetEnvironmentVariable("HOLLOW_WALKING") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
@@ -148,7 +150,7 @@ public static class WalkingReport
             property.SetValue(parameters, value);
             Console.WriteLine($"look-dev: {kv[0].Trim()} = {kv[1]}");
         }
-        return WalkingWorld.For(found.System, found.Planet, FirstWorldRadius, parameters);
+        return WalkingWorld.For(found.System, found.Planet, earth ? Galaxy.GameScale.PlanetRadius(found.Planet) : FirstWorldRadius, parameters);
     }
 
     // ---------------------------------------------------------------- numbers
@@ -230,8 +232,9 @@ public static class WalkingReport
         heights.Sort();
         string Q(double f) => heights[Math.Clamp((int)(f * heights.Count), 0, heights.Count - 1)].ToString("0", CultureInfo.InvariantCulture);
         int dry = heights.Count;
+        double area = Galaxy.GameScale.SurfaceArea(world.Radius) / 1e6;
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"sea {(double)(points.Length - land) / points.Length:P1}; land {land * 73.0 / points.Length:0.0} km² of 73, of it under lakes and streams {(double)water / land:P1}"));
+            $"sea {(double)(points.Length - land) / points.Length:P1}; land above sea {land * area / points.Length:0.00} km² of {area:0.00}, of it under lakes and streams {(double)water / land:P1}; dry ground {dry * area / points.Length:0.00} km²"));
         Console.WriteLine($"land heights: p10 {Q(0.1)}  p50 {Q(0.5)}  p90 {Q(0.9)}  p99 {Q(0.99)}  max {Q(1)} m");
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"relief (dry land): plains {relief[0] / dry:P0}, hills {relief[1] / dry:P0}, tablelands {relief[2] / dry:P0}, mountains {relief[3] / dry:P0}"));
@@ -349,13 +352,13 @@ public static class WalkingReport
     private static (double Lat, double Lon) LatLon(Vector3D d) =>
         (Math.Asin(Math.Clamp(d.Y, -1, 1)), Math.Atan2(-d.Z, d.X));
 
-    private static void Map(WalkingWorld world, string kind, string path, int width)
+    internal static void Map(WalkingWorld world, string kind, string path, int width, bool serial = false)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         int height = width / 2;
         var rgb = new byte[width * height * 3];
         double pixel = 2 * Math.PI * world.Radius / width * 0.8;
-        Parallel.For(0, height, y =>
+        void Row(int y)
         {
             Span<double> w = stackalloc double[BiomeTable.Count];
             for (int x = 0; x < width; x++)
@@ -370,7 +373,9 @@ public static class WalkingReport
                 (byte r, byte g, byte b) = Shaded(world, d, kind, pixel, w);
                 rgb[k] = r; rgb[k + 1] = g; rgb[k + 2] = b;
             }
-        });
+        }
+        if (serial) for (int y = 0; y < height; y++) Row(y);
+        else Parallel.For(0, height, Row);
         Rivers(world, rgb, width, height, (lat, lon) => MollweideForward(lat, lon, width, height, 0), kind == "rivers" ? 1.0 : 0.6, width / 2048.0);
         Png.Write(path, width, height, rgb);
         Console.WriteLine($"{path}: {kind}, equal-area, {width} × {height}");

@@ -151,6 +151,10 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
         return Outcome.Done;
     }
 
+    public Outcome PutLock(ulong player, LockKind kind, in TargetRef target) =>
+        Targets.Resolve(target) is ILockHost host && Building.World is { } world
+            ? world.AttachLock(player, host, kind, out _) : OutcomeCode.NotFound;
+
     /// <summary>
     /// After a restart, once the building is back (and again once the ships are, <paramref name="ships"/>): every thing
     /// that stood on something still holds to it, and one whose support didn't come back meets its consequence (a
@@ -202,7 +206,7 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
             zone.Things().DeployablesNear(point, radius, _near);
             foreach (Deployable d in _near)
             {
-                into.Add(new PlacedThing(d.Ref, d.Def, d.Position, d.Up, d.Yaw));
+                into.Add(new PlacedThing(d.Ref, d.Def, d.Position, d.Up, d.Yaw, d.Open, d.Lock?.Kind ?? LockKind.None));
             }
         }
 

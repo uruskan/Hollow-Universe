@@ -26,6 +26,7 @@ namespace Hollow.Bots;
 /// </summary>
 public sealed class RaidBrain
 {
+    private readonly BotGround _ground;
     // Belt slots for the kit.
     private const int ChargeSlot = 0, BagSlot = 1, GrenadeSlot = 2, LauncherSlot = 3, RifleSlot = 4;
 
@@ -43,8 +44,9 @@ public sealed class RaidBrain
     private float _pitch;
     private Piece? _hut;
 
-    public RaidBrain(int index, int huts, float radius)
+    public RaidBrain(int index, int huts, float radius, BotGround ground)
     {
+        _ground = ground;
         _index = index;
         _huts = Math.Max(1, huts);
         _radius = radius;
@@ -93,7 +95,7 @@ public sealed class RaidBrain
         {
             // Not in view yet (streaming in, or far away after a respawn on another beach): back to where it arrived.
             _arrived = false;
-            Steer(ref input, feet, BotGround.FirstArrival(client), 2f, delta);
+            Steer(ref input, feet, _ground.FirstArrival(client), 2f, delta);
             return Remember(input);
         }
         (Vector3 centre, Vector3 outward) = target;
@@ -228,14 +230,14 @@ public sealed class RaidBrain
     private (Vector3 Centre, Vector3 Outward)? Target(GameClient client)
     {
         GroundProbe ground = client.Placement().Ground!.Value;
-        if (BotGround.ArrivedAtLanding(client))
+        if (_ground.ArrivedAtLanding(client))
         {
-            (Vector3 at, double _) = TestBases.Ring(ground, BotGround.Landing, (_index + 1) % _huts, _huts, _radius);
-            return (at, Vector3.Normalize(BotGround.Flat(BotGround.Landing - at, at)));
+            (Vector3 at, double _) = TestBases.Ring(ground, _ground.Landing(client), (_index + 1) % _huts, _huts, _radius);
+            return (at, Vector3.Normalize(BotGround.Flat(_ground.Landing(client) - at, at)));
         }
         if (_hut is not { Gone: false })
         {
-            Vector3 beach = BotGround.FirstArrival(client);
+            Vector3 beach = _ground.FirstArrival(client);
             _hut = client.Building().World?.AllPieces
                 .Where(p => !p.Gone && p.Def.Family == PieceFamily.Foundation && Vector3.Distance(p.ZoneTransform.Position, beach) < 2 * RaidArena.BesideBeach)
                 .MinBy(p => Vector3.DistanceSquared(p.ZoneTransform.Position, beach));

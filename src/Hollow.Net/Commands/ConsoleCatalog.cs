@@ -66,6 +66,7 @@ public static class ConsoleCatalog
         Def("bind", ["bind <key> [command]", "bind F6 \"noclip\""], "Assign a console command to a physical key or MWHEELUP/MWHEELDOWN; saved locally. Without a command, shows the binding.", false, CommandSide.Client, [ArgKind.Text, ArgKind.Command]),
         Def("unbind", ["unbind <key>"], "Remove a saved console-command binding.", false, CommandSide.Client, [ArgKind.Text]),
         Def("binds", ["binds"], "List saved console-command bindings.", false, CommandSide.Client, []),
+        Def("admire", ["admire"], "Inspect the held item without using it. Default key N; use bind <key> admire to assign another key and unbind N to remove the default.", false, CommandSide.Client, []),
         Def("noclipspeed", ["noclipspeed [1..200]"], "Preferred noclip speed in m/s, sprint multiplies by four. Only affects players granted noclip by the server; wheel adjusts it while flying.", false, CommandSide.Client, [ArgKind.Number], "noclip.speed"),
 
         // ---------------------------------------------------------------- everyone, on the server
@@ -122,7 +123,7 @@ public static class ConsoleCatalog
             "inventory.clear", "strip"),
         Def("ship", ["ship [player] [kind]"], "A ship beside a player, theirs and fuelled, its way in toward them: a Tin Finch, or the kind named (iron-wake).",
             true, CommandSide.Server, [ArgKind.Player, ArgKind.Ship]),
-        Def("raidbase", ["raidbase [grade] [player]"], "A claimed hut 8 m in front of a player, listing them (twig, wood, stone, metal, armoured).",
+        Def("raidbase", ["raidbase [grade] [player]", "raidbase hut [grade] [player]"], "A claimed 3×3 clan base 26 m ahead, with honeycomb, stairs, shooting floor and roof peeks. Choose twig, wood, stone, metal or armoured. Use 'hut' for the small test fixture.",
             true, CommandSide.Server, [ArgKind.Grade, ArgKind.Player]),
         Def("admin", ["admin <name>"], "Gives a player admin rights until the server stops (admins.txt keeps them).", true, CommandSide.Server,
             [ArgKind.Player], "ownerid", "moderatorid"),

@@ -10,8 +10,8 @@ public partial class HeldItemEditor
     private MeshInstance3D _contactGizmo = null!;
     private bool _showGizmo;
     private int _dragAxis = -1;
-    private Vector2 _dragStart, _dragScreenDirection;
-    private Vector3 _dragOriginal;
+    private Vector2 _dragLast, _dragScreenDirection;
+    private Vector3 _dragPosition;
     private float _dragPixelsPerMetre;
     private const float GizmoArm = 0.12f;
     private static readonly Vector3[] GizmoAxes = { Vector3.Right, Vector3.Up, Vector3.Back };
@@ -25,6 +25,7 @@ public partial class HeldItemEditor
         {
             var material = Material(colors[axis], true);
             material.NoDepthTest = true;
+            material.UseFovOverride = true;
             material.FovOverride = CharacterMaterials.ViewmodelFov;
             Vector3 size = new(0.003f, 0.003f, 0.003f); size[axis] = GizmoArm;
             _gizmo.AddChild(Box(size, GizmoAxes[axis] * GizmoArm * 0.5f, material));
@@ -37,6 +38,7 @@ public partial class HeldItemEditor
         }
         var contactMaterial = Material(new Color(1, 0.55f, 0.15f), true);
         contactMaterial.NoDepthTest = true;
+        contactMaterial.UseFovOverride = true;
         contactMaterial.FovOverride = CharacterMaterials.ViewmodelFov;
         _contactGizmo = new MeshInstance3D
         {
@@ -79,15 +81,20 @@ public partial class HeldItemEditor
             for (int i = 0; i < 3; i++)
             {
                 Vector2 tip = ProjectViewmodel(_gizmo.GlobalPosition + GizmoAxes[i] * GizmoArm);
-                float distance = tip.DistanceTo(button.Position);
-                if (distance >= closestDistance || tip.DistanceTo(center) < Ui.Px(6)) continue;
+                Vector2 shaft = tip - center;
+                if (shaft.Length() < Ui.Px(6)) continue;
+                // The visible shaft is draggable too. Ignore its crowded origin so crossing
+                // axes do not silently select whichever happens to be enumerated first.
+                float along = Math.Clamp((button.Position - center).Dot(shaft) / shaft.LengthSquared(), 0.25f, 1f);
+                float distance = (center + shaft * along).DistanceTo(button.Position);
+                if (distance >= closestDistance) continue;
                 closest = i; closestDistance = distance;
             }
             if (closest < 0) return false;
             SetPlaying(false);
             _dragAxis = closest;
-            _dragStart = button.Position;
-            _dragOriginal = FpsPlacementPosition;
+            _dragLast = button.Position;
+            _dragPosition = FpsPlacementPosition;
             Vector2 delta = ProjectViewmodel(_gizmo.GlobalPosition + GizmoAxes[closest] * GizmoArm) - center;
             _dragScreenDirection = delta.Normalized();
             _dragPixelsPerMetre = delta.Length() / GizmoArm;
@@ -95,10 +102,11 @@ public partial class HeldItemEditor
         }
         if (input is InputEventMouseMotion motion && _dragAxis >= 0)
         {
-            float displacement = (motion.Position - _dragStart).Dot(_dragScreenDirection) / Math.Max(1, _dragPixelsPerMetre);
+            float displacement = (motion.Position - _dragLast).Dot(_dragScreenDirection) / Math.Max(1, _dragPixelsPerMetre);
+            _dragLast = motion.Position;
             if (motion.ShiftPressed) displacement *= 0.1f;
-            Vector3 position = _dragOriginal;
-            position[_dragAxis] += displacement;
+            _dragPosition[_dragAxis] += displacement;
+            Vector3 position = _dragPosition;
             if (motion.CtrlPressed) position[_dragAxis] = MathF.Round(position[_dragAxis] * 100) / 100;
             Edit("gizmo." + _dragAxis, p => SetFpsPlacementPosition(p, position));
             UpdateGizmo();

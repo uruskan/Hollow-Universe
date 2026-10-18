@@ -50,11 +50,16 @@ public sealed class BuildingModule : ClientModule
 
     public override void Dispose()
     {
-        if (_ownsBuilding)
+        try
         {
-            _buildingReplica?.Dispose();
+            if (_ownsBuilding) _buildingReplica?.Dispose();
         }
-        _buildingReplica = null;
+        finally
+        {
+            Local.Building = null;
+            _buildingReplica = null;
+            _ownsBuilding = false;
+        }
     }
 }
 

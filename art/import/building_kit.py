@@ -264,30 +264,6 @@ def sloped(tier, seed, quality, poly, origin, slope):
     return m
 
 
-GABLE_FOOT = .01
-
-
-def gable(m, tier, a, b, ha, hb, thickness=.06):
-    """An upright triangle under a roof's slanting side, from edge point a (height ha) to b (height hb), one of them 0,
-    a thin panel just inside the footprint (the same panel PieceShapes.Gables gives the collision). Drawn reaching a
-    centimetre under the roof's base, into the top of the wall under it, which is drawn a little lower (building_fit)."""
-    a, b = Vector((a[0], a[1], 0)), Vector((b[0], b[1], 0))
-    u = (b - a).normalized()
-    length = (b - a).length
-    # Inside is to the left of a -> b (the footprint runs counter-clockwise seen from above).
-    n = Vector((-u.y, u.x, 0))
-    foot = -GABLE_FOOT
-    poly = [(0, foot), (length, foot), (length, hb), (0, 0)] if hb > ha else [(0, foot), (length, foot), (length, 0), (0, ha)]
-    tile = 0 if tier in ("Twig", "Metal", "Armored") else 1
-    m.prism(poly, 0, thickness, tile, (tuple(u), (0, 0, 1), tuple(n)), tuple(a))
-    if tier == "Twig":
-        for f in (.3, .6):
-            x = length * f if hb > ha else length * (1 - f)
-            top = (hb if hb > ha else ha) * (x / length if hb > ha else 1 - x / length)
-            p0 = a + u * x + n * .03
-            m.branch(tuple(p0), tuple(p0 + Vector((0, 0, max(.05, top - .05)))), .03, 1, .01)
-
-
 def eave(m, tier, y):
     """Twig's eave branch under a roof's low edge (Blender y), a centimetre short of each end so its ends never lie in a
     wall's end planes. The other grades' deck sits on the wall's top with nothing under it: their eave beam stood inside
@@ -305,8 +281,6 @@ def roof(tier, seed, quality):
     top_centre = Vector((0, 0, 1.5)) + n * .2
     m = sloped(tier, seed, quality, g.rect(-1.5, 1.5, -length / 2, length / 2), tuple(top_centre), tuple(v))
     eave(m, tier, -1.5)
-    gable(m, tier, (1.5, -1.5), (1.5, 1.5), 0, 3)
-    gable(m, tier, (-1.5, 1.5), (-1.5, -1.5), 3, 0)
     return m
 
 
@@ -322,8 +296,6 @@ def roof_triangle(tier, seed, quality):
     top_centre = base + v * (slant / 3) + n * .2
     m = sloped(tier, seed, quality, poly, tuple(top_centre), tuple(v))
     eave(m, tier, -altitude / 3)
-    gable(m, tier, (1.5, -altitude / 3), (0, 2 * altitude / 3), 0, 3)
-    gable(m, tier, (0, 2 * altitude / 3), (-1.5, -altitude / 3), 3, 0)
     return m
 
 
@@ -457,27 +429,6 @@ def sloped_slab(a0, a1, b0, b1, y0, y1, thickness, along_z):
             p(a0, b0, y0 - thickness), p(a1, b0, y0 - thickness), p(a0, b1, y1 - thickness), p(a1, b1, y1 - thickness)]
 
 
-def gable_hulls(polygon, low, span, square, height=3.0, thickness=.06):
-    """PieceShapes.Gables: the panels under a roof's slanting sides."""
-    hulls = []
-    for i in range(1, len(polygon)):
-        if square and i == 2:
-            continue
-        (ax, az), (bx, bz) = polygon[i], polygon[(i + 1) % len(polygon)]
-        length = math.hypot(bx - ax, bz - az)
-        nx, nz = (bz - az) / length, -(bx - ax) / length
-        points = []
-        for x, z in ((ax, az), (bx, bz)):
-            for inset in (0.0, thickness):
-                px, pz = x + nx * inset, z + nz * inset
-                points.append((px, 0, pz))
-                rise = height * (low - z) / span
-                if rise > 1e-6:
-                    points.append((px, rise, pz))
-        hulls.append(points)
-    return hulls
-
-
 def roof_hull(polygon, low, span, height=3.0, thickness=.2):
     n = Vector((0, span, height)).normalized() * thickness
     points = []
@@ -505,11 +456,11 @@ def generated_hulls(key):
                 sloped_slab(-half, -.3, .3, -half, 1.5, 3.0, .25, False)]
     if key == "roof":
         square = [(-half, half), (half, half), (half, -half), (-half, -half)]
-        return [roof_hull(square, half, 3.0)] + gable_hulls(square, half, 3.0, True)
+        return [roof_hull(square, half, 3.0)]
     if key == "roof-triangle":
         altitude = 1.5 * ROOT3
         triangle = [(-half, altitude / 3), (half, altitude / 3), (0, -2 * altitude / 3)]
-        return [roof_hull(triangle, altitude / 3, altitude)] + gable_hulls(triangle, altitude / 3, altitude, False)
+        return [roof_hull(triangle, altitude / 3, altitude)]
     raise KeyError(key)
 
 
@@ -723,8 +674,65 @@ def write_report(sections):
     REPORT.write_text("\n".join(head + body), encoding="utf-8", newline="\n")
 
 
+def stage_roofs(args):
+    """Six roof meshes + two hulls only; no FBX, texture, fit-report or import-setting writes.
+
+    --roof-only --grade twig --out .artifacts/p7-roofs/r1/roof-source-twig.glb
+    A separate reviewed merge assembles the full grade pack from this partial file.
+    """
+    import argparse
+    parser = argparse.ArgumentParser(description=stage_roofs.__doc__)
+    parser.add_argument('--roof-only', action='store_true', required=True)
+    parser.add_argument('--grade', choices=list(TIERS), required=True)
+    parser.add_argument('--out', required=True)
+    options = parser.parse_args(args)
+    staging = load_module('roof_asset_staging', kc.REPO / 'tools/repair_roof_assets.py')
+    grade, tier = options.grade, TIERS[options.grade]
+    out, receipt = staging.output_pair(options.out, f'roof-source-{grade}.glb')
+    raw = staging.staged(out.with_suffix('.raw.glb'))
+    base = staging.baseline('building', grade)
+    document, _ = staging.read_glb(base)
+    staging.selection(document, 'building')
+    staging.require([m.get('name') for m in document['materials']] == [f'Building_{grade}'], 'grade material mismatch')
+    # The existing repair module creates this directory on import; require it to exist already.
+    staging.require((kc.REPO / '.artifacts/building-repair').is_dir(), 'existing coplanar repair workspace is required')
+    snapshot = staging.protected()
+    repair = load_module('building_glb_roof_repair', kc.REPO / 'tools/repair_building_glbs.py')
+    kc.clear_scene()
+    material = bpy.data.materials.new(f'Building_{grade}')
+    material.use_nodes = True  # the final merge preserves the baseline material record by this name
+    stats = []
+    for index, key in enumerate(GENERATED):
+        if key not in staging.ROOFS:
+            continue
+        seed = 7001 + 1009 * list(TIERS).index(grade) + 137 * index
+        for level in range(3):
+            obj = lod_object(key, tier, seed, level)
+            kc.drop_lightmap_uvs(obj)
+            kc.set_material(obj, material)
+            stats.append({'piece': key, 'lod': level, 'seed': seed, 'generatedTriangles': kc.triangles(obj)})
+        for i, points in enumerate(generated_hulls(key)):
+            kc.collision(hull_object(f'{key}_col{i:02d}', points), f'{key}_col{i:02d}')
+    repair_meshes()
+    staging.unchanged(snapshot)
+    kc.export_glb(raw)
+    staging.staged(out)  # never overwrite an earlier candidate
+    repaired = repair.repair(raw, destination=out)
+    document, _ = staging.read_glb(out)
+    staging.selection(document, 'building', candidate=True, partial=True)
+    staging.unchanged(snapshot)
+    staging.write_receipt(receipt, {'mode': 'roof-source', 'grade': grade, 'protected': snapshot,
+        'inputs': {base.relative_to(kc.REPO).as_posix(): staging.digest(base)},
+        'outputSHA256': staging.digest(out), 'bytes': out.stat().st_size, 'generation': stats,
+        'exportedMeshes': staging.mesh_statistics(document), 'coplanarRepair': repaired})
+    print(f'Staged roof meshes only: {out}', flush=True)
+
+
 def main():
     wanted = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else list(TIERS)
+    if '--roof-only' in wanted:
+        stage_roofs(wanted)
+        return
     lines = []
     sections = []
     for grade in wanted:

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Hollow.Core;
 using Hollow.Galaxy.Systems;
 
@@ -50,9 +51,9 @@ public readonly record struct WalkingSample(
 /// <para>Deterministic (ARCHITECTURE.md §8): <see cref="DMath"/>, <see cref="Hash64"/>, <see cref="Rng"/> and the
 /// surface's gradient noise, so the server's collision and every client's ground agree to the bit.</para>
 /// </summary>
-public sealed class WalkingWorld : ISurface, IScatterField
+public sealed partial class WalkingWorld : ISurface, IScatterField
 {
-    /// <summary>The generator's version: part of the seed, the map's cache key and the saves' check.</summary>
+    /// <summary>The base generator's seed version; body-specific changes use WalkingParameters.TerrainRevision.</summary>
     public const int Version = 1;
 
     private const int CalibrationSamples = 8192;
@@ -78,8 +79,11 @@ public sealed class WalkingWorld : ISurface, IScatterField
     private readonly RidgedNoise _ridges;
     private readonly (double Low, double High) _bounds;
 
+    // The token has no back-reference: a worker's last sample cannot retain an otherwise unused world. It is only
+    // a reference-identity cache stamp and never participates in seeds or generated data.
+    private readonly object _sampleCacheIdentity = new();
     // The last point asked for on this thread: drawing asks Sample, Cover and WaterLevelAt at the same point in a row.
-    [ThreadStatic] private static WalkingWorld? _lastWorld;
+    [ThreadStatic] private static object? _lastWorldIdentity;
     [ThreadStatic] private static Vector3D _lastDirection;
     [ThreadStatic] private static WalkingSample _lastSample;
 
@@ -89,9 +93,18 @@ public sealed class WalkingWorld : ISurface, IScatterField
     /// </summary>
     public WalkingWorld(ulong seed, double radius, double oceanCover, double iceCover, double meanTemperature,
         WalkingParameters? parameters = null)
+        : this(seed, radius, oceanCover, iceCover, meanTemperature, parameters, null, default) { }
+
+    private WalkingWorld(ulong seed, double radius, double oceanCover, double iceCover, double meanTemperature,
+        WalkingParameters? parameters, SelectedWalkingWorldPlan? selected, CancellationToken cancellation)
     {
-        _seed = seed;
+        cancellation.ThrowIfCancellationRequested();
         _p = parameters ?? WalkingParameters.Default;
+        _seed = seed = LayoutSeed(seed, _p.LayoutVariant);
+        oceanCover = _p.OceanCover ?? oceanCover;
+        if (!double.IsFinite(oceanCover) || oceanCover < 0 || oceanCover > 1)
+            throw new ArgumentOutOfRangeException(nameof(oceanCover));
+        OceanCover = oceanCover;
         Radius = radius;
         _hasSea = oceanCover > 0.001;
         SeaRadius = _hasSea ? radius : 0;
@@ -141,23 +154,37 @@ public sealed class WalkingWorld : ISurface, IScatterField
         _bounds = (Math.Min(-200, low - 30), high + Math.Max(80, 0.3 * high));
         Array.Sort(temperatures);
         IceTemperature = iceCover > 0.001 ? Quantile(temperatures, iceCover) : -1000;
-        Cliffs = new CliffPlacements(this, seed);
+        cancellation.ThrowIfCancellationRequested();
+        if (selected == null) _legacyCliffs = new CliffPlacements(this, seed);
         Monuments = new MonumentPlacements(this, seed);
+        if (selected != null) _selected = BuildSelected(selected, cancellation);
+        cancellation.ThrowIfCancellationRequested();
     }
 
     /// <summary>The seed of a body's walking-scale ground, from its zone's surface seed (<c>ZoneSpec.SurfaceSeed</c>).</summary>
     public static ulong SeedFor(ulong zoneSurfaceSeed) => Hash64.Of(zoneSurfaceSeed, 0x57414C4B, Version); // "WALK"
 
+    /// <summary>Independent layout candidates; variant zero preserves the established generator seed.</summary>
+    public static ulong LayoutSeed(ulong baseSeed, int variant)
+    {
+        if (variant < 0) throw new ArgumentOutOfRangeException(nameof(variant));
+        return variant == 0 ? baseSeed : Hash64.Of(baseSeed, 0x4C41594F5554, (ulong)variant); // "LAYOUT"
+    }
+
     /// <summary>The walking-scale ground of a body of the generated universe at a game radius.</summary>
     public static WalkingWorld For(StarSystem system, Body body, double radius, WalkingParameters? parameters = null)
     {
         PlanetState state = body.State ?? throw new ArgumentException("Only planets and moons have a surface.", nameof(body));
+        parameters ??= WalkingParameters.ForBody(system.Address.Value, body.Path);
         bool sea = state.Liquid != LiquidKind.None && state.OceanCover > 0.001;
         return new WalkingWorld(SeedFor(Hash64.Of(system.Address.Value, body.Path)), radius, sea ? state.OceanCover : 0,
             state.IceCover, body.Temperature, parameters);
     }
 
     public double Radius { get; }
+
+    /// <summary>The playable ocean target; lakes and streams are additional inland water.</summary>
+    public double OceanCover { get; }
 
     /// <summary>The sea lies at height 0 (none on a dry world).</summary>
     public double SeaRadius { get; }
@@ -168,11 +195,14 @@ public sealed class WalkingWorld : ISurface, IScatterField
     public WalkingParameters Parameters => _p;
 
     /// <summary>Shared scan formations, separate from harvestable natural-object IDs and ground-height generation.</summary>
-    public CliffPlacements Cliffs { get; }
+    private readonly CliffPlacements? _legacyCliffs;
+    /// <summary>Selected worlds require the sealed-field consumers; they never silently fall back to legacy cliffs.</summary>
+    public CliffPlacements Cliffs => _legacyCliffs ??
+        throw new NotSupportedException("Selected walking worlds require the sealed formation render/collision consumers.");
     public MonumentPlacements Monuments { get; }
 
     public TriangleMesh GroundCollision(in ZoneFrame frame, TileKey tile, double margin) =>
-        Monuments.AddCollision(Cliffs.Collision(frame, tile, margin), frame, tile, margin);
+        _selected != null ? SelectedCollision(frame, tile, margin) : Monuments.AddCollision(Cliffs.Collision(frame, tile, margin), frame, tile, margin);
 
     /// <summary>The lakes, largest share of the world first by their place in the grid (a fixed order).</summary>
     public IReadOnlyList<WalkingLake> Lakes => _drainage?.Lakes ?? Array.Empty<WalkingLake>();
@@ -194,12 +224,12 @@ public sealed class WalkingWorld : ISurface, IScatterField
     /// <summary>Everything about a point: its ground, water, landmass, relief, coast, roughness, streams and ice.</summary>
     public WalkingSample Fields(Vector3D direction)
     {
-        if (ReferenceEquals(_lastWorld, this) && _lastDirection.Equals(direction))
+        if (ReferenceEquals(_lastWorldIdentity, _sampleCacheIdentity) && _lastDirection.Equals(direction))
         {
             return _lastSample;
         }
         WalkingSample s = Compute(direction, carve: true, detail: true);
-        _lastWorld = this;
+        _lastWorldIdentity = _sampleCacheIdentity;
         _lastDirection = direction;
         _lastSample = s;
         return s;
@@ -285,6 +315,8 @@ public sealed class WalkingWorld : ISurface, IScatterField
         double shore = Math.Max(c, Continents(q) - _continentsCoast - PocketMargin);
         double rocky = DMath.SmoothStep(-0.2, 0.25, Noise.Fbm(p, Radius, _p.CoastKindWavelength, 2, 0.5, _seed + 4, NoiseBasis.Corners));
         Span<double> w = stackalloc double[ReliefProvinces.TypeCount];
+        // Offshore points skip Weights but still return all four relief fields.
+        w.Clear();
         Span<double> a = stackalloc double[ReliefProvinces.TypeCount];
         Span<double> centre = stackalloc double[ReliefProvinces.TypeCount];
         double rough = 0;

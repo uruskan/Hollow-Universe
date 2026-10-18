@@ -24,6 +24,9 @@ public static class EnvironmentRouteTests
         Vector3D water = route.Stops[3].LookAt;
         Assert.True(world.WaterLevelAt(water.Normalized) > world.HeightAt(water.Normalized) + 0.3, "water is real geometry");
         Assert.True(world.Cliffs.Near(route.Stops[4].LookAt, 12).Count > 0, "cliff checkpoint faces a generated scan");
+        Assert.True(world.Cliffs.Near(route.Stops[4].LookAt, 12).Any(cliff =>
+            Vector3D.Dot(route.Stops[4].Position - cliff.Position, cliff.Downslope) > 12),
+            "cliff viewpoint is outside its exposed downslope face, independent of the source mesh's Z convention");
         Assert.True(world.Monuments.At(route.Stops[5].LookAt.Normalized) != null, "monument checkpoint faces a generated site");
         for (int leg = 0; leg < route.Legs.Count; leg++)
         {

@@ -1,6 +1,6 @@
 # Playable scale and the Earth start
 
-The authoritative requirements are `D:/GameDev/Projects/x/design.md`: GAL-01, SYS-01, WORLD-01 and LOOP-01.
+The authoritative requirements are [DESIGN.md](DESIGN.md): GAL-01, SYS-01, WORLD-01 and LOOP-01.
 The older scale proposals describe the reference project and do not override these requirements.
 
 `GameScale` keeps generated physical values intact. Its provisional, configurable radius mapping is
@@ -34,4 +34,7 @@ uses the planet centre, and `RenderFrame` supports a moving origin for large ref
 Interplanetary travel must keep authoritative locations in double precision and render/solve physics
 near the player. The finite map does not implement travel. Local ascent now crosses the atmospheric
 threshold without parking and supports descent; the current four-radius outer simulation guard remains.
-Interplanetary flight, streaming and server transfers remain separate work.
+Interplanetary flight, streaming and server transfers remain separate work. The travel revision of 18 October 2026
+adds normal flight, supercruise, charged interstellar jumps and fuel scooping (DESIGN.md TRAVEL-01–05). It does not
+change the star-count or planet-size caps. Route distances and travel speeds remain tuning to be specified; neither
+diagram positions nor the local four-radius guard define the final playable space scale.

@@ -30,6 +30,7 @@ public partial class GroundUi
 
     private void PaintScreen()
     {
+        HudCrafting = null;
         switch (Screen)
         {
             case GroundScreen.Menu:
@@ -71,6 +72,10 @@ public partial class GroundUi
         {
             PaintBelt(inventory);
             PaintVitals(inventory);
+            if (Screen == GroundScreen.Hud)
+            {
+                PaintCraftingHud();
+            }
         }
         if (Screen == GroundScreen.Hud)
         {

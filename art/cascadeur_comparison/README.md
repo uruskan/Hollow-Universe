@@ -38,6 +38,43 @@ These are technical checks, not a claim of artistic acceptance. Native viewport
 captures provide visual inspection. The camera position/lens/aspect match the
 v3 FPS view, but Cascadeur's materials and lighting differ.
 
+## Additional FPS weapon scope
+
+The next requested set extends the existing hatchet and torch candidates with
+six weapon actions: `heavyaxe_chop`, `pickaxe_swing`, `pistol_fire`,
+`pistol_reload`, `rifle_fire`, and `rifle_reload`. These are new candidates,
+not locomotion clips. Their generation, capture and visual acceptance must be
+reported separately as each finishes; this scope list does not establish that
+the six animations are complete.
+
+The six additional actions have no Blender v3 baseline. The comparison page
+shows that absence explicitly and plays a candidate alone when its media is
+available. Hatchet and torch retain their existing paired comparisons. Missing
+candidate videos remain labelled pending. Original Blender sources, existing
+A02 scenes and media are preserved inputs.
+
+Weapon parts such as a magazine, slide or bolt can have independent local
+transforms beneath the weapon parent. Reload validation must inspect the part
+trajectory and support-hand contact as well as the wrist and grip. A changed
+part transform is intentional during reload and must not be confused with a
+broken fixed weapon grip. Numeric checks and a successful export do not prove
+that the motion is visually convincing.
+
+The viewer's repeat transport waits for seek completion and decoded frames on
+both panels before resuming. Playback intent survives the temporary
+`readyState` drop during a loop restart; pausing or switching clips cancels an
+obsolete pending resume. The focused regression command is:
+
+```powershell
+node art/cascadeur_comparison/test_transport.cjs
+```
+
+Seven checks pass using independent event-driven media doubles: repeated
+asynchronous seeks, repeat disabled, all three playback rates, missing paired
+media, clip changes or pause during a seek, buffering, and decoder failure.
+These checks verify transport logic; they are not a real-browser playback or
+codec test. The earlier browser-access restrictions still limit that claim.
+
 ## Reproduction and evidence
 
 `prepare_inputs.py` runs in background Blender to export fresh input copies and

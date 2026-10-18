@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
@@ -11,6 +12,25 @@ namespace HollowUniverse.Characters;
 
 public partial class HeldItemEditor
 {
+    // Reuse the normal workshop sampler and capture paths for inspecting actual palm/finger contact.
+    private void ConfigureInspection()
+    {
+        if (_options.TryGetValue("vm-orbit", out string? orbit))
+        {
+            string[] parts = orbit.Split(',');
+            Require(parts.Length == 3, "--vm-orbit requires yaw,pitch,distance (degrees,degrees,metres).");
+            float[] values = parts.Select(value => float.Parse(value, CultureInfo.InvariantCulture)).ToArray();
+            Require(values.All(float.IsFinite), "--vm-orbit values must be finite.");
+            _externalYaw = values[0]; _externalPitch = Math.Clamp(values[1], -75, 75);
+            _externalDistance = Math.Clamp(values[2], 0.22f, 4); _view = 1;
+        }
+        if (_options.TryGetValue("attachment", out string? key))
+        {
+            _previewAttachment = _content.ItemByKey(key);
+            Require(_previewAttachment.Attachment != null, "--attachment must name a weapon attachment.");
+        }
+    }
+
     /// <summary>
     /// Exercises the actual controls and runtime previews, then restores the in-memory catalog.
     /// Disk round-tripping is restricted to a new temporary file, never the production catalog.
@@ -46,7 +66,12 @@ public partial class HeldItemEditor
             CheckSkeletalRoundTrip(savedSources);
             // Source actions intentionally do not edit numerical motion keys. Exercise those controls on a legacy
             // profile, then return to the selected source profile for the actual placement gizmo.
-            SelectItem(HeldItems.Find("stone-hatchet")!);
+            HeldItemModel legacyFixture = HeldItems.All.FirstOrDefault(item => !item.LeftHanded &&
+                item.Presentation.Actions.TryGetValue("idle", out HeldPresentationClip? idle) && idle.Skeletal == null &&
+                item.Presentation.Actions.TryGetValue("swing", out HeldPresentationClip? swing) &&
+                swing.Skeletal == null && swing.Keys.Count > 2)
+                ?? throw new InvalidOperationException("The key-edit check needs an unbound idle/swing profile with editable keys.");
+            SelectItem(legacyFixture);
             SelectAction("swing");
             Require(Clip.Skeletal == null, "The legacy key-edit fixture must remain an unbound profile.");
             int originalKeys = Clip.Keys.Count;
@@ -74,10 +99,14 @@ public partial class HeldItemEditor
             Vector2 tipScreen = ProjectViewmodel(_gizmo.GlobalPosition + GizmoAxes[dragAxis] * GizmoArm);
             Vector2 screenDelta = tipScreen - gripScreen;
             Vector3 beforeDrag = FpsPlacementPosition;
-            _previewContainer.EmitSignal(Control.SignalName.GuiInput, new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = tipScreen });
-            Require(_dragAxis == dragAxis, "Clicking the rendered gizmo tip must select its axis.");
-            Vector2 dragEnd = tipScreen + screenDelta.Normalized() * (screenDelta.Length() / GizmoArm * 0.02f);
+            Vector2 shaftScreen = gripScreen.Lerp(tipScreen, 0.7f);
+            _previewContainer.EmitSignal(Control.SignalName.GuiInput, new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true, Position = shaftScreen });
+            Require(_dragAxis == dragAxis, "Clicking the visible gizmo shaft must select its axis.");
+            Vector2 dragEnd = shaftScreen + screenDelta.Normalized() * (screenDelta.Length() / GizmoArm * 0.02f);
             _previewContainer.EmitSignal(Control.SignalName.GuiInput, new InputEventMouseMotion { Position = dragEnd, ButtonMask = MouseButtonMask.Left });
+            _previewContainer.EmitSignal(Control.SignalName.GuiInput, new InputEventMouseMotion { Position = dragEnd, ButtonMask = MouseButtonMask.Left, ShiftPressed = true });
+            Require(MathF.Abs(FpsPlacementPosition[dragAxis] - beforeDrag[dragAxis] - 0.02f) < 0.0002f,
+                "Pressing Shift mid-drag with no mouse motion must not move the placement.");
             _previewContainer.EmitSignal(Control.SignalName.GuiInput, new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = false, Position = dragEnd });
             Require(MathF.Abs(FpsPlacementPosition[dragAxis] - beforeDrag[dragAxis] - 0.02f) < 0.0002f, "Dragging an axis must move the FPS placement by the projected distance.");
             _testPositionX!.GetLineEdit().GrabFocus();
@@ -89,8 +118,9 @@ public partial class HeldItemEditor
 
             // A wrist can reach its edited IK target while the palm floats off the handle. Check this distinction
             // in the actual rig so the new contact diagnostic cannot silently become another wrist-target check.
-            SelectItem(HeldItems.Find("stone-hatchet")!);
+            SelectItem(legacyFixture);
             SelectAction("idle"); SetView(0); SetPhase(0);
+            await CheckProceduralComposition();
             _hand = 0;
             float[] originalCurls = Enumerable.Repeat(1f, 15).ToArray();
             _profile.RightHand.Fingers = (float[])originalCurls.Clone();
@@ -114,7 +144,7 @@ public partial class HeldItemEditor
             Require(_viewmodel.PrimaryHandAttachmentError < 0.002f, "The displaced wrist must still reach its own target.");
             Require(MathF.Abs(_viewmodel.PrimaryPalmContactError - 0.03f) < 0.002f,
                 "A 30 mm wrist offset must report a 30 mm palm gap, even when wrist-target attachment passes.");
-            HeldPresentations.Replace(HeldPresentations.Clone(originals["stone-hatchet"]));
+            HeldPresentations.Replace(HeldPresentations.Clone(originals[legacyFixture.Id]));
             _dirty.Clear();
 
             // Cover every held item and every authored action through both gameplay rendering paths.
@@ -283,13 +313,14 @@ public partial class HeldItemEditor
         {
             SetPlaying(false);
             string[] actions = _options.ContainsKey("action") ? new[] { _action } : _actionNames.ToArray();
-            int[] views = _options.ContainsKey("camera") ? new[] { _view } : new[] { 0, 2 };
-            const int columns = 5, width = 400, height = 300;
+            int[] views = _options.ContainsKey("camera") || _options.ContainsKey("vm-orbit") ? new[] { _view } : new[] { 0, 2 };
+            const int columns = 5, height = 300;
+            int width = CaptureWidth(height, 4f / 3f);
             Image sheet = Image.CreateEmpty(columns * width, actions.Length * views.Length * height, false, Image.Format.Rgba8);
             sheet.Fill(new Color(0.025f, 0.035f, 0.05f));
             _captureCaption.Visible = true;
             _captureCaption.AddThemeFontSizeOverride("font_size", HollowUniverse.Common.Ui.Px(24));
-            // A fixed 4:3 render size provides comparable framing for every tile, independent of the editor panels.
+            // Capture aspect is explicit and independent of the editor panels.
             _previewContainer.Stretch = false;
             _preview.Size = new Vector2I(width * 2, height * 2);
             int row = 0;
@@ -333,11 +364,12 @@ public partial class HeldItemEditor
     /// <summary>Deterministic authoring samples rendered by the actual gameplay rigs, ready for an external encoder.</summary>
     private async void CaptureAnimation(string directory)
     {
-        const int fps = 24, maximumFrames = 240, width = 1280, height = 720;
+        const int fps = 24, maximumFrames = 240, height = 720;
         const double maximumSeconds = 10;
         try
         {
             SetPlaying(false);
+            int width = CaptureWidth(height, 16f / 9f);
             string cycle = Option("editor-cycle", "");
             Require(cycle.Length == 0 || cycle == "bow", "The supported animation cycle is --editor-cycle bow.");
             if (_options.TryGetValue("action", out string? requestedAction))
@@ -406,6 +438,14 @@ public partial class HeldItemEditor
                 sampledSeconds = secondsToCapture, playbackSeconds = frameCount / (double)fps,
                 requestedSeconds, truncated = requestedSeconds > secondsToCapture,
                 gameplayTiming = _gameTiming, aiming = _aiming,
+                attachment = _previewAttachment?.Key,
+                orbit = _view == 1 ? new[] { _externalYaw, _externalPitch, _externalDistance } : null,
+                body = _body.ToString(), viewmodelFov = CharacterMaterials.ViewmodelFov,
+                worldFov = _camera.Fov,
+                rigPosition = new[] { _profile.FirstPersonRig?.Position.X ?? 0, _profile.FirstPersonRig?.Position.Y ?? 0, _profile.FirstPersonRig?.Position.Z ?? 0 },
+                rigRotation = new[] { _profile.FirstPersonRig?.Rotation.X ?? 0, _profile.FirstPersonRig?.Rotation.Y ?? 0, _profile.FirstPersonRig?.Rotation.Z ?? 0 },
+                profileSha256 = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(HeldPresentations.Serialize(_profile)))),
                 segments = segments.Select(s => new { action = s.Action, seconds = s.Seconds, skeletal = _profile.Actions[s.Action].Skeletal }),
             }, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(Path.Combine(output, "manifest.json"), manifest + System.Environment.NewLine);
@@ -413,6 +453,53 @@ public partial class HeldItemEditor
             GetTree().Quit();
         }
         catch (Exception error) { GD.PushError("[held-editor-animation] " + error); GetTree().Quit(1); }
+    }
+
+    private int CaptureWidth(int height, float fallback)
+    {
+        float aspect = Option("editor-aspect", "") switch
+        {
+            "" => fallback,
+            "4:3" => 4f / 3f,
+            "16:9" => 16f / 9f,
+            "21:9" => 21f / 9f,
+            _ => throw new InvalidOperationException("--editor-aspect supports 4:3, 16:9 or 21:9."),
+        };
+        return (int)MathF.Round(height * aspect);
+    }
+
+    private async Task CheckProceduralComposition()
+    {
+        HeldPresentationPose? saved = _profile.FirstPersonRig;
+        try
+        {
+            _profile.FirstPersonRig = null;
+            Commit("Checking uncomposed rig.");
+            await Settle(2);
+            Transform3D before = _viewmodel.PresentedGrip ?? throw new InvalidOperationException("Missing held grip.");
+            Skeleton3D skeleton = FindCheckSkeleton(_viewmodel);
+            Quaternion[] bones = Enumerable.Range(0, skeleton.GetBoneCount()).Select(skeleton.GetBonePoseRotation).ToArray();
+            float correction = _viewmodel.AuthoredReachCorrection;
+            _profile.FirstPersonRig = new HeldPresentationPose { Position = new Vector3(-0.03f, -0.05f, -0.25f), Rotation = new Vector3(7, 3, 0) };
+            Transform3D expected = _viewmodel.GlobalTransform * _profile.FirstPersonRig.Transform * _viewmodel.GlobalTransform.AffineInverse() * before;
+            Commit("Checking complete-rig composition.");
+            await Settle(2);
+            Transform3D after = _viewmodel.PresentedGrip!.Value;
+            Require(after.Origin.DistanceTo(expected.Origin) < 0.0001f && after.Basis.IsEqualApprox(expected.Basis),
+                "Complete-rig composition must move the finished item with the solved arms.");
+            Require(MathF.Abs(correction - _viewmodel.AuthoredReachCorrection) < 0.0001f,
+                "Composition must not provoke a new reach correction.");
+            Require(_viewmodel.PrimaryPalmContactError < 0.002f, "Composition must preserve palm contact.");
+            for (int i = 0; i < bones.Length; i++)
+                Require(MathF.Abs(bones[i].Dot(skeleton.GetBonePoseRotation(i))) > 0.99999f,
+                    "Composition must preserve the solved bone rotations.");
+        }
+        finally
+        {
+            _profile.FirstPersonRig = saved;
+            Commit("Restored composition after diagnostic.");
+            await Settle(2);
+        }
     }
 
     private async Task WriteScreenshot(string path)

@@ -247,7 +247,8 @@ public static class BiomeTable
             weights[b] = w;
             sum += w;
         }
-        double land = (1 - ice) * (1 - alpine) / Math.Max(sum, 1e-12);
+        // Alpine already includes its non-ice share; ordinary biomes receive the remainder.
+        double land = Math.Max(0, 1 - ice - alpine) / Math.Max(sum, 1e-12);
         for (int b = (int)Biome.Tundra; b <= (int)Biome.TropicalForest; b++)
         {
             weights[b] *= land;

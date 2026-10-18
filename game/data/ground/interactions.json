@@ -48,6 +48,19 @@
     { "key": "engine-on", "label": "Engine on", "named": false, "glyph": "fuel", "description": "Start the engines with the retained flight settings.", "priority": 15 },
     { "key": "engine-off", "label": "Engine off", "named": false, "glyph": "fuel", "description": "Stop thrust and flight assist. The ship coasts or falls under gravity.", "priority": 15 },
     { "key": "open-fuel", "label": "Open fuel tank", "named": false, "glyph": "fuel", "description": "Move lamp oil into or out of its one-slot tank.", "priority": 30, "reach": "open" },
-    { "key": "rename", "label": "Name", "named": false, "glyph": "name", "description": "Choose the name shown on your map and respawn list.", "priority": 90, "text": true }
+    { "key": "rename", "label": "Name", "named": false, "glyph": "name", "description": "Choose the name shown on your map and respawn list.", "priority": 90, "text": true },
+    {"key": "power-output", "label": "Select power output", "glyph": "power", "description": "Select this generator for the next connection.", "priority": 35, "reach": "open"},
+    {"key": "power-connect", "label": "Connect power input", "glyph": "power", "description": "Wire this input to the selected output.", "priority": 35, "reach": "open"},
+    {"key": "power-disconnect", "label": "Disconnect power", "glyph": "power-off", "description": "Remove the input cable.", "priority": 20, "reach": "open"},
+    {"key": "power-enable", "label": "Enable electricity", "glyph": "power", "description": "Enable this electrical device.", "priority": 20, "reach": "open"},
+    {"key": "power-disable", "label": "Disable electricity", "glyph": "power-off", "description": "Disable this electrical device.", "priority": 20, "reach": "open"},
+    {"key": "defense-on", "label": "Enable defense", "glyph": "power", "description": "Enable targeting when power and ammunition are available.", "priority": 30, "reach": "open", "switch": "on"},
+    {"key": "defense-off", "label": "Disable defense", "glyph": "power-off", "description": "Stop automatic targeting.", "priority": 30, "reach": "open", "switch": "off"},
+    {"key": "defense-open", "label": "Open weapon and ammunition", "glyph": "open", "description": "Install a firearm and matching rounds, or load launcher rockets.", "priority": 60, "reach": "open"},
+    {"key": "gate-open", "label": "Open", "glyph": "door", "description": "Open the compound gate.", "priority": 70, "reach": "open"},
+    {"key": "gate-close", "label": "Close", "glyph": "door-shut", "description": "Close the compound gate.", "priority": 70, "reach": "open"},
+    {"key":"defense-authorise","label":"Authorize myself","glyph":"authorise","description":"Protect me on this device. Does not restore cupboard inheritance for everyone.","priority":45,"reach":"open"},
+    {"key":"defense-deauthorise","label":"Clear my authorization","glyph":"deauthorise","description":"Remove my protection here, including inherited Tool Cupboard protection.","priority":25,"reach":"open"},
+    {"key":"defense-clear","label":"Clear all authorization","glyph":"clear-list","description":"Remove everyone's protection here and stop Tool Cupboard inheritance on this device.","priority":15,"reach":"open"}
   ]
 }

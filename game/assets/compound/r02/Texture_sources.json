@@ -1,0 +1,207 @@
+[
+  {
+    "asset": "bark_brown_02",
+    "url": "https://polyhaven.com/a/bark_brown_02",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm"
+    ]
+  },
+  {
+    "asset": "wood_planks_grey",
+    "url": "https://polyhaven.com/a/wood_planks_grey",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm"
+    ]
+  },
+  {
+    "asset": "rock_boulder_dry",
+    "url": "https://polyhaven.com/a/rock_boulder_dry",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm"
+    ]
+  },
+  {
+    "asset": "rusty_metal_04",
+    "url": "https://polyhaven.com/a/rusty_metal_04",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm"
+    ]
+  },
+  {
+    "asset": "medieval_red_brick",
+    "url": "https://polyhaven.com/a/medieval_red_brick",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm"
+    ]
+  },
+  {
+    "asset": "concrete_wall_001",
+    "url": "https://polyhaven.com/a/concrete_wall_001",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm"
+    ]
+  },
+  {
+    "asset": "medieval_red_brick",
+    "url": "https://polyhaven.com/a/medieval_red_brick",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm",
+      "Displacement"
+    ]
+  },
+  {
+    "asset": "rusty_metal_02",
+    "url": "https://polyhaven.com/a/rusty_metal_02",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm",
+      "Displacement"
+    ]
+  },
+  {
+    "asset": "metal_plate",
+    "url": "https://polyhaven.com/a/metal_plate",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm",
+      "Displacement"
+    ]
+  },
+  {
+    "asset": "blue_metal_plate",
+    "url": "https://polyhaven.com/a/blue_metal_plate",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm",
+      "Displacement"
+    ]
+  },
+  {
+    "asset": "wooden_rough_planks",
+    "url": "https://polyhaven.com/a/wooden_rough_planks",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm",
+      "Displacement"
+    ]
+  },
+  {
+    "asset": "worn_corrugated_iron",
+    "url": "https://polyhaven.com/a/worn_corrugated_iron",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm",
+      "Displacement"
+    ]
+  },
+  {
+    "asset": "Rope001",
+    "url": "https://ambientcg.com/view?id=Rope001",
+    "license": "CC0-1.0",
+    "resolution": "2k",
+    "method": "Downloaded authored PBR material; source metadata labels PBRProcedural"
+  },
+  {
+    "asset": "metal_plate_02",
+    "url": "https://polyhaven.com/a/metal_plate_02",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm",
+      "Displacement"
+    ]
+  },
+  {
+    "asset": "reed_roof_03",
+    "url": "https://polyhaven.com/a/reed_roof_03",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm",
+      "Displacement"
+    ]
+  },
+  {
+    "asset": "rock_boulder_dry",
+    "url": "https://polyhaven.com/a/rock_boulder_dry",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm",
+      "Displacement"
+    ]
+  },
+  {
+    "asset": "rusty_metal_03",
+    "url": "https://polyhaven.com/a/rusty_metal_03",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm",
+      "Displacement"
+    ]
+  },
+  {
+    "asset": "rusty_painted_metal",
+    "url": "https://polyhaven.com/a/rusty_painted_metal",
+    "license": "CC0-1.0",
+    "resolution": "4k",
+    "maps": [
+      "Diffuse",
+      "nor_gl",
+      "arm",
+      "Displacement"
+    ]
+  }
+]

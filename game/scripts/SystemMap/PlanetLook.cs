@@ -11,7 +11,7 @@ namespace HollowUniverse.SystemMap;
 /// </summary>
 public static class PlanetLook
 {
-    public static void Apply(ShaderMaterial material, Body body)
+    public static void Apply(ShaderMaterial material, Body body, ulong systemAddress)
     {
         var rng = new Rng(Hash64.Of((ulong)body.Path, Hash64.Of(body.Name)));
         float seed = (float)rng.Range(0, 100);
@@ -106,9 +106,10 @@ public static class PlanetLook
         {
             // Liquids fill the low ground (the shader's ocean level is a height threshold; about 0.3 + 0.4 × cover
             // gives that share of the surface), and ice caps cover their share of the sphere from the poles.
-            if (state.Liquid != LiquidKind.None && state.OceanCover > 0.005)
+            double oceanCover = Hollow.Surface.WalkingParameters.ForBody(systemAddress, body.Path).OceanCover ?? state.OceanCover;
+            if (state.Liquid != LiquidKind.None && oceanCover > 0.005)
             {
-                ocean = state.OceanCover >= 0.95 ? 1.1f : 0.3f + 0.4f * (float)state.OceanCover;
+                ocean = oceanCover >= 0.95 ? 1.1f : 0.3f + 0.4f * (float)oceanCover;
                 c = state.Liquid switch
                 {
                     LiquidKind.Magma => new Color(1.0f, 0.42f, 0.10f),

@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://g08eetx6sen3"
-path="res://.godot/imported/wild_T_vlkhcbxia_4K_ORT.png-1e5158aa1e1fa26512f25cfca41ab580.ctex"
+path.bptc="res://.godot/imported/wild_T_vlkhcbxia_4K_ORT.png-1e5158aa1e1fa26512f25cfca41ab580.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "98d4e397e7483d33130c09f359bf0a6a"
@@ -14,17 +15,17 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/surface/ground-cover/wild_T_vlkhcbxia_4K_ORT.png"
-dest_files=["res://.godot/imported/wild_T_vlkhcbxia_4K_ORT.png-1e5158aa1e1fa26512f25cfca41ab580.ctex"]
+dest_files=["res://.godot/imported/wild_T_vlkhcbxia_4K_ORT.png-1e5158aa1e1fa26512f25cfca41ab580.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
@@ -40,4 +41,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

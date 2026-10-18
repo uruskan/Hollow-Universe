@@ -20,12 +20,12 @@ public sealed class PersistenceWorker : IDisposable
     private GameDatabase? _database;
     private bool _disposed;
 
-    public PersistenceWorker(string path, Func<long> unixMilliseconds, Action<string>? log = null)
+    public PersistenceWorker(string path, Func<long> unixMilliseconds, Action<string>? log = null, TerrainIdentity? terrain = null)
     {
         _unixMilliseconds = unixMilliseconds;
         _log = log ?? (_ => { });
-        // Open here, so a bad path or a newer schema fails the server's start, not a later save.
-        _database = GameDatabase.Open(path);
+        // Open here, so an incompatible terrain, bad path or newer schema fails before the worker or server starts.
+        _database = GameDatabase.Open(path, terrain);
         _thread = new Thread(Run) { IsBackground = true, Name = "Hollow persistence" };
         _thread.Start();
     }

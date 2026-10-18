@@ -141,6 +141,8 @@ internal sealed class Drainage
     private readonly double[] _floor;
     private readonly List<WalkingLake> _lakes = new();
     private readonly DrainageSegment[] _segments;
+    private readonly IReadOnlyList<WalkingLake> _publicLakes;
+    private readonly IReadOnlyList<DrainageSegment> _publicSegments;
     private readonly int[][] _buckets;
     private readonly int _bucketLevel;
     private readonly ulong _seed;
@@ -306,6 +308,10 @@ internal sealed class Drainage
         }
 
         _segments = BuildSegments(count, order, popped, floor, halfWidth, valley, steep, wall, p.Meander);
+        // Sampling reads these exact collections. Public views must not let a caller change finalized terrain
+        // after a selected formation's contact positions have been sealed against it.
+        _publicLakes = _lakes.AsReadOnly();
+        _publicSegments = Array.AsReadOnly(_segments);
         _bucketLevel = TileKey.LevelFor(radius, BucketMetres, 12);
         _buckets = BuildBuckets();
     }
@@ -315,9 +321,9 @@ internal sealed class Drainage
 
     public int CellCount => _dir.Length;
 
-    public IReadOnlyList<WalkingLake> Lakes => _lakes;
+    public IReadOnlyList<WalkingLake> Lakes => _publicLakes;
 
-    public IReadOnlyList<DrainageSegment> Segments => _segments;
+    public IReadOnlyList<DrainageSegment> Segments => _publicSegments;
 
     public Vector3D CellCentre(int cell) => _dir[cell];
 

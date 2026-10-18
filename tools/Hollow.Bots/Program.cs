@@ -77,52 +77,63 @@ public static class Program
         Console.WriteLine($"{count} bots ({script}) joining {host}:{port}" + (conditions.IsNone ? "" : $", {conditions}"));
         using var swarm = new BotSwarm(host, port, count, script, conditions, prefix, Console.WriteLine, raidBases, raidRadius, fly);
         bool stop = false;
-        Console.CancelKeyPress += (_, e) =>
+        ConsoleCancelEventHandler cancel = (_, e) =>
         {
             e.Cancel = true;
             stop = true;
         };
-        double elapsed = 0;
-        if (reportAfter > 0)
+        ConsoleCancelEventHandler? progress = null;
+        Console.CancelKeyPress += cancel;
+        try
         {
-            // Load test: settle, start the statistics afresh, run, and report on one line for the parent process.
-            swarm.Run(reportAfter, () => stop);
-            foreach (GameClient client in swarm.Clients)
+            double elapsed = 0;
+            if (reportAfter > 0)
             {
-                client.Stats.ResetTotals();
+                // Load test: settle, start the statistics afresh, run, and report on one line for the parent process.
+                swarm.Run(reportAfter, () => stop);
+                foreach (GameClient client in swarm.Clients)
+                {
+                    client.Stats.ResetTotals();
+                }
+                swarm.Run(Math.Max(0, duration - reportAfter), () => stop);
+                IReadOnlyList<GameClient> all = swarm.Clients;
+                Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                    $"REPORT {all.Sum(c => c.Stats.Reconciliations)} {all.Sum(c => c.Stats.PredictionErrorTotal):R} " +
+                    $"{all.Max(c => c.Stats.PredictionErrorWorst):R} {all.Sum(c => c.Stats.Corrections)} {all.Average(c => c.Stats.RoundTripMs):R} " +
+                    $"{all.Average(c => c.Stats.SnapshotsPerSecond):R} {swarm.Playing} {swarm.Disconnected} {all.Average(c => c.Stats.SnapshotLossPercent):R} " +
+                    $"{all.Sum(c => c.Stats.ClockJumps)} {swarm.Survival.Crafts} {swarm.Survival.Picks} {swarm.Survival.Fights} {all.Sum(c => c.Stats.Teleports)} " +
+                    $"{swarm.Fights.Bursts} {swarm.Fights.Reloads} {swarm.Fights.Assists} {all.Sum(c => c.Local.Gun.PendingCount)} " +
+                    $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building().World?.PieceCount ?? 0)} " +
+                    $"{swarm.Raids.Placed} {swarm.Raids.Thrown} {swarm.Raids.Rockets} {swarm.Raids.Bursts} {swarm.Raids.Alerts} " +
+                    $"{swarm.Flights.Boardings} {swarm.Flights.Flying} {swarm.Flights.Seconds:R} {swarm.Flights.Corrections} " +
+                    $"{swarm.World.Broken} {swarm.World.Emptied} {swarm.World.Picked} {swarm.World.Recycled} {swarm.World.Researched} {swarm.World.Learnt} {swarm.World.Teamed} " +
+                    $"{all.Sum(c => c.Prediction?.HeldForGround ?? 0)}"));
+                return 0;
             }
-            swarm.Run(Math.Max(0, duration - reportAfter), () => stop);
-            IReadOnlyList<GameClient> all = swarm.Clients;
-            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                $"REPORT {all.Sum(c => c.Stats.Reconciliations)} {all.Sum(c => c.Stats.PredictionErrorTotal):R} " +
-                $"{all.Max(c => c.Stats.PredictionErrorWorst):R} {all.Sum(c => c.Stats.Corrections)} {all.Average(c => c.Stats.RoundTripMs):R} " +
-                $"{all.Average(c => c.Stats.SnapshotsPerSecond):R} {swarm.Playing} {swarm.Disconnected} {all.Average(c => c.Stats.SnapshotLossPercent):R} " +
-                $"{all.Sum(c => c.Stats.ClockJumps)} {swarm.Survival.Crafts} {swarm.Survival.Picks} {swarm.Survival.Fights} {all.Sum(c => c.Stats.Teleports)} " +
-                $"{swarm.Fights.Bursts} {swarm.Fights.Reloads} {swarm.Fights.Assists} {all.Sum(c => c.Local.Gun.PendingCount)} " +
-                $"{swarm.Building.Done} {swarm.Building.Refused} {swarm.Building.Toggles} {all.Max(c => c.Building().World?.PieceCount ?? 0)} " +
-                $"{swarm.Raids.Placed} {swarm.Raids.Thrown} {swarm.Raids.Rockets} {swarm.Raids.Bursts} {swarm.Raids.Alerts} " +
-                $"{swarm.Flights.Boardings} {swarm.Flights.Flying} {swarm.Flights.Seconds:R} {swarm.Flights.Corrections} " +
-                $"{swarm.World.Broken} {swarm.World.Emptied} {swarm.World.Picked} {swarm.World.Recycled} {swarm.World.Researched} {swarm.World.Learnt} {swarm.World.Teamed} " +
-                $"{all.Sum(c => c.Prediction?.HeldForGround ?? 0)}"));
+            progress = (_, _) => Console.WriteLine(swarm.BuildProgress);
+            Console.CancelKeyPress += progress;
+            while (!stop && elapsed < duration)
+            {
+                double step = Math.Min(5, duration - elapsed);
+                swarm.Run(step, () => stop);
+                elapsed += step;
+                IReadOnlyList<GameClient> clients = swarm.Clients;
+                Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                    $"{elapsed,5:0} s: {swarm.Playing} playing, {swarm.Disconnected} disconnected; per bot {clients.Average(c => c.Stats.KilobitsIn):0.0} kbit/s in, " +
+                    $"{clients.Average(c => c.Stats.KilobitsOut):0.0} out, {clients.Average(c => c.Stats.SnapshotsPerSecond):0.0} snapshots/s, " +
+                    $"round trip {clients.Average(c => c.Stats.RoundTripMs):0} ms, prediction error {clients.Average(c => c.Stats.PredictionErrorMean) * 1000:0.00} mm"));
+            }
+            if (script == BotScript.Build)
+            {
+                Console.WriteLine($"Building bots: {swarm.BuildProgress}");
+            }
             return 0;
         }
-        Console.CancelKeyPress += (_, _) => Console.WriteLine(swarm.BuildProgress);
-        while (!stop && elapsed < duration)
+        finally
         {
-            double step = Math.Min(5, duration - elapsed);
-            swarm.Run(step, () => stop);
-            elapsed += step;
-            IReadOnlyList<GameClient> clients = swarm.Clients;
-            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                $"{elapsed,5:0} s: {swarm.Playing} playing, {swarm.Disconnected} disconnected; per bot {clients.Average(c => c.Stats.KilobitsIn):0.0} kbit/s in, " +
-                $"{clients.Average(c => c.Stats.KilobitsOut):0.0} out, {clients.Average(c => c.Stats.SnapshotsPerSecond):0.0} snapshots/s, " +
-                $"round trip {clients.Average(c => c.Stats.RoundTripMs):0} ms, prediction error {clients.Average(c => c.Stats.PredictionErrorMean) * 1000:0.00} mm"));
+            Console.CancelKeyPress -= cancel;
+            if (progress != null) Console.CancelKeyPress -= progress;
         }
-        if (script == BotScript.Build)
-        {
-            Console.WriteLine($"Building bots: {swarm.BuildProgress}");
-        }
-        return 0;
     }
 
     /// <summary>

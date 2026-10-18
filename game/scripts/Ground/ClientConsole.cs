@@ -109,6 +109,9 @@ public sealed partial class ClientConsole : IConsoleModel, IDisposable
     /// <summary>Shows or hides the network graph (F3); returns whether it shows now.</summary>
     public Func<bool>? ToggleNetGraph { get; set; }
 
+    /// <summary>Starts the held item's cosmetic admire animation when the hands are available.</summary>
+    public Func<bool>? Admire { get; set; }
+
     /// <summary>Whether the session's admin camera currently shows the local character in third person.</summary>
     public Func<bool>? ThirdPerson { get; set; }
 
@@ -284,6 +287,10 @@ public sealed partial class ClientConsole : IConsoleModel, IDisposable
                 break;
             case "sensitivity":
                 Setting(args, "Mouse sensitivity", Settings.Sensitivity, 0.1f, 5, "", v => Settings.Sensitivity = v);
+                break;
+            case "admire":
+                if (args.Count != 0) Fail("Usage: admire");
+                else if (Admire?.Invoke() != true) Fail("Cannot admire the held item right now.");
                 break;
             case "thirdperson":
                 SetCamera(args);
@@ -513,7 +520,7 @@ public sealed partial class ClientConsole : IConsoleModel, IDisposable
             var world = new List<InfoRow>();
             if (_client.Zone is { } zone)
             {
-                PlanetSurfaces.Entry? planet = PlanetSurfaces.Find(zone.SystemAddress, zone.BodyPath);
+                PlanetBodies.Entry? planet = PlanetBodies.Find(zone.SystemAddress, zone.BodyPath);
                 world.Add(new InfoRow("Planet", planet != null ? $"{planet.Body.Name}" : "unknown body"));
                 world.Add(new InfoRow("System", planet != null
                     ? string.Create(CultureInfo.InvariantCulture, $"{planet.System.Name} ({zone.SystemAddress:X16})")
@@ -664,7 +671,7 @@ public sealed partial class ClientConsole : IConsoleModel, IDisposable
                 .Concat(c.World.Props.Where(p => !Spawning.PropNames.Any(n => n.Prop == p.Key)).Select(p => new ToolButton(Label(p.Name), $"spawn {p.Key}")))
                 .ToArray()),
             new("DEPLOYABLES", c.Deployables.Select(d => new ToolButton(Label(d.Item.Name.Replace(", level ", " ", StringComparison.OrdinalIgnoreCase)), $"spawn {d.Key}")).ToArray()),
-            new("RAID BASE (A CLAIMED HUT)", CompletionSources.Grades.Select((g, i) => new ToolButton(Label(g), $"spawn raidbase {i}")).ToArray()),
+            new("CLAN BASE (3×3 CORE)", CompletionSources.Grades.Select((g, i) => new ToolButton(Label(g), $"spawn raidbase {i}")).ToArray()),
         };
         return groups;
     }

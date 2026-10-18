@@ -1,6 +1,86 @@
 # Held-item animation and authoring
 
-**Latest owner review, 16 October 2026:** the owner says the axe animations are now great.
+## Frontier AK recoil and optics — 17 October 2026
+
+The owner's iron-sight vibration and 4× image/reticle report led to a native burst
+check (`--view held-editor --recoil-check`). The previous procedural fire path
+restarted a 0.23-second action at the AK's 0.1333-second cadence, discarding the
+unfinished recovery. It produced an instantaneous 5.50 mm / 0.904° pose change.
+The hip reach solver also changed its chosen correction by up to 164.61 mm in
+one 120 Hz step. These are measured defects, separate from artistic approval.
+
+Live procedural fire now overlaps complete authored shot pulses. Idle breathing
+continues consistently through aimed rest, firing and recovery. Gun reach uses
+the closest feasible correction throughout hip fire, ADS and reload; aimed
+shoulder accommodation applies to irons and optics alike. Other held-item reach
+paths and source-bound tool animations are unchanged. The AK fire clip's
+`aimPositionScale` (0.65) and `aimRotationScale` (0.18) reduce only FPS visual
+motion while aiming; the authoritative recoil pattern is unchanged. Both fields
+default to 1 and remain independent of attachment choice.
+
+The physical sight stays parented to the gun. First-person reticles use the
+screen-centre camera ray, clipped to the real lens aperture. A magnified lens
+samples a camera-aligned crop in screen coordinates, sized to cover its projected
+aperture; it no longer turns its world camera with the animated lens or shears
+the image through lens-local UVs. Magnification changes FOV but does not divide
+mouse sensitivity. Different sight heights still require different resting ADS
+alignment; they do not select different firing curves.
+
+The holo emitter assembly also sat only 2 mm below the optical axis and covered
+the dot late in recoil. Its three rear components are lowered 18 mm to clear the
+glass opening; the native eye, lens, rail mount and weapon placement are unchanged.
+The regenerated mesh retains its 966 LOD0 triangles. A geometry sweep now clears
+all 361 sampled aperture rays, compared with 196 before; rendered burst checks
+remain the final presentation gate.
+
+The rifle's support-hand profile now approaches the fore-end from below-left,
+with the palm facing inward/up and the thumb along its near side. The grip rotates
+about its contact point rather than applying a wrist offset. Palm seating follows
+the wooden fore-end's lower cross-section, and the fingers use a wider cup instead
+of the previous closed-fist curl. The same authored grip is used with irons and
+both optics. Native side/underside captures and both bodies' burst checks accompany
+the correction; it is ready for owner review, not a claim of owner acceptance.
+
+Validation and limitations for this candidate are recorded in [DEVELOPMENT.md](DEVELOPMENT.md).
+
+**Latest owner review, 17 October 2026:** the metal hatchet and metal pickaxe holding poses
+in the owner's screenshots are accepted baselines. Other tools' angles/positions remain
+rejected. The owner requested detailed study of axe carrying, walking/running, chopping,
+sound and the wider world presentation in two videos. See the
+[reference study and proposed repair sequence](REFERENCE_STUDY_TOOLS_WORLD.md). Holding-pose
+acceptance does not establish full-cycle animation acceptance. The pre-implementation
+checkpoint bound metal hatchet, metal pickaxe and stone pickaxe to skeletal `chop` and
+omitted source-path locomotion. Historical statements below that only the hatchet uses it
+describe earlier checkpoints.
+
+**Implementation candidate, 17 October:** stone hatchet and salvaged axe now use that source
+carry/swing route with their existing handle dimensions and finger fits. Both metal profiles
+and the unrelated bow profile are unchanged by this pass. Optional
+`data/ground/held-locomotion.json` tunes complete-rig walking, sprint lowering and look lag
+for source-bound families. It preserves identity at rest and source bone rotations, and
+fades away during authored actions. Its distance phase uses the shared footstep stride
+convention; it does not claim phase lock to audible footsteps. Authored workshop previews
+remain exact. `--view held-editor --locomotion-check` exercises live movement separately.
+The first guarded incremental solution build passed with zero warnings/errors. Focused tests,
+native captures and visual acceptance remain pending under the project's shared recovery
+limits. The reference listening pass remains unresolved.
+
+**Resumed source review, 18 October:** the two axe candidates and accepted metal profiles
+still match the saved candidate; subsequent rifle work is preserved. Remote swishes now
+use the current estimated server tick through `RemoteMeleeSwingCue`, while the character's
+animation retains its interpolated render clock. Swishes expire at contact, preventing the
+fixed interpolation delay from putting anticipation audio after immediate world feedback.
+Natural-hit payloads do not identify the attacker, so arbitrary network reordering remains
+uncorrelated. Three remote snapshot/clock regressions are added but have not run.
+
+The locomotion diagnostic now follows complete equip suppression/recovery, crouching and
+three consecutive swings through their content strike ticks, source markers and natural
+completion. Source-bound equip still uses a static carry pose; these checks do not certify
+its entry animation, real tool-to-tree contact or visual quality. The owner resumed work,
+then chose to keep the game open. New builds, tests and captures remain held; the earlier
+incremental build is historical evidence and does not validate today's changed sources.
+
+**Previous owner review, 16 October 2026:** the owner says the axe animations are now great.
 Preserve the accepted observed axe motion. Pickaxes remain rejected for grip, angle and
 apparent reach; other tools are too large relative to the smaller axe, and the holo takes
 too much screen space. See [N2/N7/N8 and package P4](REPAIR_BACKLOG.md) and the
@@ -229,6 +309,13 @@ actual preview at 1280×720 and 24 fps: carry, draw, release, recovery. The dest
 empty. Numbered PNGs and `manifest.json` record the sampled timings; use `--camera tps` for the
 body view, or `--action reload` without a cycle for a single action. Exports are capped at ten
 seconds. `--ads` retains aim after release; `--game-timing` applies simulation timing.
+
+For grip inspection, `--vm-orbit=-105,-30,0.48` selects an external view of the FPS
+arms (yaw, pitch in degrees, distance in metres). `--attachment holo-sight` or
+`--attachment scope` fits a supported optic through the normal attachment renderer;
+unsupported item/optic combinations are rejected. These options work with sheets
+and animation exports and are recorded in the animation manifest. A rifle's
+`--action fire` export contains six full-resolution frames, including its rest grip.
 
 The editor check samples authored keys, segment midpoints and the event pose, and checks the
 actual solved wrist against both required hand targets. A holding hand farther than 25 mm from

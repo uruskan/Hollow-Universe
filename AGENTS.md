@@ -11,7 +11,9 @@ Read `docs/DESIGN.md`, copied from the user's `D:\GameDev\Projects\x\design.md`,
 It supersedes the historical design, lore, scale, travel, faction, and workflow statements below and in inherited docs.
 Keep confirmed requirements distinct from proposals. Current requirements include a maximum of 1,000 stars,
 planets with at most 23.04 km² total surface area, initial spawn on Earth with one rock and one torch,
-direct compressed-distance flight without supercruise, and preservation of the ground UI.
+Elite Dangerous-inspired normal flight, supercruise, charged interstellar jumps and fuel scooping,
+and preservation of the ground UI. The travel revision of 18 October 2026 in DESIGN.md TRAVEL-01–05
+supersedes the earlier direct-flight/no-supercruise rule; detailed tuning remains open.
 Use the standard Godot build; custom precision builds are not an assumed requirement.
 
 Retain C#, engine-free simulation, deterministic generation, data-driven shared systems, build/test checks,

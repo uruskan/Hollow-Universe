@@ -146,6 +146,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -1066,6 +1150,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -1848,6 +2016,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -1990,7 +2242,12 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "equip": {
           "duration": 0.3,
@@ -2134,7 +2391,12 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "sprint": {
           "duration": 0.25,
@@ -2232,11 +2494,16 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "swing": {
           "duration": 0.85,
-          "marker": 0.35,
+          "marker": 0.7275862,
           "keys": [
             {
               "at": 0,
@@ -2560,7 +2827,13 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276,
+            "wrap": true
+          }
         }
       },
       "contactSocket": "impact",
@@ -2576,7 +2849,19 @@
           0
         ]
       },
-      "bowDrawDistance": 0.42
+      "bowDrawDistance": 0.42,
+      "firstPersonRig": {
+        "position": [
+          -0.04,
+          -0.14,
+          -0.25
+        ],
+        "rotation": [
+          25,
+          0,
+          0
+        ]
+      }
     },
     {
       "item": "stone-pickaxe",
@@ -2722,6 +3007,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -2864,7 +3233,12 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "equip": {
           "duration": 0.3,
@@ -3008,7 +3382,12 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "sprint": {
           "duration": 0.25,
@@ -3106,11 +3485,16 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "swing": {
           "duration": 0.95,
-          "marker": 0.35,
+          "marker": 0.7275862,
           "keys": [
             {
               "at": 0,
@@ -3480,7 +3864,13 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276,
+            "wrap": true
+          }
         }
       },
       "contactSocket": "impact",
@@ -3496,7 +3886,19 @@
           0
         ]
       },
-      "bowDrawDistance": 0.42
+      "bowDrawDistance": 0.42,
+      "firstPersonRig": {
+        "position": [
+          -0.04,
+          -0.14,
+          -0.25
+        ],
+        "rotation": [
+          25,
+          0,
+          0
+        ]
+      }
     },
     {
       "item": "metal-hatchet",
@@ -3642,6 +4044,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -4549,6 +5035,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -4691,7 +5261,12 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "equip": {
           "duration": 0.3,
@@ -4835,7 +5410,12 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "sprint": {
           "duration": 0.25,
@@ -4933,11 +5513,16 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "swing": {
           "duration": 0.9,
-          "marker": 0.35,
+          "marker": 0.7275862,
           "keys": [
             {
               "at": 0,
@@ -5307,7 +5892,13 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276,
+            "wrap": true
+          }
         }
       },
       "contactSocket": "impact",
@@ -5323,7 +5914,19 @@
           0
         ]
       },
-      "bowDrawDistance": 0.42
+      "bowDrawDistance": 0.42,
+      "firstPersonRig": {
+        "position": [
+          -0.04,
+          -0.14,
+          -0.25
+        ],
+        "rotation": [
+          25,
+          0,
+          0
+        ]
+      }
     },
     {
       "item": "wooden-spear",
@@ -5469,6 +6072,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                -5,
+                -15,
+                -14
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                -5,
+                -15,
+                -14
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                4,
+                14,
+                10
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                4,
+                14,
+                10
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -6297,6 +6984,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                -5,
+                -15,
+                -14
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                -5,
+                -15,
+                -14
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                4,
+                14,
+                10
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                4,
+                14,
+                10
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -7125,6 +7896,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -7880,6 +8735,11 @@
           -0.12,
           -0.08
         ],
+        "firstPersonShoulderOffset": [
+          0,
+          0,
+          -0.14
+        ],
         "radius": 0.018,
         "seat": 0.022,
         "fingers": [
@@ -7907,6 +8767,90 @@
       ],
       "useAction": "release",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                -5,
+                -15,
+                -14
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                -5,
+                -15,
+                -14
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                4,
+                14,
+                10
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.025,
+                0.04,
+                -0.04
+              ],
+              "rotation": [
+                4,
+                14,
+                10
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -8663,14 +9607,14 @@
       "contactSocket": "impact",
       "aimOffset": {
         "position": [
-          0.2,
-          0.01,
-          0.2
+          0.16,
+          -0.08,
+          0.06
         ],
         "rotation": [
           0,
-          27,
-          -38
+          0,
+          -28
         ]
       },
       "bowDrawDistance": 0.44
@@ -8819,6 +9763,90 @@
       ],
       "useAction": "bandage",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -9785,6 +10813,90 @@
       ],
       "useAction": "inject",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -10613,6 +11725,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -11487,6 +12683,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -12361,6 +13641,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -13235,6 +14599,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -14109,6 +15557,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -14983,6 +16515,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -15857,6 +17473,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -16731,6 +18431,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -17605,6 +19389,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -18479,6 +20347,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -19353,6 +21305,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -20227,6 +22263,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -21101,6 +23221,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -21975,6 +24179,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -22849,6 +25137,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -23723,6 +26095,90 @@
       ],
       "useAction": "eat",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -24597,6 +27053,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -25379,6 +27919,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -26161,6 +28785,90 @@
       ],
       "useAction": "use",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                -14,
+                -18,
+                -12
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                -14,
+                -18,
+                -12
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                6,
+                20,
+                12
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                6,
+                20,
+                12
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -26897,6 +29605,90 @@
       ],
       "useAction": "fire",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                -9,
+                -28,
+                -20
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                -9,
+                -28,
+                -20
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                5,
+                18,
+                12
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                5,
+                18,
+                12
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -28142,11 +30934,11 @@
           "position": [
             0,
             0,
-            0
+            -0.006
           ],
           "rotation": [
-            0,
-            0,
+            15,
+            35,
             0
           ]
         },
@@ -28173,23 +30965,23 @@
           -0.08
         ],
         "radius": 0.018,
-        "seat": 0.022,
+        "seat": 0.019,
         "fingers": [
+          0,
+          0,
+          0,
+          10,
           30,
           25,
-          20,
-          65,
-          75,
+          30,
           45,
-          68,
-          80,
+          35,
+          32,
           48,
-          70,
-          82,
-          50,
-          70,
-          82,
-          50
+          35,
+          28,
+          43,
+          32
         ]
       },
       "swingPivot": [
@@ -28199,6 +30991,90 @@
       ],
       "useAction": "fire",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                -9,
+                -28,
+                -20
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                -9,
+                -28,
+                -20
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                5,
+                18,
+                12
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                5,
+                18,
+                12
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -28685,6 +31561,8 @@
         },
         "fire": {
           "duration": 0.23,
+          "aimPositionScale": 0.65,
+          "aimRotationScale": 0.18,
           "marker": 0,
           "keys": [
             {
@@ -29501,6 +32379,90 @@
       ],
       "useAction": "use",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                -14,
+                -18,
+                -12
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                -14,
+                -18,
+                -12
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                6,
+                20,
+                12
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                6,
+                20,
+                12
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -30237,6 +33199,90 @@
       ],
       "useAction": "repair",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -31255,6 +34301,90 @@
       ],
       "useAction": "use",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                -14,
+                -18,
+                -12
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                -14,
+                -18,
+                -12
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                6,
+                20,
+                12
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                6,
+                20,
+                12
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -31991,6 +35121,90 @@
       ],
       "useAction": "throw",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                -14,
+                -18,
+                -12
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                -14,
+                -18,
+                -12
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                6,
+                20,
+                12
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                6,
+                20,
+                12
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -33011,6 +36225,90 @@
       ],
       "useAction": "throw",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                -14,
+                -18,
+                -12
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                -14,
+                -18,
+                -12
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                6,
+                20,
+                12
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.035,
+                0.065,
+                -0.015
+              ],
+              "rotation": [
+                6,
+                20,
+                12
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -34031,6 +37329,90 @@
       ],
       "useAction": "throw",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -35051,6 +38433,90 @@
       ],
       "useAction": "fire",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                -9,
+                -28,
+                -20
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                -9,
+                -28,
+                -20
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                5,
+                18,
+                12
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.045,
+                0.055,
+                -0.04
+              ],
+              "rotation": [
+                5,
+                18,
+                12
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -36353,6 +39819,90 @@
       ],
       "useAction": "swing",
       "actions": {
+        "admire": {
+          "duration": 2.8,
+          "marker": -1,
+          "keys": [
+            {
+              "at": 0,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            },
+            {
+              "at": 0.22,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.4,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                -8,
+                -24,
+                -22
+              ]
+            },
+            {
+              "at": 0.63,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 0.78,
+              "position": [
+                -0.075,
+                0.06,
+                -0.025
+              ],
+              "rotation": [
+                7,
+                22,
+                16
+              ]
+            },
+            {
+              "at": 1,
+              "position": [
+                0,
+                0,
+                0
+              ],
+              "rotation": [
+                0,
+                0,
+                0
+              ]
+            }
+          ]
+        },
         "idle": {
           "duration": 2.4,
           "marker": -1,
@@ -36495,7 +40045,12 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "equip": {
           "duration": 0.3,
@@ -36639,7 +40194,12 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "sprint": {
           "duration": 0.25,
@@ -36737,11 +40297,16 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276
+          }
         },
         "swing": {
           "duration": 0.8,
-          "marker": 0.35,
+          "marker": 0.7275862,
           "keys": [
             {
               "at": 0,
@@ -37065,7 +40630,13 @@
               "rightFingers": [],
               "leftFingers": []
             }
-          ]
+          ],
+          "skeletal": {
+            "clip": "chop",
+            "start": 0.4448276,
+            "end": 0.4448276,
+            "wrap": true
+          }
         }
       },
       "contactSocket": "impact",
@@ -37081,7 +40652,407 @@
           0
         ]
       },
-      "bowDrawDistance": 0.42
+      "bowDrawDistance": 0.42,
+      "firstPersonRig": {
+        "position": [
+          -0.04,
+          -0.14,
+          -0.25
+        ],
+        "rotation": [
+          25,
+          0,
+          0
+        ]
+      }
+    },
+{
+  "item": "wire-tool",
+  "family": "tool",
+  "firstPerson": {
+    "position": [
+      0.25,
+      -0.26,
+      -0.48
+    ],
+    "rotation": [
+      0,
+      0,
+      -15
+    ]
+  },
+  "thirdPerson": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  "rightHand": {
+    "gripOffset": {
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "wristOffset": {
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "pole": [
+      0.7,
+      -0.7,
+      0.1
+    ],
+    "shoulder": [
+      -0.03,
+      -0.1,
+      -0.06
+    ],
+    "radius": 0.018,
+    "seat": 0.018,
+    "fingers": [
+      65,
+      15,
+      50,
+      70,
+      85,
+      50,
+      75,
+      90,
+      55,
+      75,
+      90,
+      55,
+      75,
+      90,
+      55
+    ]
+  },
+  "leftHand": {
+    "gripOffset": {
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "wristOffset": {
+      "position": [
+        0,
+        0,
+        0
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ]
+    },
+    "pole": [
+      -0.7,
+      -0.7,
+      0.1
+    ],
+    "shoulder": [
+      0.1,
+      -0.12,
+      -0.08
+    ],
+    "radius": 0.018,
+    "seat": 0.022,
+    "fingers": [
+      12,
+      16,
+      10,
+      36,
+      46,
+      30,
+      40,
+      52,
+      34,
+      40,
+      52,
+      34,
+      40,
+      52,
+      34
+    ]
+  },
+  "swingPivot": [
+    0,
+    0,
+    0
+  ],
+  "useAction": "idle",
+  "actions": {
+    "idle": {
+      "duration": 2.4,
+      "marker": -1,
+      "keys": [
+        {
+          "at": 0,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "thirdPersonPosition": [
+            0,
+            0,
+            0
+          ],
+          "thirdPersonRotation": [
+            0,
+            0,
+            0
+          ],
+          "rightHandPosition": [
+            0,
+            0,
+            0
+          ],
+          "rightHandRotation": [
+            0,
+            0,
+            0
+          ],
+          "leftHandPosition": [
+            0,
+            0,
+            0
+          ],
+          "leftHandRotation": [
+            0,
+            0,
+            0
+          ],
+          "ease": "smooth",
+          "rightFingers": [],
+          "leftFingers": []
+        },
+        {
+          "at": 0.5,
+          "position": [
+            0,
+            0.0015,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "thirdPersonPosition": [
+            0,
+            0,
+            0
+          ],
+          "thirdPersonRotation": [
+            0.15,
+            0,
+            0
+          ],
+          "rightHandPosition": [
+            0,
+            0,
+            0
+          ],
+          "rightHandRotation": [
+            0,
+            0,
+            0
+          ],
+          "leftHandPosition": [
+            0,
+            0,
+            0
+          ],
+          "leftHandRotation": [
+            0,
+            0,
+            0
+          ],
+          "ease": "smooth",
+          "rightFingers": [],
+          "leftFingers": []
+        },
+        {
+          "at": 1,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "thirdPersonPosition": [
+            0,
+            0,
+            0
+          ],
+          "thirdPersonRotation": [
+            0,
+            0,
+            0
+          ],
+          "rightHandPosition": [
+            0,
+            0,
+            0
+          ],
+          "rightHandRotation": [
+            0,
+            0,
+            0
+          ],
+          "leftHandPosition": [
+            0,
+            0,
+            0
+          ],
+          "leftHandRotation": [
+            0,
+            0,
+            0
+          ],
+          "ease": "smooth",
+          "rightFingers": [],
+          "leftFingers": []
+        }
+      ]
+    },
+    "admire": {
+      "duration": 2.8,
+      "marker": -1,
+      "keys": [
+        {
+          "at": 0,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "at": 0.22,
+          "position": [
+            -0.075,
+            0.06,
+            -0.025
+          ],
+          "rotation": [
+            -8,
+            -24,
+            -22
+          ]
+        },
+        {
+          "at": 0.4,
+          "position": [
+            -0.075,
+            0.06,
+            -0.025
+          ],
+          "rotation": [
+            -8,
+            -24,
+            -22
+          ]
+        },
+        {
+          "at": 0.63,
+          "position": [
+            -0.075,
+            0.06,
+            -0.025
+          ],
+          "rotation": [
+            7,
+            22,
+            16
+          ]
+        },
+        {
+          "at": 0.78,
+          "position": [
+            -0.075,
+            0.06,
+            -0.025
+          ],
+          "rotation": [
+            7,
+            22,
+            16
+          ]
+        },
+        {
+          "at": 1,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        }
+      ]
     }
+  },
+  "contactSocket": "wire_tip",
+  "aimOffset": {
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ]
+  },
+  "bowDrawDistance": 0.42
+}
   ]
 }

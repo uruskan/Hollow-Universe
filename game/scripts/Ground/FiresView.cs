@@ -46,6 +46,19 @@ public partial class FiresView : Node3D
     {
         Client.Fires().Started -= OnStarted;
         Client.Fires().Ended -= OnEnded;
+        RetireWorld();
+    }
+
+    /// <summary>World retirement emits no fire-ended messages; explicitly stop all loops and discard their IDs.</summary>
+    public void RetireWorld()
+    {
+        foreach (Shown shown in _shown.Values)
+        {
+            FxDirector.Stop(shown.Flames, immediate: true);
+            Sounds.Stop(shown.Sound, 0);
+        }
+        foreach (Node child in GetChildren()) { RemoveChild(child); child.QueueFree(); }
+        _shown.Clear(); _fading.Clear(); _now = 0;
     }
 
     /// <summary>Every frame, after the ships have been placed as drawn: each fire where it burns now.</summary>

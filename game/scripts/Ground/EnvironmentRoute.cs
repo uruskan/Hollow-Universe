@@ -105,6 +105,8 @@ public sealed partial class EnvironmentRoute : Node
                     await WaitUntilReady(stop.Label, 45);
                     if ((Client.Character.Flags & MoveFlags.OnGround) == 0) throw new InvalidOperationException(stop.Label + " stopped off the ground");
                     await Capture($"{i:00}-{stop.Label}");
+                    if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--environment-detail-views") >= 0)
+                        await CaptureDetailViews($"{i:00}-{stop.Label}");
                 }
             }
             GD.Print("[environment-route] technical route/observation complete; visual quality requires inspection of the unedited frames");

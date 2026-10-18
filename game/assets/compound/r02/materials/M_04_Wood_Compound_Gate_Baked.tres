@@ -1,0 +1,26 @@
+[gd_resource type="StandardMaterial3D" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/b140b500289c49845bab98c188fbf969fd35312742cd513c870219728e44de29.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/63292bad35afb2d1283d509a95c9f169adbc5cdfd8cbc793bbf21df10af586d3.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/b2a72f20eb76d146db1c4134a484256698bc361c6022c909bd6eb015c2d6ccb5.png" id="3"]
+
+[resource]
+resource_name = "M_04_Wood_Compound_Gate_Baked"
+cull_mode = 2
+texture_filter = 5
+vertex_color_use_as_albedo = false
+albedo_color = Color(1, 1, 1, 1)
+metallic = 1
+roughness = 1
+albedo_texture = ExtResource("1")
+normal_texture = ExtResource("2")
+normal_enabled = true
+normal_scale = 1
+ao_texture = ExtResource("3")
+ao_enabled = true
+ao_texture_channel = 0
+ao_light_affect = 0.0
+roughness_texture = ExtResource("3")
+metallic_texture = ExtResource("3")
+roughness_texture_channel = 1
+metallic_texture_channel = 2

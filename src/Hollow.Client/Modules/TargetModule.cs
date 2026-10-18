@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using Hollow.Client.Feedback;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
 using Hollow.Simulation.Animals;
@@ -14,6 +15,7 @@ using Hollow.Simulation.Nature;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
+using Hollow.Simulation.Physics;
 
 namespace Hollow.Client;
 
@@ -29,6 +31,7 @@ public sealed class TargetModule : ClientModule
     private ITargetView[] _targetViews = Array.Empty<ITargetView>();
     private readonly List<NaturalObject> _aimNature = new();
     private readonly List<Piece> _aimPieces = new();
+    private readonly PresentationPoseRegistry _presentationPoses = new();
     private SurvivalModule? _survivalModule;
     private SurvivalModule Survival => _survivalModule ??= Client.Require<SurvivalModule>();
     private WorldModule? _worldModule;
@@ -55,18 +58,28 @@ public sealed class TargetModule : ClientModule
     /// <summary>A non-authoritative contact pose prediction using the world's shared target shapes. It emits no effects or damage.</summary>
     public AimHit PredictMelee(Vector3 origin, Vector3 direction, float reach)
     {
-        var ray = new AimRay(origin, Vector3.Normalize(direction), reach, Client.EntityId.Value) { AttackRadius = CombatSystem.SweepRadius };
-        AimHit best = AimHit.None;
-        foreach (ITargetView view in _targetViews)
-        {
-            if (view.Family is TargetFamily.Explosive or TargetFamily.Arrow or TargetFamily.Fire) continue;
-            view.Aim(ray, ref best);
-        }
+        AimHit best = PredictContact(origin, direction, reach, CombatSystem.SweepRadius, 0);
         if (best.Hit && best.Target.Family == TargetFamily.Natural && Survival.Nature?.TryGet(best.Target.Id, out NaturalObject natural) == true &&
             Content.Natural(natural.Kind) is { Gather: { } gather } kind && Survival.Natural != null)
         {
             Vector3 point = gather.Spot.Surface.Meet(natural, kind, Survival.Natural.Stage(natural, kind), origin, direction, best.Point);
             best = best with { Point = point };
+        }
+        return best;
+    }
+
+    /// <summary>The solid contact under a mounted weapon's centre ray, using the same target shapes as damage.</summary>
+    public AimHit PredictProjectileAim(Vector3 origin, Vector3 direction, float reach, ulong ignoreShip) =>
+        PredictContact(origin, direction, reach, 0, ignoreShip);
+
+    private AimHit PredictContact(Vector3 origin, Vector3 direction, float reach, float radius, ulong ignoreShip)
+    {
+        var ray = new AimRay(origin, Vector3.Normalize(direction), reach, Client.EntityId.Value) { AttackRadius = radius, IgnoreShip = ignoreShip };
+        AimHit best = AimHit.None;
+        foreach (ITargetView view in _targetViews)
+        {
+            if (view.Family is TargetFamily.Explosive or TargetFamily.Arrow or TargetFamily.Fire) continue;
+            view.Aim(ray, ref best);
         }
         return best;
     }
@@ -93,6 +106,15 @@ public sealed class TargetModule : ClientModule
         Array.Resize(ref _targetViews, n);
     }
 
+    public override void Dispose()
+    {
+        _targetRegistry = null;
+        _targetViews = Array.Empty<ITargetView>();
+        _aimNature.Clear();
+        _aimPieces.Clear();
+        _presentationPoses.Clear();
+    }
+
     /// <summary>The view of a family (null for none, or a number from outside that names none).</summary>
     public ITargetView? TargetViewOf(TargetFamily family) => _targetRegistry?.Find((int)family);
 
@@ -101,6 +123,23 @@ public sealed class TargetModule : ClientModule
     {
         pose = default;
         return TargetViewOf(target.Family)?.TryPose(target, out pose) == true;
+    }
+
+    /// <summary>
+    /// Registers a renderer's current pose for exactly this target and part. Disposing the returned ownership token
+    /// unregisters only this registration; it cannot remove a newer renderer's replacement. Return null when gone.
+    /// </summary>
+    public IDisposable RegisterPresentationPose(TargetRef target, Func<TargetPose?> provider) => _presentationPoses.Register(target, provider);
+
+    /// <summary>The rendered pose for visual attachments; gameplay aim continues to use the separate <c>TryPose</c> lookup.</summary>
+    public bool TryPresentationPose(in TargetRef target, out TargetPose pose)
+    {
+        if (_presentationPoses.TryGet(target, out TargetPose? presented))
+        {
+            pose = presented.GetValueOrDefault();
+            return presented.HasValue;
+        }
+        return TryPose(target, out pose);
     }
 
     /// <summary>Where a thing linked to a support is now (a spent arrow on a body's bone).</summary>
@@ -395,13 +434,24 @@ public sealed class TargetModule : ClientModule
         public TargetFamily Family => TargetFamily.Thing;
 
         // A thing's box (a deployable or prop) or ball (a bag or body), and its up.
-        private (DeployableDef? Def, Vector3 Up) Shape(RemoteThing thing) => (thing.Deployable(c.Content), c.Frame.UpAt(thing.Position));
+        private (DeployableDef? Def, Vector3 Up) Shape(RemoteThing thing) => (thing.Deployable(c.Content), thing.Up);
 
         // How the prompt names it: its own name (a bag, a prop; a body by whose it is), else its item's.
-        private static string NameOf(RemoteThing thing, DeployableDef? def) =>
-            thing.Kind == StaticKind.Corpse && thing.CorpseOwner != 0
+        private static string NameOf(RemoteThing thing, DeployableDef? def)
+        {
+            string name = thing.Kind == StaticKind.Corpse && thing.CorpseOwner != 0
                 ? thing.IsBody ? $"{thing.Name}'s body" : $"{thing.Name}'s backpack"
                 : thing.Name.Length > 0 ? thing.Name : def?.Item.Name ?? "";
+            if (def?.Power is not { } power) return name;
+            string status = !thing.Utility.PowerEnabled ? "power off"
+                : power.Generation > 0 ? $"{thing.Utility.PowerOutput:0} power"
+                : thing.Utility.Powered ? $"powered · {thing.Utility.PowerConsumed:0}"
+                    : thing.Utility.PowerInput > 0 ? "insufficient power" : "no power";
+            if (def.Defense is { } defense)
+                status += !thing.Utility.DefenseEnabled ? " · defense off"
+                    : defense.WeaponSlot >= 0 && thing.Utility.InstalledWeapon == 0 ? " · install a firearm" : " · defense on";
+            return name + " · " + status;
+        }
 
         public bool TryPose(in TargetRef target, out TargetPose pose)
         {
@@ -410,7 +460,9 @@ public sealed class TargetModule : ClientModule
             {
                 return false;
             }
-            pose = new TargetPose(thing.Position, Geometry.Upright(c.Frame.UpAt(thing.Position), thing.Yaw));
+            (DeployableDef? def, Vector3 up) = Shape(thing);
+            if (def != null) return CompoundGeometry.TryPartPose(c.Content, def, thing.Utility.Open, thing.Position, up, thing.Yaw, target.Part, out pose);
+            pose = new TargetPose(thing.Position, Geometry.Upright(up, thing.Yaw));
             return true;
         }
 
@@ -422,7 +474,7 @@ public sealed class TargetModule : ClientModule
                 return false;
             }
             (DeployableDef? def, Vector3 up) = Shape(thing);
-            point = def != null ? Geometry.NearestOnBox(thing.Position, up, thing.Yaw, def.HalfExtents, from) : AimShapes.NearestOnDropped(thing.Position, up, thing.Kind, from);
+            point = def != null ? CompoundGeometry.Nearest(c.Content, def, thing.Utility.Open, thing.Position, up, thing.Yaw, from) : AimShapes.NearestOnDropped(thing.Position, up, thing.Kind, from);
             return true;
         }
 
@@ -433,13 +485,18 @@ public sealed class TargetModule : ClientModule
             ushort cupboard = c.Content.ClaimDeployable.Id;
             foreach (RemoteThing thing in c.Survival.Things)
             {
-                if (thing.Look == cupboard && thing.Kind == StaticKind.Deployable ||
-                    Vector3.DistanceSquared(thing.Position, ray.Origin) > (length + 2) * (length + 2))
+                (DeployableDef? def, Vector3 up) = Shape(thing);
+                float bounds = length + (def?.HalfExtents.Length() ?? 1) * 2;
+                if (ray.AttackRadius != null && def == null && !thing.IsBody ||
+                    thing.Look == cupboard && thing.Kind == StaticKind.Deployable ||
+                    Vector3.DistanceSquared(thing.Position, ray.Origin) > bounds * bounds)
                 {
                     continue;
                 }
-                (DeployableDef? def, Vector3 up) = Shape(thing);
-                float t = def != null ? AimShapes.Box(ray, thing.Position, up, thing.Yaw, def.HalfExtents) : AimShapes.Dropped(ray, thing.Position, up, thing.Kind);
+                float t = thing.IsBody && ray.AttackRadius is { } radius
+                    ? CorpseHitShape.Raycast(thing.Position, up, thing.Yaw, ray.Origin, ray.Direction, length, radius)
+                    : def != null ? CompoundGeometry.Ray(c.Content, def, thing.Utility.Open, thing.Position, up, thing.Yaw,
+                        ray.Origin, ray.Direction, ray.Length, ray.AttackRadius ?? 0) : AimShapes.Dropped(ray, thing.Position, up, thing.Kind);
                 ray.Consider(ref best, t, new TargetRef(TargetFamily.Thing, thing.Id.Value));
             }
         }
@@ -459,6 +516,7 @@ public sealed class TargetModule : ClientModule
             {
                 Capabilities = thing.Capabilities, Flags = thing.Flags | crew, Name = NameOf(thing, def), Count = thing.Count,
                 Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position, Aboard = thing.Aboard,
+                Open = thing.Utility.Open, Lock = thing.Utility.Lock, DeviceAccess = thing.DeviceAccess,
                 Vitality = def != null ? new TargetVitality(thing.Health * def.Health, def.Health) :
                     thing.IsBody ? new TargetVitality(thing.Health * c.Content.Survival.Corpse.HarvestHealth, c.Content.Survival.Corpse.HarvestHealth) : null,
             };
@@ -726,7 +784,8 @@ public sealed class TargetModule : ClientModule
             {
                 return false;
             }
-            pose = target.Part == ShipParts.Hull ? new TargetPose(ship.Origin, ship.Rotation) : ShipAim.PartPose(def, target.Part, drawn.Pose, drawn.Parts);
+            pose = target.Part == ShipParts.Hull ? new TargetPose(drawn.Pose.ToWorld(Vector3.Zero), drawn.Pose.Rotation)
+                : ShipAim.PartPose(def, target.Part, drawn.Pose, drawn.Parts);
             return true;
         }
 
@@ -750,8 +809,9 @@ public sealed class TargetModule : ClientModule
         // balls, a part reached through a door only while that door lets one in.
         public void Aim(in AimRay ray, ref AimHit best)
         {
+            ulong ignoreFrame = ray.IgnoreShip == 0 ? 0 : c.Ships.ShipOf(new EntityId(ray.IgnoreShip))?.NetId ?? 0;
             if (c.Client.Prediction?.Frames.Ships is { Count: > 0 } frames &&
-                ShipQueries.Ray(frames, _drawn ??= f => c.Ships.DrawnPose((uint)f.Key), ray.Origin, ray.Direction, ray.Upto(best), out ShipQueryHit hit) &&
+                ShipQueries.Ray(frames, _drawn ??= f => c.Ships.DrawnPose((uint)f.Key), ray.Origin, ray.Direction, ray.Upto(best), out ShipQueryHit hit, ignoreFrame) &&
                 hit.Ship is ClientShipFrame { Ship: { Spawned: true, Def: { } walkedDef } walked } && !walked.Has(ShipNetFlags.Destroyed) && !walked.Has(ShipNetFlags.InOrbit))
             {
                 int part = walkedDef.PartOfPieces(hit.Hit.Part);
@@ -760,9 +820,24 @@ public sealed class TargetModule : ClientModule
             double now = c.ServerTickNow;
             foreach (RemoteShip ship in c.Ships.Known)
             {
-                if (ship is { Spawned: true, HasState: true, Def: { } def } && !ship.Has(ShipNetFlags.Destroyed) && !ship.Has(ShipNetFlags.InOrbit) &&
+                if (ship.Id.Value != ray.IgnoreShip && ship is { Spawned: true, HasState: true, Def: { } def } && !ship.Has(ShipNetFlags.Destroyed) && !ship.Has(ShipNetFlags.InOrbit) &&
                     Drawn(ship, def) is { } drawn)
                 {
+                    if (ray.AttackRadius is { } radius)
+                    {
+                        // Walkable hulls were tested against their space above. A compact ship's solid hull boxes
+                        // match the damage receiver; interaction balls must not pull a shot's aim away from a surface.
+                        if (def.Interior == null)
+                        {
+                            Vector3 x = drawn.Pose.DirectionToWorld(Vector3.UnitX), y = drawn.Pose.DirectionToWorld(Vector3.UnitY), z = drawn.Pose.DirectionToWorld(Vector3.UnitZ);
+                            foreach (HullBox box in def.Hull)
+                            {
+                                float distance = Geometry.RayBox(ray.Origin, ray.Direction, ray.Upto(best), drawn.Pose.ToWorld(box.Centre), box.HalfExtents + new Vector3(radius), x, y, z);
+                                ray.Consider(ref best, distance, new TargetRef(TargetFamily.Ship, ship.Id.Value), AimKind.Backdrop);
+                            }
+                        }
+                        continue;
+                    }
                     uint ready = 0;
                     for (int d = 0; d < ship.Doors.Length && d < 32; d++)
                     {

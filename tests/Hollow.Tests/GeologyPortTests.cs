@@ -13,6 +13,27 @@ namespace Hollow.Tests;
 public static class GeologyPortTests
 {
     [Test]
+    public static void CliffPlacementProfilesRetainTheExportedCollisionReceipt()
+    {
+        string directory = Path.Combine(Fixtures.Root, "game/assets/surface/cliffs");
+        using JsonDocument receipt = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, "provenance.json")));
+        using FileStream data = File.OpenRead(Path.Combine(Fixtures.Root, "src/Hollow.Surface/Data/cliffs.json"));
+        Assert.Equal(receipt.RootElement.GetProperty("collision_sha256").GetString()!,
+            Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant(), "placement metadata is covered by the shared collision receipt");
+        foreach (CliffGeometry model in CliffGeometry.All)
+        {
+            Assert.True(model.BoundingRadius > 0 && model.Width > 0 && model.Depth > 0, "shared bounds describe real geometry");
+            Assert.True(model.Positions.All(p => p.Length <= model.BoundingRadius), "shared broad-phase bound contains every collision vertex");
+            Assert.True(model.Indices.All(i => i >= 0 && i < model.Positions.Length), "exported triangles address real vertices");
+        }
+        CliffGeometry tall = CliffGeometry.All.Single(m => m.Key == "nordic_tall");
+        double lower = tall.Positions.Where(p => p.Y < tall.Height * 0.15).Average(p => p.Z);
+        double upper = tall.Positions.Where(p => p.Y > tall.Height * 0.7).Average(p => p.Z);
+        Assert.True((upper - lower) * tall.Facing < 0,
+            "the tall scan's crest leans uphill after authored orientation, instead of making downhill spikes");
+    }
+
+    [Test]
     public static void ScannedRockCatalogMatchesRealMeshAndMaterialData()
     {
         string directory = Path.Combine(Fixtures.Root, "game/assets/surface/rocks");
@@ -73,7 +94,7 @@ public static class GeologyPortTests
     {
         var (system, earth) = StartingWorld.Find();
         WalkingWorld world = WalkingWorld.For(system, earth, 1200);
-        var independent = new CliffPlacements(world, WalkingWorld.SeedFor(Hash64.Of(system.Address.Value, earth.Path)));
+        CliffPlacements independent = WalkingWorld.For(system, earth, world.Radius, world.Parameters).Cliffs;
         int groups = 0, pieces = 0, tiered = 0;
         for (long i = 0; i < TileKey.CountAt(world.Cliffs.Level) && groups < 30; i++)
         {
@@ -83,7 +104,9 @@ public static class GeologyPortTests
             groups++;
             Assert.True(formation.SequenceEqual(independent.FormationAt(tile)), "independent generation agrees on every member, scale and transform");
             Assert.Equal(formation.Count, formation.Select(p => p.Key).Distinct().Count(), "streaming never aliases neighbours under one tile ID");
-            Assert.True(formation.Count <= 5 * CliffPlacements.MaximumTiers, "bounded columns and descending rows");
+            Assert.True(formation.Count <= CliffPlacements.MaximumParts, "bounded fitted columns and descending rows");
+            Assert.Equal(1, formation.Select(p => CliffGeometry.All[p.Model].MaterialFamily).Distinct().Count(),
+                "one formation uses compatible geology rather than a random patchwork of scanned materials");
             var column = formation.Where(p => p.Part < CliffPlacements.MaximumTiers).ToArray();
             if (column.Length > 1)
             {
@@ -102,8 +125,8 @@ public static class GeologyPortTests
             var near = world.Cliffs.Near(edge.Position, 1);
             Assert.True(near.Contains(edge), "a neighbour crossing its source cell is discoverable by collision/render streaming");
         }
+        Fixtures.Report($"{groups} checked connected formations, {pieces} shared render/collision pieces, {tiered} tiered faces");
         Assert.True(groups >= 12, "connected formations are distributed through the actual Earth");
         Assert.True(tiered >= 12, "actual Earth cliff groups have descending rock coverage");
-        Fixtures.Report($"{groups} checked connected formations, {pieces} shared render/collision pieces, {tiered} tiered faces");
     }
 }

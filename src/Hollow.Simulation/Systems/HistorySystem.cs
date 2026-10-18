@@ -48,7 +48,11 @@ public sealed class HistorySystem : ZoneSystem
             {
                 // Aboard: in the ship's frame, its up +Y, the view turned into it if it came in another.
                 Vector3 view = Zone.Frames.ViewIn(c.Input.View, c.Input.Frame, c.State.Frame, Tick);
-                History.Record(p.Id, Tick, new HitPose { Feet = c.State.Position, Up = Vector3.UnitY, Yaw = Facing.YawOf(view, Vector3.UnitY), Pose = pose }, c.State.Frame);
+                History.Record(p.Id, Tick, new HitPose
+                {
+                    Feet = c.State.Position, Up = Vector3.UnitY, Yaw = Facing.YawOf(view, Vector3.UnitY), Pose = pose,
+                    Velocity = c.State.Velocity, Flags = c.State.Flags,
+                }, c.State.Frame);
                 continue;
             }
             Vector3 up = Frame.UpAt(c.State.Position);
@@ -58,6 +62,8 @@ public sealed class HistorySystem : ZoneSystem
                 Up = up,
                 Yaw = Facing.YawOf(Zone.Frames.ViewIn(c.Input.View, c.Input.Frame, 0, Tick), up),
                 Pose = pose,
+                Velocity = c.State.Velocity,
+                Flags = c.State.Flags,
             });
         }
     }

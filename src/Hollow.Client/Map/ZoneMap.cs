@@ -1,5 +1,6 @@
 using System;
 using System.Numerics;
+using System.Threading;
 using System.Threading.Tasks;
 using Hollow.Core;
 using Hollow.Simulation;
@@ -22,9 +23,11 @@ public sealed record MapPicture(int Size, byte[] Rgba);
 /// so the game caches it on disk under <see cref="CacheKey"/>. The projection that draws it is
 /// <see cref="GlobeProjection"/>; nothing here assumes a kind of surface.
 /// </summary>
-public sealed class ZoneMap
+public sealed class ZoneMap : IDisposable
 {
-    private readonly ISurface _surface;
+    private readonly object _gate = new();
+    private ISurface? _surface;
+    private WorldLease? _lease;
     private readonly ZoneFrame _frame;
 
     public ZoneMap(ZoneSpec spec, ISurface surface, ZoneFrame frame, WorldData world)
@@ -38,6 +41,21 @@ public sealed class ZoneMap
         ulong key = Hash64.Of(spec.SystemAddress, spec.BodyPath, spec.SurfaceSeed, (ulong)BitConverter.DoubleToInt64Bits(Radius));
         key = Hash64.Combine(Hash64.Combine(key, SurfaceVersion(surface)), ZoneMapImage.Version);
         CacheKey = $"globe-{key:X16}";
+    }
+
+    /// <summary>Takes this lease; every admitted map render obtains its own pin until all pixel workers finish.</summary>
+    public ZoneMap(ZoneSpec spec, WorldLease lease, ZoneFrame frame, WorldData world)
+    {
+        try
+        {
+            _surface = lease.Surface;
+            _frame = frame;
+            Radius = _surface.Radius;
+            Cells = WorldGrid.CellsPerFace(Radius, world.MapCell);
+            CacheKey = $"globe-{lease.Descriptor.Identity}-v{ZoneMapImage.Version}";
+            _lease = lease;
+        }
+        catch { lease.Dispose(); throw; }
     }
 
     /// <summary>The world's mean radius in metres: the map's sphere.</summary>
@@ -59,16 +77,43 @@ public sealed class ZoneMap
     /// <summary>The ground under a direction, as a point of the zone (where a marker put down on the map lies).</summary>
     public Vector3 Ground(Vector3D direction)
     {
-        Vector3D d = direction.Normalized;
-        double height = _surface.HeightAt(d);
-        return _frame.ToLocal(d * (_surface.Radius + (double.IsFinite(height) ? height : 0)));
+        lock (_gate)
+        {
+            ISurface surface = _surface ?? throw new ObjectDisposedException(nameof(ZoneMap));
+            Vector3D d = direction.Normalized;
+            double height = surface.HeightAt(d);
+            return _frame.ToLocal(d * (surface.Radius + (double.IsFinite(height) ? height : 0)));
+        }
     }
 
     /// <summary>The grid cell a point of the zone lies in: "C K12".</summary>
     public string GridName(Vector3 zone) => WorldGrid.Name(DirectionOf(zone), Cells);
 
     /// <summary>The picture with faces of a size: a second or so on the first world, so the interface renders it on a worker and keeps it on disk.</summary>
-    public MapPicture Render(int pixels) => ZoneMapImage.Render(_surface, pixels);
+    public MapPicture Render(int pixels, CancellationToken cancellation = default)
+    {
+        WorldLease? reader;
+        ISurface surface;
+        lock (_gate)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            surface = _surface ?? throw new ObjectDisposedException(nameof(ZoneMap));
+            reader = _lease?.Fork();
+        }
+        using (reader) return ZoneMapImage.Render(surface, pixels, cancellation);
+    }
+
+    public void Dispose()
+    {
+        WorldLease? lease;
+        lock (_gate)
+        {
+            lease = _lease;
+            _lease = null;
+            _surface = null;
+        }
+        lease?.Dispose();
+    }
 
     /// <summary>
     /// The surface as it is, as a number: its kind, radius and sea, and its height and biome at 1,024 directions spread
@@ -81,6 +126,8 @@ public sealed class ZoneMap
         ulong h = Hash64.Of(surface.GetType().FullName ?? surface.GetType().Name);
         h = Hash64.Combine(h, (ulong)BitConverter.DoubleToInt64Bits(surface.Radius));
         h = Hash64.Combine(h, (ulong)BitConverter.DoubleToInt64Bits(surface.SeaRadius));
+        if (surface is WalkingWorld walking)
+            h = Hash64.Combine(h, unchecked((ulong)walking.Parameters.TerrainRevision));
         double golden = DMath.Pi * (3 - Math.Sqrt(5));
         for (int k = 0; k < samples; k++)
         {
@@ -133,8 +180,10 @@ public static class ZoneMapImage
     private const double DeepAt = 30, Relief = 2.5;
 
     /// <summary>The six faces at <paramref name="size"/> pixels a side (16 … 2,048).</summary>
-    public static MapPicture Render(ISurface surface, int size)
+    public static MapPicture Render(ISurface surface, int size, CancellationToken cancellation = default)
     {
+        cancellation.ThrowIfCancellationRequested();
+        var parallel = new ParallelOptions { CancellationToken = cancellation, MaxDegreeOfParallelism = Math.Min(4, Environment.ProcessorCount) };
         size = Math.Clamp(size, 16, 2048);
         // The sea, read safely: a surface without one (SeaRadius 0, or nonsense) is all land, measured from its radius.
         double seaRadius = surface.SeaRadius;
@@ -150,11 +199,12 @@ public static class ZoneMapImage
         for (int face = 0; face < CubeSphere.FaceCount; face++)
         {
             // Heights and directions with a ring of one pixel round the face (it reaches onto the neighbours), colours inside.
-            Parallel.For(0, grid, row =>
+            Parallel.For(0, grid, parallel, row =>
             {
                 double v = 1 - (row - 0.5) * 2 / size;
                 for (int col = 0; col < grid; col++)
                 {
+                    if ((col & 31) == 0) cancellation.ThrowIfCancellationRequested();
                     double u = -1 + (col - 0.5) * 2 / size;
                     Vector3D d = CubeSphere.Direction(face, u, v);
                     double h = surface.HeightAt(d);
@@ -169,7 +219,7 @@ public static class ZoneMapImage
                 }
             });
             int offset = face * size * size * 4;
-            Parallel.For(0, size, y =>
+            Parallel.For(0, size, parallel, y =>
             {
                 for (int x = 0; x < size; x++)
                 {

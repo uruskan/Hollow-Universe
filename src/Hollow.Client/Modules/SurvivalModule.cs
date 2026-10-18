@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using Hollow.Simulation.Targets;
 using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Net.Protocol;
@@ -9,6 +10,7 @@ using Hollow.Simulation;
 using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
 using Hollow.Simulation.World;
 
@@ -17,11 +19,21 @@ namespace Hollow.Client;
 // The survival game in the client (GROUND.md §4.3, §6): the local player's state and intents (LocalPlayer), static
 // things, natural objects as players changed them, projectiles in flight. What the interact key acts on is the one
 // targeting query's (InteractionModule).
-public sealed class SurvivalModule : ClientModule
+public sealed class SurvivalModule : ClientModule, IClimbSource
 {
     private readonly Dictionary<uint, RemoteThing> _things = new();
     private readonly Dictionary<EntityId, RemoteThing> _thingsById = new();
     private readonly List<ClientProjectile> _projectiles = new();
+    private readonly Dictionary<uint, ClientProjectile> _projectilesById = new();
+    private readonly Dictionary<AttackId, ClientProjectile> _ownAttacks = new();
+    private readonly Dictionary<uint, Terminal> _terminals = new();
+    private readonly Queue<uint> _terminalOrder = new();
+    private readonly HashSet<uint> _launched = new();
+    private readonly Queue<uint> _launchOrder = new();
+    private uint _launchFloor, _terminalFloor;
+    private NaturalBodies? _naturalBodies;
+    internal const int ProjectileHistoryLimit = 4096;
+    private readonly record struct Terminal(ProjectileEnd Message, double ReceivedAt);
     private WorldModule? _worldModule;
     private WorldModule World => _worldModule ??= Client.Require<WorldModule>();
     private PlacementModule? _placementModule;
@@ -56,6 +68,7 @@ public sealed class SurvivalModule : ClientModule
     protected internal override void Init(MessageHandlers<GameClient> handlers)
     {
         Local.Gun.ShotFired += OnOwnShot;
+        Local.Attacks.Resolved += OnAttackResolved;
         handlers
             .On<ThingSpawn>((_, in m) => OnThingSpawn(m))
             .On<ThingUpdate>((_, in m) => OnThingUpdate(m))
@@ -79,6 +92,8 @@ public sealed class SurvivalModule : ClientModule
 
     protected internal override void Welcome()
     {
+        ClearProjectiles();
+        Prediction!.Frames.Climbs = new Climbing(this);
         Nature = Zone!.CreateNature(Surface!, Zone.CreateFrame(Surface!), Content);
         if (Client.Options.SharedNature != null)
         {
@@ -87,7 +102,19 @@ public sealed class SurvivalModule : ClientModule
         else
         {
             Natural = new NaturalState(Content, Nature);
-            _ = new NaturalBodies(Prediction!.World, Natural);
+            _naturalBodies = new NaturalBodies(Prediction!.World, Natural);
+        }
+    }
+
+    void IClimbSource.Nearby(ulong frame, Vector3 position, List<ClimbSurface> into)
+    {
+        foreach (RemoteThing thing in _things.Values)
+        {
+            if (thing.Health <= 0 || thing.Deployable(Content)?.Climb is not { } climb) continue;
+            if (frame == 0 && !thing.Aboard)
+                into.Add(ClimbSurface.At(thing.Id.Value, climb, thing.Position, Geometry.Upright(thing.Up, thing.Yaw)));
+            else if (thing.Aboard && Ships.ShipOf(new EntityId(thing.Support.Id))?.NetId == frame)
+                into.Add(ClimbSurface.At(thing.Id.Value, climb, thing.LocalPosition, thing.LocalRotation));
         }
     }
 
@@ -100,7 +127,53 @@ public sealed class SurvivalModule : ClientModule
         Local.Update();
         Local.UpdatePlacements();
         double now = ClockSeconds;
-        _projectiles.RemoveAll(p => (p.EndedAt != null && now - p.EndedTime > 1.0) || now - p.LaunchedAt > 15);
+        for (int i = _projectiles.Count - 1; i >= 0; i--)
+        {
+            ClientProjectile p = _projectiles[i];
+            if ((p.EndedAt != null && now - p.EndedTime > 1.0) || now - p.LaunchedAt > ClientProjectile.MostSeconds)
+                RemoveProjectile(p);
+        }
+    }
+
+    public override void Dispose()
+    {
+        var failures = new List<Exception>();
+        try { _naturalBodies?.Dispose(); } catch (Exception error) { failures.Add(error); }
+        _naturalBodies = null;
+        foreach (RemoteThing thing in _things.Values)
+            try { World.ThingBodyRemoved(thing); } catch (Exception error) { failures.Add(error); }
+        _things.Clear();
+        _thingsById.Clear();
+        _aboard.Clear();
+        Nature = null;
+        Natural = null;
+        ClearProjectiles();
+        if (failures.Count > 0) throw new AggregateException("Survival world retirement failed after cleanup.", failures).Flatten();
+    }
+
+    private void ClearProjectiles()
+    {
+        _projectiles.Clear();
+        _projectilesById.Clear();
+        _ownAttacks.Clear();
+        _terminals.Clear();
+        _terminalOrder.Clear();
+        _launched.Clear();
+        _launchOrder.Clear();
+        _launchFloor = _terminalFloor = 0;
+    }
+
+    private void RemoveProjectile(ClientProjectile p)
+    {
+        _projectiles.Remove(p);
+        if (p.Id != 0) _projectilesById.Remove(p.Id);
+        if (!p.Attack.IsNone && p.Own && _ownAttacks.GetValueOrDefault(p.Attack) == p) _ownAttacks.Remove(p.Attack);
+    }
+
+    private void OnAttackResolved(AttackResolution result)
+    {
+        if (result.Code == OutcomeCode.Done && !result.Cancelled) return;
+        if (_ownAttacks.TryGetValue(result.Id, out ClientProjectile? projectile)) RemoveProjectile(projectile);
     }
 
     protected internal override void Despawned(uint netId) => RemoveThing(netId);
@@ -175,6 +248,7 @@ public sealed class SurvivalModule : ClientModule
                 : default,
             Capabilities = new Simulation.Capabilities.CapabilitySet(m.Capabilities),
             IsBody = m.Kind == StaticKind.Corpse && m.IsBody,
+            Utility = m.Utility is { Length: > 0 } ? m.Utility[0] : default,
         };
         if (m.Corpse is { Length: > 0 })
         {
@@ -202,11 +276,15 @@ public sealed class SurvivalModule : ClientModule
     {
         if (_things.TryGetValue(m.NetId, out RemoteThing? thing))
         {
+            bool wasOpen = thing.Utility.Open;
             thing.Health = m.Health / 255f;
             thing.Count = (int)Math.Min(m.Count, int.MaxValue);
             thing.Flags = m.Flags;
             thing.Name = m.Name ?? "";
             thing.IsBody = thing.Kind == StaticKind.Corpse && m.IsBody;
+            thing.Capabilities = new Simulation.Capabilities.CapabilitySet(m.Capabilities);
+            thing.Utility = m.Utility is { Length: > 0 } ? m.Utility[0] : default;
+            if (wasOpen != thing.Utility.Open) World.ThingBodyUpdated(thing);
             thing.Revision++;
         }
     }
@@ -230,45 +308,75 @@ public sealed class SurvivalModule : ClientModule
         }
     }
 
-    private void OnProjectileLaunch(ProjectileLaunch m)
+    internal void OnProjectileLaunch(ProjectileLaunch m)
     {
-        if (Zone == null)
+        if (Zone == null || m.Id == 0 || _launched.Contains(m.Id))
         {
             return;
         }
+        AttackId attack = new(m.AttackKind, m.AttackSeq, m.AttackSession);
+        bool ownSession = m.Shooter == NetId && attack.Session == Client.Attacks.Session;
+        _projectilesById.TryGetValue(m.Id, out ClientProjectile? active);
+        if (active?.LaunchConfirmed == true) return;
+        if (m.Id <= _launchFloor && active == null &&
+            !(ownSession && !attack.IsNone && _ownAttacks.ContainsKey(attack))) return;
         var origin = new Vector3(m.X, m.Y, m.Z);
         ItemDef? ammo = Content.Item((int)Math.Min(m.Ammo, ushort.MaxValue));
-        if (m.Seq != 0 && m.Shooter == NetId && _projectiles.FirstOrDefault(p => p.Own && p.Seq == m.Seq && p.Battery == m.Battery && p.Id == 0) is { } mine)
-        {
-            // Our own shot, drawn since we fired it: now it has the server's ID (its end will name it).
-            mine.Id = m.Id;
-            return;
-        }
         // A battery's rocket (IW3): under its motor, the battery's launch rules for its round.
         Simulation.Combat.RocketMotor? motor = m.Battery > 0 && Content.Battery(m.Battery - 1) is { } battery && ammo != null && battery.Launch.Of(ammo.Id) is { } profile
             ? Simulation.Combat.RocketMotor.Of(battery.Launch, profile) : null;
-        FirearmStats? gun = ammo?.Bullet is { } round ? Content.Firearms.FirstOrDefault(g => g.Calibre == round.Calibre) : null;
-        // An arrow's own, a round's its gun's times its own (IW4), as the server flies them.
-        float gravity = ammo?.Ammo is { } arrow ? (float)(Zone.SurfaceGravity * 9.80665 * arrow.Gravity)
-            : gun != null ? (float)gun.GravityOf(ammo?.Bullet, Zone.SurfaceGravity)
-            : (float)(Zone.SurfaceGravity * 9.80665);
+        // Authority supplies the actual gun's flight parameters, rather than guessing from its calibre.
+        float gravity = m.Gravity;
+        double launchedAt = ClockSeconds - Math.Max(0, ServerTickNow - m.Tick) / CharacterTicks.Rate;
         var projectile = new ClientProjectile
         {
             Id = m.Id,
             Shooter = m.Shooter,
             Ammo = ammo?.Id ?? 0,
+            Weapon = (ushort)Math.Min(m.Weapon, ushort.MaxValue),
+            Attack = attack,
+            Own = ownSession && !attack.IsNone,
             Origin = origin,
             Velocity = new Vector3(m.VelocityX, m.VelocityY, m.VelocityZ),
             Gravity = -Frame.UpAt(origin) * gravity,
             Centre = Frame.ToLocal(Core.Vector3D.Zero),
-            Drag = (float)(gun?.Drag ?? 0),
+            Drag = m.Drag,
             Seq = m.Seq,
             Silenced = m.Silenced,
-            LaunchedAt = ClockSeconds,
+            LaunchedAt = launchedAt,
+            LaunchTick = m.Tick,
+            LaunchConfirmed = true,
             Battery = motor != null ? m.Battery : 0,
             Motor = motor,
         };
+        _launched.Add(m.Id);
+        _launchOrder.Enqueue(m.Id);
+        while (_launchOrder.Count > ProjectileHistoryLimit)
+        {
+            uint expired = _launchOrder.Dequeue();
+            _launched.Remove(expired);
+            _launchFloor = Math.Max(_launchFloor, expired);
+        }
+        ClientProjectile? mine = null;
+        if (ownSession)
+        {
+            if (!attack.IsNone) _ownAttacks.TryGetValue(attack, out mine);
+            else if (m.Seq != 0) mine = _projectiles.FirstOrDefault(p => p.Own && p.Seq == m.Seq && p.Battery == m.Battery && p.Id == 0);
+        }
+        if (mine == null) _projectilesById.TryGetValue(m.Id, out mine);
+        if (mine != null)
+        {
+            mine.Confirm(projectile);
+            _projectilesById[m.Id] = mine;
+            if (_terminals.TryGetValue(m.Id, out Terminal known)) ApplyTerminal(mine, known);
+            return;
+        }
+        // A terminal forgotten from the bounded cache is still final: never resurrect its late launch.
+        if (m.Id <= _terminalFloor) return;
         _projectiles.Add(projectile);
+        _projectilesById[m.Id] = projectile;
+        if (projectile.Own) _ownAttacks[attack] = projectile;
+        if (_terminals.TryGetValue(m.Id, out Terminal terminal)) ApplyTerminal(projectile, terminal);
         ProjectileLaunched?.Invoke(projectile);
     }
 
@@ -276,12 +384,13 @@ public sealed class SurvivalModule : ClientModule
     /// A gunner's predicted rocket (IW3, IRON_WAKE.md §6.9): drawn at once from the muzzle, its number the shot's; the
     /// server's launch then names it, or a refusal takes it away (<see cref="RemoveOwnRocket"/>).
     /// </summary>
-    public ClientProjectile? AddOwnRocket(Simulation.Content.BatteryDef battery, ushort round, Vector3 origin, Vector3 velocity, uint number)
+    public ClientProjectile? AddOwnRocket(Simulation.Content.BatteryDef battery, ushort round, Vector3 origin, Vector3 velocity, uint number, AttackId attack = default)
     {
         if (Zone == null || battery.Launch.Of(round) is not { } profile)
         {
             return null;
         }
+        if (!attack.IsNone && _ownAttacks.TryGetValue(attack, out ClientProjectile? existing)) return existing;
         var rocket = new ClientProjectile
         {
             Shooter = NetId,
@@ -291,26 +400,57 @@ public sealed class SurvivalModule : ClientModule
             Gravity = -Frame.UpAt(origin) * (float)(Zone.SurfaceGravity * 9.80665),
             Centre = Frame.ToLocal(Core.Vector3D.Zero),
             Seq = number,
+            Attack = attack,
             Own = true,
             LaunchedAt = ClockSeconds,
             Battery = battery.Index + 1,
             Motor = Simulation.Combat.RocketMotor.Of(battery.Launch, profile),
         };
         _projectiles.Add(rocket);
+        if (!attack.IsNone) _ownAttacks[attack] = rocket;
         return rocket;
     }
 
     /// <summary>Takes a predicted rocket away (the server refused its shot).</summary>
-    public void RemoveOwnRocket(ClientProjectile rocket) => _projectiles.Remove(rocket);
+    public void RemoveOwnRocket(ClientProjectile rocket) => RemoveProjectile(rocket);
 
-    private void OnProjectileEnd(ProjectileEnd m)
+    internal void OnProjectileEnd(ProjectileEnd m)
     {
-        if (_projectiles.FirstOrDefault(p => p.Id == m.Id) is { } projectile)
+        if (m.Id == 0 || !float.IsFinite(m.X) || !float.IsFinite(m.Y) || !float.IsFinite(m.Z)) return;
+        if (!Enum.IsDefined(m.Target)) m.Target = TargetFamily.None;
+        // Normalize and validate contact evidence before it enters the reorder cache.
+        m.Contact = SurfaceContactNet.Of(m.Contact.At(new Vector3(m.X, m.Y, m.Z)));
+        if (!_projectilesById.TryGetValue(m.Id, out ClientProjectile? projectile) && m.Shooter == NetId && m.AttackSession == Client.Attacks.Session)
+            _ownAttacks.TryGetValue(new AttackId(m.AttackKind, m.AttackSeq, m.AttackSession), out projectile);
+        if (projectile?.EndedAt != null || _terminals.ContainsKey(m.Id)) return;
+        var terminal = new Terminal(m, ClockSeconds);
+        // Old IDs may still be live long-range rockets while many newer bullets finish. A bounded
+        // history floor suppresses only unknown old messages; it must never discard an active endpoint.
+        if (m.Id > _terminalFloor)
         {
-            projectile.EndedAt = new Vector3(m.X, m.Y, m.Z);
-            projectile.EndedTime = ClockSeconds;
-            projectile.EndTarget = m.Target;
+            _terminals[m.Id] = terminal;
+            _terminalOrder.Enqueue(m.Id);
+            while (_terminalOrder.Count > ProjectileHistoryLimit)
+            {
+                uint expired = _terminalOrder.Dequeue();
+                _terminals.Remove(expired);
+                _terminalFloor = Math.Max(_terminalFloor, expired);
+            }
         }
+        if (projectile == null) return; // Keep the terminal for a launch that was delayed or reordered.
+        projectile.Id = m.Id;
+        _projectilesById[m.Id] = projectile;
+        ApplyTerminal(projectile, terminal);
+    }
+
+    private static void ApplyTerminal(ClientProjectile projectile, in Terminal terminal)
+    {
+        ProjectileEnd m = terminal.Message;
+        projectile.EndedAt = new Vector3(m.X, m.Y, m.Z);
+        projectile.EndedTime = terminal.ReceivedAt;
+        projectile.EndTarget = m.Target;
+        projectile.Contact = m.Contact.At(projectile.EndedAt.Value);
+        projectile.EndedFlightSeconds = Math.Max(0, (long)m.Tick - projectile.LaunchTick) / (double)CharacterTicks.Rate;
     }
 
     private void OnLootState(in LootState m)
@@ -364,10 +504,13 @@ public sealed class SurvivalModule : ClientModule
             Centre = Frame.ToLocal(Core.Vector3D.Zero),
             Drag = (float)gun.Drag,
             Seq = shot.Seq,
+            Attack = shot.Attack,
+            Weapon = shot.Weapon.Id,
             Own = true,
             Silenced = shot.Silenced,
             LaunchedAt = ClockSeconds,
         });
+        _ownAttacks[shot.Attack] = _projectiles[^1];
     }
 }
 

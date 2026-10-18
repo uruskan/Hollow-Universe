@@ -22,8 +22,10 @@ public sealed partial class ShipSystem
             ship.State.Flags |= ShipFlags.EngineStopped;
             ship.State.Flags &= ~(ShipFlags.EnginesOn | ShipFlags.Boosting);
             ship.State.BoostTicks = 0;
+            ShipAttitudeHold.Clear(ref ship.State);
         }
         WakeShip(ship);
+        if (on) ReconcileAttitudeHold(ship);
         ship.DetailsRevision++;
         return Outcome.Done;
     }

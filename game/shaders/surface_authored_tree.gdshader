@@ -4,8 +4,8 @@ shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
 #include "res://shaders/surface_atmosphere.gdshaderinc"
 #include "res://shaders/surface_clouds.gdshaderinc"
+#include "res://shaders/surface_world_phase.gdshaderinc"
 
-global uniform vec3 hu_texture_offset;
 global uniform vec4 hu_wind;
 global uniform vec4 hu_shake_at;
 global uniform vec4 hu_shake_dir;
@@ -48,9 +48,9 @@ void vertex() {
         vec3 up = normalize(m[1]);
         vec3 wind = (hu_wind.xyz-up*dot(hu_wind.xyz,up))*hu_wind.w;
         vec3 local_wind = transpose(m)*wind/scale2;
-        vec3 base = origin+hu_texture_offset;
-        float phase = dot(base,vec3(0.061,0.047,0.053));
-        float gust = 0.55+0.45*sin(TIME*0.37-dot(base,hu_wind.xyz)*0.035);
+        vec3 phases = hu_body_wave_phases(origin);
+        float phase = phases.x;
+        float gust = 0.55+0.45*sin(TIME*0.37+phases.z);
         float bend = pow(smoothstep(0.3,tree_height,VERTEX.y),1.6);
         VERTEX += local_wind*bend*0.22*(0.65+0.35*sin(TIME*1.15+phase))*gust;
         if (mode == 0) {

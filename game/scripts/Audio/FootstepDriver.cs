@@ -8,9 +8,8 @@ namespace HollowUniverse.Audio;
 /// <see cref="Update"/>; it plays a step each stride (walk, run or crouch by speed and stance), a landing after a fall,
 /// swim strokes, on the surface under the feet. The player's own feet play flat and a little quieter
 /// (<see cref="Local"/>); everyone else's are placed at their feet.
-/// <para>The surface comes from <see cref="Footsteps.FromGround"/> (the terrain's strongest ground material at the
-/// feet), <see cref="Footsteps.FromBiome"/> when only the biome is known, or <see cref="Footsteps.FromGrade"/> on a
-/// building floor.</para>
+/// <para><see cref="FootstepEnvironment"/> resolves the contacted floor through the shared physical surface and
+/// response tables. Footwear selection and cadence remain independent of that material lookup.</para>
 /// </summary>
 public partial class FootstepDriver : Node3D
 {

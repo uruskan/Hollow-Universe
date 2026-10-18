@@ -24,6 +24,7 @@ namespace Hollow.Bots;
 /// </summary>
 public sealed class BuildBrain
 {
+    private readonly BotGround _ground;
     /// <summary>
     /// Plots are this far apart: a claim device covers 16 m round every piece and 25 m round itself (with 2.25 m of
     /// padding for the hammer), so a neighbour's base must end more than 27 m from it.
@@ -59,8 +60,9 @@ public sealed class BuildBrain
     private float _yaw;
     private Piece? _f1, _f2, _doorway;
 
-    public BuildBrain(int index)
+    public BuildBrain(int index, BotGround ground)
     {
+        _ground = ground;
         _rng = new Rng(Hash64.Of((ulong)index, 0xB01D));
         _index = index;
     }
@@ -68,29 +70,8 @@ public sealed class BuildBrain
     private readonly int _index;
     private bool _plotted;
 
-    // The crowd's plots: a grid PlotSpacing apart round the landing site, nearest first, on dry ground (the sea is 120 m
-    // from the landing site); bot n takes the n-th. The same for every bot (the same surface), so no two share one.
-    private static List<Vector3>? _crowdPlots;
-
-    private static Vector3 CrowdPlot(GameClient client, int index)
-    {
-        if (_crowdPlots == null)
-        {
-            var grid = new List<(float East, float South)>();
-            for (int z = -8; z < 8; z++)
-            {
-                for (int x = -8; x < 8; x++)
-                {
-                    grid.Add(((x + 0.5f) * PlotSpacing, (z + 0.5f) * PlotSpacing));
-                }
-            }
-            _crowdPlots = grid.OrderBy(p => p.East * p.East + p.South * p.South).ThenBy(p => p.South).ThenBy(p => p.East)
-                .Select(p => BotGround.Offset(client, BotGround.Landing, p.East, p.South))
-                .Where(p => client.Placement().Ground is not { } ground || !ground.InWater(p, 1f))
-                .ToList();
-        }
-        return _crowdPlots[index % _crowdPlots.Count];
-    }
+    // Stable plot ordering is shared only within this session's descriptor and landing site.
+    private Vector3 CrowdPlot(GameClient client, int index) => _ground.CrowdPlot(client, index, PlotSpacing);
 
     /// <summary>Where the bot's own refusals are told (the first bot's).</summary>
     public Action<string>? Log { get; init; }
@@ -136,13 +117,13 @@ public sealed class BuildBrain
         Vector3 feet = client.Character.Position;
         if (!_plotted)
         {
-            if (BotGround.Landing == default)
+            if (!_ground.TryLanding(client, out _))
             {
                 return input;
             }
             // Bots that arrived at the landing site share it: a plot each on the grid round it. One that arrived on a
             // beach of its own (anywhere on the world) builds there.
-            _site = BotGround.ArrivedAtLanding(client) ? CrowdPlot(client, _index) : BotGround.FirstArrival(client);
+            _site = _ground.ArrivedAtLanding(client) ? CrowdPlot(client, _index) : _ground.FirstArrival(client);
             _plotted = true;
         }
         // The bot stands south of its base's middle, 2 m from its south walls, within reach of everything.

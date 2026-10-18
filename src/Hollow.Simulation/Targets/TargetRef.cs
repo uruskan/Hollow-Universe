@@ -142,6 +142,9 @@ public interface ITargetFamily : ITargetView
     /// <summary>What it is drawn as (the model catalogue's key); empty when nothing draws it.</summary>
     string ModelKey(ulong id);
 
+    /// <summary>Physical response identity captured while the target still exists; zero is unknown.</summary>
+    byte Surface(in TargetRef target, Vector3 point) => 0;
+
     /// <summary>Its capabilities now (a door's include its lock's), from its definition's blocks (GROUND_SYSTEMS.md §2.1).</summary>
     Capabilities.CapabilitySet Capabilities(ulong id);
 

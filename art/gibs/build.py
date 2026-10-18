@@ -5,7 +5,7 @@
     blender -b --factory-startup --python art/gibs/build.py -- --list               # what would be built, and from what
 
 What it reads: game/data/ground/models.json, every entry with a "gibs" object (its GLB, and options: "pieces",
-"hollow", "budget", "cut"); for a kit entry ("kind": "kit"), building.json names its parts: a grade's kit ("grade": the
+"hollow", "budget", "cut", optional "minRatio"); for a kit entry ("kind": "kit"), building.json names its parts: a grade's kit ("grade": the
 grade's index) holds every piece by its key, a door kit every door whose frame and leaves are meshes of its file.
 What it writes: the gib file named by the entry (game/assets/gibs/<key>.glb) and its .import, which maps every material
 to the shared Godot material the model itself uses; and once, the building grades' and the garage door's materials
@@ -29,10 +29,12 @@ How a model breaks (every step deterministic: a build writes the same files agai
 """
 import json
 import math
+import re
 import sys
 import zlib
 from pathlib import Path
 
+sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import bmesh  # noqa: E402
@@ -57,6 +59,7 @@ MATS = {
     "M_Hollow_Rock": (MATERIALS / "hollow_rock.tres", 0, 1.1),
     "M_Hollow_Glossy": (MATERIALS / "hollow_glossy.tres", 0, 1.0),
     "Door_garage": (MATERIALS / "door_garage.tres", 1, 3.0),
+    "Door_glass": (MATERIALS / "fitted_glass.tres", 0, 1.0),
 }
 for _g in GRADES:
     MATS[f"Building_{_g}"] = (MATERIALS / f"building_{_g}.tres", 2, 4.0)
@@ -120,10 +123,12 @@ def gib_sets():
             meshes = glb_nodes(source)
             parts = []
             for door in building["doors"]:
-                names = [door.get("frameMesh", "")] + [leaf["mesh"] for leaf in door["leaves"]]
+                names = [door.get("frameMesh", "")] + [name for leaf in door["leaves"]
+                    for name in [leaf["mesh"]] + leaf.get("additionalMeshes", [])]
                 if all(n in meshes for n in names if n):
                     specs = [("door-frame", door["frameMesh"])] if door.get("frameMesh") else []
-                    specs += [("door-leaf", leaf["mesh"], leaf["hinge"]) for leaf in door["leaves"]]
+                    specs += [("door-leaf", name, leaf["hinge"]) for leaf in door["leaves"]
+                        for name in [leaf["mesh"]] + leaf.get("additionalMeshes", [])]
                     parts.append((door["key"], specs))
         else:
             parts = [("", [("model",)])]
@@ -139,6 +144,28 @@ def import_glb(path):
     reset()
     bpy.ops.import_scene.gltf(filepath=str(path), merge_vertices=False)
     return {o.name: o for o in bpy.data.objects}
+
+
+def source_materials(path):
+    """Reuse the admitted model's external PBR materials, including baked per-assembly atlases."""
+    sidecar = Path(str(path) + ".import")
+    if not sidecar.exists():
+        return
+    text = sidecar.read_text(encoding="utf-8")
+    marker = re.search(r'"materials"\s*:', text)
+    if marker is None:
+        return
+    mappings, _ = json.JSONDecoder().raw_decode(text[marker.end():].lstrip())
+    for name, settings in mappings.items():
+        if name in MATS or not settings.get("use_external/enabled"):
+            continue
+        resource = settings.get("use_external/path", "")
+        target = res_to_path(resource).resolve()
+        if not target.is_relative_to(GAME.resolve()) or not target.is_file():
+            raise RuntimeError(f"{path}: unsafe or missing mapped material {resource}")
+        MATS[name] = (target, 1, 1.0)
+        if "vertex_color_use_as_albedo = false" in target.read_text(encoding="utf-8"):
+            NO_COLOUR.add(name)
 
 
 def triangles(o):
@@ -270,9 +297,9 @@ def gather(sources):
     return bm, names
 
 
-def limit(bm, names, budget):
-    """A source above the budget even at its coarsest level is decimated toward it, to half its triangles at most (thin
-    parts lose their shape beyond); UVs and colours are carried."""
+def limit(bm, names, budget, min_ratio=0.5):
+    """Decimate toward the budget, retaining at least min_ratio (half by default); UVs and colours are carried.
+    Dense admitted assemblies can explicitly choose a smaller debris-only ratio without changing their live mesh."""
     tris = sum(len(f.verts) - 2 for f in bm.faces)
     if tris <= budget * 1.1:
         return bm
@@ -283,7 +310,7 @@ def limit(bm, names, budget):
     bpy.context.scene.collection.objects.link(o)
     mod = o.modifiers.new("decimate", "DECIMATE")
     mod.decimate_type = "COLLAPSE"
-    mod.ratio = max(0.5, budget / tris)
+    mod.ratio = max(min_ratio, budget / tris)
     mod.use_collapse_triangulate = True
     select_only([o])
     bpy.ops.object.modifier_apply(modifier=mod.name)
@@ -767,19 +794,25 @@ def default_count(lo, hi):
     return int(min(12, max(6, round(1.5 + 1.6 * (sides[0] + sides[1])))))
 
 
-def build_set(key, gibs, source, parts):
+def build_set(key, gibs, source, parts, *, output=None, write_import=True):
+    source_materials(source)
     objects = import_glb(source)
     budget = int(gibs.get("budget", 1200))
     if BUDGET_OVERRIDE:
         budget = BUDGET_OVERRIDE
-    target_path = res_to_path(gibs["file"])
+    target_path = output if output is not None else res_to_path(gibs["file"])
     pieces = []  # (name, bmesh, part)
     names_all = []
     lines = []
+    stats = []
     for part, specs in parts:
         sources, lod = source_objects(objects, specs, budget)
+        selected_triangles = sum(triangles(obj) for obj, _ in sources)
         bm, names = gather(sources)
-        bm = limit(bm, names, budget)
+        min_ratio = float(gibs.get("minRatio", 0.5))
+        if not 0 < min_ratio <= 1:
+            raise RuntimeError(f"{key}: minRatio must be greater than zero and at most one")
+        bm = limit(bm, names, budget, min_ratio)
         for n in names:
             if n not in MATS:
                 raise RuntimeError(f"{key}: no Godot material for {n}")
@@ -800,6 +833,10 @@ def build_set(key, gibs, source, parts):
             if n not in names_all:
                 names_all.append(n)
         caps = sum(1 for c in order for f in c.faces if f[c.faces.layers.int["cap"]] == 1)
+        stats.append({'part': part, 'lod': lod, 'budget': budget, 'requestedFragments': count,
+                      'seed': zlib.crc32(f'{key}/{part}'.encode()), 'actualFragments': len(order),
+                      'selectedSourceTriangles': selected_triangles,
+                      'sourceTrianglesAfterLimit': tris_before, 'fragmentTriangles': tris_after, 'capFaces': caps})
         lines.append(f"{key}{'/' + part if part else ''}: LOD{lod} {tris_before} triangles -> {len(order)} pieces, {tris_after} triangles ({caps} cap faces)")
     # The scene again, empty, for the pieces alone.
     reset()
@@ -820,12 +857,13 @@ def build_set(key, gibs, source, parts):
             world = o.matrix_world.copy()
             o.parent = groups[part]
             o.matrix_world = world
-    export(target_path, exported, names_all, colour)
+    export(target_path, exported, names_all, colour, write_import=write_import)
     for line in lines:
         log(line)
+    return stats
 
 
-def export(path, objects, names, colour):
+def export(path, objects, names, colour, *, write_import=True):
     path.parent.mkdir(parents=True, exist_ok=True)
     select_only(objects)
     bpy.ops.export_scene.gltf(
@@ -833,7 +871,8 @@ def export(path, objects, names, colour):
         export_materials="EXPORT", export_vertex_color="ACTIVE" if colour else "NONE", export_all_vertex_colors=False,
         export_yup=True, export_apply=False, export_texcoords=True, export_normals=True, export_tangents=False,
         export_animations=False, export_extras=False, export_cameras=False, export_lights=False)
-    write_scene_import(path, {n: MATS[n][0] for n in names})
+    if write_import:
+        write_scene_import(path, {n: MATS[n][0] for n in names})
     meshes = [o for o in objects if o.type == "MESH"]
     tris = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in meshes)
     log(f"exported {path.name}: {len(meshes)} pieces, {tris} triangles, {path.stat().st_size / 1e6:.2f} MB")
@@ -845,9 +884,54 @@ def export(path, objects, names, colour):
 BUDGET_OVERRIDE = 0
 
 
+def stage_roofs(args):
+    """--roof-only --grade twig --source <staged building_twig.glb> --out <roof-gibs-twig.glb>.
+
+    Requires the merged candidate's receipt. Never fractures the old installed gables;
+    never writes materials, .import files, a full grade pack, or an existing output.
+    """
+    import argparse
+    import importlib.util
+    parser = argparse.ArgumentParser(description=stage_roofs.__doc__)
+    parser.add_argument('--roof-only', action='store_true', required=True)
+    parser.add_argument('--grade', choices=GRADES, required=True)
+    parser.add_argument('--source', required=True)
+    parser.add_argument('--out', required=True)
+    options = parser.parse_args(args)
+    root = Path(__file__).resolve().parents[2]
+    spec = importlib.util.spec_from_file_location('roof_asset_staging', root / 'tools/repair_roof_assets.py')
+    staging = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(staging)
+    out, receipt = staging.output_pair(options.out, f'roof-gibs-{options.grade}.glb')
+    source, _, _ = staging.building_candidate(options.source, options.grade)
+    key = f'building-{options.grade}'
+    matches = [s for s in gib_sets() if s[0] == key]
+    staging.require(len(matches) == 1, 'expected one grade catalogue entry')
+    _, gibs, _, parts = matches[0]
+    parts = [p for p in parts if p[0] in staging.ROOFS]
+    staging.require([p[0] for p in parts] == list(staging.ROOFS), 'expected both roof parts in stable catalogue order')
+    staging.require(gibs.get('grade') == GRADES.index(options.grade) and gibs.get('pieces') == 9 and
+                    gibs.get('budget') == (1000 if options.grade == 'twig' else 500) and BUDGET_OVERRIDE == 0,
+                    'roof generation must retain current grade, budgets and fragment counts')
+    staging.require(res_to_path(gibs['file']).resolve() == staging.baseline('gibs', options.grade), 'grade gib path mismatch')
+    snapshot = staging.protected()
+    stats = build_set(key, gibs, source, parts, output=out, write_import=False)
+    document, _ = staging.read_glb(out)
+    staging.selection(document, 'gibs', candidate=True, partial=True)
+    staging.require([m.get('name') for m in document['materials']] == [f'Building_{options.grade}'], 'gib material mismatch')
+    staging.unchanged(snapshot)
+    staging.write_receipt(receipt, {'mode': 'roof-gibs', 'grade': options.grade, 'protected': snapshot,
+        'inputs': {source.relative_to(root).as_posix(): staging.digest(source)},
+        'outputSHA256': staging.digest(out), 'bytes': out.stat().st_size, 'parts': stats,
+        'exportedMeshes': staging.mesh_statistics(document)})
+
+
 def main():
     global BUDGET_OVERRIDE
     args = script_args()
+    if '--roof-only' in args:
+        stage_roofs(args)
+        return
     if "--budget" in args:
         BUDGET_OVERRIDE = int(args[args.index("--budget") + 1])
         args = [a for i, a in enumerate(args) if a != "--budget" and (i == 0 or args[i - 1] != "--budget")]

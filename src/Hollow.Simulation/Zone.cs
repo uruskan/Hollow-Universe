@@ -64,14 +64,25 @@ public sealed class Zone : IDisposable
     /// <summary>Ground tiles nobody stood near for this long are dropped.</summary>
     public const int GroundKeepTicks = 10 * CharacterMotor.TickRate;
 
-    private readonly ZoneSystem[] _systems;
-    private readonly ZoneSystem[] _gated;
-    private readonly ZoneSystem[] _free;
+    private ZoneSystem[] _systems = Array.Empty<ZoneSystem>();
+    private ZoneSystem[] _gated = Array.Empty<ZoneSystem>();
+    private ZoneSystem[] _free = Array.Empty<ZoneSystem>();
     private readonly Dictionary<Type, ZoneSystem> _byType = new();
+    private readonly ZoneEnvironmentOwner _environment;
     private long _localIds = 1;
 
     public Zone(ZoneSpec spec, MovementTuning? tuning = null, GameContent? content = null)
-        : this(spec.CreateSurface(), spec, tuning, content)
+        : this(ZoneEnvironmentOwner.Acquire(spec), spec, tuning, content, null)
+    {
+    }
+
+    /// <summary>
+    /// Takes ownership of a generated world's lease, including when construction fails. All asynchronous readers
+    /// retire before that lease is released. Fork first when the caller also needs to retain its own pin.
+    /// </summary>
+    public Zone(WorldLease lease, ZoneSpec spec, MovementTuning? tuning = null, GameContent? content = null,
+        IReadOnlyList<ZoneSystem>? systems = null)
+        : this(ZoneEnvironmentOwner.Take(lease), spec, tuning, content, systems)
     {
     }
 
@@ -80,49 +91,61 @@ public sealed class Zone : IDisposable
     /// <see cref="GroundSystems.Game"/> with content and <see cref="GroundSystems.MovementOnly"/> without.
     /// </summary>
     public Zone(ISurface surface, ZoneSpec spec, MovementTuning? tuning = null, GameContent? content = null, IReadOnlyList<ZoneSystem>? systems = null)
+        : this(ZoneEnvironmentOwner.Borrow(surface), spec, tuning, content, systems)
     {
+    }
+
+    private Zone(ZoneEnvironmentOwner environment, ZoneSpec spec, MovementTuning? tuning,
+        GameContent? content, IReadOnlyList<ZoneSystem>? systems)
+    {
+        _environment = environment;
         Spec = spec;
-        Surface = surface;
-        Frame = spec.CreateFrame(surface);
-        Tuning = tuning ?? MovementTuning.Default;
-        var zoneFrame = new ZoneMoveFrame(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, Tuning), surface.Radius, surface: surface);
-        Movement = new MoveContext(zoneFrame, Tuning);
-        Physics = new PhysicsWorld(surface, Frame);
-        zoneFrame.Body = new CharacterBody(Physics, Tuning, Vector3.Zero, Vector3.UnitY);
-        Frames = new MoveFrames(zoneFrame, Tuning);
-        Landing = Ground.On(spec.LandingDirection);
-        Content = content;
-        if (content != null)
+        try
         {
-            Nature = Spec.CreateNature(Surface, Frame, content);
-            Natural = new NaturalState(content, Nature);
-            _ = new NaturalBodies(Physics, Natural);
-            Climate = new StandInClimate(content.Survival, Frame, Surface.Radius);
-        }
-        _systems = (systems ?? (content != null ? GroundSystems.Game() : GroundSystems.MovementOnly())).ToArray();
-        foreach (ZoneSystem system in _systems)
-        {
-            if (!_byType.TryAdd(system.GetType(), system))
+            ISurface surface = _environment.SurfaceFor(spec);
+            Surface = surface;
+            Frame = spec.CreateFrame(surface);
+            Tuning = tuning ?? MovementTuning.Default;
+            var zoneFrame = new ZoneMoveFrame(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, Tuning), surface.Radius, surface: surface);
+            Movement = new MoveContext(zoneFrame, Tuning);
+            Frames = new MoveFrames(zoneFrame, Tuning);
+            Physics = _environment.CreatePhysics(Frame);
+            zoneFrame.Body = _environment.CreateCharacter(Tuning);
+            Landing = Ground.On(spec.LandingDirection);
+            Content = content;
+            if (content != null)
             {
-                throw new InvalidOperationException($"{system.GetType().Name} is in the zone's list twice (GROUND_SYSTEMS.md §12.2)");
+                Nature = Spec.CreateNature(Surface, Frame, content);
+                Natural = new NaturalState(content, Nature);
+                _environment.ListenTo(Natural);
+                Climate = new StandInClimate(content.Survival, Frame, Surface.Radius);
             }
-            system.Attach(this);
+            _systems = (systems ?? (content != null ? GroundSystems.Game() : GroundSystems.MovementOnly())).ToArray();
+            foreach (ZoneSystem system in _systems)
+            {
+                if (!_byType.TryAdd(system.GetType(), system))
+                    throw new InvalidOperationException($"{system.GetType().Name} is in the zone's list twice (GROUND_SYSTEMS.md §12.2)");
+                system.Attach(this);
+            }
+            foreach (ZoneSystem system in _systems.OrderBy(s => s.InitOrder))
+            {
+                _environment.Initialize(system);
+            }
+            foreach (ZoneSystem system in _systems) system.Start();
+            _gated = _systems.Where(s => s.InsidePhysicsGate).ToArray();
+            _free = _systems.Where(s => !s.InsidePhysicsGate).ToArray();
         }
-        foreach (ZoneSystem system in _systems.OrderBy(s => s.InitOrder))
+        catch (Exception error)
         {
-            system.Init();
+            try { Dispose(); }
+            catch (Exception cleanup) { throw new AggregateException("Zone construction and rollback failed.", error, cleanup).Flatten(); }
+            throw;
         }
-        foreach (ZoneSystem system in _systems)
-        {
-            system.Start();
-        }
-        _gated = _systems.Where(s => s.InsidePhysicsGate).ToArray();
-        _free = _systems.Where(s => !s.InsidePhysicsGate).ToArray();
     }
 
     public ZoneSpec Spec { get; }
 
-    public ISurface Surface { get; }
+    public ISurface Surface { get; private set; } = null!;
 
     public ZoneFrame Frame { get; }
 
@@ -134,12 +157,12 @@ public sealed class Zone : IDisposable
 
     public MovementTuning Tuning { get; }
 
-    public MoveContext Movement { get; }
+    public MoveContext Movement { get; private set; }
 
     /// <summary>The frames characters move in: the zone's and every ship's with an interior (IRON_WAKE.md §4.2).</summary>
-    public MoveFrames Frames { get; }
+    public MoveFrames Frames { get; private set; } = null!;
 
-    public PhysicsWorld Physics { get; }
+    public PhysicsWorld Physics { get; private set; } = null!;
 
     public EntityStore Entities { get; } = new();
 
@@ -150,9 +173,9 @@ public sealed class Zone : IDisposable
     public GameContent? Content { get; }
 
     /// <summary>Where the trees, outcrops, pickups and bushes are, and what players did to them (null without content).</summary>
-    public INaturalObjects? Nature { get; }
+    public INaturalObjects? Nature { get; private set; }
 
-    public NaturalState? Natural { get; }
+    public NaturalState? Natural { get; private set; }
 
     /// <summary>The air temperature (the stand-in until the server sets the planet's climate).</summary>
     public IClimate? Climate { get; set; }
@@ -310,6 +333,7 @@ public sealed class Zone : IDisposable
     /// </summary>
     public void Step()
     {
+        ObjectDisposedException.ThrowIf(_environment.IsDisposed, this);
         Tick++;
         ComponentPool<Character> characters = Entities.Pool<Character>();
         // The ground under everyone first, outside Jolt's lock: a tile that has to be built or waited for then
@@ -390,11 +414,21 @@ public sealed class Zone : IDisposable
 
     public void Dispose()
     {
-        for (int i = _systems.Length - 1; i >= 0; i--)
+        if (_environment.IsDisposed) return;
+        ZoneEnvironmentOwner.EnsureOutsidePhysicsGate();
+        try { _environment.Dispose(); }
+        finally
         {
-            _systems[i].Dispose();
+            _systems = _gated = _free = Array.Empty<ZoneSystem>();
+            _byType.Clear();
+            Surface = null!;
+            Frames = null!;
+            Movement = default;
+            Physics = null!;
+            Nature = null;
+            Natural = null;
+            Climate = null;
+            Beaches = null;
         }
-        Frames.Zone.Body?.Dispose();
-        Physics.Dispose();
     }
 }

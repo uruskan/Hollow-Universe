@@ -16,10 +16,11 @@ public sealed partial class ThingSystem
         foreach (ILifetime loose in _loose)
         {
             if (loose is not Corpse { IsBody: true } corpse) continue;
+            float t = CorpseHitShape.Raycast(corpse.Position, corpse.Up, corpse.Yaw, ray.Origin, ray.Direction, ray.Length, ray.Thickness);
             (Vector3 right, Vector3 forward) = Geometry.Axes(corpse.Up, corpse.Yaw);
-            float t = Geometry.RayBox(ray.Origin, ray.Direction, ray.Length, corpse.Position + corpse.Up * 0.3f,
+            Vector3 normal = ContactGeometry.BoxNormal(ray.Origin + ray.Direction * t, corpse.Position + corpse.Up * 0.3f,
                 new Vector3(0.45f, 0.3f, 0.95f) + new Vector3(ray.Thickness), right, corpse.Up, forward);
-            ray.Consider(ref best, t, corpse.Ref);
+            ray.Consider(ref best, t, corpse.Ref, normal: normal);
         }
     }
 

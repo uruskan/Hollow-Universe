@@ -1,0 +1,26 @@
+[gd_resource type="StandardMaterial3D" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/a1631e47ee65dc141a647ef04954ee1d1ed6585e981d6e00facfb9bb0653abea.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/36e7b964a4f43da0db727a3ebd3dab1128614bc187d7072a99cca7264fb9294d.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/4e0ecaa04f5b333b1b97af09f18462d3a5c841bce1d47400e96fc7c94e1e420d.png" id="3"]
+
+[resource]
+resource_name = "M_06_Stone_Compound_Gate_Baked"
+cull_mode = 2
+texture_filter = 5
+vertex_color_use_as_albedo = false
+albedo_color = Color(1, 1, 1, 1)
+metallic = 1
+roughness = 1
+albedo_texture = ExtResource("1")
+normal_texture = ExtResource("2")
+normal_enabled = true
+normal_scale = 1
+ao_texture = ExtResource("3")
+ao_enabled = true
+ao_texture_channel = 0
+ao_light_affect = 0.0
+roughness_texture = ExtResource("3")
+metallic_texture = ExtResource("3")
+roughness_texture_channel = 1
+metallic_texture_channel = 2

@@ -8,6 +8,8 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
 using Hollow.Client.Audio;
+using Hollow.Client.Feedback;
+using Hollow.Simulation.Targets;
 using HollowUniverse.Audio;
 using HollowUniverse.Characters;
 using HollowUniverse.Fx;
@@ -42,10 +44,17 @@ public partial class PeopleView : Node3D
         public ushort[] Wear = Array.Empty<ushort>();
         public byte Body;
         public FootstepDriver? Feet;
+        public readonly RemoteMeleeSwingCue SwingCue = new();
+        public readonly ActionCuePlayer ReloadCues = new();
+        public byte ReloadAction;
+        public ushort ReloadItem;
+        public string ReloadKey = "";
+        public string? SwingCueSound;
         public FxHandle Flame;
         public Node3D? FlameSocket;
         public FootSurface Surface = FootSurface.Grass;
         public Num.Vector3 SurfaceAt = new(float.MaxValue);
+        public uint SurfaceFrame = uint.MaxValue;
     }
 
     private sealed class Corpse
@@ -65,6 +74,7 @@ public partial class PeopleView : Node3D
     private bool _ownReloading;
 
     public GameClient Client { get; set; } = null!;
+    public RecentContactFeedback? Contacts { get; set; }
 
     /// <summary>
     /// Players to name: the point above their head, their name, how far, and whether they are in the player's team.
@@ -119,7 +129,44 @@ public partial class PeopleView : Node3D
         Client.Melee.Started -= OnOwnSwing;
         Client.Melee.Cancelled -= CancelOwnAction;
         Client.Local.DamageTaken -= OnOwnDamage;
-        if (_ownPlayer != null) Torch(_ownPlayer, null);
+        RetireWorld();
+    }
+
+    /// <summary>Person/corpse IDs and animation history never carry into another world session.</summary>
+    public void RetireWorld()
+    {
+        foreach (Person person in _people.Values)
+        {
+            Torch(person, null);
+            person.SwingCue.Cancel();
+            person.View.CancelActions();
+            Release(person.View);
+            if (person.Feet is { } feet)
+            {
+                if (feet.GetParent() == this) RemoveChild(feet);
+                feet.QueueFree();
+            }
+        }
+        foreach (Corpse corpse in _corpses.Values)
+        {
+            foreach (Node3D? node in new Node3D?[] { corpse.View, corpse.Bag })
+                if (node != null)
+                {
+                    if (node.GetParent() == this) RemoveChild(node);
+                    node.QueueFree();
+                }
+        }
+        if (_ownPlayer is { } own)
+        {
+            Torch(own, null);
+            own.View.CancelActions();
+            Release(own.View);
+            _ownPlayer = null;
+        }
+        _people.Clear(); _corpses.Clear(); _seen.Clear();
+        _myWear = Array.Empty<ushort>();
+        _wearRevision = _ownWear = uint.MaxValue;
+        _ownHeld = 0; _ownReloading = false;
     }
 
     private void OnLook(RemoteEntity entity)
@@ -424,6 +471,7 @@ public partial class PeopleView : Node3D
     {
         if (p.Body != e.Body && !p.Down)
         {
+            p.SwingCue.Cancel();
             // Another body: a new view (a view's body is chosen when it is made), dressed as before.
             Release(p.View);
             p.View = NewView(e);
@@ -460,6 +508,8 @@ public partial class PeopleView : Node3D
         // In a ship's seat (IRON_WAKE.md §9.6): drawn sitting at the seat as the ship is drawn, every ship's.
         if (e.Stance == Stance.Seated && SeatedFrame(e, facing) is { } seated)
         {
+            p.SwingCue.Cancel();
+            p.ReloadCues.Cancel();
             p.View.Apply(seated);
             // Nothing in hand, no steps; what it did meanwhile isn't replayed when it stands up.
             Torch(p, null);
@@ -529,6 +579,7 @@ public partial class PeopleView : Node3D
         {
             if (e.ActionCount != p.Actions)
             {
+                p.SwingCue.Cancel();
                 ItemDef? heldItem = Client.Content.Item(e.ActionItem != 0 ? e.ActionItem : e.Held);
                 HeldPresentationProfile? profile = heldItem != null && HeldItems.Find(heldItem.Key) != null ? HeldPresentations.Get(heldItem.Key) : null;
                 string? action = e.Action switch
@@ -564,20 +615,31 @@ public partial class PeopleView : Node3D
                     case ActionKind.Reload:
                         if (heldItem?.Firearm is { } gun)
                         {
-                            ReloadSounds(p, e, heldItem.Key, HeldActionTiming.Seconds(gun.ReloadTicks), head);
+                            p.ReloadAction = e.ActionCount;
+                            p.ReloadItem = heldItem.Id;
+                            p.ReloadKey = heldItem.Key;
+                            p.ReloadCues.Start(ContactFeedback.Actions.For("reload"), HeldActionTiming.Duration(heldItem, "reload", HeldActionTiming.Seconds(gun.ReloadTicks)),
+                                Math.Max(0, e.RenderTick - e.ActionTick) / CharacterTicks.Rate);
                         }
                         break;
                     case ActionKind.Draw:
                         Sounds.At("bow.draw", head);
                         break;
                     case ActionKind.Swing:
-                        Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, "swing") ?? "melee.swing" : "melee.swing", head);
+                        if (heldItem?.Melee != null)
+                        {
+                            p.SwingCueSound = Sounds.Item(heldItem.Key, "swing") ?? "melee.swing";
+                            p.SwingCue.Start(e, heldItem);
+                        }
                         break;
                     case ActionKind.Throw:
                         Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, "throw") : null, head);
                         break;
                     case ActionKind.Use:
                         Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, profile?.UseAction ?? "use") ?? Sounds.Item(heldItem.Key, "use") : null, head);
+                        break;
+                    case ActionKind.Repair:
+                        Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, "repair") : null, head);
                         break;
                 }
             }
@@ -588,12 +650,18 @@ public partial class PeopleView : Node3D
                 Sounds.At("survival.hurt", head);
                 // A blow or a bite bleeds here; a bullet's blood was shown where it hit.
                 Vector3 chest = GroundView.ToGodot(e.Position + up * 1.25f);
-                if (!GunEffects.FleshShown(chest, Client.ClockSeconds))
+                if (Contacts?.Contains(new TargetRef(TargetFamily.Character, p.Id.Value), Client.ClockSeconds) != true)
                 {
                     FxDirector.Play("blood.hit", chest + front * 0.15f, front, new FxParams { Direction = front });
                 }
             }
         }
+        if (p.SwingCue.Step(Client, e, !down))
+            Sounds.At(p.SwingCueSound, head);
+        p.ReloadCues.Advance(Math.Max(0, e.RenderTick - e.ActionTick) / CharacterTicks.Rate,
+            !down && !e.Wounded && e.Stance != Stance.Seated && e.ActionCount == p.ReloadAction &&
+            e.Action == ActionKind.Reload && e.Held == p.ReloadItem,
+            role => Sounds.At(Sounds.Item(p.ReloadKey, role), head));
         p.Actions = e.ActionCount;
         p.Health = e.Health;
     }
@@ -651,17 +719,6 @@ public partial class PeopleView : Node3D
         }
     }
 
-    // A reload's parts as they come: magazine out, in, the slide or bolt.
-    private void ReloadSounds(Person person, RemoteEntity entity, string gun, float seconds, Vector3 at)
-    {
-        byte action = entity.ActionCount;
-        bool StillReloading() => IsInstanceValid(person.View) && !person.Down && !entity.Wounded && entity.Stance != Stance.Seated &&
-            entity.ActionCount == action && entity.Action == ActionKind.Reload && entity.Held == entity.ActionItem;
-        Sounds.At(Sounds.Item(gun, "magOut"), at);
-        GetTree().CreateTimer(seconds * 0.55).Timeout += () => { if (StillReloading()) Sounds.At(Sounds.Item(gun, "magIn"), at); };
-        GetTree().CreateTimer(seconds * 0.85).Timeout += () => { if (StillReloading()) Sounds.At(Sounds.Item(gun, "rack"), at); };
-    }
-
     // Their footsteps in zone space, using deck-relative velocity and the surface directly underfoot.
     private void Steps(Person p, RemoteEntity e, Num.Vector3 up, bool swimming, float dt)
     {
@@ -670,10 +727,11 @@ public partial class PeopleView : Node3D
             p.Feet = new FootstepDriver { Name = "Feet " + e.Name };
             AddChild(p.Feet);
         }
-        if (Num.Vector3.Distance(e.Position, p.SurfaceAt) > 0.6f)
+        if (e.Frame != p.SurfaceFrame || Num.Vector3.Distance(e.Position, p.SurfaceAt) > 0.6f)
         {
             p.SurfaceAt = e.Position;
-            p.Surface = GroundAudio.SurfaceAt(Client, e.Position, e.Frame);
+            p.SurfaceFrame = e.Frame;
+            p.Surface = GroundAudio.SurfaceAt(Client, e.Position, e.Frame, e.LocalPosition);
         }
         Vector3 upG = GroundView.ToGodot(up);
         float vertical = p.Velocity.Dot(upG);
@@ -687,7 +745,7 @@ public partial class PeopleView : Node3D
             Swimming = swimming,
             Sprinting = speed > 4.5f,
             Suppressed = e.Stance == Stance.Seated || (e.Flags & MoveFlags.Dead) != 0,
-            Surface = e.Frame != 0 ? FootSurface.Metal : p.Surface,
+            Surface = p.Surface,
             FootwearProfile = SoundLibrary.Footwear.Profile(Client.Content, e.Wear),
             WaterDepth = e.Frame == 0 ? GroundAudio.WaterDepth(Client, e.Position) : 0,
         }, GroundView.ToGodot(e.Position));

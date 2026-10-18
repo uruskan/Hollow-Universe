@@ -193,7 +193,8 @@ public static class MapTests
     public static void MapPictureIsTheWholeWorld()
     {
         var spec = new ZoneSpec { SystemAddress = 1, BodyPath = 2, Radius = Radius, SurfaceSeed = 77, LatitudeDegrees = 44.86, LongitudeDegrees = -170 };
-        ISurface standIn = spec.CreateSurface();
+        // This map-key fixture intentionally has a fabricated address; its surface is explicitly borrowed.
+        ISurface standIn = new StandInWorld(spec.Radius, spec.SurfaceSeed, spec.LandingDirection);
         var world = new Simulation.Content.WorldData();
         var map = new ZoneMap(spec, standIn, ZoneFrame.World, world);
         Assert.Equal(25, map.Cells, "25 cells a face");
@@ -209,9 +210,9 @@ public static class MapTests
         int dark = Count(plain, (r, g, bl) => r + g + bl < 120);
         Assert.Equal(0, dark, "a world without a sea is drawn, not black");
         var otherSpec = spec with { Radius = 3000 };
-        Assert.True(new ZoneMap(otherSpec, otherSpec.CreateSurface(), ZoneFrame.World, world).CacheKey != map.CacheKey, "another radius, another picture");
+        Assert.True(new ZoneMap(otherSpec, new StandInWorld(otherSpec.Radius, otherSpec.SurfaceSeed, otherSpec.LandingDirection), ZoneFrame.World, world).CacheKey != map.CacheKey, "another radius, another picture");
         Assert.True(new ZoneMap(spec, dry, ZoneFrame.World, world).CacheKey != map.CacheKey, "another surface, another picture");
-        Assert.Equal(map.CacheKey, new ZoneMap(spec, spec.CreateSurface(), ZoneFrame.World, world).CacheKey, "the same world, the same key");
+        Assert.Equal(map.CacheKey, new ZoneMap(spec, new StandInWorld(spec.Radius, spec.SurfaceSeed, spec.LandingDirection), ZoneFrame.World, world).CacheKey, "the same world, the same key");
         Vector3 ground = map.Ground(spec.LandingDirection);
         Assert.Near(Radius + standIn.HeightAt(spec.LandingDirection), ground.Length(), 0.01, "a marker lies on the ground");
         Assert.Equal(WorldGrid.Name(spec.LandingDirection, 25), map.GridName(ground), "the map names the cell of a point");

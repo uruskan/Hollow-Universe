@@ -24,7 +24,8 @@ public sealed class GameRig : IDisposable
     {
         ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, 28.4, -61.7)! with { StandIn = true };
         C = content ?? ContentFixture.Content;
-        Zone = surface == null ? new Zone(spec, content: C) : new Zone(surface(spec), spec, content: C);
+        // This inherited 2.41 km fixture deliberately exceeds live planet scale; opt in without weakening admission.
+        Zone = new Zone(surface == null ? spec.CreateSurface(diagnostic: true) : surface(spec), spec, content: C);
         Zone.UnixMilliseconds = 1_800_000_000_000;
         Zone.NewEntityId = () => new EntityId(0x100_0000 + (ulong)_ids++);
     }

@@ -1,0 +1,26 @@
+[gd_resource type="StandardMaterial3D" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/d372025a662aab746d1d41a4821cf68ff1a3f96b04ebf0ec772095301ad02674.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/d7446700b49641ff871b385331ebc8d8346251ec0f5f9ec8cdb0e00c7340a2ed.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/b372b3ab8c053c0ca76b0d1353e24c7468add37b451616c527f195b9e48d3ffa.png" id="3"]
+
+[resource]
+resource_name = "M_08_Orbital_SAM_Baked"
+cull_mode = 2
+texture_filter = 5
+vertex_color_use_as_albedo = false
+albedo_color = Color(1, 1, 1, 1)
+metallic = 1
+roughness = 1
+albedo_texture = ExtResource("1")
+normal_texture = ExtResource("2")
+normal_enabled = true
+normal_scale = 1
+ao_texture = ExtResource("3")
+ao_enabled = true
+ao_texture_channel = 0
+ao_light_affect = 0.0
+roughness_texture = ExtResource("3")
+metallic_texture = ExtResource("3")
+roughness_texture_channel = 1
+metallic_texture_channel = 2

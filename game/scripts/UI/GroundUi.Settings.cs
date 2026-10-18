@@ -108,21 +108,23 @@ public partial class GroundUi
         float foot = SetY + SetH - 66;
         Rect(SetX + 36, foot - 12, SetW - 72, 1, new Color(0.8f, 0.82f, 0.75f, 0.18f));
         bool dirty = GraphicsSettings.Dirty;
-        Text(dirty ? "NOT APPLIED: the changes show now; APPLY keeps them, Esc drops them." : "Saved. Changes show at once.",
-            SetX + 36, foot + 2, 16, dirty ? G.Warning : G.Muted);
-        Text($"{RenderingServer.GetVideoAdapterName()}: {GraphicsSettings.DefaultPreset.ToString().ToUpperInvariant()} by default.",
-            SetX + 36, foot + 26, 15, G.Muted);
+        const float buttonGap = 10;
         float bx = SetX + SetW - 36;
         void FootButton(string label, float w, Action click, Color? fill = null, bool enabled = true)
         {
             bx -= w;
             Button(label, bx, foot, w, 44, click, 22, fill, enabled);
-            bx -= 10;
+            bx -= buttonGap;
         }
         FootButton("BACK", 120, CloseSettings);
         FootButton("DEFAULTS", 150, () => GraphicsSettings.Preview(GraphicsSettings.Defaults()));
         FootButton("REVERT", 130, GraphicsSettings.Revert, enabled: dirty);
         FootButton("APPLY", 140, GraphicsSettings.Save, dirty ? G.Red : G.Panel, dirty);
+        float textX = SetX + 36, textWidth = bx + buttonGap - 16 - textX;
+        Text(dirty ? "NOT APPLIED: APPLY saves; Esc reverts." : "Saved. Changes show at once.",
+            textX, foot + 2, 16, dirty ? G.Warning : G.Muted);
+        Text(Fit($"{RenderingServer.GetVideoAdapterName()}: {GraphicsSettings.DefaultPreset.ToString().ToUpperInvariant()} by default.",
+            textWidth, 15), textX, foot + 26, 15, G.Muted);
     }
 
     private void PaintCrosshairPreview(CrosshairValues values)

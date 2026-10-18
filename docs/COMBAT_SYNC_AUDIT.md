@@ -3,6 +3,10 @@
 Investigated at `fa7109a9` on `abtest-b`, at the owner's request. This is an investigation,
 not a gameplay repair or visual acceptance. The original project and user saves were not used.
 
+Follow-up: the owner authorized implementation, now described in [ATTACK_SYSTEM.md](ATTACK_SYSTEM.md).
+The findings below preserve the pre-repair evidence; current validation and limitations are in
+[DEVELOPMENT.md](DEVELOPMENT.md).
+
 **Result:** reproduced three client cannon firing events from two chambered rounds while
 authority fired only two; also reproduced a persistent melee action-tick disagreement and
 predicted shoulder rockets surviving rejection or missing/reordered terminal messages.

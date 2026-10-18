@@ -181,6 +181,42 @@ public static class PlacementTests
         Assert.Equal(OutcomeCode.Done, Place(rig, bo, charge!).Code, "stuck");
     }
 
+    [Test]
+    public static void ClimbableLaddersMountUprightOnCompoundAndBuildingWalls()
+    {
+        using var rig = new GameRig();
+        Entity ada = rig.Add("Ada", 0, 0);
+        rig.Give(ada, "wooden-ladder", 2);
+        DeployableDef ladder = rig.C.ItemByKey("wooden-ladder").Deploys!;
+        Deployable compound = rig.Zone.Players().SpawnDeployable(rig.C.ItemByKey("stone-compound-wall").Deploys!,
+            rig.Zone.GroundAt(0, 6), 0, rig.P(ada).Id);
+        rig.Clear(rig.Ch(ada).State.Position, compound.Position);
+        Assert.True(Ghost(rig, ada, "wooden-ladder", rig.Zone.GroundAt(1.8f, .7f)) is not { Valid: true },
+            "a ladder cannot fall back to placement on terrain");
+        PlacementCandidate? onCompound = Ghost(rig, ada, "wooden-ladder", compound.Position + compound.Up * (ladder.HalfExtents.Y + .08f));
+        Check(onCompound, compound.Ref);
+        Assert.Equal(OutcomeCode.Done, Place(rig, ada, onCompound!).Code, "server reconstructs the compound wall contact from the ladder base");
+
+        TestBases.Hut hut = Raids.Hut(rig, 0, 18, owner: rig.P(ada).Id.Value, door: null);
+        Piece wall = hut.Walls.Skip(1).MinBy(w => Vector3.Distance(hut.Face(w).Point, rig.Ch(ada).State.Position))!;
+        (Vector3 face, Vector3 outward) = hut.Face(wall);
+        Raids.Stand(rig, ada, rig.Zone.Settle(face + outward * 1.4f));
+        rig.Clear(rig.Ch(ada).State.Position, face);
+        PlacementCandidate? onBuilding = Ghost(rig, ada, "wooden-ladder", face + rig.Zone.Frame.UpAt(face) * .15f);
+        Check(onBuilding, wall.Ref);
+        Assert.Equal(OutcomeCode.Done, Place(rig, ada, onBuilding!).Code, "server also accepts the structural wall mount");
+
+        void Check(PlacementCandidate? candidate, TargetRef support)
+        {
+            Assert.True(candidate is { Valid: true } && candidate.Support.Whole == support.Whole, $"wall mount ({candidate})");
+            Assert.True(Vector3.Dot(candidate!.Up, rig.Zone.Frame.UpAt(candidate.Position)) > .999f, "ladder stays vertical");
+            Vector3 outwardFace = Vector3.Transform(Vector3.UnitZ, Hollow.Simulation.Combat.Geometry.Upright(candidate.Up, candidate.Yaw));
+            Assert.True(Vector3.Dot(outwardFace, candidate.Normal) > .99f, "rungs face away from the contacted wall");
+            Assert.True(MathF.Abs(Vector3.Dot(candidate.Nearest - candidate.Position, candidate.Up) - ladder.HalfExtents.Y) < .02f,
+                "cursor contact is at the ladder centre, not its base");
+        }
+    }
+
     /// <summary>
     /// Limits (RustMVP's): so many of a kind on a structure (one claim device), so many of a thing a player. Rules of the
     /// test's own, one each, stand in for the deployables' 20 to a structure and the bags' 128.

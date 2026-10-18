@@ -120,9 +120,32 @@ public partial class GroundTour
         RequireRepair(View.ShipCamera.Mode == ShipCameraMode.Cockpit, "initial pilot view is the cockpit");
         await Shot("repair-pilot-cockpit");
 
+        Hollow.Net.Protocol.ShipControls PilotCommand()
+        {
+            var command = Client.Prediction!.CommandFor(Client.PredictedTick);
+            return command.Ship is { Length: > 0 } controls ? controls[0]
+                : throw new InvalidOperationException("repair-check: no outgoing pilot command");
+        }
+
+        void CheckNeutralSteering(string requirement)
+        {
+            var command = PilotCommand();
+            RequireRepair(View.ShipControls.Stick == Vector2.Zero && command.Yaw == 0 && command.Pitch == 0, requirement);
+        }
+
+        Input.ParseInputEvent(new InputEventMouseMotion { Relative = new Vector2(60, -30) });
+        await Seconds(0.2);
+        RequireRepair(View.ShipControls.Stick.X > 0 && View.ShipControls.Stick.Y > 0 &&
+            PilotCommand().Yaw > 0 && PilotCommand().Pitch > 0, "cockpit mouse requests persistent yaw and pitch before V");
         await RepairKey(Key.V);
         RequireRepair(View.ShipCamera.Mode == ShipCameraMode.Chase, "V selects the seated orbit camera");
+        CheckNeutralSteering("switching to third person clears cockpit cursor and outgoing yaw/pitch");
         var beforeDrag = View.SeatOrbitState;
+        Input.ParseInputEvent(new InputEventMouseMotion { Relative = new Vector2(100, -40) });
+        await Seconds(0.15);
+        CheckNeutralSteering("unbuttoned mouse motion in third person cannot steer the ship");
+        RequireRepair(View.SeatOrbitState.Yaw == beforeDrag.Yaw && View.SeatOrbitState.Pitch == beforeDrag.Pitch,
+            "unbuttoned mouse motion preserves the orbit angle");
         Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Left, Pressed = true });
         await Seconds(0.1);
         RequireRepair(!View.SeatOrbitState.Dragging, "left press leaves orbit dragging off");
@@ -130,9 +153,7 @@ public partial class GroundTour
         await Seconds(0.15);
         RequireRepair(View.SeatOrbitState.Yaw == beforeDrag.Yaw && View.SeatOrbitState.Pitch == beforeDrag.Pitch,
             "left mouse motion preserves the orbit angle");
-        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Middle, Pressed = true });
-        Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Middle, Pressed = false });
-        await Seconds(0.1);
+        CheckNeutralSteering("left mouse motion in third person cannot steer the ship");
         Vector2 steering = View.ShipControls.Stick;
         Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = true });
         await Seconds(0.1);
@@ -143,12 +164,33 @@ public partial class GroundTour
         Input.ParseInputEvent(new InputEventMouseMotion { Relative = new Vector2(220, -35), ButtonMask = MouseButtonMask.Right });
         await Seconds(0.15);
         RequireRepair(View.ShipControls.Stick == steering, "right orbit drag preserves the pilot steering request");
+        CheckNeutralSteering("right orbit drag sends no yaw/pitch to the ship");
         Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.Right, Pressed = false });
         await Seconds(0.15);
         var afterDrag = View.SeatOrbitState;
         RequireRepair(MathF.Abs(afterDrag.Yaw - beforeDrag.Yaw) > 0.1f && MathF.Abs(afterDrag.Pitch - beforeDrag.Pitch) > 0.01f,
             "right drag changes orbit yaw and pitch independently of ship motion");
         RequireRepair(!afterDrag.Dragging, "right release ends orbit dragging");
+
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Right, PhysicalKeycode = Key.Right, Pressed = true });
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Up, PhysicalKeycode = Key.Up, Pressed = true });
+        await Seconds(0.15);
+        RequireRepair(PilotCommand().Yaw > 0 && PilotCommand().Pitch > 0,
+            "third-person right/up arrows send yaw and pitch without a mouse stick");
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Right, PhysicalKeycode = Key.Right, Pressed = false });
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Up, PhysicalKeycode = Key.Up, Pressed = false });
+        await Seconds(0.15);
+        CheckNeutralSteering("releasing third-person right/up arrows returns yaw/pitch to neutral");
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Left, PhysicalKeycode = Key.Left, Pressed = true });
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Down, PhysicalKeycode = Key.Down, Pressed = true });
+        await Seconds(0.15);
+        RequireRepair(PilotCommand().Yaw < 0 && PilotCommand().Pitch < 0,
+            "third-person left/down arrows reverse yaw and pitch");
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Left, PhysicalKeycode = Key.Left, Pressed = false });
+        Input.ParseInputEvent(new InputEventKey { Keycode = Key.Down, PhysicalKeycode = Key.Down, Pressed = false });
+        await Seconds(0.15);
+        CheckNeutralSteering("releasing third-person left/down arrows returns yaw/pitch to neutral");
+
         float beforeWheel = afterDrag.Distance;
         Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.WheelDown, Pressed = true });
         Input.ParseInputEvent(new InputEventMouseButton { ButtonIndex = MouseButton.WheelDown, Pressed = false });
@@ -156,6 +198,16 @@ public partial class GroundTour
         RequireRepair(View.SeatOrbitState.Distance > beforeWheel + 0.1f, "wheel down increases orbit distance");
         GD.Print($"[repair-check] orbit yaw {beforeDrag.Yaw:0.000}->{afterDrag.Yaw:0.000}, pitch {beforeDrag.Pitch:0.000}->{afterDrag.Pitch:0.000}, distance {beforeWheel:0.00}->{View.SeatOrbitState.Distance:0.00}");
         await Shot("repair-pilot-orbit");
+
+        await RepairKey(Key.V);
+        RequireRepair(View.ShipCamera.Mode == ShipCameraMode.Cockpit, "V returns to the cockpit");
+        CheckNeutralSteering("returning to the cockpit does not restore an old steering request");
+        Input.ParseInputEvent(new InputEventMouseMotion { Relative = new Vector2(-60, 30) });
+        await Seconds(0.2);
+        RequireRepair(View.ShipControls.Stick.X < 0 && View.ShipControls.Stick.Y < 0 &&
+            PilotCommand().Yaw < 0 && PilotCommand().Pitch < 0, "fresh cockpit mouse motion still steers after returning from third person");
+        await RepairKey(Key.V);
+        CheckNeutralSteering("the next third-person switch clears the new cockpit steering request");
 
         // Use held devices through the same input path as leaving, so switching away from a scripted command cannot
         // insert a neutral control tick before the seat release reaches the server.

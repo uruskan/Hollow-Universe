@@ -113,6 +113,7 @@ public static class HeldControls
         registry.Add((int)HeldUse.Placer, new PlacerControl());
         registry.Add((int)HeldUse.Planner, new PlannerControl());
         registry.Add((int)HeldUse.Hammer, new HammerControl());
+        registry.Add((int)HeldUse.Wiring, new WiringControl());
         // Eating and learning go through the inventory's actions: a click does the held part's first button.
         var usesItsPart = new UsesItsPartControl();
         registry.Add((int)HeldUse.Consumable, usesItsPart);

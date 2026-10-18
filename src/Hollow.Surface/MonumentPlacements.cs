@@ -18,10 +18,13 @@ public readonly record struct MonumentPlacement(TileKey Tile, int Model, Vector3
 /// </summary>
 public sealed class MonumentPlacements
 {
+    /// <summary>Advance when site selection, landing exclusion, pad grading or index coverage changes.</summary>
+    public const string GenerationContract = "walking-monument-sites-grading-index-v1";
     public const double CellMetres = 300, Blend = 8;
+    internal const double MinimumSpacing = 120, LandingClearance = 90, IndexMargin = 40;
     private readonly WalkingWorld _surface;
     private readonly ulong _seed;
-    private readonly Lazy<MonumentPlacement[]> _all;
+    private readonly Lazy<IReadOnlyList<MonumentPlacement>> _all;
     private readonly Lazy<Dictionary<TileKey, List<MonumentPlacement>>> _index;
     public int Level { get; }
     public IReadOnlyList<MonumentPlacement> All => _all.Value;
@@ -29,8 +32,8 @@ public sealed class MonumentPlacements
     public MonumentPlacements(WalkingWorld surface, ulong seed)
     {
         _surface = surface; _seed = seed;
-        Level = TileKey.LevelFor(surface.Radius, Math.Max(120, surface.Parameters.MonumentSpacing));
-        _all = new Lazy<MonumentPlacement[]>(Build);
+        Level = TileKey.LevelFor(surface.Radius, Math.Max(MinimumSpacing, surface.Parameters.MonumentSpacing));
+        _all = new Lazy<IReadOnlyList<MonumentPlacement>>(() => Array.AsReadOnly(Build()));
         _index = new Lazy<Dictionary<TileKey, List<MonumentPlacement>>>(Index);
     }
 
@@ -53,7 +56,7 @@ public sealed class MonumentPlacements
                     tile.V0 + tile.Span * rng.Range(0.2, 0.8));
                 WalkingSample centre = _surface.Fields(up);
                 if (centre.Wetted || centre.Height < 2 || centre.Ice > 0) continue;
-                if ((up - _surface.LandingSite).Length * _surface.Radius < footprint + 90) continue;
+                if ((up - _surface.LandingSite).Length * _surface.Radius < footprint + LandingClearance) continue;
                 bool overlaps = false;
                 foreach (MonumentPlacement other in result)
                     if (other.Distance(up, _surface.Radius) < footprint + other.Definition.Radius + Blend * 2) { overlaps = true; break; }
@@ -89,7 +92,7 @@ public sealed class MonumentPlacements
         foreach (MonumentPlacement site in All)
         {
             var tiles = new List<TileKey>();
-            TileKey.Around(site.Position, site.Definition.Radius + 40, _surface.Radius, Level + 2, tiles);
+            TileKey.Around(site.Position, site.Definition.Radius + IndexMargin, _surface.Radius, Level + 2, tiles);
             foreach (TileKey tile in tiles)
             {
                 if (!result.TryGetValue(tile, out List<MonumentPlacement>? list)) result[tile] = list = new();
@@ -98,6 +101,9 @@ public sealed class MonumentPlacements
         }
         return result;
     }
+
+    /// <summary>Selected construction completes the same immutable site index before publishing its field.</summary>
+    internal void FinalizeGradingIndex() => _ = _index.Value;
 
     public MonumentPlacement? At(Vector3D direction, double extra = 0)
     {

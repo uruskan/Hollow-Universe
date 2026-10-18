@@ -415,7 +415,8 @@ public partial class SystemMapUi : Control
             Row("Axial tilt", Ui.Number(body.AxialTilt * 180 / Math.PI, "0.0") + "°");
             if (state != null)
             {
-                Row("Surface", BodyText.Surface(state), numeric: false);
+                double? playableOcean = Hollow.Surface.WalkingParameters.ForBody(system.Address.Value, body.Path).OceanCover;
+                Row("Surface", BodyText.Surface(playableOcean is { } ocean ? state with { OceanCover = ocean } : state), numeric: false);
                 Row("Made of", BodyText.Composition(state.Composition), numeric: false);
                 if (state.Surface != SurfaceKind.None)
                 {

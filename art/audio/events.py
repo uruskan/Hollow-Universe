@@ -1698,10 +1698,13 @@ def gun_roles(kind):
 
 PLACE = {"place": "deploy.place"}
 DOOR = {"wood": "wood", "metal": "metal", "armoured": "armoured", "garage": "garage"}
+FURNACE = {"place": "deploy.place", "loop": "furnace.loop", "ignite": "furnace.ignite",
+           "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"}
 
 
-def door_roles(material):
-    return {"open": "door.open.%s" % material, "close": "door.close.%s" % material, "place": "build.place.wood"}
+def door_roles(material, placement=None):
+    return {"open": "door.open.%s" % material, "close": "door.close.%s" % material,
+            "place": "build.place.%s" % (placement or ("metal" if material == "garage" else material))}
 
 
 # Item keys (items.json, models.json) and door keys (building.json) → role → event. The ground mode asks
@@ -1727,8 +1730,13 @@ ITEMS = {
     "vehicle-workbench": PLACE, "engineering-workbench": PLACE, "claim-device": PLACE, "ladder": PLACE,
     "campfire": {"place": "deploy.place", "loop": "campfire.loop", "ignite": "campfire.ignite",
                  "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"},
-    "furnace": {"place": "deploy.place", "loop": "furnace.loop", "ignite": "furnace.ignite",
-                "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"},
+    "furnace": FURNACE, "large-furnace": FURNACE,
+    "wooden-barricade": {"place": "build.place.wood"}, "wood-spike-barricade": {"place": "build.place.wood"},
+    "metal-barricade": {"place": "build.place.metal"}, "wooden-ladder": {"place": "build.place.wood"},
+    "wood-compound-wall": {"place": "build.place.wood"}, "stone-compound-wall": {"place": "build.place.stone"},
+    "wood-compound-gate": door_roles("wood"), "stone-compound-gate": door_roles("metal", "stone"),
+    "windmill": {"place": "build.place.metal"}, "sam-site": {"place": "build.place.metal"},
+    "auto-turret": {"place": "build.place.metal"},
     "small-box": {"place": "deploy.place", "open": "box.open", "close": "box.close"},
     "large-box": {"place": "deploy.place", "open": "box.open", "close": "box.close"},
     # G7: the research table, the blueprint and the world's props, on stand-ins from the events above (GROUND.md §11 W).
@@ -1789,6 +1797,10 @@ ITEMS = {
     "double-door": door_roles("wood"), "garage-door": door_roles("garage"),
     "sheet-metal-door": door_roles("metal"), "wooden-double-door": door_roles("wood"),
     "sheet-metal-double-door": door_roles("metal"), "armoured-double-door": door_roles("armoured"),
+    # Fixed window fittings are placed; they have no opening action (building.json opens=false).
+    "metal-window-bars": {"place": "build.place.metal"}, "armoured-window-bars": {"place": "build.place.armoured"},
+    "reinforced-glass-window": {"place": "build.place.metal"}, "horizontal-embrasure": {"place": "build.place.metal"},
+    "vertical-embrasure": {"place": "build.place.metal"},
 }
 
 

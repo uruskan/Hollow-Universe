@@ -116,6 +116,11 @@ public static class ShipMotor
     {
         var events = new ShipEvents();
         const float dt = CharacterMotor.DeltaTime;
+        if (s.AttitudeHoldActive && (!ShipAttitudeHold.CanHold(s, input) || !ShipAttitudeHold.Valid(s.AttitudeHoldRotation) ||
+            !ShipAttitudeHold.Valid(s.Rotation)))
+        {
+            ShipAttitudeHold.Clear(ref s);
+        }
         if (s.Has(ShipFlags.Destroyed) || s.Has(ShipFlags.InOrbit))
         {
             s.Thrust = Vector3.Zero;
@@ -194,7 +199,11 @@ public static class ShipMotor
                 Vector3 need = (target - vLocal) / dt - gLocal - Drag(vLocal, density, def) - Buoyancy(qi, up, submerged, ctx.Gravity, def);
                 thrust = new Vector3(Math.Clamp(need.X, -capSide, capSide), Math.Clamp(need.Y, -capDown, capUp), Math.Clamp(need.Z, -capBack, capForward));
                 var rates = new Vector3(-input.Pitch * def.Pitch.MaxRate, -input.Yaw * def.Yaw.MaxRate, input.Roll * def.Roll.MaxRate);
-                if (def.LevelPitch > 0 || def.LevelRoll > 0)
+                if (s.AttitudeHoldActive)
+                {
+                    rates = ShipAttitudeHold.Rates(q, s.AttitudeHoldRotation, def);
+                }
+                else if (def.LevelPitch > 0 || def.LevelRoll > 0)
                 {
                     rates = HoldLevel(rates, q, up, input, def);
                 }
@@ -390,6 +399,10 @@ public static class ShipMotor
             s.Position -= over * (float)rise;
             Quaternion carry = Facing.Turn(under, over);
             s.Rotation = Quaternion.Normalize(carry * s.Rotation);
+            if (s.AttitudeHoldActive)
+            {
+                s.AttitudeHoldRotation = Quaternion.Normalize(carry * s.AttitudeHoldRotation);
+            }
             s.Velocity = Vector3.Transform(s.Velocity, carry);
         }
 
@@ -457,6 +470,11 @@ public static class ShipMotor
         if (height <= orbitalAltitude && ctx.Frame.ToBody(s.Position).Length - ctx.Surface.Radius > orbitalAltitude)
         {
             events.ReachedCeiling = true;
+        }
+        // After contact, fuel burn and any finite-state rollback: none can resurrect an expired target.
+        if (s.AttitudeHoldActive && (events.OutOfFuel || !ShipAttitudeHold.CanHold(s, input) || !ShipAttitudeHold.Valid(s.AttitudeHoldRotation)))
+        {
+            ShipAttitudeHold.Clear(ref s);
         }
         return events;
     }
