@@ -1,5 +1,52 @@
 # Hollow Universe AB Test B
 
+## Centered configurable ground crosshair — 18 October 2026
+
+The owner requested crosshair customization in Settings, one marker instead of the separate HUD dot and firearm
+spread ticks, an exactly centred position, and a dot as the default. DESIGN.md UI-06 records that requirement.
+`CrosshairPainter` now draws both the ground HUD marker and the settings preview from geometric primitives at the
+actual viewport midpoint. The old Barlow middle-dot text at `(789, 428)` and `GroundOverlay`'s independent ticks
+are removed; reload progress remains in that overlay. `CrosshairView` carries only presentation state from the
+ground camera/weapon adapter. Simulation, gun handling, ballistic spread and generated content are unchanged.
+
+The CROSSHAIR tab offers Off, Dot, Cross, Cross + Dot, Ring and Ring + Dot; white, green, cyan, yellow, red and
+magenta; size, dot diameter, line thickness, gap, opacity and outline. Its preview uses the same painter at actual
+HUD size. Inapplicable controls are dimmed and disabled. Optional dynamic spread expands crosses/rings only while
+hip firing. Show While Aiming defaults on, preserving the former HUD dot's visibility; players can switch it off
+for ADS. The default is a static white dot with a dark outline. Inventory, menus, radials, death, helm, weapon
+station and hidden-camera contexts suppress the ground marker; physical optics and dedicated ship sights remain
+separate. Preferences use `[crosshair]` in the existing isolated `user://graphics.cfg`, including existing
+Apply/Revert/Defaults handling; changing graphics presets preserves them, and older files get the dot default.
+
+Validation: `dotnet build HollowUniverse.sln --no-restore` succeeds with zero warnings/errors. The native Godot
+`--view ui --crosshair-check` passes **53/53** checks: actual rendered pixels for every visible shape at 1280×720
+and 1281×721, UI scales 0.8125 and 1.25, measured centre error 0 px, symmetry and distinct components, ADS/hidden/menu
+visibility, dynamic spread and FOV, in-memory configuration round trips and invalid values, graphics-preset
+independence, keyboard changes, inactive controls, and reverting on exit. Component checks use separated arms
+so antialiased outlines do not join through the centre gap.
+
+The UI viewer uses a sample backdrop; this is native HUD/settings rendering evidence, not a multiplayer weapon
+playtest. [Settings capture](images/crosshair/settings-crosshair.png),
+[centred dot](images/crosshair/1280x720-scale0.8125-dot.png) and the other captures are in `docs/images/crosshair/`.
+The full engine-free run is **not green**: 485 tests passed and seven failed before the process aborted during
+`SurvivalNetTests.OthersSeeOnlyABag` with native Jolt error `0xC0000005` in
+`JPH_MeshShapeSettings_CreateShape` / `PhysicsWorld.BuildShape`. The remaining tests did not report results.
+The seven failures are in untouched content/environment/ship paths:
+
+- `EffectsCatalogueTests.EveryItemNamesItsEffects`: large-furnace lacks its fire effect.
+- `EnvironmentDetailTests.EarthMonumentsSharePadsClearingsCollisionAndAuthoritativeLoot` and
+  `EarthCliffsHaveStablePlacementsAndSharedCollision`: independent generated sites/placements disagree.
+- `GeologyPortTests.CliffChainsHaveDistinctStablePartsAndStreamAcrossCellEdges`: generated cliff members disagree.
+- `ShipAttitudeNetTests.ShipAttitudeTwoClientsObserveHoldAndActualHelmTakeover` and
+  `ShipPartsTests.TwoSeatedInAFlyingShip`: one prediction correction where the tests expect zero.
+- `SoundCatalogueTests.SoundCatalogueCoversItems`: several existing compound/deployable items lack sound mappings.
+
+No simulation/content fixes were folded into this UI task. Logs are `.artifacts/crosshair-build.log`,
+`.artifacts/crosshair-native.log`, `.artifacts/crosshair-engine-tests.log` and the settings-shot log alongside them.
+The native crosshair/settings runs emitted no errors. The user's existing game process was left running, and
+these UI checks did not save or overwrite user preferences or load a world save. Restart that game to load the
+new assembly and Settings tab.
+
 ## Held-item authoring — 15 October 2026
 
 The owner requested a complete held-item FPS/TPS presentation repair and a visual editor.

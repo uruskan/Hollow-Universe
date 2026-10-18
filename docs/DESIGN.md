@@ -533,6 +533,20 @@ Reticle design, projectile behavior, and the exact feedback presentation
 remain to be specified. Automatic lead/impact prediction, aim assistance,
 and hitscan behavior have not been selected by this requirement.
 
+### UI-06 — Customizable Ground Crosshair
+
+On **18 October 2026**, the creator requested one customizable HUD crosshair,
+replacing the separate centre dot and gun spread crosshair. It must sit at the
+exact screen centre, and the creator's preferred/default style is a dot.
+Players must be able to choose other crosshair shapes through the game's settings.
+This is an explicit extension to UI-01's inherited ground interface.
+
+The implementation offers dot, cross, ring and combined shapes, an Off choice,
+colour and dimension controls, opacity and outline, a live preview, and optional
+visibility while aiming or expansion with weapon spread. These controls are
+implementation choices supporting the request; physical optic reticles and
+weapon simulation rules remain separate.
+
 ## Base Building
 
 ### Admin Construction Tools — confirmed 16 October 2026

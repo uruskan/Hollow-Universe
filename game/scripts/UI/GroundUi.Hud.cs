@@ -8,7 +8,7 @@ using G = HollowUniverse.Common.Ui.Ground;
 
 namespace HollowUniverse.UI;
 
-// The HUD (RustMVP's, from SBareRoot.cpp): the centre dot, hit marker, damage direction and prompt in the middle;
+// The HUD (RustMVP's, from SBareRoot.cpp): the custom crosshair, hit marker, damage direction and prompt in the middle;
 // the belt with its ammo counter at the bottom centre; vitals, statuses and pickups at the bottom right; chat and
 // notices at the bottom left.
 public partial class GroundUi
@@ -25,7 +25,7 @@ public partial class GroundUi
         bool alive = Model.Death == null && Model.Vitals.Health > 0;
         if (alive)
         {
-            Text("·", 789, 428, 35, new Color(1, 1, 0.94f, 0.8f));
+            CrosshairPainter.DrawHud(_p, Size, Settings.GraphicsSettings.Current.Crosshair, Model.Crosshair);
             if (Model.TargetHealth is { Fraction: > 0 and < 1 } health)
             {
                 float fraction = Math.Clamp(health.Fraction, 0, 1);

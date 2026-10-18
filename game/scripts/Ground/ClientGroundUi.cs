@@ -87,6 +87,9 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     /// <summary>The camera's yaw (radians, the movement code's convention), for the bearing of damage.</summary>
     public Func<float> ViewYaw { get; set; } = () => 0;
 
+    /// <summary>The camera/weapon state used by the ground HUD's single crosshair.</summary>
+    public CrosshairView Crosshair { get; set; }
+
     /// <summary>What the interact key acts on now, as the prompt says it (set every frame by <see cref="Aim"/>; none over the keypad).</summary>
     public InteractionPrompt? Prompt { get; set; }
 

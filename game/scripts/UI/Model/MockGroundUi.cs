@@ -57,6 +57,8 @@ public sealed partial class MockGroundUi : IGroundUi
 
     public Vitals Vitals { get; set; } = new(100, 250, 100, Temperature: 21);
 
+    public CrosshairView Crosshair { get; set; }
+
     public int ActiveBelt { get; private set; }
 
     public LootView? Loot { get; private set; }

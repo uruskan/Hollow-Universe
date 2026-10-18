@@ -49,6 +49,8 @@ public interface IGroundUi
 
     Vitals Vitals { get; }
 
+    CrosshairView Crosshair => new();
+
     IReadOnlyList<ProtectionStat> Protection => Array.Empty<ProtectionStat>();
 
     /// <summary>A container's slots: Main 24, Belt 6, Wear 7, Loot as many as the open container has (none if closed).</summary>

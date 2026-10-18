@@ -2705,7 +2705,7 @@ the compensation to the view; zoom the camera by `Zoom` while `Aimed`; on `ShotF
 silenced), the sound, the viewmodel's kick and a tracer from the muzzle to the shot's line; draw `Projectiles` that are
 bullets as tracers and their impacts by `EndTarget` (nothing for `Nothing`); others' shots and reloads from `ActionCount`
 and `Action`, their aim pose from `Aiming`, the crawl from `Stance`, their attachments (and a light cone) from `HeldMods`;
-the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from `Spread` (none aimed), the hit marker
+the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, the player's configured crosshair (optionally expanded by `Spread`), the hit marker
 (head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
 
 **As built** (`game/scripts/Ground`): `GroundView`, after the client's update, adds `TakeCompensation` to the view, passes
@@ -2715,7 +2715,7 @@ R is the gun's held control's (GROUND_SYSTEMS.md §7): a tap reloads with the lo
 reload's parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws some bullets as
 tracers and, where each stops, the hit's effect and sound by what it hit; `PeopleView` plays others' shots (silenced
 from `HeldMods`) with their muzzle effect and their reloads; the HUD's ammo counter and the gun's slot show the
-magazine; `GroundOverlay` draws the hip crosshair from `Spread`, a reload's progress under the centre, and the
+magazine; `GroundUi` draws one configured crosshair at the exact viewport centre; `GroundOverlay` draws a reload's progress under the centre and the
 wounded screen with its countdown; a wounded player in reach gets the "Help up" prompt. The muzzle effects, tracers
 and hits are the effects library's (§9.3, as hooked up there). Attachments show on guns in hand (`GunEffects.Dress`
 through `ModelCatalog.Attach`: a sight on the rail, a silencer or a brake on the muzzle, the light under the barrel):
@@ -3963,7 +3963,7 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
   partial files per screen. Every design length goes through `Ui.Px`, so at 1600 × 900 each element sits where
   RustMVP put it and at other sizes it is still whole pixels; fonts and icons are rasterised at their final size.
 - **Anchoring:** the canvas sits centred on the window's bottom edge, so the belt doesn't move when the inventory
-  opens. Vitals, statuses and pickups follow the bottom-right corner; chat and notices the bottom-left; the centre dot,
+  opens. Vitals, statuses and pickups follow the bottom-right corner; chat and notices the bottom-left; the configured crosshair,
   prompts and radials the centre; the inventory and crafting tabs hang from the top edge. The scale is the usual
   `Ui.Scale` (1.0 up to 1080p, ARCHITECTURE.md §15).
 - **Style:** `Ui.Ground` in `Ui.cs`, beside the map styles: RustMVP's palette (ink `#E3DFD6`, panel `(.71,.69,.65)`
@@ -4183,7 +4183,7 @@ RustMVP's rules, with Rust's where RustMVP had none:
   computer). The time is a unit's here: in green, with how much faster on the workbench line, when a workbench in reach
   is above the recipe's level (P3). The queue at the bottom left shows each job's seconds and count, the first one's progress; a click
   cancels and refunds.
-- **HUD:** the centre dot; the hit marker (red for a head shot); red arcs pointing to where damage came from; the
+- **HUD:** the configured centred crosshair (a dot by default, §8.6); the hit marker (red for a head shot); red arcs pointing to where damage came from; the
   interaction prompt; the belt with the active slot in blue, condition bars, loaded rounds and their kind's icon; the ammo counter above
   it; status rows above the vitals (building privilege or blocked, bleeding, cold or hot, wet, comfort); pickups and
   crafts ("+20 Wood") above those, fading after four seconds; chat at the bottom left, fading after twelve; RustMVP's
@@ -4331,11 +4331,24 @@ costs the server nothing while nobody watches.
 ### 8.6 Settings
 
 SETTINGS in the main menu and in the Esc menu opens a panel over the menu, in the ground interface's style
-(`GroundUi.Settings.cs`). Its tabs: **GRAPHICS**, **INTERFACE**, **DISPLAY** and **SHADOWS**. Every row shows its value and one line saying what
+(`GroundUi.Settings.cs`). Its tabs: **GRAPHICS**, **INTERFACE**, **DISPLAY**, **SHADOWS** and **CROSSHAIR**. Every row shows its value and one line saying what
 it does; the rows are data (`game/scripts/Settings/SettingRows.cs`: a switch, a choice or a slider, read and written as
 a number), the panel one loop over them. Changes show at once; **APPLY** saves them, **REVERT** goes back to what is
 saved, **DEFAULTS** to this computer's preset; Esc or BACK closes and drops what was not applied. Keys: Up and Down
-choose a row, Left and Right change it, Enter flips or steps it, Tab the other tab; a slider's track drags.
+choose a row, Left and Right change it, Enter flips or steps it, Tab cycles the tabs; a slider's track drags.
+
+**Crosshair (18 October 2026, DESIGN.md UI-06).** One `CrosshairPainter` draws the ground HUD crosshair and the
+settings preview using geometry, centred on the exact half-width/half-height of the viewport even at odd resolutions.
+The old text-glyph dot and independent gun spread ticks are removed. A static white dot is the default, including
+for existing settings files without crosshair preferences. CROSSHAIR offers Off, Dot, Cross, Cross + Dot, Ring and
+Ring + Dot; six colours; arm length/ring radius, dot diameter, line thickness, central gap, opacity and black outline.
+Show While Aiming defaults on; switching it off hides the HUD crosshair during ADS. Dynamic Spread defaults off;
+when on, a cross's gap or ring's radius follows the firearm cone while hip-firing. The dot stays at screen centre.
+These preferences are saved in `[crosshair]` in `user://graphics.cfg` and are independent of graphics presets.
+Inventory, menus, radials, death, the helm, weapon stations and hidden-camera contexts do not draw this ground aiming marker.
+Physical optic reticles and ship station sights keep their own presentation. Reload progress and hit feedback
+remain independent of crosshair style. `--view ui --screen settings-crosshair --shot <path>` captures the panel;
+`--view ui --crosshair-check [--crosshair-shots <folder>]` runs the native regression checks.
 
 - **The model** (`game/scripts/Settings/GraphicsSettings.cs`): `GraphicsValues`, the values shown (`Current`) and saved
   (`Saved`: `user://graphics.cfg`; the field of view stays in `ground-settings.cfg` beside the F1 console's `fov`, which
@@ -4353,7 +4366,7 @@ choose a row, Left and Right change it, Enter flips or steps it, Tab the other t
   tuft's own), the models' LOD ranges (models made after the change).
 - **Presets:** Low, Medium, High, Ultra and Maximum; any single change makes it Custom (and a change that lands on a
   preset's values shows that preset). High is the game as it looked before the settings. Vsync, the frame cap, the
-  field of view and the interface scale are the player's own; no preset touches them. With nothing saved, the
+  field of view, interface scale and crosshair are the player's own; no preset touches them. With nothing saved, the
   computer's preset is High on a discrete graphics card and Medium on an integrated one.
   `--quality low|medium|high|ultra|maximum` shows a preset for one run without saving it (screenshots).
 

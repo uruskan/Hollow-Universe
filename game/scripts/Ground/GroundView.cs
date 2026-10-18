@@ -612,8 +612,8 @@ public partial class GroundView : Node3D
             float fov = 2 * MathF.Atan(MathF.Tan(Mathf.DegToRad(FieldOfView) / 2) / zoom);
             _camera.Fov = Mathf.MoveToward(_camera.Fov, Mathf.RadToDeg(fov), (float)delta * 240);
         }
-        _overlay.Spread = gun.Weapon != null && !gun.Aimed && !Client.Local.IsDead && !piloting ? gun.Spread : null;
-        _overlay.Fov = _camera.Fov;
+        _model.Crosshair = new CrosshairView(gun.Aimed, gun.Weapon != null ? gun.Spread : 0, _camera.Fov,
+            Hidden: piloting || Client.Stations().AtStation);
         _overlay.ReloadProgress = gun.Reloading ? gun.ReloadProgress : null;
         _overlay.WoundedSeconds = Client.Local.IsWounded ? Math.Max(0, Client.Local.Life.WoundedUntilSeconds - Client.ClockSeconds) : null;
 

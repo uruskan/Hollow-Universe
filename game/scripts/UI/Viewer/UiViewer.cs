@@ -14,7 +14,8 @@ namespace HollowUniverse.UI.Viewer;
 /// plain backdrop, opened on one screen for a look or a screenshot. Options (after "--"):
 /// <c>--screen hud|inventory|loot|corpse|furnace|campfire|crafting|crafting-free|death|wheel|hammer|options|ammo|menu|map|techtree|recycler|research</c>,
 /// the F1 panel's <c>console|console-info|console-net|console-items|console-tools|console-tools-stone</c>, the F2 panel's
-/// <c>developer|developer-players|developer-look|developer-draw|developer-log</c>, and
+/// <c>developer|developer-players|developer-look|developer-draw|developer-log</c>, settings tabs
+/// <c>settings|settings-display|settings-shadows|settings-crosshair</c>, and
 /// <c>--pointer x,y</c> to hold the pointer at a design-canvas point (hover states, radial sectors), and
 /// <c>--across &lt;m&gt;</c> to open the map or death screen's map that many metres across (150 m to the whole world).
 /// Screenshots hold the HUD's moments and the sample's clock still; without <c>--shot</c> the mock runs and every
@@ -32,11 +33,13 @@ public partial class UiViewer : Node
     private MockGroundUi _model = null!;
     private GroundUi _ui = null!;
     private bool _shot;
+    private bool _checking;
     private int _frames;
 
     public override void _Ready()
     {
         _shot = Options.ContainsKey("shot");
+        _checking = Options.ContainsKey("ui-check") || Options.ContainsKey("crosshair-check");
         AddChild(new UiBackdrop { Name = "Backdrop" });
         var layer = new CanvasLayer { Name = "Interface" };
         AddChild(layer);
@@ -49,6 +52,11 @@ public partial class UiViewer : Node
         if (Options.TryGetValue("across", out string? across) && double.TryParse(across, NumberStyles.Float, CultureInfo.InvariantCulture, out double metres))
         {
             _ui.ZoomMapTo(metres);
+        }
+        if (Options.ContainsKey("crosshair-check"))
+        {
+            RunCrosshairCheck();
+            return;
         }
         if (Options.ContainsKey("ui-check"))
         {
@@ -179,8 +187,8 @@ public partial class UiViewer : Node
             case "menu":
                 _ui.ShowMenu(inGame: false);
                 break;
-            case "settings" or "settings-display" or "settings-shadows":
-                _ui.ShowSettings(screen == "settings-shadows" ? 3 : screen == "settings-display" ? 2 : 0);
+            case "settings" or "settings-display" or "settings-shadows" or "settings-crosshair":
+                _ui.ShowSettings(screen == "settings-crosshair" ? 4 : screen == "settings-shadows" ? 3 : screen == "settings-display" ? 2 : 0);
                 break;
             case "map":
                 // G7: the map with markers, teammates and the team panel.
@@ -574,7 +582,7 @@ public partial class UiViewer : Node
     public override void _Process(double delta)
     {
         _frames++;
-        if (!_shot)
+        if (!_shot && !_checking)
         {
             _model.Tick(delta);
         }

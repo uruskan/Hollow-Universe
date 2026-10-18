@@ -169,6 +169,44 @@ public static class SettingRows
             v => v.InterfaceScale, (v, x) => v with { InterfaceScale = x }, 0.6f, 2, 0.05f, Format: Percent),
     };
 
+    /// <summary>The CROSSHAIR tab: one centred reticle, with the same preview/apply/revert flow as other settings.</summary>
+    public static readonly SettingRow[] Crosshair =
+    {
+        new("STYLE", "Choose one reticle at the exact centre of the screen.", SettingKind.Choice,
+            v => (int)v.Crosshair.Style, (v, x) => v with { Crosshair = v.Crosshair with { Style = (CrosshairStyle)(int)x } },
+            Options: new[] { "OFF", "DOT", "CROSS", "CROSS + DOT", "RING", "RING + DOT" }),
+        new("COLOUR", "The reticle colour; the outline stays dark for contrast.", SettingKind.Choice,
+            v => v.Crosshair.Color, (v, x) => v with { Crosshair = v.Crosshair with { Color = (int)x } },
+            Options: new[] { "WHITE", "GREEN", "CYAN", "YELLOW", "RED", "MAGENTA" }, Active: CrosshairEnabled),
+        new("SIZE", "Cross arm length or ring radius.", SettingKind.Slider,
+            v => v.Crosshair.Size, (v, x) => v with { Crosshair = v.Crosshair with { Size = x } }, 2, 24, 1,
+            Active: v => v.Crosshair.HasArms || v.Crosshair.HasRing),
+        new("DOT SIZE", "Diameter of the centre dot.", SettingKind.Slider,
+            v => v.Crosshair.DotSize, (v, x) => v with { Crosshair = v.Crosshair with { DotSize = x } }, 1, 12, 1,
+            Active: v => v.Crosshair.HasDot),
+        new("THICKNESS", "Width of the cross arms or ring line.", SettingKind.Slider,
+            v => v.Crosshair.Thickness, (v, x) => v with { Crosshair = v.Crosshair with { Thickness = x } }, 1, 6, 0.5f,
+            Active: v => v.Crosshair.HasArms || v.Crosshair.HasRing),
+        new("GAP", "Space between the centre and each cross arm.", SettingKind.Slider,
+            v => v.Crosshair.Gap, (v, x) => v with { Crosshair = v.Crosshair with { Gap = x } }, 0, 20, 1,
+            Active: v => v.Crosshair.HasArms),
+        new("OPACITY", "How solid the reticle appears.", SettingKind.Slider,
+            v => v.Crosshair.Opacity, (v, x) => v with { Crosshair = v.Crosshair with { Opacity = x } }, 0.1f, 1, 0.05f,
+            Format: Percent, Active: CrosshairEnabled),
+        new("OUTLINE", "Dark border width; zero removes the border.", SettingKind.Slider,
+            v => v.Crosshair.Outline, (v, x) => v with { Crosshair = v.Crosshair with { Outline = x } }, 0, 3, 0.5f,
+            Active: CrosshairEnabled),
+        new("SHOW WHILE AIMING", "Keep the reticle visible when aiming down sights.", SettingKind.Switch,
+            v => v.Crosshair.ShowWhileAiming ? 1 : 0,
+            (v, x) => v with { Crosshair = v.Crosshair with { ShowWhileAiming = x > 0.5f } }, Active: CrosshairEnabled),
+        new("DYNAMIC SPREAD", "Expand the cross or ring with weapon spread.", SettingKind.Switch,
+            v => v.Crosshair.DynamicSpread ? 1 : 0,
+            (v, x) => v with { Crosshair = v.Crosshair with { DynamicSpread = x > 0.5f } },
+            Active: v => v.Crosshair.HasArms || v.Crosshair.HasRing),
+    };
+
+    private static bool CrosshairEnabled(GraphicsValues values) => values.Crosshair.Style != CrosshairStyle.Off;
+
     public static readonly SettingRow[] Display =
     {
         new("WINDOW MODE", "Windowed, borderless desktop, or exclusive fullscreen.", SettingKind.Choice,

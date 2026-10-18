@@ -35,7 +35,7 @@ public enum GameWindowMode
 
 /// <summary>
 /// One set of graphics settings (GROUND.md §8.6). The presets set everything above <see cref="VSync"/>; vsync, the frame
-/// cap, the field of view and the interface scale are the player's own and no preset touches them.
+/// cap, field of view, interface scale and crosshair are the player's own and no preset touches them.
 /// </summary>
 public sealed record GraphicsValues
 {
@@ -112,6 +112,9 @@ public sealed record GraphicsValues
 
     /// <summary>The interface scale preference (0.6–2), kept in settings.cfg as Ctrl + plus and minus keep it.</summary>
     public float InterfaceScale { get; set; } = 1;
+
+    /// <summary>The player's aiming reticle, independent of graphics quality presets.</summary>
+    public CrosshairValues Crosshair { get; set; } = new();
 }
 
 /// <summary>
@@ -154,7 +157,7 @@ public static class GraphicsSettings
 
     /// <summary>
     /// <paramref name="values"/> with <paramref name="preset"/>'s settings; the player's own (vsync, frame cap, field of
-    /// view, interface scale) kept. High is the game as it looked before the settings existed.
+    /// view, interface scale, crosshair) kept. High is the game as it looked before the settings existed.
     /// </summary>
     public static GraphicsValues WithPreset(GraphicsValues values, QualityPreset preset)
     {
@@ -261,6 +264,7 @@ public static class GraphicsSettings
                 VSync = I("vsync", d.VSync, 0, 3),
                 FrameCap = I("frame_cap", d.FrameCap, 0, FrameCaps.Length - 1),
                 WindowMode = (GameWindowMode)I("window_mode", (int)d.WindowMode, 0, (int)GameWindowMode.ExclusiveFullscreen),
+                Crosshair = ReadCrosshair(file),
             };
         }
         var view = new ConfigFile();
@@ -282,7 +286,11 @@ public static class GraphicsSettings
     /// <summary>Shows <paramref name="values"/> at once (the panel's preview); saved only by <see cref="Save"/>.</summary>
     public static void Preview(GraphicsValues values)
     {
-        GraphicsValues shown = values with { Preset = Match(values) };
+        GraphicsValues bounded = values with
+        {
+            Crosshair = values.Crosshair.Normalize(),
+        };
+        GraphicsValues shown = bounded with { Preset = Match(bounded) };
         if (shown == Current)
         {
             return;
@@ -323,6 +331,7 @@ public static class GraphicsSettings
         file.SetValue("graphics", "vsync", v.VSync);
         file.SetValue("graphics", "frame_cap", v.FrameCap);
         file.SetValue("graphics", "window_mode", (int)v.WindowMode);
+        WriteCrosshair(file, v.Crosshair);
         file.Save(FilePath);
         var view = new ConfigFile();
         view.Load(ViewPath);
@@ -337,6 +346,56 @@ public static class GraphicsSettings
 
     /// <summary>Back to what is saved.</summary>
     public static void Revert() => Preview(Saved);
+
+    /// <summary>Old saves receive a centred dot; malformed preferences cannot reach the painter.</summary>
+    internal static CrosshairValues ReadCrosshair(ConfigFile file)
+    {
+        var d = new CrosshairValues();
+        double Number(string key, double fallback, double min, double max)
+        {
+            Variant value = file.GetValue("crosshair", key, fallback);
+            double number = value.VariantType switch
+            {
+                Variant.Type.Int => value.AsInt64(),
+                Variant.Type.Float => value.AsDouble(),
+                _ => fallback,
+            };
+            return double.IsFinite(number) ? Math.Clamp(number, min, max) : fallback;
+        }
+        bool Flag(string key, bool fallback)
+        {
+            Variant value = file.GetValue("crosshair", key, fallback);
+            return value.VariantType == Variant.Type.Bool ? value.AsBool() : fallback;
+        }
+        return new CrosshairValues
+        {
+            Style = (CrosshairStyle)(int)Number("style", (int)d.Style, 0, (int)CrosshairStyle.RingDot),
+            Color = (int)Number("color", d.Color, 0, 5),
+            Size = (float)Number("size", d.Size, 2, 24),
+            DotSize = (float)Number("dot_size", d.DotSize, 1, 12),
+            Thickness = (float)Number("thickness", d.Thickness, 1, 6),
+            Gap = (float)Number("gap", d.Gap, 0, 20),
+            Opacity = (float)Number("opacity", d.Opacity, 0.1f, 1),
+            Outline = (float)Number("outline", d.Outline, 0, 3),
+            ShowWhileAiming = Flag("show_while_aiming", d.ShowWhileAiming),
+            DynamicSpread = Flag("dynamic_spread", d.DynamicSpread),
+        };
+    }
+
+    internal static void WriteCrosshair(ConfigFile file, CrosshairValues values)
+    {
+        CrosshairValues v = values.Normalize();
+        file.SetValue("crosshair", "style", (int)v.Style);
+        file.SetValue("crosshair", "color", v.Color);
+        file.SetValue("crosshair", "size", v.Size);
+        file.SetValue("crosshair", "dot_size", v.DotSize);
+        file.SetValue("crosshair", "thickness", v.Thickness);
+        file.SetValue("crosshair", "gap", v.Gap);
+        file.SetValue("crosshair", "opacity", v.Opacity);
+        file.SetValue("crosshair", "outline", v.Outline);
+        file.SetValue("crosshair", "show_while_aiming", v.ShowWhileAiming);
+        file.SetValue("crosshair", "dynamic_spread", v.DynamicSpread);
+    }
 
     /// <summary>The field of view set elsewhere (the F1 console's fov, saved by it): shown and taken as saved.</summary>
     public static void SetFieldOfView(float degrees)
