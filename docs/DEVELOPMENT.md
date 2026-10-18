@@ -1,5 +1,37 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — Sealed Schematic original model and rendered icons
+
+Inspected the official Rust Advanced Blueprint Fragment image before authoring.
+Replaced the building-plan stand-in and SVG with an original complete blue
+service drawing in a thin sealed sleeve. Curled edges, a heat-sealed perimeter,
+fine grid and original cassette illustration preserve the reference's blue-paper
+identity while following our existing item text. The sparse reverse is distinct.
+No reference game pixels or meshes entered the repository.
+
+ID 164, stack 20, description, loot and workbench requirements remain unchanged.
+The model has three LODs (2,432 / 656 / 188 triangles), a 34-triangle convex hull,
+one external 1024px PBR atlas and own 128/256px rendered icons. Opaque laminate
+avoids transparent overlap. The existing diagram helper is unchanged.
+
+Validation: all 12/12 focused catalogue/content checks and the full solution build
+passed; review/test/solution builds reported zero warnings and errors. Native
+Godot captures cover all LODs, the reverse and CatalogItemIcons at 32–256px with
+no SVG fallback. Mesh attributes/unit normals and RGBA icon bounds passed.
+Broader suite: 979/985 checks passed across all 170 classes. Six failures
+in shared SelectedPhysicsGroundTests concern terrain-pin ownership, native
+resource/completion expectations and a tile allowance. They do not load item art
+and lie outside this change; they are recorded as current failures, not a blanket
+suite pass. No unrelated physics code was changed.
+Live gameplay inventory remains unchecked; artistic acceptance remains with the
+owner. Jobs ran serially, below normal priority on two cores, behind CPU/RAM
+gates. All owned processes exited and the reference tab closed. The commit
+preserves other sessions' edits and staging.
+
+See `docs/ITEM_ART_SEALED_SCHEMATIC.md` and
+`docs/images/item-art-sealed-schematic-20261019/`.
+
+
 ## 19 October 2026 — Torn Schematic original model and rendered icons
 
 Inspected the official Rust Basic Blueprint Fragment image before authoring.

@@ -16,7 +16,8 @@ signs and rendered icons; see [its asset record](ITEM_ART_SIGN_PLATE.md).
 Gun Receiver now has its own timber-braced housing and icons; see
 [its asset record](ITEM_ART_RECEIVER.md). Rifle Frame now has a dark housing with amber bracing and rendered icons; see
 [its asset record](ITEM_ART_RIFLE_FRAME.md). Torn Schematic now has a dedicated ragged paper model and icons; see
-[its asset record](ITEM_ART_TORN_SCHEMATIC.md). Other replacements remain planned.
+[its asset record](ITEM_ART_TORN_SCHEMATIC.md). Sealed Schematic now has a dedicated complete sleeved drawing and icons; see
+[its asset record](ITEM_ART_SEALED_SCHEMATIC.md). Other replacements remain planned.
 Artistic acceptance remains with the owner.
 [DESIGN.md](DESIGN.md), especially ART-01 and the ground UI requirement, remains authoritative.
 
@@ -58,7 +59,7 @@ remain subject to visual review.
 | 1 | `receiver` | Replaced: original model and rendered PNGs | Rusty tubular housing, pale timber braces, dark clips and tan bindings, based on visual reference study. |
 | 1 | `rifle-frame` | Replaced: original model and rendered PNGs | Long dark housing, short amber timber brace and ribbed steel covers; distinct from the gun receiver and based on visual reference study. |
 | 1 | `torn-schematic` | Replaced: original model and rendered PNGs | Torn blue drafting paper with a large missing corner, slight curl, fine grid and original partial diagram. |
-| 1 | `sealed-schematic` | Building-plan model and SVG icon | A complete engineering drawing in a protective sealed sleeve. |
+| 1 | `sealed-schematic` | Replaced: original model and rendered PNGs | Complete blue service drawing in a thin sealed sleeve, with curled edges and an original diagram. |
 | 1 | `salvage` | Metal-fragments model and SVG icon | A compact assortment of wire, brackets and broken machine parts, distinguishable from metal fragments. |
 | 2 | `explosives` | Sulphur model and sulphur PNG alias | A clearly packaged fictional industrial explosive material, distinct from sulphur and gunpowder. |
 | 2 | `blueprint` | Building-plan model and SVG icon | A distinct blueprint document for generic views; preserve the learned-item presentation described below. |
