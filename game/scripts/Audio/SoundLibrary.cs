@@ -14,11 +14,14 @@ public static class SoundLibrary
 {
     public const string DataPath = "res://data/ground/sounds.json";
     public const string LevelsPath = "res://assets/audio/levels.json";
+    public const string FootwearPath = "res://data/ground/footsteps.json";
 
     private static SoundCatalogData? _data;
+    private static FootwearAudioData? _footwear;
     private static readonly Dictionary<string, AudioStream?> Streams = new(StringComparer.Ordinal);
 
     public static SoundCatalogData Data => _data ??= Load();
+    public static FootwearAudioData Footwear => _footwear ??= LoadFootwear();
 
     public static SoundEventData? Find(string key) => Data.Find(key);
 
@@ -86,6 +89,24 @@ public static class SoundLibrary
         {
             GD.PushError(e.Message);
             return SoundCatalogData.Parse("{\"events\": []}");
+        }
+    }
+
+    private static FootwearAudioData LoadFootwear()
+    {
+        if (!FileAccess.FileExists(FootwearPath))
+        {
+            GD.PushWarning($"{FootwearPath} is missing: using legacy foot contacts.");
+            return FootwearAudioData.Fallback;
+        }
+        try
+        {
+            return FootwearAudioData.Parse(FileAccess.GetFileAsString(FootwearPath));
+        }
+        catch (FormatException e)
+        {
+            GD.PushError(e.Message);
+            return FootwearAudioData.Fallback;
         }
     }
 }

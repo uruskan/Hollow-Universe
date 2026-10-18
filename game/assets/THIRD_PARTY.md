@@ -333,6 +333,26 @@ All our own (G7, GROUND.md §6.9); nothing was downloaded for them:
 | `fx/c4/` | The PSG C4 VFX kit R01, converted by `art/fx/build.py` (GROUND.md §9.3): smoke and fire flipbooks, flash, pressure ring, heat distortion, dust puff, spark, scorch, and the procedural concrete texture of its debris; its concrete shards and metal fragments are in `fx/chunks.glb` | `D:\GameDev\Assets\PSG_C4VFX_R01`: our own kit, made for this project by Blender Python (a Mantaflow simulation rendered by Blender, textures generated in `Source/build_support.py`); no third-party content | Ours |
 | `fx/textures/`, `fx/decals/`, `fx/chunks.glb` (the rest), `fx/shaders/` | The muzzle flash atlas, noise, soft dot, droplet, bullet holes, blood, scuff and debris shapes, painted and modelled by `art/fx/build.py`; the shaders | Ours | Ours |
 
+## Nox surface contacts and derived footwear profiles (18 October 2026)
+
+The 579 derived files under `audio/footstep/` for grass, dirt, sand, rock, snow, wood, metal and shallow water use
+193 source contacts from Nox Sound Design's
+[Essentials Series](https://nox-sound-design.itch.io/essentials-series-sfx-nox-sound), released by its creator
+under CC0 1.0 for personal and commercial use. Walk, run and land sources receive the softened contact treatment
+and three derived profiles: barefoot, shoes and boots. Crouch shares walk sources. The owner approved the initial
+six-contact grass and six-contact dirt auditions; the expanded selection has not received listening approval.
+Source footwear is unidentified, so the profiles are processing choices rather than separately recorded authentic
+barefoot, shoe and boot sessions. Vegetation movement, jump takeoffs and clipped rock landing takes are excluded.
+The four existing swim recordings keep their earlier sources.
+
+The external `Essentials_Series_NOX_SOUND.zip` is 1,036,374,981 bytes, SHA-256
+`0df9a98cc8d0499787cb3c29f3e278fdacd75ca3e94106828ea8b5c115ae8d3d`.
+`art/audio/nox_footsteps.json` v2 retains the creator page, archive identity and all 193 source-member hashes;
+`art/audio/sources.py` verifies them, and `game/data/ground/footsteps.json` records the shared treatment, profiles
+and gait mapping. The audio build records encoded output hashes and measurements in `audio/levels.json`.
+Originals remain in the external Downloads library. These contacts replace the earlier eight surface banks;
+no audio from the user's Rust reference video is incorporated.
+
 ## Environment repair additions (15 October 2026)
 
 | Path | Source and use | Rights and provenance |

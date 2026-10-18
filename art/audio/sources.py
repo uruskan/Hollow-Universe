@@ -26,9 +26,11 @@ CACHE = os.path.join(REPO, "art", ".cache", "audio", "src")
 
 
 class Pack:
-    def __init__(self, title, file, url, page, author, licence, sha256, size):
+    def __init__(self, title, file, url, page, author, licence, sha256, size, members=None):
         self.title, self.file, self.url, self.page = title, file, url, page
         self.author, self.licence, self.sha256, self.size = author, licence, sha256, size
+        # Optional closed roster: extract only approved members, and verify cached bytes on every build.
+        self.members = members
 
 
 KENNEY = "Kenney (kenney.nl)"
@@ -95,6 +97,15 @@ PACKS = {
         "e6ee04d91c5f4d30cfda1260d2c9d1faf96fda36319287215fbd07bcb1a80451", 1624406),
 }
 
+with open(os.path.join(HERE, "nox_footsteps.json"), encoding="utf-8") as f:
+    NOX_FOOTSTEPS = json.load(f)
+PACKS[NOX_FOOTSTEPS["downloadFolder"]] = Pack(
+    NOX_FOOTSTEPS["title"], NOX_FOOTSTEPS["file"], None, NOX_FOOTSTEPS["page"],
+    NOX_FOOTSTEPS["author"], NOX_FOOTSTEPS["licence"], NOX_FOOTSTEPS["archiveSha256"],
+    NOX_FOOTSTEPS["archiveBytes"],
+    {v["member"]: v["sha256"] for surface in NOX_FOOTSTEPS["banks"].values()
+     for bank in surface.values() for v in bank})
+
 # BigSoundBank (https://bigsoundbank.com): one WAV per sound by Joseph Sardin. Its licence page lists CC0 1.0 (also
 # WTFPL and a public-domain dedication) and says nothing is mandatory. Folder "bigsoundbank", files <id>.wav from
 # https://bigsoundbank.com/UPLOAD/bwf-en/<id>.wav; each sound's page is https://bigsoundbank.com/s<id>.html.
@@ -108,10 +119,34 @@ USED = set()
 def pack(name, member):
     """The path of a file inside a pack, unpacked into the cache on first use."""
     p = PACKS[name]
+    if p.members is not None and member not in p.members:
+        raise SystemExit("%s: member is not in the approved source roster: %s" % (name, member))
     root = os.path.join(CACHE, name)
+    if p.members is not None:
+        # A roster can grow while the cache already exists. Admit each missing member atomically;
+        # never trust an existing cache directory as proof that all requested bytes are present.
+        path = sevenzip.safe(os.path.realpath(root), member)
+        if not os.path.isfile(path):
+            archive = os.path.join(DOWNLOADS, name, p.file)
+            if not os.path.isfile(archive):
+                raise SystemExit("download the archive from %s and save it as %s" % (p.page, archive))
+            check(archive, p.sha256)
+            with zipfile.ZipFile(archive) as z:
+                data = z.read(member)
+            if hashlib.sha256(data).hexdigest() != p.members[member]:
+                raise SystemExit("%s: source member failed its roster hash" % member)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path + ".part", "wb") as stream:
+                stream.write(data)
+            os.replace(path + ".part", path)
+        check(path, p.members[member])
+        USED.add((name, member))
+        return path
     if not os.path.isdir(root):
         archive = os.path.join(DOWNLOADS, name, p.file)
         if not os.path.isfile(archive):
+            if p.url is None:
+                raise SystemExit("download the archive from %s and save it as %s" % (p.page, archive))
             raise SystemExit("missing download %s (python -I art/audio/sources.py --fetch)" % archive)
         check(archive, p.sha256)
         part = root + ".part"
@@ -172,6 +207,10 @@ def verify(fetch=False):
             if not fetch:
                 missing += 1
                 continue
+            if url is None:
+                missing += 1
+                print("manual creator download required: %s (see the page in nox_footsteps.json)" % path)
+                continue
             os.makedirs(os.path.dirname(path), exist_ok=True)
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Hollow Universe sound pipeline)"})
             with urllib.request.urlopen(req, timeout=300) as r, open(path + ".part", "wb") as o:
@@ -185,7 +224,7 @@ def verify(fetch=False):
 
 if __name__ == "__main__":
     if "--fetch" in sys.argv:
-        verify(fetch=True)
+        sys.exit(0 if verify(fetch=True) else 1)
     elif "--verify" in sys.argv:
         sys.exit(0 if verify() else 1)
     else:

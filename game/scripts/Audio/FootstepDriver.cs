@@ -47,14 +47,15 @@ public partial class FootstepDriver : Node3D
         {
             return;
         }
-        LastKey = e.Key;
+        string key = SoundLibrary.Footwear.ResolveEvent(e.Key, input.FootwearProfile, SoundLibrary.Data);
+        LastKey = key;
         if (Local)
         {
-            director.Play2D(e.Key, (float)e.VolumeDb + LocalVolumeDb);
+            director.Play2D(key, (float)e.VolumeDb + LocalVolumeDb);
         }
         else
         {
-            director.Play(e.Key, feet, (float)e.VolumeDb);
+            director.Play(key, feet, (float)e.VolumeDb);
         }
     }
 }

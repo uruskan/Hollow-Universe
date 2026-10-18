@@ -150,6 +150,7 @@ public partial class GroundAudio : Node
             _surface = SurfaceAt(Client, feet, c.Frame);
         }
         FootInput input = Footsteps.Input(c, Client.Frame, sprinting, _surface, c.Frame == 0 ? WaterDepth(Client, feet) : 0);
+        input.FootwearProfile = SoundLibrary.Footwear.Profile(Client.Content, Client.Local.Inventory.Wear.Slots);
         _feet.Update(delta, input, GroundView.ToGodot(feet));
     }
 

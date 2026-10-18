@@ -2,12 +2,13 @@
 
     python -I art/audio/repair_footsteps.py
 
-The full build.py path uses the identical recipes. Existing playback settings and all
-non-footstep catalogue/measurement entries are preserved, as in repair_actions.py.
+The full build.py path uses the identical recipes. Footwear volume/distance follow footsteps.json;
+other playback settings and non-footstep catalogue/measurement entries are preserved.
 """
 import os
 import sys
 import inspect  # Load stdlib before the adjacent legacy inspect.py can shadow it.
+import concurrent.futures
 from pathlib import Path
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -18,24 +19,36 @@ import events
 def main():
     events.footsteps()
     levels = build.load_json(build.LEVELS, {"files": {}})["files"]
-    changed = 0
+    todo = []
     for output in events.OUTS:
         path = os.path.join(build.ASSETS, output.rel)
         prior = levels.get(output.rel)
         if prior and prior.get("recipe") == output.recipe() and os.path.isfile(path) and prior.get("sha256") == build.sha256(path):
             continue
+        todo.append(output)
+
+    def render(output):
         measured = build.build(output)
         metric, _, low, high, _ = build.CATEGORIES[output.category]
         if not low <= measured[metric] <= high or measured["truePeak"] > build.TRUE_PEAK_CEILING:
             raise RuntimeError(f"{output.rel}: measured audio outside category limits")
-        levels[output.rel] = measured
-        changed += 1
-        print(f"{output.rel}: {measured[metric]:.2f} LUFS, {measured['truePeak']:.2f} dBTP", flush=True)
+        if measured["duration"] >= 0.08 and measured["tail"] > -30:
+            raise RuntimeError(f"{output.rel}: contact tail ends too abruptly ({measured['tail']} dB)")
+        return output, measured, metric
+
+    changed = 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+        for output, measured, metric in pool.map(render, todo):
+            levels[output.rel] = measured
+            changed += 1
+            print(f"{output.rel}: {measured[metric]:.2f} LUFS, {measured['truePeak']:.2f} dBTP", flush=True)
     build.write_levels(levels)
     replacements = {event["key"]: event for event in events.EVENTS}
     old = build.load_json(build.CATALOGUE, {})["events"]
-    ordered = [replacements.pop(event["key"], event) for event in old]
-    build.write_catalogue(ordered + list(replacements.values()), events.ITEMS, events.SPACES)
+    ordered = [replacements.pop(event["key"], event) for event in old
+               if not event["key"].startswith("footstep.") or event["key"] in replacements]
+    build.write_catalogue(ordered + list(replacements.values()), events.ITEMS, events.SPACES,
+                          replace_prefixes=("footstep.",))
     current = {output.rel for output in events.OUTS}
     root = Path(build.ASSETS, "footstep").resolve()
     removed = 0

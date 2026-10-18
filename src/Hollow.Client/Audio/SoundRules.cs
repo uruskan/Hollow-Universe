@@ -75,6 +75,9 @@ public struct FootInput
     /// <summary>The ground under the feet (<see cref="Footsteps.FromGround"/>, a building floor's grade...).</summary>
     public FootSurface Surface;
 
+    /// <summary>Worn foot-contact profile; null uses the audio registry's default (bare feet).</summary>
+    public string? FootwearProfile;
+
     /// <summary>Water above the feet, metres; shallow water (≥ 8 cm, not swimming) splashes.</summary>
     public double WaterDepth;
 }

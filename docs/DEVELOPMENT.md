@@ -849,3 +849,251 @@ replication; the button checks for backpack contents while inventory is painted.
 simulation system is introduced. Existing loose-bag lookup cost grows with loose world objects and is
 repeated for each nonempty stack; crowded-world performance has not been benchmarked. These regression
 checks found no duplication in their covered cases and are not a proof against every possible exploit.
+
+## Grass footstep alternatives for audition — 18 October 2026
+
+The owner rejected the current grass sound and requested downloadable or synthesized
+examples to choose from. Read-only audit found the grass recipe uses BSB 2889,
+"Feet in leaves #2", with four short contacts reused for walking/running/landing.
+Existing measured levels do not indicate clipping; the material mismatch and limited
+variation are plausible quality issues, not a listening verdict. The earlier October
+16 acceptance concerned removal of the "boink", not overall grass-sound approval.
+
+Prepared three standalone, level-matched auditions under
+`.artifacts/grass-footstep-options-20261018/`: A soft grass (OwlStorm/Ashe Kirk,
+variants 1/3/4), B short grass (Joseph Sardin/BigSoundBank 0854), C hiking boots on
+grass (Fission9). A and C were downloaded as public HQ MP3 previews; their original
+WAV masters require Freesound login. B uses the already-downloaded original WAV,
+verified against the registered SHA-256. All three primary source pages state CC0.
+OwlStorm variant 2 was omitted because of a reported click. No sound extracted from
+another game was used. The optional game-dev CLI was unavailable; the existing
+project ffmpeg/audiolib tools handled these authorized standalone auditions.
+
+Each 8.6-second WAV has six walking contacts, a pause, then eight contacts at a
+faster cadence. The faster passage re-times walking samples; it is not a recording
+of actual running. D is the current game's audio at the same comparison loudness.
+All four decode as 48 kHz mono PCM, measure -25.1 integrated LUFS, and remain at
+or below -3.0 dBTP. No limiter/compressor or pitch variation was added. The local
+manifest preserves source links, source/output SHA-256, cut/filter/gain recipes,
+measurements and the pending selection status; make_auditions.py reproduces them.
+ABCD-comparison.wav provides a sequential reel with starts at 0/9.6/19.2/28.8 s.
+
+Validation is file decoding, format/duration/loudness/peak assertions and source
+provenance only. No game code, catalogue, production audio, settings or saves were
+changed; no C# build, engine tests or Godot run was performed. User listening choice
+and subsequent gameplay integration/validation remain pending. Existing unrelated
+staged and unstaged work was preserved; no commit was made.
+
+## Free footstep packs downloaded — 18 October 2026
+
+The owner rejected all three previous auditions as too tough and asked for complete
+free sound packs. Their footwear direction is that steps should depend on equipped
+boots versus bare feet; this is recorded intent, not implemented routing or approval
+of any existing clip. The earlier audition manifest is now explicitly rejected.
+
+Downloaded and extracted two complete packs outside the repository under
+`D:/GameDev/Assets/Downloads/footstep-packs-20261018/`:
+
+- MGW Sound Design, Footsteps Mini Sound Pack: 8,674,097-byte ZIP, 90 WAVs,
+  including five tall-grass and five undergrowth variants. The creator's reply
+  (itch.io post 11759931) explicitly allows commercial use without attribution.
+- Nebula Audio, Character Footsteps (Dirt & Grass): 15,331,827-byte RAR,
+  160 WAVs actually present (the page title says 80), including full/short crouch,
+  walk, hard-walk and run sets plus pre/post-jump sounds. The live browser showed
+  the creator's "Yes! it's royalty free." reply to the commercial-games question
+  (post 9007139); the web text extractor had omitted that reply. This is creator
+  permission evidence, not a claim of a CC0 license or unrestricted redistribution.
+
+Both downloads were obtained at no cost from the authors' itch.io pages. Archive
+paths were checked before extraction; all 250 WAVs decoded with finite samples.
+The retained manifest records source URLs, permission evidence, archive/file
+hashes and decoded format details. Four standalone listening reels are under
+`.artifacts/grass-footstep-packs-20261018/`: MGW tall grass/undergrowth and Nebula
+crouch grass/walk grass. Reels concatenate complete source clips with 250ms gaps,
+resampled to 48kHz stereo PCM, with no EQ, gain, normalization, compression or
+pitch change. This preserves original levels for audition and is not an in-game
+mix or a claim of subjective softness. The lowest preview true-peak headroom is
+3.8 dB; user listening acceptance remains open.
+
+No production game audio/code/catalogue, settings or saves changed. No C# build,
+engine tests or Godot launch was performed for this asset-search/audition task.
+The optional game-dev CLI remains unavailable; existing audio tooling was used.
+No commit was made; existing unrelated work was preserved.
+
+## Grass-footstep reference and Nox audition — 18 October 2026
+
+The owner rejected the MGW/Nebula previews for ordinary footsteps: they resemble bush
+entry/exit/traversal, not regular ground contact. This is not acceptance for bush audio.
+The working brief is soft foot-ground contact on short grass or firm soil with little
+vegetation rustle. The supplied listening reference is https://youtu.be/el312OFsaMQ;
+it is recorded as a reference URL only. No audio from Rust or the video was imported.
+The assistant cannot receive audio in this tool setup, so no listening comparison,
+subjective quality claim, footwear identification or reference match is asserted.
+
+Downloaded Nox Sound Design's complete Essentials Series archive from the creator's
+https://nox-sound-design.itch.io/essentials-series-sfx-nox-sound page, which states CC0
+and permits personal/commercial use. Source archive and page evidence are outside the
+repository under D:/GameDev/Assets/Downloads/footstep-packs-20261018/nox/. The archive
+is 1,036,374,981 bytes, SHA-256
+0df9a98cc8d0499787cb3c29f3e278fdacd75ca3e94106828ea8b5c115ae8d3d.
+Only its two footstep collections were extracted: 479 Essentials and 210 Iceland WAVs.
+All 689 decoded to finite samples and have individual hashes recorded in manifest.json.
+The advertised short-grass files are named Snow_Short_Grass; they were not selected.
+
+Two 4.75-second audition WAVs and their reproducible script are in
+.artifacts/grass-footstep-contact-20261018/: Nox-DirtyGround-walk.wav and
+Nox-Grass-walk.wav. Each uses the first six numerically ordered full source clips,
+750 ms between starts and a uniform +6 dB audition gain. No EQ, compression, trimming
+or pitch changes. Output is 48 kHz mono 24-bit PCM; finite-sample/readback checks passed,
+and ffmpeg measured true peaks of -9.1/-6.7 dBTP respectively without clipping.
+Source footwear is unconfirmed. User listening acceptance remains pending.
+
+The prior pack manifests now record the rejection and reference. No game audio files,
+code, catalogue, settings or saves changed. No build, gameplay test or Godot run was
+performed for this download/audition-only work. Unrelated concurrent work was preserved.
+
+## Nox grass/dirt footstep softening audition — 18 October 2026
+
+The owner finds both Nox auditions better and requested a small reduction in bass and
+softer impacts. Prepared revisions under .artifacts/grass-footstep-contact-20261018/softened/
+with a reproducible make_softened.py and provenance/measurement manifest. Existing source
+WAVs and their first auditions were preserved. Both revisions apply a 45 Hz high-pass,
+-3 dB bass shelf at 200 Hz, -1 dB treble shelf at 4 kHz, gentle 1.4:1 peak compression
+(0.7 ms attack, 40 ms release, -22 dBFS threshold, no makeup), and -0.5 dB output gain.
+No pitch, cadence or duration changes; no normalization afterward. The earlier +6 dB
+audition gain is already in the input and is not applied again. Comparison WAVs contain
+the full original then the full revision with 0.5 seconds of silence between them.
+
+Both 4.75-second outputs decoded successfully as finite 48 kHz mono 24-bit PCM with
+228,000 frames. Bass/mid spectral-energy ratios (30-200 Hz versus 500-2000 Hz) decreased
+3.75 dB for dirt and 3.89 dB for grass. ffmpeg measured true peaks -12.7 and -9.6 dBTP,
+respectively, down from -9.1 and -6.7 dBTP; no clipping. The assistant cannot listen in
+this setup, so these are measured processing results, not subjective approval. User
+acceptance of the revised timbre remains pending. No game code, production audio,
+catalogue, settings or saves changed; no build, Godot run or gameplay test was needed
+or performed for these audition-only edits. Unrelated concurrent changes were preserved.
+
+## Approved Nox footstep integration and footwear audit — 18 October 2026
+
+The owner approved both softened auditions as better, usable but not perfect, and asked
+whether these were only two clips and how surface/footwear affected playback. Each reel
+contained six distinct source contacts. The downloaded Nox library contains 689 footstep
+WAVs (479 Essentials plus 210 Iceland); Essentials includes 94 grass and 26 dirty-ground
+recordings across movement types. Only the twelve auditioned contacts are admitted here.
+
+Installed six softened grass and six dirt OGGs through the existing audio pipeline,
+replacing the older 30 grass/dirt gait duplicates with shared banks. All four gait/contact
+events per material reference the same six contacts. The complete footstep catalogue now
+has 32 events across eight surfaces and 126 unique footstep files (plus four swim files).
+Runtime still chooses surface and movement, shuffles variants per event and applies modest
+pitch/level jitter, distance attenuation, gait gain, local -3 dB and landing-speed gain.
+The Nox banks preserve the approved EQ/compressor order and +6 dB pre-compressor gain,
+without normalizing their quiet levels back upward. The new footstep-soft category has
+an event target of -35 LUFS and validation bounds -40 to -31; normalize=False preserves
+natural differences. Full contacts replace the earlier 0.32-second cap. A 40 ms maximum
+ending fade addresses the encoded tail check; the final worst tail is -53.3 dB relative
+to peak. No generic bass thump is added. Existing normalizing recipes keep their prior
+hashes and behavior. No other event content or item-audio map changed.
+
+art/audio/nox_footsteps.json records creator/CC0 provenance, the 1,036,374,981-byte archive
+SHA-256 and a closed roster of twelve source member hashes. sources.pack extracts only
+those members and verifies cached bytes. The manual-download source reports its creator
+page/exact destination when absent; --fetch now exits unsuccessfully if any download
+remains missing. The game-dev CLI required by the optional vendoring skill is unavailable;
+this work used the repository's established hash-checked pipeline, not a claimed game-dev
+package admission. Source archives remain external, source cache is ignored, and encoded
+output hashes/measurements are in game/assets/audio/levels.json. Credits and GROUND.md /
+REPAIR_AUDIO.md describe the replacement. No other game's audio was imported.
+
+Footwear currently has no effect: FootInput and local/remote call sites do not read worn
+items for audio, even though equipped feet-layer items are available. Surface routing
+already handles terrain, built-floor material, ships and shallow water. A future footwear
+system should choose appropriate contact recordings or layers with shared surface sound
+and runtime variation; this is a recommendation, not implemented support or a claim that
+these Nox recordings are barefoot. No simulation or network behavior changed.
+
+Validation: solution build passed with zero warnings/errors; all 264 source downloads
+verified, none missing. Final Godot import completed; a native crash on the first reimport
+after the tail adjustment was resolved by retrying without changes (both logs retained).
+The final engine sound-check loaded/measured 235 events and 793 file references with zero
+problems, maximum meter disagreement 0.9 LU and highest true peak -1.14 dBTP. All five
+AudioRepairTests and both file/import and level/hash catalogue checks pass. The remaining
+SoundCatalogueCoversItems check fails on existing unmapped building/deployable items;
+the identical failure is reproduced with the original HEAD sounds.json and current item
+data in an isolated fixture. Item mappings are unchanged; only eight grass/dirt events
+and their new category differ. Thus the targeted group is 7/8, not wholly green. Broad
+all-game test runs were interrupted and are not claimed complete or passing. A final
+incremental audio build changed zero files/imports and checked 130 footstep/swim files.
+Logs, baseline proof and receipt are in .artifacts/nox-footstep-integration-20261018/.
+No interactive gameplay listening pass was performed; source listening acceptance is the
+owner's, and in-game mix approval remains open. Other concurrent work was preserved.
+
+## 18 October 2026 — footwear-aware recorded footstep banks
+
+Implemented the owner's request for barefoot/shoes/boots and more variations per surface.
+The follow-up explicitly reserves shoes for future clothing rather than adding an item now;
+at least five or six future shoe items can share the shoes profile or declare additional
+registered profiles. This section supersedes the earlier entry's statement that footwear
+has no audio effect.
+
+WearStats now exposes wear.footstepProfile, validated as a lowercase identifier and allowed
+only on the Feet wear layer. work-boots declares boots; unequipped feet resolve barefoot.
+FootwearAudioData reads game/data/ground/footsteps.json and resolves the predicted local
+wear inventory and remote replicated worn item IDs through the same capability. Cadence
+keeps its surface/gait key; FootstepDriver resolves the corresponding profile event only
+when a contact is emitted. Swimming stays shared. Unknown optional profiles/banks have
+safe default/legacy fallbacks, while authoring tests report missing assignments/banks.
+There is no per-item switch, network message change, or new shoes item. Existing preload
+covers all suffixed events; per-frame profile lookup allocates no worn-item array.
+
+The version-2 Nox roster admits 193 unique clean source recordings for grass, dirt, sand,
+rock, snow, wood, metal and shallow water. Walk/run/land counts are respectively
+16/10/6, 10/10/3, 12/10/3, 9/10/1, 12/10/3, 10/10/2, 12/10/3 and 10/5/6.
+Crouch shares walk recordings. Vegetation rustles, jump takeoffs and clipped rock landings
+are excluded. The 193 sources produce 579 profile OGGs (4,981,445 bytes), plus four unchanged
+swim outputs. The earlier six grass and six dirt sources remain in the walk banks.
+These are derived footwear treatments: the source pack does not identify the performer's
+footwear, so no claim of separately recorded authentic barefoot/shoes/boots is made.
+
+Shared processing retains the accepted light bass reduction/compression; barefoot receives
+additional high-frequency softening and -2 dB event gain, shoes the base treatment, boots
+a modest mid/high adjustment and +1 dB. Gait gain/range and profiles are data-driven in
+footsteps.json. Outliers are calibrated into -38.5..-32 event LUFS, with a -8 dBTP ceiling;
+contacts already within that interval preserve their natural level differences. All 579
+outputs meet the measured category and fade checks: highest true peak -8.5 dBTP, worst
+ending tail -48.2 dB. Filters are baked, not added as per-character runtime DSP.
+
+The repair/full builders now honor generated volume/range changes and prune removed
+footstep events, while retaining unrelated sound events and hand-tuned playback fields.
+Two authoring regression tests cover those rebuild behaviors. Profile names are checked
+before output paths are constructed. Expanded extraction verifies each selected member
+and supports a previously populated smaller cache; archive/member hashes and licence
+provenance remain pinned. The established hash-checked pipeline was used because the
+optional game-dev CLI is unavailable. No other game's audio was imported.
+
+Validation: all 264 source downloads verified (zero missing); Godot imported all 579 new
+OGGs successfully. The engine sound check loaded/measured 331 events / 1,767 file references
+with zero problems, largest meter disagreement 0.9 LU and highest catalogue true peak
+-1.14 dBTP. Two Python authoring regression tests pass. A final incremental repair changed
+zero audio files or import options and checked all 583 footstep/swim outputs.
+
+The initial solution build successfully compiled Hollow.Simulation and Hollow.Client,
+including the new footwear code, but failed in concurrently edited environment/vegetation
+files. Subsequent solution builds remained blocked by EnvironmentDescriptors.cs using
+Galaxy.DefaultSeed (static readonly) as an optional parameter constant. A client-only build
+against those successful dependencies also encountered unrelated map changes: the current
+Map.Render cancellation overload was not in the existing dependency, and GroundUi.Globe.cs
+uses Godot.Collections.Array<Image> in a using declaration although it is not IDisposable.
+These files were not modified by this audio task; a full fresh build is NOT claimed passing.
+
+To validate the new tests without changing those concurrent files, an isolated test project
+links the repository's actual test sources against the just-built simulation/client and
+existing dependencies. All five new FootwearAudioTests pass, all five AudioRepairTests pass,
+and the catalogue file/import and level/hash checks pass (12/13 in the targeted group).
+The sole failure is the already demonstrated SoundCatalogueCoversItems gap for unrelated
+building/deployable item mappings; the item-audio map remains unchanged. All three content
+tests also pass. The existing engine binary verifies audio assets, not an interactive run
+of the new footwear routing. No full-suite pass or in-game listening approval is claimed.
+Logs and the isolated check project are in .artifacts/footwear-audio-20261018/. The owner's
+listening approval covers the initial twelve softened contacts; the expanded bank awaits
+in-game listening feedback. Other concurrent work and staging were preserved.

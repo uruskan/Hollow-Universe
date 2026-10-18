@@ -2,7 +2,7 @@
 
 `everything()` gives (outs, events): the files build.py renders and the catalogue entries it writes into
 game/data/ground/sounds.json. A catalogue entry's playback fields (volume, pitch, attenuation, bus, priority...)
-are only defaults here: build.py keeps whatever sounds.json already says for them.
+are normally defaults: build.py keeps sounds.json edits. Footwear volume and distance are owned by footsteps.json.
 """
 
 import os
@@ -148,94 +148,9 @@ def thump(gain=-8.0, at=0.0, i=0):
 
 
 def footsteps():
-    # Feet get their weight from the recorded contact itself. The generic low-passed
-    # impactSoft_heavy layer used here previously added a resonant "boink" to runs
-    # and jumps, especially on dirt. Keep the material texture of each recording;
-    # do not add the non-footstep thump used by other foley recipes.
-    # The owner rejected the first thump-only repair. These four cuts/filters
-    # were then auditioned on 16 October and confirmed free of the reported boink.
-    # Dry contacts add gentle transient control for the third cut's sharp outlier;
-    # the approved source reel itself is retained separately from gameplay acceptance.
-    # BSB 2889 is recorded leaf cover for soft organic ground; BSB 1117 is dry gravel.
-    # Keep n=4: the picker redistributes its selections if n changes. Gait intensity
-    # comes from cadence/level, not slowing the recording's pitch or stacking contacts.
-    # Single contact landings retain the normal impact-speed gain in FootstepCadence.
-    for surface, sid, fx in (
-        ("grass", "2889", "highpass=f=180:poles=2,lowpass=f=6500"),
-        ("dirt", "1117", "highpass=f=180:poles=2,equalizer=f=900:t=o:w=2:g=-9,lowpass=f=7500,"
-         "acompressor=threshold=-15dB:ratio=1.5:attack=0.2:release=25:makeup=1:knee=2"),
-    ):
-        source = bsb(sid)
-        contacts = steps(source, 4, min_sep=0.45, min_len=0.05, max_len=0.3)
-        recordings = [[seg_of(source, contact, extra=0.025)] for contact in contacts]
-        footstep_set(surface, recordings, recordings, recordings, recordings[:3], contact_fx=fx)
-
-    # Sand: Fantozzi's sand steps.
-    sand = [fantozzi("Sand%s%d" % (side, i)) for side in "LR" for i in (1, 2, 3)]
-    footstep_set(
-        "sand",
-        walk=[[Seg(s)] for s in sand],
-        run=[[Seg(s, pitch=0.93, gain=1)] for s in sand],
-        crouch_from=[[Seg(s, pitch=1.02)] for s in sand[:4]],
-        land=[[Seg(sand[k]), Seg(sand[k + 3], at=0.03, gain=-2)] for k in range(3)])
-
-    # Rock: Fantozzi's stone steps; runs from fast steps on concrete.
-    stone = [fantozzi("Stone%s%d" % (side, i)) for side in "LR" for i in (1, 2, 3)]
-    c = bsb("1318")
-    crun = steps(c, 6, min_sep=0.22, max_len=0.25)
-    footstep_set(
-        "rock",
-        walk=[[Seg(s)] for s in stone],
-        run=[[seg_of(c, e, extra=0.04)] for e in crun],
-        crouch_from=[[Seg(s, pitch=1.02)] for s in stone[:4]],
-        land=[[seg_of(c, crun[k], extra=0.04), Seg(stone[k], at=0.03, gain=-2)] for k in range(3)])
-
-    # Snow: Corsica_S's steps on snow-covered gravel; runs from quick steps in snow.
-    snow = [corsica("snow_covered_gravel", i) for i in (1, 3, 5, 7, 9, 11)]
-    sq = bsb("3363")
-    srun = steps(sq, 6, min_sep=0.25, max_len=0.35)
-    footstep_set(
-        "snow",
-        walk=[[Seg(s)] for s in snow],
-        run=[[seg_of(sq, e)] for e in srun],
-        crouch_from=[[Seg(s, pitch=1.02)] for s in snow[:4]],
-        land=[[seg_of(sq, srun[k]), Seg(snow[k], at=0.03, gain=-2)] for k in range(3)])
-
-    # Wood (building floors): shoes on a wooden floor; runs from a second floor recording, heavier, and TinyWorlds'
-    # wood steps; landings from jumps onto a wooden pontoon.
-    w = bsb("0165")
-    wood = steps(w, 6, min_sep=0.45, max_len=0.4)
-    w2 = bsb("1516")
-    wrun = steps(w2, 3, min_sep=0.45, max_len=0.4)
-    footstep_set(
-        "wood",
-        walk=[[seg_of(w, e)] for e in wood],
-        run=[[seg_of(w2, e, pitch=0.95)] for e in wrun] +
-            [[Seg(pack("oga-tinyworlds-different-steps", "wood0%d.ogg" % i), pitch=0.97)] for i in (1, 2, 3)],
-        crouch_from=[[seg_of(w, e, pitch=1.02)] for e in wood[:4]],
-        land=[[Seg(bsb("1841"))], [Seg(bsb("1842"))], [seg_of(w, wood[0]), seg_of(w2, wrun[1], at=0.03)]])
-
-    # Metal (sheet floors): our layering of a hard shoe step and a thin metal plate's ring.
-    plate = [kenney("impactPlate_light_%03d.ogg" % i) for i in range(5)]
-    ring = "highpass=f=180,lowpass=f=5200"
-    footstep_set(
-        "metal",
-        walk=[[Seg(stone[k]), Seg(plate[k % 5], gain=-9, fx=ring, pitch=0.9)] for k in range(6)],
-        run=[[seg_of(c, crun[k], extra=0.04), Seg(plate[k % 5], gain=-6, fx=ring, pitch=0.85)] for k in range(6)],
-        crouch_from=[[Seg(stone[k]), Seg(plate[k], gain=-12, fx=ring, pitch=0.9)] for k in range(4)],
-        land=[[seg_of(c, crun[k], extra=0.04), Seg(kenney("impactMetal_heavy_%03d.ogg" % k), gain=-8, fx=ring)]
-              for k in range(3)])
-
-    # Shallow water: shoes in water; runs add a small splash; landings are big splashes.
-    wa = bsb("0690")
-    water = steps(wa, 10, min_sep=0.6, max_len=0.75, within_db=7)
-    small = [bsb(s) for s in ("1529", "1530", "1531", "1532", "1533", "1534")]
-    footstep_set(
-        "water",
-        walk=[[seg_of(wa, e)] for e in water[:6]],
-        run=[[seg_of(wa, water[k]), Seg(small[k], dur=0.45, gain=-8, fade_out=0.2)] for k in range(6)],
-        crouch_from=[[seg_of(wa, e, pitch=1.02)] for e in water[6:10]],
-        land=[[Seg(bsb(s), dur=1.2, fade_out=0.5)] for s in ("1519", "1520", "1521")])
+    # Surface/gait recordings and footwear treatment are declared in data.
+    from footstep_banks import generate
+    generate(event)
 
     # Swimming: strokes of a board through water (BigSoundBank 1514).
     sw = bsb("1514")

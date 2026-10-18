@@ -13,7 +13,8 @@ Each sound is a recipe (events.py): parts of recordings, each with its own gain,
 offset, mixed, filtered, cut where it starts and where its tail has died away (or made into a seamless loop by a
 crossfade), brought to its category's loudness (ITU-R BS.1770: the highest momentary loudness of a one-shot, the
 integrated loudness of a loop) without passing -1 dBTP, and encoded as Ogg Vorbis at 48 kHz (short interface clicks
-as 16-bit WAV). Every file is measured again after encoding; game/assets/audio/levels.json keeps the measurements
+as 16-bit WAV). Approved source-level recipes can opt out of normalization while retaining peak/range checks.
+Every file is measured again after encoding; game/assets/audio/levels.json keeps the measurements
 with each file's SHA-256, and the tests check them (tests/Hollow.Tests/SoundCatalogueTests.cs).
 
 Encoding is bit-exact (no random Ogg serials, no encoder tags), so rebuilding unchanged recipes writes the same bytes.
@@ -46,6 +47,10 @@ ENCODE_CEILING = -1.6  # dBTP aimed at before encoding; Vorbis adds a few tenths
 # 400 ms window, audiolib.event_loudness); "integrated" the gated loudness of a loop.
 CATEGORIES = {
     "footstep": ("event", -26.0, -30.0, -22.0, 2.0),
+    # Approved quiet contacts keep their source dynamics; the target is descriptive for these recipes.
+    "footstep-soft": ("event", -35.0, -40.0, -31.0, 0.0),
+    # Footwear banks retain natural level variation inside a bounded range and a quieter peak ceiling.
+    "footstep-contact": ("event", -35.0, -43.0, -30.0, 2.0),
     "foley": ("event", -23.0, -27.0, -19.0, 3.0),
     "click": ("event", -27.0, -33.0, -21.0, 6.0),
     "gather": ("event", -19.0, -23.0, -15.0, 4.0),
@@ -94,16 +99,22 @@ class Out:
     """One sound file: `rel` under game/assets/audio."""
 
     def __init__(self, rel, category, segs, fx="", channels=1, fade_in=0.002, tail_db=-48.0, max_fade=0.25,
-                 length=None, loop=None, quality=5, lead_db=-45.0):
+                 length=None, loop=None, quality=5, lead_db=-45.0, normalize=True, level_range=None, peak_ceiling=None):
         self.rel, self.category, self.segs, self.fx, self.channels = rel, category, segs, fx, channels
         self.fade_in, self.tail_db, self.max_fade, self.length = fade_in, tail_db, max_fade, length
         self.loop, self.quality, self.lead_db = loop, quality, lead_db
         self.wav = rel.endswith(".wav")
+        self.normalize = normalize
+        self.level_range, self.peak_ceiling = level_range, peak_ceiling
 
     def recipe(self):
         data = [self.rel, self.category, CATEGORIES[self.category], [s.key() for s in self.segs], self.fx,
                 self.channels, self.fade_in, self.tail_db, self.max_fade, self.length, self.loop, self.quality,
                 self.lead_db, 3]
+        if not self.normalize:
+            data.append({"normalize": False})
+        if self.level_range is not None or self.peak_ceiling is not None:
+            data.append({"levelRange": self.level_range, "peakCeiling": self.peak_ceiling})
         return hashlib.sha256(json.dumps(data).encode()).hexdigest()[:16]
 
 
@@ -240,23 +251,28 @@ def build(out):
     else:
         cut(out, mix, shaped)
     m = audiolib.measure(shaped)
-    gain = target - level_of(m, metric)
-    over = m["truePeak"] + gain - ENCODE_CEILING
+    gain = target - level_of(m, metric) if out.normalize else 0.0
+    if out.level_range is not None:
+        value = level_of(m, metric)
+        gain = min(out.level_range[1], max(out.level_range[0], value)) - value
+    peak_limit = TRUE_PEAK_CEILING if out.peak_ceiling is None else min(TRUE_PEAK_CEILING, out.peak_ceiling)
+    encode_ceiling = min(ENCODE_CEILING, peak_limit - 0.6)
+    over = m["truePeak"] + gain - encode_ceiling
     limit = None
     if over > 0:
         if over > max_limit:
             gain -= over - max_limit
         if max_limit > 0:
-            limit = ENCODE_CEILING - 0.2
+            limit = encode_ceiling - 0.2
     dst = os.path.join(ASSETS, out.rel)
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     tmp = dst + ".part" + os.path.splitext(dst)[1]
     for _ in range(8):
         encode(out, shaped, tmp, gain, limit)
         final = audiolib.measure(tmp)
-        if final["truePeak"] <= TRUE_PEAK_CEILING - 0.05:
+        if final["truePeak"] <= peak_limit - 0.05:
             break
-        excess = final["truePeak"] - TRUE_PEAK_CEILING + 0.15
+        excess = final["truePeak"] - peak_limit + 0.15
         # Encoding rings over a limited peak: lower the limiter's ceiling rather than the level.
         if limit is not None:
             limit -= excess
@@ -379,7 +395,7 @@ def main(argv):
         if failures:
             print("%d failed" % len(failures))
             return 1
-    write_catalogue(catalogue, events.ITEMS, getattr(events, "SPACES", {}))
+    write_catalogue(catalogue, events.ITEMS, getattr(events, "SPACES", {}), replace_prefixes=("footstep.",))
     changed = fix_imports(outs)
     if changed:
         print("%d .import files updated: run Godot's import again" % changed)
@@ -410,9 +426,10 @@ def fix_imports(outs):
     return changed
 
 
-def write_catalogue(events_list, items, spaces=None):
+def write_catalogue(events_list, items, spaces=None, replace_prefixes=()):
     """sounds.json: the build owns each event's files and category and the item map; every other field of an event
-    is kept as edited. `spaces` are the listener's reverb presets (events.SPACES): a preset or field tuned by hand in
+    is kept as edited unless the recipe declares it in _generatedFields (authoring data owns those values).
+    `spaces` are the listener's reverb presets (events.SPACES): a preset or field tuned by hand in
     sounds.json is kept, a missing one is added."""
     old = load_json(CATALOGUE, {})
     kept = old.get("spaces", {})
@@ -424,11 +441,13 @@ def write_catalogue(events_list, items, spaces=None):
     by_key = {e["key"]: e for e in old.get("events", [])}
     merged = []
     for e in events_list:
+        e = dict(e)
+        generated_fields = e.pop("_generatedFields", ())
         cur = by_key.pop(e["key"], None)
         if cur is None:
             merged.append(e)
             continue
-        for field in ("category", "files", "loop"):
+        for field in ("category", "files", "loop", *generated_fields):
             if field in e:
                 cur[field] = e[field]
             elif field in cur and field != "loop":
@@ -445,8 +464,8 @@ def write_catalogue(events_list, items, spaces=None):
                     layers.append(l)
             cur["layers"] = layers
         merged.append(cur)
-    # Events added by hand (not built here) stay.
-    merged += by_key.values()
+    # Hand-authored events stay, except namespaces explicitly owned by this generator.
+    merged += (e for key, e in by_key.items() if not key.startswith(replace_prefixes))
     data = {
         "source": old.get("source", "GROUND.md §4.9. Written by art/audio/build.py, which owns each event's files "
                                     "and category; every other field may be tuned by hand and is kept."),
@@ -521,7 +540,7 @@ def credits():
         p = sources.PACKS[n]
         members = sorted(m for (k, m) in sources.USED if k == n)
         rows.append("| %s, %s: `%s`, %s (page: %s), %s bytes | %s | `%s` | %d files: %s |" % (
-            p.author, p.title, p.file, p.url, p.page, format(p.size, ","), p.licence, p.sha256, len(members),
+            p.author, p.title, p.file, p.url or "manual download from creator page", p.page, format(p.size, ","), p.licence, p.sha256, len(members),
             ", ".join("`%s`" % m.split("/")[-1] for m in members[:12]) + (" ..." if len(members) > 12 else "")))
     rows.append("")
     rows.append("| BigSoundBank id | Title | File | SHA-256 |")

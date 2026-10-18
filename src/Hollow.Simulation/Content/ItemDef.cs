@@ -160,6 +160,18 @@ public sealed class WearStats
 
     public BodyRegions Covers { get; init; }
 
+    /// <summary>Foot-contact profile in footsteps.json; only items worn on the feet may declare one.</summary>
+    public string? FootstepProfile { get; init; }
+
+    /// <summary>Profile keys form sound-event suffixes and may be extended by data without new item rules.</summary>
+    public static bool IsFootstepProfileKey(string? key)
+    {
+        if (string.IsNullOrEmpty(key) || key.Length > 64 || key[0] is < 'a' or > 'z') return false;
+        foreach (char c in key)
+            if (c is not (>= 'a' and <= 'z') and not (>= '0' and <= '9') and not '-' and not '_') return false;
+        return true;
+    }
+
     /// <summary>Fractions of melee and projectile damage taken off hits on the covered regions.</summary>
     public float Melee { get; init; }
 

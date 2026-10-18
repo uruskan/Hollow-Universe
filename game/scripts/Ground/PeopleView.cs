@@ -557,6 +557,7 @@ public partial class PeopleView : Node3D
             Sprinting = speed > 4.5f,
             Suppressed = e.Stance == Stance.Seated || (e.Flags & MoveFlags.Dead) != 0,
             Surface = e.Frame != 0 ? FootSurface.Metal : p.Surface,
+            FootwearProfile = SoundLibrary.Footwear.Profile(Client.Content, e.Wear),
             WaterDepth = e.Frame == 0 ? GroundAudio.WaterDepth(Client, e.Position) : 0,
         }, GroundView.ToGodot(e.Position));
     }

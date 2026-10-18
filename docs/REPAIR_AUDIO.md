@@ -3,6 +3,49 @@
 R9 calls for a coherent library, correct foot contacts and an action audit. This is a bounded repair of the existing
 recorded library and its runtime wiring, not a claim that every sound has received an artistic listening pass.
 
+## Current surface and footwear revision — 18 October 2026
+
+The older BSB grass/dirt contacts documented below were rejected as too tough and resembling bush traversal.
+The owner approved softened Nox grass and dirty-ground previews as usable, though not perfect. The two previews
+contained six independent recordings each. The expanded selection uses 193 Nox source contacts across all eight
+surfaces. Each has three derived footwear profiles, giving 579 OGGs plus the four existing swim recordings.
+The downloaded archive contains 689 footstep WAVs (479 Essentials, 210 Iceland); the selected banks are:
+
+| Surface | Walk contacts | Run contacts | Land contacts |
+|---|---|---|---|
+| Grass | 16 | 10 | 6 |
+| Dirt | 10 | 10 | 3 |
+| Sand | 12 | 10 | 3 |
+| Rock | 9 | 10 | 1 |
+| Snow | 12 | 10 | 3 |
+| Wood | 10 | 10 | 2 |
+| Metal | 12 | 10 | 3 |
+| Shallow water | 10 | 5 | 6 |
+
+Crouch shares its surface's walk bank. Vegetation movement, jump takeoffs and clipped rock landing takes are excluded.
+`art/audio/nox_footsteps.json` v2 pins the creator page, CC0 licence, archive SHA-256 and all 193 source-member hashes.
+`sources.pack` extracts only that roster and verifies cached source bytes before use. The archive remains outside
+the project. The expanded contacts have not received a listening approval; the owner's acceptance covers the
+original twelve-contact softened previews.
+
+`game/data/ground/footsteps.json` holds the shared contact treatment, footwear profiles and gait mapping. The common
+treatment applies +6 dB before the audition's light EQ/compressor, then −0.5 dB. Only loudness outliers are adjusted
+into −38.5 to −32 event LUFS, under a −8 dBTP ceiling; contacts already in that range retain their level differences.
+Full contacts and short tail fades replace the old 0.32-second crop, with no synthetic bass impact. Profile filters
+are baked into the OGGs, so there is no extra runtime filtering. The `footstep-contact` measurement category allows
+−43 to −30 event LUFS after profile treatment.
+
+Local and remote characters use the same resolver for surface, gait and the Feet item's `wear.footstepProfile`.
+With no equipped footwear, it defaults to `barefoot`; `work-boots` selects `boots`. The registered `shoes` profile is available
+for future footwear items to share, or an item can declare an additional registered profile without a per-item code
+branch. Profile event gain is −2/0/+1 dB for barefoot/shoes/boots, followed by gait gain of 0/+3/−7/+4 dB for
+walk/run/crouch/land. Existing cadence, landing-speed intensity, spatial attenuation, shuffle bags and small
+pitch/volume variation remain in effect.
+
+These are derived footwear treatments of real surface contacts. The source performer's footwear is unidentified;
+the banks are not separately recorded authentic barefoot, shoe and boot sessions. Dedicated footwear recordings
+can replace or extend these treatments later. Validation and engine-import results are recorded in `DEVELOPMENT.md`.
+
 ## Library and provenance
 
 `D:/GameDev/Assets/Audio` is empty. The useful supplied library is in `D:/GameDev/Assets/Downloads`: Kenney Impact,

@@ -166,7 +166,7 @@ internal sealed class ItemsReader : IContentReader
 
     private static WearStats Wear(JsonFields f, JsonElement e, string where)
     {
-        f.OnlyKnown(e, where, "layers", "covers", "melee", "projectile", "insulation");
+        f.OnlyKnown(e, where, "layers", "covers", "melee", "projectile", "insulation", "footstepProfile");
         WearLayer layers = WearLayer.None;
         foreach (string name in f.Texts(e, "layers", where))
         {
@@ -203,6 +203,7 @@ internal sealed class ItemsReader : IContentReader
         {
             Layers = layers,
             Covers = covers,
+            FootstepProfile = f.Has(e, "footstepProfile") ? f.Text(e, "footstepProfile", where) : null,
             Melee = f.Number(e, "melee", where, 0),
             Projectile = f.Number(e, "projectile", where, 0),
             Insulation = f.Number(e, "insulation", where, 0),
@@ -277,6 +278,13 @@ internal sealed class ItemsReader : IContentReader
             if (item.Wear is { } wear && (wear.Layers == WearLayer.None || wear.Melee is < 0 or > 0.9f || wear.Projectile is < 0 or > 0.9f))
             {
                 c.Problem(where, "wear: needs a layer; protection 0 … 0.9");
+            }
+            if (item.Wear is { FootstepProfile: { } profile } footwear)
+            {
+                if ((footwear.Layers & WearLayer.Feet) == 0)
+                    c.Problem(where, "wear.footstepProfile: only clothing worn on the feet may declare a profile");
+                if (!WearStats.IsFootstepProfileKey(profile))
+                    c.Problem(where, "wear.footstepProfile: expected a lowercase profile key (letters, digits, hyphens or underscores; 1 … 64 characters)");
             }
             if (item.Fuel is { } fuel && fuel.Seconds <= 0)
             {

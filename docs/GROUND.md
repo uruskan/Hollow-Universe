@@ -1181,7 +1181,7 @@ floor, soil and gravel → dirt; rock → rock; sand → sand; snow → snow (`F
 vertex's eight weights, `FromBiome` when only the biome is known); building floors by grade (twig and wood → wood, stone
 → rock, metal and armoured → metal, `FromGrade`). The player's own feet play flat, 3 dB down; others' at their feet.
 
-AB Test B audio follow-up (16 October 2026): grass/dirt walk, run, crouch and land now use short recorded contacts
+AB Test B audio follow-up (16 October 2026, grass/dirt sources superseded below): these events used short contacts
 from BSB 2889/1117, whose audition samples the owner confirmed have no "boink". Generic soft-heavy impact layers
 are removed from footsteps; grass/dirt landings use single contacts. `LocalGun.DryFired` now feeds the
 item's `dryFire` role on fresh empty trigger presses; held triggers and action refusals do not repeat it. Accepted
@@ -1189,6 +1189,27 @@ hit contacts use the event's weapon rather than the currently held item. `Things
 using accepted-projectile `Shooter` for the local/remote choice. The opt-in hosted `audio-movement` tour records
 real prediction, emitted events and unedited mix/footstep WAVs. These are technical changes; listening acceptance
 and remaining catalogue gaps are tracked in [REPAIR_AUDIO.md](REPAIR_AUDIO.md).
+
+On 18 October 2026 the owner approved the softened Nox grass and dirty-ground auditions for use, while describing
+them as better but not perfect. Each preview contained six different recorded contacts. The expanded library uses
+193 Nox contacts across grass, dirt, sand, rock, snow, wood, metal and shallow water, with separate walk, run and land
+sources; crouch shares the walk bank. Three derived footwear profiles produce 579 OGGs; the four existing swim
+recordings remain. Vegetation movement, jump takeoffs and clipped rock landings are excluded. The v2 roster in
+`art/audio/nox_footsteps.json` pins the CC0 archive and all 193 source-member hashes. The expanded selection has not
+received the owner's listening approval; the earlier twelve-contact auditions are the accepted reference.
+
+`game/data/ground/footsteps.json` defines the footwear profiles, source-bank mapping, processing and gait gain.
+Local and remote steps resolve the current surface, gait and the Feet item's `wear.footstepProfile`: empty feet use
+`barefoot`, `work-boots` declares `boots`, and future footwear can share `shoes` or declare another registered profile.
+There is no per-item code branch. Filters are baked into the recorded variants; runtime retains the existing cadence,
+shuffle bags, small pitch/volume variation and spatial attenuation. Profile gain is −2/0/+1 dB for barefoot/shoes/boots;
+walk/run/crouch/land add 0/+3/−7/+4 dB, with landing speed still supplying impact intensity.
+
+The build uses the approved light EQ/compression, retains full contacts instead of the old 0.32-second crop, and
+adjusts only loudness outliers into −38.5 to −32 event LUFS with a −8 dBTP ceiling. The `footstep-contact` measurement
+range is −43 to −30 event LUFS after the profile treatment. These profiles are derived sound treatments: Nox does
+not identify the performer's footwear, so they are not separate authentic barefoot, shoe and boot recordings.
+Validation and engine-import results are recorded in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 **Ambience** (`AmbienceDirector`, rules in `AmbienceMix`): flat loops on the Ambience bus, gliding to their levels over
 1.5 s, started when heard and stopped after 4 s unheard. Wind always (stronger with wind, height and exposure; a strong

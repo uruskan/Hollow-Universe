@@ -141,7 +141,7 @@
       "wear": { "layers": ["hands"], "covers": ["hand"], "melee": 0.02, "projectile": 0.02, "insulation": 3 } },
     { "id": 64, "key": "work-boots", "name": "Work boots", "category": "clothing",
       "description": "Fibre boots with metal-shod soles.",
-      "wear": { "layers": ["feet"], "covers": ["ankle", "foot"], "melee": 0.03, "projectile": 0.03, "insulation": 4 } },
+      "wear": { "layers": ["feet"], "covers": ["ankle", "foot"], "melee": 0.03, "projectile": 0.03, "insulation": 4, "footstepProfile": "boots" } },
     { "id": 65, "key": "chest-plate", "name": "Chest plate", "category": "clothing",
       "description": "Riveted metal plates over the chest, worn on top of a shirt.",
       "wear": { "layers": ["torso-armour"], "covers": ["chest", "belly"], "melee": 0.3, "projectile": 0.25, "insulation": 0 } },
