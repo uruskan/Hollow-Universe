@@ -1,5 +1,15 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — Codex stopped; recovery checkpoint
+
+Codex's weekly limit ran out at 01:01 with most work since 16 October uncommitted and the client
+build broken by a half-started flora integration. Claude reversed that integration's eleven
+last-minute edits, kept the exact prior tree at `refs/backup/codex-stop-2026-10-19`, and committed
+the rest as `74e51412` (admin self-camera) and `ba25d888` (everything else). Validation: solution
+build 0 warnings and 0 errors; full suite 1,007 / 1,008, where `MultiplayerTests.TwoClientsSeeEachOther`
+fails intermittently on timing and passes alone; a hosted Earth session on High reached play and saved a screenshot.
+State, hazards and the plan are in [HANDOFF_CODEX_2026-10-19.md](HANDOFF_CODEX_2026-10-19.md).
+
 ## 19 October 2026 — Sealed Schematic original model and rendered icons
 
 Inspected the official Rust Advanced Blueprint Fragment image before authoring.
