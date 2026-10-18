@@ -263,7 +263,7 @@
     { "id": 161, "key": "receiver", "name": "Gun receiver", "category": "components", "stack": 10,
       "description": "A salvaged semi-automatic gun housing held in a timber brace with metal clips and cord." },
     { "id": 162, "key": "rifle-frame", "name": "Rifle frame", "category": "components", "stack": 10,
-      "description": "The receiver and stock of a military rifle, without its barrel and springs." },
+      "description": "A stripped rifle housing with timber bracing and ribbed steel covers, missing its barrel and springs." },
     { "id": 163, "key": "torn-schematic", "name": "Torn schematic", "category": "components", "stack": 20,
       "description": "Part of an engineering drawing, found in crates. A level 2 workbench needs three." },
     { "id": 164, "key": "sealed-schematic", "name": "Sealed schematic", "category": "components", "stack": 20,

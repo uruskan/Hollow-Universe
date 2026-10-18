@@ -1,0 +1,330 @@
+{
+  "revision": "R01",
+  "jobs": [
+    {
+      "name": "model-build",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "-b",
+        "--factory-startup",
+        "-t",
+        "2",
+        "--python",
+        "art/models/rifle_frame.py"
+      ],
+      "owned_pid": 26036,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 47.7,
+      "free_gib_before": 7.2,
+      "exit_code": 0,
+      "run_seconds": 8.0
+    },
+    {
+      "name": "review-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\review\\RifleFrameReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 17092,
+      "closed": true,
+      "wait_seconds": 6.02,
+      "cpu_before": 36.9,
+      "free_gib_before": 6.67,
+      "exit_code": 0,
+      "run_seconds": 6.03
+    },
+    {
+      "name": "import-textures",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 16404,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 39.4,
+      "free_gib_before": 6.69,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "import-model",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 38192,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 30.9,
+      "free_gib_before": 6.2,
+      "exit_code": 0,
+      "run_seconds": 5.03
+    },
+    {
+      "name": "lod0",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\review",
+        "--",
+        "--lod=0",
+        "--output=rifle-frame-lod0.png"
+      ],
+      "owned_pid": 33216,
+      "closed": true,
+      "wait_seconds": 11.37,
+      "cpu_before": 27.9,
+      "free_gib_before": 6.49,
+      "exit_code": 0,
+      "run_seconds": 5.0
+    },
+    {
+      "name": "icons-render",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\review",
+        "--",
+        "--icons",
+        "--output=icon-sheet.png"
+      ],
+      "owned_pid": 14972,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 14.6,
+      "free_gib_before": 6.86,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 21220,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 7.6,
+      "free_gib_before": 6.2,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "slots",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\review",
+        "--",
+        "--slots",
+        "--output=icon-slots.png"
+      ],
+      "owned_pid": 12956,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 14.7,
+      "free_gib_before": 6.42,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "lod1-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\review",
+        "--",
+        "--lod=1",
+        "--output=rifle-frame-lod1.png"
+      ],
+      "owned_pid": 40816,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 30.5,
+      "free_gib_before": 6.19,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod2-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\review",
+        "--",
+        "--lod=2",
+        "--output=rifle-frame-lod2.png"
+      ],
+      "owned_pid": 2032,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 43.4,
+      "free_gib_before": 6.44,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "back-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\review",
+        "--",
+        "--lod=0",
+        "--yaw=155",
+        "--output=rifle-frame-back.png"
+      ],
+      "owned_pid": 27588,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 23.1,
+      "free_gib_before": 6.2,
+      "exit_code": 0,
+      "run_seconds": 3.02
+    },
+    {
+      "name": "checks-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\RifleFrameChecks.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 9536,
+      "closed": true,
+      "wait_seconds": 11.11,
+      "cpu_before": 24.5,
+      "free_gib_before": 5.74,
+      "exit_code": 0,
+      "run_seconds": 4.01
+    },
+    {
+      "name": "catalogue-content-tests",
+      "command": [
+        "dotnet",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\checks-bin\\net10.0\\Hollow.Tests.dll"
+      ],
+      "owned_pid": 19220,
+      "closed": true,
+      "wait_seconds": 21.01,
+      "cpu_before": 17.5,
+      "free_gib_before": 3.68,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "mesh-check",
+      "command": [
+        "C:\\Python314\\python.exe",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\rifle-frame-r01\\check_glb.py"
+      ],
+      "owned_pid": 39952,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 24.1,
+      "free_gib_before": 3.32,
+      "exit_code": 0,
+      "run_seconds": 1.0
+    }
+  ],
+  "icon_checks": {
+    "128": {
+      "rgba": true,
+      "size": [
+        128,
+        128
+      ],
+      "unclipped_bounds": [
+        9,
+        9,
+        119,
+        119
+      ]
+    },
+    "256": {
+      "rgba": true,
+      "size": [
+        256,
+        256
+      ],
+      "unclipped_bounds": [
+        18,
+        18,
+        238,
+        238
+      ]
+    }
+  },
+  "tests": "  RUN  ContentTests.GroundDataIsComplete\n      137 items, 94 recipes, 17 natural kinds, 24 deployables, 11 loot tables; hash A29EF438726C4597\n  ok   ContentTests.GroundDataIsComplete (678 ms)\n  RUN  ContentTests.BrokenDataIsReported\n      42 problems found, e.g. items.json: \"arrow\": unknown field \"stak\" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship, wiring)\n  ok   ContentTests.BrokenDataIsReported (55 ms)\n  RUN  ContentTests.EveryDataFileHasOneReader\n      22 readers for 21 files, and the checks across them\n  ok   ContentTests.EveryDataFileHasOneReader (1 ms)\n  RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 262 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (659 ms)\n10/10 passed in 1.4 s.\n",
+  "provider": "Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org\nVulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER\n\nrifle-frame rendered provider: 32px PASS\nrifle-frame rendered provider: 48px PASS\nrifle-frame rendered provider: 64px PASS\nrifle-frame rendered provider: 96px PASS\nrifle-frame rendered provider: 128px PASS\nrifle-frame rendered provider: 256px PASS\nrifle-frame capture: D:/GameDev/Projects/HollowUniverseABTestB/.artifacts/rifle-frame-r01/review/../icon-slots.png, Ok\n",
+  "mesh": {
+    "glb_bytes": 542476,
+    "triangles": {
+      "RifleFrame_hull0-convcolonly": 48,
+      "RifleFrame_lod0": 5720,
+      "RifleFrame_lod1": 2624,
+      "RifleFrame_lod2": 996
+    },
+    "finite_attributes": true,
+    "unit_normals": true,
+    "images_embedded": false
+  },
+  "captures": {
+    "icon-slots.png": "8b03b7725f1cb4a24881693f1f036d1e57ddcf9ea4fc11a92cbac6d66dfb5eee",
+    "rifle-frame-back.png": "61471815a7a2dfdd867fb05e44e8d3fb579e25a7cedee3aa2ef15dd020967ba4",
+    "rifle-frame-lod0.png": "968a9afb61670fcb7f5e61a95f602de21f99e269a06e5aa21bd7ad68d670556b",
+    "rifle-frame-lod1.png": "3d98fb094983c47f56283dc22281324a5dfb5e7721de59755e148ab5c3d14831",
+    "rifle-frame-lod2.png": "01b7592049dcd117d10588e6bdf2c6324c38f8591e322f88da488acd8dc81546"
+  },
+  "compiled_references": {
+    "Hollow.Client.dll": "9e658bd3c6e601372b093741713a78358bff5434f9d81ccf96fed29ed8bbd637",
+    "Hollow.Core.dll": "f5481daf53760a2b9451575c4687de0416b65ea2a926908f6352f1b8f1cb14c1",
+    "Hollow.Galaxy.dll": "784dcd088f8e250da4d97ec54e4139d7e6387b9488462590c33363729364cd99",
+    "Hollow.Net.dll": "e6c4165cc89bccbe576e1ccce6cb5459fc36effd82dbb5e645a318b961a4a7f3",
+    "Hollow.Persistence.dll": "cebf9cde51bd36c766d9768e318281f805d5b60e4d6d274ceb67e3a956c59ef1",
+    "Hollow.Server.dll": "b453a2a9b940a221ff651ed46ae071903f200d33660ef7890f77e8b62b6315ee",
+    "Hollow.Simulation.dll": "a1f80dcb11658291ea963edea33e214453391d3a1588ce0b0d81dd6fe6459386",
+    "Hollow.Surface.dll": "f24aee6f042362022b32c1988d1a61b28492e6bc570fdaeec38acb038e23213e",
+    "HollowUniverse.dll": "09b74d13d8d40fc9096aebe85a0bf0dec390ef4dd4249243bf1e1f2472f31430",
+    "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+    "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+    "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+    "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+    "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+    "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+  },
+  "compiled_test_sources": {
+    "tests/Hollow.Tests/TestRunner.cs": "2d0ceee0cbd64c3ccecb62f566f49541957ac100289e4dcb4fbcd8d0554e16f2",
+    "tests/Hollow.Tests/ModelCatalogueTests.cs": "e711f57888d5efe0ab98939dff75d8952bd10d810bb0f4d7a6178dfea8384ea0",
+    "tests/Hollow.Tests/ContentTests.cs": "5f84b75009fff31b9e653affaef56be7b1f96a3e93569471b27d9f304dfc5bc6"
+  },
+  "limits": [
+    "Native production ModelViewer/IconRenderer/CatalogItemIcons in isolated harness with existing compiled game code.",
+    "Slots are diagnostic, not live gameplay inventory. Full solution and gameplay suite were not run; focused builds and ten tests passed.",
+    "All owned children exited; own temporary reference browser tab closed. No world/server/interactive Blender launched.",
+    "Owner artistic acceptance is pending."
+  ]
+}

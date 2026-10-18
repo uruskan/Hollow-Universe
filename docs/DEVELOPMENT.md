@@ -1,5 +1,31 @@
 # Hollow Universe AB Test B
 
+## 18 October 2026 — Rifle Frame original model and rendered icons
+
+Inspected the official Rust Rifle Body image before authoring. Replaced the
+rifle-frame refined-metal stand-in and SVG fallback with an original dark stamped
+housing, amber timber braces and ribbed steel covers. The shape, palette and
+diagonal icon follow the reference; no reference game files or pixels were used.
+The existing component mesh helper supplies simple cosmetic geometry. The asset
+has no functional internals or working mechanism.
+
+ID 162, stack 10, recipes, loot and recycling are unchanged. Corrected the old
+stock description to match the stripped housing shown by the reference. Supplies
+5,720 / 2,624 / 996 triangle LODs, one external 1024px PBR atlas, convex collision
+and own 128/256px icons using catalogue view [-12,18,-38].
+
+Validation: focused review/test builds passed with zero warnings/errors and all
+10/10 catalogue/content tests passed. Native Godot captures cover all LODs, back
+and CatalogItemIcons at 32–256px with no SVG fallback. Mesh attributes/normals and
+RGBA icon bounds passed. Full solution and gameplay suite/live inventory were
+deferred to keep load low. Jobs ran serially below normal priority on two cores
+after CPU/RAM gates, waiting through a load spike. All owned children exited and
+the reference tab closed; other sessions' edits/staging are preserved. Artistic
+acceptance remains pending.
+
+See `docs/ITEM_ART_RIFLE_FRAME.md` and `docs/images/item-art-rifle-frame-20261018/`.
+
+
 ## 18 October 2026 — Gun Receiver original model and rendered icons
 
 Inspected the official Rust Semi Automatic Body image before authoring. Replaced

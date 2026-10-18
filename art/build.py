@@ -28,6 +28,7 @@ SCRIPTS = {
     "metal_blade": "models/metal_blade.py",
     "sign_plate": "models/sign_plate.py",
     "receiver": "models/receiver.py",
+    "rifle_frame": "models/rifle_frame.py",
     "tools": "models/tools.py",
     "supplies": "models/supplies.py",
     "clothing": "models/clothing.py",
