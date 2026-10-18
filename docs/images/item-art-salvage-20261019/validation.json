@@ -1,0 +1,602 @@
+{
+  "revision": "R01",
+  "captures": {
+    "salvage-lod0.png": "9e6f9b30e3a4c1852d308ff33365937b4e2ccd1a709e7f35f8bb656ede48e0ca",
+    "salvage-lod1.png": "08b1c2a1259a00092dbe0e9f19740b7bce4f65ea6fc39b9b57c3ae1045b22d10",
+    "salvage-lod2.png": "423836be1676401d44627343743906ebd6f0cc7936b719ed8f624735aafc441d",
+    "salvage-back.png": "c860357b06985724d2cd3eaf1d13c314801efa2692969764eed7b45dccc5f576",
+    "icon-slots.png": "951e63bc3dc5c618f4fd685d17b5844880f1bdb7043a868572e7a3734b812c99"
+  },
+  "capture_inputs": {
+    "review_project": ".artifacts/salvage-r01/review (main checkout; not committed)",
+    "resources_sha256": {
+      "assets/items/salvage.glb": "d721dce0260c3167c3e3762fee9793688d441d2cf285ef5bb971741700b65572",
+      "assets/items/salvage.glb.import": "60a2a0427c2e767f835d9b1bf9a94bf8c556279a8128694d475b4aad5b7231b4",
+      "assets/materials/salvage.tres": "fa4c5e828507f06d98d1f6e1fa17fa13a563418446567c219a6b1fef118b0f32",
+      "assets/textures/salvage/salvage_albedo.png": "c82041f40f6eacea2373f3943ffd4b7c03d8a151548aa74526601f98a27b632b",
+      "assets/textures/salvage/salvage_albedo.png.import": "75b26746c70286ff5b820ad2302762242ede0b7c88fadfb9e5987522aea6e5ba",
+      "assets/textures/salvage/salvage_normal.png": "8f83337cc2029a98bd1ae1212dd4f4d9f39bd3742469207202b2045e3ca0d018",
+      "assets/textures/salvage/salvage_normal.png.import": "4a8c592ca514ff553353d00dce52d33d88c0797e7fc1c1f93654dbe9b18cf9e3",
+      "assets/textures/salvage/salvage_orm.png": "eb4351c87f84db8a15db2a739c4e8690690d91d7af9ed3e71881f468f57b9213",
+      "assets/textures/salvage/salvage_orm.png.import": "4b54f42ff9054f27209bd87242157f01f7adcdadc8efbc7abb96b76167a23bef"
+    },
+    "resources_match_committed_assets": true,
+    "compiled_references": {
+      "Hollow.Client.dll": "f689d878bb4d0070b2bc0193c911dd829ea7710e9ec37fdbf4cba07e51de9e9b",
+      "Hollow.Core.dll": "3b5521fb4cb2ca811627d9fa67855118df22ba9a89d6b99bb17d61a2805457c9",
+      "Hollow.Galaxy.dll": "ade8fa69b7d1a45c00e0bd41d4363ba36aa40a42a1dde3dd56c296f6063c9b62",
+      "Hollow.Net.dll": "67352b0849792f27216b598e91ab967a1313335415b116d84e4cc86a0711181d",
+      "Hollow.Persistence.dll": "00ba03d186166e1368439bcd12099b4df7bda0fa98005c5de2115858136f1c29",
+      "Hollow.Server.dll": "00b536316b6a16098858bec129b7bb13ae8c1de1c9b5c3c13baaf100399c6e42",
+      "Hollow.Simulation.dll": "fff053e22a2de8872bda47d138f56d2cf931d167c253f5adf4d7632b87119903",
+      "Hollow.Surface.dll": "45f10c9e2f9d44c7147b5d67f3960273a09fbfa06e8bc5be3a1b3c2ec090a021",
+      "HollowUniverse.dll": "8cb056d7eeaaa0f3f9404fdec6e669e29064f3735052143260d03be064823dcd",
+      "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+      "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+      "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+      "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+      "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+      "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+    }
+  },
+  "capture_jobs": [
+    {
+      "name": "model-build",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "2",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "art/models/salvage.py"
+      ],
+      "owned_pid": 18752,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 1.7,
+      "free_gib_before": 6.53,
+      "exit_code": 0,
+      "run_seconds": 7.0
+    },
+    {
+      "name": "review-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\salvage-r01\\review\\SalvageReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 37712,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 12.2,
+      "free_gib_before": 6.37,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "import-textures",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\salvage-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 27132,
+      "closed": true,
+      "wait_seconds": 11.0,
+      "cpu_before": 19.1,
+      "free_gib_before": 6.47,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "import-model",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\salvage-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 8504,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 23.8,
+      "free_gib_before": 6.26,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "lod0",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\salvage-r01\\review",
+        "--",
+        "--lod=0",
+        "--output=salvage-lod0.png"
+      ],
+      "owned_pid": 22508,
+      "closed": true,
+      "wait_seconds": 11.0,
+      "cpu_before": 4.0,
+      "free_gib_before": 6.04,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-render",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\salvage-r01\\review",
+        "--",
+        "--icons",
+        "--output=icon-sheet.png"
+      ],
+      "owned_pid": 7164,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 6.8,
+      "free_gib_before": 5.58,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\salvage-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 22492,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 16.2,
+      "free_gib_before": 6.24,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "slots",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\salvage-r01\\review",
+        "--",
+        "--slots",
+        "--output=icon-slots.png"
+      ],
+      "owned_pid": 13324,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 13.3,
+      "free_gib_before": 6.35,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "lod1-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\salvage-r01\\review",
+        "--",
+        "--lod=1",
+        "--output=salvage-lod1.png"
+      ],
+      "owned_pid": 26928,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 27.0,
+      "free_gib_before": 6.59,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod2-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\salvage-r01\\review",
+        "--",
+        "--lod=2",
+        "--output=salvage-lod2.png"
+      ],
+      "owned_pid": 18824,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 42.3,
+      "free_gib_before": 5.27,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "back-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\salvage-r01\\review",
+        "--",
+        "--lod=0",
+        "--yaw=155",
+        "--output=salvage-back.png"
+      ],
+      "owned_pid": 21028,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 48.3,
+      "free_gib_before": 5.05,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "mesh-check",
+      "command": [
+        "C:\\Python314\\python.exe",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\salvage-r01\\check_glb.py"
+      ],
+      "owned_pid": 26340,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 21.9,
+      "free_gib_before": 5.72,
+      "exit_code": 0,
+      "run_seconds": 1.0
+    }
+  ],
+  "provider": "Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org\nVulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER\n\nsalvage rendered provider: 16px PASS\nsalvage rendered provider: 32px PASS\nsalvage rendered provider: 48px PASS\nsalvage rendered provider: 64px PASS\nsalvage rendered provider: 96px PASS\nsalvage rendered provider: 128px PASS\nsalvage rendered provider: 256px PASS\nsalvage capture: D:/GameDev/Projects/HollowUniverseABTestB/.artifacts/salvage-r01/review/../icon-slots.png, Ok\n",
+  "icon_checks": {
+    "128": {
+      "rgba": true,
+      "size": [
+        128,
+        128
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        9,
+        20,
+        119,
+        108
+      ]
+    },
+    "256": {
+      "rgba": true,
+      "size": [
+        256,
+        256
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        18,
+        40,
+        238,
+        216
+      ]
+    }
+  },
+  "mesh": {
+    "glb_bytes": 896940,
+    "triangles": {
+      "Salvage_hull0-convcolonly": 42,
+      "Salvage_lod0": 7752,
+      "Salvage_lod1": 4972,
+      "Salvage_lod2": 3184
+    },
+    "finite_attributes": true,
+    "unit_normals": true,
+    "images_embedded": false
+  },
+  "openings": {
+    "script_sha256": "aa16e784aceaa8f01f6723f793c6518b468993a3f967e6e7d52ddce91dbbb80c",
+    "result": {
+      "glb": "game/assets/items/salvage.glb",
+      "bottom_shift_m": -0.003,
+      "lods": {
+        "Salvage_lod0": {
+          "triangles": 7752,
+          "budget": 10000,
+          "within_budget": true,
+          "openings": {
+            "gear bore": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.025,
+              "depth_m": 0.035,
+              "wall_rays_hitting": "8/8"
+            },
+            "front pipe, left end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.018,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            },
+            "front pipe, right end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.018,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            },
+            "front pipe, whole bore (information)": {
+              "open": false,
+              "gate": false,
+              "clear_rays": 17,
+              "clear_ray_hits": 12,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.018,
+              "depth_m": 0.317,
+              "wall_rays_hitting": "8/8",
+              "clear_from_ends_mm": [
+                115.0,
+                74.7
+              ]
+            },
+            "rear pipe, straight end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.017,
+              "depth_m": 0.04,
+              "wall_rays_hitting": "8/8"
+            },
+            "rear pipe, upright end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.017,
+              "depth_m": 0.04,
+              "wall_rays_hitting": "8/8"
+            },
+            "nut 1 hole": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.00974,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            },
+            "nut 2 hole": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.00771,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            }
+          }
+        },
+        "Salvage_lod1": {
+          "triangles": 4972,
+          "budget": 6500,
+          "within_budget": true,
+          "openings": {
+            "gear bore": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.025,
+              "depth_m": 0.035,
+              "wall_rays_hitting": "8/8"
+            },
+            "front pipe, left end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.018,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            },
+            "front pipe, right end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.018,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            },
+            "front pipe, whole bore (information)": {
+              "open": false,
+              "gate": false,
+              "clear_rays": 17,
+              "clear_ray_hits": 16,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.018,
+              "depth_m": 0.317,
+              "wall_rays_hitting": "8/8",
+              "clear_from_ends_mm": [
+                121.5,
+                22.4
+              ]
+            },
+            "rear pipe, straight end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.017,
+              "depth_m": 0.04,
+              "wall_rays_hitting": "8/8"
+            },
+            "rear pipe, upright end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.017,
+              "depth_m": 0.04,
+              "wall_rays_hitting": "8/8"
+            },
+            "nut 1 hole": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.00974,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            },
+            "nut 2 hole": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.00771,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            }
+          }
+        },
+        "Salvage_lod2": {
+          "triangles": 3184,
+          "budget": 4000,
+          "within_budget": true,
+          "openings": {
+            "gear bore": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.025,
+              "depth_m": 0.035,
+              "wall_rays_hitting": "8/8"
+            },
+            "front pipe, left end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.018,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            },
+            "front pipe, right end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.018,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            },
+            "front pipe, whole bore (information)": {
+              "open": false,
+              "gate": false,
+              "clear_rays": 17,
+              "clear_ray_hits": 12,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.018,
+              "depth_m": 0.317,
+              "wall_rays_hitting": "8/8",
+              "clear_from_ends_mm": [
+                106.0,
+                45.7
+              ]
+            },
+            "rear pipe, straight end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.017,
+              "depth_m": 0.04,
+              "wall_rays_hitting": "8/8"
+            },
+            "rear pipe, upright end": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.017,
+              "depth_m": 0.04,
+              "wall_rays_hitting": "8/8"
+            },
+            "nut 1 hole": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.00974,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            },
+            "nut 2 hole": {
+              "open": true,
+              "gate": true,
+              "clear_rays": 17,
+              "clear_ray_hits": 0,
+              "centre_ray_hits": 0,
+              "clear_radius_m": 0.00771,
+              "depth_m": 0.03,
+              "wall_rays_hitting": "8/8"
+            }
+          }
+        }
+      },
+      "passed": true
+    }
+  },
+  "solution_build": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:14.64\nexit=0\n",
+  "tests": "  RUN  ContentTests.GroundDataIsComplete\n      137 items, 94 recipes, 17 natural kinds, 24 deployables, 11 loot tables; hash A29EF438726C4597\n  ok   ContentTests.GroundDataIsComplete (553 ms)\n  RUN  ContentTests.BrokenDataIsReported\n      42 problems found, e.g. items.json: \"arrow\": unknown field \"stak\" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship, wiring)\n  ok   ContentTests.BrokenDataIsReported (107 ms)\n  RUN  ContentTests.EveryDataFileHasOneReader\n      22 readers for 21 files, and the checks across them\n  ok   ContentTests.EveryDataFileHasOneReader (4 ms)\n  RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (33 ms)\n  RUN  ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 268 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (2482 ms)\n13/13 passed in 3.2 s.\n",
+  "visual_iteration": "First preview was too pale and shiny with regular rust marks; the final uses smooth random rust patches, darker oxide and rougher worn steel. The front pipe bore was darkened so its open geometry reads clearly.",
+  "limits": [
+    "Native production ModelViewer, IconRenderer and CatalogItemIcons in an isolated review project with compiled game code; the slots are diagnostic, not live gameplay inventory.",
+    "The front pipe ends are open and its centre line is clear end to end, but the gear teeth and a trough of the corrugated sheet pass through its upper wall into the middle of the bore (closest: 22 mm from the right end at LOD1). Hidden from outside in every capture; left as authored.",
+    "The broader test suite was not rerun for this asset-only change.",
+    "Owner artistic acceptance is pending."
+  ]
+}

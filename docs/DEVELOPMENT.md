@@ -1,5 +1,13 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — Salvage original scrap model and rendered icons
+
+Codex's original rusty scrap assortment (gear, coil, corrugated offcut, pipes, nuts, bracket, wire) replaces the
+metal-fragments stand-in and SVG; ID 150, stack and economy bindings are unchanged. Claude finished it: provenance,
+native captures, and a ray check that the gear bore, pipe ends and nut holes stay open at all three LODs
+(7,752 / 4,972 / 3,184 triangles). Solution build 0 warnings and 0 errors; ModelCatalogue and ContentTests 13/13.
+Owner art acceptance is pending. See [ITEM_ART_SALVAGE.md](ITEM_ART_SALVAGE.md).
+
 ## 19 October 2026 — Defense battery interior sound installed
 
 `defense.fire.interior` existed nowhere, so StationsView's own-hull shot played nothing and
