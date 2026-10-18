@@ -850,6 +850,48 @@ simulation system is introduced. Existing loose-bag lookup cost grows with loose
 repeated for each nonempty stack; crowded-world performance has not been benchmarked. These regression
 checks found no duplication in their covered cases and are not a proof against every possible exploit.
 
+## Current item and component art audit — 18 October 2026
+
+Read-only asset/catalogue review requested by the owner: 137 current items, including
+14 components and 17 resources. All item keys have model mappings; all 171 catalogue
+base-model/stage paths exist. Six components already select the revised Hollow_Salvage_R01
+textured scenes and supplied 128/256 PNGs: gears, springs, metal pipe, rope, tech scrap
+and sheet metal. Fresh SHA-256 checks match all 34 installed salvage-package files and
+15 container-package files against assets/revised/integration.json. No unused additional
+component design was found in that source package.
+
+Eight components still have explicit borrowed-model stand-ins and no rendered icon metadata:
+cloth/sewing kit use fibre; metal blade/sign plate/gun receiver/rifle frame use refined metal;
+torn/sealed schematics use the building plan. CatalogItemIcons consequently delegates these
+to the flat SVG placeholders in ItemIcons.cs. Salvage, blueprint and research bench also
+use that fallback. Explosives deliberately reuse the sulphur model and PNG. Across all items,
+123 have dedicated PNG-backed entries, two alias existing PNGs and twelve fall back. The
+twelfth fallback is Wire Tool: its configured 128/256 PNGs are missing, and no specific SVG
+case exists, so it receives the generic placeholder. Revised does not mean final art approval;
+the major component inconsistency is incomplete replacement, not low polygon count alone.
+
+Diagnostic current component/resource sheets, two whole-catalogue icon sheets, a machine-readable
+inventory and reproduction script are under .artifacts/item-art-audit-20261018/. These compose
+the currently selected PNG files and source SVG drawings (rasterized outside Godot); they are
+not fresh gameplay screenshots. All four sheets were visually reviewed. Existing native Godot
+captures in docs/images/abtest-b/repairs/assets/ were reviewed for the revised models. No game
+code, production assets, settings or saves changed, and no build, test, import or Godot session
+was run. Only diagnostic outputs and this audit record were written; other ongoing work was
+preserved. Asset replacement and in-game visual acceptance remain future work.
+
+The owner subsequently requested a saved plan and commit. `ITEM_ART_REPLACEMENT_PLAN.md`
+records thirteen scoped item entries, the three initial quality examples (cloth, gun
+receiver and salvage), model-to-icon production, blueprint/lootbag behavior to preserve,
+Research Bench placement/destruction checks and implementation acceptance requirements.
+The audit sheets and portable catalogue snapshot are preserved under
+`docs/images/item-art-audit-20261018/`; `tools/audit_item_art.py` generates fresh diagnostics
+with explicit runtime/font/output arguments. The generator was run successfully. Concurrent
+work has now supplied both Wire Tool PNGs, so the refreshed count is 124 dedicated PNGs,
+two aliases and eleven fallbacks; the saved sheets retain the initial audit baseline.
+The plan marks Wire Tool for model/icon review. Document links, snapshot counts and commit scope were checked.
+This is documentation and diagnostic tooling only; no C# build/tests or Godot run was
+needed for this commit, and the asset implementation remains planned.
+
 ## Grass footstep alternatives for audition — 18 October 2026
 
 The owner rejected the current grass sound and requested downloadable or synthesized
