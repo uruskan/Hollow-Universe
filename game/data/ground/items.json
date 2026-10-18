@@ -261,7 +261,7 @@
     { "id": 160, "key": "sign-plate", "name": "Sign plate", "category": "components", "stack": 20,
       "description": "A bundle of dented steel signs from roads long gone." },
     { "id": 161, "key": "receiver", "name": "Gun receiver", "category": "components", "stack": 10,
-      "description": "The frame of a semi-automatic gun, the part its slide and barrel fit on." },
+      "description": "A salvaged semi-automatic gun housing held in a timber brace with metal clips and cord." },
     { "id": 162, "key": "rifle-frame", "name": "Rifle frame", "category": "components", "stack": 10,
       "description": "The receiver and stock of a military rifle, without its barrel and springs." },
     { "id": 163, "key": "torn-schematic", "name": "Torn schematic", "category": "components", "stack": 20,

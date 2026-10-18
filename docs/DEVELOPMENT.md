@@ -1,5 +1,31 @@
 # Hollow Universe AB Test B
 
+## 18 October 2026 — Gun Receiver original model and rendered icons
+
+Inspected the official Rust Semi Automatic Body image before authoring. Replaced
+receiver's refined-metal stand-in and SVG fallback with an original rusty tubular
+housing, pale timber braces, dark clips and tan bindings. The silhouette, palette
+and diagonal icon view follow the reference. All geometry and procedural PBR
+textures are original; no reference pixels or game files entered the repository.
+Added reusable cosmetic component mesh helpers for atlas UVs and simple parts.
+
+ID 161, stack 10 and gameplay records are unchanged. The description now matches
+the timber-braced construction. Three LODs, one external 1024px material atlas,
+convex collision and own 128/256px rendered PNGs are supplied. Native review
+caught disconnected clip pieces; continuous wrap geometry replaces them.
+
+Validation: focused review/test builds passed with zero warnings/errors, all 9/9
+catalogue/content tests passed, including receiver identity. Native Godot captures
+cover all LODs, reverse side and CatalogItemIcons at 32–256px without SVG fallback.
+Mesh attributes/normals and RGBA icon bounds passed. Full solution and gameplay
+suite/live inventory were deferred to keep load low. All jobs ran serially below
+normal priority on two cores after CPU/RAM gates; owned children exited and the
+reference tab closed. Other sessions' edits and staging are preserved. Artistic
+acceptance remains pending.
+
+See `docs/ITEM_ART_RECEIVER.md` and `docs/images/item-art-receiver-20261018/`.
+
+
 ## 18 October 2026 — Sign Plate original model and rendered icons
 
 Inspected the official Rust Road Signs item image before authoring. Replaced the

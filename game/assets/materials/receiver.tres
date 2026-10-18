@@ -1,0 +1,16 @@
+[gd_resource type="ORMMaterial3D" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/receiver/receiver_albedo.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/textures/receiver/receiver_orm.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/textures/receiver/receiver_normal.png" id="3"]
+
+[resource]
+resource_name = "M_Hollow_Receiver"
+vertex_color_use_as_albedo = false
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("1")
+orm_texture = ExtResource("2")
+normal_enabled = true
+normal_scale = 0.6
+normal_texture = ExtResource("3")
+texture_filter = 5

@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "receiver",
+  "date": "2026-10-18",
+  "replaces": "refined-metal.glb stand-in and SVG fallback",
+  "authorship": "Original cosmetic geometry, procedural PBR atlas and rendered icons; no reference game files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/semibody",
+    "image": "https://files.facepunch.com/rust/item/semibody_512.png",
+    "use": "Visual observation before authoring only; no downloaded reference files"
+  },
+  "authoring_source": {
+    "path": "art/models/receiver.py",
+    "sha256": "34f0714aaca63f31e8f247b00d082a6a8dc341ef09b298e324680a1fe4388b39"
+  },
+  "authoring_helper": {
+    "path": "art/hollow/component_mesh.py",
+    "sha256": "8991c9a2503976f758c3fe8b1b97f2642c9050548149d8d329598983629fcb34"
+  },
+  "geometry": {
+    "asset": "receiver",
+    "dimensions_blender_xyz_m": [
+      0.36662787199020386,
+      0.0885850116610527,
+      0.11079999932553619
+    ],
+    "texture_size": 1024,
+    "material_count": 1,
+    "lod_triangles": {
+      "Receiver_lod0": 4704,
+      "Receiver_lod1": 2200,
+      "Receiver_lod2": 984
+    },
+    "hull_triangles": 46
+  },
+  "files": {
+    "game/assets/items/receiver.glb": {
+      "sha256": "7822b27b9e8094bd1f9232bf8f15f27c3cebc498bf084d809f40a6039f289913",
+      "bytes": 377368
+    },
+    "game/assets/items/receiver.glb.import": {
+      "sha256": "b6c5a7d55c620365a5d62266fc6464b570d1bf6a914ce19aecd13a713374ba06",
+      "bytes": 1356
+    },
+    "game/assets/materials/receiver.tres": {
+      "sha256": "3deaa46e0477a795558f54235089434a1f7fdc772ac561e7eb7a2651435ba4a8",
+      "bytes": 621
+    },
+    "game/assets/textures/receiver/receiver_albedo.png": {
+      "sha256": "69b117193e0fa2e0b3c1a84b4c7c8ca5474ea3d212d89440f57291fb1f8b038b",
+      "bytes": 1466211
+    },
+    "game/assets/textures/receiver/receiver_albedo.png.import": {
+      "sha256": "3151cc621def847b4f9d32245d981b3d2f6832372cbb09867784df6748dc16e6",
+      "bytes": 1022
+    },
+    "game/assets/textures/receiver/receiver_normal.png": {
+      "sha256": "09129f1dea02808cd937b6700442172cd3d2ce490d8b09125ba71346fbe05b27",
+      "bytes": 967459
+    },
+    "game/assets/textures/receiver/receiver_normal.png.import": {
+      "sha256": "f1f4683b8aa559b65b262d99138658538616a53cdb0ea3b8f3fe8967d2666f45",
+      "bytes": 1022
+    },
+    "game/assets/textures/receiver/receiver_orm.png": {
+      "sha256": "89ed2cda109726868014e811165a34b018ccac06fe6dc696ca15333140b77ca8",
+      "bytes": 537926
+    },
+    "game/assets/textures/receiver/receiver_orm.png.import": {
+      "sha256": "efff43fbe96abde3f4638a1e863fe22800120a93623b13cca722ce847597a912",
+      "bytes": 1013
+    },
+    "game/assets/items/icons/128/receiver.png": {
+      "sha256": "5ea867cfc1fbcf03af45ee5334dca932b16018cd64b065041b3911c133d8f437",
+      "bytes": 15405
+    },
+    "game/assets/items/icons/128/receiver.png.import": {
+      "sha256": "08b3569bc523521bea29ece8d8bae583a7f02016874e0b083adb85602ac035fc",
+      "bytes": 951
+    },
+    "game/assets/items/icons/256/receiver.png": {
+      "sha256": "e7dfcb317727ec48179042e671136aed29b2a1bec30a9bf8a8d338d119b1cb71",
+      "bytes": 46895
+    },
+    "game/assets/items/icons/256/receiver.png.import": {
+      "sha256": "1f8cb73a757afab7d79e84ea98b9de563a3d13d657e056552ff6c8495f05a674",
+      "bytes": 951
+    }
+  }
+}

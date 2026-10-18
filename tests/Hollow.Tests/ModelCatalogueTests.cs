@@ -35,7 +35,7 @@ public static class ModelCatalogueTests
     };
 
     // Models that replaced stand-ins: none of them may be marked as a stand-in again.
-    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate" };
+    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate", "receiver" };
 
     [Test]
     public static void ClothHasItsOwnModelAndRenderedIcon()
@@ -83,6 +83,18 @@ public static class ModelCatalogueTests
         Assert.Equal("res://assets/items/sign-plate.glb", sign.GetProperty("file").GetString(), "sign plate model identity");
         Assert.True(!sign.GetProperty("icon").TryGetProperty("key", out _), "sign plate must render its own icon");
         Assert.True(!sign.TryGetProperty("standIn", out _), "sign plate must not return to the refined-metal stand-in");
+    }
+
+    [Test]
+    public static void ReceiverHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "receiver");
+        Assert.Equal("res://assets/items/receiver.glb", item.GetProperty("file").GetString(), "receiver model identity");
+        Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "receiver must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "receiver must not return to the refined-metal stand-in");
     }
 
     // World objects the gathering rules place (gather.json) and the ship.

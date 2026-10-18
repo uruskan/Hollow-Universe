@@ -13,7 +13,8 @@ own spool-and-needle model and rendered icons; see [its asset record](ITEM_ART_S
 Metal Blade now has a dedicated tapered steel model and rendered icons; see
 [its asset record](ITEM_ART_METAL_BLADE.md). Sign Plate now has overlapping salvaged
 signs and rendered icons; see [its asset record](ITEM_ART_SIGN_PLATE.md).
-Other replacements remain planned.
+Gun Receiver now has its own timber-braced housing and icons; see
+[its asset record](ITEM_ART_RECEIVER.md). Other replacements remain planned.
 Artistic acceptance remains with the owner.
 [DESIGN.md](DESIGN.md), especially ART-01 and the ground UI requirement, remains authoritative.
 
@@ -52,7 +53,7 @@ remain subject to visual review.
 | 1 | `sewing-kit` | Replaced: original model and rendered PNGs | Brown thread on a worn fibre core with a tucked steel needle; replaces the rejected green wooden-spool version. |
 | 1 | `metal-blade` | Replaced: original model and rendered PNGs | Broad tapered steel blade, one mounting hole, ground cutting edge and small chips; based on visual reference study. |
 | 1 | `sign-plate` | Replaced: original model and rendered PNGs | Overlapping red stop, yellow arrow and warning plates; shallow bends, mounting holes and original localized wear. |
-| 1 | `receiver` | Refined-metal ingots and SVG icon | A semi-automatic gun frame, with recognizable slide and barrel interfaces. |
+| 1 | `receiver` | Replaced: original model and rendered PNGs | Rusty tubular housing, pale timber braces, dark clips and tan bindings, based on visual reference study. |
 | 1 | `rifle-frame` | Refined-metal ingots and SVG icon | A rifle receiver and stock assembly without its barrel and springs; distinct from the gun receiver. |
 | 1 | `torn-schematic` | Building-plan model and SVG icon | A torn engineering drawing with a strong irregular outline and original diagrams. |
 | 1 | `sealed-schematic` | Building-plan model and SVG icon | A complete engineering drawing in a protective sealed sleeve. |
