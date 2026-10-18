@@ -703,6 +703,14 @@ public partial class GroundUi
         ToolButtonAt("STATUS", "status", tx, ty, 240, 18);
         ToolButtonAt("PLAYERS", "players", tx + 246, ty, 240, 18);
         ty += 52;
+
+        Section("CAMERA", tx, ty);
+        ty += 40;
+        ToolToggleAt("THIRD PERSON" + (tools.ThirdPerson ? "  ON" : "  OFF"), tools.ThirdPerson ? "thirdperson off" : "thirdperson on",
+            tools.ThirdPerson, tx, ty, 240);
+        Text("Hold right mouse to orbit · Mouse wheel to zoom", tx, ty + 45, 16, G.Muted);
+        Text("Close F1 to control the camera.", tx, ty + 66, 16, G.Muted);
+        ty += 96;
         PaintAnswer(console, tx, ty, 486);
     }
 

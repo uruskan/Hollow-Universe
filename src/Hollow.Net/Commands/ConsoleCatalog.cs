@@ -77,6 +77,8 @@ public static class ConsoleCatalog
             false, CommandSide.Server, [], "pos", "global.whereami"),
 
         // ---------------------------------------------------------------- admins
+        Def("thirdperson", ["thirdperson [on|off]"], "See your own character with a free orbit camera: hold right mouse to turn, mouse wheel to zoom. Toggles when no option is supplied; lasts for this session.",
+            true, CommandSide.Client, [ArgKind.OnOff], "tps", "selfcamera"),
         Def("give", ["give <item> [amount] [player]"], "Puts items into an inventory (item keys as in items.json, <item>.blueprint for its blueprint; the rest drops at the feet).",
             true, CommandSide.Server, [ArgKind.Item, ArgKind.Amount, ArgKind.Player], "inventory.give", "inventory.giveto", "giveto", "inventory.giveid"),
         Def("kit", ["kit <loot table> [player]"], "Gives a loot table's items (loot.json), e.g. supply-crate or gunfight-kit.",

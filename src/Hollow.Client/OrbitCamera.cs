@@ -3,14 +3,25 @@ using System.Numerics;
 
 namespace Hollow.Client;
 
-/// <summary>Presentation-only orbit about the seated player, independent of ship steering and station aim.</summary>
-public sealed class SeatOrbitCamera
+/// <summary>Presentation-only orbit about a player, independent of movement and aim, on any planetary up axis.</summary>
+public sealed class OrbitCamera
 {
     public const float MinimumDistance = 1.5f, MaximumDistance = 120f;
-    public float Distance { get; private set; } = 6;
+    private readonly float _minimumDistance, _maximumDistance;
+    public float Distance { get; private set; }
     public float Yaw { get; private set; }
     public float Pitch { get; private set; } = 0.25f;
     public bool Dragging { get; set; }
+
+    public OrbitCamera(float distance = 6, float minimumDistance = MinimumDistance, float maximumDistance = MaximumDistance)
+    {
+        if (!float.IsFinite(minimumDistance) || !float.IsFinite(maximumDistance) || minimumDistance <= 0 || maximumDistance < minimumDistance)
+            throw new ArgumentOutOfRangeException(nameof(minimumDistance));
+        if (!float.IsFinite(distance)) throw new ArgumentOutOfRangeException(nameof(distance));
+        _minimumDistance = minimumDistance;
+        _maximumDistance = maximumDistance;
+        Distance = Math.Clamp(distance, minimumDistance, maximumDistance);
+    }
 
     public void Drag(float yaw, float pitch)
     {
@@ -18,7 +29,7 @@ public sealed class SeatOrbitCamera
         Pitch = Math.Clamp(Pitch + pitch, -1.45f, 1.45f);
     }
 
-    public void Zoom(float steps) => Distance = Math.Clamp(Distance * MathF.Pow(0.85f, steps), MinimumDistance, MaximumDistance);
+    public void Zoom(float steps) => Distance = Math.Clamp(Distance * MathF.Pow(0.85f, steps), _minimumDistance, _maximumDistance);
 
     public (Vector3 Eye, Vector3 Forward, Vector3 Up) Follow(Vector3 playerEye, Vector3 up, Vector3 facing)
     {

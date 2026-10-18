@@ -155,7 +155,7 @@ public static class ShipRepairTests
     [Test]
     public static void SeatOrbitStaysCentredOnThePlayerAtAnyPlanetLatitude()
     {
-        var camera = new SeatOrbitCamera();
+        var camera = new OrbitCamera();
         Vector3 player = new(500, 800, -600), up = Vector3.Normalize(player);
         var before = camera.Follow(player, up, -Vector3.UnitZ);
         camera.Drag(1.5f, 0.4f);
@@ -168,8 +168,8 @@ public static class ShipRepairTests
         var moved = camera.Follow(player + shift, up, -Vector3.UnitZ);
         Assert.True(Vector3.Distance(after.Eye + shift, moved.Eye) < 1e-4, "moving the player moves the camera equally without trailing");
         camera.Zoom(1000);
-        Assert.Near(SeatOrbitCamera.MinimumDistance, camera.Distance, 1e-6, "minimum orbit distance");
+        Assert.Near(OrbitCamera.MinimumDistance, camera.Distance, 1e-6, "minimum orbit distance");
         camera.Zoom(-1000);
-        Assert.Near(SeatOrbitCamera.MaximumDistance, camera.Distance, 1e-6, "maximum orbit distance");
+        Assert.Near(OrbitCamera.MaximumDistance, camera.Distance, 1e-6, "maximum orbit distance");
     }
 }

@@ -4074,6 +4074,16 @@ in CraftJobNet. Player record version 7 retains each craft job's payment marker 
 older records remain readable as paid jobs. Placement grade and cost use the shared pipeline,
 and client prediction/UI use server-acknowledged privileges.
 
+TOOLS also offers CAMERA → THIRD PERSON for admins. `thirdperson [on|off]` (aliases
+`tps`, `selfcamera`) toggles a local self-inspection view: hold right mouse to orbit
+the full character and wheel to zoom from 1.5 to 20 metres. Clothing, held items,
+walking and crouching use the shared character renderer. The camera follows the
+player with planetary/ship up and pulls inward at solid obstacles. Movement stays
+available; held-item actions, placement and interaction targeting pause while inspecting.
+Orbit never changes the character's aim. Disable it in F1 to return to first person;
+death, disconnect, lost admin rights or entering a seat also ends it. Seat cameras
+retain their existing V controls. The mode is off by default and is not saved.
+
 Words are split at spaces; "double quotes" keep a name with spaces whole; a leading slash is ignored (so chat's
 `/give rifle` works too). Names and aliases are any case. Where a command takes a player, a part of the name is enough
 when only one player's name has it; without one, it means the player who typed it ("me"). The server's own console

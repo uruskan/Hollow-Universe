@@ -71,6 +71,7 @@ public partial class GroundTour : Node
             ("repair-ships", RepairShips),
             ("repair-corpses", RepairCorpses),
             ("repair-attachments", RepairAttachments),
+            ("admin-camera", AdminCamera),
         };
         // The movement-audio diagnostic needs no inventory grants or equipment changes.
         if (Only?.SetEquals(new[] { "audio-movement" }) != true) _steps.Enqueue(Prepare);

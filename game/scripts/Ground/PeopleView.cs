@@ -59,8 +59,10 @@ public partial class PeopleView : Node3D
     private readonly HashSet<uint> _seen = new();
     private ushort[] _myWear = Array.Empty<ushort>();
     private uint _wearRevision = uint.MaxValue;
-    private CharacterView? _ownSeatBody;
-    private uint _ownSeatWear = uint.MaxValue;
+    private Person? _ownPlayer;
+    private uint _ownWear = uint.MaxValue;
+    private ushort _ownHeld;
+    private bool _ownReloading;
 
     public GameClient Client { get; set; } = null!;
 
@@ -101,9 +103,24 @@ public partial class PeopleView : Node3D
     /// <summary>The character view of a player by name (for screenshots that face them).</summary>
     public CharacterView? ViewOf(string name) => _people.Values.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))?.View;
 
-    public override void _Ready() => Client.Survival().LookChanged += OnLook;
+    public override void _Ready()
+    {
+        Client.Survival().LookChanged += OnLook;
+        Client.Local.Gun.ShotFired += OnOwnShot;
+        Client.Melee.Started += OnOwnSwing;
+        Client.Melee.Cancelled += CancelOwnAction;
+        Client.Local.DamageTaken += OnOwnDamage;
+    }
 
-    public override void _ExitTree() => Client.Survival().LookChanged -= OnLook;
+    public override void _ExitTree()
+    {
+        Client.Survival().LookChanged -= OnLook;
+        Client.Local.Gun.ShotFired -= OnOwnShot;
+        Client.Melee.Started -= OnOwnSwing;
+        Client.Melee.Cancelled -= CancelOwnAction;
+        Client.Local.DamageTaken -= OnOwnDamage;
+        if (_ownPlayer != null) Torch(_ownPlayer, null);
+    }
 
     private void OnLook(RemoteEntity entity)
     {
@@ -214,27 +231,141 @@ public partial class PeopleView : Node3D
     /// <summary>The ships as drawn (seated people sit where their seats are drawn).</summary>
     public ShipsView? Ships { get; set; }
 
-    /// <summary>The local body uses the same seat socket, clothing and hand grips as replicated occupants.</summary>
-    public void ShowOwnSeat(bool show)
+    /// <summary>Whether the local full body is currently drawn, for camera and runtime checks.</summary>
+    public bool OwnPlayerVisible => _ownPlayer?.View.Visible == true;
+
+    /// <summary>Compatibility for seat-only callers; all local body presentation goes through <see cref="ShowOwnPlayer"/>.</summary>
+    public void ShowOwnSeat(bool show) => ShowOwnPlayer(show && Client.Ships().Seated, Num.Vector3.Zero, 0);
+
+    /// <summary>
+    /// The predicted local player in an inspection camera, or a seat's ordinary orbit camera. Facing is the player's
+    /// aim in world space, never the orbit camera's direction. The same body, clothing and held models draw both views.
+    /// </summary>
+    public void ShowOwnPlayer(bool show, Num.Vector3 facing, float pitch)
     {
-        if (!show || Client.Local.IsDead || SeatFrame(Client.EntityId, 0, 0, 0, 0) is not { } frame)
+        if (!show || !Client.HasCharacter || Client.Local.IsDead)
         {
-            if (_ownSeatBody != null) _ownSeatBody.Visible = false;
+            HideOwnPlayer();
             return;
         }
-        if (_ownSeatBody == null)
+        CharacterFrame frame;
+        bool seated = Client.Ships().Seated;
+        ItemDef? item = seated ? null : Client.Local.HeldItem;
+        if (seated)
         {
-            _ownSeatBody = new CharacterView { Name = "Seated local player", Body = (BodyType)Client.Body };
-            AddChild(_ownSeatBody);
+            if (SeatFrame(Client.EntityId, 0, 0, 0, 0) is not { } seat)
+            {
+                HideOwnPlayer();
+                return;
+            }
+            frame = seat;
+            frame.LookYaw = 0;
         }
-        if (_ownSeatWear != Client.Local.Inventory.Wear.Revision)
+        else
         {
-            _ownSeatWear = Client.Local.Inventory.Wear.Revision;
-            _ownSeatBody.Wear(ItemLooks.Outfit(Client.Content, _myWear));
+            CharacterState state = Client.Character;
+            Num.Vector3 velocity = state.Velocity;
+            if (state.Frame != 0)
+                velocity = Client.Ships().DrawnPose((uint)state.Frame) is { } ship ? ship.DirectionToWorld(velocity) : Num.Vector3.Zero;
+            Vector3 up = GroundView.ToGodot(Client.RenderUp);
+            bool swimming = (state.Flags & MoveFlags.Swimming) != 0;
+            (HeldKind kind, string? model) = item != null && ItemLooks.Held(item.Key) is { } held
+                ? held : (HeldKind.Unarmed, (string?)null);
+            frame = new CharacterFrame
+            {
+                Position = GroundView.ToGodot(Client.RenderPosition),
+                Up = up,
+                Yaw = CharacterFrame.YawToward(up, GroundView.ToGodot(facing)),
+                Pitch = pitch,
+                Velocity = GroundView.ToGodot(velocity),
+                Stance = Client.Local.IsWounded || state.Stance == Stance.Crawling ? CharacterStance.Crawl
+                    : swimming ? CharacterStance.Swim : state.Stance == Stance.Crouching ? CharacterStance.Crouch : CharacterStance.Stand,
+                Grounded = (state.Flags & MoveFlags.OnGround) != 0 || swimming,
+                Held = kind,
+                HeldItem = model,
+                Aiming = Client.Local.Gun.Aimed,
+            };
         }
-        frame.LookYaw = 0;
-        _ownSeatBody.Visible = true;
-        _ownSeatBody.Apply(frame);
+        var body = (BodyType)Client.Body;
+        if (_ownPlayer != null && _ownPlayer.View.Body != body)
+        {
+            Torch(_ownPlayer, null);
+            Release(_ownPlayer.View);
+            _ownPlayer = null;
+        }
+        if (_ownPlayer == null)
+        {
+            CharacterView view;
+            if (!Spare(body).TryPop(out view!))
+            {
+                view = new CharacterView { Body = body };
+                AddChild(view);
+            }
+            view.Name = "Local player";
+            _ownPlayer = new Person { View = view, Body = Client.Body, Id = Client.EntityId };
+            _ownWear = uint.MaxValue;
+        }
+        CharacterView own = _ownPlayer.View;
+        if (_ownWear != Client.Local.Inventory.Wear.Revision)
+        {
+            _ownWear = Client.Local.Inventory.Wear.Revision;
+            own.Wear(ItemLooks.Outfit(Client.Content, _myWear));
+        }
+        bool wasVisible = own.Visible;
+        own.Visible = true;
+        own.Apply(frame);
+        ushort heldItem = item?.Id ?? 0;
+        if (!wasVisible || _ownHeld != heldItem || seated || Client.Local.IsWounded)
+        {
+            own.CancelActions();
+            _ownReloading = false;
+        }
+        _ownHeld = heldItem;
+        if (item?.Firearm != null && frame.HeldItem != null && own.HeldModel is { } gun)
+            GunEffects.Dress(Client.Content, gun, frame.HeldItem, Client.Local.Gun.Mods.Bits);
+        bool reloading = !seated && !Client.Local.IsWounded && Client.Local.Gun.Reloading;
+        if (reloading && !_ownReloading && item != null)
+            PlayOwnAction(item, "reload", Client.Local.Gun.ReloadProgress);
+        else if (!reloading && _ownReloading) own.CancelActions();
+        _ownReloading = reloading;
+        string? flame = item != null ? HollowUniverse.Items.ModelCatalog.Find(item.Key)?.Held?.Flame : null;
+        Torch(_ownPlayer, flame != null ? GunEffects.Socket(own.HeldModel, "flame") : null, flame ?? "fire.torch");
+    }
+
+    private void HideOwnPlayer()
+    {
+        if (_ownPlayer != null)
+        {
+            if (_ownPlayer.View.Visible) _ownPlayer.View.CancelActions();
+            _ownPlayer.View.Visible = false;
+            Torch(_ownPlayer, null);
+        }
+        _ownReloading = false;
+    }
+
+    private void OnOwnShot(ShotEvent shot)
+    {
+        if (OwnPlayerVisible && !Client.Ships().Seated && !Client.Local.IsWounded)
+            _ownPlayer!.View.Trigger(CharacterEvent.Fire);
+    }
+
+    private void OnOwnSwing(ItemDef item) => PlayOwnAction(item, "swing");
+
+    private void PlayOwnAction(ItemDef item, string action, float phase = 0)
+    {
+        if (!OwnPlayerVisible || Client.Ships().Seated || Client.Local.IsWounded || HeldItems.Find(item.Key) == null ||
+            !HeldPresentations.All.TryGetValue(item.Key, out HeldPresentationProfile? profile) ||
+            !profile.Actions.TryGetValue(action, out HeldPresentationClip? clip)) return;
+        _ownPlayer!.View.PlayItemAction(item.Key, action, HeldActionTiming.Duration(item, action, clip.Duration), phase);
+    }
+
+    private void CancelOwnAction() => _ownPlayer?.View.CancelActions();
+
+    private void OnOwnDamage(DamageEvent damage)
+    {
+        if (!OwnPlayerVisible || Client.Local.IsDead) return;
+        Vector3 direction = GroundView.ToGodot(Client.RenderPosition - damage.From).Normalized();
+        _ownPlayer!.View.Trigger(CharacterEvent.Hit, direction);
     }
 
     // A seated character's frame (IRON_WAKE.md §9.6): the hips on the seat as its ship is drawn (a gunner's seat on its
@@ -470,7 +601,7 @@ public partial class PeopleView : Node3D
     private int _silencers = -1;
 
     // A torch in their hand burns (the effects library's flame on its flame socket), out when they put it away.
-    private static void Torch(Person p, Node3D? socket)
+    private static void Torch(Person p, Node3D? socket, string effect = "fire.torch")
     {
         if (socket == p.FlameSocket)
         {
@@ -484,7 +615,7 @@ public partial class PeopleView : Node3D
         p.FlameSocket = socket;
         if (socket != null)
         {
-            p.Flame = FxDirector.Start("fire.torch", socket.GlobalPosition, Vector3.Up, new FxParams { Follow = socket });
+            p.Flame = FxDirector.Start(effect, socket.GlobalPosition, Vector3.Up, new FxParams { Follow = socket });
         }
     }
 

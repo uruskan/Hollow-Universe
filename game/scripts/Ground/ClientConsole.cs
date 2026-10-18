@@ -109,6 +109,12 @@ public sealed partial class ClientConsole : IConsoleModel, IDisposable
     /// <summary>Shows or hides the network graph (F3); returns whether it shows now.</summary>
     public Func<bool>? ToggleNetGraph { get; set; }
 
+    /// <summary>Whether the session's admin camera currently shows the local character in third person.</summary>
+    public Func<bool>? ThirdPerson { get; set; }
+
+    /// <summary>Requests the admin camera mode; returns the resulting active state.</summary>
+    public Func<bool, bool>? SetThirdPerson { get; set; }
+
     /// <summary>Leaves the game.</summary>
     public Action? Quit { get; set; }
 
@@ -202,7 +208,14 @@ public sealed partial class ClientConsole : IConsoleModel, IDisposable
         }
         if (command.Side == CommandSide.Client)
         {
+            if (command.Admin && !Admin)
+            {
+                Fail("This command needs admin rights on this server.");
+                if (toast) Notice?.Invoke(_lastAnswer[^1].Text);
+                return;
+            }
             RunHere(command, args);
+            if (toast && _lastAnswer.Count > 1) Notice?.Invoke(_lastAnswer[^1].Text);
             return;
         }
         uint seq = _client.Console().SendConsole(line);
@@ -272,7 +285,38 @@ public sealed partial class ClientConsole : IConsoleModel, IDisposable
             case "sensitivity":
                 Setting(args, "Mouse sensitivity", Settings.Sensitivity, 0.1f, 5, "", v => Settings.Sensitivity = v);
                 break;
+            case "thirdperson":
+                SetCamera(args);
+                break;
         }
+    }
+
+    private void SetCamera(IReadOnlyList<string> args)
+    {
+        if (args.Count > 1 || args.Count == 1 &&
+            !string.Equals(args[0], "on", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(args[0], "off", StringComparison.OrdinalIgnoreCase))
+        {
+            Fail("Usage: thirdperson [on|off]");
+            return;
+        }
+        if (ThirdPerson == null || SetThirdPerson == null)
+        {
+            Fail("The third-person camera is unavailable in this view.");
+            return;
+        }
+        bool enabled = args.Count == 0 ? !ThirdPerson() : string.Equals(args[0], "on", StringComparison.OrdinalIgnoreCase);
+        bool active = SetThirdPerson(enabled);
+        if (active != enabled)
+        {
+            Fail(enabled ? "Third person is unavailable for the current character." : "The camera could not switch to first person.");
+            return;
+        }
+        string message = active
+            ? "Third person on. Close F1, hold right mouse to orbit; mouse wheel zooms."
+            : "Third person off. First-person controls restored.";
+        Add(message, ConsoleLineKind.Success);
+        _lastAnswer.Add(new ConsoleLine(message, ConsoleLineKind.Success));
     }
 
     private void Setting(IReadOnlyList<string> args, string name, float now, float least, float most, string unit, Action<float> set)
@@ -579,6 +623,7 @@ public sealed partial class ClientConsole : IConsoleModel, IDisposable
                 _client.Console().ServerPlayers.Select(p => p.Name).Where(n => !string.Equals(n, _client.Name, StringComparison.OrdinalIgnoreCase)).ToArray(),
                 _spawns ??= SpawnGroups(_client.Content))
             {
+                ThirdPerson = Admin && (ThirdPerson?.Invoke() ?? false),
                 FreeBuild = _client.Console().FreeBuild,
                 BuildGrade = _client.Console().BuildGrade,
                 BuildGrades = _buildGrades ??= _client.Content.Building.Grades

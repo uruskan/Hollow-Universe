@@ -69,6 +69,9 @@ public sealed record ToolGroup(string Title, IReadOnlyList<ToolButton> Buttons);
 public sealed record ToolsView(bool God, bool Noclip, double Hour, double TimeScale, bool ClockSet, IReadOnlyList<string> Players,
     IReadOnlyList<ToolGroup> Spawns)
 {
+    /// <summary>The admin's session-only camera shows their own full character.</summary>
+    public bool ThirdPerson { get; init; }
+
     /// <summary>The server allows building and crafting without their resource costs or recipe prerequisites.</summary>
     public bool FreeBuild { get; init; }
 

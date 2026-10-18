@@ -172,6 +172,11 @@ public partial class FirstPersonView : Node3D
     /// <summary>Counts every change of what is in hand (a held control starts afresh when it changes).</summary>
     public int Equipped { get; private set; }
 
+    /// <summary>Hide camera-mounted arms and their flame while the admin inspects the full character.</summary>
+    public bool ShowBody { get; set; } = true;
+
+    public bool BodyVisible => _body?.Visible == true;
+
     /// <summary>Seconds since what is in hand was taken up.</summary>
     public double SinceEquip => _sinceEquip;
 
@@ -285,7 +290,7 @@ public partial class FirstPersonView : Node3D
         _sinceEquip += delta;
         DressArms();
         // Seated, the first-person arms hide: the hands are on the controls, drawn for others (IRON_WAKE.md §9.6).
-        _body.Visible = canAct;
+        _body.Visible = canAct && ShowBody;
 
         // Motion of the arms: velocity in their own frame (the aim's), how fast the view turns.
         _body.Basis = ArmsTurn;
@@ -315,7 +320,7 @@ public partial class FirstPersonView : Node3D
             Crouching = state.Stance == Stance.Crouching,
             Aiming = Client.Local.Gun.Aimed,
         });
-        UpdateFlame(item);
+        UpdateFlame(ShowBody ? item : null);
         Bleed(delta);
     }
 

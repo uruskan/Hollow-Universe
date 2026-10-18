@@ -15,7 +15,7 @@ public sealed class MockConsole : IConsoleModel
     {
         "help", "find", "clear", "quit", "fps", "netgraph", "fov", "sensitivity", "kill", "players", "whereami", "give", "kit",
         "learn", "teleport", "tp2me", "tpmarker", "spawn", "heal", "god", "noclip", "time", "timescale", "status", "kick", "say",
-        "save", "ents", "freebuild", "bgrade",
+        "save", "ents", "freebuild", "bgrade", "thirdperson", "tps", "selfcamera",
     };
 
     private readonly MockGroundUi _ui;
@@ -91,8 +91,24 @@ public sealed class MockConsole : IConsoleModel
             answer = Admin ? BuildingTool(word, words.Skip(1).ToArray())
                 : new ConsoleLine("This command needs admin rights.", ConsoleLineKind.Error);
         }
+        else if (word is "thirdperson" or "tps" or "selfcamera")
+        {
+            answer = Admin ? CameraTool(words.Skip(1).ToArray())
+                : new ConsoleLine("This command needs admin rights.", ConsoleLineKind.Error);
+        }
         Add(answer.Text, answer.Kind);
         _answer.Add(answer);
+    }
+
+    private ConsoleLine CameraTool(string[] args)
+    {
+        if (args.Length > 1 || args.Length == 1 && !new[] { "on", "off" }.Contains(args[0], StringComparer.OrdinalIgnoreCase))
+        {
+            return new ConsoleLine("Usage: thirdperson [on|off]", ConsoleLineKind.Error);
+        }
+        bool enabled = args.Length == 0 ? !Tools.ThirdPerson : string.Equals(args[0], "on", StringComparison.OrdinalIgnoreCase);
+        Tools = Tools with { ThirdPerson = enabled };
+        return new ConsoleLine($"Third person {(enabled ? "on" : "off")} (viewer sample).", ConsoleLineKind.Success);
     }
 
     private ConsoleLine BuildingTool(string command, string[] args)

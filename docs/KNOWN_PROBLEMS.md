@@ -19,6 +19,14 @@ See [COMBAT_SYNC_AUDIT.md](COMBAT_SYNC_AUDIT.md) for evidence, limits and repair
 
 ## AB Test B loading at 97% and reduced FPS — 16 October 2026
 
+An isolated admin-camera gameplay check on 16 October also reproduced startup stalls exceeding
+the existing ten-second transport timeout (three attempts disconnected before the tour began).
+Extending only the isolated capture build's client/server timeout to 120 seconds allowed the
+camera tour to finish. That run logged WebP decoding failures for imported Substation ivory/ORM
+textures, Vulkan texture allocation failures and the renderer warm-up limit. These are unresolved
+startup/resource findings; the camera feature does not change timeout, assets or loading policy.
+Evidence: `.artifacts/admin-self-camera/tour*.log`; the capture caveat is recorded in DEVELOPMENT.
+
 During the disconnect-menu check on 16 October, two direct `--host` starts lost their connection
 while initial ground/character/plant assets loaded, before the menu action was tested. The server
 reported `Timeout` and the client `PeerNotFound`; both transports use a ten-second timeout. The

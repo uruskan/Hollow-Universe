@@ -1068,6 +1068,39 @@ errors, so the passing lifecycle check used the native renderer with world updat
 One ObjectDB shutdown warning remains. None of these runs establishes a clean full-world or full-suite
 pass. Local runner, build/test logs and temporary saves are in .artifacts/disconnect-check.
 
+## F1 admin self camera — 16 October 2026
+
+Added F1 → TOOLS → CAMERA → THIRD PERSON and local `thirdperson [on|off]`, with
+`tps`/`selfcamera` aliases. It shows the full local character with clothing, held
+items and stance/movement using the same renderer as other players and seat cameras.
+Hold RMB to orbit independently of the character's aim; wheel zooms 1.5–20 metres.
+Movement remains available, while held actions and interaction/placement pause for
+inspection. Both mouse buttons stay consumed until release when leaving the camera.
+Menus/focus cancel dragging; death, seating, disconnect or lost admin rights disable
+the session-only mode. Existing ship-seat controls retain their previous defaults.
+The shared engine-free OrbitCamera replaces the seat-only name without duplicating
+orbit math. Solid target rays pull the camera inward; this is not a swept sphere.
+
+Validation ran in an isolated worktree based on b80e804e because other chats were
+editing the main checkout. The solution builds with zero warnings/errors; six new
+engine-free lifecycle/math/command tests plus the existing seat-orbit test pass.
+The rendered Godot UI check passes 51/51 at 1600×900. The `admin-camera` gameplay
+tour passes all real-input checks: only held RMB rotates, wheel zoom wins over
+noclip speed, aim stays unchanged, walking/crouching and clothing/held items render,
+inventory cancels dragging, returning to FPS restores fresh-click ADS without
+leaking held attacks, and server admin revocation closes/denies the camera.
+Six screenshots under `docs/images/admin-self-camera` were visually inspected.
+
+Capture limitation: normal startup disconnected during rendering stalls on three
+attempts. The successful tour used only a temporary 120-second client/server
+transport timeout; normal loading data and all camera code remained in use. Its
+log also reports imported Substation texture decoding/GPU allocation failures.
+Both timeout edits were restored before the final build and engine-free suite;
+no loading, timeout, texture or generator change is part of this feature. A
+headless UI check without the required 1600×900 viewport failed geometry-driven
+checks; the subsequent rendered check at the documented resolution passed.
+Logs and isolated test saves are in `.artifacts/admin-self-camera`.
+
 ## Inventory backpack DROP ALL — 18 October 2026
 
 The owner requested DROP ALL and explicitly confirmed backpack contents only. The button sits beside

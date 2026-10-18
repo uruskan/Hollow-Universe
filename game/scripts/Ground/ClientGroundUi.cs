@@ -330,8 +330,10 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public KeyContext Keys => SeatKeys.Context(_client);
     public bool SeatOrbit { get; set; }
+    public bool AdminCamera { get; set; }
 
-    public string? SeatLine => Keys is KeyContext.Seat or KeyContext.Station && _client.Ships() is { SeatShip.Def: { } def, Seat: { } seat }
+    public string? SeatLine => AdminCamera ? "ADMIN CAMERA     RMB DRAG  ORBIT     WHEEL  ZOOM     F1 TOOLS  CAMERA OFF"
+        : Keys is KeyContext.Seat or KeyContext.Station && _client.Ships() is { SeatShip.Def: { } def, Seat: { } seat }
         ? (SeatOrbit ? (seat.Role == Hollow.Simulation.Ships.SeatRole.Station ? "LMB  FIRE     " : "") + "RMB DRAG  ORBIT     WHEEL  ZOOM     "
             : seat.Role == Hollow.Simulation.Ships.SeatRole.Station ? SeatKeys.StationMouse : "")
             + SeatKeys.Line(SeatKeys.Of(def, seat), inOrbit: false) : null;
