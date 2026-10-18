@@ -1,5 +1,31 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — Torn Schematic original model and rendered icons
+
+Inspected the official Rust Basic Blueprint Fragment image before authoring.
+Replaced the building-plan stand-in and SVG with original blue drafting paper:
+a large torn corner, ragged outline, slight curl, fold and partial invented
+service diagram. Front and reverse are distinct. No reference game pixels or
+meshes entered the repository. Added a small original diagram-texture helper.
+
+ID 163, stack 20, description and workbench requirements remain unchanged. Three
+LODs, convex collision, one external 1024px PBR atlas and own 128/256px icons are
+supplied. The final dimensions and triangle counts are recorded in provenance.
+
+Validation: focused review/test builds passed with zero warnings/errors and all
+11/11 catalogue/content tests passed. Native Godot captures cover all LODs, back
+and CatalogItemIcons at 32–256px with no SVG fallback. Mesh attributes/normals and
+RGBA icon bounds passed. The full solution build passed with zero warnings/errors. The broader isolated
+suite did not start because free RAM fell to about 2 GiB, below its 3.5 GiB
+launch gate. Live inventory remains unchecked. The initial build was deferred on 18 October; the resumed build corrected
+Blender 5.2 tessellation index handling and passed with Python errors treated as
+process failures. All jobs ran serially below normal priority on two cores. Owned children exited and
+the reference tab closed; other sessions' edits/staging are preserved. Artistic
+acceptance remains pending.
+
+See `docs/ITEM_ART_TORN_SCHEMATIC.md` and `docs/images/item-art-torn-schematic-20261019/`.
+
+
 ## 18 October 2026 — Rifle Frame original model and rendered icons
 
 Inspected the official Rust Rifle Body image before authoring. Replaced the

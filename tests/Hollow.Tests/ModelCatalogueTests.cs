@@ -35,7 +35,7 @@ public static class ModelCatalogueTests
     };
 
     // Models that replaced stand-ins: none of them may be marked as a stand-in again.
-    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate", "receiver", "rifle-frame" };
+    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate", "receiver", "rifle-frame", "torn-schematic" };
 
     [Test]
     public static void ClothHasItsOwnModelAndRenderedIcon()
@@ -107,6 +107,18 @@ public static class ModelCatalogueTests
         Assert.Equal("res://assets/items/rifle-frame.glb", item.GetProperty("file").GetString(), "rifle frame model identity");
         Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "rifle frame must render its own icon");
         Assert.True(!item.TryGetProperty("standIn", out _), "rifle frame must not return to the refined-metal stand-in");
+    }
+
+    [Test]
+    public static void TornSchematicHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "torn-schematic");
+        Assert.Equal("res://assets/items/torn-schematic.glb", item.GetProperty("file").GetString(), "torn schematic model identity");
+        Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "torn schematic must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "torn schematic must not return to the building-plan stand-in");
     }
 
     // World objects the gathering rules place (gather.json) and the ship.

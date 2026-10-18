@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "torn-schematic",
+  "date": "2026-10-19",
+  "replaces": "building-plan.glb stand-in and SVG fallback",
+  "authorship": "Original cosmetic geometry, procedural PBR atlas and rendered icons; no reference game files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/basicblueprintfragment",
+    "image": "https://files.facepunch.com/rust/item/basicblueprintfragment_512.png",
+    "use": "Visual observation before authoring only; no downloaded reference files"
+  },
+  "authoring_source": {
+    "path": "art/models/torn_schematic.py",
+    "sha256": "ad430ddaf1673279a50c14610c93d019605dbebce1a699a89c6ec615968832cb"
+  },
+  "authoring_helper": {
+    "path": "art/hollow/diagram_texture.py",
+    "sha256": "c961749d370602f8d1dbba3baf4b4d6dd9c9ebb3c30e423419b4dd36e43df226"
+  },
+  "geometry": {
+    "asset": "torn-schematic",
+    "dimensions_blender_xyz_m": [
+      0.23610348254442215,
+      0.011908681131899357,
+      0.27802048437297344
+    ],
+    "texture_size": 1024,
+    "material_count": 1,
+    "lod_triangles": {
+      "TornSchematic_lod0": 2880,
+      "TornSchematic_lod1": 828,
+      "TornSchematic_lod2": 140
+    },
+    "hull_triangles": 34
+  },
+  "files": {
+    "game/assets/items/torn-schematic.glb": {
+      "sha256": "d2ae5d97eaa25c3f6ae0ad2e09b528fb5af9e4215e316c058945ade4c8a3758e",
+      "bytes": 105336
+    },
+    "game/assets/items/torn-schematic.glb.import": {
+      "sha256": "a1f1d9624ba7142940ee75bfe804647b3ca2109a146fdc723aa42d82cd2dcf3d",
+      "bytes": 1392
+    },
+    "game/assets/materials/torn-schematic.tres": {
+      "sha256": "0800684162c4b62862f7cd11d738ede87762716333d1ee2db8f21ce6886919f1",
+      "bytes": 662
+    },
+    "game/assets/textures/torn-schematic/torn_schematic_albedo.png": {
+      "sha256": "3b76d4121965fa3d8d2b0dbb652965ec09e02031b3ed743d31ed1b46a8745b21",
+      "bytes": 1150831
+    },
+    "game/assets/textures/torn-schematic/torn_schematic_albedo.png.import": {
+      "sha256": "8b162f0e00ed6c7e0c3cc922b29b8f162c6659b153100fa011b52acaad7a5410",
+      "bytes": 1046
+    },
+    "game/assets/textures/torn-schematic/torn_schematic_normal.png": {
+      "sha256": "c3efd347ea0994bb1fc3acc3eae632cbd6f97e25094d3ffd62855dc63dde17cb",
+      "bytes": 541509
+    },
+    "game/assets/textures/torn-schematic/torn_schematic_normal.png.import": {
+      "sha256": "842f51d5f476b5bbf6b952f36587f377d2d7324b0cc4c015d46cb672a0b6ba7f",
+      "bytes": 1046
+    },
+    "game/assets/textures/torn-schematic/torn_schematic_orm.png": {
+      "sha256": "bf7a3a77a561112f55f53e8e97da948ab4dec0e438415910386105caca109dcc",
+      "bytes": 4545
+    },
+    "game/assets/textures/torn-schematic/torn_schematic_orm.png.import": {
+      "sha256": "d54ceaf62ace9fad3ff954fcfc1e258a1f22477b15e4d8a691703cedf5af281a",
+      "bytes": 1036
+    },
+    "game/assets/items/icons/128/torn-schematic.png": {
+      "sha256": "e49d69c3bfef81ddf70ee3f734c05afb598e9fe88b62878c7a4db83a5184a98b",
+      "bytes": 15448
+    },
+    "game/assets/items/icons/128/torn-schematic.png.import": {
+      "sha256": "04dbd569312e91fc4842ea5f1b722f928b43bfabecab1c74b59d4cab04988654",
+      "bytes": 968
+    },
+    "game/assets/items/icons/256/torn-schematic.png": {
+      "sha256": "779112549591ecf7daa39ee949a2a7b4277b843543df19ccf9b52895005b7c05",
+      "bytes": 51656
+    },
+    "game/assets/items/icons/256/torn-schematic.png.import": {
+      "sha256": "975d2ca92faa29ae564d23472d81f47959f5cffca576b24acbbfffeef2c99b73",
+      "bytes": 969
+    }
+  }
+}
