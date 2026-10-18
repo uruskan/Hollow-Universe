@@ -6,7 +6,10 @@ two share the same shape, materials and construction.
 
 **Status, 18 October 2026:** the catalogue audit is complete and the replacement work
 is planned. The owner requested this plan and its audit evidence be saved and committed.
-No replacement models have been produced or integrated by this work.
+Cloth now has its own original model and rendered PNGs; see
+[its specification, evidence and validation limits](ITEM_ART_CLOTH.md). Its live
+inventory check and owner visual acceptance remain pending. Other replacements
+remain planned.
 [DESIGN.md](DESIGN.md), especially ART-01 and the ground UI requirement, remains authoritative.
 
 ## Current assets
@@ -66,6 +69,14 @@ Follow the game's advanced technology with visible handmade construction. Materi
 may be clean, maintained or worn as appropriate; rust is not a universal requirement.
 The six revised components provide a starting point for consistency, not a ceiling on
 quality or evidence of final owner acceptance.
+
+**Owner direction, 18 October 2026:** Rust is the main visual inspiration. Before
+authoring each replacement, look up and inspect the actual corresponding Rust item
+image on the web, preferably on Facepunch's wiki. Record the reference URL and the
+observed construction, silhouette, material and small-slot readability. Use those
+observations to author our own asset. Keep reference game images and models out of
+the repository; retain links and notes. Work on one item at a time, wait for machine
+resources, and close only processes and browser tabs created by this work.
 
 Start with **cloth, gun receiver and salvage** to establish fabric, machined metal and
 mixed-material examples. Review their silhouettes, material response and inventory

@@ -1,5 +1,39 @@
 # Hollow Universe AB Test B
 
+## Cloth item art replacement — 18 October 2026
+
+Implemented the first item only, following the owner's request to work serially at
+low machine load. The owner then confirmed Rust as the main visual inspiration and
+asked for actual item-image references. Inspected Facepunch's cloth image online and
+recorded its URLs and visual observations in `ITEM_ART_CLOTH.md`; the plan now requires
+that reference step for each item. No Rust image or model files were imported.
+
+Cloth now selects an original loose folded rag with a procedural 512 px weave set,
+three detail levels (5,916 / 2,356 / 968 triangles), a convex proxy and dedicated
+128/256 px transparent PNGs rendered from that model. Removed its fibre stand-in
+mapping. Item identity, recipes, quantities, inventory layout and lootbag behavior
+are unchanged. Added repeatable Blender authoring, installed-file hashes, a regression
+check and native close/distant model screenshots plus a diagnostic icon-size sheet.
+
+Validation: original Blender export and GLB structure/finite-normal checks passed;
+Godot 4.7.2 model/material/texture import, LOD0/LOD2 captures and production icon
+rendering completed without engine errors. The small isolated C# review project built
+with zero warnings/errors. Both catalogue tests passed (163 models, 171 model files,
+252 icons), including the new cloth identity check, using a copied newer existing test
+build. Both PNG sizes have transparent, unclipped edges. No full solution rebuild or
+full suite was launched by this task while the shared computer was under heavy load.
+
+Limit: live inventory/provider validation remains deferred. Two icon-import attempts
+were stopped by the memory guard as free RAM fell; later idle waiters were closed.
+The icon-size sheet is a Pillow composition, not a live inventory screenshot. The
+runtime review used a cloth-only project and snapshotted production renderer binaries;
+no world, server or player save was loaded. Owner visual acceptance remains pending.
+Owned processes and the reference tab are closed. Automatic approval review blocked
+recursive deletion of this task's temporary review caches; those files remain.
+Editable source, logs and evidence are retained. See `ITEM_ART_CLOTH.md` and
+`images/item-art-cloth-20261018/validation.json` for scope and receipts.
+
+
 ## Centered configurable ground crosshair — 18 October 2026
 
 The owner requested crosshair customization in Settings, one marker instead of the separate HUD dot and firearm

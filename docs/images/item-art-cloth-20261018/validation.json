@@ -1,0 +1,291 @@
+{
+  "scope": "Cloth only; serialized jobs, two CPU cores, below-normal priority, memory guard",
+  "successful_jobs": [
+    {
+      "name": "cloth-export-final",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "-b",
+        "--factory-startup",
+        "-t",
+        "2",
+        "--python",
+        "art/models/cloth.py"
+      ],
+      "owned_pid": 24692,
+      "closed": true,
+      "wait_seconds": 221.07,
+      "cpu_before": 38.2,
+      "free_gib_before": 2.45,
+      "exit_code": 0,
+      "run_seconds": 5.0
+    },
+    {
+      "name": "cloth-textures-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        ".artifacts/cloth-r01/review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 40768,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 44.9,
+      "free_gib_before": 2.82,
+      "exit_code": 0,
+      "run_seconds": 6.0
+    },
+    {
+      "name": "cloth-model-import-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        ".artifacts/cloth-r01/review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 38528,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 47.3,
+      "free_gib_before": 2.63,
+      "exit_code": 0,
+      "run_seconds": 5.0
+    },
+    {
+      "name": "cloth-lod0-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        ".artifacts/cloth-r01/review",
+        "--",
+        "--lod=0",
+        "--output=cloth-lod0-final.png"
+      ],
+      "owned_pid": 19256,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 49.3,
+      "free_gib_before": 2.62,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "cloth-lod2-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        ".artifacts/cloth-r01/review",
+        "--",
+        "--lod=2",
+        "--output=cloth-lod2-final.png"
+      ],
+      "owned_pid": 32828,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 46.5,
+      "free_gib_before": 2.55,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "cloth-icons-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        ".artifacts/cloth-r01/review",
+        "--",
+        "--icons",
+        "--output=cloth-icons-final.png"
+      ],
+      "owned_pid": 38596,
+      "closed": true,
+      "wait_seconds": 106.04,
+      "cpu_before": 61.5,
+      "free_gib_before": 2.71,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "cloth-review-build-final",
+      "command": [
+        "dotnet",
+        "build",
+        ".artifacts/cloth-r01/review/ClothReview.csproj",
+        "--nologo",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 13748,
+      "closed": true,
+      "wait_seconds": 66.02,
+      "cpu_before": 58.9,
+      "free_gib_before": 2.49,
+      "exit_code": 0,
+      "run_seconds": 6.0
+    },
+    {
+      "name": "cloth-catalogue-tests",
+      "command": [
+        "dotnet",
+        ".artifacts/cloth-r01/test-runner/Hollow.Tests.dll",
+        "--class",
+        "ModelCatalogueTests"
+      ],
+      "owned_pid": 34300,
+      "closed": true,
+      "wait_seconds": 36.02,
+      "cpu_before": 19.4,
+      "free_gib_before": 2.39,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    }
+  ],
+  "catalogue_tests": "  RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (15 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 252 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (967 ms)\n2/2 passed in 1.0 s.\n",
+  "icon_checks": {
+    "128": {
+      "size": [
+        128,
+        128
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "nontransparent_bounds": [
+        9,
+        33,
+        119,
+        95
+      ],
+      "unclipped": true
+    },
+    "256": {
+      "size": [
+        256,
+        256
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "nontransparent_bounds": [
+        18,
+        67,
+        238,
+        189
+      ],
+      "unclipped": true
+    }
+  },
+  "compiled_review_references": {
+    "Hollow.Client.dll": "ed2880bffcb5dfea3b25df0e0435c0324634f2f4d1786a2abc93d1afbdb81219",
+    "Hollow.Core.dll": "69e054edb15f848f2934e38e4c613799888a8fe93d61f0c55b0c7d0d56d41844",
+    "Hollow.Galaxy.dll": "2824e1e7cbda4f914d8f4207749037405a5dda6224efd05991f93a3e0f1d0e42",
+    "Hollow.Net.dll": "b86269a7c2cbf8ef9c0fddf245d3b45d307df0aaf5472b32c3a3033c117ac1e4",
+    "Hollow.Persistence.dll": "1f9959b4c5d349a7ffc0e4dae2af7f9e0ecf14efc183deda273b2b99ebc09682",
+    "Hollow.Server.dll": "9ca1f3ca234bcd5e0ac4216d65cd4e016be65923d136aa678d6fa2874962bde3",
+    "Hollow.Simulation.dll": "1c53a7239c4db35bf7dc182936830a7e5a9e3a56efae70f6e93c6a93f8b334a0",
+    "Hollow.Surface.dll": "4d9631046990edf3d44e5cc58f8407eff29dc7d6f7f0a7185a4b152d4781ae3a",
+    "HollowUniverse.dll": "a47b5e43b0b5d82305b5d05f47d6c8cdb26006240925cf7363f0006a7d883ea9",
+    "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+    "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+    "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+    "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+    "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+    "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+  },
+  "test_runner_snapshot": {
+    "origin": "Existing build output newer than cloth regression source; copied to avoid concurrent rebuild writes",
+    "files": {
+      "Hollow.Bots.deps.json": "79355392028cacb707f2b0eb2caf90a0691acadee612247fd17288f8fb766e58",
+      "Hollow.Bots.dll": "3ae97b54901c9bb4c00864b9d70c7ce3efc09c4b950cb2a0c744261fe0d14016",
+      "Hollow.Bots.runtimeconfig.json": "9e733f88cd7c79cbd5990aca62d0a89134ce67835426df4658f469d0f3dde00e",
+      "Hollow.Client.dll": "4950aaad2809acb07908e04fb86d93fcb954c2ea82620033ba6ab9d0387accb0",
+      "Hollow.Core.dll": "1bd04ac1346885fa0073380f1056679efa35525796ac926a51db032becbe948b",
+      "Hollow.Galaxy.dll": "79e9254ed17900aa1f9ebe7b33074f4c96cb679a3c3532c6c8739e9f4c02543e",
+      "Hollow.Net.dll": "12eaf24cc5604b501a967a9c0781b3d7174bb01a77ff17fddf01eafd1065aaaa",
+      "Hollow.NetGen.deps.json": "93135ff9ac5e5d2c50d758a5d6ea8090f84bca2e677fede98b8d0d152c791d43",
+      "Hollow.NetGen.dll": "e350febf4dca97df17c769a68ceeda5246fa100a640d0b78affb65dde271062d",
+      "Hollow.NetGen.runtimeconfig.json": "256dda2706e1151bb95987b6b5be610bf68d64e058285b19e7e958222fc90414",
+      "Hollow.Persistence.dll": "bafe1b48a76e811db368911f0f0078a2d60308c219abc14ab8321254358e5d68",
+      "Hollow.Server.deps.json": "c5dd1c19ee703e1c1efcf3384f8e2e402eea0dc5c2cb718f09e39b82a14e1f04",
+      "Hollow.Server.dll": "c2ddfc0eb6d484fd16e13688c7c7cebc7e3d9a671381163bb2eff0aa08011371",
+      "Hollow.Server.runtimeconfig.json": "9e733f88cd7c79cbd5990aca62d0a89134ce67835426df4658f469d0f3dde00e",
+      "Hollow.Simulation.dll": "04a6260e85c24347596e86d70aa6afb404388de89ff1560140084759f8ae3fd5",
+      "Hollow.Surface.dll": "00d950249cb64247ff4b474a7b4e6ddd85f70fa19d4713e4b03457ca7bfe54ee",
+      "Hollow.Tests.deps.json": "419b08b94a248925ecff42409c7b36a2dbe9b2b1a644745cf4ea6dac61ffd14f",
+      "Hollow.Tests.dll": "46e2f5155b8e82fdad422f65727b50c6e22b6cbd686e67fb74db843e8741272a",
+      "Hollow.Tests.runtimeconfig.json": "9e733f88cd7c79cbd5990aca62d0a89134ce67835426df4658f469d0f3dde00e",
+      "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+      "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+      "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+      "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+      "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+      "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+    },
+    "test_source_sha256": "333cd0fd9955e7f66a9b3789611ab062f53027057986a77d7cc9f73757a65fb7"
+  },
+  "captures": {
+    "cloth-lod0.png": "c145e50ba95a3e4ce8009cbdc2c38f1a79daeb47278d9ca2b5b547de8b4be2fc",
+    "cloth-lod2.png": "ec97499cfc8d2a9324ad41cfc33b40b4e1deaf64c9ba83d4c14d673b9c429e82",
+    "icon-sizes.png": "a69e63b8b2ed416824183173daef8f8402dcedf2f11dde648f764d3cb7868054"
+  },
+  "limits": [
+    "No full solution rebuild or full suite run by this task; reused a newer existing test build and built only the small isolated review project.",
+    "Final LOD0/LOD2 model captures and source icon rendering passed in Godot. LOD1 was structurally checked and imported, not separately captured after the final reference revision.",
+    "Live inventory/provider check deferred: two icon-import attempts were stopped by the memory guard; subsequent waiting jobs were cancelled before launch. The size sheet is a Pillow diagnostic composition, not a game screenshot."
+  ],
+  "memory_stops": [
+    {
+      "name": "cloth-icons-import-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        ".artifacts/cloth-r01/review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 34540,
+      "closed": true,
+      "wait_seconds": 66.02,
+      "cpu_before": 51.3,
+      "free_gib_before": 2.29,
+      "terminated": "timeout or memory pressure",
+      "exit_code": 1,
+      "run_seconds": 3.02
+    },
+    {
+      "name": "cloth-icons-minimal-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        ".artifacts/cloth-r01/icon-import",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 11688,
+      "closed": true,
+      "wait_seconds": 56.04,
+      "cpu_before": 57.6,
+      "free_gib_before": 2.35,
+      "terminated": "timeout or memory pressure",
+      "exit_code": 1,
+      "run_seconds": 3.0
+    }
+  ],
+  "cleanup": {
+    "temporary_cache_deletion": "Rejected by automatic approval review; caches retained",
+    "retained": "Editable Blender source, review sources, captures, logs and temporary review caches",
+    "owned_processes": "None matched the cloth task command paths after shutdown",
+    "reference_browser_tab": "Closed"
+  }
+}

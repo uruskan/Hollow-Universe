@@ -35,7 +35,19 @@ public static class ModelCatalogueTests
     };
 
     // Models that replaced stand-ins: none of them may be marked as a stand-in again.
-    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary" };
+    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth" };
+
+    [Test]
+    public static void ClothHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement cloth = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "cloth");
+        Assert.Equal("res://assets/items/cloth.glb", cloth.GetProperty("file").GetString(), "cloth model identity");
+        Assert.True(!cloth.GetProperty("icon").TryGetProperty("key", out _), "cloth must render its own icon, not borrow another item's");
+        Assert.True(!cloth.TryGetProperty("standIn", out _), "cloth must not return to the fibre stand-in");
+    }
 
     // World objects the gathering rules place (gather.json) and the ship.
     private static readonly string[] RequiredWorld =
