@@ -497,6 +497,14 @@ opens the ammo radial: every round of its calibre the player carries, with count
 **Dropping.** Releasing a dragged item anywhere that isn't a slot drops it, over panels and buttons too; releasing it
 over its own slot cancels (Rust). Today a release over any panel silently cancels.
 
+AB Test B, **18 October 2026**: **DROP ALL**, beside the inventory heading, drops only the 24 backpack
+slots. It preserves the six hotbar/belt slots, all worn equipment, and any open loot container. The button is
+disabled when the backpack is empty. One bounded `DropAllIntent` carries the displayed backpack snapshot;
+`InventoryRules.RemoveAll` checks every stack before removing anything, so stale requests cannot drop newly
+arrived or replaced items. Prediction uses the same rule, the server spends one ordinary intent budget unit,
+and `SpillSystem` creates/merges the ground lootbag through the existing drop path. Item condition, loaded
+rounds and fitted attachments remain on their stacks. The schema hash changes with the new message.
+
 **Workbench speed.** The station capability scales a job's time by how far the bench's level is above the recipe's
 (Rust's: one level above, half the time; two or more, a quarter; in data), fixed when the job starts.
 

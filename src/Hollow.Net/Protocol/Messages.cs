@@ -583,6 +583,14 @@ public partial struct DropIntent
     [VarInt] public uint Expected;
 }
 
+/// <summary>Drop the complete captured backpack atomically; belt, clothing and open loot are excluded.</summary>
+[NetMessage(166)]
+public partial struct DropAllIntent
+{
+    [VarInt] public uint Seq;
+    [MaxCount(24)] public SlotNet[] Expected;
+}
+
 /// <summary>Start crafting a recipe (its output item's ID).</summary>
 [NetMessage(54)]
 public partial struct CraftIntent

@@ -297,7 +297,7 @@ public partial class GroundUi
     /// (a refused action says why).
     /// </summary>
     private void Button(string label, float x, float y, float w, float h, Action? click, float size = 24, Color? fill = null,
-        bool enabled = true, bool left = false, string? tip = null, bool muted = false)
+        bool enabled = true, bool left = false, string? tip = null, bool muted = false, string? tooltip = null)
     {
         Color f = fill ?? G.Panel;
         Rect2 area = Area(x, y, w, h);
@@ -319,7 +319,7 @@ public partial class GroundUi
         }
         if (enabled && click != null)
         {
-            _hits.Add(new Hit(area, HitKind.Button, click, Key: tip));
+            _hits.Add(new Hit(area, HitKind.Button, click, Key: tip, Tooltip: tooltip));
         }
     }
 

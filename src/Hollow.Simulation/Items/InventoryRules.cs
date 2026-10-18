@@ -187,6 +187,27 @@ public static class InventoryRules
         return OutcomeCode.Done;
     }
 
+    /// <summary>
+    /// Removes a container's contents only if every slot still matches the captured inventory, including empty
+    /// slots and weapon state. Checks the entire snapshot before changing anything; prediction uses the same rule.
+    /// </summary>
+    public static Outcome RemoveAll(Container from, IReadOnlyList<ItemStack> expected, List<ItemStack>? taken = null)
+    {
+        taken?.Clear();
+        if (expected.Count != from.Size) return OutcomeCode.Invalid;
+        for (int i = 0; i < from.Size; i++)
+        {
+            if (from[i] != expected[i]) return OutcomeCode.Stale;
+        }
+        for (int i = 0; i < from.Size; i++)
+        {
+            if (from[i].IsEmpty) continue;
+            taken?.Add(from[i]);
+            from.Set(i, default);
+        }
+        return OutcomeCode.Done;
+    }
+
     /// <summary>How many of an item the containers hold.</summary>
     public static int Count(IReadOnlyList<Container> containers, ushort item)
     {

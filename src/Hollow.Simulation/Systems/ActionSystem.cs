@@ -31,6 +31,7 @@ public sealed class ActionSystem : ZoneSystem
     private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
 
     private readonly List<ItemStack> _refunds = new();
+    private readonly List<ItemStack> _drops = new();
     private readonly List<Container> _targets = new();
 
     internal bool Acting(Entity entity, out Player p)
@@ -168,6 +169,15 @@ public sealed class ActionSystem : ZoneSystem
         {
             Spill.Drop(entity, taken);
         }
+        return result;
+    }
+
+    /// <summary>Drops the captured backpack contents together, preserving the belt, worn items and open loot.</summary>
+    public Outcome DropAll(Entity entity, IReadOnlyList<ItemStack> expected)
+    {
+        if (!Acting(entity, out Player p)) return OutcomeCode.Dead;
+        Outcome result = InventoryRules.RemoveAll(p.Inventory.Main, expected, _drops);
+        if (result.Ok) Spill.Drop(entity, _drops);
         return result;
     }
 

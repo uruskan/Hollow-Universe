@@ -504,6 +504,8 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         }
     }
 
+    public void DropAll() => Me.DropAll();
+
     public void QuickMove(SlotRef slot)
     {
         if (slot.Attachment >= 0) { QuickMoveSocket(slot); return; }

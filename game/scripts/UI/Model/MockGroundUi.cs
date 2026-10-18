@@ -191,6 +191,15 @@ public sealed partial class MockGroundUi : IGroundUi
         }
     }
 
+    public void DropAll()
+    {
+        ItemStack[] main = Of(ContainerId.Main);
+        for (int i = 0; i < main.Length; i++)
+        {
+            Drop(new SlotRef(ContainerId.Main, i), main[i].Amount);
+        }
+    }
+
     public void QuickMove(SlotRef slot)
     {
         if (slot.Attachment >= 0) { QuickAttachment(slot); return; }

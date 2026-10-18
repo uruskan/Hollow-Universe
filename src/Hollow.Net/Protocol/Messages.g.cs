@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x0E40D22A444A554DUL;
+    public const ulong SchemaHash = 0x8D9F4424E7A08CD0UL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -1676,6 +1676,49 @@ partial struct DropIntent : INetMessage<DropIntent>
         v.Slot = (byte)r.ReadBits(8);
         v.Amount = r.ReadVarUInt();
         v.Expected = r.ReadVarUInt();
+        return v;
+    }
+}
+
+partial struct DropAllIntent : INetMessage<DropAllIntent>
+{
+    public const byte TypeId = 166;
+
+    static byte INetMessage<DropAllIntent>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        int countExpected = Expected == null ? 0 : Math.Min(Expected.Length, 24);
+        w.WriteBits((uint)countExpected, 5);
+        for (int i = 0; i < countExpected; i++)
+        {
+            Expected![i].Write(w);
+        }
+    }
+
+    public static DropAllIntent Read(BitReader r)
+    {
+        var v = new DropAllIntent();
+        v.Seq = r.ReadVarUInt();
+        int countExpected = (int)r.ReadBits(5);
+        if (countExpected > 24)
+        {
+            r.Fail();
+            countExpected = 0;
+        }
+        v.Expected = new SlotNet[countExpected];
+        for (int i = 0; i < countExpected; i++)
+        {
+            v.Expected[i] = SlotNet.Read(r);
+        }
         return v;
     }
 }

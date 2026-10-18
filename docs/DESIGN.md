@@ -495,6 +495,12 @@ This requirement applies to the normal FPS/player interface. The galaxy
 map follows its own design direction in GAL-01 through GAL-03, and ship
 weapon aiming follows UI-04.
 
+On **18 October 2026**, the creator requested a **DROP ALL** button in the
+inventory. It drops every backpack stack onto the ground while keeping
+the six **hotbar** slots (called the belt internally) and all equipped
+clothing/armor. The creator explicitly confirmed backpack contents only.
+Dropped items follow the shared lootbag rules in LOOT-01.
+
 ### UI-02 — Radial Menus
 
 Most menus in the game will be radial. Interactable objects with multiple

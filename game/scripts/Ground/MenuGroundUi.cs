@@ -41,6 +41,7 @@ public sealed class MenuGroundUi : IGroundUi
     public void Move(SlotRef from, SlotRef to, int amount) { }
     public void Split(SlotRef slot, int amount) { }
     public void Drop(SlotRef slot, int amount) { }
+    public void DropAll() { }
     public void QuickMove(SlotRef slot) { }
     public void Craft(string key, int amount) { }
     public void CancelCraft(int ticket) { }

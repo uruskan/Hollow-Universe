@@ -307,6 +307,17 @@ public sealed partial class LocalPlayer
             w => new DropIntent { Seq = _nextSeq, From = from, Slot = (byte)slot, Amount = (uint)Math.Max(0, amount), Expected = expected }.WriteMessage(w));
     }
 
+    /// <summary>Drops everything currently shown in the backpack, retaining the six hotbar slots and clothing.</summary>
+    public uint DropAll()
+    {
+        if (Inventory.Main.IsEmpty) return 0;
+        ItemStack[] expected = Inventory.Main.Slots.ToArray();
+        var slots = new SlotNet[expected.Length];
+        for (int i = 0; i < expected.Length; i++) slots[i] = SlotSnapshot.Of(expected[i]);
+        return Intend(new Pending(p => InventoryRules.RemoveAll(p.Inventory.Main, expected).Ok),
+            w => new DropAllIntent { Seq = _nextSeq, Expected = slots }.WriteMessage(w));
+    }
+
     /// <summary>
     /// An inventory action (GROUND_SYSTEMS.md §7) on a stack in the player's own slots: eat, use, wear, take off, learn,
     /// unload, take an attachment off (<paramref name="arg"/>: which), by its number in items.json's list. Predicted with

@@ -167,6 +167,9 @@ public interface IGroundUi
     /// <summary>Drops <paramref name="amount"/> of a stack on the ground.</summary>
     void Drop(SlotRef slot, int amount);
 
+    /// <summary>Drops the backpack contents, keeping the six hotbar slots and worn equipment.</summary>
+    void DropAll();
+
     /// <summary>Moves a stack to the other side: into the open container and back, or between main and belt.</summary>
     void QuickMove(SlotRef slot);
 

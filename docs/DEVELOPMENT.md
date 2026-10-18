@@ -814,3 +814,38 @@ failure during concurrent work; see KNOWN_PROBLEMS.md. A headless rendering atte
 errors, so the passing lifecycle check used the native renderer with world updates suppressed.
 One ObjectDB shutdown warning remains. None of these runs establishes a clean full-world or full-suite
 pass. Local runner, build/test logs and temporary saves are in .artifacts/disconnect-check.
+
+## Inventory backpack DROP ALL — 18 October 2026
+
+The owner requested DROP ALL and explicitly confirmed backpack contents only. The button sits beside
+INVENTORY, is disabled for an empty backpack, and keeps the six hotbar/belt slots, worn equipment and
+open loot untouched. Its tooltip explains that scope. The existing scaled UI and ordinary lootbag
+placement/merging are reused.
+
+One bounded DropAllIntent carries all 24 displayed slots. InventoryRules.RemoveAll checks every slot,
+including empty slots, counts, condition, loaded ammo and fitted attachments, before removing anything.
+Client prediction uses the same rule. The server spends one intent-budget unit and spills authoritative
+stacks through SpillSystem; a stale snapshot rejects the whole operation and prediction rolls back.
+The generated protocol schema hash changed; client and server must use matching builds.
+
+Validation was isolated from the checkout's other ongoing changes at base 475ffb14. The solution built
+with zero warnings/errors. DropAllTests passed 3/3, covering a full 24-slot backpack, exact item conservation,
+nearby bag merging, weapon metadata, preserved hotbar/wear/open loot, wounded refusal, stale/new items,
+prediction rollback, double-click suppression, duplicate requests, malformed snapshots, overflowing counts
+and forged counts. Native Godot --ui-check passed 57/57, including actual button input. The headless UI
+attempt did not paint mouse hitboxes and is not accepted as UI validation. Screenshots at
+[1600 × 900](images/drop-all/inventory-1600.png) and [1280 × 720](images/drop-all/inventory-1280.png)
+were visually inspected.
+
+The full engine-free suite passed 409/410 in 468.9 s. HeldActionTimingTests.MeleeHitMarkerCarriesTheAuthoritativeToolTickAndContactPoint
+failed in that full run; the complete HeldActionTimingTests group then passed 8/8 on this change, and
+the single failing test passed 1/1 on an unchanged base snapshot. This records an intermittent timing
+failure, not a claim that the full suite was entirely green or that its cause was fixed. The first
+non-isolated focused attempt could not load concurrently edited electricity data with the older compiled
+content readers; it did not validate this feature. Logs are preserved under .artifacts/drop-all/isolated/.
+
+Cost: one request and bounded 24-slot snapshot validation per click, plus ordinary bag packing and
+replication; the button checks for backpack contents while inventory is painted. No new background
+simulation system is introduced. Existing loose-bag lookup cost grows with loose world objects and is
+repeated for each nonempty stack; crowded-world performance has not been benchmarked. These regression
+checks found no duplication in their covered cases and are not a proof against every possible exploit.

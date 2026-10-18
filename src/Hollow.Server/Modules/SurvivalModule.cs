@@ -76,6 +76,21 @@ public sealed class SurvivalModule : ServerModule
             Entity me = session.Entity;
             Intent(session, m.Seq, () => Zone.Actions().DropItem(me, m.From, m.Slot, Amount(m.Amount), Expected(m.Expected)));
         });
+        handlers.On<DropAllIntent>((PlayerSession session, in DropAllIntent message) =>
+        {
+            DropAllIntent m = message;
+            Entity me = session.Entity;
+            Intent(session, m.Seq, () =>
+            {
+                if (m.Expected is not { Length: PlayerInventory.MainSlots }) return OutcomeCode.Invalid;
+                var expected = new ItemStack[PlayerInventory.MainSlots];
+                for (int i = 0; i < expected.Length; i++)
+                {
+                    if (!SlotSnapshot.TryRead(m.Expected[i], out expected[i])) return OutcomeCode.Invalid;
+                }
+                return Zone.Actions().DropAll(me, expected);
+            });
+        });
         handlers.On<ItemActionIntent>((PlayerSession session, in ItemActionIntent message) =>
         {
             ItemActionIntent m = message;

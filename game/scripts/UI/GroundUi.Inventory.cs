@@ -73,6 +73,9 @@ public partial class GroundUi
 
         Section("INVENTORY", 550, 449);
         IReadOnlyList<ItemStack> main = Model.Slots(ContainerId.Main);
+        Button("DROP ALL", 908, 448, 119, 24, DropBackpack, 17,
+            enabled: main.Any(stack => !stack.IsEmpty),
+            tooltip: "Drop every backpack item on the ground. Keeps your hotbar and worn equipment.");
         for (int i = 0; i < 24 && i < main.Count; i++)
         {
             Slot(new SlotRef(ContainerId.Main, i), main[i], 550 + i % 6 * 80, 476 + i / 6 * 80, 75, true, false, true);
@@ -92,6 +95,16 @@ public partial class GroundUi
         else
         {
             PaintQuickCraft();
+        }
+    }
+
+    private void DropBackpack()
+    {
+        Model.DropAll();
+        if (_selected is { Container: ContainerId.Main })
+        {
+            _selected = null;
+            _splitSignature = "";
         }
     }
 

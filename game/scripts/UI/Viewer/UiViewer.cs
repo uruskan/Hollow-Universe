@@ -510,6 +510,29 @@ public partial class UiViewer : Node
         Expect(!dialog.Visible && submitted.Count == 2, "Escape cancels without sending an interaction");
         dialog.QueueFree();
 
+        _ui.Show();
+        _model.OpenLoot(ContainerKind.Box);
+        _ui.Open(GroundScreen.Inventory);
+        ItemStack[] keptBelt = _model.Slots(ContainerId.Belt).ToArray();
+        ItemStack[] keptWear = _model.Slots(ContainerId.Wear).ToArray();
+        ItemStack[] keptLoot = _model.Slots(ContainerId.Loot).ToArray();
+        Expect(_model.Slots(ContainerId.Main).Any(s => !s.IsEmpty), "DROP ALL fixture has backpack contents");
+        int selectedMain = Enumerable.Range(0, _model.Slots(ContainerId.Main).Count).First(i => !At(ContainerId.Main, i).IsEmpty);
+        _ui.Select(new SlotRef(ContainerId.Main, selectedMain));
+        await Frames(3);
+        await Click(Point(967, 457), MouseButton.Right);
+        Expect(_model.Slots(ContainerId.Main).Any(s => !s.IsEmpty), "right-click does not activate DROP ALL");
+        await Click(Point(967, 457));
+        Expect(_model.Slots(ContainerId.Main).All(s => s.IsEmpty) && _ui.SelectedSlot == null,
+            "DROP ALL empties the backpack and clears its item panel");
+        Expect(_model.Slots(ContainerId.Belt).SequenceEqual(keptBelt) && _model.Slots(ContainerId.Wear).SequenceEqual(keptWear),
+            "DROP ALL keeps the hotbar and worn equipment");
+        Expect(_model.Slots(ContainerId.Loot).SequenceEqual(keptLoot), "DROP ALL leaves open storage untouched");
+        await Click(Point(967, 457));
+        Expect(_model.Slots(ContainerId.Main).All(s => s.IsEmpty) && _model.Slots(ContainerId.Belt).SequenceEqual(keptBelt),
+            "empty-backpack DROP ALL cannot drop hotbar items");
+        _ui.Hide();
+
         GD.Print($"ui-check: {checks - failures.Count}/{checks} passed");
         GetTree().Quit(failures.Count == 0 ? 0 : 1);
     }
