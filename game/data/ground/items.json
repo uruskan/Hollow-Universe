@@ -259,7 +259,7 @@
     { "id": 159, "key": "sheet-metal", "name": "Sheet metal", "category": "components", "stack": 20,
       "description": "A flat sheet of pressed steel." },
     { "id": 160, "key": "sign-plate", "name": "Sign plate", "category": "components", "stack": 20,
-      "description": "A dented steel sign from a road long gone." },
+      "description": "A bundle of dented steel signs from roads long gone." },
     { "id": 161, "key": "receiver", "name": "Gun receiver", "category": "components", "stack": 10,
       "description": "The frame of a semi-automatic gun, the part its slide and barrel fit on." },
     { "id": 162, "key": "rifle-frame", "name": "Rifle frame", "category": "components", "stack": 10,

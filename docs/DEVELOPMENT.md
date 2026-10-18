@@ -1,5 +1,32 @@
 # Hollow Universe AB Test B
 
+## 18 October 2026 — Sign Plate original model and rendered icons
+
+Inspected the official Rust Road Signs item image before authoring. Replaced the
+sign-plate refined-metal stand-in and SVG fallback with an original three-plate
+salvage bundle: red stop octagon, red/white CAUTION KEEP CLEAR panel and yellow
+up-arrow. The arrangement and palette follow the reference, with original bends,
+mounting holes, scratches and chipped paint. No reference pixels or game files
+were imported. Lettering uses the repository's existing SIL OFL Barlow font.
+
+ID 160, stack size 20 and recipes are unchanged. Updated the description to a
+bundle of dented signs so it matches the model. The asset has 4,032 / 1,824 / 936
+triangles, one material and a 1024px PBR atlas. It supplies its own 128/256px PNGs
+through production IconRenderer with view [-22,14,-5]. Native preview review
+corrected the warning's overlap, widened the arrow and exposed the STOP lettering.
+
+Validation: focused review/test builds passed with zero warnings/errors; all 8/8
+catalogue/content tests passed, including sign identity. Native Godot captures
+cover three LODs, reverse side and CatalogItemIcons at 32–256px with no SVG fallback.
+Mesh attributes/normals, RGBA transparency and icon bounds were checked. Full
+solution and gameplay suite/live inventory were deferred to keep load low.
+Jobs ran serially below normal priority on two cores with CPU/RAM gating; owned
+processes exited and the reference tab was closed. Other sessions' edits and
+staging were preserved. Artistic acceptance remains pending.
+
+See `docs/ITEM_ART_SIGN_PLATE.md` and `docs/images/item-art-sign-plate-20261018/`.
+
+
 ## 18 October 2026 — Metal Blade original model and rendered icons
 
 Inspected the official Rust item image before authoring, as requested by the owner.
