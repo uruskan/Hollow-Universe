@@ -45,7 +45,7 @@ remain subject to visual review.
 | Batch | Item key | Current model or icon gap | Proposed appearance |
 |---|---|---|---|
 | 1 | `cloth` | Fibre model and SVG icon | A roll or folded bolt of rough woven cloth, with visible thickness, folds and restrained fraying. |
-| 1 | `sewing-kit` | Replaced: original model and rendered PNGs | Wooden mending spool, sage thread and steel needle; revised from the tin proposal after inspecting the Rust reference. |
+| 1 | `sewing-kit` | Replaced: original model and rendered PNGs | Brown thread on a worn fibre core with a tucked steel needle; replaces the rejected green wooden-spool version. |
 | 1 | `metal-blade` | Refined-metal ingots and SVG icon | A distinct spring-steel machine or saw blade, with a readable cutting edge and mounting features. |
 | 1 | `sign-plate` | Refined-metal ingots and SVG icon | A bent road-sign panel with original markings, mounting holes and localized wear. |
 | 1 | `receiver` | Refined-metal ingots and SVG icon | A semi-automatic gun frame, with recognizable slide and barrel interfaces. |

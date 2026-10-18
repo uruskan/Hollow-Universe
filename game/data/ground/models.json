@@ -336,7 +336,7 @@
     { "key": "cloth", "kind": "item", "class": "resource", "file": "res://assets/items/cloth.glb", "lods": 3, "collision": "convex",
       "icon": {}, "source": "Hollow original folded woven cloth (art/models/cloth.py); provenance: assets/items/cloth.provenance.json" },
     { "key": "sewing-kit", "kind": "item", "class": "resource", "file": "res://assets/items/sewing-kit.glb", "lods": 3, "collision": "convex",
-      "icon": { "view": [-15, 18, 0] }, "source": "Hollow original wooden mending spool and steel needle (art/models/sewing_kit.py); provenance: assets/items/sewing-kit.provenance.json" },
+      "icon": { "view": [20, 18, 0] }, "source": "Hollow original brown mending thread, worn fibre core and steel needle (art/models/sewing_kit.py); provenance: assets/items/sewing-kit.provenance.json" },
     { "key": "tech-scrap", "kind": "item", "class": "resource", "file": "res://assets/revised/Hollow_Salvage_R01/Scenes/tech-scrap.tscn", "lods": 3, "collision": "convex",
       "icon": {}, "source": "Hollow_Salvage_R01: original owner-controlled work; verified local integration receipt in assets/revised/integration.json" },
     { "key": "metal-blade", "kind": "item", "class": "resource", "file": "res://assets/items/refined-metal.glb", "lods": 3, "collision": "convex",

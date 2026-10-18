@@ -1,5 +1,30 @@
 # Hollow Universe AB Test B
 
+## 18 October 2026 — Sewing Kit R02 after owner rejection
+
+The owner rejected the green R01 sewing kit and its appearance. Reworked the original
+asset around the observed Rust reference: warm reddish-brown fine thread, a narrow
+worn hollow fibre core with nearly flush ends, a much thinner matching loop, and a
+smaller flattened needle partially tucked under the winding. Removed the toy-like
+rounded wooden caps and repeated chunky ribs. No reference pixels or meshes were used.
+
+R02 has 7,200 / 2,748 / 1,060 triangles, one material, one original 1024px PBR atlas and
+a 56-triangle hull. Both PNG sizes were re-rendered through production IconRenderer;
+per-item view is now [20,18,0]. Description updated to match the fibre-core spool.
+IDs, quantities, recipes and inventory behavior are unchanged.
+
+Validation: the focused test project rebuilt with zero warnings/errors; 6/6 catalogue
+and content tests passed. Godot imports, native LOD0/1/2 captures and 32–256px production
+icon-provider checks passed with SVG fallback disabled. Geometry and alpha bounds
+checked. The existing small review harness was reused, with serial two-core,
+below-normal jobs and CPU/memory gating. All owned jobs exited. Full solution and
+full gameplay suite/live inventory were not run to keep load low. Existing retained
+R01 caches were reused; their previously rejected cleanup was not retried.
+
+See `docs/ITEM_ART_SEWING_KIT.md` and `docs/images/item-art-sewing-kit-r02-20261018/`.
+R01 evidence remains as rejected history; R02 artistic acceptance is pending.
+
+
 ## 18 October 2026 — original Sewing Kit model and inventory icons
 
 Replaced Sewing Kit's fibre stand-in and flat SVG presentation with an original wooden

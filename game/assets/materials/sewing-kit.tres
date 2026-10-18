@@ -11,6 +11,6 @@ albedo_color = Color(1, 1, 1, 1)
 albedo_texture = ExtResource("1")
 orm_texture = ExtResource("2")
 normal_enabled = true
-normal_scale = 0.55
+normal_scale = 0.8
 normal_texture = ExtResource("3")
 texture_filter = 5
