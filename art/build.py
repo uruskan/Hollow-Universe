@@ -25,6 +25,7 @@ SCRIPTS = {
     "resources": "models/resources.py",
     "cloth": "models/cloth.py",
     "sewing_kit": "models/sewing_kit.py",
+    "metal_blade": "models/metal_blade.py",
     "tools": "models/tools.py",
     "supplies": "models/supplies.py",
     "clothing": "models/clothing.py",

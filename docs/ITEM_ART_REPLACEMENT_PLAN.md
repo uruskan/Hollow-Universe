@@ -10,7 +10,9 @@ Cloth now has its own original model and rendered PNGs; see
 [its specification, evidence and validation limits](ITEM_ART_CLOTH.md). Its live
 inventory check and owner visual acceptance remain pending. Sewing Kit now has its
 own spool-and-needle model and rendered icons; see [its asset record](ITEM_ART_SEWING_KIT.md).
-Other replacements remain planned. Artistic acceptance remains with the owner.
+Metal Blade now has a dedicated tapered steel model and rendered icons; see
+[its asset record](ITEM_ART_METAL_BLADE.md). Other replacements remain planned.
+Artistic acceptance remains with the owner.
 [DESIGN.md](DESIGN.md), especially ART-01 and the ground UI requirement, remains authoritative.
 
 ## Current assets
@@ -46,7 +48,7 @@ remain subject to visual review.
 |---|---|---|---|
 | 1 | `cloth` | Fibre model and SVG icon | A roll or folded bolt of rough woven cloth, with visible thickness, folds and restrained fraying. |
 | 1 | `sewing-kit` | Replaced: original model and rendered PNGs | Brown thread on a worn fibre core with a tucked steel needle; replaces the rejected green wooden-spool version. |
-| 1 | `metal-blade` | Refined-metal ingots and SVG icon | A distinct spring-steel machine or saw blade, with a readable cutting edge and mounting features. |
+| 1 | `metal-blade` | Replaced: original model and rendered PNGs | Broad tapered steel blade, one mounting hole, ground cutting edge and small chips; based on visual reference study. |
 | 1 | `sign-plate` | Refined-metal ingots and SVG icon | A bent road-sign panel with original markings, mounting holes and localized wear. |
 | 1 | `receiver` | Refined-metal ingots and SVG icon | A semi-automatic gun frame, with recognizable slide and barrel interfaces. |
 | 1 | `rifle-frame` | Refined-metal ingots and SVG icon | A rifle receiver and stock assembly without its barrel and springs; distinct from the gun receiver. |

@@ -1,5 +1,31 @@
 # Hollow Universe AB Test B
 
+## 18 October 2026 — Metal Blade original model and rendered icons
+
+Inspected the official Rust item image before authoring, as requested by the owner.
+Replaced metal-blade's refined-metal ingot stand-in and SVG fallback with an original
+broad tapered grey steel plate: one mounting hole, actual bevels, small chips,
+scratches and restrained oxidation. No reference pixels or other game files entered
+the repository. ID 158, item description, quantities and recipes remain unchanged.
+
+The model has 1,568 / 992 / 672 triangles, one material and an original 1024px PBR
+atlas. The mounting hole and chipped silhouette remain in all LODs. Production
+IconRenderer supplies 128px and 256px PNGs with per-item view [38,28,-15]. Larger
+preview review caught regular bevel striping, softened into irregular abrasion
+before final captures. The catalogue now selects this model and its own icons.
+
+Validation: focused test and review builds passed with zero warnings/errors;
+7/7 catalogue/content tests passed, including blade identity. Native Godot captures
+cover LOD0/1/2, reverse side, and actual CatalogItemIcons at 32–256px without an SVG
+fallback. GLB attributes/normals and PNG transparency/bounds were checked. Full
+solution and gameplay tests/live inventory were deferred to keep resource use low.
+Jobs ran serially at below-normal priority on two CPU cores, waiting for RAM/CPU;
+owned children exited and the temporary reference tab was closed. Other sessions'
+work and staging were preserved. Artistic acceptance remains pending.
+
+See `docs/ITEM_ART_METAL_BLADE.md` and `docs/images/item-art-metal-blade-20261018/`.
+
+
 ## 18 October 2026 — Sewing Kit R02 after owner rejection
 
 The owner rejected the green R01 sewing kit and its appearance. Reworked the original

@@ -1,0 +1,312 @@
+{
+  "revision": "R01",
+  "jobs": [
+    {
+      "name": "review-build-final",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\review\\MetalBladeReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 15652,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 11.6,
+      "free_gib_before": 6.31,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "checks-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\MetalBladeChecks.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 21628,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 7.4,
+      "free_gib_before": 6.06,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "model-build-final",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "-b",
+        "--factory-startup",
+        "-t",
+        "2",
+        "--python",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\art\\models\\metal_blade.py"
+      ],
+      "owned_pid": 7392,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 7.2,
+      "free_gib_before": 6.21,
+      "exit_code": 0,
+      "run_seconds": 5.0
+    },
+    {
+      "name": "import-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 26408,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 4.8,
+      "free_gib_before": 6.26,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "icons-render-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\review",
+        "--",
+        "--icons",
+        "--output=icon-sheet-final.png"
+      ],
+      "owned_pid": 10352,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 6.1,
+      "free_gib_before": 7.35,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "icons-import-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 1748,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 18.5,
+      "free_gib_before": 7.18,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "slots-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\review",
+        "--",
+        "--slots",
+        "--output=icon-slots.png"
+      ],
+      "owned_pid": 10500,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 5.5,
+      "free_gib_before": 7.06,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "lod0-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\review",
+        "--",
+        "--lod=0",
+        "--output=metal-blade-lod0.png"
+      ],
+      "owned_pid": 23972,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 11.9,
+      "free_gib_before": 7.14,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod1-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\review",
+        "--",
+        "--lod=1",
+        "--output=metal-blade-lod1.png"
+      ],
+      "owned_pid": 36940,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 0.1,
+      "free_gib_before": 7.19,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod2-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\review",
+        "--",
+        "--lod=2",
+        "--output=metal-blade-lod2.png"
+      ],
+      "owned_pid": 27700,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 0.5,
+      "free_gib_before": 7.25,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "back-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\review",
+        "--",
+        "--lod=0",
+        "--yaw=155",
+        "--output=metal-blade-back.png"
+      ],
+      "owned_pid": 23040,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 0.9,
+      "free_gib_before": 7.25,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "catalogue-content-tests-final",
+      "command": [
+        "dotnet",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\checks-bin\\net10.0\\Hollow.Tests.dll"
+      ],
+      "owned_pid": 17360,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 0.0,
+      "free_gib_before": 7.31,
+      "exit_code": 0,
+      "run_seconds": 1.0
+    },
+    {
+      "name": "mesh-check-final",
+      "command": [
+        "C:\\Python314\\python.exe",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\metal-blade-r01\\check_glb.py"
+      ],
+      "owned_pid": 9544,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 22.9,
+      "free_gib_before": 7.36,
+      "exit_code": 0,
+      "run_seconds": 1.0
+    }
+  ],
+  "icon_checks": {
+    "128": {
+      "rgba": true,
+      "size": [
+        128,
+        128
+      ],
+      "unclipped_bounds": [
+        9,
+        26,
+        119,
+        102
+      ]
+    },
+    "256": {
+      "rgba": true,
+      "size": [
+        256,
+        256
+      ],
+      "unclipped_bounds": [
+        18,
+        53,
+        238,
+        203
+      ]
+    }
+  },
+  "tests": "  RUN  ContentTests.GroundDataIsComplete\n      137 items, 94 recipes, 17 natural kinds, 24 deployables, 11 loot tables; hash D422AA988FB0E832\n  ok   ContentTests.GroundDataIsComplete (451 ms)\n  RUN  ContentTests.BrokenDataIsReported\n      42 problems found, e.g. items.json: \"arrow\": unknown field \"stak\" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship, wiring)\n  ok   ContentTests.BrokenDataIsReported (61 ms)\n  RUN  ContentTests.EveryDataFileHasOneReader\n      22 readers for 21 files, and the checks across them\n  ok   ContentTests.EveryDataFileHasOneReader (1 ms)\n  RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 256 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (221 ms)\n7/7 passed in 0.7 s.\n",
+  "provider": "Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org\nVulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER\n\nmetal-blade rendered provider: 32px PASS\nmetal-blade rendered provider: 48px PASS\nmetal-blade rendered provider: 64px PASS\nmetal-blade rendered provider: 96px PASS\nmetal-blade rendered provider: 128px PASS\nmetal-blade rendered provider: 256px PASS\nmetal-blade capture: D:/GameDev/Projects/HollowUniverseABTestB/.artifacts/metal-blade-r01/review/../icon-slots.png, Ok\n",
+  "mesh": {
+    "glb_bytes": 184268,
+    "triangles": {
+      "MetalBlade_hull0-convcolonly": 37,
+      "MetalBlade_lod0": 1568,
+      "MetalBlade_lod1": 992,
+      "MetalBlade_lod2": 672
+    },
+    "finite_attributes": true,
+    "unit_normals": true,
+    "images_embedded": false
+  },
+  "captures": {
+    "icon-slots.png": "4be565b62da486e0b9fadc4b54904664ebe6ba80ce94d3aa95c521afa2a88f53",
+    "metal-blade-back.png": "0ef5f2d12d47927973cf5eb4ad4116eb41574b38ea44632adece236b1ef0c335",
+    "metal-blade-lod0.png": "8fe57ab06a717ee3a9510746d6d40b5a83512f9472cd1d2dcc8e8a4079881f05",
+    "metal-blade-lod1.png": "ff165146cdfb31e1352594cd2ac08ccaa80faf7fe3fb3d41276ffbe244123a4c",
+    "metal-blade-lod2.png": "7be7397618fb64efcd31d164c9a3f206ff3efaf9aa9a9a2e86d7e4ebb69438df"
+  },
+  "compiled_references": {
+    "Hollow.Client.dll": "178770876e6b2a1c13f7871b50de0d9ab2327ebf8b2deaa85151bc0338dc8fc8",
+    "Hollow.Core.dll": "8e1de6459ed8f4c8654ef0efb6f483e7d912c201caef5da6bd05ca57d95466fd",
+    "Hollow.Galaxy.dll": "7ba3c96ed21fe0d043fe0951e6a3214b8af3187ca6ef4e22bb909a01ec5c7da4",
+    "Hollow.Net.dll": "1edbbb17a44df486dfef44c2776b3fc6de03f350c88919099908d443df7d2e3b",
+    "Hollow.Persistence.dll": "01e7b1fab913e33ee1e3d512f26b0b3ebea5260fb7647c49ccce833a2d6988da",
+    "Hollow.Server.dll": "ed2e61a11a9f76d67c7594194eed5bdbc69a344f60e36364d7f5e911df1f9644",
+    "Hollow.Simulation.dll": "10d06217806e581e8b1a20e03f8a99ba14bd7fa77c8f5d19d17825026937fa75",
+    "Hollow.Surface.dll": "dc508bd68a734e4ccc5d4a54b9f82736db330a4bb5dfeec95b02353722935b3b",
+    "HollowUniverse.dll": "fc9331396647ef4fc466ae250cb253d4aa185c1a66fdba89ad339772b0f25e40",
+    "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+    "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+    "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+    "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+    "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+    "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+  },
+  "compiled_test_sources": {
+    "tests/Hollow.Tests/TestRunner.cs": "2d0ceee0cbd64c3ccecb62f566f49541957ac100289e4dcb4fbcd8d0554e16f2",
+    "tests/Hollow.Tests/ModelCatalogueTests.cs": "10dda8583303536746a609aa781397b7afca1c2795612c17c909d058fb43b1cc",
+    "tests/Hollow.Tests/ContentTests.cs": "5f84b75009fff31b9e653affaef56be7b1f96a3e93569471b27d9f304dfc5bc6"
+  },
+  "limits": [
+    "Native production ModelViewer/IconRenderer/CatalogItemIcons in isolated harness with existing compiled game code.",
+    "Slots are diagnostic, not live gameplay inventory. Full solution and gameplay suite were not run; focused builds and seven tests passed.",
+    "All owned children exited; own temporary browser tab closed. No world/server/interactive Blender launched.",
+    "Owner artistic acceptance is pending."
+  ]
+}

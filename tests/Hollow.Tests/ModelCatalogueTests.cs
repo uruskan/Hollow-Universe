@@ -35,7 +35,7 @@ public static class ModelCatalogueTests
     };
 
     // Models that replaced stand-ins: none of them may be marked as a stand-in again.
-    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit" };
+    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade" };
 
     [Test]
     public static void ClothHasItsOwnModelAndRenderedIcon()
@@ -59,6 +59,18 @@ public static class ModelCatalogueTests
         Assert.Equal("res://assets/items/sewing-kit.glb", kit.GetProperty("file").GetString(), "sewing kit model identity");
         Assert.True(!kit.GetProperty("icon").TryGetProperty("key", out _), "sewing kit must render its own icon");
         Assert.True(!kit.TryGetProperty("standIn", out _), "sewing kit must not return to the fibre stand-in");
+    }
+
+    [Test]
+    public static void MetalBladeHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement blade = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "metal-blade");
+        Assert.Equal("res://assets/items/metal-blade.glb", blade.GetProperty("file").GetString(), "metal blade model identity");
+        Assert.True(!blade.GetProperty("icon").TryGetProperty("key", out _), "metal blade must render its own icon");
+        Assert.True(!blade.TryGetProperty("standIn", out _), "metal blade must not return to the refined-metal stand-in");
     }
 
     // World objects the gathering rules place (gather.json) and the ship.
