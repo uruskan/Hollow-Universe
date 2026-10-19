@@ -449,8 +449,12 @@ seconds into play and times the arrival.
   time: every snapshot says how early this client's inputs arrived (the least over the last half second). The client
   aims for 2 ticks: 4 % faster below, 3 % slower above 4, and it jumps when inputs arrive late or very early. A jump
   forward runs the extra ticks over the next frames (their inputs still go out); one of over a second skips them (the
-  server and the prediction both fill skipped ticks by repeating the last input). A jump back pauses. The first lead
-  comes from the connect handshake's round trip.
+  server and the prediction both fill skipped ticks by repeating the last input). A jump back pauses. After a jump
+  the client waits out the server's half-second window and a round trip (plus 0.1 s) before it steers again, because
+  until then the reports still describe the old clock; at a 150 ms ping the earlier fixed 0.6 s acted on stale reports,
+  moved the clock twice for one error and swung it by tens of ticks for good (`TickClockSettlesAfterASlowHandshakeAtALongPing`).
+  The first lead comes from the connect handshake's round trip, so a join that lost a packet starts the clock too far
+  ahead and takes one such move to put right.
 - **Inputs:** one packet per client tick: the tick's input (move axes in 1/127, the view: since protocol 21 a
   direction, octahedral in 2 × 16 bits, before it yaw and pitch in 1/65,536 of a turn, the head's free look in 1.5°
   steps, a byte each way, buttons: jump held, jump pressed this tick, crouch, sprint) and the three before it, the

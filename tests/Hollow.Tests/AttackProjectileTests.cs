@@ -415,9 +415,10 @@ public static class AttackProjectileTests
     [Test]
     public static void GunAndRocketLifecycleSettlesThroughLatencyJitterAndLoss()
     {
-        using var rig = new LoopbackRig();
+        using var rig = new LoopbackRig(simulated: true);
         GameClient ada = rig.Join("AttackAda", new NetConditions { LatencyMs = 120, JitterMs = 40, LossPercent = 12 });
         rig.WaitUntilPlaying();
+        rig.WaitUntilSettled(); // the rapid clicks below need her tick clock running, not paused by the server's first reports, and her ground built
         GameContent content = ada.Content;
         var actual = new List<ProjectileLaunched>();
         rig.Server.Inspect(server =>
@@ -505,10 +506,10 @@ public static class AttackProjectileTests
 
     private static void Wait(LoopbackRig rig, Func<bool> done, Func<GameClient, double, InputFrame> input, string label, double seconds = 8)
     {
-        var watch = Stopwatch.StartNew();
+        double start = rig.Elapsed;
         while (!done())
         {
-            Assert.True(watch.Elapsed.TotalSeconds < seconds, "timed out: " + label);
+            Assert.True(rig.Elapsed - start < seconds, "timed out: " + label);
             rig.Run(0.05, input);
         }
     }

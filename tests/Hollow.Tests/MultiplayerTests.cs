@@ -2,9 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Net;
 using System.Numerics;
 using System.Threading;
 using Hollow.Client;
+using Hollow.Core;
 using Hollow.Net.Protocol;
 using Hollow.Net.Transport;
 using Hollow.Server;
@@ -14,42 +16,96 @@ using Hollow.Simulation.Movement;
 
 namespace Hollow.Tests;
 
-/// <summary>An in-process server on a background thread, and clients driven from the test's thread.</summary>
+/// <summary>
+/// An in-process server and clients on loopback. By default the server runs on a background thread and the clients are
+/// driven from the test's thread on the wall clock, as a game would be; a busy PC (a collection, paging, other processes)
+/// then changes how many ticks and inputs each side gets, which is right for a smoke test and wrong for an assertion
+/// about distances, counts or what a lossy line delivered. With <c>simulated: true</c> nothing waits for the PC: the rig
+/// steps the server and every client itself, on one thread, in fixed steps of a simulated clock, and a client behind a
+/// bad line (<see cref="Join"/>) goes through a <see cref="SimulatedRelay"/> that delays and drops datagrams on that
+/// clock. Who gets which tick, input and datagram then depends on the code and the seeds, not on how long a step takes;
+/// only what LiteNetLib reads from the wall clock (the delay before it resends a lost reliable packet) still does.
+/// </summary>
 public sealed class LoopbackRig : IDisposable
 {
+    /// <summary>The simulated clock's steps: a client frame each, 60 Hz as the game draws; the server ticks on every second.</summary>
+    public const int StepsPerSecond = 60;
+
+    private const int StepsPerServerTick = StepsPerSecond / GameServer.TickRate;
+
     /// <summary>
     /// A server on the stand-in ground (plain and quick; players arrive at the landing site, where the tests lay out their
     /// places), or on the first world's real surface (on its beaches); no animals unless a test asks for them (G7).
     /// </summary>
-    public LoopbackRig(string? database = null, bool planet = false, bool animals = false, IReadOnlyCollection<string>? admins = null)
+    public LoopbackRig(string? database = null, bool planet = false, bool animals = false, IReadOnlyCollection<string>? admins = null,
+        bool simulated = false)
     {
+        Simulated = simulated;
         Server = new GameServer(new ServerOptions
         {
             Port = 0, DatabasePath = database, StandIn = !planet, SpawnAtOrigin = !planet, Animals = animals, Admins = admins ?? Array.Empty<string>(),
             Log = _ => { },
         }, Fixtures.Galaxy);
-        Server.StartThread();
+        if (simulated)
+        {
+            // No server thread: Run steps it. Sleeps of 1 ms, so waiting for the wall clock (below) costs little.
+            TimerResolution.Begin();
+            _time.Restart();
+        }
+        else
+        {
+            Server.StartThread();
+        }
     }
 
     public GameServer Server { get; }
 
     public List<GameClient> Clients { get; } = new();
 
+    /// <summary>Whether the rig steps everything itself on a simulated clock.</summary>
+    public bool Simulated { get; }
+
+    /// <summary>Seeds the loss and jitter of each simulated bad line (with the client's name); any value, the same every run.</summary>
+    public ulong LineSeed { get; set; } = 1;
+
+    /// <summary>Seconds since the rig began: simulated ones, or wall-clock ones when it runs on the wall clock.</summary>
+    public double Elapsed => Simulated ? _steps / (double)StepsPerSecond : _time.Elapsed.TotalSeconds;
+
     public GameClient Join(string name, NetConditions? conditions = null)
     {
-        var client = new GameClient(new ClientOptions { Name = name, Conditions = conditions ?? NetConditions.None });
-        client.Connect("127.0.0.1", Server.Port);
+        conditions ??= NetConditions.None;
+        GameClient client;
+        if (Simulated && !conditions.IsNone)
+        {
+            var relay = new SimulatedRelay(new IPEndPoint(IPAddress.Loopback, Server.Port), conditions, Hash64.Of(LineSeed, Hash64.Of(name)));
+            _relays.Add(relay);
+            client = new GameClient(new ClientOptions { Name = name });
+            client.Connect("127.0.0.1", relay.Port);
+        }
+        else
+        {
+            client = new GameClient(new ClientOptions { Name = name, Conditions = conditions });
+            client.Connect("127.0.0.1", Server.Port);
+        }
         Clients.Add(client);
         return client;
     }
 
     // One clock for every run, so no time is lost between them: the clients' tick clocks follow real time.
     private readonly Stopwatch _time = Stopwatch.StartNew();
+    private readonly List<SimulatedRelay> _relays = new();
     private double _last;
+    private long _steps;
+    private long _stepDue;
 
     /// <summary>Updates every client at 60 Hz for a while, with each one's input from <paramref name="input"/>.</summary>
     public void Run(double seconds, Func<GameClient, double, InputFrame> input)
     {
+        if (Simulated)
+        {
+            RunSimulated(seconds, input);
+            return;
+        }
         TimerResolution.Begin();
         try
         {
@@ -71,6 +127,45 @@ public sealed class LoopbackRig : IDisposable
         }
     }
 
+    // A step: the lines deliver what is due, the server ticks on every second step, each client has its frame (and what it
+    // sent goes into its line at once). A step takes at least its own length of the wall clock, and a late one is not made
+    // up for: whatever in the game runs on real time (LiteNetLib resends a lost reliable packet after a delay it reads from the
+    // wall clock, ground tiles are built by worker threads, a client's ground is waited for) then sees no faster a clock than
+    // its own, and a stall of the PC stretches the run instead of changing what happens in it.
+    private void RunSimulated(double seconds, Func<GameClient, double, InputFrame> input)
+    {
+        long first = _steps;
+        long last = first + (long)Math.Round(seconds * StepsPerSecond);
+        long stepLength = Stopwatch.Frequency / StepsPerSecond;
+        while (_steps < last)
+        {
+            double t = (_steps - first) / (double)StepsPerSecond;
+            _steps++;
+            double now = _steps / (double)StepsPerSecond;
+            TimerResolution.WaitUntil(_stepDue);
+            _stepDue = Math.Max(_stepDue, Stopwatch.GetTimestamp()) + stepLength;
+            Pump(now);
+            if (_steps % StepsPerServerTick == 0)
+            {
+                Server.Tick();
+                Pump(now);
+            }
+            foreach (GameClient client in Clients)
+            {
+                client.Update(1.0 / StepsPerSecond, input(client, t));
+                Pump(now);
+            }
+        }
+    }
+
+    private void Pump(double now)
+    {
+        foreach (SimulatedRelay relay in _relays)
+        {
+            relay.Pump(now);
+        }
+    }
+
     /// <summary>
     /// The console's teleport of a player onto the ground under a zone point (and so many metres further east and south):
     /// the point in the console's terms, metres east and south of the landing site along the ground.
@@ -84,11 +179,50 @@ public sealed class LoopbackRig : IDisposable
     /// <summary>Runs until every client plays and has its character, or fails after a few seconds.</summary>
     public void WaitUntilPlaying()
     {
-        var watch = Stopwatch.StartNew();
+        double start = Elapsed;
         while (!Clients.All(c => c.State == ClientState.Playing && c.HasCharacter))
         {
-            Assert.True(watch.Elapsed.TotalSeconds < 10, "clients joined: " +
+            Assert.True(Elapsed - start < 10, "clients joined: " +
                 string.Join(", ", Clients.Select(c => $"{c.Name} {c.State} {c.DisconnectReason}")));
+            Run(0.1, (_, _) => default);
+        }
+    }
+
+    /// <summary>
+    /// Runs until every client has settled in: its tick clock is steady against the server's (no clock jump for a while, and
+    /// inputs reaching the server in time without much to spare) and its prediction stands on its own ground (no tick held for
+    /// ground lately). A client starts its clock from how long its handshake took, on the wall clock, so a lost connection
+    /// request or a busy PC sets it tens of ticks ahead, and the server's reports then pause it for as long
+    /// (<c>GameClient.SteerClock</c>); it holds its character at the start until worker threads have built the ground
+    /// around it (<c>Predictor.Step</c>), which a busy PC makes take seconds, and the server's states correct every tick
+    /// of the wait. A test that counts ticks, inputs, shots or metres must begin after both.
+    /// </summary>
+    public void WaitUntilSettled()
+    {
+        const double Quiet = 1.2; // seconds: twice the steering's cooldown, plus a margin report's half second
+        var jumps = Clients.ToDictionary(c => c, c => c.Stats.ClockJumps);
+        var held = Clients.ToDictionary(c => c, c => c.Prediction?.HeldForGround ?? 0);
+        double changed = Elapsed;
+        var watch = Stopwatch.StartNew();
+        while (true)
+        {
+            foreach (GameClient client in Clients)
+            {
+                long heldNow = client.Prediction?.HeldForGround ?? 0;
+                if (client.Stats.ClockJumps != jumps[client] || heldNow != held[client])
+                {
+                    jumps[client] = client.Stats.ClockJumps;
+                    held[client] = heldNow;
+                    changed = Elapsed;
+                }
+            }
+            bool inTime = Clients.All(c => c.Stats.InputMargin is >= 0 and <= GameClient.TargetInputMargin + 10);
+            if (inTime && Elapsed - changed >= Quiet)
+            {
+                return;
+            }
+            Assert.True(watch.Elapsed.TotalSeconds < 30, "clients settled: " +
+                string.Join(", ", Clients.Select(c => $"{c.Name} margin {c.Stats.InputMargin}, {c.Stats.ClockJumps} jumps, {c.Prediction?.HeldForGround} ticks held")));
             Run(0.1, (_, _) => default);
         }
     }
@@ -101,6 +235,14 @@ public sealed class LoopbackRig : IDisposable
         }
         Server.Stop();
         Server.Dispose();
+        foreach (SimulatedRelay relay in _relays)
+        {
+            relay.Dispose();
+        }
+        if (Simulated)
+        {
+            TimerResolution.End();
+        }
     }
 }
 
@@ -162,12 +304,14 @@ public static class MultiplayerTests
     [Test]
     public static void TwoClientsSeeEachOther()
     {
-        using var rig = new LoopbackRig();
+        // On the simulated clock: how far Bo gets in two seconds of strafing must not depend on what else the PC is doing.
+        using var rig = new LoopbackRig(simulated: true);
         GameClient ada = rig.Join("Ada");
         GameClient bo = rig.Join("Bo", new NetConditions { LatencyMs = 150, LossPercent = 5 });
         rig.WaitUntilPlaying();
-        // Let the clocks settle, then measure.
-        rig.Run(1.5, (_, _) => default);
+        // Let the clocks settle (not for a fixed time: a lost packet at the handshake sets Bo's clock tens of ticks ahead, and
+        // the server's reports then pause it for as long), then measure.
+        rig.WaitUntilSettled();
         ada.Stats.ResetTotals();
         bo.Stats.ResetTotals();
         var starts = new Dictionary<GameClient, Vector3> { [ada] = ada.Character.Position, [bo] = bo.Character.Position };
@@ -189,6 +333,27 @@ public static class MultiplayerTests
         }
         Assert.True(ada.Stats.PredictionErrorMean < 0.001, "on a clean line prediction is exact");
         Assert.True(bo.Stats.PredictionErrorMean < 0.01, "at 150 ms and 5 % loss prediction holds");
+    }
+
+    /// <summary>
+    /// GROUND.md §4.4: a client's tick clock starts from how long its handshake took, so a slow join (a lost packet, a busy PC)
+    /// starts it tens of ticks ahead of where it should be, and the server's margin reports then steer it back. At a
+    /// ping of 150 ms those reports still described the old clock when the cooldown ended, so the clock was moved twice for one
+    /// error, overshot, and swung by tens of ticks every second or two without ever settling (the first test of this
+    /// file failed on it, and a player on such a line would have been paused again and again). The first move now waits for
+    /// the server's window and the trip back; the clock settles with a jump or two.
+    /// </summary>
+    [Test]
+    public static void TickClockSettlesAfterASlowHandshakeAtALongPing()
+    {
+        using var rig = new LoopbackRig(simulated: true);
+        GameClient bo = rig.Join("Bo", new NetConditions { LatencyMs = 150 });
+        // Nothing runs while the connection is made: its handshake takes the wall clock's 700 ms and the line's 150.
+        Thread.Sleep(700);
+        rig.WaitUntilPlaying();
+        rig.WaitUntilSettled();
+        Fixtures.Report($"settled after {rig.Elapsed:0.0} s with {bo.Stats.ClockJumps} clock jumps, margin {bo.Stats.InputMargin}, ping {bo.Stats.RoundTripMs} ms");
+        Assert.True(bo.Stats.ClockJumps <= 3, $"the clock is moved to where it belongs in a jump or two, not {bo.Stats.ClockJumps}");
     }
 
     /// <summary>

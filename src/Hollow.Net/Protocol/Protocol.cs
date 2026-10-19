@@ -71,6 +71,13 @@ public static partial class Protocol
     /// <summary>Remote entities are drawn this far in the past, so there are snapshots on both sides to blend.</summary>
     public const float InterpolationDelaySeconds = 0.1f;
 
+    /// <summary>
+    /// How long the server looks back when it reports how early inputs reached it: the least margin over this many seconds
+    /// (<c>PlayerSession.InputMargin</c>). A client that moves its clock must wait this long, and a round trip, before the
+    /// next report can describe inputs sent after the move (<c>GameClient.SteerClock</c>).
+    /// </summary>
+    public const double InputMarginWindowSeconds = 0.5;
+
     /// <summary>Each input packet repeats this many earlier inputs besides the newest.</summary>
     public const int RedundantInputs = 3;
 

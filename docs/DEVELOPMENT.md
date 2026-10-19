@@ -4029,3 +4029,20 @@ image is now an explicit visual regression target in GRASS_INVESTIGATION.md, wit
 daylight and golden-hour playable comparisons required. A guarded comparison runner
 was added; it has not yet produced its first image at this entry. No historical image
 was edited and no appearance/performance acceptance is claimed.
+
+### 19 October 2026 — loopback flakes: a clock-steering bug, and a rig that does not depend on the PC
+
+`TwoClientsSeeEachOther` ("Bo moved"), `GunAndRocketLifecycleSettlesThroughLatencyJitterAndLoss` and, once,
+`AttackStationTests.SpamCannotProduceMoreThanTwoShotsAcrossLatencyJitterAndLoss` failed in full runs and passed alone.
+Reproduced by running 12 and 20 copies of the test process at once; a trace of a failing run showed Bo's tick clock
+paused for 2.3 s (margin 44, then -27). Causes: (1) production, `GameClient.SteerClock`: the cooldown after a clock
+move was a fixed 0.6 s, but a margin report describes the new clock only after the server's 0.5 s window and a round
+trip, so at 150 ms ping the clock was moved twice for one error and swung for good after a join whose handshake
+(wall clock, one lost packet) had started it too far ahead; now `Protocol.InputMarginWindowSeconds` + round trip + 0.1 s.
+(2) the rig fed ticks, loss and delay from the wall clock and pool threads; (3) a client holds its character until
+worker threads have built its ground, which a busy PC stretches to seconds while the server's states correct every
+tick. `LoopbackRig(simulated: true)` steps server and clients in 60 Hz steps (never faster than real time), a seeded
+`SimulatedRelay` replaces `ConditionedRelay` for a bad line, and `WaitUntilSettled` waits for clock and ground; the
+three tests use it. New test `TickClockSettlesAfterASlowHandshakeAtALongPing` (27 jumps in 20 s on the old cooldown, 1 now).
+Validation: see the commit message. Still wall-clock: LiteNetLib's resend delay for a lost reliable packet reads
+`DateTime.UtcNow`, so a hitch of the whole PC can still make a lost fire intent arrive over a second late.

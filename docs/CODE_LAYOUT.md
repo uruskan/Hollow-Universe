@@ -1034,7 +1034,7 @@ The tests, one file per area (the runner needs no packages).
 | `LoadingTests.cs` | 240 | LoadingTests [Clock] | The loading pipeline's rules (GROUND.md §4.3.1), without Godot: the game's plan reads and names every stage; the bar |
 | `ModelCatalogueTests.cs` | 247 | ModelCatalogueTests | The ground game's model catalogue (GROUND.md §9), checked without Godot: every model file is a GLB with its LOD |
 | `MovementTests.cs` | 307 | LevelSurface, Lap, MovementRig, MovementTests | A test surface: a smooth sphere whose ground sits at a fixed height, with an optional sea. |
-| `MultiplayerTests.cs` | 307 | LoopbackRig, MultiplayerTests | An in-process server on a background thread, and clients driven from the test's thread. |
+| `MultiplayerTests.cs` | 471 | LoopbackRig, MultiplayerTests | An in-process server and clients on loopback: on a background thread and the wall clock, or (`simulated: true`) stepped by the rig itself on a simulated clock with a `SimulatedRelay` for a bad line, and `WaitUntilSettled` (clock and ground) before a test counts anything. |
 | `NetTests.cs` | 382 | NetTests [Arrivals] |  |
 | `PersistenceTests.cs` | 65 | TempDatabase, PersistenceTests | A database file in the temp folder, deleted afterwards. |
 | `PhysicsTests.cs` | 126 | PhysicsTests |  |
@@ -1052,6 +1052,7 @@ The tests, one file per area (the runner needs no packages).
 | `ShipPersistenceTests.cs` | 102 | ShipPersistenceTests | Ships in storage (GROUND.md §4.7, §6.7). |
 | `ShipTestParts.cs` | 25 | ShipTestParts | A ship kind's parts and seats by what the tests call them (ships.json's data, IRON_WAKE.md §5.1). |
 | `ShipTests.cs` | 293 | SlopeSurface, ShipRig, PipeExtensions, ShipTests | A test ground tilted about the north–south line through the landing site: it rises toward the east by |
+| `SimulatedRelay.cs` | 125 | SimulatedRelay | `ConditionedRelay` for a stepped test: the same latency, jitter and loss between one client and the server, on the clock its owner passes in and the owner's thread, seeded. |
 | `SoundCatalogueTests.cs` | 315 | SoundCatalogueTests [Wav] | The ground game's sounds (GROUND.md §4.9), checked without Godot: every file of the catalogue is there and imported |
 | `SurfaceTests.cs` | 125 | SurfaceTests |  |
 | `SurvivalNetTests.cs` | 300 | SurvivalNetTests |  |

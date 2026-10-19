@@ -120,12 +120,17 @@ thread that last edited it.
 - Finish `salvage` (provenance, captures, catalogue test, commit), then item-art batches 2 and 3 in
   [ITEM_ART_REPLACEMENT_PLAN.md](ITEM_ART_REPLACEMENT_PLAN.md): explosives, blueprint, research table, Wire Tool review.
 - Install the defense interior sound from P5's candidate and test it.
-- Make `MultiplayerTests.TwoClientsSeeEachOther` and
-  `AttackProjectileTests.GunAndRocketLifecycleSettlesThroughLatencyJitterAndLoss` reliable. Both run a
-  loopback network on the wall clock and fail intermittently in full runs: Bo moves less than 3 m, or a
-  rocket shot misses its prediction. Both pass alone. The first failed in two of three full runs, yet
-  passed after all 104 earlier classes in one process, so the cause is timing, not state left by other
-  tests. Running the test rig on simulated time is the likely fix.
+- **Done (19 October):** `MultiplayerTests.TwoClientsSeeEachOther` and
+  `AttackProjectileTests.GunAndRocketLifecycleSettlesThroughLatencyJitterAndLoss` (and, with them,
+  `AttackStationTests.SpamCannotProduceMoreThanTwoShotsAcrossLatencyJitterAndLoss`, which failed once in a
+  full run for the same reason). The cause was not only timing. `GameClient.SteerClock` waited a fixed 0.6 s
+  after moving the tick clock, shorter than the server's 0.5 s margin window plus a round trip at 150 ms ping,
+  so it acted on stale reports and swung the clock by tens of ticks for good once a join (one lost packet, a
+  busy PC) had started it too far ahead; every swing pauses the client's ticks. That is fixed in the client
+  (`Protocol.InputMarginWindowSeconds`), with `TickClockSettlesAfterASlowHandshakeAtALongPing` failing on the
+  old cooldown. The three tests now run on `LoopbackRig(simulated: true)`: the rig steps the server and clients
+  itself, a `SimulatedRelay` delays and drops datagrams on that clock, and `WaitUntilSettled` waits for the
+  client's clock and ground before they count anything. See DEVELOPMENT.md, 19 October 2026.
 - Guard `PhysicsWorld.BuildShape` so a malformed collision tile fails as a named managed error instead of
   a native access violation; capture a dump if the crash returns.
 - Describe the new files in [CODE_LAYOUT.md](CODE_LAYOUT.md): 418 of the 420 C# files added since the fork are missing.

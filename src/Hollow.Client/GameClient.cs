@@ -786,7 +786,11 @@ public sealed class GameClient : INetEventListener, IDisposable
             }
             _tickClock += move;
             _rate = 1;
-            _marginCooldown = 0.6;
+            // Until the server's window (its least margin over Protocol.InputMarginWindowSeconds) has forgotten the inputs
+            // sent before the move, and the report has come back, a report still describes the old clock: acting on it
+            // moves the clock twice for one error, overshoots, and at a ping over about 100 ms swings it by tens of ticks
+            // for good (a join with one lost packet, whose handshake time sets the first clock too early, was enough).
+            _marginCooldown = Protocol.InputMarginWindowSeconds + Math.Clamp(_roundTrip, 0, 1000) / 1000.0 + 0.1;
             Stats.ClockJumps++;
             if (_tickClock - _lastMarginLog > 30 * TickRate)
             {

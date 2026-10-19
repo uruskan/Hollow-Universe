@@ -289,9 +289,12 @@ public static class AttackStationTests
             new NetConditions { LatencyMs = 180, JitterMs = 35, LossPercent = 15 },
         })
         {
-            using var rig = new LoopbackRig();
+            // On the simulated clock, after the client has settled in: how many of the two rounds the server accepts must not
+            // depend on whether a busy PC paused the client's clock or held its prediction for ground.
+            using var rig = new LoopbackRig(simulated: true);
             GameClient client = rig.Join("StationSpam", conditions);
             rig.WaitUntilPlaying();
+            rig.WaitUntilSettled();
             IronWakeNetTests.ShipFacts ship = IronWakeNetTests.Spawn(rig, client.Name);
             ShipDef def = ContentFixture.Content.Ship("iron-wake")!;
             ShipStationDef station = def.Stations.First(s => s.Id == "Siege_Forward");
@@ -313,8 +316,8 @@ public static class AttackStationTests
             }
             void Wait(Func<bool> ready, string requirement, double seconds = 5)
             {
-                var watch = Stopwatch.StartNew();
-                while (!ready() && watch.Elapsed.TotalSeconds < seconds) rig.Run(0.05, (_, _) => Input(false));
+                double start = rig.Elapsed;
+                while (!ready() && rig.Elapsed - start < seconds) rig.Run(0.05, (_, _) => Input(false));
                 if (!ready()) throw new TestFailure($"{conditions}: {requirement} within {seconds}s; {State()}");
             }
             IronWakeNetTests.Heal(rig, client.EntityId);
