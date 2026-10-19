@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Godot;
 using Hollow.Client;
 using HollowUniverse.Settings;
+using HollowUniverse.Surface;
 
 namespace HollowUniverse.Ground;
 
@@ -76,6 +77,15 @@ public sealed partial class EnvironmentRoute
             }
             await MeasureHiddenLayer(name, new[] { layer });
         }
+
+        // T0.4: the three ground-cover workloads, each removed alone through the field's diagnostic mask, so their
+        // separate costs come from one loaded field rather than from hiding the whole node.
+        if (world.GetNodeOrNull<GrassField>("Grass") is { } cover && cover.Visible)
+        {
+            foreach (GroundCoverLayers layer in new[] { GroundCoverLayers.Grass, GroundCoverLayers.Litter, GroundCoverLayers.Authored })
+                await MeasureWithoutCoverLayer(cover, layer);
+        }
+        else GD.Print("[environment-performance] skipped ground-cover layers: grass field absent or hidden");
 
         // Terrain and water are separate meshes under the same tile owner. Identify the existing water material,
         // keeping the terrain visible and recording each mesh's prior visibility for restoration.
@@ -154,6 +164,38 @@ public sealed partial class EnvironmentRoute
         }
     }
 
+    private async Task MeasureWithoutCoverLayer(GrassField cover, GroundCoverLayers layer)
+    {
+        GroundCoverLayers before = cover.DiagnosticLayers;
+        string name = layer.ToString().ToLowerInvariant();
+        try
+        {
+            cover.DiagnosticLayers = before & ~layer;
+            await SettlePerformance();
+            await SamplePerformance("diagnostic-without-cover-" + name, "ground cover: " + name);
+        }
+        finally
+        {
+            if (GodotObject.IsInstanceValid(cover)) cover.DiagnosticLayers = before;
+            if (!_stopping)
+            {
+                await SettlePerformance();
+                await WaitUntilReady("performance-restored-cover-" + name, 12);
+            }
+        }
+    }
+
+    /// <summary>This client process only; a child server's memory is its own process's.</summary>
+    private static object ProcessMemory()
+    {
+        using var process = System.Diagnostics.Process.GetCurrentProcess();
+        return new
+        {
+            workingSetMiB = process.WorkingSet64 / 1048576.0, privateMiB = process.PrivateMemorySize64 / 1048576.0,
+            managedMiB = GC.GetTotalMemory(false) / 1048576.0, godotStaticMiB = OS.GetStaticMemoryUsage() / 1048576.0,
+        };
+    }
+
     private async Task SettlePerformance()
     {
         double start = Clock;
@@ -204,6 +246,9 @@ public sealed partial class EnvironmentRoute
             meanPrimitives = count > 0 ? primitives / count : 0,
             meanVideoBytes = count > 0 ? video / count : 0, peakVideoBytes = peakVideo,
             rendererSamples = renderer,
+            // Submitted ground-cover instances/vertices/triangles before culling, and its job counts at the sample's end.
+            groundCover = View.World?.GetNodeOrNull<GrassField>("Grass")?.CaptureDiagnostics(),
+            processMemory = ProcessMemory(),
             pose = Pose(), graphics = GraphicsSettings.Current with { },
             effectiveFrameCap = Engine.MaxFps, effectiveVsync = DisplayServer.WindowGetVsyncMode().ToString(),
         };
