@@ -25,6 +25,9 @@ public static class WalkingReport
     {
         string command = args.Length > 1 ? args[1] : "stats";
         if (earth && command == "candidates") return EarthCandidatesReport.Run(args);
+        if (earth && command == "survey") return EarthSurvey.Run(args);
+        if (earth && command == "transect") return EarthSurvey.Transect(args);
+        if (earth && command == "wall") return EarthSurvey.Wall(args);
         string Arg(int i, string fallback) => args.Length > i ? args[i] : fallback;
         double Num(int i, double fallback) => args.Length > i ? double.Parse(args[i], CultureInfo.InvariantCulture) : fallback;
         var watch = Stopwatch.StartNew();

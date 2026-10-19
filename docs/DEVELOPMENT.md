@@ -1,5 +1,25 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — T1: Earth landform survey, sites and the scalloped wall
+
+[LANDFORM_SURVEY.md](LANDFORM_SURVEY.md) records T1 of the environment plan. `earth survey` classifies the whole
+of Earth (5.24 m pixels) into coastal scarps, plateau or mountain faces, inland outcrops, wooded edges, meadows
+and shores, measures which steep ground has scan rock on it, and names each class's largest regions with an
+anchor and a viewpoint. `earth transect` and `earth wall` profile a face and draw it at each terrain level.
+
+Steep ground is 0.711 km² of 10.668 km² of land; 22.5% of it lies inside a placed scan. Walls steeper than 2
+are 0.103 km², 14.5% covered; tableland escarpments reach grade 16.7 and are 10 to 16% covered. The
+playtest's regularly scalloped soil wall is the relief shape: a tableland escarpment rising 8.7 m in 3 m,
+redrawn in one-cell stair-steps by terrain levels 5 and below, with grass and forest floor drawn top-down
+and blended down the face from each cell's vertices. Lake rims, skirts and cliff placement were ruled out;
+the scans are simply absent. Nine before-images were taken in hosted normal play at High, 1600 × 900 (the
+tableland, mountain and coastal faces, an uncovered outcrop, the largest meadow, a wooded edge, a shore, the
+largest lake's bank, and the wall from 120 m); the benchmark route is unchanged at 868 m.
+
+Validation: generator report build 0 warnings, 0 errors; two survey runs give identical files; the route
+planner test passes; eleven hosted runs exited 0 with at least 4.5 GiB free (two low wall views, hidden by
+a wooded crest, are not used). No generation, save or rendering change.
+
 ## 19 October 2026 — T0.3: the Jolt crash was a native leak, now fixed
 
 The native access violations in `JPH_MeshShapeSettings_CreateShape` and once `JPH_PhysicsSystem_Create`,

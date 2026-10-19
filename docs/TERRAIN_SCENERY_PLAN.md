@@ -142,6 +142,11 @@ comparison; propose a deliberate versioned shape change only if the survey demon
 Gate: reference targets, current before-images, site identities and the problems each target
 addresses are recorded. A chosen scenic camera cannot substitute for normal movement through it.
 
+Status 19 October: recorded in [LANDFORM_SURVEY.md](LANDFORM_SURVEY.md). Only 22.5% of Earth's steep
+ground has scan rock on it. The scalloped wall is the relief shape, a tableland escarpment the heightfield
+draws as a near-vertical step, scalloped by terrain levels and vertex-blended materials; not a lake rim,
+skirts or placement. A versioned escarpment change is proposed for T2 to compare, not applied.
+
 ### T2 — Generate complete cliff formations
 
 Replace unrelated local rock stacks with deterministic formation records describing crest,

@@ -1,0 +1,1022 @@
+{
+  "survey": "T1 whole-Earth landform survey (docs/TERRAIN_SCENERY_PLAN.md)",
+  "world": {
+    "Radius": 1200,
+    "layout": "Earth (StartingWorld) as built by the server",
+    "seaLevel": 0
+  },
+  "raster": {
+    "width": 1440,
+    "height": 720,
+    "metresPerPixelAtEquator": 5.24
+  },
+  "rules": {
+    "steepGrade": 0.62,
+    "gentleGrade": 0.35,
+    "wallGrade": 2,
+    "coastalMetres": 80,
+    "plateauOrMountainFace": "steep, inland, tableland or mountain relief dominant",
+    "coveredMeans": "the ground point lies inside a placed scan\u0027s bounding box, 1 m margin",
+    "woodedEdge": "woodland \u003E= 0.45 within 3 pixels of woodland \u003C= 0.15",
+    "meadow": "grass \u003E= 0.6, woodland \u003C 0.2"
+  },
+  "landSquareMetres": 10668288,
+  "steepSquareMetres": 711096,
+  "steepCoveredByCliffScans": 0.225,
+  "wallSquareMetres": 102717,
+  "wallCoveredByCliffScans": 0.145,
+  "cliffPlacements": 909,
+  "classes": [
+    {
+      "landform": "shore",
+      "areaSquareMetres": 395655,
+      "cliffCovered": null,
+      "wallShare": null,
+      "wallCliffCovered": null
+    },
+    {
+      "landform": "meadow",
+      "areaSquareMetres": 4563512,
+      "cliffCovered": null,
+      "wallShare": null,
+      "wallCliffCovered": null
+    },
+    {
+      "landform": "wooded edge",
+      "areaSquareMetres": 539215,
+      "cliffCovered": null,
+      "wallShare": null,
+      "wallCliffCovered": null
+    },
+    {
+      "landform": "inland outcrop",
+      "areaSquareMetres": 99677,
+      "cliffCovered": 0.345,
+      "wallShare": 0.026,
+      "wallCliffCovered": 0.148
+    },
+    {
+      "landform": "plateau / mountain face",
+      "areaSquareMetres": 493992,
+      "cliffCovered": 0.193,
+      "wallShare": 0.171,
+      "wallCliffCovered": 0.132
+    },
+    {
+      "landform": "coastal scarp",
+      "areaSquareMetres": 117427,
+      "cliffCovered": 0.262,
+      "wallShare": 0.132,
+      "wallCliffCovered": 0.217
+    }
+  ],
+  "regions": {
+    "shore": [
+      {
+        "latitude": 1.078215,
+        "longitude": -128.472503,
+        "areaSquareMetres": 93854,
+        "pixels": 3433,
+        "meanHeight": 1.07,
+        "heightRange": 2.41,
+        "maxGrade": 0.618,
+        "relief": "Plains",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": 1.125,
+          "longitude": -128.375,
+          "height": 1.07,
+          "grade": 0.025,
+          "view": {
+            "latitude": 1.125,
+            "longitude": -128.375,
+            "yaw": 17,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": -36.713946,
+        "longitude": -7.80529,
+        "areaSquareMetres": 73379,
+        "pixels": 3369,
+        "meanHeight": 1.17,
+        "heightRange": 2.45,
+        "maxGrade": 0.188,
+        "relief": "Plains",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -36.625,
+          "longitude": -7.875,
+          "height": 0.29,
+          "grade": 0.026,
+          "view": {
+            "latitude": -36.625,
+            "longitude": -7.875,
+            "yaw": 215.4,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": -33.350275,
+        "longitude": 167.010754,
+        "areaSquareMetres": 70514,
+        "pixels": 3257,
+        "meanHeight": 1,
+        "heightRange": 2.76,
+        "maxGrade": 0.468,
+        "relief": "Plains",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -33.375,
+          "longitude": 166.875,
+          "height": 2.12,
+          "grade": 0.043,
+          "view": {
+            "latitude": -33.375,
+            "longitude": 166.875,
+            "yaw": 292.3,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": 49.938589,
+        "longitude": 83.506507,
+        "areaSquareMetres": 40379,
+        "pixels": 2487,
+        "meanHeight": 0.93,
+        "heightRange": 2.33,
+        "maxGrade": 0.368,
+        "relief": "Plains",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": 49.875,
+          "longitude": 86.125,
+          "height": 1.68,
+          "grade": 0.131,
+          "view": {
+            "latitude": 49.875,
+            "longitude": 86.125,
+            "yaw": 92.2,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": -54.737934,
+        "longitude": 6.124689,
+        "areaSquareMetres": 35520,
+        "pixels": 2200,
+        "meanHeight": 1.04,
+        "heightRange": 2.45,
+        "maxGrade": 0.307,
+        "relief": "Tableland",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -51.875,
+          "longitude": 6.125,
+          "height": 0.16,
+          "grade": 0.081,
+          "view": {
+            "latitude": -51.875,
+            "longitude": 6.125,
+            "yaw": 181.3,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": -30.737864,
+        "longitude": 42.208149,
+        "areaSquareMetres": 25753,
+        "pixels": 1096,
+        "meanHeight": 1.03,
+        "heightRange": 2.43,
+        "maxGrade": 0.223,
+        "relief": "Hills",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -30.125,
+          "longitude": 40.125,
+          "height": 0,
+          "grade": 0.015,
+          "view": {
+            "latitude": -30.125,
+            "longitude": 40.125,
+            "yaw": 117.9,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      }
+    ],
+    "meadow": [
+      {
+        "latitude": -19.38093,
+        "longitude": -63.840109,
+        "areaSquareMetres": 1684396,
+        "pixels": 76363,
+        "meanHeight": 12.27,
+        "heightRange": 51.68,
+        "maxGrade": 0.35,
+        "relief": "Plains",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -19.375,
+          "longitude": -63.875,
+          "height": 11.23,
+          "grade": 0.034,
+          "view": {
+            "latitude": -19.375,
+            "longitude": -63.875,
+            "yaw": 316.6,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": -17.812521,
+        "longitude": -6.174613,
+        "areaSquareMetres": 595286,
+        "pixels": 24174,
+        "meanHeight": 20,
+        "heightRange": 68.56,
+        "maxGrade": 0.35,
+        "relief": "Hills",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -17.875,
+          "longitude": -6.375,
+          "height": 8.63,
+          "grade": 0.054,
+          "view": {
+            "latitude": -17.875,
+            "longitude": -6.375,
+            "yaw": 240.3,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": 0.200548,
+        "longitude": 33.347448,
+        "areaSquareMetres": 542682,
+        "pixels": 20440,
+        "meanHeight": 47.49,
+        "heightRange": 66.92,
+        "maxGrade": 0.35,
+        "relief": "Tableland",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": 0.125,
+          "longitude": 33.375,
+          "height": 68.88,
+          "grade": 0.081,
+          "view": {
+            "latitude": 0.125,
+            "longitude": 33.375,
+            "yaw": 170.5,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": 48.374806,
+        "longitude": -83.350407,
+        "areaSquareMetres": 418264,
+        "pixels": 21689,
+        "meanHeight": 34.54,
+        "heightRange": 93.16,
+        "maxGrade": 0.35,
+        "relief": "Plains",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": 51.375,
+          "longitude": -88.875,
+          "height": 11.52,
+          "grade": 0.186,
+          "view": {
+            "latitude": 51.375,
+            "longitude": -88.875,
+            "yaw": 121.6,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": 47.204425,
+        "longitude": 57.2346,
+        "areaSquareMetres": 284485,
+        "pixels": 15856,
+        "meanHeight": 17.66,
+        "heightRange": 68.96,
+        "maxGrade": 0.349,
+        "relief": "Hills",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": 48.625,
+          "longitude": 56.125,
+          "height": 21.56,
+          "grade": 0.26,
+          "view": {
+            "latitude": 48.625,
+            "longitude": 56.125,
+            "yaw": 233.8,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": 8.270327,
+        "longitude": -151.922234,
+        "areaSquareMetres": 186644,
+        "pixels": 6910,
+        "meanHeight": 13.36,
+        "heightRange": 50.24,
+        "maxGrade": 0.349,
+        "relief": "Plains",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": 8.375,
+          "longitude": -151.875,
+          "height": 8.66,
+          "grade": 0.023,
+          "view": {
+            "latitude": 8.375,
+            "longitude": -151.875,
+            "yaw": 326.4,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      }
+    ],
+    "wooded edge": [
+      {
+        "latitude": 6.419524,
+        "longitude": -13.40841,
+        "areaSquareMetres": 24548,
+        "pixels": 906,
+        "meanHeight": 28.22,
+        "heightRange": 28.32,
+        "maxGrade": 0.331,
+        "relief": "Hills",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": 8.875,
+          "longitude": -13.875,
+          "height": 31.27,
+          "grade": 0.051,
+          "view": {
+            "latitude": 8.875,
+            "longitude": -13.875,
+            "yaw": 113.3,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": -11.248797,
+        "longitude": 19.023346,
+        "areaSquareMetres": 18720,
+        "pixels": 704,
+        "meanHeight": 40.43,
+        "heightRange": 30.91,
+        "maxGrade": 0.348,
+        "relief": "Hills",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -11.125,
+          "longitude": 18.875,
+          "height": 54.35,
+          "grade": 0.152,
+          "view": {
+            "latitude": -11.125,
+            "longitude": 18.875,
+            "yaw": 274.7,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": -61.712508,
+        "longitude": -55.781939,
+        "areaSquareMetres": 16272,
+        "pixels": 1289,
+        "meanHeight": 14.22,
+        "heightRange": 20.59,
+        "maxGrade": 0.223,
+        "relief": "Hills",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -60.625,
+          "longitude": -62.375,
+          "height": 17.56,
+          "grade": 0.064,
+          "view": {
+            "latitude": -60.625,
+            "longitude": -62.375,
+            "yaw": 301.6,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": -14.284896,
+        "longitude": -78.619928,
+        "areaSquareMetres": 14040,
+        "pixels": 536,
+        "meanHeight": 15.15,
+        "heightRange": 12.89,
+        "maxGrade": 0.312,
+        "relief": "Plains",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -13.875,
+          "longitude": -78.875,
+          "height": 16.99,
+          "grade": 0.138,
+          "view": {
+            "latitude": -13.875,
+            "longitude": -78.875,
+            "yaw": 93.2,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": 31.485462,
+        "longitude": -67.972395,
+        "areaSquareMetres": 11585,
+        "pixels": 499,
+        "meanHeight": 19.44,
+        "heightRange": 16.86,
+        "maxGrade": 0.255,
+        "relief": "Hills",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": 29.875,
+          "longitude": -70.375,
+          "height": 22.89,
+          "grade": 0.097,
+          "view": {
+            "latitude": 29.875,
+            "longitude": -70.375,
+            "yaw": 220.3,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      },
+      {
+        "latitude": 2.883145,
+        "longitude": 13.72837,
+        "areaSquareMetres": 10286,
+        "pixels": 376,
+        "meanHeight": 28.56,
+        "heightRange": 32.99,
+        "maxGrade": 0.346,
+        "relief": "Hills",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": 2.875,
+          "longitude": 14.375,
+          "height": 27.86,
+          "grade": 0.06,
+          "view": {
+            "latitude": 2.875,
+            "longitude": 14.375,
+            "yaw": 54.5,
+            "pitch": 0,
+            "metres": 0,
+            "side": "on it"
+          }
+        }
+      }
+    ],
+    "inland outcrop": [
+      {
+        "latitude": 48.633223,
+        "longitude": -170.903401,
+        "areaSquareMetres": 35428,
+        "pixels": 1970,
+        "meanHeight": 57.12,
+        "heightRange": 87.98,
+        "maxGrade": 2.499,
+        "relief": "Plains",
+        "cliffCovered": 0.477,
+        "anchor": {
+          "latitude": 54.125,
+          "longitude": 179.125,
+          "height": 75.1,
+          "grade": 2.499,
+          "view": {
+            "latitude": 56.503104,
+            "longitude": -179.042457,
+            "yaw": 204.4,
+            "pitch": 25,
+            "metres": 56,
+            "side": "below"
+          }
+        }
+      },
+      {
+        "latitude": 59.51257,
+        "longitude": -55.848664,
+        "areaSquareMetres": 30365,
+        "pixels": 2150,
+        "meanHeight": 56.44,
+        "heightRange": 73.33,
+        "maxGrade": 2.749,
+        "relief": "Hills",
+        "cliffCovered": 0.421,
+        "anchor": {
+          "latitude": 58.625,
+          "longitude": -65.375,
+          "height": 67.57,
+          "grade": 2.749,
+          "view": {
+            "latitude": 57.210111,
+            "longitude": -66.773142,
+            "yaw": 27.1,
+            "pitch": 25,
+            "metres": 34,
+            "side": "below"
+          }
+        }
+      },
+      {
+        "latitude": 21.403644,
+        "longitude": 9.607265,
+        "areaSquareMetres": 6345,
+        "pixels": 249,
+        "meanHeight": 47.25,
+        "heightRange": 38.63,
+        "maxGrade": 3.78,
+        "relief": "Plains",
+        "cliffCovered": 0.148,
+        "anchor": {
+          "latitude": 17.125,
+          "longitude": 14.875,
+          "height": 42.87,
+          "grade": 3.78,
+          "view": {
+            "latitude": 15.852287,
+            "longitude": 14.381943,
+            "yaw": 20.3,
+            "pitch": 25,
+            "metres": 30,
+            "side": "below"
+          }
+        }
+      },
+      {
+        "latitude": -16.757964,
+        "longitude": 68.211722,
+        "areaSquareMetres": 4508,
+        "pixels": 172,
+        "meanHeight": 40.53,
+        "heightRange": 43.38,
+        "maxGrade": 2.638,
+        "relief": "Hills",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -13.375,
+          "longitude": 67.375,
+          "height": 47.68,
+          "grade": 2.638,
+          "view": {
+            "latitude": -13.309826,
+            "longitude": 65.950764,
+            "yaw": 92.9,
+            "pitch": 25,
+            "metres": 30,
+            "side": "below"
+          }
+        }
+      },
+      {
+        "latitude": 29.602172,
+        "longitude": -102.157963,
+        "areaSquareMetres": 3360,
+        "pixels": 141,
+        "meanHeight": 46,
+        "heightRange": 41.85,
+        "maxGrade": 4.189,
+        "relief": "Plains",
+        "cliffCovered": 0.478,
+        "anchor": {
+          "latitude": 30.375,
+          "longitude": -104.375,
+          "height": 57.95,
+          "grade": 4.189,
+          "view": {
+            "latitude": 32.768656,
+            "longitude": -102.722965,
+            "yaw": 210.9,
+            "pitch": 25,
+            "metres": 62,
+            "side": "below"
+          }
+        }
+      },
+      {
+        "latitude": 75.868113,
+        "longitude": -40.316058,
+        "areaSquareMetres": 2582,
+        "pixels": 386,
+        "meanHeight": 36.67,
+        "heightRange": 22.45,
+        "maxGrade": 1.209,
+        "relief": "Plains",
+        "cliffCovered": 0.485,
+        "anchor": {
+          "latitude": 75.625,
+          "longitude": -41.875,
+          "height": 45.09,
+          "grade": 1.209,
+          "view": {
+            "latitude": 77.198776,
+            "longitude": -38.111398,
+            "yaw": 211.2,
+            "pitch": 25,
+            "metres": 38,
+            "side": "below"
+          }
+        }
+      }
+    ],
+    "plateau / mountain face": [
+      {
+        "latitude": 41.451274,
+        "longitude": -175.461295,
+        "areaSquareMetres": 141739,
+        "pixels": 7010,
+        "meanHeight": 148.82,
+        "heightRange": 243.39,
+        "maxGrade": 7.353,
+        "relief": "Mountains",
+        "cliffCovered": 0.211,
+        "anchor": {
+          "latitude": 17.375,
+          "longitude": -167.375,
+          "height": 74.51,
+          "grade": 7.353,
+          "view": {
+            "latitude": 18.121935,
+            "longitude": -168.553855,
+            "yaw": 123.5,
+            "pitch": 25,
+            "metres": 30,
+            "side": "below"
+          }
+        }
+      },
+      {
+        "latitude": 66.380957,
+        "longitude": -55.62001,
+        "areaSquareMetres": 118155,
+        "pixels": 11137,
+        "meanHeight": 121.88,
+        "heightRange": 185.06,
+        "maxGrade": 5.298,
+        "relief": "Mountains",
+        "cliffCovered": 0.224,
+        "anchor": {
+          "latitude": 62.625,
+          "longitude": -39.625,
+          "height": 113.06,
+          "grade": 5.298,
+          "view": {
+            "latitude": 63.153351,
+            "longitude": -36.897938,
+            "yaw": 248.2,
+            "pitch": 25,
+            "metres": 84,
+            "side": "below"
+          }
+        }
+      },
+      {
+        "latitude": 7.757265,
+        "longitude": 65.769443,
+        "areaSquareMetres": 111976,
+        "pixels": 4138,
+        "meanHeight": 82.02,
+        "heightRange": 125.08,
+        "maxGrade": 3.796,
+        "relief": "Mountains",
+        "cliffCovered": 0.196,
+        "anchor": {
+          "latitude": 11.875,
+          "longitude": 64.375,
+          "height": 111.7,
+          "grade": 3.796,
+          "view": {
+            "latitude": 13.621308,
+            "longitude": 64.215511,
+            "yaw": 174.9,
+            "pitch": 25,
+            "metres": 40,
+            "side": "below"
+          }
+        }
+      },
+      {
+        "latitude": 6.950531,
+        "longitude": 46.657401,
+        "areaSquareMetres": 31310,
+        "pixels": 1180,
+        "meanHeight": 55.31,
+        "heightRange": 105.05,
+        "maxGrade": 16.197,
+        "relief": "Tableland",
+        "cliffCovered": 0.099,
+        "anchor": {
+          "latitude": 18.625,
+          "longitude": 49.375,
+          "height": 72.01,
+          "grade": 16.197,
+          "view": {
+            "latitude": 18.179194,
+            "longitude": 51.421326,
+            "yaw": 283.3,
+            "pitch": 25,
+            "metres": 42,
+            "side": "below"
+          }
+        }
+      },
+      {
+        "latitude": 27.888932,
+        "longitude": 15.691212,
+        "areaSquareMetres": 16619,
+        "pixels": 691,
+        "meanHeight": 67.88,
+        "heightRange": 60.3,
+        "maxGrade": 8.861,
+        "relief": "Tableland",
+        "cliffCovered": 0.114,
+        "anchor": {
+          "latitude": 23.125,
+          "longitude": 20.625,
+          "height": 94.19,
+          "grade": 8.861,
+          "view": {
+            "latitude": 22.137117,
+            "longitude": 20.774221,
+            "yaw": 352.1,
+            "pitch": 25,
+            "metres": 30,
+            "side": "below"
+          }
+        }
+      },
+      {
+        "latitude": -9.364979,
+        "longitude": 2.988089,
+        "areaSquareMetres": 12596,
+        "pixels": 469,
+        "meanHeight": 63.39,
+        "heightRange": 92.8,
+        "maxGrade": 11.81,
+        "relief": "Tableland",
+        "cliffCovered": 0.135,
+        "anchor": {
+          "latitude": -6.875,
+          "longitude": 0.125,
+          "height": 70.68,
+          "grade": 11.81,
+          "view": {
+            "latitude": -8.478092,
+            "longitude": -1.517043,
+            "yaw": 45.5,
+            "pitch": 25,
+            "metres": 48,
+            "side": "below"
+          }
+        }
+      }
+    ],
+    "coastal scarp": [
+      {
+        "latitude": -11.998868,
+        "longitude": 80.204419,
+        "areaSquareMetres": 34339,
+        "pixels": 1291,
+        "meanHeight": 27.28,
+        "heightRange": 99.86,
+        "maxGrade": 16.698,
+        "relief": "Tableland",
+        "cliffCovered": 0.163,
+        "anchor": {
+          "latitude": -10.375,
+          "longitude": 74.375,
+          "height": 63.68,
+          "grade": 16.698,
+          "view": {
+            "latitude": -8.949035,
+            "longitude": 74.252048,
+            "yaw": 175.2,
+            "pitch": 25,
+            "metres": 30,
+            "side": "below"
+          }
+        }
+      },
+      {
+        "latitude": 33.737375,
+        "longitude": 178.719108,
+        "areaSquareMetres": 30279,
+        "pixels": 1337,
+        "meanHeight": 46.69,
+        "heightRange": 177.84,
+        "maxGrade": 4.855,
+        "relief": "Mountains",
+        "cliffCovered": 0.505,
+        "anchor": {
+          "latitude": 36.125,
+          "longitude": -178.625,
+          "height": 132.89,
+          "grade": 4.855,
+          "view": {
+            "latitude": 37.114617,
+            "longitude": -177.306663,
+            "yaw": 227.3,
+            "pitch": -25,
+            "metres": 32,
+            "side": "above"
+          }
+        }
+      },
+      {
+        "latitude": -39.81805,
+        "longitude": 66.69157,
+        "areaSquareMetres": 16171,
+        "pixels": 771,
+        "meanHeight": 21.07,
+        "heightRange": 54.45,
+        "maxGrade": 1.46,
+        "relief": "Mountains",
+        "cliffCovered": 0.256,
+        "anchor": {
+          "latitude": -45.875,
+          "longitude": 61.875,
+          "height": 9.99,
+          "grade": 1.46,
+          "view": {
+            "latitude": -45.070092,
+            "longitude": 60.870831,
+            "yaw": 139.2,
+            "pitch": -25,
+            "metres": 30,
+            "side": "above"
+          }
+        }
+      },
+      {
+        "latitude": -46.174983,
+        "longitude": -117.316407,
+        "areaSquareMetres": 9456,
+        "pixels": 499,
+        "meanHeight": 11.73,
+        "heightRange": 25.16,
+        "maxGrade": 2.051,
+        "relief": "Hills",
+        "cliffCovered": 0.222,
+        "anchor": {
+          "latitude": -47.875,
+          "longitude": -123.375,
+          "height": 15.25,
+          "grade": 2.051,
+          "view": {
+            "latitude": -48.916101,
+            "longitude": -122.176548,
+            "yaw": 322.2,
+            "pitch": -25,
+            "metres": 30,
+            "side": "above"
+          }
+        }
+      },
+      {
+        "latitude": -66.352462,
+        "longitude": -171.483968,
+        "areaSquareMetres": 4929,
+        "pixels": 446,
+        "meanHeight": 12.88,
+        "heightRange": 25.25,
+        "maxGrade": 1.53,
+        "relief": "Tableland",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -64.875,
+          "longitude": -164.125,
+          "height": 10.84,
+          "grade": 1.53,
+          "view": {
+            "latitude": -66.019936,
+            "longitude": -163.625536,
+            "yaw": 349.5,
+            "pitch": -25,
+            "metres": 30,
+            "side": "above"
+          }
+        }
+      },
+      {
+        "latitude": -2.688899,
+        "longitude": -160.601542,
+        "areaSquareMetres": 2930,
+        "pixels": 107,
+        "meanHeight": 6.23,
+        "heightRange": 14.23,
+        "maxGrade": 1.585,
+        "relief": "Hills",
+        "cliffCovered": 0,
+        "anchor": {
+          "latitude": -2.875,
+          "longitude": -156.875,
+          "height": 7.05,
+          "grade": 1.585,
+          "view": {
+            "latitude": -2.389527,
+            "longitude": -157.337668,
+            "yaw": 136.4,
+            "pitch": -25,
+            "metres": 30,
+            "side": "above"
+          }
+        }
+      }
+    ]
+  },
+  "lakeBanks": [
+    {
+      "level": 14.36,
+      "areaSquareMetres": 499025,
+      "maxDepth": 5.17,
+      "view": {
+        "latitude": 44.3873,
+        "longitude": -13.730981,
+        "yaw": 180,
+        "pitch": -5
+      }
+    },
+    {
+      "level": 11.42,
+      "areaSquareMetres": 374520,
+      "maxDepth": 7.73,
+      "view": {
+        "latitude": 35.032761,
+        "longitude": -79.625159,
+        "yaw": 228.5,
+        "pitch": -5
+      }
+    },
+    {
+      "level": 10.44,
+      "areaSquareMetres": 89247,
+      "maxDepth": 3.61,
+      "view": {
+        "latitude": 64.111758,
+        "longitude": -155.313205,
+        "yaw": 180,
+        "pitch": -5
+      }
+    }
+  ]
+}

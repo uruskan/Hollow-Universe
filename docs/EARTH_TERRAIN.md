@@ -125,6 +125,9 @@ dotnet run --project tests/Hollow.Tests -- TerrainSave
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth stats
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth biomes docs/images/earth-land/earth-v2-map.png 2048
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth globe docs/images/earth-land/earth-v2-report-globe.png 700
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth survey    # landforms, scan cover, sites (LANDFORM_SURVEY.md)
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth transect <lat> <lon> <bearing> [length] [step]
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth wall <lat> <lon> [size]   # a face at each terrain level
 ```
 
 The [baseline](images/earth-land/baseline-map.png) and
