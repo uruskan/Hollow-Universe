@@ -131,6 +131,11 @@ Validation: solution 0 warnings, 0 errors; full suite 1,026 of 1,026 in 527 s (a
 loopback flake, `APassengerIsPredictedExactlyWhileAnotherFlies`, which then passed three times alone); the cliff tests
 33 of 33; the hosted captures above.
 
+## 19 October 2026 — CODE_LAYOUT.md brought up to date with abtest-b
+
+docs/CODE_LAYOUT.md now describes all 1,077 C# files (272,593 lines): the 427 added since the fork, each from its own content, in nine new folder sections; line counts and types refreshed; PlanetSurfaces.cs and WalkingWorlds.cs, deleted, removed.
+A script check of the doc's paths against `git ls-files '*.cs'` finds none missing, stale or doubled. Docs only.
+
 ## 19 October 2026 — The meadow's floor, second pass: Leafy Grass in place of Ground 037
 
 The owner saw the Ground 037 captures of the ground entry below and chose blades over moss: "download Poly Haven
