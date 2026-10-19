@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Hollow.Core;
 using Hollow.Simulation;
+using Hollow.Simulation.Content;
 using Hollow.Surface;
 
 namespace Hollow.Client.Diagnostics;
@@ -20,17 +21,25 @@ public sealed record EnvironmentRoutePlan(IReadOnlyList<EnvironmentRouteStop> St
 
 /// <summary>
 /// Diagnostic-only route selection on the same Earth used by the server. No generation parameters, objects or
-/// collision are changed. Height/water samples establish a plausible walking corridor; the hosted run must still
-/// prove it can traverse real tree/scan/building collision. Failure never substitutes disconnected scenic locations.
+/// collision are changed. Height/water samples establish a plausible walking corridor, and with the game's natural
+/// kinds the solid objects' footprints (trees, outcrops, boulders, harvested plants) are kept clear of it; the hosted
+/// run must still prove it can traverse real scan and building collision. Failure never substitutes disconnected
+/// scenic locations.
 /// </summary>
 public static class EarthEnvironmentRoute
 {
     public const double Spacing = 10, MaximumGrade = 0.70, MaximumLength = 1200;
+    /// <summary>Clearance from a solid object's footprint: round a stop, and along the corridor (a body's half-width and more).</summary>
+    public const double StopClearance = 1.0, CorridorClearance = 0.5;
     private sealed record Cell(Vector3D Position, double Height, double Grade, double Grass, double Woodland,
         bool Walkable);
     private readonly record struct Candidate(MonumentPlacement Monument, Vector3D Beach, CliffPlacement Cliff, double Score);
 
-    public static EnvironmentRoutePlan Find(WalkingWorld world)
+    /// <summary>
+    /// The route on this world. <paramref name="natural"/> (the game's natural kinds) adds the solid objects'
+    /// footprints, as the server builds their collision; without it only the heightfield is checked.
+    /// </summary>
+    public static EnvironmentRoutePlan Find(WalkingWorld world, IReadOnlyList<NaturalKind>? natural = null)
     {
         if (Math.Abs(world.Radius - 1200) > 0.01)
             throw new ArgumentException("The environment route is for live Earth at radius1200, not legacy FirstWorld.");
@@ -57,7 +66,7 @@ public static class EarthEnvironmentRoute
         foreach (Candidate candidate in candidates.OrderBy(c => c.Score).Take(18))
         {
             checkedCount++;
-            var grid = new Grid(world, candidate);
+            var grid = new Grid(world, candidate, natural);
             if (grid.Plan(candidate, checkedCount, out EnvironmentRoutePlan? plan, out string reason)) return plan!;
             failures.Add(candidate.Monument.Definition.Key + ": " + reason);
         }
@@ -103,8 +112,9 @@ public static class EarthEnvironmentRoute
         private readonly int _side;
         private readonly Dictionary<(int, int), bool> _edges = new();
         private readonly Dictionary<TileKey, IReadOnlyList<ScatterItem>> _scatter = new();
+        private readonly Obstacles _obstacles;
 
-        public Grid(WalkingWorld world, Candidate candidate)
+        public Grid(WalkingWorld world, Candidate candidate, IReadOnlyList<NaturalKind>? natural)
         {
             _world = world;
             Vector3D up = (candidate.Beach.Normalized + candidate.Monument.Up + candidate.Cliff.Up).Normalized;
@@ -114,6 +124,7 @@ public static class EarthEnvironmentRoute
                 .Max(p => Math.Max(Math.Abs(Vector3D.Dot(p - origin, east)), Math.Abs(Vector3D.Dot(p - origin, north)))) + 85;
             int half = Math.Min(45, (int)Math.Ceiling(extent / Spacing));
             _side = half * 2 + 1;
+            _obstacles = new Obstacles(world, natural, origin, east, north, half * Spacing * 1.5 + 10);
             _cells = new Cell[_side * _side];
             Span<double> biomes = stackalloc double[BiomeTable.Count], materials = stackalloc double[BiomeTable.MaterialCount];
             for (int y = 0; y < _side; y++)
@@ -124,7 +135,8 @@ public static class EarthEnvironmentRoute
                 WalkingSample fields = world.Fields(direction);
                 GroundCover cover = world.Cover(direction, world.Sample(direction), slope, biomes, materials);
                 bool open = h >= world.WaterLevelAt(direction) - 0.1 && slope <= MaximumGrade &&
-                    world.Monuments.At(direction, 2) == null;
+                    world.Monuments.At(direction, 2) == null &&
+                    _obstacles.Clear(direction * (world.Radius + h), StopClearance);
                 _cells[y * _side + x] = new(direction * (world.Radius + h), h, slope, cover.Grass,
                     world.ForestCover(direction, fields), open);
             }
@@ -135,7 +147,7 @@ public static class EarthEnvironmentRoute
             plan = null;
             reason = "no beach connection";
             int start = Nearest(candidate.Beach, c => c.Walkable && _world.BiomeAt(c.Position.Normalized) == Biome.Beach && Distance(c.Position, candidate.Beach) < 18 &&
-                Corridor(_world, candidate.Beach, c.Position));
+                Corridor(_world, candidate.Beach, c.Position) && _obstacles.ClearAlong(_world, candidate.Beach, c.Position));
             if (start < 0) return false;
             var (reach, _) = Search(start);
             bool Reached(int i) => double.IsFinite(reach[i]);
@@ -210,7 +222,8 @@ public static class EarthEnvironmentRoute
                     if (!_cells[b].Walkable) continue;
                     var key = (Math.Min(a, b), Math.Max(a, b));
                     if (!_edges.TryGetValue(key, out bool allowed))
-                        _edges[key] = allowed = Corridor(_world, _cells[a].Position, _cells[b].Position);
+                        _edges[key] = allowed = Corridor(_world, _cells[a].Position, _cells[b].Position) &&
+                            _obstacles.ClearAlong(_world, _cells[a].Position, _cells[b].Position);
                     if (!allowed) continue;
                     double next = distances[a] + Distance(_cells[a].Position, _cells[b].Position) * (1 + _cells[b].Grade);
                     if (next >= distances[b]) continue;
@@ -247,6 +260,70 @@ public static class EarthEnvironmentRoute
                 if (water > _world.HeightAt(direction) + 0.3) return direction * (_world.Radius + water);
             }
             return null;
+        }
+    }
+    /// <summary>
+    /// The solid natural objects round a grid, as the server builds their collision (GameContent's solid kinds:
+    /// a footprint of the kind's radius times the object's scale), hashed in 4 m cells of the grid's plane.
+    /// </summary>
+    private sealed class Obstacles
+    {
+        private const double Cell = 4;
+        private readonly Dictionary<(long, long), List<(Vector3D Position, double Radius)>> _cells = new();
+        private readonly Vector3D _origin, _east, _north;
+        private readonly double _reach;
+
+        public Obstacles(WalkingWorld world, IReadOnlyList<NaturalKind>? natural, Vector3D origin, Vector3D east,
+            Vector3D north, double extent)
+        {
+            (_origin, _east, _north) = (origin, east, north);
+            if (natural == null) return;
+            var solid = new (float Radius, float MinScale)?[256];
+            foreach (NaturalKind kind in natural)
+                if (kind.IsSolid)
+                    foreach (ScatterKind scatter in kind.ScatterKinds) solid[(int)scatter] = (kind.Radius, kind.ScatterMinScale);
+            var tiles = new List<TileKey>();
+            TileKey.Around(origin, extent, world.Radius, world.ScatterLevel, tiles);
+            foreach (TileKey tile in tiles)
+                foreach (ScatterItem item in world.ScatterFor(tile))
+                {
+                    if (solid[(int)item.Kind] is not { } kind || item.Scale < kind.MinScale) continue;
+                    double radius = kind.Radius * item.Scale;
+                    Vector3D position = item.Position(world.Radius);
+                    if (!_cells.TryGetValue(Key(position), out var list)) _cells[Key(position)] = list = new();
+                    list.Add((position, radius));
+                    _reach = Math.Max(_reach, radius);
+                }
+        }
+
+        private (long, long) Key(Vector3D p) => ((long)Math.Floor(Vector3D.Dot(p - _origin, _east) / Cell),
+            (long)Math.Floor(Vector3D.Dot(p - _origin, _north) / Cell));
+
+        /// <summary>Whether no solid footprint comes within <paramref name="margin"/> metres of a ground point.</summary>
+        public bool Clear(Vector3D point, double margin)
+        {
+            if (_cells.Count == 0) return true;
+            var (x, y) = Key(point);
+            int span = (int)Math.Ceiling((_reach + margin) / Cell);
+            for (long j = y - span; j <= y + span; j++)
+            for (long i = x - span; i <= x + span; i++)
+                if (_cells.TryGetValue((i, j), out var list))
+                    foreach (var (position, radius) in list)
+                        if (Vector3D.Distance(point, position) < radius + margin) return false;
+            return true;
+        }
+
+        /// <summary>One-metre samples between two ground points keep the corridor's clearance.</summary>
+        public bool ClearAlong(WalkingWorld world, Vector3D a, Vector3D b)
+        {
+            if (_cells.Count == 0) return true;
+            int steps = Math.Max(1, (int)Math.Ceiling(Distance(a, b)));
+            for (int i = 0; i <= steps; i++)
+            {
+                Vector3D up = (a.Normalized * (1.0 - (double)i / steps) + b.Normalized * ((double)i / steps)).Normalized;
+                if (!Clear(up * (world.Radius + world.HeightAt(up)), CorridorClearance)) return false;
+            }
+            return true;
         }
     }
 }

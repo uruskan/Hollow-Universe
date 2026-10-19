@@ -3,6 +3,7 @@ using System.Linq;
 using System.Globalization;
 using Hollow.Client.Diagnostics;
 using Hollow.Core;
+using Hollow.Simulation.Content;
 using Hollow.Surface;
 
 namespace Hollow.Tests;
@@ -14,7 +15,7 @@ public static class EnvironmentRouteTests
     {
         var (system, earth) = StartingWorld.Find();
         WalkingWorld world = WalkingWorld.For(system, earth, 1200);
-        EnvironmentRoutePlan route = EarthEnvironmentRoute.Find(world);
+        EnvironmentRoutePlan route = EarthEnvironmentRoute.Find(world, ContentFixture.Content.NaturalKinds);
         Assert.Equal(6, route.Stops.Count, "beach, woodland, clearing, water, cliff, small monument");
         Assert.Equal(5, route.Legs.Count, "every checkpoint belongs to the same walking circuit");
         Assert.True(route.Metres is > 100 and <= EarthEnvironmentRoute.MaximumLength, "bounded real-world walk");
@@ -34,7 +35,11 @@ public static class EnvironmentRouteTests
             Assert.Near(0, Vector3D.Distance(points[0], route.Stops[leg].Position), 1e-7, "leg starts at previous checkpoint");
             Assert.Near(0, Vector3D.Distance(points[^1], route.Stops[leg + 1].Position), 1e-7, "leg ends at next checkpoint");
             for (int i = 1; i < points.Count; i++)
+            {
                 Assert.True(EarthEnvironmentRoute.Corridor(world, points[i - 1], points[i]), "two-metre samples remain dry, outside monuments and within grade bound");
+                Assert.True(ClearOfSolids(world, points[i - 1], points[i]),
+                    "the walk keeps clear of every solid tree, outcrop and boulder: the 18 October route ran into a boulder at a waypoint");
+            }
         }
         foreach (EnvironmentRouteStop stop in route.Stops)
             Fixtures.Report(string.Create(CultureInfo.InvariantCulture,
@@ -55,5 +60,28 @@ public static class EnvironmentRouteTests
         try { EarthEnvironmentRoute.Find(WalkingWorld.For(system, earth, 2410)); }
         catch (ArgumentException) { rejected = true; }
         Assert.True(rejected, "legacy FirstWorld reports cannot silently select this route");
+    }
+    // An independent check of the route's clearance: every solid natural object (the game's solid kinds, a footprint of
+    // the kind's radius times its scale, as the server builds it) stays the corridor's clearance from 1 m samples.
+    private static bool ClearOfSolids(WalkingWorld world, Vector3D a, Vector3D b)
+    {
+        var tiles = new System.Collections.Generic.List<TileKey>();
+        Vector3D middle = (a.Normalized + b.Normalized).Normalized * world.Radius;
+        TileKey.Around(middle, EarthEnvironmentRoute.Distance(a, b) / 2 + 8, world.Radius, world.ScatterLevel, tiles);
+        var solids = new System.Collections.Generic.List<(Vector3D Position, double Radius)>();
+        foreach (TileKey tile in tiles)
+            foreach (ScatterItem item in world.ScatterFor(tile))
+                foreach (NaturalKind kind in ContentFixture.Content.NaturalKinds)
+                    if (kind.IsSolid && item.Scale >= kind.ScatterMinScale && kind.ScatterKinds.Contains(item.Kind))
+                        solids.Add((item.Position(world.Radius), kind.Radius * item.Scale));
+        int steps = Math.Max(1, (int)Math.Ceiling(EarthEnvironmentRoute.Distance(a, b)));
+        for (int i = 0; i <= steps; i++)
+        {
+            Vector3D up = (a.Normalized * (1.0 - (double)i / steps) + b.Normalized * ((double)i / steps)).Normalized;
+            Vector3D ground = up * (world.Radius + world.HeightAt(up));
+            foreach (var (position, radius) in solids)
+                if (Vector3D.Distance(ground, position) < radius + EarthEnvironmentRoute.CorridorClearance) return false;
+        }
+        return true;
     }
 }

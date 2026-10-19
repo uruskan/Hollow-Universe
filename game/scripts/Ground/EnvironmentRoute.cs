@@ -78,7 +78,7 @@ public sealed partial class EnvironmentRoute : Node
             {
                 View.Interface.Open(GroundScreen.Hud);
                 View.Scripted = new InputFrame();
-                EnvironmentRoutePlan route = await Task.Run(() => EarthEnvironmentRoute.Find(world));
+                EnvironmentRoutePlan route = await Task.Run(() => EarthEnvironmentRoute.Find(world, Client.Content.NaturalKinds));
                 EnsureActive();
                 _plan = new { route.Region, route.Metres, route.CandidatesChecked,
                     stops = route.Stops.Select(s => new { s.Label, position = Point(s.Position), lookAt = Point(s.LookAt),
