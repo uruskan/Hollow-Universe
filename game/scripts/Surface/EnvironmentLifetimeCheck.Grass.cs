@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Godot;
@@ -34,9 +35,7 @@ public partial class EnvironmentLifetimeCheck
 
     private async Task CheckGrass()
     {
-        Expect("grass mesh retains one constant support foot per card side", GrassField.InspectGrassFootMetadata(),
-            "actual uploaded RGBAFloat CUSTOM0: 40 vertices/30 triangles; all four rows retain own/opposite untapered foot; UV2 growth unchanged");
-        CheckGrassAtlas();
+        CheckGrassCatalogue();
         var fields = new List<GrassField>();
         var surfaces = new List<ProbeSurface>();
         var monitors = new List<GrassWorkMonitor>();
@@ -61,15 +60,15 @@ public partial class EnvironmentLifetimeCheck
             var timer = Stopwatch.StartNew();
             retiring.Stop(); retiring.Stop();
             timer.Stop();
-            Expect("grass stop does not wait for blocked worker", retired.Snapshot().Pending == 1 && retiring.IsStopped,
-                $"Stop returned in {timer.Elapsed.TotalMilliseconds:0.00} ms with worker still blocked");
+            Expect("grass stop does not wait for blocked worker", retired.Snapshot().Pending >= 1 && retiring.IsStopped,
+                $"Stop returned in {timer.Elapsed.TotalMilliseconds:0.00} ms with {retired.Snapshot().Pending} tile builds still blocked");
             retiring.QueueFree();
             blocked.Continue.Set();
             await Until(() => retired.Snapshot().Pending == 0, "retired grass worker cancellation observed");
             GrassWorkSnapshot retiredState = retired.Snapshot();
-            Expect("retired grass work cancels and cannot publish", retiredState.Cancelled == 1 && retiredState.Completed == 0
-                && retiredState.Faulted == 0 && retiredState.Discarded == 1,
-                $"cancelled={retiredState.Cancelled}, completed={retiredState.Completed}, discarded={retiredState.Discarded}");
+            Expect("retired grass work cancels and cannot publish", retiredState.Started > 0 && retiredState.Cancelled == retiredState.Started
+                && retiredState.Completed == 0 && retiredState.Faulted == 0 && retiredState.Discarded == retiredState.Started,
+                $"started={retiredState.Started}, cancelled={retiredState.Cancelled}, completed={retiredState.Completed}, discarded={retiredState.Discarded}");
 
             var stableSurface = new ProbeSurface(1200);
             GrassField stable = Create(stableSurface);
@@ -88,7 +87,8 @@ public partial class EnvironmentLifetimeCheck
                 stable.DiagnosticLayers = layers;
                 // Cross the authored 2 m refresh threshold repeatedly, while remaining within the same lattice.
                 var movedCamera = camera + new Vector3D(0, 0, ++step % 2 == 0 ? 0 : 2.25);
-                stable.UpdateGrass(movedCamera, 1.7, true);
+                // A move can bring a tile into reach: the field settles (builds and uploads it) before the mask is read.
+                await Until(() => { stable.UpdateGrass(movedCamera, 1.7, true); return stable.IsIdle; }, "grass settles after a move: " + layers);
                 stable.UpdateGrass(movedCamera, 1.7, true);
                 GroundCoverDiagnostics state = stable.CaptureDiagnostics();
                 bool matches = (state.Grass.Instances > 0) == ((layers & GroundCoverLayers.Grass) != 0)
@@ -115,8 +115,8 @@ public partial class EnvironmentLifetimeCheck
                 broken.UpdateGrass(camera, 1.7, true);
                 return broken.CaptureDiagnostics().RequiredContentFailed && broken.WorkMonitor.Snapshot().Pending == 0;
             }, "grass fault observed by owner");
-            Expect("failed required grass is not ready", !broken.IsIdle && broken.WorkMonitor.Snapshot().Faulted == 1,
-                "injected worker exception is observed; no stale-ready loading result");
+            Expect("failed required grass is not ready", !broken.IsIdle && broken.WorkMonitor.Snapshot().Faulted >= 1,
+                "injected worker exceptions are observed; no further tiles start and no stale-ready loading result");
             broken.QueueFree();
             await Until(() => broken.IsStopped, "grass tree exit retires field");
         }
@@ -140,56 +140,45 @@ public partial class EnvironmentLifetimeCheck
         }
     }
 
-    private void CheckGrassAtlas()
+    // The clumps as Godot imported them (art/grass/build_grass.py → grass.glb): every level the catalogue names is there
+    // with its cards' attributes (height fraction and rank in UV2, no vertex colour; tangents for the folds),
+    // under about 300 triangles near by, with the vertex and triangle counts the catalogue records.
+    private void CheckGrassCatalogue()
     {
-        // Inspect real production painter output, not a second implementation of the blade paths or mask.
-        // This establishes alpha connectivity/gaps only; root contact, mip appearance and wind lighting need renders.
-        using Image atlas = FloraTextures.Atlas(201);
-        byte[] pixels = atlas.GetData();
-        const int size = FloraTextures.Cell;
-        var opaque = new bool[size * size];
-        var reached = new bool[opaque.Length];
-        var queue = new int[opaque.Length];
-        foreach (var cell in new[] { FloraTextures.Grass, FloraTextures.DryGrass, FloraTextures.Meadow })
+        using JsonDocument catalogue = JsonDocument.Parse(Godot.FileAccess.GetFileAsString("res://assets/surface/grass/grass.json"));
+        Node3D scene = GD.Load<PackedScene>(catalogue.RootElement.GetProperty("model").GetString()!).Instantiate<Node3D>();
+        try
         {
-            Array.Clear(opaque); Array.Clear(reached);
-            int covered = 0, firstRow = size, roots = 0, rootRuns = 0;
-            bool previousRoot = false;
-            for (int y = 0; y < size; y++)
-            for (int x = 0; x < size; x++)
+            var meshes = new Dictionary<string, Mesh>(StringComparer.Ordinal);
+            void Collect(Node node)
             {
-                bool on = pixels[((cell.Y * size + y) * FloraTextures.AtlasSize + cell.X * size + x) * 4 + 3] >= 128;
-                opaque[y * size + x] = on;
-                if (on) { covered++; firstRow = Math.Min(firstRow, y); }
-                if (y != size - 1) continue;
-                if (on) roots++;
-                if (on && !previousRoot) rootRuns++;
-                previousRoot = on;
+                if (node is MeshInstance3D m && m.Mesh != null) meshes[m.Name] = m.Mesh;
+                foreach (Node child in node.GetChildren()) Collect(child);
             }
-            int tail = 0;
-            for (int x = 0; x < size; x++)
+            Collect(scene);
+            foreach (JsonElement species in catalogue.RootElement.GetProperty("species").EnumerateArray())
             {
-                int p = (size - 1) * size + x;
-                if (opaque[p]) { reached[p] = true; queue[tail++] = p; }
-            }
-            for (int head = 0; head < tail; head++)
-            {
-                int p = queue[head], x = p % size, y = p / size;
-                for (int dy = -1; dy <= 1; dy++)
-                for (int dx = -1; dx <= 1; dx++)
+                var levels = species.GetProperty("lods").EnumerateArray().ToList();
+                if (species.GetProperty("far").ValueKind == JsonValueKind.Object) levels.Add(species.GetProperty("far"));
+                foreach (JsonElement level in levels)
                 {
-                    int xx = x + dx, yy = y + dy;
-                    if (xx < 0 || yy < 0 || xx >= size || yy >= size) continue;
-                    int q = yy * size + xx;
-                    if (!opaque[q] || reached[q]) continue;
-                    reached[q] = true; queue[tail++] = q;
+                    string node = level.GetProperty("node").GetString()!;
+                    bool present = meshes.TryGetValue(node, out Mesh? mesh);
+                    using var arrays = present ? mesh!.SurfaceGetArrays(0) : null;
+                    Vector3[] vertices = arrays?[(int)Mesh.ArrayType.Vertex].AsVector3Array() ?? Array.Empty<Vector3>();
+                    Vector2[] data = arrays?[(int)Mesh.ArrayType.TexUV2].AsVector2Array() ?? Array.Empty<Vector2>();
+                    float[] tangents = arrays?[(int)Mesh.ArrayType.Tangent].AsFloat32Array() ?? Array.Empty<float>();
+                    int[] indices = arrays?[(int)Mesh.ArrayType.Index].AsInt32Array() ?? Array.Empty<int>();
+                    int triangles = indices.Length / 3;
+                    bool valid = present && triangles == level.GetProperty("triangles").GetInt32() && triangles <= 300
+                        && vertices.Length == level.GetProperty("vertices").GetInt32() && data.Length == vertices.Length
+                        && tangents.Length == vertices.Length * 4 && vertices.All(v => float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z))
+                        && data.All(c => c.X >= 0 && c.X <= 1 && c.Y >= 0 && c.Y <= 1) && vertices.Min(v => v.Y) > -0.01f;
+                    Expect("grass level imported: " + node, valid,
+                        $"{vertices.Length} vertices, {triangles} triangles, {data.Length} UV2, {tangents.Length / 4} tangents");
                 }
             }
-            double coverage = covered / (double)opaque.Length, rooted = tail / (double)Math.Max(1, covered);
-            Expect($"grass painted silhouette has separated connected blades {cell.X},{cell.Y}",
-                rootRuns >= 10 && roots > size * 0.2 && roots < size * 0.8 && coverage > 0.05 && coverage < 0.7
-                    && firstRow < size * 0.25 && rooted > 0.99,
-                $"actual RGBA8: roots={rootRuns} runs/{roots} pixels, area={coverage:P1}, root-connected={rooted:P2}, tallest={size - firstRow}px; no second silhouette mask");
         }
+        finally { scene.Free(); }
     }
 }

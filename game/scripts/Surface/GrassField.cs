@@ -1,637 +1,460 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Diagnostics;
 using Godot;
 using Hollow.Core;
 using Hollow.Surface;
-using HollowUniverse.Surface.Flora;
 
 namespace HollowUniverse.Surface;
 
 /// <summary>
-/// The grass of the surface view (GROUND.md §4.6, docs/WHOLE_WORLD.md §10.3): presentation only, not part of the scatter,
-/// with a continuous vertex-shader grass field and diverse authored grass/fern crowns around the camera.
-/// Every tuft belongs to a cell of a cube face at the level nearest 0.46 m (level 13 on a 2.41 km world), so what grows
-/// in it (place, size, lean, colour, kind) comes from a hash of the cell and never shifts as the camera moves; near a
-/// face seam each face's cells are drawn by a grid of their own (up to three at a corner), each keeping the cells whose
-/// middles lie on its face. A worker lays out a lattice of the cells' corners around the camera whenever it has moved
-/// <see cref="Recentre"/> metres: each corner on the drawn ground (exactly the finest tiles' triangles), and the grass
-/// density, moisture, flowers, litter and small plants from <see cref="ISurface.Cover"/>, as textures. A second, smaller
-/// grid lays leaf litter, needles and twigs flat on the forest floor from the same lattice.
+/// The ground's grass (GROUND.md §4.6, docs/WALKING_GROUND.md §18): presentation only, not part of the scatter. Clumps of
+/// five species and the forest floor's litter (art/grass/build_grass.py) grow on placement cells of half a terrain cell
+/// (0.46 m on Earth), each cell's plan coming from the one habitat rule (<see cref="GroundCoverHabitats"/>) and a hash of
+/// its place, so nothing shifts as the camera moves and every cell belongs to one cube face. Cells are gathered into
+/// tiles of the finest terrain tiles (<see cref="TileCells"/> terrain cells a side): a worker builds a tile's instances
+/// from the very grid the terrain draws there (roots on its triangles, the grid's climate and materials), the main thread
+/// uploads them into pooled MultiMeshes, one a species, a few tiles a frame, and only tiles in view are submitted, each
+/// at the level of detail its distance asks for. Scanned plants stand among them as accents (GrassField.Authored.cs).
 /// </summary>
 public sealed partial class GrassField : Node3D
 {
-    /// <summary>The cells are the cube faces' at the level whose edge is nearest this (metres).</summary>
+    /// <summary>Placement cells are half a terrain cell: the cube faces' cells at the level nearest this (metres).</summary>
     public const double CellMetres = 0.46;
 
+    /// <summary>Clumps reach this far at the graphics settings' grass distance 1 (GROUND.md §8.6).</summary>
     public const float FarRadius = 42;
-    private const float ShrinkStart = 22;
     private const float LitterRadius = 26;
-    private const float LitterShrink = 14;
 
-    // The reaches at the graphics settings' grass distance (GROUND.md §8.6), taken when the field is set up: the
-    // surface view builds a new field when the setting changes.
-    private float _far = FarRadius, _shrink = ShrinkStart, _litterFar = LitterRadius, _litterShrink = LitterShrink;
+    /// <summary>Terrain cells along a grass tile's edge (the finest terrain tiles have 32): 16 (about 15 m on Earth) or 8.</summary>
+    public int TileCells { get; private set; } = 16;
+
+    // Movement before the wanted tiles are worked out again, the margins tiles are wanted and kept within, and the work
+    // a frame may spend on uploads.
+    private const double Reselect = 1.5;
+    private const double WantMargin = 3, KeepMargin = 8;
+    private const int UploadTileLimit = 6;
+    private const long UploadByteTarget = 768 * 1024;
+    private const double UploadMilliseconds = 1.0;
+
+    private float _far = FarRadius, _litterFar = LitterRadius;
 
     /// <summary>The grass distance and density this field was built with.</summary>
     public (float Distance, float Density) BuiltWith { get; private set; }
-    private const double Recentre = 14;
-    private const int CoarseStep = 8; // lattice nodes between climate samples
-
-    /// <summary>The finest drawn tiles have this many cells along an edge (TileMesh: 32, a power of two).</summary>
-    private const int TileCellsLog2 = 5;
-
-    // One face's lattice: its corner nodes' places on the ground (from the anchor, render axes, and the grass density)
-    // and the cover (moisture, flowers, litter, small plants), around the camera.
-    private sealed class FaceLattice
-    {
-        public int Face;
-        public long CornerX, CornerY;   // the face's cell index of the lattice's first cell
-        public double OriginU, OriginV; // metres on the face of the first node, less the texture anchor
-        public float[] Nodes = Array.Empty<float>();
-        public float[] Cover = Array.Empty<float>();
-        public readonly List<CoverPlant> Plants = new();
-    }
-
-    private sealed class FieldData
-    {
-        public Vector3D Anchor; // body-frame point the nodes are measured from
-        public readonly List<FaceLattice> Faces = new();
-        public readonly List<SpatialTileData> SpatialTiles = new();
-    }
-
-    // What draws one face's cells: the grass and the litter grids, and the face's lattice textures.
-    private sealed class FaceGrid
-    {
-        public MultiMeshInstance3D Grass = null!;
-        public ShaderMaterial GrassMaterial = null!;
-        public MultiMeshInstance3D Litter = null!;
-        public ShaderMaterial LitterMaterial = null!;
-        public Image? Nodes, Cover;
-        public ImageTexture? NodesTexture, CoverTexture;
-    }
 
     private ISurface _surface = null!;
     private RenderFrame _frame = null!;
-    private int _level;        // the cells' level
-    private long _faceCells;   // cells along a face's edge
-    private double _cellMetres;
-    private int _heightShift;  // the finest tiles' vertex lattice: level + 5
-    private int _gridWidth, _litterWidth, _latticeSize;
-    private readonly FaceGrid[] _grids = new FaceGrid[3];
-    private Task<FieldData>? _job;
-    private FieldData? _field;
-    private Vector3D _centre = new(double.MaxValue, 0, 0);
-    private bool _near;
-    private bool _ready;
+    private TerrainLod? _terrain;
+    private int _terrainLevel;    // the finest terrain level, whose tiles the grass tiles split
+    private int _tileShift;       // grass tiles a terrain tile's edge: 1 << _tileShift
+    private int _level;           // the placement cells' level
+    private BuildContext? _context;
+    private readonly Dictionary<TileKey, GrassTile> _tiles = new();
+    private readonly List<GrassTile> _uploadQueue = new();
+    private readonly List<TileKey> _around = new();
+    private readonly HashSet<TileKey> _wanted = new();
+    private readonly List<GrassTile> _scratch = new();
+    private Vector3D _selectedAt = new(double.MaxValue, 0, 0);
+    private bool _near, _show;
+    private int _instances;
+    private long _uploadedBytes;
+    private double _lastUploadMilliseconds;
+    private Vector2 _morphRange = new(1e6f, 2e6f);
+    private int _frames;
+    private Vector3D _origin;
 
-    /// <summary>Tufts on the grids (most of them shrink to nothing where there is no grass).</summary>
-    public int Tufts => _coverCount;
+    // One tile: the cells of a block of one finest terrain tile, built from the grid that terrain tile is drawn with.
+    private sealed class GrassTile
+    {
+        public TileKey Key, Terrain;
+        public Vector3D Centre;              // body frame, the tile's middle on the ground (until built: its estimate)
+        public Vector3D Minimum, Maximum;    // its instances' bounds less Centre, body axes (until built: an estimate)
+        public double Distance;
+        public int Version;
+        public TileJob? Job;
+        public TileBuild? Built, Pending;
+        public readonly List<Batch> Batches = new();
+        public bool Wanted;
+    }
 
-    /// <summary>True when the field around the camera is in place (or the camera is too high for grass).</summary>
-    public bool IsIdle => _setupComplete && !_stopped && ContactReady && (!_near || (_ready && _job == null && _spatialStaging == null && !_requiredJobFailed));
+    private sealed class TileJob
+    {
+        public required TileKey Key, Terrain;
+        public required TileGrid? Grid;
+        public required int Version;
+        public System.Threading.Tasks.Task<TileBuild> Task = null!;
+    }
 
-    /// <summary>The cube-sphere level of the grass's cells.</summary>
+    /// <summary>Clumps submitted last frame (before the renderer's culling; litter and accents included).</summary>
+    public int Tufts => _instances + _coverCount;
+
+    /// <summary>True when the grass around the camera is in place (or the camera is too high for grass).</summary>
+    public bool IsIdle => _setupComplete && !_stopped && !_requiredJobFailed && (!_near || Settled());
+
+    /// <summary>The cube-sphere level of the placement cells.</summary>
     public int Level => _level;
 
-    public void Setup(ISurface surface, RenderFrame frame, int finestLevel, FloraLibrary library, TextureLayered groundAlbedo, Texture noise, Vector3 bladeMean)
+    /// <summary>Where the terrain's grass layer turns from its scan's colour to the blades' (the terrain shader's
+    /// grass_reach): from half the clumps' reach to where their last ones dissolve.</summary>
+    public Vector2 TerrainHandoff => new(0.5f * _far, 0.95f * _far);
+
+    /// <summary>
+    /// Sets the field up for a surface: its species, materials and pools, and the reach of the graphics settings' grass
+    /// distance and density (the surface view builds a new field when they change). <paramref name="terrain"/> is the
+    /// drawn terrain the clumps root on; <paramref name="noise"/> the surface's macro noise (the grass colour's patches).
+    /// </summary>
+    public void Setup(ISurface surface, RenderFrame frame, TerrainLod terrain, Texture2D noise, Vector3 bladeMean)
     {
         BeginSetup();
         // Render diagnosis only: retain loading, generation and readiness while exposing the identical terrain.
         Visible = Array.IndexOf(OS.GetCmdlineUserArgs(), "--hide-ground-cover") < 0;
         _surface = surface;
         _frame = frame;
-        _level = TileKey.LevelFor(surface.Radius, CellMetres);
-        _faceCells = 1L << _level;
-        _cellMetres = TileKey.EdgeLength(_level, surface.Radius);
-        _heightShift = finestLevel + TileCellsLog2;
+        _terrain = terrain;
         HollowUniverse.Settings.GraphicsValues graphics = HollowUniverse.Settings.GraphicsSettings.Current;
         BuiltWith = (graphics.GrassDistance, graphics.GrassDensity);
         float reach = Math.Clamp(graphics.GrassDistance, 0.5f, 2f);
         _far = FarRadius * reach;
-        _shrink = ShrinkStart * reach;
         _litterFar = LitterRadius * reach;
-        _litterShrink = LitterShrink * reach;
-        _gridWidth = (int)Math.Ceiling(2 * _far / _cellMetres) + 2;
-        _litterWidth = (int)Math.Ceiling(2 * _litterFar / _cellMetres) + 2;
-        _latticeSize = (int)Math.Ceiling(2 * (_far + Recentre) / _cellMetres) + 4;
-        ConfigureSpatialDiagnostics(OS.GetCmdlineUserArgs());
-        _buildContext = CaptureBuildContext(surface, frame);
-        var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_grass.gdshader") };
-        material.SetShaderParameter("grid_width", _gridWidth);
-        material.SetShaderParameter("far_radius", _far);
-        material.SetShaderParameter("shrink_start", _shrink);
-        material.SetShaderParameter("density_scale", Math.Clamp(graphics.GrassDensity, 0.1f, 1f));
-        material.SetShaderParameter("blade_underlayer", true);
-        material.SetShaderParameter("lattice_size", _latticeSize);
-        material.SetShaderParameter("face_cells", (int)Math.Min(_faceCells, int.MaxValue));
-        material.SetShaderParameter("cell_metres", (float)(_cellMetres));
-        material.SetShaderParameter("atlas", library.AtlasTexture);
-        material.SetShaderParameter("cell_grass", FloraTextures.CellUv(FloraTextures.Grass, 6));
-        material.SetShaderParameter("cell_dry", FloraTextures.CellUv(FloraTextures.DryGrass, 6));
-        material.SetShaderParameter("cell_meadow", FloraTextures.CellUv(FloraTextures.Meadow, 6));
-        material.SetShaderParameter("cell_flower", FloraTextures.CellUv(FloraTextures.Flower, 6));
-        material.SetShaderParameter("cell_herb", FloraTextures.CellUv(FloraTextures.Herb, 6));
-        material.SetShaderParameter("cell_fern", FloraTextures.CellUv(FloraTextures.Fern, 6));
-        material.SetShaderParameter("cell_bush", FloraTextures.CellUv(FloraTextures.Bush, 6));
-        material.SetShaderParameter("cell_leaves_a", FloraTextures.CellUv(FloraTextures.Broad, 6));
-        material.SetShaderParameter("cell_leaves_b", FloraTextures.CellUv(FloraTextures.Beech, 6));
-        material.SetShaderParameter("cell_leaves_c", FloraTextures.CellUv(FloraTextures.OakDark, 6));
-        material.SetShaderParameter("cell_leaves_d", FloraTextures.CellUv(FloraTextures.BirchLeaf, 6));
-        material.SetShaderParameter("cell_twigs", FloraTextures.CellUv(FloraTextures.Twigs, 6));
-        material.SetShaderParameter("cell_needles", FloraTextures.CellUv(FloraTextures.Spruce, 6));
-        material.SetShaderParameter("ground_albedo", groundAlbedo);
-        GroundLayers.ApplyGrass(material);
-        material.SetShaderParameter("macro_noise", noise);
-        material.SetShaderParameter("blade_mean", bladeMean);
-        Mesh tuft = TuftMesh(_spatialCells == 0), litter = LitterMesh(_spatialCells == 0);
-        if (_spatialCells != 0) SetupSpatialResources(material, tuft, litter);
-        for (int g = 0; _spatialCells == 0 && g < _grids.Length; g++)
+        string[] args = OS.GetCmdlineUserArgs();
+        int cells = Array.IndexOf(args, "--grass-tile-cells");
+        if (cells >= 0)
         {
-            var grid = new FaceGrid { GrassMaterial = (ShaderMaterial)material.Duplicate() };
-            grid.Grass = Instance(tuft, grid.GrassMaterial, _gridWidth);
-            // Litter: the same lattice and hashing on a smaller grid, flat pieces instead of tufts.
-            grid.LitterMaterial = (ShaderMaterial)material.Duplicate();
-            grid.LitterMaterial.SetShaderParameter("layer", 1);
-            grid.LitterMaterial.SetShaderParameter("grid_width", _litterWidth);
-            grid.LitterMaterial.SetShaderParameter("far_radius", _litterFar);
-            grid.LitterMaterial.SetShaderParameter("shrink_start", _litterShrink);
-            grid.Litter = Instance(litter, grid.LitterMaterial, _litterWidth);
-            _grids[g] = grid;
+            if (cells + 1 >= args.Length || !int.TryParse(args[cells + 1], out int value) || value is not (8 or 16))
+                throw new ArgumentException("--grass-tile-cells needs 8 or 16.");
+            TileCells = value;
         }
+        Configure(terrain.MaxLevel);
+        using Image image = noise.GetImage();
+        SpeciesCatalog catalog = LoadCatalog(bladeMean, noise);
+        _context = CaptureContext(surface, catalog, new TintNoise(image), Math.Clamp(graphics.GrassDensity, 0.1f, 1f));
         SetupAuthoredCover();
         _setupComplete = true;
     }
 
-    // A grid of width² instances, every instance placed by the shader (the transforms are identity).
-    private MultiMeshInstance3D Instance(Mesh mesh, ShaderMaterial material, int width)
+    private void Configure(int terrainLevel)
     {
-        int count = width * width;
-        var buffer = new float[count * 12];
-        for (int i = 0; i < count; i++)
-        {
-            buffer[i * 12] = 1;
-            buffer[i * 12 + 5] = 1;
-            buffer[i * 12 + 10] = 1;
-        }
-        var instance = new MultiMeshInstance3D
-        {
-            Multimesh = new MultiMesh
-            {
-                TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
-                Mesh = mesh,
-                InstanceCount = count,
-                Buffer = buffer,
-            },
-            MaterialOverride = material,
-            CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
-            GIMode = GeometryInstance3D.GIModeEnum.Disabled,
-            Visible = false,
-        };
-        AddChild(instance);
-        return instance;
-    }
-
-    // Litter pieces lying on the ground: three cards of the atlas at random turns and places in the cell, their ends
-    // curling up a little. UV as the tufts' (x across, y along); colour alpha 0 (no blade gradient).
-    private static ArrayMesh LitterMesh(bool wholeFaceBounds = true)
-    {
-        var positions = new List<Vector3>();
-        var normals = new List<Vector3>();
-        var uvs = new List<Vector2>();
-        var colours = new List<Color>();
-        var indices = new List<int>();
-        var r = new Rng(303);
-        float R() => (float)r.NextDouble();
-        const int Pieces = 3, Segments = 3;
-        for (int k = 0; k < Pieces; k++)
-        {
-            float turn = R() * MathF.Tau;
-            var along = new Vector3(MathF.Cos(turn), 0, MathF.Sin(turn));
-            var across = new Vector3(-along.Z, 0, along.X);
-            float length = 0.32f + 0.2f * R(), half = 0.13f + 0.08f * R();
-            float ra = R() * MathF.Tau, rr = 0.2f * MathF.Sqrt(R());
-            Vector3 centre = new(MathF.Cos(ra) * rr, 0, MathF.Sin(ra) * rr);
-            float curl = 0.01f + 0.03f * R();
-            int b = positions.Count;
-            for (int i = 0; i <= Segments; i++)
-            {
-                float t = i / (float)Segments;
-                float x = (t - 0.5f) * length;
-                Vector3 c = centre + along * x + new Vector3(0, curl * (2 * t - 1) * (2 * t - 1) + 0.004f * k, 0);
-                for (int sd = 0; sd < 2; sd++)
-                {
-                    positions.Add(c + across * (sd == 0 ? -half : half));
-                    normals.Add(Vector3.Up);
-                    uvs.Add(new Vector2(sd == 0 ? 0 : 1, t));
-                    colours.Add(new Color(1, 1, 1, 0));
-                }
-            }
-            for (int i = 0; i < Segments; i++)
-            {
-                int p = b + i * 2;
-                indices.AddRange(new[] { p, p + 3, p + 1, p, p + 2, p + 3 });
-            }
-        }
-        var arrays = new Godot.Collections.Array();
-        arrays.Resize((int)Mesh.ArrayType.Max);
-        arrays[(int)Mesh.ArrayType.Vertex] = positions.ToArray();
-        arrays[(int)Mesh.ArrayType.Normal] = normals.ToArray();
-        arrays[(int)Mesh.ArrayType.TexUV] = uvs.ToArray();
-        arrays[(int)Mesh.ArrayType.Color] = colours.ToArray();
-        arrays[(int)Mesh.ArrayType.Index] = indices.ToArray();
-        var mesh = new ArrayMesh();
-        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays);
-        if (wholeFaceBounds) mesh.CustomAabb = new Aabb(new Vector3(-6000, -6000, -6000), new Vector3(12000, 12000, 12000));
-        return mesh;
-    }
-
-    // A tuft at unit height: hollow-orbit's grass clump, cards leaning out around the centre with a curved profile.
-    // UV: x across the card, y from the foot (0) to the tip (1); colour alpha: the same height fraction.
-    // CUSTOM0.xy/zw: this side's and the opposite side's constant foot XZ, before taper/growth.
-    // Paired feet let every vertex reject the whole card when either endpoint lacks drawn-terrain support.
-    private static ArrayMesh TuftMesh(bool wholeFaceBounds = true)
-    {
-        var positions = new List<Vector3>();
-        var normals = new List<Vector3>();
-        var uvs = new List<Vector2>();
-        var growth = new List<Vector2>();
-        var feet = new List<float>();
-        var colours = new List<Color>();
-        var indices = new List<int>();
-        var r = new Rng(201);
-        float R() => (float)r.NextDouble();
-        // Cards spread over the tuft's cell at random turns, mostly upright: a field, not a fan of cards.
-        const int Cards = 5, Segments = 3;
-        const float W = 0.34f;
-        for (int k = 0; k < Cards; k++)
-        {
-            float u0 = R() * 0.35f, u1 = Math.Min(1, u0 + 0.55f + 0.1f * R());
-            float turn = R() * MathF.Tau;
-            float lean = 0.04f + 0.12f * R();
-            float leanTurn = R() * MathF.Tau;
-            var leanDir = new Vector3(MathF.Cos(leanTurn), 0, MathF.Sin(leanTurn));
-            Vector3 side = new Vector3(MathF.Cos(turn), 0, MathF.Sin(turn)) * (W * (0.4f + 0.25f * R()));
-            float h = 0.75f + 0.45f * R();
-            Vector3 up = new Vector3(0, h, 0) + leanDir * (h * lean);
-            float ra = R() * MathF.Tau, rr = 0.22f * MathF.Sqrt(R());
-            Vector3 offset = new Vector3(MathF.Cos(ra) * rr, 0, MathF.Sin(ra) * rr);
-            Vector3 curl = leanDir * (h * lean * 0.6f);
-            Vector3 normal = new Vector3(leanDir.X * 0.3f, 1, leanDir.Z * 0.3f).Normalized();
-            int b = positions.Count;
-            for (int i = 0; i <= Segments; i++)
-            {
-                float t = i / (float)Segments;
-                Vector3 c = offset + up * t + curl * (t * t);
-                for (int sd = 0; sd < 2; sd++)
-                {
-                    positions.Add(c + side * (sd == 0 ? -1 : 1) * (1 - 0.3f * t));
-                    normals.Add(normal);
-                    uvs.Add(new Vector2(sd == 0 ? u0 : u1, t));
-                    // Separate authored lean/curl from root spread and blade width. Shortening a tuft
-                    // must shorten that growth too, or upright blades become flattened ribbons.
-                    Vector3 bend = up * t + curl * (t * t);
-                    growth.Add(new Vector2(bend.X, bend.Z));
-                    Vector3 foot = offset + side * (sd == 0 ? -1 : 1);
-                    Vector3 oppositeFoot = offset + side * (sd == 0 ? 1 : -1);
-                    feet.Add(foot.X); feet.Add(foot.Z); feet.Add(oppositeFoot.X); feet.Add(oppositeFoot.Z);
-                    colours.Add(new Color(1, 1, 1, t));
-                }
-            }
-            for (int i = 0; i < Segments; i++)
-            {
-                int p = b + i * 2;
-                indices.AddRange(new[] { p, p + 3, p + 1, p, p + 2, p + 3 });
-            }
-        }
-        var arrays = new Godot.Collections.Array();
-        arrays.Resize((int)Mesh.ArrayType.Max);
-        arrays[(int)Mesh.ArrayType.Vertex] = positions.ToArray();
-        arrays[(int)Mesh.ArrayType.Normal] = normals.ToArray();
-        arrays[(int)Mesh.ArrayType.TexUV] = uvs.ToArray();
-        arrays[(int)Mesh.ArrayType.TexUV2] = growth.ToArray();
-        arrays[(int)Mesh.ArrayType.Custom0] = feet.ToArray();
-        arrays[(int)Mesh.ArrayType.Color] = colours.ToArray();
-        arrays[(int)Mesh.ArrayType.Index] = indices.ToArray();
-        var mesh = new ArrayMesh();
-        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null,
-            (Mesh.ArrayFormat)((int)Mesh.ArrayCustomFormat.RgbaFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift));
-        // Placed by the shader anywhere: never culled by the mesh's own small box.
-        if (wholeFaceBounds) mesh.CustomAabb = new Aabb(new Vector3(-6000, -6000, -6000), new Vector3(12000, 12000, 12000));
-        return mesh;
+        _terrainLevel = terrainLevel;
+        _tileShift = TileCells == 16 ? 1 : 2;
+        _level = terrainLevel + TerrainCellsLog2 + 1;
     }
 
     // ---------------------------------------------------------------- update
 
     /// <summary>
-    /// Moves the grids with the camera (body-frame position, <paramref name="altitude"/> metres above the ground) and
-    /// lays out the lattice again when it has moved far enough.
+    /// Follows the camera (body-frame position, <paramref name="altitude"/> metres above the ground): works out the tiles
+    /// within the grass's reach, starts their builds, uploads finished ones and picks each tile's level of detail.
     /// </summary>
     public void UpdateGrass(Vector3D camera, double altitude, bool walking)
     {
         if (!_setupComplete || _stopped) return;
-        bool near = altitude < _far;
-        _near = near;
-        if (_job != null && _job.IsCompleted)
+        _frames++;
+        _near = altitude < _far;
+        CollectJobs();
+        Vector3D direction = camera.Normalized;
+        Vector3D ground = direction * (_surface.Radius + _surface.HeightAt(direction));
+        if (_near && (Vector3D.Distance(ground, _selectedAt) > Reselect || _frames % 30 == 0)) SelectTiles(camera, ground);
+        if (!_near && _tiles.Count > 0 && _frames % 30 == 0) SelectTiles(camera, ground);
+        if (_near && !_requiredJobFailed) StartJobs(camera);
+        ContinueUploads();
+        _show = _near;
+        UpdateVisibility(camera, walking);
+        UpdateAuthoredCover(camera, _show);
+    }
+
+    // The tiles within the reach of the camera: every block of every finest terrain tile around it that may hold a clump
+    // within the reach. Tiles beyond the reach and a margin are released. Both decisions use one estimate, the tile at
+    // the camera's ground height (a tile up or down a slope is never nearer than that says, so none in reach is missed);
+    // its built bounds are only for drawing, or a tile could be wanted by the one and released by the other in turn.
+    private void SelectTiles(Vector3D camera, Vector3D ground)
+    {
+        _selectedAt = ground;
+        _wanted.Clear();
+        _around.Clear();
+        double half = TileKey.EdgeLength(_terrainLevel + _tileShift, _surface.Radius) * 0.75;
+        if (_near)
         {
-            if (_jobEpoch != _epoch)
+            TileKey.Around(ground.Normalized, _far + WantMargin + half, _surface.Radius, _terrainLevel, _around);
+            int split = 1 << _tileShift;
+            foreach (TileKey terrain in _around)
+            {
+                for (int j = 0; j < split; j++)
+                for (int i = 0; i < split; i++)
+                {
+                    var key = new TileKey(terrain.Face, _terrainLevel + _tileShift, terrain.X * split + i, terrain.Y * split + j);
+                    if (Estimate(camera, ground, key, half) > _far + WantMargin) continue;
+                    _wanted.Add(key);
+                    if (_tiles.ContainsKey(key)) continue;
+                    _tiles.Add(key, new GrassTile
+                    {
+                        Key = key, Terrain = terrain, Centre = key.Centre * ground.Length,
+                        Minimum = new Vector3D(-half, -half, -half), Maximum = new Vector3D(half, half, half),
+                    });
+                }
+            }
+        }
+        _scratch.Clear();
+        foreach (GrassTile tile in _tiles.Values)
+        {
+            tile.Wanted = _wanted.Contains(tile.Key);
+            tile.Distance = DistanceToTile(camera, tile);
+            if (!tile.Wanted && (!_near || Estimate(camera, ground, tile.Key, half) > _far + KeepMargin)) _scratch.Add(tile);
+        }
+        foreach (GrassTile tile in _scratch) ReleaseTile(tile);
+    }
+
+    // The nearest a tile's clumps can be: its middle at the camera's ground height, less its half-diagonal.
+    private static double Estimate(Vector3D camera, Vector3D ground, TileKey key, double half) =>
+        Vector3D.Distance(camera, key.Centre * ground.Length) - half * 1.74;
+
+    private static double DistanceToTile(Vector3D camera, GrassTile tile)
+    {
+        Vector3D p = camera - tile.Centre;
+        double x = Math.Max(Math.Max(tile.Minimum.X - p.X, p.X - tile.Maximum.X), 0);
+        double y = Math.Max(Math.Max(tile.Minimum.Y - p.Y, p.Y - tile.Maximum.Y), 0);
+        double z = Math.Max(Math.Max(tile.Minimum.Z - p.Z, p.Z - tile.Maximum.Z), 0);
+        return Math.Sqrt(x * x + y * y + z * z);
+    }
+
+    // Wanted tiles that need a build, nearest first, while workers are free: each from its terrain tile's drawn grid
+    // (waiting while the terrain still streams it), or, with no terrain (the lifetime probe), from the surface itself.
+    private void StartJobs(Vector3D camera)
+    {
+        int running = 0;
+        foreach (GrassTile tile in _tiles.Values) if (tile.Job != null) running++;
+        int limit = _instances == 0 ? MaxJobsLoading : MaxJobs;
+        if (running >= limit) return;
+        _scratch.Clear();
+        foreach (GrassTile tile in _tiles.Values)
+        {
+            if (!tile.Wanted || tile.Job != null || tile.Pending != null) continue;
+            if (tile.Built != null && !GridChanged(tile)) continue;
+            tile.Distance = DistanceToTile(camera, tile);
+            _scratch.Add(tile);
+        }
+        _scratch.Sort(static (a, b) => a.Distance.CompareTo(b.Distance));
+        foreach (GrassTile tile in _scratch)
+        {
+            if (running >= limit) break;
+            TileGrid? grid = null;
+            if (_terrain != null && !_terrain.TryDrawnGrid(tile.Terrain, out grid, out _)) continue;
+            var job = new TileJob { Key = tile.Key, Terrain = tile.Terrain, Grid = grid, Version = tile.Version };
+            job.Task = _workers.Start(_context!, job);
+            tile.Job = job;
+            running++;
+        }
+    }
+
+    private bool GridChanged(GrassTile tile) =>
+        _terrain != null && tile.Built != null && _terrain.TryDrawnGrid(tile.Terrain, out TileGrid grid, out _)
+        && !ReferenceEquals(grid, tile.Built.Grid);
+
+    // Finished builds: a current one waits for upload; a stale one (its tile released or rebuilt since) is dropped.
+    private void CollectJobs()
+    {
+        _scratch.Clear();
+        foreach (GrassTile tile in _tiles.Values) if (tile.Job is { Task.IsCompleted: true }) _scratch.Add(tile);
+        foreach (GrassTile tile in _scratch)
+        {
+            TileJob job = tile.Job!;
+            tile.Job = null;
+            if (job.Version != tile.Version || _stopped)
             {
                 _workers.Monitor.Discarded();
+                continue;
             }
-            else if (_job.IsCompletedSuccessfully)
+            if (job.Task.IsCompletedSuccessfully)
             {
-                if (_spatialCells != 0) BeginSpatialUpload(_job.Result);
-                else
-                {
-                    _field = _job.Result;
-                    Upload(_field);
-                    _coverDirty = true;
-                    _requiredJobFailed = false;
-                }
+                tile.Pending = job.Task.Result;
+                _uploadQueue.Add(tile);
             }
             else
             {
                 _requiredJobFailed = true;
-                if (_job.IsFaulted) GD.PushError($"Grass field failed: {_job.Exception}");
+                if (job.Task.IsFaulted) GD.PushError($"Grass tile {tile.Key} failed: {job.Task.Exception}");
             }
-            _job = null;
         }
-        if (_spatialCells != 0) ContinueSpatialUpload();
-        Vector3D ground = camera.Normalized * (_surface.Radius + _surface.HeightAt(camera.Normalized));
-        if (near && _job == null && _spatialStaging == null && !_requiredJobFailed && Vector3D.Distance(ground, _centre) > Recentre)
+    }
+
+    // Uploads finished tiles, nearest first, a few a frame (bounded by count, bytes and time): each species' instances
+    // into a pooled MultiMesh, which replaces the tile's previous batches only once all of them are in.
+    private void ContinueUploads()
+    {
+        if (_uploadQueue.Count == 0) return;
+        _uploadQueue.RemoveAll(t => t.Pending == null || !_tiles.ContainsKey(t.Key));
+        _uploadQueue.Sort(static (a, b) => a.Distance.CompareTo(b.Distance));
+        long start = Stopwatch.GetTimestamp(), bytes = 0;
+        int done = 0;
+        while (_uploadQueue.Count > 0 && done < UploadTileLimit)
         {
-            _centre = ground;
-            _jobEpoch = _epoch;
-            _job = _workers.Start(_buildContext!, ground);
+            GrassTile tile = _uploadQueue[0];
+            TileBuild build = tile.Pending!;
+            if (done > 0 && (bytes + build.Bytes > UploadByteTarget || Stopwatch.GetElapsedTime(start).TotalMilliseconds > UploadMilliseconds))
+                break;
+            _uploadQueue.RemoveAt(0);
+            Publish(tile, build);
+            bytes += build.Bytes;
+            done++;
         }
-        _ready = _field != null;
-        bool show = near && _field != null;
+        _uploadedBytes += bytes;
+        _lastUploadMilliseconds = Stopwatch.GetElapsedTime(start).TotalMilliseconds;
+    }
+
+    private void Publish(GrassTile tile, TileBuild build)
+    {
+        var batches = new List<Batch>();
+        try
+        {
+            for (int s = 0; s < build.Species.Length; s++)
+            {
+                SpeciesBuild data = build.Species[s];
+                if (data.Count == 0) continue;
+                Batch batch = AcquireBatch(s, data.Capacity);
+                batch.MultiMesh.Buffer = data.Buffer;
+                batch.Count = data.Count;
+                batch.Ranks = data.Ranks;
+                batch.MultiMesh.CustomAabb = new Aabb(V(data.Minimum), V(data.Maximum - data.Minimum));
+                batch.Instance.Transform = _frame.Anchor(build.Centre);
+                batch.Lod = -1;
+                batch.Shown = -1;
+                batches.Add(batch);
+            }
+        }
+        catch
+        {
+            foreach (Batch batch in batches) ReleaseBatch(batch);
+            throw;
+        }
+        foreach (Batch old in tile.Batches) ReleaseBatch(old);
+        tile.Batches.Clear();
+        tile.Batches.AddRange(batches);
+        tile.Built = build;
+        tile.Pending = null;
+        tile.Centre = build.Centre;
+        tile.Minimum = build.Minimum;
+        tile.Maximum = build.Maximum;
+        _coverDirty = true;
+        WriteAppearanceDiagnostic(build);
+    }
+
+    private void ReleaseTile(GrassTile tile)
+    {
+        tile.Version++;
+        foreach (Batch batch in tile.Batches) ReleaseBatch(batch);
+        tile.Batches.Clear();
+        tile.Built = null;
+        tile.Pending = null;
+        // A running job finishes on its own; its stale result is discarded when collected.
+        if (tile.Job != null)
+        {
+            _orphans.Add(tile.Job);
+            tile.Job = null;
+        }
+        _tiles.Remove(tile.Key);
+        _coverDirty = true;
+    }
+
+    // Each frame: the tiles in reach shown at their level of detail, the clumps they can keep submitted (their buffers are
+    // sorted by rank, so the clumps a distance keeps are a prefix), the rest hidden.
+    private void UpdateVisibility(Vector3D camera, bool walking)
+    {
+        DrainOrphans();
+        // A frame whose origin follows the camera (the look-dev view's planet) moves every batch with it.
+        if (_frame.Origin != _origin)
+        {
+            _origin = _frame.Origin;
+            Reanchor();
+        }
+        bool grass = (_diagnosticLayers & GroundCoverLayers.Grass) != 0, litter = (_diagnosticLayers & GroundCoverLayers.Litter) != 0;
+        if (_frames % 60 == 1) RefreshMorphRange();
         Vector3 cameraRender = _frame.ToRender(camera);
-        if (_spatialCells != 0) UpdateSpatialVisibility(camera, cameraRender, walking, show);
-        for (int g = 0; _spatialCells == 0 && g < _grids.Length; g++)
+        Vector3 feet = cameraRender - _frame.DirectionToRender(camera.Normalized) * 1.7f;
+        (Vector3 up, Vector3 east, Vector3 north) = _frame.LocalAxes(camera);
+        _ = up;
+        UpdateMaterials(walking ? new Vector4(feet.X, feet.Y, feet.Z, 0.9f) : Vector4.Zero, east, north);
+        int instances = 0;
+        foreach (GrassTile tile in _tiles.Values)
         {
-            FaceGrid grid = _grids[g];
-            FaceLattice? lattice = show && g < _field!.Faces.Count ? _field.Faces[g] : null;
-            grid.Grass.Visible = lattice != null && (_diagnosticLayers & GroundCoverLayers.Grass) != 0;
-            grid.Litter.Visible = lattice != null && (_diagnosticLayers & GroundCoverLayers.Litter) != 0;
-            if (lattice == null)
+            if (tile.Batches.Count == 0) continue;
+            double d = DistanceToTile(camera, tile);
+            tile.Distance = d;
+            bool terrainDrawn = _terrain == null || _terrain.TryDrawnGrid(tile.Terrain, out _, out _);
+            foreach (Batch batch in tile.Batches)
             {
-                continue;
-            }
-            Vector3 anchor = _frame.ToRender(_field!.Anchor);
-            (double cu, double cv) = CellOn(lattice.Face, camera);
-            foreach ((ShaderMaterial material, int width) in new[] { (grid.GrassMaterial, _gridWidth), (grid.LitterMaterial, _litterWidth) })
-            {
-                // The grid's first cell in the lattice: the camera's cell less half the grid, kept inside the lattice.
-                int ox = (int)Math.Clamp(Math.Floor(cu) - width / 2 - lattice.CornerX, 0, _latticeSize - 1 - width);
-                int oy = (int)Math.Clamp(Math.Floor(cv) - width / 2 - lattice.CornerY, 0, _latticeSize - 1 - width);
-                material.SetShaderParameter("grid_offset", new Vector2I(ox, oy));
-                material.SetShaderParameter("anchor", anchor);
-            }
-            // Grass bends away from the walker's feet, an eye's height under the camera.
-            Vector3 feet = cameraRender - _frame.DirectionToRender(camera.Normalized) * 1.7f;
-            grid.GrassMaterial.SetShaderParameter("trample", walking ? new Vector4(feet.X, feet.Y, feet.Z, 0.9f) : Vector4.Zero);
-        }
-        UpdateAuthoredCover(camera, show);
-    }
-
-    // A body-frame point's place on a face, in cells (fractional; may lie beyond the face's edge).
-    private (double U, double V) CellOn(int face, Vector3D point)
-        => CellOn(_faceCells, face, point);
-
-    private static (double U, double V) CellOn(long faceCells, int face, Vector3D point)
-    {
-        Vector3D n = CubeSphere.Normal(face);
-        double dn = Vector3D.Dot(point, n);
-        if (dn <= 1e-9)
-        {
-            return (double.NaN, double.NaN);
-        }
-        double u = CubeSphere.Unwarp(Vector3D.Dot(point, CubeSphere.AxisU(face)) / dn);
-        double v = CubeSphere.Unwarp(Vector3D.Dot(point, CubeSphere.AxisV(face)) / dn);
-        return ((u + 1) * 0.5 * faceCells, (v + 1) * 0.5 * faceCells);
-    }
-
-    private void Upload(FieldData field)
-    {
-        for (int g = 0; g < _grids.Length && g < field.Faces.Count; g++)
-        {
-            FaceGrid grid = _grids[g];
-            FaceLattice lattice = field.Faces[g];
-            byte[] nodes = new byte[lattice.Nodes.Length * 4];
-            Buffer.BlockCopy(lattice.Nodes, 0, nodes, 0, nodes.Length);
-            byte[] cover = new byte[lattice.Cover.Length * 4];
-            Buffer.BlockCopy(lattice.Cover, 0, cover, 0, cover.Length);
-            int n = _latticeSize;
-            if (grid.Nodes == null || grid.NodesTexture == null || grid.Cover == null || grid.CoverTexture == null)
-            {
-                grid.Nodes = Image.CreateFromData(n, n, false, Image.Format.Rgbaf, nodes);
-                grid.NodesTexture = ImageTexture.CreateFromImage(grid.Nodes);
-                grid.Cover = Image.CreateFromData(n, n, false, Image.Format.Rgbaf, cover);
-                grid.CoverTexture = ImageTexture.CreateFromImage(grid.Cover);
-                foreach (ShaderMaterial material in new[] { grid.GrassMaterial, grid.LitterMaterial })
+                Species species = _species[batch.Species];
+                bool layer = species.Litter ? litter : grass;
+                float reach = species.Litter ? _litterFar : _far;
+                bool show = _show && terrainDrawn && layer && d < reach;
+                int count = 0;
+                if (show)
                 {
-                    material.SetShaderParameter("lattice", grid.NodesTexture);
-                    material.SetShaderParameter("lattice_cover", grid.CoverTexture);
-                }
-            }
-            else
-            {
-                grid.Nodes.SetData(n, n, false, Image.Format.Rgbaf, nodes);
-                grid.NodesTexture.Update(grid.Nodes);
-                grid.Cover.SetData(n, n, false, Image.Format.Rgbaf, cover);
-                grid.CoverTexture.Update(grid.Cover);
-            }
-            foreach (ShaderMaterial material in new[] { grid.GrassMaterial, grid.LitterMaterial })
-            {
-                material.SetShaderParameter("face", lattice.Face);
-                material.SetShaderParameter("lattice_cell", new Vector2I((int)lattice.CornerX, (int)lattice.CornerY));
-                material.SetShaderParameter("face_origin", new Vector2((float)lattice.OriginU, (float)lattice.OriginV));
-            }
-        }
-        WriteAppearanceDiagnostic(field);
-    }
-
-    // ---------------------------------------------------------------- the lattice (worker thread)
-
-    private static FieldData Build(BuildContext context, Vector3D anchor, CancellationToken cancellation)
-    {
-        cancellation.ThrowIfCancellationRequested();
-        var field = new FieldData { Anchor = anchor };
-        var heights = new Dictionary<(int, long, long), (double Height, double Water)>();
-        List<int> faces = FacesNear(context, anchor);
-        if (context.SpatialCells != 0 && faces.Count > context.MaximumFaces)
-            throw new InvalidOperationException("The diagnostic grass window crosses more than three cube faces; this field cannot admit it completely.");
-        foreach (int face in faces)
-        {
-            cancellation.ThrowIfCancellationRequested();
-            if (field.Faces.Count < context.MaximumFaces)
-            {
-                field.Faces.Add(BuildFace(context, face, anchor, heights, cancellation));
-            }
-        }
-        if (context.SpatialCells != 0) BuildSpatialTiles(context, field, cancellation);
-        cancellation.ThrowIfCancellationRequested();
-        return field;
-    }
-
-    // The faces whose cells lie within the lattice's reach of a point: its own, and those across a seam or a corner near
-    // it (found by sampling the square around it on its own face, whose coordinates run on past the edge).
-    private static List<int> FacesNear(BuildContext context, Vector3D point)
-    {
-        (int face, double u, double v) = CubeSphere.FromDirection(point);
-        var faces = new List<int> { face };
-        double reach = (context.LatticeSize / 2 + 1) * 2.0 / context.FaceCells;
-        for (int j = -4; j <= 4; j++)
-        {
-            for (int i = -4; i <= 4; i++)
-            {
-                Vector3D d = CubeSphere.Direction(face, u + reach * i / 4, v + reach * j / 4);
-                int other = CubeSphere.FromDirection(d).Face;
-                if (!faces.Contains(other))
-                {
-                    faces.Add(other);
-                }
-            }
-        }
-        return faces;
-    }
-
-    private static FaceLattice BuildFace(BuildContext context, int face, Vector3D anchor,
-        Dictionary<(int, long, long), (double Height, double Water)> heights, CancellationToken cancellation)
-    {
-        int n = context.LatticeSize;
-        ISurface surface = context.Surface;
-        (double cu, double cv) = CellOn(context.FaceCells, face, anchor);
-        var lattice = new FaceLattice
-        {
-            Face = face,
-            CornerX = (long)Math.Floor(cu) - n / 2,
-            CornerY = (long)Math.Floor(cv) - n / 2,
-            Nodes = new float[n * n * 4],
-            Cover = new float[n * n * 4],
-        };
-        double span = 2.0 / context.FaceCells;
-        double U(long cell) => -1 + cell * span;
-        (double ou, double ov) = TileMesh.FaceMetresOf(U(lattice.CornerX), U(lattice.CornerY), surface.Radius);
-        lattice.OriginU = ou - Math.Round(ou / TileMesh.TexturePeriod) * TileMesh.TexturePeriod;
-        lattice.OriginV = ov - Math.Round(ov / TileMesh.TexturePeriod) * TileMesh.TexturePeriod;
-        var points = new Vector3D[n * n];
-        var bare = new bool[n * n];
-        WalkingWorld? walking = surface as WalkingWorld;
-        for (int b = 0; b < n; b++)
-        {
-            cancellation.ThrowIfCancellationRequested();
-            for (int a = 0; a < n; a++)
-            {
-                Vector3D d = CubeSphere.Direction(face, U(lattice.CornerX + a), U(lattice.CornerY + b));
-                double h = TriangleHeight(context, d, heights, out double water);
-                Vector3D p = d * (surface.Radius + h);
-                points[b * n + a] = p;
-                bare[b * n + a] = h < water + 0.12 || walking?.Monuments.At(d, 2) != null;
-                Vector3D local = p - anchor;
-                int k = (b * n + a) * 4;
-                lattice.Nodes[k] = (float)Vector3D.Dot(local, context.East);
-                lattice.Nodes[k + 1] = (float)Vector3D.Dot(local, context.Up);
-                lattice.Nodes[k + 2] = (float)Vector3D.Dot(local, context.South);
-            }
-        }
-        // Grass density, moisture, flowers, litter and small plants on a coarser grid, then spread bilinearly.
-        int coarse = (n - 1) / CoarseStep + 2;
-        const int Channels = 5;
-        var climate = new float[coarse * coarse * Channels];
-        Span<double> biomes = stackalloc double[BiomeTable.Count];
-        Span<double> materials = stackalloc double[BiomeTable.MaterialCount];
-        for (int b = 0; b < coarse; b++)
-        {
-            cancellation.ThrowIfCancellationRequested();
-            for (int a = 0; a < coarse; a++)
-            {
-                int ta = Math.Min(a * CoarseStep, n - 1), tb = Math.Min(b * CoarseStep, n - 1);
-                Vector3D p = points[tb * n + ta];
-                Vector3D d = p.Normalized;
-                SurfaceSample s = surface.Sample(d);
-                // Slope from the lattice's own points, over a couple of metres.
-                int a0 = Math.Max(ta - 2, 0), a1 = Math.Min(ta + 2, n - 1), b0 = Math.Max(tb - 2, 0), b1 = Math.Min(tb + 2, n - 1);
-                Vector3D normal = Vector3D.Cross(points[tb * n + a1] - points[tb * n + a0], points[b1 * n + ta] - points[b0 * n + ta]).Normalized;
-                double cos = Math.Abs(Vector3D.Dot(normal, d));
-                double slope = Math.Sqrt(Math.Max(0, 1 - cos * cos));
-                GroundCover c = surface.Cover(d, s, slope, biomes, materials);
-                BiomeTable.FoldFamilies(materials);
-                GroundDetailCover detail = GroundDetailCover.At(c, slope, s.Height - surface.WaterLevelAt(d), biomes, materials);
-                int k = (b * coarse + a) * Channels;
-                climate[k] = (float)detail.Grass;
-                climate[k + 1] = (float)c.Moisture;
-                climate[k + 2] = (float)detail.Flowers;
-                climate[k + 3] = (float)detail.Litter;
-                climate[k + 4] = (float)detail.Plants;
-            }
-        }
-        for (int b = 0; b < n; b++)
-        {
-            cancellation.ThrowIfCancellationRequested();
-            for (int a = 0; a < n; a++)
-            {
-                float fa = a / (float)CoarseStep, fb = b / (float)CoarseStep;
-                int a0 = Math.Min((int)fa, coarse - 2), b0 = Math.Min((int)fb, coarse - 2);
-                float u = fa - a0, w = fb - b0;
-                int p = (b * n + a) * 4;
-                for (int ch = 0; ch < Channels; ch++)
-                {
-                    float c00 = climate[(b0 * coarse + a0) * Channels + ch], c10 = climate[(b0 * coarse + a0 + 1) * Channels + ch];
-                    float c01 = climate[((b0 + 1) * coarse + a0) * Channels + ch], c11 = climate[((b0 + 1) * coarse + a0 + 1) * Channels + ch];
-                    float value = (c00 * (1 - u) + c10 * u) * (1 - w) + (c01 * (1 - u) + c11 * u) * w;
-                    // Streams and cleared monument pads can be narrower than one climate cell. Reject every
-                    // cover layer at their fine vertices so interpolation cannot put tufts in water or buildings.
-                    if (bare[b * n + a] && ch != 1) value = 0;
-                    if (ch == 0)
+                    int lod = species.LodFor(d, batch.Lod);
+                    if (lod != batch.Lod)
                     {
-                        lattice.Nodes[p + 3] = value;
+                        batch.Lod = lod;
+                        batch.MultiMesh.Mesh = species.Meshes[lod];
+                        batch.Instance.MaterialOverride = species.Materials[lod];
                     }
-                    else
-                    {
-                        lattice.Cover[p + ch - 1] = value;
-                    }
+                    count = batch.Prefix(species.Kept((float)d));
+                    if (count == 0) show = false;
                 }
+                if (show && count != batch.Visible)
+                {
+                    batch.MultiMesh.VisibleInstanceCount = count;
+                    batch.Visible = count;
+                }
+                int shown = show ? 1 : 0;
+                if (shown != batch.Shown)
+                {
+                    batch.Instance.Visible = show;
+                    batch.Shown = shown;
+                }
+                if (show) instances += count;
             }
         }
-        PopulateAuthoredCover(context, lattice, points, bare, cancellation);
-        return lattice;
+        _instances = instances;
     }
 
-    // Height above the mean radius of the drawn ground along a direction: the finest tiles' triangles, which follow the
-    // surface's heights at their vertex lattice (TileMesh: 32 cells a tile, the same diagonal everywhere), interpolated.
-    private static double TriangleHeight(BuildContext context, Vector3D d,
-        Dictionary<(int, long, long), (double Height, double Water)> cache, out double water)
+    private void RefreshMorphRange()
     {
-        double n = 1L << context.HeightShift;
-        (int face, double u, double v) = CubeSphere.FromDirection(d);
-        double gu = (u + 1) * 0.5 * n, gv = (v + 1) * 0.5 * n;
-        long i = (long)Math.Floor(gu), j = (long)Math.Floor(gv);
-        double fu = gu - i, fv = gv - j;
-        (double Height, double Water) H(long a, long b)
+        if (_terrain == null) return;
+        foreach (GrassTile tile in _tiles.Values)
         {
-            if (!cache.TryGetValue((face, a, b), out var h))
+            if (!_terrain.TryDrawnGrid(tile.Terrain, out _, out Vector2 range)) continue;
+            if (range != _morphRange)
             {
-                Vector3D at = CubeSphere.Direction(face, -1 + 2.0 * a / n, -1 + 2.0 * b / n);
-                h = (context.Surface.HeightAt(at), context.Surface.WaterLevelAt(at));
-                cache[(face, a, b)] = h;
+                _morphRange = range;
+                foreach (Species species in _species)
+                    foreach (ShaderMaterial material in species.Materials) material.SetShaderParameter("morph_range", range);
             }
-            return h;
+            return;
         }
-        var p00 = H(i, j); var p11 = H(i + 1, j + 1);
-        var side = fu >= fv ? H(i + 1, j) : H(i, j + 1);
-        // Conservative near the shore: use the highest wet corner; dry corners carry -infinity.
-        water = Math.Max(p00.Water, Math.Max(p11.Water, side.Water));
-        double h00 = p00.Height, h11 = p11.Height;
-        return fu >= fv
-            ? h00 + fu * (side.Height - h00) + fv * (h11 - side.Height)
-            : h00 + fv * (side.Height - h00) + fu * (h11 - side.Height);
     }
 
-    /// <summary>Nothing to re-anchor: the anchor's render position is set every frame.</summary>
+    // Whether every wanted tile within the reach is built and uploaded. A tile whose terrain tile is not drawn at the
+    // finest level waits for it while the terrain streams; once the terrain is idle without it (beyond the finest
+    // level's reach), nothing will root there.
+    private bool Settled()
+    {
+        if (_uploadQueue.Count > 0) return false;
+        foreach (GrassTile tile in _tiles.Values)
+        {
+            if (!tile.Wanted) continue;
+            if (tile.Job != null || tile.Pending != null) return false;
+            if (tile.Built != null) continue;
+            if (_terrain != null && _terrain.IsIdle && !_terrain.TryDrawnGrid(tile.Terrain, out _, out _)) continue;
+            return false;
+        }
+        return true;
+    }
+
+    private static Vector3 V(Vector3D p) => new((float)p.X, (float)p.Y, (float)p.Z);
+
+    /// <summary>Nothing to re-anchor: every tile's batches are placed from the frame each upload, and the world frame
+    /// never moves.</summary>
     public void Reanchor()
     {
+        foreach (GrassTile tile in _tiles.Values)
+            foreach (Batch batch in tile.Batches) batch.Instance.Transform = _frame.Anchor(tile.Centre);
     }
 }

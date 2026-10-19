@@ -56,13 +56,6 @@ public partial class EnvironmentLifetimeCheck : Node
             WriteReport("native-terrain-appearance");
             return;
         }
-        if (Array.IndexOf(arguments, "--environment-grass-only") >= 0)
-        {
-            try { await CheckGrassRender(); }
-            catch (Exception error) { _results.Add(new Result("isolated grass execution", false, error.ToString())); }
-            WriteReport("native-grass");
-            return;
-        }
         int appearancePackage = Array.IndexOf(arguments, "--environment-flora-package-only");
         if (appearancePackage >= 0)
         {
@@ -108,13 +101,6 @@ public partial class EnvironmentLifetimeCheck : Node
             try { await CheckFormationView(); }
             catch (Exception error) { _results.Add(new Result("formation view execution", false, error.ToString())); }
             WriteReport("native-formation-view");
-            return;
-        }
-        if (Array.IndexOf(arguments, "--environment-authored-spatial-only") >= 0)
-        {
-            try { await CheckAuthoredSpatial(); }
-            catch (Exception error) { _results.Add(new Result("authored spatial execution", false, error.ToString())); }
-            WriteReport("native-authored-spatial");
             return;
         }
         int compressionRender = Array.IndexOf(arguments, "--environment-cover-compression-render-only");
@@ -228,7 +214,6 @@ public partial class EnvironmentLifetimeCheck : Node
             await CheckVegetation();
             await CheckSurfaceOwnership();
             await CheckClientViews();
-            await CheckSpatialGrass();
             await CheckWarmupPreviews();
             CheckFloraPixels();
             CheckAuthoredCoverRoots();
@@ -248,8 +233,6 @@ public partial class EnvironmentLifetimeCheck : Node
             }
             if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--environment-terrain-contact-render-check") >= 0)
                 await CheckTerrainContactGpu();
-            if (Array.IndexOf(OS.GetCmdlineUserArgs(), "--environment-grass-render-check") >= 0)
-                await CheckGrassRender();
         }
         catch (Exception error) { _results.Add(new Result("probe execution", false, error.ToString())); }
         finally

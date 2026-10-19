@@ -51,6 +51,16 @@ compound sparse coverage; no preferences were changed. Historical captures/timin
 current source facts are distinguished from pending measurements. No repair, build/test
 or new renderer benchmark was performed. N6 and grass performance acceptance remain open.
 
+Update 20 October 2026: rebuilt (docs/WALKING_GROUND.md §18, TERRAIN_SCENERY_PLAN.md T4 and T5). The fixed whole-face
+grids, the shader-only rejection, the compounded thinning, the shrinking far ring, the up-forced normals, the missing
+specular and transmission, the separate palettes and the authored crowns' bilinear roots are gone: clumps of five species
+of our own on worker-built tiles, one habitat rule, roots on the drawn triangles, real bent normals with a bounded glow,
+the terrain's grass colour at the roots, the scanned plants as accents. At the T0 clearing the High GPU frame fell from
+21.3–21.6 to 15.7–17.7 ms and the owner's profile from 9.3–9.8 to 4.7–5.0 ms. Still open: the owner's look review;
+looking straight down shows the floor between clumps and from tens of metres up the vertical cards vanish; forest-floor
+clumps read dark under the canopy's ambient occlusion; motion checked on frames 2 m apart only, not on a clip; the
+user's Low settings not captured.
+
 ## Frontier AK recoil jumps and drifting optics — 17 October 2026
 
 Owner report: iron sights vibrate/teleport, the 4× image seems disconnected from

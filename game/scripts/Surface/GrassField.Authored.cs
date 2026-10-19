@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text.Json;
-using System.Threading;
 using Godot;
 using Hollow.Core;
 using Hollow.Surface;
@@ -13,7 +12,10 @@ namespace HollowUniverse.Surface;
 
 public sealed partial class GrassField
 {
-    // All families reuse the existing fine ground lattice and its water/pad exclusions. Rendering has no gameplay IDs.
+    // The scanned plants (wild grass, cotton grass, tundra grass, fern: game/assets/surface/ground-cover) are accents among
+    // the clumps: the habitat rule puts one in a placement cell now and then (ferns under trees, cotton grass where it is
+    // wet, tundra grass in the cold), rooted on the drawn ground as the clumps are. Their middle level is heavy (300 to
+    // 2,100 triangles), so they use it only to CoverMiddle and their billboards beyond, within a budget.
     private readonly record struct CoverPlant(Vector3D Position, int Family, int Variant, float Yaw, float Scale, float Tint, float Keep);
     private sealed record CoverMesh(Mesh Mesh, ShaderMaterial Material, int Triangles);
     private sealed class CoverBatch
@@ -23,8 +25,8 @@ public sealed partial class GrassField
         public readonly List<float> Buffer = new();
     }
     private const int CoverFamilies = 4, CoverVariants = 3, CoverLods = 3;
-    private const float CoverNear = 8, CoverMiddle = 22;
-    private const int CoverBudget = 18000;
+    private const float CoverNear = 6, CoverMiddle = 14;
+    private const int CoverBudget = 3000;
     private readonly CoverBatch[] _coverBatches = new CoverBatch[CoverFamilies * CoverVariants * CoverLods];
     private Node3D _coverRoot = null!;
     private bool _coverDirty = true;
@@ -87,78 +89,38 @@ public sealed partial class GrassField
         if (family != CoverFamilies || _coverBatches.Any(b => b == null)) throw new InvalidOperationException("Incomplete ground-cover LOD catalog.");
     }
 
-    // A smooth 12–20 m species/density patch, stable on the same cube-face grid as the ground cover.
-    private static double CoverPatch(int face, double x, double y)
-    {
-        long ix = (long)Math.Floor(x), iy = (long)Math.Floor(y);
-        double u = DMath.SmoothStep(0, 1, x - ix), v = DMath.SmoothStep(0, 1, y - iy);
-        double H(long a, long b) => new Rng(Hash64.Of(0x434F5652UL, (ulong)face, unchecked((ulong)a), unchecked((ulong)b))).NextDouble();
-        double low = H(ix, iy) * (1 - u) + H(ix + 1, iy) * u;
-        double high = H(ix, iy + 1) * (1 - u) + H(ix + 1, iy + 1) * u;
-        return low * (1 - v) + high * v;
-    }
-
-    private static void PopulateAuthoredCover(BuildContext context, FaceLattice lattice, Vector3D[] points,
-        bool[] bare, CancellationToken cancellation)
-    {
-        int n = context.LatticeSize;
-        for (int y = 0; y < n - 1; y++)
-        {
-            cancellation.ThrowIfCancellationRequested();
-            for (int x = 0; x < n - 1; x++)
-            {
-                int a = y * n + x, b = a + 1, c = a + n, d = c + 1;
-                if (bare[a] || bare[b] || bare[c] || bare[d]) continue;
-                long gx = lattice.CornerX + x, gy = lattice.CornerY + y;
-                var r = new Rng(Hash64.Of(0x4752415353UL, (ulong)lattice.Face, unchecked((ulong)gx), unchecked((ulong)gy)));
-                double u = r.Range(0.12, 0.88), v = r.Range(0.12, 0.88);
-                Vector3D at = (points[a] * (1 - u) + points[b] * u) * (1 - v) + (points[c] * (1 - u) + points[d] * u) * v;
-                if (CubeSphere.FromDirection(at.Normalized).Face != lattice.Face) continue;
-                float Value(float[] values, int channel) =>
-                    (float)((values[a * 4 + channel] * (1 - u) + values[b * 4 + channel] * u) * (1 - v)
-                        + (values[c * 4 + channel] * (1 - u) + values[d * 4 + channel] * u) * v);
-                double grass = Value(lattice.Nodes, 3), moisture = Value(lattice.Cover, 0);
-                double forest = Value(lattice.Cover, 2), plants = Value(lattice.Cover, 3);
-                double patch = CoverPatch(lattice.Face, (gx + u) / 32, (gy + v) / 32);
-                // The shorter blade layer keeps the meadow closed; authored crowns give it species and height diversity.
-                double density = Math.Clamp(grass * (0.18 + patch * 0.36) + plants * 0.08, 0, 0.6) * context.Density;
-                if (!r.Chance(density)) continue;
-                int family = forest > 0.22 && r.Chance(plants * 0.22) ? 3
-                    : moisture > 0.48 && patch > 0.55 && r.Chance(0.13) ? 1
-                    : patch < 0.38 || (moisture < 0.4 && r.Chance(0.55)) ? 2 : 0;
-                // Fern crowns cover over a metre: sparse groups belong under trees, not one in every grass cell.
-                if (family == 3 && !r.Chance(0.28)) continue;
-                float scale = (float)r.Range(0.8, 1.25);
-                if (family == 0) scale *= 1.25f;
-                if (family == 2) scale *= 0.75f;
-                lattice.Plants.Add(new CoverPlant(at - at.Normalized * 0.025, family, r.NextInt(CoverVariants),
-                    (float)r.Range(0, DMath.TwoPi), scale, (float)(0.84 + 0.18 * patch + r.Range(-0.06, 0.06)), (float)r.NextDouble()));
-            }
-        }
-    }
-
+    // Every accent of the resident tiles within the reach, the nearest first and then a stable random rank over the
+    // rest, within the budget; each at its distance's level. Rebuilt when the tiles change or the camera has moved 2 m.
     private void UpdateAuthoredCover(Vector3D camera, bool show)
     {
+        if (_coverRoot == null) return;
         _coverRoot.Visible = show && (_diagnosticLayers & GroundCoverLayers.Authored) != 0;
-        if (!show || _field == null) return;
-        _coverRoot.Transform = _frame.Anchor(_field.Anchor);
-        if (!_coverDirty && Vector3D.Distance(camera, _coverCamera) < 2) return;
-        _coverDirty = false; _coverCamera = camera;
+        if (!show) return;
+        // Positions are kept relative to where the camera was at the last rebuild, so floats hold them on any planet.
+        if (!_coverDirty && Vector3D.Distance(camera, _coverCamera) < 2)
+        {
+            _coverRoot.Transform = _frame.Anchor(_coverCamera);
+            return;
+        }
+        _coverDirty = false;
+        _coverCamera = camera;
+        _coverRoot.Transform = _frame.Anchor(_coverCamera);
         long start = Stopwatch.GetTimestamp();
         foreach (CoverBatch batch in _coverBatches) batch.Buffer.Clear();
         _coverCount = 0;
         int[] counts = new int[CoverLods];
         long triangles = 0;
-        // Keep nearby crowns first, then use a stable random rank over the actual visible candidates. A nominal
-        // cube-cell area estimate undercounted dense face regions and the ordered hard stop left spatial holes.
         _coverCandidates.Clear();
-        foreach (FaceLattice face in _field.Faces)
-        foreach (CoverPlant plant in face.Plants)
+        double near2 = CoverMiddle * CoverMiddle;
+        foreach (GrassTile tile in _tiles.Values)
         {
-            double d2 = (camera - plant.Position).LengthSquared;
-            if (d2 > _far * _far) continue;
-            double near2 = CoverMiddle * CoverMiddle;
-            _coverCandidates.Add((plant, d2, d2 < near2 ? d2 / near2 : 1 + plant.Keep));
+            if (tile.Built == null) continue;
+            foreach (CoverPlant plant in tile.Built.Accents)
+            {
+                double d2 = (camera - plant.Position).LengthSquared;
+                if (d2 > _far * _far) continue;
+                _coverCandidates.Add((plant, d2, d2 < near2 ? d2 / near2 : 1 + plant.Keep));
+            }
         }
         if (_coverCandidates.Count > CoverBudget)
             _coverCandidates.Sort(static (a, b) =>
@@ -179,7 +141,7 @@ public sealed partial class GrassField
             Vector3D forward = Vector3D.Cross(right, up);
             double cs = Math.Cos(plant.Yaw), sn = Math.Sin(plant.Yaw);
             Vector3D bx = (right * cs + forward * sn) * plant.Scale, by = up * plant.Scale,
-                bz = (-right * sn + forward * cs) * plant.Scale, p = plant.Position - _field.Anchor;
+                bz = (-right * sn + forward * cs) * plant.Scale, p = plant.Position - _coverCamera;
             List<float> buffer = batch.Buffer;
             buffer.Add((float)bx.X); buffer.Add((float)by.X); buffer.Add((float)bz.X); buffer.Add((float)p.X);
             buffer.Add((float)bx.Y); buffer.Add((float)by.Y); buffer.Add((float)bz.Y); buffer.Add((float)p.Y);
@@ -197,10 +159,23 @@ public sealed partial class GrassField
             batch.Instance.Multimesh.Buffer = batch.Buffer.ToArray();
             draws++;
         }
-        if (!_coverReported)
+        if (!_coverReported && _coverCount > 0)
         {
             _coverReported = true;
-            GD.Print(string.Create(CultureInfo.InvariantCulture, $"[cover] {_coverCount}/{_coverCandidates.Count} authored plants; LOD {counts[0]}/{counts[1]}/{counts[2]}; {draws} draws; {triangles} submitted triangles; batch {Stopwatch.GetElapsedTime(start).TotalMilliseconds:0.0} ms"));
+            GD.Print(string.Create(CultureInfo.InvariantCulture, $"[cover] {_coverCount}/{_coverCandidates.Count} authored accents; LOD {counts[0]}/{counts[1]}/{counts[2]}; {draws} draws; {triangles} submitted triangles; batch {Stopwatch.GetElapsedTime(start).TotalMilliseconds:0.0} ms"));
+        }
+    }
+
+    private void StopAuthoredCover()
+    {
+        _coverCandidates.Clear();
+        _coverCandidates.TrimExcess();
+        _coverCount = 0;
+        foreach (CoverBatch? batch in _coverBatches)
+        {
+            if (batch == null) continue;
+            batch.Buffer.Clear();
+            batch.Buffer.TrimExcess();
         }
     }
 }

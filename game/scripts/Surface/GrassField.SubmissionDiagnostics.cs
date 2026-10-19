@@ -36,16 +36,16 @@ public sealed partial class GrassField
         {
             _diagnosticLayers = value & GroundCoverLayers.All;
             if (!_setupComplete || _stopped) return;
-            bool show = _near && _field != null;
-            if (_spatialCells != 0 && _spatialHasCamera)
-                UpdateSpatialVisibility(_spatialLastCamera, _frame.ToRender(_spatialLastCamera), _spatialWalking, show);
-            for (int g = 0; _spatialCells == 0 && g < _grids.Length; g++)
-            {
-                bool face = show && g < _field!.Faces.Count;
-                _grids[g].Grass.Visible = face && (_diagnosticLayers & GroundCoverLayers.Grass) != 0;
-                _grids[g].Litter.Visible = face && (_diagnosticLayers & GroundCoverLayers.Litter) != 0;
-            }
-            _coverRoot.Visible = show && (_diagnosticLayers & GroundCoverLayers.Authored) != 0;
+            bool grass = (_diagnosticLayers & GroundCoverLayers.Grass) != 0, litter = (_diagnosticLayers & GroundCoverLayers.Litter) != 0;
+            foreach (GrassTile tile in _tiles.Values)
+                foreach (Batch batch in tile.Batches)
+                {
+                    bool layer = _species[batch.Species].Litter ? litter : grass;
+                    if (layer) continue;
+                    batch.Instance.Visible = false;
+                    batch.Shown = 0;
+                }
+            if (_coverRoot != null) _coverRoot.Visible = _show && (_diagnosticLayers & GroundCoverLayers.Authored) != 0;
         }
     }
 
@@ -55,20 +55,14 @@ public sealed partial class GrassField
         GroundCoverSubmission grass = default, litter = default, authored = default;
         if (_setupComplete && !_stopped)
         {
-            if (_spatialResident != null)
-                foreach (SpatialBatch batch in _spatialResident.Batches)
+            foreach (GrassTile tile in _tiles.Values)
+                foreach (Batch batch in tile.Batches)
                 {
-                    if (batch.Layer == 0) Add(ref grass, batch.Instance);
-                    else Add(ref litter, batch.Instance);
+                    if (_species.Length > 0 && _species[batch.Species].Litter) Add(ref litter, batch.Instance);
+                    else Add(ref grass, batch.Instance);
                 }
-            foreach (FaceGrid? grid in _grids)
-            {
-                if (grid == null) continue;
-                Add(ref grass, grid.Grass);
-                Add(ref litter, grid.Litter);
-            }
-            foreach (CoverBatch batch in _coverBatches)
-                Add(ref authored, batch.Instance);
+            foreach (CoverBatch? batch in _coverBatches)
+                if (batch != null) Add(ref authored, batch.Instance);
         }
         return new(_setupComplete, _stopped, _near, IsIdle, _requiredJobFailed, _diagnosticLayers,
             grass, litter, authored, _workers.Monitor.Snapshot());
@@ -78,7 +72,7 @@ public sealed partial class GrassField
             if (!instance.IsVisibleInTree()) return;
             MultiMesh mesh = instance.Multimesh;
             int count = mesh.VisibleInstanceCount < 0 ? mesh.InstanceCount : Math.Min(mesh.InstanceCount, mesh.VisibleInstanceCount);
-            if (count == 0) return;
+            if (count == 0 || mesh.Mesh == null) return;
             if (!_diagnosticGeometry.TryGetValue(mesh.Mesh, out var geometry))
             {
                 geometry = GeometryCounts(mesh.Mesh);
@@ -102,5 +96,19 @@ public sealed partial class GrassField
             triangles += (indices.Length > 0 ? indices.Length : count) / 3;
         }
         return (vertices, triangles);
+    }
+
+    /// <summary>The field's tiles and their work, for the streaming status line.</summary>
+    internal (int Tiles, int Resident, int Building, int Uploads, int Batches, int Pooled, long UploadedBytes, double UploadMs) TileState()
+    {
+        int resident = 0, building = 0, batches = 0, pooled = 0;
+        foreach (GrassTile tile in _tiles.Values)
+        {
+            if (tile.Built != null) resident++;
+            if (tile.Job != null) building++;
+            batches += tile.Batches.Count;
+        }
+        foreach (Stack<Batch> free in _pool.Values) pooled += free.Count;
+        return (_tiles.Count, resident, building, _uploadQueue.Count, batches, pooled, _uploadedBytes, _lastUploadMilliseconds);
     }
 }

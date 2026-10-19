@@ -30,6 +30,7 @@ uniform float dry_reflection_weight : hint_range(0.0, 1.0) = 0.25;
 uniform vec2 normal_sign = vec2(1.0, -1.0);
 uniform int debug_view = 0;
 uniform vec3 blade_mean = vec3(0.5, 0.63, 0.34);      // mean linear colour of the painted grass blades
+uniform vec2 grass_reach = vec2(22.0, 42.0);          // where the grass's clumps thin out into the ground (GrassField)
 uniform vec2 canopy_fade = vec2(1600.0, 2200.0);      // where far forests become the ground's colour
 uniform sampler2D canopy_texture : filter_linear_mipmap_anisotropic, repeat_enable; // crowns: height, kind, slope
 uniform float canopy_tile = 150.0;                    // metres covered by the crown texture
@@ -298,8 +299,11 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 			float l = dot(c, vec3(0.2126, 0.7152, 0.0722)) / max(lum, 1e-3);
 			l = mix(l, 1.0, smoothstep(150.0, 900.0, dist) * 0.55);
 			vec3 blades = clamp(l, 0.4, 1.8) * grass_colour;
-			float blade_match = mix(0.55, 1.0, smoothstep(22.0, 42.0, dist));
-			c = mix(c, blades, blade_match * (i == 0 ? 1.0 : 0.45));
+			// Under closed grass near by the floor is the blades' own (in their shade); toward the clumps' reach and
+			// beyond it the blades' colour alone.
+			float sward = smoothstep(0.3, 0.8, climate.b) * (1.0 - smoothstep(grass_reach.x, grass_reach.y, dist));
+			float blade_match = mix(mix(0.55, 0.8, sward), 1.0, smoothstep(grass_reach.x, grass_reach.y, dist));
+			c = mix(c, blades * mix(1.0, 0.82, sward), blade_match * (i == 0 ? 1.0 : 0.45));
 		}
 		colours[i] = c;
 		normals[i] = bump;

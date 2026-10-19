@@ -706,10 +706,11 @@ public partial class SurfaceView : Node3D
             _terrainMaterial.SetShaderParameter("blade_mean", library.BladeMean);
             _grass = new GrassField { Name = "Grass" };
             AddChild(_grass);
-            _grass.Setup(surface, frame, _terrain.MaxLevel, library, _groundAlbedo, _noise!, library.BladeMean);
+            _grass.Setup(surface, frame, _terrain, _noise!, library.BladeMean);
+            // The terrain's grass takes the blades' colour where they thin out, at their own reach (GrassField).
+            _terrainMaterial.SetShaderParameter("grass_reach", _grass.TerrainHandoff);
         }
         double overGround = camera.Length - surface.Radius - GroundAt(camera.Normalized);
-        _grass?.UpdateDrawnContact(_terrain, camera, overGround);
         _grass?.UpdateGrass(camera, overGround, _walk);
         _ui.Refresh(_planet!, surface, frame, camera, _sky, _time, _frameMs, _terrain, _walk, _timeRuns);
     }

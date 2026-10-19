@@ -287,6 +287,20 @@ water, rock faces and site pads have correct exclusions; resources and routes re
 Gate: roots sit correctly, tips remain connected, moving populations are stable, and meadow,
 forest and rocky transitions remain distinct. Check both High and the user's Low settings.
 
+Status 20 October, first iteration (with T5's tiles; not yet the gate): the grass is rebuilt
+([WALKING_GROUND.md §18](WALKING_GROUND.md)). Five clump species of our own (field, seeding, dry, flower,
+heather or herb) and litter, cards of painted blades from `art/grass/build_grass.py`, three levels and a billboard,
+at most 100 triangles near by. One habitat rule (`GroundCoverHabitats`, data in `ground-cover-habitats.json`) sets
+occupancy, species mix, size and patches once from the drawn terrain's own climate; patches move grass without thinning
+it (tested). Roots lie on the drawn grid's finest triangles, with the morph followed far off, the footprint's slope a
+shear and crests narrowing the clump; litter lies on the triangle. Card normals are real, bent by the wind, tilted by the
+painted folds and smoothed toward the clump's dome (half near, 0.82 far); the light has a bounded glow through the
+blades and a sheen held at roughness 0.45 or more. Flowers and dry grass are back in the field; the clumps' colour is
+the terrain's grass colour at their roots, and the terrain's grass layer takes the blades' colour across their own
+reach. Captures at the clearing and the T1 meadow, hour 10 and low sun, are in `images/ground/grass/`; frames 2 m apart
+show no tile edges or density steps. Open: the owner's look review, a motion clip, the view straight down (floor between
+clumps) and the forest floor's dark clumps; the user's Low settings were not captured.
+
 ### T5 — Bound rendering and generation cost
 
 Build compact surviving-instance lists on C# workers per stable vegetation tile. Compare roughly
@@ -312,6 +326,17 @@ Rocky slopes and forest floors retain deliberate gaps; more covered pixels alone
 Use three warmed route runs per version plus cold-start/turn/tile-crossing observations. Restore
 baselines between layer ablations. A custom compute backend is a later option if compact C#
 tiles still leave a measured submission/upload bottleneck.
+
+Status 20 October, first iteration (not yet the gate): the grass draws from tiles of 16 terrain cells (about 15 m;
+8 cells measured and not kept: 141 more draw calls for 16% fewer clumps), built on worker threads from the drawn grid as
+versioned jobs (a stale result is dropped, never published), uploaded a few a frame into MultiMeshes pooled by capacity,
+culled by their bounds, drawn at the level their nearest clump asks for, with each tile's instances sorted by rank so
+the clumps a distance keeps are a prefix; contact is worked out once a clump on the worker, the air and the clouds'
+shadow once a vertex. Stationary breakdowns at the T0 clearing: High's GPU frame fell from 21.3–21.6 to 15.7–17.7 ms
+(two runs), the owner's profile from 9.3–9.8 to 4.7–5.0 ms; removing the ground cover now makes the frame slower (the
+clumps hide the terrain shader's pixels), against a ground cover that cost 4.1–4.4 ms at High before. Not yet done for
+the gate: three warmed route walks (the route's baseline waits on T2), Low and Maximum, cold-start and tile-crossing
+spikes measured.
 
 ### T6 — Roll out beyond the showcase and across planets
 

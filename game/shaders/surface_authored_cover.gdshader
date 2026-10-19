@@ -5,6 +5,7 @@ render_mode cull_disabled, depth_draw_opaque, skip_vertex_transform;
 #include "res://shaders/surface_clouds.gdshaderinc"
 #include "res://shaders/surface_planet.gdshaderinc"
 #include "res://shaders/surface_terrain_contact.gdshaderinc"
+#include "res://shaders/surface_foliage.gdshaderinc"
 global uniform vec4 hu_wind;
 uniform sampler2D albedo_texture : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
 uniform sampler2D normal_texture : hint_normal, filter_linear_mipmap_anisotropic, repeat_disable;
@@ -141,14 +142,13 @@ void fragment() {
 }
 
 void light() {
-    float ndl = dot(NORMAL, LIGHT);
     float cloud = LIGHT_IS_DIRECTIONAL ? hu_cloud_shadow(v_world, normalize((INV_VIEW_MATRIX * vec4(LIGHT, 0.0)).xyz)) : 1.0;
-    vec3 light = LIGHT_COLOR * ATTENUATION * cloud / HU_PI;
-    DIFFUSE_LIGHT += light * max(ndl, 0.0);
-    if (authored_contact_enabled && !billboard) {
-        SPECULAR_LIGHT += LIGHT_COLOR * ATTENUATION * cloud * hu_specular(NORMAL, VIEW, LIGHT, ROUGHNESS)
-            * clamp(authored_reflection_weight, 0.0, 1.0);
-    }
-    // Modest transmitted light; the scan supplies the leaf colour instead of an invented yellow-green tint.
-    DIFFUSE_LIGHT += light * 0.18 * clamp(-ndl * 0.6 + 0.35, 0.0, 1.0) * mix(0.5, 1.0, v_tip);
+    // The grass's light (surface_foliage.gdshaderinc): diffuse, a bounded glow through the leaves toward a low sun (the
+    // scan's own leaf colour, so no invented tint) and a rough sheen.
+    vec3 diffuse = vec3(0.0);
+    vec3 specular = vec3(0.0);
+    hu_foliage_light(NORMAL, VIEW, LIGHT, LIGHT_COLOR * ATTENUATION * cloud, 0.45, v_tip, ROUGHNESS,
+        billboard ? 0.0 : (authored_contact_enabled ? clamp(authored_reflection_weight, 0.0, 1.0) : 0.15), vec3(1.0), diffuse, specular);
+    DIFFUSE_LIGHT += diffuse;
+    SPECULAR_LIGHT += specular;
 }

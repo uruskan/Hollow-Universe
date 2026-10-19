@@ -188,21 +188,8 @@ public partial class EnvironmentLifetimeCheck
         Expect("failed appearance constructor transfers its retained owner", construction != null && !construction.Owner.CleanupComplete
             && construction.Owner.AppearanceResourcesForFixture().Count(GodotObject.IsInstanceValid) == 1,
             "typed exception explicitly owns the only remaining resource after every independent cleanup attempt");
-        if (construction == null) return;
-        var field = new GrassField { Name = "FailedAppearanceOwnerQuarantine" };
-        AddChild(field);
-        try
-        {
-            field.RetainFailedContactConstructionForFixture(construction);
-            construction.Owner.InjectFixtureFault(TerrainContactAtlas.FixtureFault.DuringAppearanceRetirement);
-            field.Stop();
-            Expect("grass retirement quarantines uncertain atlas ownership", field.ContactRetirementPendingForFixture
-                && !construction.Owner.CleanupComplete && !field.Visible, "first Stop attempted every owner, retaining the failed atlas without dependent draws");
-            field.Stop();
-            Expect("repeated grass Stop drains retained atlas cleanup", !field.ContactRetirementPendingForFixture && construction.Owner.CleanupComplete,
-                "already-stopped owner explicitly retries contact cleanup, without workers or fresh atlas allocation");
-        }
-        finally { field.Stop(); field.QueueFree(); construction.Owner.Dispose(); }
+        // The atlas no longer feeds the grass (it roots on the drawn grid itself): its retained owner is released here.
+        construction?.Owner.Dispose();
     }
 
     private static DrawnTerrainTile AppearanceTile(ProbeSurface surface, RenderFrame frame, TileKey key, bool syntheticPosition = true)

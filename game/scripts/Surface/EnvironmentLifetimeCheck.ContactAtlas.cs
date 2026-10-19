@@ -105,36 +105,6 @@ public partial class EnvironmentLifetimeCheck
                 "failure remains observable without retrying uncertain native writes each frame");
         }
 
-        var field = new GrassField { Name = "ContactAtlasRetirementGrass" };
-        AddChild(field);
-        using var fieldSource = new ProbeSurface(1200);
-        var ownedAtlas = new TerrainContactAtlas(2);
-        GodotObject[] ownedHandles = ownedAtlas.NativeResourcesForFixture();
-        try
-        {
-            ownedAtlas.UpdateFixture(new[] { snapshots[0] }, 1);
-            field.SetupSpatialLifecycleFixture(new GrassProbeSurface(fieldSource), RenderFrame.World);
-            field.AttachContactAtlasForFixture(ownedAtlas);
-            field.QueueSpatialLifecycleGeneration();
-            await Until(() => { field.AdvanceSpatialLifecycleUpload(); return field.IsIdle; }, "contact-owned grass staging completes");
-            ownedAtlas.UpdateFixture(Array.Empty<DrawnTerrainTile>(), 2);
-            Expect("settled grass remains idle with no nearby terrain support", field.IsIdle && ownedAtlas.Ready
-                && ownedAtlas.ResidentTiles == 0 && ContactAtlasPublishedFaces(ownedAtlas) == 0,
-                "the real field readiness gate accepts completed empty contact, including deep-water camera locations");
-            GodotObject[] spatialHandles = field.SpatialLifecycleNativeResources();
-            ownedAtlas.InjectFixtureFault(TerrainContactAtlas.FixtureFault.DuringRetirement);
-            field.Stop(); field.Stop();
-            Expect("contact retirement failure cannot strand remaining grass resources", field.IsStopped
-                && field.CaptureSpatialDiagnostics().ResidentTiles == 0 && field.SpatialLifecycleDirectBatches == 0
-                && ownedHandles.All(handle => !GodotObject.IsInstanceValid(handle))
-                && spatialHandles.All(handle => !GodotObject.IsInstanceValid(handle)),
-                "all four contact resources and subsequent spatial resources retire despite injected contact failure; repeated Stop safe");
-        }
-        finally
-        {
-            field.Stop(); field.QueueFree(); ownedAtlas.Dispose();
-        }
-
         GodotObject[] handles = atlas.NativeResourcesForFixture();
         atlas.Dispose(); atlas.Dispose();
         bool stoppedRejected = false;

@@ -775,21 +775,20 @@ real-size view). Both draw with the same parts:
   - *Ranges follow the horizon* (WHOLE_WORLD.md §10.3): plants are laid out to where the lowest ground there can be
     hides the tallest plant on the highest, at most the impostors' 2.2 km (about 1.2 km from the ground on a 2.41 km
     world); the near set and its impostors are anchored at the camera, their bounds following it.
-- **Grass and ground cover** are not in the scatter and have no models: `GrassField` draws tufts on the cells of the
-  cube faces at the level nearest 0.46 m (level 13 on a 2.41 km world, 24 on the real first world) round the camera
-  (to 42 m; they shrink into the ground from 22 m), and a second, flat grid of leaf litter, needles and twigs (to 26 m).
-  What grows in each cell (place, height, width, turn, lean, colour, dryness, kind: grass, meadow grass, dry grass,
-  flowers; ferns, herbs and seedlings under trees; dead leaves of the trees around) comes from a hash of the face and
-  the cell, so nothing shifts as the grid moves; near a seam each face's cells are drawn by a grid of their own (up to
-  three at a corner), each keeping the cells whose middles lie on its face. A worker lays out a lattice of the cells'
-  corners round the camera every 14 m (about 250 a side): each corner on the drawn ground (the finest tiles' own
-  triangles, so tufts sit on it), as offsets from an anchor in render axes, with the grass density, moisture, flowers,
-  forest cover and small plants from `ISurface.Cover`; each tuft stands along up from the centre, turned in the plane
-  of its cell, and the wind bends it along the ground there. Where grass is thin it grows in patches, and a tuft is a
-  few narrow cards of ragged blades, not a block. The blades are hollow-orbit's painted blade cards, coloured by one
-  function shared with the ground's grass layer (`surface_grass.gdshaderinc`), their foot in the ground's colour,
-  normals up on both faces so a field lights as one in sun and shade, light through the tips toward a low sun; wind
-  bends them in gusts drifting downwind with a ripple; they bend away from the walker's feet.
+- **Grass and ground cover** are not in the scatter (docs/WALKING_GROUND.md §18): `GrassField` draws clumps of five
+  species of our own (field grass, tall grass in seed, dry grass, a flower clump, heather or a leafy herb; cards of
+  painted blades built by `art/grass/build_grass.py`, three levels of detail and a billboard, at most 100 triangles
+  near by) and the forest floor's litter, on placement cells of half a terrain cell (0.46 m on Earth) to 42 m (times
+  the grass distance setting). One habitat rule (`GroundCoverHabitats`: meadow, forest edge, forest floor, dry country,
+  tundra) sets each cell's occupancy, species, size and patches once from the drawn terrain's own climate, and puts the
+  scanned plants (ferns, cotton grass, tundra grass) in as accents. Cells are gathered into tiles of 16 terrain cells
+  (about 15 m), built on workers from the grid the terrain draws there (roots on its triangles, the slope a shear,
+  the terrain's morph followed far off), uploaded a few a frame into pooled MultiMeshes, and submitted only in view, at
+  the level of detail their distance asks for, the clumps a distance keeps a prefix of each tile's buffer sorted by
+  rank. Cards drop one by one with distance and the last clumps dissolve one by one at the reach; the clumps' colour is
+  the terrain's grass colour at their roots (`hu_grass_tint_of`), their light diffuse, a bounded glow through the
+  blades toward a low sun and a rough sheen (`surface_foliage.gdshaderinc`); wind bends cards and normals; they bend
+  away from the walker's feet.
 - **Time:** the clock runs at the universe time; `RotationTimeScale` (client setting `[surface]
   rotation_time_scale` in `user://settings.cfg`, or `--time-scale`) turns the planet faster than real without
   moving anything else. Keys: `[` `]` jump the clock an hour (Shift: six), T cycles the day speed 1×, 60×, 600×,
@@ -4410,8 +4409,8 @@ remain independent of crosshair style. `--view ui --screen settings-crosshair --
   contrast-adaptive sharpening on a canvas layer under every interface, so text is never sharpened (when FSR draws,
   its own sharpening does it). The surface view applies its environment and sun, and builds a new grass field when the
   grass's distance or density changes. The drawers read their factors from `Current`: the terrain's split distance,
-  the trees' and plants' detail bands, the grass's reach and the share of tufts kept (`density_scale`, a hash of each
-  tuft's own), the models' LOD ranges (models made after the change).
+  the trees' and plants' detail bands, the grass's reach and the share of clumps kept (each clump's own stable rank,
+  applied when its tile is built; docs/WALKING_GROUND.md §18), the models' LOD ranges (models made after the change).
 - **Presets:** Low, Medium, High, Ultra and Maximum; any single change makes it Custom (and a change that lands on a
   preset's values shows that preset). High is the game as it looked before the settings. Vsync, the frame cap, the
   field of view, interface scale and crosshair are the player's own; no preset touches them. With nothing saved, the

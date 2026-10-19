@@ -100,6 +100,24 @@ At High, 1600 × 900, on this machine, a candidate must hold, over three warmed 
 
 Coverage gained by spending more GPU time does not pass; T5's compact tiles are expected to pay for T4.
 
+## T4 and T5's first candidate (20 October 2026)
+
+Stationary breakdowns at the clearing as above (hour 10, 1600 × 900, `--no-cliff-skins`), the game of 19 October
+evening (cliff generation 5, 35 ground textures) before and after the grass rebuild (WALKING_GROUND.md §18). GPU means:
+
+| | High, before | High, after (two runs) | Owner's profile, before | Owner's profile, after |
+| --- | ---: | ---: | ---: | ---: |
+| Frame's GPU, start / end | 21.29 / 21.55 | 15.68 / 16.69; 16.45 / 17.71 | 9.30 / 9.76 | 4.73 / 5.03 |
+| Without the ground cover | 17.17 | 17.80; 17.94 | 5.89 | 6.10 |
+| Ground cover (whole node) | 4.1–4.4 | −0.2 to −2.1 | 3.4–3.9 | −1.1 to −1.4 |
+| – grass | 1.1–1.4 | clumps −1.2 to −2.8 | 1.0–1.5 | clumps −1.1 to −1.4 |
+| – litter | 0.8–1.0 | within the runs' noise (±1) | ~0 | −0.4 to −0.1 |
+| – authored plants | 2.6–2.8 | within the runs' noise (±1) | 1.5–2.0 | −0.3 to 0 |
+| Primitives | 12.5 M | 8.0 M | 10.8 M | 5.1 M |
+
+Hiding the new grass makes the frame slower: the clumps hide the terrain shader's pixels. This meets the ground-cover
+part of the budget at the clearing; the route walks, Low and Maximum are still to be measured against it.
+
 ## T2's cost so far
 
 At High, removing every cliff piece saves 0.64 ms of GPU time at the cliff-heavy mountain site (18.121935,

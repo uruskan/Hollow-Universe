@@ -1,5 +1,76 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — T4 and T5: the grass rebuilt as clumps on tiles
+
+The ground's grass was one five-card tuft a cell everywhere, submitted for a whole cube face every frame, each vertex
+doing the drawn-terrain contact chain before most of them collapsed; its normals were held within 7° of up and its light
+had no transmission or specular lobe; the underlayer setting had switched off its flowers; the scanned plants cost
+2.6–2.9 ms at High (docs/GRASS_INVESTIGATION.md, ENVIRONMENT_BASELINE.md). Rebuilt for TERRAIN_SCENERY_PLAN.md T4 and
+T5, after Rust's meadows (docs/WALKING_GROUND.md §18 has the design):
+
+- **Clumps** (`art/grass/build_grass.py`, Blender 5.2.1, from text; `game/assets/surface/grass/`): field grass, tall
+  grass in seed (spikes or panicles), dry grass, a flower clump (daisy or clustered heads), heather or a leafy herb, and
+  litter. A 2048² atlas painted stroke by stroke (blades graded root to tip, folds, accent masks for petals and seed
+  heads, translucency); cards with real normals; LOD1 and LOD2 the first cards of LOD0 with fewer segments, plus a
+  crossed-quad billboard; 54–100 triangles near by. The card data is in UV2: Godot multiplies a MultiMesh's instance
+  colour into `COLOR`, so the meshes carry no vertex colour (found when `INSTANCE_COLOR` did not compile).
+- **One coverage rule** (`src/Hollow.Surface/GroundCoverHabitats.cs`, `Data/ground-cover-habitats.json`): habitats
+  (meadow, forest edge, forest floor, dry, tundra) from the drawn terrain's own climate; occupancy, species mix, size,
+  patches and the scanned accents decided once a cell; patches move grass about without changing its mean. Flowers
+  (6% of a meadow's clumps) and dry grass are back. Wild grass scans are no longer placed; ferns, cotton grass and tundra
+  grass are accents, within a budget of 3,000, their middle level to 14 m.
+- **Contact and colour**: roots on the drawn grid's finest triangles (`TerrainLod.TryDrawnGrid`), the morph target under
+  each root followed far off, the footprint's slope as a shear, crests narrowing the clump; the clump's colour from the
+  terrain's own tint at its root (`GrassField.Tint.cs` samples the macro noise on the CPU as the shader does,
+  `hu_grass_tint_of` shared); the terrain's grass layer takes more of the blades' colour under closed grass near by and
+  the blades' colour across the clumps' own reach (`grass_reach`).
+- **Tiles** (`GrassField*.cs`): 16 terrain cells (about 15 m), built on workers as versioned jobs, uploaded a few a frame
+  into MultiMeshes pooled by capacity, culled by their bounds, one level of detail a tile, instances sorted by rank so a
+  distance's share is a prefix (`VisibleInstanceCount`); cards drop one by one and a tile only drops to a level whose
+  missing cards are gone; the far edge dissolves clump by clump. The old whole-face grids, the lattice textures, the
+  per-vertex contact chain and the opt-in spatial and authored-spatial diagnostic paths are removed, with their probes.
+- **Light** (`surface_foliage.gdshaderinc`, also the authored cover's): diffuse, a glow through the blades toward a low
+  sun bounded to the light itself, a sheen at roughness 0.45 or more; normals bent by the wind and smoothed toward the
+  clump's dome (half near, 0.82 far); the air and the clouds' shadow once a vertex.
+
+Measured (hosted at the T0 clearing, −18.708761, −95.332092, hour 10, 1600 × 900, `--no-cliff-skins`, the
+environment breakdown; RTX 2070 SUPER; unedited logs in `.artifacts/grass-t4t5/`, not committed):
+
+| | Before (17:58 build) | After |
+| --- | --- | --- |
+| High: GPU frame, start / end | 21.29 / 21.55 ms | 15.68 / 16.69 ms; 16.45 / 17.71 ms (second run) |
+| High: without the ground cover | 17.17 ms | 17.80 ms; 17.94 ms |
+| High: the ground cover's cost | 4.1–4.4 ms (grass 1.1–1.4, litter 0.8–1.0, scans 2.6–2.8) | −0.2 to −2.1 ms |
+| Owner's profile: GPU frame | 9.30 / 9.76 ms | 4.73 / 5.03 ms |
+| Owner's profile: the ground cover's cost | 3.4–3.9 ms | −1.1 to −1.4 ms |
+| Primitives (High / owner) | 12.5 M / 10.8 M | 8.0 M / 5.1 M |
+
+Removing the new grass makes the frame slower, because the clumps hide the terrain shader's pixels. The owner's profile
+(grass distance 1.6, 67 m) submits about 13,000 clumps in 182 batches over 34 tiles, uploaded once (2.4 MB). 8-cell
+tiles were measured too (165 tiles, 792 batches, 141 more draw calls, 16% fewer clumps, within the noise in GPU time)
+and not kept.
+
+Found while building, fixed before this commit: a tile whose terrain tile is not drawn at the finest level kept the field
+from reporting idle, so loading hung at "Growing the forest 91%" (the cliff session's capture at −8.949035, 74.252048
+found it; the field now stops waiting once the terrain is idle without it; that site loads in 22 s); and two tiles
+thrashed, wanted by the distance estimate and released by their built bounds, rebuilt every few frames: both decisions
+now use the one estimate.
+
+Captures (hosted, 1600 × 900, the owner's saved profile, `--no-cliff-skins`) in `docs/images/ground/grass/`: the
+clearing looking at the wood's edge and up the hillside to the south at hour 10 and low sun, the open meadow of the T1
+survey (−19.375, −63.875) at hour 10, dusk and dawn, the clearing looking down, and three frames 2 m apart along a walk
+(no tile edges, density steps or cell pattern). Judged: a dense meadow of several species with seed heads and small
+flowers, tufts merging, backlit seed heads and blade edges against the sun, the ground's colour under the clumps.
+
+Validation: `dotnet build HollowUniverse.sln` 0 warnings, 0 errors; the full suite 1026/1026 (511 s), with the new
+`GroundCoverHabitatTests` (5); the native lifetime probe (`--environment-lifetime-check`) 303/303, its grass checks
+adapted to the tiles (several builds pending at once; a move may bring a tile in, so the masks are read once the field
+settles) and a new check that every imported level matches the catalogue. Open: the owner's look review; route walks
+for T5's gate (the route's baseline waits on T2), Low and Maximum; a motion clip; the view straight down shows floor
+between clumps, and from tens of metres up the cards vanish edge-on; forest-floor clumps are dark under the canopy's
+ambient occlusion. `GroundLayers.ApplyGrass` is no longer called. Records: WALKING_GROUND.md §18 and §8, GROUND.md §4.6
+and the graphics settings, TERRAIN_SCENERY_PLAN.md T4 and T5, KNOWN_PROBLEMS.md.
+
 ## 20 October 2026 — T2: the walls' rock skins
 
 Rigid scans could not dress Earth's tall, curving walls ("T2: Earth's walls measured, and four ways that do not dress

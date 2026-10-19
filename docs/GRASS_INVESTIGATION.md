@@ -1,5 +1,9 @@
 # Grass rendering investigation — 18 October 2026
 
+**20 October 2026:** the grass is rebuilt (clumps of five species on worker-built tiles, one habitat rule, roots on
+the drawn triangles, real bent normals with a bounded glow): [WALKING_GROUND.md §18](WALKING_GROUND.md). The audit
+below describes the field it replaced.
+
 ## Visual regression target added 19 October 2026
 
 The owner explicitly compared current playable grass unfavorably with the loading

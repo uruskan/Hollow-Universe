@@ -1,0 +1,348 @@
+{
+  "source": "Hollow (art/grass/build_grass.py): our own, painted and built from text",
+  "albedo": "res://assets/surface/grass/grass_albedo.png",
+  "detail": "res://assets/surface/grass/grass_detail.png",
+  "model": "res://assets/surface/grass/grass.glb",
+  "variantOffset": 0.125,
+  "species": [
+    {
+      "key": "field",
+      "height": 0.521,
+      "reach": 0.4699,
+      "lods": [
+        {
+          "node": "field_lod0",
+          "cards": 12,
+          "segments": 4,
+          "triangles": 96,
+          "vertices": 120
+        },
+        {
+          "node": "field_lod1",
+          "cards": 7,
+          "segments": 2,
+          "triangles": 28,
+          "vertices": 42
+        },
+        {
+          "node": "field_lod2",
+          "cards": 4,
+          "segments": 1,
+          "triangles": 8,
+          "vertices": 16
+        }
+      ],
+      "far": {
+        "node": "field_far",
+        "triangles": 4,
+        "vertices": 8
+      },
+      "translucency": 0.9,
+      "roughness": 0.74,
+      "accent": null,
+      "mean": [
+        0.2588,
+        0.3489,
+        0.1431
+      ],
+      "coverage": [
+        0.2804
+      ],
+      "cells": [
+        [
+          0.0,
+          0.0,
+          0.125,
+          0.25
+        ]
+      ],
+      "billboard": [
+        0.0,
+        0.5,
+        0.125,
+        0.75
+      ]
+    },
+    {
+      "key": "seeding",
+      "height": 0.9125,
+      "reach": 0.4215,
+      "lods": [
+        {
+          "node": "seeding_lod0",
+          "cards": 10,
+          "segments": 5,
+          "triangles": 100,
+          "vertices": 120
+        },
+        {
+          "node": "seeding_lod1",
+          "cards": 6,
+          "segments": 3,
+          "triangles": 36,
+          "vertices": 48
+        },
+        {
+          "node": "seeding_lod2",
+          "cards": 3,
+          "segments": 1,
+          "triangles": 6,
+          "vertices": 12
+        }
+      ],
+      "far": {
+        "node": "seeding_far",
+        "triangles": 4,
+        "vertices": 8
+      },
+      "translucency": 0.85,
+      "roughness": 0.72,
+      "accent": "seed",
+      "mean": [
+        0.3084,
+        0.3563,
+        0.1501
+      ],
+      "coverage": [
+        0.1065,
+        0.0635
+      ],
+      "cells": [
+        [
+          0.25,
+          0.0,
+          0.375,
+          0.25
+        ],
+        [
+          0.75,
+          0.0,
+          0.875,
+          0.25
+        ]
+      ],
+      "billboard": [
+        0.25,
+        0.5,
+        0.375,
+        0.75
+      ]
+    },
+    {
+      "key": "dry",
+      "height": 0.4584,
+      "reach": 0.4533,
+      "lods": [
+        {
+          "node": "dry_lod0",
+          "cards": 11,
+          "segments": 4,
+          "triangles": 88,
+          "vertices": 110
+        },
+        {
+          "node": "dry_lod1",
+          "cards": 6,
+          "segments": 2,
+          "triangles": 24,
+          "vertices": 36
+        },
+        {
+          "node": "dry_lod2",
+          "cards": 4,
+          "segments": 1,
+          "triangles": 8,
+          "vertices": 16
+        }
+      ],
+      "far": {
+        "node": "dry_far",
+        "triangles": 4,
+        "vertices": 8
+      },
+      "translucency": 0.45,
+      "roughness": 0.8,
+      "accent": null,
+      "mean": [
+        0.4114,
+        0.3578,
+        0.204
+      ],
+      "coverage": [
+        0.1436
+      ],
+      "cells": [
+        [
+          0.5,
+          0.0,
+          0.625,
+          0.25
+        ]
+      ],
+      "billboard": [
+        0.5,
+        0.5,
+        0.625,
+        0.75
+      ]
+    },
+    {
+      "key": "flower",
+      "height": 0.5008,
+      "reach": 0.2933,
+      "lods": [
+        {
+          "node": "flower_lod0",
+          "cards": 10,
+          "segments": 4,
+          "triangles": 80,
+          "vertices": 100
+        },
+        {
+          "node": "flower_lod1",
+          "cards": 6,
+          "segments": 2,
+          "triangles": 24,
+          "vertices": 36
+        },
+        {
+          "node": "flower_lod2",
+          "cards": 3,
+          "segments": 1,
+          "triangles": 6,
+          "vertices": 12
+        }
+      ],
+      "far": {
+        "node": "flower_far",
+        "triangles": 4,
+        "vertices": 8
+      },
+      "translucency": 0.75,
+      "roughness": 0.7,
+      "accent": "petal",
+      "mean": [
+        0.2325,
+        0.3359,
+        0.1284
+      ],
+      "coverage": [
+        0.1787,
+        0.0618
+      ],
+      "cells": [
+        [
+          0.25,
+          0.25,
+          0.375,
+          0.5
+        ],
+        [
+          0.0,
+          0.25,
+          0.125,
+          0.5
+        ]
+      ],
+      "billboard": [
+        0.75,
+        0.5,
+        0.875,
+        0.75
+      ]
+    },
+    {
+      "key": "herb",
+      "height": 0.3526,
+      "reach": 0.2881,
+      "lods": [
+        {
+          "node": "herb_lod0",
+          "cards": 9,
+          "segments": 3,
+          "triangles": 54,
+          "vertices": 72
+        },
+        {
+          "node": "herb_lod1",
+          "cards": 6,
+          "segments": 2,
+          "triangles": 24,
+          "vertices": 36
+        },
+        {
+          "node": "herb_lod2",
+          "cards": 3,
+          "segments": 1,
+          "triangles": 6,
+          "vertices": 12
+        }
+      ],
+      "far": {
+        "node": "herb_far",
+        "triangles": 4,
+        "vertices": 8
+      },
+      "translucency": 0.5,
+      "roughness": 0.74,
+      "accent": "bell",
+      "mean": [
+        0.12,
+        0.1304,
+        0.0697
+      ],
+      "coverage": [
+        0.1379
+      ],
+      "cells": [
+        [
+          0.5,
+          0.25,
+          0.625,
+          0.5
+        ]
+      ],
+      "billboard": [
+        0.0,
+        0.75,
+        0.125,
+        1.0
+      ]
+    },
+    {
+      "key": "litter",
+      "height": 0.0257,
+      "reach": 0.4915,
+      "lods": [
+        {
+          "node": "litter_lod0",
+          "cards": 3,
+          "segments": 3,
+          "triangles": 18,
+          "vertices": 24
+        }
+      ],
+      "far": null,
+      "translucency": 0.2,
+      "roughness": 0.8,
+      "accent": null,
+      "mean": [
+        0.2616,
+        0.1724,
+        0.0783
+      ],
+      "coverage": [
+        0.318
+      ],
+      "cells": [
+        [
+          0.75,
+          0.25,
+          0.875,
+          0.375
+        ]
+      ],
+      "billboard": null
+    }
+  ]
+}

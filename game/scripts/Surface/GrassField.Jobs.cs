@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Godot;
@@ -49,9 +50,8 @@ public readonly record struct GrassWorkSnapshot(int Started, int Pending, int Co
 
 public sealed partial class GrassField
 {
-    // Captured once on the main thread. Jobs never read the Node, RenderFrame, graphics settings or native resources.
-    private sealed record BuildContext(ISurface Surface, Vector3D East, Vector3D Up, Vector3D South,
-        long FaceCells, int HeightShift, int LatticeSize, int MaximumFaces, float Density, int SpatialCells);
+    // Tile builds running at once: more while nothing is drawn yet (loading), fewer in play beside the other workers.
+    private const int MaxJobs = 2, MaxJobsLoading = 4;
 
     private sealed class WorkerLifetime
     {
@@ -61,7 +61,7 @@ public sealed partial class GrassField
         private bool _stopped, _disposed;
         public GrassWorkMonitor Monitor { get; } = new();
 
-        public Task<FieldData> Start(BuildContext context, Vector3D anchor)
+        public Task<TileBuild> Start(BuildContext context, TileJob job)
         {
             lock (_gate)
             {
@@ -69,8 +69,8 @@ public sealed partial class GrassField
                 CancellationToken token = _cancellation.Token;
                 _pending++;
                 Monitor.Started();
-                Task<FieldData> task;
-                try { task = Task.Run(() => Build(context, anchor, token), token); }
+                Task<TileBuild> task;
+                try { task = Task.Run(() => BuildTile(context, job, token), token); }
                 catch (Exception error)
                 {
                     _pending--;
@@ -84,7 +84,7 @@ public sealed partial class GrassField
             }
         }
 
-        private void Finish(Task<FieldData> task)
+        private void Finish(Task<TileBuild> task)
         {
             string? error = task.Exception?.ToString();
             lock (_gate)
@@ -115,9 +115,9 @@ public sealed partial class GrassField
     }
 
     private readonly WorkerLifetime _workers = new();
-    private BuildContext? _buildContext;
+    // Builds whose tiles were released while they ran: observed until they finish, their results never published.
+    private readonly List<TileJob> _orphans = new();
     private bool _setupStarted, _setupComplete, _stopped, _requiredJobFailed;
-    private int _epoch, _jobEpoch;
 
     public bool IsStopped => _stopped;
     public GrassWorkMonitor WorkMonitor => _workers.Monitor;
@@ -128,45 +128,44 @@ public sealed partial class GrassField
         _setupStarted = true;
     }
 
-    private BuildContext CaptureBuildContext(ISurface surface, RenderFrame frame) =>
-        new(surface, frame.DirectionToBody(Vector3.Right), frame.DirectionToBody(Vector3.Up),
-            frame.DirectionToBody(Vector3.Back), _faceCells, _heightShift, _latticeSize, _grids.Length, BuiltWith.Density, _spatialCells);
+    private void DrainOrphans()
+    {
+        for (int i = _orphans.Count - 1; i >= 0; i--)
+        {
+            if (!_orphans[i].Task.IsCompleted) continue;
+            _workers.Monitor.Discarded();
+            _orphans.RemoveAt(i);
+        }
+    }
 
     /// <summary>Main-thread, idempotent retirement. Cancels without waiting; call before QueueFree on replacement.</summary>
     public void Stop()
     {
-        if (_stopped) { StopDrawnContact(); return; }
+        if (_stopped) return;
         _stopped = true;
-        _epoch++;
-        _ready = false;
         _workers.Stop();
-        StopDrawnContact();
-        if (_job != null) _workers.Monitor.Discarded();
-        _job = null;
-        _field = null;
-        _buildContext = null;
+        foreach (GrassTile tile in _tiles.Values)
+        {
+            if (tile.Job != null) _workers.Monitor.Discarded();
+            tile.Job = null;
+            foreach (Batch batch in tile.Batches) FreeBatch(batch);
+            tile.Batches.Clear();
+            tile.Built = tile.Pending = null;
+        }
+        foreach (TileJob orphan in _orphans) _workers.Monitor.Discarded();
+        _orphans.Clear();
+        _tiles.Clear();
+        _uploadQueue.Clear();
+        foreach (Stack<Batch> free in _pool.Values)
+            while (free.Count > 0) FreeBatch(free.Pop());
+        _pool.Clear();
+        _context = null;
         _surface = null!;
         _frame = null!;
-        _coverCandidates.Clear();
-        _coverCandidates.TrimExcess();
-        _coverCount = 0;
-        _diagnosticGeometry.Clear();
+        _terrain = null;
+        _instances = 0;
+        StopAuthoredCover();
         Visible = false;
-        foreach (FaceGrid? grid in _grids)
-        {
-            if (grid == null) continue;
-            grid.Nodes?.Dispose(); grid.Nodes = null;
-            grid.Cover?.Dispose(); grid.Cover = null;
-            grid.NodesTexture?.Dispose(); grid.NodesTexture = null;
-            grid.CoverTexture?.Dispose(); grid.CoverTexture = null;
-        }
-        foreach (CoverBatch? batch in _coverBatches)
-        {
-            if (batch == null) continue;
-            batch.Buffer.Clear();
-            batch.Buffer.TrimExcess();
-        }
-        StopSpatialResources();
     }
 
     public override void _ExitTree() => Stop();

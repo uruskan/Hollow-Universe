@@ -33,11 +33,16 @@ public sealed partial class Vegetation
 
 public sealed partial class GrassField
 {
-    public string StreamingStatus => $"idle={IsIdle} near={_near} ready={_ready} " +
-        $"job={_job?.Status.ToString() ?? "none"} centre={_centre} " +
-        $"contactRequired={_contactRequired} contactReady={ContactReady} contactTiles={_contact?.ResidentTiles ?? 0} " +
-        $"contactPending={_contact?.PendingTiles ?? 0} contactUploadedBytes={_contact?.UploadedBytes ?? 0} " +
-        $"contactFailure={_contact?.Failure ?? "none"}";
+    public string StreamingStatus
+    {
+        get
+        {
+            var t = TileState();
+            return $"idle={IsIdle} near={_near} tiles={t.Tiles} resident={t.Resident} building={t.Building} uploads={t.Uploads} " +
+                $"batches={t.Batches} pooled={t.Pooled} instances={_instances} uploadedBytes={t.UploadedBytes} " +
+                $"uploadMs={t.UploadMs:0.00} failed={_requiredJobFailed}";
+        }
+    }
 }
 
 public sealed partial class CliffField

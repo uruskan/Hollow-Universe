@@ -7,8 +7,9 @@ namespace HollowUniverse.Surface;
 public sealed partial class GrassField
 {
     /// <summary>
-    /// Tiny native resource fixture for the opt-in lifetime probe. Uses the production workers, lattice construction,
-    /// upload, authored rebatching and visibility logic. Fixture materials are not appearance/performance evidence.
+    /// Tiny native resource fixture for the opt-in lifetime probe. Uses the production workers, tile builds (from the
+    /// surface itself: there is no drawn terrain), uploads, pooling, authored rebatching and visibility. Fixture meshes and
+    /// materials are not appearance or performance evidence.
     /// </summary>
     internal void SetupLifecycleFixture(ISurface surface, RenderFrame frame)
     {
@@ -16,45 +17,41 @@ public sealed partial class GrassField
         Visible = true;
         _surface = surface;
         _frame = frame;
-        _level = TileKey.LevelFor(surface.Radius, CellMetres);
-        _faceCells = 1L << _level;
-        _cellMetres = TileKey.EdgeLength(_level, surface.Radius);
-        _heightShift = TileKey.LevelFor(surface.Radius, TerrainLod.FinestTileMetres) + TileCellsLog2;
+        _terrain = null;
         BuiltWith = (1, 1);
         _far = 8;
-        _gridWidth = 9;
-        _litterWidth = 7;
-        _latticeSize = 13;
-        _buildContext = CaptureBuildContext(surface, frame);
-
-        var shader = new Shader
-        {
-            Code = "shader_type spatial; uniform sampler2D lattice; uniform sampler2D lattice_cover; " +
-                "uniform int face; uniform ivec2 lattice_cell; uniform vec2 face_origin; uniform ivec2 grid_offset; " +
-                "uniform vec3 anchor; uniform vec4 trample; void fragment() { ALBEDO = vec3(0.2, 0.4, 0.1); }",
-        };
+        _litterFar = 6;
+        Configure(TileKey.LevelFor(surface.Radius, TerrainLod.FinestTileMetres));
+        var shader = new Shader { Code = "shader_type spatial; void fragment() { ALBEDO = vec3(0.2, 0.4, 0.1); }" };
         var material = new ShaderMaterial { Shader = shader };
-        Mesh tuft = TuftMesh(), litter = LitterMesh();
-        for (int g = 0; g < _grids.Length; g++)
+        var quad = new QuadMesh { Size = new Vector2(0.3f, 0.3f) };
+        GroundCoverHabitats habitats = GroundCoverHabitats.Default;
+        var species = new Species[habitats.Species.Length + 1];
+        var shapes = new SpeciesShape[species.Length];
+        for (int i = 0; i < species.Length; i++)
         {
-            var grassMaterial = (ShaderMaterial)material.Duplicate();
-            var litterMaterial = (ShaderMaterial)material.Duplicate();
-            _grids[g] = new FaceGrid
+            bool litter = i == habitats.Species.Length;
+            string key = litter ? "litter" : habitats.Species[i];
+            species[i] = new Species
             {
-                GrassMaterial = grassMaterial, LitterMaterial = litterMaterial,
-                Grass = Instance(tuft, grassMaterial, _gridWidth),
-                Litter = Instance(litter, litterMaterial, _litterWidth),
+                Key = key, Litter = litter, Meshes = new Mesh[] { quad }, Materials = new[] { material }, Cards = new[] { 1 },
+                Height = 0.3f, Reach = 0.15f,
             };
+            ConfigureDistances(species[i]);
+            shapes[i] = new SpeciesShape(key, 0.3f, 0.15f, litter);
         }
+        _species = species;
+        var catalog = new SpeciesCatalog { Species = species, Shapes = shapes, Litter = species.Length - 1 };
+        _context = CaptureContext(surface, catalog, new TintNoise(), 1);
         _coverRoot = new Node3D { Name = "AuthoredGroundCover" };
         AddChild(_coverRoot);
-        var art = new CoverMesh(tuft, material, 30);
+        var art = new CoverMesh(quad, material, 2);
         for (int i = 0; i < _coverBatches.Length; i++)
         {
             var instance = new MultiMeshInstance3D
             {
                 Multimesh = new MultiMesh { TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
-                    UseCustomData = true, Mesh = tuft },
+                    UseCustomData = true, Mesh = quad },
                 MaterialOverride = material,
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
                 GIMode = GeometryInstance3D.GIModeEnum.Disabled,

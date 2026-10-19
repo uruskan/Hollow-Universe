@@ -12,12 +12,17 @@ float hu_grass_dryness(vec2 wp, float moisture, sampler2D macro_noise) {
 		+ (local_patch - 0.5) * 0.5, 0.0, 1.0);
 }
 
-// Linear colour multiplier of grass of that dryness (after hollow-orbit's meadow tints), with gentle large patches.
+// The tint of grass of a dryness at a brightness: leaf greens to dry straw (after hollow-orbit's meadow tints). The grass's
+// clumps take it with the brightness GrassField works out on the CPU for each clump's root (GrassField.Tint.cs, the same
+// noise and numbers as hu_grass_tint below), so blades and the ground under them share one colour.
+vec3 hu_grass_tint_of(float dryness, float brightness) {
+	return mix(vec3(0.08, 0.18, 0.065), vec3(0.28, 0.24, 0.13), dryness) * brightness;
+}
+
+// Linear colour multiplier of grass of that dryness, with gentle large patches.
 vec3 hu_grass_tint(vec2 wp, float dryness, sampler2D macro_noise) {
 	vec4 macro = texture(macro_noise, wp / 1730.0);
 	vec4 macro3 = texture(macro_noise, wp / 37.0 + vec2(0.13, 0.41));
-	// Keep the closed meadow, with leaf greens and dry straw instead of an almost blue-free lime multiplier.
-	vec3 tint = mix(vec3(0.08, 0.18, 0.065), vec3(0.28, 0.24, 0.13), dryness);
 	float local_patch = texture(macro_noise, wp / 7.7 + vec2(0.41, 0.13)).b;
-	return tint * (0.84 + 0.32 * macro.r) * (0.82 + 0.30 * macro3.b) * (0.84 + 0.28 * local_patch);
+	return hu_grass_tint_of(dryness, (0.84 + 0.32 * macro.r) * (0.82 + 0.30 * macro3.b) * (0.84 + 0.28 * local_patch));
 }

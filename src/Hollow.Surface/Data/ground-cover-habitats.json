@@ -1,0 +1,28 @@
+{
+  "comment": "The grass's habitats (docs/WALKING_GROUND.md §18, GroundCoverHabitats). Per habitat: the share of the ground clumps occupy where the cover's grass is past grassTo (ceiling), from grassFrom; how strongly patches move that share about (patchiness, 0 even to 1 bare between closed patches; the mean stays the share); the clumps' height multiplier; the species mix (adds up to one, in the order of 'species'); the authored accents' rates per placement cell (in the order of 'accents'); the share of herb clumps that are the leafy herb rather than heather (variantB); and the share of flowering clumps the mix means (flowerShare, for tests). Species patches gather each species into drifts of their own, a few metres across.",
+  "species": [ "field", "seeding", "dry", "flower", "herb" ],
+  "accents": [ "wild", "cotton", "tundra", "fern" ],
+  "habitats": [
+    { "key": "meadow", "ceiling": 0.97, "grassFrom": 0.02, "grassTo": 0.28, "patchiness": 0.18, "height": 1.0,
+      "mix": [ 0.64, 0.15, 0.10, 0.06, 0.05 ], "accents": [ 0.0, 0.004, 0.0, 0.0 ], "variantB": 0.6, "flowerShare": 0.06 },
+    { "key": "forestEdge", "ceiling": 0.85, "grassFrom": 0.02, "grassTo": 0.3, "patchiness": 0.35, "height": 0.95,
+      "mix": [ 0.56, 0.12, 0.08, 0.04, 0.20 ], "accents": [ 0.0, 0.0, 0.0, 0.015 ], "variantB": 0.75, "flowerShare": 0.04 },
+    { "key": "forestFloor", "ceiling": 0.5, "grassFrom": 0.01, "grassTo": 0.25, "patchiness": 0.7, "height": 0.8,
+      "mix": [ 0.42, 0.04, 0.06, 0.04, 0.44 ], "accents": [ 0.0, 0.0, 0.0, 0.05 ], "variantB": 0.9, "flowerShare": 0.04 },
+    { "key": "dry", "ceiling": 0.68, "grassFrom": 0.02, "grassTo": 0.3, "patchiness": 0.55, "height": 0.85,
+      "mix": [ 0.28, 0.14, 0.50, 0.04, 0.04 ], "accents": [ 0.0, 0.0, 0.0, 0.0 ], "variantB": 0.2, "flowerShare": 0.04 },
+    { "key": "tundra", "ceiling": 0.72, "grassFrom": 0.02, "grassTo": 0.3, "patchiness": 0.45, "height": 0.6,
+      "mix": [ 0.36, 0.05, 0.22, 0.05, 0.32 ], "accents": [ 0.0, 0.01, 0.025, 0.0 ], "variantB": 0.1, "flowerShare": 0.05 }
+  ],
+  "speciesPatches": [
+    { "metres": 7.0, "amplitude": 0.3 },
+    { "metres": 9.0, "amplitude": 0.8 },
+    { "metres": 11.0, "amplitude": 0.65 },
+    { "metres": 6.0, "amplitude": 0.95 },
+    { "metres": 8.0, "amplitude": 0.6 }
+  ],
+  "occupancyPatch": { "metres": 5.5, "amplitude": 1.0 },
+  "heightPatch": { "metres": 13.0, "amplitude": 0.14 },
+  "litter": { "ceiling": 0.9, "needles": 0.5 },
+  "cotton": { "moistureFrom": 0.6, "moistureTo": 0.85 }
+}
