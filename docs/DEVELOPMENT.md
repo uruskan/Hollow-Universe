@@ -4658,3 +4658,12 @@ same top-level fields), and `repair_footsteps.catalogue_order` now puts the rege
 does, so the bounded command no longer reintroduces the difference. Validation: `build.py` twice in a row and
 `git status` stays clean; `repair_footsteps.py` run on the old-order file writes the build's file byte for byte;
 `art/audio` unit tests 4/4 (new: the bounded rebuild's order); `Hollow.Tests -- Sound` 8/8.
+
+### 20 October 2026 — doors like Rust's: the specification (D0)
+
+The owner reported that our doors behave unlike Rust's; a read-only audit confirmed every point (one leaf with a relief face and a
+flat face, hinge and swing coupled by one 180 degree flip, a refusal when someone stands in the way, bodies that jump to the pose
+the animation is still travelling to, no start tick on the wire). The owner's rules are written as `docs/DOORS.md`
+(GROUND.md §6.3 links it): same faces, doors that ignore everything and always move, collision along the motion, hinge and
+swing chosen separately so airlocks can be built, locks on both faces. Packages D1 to D4 follow, one commit each. Nothing
+built or run for this entry (documents only).

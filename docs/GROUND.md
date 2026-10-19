@@ -2372,9 +2372,15 @@ max(1, ⌈cost × 0.2 × restored ÷ max⌉) of the grade's material, worked in 
 
 **Doors.** Deployable items fitted into an opening: single doors into doorways, double doors and the garage door into
 wall frames, one per opening, never upgraded. Wooden 200, sheet metal 250, armoured 1,000 health (RustMVP), garage 600
-(ours). Their leaves swing on the kit manifest's hinges (single: 56.2 cm left of centre, 17.2 cm out, 100°; doubles
-mirrored) and collide open or shut; a turn of 180° on placing swaps the hinge side. A garage door rolls up. Opening a
-door needs no rights, only its lock's consent, and its new pose clear of players. Picking a door up needs it open with
+(ours). **How they behave is specified in [DOORS.md](DOORS.md)** (the owner's rules of 20 October 2026; packages D1 to D4,
+whose state is in DEVELOPMENT.md): both faces of a door look the same; the hinge side and the swing side are chosen
+separately (four layouts for a single door, two for a double, one for the garage), so doors can make airlocks; doors
+ignore players, objects and other doors and always open and shut; their collision follows their motion every tick (a
+leaf along its swing, the curtain along its roll) over their travel time (1 s, the garage 3.07 s), shoving whoever is in
+the way; a code lock shows on both faces. Until each package lands the code is as before: the leaves hang on the kit
+manifest's hinges (single: 56.2 cm left of centre, 17.2 cm out, 100°; doubles mirrored), a turn of 180° on placing swaps
+hinge and swing together, a door refuses to move into a player, and the bodies jump to the new pose. A garage door rolls
+up. Opening a door needs no rights, only its lock's consent. Picking a door up needs it open with
 no lock on it. **Key lock** (Rust's): its owner opens it without a key; anyone with a key cut for it (its key code)
 opens it and it stays locked. **Code lock** (RustMVP's, no guest codes): four digits; setting the code locks it and
 leaves only the setter authorised; the right code authorises (up to 64); wrong codes make the player wait 1, 5, 5, 5,
