@@ -74,7 +74,7 @@ thread that last edited it.
 
 ## 4. Clear these before continuing
 
-1. **Pause the Codex automation** in the Codex app, or set `status = "PAUSED"` in its `automation.toml`.
+1. **Pause the Codex automation** (done 19 October: `status = "PAUSED"`) in the Codex app, or set `status = "PAUSED"` in its `automation.toml`.
    Otherwise Codex and Claude may edit this checkout at the same time from 24 October.
 2. **Do not resume old Codex threads** without telling them their state is stale. Several hold plans that
    no longer match the tree.
@@ -131,10 +131,15 @@ thread that last edited it.
   old cooldown. The three tests now run on `LoopbackRig(simulated: true)`: the rig steps the server and clients
   itself, a `SimulatedRelay` delays and drops datagrams on that clock, and `WaitUntilSettled` waits for the
   client's clock and ground before they count anything. See DEVELOPMENT.md, 19 October 2026.
-- Guard `PhysicsWorld.BuildShape` so a malformed collision tile fails as a named managed error instead of
-  a native access violation; capture a dump if the crash returns.
+- **Done (19 October):** guard `PhysicsWorld.BuildShape` so a malformed collision tile fails as a named managed
+  error instead of a native access violation. `GroundMeshCheck` guards both ground paths; how to capture a dump if
+  the crash returns is in KNOWN_PROBLEMS.md.
 - Describe the new files in [CODE_LAYOUT.md](CODE_LAYOUT.md): 418 of the 420 C# files added since the fork are missing.
-- Remove the stale worktrees and prune `.artifacts/` once Phase 0 is committed.
+- **Done (19 October):** removed the Codex worktrees `terrain-rocks-port` and `admin-self-camera` and two empty
+  folders (`planet-foundation`, RustMVP's, stays). Their uncommitted edits are in
+  `refs/backup/codex-worktree-terrain-rocks-port` and `refs/backup/codex-worktree-admin-self-camera`, verified file by
+  file; the eleven files over 5 MB that were nowhere in the repository (old cliff and rock models, 601 MB) and both
+  worktrees' `.artifacts/` are in `.artifacts/codex-worktrees/`. `.artifacts/` itself is kept: the docs cite evidence in it.
 
 ### Phase 2: decide the environment direction (your decision)
 

@@ -608,7 +608,12 @@ large-furnace fire-effect catalogue and station-firing checks reported failures.
 BatteryTests process also reached the memory guard. Hosted capture attempts produced no
 usable screenshot (first outer timeout, then memory-guarded retries); they establish no
 visual or GPU performance claim. The earlier Jolt native mesh-shape abort is still unassigned,
-even though disposal now drains workers after managed failures. See DEVELOPMENT.md's
+even though disposal now drains workers after managed failures. Since 19 October both ground paths
+refuse a malformed tile before Jolt sees it (`GroundMeshCheck`: no triangles, a non-finite vertex,
+an index out of range, or only degenerate triangles) with `MalformedGroundTileException`, which names
+the tile; if the native abort returns, its tile was none of these. To catch it, run the suite with
+`DOTNET_DbgEnableMiniDump=1`, `DOTNET_DbgMiniDumpType=4` and `DOTNET_DbgMiniDumpName=<folder>\hollow-%p.dmp`
+so the .NET runtime writes a full dump when the process dies (not yet tried on this crash). See DEVELOPMENT.md's
 Environment architecture and T0 checkpoint for commands, evidence paths and exact limits.
 
 Follow-up: hosted High capture r13 now produced an inspected 1600×900 baseline after

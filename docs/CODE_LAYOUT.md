@@ -426,13 +426,14 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `SpotSurfaces.cs` | 410 | ISpotSurface, SpotFrames, TrunkSurface, MeasuredSurface | Where a natural object's weak spot can sit (GROUND.md §6.1): on the surface players see, at the object's current |
 | `StandInNaturalObjects.cs` | 242 | StandInNaturalObjects [CacheEntry] | Natural objects of the stand-in world (docs/WHOLE_WORLD.md §7.1), placed by a seeded stream per cube-sphere tile of |
 
-### src/Hollow.Simulation/Physics (10 files, 3,037 lines)
+### src/Hollow.Simulation/Physics (11 files, 3,100 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `CharacterBody.cs` | 174 | CharacterBody | A character's collision in a space (GROUND.md §4.5): Jolt's virtual character, a kinematic capsule outside the |
 | `CompoundGeometry.cs` | 145 | CompoundGeometry [Shapes] | CompoundGeometry: convex hulls of authored compounds, with a gate's open and closed leaves, driving both movement and weapon traces, with contact face and pose. |
 | `GroundAreaCoordinator.cs` | 258 | GroundAreaStatus, GroundAreaRequest, GroundPhysicsOptions, GroundAreaTicket, GroundAreaCoordinator [Entry] | One physics owner's ground area requests: tickets over shared tile builds, a bounded worker pump on the owner thread, adoption, release and drain. |
+| `GroundMeshCheck.cs` | 63 | MalformedGroundTileException, GroundMeshCheck | The one check a ground tile's triangles pass before they become a Jolt mesh shape: finite vertices, indices in range, at least one whole triangle; a malformed tile throws a managed error naming it. |
 | `GroundStreamingBudget.cs` | 455 | GroundStreamingLimits, GroundStreamingDiagnostics, GroundWorkState, GroundOwnedBuildFailure, GroundStreamingBudget, GroundStreamingOwner, GroundAreaLease, GroundBuildLease | The engine-independent ledger of ground streaming: limits, reservations for tiles, bodies, workers and bytes, work states, diagnostics, shared by owners. |
 | `JoltRuntime.cs` | 88 | JoltRuntime | The process-wide Jolt runtime (GROUND.md §4.5). Jolt is initialised once per process, by whichever world needs it |
 | `PhysicsWorld.GroundStreaming.cs` | 43 | GroundNativeEstimates, GroundStreamingEstimates, GroundBuildCost | PhysicsWorld's ground streaming costs: GroundNativeEstimates (versioned, no production defaults) and GroundStreamingEstimates, the inactive build-cost adapter. |

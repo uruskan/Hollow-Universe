@@ -365,6 +365,7 @@ public sealed partial class PhysicsWorld : IDisposable
         long start = Stopwatch.GetTimestamp();
         // Pooled, as the arrays below: these are large-object-heap sized, and tiles come and go all the time.
         using PooledTriangles mesh = Surface.GroundCollisionPooled(Frame, tile, ClipMargin);
+        GroundMeshCheck.Require(tile, mesh.Positions, mesh.Indices, mesh.VertexCount, mesh.TriangleCount);
         Vector3[] vertices = ArrayPool<Vector3>.Shared.Rent(mesh.VertexCount);
         IndexedTriangle[] triangles = ArrayPool<IndexedTriangle>.Shared.Rent(mesh.TriangleCount);
         Shape shape;
@@ -379,7 +380,7 @@ public sealed partial class PhysicsWorld : IDisposable
                 triangles[t] = new IndexedTriangle(mesh.Indices[3 * t], mesh.Indices[3 * t + 1], mesh.Indices[3 * t + 2], 0, 0);
             }
             using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, mesh.TriangleCount)).Owned();
-            shape = settings.Create();
+            shape = settings.Create() ?? throw new MalformedGroundTileException(tile, "Jolt refused its mesh");
         }
         finally
         {

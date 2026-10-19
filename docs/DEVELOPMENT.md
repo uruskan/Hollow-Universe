@@ -136,6 +136,14 @@ loopback flake, `APassengerIsPredictedExactlyWhileAnotherFlies`, which then pass
 docs/CODE_LAYOUT.md now describes all 1,077 C# files (272,593 lines): the 427 added since the fork, each from its own content, in nine new folder sections; line counts and types refreshed; PlanetSurfaces.cs and WalkingWorlds.cs, deleted, removed.
 A script check of the doc's paths against `git ls-files '*.cs'` finds none missing, stale or doubled. Docs only.
 
+## 19 October 2026 — Malformed ground tiles fail by name, not in Jolt
+
+`GroundMeshCheck` checks every ground tile's triangles before they become a Jolt mesh shape, on the legacy and the
+selected ground paths: no triangles, a non-finite vertex, an index out of range, or only degenerate triangles throw
+`MalformedGroundTileException` naming the tile, instead of a native access violation. Validation: solution 0 warnings,
+0 errors; GroundMeshCheck 2/2 (a world given a NaN tile throws it and still disposes); Physics, Movement, Ship and
+Walking 136/136. The original native abort is still unexplained; KNOWN_PROBLEMS.md says how to capture a dump.
+
 ## 19 October 2026 — The meadow's floor, second pass: Leafy Grass in place of Ground 037
 
 The owner saw the Ground 037 captures of the ground entry below and chose blades over moss: "download Poly Haven

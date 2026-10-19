@@ -125,6 +125,7 @@ public sealed partial class PhysicsWorld
             _selectedHooks?.Reach(GroundNativeStage.BeforeMesh);
             cancellation.ThrowIfCancellationRequested();
             TriangleMesh mesh = ((IPlannedGroundCollision)Surface).BuildGroundCollision(plan, cancellation);
+            GroundMeshCheck.Require(key, mesh.Positions, mesh.Indices, mesh.VertexCount, mesh.TriangleCount);
             var vertices = new Vector3[mesh.VertexCount];
             var triangles = new IndexedTriangle[mesh.TriangleCount];
             for (int i = 0; i < vertices.Length; i++)
@@ -203,7 +204,7 @@ public sealed partial class PhysicsWorld
             _settings = new MeshShapeSettings(vertices, triangles).Owned();
             if (hooks != null) Interlocked.Increment(ref hooks.MeshSettings);
             hooks?.Reach(GroundNativeStage.MeshSettings);
-            _shape = _settings.Create();
+            _shape = _settings.Create() ?? throw new MalformedGroundTileException(key, "Jolt refused its mesh");
             if (hooks != null) Interlocked.Increment(ref hooks.Shapes);
             hooks?.Reach(GroundNativeStage.ShapeCreated);
             ReleaseSettings();
