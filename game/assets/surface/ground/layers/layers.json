@@ -783,6 +783,29 @@
         0.6057
       ],
       "roughness": 0.685
+    },
+    {
+      "index": 34,
+      "key": "meadow",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "34_meadow_albedo.webp",
+      "normal": "34_meadow_normal.webp",
+      "roughHeight": "34_meadow_rh.webp",
+      "meanColour": [
+        0.5976,
+        0.5752,
+        0.3434
+      ],
+      "meanLinear": [
+        0.3442,
+        0.3223,
+        0.1233
+      ],
+      "roughness": 0.463
     }
   ],
   "layers": [
@@ -797,21 +820,21 @@
       ],
       "variants": [
         {
-          "texture": 10,
-          "select": "lush",
-          "gain": [
-            2.0,
-            2.7,
-            1.6
-          ]
-        },
-        {
           "texture": 11,
           "select": "lush-patch",
           "gain": [
             1.15,
             1.15,
             1.05
+          ]
+        },
+        {
+          "texture": 34,
+          "select": "lush",
+          "gain": [
+            0.42,
+            0.74,
+            0.4
           ]
         }
       ]

@@ -2,7 +2,8 @@
 # reproducible. The first sixteen textures are the sixteen ground materials' own scans, in the order of
 # Hollow.Surface.GroundMaterial; the textures after them are the alternatives a material switches to by place (a
 # scan of pebbly sand in patches of a beach, desert sand where it is hot and dry, icy grass along the snow line,
-# an ice wall where ice stands steep), chosen in the shader by each slot's selector (surface_ground_look.gdshaderinc).
+# an ice wall where ice stands steep, a green grass ground under lush grass), chosen in the shader by each slot's
+# selector (surface_ground_look.gdshaderinc).
 # Every file is one texture of the arrays:
 #   <nn>_<key>_albedo.jpg|.webp   the scan's base colour at 4K: the source JPEG copied byte for byte, or lossless WebP
 #                                 where the source is a PNG or EXR, or not 4K
@@ -48,6 +49,13 @@ def ph(archive, name, suffix="", ext=None):
             for kind, tag in (("albedo", "diff"), ("normal", "nor_gl"), ("rough", "rough"), ("height", "disp"))}
 
 
+def acg(folder, prefix):
+    """An ambientCG set (CC0): colour, OpenGL normal, roughness and displacement maps (PNG, 4K) in its unpacked
+    folder, beside its _EXTRACTION_PROVENANCE.json."""
+    return {"albedo": "{0}/{1}_Color.png".format(folder, prefix), "normal": "{0}/{1}_NormalGL.png".format(folder, prefix),
+            "rough": "{0}/{1}_Roughness.png".format(folder, prefix), "height": "{0}/{1}_Displacement.png".format(folder, prefix)}
+
+
 BWM = "Bare-World-Manual/"
 NAMAQUALAND = {"albedo": "jpg", "normal": "exr", "rough": "exr", "height": "png"}
 # (key, metres a repeat, sources). The first sixteen are GroundMaterial's, in its order; the rest the alternatives.
@@ -89,15 +97,22 @@ TEXTURES = [
     ("outback_rocky", 3.0, ms("desert_outback_ground_rocky_06_xiqgafr_4k", "Desert_Outback_Ground_Rocky_06_xiqgafr_4K")),
     ("desert_sand_fine", 3.0, ms("desert_western_ground_sand_fine_01_xgmpdek_4k", "Desert_Western_Ground_Sand_Fine_01_xgmpdek_4K")),
     ("ice_wall", 3.0, ms("ice_wall_uebjabcr_4k", "Ice_Wall_uebjabcr_4K")),
+    # The meadow's floor under lush grass (19 October 2026): a green grass ground, ambientCG's Ground037 (CC0, a
+    # 2.1 m scan of damp mossy grass ground with twigs), laid at 3 m like the wet grass it replaces there.
+    ("meadow", 3.0, acg("Ground037_4K-PNG", "Ground037_4K-PNG")),
 ]
 
 # The sixteen materials: (texture, colour gain, alternatives: (texture, selector, colour gain)). The selectors are the
 # shader's (surface_ground_look.gdshaderinc): noise (patches of about fifty metres), dryness and lush (the grass's
 # dryness), lush-patch (lush ground in patches), heat (hot and dry), cold (freezing), steep (slopes), snowline (snow
 # shared with grass), thaw (around freezing). Gains lift a scan taken wet or in shade to the place it stands for.
+# Order matters: each alternative takes its share of what the earlier ones left, so a material's patches (lush-patch,
+# noise) come before the alternative that takes the rest of the place (lush), or the patches never show.
 ONE = [1.0, 1.0, 1.0]
 LAYERS = [
-    ("grass", "grass", ONE, [("wet_grass", "lush", [2.0, 2.7, 1.6]), ("mossy_floor", "lush-patch", [1.15, 1.15, 1.05])]),
+    # The meadow scan is bright and warm (mean linear 0.34, 0.32, 0.12): its gain darkens it to a meadow's brightness
+    # and turns it green (0.15, 0.24, 0.05), judged in the captures of docs/images/ground/ground-textures.
+    ("grass", "grass", ONE, [("mossy_floor", "lush-patch", [1.15, 1.15, 1.05]), ("meadow", "lush", [0.42, 0.74, 0.40])]),
     ("forest_floor", "forest_floor", ONE, [("forest_floor_2", "noise", ONE)]),
     ("soil", "soil", ONE, []),
     ("rock", "rock", ONE, [("coastal_rock", "noise", ONE)]),

@@ -29,11 +29,11 @@ retargeting, all made by the scripts in `art/`.
 
 ## Ground textures (`surface/ground/layers/`)
 
-Thirty-four textures: sixteen layers, one a `Hollow.Surface.GroundMaterial` (docs/WALKING_GROUND.md §8), and after
+Thirty-five textures: sixteen layers, one a `Hollow.Surface.GroundMaterial` (docs/WALKING_GROUND.md §8), and after
 them the alternatives a material switches to by place (16 on), built by `tools/blender/surface_layers.py` from the
 scans in `D:\GameDev\Assets`: each texture's base colour and normal map at 4K are the scan's own files (the Megascans
-JPEGs copied byte for byte; the Poly Haven PNG and EXR maps written as lossless WebP; a scan twice as wide as high
-repeated along its short side into a square), and a 2K lossless WebP holds its roughness and height. Godot compresses
+JPEGs copied byte for byte; the Poly Haven and ambientCG PNG and EXR maps written as lossless WebP; a scan twice as
+wide as high repeated along its short side into a square), and a 2K lossless WebP holds its roughness and height. Godot compresses
 them for the GPU when it imports them; the game puts them together into texture arrays
 (`game/scripts/Surface/GroundLayers.cs`). Every set was bought for this game or is CC0; the Fab ones ship only inside
 the game.
@@ -74,14 +74,15 @@ the game.
 | 31 outback rocky ground (of 14) | Desert Outback Ground Rocky 06 (Quixel Megascans, `xiqgafr`) | Fab, Quixel Megascans; `desert_outback_ground_rocky_06_xiqgafr_4k.zip` | Fab Standard License |
 | 32 desert sand fine (of 14) | Desert Western Ground Sand Fine 01 (Quixel Megascans, `xgmpdek`) | Fab, Quixel Megascans; `desert_western_ground_sand_fine_01_xgmpdek_4k.zip` | Fab Standard License |
 | 33 ice wall (of 15) | Ice Wall (Quixel Megascans, `uebjabcr`) | Fab, Quixel Megascans; `ice_wall_uebjabcr_4k.zip` | Fab Standard License |
+| 34 meadow (of 0: the floor under lush grass) | Ground 037 (ambientCG: damp mossy grass ground with twigs, a 2.1 m photogrammetry scan), the 4K PNG set downloaded on 19 October 2026 | https://ambientcg.com/view?id=Ground037; `Ground037_4K-PNG.zip` (SHA-256 `5117129a141d483db469343f77e6199f35842e941137f14dee7f511b39d0a02b`), unpacked in `Ground037_4K-PNG` with its provenance record | CC0 1.0 (https://docs.ambientcg.com/license/) |
 
 The archives named are in `D:\GameDev\Assets` (each unpacked beside it with its `_EXTRACTION_PROVENANCE.json`, which
 holds every file's SHA-256); the Fab listing URLs of layers 0-6 and 13 are from
 `D:\GameDev\Assets\Bare-World-Manual\DOWNLOAD-MANIFEST-VERIFIED.json`. Left out on purpose: `RedRock02_4K` (no record
 of where it came from or under what licence), Beach Sand `uinladeo` (featureless beside `ukviejtlw`), the desert sands
 `sfilxqh` and `sfiodwh` and Fresh Windswept Snow `uehnaazn` (a fourth alternative would need a fourth slot), and the
-2K ambientCG sets (`Ground023`, `Ground037`, `Ground048`, `Ground054`, `Ice003`, `Snow002`: below the 4K the ground is
-built at).
+2K ambientCG sets (`Ground023`, `Ground048`, `Ground054`, `Ice003`, `Snow002`: below the 4K the ground is built at;
+`Ground037`'s 2K set is superseded by its 4K download, texture 34).
 
 ## Item and world models (`items/`, `world/`, `textures/`, `materials/`)
 

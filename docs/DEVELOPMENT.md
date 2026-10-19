@@ -1,5 +1,46 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — The meadow's floor: a green grass-ground scan under the tufts
+
+The floor under lush grass had been the Wet Grass Ground scan lifted ×2.0, ×2.7, ×1.6, which read green-olive,
+since the library had no green grass ground at 4K (the ground entry below). With the owner's word for one CC0 4K set
+("download a CC0 4K green grass ground scan and put it under the meadow grass", relayed by the session that
+proposed this work), ambientCG's Ground 037 was chosen: a 2.1 m photogrammetry scan of damp mossy grass ground with
+twigs, the only green grass ground among ambientCG's scans (its Grass 001–008 are procedural lawns; Poly Haven's
+`aerial_grass_rock` is yellow-green grass over rock at 15 m), and the owner already had its 2K set. The 4K PNG set
+(`Ground037_4K-PNG.zip`, 280 MB, SHA-256 `5117129a…a02b`) is unpacked in `D:\GameDev\Assets\Ground037_4K-PNG` with an
+`_EXTRACTION_PROVENANCE.json` like the Megascans sets' (the archive's stat and SHA-256, every file's size, CRC-32 and
+SHA-256 read back after writing; also the download URL and the licence). Poly Haven's Leafy Grass (CC0, 2 m, a scan
+of trampled grass blades with leaf litter, four 4K PNGs, about 257 MB) is the alternative if the owner wants blades
+rather than moss; it is a second download and was not fetched.
+
+- `tools/blender/surface_layers.py` reads ambientCG sets through `acg()` and builds the scan as texture 34, `meadow`
+  (lossless WebP at 4K, roughness and height at 2K; 81 MB in the repository), laid at 3 m like the wet grass it
+  replaces under lush grass. Its mean colour is bright and warm (linear 0.34, 0.32, 0.12, a khaki): at gain one the
+  floor came out pale and yellow-olive, so its gain is ×0.42, ×0.74, ×0.40 (0.15, 0.24, 0.05, a meadow's brightness
+  and green), chosen from three down captures. Layer 0's alternatives are now the mossy patches (`lush-patch`) first
+  and the meadow (`lush`) second: each alternative takes its share of what the earlier ones left, so with the lush
+  texture first the patches never showed under fully lush grass (the script's comment and WALKING_GROUND.md §8 say so).
+  No code changed but a comment in `GroundLayers` (`MaxTextures` is 40; the wet grass stays texture 10, its own
+  material).
+- Captures, hosted at the landing site at hour 10 on this project's saved custom profile, 1600 × 900, in
+  `docs/images/ground/ground-textures/`: `meadow-down.png` (`--pitch -55`) against `after-down.png`, `meadow-level.png`
+  against `after-level.png`. The floor under the tufts reads as a continuous green lawn with the scan's moss grain,
+  greener and more even than the olive wet grass, and still yellow-green where the blades are, since the shader keeps
+  45% of the scan's colour near by and tints the rest toward the blades. Said plainly: at arm's length the scan is
+  moss rather than blades (a damp woodland ground), as the proposing session expected; whether that is the meadow the
+  owner wants, or Leafy Grass should replace it, is the owner's call. Frame times at capture: down 12.2 ms (82 fps)
+  against the earlier 10.8 ms, level 10.4 ms (96 fps) against 9.4 ms; the meadow replaces the wet grass sample rather
+  than adding one, and other sessions' processes and the cliff session's new far cliff layer ran meanwhile, so the
+  difference is not the texture's.
+
+Validation: `GroundLayerCatalogueTests` passes (35 textures, 16 materials, 20 alternatives); `dotnet build
+HollowUniverse.sln` 0 warnings, 0 errors; the script run again reproduces `layers.json` byte for byte; Godot's
+import of the three files (BPTC, 50 MB) and the loading line `[ground] 35 of 35 textures in arrays` in every capture.
+Records: THIRD_PARTY.md row 34, WALKING_GROUND.md §8. Found on the way: a hosted capture that reuses a `--db` resumes
+the character's saved look, so a level shot after a `--pitch -55` shot comes out looking down; each camera gets a
+fresh database.
+
 ## 19 October 2026 — T2: the cliffs' far layer, and the cube's seams
 
 Scanned cliffs ended at the near layer's 340 m reach: flying, or from high ground, the escarpments beyond showed only

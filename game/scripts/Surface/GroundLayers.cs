@@ -55,7 +55,7 @@ public static class GroundLayers
 
     /// <summary>
     /// Whether the materials' alternative scans are loaded besides their own (about 50 MB of GPU memory a 4K texture,
-    /// 0.9 GB for the eighteen): on every preset but Low, and on custom settings whose terrain detail is at least
+    /// 0.95 GB for the nineteen): on every preset but Low, and on custom settings whose terrain detail is at least
     /// Low's (0.75). Decided when the arrays are first built, for the run.
     /// </summary>
     public static bool IncludeVariants
