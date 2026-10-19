@@ -349,7 +349,8 @@
       ]
     }
   ],
-  "collision_sha256": "233858e2fc095f5577b6c9e68b301c78db0bebb990810901bfe363a16295a3f5",
+  "collision_sha256": "9f1d8eea778be80f0ec56b5348ecc16045fac8a62629d2e524093d1738584232",
+  "collision_sha256_note": "SHA-256 of the exact LF bytes of src/Hollow.Surface/Data/cliffs.json, which .gitattributes pins with -text so every checkout holds the same bytes. Until 2026-10-19 this held 233858e2fc095f5577b6c9e68b301c78db0bebb990810901bfe363a16295a3f5, the hash of the same content with a CRLF final line ending, which no clean checkout could reproduce.",
   "placement_metadata_revision": {
     "date": "2026-10-16",
     "previous_collision_sha256": "a79994d93df3e5edd640efcefa3db0287ce47db02691d42690b39f63d200bb4e",

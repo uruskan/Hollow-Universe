@@ -17,7 +17,9 @@ public static class GeologyPortTests
     {
         string directory = Path.Combine(Fixtures.Root, "game/assets/surface/cliffs");
         using JsonDocument receipt = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, "provenance.json")));
-        using FileStream data = File.OpenRead(Path.Combine(Fixtures.Root, "src/Hollow.Surface/Data/cliffs.json"));
+        byte[] data = File.ReadAllBytes(Path.Combine(Fixtures.Root, "src/Hollow.Surface/Data/cliffs.json"));
+        Assert.True(!data.Contains((byte)'\r'),
+            "cliffs.json has CRLF line endings but its receipt hashes the LF bytes (a checkout from before .gitattributes pinned it with -text): run `git checkout -- src/Hollow.Surface/Data/cliffs.json`");
         Assert.Equal(receipt.RootElement.GetProperty("collision_sha256").GetString()!,
             Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant(), "placement metadata is covered by the shared collision receipt");
         foreach (CliffGeometry model in CliffGeometry.All)

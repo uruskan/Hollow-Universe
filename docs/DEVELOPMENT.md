@@ -402,6 +402,10 @@ catalogue's diff is that one entry (a later full build will make the re-sort). N
 copied back. Listening and mix acceptance remain with the owner. Details in
 [KNOWN_PROBLEMS.md](KNOWN_PROBLEMS.md#defense-battery-interior-sound-is-missing--17-october-2026).
 
+## 19 October 2026 — Cliff collision receipt pins LF bytes
+
+`GeologyPortTests.CliffPlacementProfilesRetainTheExportedCollisionReceipt` failed in every clean checkout: its receipt held the CRLF hash of `cliffs.json` (only the owner's stale checkout has those bytes). `provenance.json` now holds the LF hash (`9f1d8eea…`), `.gitattributes` pins `cliffs.json` and `provenance.json` with `-text`, and the Blender tool's pin of `provenance.json` follows (`defa2868…`). A checkout still holding CRLF copies fixes them with `git checkout -- src/Hollow.Surface/Data/cliffs.json game/assets/surface/cliffs/provenance.json`; other CRLF-pinned receipts (ground-cover `catalog.json`, compound r02, old evidence logs) are untouched and listed in the hand-over note.
+
 ## 19 October 2026 — T2 second iteration: sea-cliff toes, intended rock, the formation map
 
 A coastal face's toe may stand in the surf (up to 40% of a piece's fit points over water, measured from a metre
