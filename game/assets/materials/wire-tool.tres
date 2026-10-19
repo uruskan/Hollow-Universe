@@ -1,0 +1,20 @@
+[gd_resource type="ORMMaterial3D" load_steps=5 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/wire-tool/wire-tool_albedo.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/textures/wire-tool/wire-tool_orm.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/textures/wire-tool/wire-tool_normal.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/textures/wire-tool/wire-tool_emission.png" id="4"]
+
+[resource]
+resource_name = "M_Hollow_WireTool"
+vertex_color_use_as_albedo = true
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("1")
+orm_texture = ExtResource("2")
+normal_enabled = true
+normal_scale = 0.5
+normal_texture = ExtResource("3")
+emission_enabled = true
+emission_texture = ExtResource("4")
+emission_energy_multiplier = 1.4
+texture_filter = 5

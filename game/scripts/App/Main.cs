@@ -138,13 +138,6 @@ public partial class Main : Node
             _scaler.Override = (float)Number("ui-scale", 1);
         }
         AddChild(_scaler);
-        if (_options.ContainsKey("build-wire-tool"))
-        {
-            WireToolAssetBuilder.Build();
-            GetTree().Quit();
-            SetProcess(false);
-            return;
-        }
         if (_options.TryGetValue("electricity-review", out string? electricityOutput))
         {
             AddChild(new ElectricityReview { OutputDirectory = electricityOutput });

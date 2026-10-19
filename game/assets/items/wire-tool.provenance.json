@@ -1,0 +1,134 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "wire-tool",
+  "date": "2026-10-19",
+  "replaces": "wire-tool.tscn: four primitive boxes and a cone baked by WireToolAssetBuilder from wire-tool-source.tscn (one LOD, three flat materials), and its icons",
+  "authorship": "Original cosmetic geometry, procedural PBR atlas and rendered icons; no reference game files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/wiretool",
+    "image": "https://files.facepunch.com/rust/item/wiretool_512.png",
+    "observed": "A glossy black power-connector plug with a moulded strain relief and a long cable looping away; reads at small size by the dark plug against the thin cable.",
+    "use": "Visual observation before authoring only; no downloaded reference files"
+  },
+  "authoring_source": [
+    {
+      "path": "art/models/wire_tool.py",
+      "sha256": "09a1c44b5e24ce7eaf360457dda6a6bc6da7f1f35bd7fc5b9cc1a1f8fa7a8f29"
+    }
+  ],
+  "authoring_helpers": [
+    {
+      "path": "art/hollow/component_mesh.py",
+      "sha256": "8991c9a2503976f758c3fe8b1b97f2642c9050548149d8d329598983629fcb34"
+    },
+    {
+      "path": "art/hollow/rounded.py",
+      "sha256": "0d865ac93e2e8ede730d94890db165ad30726e6b0e54c1bc26808c39728f97ac"
+    }
+  ],
+  "geometry": {
+    "asset": "wire-tool",
+    "dimensions_blender_xyz_m": [
+      0.12291423231363297,
+      0.06619999930262566,
+      0.38120000809431076
+    ],
+    "bounds_blender": {
+      "min": [
+        -0.04991423338651657,
+        -0.03319999948143959,
+        -0.10620000213384628
+      ],
+      "max": [
+        0.0729999989271164,
+        0.032999999821186066,
+        0.2750000059604645
+      ]
+    },
+    "texture_size": 1024,
+    "material_count": 1,
+    "emission": true,
+    "lod_triangles": {
+      "WireTool_lod0": 8088,
+      "WireTool_lod1": 4148,
+      "WireTool_lod2": 1928
+    },
+    "hull_triangles": 48,
+    "vertex_ao_samples": 8,
+    "sockets_godot": {
+      "socket_grip_r": [
+        0,
+        0,
+        0
+      ],
+      "socket_wire_tip": [
+        0,
+        0.275,
+        0
+      ]
+    }
+  },
+  "files": {
+    "game/assets/items/wire-tool.glb": {
+      "sha256": "5c5578fe3de320c8d2f7911bf1c6ef2d60e22bda4869933a46bfbf5dd86060ad",
+      "bytes": 502116
+    },
+    "game/assets/items/wire-tool.glb.import": {
+      "sha256": "a5da049669ad0d4ce43c006359011e9ca52d7e1bb9cf8fdd04170dd943f5e0b0",
+      "bytes": 461
+    },
+    "game/assets/materials/wire-tool.tres": {
+      "sha256": "6b400087e7daf91b4833b5450747beb755baa084746c2d76b632ffcce021173d",
+      "bytes": 820
+    },
+    "game/assets/textures/wire-tool/wire-tool_albedo.png": {
+      "sha256": "e26a025c0a472122ae74e9545bc2d00f33ac83b7d85acf280860f1be509d4132",
+      "bytes": 800599
+    },
+    "game/assets/textures/wire-tool/wire-tool_albedo.png.import": {
+      "sha256": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "bytes": 208
+    },
+    "game/assets/textures/wire-tool/wire-tool_emission.png": {
+      "sha256": "f2e0965f8aac10debff5d9be47fd3c152f3f57c2c2b3cfb4735b8071ff75b016",
+      "bytes": 16329
+    },
+    "game/assets/textures/wire-tool/wire-tool_emission.png.import": {
+      "sha256": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "bytes": 208
+    },
+    "game/assets/textures/wire-tool/wire-tool_normal.png": {
+      "sha256": "f1fa02708951f3df22f5646dad5eee51e0e90dd1fe0bfb7cf8313cd0702fbe25",
+      "bytes": 565414
+    },
+    "game/assets/textures/wire-tool/wire-tool_normal.png.import": {
+      "sha256": "6a3487d4f443cf9f68b41462d6eb05969c23e1c4617e2524147c066742dab360",
+      "bytes": 208
+    },
+    "game/assets/textures/wire-tool/wire-tool_orm.png": {
+      "sha256": "1f3e91a4a711f25f9aaac76211d752cab8b7c1a12d08b7adf499ca13cf7ecc71",
+      "bytes": 119823
+    },
+    "game/assets/textures/wire-tool/wire-tool_orm.png.import": {
+      "sha256": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "bytes": 208
+    },
+    "game/assets/items/icons/128/wire-tool.png": {
+      "sha256": "9351e96812dca3b1f2f5ba0e91e43b8e04f3a9a3af21eb946949359e9f423195",
+      "bytes": 10116
+    },
+    "game/assets/items/icons/128/wire-tool.png.import": {
+      "sha256": "f75dfbcce35684b2a59164146af246ef8d38ceea36241ba9943ddc881918acd3",
+      "bytes": 954
+    },
+    "game/assets/items/icons/256/wire-tool.png": {
+      "sha256": "e2efb1e5f57eb9cddf3c9d638bcb93abff19125e2e7623a0b14af8cb12adbb35",
+      "bytes": 29201
+    },
+    "game/assets/items/icons/256/wire-tool.png.import": {
+      "sha256": "c0c264c07bd1fc060d111bc47095e866f1055ef1bbeb215051517b4bdf5baccc",
+      "bytes": 954
+    }
+  }
+}

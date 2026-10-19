@@ -22,7 +22,9 @@ Gun Receiver now has its own timber-braced housing and icons; see
 [its asset record](ITEM_ART_EXPLOSIVES.md). Blueprint now has a folded cyanotype sheet and icons, while taught
 stacks keep their item-on-blue look; see [its asset record](ITEM_ART_BLUEPRINT.md). The Research Bench now has its own
 bench, gibs and icons inside its unchanged placement bounds; see [its asset record](ITEM_ART_RESEARCH_TABLE.md).
-Other replacements remain planned.
+The Wire Tool review replaced its primitive probe with a modelled one in the same frame and sockets, and re-rendered
+its icons; see [its asset record](ITEM_ART_WIRE_TOOL.md). All thirteen scoped entries now have their own assets;
+live in-game review of them remains.
 Artistic acceptance remains with the owner.
 [DESIGN.md](DESIGN.md), especially ART-01 and the ground UI requirement, remains authoritative.
 
@@ -69,7 +71,7 @@ remain subject to visual review.
 | 2 | `explosives` | Replaced: original model and rendered PNGs | Three grey-white compound blocks in printed and plain kraft bands tied with twine; distinct from sulphur and gunpowder. |
 | 2 | `blueprint` | Replaced: original model and rendered PNGs | A cyanotype sheet in three zig-zag panels with an original drawing, for generic views; the learned-item presentation below is kept. |
 | 2 | `research-table` | Replaced: original model, gibs and rendered PNGs | A dismantling bench: magnifier over a cutting mat, a device taken apart, vise, salvage tray, drafting board, sample drawers and bins. |
-| 3 | `wire-tool` | Own simple model; PNGs supplied during document preparation | Review the probe's silhouette, construction and new icons; improve and re-render only where needed. |
+| 3 | `wire-tool` | Reviewed and replaced: original model and rendered PNGs | A yellow probe with a lit screen, rubber grip, wire reel and lead; the held presentation's frame and sockets are kept. |
 
 Batch 1 is nine assets: the eight unfinished components plus salvage. Batch 2 covers
 three further borrowed identities. Wire Tool needs a model/icon review, rather than

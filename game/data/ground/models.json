@@ -2,7 +2,7 @@
   "source": "GROUND.md §9. Models built by the Blender scripts in art/ (kits converted by art/import, our own models by art/models). Poses: position in metres, rotation in degrees (Godot Euler YXZ).",
   "icons": { "path": "res://assets/items/icons/{size}/{key}.png", "sizes": [128, 256] },
   "models": [
-    {"key":"wire-tool","kind":"item","class":"tool","file":"res://assets/items/wire-tool.tscn","lods":1,"collision":"convex","icon":{},"held":{"firstPerson":{"position":[0.25,-0.26,-0.48],"rotation":[0,0,-15]},"thirdPerson":{"position":[0,0,0],"rotation":[0,0,0]}},"source":"Hollow original reusable primitive wiring probe"},
+    {"key":"wire-tool","kind":"item","class":"tool","file":"res://assets/items/wire-tool.glb","lods":3,"collision":"convex","icon":{"view":[-35,20,-30]},"held":{"firstPerson":{"position":[0.25,-0.26,-0.48],"rotation":[0,0,-15]},"thirdPerson":{"position":[0,0,0],"rotation":[0,0,0]}},"source":"Hollow original wiring probe with a wire reel (art/models/wire_tool.py); provenance: assets/items/wire-tool.provenance.json"},
     { "key": "wood", "kind": "item", "class": "resource", "file": "res://assets/items/wood.glb", "lods": 3, "collision": "convex",
       "icon": {}, "source": "Hollow (art/models/resources.py)" },
     { "key": "stone", "kind": "item", "class": "resource", "file": "res://assets/items/stone.glb", "lods": 3, "collision": "convex",

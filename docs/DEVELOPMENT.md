@@ -144,6 +144,14 @@ selected ground paths: no triangles, a non-finite vertex, an index out of range,
 0 errors; GroundMeshCheck 2/2 (a world given a NaN tile throws it and still disposes); Physics, Movement, Ship and
 Walking 136/136. The original native abort is still unexplained; KNOWN_PROBLEMS.md says how to capture a dump.
 
+## 19 October 2026 — Wire Tool reviewed: original model and rendered icons
+
+The review found the primitive probe (boxes and a cone, one LOD) too crude, so `art/models/wire_tool.py` replaces it:
+a yellow housing with a lit screen, rubber grip, wire reel and lead, in the old frame with `socket_grip_r` and
+`socket_wire_tip`, so the held presentation is unchanged. The old scene, its materials and `WireToolAssetBuilder` are
+removed. LODs 8,088 / 4,148 / 1,928 triangles. Build 0 warnings and 0 errors; ModelCatalogue 14/14, ContentTests 3/3,
+HeldPresentation 4/4, Wiring 9/9. Owner art acceptance is pending. See [ITEM_ART_WIRE_TOOL.md](ITEM_ART_WIRE_TOOL.md).
+
 ## 19 October 2026 — Research Bench original model, gibs and rendered icons
 
 A painted steel dismantling bench (magnifier over a cutting mat, a device taken apart, vise, salvage tray, drafting

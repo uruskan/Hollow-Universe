@@ -210,6 +210,24 @@ public static class ModelCatalogueTests
         return (min, max);
     }
 
+    [Test]
+    public static void WireToolHasItsOwnModelSocketsAndRenderedIcon()
+    {
+        string game = Path.Combine(Fixtures.Root, "game");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(game, "data", "ground", "models.json")));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "wire-tool");
+        Assert.Equal("res://assets/items/wire-tool.glb", item.GetProperty("file").GetString(), "wire tool model identity");
+        Assert.Equal(3, item.GetProperty("lods").GetInt32(), "wire tool levels of detail");
+        Assert.True(item.TryGetProperty("icon", out JsonElement icon) && !icon.TryGetProperty("key", out _), "wire tool must render its own icon");
+        // Its held presentation holds it by the grip and touches ports with the probe's point.
+        (List<string> nodes, _) = ReadGlb(Path.Combine(game, "assets", "items", "wire-tool.glb"));
+        using JsonDocument held = JsonDocument.Parse(File.ReadAllText(Path.Combine(game, "data", "ground", "held-presentations.json")));
+        string contact = held.RootElement.GetProperty("profiles").EnumerateArray()
+            .Single(p => p.GetProperty("item").GetString() == "wire-tool").GetProperty("contactSocket").GetString()!;
+        Assert.True(nodes.Contains("socket_grip_r") && nodes.Contains("socket_" + contact), $"wire tool needs socket_grip_r and socket_{contact}");
+    }
+
     // World objects the gathering rules place (gather.json) and the ship.
     private static readonly string[] RequiredWorld =
     {
