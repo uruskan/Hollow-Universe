@@ -411,7 +411,7 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
     // the talus below it over a band four times as wide. 0 below, 1 on top.
     private double Escarpment(double field, double level, double band)
     {
-        double cliff = DMath.SmoothStep(level - band * 0.3, level + band * 0.3, field);
+        double cliff = DMath.SmoothStep(level - band * _p.CliffBand, level + band * _p.CliffBand, field);
         double talus = DMath.SmoothStep(level - band * 4, level, field);
         return _p.CliffShare * cliff + (1 - _p.CliffShare) * talus;
     }

@@ -135,7 +135,7 @@ public static class EarthSurvey
         double steepCovered = Enumerable.Range(0, kinds.Length).Where(i => covered[i]).Sum(i => PixelArea(i / width));
         int[] walls = Enumerable.Range(0, kinds.Length).Where(i => water[i] == 0 && grades[i] >= WallGrade).ToArray();
         double allWalls = walls.Sum(i => PixelArea(i / width)), coveredWalls = walls.Where(i => covered[i]).Sum(i => PixelArea(i / width));
-        int placements = CountPlacements(world);
+        (int placements, int shelves) = CountPlacements(world);
 
         DrawMap(Path.Combine(folder, "earth-landforms.png"), kinds, covered, heights, seaLevel, width, height);
         var report = new
@@ -149,7 +149,7 @@ public static class EarthSurvey
             landSquareMetres = Math.Round(land), steepSquareMetres = Math.Round(steepArea),
             steepCoveredByCliffScans = Math.Round(steepCovered / Math.Max(1, steepArea), 3),
             wallSquareMetres = Math.Round(allWalls), wallCoveredByCliffScans = Math.Round(coveredWalls / Math.Max(1, allWalls), 3),
-            cliffPlacements = placements, recipes = RecipeCoverage(world), classes, regions = regionsByClass,
+            cliffPlacements = placements, cliffShelves = shelves, recipes = RecipeCoverage(world), classes, regions = regionsByClass,
             lakeBanks = LakeBanks(world, 3),
         };
         // The file holds only generated facts, so a rerun on the same generator reproduces it byte for byte.
@@ -680,7 +680,7 @@ public static class EarthSurvey
     /// </summary>
     private static List<object> RecipeCoverage(WalkingWorld world)
     {
-        var totals = new SortedDictionary<string, long[]>(StringComparer.Ordinal);
+        var totals = new SortedDictionary<string, double[]>(StringComparer.Ordinal);
         int level = world.Cliffs.Level;
         var reports = new IReadOnlyList<CliffFaceSample>[TileKey.CountAt(level)];
         Parallel.For(0, reports.Length, i => reports[i] = world.Cliffs.Report(TileKey.FromIndex(level, i)!.Value));
@@ -688,28 +688,32 @@ public static class EarthSurvey
             foreach (CliffFaceSample sample in report)
             {
                 string key = sample.Recipe ?? "(no face kept)";
-                if (!totals.TryGetValue(key, out long[]? t)) totals[key] = t = new long[6];
+                if (!totals.TryGetValue(key, out double[]? t)) totals[key] = t = new double[8];
                 t[0]++;
                 if (sample.Covered) t[1]++;
-                if (sample.Wall) { t[2]++; if (sample.Covered) t[3]++; }
+                if (sample.Wall) { t[2]++; if (sample.Covered) t[3]++; t[6] += sample.Rise; t[7] += sample.RiseCovered; }
                 if (sample.Intended) { t[4]++; if (sample.Covered) t[5]++; }
             }
         return totals.Select(p => (object)new
         {
-            recipe = p.Key, faceSamples = p.Value[0], covered = Math.Round((double)p.Value[1] / Math.Max(1, p.Value[0]), 3),
-            walls = p.Value[2], wallsCovered = Math.Round((double)p.Value[3] / Math.Max(1, p.Value[2]), 3),
-            intended = Math.Round((double)p.Value[4] / Math.Max(1, p.Value[0]), 3),
-            intendedCovered = Math.Round((double)p.Value[5] / Math.Max(1, p.Value[4]), 3),
+            recipe = p.Key, faceSamples = p.Value[0], covered = Math.Round(p.Value[1] / Math.Max(1, p.Value[0]), 3),
+            walls = p.Value[2], wallsCovered = Math.Round(p.Value[3] / Math.Max(1, p.Value[2]), 3),
+            intended = Math.Round(p.Value[4] / Math.Max(1, p.Value[0]), 3),
+            intendedCovered = Math.Round(p.Value[5] / Math.Max(1, p.Value[4]), 3),
+            // A wall's face from foot to crest through each wall sample, metres summed, and the share with rock in front.
+            wallRiseMetres = Math.Round(p.Value[6]), wallRiseCovered = Math.Round(p.Value[7] / Math.Max(1, p.Value[6]), 3),
         }).ToList();
     }
 
-    private static int CountPlacements(WalkingWorld world)
+    // Every placed scan, and the shelves among them (CliffPlacements.IsShelf): scans whose underside shows over a drop.
+    private static (int Placements, int Shelves) CountPlacements(WalkingWorld world)
     {
         var all = new HashSet<(TileKey, int)>();
+        int shelves = 0;
         for (long i = 0; i < TileKey.CountAt(world.Cliffs.Level); i++)
             foreach (CliffPlacement placement in world.Cliffs.FormationAt(TileKey.FromIndex(world.Cliffs.Level, i)!.Value))
-                all.Add(placement.Key);
-        return all.Count;
+                if (all.Add(placement.Key) && world.Cliffs.IsShelf(placement)) shelves++;
+        return (all.Count, shelves);
     }
 
     private static void DrawMap(string path, Landform[] kinds, bool[] covered, double[] heights, double seaLevel, int width, int height)

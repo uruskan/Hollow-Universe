@@ -20,10 +20,12 @@ public readonly record struct CliffPlacement(TileKey Tile, int Model, Vector3D P
 /// A surveyed face sample and what dresses it (T2): the ground, its grade, whether it is a wall, whether its face meant
 /// it to carry rock (walls always; gentler ground by the recipe's share), whether rock is drawn there (inside a placed
 /// scan's box, this cell's or a neighbour's) and the recipe of the face it belongs to (null when the cell dresses no
-/// face there). Intended samples left uncovered are reported, never hidden.
+/// face there). A wall also reports its rise from foot to crest through the sample and the metres of that rise with
+/// rock in front of them, since a wall's foot can be dressed while its face above stays bare. Intended samples left
+/// uncovered are reported, never hidden.
 /// </summary>
 public readonly record struct CliffFaceSample(Vector3D Ground, double Gradient, bool Wall, bool Intended, bool Covered,
-    string? Recipe);
+    string? Recipe, double Rise = 0, double RiseCovered = 0);
 
 /// <summary>
 /// The formation cache's retained entries, including empty results and pending Lazy values. Payload bytes count only
@@ -60,6 +62,8 @@ public sealed class CliffPlacements
     public const int SurveySide = 12;
     /// <summary>Grades over the survey's ten-metre baseline: a face (the old candidate rule), a wall, and the toe or crest where a face ends.</summary>
     public const double FaceGrade = 0.62, WallGrade = 2, EdgeGrade = 0.45;
+    /// <summary>A wall's section ends where a metre of it rises less than this: the wall's own face, not the slopes it stands in.</summary>
+    public const double WallEdge = 1;
     /// <summary>
     /// Per-world retention budget: at most this many entries, including empty formations and pending builds, and at
     /// most Capacity × MaximumParts completed placement elements. This bounds cache retention, not consumer jobs.
@@ -459,10 +463,105 @@ public sealed class CliffPlacements
             foreach (CliffPlacement cliff in Near(ground, 0))
                 if (Holds(cliff, ground, 1)) { covered = true; break; }
             CliffRecipe? recipe = recipes.TryGetValue(sample.Index, out CliffRecipe? found) ? found : null;
+            double rise = 0, riseCovered = 0;
+            if (sample.Gradient >= WallGrade)
+            {
+                WallSection section = Section(sample);
+                rise = section.Rise;
+                List<CliffPlacement> nearby = Near(ground, section.Rise);
+                // Every metre and a half up the face, a level sight line from 4 m out to just behind it: rock where
+                // it meets a scan's mesh before the ground.
+                for (double y = section.Foot + 0.75; y < section.Crest; y += 1.5)
+                {
+                    Vector3D from = section.At(y, _surface.Radius) + section.Downslope * 4;
+                    foreach (CliffPlacement cliff in nearby)
+                        if (Hits(cliff, from, -section.Downslope, 4.5)) { riseCovered += Math.Min(1.5, section.Crest - (y - 0.75)); break; }
+                }
+            }
             report.Add(new CliffFaceSample(ground, sample.Gradient, sample.Gradient >= WallGrade,
-                recipe != null && Intends(sample, recipe), covered, recipe?.Key));
+                recipe != null && Intends(sample, recipe), covered, recipe?.Key, rise, Math.Min(rise, riseCovered)));
         }
         return report;
+    }
+
+    /// <summary>
+    /// Whether the segment from a point along a unit direction for a length meets a placed scan's collision mesh (its
+    /// box first, then each triangle).
+    /// </summary>
+    public static bool Hits(CliffPlacement cliff, Vector3D from, Vector3D direction, double length)
+    {
+        CliffGeometry scan = CliffGeometry.All[cliff.Model];
+        double inverse = 1 / cliff.Scale;
+        Vector3D offset = from - cliff.Position;
+        // The scan's own frame, where the segment is o + d t for t in [0, length].
+        var o = new Vector3D(Vector3D.Dot(offset, cliff.Right), Vector3D.Dot(offset, cliff.Up), Vector3D.Dot(offset, cliff.Forward)) * inverse;
+        var d = new Vector3D(Vector3D.Dot(direction, cliff.Right), Vector3D.Dot(direction, cliff.Up), Vector3D.Dot(direction, cliff.Forward)) * inverse;
+        double near = 0, far = length;
+        if (!Slab(o.X, d.X, scan.BoundsMin.X, scan.BoundsMax.X, ref near, ref far) ||
+            !Slab(o.Y, d.Y, scan.BoundsMin.Y, scan.BoundsMax.Y, ref near, ref far) ||
+            !Slab(o.Z, d.Z, scan.BoundsMin.Z, scan.BoundsMax.Z, ref near, ref far)) return false;
+        Vector3D[] p = scan.Positions;
+        int[] index = scan.Indices;
+        for (int i = 0; i + 2 < index.Length; i += 3)
+        {
+            Vector3D a = p[index[i]], e1 = p[index[i + 1]] - a, e2 = p[index[i + 2]] - a;
+            Vector3D q = Vector3D.Cross(d, e2);
+            double det = Vector3D.Dot(e1, q);
+            if (Math.Abs(det) < 1e-12) continue;
+            double f = 1 / det;
+            Vector3D s = o - a;
+            double u = Vector3D.Dot(s, q) * f;
+            if (u < 0 || u > 1) continue;
+            Vector3D r = Vector3D.Cross(s, e1);
+            double v = Vector3D.Dot(d, r) * f;
+            if (v < 0 || u + v > 1) continue;
+            double t = Vector3D.Dot(e2, r) * f;
+            if (t >= 0 && t <= length) return true;
+        }
+        return false;
+
+        static bool Slab(double origin, double step, double min, double max, ref double near, ref double far)
+        {
+            if (Math.Abs(step) < 1e-12) return origin >= min && origin <= max;
+            double t0 = (min - origin) / step, t1 = (max - origin) / step;
+            if (t0 > t1) (t0, t1) = (t1, t0);
+            near = Math.Max(near, t0);
+            far = Math.Min(far, t1);
+            return near <= far;
+        }
+    }
+
+    /// <summary>
+    /// Whether a placed scan is a shelf (T2's survey): a third of its lowest fit points both more than 2.5 m over the
+    /// ground (or a metre below the water) under them and standing more than 2.25 m out of the ground behind them, so its
+    /// underside shows over a drop. A foot a metre or two out of a steep slope is an ordinary outcrop.
+    /// </summary>
+    public bool IsShelf(CliffPlacement piece)
+    {
+        CliffGeometry geometry = CliffGeometry.All[piece.Model];
+        int low = 0, hanging = 0;
+        foreach (Vector3D local in FitPoints.Value[piece.Model])
+        {
+            if (local.Y >= geometry.Height * 0.18) continue;
+            low++;
+            Vector3D point = piece.Transform(local), direction = point.Normalized;
+            double ground = Math.Max(_surface.HeightAt(direction), _surface.WaterLevelAt(direction) - 1);
+            if (point.Length - _surface.Radius - ground > 2.5 && Standoff(point, piece.Downslope) > 2.25) hanging++;
+        }
+        return low > 0 && hanging * 3 > low;
+    }
+
+    // How far a point in the air stands out of the ground behind it: back along a level line into the slope, in
+    // three-quarter metres up to six, to where the ground rises above it.
+    private double Standoff(Vector3D point, Vector3D downslope)
+    {
+        Vector3D level = (downslope - point.Normalized * Vector3D.Dot(downslope, point.Normalized)).Normalized;
+        for (int step = 1; step <= 8; step++)
+        {
+            Vector3D behind = point - level * (0.75 * step);
+            if (_surface.HeightAt(behind.Normalized) >= behind.Length - _surface.Radius) return 0.75 * step;
+        }
+        return 6.75;
     }
 
     /// <summary>Whether a point lies inside a placed scan's collision box grown by <paramref name="margin"/> metres.</summary>
@@ -620,6 +719,54 @@ public sealed class CliffPlacements
         forward = -(east * x + south * z).Normalized;
         right = Vector3D.Cross(up, forward).Normalized;
         return true;
+    }
+
+    /// <summary>
+    /// A wall's section through a face sample, along its downslope a metre at a time: the heights from the crest to the
+    /// foot of the steep face that made the sample a wall (each metre rising at least <see cref="WallEdge"/>), in order
+    /// downhill. A sample with no such metre within its baseline has a section of one point, and no rise.
+    /// </summary>
+    private readonly record struct WallSection(Vector3D Origin, Vector3D Downslope, double[] Along, double[] Heights)
+    {
+        public double Crest => Heights[0];
+        public double Foot => Heights[^1];
+        public double Rise => Crest - Foot;
+
+        /// <summary>The face at a height between foot and crest: where the section first falls to it.</summary>
+        public Vector3D At(double height, double radius)
+        {
+            double along = Along[^1];
+            for (int i = 0; i + 1 < Heights.Length; i++)
+                if (Heights[i + 1] <= height)
+                {
+                    double span = Heights[i] - Heights[i + 1];
+                    along = span > 1e-9 ? Along[i] + (Along[i + 1] - Along[i]) * Math.Clamp((Heights[i] - height) / span, 0, 1) : Along[i];
+                    break;
+                }
+            return (Origin + Downslope * along).Normalized * (radius + height);
+        }
+    }
+
+    private WallSection Section(FaceSample sample)
+    {
+        // The ground along the sample's downslope a metre apart, 30 m each way; the wall is the steepest metre within the
+        // survey's five-metre half-baseline, grown both ways while each metre still rises WallEdge.
+        const int Reach = 30;
+        Vector3D origin = sample.Up * (_surface.Radius + _surface.HeightAt(sample.Up));
+        var heights = new double[2 * Reach + 1];
+        for (int i = 0; i < heights.Length; i++)
+            heights[i] = _surface.HeightAt((origin + sample.Forward * (i - Reach)).Normalized);
+        int steepest = Reach - 5;
+        for (int i = Reach - 5; i < Reach + 5; i++)
+            if (heights[i] - heights[i + 1] > heights[steepest] - heights[steepest + 1]) steepest = i;
+        int first = steepest, last = steepest + 1;
+        while (first > 0 && heights[first - 1] - heights[first] >= WallEdge) first--;
+        while (last < heights.Length - 1 && heights[last] - heights[last + 1] >= WallEdge) last++;
+        if (heights[steepest] - heights[steepest + 1] < WallEdge) first = last = steepest;
+        var along = new double[last - first + 1];
+        var section = new double[along.Length];
+        for (int i = first; i <= last; i++) (along[i - first], section[i - first]) = (i - Reach, heights[i]);
+        return new WallSection(origin, sample.Forward, along, section);
     }
 
     public List<CliffPlacement> Near(Vector3D position, double reach)

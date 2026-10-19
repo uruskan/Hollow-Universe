@@ -1,5 +1,42 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — T2: Earth's walls measured, and four ways that do not dress them
+
+The far layer's captures showed tall walls dressed only at their foot. The survey now measures that, on the
+generator's own record (`CliffPlacements.Report`):
+
+- **A wall's rise**: through each wall sample, the steep face that made it a wall (the steepest metre within the
+  survey's baseline, grown while each metre rises at least one), from foot to crest; **covered** where a level sight
+  line from 4 m out meets a scan's collision mesh before the ground (`CliffPlacements.Hits`), every 1.5 m up the
+  face. A scan's box holds much air, so the box test overstated walls' cover.
+- **Shelves**: scans whose foot hangs, a third of their lowest points more than 2.5 m over the ground and 2.25 m out
+  of the ground behind them (`CliffPlacements.IsShelf`).
+
+Earth today (generation 5): 46.2% of 180 km of summed wall rise has rock in front of it (coastal 36.4%, inland
+56.6%, mountain 35.1%, plateau 57.3%); 1,642 of the 6,742 scans are shelves. Walls are tall (about 40 m of steep
+face through a wall sample) and curve in plan: at the mountain site the escarpment rises 22 m in 4 m and bends
+across a scan's 26 m width.
+
+Tried, each measured over the whole Earth, and dropped:
+
+| Change | Wall rise covered | Scans, shelves | Why not |
+| --- | --- | --- | --- |
+| Generation 5 | 46.2% | 6,742, 1,642 | |
+| Tiers stacked up a wall from its foot, set into the face at their own height (near-vertical steps only, slope columns elsewhere) | 22–44% | | a straight section cannot set a 26 m piece against a curving wall: most tiers were buried at one end |
+| The fit measures a point's stand-out level, back into the face, rather than over the ground below | 51% | 7,818, 3,800 | the gain is shelves |
+| A column's lowest tiers removed while they hang | 32% | 6,145 | on tall walls most rock is such tiers |
+| The escarpment's cliff band four times wider (`CliffBand` 1.2, the proposed shape change) | 47.9% | 7,205, 1,537 | walls only −5.5%: they also stand on mountain flanks, canyons, mesas and coasts |
+
+`CliffBand` stays as a look-dev parameter of the walking ground (default 0.3, unchanged; `HOLLOW_WALKING=
+"CliffBand=1.2"`). Rigid scans placed on the heightfield cannot dress these walls. A conforming rock surface (an
+original piece following a wall's face in the scans' materials, which the plan allows) or T3's triplanar rock for
+steep ground would; the owner chooses which comes first.
+
+Validation: Hollow.GeneratorReport builds with 0 errors; the cliff, geology, save identity, walking, architecture
+and golden tests 84 of 84 (two new: a wall's rise on a 30 m step, sight lines and shelves on an even slope).
+Generated output is unchanged (the new code measures; `CliffBand`'s default is the old constant), so no revision
+changes; the full suite was not rerun.
+
 ## 19 October 2026 — The meadow's floor: a green grass-ground scan under the tufts
 
 The floor under lush grass had been the Wet Grass Ground scan lifted ×2.0, ×2.7, ×1.6, which read green-olive,

@@ -80,12 +80,50 @@ public static class CliffFormationTests
                 if (sample.Covered) covered++;
                 if (sample.Wall) { walls++; if (sample.Covered) wallsCovered++; }
                 Assert.Equal("mountain-face", sample.Recipe, "a surface without relief fields takes the mountain recipe");
+                Assert.Equal(0.0, sample.Rise, "a 10 m step is no wall over the survey's 10 m baseline, and only walls report a rise");
             }
         }
         double share = steep == 0 ? 0 : (double)covered / steep;
         Fixtures.Report($"escarpment: {steep} face samples, {share:P0} inside a scan; {walls} walls, {wallsCovered} covered; {members} members over 8 seeds");
         Assert.True(steep >= 8 * 12, "the survey finds the escarpment all along the cell, not at one random point");
         Assert.True(share >= 0.7, $"most of the escarpment carries rock ({share:P0}); the old single candidate dressed under a fifth of such cells");
+    }
+
+    [Test]
+    public static void CliffWallsReportTheRiseOfTheirFace()
+    {
+        TileKey tile = TileKey.At(Vector3D.UnitX, new CliffPlacements(new SlopingSurface(0), 1).Level);
+        Vector3D centre = tile.Centre;
+        var surface = new EscarpmentSurface(centre.Z / centre.X, rise: 30);
+        int walls = 0;
+        double rise = 0, covered = 0;
+        foreach (CliffFaceSample sample in new CliffPlacements(surface, 5).Report(tile))
+        {
+            if (!sample.Wall) { Assert.Equal(0.0, sample.Rise, "only walls report a rise"); continue; }
+            walls++;
+            Assert.True(sample.Rise is >= 24 and <= 30.5, $"a wall reports its face's rise, the step's 30 m less its eased ends ({sample.Rise:F1})");
+            Assert.True(sample.RiseCovered >= 0 && sample.RiseCovered <= sample.Rise, "rock covers at most the whole face");
+            rise += sample.Rise;
+            covered += sample.RiseCovered;
+        }
+        Fixtures.Report($"30 m step: {walls} wall samples, {covered / Math.Max(1, rise):P0} of their rise with rock in front");
+        Assert.True(walls >= 12, "a 30 m step in three metres is a wall all along the cell");
+    }
+
+    [Test]
+    public static void CliffFormationSightLinesMeetTheScanMesh()
+    {
+        var surface = new SlopingSurface(1.1);
+        var placements = new CliffPlacements(surface, 3);
+        CliffPlacement piece = placements.FormationAt(TileKey.At(Vector3D.UnitX, placements.Level))[0];
+        CliffGeometry scan = CliffGeometry.All[piece.Model];
+        Vector3D middle = piece.Transform((scan.BoundsMin + scan.BoundsMax) * 0.5);
+        Vector3D outward = piece.Downslope;
+        Assert.True(CliffPlacements.Hits(piece, middle + outward * 30, -outward, 60), "a sight line through the scan's middle meets its mesh");
+        Assert.True(!CliffPlacements.Hits(piece, middle + outward * 30, -outward, 5), "a sight line stopping short of it does not");
+        Assert.True(!CliffPlacements.Hits(piece, middle + piece.Up * 60 + outward * 30, -outward, 60), "nor one passing far above it");
+        int shelves = placements.FormationAt(TileKey.At(Vector3D.UnitX, placements.Level)).Count(placements.IsShelf);
+        Assert.Equal(0, shelves, "on an even slope no piece hangs over a drop");
     }
 
     [Test]
@@ -182,9 +220,10 @@ public static class CliffFormationTests
 
     // A straight step along the face's v axis at a chosen tangent: base height below, base plus rise above, the rise
     // over a three-metre band (as WalkingWorld.Tableland's cliff share makes it).
-    private sealed class EscarpmentSurface(double stepTangent) : ISurface
+    private sealed class EscarpmentSurface(double stepTangent, double rise = 10) : ISurface
     {
-        private const double BaseHeight = 300, Rise = 10, Band = 3;
+        private const double BaseHeight = 300, Band = 3;
+        private readonly double Rise = rise;
         public double Radius => 1200;
         public double SeaRadius => 0;
         public double HeightAt(Vector3D direction)

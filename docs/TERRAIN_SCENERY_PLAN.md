@@ -217,6 +217,18 @@ ground) show the next gap: tall walls are dressed only at their foot. The mounta
 4 m, and the fit measures how far a piece stands out radially, so a tier near the crest, whose front hangs over the
 drop, is pushed down to the foot; on the coastal scarp a slab hangs alone on the wall.
 
+Walls measured, same day. The survey now follows each wall's face from foot to crest and finds how much of it has
+rock in front of it (a level sight line meeting a scan's mesh): 46.2% on Earth (coastal 36%, mountain 35%, plateau
+57%; [LANDFORM_SURVEY.md](LANDFORM_SURVEY.md)). It also counts shelves, scans whose foot hangs over a drop: 1,642 of
+6,742. Earth's walls are tall (a wall sample's steep face rises about 40 m) and curve in plan. Four ways to dress
+them were measured and none is kept: tiers stacked up the face from its foot (22–44% of the rise: a straight
+section cannot set a 26 m piece against a curving wall); measuring a piece's stand-out level in the fit (51%, but
+shelves more than double, to 3,800 of 7,818); dropping a column's hanging lowest tiers (32%: on tall walls most
+rock is such tiers); and the proposed escarpment widening (47.9%, walls −5.5%). Rigid scans placed on the
+heightfield cannot dress these walls. Two ways can: a conforming rock surface, an original piece the plan allows
+(a mesh following a wall's face in the scans' materials), or T3's triplanar rock for steep ground so a bare face
+reads as rock at every distance. Which comes first is the owner's choice.
+
 ### T3 — Make rock, soil and vegetation share environmental data
 
 Extend the existing cover/material system with formation influence: exposed bedrock, debris,

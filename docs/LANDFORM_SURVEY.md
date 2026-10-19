@@ -16,7 +16,8 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth cliffs-ben
 ```
 
 - `survey` rasterises the globe (1,440 × 720 by default, 5.24 m a pixel at the equator) and writes
-  `docs/images/t1-survey/earth-landforms.png` and `.json`. Two runs give identical files. It takes 5 s.
+  `docs/images/t1-survey/earth-landforms.png` and `.json`. Two runs give identical files. It takes 5 s; since T2,
+  with each recipe's face samples, its walls' rise and the shelves among the scans, about 50 s.
 - `transect` prints the ground along a bearing: height, the relief before carving, water, rise per metre, the
   four relief weights and the scans whose box holds the point.
 - `wall` draws the ground round a point from above as the generator makes it and as the terrain's render grid
@@ -41,6 +42,12 @@ Land is classified by grade (the route planner's central differences, two metres
 A **wall** is ground steeper than 2 (63°). **Covered** means the ground point lies inside a placed scan's
 bounding box, with a metre's margin: rock is drawn there. An earlier draft counted any scan within 48 m (the
 cliff query's reach includes its 40 m maximum extent) and reported 65.5%; that overstated coverage threefold.
+
+Two T2 measures look up a wall rather than at its ground point, since a scan's box holds much air. A wall's
+**rise** is its face through a wall sample, from foot to crest, every metre of it rising at least one; the rise
+is **covered** where a level sight line from 4 m out meets a scan's mesh before the ground, tested every metre and
+a half up the face. A **shelf** is a scan whose foot hangs: a third of its lowest points more than 2.5 m over the
+ground beneath them and more than 2.25 m out of the ground behind them, so its underside shows over a drop.
 
 ## Results
 
@@ -151,7 +158,10 @@ beyond about 94 m scallops. Two remedies, for T2 to compare; neither is applied:
   far geometry beyond the scans' 340 m range; these walls need it from about 94 m).
 - A deliberate, versioned shape change: widen the escarpment's cliff band so the heightfield face stays below
   about grade 2 and every level draws it smoothly, with the scans standing proud as the vertical rock. It
-  changes heights, so it needs a save revision and the owner's approval.
+  changes heights, so it needs a save revision and the owner's approval. Measured in T2 with the look-dev
+  parameter `CliffBand` (default 0.3, unchanged): four times wider, Earth's wall area falls only 5.5% and the walls'
+  rise with rock in front rises from 46.2% to 47.9%, because walls also stand on mountain flanks, canyon sides, mesa
+  edges and coasts. Not sufficient alone.
 
 ## Problems seen, and the targets that address them
 

@@ -130,6 +130,13 @@ public sealed record WalkingParameters
     /// <summary>How much of an escarpment is cliff (the rest is the talus below it).</summary>
     public double CliffShare { get; init; } = 0.75;
 
+    /// <summary>
+    /// The width of an escarpment's cliff across its field's band, either side of its level (the talus spans four
+    /// bands). At 0.3 a tableland's cliff rises tens of metres within a few, a wall the heightfield draws as a scalloped
+    /// sheet; wider keeps it a steep slope the cliff scans can dress (LANDFORM_SURVEY.md, the proposed shape change).
+    /// </summary>
+    public double CliffBand { get; init; } = 0.3;
+
     /// <summary>Mountains: the highest peaks' height and the ridges' wavelength.</summary>
     public double MountainHeight { get; init; } = 400;
 
