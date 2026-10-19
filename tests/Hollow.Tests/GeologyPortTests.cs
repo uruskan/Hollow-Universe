@@ -90,6 +90,59 @@ public static class GeologyPortTests
     }
 
     [Test]
+    public static void CliffFormationsStreamAcrossCubeFaceSeams()
+    {
+        // T2's gate: stable IDs and collision across seams. Every piece of a cell on a face's edge is found, once, by a
+        // neighbour query from the other face, and the collision tile there carries its exact transform.
+        var (system, earth) = StartingWorld.Find();
+        WalkingWorld world = WalkingWorld.For(system, earth, 1200);
+        CliffPlacements cliffs = world.Cliffs;
+        int side = 1 << cliffs.Level, cells = 0, crossings = 0, collided = 0;
+        int collisionLevel = TileKey.LevelFor(world.Radius, 64);
+        for (long i = 0; i < TileKey.CountAt(cliffs.Level); i++)
+        {
+            TileKey tile = TileKey.FromIndex(cliffs.Level, i)!.Value;
+            if (tile.X != 0 && tile.Y != 0 && tile.X != side - 1 && tile.Y != side - 1) continue;
+            IReadOnlyList<CliffPlacement> formation = cliffs.FormationAt(tile);
+            if (formation.Count == 0) continue;
+            cells++;
+            foreach (CliffPlacement piece in formation)
+            {
+                Vector3D east = Vector3D.Cross(Vector3D.UnitY, piece.Up);
+                east = east.LengthSquared > 1e-16 ? east.Normalized : Vector3D.UnitZ;
+                Vector3D north = Vector3D.Cross(piece.Up, east);
+                for (int bearing = 0; bearing < 8; bearing++)
+                {
+                    double angle = bearing * Math.PI / 4;
+                    Vector3D across = (piece.Position + (east * Math.Cos(angle) + north * Math.Sin(angle)) * 50).Normalized;
+                    if (TileKey.At(across, cliffs.Level).Face == tile.Face) continue;
+                    Vector3D probe = across * (world.Radius + world.HeightAt(across));
+                    List<CliffPlacement> found = cliffs.Near(probe, Vector3D.Distance(probe, piece.Position) + 1);
+                    Assert.Equal(1, found.Count(p => p.Key == piece.Key), "a piece is found once from across its face's seam");
+                    Assert.True(found.Contains(piece), "with the transform its own cell gave it");
+                    Assert.Equal(found.Count, found.Select(p => p.Key).Distinct().Count(), "no piece is listed twice at a seam");
+                    crossings++;
+                    TileKey collisionTile = TileKey.At(probe, collisionLevel);
+                    if (collisionTile.Face == tile.Face || collided >= 24) continue;
+                    double reach = TileKey.EdgeLength(collisionLevel, world.Radius) * 0.95 + 2;
+                    Vector3D centre = collisionTile.Centre * (world.Radius + world.HeightAt(collisionTile.Centre));
+                    if (Vector3D.Distance(centre, piece.Position) > reach) continue;
+                    TriangleMesh collision = cliffs.Collision(ZoneFrame.World, collisionTile, 2);
+                    var expected = ZoneFrame.World.ToLocal(piece.Transform(CliffGeometry.All[piece.Model].Positions[0]));
+                    bool present = false;
+                    for (int k = 0; k + 2 < collision.Positions.Length && !present; k += 3)
+                        present = collision.Positions[k] == expected.X && collision.Positions[k + 1] == expected.Y &&
+                            collision.Positions[k + 2] == expected.Z;
+                    Assert.True(present, "a collision tile on the other face carries the piece's exact transform");
+                    collided++;
+                }
+            }
+        }
+        Fixtures.Report($"{cells} seam cells with formations, {crossings} neighbour queries across a seam, {collided} collision tiles");
+        Assert.True(cells >= 5 && crossings >= 20 && collided >= 5, "Earth has formations on its cube's seams to check");
+    }
+
+    [Test]
     public static void CliffChainsHaveDistinctStablePartsAndStreamAcrossCellEdges()
     {
         var (system, earth) = StartingWorld.Find();

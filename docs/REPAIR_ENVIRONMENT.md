@@ -66,7 +66,8 @@ so server, client prediction and Godot's cosmetic collision can share placement 
 steep slopes and embedding each formation into them. Existing terrain heights, harvestable IDs and loot IDs are
 unchanged. `WalkingWorld.GroundCollision` adds the shared scan colliders to the terrain tiles; client prediction,
 server movement and cosmetic ragdolls all reach this same interface. `CliffField` streams the matching models
-within 340 m, switches detail at 95 m and instantiates at most two formations per frame. An integration check scans
+within 340 m, switches detail at 95 m and instantiates at most two formations per frame; since T2 its far layer draws
+every other formation of the world, batched by model and chunk (TERRAIN_SCENERY_PLAN.md). An integration check scans
 the whole Earth, compares independent placements, verifies radial bases/bounds and asserts that the authoritative
 collision API includes the scans. The coordinated build and focused integration test passed, finding 80 formations
 and confirming shared collision. The live cliff capture and its remaining art limitations are recorded below.

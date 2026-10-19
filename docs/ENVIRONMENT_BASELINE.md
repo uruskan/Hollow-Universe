@@ -114,3 +114,11 @@ it takes 542 ms (58,092 triangles), against tens of milliseconds before T2. Work
 player, and arrivals and respawns wait behind the loading screen, but `PhysicsWorld.EnsureTile` builds a tile still
 missing on the calling thread, the server's tick: a ship outrunning the prefetch over mountains could stall it.
 T5 bounds this: fewer, cheaper fit trials, or cells warmed on workers before any tile needs them.
+
+The far layer (T2) draws every formation beyond the near layer's pieces. From 300 m above the mountain site at High,
+its worst kind of view, hiding it saves 0.4 ms of GPU time (11.06 against 10.66 ms with the near layer alone), about
+0.4 million primitives and 140 draw calls; casting shadows it would cost about 2.3 ms more, so it casts none (a
+piece's shadow is the near layer's, out to 340 m). On the ground there the difference is inside the runs' noise
+(±1 ms; the dense grass makes that view 29 ms), and the layer's own work on the main thread is about 20 µs a
+frame. Its sweep built every cell in 12.6 s of a hosted start, on two low-priority threads (6,742 pieces in 105
+chunks); a capture was ready 0.3–1.3 s later than without it, while the cells within 680 m are built.

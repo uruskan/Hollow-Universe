@@ -48,6 +48,20 @@ public static class CliffFormationTests
     }
 
     [Test]
+    public static void CliffFormationSweepBuildsTheCachedFormationWithoutTheCache()
+    {
+        var surface = new SlopingSurface(1.1);
+        var placements = new CliffPlacements(surface, 7);
+        TileKey tile = TileKey.At(Vector3D.UnitX, placements.Level);
+        CliffPlacement[] swept = placements.Generate(tile);
+        Assert.Equal(0, placements.CacheDiagnostics.Entries, "the far layer's sweep keeps its own results, never the shared cache's");
+        Assert.True(swept.Length > 0, "the slope is dressed");
+        Assert.True(swept.SequenceEqual(placements.FormationAt(tile)), "the sweep builds exactly the formation collision and the near layer read");
+        Assert.Equal(0, placements.Generate(tile.Parent).Length, "only cells of the formation level hold formations");
+        Assert.True(ReferenceEquals(surface, placements.Surface), "the far layer finds the ground its formations stand on");
+    }
+
+    [Test]
     public static void CliffFormationsDressANarrowEscarpmentAlongItsLength()
     {
         // A tableland edge as the walking world makes it: 10 m of rise in 3 m, straight through the cell.

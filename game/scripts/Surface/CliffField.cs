@@ -19,6 +19,10 @@ public sealed partial class CliffField : Node3D
         public readonly string NearPath = path + "_lod0.gltf", FarPath = path + "_lod1.gltf";
         public PackedScene? Near, Far;
         public bool Requested, Failed, Measured;
+        /// <summary>The far layer's mesh: LOD1 with a generated LOD chain, and its node's transform in the scene.</summary>
+        public ArrayMesh? FarMesh;
+        public Transform3D FarLocal = Transform3D.Identity;
+        public bool FarFailed;
         public Aabb Bounds;
         public int NearTriangles, FarTriangles;
         public bool Ready => Near != null && Far != null;
@@ -41,7 +45,7 @@ public sealed partial class CliffField : Node3D
     private bool _queried, _stopped;
     public Task WorkersStopped { get; private set; } = Task.CompletedTask;
     public string? Failure { get; private set; }
-    public bool IsIdle => _queried && !_stopped && Failure == null && _job == null && _pending.Count == 0;
+    public bool IsIdle => _queried && !_stopped && Failure == null && _job == null && _pending.Count == 0 && FarIdle;
     public int Count => _instances.Count;
     public int PendingCount => _pending.Count;
     public int NearCount { get; private set; }
@@ -63,6 +67,7 @@ public sealed partial class CliffField : Node3D
         _lastOrigin = frame.Origin;
         foreach (CliffGeometry model in CliffGeometry.All)
             _models.Add(new Model("res://assets/surface/cliffs/" + model.Key));
+        SetupFar();
     }
 
     public void Follow(Vector3D camera)
@@ -111,6 +116,7 @@ public sealed partial class CliffField : Node3D
         foreach (Model model in _models)
             if (model.Requested && !model.Ready && !model.Failed) PollModel(model);
         if (Failure == null) StreamPending(camera);
+        if (Failure == null) FollowFar(camera, moved, rebased);
         LastFollowMicroseconds = Time.GetTicksUsec() - began;
     }
 
@@ -124,6 +130,7 @@ public sealed partial class CliffField : Node3D
             SelectedLodTriangles -= instance.NearActive ? instance.Model.NearTriangles : instance.Model.FarTriangles;
             instance.Root.QueueFree();
             _instances.Remove(key);
+            FarTouched(instance.Placement);
         }
         _pending.Clear();
         // Start all needed families together, prioritizing nearby parts without changing collision order.
@@ -171,6 +178,7 @@ public sealed partial class CliffField : Node3D
                 far.Visible = !instance.NearActive;
                 AddChild(root);
                 _instances.Add(cliff.Key, instance);
+                FarTouched(cliff);
                 installed = true;
                 if (instance.NearActive) NearCount++;
                 SelectedLodTriangles += instance.NearActive ? model.NearTriangles : model.FarTriangles;
@@ -272,13 +280,16 @@ public sealed partial class CliffField : Node3D
         _stopped = true;
         Visible = false;
         _pending.Clear();
+        var workers = new List<Task>();
         if (_job is { } job)
         {
-            WorkersStopped = job;
+            workers.Add(job);
             // Observe worker faults after teardown without touching Godot from a worker.
             _ = job.ContinueWith(failed => { _ = failed.Exception; }, TaskContinuationOptions.OnlyOnFaulted);
             _job = null;
         }
+        StopFar(workers);
+        WorkersStopped = workers.Count == 0 ? Task.CompletedTask : Task.WhenAll(workers);
         _source = null!;
         _frame = null!;
     }

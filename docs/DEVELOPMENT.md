@@ -1,5 +1,39 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — T2: the cliffs' far layer, and the cube's seams
+
+Scanned cliffs ended at the near layer's 340 m reach: flying, or from high ground, the escarpments beyond showed only
+the heightfield's bare red walls (`far-off-*` in `docs/images/t2-formations/`, from 300 m up). `CliffField`'s far
+layer (`CliffField.Far.cs`) draws every formation the near layer has not installed (`far-on-*`):
+
+- The world's 6,144 cells are built once, nearest the camera first, on two low-priority threads and outside the
+  shared formation cache: `CliffPlacements.Generate` builds exactly what `FormationAt` caches (a test holds them
+  equal and the cache untouched), so the sweep never evicts the cells collision and the near layer read.
+- Each 236 m chunk of the cube sphere holds one MultiMesh per scan. A scan's far mesh is its LOD1 with the LOD chain
+  Godot generates when it loads (`ImporterMesh.GenerateLods`); Godot gives a MultiMesh one LOD, from its box, so a
+  chunk's screen size picks its detail. Chunks wholly behind the planet's horizon (the sea, or the lowest ground)
+  are hidden.
+- A piece is drawn by exactly one layer: its chunk rebuilds in the frame the near layer installs or frees it.
+- The field reports idle once every cell within 680 m is built, so loading never waits for the whole world; a
+  capture was ready 0.3–1.3 s later than without the layer.
+- It casts no shadows. From 300 m above the mountain site at High it costs about 0.4 ms of GPU time and 0.4 M
+  primitives; its shadow passes would cost 2.3 ms more. On the ground the difference is inside the runs' noise.
+- `--no-far-cliffs` turns it off for comparisons; the performance breakdown hides it alone (`CliffsFar`) and measures
+  it casting shadows.
+
+The T2 gate's stable IDs and collision across seams have a test on Earth (`CliffFormationsStreamAcrossCubeFaceSeams`):
+63 cells on a cube face's edge hold formations; every piece is found once, with its own transform, by neighbour
+queries from the other face, and collision tiles there carry its exact vertices.
+
+The captures at the five T1 sites (`after-*`, now on the terrain session's new ground) show the next gap: tall walls
+are dressed only at their foot. At the mountain site the escarpment rises 22 m in 4 m (`earth transect 18.121935
+-168.553855 123.5`); `Fit` measures how far a piece stands out radially, so a tier near the crest, whose front hangs
+over the drop, is pushed down to the foot. On the coastal scarp a slab hangs alone on the wall.
+
+Validation: solution 0 warnings, 0 errors; the cliff formation, geology, save identity, route and architecture
+tests 36 of 36 (the full suite was not rerun: `CliffPlacements` gains a method and a property and generates nothing
+new, so no revision changes); the hosted captures and breakdowns above.
+
 ## 19 October 2026 — The ground: no more tiles under the grass, the meadow's floor, and 34 scans in the arrays
 
 The owner's captures showed the meadow as a quilt of half-metre squares of grass and bare mud, mud under every

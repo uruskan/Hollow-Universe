@@ -67,15 +67,37 @@ public sealed partial class EnvironmentRoute
             return;
         }
 
-        foreach (string name in new[] { "Vegetation", "Grass", "Cliffs", "Monuments" })
+        // CliffsFar: the cliffs' far layer alone (T2), every formation beyond the pieces the near layer installed.
+        foreach ((string name, string path) in new[] { ("Vegetation", "Vegetation"), ("Grass", "Grass"), ("Cliffs", "Cliffs"),
+                     ("CliffsFar", "Cliffs/Far"), ("Monuments", "Monuments") })
         {
-            Node3D? layer = world.GetNodeOrNull<Node3D>(name);
+            Node3D? layer = world.GetNodeOrNull<Node3D>(path);
             if (layer == null || !layer.Visible)
             {
                 GD.Print($"[environment-performance] skipped {name}: absent or already hidden");
                 continue;
             }
             await MeasureHiddenLayer(name, new[] { layer });
+        }
+
+        // The far layer casting shadows, which it does not: what they would cost.
+        if (world.GetNodeOrNull<CliffField>("Cliffs") is { FarShadows: false } cliffs && cliffs.Visible)
+        {
+            try
+            {
+                cliffs.FarShadows = true;
+                await SettlePerformance();
+                await SamplePerformance("diagnostic-with-CliffsFar-shadows", null);
+            }
+            finally
+            {
+                if (GodotObject.IsInstanceValid(cliffs)) cliffs.FarShadows = false;
+                if (!_stopping)
+                {
+                    await SettlePerformance();
+                    await WaitUntilReady("performance-restored-CliffsFar-shadows", 12);
+                }
+            }
         }
 
         // T0.4: the three ground-cover workloads, each removed alone through the field's diagnostic mask, so their

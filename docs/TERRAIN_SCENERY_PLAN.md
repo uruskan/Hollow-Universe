@@ -206,6 +206,17 @@ are still to be taken. Its generation cost needs T5: the heaviest cell builds in
 tile over it in 542 ms, which `PhysicsWorld.EnsureTile` can pay on the server's tick when prefetch falls behind
 (ENVIRONMENT_BASELINE.md).
 
+The far layer, same day: `CliffField` now draws every formation beyond the pieces its near layer has installed, one
+MultiMesh per scan in each 236 m chunk of the cube sphere, with the LOD chain Godot generates for each scan and the
+chunks behind the planet's horizon hidden, so silhouettes no longer drop out at 340 m, walking or flying
+([before](images/t2-formations/far-off-mountain-300.jpg) and [after](images/t2-formations/far-on-mountain-300.jpg)
+from 300 m up). The whole world's cells are built once after start on two low-priority threads, nearest first. From
+300 m up it costs about 0.4 ms of GPU time at High; it casts no shadows, which would cost 2.3 ms more. A test holds
+stable IDs and collision across the cube's seams. The new captures ([after](images/t2-formations/), with the new
+ground) show the next gap: tall walls are dressed only at their foot. The mountain site's escarpment rises 22 m in
+4 m, and the fit measures how far a piece stands out radially, so a tier near the crest, whose front hangs over the
+drop, is pushed down to the foot; on the coastal scarp a slab hangs alone on the wall.
+
 ### T3 — Make rock, soil and vegetation share environmental data
 
 Extend the existing cover/material system with formation influence: exposed bedrock, debris,

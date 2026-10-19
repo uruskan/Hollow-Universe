@@ -42,7 +42,9 @@ public sealed partial class GrassField
 
 public sealed partial class CliffField
 {
-    public string StreamingStatus => $"idle={IsIdle} job={_job?.Status.ToString() ?? "none"} pending={_pending.Count} drawn={_instances.Count}";
+    public string StreamingStatus => $"idle={IsIdle} job={_job?.Status.ToString() ?? "none"} pending={_pending.Count} drawn={_instances.Count} " +
+        $"far={FarShownPieces} in {FarShownChunks}/{FarChunkCount} chunks swept={FarSweptCells}/{FarCellCount} farDirty={_farDirty.Count} " +
+        $"farUs={LastFarMicroseconds}";
 }
 
 public sealed partial class MonumentField

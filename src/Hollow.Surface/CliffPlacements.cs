@@ -100,6 +100,8 @@ public sealed class CliffPlacements
         }
     }
     public int Level { get; }
+    /// <summary>The ground the formations stand on.</summary>
+    public ISurface Surface => _surface;
 
     public CliffPlacements(ISurface surface, ulong seed)
     {
@@ -167,6 +169,13 @@ public sealed class CliffPlacements
             throw;
         }
     }
+
+    /// <summary>
+    /// A cell's formation built afresh, outside the shared cache: the same placements <see cref="FormationAt"/> returns,
+    /// for a reader that sweeps the whole world once and keeps what it needs itself (the client's far layer), so the
+    /// sweep never evicts the cells that collision and the near layer read.
+    /// </summary>
+    public CliffPlacement[] Generate(TileKey tile) => tile.Level == Level ? Build(tile) : Array.Empty<CliffPlacement>();
 
     private CliffPlacement[] Build(TileKey tile)
     {
