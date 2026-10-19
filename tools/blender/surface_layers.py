@@ -56,6 +56,13 @@ def acg(folder, prefix):
             "rough": "{0}/{1}_Roughness.png".format(folder, prefix), "height": "{0}/{1}_Displacement.png".format(folder, prefix)}
 
 
+def phf(folder, name, suffix="_4k"):
+    """A Poly Haven set downloaded as its separate PNG files (CC0): diffuse, OpenGL normal, roughness and
+    displacement in a folder of their own, beside its _EXTRACTION_PROVENANCE.json."""
+    return {kind: "{0}/{1}_{2}{3}.png".format(folder, name, tag, suffix)
+            for kind, tag in (("albedo", "diff"), ("normal", "nor_gl"), ("rough", "rough"), ("height", "disp"))}
+
+
 BWM = "Bare-World-Manual/"
 NAMAQUALAND = {"albedo": "jpg", "normal": "exr", "rough": "exr", "height": "png"}
 # (key, metres a repeat, sources). The first sixteen are GroundMaterial's, in its order; the rest the alternatives.
@@ -97,9 +104,11 @@ TEXTURES = [
     ("outback_rocky", 3.0, ms("desert_outback_ground_rocky_06_xiqgafr_4k", "Desert_Outback_Ground_Rocky_06_xiqgafr_4K")),
     ("desert_sand_fine", 3.0, ms("desert_western_ground_sand_fine_01_xgmpdek_4k", "Desert_Western_Ground_Sand_Fine_01_xgmpdek_4K")),
     ("ice_wall", 3.0, ms("ice_wall_uebjabcr_4k", "Ice_Wall_uebjabcr_4K")),
-    # The meadow's floor under lush grass (19 October 2026): a green grass ground, ambientCG's Ground037 (CC0, a
-    # 2.1 m scan of damp mossy grass ground with twigs), laid at 3 m like the wet grass it replaces there.
-    ("meadow", 3.0, acg("Ground037_4K-PNG", "Ground037_4K-PNG")),
+    # The meadow's floor under lush grass (19 October 2026): a green grass ground, Poly Haven's Leafy Grass (CC0, a
+    # 2 m scan of trampled grass blades with leaf litter and twigs), laid at its own size. The owner chose it over
+    # ambientCG's Ground037 (acg("Ground037_4K-PNG", "Ground037_4K-PNG"), a 2.1 m scan of damp mossy ground, kept
+    # in the assets folder), which read as moss rather than blades under the tufts.
+    ("meadow", 2.0, phf("leafy_grass_4k", "leafy_grass")),
 ]
 
 # The sixteen materials: (texture, colour gain, alternatives: (texture, selector, colour gain)). The selectors are the
@@ -110,9 +119,9 @@ TEXTURES = [
 # noise) come before the alternative that takes the rest of the place (lush), or the patches never show.
 ONE = [1.0, 1.0, 1.0]
 LAYERS = [
-    # The meadow scan is bright and warm (mean linear 0.34, 0.32, 0.12): its gain darkens it to a meadow's brightness
-    # and turns it green (0.15, 0.24, 0.05), judged in the captures of docs/images/ground/ground-textures.
-    ("grass", "grass", ONE, [("mossy_floor", "lush-patch", [1.15, 1.15, 1.05]), ("meadow", "lush", [0.42, 0.74, 0.40])]),
+    # The meadow scan is bright and warm (mean linear 0.33, 0.24, 0.11): its gain darkens it to a meadow's brightness
+    # and turns it green (0.16, 0.22, 0.05), judged in the captures of docs/images/ground/ground-textures.
+    ("grass", "grass", ONE, [("mossy_floor", "lush-patch", [1.15, 1.15, 1.05]), ("meadow", "lush", [0.50, 0.92, 0.48])]),
     ("forest_floor", "forest_floor", ONE, [("forest_floor_2", "noise", ONE)]),
     ("soil", "soil", ONE, []),
     ("rock", "rock", ONE, [("coastal_rock", "noise", ONE)]),

@@ -230,7 +230,7 @@ takes the rest of the place, or they never show), and samples every texture that
 | Material | Alternative | Where (selector) |
 |---|---|---|
 | 0 grass (Dry Grassy Ground: trampled mud and straw) | 11 mossy ground | lush ground, in patches of some eight metres (`lush-patch`) |
-| | 34 meadow: ambientCG Ground 037, a green grass ground (damp mossy grass with twigs, CC0; a 2.1 m scan laid at 3 m), downloaded at 4K on 19 October 2026, darkened and turned green ×0.42, ×0.74, ×0.40 (the scan is bright and warm) | under lush grass (`lush`: the grass's dryness, the same rule that colours the blades) |
+| | 34 meadow: Poly Haven's `leafy_grass`, a green grass ground (trampled grass blades with leaf litter and twigs, CC0; a 2 m scan laid at its own size), downloaded at 4K on 19 October 2026, darkened and turned green ×0.50, ×0.92, ×0.48 (the scan is bright and warm) | under lush grass (`lush`: the grass's dryness, the same rule that colours the blades) |
 | 1 forest floor | 16 Forest Floor (`wgyhdgy`) | patches of about fifty metres (`noise`) |
 | 3 granite rock | 17 Cracked Nordic Coastal Rock | `noise` (triplanar on cliffs, at the slot's size) |
 | 4 gravel | 18 Desert Western Gravel Coarse | hot and dry (`heat`) |
@@ -253,10 +253,11 @@ takes the rest of the place, or they never show), and samples every texture that
 The meadow's ground had been the Dry Grassy Ground scan alone, which is trampled mud with a little straw: under the
 tufts the ground read as bare dirt, and it has almost no relief. Under lush grass it was first the Wet Grass Ground
 scan lifted ×2.0, ×2.7, ×1.6, which read green-olive, since the library had no green grass ground at 4K; since the
-evening of 19 October 2026 it is a green grass-ground scan of its own, ambientCG's Ground 037 (texture 34, `meadow`),
-with mossy patches; the mud stays where the grass is dry. The grass shader takes the same texture for the blades'
-feet (`GroundLayers.ApplyGrass`). The beach gets pebbles in patches; deserts their own sand and gravel; the tundra its
-stones; the snow line its icy grass.
+evening of 19 October 2026 it is a green grass-ground scan of its own, Poly Haven's Leafy Grass (texture 34, `meadow`:
+trampled blades, which the owner chose over ambientCG's Ground 037, a mossy ground that was tried first and kept in
+the assets folder), with mossy patches; the mud stays where the grass is dry. The grass shader takes the same texture
+for the blades' feet (`GroundLayers.ApplyGrass`). The beach gets pebbles in patches; deserts their own sand and gravel;
+the tundra its stones; the snow line its icy grass.
 
 - **Files** (`tools/blender/surface_layers.py`, from the asset folders): each texture's colour and normal map are the
   scan's own 4K files (the Megascans JPEGs copied byte for byte; the Poly Haven and ambientCG PNG and EXR maps as
@@ -276,8 +277,9 @@ stones; the snow line its icy grass.
   each keeps its detail.
 - **Left out on purpose**: `RedRock02_4K` (no record of its source or licence), Beach Sand `uinladeo` (featureless),
   two more desert sands and Fresh Windswept Snow (a fourth alternative would need a fourth slot; `GroundLayers.MaxVariants`),
-  the 2K ambientCG sets (Ground 037 among them, superseded by its 4K download). The scanned plants (`*_ue_high`) are
-  the authored ground cover's, not tiles.
+  the 2K ambientCG sets, and ambientCG's Ground 037 at 4K (downloaded on 19 October 2026 as the meadow's floor; under
+  the tufts it read as moss rather than grass, so the owner chose Leafy Grass; kept in the assets folder). The scanned
+  plants (`*_ue_high`) are the authored ground cover's, not tiles.
 
 The table of the original plan, kept for the sets above:
 

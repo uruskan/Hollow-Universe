@@ -74,15 +74,18 @@ the game.
 | 31 outback rocky ground (of 14) | Desert Outback Ground Rocky 06 (Quixel Megascans, `xiqgafr`) | Fab, Quixel Megascans; `desert_outback_ground_rocky_06_xiqgafr_4k.zip` | Fab Standard License |
 | 32 desert sand fine (of 14) | Desert Western Ground Sand Fine 01 (Quixel Megascans, `xgmpdek`) | Fab, Quixel Megascans; `desert_western_ground_sand_fine_01_xgmpdek_4k.zip` | Fab Standard License |
 | 33 ice wall (of 15) | Ice Wall (Quixel Megascans, `uebjabcr`) | Fab, Quixel Megascans; `ice_wall_uebjabcr_4k.zip` | Fab Standard License |
-| 34 meadow (of 0: the floor under lush grass) | Ground 037 (ambientCG: damp mossy grass ground with twigs, a 2.1 m photogrammetry scan), the 4K PNG set downloaded on 19 October 2026 | https://ambientcg.com/view?id=Ground037; `Ground037_4K-PNG.zip` (SHA-256 `5117129a141d483db469343f77e6199f35842e941137f14dee7f511b39d0a02b`), unpacked in `Ground037_4K-PNG` with its provenance record | CC0 1.0 (https://docs.ambientcg.com/license/) |
+| 34 meadow (of 0: the floor under lush grass) | `leafy_grass` (Poly Haven, by Charlotte Baglioni: trampled grass blades with leaf litter and twigs, a 2 m scan), its four 4K PNG maps (diffuse, OpenGL normal, roughness, displacement) downloaded on 19 October 2026 | https://polyhaven.com/a/leafy_grass; the files in `leafy_grass_4k` with their provenance record (each file's SHA-256 and its MD5 against Poly Haven's) | CC0 1.0 (https://polyhaven.com/license) |
 
 The archives named are in `D:\GameDev\Assets` (each unpacked beside it with its `_EXTRACTION_PROVENANCE.json`, which
 holds every file's SHA-256); the Fab listing URLs of layers 0-6 and 13 are from
 `D:\GameDev\Assets\Bare-World-Manual\DOWNLOAD-MANIFEST-VERIFIED.json`. Left out on purpose: `RedRock02_4K` (no record
 of where it came from or under what licence), Beach Sand `uinladeo` (featureless beside `ukviejtlw`), the desert sands
 `sfilxqh` and `sfiodwh` and Fresh Windswept Snow `uehnaazn` (a fourth alternative would need a fourth slot), and the
-2K ambientCG sets (`Ground023`, `Ground048`, `Ground054`, `Ice003`, `Snow002`: below the 4K the ground is built at;
-`Ground037`'s 2K set is superseded by its 4K download, texture 34).
+2K ambientCG sets (`Ground023`, `Ground037`, `Ground048`, `Ground054`, `Ice003`, `Snow002`: below the 4K the ground is
+built at), and ambientCG's Ground 037 at 4K (`Ground037_4K-PNG.zip`, CC0, SHA-256
+`5117129a141d483db469343f77e6199f35842e941137f14dee7f511b39d0a02b`, unpacked beside it with its provenance record on
+19 October 2026: it was texture 34 for an hour, and read as moss rather than grass under the tufts; kept in the
+assets folder, unused).
 
 ## Item and world models (`items/`, `world/`, `textures/`, `materials/`)
 

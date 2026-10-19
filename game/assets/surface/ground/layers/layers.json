@@ -787,7 +787,7 @@
     {
       "index": 34,
       "key": "meadow",
-      "metres": 3.0,
+      "metres": 2.0,
       "flip": [
         1.0,
         1.0
@@ -796,16 +796,16 @@
       "normal": "34_meadow_normal.webp",
       "roughHeight": "34_meadow_rh.webp",
       "meanColour": [
-        0.5976,
-        0.5752,
-        0.3434
+        0.5924,
+        0.5153,
+        0.3497
       ],
       "meanLinear": [
-        0.3442,
-        0.3223,
-        0.1233
+        0.3294,
+        0.2423,
+        0.1106
       ],
-      "roughness": 0.463
+      "roughness": 0.685
     }
   ],
   "layers": [
@@ -832,9 +832,9 @@
           "texture": 34,
           "select": "lush",
           "gain": [
-            0.42,
-            0.74,
-            0.4
+            0.5,
+            0.92,
+            0.48
           ]
         }
       ]

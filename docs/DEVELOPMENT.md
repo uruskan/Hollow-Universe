@@ -1,5 +1,55 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — The meadow's floor is Leafy Grass (the owner's choice over Ground 037)
+
+The owner, told that Ground 037 read as moss rather than grass under the tufts, had the session that put it there
+fetch Poly Haven's Leafy Grass instead ("Download Poly Haven Leafy Grass (the four 4K PNGs, CC0, about 257 MB) into
+D:\GameDev\Assets and make it texture 34 in place of Ground 037, keeping the Ground 037 files; re-capture, update the
+records and commit"). That session downloaded it with a provenance record (`D:\GameDev\Assets\leafy_grass_4k`, four
+4K PNGs, MD5s matching Poly Haven's), rebuilt texture 34 from it (`phf()` in `tools/blender/surface_layers.py`, a 2 m
+scan laid at its own size, lossless WebP at 4K with roughness and height at 2K), imported it, updated
+WALKING_GROUND.md §8 and THIRD_PARTY.md, and then hit its usage limit before its captures; the session that had
+proposed the work finished it from the tree it left.
+
+Two down captures decided the gain: at gain one the floor is straw-yellow (the scan's mean is a warm linear 0.33,
+0.24, 0.11); at ×0.50, ×0.92, ×0.48 (0.16, 0.22, 0.05) it is a green meadow with the blades' own texture, so that is
+the gain in the script and in `layers.json`. Captures, hosted at the landing site at hour 10 on this project's saved
+custom profile, 1600 × 900, replace the Ground 037 ones in `docs/images/ground/ground-textures/`: `meadow-down.png`
+(`--pitch -55`) and `meadow-level.png`. Under the tufts the floor now reads as trampled grass with leaf litter, green
+and continuous, against the moss grain of Ground 037 and the olive of the lifted wet grass before it. Ground 037's
+4K files stay in the assets folder, unused (THIRD_PARTY.md says so).
+
+Validation: `GroundLayerCatalogueTests` passes (35 textures, 16 materials, 21 alternatives); no C# changed since the
+full suite's 1,014 of 1,014 earlier today, so it was not rerun. Owner acceptance of the look is pending.
+
+## 19 October 2026 — The meadow's floor, second pass: Leafy Grass in place of Ground 037
+
+The owner saw the Ground 037 captures of the ground entry below and chose blades over moss: "download Poly Haven
+Leafy Grass (the four 4K PNGs, CC0, about 257 MB) ... make it texture 34 in place of Ground 037, keeping the Ground
+037 files". Leafy Grass (Charlotte Baglioni, CC0; a 2 m scan of trampled grass blades with leaf litter and twigs)
+came as four 4K PNG maps (diffuse, OpenGL normal, roughness, displacement, 257 MB in all) into
+`D:\GameDev\Assets\leafy_grass_4k`, with an `_EXTRACTION_PROVENANCE.json` of the same shape as the archives' (each
+file's URL, size and SHA-256 read back, and its MD5 against the one Poly Haven publishes; all four agree). The
+Ground 037 set stays in the assets folder, unused, and THIRD_PARTY.md says why.
+
+- `tools/blender/surface_layers.py`: a `phf()` helper reads a Poly Haven set downloaded as separate files; texture 34,
+  `meadow`, is now Leafy Grass at its own 2 m (Ground 037 had been laid at 3 m; blades at 1.5× life size would show).
+  The old texture 34 files were deleted so the build wrote the new ones (the script keeps files it finds); the
+  `.import` files are the same. This scan is bright and warm too (mean linear 0.33, 0.24, 0.11, a tan): at gain one
+  the floor read as dry straw and litter, so its gain is ×0.50, ×0.92, ×0.48 (0.16, 0.22, 0.05), judged from two down
+  captures. The mossy patches stay first in layer 0's list.
+- Captures in `docs/images/ground/ground-textures/`, `meadow-down.png` and `meadow-level.png`, replace the Ground 037
+  ones. Under the tufts the floor now reads as trampled green grass with the litter's grain and warm flecks, blades
+  rather than moss, and matches the tufts' yellow-green. Not like for like with the earlier captures: this project's
+  saved custom profile changed at 14:05 (grass density 0.4 → 1.0, grass distance 0.6 → 1.6, not by this work), so the
+  grass is far denser and the frame slower (down 22.7 ms, level 50 ms at capture, with the renderer's warm-up still
+  running and other sessions' processes beside it); the floor is visible between the tufts all the same.
+
+Validation: `GroundLayerCatalogueTests` passes (35 textures, 16 materials, 20 alternatives); Godot imported the three
+rebuilt files; every capture loaded 35 of 35 textures; the script run again reproduces `layers.json` byte for byte.
+No C# changed, so the solution build stands as in the ground entry below. Records: THIRD_PARTY.md row 34 (and
+Ground 037 among the sets left out), WALKING_GROUND.md §8.
+
 ## 19 October 2026 — T2: Earth's walls measured, and four ways that do not dress them
 
 The far layer's captures showed tall walls dressed only at their foot. The survey now measures that, on the
