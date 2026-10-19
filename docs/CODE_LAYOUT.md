@@ -1,9 +1,9 @@
-# The code, file by file (19 October 2026)
+# The code, file by file (20 October 2026)
 
 Generated from the repository: every C# file, the types it declares (nested ones in brackets), its length and its
 own first line of explanation. HOW_IT_WORKS.md says how these run together; this is the map. Regenerate it after
 a package with the script in the session that made it, or by hand: the shape is one table per folder.
-1,077 files, 272,593 lines of C#.
+1,079 files, 271,886 lines of C#.
 
 ## src/Hollow.Core
 
@@ -70,17 +70,19 @@ The 1:1 galaxy: the density model, sectors and cells, the catalogue, names, star
 
 Planets as surfaces: the cube-sphere, terrain, biomes, scatter, the sky, the zone frame.
 
-### src/Hollow.Surface (34 files, 7,118 lines)
+### src/Hollow.Surface (36 files, 7,909 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Biomes.cs` | 407 | Biome, GroundMaterial, ScatterKind, ClimateSample, BiomeTable | Land biomes (GROUND.md §4.6), picked from the climate: annual mean temperature, moisture and height. |
 | `CliffGeometry.cs` | 87 | CliffGeometry | CliffGeometry: the cliff scans' low-complexity collision meshes and bounds (height, width, gradient range, material family), read once from data. |
-| `CliffPlacements.cs` | 809 | CliffPlacement, CliffFaceSample, CliffFormationCacheDiagnostics, CliffPlacements [CacheEntry, FaceSample, WallSection] | CliffPlacements: stable cliff formations on the walking world's steep dry faces (docs/TERRAIN_SCENERY_PLAN.md T2): surveys, placements, hit and hold tests, cache. |
-| `CliffRecipe.cs` | 124 | CliffRecipe | CliffRecipe: a cliff formation recipe (docs/TERRAIN_SCENERY_PLAN.md T2, docs/LANDFORM_SURVEY.md): which scans a face takes, group size and rock share on gentle faces. |
+| `CliffPlacements.cs` | 847 | CliffPlacement, CliffFaceSample, CliffFormationCacheDiagnostics, CliffPlacements [CacheEntry, FaceSample, WallSection] | CliffPlacements: stable cliff formations on the walking world's steep dry faces (docs/TERRAIN_SCENERY_PLAN.md T2): surveys, placements, hit and hold tests, cache. |
+| `CliffRecipe.cs` | 149 | CliffRecipe | CliffRecipe: a cliff formation recipe (docs/TERRAIN_SCENERY_PLAN.md T2, docs/LANDFORM_SURVEY.md): which scans a face takes, group size and rock share on gentle faces. |
+| `CliffWalls.cs` | 414 | CliffWall, CliffWallLod, CliffPlacements [WallStation] | A wall's rock skin in one cell (docs/TERRAIN_SCENERY_PLAN.md T2): a mesh following the heightfield's steep face from foot to crest, traced a metre and a half at a time along its run, with coarser triangle lists over the same vertices |
 | `CubeSphere.cs` | 263 | CubeSphere, TileKey | The cube-sphere of a planet surface (GROUND.md §4.6): six faces, each a square of face coordinates |
 | `FirstWorld.cs` | 32 | FirstWorld | The ground game's first world (GROUND.md §3): Nolcas Peris CQ-SLY 7-0 B 3, a breathable Earth-like planet |
 | `GroundCollisionLayout.cs` | 122 | GroundCollisionLayout, GroundAreaLimits, GroundAreaPlan | Fixed collision tile layout: grid level by radius, topology limits and validation, and GroundAreaPlan, the radial shadow of a swept box (Around, Along). |
+| `GroundCoverHabitats.cs` | 314 | GrassHabitat, GrassSite, GrassPlan, GroundCoverHabitats [Habitat, Patch] | The grass's one coverage rule (docs/WALKING_GROUND.md §18, Data/ground-cover-habitats.json): habitats from the drawn terrain's cover and climate, then once a placement cell its occupancy, species, size, patches, accent and litter; deterministic |
 | `GroundCoverMeshFingerprint.cs` | 55 | GroundCoverMeshFingerprint | Versioned exact imported-array identity, not original glTF corner identity. |
 | `GroundCoverRootMetadata.cs` | 190 | GroundCoverRoot, GroundCoverRootMetadata | Receipt-bound fern root anchors: GroundCoverRoot and the sidecar metadata that must match a trusted expected digest. |
 | `GroundDetailCover.cs` | 32 | GroundDetailCover | Presentation densities from the surface's already biome-, shore- and canopy-adjusted cover. |
@@ -166,7 +168,7 @@ Planets as surfaces: the cube-sphere, terrain, biomes, scatter, the sky, the zon
 | `FormationWorldSelection.cs` | 63 | FormationWorldSelection | Explicit immutable selection for a formation-capable world factory. |
 | `IGradedTerrain.cs` | 100 | IGradedTerrain, GradedTerrainFields, FormationProtectedSite, FormationPlannerSettings, FormationPlannerLimits | IGradedTerrain, the finalized radial terrain a planner may read (height, water, raw fields), with protected sites, planner settings and limits. |
 
-### src/Hollow.Surface/Walking (9 files, 2,171 lines)
+### src/Hollow.Surface/Walking (9 files, 2,172 lines)
 
 The walking-scale ground of S4 ([WALKING_GROUND.md](WALKING_GROUND.md)).
 
@@ -176,7 +178,7 @@ The walking-scale ground of S4 ([WALKING_GROUND.md](WALKING_GROUND.md)).
 | `ReliefProvinces.cs` | 134 | Relief, ReliefProvinces | Plains, hills, tablelands and mountains: provinces spread over the sphere, picked by shares and an uplift field, blended by normalised Gaussian weights |
 | `RidgedNoise.cs` | 88 | RidgedNoise | Eroded ridged noise for the walking ground's mountains: every octave turned by its own rotation and crests rounded, so no ridgeline runs straight |
 | `WalkingGradedTerrain.cs` | 69 | WalkingGradedTerrain | WalkingGradedTerrain: the walking world exposed as IGradedTerrain for formation construction, with the physical input identity of its generator. |
-| `WalkingParameters.cs` | 259 | WalkingParameters | The walking-scale ground's numbers in one table |
+| `WalkingParameters.cs` | 260 | WalkingParameters | The walking-scale ground's numbers in one table |
 | `WalkingWorld.Collision.cs` | 32 | WalkingWorld | WalkingWorld's planned ground collision: prepares and builds a tile's selected collision mesh from the selected bundle. |
 | `WalkingWorld.Formations.cs` | 59 | WalkingWorld [SelectedBundle] | WalkingWorld's selected bundle: lattice, formation field, pins and monument collision built together, plus identity matching of descriptor and limits. |
 | `WalkingWorld.Trace.cs` | 22 | WalkingWorld | WalkingWorld's TraceGround: the selected ground trace through formations and monuments, unsupported on worlds without selected collision. |
@@ -426,19 +428,19 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `SpotSurfaces.cs` | 410 | ISpotSurface, SpotFrames, TrunkSurface, MeasuredSurface | Where a natural object's weak spot can sit (GROUND.md §6.1): on the surface players see, at the object's current |
 | `StandInNaturalObjects.cs` | 242 | StandInNaturalObjects [CacheEntry] | Natural objects of the stand-in world (docs/WHOLE_WORLD.md §7.1), placed by a seeded stream per cube-sphere tile of |
 
-### src/Hollow.Simulation/Physics (11 files, 3,100 lines)
+### src/Hollow.Simulation/Physics (11 files, 3,103 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `CharacterBody.cs` | 174 | CharacterBody | A character's collision in a space (GROUND.md §4.5): Jolt's virtual character, a kinematic capsule outside the |
 | `CompoundGeometry.cs` | 145 | CompoundGeometry [Shapes] | CompoundGeometry: convex hulls of authored compounds, with a gate's open and closed leaves, driving both movement and weapon traces, with contact face and pose. |
 | `GroundAreaCoordinator.cs` | 258 | GroundAreaStatus, GroundAreaRequest, GroundPhysicsOptions, GroundAreaTicket, GroundAreaCoordinator [Entry] | One physics owner's ground area requests: tickets over shared tile builds, a bounded worker pump on the owner thread, adoption, release and drain. |
-| `GroundMeshCheck.cs` | 63 | MalformedGroundTileException, GroundMeshCheck | The one check a ground tile's triangles pass before they become a Jolt mesh shape: finite vertices, indices in range, at least one whole triangle; a malformed tile throws a managed error naming it. |
+| `GroundMeshCheck.cs` | 64 | MalformedGroundTileException, GroundMeshCheck | The one check a ground tile's triangles pass before they become a Jolt mesh shape: finite vertices, indices in range, at least one whole triangle; a malformed tile throws a managed error naming it. |
 | `GroundStreamingBudget.cs` | 455 | GroundStreamingLimits, GroundStreamingDiagnostics, GroundWorkState, GroundOwnedBuildFailure, GroundStreamingBudget, GroundStreamingOwner, GroundAreaLease, GroundBuildLease | The engine-independent ledger of ground streaming: limits, reservations for tiles, bodies, workers and bytes, work states, diagnostics, shared by owners. |
 | `JoltRuntime.cs` | 88 | JoltRuntime | The process-wide Jolt runtime (GROUND.md §4.5). Jolt is initialised once per process, by whichever world needs it |
 | `PhysicsWorld.GroundStreaming.cs` | 43 | GroundNativeEstimates, GroundStreamingEstimates, GroundBuildCost | PhysicsWorld's ground streaming costs: GroundNativeEstimates (versioned, no production defaults) and GroundStreamingEstimates, the inactive build-cost adapter. |
-| `PhysicsWorld.SelectedGround.cs` | 318 | GroundPhysicsFailure, GroundNativeStage, GroundPhysicsHooks, PhysicsWorld [SelectedSetupRetirement, SelectedNativeTile, NativeSetup] | PhysicsWorld's inactive selected-ground factory: forks the source pin, reserves setup, builds native tiles, with failure and retirement handling (GroundPhysicsFailure). |
-| `PhysicsWorld.cs` | 710 | PhysicsWorld [Prop, Tile, TileBuild] | One zone's Jolt physics system (GROUND.md §4.5): the ground near characters, as static mesh tiles built from the |
+| `PhysicsWorld.SelectedGround.cs` | 319 | GroundPhysicsFailure, GroundNativeStage, GroundPhysicsHooks, PhysicsWorld [SelectedSetupRetirement, SelectedNativeTile, NativeSetup] | PhysicsWorld's inactive selected-ground factory: forks the source pin, reserves setup, builds native tiles, with failure and retirement handling (GroundPhysicsFailure). |
+| `PhysicsWorld.cs` | 711 | PhysicsWorld [Prop, Tile, TileBuild] | One zone's Jolt physics system (GROUND.md §4.5): the ground near characters, as static mesh tiles built from the |
 | `Props.cs` | 143 | PropLayer, ITileListener, PropKind, PropShape | Who a prop belongs to: its key is only unique within its layer. |
 | `ShipSpace.cs` | 703 | SpaceHit, ShipSpace [PiecesOnly, KindShapes] | What a query through a ship's space met: the part (0 the hull), how far along, where and the surface's normal, in the ship's frame. |
 
@@ -583,7 +585,7 @@ The protocol: messages and their generated serializers, bit packing, snapshot de
 | `ConsoleCatalog.cs` | 221 | CommandSide, ArgKind, ConsoleCommandDef, ConsoleCatalog | Where a console command runs: in the game (the view and its settings) or on the server. |
 | `ConsoleCompletion.cs` | 187 | CompletionSources, Completion, ConsoleCompletion, Spawning | What Tab completes from: the game's data, and the players the server says are on. |
 
-### src/Hollow.Net/Protocol (14 files, 9,106 lines)
+### src/Hollow.Net/Protocol (14 files, 9,107 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -596,7 +598,7 @@ The protocol: messages and their generated serializers, bit packing, snapshot de
 | `NaturalNet.cs` | 27 | NaturalNet |  |
 | `NetConvert.cs` | 267 | NetConvert | Between simulation values and their wire form. The client predicts with ToMoveInput(ToCommand(...)), the |
 | `NetStates.cs` | 14 | CharacterNetState, ShipNetState | The entity states snapshots carry, as the replication's generic sections see them (their serializers are generated). |
-| `Protocol.cs` | 192 | Protocol, GoodbyeReason, EntityKind, ShipNetFlags, ShipAction, ConsoleReplyKind, ChatKind, TeammateState | Constants of the ground game's protocol (GROUND.md §4.4). |
+| `Protocol.cs` | 193 | Protocol, GoodbyeReason, EntityKind, ShipNetFlags, ShipAction, ConsoleReplyKind, ChatKind, TeammateState | Constants of the ground game's protocol (GROUND.md §4.4). |
 | `ShipConvert.cs` | 241 | ShipConvert | Between ships' simulation values and their wire form (G6). A pilot's client predicts with |
 | `SlotSnapshot.cs` | 33 | SlotSnapshot | SlotSnapshot: converts an item stack, with its gun state, to and from SlotNet: the exact inventory preconditions of an atomic attachment transfer. |
 | `StationConvert.cs` | 129 | StationConvert | Between the batteries' values and their wire form (IW3): a gunner's controls, the stations' records. |
@@ -844,7 +846,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `AnimalWarm.cs` | 15 | AnimalWarm | The animals' part of the renderer's warm-up (GROUND.md §4.3.1, §6.9): every species' model, skinned, as drawn. |
 | `AnimalsView.cs` | 204 | AnimalsView | The animals in view (GROUND.md §6.9): one AnimalView per animal, made when it appears, given its frame |
 
-### game/scripts/App (6 files, 946 lines)
+### game/scripts/App (6 files, 939 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -852,7 +854,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `Checkout.cs` | 59 | Checkout | The repository this game runs from (the folder above game/): its branch and commit, read from git's own files. For bug |
 | `CrashReporter.cs` | 125 | CrashReporter, CrashLogger | The game's crash reports (GROUND.md §4.3), in user://crashes: .NET's and Godot's exceptions, the marker, the menu's notice |
 | `GalaxyService.cs` | 45 | GalaxyService | Owns the one Galaxy of the client: loads the real-star catalogue and builds the model. |
-| `Main.cs` | 503 | Main | Entry point. Loads the galaxy and switches between the galaxy map and the system map. |
+| `Main.cs` | 496 | Main | Entry point. Loads the galaxy and switches between the galaxy map and the system map. |
 | `UiScaler.cs` | 118 | UiScaler | Keeps Ui.Scale matched to the window (see Automatic), times the player's own |
 
 ### game/scripts/Audio (8 files, 2,424 lines)
@@ -925,13 +927,13 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ViewmodelView.cs` | 671 | ViewmodelFrame, ViewmodelView | What the first-person view needs each frame (GROUND.md §4.8). |
 | `Wardrobe.cs` | 205 | WearSlot, Wearable, Wardrobe | The seven wear slots (GROUND.md §6: 24 main, 6 belt, 7 wear). |
 
-### game/scripts/Common (7 files, 1,198 lines)
+### game/scripts/Common (8 files, 1,260 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Labeller.cs` | 109 | LabelSide, Labeller | Where a label goes relative to the object it names. |
 | `MapOverlay.cs` | 97 | MapLabel, MapOverlay [Text, Ring] | How a label on a map looks. |
-| `ProcessCommit.cs` | 61 | ProcessCommit [Split] | The client process's private commit split by what backs it, for the opt-in memory traces (docs/DEVELOPMENT.md, |
+| `ProcessCommit.cs` | 62 | ProcessCommit [Split] | The client process's private commit split by what backs it, for the opt-in memory traces (docs/DEVELOPMENT.md, |
 | `StarColors.cs` | 59 | StarColors | Presentation colours for stars (blackbody-like, tuned to read well on a dark map). |
 | `Ui.cs` | 666 | TextStyle, Ui [Ground] | Text styles of the interface. Each one is a Label theme type variation of the same name. |
 | `UiIcons.cs` | 85 | UiIcon, UiIcons |  |
@@ -987,7 +989,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GibWarm.cs` | 36 | GibWarm | The gibs' part of the renderer's warm-up (GROUND.md §4.3.1, §9.4): every gib file the catalogue names, read, and a |
 | `GibWorld.cs` | 873 | GibFloor, GibWorld [PieceState, Turn, Piece, BreakFloor, Batch] | Where the floor is under a point: a ray from  along  for |
 
-### game/scripts/Ground (73 files, 20,092 lines)
+### game/scripts/Ground (73 files, 20,106 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -1010,7 +1012,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ElectricalView.cs` | 119 | ElectricalView [Rig] | Power ports and cables of electrical deployables: authored port cubes and one tube mesh per routed cable, rebuilt only when its record or poses change. |
 | `ElectricityReview.cs` | 60 | ElectricityReview | --electricity-review <folder>: small scene of a windmill, auto turret and SAM site joined by cables, using the production models, ports and cable renderer, for pictures. |
 | `EnvironmentRoute.Details.cs` | 41 | EnvironmentRoute | EnvironmentRoute's optional detail views at a checkpoint: ground, looking down at roots and a lifted 9 m view, with the camera, frame cap and vsync restored afterwards |
-| `EnvironmentRoute.Performance.cs` | 284 | EnvironmentRoute | EnvironmentRoute's --environment-breakdown: stationary render timing with layers (vegetation, grass, cliffs, water, shadows, SDFGI) removed one at a time, sampled for 8 s each |
+| `EnvironmentRoute.Performance.cs` | 290 | EnvironmentRoute | EnvironmentRoute's --environment-breakdown: stationary render timing with layers (vegetation, grass, cliffs, water, shadows, SDFGI) removed one at a time, sampled for 8 s each |
 | `EnvironmentRoute.cs` | 382 | EnvironmentRoute | --environment-route <folder>: a hosted client walks a real route from spawn to the beach through its normal input, recording checkpoints, trajectory and frame profiles; no teleport or noclip. |
 | `FiresView.cs` | 150 | FiresView [Shown] | Fires in the ground game (IW4, IRON_WAKE.md §7, GROUND.md §9.3): each pool of burning fuel the server tells of is the |
 | `FirstPersonView.cs` | 495 | FirstPersonView | The local player in first person (GROUND.md §4.8): the character package's ViewmodelView holding the |
@@ -1040,14 +1042,14 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GroundTour.Resources.cs` | 167 | GroundTour | GroundTour's resources step: finds stone, metal, sulphur and high-grade nodes in generated scatter, mines each, checks every stage drawn, the hotspot, exact yields and depletion |
 | `GroundTour.cs` | 2596 | GroundTour | The scripted screenshot run of the ground game (GROUND.md §5, --tour &lt;folder&gt;): on the host, a walk |
 | `GroundView.AdminCamera.cs` | 70 | GroundView | GroundView's admin self camera: the F1 thirdperson orbit around the local character, its input, eligibility, and placement kept clear of walls and the ground (Hollow.Client.AdminSelfCamera) |
-| `GroundView.cs` | 1423 | GroundView | The ground game in first person (GROUND.md §4.3) on a whole world: the surface view draws the ball in the zone's own frame (docs/WHOLE_WORLD.md §10) |
+| `GroundView.cs` | 1424 | GroundView | The ground game in first person (GROUND.md §4.3) on a whole world: the surface view draws the ball in the zone's own frame (docs/WHOLE_WORLD.md §10) |
 | `GroundWarmup.cs` | 43 | GroundWarmup | Everything the ground game can draw, for the renderer's warm-up (GROUND.md §4.3.1): each library's items, read from its |
 | `GunEffects.cs` | 119 | GunEffects | Shots, hits and guns in hand through the effects library and the model catalogue (GROUND.md §6.4, §9.3): which |
 | `InventoryBody.cs` | 56 | InventoryBody | The player's own body on the inventory screen (GROUND.md §8): the character package's CharacterView |
 | `ItemIconAliases.cs` | 103 | ItemIconAliases | The ground game's item icons until the assets package renders them from our models (GROUND.md §8): items.json keys |
 | `ItemLooks.cs` | 35 | ItemLooks | How items look on a character (GROUND.md §4.8): the held model and pose an items.json key takes in the hands (the |
 | `Keypad.Text.cs` | 86 | Keypad | Keypad's text mode: AskText shows the interaction modal with a LineEdit for a typed label instead of digits, with its own error line and layout. |
-| `LoadTrace.cs` | 394 | LoadTrace [Late] | The ground game's start, timed (--load-trace [seconds], GROUND.md §4.3.1): from the process's start, when the |
+| `LoadTrace.cs` | 401 | LoadTrace [Late] | The ground game's start, timed (--load-trace [seconds], GROUND.md §4.3.1): from the process's start, when the |
 | `MarkerTextures.cs` | 224 | MarkerTextures [Style] | The weak spots' textures (GROUND.md §9.3), painted in code once and kept (our own art): gather.json's |
 | `MenuGroundUi.cs` | 54 | MenuGroundUi | The interface's view model before a game exists (the main menu): nothing carried, nothing to show. |
 | `NatureMarkers.cs` | 226 | NatureMarkers [Marker] | The weak spots drawn (GROUND.md §6.1, §9.3), one generic marker for every class: gather.json's |
@@ -1075,7 +1077,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `Placement.cs` | 21 | IPlacement | Placing what is in hand (GROUND_SYSTEMS.md §6, package P2's system): the placer's, the planner's and a charge's one |
 | `WiringControl.cs` | 155 | WiringControl, WiringPreview | Held control for every data-declared wiring tool: aims at power ports, collects cable anchors and sends the intents; WiringPreview draws the cable being laid. |
 
-### game/scripts/Items (10 files, 2,307 lines)
+### game/scripts/Items (9 files, 2,213 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -1088,7 +1090,6 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `OpticLensView.cs` | 30 | OpticLensView | Keeps a held optic's lens material in step with the ground camera's exposure, without changing shared material resources. |
 | `ScopeLensView.cs` | 128 | ScopeLensView | Magnified scope: one bounded HDR render of a camera-centred crop of the world onto the lens's rear aperture, active only while aiming down sights. |
 | `SurfaceSurvey.cs` | 139 | SurfaceSurvey | Measures the drawn surfaces of the natural objects the ground game draws from catalogue models (the outcrops at |
-| `WireToolAssetBuilder.cs` | 94 | WireToolAssetBuilder | --build-wire-tool: bakes the editable wire-tool source scene into assets/items/wire-tool.tscn with external materials, as other held items are built. |
 
 ### game/scripts/Monuments (1 file, 624 lines)
 
@@ -1124,21 +1125,21 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `StationSight.cs` | 244 | SightBarrel, SightKind, StationSightData, StationSight | The gunner's sight (IW3, IRON_WAKE.md §6.8) in the ground interface's style. |
 | `StationsView.cs` | 344 | StationsView [LoaderSeen, SlotModel, StationSeen, ShipSeen] | The batteries drawn and heard (IW3): mounts, recoil, loader pieces by the table, rockets in slots, phases' sounds, shots. |
 
-### game/scripts/Surface (79 files, 20,808 lines)
+### game/scripts/Surface (76 files, 18,815 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `AerialTable.cs` | 115 | AerialTable | The aerial-perspective table of the surface view (GROUND.md §4.6): the air's in-scattered light and transmittance by direction and distance (400 km on a real planet, 10 km on a whole small world) |
 | `AtmosphereModel.cs` | 450 | AtmosphereModel | The physically based air of a planet for drawing (GROUND.md §4.6): Rayleigh scattering from its molecules, Mie |
 | `AuthoredCoverRootMesh.cs` | 208 | AuthoredCoverRootMesh [Description] | Builds a ground-cover mesh with whole-plant root data (CUSTOM0) from an authored single-surface mesh, verifying the imported vertices and leaving the import shared. |
-| `CliffField.Far.cs` | 405 | CliffField [FarChunk, FarSweep] | CliffField's far layer (docs/TERRAIN_SCENERY_PLAN.md T2): formations the near layer has not installed, one MultiMesh per model in each cube-sphere chunk, swept by two low-priority threads, no shadows. |
+| `CliffField.Far.cs` | 430 | CliffField [FarChunk, FarSweep] | CliffField's far layer (docs/TERRAIN_SCENERY_PLAN.md T2): formations the near layer has not installed, one MultiMesh per model in each cube-sphere chunk, swept by two low-priority threads, no shadows. |
+| `CliffField.Walls.cs` | 156 | CliffField [WallInstance] | CliffField's wall skins (T2): one mesh a cell and recipe, built by the far sweep, the skin's coarser lists as levels of detail, the recipe's rock scan (cliff_skin.gdshader), shadows within the near reach; --no-cliff-skins hides them |
 | `CliffField.cs` | 299 | CliffField [Model, Instance] | CliffField's near layer: scanned geology installed at authoritative placements round the camera, with levels of detail, streamed apart from harvestable nodes. |
 | `EnvironmentLifetimeCheck.AuthoredRender.cs` | 370 | EnvironmentLifetimeCheck | EnvironmentLifetimeCheck's authored-cover render check (--environment-authored-cover-render-only): draws the reviewed fern's real PBR with ground contact in eight frames, within a 35 s deadline |
 | `EnvironmentLifetimeCheck.AuthoredRoots.cs` | 188 | EnvironmentLifetimeCheck | EnvironmentLifetimeCheck's authored-cover root checks: synthetic mesh augmentation keeps source identity and refuses mismatches, plus the real fern's six meshes against its reviewed roots |
-| `EnvironmentLifetimeCheck.AuthoredSpatial.cs` | 332 | EnvironmentLifetimeCheck | EnvironmentLifetimeCheck's authored spatial probe (--environment-authored-spatial-only): moving admission, atlas replacement, capacity refusal, missing support, terrain visibility and retirement |
 | `EnvironmentLifetimeCheck.Client.cs` | 235 | EnvironmentLifetimeCheck [ClientProbeSurface] | EnvironmentLifetimeCheck's client step: real GameClient, WorldStore and views on a constant-ground probe surface; checks inventory-preview owners, view retirement leases and that fixture worlds dispose once |
 | `EnvironmentLifetimeCheck.Cohorts.cs` | 337 | EnvironmentLifetimeCheck [CohortProbeSurface] | EnvironmentLifetimeCheck's terrain-cohort step (--environment-terrain-cohorts-only): tickets, shared reservations, cube-corner closure, hiding, reanchoring and retirement on a blockable fixture surface |
-| `EnvironmentLifetimeCheck.ContactAtlas.cs` | 197 | EnvironmentLifetimeCheck | EnvironmentLifetimeCheck's contact-atlas step: TerrainContactAtlas staging, readiness, same-address replacement, capacity refusal, upload faults and disposal |
+| `EnvironmentLifetimeCheck.ContactAtlas.cs` | 167 | EnvironmentLifetimeCheck | EnvironmentLifetimeCheck's contact-atlas step: TerrainContactAtlas staging, readiness, same-address replacement, capacity refusal, upload faults and disposal |
 | `EnvironmentLifetimeCheck.CoverCompression.cs` | 533 | EnvironmentLifetimeCheck [CoverCompressionInput, CoverCompressionFamily, CoverError, CoverAngle, CoverPackedNormalStrata, CoverLengthDistribution, CoverPackedStratum, CoverPackedWorst] | EnvironmentLifetimeCheck's cover-compression gate (--environment-cover-compression-only): authenticates a receipt, then checks each cover texture's native format, mips, payload and numerical error against its CTEX baseline |
 | `EnvironmentLifetimeCheck.CoverCompressionRender.cs` | 361 | EnvironmentLifetimeCheck [CoverCompressionArt] | EnvironmentLifetimeCheck's paired render of one cover family (--environment-cover-compression-render-only): saved CTEX baseline beside the imported material on the production meshes and shader |
 | `EnvironmentLifetimeCheck.CoverLossless.cs` | 389 | EnvironmentLifetimeCheck [CoverLosslessPin, CoverLosslessInput] | EnvironmentLifetimeCheck's v2 lossless correction gate (--environment-cover-lossless-only): authenticates the migration receipts, then compares every WebP-lossless mip with the baseline byte for byte |
@@ -1146,59 +1147,56 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `EnvironmentLifetimeCheck.FloraPixels.cs` | 217 | EnvironmentLifetimeCheck | EnvironmentLifetimeCheck's flora pixel check: FloraTextures dilation and mip output compared bit for bit with an independent full-array reference, on bounded synthetic images |
 | `EnvironmentLifetimeCheck.FormationView.cs` | 337 | EnvironmentLifetimeCheck [FormationViewProbeSurface] | EnvironmentLifetimeCheck's formation-view step (--environment-formation-view-only): the view stays hidden until terrain is ready, then publishes one LOD, hides, rebases, rolls back and releases tickets |
 | `EnvironmentLifetimeCheck.FormationVisual.cs` | 540 | EnvironmentLifetimeCheck [FormationVisualFixtureState, FormationVisualCleanupProbe, FormationVisualTinyPackage] | EnvironmentLifetimeCheck's formation-visual step (--environment-formation-visual-only): a tiny authenticated package through the native upload session: reservations, sharing, cancellation, cleanup ledger, a capture |
-| `EnvironmentLifetimeCheck.Grass.cs` | 196 | EnvironmentLifetimeCheck [GrassProbeSurface] | EnvironmentLifetimeCheck's grass step: GrassField with a blockable surface (stop without waiting, cancelled work, single-use setup, mask upkeep, retirement) and the painted blade atlas's connectivity |
-| `EnvironmentLifetimeCheck.GrassRender.cs` | 451 | EnvironmentLifetimeCheck | EnvironmentLifetimeCheck's grass render step (--environment-grass-only): the production grass mesh and shader on tilted ground in a viewport, checking blades, stable shape, wind and missing support |
+| `EnvironmentLifetimeCheck.Grass.cs` | 185 | EnvironmentLifetimeCheck [GrassProbeSurface] | EnvironmentLifetimeCheck's grass step: every imported clump level against grass.json, then GrassField with a blockable surface (stop without waiting, cancelled builds never published, single-use setup, layer masks once settled, faults keep it unready) |
+| `EnvironmentLifetimeCheck.GrassRender.cs` | 83 | EnvironmentLifetimeCheck | Render helpers the native probes share: solid and volume textures, a float texture, a drawn-ground mesh and image differences (from the retired vertex-grass render probe) |
 | `EnvironmentLifetimeCheck.GroundNormals.cs` | 119 | EnvironmentLifetimeCheck [GroundNormalCase] | EnvironmentLifetimeCheck's ground-normal step (--environment-ground-normals-only): the surface_ground_normals shader include run on the GPU against analytic normals for planes, a tilt and rotated axes |
 | `EnvironmentLifetimeCheck.ImpostorOwnership.cs` | 171 | EnvironmentLifetimeCheck | EnvironmentLifetimeCheck's impostor ownership step: ImpostorBaker readbacks, cancellation and hand-over of finished textures, so each native owner is released in order |
 | `EnvironmentLifetimeCheck.ImpostorRows.cs` | 172 | EnvironmentLifetimeCheck [ImpostorRowCapture] | EnvironmentLifetimeCheck's impostor row step: baking an atlas one row band at a time must give the same bytes and mips as the full-atlas camera, on a real renderer |
 | `EnvironmentLifetimeCheck.NativeFloraAppearance.cs` | 376 | EnvironmentLifetimeCheck [NativeAppearanceFixture] | EnvironmentLifetimeCheck's actual flora appearance step (--environment-flora-package-only): the real Earth catalogue under an external approval record and SHA-256 pin: sharing, isolation, readback, retirement |
-| `EnvironmentLifetimeCheck.SpatialGrass.cs` | 129 | EnvironmentLifetimeCheck | EnvironmentLifetimeCheck's spatial-grass step: GrassField's compacted cells, tile uploads, staged generations, upload faults and stop with a blocked worker |
 | `EnvironmentLifetimeCheck.Surface.cs` | 138 | EnvironmentLifetimeCheck [LeasedProbeSurface] | EnvironmentLifetimeCheck's surface-ownership step: SurfaceView retirement with leased worlds, failed openings and old versus new planet owners, so the surface is disposed exactly once |
-| `EnvironmentLifetimeCheck.TerrainAppearance.cs` | 594 | EnvironmentLifetimeCheck [AppearanceExpected, AppearanceQuery] | EnvironmentLifetimeCheck's terrain-appearance step (--environment-terrain-appearance-only): fixed storage, stream upload rejection, retirement and a GPU oracle for the drawn vertex path's interpolants |
+| `EnvironmentLifetimeCheck.TerrainAppearance.cs` | 581 | EnvironmentLifetimeCheck [AppearanceExpected, AppearanceQuery] | EnvironmentLifetimeCheck's terrain-appearance step (--environment-terrain-appearance-only): fixed storage, stream upload rejection, retirement and a GPU oracle for the drawn vertex path's interpolants |
 | `EnvironmentLifetimeCheck.TerrainContact.cs` | 249 | EnvironmentLifetimeCheck | EnvironmentLifetimeCheck's terrain-contact step: snapshots of the drawn coarse roots, capacity, hidden and restored tiles, morph bounds, rebase, stale grids and both grid diagonals |
 | `EnvironmentLifetimeCheck.TerrainContactGpu.cs` | 394 | EnvironmentLifetimeCheck [ContactGpuQuery] | EnvironmentLifetimeCheck's opt-in GPU oracle for terrain contact: the production shader helper's lookups on planar and cube-sphere grids against CPU positions, with the generation guard on reuse |
 | `EnvironmentLifetimeCheck.Vegetation.cs` | 126 | EnvironmentLifetimeCheck [ProbePlants] | EnvironmentLifetimeCheck's vegetation step: Vegetation fed by a blockable plant source: stop and retirement cancel queued and layout work, setup is single use, bake cancellation |
 | `EnvironmentLifetimeCheck.Warmup.cs` | 270 | EnvironmentLifetimeCheck [WarmupFixtureLoader] | EnvironmentLifetimeCheck's warm-up step: RenderWarmup's bounded preview admission, draw-event counting, deferred deletion and replay of the catalogue on a replacement camera |
 | `EnvironmentLifetimeCheck.WorldPhase.cs` | 275 | EnvironmentLifetimeCheck | EnvironmentLifetimeCheck's world-phase step: the production ground_look and wave helpers on small patterned maps: sampler phase, body and render normal frames, absolute double body points |
-| `EnvironmentLifetimeCheck.cs` | 293 | EnvironmentLifetimeCheck [Result, ProbeSurface] | --environment-lifetime-check: bounded native regression probe of the surface view's resource lifetimes (terrain reset and stop, grass, flora, formations); the checks sit in its partial files. |
+| `EnvironmentLifetimeCheck.cs` | 276 | EnvironmentLifetimeCheck [Result, ProbeSurface] | --environment-lifetime-check: bounded native regression probe of the surface view's resource lifetimes (terrain reset and stop, grass, flora, formations); the checks sit in its partial files. |
 | `FormationFieldView.cs` | 331 | FormationVisualTemplate, FormationViewLimits, FormationFieldView [Part, PieceView, Entry, Diagnostics] | FormationVisualTemplate, FormationViewLimits and FormationFieldView: per-view drawing of formation cohorts from borrowed, admitted meshes; a cohort shows once its terrain is visible. |
 | `FormationVisualLoader.cs` | 598 | FormationNativeLimits, FormationMaterialApproval, FormationVisualLodSelection, FormationVisualSurfaceSlot, FormationVisualCustom0Binding, FormationVisualCustom0Profile, FormationMaterialProfile, FormationVisualLoader [TextureVariant, MaterialAddress, NativePlan, UploadJob, Owner, Retirement] | Formation visuals' native plan and upload: material and custom0 mask profiles, preflight of a package, an incremental UploadJob (textures, materials, surfaces) and the Owner that retires them |
 | `FormationVisualSession.cs` | 472 | FormationVisualSessionBudget, FormationVisualSession [Snapshot, RequestState, Request, Lease] | FormationVisualSession and its budget: main-thread owner of one approved formation receipt, reserving CPU, native and upload allowances for one CPU task and an incremental upload, with leases. |
 | `GeologyReview.cs` | 144 | GeologyReview | Standalone scene (--eye, --target, --rocks, --quality, --shot): renders the real Earth's first cliff or a rock from a given camera, writing a picture and scene facts. |
-| `GrassField.Authored.cs` | 207 | GrassField [CoverPlant, CoverMesh, CoverBatch] | GrassField's authored ground cover: families, variants and levels of detail from assets/surface/ground-cover/catalog.json, laid out on the ground lattice in MultiMesh batches |
-| `GrassField.AuthoredSpatial.cs` | 895 | GrassField [AuthoredSpatialSource, AuthoredSpatialStatistics, AuthoredSpatialFixtureControl, AuthoredSpatialArt, AuthoredSpatialPoint, AuthoredSpatialTile, AuthoredSpatialIndex, AuthoredSpatialChoice, AuthoredSpatialBatchKey, AuthoredSpatialPlan, AuthoredSpatialBatch, AuthoredSpatialGeneration, AuthoredSpatialStage, AuthoredSpatialState] | GrassField's opt-in tiled authored cover: per-tile plant index, near, middle and far batches, staged generations, bounded scene-thread uploads and retirement, addressed through the contact atlas |
-| `GrassField.Contact.cs` | 138 | GrassField | GrassField's drawn-contact binding: the TerrainContactAtlas updated each frame from the terrain, its readiness, the bounds it gives batches, and its retirement |
-| `GrassField.Diagnostics.cs` | 165 | GrassField | GrassField's opt-in diagnostics: --grass-diagnostics <json path> writes the production mesh's and atlas's measurements, and the grass-foot check and fixture mesh the lifetime probe uses |
-| `GrassField.Jobs.cs` | 174 | GrassWorkMonitor, GrassWorkSnapshot, GrassField [BuildContext, WorkerLifetime] | GrassField's background work: GrassWorkMonitor (jobs started, pending, completed and cancelled, outliving the view) and the worker lifetime that builds field data. |
-| `GrassField.LifecycleCheck.cs` | 69 | GrassField | GrassField.SetupLifecycleFixture: a tiny resource setup (small lattice, stub shader, a few batches) for EnvironmentLifetimeCheck, running the production workers and visibility logic |
-| `GrassField.Spatial.cs` | 347 | GrassField [SpatialFaceResources, SpatialBatch, SpatialGeneration] | GrassField's spatial submission (--spatial-grass, --spatial-grass-cells 16 or 32): per-tile MultiMeshes, bounded two-generation upload, culling by tile bounds |
-| `GrassField.SpatialDiagnostics.cs` | 31 | SpatialGrassDiagnostics, GrassField | SpatialGrassDiagnostics and GrassField.CaptureSpatialDiagnostics: resident and staged tiles, buffer bytes, upload cost and the allocation limit |
-| `GrassField.SpatialLifecycleCheck.cs` | 252 | GrassField [SpatialFixtureFault] | GrassField's spatial lifecycle fixture: tiny art-free field with injected faults, checking cells, coverage admission, bounds and native resource retirement |
-| `GrassField.SpatialSampling.cs` | 116 | GrassField [SpatialTileData] | GrassField's worker-side spatial tiles: which cells of a lattice may grow grass or litter, built per tile with their bounds, keyed by face and global cell |
-| `GrassField.SubmissionDiagnostics.cs` | 107 | GroundCoverLayers, GroundCoverSubmission, GroundCoverDiagnostics, GrassField | GroundCoverLayers mask and GrassField.CaptureDiagnostics: what grass, litter and authored cover submit (batches, instances, vertices, triangles) before culling |
-| `GrassField.cs` | 638 | GrassField [FaceLattice, FieldData, FaceGrid] | The grass of the surface view (GROUND.md §4.6, docs/WHOLE_WORLD.md §10.3): tufts on cube-face cells (level 13 on a 2.41 km world) placed by the GPU from a lattice of the cells' corners on the drawn ground, one grid a face near a seam |
-| `GroundLayers.cs` | 355 | GroundLayers [Loaded, Texture, Variant, Layer, Catalogue] | The ground's sixteen 4K texture layers (WALKING_GROUND.md §8), read from their imported files into three texture arrays every ground material shares: colour, normals, roughness and height; the layers' sizes and normal flips |
+| `GrassField.Authored.cs` | 182 | GrassField [CoverPlant, CoverMesh, CoverBatch] | GrassField's authored accents: the scanned plants (assets/surface/ground-cover/catalog.json) the habitat rule puts among the clumps, rebatched from the resident tiles within a budget of 3,000, their middle level to 14 m |
+| `GrassField.Diagnostics.cs` | 52 | GrassField | GrassField's opt-in diagnostics: --grass-diagnostics <json path> writes the species' loaded levels (cards, vertices, triangles), the field's switch distances and the first uploaded tile's instances |
+| `GrassField.Jobs.cs` | 173 | GrassWorkMonitor, GrassWorkSnapshot, GrassField [WorkerLifetime] | GrassField's background work: GrassWorkMonitor (builds started, pending, completed, cancelled, faulted and discarded, outliving the node), the tile builds' cancellation, stale builds observed until done, Stop |
+| `GrassField.LifecycleCheck.cs` | 66 | GrassField | GrassField.SetupLifecycleFixture: a tiny art-free field for EnvironmentLifetimeCheck running the production workers, tile builds from the surface itself, uploads, pooling and authored rebatching |
+| `GrassField.Species.cs` | 311 | GrassField [Look, Species, SpeciesCatalog, SpeciesShape, Batch] | GrassField's species: the catalogue (assets/surface/grass/grass.json, art/grass/build_grass.py), a material a level, the distances each level switches at from its card counts, and the MultiMesh pool by capacity |
+| `GrassField.SubmissionDiagnostics.cs` | 115 | GroundCoverLayers, GroundCoverSubmission, GroundCoverDiagnostics, GrassField | GroundCoverLayers mask and GrassField.CaptureDiagnostics: what the clumps, litter and authored accents submit (instances, vertices, triangles), and the tiles' state for the streaming status |
+| `GrassField.Tiles.cs` | 379 | GrassField [BuildContext, SpeciesBuild, TileBuild, Instance, Contact] | GrassField's tile build on a worker: each placement cell's habitat plan from the drawn grid's climate and materials, its root on the drawn triangle with the morph target under it, the footprint's slope as a shear, instances sorted by rank |
+| `GrassField.Tint.cs` | 77 | GrassField [TintNoise] | The grass colour's noise on the CPU: the surface's macro noise sampled as the shaders sample it, and surface_grass.gdshaderinc's dryness and brightness at a clump's root |
+| `GrassField.cs` | 461 | GrassField [GrassTile, TileJob] | The ground's grass (GROUND.md §4.6, docs/WALKING_GROUND.md §18): clumps of five species and litter on cells of half a terrain cell, in tiles of the finest terrain tiles built on workers, uploaded a few a frame and drawn in view at their level of detail |
+| `GroundLayers.cs` | 369 | GroundLayers [Loaded, Texture, Variant, Layer, Catalogue] | The ground's sixteen 4K texture layers (WALKING_GROUND.md §8), read from their imported files into three texture arrays every ground material shares: colour, normals, roughness and height; the layers' sizes and normal flips |
 | `MonumentField.cs` | 102 | MonumentField | Draws the live world's monument assemblies at the placements that loot and physics use, streamed round the camera; collision stays with the shared engine-free tiles. |
 | `NativeFloraAppearanceApproval.cs` | 240 | NativeFloraAppearanceApproval | Reads a fixture-only approval record for a native flora appearance, pinned by SHA-256: its package directory, pin, runtime fingerprint, catalogue identity and dependency files. |
 | `NoiseTextures.cs` | 218 | NoiseTextures | Tiling noise textures for the surface's shaders (presentation only): the cloud field, and the large-scale |
 | `PlanetGlobals.cs` | 112 | PlanetGlobals | The planet under everything drawn (docs/WHOLE_WORLD.md §10): its centre, radius and axes as shader globals (surface_planet.gdshaderinc) and for what moves along up (effects, gibs, tracers) |
 | `PlantSource.cs` | 38 | IPlantSource, SurfacePlants | Where the surface view's plants come from (docs/WHOLE_WORLD.md §10.3): tiles of ScatterItems; SurfacePlants, a surface's own scatter |
 | `RenderFrame.cs` | 117 | RenderFrame | The frame Godot's world is drawn in (ARCHITECTURE.md §6): World, the body's own frame (the ground game's whole world), or a tangent frame of a large planet whose origin follows the camera (look-dev) |
-| `RenderMemoryTrace.cs` | 46 | RenderMemoryTrace | RenderMemoryTrace.Mark: opt-in snapshots of engine-accounted renderer memory and process memory at named phase boundaries; no collection or readback. |
+| `RenderMemoryTrace.cs` | 50 | RenderMemoryTrace | RenderMemoryTrace.Mark: opt-in snapshots of engine-accounted renderer memory and process memory at named phase boundaries; no collection or readback. |
 | `SurfaceDiagnosticGlobals.cs` | 58 | SurfaceDiagnosticGlobals | Sets neutral global shader parameters (radius, zero, one and noise textures) for isolated render diagnostics; never used with a live SurfaceView. |
 | `SurfaceSky.cs` | 261 | SurfaceSky | The sky of the surface view at a universe time (GROUND.md §4.6): the real directions of the planet's sun, its moon, the other suns and planets, as lights hidden below the drawn world's horizon |
-| `SurfaceStreamingDiagnostics.cs` | 54 | SurfaceView, TerrainLod, Vegetation, GrassField, CliffField, MonumentField | StreamingStatus strings of SurfaceView, TerrainLod, Vegetation, GrassField, CliffField and MonumentField, queried by capture and profile diagnostics. |
+| `SurfaceStreamingDiagnostics.cs` | 59 | SurfaceView, TerrainLod, Vegetation, GrassField, CliffField, MonumentField | StreamingStatus strings of SurfaceView, TerrainLod, Vegetation, GrassField, CliffField and MonumentField, queried by capture and profile diagnostics. |
 | `SurfaceUi.cs` | 97 | SurfaceUi | The surface view's overlay: where you are, the local time, the sun and moon, and the frame time. |
 | `SurfaceView.Game.cs` | 48 | SurfaceView | The surface view driven by a game (GROUND.md §4.3): the game drives the camera and owns the keys; OpenZone opens a real planet in a tangent frame at a point (the main menu's backdrop) |
 | `SurfaceView.LightingDiagnostics.cs` | 47 | SurfaceView | SurfaceView.LightingDiagnosticJson: capture metadata (camera, time, sun and moon, exposure, clouds, lights) from the sky that rendered the frame |
 | `SurfaceView.Loading.cs` | 62 | SurfaceView | The surface view's part of the loading pipeline (GROUND.md §4.3.1): what IsReady waits for, as two stages with their |
 | `SurfaceView.Water.cs` | 49 | SurfaceView | SurfaceView's underwater view: a screen layer and fog that rise with the camera's depth below the sea, a lake or a stream |
-| `SurfaceView.cs` | 839 | SurfaceView [ViewLifetime] | The surface view (GROUND.md §4.6): a planet's ground, sea, plants, grass, air and sky; the look-dev view of a real planet (Open) and the ground game's whole world from any ISurface (OpenWorld, docs/WHOLE_WORLD.md §10) |
+| `SurfaceView.cs` | 840 | SurfaceView [ViewLifetime] | The surface view (GROUND.md §4.6): a planet's ground, sea, plants, grass, air and sky; the look-dev view of a real planet (Open) and the ground game's whole world from any ISurface (OpenWorld, docs/WHOLE_WORLD.md §10) |
 | `SurfaceWorldPhases.cs` | 133 | SurfaceWorldPhases [Binding] | One view's body-space texture and wave phases for the ground and water materials: only fractional phases reach shaders, bound per material and updated each frame. |
 | `TerrainContactAtlas.Appearance.cs` | 148 | TerrainContactAtlas | TerrainContactAtlas's optional appearance arrays: the published grid's materials and normals copied into fixed Texture2DArrays (nine MiB cap), validated, retired |
 | `TerrainContactAtlas.cs` | 379 | TerrainContactAtlas [FixtureFault, ConstructionCleanupException] | Atlas of the terrain triangles actually drawn, copied from published grids for contact lookups in shaders; at most two grid uploads a frame, all on the scene thread. |
 | `TerrainLod.Cohorts.cs` | 291 | TerrainViewLimits, TerrainCohortAcquireStatus, TerrainCohortState, TerrainCohortTicket, TerrainCohortDiagnostics, TerrainLod [CohortEntry, WorkReservation] | TerrainLod's cohort tickets: TerrainViewLimits reservations, TryAcquireCohort keeping a formation cohort's finest tiles drawn, and the cohort states and diagnostics. |
 | `TerrainLod.Contact.cs` | 180 | DrawnTerrainTile, TerrainContactSample, TerrainLod [ContactGridBounds] | TerrainLod's contact queries: DrawnTerrainTile snapshots of the drawn grids near a point, TerrainContactSample on a regular triangle, and ContactRevision. |
+| `TerrainLod.Grass.cs` | 25 | TerrainLod | TerrainLod.TryDrawnGrid: the grid and morph range a finest tile is drawn with now, which the grass's roots lie on |
 | `TerrainLod.Loading.cs` | 28 | TerrainLod | What the loading pipeline reads of the terrain (GROUND.md §4.3.1). |
 | `TerrainLod.Workers.cs` | 166 | TerrainLod [BuildSession] | TerrainLod's BuildSession: managed worker threads that build tile grids from a queue with a work reservation, prioritising, cancelling and stopping |
 | `TerrainLod.cs` | 699 | TerrainLod, TileMeshData [Node, Job] | Draws a planet's ground out to the horizon from any ISurface (GROUND.md §4.6): a quadtree of tiles on each cube face, the finest level by size, each tile with its face and texture coordinates in metres on it (UV2) |
@@ -1317,13 +1315,13 @@ Tools: the bots and the load test, the message generator, the generator's report
 |---|---|---|---|
 | `Program.cs` | 948 | Program [Row] | Converts a star catalogue (CSV) into Hollow Universe's compact catalogue (GALAXY.md §8). |
 
-### tools/Hollow.GeneratorReport (10 files, 4,076 lines)
+### tools/Hollow.GeneratorReport (10 files, 4,113 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Calibrate.cs` | 80 | Calibrate | The class table against the real neighbourhood: per level, inside the distance where the catalogue is complete |
 | `EarthCandidatesReport.cs` | 181 | EarthCandidatesReport [Candidate] | earth candidates <folder> [samples] [width]: compares six layout variants of the Earth profile (dry land, forest, mountains, biomes, connectivity) offline and maps each. |
-| `EarthSurvey.cs` | 749 | EarthSurvey [Landform] | earth survey, transect, wall, formations and cliffs-bench: T1 landform survey of Earth with its map (docs/TERRAIN_SCENERY_PLAN.md), a ground transect, a wall profile, and the cliff generator's cost. |
+| `EarthSurvey.cs` | 786 | EarthSurvey [Landform] | earth survey, transect, wall, formations and cliffs-bench: T1 landform survey of Earth with its map (docs/TERRAIN_SCENERY_PLAN.md), a ground transect, a wall profile, and the cliff generator's cost. |
 | `FormationPackageReport.cs` | 55 | FormationPackageReport | formation-package <dir> <receipt> [--chart-y-up <patch>]: loads a formation package offline, prints its definitions and optionally times a surface chart qualification. |
 | `Maps.cs` | 408 | Maps [Layer] | Galaxy-wide maps of what the generator makes, one tile per level (GALAXY.md §7.1): generated stars seen face-on |
 | `Png.cs` | 93 | Png | A minimal PNG writer (8-bit RGB, Paeth-filtered rows): enough for the generator's maps. |
@@ -1353,7 +1351,7 @@ Tools: the bots and the load test, the message generator, the generator's report
 
 The tests, one file per area (the runner needs no packages).
 
-### tests/Hollow.Tests (177 files, 43,720 lines)
+### tests/Hollow.Tests (179 files, 44,135 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -1385,7 +1383,7 @@ The tests, one file per area (the runner needs no packages).
 | `ClanBaseTests.cs` | 209 | ClanBaseTests | The admin clan-3x3 base blueprint: supported floors, protected peeks and doors at every grade, broken blueprints and bad sites refused cleanly, the command over the network and a restart. |
 | `ClientEnvironmentLifetimeTests.cs` | 215 | ClientEnvironmentLifetimeTests [ReaderSurface] | The client's world lifetime: Welcome retires maps and physics before replacing the world, unknown kinds refused, failing subscribers, map pixel readers pinned until cancelled. |
 | `ClientTransportTests.cs` | 95 | ClientTransportTests | Transport stays alive through a graphical stall without running application callbacks on its workers. |
-| `CliffFormationTests.cs` | 250 | CliffFormationTests [EscarpmentSurface, SlopingSurface] | CliffPlacements: deterministic, bounded formations fitted to escarpments and slopes, one material family per face, shared collision transforms, no cliffs on flat or submerged ground. |
+| `CliffFormationTests.cs` | 356 | CliffFormationTests [EscarpmentSurface, SlopingSurface] | CliffPlacements: deterministic, bounded formations fitted to escarpments and slopes, one material family per face, shared collision transforms, no cliffs on flat or submerged ground. |
 | `CliffSupportQualificationTests.cs` | 353 | CliffSupportQualificationTests | Cliff support qualification and the FormationCatalog: exact patch and contact identity, boundary winding, LOD mappings and deviation, malformed receipts, exact-revision lookups, budgets. |
 | `ClimbingTests.cs` | 44 | ClimbingTests [Ladder] | The climbing motor on a test ladder: ascends at the set speed, holds without drift, descends, and a jump dismounts away from the ladder. |
 | `CompoundGateLockTests.cs` | 81 | CompoundGateLockTests | Locks on the compound gate: a code lock through placement and shared interactions, a key lock sharing the allocator's keys and the gate's moving socket. |
@@ -1438,12 +1436,14 @@ The tests, one file per area (the runner needs no packages).
 | `GalaxyTests.cs` | 1199 | GalaxyTests |  |
 | `GameScaleTests.cs` | 131 | GameScaleTests | The game's world scale: Earth's movement prediction on the scaled walking terrain, every planet within the surface-area budget, bad scales refused, generated physics unchanged. |
 | `GatheringTests.cs` | 392 | GatheringTests |  |
-| `GeologyPortTests.cs` | 187 | GeologyPortTests | The geology port (TERRAIN_SCENERY_PLAN.md T2): cliff collision receipts, the scanned rock catalogue against real mesh data, cliff formations and chains streaming across cube-face seams. |
+| `GeologyPortTests.cs` | 189 | GeologyPortTests | The geology port (TERRAIN_SCENERY_PLAN.md T2): cliff collision receipts, the scanned rock catalogue against real mesh data, cliff formations and chains streaming across cube-face seams. |
 | `GibTests.cs` | 204 | GibTests | Gibs (GROUND.md §9.4): everything that can be destroyed has pieces to break into, declared beside its model in the |
 | `Golden.cs` | 66 | Golden | Golden hashes over generated objects. Hashes every stored field (public or private, including the fields behind |
 | `GroundCollisionPlanTests.cs` | 131 | GroundCollisionPlanTests [CountingSurface] | Ground collision plans: layouts for small and playable radii, deterministic areas across faces, exact seam and corner counts, composite preparation, capacity and cancellation. |
+| `GroundCoverHabitatTests.cs` | 131 | GroundCoverHabitatTests | The grass's coverage rule: species and accents match the game's catalogues, habitat weights add up to one, plans are deterministic, occupancy and mix follow the table, patches are smooth and centred |
 | `GroundCoverRootMetadataTests.cs` | 151 | GroundCoverRootMetadataTests [Fixture] | Ground-cover root metadata: six whole plants with an explicit growth axis, receipt and catalogue bindings required, unknown fields and LOD root mismatches refused, imported identity. |
 | `GroundLayerCatalogueTests.cs` | 82 | GroundLayerCatalogueTests | The ground texture catalogue (docs/WALKING_GROUND.md §8, layers.json): sixteen materials first, valid alternatives and selectors, every texture's three files and imports present. |
+| `GroundMeshCheckTests.cs` | 93 | GroundMeshCheckTests [NaNSurface] | A malformed ground tile fails as a named managed error before Jolt sees it, instead of a native access violation (docs/HANDOFF_CODEX_2026-10-19.md, Phase 1). |
 | `GroundStreamingBudgetTests.cs` | 213 | GroundStreamingBudgetTests [NativeProbe] | The ground streaming ledger: reservations follow limits and survive release, atomic admission, queue and takeover limits, native disposal failures, parked bodies, shared owners. |
 | `GunNetTests.cs` | 498 | GunNetTests |  |
 | `GunTests.cs` | 431 | Guns, GunTests | Guns in a GameRig: a loaded gun in hand, shots queued for the coming tick as the server would. |
@@ -1461,7 +1461,7 @@ The tests, one file per area (the runner needs no packages).
 | `MapInteractionTests.cs` | 47 | MapInteractionTests | The map: a held drag keeps its ground point across frame updates, and the map cache key includes the walking terrain's revision. |
 | `MapTests.cs` | 231 | MapTests | The map of a whole world (docs/WHOLE_WORLD.md §11): projection round trip and far side hidden, camera drag and zoom, grid cell names, the picture of the whole world. |
 | `MeleeSwingCueTests.cs` | 216 | MeleeSwingCueTests [RemoteCueRig] | The melee swish cue's timing: waits for contact preparation, never plays after contact or a clock rewind, cancellation, remote swishes on the server clock behind interpolated snapshots. |
-| `ModelCatalogueTests.cs` | 393 | ModelCatalogueTests | The ground game's model catalogue (GROUND.md §9), checked without Godot: every model file is a GLB with its LOD |
+| `ModelCatalogueTests.cs` | 476 | ModelCatalogueTests | The ground game's model catalogue (GROUND.md §9), checked without Godot: every model file is a GLB with its LOD |
 | `MovementTests.cs` | 307 | LevelSurface, Lap, MovementRig, MovementTests | A test surface: a smooth sphere whose ground sits at a fixed height, with an optional sea. |
 | `MultiplayerTests.cs` | 472 | LoopbackRig, MultiplayerTests | An in-process server and clients on loopback: on a background thread and the wall clock, or (`simulated: true`) stepped by the rig itself on a simulated clock with a `SimulatedRelay` for a bad line, and `WaitUntilSettled` (clock and ground) before a test counts anything. |
 | `NaturalAimSegmentQueryTests.cs` | 154 | NaturalAimSegmentQueryTests [SyntheticNature, FlatSurface] | Aim queries along a segment through natural objects: interaction and attack aim match exhaustive shapes for every content kind, tall endpoints, canonical ties, a bounded 2 km corridor. |
