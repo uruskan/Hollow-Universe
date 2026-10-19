@@ -406,6 +406,70 @@ copied back. Listening and mix acceptance remain with the owner. Details in
 
 `GeologyPortTests.CliffPlacementProfilesRetainTheExportedCollisionReceipt` failed in every clean checkout: its receipt held the CRLF hash of `cliffs.json` (only the owner's stale checkout has those bytes). `provenance.json` now holds the LF hash (`9f1d8eea…`), `.gitattributes` pins `cliffs.json` and `provenance.json` with `-text`, and the Blender tool's pin of `provenance.json` follows (`defa2868…`). A checkout still holding CRLF copies fixes them with `git checkout -- src/Hollow.Surface/Data/cliffs.json game/assets/surface/cliffs/provenance.json`; other CRLF-pinned receipts (ground-cover `catalog.json`, compound r02, old evidence logs) are untouched and listed in the hand-over note.
 
+## 19 October 2026 — Client memory: what the 10–11 GiB of private bytes are
+
+The hosted client's 10.1–10.8 GiB of private bytes (T0.4 measured 10.4–11.7) are mostly the graphics driver's,
+not the game's buffers. Method: a read-only census of the client's address space every 0.5 s (committed private
+regions classed by protection and allocation shape, residency sampled with `QueryWorkingSetEx`) over hosted loads
+from fresh scratch saves at 1600 × 900, the presets passed per run, and scratch Godot projects for controlled
+tests. Steady state, 130 s after launch, with the warm-up's 369 items all shown:
+
+| Block | High | Low | Resident | What it is |
+| --- | ---: | ---: | ---: | --- |
+| Write-combined 32 MiB blocks | 4.81 GiB | 4.56 GiB | ~1% | The driver's commit backing every device-local GPU allocation |
+| Other write-combined | 1.92 GiB | 1.42 GiB | ~90% | Host-visible GPU memory: Godot's staging and readback buffers |
+| Native heap segments | 2.13 GiB | 2.12 GiB | ~93% | malloc: the engine (0.4 GiB tracked), mostly the driver's pipelines |
+| A 1 GiB reservation | 0.98 GiB | 0.98 GiB | ~95% | The driver's, grows with shader and pipeline compilation |
+| .NET GC heap | 0.55 GiB | 0.62 GiB | | The managed heap (150–430 MiB live) |
+| Other | 0.37 GiB | 0.33 GiB | | Stacks, runtime, small blocks |
+| Private bytes / working set | 10.82 / 5.70 GiB | 10.10 / 5.25 GiB | | |
+
+![High: private bytes by block over the load, as built and with VRAM-compressed textures](images/client-memory-20261019/high.svg)
+
+![Low: the same](images/client-memory-20261019/low.svg)
+
+- **Video memory's backing.** On this NVIDIA driver (Vulkan, and D3D12 in other block sizes) every device-local
+  allocation adds the same amount of write-combined private commit: 512 MiB of textures in a scratch project
+  added 640 MiB of these blocks, and freeing them gave it back. They follow the renderer's video memory and the
+  GPU's dedicated-usage counter, so they hardly differ between presets; textures are about 4 GiB of it. They
+  cost commit, not RAM, until the card's 8 GB run out: with a second client on the GPU they were 70–78% resident.
+- **Host-visible memory.** Godot 4.7 uploads every texture and buffer through transfer workers, up to one per
+  processor thread, and each keeps a staging buffer of the next power of two above its largest upload until the
+  device closes (`_acquire_transfer_worker`); the 128 MiB upload and download rings come on top, all in 256 MiB
+  blocks. It varied between 0.6 and 1.9 GiB from run to run. With the warm-up loading one file at a time
+  instead of six it fell 0.64 GiB, but the warm-up then ran out of its 40 s (345 of 369 items shown).
+- **Native heap and the 1 GiB arena** (3.1 GiB, resident). The engine's tracked allocations are 0.4 GiB. The rest
+  grows while pipelines compile: 60 shaders (360 pipelines) in a scratch project took 1.4–3.4 MiB per pipeline
+  (warm or cold caches) and released it when the shaders were freed; disabling the pipeline cache changed
+  little. The game compiles 830–870 pipelines while loading, because the warm-up draws the whole catalogue.
+- **Not the flora atlas bake.** Its CPU buffers are banded and transient (tens of MB). The 5.4 → 9.9 GB jump in the
+  18 October trace is the world-opening frame its first band waited behind: about 20 s in which the catalogue's
+  textures and meshes uploaded and some 200 pipelines compiled.
+
+**The largest reducible block needs a visual decision.** 3D textures imported "Lossless", Godot's 2D default (a
+headless import never runs the editor's detect-3D), take 1.1 GiB of video memory in a hosted game, most of them
+without mipmaps. A local reimport, not committed, gave 62 of them (the `assets/revised/Hollow_*_R01` kits, the
+compound's wood pieces, two cliff scans and the ground-cover billboards; 37 resident, 34 without mipmaps) VRAM
+compression (BC1, BC3, BC5) and mipmaps: High 10.82 → 9.66 GiB private, working set 5.70 → 5.31 GiB; Low 10.10
+→ 8.69 and 5.25 → 4.59. Texture memory fell 0.61 GiB and the video-memory backing 0.84 GiB at both presets;
+host-visible memory fell 0.35–0.54 GiB, the largest upload being 21 MiB instead of 64; play started 3 s sooner at
+High. The kits' 20 other resident 2K textures (0.28 GiB, small files the trial skipped) would save about 0.2 GiB
+more. Compression and new mipmaps change these textures' look, so this waits for the owner's review with
+screenshots.
+
+Committed: `HollowUniverse.Common.ProcessCommit` splits the private bytes into the graphics driver's write-combined
+commit and the rest, in `[load-progress]`, `[render-memory]`, `[load-memory]`, the `--load-trace` summary and the
+environment route's `processMemory` (opt-in traces only, a few milliseconds a call). It reads what this driver does;
+another vendor's driver may back its memory differently. Godot's retained staging and the driver's per-pipeline
+memory are outside the game's code.
+
+Validation: solution 0 warnings, 0 errors; full suite 1,010 of 1,011 in 494 s. The one failure,
+`GeologyPortTests.CliffPlacementProfilesRetainTheExportedCollisionReceipt`, fails in any fresh worktree: its receipt
+holds the hash of `cliffs.json` with CRLF line ends, the main checkout's bytes, and it passes with them. Hosted High
+and Low runs from fresh scratch saves, the saved settings untouched. Other sessions' clients shared the GPU during the
+first three High runs, which reached the warm-up's 40 s limit (6, 228 and 240 of 369 items) at 8.5–8.8 GiB; the
+tables use the runs that showed all 369.
+
 ## 19 October 2026 — T2 second iteration: sea-cliff toes, intended rock, the formation map
 
 A coastal face's toe may stand in the surf (up to 40% of a piece's fit points over water, measured from a metre

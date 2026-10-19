@@ -182,6 +182,7 @@ public partial class LoadTrace : Node
         _lastReady = ready;
         var world = Mode.View?.World;
         var loading = Mode.Loading;
+        HollowUniverse.Common.ProcessCommit.Split commit = HollowUniverse.Common.ProcessCommit.Measure();
         GD.Print("[load-progress] " + System.Text.Json.JsonSerializer.Serialize(new
         {
             processSeconds = now, processId = System.Environment.ProcessId, processFrame = Engine.GetProcessFrames(),
@@ -208,6 +209,9 @@ public partial class LoadTrace : Node
             rendererBufferMiB = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.BufferMemUsed) / (1024.0 * 1024),
             rendererTotalMiB = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.VideoMemUsed) / (1024.0 * 1024),
             engineStaticMiB = OS.GetStaticMemoryUsage() / (1024.0 * 1024),
+            // The process's private bytes: the graphics driver's write-combined commit (video memory's backing,
+            // mapped GPU buffers) and the rest (native and managed heaps), docs/DEVELOPMENT.md 19 October 2026.
+            privateMiB = commit.PrivateMiB, graphicsCommitMiB = commit.GraphicsMiB, cpuCommitMiB = commit.CpuMiB,
             streaming = world?.StreamingStatus,
         }));
     }
@@ -372,6 +376,9 @@ public partial class LoadTrace : Node
             totals.Append(i + 1 < Pipelines.Length ? ", " : "");
         }
         GD.Print("[load] pipelines compiled: " + totals);
+        HollowUniverse.Common.ProcessCommit.Split commit = HollowUniverse.Common.ProcessCommit.Measure();
+        GD.Print(string.Create(c, $"[load] private memory {commit.PrivateMiB:0} MiB: graphics driver {commit.GraphicsMiB:0} MiB, " +
+            $"other {commit.CpuMiB:0} MiB; working set {System.Environment.WorkingSet / 1048576.0:0} MiB"));
         if (Mode.View is { } view)
         {
             GD.Print("[load] the ground view's slowest parts: " + string.Join(", ",

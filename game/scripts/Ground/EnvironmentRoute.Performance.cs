@@ -208,13 +208,18 @@ public sealed partial class EnvironmentRoute
         }
     }
 
-    /// <summary>This client process only; a child server's memory is its own process's.</summary>
+    /// <summary>
+    /// This client process only; a child server's memory is its own process's. Private memory is split into the graphics
+    /// driver's write-combined commit (video memory's backing, mapped GPU buffers) and the rest (HollowUniverse.Common.ProcessCommit).
+    /// </summary>
     private static object ProcessMemory()
     {
         using var process = System.Diagnostics.Process.GetCurrentProcess();
+        HollowUniverse.Common.ProcessCommit.Split commit = HollowUniverse.Common.ProcessCommit.Measure();
         return new
         {
-            workingSetMiB = process.WorkingSet64 / 1048576.0, privateMiB = process.PrivateMemorySize64 / 1048576.0,
+            workingSetMiB = process.WorkingSet64 / 1048576.0, privateMiB = commit.PrivateMiB,
+            graphicsCommitMiB = commit.GraphicsMiB, cpuCommitMiB = commit.CpuMiB,
             managedMiB = GC.GetTotalMemory(false) / 1048576.0, godotStaticMiB = OS.GetStaticMemoryUsage() / 1048576.0,
         };
     }

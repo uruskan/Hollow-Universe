@@ -806,10 +806,11 @@ public partial class GroundView : Node3D
         if (IsolatedCapture && part.StartsWith("open:", StringComparison.Ordinal))
         {
             using var process = System.Diagnostics.Process.GetCurrentProcess();
+            HollowUniverse.Common.ProcessCommit.Split commit = HollowUniverse.Common.ProcessCommit.Measure();
             GD.Print("[load-memory] " + System.Text.Json.JsonSerializer.Serialize(new
             {
                 stage = part, milliseconds = ms, workingSetMiB = process.WorkingSet64 / 1048576.0,
-                privateMiB = process.PrivateMemorySize64 / 1048576.0,
+                privateMiB = commit.PrivateMiB, graphicsCommitMiB = commit.GraphicsMiB, cpuCommitMiB = commit.CpuMiB,
                 managedMiB = GC.GetTotalMemory(false) / 1048576.0,
                 managedCommittedMiB = GC.GetGCMemoryInfo().TotalCommittedBytes / 1048576.0,
             }));

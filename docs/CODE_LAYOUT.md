@@ -931,6 +931,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 |---|---|---|---|
 | `Labeller.cs` | 109 | LabelSide, Labeller | Where a label goes relative to the object it names. |
 | `MapOverlay.cs` | 97 | MapLabel, MapOverlay [Text, Ring] | How a label on a map looks. |
+| `ProcessCommit.cs` | 61 | ProcessCommit [Split] | The client process's private commit split by what backs it, for the opt-in memory traces (docs/DEVELOPMENT.md, |
 | `StarColors.cs` | 59 | StarColors | Presentation colours for stars (blackbody-like, tuned to read well on a dark map). |
 | `Ui.cs` | 666 | TextStyle, Ui [Ground] | Text styles of the interface. Each one is a Label theme type variation of the same name. |
 | `UiIcons.cs` | 85 | UiIcon, UiIcons |  |

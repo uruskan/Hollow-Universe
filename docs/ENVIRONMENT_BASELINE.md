@@ -57,7 +57,9 @@ Procedural grass and litter are each one batch covering a whole cube face, so th
 submitted wherever the camera looks. The drawn-contact atlas uploaded 2.4 to 4.0 MB per run. At High the frame is
 GPU-bound (GPU within 0.6 ms of the frame); at Low in the woodland the frame (8.3 ms) exceeds the GPU (6.0 ms),
 so Low is held by the CPU there. The client process commits 10.4 to 11.7 GiB of private memory at every preset,
-on a 16 GB machine: a problem of its own, outside the environment budget.
+on a 16 GB machine: a problem of its own, outside the environment budget. [DEVELOPMENT.md](DEVELOPMENT.md) (19
+October 2026, client memory) shows what it is: 6.0 to 6.7 GiB is the graphics driver's commit for video memory and
+mapped GPU buffers, most of the video memory's share not resident, and the working set is 5.3 to 5.7 GiB.
 
 ## Route walks
 

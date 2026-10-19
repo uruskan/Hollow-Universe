@@ -414,9 +414,10 @@ all of it under the screen.
 **Measuring a start:** `--load-trace [seconds]` prints the timeline since the process started (the server ready, the
 connection, the world's opening and streaming, each stage done, play handed over), every frame over 33 ms with its
 process time, garbage collection, JIT and the pipelines built in it, the pipelines built after spawning and in play,
-the ground view's slowest parts, the warm-up's costliest items and the memory, then quits; `--load-shot <file>` saves
-the screen once the load is half done; `--arrival-check` teleports the hosting player to the landing site three
-seconds into play and times the arrival.
+the ground view's slowest parts, the warm-up's costliest items and the memory (the private bytes split into the
+graphics driver's write-combined commit, mostly video memory's backing, and the rest), then quits; `--load-shot
+<file>` saves the screen once the load is half done; `--arrival-check` teleports the hosting player to the landing
+site three seconds into play and times the arrival.
 
 ### 4.4 Network
 
