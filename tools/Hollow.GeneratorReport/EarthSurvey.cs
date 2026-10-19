@@ -149,7 +149,8 @@ public static class EarthSurvey
             landSquareMetres = Math.Round(land), steepSquareMetres = Math.Round(steepArea),
             steepCoveredByCliffScans = Math.Round(steepCovered / Math.Max(1, steepArea), 3),
             wallSquareMetres = Math.Round(allWalls), wallCoveredByCliffScans = Math.Round(coveredWalls / Math.Max(1, allWalls), 3),
-            cliffPlacements = placements, classes, regions = regionsByClass, lakeBanks = LakeBanks(world, 3),
+            cliffPlacements = placements, recipes = RecipeCoverage(world), classes, regions = regionsByClass,
+            lakeBanks = LakeBanks(world, 3),
         };
         // The file holds only generated facts, so a rerun on the same generator reproduces it byte for byte.
         string json = JsonSerializer.Serialize(report, new JsonSerializerOptions { WriteIndented = true });
@@ -173,7 +174,8 @@ public static class EarthSurvey
         Vector3D start = ZoneFrame.Direction(latitude * DMath.DegToRad, longitude * DMath.DegToRad);
         Vector3D east = Vector3D.Cross(Vector3D.UnitY, start).Normalized, north = Vector3D.Cross(start, east);
         Vector3D heading = north * DMath.Cos(bearing) + east * DMath.Sin(bearing);
-        Console.WriteLine("metres  latitude    longitude    height  water   rise/m  plains hills table mount rocky cliffs");
+        // "uncarved" is the relief before the drainage cuts valleys and canyons and before monument pads (WalkingWorld.Parts).
+        Console.WriteLine("metres  latitude    longitude    height uncarved  water   rise/m  plains hills table mount rocky cliffs");
         double previous = double.NaN, steepest = 0, steepestAt = 0;
         for (double d = 0; d <= length + 1e-9; d += step)
         {
@@ -188,8 +190,9 @@ public static class EarthSurvey
             var (lat, lon) = LatLon(direction);
             int cliffs = world.Cliffs.Near(direction * (world.Radius + h), 0).Count(c => Inside(c, direction * (world.Radius + h)));
             string water = s.Wetted ? s.Water.ToString("F2", CultureInfo.InvariantCulture) : "-";
+            double uncarved = world.Parts(direction).Base;
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                $"{d,6:F1}  {lat,10:F6}  {lon,11:F6}  {h,6:F2}  {water,6}  {rise,6:F2}   {s.Plains,5:F2} {s.Hills,5:F2} {s.Tableland,5:F2} {s.Mountains,5:F2} {s.Rocky,5:F2} {cliffs,5}"));
+                $"{d,6:F1}  {lat,10:F6}  {lon,11:F6}  {h,6:F2}  {uncarved,7:F2}  {water,6}  {rise,6:F2}   {s.Plains,5:F2} {s.Hills,5:F2} {s.Tableland,5:F2} {s.Mountains,5:F2} {s.Rocky,5:F2} {cliffs,5}"));
         }
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"steepest rise {steepest:F2} m/m at {steepestAt:F1} m"));
         return 0;
@@ -536,6 +539,32 @@ public static class EarthSurvey
         Vector3D along = to.Normalized - up * Vector3D.Dot(up, to.Normalized);
         double degrees = DMath.Atan2(Vector3D.Dot(along, east), Vector3D.Dot(along, north)) * DMath.RadToDeg;
         return degrees < 0 ? degrees + 360 : degrees;
+    }
+
+    /// <summary>
+    /// The formation generator's own record (CliffPlacements.Report): every cell's surveyed face samples by recipe,
+    /// how many carry rock, and the walls among them. Uncovered samples are the intended regions fitting left bare.
+    /// </summary>
+    private static List<object> RecipeCoverage(WalkingWorld world)
+    {
+        var totals = new SortedDictionary<string, long[]>(StringComparer.Ordinal);
+        int level = world.Cliffs.Level;
+        var reports = new IReadOnlyList<CliffFaceSample>[TileKey.CountAt(level)];
+        Parallel.For(0, reports.Length, i => reports[i] = world.Cliffs.Report(TileKey.FromIndex(level, i)!.Value));
+        foreach (IReadOnlyList<CliffFaceSample> report in reports)
+            foreach (CliffFaceSample sample in report)
+            {
+                string key = sample.Recipe ?? "(no face kept)";
+                if (!totals.TryGetValue(key, out long[]? t)) totals[key] = t = new long[4];
+                t[0]++;
+                if (sample.Covered) t[1]++;
+                if (sample.Wall) { t[2]++; if (sample.Covered) t[3]++; }
+            }
+        return totals.Select(p => (object)new
+        {
+            recipe = p.Key, faceSamples = p.Value[0], covered = Math.Round((double)p.Value[1] / Math.Max(1, p.Value[0]), 3),
+            walls = p.Value[2], wallsCovered = Math.Round((double)p.Value[3] / Math.Max(1, p.Value[2]), 3),
+        }).ToList();
     }
 
     private static int CountPlacements(WalkingWorld world)

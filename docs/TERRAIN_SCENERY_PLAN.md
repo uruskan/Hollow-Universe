@@ -123,8 +123,11 @@ There is no assumption that the three fixture corrections alone resolve all gene
 
 Status 19 October: item 3 is classified and fixed. The Jolt abort was an unchecked native allocation
 failure after the binding leaked every physics system, body and shape (about 16 MiB per world); see
-KNOWN_PROBLEMS.md. Items 1 and 2 were completed on 18 October. Item 4, the measured hosted baseline
-with separate grass, litter and authored-plant ablations, is next.
+KNOWN_PROBLEMS.md. Items 1 and 2 were completed on 18 October. Item 4 is measured in
+[ENVIRONMENT_BASELINE.md](ENVIRONMENT_BASELINE.md): five stationary breakdowns (High, Low, Maximum) with
+grass, litter and authored plants removed separately, and four route walks. One High walk completed the
+868 m route with no native crash, which meets the gate; three stopped at a boulder inside a waypoint, so the
+route planner now keeps clear of solid natural objects.
 
 ### T1 — Survey landforms and define the visual target
 
@@ -168,6 +171,19 @@ size and measured cost. Local merged assets may help batching, but retain useful
 Gate: complete crown/face/base compositions, believable scale, correct contact and walkable
 approaches at inspected sites; stable IDs/collision across seams; no hard silhouette disappearance
 when walking or flying through the near/far boundary.
+
+Status 19 October, first iteration (not yet the gate). `CliffPlacements` generation 3 replaces the single
+random candidate per 59 m cell, which rarely landed on a narrow escarpment, with a fixed 12 × 12 survey of the
+cell's faces. Each face takes a recipe (`Data/cliff-recipes.json`: coastal scarp, plateau face, mountain face,
+inland outcrop) and is dressed as a whole: column after column from the highest sample still bare, crest to
+toe, until every intended sample lies inside a piece. Walls always take rock; gentler ground follows the
+recipe's rock share in coherent patches. `CliffPlacements.Report` records every face sample, covered or not.
+Earth's steep ground with rock on it rose from 22.5% to 74.7%, walls from 14.5% to 71.7%; scan pieces from 909
+to 5,375. Hosted captures at the T1 sites ([after](images/t2-formations/), the cameras of
+[before](images/t1-survey/)) show wall feet, outcrops and escarpment ledges dressed. Still short of
+the gate: upper faces of tall flanks and some long walls stay bare (the sea cliffs' walls are 51% covered),
+coastal slabs read as shelves rather than a face, grey granite scans stand on red tableland, and far proxies
+from about 94 m are not built. Earth save revision 6 (others 3) and protocol 40 fence the new collision.
 
 ### T3 — Make rock, soil and vegetation share environmental data
 

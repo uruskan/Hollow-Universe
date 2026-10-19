@@ -53,7 +53,9 @@ public static partial class Protocol
     // 37: normalized ice/alpine biome allocation changes generated populations (Earth save revision 5, others 2).
     // 38: verify physical descriptor and qualification compatibility before login and world publication.
     // 39: authoritative projectile material, target, normal and moving-surface attachment metadata.
-    public const uint Version = 39;
+    // 40: cliff formations traced along their faces (generation 3) change collision solids on every WalkingWorld body
+    //     (Earth save revision 6, others 3).
+    public const uint Version = 40;
 
     /// <summary>Fixed upper bound for Hello, WorldOffer, WorldAccept and Welcome, including their type byte.</summary>
     public const int MaxWorldHandshakeBytes = 512;

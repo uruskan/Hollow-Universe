@@ -15,8 +15,8 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth wall <lat>
 
 - `survey` rasterises the globe (1,440 × 720 by default, 5.24 m a pixel at the equator) and writes
   `docs/images/t1-survey/earth-landforms.png` and `.json`. Two runs give identical files. It takes 5 s.
-- `transect` prints the ground along a bearing: height, water, rise per metre, the four relief weights and the
-  scans whose box holds the point.
+- `transect` prints the ground along a bearing: height, the relief before carving, water, rise per metre, the
+  four relief weights and the scans whose box holds the point.
 - `wall` draws the ground round a point from above as the generator makes it and as the terrain's render grid
   draws it at tile levels 6, 5, 4 and 3 (32 cells a tile: 0.92, 1.84, 3.68 and 7.36 m cells on Earth).
 
@@ -81,9 +81,13 @@ cliff whose foot is under water) to gentle dry ground and looks back. Every capt
 
 ### The benchmark route
 
-The continuous normal-play benchmark is the existing hosted route (`--environment-route`, planned by
-`EarthEnvironmentRoute.Find`, unchanged today): 868 m from a beach through woodland, a clearing, the water's
-edge, a scanned cliff and the weather station.
+The continuous normal-play benchmark is the hosted route (`--environment-route`, planned by
+`EarthEnvironmentRoute.Find`): from a beach through woodland, a clearing, the water's edge, a scanned cliff and
+the weather station. The 868 m route below was the one measured for the T0 baseline; three of its four walks
+stopped at a boulder inside a waypoint, so the planner now keeps clear of solid natural objects, and with T2's
+cliffs it plans a 767 m route (beach −22.909035, −101.821388; woodland −17.760490, −96.669275; clearing
+−19.172801, −96.160848; water −25.317505, −100.860287; cliff −25.317505, −93.473217, a `nordic_tall` group;
+weather station −26.270175, −93.444406).
 
 | Stop | Coordinates | Covers |
 | --- | --- | --- |
@@ -103,14 +107,17 @@ again at each site after a change.
 ## The scalloped soil wall
 
 The playtest's screenshot 5 (16 October) shows a long reddish wall with regular vertical scallops whose tops
-are dark. It is reproduced at the tableland edge north of −42.7987, 7.689 (Codex's capture site of 18 October)
+are dark. A static review on 16 October ([Earth-terrain-recovery.md](repair-results/Earth-terrain-recovery.md))
+named the same suspects and asked for a reproduced site; this is that reproduction. It is reproduced at the tableland edge north of −42.7987, 7.689 (Codex's capture site of 18 October)
 and, in normal play, at the mountain and coastal sites above.
 
 **Cause: relief shape.** `WalkingWorld.Tableland` builds each plateau and mesa edge as an escarpment whose
 cliff part (`CliffShare`, 75% of the rise) spans only ±0.3 of a narrow band of a noise field. Along bearing 10°
 from the capture site the ground rises 8.7 m in 3 m (31.5 to 34.5 m out; rise up to 3.9 per metre, 75°), with
-a flat top beyond and a 0.25 talus below. Mountain flanks reach grade 7 and the tableland coast 16.7. The
-heightfield is asked to stand vertical.
+a flat top beyond and a 0.25 talus below. The relief before the drainage carves and monument pads are graded
+(`WalkingWorld.Parts`) is identical to the final ground across the whole step, so the wall is the tableland's
+own shape, not a canyon. Mountain flanks reach grade 7 and the tableland coast 16.7. The heightfield is asked
+to stand vertical.
 
 **Why it scallops.** Three things turn that step into a regular pattern:
 
@@ -159,8 +166,10 @@ notes come from REFERENCE_STUDY_TOOLS_WORLD.md and the plan's production lessons
 
 Three recipes for T2, from the survey's measurements and the five scans in `src/Hollow.Surface/Data/cliffs.json`
 (coastal 22 × 2.7 m, sandstone 18 × 6.4 m, nordic broad 24 × 12.9 m, nordic tall 22 × 12.1 m, forest ledge
-20 × 5.8 m; widths × heights). The current generator places at most three columns by three tiers in a 48 m
-cell, one material family a group. The numbers below are starting values, not tuned results.
+20 × 5.8 m; widths × heights). Before T2 the generator placed at most three columns by three tiers in a 48 m
+cell, one material family a group. The numbers below are starting values, not tuned results. They are built
+in `src/Hollow.Surface/Data/cliff-recipes.json`, the plateau/mountain recipe as a tableland and a mountain
+entry that differ in their scans' families.
 
 | | Coastal scarp | Inland outcrop | Plateau / mountain face |
 | --- | --- | --- | --- |

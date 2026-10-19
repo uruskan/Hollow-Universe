@@ -105,8 +105,9 @@ public static class GeologyPortTests
             Assert.True(formation.SequenceEqual(independent.FormationAt(tile)), "independent generation agrees on every member, scale and transform");
             Assert.Equal(formation.Count, formation.Select(p => p.Key).Distinct().Count(), "streaming never aliases neighbours under one tile ID");
             Assert.True(formation.Count <= CliffPlacements.MaximumParts, "bounded fitted columns and descending rows");
-            Assert.Equal(1, formation.Select(p => CliffGeometry.All[p.Model].MaterialFamily).Distinct().Count(),
-                "one formation uses compatible geology rather than a random patchwork of scanned materials");
+            foreach (var face in formation.GroupBy(p => p.Part / (CliffPlacements.MaximumColumns * CliffPlacements.MaximumTiers)))
+                Assert.Equal(1, face.Select(p => CliffGeometry.All[p.Model].MaterialFamily).Distinct().Count(),
+                    "one face uses compatible geology rather than a random patchwork of scanned materials");
             var column = formation.Where(p => p.Part < CliffPlacements.MaximumTiers).ToArray();
             if (column.Length > 1)
             {

@@ -16,6 +16,7 @@
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="Data/cliffs.json" />
+    <EmbeddedResource Include="Data/cliff-recipes.json" />
     <EmbeddedResource Include="Data/monuments.json" />
   </ItemGroup>
 </Project>

@@ -1,5 +1,34 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — T2 first iteration: cliff formations dressed along whole faces
+
+`CliffPlacements` generation 3 surveys each 59 m cell on a 12 × 12 grid instead of testing one random point,
+groups the steep samples into faces, and dresses each face as a whole from `Data/cliff-recipes.json` (coastal
+scarp, plateau face, mountain face, inland outcrop): column after column from the highest sample still bare,
+from below its crest down to its toe, until every intended sample lies inside a piece. Walls always take rock;
+gentler ground keeps soil in coherent 30 m patches. `CliffPlacements.Report` returns every face sample with
+whether rock covers it, and the survey sums it by recipe. Member offsets are measured across the ground, so very
+steep slopes keep their formations. Earth: steep ground with rock 22.5% → 74.7%, walls 14.5% → 71.7%,
+909 → 5,375 pieces. Earth save revision 6, other walking bodies 3, protocol 40.
+
+Hosted High captures at the T1 sites: wall feet, outcrops and escarpment ledges are dressed; upper faces of tall
+flanks, part of the 120 m wall and the sea cliffs' walls stay bare, coastal slabs read as shelves, and grey
+scans stand on red tableland. Not yet T2's gate.
+
+Validation: solution 0 warnings, 0 errors; full suite 1,011 of 1,011 in 485 s, including the new escarpment
+and uniform-slope formation tests and the route's independent clearance check.
+
+## 19 October 2026 — T0.4: measured baseline; the route keeps clear of solid objects
+
+[ENVIRONMENT_BASELINE.md](ENVIRONMENT_BASELINE.md) records five breakdowns and four route walks at 1600 × 900
+on the RTX 2070 SUPER. High: 16.0 ms a frame at the clearing, GPU-bound; ground cover 4.1–5.1 ms of GPU,
+of which authored plants 1.6–2.9, procedural grass 1.6–2.2, litter about 0.1; trees 2.5–2.8; sun
+shadows 2.4–2.8; cliffs, monuments and water almost nothing. The High route walks pool to 14.11 ms mean and
+16.20 ms p95, the walks within 0.1 ms of each other; Low 5.87 ms. The client commits 10.4–11.7 GiB of
+private memory at every preset. One walk completed the 868 m route; three stopped at a boulder inside a
+waypoint. `EarthEnvironmentRoute.Find(world, natural)` now keeps waypoints 1 m and corridors 0.5 m clear of
+every solid natural object, and the route test checks it independently.
+
 ## 19 October 2026 — T1: Earth landform survey, sites and the scalloped wall
 
 [LANDFORM_SURVEY.md](LANDFORM_SURVEY.md) records T1 of the environment plan. `earth survey` classifies the whole

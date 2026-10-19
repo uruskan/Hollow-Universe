@@ -9,7 +9,7 @@ namespace Hollow.Tests;
 public static class CliffFormationTests
 {
     [Test]
-    public static void CliffFormationKeepsCandidateStreamAndBoundsComposition()
+    public static void CliffFormationsAreDeterministicAndBounded()
     {
         var surface = new SlopingSurface(1.1);
         var allScales = new HashSet<double>();
@@ -19,26 +19,18 @@ public static class CliffFormationTests
             var placements = new CliffPlacements(surface, seed);
             var independent = new CliffPlacements(surface, seed);
             TileKey tile = TileKey.At(Vector3D.UnitX, placements.Level);
-            var candidate = new Rng(Hash64.Of(seed, 0x434C4946, tile.Packed));
-            bool enabled = candidate.Chance(0.8);
-            Vector3D direction = CubeSphere.Direction(tile.Face, tile.U0 + tile.Span * candidate.Range(0.15, 0.85),
-                tile.V0 + tile.Span * candidate.Range(0.15, 0.85));
             IReadOnlyList<CliffPlacement> group = placements.FormationAt(tile);
             Assert.True(group.SequenceEqual(independent.FormationAt(tile)), "server/client generation agrees on every transform and stable part key");
-            if (!enabled)
-            {
-                Assert.Equal(0, group.Count, "existing seed rejection remains stable");
-                continue;
-            }
             if (group.Count == 0) continue;
             groups++;
             parts += group.Count;
-            Assert.True(group.Count <= 9, "a formation has a bounded nine-piece cost, rather than a dense wall of repeated scans");
-            Assert.Near(0, Vector3D.Distance(direction, group[0].Position.Normalized), 1e-12,
-                "first member remains at the original candidate direction");
+            Assert.True(group.Count <= CliffPlacements.MaximumParts, "a cell's formations have a bounded cost");
             Assert.Equal(group.Count, group.Select(p => p.Key).Distinct().Count(), "different members never alias a streaming/collision key");
-            Assert.Equal(1, group.Select(p => CliffGeometry.All[p.Model].MaterialFamily).Distinct().Count(),
-                "members belong to the same compatible material family");
+            const int FaceParts = CliffPlacements.MaximumColumns * CliffPlacements.MaximumTiers;
+            foreach (var face in group.GroupBy(p => p.Part / FaceParts))
+                Assert.Equal(1, face.Select(p => CliffGeometry.All[p.Model].MaterialFamily).Distinct().Count(),
+                    "a face's members belong to one compatible material family");
+            Vector3D cell = tile.Centre * (surface.Radius + surface.HeightAt(tile.Centre));
             foreach (CliffPlacement piece in group)
             {
                 allScales.Add(piece.Scale);
@@ -46,14 +38,40 @@ public static class CliffFormationTests
                     "authored facing preserves a right-handed basis");
                 Assert.True(CliffGeometry.All[piece.Model].Positions.All(p => p.Length * piece.Scale <= CliffPlacements.MaximumExtent),
                     "every authoritative vertex remains inside the streaming radius");
-                Vector3D anchor = direction * (surface.Radius + surface.HeightAt(direction));
-                Assert.True(Vector3D.Distance(anchor, piece.Position) <= CliffPlacements.MaximumOffset,
-                    "members cannot escape neighbour discovery");
+                Assert.True((cell.Normalized - piece.Position.Normalized).Length * surface.Radius <= CliffPlacements.MaximumOffset,
+                    "members stay within their cell's discovery reach across the ground");
             }
         }
-        Assert.True(groups >= 20, "representative continuous dry slopes retain formations after fitting");
+        Assert.Equal(40, groups, "a continuous dry slope is dressed under every seed: no random cell is left bare");
         Assert.True(allScales.Count > 10, "composition varies physical size across stable seeded formations");
-        Fixtures.Report($"{groups} synthetic fitted formations, {parts} parts, {allScales.Count} scales; unchanged candidate stream");
+        Fixtures.Report($"{groups} synthetic fitted formations, {parts} parts, {allScales.Count} scales");
+    }
+
+    [Test]
+    public static void CliffFormationsDressANarrowEscarpmentAlongItsLength()
+    {
+        // A tableland edge as the walking world makes it: 10 m of rise in 3 m, straight through the cell.
+        var probe = new CliffPlacements(new SlopingSurface(0), 1);
+        TileKey tile = TileKey.At(Vector3D.UnitX, probe.Level);
+        Vector3D centre = tile.Centre;
+        var surface = new EscarpmentSurface(centre.Z / centre.X);
+        int covered = 0, steep = 0, walls = 0, wallsCovered = 0, members = 0;
+        for (ulong seed = 1; seed <= 8; seed++)
+        {
+            var placements = new CliffPlacements(surface, seed);
+            members += placements.FormationAt(tile).Count;
+            foreach (CliffFaceSample sample in placements.Report(tile))
+            {
+                steep++;
+                if (sample.Covered) covered++;
+                if (sample.Wall) { walls++; if (sample.Covered) wallsCovered++; }
+                Assert.Equal("mountain-face", sample.Recipe, "a surface without relief fields takes the mountain recipe");
+            }
+        }
+        double share = steep == 0 ? 0 : (double)covered / steep;
+        Fixtures.Report($"escarpment: {steep} face samples, {share:P0} inside a scan; {walls} walls, {wallsCovered} covered; {members} members over 8 seeds");
+        Assert.True(steep >= 8 * 12, "the survey finds the escarpment all along the cell, not at one random point");
+        Assert.True(share >= 0.7, $"most of the escarpment carries rock ({share:P0}); the old single candidate dressed under a fifth of such cells");
     }
 
     [Test]
@@ -146,6 +164,23 @@ public static class CliffFormationTests
                     "water and gentle ground do not acquire detached cliff scans");
             }
         }
+    }
+
+    // A straight step along the face's v axis at a chosen tangent: base height below, base plus rise above, the rise
+    // over a three-metre band (as WalkingWorld.Tableland's cliff share makes it).
+    private sealed class EscarpmentSurface(double stepTangent) : ISurface
+    {
+        private const double BaseHeight = 300, Rise = 10, Band = 3;
+        public double Radius => 1200;
+        public double SeaRadius => 0;
+        public double HeightAt(Vector3D direction)
+        {
+            if (direction.X <= 0.5) return BaseHeight;
+            double metres = (direction.Z / direction.X - stepTangent) * (Radius + BaseHeight);
+            double t = Math.Clamp((metres + Band / 2) / Band, 0, 1);
+            return BaseHeight + Rise * t * t * (3 - 2 * t);
+        }
+        public double WaterLevelAt(Vector3D direction) => double.NegativeInfinity;
     }
 
     private sealed class SlopingSurface(double gradient, bool submerged = false) : ISurface

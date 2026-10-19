@@ -17,6 +17,13 @@ public readonly record struct CliffPlacement(TileKey Tile, int Model, Vector3D P
 }
 
 /// <summary>
+/// A surveyed face sample and what dresses it (T2): the ground, its grade, whether it is a wall, whether rock is drawn
+/// there (inside a placed scan's box, this cell's or a neighbour's) and the recipe of the face it belongs to (null when
+/// the cell dresses no face there). Uncovered samples are reported, never hidden.
+/// </summary>
+public readonly record struct CliffFaceSample(Vector3D Ground, double Gradient, bool Wall, bool Covered, string? Recipe);
+
+/// <summary>
 /// The formation cache's retained entries, including empty results and pending Lazy values. Payload bytes count only
 /// completed placement-array elements, excluding array/container overhead and arrays still held by outside readers.
 /// Builds counts factory invocations, including failures and duplicates after an in-flight entry was evicted.
@@ -25,19 +32,28 @@ public readonly record struct CliffFormationCacheDiagnostics(int Capacity, int E
     int EmptyEntries, int RetainedParts, long RetainedPayloadBytes, long Hits, long Misses, long Evictions, long Builds);
 
 /// <summary>
-/// Sparse, stable geological formations on the walking world's steep dry faces. Candidate streams are separate
-/// from harvestable scatter; no natural-object or loot ID changes when this presentation/collision layer is added.
+/// Stable geological formations on the walking world's steep dry faces (docs/TERRAIN_SCENERY_PLAN.md T2). Each cell
+/// surveys its own ground on a fixed grid, traces its faces along their contour and dresses each from crest to toe,
+/// column by column, with the recipe of what made it (<see cref="CliffRecipe"/>). Candidate streams are separate from
+/// harvestable scatter; no natural-object or loot ID changes when this presentation/collision layer changes.
 /// </summary>
 public sealed class CliffPlacements
 {
-    /// <summary>Shared collision-generation revision, for save/network compatibility; candidate seeds stay stable.</summary>
-    public const int GenerationRevision = 2;
+    /// <summary>Shared collision-generation revision, for save/network compatibility (3: faces traced and dressed, T2).</summary>
+    public const int GenerationRevision = 3;
     public const double CellMetres = 48;
     public const double MaximumExtent = 40;
+    /// <summary>A member stands at most this far from its cell's centre across the ground (not up a face), so neighbour discovery finds it.</summary>
     public const double MaximumOffset = 64;
-    public const int MaximumTiers = 3;
-    public const int MaximumColumns = 3;
-    public const int MaximumParts = MaximumColumns * MaximumTiers;
+    public const int MaximumTiers = 4;
+    public const int MaximumColumns = 6;
+    /// <summary>Faces a cell dresses, largest first.</summary>
+    public const int MaximumFaces = 2;
+    public const int MaximumParts = MaximumFaces * MaximumColumns * MaximumTiers;
+    /// <summary>Survey samples along a cell's edge: about five metres apart on Earth.</summary>
+    public const int SurveySide = 12;
+    /// <summary>Grades over the survey's ten-metre baseline: a face (the old candidate rule), a wall, and the toe or crest where a face ends.</summary>
+    public const double FaceGrade = 0.62, WallGrade = 2, EdgeGrade = 0.45;
     /// <summary>
     /// Per-world retention budget: at most this many entries, including empty formations and pending builds, and at
     /// most Capacity × MaximumParts completed placement elements. This bounds cache retention, not consumer jobs.
@@ -148,86 +164,298 @@ public sealed class CliffPlacements
 
     private CliffPlacement[] Build(TileKey tile)
     {
-        var random = new Rng(Hash64.Of(_seed, 0x434C4946, tile.Packed)); // "CLIF"
-        if (!random.Chance(0.8)) return Array.Empty<CliffPlacement>();
-        Vector3D up = CubeSphere.Direction(tile.Face, tile.U0 + tile.Span * random.Range(0.15, 0.85),
-            tile.V0 + tile.Span * random.Range(0.15, 0.85));
-        if (!Slope(up, out Vector3D forward, out Vector3D right, out double gradient) || gradient < 0.62)
-            return Array.Empty<CliffPlacement>();
-        Vector3D ground = up * (_surface.Radius + _surface.HeightAt(up));
-        // The candidate stream above is unchanged. Composition has its own address-derived stream,
-        // so changing a model, rejecting a member or ending a column never moves another candidate.
-        var composition = new Rng(Hash64.Of(_seed, tile.Packed, 0x464F524D)); // "FORM"
-        double groupScale = composition.Range(1.35, 1.72);
+        if (!MayHoldFace(tile)) return Array.Empty<CliffPlacement>();
+        List<List<FaceSample>> faces = Faces(Survey(tile));
+        if (faces.Count == 0) return Array.Empty<CliffPlacement>();
+        Vector3D centre = tile.Centre;
+        Vector3D cellGround = centre * (_surface.Radius + _surface.HeightAt(centre));
         var result = new List<CliffPlacement>(MaximumParts);
-        CliffPlacement? anchor = null;
-        for (int column = 0; column < MaximumColumns; column++)
-        {
-            var columnRandom = new Rng(Hash64.Of(_seed, tile.Packed, (ulong)(0x100 + column)));
-            int side = column == 0 ? 0 : column == 1 ? -1 : 1;
-            double width = anchor is { } first ? CliffGeometry.All[first.Model].Width * first.Scale : 0;
-            double along = side * width * columnRandom.Range(0.60, 0.72);
-            double stagger = side == 0 ? 0 : columnRandom.Range(-2.5, 2.5) / Math.Max(0.65, gradient);
-            Vector3D direction = (ground + right * along + forward * stagger).Normalized;
-            if (!Slope(direction, out Vector3D face, out _, out _)) continue;
-            double previousRadius = double.PositiveInfinity;
-            Vector3D previousCentre = Vector3D.Zero, previousFace = face, previousAlong = right;
-            double nextStep = 0, nextStagger = 0;
-            for (int tier = 0; tier < MaximumTiers; tier++)
-            {
-                int part = column * MaximumTiers + tier;
-                var memberRandom = new Rng(Hash64.Of(_seed, tile.Packed, (ulong)(0x200 + part)));
-                double scale = groupScale * memberRandom.Range(0.92, 1.08);
-                double yaw = memberRandom.Range(-0.10, 0.10);
-                CliffPlacement? fitted = null;
-                Vector3D rowFace = face, rowAlong = right;
-                double localGradient = 0;
-                // A full-mesh stride can overshoot the remaining exposed face or change burial enough
-                // that its first fit is not descending. Search back along that same slope before giving
-                // up; each probe keeps all fit/clearance checks and creates no additional instance.
-                for (int probe = 0; probe < (tier == 0 ? 1 : 3); probe++)
-                {
-                    double fraction = 1 - probe * 0.3;
-                    Vector3D trial = tier == 0 ? direction : (previousCentre +
-                        previousFace * (nextStep * fraction) + previousAlong * (nextStagger * fraction)).Normalized;
-                    if (!Slope(trial, out Vector3D trialFace, out Vector3D trialAlong, out double trialGradient)) continue;
-                    if (Vector3D.Dot(trialFace, face) < 0.5) continue;
-                    Vector3D meshFace = trialFace * DMath.Cos(yaw) + trialAlong * DMath.Sin(yaw);
-                    Vector3D meshAlong = Vector3D.Cross(trial, meshFace).Normalized;
-                    var probeRandom = memberRandom;
-                    CliffPlacement? candidate = FitMember(tile, part, trial, meshFace, meshAlong,
-                        trialGradient, scale, anchor is { } chosen ? CliffGeometry.All[chosen.Model].MaterialFamily : null,
-                        previousRadius - 0.4, ref probeRandom);
-                    if (candidate is not { } accepted || Vector3D.Distance(accepted.Position, ground) > MaximumOffset) continue;
-                    fitted = accepted;
-                    direction = trial;
-                    rowFace = trialFace;
-                    rowAlong = trialAlong;
-                    localGradient = trialGradient;
-                    memberRandom = probeRandom;
-                    break;
-                }
-                if (fitted is not { } piece) break;
-                previousRadius = piece.Position.Length;
-                result.Add(piece);
-                anchor ??= piece;
-                CliffGeometry geometry = CliffGeometry.All[piece.Model];
-                // Member-sized overlap and staggered starts replace the conspicuous rectangular grid.
-                // Follow the physical slope, never the scan's potentially reversed local Z axis.
-                nextStep = Math.Clamp(geometry.Height * piece.Scale * memberRandom.Range(0.56, 0.68)
-                    / localGradient, 2.5, 17);
-                previousCentre = direction * (_surface.Radius + _surface.HeightAt(direction));
-                previousFace = rowFace;
-                previousAlong = rowAlong;
-                nextStagger = memberRandom.Range(-1.4, 1.4);
-            }
-            if (column == 0 && anchor == null) break;
-        }
+        for (int face = 0; face < faces.Count; face++) Compose(tile, face, faces[face], cellGround, result);
         return result.ToArray();
     }
 
-    private CliffPlacement? FitMember(TileKey tile, int part, Vector3D up, Vector3D forward,
-        Vector3D right, double gradient, double scale, string? materialFamily, double maximumRadius, ref Rng random)
+    private readonly record struct FaceSample(int Index, Vector3D Up, Vector3D Forward, Vector3D Right, double Gradient);
+
+    // A cheap gate before the survey: a face as steep as the face rule over the survey's ten-metre baseline rises at
+    // least 6.2 m, and a 5 x 5 grid of the cell (samples either side of it) spans most of that. Most cells are gentle.
+    private bool MayHoldFace(TileKey tile)
+    {
+        const int Side = 5;
+        double low = double.PositiveInfinity, high = double.NegativeInfinity;
+        for (int j = 0; j < Side; j++)
+        for (int i = 0; i < Side; i++)
+        {
+            double h = _surface.HeightAt(CubeSphere.Direction(tile.Face, tile.U0 + tile.Span * i / (Side - 1),
+                tile.V0 + tile.Span * j / (Side - 1)));
+            low = Math.Min(low, h);
+            high = Math.Max(high, h);
+        }
+        return high - low >= FaceGrade * 8;
+    }
+
+    // The cell's steep dry ground on a fixed grid, in index order.
+    private List<FaceSample> Survey(TileKey tile)
+    {
+        var steep = new List<FaceSample>();
+        for (int j = 0; j < SurveySide; j++)
+        for (int i = 0; i < SurveySide; i++)
+        {
+            Vector3D up = CubeSphere.Direction(tile.Face, tile.U0 + tile.Span * (i + 0.5) / SurveySide,
+                tile.V0 + tile.Span * (j + 0.5) / SurveySide);
+            if (Slope(up, out Vector3D forward, out Vector3D right, out double gradient) && gradient >= FaceGrade)
+                steep.Add(new FaceSample(j * SurveySide + i, up, forward, right, gradient));
+        }
+        return steep;
+    }
+
+    // Connected steep samples (eight neighbours) are one face; the largest first, ties to the lowest sample. A lone
+    // sample is a face only when it is a wall.
+    private static List<List<FaceSample>> Faces(List<FaceSample> steep)
+    {
+        var byIndex = new Dictionary<int, FaceSample>(steep.Count);
+        foreach (FaceSample sample in steep) byIndex[sample.Index] = sample;
+        var seen = new HashSet<int>();
+        var faces = new List<List<FaceSample>>();
+        var stack = new Stack<FaceSample>();
+        foreach (FaceSample start in steep)
+        {
+            if (!seen.Add(start.Index)) continue;
+            var face = new List<FaceSample>();
+            stack.Push(start);
+            while (stack.Count > 0)
+            {
+                FaceSample sample = stack.Pop();
+                face.Add(sample);
+                int i = sample.Index % SurveySide, j = sample.Index / SurveySide;
+                for (int dj = -1; dj <= 1; dj++)
+                for (int di = -1; di <= 1; di++)
+                {
+                    int ni = i + di, nj = j + dj;
+                    if ((uint)ni >= SurveySide || (uint)nj >= SurveySide) continue;
+                    int next = nj * SurveySide + ni;
+                    if (byIndex.TryGetValue(next, out FaceSample neighbour) && seen.Add(next)) stack.Push(neighbour);
+                }
+            }
+            face.Sort(static (a, b) => a.Index.CompareTo(b.Index));
+            if (face.Count >= 2 || face[0].Gradient >= WallGrade) faces.Add(face);
+        }
+        faces.Sort(static (a, b) => a.Count != b.Count ? b.Count.CompareTo(a.Count) : a[0].Index.CompareTo(b[0].Index));
+        if (faces.Count > MaximumFaces) faces.RemoveRange(MaximumFaces, faces.Count - MaximumFaces);
+        return faces;
+    }
+
+    // A face's run: its samples' places along their mean contour direction, metres, and the sample nearest the middle.
+    private (double[] Along, double Low, double High, int Middle) Run(List<FaceSample> face)
+    {
+        Vector3D axis = Vector3D.Zero;
+        foreach (FaceSample sample in face) axis += Vector3D.Dot(sample.Right, face[0].Right) >= 0 ? sample.Right : -sample.Right;
+        axis = axis.LengthSquared > 1e-12 ? axis.Normalized : face[0].Right;
+        var along = new double[face.Count];
+        double low = double.PositiveInfinity, high = double.NegativeInfinity;
+        for (int k = 0; k < face.Count; k++)
+        {
+            along[k] = Vector3D.Dot(face[k].Up - face[0].Up, axis) * _surface.Radius;
+            low = Math.Min(low, along[k]);
+            high = Math.Max(high, along[k]);
+        }
+        return (along, low, high, Nearest(along, (low + high) / 2));
+    }
+
+    // The distance between two points across the ground: along the sphere at the mean radius, whatever their heights.
+    private double Across(Vector3D a, Vector3D b) => (a.Normalized - b.Normalized).Length * _surface.Radius;
+
+    private static int Nearest(double[] along, double target)
+    {
+        int best = 0;
+        for (int k = 1; k < along.Length; k++)
+            if (Math.Abs(along[k] - target) < Math.Abs(along[best] - target)) best = k;
+        return best;
+    }
+
+    // The recipe of what made a face: the coast within the recipes' distance, otherwise its dominant relief (a
+    // surface without relief fields takes the mountain recipe).
+    private CliffRecipe RecipeFor(Vector3D direction) =>
+        CliffRecipe.For(NearSea(direction), _surface is WalkingWorld walking ? walking.Fields(direction).Relief : Relief.Mountains);
+
+    // Eight bearings at half and the whole of the coast distance: the sea is ground below its level under water at it.
+    private bool NearSea(Vector3D direction)
+    {
+        if (_surface.SeaRadius <= 0) return false;
+        double sea = _surface.SeaRadius - _surface.Radius;
+        Vector3D up = direction.Normalized;
+        Vector3D east = Vector3D.Cross(Vector3D.UnitY, up);
+        east = east.LengthSquared > 1e-16 ? east.Normalized : Vector3D.UnitZ;
+        Vector3D north = Vector3D.Cross(up, east);
+        Vector3D ground = up * (_surface.Radius + _surface.HeightAt(up));
+        for (int k = 0; k < 8; k++)
+        {
+            double angle = k * DMath.TwoPi / 8;
+            Vector3D bearing = east * DMath.Cos(angle) + north * DMath.Sin(angle);
+            for (int r = 1; r <= 2; r++)
+            {
+                Vector3D d = (ground + bearing * (CliffRecipe.CoastMetres * r / 2)).Normalized;
+                if (_surface.HeightAt(d) < sea && _surface.WaterLevelAt(d) == sea) return true;
+            }
+        }
+        return false;
+    }
+
+    // One face, dressed as a whole: the samples it intends to carry rock (every wall, and of gentler ground the
+    // recipe's rock share in coherent patches), then column after column from the highest sample still bare, each from its crest down to
+    // its toe, until every intended sample lies inside a piece or the face's columns are spent. One material family.
+    private void Compose(TileKey tile, int faceIndex, List<FaceSample> face, Vector3D cellGround, List<CliffPlacement> result)
+    {
+        CliffRecipe recipe = RecipeFor(face[Run(face).Middle].Up);
+        var composition = new Rng(Hash64.Of(_seed, tile.Packed, 0x464F524D, (ulong)faceIndex)); // "FORM"
+        double groupScale = composition.Range(recipe.MinimumScale, recipe.MaximumScale);
+        var ground = new Vector3D[face.Count];
+        var heights = new double[face.Count];
+        var open = new List<int>(face.Count);
+        for (int k = 0; k < face.Count; k++)
+        {
+            heights[k] = _surface.HeightAt(face[k].Up);
+            ground[k] = face[k].Up * (_surface.Radius + heights[k]);
+            // Where gentler ground carries rock is coherent: outcrops and soil in patches tens of metres across.
+            double patch = DMath.SmoothStep(-0.35, 0.35,
+                Noise.Fbm(face[k].Up, _surface.Radius, 30, 2, 0.5, _seed + 0x534F494C, NoiseBasis.Corners)); // "SOIL"
+            if (face[k].Gradient >= WallGrade || patch < recipe.RockShareAt(face[k].Gradient, FaceGrade)) open.Add(k);
+        }
+        string? family = null;
+        for (int column = 0; column < MaximumColumns && open.Count > 0; column++)
+        {
+            int top = open[0];
+            foreach (int k in open)
+                if (heights[k] > heights[top]) top = k;
+            open.Remove(top);
+            int before = result.Count;
+            Column(tile, faceIndex * MaximumColumns + column, face[top], recipe, groupScale, cellGround, ref family, result);
+            for (int i = before; i < result.Count; i++)
+            {
+                CliffPlacement piece = result[i];
+                open.RemoveAll(k => Holds(piece, ground[k], 1));
+            }
+        }
+    }
+
+    // From a face sample uphill to where the ground eases (the crest), within the cell's discovery reach and at most
+    // one and a half pieces above the sample (a tall flank is dressed in bands, by its own cells), then down again by
+    // about half a piece's height, so the first tier's top reaches the crest.
+    private Vector3D BelowCrest(FaceSample start, double pieceHeight, Vector3D cellGround)
+    {
+        Vector3D at = start.Up, uphill = -start.Forward;
+        double gradient = start.Gradient, floor = _surface.HeightAt(start.Up);
+        for (int step = 0; step < 30; step++)
+        {
+            Vector3D next = (at * (_surface.Radius + _surface.HeightAt(at)) + uphill * 1.5).Normalized;
+            if (Across(next, cellGround) > MaximumOffset - 4 || _surface.HeightAt(next) - floor > 1.5 * pieceHeight) break;
+            if (!Slope(next, out Vector3D forward, out _, out double g) || g < EdgeGrade) break;
+            (at, uphill, gradient) = (next, -forward, g);
+        }
+        double down = Math.Clamp(pieceHeight * 0.45 / Math.Max(gradient, 0.35), 1.5, 12);
+        return (at * (_surface.Radius + _surface.HeightAt(at)) - uphill * down).Normalized;
+    }
+
+    // One column: tiers stepping down the face from below its crest until its toe (the grade eases) or the tier limit.
+    private void Column(TileKey tile, int slot, FaceSample start, CliffRecipe recipe, double groupScale, Vector3D cellGround,
+        ref string? family, List<CliffPlacement> result)
+    {
+        Vector3D direction = BelowCrest(start, recipe.TypicalHeight * groupScale, cellGround);
+        if (!Slope(direction, out Vector3D face, out Vector3D right, out _))
+        {
+            (direction, face, right) = (start.Up, start.Forward, start.Right);
+        }
+        double previousRadius = double.PositiveInfinity;
+        Vector3D previousCentre = direction * (_surface.Radius + _surface.HeightAt(direction)), previousFace = face, previousAlong = right;
+        double nextStep = 3, nextStagger = 0;
+        for (int tier = 0; tier < MaximumTiers; tier++)
+        {
+            int part = slot * MaximumTiers + tier;
+            var memberRandom = new Rng(Hash64.Of(_seed, tile.Packed, (ulong)(0x200 + part)));
+            double scale = groupScale * memberRandom.Range(0.92, 1.08);
+            double yaw = memberRandom.Range(-0.10, 0.10);
+            CliffPlacement? fitted = null;
+            Vector3D rowFace = face, rowAlong = right;
+            double localGradient = 0;
+            // The first tier tries below the crest, then a little further down; later tiers step down the face and
+            // search back along that same slope before giving up. Every probe keeps all fit and clearance checks.
+            for (int probe = 0; probe < 3; probe++)
+            {
+                Vector3D trial = tier == 0
+                    ? (previousCentre + previousFace * (3.0 * probe)).Normalized
+                    : (previousCentre + previousFace * (nextStep * (1 - probe * 0.3)) + previousAlong * (nextStagger * (1 - probe * 0.3))).Normalized;
+                if (!Slope(trial, out Vector3D trialFace, out Vector3D trialAlong, out double trialGradient)) continue;
+                if (tier > 0 && trialGradient < EdgeGrade) continue;
+                if (Vector3D.Dot(trialFace, face) < 0.5) continue;
+                Vector3D meshFace = trialFace * DMath.Cos(yaw) + trialAlong * DMath.Sin(yaw);
+                Vector3D meshAlong = Vector3D.Cross(trial, meshFace).Normalized;
+                var probeRandom = memberRandom;
+                CliffPlacement? candidate = FitMember(tile, part, trial, meshFace, meshAlong, trialGradient, scale, recipe,
+                    family, previousRadius - 0.4, ref probeRandom);
+                if (candidate is not { } accepted || Across(accepted.Position, cellGround) > MaximumOffset) continue;
+                fitted = accepted;
+                direction = trial;
+                rowFace = trialFace;
+                rowAlong = trialAlong;
+                localGradient = trialGradient;
+                memberRandom = probeRandom;
+                break;
+            }
+            if (fitted is not { } piece) break;
+            previousRadius = piece.Position.Length;
+            result.Add(piece);
+            family ??= CliffGeometry.All[piece.Model].MaterialFamily;
+            CliffGeometry geometry = CliffGeometry.All[piece.Model];
+            // Member-sized overlap and staggered starts replace the conspicuous rectangular grid.
+            // Follow the physical slope, never the scan's potentially reversed local Z axis.
+            nextStep = Math.Clamp(geometry.Height * piece.Scale * memberRandom.Range(0.56, 0.68) / localGradient, 2.5, 17);
+            previousCentre = direction * (_surface.Radius + _surface.HeightAt(direction));
+            previousFace = rowFace;
+            previousAlong = rowAlong;
+            nextStagger = memberRandom.Range(-1.4, 1.4);
+        }
+    }
+
+    /// <summary>
+    /// A cell's surveyed face samples and whether rock is drawn on each (T2): the intended regions fitting failed to
+    /// dress are the uncovered ones, the recipe's and the scan library's repair list.
+    /// </summary>
+    public IReadOnlyList<CliffFaceSample> Report(TileKey tile)
+    {
+        if (tile.Level != Level || !MayHoldFace(tile)) return Array.Empty<CliffFaceSample>();
+        List<FaceSample> steep = Survey(tile);
+        var recipes = new Dictionary<int, string>();
+        foreach (List<FaceSample> face in Faces(steep))
+        {
+            string key = RecipeFor(face[Run(face).Middle].Up).Key;
+            foreach (FaceSample sample in face) recipes[sample.Index] = key;
+        }
+        var report = new List<CliffFaceSample>(steep.Count);
+        foreach (FaceSample sample in steep)
+        {
+            Vector3D ground = sample.Up * (_surface.Radius + _surface.HeightAt(sample.Up));
+            bool covered = false;
+            foreach (CliffPlacement cliff in Near(ground, 0))
+                if (Holds(cliff, ground, 1)) { covered = true; break; }
+            report.Add(new CliffFaceSample(ground, sample.Gradient, sample.Gradient >= WallGrade, covered,
+                recipes.TryGetValue(sample.Index, out string? recipe) ? recipe : null));
+        }
+        return report;
+    }
+
+    /// <summary>Whether a point lies inside a placed scan's collision box grown by <paramref name="margin"/> metres.</summary>
+    public static bool Holds(CliffPlacement cliff, Vector3D point, double margin)
+    {
+        CliffGeometry scan = CliffGeometry.All[cliff.Model];
+        Vector3D d = point - cliff.Position;
+        double grow = margin / cliff.Scale;
+        double x = Vector3D.Dot(d, cliff.Right) / cliff.Scale, y = Vector3D.Dot(d, cliff.Up) / cliff.Scale,
+            z = Vector3D.Dot(d, cliff.Forward) / cliff.Scale;
+        return x >= scan.BoundsMin.X - grow && x <= scan.BoundsMax.X + grow && y >= scan.BoundsMin.Y - grow &&
+            y <= scan.BoundsMax.Y + grow && z >= scan.BoundsMin.Z - grow && z <= scan.BoundsMax.Z + grow;
+    }
+
+    private CliffPlacement? FitMember(TileKey tile, int part, Vector3D up, Vector3D forward, Vector3D right,
+        double gradient, double scale, CliffRecipe recipe, string? materialFamily, double maximumRadius, ref Rng random)
     {
         IReadOnlyList<CliffGeometry> models = CliffGeometry.All;
         Span<double> weights = stackalloc double[models.Count];
@@ -237,7 +465,7 @@ public sealed class CliffPlacements
             CliffGeometry model = models[i];
             if ((materialFamily == null || model.MaterialFamily == materialFamily) &&
                 gradient >= model.MinimumGradient && gradient <= model.MaximumGradient)
-                weights[i] = model.SelectionWeight * Math.Clamp(model.Height / 10, 0.25, 1.4);
+                weights[i] = recipe.FamilyWeight(model.MaterialFamily) * model.SelectionWeight * Math.Clamp(model.Height / 10, 0.25, 1.4);
         }
         // A rejected fit falls back to another suitable scan, without another column of hidden meshes.
         for (int attempt = 0; attempt < models.Count; attempt++)
