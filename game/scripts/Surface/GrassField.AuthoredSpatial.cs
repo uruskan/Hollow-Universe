@@ -281,10 +281,10 @@ public sealed partial class GrassField
             if (state.Terrain != null && !ReferenceEquals(state.Terrain, terrain))
                 throw new InvalidOperationException("Authored spatial state cannot cross terrain/world owners.");
             state.Terrain = terrain;
-            if (terrain.MaxLevel > TerrainContactAtlas.MaximumMapLevel)
-                throw new InvalidOperationException("Authored support addressing exceeds the atlas's level-nine ceiling.");
+            // Authored support is addressed through the drawn-contact atlas; an unaddressable terrain is simply unsupported.
             TerrainContactAtlas? atlas = _contact;
-            bool supported = show && _contactRequired && atlas?.Ready == true && !atlas.PublicationInvalidationFailed;
+            bool supported = show && ContactAddressable(terrain) && _contactRequired && atlas?.Ready == true
+                && !atlas.PublicationInvalidationFailed;
             if (!supported || _field == null)
             {
                 CancelAuthoredSpatialStage(state);

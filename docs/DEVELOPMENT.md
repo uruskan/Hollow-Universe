@@ -1,5 +1,19 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — environment plan resumed; grass contact on deep surfaces
+
+The owner chose to continue the T0–T6 plan as designed. First, a T4 regression: since the drawn-contact
+change, look-dev view (b), the loading picture's own command, threw "Drawn contact map supports terrain
+levels zero through nine" on every frame (1,158 errors in one run) and never drew grass. Its full-size
+planet's finest terrain level is 18. `GrassField` now checks addressability once, keeps heightfield
+placement where the atlas cannot address the terrain, and logs the refusal once. Authored spatial cover
+treats the same case as unsupported instead of throwing. Playable worlds use level six and are unchanged.
+
+Validation: game build 0 warnings, 0 errors; the historical command reached ready in 15 s with no engine
+errors at 2560 × 1421 on Maximum. The resulting then-and-now comparison and a landing-site diagnostic sheet
+are in `docs/images/grass-regression/` and described in GRASS_INVESTIGATION.md. They are evidence for the
+T4 visual target, not a grass candidate.
+
 ## 19 October 2026 — Codex stopped; recovery checkpoint
 
 Codex's weekly limit ran out at 01:01 with most work since 16 October uncommitted and the client

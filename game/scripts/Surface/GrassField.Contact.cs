@@ -10,13 +10,33 @@ public sealed partial class GrassField
     private TerrainContactAtlas? _contact;
     private TerrainContactAtlas? _contactRetiring;
     private bool _contactRequired;
+    private bool _contactUnaddressable;
     private bool ContactReady => _contactRetiring == null && (!_contactRequired || _contact?.Ready == true);
+
+    /// <summary>
+    /// Whether the drawn-contact atlas can address this terrain. It covers levels zero through nine, which holds every
+    /// playable world (WORLD-01's radius cap keeps their finest tiles at level six). A deeper surface, such as the
+    /// look-dev view's full-size planet, never binds contact and keeps the heightfield placement.
+    /// </summary>
+    internal static bool ContactAddressable(TerrainLod terrain) => terrain.MaxLevel <= TerrainContactAtlas.MaximumMapLevel;
 
     /// <summary>Runs after terrain selection and before this frame's grass update. Both hosted/free views use it.</summary>
     internal void UpdateDrawnContact(TerrainLod terrain, Vector3D camera, double altitude)
     {
         if (!_setupComplete || _stopped) return;
         if (_contactRetiring != null) { Visible = false; return; }
+        if (!ContactAddressable(terrain))
+        {
+            // Contact is never partially bound. Report the refusal once rather than failing on every frame.
+            if (!_contactUnaddressable)
+            {
+                _contactUnaddressable = true;
+                GD.Print($"[grass] drawn contact off: terrain level {terrain.MaxLevel} is beyond the atlas's " +
+                    $"{TerrainContactAtlas.MaximumMapLevel}; heightfield placement is used");
+            }
+            _contactRequired = false;
+            return;
+        }
         _contactRequired = altitude < _far;
         if (!_contactRequired) return;
         if (_contact == null)
@@ -69,7 +89,7 @@ public sealed partial class GrassField
     private void StopDrawnContact()
     {
         TerrainContactAtlas? atlas = _contact ?? _contactRetiring;
-        _contact = null; _contactRequired = false;
+        _contact = null; _contactRequired = false; _contactUnaddressable = false;
         if (atlas == null) return;
         List<Exception>? failures = null;
         // Detach native texture references from all still-owned materials before releasing the atlas resources.

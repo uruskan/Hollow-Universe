@@ -30,6 +30,22 @@ contact and bounded spatial batches. Do not accept a sunset-only improvement or
 count native correctness tests as aesthetic approval. GPU cost still needs paired
 measurements after a visually acceptable candidate exists.
 
+**Historical comparison, 19 October.** The historical command stopped producing grass after the
+drawn-contact change: the full-size look-dev planet's finest terrain level is 18, beyond the atlas's
+level-nine ceiling, and the field threw on every frame. The field now refuses contact once for such a
+surface and keeps heightfield placement. The command renders again in 15 s without engine errors:
+[then and now](images/grass-regression/historical-view-b-then-and-now.jpg), 2560 × 1421, Maximum.
+Terrain, camera and time match. Today's grass is darker and bluer, barely glows against the low sun,
+and exposes soil between tufts; its pink flowers are gone. The trees and the boulder also differ,
+because authored trees and scanned rocks replaced the procedural ones on 16 October.
+
+At the hosted landing site, the same High view was rendered with `blade_underlayer` switched off for
+one run only (source unchanged afterwards), and with all ground cover hidden:
+[landing-site sheet](images/grass-regression/landing-site-underlayer-and-ground.jpg). Without the
+underlayer, flowers, herbs and warmer variation return. Bare soil remains, because this forest-edge
+habitat sits below the density at which the patch rule closes a meadow. Hidden cover shows the flat,
+nearly uncluttered soil texture those gaps expose. These are diagnostic renders, not a candidate.
+
 The original audit below describes the 18 October baseline; several identified
 mechanical defects have since been repaired, with current evidence in DEVELOPMENT.md.
 

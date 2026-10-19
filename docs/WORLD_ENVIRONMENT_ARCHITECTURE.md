@@ -396,6 +396,11 @@ snapshots retain immutable grid arrays only, with no world lease or scene-node r
 The dense address texture is about 96 KiB at level 6 and 6 MiB at level 9; the two grid arrays
 total about 4.25 MiB before driver overhead. Upload and shading costs still require measurement.
 
+The atlas addresses terrain levels zero through nine. Every playable world draws its finest tiles at
+level six under WORLD-01's radius cap. A deeper surface, such as the look-dev view's full-size planet
+at level 18, never binds contact: its procedural grass keeps heightfield placement, authored spatial
+cover reports itself unsupported, and the refusal is logged once rather than thrown on every frame.
+
 Procedural grass now has one habitat/patch/quality occupancy decision. Surviving cards retain
 their dimensions; stable cell/card ranks remove entire cards at distance. The atlas alone
 defines their connected cutout silhouettes. Fragment normals follow the deformed geometry,
