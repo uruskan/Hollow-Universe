@@ -374,6 +374,25 @@ public static class EarthSurvey
         }
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"{count} cells in {total / 1000:F1} s on one thread: {dressed} dressed with {pieces} pieces, mean {total / count:F2} ms a cell, slowest {slowest:F1} ms"));
+        // The cost a physics tile pays when it is built on demand (on the server's tick) over the slowest cell, in a
+        // fresh world whose cliff cells are all cold: its ground, every cell within the collision reach, the hulls.
+        TileKey worst = default;
+        double worstMs = 0;
+        WalkingWorld timing = WalkingReport.Build(earth: true);
+        for (long i = 0; i < count; i++)
+        {
+            TileKey cell = TileKey.FromIndex(level, i)!.Value;
+            watch.Restart();
+            timing.Cliffs.FormationAt(cell);
+            if (watch.Elapsed.TotalMilliseconds > worstMs) (worst, worstMs) = (cell, watch.Elapsed.TotalMilliseconds);
+        }
+        WalkingWorld cold = WalkingReport.Build(earth: true);
+        TileKey tile = TileKey.At(worst.Centre, TileKey.LevelFor(cold.Radius, 64));
+        watch.Restart();
+        TriangleMesh mesh = cold.GroundCollision(ZoneFrame.World, tile, 2);
+        var (lat, lon) = LatLon(worst.Centre);
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"cold collision tile over the slowest cell ({lat:F4}, {lon:F4}): {watch.Elapsed.TotalMilliseconds:F0} ms, {mesh.TriangleCount} triangles"));
         return 0;
     }
 

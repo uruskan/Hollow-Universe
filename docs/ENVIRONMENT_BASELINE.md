@@ -107,3 +107,10 @@ At High, removing every cliff piece saves 0.64 ms of GPU time at the cliff-heavy
 calls: each nearby piece draws its 24,000-triangle near version. The 573 m route after T2's second iteration runs
 through denser temperate forest; one High walk there averages 16.92 ms (p95 18.93 ms), which is not comparable
 with the 868 m route. Its three-walk baseline is recorded when T2's cliffs are final.
+
+Generation got heavier with T2's third iteration (`earth cliffs-bench`, one thread): all 6,144 cliff cells build
+in 7–12 s, 1.2–1.9 ms a cell on average, but the heaviest cell takes 150–210 ms, and a collision tile built cold over
+it takes 542 ms (58,092 triangles), against tens of milliseconds before T2. Workers build tiles 128 m ahead of a
+player, and arrivals and respawns wait behind the loading screen, but `PhysicsWorld.EnsureTile` builds a tile still
+missing on the calling thread, the server's tick: a ship outrunning the prefetch over mountains could stall it.
+T5 bounds this: fewer, cheaper fit trials, or cells warmed on workers before any tile needs them.

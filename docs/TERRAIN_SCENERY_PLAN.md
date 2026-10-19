@@ -202,7 +202,9 @@ mountain 88%, plateau 77%; 6,742 pieces. All 6,144 cells build in 11.8 s on one 
 and 213 ms for the slowest (`earth cliffs-bench`), a cost T5 must bound. Tried and dropped, with numbers in
 DEVELOPMENT.md: sandstone on steep tableland walls, a short-step wall test, and requiring grounded bases (which
 cut wall cover to 42%). Cliff generation 5, Earth save revision 8 (others 5), protocol 42. Its hosted captures
-are still to be taken.
+are still to be taken. Its generation cost needs T5: the heaviest cell builds in 150–210 ms and a cold collision
+tile over it in 542 ms, which `PhysicsWorld.EnsureTile` can pay on the server's tick when prefetch falls behind
+(ENVIRONMENT_BASELINE.md).
 
 ### T3 — Make rock, soil and vegetation share environmental data
 
