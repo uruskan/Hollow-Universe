@@ -1,0 +1,426 @@
+{
+  "revision": "R01",
+  "captures": {
+    "blueprint-lod0.png": "7f4fc6d67bcae7dbc8917fc5e88e2338db873cccc12d6b83b6a563fdb6cda25a",
+    "blueprint-lod1.png": "d906b81c19296338e39e92ea8a31913d1c823da6517b5f2b6efaa99c1825dd47",
+    "blueprint-lod2.png": "cb12bf04721e23ebc8c8201cdfc57c80dcfa75881420fb498a41b62ae9a80282",
+    "blueprint-back.png": "82fe6038d9826ff312d41757eeecc57fefa63490852416a5c48a413d3cb1fc95",
+    "icon-slots.png": "fa51fc6ca18f3824b97319417457a64cac4702413102b9adf3bc03ddc074d579"
+  },
+  "capture_inputs": {
+    "review_project": ".artifacts/itemart/blueprint/review (this worktree; not committed)",
+    "catalogue_entry": {
+      "key": "blueprint",
+      "kind": "item",
+      "class": "resource",
+      "file": "res://assets/items/blueprint.glb",
+      "lods": 3,
+      "collision": "convex",
+      "icon": {
+        "view": [
+          18,
+          42,
+          0
+        ]
+      },
+      "source": "Hollow original folded cyanotype blueprint (art/models/blueprint.py); provenance: assets/items/blueprint.provenance.json"
+    },
+    "previous_icon": "PlaceholderItemIcons SVG",
+    "resources_sha256": {
+      "assets/items/blueprint.glb": "72fd12a8f0847496c674fa191899b26b08e921def9dc149e5caa62bf80d1fb18",
+      "assets/items/blueprint.glb.import": "2e6a356501ebb44815def2a10ac967de73edbf8cbd15270f7bfb9977e4cde780",
+      "assets/materials/blueprint.tres": "dfb3c4c1499ec79ebcd98d67f8959e146875396501123e4f8628020318c3a613",
+      "assets/textures/blueprint/blueprint_albedo.png": "f9acdfcbf19e6c9cb77765010f7c1965b3f28832823d1ab184abf293885704a7",
+      "assets/textures/blueprint/blueprint_albedo.png.import": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "assets/textures/blueprint/blueprint_orm.png": "728a7a3c6c5e3109ccede28f89bfecd23357cab6e6d953f81bd8bcf82c4509f9",
+      "assets/textures/blueprint/blueprint_orm.png.import": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "assets/textures/blueprint/blueprint_normal.png": "0c9fc9f01a7f91687a85221292c34a1fc22fcd1900cb7d4644b9b3b8ee2ce921",
+      "assets/textures/blueprint/blueprint_normal.png.import": "6a3487d4f443cf9f68b41462d6eb05969c23e1c4617e2524147c066742dab360",
+      "assets/fonts/Barlow/Barlow-Medium.ttf": "f8906f762cb73dca441da034bc363b2d8e2e68bc10d5c05e58717646c20cc4b4",
+      "assets/fonts/Barlow/Barlow-SemiBold.ttf": "86577cb32f8abe3673db53ca0f4221e6856751a4f6730c867e00f720f8bb1fc5",
+      "assets/fonts/Barlow/BarlowCondensed-Bold.ttf": "e476562ec9c1e16cf16475895b511f08c804f438cc9a9f80a44ea50a0eeb5b65",
+      "assets/fonts/Barlow/BarlowCondensed-Medium.ttf": "262bd143292ce479ee0cd09a42b47ab173fca8e9c6eb5ed0b5c8a845bc371d17",
+      "assets/fonts/Inter/InterVariable.ttf": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf"
+    },
+    "resources_match_committed_assets": true,
+    "compiled_references": {
+      "Hollow.Client.dll": "6cd3d36d48e0607ede6ce488ee7448fef980dfffb65e77a174d2bc2b4fa7709e",
+      "Hollow.Core.dll": "7a145208083332c9a0bd3e77ff3ebe7ada056179edf81f1d7845b9eb594119cc",
+      "Hollow.Galaxy.dll": "8aeec465f83935b3ac8577794230a49d39df694ccdddc38f2d3e3a7c9d0701ba",
+      "Hollow.Net.dll": "b88add871df56dc373182c81d4bc78ecda5b601ebe19c0e061126e20aeb7d68e",
+      "Hollow.Persistence.dll": "443afedcb059e2485ff0363a0d588af5e87784867af76ae7a3b42616ecc168e6",
+      "Hollow.Server.dll": "4ec7baaa2d93402a93db00db705f2871290caa606029877c9a5b34ed3bd4bcdc",
+      "Hollow.Simulation.dll": "1be188f0d3a09829b9bf65d4e3e0f72058be704a29b871de90a480c9bd7465af",
+      "Hollow.Surface.dll": "456dc96be36a8154a7942b25170e6be7ac157f3cac9fe65b1c90fefd55d2d1b6",
+      "HollowUniverse.dll": "df4a14adfae324e7485ec0af725c1d43813a4145af183ba1f026b8438d166ccc",
+      "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+      "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+      "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+      "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+      "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+      "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+    }
+  },
+  "capture_jobs": [
+    {
+      "name": "model-build",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "2",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "art/models/blueprint.py"
+      ],
+      "owned_pid": 15536,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 14.3,
+      "free_gib_before": 3.4,
+      "exit_code": 0,
+      "run_seconds": 13.01
+    },
+    {
+      "name": "review-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\blueprint\\review\\ItemReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 5884,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 23.4,
+      "free_gib_before": 3.44,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "import-textures",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\blueprint\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 8556,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 9.1,
+      "free_gib_before": 8.54,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "import-model",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\blueprint\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 17236,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 9.5,
+      "free_gib_before": 8.57,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "lod0",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\blueprint\\review",
+        "--",
+        "--key=blueprint",
+        "--zoom=0.8",
+        "--lod=0",
+        "--yaw=-25",
+        "--output=blueprint-lod0.png"
+      ],
+      "owned_pid": 16592,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 4.4,
+      "free_gib_before": 8.4,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod1",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\blueprint\\review",
+        "--",
+        "--key=blueprint",
+        "--zoom=0.8",
+        "--lod=1",
+        "--yaw=-25",
+        "--output=blueprint-lod1.png"
+      ],
+      "owned_pid": 14708,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 4.4,
+      "free_gib_before": 8.37,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod2",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\blueprint\\review",
+        "--",
+        "--key=blueprint",
+        "--zoom=0.8",
+        "--lod=2",
+        "--yaw=-25",
+        "--output=blueprint-lod2.png"
+      ],
+      "owned_pid": 14432,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 5.1,
+      "free_gib_before": 8.46,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "back",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\blueprint\\review",
+        "--",
+        "--key=blueprint",
+        "--zoom=0.8",
+        "--lod=0",
+        "--yaw=155",
+        "--output=blueprint-back.png"
+      ],
+      "owned_pid": 4952,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 5.5,
+      "free_gib_before": 8.45,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-render",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\blueprint\\review",
+        "--",
+        "--key=blueprint",
+        "--zoom=0.8",
+        "--icons",
+        "--output=icon-sheet.png"
+      ],
+      "owned_pid": 12600,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 4.8,
+      "free_gib_before": 8.45,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\blueprint\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 14848,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 5.9,
+      "free_gib_before": 8.43,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "slots",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\blueprint\\review",
+        "--",
+        "--key=blueprint",
+        "--zoom=0.8",
+        "--title=BLUEPRINT",
+        "--slots",
+        "--output=icon-slots.png"
+      ],
+      "owned_pid": 15876,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 2.9,
+      "free_gib_before": 8.42,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "solution-build",
+      "command": [
+        "dotnet",
+        "build",
+        "HollowUniverse.sln",
+        "-v:q",
+        "-m:2",
+        "-nodeReuse:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 14164,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 8.2,
+      "free_gib_before": 8.4,
+      "exit_code": 0,
+      "run_seconds": 108.17
+    },
+    {
+      "name": "tests-modelcatalogue",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "ModelCatalogue"
+      ],
+      "owned_pid": 2744,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 10.2,
+      "free_gib_before": 2.87,
+      "exit_code": 0,
+      "run_seconds": 39.3
+    },
+    {
+      "name": "tests-content",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "ContentTests"
+      ],
+      "owned_pid": 7108,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 28.9,
+      "free_gib_before": 2.81,
+      "exit_code": 0,
+      "run_seconds": 38.02
+    }
+  ],
+  "provider": "Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org\nVulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER\n\nblueprint rendered provider: 16px PASS\nblueprint rendered provider: 32px PASS\nblueprint rendered provider: 48px PASS\nblueprint rendered provider: 64px PASS\nblueprint rendered provider: 96px PASS\nblueprint rendered provider: 128px PASS\nblueprint rendered provider: 256px PASS\nblueprint capture: D:/GameDev/Projects/HollowUniverseABTestB/.claude/worktrees/charming-hugle-0ff484/.artifacts/itemart/blueprint/review/../icon-slots.png, Ok\n",
+  "icon_checks": {
+    "128": {
+      "rgba": true,
+      "size": [
+        128,
+        128
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        9,
+        32,
+        119,
+        96
+      ]
+    },
+    "256": {
+      "rgba": true,
+      "size": [
+        256,
+        256
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        18,
+        64,
+        238,
+        192
+      ]
+    }
+  },
+  "mesh": {
+    "glb": "game/assets/items/blueprint.glb",
+    "glb_bytes": 122316,
+    "triangles": {
+      "Blueprint_hull0-convcolonly": 44,
+      "Blueprint_lod0": 2232,
+      "Blueprint_lod1": 696,
+      "Blueprint_lod2": 236
+    },
+    "lods": {
+      "lod0": {
+        "triangles": 2232,
+        "budget": 3000,
+        "within": true
+      },
+      "lod1": {
+        "triangles": 696,
+        "budget": 1000,
+        "within": true
+      },
+      "lod2": {
+        "triangles": 236,
+        "budget": 400,
+        "within": true
+      }
+    },
+    "nodes": [
+      "Blueprint_hull0-convcolonly",
+      "Blueprint_lod0",
+      "Blueprint_lod1",
+      "Blueprint_lod2"
+    ],
+    "finite_attributes": true,
+    "unit_normals": true,
+    "images_embedded": false
+  },
+  "solution_build": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:01:47.82\n",
+  "tests": {
+    "tests-modelcatalogue": "RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (16 ms)\n  RUN  ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ExplosivesHaveTheirOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ExplosivesHaveTheirOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.BlueprintHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.BlueprintHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 272 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (1069 ms)\n12/12 passed in 1.1 s.\n",
+    "tests-content": "RUN  ContentTests.GroundDataIsComplete\n      137 items, 94 recipes, 17 natural kinds, 24 deployables, 11 loot tables; hash A29EF438726C4597\n  ok   ContentTests.GroundDataIsComplete (1135 ms)\n  RUN  ContentTests.BrokenDataIsReported\n      42 problems found, e.g. items.json: \"arrow\": unknown field \"stak\" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship, wiring)\n  ok   ContentTests.BrokenDataIsReported (76 ms)\n  RUN  ContentTests.EveryDataFileHasOneReader\n      22 readers for 21 files, and the checks across them\n  ok   ContentTests.EveryDataFileHasOneReader (56 ms)\n3/3 passed in 1.3 s.\n"
+  },
+  "visual_iteration": "The first pass read as folded blueprint but its blue was bright and its construction grid loud; the final darkens the print to a deeper cyanotype blue and halves the grid's strength so the drawing reads first.",
+  "limits": [
+    "Native production ModelViewer, IconRenderer and CatalogItemIcons in an isolated review project with this worktree's compiled game code; the slots are diagnostic, not live gameplay inventory.",
+    "Taught-item blueprint stacks keep drawing the taught item's icon on blueprint blue (GroundUi.Paint.cs, unchanged); they were not captured in a live inventory.",
+    "The paper's back is never seen from the viewer's or the icon's angles; it is modelled and textured all the same.",
+    "The broader test suite was not rerun for this asset-only change.",
+    "Owner artistic acceptance is pending."
+  ]
+}
