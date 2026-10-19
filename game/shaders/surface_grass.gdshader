@@ -62,6 +62,13 @@ uniform vec4 cell_needles;
 uniform sampler2DArray ground_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D macro_noise : filter_linear_mipmap, repeat_enable;
 uniform float grass_layer_size = 4.0;
+// The ground's grass layer as the terrain draws it (GroundLayers.ApplyGrass): its own texture's mean luminance, and the
+// texture under lush grass (the layer's "lush" alternative, -1 for none) with its size, gain and luminance.
+uniform float ground_layer_luminance = 0.1;
+uniform int ground_lush_layer = -1;
+uniform float ground_lush_size = 3.0;
+uniform vec3 ground_lush_gain = vec3(1.0);
+uniform float ground_lush_luminance = 0.1;
 uniform vec3 blade_mean = vec3(0.5, 0.63, 0.34);
 uniform vec4 trample = vec4(0.0);   // xyz: the walker's feet (render space), w: radius (0: none)
 uniform float translucency = 0.35;
@@ -137,18 +144,21 @@ void vertex() {
 	float roll = rnd(s);
 	float kind = -1.0; // -1 nothing, 0 grass, 1 plant, 2 litter
 	if (layer == 0) {
-		// Habitat and the quality setting select a tuft once. Surviving tufts retain all their blades and size.
-		if (roll < density * density_scale) {
-			kind = 0.0;
-		} else if (!blade_underlayer && roll < density + (1.0 - density) * f2.a * 0.3) {
+		// Grass in every cell where any grows, thin or thick: the tuft's cards come and go with the density one by
+		// one (below), never a cell's whole tuft at once, which made a quilt of grassed and bare cells. Plants take
+		// their share of the open ground. Surviving cards retain their blades and size.
+		float plants = blade_underlayer ? 0.0 : (1.0 - density) * f2.a * 0.3;
+		if (roll < plants) {
 			kind = 1.0;
+		} else if (density > 0.0) {
+			kind = 0.0;
 		}
 	} else if (roll < f2.b * 0.85) {
 		kind = 2.0;
 	}
-	// Preserve the old quality decision for optional plants and the independent litter layer.
+	// The quality setting keeps its share of the cells, of every kind.
 	float keep = float(hash_u(s ^ 0xA511E9B3u) & 0xFFFFu) / 65535.0;
-	if (kind != 0.0) kind = keep <= density_scale ? kind : -1.0;
+	if (kind >= 0.0 && keep > density_scale) kind = -1.0;
 	// Reject habitat/window misses before reading the drawn-terrain atlas. Contact is authoritative when bound:
 	// a missing drawn tile cannot fall back to a different heightfield. The exact base also owns the fade distance.
 	bool contact_grass = terrain_contact_enabled && kind == 0.0;
@@ -185,6 +195,10 @@ void vertex() {
 	if (kind == 0.0) {
 		float distance_rank = float(hash_u(s ^ (uint(card) + 1u) * 0x68bc21ebu) >> 8u) / 16777216.0;
 		if (distance_cover <= distance_rank) size = 0.0;
+		// Thin grass has fewer of the tuft's cards (five where it is thickest), each by a rank of its own, stable
+		// for the cell and the card: the field thins evenly instead of in whole cells.
+		float density_rank = float(hash_u(s ^ (uint(card) + 1u) * 0x2545f491u) >> 8u) / 16777216.0;
+		if (density_rank >= density) size = 0.0;
 		s = hash_u(s); // consume the original card-count draw; size, colour and wind identities stay stable
 	} else if (kind == 1.0) {
 		cards = 2.0 + floor(rnd(s) * 2.0);
@@ -214,13 +228,24 @@ void vertex() {
 		float dry_face = 0.0;
 		vec3 tint_face = vec3(0.0);
 		vec3 detail = vec3(0.0);
+		float detail_mean = 0.0;
 		for (int k = 0; k < 3; k++) {
 			if (fw[k] > 0.0) {
 				vec2 q = faces[k] == face ? wp : hu_face_metres(d, faces[k]);
 				float dk = clamp(hu_grass_dryness(q, f2.r, macro_noise) + r_dry, 0.0, 1.0);
 				dry_face += dk * fw[k];
 				tint_face += hu_grass_tint(q, dk, macro_noise) * fw[k];
-				detail += textureLod(ground_albedo, vec3(q / grass_layer_size, 0.0), 5.0).rgb * fw[k];
+				// The ground under the foot, as the terrain draws it: the grass layer's own scan, or under lush grass
+				// its lush alternative (the terrain's selector), with that scan's mean brightness.
+				vec3 own = textureLod(ground_albedo, vec3(q / grass_layer_size, 0.0), 5.0).rgb;
+				float own_mean = ground_layer_luminance;
+				float lush_k = 1.0 - smoothstep(0.3, 0.7, dk - r_dry);
+				if (ground_lush_layer >= 0 && lush_k > 0.0) {
+					own = mix(own, textureLod(ground_albedo, vec3(q / ground_lush_size, float(ground_lush_layer)), 5.0).rgb * ground_lush_gain, lush_k);
+					own_mean = mix(own_mean, ground_lush_luminance * dot(ground_lush_gain, vec3(0.2126, 0.7152, 0.0722)), lush_k);
+				}
+				detail += own * fw[k];
+				detail_mean += own_mean * fw[k];
 			}
 		}
 		float r_kind = rnd(s);
@@ -366,7 +391,7 @@ void vertex() {
 
 		// The ground's own colour at the tuft's foot, as the terrain shader draws its grass layer.
 		float lum = dot(detail, vec3(0.2126, 0.7152, 0.0722));
-		v_ground = clamp(lum / 0.1, 0.4, 1.8) * blade_mean * tint_face;
+		v_ground = clamp(lum / max(detail_mean, 1e-3), 0.4, 1.8) * blade_mean * tint_face;
 		if (blade_underlayer && kind == 0.0) v_ground *= vec3(0.82, 0.90, 1.10);
 	}
 }

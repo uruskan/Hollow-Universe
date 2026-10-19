@@ -1,5 +1,45 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — The ground: no more tiles under the grass, the meadow's floor, and 34 scans in the arrays
+
+The owner's captures showed the meadow as a quilt of half-metre squares of grass and bare mud, mud under every
+tuft, and a flat, blurry beach. Three causes, each fixed (docs/WALKING_GROUND.md §8; before and after in
+`docs/images/ground/ground-textures/`):
+
+- **The tiles were the grass field's cells.** Every 0.46 m cell either got its whole five-card tuft or nothing
+  (`roll < density`), so at the meadow's usual density half the cells were solid grass and half bare: a checkerboard
+  on the vertex grid. Now every cell where grass grows has a tuft and its cards come and go one by one with the
+  density, each by a stable rank of its own (`surface_grass.gdshader`); the quality setting keeps its share of cells
+  as before. The same count of blades, spread evenly. The terrain's material weights were never blocky (`--debug-sky
+  11` shows them smooth; the ground view takes `--debug-sky` now, `GroundView.DebugView`).
+- **The ground under the grass was mud.** The grass material's scan, Dry Grassy Ground (`vbmkebz`), is trampled mud
+  with a little straw and almost no relief; recoloured toward the blades it read as bare dirt. The arrays now hold
+  the materials' alternatives besides their own scans (`layers.json`: `textures` and each layer's `variants`,
+  `GroundLayers`), chosen per pixel by selectors in `surface_ground_look.gdshaderinc`: under lush grass the ground is
+  the Wet Grass Ground scan (real blades and clods) lifted ×2.0, ×2.7, ×1.6 with mossy patches, the mud only where the
+  grass is dry. The grass shader's blade feet take the same texture (`GroundLayers.ApplyGrass`). The recolouring
+  measures each scan against its own mean luminance (`tex_luminance`), so none loses its detail.
+- **Eighteen owned 4K scans were unused.** They are the alternatives now: pebbly beach sand, desert sand and gravel,
+  Nordic coastal rock, a second forest floor, icy grass on the snow line, melting snow and snow cliffs, damp and
+  gravelly sand, sleet gravel, tundra stones and lichened rock, outback ground, an ice wall (the table in
+  WALKING_GROUND.md §8; THIRD_PARTY.md lists each). `tools/blender/surface_layers.py` builds 34 textures (a 2:1 scan
+  repeated into a square; files already built are kept). 2.0 GB of files in the repository, 1.7 GB on the GPU with the
+  alternatives, which every preset but Low loads (`GroundLayers.IncludeVariants`; the `[ground]` loading line says what
+  was loaded and why). Left out: `RedRock02_4K` (no record of its source or licence), a featureless beach sand, two
+  desert sands and a windswept snow (no fourth slot), the 2K ambientCG sets.
+
+This project's own saved graphics settings (`%APPDATA%\HollowUniverseABTestB\graphics.cfg`) are a custom low profile:
+terrain detail 0.75, shadows 1, anisotropic filtering 2×, which blurs the ground at grazing angles; the original
+game's profile beside it is Maximum. Nothing was changed there; the alternatives load at this profile.
+
+Validation: solution 0 warnings, 0 errors; `GroundLayerCatalogueTests` (new: the catalogue's order, files, selectors)
+and `Architecture` pass; full suite 1,014 of 1,014 in 503 s. Hosted captures at the landing site (frame times at
+capture, 1600 × 900): the meadow 9.4 ms with 34 textures against 9.2 ms with the sixteen, so the extra samples cost
+about 0.3 ms; the tufts spread evenly with no cell pattern, the floor green-olive with the scan's blades under them,
+the beach gravelly sand with pebbles. A truly green meadow floor still needs a green grass-ground scan, which the
+library lacks at 4K (ambientCG `Ground037` is a candidate, CC0, 4K and 8K downloads); the alternatives' selectors
+and gains are first settings, tuned on one meadow and one beach. Owner acceptance pending.
+
 ## 19 October 2026 — T2 third iteration: the recipe chooses the family; eight columns a face
 
 `FitMember` let each scan's own selection weight and height multiply the recipe's family weight, so the two large

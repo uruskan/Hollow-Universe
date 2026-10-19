@@ -220,18 +220,60 @@ the shore through `ISurface.Cover`, so the stand-in and the real planet use them
 | 14 | dry earth | Desert Western Ground Dirt Coarse 07 (`xiqebhm`) | deserts, savanna, shrubland |
 | 15 | ice | Frozen Lake (`tcbkdcfr`) | frozen lakes, bare ice on the ice sheets |
 
-- **Files** (`tools/blender/surface_layers.py`, from the asset folders): each layer's colour and normal map are the
-  scan's own 4K files (the Megascans JPEGs copied byte for byte; the Poly Haven PNGs as lossless WebP); a 2K lossless WebP
-  holds roughness and height. Nothing lossy is written. Godot compresses each for the GPU (BPTC, mipmaps) when it imports
-  it, and `GroundLayers` puts them together into three texture arrays when the game loads (1 to 3.4 s, under the loading
-  screen): colour, normals, roughness with height. About 810 MB on the GPU; 912 MB of files in the repository.
-- **Shading** (`surface_terrain.gdshader`): the scan at its own size near by, over a turned copy at about three times
-  the size (the detail blend), a far turned copy from the air, macro variation of brightness and hue, height-based
-  blending between layers by each scan's own height, roughness from each scan's map, triplanar granite and sandstone on
-  steep ground. Each layer's normals keep their scan's convention (`layers.json` gives the flips; all agree today).
-- **Not yet** (16 is the layers' count for now): the second beach sand and pebbles, coastal rock, the second forest
-  floor, three more tundra sets, red rock, desert gravel and three desert sands, the snow line's icy grass, melting and
-  windswept snow, the snow cliff and the ice wall. A 17th layer needs a 17th channel in the tile's vertex data (§17).
+**Added 19 October 2026: the materials' alternatives.** Sixteen is the count of materials the tile's vertex data can
+weigh (§17), not of scans: the texture arrays hold 34 textures, the sixteen materials' own scans first and after them
+eighteen alternatives (`layers.json`'s `textures` and each layer's `variants`), which a material switches to by place.
+The shader (`surface_ground_look.gdshaderinc`, `hu_ground_select`) gives each alternative a share by its selector,
+each taking its share of what the earlier ones left, and samples every texture that has one:
+
+| Material | Alternative | Where (selector) |
+|---|---|---|
+| 0 grass (Dry Grassy Ground: trampled mud and straw) | 10 wet grass ground, lifted ×2.0, ×2.7, ×1.6 (`gain`, greener than the wet scan) | under lush grass (`lush`: the grass's dryness, the same rule that colours the blades) |
+| | 11 mossy ground | lush ground, in patches of some eight metres (`lush-patch`) |
+| 1 forest floor | 16 Forest Floor (`wgyhdgy`) | patches of about fifty metres (`noise`) |
+| 3 granite rock | 17 Cracked Nordic Coastal Rock | `noise` (triplanar on cliffs, at the slot's size) |
+| 4 gravel | 18 Desert Western Gravel Coarse | hot and dry (`heat`) |
+| | 19 Tundra Gravel Ground | freezing (`cold`) |
+| 5 beach sand | 20 Beach Sand With Pebbles | `noise` |
+| | 21 Desert Sand (`wkjgche`) | `heat` |
+| 6 snow | 22 Icy Snow On Dry Grass | snow sharing the ground with grass or tundra (`snowline`) |
+| | 23 Melting Snow | around freezing (`thaw`) |
+| | 24 Snow Cliff | slopes (`steep`) |
+| 8 wet sand | 25 `damp_sand` (Poly Haven) | `noise` |
+| 9 shingle | 26 `gravelly_sand` (Poly Haven) | `noise` |
+| | 27 Sleet Covered Gravel | `cold` |
+| 12 tundra | 28 Tundra Rocky Ground | `noise` |
+| | 29 Tundra Lichened Rock | `steep` |
+| | 30 Windswept Snowy Stones | `cold` |
+| 14 dry earth | 31 Desert Outback Ground Rocky | `noise` |
+| | 32 Desert Western Sand Fine | `noise` (its own patches) |
+| 15 ice | 33 Ice Wall | `steep` |
+
+The meadow's ground had been the Dry Grassy Ground scan alone, which is trampled mud with a little straw: under the
+tufts the ground read as bare dirt, and it has almost no relief. Under lush grass it is now the Wet Grass Ground scan
+(real blades, clods and straw) lifted to a dry meadow's brightness, with mossy patches; the mud stays where the grass
+is dry. The grass shader takes the same texture for the blades' feet (`GroundLayers.ApplyGrass`). The beach gets
+pebbles in patches; deserts their own sand and gravel; the tundra its stones; the snow line its icy grass.
+
+- **Files** (`tools/blender/surface_layers.py`, from the asset folders): each texture's colour and normal map are the
+  scan's own 4K files (the Megascans JPEGs copied byte for byte; the Poly Haven PNG and EXR maps as lossless WebP; a
+  scan twice as wide as high repeated along its short side into a square, which keeps its metres); a 2K lossless WebP
+  holds roughness and height. Nothing lossy is written, and a file already built is kept. Godot compresses each for the
+  GPU (BPTC, mipmaps) when it imports it, and `GroundLayers` puts them together into three texture arrays when the game
+  loads (under the loading screen): colour, normals, roughness with height. About 50 MB on the GPU a texture: 810 MB for
+  the sixteen, 1.7 GB with the alternatives, which every preset but Low loads (custom settings: when their terrain
+  detail is at least Low's 0.75; `GroundLayers.IncludeVariants`, decided when the arrays are first built; the loading
+  log's `[ground]` line says what was loaded and why). 2.0 GB of files in the repository.
+- **Shading** (`surface_terrain.gdshader`, `surface_ground_look.gdshaderinc`): the scan at its own size near by, over a
+  turned copy at about three times the size (the detail blend), a far turned copy from the air, macro variation of
+  brightness and hue, height-based blending between materials by each scan's own height, roughness from each scan's
+  map, triplanar granite and sandstone on steep ground (their alternatives at the slot's size). Each texture's normals
+  keep their scan's convention (`layers.json` gives the flips; all agree today). A texture's `gain` lifts a scan taken
+  wet or in shade to the place it stands for; the grass recolouring measures a scan against its own mean luminance, so
+  each keeps its detail.
+- **Left out on purpose**: `RedRock02_4K` (no record of its source or licence), Beach Sand `uinladeo` (featureless),
+  two more desert sands and Fresh Windswept Snow (a fourth alternative would need a fourth slot; `GroundLayers.MaxVariants`),
+  the 2K ambientCG sets. The scanned plants (`*_ue_high`) are the authored ground cover's, not tiles.
 
 The table of the original plan, kept for the sets above:
 

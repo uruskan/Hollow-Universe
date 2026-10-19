@@ -29,12 +29,14 @@ retargeting, all made by the scripts in `art/`.
 
 ## Ground textures (`surface/ground/layers/`)
 
-Sixteen layers, one a `Hollow.Surface.GroundMaterial` (docs/WALKING_GROUND.md §8), built by
-`tools/blender/surface_layers.py` from the scans in `D:\GameDev\Assets`: each layer's base colour and normal map at 4K
-are the scan's own files (the Megascans JPEGs copied byte for byte; the two Poly Haven PNGs written as lossless WebP), and
-a 2K lossless WebP holds its roughness and height. Godot compresses them for the GPU when it imports them; the game puts
-them together into texture arrays (`game/scripts/Surface/GroundLayers.cs`). Every set was bought for this game or is
-CC0; the Fab ones ship only inside the game.
+Thirty-four textures: sixteen layers, one a `Hollow.Surface.GroundMaterial` (docs/WALKING_GROUND.md §8), and after
+them the alternatives a material switches to by place (16 on), built by `tools/blender/surface_layers.py` from the
+scans in `D:\GameDev\Assets`: each texture's base colour and normal map at 4K are the scan's own files (the Megascans
+JPEGs copied byte for byte; the Poly Haven PNG and EXR maps written as lossless WebP; a scan twice as wide as high
+repeated along its short side into a square), and a 2K lossless WebP holds its roughness and height. Godot compresses
+them for the GPU when it imports them; the game puts them together into texture arrays
+(`game/scripts/Surface/GroundLayers.cs`). Every set was bought for this game or is CC0; the Fab ones ship only inside
+the game.
 
 | Layer | Set | Source | Licence |
 |---|---|---|---|
@@ -54,10 +56,32 @@ CC0; the Fab ones ship only inside the game.
 | 13 sandstone | Canyon Sandstone Rock (Quixel Megascans, `vimldgeg`) | https://www.fab.com/listings/2ff5cf78-69c9-4c87-bbf3-a81d857e7ba3 | Fab Standard License |
 | 14 dry earth | Desert Western Ground Dirt Coarse 07 (Quixel Megascans, `xiqebhm`) | Fab, Quixel Megascans; `desert_western_ground_dirt_coarse_07_xiqebhm_4k.zip` | Fab Standard License |
 | 15 ice | Frozen Lake (Quixel Megascans, `tcbkdcfr`) | Fab, Quixel Megascans; `frozen_lake_tcbkdcfr_4k.zip` | Fab Standard License |
+| 16 forest floor 2 (an alternative of 1) | Forest Floor (Quixel Megascans, `wgyhdgy`) | Fab, Quixel Megascans; `forest_floor_wgyhdgy_4k.zip` | Fab Standard License |
+| 17 coastal rock (of 3) | Cracked Nordic Coastal Rock (Quixel Megascans, `ukohaj0mw`) | Fab, Quixel Megascans; `cracked_nordic_coastal_rock_ukohaj0mw_4k.zip` | Fab Standard License |
+| 18 desert gravel (of 4) | Desert Western Ground Gravel Coarse 02 (Quixel Megascans, `xglmbct`) | Fab, Quixel Megascans; `desert_western_ground_gravel_coarse_02_xglmbct_4k.zip` | Fab Standard License |
+| 19 tundra gravel (of 4) | Tundra Gravel Ground (Quixel Megascans, `vjepchymw`) | Fab, Quixel Megascans; `tundra_gravel_ground_vjepchymw_4k.zip` | Fab Standard License |
+| 20 pebbly sand (of 5) | Beach Sand With Pebbles (Quixel Megascans, `vl0fdilo`) | Fab, Quixel Megascans; `beach_sand_with_pebbles_vl0fdilo_4k.zip` | Fab Standard License |
+| 21 desert sand (of 5) | Desert Sand (Quixel Megascans, `wkjgche`) | Fab, Quixel Megascans; `desert_sand_wkjgche_4k.zip` | Fab Standard License |
+| 22 icy grass (of 6) | Icy Snow On Dry Grass (Quixel Megascans, `sjziebea`) | Fab, Quixel Megascans; `icy_snow_on_dry_grass_sjziebea_4k.zip` | Fab Standard License |
+| 23 melting snow (of 6) | Melting Snow (Quixel Megascans, `uexjbdudy`) | Fab, Quixel Megascans; `melting_snow_uexjbdudy_4k.zip` | Fab Standard License |
+| 24 snow cliff (of 6) | Snow Cliff (Quixel Megascans, `uhqncfpdy`) | Fab, Quixel Megascans; `snow_cliff_uhqncfpdy_4k.zip` | Fab Standard License |
+| 25 damp sand (of 8) | `damp_sand` (Poly Haven, from the "Namaqualand" scene pack) | https://polyhaven.com/a/damp_sand | CC0 |
+| 26 gravelly sand (of 9) | `gravelly_sand` (Poly Haven, from the "Namaqualand" scene pack) | https://polyhaven.com/a/gravelly_sand | CC0 |
+| 27 sleet gravel (of 9) | Sleet Covered Gravel (Quixel Megascans, `tb5oaf2s`) | Fab, Quixel Megascans; `sleet_covered_gravel_tb5oaf2s_4k.zip` | Fab Standard License |
+| 28 tundra rocky ground (of 12) | Tundra Rocky Ground (Quixel Megascans, `vi2mahnmw`) | Fab, Quixel Megascans; `tundra_rocky_ground_vi2mahnmw_4k.zip` | Fab Standard License |
+| 29 lichened rock (of 12) | Tundra Lichened Rock (Quixel Megascans, `vjbode1mw`) | Fab, Quixel Megascans; `tundra_lichened_rock_vjbode1mw_4k.zip` | Fab Standard License |
+| 30 snowy stones (of 12) | Windswept Snowy Stones (Quixel Megascans, `tdloaf1r`) | Fab, Quixel Megascans; `windswept_snowy_stones_tdloaf1r_4k.zip` | Fab Standard License |
+| 31 outback rocky ground (of 14) | Desert Outback Ground Rocky 06 (Quixel Megascans, `xiqgafr`) | Fab, Quixel Megascans; `desert_outback_ground_rocky_06_xiqgafr_4k.zip` | Fab Standard License |
+| 32 desert sand fine (of 14) | Desert Western Ground Sand Fine 01 (Quixel Megascans, `xgmpdek`) | Fab, Quixel Megascans; `desert_western_ground_sand_fine_01_xgmpdek_4k.zip` | Fab Standard License |
+| 33 ice wall (of 15) | Ice Wall (Quixel Megascans, `uebjabcr`) | Fab, Quixel Megascans; `ice_wall_uebjabcr_4k.zip` | Fab Standard License |
 
 The archives named are in `D:\GameDev\Assets` (each unpacked beside it with its `_EXTRACTION_PROVENANCE.json`, which
 holds every file's SHA-256); the Fab listing URLs of layers 0-6 and 13 are from
-`D:\GameDev\Assets\Bare-World-Manual\DOWNLOAD-MANIFEST-VERIFIED.json`.
+`D:\GameDev\Assets\Bare-World-Manual\DOWNLOAD-MANIFEST-VERIFIED.json`. Left out on purpose: `RedRock02_4K` (no record
+of where it came from or under what licence), Beach Sand `uinladeo` (featureless beside `ukviejtlw`), the desert sands
+`sfilxqh` and `sfiodwh` and Fresh Windswept Snow `uehnaazn` (a fourth alternative would need a fourth slot), and the
+2K ambientCG sets (`Ground023`, `Ground037`, `Ground048`, `Ground054`, `Ice003`, `Snow002`: below the 4K the ground is
+built at).
 
 ## Item and world models (`items/`, `world/`, `textures/`, `materials/`)
 

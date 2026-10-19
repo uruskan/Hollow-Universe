@@ -1,14 +1,23 @@
 // Shared substrate appearance for canonical terrain and sealed formation soil.
 // Callers provide the same planet/grass helpers, world phase, layer arrays and climate.
-// Rough-height is R roughness / G height; normal axes remain layer_flip * normal_sign.
+// Rough-height is R roughness / G height; normal axes remain tex_flip * normal_sign.
+// The arrays hold the sixteen materials' own scans first (texture i is material i) and after them the alternatives a
+// material switches to by place (layers.json: GroundLayers): each material samples its own texture and up to three
+// alternatives, each chosen by a selector (hu_ground_select) and taking its share of what the earlier ones left.
 #include "res://shaders/surface_ground_normals.gdshaderinc"
 #include "res://shaders/surface_world_phase.gdshaderinc"
 
 uniform sampler2DArray albedo_array : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2DArray normal_array : filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2DArray rough_height_array : filter_linear_mipmap_anisotropic, repeat_enable; // r roughness, g height
-uniform float layer_metres[16];                       // metres covered by one repeat of each layer (layers.json)
-uniform vec2 layer_flip[16];                          // each layer's normal axes against the first layer's
+uniform float layer_metres[16];                       // metres covered by one repeat of each material's own texture (layers.json)
+uniform float tex_metres[40];                         // metres covered by one repeat of each texture
+uniform vec2 tex_flip[40];                            // each texture's normal axes against the first texture's
+uniform float tex_luminance[40];                      // mean linear luminance of each texture's colour
+uniform vec3 slot_gain[16];                           // the colour gain of each material's own texture (0: one)
+uniform int slot_variant[48];                         // each material's alternative textures, three a material (-1: none)
+uniform int slot_select[48];                          // how each alternative is chosen (hu_ground_select)
+uniform vec3 slot_variant_gain[48];                   // each alternative's colour gain
 // View-owned phases use the same float cycles/metre on CPU and GPU. Fractional anchor phase only;
 // never apply fract to the interpolated coordinates, which would break implicit texture derivatives.
 uniform float ground_body_cycles[16];
@@ -21,7 +30,6 @@ uniform float dry_reflection_weight : hint_range(0.0, 1.0) = 0.25;
 uniform vec2 normal_sign = vec2(1.0, -1.0);
 uniform int debug_view = 0;
 uniform vec3 blade_mean = vec3(0.5, 0.63, 0.34);      // mean linear colour of the painted grass blades
-uniform float grass_layer_luminance = 0.1;            // mean luminance of the grass layer's texture
 uniform vec2 canopy_fade = vec2(1600.0, 2200.0);      // where far forests become the ground's colour
 uniform sampler2D canopy_texture : filter_linear_mipmap_anisotropic, repeat_enable; // crowns: height, kind, slope
 uniform float canopy_tile = 150.0;                    // metres covered by the crown texture
@@ -41,6 +49,124 @@ struct Look {
 	float height; // the materials' own height, 0–1
 	float reflection_weight;
 };
+
+// One texture of the arrays at a point: its colour, its tilt of the normal (world axes) and its roughness and height.
+struct TexSample {
+	vec3 colour;
+	vec3 bump;
+	vec2 rh;
+};
+
+// How much of a material an alternative texture takes here, 0–1, by its selector: 1 noise (patches of about fifty
+// metres, a set of their own for each texture), 2 dryness and 3 lush (the grass's dryness), 4 lush-patch (lush ground,
+// in patches), 5 heat (hot and dry), 6 cold (freezing), 7 steep (slopes), 8 snowline (snow sharing the ground with
+// grass), 9 thaw (around freezing). The climate is the vertex data's: temperature (r, (°C + 30) / 70) and moisture (g).
+float hu_ground_select(int code, int tex, vec2 wp, float dryness, float slope, vec4 climate, float grass_share) {
+	if (code == 1) {
+		vec2 o = vec2(0.37, 0.61) * float(tex);
+		float n = texture(macro_noise, wp / 160.0 + o).r + (texture(macro_noise, wp / 13.0 + o.yx).b - 0.5) * 0.25;
+		return smoothstep(0.45, 0.6, n);
+	}
+	if (code == 2) {
+		return smoothstep(0.35, 0.75, dryness);
+	}
+	if (code == 3) {
+		return 1.0 - smoothstep(0.3, 0.7, dryness);
+	}
+	if (code == 4) {
+		// Patches of some eight metres (the noise's billows), broken at their edges by its fine detail.
+		vec2 o = vec2(0.11, 0.83) * float(tex);
+		float n = texture(macro_noise, wp / 80.0 + o).g + (texture(macro_noise, wp / 9.0 + o.yx).b - 0.5) * 0.2;
+		return (1.0 - smoothstep(0.3, 0.7, dryness)) * smoothstep(0.56, 0.72, n);
+	}
+	if (code == 5) {
+		return smoothstep(0.62, 0.78, climate.r) * (1.0 - smoothstep(0.22, 0.42, climate.g));
+	}
+	if (code == 6) {
+		return 1.0 - smoothstep(0.37, 0.45, climate.r);
+	}
+	if (code == 7) {
+		return smoothstep(0.3, 0.55, slope);
+	}
+	if (code == 8) {
+		return clamp(grass_share * 2.5, 0.0, 1.0);
+	}
+	if (code == 9) {
+		return smoothstep(0.37, 0.46, climate.r);
+	}
+	return 0.0;
+}
+
+// A texture laid flat on the face: near, the scan at its own size over a turned copy at about three times the size
+// (the detail blend); from the air a much larger turned copy too; far away its mean colour alone.
+TexSample hu_ground_sample(int tex, vec2 wp, float near, float huge, float far, float detail_mix, mat2 rot, mat2 rot_huge,
+		vec3 t, vec3 b, vec3 n_geo) {
+	float layer = float(tex);
+	vec2 axes = normal_sign * tex_flip[tex];
+	vec2 uv = wp / tex_metres[tex];
+	vec2 uv_large = rot * uv * 0.29 + vec2(0.37, 0.11);
+	TexSample s;
+	if (far >= 1.0) {
+		s.colour = textureLod(albedo_array, vec3(uv_large, layer), 10.0).rgb;
+		s.rh = textureLod(rough_height_array, vec3(uv_large, layer), 9.0).rg;
+		s.bump = vec3(0.0);
+		return s;
+	}
+	vec3 c_large = texture(albedo_array, vec3(uv_large, layer)).rgb;
+	vec3 t_large = texture(normal_array, vec3(uv_large, layer)).rgb;
+	vec2 r_large = texture(rough_height_array, vec3(uv_large, layer)).rg;
+	vec3 c = c_large;
+	vec2 slope = hu_ground_rotated_slope(t_large, axes, rot);
+	vec2 rh = r_large;
+	if (near > 0.0) {
+		vec3 c_small = texture(albedo_array, vec3(uv, layer)).rgb;
+		vec3 t_small = texture(normal_array, vec3(uv, layer)).rgb;
+		vec2 r_small = texture(rough_height_array, vec3(uv, layer)).rg;
+		float m = detail_mix * near;
+		c = mix(c_large, c_small, m);
+		slope = mix(slope, hu_ground_normal_slope(t_small, axes), m);
+		rh = mix(r_large, r_small, m);
+	}
+	if (huge > 0.0) {
+		// From the air the large scale would repeat in rows: blend in a much larger, turned copy.
+		vec2 uv_huge = rot_huge * uv * 0.071 + vec2(0.71, 0.23);
+		c = mix(c, texture(albedo_array, vec3(uv_huge, layer)).rgb, huge * 0.6);
+		slope = mix(slope, hu_ground_rotated_slope(texture(normal_array, vec3(uv_huge, layer)).rgb, axes, rot_huge), huge * 0.6);
+	}
+	if (far > 0.0) {
+		c = mix(c, textureLod(albedo_array, vec3(uv_large, layer), 10.0).rgb, far);
+		slope *= 1.0 - far;
+	}
+	s.colour = c;
+	s.bump = hu_ground_plane_bump(slope, t, b, n_geo);
+	s.rh = rh;
+	return s;
+}
+
+// Rock and sandstone on cliffs: three projections in the body's frame (the material's own cycles and phase, so its
+// alternatives repeat at the same size), so steep faces aren't smeared.
+TexSample hu_ground_sample_triplanar(int tex, int slot, vec3 body_local, vec3 n_body, vec3 bw, float far, vec2 wp, mat2 rot) {
+	float layer = float(tex);
+	vec2 axes = normal_sign * tex_flip[tex];
+	vec3 phase = body_local * ground_body_cycles[slot] + ground_body_phase[slot];
+	vec2 ux = phase.zy;
+	vec2 uy = phase.xz;
+	vec2 uz = phase.xy;
+	TexSample s;
+	s.colour = texture(albedo_array, vec3(ux, layer)).rgb * bw.x + texture(albedo_array, vec3(uy, layer)).rgb * bw.y
+		+ texture(albedo_array, vec3(uz, layer)).rgb * bw.z;
+	vec3 body_bump = hu_ground_triplanar_bump(texture(normal_array, vec3(ux, layer)).rgb,
+		texture(normal_array, vec3(uy, layer)).rgb, texture(normal_array, vec3(uz, layer)).rgb, axes, bw, n_body);
+	s.bump = transpose(hu_render_to_body) * body_bump;
+	s.rh = texture(rough_height_array, vec3(ux, layer)).rg * bw.x + texture(rough_height_array, vec3(uy, layer)).rg * bw.y
+		+ texture(rough_height_array, vec3(uz, layer)).rg * bw.z;
+	if (far > 0.0) {
+		vec2 uv_large = rot * (wp / tex_metres[tex]) * 0.29 + vec2(0.37, 0.11);
+		s.colour = mix(s.colour, textureLod(albedo_array, vec3(uv_large, layer), 10.0).rgb, far);
+		s.bump *= 1.0 - far;
+	}
+	return s;
+}
 
 // The vertex data comes in as arguments (world point, materials, climate, height above local water).
 Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, float far_fade, vec3 world, vec4 m0, vec4 m1,
@@ -77,16 +203,21 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 	for (int i = 0; i < 16; i++) {
 		w[i] /= max(total, 1e-4);
 	}
+	float grass_share = w[0] + w[10] + w[12];
 
 	float dryness = hu_grass_dryness(wp, climate.g, macro_noise);
 	vec3 grass_colour = blade_mean * hu_grass_tint(wp, dryness, macro_noise);
 
-	// Near: two scales per layer; middle: the large one; far: each layer's mean colour.
+	// Near: two scales per texture; middle: the large one; far: each texture's mean colour.
 	float near = 1.0 - smoothstep(120.0, 260.0, dist);
 	float far = smoothstep(900.0, 2500.0, dist);
 	mat2 rot = rotation(1.7);
 	mat2 rot_huge = rotation(0.6);
 	float huge = smoothstep(90.0, 380.0, dist) * (1.0 - far);
+	float detail_mix = 0.72 + 0.18 * macro3.b;
+	vec3 n_body = hu_render_to_body * n_geo;
+	vec3 bw = pow(abs(n_body), vec3(4.0));
+	bw /= dot(bw, vec3(1.0));
 	vec3 colours[16];
 	vec3 normals[16];
 	float heights[16];
@@ -100,67 +231,57 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 		if (w[i] < 0.02) {
 			continue;
 		}
-		float layer = float(i);
-		vec2 uv = wp / layer_metres[i];
-		vec2 uv_large = rot * uv * 0.29 + vec2(0.37, 0.11);
-		vec3 c;
-		vec3 bump = vec3(0.0);
-		vec2 axes = normal_sign * layer_flip[i];
-		vec2 rh;
-		if (far >= 1.0) {
-			c = textureLod(albedo_array, vec3(uv_large, layer), 10.0).rgb;
-			rh = textureLod(rough_height_array, vec3(uv_large, layer), 9.0).rg;
-		} else if ((i == 3 || i == 13) && cliff > 0.05) {
-			// Rock and sandstone on cliffs: three projections, so steep faces aren't smeared.
-			vec3 n_body = hu_render_to_body * n_geo;
-			vec3 bw = pow(abs(n_body), vec3(4.0));
-			bw /= dot(bw, vec3(1.0));
-			vec3 phase = body_local * ground_body_cycles[i] + ground_body_phase[i];
-			vec2 ux = phase.zy;
-			vec2 uy = phase.xz;
-			vec2 uz = phase.xy;
-			c = texture(albedo_array, vec3(ux, layer)).rgb * bw.x + texture(albedo_array, vec3(uy, layer)).rgb * bw.y
-				+ texture(albedo_array, vec3(uz, layer)).rgb * bw.z;
-			vec3 body_bump = hu_ground_triplanar_bump(texture(normal_array, vec3(ux, layer)).rgb,
-				texture(normal_array, vec3(uy, layer)).rgb, texture(normal_array, vec3(uz, layer)).rgb,
-				axes, bw, n_body);
-			bump = transpose(hu_render_to_body) * body_bump;
-			rh = texture(rough_height_array, vec3(ux, layer)).rg * bw.x + texture(rough_height_array, vec3(uy, layer)).rg * bw.y
-				+ texture(rough_height_array, vec3(uz, layer)).rg * bw.z;
-			if (far > 0.0) {
-				c = mix(c, textureLod(albedo_array, vec3(uv_large, layer), 10.0).rgb, far);
-				bump *= 1.0 - far;
+		bool triplanar = (i == 3 || i == 13) && cliff > 0.05 && far < 1.0;
+		// The textures that draw this material here: its own, and the alternatives the place selects, each taking
+		// its share of what the earlier ones left. Each is sampled once, with its gain.
+		int tex[4];
+		float share[4];
+		vec3 gain[4];
+		int n = 1;
+		tex[0] = i;
+		gain[0] = dot(slot_gain[i], slot_gain[i]) > 0.0 ? slot_gain[i] : vec3(1.0);
+		float remaining = 1.0;
+		for (int k = 0; k < 3; k++) {
+			int v = slot_variant[i * 3 + k];
+			if (v < 0) {
+				continue;
 			}
-		} else {
-			vec3 c_large = texture(albedo_array, vec3(uv_large, layer)).rgb;
-			vec3 t_large = texture(normal_array, vec3(uv_large, layer)).rgb;
-			vec2 r_large = texture(rough_height_array, vec3(uv_large, layer)).rg;
-			c = c_large;
-			vec2 normal_slope = hu_ground_rotated_slope(t_large, axes, rot);
-			rh = r_large;
-			if (near > 0.0) {
-				// Near: the scan at its own size over the large, turned copy (the detail blend).
-				vec3 c_small = texture(albedo_array, vec3(uv, layer)).rgb;
-				vec3 t_small = texture(normal_array, vec3(uv, layer)).rgb;
-				vec2 r_small = texture(rough_height_array, vec3(uv, layer)).rg;
-				float m = (0.72 + 0.18 * macro3.b) * near;
-				c = mix(c_large, c_small, m);
-				normal_slope = mix(normal_slope, hu_ground_normal_slope(t_small, axes), m);
-				rh = mix(r_large, r_small, m);
+			float sel = hu_ground_select(slot_select[i * 3 + k], v, wp, dryness, slope, climate, grass_share) * remaining;
+			if (sel < 0.02) {
+				continue;
 			}
-			if (huge > 0.0) {
-				// From the air the large scale would repeat in rows: blend in a much larger, turned copy.
-				vec2 uv_huge = rot_huge * uv * 0.071 + vec2(0.71, 0.23);
-				c = mix(c, texture(albedo_array, vec3(uv_huge, layer)).rgb, huge * 0.6);
-				normal_slope = mix(normal_slope,
-					hu_ground_rotated_slope(texture(normal_array, vec3(uv_huge, layer)).rgb, axes, rot_huge), huge * 0.6);
-			}
-			if (far > 0.0) {
-				c = mix(c, textureLod(albedo_array, vec3(uv_large, layer), 10.0).rgb, far);
-				normal_slope *= 1.0 - far;
-			}
-			bump = hu_ground_plane_bump(normal_slope, t, b, n_geo);
+			tex[n] = v;
+			share[n] = sel;
+			gain[n] = slot_variant_gain[i * 3 + k];
+			n++;
+			remaining -= sel;
 		}
+		share[0] = remaining;
+		vec3 c = vec3(0.0);
+		vec3 bump = vec3(0.0);
+		vec2 rh = vec2(0.0);
+		float lum = 0.0;
+		float used = 0.0;
+		for (int k = 0; k < n; k++) {
+			if (share[k] < 0.02) {
+				continue;
+			}
+			TexSample s;
+			if (triplanar) {
+				s = hu_ground_sample_triplanar(tex[k], i, body_local, n_body, bw, far, wp, rot);
+			} else {
+				s = hu_ground_sample(tex[k], wp, near, huge, far, detail_mix, rot, rot_huge, t, b, n_geo);
+			}
+			c += s.colour * gain[k] * share[k];
+			bump += s.bump * share[k];
+			rh += s.rh * share[k];
+			lum += tex_luminance[tex[k]] * dot(gain[k], vec3(0.2126, 0.7152, 0.0722)) * share[k];
+			used += share[k];
+		}
+		c /= max(used, 1e-4);
+		bump /= max(used, 1e-4);
+		rh /= max(used, 1e-4);
+		lum /= max(used, 1e-4);
 		if (i == 1) {
 			// Forest floor: brown leaf litter and needles over dark humus, with cushions of moss in patches.
 			vec4 m4 = texture(macro_noise, wp / 9.0 + vec2(0.57, 0.19));
@@ -173,10 +294,11 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 		if (i == 0 || i == 10) {
 			// Retain nearby soil/straw colour variation with a partial blade tint, avoiding both a
 			// uniform green floor and bare brown meadow. Reach the old match as base grass thins out.
-			float lum = dot(c, vec3(0.2126, 0.7152, 0.0722)) / grass_layer_luminance;
-			lum = mix(lum, 1.0, smoothstep(150.0, 900.0, dist) * 0.55);
-			vec3 blades = clamp(lum, 0.4, 1.8) * grass_colour;
-			float blade_match = mix(0.45, 1.0, smoothstep(22.0, 42.0, dist));
+			// The scan's brightness is measured against its own mean, so each grass texture keeps its detail.
+			float l = dot(c, vec3(0.2126, 0.7152, 0.0722)) / max(lum, 1e-3);
+			l = mix(l, 1.0, smoothstep(150.0, 900.0, dist) * 0.55);
+			vec3 blades = clamp(l, 0.4, 1.8) * grass_colour;
+			float blade_match = mix(0.55, 1.0, smoothstep(22.0, 42.0, dist));
 			c = mix(c, blades, blade_match * (i == 0 ? 1.0 : 0.45));
 		}
 		colours[i] = c;
@@ -265,4 +387,3 @@ Look ground_look(vec2 wp, vec3 t, vec3 b, vec3 n_geo, float slope, float dist, f
 	look.reflection_weight = mix(dry_reflection_weight, 1.0, clamp(max(wet, w[8] + w[15]), 0.0, 1.0));
 	return look;
 }
-

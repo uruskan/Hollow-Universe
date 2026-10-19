@@ -298,6 +298,7 @@ public partial class GroundMode : Node
             ShotPitch = Options.ContainsKey("pitch") ? (float)Number("pitch", 0) * MathF.PI / 180 : null,
             ShotYaw = Options.ContainsKey("yaw") ? (float)Number("yaw", 0) * MathF.PI / 180 : null,
             Clouds = Options.ContainsKey("clouds") ? (float)Number("clouds", 0.35) : null,
+            DebugView = (int)Number("debug-sky", 0),
             ServerAddress = host == "127.0.0.1" && (_server != null || _child != null)
                 ? $"this computer, port {port} (hosted here)"
                 : $"{host}:{port}",

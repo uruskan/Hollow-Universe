@@ -166,6 +166,9 @@ public partial class GroundView : Node3D
     /// <summary>Cloud cover for this client's sky, 0 (clear) to 1 (overcast); null keeps the default (--clouds).</summary>
     public float? Clouds { get; set; }
 
+    /// <summary>The surface shaders' debug view (<c>--debug-sky</c>, as the surface view's: 10 + the ground's debug_view).</summary>
+    public int DebugView { get; set; }
+
     /// <summary>The menu's QUIT.</summary>
     public event Action? QuitRequested;
 
@@ -272,6 +275,7 @@ public partial class GroundView : Node3D
         {
             _world.CloudCoverage = clouds;
         }
+        _world.DebugSky = DebugView;
         _warmup = new RenderWarmup(GroundWarmup.Items(Client.Content), plan.Stage(RenderWarmup.Key)) { Name = "Warmup" };
         AddChild(_warmup);
         _worldStages = _world.LoadStages(plan);

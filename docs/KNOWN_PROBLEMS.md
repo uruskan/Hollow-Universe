@@ -1,5 +1,16 @@
 # Known problems and the plan for them (14 October 2026)
 
+## The ground looked like tiles of mud under the grass — found and fixed 19 October 2026
+
+The owner's captures (19 October) showed the meadow as half-metre squares of grass and bare mud, no detail under the
+tufts, and a flat beach. The squares were the grass field's cells: each 0.46 m cell got its whole five-card tuft or
+nothing, so at the meadow's density half the cells were solid grass and half bare. The ground under them was the
+Dry Grassy Ground scan, which is mud with a little straw. Fixed: the tuft's cards thin one by one with the density
+(`surface_grass.gdshader`), and the materials have alternative scans chosen per pixel (a lifted wet-grass scan under
+lush grass, pebbly sand on beaches, eighteen owned 4K scans in all; docs/WALKING_GROUND.md §8). Open: a truly green
+meadow floor needs a green grass-ground scan the library lacks at 4K; the alternatives' selectors and gains are first
+settings. Status: fixed in the working tree, captures in `docs/images/ground/ground-textures/`; owner acceptance pending.
+
 ## Long full-suite native mesh-build crash — found and fixed 19 October 2026
 
 Runs on 16 and 18 October exited with native `0xC0000005` in `JPH_MeshShapeSettings_CreateShape`

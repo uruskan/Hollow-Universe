@@ -142,6 +142,7 @@ public sealed partial class GrassField : Node3D
         material.SetShaderParameter("cell_twigs", FloraTextures.CellUv(FloraTextures.Twigs, 6));
         material.SetShaderParameter("cell_needles", FloraTextures.CellUv(FloraTextures.Spruce, 6));
         material.SetShaderParameter("ground_albedo", groundAlbedo);
+        GroundLayers.ApplyGrass(material);
         material.SetShaderParameter("macro_noise", noise);
         material.SetShaderParameter("blade_mean", bladeMean);
         Mesh tuft = TuftMesh(_spatialCells == 0), litter = LitterMesh(_spatialCells == 0);

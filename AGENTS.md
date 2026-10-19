@@ -159,7 +159,9 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|reli
                                                  # the first world's surface: maps, speed, landing site, look-dev
                                                  # spots (forest|meadow|beach|mountain), sun and moon by the hour
 blender -b --factory-startup --python tools/blender/surface_layers.py -- D:/GameDev/Assets game/assets/surface/ground/layers <scratch>
-                                                 # the ground's sixteen 4K layers from the owned scans (docs/WALKING_GROUND.md §8)
+                                                 # the ground's 34 4K textures from the owned scans: the sixteen materials' and their
+                                                 # alternatives (docs/WALKING_GROUND.md §8); files already built are kept; then
+                                                 # $GODOT --headless --path game --import (BPTC at 4K: long)
 blender -b --factory-startup --python art/build.py   # every item and world model → game/assets/items, world (GROUND.md §9.1)
 blender -b --factory-startup --python art/build.py -- iron_wake   # the Iron Wake → game/assets/ships, its materials, and
                                                  # game/data/ground/ships/iron-wake.json (IRON_WAKE.md §9.1; 5 min; from
@@ -316,7 +318,8 @@ Client options (after `--`):
   arrive at the landing site rather than on a beach), `--ground walking` (hosted: S4's walking-scale ground, off by
   default; docs/WALKING_GROUND.md §12), `--lat <deg> --lon <deg>` (hosted: the server's landing site, where `--spawn
   origin` arrives), `--yaw <deg>` (screenshots: turn to that bearing from north on arrival), `--clouds <0–1>` (this client's cloud
-  cover), `--time <UTC>` or `--hour <h>`
+  cover), `--debug-sky <n>` (as the surface view's: 11 to 16 show the ground's material weights, normals, climate, lighting
+  and face seams), `--time <UTC>` or `--hour <h>`
   (show another time of day: a universe time, or the next time it is h o'clock at the landing site, or at `--lat`/`--lon`;
   this client's sky only), `--tour <folder>`
   with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact,map`

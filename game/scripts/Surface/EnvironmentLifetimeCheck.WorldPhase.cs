@@ -44,6 +44,9 @@ public partial class EnvironmentLifetimeCheck
                 Disable3D = true, UseHdr2D = true, RenderTargetUpdateMode = SubViewport.UpdateMode.Disabled };
             AddChild(viewport);
             var flips = new Vector2[16]; Array.Fill(flips, Vector2.One);
+            // The look's per-texture arrays: the sixteen materials' own textures at the same sizes, no alternatives.
+            var texFlips = new Vector2[GroundLayers.MaxTextures]; Array.Fill(texFlips, Vector2.One);
+            var texMetres = new float[GroundLayers.MaxTextures]; Array.Fill(texMetres, 4); texMetres[3] = 2.4f; texMetres[13] = 2.5f;
             for (int i = 0; i < 4; i++)
             {
                 var material = new ShaderMaterial { Shader = shader }; materials.Add(material);
@@ -54,6 +57,8 @@ public partial class EnvironmentLifetimeCheck
                 material.SetShaderParameter("canopy_texture", noise);
                 material.SetShaderParameter("layer_metres", metres);
                 material.SetShaderParameter("layer_flip", flips);
+                material.SetShaderParameter("tex_metres", texMetres);
+                material.SetShaderParameter("tex_flip", texFlips);
                 material.SetShaderParameter("probe_layer", i < 2 ? 3 : 13);
                 bindings.Add(phases.BindGround(material));
                 viewport.AddChild(new ColorRect { Position = new Vector2(i * 64, 0), Size = new Vector2(64, 64),
