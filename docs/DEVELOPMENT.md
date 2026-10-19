@@ -144,6 +144,13 @@ selected ground paths: no triangles, a non-finite vertex, an index out of range,
 0 errors; GroundMeshCheck 2/2 (a world given a NaN tile throws it and still disposes); Physics, Movement, Ship and
 Walking 136/136. The original native abort is still unexplained; KNOWN_PROBLEMS.md says how to capture a dump.
 
+## 19 October 2026 — Explosives original model and rendered icons
+
+Three grey-white compound blocks in printed and plain kraft bands tied with twine replace the sulphur model and icon
+alias (`art/models/explosives.py`, new helper `art/hollow/rounded.py`); ID 120, stack and recipes are unchanged.
+LODs 7,272 / 3,616 / 1,740 triangles. Solution build 0 warnings and 0 errors; ModelCatalogue 11/11, ContentTests 3/3.
+Owner art acceptance is pending. See [ITEM_ART_EXPLOSIVES.md](ITEM_ART_EXPLOSIVES.md).
+
 ## 19 October 2026 — The meadow's floor, second pass: Leafy Grass in place of Ground 037
 
 The owner saw the Ground 037 captures of the ground entry below and chose blades over moss: "download Poly Haven

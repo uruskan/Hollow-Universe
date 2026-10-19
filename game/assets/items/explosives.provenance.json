@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "explosives",
+  "date": "2026-10-19",
+  "replaces": "sulphur.glb stand-in and the sulphur PNG icon alias",
+  "authorship": "Original cosmetic geometry, procedural PBR atlas and rendered icons; no reference game files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/explosives",
+    "image": "https://files.facepunch.com/rust/item/explosives_512.png",
+    "observed": "Two off-white, slightly lumpy putty blocks, one leaning on the other, each with a tan paper band and a twine tie; soft grey shading, no lettering; reads at small size by the pale blocks and the dark band across them.",
+    "use": "Visual observation before authoring only; no downloaded reference files"
+  },
+  "authoring_source": [
+    {
+      "path": "art/models/explosives.py",
+      "sha256": "717da872b2fe577c414f597dc5270b08c5f6d57204e740504e31fa509998e31d"
+    }
+  ],
+  "authoring_helpers": [
+    {
+      "path": "art/hollow/component_mesh.py",
+      "sha256": "8991c9a2503976f758c3fe8b1b97f2642c9050548149d8d329598983629fcb34"
+    },
+    {
+      "path": "art/hollow/rounded.py",
+      "sha256": "0d865ac93e2e8ede730d94890db165ad30726e6b0e54c1bc26808c39728f97ac"
+    }
+  ],
+  "geometry": {
+    "asset": "explosives",
+    "dimensions_blender_xyz_m": [
+      0.18842188268899918,
+      0.1781456097960472,
+      0.11139999330043793
+    ],
+    "texture_size": 1024,
+    "material_count": 1,
+    "lod_triangles": {
+      "Explosives_lod0": 7272,
+      "Explosives_lod1": 3616,
+      "Explosives_lod2": 1740
+    },
+    "hull_triangles": 42,
+    "vertex_ao_samples": 8
+  },
+  "files": {
+    "game/assets/items/explosives.glb": {
+      "sha256": "ac622556baf85048f1eab63a799e08057333d503a21cd7297147c6a4d6b06e9d",
+      "bytes": 398660
+    },
+    "game/assets/items/explosives.glb.import": {
+      "sha256": "8709e5732ddeae93e98a935f331f3e8bcdc55f45e94a5a107d0b16ea4be9aea8",
+      "bytes": 465
+    },
+    "game/assets/materials/explosives.tres": {
+      "sha256": "3182af9145716196140aec749634ee4ed2254270f0aa32cbe890b48d8cc7ef76",
+      "bytes": 635
+    },
+    "game/assets/textures/explosives/explosives_albedo.png": {
+      "sha256": "7544473e2366cbfb86773c18500ea0f28acf1fdcd9e6c18f0d5b5a04731a96fb",
+      "bytes": 1006092
+    },
+    "game/assets/textures/explosives/explosives_albedo.png.import": {
+      "sha256": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "bytes": 208
+    },
+    "game/assets/textures/explosives/explosives_normal.png": {
+      "sha256": "a863b3c3e011b35dafeecae9414f44027cf9f82363398be9ee8206332ac21a65",
+      "bytes": 730115
+    },
+    "game/assets/textures/explosives/explosives_normal.png.import": {
+      "sha256": "6a3487d4f443cf9f68b41462d6eb05969c23e1c4617e2524147c066742dab360",
+      "bytes": 208
+    },
+    "game/assets/textures/explosives/explosives_orm.png": {
+      "sha256": "aed88f76f6988af43be03e7c5a5037cc7c4bf1153ca9aee9cd8bcea01133c95f",
+      "bytes": 117538
+    },
+    "game/assets/textures/explosives/explosives_orm.png.import": {
+      "sha256": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "bytes": 208
+    },
+    "game/assets/items/icons/128/explosives.png": {
+      "sha256": "d58671e1f6d478b4f161a737f13d134a679f4f196071d779a0723234db9c0617",
+      "bytes": 14075
+    },
+    "game/assets/items/icons/128/explosives.png.import": {
+      "sha256": "5d13fabff54aedfd199a52b04cace14a310ae7bea8f68d18dd23ce6a04c6b87e",
+      "bytes": 957
+    },
+    "game/assets/items/icons/256/explosives.png": {
+      "sha256": "8c12e520f25b187ef4c32ed2ee4d68dd3e5e40d10df05fa99b14935e49f4ef5a",
+      "bytes": 44018
+    },
+    "game/assets/items/icons/256/explosives.png.import": {
+      "sha256": "45c69f51800f2f6946d72257a577fc50d23b7abc2be5b105c04248c4260f0ffe",
+      "bytes": 957
+    }
+  }
+}

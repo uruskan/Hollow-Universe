@@ -18,7 +18,8 @@ Gun Receiver now has its own timber-braced housing and icons; see
 [its asset record](ITEM_ART_RIFLE_FRAME.md). Torn Schematic now has a dedicated ragged paper model and icons; see
 [its asset record](ITEM_ART_TORN_SCHEMATIC.md). Sealed Schematic now has a dedicated complete sleeved drawing and icons; see
 [its asset record](ITEM_ART_SEALED_SCHEMATIC.md). Salvage now has a dedicated rusty scrap assortment and icons; see
-[its asset record](ITEM_ART_SALVAGE.md). Other replacements remain planned.
+[its asset record](ITEM_ART_SALVAGE.md). Explosives now have a bundled, banded compound model and icons; see
+[its asset record](ITEM_ART_EXPLOSIVES.md). Other replacements remain planned.
 Artistic acceptance remains with the owner.
 [DESIGN.md](DESIGN.md), especially ART-01 and the ground UI requirement, remains authoritative.
 
@@ -62,7 +63,7 @@ remain subject to visual review.
 | 1 | `torn-schematic` | Replaced: original model and rendered PNGs | Torn blue drafting paper with a large missing corner, slight curl, fine grid and original partial diagram. |
 | 1 | `sealed-schematic` | Replaced: original model and rendered PNGs | Complete blue service drawing in a thin sealed sleeve, with curled edges and an original diagram. |
 | 1 | `salvage` | Replaced: original model and rendered PNGs | Compact rusty assortment: toothed gear, coil, corrugated offcut, hollow pipes, loose nuts and wire. |
-| 2 | `explosives` | Sulphur model and sulphur PNG alias | A clearly packaged fictional industrial explosive material, distinct from sulphur and gunpowder. |
+| 2 | `explosives` | Replaced: original model and rendered PNGs | Three grey-white compound blocks in printed and plain kraft bands tied with twine; distinct from sulphur and gunpowder. |
 | 2 | `blueprint` | Building-plan model and SVG icon | A distinct blueprint document for generic views; preserve the learned-item presentation described below. |
 | 2 | `research-table` | Engineering-workbench model and SVG icon | A dedicated dismantling and research bench with inspection tools, a work surface and sample storage. |
 | 3 | `wire-tool` | Own simple model; PNGs supplied during document preparation | Review the probe's silhouette, construction and new icons; improve and re-render only where needed. |

@@ -35,7 +35,7 @@ public static class ModelCatalogueTests
     };
 
     // Models that replaced stand-ins: none of them may be marked as a stand-in again.
-    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate", "receiver", "rifle-frame", "torn-schematic", "sealed-schematic", "salvage" };
+    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate", "receiver", "rifle-frame", "torn-schematic", "sealed-schematic", "salvage", "explosives" };
 
     [Test]
     public static void ClothHasItsOwnModelAndRenderedIcon()
@@ -143,6 +143,18 @@ public static class ModelCatalogueTests
         Assert.Equal("res://assets/items/salvage.glb", item.GetProperty("file").GetString(), "salvage model identity");
         Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "salvage must render its own icon");
         Assert.True(!item.TryGetProperty("standIn", out _), "salvage must not return to the metal-fragments stand-in");
+    }
+
+    [Test]
+    public static void ExplosivesHaveTheirOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "explosives");
+        Assert.Equal("res://assets/items/explosives.glb", item.GetProperty("file").GetString(), "explosives model identity");
+        Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "explosives must render their own icon, not sulphur's");
+        Assert.True(!item.TryGetProperty("standIn", out _), "explosives must not return to the sulphur stand-in");
     }
 
     // World objects the gathering rules place (gather.json) and the ship.
