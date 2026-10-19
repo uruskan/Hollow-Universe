@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "door-key",
+  "date": "2026-10-20",
+  "replaces": "the key lock's model and icon, which the key borrowed",
+  "authorship": "Original cosmetic geometry on the shared surface atlas and rendered icons; no reference game files",
+  "visual_reference": null,
+  "authoring_source": [
+    {
+      "path": "art/models/supplies.py",
+      "sha256": "ced607d84dd8bcf64f0eef4001e81e0a898a931e94c3551e353122a32704e388"
+    }
+  ],
+  "authoring_helpers": [
+    {
+      "path": "art/hollow/build.py",
+      "sha256": "67fa559da955e28072d166ca3bc0ed67daa6b8db95a37e29370a166615d6293f"
+    },
+    {
+      "path": "art/hollow/export.py",
+      "sha256": "bca4862ce3d4b2a67c016857d2e78d97ef867d19af5d1991942aa10d52552bde"
+    }
+  ],
+  "geometry": {
+    "asset": "door-key",
+    "dimensions_blender_xyz_m": [
+      0.10750000178813934,
+      0.029600000008940697,
+      0.0056000001495704055
+    ],
+    "materials": [
+      "res://assets/materials/psg_surface.tres"
+    ],
+    "material_count": 1,
+    "lod_triangles": {
+      "lod0": 1544,
+      "lod1": 772,
+      "lod2": 334
+    },
+    "hull_triangles": 116
+  },
+  "files": {
+    "game/assets/items/door-key.glb": {
+      "sha256": "7c5abc3c22d52060ce41ee6aa58dff52c8011231336b0bda9149229c5b446bf6",
+      "bytes": 151080
+    },
+    "game/assets/items/door-key.glb.import": {
+      "sha256": "f6d61a1e4506a37348afce57c5498c0998f21c885f8b6cbb008ad739aa039df7",
+      "bytes": 461
+    },
+    "game/assets/items/icons/128/door-key.png": {
+      "sha256": "ce70dcbc6642e55c7ee3cd3e471e5e976b66121cb64ec8503ed46814cc9cf743",
+      "bytes": 9033
+    },
+    "game/assets/items/icons/128/door-key.png.import": {
+      "sha256": "ce862f599b839857495d81e5c85f22fdd961ab36c098d4ba9271e5bdc328f29d",
+      "bytes": 951
+    },
+    "game/assets/items/icons/256/door-key.png": {
+      "sha256": "6fd87ad721ee06f77d453c183a034e4137f57335c1230ad51cac4ab34595ad93",
+      "bytes": 25226
+    },
+    "game/assets/items/icons/256/door-key.png.import": {
+      "sha256": "81b95ad2acfe1228f158a17b1275b98a474f8630a87380d5c53a6f10cc662013",
+      "bytes": 951
+    },
+    "game/assets/materials/psg_surface.tres": {
+      "sha256": "80b51d13c945e0392934b9a17ebf6f2e5d6103f2ca3b4fda296667adeee5e44c",
+      "bytes": 822
+    }
+  }
+}

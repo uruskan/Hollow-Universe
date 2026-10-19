@@ -1,4 +1,4 @@
-"""Small supplies: bandage, medical injector, berries, tubers, ammunition boxes and the key lock.
+"""Small supplies: bandage, medical injector, berries, tubers, ammunition boxes, the key lock and its key.
 
     blender -b --factory-startup --python art/models/supplies.py -- [keys...]
 """
@@ -249,6 +249,36 @@ def key_lock(seed=69):
     m.export(floor=False)
 
 
+def door_key(seed=95):
+    """The key a key lock makes (`door-key`): a cut steel key with a round bow, a shoulder and three uneven teeth, on a
+    split ring with a stamped brass tag, as a scrap-age locksmith would hand it over. Distinct from the key lock it
+    opens. It lies flat, the blade along +X, the tag toward -X."""
+    m = Model("door-key", seed=seed)
+    t = 0.0026  # the blank's thickness
+    ring = [(-0.004 + 0.012 * math.cos(a), 0.012 * math.sin(a), t / 2)
+            for a in (2 * math.pi * k / 28 for k in range(29))]
+    m.tube(ring, 0.0028, sides=8, cap=False, tile=STEEL, tint=(0.72, 0.72, 0.7), metres=0.03)
+    m.box((0.011, 0.012, t), (0.010, 0, t / 2), bevel=0.0008, tile=STEEL, tint=(0.7, 0.7, 0.68), metres=0.03)
+    m.box((0.003, 0.016, t + 0.001), (0.0165, 0, t / 2), bevel=0.0006, tile=STEEL, tint=(0.66, 0.66, 0.64), metres=0.03)
+    m.box((0.036, 0.0062, t), (0.0355, 0.0018, t / 2), bevel=0.0006, tile=STEEL, tint=(0.74, 0.74, 0.72), metres=0.04)
+    # Three teeth of different depths along the blade's lower edge, and a groove down its face.
+    for x, depth in ((0.030, 0.0042), (0.039, 0.0026), (0.047, 0.0050)):
+        m.box((0.0046, depth, t), (x, -0.0013 - depth / 2, t / 2), bevel=0.0004, tile=STEEL, tint=(0.74, 0.74, 0.72),
+              metres=0.02)
+    m.box((0.030, 0.0012, 0.0006), (0.037, 0.0022, t + 0.0003), bevel=0.0, tile=GUNMETAL, tint=(0.6, 0.6, 0.6),
+          metres=0.02)
+    # A split ring through the bow and a stamped brass tag on it.
+    split = [(-0.019 + 0.008 * math.cos(a), 0.008 * math.sin(a), 0.0012 + 0.0006 * math.sin(a * 2))
+             for a in (2 * math.pi * k / 24 for k in range(25))]
+    m.tube(split, 0.0011, sides=6, cap=False, tile=STEEL, tint=(0.82, 0.82, 0.8), metres=0.02)
+    tag = [(-0.026, -0.008), (-0.050, -0.010), (-0.054, -0.005), (-0.054, 0.005), (-0.050, 0.010), (-0.026, 0.008)]
+    m.extrude(tag, 0.0012, (0, 0, 0.0016), (90, 0, 0), bevel=0.0004, tile=STEEL, tint=BRASS, metres=0.03)
+    m.cylinder(0.0022, 0.0016, (-0.029, 0, 0.0018), sides=12, tile=RUBBER, tint=(0.2, 0.2, 0.2), metres=0.01)
+    for x in (-0.037, -0.042, -0.047):
+        m.box((0.0025, 0.0012, 0.0004), (x, 0, 0.0024), bevel=0.0, tile=GUNMETAL, tint=(0.35, 0.3, 0.22), metres=0.01)
+    m.export()
+
+
 ALL = {"bandage": bandage, "medical-injector": injector,
        "red-berries": lambda: berries("red-berries", (0.62, 0.05, 0.06), 71),
        "blue-berries": lambda: berries("blue-berries", (0.13, 0.16, 0.42), 73),
@@ -262,7 +292,7 @@ ALL = {"bandage": bandage, "medical-injector": injector,
        # G5: explosive rifle rounds, a yellow band striped black, yellow tips.
        "rifle-ammo-explosive": lambda: rifle_ammo("rifle-ammo-explosive", band=(0.95, 0.74, 0.08), tip=(0.95, 0.74, 0.08),
                                                   seed=87, hazard=True),
-       "key-lock": key_lock}
+       "key-lock": key_lock, "door-key": door_key}
 
 for key in script_args() or list(ALL):
     ALL[key]()

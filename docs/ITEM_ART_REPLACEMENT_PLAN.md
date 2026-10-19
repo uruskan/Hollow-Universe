@@ -78,7 +78,7 @@ remain subject to visual review.
 | 4 | `woven-gloves` | Replaced: the worn garment and rendered PNGs | The worn knit gloves, fingers up and backs to the front, side by side. |
 | 4 | `work-boots` | Replaced: the worn garment and rendered PNGs | The worn laced leather boots, brought together. |
 | 4 | `chest-plate` | Replaced: the worn garment and rendered PNGs | The worn riveted steel breastplate with its straps and shoulder guards. |
-| 4 | `door-key` | Borrows the key lock's model and icon | A key of its own, distinct from the key lock. |
+| 4 | `door-key` | Replaced: original model and rendered PNGs | A cut steel key with three teeth on a split ring with a stamped brass tag, distinct from the key lock. |
 | 4 | `wooden-door`, `armoured-door`, `double-door`, `garage-door` | Our early door models and their icons | Waits for the door-system rebuild: icons and dropped models from the corrected door kit. |
 
 Batch 1 is nine assets: the eight unfinished components plus salvage. Batch 2 covers
@@ -86,7 +86,7 @@ three further borrowed identities. Wire Tool needs a model/icon review, rather t
 an assumed replacement of its existing model. Batch 4 retires the last stand-in notes
 in the catalogue. The six clothing items are now the worn garments themselves, so their
 icons and dropped items show what is worn ([their asset record](ITEM_ART_CLOTHING.md)).
-The door key gets a model of its own. The four door items wait for the door-system
+The door key has a model of its own ([its asset record](ITEM_ART_DOOR_KEY.md)). The four door items wait for the door-system
 rebuild, which makes both faces of a door match; their icons follow the corrected kit.
 
 ## Visual standard

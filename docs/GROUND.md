@@ -4553,7 +4553,7 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `import/iron_wake.py` | The Iron Wake (docs/IRON_WAKE.md §9.1–§9.3): body, hold and 31 moving parts with five LODs, 358 hulls, 91 sockets, occluders, 20 clips, its sixteen finishes on one shader (`iron_wake_surfaces.py`: the derived maps, the curvature masks, the ShaderMaterials; `iron_wake_finishes.json`: the asset's finishes and display tiles as the import keeps them), and the ship's data file `game/data/ground/ships/iron-wake.json` (`-- data` writes the data file alone). Every merged mesh is repaired into closed solids facing out, and the import fails when rays from outside or from the rooms meet back faces at any level (§9.1 "As built: the holes"). With `ships/iron_wake_loaders.py`, its hook, the batteries' loading mechanisms (§9.5, rebuilt 15 October 2026: whole barrels into closed breeches): 84 more moving parts, 36 slot and breech sockets, 8 review clips, checked for clearance at every import. `iron_wake_review.py` renders the exported GLB as Godot draws it (back faces culled) for the review pictures |
 | `models/resources.py` | The twelve resources as small piles (their dropped look; gunpowder a heap on an opened paper), and the four world pickups as bigger piles |
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
-| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
+| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock, door key |
 | `models/clothing.py` | The metal mask (the item; the character package models it worn) |
 | `models/garment_items.py` | The woven hood, shirt, trousers and gloves, the work boots and the chest plate as items: the worn garments' own meshes from `clothing.glb` with their own material (docs/ITEM_ART_CLOTHING.md) |
 | `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the bag dropped items lie in (`dropped-bag`, U4: a canvas-wrapped bundle strapped shut, below) |
@@ -5497,8 +5497,8 @@ Decisions taken for the sound (§4.9, §9.2) without the owner, to confirm or ov
 
 Decisions taken in G3's phase 2a (§6.5, building over the network), to confirm or overturn:
 
-- B1. **The key is an item of its own** (`door-key`) whose condition holds its lock's number; it has no model yet, so the
-  catalogue lists it with the key lock's model and icon.
+- B1. **The key is an item of its own** (`door-key`) whose condition holds its lock's number, with a model of its own: a
+  cut key on a split ring with a brass tag (`models/supplies.py`, docs/ITEM_ART_DOOR_KEY.md).
 - B2. **No ladder yet:** climbing needs the movement code (and the prediction) to know ladders; it comes with the
   ground-mode hookup or later.
 - B3. **`double-door` is the sheet metal double door** (Rust's common one); the wooden and armoured doubles stay in

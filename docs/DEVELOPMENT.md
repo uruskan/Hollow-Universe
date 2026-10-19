@@ -1,5 +1,11 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — The door key has a model of its own
+
+`door-key` no longer borrows the key lock's model and icon: a cut steel key on a split ring with a brass tag
+(`art/models/supplies.py`). Native captures, provenance and a catalogue test; build 0/0, ModelCatalogue 16/16,
+ContentTests 3/3. Owner art acceptance pending. See [ITEM_ART_DOOR_KEY.md](ITEM_ART_DOOR_KEY.md).
+
 ## 20 October 2026 — Clothing items are the worn garments
 
 The woven hood, shirt, trousers and gloves, the work boots and the chest plate are now the character package's own

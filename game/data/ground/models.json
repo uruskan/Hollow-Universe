@@ -234,9 +234,8 @@
       "icon": { "view": [32, 12, 0] },
       "held": { "firstPerson": { "position": [0.15, -0.196, -0.4], "rotation": [0, 0, 0] }, "thirdPerson": { "position": [0, 0, 0], "rotation": [0, 0, 0] } },
       "source": "Hollow (art/models/supplies.py)" },
-    { "key": "door-key", "kind": "item", "class": "tool", "file": "res://assets/items/key-lock.glb", "lods": 3, "collision": "convex",
-      "icon": { "key": "key-lock" },
-      "standIn": "The key lock's model until a key has one of its own (GROUND.md §11).", "source": "Hollow (art/models/supplies.py)" },
+    { "key": "door-key", "kind": "item", "class": "tool", "file": "res://assets/items/door-key.glb", "lods": 3, "collision": "convex",
+      "icon": { "view": [30, 60, 0] }, "source": "Hollow (art/models/supplies.py): a cut key on a ring with a brass tag; provenance: assets/items/door-key.provenance.json" },
 
     { "key": "pistol", "kind": "item", "class": "gun", "file": "res://assets/items/pistol.glb", "lods": 3, "collision": "convex",
       "icon": {},

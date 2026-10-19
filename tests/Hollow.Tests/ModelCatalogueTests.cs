@@ -36,7 +36,7 @@ public static class ModelCatalogueTests
 
     // Models that replaced stand-ins: none of them may be marked as a stand-in again.
     private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate", "receiver", "rifle-frame", "torn-schematic", "sealed-schematic", "salvage", "explosives", "blueprint", "research-table",
-        "woven-hood", "woven-shirt", "woven-trousers", "woven-gloves", "work-boots", "chest-plate" };
+        "woven-hood", "woven-shirt", "woven-trousers", "woven-gloves", "work-boots", "chest-plate", "door-key" };
 
     [Test]
     public static void ClothHasItsOwnModelAndRenderedIcon()
@@ -227,6 +227,18 @@ public static class ModelCatalogueTests
         string contact = held.RootElement.GetProperty("profiles").EnumerateArray()
             .Single(p => p.GetProperty("item").GetString() == "wire-tool").GetProperty("contactSocket").GetString()!;
         Assert.True(nodes.Contains("socket_grip_r") && nodes.Contains("socket_" + contact), $"wire tool needs socket_grip_r and socket_{contact}");
+    }
+
+    [Test]
+    public static void DoorKeyHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "door-key");
+        Assert.Equal("res://assets/items/door-key.glb", item.GetProperty("file").GetString(), "the key's model, not the key lock's");
+        Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "the key must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "the key must not return to the key lock's model");
     }
 
     [Test]
