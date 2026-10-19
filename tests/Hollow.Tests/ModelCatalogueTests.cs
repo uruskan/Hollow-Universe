@@ -35,7 +35,7 @@ public static class ModelCatalogueTests
     };
 
     // Models that replaced stand-ins: none of them may be marked as a stand-in again.
-    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate", "receiver", "rifle-frame", "torn-schematic", "sealed-schematic", "salvage", "explosives", "blueprint" };
+    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate", "receiver", "rifle-frame", "torn-schematic", "sealed-schematic", "salvage", "explosives", "blueprint", "research-table" };
 
     [Test]
     public static void ClothHasItsOwnModelAndRenderedIcon()
@@ -167,6 +167,47 @@ public static class ModelCatalogueTests
         Assert.Equal("res://assets/items/blueprint.glb", item.GetProperty("file").GetString(), "blueprint model identity");
         Assert.True(item.TryGetProperty("icon", out JsonElement icon) && !icon.TryGetProperty("key", out _), "blueprint must render its own icon");
         Assert.True(!item.TryGetProperty("standIn", out _), "blueprint must not return to the building-plan stand-in");
+    }
+
+    [Test]
+    public static void ResearchBenchHasItsOwnModelGibsAndRenderedIcon()
+    {
+        string game = Path.Combine(Fixtures.Root, "game");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(game, "data", "ground", "models.json")));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "research-table");
+        Assert.Equal("res://assets/world/research-table.glb", item.GetProperty("file").GetString(), "research bench model identity");
+        Assert.Equal("res://assets/gibs/research-table.glb", item.GetProperty("gibs").GetProperty("file").GetString(), "research bench gibs");
+        Assert.True(item.TryGetProperty("icon", out JsonElement icon) && !icon.TryGetProperty("key", out _), "research bench must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "research bench must not return to the engineering-workbench stand-in");
+        // The drawn bench stays inside the bounds the server places, collides and destroys it by (deployables.json).
+        using JsonDocument deployables = JsonDocument.Parse(File.ReadAllText(Path.Combine(game, "data", "ground", "deployables.json")));
+        double[] half = deployables.RootElement.GetProperty("deployables").EnumerateArray()
+            .Single(d => d.GetProperty("key").GetString() == "research-table").GetProperty("size").EnumerateArray().Select(v => v.GetDouble()).ToArray();
+        (double[] min, double[] max) = GlbBounds(Path.Combine(game, "assets", "world", "research-table.glb"), "Body_lod0");
+        Assert.True(-half[0] <= min[0] && max[0] <= half[0] && -half[2] <= min[2] && max[2] <= half[2] && min[1] >= 0 && max[1] <= 2 * half[1],
+            $"research bench model {string.Join(",", min)} .. {string.Join(",", max)} outside its deployable bounds");
+    }
+
+    /// <summary>A GLB mesh node's position bounds in the file's frame (Godot's: +Y up), from its accessor's min and max.</summary>
+    private static (double[] Min, double[] Max) GlbBounds(string path, string node)
+    {
+        byte[] data = File.ReadAllBytes(path);
+        int length = BitConverter.ToInt32(data, 12);
+        using JsonDocument json = JsonDocument.Parse(new ReadOnlyMemory<byte>(data, 20, length));
+        JsonElement root = json.RootElement;
+        JsonElement n = root.GetProperty("nodes").EnumerateArray().Single(x => x.TryGetProperty("name", out JsonElement name) && name.GetString() == node);
+        JsonElement mesh = root.GetProperty("meshes")[n.GetProperty("mesh").GetInt32()];
+        var min = new[] { double.MaxValue, double.MaxValue, double.MaxValue };
+        var max = new[] { double.MinValue, double.MinValue, double.MinValue };
+        foreach (JsonElement primitive in mesh.GetProperty("primitives").EnumerateArray())
+        {
+            JsonElement accessor = root.GetProperty("accessors")[primitive.GetProperty("attributes").GetProperty("POSITION").GetInt32()];
+            double[] lo = accessor.GetProperty("min").EnumerateArray().Select(v => v.GetDouble()).ToArray();
+            double[] hi = accessor.GetProperty("max").EnumerateArray().Select(v => v.GetDouble()).ToArray();
+            for (int i = 0; i < 3; i++) { min[i] = Math.Min(min[i], lo[i]); max[i] = Math.Max(max[i], hi[i]); }
+        }
+        return (min, max);
     }
 
     // World objects the gathering rules place (gather.json) and the ship.

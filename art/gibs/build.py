@@ -946,7 +946,7 @@ def main():
     for key, gibs, source, parts in sets:
         if wanted and key not in wanted:
             continue
-        # Two entries may share a model and its gibs (the research table stands in as the engineering workbench).
+        # Two entries may share a model and its gibs; each file is built once.
         if gibs["file"] in built:
             continue
         built.add(gibs["file"])

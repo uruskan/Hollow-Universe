@@ -1,0 +1,529 @@
+{
+  "revision": "R01",
+  "captures": {
+    "research-table-lod0.png": "ebf11dfecd52a7b8d657cb2ad87b2d226ee4239756851441a7f5c5442ed250df",
+    "research-table-lod1.png": "66ac0d64ce9fad1a173de3cf38a53a896ae4b8b6d2863d15cd2456d8d898374f",
+    "research-table-lod2.png": "c562935af97b026f6734cd671f88e2f0373fb1cff16a87797313f4491554b96e",
+    "research-table-back.png": "bd83f51cb370fc2e6ccf7cd32005330414adc817b7347db895bfa7cc027db7e4",
+    "icon-slots.png": "1f136c0d95ce84e3c1248e24518ca461f1773cd6dd08bbd12360e890410e426e",
+    "research-table-detail.png": "1c4e6fedcd113b202a208fbc4090c9ac1aabef757c4f710caa20f17343486f77"
+  },
+  "capture_inputs": {
+    "review_project": ".artifacts/itemart/research-table/review (this worktree; not committed)",
+    "catalogue_entry": {
+      "key": "research-table",
+      "kind": "item",
+      "class": "deployable",
+      "file": "res://assets/world/research-table.glb",
+      "lods": 3,
+      "collision": "convex",
+      "icon": {
+        "view": [
+          -30,
+          30,
+          0
+        ]
+      },
+      "source": "Hollow original research bench (art/models/research_table.py); provenance: assets/world/research-table.provenance.json"
+    },
+    "previous_icon": "PlaceholderItemIcons SVG",
+    "resources_sha256": {
+      "assets/world/research-table.glb": "06f72ab887230b7312592b1a03d30a6191955c96380e880a19eff43809b0a3c7",
+      "assets/world/research-table.glb.import": "30edf2efd2f74b8da9fec9fa9e6efbc8a23e4195f3a4e62bcd47bce43d45c615",
+      "assets/materials/research-table.tres": "95f9fc3fc327dddcee264283bbcda59be49700bf9b6b833398c51d46aed21343",
+      "assets/textures/research-table/research-table_albedo.png": "5cd3b4794d0f778a812605159c17afbdcf21c49e81fbd1de3cdb2d3b20f543e5",
+      "assets/textures/research-table/research-table_albedo.png.import": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "assets/textures/research-table/research-table_orm.png": "31e8bb442a63fb8ea5419e3e6845078af9a1899bdb9f9e8e0c8aa579ba134615",
+      "assets/textures/research-table/research-table_orm.png.import": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "assets/textures/research-table/research-table_normal.png": "dfb454ef09cfa350330956acc3ec201cbc5ec2036a16240c9346f7fe4ddd35ba",
+      "assets/textures/research-table/research-table_normal.png.import": "6a3487d4f443cf9f68b41462d6eb05969c23e1c4617e2524147c066742dab360",
+      "assets/fonts/Barlow/Barlow-Medium.ttf": "f8906f762cb73dca441da034bc363b2d8e2e68bc10d5c05e58717646c20cc4b4",
+      "assets/fonts/Barlow/Barlow-SemiBold.ttf": "86577cb32f8abe3673db53ca0f4221e6856751a4f6730c867e00f720f8bb1fc5",
+      "assets/fonts/Barlow/BarlowCondensed-Bold.ttf": "e476562ec9c1e16cf16475895b511f08c804f438cc9a9f80a44ea50a0eeb5b65",
+      "assets/fonts/Barlow/BarlowCondensed-Medium.ttf": "262bd143292ce479ee0cd09a42b47ab173fca8e9c6eb5ed0b5c8a845bc371d17",
+      "assets/fonts/Inter/InterVariable.ttf": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf"
+    },
+    "resources_match_committed_assets": true,
+    "compiled_references": {
+      "Hollow.Client.dll": "c11028046bef06e92a46d90a450c21977131e66ab9e84d5ef201a0ecba10fa99",
+      "Hollow.Core.dll": "1a6f28de27b7a38a6d8bae5e9b5940e6405dea64ad0694570915423a68991206",
+      "Hollow.Galaxy.dll": "52be5f98fb4f6436129223c317d6758f8d2bd3f415bcd0cc5f131ad884f6046e",
+      "Hollow.Net.dll": "1776287bf0151f6361050b3affc89f1ae97ead9073cb75e5c3880b513edb2e0b",
+      "Hollow.Persistence.dll": "c8bd027a7635ab934099ece8175b9327bb2bef838f4ace9b18630fa8c3a8204f",
+      "Hollow.Server.dll": "19abd47af672774884622fa7dc81d3094beb64419f7e0754222aef819a77efd2",
+      "Hollow.Simulation.dll": "3efaa990834ec62728edc9d5eeecc564c7fc020feb3ced4b5784626d15e7930f",
+      "Hollow.Surface.dll": "e1c473b0d0521947d43a83ed95004a77dc2295b3597308435420748344aab0cd",
+      "HollowUniverse.dll": "2ee129dca1fc546d1389e02d71b10bfc13f246d93caef32144d55bde656700eb",
+      "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+      "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+      "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+      "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+      "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+      "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+    }
+  },
+  "capture_jobs": [
+    {
+      "name": "model-build",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "2",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "art/models/research_table.py"
+      ],
+      "owned_pid": 9600,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 17.8,
+      "free_gib_before": 7.27,
+      "exit_code": 0,
+      "run_seconds": 49.08
+    },
+    {
+      "name": "review-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\research-table\\review\\ItemReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 17272,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 23.8,
+      "free_gib_before": 7.05,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "import-textures",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\research-table\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 14668,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 24.6,
+      "free_gib_before": 7.01,
+      "exit_code": 0,
+      "run_seconds": 5.0
+    },
+    {
+      "name": "import-model",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\research-table\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 17056,
+      "closed": true,
+      "wait_seconds": 26.23,
+      "cpu_before": 19.6,
+      "free_gib_before": 6.69,
+      "exit_code": 0,
+      "run_seconds": 9.04
+    },
+    {
+      "name": "lod0",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\research-table\\review",
+        "--",
+        "--key=research-table",
+        "--zoom=0.9",
+        "--lod=0",
+        "--yaw=-25",
+        "--output=research-table-lod0.png"
+      ],
+      "owned_pid": 16524,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 8.5,
+      "free_gib_before": 7.18,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod1",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\research-table\\review",
+        "--",
+        "--key=research-table",
+        "--zoom=0.9",
+        "--lod=1",
+        "--yaw=-25",
+        "--output=research-table-lod1.png"
+      ],
+      "owned_pid": 16104,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 36.8,
+      "free_gib_before": 7.12,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod2",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\research-table\\review",
+        "--",
+        "--key=research-table",
+        "--zoom=0.9",
+        "--lod=2",
+        "--yaw=-25",
+        "--output=research-table-lod2.png"
+      ],
+      "owned_pid": 12848,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 31.2,
+      "free_gib_before": 7.05,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "back",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\research-table\\review",
+        "--",
+        "--key=research-table",
+        "--zoom=0.9",
+        "--lod=0",
+        "--yaw=155",
+        "--output=research-table-back.png"
+      ],
+      "owned_pid": 11516,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 13.2,
+      "free_gib_before": 7.07,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-render",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\research-table\\review",
+        "--",
+        "--key=research-table",
+        "--zoom=0.9",
+        "--icons",
+        "--output=icon-sheet.png"
+      ],
+      "owned_pid": 15064,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 22.0,
+      "free_gib_before": 7.09,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\research-table\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 14960,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 7.9,
+      "free_gib_before": 7.04,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "slots",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\research-table\\review",
+        "--",
+        "--key=research-table",
+        "--zoom=0.9",
+        "--title=RESEARCH BENCH",
+        "--slots",
+        "--output=icon-slots.png"
+      ],
+      "owned_pid": 15272,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 10.8,
+      "free_gib_before": 7.12,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "solution-build",
+      "command": [
+        "dotnet",
+        "build",
+        "HollowUniverse.sln",
+        "-v:q",
+        "-m:2",
+        "-nodeReuse:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 5636,
+      "closed": true,
+      "wait_seconds": 16.01,
+      "cpu_before": 29.3,
+      "free_gib_before": 7.29,
+      "exit_code": 0,
+      "run_seconds": 107.14
+    },
+    {
+      "name": "tests-modelcatalogue",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "ModelCatalogue"
+      ],
+      "owned_pid": 12784,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 18.5,
+      "free_gib_before": 3.75,
+      "exit_code": 0,
+      "run_seconds": 36.02
+    },
+    {
+      "name": "tests-content",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "ContentTests"
+      ],
+      "owned_pid": 9852,
+      "closed": true,
+      "wait_seconds": 21.05,
+      "cpu_before": 26.2,
+      "free_gib_before": 3.89,
+      "exit_code": 0,
+      "run_seconds": 42.04
+    },
+    {
+      "name": "detail",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:/GameDev/Projects/HollowUniverseABTestB/.claude/worktrees/charming-hugle-0ff484/.artifacts/itemart/research-table/review",
+        "--",
+        "--key=research-table",
+        "--zoom=0.55",
+        "--lod=0",
+        "--yaw=-25",
+        "--output=research-table-detail.png"
+      ],
+      "owned_pid": 8688,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 9.4,
+      "free_gib_before": 7.19,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "gibs-build",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "2",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "art/gibs/build.py",
+        "--",
+        "research-table"
+      ],
+      "owned_pid": 15584,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 6.0,
+      "free_gib_before": 7.27,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "tests-gibs",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "Gib"
+      ],
+      "owned_pid": 11268,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 6.8,
+      "free_gib_before": 2.97,
+      "exit_code": 0,
+      "run_seconds": 35.02
+    },
+    {
+      "name": "tests-world",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "World"
+      ],
+      "owned_pid": 9864,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 5.8,
+      "free_gib_before": 3.65,
+      "exit_code": 0,
+      "run_seconds": 76.05
+    }
+  ],
+  "provider": "Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org\nVulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER\n\nresearch-table rendered provider: 16px PASS\nresearch-table rendered provider: 32px PASS\nresearch-table rendered provider: 48px PASS\nresearch-table rendered provider: 64px PASS\nresearch-table rendered provider: 96px PASS\nresearch-table rendered provider: 128px PASS\nresearch-table rendered provider: 256px PASS\nresearch-table capture: D:/GameDev/Projects/HollowUniverseABTestB/.claude/worktrees/charming-hugle-0ff484/.artifacts/itemart/research-table/review/../icon-slots.png, Ok\n",
+  "icon_checks": {
+    "128": {
+      "rgba": true,
+      "size": [
+        128,
+        128
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        9,
+        18,
+        119,
+        110
+      ]
+    },
+    "256": {
+      "rgba": true,
+      "size": [
+        256,
+        256
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        18,
+        37,
+        238,
+        219
+      ]
+    }
+  },
+  "mesh": {
+    "glb": "game/assets/world/research-table.glb",
+    "glb_bytes": 1402480,
+    "triangles": {
+      "Body_hull0-convcolonly": 54,
+      "Body_lod0": 14412,
+      "Body_lod1": 6588,
+      "Body_lod2": 2788
+    },
+    "lods": {
+      "lod0": {
+        "triangles": 14412,
+        "budget": 16000,
+        "within": true
+      },
+      "lod1": {
+        "triangles": 6588,
+        "budget": 7500,
+        "within": true
+      },
+      "lod2": {
+        "triangles": 2788,
+        "budget": 3200,
+        "within": true
+      }
+    },
+    "nodes": [
+      "Body_hull0-convcolonly",
+      "Body_lod0",
+      "Body_lod1",
+      "Body_lod2",
+      "socket_use"
+    ],
+    "finite_attributes": true,
+    "unit_normals": true,
+    "images_embedded": false
+  },
+  "solution_build": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:01:46.47\n",
+  "tests": {
+    "tests-modelcatalogue": "RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (14 ms)\n  RUN  ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ExplosivesHaveTheirOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ExplosivesHaveTheirOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.BlueprintHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.BlueprintHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ResearchBenchHasItsOwnModelGibsAndRenderedIcon\n  ok   ModelCatalogueTests.ResearchBenchHasItsOwnModelGibsAndRenderedIcon (12 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 274 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (1049 ms)\n13/13 passed in 1.1 s.\n",
+    "tests-content": "RUN  ContentTests.GroundDataIsComplete\n      137 items, 94 recipes, 17 natural kinds, 24 deployables, 11 loot tables; hash A29EF438726C4597\n  ok   ContentTests.GroundDataIsComplete (519 ms)\n  RUN  ContentTests.BrokenDataIsReported\n      42 problems found, e.g. items.json: \"arrow\": unknown field \"stak\" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship, wiring)\n  ok   ContentTests.BrokenDataIsReported (74 ms)\n  RUN  ContentTests.EveryDataFileHasOneReader\n      22 readers for 21 files, and the checks across them\n  ok   ContentTests.EveryDataFileHasOneReader (2 ms)\n3/3 passed in 0.6 s.\n",
+    "tests-gibs": "RUN  AdminCameraTests.AdminSelfCameraRequiresEligibilityAndOnlyRightDragChangesItsAngle\n  ok   AdminCameraTests.AdminSelfCameraRequiresEligibilityAndOnlyRightDragChangesItsAngle (9 ms)\n  RUN  AdminCameraTests.AdminSelfCameraCancelsDragForMenusAndDisablesWhenEligibilityIsLost\n  ok   AdminCameraTests.AdminSelfCameraCancelsDragForMenusAndDisablesWhenEligibilityIsLost (0 ms)\n  RUN  CliffFormationTests.CliffFormationFitsTheWholeScanAndKeepsSteepFacesEligible\n      gradient 0.75: 12 formations / 384 parts fitted against every shared collision vertex\n      gradient 1.20: 12 formations / 376 parts fitted against every shared collision vertex\n      gradient 2.00: 12 formations / 384 parts fitted against every shared collision vertex\n      gradient 5.00: 12 formations / 384 parts fitted against every shared collision vertex\n  ok   CliffFormationTests.CliffFormationFitsTheWholeScanAndKeepsSteepFacesEligible (388 ms)\n  RUN  GibTests.EverythingThatBreaksHasGibs\n      146 gib sets in 44 files: 1236 pieces, 327,116 triangles, 22.8 MB\n  ok   GibTests.EverythingThatBreaksHasGibs (637 ms)\n  RUN  ModelCatalogueTests.ResearchBenchHasItsOwnModelGibsAndRenderedIcon\n  ok   ModelCatalogueTests.ResearchBenchHasItsOwnModelGibsAndRenderedIcon (15 ms)\n5/5 passed in 1.1 s.\n",
+    "tests-world": "RUN  BatteryTests.TheAimIsHeldInTheWorldWhileTheShipYaws\n      settled 0.000\u00b0; the ship yawed 109.3\u00b0, the mount turned 109.3\u00b0 against it; the barrels at most 0.028\u00b0 off the asked direction while it turned (alignment 0.5\u00b0)\n  ok   BatteryTests.TheAimIsHeldInTheWorldWhileTheShipYaws (5641 ms)\n  RUN  BotEnvironmentLifetimeTests.SharedBotContextsRespectDescriptorAndSessionAndRetireNativeUsersBeforeTheWorld\n  ok   BotEnvironmentLifetimeTests.SharedBotContextsRespectDescriptorAndSessionAndRetireNativeUsersBeforeTheWorld (206 ms)\n  RUN  BotEnvironmentLifetimeTests.HomesAndLandingSitesArePerClientAndResetWhenItsWorldChanges\n  ok   BotEnvironmentLifetimeTests.HomesAndLandingSitesArePerClientAndResetWhenItsWorldChanges (104 ms)\n  RUN  ClanBaseTests.ClanBaseRejectsBrokenBlueprintBeforeTouchingAWorld\n  ok   ClanBaseTests.ClanBaseRejectsBrokenBlueprintBeforeTouchingAWorld (34 ms)\n  RUN  ClientEnvironmentLifetimeTests.RepeatedWelcomeRetiresMapsAndPhysicsBeforeReplacingTheWorld\n  ok   ClientEnvironmentLifetimeTests.RepeatedWelcomeRetiresMapsAndPhysicsBeforeReplacingTheWorld (23 ms)\n  RUN  ClientEnvironmentLifetimeTests.UnknownWelcomeKindIsRejectedWithoutAllocatingAWorld\n  ok   ClientEnvironmentLifetimeTests.UnknownWelcomeKindIsRejectedWithoutAllocatingAWorld (1 ms)\n  RUN  ClientEnvironmentLifetimeTests.FailingRetirementSubscriberDoesNotSkipOtherReadersOrTheOwnedWorld\n  ok   ClientEnvironmentLifetimeTests.FailingRetirementSubscriberDoesNotSkipOtherReadersOrTheOwnedWorld (4 ms)\n  RUN  EarthTerrainTests.EarthProfileDoesNotChangeOtherWorlds\n  ok   EarthTerrainTests.EarthProfileDoesNotChangeOtherWorlds (1200 ms)\n  RUN  EnvironmentHandshakeTests.EnvironmentHandshakeClientRejectsBeforeAnyWorldAcquisitionOrPrediction\n  ok   EnvironmentHandshakeTests.EnvironmentHandshakeClientRejectsBeforeAnyWorldAcquisitionOrPrediction (6 ms)\n  RUN  EnvironmentRouteTests.RouteRejectsLegacyWorldAndInWaterCorridor\n  ok   EnvironmentRouteTests.RouteRejectsLegacyWorldAndInWaterCorridor (911 ms)\n  RUN  FloraAppearanceTests.FloraAppearanceCatalogAdmitsOnlyFiniteAppearanceAndWorldCounts\n  ok   FloraAppearanceTests.FloraAppearanceCatalogAdmitsOnlyFiniteAppearanceAndWorldCounts (35 ms)\n  RUN  FormationSupportTests.FormationSupportRepeatedInstancesShareCatalogStorageAcrossWorlds\n  ok   FormationSupportTests.FormationSupportRepeatedInstancesShareCatalogStorageAcrossWorlds (26 ms)\n  RUN  FormationSupportTests.FormationSupportWorldAndLocalTraversalShareEveryQueryBudget\n  ok   FormationSupportTests.FormationSupportWorldAndLocalTraversalShareEveryQueryBudget (3 ms)\n  RUN  FormationSurfaceChartTests.SurfaceChartQueryUsesWorldMetresAndProperTransformedUp\n  ok   FormationSurfaceChartTests.SurfaceChartQueryUsesWorldMetresAndProperTransformedUp (27 ms)\n  RUN  FormationWorldSelectionTests.ExplicitSelectionBindsPhysicalInputsWithoutReseedingLegacyWorld\n  ok   FormationWorldSelectionTests.ExplicitSelectionBindsPhysicalInputsWithoutReseedingLegacyWorld (44 ms)\n  RUN  FormationWorldSelectionTests.QualificationOnlyChangePreservesPhysicalSaveIdentityButCannotAliasResidentCatalog\n  ok   FormationWorldSelectionTests.QualificationOnlyChangePreservesPhysicalSaveIdentityButCannotAliasResidentCatalog (2 ms)\n  RUN  FormationWorldSelectionTests.SelectionRejectsUnknownImplementationOversizeKeysAndUnadmittedRetainedInputs\n  ok   FormationWorldSelectionTests.SelectionRejectsUnknownImplementationOversizeKeysAndUnadmittedRetainedInputs (1 ms)\n  RUN  GalaxyTests.WorldsMatchTheSolarSystem\n      of 20: temperate Earths 20, hothouse Venuses 20, desert Marses 20, airless Moons 20, Titans with air 20\n  ok   GalaxyTests.WorldsMatchTheSolarSystem (2 ms)\n  RUN  LoadingTests.SlowFramesCannotHoldAReadyWorldAtNinetySevenPercent\n  ok   LoadingTests.SlowFramesCannotHoldAReadyWorldAtNinetySevenPercent (7 ms)\n  RUN  MapTests.MapPictureIsTheWholeWorld\n      stand-in: 4940 sea and 7041 land pixels of 13824\n  ok   MapTests.MapPictureIsTheWholeWorld (65 ms)\n  RUN  MovementTests.WalkRoundTheWorld\n      round the world in 45.9 min of sprinting: back 61.3 cm from the start, at most 86.8 cm off its circle, over the poles 16.4 and 52.4 cm from their axis; facing 0.000 degrees from the way it set off\n  ok   MovementTests.WalkRoundTheWorld (8987 ms)\n  RUN  NaturalSegmentQueryTests.BothGeneratedProvidersAgreeWithExhaustiveWorldObjects\n  ok   NaturalSegmentQueryTests.BothGeneratedProvidersAgreeWithExhaustiveWorldObjects (34 ms)\n  RUN  NavigationLifetimeTests.AnimalSystemDisposalRetiresItsNavigationWorld\n  ok   NavigationLifetimeTests.AnimalSystemDisposalRetiresItsNavigationWorld (18 ms)\n  RUN  PhysicsLifetimeTests.DisposedWorldsAndShipSpacesReturnTheirNativeMemory\n      24 worlds with ground and 24 ship spaces created and disposed: private memory grew 3.2 MiB\n  ok   PhysicsLifetimeTests.DisposedWorldsAndShipSpacesReturnTheirNativeMemory (936 ms)\n  RUN  PlanetBodyResolutionTests.AThreadsLastSampleDoesNotKeepItsWorldAlive\n  ok   PlanetBodyResolutionTests.AThreadsLastSampleDoesNotKeepItsWorldAlive (177 ms)\n  RUN  SelectedGroundCollisionTests.CanonicalFootprintSaturatesWithTheExactTinyWorldCollisionSphere\n  ok   SelectedGroundCollisionTests.CanonicalFootprintSaturatesWithTheExactTinyWorldCollisionSphere (47 ms)\n  RUN  SelectedGroundTraceTests.SelectedTraceCancellationAndScratchReuseDoNotRetainOldWorldData\n  ok   SelectedGroundTraceTests.SelectedTraceCancellationAndScratchReuseDoNotRetainOldWorldData (17 ms)\n  RUN  SelectedPhysicsGroundTests.SelectedJoltActiveAndRetiringWorldsShareOneFiniteAllowance\n  ok   SelectedPhysicsGroundTests.SelectedJoltActiveAndRetiringWorldsShareOneFiniteAllowance (94 ms)\n  RUN  SelectedWalkingWorldTests.SelectedWalkingInputIdentityBindsPhysicalGeneratorInputsWithoutSelectionCircularity\n  ok   SelectedWalkingWorldTests.SelectedWalkingInputIdentityBindsPhysicalGeneratorInputsWithoutSelectionCircularity (26 ms)\n  RUN  SelectedWalkingWorldTests.SelectedWalkingRejectsWrongTerrainIdentityBeforeInjectedEstimatorOrFactory\n  ok   SelectedWalkingWorldTests.SelectedWalkingRejectsWrongTerrainIdentityBeforeInjectedEstimatorOrFactory (3 ms)\n  RUN  SelectedWalkingWorldTests.SelectedWalkingDefaultFactoryAndStoreRemainDisabledEvenWithInjectedFactory\n  ok   SelectedWalkingWorldTests.SelectedWalkingDefaultFactoryAndStoreRemainDisabledEvenWithInjectedFactory (0 ms)\n  RUN  SelectedWalkingWorldTests.SelectedWalkingPublishesOneCoherentBundleAndPreservesLegacyTerrainOutputs\n  ok   SelectedWalkingWorldTests.SelectedWalkingPublishesOneCoherentBundleAndPreservesLegacyTerrainOutputs (98 ms)\n  RUN  SelectedWalkingWorldTests.SelectedWalkingMandatoryReservationsCannotBeUnderchargedByCustomEstimators\n  ok   SelectedWalkingWorldTests.SelectedWalkingMandatoryReservationsCannotBeUnderchargedByCustomEstimators (2 ms)\n  RUN  SelectedWalkingWorldTests.SelectedWalkingRejectsSpoofedFactoryOutputAndRetiresItsOwnedResources\n  ok   SelectedWalkingWorldTests.SelectedWalkingRejectsSpoofedFactoryOutputAndRetiresItsOwnedResources (1 ms)\n  RUN  SelectedWalkingWorldTests.SelectedWalkingCancellationKeepsFullReservationsUntilFactoryActuallyExits\n  ok   SelectedWalkingWorldTests.SelectedWalkingCancellationKeepsFullReservationsUntilFactoryActuallyExits (2 ms)\n  RUN  SelectedWalkingWorldTests.SelectedWalkingBuilderFailurePublishesNothingAndDefaultOptInStoreCanRecover\n  ok   SelectedWalkingWorldTests.SelectedWalkingBuilderFailurePublishesNothingAndDefaultOptInStoreCanRecover (84 ms)\n  RUN  SelectedWalkingWorldTests.SelectedWalkingPrivateAdmissionStampRejectsGenuineOutputBuiltUnderDifferentLimits\n  ok   SelectedWalkingWorldTests.SelectedWalkingPrivateAdmissionStampRejectsGenuineOutputBuiltUnderDifferentLimits (42 ms)\n  RUN  SelectedWalkingWorldTests.SelectedWalkingCollisionOptInPublishesTheCanonicalBundleWithoutLegacyGeology\n  ok   SelectedWalkingWorldTests.SelectedWalkingCollisionOptInPublishesTheCanonicalBundleWithoutLegacyGeology (45 ms)\n  RUN  ShipTests.FlyRoundTheWorld\n      round the world in 102 s: back 8.8 cm from the start, at most 8.7 cm off its circle, over the poles 2.7 and 2.7 cm from their axis, 100.0 to 100.0 m up; facing 0.000 degrees from the way it set off, fuel 443.1\n  ok   ShipTests.FlyRoundTheWorld (272 ms)\n  RUN  StationAimTests.PredictedCentreRayMatchesAuthorityAtCorpseEdgesAndWorldProps\n  ok   StationAimTests.PredictedCentreRayMatchesAuthorityAtCorpseEdgesAndWorldProps (58 ms)\n  RUN  SurfaceTests.FirstWorldIsPinned\n      Nolcas Peris CQ-SLY 7-0 / Nolcas Peris CQ-SLY 7-0 B 3: 6435 km, 0.92 g, hash 0x5A9DA4B48BC6A8B6\n  ok   SurfaceTests.FirstWorldIsPinned (2 ms)\n  RUN  TargetHealthTests.WorldFamiliesAdvertiseTheSameOptionalVitalityContract\n  ok   TargetHealthTests.WorldFamiliesAdvertiseTheSameOptionalVitalityContract (515 ms)\n  RUN  TerrainCollisionMarginTests.PracticalTwoMetreMarginsRemainCanonicalOnSmallAndMaximumWorlds\n  ok   TerrainCollisionMarginTests.PracticalTwoMetreMarginsRemainCanonicalOnSmallAndMaximumWorlds (134 ms)\n  RUN  TerrainCollisionMarginTests.MaximumMarginOnATinyWorldSaturatesAsOneClosedCanonicalSphere\n  ok   TerrainCollisionMarginTests.MaximumMarginOnATinyWorldSaturatesAsOneClosedCanonicalSphere (52 ms)\n  RUN  WalkingWorldTests.WalkingWorldIsDeterministic\n      35 lakes, 1808 drainage pieces, hash 0x1D83ABE87CA2D9EA\n  ok   WalkingWorldTests.WalkingWorldIsDeterministic (620 ms)\n  RUN  WalkingWorldTests.SeaCoverAndHeightsAreInRange\n      sea 44.4%; land heights: median 22 m, 90 % under 115 m, highest 393 m; ice below -6.4 \u00b0C\n  ok   WalkingWorldTests.SeaCoverAndHeightsAreInRange (185 ms)\n  RUN  WalkingWorldTests.StreamsReachTheSeaOrALake\n      32 sources: 21 to the sea, 11 into lakes; water at 100.0% of 318 stream pieces' middles\n  ok   WalkingWorldTests.StreamsReachTheSeaOrALake (3 ms)\n  RUN  WalkingWorldTests.WalkingGroundHasNoSeams\n      99998 samples 5 cm apart: the largest step 0.208 m\n  ok   WalkingWorldTests.WalkingGroundHasNoSeams (159 ms)\n  RUN  WalkingWorldTests.ScatterAtTheLevelBySize\n      tile tile 2/5/28/12: 1305 objects, 142 trees (101 a hectare, in woods)\n  ok   WalkingWorldTests.ScatterAtTheLevelBySize (27 ms)\n  RUN  WalkingWorldTests.WalkingWorldIsFastEnough\n      built in 311 ms; 2.22 \u00b5s a height [337335]\n  ok   WalkingWorldTests.WalkingWorldIsFastEnough (45 ms)\n  RUN  WorldGenerationConsistencyTests.LayoutZeroIsConsistentAcrossWorldsQueryOrderAndThreads\n      layout 0: 204 complete samples, 131 sites, 256 formation tiles (14 occupied), 4 concurrent workers and reverse warm replay\n  ok   WorldGenerationConsistencyTests.LayoutZeroIsConsistentAcrossWorldsQueryOrderAndThreads (674 ms)\n  RUN  WorldGenerationConsistencyTests.LayoutFiveIsConsistentAcrossWorldsQueryOrderAndThreads\n      layout 5: 204 complete samples, 117 sites, 256 formation tiles (18 occupied), 4 concurrent workers and reverse warm replay\n  ok   WorldGenerationConsistencyTests.LayoutFiveIsConsistentAcrossWorldsQueryOrderAndThreads (875 ms)\n  RUN  WorldGenerationConsistencyTests.OffshoreAndShoreSamplesHaveExplicitReliefFields\n      35 offshore and 63 inland complete samples, including a bounded shoreline bracket\n  ok   WorldGenerationConsistencyTests.OffshoreAndShoreSamplesHaveExplicitReliefFields (133 ms)\n  RUN  WorldNetTests.SpecializedWorkbenchProgressionOverTheNetwork\n  ok   WorldNetTests.SpecializedWorkbenchProgressionOverTheNetwork (1820 ms)\n  RUN  WorldNetTests.WorldOverTheNetwork\n      Ada sees 14 props near the crate: 1 Military crate, 9 Barrel, 3 Crate, 1 Fuel barrel\n  ok   WorldNetTests.WorldOverTheNetwork (10377 ms)\n  RUN  WorldNetTests.WorldSurvivesARestart\n      after the restart: barrel back in 1197 s, crate with 3 stacks, team of 2\n  ok   WorldNetTests.WorldSurvivesARestart (5212 ms)\n  RUN  WorldStoreTests.ConcurrentEquivalentDescriptorsCoalesceAndOneCancelledWaiterDoesNotCancelTheBuild\n  ok   WorldStoreTests.ConcurrentEquivalentDescriptorsCoalesceAndOneCancelledWaiterDoesNotCancelTheBuild (18 ms)\n  RUN  WorldStoreTests.AlreadyCancelledRequestsNeverReserveCapacityOrCallTheFactory\n  ok   WorldStoreTests.AlreadyCancelledRequestsNeverReserveCapacityOrCallTheFactory (0 ms)\n  RUN  WorldStoreTests.BuildAndWaiterLimitsRejectWithoutLeakingReservations\n  ok   WorldStoreTests.BuildAndWaiterLimitsRejectWithoutLeakingReservations (1 ms)\n  RUN  WorldStoreTests.WorldResidentAndScratchBudgetsEachRefuseBeforeDispatch\n  ok   WorldStoreTests.WorldResidentAndScratchBudgetsEachRefuseBeforeDispatch (1 ms)\n  RUN  WorldStoreTests.DefaultEstimatorRefusesAnOversizedDrainageGridBeforeFactoryDispatch\n  ok   WorldStoreTests.DefaultEstimatorRefusesAnOversizedDrainageGridBeforeFactoryDispatch (0 ms)\n  RUN  WorldStoreTests.FactoryFailureRollsBackEveryReservationAndAllowsSameIdentityRetry\n  ok   WorldStoreTests.FactoryFailureRollsBackEveryReservationAndAllowsSameIdentityRetry (0 ms)\n  RUN  WorldStoreTests.RetirementDisposesEveryOwnedWorldAndAggregatesAllCleanupFailures\n  ok   WorldStoreTests.RetirementDisposesEveryOwnedWorldAndAggregatesAllCleanupFailures (1 ms)\n  RUN  WorldStoreTests.CleanupFailureHistoryStaysBoundedWhileEveryFailureIsCounted\n  ok   WorldStoreTests.CleanupFailureHistoryStaysBoundedWhileEveryFailureIsCounted (1 ms)\n  RUN  WorldStoreTests.ForkPinsEvictionAndEvictedWorldRegeneratesWithoutChangingItsSamples\n  ok   WorldStoreTests.ForkPinsEvictionAndEvictedWorldRegeneratesWithoutChangingItsSamples (1 ms)\n  RUN  WorldStoreTests.DisposedLeaseCannotAccessOrRetainAnEvictedWorld\n  ok   WorldStoreTests.DisposedLeaseCannotAccessOrRetainAnEvictedWorld (99 ms)\n  RUN  WorldStoreTests.RetirementRejectsAdmissionAndForksWhileWaitingForAllExistingLeases\n  ok   WorldStoreTests.RetirementRejectsAdmissionAndForksWhileWaitingForAllExistingLeases (11 ms)\n  RUN  WorldStoreTests.RetirementFailsWaitersImmediatelyButWaitsForAFactoryIgnoringCancellation\n  ok   WorldStoreTests.RetirementFailsWaitersImmediatelyButWaitsForAFactoryIgnoringCancellation (0 ms)\n  RUN  WorldStoreTests.CancellingAllWaitersKeepsReservationsUntilTheFactoryActuallyStops\n  ok   WorldStoreTests.CancellingAllWaitersKeepsReservationsUntilTheFactoryActuallyStops (0 ms)\n  RUN  WorldStoreTests.DistinctProfilesRadiiAndStoresHaveIndependentFactoriesAndWorlds\n  ok   WorldStoreTests.DistinctProfilesRadiiAndStoresHaveIndependentFactoriesAndWorlds (1 ms)\n  RUN  WorldTests.LootTablesGiveSalvageComponentsAndBlueprints\n      barrel: of 2,000, 1398 with components, 28 blueprints (levels 1, 2)\n      crate: of 2,000, 1790 with components, 129 blueprints (levels 1, 2)\n      military-crate: of 2,000, 1803 with components, 348 blueprints (levels 2, 3)\n  ok   WorldTests.LootTablesGiveSalvageComponentsAndBlueprints (14 ms)\n  RUN  WorldTests.LootSpotsAreDeterministicClustersAwayFromTheSpawn\n      4009 spots (3110 barrels, 893 crates) in 882 forest-edge, 131 coast and 38 open clusters; generated in 385 ms\n  ok   WorldTests.LootSpotsAreDeterministicClustersAwayFromTheSpawn (721 ms)\n  RUN  WorldTests.BarrelsBreakCratesEmptyAndBothComeBack\n      a rock breaks a barrel in 4.2 s\n      1 barrels broken, 1 crates emptied, 2 props back; 0 units recycled in 0 batches; 0 blueprints unlocked, 0 researched, 0 learnt from items\n  ok   WorldTests.BarrelsBreakCratesEmptyAndBothComeBack (674 ms)\n  RUN  WorldTests.RecyclerReturnsHalfAndComponentsTheirOwn\n      10 gears and a metal hatchet recycled in 30 s: 100 salvage, 167 metal fragments, 50 wood\n  ok   WorldTests.RecyclerReturnsHalfAndComponentsTheirOwn (855 ms)\n  RUN  WorldTests.TechTreeUnlocksResearchAndBlueprints\n  ok   WorldTests.TechTreeUnlocksResearchAndBlueprints (187 ms)\n  RUN  WorldTests.TeamLifeCycle\n  ok   WorldTests.TeamLifeCycle (221 ms)\n  RUN  WorldTests.AuthoriseTeamOnClaimDevicesAndLocks\n  ok   WorldTests.AuthoriseTeamOnClaimDevicesAndLocks (160 ms)\n  RUN  WorldTests.MapMarkersDeathPointAndBags\n  ok   WorldTests.MapMarkersDeathPointAndBags (155 ms)\n  RUN  WorldTests.OldDatabasesAndPlayerRecordsStillRead\n  ok   WorldTests.OldDatabasesAndPlayerRecordsStillRead (33 ms)\n79/79 passed in 43.3 s.\n"
+  },
+  "visual_iteration": "The first pass read as a plain workbench: its magnifier was a small blob seen edge-on and its timber top too bright. The final adds an inclined drafting board for the drawing, a larger magnifier ring and lens tilted toward the user with a handle, a darker timber, and moves the upper drawer's handle out from behind the front rail.",
+  "limits": [
+    "Native production ModelViewer, IconRenderer and CatalogItemIcons in an isolated review project with this worktree's compiled game code; the slots are diagnostic, not live gameplay inventory.",
+    "Placement, reach, pickup, storage and research run on deployables.json's unchanged bounds and were checked by the World tests (79/79); the bench was not placed in a live hosted game for this change.",
+    "The gibs (6 pieces) were built and pass GibTests; they were not captured breaking in the effects viewer.",
+    "The full test suite was not rerun for this asset-only change.",
+    "Owner artistic acceptance is pending."
+  ],
+  "bounds": {
+    "min": [
+      -0.7325000166893005,
+      -0.39399999380111694,
+      0.0
+    ],
+    "max": [
+      0.7325000166893005,
+      0.38749998807907104,
+      0.8917457461357117
+    ],
+    "deployable_half_extents_xyz_m": [
+      0.75,
+      0.4,
+      0.45
+    ],
+    "inside_bounds": true
+  },
+  "gibs": "18:41:13 | INFO: Data are loaded, start creating Blender stuff\n18:41:14 | INFO: Blender create Mesh node Body_hull0-convcolonly\n18:41:14 | INFO: Blender create Mesh node Body_lod0\n18:41:14 | INFO: Blender create Mesh node Body_lod1\n18:41:14 | INFO: Blender create Mesh node Body_lod2\n18:41:14 | INFO: glTF import finished in 0.12s\nINFO Draco is available, use library at D:\\GameDev\\Tools\\blender-5.2."
+}

@@ -144,6 +144,14 @@ selected ground paths: no triangles, a non-finite vertex, an index out of range,
 0 errors; GroundMeshCheck 2/2 (a world given a NaN tile throws it and still disposes); Physics, Movement, Ship and
 Walking 136/136. The original native abort is still unexplained; KNOWN_PROBLEMS.md says how to capture a dump.
 
+## 19 October 2026 — Research Bench original model, gibs and rendered icons
+
+A painted steel dismantling bench (magnifier over a cutting mat, a device taken apart, vise, salvage tray, drafting
+board, sample drawers and bins) replaces the engineering-workbench model, gibs and SVG (`art/models/research_table.py`).
+It fits the unchanged deployable bounds (1.5 × 0.9 × 0.8 m), which the stand-in exceeded; ID 171 and all data are kept.
+LODs 14,412 / 6,588 / 2,788 triangles; six gib pieces. Build 0 warnings and 0 errors; ModelCatalogue 13/13,
+ContentTests 3/3, GibTests 5/5, World 79/79. Owner art acceptance is pending. See [ITEM_ART_RESEARCH_TABLE.md](ITEM_ART_RESEARCH_TABLE.md).
+
 ## 19 October 2026 — Blueprint original model and rendered icons
 
 A cyanotype sheet folded in three zig-zag panels, with an original pump-housing drawing, replaces the building-plan

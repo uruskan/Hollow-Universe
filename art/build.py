@@ -34,6 +34,7 @@ SCRIPTS = {
     "salvage": "models/salvage.py",
     "explosives": "models/explosives.py",
     "blueprint": "models/blueprint.py",
+    "research_table": "models/research_table.py",
     "tools": "models/tools.py",
     "supplies": "models/supplies.py",
     "clothing": "models/clothing.py",
