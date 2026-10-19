@@ -378,7 +378,7 @@ public sealed partial class PhysicsWorld : IDisposable
             {
                 triangles[t] = new IndexedTriangle(mesh.Indices[3 * t], mesh.Indices[3 * t + 1], mesh.Indices[3 * t + 2], 0, 0);
             }
-            using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, mesh.TriangleCount));
+            using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, mesh.TriangleCount)).Owned();
             shape = settings.Create();
         }
         finally
@@ -438,7 +438,7 @@ public sealed partial class PhysicsWorld : IDisposable
             {
                 case NoBody:
                 {
-                    using var creation = new BodyCreationSettings(shape, position, rotation, MotionType.Static, StaticLayer);
+                    using var creation = new BodyCreationSettings(shape, position, rotation, MotionType.Static, StaticLayer).Owned();
                     _ = bodies.CreateBodyWithID(bodyId, creation) ?? throw new InvalidOperationException($"Jolt refused body {id}.");
                     BodiesMade++;
                     break;
@@ -580,7 +580,7 @@ public sealed partial class PhysicsWorld : IDisposable
     private void MakePropBodies()
     {
         _propBodiesMade = true;
-        using var creation = new BodyCreationSettings(_parked, Vector3.Zero, Quaternion.Identity, MotionType.Static, StaticLayer);
+        using var creation = new BodyCreationSettings(_parked, Vector3.Zero, Quaternion.Identity, MotionType.Static, StaticLayer).Owned();
         BodyInterface bodies = Jolt.BodyInterface;
         for (uint id = TileIdCount + MaxProps - 1; id >= TileIdCount; id--)
         {

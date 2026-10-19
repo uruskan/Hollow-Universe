@@ -121,6 +121,11 @@ Gate: corrected focused checks pass, unresolved broad-suite failures are explici
 and at least one current hosted baseline completes loading and the route without a native crash.
 There is no assumption that the three fixture corrections alone resolve all generation issues.
 
+Status 19 October: item 3 is classified and fixed. The Jolt abort was an unchecked native allocation
+failure after the binding leaked every physics system, body and shape (about 16 MiB per world); see
+KNOWN_PROBLEMS.md. Items 1 and 2 were completed on 18 October. Item 4, the measured hosted baseline
+with separate grass, litter and authored-plant ablations, is next.
+
 ### T1 — Survey landforms and define the visual target
 
 Use the whole current Earth survey to locate coastal scarps, inland slopes, plateaus, mountain

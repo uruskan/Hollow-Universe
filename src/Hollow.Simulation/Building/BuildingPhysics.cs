@@ -63,16 +63,16 @@ public sealed class BuildingPhysics : IDisposable
         {
             if (parts.Length == 1)
             {
-                using var hull = new ConvexHullShapeSettings(parts[0].Points, ConvexRadius);
+                using var hull = new ConvexHullShapeSettings(parts[0].Points, ConvexRadius).Owned();
                 shape = hull.Create();
             }
             else
             {
-                using var compound = new StaticCompoundShapeSettings();
+                using var compound = new StaticCompoundShapeSettings().Owned();
                 var hulls = new List<ConvexHullShapeSettings>();
                 foreach (ConvexPart part in parts)
                 {
-                    var hull = new ConvexHullShapeSettings(part.Points, ConvexRadius);
+                    var hull = new ConvexHullShapeSettings(part.Points, ConvexRadius).Owned();
                     hulls.Add(hull);
                     compound.AddShape(Vector3.Zero, Quaternion.Identity, hull, 0);
                 }

@@ -11,6 +11,48 @@ public static class PhysicsLifetimeTests
 {
     private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
 
+    /// <summary>
+    /// T0.3: disposing a world or a ship space frees its native physics system, bodies and shapes. JoltPhysicsSharp
+    /// 2.23.0 left them all behind (about 16 MiB a world with resident ground), which grew the test process to many GiB
+    /// until Jolt crashed on a failed native allocation.
+    /// </summary>
+    [Test]
+    public static void DisposedWorldsAndShipSpacesReturnTheirNativeMemory()
+    {
+        var surface = new LevelSurface(1200);
+        var point = new Vector3(0, 1200, 0);
+        Hollow.Simulation.Ships.ShipInterior interior = ContentFixture.Content.Ship("iron-wake")!.Interior!;
+        var states = new float[interior.Parts.Count];
+        void Cycle(int count)
+        {
+            for (int i = 0; i < count; i++)
+            {
+                using (var world = new PhysicsWorld(surface, ZoneFrame.World) { MakePropBodiesAhead = false })
+                {
+                    world.EnsureGroundWithin(point, 40);
+                    world.AddProp(PropLayer.Nature, (ulong)i + 1, PropShape.Sphere(point, 0.5f));
+                }
+                using (new ShipSpace(interior, states, Hollow.Simulation.Movement.MovementTuning.Default)) { }
+            }
+        }
+        Cycle(4); // the runtime, pools and shared shape caches come first
+        long before = PrivateBytes();
+        Cycle(24);
+        double grown = (PrivateBytes() - before) / 1048576.0;
+        Fixtures.Report($"24 worlds with ground and 24 ship spaces created and disposed: private memory grew {grown:0.0} MiB");
+        // Before the fix, 24 cycles grew about 400 MiB; even leaking only the shape settings grew about 40 MiB.
+        Assert.True(grown < 16, "disposed worlds and ship spaces return their native memory (it was about 16 MiB a world)");
+    }
+
+    private static long PrivateBytes()
+    {
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
+        GC.Collect();
+        using var process = System.Diagnostics.Process.GetCurrentProcess();
+        return process.PrivateMemorySize64;
+    }
+
     [Test]
     public static void DisposalDrainsAnAlreadyStartedTileWithoutHoldingTheJoltGate() => CheckDisposal(failBuild: false);
 

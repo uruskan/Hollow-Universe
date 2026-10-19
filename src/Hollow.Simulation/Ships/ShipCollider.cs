@@ -66,7 +66,7 @@ public sealed class ShipCollider : IDisposable
             }
             lock (JoltRuntime.Gate)
             {
-                using var compound = new StaticCompoundShapeSettings();
+                using var compound = new StaticCompoundShapeSettings().Owned();
                 var boxes = new List<BoxShapeSettings>();
                 foreach (HullBox box in def.Hull)
                 {
@@ -79,7 +79,7 @@ public sealed class ShipCollider : IDisposable
                         centre.Y = (bottom + top) / 2;
                         half.Y = (top - bottom) / 2;
                     }
-                    var settings = new BoxShapeSettings(Vector3.Max(half, new Vector3(ConvexRadius * 1.5f)), ConvexRadius);
+                    var settings = new BoxShapeSettings(Vector3.Max(half, new Vector3(ConvexRadius * 1.5f)), ConvexRadius).Owned();
                     boxes.Add(settings);
                     compound.AddShape(centre - def.CentreOfMass, Quaternion.Identity, settings, 0);
                 }

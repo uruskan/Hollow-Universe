@@ -1,5 +1,26 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — T0.3: the Jolt crash was a native leak, now fixed
+
+The native access violations in `JPH_MeshShapeSettings_CreateShape` and once `JPH_PhysicsSystem_Create`,
+seen in four long runs on 16 and 18 October, were unchecked allocation failures. JoltPhysicsSharp 2.23.0
+creates physics systems, shape settings and body-creation settings without ownership of their native
+handles, so `Dispose` freed nothing. Every world and ship space leaked its system, bodies and shapes: a
+standalone probe measured 5.6 MiB per empty world and 16.5 MiB with resident ground. The suite's process
+grew about 16 MiB per test, to 9.4 GiB of private memory after 565 tests, while its managed heap stayed
+near 100 MiB. A per-process commit cap reproduced the exact crash stack in the same beach-arrival test.
+
+`JoltRuntime.HandOverToSystem` gives each system ownership of its handle and its three layer and filter
+objects to it, because joltc's system destroy deletes them; every shape and body-creation settings
+construction is now `.Owned()`. The probe stays flat across 120 worlds with ground and 120 ship spaces.
+`PhysicsLifetimeTests.DisposedWorldsAndShipSpacesReturnTheirNativeMemory` measures it, and
+`ArchitectureTests.JoltNativeObjectsAreReleasedWhenDisposed` checks all 28 constructions and both
+physics-system files. The game leaked the same way: every terrain tile built by a server or client.
+
+Validation: solution build 0 warnings, 0 errors. Full suite 1,009 of 1,009 in 464 s, against 638 to 677 s
+before, with peak process commit 762 MiB against more than 9.4 GiB. The two intermittent loopback tests
+passed in this run; memory pressure probably contributed to their timing failures.
+
 ## 19 October 2026 — environment plan resumed; grass contact on deep surfaces
 
 The owner chose to continue the T0–T6 plan as designed. First, a T4 regression: since the drawn-contact

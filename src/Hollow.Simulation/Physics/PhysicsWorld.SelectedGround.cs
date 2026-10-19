@@ -200,7 +200,7 @@ public sealed partial class PhysicsWorld
         private readonly BodyID _id = new((uint)key.Index);
         internal void Create(Vector3[] vertices, IndexedTriangle[] triangles)
         {
-            _settings = new MeshShapeSettings(vertices, triangles);
+            _settings = new MeshShapeSettings(vertices, triangles).Owned();
             if (hooks != null) Interlocked.Increment(ref hooks.MeshSettings);
             hooks?.Reach(GroundNativeStage.MeshSettings);
             _shape = _settings.Create();
@@ -215,7 +215,7 @@ public sealed partial class PhysicsWorld
             {
                 hooks?.Reach(GroundNativeStage.BeforePublication);
                 if (owner._bodies[_id.ID] != NoBody) throw new InvalidOperationException("Selected ground body ID already has an owner.");
-                using var settings = new BodyCreationSettings(_shape!, Vector3.Zero, Quaternion.Identity, MotionType.Static, StaticLayer);
+                using var settings = new BodyCreationSettings(_shape!, Vector3.Zero, Quaternion.Identity, MotionType.Static, StaticLayer).Owned();
                 _ = owner.Jolt.BodyInterface.CreateBodyWithID(_id, settings) ?? throw new InvalidOperationException("Jolt refused a selected ground body.");
                 _created = true; owner._bodies[_id.ID] = ParkedBody; owner.BodiesMade++;
                 if (hooks != null) Interlocked.Increment(ref hooks.Bodies);
@@ -263,7 +263,7 @@ public sealed partial class PhysicsWorld
             JoltRuntime.EnsureInitialised();
             lock (JoltRuntime.Gate)
             {
-                using (var settings = new SphereShapeSettings(.01f)) _parked = settings.Create();
+                using (var settings = new SphereShapeSettings(.01f).Owned()) _parked = settings.Create();
                 Added(GroundNativeStage.SetupParked);
                 _layers = new ObjectLayerPairFilterTable(2); Added(GroundNativeStage.SetupLayers);
                 _layers.EnableCollision(StaticLayer, MovingLayer); _layers.EnableCollision(MovingLayer, MovingLayer);
@@ -286,7 +286,12 @@ public sealed partial class PhysicsWorld
         {
             hooks?.Reach(GroundNativeStage.BeforeSetupDispose);
             lock (JoltRuntime.Gate)
-            { Release(ref _system); Release(ref _filters); Release(ref _broad); Release(ref _layers); Release(ref _parked); }
+            {
+                // Otherwise the native system, its bodies and their shapes are never freed (JoltRuntime.HandOverToSystem).
+                if (_system != null && _layers != null && _broad != null && _filters != null)
+                    JoltRuntime.HandOverToSystem(_system, _layers, _broad, _filters);
+                Release(ref _system); Release(ref _filters); Release(ref _broad); Release(ref _layers); Release(ref _parked);
+            }
         }
         private void Release<T>(ref T? value) where T : class, IDisposable
         {

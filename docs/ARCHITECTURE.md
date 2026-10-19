@@ -307,6 +307,10 @@ one, measured from its centre:
   touch them (a character's surroundings, what a ship's queries can reach this tick), built ahead on worker threads
   and taken in a few a tick; Jolt bodies are kept once made and the broadphase is updated incrementally, so the
   world's churn costs little (GROUND.md §4.5).
+- **Native ownership**: JoltPhysicsSharp 2.23.0 leaves physics systems, shape settings and body-creation settings
+  without ownership of their native handles, so their `Dispose` frees nothing. Create every settings object with
+  `.Owned()` and call `JoltRuntime.HandOverToSystem` before disposing a physics system and its filters; an
+  architecture test enforces both. Without them every world leaked its system, bodies and shapes (KNOWN_PROBLEMS.md).
 
 ### 10.4 Elapsed time (nothing ticks while unloaded)
 

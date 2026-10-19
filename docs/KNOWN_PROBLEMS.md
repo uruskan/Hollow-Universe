@@ -1,15 +1,22 @@
 # Known problems and the plan for them (14 October 2026)
 
-## Long full-suite native mesh-build crash — 18 October 2026
+## Long full-suite native mesh-build crash — found and fixed 19 October 2026
 
-The audio/VFX architecture validation run exited with native `0xC0000005` in
-`JPH_MeshShapeSettings_CreateShape` / `PhysicsWorld.BuildShape` during
-`PlanetGroundTests.ArriveOnTheBeachOverTheNetwork`, after 582 passing tests. The exact
-case passed in isolation, remaining classes passed in fresh processes, and a combined
-shared-footstep/physics-lifetime/planet-ground run passed 14/14. Cause is unestablished;
-do not infer that this is an audio/contact regression or a proven terrain defect. A
-reproduction with a native dump is still needed. Receipts and the separate existing
-host-size guard failures are recorded in [DEVELOPMENT.md](DEVELOPMENT.md).
+Runs on 16 and 18 October exited with native `0xC0000005` in `JPH_MeshShapeSettings_CreateShape`
+from `PhysicsWorld.BuildShape`, and once in `JPH_PhysicsSystem_Create`, always late in a long
+process and never alone. Cause: JoltPhysicsSharp 2.23.0 creates physics systems, shape settings
+and body-creation settings without ownership of their native handles, so `Dispose` released none
+of them. Every world and ship space leaked its native system, bodies and shapes, about 16 MiB per
+world with resident ground; the test process grew by about 16 MiB per test, to 9.4 GiB after 565
+tests. Once Windows refused an allocation, Jolt dereferenced the null result. A per-process commit
+cap reproduces the same stack on demand in the same beach-arrival test.
+
+The fix (T0.3 of TERRAIN_SCENERY_PLAN.md): `JoltRuntime.HandOverToSystem` makes each physics
+system own its handle and gives its three layer/filter objects to it, since joltc's system destroy
+deletes them; `Owned()` makes every shape and body-creation settings object release on dispose.
+Repeated worlds with ground now stay flat. `PhysicsLifetimeTests` checks the memory and
+`ArchitectureTests.JoltNativeObjectsAreReleasedWhenDisposed` forbids unowned constructions. The
+same leak affected the game: every terrain tile a server or client built stayed in memory.
 
 ## Concealment bushes absent from normal ground play — 18 October 2026
 
