@@ -185,6 +185,15 @@ the gate: upper faces of tall flanks and some long walls stay bare (the sea clif
 coastal slabs read as shelves rather than a face, grey granite scans stand on red tableland, and far proxies
 from about 94 m are not built. Earth save revision 6 (others 3) and protocol 40 fence the new collision.
 
+Second iteration, same day: a sea cliff's toe may stand in the surf, and coastal faces favour taller scans. Steep
+ground with rock 75.6%, walls 73.5% (sea cliffs' walls 51.8% → 63.6%). Of the ground each face means to carry
+rock, coastal faces carry 79%, outcrops 89%, mountain faces 84%, plateau faces 77%. `earth formations` maps a
+site from above with every face sample marked covered, bare or soil
+([escarpment](images/t2-formations/formations_-41.6000_7.6000.png)). It shows the next gap: steps under about
+6 m tall rise less than the survey's ten-metre baseline counts as a face, so they stay bare yet still draw as
+walls. The route planner now keeps a walker's chest out of every scan piece's box (one walk had met T2's rock)
+and its water and cliff stops apart; a High walk completed the new 573 m route.
+
 ### T3 — Make rock, soil and vegetation share environmental data
 
 Extend the existing cover/material system with formation influence: exposed bedrock, debris,

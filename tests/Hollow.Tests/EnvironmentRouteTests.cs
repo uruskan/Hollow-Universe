@@ -18,6 +18,10 @@ public static class EnvironmentRouteTests
         EnvironmentRoutePlan route = EarthEnvironmentRoute.Find(world, ContentFixture.Content.NaturalKinds);
         Assert.Equal(6, route.Stops.Count, "beach, woodland, clearing, water, cliff, small monument");
         Assert.Equal(5, route.Legs.Count, "every checkpoint belongs to the same walking circuit");
+        for (int a = 0; a < route.Stops.Count; a++)
+            for (int b = a + 1; b < route.Stops.Count; b++)
+                Assert.True(EarthEnvironmentRoute.Distance(route.Stops[a].Position, route.Stops[b].Position) > 15,
+                    $"{route.Stops[a].Label} and {route.Stops[b].Label} are different places");
         Assert.True(route.Metres is > 100 and <= EarthEnvironmentRoute.MaximumLength, "bounded real-world walk");
         Assert.Equal(Biome.Beach, world.BiomeAt(route.Stops[0].Position.Normalized), "starts on a real beach");
         Assert.True(route.Stops[1].Trees >= 3 && route.Stops[1].Woodland >= 0.38, "woodland contains actual nearby trees");
@@ -38,7 +42,7 @@ public static class EnvironmentRouteTests
             {
                 Assert.True(EarthEnvironmentRoute.Corridor(world, points[i - 1], points[i]), "two-metre samples remain dry, outside monuments and within grade bound");
                 Assert.True(ClearOfSolids(world, points[i - 1], points[i]),
-                    "the walk keeps clear of every solid tree, outcrop and boulder: the 18 October route ran into a boulder at a waypoint");
+                    "the walk keeps clear of every solid tree, outcrop, boulder and cliff piece: routes ran into a boulder and into T2's rock");
             }
         }
         foreach (EnvironmentRouteStop stop in route.Stops)
@@ -74,6 +78,7 @@ public static class EnvironmentRouteTests
                 foreach (NaturalKind kind in ContentFixture.Content.NaturalKinds)
                     if (kind.IsSolid && item.Scale >= kind.ScatterMinScale && kind.ScatterKinds.Contains(item.Kind))
                         solids.Add((item.Position(world.Radius), kind.Radius * item.Scale));
+        var cliffs = world.Cliffs.Near(middle, EarthEnvironmentRoute.Distance(a, b) / 2 + 8);
         int steps = Math.Max(1, (int)Math.Ceiling(EarthEnvironmentRoute.Distance(a, b)));
         for (int i = 0; i <= steps; i++)
         {
@@ -81,6 +86,8 @@ public static class EnvironmentRouteTests
             Vector3D ground = up * (world.Radius + world.HeightAt(up));
             foreach (var (position, radius) in solids)
                 if (Vector3D.Distance(ground, position) < radius + EarthEnvironmentRoute.CorridorClearance) return false;
+            foreach (CliffPlacement cliff in cliffs)
+                if (CliffPlacements.Holds(cliff, ground + up * 1.2, EarthEnvironmentRoute.CorridorClearance)) return false;
         }
         return true;
     }

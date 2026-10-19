@@ -263,6 +263,93 @@ public static class EarthSurvey
         return 0;
     }
 
+    /// <summary>
+    /// `earth formations lat lon [size] [folder]`: the cliff formations round a point from above (T2): the ground
+    /// hill-shaded (steep orange, walls red), each scan's footprint tinted by its family (nordic slate, sandstone sand,
+    /// forest olive, coastal pale), and every surveyed face sample as a dot: green covered, magenta meant for rock but
+    /// bare, white left as soil, black outside any dressed face.
+    /// </summary>
+    public static int Formations(string[] args)
+    {
+        double Arg(int i, double fallback) => args.Length > i ? double.Parse(args[i], CultureInfo.InvariantCulture) : fallback;
+        double latitude = Arg(2, 0), longitude = Arg(3, 0), size = Arg(4, 160);
+        string folder = args.Length > 5 ? args[5] : Path.Combine(Program.RepoRoot(), "docs", "images", "t2-formations");
+        Directory.CreateDirectory(folder);
+        WalkingWorld world = WalkingReport.Build(earth: true);
+        Vector3D centre = ZoneFrame.Direction(latitude * DMath.DegToRad, longitude * DMath.DegToRad);
+        Vector3D east = Vector3D.Cross(Vector3D.UnitY, centre).Normalized, north = Vector3D.Cross(centre, east);
+        Vector3D origin = centre * world.Radius;
+        const double PixelMetres = 0.25;
+        int side = (int)Math.Round(size / PixelMetres);
+        Vector3D Point(double x, double y) => (origin + east * x + north * y).Normalized;
+        List<CliffPlacement> pieces = world.Cliffs.Near(origin, size);
+        var heights = new double[side * side];
+        var family = new int[side * side];
+        string[] families = CliffGeometry.All.Select(g => g.MaterialFamily).Distinct().Order(StringComparer.Ordinal).ToArray();
+        Parallel.For(0, side, py =>
+        {
+            for (int px = 0; px < side; px++)
+            {
+                Vector3D d = Point((px + 0.5) * PixelMetres - size / 2, size / 2 - (py + 0.5) * PixelMetres);
+                double h = world.HeightAt(d);
+                heights[py * side + px] = h;
+                Vector3D ground = d * (world.Radius + h);
+                family[py * side + px] = -1;
+                foreach (CliffPlacement piece in pieces)
+                    if (CliffPlacements.Holds(piece, ground, 0))
+                    {
+                        family[py * side + px] = Array.IndexOf(families, CliffGeometry.All[piece.Model].MaterialFamily);
+                        break;
+                    }
+            }
+        });
+        var tints = new Dictionary<string, (double R, double G, double B)>
+        {
+            ["nordic"] = (120, 135, 150), ["sandstone"] = (215, 180, 120), ["forest"] = (120, 130, 70), ["coastal"] = (225, 225, 210),
+        };
+        var rgb = new byte[side * side * 3];
+        for (int py = 0; py < side; py++)
+        for (int px = 0; px < side; px++)
+        {
+            double H(int x, int y) => heights[Math.Clamp(y, 0, side - 1) * side + Math.Clamp(x, 0, side - 1)];
+            double dx = (H(px + 1, py) - H(px - 1, py)) / (2 * PixelMetres), dy = (H(px, py - 1) - H(px, py + 1)) / (2 * PixelMetres);
+            double grade = Math.Sqrt(dx * dx + dy * dy), length = Math.Sqrt(dx * dx + dy * dy + 1);
+            double light = Math.Max(0, (dx + dy + 1.4) / (length * Math.Sqrt(3.96)));
+            int f = family[py * side + px];
+            (double r, double g, double b) = f >= 0 ? tints.GetValueOrDefault(families[f], (200, 200, 200))
+                : grade >= WallGrade ? (190, 60, 50) : grade >= SteepGrade ? (215, 140, 70) : (120, 160, 85);
+            double shade = 0.3 + 0.7 * light;
+            int o = (py * side + px) * 3;
+            rgb[o] = (byte)Math.Clamp(r * shade, 0, 255); rgb[o + 1] = (byte)Math.Clamp(g * shade, 0, 255); rgb[o + 2] = (byte)Math.Clamp(b * shade, 0, 255);
+        }
+        var cells = new List<TileKey>();
+        TileKey.Around(origin, size * 0.75, world.Radius, world.Cliffs.Level, cells);
+        int covered = 0, bare = 0, soil = 0, outside = 0;
+        foreach (TileKey cell in cells)
+            foreach (CliffFaceSample sample in world.Cliffs.Report(cell))
+            {
+                Vector3D p = sample.Ground - origin;
+                int cx = (int)((Vector3D.Dot(p, east) + size / 2) / PixelMetres), cy = (int)((size / 2 - Vector3D.Dot(p, north)) / PixelMetres);
+                if (cx < 0 || cy < 0 || cx >= side || cy >= side) continue;
+                (byte r, byte g, byte b) = sample.Recipe == null ? ((byte)0, (byte)0, (byte)0)
+                    : sample.Covered ? ((byte)40, (byte)220, (byte)60) : sample.Intended ? ((byte)230, (byte)30, (byte)200) : ((byte)255, (byte)255, (byte)255);
+                if (sample.Recipe == null) outside++; else if (sample.Covered) covered++; else if (sample.Intended) bare++; else soil++;
+                for (int y = cy - 3; y <= cy + 3; y++)
+                for (int x = cx - 3; x <= cx + 3; x++)
+                {
+                    if (x < 0 || y < 0 || x >= side || y >= side) continue;
+                    int o = (y * side + x) * 3;
+                    rgb[o] = r; rgb[o + 1] = g; rgb[o + 2] = b;
+                }
+            }
+        string path = Path.Combine(folder, string.Create(CultureInfo.InvariantCulture, $"formations_{latitude:F4}_{longitude:F4}.png"));
+        Png.Write(path, side, side, rgb);
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"{pieces.Count} pieces near; face samples: {covered} covered, {bare} meant for rock but bare, {soil} left as soil, {outside} outside a dressed face"));
+        Console.WriteLine(path);
+        return 0;
+    }
+
     /// <summary>The height the render grid draws at a point: its level's 32-cell tile grid, linear over the lattice's triangles.</summary>
     private static double Drawn(WalkingWorld world, Vector3D direction, int level,
         System.Collections.Concurrent.ConcurrentDictionary<(int, long, long), double> vertices)
@@ -555,15 +642,18 @@ public static class EarthSurvey
             foreach (CliffFaceSample sample in report)
             {
                 string key = sample.Recipe ?? "(no face kept)";
-                if (!totals.TryGetValue(key, out long[]? t)) totals[key] = t = new long[4];
+                if (!totals.TryGetValue(key, out long[]? t)) totals[key] = t = new long[6];
                 t[0]++;
                 if (sample.Covered) t[1]++;
                 if (sample.Wall) { t[2]++; if (sample.Covered) t[3]++; }
+                if (sample.Intended) { t[4]++; if (sample.Covered) t[5]++; }
             }
         return totals.Select(p => (object)new
         {
             recipe = p.Key, faceSamples = p.Value[0], covered = Math.Round((double)p.Value[1] / Math.Max(1, p.Value[0]), 3),
             walls = p.Value[2], wallsCovered = Math.Round((double)p.Value[3] / Math.Max(1, p.Value[2]), 3),
+            intended = Math.Round((double)p.Value[4] / Math.Max(1, p.Value[0]), 3),
+            intendedCovered = Math.Round((double)p.Value[5] / Math.Max(1, p.Value[4]), 3),
         }).ToList();
     }
 

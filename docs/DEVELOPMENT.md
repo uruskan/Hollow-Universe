@@ -1,5 +1,20 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — T2 second iteration: sea-cliff toes, intended rock, the formation map
+
+A coastal face's toe may stand in the surf (up to 40% of a piece's fit points over water, measured from a metre
+below the water line), and coastal faces weight sandstone and nordic scans above the flat coastal slabs. Face
+samples now say whether their face meant them to carry rock (`CliffFaceSample.Intended`), and the survey reports
+how much of that ground is covered: coastal 79%, outcrop 89%, mountain 84%, plateau 77%. Steep ground with rock
+75.6%, walls 73.5%, sea cliffs' walls 63.6%. `earth formations lat lon [size]` draws a site from above with each
+scan's footprint and every face sample marked; at the escarpment it shows steps under about 6 m bare and unsurveyed.
+
+The route planner keeps a walker's chest out of every scan piece's box (a walk of the 877 m route met T2's rock on
+its cliff leg) and its water stop 20 m from the cliff stop; the route test checks both. A hosted High walk
+completed the new 573 m route; one walk there averages 16.92 ms, in denser forest than the 868 m route.
+
+Validation: solution 0 warnings, 0 errors; full suite 1,011 of 1,011 in 480 s.
+
 ## 19 October 2026 — T2 first iteration: cliff formations dressed along whole faces
 
 `CliffPlacements` generation 3 surveys each 59 m cell on a 12 × 12 grid instead of testing one random point,

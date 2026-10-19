@@ -128,6 +128,7 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth globe docs
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth survey    # landforms, scan cover, sites (LANDFORM_SURVEY.md)
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth transect <lat> <lon> <bearing> [length] [step]
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth wall <lat> <lon> [size]   # a face at each terrain level
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth formations <lat> <lon> [size]   # cliff formations from above
 ```
 
 The [baseline](images/earth-land/baseline-map.png) and

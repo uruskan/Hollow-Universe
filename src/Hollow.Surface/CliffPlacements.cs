@@ -17,11 +17,13 @@ public readonly record struct CliffPlacement(TileKey Tile, int Model, Vector3D P
 }
 
 /// <summary>
-/// A surveyed face sample and what dresses it (T2): the ground, its grade, whether it is a wall, whether rock is drawn
-/// there (inside a placed scan's box, this cell's or a neighbour's) and the recipe of the face it belongs to (null when
-/// the cell dresses no face there). Uncovered samples are reported, never hidden.
+/// A surveyed face sample and what dresses it (T2): the ground, its grade, whether it is a wall, whether its face meant
+/// it to carry rock (walls always; gentler ground by the recipe's share), whether rock is drawn there (inside a placed
+/// scan's box, this cell's or a neighbour's) and the recipe of the face it belongs to (null when the cell dresses no
+/// face there). Intended samples left uncovered are reported, never hidden.
 /// </summary>
-public readonly record struct CliffFaceSample(Vector3D Ground, double Gradient, bool Wall, bool Covered, string? Recipe);
+public readonly record struct CliffFaceSample(Vector3D Ground, double Gradient, bool Wall, bool Intended, bool Covered,
+    string? Recipe);
 
 /// <summary>
 /// The formation cache's retained entries, including empty results and pending Lazy values. Payload bytes count only
@@ -300,9 +302,9 @@ public sealed class CliffPlacements
         return false;
     }
 
-    // One face, dressed as a whole: the samples it intends to carry rock (every wall, and of gentler ground the
-    // recipe's rock share in coherent patches), then column after column from the highest sample still bare, each from its crest down to
-    // its toe, until every intended sample lies inside a piece or the face's columns are spent. One material family.
+    // One face, dressed as a whole: the samples it intends to carry rock, then column after column from the highest
+    // sample still bare, each from its crest down to its toe, until every intended sample lies inside a piece or the
+    // face's columns are spent. One material family.
     private void Compose(TileKey tile, int faceIndex, List<FaceSample> face, Vector3D cellGround, List<CliffPlacement> result)
     {
         CliffRecipe recipe = RecipeFor(face[Run(face).Middle].Up);
@@ -315,10 +317,7 @@ public sealed class CliffPlacements
         {
             heights[k] = _surface.HeightAt(face[k].Up);
             ground[k] = face[k].Up * (_surface.Radius + heights[k]);
-            // Where gentler ground carries rock is coherent: outcrops and soil in patches tens of metres across.
-            double patch = DMath.SmoothStep(-0.35, 0.35,
-                Noise.Fbm(face[k].Up, _surface.Radius, 30, 2, 0.5, _seed + 0x534F494C, NoiseBasis.Corners)); // "SOIL"
-            if (face[k].Gradient >= WallGrade || patch < recipe.RockShareAt(face[k].Gradient, FaceGrade)) open.Add(k);
+            if (Intends(face[k], recipe)) open.Add(k);
         }
         string? family = null;
         for (int column = 0; column < MaximumColumns && open.Count > 0; column++)
@@ -335,6 +334,16 @@ public sealed class CliffPlacements
                 open.RemoveAll(k => Holds(piece, ground[k], 1));
             }
         }
+    }
+
+    // Whether a face sample is meant to carry rock: every wall, and of gentler ground the recipe's share, coherent in
+    // patches tens of metres across (outcrops and soil, not salt and pepper).
+    private bool Intends(FaceSample sample, CliffRecipe recipe)
+    {
+        if (sample.Gradient >= WallGrade) return true;
+        double patch = DMath.SmoothStep(-0.35, 0.35,
+            Noise.Fbm(sample.Up, _surface.Radius, 30, 2, 0.5, _seed + 0x534F494C, NoiseBasis.Corners)); // "SOIL"
+        return patch < recipe.RockShareAt(sample.Gradient, FaceGrade);
     }
 
     // From a face sample uphill to where the ground eases (the crest), within the cell's discovery reach and at most
@@ -423,11 +432,11 @@ public sealed class CliffPlacements
     {
         if (tile.Level != Level || !MayHoldFace(tile)) return Array.Empty<CliffFaceSample>();
         List<FaceSample> steep = Survey(tile);
-        var recipes = new Dictionary<int, string>();
+        var recipes = new Dictionary<int, CliffRecipe>();
         foreach (List<FaceSample> face in Faces(steep))
         {
-            string key = RecipeFor(face[Run(face).Middle].Up).Key;
-            foreach (FaceSample sample in face) recipes[sample.Index] = key;
+            CliffRecipe recipe = RecipeFor(face[Run(face).Middle].Up);
+            foreach (FaceSample sample in face) recipes[sample.Index] = recipe;
         }
         var report = new List<CliffFaceSample>(steep.Count);
         foreach (FaceSample sample in steep)
@@ -436,8 +445,9 @@ public sealed class CliffPlacements
             bool covered = false;
             foreach (CliffPlacement cliff in Near(ground, 0))
                 if (Holds(cliff, ground, 1)) { covered = true; break; }
-            report.Add(new CliffFaceSample(ground, sample.Gradient, sample.Gradient >= WallGrade, covered,
-                recipes.TryGetValue(sample.Index, out string? recipe) ? recipe : null));
+            CliffRecipe? recipe = recipes.TryGetValue(sample.Index, out CliffRecipe? found) ? found : null;
+            report.Add(new CliffFaceSample(ground, sample.Gradient, sample.Gradient >= WallGrade,
+                recipe != null && Intends(sample, recipe), covered, recipe?.Key));
         }
         return report;
     }
@@ -477,7 +487,7 @@ public sealed class CliffPlacements
             double fittedScale = Math.Min(scale, (MaximumExtent - 1) / geometry.BoundingRadius);
             var piece = new CliffPlacement(tile, model, up * (_surface.Radius + _surface.HeightAt(up)),
                 right * geometry.Facing, up, forward * geometry.Facing, fittedScale, part);
-            if (Fit(piece, gradient, out double offset))
+            if (Fit(piece, gradient, recipe.WetToe, out double offset))
             {
                 CliffPlacement fitted = piece with { Position = piece.Position + up * offset };
                 // Try the remaining compatible scans if this one's burial puts it above the prior row.
@@ -487,21 +497,29 @@ public sealed class CliffPlacements
         return null;
     }
 
-    private bool Fit(CliffPlacement piece, double gradient, out double offset)
+    // A sea cliff's toe may stand in the surf (wetToe): up to 40% of the fit points over water, measured from a metre
+    // below the water line rather than the seabed. Elsewhere any point over water refuses the piece.
+    private bool Fit(CliffPlacement piece, double gradient, bool wetToe, out double offset)
     {
         CliffGeometry geometry = CliffGeometry.All[piece.Model];
         Vector3D[] points = FitPoints.Value[piece.Model];
         Span<double> gaps = stackalloc double[points.Length];
         double lowContact = double.PositiveInfinity, top = double.NegativeInfinity;
+        int wet = 0;
         for (int i = 0; i < points.Length; i++)
         {
             Vector3D point = piece.Transform(points[i]);
             Vector3D direction = point.Normalized;
             double groundHeight = _surface.HeightAt(direction);
-            if (groundHeight <= _surface.WaterLevelAt(direction) + 0.3)
+            double water = _surface.WaterLevelAt(direction);
+            if (groundHeight <= water + 0.3)
             {
-                offset = 0;
-                return false;
+                if (!wetToe || ++wet > points.Length * 0.4)
+                {
+                    offset = 0;
+                    return false;
+                }
+                groundHeight = Math.Max(groundHeight, water - 1);
             }
             gaps[i] = point.Length - _surface.Radius - groundHeight;
             if (points[i].Y < geometry.Height * 0.18) lowContact = Math.Min(lowContact, gaps[i]);

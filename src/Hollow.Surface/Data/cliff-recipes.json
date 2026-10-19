@@ -1,11 +1,12 @@
 {
-  "comment": "Formation recipes (docs/TERRAIN_SCENERY_PLAN.md T2, docs/LANDFORM_SURVEY.md). Each face takes the first recipe whose 'where' lists its setting: coast (the sea within coastMetres), otherwise its dominant relief (Plains, Hills, Tableland, Mountains). families weights the scans' material families; scale is the group's size range; gentleRockShare (at the face grade, 0.62) rising to rockShare (by grade 1.2) is the share of a face's ground meant to carry rock (walls always take rock; the rest stays soil and scree); typicalHeight and typicalWidth (metres, before scale) set the tiers' and columns' spacing.",
+  "comment": "Formation recipes (docs/TERRAIN_SCENERY_PLAN.md T2, docs/LANDFORM_SURVEY.md). Each face takes the first recipe whose 'where' lists its setting: coast (the sea within coastMetres), otherwise its dominant relief (Plains, Hills, Tableland, Mountains). families weights the scans' material families; scale is the group's size range; gentleRockShare (at the face grade, 0.62) rising to rockShare (by grade 1.2) is the share of a face's ground meant to carry rock (walls always take rock; the rest stays soil and scree); typicalHeight and typicalWidth (metres, before scale) set the tiers' and columns' spacing; wetToe lets a sea cliff's toe stand in the surf.",
   "coastMetres": 80,
   "recipes": [
     {
       "key": "coastal-scarp",
       "where": ["coast"],
-      "families": { "coastal": 1.0, "sandstone": 0.8, "nordic": 0.35 },
+      "families": { "sandstone": 1.0, "nordic": 0.6, "coastal": 0.5 },
+      "wetToe": true,
       "scale": [1.3, 1.7],
       "rockShare": 0.85,
       "gentleRockShare": 0.45,

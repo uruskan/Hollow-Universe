@@ -99,3 +99,11 @@ At High, 1600 × 900, on this machine, a candidate must hold, over three warmed 
 - at Low, the same rules against the Low walk; at Maximum, a stress check only.
 
 Coverage gained by spending more GPU time does not pass; T5's compact tiles are expected to pay for T4.
+
+## T2's cost so far
+
+At High, removing every cliff piece saves 0.64 ms of GPU time at the cliff-heavy mountain site (18.121935,
+−168.553855) and 0.44 ms at the 877 m route's clearing, about 4.5 and 3.9 million primitives and 41 and 22 draw
+calls: each nearby piece draws its 24,000-triangle near version. The 573 m route after T2's second iteration runs
+through denser temperate forest; one High walk there averages 16.92 ms (p95 18.93 ms), which is not comparable
+with the 868 m route. Its three-walk baseline is recorded when T2's cliffs are final.

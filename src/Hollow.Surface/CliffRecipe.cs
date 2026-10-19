@@ -44,10 +44,13 @@ public sealed class CliffRecipe
 
     public double TypicalWidth { get; }
 
+    /// <summary>Whether the face's toe may stand in the sea's surf (a coastal recipe).</summary>
+    public bool WetToe { get; }
+
     private readonly Dictionary<string, double> _families;
 
     private CliffRecipe(string key, string[] where, Dictionary<string, double> families, double minimumScale,
-        double maximumScale, double rockShare, double gentleRockShare, double typicalHeight, double typicalWidth)
+        double maximumScale, double rockShare, double gentleRockShare, double typicalHeight, double typicalWidth, bool wetToe)
     {
         if (string.IsNullOrWhiteSpace(key) || where.Length == 0 || families.Count == 0 ||
             !double.IsFinite(minimumScale) || minimumScale <= 0 || !double.IsFinite(maximumScale) || maximumScale < minimumScale ||
@@ -59,7 +62,7 @@ public sealed class CliffRecipe
             if (!double.IsFinite(weight) || weight <= 0) throw new InvalidOperationException("Invalid family weight in cliff recipe " + key);
         (Key, Where, _families) = (key, where, families);
         (MinimumScale, MaximumScale, RockShare, GentleRockShare) = (minimumScale, maximumScale, rockShare, gentleRockShare);
-        (TypicalHeight, TypicalWidth) = (typicalHeight, typicalWidth);
+        (TypicalHeight, TypicalWidth, WetToe) = (typicalHeight, typicalWidth, wetToe);
     }
 
     /// <summary>The share of ground at this grade meant to carry rock (walls are dressed regardless).</summary>
@@ -98,7 +101,8 @@ public sealed class CliffRecipe
             recipes.Add(new CliffRecipe(row.GetProperty("key").GetString()!, settings.ToArray(), families, scale[0].GetDouble(), scale[1].GetDouble(),
                 row.GetProperty("rockShare").GetDouble(), row.GetProperty("gentleRockShare").GetDouble(),
                 row.GetProperty("typicalHeight").GetDouble(),
-                row.GetProperty("typicalWidth").GetDouble()));
+                row.GetProperty("typicalWidth").GetDouble(),
+                row.TryGetProperty("wetToe", out JsonElement wet) && wet.GetBoolean()));
         }
         // Every setting a face can have is dressed, and every family a recipe names exists among the scans.
         var known = new HashSet<string>(StringComparer.Ordinal);

@@ -170,7 +170,8 @@ public static class EarthEnvironmentRoute
                 Distance(_cells[i].Position, candidate.Monument.Position) < candidate.Monument.Definition.Radius + 22,
                 i => Distance(_cells[i].Position, _cells[cliff].Position));
             if (monument < 0) { reason = "no reachable small monument exterior"; return false; }
-            int water = Choose(i => Distance(_cells[i].Position, _cells[clearing].Position) > 20 && WaterNear(i) != null,
+            int water = Choose(i => Distance(_cells[i].Position, _cells[clearing].Position) > 20 &&
+                Distance(_cells[i].Position, _cells[cliff].Position) > 20 && WaterNear(i) != null,
                 i => Distance(_cells[i].Position, _cells[clearing].Position) + Distance(_cells[i].Position, _cells[cliff].Position));
             if (water < 0) { reason = "no reachable water bank"; return false; }
             int[] indices = { start, woods, clearing, water, cliff, monument };
@@ -263,13 +264,15 @@ public static class EarthEnvironmentRoute
         }
     }
     /// <summary>
-    /// The solid natural objects round a grid, as the server builds their collision (GameContent's solid kinds:
-    /// a footprint of the kind's radius times the object's scale), hashed in 4 m cells of the grid's plane.
+    /// The solid things round a grid: natural objects as the server builds their collision (GameContent's solid kinds:
+    /// a footprint of the kind's radius times the object's scale), hashed in 4 m cells of the grid's plane, and the
+    /// scanned cliff pieces' collision boxes, which a walker's chest must stay out of.
     /// </summary>
     private sealed class Obstacles
     {
-        private const double Cell = 4;
+        private const double Cell = 4, Chest = 1.2;
         private readonly Dictionary<(long, long), List<(Vector3D Position, double Radius)>> _cells = new();
+        private readonly List<CliffPlacement> _cliffs;
         private readonly Vector3D _origin, _east, _north;
         private readonly double _reach;
 
@@ -277,6 +280,7 @@ public static class EarthEnvironmentRoute
             Vector3D north, double extent)
         {
             (_origin, _east, _north) = (origin, east, north);
+            _cliffs = world.Cliffs.Near(origin, extent);
             if (natural == null) return;
             var solid = new (float Radius, float MinScale)?[256];
             foreach (NaturalKind kind in natural)
@@ -299,9 +303,16 @@ public static class EarthEnvironmentRoute
         private (long, long) Key(Vector3D p) => ((long)Math.Floor(Vector3D.Dot(p - _origin, _east) / Cell),
             (long)Math.Floor(Vector3D.Dot(p - _origin, _north) / Cell));
 
-        /// <summary>Whether no solid footprint comes within <paramref name="margin"/> metres of a ground point.</summary>
+        /// <summary>
+        /// Whether no solid footprint comes within <paramref name="margin"/> metres of a ground point, and a walker's
+        /// chest there stays the margin outside every cliff piece's box.
+        /// </summary>
         public bool Clear(Vector3D point, double margin)
         {
+            Vector3D chest = point + point.Normalized * Chest;
+            foreach (CliffPlacement cliff in _cliffs)
+                if (Vector3D.Distance(chest, cliff.Position) <= CliffPlacements.MaximumExtent + margin &&
+                    CliffPlacements.Holds(cliff, chest, margin)) return false;
             if (_cells.Count == 0) return true;
             var (x, y) = Key(point);
             int span = (int)Math.Ceiling((_reach + margin) / Cell);
@@ -316,7 +327,7 @@ public static class EarthEnvironmentRoute
         /// <summary>One-metre samples between two ground points keep the corridor's clearance.</summary>
         public bool ClearAlong(WalkingWorld world, Vector3D a, Vector3D b)
         {
-            if (_cells.Count == 0) return true;
+            if (_cells.Count == 0 && _cliffs.Count == 0) return true;
             int steps = Math.Max(1, (int)Math.Ceiling(Distance(a, b)));
             for (int i = 0; i <= steps; i++)
             {

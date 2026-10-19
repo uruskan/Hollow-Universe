@@ -11,6 +11,7 @@ reads the same `WalkingWorld` the server builds (layout 5, save revision 5, radi
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth survey [folder] [width]
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth transect <lat> <lon> <bearing> [length] [step]
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth wall <lat> <lon> [size] [folder]
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth formations <lat> <lon> [size] [folder]
 ```
 
 - `survey` rasterises the globe (1,440 × 720 by default, 5.24 m a pixel at the equator) and writes
@@ -19,6 +20,8 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth wall <lat>
   four relief weights and the scans whose box holds the point.
 - `wall` draws the ground round a point from above as the generator makes it and as the terrain's render grid
   draws it at tile levels 6, 5, 4 and 3 (32 cells a tile: 0.92, 1.84, 3.68 and 7.36 m cells on Earth).
+- `formations` (T2) draws the cliff formations round a point from above: each scan's footprint by family and
+  every face sample of the generator's survey, green covered, magenta meant for rock but bare, white soil.
 
 ## Classification
 
@@ -84,11 +87,12 @@ cliff whose foot is under water) to gentle dry ground and looks back. Every capt
 The continuous normal-play benchmark is the hosted route (`--environment-route`, planned by
 `EarthEnvironmentRoute.Find`): from a beach through woodland, a clearing, the water's edge, a scanned cliff and
 the weather station. The 868 m route below was the one measured for the T0 baseline; three of its four walks
-stopped at a boulder inside a waypoint, so the planner now keeps clear of solid natural objects. The route
-depends on where the cliff groups stand, so it moves while T2 iterates: with T2's first iteration it is 877 m
-(beach −23.045859, −101.779395; woodland −17.875082, −96.638744; clearing −18.810713, −95.628346; water
-−23.997956, −101.810688; cliff −21.668845, −98.148381, a `namaqualand_cliff_02` group; weather station
-−25.948658, −95.512632). The route test prints the current one.
+stopped at a boulder inside a waypoint, so the planner now keeps clear of solid natural objects and of every
+scan piece's box. The route depends on where the cliff groups stand, so it moves while T2 iterates: after T2's
+second iteration it is 573 m (beach −40.206890, −104.689056; woodland −43.333428, −108.184458; clearing
+−44.166008, −109.608904; water −41.128248, −105.388214; cliff −37.448934, −99.091943, a `nordic_broad` group;
+weather station −37.902748, −97.273959), and a hosted High walk completed it. The route test prints the current
+one.
 
 | Stop | Coordinates | Covers |
 | --- | --- | --- |
