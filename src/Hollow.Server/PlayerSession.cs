@@ -238,10 +238,14 @@ public sealed class PlayerSession
         NewestInputTick = tick;
     }
 
-    /// <summary>The least arrival margin over the last half second (what the snapshot reports); −128 with none yet.</summary>
+    /// <summary>
+    /// The least arrival margin over the last <see cref="Net.Protocol.Protocol.InputMarginWindowSeconds"/> (what the snapshot
+    /// reports); −128 with none yet.
+    /// </summary>
     public sbyte InputMargin(long serverTick)
     {
-        while (_margins.Count > 0 && _margins.Peek().Tick < serverTick - Simulation.Movement.CharacterMotor.TickRate / 2)
+        const long WindowTicks = (long)(Net.Protocol.Protocol.InputMarginWindowSeconds * Simulation.Movement.CharacterMotor.TickRate);
+        while (_margins.Count > 0 && _margins.Peek().Tick < serverTick - WindowTicks)
         {
             _margins.Dequeue();
         }
