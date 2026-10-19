@@ -18,6 +18,7 @@ import zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import sevenzip  # noqa: E402
+from longpath import fs  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -126,45 +127,45 @@ def pack(name, member):
         # A roster can grow while the cache already exists. Admit each missing member atomically;
         # never trust an existing cache directory as proof that all requested bytes are present.
         path = sevenzip.safe(os.path.realpath(root), member)
-        if not os.path.isfile(path):
+        if not os.path.isfile(fs(path)):
             archive = os.path.join(DOWNLOADS, name, p.file)
-            if not os.path.isfile(archive):
+            if not os.path.isfile(fs(archive)):
                 raise SystemExit("download the archive from %s and save it as %s" % (p.page, archive))
             check(archive, p.sha256)
-            with zipfile.ZipFile(archive) as z:
+            with zipfile.ZipFile(fs(archive)) as z:
                 data = z.read(member)
             if hashlib.sha256(data).hexdigest() != p.members[member]:
                 raise SystemExit("%s: source member failed its roster hash" % member)
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            with open(path + ".part", "wb") as stream:
+            os.makedirs(fs(os.path.dirname(path)), exist_ok=True)
+            with open(fs(path + ".part"), "wb") as stream:
                 stream.write(data)
-            os.replace(path + ".part", path)
+            os.replace(fs(path + ".part"), fs(path))
         check(path, p.members[member])
         USED.add((name, member))
         return path
-    if not os.path.isdir(root):
+    if not os.path.isdir(fs(root)):
         archive = os.path.join(DOWNLOADS, name, p.file)
-        if not os.path.isfile(archive):
+        if not os.path.isfile(fs(archive)):
             if p.url is None:
                 raise SystemExit("download the archive from %s and save it as %s" % (p.page, archive))
             raise SystemExit("missing download %s (python -I art/audio/sources.py --fetch)" % archive)
         check(archive, p.sha256)
         part = root + ".part"
-        os.makedirs(part, exist_ok=True)
+        os.makedirs(fs(part), exist_ok=True)
         if p.file.endswith(".zip"):
-            with zipfile.ZipFile(archive) as z:
+            with zipfile.ZipFile(fs(archive)) as z:
                 for m in z.infolist():
                     if m.is_dir():
                         continue
                     path = sevenzip.safe(os.path.realpath(part), m.filename)
-                    os.makedirs(os.path.dirname(path), exist_ok=True)
-                    with z.open(m) as i, open(path, "wb") as o:
+                    os.makedirs(fs(os.path.dirname(path)), exist_ok=True)
+                    with z.open(m) as i, open(fs(path), "wb") as o:
                         o.write(i.read())
         else:
             sevenzip.Archive(archive).extract(part)
-        os.replace(part, root)
+        os.replace(fs(part), fs(root))
     path = os.path.join(root, *member.split("/"))
-    if not os.path.isfile(path):
+    if not os.path.isfile(fs(path)):
         raise SystemExit("%s has no %s" % (name, member))
     USED.add((name, member))
     return path
@@ -175,7 +176,7 @@ def bsb(sid):
     if sid not in BIGSOUNDBANK:
         raise SystemExit("unknown BigSoundBank id %s" % sid)
     path = os.path.join(DOWNLOADS, "bigsoundbank", sid + ".wav")
-    if not os.path.isfile(path):
+    if not os.path.isfile(fs(path)):
         raise SystemExit("missing download %s (python -I art/audio/sources.py --fetch)" % path)
     check(path, BIGSOUNDBANK[sid]["sha256"])
     USED.add(("bigsoundbank", sid))
@@ -189,7 +190,7 @@ def check(path, sha256):
     if path in _checked:
         return
     h = hashlib.sha256()
-    with open(path, "rb") as f:
+    with open(fs(path), "rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
     if h.hexdigest() != sha256:
@@ -203,7 +204,7 @@ def verify(fetch=False):
     items += [(os.path.join(DOWNLOADS, "bigsoundbank", sid + ".wav"),
                "https://bigsoundbank.com/UPLOAD/bwf-en/%s.wav" % sid, v["sha256"]) for sid, v in BIGSOUNDBANK.items()]
     for path, url, sha in items:
-        if not os.path.isfile(path):
+        if not os.path.isfile(fs(path)):
             if not fetch:
                 missing += 1
                 continue
@@ -211,11 +212,11 @@ def verify(fetch=False):
                 missing += 1
                 print("manual creator download required: %s (see the page in nox_footsteps.json)" % path)
                 continue
-            os.makedirs(os.path.dirname(path), exist_ok=True)
+            os.makedirs(fs(os.path.dirname(path)), exist_ok=True)
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Hollow Universe sound pipeline)"})
-            with urllib.request.urlopen(req, timeout=300) as r, open(path + ".part", "wb") as o:
+            with urllib.request.urlopen(req, timeout=300) as r, open(fs(path + ".part"), "wb") as o:
                 o.write(r.read())
-            os.replace(path + ".part", path)
+            os.replace(fs(path + ".part"), fs(path))
             print("fetched", path)
         check(path, sha)
     print("%d downloads checked, %d missing" % (len(items) - missing, missing))

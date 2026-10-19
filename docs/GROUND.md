@@ -4723,7 +4723,10 @@ piezo tones (the code lock's verdicts and the charge's timer). No sound comes fr
    `levels.json`; a recipe that didn't change isn't built again.
 
 Archives are unpacked into `art/.cache/audio/src` by Python's `zipfile` and our own 7z reader (`art/audio/sevenzip.py`:
-LZMA, LZMA2, BCJ, Delta; names kept inside the folder); nothing in a download is ever run. The waveform and
+LZMA, LZMA2, BCJ, Delta; names kept inside the folder); nothing in a download is ever run. In a checkout at a long
+path (a worktree under `.claude\worktrees`) the deepest cached members pass Windows' 260-character limit, so the
+pipeline hands paths of 240 characters or more to the file system and ffmpeg in their extended-length form
+(`\\?\D:\...`, `art/audio/longpath.py`); shorter paths, recipe keys and the output are unchanged. The waveform and
 spectrogram pictures (`inspect.py`) were how cuts and layers were checked, since nobody listened while they were made.
 
 **The Iron Wake** (IRON_WAKE.md §10, 15 October 2026): 56 events, 198 files in `iron-wake/`. What no recording on this

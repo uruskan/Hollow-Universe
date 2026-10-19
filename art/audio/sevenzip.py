@@ -11,6 +11,10 @@ import struct
 import sys
 import zlib
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from longpath import fs  # noqa: E402
+
 SIGNATURE = b"7z\xbc\xaf\x27\x1c"
 CHUNK = 1 << 20
 
@@ -297,7 +301,7 @@ def decode(fh, offset, packed_size, folder, out_size, sink):
 class Archive:
     def __init__(self, path):
         self.path = path
-        with open(path, "rb") as fh:
+        with open(fs(path), "rb") as fh:
             head = fh.read(32)
             if len(head) < 32 or head[:6] != SIGNATURE:
                 raise Bad("not a 7z archive")
@@ -355,15 +359,15 @@ class Archive:
         streams = [n for n, kind in zip(self.names, self.kinds) if kind == "file"]
         for name, kind in zip(self.names, self.kinds):
             if kind == "dir":
-                os.makedirs(safe(root, name), exist_ok=True)
+                os.makedirs(fs(safe(root, name)), exist_ok=True)
             elif kind == "empty":
                 path = safe(root, name)
-                os.makedirs(os.path.dirname(path), exist_ok=True)
-                open(path, "wb").close()
+                os.makedirs(fs(os.path.dirname(path)), exist_ok=True)
+                open(fs(path), "wb").close()
         k = 0
         offset = 32 + self.pos
         pack_index = 0
-        with open(self.path, "rb") as fh:
+        with open(fs(self.path), "rb") as fh:
             for folder, subs in zip(self.folders, self.subs):
                 packed = sum(self.packs[pack_index:pack_index + len(folder.packed)])
                 if len(folder.packed) != 1:
@@ -400,8 +404,8 @@ class Splitter:
         self.fh = None
         while self.i < len(self.files):
             path, size, _ = self.files[self.i]
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            self.fh = open(path, "wb")
+            os.makedirs(fs(os.path.dirname(path)), exist_ok=True)
+            self.fh = open(fs(path), "wb")
             self.left = size
             self.crc = 0
             if size > 0:

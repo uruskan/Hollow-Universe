@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import audiolib  # noqa: E402
 import sources  # noqa: E402
+from longpath import fs  # noqa: E402
 
 REPO = sources.REPO
 ASSETS = os.path.join(REPO, "game", "assets", "audio")
@@ -89,7 +90,7 @@ class Seg:
 
     def key(self):
         rel = os.path.relpath(self.src, sources.DOWNLOADS if self.src.startswith(sources.DOWNLOADS) else sources.CACHE)
-        return [rel.replace("\\", "/"), os.path.getsize(self.src), round(self.start, 4),
+        return [rel.replace("\\", "/"), os.path.getsize(fs(self.src)), round(self.start, 4),
                 None if self.dur is None else round(self.dur, 4), self.gain, self.pitch, self.fx, self.at,
                 self.fade_in, self.fade_out, self.reverse,
                 os.path.basename(self.ir) if self.ir else None, self.wet, self.dry, self.post]
@@ -132,12 +133,12 @@ def render_mix(out, path):
             args += ["-ss", "%.5f" % s.start]
         if s.dur:
             args += ["-t", "%.5f" % s.dur]
-        args += ["-i", s.src]
+        args += ["-i", fs(s.src)]
         src_index = inputs
         inputs += 1
         ir_index = None
         if s.ir:
-            args += ["-i", s.ir]
+            args += ["-i", fs(s.ir)]
             ir_index = inputs
             inputs += 1
         chain = ["aresample=%d" % RATE, "aformat=sample_fmts=flt:channel_layouts=%s" % layout(out.channels)]
@@ -174,7 +175,7 @@ def render_mix(out, path):
         post.append(out.fx)
     post.append("aformat=sample_fmts=flt:channel_layouts=%s" % layout(out.channels))
     graph = ";".join(parts) + ";" + ",".join(post) + "[out]"
-    audiolib.run(args + ["-filter_complex", graph, "-map", "[out]", "-ar", str(RATE), "-c:a", "pcm_f32le", path])
+    audiolib.run(args + ["-filter_complex", graph, "-map", "[out]", "-ar", str(RATE), "-c:a", "pcm_f32le", fs(path)])
 
 
 def cut(out, src, dst):
@@ -197,7 +198,7 @@ def cut(out, src, dst):
     if out.fade_in:
         chain += ",afade=t=in:d=%.4f" % out.fade_in
     chain += ",afade=t=out:st=%.5f:d=%.5f:curve=exp" % (max(0.0, t1 - t0 - fade), fade)
-    audiolib.run(["-i", src, "-af", chain, "-c:a", "pcm_f32le", dst])
+    audiolib.run(["-i", fs(src), "-af", chain, "-c:a", "pcm_f32le", fs(dst)])
 
 
 def make_loop(out, src, dst):
@@ -207,8 +208,8 @@ def make_loop(out, src, dst):
     length, overlap = out.loop[0], out.loop[1]
     if overlap <= 0:
         skip = out.loop[2] if len(out.loop) > 2 else 0.0
-        audiolib.run(["-i", src, "-af", "atrim=start_sample=%d:end_sample=%d,asetpts=PTS-STARTPTS"
-                      % (round(skip * RATE), round((skip + length) * RATE)), "-c:a", "pcm_f32le", dst])
+        audiolib.run(["-i", fs(src), "-af", "atrim=start_sample=%d:end_sample=%d,asetpts=PTS-STARTPTS"
+                      % (round(skip * RATE), round((skip + length) * RATE)), "-c:a", "pcm_f32le", fs(dst)])
         return
     graph = ("[0:a]asplit=3[a][b][c];"
              "[a]atrim=0:%.5f,asetpts=PTS-STARTPTS,afade=t=in:d=%.5f:curve=qsin[h];"
@@ -217,7 +218,7 @@ def make_loop(out, src, dst):
              "[c]atrim=%.5f:%.5f,asetpts=PTS-STARTPTS[body];"
              "[m][body]concat=n=2:v=0:a=1[out]") % (overlap, overlap, length, length + overlap, overlap, overlap,
                                                     length)
-    audiolib.run(["-i", src, "-filter_complex", graph, "-map", "[out]", "-c:a", "pcm_f32le", dst])
+    audiolib.run(["-i", fs(src), "-filter_complex", graph, "-map", "[out]", "-c:a", "pcm_f32le", fs(dst)])
 
 
 def level_of(m, metric):
@@ -231,19 +232,19 @@ def encode(out, src, dst, gain, limit):
         chain.append("alimiter=limit=%.4f:attack=1:release=%d:level=0" % (10 ** (limit / 20.0),
                                                                           30 if out.category in FAST else 60))
     chain.append("aformat=channel_layouts=%s" % layout(out.channels))
-    args = ["-i", src, "-af", ",".join(chain), "-ar", str(RATE), "-fflags", "+bitexact", "-flags", "+bitexact",
+    args = ["-i", fs(src), "-af", ",".join(chain), "-ar", str(RATE), "-fflags", "+bitexact", "-flags", "+bitexact",
             "-map_metadata", "-1"]
     if out.wav:
         args += ["-c:a", "pcm_s16le"]
     else:
         args += ["-c:a", "libvorbis", "-q:a", str(out.quality)]
-    audiolib.run(args + [dst])
+    audiolib.run(args + [fs(dst)])
 
 
 def build(out):
     metric, target, low, high, max_limit = CATEGORIES[out.category]
     base = os.path.join(WORK, out.rel.replace("/", "__"))
-    os.makedirs(WORK, exist_ok=True)
+    os.makedirs(fs(WORK), exist_ok=True)
     mix, shaped = base + ".mix.wav", base + ".shaped.wav"
     render_mix(out, mix)
     if out.loop:
@@ -265,7 +266,7 @@ def build(out):
         if max_limit > 0:
             limit = encode_ceiling - 0.2
     dst = os.path.join(ASSETS, out.rel)
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    os.makedirs(fs(os.path.dirname(dst)), exist_ok=True)
     tmp = dst + ".part" + os.path.splitext(dst)[1]
     for _ in range(8):
         encode(out, shaped, tmp, gain, limit)
@@ -278,23 +279,23 @@ def build(out):
             limit -= excess
         else:
             gain -= excess
-    os.replace(tmp, dst)
+    os.replace(fs(tmp), fs(dst))
     for p in (mix, shaped):
         try:
-            os.remove(p)
+            os.remove(fs(p))
         except OSError:
             pass
     final["category"] = out.category
     final["gain"] = round(gain, 2)
     final["recipe"] = out.recipe()
     final["sha256"] = sha256(dst)
-    final["bytes"] = os.path.getsize(dst)
+    final["bytes"] = os.path.getsize(fs(dst))
     return final
 
 
 def sha256(path):
     h = hashlib.sha256()
-    with open(path, "rb") as f:
+    with open(fs(path), "rb") as f:
         h.update(f.read())
     return h.hexdigest()
 
@@ -358,7 +359,7 @@ def main(argv):
                 continue
             dst = os.path.join(ASSETS, o.rel)
             old = levels.get(o.rel)
-            if not force and old and old.get("recipe") == o.recipe() and os.path.isfile(dst) \
+            if not force and old and old.get("recipe") == o.recipe() and os.path.isfile(fs(dst)) \
                     and old.get("sha256") == sha256(dst):
                 continue
             todo.append(o)
@@ -389,8 +390,8 @@ def main(argv):
                 del levels[rel]
                 p = os.path.join(ASSETS, rel)
                 for path in (p, p + ".import"):
-                    if os.path.isfile(path):
-                        os.remove(path)
+                    if os.path.isfile(fs(path)):
+                        os.remove(fs(path))
         write_levels(levels)
         if failures:
             print("%d failed" % len(failures))
@@ -399,7 +400,8 @@ def main(argv):
     changed = fix_imports(outs)
     if changed:
         print("%d .import files updated: run Godot's import again" % changed)
-    total = sum(os.path.getsize(os.path.join(ASSETS, o.rel)) for o in outs if os.path.isfile(os.path.join(ASSETS, o.rel)))
+    total = sum(os.path.getsize(fs(os.path.join(ASSETS, o.rel))) for o in outs
+                if os.path.isfile(fs(os.path.join(ASSETS, o.rel))))
     print("catalogue: %d events; audio: %.1f MB" % (len(catalogue), total / 1e6))
     return 0
 
@@ -409,9 +411,9 @@ def fix_imports(outs):
     changed = 0
     for o in outs:
         path = os.path.join(ASSETS, o.rel) + ".import"
-        if not os.path.isfile(path):
+        if not os.path.isfile(fs(path)):
             continue
-        with open(path, encoding="utf-8") as f:
+        with open(fs(path), encoding="utf-8") as f:
             text = f.read()
         new = text
         if o.wav:
@@ -420,7 +422,7 @@ def fix_imports(outs):
             want = "loop=true" if o.loop else "loop=false"
             new = new.replace("loop=true", want).replace("loop=false", want)
         if new != text:
-            with open(path, "w", encoding="utf-8", newline="\n") as f:
+            with open(fs(path), "w", encoding="utf-8", newline="\n") as f:
                 f.write(new)
             changed += 1
     return changed
