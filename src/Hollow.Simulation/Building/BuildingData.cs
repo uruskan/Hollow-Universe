@@ -195,6 +195,12 @@ public sealed class LeafDef
     /// <summary>Yaw of the open leaf about its hinge, degrees (from the kit's assembly manifest).</summary>
     public double OpenYaw { get; init; }
 
+    /// <summary>
+    /// How far out from the leaf's middle plane a lock's back rests on either face (DOORS.md §6): the front of the handle
+    /// plate the kit puts there, the same on both faces.
+    /// </summary>
+    public float LockDepth { get; init; }
+
     /// <summary>Authored convex parts in leaf-local metres. Omitted for the existing solid rectangular leaves.</summary>
     public ConvexPart[] Collision { get; init; } = Array.Empty<ConvexPart>();
 
@@ -671,12 +677,14 @@ public sealed class BuildingData
             var leaves = new List<LeafDef>();
             foreach (JsonElement l in r.Array(d, "leaves"))
             {
+                System.Numerics.Vector3 size = r.Vector(l, "size");
                 leaves.Add(new LeafDef
                 {
                     Mesh = r.Text(l, "mesh", ""),
                     Hinge = r.Vector(l, "hinge"),
-                    Size = r.Vector(l, "size"),
+                    Size = size,
                     OpenYaw = r.Number(l, "openYaw", 0),
+                    LockDepth = (float)r.Number(l, "lockDepth", Math.Abs(size.Z) / 2 + 0.002),
                     AdditionalMeshes = r.Array(l, "additionalMeshes").Select(e => e.ValueKind == JsonValueKind.String
                         ? e.GetString() ?? "" : Bad(r, "attachment mesh name must be text", "")).ToArray(),
                     Collision = ReadLeafCollision(r, l),

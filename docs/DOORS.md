@@ -28,11 +28,15 @@ inner door blocks access (wiki.facepunch.com/rust/Building-terminology); doors a
 | Leaf | One swinging panel; a single door has one, a double door two (a left and a right) | Its origin is its hinge pin, on the leaf's mid-plane. The leaf extends in +X from the pin (a left-hinged leaf) or −X (a right-hinged one) |
 | Curtain | The garage door's one rolling, skinned panel | Its origin the bottom-left corner of the closed curtain |
 
-**The contract the art keeps** (`art/import/door_kit.py`): a leaf is mirror-symmetric about its mid-plane (the front face
-is copied onto the back), its hinge pin lies on that plane at the frame's `z = 0`, and the frame insert is centred in the
-wall (`z` from −0.15 to +0.15 for the 0.3 m wall). The kit as delivered had a relief face and a flat face, a lever on
-the flat one, a leaf mounted proud of its frame and a frame 3 cm off centre. A mirrored right-hinged copy of every
-single leaf is made at the import; double doors keep the kit's own left and right leaves, made symmetric the same way.
+**The contract the art keeps** (`art/import/door_kit.py`): a leaf is mirror-symmetric about its mid-plane (the kit's
+detailed front face is copied onto the back), its hinge pin lies on that plane at the frame's `z = 0`, and the frame
+insert is centred in the wall (`z` from −0.147 to +0.147 in the 0.3 m wall). **A door lies wholly inside its frame**, as
+Rust's do: the leaf is 0.8 as deep as the kit's, so its planks end 6 cm and its handle plate 2.7 cm short of the frame's
+faces (leaf `z` ±0.12 at the plate, ±0.04 for its core, which is its collision). The kit as delivered had a relief face
+and a flat face, a lever on the flat one, a leaf mounted proud of its frame and a frame 3 cm off centre (the owner saw the
+door standing out of its frame). A mirrored right-hinged copy of every single leaf is made at the import; double doors keep
+the kit's own left and right leaves, made symmetric the same way. The garage door's art is the kit's own, unchanged: its
+two faces are slatted alike, its housing is wider than the wall on purpose.
 
 ## 3. Layouts: hinge side and swing side
 
@@ -91,12 +95,17 @@ pose at the same tick. The record is what is replicated (§8) and saved (a door 
 
 ## 6. Locks on both faces
 
-A door's lock is mounted on its **first leaf** by its **free edge**, at hand height, a little way off the leaf's handle.
-Two sockets, one on each face of the leaf, at the same place seen from either side:
+A door's lock is mounted on its **first leaf** by its **free edge**, at hand height, on the handle plate the kit puts
+there (the same plate on both faces: the kit's handle, copied onto the back with the rest of the face). Two sockets, one
+on each face of the leaf, at the same place seen from either side (`LeafDef.lockDepth`, 0.12 m from the leaf's middle plane):
 
-- the **keypad** (a code lock) or the **key cylinder** (a key lock), the lock item's own model, on the face the
-  placement aimed at, facing out from the leaf;
-- a **back plate**, a small matching housing, on the other face, so a door with a lock shows one from both sides.
+- the **keypad** (a code lock) or the **key cylinder** (a key lock), the lock item's own model, on the +Z face (the
+  outside of the frame piece);
+- a **back plate**, the same model pressed flat to a housing (0.4 of its depth), turned round, on the −Z face, so a
+  door with a lock shows one from both sides.
+
+Which face carries the keypad is the frame's, not the aim's: choosing it by the side the player aimed from would need the
+face stored with the lock (its record, its message), and is not part of this specification (§10).
 
 Interacting works from both faces already (the door's leaf is the target; reach and sight are the building's, not a
 face's). A lock is still one per door and swings with the leaf; the lock's spot is computed from the leaf's current
@@ -135,10 +144,19 @@ D2 records the exact hinge sides here once the movement test has found them.
 | | What | Checked by |
 |---|---|---|
 | D0 | This document | — |
-| D1 | Symmetric leaves, centred frame, both-face locks | Before and after pictures of every grade from both sides |
+| D1 (done) | Symmetric leaves, centred frame, both-face locks | `images/abtest-b/doors/before` and `after` (`doors.jpg`: every door from outside and inside; `locks.jpg`: the lock seat on both faces) |
 | D2 | Hinge and swing chosen separately, the ghost's arc, the airlock layouts | `DoorTests`: every layout's open pose; the two airlocks built, a character cannot pass with both doors open |
 | D3 | No refusals; bodies follow the motion every tick; the motion record on the wire; the protocol and save revision | `DoorTests`: closing on a player, the garage curtain at mid-close, server and client leaf poses agree mid-swing |
 | D4 | The four door items' icons and dropped models from the corrected kit doors (docs/ITEM_ART_SALVAGE.md's pattern) | the item pictures; `models.json` loses their stand-in notes |
 
 Hosted pictures of the two airlock layouts, open and shut, from outside and inside, close D1 to D3. Owner visual
 acceptance is pending after D4.
+
+## 10. Open points (not decided here)
+
+- **Which face carries the keypad** is the frame's +Z (§6). Choosing it by the side the player aimed from would need the
+  face stored with the lock (its record and its message).
+- **Sizes against Rust's.** The module (3 m foundation and storey, 0.3 m wall) and the openings (single 1.2 × 2.3 m,
+  double and garage 2.7 × 2.85 m) are the PSG kits' own contract (`dimension_contract.json`), taken as RustMVP's;
+  REPAIR_BUILDING.md already says the 3 m footing depth is a local tuning value, not a claimed Rust constant. They have not
+  been measured against Rust's here; a size audit is a separate package.

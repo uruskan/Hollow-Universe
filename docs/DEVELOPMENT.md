@@ -4667,3 +4667,16 @@ the animation is still travelling to, no start tick on the wire). The owner's ru
 (GROUND.md §6.3 links it): same faces, doors that ignore everything and always move, collision along the motion, hinge and
 swing chosen separately so airlocks can be built, locks on both faces. Packages D1 to D4 follow, one commit each. Nothing
 built or run for this entry (documents only).
+
+### 20 October 2026 — doors D1: the same on both faces, inside the frame, a lock on both faces
+
+`art/import/door_kit.py` now makes every leaf symmetric (the kit's detailed front face copied onto the back about the leaf's
+middle plane), 0.8 as deep and centred at the wall's middle, with the frame insert centred (z ±0.147 in the 0.3 m wall): the
+owner saw the kit's doors standing out of their frames (leaf at z 0.07–0.27 against a wall to 0.15). Each single door gains a
+mirrored right-hinged leaf. `building.json`: hinge z 0, leaf thickness 0.08, `lockDepth` 0.12 (0.126 for the garage, whose art is
+unchanged). The lock sits on the handle plate, no longer inside it, with a matching back plate on the other face (`DoorLocks`,
+shared by the game and the build sandbox). Door gibs rebuilt from the new leaves. The build sandbox (`--view build`) had stopped
+starting (the first world's stand-in radius is a diagnostic radius now); it asks for it as such, and has a `--scene doors` with
+`--tour`. Validation: build 0 warnings, 0 errors; Door 7/7, Building 25/25, Placement 25/25, Lock 22/22, Gib 5/5,
+ContentTests 3/3; `docs/images/abtest-b/doors/before` and `after` (every door from both sides, the lock seat on both faces).
+Not checked: the garage lock; the back plate is the lock model pressed flat, not a model of its own.

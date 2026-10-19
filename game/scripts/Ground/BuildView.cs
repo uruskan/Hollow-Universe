@@ -179,51 +179,12 @@ public partial class BuildView : Node3D, IHammerActions
 
     private double _lockSync;
 
-    // Locks on doors: the catalogue's code or key lock on the outside of the first leaf, by its free edge, so it swings
-    // with the door.
+    // Locks on doors: see DoorLocks.
     private void DrawLocks()
     {
-        if (_renderer == null)
+        if (_renderer != null)
         {
-            return;
-        }
-        foreach (Node child in _renderer.GetChildren())
-        {
-            if (child is not DoorView view || view.Door.Def.Leaves.Count == 0)
-            {
-                continue;
-            }
-            string? want = view.Door.Lock switch
-            {
-                CodeLock => "code-lock",
-                KeyLock => "key-lock",
-                _ => null,
-            };
-            LeafDef leaf = view.Door.Def.Leaves[0];
-            var hinge = new Vector3(leaf.Hinge.X, leaf.Hinge.Y, leaf.Hinge.Z);
-            MeshInstance3D? leafNode = view.GetChildren().OfType<MeshInstance3D>().FirstOrDefault(m => m.Position.IsEqualApprox(hinge));
-            if (leafNode == null)
-            {
-                continue;
-            }
-            Node3D? fitted = leafNode.GetNodeOrNull<Node3D>("Lock");
-            if (fitted != null && fitted.GetMeta("key", "").AsString() == want)
-            {
-                continue;
-            }
-            fitted?.QueueFree();
-            if (want == null || HollowUniverse.Items.ModelCatalog.Instantiate(want) is not { } model)
-            {
-                continue;
-            }
-            var holder = new Node3D { Name = "Lock" };
-            holder.SetMeta("key", want);
-            // By the free edge, at hand height, its back on the outside face (a mounted model faces +Z from its back): where
-            // the placement ghost put it.
-            Num.Vector3 spot = Door.LockOffset(leaf);
-            holder.Position = new Vector3(spot.X, spot.Y, spot.Z);
-            holder.AddChild(model);
-            leafNode.AddChild(holder);
+            DoorLocks.Sync(_renderer);
         }
     }
 

@@ -3,7 +3,7 @@
 Generated from the repository: every C# file, the types it declares (nested ones in brackets), its length and its
 own first line of explanation. HOW_IT_WORKS.md says how these run together; this is the map. Regenerate it after
 a package with the script in the session that made it, or by hand: the shape is one table per folder.
-1,079 files, 271,886 lines of C#.
+1,081 files, 272,097 lines of C#.
 
 ## src/Hollow.Core
 
@@ -220,14 +220,14 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `AuthorizationSubjects.cs` | 26 | AuthorizationSubjects | Maps a target to the player controlling it (a character itself, a ship's pilot or owner); passengers and crew lists grant no immunity. |
 | `DeviceAuthorizationState.cs` | 39 | DeviceAuthorizationMode, DeviceAuthorizationState, DeviceAccessFacts, DeviceAuthorizationPolicies | A device's own authorisation: grants, exclusions and mode (follow the cupboard or manual only), and the named policies that decide who is friendly |
 
-### src/Hollow.Simulation/Building (17 files, 6,329 lines)
+### src/Hollow.Simulation/Building (17 files, 6,355 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `BuildResults.cs` | 126 | Privilege, IBuildingWallet, Wallet, Capsule, BuildingChange, BuildingEvent, IBuildingPart, Removal | Building rights at a place for a player (GROUND.md §8's privilege status). |
 | `BuildingBlueprint.cs` | 160 | BuildingBlueprint [NodeSpec, Spec, Node] | BuildingBlueprint: an authored, socket-linked building (nodes, specs) assembled through the ordinary building world, after the caller checks the site. |
 | `BuildingBlueprintSpawner.cs` | 90 | BuildingBlueprintSpawner | BuildingBlueprintSpawner: checks an entire prefab site before creating any gameplay objects, then builds it through the normal building world. |
-| `BuildingData.cs` | 995 | PieceFamily, PieceShape, Opening, StairsKind, SocketKind, DamageType, SocketDef, PieceDef, Protection, GradeDef, LeafDef, DoorDef, BuildingData [Reader] | What a piece is, structurally (RustMVP's families): it decides its sockets' geometry and its support losses. |
+| `BuildingData.cs` | 1003 | PieceFamily, PieceShape, Opening, StairsKind, SocketKind, DamageType, SocketDef, PieceDef, Protection, GradeDef, LeafDef, DoorDef, BuildingData [Reader] | What a piece is, structurally (RustMVP's families): it decides its sockets' geometry and its support losses. |
 | `BuildingPhysics.cs` | 282 | RayHit, OverlapHit, BuildingPhysics [OnlyGround, NotGround, OnlyBuilding] | What a ray hit: the body, how far along, where and the surface's normal there. |
 | `BuildingWorld.Destroyed.cs` | 59 | RemovedPart, BuildingWorld | A piece or door gone from the building as the Destroyed event names it (GROUND.md §6.4.2, §9.4): what it was (its |
 | `BuildingWorld.Hammer.cs` | 278 | DamageHit, DamageResult, BuildingWorld | A hit on a piece or a door: the attack's direction in the zone (from the attacker toward the target) and its damage by type. |
@@ -235,7 +235,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `BuildingWorld.Replica.cs` | 361 | BuildingWorld, LockKind, BuildPartKind | The building as a copy of someone else's (GROUND.md §6.3, phase 2): a world loaded from storage, and a client's |
 | `BuildingWorld.cs` | 662 | BuildingWorld | Building in one zone (GROUND.md §6.3): its structures and pieces, doors and claim devices, and every rule about them, |
 | `ClaimDevice.cs` | 509 | ClaimDevice, BuildingWorld | The claim device, our tool cupboard (GROUND.md §6.3): it stands on a piece of a structure, lists the players |
-| `Doors.cs` | 694 | LockDef, DoorLock, KeyLock, CodeLock, Door, DoorLeaf, BuildingWorld | A lock as something to place (building.json's locks, GROUND_SYSTEMS.md §6): its key (its item's), name, kind, and the |
+| `Doors.cs` | 712 | LockDef, DoorLock, KeyLock, CodeLock, Door, DoorLeaf, BuildingWorld | A lock as something to place (building.json's locks, GROUND_SYSTEMS.md §6): its key (its item's), name, kind, and the |
 | `ItemWallet.cs` | 31 | ItemWallet | Building materials as items in containers (GROUND.md §6.3, phase 2): a player's main and belt slots pay for placing, |
 | `LockHosts.cs` | 56 | ILockHost, LockState, LockMounts | ILockHost (a target that carries a lock), LockState (validated restoration) and LockMounts (the authored lock socket), shared by doors and standalone hosts. |
 | `PieceGeometry.cs` | 688 | Pose, SocketId, PieceGeometry | A piece's place in its structure's frame: the pivot in metres (Y up) and the yaw in steps of 30°. Every yaw in a |
@@ -870,15 +870,16 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `SoundMeter.cs` | 80 | SoundMeter | Loudness of the game's own sound files, measured in the engine: each stream is decoded through Godot |
 | `SoundViewer.cs` | 788 | SoundViewer | The audition viewer (--view sounds, GROUND.md §4.9): every event of the catalogue in a list (a click plays |
 
-### game/scripts/Build (12 files, 2,834 lines)
+### game/scripts/Build (14 files, 3,058 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `BuildHud.cs` | 104 | BuildHud | The build sandbox's lines over the ground HUD, in RustMVP's manner (GROUND.md §6.3): under the crosshair the target |
 | `BuildSandbox.Check.cs` | 143 | BuildSandbox | --view build --scene empty --build-check: plays one round of building through the sandbox's own input paths (the aim, |
 | `BuildSandbox.ClanBase.cs` | 22 | BuildSandbox | BuildSandbox's clan scene (--view build --scene clan): places the server's 3x3 clan base preset (data/ground/admin-bases/clan-3x3.json) at --grade 2 by default and aims the camera |
+| `BuildSandbox.Doors.cs` | 138 | BuildSandbox | --view build --scene doors: every door the building has, each in its own doorway or wall frame along one wall, for the pictures of docs/DOORS.md (both faces, the lock on both faces, the frame holding the leaf). |
 | `BuildSandbox.Joints.cs` | 227 | BuildSandbox | --view build --scene joints: the building's joints in every grade (GROUND.md §6.3, "Fit"), one group a grade on a |
-| `BuildSandbox.cs` | 767 | BuildSandbox [Surroundings] | The build sandbox (--view build, GROUND.md §6.3): a local zone on the first world's stand-in surface with one |
+| `BuildSandbox.cs` | 781 | BuildSandbox [Surroundings] | The build sandbox (--view build, GROUND.md §6.3): a local zone on the first world's stand-in surface with one |
 | `BuildSandboxUi.cs` | 208 | BuildSandboxUi | The ground interface's view model for the build sandbox (GROUND.md §6.3, §8.1): a belt of building tools, the plan's |
 | `BuildingAssets.cs` | 271 | BuildingAssets | The building kit's art in the game (GROUND.md §6.3, §9): the meshes of every piece in every grade at three levels of |
 | `BuildingRadials.cs` | 147 | IHammerActions, PlanRadial, BuildingRadials | What the hammer's radial does to the piece aimed at: the game sends intents, the build sandbox applies the rules. |
@@ -886,6 +887,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `BuildingWarm.cs` | 67 | BuildingWarm | The building's part of the renderer's warm-up (GROUND.md §4.3.1): every grade's material on its pieces' levels of |
 | `CornerPosts.cs` | 161 | CornerPosts [End] | The posts that close the notch walls leave at an outer corner (GROUND.md §6.3, Fit; decision J5). Walls stand centred |
 | `DemoBases.cs` | 217 | DemoBases [House] | Bases the sandbox builds for a look or a screenshot (GROUND.md §6.3), placed through the rules' sockets so every pose |
+| `DoorLocks.cs` | 72 | DoorLocks | The locks on doors, drawn (docs/DOORS.md §6): the catalogue's code or key lock on the +Z face of the door's first leaf, by its free edge, so it swings with the leaf, and a matching back plate on the other face … |
 
 ### game/scripts/Characters (35 files, 10,937 lines)
 
@@ -933,7 +935,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 |---|---|---|---|
 | `Labeller.cs` | 109 | LabelSide, Labeller | Where a label goes relative to the object it names. |
 | `MapOverlay.cs` | 97 | MapLabel, MapOverlay [Text, Ring] | How a label on a map looks. |
-| `ProcessCommit.cs` | 62 | ProcessCommit [Split] | The client process's private commit split by what backs it, for the opt-in memory traces (docs/DEVELOPMENT.md, |
+| `ProcessCommit.cs` | 62 | ProcessCommit [Split, MemoryBasicInformation] | The client process's private commit split by what backs it, for the opt-in memory traces (docs/DEVELOPMENT.md, |
 | `StarColors.cs` | 59 | StarColors | Presentation colours for stars (blackbody-like, tuned to read well on a dark map). |
 | `Ui.cs` | 666 | TextStyle, Ui [Ground] | Text styles of the interface. Each one is a Label theme type variation of the same name. |
 | `UiIcons.cs` | 85 | UiIcon, UiIcons |  |
@@ -989,13 +991,13 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GibWarm.cs` | 36 | GibWarm | The gibs' part of the renderer's warm-up (GROUND.md §4.3.1, §9.4): every gib file the catalogue names, read, and a |
 | `GibWorld.cs` | 873 | GibFloor, GibWorld [PieceState, Turn, Piece, BreakFloor, Batch] | Where the floor is under a point: a ray from  along  for |
 
-### game/scripts/Ground (73 files, 20,106 lines)
+### game/scripts/Ground (73 files, 20,067 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `ArrowsView.cs` | 81 | ArrowsView | Spent arrows stuck where they hit (GROUND_SYSTEMS.md §5): every one this client knows, placed each frame where its holder |
 | `BuildPanels.cs` | 247 | Keypad, RectSnapping | The code lock's keypad (GROUND.md §6.5), in the RustMVP interface's manner: a dark dialog in the middle of the |
-| `BuildView.cs` | 458 | BuildView, GodotVectors [LiveBuildingWallet] | Building in the ground game (GROUND.md §6.5, phase 2b): the replicated structures drawn by the building package's |
+| `BuildView.cs` | 419 | BuildView, GodotVectors [LiveBuildingWallet] | Building in the ground game (GROUND.md §6.5, phase 2b): the replicated structures drawn by the building package's |
 | `ChildServer.cs` | 195 | ChildServer | A game hosted on this computer in a process of its own (GROUND.md §4.3): the dedicated server (Hollow.Server, built |
 | `ClientConsole.Bindings.cs` | 91 | ClientConsole | ClientConsole's key bindings: bind, unbind, binds and noclipspeed, running a bound command (N admires), kept in user://console-bindings.cfg |
 | `ClientConsole.cs` | 679 | ViewSettings, ClientConsole | The view's settings the console sets (GROUND.md §8.2), kept on this computer: field of view, mouse sensitivity, the frame rate shown. |

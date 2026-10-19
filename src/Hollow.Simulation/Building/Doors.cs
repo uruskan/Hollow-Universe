@@ -177,10 +177,17 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
     }
 
     /// <summary>
-    /// Where a lock sits on a door's first leaf, in the leaf's frame (its origin the hinge): by the free edge at hand
-    /// height, its back on the outside face. The lock is drawn there and placed there.
+    /// Where a lock sits on a door's first leaf, in the leaf's frame (its origin the hinge on the leaf's middle plane): by
+    /// the free edge at hand height, its back resting on the front of the handle plate on the +Z face (the outside of
+    /// the frame), where the keypad or the key cylinder shows. The lock is drawn there and placed there (DOORS.md §6).
     /// </summary>
-    public static Vector3 LockOffset(LeafDef leaf) => new(leaf.Size.X * 0.86f, 1.05f, MathF.Abs(leaf.Size.Z) / 2 + 0.002f);
+    public static Vector3 LockOffset(LeafDef leaf) => new(leaf.Size.X * 0.86f, 1.05f, leaf.LockDepth);
+
+    /// <summary>
+    /// Where the back plate of a lock sits, on the leaf's other face (−Z), at the same place seen from that side: a
+    /// matching housing, so a door with a lock shows one from both sides. It is turned half round: its front faces −Z.
+    /// </summary>
+    public static Vector3 LockBackOffset(LeafDef leaf) => LockOffset(leaf) with { Z = -leaf.LockDepth };
 
     /// <summary>Where a lock on this door is now (it swings with the leaf), in the zone.</summary>
     public (Vector3 Position, Quaternion Rotation) LockSpot
@@ -189,6 +196,17 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
         {
             (Vector3 position, Quaternion rotation) = Leaf(0, Open);
             return (position + Vector3.Transform(LockOffset(Def.Leaves[0]), rotation), rotation);
+        }
+    }
+
+    /// <summary>Where the back plate of a lock on this door is now, in the zone (facing the way the leaf's −Z face does).</summary>
+    public (Vector3 Position, Quaternion Rotation) LockBackSpot
+    {
+        get
+        {
+            (Vector3 position, Quaternion rotation) = Leaf(0, Open);
+            return (position + Vector3.Transform(LockBackOffset(Def.Leaves[0]), rotation),
+                Quaternion.Normalize(rotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
         }
     }
 

@@ -28,7 +28,7 @@ namespace HollowUniverse.Build;
 /// Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; hold the right mouse button for the plan's or the hammer's radial;
 /// left button places, repairs, fits a door or places the device; R turns the piece (or flips the door); E opens and
 /// shuts a door; F2 the stability overlay; F5 one hour of upkeep and decay. Options (after "--"): <c>--scene
-/// house|stability|ghost-valid|ghost-invalid|stress|empty|joints</c> (joints: <c>--tour folder</c>), <c>--overlay</c>,
+/// house|stability|ghost-valid|ghost-invalid|stress|empty|joints|doors</c> (joints: <c>--tour folder</c>), <c>--overlay</c>,
 /// <c>--tool</c> 1–6, <c>--piece key</c>.
 /// </para>
 /// </summary>
@@ -99,7 +99,8 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
             LatitudeDegrees = 28.4,
             LongitudeDegrees = -61.7,
         };
-        _zone = new Zone(spec);
+        // The first world's historical stand-in radius is a diagnostic one now (docs/WHOLE_WORLD.md): a viewer asks for it as such.
+        _zone = new Zone(spec.CreateSurface(diagnostic: true), spec);
         ulong next = 0;
         _nextBuildId = () => new EntityId(++next);
         _world = new BuildingWorld(_data, _zone.Physics, _nextBuildId) { Characters = Capsules };
@@ -177,6 +178,10 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         if (_scene == "joints" && Options.TryGetValue("tour", out string? tour))
         {
             JointTour(tour);
+        }
+        else if (_scene == "doors" && Options.TryGetValue("tour", out string? doorTour))
+        {
+            DoorTour(doorTour);
         }
     }
 
@@ -267,6 +272,11 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
             case "empty":
                 // Nothing built: the first foundation's frame only measures --from and --at (a free foundation's ghost).
                 spawn = Offset(0, 0.5f, 6);
+                break;
+            case "doors":
+                // Every door in its opening along one wall (BuildSandbox.Doors.cs); --from and --at are in the first foundation's frame.
+                Doors(first);
+                spawn = F(frame.ToZone(new Vector3D(0, 0.5, 8)));
                 break;
             case "joints":
                 // Every grade's joints (BuildSandbox.Joints.cs); --from and --at are in the twig group's frame.
@@ -388,6 +398,10 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         _frames++;
         _clock += delta;
         _world.Tick(_clock);
+        if (_frames % 15 == 0)
+        {
+            DoorLocks.Sync(_renderer);
+        }
         Walk(delta);
         Num.Vector3 feet = Num.Vector3.Lerp(_feetBefore, _feetNow, (float)(_accumulator / CharacterMotor.DeltaTime));
         Num.Vector3 up = _zone.Frame.UpAt(feet);
