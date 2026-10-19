@@ -149,7 +149,9 @@ Shuffle bags, spatial attenuation, authority and movement routing are preserved.
 `python -I art/audio/repair_footsteps.py` rebuilds only changed footsteps through the existing measured encoder.
 The full `build.py` uses the same `events.py` recipes; its whole-catalogue recipe enumeration was stopped before
 asset writes because it spends several minutes evaluating unrelated synthesis. The bounded command preserves
-other catalogue entries, measurements and hand-tuned playback settings. All 263 source downloads verify.
+other catalogue entries, measurements and hand-tuned playback settings. It writes the footsteps first, in the order
+a full build writes them (`footsteps()` leads `events.everything()`), so the two commands leave the same
+`sounds.json`. All 263 source downloads verify.
 
 Three adjacent feedback defects are repaired:
 

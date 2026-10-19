@@ -16,6 +16,16 @@ import build
 import events
 
 
+def catalogue_order(old_events, regenerated):
+    """The events in the order a full build writes them. footsteps() is the first group events.everything() registers,
+    so its events lead the catalogue in its own order; every other event keeps its place, and a footstep event that
+    footsteps() no longer registers is dropped. Appending new ones at the end instead made the next full build move
+    them and rewrite the whole file."""
+    replaced = {event["key"] for event in regenerated}
+    return list(regenerated) + [event for event in old_events
+                                if event["key"] not in replaced and not event["key"].startswith("footstep.")]
+
+
 def main():
     events.footsteps()
     levels = build.load_json(build.LEVELS, {"files": {}})["files"]
@@ -43,11 +53,8 @@ def main():
             changed += 1
             print(f"{output.rel}: {measured[metric]:.2f} LUFS, {measured['truePeak']:.2f} dBTP", flush=True)
     build.write_levels(levels)
-    replacements = {event["key"]: event for event in events.EVENTS}
     old = build.load_json(build.CATALOGUE, {})["events"]
-    ordered = [replacements.pop(event["key"], event) for event in old
-               if not event["key"].startswith("footstep.") or event["key"] in replacements]
-    build.write_catalogue(ordered + list(replacements.values()), events.ITEMS, events.SPACES,
+    build.write_catalogue(catalogue_order(old, events.EVENTS), events.ITEMS, events.SPACES,
                           replace_prefixes=("footstep.",))
     current = {output.rel for output in events.OUTS}
     root = Path(build.ASSETS, "footstep").resolve()

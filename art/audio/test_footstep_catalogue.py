@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import build
+import repair_footsteps
 
 
 class FootstepCatalogueTests(unittest.TestCase):
@@ -51,6 +52,19 @@ class FootstepCatalogueTests(unittest.TestCase):
             with open(path, encoding="utf-8") as stream:
                 keys = {event["key"] for event in json.load(stream)["events"]}
             self.assertEqual({"footstep.walk.grass.barefoot", "hand.authored"}, keys)
+
+    def test_bounded_rebuild_orders_footsteps_as_a_full_build_does(self):
+        old = [{"key": "footstep.walk.grass", "files": ["a.ogg"]},
+               {"key": "tool.hit", "files": ["tool.ogg"]},
+               {"key": "footstep.walk.grass.removed", "files": ["gone.ogg"]},
+               {"key": "swim.stroke", "files": ["old-stroke.ogg"]},
+               {"key": "hand.authored", "files": ["keep.ogg"]}]
+        regenerated = [{"key": "footstep.walk.grass.barefoot"}, {"key": "footstep.walk.grass"},
+                       {"key": "swim.stroke", "files": ["new-stroke.ogg"]}]
+        ordered = repair_footsteps.catalogue_order(old, regenerated)
+        self.assertEqual(["footstep.walk.grass.barefoot", "footstep.walk.grass", "swim.stroke",
+                          "tool.hit", "hand.authored"], [event["key"] for event in ordered])
+        self.assertEqual(["new-stroke.ogg"], ordered[2]["files"])
 
 
 if __name__ == "__main__":

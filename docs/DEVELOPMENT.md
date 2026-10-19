@@ -4513,3 +4513,17 @@ tick. `LoopbackRig(simulated: true)` steps server and clients in 60 Hz steps (ne
 three tests use it. New test `TickClockSettlesAfterASlowHandshakeAtALongPing` (27 jumps in 20 s on the old cooldown, 1 now).
 Validation: see the commit message. Still wall-clock: LiteNetLib's resend delay for a lost reliable packet reads
 `DateTime.UtcNow`, so a hitch of the whole PC can still make a lost fire intent arrive over a second late.
+
+### 19 October 2026 — sounds.json: one event order for `build.py` and `repair_footsteps.py`
+
+Every `python -I art/audio/build.py` rewrote `game/data/ground/sounds.json` (4,716 lines moved) even with "0 to build".
+Cause: two writers disagreed. The committed file had been written by `repair_footsteps.py`, which kept the old events
+where they stood (the 32 legacy `footstep.<gait>.<surface>` aliases first) and appended the 96 new
+`footstep.<gait>.<surface>.<profile>` events after everything else; `build.py` writes events in the order of
+`events.everything()`, where `footsteps()` comes first and registers each footwear event beside its alias.
+The build is stable (a second run leaves the file unchanged); only the committed order was stale.
+Fix: the catalogue is committed in the build's order (no change to any event: the same 332 keys, each identical, and the
+same top-level fields), and `repair_footsteps.catalogue_order` now puts the regenerated footsteps first, as a full build
+does, so the bounded command no longer reintroduces the difference. Validation: `build.py` twice in a row and
+`git status` stays clean; `repair_footsteps.py` run on the old-order file writes the build's file byte for byte;
+`art/audio` unit tests 4/4 (new: the bounded rebuild's order); `Hollow.Tests -- Sound` 8/8.
