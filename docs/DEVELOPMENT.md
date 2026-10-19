@@ -1,5 +1,65 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — T2: the walls' rock skins
+
+Rigid scans could not dress Earth's tall, curving walls ("T2: Earth's walls measured, and four ways that do not dress
+them", below). At the owner's choice, each wall is now dressed with a rock skin traced along its face
+(`src/Hollow.Surface/CliffWalls.cs`, `CliffWall`):
+
+- **The face.** Seeds on a 3.7 m grid of the cell find a wall: the steepest half-metre within four metres, grown while
+  each half-metre rises 1.5 (56°) or more; a face under 3 m tall takes none. From a seed the face is followed both
+  ways a metre and a half at a time, found again at each step, while it lasts, turns gently and goes on along the wall
+  (its middle may wander up or down a leaning face), and three stations past the cell's edge. A seed anywhere on a
+  face already traced, foot to crest, is skipped: counting only seeds near a traced middle had leaning mountain faces
+  traced over and over in short pieces.
+- **The skin.** Each run of stations is a grid of rows a metre apart: a skirt buried below the foot, the face, a lip
+  folded back under the crest's ground. It stands 0.3 m out of the face and up to 0.9 m more where its rock bulges
+  (blocks a few metres across cut by joints down the face, and grain), in the world's own space so neighbouring cells'
+  skins agree. The relief fades at the grid's edges, and over a run's last stations (past the cell's edge, or where
+  the wall ends) the skin dives behind the face, so neighbouring cells' skins cross instead of fighting. Every second,
+  fourth and eighth station and row make its coarser levels of detail: one mesh for every distance.
+- **Its rock.** The scans' textures are atlases of their meshes and cannot tile across a wall, so a skin draws its
+  recipe's wall texture, one of the ground's own tileable rock scans from its arrays (`cliff_skin.gdshader`, projected
+  from the world's three axes, normals by the whiteout blend): the canyon sandstone on tablelands, coasts and inland,
+  lichened rock on mountains (plain rock on Low, which loads no alternatives; `wallTextures` in `cliff-recipes.json`;
+  `GroundLayers.Find`). Coasts first took the coastal rock, but their walls met the tablelands' in hard seams. The
+  shader paints the rock's beds, so their lines stay sharp at any distance: bands about 3.2 m thick by height,
+  drifting a metre or two over tens along the wall (a coarse mip of the texture's height, so the drift is smooth),
+  each its own shade, with a dark groove and a lit ledge where one meets the next, as strongly as the recipe's
+  `wallStrata` (sandstone 1, mountain 0.3). The first beds, drifting with the texture's fine height, wandered like
+  contour lines.
+- **Solid.** A skin's first coarser level joins the scans in every collision tile, its triangles facing out of the
+  face. Cliff generation 6, Earth save revision 9 (others 6), protocol 43.
+- **Drawn.** The client's far sweep builds every cell's skins with its formation, nearest first; their meshes are made
+  a few a frame under their chunks (hidden with them behind the horizon) and cast shadows within the near layer's
+  reach (`game/scripts/Surface/CliffField.Walls.cs`). `--no-cliff-skins` leaves them out; the performance breakdown
+  hides them alone (`CliffWalls`).
+
+Rock now stands in front of 96.5% of Earth's summed wall rise (46.2% before; coastal 96.2%, inland 97.8%, mountain
+95.7%, plateau 97.0%). Skins cover 448 cells: 863,000 vertices and 1.57 million triangles, built in 18 s on one thread
+(3.0 ms a cell, the slowest 54 ms). The heaviest collision tile, built cold, now takes 891 ms: its cells' formations
+441 ms and their skins 375 ms (123,522 triangles), which T5 must bound. Drawn, they cost about 0.5 ms of GPU time at
+the mountain site on the ground at High (inside the runs' ±1 ms noise; 138 draw calls, 0.22 million primitives),
+measured on their first version: a run on the final one could not settle while the grass field was being rebuilt in
+the same checkout.
+
+Before and after, `skin-off-*` and `skin-on-*` in `docs/images/t2-formations/`: the mountain site's 22 m escarpment,
+bare red above its rock band before, is a bedded sandstone face; the coastal scarp's upper wall carries beds behind
+its slab (that frame at 60°, the others at 90°: the hosted view's field of view changed in the shared checkout between
+captures); from 40 m above, the escarpment reads as layered rock.
+
+New tests: a 30 m step is covered from foot to crest; along a wall crossing three cells, 151 sight lines a metre apart
+all meet a skin; the skin is solid where it is drawn, facing out; a mountain wall's skin is the same mesh every time,
+with unit normals and its coarser levels.
+
+Still open: the route's walk with the skins solid (they stand up to 1.2 m out of a wall's foot), the cold collision
+tile (T5), the faint seams where neighbouring skins cross, the skin's own relief (soft beside the painted beds), a GPU
+run on the final version, and hosted captures at the T1 sites other than these.
+
+Validation: solution 0 warnings, 0 errors; full suite 1,026 of 1,026 in 527 s (an earlier full run had one known
+loopback flake, `APassengerIsPredictedExactlyWhileAnotherFlies`, which then passed three times alone); the cliff tests
+33 of 33; the hosted captures above.
+
 ## 19 October 2026 — The meadow's floor, second pass: Leafy Grass in place of Ground 037
 
 The owner saw the Ground 037 captures of the ground entry below and chose blades over moss: "download Poly Haven

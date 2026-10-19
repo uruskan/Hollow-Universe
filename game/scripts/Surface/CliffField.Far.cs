@@ -30,7 +30,7 @@ public sealed partial class CliffField
         public readonly Vector3D Anchor = anchor;
         public readonly List<CliffPlacement> Parts = new();
         public readonly MultiMeshInstance3D?[] Batches = new MultiMeshInstance3D?[models];
-        public Node3D? Node;
+        public Node3D? Node, WallNode;
         public bool Dirty, Shown = true;
         /// <summary>The widest angle from the anchor to any part's edge, and the farthest a part reaches from the centre.</summary>
         public double Angle, TopRadius;
@@ -47,13 +47,15 @@ public sealed partial class CliffField
         private readonly List<int> _remaining;
         private Vector3D _focus, _sortedFor;
         private volatile bool _stopped;
-        public readonly ConcurrentQueue<(int Cell, CliffPlacement[] Parts)> Results = new();
+        private readonly bool _walls;
+        public readonly ConcurrentQueue<(int Cell, CliffPlacement[] Parts, CliffWall[] Walls)> Results = new();
         public volatile Exception? Error;
         public readonly Task Finished;
 
-        public FarSweep(CliffPlacements source, Vector3D[] centres, Vector3D focus)
+        public FarSweep(CliffPlacements source, Vector3D[] centres, Vector3D focus, bool walls)
         {
             _source = source;
+            _walls = walls;
             _centres = centres;
             _refocus = FarRefocusMetres / source.Surface.Radius;
             _remaining = new List<int>(centres.Length);
@@ -82,7 +84,10 @@ public sealed partial class CliffField
         private void Run()
         {
             while (!_stopped && Take() is int cell)
-                Results.Enqueue((cell, _source.Generate(TileKey.FromIndex(_source.Level, cell)!.Value)));
+            {
+                TileKey tile = TileKey.FromIndex(_source.Level, cell)!.Value;
+                Results.Enqueue((cell, _source.Generate(tile), _walls ? _source.GenerateWalls(tile) : Array.Empty<CliffWall>()));
+            }
         }
 
         private int? Take()
@@ -149,7 +154,7 @@ public sealed partial class CliffField
     /// Idle once every cell within <see cref="FarReadyReach"/> of the camera is built and no chunk waits to be rebuilt;
     /// the rest of the world fills in behind, nearest first, without holding a loading screen.
     /// </summary>
-    private bool FarIdle => _farOff || (_sweep != null && _farMissing == 0 && _farDirty.Count == 0);
+    private bool FarIdle => _farOff || (_sweep != null && _farMissing == 0 && _farDirty.Count == 0 && !WallsPending());
 
     private void SetupFar()
     {
@@ -161,6 +166,7 @@ public sealed partial class CliffField
         _farRoot = new Node3D { Name = "Far" };
         AddChild(_farRoot);
         _farOff = Array.IndexOf(OS.GetCmdlineUserArgs(), "--no-far-cliffs") >= 0;
+        SetupWalls();
     }
 
     private void FollowFar(Vector3D camera, bool moved, bool rebased)
@@ -175,18 +181,25 @@ public sealed partial class CliffField
         }
         Vector3D focus = camera.Normalized;
         if (moved) _sweep.Focus(focus);
-        while (_sweep.Results.TryDequeue(out (int Cell, CliffPlacement[] Parts) built))
+        while (_sweep.Results.TryDequeue(out (int Cell, CliffPlacement[] Parts, CliffWall[] Walls) built))
         {
             _farDone[built.Cell] = true;
             _farSwept++;
             if (_farRequired[built.Cell]) _farMissing--;
             foreach (CliffPlacement part in built.Parts) AddFar(part);
+            foreach (CliffWall wall in built.Walls) AddWall(built.Cell, wall);
             if (_farSwept == _farCentres.Length) SweepDone();
         }
         if ((focus - _farRequiredFor).Length * _source.Surface.Radius > RefreshDistance) Require(focus);
         if (rebased)
             foreach (FarChunk chunk in _farChunks.Values)
+            {
                 if (chunk.Node != null) chunk.Node.Position = _frame.ToRender(chunk.Anchor);
+                if (chunk.WallNode != null) chunk.WallNode.Position = _frame.ToRender(chunk.Anchor);
+            }
+        if (rebased)
+            foreach (Material material in _wallMaterials.Values)
+                ((ShaderMaterial)material).SetShaderParameter("planet_centre", _frame.Centre);
         PrepareFarMesh();
         for (int i = _farDirty.Count - 1; i >= 0; i--)
         {
@@ -195,11 +208,16 @@ public sealed partial class CliffField
             chunk.Dirty = false;
             _farDirty.RemoveAt(i);
         }
+        BuildWalls(camera);
         int shown = 0, pieces = 0;
         foreach (FarChunk chunk in _farChunks.Values)
         {
             bool show = OverHorizon(chunk, camera);
-            if (show != chunk.Shown && chunk.Node != null) chunk.Node.Visible = show;
+            if (show != chunk.Shown)
+            {
+                if (chunk.Node != null) chunk.Node.Visible = show;
+                if (chunk.WallNode != null) chunk.WallNode.Visible = show;
+            }
             chunk.Shown = show;
             if (show && chunk.Drawn > 0) { shown++; pieces += chunk.Drawn; }
         }
@@ -216,7 +234,7 @@ public sealed partial class CliffField
         _farDone = new bool[centres.Length];
         _farRequired = new bool[centres.Length];
         _farStarted = Time.GetTicksMsec();
-        _sweep = new FarSweep(_source, centres, camera.Normalized);
+        _sweep = new FarSweep(_source, centres, camera.Normalized, !_wallsOff);
     }
 
     private void SweepDone()
@@ -224,7 +242,7 @@ public sealed partial class CliffField
         int pieces = 0;
         foreach (FarChunk chunk in _farChunks.Values) pieces += chunk.Parts.Count;
         GD.Print($"[cliffs] far layer: {_farCentres.Length} cells swept in {(Time.GetTicksMsec() - _farStarted) / 1000.0:0.0} s, " +
-            $"{pieces} pieces in {_farChunks.Count} chunks");
+            $"{pieces} pieces in {_farChunks.Count} chunks, {_wallInstances.Count + _wallQueue.Count} wall skins");
     }
 
     // The cells that must be built before the field reports idle: those within FarReadyReach of the camera.
@@ -243,15 +261,22 @@ public sealed partial class CliffField
         _farRequiredFor = focus;
     }
 
-    private void AddFar(CliffPlacement part)
+    // The chunk holding a cell, made the first time anything stands in it.
+    private FarChunk ChunkFor(TileKey cell)
     {
-        TileKey key = part.Tile;
+        TileKey key = cell;
         while (key.Level > _farLevel) key = key.Parent;
         if (!_farChunks.TryGetValue(key, out FarChunk? chunk))
         {
             chunk = new FarChunk(key.Centre * _source.Surface.Radius, _models.Count);
             _farChunks.Add(key, chunk);
         }
+        return chunk;
+    }
+
+    private void AddFar(CliffPlacement part)
+    {
+        FarChunk chunk = ChunkFor(part.Tile);
         chunk.Parts.Add(part);
         double extent = CliffGeometry.All[part.Model].BoundingRadius * part.Scale, distance = part.Position.Length;
         double angle = Math.Acos(Math.Clamp(Vector3D.Dot(chunk.Anchor.Normalized, part.Position / distance), -1, 1));

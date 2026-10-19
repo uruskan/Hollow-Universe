@@ -106,6 +106,20 @@ public static class GroundLayers
     /// <summary>Puts the textures into their arrays now (the loading screen's warm-up), if not done yet.</summary>
     public static void Warm() => Load();
 
+    /// <summary>
+    /// The first of some textures (layers.json keys) this run loaded: its place in the arrays, the metres one repeat
+    /// covers and its normal map's flips; null when none is loaded. For other shaders that draw the ground's scans (the
+    /// cliffs' wall skins).
+    /// </summary>
+    public static (int Index, float Metres, Vector2 Flip)? Find(IReadOnlyList<string> keys)
+    {
+        Loaded l = Load();
+        foreach (string key in keys)
+            foreach (Texture t in l.Catalogue.Textures)
+                if (t.Key == key && t.Index < l.TextureCount) return (t.Index, t.Metres, t.Flip);
+        return null;
+    }
+
     /// <summary>Gives a ground shader the arrays, every texture's size, normal flips and luminance, and the materials' variants.</summary>
     public static void Apply(ShaderMaterial material)
     {

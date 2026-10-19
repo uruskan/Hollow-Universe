@@ -67,9 +67,10 @@ public sealed partial class EnvironmentRoute
             return;
         }
 
-        // CliffsFar: the cliffs' far layer alone (T2), every formation beyond the pieces the near layer installed.
+        // CliffsFar: the cliffs' far layer alone (T2), every formation beyond the pieces the near layer installed;
+        // CliffWalls: the walls' rock skins.
         foreach ((string name, string path) in new[] { ("Vegetation", "Vegetation"), ("Grass", "Grass"), ("Cliffs", "Cliffs"),
-                     ("CliffsFar", "Cliffs/Far"), ("Monuments", "Monuments") })
+                     ("CliffsFar", "Cliffs/Far"), ("CliffWalls", "Cliffs/Walls"), ("Monuments", "Monuments") })
         {
             Node3D? layer = world.GetNodeOrNull<Node3D>(path);
             if (layer == null || !layer.Visible)

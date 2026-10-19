@@ -307,7 +307,8 @@ Client options (after `--`):
   ten barrels shot), `--gibs <key>[/<part>]` (one close up, `--yaw`, `--distance`); with `--shot`, held `--at <s>` after
   the break; `--stress gibs --measure <s>` (the raid every 2.5 s, gibs off and on: prints what they cost and quits).
 - Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second), `--no-far-cliffs` (the walking
-  world's cliffs without their far layer, as before it: for comparisons; docs/TERRAIN_SCENERY_PLAN.md T2).
+  world's cliffs without their far layer, as before it, and so without the walls' rock skins, which it builds) and
+  `--no-cliff-skins` (without the skins alone): for comparisons; docs/TERRAIN_SCENERY_PLAN.md T2.
 - Ground (GROUND.md §4.3): `--view ground` alone opens the main menu; `--body male|female` (default: the menu's last
   choice); `--mute` (no sound), `--sound-trace` (print every sound started); `--name <n>` with `--host [--port <n>]` (the
   dedicated server started as a process of its own; `--in-process` runs it on a thread of the game) or

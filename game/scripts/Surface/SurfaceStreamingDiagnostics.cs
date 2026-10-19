@@ -44,7 +44,7 @@ public sealed partial class CliffField
 {
     public string StreamingStatus => $"idle={IsIdle} job={_job?.Status.ToString() ?? "none"} pending={_pending.Count} drawn={_instances.Count} " +
         $"far={FarShownPieces} in {FarShownChunks}/{FarChunkCount} chunks swept={FarSweptCells}/{FarCellCount} farDirty={_farDirty.Count} " +
-        $"farUs={LastFarMicroseconds}";
+        $"farUs={LastFarMicroseconds} walls={WallCount} wallsPending={WallPendingCount} wallTriangles={WallTriangles}";
 }
 
 public sealed partial class MonumentField

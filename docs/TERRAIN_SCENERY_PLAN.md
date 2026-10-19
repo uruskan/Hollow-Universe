@@ -229,6 +229,21 @@ heightfield cannot dress these walls. Two ways can: a conforming rock surface, a
 (a mesh following a wall's face in the scans' materials), or T3's triplanar rock for steep ground so a bare face
 reads as rock at every distance. Which comes first is the owner's choice.
 
+Walls dressed, 20 October. The owner chose the conforming surface. Each cell's walls are now traced a metre and a half
+at a time along their face and dressed from foot to crest with a rock skin (`CliffWalls.cs`): a mesh set 0.3 to 1.2 m
+out of the face with the relief of jointed rock, a skirt buried at its foot and a lip folded under its crest's ground,
+solid like the scans. It is drawn in one of the ground's own tileable rock scans (the scans' textures are atlases of
+their meshes and cannot tile), with the rock's beds painted by its shader. Rock now stands in front of 96.5% of
+Earth's wall rise (46.2% before; coastal 96.2%, inland 97.8%, mountain 95.7%, plateau 97.0%), and neighbouring cells'
+skins meet without a gap. The skins cover 448 cells with 1.57 million triangles, built in 18 s on one thread; with
+them the heaviest collision tile takes 891 ms built cold, a cost T5 must bound. Drawn, they cost about 0.5 ms of GPU
+time at the mountain site, inside the runs' noise. Their look is a first pass
+([before](images/t2-formations/skin-off-mountain-face.jpg) and
+[after](images/t2-formations/skin-on-mountain-face.jpg)): the skin's own relief is soft beside the painted beds, and
+faint seams show where neighbouring skins cross. Not yet the gate: the route's walk is still to be rerun with the
+skins solid, and the hosted captures at the other sites to be retaken. Cliff generation 6, Earth save revision 9
+(others 6), protocol 43.
+
 ### T3 — Make rock, soil and vegetation share environmental data
 
 Extend the existing cover/material system with formation influence: exposed bedrock, debris,

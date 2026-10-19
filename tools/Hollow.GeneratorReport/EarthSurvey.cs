@@ -374,6 +374,24 @@ public static class EarthSurvey
         }
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"{count} cells in {total / 1000:F1} s on one thread: {dressed} dressed with {pieces} pieces, mean {total / count:F2} ms a cell, slowest {slowest:F1} ms"));
+        // The walls' rock skins, built afresh for every cell (as the client's far layer does).
+        int skinned = 0;
+        long vertices = 0, triangles = 0;
+        double skinTotal = 0, skinSlowest = 0;
+        TileKey skinWorst = default;
+        for (long i = 0; i < count; i++)
+        {
+            TileKey cell = TileKey.FromIndex(level, i)!.Value;
+            watch.Restart();
+            CliffWall[] walls = world.Cliffs.GenerateWalls(cell);
+            double ms = watch.Elapsed.TotalMilliseconds;
+            skinTotal += ms;
+            if (ms > skinSlowest) (skinSlowest, skinWorst) = (ms, cell);
+            if (walls.Length > 0) skinned++;
+            foreach (CliffWall wall in walls) { vertices += wall.Positions.Length / 3; triangles += wall.Indices.Length / 3; }
+        }
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"wall skins: {skinTotal / 1000:F1} s on one thread, {skinned} cells skinned, {vertices} vertices, {triangles} triangles, mean {skinTotal / count:F2} ms a cell, slowest {skinSlowest:F1} ms"));
         // The cost a physics tile pays when it is built on demand (on the server's tick) over the slowest cell, in a
         // fresh world whose cliff cells are all cold: its ground, every cell within the collision reach, the hulls.
         TileKey worst = default;
@@ -393,6 +411,25 @@ public static class EarthSurvey
         var (lat, lon) = LatLon(worst.Centre);
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"cold collision tile over the slowest cell ({lat:F4}, {lon:F4}): {watch.Elapsed.TotalMilliseconds:F0} ms, {mesh.TriangleCount} triangles"));
+        WalkingWorld coldWalls = WalkingReport.Build(earth: true);
+        TileKey wallTile = TileKey.At(skinWorst.Centre, TileKey.LevelFor(coldWalls.Radius, 64));
+        watch.Restart();
+        TriangleMesh wallMesh = coldWalls.GroundCollision(ZoneFrame.World, wallTile, 2);
+        double wallTileMs = watch.Elapsed.TotalMilliseconds;
+        // What it spent: the formations and the skins it built cold, timed again apart in another fresh world.
+        WalkingWorld split = WalkingReport.Build(earth: true);
+        double reach = TileKey.EdgeLength(wallTile.Level, split.Radius) * 0.95 + 2;
+        Vector3D tileGround = wallTile.Centre * (split.Radius + split.HeightAt(wallTile.Centre));
+        watch.Restart();
+        int near = split.Cliffs.Near(tileGround, reach).Count;
+        double formationsMs = watch.Elapsed.TotalMilliseconds;
+        watch.Restart();
+        int skins = split.Cliffs.WallsNear(tileGround, reach).Count;
+        double skinsMs = watch.Elapsed.TotalMilliseconds;
+        (lat, lon) = LatLon(skinWorst.Centre);
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"cold collision tile over the slowest wall cell ({lat:F4}, {lon:F4}): {wallTileMs:F0} ms, {wallMesh.TriangleCount} triangles; " +
+            $"its formations {formationsMs:F0} ms ({near} pieces), its skins {skinsMs:F0} ms ({skins})"));
         return 0;
     }
 

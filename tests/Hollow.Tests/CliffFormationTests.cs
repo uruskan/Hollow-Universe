@@ -111,6 +111,112 @@ public static class CliffFormationTests
     }
 
     [Test]
+    public static void CliffWallSkinsDressAWallFromFootToCrest()
+    {
+        TileKey tile = TileKey.At(Vector3D.UnitX, new CliffPlacements(new SlopingSurface(0), 1).Level);
+        Vector3D centre = tile.Centre;
+        var surface = new EscarpmentSurface(centre.Z / centre.X, rise: 30);
+        var placements = new CliffPlacements(surface, 5);
+        CliffWall[] walls = placements.GenerateWalls(tile);
+        Assert.Equal(1, walls.Length, "the cell's one wall takes one recipe's textures");
+        Assert.Equal("mountain-face", CliffRecipe.All[walls[0].Recipe].Key, "a surface without relief fields takes the mountain recipe");
+        CliffWall wall = walls[0];
+        int vertices = wall.Positions.Length / 3;
+        Assert.True(vertices > 0 && wall.Positions.Length % 3 == 0 && wall.Normals.Length == wall.Positions.Length, "a vertex has a position and a normal");
+        Assert.True(wall.Indices.Length % 3 == 0 && wall.Indices.All(i => i >= 0 && i < vertices), "triangles index the skin's vertices");
+        Assert.Equal(3, wall.Lods.Length, "three coarser levels of detail");
+        double previous = 0;
+        int triangles = wall.Indices.Length;
+        foreach (CliffWallLod lod in wall.Lods)
+        {
+            Assert.True(lod.Indices.Length % 3 == 0 && lod.Indices.Length > 0 && lod.Indices.Length < triangles &&
+                lod.Indices.All(i => i >= 0 && i < vertices), "each level is fewer triangles over the same vertices");
+            Assert.True(lod.Error > previous, "coarser levels admit larger errors");
+            (previous, triangles) = (lod.Error, lod.Indices.Length);
+        }
+        CliffWall again = new CliffPlacements(surface, 5).GenerateWalls(tile)[0];
+        Assert.True(wall.Positions.SequenceEqual(again.Positions) && wall.Normals.SequenceEqual(again.Normals) &&
+            wall.Indices.SequenceEqual(again.Indices), "every client and server builds the same skin");
+        Assert.True(placements.WallsAt(tile)[0].Positions.SequenceEqual(wall.Positions), "the cache keeps what generation builds");
+        double low = double.PositiveInfinity, high = double.NegativeInfinity;
+        for (int v = 0; v < vertices; v++)
+        {
+            var normal = new Vector3D(wall.Normals[v * 3], wall.Normals[v * 3 + 1], wall.Normals[v * 3 + 2]);
+            Assert.Near(1, normal.Length, 1e-4, "normals are unit length");
+            double height = (wall.Anchor + new Vector3D(wall.Positions[v * 3], wall.Positions[v * 3 + 1], wall.Positions[v * 3 + 2])).Length - surface.Radius;
+            (low, high) = (Math.Min(low, height), Math.Max(high, height));
+        }
+        Assert.True(low < 300 && high > 328, $"the skin reaches from below the foot to the crest ({low:F1} to {high:F1} m)");
+        double rise = 0, covered = 0;
+        foreach (CliffFaceSample sample in placements.Report(tile))
+            if (sample.Wall) { rise += sample.Rise; covered += sample.RiseCovered; }
+        Fixtures.Report($"30 m step: skin of {vertices} vertices, {wall.Indices.Length / 3} triangles; {covered / rise:P0} of the walls' rise covered");
+        Assert.True(covered >= 0.9 * rise, $"the skin covers the wall from foot to crest ({covered / rise:P0})");
+    }
+
+    [Test]
+    public static void CliffWallSkinsAreSolidWhereTheyAreDrawn()
+    {
+        TileKey tile = TileKey.At(Vector3D.UnitX, new CliffPlacements(new SlopingSurface(0), 1).Level);
+        Vector3D centre = tile.Centre;
+        var surface = new EscarpmentSurface(centre.Z / centre.X, rise: 30);
+        var placements = new CliffPlacements(surface, 5);
+        CliffWall wall = placements.GenerateWalls(tile)[0];
+        TileKey collisionTile = TileKey.At(wall.Anchor, TileKey.LevelFor(surface.Radius, 64));
+        TriangleMesh ground = SurfaceGrid.Collision(surface, ZoneFrame.World, collisionTile, 2, SurfaceGrid.DefaultSpacing);
+        TriangleMesh solid = placements.Collision(ZoneFrame.World, collisionTile, 2);
+        Assert.True(solid.TriangleCount >= ground.TriangleCount + wall.Lods[0].Indices.Length / 3,
+            "the collision tile holds the skin's first coarser level besides the ground");
+        // The skins' collision (it follows the ground's, before the scans' hulls) faces outward, as the ground's faces up:
+        // (b - a) x (c - a) leans down the wall.
+        double reach = TileKey.EdgeLength(collisionTile.Level, surface.Radius) * 0.95 + 2;
+        Vector3D tileGround = collisionTile.Centre * (surface.Radius + surface.HeightAt(collisionTile.Centre));
+        int skins = placements.WallsNear(tileGround, reach).Sum(w => w.Lods[0].Indices.Length);
+        int first = ground.Indices.Length;
+        Vector3D Point(int index) => new(solid.Positions[index * 3], solid.Positions[index * 3 + 1], solid.Positions[index * 3 + 2]);
+        int outward = 0, triangles = 0;
+        Vector3D downslope = (new Vector3D(1, centre.Y / centre.X, centre.Z / centre.X - 0.01).Normalized - centre.Normalized).Normalized;
+        for (int i = first; i + 2 < first + skins; i += 3)
+        {
+            Vector3D a = Point(solid.Indices[i]), b = Point(solid.Indices[i + 1]), c = Point(solid.Indices[i + 2]);
+            Vector3D normal = Vector3D.Cross(b - a, c - a);
+            if (normal.LengthSquared < 1e-12) continue;
+            triangles++;
+            if (Vector3D.Dot(normal.Normalized, downslope) > 0.3) outward++;
+        }
+        Assert.True(outward > triangles / 2, $"most of the skin's solid triangles face out of the wall ({outward} of {triangles})");
+    }
+
+    [Test]
+    public static void CliffWallSkinsLeaveNoGapWhereAWallCrossesCells()
+    {
+        TileKey tile = TileKey.At(Vector3D.UnitX, new CliffPlacements(new SlopingSurface(0), 1).Level);
+        Vector3D centre = tile.Centre;
+        double tangent = centre.Z / centre.X;
+        var surface = new EscarpmentSurface(tangent, rise: 30);
+        var placements = new CliffPlacements(surface, 9);
+        var cells = new HashSet<TileKey>();
+        int lines = 0, hits = 0, gap = 0, longest = 0;
+        // Along the step for 150 m across several cells, a level sight line at mid-height from 4 m out every metre.
+        for (int k = -75; k <= 75; k++)
+        {
+            double y = centre.Y / centre.X + k / (surface.Radius + 315);
+            Vector3D direction = new Vector3D(1, y, tangent).Normalized;
+            Vector3D face = direction * (surface.Radius + 315);
+            Vector3D lower = new Vector3D(1, y, tangent - 0.01).Normalized * (surface.Radius + 315);
+            Vector3D outward = (lower - face) - direction * Vector3D.Dot(lower - face, direction);
+            outward = outward.Normalized;
+            cells.Add(TileKey.At(direction, placements.Level));
+            lines++;
+            bool hit = placements.WallsNear(face, 40).Any(wall => CliffPlacements.Hits(wall, face + outward * 4, -outward, 4.5));
+            if (hit) { hits++; gap = 0; } else longest = Math.Max(longest, ++gap);
+        }
+        Fixtures.Report($"step across {cells.Count} cells: {hits} of {lines} sight lines meet a skin, longest gap {longest} m");
+        Assert.True(cells.Count >= 3, "the stretch crosses cells");
+        Assert.True(hits >= lines - 2 && longest <= 1, "cells' skins meet along the wall without a gap");
+    }
+
+    [Test]
     public static void CliffFormationSightLinesMeetTheScanMesh()
     {
         var surface = new SlopingSurface(1.1);

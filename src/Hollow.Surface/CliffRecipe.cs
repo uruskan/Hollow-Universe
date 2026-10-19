@@ -47,10 +47,23 @@ public sealed class CliffRecipe
     /// <summary>Whether the face's toe may stand in the sea's surf (a coastal recipe).</summary>
     public bool WetToe { get; }
 
+    /// <summary>
+    /// The ground textures (layers.json keys) that dress the face's walls, their rock skin (<see cref="CliffWall"/>): the
+    /// first a run has loaded. The scans' own textures are atlases of their meshes and cannot tile across a wall.
+    /// </summary>
+    public IReadOnlyList<string> WallTextures { get; }
+
+    /// <summary>How strongly a wall's beds show on its skin: 1 for bedded sandstone, less for crystalline rock.</summary>
+    public double WallStrata { get; private set; }
+
+    /// <summary>The recipe's place in <see cref="All"/>.</summary>
+    public int Index { get; private set; }
+
     private readonly Dictionary<string, double> _families;
 
     private CliffRecipe(string key, string[] where, Dictionary<string, double> families, double minimumScale,
-        double maximumScale, double rockShare, double gentleRockShare, double typicalHeight, double typicalWidth, bool wetToe)
+        double maximumScale, double rockShare, double gentleRockShare, double typicalHeight, double typicalWidth, bool wetToe,
+        string[] wallTextures)
     {
         if (string.IsNullOrWhiteSpace(key) || where.Length == 0 || families.Count == 0 ||
             !double.IsFinite(minimumScale) || minimumScale <= 0 || !double.IsFinite(maximumScale) || maximumScale < minimumScale ||
@@ -63,6 +76,8 @@ public sealed class CliffRecipe
         (Key, Where, _families) = (key, where, families);
         (MinimumScale, MaximumScale, RockShare, GentleRockShare) = (minimumScale, maximumScale, rockShare, gentleRockShare);
         (TypicalHeight, TypicalWidth, WetToe) = (typicalHeight, typicalWidth, wetToe);
+        if (wallTextures.Length == 0) throw new InvalidOperationException("Cliff recipe " + key + " names no wall texture");
+        WallTextures = wallTextures;
     }
 
     /// <summary>The share of ground at this grade meant to carry rock (walls are dressed regardless).</summary>
@@ -80,6 +95,13 @@ public sealed class CliffRecipe
             foreach (string where in recipe.Where)
                 if (where == setting) return recipe;
         throw new InvalidOperationException("No cliff recipe dresses " + setting);
+    }
+
+    private static string[] Strings(JsonElement array)
+    {
+        var result = new List<string>();
+        foreach (JsonElement item in array.EnumerateArray()) result.Add(item.GetString()!);
+        return result.ToArray();
     }
 
     private static (CliffRecipe[], double) Read()
@@ -102,7 +124,10 @@ public sealed class CliffRecipe
                 row.GetProperty("rockShare").GetDouble(), row.GetProperty("gentleRockShare").GetDouble(),
                 row.GetProperty("typicalHeight").GetDouble(),
                 row.GetProperty("typicalWidth").GetDouble(),
-                row.TryGetProperty("wetToe", out JsonElement wet) && wet.GetBoolean()));
+                row.TryGetProperty("wetToe", out JsonElement wet) && wet.GetBoolean(),
+                Strings(row.GetProperty("wallTextures"))));
+            recipes[^1].Index = recipes.Count - 1;
+            recipes[^1].WallStrata = Math.Clamp(row.GetProperty("wallStrata").GetDouble(), 0, 1);
         }
         // Every setting a face can have is dressed, and every family a recipe names exists among the scans.
         var known = new HashSet<string>(StringComparer.Ordinal);

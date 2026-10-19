@@ -45,9 +45,10 @@ cliff query's reach includes its 40 m maximum extent) and reported 65.5%; that o
 
 Two T2 measures look up a wall rather than at its ground point, since a scan's box holds much air. A wall's
 **rise** is its face through a wall sample, from foot to crest, every metre of it rising at least one; the rise
-is **covered** where a level sight line from 4 m out meets a scan's mesh before the ground, tested every metre and
-a half up the face. A **shelf** is a scan whose foot hangs: a third of its lowest points more than 2.5 m over the
-ground beneath them and more than 2.25 m out of the ground behind them, so its underside shows over a drop.
+is **covered** where a level sight line from 4 m out meets a scan's mesh, or a wall's rock skin, before the
+ground, tested every metre and a half up the face. A **shelf** is a scan whose foot hangs: a third of its lowest
+points more than 2.5 m over the ground beneath them and more than 2.25 m out of the ground behind them, so its
+underside shows over a drop.
 
 ## Results
 
@@ -162,6 +163,9 @@ beyond about 94 m scallops. Two remedies, for T2 to compare; neither is applied:
   parameter `CliffBand` (default 0.3, unchanged): four times wider, Earth's wall area falls only 5.5% and the walls'
   rise with rock in front rises from 46.2% to 47.9%, because walls also stand on mountain flanks, canyon sides, mesa
   edges and coasts. Not sufficient alone.
+
+T2 took a third way: a rock skin traced along each wall's face, drawn at every distance with the far layer and solid
+(TERRAIN_SCENERY_PLAN.md T2). It puts rock in front of 96.5% of Earth's wall rise.
 
 ## Problems seen, and the targets that address them
 

@@ -13,12 +13,13 @@ public sealed record WalkingParameters
     public static WalkingParameters Default { get; } = new();
 
     /// <summary>
-    /// Earth revision 8: layout variant 5, with corrected ice/alpine biome allocation and generated populations (5), and
-    /// cliff formations traced along their faces (6, 7 and 8: CliffPlacements generations 3, 4 and 5).
+    /// Earth revision 9: layout variant 5, with corrected ice/alpine biome allocation and generated populations (5), and
+    /// cliff formations traced along their faces (6, 7 and 8: CliffPlacements generations 3, 4 and 5), with the walls'
+    /// rock skins solid (9: generation 6).
     /// </summary>
     public static WalkingParameters Earth { get; } = new()
     {
-        TerrainRevision = 8,
+        TerrainRevision = 9,
         LayoutVariant = 5,
         OceanCover = 0.35,
         ContinentWavelength = 3200,
@@ -38,10 +39,10 @@ public sealed record WalkingParameters
 
     /// <summary>
     /// Save compatibility includes heights, generated solids and populations. Revision 1 fences CliffPlacements
-    /// generation 2; revision 2 corrects biome allocation; revisions 3, 4 and 5 fence CliffPlacements generations 3, 4
-    /// and 5 (faces traced, T2). Zero is legacy walking or stand-in ground.
+    /// generation 2; revision 2 corrects biome allocation; revisions 3, 4, 5 and 6 fence CliffPlacements generations 3,
+    /// 4, 5 and 6 (faces traced, T2; 6, the walls' rock skins). Zero is legacy walking or stand-in ground.
     /// </summary>
-    public int TerrainRevision { get; init; } = 5;
+    public int TerrainRevision { get; init; } = 6;
 
     /// <summary>Optional deterministic geography variation. Zero preserves the existing world exactly.
     /// Earth candidates set this explicitly; selecting one for production also requires a new terrain/save revision.</summary>

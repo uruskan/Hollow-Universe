@@ -41,14 +41,14 @@ public readonly record struct CliffFormationCacheDiagnostics(int Capacity, int E
 /// column by column, with the recipe of what made it (<see cref="CliffRecipe"/>). Candidate streams are separate from
 /// harvestable scatter; no natural-object or loot ID changes when this presentation/collision layer changes.
 /// </summary>
-public sealed class CliffPlacements
+public sealed partial class CliffPlacements
 {
     /// <summary>
     /// Shared collision-generation revision, for save/network compatibility (3: faces traced and dressed, T2's first
     /// iteration; 4: sea-cliff toes in the surf and coastal scans, its second; 5: the recipe chooses the family, and
-    /// eight columns a face, its third).
+    /// eight columns a face, its third; 6: the walls' rock skins, <see cref="CliffWall"/>, solid too).
     /// </summary>
-    public const int GenerationRevision = 5;
+    public const int GenerationRevision = 6;
     public const double CellMetres = 48;
     public const double MaximumExtent = 40;
     /// <summary>A member stands at most this far from its cell's centre across the ground (not up a face), so neighbour discovery finds it.</summary>
@@ -197,7 +197,10 @@ public sealed class CliffPlacements
 
     // A cheap gate before the survey: a face as steep as the face rule over the survey's ten-metre baseline rises at
     // least 6.2 m, and a 5 x 5 grid of the cell (samples either side of it) spans most of that. Most cells are gentle.
-    private bool MayHoldFace(TileKey tile)
+    private bool MayHoldFace(TileKey tile) => MayHold(tile, FaceGrade * 8);
+
+    // Whether a 5 x 5 grid of the cell spans at least a rise, metres.
+    private bool MayHold(TileKey tile, double rise)
     {
         const int Side = 5;
         double low = double.PositiveInfinity, high = double.NegativeInfinity;
@@ -209,7 +212,7 @@ public sealed class CliffPlacements
             low = Math.Min(low, h);
             high = Math.Max(high, h);
         }
-        return high - low >= FaceGrade * 8;
+        return high - low >= rise;
     }
 
     // The cell's steep dry ground on a fixed grid, in index order.
@@ -469,13 +472,19 @@ public sealed class CliffPlacements
                 WallSection section = Section(sample);
                 rise = section.Rise;
                 List<CliffPlacement> nearby = Near(ground, section.Rise);
+                List<CliffWall> skins = WallsNear(ground, section.Rise + 10);
                 // Every metre and a half up the face, a level sight line from 4 m out to just behind it: rock where
                 // it meets a scan's mesh before the ground.
                 for (double y = section.Foot + 0.75; y < section.Crest; y += 1.5)
                 {
                     Vector3D from = section.At(y, _surface.Radius) + section.Downslope * 4;
+                    bool hit = false;
                     foreach (CliffPlacement cliff in nearby)
-                        if (Hits(cliff, from, -section.Downslope, 4.5)) { riseCovered += Math.Min(1.5, section.Crest - (y - 0.75)); break; }
+                        if (Hits(cliff, from, -section.Downslope, 4.5)) { hit = true; break; }
+                    if (!hit)
+                        foreach (CliffWall skin in skins)
+                            if (Hits(skin, from, -section.Downslope, 4.5)) { hit = true; break; }
+                    if (hit) riseCovered += Math.Min(1.5, section.Crest - (y - 0.75));
                 }
             }
             report.Add(new CliffFaceSample(ground, sample.Gradient, sample.Gradient >= WallGrade,
@@ -782,16 +791,45 @@ public sealed class CliffPlacements
         return result;
     }
 
-    /// <summary>The ordinary heightfield plus nearby scan hulls, identical on server, prediction and ragdoll worlds.</summary>
+    /// <summary>
+    /// The ordinary heightfield plus nearby scan hulls and the walls' rock skins, identical on server, prediction and
+    /// ragdoll worlds.
+    /// </summary>
     public TriangleMesh Collision(in ZoneFrame frame, TileKey tile, double margin)
     {
         TriangleMesh terrain = SurfaceGrid.Collision(_surface, frame, tile, margin, SurfaceGrid.DefaultSpacing);
         double reach = TileKey.EdgeLength(tile.Level, _surface.Radius) * 0.95 + margin;
         Vector3D centre = tile.Centre * (_surface.Radius + _surface.HeightAt(tile.Centre));
         List<CliffPlacement> nearby = Near(centre, reach);
-        if (nearby.Count == 0) return terrain;
+        List<CliffWall> walls = WallsNear(centre, reach);
+        if (nearby.Count == 0 && walls.Count == 0) return terrain;
         var positions = new List<float>(terrain.Positions);
         var indices = new List<int>(terrain.Indices);
+        // A skin's first coarser level (every second station and row, about two metres), its triangles turned so their
+        // normals point out of the face as the ground's point up.
+        ZoneFrame zone = frame;
+        foreach (CliffWall wall in walls)
+        {
+            int[] triangles = wall.Lods[0].Indices;
+            var map = new int[wall.Positions.Length / 3];
+            Array.Fill(map, -1);
+            for (int i = 0; i < triangles.Length; i += 3)
+            {
+                indices.Add(Vertex(triangles[i]));
+                indices.Add(Vertex(triangles[i + 2]));
+                indices.Add(Vertex(triangles[i + 1]));
+            }
+
+            int Vertex(int v)
+            {
+                if (map[v] >= 0) return map[v];
+                map[v] = positions.Count / 3;
+                System.Numerics.Vector3 local = zone.ToLocal(wall.Anchor +
+                    new Vector3D(wall.Positions[v * 3], wall.Positions[v * 3 + 1], wall.Positions[v * 3 + 2]));
+                positions.Add(local.X); positions.Add(local.Y); positions.Add(local.Z);
+                return map[v];
+            }
+        }
         foreach (CliffPlacement cliff in nearby)
         {
             CliffGeometry mesh = CliffGeometry.All[cliff.Model];

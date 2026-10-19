@@ -57,7 +57,8 @@ public static partial class Protocol
     //     (Earth save revision 6, others 3).
     // 41: sea-cliff toes in the surf and coastal scans (generation 4; Earth save revision 7, others 4).
     // 42: the recipe chooses a scan's family, eight columns a face (generation 5; Earth save revision 8, others 5).
-    public const uint Version = 42;
+    // 43: the walls' rock skins are solid (generation 6; Earth save revision 9, others 6).
+    public const uint Version = 43;
 
     /// <summary>Fixed upper bound for Hello, WorldOffer, WorldAccept and Welcome, including their type byte.</summary>
     public const int MaxWorldHandshakeBytes = 512;

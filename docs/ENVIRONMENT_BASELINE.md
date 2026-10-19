@@ -122,3 +122,11 @@ piece's shadow is the near layer's, out to 340 m). On the ground there the diffe
 (±1 ms; the dense grass makes that view 29 ms), and the layer's own work on the main thread is about 20 µs a
 frame. Its sweep built every cell in 12.6 s of a hosted start, on two low-priority threads (6,742 pieces in 105
 chunks); a capture was ready 0.3–1.3 s later than without it, while the cells within 680 m are built.
+
+The walls' rock skins (T2) cover 448 cells with 863,000 vertices and 1.57 million triangles. `earth cliffs-bench`
+builds them in 18 s on one thread (3.0 ms a cell on average, 54 ms the slowest); on the client the far sweep builds
+them with the formations, and its two threads now take 18–20 s. Solid, they make the heaviest collision tile take 891
+ms built cold (123,522 triangles): its cells' formations 441 ms, their skins 375 ms. Drawn, at the mountain site on
+the ground at High, hiding them saved 0.5 ms of GPU time (27.62 ms against a baseline averaging 28.14 ms), inside the
+runs' ±1 ms noise, with 138 draw calls and 0.22 million primitives fewer. That was their first version (1 m stations);
+a run on the final one could not settle while the grass field was being rebuilt in the same checkout.
