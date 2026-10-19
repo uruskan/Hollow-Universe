@@ -1,5 +1,24 @@
 # Hollow Universe AB Test B
 
+## 19 October 2026 — T2 third iteration: the recipe chooses the family; eight columns a face
+
+`FitMember` let each scan's own selection weight and height multiply the recipe's family weight, so the two large
+nordic scans outvoted the plateau recipe's sandstone about seven times in ten. The recipe now chooses the family by
+its weights and the family chooses among its scans by theirs. A face may take eight columns (was six), which the
+smaller sandstone scans need. Steep ground with rock 77.1%, walls 75.5% (75.6% and 73.5% before); of each face's
+intended rock, coastal 76%, outcrop 87%, mountain 88%, plateau 77%; 6,742 pieces (5,415). `earth cliffs-bench`:
+all 6,144 cells in 11.8 s on one thread, 1.9 ms a cell, the slowest 213 ms.
+
+Tried and dropped, each measured with the survey: widening sandstone to tableland walls up to grade 8 (it fits
+them badly; plateau cover fell to 74%); a short-step wall test (steep over two metres, rising 2.5 m across six:
+no gain, as the survey's 5 m grid rarely lands on a 2 m step, and at grade 1.5 it took mountain roughness for walls);
+and requiring half of a piece's base on the ground against floating slabs (wall cover fell to 42%).
+
+Validation: solution 0 warnings, 0 errors; full suite 1,013 of 1,013 in 528 s, and the save-identity, cliff,
+geology, descriptor and handshake tests (42 of 42) after the fence. Cliff generation 5, Earth save revision 8
+(others 5), protocol 42. Not yet captured in a hosted game: two other sessions' game runs left under 1 GB free,
+and the capture runner stopped its own run; the after-images follow when the machine is free.
+
 ## 19 October 2026 — Salvage original scrap model and rendered icons
 
 Codex's original rusty scrap assortment (gear, coil, corrugated offcut, pipes, nuts, bracket, wire) replaces the

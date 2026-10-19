@@ -56,7 +56,8 @@ public static partial class Protocol
     // 40: cliff formations traced along their faces (generation 3) change collision solids on every WalkingWorld body
     //     (Earth save revision 6, others 3).
     // 41: sea-cliff toes in the surf and coastal scans (generation 4; Earth save revision 7, others 4).
-    public const uint Version = 41;
+    // 42: the recipe chooses a scan's family, eight columns a face (generation 5; Earth save revision 8, others 5).
+    public const uint Version = 42;
 
     /// <summary>Fixed upper bound for Hello, WorldOffer, WorldAccept and Welcome, including their type byte.</summary>
     public const int MaxWorldHandshakeBytes = 512;

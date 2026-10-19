@@ -12,6 +12,7 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth survey [fo
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth transect <lat> <lon> <bearing> [length] [step]
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth wall <lat> <lon> [size] [folder]
 dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth formations <lat> <lon> [size] [folder]
+dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth cliffs-bench
 ```
 
 - `survey` rasterises the globe (1,440 × 720 by default, 5.24 m a pixel at the equator) and writes
@@ -22,6 +23,7 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- earth formations
   draws it at tile levels 6, 5, 4 and 3 (32 cells a tile: 0.92, 1.84, 3.68 and 7.36 m cells on Earth).
 - `formations` (T2) draws the cliff formations round a point from above: each scan's footprint by family and
   every face sample of the generator's survey, green covered, magenta meant for rock but bare, white soil.
+- `cliffs-bench` (T2, T5) times the cliff generator over every cell of a fresh Earth on one thread.
 
 ## Classification
 

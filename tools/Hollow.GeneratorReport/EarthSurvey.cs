@@ -350,6 +350,33 @@ public static class EarthSurvey
         return 0;
     }
 
+    /// <summary>
+    /// `earth cliffs-bench`: how long the cliff generator takes to build every cell of Earth on one thread, in a fresh
+    /// world (cells build on demand as players move): the total, the cells holding a face, and the slowest cell.
+    /// </summary>
+    public static int CliffsBench(string[] args)
+    {
+        WalkingWorld world = WalkingReport.Build(earth: true);
+        int level = world.Cliffs.Level;
+        long count = TileKey.CountAt(level);
+        int dressed = 0, pieces = 0;
+        double slowest = 0, total = 0;
+        var watch = new System.Diagnostics.Stopwatch();
+        for (long i = 0; i < count; i++)
+        {
+            TileKey cell = TileKey.FromIndex(level, i)!.Value;
+            watch.Restart();
+            int built = world.Cliffs.FormationAt(cell).Count;
+            double ms = watch.Elapsed.TotalMilliseconds;
+            total += ms;
+            slowest = Math.Max(slowest, ms);
+            if (built > 0) { dressed++; pieces += built; }
+        }
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"{count} cells in {total / 1000:F1} s on one thread: {dressed} dressed with {pieces} pieces, mean {total / count:F2} ms a cell, slowest {slowest:F1} ms"));
+        return 0;
+    }
+
     /// <summary>The height the render grid draws at a point: its level's 32-cell tile grid, linear over the lattice's triangles.</summary>
     private static double Drawn(WalkingWorld world, Vector3D direction, int level,
         System.Collections.Concurrent.ConcurrentDictionary<(int, long, long), double> vertices)

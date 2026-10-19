@@ -43,15 +43,16 @@ public sealed class CliffPlacements
 {
     /// <summary>
     /// Shared collision-generation revision, for save/network compatibility (3: faces traced and dressed, T2's first
-    /// iteration; 4: sea-cliff toes in the surf and coastal scans, its second).
+    /// iteration; 4: sea-cliff toes in the surf and coastal scans, its second; 5: the recipe chooses the family, and
+    /// eight columns a face, its third).
     /// </summary>
-    public const int GenerationRevision = 4;
+    public const int GenerationRevision = 5;
     public const double CellMetres = 48;
     public const double MaximumExtent = 40;
     /// <summary>A member stands at most this far from its cell's centre across the ground (not up a face), so neighbour discovery finds it.</summary>
     public const double MaximumOffset = 64;
     public const int MaximumTiers = 4;
-    public const int MaximumColumns = 6;
+    public const int MaximumColumns = 8;
     /// <summary>Faces a cell dresses, largest first.</summary>
     public const int MaximumFaces = 2;
     public const int MaximumParts = MaximumFaces * MaximumColumns * MaximumTiers;
@@ -473,13 +474,21 @@ public sealed class CliffPlacements
         IReadOnlyList<CliffGeometry> models = CliffGeometry.All;
         Span<double> weights = stackalloc double[models.Count];
         weights.Clear();
+        // The recipe chooses the family by its own weights; within a family the scans share that weight by theirs, so a
+        // family of large scans cannot outvote the recipe.
+        var families = new Dictionary<string, double>(StringComparer.Ordinal);
         for (int i = 0; i < models.Count; i++)
         {
             CliffGeometry model = models[i];
             if ((materialFamily == null || model.MaterialFamily == materialFamily) &&
                 gradient >= model.MinimumGradient && gradient <= model.MaximumGradient)
-                weights[i] = recipe.FamilyWeight(model.MaterialFamily) * model.SelectionWeight * Math.Clamp(model.Height / 10, 0.25, 1.4);
+            {
+                weights[i] = model.SelectionWeight * Math.Clamp(model.Height / 10, 0.25, 1.4);
+                families[model.MaterialFamily] = families.GetValueOrDefault(model.MaterialFamily) + weights[i];
+            }
         }
+        for (int i = 0; i < models.Count; i++)
+            if (weights[i] > 0) weights[i] *= recipe.FamilyWeight(models[i].MaterialFamily) / families[models[i].MaterialFamily];
         // A rejected fit falls back to another suitable scan, without another column of hidden meshes.
         for (int attempt = 0; attempt < models.Count; attempt++)
         {

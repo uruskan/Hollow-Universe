@@ -29,6 +29,7 @@ public static class WalkingReport
         if (earth && command == "transect") return EarthSurvey.Transect(args);
         if (earth && command == "wall") return EarthSurvey.Wall(args);
         if (earth && command == "formations") return EarthSurvey.Formations(args);
+        if (earth && command == "cliffs-bench") return EarthSurvey.CliffsBench(args);
         string Arg(int i, string fallback) => args.Length > i ? args[i] : fallback;
         double Num(int i, double fallback) => args.Length > i ? double.Parse(args[i], CultureInfo.InvariantCulture) : fallback;
         var watch = Stopwatch.StartNew();

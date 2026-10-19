@@ -195,6 +195,15 @@ walls. The route planner now keeps a walker's chest out of every scan piece's bo
 and its water and cliff stops apart; a High walk completed the new 573 m route. Its collision is fenced again:
 cliff generation 4, Earth save revision 7 (others 4), protocol 41.
 
+Third iteration: the recipe now chooses a scan's family by its own weights and the family chooses among its scans
+(large nordic scans had outvoted the plateau recipe's sandstone about seven times in ten), and a face may take
+eight columns. Steep ground with rock 77.1%, walls 75.5%; of each face's intended rock, coastal 76%, outcrop 87%,
+mountain 88%, plateau 77%; 6,742 pieces. All 6,144 cells build in 11.8 s on one thread, 1.9 ms a cell on average
+and 213 ms for the slowest (`earth cliffs-bench`), a cost T5 must bound. Tried and dropped, with numbers in
+DEVELOPMENT.md: sandstone on steep tableland walls, a short-step wall test, and requiring grounded bases (which
+cut wall cover to 42%). Cliff generation 5, Earth save revision 8 (others 5), protocol 42. Its hosted captures
+are still to be taken.
+
 ### T3 — Make rock, soil and vegetation share environmental data
 
 Extend the existing cover/material system with formation influence: exposed bedrock, debris,
