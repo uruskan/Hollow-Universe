@@ -84,8 +84,9 @@ three stopped on the last leg: the walker pressed against a boulder for 8 s at t
 it. The route planner checked only the heightfield, and one of its waypoints lay inside a boulder's footprint.
 It now keeps waypoints 1 m and its one-metre corridor samples 0.5 m clear of every solid natural object, as the
 server builds their collision from the game's natural kinds (`EarthEnvironmentRoute.Find(world, natural)`); the
-route test checks that independently. The planned route changed with it (767 m), and T2's cliffs change its cliff
-stop, so the next route baseline is recorded on the new route before T4 and T5 compare candidates.
+route test checks that independently. The planned route depends on where cliff groups stand, so it changes while
+T2 iterates (877 m after T2's first iteration); the route baseline T4 and T5 compare against is recorded once T2's
+cliffs are final.
 
 ## Budget for T4 and T5
 

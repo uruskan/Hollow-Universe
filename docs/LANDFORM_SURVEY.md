@@ -84,10 +84,11 @@ cliff whose foot is under water) to gentle dry ground and looks back. Every capt
 The continuous normal-play benchmark is the hosted route (`--environment-route`, planned by
 `EarthEnvironmentRoute.Find`): from a beach through woodland, a clearing, the water's edge, a scanned cliff and
 the weather station. The 868 m route below was the one measured for the T0 baseline; three of its four walks
-stopped at a boulder inside a waypoint, so the planner now keeps clear of solid natural objects, and with T2's
-cliffs it plans a 767 m route (beach −22.909035, −101.821388; woodland −17.760490, −96.669275; clearing
-−19.172801, −96.160848; water −25.317505, −100.860287; cliff −25.317505, −93.473217, a `nordic_tall` group;
-weather station −26.270175, −93.444406).
+stopped at a boulder inside a waypoint, so the planner now keeps clear of solid natural objects. The route
+depends on where the cliff groups stand, so it moves while T2 iterates: with T2's first iteration it is 877 m
+(beach −23.045859, −101.779395; woodland −17.875082, −96.638744; clearing −18.810713, −95.628346; water
+−23.997956, −101.810688; cliff −21.668845, −98.148381, a `namaqualand_cliff_02` group; weather station
+−25.948658, −95.512632). The route test prints the current one.
 
 | Stop | Coordinates | Covers |
 | --- | --- | --- |
