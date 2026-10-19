@@ -449,13 +449,13 @@ tests. Steady state, 130 s after launch, with the warm-up's 369 items all shown:
 **The largest reducible block needs a visual decision.** 3D textures imported "Lossless", Godot's 2D default (a
 headless import never runs the editor's detect-3D), take 1.1 GiB of video memory in a hosted game, most of them
 without mipmaps. A local reimport, not committed, gave 62 of them (the `assets/revised/Hollow_*_R01` kits, the
-compound's wood pieces, two cliff scans and the ground-cover billboards; 37 resident, 34 without mipmaps) VRAM
-compression (BC1, BC3, BC5) and mipmaps: High 10.82 → 9.66 GiB private, working set 5.70 → 5.31 GiB; Low 10.10
-→ 8.69 and 5.25 → 4.59. Texture memory fell 0.61 GiB and the video-memory backing 0.84 GiB at both presets;
-host-visible memory fell 0.35–0.54 GiB, the largest upload being 21 MiB instead of 64; play started 3 s sooner at
-High. The kits' 20 other resident 2K textures (0.28 GiB, small files the trial skipped) would save about 0.2 GiB
-more. Compression and new mipmaps change these textures' look, so this waits for the owner's review with
-screenshots.
+compound's wood pieces, two cliff scans and the ground-cover billboards; 37 resident) VRAM compression (BC1, BC3,
+BC5) and mipmaps. In one run per preset the video memory's backing fell 0.84 GiB and texture memory 0.61 GiB at
+both presets. Private bytes fell further (High 10.82 → 9.66 GiB, Low 10.10 → 8.69) because host-visible memory came
+out lower too, but that block varies as much from run to run: alternated runs on the texture-compression branch
+(`claude/xenodochial-rosalind-a97489`, 83 textures, BC7 colour maps) do not show it, and measure private bytes 0.41
+GiB lower at High and 0.65 GiB at Low, video memory 0.5–0.75 GiB lower, and play starting about 6 s sooner.
+Compression and new mipmaps change these textures' look, so that branch waits for the owner's review.
 
 Committed: `HollowUniverse.Common.ProcessCommit` splits the private bytes into the graphics driver's write-combined
 commit and the rest, in `[load-progress]`, `[render-memory]`, `[load-memory]`, the `--load-trace` summary and the
