@@ -13,7 +13,8 @@ The route planner keeps a walker's chest out of every scan piece's box (a walk o
 its cliff leg) and its water stop 20 m from the cliff stop; the route test checks both. A hosted High walk
 completed the new 573 m route; one walk there averages 16.92 ms, in denser forest than the 868 m route.
 
-Validation: solution 0 warnings, 0 errors; full suite 1,011 of 1,011 in 480 s.
+Validation: solution 0 warnings, 0 errors; full suite 1,011 of 1,011 in 480 s. The changed collision is fenced
+separately from the first iteration's: cliff generation 4, Earth save revision 7 (others 4), protocol 41.
 
 ## 19 October 2026 — T2 first iteration: cliff formations dressed along whole faces
 

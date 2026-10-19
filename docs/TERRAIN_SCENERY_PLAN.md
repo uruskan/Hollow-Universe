@@ -192,7 +192,8 @@ site from above with every face sample marked covered, bare or soil
 ([escarpment](images/t2-formations/formations_-41.6000_7.6000.png)). It shows the next gap: steps under about
 6 m tall rise less than the survey's ten-metre baseline counts as a face, so they stay bare yet still draw as
 walls. The route planner now keeps a walker's chest out of every scan piece's box (one walk had met T2's rock)
-and its water and cliff stops apart; a High walk completed the new 573 m route.
+and its water and cliff stops apart; a High walk completed the new 573 m route. Its collision is fenced again:
+cliff generation 4, Earth save revision 7 (others 4), protocol 41.
 
 ### T3 — Make rock, soil and vegetation share environmental data
 

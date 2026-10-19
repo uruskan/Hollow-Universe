@@ -41,8 +41,11 @@ public readonly record struct CliffFormationCacheDiagnostics(int Capacity, int E
 /// </summary>
 public sealed class CliffPlacements
 {
-    /// <summary>Shared collision-generation revision, for save/network compatibility (3: faces traced and dressed, T2).</summary>
-    public const int GenerationRevision = 3;
+    /// <summary>
+    /// Shared collision-generation revision, for save/network compatibility (3: faces traced and dressed, T2's first
+    /// iteration; 4: sea-cliff toes in the surf and coastal scans, its second).
+    /// </summary>
+    public const int GenerationRevision = 4;
     public const double CellMetres = 48;
     public const double MaximumExtent = 40;
     /// <summary>A member stands at most this far from its cell's centre across the ground (not up a face), so neighbour discovery finds it.</summary>

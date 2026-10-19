@@ -16,13 +16,13 @@ public static class TerrainSaveTests
     [Test]
     public static void CliffCollisionRevisionFencesEveryWalkingBody()
     {
-        Assert.Equal(3, CliffPlacements.GenerationRevision, "review these save identities whenever cliff generation changes");
-        Assert.Equal(6, Earth.Revision, "Earth's geography, populations and traced cliff formations have their own save identity");
+        Assert.Equal(4, CliffPlacements.GenerationRevision, "review these save identities whenever cliff generation changes");
+        Assert.Equal(7, Earth.Revision, "Earth's geography, populations and traced cliff formations have their own save identity");
         Assert.Equal(5, WalkingParameters.Earth.LayoutVariant, "the reviewed broad-land candidate is the production selection");
-        Assert.Equal(3, WalkingParameters.Default.TerrainRevision, "inherited walking bodies also receive the traced cliff formations");
-        Assert.Equal(6, WalkingParameters.ForBody(Earth.SystemAddress, Earth.BodyPath).TerrainRevision,
+        Assert.Equal(4, WalkingParameters.Default.TerrainRevision, "inherited walking bodies also receive the traced cliff formations");
+        Assert.Equal(7, WalkingParameters.ForBody(Earth.SystemAddress, Earth.BodyPath).TerrainRevision,
             "server lookup selects the new Earth identity");
-        Assert.Equal(3, WalkingParameters.ForBody(Earth.SystemAddress, Earth.BodyPath + 1).TerrainRevision,
+        Assert.Equal(4, WalkingParameters.ForBody(Earth.SystemAddress, Earth.BodyPath + 1).TerrainRevision,
             "a non-Earth body cannot silently retain revision-zero collision");
     }
 
