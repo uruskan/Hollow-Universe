@@ -1,5 +1,12 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — Clothing items are the worn garments
+
+The woven hood, shirt, trousers and gloves, the work boots and the chest plate are now the character package's own
+garment meshes and material (`art/models/garment_items.py`), so their icons and dropped items show what is worn; the
+stand-ins in `clothing.py` are gone. Native captures, provenance and a catalogue test per item; build 0/0,
+ModelCatalogue 15/15, ContentTests 3/3. Owner art acceptance pending. See [ITEM_ART_CLOTHING.md](ITEM_ART_CLOTHING.md).
+
 ## 20 October 2026 — World terrain, iteration 1: Earth's shape baked and eroded
 
 The owner rejected T2's cliffs and, after two research passes, approved

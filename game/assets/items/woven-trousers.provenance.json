@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "woven-trousers",
+  "date": "2026-10-20",
+  "replaces": "the art/models/clothing.py stand-in model and the icon rendered from it",
+  "authorship": "Our own worn garment (art/characters/build_clothing.py, the character package) as the item: its mesh at three LODs, its own material and textures; rendered icons. No reference game files",
+  "visual_reference": null,
+  "authoring_source": [
+    {
+      "path": "art/models/garment_items.py",
+      "sha256": "900ae50a1d7579285054b058a773cde175beeb4d2d788bbd23856da260fad7ce"
+    }
+  ],
+  "authoring_helpers": [
+    {
+      "path": "art/hollow/export.py",
+      "sha256": "bca4862ce3d4b2a67c016857d2e78d97ef867d19af5d1991942aa10d52552bde"
+    },
+    {
+      "path": "art/hollow/godot.py",
+      "sha256": "8742a7167ee1b482dfc5c6e9e40d19391a9793aa711e23fd2a31f3f664d46cd2"
+    },
+    {
+      "path": "art/characters/build_clothing.py",
+      "sha256": "ce422ec0273a6076413832320ff1cf0271aa96a2217277a20da85410fab6d9e6"
+    }
+  ],
+  "geometry": {
+    "asset": "woven-trousers",
+    "garment": "woven_trousers",
+    "dimensions_blender_xyz_m": [
+      0.5569834113121033,
+      0.2537200152873993,
+      0.9506140947341919
+    ],
+    "material": "game/assets/materials/garment-woven-trousers.tres",
+    "material_count": 1,
+    "lod_triangles": {
+      "WovenTrousers_lod0": 3230,
+      "WovenTrousers_lod1": 1354,
+      "WovenTrousers_lod2": 515
+    },
+    "hull_triangles": 47
+  },
+  "files": {
+    "game/assets/items/woven-trousers.glb": {
+      "sha256": "616bf526e02a0b4153e92240111a83a2c51f1d0c97043551f22ca3a7547f433c",
+      "bytes": 149136
+    },
+    "game/assets/items/woven-trousers.glb.import": {
+      "sha256": "782dd5156ec3670b721fb469d9de536621e34eeaaed38570e50d3ebd84f2ab4f",
+      "bytes": 1400
+    },
+    "game/assets/items/icons/128/woven-trousers.png": {
+      "sha256": "6cdc883675b66e5a229eb829137facbafd1ff7bfdd12113cd8cd6d20e2c6dc48",
+      "bytes": 9109
+    },
+    "game/assets/items/icons/128/woven-trousers.png.import": {
+      "sha256": "49035f0a20876077910fdc788c22d4caf6cc88fbcce3ba40c74fcb1a9dea58b2",
+      "bytes": 968
+    },
+    "game/assets/items/icons/256/woven-trousers.png": {
+      "sha256": "af7c24c77f7b105d3b00099591a1365800c5aa62b42111a91ffb8cf16e07f691",
+      "bytes": 26527
+    },
+    "game/assets/items/icons/256/woven-trousers.png.import": {
+      "sha256": "dda42c98f80c8976d8ddeedd851142f1f990373e1b40823c23d35a8d46402764",
+      "bytes": 969
+    },
+    "game/assets/materials/garment-woven-trousers.tres": {
+      "sha256": "238c1512b5a6190e874f3fa5c31f112c621884cb50c3bbc786c440ac0df5a28e",
+      "bytes": 952
+    },
+    "game/assets/characters/clothing.glb": {
+      "sha256": "c5d78471f97429dce027f65915278d19733578b73e407822a05aef5bec62bd1b",
+      "bytes": 3204960
+    },
+    "game/shaders/character_cloth.gdshader": {
+      "sha256": "4f1bea15d8b2abfb97274b4af0662bde54ad543660a98b01e49025859dcb5de4",
+      "bytes": 327
+    },
+    "game/shaders/character_cloth.gdshaderinc": {
+      "sha256": "30aabd93bdb406ad5f1525923c9ca7585f19a6a7d5fc7b0b67b0a562cc0c438e",
+      "bytes": 1656
+    },
+    "game/shaders/character_common.gdshaderinc": {
+      "sha256": "4d5697bde5469a263499f9cfda6df8d29f7f9a5e5a77fcf25ab0309b05dcb7fe",
+      "bytes": 1193
+    },
+    "game/assets/characters/textures/woven_trousers_albedo.png": {
+      "sha256": "36cb139601494e8dd97b27bdbe04d49a139bd06c6c34b77cdcdbdc0de71738ea",
+      "bytes": 94249
+    },
+    "game/assets/characters/textures/woven_trousers_albedo.png.import": {
+      "sha256": "40d77ce5e2b6cc6e500c4a28d355a4554a31ff80e8199904f6e961f749276393",
+      "bytes": 1042
+    },
+    "game/assets/characters/textures/woven_trousers_normal.png": {
+      "sha256": "dc7769418ef447c3c2031bb86bf4f5743dfbf22c0c3787e2c78b4a3415b50219",
+      "bytes": 95712
+    },
+    "game/assets/characters/textures/woven_trousers_normal.png.import": {
+      "sha256": "d8737e63dfd84448a9a6ee320b2a73ed3bee172c290bfe16e408b8c46d593a51",
+      "bytes": 1042
+    },
+    "game/assets/characters/textures/twill_normal.png": {
+      "sha256": "034cb80d738db58f82cae8f94fefa5ae5e0c12d3030a2844e920baa047cdc139",
+      "bytes": 452428
+    },
+    "game/assets/characters/textures/twill_normal.png.import": {
+      "sha256": "eadc21647af70c60b62cf47684be3e838077207eaa3ab25d3ae04ee42e8a4f62",
+      "bytes": 1015
+    }
+  }
+}

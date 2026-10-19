@@ -1,0 +1,429 @@
+{
+  "revision": "R01",
+  "captures": {
+    "chest-plate-lod0.png": "9601ad0313298311c1cf9d268fb061a0b3d638bed3c918a96af45a129172ba44",
+    "chest-plate-lod1.png": "d1c00ac0bc72f5e9f65ade32aa0b1ed6f01e72946e6b9003b69564e886f3e48e",
+    "chest-plate-lod2.png": "320fa28b81f3c30319027adf8a2912cb64d9e2bd214cb2ef59841ec7be09e551",
+    "chest-plate-back.png": "215a376e0768a036e837d38f4222412d0f161fc15d79b491a28464204ba24836",
+    "icon-slots.png": "0ffe63ebae0c71b19c7fd9bb553948d30a9ba2ee1d44feddf4c252d730aa2158"
+  },
+  "capture_inputs": {
+    "review_project": ".artifacts/itemart/chest-plate/review (this worktree; not committed)",
+    "catalogue_entry": {
+      "key": "chest-plate",
+      "kind": "item",
+      "class": "clothing",
+      "file": "res://assets/items/chest-plate.glb",
+      "lods": 3,
+      "collision": "convex",
+      "icon": {},
+      "source": "The worn garment itself (art/models/garment_items.py from the character package's clothing.glb); provenance: assets/items/chest-plate.provenance.json"
+    },
+    "previous_icon": ".artifacts/itemart/previous/chest-plate.png",
+    "resources_sha256": {
+      "assets/items/chest-plate.glb": "b9c7494ee30ddfca83d6f9c62eba71d2f0125b692902a40a375a29b7de6838df",
+      "assets/items/chest-plate.glb.import": "234d8b82254a3fba1388d9634492c5abbd60b175e664ea61753e16dad326b1ee",
+      "assets/materials/garment-riveted-breastplate.tres": "50380e253d34beb7ab77b8c0346fddf34a8f503031d6bcdd94ec618ce593a9b8",
+      "shaders/character_cloth.gdshader": "4f1bea15d8b2abfb97274b4af0662bde54ad543660a98b01e49025859dcb5de4",
+      "shaders/character_cloth.gdshaderinc": "30aabd93bdb406ad5f1525923c9ca7585f19a6a7d5fc7b0b67b0a562cc0c438e",
+      "shaders/character_common.gdshaderinc": "4d5697bde5469a263499f9cfda6df8d29f7f9a5e5a77fcf25ab0309b05dcb7fe",
+      "assets/characters/textures/riveted_breastplate_albedo.png": "c9ce356bae7c3d05fe43d5cb98c04a86b4de8cbbe2e1cc364791c8b92e53ee29",
+      "assets/characters/textures/riveted_breastplate_albedo.png.import": "ca8b5b3c73fc8f442faf97e769a9ca0dcedb5e6096eac0d6d008ea02e86b28c1",
+      "assets/characters/textures/riveted_breastplate_normal.png": "b02060495865029c7a3c2f38280c1fb8fcabb01dd82dbb9c169ef500d656ab13",
+      "assets/characters/textures/riveted_breastplate_normal.png.import": "612a1c0221b98c3f3a4a724dc2d0438dd73b848d360ed80948dfa6be0eaf42e5",
+      "assets/characters/textures/riveted_breastplate_orm.png": "a56e2e1704215af4ee58bb6ab39ec6ab7917461e16a942aedbf23d62ce45c517",
+      "assets/characters/textures/riveted_breastplate_orm.png.import": "107e6826e7185519c876548f059d1c8315b61448e40f5b1384fc6b29681eaa51",
+      "assets/characters/textures/metal_normal.png": "76dc268c7dca95bedc6050d900eaf4cb9cd292b6e76aa5aeb308bc53d2dc656c",
+      "assets/characters/textures/metal_normal.png.import": "5e0b375702c756bb430719d0a25e3e851ce6566b990660cc1f121ec7bde3d902",
+      "assets/fonts/Barlow/Barlow-Medium.ttf": "f8906f762cb73dca441da034bc363b2d8e2e68bc10d5c05e58717646c20cc4b4",
+      "assets/fonts/Barlow/Barlow-SemiBold.ttf": "86577cb32f8abe3673db53ca0f4221e6856751a4f6730c867e00f720f8bb1fc5",
+      "assets/fonts/Barlow/BarlowCondensed-Bold.ttf": "e476562ec9c1e16cf16475895b511f08c804f438cc9a9f80a44ea50a0eeb5b65",
+      "assets/fonts/Barlow/BarlowCondensed-Medium.ttf": "262bd143292ce479ee0cd09a42b47ab173fca8e9c6eb5ed0b5c8a845bc371d17",
+      "assets/fonts/Inter/InterVariable.ttf": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf"
+    },
+    "resources_match_committed_assets": true,
+    "compiled_references": {
+      "Hollow.Client.dll": "eb86111c6eb4d0669fde019e2bd278dd12db3b26d5f1d4b0af4b031161bfd0ae",
+      "Hollow.Core.dll": "f4af763aff14a5a9f2b69168c07679b0b195e5ca434afec381ab5138c2fff5bb",
+      "Hollow.Galaxy.dll": "c31a083726e2528b9fbb7e96cb87c8ab600df582e0170de275235ce0d0d46848",
+      "Hollow.Net.dll": "d58115c2788568bf672459861510b8cacf0b47b200b68cc36427e113ba043f9e",
+      "Hollow.Persistence.dll": "ec51911be54b89851b9a8b229b727665e91ea50909b6c1016f419eab4d6d98e4",
+      "Hollow.Server.dll": "1c185437ecc8b87f457b8f18fede85594209a0a1f77753b0fc637754599f4f9e",
+      "Hollow.Simulation.dll": "6d5017bd1fc92b6efa8728b070de365dd45f5d3a96387b9d93582dc5b8252d99",
+      "Hollow.Surface.dll": "4eb455f192a9448c9868067a79191448c6bcdb722cca17c0784038314573ad0f",
+      "HollowUniverse.dll": "8ee8306a0d0f40febf3cc1536fd9335846522b7b87c6660222c2d65e81881c3d",
+      "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+      "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+      "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+      "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+      "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+      "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+    }
+  },
+  "capture_jobs": [
+    {
+      "name": "model-build",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "2",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "art/models/garment_items.py",
+        "--",
+        "chest-plate"
+      ],
+      "owned_pid": 13144,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 1.3,
+      "free_gib_before": 7.25,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "review-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\cranky-hamilton-ee068a\\.artifacts\\itemart\\chest-plate\\review\\ItemReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 4804,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 11.9,
+      "free_gib_before": 8.84,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "import-textures",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\cranky-hamilton-ee068a\\.artifacts\\itemart\\chest-plate\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 12948,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 36.8,
+      "free_gib_before": 8.75,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "import-model",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\cranky-hamilton-ee068a\\.artifacts\\itemart\\chest-plate\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 14776,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 17.4,
+      "free_gib_before": 8.74,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "lod0",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\cranky-hamilton-ee068a\\.artifacts\\itemart\\chest-plate\\review",
+        "--",
+        "--key=chest-plate",
+        "--zoom=1.2",
+        "--lod=0",
+        "--yaw=-25",
+        "--output=chest-plate-lod0.png"
+      ],
+      "owned_pid": 15060,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 24.5,
+      "free_gib_before": 8.33,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod1",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\cranky-hamilton-ee068a\\.artifacts\\itemart\\chest-plate\\review",
+        "--",
+        "--key=chest-plate",
+        "--zoom=1.2",
+        "--lod=1",
+        "--yaw=-25",
+        "--output=chest-plate-lod1.png"
+      ],
+      "owned_pid": 5900,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 24.7,
+      "free_gib_before": 7.43,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod2",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\cranky-hamilton-ee068a\\.artifacts\\itemart\\chest-plate\\review",
+        "--",
+        "--key=chest-plate",
+        "--zoom=1.2",
+        "--lod=2",
+        "--yaw=-25",
+        "--output=chest-plate-lod2.png"
+      ],
+      "owned_pid": 16212,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 9.3,
+      "free_gib_before": 8.71,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "back",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\cranky-hamilton-ee068a\\.artifacts\\itemart\\chest-plate\\review",
+        "--",
+        "--key=chest-plate",
+        "--zoom=1.2",
+        "--lod=0",
+        "--yaw=155",
+        "--output=chest-plate-back.png"
+      ],
+      "owned_pid": 10808,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 10.5,
+      "free_gib_before": 8.67,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-render",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\cranky-hamilton-ee068a\\.artifacts\\itemart\\chest-plate\\review",
+        "--",
+        "--key=chest-plate",
+        "--zoom=1.2",
+        "--icons",
+        "--output=icon-sheet.png"
+      ],
+      "owned_pid": 9912,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 10.1,
+      "free_gib_before": 8.66,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\cranky-hamilton-ee068a\\.artifacts\\itemart\\chest-plate\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 8416,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 11.0,
+      "free_gib_before": 8.65,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "slots",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\cranky-hamilton-ee068a\\.artifacts\\itemart\\chest-plate\\review",
+        "--",
+        "--key=chest-plate",
+        "--zoom=1.2",
+        "--title=CHEST PLATE",
+        "--previous=res://previous/previous.png",
+        "--slots",
+        "--output=icon-slots.png"
+      ],
+      "owned_pid": 9636,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 16.3,
+      "free_gib_before": 8.66,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "solution-build",
+      "command": [
+        "dotnet",
+        "build",
+        "HollowUniverse.sln",
+        "-v:q",
+        "-nologo",
+        "-m:2",
+        "-nodeReuse:false"
+      ],
+      "owned_pid": 12676,
+      "closed": true,
+      "wait_seconds": 6.1,
+      "cpu_before": 1.4,
+      "free_gib_before": 6.86,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "tests-modelcatalogue",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--no-build",
+        "--",
+        "ModelCatalogue"
+      ],
+      "owned_pid": 8152,
+      "closed": true,
+      "wait_seconds": 6.22,
+      "cpu_before": 0.7,
+      "free_gib_before": 7.48,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "tests-content",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--no-build",
+        "--",
+        "ContentTests"
+      ],
+      "owned_pid": 14908,
+      "closed": true,
+      "wait_seconds": 6.08,
+      "cpu_before": 6.6,
+      "free_gib_before": 6.94,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    }
+  ],
+  "provider": "Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org\nVulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER\n\nchest-plate rendered provider: 16px PASS\nchest-plate rendered provider: 32px PASS\nchest-plate rendered provider: 48px PASS\nchest-plate rendered provider: 64px PASS\nchest-plate rendered provider: 96px PASS\nchest-plate rendered provider: 128px PASS\nchest-plate rendered provider: 256px PASS\nchest-plate capture: D:/GameDev/Projects/HollowUniverseABTestB/.claude/worktrees/cranky-hamilton-ee068a/.artifacts/itemart/chest-plate/review/../icon-slots.png, Ok\n",
+  "icon_checks": {
+    "128": {
+      "rgba": true,
+      "size": [
+        128,
+        128
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        9,
+        18,
+        119,
+        110
+      ]
+    },
+    "256": {
+      "rgba": true,
+      "size": [
+        256,
+        256
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        18,
+        37,
+        238,
+        219
+      ]
+    }
+  },
+  "mesh": {
+    "glb": "game/assets/items/chest-plate.glb",
+    "glb_bytes": 395504,
+    "triangles": {
+      "ChestPlate_hull0-convcolonly": 44,
+      "ChestPlate_lod0": 9576,
+      "ChestPlate_lod1": 4020,
+      "ChestPlate_lod2": 1512
+    },
+    "lods": {
+      "lod0": {
+        "triangles": 9576,
+        "budget": 10000,
+        "within": true
+      },
+      "lod1": {
+        "triangles": 4020,
+        "budget": 4500,
+        "within": true
+      },
+      "lod2": {
+        "triangles": 1512,
+        "budget": 1600,
+        "within": true
+      }
+    },
+    "nodes": [
+      "ChestPlate_hull0-convcolonly",
+      "ChestPlate_lod0",
+      "ChestPlate_lod1",
+      "ChestPlate_lod2"
+    ],
+    "finite_attributes": true,
+    "unit_normals": true,
+    "images_embedded": false
+  },
+  "solution_build": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:03.37\n",
+  "tests": {
+    "tests-modelcatalogue": "RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (13 ms)\n  RUN  ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ExplosivesHaveTheirOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ExplosivesHaveTheirOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.BlueprintHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.BlueprintHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ResearchBenchHasItsOwnModelGibsAndRenderedIcon\n  ok   ModelCatalogueTests.ResearchBenchHasItsOwnModelGibsAndRenderedIcon (157 ms)\n  RUN  ModelCatalogueTests.WireToolHasItsOwnModelSocketsAndRenderedIcon\n  ok   ModelCatalogueTests.WireToolHasItsOwnModelSocketsAndRenderedIcon (19 ms)\n  RUN  ModelCatalogueTests.ClothingItemsAreTheWornGarments\n  ok   ModelCatalogueTests.ClothingItemsAreTheWornGarments (3 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 274 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (1923 ms)\n15/15 passed in 2.3 s.\n",
+    "tests-content": "RUN  ContentTests.GroundDataIsComplete\n      137 items, 94 recipes, 17 natural kinds, 24 deployables, 11 loot tables; hash A29EF438726C4597\n  ok   ContentTests.GroundDataIsComplete (393 ms)\n  RUN  ContentTests.BrokenDataIsReported\n      42 problems found, e.g. items.json: \"arrow\": unknown field \"stak\" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship, wiring)\n  ok   ContentTests.BrokenDataIsReported (54 ms)\n  RUN  ContentTests.EveryDataFileHasOneReader\n      22 readers for 21 files, and the checks across them\n  ok   ContentTests.EveryDataFileHasOneReader (1 ms)\n3/3 passed in 0.4 s.\n"
+  },
+  "visual_iteration": "Bind-pose garments checked front, side and top in Blender first. The gloves hung fingers-down at the A-pose hands, so they are turned fingers-up, backs toward the front, leaning outward and side by side; the boots are brought together. The first native review failed to compile the cloth shader because a nested include was not copied into the review project; the pipeline now follows includes, and every capture here is from the clean run.",
+  "limits": [
+    "Male garments (clothing.glb, the default body) are used for the items.",
+    "Native production ModelViewer, IconRenderer and CatalogItemIcons in an isolated review project with compiled game code; slots are diagnostic, not live gameplay inventory.",
+    "One solution build and one ModelCatalogue/ContentTests run cover all six clothing items.",
+    "Owner artistic acceptance is pending."
+  ]
+}

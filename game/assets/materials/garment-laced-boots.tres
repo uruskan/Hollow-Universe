@@ -1,0 +1,23 @@
+[gd_resource type="ShaderMaterial" load_steps=6 format=3]
+
+[ext_resource type="Shader" path="res://shaders/character_cloth.gdshader" id="1"]
+[ext_resource type="Texture2D" path="res://assets/characters/textures/laced_boots_albedo.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/characters/textures/laced_boots_normal.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/characters/textures/laced_boots_orm.png" id="4"]
+[ext_resource type="Texture2D" path="res://assets/characters/textures/leather_normal.png" id="5"]
+
+[resource]
+resource_name = "M_Hollow_Garment_laced_boots"
+shader = ExtResource("1")
+shader_parameter/albedo_texture = ExtResource("2")
+shader_parameter/normal_texture = ExtResource("3")
+shader_parameter/orm_texture = ExtResource("4")
+shader_parameter/detail_normal = ExtResource("5")
+shader_parameter/tint = Color(1, 1, 1, 1)
+shader_parameter/roughness = 0.6
+shader_parameter/detail_tiling = 15.64
+shader_parameter/detail_strength = 0.5
+shader_parameter/metallic = 0.0
+shader_parameter/specular_level = 0.4
+shader_parameter/normal_strength = 1.0
+shader_parameter/use_orm = true

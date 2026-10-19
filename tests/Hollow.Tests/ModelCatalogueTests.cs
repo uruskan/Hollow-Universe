@@ -35,7 +35,8 @@ public static class ModelCatalogueTests
     };
 
     // Models that replaced stand-ins: none of them may be marked as a stand-in again.
-    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate", "receiver", "rifle-frame", "torn-schematic", "sealed-schematic", "salvage", "explosives", "blueprint", "research-table" };
+    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate", "receiver", "rifle-frame", "torn-schematic", "sealed-schematic", "salvage", "explosives", "blueprint", "research-table",
+        "woven-hood", "woven-shirt", "woven-trousers", "woven-gloves", "work-boots", "chest-plate" };
 
     [Test]
     public static void ClothHasItsOwnModelAndRenderedIcon()
@@ -226,6 +227,34 @@ public static class ModelCatalogueTests
         string contact = held.RootElement.GetProperty("profiles").EnumerateArray()
             .Single(p => p.GetProperty("item").GetString() == "wire-tool").GetProperty("contactSocket").GetString()!;
         Assert.True(nodes.Contains("socket_grip_r") && nodes.Contains("socket_" + contact), $"wire tool needs socket_grip_r and socket_{contact}");
+    }
+
+    [Test]
+    public static void ClothingItemsAreTheWornGarments()
+    {
+        // Each item is the character package's garment mesh with the garment's own material (art/models/garment_items.py).
+        var garments = new Dictionary<string, string>
+        {
+            ["woven-hood"] = "woven_hood", ["woven-shirt"] = "woven_shirt", ["woven-trousers"] = "woven_trousers",
+            ["woven-gloves"] = "woven_gloves", ["work-boots"] = "laced_boots", ["chest-plate"] = "riveted_breastplate",
+        };
+        string game = Path.Combine(Fixtures.Root, "game");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(game, "data", "ground", "models.json")));
+        foreach ((string key, string stem) in garments)
+        {
+            JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray().Single(m => m.GetProperty("key").GetString() == key);
+            Assert.Equal($"res://assets/items/{key}.glb", item.GetProperty("file").GetString(), $"{key} model identity");
+            Assert.True(!item.TryGetProperty("standIn", out _), $"{key} must not return to its stand-in");
+            Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), $"{key} must render its own icon");
+            string material = $"res://assets/materials/garment-{stem.Replace('_', '-')}.tres";
+            string import = File.ReadAllText(Path.Combine(game, "assets", "items", key + ".glb.import"));
+            Assert.True(import.Contains($"\"{stem}\": {{", StringComparison.Ordinal) && import.Contains(material, StringComparison.Ordinal),
+                $"{key}: the garment's material {stem} must map to {material}");
+            string tres = File.ReadAllText(Local(game, material));
+            Assert.True(tres.Contains("res://shaders/character_cloth.gdshader", StringComparison.Ordinal) &&
+                tres.Contains($"res://assets/characters/textures/{stem}_albedo.png", StringComparison.Ordinal),
+                $"{key}: {material} must draw with the worn garment's shader and textures");
+        }
     }
 
     // World objects the gathering rules place (gather.json) and the ship.

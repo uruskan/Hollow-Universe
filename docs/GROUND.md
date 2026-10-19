@@ -4554,7 +4554,8 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `models/resources.py` | The twelve resources as small piles (their dropped look; gunpowder a heap on an opened paper), and the four world pickups as bigger piles |
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
 | `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
-| `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate; the metal mask (the item; the character package models it worn) |
+| `models/clothing.py` | The metal mask (the item; the character package models it worn) |
+| `models/garment_items.py` | The woven hood, shirt, trousers and gloves, the work boots and the chest plate as items: the worn garments' own meshes from `clothing.glb` with their own material (docs/ITEM_ART_CLOTHING.md) |
 | `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the bag dropped items lie in (`dropped-bag`, U4: a canvas-wrapped bundle strapped shut, below) |
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
@@ -5329,8 +5330,8 @@ they merge beside the other packages' items):
   outcrop is made too, though gather.json gets high-grade ore from metal outcrops.
 - M2. **Doors:** the door kit is the building package's. Until it converts it, our own wooden, armoured, double and
   garage doors stand in (marked `standIn`); the metal door is the Starter Kit's sheet-metal door.
-- M3. **Clothing icons come from stand-in garments** (`models/clothing.py`, marked `standIn`); render them again from
-  the character package's meshes when they can be posed for the inventory.
+- M3. **Clothing items are the worn garments** (`models/garment_items.py`, docs/ITEM_ART_CLOTHING.md): the character
+  package's meshes and material, so the icon and the dropped item show what is worn; the stand-ins are gone.
 - M4. **The rock is fist-sized** (the kit's 39 cm two-handed rock at 0.4, 16 cm), as items.json describes it.
 - M5. **Held items use the character package's frame** (+X forward, palm sockets `grip_r` and `grip_l`, LODs `_lod0`),
   so its hands can hold any of them. `HeldItems` loads them through `ModelCatalog`; the character package's test

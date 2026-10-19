@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "chest-plate",
+  "date": "2026-10-20",
+  "replaces": "the art/models/clothing.py stand-in model and the icon rendered from it",
+  "authorship": "Our own worn garment (art/characters/build_clothing.py, the character package) as the item: its mesh at three LODs, its own material and textures; rendered icons. No reference game files",
+  "visual_reference": null,
+  "authoring_source": [
+    {
+      "path": "art/models/garment_items.py",
+      "sha256": "900ae50a1d7579285054b058a773cde175beeb4d2d788bbd23856da260fad7ce"
+    }
+  ],
+  "authoring_helpers": [
+    {
+      "path": "art/hollow/export.py",
+      "sha256": "bca4862ce3d4b2a67c016857d2e78d97ef867d19af5d1991942aa10d52552bde"
+    },
+    {
+      "path": "art/hollow/godot.py",
+      "sha256": "8742a7167ee1b482dfc5c6e9e40d19391a9793aa711e23fd2a31f3f664d46cd2"
+    },
+    {
+      "path": "art/characters/build_clothing.py",
+      "sha256": "ce422ec0273a6076413832320ff1cf0271aa96a2217277a20da85410fab6d9e6"
+    }
+  ],
+  "geometry": {
+    "asset": "chest-plate",
+    "garment": "riveted_breastplate",
+    "dimensions_blender_xyz_m": [
+      0.7531449794769287,
+      0.4106414318084717,
+      0.5619106888771057
+    ],
+    "material": "game/assets/materials/garment-riveted-breastplate.tres",
+    "material_count": 1,
+    "lod_triangles": {
+      "ChestPlate_lod0": 9576,
+      "ChestPlate_lod1": 4020,
+      "ChestPlate_lod2": 1512
+    },
+    "hull_triangles": 44
+  },
+  "files": {
+    "game/assets/items/chest-plate.glb": {
+      "sha256": "b9c7494ee30ddfca83d6f9c62eba71d2f0125b692902a40a375a29b7de6838df",
+      "bytes": 395504
+    },
+    "game/assets/items/chest-plate.glb.import": {
+      "sha256": "234d8b82254a3fba1388d9634492c5abbd60b175e664ea61753e16dad326b1ee",
+      "bytes": 1405
+    },
+    "game/assets/items/icons/128/chest-plate.png": {
+      "sha256": "0134b11cc29b952efc5d689c22aa3fdffc8f3b81dd53ebeee9a7c842495ee6e7",
+      "bytes": 17345
+    },
+    "game/assets/items/icons/128/chest-plate.png.import": {
+      "sha256": "7d6cc4482b318628f699befee20785c8648ad4485ea809066e99b642bbf1fd6b",
+      "bytes": 960
+    },
+    "game/assets/items/icons/256/chest-plate.png": {
+      "sha256": "300b5a0e70e5e23b85d1cba5726b552b5e869b5af2c01b75d7b06c08b50f8679",
+      "bytes": 51568
+    },
+    "game/assets/items/icons/256/chest-plate.png.import": {
+      "sha256": "55e6a89684cb4c223d7fc95c440829d0acba228460451e10a0faeb638d3f3d9d",
+      "bytes": 960
+    },
+    "game/assets/materials/garment-riveted-breastplate.tres": {
+      "sha256": "50380e253d34beb7ab77b8c0346fddf34a8f503031d6bcdd94ec618ce593a9b8",
+      "bytes": 1152
+    },
+    "game/assets/characters/clothing.glb": {
+      "sha256": "c5d78471f97429dce027f65915278d19733578b73e407822a05aef5bec62bd1b",
+      "bytes": 3204960
+    },
+    "game/shaders/character_cloth.gdshader": {
+      "sha256": "4f1bea15d8b2abfb97274b4af0662bde54ad543660a98b01e49025859dcb5de4",
+      "bytes": 327
+    },
+    "game/shaders/character_cloth.gdshaderinc": {
+      "sha256": "30aabd93bdb406ad5f1525923c9ca7585f19a6a7d5fc7b0b67b0a562cc0c438e",
+      "bytes": 1656
+    },
+    "game/shaders/character_common.gdshaderinc": {
+      "sha256": "4d5697bde5469a263499f9cfda6df8d29f7f9a5e5a77fcf25ab0309b05dcb7fe",
+      "bytes": 1193
+    },
+    "game/assets/characters/textures/riveted_breastplate_albedo.png": {
+      "sha256": "c9ce356bae7c3d05fe43d5cb98c04a86b4de8cbbe2e1cc364791c8b92e53ee29",
+      "bytes": 184363
+    },
+    "game/assets/characters/textures/riveted_breastplate_albedo.png.import": {
+      "sha256": "ca8b5b3c73fc8f442faf97e769a9ca0dcedb5e6096eac0d6d008ea02e86b28c1",
+      "bytes": 1057
+    },
+    "game/assets/characters/textures/riveted_breastplate_normal.png": {
+      "sha256": "b02060495865029c7a3c2f38280c1fb8fcabb01dd82dbb9c169ef500d656ab13",
+      "bytes": 250040
+    },
+    "game/assets/characters/textures/riveted_breastplate_normal.png.import": {
+      "sha256": "612a1c0221b98c3f3a4a724dc2d0438dd73b848d360ed80948dfa6be0eaf42e5",
+      "bytes": 1057
+    },
+    "game/assets/characters/textures/riveted_breastplate_orm.png": {
+      "sha256": "a56e2e1704215af4ee58bb6ab39ec6ab7917461e16a942aedbf23d62ce45c517",
+      "bytes": 123469
+    },
+    "game/assets/characters/textures/riveted_breastplate_orm.png.import": {
+      "sha256": "107e6826e7185519c876548f059d1c8315b61448e40f5b1384fc6b29681eaa51",
+      "bytes": 1048
+    },
+    "game/assets/characters/textures/metal_normal.png": {
+      "sha256": "76dc268c7dca95bedc6050d900eaf4cb9cd292b6e76aa5aeb308bc53d2dc656c",
+      "bytes": 431799
+    },
+    "game/assets/characters/textures/metal_normal.png.import": {
+      "sha256": "5e0b375702c756bb430719d0a25e3e851ce6566b990660cc1f121ec7bde3d902",
+      "bytes": 1014
+    }
+  }
+}

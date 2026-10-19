@@ -39,6 +39,7 @@ SCRIPTS = {
     "tools": "models/tools.py",
     "supplies": "models/supplies.py",
     "clothing": "models/clothing.py",
+    "garment_items": "models/garment_items.py",
     "deployables": "models/deployables.py",
     "nodes": "models/nodes.py",
     "attachments": "models/attachments.py",

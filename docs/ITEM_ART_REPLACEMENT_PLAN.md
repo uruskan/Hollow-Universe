@@ -24,7 +24,7 @@ stacks keep their item-on-blue look; see [its asset record](ITEM_ART_BLUEPRINT.m
 bench, gibs and icons inside its unchanged placement bounds; see [its asset record](ITEM_ART_RESEARCH_TABLE.md).
 The Wire Tool review replaced its primitive probe with a modelled one in the same frame and sockets, and re-rendered
 its icons; see [its asset record](ITEM_ART_WIRE_TOOL.md). All thirteen scoped entries now have their own assets;
-live in-game review of them remains.
+live in-game review of them remains. Batch 4 (below) covers the clothing items, the door key and the doors.
 Artistic acceptance remains with the owner.
 [DESIGN.md](DESIGN.md), especially ART-01 and the ground UI requirement, remains authoritative.
 
@@ -59,7 +59,7 @@ remain subject to visual review.
 
 | Batch | Item key | Current model or icon gap | Proposed appearance |
 |---|---|---|---|
-| 1 | `cloth` | Fibre model and SVG icon | A roll or folded bolt of rough woven cloth, with visible thickness, folds and restrained fraying. |
+| 1 | `cloth` | Replaced: original model and rendered PNGs | A loose folded rag of rough woven plant fibre, with visible thickness, folds and restrained fraying. |
 | 1 | `sewing-kit` | Replaced: original model and rendered PNGs | Brown thread on a worn fibre core with a tucked steel needle; replaces the rejected green wooden-spool version. |
 | 1 | `metal-blade` | Replaced: original model and rendered PNGs | Broad tapered steel blade, one mounting hole, ground cutting edge and small chips; based on visual reference study. |
 | 1 | `sign-plate` | Replaced: original model and rendered PNGs | Overlapping red stop, yellow arrow and warning plates; shallow bends, mounting holes and original localized wear. |
@@ -72,12 +72,22 @@ remain subject to visual review.
 | 2 | `blueprint` | Replaced: original model and rendered PNGs | A cyanotype sheet in three zig-zag panels with an original drawing, for generic views; the learned-item presentation below is kept. |
 | 2 | `research-table` | Replaced: original model, gibs and rendered PNGs | A dismantling bench: magnifier over a cutting mat, a device taken apart, vise, salvage tray, drafting board, sample drawers and bins. |
 | 3 | `wire-tool` | Reviewed and replaced: original model and rendered PNGs | A yellow probe with a lit screen, rubber grip, wire reel and lead; the held presentation's frame and sockets are kept. |
+| 4 | `woven-hood` | Replaced: the worn garment and rendered PNGs | The character package's hood, its drape and dark face opening, upright and front-on. |
+| 4 | `woven-shirt` | Replaced: the worn garment and rendered PNGs | The worn cream woven shirt in its bind pose, sleeves out. |
+| 4 | `woven-trousers` | Replaced: the worn garment and rendered PNGs | The worn dark olive trousers with their belt. |
+| 4 | `woven-gloves` | Replaced: the worn garment and rendered PNGs | The worn knit gloves, fingers up and backs to the front, side by side. |
+| 4 | `work-boots` | Replaced: the worn garment and rendered PNGs | The worn laced leather boots, brought together. |
+| 4 | `chest-plate` | Replaced: the worn garment and rendered PNGs | The worn riveted steel breastplate with its straps and shoulder guards. |
+| 4 | `door-key` | Borrows the key lock's model and icon | A key of its own, distinct from the key lock. |
+| 4 | `wooden-door`, `armoured-door`, `double-door`, `garage-door` | Our early door models and their icons | Waits for the door-system rebuild: icons and dropped models from the corrected door kit. |
 
 Batch 1 is nine assets: the eight unfinished components plus salvage. Batch 2 covers
 three further borrowed identities. Wire Tool needs a model/icon review, rather than
-an assumed replacement of its existing model. Door-key icon reuse is outside this
-scope. Clothing and door stand-in annotations need separate contextual review and do
-not establish that their current gameplay geometry is still a placeholder.
+an assumed replacement of its existing model. Batch 4 retires the last stand-in notes
+in the catalogue. The six clothing items are now the worn garments themselves, so their
+icons and dropped items show what is worn ([their asset record](ITEM_ART_CLOTHING.md)).
+The door key gets a model of its own. The four door items wait for the door-system
+rebuild, which makes both faces of a door match; their icons follow the corrected kit.
 
 ## Visual standard
 
