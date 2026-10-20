@@ -64,8 +64,9 @@ sockets take an engine and a cargo pod. A minicopter session (rotor drive, its o
 ## 3. The car
 
 **Name.** The car is the **TOGG** (`togg`): **Owner**, 20 October 2026. Its name is stencilled on the cab as the Tin Finch's is.
-TOGG is also a real Turkish carmaker (its T10X), so its logo, badges and body shapes stay out; whether a real maker's name may
-ship in a released game is a legal question this design does not settle. The bike is the **Hare** (`hare`), a proposal (§12).
+The name is Turkey's own carmaker's; the owner confirmed it is fine to use (20 October 2026). The car itself is ours, scrap-built
+like everything players make, so no badge or body shape is copied from the real one. The bike is the **Hare** (`hare`), a
+proposal (§12).
 
 ### 3.1 The chassis
 
