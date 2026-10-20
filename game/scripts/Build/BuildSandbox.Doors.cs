@@ -63,6 +63,9 @@ public partial class BuildSandbox
                 }
             }
         }
+        // One more doorway with no door in it, at the end of the row, for the placement ghost (the tour's last pictures).
+        slab = DemoBases.On(_world, slab, DemoBases.Facing(slab, 1, 0), "foundation", 2);
+        DemoBases.On(_world, slab, DemoBases.Facing(slab, 0, 1), "doorway", 2);
         _model.SelectBelt(1);
         Look(_doorFrame, new Vector3D(0, 1.3, 5.2), new Vector3D(0, 1.15, 1.5));
     }
@@ -132,6 +135,24 @@ public partial class BuildSandbox
             }
         }
         Sheet(locks, 2).SaveJpg(Path.Combine(dir, "locks.jpg"), 0.9f);
+        // The placement ghost of a wooden door in the empty doorway at the row's end: each of its four layouts (R's steps), the
+        // leaves part open and the arc they sweep, seen from outside; and the first, seen from inside.
+        _model.SelectBelt(2);
+        var ghosts = new List<Image>();
+        double ghostX = DoorX(DoorRow.Length);
+        for (int turns = 0; turns < 5; turns++)
+        {
+            bool inside = turns == 4;
+            _extraTurns = inside ? 0 : turns;
+            Vector3D from = new(ghostX + 0.05, 1.45, inside ? 1.5 - 3.0 : 1.5 + 3.0), at = new(ghostX, 1.0, 1.5);
+            await Settled(0.4);
+            Image shot = await Shoot(_doorFrame, from, at);
+            shot.SaveJpg(Path.Combine(dir, $"ghost-{(inside ? "inside" : turns.ToString())}.jpg"), 0.9f);
+            ghosts.Add(shot);
+        }
+        _extraTurns = 0;
+        _model.SelectBelt(1);
+        Sheet(ghosts, 5).SaveJpg(Path.Combine(dir, "ghosts.jpg"), 0.9f);
         // Motion (docs/DOORS.md §4): the wooden door and the garage door opened, a picture every 0.45 s from outside.
         var motion = new List<Image>();
         foreach (int k in new[] { 0, 6 })

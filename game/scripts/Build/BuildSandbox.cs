@@ -65,6 +65,9 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
     private bool _jumpPressed;
     private double _clock;
     private int _turns, _tool;
+
+    // Presses of R the doors tour adds to the ghost's (so it can picture each layout).
+    private int _extraTurns;
     private object? _target;
     private RayHit _targetHit;
     private bool _shot;
@@ -503,7 +506,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         }
         Placeable? placing = (uint)tool < (uint)Tools.Length ? Tools[tool](this) : null;
         _candidate = placing != null
-            ? Placer.Plan(_placement, new PlacementContext(Player, eye, placing, _wallet), new PlacementAim(forward, Facing.YawOf(forward, _zone.Frame.UpAt(eye)), _turns))
+            ? Placer.Plan(_placement, new PlacementContext(Player, eye, placing, _wallet), new PlacementAim(forward, Facing.YawOf(forward, _zone.Frame.UpAt(eye)), _turns + _extraTurns))
             : null;
         _ghost.Show(_candidate);
         if (placing != null)

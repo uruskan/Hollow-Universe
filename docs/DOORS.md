@@ -164,7 +164,7 @@ set `images/abtest-b/doors/hosted`.
 | D3 (done) | No refusals; bodies follow the motion every tick; the motion record on the wire (protocol 45) | `DoorTests` (eight in all): the travel time and the body's ray test every tick, closing on a player, fitting and shutting with a player in the way, the garage curtain's edge and walkers; `BuildingNetTests`: the server's and the client's leaf agree at every tick |
 | D4 | The four door items' icons and dropped models from the corrected kit doors (docs/ITEM_ART_SALVAGE.md's pattern) | the item pictures; `models.json` loses their stand-in notes |
 
-Hosted pictures of the two airlock layouts, open and shut, from outside and inside, close D1 to D3. Owner visual
+The placement ghost's four layouts of a single door (R's steps; leaves part open, the swing arc on the floor): `images/abtest-b/doors/ghosts-wooden-door.jpg`. Hosted pictures of the two airlock layouts, open and shut, from outside and inside, close D1 to D3. Owner visual
 acceptance is pending after D4.
 
 ## 10. Open points (not decided here)
