@@ -40,8 +40,9 @@ internal sealed class ModulesReader : IContentReader
             var hull = new List<HullBox>();
             foreach (JsonElement h in f.List(e, "hull", where))
             {
-                f.OnlyKnown(h, where + ".hull", "centre", "size", "skid");
-                hull.Add(new HullBox(f.Vector(h, "centre", where + ".hull"), f.Vector(h, "size", where + ".hull"), f.Flag(h, "skid", where + ".hull", false)));
+                f.OnlyKnown(h, where + ".hull", "centre", "size", "skid", "fragile");
+                hull.Add(new HullBox(f.Vector(h, "centre", where + ".hull"), f.Vector(h, "size", where + ".hull"), f.Flag(h, "skid", where + ".hull", false),
+                    f.Flag(h, "fragile", where + ".hull", false)));
             }
             (List<ShipSeatDef> seats, List<ShipDoorDef> doors, List<ShipTargetPart> parts) =
                 ShipLayoutReader.Read(r, e, where, item.Name, interior: null, seatsOptional: true);

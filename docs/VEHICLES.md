@@ -472,6 +472,36 @@ Engine-free tests, by name:
 - Load: 20 bots driving with `--script drive` for 60 s (tick time, bandwidth), as the ships' `fly` script.
 - Pictures for every visual step, and the owner's look approval (§7).
 
+### 9.5 V1 as built (20 October 2026)
+
+On branch `claude/vehicles` (abtest-b with the motorboat's and the minicopter's ship work merged):
+
+- **Data.** `game/data/ground/modules.json` (empty until a vehicle declares its modules); a `ships.json` kind may name
+  `sockets` (`key`, `at`, `fits`, `row`, `levels`) and a `buildHeight`; an item names its module (`"module": "<key>"`).
+  A module is read by the ships' own layout reader: its seats (optional), doors and parts in its own frame, its first part
+  its body with health, met by a ball (the interact key and the hammer aim at it) and by the module's hull boxes (a shot
+  and a blast take it). A module's seat is reached through its door or is exposed, every seat, the helm too.
+- **Rules** (`ShipAssembler.Check`, `BuildProblem`): a socket that takes the module's tag; a long module along one row;
+  level 2 only on roofs that carry load, all at one height; the kind's build height; at most 32 modules. Level 1 is placed
+  before level 2. `Sane` makes an untrusted build (a save's, a client's) possible by leaving out what can't be.
+- **Composition** (`ShipAssembler.Compose`): the kind's `ShipDef` is copied (so every field another session adds, a drive,
+  buoyancy, a rotor's fragile boxes, is carried without the assembler naming it), then each module's seats, doors, parts
+  and hull boxes are appended, moved by their socket (sockets don't turn modules); keys become `socket.level.key`. One
+  helm: the kind's own, else the first level-1 module's in socket order; any other helm seat rides as a passenger. Mass,
+  centre of mass (the moment's sum), inertia (the kind's moved by the parallel axis, each module a solid box of its hull's
+  bounds), fuel capacity and water volume add up. Made once per kind and build and kept; `Ship.Def` is the composed one,
+  `Def.Kind` and `Def.Build` say what it is made of.
+- **Holds.** Each module with a `hold` gets a container on the ship, opened at its part through the shared container verb
+  (which now passes the aimed part), kept open by the ship's reach rule, emptied into the wreck.
+- **Damage and repair.** `TraceShips` reports the part a box belongs to, blasts reach module bodies by their boxes, and the
+  hammer mends hulls through the ship family's one `RepairPart`: a kind's `repair` gives the hull its material and cost
+  (the Tin Finch 150, the Iron Wake 3,600 metal fragments: 0.2 a point, 100 a hit after 30 s).
+- **Saved and sent.** `ShipCodec` 8 writes the build after the kind (so the layout is known before the seats, doors and parts
+  numbered by it) and each hold after the cargo by its module's socket and level; `ShipDetails` carries the build
+  (protocol 47) and the client composes the same layout before applying the rest.
+- **Not yet:** changing a build at runtime (the lift, V4), engines and their parts (V4), running gear and the ground motor
+  (V2), modules on a ship people walk in (refused by the content check for now).
+
 ## 10. Crafting and progression
 
 Everything is learned in the **Vehicle Workbench tree** (R6) and crafted at that workbench, except tier-3 parts and rare
@@ -506,7 +536,7 @@ wrecks to recover belong with the roads, later.
 | | What | Checked by |
 |---|---|---|
 | V0 | This document; the owner's answers to §12 | — |
-| V1 | The module core and the motor registry: modules.json, the assembler, the build in the state, codec 7 and the network; **shared**, built by whichever of the three sessions starts first | `Modules` tests |
+| V1 (done, §9.5) | The module core: modules.json, sockets, the assembler, holds, the build saved (codec 8) and on the wire (protocol 47), the hull mended with the hammer; **shared** with the minicopter. The motor registry moves to V2 | `ModuleTests` (7) |
 | V2 | The ground motor on a fixed build of blocks: driving the baked Earth in `--view vehicle`; moving bodies; run-over. First, `ShipMotor`'s shared helpers (gravity and the curvature turn, the hull's sweep, crash damage, sleep) pulled out as statics: the drive seam (98621ac7 on `claude/motorboat`) leaves them inside the step | `GroundMotor`, `RunOver`; the sandbox tour |
 | V3 | Seats, the car and bike control schemes, prediction of passengers, the HUD; the hosted game | Network tests; a hosted drive with a passenger |
 | V4 | The lift: item, power, the vehicle screen, locks; engine parts and tiers; crafting and the tree | `Lift`; `ContentTests`; the screen in `--view ui --screen vehicle` |

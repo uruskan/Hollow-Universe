@@ -167,5 +167,5 @@ public sealed class ShipBuild : IEquatable<ShipBuild>
 /// </summary>
 public sealed record PlacedModule(Installed Entry, ModuleDef Module, Vector3 Origin, int FirstSeat, int FirstDoor, int FirstPart, int FirstBox);
 
-/// <summary>A module's hold in a composed layout: the target part it opens at and its slots.</summary>
-public readonly record struct ShipHold(int Part, int Slots);
+/// <summary>A module's hold in a composed layout: the target part it opens at, its slots and its module (the index in <see cref="ShipDef.Placed"/>).</summary>
+public readonly record struct ShipHold(int Part, int Slots, int Module);

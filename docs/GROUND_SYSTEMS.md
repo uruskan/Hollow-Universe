@@ -373,7 +373,8 @@ old `ship` capability keeps no verbs: only its flags (locked, on the list).
   prompt says it.
 - The cupboard's verbs act on the list of the target's family (`IAuthoriseFamily`: a claim device's, a ship's), so the
   Iron Wake's helm is its tool cupboard with no second handler.
-- The hammer mends whatever the aim names through its family (`IRepairFamily`: a piece, a ship's door or battery;
+- The hammer mends whatever the aim names through its family (`IRepairFamily`: a piece, a ship's door or battery, a ship's
+  module, a ship's hull where its kind gives the cost (VEHICLES.md §5.5);
   `BuildingSystem.Repair`), within the building's reach and in sight.
 
 Tests (`InteractionTests`): every verb has exactly one handler; the one query meets the nearest thing; the garage door

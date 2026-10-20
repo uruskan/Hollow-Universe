@@ -262,7 +262,7 @@ public static class ShipAssembler
             }
             if (m.Hold > 0 && m.HoldPart >= 0)
             {
-                holds.Add(new ShipHold(part0 + m.HoldPart, m.Hold));
+                holds.Add(new ShipHold(part0 + m.HoldPart, m.Hold, placed.Count - 1));
             }
             mass += m.Mass;
             moment += m.Mass * (o + m.CentreOfMass);

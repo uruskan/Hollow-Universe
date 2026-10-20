@@ -51,6 +51,9 @@ public sealed class RemoteShip
 
     private ShipDef? _def;
 
+    /// <summary>The modules its details last said it has (VEHICLES.md §9.1): its <see cref="Def"/> is its kind with these.</summary>
+    public Simulation.Ships.Modules.ShipBuild Build { get; set; } = Simulation.Ships.Modules.ShipBuild.Empty;
+
     public uint NewestTick => _newest < 0 ? 0 : _ticks[_newest];
 
     public bool HasState => _count > 0;

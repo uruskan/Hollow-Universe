@@ -246,6 +246,68 @@ public static class ModuleTests
         Assert.True(problems.Any(p => p.Contains("no ship's socket fits", StringComparison.Ordinal)), "no kind has a rack yet");
     }
 
+    /// <summary>
+    /// ShipCodec 8: the build is stored after the kind and comes back as the same layout, each hold by its module's socket and
+    /// level, the modules' health with it. A game that lost a module brings the ship back without it.
+    /// </summary>
+    [Test]
+    public static void AShipWithModulesIsSavedAndReadBack()
+    {
+        using var rig = new ShipRig();
+        Zone z = new(new LevelSurface(ShipRig.Earthlike), rig.Zone.Spec, content: C) { UnixMilliseconds = 1_800_000_000_000 };
+        try
+        {
+            var build = new ShipBuild(new[] { new Installed(0, 1, Locker), new Installed(1, 1, Locker), new Installed(1, 2, Locker) });
+            ShipDef d = C.Compose(Finch, build);
+            Ship ship = z.Ships().SpawnShip(d, z.GroundAt(0, 0), 0, new EntityId(77), 100);
+            int top = d.HoldOfPart(d.Placed.Single(p => p.Entry.Level == 2).FirstPart);
+            ship.Holds[top].Set(3, ItemStack.Of(C.ItemByKey("wood"), 250));
+            ship.PartHealth[d.Placed[0].FirstPart] = 123;
+            byte[] bytes = Hollow.Persistence.ShipCodec.Encode(ship, z.Frame, z.Tick);
+            Assert.Equal((byte)8, bytes[0], "version 8");
+            Hollow.Persistence.StoredShip back = Hollow.Persistence.ShipCodec.Decode(ship.Id, bytes, C, z.Frame)!;
+            Ship again = back.Ship;
+            Assert.True(ReferenceEquals(again.Def, d), "the same composed layout");
+            Assert.True(again.Holds[top][3].Count == 250 && again.Holds.Where((h, i) => i != top).All(h => h.IsEmpty), "the wood in the top locker's hold");
+            Assert.Near(123, again.PartHealth[d.Placed[0].FirstPart], 1e-3, "the first locker's health");
+            // A game without the test modules (the real data): the build goes, the ship stays.
+            Hollow.Persistence.StoredShip plain = Hollow.Persistence.ShipCodec.Decode(ship.Id, bytes, ContentFixture.Content, z.Frame)!;
+            Assert.True(plain.Ship.Def.Build.IsEmpty && plain.Ship.Holds.Length == 0 && plain.Ship.Def.Key == "tin-finch",
+                "a module the game lost is left out");
+        }
+        finally
+        {
+            z.Dispose();
+        }
+    }
+
+    /// <summary>Protocol 47: a ship's details carry its build through the wire, and a client composes the server's layout from it.</summary>
+    [Test]
+    public static void TheBuildTravelsInTheDetails()
+    {
+        using var rig = new ShipRig();
+        Zone z = new(new LevelSurface(ShipRig.Earthlike), rig.Zone.Spec, content: C) { UnixMilliseconds = 1_800_000_000_000 };
+        try
+        {
+            ShipDef d = C.Compose(Finch, new ShipBuild(new[] { new Installed(0, 1, Bench) }));
+            Ship ship = z.Ships().SpawnShip(d, z.GroundAt(0, 0), 0, new EntityId(77), 100);
+            var writer = new Hollow.Net.Bits.BitWriter();
+            Hollow.Net.Protocol.ShipConvert.Details(ship, 5, id => id.Value).WriteMessage(writer);
+            byte[] bytes = writer.ToArray();
+            var reader = new Hollow.Net.Bits.BitReader();
+            reader.Reset(bytes, 0, bytes.Length);
+            Assert.Equal((uint)Hollow.Net.Protocol.ShipDetails.TypeId, reader.ReadBits(8), "a ship's details");
+            Hollow.Net.Protocol.ShipDetails m = Hollow.Net.Protocol.ShipDetails.Read(reader);
+            Installed[] entries = Hollow.Net.Protocol.ShipConvert.BuildOf(m);
+            ShipDef client = C.Compose(Finch, ShipAssembler.Sane(Finch, entries, C.Module));
+            Assert.True(!reader.Failed && ReferenceEquals(client, d), "the client's layout is the server's");
+        }
+        finally
+        {
+            z.Dispose();
+        }
+    }
+
     private static void Step(Zone z, int ticks)
     {
         for (int i = 0; i < ticks; i++)
