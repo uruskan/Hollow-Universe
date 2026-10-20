@@ -11,8 +11,8 @@ inner door blocks access (wiki.facepunch.com/rust/Building-terminology); doors a
 
 1. **Both faces of a door look the same**, inside and outside. A door has no "good" side.
 2. **Doors ignore everything in their way**: other doors, players, objects. They always open and they always close.
-   Nothing refuses them, stops them or reverses them (the only thing that reverses a door is a second press of its
-   own verb while it moves, §4).
+   Nothing refuses them, stops them or reverses them. (A second press of a door's own verb while it moves turns it round
+   from where it is: that is *proposed* here, not specified by the owner, §4.)
 3. **Collision follows the real motion.** A swinging leaf's collision moves along its swing, a garage curtain's along
    its roll, every tick. There is no tick at which the body is somewhere the picture is not: nobody can walk under a
    closing garage curtain because its body had already jumped up.
@@ -60,7 +60,8 @@ opening toward −Z.
 **Placing.** The placement ghost is the door itself, drawn partly open, with the **swing arc** the leaf sweeps drawn on
 the floor of the opening (a fan from the shut pose to the open one, about the hinge pin). Aiming through an opening from one side
 starts the layout hinged on the viewer's left and opening *away from the viewer* (into the room the viewer is about to
-enter). **R** steps through the four layouts of a single door in the order left/in, right/in, right/out, left/out (each
+enter). **This default is unconfirmed**: two secondary Rust guides (falconrust.com/guides/building/doors-and-locks among
+them) say a door opens *toward* whoever placed it, which Facepunch has not confirmed; the owner, who plays Rust, decides (§10). **R** steps through the four layouts of a single door in the order left/in, right/in, right/out, left/out (each
 press changes one of the two choices); for a double door it swaps in and out. The chosen number travels with the
 placement claim and is checked against the door's layout count. The ghost is refused only for the placement's own
 reasons (no opening aimed at, a door in that frame already, out of reach). A door is never refused, at placing or
@@ -74,7 +75,8 @@ its *target* (`Door.Open`: where it is going). Where it is at any tick is arithm
 `from + moving × (tick − since) × rate`, clamped to 0..1, with `rate = 1 / (travel × 30)` per tick. The travel comes from
 data (building.json `travel`): a leaf swings in **1.0 s** (30 ticks, easing at both ends: `DoorDef.Ease`), the garage curtain
 rolls in **3.0 s** (90 ticks: the kit's Open clip, frames 2 to 92 at 30 per second, measured in Blender). A press of the verb
-starts the motion from the progress at that tick; a second press during a move reverses it from where it is, with no refusal. The server
+starts the motion from the progress at that tick. A second press during a move turns it round from where it is, with no refusal:
+**a proposal** (the owner's rule is that nothing refuses or stops a door; whether a second press may reverse one is not specified). The server
 rests a door at its end (progress 0 or 1, still) and does not announce it: the record already says so.
 
 The pose of a leaf is a function of its progress alone (§5), so the server, every client and a test compute the same pose at the
@@ -84,9 +86,14 @@ same tick. The record is what is replicated (§8); a door saved mid-move is save
 
 - **Each tick** the building's `DoorMotionSystem` (under the physics gate, right after the characters moved, before the systems
   that follow what rides on a leaf) puts every moving door's leaf bodies at the pose of the tick's progress: a swing is the
-  leaf turned about its pin by `openYaw × ease(progress)`; the garage's body is a box of the curtain's size lifted by the
-  kit's clip's lower-edge height at that progress (`building.json` `lift`: 25 heights at equal steps of progress, 0 to 2.43 m,
-  measured on the clip in Blender), so the body is where the skinned curtain's lower edge is. A door at rest keeps its bodies
+  leaf turned about its pin by `openYaw × ease(progress)`; the garage's body is **only the part of the curtain still hanging**:
+  a box from the kit's clip's lower-edge height at that progress (`building.json` `lift`: 25 heights at equal steps of
+  progress, 0 to 2.43 m, measured on the clip in Blender) up to the header, 2.85 m minus that, so it shrinks as the curtain
+  rolls and is 0.42 m deep at the top when open. It is never the curtain's full size lifted: that box reached 2.4 m into the
+  storey above and blocked it (the placement's rays, shots and walkers upstairs). Its height is rounded up to a centimetre,
+  so the shapes are shared (`LeafDef.HangingCentimetres`) and the body is re-shaped by `BuildingPhysics.Reshape`. The body
+  the targeting rays, blasts and reach use is the same box (`BuildingWorld.LeafParts`). `DoorTests`: through the opening's plane,
+  3.2 to 5.6 m up, the way is clear open, shut and every 7 ticks between. A door at rest keeps its bodies
   where they are; an open leaf is solid. At most two bodies a door, moved with Jolt's own call (the broadphase is
   rebuilt once a tick while any door moves: 0.1–0.3 ms).
 - **Order.** In one tick the characters move first, then the systems; so the characters' movement in tick *t + 1* meets the poses of
@@ -94,11 +101,15 @@ same tick. The record is what is replicated (§8); a door saved mid-move is save
   (`Predictor.BeforeStep`, every tick of a replay too: `BuildingWorld.StepDoors`), and draws a door at the same tick
   (`PredictedTickClock − 1`), so what a player walks into is what they see.
 - **A character in the way is shoved.** The character controller's penetration recovery pushes a capsule out of a body that has
-  moved into it; nothing stops the door. A door that closes on a standing player ends up with them outside its leaf: the leaf
-  sweeps them ahead of it, and near its end it pushes toward the doorway, so a door closing from the inside sees them out
-  through it (`DoorTests`: z +0.38 outside the doorway). A garage curtain coming down presses a standing player down and aside; nobody
-  can *walk* under it while its lower edge is lower than they are tall (standing 1.76 m, crouching 1.10 m): a walker at a curtain
-  with its edge at about 0.9 m is stopped.
+  moved into it; nothing stops the door. What it does to a player in a closing leaf's way was found by running it
+  (`DoorTests`, a standing player 0.45 m inside a door that swings in, hinged on the left): every tick she is on the leaf's
+  leading side, the face it is moving toward, and never on its far side or inside its core; the leaf sweeps her along its arc,
+  and when it has shut she stands clear of it in front of that face. For that case this is z +0.38 on the doorway's outside, so
+  a door shutting from the inside moved her out through the doorway. The test asserts the invariant (never on the far side, never
+  inside the shut leaf), not a side; a player whom the penetration recovery cannot move (against a wall, between two leaves) is
+  not tested. A walker meeting a garage curtain is stopped while its lower edge is lower than they are tall (standing 1.76 m,
+  crouching 1.10 m: `DoorTests`, a walker at a curtain with its edge at about 0.9 m); a curtain coming down on a standing player
+  is not tested.
 - **No refusals.** `Toggle` has no `SwingBlocked`, fitting a door no `PlayerInTheWay`; locks and keys are the only things that
   refuse a door (`Locked`), as before.
 
@@ -145,7 +156,8 @@ set `images/abtest-b/doors/hosted`.
 
 - `DoorNet` carries the **layout** (replacing the flip flag; 2 bits, since protocol 44, D2), whether it is open (its target),
   and the motion record (protocol 45, D3): *from* (progress as a fraction of 65,535), *since* (the tick, a varint) and *moving* (two
-  bits: 0 still, 1 opening, 2 shutting). A door that is still has `moving = 0`.
+  bits: 0 still, 1 opening, 2 shutting). A door that is still has `moving = 0`. The numbers 44 and 45 are this branch's (abtest-b was
+  at 43 when it was cut): a landing re-checks them against the version abtest-b has by then, as other sessions land too.
 - A client's copy of a door animates from the record against the client's own tick (the one its prediction runs on, less
   one), so the picture and the predicted collision are the same pose. Its first sight of a moving door is a little ahead
   of the server's pose by the lead of its clock; the press itself is not predicted (it is answered by the server's next door
@@ -168,6 +180,10 @@ The placement ghost's four layouts of a single door (R's steps; leaves part open
 acceptance is pending.
 
 ## 10. Open points (not decided here)
+
+- **Which way a new door opens.** The default layout opens away from the viewer (§3); two secondary Rust guides say toward
+  whoever placed it. Unconfirmed; the owner decides.
+- **A second press while a door moves** reverses it from where it is (§4); the owner has not specified it.
 
 - **Which face carries the keypad** is the frame's +Z (§6). Choosing it by the side the player aimed from would need the
   face stored with the lock (its record and its message).

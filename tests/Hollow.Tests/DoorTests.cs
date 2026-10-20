@@ -494,7 +494,23 @@ public static class DoorTests
         }
         Assert.True(inItsSweep, "she stands in the leaf's sweep as it closes");
         Assert.True(world.Toggle(1, door).Ok, "asked to shut with her in its way: nothing refuses it (it used to: swing blocked)");
-        rig.Step(45);
+        // What the character controller's penetration recovery does, found by running it: the leaf sweeps her ahead of it, on the side
+        // it is moving to (its +Z face when it shuts), and she is never on its far side while she is beside it: the leaf does not
+        // pass through her and she is not pushed through it.
+        LeafDef leaf = door.Def.Leaves[0];
+        float deepest = float.MaxValue;
+        for (int tick = 1; tick <= 45; tick++)
+        {
+            rig.Step();
+            (Vector3 at, Quaternion turned) = door.LeafAt(0, door.Progress);
+            Vector3 local = Vector3.Transform(rig.Ch(ada).State.Position - at, Quaternion.Inverse(turned));
+            if (local.X >= 0 && local.X <= leaf.Size.X && door.Progress < 0.9f)
+            {
+                deepest = Math.Min(deepest, local.Z);
+                Assert.True(local.Z >= -leaf.Size.Z / 2, $"tick {tick}: she is on the leaf's leading side, not behind or inside it (leaf z {local.Z:0.00})");
+            }
+        }
+        Assert.True(deepest != float.MaxValue, "she was beside the leaf while it closed");
         Assert.True(door.Moving == 0 && door.Progress == 0f && !door.Open, "it shut, all the way");
         Vector3 feet = rig.Ch(ada).State.Position;
         Assert.True(!Touches(door, 0, 0f, feet, zone.Frame.UpAt(feet)), "she is outside the leaf, shoved clear");
@@ -552,6 +568,17 @@ public static class DoorTests
         return ToFrame(frame, rig.Ch(walker).State.Position).Z;
     }
 
+    // The curtain rolls into its header and has no body above it (DOORS.md §5): through the opening's plane, over the wall frame's
+    // top (3 m), the way is clear at any height of the storey above.
+    private static void ClearAboveTheHeader(BuildingWorld world, Piece frame, Vector3 along, string when)
+    {
+        foreach (float height in new[] { 3.2f, 3.8f, 4.5f, 5.2f, 5.6f })
+        {
+            Assert.True(!world.Physics!.Ray(ToZone(frame, new Vector3(0.3f, height, 1.8f)), -along, 3.6f, out RayHit hit, buildingOnly: true),
+                $"{when}: the storey above the garage door ({height:0.0} m) is clear of its body ({(world.Physics.OwnerOf(hit.Body) as DoorLeaf)?.ToString() ?? "-"})");
+        }
+    }
+
     [Test]
     public static void AGarageCurtainsBodyRisesAndFallsWithTheKitsClipAndNobodyWalksUnderItWhileItIsLow()
     {
@@ -569,8 +596,12 @@ public static class DoorTests
             Zone zone = rig.Zone;
             (Piece frame, Door door) = GarageOnGround(rig, open: true);
             BuildingWorld world = zone.Building().World!;
-            Assert.True(world.Toggle(1, door).Ok, "shut, asked");
             Vector3 along = Vector3.Transform(Vector3.UnitZ, frame.ZoneTransform.Rotation);
+            ClearAboveTheHeader(world, frame, along, "open");
+            // Open, the curtain is only what still hangs from the header: its body is 0.42 m, not the curtain's 2.85 m lifted.
+            Assert.True(world.Physics!.Ray(ToZone(frame, new Vector3(0.3f, garage.LiftAt(1, 2.85f) + 0.2f, 1.8f)), -along, 3.6f, out RayHit hanging, buildingOnly: true) &&
+                world.Physics.OwnerOf(hanging.Body) is DoorLeaf, "open: what still hangs is there");
+            Assert.True(world.Toggle(1, door).Ok, "shut, asked");
             for (int tick = 1; tick <= 90; tick += 7)
             {
                 rig.Step(tick == 1 ? 1 : 7);
@@ -585,9 +616,11 @@ public static class DoorTests
                 }
                 Assert.True(world.Physics!.Ray(ToZone(frame, new Vector3(0.3f, edge + 0.2f, 1.8f)), -along, 3.6f, out RayHit over, buildingOnly: true) &&
                     world.Physics.OwnerOf(over.Body) is DoorLeaf, $"tick {tick}: over its edge the curtain is there");
+                ClearAboveTheHeader(world, frame, along, $"tick {tick}");
             }
             rig.Step(10);
             Assert.True(door.Moving == 0 && door.Progress == 0f, "shut at the end");
+            ClearAboveTheHeader(world, frame, along, "shut");
         }
         // Nobody walks under it while its edge is lower than they are tall: one walks in when it is open, and not when it is coming down.
         using (var rig = new GameRig())

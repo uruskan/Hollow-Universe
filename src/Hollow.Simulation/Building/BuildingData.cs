@@ -217,6 +217,25 @@ public sealed class LeafDef
     internal object MirrorKey { get; } = new();
 
     /// <summary>
+    /// The height of a rolling curtain's body while its lower edge is <paramref name="lift"/> metres up, in whole centimetres
+    /// (rounded up, so shapes are shared and the top never falls short of the header): only the part still hanging, from the
+    /// lower edge up to the header, never the curtain's full size lifted (DOORS.md §5).
+    /// </summary>
+    public int HangingCentimetres(float lift) => Math.Clamp((int)MathF.Ceiling((Size.Y - lift) * 100f - 0.01f), 5, (int)MathF.Ceiling(Size.Y * 100f));
+
+    /// <summary>A rolling curtain's body of that height, standing on its (lifted) origin.</summary>
+    public ConvexPart[] HangingParts(int centimetres) => _hanging.GetOrAdd(centimetres, cm =>
+    {
+        float x0 = Math.Min(0, Size.X), x1 = Math.Max(0, Size.X), t = Size.Z / 2;
+        return new[] { ConvexPart.Box(x0, x1, 0, cm / 100f, -t, t) };
+    });
+
+    /// <summary>The key a hanging body's shared shape of that height is kept under.</summary>
+    internal object HangingKey(int centimetres) => (this, centimetres);
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, ConvexPart[]> _hanging = new();
+
+    /// <summary>
     /// How far the hinge pin lies from the leaf's middle plane, toward the face the leaf swings to: half its thickness, so
     /// the open leaf stands clear of the jamb it hangs on (DOORS.md §3).
     /// </summary>

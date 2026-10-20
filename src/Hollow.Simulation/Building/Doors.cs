@@ -343,14 +343,27 @@ public sealed partial class BuildingWorld
         return Outcome.Done;
     }
 
-    // A leaf's solid parts as this door hangs it: the leaf's own, or those mirrored for a right-hinged leaf.
-    internal static ConvexPart[] LeafParts(Door door, int index) =>
-        door.HingeRight && door.Def.Leaves[index].MirrorMesh.Length > 0 ? door.Def.Leaves[index].MirroredParts : door.Def.Leaves[index].Parts;
+    // A leaf's solid parts as this door hangs it: the leaf's own, or those mirrored for a right-hinged leaf; a rolling curtain's
+    // are only what still hangs below the header at the door's progress (a shorter box as it rises, DOORS.md §5).
+    internal static ConvexPart[] LeafParts(Door door, int index)
+    {
+        LeafDef leaf = door.Def.Leaves[index];
+        if (door.Def.Rolls)
+        {
+            return leaf.HangingParts(leaf.HangingCentimetres(door.Def.LiftAt(door.Progress, leaf.Size.Y)));
+        }
+        return door.HingeRight && leaf.MirrorMesh.Length > 0 ? leaf.MirroredParts : leaf.Parts;
+    }
 
-    // The shared Jolt shape of a leaf as this door hangs it (one for each side a leaf can hang on).
+    // The shared Jolt shape of a leaf as this door hangs it (one for each side a leaf can hang on, one for each height of a curtain).
     internal JoltPhysicsSharp.Shape LeafShape(Door door, int index)
     {
         LeafDef leaf = door.Def.Leaves[index];
+        if (door.Def.Rolls)
+        {
+            int centimetres = leaf.HangingCentimetres(door.Def.LiftAt(door.Progress, leaf.Size.Y));
+            return Physics!.ShapeFor(leaf.HangingKey(centimetres), leaf.HangingParts(centimetres));
+        }
         bool mirrored = door.HingeRight && leaf.MirrorMesh.Length > 0;
         return Physics!.ShapeFor(mirrored ? leaf.MirrorKey : leaf, LeafParts(door, index));
     }
@@ -444,10 +457,22 @@ public sealed partial class BuildingWorld
             return;
         }
         door.Progress = progress;
+        if (Physics == null)
+        {
+            return;
+        }
         for (int i = 0; i < door.Def.Leaves.Count; i++)
         {
             (Vector3 position, Quaternion rotation) = door.LeafAt(i, progress);
-            Physics?.Move(door.Bodies[i], position, rotation);
+            if (door.Def.Rolls)
+            {
+                // A curtain's body is the part still hanging: it gets shorter as the lower edge rises.
+                Physics.Reshape(door.Bodies[i], LeafShape(door, i), position, rotation);
+            }
+            else
+            {
+                Physics.Move(door.Bodies[i], position, rotation);
+            }
         }
     }
 

@@ -55,6 +55,15 @@ public sealed class BuildingPhysics : IDisposable
     /// <summary>The shared Jolt shape of some convex parts, built the first time it's asked for under that key.</summary>
     public Shape ShapeFor(object key, ConvexPart[] parts)
     {
+        // A rolling curtain asks every tick it moves, from whichever thread steps its mirror: the table is guarded.
+        lock (_shapes)
+        {
+            return ShapeLocked(key, parts);
+        }
+    }
+
+    private Shape ShapeLocked(object key, ConvexPart[] parts)
+    {
         if (_shapes.TryGetValue(key, out Shape? shape))
         {
             return shape;
@@ -136,6 +145,23 @@ public sealed class BuildingPhysics : IDisposable
         lock (JoltRuntime.Gate)
         {
             _world.Jolt.BodyInterface.SetPositionAndRotation(new BodyID(id), position, rotation, Activation.DontActivate);
+            _world.NoteBodyChanged();
+        }
+    }
+
+    /// <summary>Gives a static body another shape and a pose (a rolling door's curtain, shorter as it rises).</summary>
+    public void Reshape(uint id, Shape shape, Vector3 position, Quaternion rotation)
+    {
+        if (id == 0 || !_owners.ContainsKey(id))
+        {
+            return;
+        }
+        lock (JoltRuntime.Gate)
+        {
+            BodyInterface bodies = _world.Jolt.BodyInterface;
+            // The shape first, as a reused body's: the pose then puts its centre of mass where a new body's would be.
+            bodies.SetShape(new BodyID(id), shape, false, Activation.DontActivate);
+            bodies.SetPositionAndRotation(new BodyID(id), position, rotation, Activation.DontActivate);
             _world.NoteBodyChanged();
         }
     }

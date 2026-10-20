@@ -4724,3 +4724,13 @@ assembles each from the D1 kit's frame and shut leaf or leaves (or the garage cu
 levels and one hull; the stand-in door builders left `deployables.py`. Triangles per level 16,000/4,888/1,000, 16,000/5,112/888, 23,999/12,000/2,096 and 10,232/4,624/1,395
 (only the heavy LOD0 leaves are decimated); `models.json` lost the `standIn` notes; icons rendered by `IconRenderer`; record in `docs/ITEM_ART_DOORS.md`.
 Validation: build 0 warnings; `ContentTests` 3/3, `Model` and `Icon` groups pass; rebuilt files byte-identical; the model viewer and the eight PNGs looked at. Not done: a live inventory or placement check, owner acceptance.
+
+### 20 October 2026 — doors: review of the specification
+
+A review of `DOORS.md` found that the garage curtain's body was still its full size lifted by the clip's lower-edge height, so an open
+garage door put a 2.85 m box 2.4 m into the storey above. The body is now only the part still hanging below the header (`LeafDef.HangingParts`,
+`BuildingPhysics.Reshape`, re-shaped each tick it moves; the targeting rays and blasts use the same box); `DoorTests` checks that the
+space 3.2 to 5.6 m up through the opening is clear open, shut and every 7 ticks between (it failed on the full-size box at 3.2 m).
+The shove test now asserts each tick that the closing leaf never has the player on its far side, instead of a side. `DOORS.md` marks
+the new door's default layout and the reversal on a second press as unconfirmed or proposed (owner to decide), and notes protocol 44 and 45 for a
+re-check at landing. Validation: build 0 warnings; `DoorTests` 9/9.
