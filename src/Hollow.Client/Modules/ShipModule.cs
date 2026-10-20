@@ -132,6 +132,9 @@ public sealed class ShipModule : ClientModule
     /// <summary>The ship prediction, for statistics and tests.</summary>
     public ShipPredictor? ShipPrediction => _shipPredictor;
 
+    /// <summary>The largest correction of the ship flown since it was last reset (metres; statistics, tours).</summary>
+    public float LargestCorrection { get; set; }
+
     /// <summary>The ships' world on this client: the zone's frame and ground, the planet's gravity and air, the prediction's physics.</summary>
     public ShipContext ShipContext => new(Frame, Surface!, ShipContext.GravityOf(Zone!.SurfaceGravity), (float)Zone.AirDensity,
         (float)Zone.AirScaleHeight, _shipCollider);
@@ -581,6 +584,7 @@ public sealed class ShipModule : ClientModule
         if (error is > 0)
         {
             Stats.ShipCorrections++;
+            LargestCorrection = MathF.Max(LargestCorrection, error.Value);
         }
         Vector3 jump = before - _shipPredictor.Latest.Position;
         _shipSmoothing = wasActive && (_shipSmoothing + jump).LengthSquared() < 4f ? _shipSmoothing + jump : Vector3.Zero;

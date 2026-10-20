@@ -40,8 +40,9 @@ public partial class ShipsView
     /// <summary>The ground under each tyre is looked at again after this many seconds (its dust's tint).</summary>
     private const float SurfaceEvery = 0.5f;
 
-    /// <summary>The tyre of the TOGG, the radius its dust is made for (a bigger tyre's is scaled up).</summary>
-    private const float DustTyre = 0.48f;
+    /// <summary>The tyre of the TOGG, the radius its dust is made for: a bigger tyre's puffs are bigger, up to
+    /// <see cref="DustGrowth"/> times, and no more of them (see-through dust is what costs a frame its time).</summary>
+    private const float DustTyre = 0.48f, DustGrowth = 1.25f;
 
     // Every frame for a vehicle on wheels: its throttle is its thrust along its nose (GroundMotor); its load and gear changes
     // are its revs' (VehicleRevs, stepped by its sounds just before), the throttle and none for a kind without an engine's
@@ -147,10 +148,11 @@ public partial class ShipsView
                     }
                 }
             }
-            float scale = Math.Clamp(w.Radius / DustTyre, 0.7f, 2f);
+            // A loop's scale multiplies its rate as well as its size: the intensity takes the rate back.
+            float scale = Math.Clamp(w.Radius / DustTyre, 0.8f, DustGrowth);
             Color tint = fx.Surface[i] is { } s ? ContactFeedback.Dust(s) : Colors.White;
-            Loop(ref fx.Dust[i], "dust.tyre", dust, dustAt, up, k, new FxParams { Tint = tint, Scale = scale, Direction = behind });
-            Loop(ref fx.Spray[i], "spray.tyre", spray, sprayAt, up, k, new FxParams { Scale = scale, Direction = behind });
+            Loop(ref fx.Dust[i], "dust.tyre", dust, dustAt, up, k / scale, new FxParams { Tint = tint, Scale = scale, Direction = behind });
+            Loop(ref fx.Spray[i], "spray.tyre", spray, sprayAt, up, k / scale, new FxParams { Scale = scale, Direction = behind });
             if (dust)
             {
                 FxDirector.Move(fx.Dust[i], dustAt);
