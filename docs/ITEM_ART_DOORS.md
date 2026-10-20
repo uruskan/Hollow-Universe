@@ -39,21 +39,24 @@ item's curtain is that pose as a plain mesh.
   face), `socket_use` (in front, 1.1 m up) and, for the single doors, `socket_hinge`.
 - Materials: the building kit's own, `Building_wood`, `Building_armoured`, `Building_metal` and `Door_garage`, mapped by the
   `.import` to `game/assets/materials/building_*.tres` and `door_garage.tres`. The GLBs carry no images and add no textures.
-- Triangles per level, measured on the exported GLBs (budgets in brackets):
+- Triangles per level, measured on the exported GLBs (budgets 6,000 / 2,000 / 600 for all four):
 
-| Item | LOD0 | LOD1 | LOD2 | Hull |
-|---|---|---|---|---|
-| `wooden-door` | 16,000 (16,000) | 4,888 (6,000) | 1,000 (1,500) | 32 |
-| `armoured-door` | 16,000 (16,000) | 5,112 (6,000) | 888 (1,500) | 32 |
-| `double-door` | 23,999 (24,000) | 12,000 (12,500) | 2,096 (3,000) | 30 |
-| `garage-door` | 10,232 (16,000) | 4,624 (6,000) | 1,395 (1,500) | 42 |
+| Item | LOD0 | LOD1 | LOD2 | Hull | File |
+|---|---|---|---|---|---|
+| `wooden-door` | 4,888 | 1,000 | 600 | 32 | 0.40 MB |
+| `armoured-door` | 5,112 | 888 | 599 | 32 | 0.41 MB |
+| `double-door` | 6,000 | 1,999 | 598 | 42 | 0.59 MB |
+| `garage-door` | 5,912 | 1,999 | 599 | 36 | 0.57 MB |
 
-  The kit's own levels are used as they are: LOD1 and LOD2 are the kit's `_LOD1` and `_LOD2` frames and leaves. The kit's
-  full-detail leaves are heavy (wood single 16,312, armoured 16,200, metal double 22,660 and 21,340 triangles), so only LOD0
-  reduces them: Blender's collapse decimation takes the leaves to 0.78 (single doors) and 0.47 (the double door) of their
-  triangles, leaving the frame as it is. The garage curtain has no levels in the kit (4,292 triangles, 26 slats): LOD0 keeps
-  it whole, LOD1 and LOD2 are 0.7 and 0.3 of it. The reduced levels were looked at beside the kit's own in Workbench
-  renders with the real textures; no seams, holes or shading breaks show at icon or model-viewer size.
+  An item is dropped at 0.3 scale and shown in the inventory, so it is far lighter than the placed door, and each of its levels is
+  built from the kit's next lighter one: the item's LOD0 is the kit's LOD1 frame and leaf (the kit's full detail, 16,000 and more
+  triangles a leaf, is for the placed door), its LOD1 the kit's LOD2, and its LOD2 that again reduced. Blender's collapse decimation then
+  takes every part of a level by the same ratio where the level is over its budget: the wooden and armoured doors' LOD0 and LOD1
+  are the kit's levels as they are, the double door's LOD0 is the kit's LOD1 at 0.50, its LOD1 at 0.95 and its LOD2 at 0.29 of the kit's
+  LOD2, and the garage's curtain (4,292 triangles, 26 slats, no levels in the kit) is reduced with its frame at each level. (The first
+  version of this package kept the kit's full detail at LOD0: 16,000 to 24,000 triangles and 1.1 to 2.6 MB a model, eight to ten times
+  the stand-ins' 0.17 to 0.26 MB; a review caught it.) The stand-ins were 1,900 to 2,300 triangles; these are 2.5 to 3 times that at LOD0 for
+  the kit's own modelling; the icons look as they did (looked at; not looked at on the ground).
 - Icons: 128 and 256 px RGBA from the production `IconRenderer` (`--view icons --out game/assets/items/icons --only
   wooden-door,armoured-door,double-door,garage-door`), all four at view `[28, 12, 0]` (the door class's default, now written
   in `models.json`): from the right and a little above, so the left jamb's hinge straps and the handle plate both show.
@@ -61,7 +64,7 @@ item's curtain is that pose as a plain mesh.
 
 ## Validation and limits
 
-Run in this worktree: `dotnet build HollowUniverse.sln` 0 warnings, 0 errors; `ContentTests` 3/3, `Model` 18/18 (the
+Run in this worktree (rerun after the review's lighter levels, see above): `dotnet build HollowUniverse.sln` 0 warnings, 0 errors; `ContentTests` 3/3, `Model` 18/18 (the
 catalogue check reads the new GLBs, their `.import` mappings and all 274 icons) and `Icon` 13/13. The four GLBs have finite
 positions, unit normals, no images and one material each. The eight PNGs are RGBA with transparent corners; each door fills
 0.86 of the square's longer side (the renderer's fill), the single doors being tall and narrow. The model viewer

@@ -4744,3 +4744,11 @@ test): layouts 0, 0 (or its mirror 1, 1) close the walk and the open leaves clea
 cost of the doubled back faces (kit GLBs 2.7–3.3 MB → 6.3–8.0 MB). Pictures: sandbox `triangle-both-in-*` and hosted `airlock-triangle-both-in-*`
 (`--tour-steps airlocks` now takes three layouts; the hosted set was re-taken whole). Validation: build 0 warnings; `DoorTests` 10/10. The layouts follow the
 owner's words as relayed; the owner's own pictures were not seen here.
+
+### 20 October 2026 — doors D4 revised: lighter door items
+
+The review found the four dropped door items 8–10 times heavier than the stand-ins (16,000–24,000 triangles at LOD0, 1.1–2.6 MB, for a model dropped at 0.3 scale).
+`art/models/doors.py` now builds each level from the kit's next lighter one (LOD0 from the kit's LOD1, LOD1 from its LOD2) and reduces every part by the
+same ratio only where a level is over 6,000 / 2,000 / 600 triangles: 4,888 / 1,000 / 600, 5,112 / 888 / 599, 6,000 / 1,999 / 598 and 5,912 / 1,999 / 599, files
+0.40, 0.41, 0.59 and 0.57 MB; the icons were re-rendered by `IconRenderer` and look as before (`docs/ITEM_ART_DOORS.md`). Validation: build 0 warnings;
+`ContentTests`, `Model`, `Icon`, `Gib` and `DoorTests` pass. Not done: a live drop or placement check.

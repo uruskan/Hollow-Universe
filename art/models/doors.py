@@ -4,8 +4,9 @@ wooden-door, armoured-door, double-door and garage-door are the doors the buildi
 garage_door.glb, written by art/import/door_kit.py: symmetric leaves lying inside a frame centred in the 0.3 m wall): the
 item's model is the same frame and leaf (or leaves, or the garage's curtain) shut, assembled the way the building assembles
 them (the leaves' hinges are building.json's), so a door in the inventory is the door that is placed. Nothing is drawn here;
-the kit's meshes, levels of detail and Godot materials are used as they are, and only the heavy leaves are reduced, to fit
-the budgets below.
+the kit's meshes and Godot materials are used as they are. The item is dropped at 0.3 scale and shown in the inventory, so it is
+far lighter than the placed door: each of its levels is built from the kit's next lighter one (its LOD0 from the kit's LOD1,
+its LOD1 from the kit's LOD2), and reduced further, by collapse decimation, only where a level is over its budget below.
 
 World objects face Blender -Y (Godot +Z, the outside) with the ground at z = 0. The pivots are the earlier door models':
 a single or a double door hangs from its lower left hinge corner at the origin and closes across +X, the garage door's
@@ -27,7 +28,9 @@ from hollow import ASSETS, MATERIALS, WORLD, log, script_args  # noqa: E402
 from hollow.export import collection, convex_hull, copy_object, export_glb, reset, select_only  # noqa: E402
 
 BUILDING = ASSETS / "building"
-LEVELS = ("", "_LOD1", "_LOD2")
+# The kit's level each item level is made from: the item's LOD0 is the kit's LOD1 (the kit's full detail is for the placed door).
+LEVELS = ("_LOD1", "_LOD2", "_LOD2")
+BUDGETS = (6000, 2000, 600)
 
 # Where each kit leaf hangs in its frame (building.json "doors": leaves[].hinge, Godot axes: x across, y up, z the outside).
 # A leaf's own origin is its hinge pin on its middle plane.
@@ -44,24 +47,24 @@ USE_OUT = 0.8
 ITEMS = {
     "wooden-door": {
         "kit": "doors_wood.glb", "material": "Building_wood", "frame": "Wood_SingleDoor_Frame",
-        "leaves": [("Leaf", "Wood_SingleDoor_Left", SINGLE_HINGE)], "width": 1.144, "budgets": (16000, 6000, 1500),
+        "leaves": [("Leaf", "Wood_SingleDoor_Left", SINGLE_HINGE)], "width": 1.144, "budgets": BUDGETS,
         "pivot": SINGLE_HINGE.x, "hinge_socket": True,
     },
     "armoured-door": {
         "kit": "doors_armored.glb", "material": "Building_armoured", "frame": "Armored_SingleDoor_Frame",
-        "leaves": [("Leaf", "Armored_SingleDoor_Left", SINGLE_HINGE)], "width": 1.144, "budgets": (16000, 6000, 1500),
+        "leaves": [("Leaf", "Armored_SingleDoor_Left", SINGLE_HINGE)], "width": 1.144, "budgets": BUDGETS,
         "pivot": SINGLE_HINGE.x, "hinge_socket": True,
     },
     "double-door": {
         "kit": "doors_metal.glb", "material": "Building_metal", "frame": "Metal_DoubleDoor_Frame",
         "leaves": [("Left", "Metal_DoubleDoor_Left", DOUBLE_HINGES[0]), ("Right", "Metal_DoubleDoor_Right", DOUBLE_HINGES[1])],
-        "width": 1.322, "budgets": (24000, 12500, 3000), "pivot": DOUBLE_HINGES[0].x, "hinge_socket": False,
+        "width": 1.322, "budgets": BUDGETS, "pivot": DOUBLE_HINGES[0].x, "hinge_socket": False,
     },
     "garage-door": {
         "kit": "garage_door.glb", "material": "Door_garage", "frame": "GarageDoor_Frame", "curtain": "GarageDoor_Curtain",
         # The curtain's building.json hinge (z 0.2 is the curtain's middle plane) and lockDepth: the seat of its lock, on the
         # curtain's outer face.
-        "lock_hinge": Vector((-1.35, 0.0, 0.2)), "lock_depth": 0.048, "width": 2.7, "budgets": (16000, 6000, 1500),
+        "lock_hinge": Vector((-1.35, 0.0, 0.2)), "lock_depth": 0.048, "width": 2.7, "budgets": BUDGETS,
         "pivot": 0.0, "hinge_socket": False, "use_out": 0.9,
     },
 }
@@ -102,16 +105,15 @@ def reduce(o, ratio):
     o.data.validate(verbose=False)
 
 
-def fit(frame, leaves, budget, label):
-    """Reduces the leaves (the frame is small and stays as the kit has it) until the level is within its budget."""
-    leaf_tris = sum(triangles(o) for o in leaves)
-    total = triangles(frame) + leaf_tris
+def fit(parts, budget, label):
+    """Reduces every part of a level by the same ratio until the level is within its budget."""
+    total = sum(triangles(o) for o in parts)
     if total <= budget:
         return
-    ratio = (budget - triangles(frame)) / leaf_tris
-    for o in leaves:
+    ratio = budget / total
+    for o in parts:
         reduce(o, ratio)
-    log(f"{label}: {total} -> {triangles(frame) + sum(triangles(o) for o in leaves)} triangles (leaves at {ratio:.2f})")
+    log(f"{label}: {total} -> {sum(triangles(o) for o in parts)} triangles (parts at {ratio:.2f})")
 
 
 def curtain_at_rest(kit, name, target):
@@ -165,14 +167,12 @@ def build(key):
         if "curtain" in spec:
             curtain = curtain_at_rest(kit, f"Curtain_lod{level}", out)
             curtain.data.transform(Matrix.Translation(shift))
-            if level:
-                # The curtain is skinned in the kit and has no levels of its own (26 slats): reduced for the lower levels.
-                reduce(curtain, (0.7, 0.3)[level - 1])
             moving = [("Curtain", curtain, shift)]
         else:
             moving = [(name, placed(kit[mesh + suffix], f"{name}_lod{level}", out, shift + blender(hinge)), shift + blender(hinge))
                       for name, mesh, hinge in leaves]
-        fit(frame, [m[1] for m in moving], spec["budgets"][level], f"{key} lod{level}")
+        # (The garage curtain is skinned in the kit and has no levels of its own: it is reduced with the rest to each budget.)
+        fit([frame] + [m[1] for m in moving], spec["budgets"][level], f"{key} lod{level}")
         levels.append((frame, moving))
     # One convex hull around the whole door at its closest level, in the item's frame (before the parts move to their pivots).
     hull = convex_hull([levels[0][0]] + [m[1] for m in levels[0][1]], "Body_hull0-convcolonly", out, max_faces=32)
