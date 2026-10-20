@@ -358,6 +358,7 @@
     {"id": 240, "key": "togg", "name": "TOGG", "category": "vehicles", "description": "A scrap-built 4x4 chassis on big tyres: three bays and an engine mount under its hood. Put a cab and an engine on it. Burns lamp oil.", "ship": "togg"},
     {"id": 241, "key": "togg-cab-one", "name": "One-seat cab", "category": "vehicles", "description": "A welded cab for one: the driver's seat when it is the front cab, a lookout on another's roof.", "module": "togg-cab-one"},
     {"id": 242, "key": "togg-engine", "name": "TOGG engine", "category": "vehicles", "description": "An open engine block for a bay or the nose mount: more engines, more power, more fuel.", "module": "togg-engine"},
+    {"id": 243, "key": "zamazingo", "name": "Zamazingo", "category": "vehicles", "description": "A scrap-built enduro on knobbed tyres, one saddle in the open. Quick and light; it leans into the turns by itself. Burns lamp oil.", "ship": "zamazingo"},
     {"id": 239, "key": "motorboat", "name": "Motorboat", "category": "vehicles", "description": "A small open boat welded from salvaged sheet, a steering wheel cabled to an outboard motor at the stern. Seats a driver and one more, with a crate in the bow. Burns lamp oil. Put it on the water.", "ship": "motorboat"},
     {"id":238,"key":"wire-tool","name":"Wire Tool","category":"construction","description":"Click an output port, add optional surface routing points, then click an input. Maximum 20 m between ports. Right-click cancels; R disconnects the aimed port.","wiring":{"reach":4,"maxAnchors":32,"draftSeconds":120}}
   ]

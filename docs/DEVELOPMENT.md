@@ -1,5 +1,15 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — The TOGG and the Zamazingo in the game, rough (VEHICLES.md §9.7)
+
+At the owner's word ("just add them to the game and we will polish them later"):
+- both are crafted at the Vehicle Workbench and learned in its tree;
+- the Zamazingo, a rough two-wheeler, keeps its balance by a roll spring;
+- the hosted game draws both as blocks, with wheels;
+- a network test drives the TOGG through a loopback server with no prediction correction.
+
+`GroundMotorTests` 8/8. No hosted game picture yet: the PC's Godot slot was taken.
+
 ## 20 October 2026 — Vehicles V2: the TOGG drives (VEHICLES.md §9.6)
 
 On `claude/vehicles`. A ship's whole step is now its motor's: `flight`, today's, or `ground`, a vehicle on sprung wheels

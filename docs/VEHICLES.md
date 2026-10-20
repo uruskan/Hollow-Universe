@@ -552,6 +552,26 @@ On branch `claude/vehicles` (abtest-b with the motorboat's and the minicopter's 
   42° slope shows the tyres at their limit sliding back rather than holding still under the brakes (μ 1 against
   tan 42° = 0.9), worth a look in play.
 
+### 9.7 In the game, rough (20 October 2026, the owner: "just add them to the game and we will polish them later")
+
+- **Crafted at the Vehicle Workbench**, learned in its tree: the TOGG (200 salvage; 900 metal fragments, 40 refined metal,
+  150 wood, 4 gears, 4 pipes, 20 lamp oil, 90 s) and the Zamazingo (125 salvage; 400 metal fragments, 15 refined metal,
+  2 gears, 2 pipes, 10 lamp oil, 60 s). They roll out at the workbench's bay as ships do; the admin's `ship <name> togg`
+  or `zamazingo` gives one at once. Placeable from the item too (ship placement).
+- **The Zamazingo, rough** (item 243): a ground kind on two wheels (0.80 m front, 0.76 m rear), 35 kW, 25 m/s, an open
+  saddle (exposed: its rider can be shot), no modules yet (§4's mount points come later). It keeps its balance: a roll
+  spring toward the lean that balances its turn (atan of speed × turning over gravity, at most 43°), upright when still
+  (`GroundDef.Balance`, §6.3). It has no crash that throws the rider yet.
+- **Getting in:** E opens the cab's door, E again drives (as the Tin Finch's hatch); the Zamazingo's saddle at once.
+- **Drawn as blocks** in the hosted game too (`ShipsView`): the view is made again when a ship's composed layout changes
+  (its build arrives after its first sight), and a wheeled ship's wheels ride the ground, roll, and steer by how it turns.
+- **Checked:** `GroundMotorTests` 8/8, among them the Zamazingo standing, going (24 m/s), leaning into a right turn
+  without falling and stopping upright; and the TOGG over the real network (a loopback server and two clients): the
+  server gives it, both clients compose its layout, Ada drives it at 15 m/s with no correction of her prediction, Bo
+  sees it go.
+- **Still rough:** blocks for art; no lift (modules can't be changed in play yet: each vehicle comes with its default
+  build); no engine parts; a slow vehicle passes through people; animals aren't run over; no rider thrown from the bike.
+
 ## 10. Crafting and progression
 
 Everything is learned in the **Vehicle Workbench tree** (R6) and crafted at that workbench, except tier-3 parts and rare

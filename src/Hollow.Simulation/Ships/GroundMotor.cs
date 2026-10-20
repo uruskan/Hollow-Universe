@@ -24,10 +24,11 @@ public sealed record WheelDef(string Key, Vector3 Hub, float Radius, float Width
 /// tyres keep with the handbrake on, and how far over the ground the tyres' grip acts (as Unity's wheels' force point: a
 /// tall truck turning hard slides before it rolls, a tall build on it rolls first), and the engine's braking off the
 /// throttle as a share of the brakes; and running people over (VEHICLES.md §6.4): above <see cref="RunOverSpeed"/> (m/s) the
-/// square of what is over it times <see cref="RunOverScale"/>. Its power is its engines' (<see cref="ShipDef.EnginePower"/>).
+/// square of what is over it times <see cref="RunOverScale"/>; and a two-wheeler's balance (VEHICLES.md §6.3: it keeps the
+/// lean that balances the turn it is in). Its power is its engines' (<see cref="ShipDef.EnginePower"/>).
 /// </summary>
 public sealed record GroundDef(float TopSpeed, float ReverseSpeed, float Brake, float Traction, float Steer, float SteerFast, float Rolling,
-    float HandbrakeGrip, float GripHeight = 0, float Coast = 0.1f, float RunOverSpeed = 4, float RunOverScale = 2);
+    float HandbrakeGrip, float GripHeight = 0, float Coast = 0.1f, float RunOverSpeed = 4, float RunOverScale = 2, bool Balance = false);
 
 /// <summary>
 /// A vehicle on wheels (VEHICLES.md §6.2): the ship's six degrees of freedom under the planet's gravity, held up by a sprung
@@ -64,6 +65,9 @@ public sealed class GroundMotor : IShipMotor
     private const float BumpStop = 20f;
 
     private const float Restitution = 0.1f;
+
+    /// <summary>A two-wheeler's balance (VEHICLES.md §6.3): the most it leans, and its roll spring and damper (rad/s² per rad, per rad/s).</summary>
+    public const float MostLean = 0.75f, BalanceStiffness = 400, BalanceDamping = 40;
 
     /// <summary>The most wheels a vehicle has (a car's four, a long one's six, a track's road wheels later).</summary>
     public const int MostWheels = 16;
@@ -250,6 +254,18 @@ public sealed class GroundMotor : IShipMotor
                     closing = MathF.Max(closing, into);
                     groundNormal += hit.Normal;
                 }
+            }
+            if (g.Balance)
+            {
+                // A two-wheeler keeps the lean that balances its turn (its speed times its turning, over gravity), upright
+                // when still: a spring and damper on its roll toward it (+ leaning right, as a right turn wants).
+                Vector3 left = Vector3.Transform(Vector3.UnitX, q);
+                float sine = Math.Clamp(Vector3.Dot(left, under), -1, 1);
+                float lean = (float)DMath.Atan2(sine, MathF.Sqrt(1 - sine * sine));
+                float turning = -Vector3.Dot(Vector3.Transform(s.AngularVelocity, q), under);
+                float target = loaded > 0
+                    ? Math.Clamp((float)DMath.Atan2(Vector3.Dot(s.Velocity, bodyForward) * turning, ctx.Gravity), -MostLean, MostLean) : 0;
+                angular.Z += BalanceStiffness * (target - lean) - BalanceDamping * s.AngularVelocity.Z;
             }
             s.Velocity += accel * h;
             s.AngularVelocity += angular * h;
