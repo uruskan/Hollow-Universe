@@ -545,9 +545,32 @@ On branch `claude/vehicles` (abtest-b with the motorboat's and the minicopter's 
   - 30 m of climb in eight seconds up 20°, none up 42° (it slides back and rolls);
   - 1.1 km round a 2.41 km world on its wheels.
   - On the stand-in's ground with its trees it drives into them and rolls, as it should.
-- **Not yet:** a moving vehicle is not solid to people and runs nobody over (§6.4); no hosted drive has been run; the
+- **Running people over** (`ShipSystem.RunOver.cs`, §6.4): a person whose capsule the hull boxes meet, closing faster than
+  `runOverSpeed` (4 m/s), takes (closing − 4)² × `runOverScale` (2) through the characters' receiver, by the driver, and
+  is thrown along; nobody in its seats, nobody twice a second. Animals are not run over yet.
+- **Not yet:** a moving vehicle is not solid to people below that speed (it passes through them); no hosted drive has been run; the
   42° slope shows the tyres at their limit sliding back rather than holding still under the brakes (μ 1 against
   tan 42° = 0.9), worth a look in play.
+
+### 9.7 In the game, rough (20 October 2026, the owner: "just add them to the game and we will polish them later")
+
+- **Crafted at the Vehicle Workbench**, learned in its tree: the TOGG (200 salvage; 900 metal fragments, 40 refined metal,
+  150 wood, 4 gears, 4 pipes, 20 lamp oil, 90 s) and the Zamazingo (125 salvage; 400 metal fragments, 15 refined metal,
+  2 gears, 2 pipes, 10 lamp oil, 60 s). They roll out at the workbench's bay as ships do; the admin's `ship <name> togg`
+  or `zamazingo` gives one at once. Placeable from the item too (ship placement).
+- **The Zamazingo, rough** (item 243): a ground kind on two wheels (0.80 m front, 0.76 m rear), 35 kW, 25 m/s, an open
+  saddle (exposed: its rider can be shot), no modules yet (§4's mount points come later). It keeps its balance: a roll
+  spring toward the lean that balances its turn (atan of speed × turning over gravity, at most 43°), upright when still
+  (`GroundDef.Balance`, §6.3). It has no crash that throws the rider yet.
+- **Getting in:** E opens the cab's door, E again drives (as the Tin Finch's hatch); the Zamazingo's saddle at once.
+- **Drawn as blocks** in the hosted game too (`ShipsView`): the view is made again when a ship's composed layout changes
+  (its build arrives after its first sight), and a wheeled ship's wheels ride the ground, roll, and steer by how it turns.
+- **Checked:** `GroundMotorTests` 8/8, among them the Zamazingo standing, going (24 m/s), leaning into a right turn
+  without falling and stopping upright; and the TOGG over the real network (a loopback server and two clients): the
+  server gives it, both clients compose its layout, Ada drives it at 15 m/s with no correction of her prediction, Bo
+  sees it go.
+- **Still rough:** blocks for art; no lift (modules can't be changed in play yet: each vehicle comes with its default
+  build); no engine parts; a slow vehicle passes through people; animals aren't run over; no rider thrown from the bike.
 
 ## 10. Crafting and progression
 
@@ -584,7 +607,7 @@ wrecks to recover belong with the roads, later.
 |---|---|---|
 | V0 | This document; the owner's answers to §12 | — |
 | V1 (done, §9.5) | The module core: modules.json, sockets, the assembler, holds, the build saved (codec 8) and on the wire (protocol 47), the hull mended with the hammer; **shared** with the minicopter. The motor registry moves to V2 | `ModuleTests` (7) |
-| V2 (driving done, §9.6) | The ground motor and the TOGG on its wheels, drawn as blocks in the ship sandbox (`--view ship --ship togg`). Left: a moving vehicle solid to people, running them over, a hosted drive | `GroundMotorTests` (5); the sandbox pictures |
+| V2 (driving and run-overs done, §9.6) | The ground motor and the TOGG on its wheels, drawn as blocks in the ship sandbox (`--view ship --ship togg`); people run over. Left: a moving vehicle solid to people, animals run over, a hosted drive | `GroundMotorTests` (6); the sandbox pictures |
 | V3 | Seats, the car and bike control schemes, prediction of passengers, the HUD; the hosted game | Network tests; a hosted drive with a passenger |
 | V4 | The lift: item, power, the vehicle screen, locks; engine parts and tiers; crafting and the tree | `Lift`; `ContentTests`; the screen in `--view ui --screen vehicle` |
 | V5 | The car's modules and stacking; build zones aboard (beds and bags as respawn points, boxes); decay outside claims | `Modules`, `Decay`, `Respawn`; a camp built and driven |

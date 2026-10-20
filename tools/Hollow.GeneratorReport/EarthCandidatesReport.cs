@@ -127,7 +127,7 @@ internal static class EarthCandidatesReport
             Q(0.1), Q(0.9), Q(1), Connectivity(world), shares);
     }
 
-    private static double Connectivity(WalkingWorld world)
+    internal static double Connectivity(WalkingWorld world)
     {
         const int Level = 6;
         int count = (int)TileKey.CountAt(Level);

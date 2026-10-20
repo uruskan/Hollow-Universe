@@ -283,6 +283,7 @@ public sealed partial class ShipSystem : ZoneSystem
             ship.Fuel.Consume(ship.Events.FuelUsed);
             ship.SyncFuel();
             ShipSteps++;
+            RunOver(ship);
             StepDoors(ship);
             StepStations(ship);
             if (ship.Events.CrashDamage > 0)

@@ -116,6 +116,9 @@ public partial class ShipView : Node3D
         Name = def.Key;
     }
 
+    /// <summary>The layout it draws (a ship's composed one, VEHICLES.md §9.1): a new one needs a new view.</summary>
+    public ShipDef Def => _def;
+
     /// <summary>The model's root (its meshes are in the ship's frame: +Z the nose, +Y up, +X left).</summary>
     public Node3D Model => _model;
 

@@ -8,7 +8,10 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.Ships.Modules;
+using Hollow.Client;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Targets;
+using System.Linq;
 using Hollow.Surface;
 
 namespace Hollow.Tests;
@@ -50,7 +53,7 @@ public static class GroundMotorTests
         public readonly Ship Car;
         public readonly Entity Driver;
 
-        public Drive(float slope = 0, float yaw = East)
+        public Drive(float slope = 0, float yaw = East, string kind = "togg")
         {
             // The ships' tests' world (10° N, 20° E, 0.92 g), flat or rising east.
             var spec = new ZoneSpec
@@ -64,7 +67,7 @@ public static class GroundMotorTests
             Zone z = Zone;
             Vector3 ground = z.GroundAt(0, 0);
             Driver = z.Players().AddPlayer(z.NextId(), "Ada", z.NewCharacter(ground + z.Frame.UpAt(ground) * 3 + new Vector3(4, 0, 0)));
-            Car = z.Ships().SpawnShip(Bare.Value.Ship("togg")!, ground, yaw, z.Players().PlayerOf(Driver)!.Id, 100);
+            Car = z.Ships().SpawnShip(Bare.Value.Ship(kind)!, ground, yaw, z.Players().PlayerOf(Driver)!.Id, 100);
             Assert.True(z.Ships().Reseat(Driver, Car, Car.Def.Helm.Index), "Ada in the driver's seat");
         }
 
@@ -190,5 +193,98 @@ public static class GroundMotorTests
         Fixtures.Report($"a minute flat out: {arc:0} m round a world {radius:0} m in radius, {t.Height:0.00} m over the ground, upright {t.Upright:0.000}");
         Assert.True(arc > 900, "about a kilometre round the ball");
         Assert.True(MathF.Abs(t.Height) < 0.3f && t.Upright > 0.98f && t.Car.State.Has(ShipFlags.Landed), "still on its wheels, up the ball's way");
+    }
+
+    /// <summary>
+    /// VEHICLES.md §6.4: a person standing in the TOGG's way is unharmed while it stands, and hurt when it drives into them
+    /// above a walk, by its driver, thrown along; the one in its seat isn't.
+    /// </summary>
+    [Test]
+    public static void ItRunsPeopleOverAboveAWalk()
+    {
+        using var t = new Drive();
+        Zone z = t.Zone;
+        Vector3 up = z.Frame.UpAt(t.Car.State.Position);
+        Entity bo = z.Players().AddPlayer(z.NextId(), "Bo", z.NewCharacter(z.Settle(t.Car.Origin + t.Car.State.Forward * 30) + up * 0.05f));
+        Hollow.Simulation.Players.Player pb = z.Players().PlayerOf(bo)!;
+        Hollow.Simulation.Players.Player ada = z.Players().PlayerOf(t.Driver)!;
+        float health = pb.Vitals.Health, driver = ada.Vitals.Health;
+        t.Go(default, 30);
+        Fixtures.Report($"standing: {z.Ships().RunOvers} hit, Bo's health {health:0.00} then {pb.Vitals.Health:0.00}");
+        Assert.True(z.Ships().RunOvers == 0, "a car standing 30 m off hurts nobody");
+        health = pb.Vitals.Health;
+        t.Go(new ShipInput { Throttle = 1 }, 150);
+        Fixtures.Report($"driven at Bo: {z.Ships().RunOvers} hit, Bo's health {pb.Vitals.Health:0} of {health:0}, dead {pb.Dead}, killed by {pb.KilledBy}");
+        Assert.True(z.Ships().RunOvers >= 1 && (pb.Vitals.Health < health || pb.Dead), "Bo is run over");
+        Assert.True(!pb.Dead || pb.KilledBy == "Ada", "by Ada, if it killed him");
+        Assert.True(ada.Vitals.Health >= driver, "the driver isn't run over by her own car");
+    }
+
+    /// <summary>
+    /// VEHICLES.md §4, §6.3 (a rough first Zamazingo): on its two wheels it stands upright, goes, leans into a turn rather
+    /// than falling, and stops upright.
+    /// </summary>
+    [Test]
+    public static void TheZamazingoBalancesAndLeans()
+    {
+        using var t = new Drive(kind: "zamazingo");
+        Ship bike = t.Car;
+        t.Go(default, 90);
+        Fixtures.Report($"standing: upright {t.Upright:0.0000}, {bike.Events.Contacts} wheels down, {t.Height:0.000} m");
+        Assert.True(t.Upright > 0.99f && bike.State.Has(ShipFlags.Landed), "it stands on its two wheels, upright");
+        t.Go(new ShipInput { Throttle = 1 }, 180);
+        Fixtures.Report($"six seconds of full throttle: {t.Speed:0.0} m/s, upright {t.Upright:0.000}");
+        Assert.True(t.Along > 15 && t.Upright > 0.98f, "quick, and upright going straight");
+        float heading = t.Heading;
+        float leanMost = 0;
+        for (int i = 0; i < 60; i++)
+        {
+            t.Go(new ShipInput { Throttle = 0.6f, Yaw = 0.8f }, 1);
+            leanMost = MathF.Max(leanMost, Vector3.Dot(bike.State.Up, -Vector3.Transform(Vector3.UnitX, Quaternion.Identity)) * 0
+                + Vector3.Dot(Vector3.Transform(Vector3.UnitX, bike.State.Rotation), t.Zone.Frame.UpAt(bike.State.Position)));
+        }
+        float turned = MathF.IEEERemainder(heading - t.Heading, MathF.Tau);
+        Fixtures.Report($"two seconds steering right: turned {turned * 180 / MathF.PI:0} degrees, leaned right up to {MathF.Asin(leanMost) * 180 / MathF.PI:0} degrees, upright {t.Upright:0.00}");
+        Assert.True(turned > 0.3f && leanMost > 0.1f && t.Upright > 0.5f, "it turns right leaning into the turn, and doesn't fall");
+        t.Go(new ShipInput { Throttle = -1 }, 90);
+        t.Go(default, 90);
+        Assert.True(t.Speed < 0.5f && t.Upright > 0.98f, "stopped, upright");
+    }
+
+    /// <summary>
+    /// VEHICLES.md §9.1, §9.6 over the real network: the server gives Ada a TOGG (made with its cab and engine by default),
+    /// her client and Bo's compose the same layout from its details, she gets in through the cab's door and drives; Bo sees
+    /// it go, and on a clean line her prediction is never corrected.
+    /// </summary>
+    [Test]
+    public static void TheToggDrivesOverTheNetwork()
+    {
+        using var rig = new LoopbackRig();
+        Hollow.Client.GameClient ada = rig.Join("Ada");
+        Hollow.Client.GameClient bo = rig.Join("Bo");
+        rig.WaitUntilPlaying();
+        rig.Server.Execute("ship Ada togg");
+        rig.Run(1.0, (_, _) => default);
+        Hollow.Client.RemoteShip car = ada.Ships().All.First();
+        Assert.True(car.Def is { Kind.Key: "togg" } d && d.Build.Count == 2 && d.Seats.Count == 1, "Ada's client composes the TOGG with its cab and engine");
+        Vector3 door = car.PointOf(car.Def!.HatchPoint());
+        Vector3 side = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, car.Rotation));
+        rig.Teleport("Ada", door + side * 1.2f);
+        rig.Run(0.5, (_, _) => default);
+        // The cab's door first (E opens it, as the Tin Finch's hatch), then the seat.
+        ada.Local.Interact(new TargetRef(TargetFamily.Ship, car.Id.Value, car.Def!.HelmPart()), "hatch-open");
+        rig.Run(1.0, (_, _) => default);
+        ada.Local.Interact(new TargetRef(TargetFamily.Ship, car.Id.Value, car.Def!.HelmPart()), "drive");
+        rig.Run(0.5, (_, _) => default);
+        Assert.True(ada.Ships().Piloting, "Ada drives it (her client predicts it)");
+        long corrections = ada.Stats.ShipCorrections;
+        rig.Run(4.0, (client, time) => client == ada ? new InputFrame { Ship = new ShipInput { Throttle = time < 3 ? 1 : 0, Yaw = time > 1.5 ? 0.5f : 0 } } : default);
+        Hollow.Client.RemoteShip? seen = bo.Ships().All.FirstOrDefault(s => s.Id == car.Id);
+        Fixtures.Report(FormattableString.Invariant(
+            $"Bo sees it at {seen?.Velocity.Length():0.0} m/s, its build {seen?.Def?.Build}; Ada's corrections {ada.Stats.ShipCorrections - corrections}"));
+        Assert.True(seen?.Def is { } boDef && boDef.Build.Equals(car.Def!.Build) && boDef.Seats.Count == car.Def.Seats.Count && boDef.Mass == car.Def.Mass,
+            "Bo's client composes the same layout (from its own copy of the data)");
+        Assert.True(seen!.Velocity.Length() > 3 || Vector3.Distance(seen.Position, door) > 10, "Bo sees it go");
+        Assert.Equal(0L, ada.Stats.ShipCorrections - corrections, "Ada's prediction held on a clean line");
     }
 }

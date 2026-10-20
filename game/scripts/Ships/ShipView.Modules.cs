@@ -13,9 +13,6 @@ namespace HollowUniverse.Ships;
 /// </summary>
 public partial class ShipView
 {
-    /// <summary>The layout this view draws: the ship's kind with its build (a new build is a new view).</summary>
-    public ShipDef Def => _def;
-
     private void MountModules()
     {
         foreach (PlacedModule placed in _def.Placed)
