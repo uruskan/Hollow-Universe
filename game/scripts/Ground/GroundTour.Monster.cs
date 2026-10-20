@@ -27,7 +27,6 @@ public partial class GroundTour
         RemoteShip car = Client.Ships().All.FirstOrDefault(s => !old.Contains(s.Id) && s.Def != null)
             ?? throw new InvalidOperationException("monster: the Monster TOGG was not set down");
         ShipDef def = car.Def!;
-        View.Console.Submit("time 11");
         await Seconds(2);
 
         // Parked, from a little ahead and to its right (its stacks' side).
@@ -48,6 +47,9 @@ public partial class GroundTour
         Me.IntentRejected += Refused;
         GD.Print($"[tour] monster: {def.Helm.VerbKey} at part {seat}, " +
             $"{Num.Vector3.Distance(Client.Character.Position, car.PointOf(def.PartPoint(seat))):0.0} m from it");
+        // The cab's door first (the console's "hatch open" is the ship's own door 0, not a module's).
+        Me.Interact(new TargetRef(TargetFamily.Ship, car.Id.Value, seat), "hatch-open");
+        await Seconds(1);
         Me.Interact(new TargetRef(TargetFamily.Ship, car.Id.Value, seat), def.Helm.VerbKey);
         await Until(() => Client.Ships().Piloting, 5);
         Me.IntentRejected -= Refused;

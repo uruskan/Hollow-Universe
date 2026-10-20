@@ -963,11 +963,11 @@
       "cap": 48, "cull": 260, "hero": 0.6, "stage": "dirt",
       "loop": { "fadeIn": 0.3, "fadeOut": 1.0,
         "emit": [
-          { "batch": "dust", "rate": 16, "at": [0.0, 0.15, 0.0], "jitter": 0.25, "size": [0.5, 0.9], "grow": 2.6, "life": [1.4, 2.6], "speed": [1.5, 4.0],
+          { "batch": "dust", "rate": 42, "at": [0.0, 0.15, 0.0], "jitter": 0.3, "size": [0.6, 1.0], "grow": 2.8, "life": [1.8, 3.2], "speed": [1.5, 4.0],
             "dir": "back", "cone": 30, "color": [1.05, 1.0, 0.92], "vary": 0.08, "alpha": [0.18, 0.3] },
-          { "batch": "dust", "rate": 4, "at": [0.0, 0.4, 0.0], "jitter": 0.4, "size": [1.0, 1.6], "grow": 2.2, "life": [2.5, 4.0], "speed": [0.5, 1.5],
+          { "batch": "dust", "rate": 12, "at": [0.0, 0.4, 0.0], "jitter": 0.5, "size": [1.2, 1.9], "grow": 2.4, "life": [3.5, 5.5], "speed": [0.5, 1.5],
             "dir": "back", "cone": 45, "color": [1.08, 1.02, 0.94], "vary": 0.06, "alpha": [0.1, 0.18] },
-          { "batch": "chunk_stone", "rate": 14, "at": [0.0, 0.08, 0.0], "jitter": 0.15, "size": [0.012, 0.03], "speed": [3, 7], "life": [0.6, 1.2],
+          { "batch": "chunk_stone", "rate": 24, "at": [0.0, 0.08, 0.0], "jitter": 0.15, "size": [0.012, 0.03], "speed": [3, 7], "life": [0.6, 1.2],
             "dir": "back", "cone": 25, "color": [0.5, 0.46, 0.4], "vary": 0.2 }
         ] } },
     { "key": "spray.tyre", "family": "ship",

@@ -1,5 +1,36 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 (night) — Vehicles: riders, ENGINE ON by hand, the Monster TOGG, exhaust and dust (VEHICLES.md §9.9)
+
+The owner on the TOGG: it doesn't rock when jumped on; ENGINE ON from the hold-E radial does nothing on any vehicle; no
+sounds; the parts should be visible at the workbench; "a monster version of this with very very high power and bigger
+tires". Built on branch `claude/togg-physics`, merged with `abtest-b`'s shared revs model (4f478786).
+
+- **Riders** (`ShipSystem.Riders.cs`): people on a vehicle's back weigh on its springs, 85 kg each. Landings and jumps
+  rock it, and its body stays solid as it moves. The client's physics copy follows it.
+- **ENGINE ON by hand** (`ShipSystem.Engine.cs`): with nobody at the wheel it starts and idles every kind, handbrake on,
+  while the vehicle is at rest.
+- **The Monster TOGG** (items 244–245, recipe, tree node after the TOGG, `togg.py -- --monster`): lifted 0.75 m on
+  1.7 m tyres, a 450 kW blown six, 1,300 kg. Its gears in sounds.json now reach its 34 m/s top speed.
+- **Effects** (`ShipsView.Vehicles.cs`, `VehicleSmoke`, fx.json): diesel haze at idle, black soot under load (from the
+  revs' load), puffs on start, gear change and throttle stab; tyre dust tinted by the ground with grit; spray in shallow
+  water. `FxDirector.SetDirection` and `SetTint` were added.
+- **Tour step** `--tour-steps monster`: parked, start, idle, launch, at speed, turning, braking.
+
+**Validation:**
+- Build: 0 errors.
+- Tests: `VehicleSmoke`, `VehicleRider`, `VehicleSound`, `GroundMotor`, `ContentTests`, `EffectsCatalogue`,
+  `ContactResponse`, `Ship` and `Seat` pass. `ArchitectureTests` fails only on `CliffKitPlacements.cs` and
+  `TerrainBake.cs`, as before this work.
+- Hole check of the monster's engine, wheel, ladders, arms, knuckle and coil-over: no holes.
+- Hosted tour (`--tour-steps monster`, 11:00):
+  - 111 km/h after 4 s flat out, down to 53 km/h after 3 s of braking;
+  - soot pours at launch, dust trails the tyres at 31 m/s, a thin haze at idle.
+- **Found:** turning at full lock at 30 m/s, the monster lifts onto its outer wheels (a high centre of mass on a 2.84 m
+  track). Left as is for the owner's call: its `steerFast`, its centre of mass or anti-roll.
+- **Not done:** the sounds were checked by test only, not by ear. Seeing a vehicle's parts at the workbench is still
+  to do. The look waits for the owner.
+
 ## 20 October 2026 (evening) — Vehicles: wheels that turn, engines and tyres you can hear
 
 The owner rode the Zamazingo: "back tire doesnt spin, sounds are not made and I think tires needs to be bigger for
