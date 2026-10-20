@@ -207,11 +207,12 @@ public static class FoundationTests
         Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, chest.Ref, "open"), "from inside it opens");
         z.Actions().Close(ada);
 
-        // The door, from aside in front of the doorway: its frame holds it and doesn't hide it.
+        // The door, from aside in front of the doorway (within the line of its jambs: the door lies inside its frame now, so from
+        // further aside the frame hides it, as a wall hides what is behind it): its frame holds it and doesn't hide it.
         Door door = hut.Door!;
         (Vector3 front, Vector3 doorOut) = hut.Face(hut.Doorway, height: 0);
         Vector3 aside = Vector3.Normalize(Vector3.Cross(z.Frame.UpAt(front), doorOut));
-        Raids.Stand(rig, ada, z.Settle(front + doorOut * 0.8f + aside * 1.6f));
+        Raids.Stand(rig, ada, z.Settle(front + doorOut * 0.8f + aside * 0.5f));
         Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, door.Ref, "door-open"), "the door opens from aside");
 
         // A dud stuck on the east wall's outside: not lit through the wall, lit from in front.

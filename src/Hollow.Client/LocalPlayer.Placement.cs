@@ -14,7 +14,7 @@ namespace Hollow.Client;
 /// A placement sent and not yet answered: drawn where it will stand in the ghost's pending look
 /// until the server says (GROUND_SYSTEMS.md §6), then it goes; refused, at once.
 /// </summary>
-public sealed record PendingPlacement(uint Seq, Placeable Placeable, Vector3 Position, Quaternion Rotation, object? Detail);
+public sealed record PendingPlacement(uint Seq, Placeable Placeable, Vector3 Position, Quaternion Rotation, object? Detail, int Variant = 0);
 
 // Placing anything (GROUND_SYSTEMS.md §6): one intent, PlaceIntent, for what the ghost shows (GameClient.Plan); its price
 // leaves the inventory at once (the item used up, or a piece's materials), the placement is drawn pending until the answer,
@@ -50,7 +50,7 @@ public sealed partial class LocalPlayer
         }.WriteMessage(w));
         if (seq != 0)
         {
-            _pendingPlacements.Add(new PendingPlacement(seq, placeable, candidate.Position, candidate.Rotation, candidate.Detail));
+            _pendingPlacements.Add(new PendingPlacement(seq, placeable, candidate.Position, candidate.Rotation, candidate.Detail, candidate.Variant));
         }
         return seq;
     }

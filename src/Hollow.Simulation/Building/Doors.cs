@@ -98,19 +98,19 @@ public sealed class CodeLock : DoorLock
 
 /// <summary>
 /// A door fitted into a doorway (single) or a wall frame (double, garage): a deployable item with its own health, never
-/// upgraded. Its leaves swing on the hinges from the kit's assembly manifest; open or shut they collide, so an open
-/// door still blocks (RustMVP's rule).
+/// upgraded. Its leaves swing about hinge pins whose side and swing side are its layout (docs/DOORS.md §3); open or shut
+/// they collide, so an open door still blocks (RustMVP's rule).
 /// </summary>
 public sealed class Door : IBuildingPart, IOwned, ILockHost
 {
     internal uint[] Bodies;
 
-    internal Door(EntityId id, DoorDef def, Piece frame, int flip, ulong owner)
+    internal Door(EntityId id, DoorDef def, Piece frame, int layout, ulong owner)
     {
         Id = id;
         Def = def;
         Frame = frame;
-        Flip = flip;
+        Layout = layout & def.LayoutMask;
         Owner = owner;
         Health = def.Health;
         Bodies = new uint[def.Leaves.Count];
@@ -126,8 +126,17 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
     /// <summary>The doorway or wall frame it's fitted into.</summary>
     public Piece Frame { get; }
 
-    /// <summary>0, or 1 when turned 180° (the other hinge side and swing).</summary>
-    public int Flip { get; }
+    /// <summary>Which side the hinge is on and which way the leaves swing: bit 0 hinges on the right, bit 1 swings out (+Z); see <see cref="DoorDef.Hinging"/>.</summary>
+    public int Layout { get; }
+
+    /// <summary>Hinged on the right (seen from +Z): its leaf is the mirrored one.</summary>
+    public bool HingeRight => (Layout & 1) != 0;
+
+    /// <summary>Swinging out, toward the +Z side of its frame.</summary>
+    public bool SwingOut => (Layout & 2) != 0;
+
+    /// <summary>The mesh leaf <paramref name="index"/> is drawn with in this layout.</summary>
+    public string LeafMesh(int index) => HingeRight && Def.Leaves[index].MirrorMesh.Length > 0 ? Def.Leaves[index].MirrorMesh : Def.Leaves[index].Mesh;
 
     public ulong Owner { get; }
 
@@ -155,25 +164,27 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
     /// <summary>Its leaves' Jolt body IDs.</summary>
     public IReadOnlyList<uint> BodyIds => Bodies;
 
+    /// <summary>A leaf's pose in the zone, open or shut (<see cref="LeafAt"/> at 1 or 0).</summary>
+    public (Vector3 Position, Quaternion Rotation) Leaf(int index, bool open) => LeafAt(index, open && Def.Opens ? 1f : 0f);
+
     /// <summary>
-    /// A leaf's pose in the zone, open or shut: the frame's transform, the flip, the hinge from the manifest, then the
-    /// leaf's yaw about its hinge.
+    /// A leaf's pose in the zone at a progress from 0 (shut) to 1 (open): its shut pose in the frame turned about its hinge
+    /// pin by the layout's open yaw times the ease, then the frame's transform. A garage door's curtain rises instead.
     /// </summary>
-    public (Vector3 Position, Quaternion Rotation) Leaf(int index, bool open)
+    public (Vector3 Position, Quaternion Rotation) LeafAt(int index, float progress)
     {
         LeafDef leaf = Def.Leaves[index];
-        (Vector3 position, Quaternion rotation) = Frame.ZoneTransform;
-        Quaternion flip = Quaternion.CreateFromAxisAngle(Vector3.UnitY, Flip * MathF.PI);
-        open &= Def.Opens;
-        Quaternion swing = Quaternion.CreateFromAxisAngle(Vector3.UnitY, open && !Def.Rolls ? (float)(leaf.OpenYaw * Math.PI / 180) : 0f);
-        Vector3 hinge = leaf.Hinge;
-        if (open && Def.Rolls)
+        LeafHinging hinging = Def.Hinging(index, Layout);
+        progress = Math.Clamp(progress, 0f, 1f);
+        Quaternion turn = Quaternion.CreateFromAxisAngle(Vector3.UnitY, Def.Rolls ? 0f : hinging.OpenYaw * DoorDef.Ease(progress));
+        Vector3 local = hinging.Pin + Vector3.Transform(hinging.Offset, turn);
+        if (Def.Rolls)
         {
             // A garage door's curtain rolls up into its header.
-            hinge += new Vector3(0, leaf.Size.Y, 0);
+            local += new Vector3(0, leaf.Size.Y * progress, 0);
         }
-        Quaternion frameFlip = Quaternion.Normalize(rotation * flip);
-        return (position + Vector3.Transform(hinge, frameFlip), Quaternion.Normalize(frameFlip * swing));
+        (Vector3 position, Quaternion rotation) = Frame.ZoneTransform;
+        return (position + Vector3.Transform(local, rotation), Quaternion.Normalize(rotation * turn));
     }
 
     /// <summary>
@@ -181,13 +192,13 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
     /// the free edge at hand height, its back resting on the front of the handle plate on the +Z face (the outside of
     /// the frame), where the keypad or the key cylinder shows. The lock is drawn there and placed there (DOORS.md §6).
     /// </summary>
-    public static Vector3 LockOffset(LeafDef leaf) => new(leaf.Size.X * 0.86f, 1.05f, leaf.LockDepth);
+    public static Vector3 LockOffset(LeafDef leaf, bool mirrored = false) => new(leaf.Size.X * 0.86f * (mirrored ? -1 : 1), 1.05f, leaf.LockDepth);
 
     /// <summary>
     /// Where the back plate of a lock sits, on the leaf's other face (−Z), at the same place seen from that side: a
     /// matching housing, so a door with a lock shows one from both sides. It is turned half round: its front faces −Z.
     /// </summary>
-    public static Vector3 LockBackOffset(LeafDef leaf) => LockOffset(leaf) with { Z = -leaf.LockDepth };
+    public static Vector3 LockBackOffset(LeafDef leaf, bool mirrored = false) => LockOffset(leaf, mirrored) with { Z = -leaf.LockDepth };
 
     /// <summary>Where a lock on this door is now (it swings with the leaf), in the zone.</summary>
     public (Vector3 Position, Quaternion Rotation) LockSpot
@@ -195,7 +206,7 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
         get
         {
             (Vector3 position, Quaternion rotation) = Leaf(0, Open);
-            return (position + Vector3.Transform(LockOffset(Def.Leaves[0]), rotation), rotation);
+            return (position + Vector3.Transform(LockOffset(Def.Leaves[0], HingeRight), rotation), rotation);
         }
     }
 
@@ -205,7 +216,7 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
         get
         {
             (Vector3 position, Quaternion rotation) = Leaf(0, Open);
-            return (position + Vector3.Transform(LockBackOffset(Def.Leaves[0]), rotation),
+            return (position + Vector3.Transform(LockBackOffset(Def.Leaves[0], HingeRight), rotation),
                 Quaternion.Normalize(rotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
         }
     }
@@ -224,7 +235,6 @@ public sealed partial class BuildingWorld
     /// <summary>Key numbers run 1 … this (a key's condition holds its lock's).</summary>
     public const int MaxKeyCode = ushort.MaxValue;
 
-    private readonly Dictionary<object, ConvexPart[]> _leafParts = new();
     private int _nextKeyCode = 1;
 
     /// <summary>Every door in the world.</summary>
@@ -246,11 +256,11 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>
-    /// Whether a door fits into a frame piece, turned by <paramref name="flip"/> (the door's own rules: building rights,
-    /// reach and sight are the placement pipeline's, GROUND_SYSTEMS.md §6): single doors into doorways, double doors and the
-    /// garage door into wall frames, one per opening, shut, its leaves clear of players.
+    /// Whether a door fits into a frame piece in a layout (the door's own rules: building rights, reach and sight are the
+    /// placement pipeline's, GROUND_SYSTEMS.md §6): single doors into doorways, double doors and the garage door into wall
+    /// frames, one per opening, shut, its leaves clear of players. The layout's bits the door doesn't choose are ignored.
     /// </summary>
-    public Outcome CanFitDoor(DoorDef def, Piece frame, int flip)
+    public Outcome CanFitDoor(DoorDef def, Piece frame, int layout)
     {
         if (frame.Gone || frame.Collapsing)
         {
@@ -269,19 +279,19 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.HasDoor;
         }
-        return LeavesBlocked(new Door(EntityId.None, def, frame, flip & 1, 0), open: false) ? OutcomeCode.PlayerInTheWay : Outcome.Done;
+        return LeavesBlocked(new Door(EntityId.None, def, frame, layout, 0), open: false) ? OutcomeCode.PlayerInTheWay : Outcome.Done;
     }
 
     /// <summary>Fits a door into a frame piece (the checks of <see cref="CanFitDoor"/> again): shut, unlocked, owned by its fitter.</summary>
-    public Outcome PlaceDoor(ulong player, DoorDef def, Piece frame, int flip, out Door? door)
+    public Outcome PlaceDoor(ulong player, DoorDef def, Piece frame, int layout, out Door? door)
     {
         door = null;
-        Outcome fits = CanFitDoor(def, frame, flip);
+        Outcome fits = CanFitDoor(def, frame, layout);
         if (!fits.Ok)
         {
             return fits;
         }
-        var fitted = new Door(_newId(), def, frame, flip & 1, player);
+        var fitted = new Door(_newId(), def, frame, layout, player);
         frame.Door = fitted;
         _doorIds[fitted.Id] = fitted;
         for (int i = 0; i < def.Leaves.Count; i++)
@@ -293,14 +303,16 @@ public sealed partial class BuildingWorld
         return Outcome.Done;
     }
 
-    private ConvexPart[] LeafParts(LeafDef leaf)
+    // A leaf's solid parts as this door hangs it: the leaf's own, or those mirrored for a right-hinged leaf.
+    internal static ConvexPart[] LeafParts(Door door, int index) =>
+        door.HingeRight && door.Def.Leaves[index].MirrorMesh.Length > 0 ? door.Def.Leaves[index].MirroredParts : door.Def.Leaves[index].Parts;
+
+    // The shared Jolt shape of a leaf as this door hangs it (one for each side a leaf can hang on).
+    internal JoltPhysicsSharp.Shape LeafShape(Door door, int index)
     {
-        if (!_leafParts.TryGetValue(leaf, out ConvexPart[]? parts))
-        {
-            parts = leaf.Parts;
-            _leafParts.Add(leaf, parts);
-        }
-        return parts;
+        LeafDef leaf = door.Def.Leaves[index];
+        bool mirrored = door.HingeRight && leaf.MirrorMesh.Length > 0;
+        return Physics!.ShapeFor(mirrored ? leaf.MirrorKey : leaf, LeafParts(door, index));
     }
 
     private void AddLeafBody(Door door, int index)
@@ -309,9 +321,8 @@ public sealed partial class BuildingWorld
         {
             return;
         }
-        LeafDef leaf = door.Def.Leaves[index];
         (Vector3 position, Quaternion rotation) = door.Leaf(index, door.Open);
-        door.Bodies[index] = Physics.Add(new DoorLeaf(door, index), Physics.ShapeFor(leaf, LeafParts(leaf)), position, rotation);
+        door.Bodies[index] = Physics.Add(new DoorLeaf(door, index), LeafShape(door, index), position, rotation);
     }
 
     // Whether a player stands where the door's leaves would be.
@@ -324,7 +335,7 @@ public sealed partial class BuildingWorld
                 continue;
             }
             (Vector3 position, Quaternion rotation) = door.Leaf(i, open);
-            if (CharacterInside(LeafParts(door.Def.Leaves[i]), position, rotation))
+            if (CharacterInside(LeafParts(door, i), position, rotation))
             {
                 return true;
             }

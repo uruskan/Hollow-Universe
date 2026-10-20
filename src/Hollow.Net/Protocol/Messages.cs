@@ -1330,7 +1330,7 @@ public partial struct BuildRemoved
 }
 
 /// <summary>
-/// A door: its frame piece, which door (building.json's order), flipped, open; health as a fraction of 65,535; its
+/// A door: its frame piece, which door (building.json's order), its layout (hinge side and swing side), open; health as a fraction of 65,535; its
 /// lock; what this player is told of it (GROUND_SYSTEMS.md §3.3: may pass, locked, its lock's code set, on its list,
 /// theirs); its leaves' body IDs.
 /// </summary>
@@ -1340,7 +1340,7 @@ public partial struct DoorNet
     public ulong Id;
     public ulong Frame;
     public byte Door;
-    public bool Flip;
+    [Bits(2)] public byte Layout;
     public bool Open;
     public ushort Health;
     [Bits(2)] public LockKind Lock;

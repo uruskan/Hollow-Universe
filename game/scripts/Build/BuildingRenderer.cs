@@ -357,10 +357,14 @@ public partial class BuildingRenderer : Node3D
         new(new Basis(new Quaternion(rotation.X, rotation.Y, rotation.Z, rotation.W)), new Vector3(position.X, position.Y, position.Z));
 }
 
-/// <summary>A door in its opening: the kit's frame insert and leaves, swinging (or a garage curtain rolling) over a second.</summary>
+/// <summary>
+/// A door in its opening: the kit's frame insert and leaves, each leaf on a pivot at its hinge pin, swinging (or a garage
+/// curtain rolling) over a second. How the leaves hang is the door's layout (docs/DOORS.md §3).
+/// </summary>
 public partial class DoorView : Node3D
 {
-    private readonly List<(MeshInstance3D Leaf, float OpenYaw)> _leaves = new();
+    private readonly List<(Node3D Pivot, float OpenYaw)> _leaves = new();
+    private readonly List<MeshInstance3D> _leafMeshes = new();
     private AnimationPlayer? _garage;
     private float _swing;
     private bool _shown;
@@ -374,14 +378,16 @@ public partial class DoorView : Node3D
     /// <summary>Open (true) or shut: the leaves move toward it.</summary>
     public bool Target { get; set; }
 
+    /// <summary>The first mesh of leaf <paramref name="index"/> (its origin is the leaf's middle plane at its hinge), or null for a garage door.</summary>
+    public MeshInstance3D? LeafMesh(int index) => index >= 0 && index < _leafMeshes.Count ? _leafMeshes[index] : null;
+
     public override void _Ready()
     {
         (Num.Vector3 position, Num.Quaternion rotation) = Door.Frame.ZoneTransform;
-        Transform = BuildingRenderer.ToGodot(position, rotation).RotatedLocal(Vector3.Up, Door.Flip * Mathf.Pi);
-        _garage = Parts(Door.Def, Assets, this, _leaves);
+        Transform = BuildingRenderer.ToGodot(position, rotation);
+        _garage = Parts(Door.Def, Door.Layout, Assets, this, _leaves, _leafMeshes);
         if (PresentationTargets is { } targets)
         {
-            int mesh = 0;
             for (int i = 0; i < Door.Def.Leaves.Count; i++)
             {
                 TargetRef target = Door.Ref with { Part = (byte)(i + 1) };
@@ -392,8 +398,7 @@ public partial class DoorView : Node3D
                     continue;
                 }
                 (Num.Vector3 at, Num.Quaternion turn) = Door.Leaf(i, false);
-                _presentation.Add(RenderedTargetFrame.Register(targets, target, _leaves[mesh].Leaf, new TargetPose(at, turn)));
-                mesh += 1 + Door.Def.Leaves[i].AdditionalMeshes.Count;
+                _presentation.Add(RenderedTargetFrame.Register(targets, target, _leafMeshes[i], new TargetPose(at, turn)));
             }
         }
         _swing = Target ? 1 : 0;
@@ -409,11 +414,13 @@ public partial class DoorView : Node3D
     public override void _ExitTree() => RetirePresentation();
 
     /// <summary>
-    /// A door's kit parts under a node (in the frame piece's frame, flipped by the caller): its frame and its leaves on their
-    /// hinges, shut, or the garage door's frame and curtain. The door drawn in the world and the placement ghost's door
-    /// (GROUND_SYSTEMS.md §6) are the same parts. Returns the garage door's animation player, if it is one.
+    /// A door's kit parts under a node (in the frame piece's frame): its frame and its leaves, each on a pivot at its hinge
+    /// pin and hung as the layout says (the mirrored leaf for a right-hinged one), shut, or the garage door's frame and
+    /// curtain. The door drawn in the world and the placement ghost's door (GROUND_SYSTEMS.md §6) are the same parts.
+    /// Returns the garage door's animation player, if it is one.
     /// </summary>
-    public static AnimationPlayer? Parts(DoorDef def, BuildingAssets assets, Node3D into, List<(MeshInstance3D Leaf, float OpenYaw)>? leaves = null)
+    public static AnimationPlayer? Parts(DoorDef def, int layout, BuildingAssets assets, Node3D into,
+        List<(Node3D Pivot, float OpenYaw)>? leaves = null, List<MeshInstance3D>? leafMeshes = null)
     {
         if (def.Rolls && assets.Garage != null)
         {
@@ -430,8 +437,13 @@ public partial class DoorView : Node3D
         {
             into.AddChild(new MeshInstance3D { Mesh = frame, MaterialOverride = assets.PartMaterial(frame) });
         }
-        foreach (LeafDef leaf in def.Leaves)
+        for (int i = 0; i < def.Leaves.Count; i++)
         {
+            LeafDef leaf = def.Leaves[i];
+            LeafHinging hinging = def.Hinging(i, layout);
+            var pivot = new Node3D { Position = new Vector3(hinging.Pin.X, hinging.Pin.Y, hinging.Pin.Z) };
+            into.AddChild(pivot);
+            bool first = true;
             void AddLeafMesh(string name)
             {
                 Mesh mesh = assets.Part(name) ?? new BoxMesh { Size = new Vector3(Math.Abs(leaf.Size.X), leaf.Size.Y, leaf.Size.Z) };
@@ -439,13 +451,18 @@ public partial class DoorView : Node3D
                 {
                     Mesh = mesh,
                     MaterialOverride = assets.PartMaterial(mesh),
-                    Position = new Vector3(leaf.Hinge.X, leaf.Hinge.Y, leaf.Hinge.Z),
+                    Position = new Vector3(hinging.Offset.X, hinging.Offset.Y, hinging.Offset.Z),
                 };
-                into.AddChild(node);
-                leaves?.Add((node, Mathf.DegToRad((float)leaf.OpenYaw)));
+                pivot.AddChild(node);
+                if (first)
+                {
+                    leafMeshes?.Add(node);
+                    first = false;
+                }
             }
-            AddLeafMesh(leaf.Mesh);
+            AddLeafMesh(hinging.Mirrored && leaf.MirrorMesh.Length > 0 ? leaf.MirrorMesh : leaf.Mesh);
             foreach (string mesh in leaf.AdditionalMeshes) AddLeafMesh(mesh);
+            leaves?.Add((pivot, hinging.OpenYaw));
         }
         return null;
     }
@@ -473,10 +490,10 @@ public partial class DoorView : Node3D
         }
         // The kit's leaves travel in one second, easing at both ends.
         _swing = Mathf.MoveToward(_swing, goal, (float)delta);
-        float eased = _swing * _swing * (3 - 2 * _swing);
-        foreach ((MeshInstance3D leaf, float openYaw) in _leaves)
+        float eased = DoorDef.Ease(_swing);
+        foreach ((Node3D pivot, float openYaw) in _leaves)
         {
-            leaf.Rotation = new Vector3(0, openYaw * eased, 0);
+            pivot.Rotation = new Vector3(0, openYaw * eased, 0);
         }
     }
 }

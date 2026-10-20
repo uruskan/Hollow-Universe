@@ -98,14 +98,14 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>Puts a door back into its frame (shut or open, with its health); a mirror passes the server's leaf bodies.</summary>
-    public Door? RestoreDoor(EntityId id, DoorDef def, Piece frame, int flip, ulong owner, bool open, double health,
+    public Door? RestoreDoor(EntityId id, DoorDef def, Piece frame, int layout, ulong owner, bool open, double health,
         IReadOnlyList<uint>? bodies = null)
     {
         if (frame.Gone || frame.Door != null || frame.Def.Opening != def.Opening)
         {
             return null;
         }
-        var door = new Door(id, def, frame, flip & 1, owner)
+        var door = new Door(id, def, frame, layout, owner)
         {
             Open = open && def.Opens,
             Health = Math.Clamp(health, 0, def.Health),
@@ -118,10 +118,9 @@ public sealed partial class BuildingWorld
             {
                 break;
             }
-            LeafDef leaf = def.Leaves[i];
             (Vector3 position, Quaternion rotation) = door.Leaf(i, door.Open);
             uint requested = bodies != null && i < bodies.Count ? bodies[i] : 0;
-            door.Bodies[i] = Physics.Add(new DoorLeaf(door, i), Physics.ShapeFor(leaf, LeafParts(leaf)), position, rotation, requested);
+            door.Bodies[i] = Physics.Add(new DoorLeaf(door, i), LeafShape(door, i), position, rotation, requested);
         }
         Changed?.Invoke(new BuildingEvent(BuildingChange.DoorAdded, frame, door, Structure: frame.Structure));
         return door;

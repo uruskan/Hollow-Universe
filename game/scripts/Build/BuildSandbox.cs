@@ -28,7 +28,7 @@ namespace HollowUniverse.Build;
 /// Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; hold the right mouse button for the plan's or the hammer's radial;
 /// left button places, repairs, fits a door or places the device; R turns the piece (or flips the door); E opens and
 /// shuts a door; F2 the stability overlay; F5 one hour of upkeep and decay. Options (after "--"): <c>--scene
-/// house|stability|ghost-valid|ghost-invalid|stress|empty|joints|doors</c> (joints: <c>--tour folder</c>), <c>--overlay</c>,
+/// house|stability|ghost-valid|ghost-invalid|stress|empty|joints|doors|airlocks</c> (joints: <c>--tour folder</c>), <c>--overlay</c>,
 /// <c>--tool</c> 1–6, <c>--piece key</c>.
 /// </para>
 /// </summary>
@@ -183,6 +183,10 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         {
             DoorTour(doorTour);
         }
+        else if (_scene == "airlocks" && Options.TryGetValue("tour", out string? airlockTour))
+        {
+            AirlockTour(airlockTour);
+        }
     }
 
 
@@ -276,6 +280,12 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
             case "doors":
                 // Every door in its opening along one wall (BuildSandbox.Doors.cs); --from and --at are in the first foundation's frame.
                 Doors(first);
+                spawn = F(frame.ToZone(new Vector3D(0, 0.5, 8)));
+                break;
+            case "airlocks":
+                // The airlocks of docs/DOORS.md §7 (BuildSandbox.Airlocks.cs); --from and --at are in the first one's frame.
+                Airlocks(frame);
+                frame = _airlocks[0].Frame;
                 spawn = F(frame.ToZone(new Vector3D(0, 0.5, 8)));
                 break;
             case "joints":

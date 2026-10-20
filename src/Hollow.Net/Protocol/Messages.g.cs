@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xCAE8A53D21067E1DUL;
+    public const ulong SchemaHash = 0x798649FE9D08FA2BUL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -3784,7 +3784,7 @@ partial struct DoorNet
         w.WriteBits64(Id, 64);
         w.WriteBits64(Frame, 64);
         w.WriteBits((uint)Door, 8);
-        w.WriteBool(Flip);
+        w.WriteBits((uint)Layout, 2);
         w.WriteBool(Open);
         w.WriteBits((uint)Health, 16);
         w.WriteBits((uint)Lock, 2);
@@ -3800,7 +3800,7 @@ partial struct DoorNet
         v.Id = r.ReadBits64(64);
         v.Frame = r.ReadBits64(64);
         v.Door = (byte)r.ReadBits(8);
-        v.Flip = r.ReadBool();
+        v.Layout = (byte)r.ReadBits(2);
         v.Open = r.ReadBool();
         v.Health = (ushort)r.ReadBits(16);
         v.Lock = (LockKind)r.ReadBits(2);

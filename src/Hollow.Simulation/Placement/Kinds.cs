@@ -215,11 +215,8 @@ internal sealed class DoorKind : PlaceableKind
 
     internal override JsonElement Own(string key, PlacementSources sources) => sources.Own("building.json", "doors", "key", key);
 
-    // As its frame stands, turned round when its variant (R's flip) says so.
-    public override Quaternion Orient(PlacementCandidate c) =>
-        c.Detail is Piece frame
-            ? Quaternion.Normalize(frame.ZoneTransform.Rotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, (c.Variant & 1) * MathF.PI))
-            : base.Orient(c);
+    // As its frame stands: the variant (R's layout: hinge side and swing side) is in how its leaves hang, not in the frame.
+    public override Quaternion Orient(PlacementCandidate c) => c.Detail is Piece frame ? frame.ZoneTransform.Rotation : base.Orient(c);
 
     public override Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) =>
         c.Detail is Piece frame && world.Building is { } building ? building.CanFitDoor((DoorDef)c.Placeable.Definition, frame, c.Variant) : OutcomeCode.NotAnOpening;

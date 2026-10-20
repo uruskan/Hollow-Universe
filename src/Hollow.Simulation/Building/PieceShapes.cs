@@ -27,6 +27,17 @@ public sealed class ConvexPart
 
     public Vector3[] Points { get; }
 
+    /// <summary>The same part mirrored in X (a leaf hung on the other side).</summary>
+    public ConvexPart MirroredX()
+    {
+        var mirrored = new Vector3[Points.Length];
+        for (int i = 0; i < mirrored.Length; i++)
+        {
+            mirrored[i] = new Vector3(-Points[i].X, Points[i].Y, Points[i].Z);
+        }
+        return new ConvexPart(mirrored);
+    }
+
     /// <summary>Outward face planes: a point p is inside when Dot(Normal, p) ≤ D for every plane.</summary>
     public (Vector3 Normal, float D)[] Planes { get; }
 

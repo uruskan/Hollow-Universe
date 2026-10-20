@@ -170,7 +170,7 @@ public sealed class BuildingReplica : IDisposable
                 _bodies.Clear();
                 _bodies.Add(d.Body0);
                 _bodies.Add(d.Body1);
-                door = World.RestoreDoor(id, def, frame, d.Flip ? 1 : 0, 0, d.Open, health, _bodies);
+                door = World.RestoreDoor(id, def, frame, d.Layout, 0, d.Open, health, _bodies);
             }
             if (door == null)
             {

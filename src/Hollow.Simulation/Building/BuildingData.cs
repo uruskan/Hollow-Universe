@@ -206,7 +206,30 @@ public sealed class LeafDef
 
     /// <summary>The same solid parts for authoritative collision, placement and targeting; openings stay empty.</summary>
     public ConvexPart[] Parts => Collision.Length > 0 ? Collision : _fallbackCollision ??= new[] { PieceShapes.Leaf(this) };
+
+    /// <summary>The mesh of this leaf hung on the other side, the kit's leaf mirrored in X ("" for a door whose hinge side is fixed).</summary>
+    public string MirrorMesh { get; init; } = "";
+
+    /// <summary>The same parts hung on the other side (mirrored in X), for a right-hinged leaf.</summary>
+    public ConvexPart[] MirroredParts => _mirrored ??= Parts.Select(p => p.MirroredX()).ToArray();
+
+    /// <summary>The key a mirrored leaf's shared body shape is kept under.</summary>
+    internal object MirrorKey { get; } = new();
+
+    /// <summary>
+    /// How far the hinge pin lies from the leaf's middle plane, toward the face the leaf swings to: half its thickness, so
+    /// the open leaf stands clear of the jamb it hangs on (DOORS.md §3).
+    /// </summary>
+    public float PinDepth => MathF.Abs(Size.Z) / 2;
+
+    private ConvexPart[]? _mirrored;
 }
+
+/// <summary>
+/// Where a leaf hangs in a layout (<see cref="DoorDef.Hinging"/>): its hinge pin in the frame, where the leaf's own origin
+/// (its middle plane at the hinge) lies from the pin when shut, and the yaw of the open leaf about the pin.
+/// </summary>
+public readonly record struct LeafHinging(System.Numerics.Vector3 Pin, System.Numerics.Vector3 Offset, float OpenYaw, bool Mirrored);
 
 /// <summary>A fitted aperture attachment: a swinging/rolling door or a stationary window insert.</summary>
 public sealed class DoorDef
@@ -239,6 +262,71 @@ public sealed class DoorDef
     public IReadOnlyList<LeafDef> Leaves { get; init; } = Array.Empty<LeafDef>();
 
     public string FrameMesh { get; init; } = "";
+
+    /// <summary>Whether the builder chooses the hinge side (a single door; layout bit 0 hangs the leaf on the right).</summary>
+    public bool Hinges { get; init; }
+
+    /// <summary>Whether the builder chooses the swing side (layout bit 1 swings the leaves out, toward +Z).</summary>
+    public bool Swings { get; init; }
+
+    /// <summary>The layout bits that mean something for this door (DOORS.md §3).</summary>
+    public int LayoutMask => (Hinges ? 1 : 0) | (Swings ? 2 : 0);
+
+    /// <summary>How many layouts the door has: 4 for a single door, 2 for a double door, 1 otherwise.</summary>
+    public int Layouts => (Hinges ? 2 : 1) * (Swings ? 2 : 1);
+
+    /// <summary>
+    /// The layouts in the order R steps through them, each press changing one choice: left/in, right/in, right/out, left/out
+    /// for a single door; in, out for a double door.
+    /// </summary>
+    public IReadOnlyList<int> LayoutCycle => (Hinges, Swings) switch
+    {
+        (true, true) => new[] { 0, 1, 3, 2 },
+        (false, true) => new[] { 0, 2 },
+        (true, false) => new[] { 0, 1 },
+        _ => new[] { 0 },
+    };
+
+    /// <summary>
+    /// The layout a door starts at when aimed at from one side of its frame: hinged on the viewer's left, swinging away from
+    /// the viewer (from the +Z side that is hinge left and in, from −Z hinge right and out).
+    /// </summary>
+    public int DefaultLayout(bool fromOutside) => fromOutside ? 0 : LayoutMask & 3;
+
+    /// <summary>The layout <paramref name="turns"/> presses of R after <paramref name="from"/>.</summary>
+    public int Turned(int from, int turns)
+    {
+        IReadOnlyList<int> cycle = LayoutCycle;
+        int at = 0;
+        for (int i = 0; i < cycle.Count; i++)
+        {
+            if (cycle[i] == (from & LayoutMask))
+            {
+                at = i;
+            }
+        }
+        return cycle[(((at + turns) % cycle.Count) + cycle.Count) % cycle.Count];
+    }
+
+    /// <summary>Where leaf <paramref name="index"/> hangs and where it swings to in a layout (bits this door does not choose are ignored).</summary>
+    public LeafHinging Hinging(int index, int layout)
+    {
+        LeafDef leaf = Leaves[index];
+        layout &= LayoutMask;
+        bool mirrored = (layout & 1) != 0, swingOut = (layout & 2) != 0;
+        bool swings = leaf.OpenYaw != 0;
+        float pinZ = !swings ? 0f : swingOut ? leaf.PinDepth : -leaf.PinDepth;
+        var pin = new System.Numerics.Vector3(mirrored ? -leaf.Hinge.X : leaf.Hinge.X, leaf.Hinge.Y, leaf.Hinge.Z + pinZ);
+        float yaw = (float)(leaf.OpenYaw * Math.PI / 180) * (mirrored ? -1 : 1) * (swingOut ? -1 : 1);
+        return new LeafHinging(pin, new System.Numerics.Vector3(0, 0, -pinZ), yaw, mirrored);
+    }
+
+    /// <summary>How far open a leaf is at a progress from 0 (shut) to 1 (open): a swing eases at both ends.</summary>
+    public static float Ease(float progress)
+    {
+        float p = Math.Clamp(progress, 0f, 1f);
+        return p * p * (3 - 2 * p);
+    }
 }
 
 /// <summary>The building rules' numbers (<c>game/data/ground/building.json</c>), read by the server and the client.</summary>
@@ -684,6 +772,7 @@ public sealed class BuildingData
                     Hinge = r.Vector(l, "hinge"),
                     Size = size,
                     OpenYaw = r.Number(l, "openYaw", 0),
+                    MirrorMesh = r.Text(l, "mirrorMesh", ""),
                     LockDepth = (float)r.Number(l, "lockDepth", Math.Abs(size.Z) / 2 + 0.002),
                     AdditionalMeshes = r.Array(l, "additionalMeshes").Select(e => e.ValueKind == JsonValueKind.String
                         ? e.GetString() ?? "" : Bad(r, "attachment mesh name must be text", "")).ToArray(),
@@ -711,6 +800,8 @@ public sealed class BuildingData
                 Lockable = r.Boolean(d, "lockable", true),
                 Leaves = leaves,
                 FrameMesh = r.Text(d, "frameMesh", ""),
+                Hinges = r.Boolean(d, "hinges", false),
+                Swings = r.Boolean(d, "swings", false),
             };
             doors.Add(door);
             _doors[key] = door;
@@ -870,6 +961,14 @@ public sealed class BuildingData
             if (!Materials.Contains(d.RepairMaterial))
             {
                 problems.Add($"door {d.Key}: unknown repair material \"{d.RepairMaterial}\"");
+            }
+            if ((d.Hinges || d.Swings) && (!d.Opens || d.Rolls || d.Leaves.Any(l => l.OpenYaw == 0)))
+            {
+                problems.Add($"door {d.Key}: a hinge or swing side can only be chosen on a door whose leaves swing");
+            }
+            if (d.Hinges && d.Leaves.Any(l => l.MirrorMesh.Length == 0))
+            {
+                problems.Add($"door {d.Key}: a door with a hinge choice needs each leaf's mirrorMesh");
             }
         }
         if (UpkeepBrackets.Count == 0)

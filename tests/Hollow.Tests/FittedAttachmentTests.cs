@@ -65,8 +65,8 @@ public static class FittedAttachmentTests
                 BuildingCodec.RestorePiece(restored, piece.Id, BuildingCodec.EncodePiece(piece, ZoneFrame.World), ZoneFrame.World);
             restored.EndBatch();
             Door copy = BuildingCodec.RestoreDoor(restored, door.Id, saved)!;
-            Assert.True(copy != null && copy.Def == def && copy.Flip == 1 && !copy.Open && copy.Health == door.Health,
-                "existing save codec preserves definition, flip, state and health");
+            Assert.True(copy != null && copy.Def == def && copy.Layout == 0 && !copy.Open && copy.Health == door.Health,
+                "existing save codec preserves definition, layout (a fixed insert has none), state and health");
             Assert.True(world.PickUpDoor(1, door).Ok && window.Door == null, "fixed insert returns through common pickup");
         }
         foreach (string key in new[] { "wooden-double-door", "armoured-double-door" })

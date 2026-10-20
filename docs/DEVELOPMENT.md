@@ -4680,3 +4680,17 @@ starting (the first world's stand-in radius is a diagnostic radius now); it asks
 `--tour`. Validation: build 0 warnings, 0 errors; Door 7/7, Building 25/25, Placement 25/25, Lock 22/22, Gib 5/5,
 ContentTests 3/3; `docs/images/abtest-b/doors/before` and `after` (every door from both sides, the lock seat on both faces).
 Not checked: the garage lock; the back plate is the lock model pressed flat, not a model of its own.
+
+### 20 October 2026 — doors D2: hinge side and swing side chosen apart, the airlocks
+
+A door has a layout (`Door.Layout`, replacing `Flip`): bit 0 hinges it on the right (the kit's leaf mirrored, a body mirrored with it),
+bit 1 swings it out; a single door has four, a double door two, the garage one. The hinge pin is on the face the leaf swings toward,
+so the open leaf stands clear of its jamb. R steps the layouts (placement rotation `layout`, was `flip`), starting hinged on the
+viewer's left and swinging away from them; the ghost shows the leaves part open and the swing's arc. `DoorNet` carries the layout
+(protocol 44), the save a door version 2 (version 1's half turn reads as layout 3), the Earth save revision is 10 (`earth-v10`).
+`DoorTests` (five): every layout's pin, side and body; the steps of R; two airlocks found by flooding the floor with the character's capsule
+(a triangle with two single doors: one door hinged at the shared corner and swinging in closes the walk to the other doorway; a square room: a
+double door in with a single door hinged on the right, only together) and one by a character walking through the movement code.
+Since the door lies inside its frame, from beyond the jamb's line the frame hides it (FoundationTests' door from aside is 0.5 m, was 1.6).
+Validation: see the commit message. Not done: the hosted pictures (end of D3); `--view build --scene airlocks --tour` pictures are in
+`docs/images/abtest-b/doors/airlocks-sandbox`.

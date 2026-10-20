@@ -580,7 +580,7 @@ public sealed class BuildingModule : ServerModule
             Id = d.Id.Value,
             Frame = d.Frame.Id.Value,
             Door = (byte)Math.Max(0, data.IndexOf(d.Def)),
-            Flip = d.Flip != 0,
+            Layout = (byte)d.Layout,
             Open = d.Open,
             Health = Fraction(d.Health, d.Def.Health),
             Lock = d.Lock?.Kind ?? LockKind.None,

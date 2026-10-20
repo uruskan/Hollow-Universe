@@ -50,8 +50,7 @@ public static class PresentationPoseCheck
         TargetRef target = door.Ref with { Part = 1 };
         expect("door renderer registers physical hinge pose", targets.TryPresentationPose(target, out TargetPose closed) &&
             Near(closed, Pose(door.Leaf(0, false))), "flipped and rotated frame agrees with authority when shut");
-        Node3D leaf = view.GetChildren().OfType<MeshInstance3D>().First(n =>
-            n.Position.DistanceTo(GroundView.ToGodot(door.Def.Leaves[0].Hinge)) < 0.0001f);
+        Node3D leaf = view.LeafMesh(0) ?? throw new InvalidOperationException("The door view has no leaf.");
         Transform3D localPhysical = leaf.GlobalTransform.AffineInverse() * BuildingRenderer.ToGodot(closed.Position, closed.Rotation);
         view.Target = true;
         view._Process(0.5);

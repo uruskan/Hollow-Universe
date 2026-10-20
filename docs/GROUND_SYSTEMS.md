@@ -393,7 +393,7 @@ taken back; a client aims and offers as the server. The old intents' tests use `
 | `support` | `corners` (every footprint corner supported, RustMVP) or `centre` |
 | `maxSlope`, `maxStep`, `water` | as today's deployable fields; water is now checked for every placeable |
 | `align` | `up` (the planet's) or `normal` (charges on walls) |
-| `rotation` | `free`, steps in degrees, `support` (takes the support's yaw), `flip` (doors) |
+| `rotation` | `free`, steps in degrees, `support` (takes the support's yaw), `layout` (doors: hinge side and swing side) |
 | `reach` | defaults 3 m for deployables, 8 m for building, as now |
 | `privilege` | `needed` (authorised where a cupboard covers), `blocked` (refused in others' cover), `ignored` (charges) |
 | `limits` | per structure (Rust: 20 deployables, one cupboard), per player (sleeping bags) |
@@ -423,7 +423,7 @@ straight down from a little above it to what it would stand on within the step; 
 doorway or wall frame the aim passes through), `attach` (the door aimed at, at its lock spot) and `sweep` (the
 explosives' own sweep to the first surface). **Rotations** (`Rotations.cs`): `free` (the view's yaw plus R's turns; since
 S3 a placement's yaw is a heading from local north, `Facing`),
-`steps`, `support` (square to the piece under it, in its 30° steps), `flip` (a door's side) and `fixed` (as the solver
+`steps`, `support` (square to the piece under it, in its 30° steps), `layout` (a door's hinge side and swing side, docs/DOORS.md §3) and `fixed` (as the solver
 found it: a piece's orientation on its socket, which R cycles, or a lock's spot). **Checks** (`Checks.cs`), in
 placement.json's order: reach (to the footprint's nearest point), surface, step, slope, water, overlap, support (every
 corner within 15 cm of an allowed surface facing up), sight, privilege, limits, and `own` (the kind's: a piece's

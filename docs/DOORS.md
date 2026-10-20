@@ -52,12 +52,13 @@ stored with the door (`Door.Layout`, replacing `Flip`):
 - A **double door** has two (opens in or out); each leaf hinges at its own jamb. The hinge bit is not used.
 - The **garage door** has one; it rolls into its header and has no swing.
 
-The open pose is the leaf turned about its pin by the leaf's `openYaw` (100°, from the kit's assembly manifest),
-negated for a right-hinged leaf and for the *out* swing. So layout 0 is today's single door, hung on the left and
+The **hinge pin** is on the face of the leaf's core the leaf swings toward (0.04 m from its middle plane, on the −Z
+face for *in*, +Z for *out*), so the open leaf stands clear of the jamb it hangs on. The open pose is the leaf turned about its pin
+by the leaf's `openYaw` (100°, from the kit's assembly manifest), negated for a right-hinged leaf and for the *out* swing. So layout 0 is today's single door, hung on the left and
 opening toward −Z.
 
 **Placing.** The placement ghost is the door itself, drawn partly open, with the **swing arc** the leaf sweeps drawn on
-the floor of the opening (a thin wedge from the shut pose to the open one). Aiming through an opening from one side
+the floor of the opening (a fan from the shut pose to the open one, about the hinge pin). Aiming through an opening from one side
 starts the layout hinged on the viewer's left and opening *away from the viewer* (into the room the viewer is about to
 enter). **R** steps through the four layouts of a single door in the order left/in, right/in, right/out, left/out (each
 press changes one of the two choices); for a double door it swaps in and out. The chosen number travels with the
@@ -113,31 +114,37 @@ pose (`Door.LockSpot`).
 
 ## 7. Airlocks
 
-An airlock is two doors the builder places so that, with both open, the walkway between them is blocked. Our rule
-needs nothing special for it: leaves are solid whether open or shut, and the layouts (§3) let a builder choose where the
-open leaf ends up. Two layouts that are meant to work, to be built by the tests of D2 and checked by a character walking
-(no layout is special in the code):
+An airlock is two doors the builder places so that, with both open, the walkway between them is blocked. Our rule needs
+nothing special for it: leaves are solid whether open or shut, and the layouts (§3) let a builder choose where the open leaf
+ends up. `DoorTests` finds which layouts close which walks by flooding the floor with the character's capsule (the movement
+tuning's radius and height) and, for the two cases below, by walking a character through the real movement code:
 
-1. **A triangle foundation with two single doors.** Two of the triangle's three walls are doorways. The door in the
-   outer wall opens in (its leaf lies inside the triangle), the door in the inner wall opens out (its leaf also lies
-   inside the triangle). Hinged on the sides the tests record, the two open leaves close the walk from one doorway to the
-   other even with both doors open.
-2. **A double door on one wall and a single door opening inward on another**, in one foundation: the double door's
-   open leaves and the single leaf together fill the room between them.
+1. **A triangle foundation with two single doors** on two of its edges (any two meet at a corner, 60° inside). Seen from
+   outside, one door's right and the other's left point to that shared corner. A door **hinged on the corner's side and
+   swinging into the room** puts its leaf across the walk to the other doorway: the first door (cyclically) with layout 1 or the
+   second with layout 0. With the first door at layout 1 and the second swinging out (layout 2) both open, nobody passes (the
+   outer door opens in, the inner opens out); hung the other way (layouts 0 and 3: hinged at the far sides, one swinging out)
+   the leaves lie against the walls and the walk is free. In so small a room one inward leaf is enough; the second door
+   only has to open away.
+2. **A double door on one wall and a single door on the next** in a square room: the double door swinging in (layout 0) with the
+   single door hinged on the right, in or out (layout 1 or 3), leaves the way free with either door open alone and closes it with
+   both open. Hinged on the left (0 or 2), or with the double door swinging out, the way is free.
 
-D2 records the exact hinge sides here once the movement test has found them.
+Pictures of both, open and shut: `images/abtest-b/doors/airlocks-sandbox` (`--view build --scene airlocks --tour`), and the hosted
+set `images/abtest-b/doors/hosted`.
 
 ## 8. Replication and saving
 
-- `DoorNet` carries the **layout** (replacing the flip flag), whether it is open, and the motion record: *from*
+- `DoorNet` carries the **layout** (replacing the flip flag; 2 bits, since protocol 44, D2), whether it is open, and the motion record (D3): *from*
   (progress as a fraction of 65,535), *since* (the tick, 32 bits) and *moving* (two bits). A door that is still has
   `moving = 0`. The protocol number goes up (44), because the meaning of a door message changes.
 - A client's copy of a door animates from the record against the client's own tick (the one its prediction runs on), so
   the picture and the predicted collision are the same pose. Its first sight of a moving door is a little ahead of the
   server's pose by the lead of its clock; no client prediction of the press itself (a press is answered by the server's
   next door message).
-- The save stores the layout in the door's row (door version 2) and the door open or shut as it finishes. The meaning
-  of the stored number changed, so the Earth save revision goes up with this change (a new hosted save).
+- The save stores the layout in the door's row (door version 2; a version-1 row's half turn reads as layout 3) and the door open
+  or shut as it finishes. The meaning of the stored number changed, so the Earth save revision went up with it (10; the default
+  hosted save is `hollow-server-earth-v10.db`).
 
 ## 9. Packages
 
@@ -145,7 +152,7 @@ D2 records the exact hinge sides here once the movement test has found them.
 |---|---|---|
 | D0 | This document | — |
 | D1 (done) | Symmetric leaves, centred frame, both-face locks | `images/abtest-b/doors/before` and `after` (`doors.jpg`: every door from outside and inside; `locks.jpg`: the lock seat on both faces) |
-| D2 | Hinge and swing chosen separately, the ghost's arc, the airlock layouts | `DoorTests`: every layout's open pose; the two airlocks built, a character cannot pass with both doors open |
+| D2 (done) | Hinge and swing chosen separately, the ghost's arc, the airlock layouts | `DoorTests` (five): every layout's pose, pin and body; R's steps and default; the two airlocks by flood and a character walking |
 | D3 | No refusals; bodies follow the motion every tick; the motion record on the wire; the protocol and save revision | `DoorTests`: closing on a player, the garage curtain at mid-close, server and client leaf poses agree mid-swing |
 | D4 | The four door items' icons and dropped models from the corrected kit doors (docs/ITEM_ART_SALVAGE.md's pattern) | the item pictures; `models.json` loses their stand-in notes |
 

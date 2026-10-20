@@ -15,7 +15,8 @@ public sealed record WalkingParameters
     /// <summary>
     /// Earth revision 10: layout variant 5, with corrected ice/alpine biome allocation and generated populations (5),
     /// cliff formations traced along their faces (6–9), and since 10 its shape baked and eroded (docs/WORLD_TERRAIN_PLAN.md
-    /// §4.1, iteration 1), with T2's cliff formations off until the cliff kit replaces them.
+    /// §4.1, iteration 1), with T2's cliff formations off until the cliff kit replaces them. Revision 10 is also where doors
+    /// are saved with a layout, hinge side and swing side (docs/DOORS.md; door version 2 reads version 1 as well).
     /// </summary>
     public static WalkingParameters Earth { get; } = new()
     {

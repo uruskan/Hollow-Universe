@@ -88,7 +88,7 @@ public static class PlacementTests
             "a furnace: the defaults, the deployables' 20 to a structure, its own slope");
         Assert.True(Rule("sleeping-bag").PerPlayer == 128, "128 sleeping bags a player");
         Assert.True(Rule("claim-device") is { Surfaces: PlacementSurfaces.Floor, PerStructure: 1, Rotation: "support" }, "the claim device: on a slab, one to a structure");
-        Assert.True(Rule("wooden-door") is { Solver: "opening", Rotation: "flip", Surfaces: PlacementSurfaces.Opening }, "a door: into an opening, R flips it");
+        Assert.True(Rule("wooden-door") is { Solver: "opening", Rotation: "layout", Surfaces: PlacementSurfaces.Opening }, "a door: into an opening, R steps its layouts");
         Assert.True(Rule("code-lock") is { Solver: "attach", Rotation: "fixed", Surfaces: PlacementSurfaces.Door }, "a lock: onto a door");
         Assert.True(Rule("timed-charge") is { Solver: "sweep", Privilege: PrivilegeMode.Ignored, Align: AlignMode.Normal, Water: true },
             "a charge: wherever the view meets a surface, without building rights");
@@ -276,7 +276,7 @@ public static class PlacementTests
     }
 
     /// <summary>
-    /// Doors and locks go where they fit: a door into the doorway aimed through, R hanging it the other way round; a garage
+    /// Doors and locks go where they fit: a door into the doorway aimed through, R stepping its hinge side and swing side; a garage
     /// door needs a wall frame (its ghost says so); a door claimed a metre away is refused; a lock goes onto the door,
     /// one to a door.
     /// </summary>
@@ -296,8 +296,10 @@ public static class PlacementTests
         Assert.Equal(OutcomeCode.NeedsWallFrame, Ghost(rig, ada, "garage-door", opening)?.Outcome.Code, "a garage door in a doorway");
         PlacementCandidate? door = Ghost(rig, ada, "wooden-door", opening), turned = Ghost(rig, ada, "wooden-door", opening, turns: 1);
         Assert.True(door is { Valid: true, Variant: 0 } && turned is { Valid: true, Variant: 1 } && door.Support == hut.Doorway.Ref,
-            $"a door in the doorway ({door}); R hangs it the other way ({turned})");
-        Assert.True(MathF.Abs(Quaternion.Dot(door!.Rotation, turned!.Rotation)) < 0.01f, "turned round");
+            $"a door in the doorway ({door}); R hangs it on the right ({turned})");
+        Assert.True(MathF.Abs(Quaternion.Dot(door!.Rotation, turned!.Rotation)) > 0.999f, "the frame's own turn: the layout is in how the leaves hang");
+        Assert.True(Ghost(rig, ada, "wooden-door", opening, turns: 2)?.Variant == 3 && Ghost(rig, ada, "wooden-door", opening, turns: 3)?.Variant == 2 &&
+            Ghost(rig, ada, "wooden-door", opening, turns: 4)?.Variant == 0, "R steps hinge right, then swing out, then hinge left, then back");
         Placeable wooden = door.Placeable;
         Outcome refused = rig.Zone.Placement().Place(ada, new PlaceRequest(ContainerRef.Main, SlotOf(rig.P(ada).Inventory.Main, wooden.Item!), 0, wooden.Index,
             door.Claim with { Position = door.Position + Vector3.Cross(outward, rig.Zone.Frame.UpAt(face)) }));

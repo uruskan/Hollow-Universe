@@ -158,10 +158,9 @@ public static class DoorShapes
         float nearest = float.MaxValue;
         for (int i = 0; i < door.Def.Leaves.Count; i++)
         {
-            LeafDef leaf = door.Def.Leaves[i];
             (Vector3 position, Quaternion rotation) = door.Leaf(i, door.Open);
             Vector3 local = Vector3.Transform(at - position, Quaternion.Inverse(rotation));
-            foreach (ConvexPart part in leaf.Parts)
+            foreach (ConvexPart part in BuildingWorld.LeafParts(door, i))
             {
                 Vector3 clamped = Vector3.Clamp(local, part.Min, part.Max);
                 Vector3 point = position + Vector3.Transform(clamped, rotation);

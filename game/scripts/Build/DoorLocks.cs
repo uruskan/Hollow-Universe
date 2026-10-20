@@ -1,4 +1,3 @@
-using System.Linq;
 using Godot;
 using Hollow.Simulation.Building;
 using Num = System.Numerics;
@@ -31,12 +30,11 @@ public static class DoorLocks
                 _ => null,
             };
             LeafDef leaf = view.Door.Def.Leaves[0];
-            var hinge = new Vector3(leaf.Hinge.X, leaf.Hinge.Y, leaf.Hinge.Z);
-            MeshInstance3D? leafNode = view.GetChildren().OfType<MeshInstance3D>().FirstOrDefault(m => m.Position.IsEqualApprox(hinge));
-            if (leafNode == null)
+            if (view.LeafMesh(0) is not { } leafNode)
             {
                 continue;
             }
+            bool mirrored = view.Door.HingeRight;
             Node3D? fitted = leafNode.GetNodeOrNull<Node3D>("Lock");
             if (fitted != null && fitted.GetMeta("key", "").AsString() == want)
             {
@@ -52,7 +50,7 @@ public static class DoorLocks
             holder.SetMeta("key", want);
             // By the free edge, at hand height, its back on the outside face (a mounted model faces +Z from its back): where
             // the placement ghost put it.
-            Num.Vector3 spot = Door.LockOffset(leaf);
+            Num.Vector3 spot = Door.LockOffset(leaf, mirrored);
             holder.Position = new Vector3(spot.X, spot.Y, spot.Z);
             holder.AddChild(model);
             leafNode.AddChild(holder);
@@ -60,7 +58,7 @@ public static class DoorLocks
             if (HollowUniverse.Items.ModelCatalog.Instantiate(want) is { } plate)
             {
                 var back = new Node3D { Name = "LockBack", Scale = new Vector3(1, 1, BackPlateDepth) };
-                Num.Vector3 behind = Door.LockBackOffset(leaf);
+                Num.Vector3 behind = Door.LockBackOffset(leaf, mirrored);
                 back.Position = new Vector3(behind.X, behind.Y, behind.Z);
                 back.Rotation = new Vector3(0, Mathf.Pi, 0);
                 back.AddChild(plate);

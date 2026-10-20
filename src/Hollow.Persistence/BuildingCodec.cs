@@ -33,7 +33,7 @@ public readonly record struct ClaimRecord(EntityId Id, EntityId Support, Vector3
 public static class BuildingCodec
 {
     public const byte PieceVersion = 1;
-    public const byte DoorVersion = 1;
+    public const byte DoorVersion = 2;
     public const byte ClaimVersion = 1;
 
     // ---------------------------------------------------------------- frames between the zone and the body
@@ -145,7 +145,7 @@ public static class BuildingCodec
         w.Write(DoorVersion);
         w.Write(d.Frame.Id.Value);
         w.Write(d.Def.Key);
-        w.Write((byte)d.Flip);
+        w.Write((byte)d.Layout);
         w.Write(d.Open);
         w.Write(d.Health);
         w.Write(d.Owner);
@@ -155,10 +155,11 @@ public static class BuildingCodec
     /// <summary>Puts a stored door (and its lock) back on its frame piece; null when the piece or the door's kind is gone.</summary>
     public static Door? RestoreDoor(BuildingWorld building, EntityId id, byte[] data)
     {
-        using BinaryReader r = Reader(data, DoorVersion, "door", out _);
+        using BinaryReader r = Reader(data, DoorVersion, "door", out byte version);
         var frameId = new EntityId(r.ReadUInt64());
         string key = r.ReadString();
-        int flip = r.ReadByte();
+        // Version 1 stored a half turn of the whole door (hinge on the other side and swinging the other way: layout 3).
+        int layout = version < 2 ? (r.ReadByte() != 0 ? 3 : 0) : r.ReadByte();
         bool open = r.ReadBoolean();
         double health = r.ReadDouble();
         ulong owner = r.ReadUInt64();
@@ -166,7 +167,7 @@ public static class BuildingCodec
         {
             return null;
         }
-        Door? door = building.RestoreDoor(id, def, frame, flip, owner, open, health);
+        Door? door = building.RestoreDoor(id, def, frame, layout, owner, open, health);
         if (door == null)
         {
             return null;

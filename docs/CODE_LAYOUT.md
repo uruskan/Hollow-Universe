@@ -3,7 +3,7 @@
 Generated from the repository: every C# file, the types it declares (nested ones in brackets), its length and its
 own first line of explanation. HOW_IT_WORKS.md says how these run together; this is the map. Regenerate it after
 a package with the script in the session that made it, or by hand: the shape is one table per folder.
-1,081 files, 272,097 lines of C#.
+1,083 files, 272,825 lines of C#.
 
 ## src/Hollow.Core
 
@@ -220,26 +220,26 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `AuthorizationSubjects.cs` | 26 | AuthorizationSubjects | Maps a target to the player controlling it (a character itself, a ship's pilot or owner); passengers and crew lists grant no immunity. |
 | `DeviceAuthorizationState.cs` | 39 | DeviceAuthorizationMode, DeviceAuthorizationState, DeviceAccessFacts, DeviceAuthorizationPolicies | A device's own authorisation: grants, exclusions and mode (follow the cupboard or manual only), and the named policies that decide who is friendly |
 
-### src/Hollow.Simulation/Building (17 files, 6,355 lines)
+### src/Hollow.Simulation/Building (17 files, 6,471 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `BuildResults.cs` | 126 | Privilege, IBuildingWallet, Wallet, Capsule, BuildingChange, BuildingEvent, IBuildingPart, Removal | Building rights at a place for a player (GROUND.md §8's privilege status). |
 | `BuildingBlueprint.cs` | 160 | BuildingBlueprint [NodeSpec, Spec, Node] | BuildingBlueprint: an authored, socket-linked building (nodes, specs) assembled through the ordinary building world, after the caller checks the site. |
 | `BuildingBlueprintSpawner.cs` | 90 | BuildingBlueprintSpawner | BuildingBlueprintSpawner: checks an entire prefab site before creating any gameplay objects, then builds it through the normal building world. |
-| `BuildingData.cs` | 1003 | PieceFamily, PieceShape, Opening, StairsKind, SocketKind, DamageType, SocketDef, PieceDef, Protection, GradeDef, LeafDef, DoorDef, BuildingData [Reader] | What a piece is, structurally (RustMVP's families): it decides its sockets' geometry and its support losses. |
+| `BuildingData.cs` | 1102 | PieceFamily, PieceShape, Opening, StairsKind, SocketKind, DamageType, SocketDef, PieceDef, Protection, GradeDef, LeafDef, LeafHinging, DoorDef, BuildingData [Reader] | What a piece is, structurally (RustMVP's families): it decides its sockets' geometry and its support losses. |
 | `BuildingPhysics.cs` | 282 | RayHit, OverlapHit, BuildingPhysics [OnlyGround, NotGround, OnlyBuilding] | What a ray hit: the body, how far along, where and the surface's normal there. |
-| `BuildingWorld.Destroyed.cs` | 59 | RemovedPart, BuildingWorld | A piece or door gone from the building as the Destroyed event names it (GROUND.md §6.4.2, §9.4): what it was (its |
+| `BuildingWorld.Destroyed.cs` | 55 | RemovedPart, BuildingWorld | A piece or door gone from the building as the Destroyed event names it (GROUND.md §6.4.2, §9.4): what it was (its |
 | `BuildingWorld.Hammer.cs` | 278 | DamageHit, DamageResult, BuildingWorld | A hit on a piece or a door: the attack's direction in the zone (from the attacker toward the target) and its damage by type. |
 | `BuildingWorld.Placement.cs` | 664 | PlacementPlan, BuildingWorld | What a piece's placement would be: the piece, its structure (none yet for a free foundation), its pose in the |
-| `BuildingWorld.Replica.cs` | 361 | BuildingWorld, LockKind, BuildPartKind | The building as a copy of someone else's (GROUND.md §6.3, phase 2): a world loaded from storage, and a client's |
+| `BuildingWorld.Replica.cs` | 360 | BuildingWorld, LockKind, BuildPartKind | The building as a copy of someone else's (GROUND.md §6.3, phase 2): a world loaded from storage, and a client's |
 | `BuildingWorld.cs` | 662 | BuildingWorld | Building in one zone (GROUND.md §6.3): its structures and pieces, doors and claim devices, and every rule about them, |
 | `ClaimDevice.cs` | 509 | ClaimDevice, BuildingWorld | The claim device, our tool cupboard (GROUND.md §6.3): it stands on a piece of a structure, lists the players |
-| `Doors.cs` | 712 | LockDef, DoorLock, KeyLock, CodeLock, Door, DoorLeaf, BuildingWorld | A lock as something to place (building.json's locks, GROUND_SYSTEMS.md §6): its key (its item's), name, kind, and the |
+| `Doors.cs` | 723 | LockDef, DoorLock, KeyLock, CodeLock, Door, DoorLeaf, BuildingWorld | A lock as something to place (building.json's locks, GROUND_SYSTEMS.md §6): its key (its item's), name, kind, and the |
 | `ItemWallet.cs` | 31 | ItemWallet | Building materials as items in containers (GROUND.md §6.3, phase 2): a player's main and belt slots pay for placing, |
 | `LockHosts.cs` | 56 | ILockHost, LockState, LockMounts | ILockHost (a target that carries a lock), LockState (validated restoration) and LockMounts (the authored lock socket), shared by doors and standalone hosts. |
 | `PieceGeometry.cs` | 688 | Pose, SocketId, PieceGeometry | A piece's place in its structure's frame: the pivot in metres (Y up) and the yaw in steps of 30°. Every yaw in a |
-| `PieceShapes.cs` | 367 | ConvexPart, PieceShapes | One convex part of a piece's collision, in the piece's local metres: its corner points (what Jolt builds a hull |
+| `PieceShapes.cs` | 378 | ConvexPart, PieceShapes | One convex part of a piece's collision, in the piece's local metres: its corner points (what Jolt builds a hull |
 | `Structure.cs` | 307 | BuildingFrame, Link, Piece, Structure | A structure's frame (GROUND.md §6.3): its origin in the zone and its axes, with +Y the planet's up at its first |
 
 ### src/Hollow.Simulation/Capabilities (10 files, 1,367 lines)
@@ -444,19 +444,19 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `Props.cs` | 143 | PropLayer, ITileListener, PropKind, PropShape | Who a prop belongs to: its key is only unique within its layer. |
 | `ShipSpace.cs` | 703 | SpaceHit, ShipSpace [PiecesOnly, KindShapes] | What a query through a ship's space met: the part (0 the hull), how far along, where and the surface's normal, in the ship's frame. |
 
-### src/Hollow.Simulation/Placement (10 files, 2,578 lines)
+### src/Hollow.Simulation/Placement (10 files, 2,591 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Aboard.cs` | 306 | PlacedSpace, AboardHit, AboardSpot, Aboard | Placing aboard a ship (IRON_WAKE.md §8.1): the free solver's half in the ship's frame, its claim settled there, and the checks' parts aboard (where, corners, sight, room). |
 | `Checks.cs` | 241 | IPlacementCheck, Checks [Reach, Sight, Surface, Step, Slope, Support, Water, Rights, Overlap, Limits, Aboard, Own] | One check of the placement pipeline (GROUND_SYSTEMS.md §6), registered by name and run in placement.json's fixed order, |
 | `Footprint.cs` | 239 | Footprint, BoxFootprint, HullFootprint [PointFootprint] | What a placement occupies (GROUND_SYSTEMS.md §6's footprint): a box (a deployable's or the claim device's size, or half |
-| `Kinds.cs` | 338 | ResolvedPlaceable, IPlacementSite, PlacementSources, PlaceableKind, Kinds, DeployableKind, PieceKind, DoorKind, LockPlacement, CupboardKind, ChargeKind, ShipKind | What a kind finds a placeable's key to name in the game data (its definition and the items it involves). |
+| `Kinds.cs` | 335 | ResolvedPlaceable, IPlacementSite, PlacementSources, PlaceableKind, Kinds, DeployableKind, PieceKind, DoorKind, LockPlacement, CupboardKind, ChargeKind, ShipKind | What a kind finds a placeable's key to name in the game data (its definition and the items it involves). |
 | `Placeable.cs` | 221 | PlacementCost, Placeable, PlacementData, PlacementContext, PlacementAim, PlacementClaim, PlacementCandidate | A material a placement costs (a building piece's twig, from the carried slots). |
 | `PlacementRule.cs` | 132 | PlacementSurfaces, SupportMode, AlignMode, PrivilegeMode, PlacementRule | What a placement stands on or is fitted to (placement.json's surfaces): the ground, the top of a foundation, floor or |
 | `PlacementWorld.cs` | 370 | PlacedThing, PlacedShip, PlacementHit, LockMount, IPlacementSurroundings, PlacementWorld | A deployable or prop as placement sees it: what it is named, its box (on its base, along up, turned by yaw). |
 | `Placer.cs` | 151 | PlacementHandlers, Placer | The placement system's handlers (GROUND_SYSTEMS.md §6, §3.5): the solvers, rotations, checks and kinds, each found by |
-| `Rotations.cs` | 134 | IPlacementRotation, Rotations [Free, Steps, Support, Flip, Fixed] | How a placement is turned (GROUND_SYSTEMS.md §6's rotation): from the view and R's presses on the client, from the |
+| `Rotations.cs` | 150 | IPlacementRotation, Rotations [Free, Steps, Support, Layout, Fixed] | How a placement is turned (GROUND_SYSTEMS.md §6's rotation): from the view and R's presses on the client, from the |
 | `Solvers.cs` | 446 | IPlacementSolver, Solvers, FreeSolver, SocketSolver, OpeningSolver, AttachSolver, SweepSolver | Turns an aim into candidates (GROUND_SYSTEMS.md §6), registered by name: free (onto the surface under the aim), socket |
 
 ### src/Hollow.Simulation/Players (4 files, 413 lines)
@@ -542,7 +542,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `WoundedSystem.cs` | 120 | WoundedSystem, WoundedSystemAccess | The wounded state (GROUND.md §6.3, Rust's): a lethal hit that is small enough, and isn't a shot to the head, knocks |
 | `ZoneSystem.cs` | 143 | ZoneSystem | One concern of a zone's rules (GROUND_SYSTEMS.md §12.2, K1): its own state, stepped by the host in the host's order. |
 
-### src/Hollow.Simulation/Targets (5 files, 763 lines)
+### src/Hollow.Simulation/Targets (5 files, 762 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -550,7 +550,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `SurfaceContact.cs` | 22 | SurfaceContact | SurfaceContact: immutable authoritative collision evidence (target, surface, point, normal, anchor) captured before damage can remove its target. |
 | `TargetRef.cs` | 163 | TargetFamily, TargetRef, ViewerFlags, TargetPose, ITargetFamily, ITargetable | The families of world things (GROUND_SYSTEMS.md §3.1): each is one store of the zone with its own lookup, and |
 | `TargetVitality.cs` | 37 | TargetVitality, AimedVitality, TargetHealthQuery | TargetVitality (optional health of a target), AimedVitality and TargetHealthQuery: a nearby damaged object at the crosshair. |
-| `Targeting.cs` | 515 | AimRay, AimKind, AimHit, TargetFacts, ITargetView, DoorShapes, ShipShapes, NaturalAim, BuildingAim, ShipAim, Targeting, AimShapes | The ray the interact key looks along (GROUND_SYSTEMS.md §5): from the eye, along the view, as far as the farthest verb |
+| `Targeting.cs` | 514 | AimRay, AimKind, AimHit, TargetFacts, ITargetView, DoorShapes, ShipShapes, NaturalAim, BuildingAim, ShipAim, Targeting, AimShapes | The ray the interact key looks along (GROUND_SYSTEMS.md §5): from the eye, along the view, as far as the farthest verb |
 
 ### src/Hollow.Simulation/Teams (1 file, 323 lines)
 
@@ -585,7 +585,7 @@ The protocol: messages and their generated serializers, bit packing, snapshot de
 | `ConsoleCatalog.cs` | 221 | CommandSide, ArgKind, ConsoleCommandDef, ConsoleCatalog | Where a console command runs: in the game (the view and its settings) or on the server. |
 | `ConsoleCompletion.cs` | 187 | CompletionSources, Completion, ConsoleCompletion, Spawning | What Tab completes from: the game's data, and the players the server says are on. |
 
-### src/Hollow.Net/Protocol (14 files, 9,107 lines)
+### src/Hollow.Net/Protocol (14 files, 9,109 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -598,7 +598,7 @@ The protocol: messages and their generated serializers, bit packing, snapshot de
 | `NaturalNet.cs` | 27 | NaturalNet |  |
 | `NetConvert.cs` | 267 | NetConvert | Between simulation values and their wire form. The client predicts with ToMoveInput(ToCommand(...)), the |
 | `NetStates.cs` | 14 | CharacterNetState, ShipNetState | The entity states snapshots carry, as the replication's generic sections see them (their serializers are generated). |
-| `Protocol.cs` | 193 | Protocol, GoodbyeReason, EntityKind, ShipNetFlags, ShipAction, ConsoleReplyKind, ChatKind, TeammateState | Constants of the ground game's protocol (GROUND.md §4.4). |
+| `Protocol.cs` | 195 | Protocol, GoodbyeReason, EntityKind, ShipNetFlags, ShipAction, ConsoleReplyKind, ChatKind, TeammateState | Constants of the ground game's protocol (GROUND.md §4.4). |
 | `ShipConvert.cs` | 241 | ShipConvert | Between ships' simulation values and their wire form (G6). A pilot's client predicts with |
 | `SlotSnapshot.cs` | 33 | SlotSnapshot | SlotSnapshot: converts an item stack, with its gun state, to and from SlotNet: the exact inventory preconditions of an atomic attachment transfer. |
 | `StationConvert.cs` | 129 | StationConvert | Between the batteries' values and their wire form (IW3): a gunner's controls, the stations' records. |
@@ -625,12 +625,12 @@ The protocol: messages and their generated serializers, bit packing, snapshot de
 
 SQLite storage: the database, one worker thread, one codec per kind of record.
 
-### src/Hollow.Persistence (10 files, 3,152 lines)
+### src/Hollow.Persistence (10 files, 3,153 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `AnimalCodec.cs` | 73 | CorpseSave, AnimalCodec | An animal's corpse as stored: its species (key), where it lies, what is left to harvest, its timer. |
-| `BuildingCodec.cs` | 291 | BuildingRecord, StoredClaim, ClaimRecord, BuildingCodec | A stored piece, door (with its lock) or claim device (with its list and store): kind and versioned bytes. |
+| `BuildingCodec.cs` | 292 | BuildingRecord, StoredClaim, ClaimRecord, BuildingCodec | A stored piece, door (with its lock) or claim device (with its list and store): kind and versioned bytes. |
 | `ExplosiveCodec.cs` | 147 | ExplosiveCodec | An explosive's stored form (GROUND.md §6.6, G5): a charge stuck or lying in the world with its fuse left survives a |
 | `GameDatabase.cs` | 988 | CharacterRecord, ThingRecord, NaturalRecord, TeamRecord, PropRecord, ZoneRecord, ZoneSave, NewerSaveException, ShipRecord, GameDatabase | A stored character (GROUND.md §4.7): where it is on its body, in the body frame (metres from the body's centre, |
 | `LockCodec.cs` | 51 | LockCodec | LockCodec: writes and reads the door-lock payload (kind, id, owner, locked, key or code data), shared by structural doors and compound gate hosts. |
@@ -870,24 +870,25 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `SoundMeter.cs` | 80 | SoundMeter | Loudness of the game's own sound files, measured in the engine: each stream is decoded through Godot |
 | `SoundViewer.cs` | 788 | SoundViewer | The audition viewer (--view sounds, GROUND.md §4.9): every event of the catalogue in a list (a click plays |
 
-### game/scripts/Build (14 files, 3,058 lines)
+### game/scripts/Build (15 files, 3,208 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `BuildHud.cs` | 104 | BuildHud | The build sandbox's lines over the ground HUD, in RustMVP's manner (GROUND.md §6.3): under the crosshair the target |
+| `BuildSandbox.Airlocks.cs` | 125 | BuildSandbox [Airlock] | --view build --scene airlocks: the airlocks of docs/DOORS.md §7, each a structure of its own 14 m apart, doors open and shut: S0 a triangle foundation with a wooden door on each of two edges … |
 | `BuildSandbox.Check.cs` | 143 | BuildSandbox | --view build --scene empty --build-check: plays one round of building through the sandbox's own input paths (the aim, |
 | `BuildSandbox.ClanBase.cs` | 22 | BuildSandbox | BuildSandbox's clan scene (--view build --scene clan): places the server's 3x3 clan base preset (data/ground/admin-bases/clan-3x3.json) at --grade 2 by default and aims the camera |
 | `BuildSandbox.Doors.cs` | 138 | BuildSandbox | --view build --scene doors: every door the building has, each in its own doorway or wall frame along one wall, for the pictures of docs/DOORS.md (both faces, the lock on both faces, the frame holding the leaf). |
 | `BuildSandbox.Joints.cs` | 227 | BuildSandbox | --view build --scene joints: the building's joints in every grade (GROUND.md §6.3, "Fit"), one group a grade on a |
-| `BuildSandbox.cs` | 781 | BuildSandbox [Surroundings] | The build sandbox (--view build, GROUND.md §6.3): a local zone on the first world's stand-in surface with one |
+| `BuildSandbox.cs` | 791 | BuildSandbox [Surroundings] | The build sandbox (--view build, GROUND.md §6.3): a local zone on the first world's stand-in surface with one |
 | `BuildSandboxUi.cs` | 208 | BuildSandboxUi | The ground interface's view model for the build sandbox (GROUND.md §6.3, §8.1): a belt of building tools, the plan's |
 | `BuildingAssets.cs` | 271 | BuildingAssets | The building kit's art in the game (GROUND.md §6.3, §9): the meshes of every piece in every grade at three levels of |
 | `BuildingRadials.cs` | 147 | IHammerActions, PlanRadial, BuildingRadials | What the hammer's radial does to the piece aimed at: the game sends intents, the build sandbox applies the rules. |
-| `BuildingRenderer.cs` | 500 | BuildingRenderer, DoorView, RenderedTargetFrame [BatchKey, Batch] | Draws a BuildingWorld (GROUND.md §6.3): pieces batched into one MultiMeshInstance3D per |
+| `BuildingRenderer.cs` | 517 | BuildingRenderer, DoorView, RenderedTargetFrame [BatchKey, Batch] | Draws a BuildingWorld (GROUND.md §6.3): pieces batched into one MultiMeshInstance3D per |
 | `BuildingWarm.cs` | 67 | BuildingWarm | The building's part of the renderer's warm-up (GROUND.md §4.3.1): every grade's material on its pieces' levels of |
 | `CornerPosts.cs` | 161 | CornerPosts [End] | The posts that close the notch walls leave at an outer corner (GROUND.md §6.3, Fit; decision J5). Walls stand centred |
 | `DemoBases.cs` | 217 | DemoBases [House] | Bases the sandbox builds for a look or a screenshot (GROUND.md §6.3), placed through the rules' sockets so every pose |
-| `DoorLocks.cs` | 72 | DoorLocks | The locks on doors, drawn (docs/DOORS.md §6): the catalogue's code or key lock on the +Z face of the door's first leaf, by its free edge, so it swings with the leaf, and a matching back plate on the other face … |
+| `DoorLocks.cs` | 70 | DoorLocks | The locks on doors, drawn (docs/DOORS.md §6): the catalogue's code or key lock on the +Z face of the door's first leaf, by its free edge, so it swings with the leaf, and a matching back plate on the other face … |
 
 ### game/scripts/Characters (35 files, 10,937 lines)
 
@@ -991,7 +992,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GibWarm.cs` | 36 | GibWarm | The gibs' part of the renderer's warm-up (GROUND.md §4.3.1, §9.4): every gib file the catalogue names, read, and a |
 | `GibWorld.cs` | 873 | GibFloor, GibWorld [PieceState, Turn, Piece, BreakFloor, Batch] | Where the floor is under a point: a ray from  along  for |
 
-### game/scripts/Ground (73 files, 20,067 lines)
+### game/scripts/Ground (73 files, 20,105 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -1060,9 +1061,9 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `NatureView.cs` | 868 | NatureView [PendingSound, Seen, TreeFall] | The natural objects as the game changed them (GROUND.md §6.1): the plants' changes, outcrops and pickups drawn as models, weak spots, gathering's feedback, falling trees |
 | `NetGraph.cs` | 72 | NetGraph | The network graph (GROUND.md §4.4): the last 30 s of round trip, bandwidth down and prediction error, one line each, |
 | `PeopleView.cs` | 827 | PeopleView [Person, Corpse] | The other players (GROUND.md §4.8): each a CharacterView fed every frame from what the client |
-| `PlacementGhost.cs` | 204 | PlacementGhost | The one placement ghost (GROUND_SYSTEMS.md §6): whatever is being placed, drawn as its own model in one hologram |
+| `PlacementGhost.cs` | 243 | PlacementGhost | The one placement ghost (GROUND_SYSTEMS.md §6): whatever is being placed, drawn as its own model in one hologram |
 | `PlacementView.cs` | 161 | PlacementView | Placing in the game (GROUND_SYSTEMS.md §6): the one placement controller, behind IPlacement for the held |
-| `PresentationPoseCheck.cs` | 122 | PresentationPoseCheck | Native checks of renderer-owned poses for a door and compound deployables: real leaf meshes, coordinate frames, replacement and retirement; run by ContactFeedbackCheck. |
+| `PresentationPoseCheck.cs` | 121 | PresentationPoseCheck | Native checks of renderer-owned poses for a door and compound deployables: real leaf meshes, coordinate frames, replacement and retirement; run by ContactFeedbackCheck. |
 | `RaidView.cs` | 583 | RaidView, RaidAlertsPanel [Shown, Card] | Raiding in the ground game (GROUND.md §6.6): explosives drawn from the model catalogue on their arcs, stuck to what |
 | `RenderWarmup.cs` | 353 | RenderWarmup [Preview, IAssetLoader, GodotAssetLoader] | The renderer's warm-up (GROUND.md §4.3.1, the loading stage renderer). Every file the game's libraries list |
 | `SeatKeys.cs` | 131 | SeatAction, SeatKey, SeatKeys | What a seat's key does (IRON_WAKE.md §5.2): leave it, work a door, the lock, descend from orbit, the camera. |
@@ -1353,7 +1354,7 @@ Tools: the bots and the load test, the message generator, the generator's report
 
 The tests, one file per area (the runner needs no packages).
 
-### tests/Hollow.Tests (179 files, 44,135 lines)
+### tests/Hollow.Tests (180 files, 44,544 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -1401,6 +1402,7 @@ The tests, one file per area (the runner needs no packages).
 | `DeployableRepairTests.cs` | 90 | DeployableRepairTests | Deployable repair with the hammer: rights, raid delay and all materials; utility state through the real thing codec, and invalid energy rejected. |
 | `DevTests.cs` | 63 | DevTests | The F2 developer panel's server side (GROUND.md §8.5), over the network. |
 | `DeviceAuthorizationTests.cs` | 162 | DeviceAuthorizationTests | Device authorisation: inherited cupboard membership is live and clearing overrides it, manual mode persists, overlapping claims, deny wins, pilots, cupboard loss. |
+| `DoorTests.cs` | 406 | DoorTests [Solid] | docs/DOORS.md: how doors hang and swing, and the airlocks the layouts make possible. |
 | `DropAllTests.cs` | 217 | DropAllTests | The inventory's drop-all intent: changed stacks reject the whole drop, a backpack drops into the existing bag, a full one uses one intent, stale prediction rolls back. |
 | `DryFireAudioTests.cs` | 147 | DryFireAudioTests [GunAudioRig] | Dry fire: an empty gun clicks once per press without firing or sending intents, and respects equip, reload, cadence and character gates. |
 | `EarthLayoutVariantTests.cs` | 32 | EarthLayoutVariantTests | WalkingWorld.LayoutSeed: variant zero keeps the established seed, other variants give repeatable different land under the surface cap without changing the save revision. |
@@ -1434,7 +1436,7 @@ The tests, one file per area (the runner needs no packages).
 | `FormationTopologyTests.cs` | 266 | FormationTopologyTests | Cube-sphere topology for formations: reciprocal face-edge transitions, tile neighbours at the finest level, vertex keys over corners, ordering independent of query order and threads. |
 | `FormationVisualDataTests.cs` | 581 | FormationVisualDataTests [Fixture] | Formation visual data: ordered primitives, exact streams and winding, PBR defaults, no invented tangents or UVs, hash and truncation refusals, budgets before publication, cancellation. |
 | `FormationWorldSelectionTests.cs` | 134 | FormationWorldSelectionTests | Explicit formation selection: physical inputs bound without reseeding the legacy world, qualification-only changes keep the save identity, unknown or oversize inputs refused. |
-| `FoundationTests.cs` | 499 | FoundationTests | The ground game's shared foundations (GROUND_SYSTEMS.md §3, package P0), engine-free. |
+| `FoundationTests.cs` | 500 | FoundationTests | The ground game's shared foundations (GROUND_SYSTEMS.md §3, package P0), engine-free. |
 | `GalaxyTests.cs` | 1199 | GalaxyTests |  |
 | `GameScaleTests.cs` | 131 | GameScaleTests | The game's world scale: Earth's movement prediction on the scaled walking terrain, every planet within the surface-area budget, bad scales refused, generated physics unchanged. |
 | `GatheringTests.cs` | 392 | GatheringTests |  |
@@ -1476,7 +1478,7 @@ The tests, one file per area (the runner needs no packages).
 | `PersistenceTests.cs` | 65 | TempDatabase, PersistenceTests | A database file in the temp folder, deleted afterwards. |
 | `PhysicsLifetimeTests.cs` | 218 | PhysicsLifetimeTests [ControlledSurface] | Native physics freed on disposal (T0.3): worlds and ship spaces return their Jolt memory, disposal drains a started tile, a failed tile abandons no worker or resource. |
 | `PhysicsTests.cs` | 126 | PhysicsTests |  |
-| `PlacementTests.cs` | 461 | PlacementTests | The placement system (GROUND_SYSTEMS.md §6): one rule per placeable in data; its solvers, rotations, checks and kinds |
+| `PlacementTests.cs` | 463 | PlacementTests | The placement system (GROUND_SYSTEMS.md §6): one rule per placeable in data; its solvers, rotations, checks and kinds |
 | `PlanetBodyResolutionTests.cs` | 170 | PlanetBodyResolutionTests | PlanetBodies and EnvironmentDescriptors: metadata without terrain, unknown addresses and bad radii refused, seeds independent, one walking world per lease, no leaked samples |
 | `PlanetGroundTests.cs` | 214 | PlanetGroundTests | The first world's ground (GROUND.md §3, §6.1): the real planet's own scatter as natural objects, and the whole world |
 | `PlanetSurfaceTests.cs` | 254 | PlanetSurfaceTests | The first world's real surface (GROUND.md §4.6): determinism, tiles, collision, speed. |

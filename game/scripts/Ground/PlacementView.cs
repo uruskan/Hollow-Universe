@@ -130,7 +130,7 @@ public partial class PlacementView : Node3D, IPlacement
             uint seq = Client.Local.Place(candidate, from, slot);
             if (seq != 0)
             {
-                _lastPlaced = new PendingPlacement(seq, candidate.Placeable, candidate.Position, candidate.Rotation, candidate.Detail);
+                _lastPlaced = new PendingPlacement(seq, candidate.Placeable, candidate.Position, candidate.Rotation, candidate.Detail, candidate.Variant);
                 _samePlacement = true;
                 _ghost.Show(null);
             }
