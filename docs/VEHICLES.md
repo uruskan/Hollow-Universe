@@ -63,8 +63,9 @@ sockets take an engine and a cargo pod. A minicopter session (rotor drive, its o
 
 ## 3. The car
 
-**Name.** A proposal: the **Mule** (`mule`); the bike is the **Hare** (`hare`). Our naming so far: Tin Finch, Iron Wake.
-The owner chooses (§12).
+**Name.** The car is the **TOGG** (`togg`): **Owner**, 20 October 2026. Its name is stencilled on the cab as the Tin Finch's is.
+TOGG is also a real Turkish carmaker (its T10X), so its logo, badges and body shapes stay out; whether a real maker's name may
+ship in a released game is a legal question this design does not settle. The bike is the **Hare** (`hare`), a proposal (§12).
 
 ### 3.1 The chassis
 
@@ -425,7 +426,7 @@ engines (found blueprints, R7). Starting salvage costs, for tuning:
 | Node | Salvage | Needs |
 |---|---:|---|
 | Vehicle lift | 150 | — |
-| Mule chassis | 200 | Lift |
+| TOGG chassis | 200 | Lift |
 | Hare frame | 125 | Lift |
 | Car tyre, bike tyres | 50 | Chassis or frame |
 | One-seat cab | 75 | Chassis |
@@ -465,7 +466,7 @@ The look sample (V8's first step) can start in parallel with V1–V3: it needs o
 
 ## 12. Questions for the owner
 
-1. **Names**: the Mule and the Hare, or others?
+1. **Names**: the car is the TOGG (the owner's); the bike the Hare, or another?
 2. **One car length or three?** This design has one chassis, as asked ("one modular car"): three bays and a nose mount, which
    hold every example the owner gave. Rust has 2, 3 and 4 slots; other lengths would be data later.
 3. **Field repairs**: may engine parts be swapped away from the lift (§5.3: proposed yes)? A flat tyre (proposed: lift only)?
