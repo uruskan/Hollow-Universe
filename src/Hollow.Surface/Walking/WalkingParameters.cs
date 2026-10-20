@@ -27,6 +27,7 @@ public sealed record WalkingParameters
         CoastDetail = 0.02,
         Baked = true,
         CliffFormations = false,
+        KitCliffs = true,
     };
 
     private static readonly IReadOnlyDictionary<(ulong System, uint Body), WalkingParameters> Profiles =
@@ -226,6 +227,25 @@ public sealed record WalkingParameters
 
     /// <summary>Whether T2's cliff scans and wall skins are placed; off on a baked world until the cliff kit replaces them.</summary>
     public bool CliffFormations { get; init; } = true;
+
+    /// <summary>
+    /// Whether the cliff kit is placed on a baked world (docs/WORLD_TERRAIN_PLAN.md §4.3, iteration 5): chains of pieces
+    /// on steep ground, the ground fitted behind each.
+    /// </summary>
+    public bool KitCliffs { get; init; }
+
+    /// <summary>The grade (rise over run) a seed needs (32°), and below which a chain ends in a slope end (24°).</summary>
+    public double KitSeedSlope { get; init; } = 0.62;
+
+    public double KitChainSlope { get; init; } = 0.45;
+
+    /// <summary>Chains a 59 m cell may seed, and pieces in a chain at most.</summary>
+    public int KitSeedsPerCell { get; init; } = 4;
+
+    public int KitMaxChain { get; init; } = 8;
+
+    /// <summary>How far a piece leans back into its slope (radians, about 7°).</summary>
+    public double KitLeanBack { get; init; } = 0.12;
 
     /// <summary>The bake's cell, metres (Earth: level 8, about 7.4 m).</summary>
     public double BakeCell { get; init; } = 7;

@@ -1,5 +1,29 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — World terrain, iteration 5: the cliff kit placed on the baked Earth
+
+At the owner's word the kit (f58b0207) went onto Earth before the rivers. A fast iteration the owner checks by hand.
+
+- `CliffKitPlacements` (`src/Hollow.Surface/CliffKit/`): per 59 m cell, from the bake's ground only, seeds on ground
+  steeper than 32° (up to four chains a cell) grow chains both ways along the slope through the pieces' sockets,
+  up to eight pieces, closed by slope ends where the slope falls under 24°. The family follows the place (Nordic
+  within reach of the sea, desert on tablelands, tundra's jutting pieces elsewhere), the piece and its scale the rise
+  behind it. Every piece faces downhill, leans back 7°, sits 0.6 m into the ground and is dropped when a foot check
+  fails, or it would stand in water, a monument or the landing site, or crowd another chain. Earth: 7,527 pieces in
+  695 of 6,144 cells, all placed in 0.8 s.
+- The ground fits the walls (`Stamp`, in `WalkingWorld`'s height): behind a straight, corner or end piece's face it
+  rises to 1.2 m under the rock's top, with a 4 m skirt behind. A first stamp of 25 m at 40° raised teeth and
+  diamonds of bare ground; ledges and jutting pieces overhang their foot, so they don't stamp.
+- Each piece's closed shell joins its ground tile's collision; `CliffKitField` draws the pieces per cell, one
+  MultiMesh per piece and level, at the kit's distances (widened by half a cell), the near levels casting shadows.
+- The bake's sampling kernel widened from 1.3 to 1.5 cells: the slope rippled with the grid and the slope-chosen
+  ground drew a lattice of diamonds on steep ground. The bake's cache key now leaves out what is placed on it.
+- `earth kit` places the kit over Earth and lists the busiest cliff sites as F1 teleports.
+
+Checked by eye in one hosted frame at 13.713, 48.017 (not kept): tiers of sandstone ledges down a plateau's edge and a
+row of walls along a coastal escarpment, about 130 fps there. Seen and left for later: slivers of steep bare ground
+between far pieces, where the coarse distant terrain cuts across the fitted ground. No test was run.
+
 ## 20 October 2026 — The door key has a model of its own
 
 `door-key` no longer borrows the key lock's model and icon: a cut steel key on a split ring with a brass tag

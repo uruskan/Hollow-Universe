@@ -54,7 +54,9 @@ public sealed class TerrainBake
         _wear = wear;
         _lakeOf = lakeOf;
         _lakes = lakes;
-        // The sampling kernel's reach: 1.3 of the shortest spacing, so a point's 3 × 3 cells are all that can reach it.
+        // The sampling kernel's reach: 1.5 of the shortest spacing, so a point's 3 × 3 cells are all that can reach it
+        // (the next ring lies 1.58 away), and the slope between cells stays even. At 1.3 it rippled with the grid, and the
+        // ground's materials, chosen by slope, drew the ripple as a lattice of diamonds on steep ground.
         double shortest = double.MaxValue;
         for (int i = 0; i < _dir.Length; i++)
         {
@@ -64,7 +66,7 @@ public sealed class TerrainBake
                 shortest = Math.Min(shortest, (_dir[i] - _dir[j]).Length);
             }
         }
-        _reach = 1.3 * shortest;
+        _reach = 1.5 * shortest;
     }
 
     /// <summary>The cube-sphere level of the grid (8 on Earth: cells of about 7.4 m).</summary>
@@ -194,10 +196,20 @@ public sealed class TerrainBake
             ? folder
             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HollowUniverseABTestB", "bakes");
 
-    /// <summary>The cache key of a world's bake: everything the bake depends on.</summary>
-    public static ulong Key(WalkingParameters p, ulong seed, double radius, double oceanCover) =>
-        Hash64.Of(Hash64.Of(p.ToString()), seed, (ulong)BitConverter.DoubleToInt64Bits(radius),
+    /// <summary>
+    /// The cache key of a world's bake: everything the bake depends on. The table's numbers for what is placed on the
+    /// baked ground (the cliff kit, T2's formations) and its save revision are left out, so tuning them keeps the bake.
+    /// </summary>
+    public static ulong Key(WalkingParameters p, ulong seed, double radius, double oceanCover)
+    {
+        WalkingParameters shape = p with
+        {
+            TerrainRevision = 0, CliffFormations = true, KitCliffs = false, KitSeedSlope = 0, KitChainSlope = 0,
+            KitSeedsPerCell = 0, KitMaxChain = 0, KitLeanBack = 0,
+        };
+        return Hash64.Of(Hash64.Of(shape.ToString()), seed, (ulong)BitConverter.DoubleToInt64Bits(radius),
             Hash64.Of((ulong)BitConverter.DoubleToInt64Bits(oceanCover), Version));
+    }
 
     public static string CachePath(ulong key) => Path.Combine(CacheFolder, $"{key:x16}.bake");
 

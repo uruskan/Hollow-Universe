@@ -75,6 +75,8 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
     // A baked world's shape and lakes (WalkingParameters.Baked), and which of its lakes lie frozen.
     private readonly TerrainBake? _bake;
     private readonly bool[] _bakeFrozen = Array.Empty<bool>();
+    // The cliff kit on a baked world (WalkingParameters.KitCliffs), or null; its pieces fit the ground behind them.
+    private readonly CliffKitPlacements? _kitCliffs;
     private readonly double _meanTemperature;
     private readonly bool _hasSea;
     private readonly ScatterPlan _plan;
@@ -180,6 +182,16 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
         cancellation.ThrowIfCancellationRequested();
         if (selected == null) _legacyCliffs = new CliffPlacements(this, seed, _p.CliffFormations);
         Monuments = new MonumentPlacements(this, seed);
+        if (_bake != null && _p.KitCliffs && CliffKitPlacements.FindGameFolder() is { } gameFolder)
+        {
+            // The landing site and the monuments are settled first, on the ground without the kit: the pieces keep clear
+            // of them and are placed from the bake's ground alone, so nothing reads the ground they fit.
+            Vector3D landing = LandingSite;
+            _ = Monuments.All;
+            TerrainBake bake = _bake;
+            _kitCliffs = new CliffKitPlacements(CliffKit.Load(gameFolder), gameFolder, radius, bake.HeightAt, KitGroundAt,
+                d => Monuments.At(d) != null || (d - landing).Length * radius < 40, _p, Hash64.Of(seed, 0x4B495443)); // "KITC"
+        }
         if (selected != null) _selected = BuildSelected(selected, cancellation);
         cancellation.ThrowIfCancellationRequested();
     }
@@ -224,8 +236,41 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
         throw new NotSupportedException("Selected walking worlds require the sealed formation render/collision consumers.");
     public MonumentPlacements Monuments { get; }
 
-    public TriangleMesh GroundCollision(in ZoneFrame frame, TileKey tile, double margin) =>
-        _selected != null ? SelectedCollision(frame, tile, margin) : Monuments.AddCollision(Cliffs.Collision(frame, tile, margin), frame, tile, margin);
+    public TriangleMesh GroundCollision(in ZoneFrame frame, TileKey tile, double margin)
+    {
+        if (_selected != null)
+        {
+            return SelectedCollision(frame, tile, margin);
+        }
+        TriangleMesh ground = Cliffs.Collision(frame, tile, margin);
+        if (_kitCliffs != null)
+        {
+            ground = _kitCliffs.AddCollision(ground, frame, tile, margin);
+        }
+        return Monuments.AddCollision(ground, frame, tile, margin);
+    }
+
+    /// <summary>The cliff kit's pieces on a baked world (WalkingParameters.KitCliffs), or null.</summary>
+    public CliffKitPlacements? KitCliffs => _kitCliffs;
+
+    // What the kit's placement reads besides the bake's ground: tableland or not, near the sea, under a lake. No heights,
+    // so the placement never reads the ground its own pieces fit.
+    private KitGround KitGroundAt(Vector3D p)
+    {
+        Vector3D q = Warp(p);
+        double c = Landmass(q) - _threshold;
+        double tableland = 0;
+        if (c > 0)
+        {
+            Span<double> w = stackalloc double[ReliefProvinces.TypeCount];
+            Span<double> a = stackalloc double[ReliefProvinces.TypeCount];
+            Span<double> centre = stackalloc double[ReliefProvinces.TypeCount];
+            _provinces.Weights(q, w, a, centre);
+            tableland = w[(int)Relief.Tableland];
+        }
+        double coast = _hasSea ? DMath.SmoothStep(0.07, 0.03, c) : 0;
+        return new KitGround(tableland, coast, _bake != null && _bake.LakeAt(p) >= 0);
+    }
 
     /// <summary>The lakes, largest share of the world first by their place in the grid (a fixed order).</summary>
     public IReadOnlyList<WalkingLake> Lakes => _bake?.Lakes ?? _drainage?.Lakes ?? Array.Empty<WalkingLake>();
@@ -372,6 +417,10 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
             {
                 baked += (_p.GroundDetail + _p.StonyDetail * rough) * Noise.Fbm(p, Radius, 22, 3, 0.5, _seed + 6, NoiseBasis.Corners)
                     * DMath.SmoothStep(0, 0.02, shore);
+            }
+            if (_kitCliffs != null)
+            {
+                baked = _kitCliffs.Stamp(p, baked); // the ground behind the cliff kit's pieces rises to meet their tops
             }
             return Baked(p, baked, c, rocky, rough, w);
         }

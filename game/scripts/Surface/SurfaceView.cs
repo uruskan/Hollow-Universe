@@ -37,6 +37,7 @@ public partial class SurfaceView : Node3D
     private Vegetation? _vegetation;
     private GrassField? _grass;
     private CliffField? _cliffs;
+    private CliffKitField? _kitCliffs;
     private MonumentField? _monuments;
     private TextureLayered _groundAlbedo = null!;
     private TextureLayered _groundNormal = null!;
@@ -287,6 +288,13 @@ public partial class SurfaceView : Node3D
             cliffs.QueueFree();
             _cliffs = null;
         }
+        if (_kitCliffs is { } kitCliffs)
+        {
+            kitCliffs.Stop();
+            lifetime.Add(kitCliffs.WorkersStopped);
+            kitCliffs.QueueFree();
+            _kitCliffs = null;
+        }
         _monuments?.Stop();
         _monuments?.QueueFree();
         _monuments = null;
@@ -448,6 +456,12 @@ public partial class SurfaceView : Node3D
             _cliffs = new CliffField { Name = "Cliffs" };
             AddChild(_cliffs);
             _cliffs.Setup(walking.Cliffs, frame);
+            if (walking.KitCliffs is { } kit)
+            {
+                _kitCliffs = new CliffKitField { Name = "CliffKit" };
+                AddChild(_kitCliffs);
+                _kitCliffs.Setup(kit, frame);
+            }
             _monuments = new MonumentField { Name = "Monuments" };
             AddChild(_monuments);
             _monuments.Setup(walking.Monuments, frame);
@@ -625,7 +639,7 @@ public partial class SurfaceView : Node3D
         Fly((float)delta);
         UpdateWorld(delta);
         _idleFrames = _terrain.IsIdle && (_vegetation?.IsIdle ?? true) && (_grass?.IsIdle ?? false) && (_cliffs?.IsIdle ?? true)
-            && (_monuments?.IsIdle ?? true) ? _idleFrames + 1 : 0;
+            && (_kitCliffs?.IsIdle ?? true) && (_monuments?.IsIdle ?? true) ? _idleFrames + 1 : 0;
     }
 
     // The ground under a body-frame point, metres above the mean radius: the land, or the sea where it is higher.
@@ -700,6 +714,7 @@ public partial class SurfaceView : Node3D
         _terrain.UpdateLod(camera);
         _vegetation?.UpdateVegetation(camera);
         _cliffs?.Follow(camera);
+        _kitCliffs?.Follow(camera);
         _monuments?.Follow(camera);
         if (_grass == null && _vegetation?.Library is { } library)
         {

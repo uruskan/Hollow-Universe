@@ -31,6 +31,7 @@ public static class WalkingReport
         if (earth && command == "formations") return EarthSurvey.Formations(args);
         if (earth && command == "cliffs-bench") return EarthSurvey.CliffsBench(args);
         if (earth && command == "bake") return Bake(args);
+        if (earth && command == "kit") return Kit();
         string Arg(int i, string fallback) => args.Length > i ? args[i] : fallback;
         double Num(int i, double fallback) => args.Length > i ? double.Parse(args[i], CultureInfo.InvariantCulture) : fallback;
         var watch = Stopwatch.StartNew();
@@ -207,6 +208,52 @@ public static class WalkingReport
         {
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                 $"lake: {lake.Area / 10_000:0.0} ha, {lake.MaxDepth:0.0} m deep at {lake.Level:0.0} m: teleport {At(lake.Centre)}"));
+        }
+        return 0;
+    }
+
+    // The cliff kit on the baked Earth (docs/WORLD_TERRAIN_PLAN.md iteration 5): every cell placed, the pieces counted by
+    // kind, the time it takes, and places to look at as F1 teleports.
+    private static int Kit()
+    {
+        WalkingWorld world = Build(earth: true);
+        CliffKitPlacements kit = world.KitCliffs ?? throw new InvalidOperationException("Earth has no cliff kit (KitCliffs, or the kit's files).");
+        var watch = Stopwatch.StartNew();
+        var all = new List<KitPlacement>();
+        int cellsWith = 0;
+        long count = TileKey.CountAt(kit.Level);
+        for (long i = 0; i < count; i++)
+        {
+            KitPlacement[] pieces = kit.At(TileKey.FromIndex(kit.Level, i)!.Value);
+            if (pieces.Length > 0)
+            {
+                cellsWith++;
+                all.AddRange(pieces);
+            }
+        }
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"cliff kit: {all.Count} pieces in {cellsWith} of {count} cells, placed in {watch.Elapsed.TotalSeconds:0.0} s"));
+        foreach (var group in all.GroupBy(k => kit.Kit.Pieces[k.Piece].Key).OrderByDescending(g => g.Count()))
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"  {group.Key,-18} {group.Count(),5}   scale {group.Min(k => k.Scale):0.00}–{group.Max(k => k.Scale):0.00}"));
+        }
+        static string At(Vector3D d) =>
+            string.Create(CultureInfo.InvariantCulture, $"{Math.Asin(Math.Clamp(d.Y, -1, 1)) * 180 / Math.PI:0.000} {Math.Atan2(-d.Z, d.X) * 180 / Math.PI:0.000}");
+        // The busiest cells: where the most pieces stand.
+        var busiest = new List<Vector3D>();
+        foreach (var cell in all.GroupBy(k => TileKey.At(k.Position.Normalized, kit.Level)).OrderByDescending(g => g.Count()))
+        {
+            Vector3D d = cell.First().Position.Normalized;
+            if (busiest.TrueForAll(b => Vector3D.Distance(b, d) * world.Radius > 200))
+            {
+                busiest.Add(d);
+                Console.WriteLine($"  {cell.Count()} pieces: teleport {At(d)}");
+            }
+            if (busiest.Count == 6)
+            {
+                break;
+            }
         }
         return 0;
     }
