@@ -1,3 +1,31 @@
 {
-  "modules": []
+  "source": "VEHICLES.md §3.2, §9.1. Modules a ship's sockets take: each an item, its frame's origin at its socket (a bay's rear centre on the deck, +Z forward, +Y up, +X the left side), its first part its body (a ball for the interact key and the hammer; its hull boxes for shots and blasts). The TOGG's first two (V2): a one-seat cab whose seat drives when it is the front-most cab on level 1, reached through its door, and an engine that goes in a bay or the nose mount. Numbers are VEHICLES.md's starting values.",
+  "modules": [
+    {
+      "key": "togg-cab-one", "item": "togg-cab-one", "fits": ["bay"], "levels": [1, 2], "height": 1.6, "carries": true,
+      "mass": 220, "centreOfMass": [0, 0.8, 0.7],
+      "hull": [{ "centre": [0, 0.8, 0.7], "size": [0.95, 0.8, 0.68] }],
+      "seats": [
+        {
+          "key": "driver", "name": "Driver's seat", "role": "helm", "verb": "drive", "sitters": "unlocked", "works": ["doors"], "door": "door",
+          "at": [0, 0.42, 0.65], "eye": [0, 1.24, 0.75], "exits": [[1.55, -0.98, 0.7], [-1.55, -0.98, 0.7], [0, -0.98, -2.2]]
+        }
+      ],
+      "doors": [{ "key": "door", "name": "Door", "clip": "Door_Open", "seconds": 0.6, "opens": "always" }],
+      "parts": [
+        { "key": "cab", "name": "Cab", "at": [0, 1.2, 0.7], "radius": 0.55,
+          "health": { "max": 600, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 60] } },
+        { "key": "door", "name": "Cab door", "at": [0.98, 0.7, 0.7], "radius": 0.45, "capabilities": ["ship-door", "seat", "cupboard"], "door": "door", "seat": "driver" }
+      ]
+    },
+    {
+      "key": "togg-engine", "item": "togg-engine", "fits": ["bay", "engine-mount"], "levels": [1], "height": 0.95,
+      "mass": 280, "centreOfMass": [0, 0.4, 0.6], "power": 90000,
+      "hull": [{ "centre": [0, 0.42, 0.6], "size": [0.9, 0.42, 0.58] }],
+      "parts": [
+        { "key": "engine", "name": "Engine", "at": [0, 0.5, 0.6], "radius": 0.6,
+          "health": { "max": 500, "protection": "metal", "table": "pieces", "repair": ["refined-metal", 20] } }
+      ]
+    }
+  ]
 }

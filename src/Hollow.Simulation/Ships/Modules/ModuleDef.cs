@@ -83,6 +83,15 @@ public sealed class ModuleDef
 
     public IReadOnlyList<ShipTargetPart> Parts { get; init; } = Array.Empty<ShipTargetPart>();
 
+    /// <summary>Its wheels, in its own frame (a sidecar's, a module of running gear).</summary>
+    public IReadOnlyList<WheelDef> Wheels { get; init; } = Array.Empty<WheelDef>();
+
+    /// <summary>The power it adds to the ship's engines, in watts (an engine's): also the drive's "power".</summary>
+    public float Power { get; init; }
+
+    /// <summary>What it adds to the ship's drive, by name (modules.json <c>drive</c>: a rotor's lift, its spool).</summary>
+    public IReadOnlyDictionary<string, float> Drive { get; init; } = new Dictionary<string, float>();
+
     /// <summary>Fuel it adds to the ship's tank.</summary>
     public float FuelCapacity { get; init; }
 

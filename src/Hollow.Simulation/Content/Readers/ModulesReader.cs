@@ -30,7 +30,7 @@ internal sealed class ModulesReader : IContentReader
             string key = f.Text(e, "key", $"modules.json: modules[{i}]");
             string where = $"modules.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "key", "item", "fits", "span", "levels", "height", "carries", "mass", "centreOfMass", "hull", "seats", "doors",
-                "parts", "fuel", "hold", "model");
+                "parts", "fuel", "hold", "model", "wheels", "power", "drive");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             if (item == null)
             {
@@ -62,6 +62,9 @@ internal sealed class ModulesReader : IContentReader
                 Seats = seats,
                 Doors = doors,
                 Parts = parts,
+                Wheels = ShipsReader.Wheels(f, e, where),
+                Power = f.Number(e, "power", where, 0),
+                Drive = DriveNumbers(f, e, where),
                 FuelCapacity = f.Number(e, "fuel", where, 0),
                 Hold = f.Integer(e, "hold", where, 0),
                 HoldPart = parts.FindIndex(p => p.Capabilities.Has(container)),
@@ -91,10 +94,59 @@ internal sealed class ModulesReader : IContentReader
         }
     }
 
+    // A module's drive numbers: { "<name>": number, ... }, summed by name over a build.
+    private static Dictionary<string, float> DriveNumbers(JsonFields f, JsonElement e, string where)
+    {
+        var numbers = new Dictionary<string, float>(StringComparer.Ordinal);
+        if (!f.TryChild(e, "drive", out JsonElement drive))
+        {
+            return numbers;
+        }
+        foreach (JsonProperty p in drive.EnumerateObject())
+        {
+            if (p.Value.ValueKind == JsonValueKind.Number && float.IsFinite((float)p.Value.GetDouble()))
+            {
+                numbers[p.Name] = (float)p.Value.GetDouble();
+            }
+            else
+            {
+                f.Problem(where + ".drive", $"\"{p.Name}\" is a number");
+            }
+        }
+        return numbers;
+    }
+
     public void Check(ContentChecking c)
     {
         GameContent.Loaded loaded = c.Loaded;
         c.Duplicates("modules.json", loaded.Modules.Select(m => m.Key));
+        // Each kind's default build (ships.json build), resolved now the modules are read, and held to the sockets' rules.
+        foreach (ShipDef kind in loaded.Ships.Where(s => s.DefaultBuildKeys.Count > 0))
+        {
+            string at = $"ships.json: {JsonFields.Quote(kind.Key)}.build";
+            var entries = new List<Installed>();
+            foreach ((string socket, int level, string module) in kind.DefaultBuildKeys)
+            {
+                int index = kind.Sockets.ToList().FindIndex(x => x.Key == socket);
+                ModuleDef? def = loaded.Modules.FirstOrDefault(m => m.Key == module);
+                if (index < 0 || def == null || level is not (1 or 2))
+                {
+                    c.Problem(at, $"\"{socket}\" level {level}: \"{module}\" names a socket of the kind, level 1 or 2, and a module of modules.json");
+                    continue;
+                }
+                entries.Add(new Installed((byte)index, (byte)level, def.Id));
+            }
+            var build = new ShipBuild(entries);
+            BuildProblem problem = ShipAssembler.Check(kind, build, id => loaded.Modules.FirstOrDefault(m => m.Id == id));
+            if (problem != BuildProblem.None)
+            {
+                c.Problem(at, $"the default build can't be ({problem})");
+            }
+            else
+            {
+                kind.DefaultBuild = build;
+            }
+        }
         int seatCapability = loaded.Capabilities?.Index("seat") ?? -1, shipDoor = loaded.Capabilities?.Index("ship-door") ?? -1;
         foreach (ModuleDef m in loaded.Modules)
         {
@@ -107,9 +159,13 @@ internal sealed class ModulesReader : IContentReader
             {
                 c.Problem(where, $"item \"{m.Item.Key}\" is a module and nothing else");
             }
-            if (m.Fits.Count == 0 || m.Span is < 1 or > 8 || m.Height < 0 || m.Mass <= 0 || m.FuelCapacity < 0 || m.Hold is < 0 or > 48)
+            if (m.Fits.Count == 0 || m.Span is < 1 or > 8 || m.Height < 0 || m.Mass <= 0 || m.FuelCapacity < 0 || m.Hold is < 0 or > 48 || m.Power < 0)
             {
-                c.Problem(where, "fits a tag or more, spans 1 … 8 sockets, a height of 0 or more, a positive mass, fuel of 0 or more, a hold of 0 … 48 slots");
+                c.Problem(where, "fits a tag or more, spans 1 … 8 sockets, a height of 0 or more, a positive mass, fuel of 0 or more, a hold of 0 … 48 slots, power of 0 or more");
+            }
+            foreach (WheelDef w in m.Wheels.Where(w => w.Radius <= 0 || w.Width <= 0 || w.Travel <= 0 || w.Stiffness <= 0 || w.Damping <= 0 || w.Grip is <= 0 or > 2))
+            {
+                c.Problem(where + ".wheels", $"wheel \"{w.Key}\": a positive radius, width, travel, spring and damper, grip 0 … 2");
             }
             if (m.Hull.Count == 0 || m.Hull.Any(h => h.HalfExtents.X <= 0 || h.HalfExtents.Y <= 0 || h.HalfExtents.Z <= 0))
             {

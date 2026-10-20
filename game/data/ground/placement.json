@@ -99,6 +99,7 @@
     {"kind": "deployable", "key": "auto-turret"},
     {"kind": "deployable", "key": "wooden-ladder"},
     {"kind": "ship", "key": "motorboat"},
-    {"kind": "ship", "key": "ka-fa-1500"}
+    {"kind": "ship", "key": "ka-fa-1500"},
+    {"kind": "ship", "key": "togg"}
   ]
 }

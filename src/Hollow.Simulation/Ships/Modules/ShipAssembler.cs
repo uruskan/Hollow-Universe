@@ -209,8 +209,13 @@ public static class ShipAssembler
         }
         var holds = new List<ShipHold>(kind.Holds);
         var placed = new List<PlacedModule>();
-        // One seat flies the ship: the kind's own helm, else the first helm seat of a level-1 module in socket order.
-        bool helmTaken = kind.Seats.Exists(s => s.Flies);
+        // One seat flies the ship: the kind's own helm, else the front-most helm seat of a level-1 module (VEHICLES.md §3.3:
+        // the front cab drives); every other helm seat rides as a passenger.
+        int helm = kind.Seats.Exists(s => s.Flies) ? -1 : FrontHelm(defs, origins, build);
+        int moduleSeats = 0;
+        var wheels = new List<WheelDef>(kind.Wheels);
+        float power = kind.EnginePower;
+        var sums = new SortedDictionary<string, float>(StringComparer.Ordinal);
         float mass = kind.Mass, water = kind.WaterVolume;
         Vector3 moment = kind.Mass * kind.CentreOfMass;
         float fuel = kind.FuelCapacity;
@@ -232,8 +237,7 @@ public static class ShipAssembler
             }
             foreach (ShipSeatDef s in m.Seats)
             {
-                bool flies = s.Flies && !helmTaken && entry.Level == 1;
-                helmTaken |= flies;
+                bool flies = s.Flies && moduleSeats++ == helm;
                 seats.Add(new ShipSeatDef
                 {
                     Index = seat0 + s.Index, Key = prefix + s.Key, Name = s.Name, Role = s.Flies && !flies ? SeatRole.Passenger : s.Role,
@@ -264,6 +268,19 @@ public static class ShipAssembler
             {
                 holds.Add(new ShipHold(part0 + m.HoldPart, m.Hold, placed.Count - 1));
             }
+            foreach (WheelDef w in m.Wheels)
+            {
+                wheels.Add(w.Moved(o, prefix));
+            }
+            power += m.Power;
+            if (m.Power != 0)
+            {
+                sums["power"] = sums.GetValueOrDefault("power") + m.Power;
+            }
+            foreach ((string name, float value) in m.Drive)
+            {
+                sums[name] = sums.GetValueOrDefault(name) + value;
+            }
             mass += m.Mass;
             moment += m.Mass * (o + m.CentreOfMass);
             fuel += m.FuelCapacity;
@@ -276,7 +293,7 @@ public static class ShipAssembler
             ModuleDef m = defs[i];
             inertia += BoxInertia(m) + Shift(m.Mass, origins[i] + m.CentreOfMass - centre);
         }
-        ShipDef composed = kind.CopyFor(build, placed, hullParts, holds);
+        ShipDef composed = kind.CopyFor(build, placed, hullParts, holds, sums);
         composed.Seats = seats;
         composed.Doors = doors;
         composed.Parts = parts;
@@ -286,8 +303,32 @@ public static class ShipAssembler
         composed.Inertia = inertia;
         composed.FuelCapacity = fuel;
         composed.WaterVolume = water;
+        composed.Wheels = wheels;
+        composed.EnginePower = power;
         composed.ComputeBounds();
         return composed;
+    }
+
+    // The module seat (counted over the modules' seats in the build's order) that drives: the helm seat of a level-1 module
+    // furthest forward, the first of equals; −1 when none.
+    private static int FrontHelm(ModuleDef[] defs, Vector3[] origins, ShipBuild build)
+    {
+        int best = -1, n = 0;
+        float front = float.MinValue;
+        for (int i = 0; i < defs.Length; i++)
+        {
+            foreach (ShipSeatDef s in defs[i].Seats)
+            {
+                float z = origins[i].Z + s.At.Position.Z;
+                if (s.Flies && build.Entries[i].Level == 1 && z > front)
+                {
+                    front = z;
+                    best = n;
+                }
+                n++;
+            }
+        }
+        return best;
     }
 
     private static ShipSocket Moved(ShipSocket socket, Vector3 by) => socket with { Position = socket.Position + by };
