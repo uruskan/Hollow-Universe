@@ -14,7 +14,7 @@ At the owner's request, a design and nothing built: [VEHICLES.md](VEHICLES.md) a
 Vehicles are ships in the code, with one module system shared with the minicopter and motorboat sessions (agreed by
 message today) and a `ground` motor of our own. Jolt's vehicle constraint is in the bundled binding, but it needs dynamic
 stepping and cannot save its state for the client's replay. The sheet was checked by eye in the browser pane; no test was
-run. Nine questions wait for the owner (§12).
+run. Nine questions waited for the owner (§12); the names are answered since: the TOGG and the Zamazingo.
 
 ## 20 October 2026 — World terrain, iteration 5: the cliff kit placed on the baked Earth
 

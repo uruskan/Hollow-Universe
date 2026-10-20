@@ -65,8 +65,8 @@ sockets take an engine and a cargo pod. A minicopter session (rotor drive, its o
 
 **Name.** The car is the **TOGG** (`togg`): **Owner**, 20 October 2026. Its name is stencilled on the cab as the Tin Finch's is.
 The name is Turkey's own carmaker's; the owner confirmed it is fine to use (20 October 2026). The car itself is ours, scrap-built
-like everything players make, so no badge or body shape is copied from the real one. The bike is the **Hare** (`hare`), a
-proposal (§12).
+like everything players make, so no badge or body shape is copied from the real one. The motorbike is the **Zamazingo**
+(`zamazingo`): **Owner**, 20 October 2026.
 
 ### 3.1 The chassis
 
@@ -428,7 +428,7 @@ engines (found blueprints, R7). Starting salvage costs, for tuning:
 |---|---:|---|
 | Vehicle lift | 150 | — |
 | TOGG chassis | 200 | Lift |
-| Hare frame | 125 | Lift |
+| Zamazingo frame | 125 | Lift |
 | Car tyre, bike tyres | 50 | Chassis or frame |
 | One-seat cab | 75 | Chassis |
 | Two-seat cab | 100 | One-seat cab |
@@ -467,15 +467,14 @@ The look sample (V8's first step) can start in parallel with V1–V3: it needs o
 
 ## 12. Questions for the owner
 
-1. **Names**: the car is the TOGG (the owner's); the bike the Hare, or another?
-2. **One car length or three?** This design has one chassis, as asked ("one modular car"): three bays and a nose mount, which
+1. **One car length or three?** This design has one chassis, as asked ("one modular car"): three bays and a nose mount, which
    hold every example the owner gave. Rust has 2, 3 and 4 slots; other lengths would be data later.
-3. **Field repairs**: may engine parts be swapped away from the lift (§5.3: proposed yes)? A flat tyre (proposed: lift only)?
-4. **Decay**: none, as ships have today, or Rust's (216 minutes outside by default, ten times that under a roof, in Facepunch's
+2. **Field repairs**: may engine parts be swapped away from the lift (§5.3: proposed yes)? A flat tyre (proposed: lift only)?
+3. **Decay**: none, as ships have today, or Rust's (216 minutes outside by default, ten times that under a roof, in Facepunch's
    post)? Decay is how Rust keeps abandoned cars from piling up.
-5. **Beds on vehicles as respawn points** (DESIGN.md SURV-04 allows them on spacecraft): also on a camp deck or a camper shell?
-6. **Getting out**: E, as in Rust, or Space, as in our ship seats? One key for every seat would be simplest.
-7. **The bike's crash**: thrown off and hurt above 8 m/s (Rust-like, proposed), or more forgiving?
-8. **Tall builds**: a camper shell (2.95 m) and a two-level build (to 3.9 m) do not pass the 2.85 m garage opening. Accept it as
+4. **Beds on vehicles as respawn points** (DESIGN.md SURV-04 allows them on spacecraft): also on a camp deck or a camper shell?
+5. **Getting out**: E, as in Rust, or Space, as in our ship seats? One key for every seat would be simplest.
+6. **The bike's crash**: thrown off and hurt above 8 m/s (Rust-like, proposed), or more forgiving?
+7. **Tall builds**: a camper shell (2.95 m) and a two-level build (to 3.9 m) do not pass the 2.85 m garage opening. Accept it as
    the price of the camp and the second level, or make them lower (a shell under 2.85 m is too low inside to stand)?
-9. **Rare engines**: which ones, and from which monuments (a later content pass)?
+8. **Rare engines**: which ones, and from which monuments (a later content pass)?
