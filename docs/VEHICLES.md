@@ -223,15 +223,20 @@ the same parts or one more slot. Which ones is content for later; the system nee
 
 ### 5.5 Repairs with the hammer (R19)
 
-- **The standard hammer**, as on building pieces: aim at the damaged thing, hit, and each hit mends a share of its health for
-  its share of the cost, taken from the inventory. Anywhere: on the road, in a base, on the lift (where REPAIR ALL does every
-  hit at once for the sum).
-- **What it mends**: every module, the chassis or frame, and the running gear (a flat tyre comes back up). Engine parts are
-  not mended: they wear and are replaced (§5.2).
-- **The cost depends on what is repaired**, from each one's data (the ship parts' `RepairMaterial` and `RepairFull`: the
-  material and the cost of a full repair). Starting values: **metal fragments** for the chassis, the frame, cabs, decks, the
-  camper shell, lockers, the bench, fuel tanks, tyres and the bike's modules; **refined metal** for engine modules, track
-  units and, later, the armoured cab.
+**Nothing here is the vehicles' own: it is the game's one repair system.** The hammer mends everything repairable through
+one path: `BuildingSystem.Repair` (the hammer in hand, reach, sight) asks the aimed thing's target family to mend it
+(`IRepairFamily`: building pieces, doors, deployables, ship parts each implement it once; GROUND_SYSTEMS.md §5), and pays from
+what the player carries. What a thing costs is its data. Vehicles are ships in the code, so the ship family's repair mends their
+modules, chassis and running gear, and each one's cost is a line in `modules.json` (the ship parts' `health` block: `RepairMaterial`,
+`RepairFull`, the material and the cost of a full repair). No car or bike code decides a repair.
+
+- **A hit** mends a share of the thing's health for its share of the cost, as on building pieces. Anywhere: on the road, in a
+  base, on the lift (where REPAIR ALL is every hit at once for the sum).
+- **Costs by data** (starting values): **metal fragments** for the chassis, the frame, cabs, decks, the camper shell, lockers,
+  the bench, fuel tanks, tyres and the bike's modules; **refined metal** for engine modules, track units and, later, the
+  armoured cab. Engine parts are not mended: they wear and are replaced (§5.2).
+- **One change to the shared code**: today the ship family refuses to mend a ship's hull (`ShipSystem.RepairPart`, part 0).
+  It will mend any part whose data gives it health, the hull included, so the Tin Finch's hull becomes repairable too.
 - A broken module mended above zero works again. A wreck is not mended: it is looted.
 
 ## 6. Running gear and driving
