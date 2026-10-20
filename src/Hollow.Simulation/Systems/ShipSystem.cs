@@ -438,11 +438,12 @@ public sealed partial class ShipSystem : ZoneSystem
     /// <summary>The ship whose cargo, tank or station magazine a player has open, or null.</summary>
     public Ship? LootShip(Player p) => p.Looting.IsNone ? null : ShipOf(p.Looting) is { Destroyed: false } ship ? ship : null;
 
-    /// <summary>The fuel tank for a negative loot part, a station's magazine for its part, otherwise the cargo.</summary>
+    /// <summary>The fuel tank for a negative loot part, a station's magazine for its part, a module's hold for its part, otherwise the cargo.</summary>
     public Container LootContainer(Player p, Ship ship) =>
         p.LootPart < 0 ? ship.Fuel.Tank :
         p.LootPart > 0 && p.LootPart < ship.Def.Parts.Count && ship.Def.Parts[p.LootPart].Station is >= 0 and var station && station < ship.Stations.Length
-            ? ship.Stations[station].Magazine : ship.Cargo;
+            ? ship.Stations[station].Magazine :
+        ship.Def.HoldOfPart(p.LootPart) is >= 0 and var hold && hold < ship.Holds.Length ? ship.Holds[hold] : ship.Cargo;
 
     // Whether a player looting a ship's cargo or a magazine may go on (CheckLoot, once a second): from one of its seats, or
     // beside its part within the reach that keeps a container open (GROUND_SYSTEMS.md §3.4), the cargo of one people sit in
@@ -456,7 +457,7 @@ public sealed partial class ShipSystem : ZoneSystem
         }
         bool magazine = part > 0 && part < ship.Def.Parts.Count && ship.Def.Parts[part].Station >= 0;
         bool fuel = part < 0;
-        int at = fuel ? -1 - part : magazine ? part : ship.Def.CargoPart;
+        int at = fuel ? -1 - part : magazine || ship.Def.HoldOfPart(part) >= 0 ? part : ship.Def.CargoPart;
         return (at > 0 || fuel) && Content != null && !ship.InOrbit && (fuel || magazine || ShipStill(ship)) &&
             Targets.Reach(EyeOf(Entities.Get<Character>(entity).State), new TargetRef(TargetFamily.Ship, ship.Id.Value, (byte)at), Content.Survival.KeepOpenReach,
                 sight: false).Ok;
@@ -635,6 +636,17 @@ public sealed partial class ShipSystem : ZoneSystem
                 }
             }
         }
+        foreach (Container hold in ship.Holds)
+        {
+            // The modules' holds (VEHICLES.md §9.1).
+            foreach (ItemStack s in hold.Slots)
+            {
+                if (!s.IsEmpty)
+                {
+                    stacks.Add(s);
+                }
+            }
+        }
         int fuel = (int)MathF.Floor(ship.Fuel.Amount * 0.5f);
         ship.LoadFuel(0);
         while (fuel > 0)
@@ -666,10 +678,16 @@ public sealed partial class ShipSystem : ZoneSystem
     /// pose history at <paramref name="viewTick"/>): the distance along it (−1 for none) and the ship. One people walk in
     /// is met by its space (<see cref="ShipQueries"/>).
     /// </summary>
-    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit, out Vector3 normal, double viewTick = double.MaxValue)
+    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit, out Vector3 normal, double viewTick = double.MaxValue) =>
+        TraceShips(origin, direction, length, thickness, out hit, out normal, out _, viewTick);
+
+    /// <summary>As above, with the target part the box met belongs to (a module's body, VEHICLES.md §9.1; else the hull).</summary>
+    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit, out Vector3 normal, out byte part,
+        double viewTick = double.MaxValue)
     {
         hit = null;
         normal = -direction;
+        part = ShipParts.Hull;
         float best = -1;
         foreach (Ship ship in _ships)
         {
@@ -685,13 +703,15 @@ public sealed partial class ShipSystem : ZoneSystem
             Vector3 x = Vector3.Transform(Vector3.UnitX, pose.Rotation);
             Vector3 y = Vector3.Transform(Vector3.UnitY, pose.Rotation);
             Vector3 z = Vector3.Transform(Vector3.UnitZ, pose.Rotation);
-            foreach (HullBox box in ship.Def.Hull)
+            for (int i = 0; i < ship.Def.Hull.Count; i++)
             {
+                HullBox box = ship.Def.Hull[i];
                 float t = Geometry.RayBox(origin, direction, length, pose.ToWorld(box.Centre), box.HalfExtents + new Vector3(thickness), x, y, z);
                 if (t >= 0 && (best < 0 || t < best))
                 {
                     best = t;
                     hit = ship;
+                    part = ship.Def.HullPart(i);
                     normal = ContactGeometry.BoxNormal(origin + direction * t, pose.ToWorld(box.Centre), box.HalfExtents + new Vector3(thickness), x, y, z);
                 }
             }

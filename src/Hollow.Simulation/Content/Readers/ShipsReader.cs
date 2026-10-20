@@ -28,7 +28,7 @@ internal sealed class ShipsReader : IContentReader
             string where = $"ships.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
                 "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "seats", "doors", "parts", "nozzles", "lights", "ceiling",
-                "wreck", "placement", "model", "interior", "water", "assist", "drive", "controls");
+                "wreck", "placement", "model", "interior", "water", "assist", "drive", "controls", "sockets", "buildHeight", "repair");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             // The inside people walk in (IRON_WAKE.md §4.3): its data file, read first, since the sockets and the hull may
             // name what it holds.
@@ -143,6 +143,17 @@ internal sealed class ShipsReader : IContentReader
                 ShipLayoutReader.Read(r, e, where, item.Name, interior);
             // Its crewed batteries (IRON_WAKE.md §6, IW3): the data file's stations that a seat works, each of a kind of batteries.json.
             List<Ships.ShipStationDef> stations = Stations(r, where, interior, seats, parts);
+            // Where modules go (VEHICLES.md §9.1), and what mending its hull costs (§5.5), both optional.
+            List<Ships.Modules.ShipSocketDef> sockets = Sockets(f, e, where);
+            Ships.ShipRepair? hullRepair = null;
+            if (e.TryGetProperty("repair", out JsonElement repairValue))
+            {
+                if (f.Tuple(repairValue, where + ".repair", 1, out string repairItem, out double[] repairCost) &&
+                    r.Resolve(repairItem, where + ".repair") is { } material)
+                {
+                    hullRepair = new Ships.ShipRepair(material, (int)repairCost[0]);
+                }
+            }
             // What its engines do (ships.json drive, a kind from Ships.ShipDrives with its own numbers; thrusters without one).
             Ships.IShipDrive drive = Ships.ShipDrives.Read(f, f.TryChild(e, "drive", out JsonElement driveBlock) ? driveBlock : null, where + ".drive");
             var def = new Ships.ShipDef
@@ -216,6 +227,9 @@ internal sealed class ShipsReader : IContentReader
                 Lights = ShipLayoutReader.Lights(f, e, where, interior),
                 Ceiling = f.Number(e, "ceiling", where),
                 Wreck = wreck,
+                HullRepair = hullRepair,
+                Sockets = sockets,
+                BuildHeight = f.Number(e, "buildHeight", where, 0),
             };
             def.ComputeBounds();
             loaded.Ships.Add(def);
@@ -237,6 +251,28 @@ internal sealed class ShipsReader : IContentReader
             }
             item.Ship = def;
         }
+    }
+
+    // The sockets (VEHICLES.md §9.1): { "key", "at": [x, y, z], "fits": [tags], "row": a row's name, "levels": 1 or 2 }.
+    private static List<Ships.Modules.ShipSocketDef> Sockets(JsonFields f, JsonElement e, string where)
+    {
+        var sockets = new List<Ships.Modules.ShipSocketDef>();
+        foreach (JsonElement s in f.List(e, "sockets", where, required: false))
+        {
+            string key = f.Text(s, "key", where + ".sockets");
+            string at = $"{where}.sockets {JsonFields.Quote(key)}";
+            f.OnlyKnown(s, at, "key", "at", "fits", "row", "levels");
+            sockets.Add(new Ships.Modules.ShipSocketDef
+            {
+                Index = sockets.Count,
+                Key = key,
+                At = f.Vector(s, "at", at),
+                Fits = f.Texts(s, "fits", at).ToArray(),
+                Row = f.Text(s, "row", at, ""),
+                Levels = f.Integer(s, "levels", at, 1),
+            });
+        }
+        return sockets;
     }
 
     // The stations a ship's seats work (IRON_WAKE.md §6.1): the data file's geometry, the battery its kind names, the seat
@@ -425,6 +461,19 @@ internal sealed class ShipsReader : IContentReader
                 c.Problem(where, "cargo 0 … 64 slots, a ceiling of 1 … 3 world radii, damage multipliers 0 … 10");
             }
             ShipLayoutReader.Check(c, ship, where);
+            if (ship.HullRepair is { Full: <= 0 })
+            {
+                c.Problem(where + ".repair", "\"repair\" is [material, what mending the hull from nothing costs], a positive cost");
+            }
+            if (ship.Sockets.Select(x => x.Key).Distinct().Count() != ship.Sockets.Count || ship.Sockets.Count > 255 ||
+                ship.Sockets.Any(x => x.Fits.Count == 0 || x.Levels is < 1 or > 2) || ship.BuildHeight < 0)
+            {
+                c.Problem(where + ".sockets", "at most 255 sockets, keys unique, each fitting a tag or more, with 1 or 2 levels; a build height of 0 or more");
+            }
+            if (ship.Sockets.Count > 0 && ship.Interior != null)
+            {
+                c.Problem(where + ".sockets", "a ship people walk in takes no modules yet");
+            }
             if (ship.WaterBelow <= 0 || ship.WaterAbove <= 0 || ship.WaterVolume < 0 || ship.LevelPitch is < 0 or > 1.05f ||
                 ship.LevelRoll is < 0 or > 1.05f || ship.LevelReturn is < 0 or > 10)
             {

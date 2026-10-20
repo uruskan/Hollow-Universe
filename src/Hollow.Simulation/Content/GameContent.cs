@@ -33,6 +33,7 @@ public sealed partial class GameContent
         "placement.json",
         "batteries.json",
         "compound.json",
+        "modules.json",
         PhysicalSurfaceData.FileName,
     };
 
@@ -60,6 +61,7 @@ public sealed partial class GameContent
         Bullets = loaded.Bullets;
         Attachments = loaded.Attachments;
         Ships = loaded.Ships;
+        Modules = loaded.Modules;
         Batteries = loaded.Batteries;
         Blasts = loaded.Blasts;
         Throwables = loaded.Throwables;
@@ -126,6 +128,9 @@ public sealed partial class GameContent
 
     /// <summary>The kinds of ship (ships.json, G6); each also hangs off its item.</summary>
     public IReadOnlyList<Ships.ShipDef> Ships { get; }
+
+    /// <summary>The kinds of module (modules.json, VEHICLES.md §9.1); each also hangs off its item.</summary>
+    public IReadOnlyList<Ships.Modules.ModuleDef> Modules { get; }
 
     /// <summary>The crewed batteries' kinds (batteries.json, IRON_WAKE.md §6, IW3): a ship's stations name one.</summary>
     public IReadOnlyList<BatteryDef> Batteries { get; }
@@ -285,6 +290,12 @@ public sealed partial class GameContent
     /// <summary>The ship kind an item ID names (untrusted: null when it isn't one).</summary>
     public Ships.ShipDef? Ship(int itemId) => Item(itemId)?.Ship;
 
+    /// <summary>The module an item ID names (untrusted: null when it isn't one).</summary>
+    public Ships.Modules.ModuleDef? Module(int itemId) => Item(itemId)?.Module;
+
+    /// <summary>A kind's layout with a build (VEHICLES.md §9.1): the kind itself for none. The build must be possible.</summary>
+    public Ships.ShipDef Compose(Ships.ShipDef kind, Ships.Modules.ShipBuild build) => global::Hollow.Simulation.Ships.Modules.ShipAssembler.Compose(kind, build, Module);
+
     private static ushort? AsId(int value) => value is > 0 and <= ushort.MaxValue ? (ushort)value : null;
 
     // ---------------------------------------------------------------- loading
@@ -431,6 +442,7 @@ public sealed partial class GameContent
         public List<BulletStats> Bullets = new();
         public List<AttachmentStats> Attachments = new();
         public List<Ships.ShipDef> Ships = new();
+        public List<Ships.Modules.ModuleDef> Modules = new();
         public List<BatteryDef> Batteries = new();
         public List<BlastStats> Blasts = new();
         public List<ThrowableStats> Throwables = new();

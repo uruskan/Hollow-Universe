@@ -75,7 +75,7 @@ public static partial class CapabilityHandlers
 
         private static Outcome Open(in InteractContext ctx, in InteractArgs args) =>
             ctx.Thing is Deployable { Def.Defense: not null } device && !ctx.Zone!.DeviceAuthorization().CanManage(device, ctx.Doer.Id)
-                ? OutcomeCode.NotAuthorised : ctx.Zone!.Interaction().OpenLoot(ctx.Player!, new EntityId(ctx.Target.Id));
+                ? OutcomeCode.NotAuthorised : ctx.Zone!.Interaction().OpenLoot(ctx.Player!, new EntityId(ctx.Target.Id), ctx.Target.Part);
     }
 
     /// <summary>Taken whole with E: a natural pickup, a berry bush (picked bare), a bag of dropped items (all that fits), a spent arrow.</summary>

@@ -18,11 +18,12 @@ namespace Hollow.Simulation.Content.Readers;
 internal static class ShipLayoutReader
 {
     /// <summary>The seats, the doors and the parts, in that order (a part names its seat and door; a seat its door).</summary>
+    /// <remarks>A module's (modules.json, VEHICLES.md §9.1) are read the same way, its seats optional.</remarks>
     public static (List<ShipSeatDef> Seats, List<ShipDoorDef> Doors, List<ShipTargetPart> Parts) Read(ContentReading r, JsonElement e, string where,
-        string shipName, ShipInterior? interior)
+        string shipName, ShipInterior? interior, bool seatsOptional = false)
     {
         List<ShipDoorDef> doors = Doors(r, e, where, interior);
-        List<ShipSeatDef> seats = Seats(r, e, where, shipName, interior, doors);
+        List<ShipSeatDef> seats = Seats(r, e, where, shipName, interior, doors, seatsOptional);
         List<ShipTargetPart> parts = Parts(r, e, where, shipName, interior, seats, doors);
         return (seats, doors, parts);
     }
@@ -190,12 +191,13 @@ internal static class ShipLayoutReader
 
     // ---------------------------------------------------------------- seats
 
-    private static List<ShipSeatDef> Seats(ContentReading r, JsonElement e, string where, string shipName, ShipInterior? interior, List<ShipDoorDef> doors)
+    private static List<ShipSeatDef> Seats(ContentReading r, JsonElement e, string where, string shipName, ShipInterior? interior, List<ShipDoorDef> doors,
+        bool optional)
     {
         JsonFields f = r.Fields;
         InteractionData? verbs = r.Loaded.Interactions;
         var seats = new List<ShipSeatDef>();
-        foreach (JsonElement s in f.List(e, "seats", where))
+        foreach (JsonElement s in f.List(e, "seats", where, required: !optional))
         {
             string key = f.Text(s, "key", where + ".seats");
             string at = $"{where}.seats {JsonFields.Quote(key)}";
@@ -416,13 +418,15 @@ internal static class ShipLayoutReader
     {
         GameContent.Loaded loaded = c.Loaded;
         CapabilityData? capabilities = loaded.Capabilities;
-        if (ship.Seats.Count(s => s.Flies) != 1)
+        // A kind that takes modules may leave its seats, the helm too, to them (a car's chassis: VEHICLES.md §3.3).
+        bool modular = ship.Sockets.Count > 0;
+        if (modular ? ship.Seats.Count(s => s.Flies) > 1 : ship.Seats.Count(s => s.Flies) != 1)
         {
-            c.Problem(where + ".seats", "exactly one seat flies the ship (role helm)");
+            c.Problem(where + ".seats", modular ? "at most one seat flies the ship (role helm)" : "exactly one seat flies the ship (role helm)");
         }
-        if (ship.Seats.Count is 0 or > 31)
+        if (ship.Seats.Count > 31 || ship.Seats.Count == 0 && !modular)
         {
-            c.Problem(where + ".seats", "1 … 31 seats");
+            c.Problem(where + ".seats", modular ? "at most 31 seats" : "1 … 31 seats");
         }
         foreach (ShipSeatDef seat in ship.Seats)
         {
@@ -515,24 +519,26 @@ internal static class ShipLayoutReader
             }
         }
 
-        void CheckHealth(ContentChecking c, ShipPartHealth? health, string at)
+    }
+
+    /// <summary>A door's or a part's health against the rest of the data: its numbers, its repair, its protection's grade (resolved here).</summary>
+    internal static void CheckHealth(ContentChecking c, ShipPartHealth? health, string at)
+    {
+        if (health == null)
         {
-            if (health == null)
-            {
-                return;
-            }
-            if (health.Max <= 0 || health.RepairFull <= 0 || health.RepairMaterial == null)
-            {
-                c.Problem(at + ".health", "a positive most health, and a repair's material and cost");
-            }
-            if (loaded.Building?.Grades.FirstOrDefault(g => g.Key == health.ProtectionKey) is { } grade)
-            {
-                health.Protection = grade;
-            }
-            else
-            {
-                c.Problem(at + ".health", $"no building grade \"{health.ProtectionKey}\" for its protection (building.json)");
-            }
+            return;
+        }
+        if (health.Max <= 0 || health.RepairFull <= 0 || health.RepairMaterial == null)
+        {
+            c.Problem(at + ".health", "a positive most health, and a repair's material and cost");
+        }
+        if (c.Loaded.Building?.Grades.FirstOrDefault(g => g.Key == health.ProtectionKey) is { } grade)
+        {
+            health.Protection = grade;
+        }
+        else
+        {
+            c.Problem(at + ".health", $"no building grade \"{health.ProtectionKey}\" for its protection (building.json)");
         }
     }
 }

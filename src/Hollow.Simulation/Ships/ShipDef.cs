@@ -27,12 +27,12 @@ public sealed class ShipDef
 
     public string Name => Item.Name;
 
-    public float Mass { get; init; }
+    public float Mass { get; internal set; }
 
     /// <summary>Moments of inertia about the ship's x (pitch), y (yaw) and z (roll) axes through the centre of mass.</summary>
-    public Vector3 Inertia { get; init; }
+    public Vector3 Inertia { get; internal set; }
 
-    public Vector3 CentreOfMass { get; init; }
+    public Vector3 CentreOfMass { get; internal set; }
 
     public float Health { get; init; }
 
@@ -168,7 +168,7 @@ public sealed class ShipDef
     /// <summary>The fuel (an item), the tank, and units burnt a second at idle and at full thrust; boost burns this many times more.</summary>
     public ItemDef Fuel { get; init; } = null!;
 
-    public float FuelCapacity { get; init; }
+    public float FuelCapacity { get; internal set; }
 
     public float FuelIdle { get; init; }
 
@@ -181,12 +181,12 @@ public sealed class ShipDef
 
     public int CargoSlots { get; init; }
 
-    public IReadOnlyList<HullBox> Hull { get; init; } = Array.Empty<HullBox>();
+    public IReadOnlyList<HullBox> Hull { get; internal set; } = Array.Empty<HullBox>();
 
     // ---------------------------------------------------------------- seats, doors and parts (IRON_WAKE.md §5.1)
 
     /// <summary>Its seats (ships.json <c>seats</c>, §5.2): by index, the wire's and the saves' number.</summary>
-    public IReadOnlyList<ShipSeatDef> Seats { get; init; } = Array.Empty<ShipSeatDef>();
+    public IReadOnlyList<ShipSeatDef> Seats { get; internal set; } = Array.Empty<ShipSeatDef>();
 
     /// <summary>The seat that flies it (the one with the helm's role; the content check wants exactly one).</summary>
     public ShipSeatDef Helm => _helm ??= FirstHelm();
@@ -206,12 +206,12 @@ public sealed class ShipDef
     }
 
     /// <summary>Its doors (ships.json <c>doors</c>, §5.3): by index, the wire's and the saves' number.</summary>
-    public IReadOnlyList<ShipDoorDef> Doors { get; init; } = Array.Empty<ShipDoorDef>();
+    public IReadOnlyList<ShipDoorDef> Doors { get; internal set; } = Array.Empty<ShipDoorDef>();
 
     /// <summary>
     /// Its target parts (ships.json <c>parts</c>, GROUND_SYSTEMS.md §3.1): <c>TargetRef.Part</c> is an index here, 0 the hull.
     /// </summary>
-    public IReadOnlyList<ShipTargetPart> Parts { get; init; } = Array.Empty<ShipTargetPart>();
+    public IReadOnlyList<ShipTargetPart> Parts { get; internal set; } = Array.Empty<ShipTargetPart>();
 
     /// <summary>Its crewed batteries (IRON_WAKE.md §6, IW3): by index, the wire's and the saves' number.</summary>
     public IReadOnlyList<ShipStationDef> Stations { get; init; } = Array.Empty<ShipStationDef>();
@@ -406,6 +406,74 @@ public sealed class ShipDef
     /// <summary>What a destroyed ship leaves in its wreck besides its cargo and fuel.</summary>
     public IReadOnlyList<ItemAmount> Wreck { get; init; } = Array.Empty<ItemAmount>();
 
+    /// <summary>
+    /// What mending its hull with the hammer costs (ships.json <c>repair</c>: the material and a full repair's cost; VEHICLES.md
+    /// §5.5), or null: the hull isn't mended.
+    /// </summary>
+    public ShipRepair? HullRepair { get; init; }
+
+    // ---------------------------------------------------------------- modules (VEHICLES.md §9.1)
+
+    /// <summary>Where modules go on this kind (ships.json <c>sockets</c>): none for a kind that takes none.</summary>
+    public IReadOnlyList<Modules.ShipSocketDef> Sockets { get; init; } = Array.Empty<Modules.ShipSocketDef>();
+
+    /// <summary>The tallest a build may stand over the ship's origin (ships.json <c>buildHeight</c>, metres; 0: no limit).</summary>
+    public float BuildHeight { get; init; }
+
+    /// <summary>The kind this layout is of: itself for a kind as read, the kind for one composed with modules.</summary>
+    public ShipDef Kind => _kind ?? this;
+
+    private ShipDef? _kind;
+
+    /// <summary>The modules installed (empty for a kind as read): with <see cref="Kind"/>, what this layout is.</summary>
+    public Modules.ShipBuild Build { get; private set; } = Modules.ShipBuild.Empty;
+
+    /// <summary>Each installed module where it stands, in the build's order (the views draw them; empty without modules).</summary>
+    public IReadOnlyList<Modules.PlacedModule> Placed { get; private set; } = Array.Empty<Modules.PlacedModule>();
+
+    /// <summary>
+    /// The target part each hull box belongs to, by the hull's order (a module's boxes its body part, a shot's part), or empty:
+    /// every box the hull's.
+    /// </summary>
+    public IReadOnlyList<byte> HullParts { get; private set; } = Array.Empty<byte>();
+
+    /// <summary>The target part a hull box belongs to (0: the hull).</summary>
+    public byte HullPart(int box) => box >= 0 && box < HullParts.Count ? HullParts[box] : ShipParts.Hull;
+
+    /// <summary>The modules' holds (a locker's slots, opened at its part), by index; the kind's own cargo is apart.</summary>
+    public IReadOnlyList<Modules.ShipHold> Holds { get; private set; } = Array.Empty<Modules.ShipHold>();
+
+    /// <summary>The hold opened at a target part, or −1.</summary>
+    public int HoldOfPart(int part)
+    {
+        for (int i = 0; i < Holds.Count; i++)
+        {
+            if (Holds[i].Part == part)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// A copy of this kind for a build (<see cref="Modules.ShipAssembler"/>): every field the kind has, the build's own set
+    /// after. A copy, so whatever a kind gains later is carried over without the assembler naming it.
+    /// </summary>
+    internal ShipDef CopyFor(Modules.ShipBuild build, IReadOnlyList<Modules.PlacedModule> placed, IReadOnlyList<byte> hullParts,
+        IReadOnlyList<Modules.ShipHold> holds)
+    {
+        var copy = (ShipDef)MemberwiseClone();
+        copy._kind = Kind;
+        copy._helm = null;
+        copy._partOfPieces = null;
+        copy.Build = build;
+        copy.Placed = placed;
+        copy.HullParts = hullParts;
+        copy.Holds = holds;
+        return copy;
+    }
+
     /// <summary>The hull's extent: the half size of the box holding every hull box (for quick tests).</summary>
     public Vector3 BoundsCentre { get; internal set; }
 
@@ -461,6 +529,9 @@ public sealed class ShipDef
 
     public override string ToString() => Key;
 }
+
+/// <summary>What one full mend costs (ships.json <c>repair</c>): the material, and how much of it from nothing to whole.</summary>
+public sealed record ShipRepair(ItemDef Material, int Full);
 
 /// <summary>The hull's number among a ship's target parts (GROUND_SYSTEMS.md §3.1): 0, the rest of the ship.</summary>
 public static class ShipParts
