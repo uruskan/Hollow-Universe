@@ -61,6 +61,7 @@
     {"key": "gate-close", "label": "Close", "glyph": "door-shut", "description": "Close the compound gate.", "priority": 70, "reach": "open"},
     {"key":"defense-authorise","label":"Authorize myself","glyph":"authorise","description":"Protect me on this device. Does not restore cupboard inheritance for everyone.","priority":45,"reach":"open"},
     {"key":"defense-deauthorise","label":"Clear my authorization","glyph":"deauthorise","description":"Remove my protection here, including inherited Tool Cupboard protection.","priority":25,"reach":"open"},
-    {"key":"defense-clear","label":"Clear all authorization","glyph":"clear-list","description":"Remove everyone's protection here and stop Tool Cupboard inheritance on this device.","priority":15,"reach":"open"}
+    {"key":"defense-clear","label":"Clear all authorization","glyph":"clear-list","description":"Remove everyone's protection here and stop Tool Cupboard inheritance on this device.","priority":15,"reach":"open"},
+    {"key":"fly","label":"Fly","glyph":"board","description":"Into the pilot's seat: the rotor starts.","priority":70}
   ]
 }

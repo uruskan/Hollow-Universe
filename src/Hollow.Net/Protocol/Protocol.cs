@@ -61,7 +61,8 @@ public static partial class Protocol
     // 44: a door carries its layout (hinge side and swing side) instead of a flip; doors are saved with it (door version 2;
     //     Earth save revision 10, others 6).
     // 45: a door carries its motion record (progress at a tick, which way it goes), so every machine poses its leaves alike.
-    public const uint Version = 45;
+    // 46: a ship's drive spool (a rotor's spin, docs/MINICOPTER.md §9) in its own state and everyone's view of it.
+    public const uint Version = 46;
 
     /// <summary>Fixed upper bound for Hello, WorldOffer, WorldAccept and Welcome, including their type byte.</summary>
     public const int MaxWorldHandshakeBytes = 512;

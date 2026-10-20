@@ -301,6 +301,9 @@ public partial struct OwnShipState
     public float CruiseVertical;
     /// <summary>The engine's partial unit; its separate precision keeps prediction and authoritative burn identical.</summary>
     public float FuelReserve;
+
+    /// <summary>The drive's engine speed (a rotor's spin, <c>ShipState.Spool</c>): the lift depends on it.</summary>
+    public float Spool;
 }
 
 /// <summary>
@@ -326,6 +329,9 @@ public partial struct ShipNetState
     [Signed(8)] public sbyte ThrustY;
     [Signed(8)] public sbyte ThrustZ;
     public byte Health;
+
+    /// <summary>The drive's engine speed (a rotor's spin) in 1/255: what the rotor's blades and sound show.</summary>
+    public byte Spool;
     [VarInt] public uint Kind;
 
     /// <summary>

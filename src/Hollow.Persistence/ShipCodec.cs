@@ -34,10 +34,14 @@ public static class ShipCodec
     /// Raised by hand when the layout changes; decoding reads every older version. 2: seats, doors, parts, crew (IW2); 3: the
     /// crewed batteries' stations (IW3): the chosen kind, the mount's aim, the shots, each chamber, each loader's cycle and
     /// the magazine. 4: unattended controls. 5: the fuel tank's items and fractional burn reserve. 6: captured attitude.
+    /// 7: the drive's spool (a rotor's spin, docs/MINICOPTER.md §9), so a craft held hovering is still hovering after a restart.
     /// </summary>
-    public const byte Version = 6;
+    public const byte Version = 7;
 
     public const int AttitudeTrailerBytes = 17;
+
+    /// <summary>Version 7's spool, after the attitude trailer: the stored form's last bytes.</summary>
+    public const int SpoolBytes = 4;
 
     private const int HatchTicksV1 = 30;
 
@@ -132,6 +136,8 @@ public static class ShipCodec
             bool hold = s.AttitudeHoldActive && ShipAttitudeHold.Valid(s.AttitudeHoldRotation);
             w.Write((byte)(hold ? 1 : 0));
             Write(w, hold ? Quaternion.Normalize(toBody * s.AttitudeHoldRotation) : Quaternion.Identity);
+            // Version 7: the drive's spool.
+            w.Write(s.Spool);
         }
         return stream.ToArray();
     }
@@ -264,6 +270,11 @@ public static class ShipCodec
                 ship.State.AttitudeHoldRotation = Quaternion.Normalize(toZone * target);
                 ship.State.AttitudeHoldActive = true;
             }
+        }
+        if (version >= 7)
+        {
+            float spool = r.ReadSingle();
+            ship.State.Spool = float.IsFinite(spool) ? Math.Clamp(spool, 0, 1) : 0;
         }
         // The moving parts first (a turret's angle), then the doors over theirs (their parts follow their progress).
         for (int i = 0; i < parts.Count && i < ship.Parts.Length; i++)

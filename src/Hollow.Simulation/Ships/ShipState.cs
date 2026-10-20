@@ -135,6 +135,13 @@ public struct ShipState : IEquatable<ShipState>
 
     public ShipFlags Flags;
 
+    /// <summary>
+    /// How fast the drive's engine turns, 0 (still) … 1 (working speed): a rotor's spin (the KA-FA 1500's, docs/MINICOPTER.md
+    /// §5.1), which its lift depends on. It rises and falls by the drive's own times (<see cref="IShipDrive.Advance"/>);
+    /// drives that start at once leave it at 0.
+    /// </summary>
+    public float Spool;
+
     // Outputs of the last step, for the views and the HUD (never read by the step).
 
     /// <summary>Thrust the engines gave last step, as fractions of each axis's: x + left, y + up, z + forward (boost above 1).</summary>
@@ -161,14 +168,14 @@ public struct ShipState : IEquatable<ShipState>
     public readonly bool Equals(ShipState o) =>
         Position.Equals(o.Position) && Rotation.Equals(o.Rotation) && Velocity.Equals(o.Velocity) && AngularVelocity.Equals(o.AngularVelocity) &&
         Health.Equals(o.Health) && Fuel.Equals(o.Fuel) && FuelReserve.Equals(o.FuelReserve) && BoostTicks == o.BoostTicks && CooldownTicks == o.CooldownTicks &&
-        RestTicks == o.RestTicks && Flags == o.Flags && AttitudeHoldActive == o.AttitudeHoldActive &&
+        RestTicks == o.RestTicks && Flags == o.Flags && Spool.Equals(o.Spool) && AttitudeHoldActive == o.AttitudeHoldActive &&
         (!AttitudeHoldActive || AttitudeHoldRotation.Equals(o.AttitudeHoldRotation));
 
     public override readonly bool Equals(object? obj) => obj is ShipState s && Equals(s);
 
     public override readonly int GetHashCode() => HashCode.Combine(
         HashCode.Combine(Position, Rotation, Velocity, AngularVelocity, Health, Fuel, RestTicks, Flags),
-        FuelReserve, BoostTicks, CooldownTicks, AttitudeHoldActive, AttitudeHoldActive ? AttitudeHoldRotation : default);
+        FuelReserve, BoostTicks, CooldownTicks, Spool, AttitudeHoldActive, AttitudeHoldActive ? AttitudeHoldRotation : default);
 
     public override readonly string ToString() => string.Create(CultureInfo.InvariantCulture,
         $"at ({Position.X:0.00}, {Position.Y:0.00}, {Position.Z:0.00}) moving ({Velocity.X:0.00}, {Velocity.Y:0.00}, {Velocity.Z:0.00}) " +
@@ -181,6 +188,9 @@ public struct ShipEvents
     /// <summary>Hull damage from impacts this step, and the hardest impact's speed into what it hit.</summary>
     public float CrashDamage;
     public float ImpactSpeed;
+
+    /// <summary>A fragile hull box (a turning rotor's disc) met something this step: its blades stopped.</summary>
+    public bool Strike;
 
     /// <summary>The skids touched down this step (were off the ground before), at this speed.</summary>
     public bool Touchdown;

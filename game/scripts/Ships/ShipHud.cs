@@ -33,6 +33,9 @@ public sealed class ShipHudData
     public Vector2 Stick;
     public bool AssistOff;
 
+    /// <summary>The ship flies (altitude, climb, flight assist, orbit); false: a boat's HUD, speed and heading alone.</summary>
+    public bool Flies = true;
+
     /// <summary>Seconds to hit the ground at this sink rate (infinite when climbing).</summary>
     public float TimeToGround = float.PositiveInfinity;
 
@@ -234,14 +237,17 @@ public partial class ShipHud : Control
     {
         _o = CanvasFrame;
         const float w = 172, h = 66, gap = 6, y = 900 - 24 - h;
-        float x0 = 800 - (3 * w + 2 * gap) / 2;
         string climb = (d.VerticalSpeed >= 0 ? "+" : "−") + N(MathF.Abs(d.VerticalSpeed), MathF.Abs(d.VerticalSpeed) < 10 ? "0.0" : "0");
-        (string Label, string Value, string Unit)[] slots =
-        {
-            ("SPEED", N(d.Speed), "m/s"),
-            ("ALTITUDE", d.OverGround >= 10_000 ? N(d.OverGround / 1000, "0.0") : N(MathF.Max(d.OverGround, 0)), d.OverGround >= 10_000 ? "km" : "m"),
-            ("VERTICAL", climb, "m/s"),
-        };
+        // A boat's speed alone, in knots too (1 m/s is 1.944 knots): nothing climbs.
+        (string Label, string Value, string Unit)[] slots = d.Flies
+            ? new[]
+            {
+                ("SPEED", N(d.Speed), "m/s"),
+                ("ALTITUDE", d.OverGround >= 10_000 ? N(d.OverGround / 1000, "0.0") : N(MathF.Max(d.OverGround, 0)), d.OverGround >= 10_000 ? "km" : "m"),
+                ("VERTICAL", climb, "m/s"),
+            }
+            : new[] { ("SPEED", N(d.Speed, "0.0"), "m/s"), ("SPEED", N(d.Speed * 1.944f, "0.0"), "kn") };
+        float x0 = 800 - (slots.Length * w + (slots.Length - 1) * gap) / 2;
         for (int i = 0; i < slots.Length; i++)
         {
             float x = x0 + i * (w + gap);
@@ -319,7 +325,14 @@ public partial class ShipHud : Control
             Text(label, 1350, y + 5, 18, G.Ink, bold: true);
             TextIn(value, 1340, y + 5, 230, 18, G.Ink, HorizontalAlignment.Right, bold: true);
         }
-        Status("FLIGHT ASSIST", d.AssistOff ? "OFF" : "ON", d.AssistOff ? G.Red : G.HudSlot);
+        if (d.Flies)
+        {
+            Status("FLIGHT ASSIST", d.AssistOff ? "OFF" : "ON", d.AssistOff ? G.Red : G.HudSlot);
+        }
+        else if (!s.Has(ShipFlags.Wet))
+        {
+            Status("AGROUND", "", G.Short);
+        }
         if (s.Has(ShipFlags.Boosting))
         {
             Status("BOOST", N(s.BoostTicks / 30f, "0.0") + " s", G.Selected);
@@ -332,11 +345,11 @@ public partial class ShipHud : Control
         {
             Status("IN ORBIT", "", G.Category);
         }
-        else if (s.Has(ShipFlags.Landed))
+        else if (d.Flies && s.Has(ShipFlags.Landed))
         {
             Status("LANDED", "", G.Green);
         }
-        else if (s.Has(ShipFlags.Touching))
+        else if (d.Flies && s.Has(ShipFlags.Touching))
         {
             Status("ON THE GROUND", "TOO STEEP", G.Short);
         }
@@ -358,7 +371,7 @@ public partial class ShipHud : Control
             TextIn(text, 0, y, 1600, size, colour, HorizontalAlignment.Center, bold: true, condensed: true, shadow: true);
             y += size + 8;
         }
-        if (!s.Has(ShipFlags.InOrbit) && d.TimeToGround < 4 && d.Speed > 15 && d.VerticalSpeed < -8)
+        if (d.Flies && !s.Has(ShipFlags.InOrbit) && d.TimeToGround < 4 && d.Speed > 15 && d.VerticalSpeed < -8)
         {
             Line("PULL UP", G.Red, 40);
         }
@@ -370,7 +383,11 @@ public partial class ShipHud : Control
         {
             Line("LOW FUEL", G.Warning);
         }
-        if (s.Has(ShipFlags.AtEdge))
+        if (!d.Flies)
+        {
+            // A boat goes nowhere near the orbit's lines.
+        }
+        else if (s.Has(ShipFlags.AtEdge))
         {
             Line("LOCAL FLIGHT LIMIT  ·  TURN OR DESCEND", G.Warning, 24);
         }

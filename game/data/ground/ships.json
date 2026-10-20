@@ -193,6 +193,123 @@
       "placement": { "surfaces": ["terrain"], "maxSlope": 12, "reach": 30, "sight": 0.5 },
       "ceiling": 2,
       "wreck": [["metal-fragments", 3000], ["refined-metal", 200]]
+    },
+    {
+      "key": "motorboat",
+      "item": "motorboat",
+      "drive": { "kind": "propeller", "at": [0, -0.12, -2.3], "rudder": 4, "wash": 2.5 },
+      "controls": "boat",
+      "mass": 380,
+      "inertia": [630, 690, 100],
+      "centreOfMass": [0, 0.32, -0.35],
+      "health": 400,
+      "damage": { "melee": 0.3, "arrow": 0.2, "bullet": 0.6, "explosive": 1.0 },
+      "thrust": { "main": 2200, "retro": 900 },
+      "speed": { "forward": 8, "reverse": 2.5 },
+      "rates": { "yaw": [40, 90] },
+      "drag": { "forward": 0.6, "side": 1.5, "top": 2.0, "turn": 0.2 },
+      "landing": { "maxSlope": 25 },
+      "skids": {
+        "points": [[0.42, -0.03, -1.7], [-0.42, -0.03, -1.7], [0, -0.03, 1.05]],
+        "stiffness": 60000, "damping": 5000, "travel": 0.08, "friction": 0.6
+      },
+      "crash": { "safe": 4, "scale": 3, "pilot": 0.1 },
+      "fuel": { "item": "lamp-oil", "capacity": 100, "idle": 0.01, "full": 0.12, "placed": 20 },
+      "buoyancy": {
+        "points": [[0.5, 0.02, -1.6], [-0.5, 0.02, -1.6], [0.55, 0.02, 0], [-0.55, 0.02, 0], [0.35, 0.1, 1.3], [-0.35, 0.1, 1.3]],
+        "depth": 0.7, "volume": 2.0,
+        "damping": [1.0, 4.0, 0.12], "drag": [1.4, 2.5, 0.05], "turn": [5, 1.2, 4]
+      },
+      "cargo": 8,
+      "hull": [
+        { "centre": [0, 0.38, -0.5], "size": [0.78, 0.36, 1.55] },
+        { "centre": [0, 0.5, 1.6], "size": [0.5, 0.36, 0.6] },
+        { "centre": [0, 0.75, -2.28], "size": [0.17, 0.4, 0.22] }
+      ],
+      "seats": [
+        {
+          "key": "helm", "name": "Helm", "role": "helm", "verb": "take-helm", "sitters": "unlocked", "exposed": true,
+          "at": [0, 0.44, -1.45], "eye": [0, 1.24, -1.38],
+          "exits": [[-1.3, 0.25, -1.4], [1.3, 0.25, -1.4], [0, 0.25, -3.1], [0, 0.25, 3.0]]
+        },
+        {
+          "key": "bench", "name": "Bench", "role": "passenger", "verb": "sit", "sitters": "anyone", "exposed": true,
+          "at": [0, 0.44, 0.2], "eye": [0, 1.24, 0.27],
+          "exits": [[-1.3, 0.25, 0.2], [1.3, 0.25, 0.2], [0, 0.25, 3.0], [0, 0.25, -3.1]]
+        }
+      ],
+      "doors": [],
+      "parts": [
+        { "key": "hull" },
+        { "key": "helm", "name": "Helm", "at": [0, 0.75, -1.03], "radius": 0.4, "capabilities": ["seat", "cupboard"], "seat": "helm" },
+        { "key": "bench", "name": "Bench", "at": [0, 0.45, 0.2], "radius": 0.45, "capabilities": ["seat"], "seat": "bench" },
+        { "key": "fuel", "name": "Fuel can", "at": [0.48, 0.3, -1.75], "radius": 0.3, "capabilities": ["fuel"] },
+        { "key": "cargo", "name": "Crate", "at": [0, 0.42, 1.45], "radius": 0.4, "capabilities": ["container"] }
+      ],
+      "lights": {
+        "lamps": [
+          { "key": "bow-lamp", "at": [0, 0.98, 2.05], "direction": [0, -0.12, 1], "spot": true, "angle": 30, "colour": [1.0, 0.92, 0.78], "energy": 3, "range": 45 }
+        ],
+        "nav": false
+      },
+      "placement": { "surfaces": ["water"], "water": true, "reach": 8, "sight": 0.5 },
+      "ceiling": 2,
+      "wreck": [["metal-fragments", 120], ["wood", 80], ["gears", 1]]
+    },
+    {
+      "key": "ka-fa-1500",
+      "item": "ka-fa-1500",
+      "drive": { "kind": "rotor", "lift": 9600, "spoolUp": 5, "spoolDown": 7, "airExponent": 0.75, "pitch": 30, "roll": 28, "level": 3.0, "climb": 7, "sink": 6, "response": 0.4, "weathervane": 2.5, "tipped": 60, "floods": 0.6 },
+      "controls": "rotor",
+      "needsPilot": true,
+      "mass": 480,
+      "inertia": [650, 820, 330],
+      "centreOfMass": [0, 0.95, -0.3],
+      "health": 750,
+      "damage": { "melee": 0.25, "arrow": 0.1, "bullet": 0.5, "explosive": 1.0 },
+      "thrust": { "main": 0, "retro": 0, "lateral": 0, "lift": 9600, "down": 0 },
+      "speed": { "forward": 30, "reverse": 10, "lateral": 10, "up": 7, "down": 6 },
+      "boost": { "thrust": 1, "speed": 30, "seconds": 0.1, "cooldown": 0 },
+      "rates": { "pitch": [100, 300], "yaw": [100, 240], "roll": [120, 360] },
+      "drag": { "forward": 4.5, "side": 6.0, "top": 9.0, "turn": 1.2 },
+      "landing": { "maxSlope": 20, "assist": [1.5, 0.25] },
+      "skids": { "points": [[0.8, 0, 0.85], [0.8, 0, -0.75], [-0.8, 0, 0.85], [-0.8, 0, -0.75]], "stiffness": 40000, "damping": 3500, "travel": 0.08, "friction": 0.6 },
+      "crash": { "safe": 5, "scale": 1, "fatal": 30, "least": 0.15, "tipped": 5, "strike": 0.35, "pilot": 0.1 },
+      "fuel": { "item": "lamp-oil", "capacity": 250, "idle": 0.25, "full": 0.5, "placed": 50 },
+      "water": { "below": 0.5, "above": 0.9, "volume": 0.6 },
+      "cargo": 0,
+      "hull": [
+        { "centre": [0, 1.05, 0.635], "size": [0.42, 0.65, 0.785] },
+        { "centre": [0, 0.91, -0.875], "size": [0.42, 0.49, 0.725] },
+        { "centre": [0, 1.84, -0.15], "size": [0.16, 0.44, 0.2] },
+        { "centre": [0, 1.1, -2.925], "size": [0.18, 0.55, 1.325] },
+        { "centre": [0, 2.32, -0.15], "size": [3.5, 0.06, 1.45], "fragile": true },
+        { "centre": [0, 2.32, -0.15], "size": [1.45, 0.06, 3.5], "fragile": true },
+        { "centre": [-0.22, 1.1, -4.08], "size": [0.06, 0.45, 0.45], "fragile": true },
+        { "centre": [0.8, 0.04, 0.1], "size": [0.045, 0.045, 1.15], "skid": true },
+        { "centre": [-0.8, 0.04, 0.1], "size": [0.045, 0.045, 1.15], "skid": true }
+      ],
+      "seats": [
+        { "key": "pilot", "name": "Pilot's seat", "role": "helm", "verb": "fly", "sitters": "unlocked", "exposed": true, "at": [0, 0.57, 0.25], "eye": [0, 1.37, 0.3], "exits": [[1.25, 0, 0.3], [-1.25, 0, 0.3], [0, 0, 2.2]] },
+        { "key": "rear", "name": "Rear seat", "role": "passenger", "verb": "sit", "sitters": "unlocked", "exposed": true, "at": { "at": [-0.12, 0.84, -1.28], "forward": [-1, 0, 0] }, "eye": [-0.22, 1.62, -1.28], "exits": [[-1.3, 0, -1.2], [1.3, 0, -1.2], [0, 0, -2.4]] }
+      ],
+      "doors": [],
+      "parts": [
+        { "key": "hull" },
+        { "key": "pilot", "name": "Pilot's seat", "at": [0, 0.8, 0.25], "radius": 0.6, "capabilities": ["seat", "cupboard"], "seat": "pilot" },
+        { "key": "rear", "name": "Rear seat", "at": [-0.12, 1.0, -1.28], "radius": 0.5, "capabilities": ["seat"], "seat": "rear" },
+        { "key": "fuel", "name": "Fuel cap", "at": [0.4, 0.6, 0.37], "radius": 0.3, "capabilities": ["fuel"] }
+      ],
+      "nozzles": {},
+      "lights": {
+        "lamps": [
+          { "key": "landing", "at": [0, 0.5, 1.42], "direction": [0, -0.4, 1], "spot": true, "angle": 28, "colour": [1.0, 0.92, 0.78], "energy": 3, "range": 60 },
+          { "key": "tail", "at": [0, 1.24, -4.17], "colour": [1.0, 0.08, 0.04], "energy": 0.8, "range": 3 }
+        ]
+      },
+      "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 12, "sight": 0.5 },
+      "ceiling": 2,
+      "wreck": [["metal-fragments", 200], ["refined-metal", 10]]
     }
   ]
 }

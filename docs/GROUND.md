@@ -3237,7 +3237,9 @@ air as it did). The skiff has no wings: it is thrust-borne.
   views show as thrust, and judges its own numbers in the content check. The rest of the step (gravity, drag, the sea,
   skids, sweeps, crashes, sleep) is shared. `thrusters`, the Tin Finch's and the Iron Wake's, is the flight assist
   below. A client reads the helm's keys by the ship's control scheme (ships.json `controls`, `ShipControlSchemes`;
-  `flight` by default, the keys below).
+  `flight` by default, the keys below). The motorboat (docs/MOTORBOAT.md) has a `propeller` drive, the `boat` controls
+  and a hull that floats on its shape (ships.json `buoyancy`, `ShipBuoyancy`: columns that lift where they are, on the
+  sea, a lake or a stream); other ships float by the band round their centre of mass on the sea.
 - **Flight assist** (on by default) holds a velocity in the ship's frame: the throttle's forward speed (reverse below 0),
   strafe and up/down at their speeds, and the turn rates the stick asks for, as fast as each axis's thrusters allow,
   counting gravity and drag in. With no input it hovers where it is. Near the ground (30 m) with the throttle closed it

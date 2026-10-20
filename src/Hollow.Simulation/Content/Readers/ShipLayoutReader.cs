@@ -43,6 +43,29 @@ internal static class ShipLayoutReader
             f.Problem(where, interior == null ? $"names a socket (\"{name}\") but the ship has no interior data file" : $"no socket \"{name}\" in {interior.File}");
             return new ShipSocket(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY, -1);
         }
+        if (v.ValueKind == JsonValueKind.Object && v.TryGetProperty("at", out JsonElement numbers) && numbers.ValueKind == JsonValueKind.Array)
+        {
+            // Three numbers that face a way (the KA-FA's rear seat looks out to its right): + Z forward, + Y up unless named.
+            ShipSocket point = Point(f, numbers, where, interior);
+            Vector3 Axis(string name, Vector3 fallback)
+            {
+                if (!v.TryGetProperty(name, out JsonElement a))
+                {
+                    return fallback;
+                }
+                if (a.ValueKind == JsonValueKind.Array && a.GetArrayLength() == 3 && a.EnumerateArray().All(x => x.ValueKind == JsonValueKind.Number))
+                {
+                    var axis = new Vector3((float)a[0].GetDouble(), (float)a[1].GetDouble(), (float)a[2].GetDouble());
+                    if (axis.LengthSquared() > 1e-6f)
+                    {
+                        return Vector3.Normalize(axis);
+                    }
+                }
+                f.Problem(where, $"\"{name}\" is three numbers, not all 0");
+                return fallback;
+            }
+            return point with { Forward = Axis("forward", Vector3.UnitZ), Up = Axis("up", Vector3.UnitY) };
+        }
         if (v.ValueKind == JsonValueKind.Object && v.TryGetProperty("at", out JsonElement at) && at.ValueKind == JsonValueKind.String)
         {
             // A socket moved by an offset in its part's frame, e.g. a gunner's eye raised to see over the gun: it still rides
@@ -60,7 +83,7 @@ internal static class ShipLayoutReader
         {
             return new ShipSocket(new Vector3((float)v[0].GetDouble(), (float)v[1].GetDouble(), (float)v[2].GetDouble()), Vector3.UnitZ, Vector3.UnitY, -1);
         }
-        f.Problem(where, "a point is three numbers, a socket's name, or { \"at\": a socket, \"offset\": three numbers }");
+        f.Problem(where, "a point is three numbers, a socket's name, { \"at\": a socket, \"offset\": three numbers }, or { \"at\": three numbers, \"forward\": three numbers }");
         return new ShipSocket(Vector3.Zero, Vector3.UnitZ, Vector3.UnitY, -1);
     }
 
@@ -360,7 +383,7 @@ internal static class ShipLayoutReader
             return lights;
         }
         where += ".lights";
-        f.OnlyKnown(o, where, "lamps", "fixtures", "emergency");
+        f.OnlyKnown(o, where, "lamps", "fixtures", "emergency", "nav");
         foreach (JsonElement l in f.List(o, "lamps", where, required: false))
         {
             string key = f.Text(l, "key", where + ".lamps");

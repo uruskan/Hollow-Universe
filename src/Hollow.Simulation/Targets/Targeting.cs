@@ -189,6 +189,10 @@ public static class ShipShapes
         float nearest = float.MaxValue;
         foreach (Ships.HullBox box in def.Hull)
         {
+            if (box.Fragile)
+            {
+                continue;
+            }
             Vector3 p = Vector3.Clamp(local, box.Centre - box.HalfExtents, box.Centre + box.HalfExtents);
             float d = Vector3.DistanceSquared(p, local);
             if (d < nearest)

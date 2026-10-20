@@ -18,6 +18,12 @@ public interface IShipControlScheme
     /// <summary>In the cockpit the mouse steers (a persistent cursor) rather than looking round the seat.</summary>
     bool MouseSteers { get; }
 
+    /// <summary>It flies: the HUD shows altitude, climb, flight assist and the orbit's lines (a boat's shows none).</summary>
+    bool Flies { get; }
+
+    /// <summary>The helm's keys for the HUD's corner, in the cockpit or the orbit camera.</summary>
+    string Hints(bool cockpit);
+
     /// <summary>The tick's input; <paramref name="mouseSteering"/> false: a camera-only view, the cursor let go.</summary>
     ShipInput Read(ShipControls controls, double delta, bool mouseSteering);
 }
@@ -28,6 +34,7 @@ public static class ShipControlSchemes
     private static readonly Dictionary<string, IShipControlScheme> Schemes = new(StringComparer.Ordinal)
     {
         [FlightControls.SchemeKey] = new FlightControls(),
+        [BoatControls.SchemeKey] = new BoatControls(),
     };
 
     /// <summary>The scheme a ship's data names, or flight (with a warning for a key nobody knows).</summary>
@@ -60,6 +67,10 @@ public sealed class FlightControls : IShipControlScheme
 
     public bool MouseSteers => true;
 
+    public bool Flies => true;
+
+    public string Hints(bool cockpit) => Ground.SeatKeys.FlightHints(cockpit);
+
     public ShipInput Read(ShipControls controls, double delta, bool mouseSteering)
     {
         if (!mouseSteering) controls.CentreSteering();
@@ -88,5 +99,37 @@ public sealed class FlightControls : IShipControlScheme
             input.Buttons |= ShipButtons.AssistOff;
         }
         return input;
+    }
+}
+
+/// <summary>
+/// A boat's helm (docs/MOTORBOAT.md §5; ships.json <c>"controls": "boat"</c>): W ahead and S astern while held (letting go
+/// idles the motor and the boat coasts), A and D turn the wheel, and the mouse looks round the boat rather than steering.
+/// Nothing climbs, rolls or boosts; flight assist stays on.
+/// </summary>
+public sealed class BoatControls : IShipControlScheme
+{
+    public const string SchemeKey = "boat";
+
+    public string Key => SchemeKey;
+
+    public bool MouseSteers => false;
+
+    public bool Flies => false;
+
+    public string Hints(bool cockpit) =>
+        "W ahead · S astern · A/D steer · " + (cockpit ? "Mouse look · V orbit" : "RMB drag orbit · Wheel zoom · V seat view") + " · SPACE leave";
+
+    public ShipInput Read(ShipControls controls, double delta, bool mouseSteering)
+    {
+        controls.CentreSteering();
+        static float Held(Godot.Key key) => Input.IsPhysicalKeyPressed(key) ? 1 : 0;
+        controls.Throttle = Held(Godot.Key.W) - Held(Godot.Key.S);
+        controls.AssistOff = false;
+        return new ShipInput
+        {
+            Throttle = controls.Throttle,
+            Yaw = Math.Clamp(Held(Godot.Key.D) - Held(Godot.Key.A) + Held(Godot.Key.Right) - Held(Godot.Key.Left), -1, 1),
+        };
     }
 }

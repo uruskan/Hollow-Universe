@@ -237,6 +237,9 @@
     { "id": 142, "key": "iron-wake", "name": "Iron Wake", "category": "vehicles",
       "description": "A 58 m carrier: an open construction deck behind a stern ramp, a glazed bridge, two siege batteries and four defense mounts. Burns lamp oil. Crewed, not built: there is no recipe yet.",
       "ship": "iron-wake" },
+    { "id": 250, "key": "ka-fa-1500", "name": "KA-FA 1500", "category": "vehicles",
+      "description": "A two-seat rotorcraft welded from scrap: a flat twin belted to a teetering rotor, a truss tail and a road sign for a fin. Hovers by itself and goes where it is tilted. Burns lamp oil. Built at a vehicle workbench.",
+      "ship": "ka-fa-1500" },
 
     { "id": 150, "key": "salvage", "name": "Salvage", "category": "resources", "stack": 1000,
       "description": "Scrap metal, wire and broken parts picked out of barrels, crates and old machines. Everyone takes it: the recycler pays in it, and workbenches, research and the tech tree cost it." },
@@ -352,6 +355,7 @@
     {"id": 233, "key": "metal-barricade", "name": "Metal barricade", "category": "construction", "description": "A reinforced metal barrier.", "deploys": "metal-barricade"},
     {"id": 234, "key": "auto-turret", "name": "Auto turret", "category": "construction", "description": "Uses 10 electricity and passes the remainder onward. Install a firearm and matching ammunition. Hold E to manage power and cupboard-derived or local authorization.", "deploys": "auto-turret"},
     {"id": 235, "key": "wooden-ladder", "name": "Wooden ladder", "category": "construction", "description": "Place against a wall. Move forward to climb, back to descend, jump to leave.", "deploys": "wooden-ladder"},
+    {"id": 239, "key": "motorboat", "name": "Motorboat", "category": "vehicles", "description": "A small open boat welded from salvaged sheet, a steering wheel cabled to an outboard motor at the stern. Seats a driver and one more, with a crate in the bow. Burns lamp oil. Put it on the water.", "ship": "motorboat"},
     {"id":238,"key":"wire-tool","name":"Wire Tool","category":"construction","description":"Click an output port, add optional surface routing points, then click an input. Maximum 20 m between ports. Right-click cancels; R disconnects the aimed port.","wiring":{"reach":4,"maxAnchors":32,"draftSeconds":120}}
   ]
 }
