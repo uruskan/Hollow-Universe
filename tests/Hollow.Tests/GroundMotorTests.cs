@@ -248,6 +248,7 @@ public static class GroundMotorTests
         Assert.True(turned > 0.3f && leanMost > 0.1f && t.Upright > 0.5f, "it turns right leaning into the turn, and doesn't fall");
         t.Go(new ShipInput { Throttle = -1 }, 90);
         t.Go(default, 90);
+        Fixtures.Report($"braked and let go: {t.Speed:0.00} m/s, upright {t.Upright:0.000}, {bike.Events.Contacts} wheels down");
         Assert.True(t.Speed < 0.5f && t.Upright > 0.98f, "stopped, upright");
     }
 

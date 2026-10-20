@@ -460,7 +460,7 @@
       "needsPilot": true,
       "mass": 160,
       "inertia": [80, 70, 21],
-      "centreOfMass": [0, 0.62, 0.76],
+      "centreOfMass": [0, 0.72, 0.76],
       "health": 400,
       "repair": ["metal-fragments", 80],
       "damage": { "melee": 0.4, "arrow": 0.3, "bullet": 0.7, "explosive": 1.0 },
@@ -469,33 +469,33 @@
       "fuel": { "item": "lamp-oil", "capacity": 60, "idle": 0.005, "full": 0.04, "placed": 10 },
       "ground": {
         "power": 35000, "topSpeed": 25, "reverseSpeed": 2, "brake": 2500, "traction": 2400, "steer": 30, "steerFast": 4,
-        "rolling": 0.015, "handbrakeGrip": 0.5, "gripHeight": 0.2, "coast": 0.12, "balance": true,
+        "rolling": 0.015, "handbrakeGrip": 0.5, "gripHeight": 0.2, "sideGripHeight": 0.7, "coast": 0.12, "balance": true,
         "wheels": [
-          { "key": "front", "hub": [0, 0.4, 1.52], "radius": 0.4, "width": 0.12, "travel": 0.28, "stiffness": 5000, "damping": 500, "steers": true },
-          { "key": "rear", "hub": [0, 0.38, 0], "radius": 0.38, "width": 0.16, "travel": 0.28, "stiffness": 5000, "damping": 500, "drives": true, "handbrake": true }
+          { "key": "front", "hub": [0, 0.45, 1.544], "radius": 0.45, "width": 0.15, "travel": 0.28, "stiffness": 5000, "damping": 500, "grip": 1.2, "steers": true },
+          { "key": "rear", "hub": [0, 0.43, 0], "radius": 0.43, "width": 0.2, "travel": 0.28, "stiffness": 5000, "damping": 500, "grip": 1.3, "drives": true, "handbrake": true }
         ]
       },
       "hull": [
-        { "centre": [0, 0.68, 0.76], "size": [0.18, 0.26, 0.75] },
-        { "centre": [0, 0.42, 1.52], "size": [0.07, 0.25, 0.3] },
-        { "centre": [0, 0.4, 0], "size": [0.09, 0.24, 0.3] }
+        { "centre": [0, 0.78, 0.76], "size": [0.18, 0.26, 0.75] },
+        { "centre": [0, 0.7, 1.544], "size": [0.09, 0.24, 0.42] },
+        { "centre": [0, 0.68, 0], "size": [0.12, 0.24, 0.42] }
       ],
       "seats": [
         {
           "key": "rider", "name": "Saddle", "role": "helm", "verb": "drive", "sitters": "unlocked", "exposed": true,
-          "at": [0, 0.95, 0.45], "eye": [0, 1.62, 0.55], "exits": [[0.95, 0, 0.5], [-0.95, 0, 0.5], [0, 0, -1.2]]
+          "at": [0, 1.05, 0.45], "eye": [0, 1.72, 0.55], "exits": [[0.95, 0, 0.5], [-0.95, 0, 0.5], [0, 0, -1.2]]
         }
       ],
       "doors": [],
       "parts": [
         { "key": "hull" },
-        { "key": "rider", "name": "Saddle", "at": [0, 0.95, 0.5], "radius": 0.5, "capabilities": ["seat", "cupboard"], "seat": "rider" },
-        { "key": "fuel", "name": "Fuel cap", "at": [0, 1.02, 0.98], "radius": 0.22, "capabilities": ["fuel"] }
+        { "key": "rider", "name": "Saddle", "at": [0, 1.05, 0.5], "radius": 0.5, "capabilities": ["seat", "cupboard"], "seat": "rider" },
+        { "key": "fuel", "name": "Fuel cap", "at": [0, 1.12, 0.98], "radius": 0.22, "capabilities": ["fuel"] }
       ],
       "lights": {
         "lamps": [
-          { "key": "head", "at": [0, 1.07, 1.4], "direction": [0, -0.15, 1], "spot": true, "angle": 30, "colour": [1.0, 0.9, 0.72], "energy": 2.5, "range": 40 },
-          { "key": "tail", "at": [0, 0.975, -0.66], "colour": [1.0, 0.08, 0.04], "energy": 0.5, "range": 2 }
+          { "key": "head", "at": [0, 1.17, 1.4], "direction": [0, -0.15, 1], "spot": true, "angle": 30, "colour": [1.0, 0.9, 0.72], "energy": 2.5, "range": 40 },
+          { "key": "tail", "at": [0, 1.075, -0.66], "colour": [1.0, 0.08, 0.04], "energy": 0.5, "range": 2 }
         ],
         "nav": false
       },

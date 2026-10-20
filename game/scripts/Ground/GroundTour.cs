@@ -85,6 +85,7 @@ public partial class GroundTour : Node
             ("boat", BoatTour),
             ("bay", BayTour),
             ("monster", MonsterTour),
+            ("bike", BikeTour),
         };
         // The movement-audio diagnostic needs no inventory grants or equipment changes.
         if (Only?.SetEquals(new[] { "audio-movement" }) != true) _steps.Enqueue(Prepare);

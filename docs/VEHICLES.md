@@ -290,7 +290,8 @@ The ground motor (§9.2):
 ### 6.3 The motorbike's lean
 
 The bike's roll is not a free axis. The motor sets the lean that balances the turn it is in (lean = atan(v² × curvature / g)),
-rate-limited, and turns the body about its contact line; the tyres' forces act as if it were upright. Only a crash (§4) frees
+rate-limited, and turns the body about its contact line; the tyres' forces act as if it were upright (as built: a roll spring
+and damper toward that lean, the side grip at the centre of mass's height, §9.2). Only a crash (§4) frees
 it, as a body on three points (two wheels and the bars). Most games' bikes work this way: it rides well, it falls only in a
 crash, and it replays exactly.
 
@@ -535,14 +536,23 @@ On branch `claude/vehicles` (abtest-b with the motorboat's and the minicopter's 
   (`Problems`); the skid and drive checks moved into `FlightMotor`. `ShipMotor`'s contact helpers became internal
   statics and the curve carry `CarryOverCurve`, with no change in behaviour.
 - **The ground motor** (`Ships/GroundMotor.cs`, §6.2):
-  - each wheel a ray from its bump stop down its travel and tyre, with a spring, a damper and a stiff bump stop;
+  - each wheel a **cylinder cast** of its tyre (radius and width, the tread's shoulders rounded 4 cm; `ShipCollider.CastTyre`)
+    from its bump stop down its travel, with a spring, a damper and a stiff bump stop, along the normal where it touches.
+    A round tyre meets a kerb's edge in its way and rolls up it, the drive along the edge's slope; the ray it replaced (20
+    October 2026) saw nothing ahead of the hub, so the hull met every bump first. What faces less than 0.05 up the body
+    (a trunk's side, a wall) is the hull's to meet, not a tyre's;
   - along each loaded tyre:
     - drive (the engines' power over the speed, capped by traction, fading over the last 3 m/s to the top speed);
     - brakes against the motion; engine braking off the throttle (`coast`, a share of the brakes); rolling resistance;
     - held still below 1.5 m/s with no throttle, and by the handbrake on the wheels it holds;
   - across each tyre the sliding is taken out in four passes, the whole within grip × load;
   - the grip acts `gripHeight` up the body, as Unity's wheels' force point does, so the TOGG slides before it rolls in a
-    hard turn and a tall build rolls first;
+    hard turn and a tall build rolls first; the grip across the tyres may act higher (`sideGripHeight`, by default the
+    same): the Zamazingo's at its centre of mass, so its balance, not its tyres, sets its lean, while its drive still puts
+    its weight on the rear tyre;
+  - a two-wheeler (`balance`) has a rider's hands on it: the drive eases off as the front tyre's share of the weight falls
+    under a fifth (no wheelies, no loops over backwards), the brakes as the rear's does (no stoppies, no tumbling out of a
+    lean);
   - four substeps a tick, the hull swept and pushed out as a ship's, the ground turning under it, rest and sleep.
   - There is no wheel spin in the state: the server's and a client's replays are the same bits.
 - **Steering** is in the input: the `car` control scheme turns the wheel toward full lock at 2.5 a second and back at 4,
@@ -587,6 +597,14 @@ On branch `claude/vehicles` (abtest-b with the motorboat's and the minicopter's 
   saddle (exposed: its rider can be shot), no modules yet (§4's mount points come later). It keeps its balance: a roll
   spring toward the lean that balances its turn (atan of speed × turning over gravity, at most 43°), upright when still
   (`GroundDef.Balance`, §6.3). It has no crash that throws the rider yet.
+- **The Zamazingo made rideable** (the owner, 20 October 2026: "not rideable at all … too little power, it gets stuck"):
+  its hull's wheel boxes reached to 0.18 m over the ground (`size` is half the box), so a kerb, a rock or a bump stopped it
+  dead, and its single rays saw nothing ahead. Its tyres are round now (§9.2), its wheel boxes only their upper halves,
+  its grip 1.2 front and 1.3 rear (knobbed tyres), the grip across at its centre of mass (`sideGripHeight` 0.7), no
+  wheelies or stoppies. `BikeRideTests` measure it on a test world: 0–50 km/h in 1.6 s (2.2 s before), 87 km/h flat out,
+  up a 40° hillside from a standstill (35° before, crawling), over a 25 cm kerb from a crawl (stuck at 15 cm before) and
+  a 40 cm one at 8 m/s (stuck at 30 cm before). On Earth in the hosted game (`--tour-steps bike`): 0–50 km/h in about a
+  second, 234 m in 20 s weaving across the land, stuck 0.1 s, no damage.
 - **Getting in:** E opens the cab's door, E again drives (as the Tin Finch's hatch); the Zamazingo's saddle at once.
 - **Drawn as blocks** in the hosted game too (`ShipsView`): the view is made again when a ship's composed layout changes
   (its build arrives after its first sight), and a wheeled ship's wheels ride the ground, roll, and steer by how it turns.

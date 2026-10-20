@@ -1,5 +1,31 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 (night) — Vehicles: the Zamazingo rideable, its bigger tyres
+
+The owner: the bike "is not rideable at all … too little power, it gets stuck". On a test world it had the power (0–50
+km/h in 2.2 s); what stopped it was its contacts.
+
+- **The causes:** a ship's hull `size` is half the box, so the bike's two wheel boxes reached down to 0.18 m over the
+  ground (0.05 m on compressed springs) with flat faces forward: a kerb, a rock or a bump over about 20 cm met a box,
+  not a tyre, and stopped it dead (a 15 cm step from a crawl, 30 cm at 8 m/s). Its tyres were one ray each, down from the
+  hub, blind to anything ahead. On a hillside, full throttle lifted the front, it looped over backwards or spun; the
+  tyres' side grip, 0.7 m under its centre of mass, rocked it ±35° on rough ground; hard braking out of a lean tumbled it.
+- **Round tyres for every vehicle** (`ShipCollider.CastTyre`, `GroundMotor`): each wheel a cylinder of its tyre swept down
+  its travel; at a kerb's edge it pushes up and back along the normal there and the drive follows the edge's slope, as
+  a real wheel climbs. The TOGG's tests pass unchanged.
+- **The bike's data:** its wheel boxes only the tyres' upper halves; grip 1.2 front, 1.3 rear; `sideGripHeight` 0.7 (a new
+  `ground` number: the grip across the tyres at its centre of mass, so its balance sets its lean); a two-wheeler's drive
+  eases off as its front tyre unloads and its brakes as its rear does (no wheelies, no stoppies).
+- **The bigger tyres** (the earlier report): 0.90 m front and 0.86 m rear (were 0.80 and 0.76), wider (0.15, 0.20 m),
+  taller knobs; the bike stands 0.10 m higher (seat 1.05 m, wheelbase 1.544 m), everything round the wheels refitted so
+  nothing touches at full bump, droop and lock. Imported, and its item icon rendered again.
+- **Measured** (`BikeRideTests`, before → after): 0–50 km/h 2.2 → 1.6 s; top speed 87 km/h both; steepest hillside from a
+  standstill 35° (crawling at 11 km/h) → 40° (33 km/h); a kerb from a crawl: stuck at 15 cm → over 25 cm (30 cm tips it);
+  at 8 m/s: stuck at 30 cm → over 40 cm. In the hosted game on Earth (`--tour-steps bike`, new): 0–50 km/h in about a
+  second, top 79 km/h, 234 m in 20 s weaving across the land, stuck 0.1 s, no damage.
+- **Checked:** the build; the vehicle, ship, sound, content and architecture tests; pictures in `.artifacts/bike-tour`.
+  Not checked: riding by hand, which is the owner's to judge.
+
 ## 20 October 2026 (night) — Vehicles: riders, ENGINE ON by hand, the Monster TOGG, exhaust and dust (VEHICLES.md §9.9)
 
 The owner on the TOGG: it doesn't rock when jumped on; ENGINE ON from the hold-E radial does nothing on any vehicle; no

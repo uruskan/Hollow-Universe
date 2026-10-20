@@ -25,10 +25,13 @@ public sealed record WheelDef(string Key, Vector3 Hub, float Radius, float Width
 /// tall truck turning hard slides before it rolls, a tall build on it rolls first), and the engine's braking off the
 /// throttle as a share of the brakes; and running people over (VEHICLES.md §6.4): above <see cref="RunOverSpeed"/> (m/s) the
 /// square of what is over it times <see cref="RunOverScale"/>; and a two-wheeler's balance (VEHICLES.md §6.3: it keeps the
-/// lean that balances the turn it is in). Its power is its engines' (<see cref="ShipDef.EnginePower"/>).
+/// lean that balances the turn it is in). Its power is its engines' (<see cref="ShipDef.EnginePower"/>). The tyres' grip across
+/// their way may act higher than along it (<see cref="SideGripHeight"/>): a two-wheeler's at its centre of mass, so its rider's
+/// balance, not its tyres, sets its lean, while its drive still shifts its weight onto the rear tyre.
 /// </summary>
 public sealed record GroundDef(float TopSpeed, float ReverseSpeed, float Brake, float Traction, float Steer, float SteerFast, float Rolling,
-    float HandbrakeGrip, float GripHeight = 0, float Coast = 0.1f, float RunOverSpeed = 4, float RunOverScale = 2, bool Balance = false);
+    float HandbrakeGrip, float GripHeight = 0, float Coast = 0.1f, float RunOverSpeed = 4, float RunOverScale = 2, bool Balance = false,
+    float SideGripHeight = 0);
 
 /// <summary>
 /// A vehicle on wheels (VEHICLES.md §6.2): the ship's six degrees of freedom under the planet's gravity, held up by a sprung
@@ -66,8 +69,17 @@ public sealed class GroundMotor : IShipMotor
 
     private const float Restitution = 0.1f;
 
+    /// <summary>
+    /// A tyre stands on what faces at least this far up the body's way (a kerb's edge as high as 0.95 of its radius); a
+    /// trunk's side or a wall's face is the hull's to meet.
+    /// </summary>
+    private const float TyreLeastUp = 0.05f;
+
     /// <summary>A two-wheeler's balance (VEHICLES.md §6.3): the most it leans, and its roll spring and damper (rad/s² per rad, per rad/s).</summary>
     public const float MostLean = 0.75f, BalanceStiffness = 400, BalanceDamping = 40;
+
+    /// <summary>A two-wheeler's drive eases off with less than this share of its weight on its front tyre, its brakes with less on its rear (no wheelies, no stoppies).</summary>
+    public const float WheelieShare = 0.2f;
 
     /// <summary>The most wheels a vehicle has (a car's four, a long one's six, a track's road wheels later).</summary>
     public const int MostWheels = 16;
@@ -96,7 +108,7 @@ public sealed class GroundMotor : IShipMotor
         }
         if (g.TopSpeed is <= 0 or > 80 || g.ReverseSpeed < 0 || g.Brake <= 0 || g.Traction <= 0 || g.Steer is <= 0 or > 1.2f ||
             g.SteerFast < 0 || g.SteerFast > g.Steer || g.Rolling is < 0 or > 0.2f || g.HandbrakeGrip is < 0 or > 1 || g.GripHeight is < 0 or > 2 ||
-            g.Coast is < 0 or > 1)
+            g.SideGripHeight is < 0 or > 2 || g.Coast is < 0 or > 1)
         {
             yield return "ground: a top speed of 0 … 80 m/s, reverse 0 or more, positive brakes and traction, steering of 0 … 70° " +
                 "that narrows with speed, rolling 0 … 0.2, the handbrake's grip 0 … 1, the grip's height 0 … 2 m, coasting 0 … 1";
@@ -222,12 +234,15 @@ public sealed class GroundMotor : IShipMotor
                 for (int i = 0; i < wheels.Count && loaded < loads.Length; i++)
                 {
                     WheelDef w = wheels[i];
+                    // The tyre swept from its bump stop down its travel: round, so it meets an edge in its way and rolls up it.
                     Vector3 top = s.Position + Vector3.Transform(w.Hub - def.CentreOfMass, q) + bodyUp * (w.Travel / 2);
-                    if (!collider.Ray(top, -bodyUp, w.Travel + w.Radius, ignoreBody, out ShipRayHit hit))
+                    Quaternion turned = w.Steers ? Quaternion.Concatenate(q, Quaternion.CreateFromAxisAngle(bodyUp, -steer)) : q;
+                    if (!collider.CastTyre(w.Radius, w.Width, top, turned, -bodyUp * w.Travel, TyreLeastUp, ignoreBody, out float fraction,
+                        out ShipContact hit))
                     {
                         continue;
                     }
-                    float compression = w.Travel + w.Radius - hit.Distance;
+                    float compression = w.Travel * (1 - fraction) + (fraction <= 0 ? hit.Depth : 0);
                     if (compression <= 0)
                     {
                         continue;
@@ -273,7 +288,8 @@ public sealed class GroundMotor : IShipMotor
             // The tyres along their way: the drive shared by the driven wheels, the brakes against the motion, rolling, or
             // held still (no throttle and slow, or the handbrake on a wheel it holds), each within its grip.
             float along = Vector3.Dot(s.Velocity, bodyForward);
-            float drive = DriveForce(def, throttle, along);
+            float drive = DriveForce(def, throttle, along) * (g.Balance ? Unloaded(wheels, loads[..loaded], m * ctx.Gravity, front: true) : 1);
+            float brakes = g.Balance ? Unloaded(wheels, loads[..loaded], m * ctx.Gravity, front: false) : 1;
             bool braking = throttle != 0 && throttle * along < -0.5f;
             bool hold = throttle == 0 && MathF.Abs(along) < HoldSpeed;
             for (int k = 0; k < loaded; k++)
@@ -293,7 +309,7 @@ public sealed class GroundMotor : IShipMotor
                 else if (braking || (throttle == 0 && engines))
                 {
                     // The brakes against the motion; off the throttle, the engine's braking (a share of them).
-                    float brake = braking ? g.Brake : g.Brake * g.Coast;
+                    float brake = (braking ? g.Brake : g.Brake * g.Coast) * brakes;
                     j = -MathF.Sign(u) * MathF.Min(brake / Math.Max(1, loaded) * h, MathF.Abs(stop));
                 }
                 else
@@ -304,7 +320,9 @@ public sealed class GroundMotor : IShipMotor
                 l.Given = l.Forward * j;
                 ShipMotor.Apply(ref s, def, l.Arm, l.Given);
             }
-            // Across their way: the sliding taken out, the whole tyre's impulse within its grip (the friction circle).
+            // Across their way: the sliding taken out, the whole tyre's impulse within its grip (the friction circle), where
+            // the grip across acts (GroundDef.SideGripHeight).
+            Vector3 raise = Vector3.Transform(Vector3.UnitY, s.Rotation) * (g.SideGripHeight - g.GripHeight);
             for (int pass = 0; pass < GripPasses && loaded > 0; pass++)
             {
                 for (int k = 0; k < loaded; k++)
@@ -313,14 +331,18 @@ public sealed class GroundMotor : IShipMotor
                     WheelDef w = wheels[l.Wheel];
                     float grip = w.Grip * (handbrake && w.Handbrake && engines ? g.HandbrakeGrip : 1);
                     float most = grip * l.Force * h;
-                    float sideways = Vector3.Dot(PointVelocity(s, l.Arm), l.Side);
-                    Vector3 total = l.Given - l.Side * (sideways / Effective(s, def, l.Arm, l.Side));
+                    Vector3 side = l.Arm + raise;
+                    float sideways = Vector3.Dot(PointVelocity(s, side), l.Side);
+                    Vector3 total = l.Given - l.Side * (sideways / Effective(s, def, side, l.Side));
                     float length = total.Length();
                     if (length > most && length > 0)
                     {
                         total *= most / length;
                     }
-                    ShipMotor.Apply(ref s, def, l.Arm, total - l.Given);
+                    // What changed along the tyre's way acts at its grip, what changed across it where the grip across acts.
+                    Vector3 change = total - l.Given, sideChange = l.Side * Vector3.Dot(change, l.Side);
+                    ShipMotor.Apply(ref s, def, l.Arm, change - sideChange);
+                    ShipMotor.Apply(ref s, def, side, sideChange);
                     l.Given = total;
                 }
             }
@@ -411,6 +433,22 @@ public sealed class GroundMotor : IShipMotor
         }
         _ = groundNormal;
         return events;
+    }
+
+    // A two-wheeler's rider keeps both its tyres down (VEHICLES.md §6.3): the drive eases off as the share of its weight on
+    // the steered (front) wheel falls below WheelieShare, the brakes as the share on the others does, to none with that wheel
+    // off the ground while the other is on it (no wheelie, no stoppie).
+    private static float Unloaded(IReadOnlyList<WheelDef> wheels, ReadOnlySpan<WheelLoad> loads, float weight, bool front)
+    {
+        float on = 0;
+        bool other = false;
+        foreach (WheelLoad l in loads)
+        {
+            bool steers = wheels[l.Wheel].Steers;
+            on += steers == front ? l.Force : 0;
+            other |= steers != front;
+        }
+        return other && weight > 0 ? Math.Clamp(on / (weight * WheelieShare), 0, 1) : 1;
     }
 
     // An idle burn while the engine runs, more with the throttle (ships.json fuel: idle and full a second).

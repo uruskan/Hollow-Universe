@@ -175,6 +175,89 @@ public sealed class ShipCollider : IDisposable
         return true;
     }
 
+    /// <summary>
+    /// Sweeps a tyre (VEHICLES.md §6.2: a cylinder of its radius and width, rounded at its edges, its axle along the
+    /// rotation's +X) from its hub along <paramref name="displacement"/>: of the static bodies it meets, the first whose
+    /// surface faces up the body's way at least <paramref name="leastUp"/> (a kerb's edge, a rock's shoulder; not a
+    /// trunk's side, which the hull meets), as the fraction of the way and the contact, with the depth when it starts
+    /// inside. A tyre rolls up an edge in its way, where a ray from its hub would pass it by and the hull would hit it.
+    /// </summary>
+    public bool CastTyre(float radius, float width, Vector3 hub, Quaternion rotation, Vector3 displacement, float leastUp, uint ignore,
+        out float fraction, out ShipContact contact)
+    {
+        fraction = 1;
+        contact = default;
+        Shape shape = TyreShape(radius, width);
+        // The cylinder's own axis is its +Y: turned onto the axle.
+        Quaternion pose = Quaternion.Concatenate(Quaternion.CreateFromAxisAngle(Vector3.UnitZ, MathF.PI / 2), rotation);
+        Matrix4x4 com = ComTransform(shape, hub, pose);
+        var settings = new ShapeCastSettings
+        {
+            BackFaceModeTriangles = BackFaceMode.IgnoreBackFaces,
+            BackFaceModeConvex = BackFaceMode.IgnoreBackFaces,
+            UseShrunkenShapeAndConvexRadius = true,
+            ReturnDeepestPoint = true,
+            CollisionTolerance = 1e-4f,
+            PenetrationTolerance = 1e-4f,
+        };
+        _filter.Ignore = ignore;
+        _casts.Clear();
+        _world.Jolt.NarrowPhaseQuery.CastShape(shape, com, displacement, settings, Vector3.Zero, CollisionCollectorType.AllHit, _casts, null, null, _filter, null);
+        Vector3 up = displacement.LengthSquared() > 1e-12f ? -Vector3.Normalize(displacement) : Vector3.UnitY;
+        bool found = false;
+        foreach (ShapeCastResult r in _casts)
+        {
+            Vector3 axis = r.PenetrationAxis;
+            float length = axis.Length();
+            if (length < 1e-9f)
+            {
+                continue;
+            }
+            Vector3 normal = -axis / length;
+            if (Vector3.Dot(normal, up) < leastUp)
+            {
+                continue;
+            }
+            // The first along the way; at the start, the deepest; ties by body and place, as the server and a prediction agree.
+            float f = Math.Clamp(r.Fraction, 0, 1);
+            bool better = !found || f < fraction - 1e-6f ||
+                (MathF.Abs(f - fraction) <= 1e-6f && (r.PenetrationDepth > contact.Depth + 1e-6f ||
+                    (MathF.Abs(r.PenetrationDepth - contact.Depth) <= 1e-6f && (r.BodyID2.ID < contact.Body ||
+                        (r.BodyID2.ID == contact.Body && r.ContactPointOn2.X < contact.Point.X)))));
+            if (better)
+            {
+                found = true;
+                fraction = f;
+                contact = new ShipContact(r.ContactPointOn2, normal, r.PenetrationDepth, r.BodyID2.ID);
+            }
+        }
+        return found;
+    }
+
+    private static readonly Dictionary<(float Radius, float Width), Shape> Tyres = new();
+
+    // A tyre's cylinder, made once for each size and shared by every world.
+    private static Shape TyreShape(float radius, float width)
+    {
+        lock (ShapesLock)
+        {
+            if (Tyres.TryGetValue((radius, width), out Shape? shape))
+            {
+                return shape;
+            }
+            lock (JoltRuntime.Gate)
+            {
+                float half = MathF.Max(width / 2, 0.02f);
+                // The tread's shoulders rounded by a few centimetres, as a knobbed tyre's are.
+                float round = MathF.Min(0.04f, MathF.Min(half, radius) * 0.8f);
+                using var settings = new CylinderShapeSettings(half, radius, round).Owned();
+                shape = settings.Create();
+            }
+            Tyres.Add((radius, width), shape);
+            return shape;
+        }
+    }
+
     /// <summary>Where the hull (the full shape) overlaps static bodies by more than a millimetre at a pose: up to <paramref name="into"/>'s length.</summary>
     public int Overlaps(ShipDef def, Vector3 position, Quaternion rotation, uint ignore, Span<ShipContact> into)
     {

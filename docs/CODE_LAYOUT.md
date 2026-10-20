@@ -484,14 +484,14 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 |---|---|---|---|
 | `Ship.cs` | 309 | ShipDoorState, Ship, ShipLink, ShipSeat | A ship's door as the rules have it (IRON_WAKE.md §5.3): its progress (0 shut … 1 open) at a tick and which way it moves |
 | `ShipAttitudeHold.cs` | 60 | ShipAttitudeHold | ShipAttitudeHold: captures an unattended ship's attitude and holds it; desired rates still pass through the motor's torque, fuel and contact rules. |
-| `ShipCollider.cs` | 306 | ShipRayHit, ShipContact, ShipCollider [ExceptBody] | Where a ray from a ship met the world: how far, the point and the surface's normal there. |
+| `ShipCollider.cs` | 408 | ShipRayHit, ShipContact, ShipCollider [ExceptBody] | Where a ray from a ship met the world: how far, the point and the surface's normal there; the hull swept, its overlaps, a tyre's cylinder swept down its travel. |
 | `ShipBuoyancy.cs` | 141 | ShipBuoyancy | A hull that floats on its own shape (ships.json buoyancy, docs/MOTORBOAT.md §3): columns that lift where they are, on the sea, a lake or a stream; the water's drag. |
 | `ShipDef.cs` | 490 | HullBox, TurnAxis, ShipDef, ShipWake, ShipParts | One box of a ship's hull, in the ship's frame: its centre and half extents. |
 | `ShipFrame.cs` | 66 | ShipFrame | A ship's frame in a zone (IRON_WAKE.md §4.3): what characters aboard it move in, keyed by the ship's entity ID. Up is |
 | `ShipFuel.cs` | 88 | ShipFuel | ShipFuel: a tank's whole fuel units plus the fraction drawn into its engine; only whole units move through inventory; migrates old float saves. |
 | `ShipInterior.cs` | 389 | ShipPartKind, ShipPartDef, ShipPiece, BoardingBox, ShipSocket, ShipBuildZone, ShipExclusion, StationBarrelData, StationGeometry, ShipFixture, ShipRoom, PartPose, ShipInterior | How one of a ship's parts moves (the data file's part kinds, IRON_WAKE.md §9.1). |
 | `ShipLayout.cs` | 282 | SeatRole, SeatSitters, SeatWorks, DoorOpens, DoorEase, ShipPartHealth, ShipSeatDef, ShipDoorDef, ShipTargetPart, NozzleDrive, ShipNozzle, LightPower, ShipLight | What a seat's occupant does (ships.json seats' role, IRON_WAKE.md §5.2). |
-| `GroundMotor.cs` | 443 | WheelDef, GroundDef, GroundMotor [WheelLoad] | A vehicle on wheels (VEHICLES.md §6.2): wheels and how it drives, and the ground motor: sprung wheels by rays, tyres' grip along and across within grip x load, drive, brakes, holding, the hull swept, the ground turning under it. |
+| `GroundMotor.cs` | 499 | WheelDef, GroundDef, GroundMotor [WheelLoad] | A vehicle on wheels (VEHICLES.md §6.2): wheels and how it drives, and the ground motor: sprung round tyres swept down their travel, a two-wheeler's front and rear kept down, tyres' grip along and across within grip x load, drive, brakes, holding, the hull swept, the ground turning under it. |
 | `ShipMotors.cs` | 72 | IShipMotor, ShipMotors, FlightMotor | A ship's whole step by ships.json motor (VEHICLES.md §9.2): flight (ShipMotor.Step with its drive) or ground. |
 | `ShipDrives.cs` | 142 | ShipDriveContext, IShipDrive, ShipDrives | What a drive sees when it decides a tick's thrust and turn; the drives by kind (ships.json drive). |
 | `ShipMotor.cs` | 736 | ShipContext, ShipMotor [SkidLoad] | What a ship's step needs to know about where it happens. |
