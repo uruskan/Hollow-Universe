@@ -1,0 +1,19 @@
+[gd_resource type="ShaderMaterial" load_steps=6 format=3]
+
+[ext_resource type="Shader" path="res://shaders/cliffkit.gdshader" id="1"]
+[ext_resource type="Texture2D" path="res://assets/surface/cliffkit/textures/tundra-jut-b_albedo.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/surface/cliffkit/textures/tundra-jut-b_normal.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/surface/cliffkit/textures/tundra_detail_albedo.png" id="4"]
+[ext_resource type="Texture2D" path="res://assets/surface/cliffkit/textures/tundra_detail_normal.png" id="5"]
+
+[resource]
+resource_name = "cliffkit_tundra-jut-b"
+shader = ExtResource("1")
+shader_parameter/albedo_map = ExtResource("2")
+shader_parameter/normal_map = ExtResource("3")
+shader_parameter/detail_albedo = ExtResource("4")
+shader_parameter/detail_normal = ExtResource("5")
+shader_parameter/scan_colour = Color(0.3275, 0.3003, 0.2554, 1)
+shader_parameter/detail_mean = Color(0.4115, 0.3544, 0.3112, 1)
+shader_parameter/cover_default = Color(0.3400, 0.3600, 0.1900, 1.0000)
+shader_parameter/ground_default = Color(0.3400, 0.3300, 0.2700, 1.0000)

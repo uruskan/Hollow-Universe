@@ -423,6 +423,23 @@ scan replacement pipeline. The earlier two Poly Haven cliff sources remain CC0.
 they ship only as part of the game. Originals remain unchanged in `D:/GameDev/Assets`.
 No Rust geometry, textures, map data, Unreal packages or provider generation was copied.
 
+### Cliff kit (20 October 2026)
+
+`surface/cliffkit/` holds the modular cliff pieces of docs/WORLD_TERRAIN_PLAN.md §4.3, cut by
+`art/cliffkit/build.py` from the owner's Quixel Megascans scans in `D:/GameDev/Assets` (bought on Fab,
+Fab Standard License): Desert Western Cliff Layered Corner XL 01 `ulfucbn`, Desert Western Cliff
+Layered XL 04 `ulcofaf`, Desert Western Cliff Layered Large 01 `venqdcc`, Desert Western Ledge Rock
+Large 03 `vbvqbbofa`, Desert Western Ledge Rock Medium 01 `xgkneh0`, Desert Western Rock Large 11
+`ulbpfjj` and 13 `ulmfceq`, Massive Nordic Coastal Cliff `vfmjadufa`, Huge Nordic Coastal Cliff
+`vefkehbva` and `ullqbb1ga`, Nordic Forest Cliff Large `xibjbg3`, Nordic Beach Boulder `vcyqebjfa`,
+Large Tundra Rock Formation `wdysbfoga`, Massive Tundra Rock Formation `wd4icipcb` and Tundra Rock
+Formation `vi5nachmw`. Each piece's mesh is the scan remeshed, cut and decimated; its albedo (with the
+scan's occlusion) and normal map are baked in Blender from the scan's own maps onto new UVs. The three
+families' tiling detail (`textures/*_detail_*.png`) is the Megascans surfaces Canyon Sandstone Rock
+`vimldgeg`, Cracked Nordic Coastal Rock `ukohaj0mw` and Tundra Lichened Rock `vjbode1mw`, brought to 2K
+and repacked. `cliffkit.json` names each piece's scan and its SHA-256. These are not CC0; they ship only
+inside the game. Originals remain unchanged.
+
 ### Authored trees (16 October 2026)
 
 `surface/trees/` contains three fir and three birch variants derived from the owner's

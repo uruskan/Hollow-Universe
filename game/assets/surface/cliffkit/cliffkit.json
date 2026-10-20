@@ -1,0 +1,13356 @@
+{
+ "version": 1,
+ "source": "docs/WORLD_TERRAIN_PLAN.md §4.3; built by art/cliffkit/build.py from the owner's Megascans (game/assets/THIRD_PARTY.md)",
+ "frame": "metres; +Y up, the face toward +X, the pivot on the ground line at the middle of the face's foot; the left end (as you face the rock) toward +Z. res:// is the game folder.",
+ "sockets": "a chain joins a piece's right socket to the next one's left socket: same position, directions opposite. Sockets sit 1.5 m inside each end, so neighbours overlap.",
+ "checks": "the ground's height at a check's x, z must lie between its y minus `below` and its y plus `above`, or the piece is dropped (foot: it would float or bury; top: the open back would show).",
+ "collision": "<key>.collision.bin: 'HCOL', u32 version 1, u32 vertices, u32 triangles, f32 xyz per vertex, u16 abc per triangle (counter-clockwise from outside), little-endian.",
+ "skirtMax": 3.0,
+ "families": {
+  "desert": {
+   "albedo": "res://assets/surface/cliffkit/textures/desert_detail_albedo.png",
+   "normal": "res://assets/surface/cliffkit/textures/desert_detail_normal.png",
+   "mean": [
+    0.4569654166698456,
+    0.26725584268569946,
+    0.1898018717765808
+   ],
+   "metres": 2.5,
+   "places": [
+    "tableland",
+    "mesa",
+    "desert"
+   ]
+  },
+  "nordic": {
+   "albedo": "res://assets/surface/cliffkit/textures/nordic_detail_albedo.png",
+   "normal": "res://assets/surface/cliffkit/textures/nordic_detail_normal.png",
+   "mean": [
+    0.3998030424118042,
+    0.34489452838897705,
+    0.2763653099536896
+   ],
+   "metres": 2.5,
+   "places": [
+    "coast"
+   ]
+  },
+  "tundra": {
+   "albedo": "res://assets/surface/cliffkit/textures/tundra_detail_albedo.png",
+   "normal": "res://assets/surface/cliffkit/textures/tundra_detail_normal.png",
+   "mean": [
+    0.4114854335784912,
+    0.3543861210346222,
+    0.31116461753845215
+   ],
+   "metres": 2.5,
+   "places": [
+    "hills",
+    "mountains"
+   ]
+  }
+ },
+ "pieces": [
+  {
+   "key": "desert-xl-a",
+   "family": "desert",
+   "role": "straight",
+   "file": "res://assets/surface/cliffkit/desert-xl-a.glb",
+   "material": "res://assets/surface/cliffkit/materials/desert-xl-a.tres",
+   "size": [
+    9.388,
+    19.664,
+    24.102
+   ],
+   "bounds": {
+    "min": [
+     -7.439,
+     -3.001,
+     -14.044
+    ],
+    "max": [
+     1.948,
+     19.664,
+     10.058
+    ]
+   },
+   "top": 19.668,
+   "skirt": 3.0,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -1.784,
+      0.0,
+      8.413
+     ],
+     "direction": [
+      -0.056,
+      0.0,
+      0.998
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -1.563,
+      0.0,
+      -8.601
+     ],
+     "direction": [
+      0.056,
+      0.0,
+      -0.998
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.6,
+    1.1
+   ],
+   "anchors": [
+    [
+     -1.492,
+     0.0,
+     7.917
+    ],
+    [
+     -0.741,
+     0.0,
+     3.929
+    ],
+    [
+     -0.009,
+     0.0,
+     -0.06
+    ],
+    [
+     -0.597,
+     0.0,
+     -4.076
+    ],
+    [
+     -1.185,
+     0.0,
+     -8.091
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -1.492,
+      0.0,
+      7.917
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.741,
+      0.0,
+      3.929
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.009,
+      0.0,
+      -0.06
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.597,
+      0.0,
+      -4.076
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.185,
+      0.0,
+      -8.091
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -3.207,
+      19.203,
+      5.923
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -6.449,
+      19.531,
+      -0.06
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -6.852,
+      19.595,
+      -6.083
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -6.596,
+     -13.576
+    ],
+    [
+     -6.471,
+     -13.937
+    ],
+    [
+     -6.46,
+     -13.958
+    ],
+    [
+     -6.229,
+     -14.044
+    ],
+    [
+     0.532,
+     -11.885
+    ],
+    [
+     0.979,
+     -11.061
+    ],
+    [
+     1.207,
+     -10.13
+    ],
+    [
+     1.948,
+     0.679
+    ],
+    [
+     1.919,
+     2.061
+    ],
+    [
+     1.735,
+     2.822
+    ],
+    [
+     1.555,
+     3.216
+    ],
+    [
+     0.408,
+     5.255
+    ],
+    [
+     -0.347,
+     6.531
+    ],
+    [
+     -3.283,
+     9.818
+    ],
+    [
+     -3.387,
+     9.701
+    ],
+    [
+     -3.592,
+     9.218
+    ]
+   ],
+   "outline": [
+    [
+     -7.398,
+     -9.722
+    ],
+    [
+     -7.258,
+     -11.024
+    ],
+    [
+     -6.984,
+     -12.315
+    ],
+    [
+     -6.785,
+     -13.079
+    ],
+    [
+     -6.46,
+     -13.958
+    ],
+    [
+     -6.229,
+     -14.044
+    ],
+    [
+     -3.32,
+     -13.685
+    ],
+    [
+     0.532,
+     -11.885
+    ],
+    [
+     0.979,
+     -11.061
+    ],
+    [
+     1.207,
+     -10.13
+    ],
+    [
+     1.948,
+     0.679
+    ],
+    [
+     1.919,
+     2.061
+    ],
+    [
+     1.735,
+     2.822
+    ],
+    [
+     0.75,
+     5.988
+    ],
+    [
+     0.607,
+     6.337
+    ],
+    [
+     -1.033,
+     8.888
+    ],
+    [
+     -1.331,
+     9.267
+    ],
+    [
+     -1.815,
+     9.751
+    ],
+    [
+     -3.188,
+     10.058
+    ],
+    [
+     -3.583,
+     9.962
+    ],
+    [
+     -6.583,
+     0.939
+    ],
+    [
+     -6.767,
+     0.252
+    ],
+    [
+     -6.859,
+     -0.609
+    ],
+    [
+     -7.433,
+     -8.575
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -8,
+     -15
+    ],
+    "columns": 10,
+    "rows": 26,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.22,
+     null,
+     null,
+     -2.63,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     7.4,
+     6.97,
+     2.28,
+     1.79,
+     -2.57,
+     null,
+     null,
+     null,
+     null,
+     null,
+     12.95,
+     6.76,
+     2.52,
+     1.96,
+     -1.6,
+     -0.51,
+     0.2,
+     0.16,
+     null,
+     null,
+     15.05,
+     10.77,
+     2.7,
+     2.51,
+     2.68,
+     1.27,
+     0.74,
+     0.27,
+     null,
+     null,
+     18.44,
+     15.24,
+     2.52,
+     2.27,
+     2.42,
+     1.18,
+     0.85,
+     0.19,
+     null,
+     null,
+     19.56,
+     17.03,
+     15.76,
+     1.99,
+     2.01,
+     1.06,
+     0.73,
+     -0.68,
+     null,
+     null,
+     19.54,
+     17.26,
+     16.57,
+     1.81,
+     1.46,
+     1.05,
+     0.71,
+     null,
+     null,
+     null,
+     19.56,
+     19.49,
+     16.7,
+     2.0,
+     1.82,
+     1.12,
+     0.77,
+     null,
+     null,
+     null,
+     19.58,
+     19.51,
+     16.05,
+     2.3,
+     2.09,
+     1.51,
+     0.65,
+     -0.63,
+     null,
+     null,
+     19.59,
+     19.53,
+     17.44,
+     2.62,
+     2.31,
+     1.68,
+     0.74,
+     -0.09,
+     null,
+     null,
+     19.58,
+     19.54,
+     17.46,
+     2.85,
+     2.36,
+     1.69,
+     1.01,
+     0.23,
+     null,
+     null,
+     19.56,
+     19.51,
+     17.19,
+     2.91,
+     2.43,
+     1.93,
+     1.25,
+     0.57,
+     null,
+     null,
+     19.55,
+     19.47,
+     17.57,
+     2.97,
+     2.47,
+     1.97,
+     1.28,
+     0.55,
+     null,
+     null,
+     19.53,
+     19.47,
+     16.68,
+     16.5,
+     2.52,
+     2.06,
+     1.44,
+     0.72,
+     null,
+     null,
+     19.51,
+     19.48,
+     17.57,
+     17.22,
+     16.47,
+     2.04,
+     1.6,
+     0.9,
+     0.24,
+     null,
+     null,
+     19.45,
+     18.13,
+     17.7,
+     17.21,
+     16.09,
+     1.54,
+     0.92,
+     0.15,
+     null,
+     null,
+     19.43,
+     19.36,
+     18.14,
+     17.59,
+     16.41,
+     1.44,
+     0.79,
+     -0.04,
+     null,
+     null,
+     19.44,
+     19.37,
+     18.4,
+     17.92,
+     17.55,
+     16.67,
+     0.32,
+     null,
+     null,
+     null,
+     null,
+     19.36,
+     19.27,
+     18.33,
+     17.72,
+     17.03,
+     15.84,
+     null,
+     null,
+     null,
+     null,
+     19.34,
+     19.24,
+     19.14,
+     17.78,
+     17.2,
+     16.24,
+     null,
+     null,
+     null,
+     null,
+     null,
+     19.21,
+     19.1,
+     17.74,
+     16.64,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     18.96,
+     18.61,
+     17.9,
+     15.29,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     18.16,
+     16.34,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     16.44,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 11999
+    },
+    {
+     "triangles": 5999
+    },
+    {
+     "triangles": 2998
+    },
+    {
+     "triangles": 1499
+    },
+    {
+     "triangles": 399
+    }
+   ],
+   "lodDistances": [
+    53.0,
+    108.5,
+    168.7,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/desert-xl-a.collision.bin",
+    "vertices": 961,
+    "triangles": 1918,
+    "sha256": "be1e74d44391cd4eeb69407a2272be42acef0532d8ca80503a5914e8f8509dc6",
+    "within95": 0.107,
+    "within": 0.409,
+    "openEdges": 12
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/desert-xl-a_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/desert-xl-a_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.4744,
+     0.3229,
+     0.2416
+    ]
+   },
+   "source": {
+    "scan": "desert_western_cliff_layered_xl_04_ulcofaf_high.glb",
+    "sha256": "32601d8405ac41573dee5c242b514b14714a755085d26cc18b359be686dc0f0b",
+    "yaw": -88,
+    "span": [
+     -19.5,
+     0.5
+    ],
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "desert-xl-b",
+   "family": "desert",
+   "role": "straight",
+   "file": "res://assets/surface/cliffkit/desert-xl-b.glb",
+   "material": "res://assets/surface/cliffkit/materials/desert-xl-b.tres",
+   "size": [
+    9.135,
+    19.553,
+    25.315
+   ],
+   "bounds": {
+    "min": [
+     -5.95,
+     -3.01,
+     -10.693
+    ],
+    "max": [
+     3.185,
+     19.553,
+     14.622
+    ]
+   },
+   "top": 19.583,
+   "skirt": 3.0,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      0.378,
+      0.0,
+      7.885
+     ],
+     "direction": [
+      0.237,
+      0.0,
+      0.972
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -0.068,
+      0.0,
+      -7.96
+     ],
+     "direction": [
+      -0.237,
+      0.0,
+      -0.972
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.6,
+    1.1
+   ],
+   "anchors": [
+    [
+     0.586,
+     0.0,
+     7.468
+    ],
+    [
+     0.292,
+     0.0,
+     3.72
+    ],
+    [
+     -0.001,
+     0.0,
+     -0.028
+    ],
+    [
+     -0.17,
+     0.0,
+     -3.784
+    ],
+    [
+     -0.339,
+     0.0,
+     -7.54
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      0.586,
+      0.0,
+      7.468
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.292,
+      0.0,
+      3.72
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.001,
+      0.0,
+      -0.028
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.17,
+      0.0,
+      -3.784
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.339,
+      0.0,
+      -7.54
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -5.335,
+      19.474,
+      5.594
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -3.6,
+      18.988,
+      -5.662
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -4.755,
+     -7.55
+    ],
+    [
+     -3.711,
+     -9.887
+    ],
+    [
+     -3.318,
+     -10.056
+    ],
+    [
+     -1.986,
+     -10.333
+    ],
+    [
+     -1.588,
+     -10.373
+    ],
+    [
+     -1.171,
+     -10.376
+    ],
+    [
+     -0.348,
+     -10.282
+    ],
+    [
+     0.307,
+     -10.065
+    ],
+    [
+     0.793,
+     -9.675
+    ],
+    [
+     1.477,
+     -8.871
+    ],
+    [
+     1.97,
+     -8.038
+    ],
+    [
+     2.563,
+     -6.715
+    ],
+    [
+     2.988,
+     -5.194
+    ],
+    [
+     3.185,
+     -4.07
+    ],
+    [
+     3.154,
+     9.852
+    ],
+    [
+     3.098,
+     10.304
+    ],
+    [
+     -2.75,
+     14.622
+    ],
+    [
+     -2.789,
+     14.589
+    ],
+    [
+     -3.058,
+     14.355
+    ],
+    [
+     -3.632,
+     13.848
+    ]
+   ],
+   "outline": [
+    [
+     -5.95,
+     -6.283
+    ],
+    [
+     -5.828,
+     -6.676
+    ],
+    [
+     -3.849,
+     -9.955
+    ],
+    [
+     -3.147,
+     -10.693
+    ],
+    [
+     -0.348,
+     -10.282
+    ],
+    [
+     0.307,
+     -10.065
+    ],
+    [
+     0.793,
+     -9.675
+    ],
+    [
+     1.477,
+     -8.871
+    ],
+    [
+     1.97,
+     -8.038
+    ],
+    [
+     2.563,
+     -6.715
+    ],
+    [
+     2.988,
+     -5.194
+    ],
+    [
+     3.185,
+     -4.07
+    ],
+    [
+     3.175,
+     10.064
+    ],
+    [
+     3.166,
+     10.523
+    ],
+    [
+     0.602,
+     12.846
+    ],
+    [
+     0.328,
+     13.065
+    ],
+    [
+     -2.6,
+     14.755
+    ],
+    [
+     -3.632,
+     13.848
+    ],
+    [
+     -4.052,
+     13.011
+    ],
+    [
+     -4.67,
+     11.428
+    ],
+    [
+     -4.95,
+     10.417
+    ],
+    [
+     -5.192,
+     9.214
+    ],
+    [
+     -5.371,
+     6.967
+    ],
+    [
+     -5.929,
+     -5.421
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -6,
+     -11
+    ],
+    "columns": 10,
+    "rows": 26,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     8.75,
+     8.81,
+     0.5,
+     -0.07,
+     -0.2,
+     null,
+     null,
+     null,
+     null,
+     null,
+     13.84,
+     9.88,
+     9.9,
+     4.34,
+     -0.12,
+     -0.25,
+     null,
+     null,
+     null,
+     17.02,
+     15.98,
+     15.38,
+     15.21,
+     10.08,
+     -0.01,
+     -0.14,
+     null,
+     null,
+     19.26,
+     19.11,
+     16.69,
+     16.44,
+     15.66,
+     15.1,
+     8.33,
+     -0.03,
+     -0.24,
+     null,
+     19.32,
+     19.15,
+     18.98,
+     18.89,
+     16.63,
+     15.61,
+     8.42,
+     0.06,
+     -0.15,
+     null,
+     19.34,
+     19.19,
+     19.02,
+     18.91,
+     18.8,
+     15.44,
+     0.41,
+     0.21,
+     0.23,
+     null,
+     19.32,
+     19.25,
+     19.06,
+     18.93,
+     18.79,
+     15.84,
+     0.62,
+     0.17,
+     0.07,
+     null,
+     19.32,
+     19.3,
+     19.12,
+     18.11,
+     16.3,
+     15.39,
+     0.73,
+     0.25,
+     -2.93,
+     null,
+     19.31,
+     19.23,
+     17.12,
+     15.29,
+     15.35,
+     8.54,
+     0.77,
+     0.3,
+     null,
+     null,
+     19.32,
+     19.06,
+     15.7,
+     15.25,
+     10.5,
+     4.21,
+     0.86,
+     0.33,
+     null,
+     null,
+     null,
+     19.22,
+     16.72,
+     15.48,
+     14.52,
+     4.2,
+     0.96,
+     0.47,
+     null,
+     null,
+     null,
+     19.25,
+     16.27,
+     15.53,
+     14.51,
+     1.4,
+     1.0,
+     0.47,
+     null,
+     null,
+     null,
+     19.28,
+     16.05,
+     15.12,
+     4.41,
+     1.15,
+     0.84,
+     0.43,
+     null,
+     null,
+     null,
+     19.31,
+     16.77,
+     15.11,
+     1.54,
+     1.02,
+     0.59,
+     0.24,
+     null,
+     null,
+     null,
+     19.33,
+     17.1,
+     14.88,
+     1.47,
+     0.98,
+     0.45,
+     null,
+     null,
+     null,
+     null,
+     19.38,
+     18.12,
+     16.3,
+     1.41,
+     0.91,
+     0.45,
+     null,
+     null,
+     null,
+     null,
+     19.41,
+     18.31,
+     16.29,
+     1.46,
+     1.05,
+     0.57,
+     0.33,
+     null,
+     null,
+     null,
+     19.43,
+     17.5,
+     15.61,
+     1.76,
+     1.47,
+     1.07,
+     0.52,
+     0.14,
+     null,
+     null,
+     19.45,
+     17.51,
+     2.59,
+     2.43,
+     2.53,
+     1.23,
+     0.81,
+     0.25,
+     null,
+     null,
+     18.25,
+     17.67,
+     16.74,
+     2.26,
+     2.2,
+     1.24,
+     0.8,
+     0.27,
+     null,
+     null,
+     17.37,
+     17.77,
+     15.98,
+     2.09,
+     1.81,
+     0.54,
+     0.73,
+     0.02,
+     null,
+     null,
+     12.81,
+     8.53,
+     2.31,
+     1.99,
+     -1.61,
+     -2.51,
+     null,
+     null,
+     null,
+     null,
+     null,
+     5.14,
+     2.34,
+     -2.85,
+     -2.66,
+     -2.91,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1.47,
+     0.69,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.43,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 11999
+    },
+    {
+     "triangles": 5999
+    },
+    {
+     "triangles": 2999
+    },
+    {
+     "triangles": 1499
+    },
+    {
+     "triangles": 399
+    }
+   ],
+   "lodDistances": [
+    55.7,
+    113.9,
+    177.2,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/desert-xl-b.collision.bin",
+    "vertices": 962,
+    "triangles": 1918,
+    "sha256": "bde1959879939e03af7345971f202efba301250955668a25e92415931f00bfc2",
+    "within95": 0.106,
+    "within": 0.331,
+    "openEdges": 6
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/desert-xl-b_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/desert-xl-b_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.4735,
+     0.3214,
+     0.2401
+    ]
+   },
+   "source": {
+    "scan": "desert_western_cliff_layered_xl_04_ulcofaf_high.glb",
+    "sha256": "32601d8405ac41573dee5c242b514b14714a755085d26cc18b359be686dc0f0b",
+    "yaw": -88,
+    "span": [
+     -0.5,
+     18.0
+    ],
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "desert-corner-xl",
+   "family": "desert",
+   "role": "corner",
+   "file": "res://assets/surface/cliffkit/desert-corner-xl.glb",
+   "material": "res://assets/surface/cliffkit/materials/desert-corner-xl.tres",
+   "size": [
+    18.086,
+    30.655,
+    31.563
+   ],
+   "bounds": {
+    "min": [
+     -17.367,
+     -3.004,
+     -16.672
+    ],
+    "max": [
+     0.719,
+     30.655,
+     14.891
+    ]
+   },
+   "top": 31.38,
+   "skirt": 3.0,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -2.772,
+      0.0,
+      14.118
+     ],
+     "direction": [
+      -0.809,
+      0.0,
+      0.588
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -1.341,
+      0.0,
+      -14.14
+     ],
+     "direction": [
+      -0.819,
+      0.0,
+      -0.574
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.6,
+    1.1
+   ],
+   "anchors": [
+    [
+     -3.196,
+     0.0,
+     12.029
+    ],
+    [
+     -1.618,
+     0.0,
+     6.088
+    ],
+    [
+     -0.039,
+     0.0,
+     0.146
+    ],
+    [
+     -1.013,
+     0.0,
+     -5.911
+    ],
+    [
+     -2.051,
+     0.0,
+     -11.97
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -3.196,
+      0.0,
+      12.029
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.618,
+      0.0,
+      6.088
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.039,
+      0.0,
+      0.146
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.013,
+      0.0,
+      -5.911
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -2.051,
+      0.0,
+      -11.97
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -7.556,
+      1.795,
+      9.058
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -8.572,
+      28.957,
+      0.146
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -12.946,
+      -2.763,
+      -8.94
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -17.367,
+     4.473
+    ],
+    [
+     -15.048,
+     -6.223
+    ],
+    [
+     -15.013,
+     -6.304
+    ],
+    [
+     -6.562,
+     -16.672
+    ],
+    [
+     -3.949,
+     -15.97
+    ],
+    [
+     -3.448,
+     -15.732
+    ],
+    [
+     -3.175,
+     -15.531
+    ],
+    [
+     -2.548,
+     -13.979
+    ],
+    [
+     0.362,
+     -3.095
+    ],
+    [
+     0.498,
+     -1.793
+    ],
+    [
+     0.719,
+     0.501
+    ],
+    [
+     -1.434,
+     7.384
+    ],
+    [
+     -3.045,
+     11.855
+    ],
+    [
+     -3.76,
+     13.173
+    ],
+    [
+     -5.663,
+     14.828
+    ],
+    [
+     -6.627,
+     14.891
+    ],
+    [
+     -6.661,
+     14.889
+    ],
+    [
+     -13.896,
+     8.303
+    ],
+    [
+     -15.2,
+     7.033
+    ]
+   ],
+   "outline": [
+    [
+     -17.869,
+     5.303
+    ],
+    [
+     -15.473,
+     -6.814
+    ],
+    [
+     -15.426,
+     -6.955
+    ],
+    [
+     -15.269,
+     -7.388
+    ],
+    [
+     -6.562,
+     -16.672
+    ],
+    [
+     -6.493,
+     -16.739
+    ],
+    [
+     -6.07,
+     -16.793
+    ],
+    [
+     -3.57,
+     -16.916
+    ],
+    [
+     -3.254,
+     -16.869
+    ],
+    [
+     -3.083,
+     -16.836
+    ],
+    [
+     -2.021,
+     -16.152
+    ],
+    [
+     -1.455,
+     -15.145
+    ],
+    [
+     0.362,
+     -3.095
+    ],
+    [
+     0.498,
+     -1.793
+    ],
+    [
+     0.719,
+     0.501
+    ],
+    [
+     -1.434,
+     7.384
+    ],
+    [
+     -3.04,
+     12.117
+    ],
+    [
+     -3.673,
+     13.545
+    ],
+    [
+     -4.337,
+     14.875
+    ],
+    [
+     -4.459,
+     15.044
+    ],
+    [
+     -4.717,
+     15.26
+    ],
+    [
+     -4.818,
+     15.318
+    ],
+    [
+     -6.661,
+     14.889
+    ],
+    [
+     -10.817,
+     13.463
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -18,
+     -17
+    ],
+    "columns": 19,
+    "rows": 32,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.38,
+     -0.64,
+     -0.88,
+     -1.6,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.4,
+     0.28,
+     0.31,
+     -0.1,
+     -1.22,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1.12,
+     1.48,
+     1.33,
+     null,
+     0.57,
+     -0.66,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -2.8,
+     1.41,
+     1.22,
+     -2.11,
+     null,
+     null,
+     -0.36,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -2.3,
+     0.94,
+     0.61,
+     0.43,
+     0.69,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.55,
+     0.95,
+     0.08,
+     0.01,
+     0.2,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -2.4,
+     0.73,
+     1.93,
+     0.07,
+     -0.39,
+     -0.44,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -2.28,
+     -0.83,
+     0.96,
+     0.87,
+     0.63,
+     1.43,
+     0.23,
+     -0.32,
+     -0.18,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.77,
+     1.16,
+     1.41,
+     0.35,
+     -0.22,
+     0.69,
+     0.67,
+     -0.69,
+     -0.42,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     8.99,
+     9.59,
+     9.92,
+     9.84,
+     14.15,
+     -0.38,
+     -0.5,
+     -0.67,
+     -0.76,
+     -1.89,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -2.54,
+     9.97,
+     10.3,
+     10.46,
+     15.9,
+     16.96,
+     -0.16,
+     -0.57,
+     -0.61,
+     -0.63,
+     -0.65,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     9.12,
+     10.36,
+     10.84,
+     11.0,
+     16.54,
+     17.25,
+     19.61,
+     18.63,
+     12.38,
+     -0.28,
+     -0.37,
+     -0.36,
+     -0.92,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     9.52,
+     12.29,
+     12.76,
+     15.45,
+     22.17,
+     21.24,
+     20.15,
+     18.87,
+     13.83,
+     23.57,
+     0.01,
+     0.03,
+     0.05,
+     0.19,
+     0.1,
+     null,
+     null,
+     null,
+     null,
+     10.49,
+     13.02,
+     15.57,
+     16.0,
+     23.31,
+     23.95,
+     20.25,
+     20.32,
+     26.94,
+     26.15,
+     19.28,
+     0.43,
+     0.48,
+     0.49,
+     0.43,
+     null,
+     null,
+     null,
+     null,
+     null,
+     13.68,
+     16.64,
+     29.37,
+     30.32,
+     24.44,
+     21.15,
+     27.46,
+     27.48,
+     27.1,
+     26.34,
+     7.98,
+     0.84,
+     0.74,
+     0.45,
+     null,
+     null,
+     null,
+     null,
+     null,
+     26.71,
+     28.87,
+     30.41,
+     25.31,
+     24.75,
+     27.74,
+     28.39,
+     28.03,
+     27.56,
+     26.89,
+     8.67,
+     1.01,
+     0.73,
+     0.43,
+     null,
+     null,
+     null,
+     null,
+     null,
+     29.5,
+     29.97,
+     27.23,
+     26.25,
+     25.81,
+     29.1,
+     29.39,
+     28.41,
+     27.81,
+     24.78,
+     12.18,
+     0.91,
+     0.65,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1.96,
+     30.49,
+     28.33,
+     27.42,
+     27.27,
+     27.14,
+     28.92,
+     29.24,
+     28.39,
+     25.18,
+     24.25,
+     13.7,
+     0.65,
+     0.46,
+     0.24,
+     0.02,
+     null,
+     null,
+     null,
+     30.47,
+     29.22,
+     27.87,
+     27.17,
+     26.99,
+     26.77,
+     28.26,
+     29.08,
+     27.56,
+     24.48,
+     20.83,
+     13.3,
+     0.41,
+     0.25,
+     null,
+     null,
+     null,
+     null,
+     16.51,
+     30.49,
+     30.45,
+     27.72,
+     26.49,
+     24.69,
+     24.73,
+     27.38,
+     28.16,
+     25.14,
+     23.52,
+     20.38,
+     0.43,
+     0.3,
+     0.16,
+     null,
+     null,
+     null,
+     15.57,
+     15.27,
+     22.07,
+     30.34,
+     23.76,
+     24.22,
+     21.46,
+     24.79,
+     26.74,
+     26.33,
+     24.49,
+     20.45,
+     19.16,
+     0.4,
+     0.24,
+     null,
+     null,
+     null,
+     null,
+     13.55,
+     13.74,
+     21.81,
+     23.1,
+     23.43,
+     21.35,
+     21.02,
+     20.69,
+     25.29,
+     24.36,
+     19.62,
+     0.82,
+     0.66,
+     0.38,
+     0.22,
+     null,
+     null,
+     null,
+     -1.93,
+     -2.35,
+     1.94,
+     21.45,
+     22.78,
+     21.26,
+     20.88,
+     20.65,
+     20.05,
+     1.75,
+     1.39,
+     1.11,
+     0.98,
+     1.39,
+     0.95,
+     0.18,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -1.17,
+     1.09,
+     20.84,
+     20.15,
+     20.55,
+     19.92,
+     2.32,
+     1.8,
+     1.46,
+     1.23,
+     1.19,
+     2.05,
+     0.46,
+     0.1,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.14,
+     0.51,
+     4.28,
+     19.24,
+     2.76,
+     1.96,
+     1.7,
+     1.39,
+     2.21,
+     0.84,
+     0.37,
+     0.19,
+     0.06,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.24,
+     0.05,
+     0.13,
+     2.15,
+     1.81,
+     1.51,
+     1.46,
+     2.09,
+     1.39,
+     0.1,
+     0.0,
+     -0.13,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.29,
+     0.08,
+     1.67,
+     1.73,
+     1.73,
+     1.08,
+     1.07,
+     0.64,
+     -0.05,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.51,
+     -0.3,
+     1.43,
+     1.42,
+     1.26,
+     1.19,
+     0.62,
+     -0.28,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -2.65,
+     -0.63,
+     1.62,
+     1.37,
+     1.26,
+     1.19,
+     0.95,
+     0.64,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -2.2,
+     -1.7,
+     -1.08,
+     1.42,
+     1.29,
+     1.14,
+     1.08,
+     -0.54,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1.01,
+     0.85,
+     0.2,
+     -0.47,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.49,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 19997
+    },
+    {
+     "triangles": 9997
+    },
+    {
+     "triangles": 4998
+    },
+    {
+     "triangles": 2499
+    },
+    {
+     "triangles": 600
+    }
+   ],
+   "lodDistances": [
+    69.4,
+    142.0,
+    220.9,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/desert-corner-xl.collision.bin",
+    "vertices": 965,
+    "triangles": 1919,
+    "sha256": "ce7a75d3fad23e577defa892ea0f169dc356414a38ee800c32ee3a848275ea08",
+    "within95": 0.165,
+    "within": 0.483,
+    "openEdges": 21
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/desert-corner-xl_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/desert-corner-xl_normal.png",
+    "size": 2048,
+    "scanColour": [
+     0.484,
+     0.3335,
+     0.264
+    ]
+   },
+   "source": {
+    "scan": "desert_western_cliff_layered_corner_xl_01_ulfucbn_high.glb",
+    "sha256": "9936afb6116620f2f14e13b918550a3ad78a48e61d5facb9fc64680fb7691984",
+    "yaw": -95,
+    "span": [
+     -15.0,
+     15.0
+    ],
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "desert-large-a",
+   "family": "desert",
+   "role": "straight",
+   "file": "res://assets/surface/cliffkit/desert-large-a.glb",
+   "material": "res://assets/surface/cliffkit/materials/desert-large-a.tres",
+   "size": [
+    6.351,
+    4.028,
+    15.854
+   ],
+   "bounds": {
+    "min": [
+     -6.132,
+     -0.884,
+     -7.759
+    ],
+    "max": [
+     0.219,
+     4.028,
+     8.095
+    ]
+   },
+   "top": 3.528,
+   "skirt": 0.882,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -1.812,
+      0.0,
+      5.926
+     ],
+     "direction": [
+      0.085,
+      0.0,
+      0.996
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -1.752,
+      0.0,
+      -5.621
+     ],
+     "direction": [
+      -0.085,
+      0.0,
+      -0.996
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.8,
+    2.0
+   ],
+   "anchors": [
+    [
+     -1.353,
+     0.0,
+     5.961
+    ],
+    [
+     -0.69,
+     0.0,
+     3.041
+    ],
+    [
+     -0.028,
+     0.0,
+     0.122
+    ],
+    [
+     -0.733,
+     0.0,
+     -2.774
+    ],
+    [
+     -1.498,
+     0.0,
+     -5.668
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -1.353,
+      0.0,
+      5.961
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.69,
+      0.0,
+      3.041
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.028,
+      0.0,
+      0.122
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.733,
+      0.0,
+      -2.774
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.498,
+      0.0,
+      -5.668
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -1.842,
+      -0.172,
+      0.122
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -2.293,
+      2.258,
+      -4.221
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -6.132,
+     -7.323
+    ],
+    [
+     -5.98,
+     -7.542
+    ],
+    [
+     -5.895,
+     -7.592
+    ],
+    [
+     -5.622,
+     -7.703
+    ],
+    [
+     -5.419,
+     -7.759
+    ],
+    [
+     -5.227,
+     -7.748
+    ],
+    [
+     -4.867,
+     -7.551
+    ],
+    [
+     -4.335,
+     -7.11
+    ],
+    [
+     -1.463,
+     -3.879
+    ],
+    [
+     -1.362,
+     -3.72
+    ],
+    [
+     -0.473,
+     -0.174
+    ],
+    [
+     -0.312,
+     0.867
+    ],
+    [
+     -0.365,
+     1.405
+    ],
+    [
+     -0.714,
+     2.935
+    ],
+    [
+     -1.253,
+     5.171
+    ],
+    [
+     -1.911,
+     6.33
+    ],
+    [
+     -3.037,
+     7.638
+    ],
+    [
+     -3.338,
+     7.945
+    ],
+    [
+     -3.825,
+     8.095
+    ],
+    [
+     -4.141,
+     8.081
+    ],
+    [
+     -4.405,
+     8.03
+    ],
+    [
+     -4.746,
+     7.603
+    ],
+    [
+     -4.884,
+     6.58
+    ]
+   ],
+   "outline": [
+    [
+     -6.132,
+     -7.323
+    ],
+    [
+     -5.98,
+     -7.542
+    ],
+    [
+     -5.622,
+     -7.703
+    ],
+    [
+     -5.419,
+     -7.759
+    ],
+    [
+     -5.227,
+     -7.748
+    ],
+    [
+     -4.867,
+     -7.551
+    ],
+    [
+     -1.728,
+     -5.541
+    ],
+    [
+     -1.532,
+     -5.401
+    ],
+    [
+     -0.611,
+     -4.282
+    ],
+    [
+     -0.38,
+     -3.99
+    ],
+    [
+     -0.295,
+     -3.835
+    ],
+    [
+     -0.005,
+     -2.373
+    ],
+    [
+     0.079,
+     -1.926
+    ],
+    [
+     0.219,
+     1.498
+    ],
+    [
+     0.095,
+     2.067
+    ],
+    [
+     -0.135,
+     2.913
+    ],
+    [
+     -1.191,
+     5.359
+    ],
+    [
+     -2.297,
+     7.141
+    ],
+    [
+     -3.338,
+     7.945
+    ],
+    [
+     -3.825,
+     8.095
+    ],
+    [
+     -4.141,
+     8.081
+    ],
+    [
+     -4.405,
+     8.03
+    ],
+    [
+     -4.793,
+     7.568
+    ],
+    [
+     -5.029,
+     6.825
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -7,
+     -8
+    ],
+    "columns": 8,
+    "rows": 17,
+    "top": [
+     null,
+     1.68,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.01,
+     2.83,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.02,
+     3.05,
+     3.07,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.17,
+     2.55,
+     3.14,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.16,
+     0.05,
+     3.26,
+     3.26,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.17,
+     1.09,
+     3.28,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.16,
+     0.55,
+     3.39,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.14,
+     0.64,
+     3.4,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.83,
+     3.43,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1.64,
+     3.45,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.36,
+     3.43,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.38,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.42,
+     3.47,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.4,
+     3.45,
+     2.53,
+     null,
+     null,
+     null,
+     null,
+     3.32,
+     2.78,
+     2.3,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.48,
+     2.35,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 4998
+    },
+    {
+     "triangles": 2499
+    },
+    {
+     "triangles": 1248
+    },
+    {
+     "triangles": 623
+    },
+    {
+     "triangles": 166
+    }
+   ],
+   "lodDistances": [
+    34.9,
+    71.3,
+    111.0,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/desert-large-a.collision.bin",
+    "vertices": 958,
+    "triangles": 1919,
+    "sha256": "8f9610d4c6f576e289fb854f10c26fd66f732bf73b563e0a506c9c942564b7d0",
+    "within95": 0.032,
+    "within": 0.634,
+    "openEdges": 3
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/desert-large-a_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/desert-large-a_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.5364,
+     0.3551,
+     0.262
+    ]
+   },
+   "source": {
+    "scan": "desert_western_cliff_layered_large_01_venqdcc_high.glb",
+    "sha256": "f58e9c40cd5d70ad8bee73a33412ef99f078bce405084743c1ec091085590fc3",
+    "yaw": -90,
+    "span": [
+     -7.5,
+     7.0
+    ],
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "desert-large-b",
+   "family": "desert",
+   "role": "straight",
+   "file": "res://assets/surface/cliffkit/desert-large-b.glb",
+   "material": "res://assets/surface/cliffkit/materials/desert-large-b.tres",
+   "size": [
+    6.474,
+    3.849,
+    13.278
+   ],
+   "bounds": {
+    "min": [
+     -6.194,
+     -0.963,
+     -6.825
+    ],
+    "max": [
+     0.28,
+     3.849,
+     6.453
+    ]
+   },
+   "top": 3.853,
+   "skirt": 0.963,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -1.602,
+      0.0,
+      4.897
+     ],
+     "direction": [
+      0.191,
+      0.0,
+      0.982
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -1.434,
+      0.0,
+      -4.305
+     ],
+     "direction": [
+      -0.191,
+      0.0,
+      -0.982
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.8,
+    2.0
+   ],
+   "anchors": [
+    [
+     -1.062,
+     0.0,
+     5.142
+    ],
+    [
+     -0.555,
+     0.0,
+     2.687
+    ],
+    [
+     -0.048,
+     0.0,
+     0.233
+    ],
+    [
+     -0.647,
+     0.0,
+     -2.174
+    ],
+    [
+     -1.363,
+     0.0,
+     -4.577
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -1.062,
+      0.0,
+      5.142
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.555,
+      0.0,
+      2.687
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.048,
+      0.0,
+      0.233
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.647,
+      0.0,
+      -2.174
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.363,
+      0.0,
+      -4.577
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -2.98,
+      3.322,
+      3.914
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -2.007,
+      3.411,
+      0.233
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -2.575,
+      3.129,
+      -3.376
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -6.097,
+     -6.503
+    ],
+    [
+     -3.932,
+     -6.822
+    ],
+    [
+     -3.761,
+     -6.825
+    ],
+    [
+     -1.252,
+     -5.801
+    ],
+    [
+     -1.024,
+     -5.517
+    ],
+    [
+     -0.725,
+     -4.944
+    ],
+    [
+     -0.491,
+     -4.074
+    ],
+    [
+     0.264,
+     -0.895
+    ],
+    [
+     0.28,
+     -0.528
+    ],
+    [
+     0.271,
+     0.079
+    ],
+    [
+     0.192,
+     1.225
+    ],
+    [
+     0.008,
+     1.856
+    ],
+    [
+     -0.547,
+     3.516
+    ],
+    [
+     -1.326,
+     5.653
+    ],
+    [
+     -1.556,
+     5.896
+    ],
+    [
+     -2.458,
+     6.363
+    ],
+    [
+     -2.706,
+     6.41
+    ],
+    [
+     -3.165,
+     6.453
+    ],
+    [
+     -3.248,
+     6.444
+    ],
+    [
+     -4.049,
+     6.254
+    ],
+    [
+     -4.259,
+     6.176
+    ],
+    [
+     -4.447,
+     6.015
+    ],
+    [
+     -6.061,
+     -5.928
+    ],
+    [
+     -6.097,
+     -6.391
+    ]
+   ],
+   "outline": [
+    [
+     -6.194,
+     -6.425
+    ],
+    [
+     -5.916,
+     -6.627
+    ],
+    [
+     -3.932,
+     -6.822
+    ],
+    [
+     -3.761,
+     -6.825
+    ],
+    [
+     -1.252,
+     -5.801
+    ],
+    [
+     -1.024,
+     -5.517
+    ],
+    [
+     -0.725,
+     -4.944
+    ],
+    [
+     -0.491,
+     -4.074
+    ],
+    [
+     0.088,
+     -1.69
+    ],
+    [
+     0.264,
+     -0.895
+    ],
+    [
+     0.271,
+     0.079
+    ],
+    [
+     0.192,
+     1.225
+    ],
+    [
+     0.008,
+     1.856
+    ],
+    [
+     -0.547,
+     3.516
+    ],
+    [
+     -1.326,
+     5.653
+    ],
+    [
+     -1.556,
+     5.896
+    ],
+    [
+     -2.458,
+     6.363
+    ],
+    [
+     -2.706,
+     6.41
+    ],
+    [
+     -3.248,
+     6.444
+    ],
+    [
+     -4.049,
+     6.254
+    ],
+    [
+     -4.259,
+     6.176
+    ],
+    [
+     -4.506,
+     5.967
+    ],
+    [
+     -6.037,
+     -4.801
+    ],
+    [
+     -6.149,
+     -5.691
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -7,
+     -7
+    ],
+    "columns": 8,
+    "rows": 14,
+    "top": [
+     null,
+     null,
+     0.5,
+     0.01,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.6,
+     2.27,
+     1.61,
+     1.27,
+     0.6,
+     null,
+     null,
+     null,
+     3.75,
+     3.51,
+     3.27,
+     1.4,
+     0.89,
+     null,
+     null,
+     null,
+     null,
+     3.57,
+     3.43,
+     2.85,
+     1.09,
+     0.42,
+     null,
+     null,
+     null,
+     3.64,
+     3.36,
+     3.37,
+     3.28,
+     null,
+     null,
+     null,
+     null,
+     1.16,
+     3.43,
+     3.39,
+     3.4,
+     3.28,
+     null,
+     null,
+     null,
+     null,
+     3.48,
+     3.42,
+     3.41,
+     3.26,
+     null,
+     null,
+     null,
+     null,
+     3.51,
+     3.42,
+     3.37,
+     3.09,
+     null,
+     null,
+     null,
+     3.44,
+     3.41,
+     3.39,
+     3.31,
+     2.86,
+     null,
+     null,
+     null,
+     3.39,
+     3.43,
+     3.37,
+     3.2,
+     0.78,
+     null,
+     null,
+     null,
+     3.34,
+     3.36,
+     3.32,
+     2.99,
+     null,
+     null,
+     null,
+     null,
+     3.21,
+     3.26,
+     3.02,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.17,
+     3.2,
+     1.9,
+     0.41,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 5000
+    },
+    {
+     "triangles": 2500
+    },
+    {
+     "triangles": 1250
+    },
+    {
+     "triangles": 624
+    },
+    {
+     "triangles": 166
+    }
+   ],
+   "lodDistances": [
+    29.2,
+    59.7,
+    92.9,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/desert-large-b.collision.bin",
+    "vertices": 962,
+    "triangles": 1920,
+    "sha256": "b257331978a0a43e86a373692335907df0ffeecb83768d062726e7b838cb37a2",
+    "within95": 0.027,
+    "within": 0.09,
+    "openEdges": 0
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/desert-large-b_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/desert-large-b_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.5053,
+     0.3511,
+     0.274
+    ]
+   },
+   "source": {
+    "scan": "desert_western_ledge_rock_large_03_vbvqbbofa_high.glb",
+    "sha256": "3fdb461759fb80b0da1c7173c916af89e856d23ba33f591b7e80bfa3ffd81dca",
+    "yaw": -87,
+    "span": [
+     -10.5,
+     1.5
+    ],
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "desert-ledge-a",
+   "family": "desert",
+   "role": "ledge",
+   "file": "res://assets/surface/cliffkit/desert-ledge-a.glb",
+   "material": "res://assets/surface/cliffkit/materials/desert-ledge-a.tres",
+   "size": [
+    5.342,
+    3.8,
+    11.286
+   ],
+   "bounds": {
+    "min": [
+     -4.048,
+     -0.96,
+     -4.958
+    ],
+    "max": [
+     1.294,
+     3.8,
+     6.328
+    ]
+   },
+   "top": 3.837,
+   "skirt": 0.959,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      0.64,
+      0.0,
+      3.624
+     ],
+     "direction": [
+      -0.139,
+      0.0,
+      0.99
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      0.225,
+      0.0,
+      -3.503
+     ],
+     "direction": [
+      0.139,
+      0.0,
+      -0.99
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.8,
+    1.6
+   ],
+   "anchors": [
+    [
+     0.346,
+     0.0,
+     4.1
+    ],
+    [
+     0.176,
+     0.0,
+     2.08
+    ],
+    [
+     0.005,
+     0.0,
+     0.06
+    ],
+    [
+     0.17,
+     0.0,
+     -1.959
+    ],
+    [
+     0.346,
+     0.0,
+     -3.979
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      0.346,
+      0.0,
+      4.1
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.176,
+      0.0,
+      2.08
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.005,
+      0.0,
+      0.06
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.17,
+      0.0,
+      -1.959
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.346,
+      0.0,
+      -3.979
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -3.412,
+      3.668,
+      3.09
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -1.525,
+      3.355,
+      0.06
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -1.332,
+      3.556,
+      -2.969
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -4.048,
+     6.276
+    ],
+    [
+     -4.046,
+     5.811
+    ],
+    [
+     -4.042,
+     5.761
+    ],
+    [
+     -2.063,
+     -4.446
+    ],
+    [
+     -2.021,
+     -4.557
+    ],
+    [
+     -1.702,
+     -4.698
+    ],
+    [
+     -1.135,
+     -4.698
+    ],
+    [
+     -0.21,
+     -4.181
+    ],
+    [
+     -0.053,
+     -3.98
+    ],
+    [
+     0.082,
+     -3.52
+    ],
+    [
+     0.393,
+     -2.128
+    ],
+    [
+     1.265,
+     4.781
+    ],
+    [
+     1.294,
+     5.289
+    ],
+    [
+     1.285,
+     5.489
+    ],
+    [
+     0.295,
+     5.664
+    ],
+    [
+     -3.758,
+     6.328
+    ],
+    [
+     -4.04,
+     6.296
+    ]
+   ],
+   "outline": [
+    [
+     -4.048,
+     6.276
+    ],
+    [
+     -4.046,
+     5.811
+    ],
+    [
+     -4.003,
+     4.927
+    ],
+    [
+     -3.96,
+     4.671
+    ],
+    [
+     -3.816,
+     3.901
+    ],
+    [
+     -3.681,
+     3.229
+    ],
+    [
+     -2.063,
+     -4.446
+    ],
+    [
+     -2.021,
+     -4.557
+    ],
+    [
+     -1.72,
+     -4.806
+    ],
+    [
+     -1.508,
+     -4.953
+    ],
+    [
+     -1.383,
+     -4.958
+    ],
+    [
+     -1.061,
+     -4.918
+    ],
+    [
+     -0.901,
+     -4.872
+    ],
+    [
+     -0.482,
+     -4.66
+    ],
+    [
+     -0.153,
+     -4.411
+    ],
+    [
+     0.149,
+     -4.091
+    ],
+    [
+     0.323,
+     -3.565
+    ],
+    [
+     0.644,
+     -2.227
+    ],
+    [
+     0.668,
+     -2.071
+    ],
+    [
+     1.265,
+     4.781
+    ],
+    [
+     1.294,
+     5.289
+    ],
+    [
+     1.285,
+     5.489
+    ],
+    [
+     -3.858,
+     6.426
+    ],
+    [
+     -4.024,
+     6.344
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -5,
+     -5
+    ],
+    "columns": 7,
+    "rows": 12,
+    "top": [
+     null,
+     null,
+     null,
+     3.57,
+     3.38,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.59,
+     3.52,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.6,
+     3.49,
+     2.53,
+     null,
+     null,
+     null,
+     3.57,
+     3.62,
+     3.53,
+     2.98,
+     null,
+     null,
+     null,
+     3.62,
+     3.5,
+     2.79,
+     null,
+     null,
+     null,
+     null,
+     3.66,
+     3.29,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.51,
+     3.1,
+     null,
+     null,
+     null,
+     null,
+     3.67,
+     3.15,
+     1.78,
+     null,
+     null,
+     null,
+     null,
+     3.66,
+     3.22,
+     1.84,
+     1.29,
+     0.7,
+     null,
+     null,
+     3.74,
+     3.53,
+     3.1,
+     1.35,
+     0.67,
+     null,
+     null,
+     1.68,
+     1.11,
+     0.76,
+     0.68,
+     0.84,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 4999
+    },
+    {
+     "triangles": 2498
+    },
+    {
+     "triangles": 1249
+    },
+    {
+     "triangles": 623
+    },
+    {
+     "triangles": 166
+    }
+   ],
+   "lodDistances": [
+    25.0,
+    50.8,
+    90.0,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/desert-ledge-a.collision.bin",
+    "vertices": 962,
+    "triangles": 1920,
+    "sha256": "c7eafc096b19afe8e0c6da42b580f8a851390531a09e65c7d51a022a5ade002c",
+    "within95": 0.026,
+    "within": 0.219,
+    "openEdges": 0
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/desert-ledge-a_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/desert-ledge-a_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.5168,
+     0.3594,
+     0.2778
+    ]
+   },
+   "source": {
+    "scan": "desert_western_ledge_rock_large_03_vbvqbbofa_high.glb",
+    "sha256": "3fdb461759fb80b0da1c7173c916af89e856d23ba33f591b7e80bfa3ffd81dca",
+    "yaw": -87,
+    "span": [
+     0.5,
+     10.5
+    ],
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "desert-ledge-b",
+   "family": "desert",
+   "role": "ledge",
+   "file": "res://assets/surface/cliffkit/desert-ledge-b.glb",
+   "material": "res://assets/surface/cliffkit/materials/desert-ledge-b.tres",
+   "size": [
+    4.567,
+    2.677,
+    6.868
+   ],
+   "bounds": {
+    "min": [
+     -4.386,
+     -0.672,
+     -3.426
+    ],
+    "max": [
+     0.181,
+     2.677,
+     3.442
+    ]
+   },
+   "top": 2.681,
+   "skirt": 0.67,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -3.645,
+      0.0,
+      1.937
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -1.443,
+      0.0,
+      -1.937
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.7,
+    1.5
+   ],
+   "anchors": [
+    [
+     -3.009,
+     0.0,
+     2.837
+    ],
+    [
+     -1.738,
+     0.0,
+     1.639
+    ],
+    [
+     -0.466,
+     0.0,
+     0.44
+    ],
+    [
+     -0.428,
+     0.0,
+     -1.02
+    ],
+    [
+     -1.105,
+     0.0,
+     -2.631
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -3.009,
+      0.0,
+      2.837
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.738,
+      0.0,
+      1.639
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.466,
+      0.0,
+      0.44
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.428,
+      0.0,
+      -1.02
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.105,
+      0.0,
+      -2.631
+     ],
+     "below": 1.5,
+     "above": 2.0
+    }
+   ],
+   "footprint": [
+    [
+     -4.386,
+     -3.064
+    ],
+    [
+     -4.124,
+     -3.133
+    ],
+    [
+     -2.635,
+     -3.35
+    ],
+    [
+     -1.544,
+     -3.42
+    ],
+    [
+     -1.368,
+     -3.426
+    ],
+    [
+     -0.63,
+     -3.344
+    ],
+    [
+     -0.534,
+     -3.314
+    ],
+    [
+     -0.361,
+     -3.165
+    ],
+    [
+     -0.22,
+     -2.923
+    ],
+    [
+     -0.086,
+     -2.585
+    ],
+    [
+     0.128,
+     -0.517
+    ],
+    [
+     0.181,
+     0.46
+    ],
+    [
+     0.168,
+     0.804
+    ],
+    [
+     0.135,
+     1.124
+    ],
+    [
+     -0.006,
+     1.45
+    ],
+    [
+     -0.227,
+     1.743
+    ],
+    [
+     -0.7,
+     2.27
+    ],
+    [
+     -1.674,
+     2.934
+    ],
+    [
+     -1.86,
+     3.012
+    ],
+    [
+     -3.317,
+     3.387
+    ],
+    [
+     -3.696,
+     3.442
+    ],
+    [
+     -3.819,
+     3.418
+    ],
+    [
+     -3.832,
+     3.327
+    ],
+    [
+     -4.226,
+     -1.169
+    ]
+   ],
+   "outline": [
+    [
+     -4.386,
+     -3.064
+    ],
+    [
+     -4.124,
+     -3.133
+    ],
+    [
+     -2.635,
+     -3.35
+    ],
+    [
+     -1.544,
+     -3.42
+    ],
+    [
+     -1.368,
+     -3.426
+    ],
+    [
+     -0.63,
+     -3.344
+    ],
+    [
+     -0.534,
+     -3.314
+    ],
+    [
+     -0.361,
+     -3.165
+    ],
+    [
+     -0.22,
+     -2.923
+    ],
+    [
+     -0.086,
+     -2.585
+    ],
+    [
+     0.128,
+     -0.517
+    ],
+    [
+     0.181,
+     0.46
+    ],
+    [
+     0.168,
+     0.804
+    ],
+    [
+     0.135,
+     1.124
+    ],
+    [
+     -0.006,
+     1.45
+    ],
+    [
+     -0.227,
+     1.743
+    ],
+    [
+     -0.7,
+     2.27
+    ],
+    [
+     -1.674,
+     2.934
+    ],
+    [
+     -1.86,
+     3.012
+    ],
+    [
+     -3.317,
+     3.387
+    ],
+    [
+     -3.696,
+     3.442
+    ],
+    [
+     -3.819,
+     3.418
+    ],
+    [
+     -3.832,
+     3.327
+    ],
+    [
+     -4.276,
+     -1.743
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -5,
+     -4
+    ],
+    "columns": 6,
+    "rows": 8,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.07,
+     2.09,
+     1.79,
+     1.27,
+     null,
+     null,
+     2.51,
+     2.25,
+     1.88,
+     1.44,
+     null,
+     null,
+     2.56,
+     2.28,
+     1.91,
+     1.49,
+     null,
+     null,
+     2.59,
+     2.32,
+     1.93,
+     1.57,
+     null,
+     null,
+     2.61,
+     2.39,
+     1.98,
+     1.42,
+     null,
+     null,
+     2.53,
+     2.19,
+     1.8,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 4998
+    },
+    {
+     "triangles": 2499
+    },
+    {
+     "triangles": 1249
+    },
+    {
+     "triangles": 624
+    },
+    {
+     "triangles": 165
+    }
+   ],
+   "lodDistances": [
+    25.0,
+    50.0,
+    90.0,
+    250.0,
+    600.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/desert-ledge-b.collision.bin",
+    "vertices": 962,
+    "triangles": 1919,
+    "sha256": "34284fbcf0aaad3122526b861058a0f1bc29c1ecaa8016dd36adf7b960c99040",
+    "within95": 0.013,
+    "within": 0.038,
+    "openEdges": 3
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/desert-ledge-b_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/desert-ledge-b_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.4762,
+     0.2639,
+     0.1992
+    ]
+   },
+   "source": {
+    "scan": "desert_western_ledge_rock_medium_01_xgkneh0_high.glb",
+    "sha256": "99ccd2a0ff99ea411f1dc1409867fdcdd51a292c5c26d14f68517d6209e8b4d9",
+    "yaw": -95,
+    "span": null,
+    "scale": 2.0,
+    "mirror": false,
+    "ends": [
+     "natural",
+     "natural"
+    ]
+   }
+  },
+  {
+   "key": "desert-end-left",
+   "family": "desert",
+   "role": "end",
+   "file": "res://assets/surface/cliffkit/desert-end-left.glb",
+   "material": "res://assets/surface/cliffkit/materials/desert-end-left.tres",
+   "size": [
+    10.218,
+    19.618,
+    20.932
+   ],
+   "bounds": {
+    "min": [
+     -8.137,
+     -3.004,
+     -13.084
+    ],
+    "max": [
+     2.081,
+     19.618,
+     7.848
+    ]
+   },
+   "top": 19.635,
+   "skirt": 3.0,
+   "sockets": [
+    {
+     "name": "right",
+     "position": [
+      -1.204,
+      0.0,
+      -6.715
+     ],
+     "direction": [
+      -0.032,
+      0.0,
+      -0.999
+     ]
+    }
+   ],
+   "caps": {
+    "left": true,
+    "right": false
+   },
+   "scale": [
+    0.6,
+    1.1
+   ],
+   "anchors": [
+    [
+     -0.783,
+     0.0,
+     6.632
+    ],
+    [
+     -0.392,
+     0.0,
+     3.325
+    ],
+    [
+     -0.002,
+     0.0,
+     0.017
+    ],
+    [
+     -0.499,
+     0.0,
+     -3.275
+    ],
+    [
+     -1.001,
+     0.0,
+     -6.568
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -0.783,
+      0.0,
+      6.632
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.392,
+      0.0,
+      3.325
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.002,
+      0.0,
+      0.017
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.499,
+      0.0,
+      -3.275
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.001,
+      0.0,
+      -6.568
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -1.168,
+      4.193,
+      4.978
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -4.147,
+      11.69,
+      0.017
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -7.064,
+      18.967,
+      -4.922
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -8.128,
+     -10.78
+    ],
+    [
+     -7.709,
+     -12.307
+    ],
+    [
+     -7.285,
+     -12.988
+    ],
+    [
+     -6.914,
+     -13.068
+    ],
+    [
+     -6.642,
+     -13.084
+    ],
+    [
+     -6.488,
+     -13.077
+    ],
+    [
+     -5.791,
+     -13.015
+    ],
+    [
+     -0.347,
+     -10.336
+    ],
+    [
+     1.096,
+     -5.525
+    ],
+    [
+     1.984,
+     -2.23
+    ],
+    [
+     2.081,
+     -0.966
+    ],
+    [
+     1.978,
+     -0.181
+    ],
+    [
+     1.818,
+     0.299
+    ],
+    [
+     -0.87,
+     6.374
+    ],
+    [
+     -0.972,
+     6.575
+    ],
+    [
+     -1.71,
+     7.549
+    ],
+    [
+     -1.838,
+     7.704
+    ],
+    [
+     -1.948,
+     7.776
+    ],
+    [
+     -2.035,
+     7.811
+    ],
+    [
+     -2.198,
+     7.848
+    ],
+    [
+     -2.251,
+     7.847
+    ],
+    [
+     -2.612,
+     7.669
+    ],
+    [
+     -2.784,
+     7.554
+    ],
+    [
+     -2.792,
+     7.545
+    ]
+   ],
+   "outline": [
+    [
+     -8.135,
+     -10.794
+    ],
+    [
+     -7.709,
+     -12.307
+    ],
+    [
+     -7.285,
+     -12.988
+    ],
+    [
+     -6.914,
+     -13.068
+    ],
+    [
+     -6.642,
+     -13.084
+    ],
+    [
+     -5.626,
+     -13.063
+    ],
+    [
+     -3.55,
+     -12.981
+    ],
+    [
+     -3.199,
+     -12.959
+    ],
+    [
+     -2.709,
+     -12.763
+    ],
+    [
+     -0.3,
+     -10.785
+    ],
+    [
+     1.984,
+     -2.23
+    ],
+    [
+     2.081,
+     -0.966
+    ],
+    [
+     1.978,
+     -0.181
+    ],
+    [
+     1.131,
+     3.555
+    ],
+    [
+     0.036,
+     6.607
+    ],
+    [
+     -0.186,
+     6.894
+    ],
+    [
+     -0.558,
+     7.143
+    ],
+    [
+     -1.948,
+     7.776
+    ],
+    [
+     -2.251,
+     7.847
+    ],
+    [
+     -2.792,
+     7.545
+    ],
+    [
+     -6.496,
+     -1.231
+    ],
+    [
+     -6.694,
+     -1.73
+    ],
+    [
+     -6.895,
+     -2.652
+    ],
+    [
+     -8.079,
+     -10.15
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -9,
+     -14
+    ],
+    "columns": 12,
+    "rows": 22,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.59,
+     0.25,
+     -0.74,
+     null,
+     -2.14,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1.02,
+     0.78,
+     0.9,
+     1.04,
+     -1.17,
+     -2.25,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     4.2,
+     1.9,
+     1.93,
+     1.83,
+     1.67,
+     -1.31,
+     -0.55,
+     -0.5,
+     null,
+     null,
+     null,
+     null,
+     6.3,
+     7.13,
+     8.89,
+     1.92,
+     1.72,
+     1.7,
+     0.6,
+     -0.01,
+     null,
+     null,
+     null,
+     null,
+     8.41,
+     8.91,
+     2.3,
+     2.12,
+     1.97,
+     1.74,
+     0.94,
+     -0.14,
+     null,
+     null,
+     null,
+     null,
+     16.54,
+     16.42,
+     13.85,
+     2.48,
+     2.28,
+     1.89,
+     1.33,
+     0.3,
+     null,
+     null,
+     null,
+     null,
+     null,
+     19.49,
+     15.09,
+     2.92,
+     2.59,
+     2.07,
+     1.3,
+     0.63,
+     -0.16,
+     null,
+     null,
+     null,
+     null,
+     19.27,
+     17.28,
+     16.85,
+     2.71,
+     2.25,
+     1.61,
+     1.0,
+     0.4,
+     null,
+     null,
+     null,
+     null,
+     18.62,
+     17.73,
+     16.08,
+     2.69,
+     2.18,
+     1.7,
+     1.06,
+     0.29,
+     null,
+     null,
+     null,
+     null,
+     17.61,
+     17.53,
+     15.56,
+     2.64,
+     2.16,
+     1.7,
+     1.16,
+     -0.45,
+     null,
+     null,
+     null,
+     null,
+     16.38,
+     15.53,
+     14.35,
+     14.1,
+     7.19,
+     1.7,
+     1.28,
+     0.65,
+     0.1,
+     null,
+     null,
+     null,
+     14.84,
+     14.83,
+     13.55,
+     13.31,
+     12.9,
+     1.5,
+     1.18,
+     0.74,
+     0.22,
+     null,
+     null,
+     null,
+     null,
+     13.17,
+     12.3,
+     12.16,
+     11.92,
+     11.32,
+     1.02,
+     0.64,
+     0.14,
+     null,
+     null,
+     null,
+     null,
+     11.5,
+     11.46,
+     10.81,
+     10.56,
+     10.16,
+     9.84,
+     0.38,
+     -0.16,
+     null,
+     null,
+     null,
+     null,
+     null,
+     9.73,
+     9.65,
+     9.21,
+     9.0,
+     8.72,
+     8.2,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     8.08,
+     8.03,
+     7.98,
+     7.51,
+     7.26,
+     6.93,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     6.47,
+     6.43,
+     6.21,
+     5.76,
+     5.52,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     5.02,
+     4.98,
+     4.6,
+     4.04,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.82,
+     3.71,
+     3.5,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.82,
+     2.7,
+     2.6,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1.43,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 9998
+    },
+    {
+     "triangles": 4998
+    },
+    {
+     "triangles": 2498
+    },
+    {
+     "triangles": 1248
+    },
+    {
+     "triangles": 332
+    }
+   ],
+   "lodDistances": [
+    46.1,
+    94.2,
+    146.5,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/desert-end-left.collision.bin",
+    "vertices": 963,
+    "triangles": 1918,
+    "sha256": "6ecbb5b8b8a931937f536a1e76efff103ee906512e5ca797c0c67adc48c4b601",
+    "within95": 0.091,
+    "within": 0.318,
+    "openEdges": 12
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/desert-end-left_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/desert-end-left_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.4797,
+     0.3271,
+     0.245
+    ]
+   },
+   "source": {
+    "scan": "desert_western_cliff_layered_xl_04_ulcofaf_high.glb",
+    "sha256": "32601d8405ac41573dee5c242b514b14714a755085d26cc18b359be686dc0f0b",
+    "yaw": -88,
+    "span": [
+     -20.5,
+     -4.0
+    ],
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "taper",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "desert-end-right",
+   "family": "desert",
+   "role": "end",
+   "file": "res://assets/surface/cliffkit/desert-end-right.glb",
+   "material": "res://assets/surface/cliffkit/materials/desert-end-right.tres",
+   "size": [
+    9.08,
+    19.378,
+    20.852
+   ],
+   "bounds": {
+    "min": [
+     -5.929,
+     -3.004,
+     -7.749
+    ],
+    "max": [
+     3.151,
+     19.378,
+     13.103
+    ]
+   },
+   "top": 19.518,
+   "skirt": 3.0,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -0.867,
+      0.0,
+      6.581
+     ],
+     "direction": [
+      0.211,
+      0.0,
+      0.978
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": true
+   },
+   "scale": [
+    0.6,
+    1.1
+   ],
+   "anchors": [
+    [
+     -0.442,
+     0.0,
+     6.468
+    ],
+    [
+     -0.226,
+     0.0,
+     3.31
+    ],
+    [
+     -0.01,
+     0.0,
+     0.152
+    ],
+    [
+     -0.475,
+     0.0,
+     -2.976
+    ],
+    [
+     -0.974,
+     0.0,
+     -6.101
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -0.442,
+      0.0,
+      6.468
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.226,
+      0.0,
+      3.31
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.01,
+      0.0,
+      0.152
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.475,
+      0.0,
+      -2.976
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.974,
+      0.0,
+      -6.101
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -4.001,
+      12.039,
+      0.152
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -2.036,
+      3.484,
+      -4.538
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -5.766,
+     -2.508
+    ],
+    [
+     -5.613,
+     -3.349
+    ],
+    [
+     -3.747,
+     -6.844
+    ],
+    [
+     -3.097,
+     -7.625
+    ],
+    [
+     -2.807,
+     -7.749
+    ],
+    [
+     -0.441,
+     -7.226
+    ],
+    [
+     0.36,
+     -6.983
+    ],
+    [
+     0.782,
+     -6.682
+    ],
+    [
+     1.172,
+     -6.238
+    ],
+    [
+     1.695,
+     -5.512
+    ],
+    [
+     2.223,
+     -4.493
+    ],
+    [
+     2.609,
+     -3.521
+    ],
+    [
+     2.89,
+     -2.356
+    ],
+    [
+     3.054,
+     -1.571
+    ],
+    [
+     3.151,
+     -0.885
+    ],
+    [
+     1.131,
+     8.646
+    ],
+    [
+     0.582,
+     9.46
+    ],
+    [
+     -2.664,
+     12.821
+    ],
+    [
+     -2.989,
+     12.965
+    ],
+    [
+     -3.44,
+     12.916
+    ],
+    [
+     -4.363,
+     12.784
+    ],
+    [
+     -4.836,
+     12.701
+    ],
+    [
+     -5.409,
+     12.484
+    ],
+    [
+     -5.581,
+     11.808
+    ]
+   ],
+   "outline": [
+    [
+     -5.919,
+     -3.457
+    ],
+    [
+     -5.77,
+     -3.785
+    ],
+    [
+     -3.747,
+     -6.844
+    ],
+    [
+     -3.097,
+     -7.625
+    ],
+    [
+     -2.807,
+     -7.749
+    ],
+    [
+     -0.441,
+     -7.226
+    ],
+    [
+     0.36,
+     -6.983
+    ],
+    [
+     0.782,
+     -6.682
+    ],
+    [
+     1.172,
+     -6.238
+    ],
+    [
+     1.695,
+     -5.512
+    ],
+    [
+     2.223,
+     -4.493
+    ],
+    [
+     2.609,
+     -3.521
+    ],
+    [
+     2.89,
+     -2.356
+    ],
+    [
+     3.054,
+     -1.571
+    ],
+    [
+     3.151,
+     -0.885
+    ],
+    [
+     1.474,
+     9.542
+    ],
+    [
+     1.267,
+     9.866
+    ],
+    [
+     -2.485,
+     13.095
+    ],
+    [
+     -4.98,
+     13.199
+    ],
+    [
+     -5.335,
+     12.707
+    ],
+    [
+     -5.566,
+     11.944
+    ],
+    [
+     -5.641,
+     11.223
+    ],
+    [
+     -5.701,
+     9.882
+    ],
+    [
+     -5.929,
+     -2.526
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -6,
+     -8
+    ],
+    "columns": 10,
+    "rows": 22,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -1.6,
+     1.33,
+     0.58,
+     -0.11,
+     -0.26,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.77,
+     2.58,
+     1.76,
+     0.78,
+     -0.14,
+     -0.3,
+     null,
+     null,
+     null,
+     4.25,
+     3.78,
+     3.54,
+     3.51,
+     1.41,
+     -0.1,
+     -0.18,
+     null,
+     null,
+     5.84,
+     5.8,
+     5.02,
+     4.89,
+     4.71,
+     4.61,
+     2.51,
+     -0.06,
+     -0.31,
+     null,
+     7.45,
+     7.38,
+     7.31,
+     7.26,
+     6.41,
+     6.01,
+     3.21,
+     0.0,
+     -0.22,
+     null,
+     9.18,
+     9.13,
+     9.05,
+     8.97,
+     8.0,
+     7.3,
+     0.17,
+     0.06,
+     0.1,
+     null,
+     10.96,
+     10.93,
+     10.81,
+     10.73,
+     10.67,
+     8.97,
+     0.3,
+     0.12,
+     -0.07,
+     null,
+     12.71,
+     12.73,
+     12.59,
+     12.07,
+     10.76,
+     10.19,
+     0.41,
+     0.09,
+     null,
+     null,
+     14.43,
+     14.34,
+     12.71,
+     11.44,
+     11.46,
+     6.3,
+     0.47,
+     0.1,
+     null,
+     null,
+     15.98,
+     14.3,
+     12.92,
+     12.53,
+     8.55,
+     3.38,
+     0.6,
+     0.17,
+     null,
+     null,
+     17.34,
+     17.2,
+     14.66,
+     13.79,
+     8.77,
+     1.25,
+     0.72,
+     0.29,
+     null,
+     null,
+     18.39,
+     18.28,
+     15.27,
+     14.68,
+     4.44,
+     1.26,
+     0.78,
+     0.31,
+     null,
+     null,
+     19.09,
+     18.93,
+     15.51,
+     14.88,
+     4.25,
+     1.03,
+     0.68,
+     0.28,
+     null,
+     null,
+     19.33,
+     19.1,
+     15.56,
+     13.48,
+     1.37,
+     0.82,
+     0.5,
+     null,
+     null,
+     null,
+     18.79,
+     18.36,
+     14.89,
+     10.57,
+     1.28,
+     0.78,
+     0.04,
+     null,
+     null,
+     null,
+     18.07,
+     18.15,
+     14.76,
+     1.75,
+     1.22,
+     0.68,
+     0.07,
+     null,
+     null,
+     null,
+     16.52,
+     16.0,
+     14.61,
+     1.74,
+     1.27,
+     -0.15,
+     -0.43,
+     null,
+     null,
+     null,
+     14.83,
+     15.06,
+     2.42,
+     2.02,
+     -1.11,
+     -1.53,
+     null,
+     null,
+     null,
+     null,
+     4.11,
+     4.36,
+     2.76,
+     2.36,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.51,
+     2.76,
+     2.41,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 9999
+    },
+    {
+     "triangles": 4998
+    },
+    {
+     "triangles": 2499
+    },
+    {
+     "triangles": 1249
+    },
+    {
+     "triangles": 333
+    }
+   ],
+   "lodDistances": [
+    45.9,
+    93.8,
+    146.0,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/desert-end-right.collision.bin",
+    "vertices": 963,
+    "triangles": 1918,
+    "sha256": "0f13482fedae206096437f1da06b4cd11bcd0ad6a37cf8610f2618c7cc5ba759",
+    "within95": 0.092,
+    "within": 0.434,
+    "openEdges": 12
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/desert-end-right_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/desert-end-right_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.4767,
+     0.3235,
+     0.2421
+    ]
+   },
+   "source": {
+    "scan": "desert_western_cliff_layered_xl_04_ulcofaf_high.glb",
+    "sha256": "32601d8405ac41573dee5c242b514b14714a755085d26cc18b359be686dc0f0b",
+    "yaw": -88,
+    "span": [
+     4.0,
+     19.5
+    ],
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "taper"
+    ]
+   }
+  },
+  {
+   "key": "nordic-tall-a",
+   "family": "nordic",
+   "role": "straight",
+   "file": "res://assets/surface/cliffkit/nordic-tall-a.glb",
+   "material": "res://assets/surface/cliffkit/materials/nordic-tall-a.tres",
+   "size": [
+    19.285,
+    21.087,
+    21.495
+   ],
+   "bounds": {
+    "min": [
+     -18.772,
+     -3.006,
+     -7.905
+    ],
+    "max": [
+     0.513,
+     21.087,
+     13.59
+    ]
+   },
+   "top": 21.091,
+   "skirt": 3.0,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -1.691,
+      0.0,
+      5.643
+     ],
+     "direction": [
+      0.263,
+      0.0,
+      0.965
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -1.427,
+      0.0,
+      -4.793
+     ],
+     "direction": [
+      -0.263,
+      0.0,
+      -0.965
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.7,
+    1.3
+   ],
+   "anchors": [
+    [
+     -1.05,
+     0.0,
+     5.742
+    ],
+    [
+     -0.557,
+     0.0,
+     3.045
+    ],
+    [
+     -0.064,
+     0.0,
+     0.348
+    ],
+    [
+     -0.669,
+     0.0,
+     -2.293
+    ],
+    [
+     -1.437,
+     0.0,
+     -4.925
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -1.05,
+      0.0,
+      5.742
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.557,
+      0.0,
+      3.045
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.064,
+      0.0,
+      0.348
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.669,
+      0.0,
+      -2.293
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.437,
+      0.0,
+      -4.925
+     ],
+     "below": 1.5,
+     "above": 2.0
+    }
+   ],
+   "footprint": [
+    [
+     -18.536,
+     -6.442
+    ],
+    [
+     -18.264,
+     -6.976
+    ],
+    [
+     -15.713,
+     -7.749
+    ],
+    [
+     -14.857,
+     -7.905
+    ],
+    [
+     -12.579,
+     -7.808
+    ],
+    [
+     -4.64,
+     -7.467
+    ],
+    [
+     -2.646,
+     -6.361
+    ],
+    [
+     -1.632,
+     -5.394
+    ],
+    [
+     -1.142,
+     -4.818
+    ],
+    [
+     0.513,
+     -1.048
+    ],
+    [
+     0.083,
+     2.101
+    ],
+    [
+     -0.44,
+     4.603
+    ],
+    [
+     -1.823,
+     10.265
+    ],
+    [
+     -6.636,
+     13.568
+    ],
+    [
+     -6.85,
+     13.59
+    ],
+    [
+     -7.027,
+     13.572
+    ],
+    [
+     -7.156,
+     13.432
+    ],
+    [
+     -7.519,
+     13.026
+    ],
+    [
+     -7.953,
+     12.349
+    ],
+    [
+     -14.752,
+     1.454
+    ]
+   ],
+   "outline": [
+    [
+     -18.772,
+     -6.272
+    ],
+    [
+     -18.62,
+     -6.983
+    ],
+    [
+     -15.816,
+     -7.729
+    ],
+    [
+     -11.268,
+     -8.885
+    ],
+    [
+     -10.046,
+     -9.145
+    ],
+    [
+     -3.393,
+     -8.366
+    ],
+    [
+     -0.905,
+     -6.262
+    ],
+    [
+     -0.193,
+     -5.251
+    ],
+    [
+     0.452,
+     -3.888
+    ],
+    [
+     0.662,
+     -3.253
+    ],
+    [
+     0.786,
+     -2.097
+    ],
+    [
+     0.813,
+     1.251
+    ],
+    [
+     0.767,
+     2.851
+    ],
+    [
+     0.488,
+     6.425
+    ],
+    [
+     0.339,
+     7.335
+    ],
+    [
+     -0.034,
+     8.978
+    ],
+    [
+     -1.047,
+     9.964
+    ],
+    [
+     -6.253,
+     13.404
+    ],
+    [
+     -7.027,
+     13.572
+    ],
+    [
+     -7.519,
+     13.026
+    ],
+    [
+     -10.345,
+     8.696
+    ],
+    [
+     -14.318,
+     2.18
+    ],
+    [
+     -15.94,
+     -0.583
+    ],
+    [
+     -17.299,
+     -3.268
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -19,
+     -8
+    ],
+    "columns": 20,
+    "rows": 22,
+    "top": [
+     null,
+     null,
+     2.77,
+     2.28,
+     8.26,
+     1.82,
+     1.4,
+     -0.86,
+     -1.14,
+     -0.98,
+     -1.02,
+     null,
+     null,
+     null,
+     -1.73,
+     -1.63,
+     -1.67,
+     null,
+     null,
+     null,
+     3.3,
+     4.58,
+     4.66,
+     5.07,
+     11.11,
+     10.45,
+     9.61,
+     5.51,
+     9.01,
+     8.86,
+     8.15,
+     2.59,
+     0.4,
+     1.68,
+     0.46,
+     -0.11,
+     -0.74,
+     -0.84,
+     null,
+     null,
+     null,
+     3.78,
+     4.53,
+     4.9,
+     5.18,
+     10.86,
+     12.42,
+     9.84,
+     10.44,
+     11.23,
+     8.94,
+     3.4,
+     2.16,
+     4.56,
+     3.6,
+     2.76,
+     0.81,
+     -0.62,
+     -0.82,
+     null,
+     null,
+     3.35,
+     4.14,
+     4.91,
+     5.2,
+     5.53,
+     15.35,
+     16.45,
+     14.42,
+     12.94,
+     9.62,
+     6.78,
+     6.2,
+     7.24,
+     6.5,
+     5.19,
+     3.56,
+     0.03,
+     -0.73,
+     null,
+     null,
+     null,
+     3.73,
+     4.61,
+     5.18,
+     5.78,
+     12.68,
+     17.88,
+     16.47,
+     14.82,
+     11.26,
+     8.98,
+     8.58,
+     9.47,
+     9.31,
+     8.21,
+     6.8,
+     4.46,
+     -0.71,
+     -0.88,
+     null,
+     null,
+     3.34,
+     4.1,
+     4.96,
+     6.05,
+     17.93,
+     18.14,
+     17.81,
+     15.93,
+     13.87,
+     10.67,
+     10.79,
+     11.86,
+     12.45,
+     11.6,
+     9.93,
+     8.24,
+     -0.72,
+     -0.88,
+     null,
+     null,
+     null,
+     3.65,
+     4.39,
+     5.11,
+     5.92,
+     14.8,
+     17.97,
+     17.82,
+     14.97,
+     11.54,
+     12.25,
+     13.31,
+     14.28,
+     13.53,
+     12.9,
+     11.35,
+     9.44,
+     -0.81,
+     null,
+     null,
+     null,
+     3.29,
+     3.81,
+     4.58,
+     6.28,
+     12.67,
+     17.52,
+     18.36,
+     16.23,
+     13.04,
+     13.82,
+     14.2,
+     15.73,
+     14.43,
+     14.56,
+     14.64,
+     12.76,
+     -0.73,
+     null,
+     null,
+     null,
+     null,
+     3.38,
+     3.88,
+     4.22,
+     11.59,
+     15.82,
+     18.95,
+     18.1,
+     14.93,
+     15.23,
+     15.43,
+     15.87,
+     16.51,
+     15.87,
+     16.52,
+     13.75,
+     -0.66,
+     null,
+     null,
+     null,
+     null,
+     3.03,
+     3.31,
+     3.61,
+     3.72,
+     12.66,
+     18.61,
+     18.46,
+     15.83,
+     16.07,
+     16.07,
+     16.5,
+     17.21,
+     17.27,
+     17.69,
+     13.99,
+     -0.66,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.82,
+     3.06,
+     3.26,
+     12.39,
+     17.27,
+     18.07,
+     17.97,
+     17.75,
+     17.82,
+     17.1,
+     17.54,
+     18.48,
+     18.51,
+     13.11,
+     -0.7,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.73,
+     2.94,
+     2.96,
+     16.6,
+     18.8,
+     18.67,
+     18.26,
+     17.51,
+     17.42,
+     17.4,
+     19.96,
+     18.56,
+     -0.32,
+     -0.73,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.52,
+     2.7,
+     2.88,
+     14.69,
+     19.27,
+     19.66,
+     19.59,
+     18.67,
+     13.34,
+     0.95,
+     20.26,
+     19.12,
+     -0.39,
+     -0.77,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.1,
+     4.12,
+     13.03,
+     17.6,
+     19.49,
+     19.59,
+     19.42,
+     0.82,
+     0.42,
+     20.64,
+     -0.08,
+     -0.44,
+     -0.8,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.87,
+     3.92,
+     4.12,
+     16.4,
+     19.31,
+     19.82,
+     19.85,
+     1.85,
+     0.16,
+     -0.08,
+     -0.31,
+     -0.58,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.3,
+     3.77,
+     15.09,
+     19.06,
+     18.43,
+     17.78,
+     3.93,
+     -0.09,
+     -0.32,
+     -0.52,
+     -0.63,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.57,
+     13.3,
+     18.24,
+     17.67,
+     5.73,
+     4.89,
+     0.12,
+     -0.29,
+     -0.51,
+     -1.58,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.67,
+     3.66,
+     17.63,
+     16.04,
+     12.12,
+     5.29,
+     0.97,
+     -0.29,
+     -0.49,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.89,
+     3.62,
+     11.69,
+     4.11,
+     4.7,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.77,
+     3.48,
+     3.74,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.62,
+     -0.44,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 14998
+    },
+    {
+     "triangles": 7498
+    },
+    {
+     "triangles": 3749
+    },
+    {
+     "triangles": 1873
+    },
+    {
+     "triangles": 498
+    }
+   ],
+   "lodDistances": [
+    47.5,
+    97.1,
+    151.1,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/nordic-tall-a.collision.bin",
+    "vertices": 958,
+    "triangles": 1918,
+    "sha256": "11a9af123a4023094c4b244e634448ea4706a238b74741137618ee5687bdfe82",
+    "within95": 0.148,
+    "within": 0.403,
+    "openEdges": 6
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/nordic-tall-a_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/nordic-tall-a_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.434,
+     0.3842,
+     0.3177
+    ]
+   },
+   "source": {
+    "scan": "massive_nordic_coastal_cliff_vfmjadufa_high.glb",
+    "sha256": "81674aec9494836222b95fdd82e3647e2b8f26e1e49747a3e3ab345b8d0bcbe5",
+    "yaw": -105,
+    "span": [
+     -10.5,
+     2.5
+    ],
+    "scale": 1.6,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "nordic-tall-b",
+   "family": "nordic",
+   "role": "straight",
+   "file": "res://assets/surface/cliffkit/nordic-tall-b.glb",
+   "material": "res://assets/surface/cliffkit/materials/nordic-tall-b.tres",
+   "size": [
+    10.386,
+    14.505,
+    25.727
+   ],
+   "bounds": {
+    "min": [
+     -9.398,
+     -3.01,
+     -3.026
+    ],
+    "max": [
+     0.988,
+     14.505,
+     22.701
+    ]
+   },
+   "top": 15.913,
+   "skirt": 3.0,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -3.338,
+      0.0,
+      13.758
+     ],
+     "direction": [
+      0.892,
+      0.0,
+      0.453
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -3.05,
+      0.0,
+      -1.172
+     ],
+     "direction": [
+      -0.892,
+      0.0,
+      -0.453
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.7,
+    1.3
+   ],
+   "anchors": [
+    [
+     -1.735,
+     0.0,
+     12.522
+    ],
+    [
+     -1.204,
+     0.0,
+     8.691
+    ],
+    [
+     -0.673,
+     0.0,
+     4.86
+    ],
+    [
+     -0.143,
+     0.0,
+     1.029
+    ],
+    [
+     -2.606,
+     0.0,
+     -1.1
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -1.735,
+      0.0,
+      12.522
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.204,
+      0.0,
+      8.691
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.673,
+      0.0,
+      4.86
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.143,
+      0.0,
+      1.029
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -2.606,
+      0.0,
+      -1.1
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -2.93,
+      13.316,
+      10.606
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -4.163,
+      12.381,
+      4.86
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -3.08,
+      1.988,
+      -0.348
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -8.748,
+     22.675
+    ],
+    [
+     -7.802,
+     0.998
+    ],
+    [
+     -7.713,
+     0.747
+    ],
+    [
+     -6.399,
+     -1.462
+    ],
+    [
+     -6.154,
+     -1.713
+    ],
+    [
+     -4.004,
+     -3.026
+    ],
+    [
+     -3.348,
+     -2.679
+    ],
+    [
+     0.32,
+     -0.218
+    ],
+    [
+     0.68,
+     0.274
+    ],
+    [
+     0.905,
+     0.654
+    ],
+    [
+     0.988,
+     1.018
+    ],
+    [
+     0.463,
+     9.788
+    ],
+    [
+     -0.803,
+     17.056
+    ],
+    [
+     -1.621,
+     20.49
+    ],
+    [
+     -2.235,
+     21.993
+    ],
+    [
+     -2.268,
+     22.049
+    ],
+    [
+     -2.371,
+     22.202
+    ],
+    [
+     -4.726,
+     22.648
+    ],
+    [
+     -6.202,
+     22.688
+    ],
+    [
+     -7.868,
+     22.699
+    ],
+    [
+     -8.238,
+     22.701
+    ],
+    [
+     -8.746,
+     22.686
+    ]
+   ],
+   "outline": [
+    [
+     -9.437,
+     13.426
+    ],
+    [
+     -7.921,
+     0.795
+    ],
+    [
+     -6.967,
+     -1.596
+    ],
+    [
+     -6.773,
+     -1.876
+    ],
+    [
+     -6.55,
+     -2.153
+    ],
+    [
+     -6.099,
+     -2.699
+    ],
+    [
+     -5.87,
+     -2.969
+    ],
+    [
+     -5.549,
+     -3.137
+    ],
+    [
+     -4.327,
+     -3.439
+    ],
+    [
+     1.2,
+     0.211
+    ],
+    [
+     1.277,
+     0.268
+    ],
+    [
+     0.985,
+     5.615
+    ],
+    [
+     0.325,
+     13.659
+    ],
+    [
+     0.142,
+     15.58
+    ],
+    [
+     -0.321,
+     19.588
+    ],
+    [
+     -1.225,
+     21.885
+    ],
+    [
+     -1.337,
+     21.924
+    ],
+    [
+     -1.597,
+     22.006
+    ],
+    [
+     -1.779,
+     22.056
+    ],
+    [
+     -2.301,
+     22.197
+    ],
+    [
+     -4.726,
+     22.648
+    ],
+    [
+     -6.202,
+     22.688
+    ],
+    [
+     -8.75,
+     22.709
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -10,
+     -4
+    ],
+    "columns": 11,
+    "rows": 27,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -1.54,
+     -0.85,
+     0.29,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -1.38,
+     2.75,
+     2.4,
+     1.46,
+     -0.05,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     5.54,
+     6.7,
+     2.28,
+     2.0,
+     1.31,
+     0.52,
+     null,
+     null,
+     null,
+     null,
+     -0.4,
+     6.35,
+     7.3,
+     8.34,
+     6.95,
+     4.39,
+     1.65,
+     1.81,
+     0.9,
+     null,
+     null,
+     9.62,
+     9.52,
+     9.51,
+     9.55,
+     9.94,
+     9.64,
+     9.61,
+     7.53,
+     1.36,
+     null,
+     null,
+     10.8,
+     10.51,
+     10.56,
+     10.81,
+     11.22,
+     11.65,
+     11.24,
+     10.38,
+     0.9,
+     null,
+     null,
+     11.55,
+     11.33,
+     11.44,
+     11.65,
+     12.01,
+     12.46,
+     11.52,
+     5.3,
+     -1.66,
+     null,
+     null,
+     12.12,
+     12.01,
+     11.95,
+     12.18,
+     12.26,
+     11.01,
+     10.05,
+     6.88,
+     -1.85,
+     null,
+     null,
+     12.89,
+     12.77,
+     12.67,
+     12.77,
+     12.93,
+     13.32,
+     7.29,
+     5.93,
+     4.72,
+     null,
+     null,
+     13.23,
+     13.28,
+     13.68,
+     13.54,
+     13.78,
+     14.24,
+     6.52,
+     5.74,
+     4.85,
+     null,
+     null,
+     13.26,
+     13.46,
+     13.65,
+     14.17,
+     14.21,
+     14.27,
+     13.16,
+     5.15,
+     null,
+     null,
+     null,
+     12.88,
+     13.2,
+     13.41,
+     13.73,
+     13.88,
+     14.06,
+     13.52,
+     1.59,
+     null,
+     null,
+     null,
+     12.61,
+     12.78,
+     13.05,
+     13.34,
+     13.57,
+     13.7,
+     13.06,
+     1.39,
+     null,
+     null,
+     11.37,
+     11.94,
+     12.33,
+     12.49,
+     12.95,
+     13.23,
+     9.79,
+     4.31,
+     -0.12,
+     null,
+     null,
+     10.34,
+     11.77,
+     12.08,
+     12.14,
+     12.13,
+     11.08,
+     10.03,
+     9.31,
+     null,
+     null,
+     null,
+     10.78,
+     11.28,
+     11.74,
+     11.83,
+     11.94,
+     11.81,
+     9.71,
+     4.16,
+     3.32,
+     null,
+     null,
+     8.69,
+     10.51,
+     11.17,
+     11.28,
+     11.56,
+     11.62,
+     7.04,
+     3.65,
+     -1.23,
+     null,
+     null,
+     7.95,
+     9.49,
+     10.31,
+     10.6,
+     11.11,
+     11.31,
+     5.82,
+     1.09,
+     -1.29,
+     null,
+     null,
+     7.5,
+     9.04,
+     9.96,
+     10.32,
+     10.54,
+     9.8,
+     6.31,
+     0.38,
+     -2.03,
+     null,
+     null,
+     6.99,
+     7.92,
+     9.69,
+     10.04,
+     10.31,
+     10.6,
+     7.81,
+     4.12,
+     null,
+     null,
+     null,
+     4.5,
+     5.65,
+     9.2,
+     9.42,
+     9.95,
+     10.02,
+     8.14,
+     1.59,
+     null,
+     null,
+     null,
+     3.02,
+     3.17,
+     3.49,
+     8.01,
+     9.57,
+     9.48,
+     8.87,
+     -1.79,
+     null,
+     null,
+     null,
+     2.6,
+     2.76,
+     3.09,
+     3.38,
+     3.71,
+     7.43,
+     8.74,
+     -1.4,
+     -2.65,
+     null,
+     null,
+     2.39,
+     2.66,
+     2.88,
+     3.0,
+     3.3,
+     3.73,
+     3.69,
+     -1.33,
+     null,
+     null,
+     null,
+     1.75,
+     2.12,
+     2.33,
+     2.35,
+     2.46,
+     2.43,
+     1.66,
+     null,
+     null,
+     null,
+     null,
+     0.57,
+     0.48,
+     0.47,
+     -0.89,
+     0.03,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 11999
+    },
+    {
+     "triangles": 5999
+    },
+    {
+     "triangles": 2999
+    },
+    {
+     "triangles": 1499
+    },
+    {
+     "triangles": 399
+    }
+   ],
+   "lodDistances": [
+    56.6,
+    115.8,
+    180.1,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/nordic-tall-b.collision.bin",
+    "vertices": 962,
+    "triangles": 1918,
+    "sha256": "b77df97df0aec80b748f5e21c173e28b4c3bbf0e39da65581ff7bde954e4e463",
+    "within95": 0.096,
+    "within": 0.3,
+    "openEdges": 6
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/nordic-tall-b_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/nordic-tall-b_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.4029,
+     0.353,
+     0.2844
+    ]
+   },
+   "source": {
+    "scan": "huge_nordic_coastal_cliff_vefkehbva_high.glb",
+    "sha256": "8a71225c828e8e63878c014b11a17c32a50fa30df295b51b58c3d0da7d16b9bc",
+    "yaw": 160,
+    "span": [
+     0.0,
+     9.5
+    ],
+    "scale": 1.6,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "nordic-tall-c",
+   "family": "nordic",
+   "role": "straight",
+   "file": "res://assets/surface/cliffkit/nordic-tall-c.glb",
+   "material": "res://assets/surface/cliffkit/materials/nordic-tall-c.tres",
+   "size": [
+    7.11,
+    8.727,
+    23.442
+   ],
+   "bounds": {
+    "min": [
+     -6.427,
+     -2.195,
+     -11.676
+    ],
+    "max": [
+     0.682,
+     8.727,
+     11.765
+    ]
+   },
+   "top": 8.731,
+   "skirt": 2.183,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -0.32,
+      0.0,
+      7.243
+     ],
+     "direction": [
+      -0.038,
+      0.0,
+      0.999
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -0.156,
+      0.0,
+      -7.261
+     ],
+     "direction": [
+      0.038,
+      0.0,
+      -0.999
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.7,
+    1.3
+   ],
+   "anchors": [
+    [
+     -0.302,
+     0.0,
+     6.992
+    ],
+    [
+     -0.151,
+     0.0,
+     3.494
+    ],
+    [
+     -0.0,
+     0.0,
+     -0.005
+    ],
+    [
+     -0.039,
+     0.0,
+     -3.507
+    ],
+    [
+     -0.078,
+     0.0,
+     -7.009
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -0.302,
+      0.0,
+      6.992
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.151,
+      0.0,
+      3.494
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.0,
+      0.0,
+      -0.005
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.039,
+      0.0,
+      -3.507
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.078,
+      0.0,
+      -7.009
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -3.095,
+      7.184,
+      5.243
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -3.442,
+      8.409,
+      -0.005
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -4.514,
+      8.421,
+      -5.258
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -6.427,
+     11.587
+    ],
+    [
+     -6.426,
+     11.558
+    ],
+    [
+     -4.749,
+     -11.049
+    ],
+    [
+     -4.7,
+     -11.64
+    ],
+    [
+     -4.422,
+     -11.676
+    ],
+    [
+     -1.143,
+     -10.436
+    ],
+    [
+     -0.943,
+     -10.348
+    ],
+    [
+     0.682,
+     -9.493
+    ],
+    [
+     -0.039,
+     9.302
+    ],
+    [
+     -0.096,
+     9.413
+    ],
+    [
+     -3.748,
+     11.396
+    ],
+    [
+     -3.965,
+     11.439
+    ],
+    [
+     -5.933,
+     11.765
+    ],
+    [
+     -6.165,
+     11.764
+    ],
+    [
+     -6.423,
+     11.699
+    ],
+    [
+     -6.427,
+     11.692
+    ]
+   ],
+   "outline": [
+    [
+     -6.427,
+     11.587
+    ],
+    [
+     -6.426,
+     11.558
+    ],
+    [
+     -6.274,
+     9.34
+    ],
+    [
+     -5.54,
+     -0.83
+    ],
+    [
+     -4.981,
+     -8.223
+    ],
+    [
+     -4.79,
+     -10.607
+    ],
+    [
+     -4.688,
+     -11.84
+    ],
+    [
+     -4.684,
+     -11.841
+    ],
+    [
+     -2.768,
+     -11.624
+    ],
+    [
+     -2.576,
+     -11.537
+    ],
+    [
+     0.733,
+     -9.752
+    ],
+    [
+     0.748,
+     -9.661
+    ],
+    [
+     0.308,
+     4.59
+    ],
+    [
+     -0.039,
+     9.302
+    ],
+    [
+     -0.115,
+     9.727
+    ],
+    [
+     -3.593,
+     11.852
+    ],
+    [
+     -3.79,
+     11.954
+    ],
+    [
+     -4.004,
+     12.004
+    ],
+    [
+     -4.219,
+     12.05
+    ],
+    [
+     -6.42,
+     11.813
+    ],
+    [
+     -6.427,
+     11.692
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -7,
+     -12
+    ],
+    "columns": 8,
+    "rows": 24,
+    "top": [
+     null,
+     null,
+     -0.31,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     7.22,
+     1.3,
+     1.74,
+     null,
+     null,
+     null,
+     null,
+     null,
+     8.18,
+     6.2,
+     5.62,
+     4.95,
+     1.71,
+     -0.44,
+     null,
+     null,
+     8.15,
+     8.49,
+     7.69,
+     5.62,
+     3.42,
+     null,
+     null,
+     null,
+     8.38,
+     8.46,
+     7.4,
+     4.49,
+     -1.29,
+     null,
+     null,
+     null,
+     8.27,
+     8.31,
+     6.98,
+     3.72,
+     null,
+     null,
+     null,
+     null,
+     8.31,
+     7.95,
+     5.77,
+     4.42,
+     0.79,
+     null,
+     null,
+     null,
+     8.52,
+     7.79,
+     6.33,
+     4.81,
+     1.32,
+     null,
+     null,
+     null,
+     8.66,
+     8.48,
+     6.1,
+     5.19,
+     3.77,
+     null,
+     null,
+     null,
+     8.55,
+     8.26,
+     6.67,
+     4.93,
+     3.26,
+     null,
+     null,
+     null,
+     8.45,
+     8.37,
+     7.15,
+     4.56,
+     2.81,
+     null,
+     null,
+     8.48,
+     8.46,
+     8.43,
+     7.08,
+     5.84,
+     3.01,
+     null,
+     null,
+     8.32,
+     8.31,
+     8.36,
+     7.67,
+     6.75,
+     2.2,
+     null,
+     null,
+     null,
+     8.33,
+     8.33,
+     7.68,
+     6.59,
+     4.24,
+     null,
+     null,
+     null,
+     8.2,
+     8.16,
+     7.63,
+     5.77,
+     3.9,
+     null,
+     null,
+     null,
+     7.64,
+     7.83,
+     7.41,
+     6.19,
+     4.32,
+     null,
+     null,
+     null,
+     7.52,
+     7.52,
+     7.05,
+     6.23,
+     4.3,
+     null,
+     null,
+     null,
+     7.53,
+     7.33,
+     6.87,
+     5.85,
+     4.11,
+     null,
+     null,
+     null,
+     7.44,
+     7.35,
+     6.47,
+     5.28,
+     4.09,
+     null,
+     null,
+     7.3,
+     7.11,
+     6.84,
+     5.91,
+     4.69,
+     null,
+     null,
+     null,
+     6.96,
+     6.93,
+     6.84,
+     5.69,
+     4.2,
+     0.72,
+     null,
+     null,
+     6.79,
+     6.08,
+     6.44,
+     1.95,
+     3.7,
+     0.98,
+     null,
+     null,
+     2.69,
+     1.83,
+     0.08,
+     -1.43,
+     null,
+     null,
+     null,
+     null,
+     1.85,
+     -0.69,
+     -0.87,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 9998
+    },
+    {
+     "triangles": 4998
+    },
+    {
+     "triangles": 2499
+    },
+    {
+     "triangles": 1248
+    },
+    {
+     "triangles": 333
+    }
+   ],
+   "lodDistances": [
+    51.6,
+    105.5,
+    164.1,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/nordic-tall-c.collision.bin",
+    "vertices": 962,
+    "triangles": 1919,
+    "sha256": "89a63802826bbcddec501d184941b6cc1e91c3156299aa19fe0a0a01a66dc509",
+    "within95": 0.067,
+    "within": 0.186,
+    "openEdges": 3
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/nordic-tall-c_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/nordic-tall-c_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.3437,
+     0.3201,
+     0.2127
+    ]
+   },
+   "source": {
+    "scan": "nordic_forest_cliff_large_xibjbg3_high.glb",
+    "sha256": "aac97527786ca144dfa0f992e02de9bde29005bdb92bf14853741e4b17045bed",
+    "yaw": -88,
+    "span": [
+     -9.0,
+     8.5
+    ],
+    "scale": 1.6,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "nordic-end-left",
+   "family": "nordic",
+   "role": "end",
+   "file": "res://assets/surface/cliffkit/nordic-end-left.glb",
+   "material": "res://assets/surface/cliffkit/materials/nordic-end-left.tres",
+   "size": [
+    11.633,
+    10.077,
+    20.859
+   ],
+   "bounds": {
+    "min": [
+     -6.85,
+     -1.165,
+     -11.314
+    ],
+    "max": [
+     4.783,
+     10.077,
+     9.545
+    ]
+   },
+   "top": 12.402,
+   "skirt": 3.0,
+   "sockets": [
+    {
+     "name": "right",
+     "position": [
+      0.102,
+      0.0,
+      -5.252
+     ],
+     "direction": [
+      0.052,
+      0.0,
+      -0.999
+     ]
+    }
+   ],
+   "caps": {
+    "left": true,
+    "right": false
+   },
+   "scale": [
+    0.7,
+    1.3
+   ],
+   "anchors": [
+    [
+     -0.115,
+     0.0,
+     5.401
+    ],
+    [
+     -0.058,
+     0.0,
+     2.701
+    ],
+    [
+     -0.0,
+     0.0,
+     0.001
+    ],
+    [
+     0.072,
+     0.0,
+     -2.7
+    ],
+    [
+     0.144,
+     0.0,
+     -5.4
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -0.115,
+      0.0,
+      5.401
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.058,
+      0.0,
+      2.701
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.0,
+      0.0,
+      0.001
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.072,
+      0.0,
+      -2.7
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.144,
+      0.0,
+      -5.4
+     ],
+     "below": 1.5,
+     "above": 2.0
+    }
+   ],
+   "footprint": [
+    [
+     -6.85,
+     -4.982
+    ],
+    [
+     -6.766,
+     -5.777
+    ],
+    [
+     -6.606,
+     -6.385
+    ],
+    [
+     -4.864,
+     -11.272
+    ],
+    [
+     -4.828,
+     -11.314
+    ],
+    [
+     -4.599,
+     -11.312
+    ],
+    [
+     -3.688,
+     -10.916
+    ],
+    [
+     -0.673,
+     -8.552
+    ],
+    [
+     -0.493,
+     -8.4
+    ],
+    [
+     -0.176,
+     -7.721
+    ],
+    [
+     2.471,
+     4.626
+    ],
+    [
+     1.991,
+     5.986
+    ],
+    [
+     1.628,
+     6.797
+    ],
+    [
+     1.244,
+     7.335
+    ],
+    [
+     1.101,
+     7.492
+    ],
+    [
+     0.597,
+     7.806
+    ],
+    [
+     -0.857,
+     8.341
+    ],
+    [
+     -4.102,
+     9.504
+    ],
+    [
+     -4.39,
+     9.545
+    ],
+    [
+     -5.564,
+     9.542
+    ],
+    [
+     -6.088,
+     7.666
+    ],
+    [
+     -6.137,
+     7.427
+    ],
+    [
+     -6.156,
+     7.242
+    ],
+    [
+     -6.319,
+     5.523
+    ]
+   ],
+   "outline": [
+    [
+     -6.85,
+     -4.982
+    ],
+    [
+     -6.766,
+     -5.777
+    ],
+    [
+     -6.606,
+     -6.385
+    ],
+    [
+     -4.864,
+     -11.272
+    ],
+    [
+     -4.599,
+     -11.312
+    ],
+    [
+     -3.415,
+     -10.88
+    ],
+    [
+     4.583,
+     -5.859
+    ],
+    [
+     4.783,
+     -5.553
+    ],
+    [
+     4.782,
+     -5.217
+    ],
+    [
+     4.076,
+     -0.937
+    ],
+    [
+     3.448,
+     2.685
+    ],
+    [
+     1.991,
+     5.986
+    ],
+    [
+     1.628,
+     6.797
+    ],
+    [
+     1.244,
+     7.335
+    ],
+    [
+     1.101,
+     7.492
+    ],
+    [
+     0.597,
+     7.806
+    ],
+    [
+     -0.857,
+     8.341
+    ],
+    [
+     -4.102,
+     9.504
+    ],
+    [
+     -4.722,
+     9.719
+    ],
+    [
+     -5.346,
+     9.6
+    ],
+    [
+     -5.564,
+     9.542
+    ],
+    [
+     -6.088,
+     7.666
+    ],
+    [
+     -6.137,
+     7.427
+    ],
+    [
+     -6.319,
+     5.523
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -7,
+     -12
+    ],
+    "columns": 12,
+    "rows": 22,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.74,
+     -0.27,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.46,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.78,
+     2.91,
+     0.7,
+     0.29,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.73,
+     4.42,
+     5.15,
+     3.62,
+     1.73,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.01,
+     3.48,
+     4.67,
+     5.49,
+     7.4,
+     7.08,
+     7.12,
+     null,
+     null,
+     null,
+     null,
+     0.97,
+     2.44,
+     3.3,
+     4.62,
+     6.47,
+     6.99,
+     7.81,
+     8.36,
+     6.98,
+     7.01,
+     8.76,
+     9.31,
+     0.77,
+     2.34,
+     3.61,
+     4.24,
+     5.98,
+     6.18,
+     7.5,
+     8.75,
+     9.47,
+     9.66,
+     9.85,
+     8.99,
+     0.62,
+     2.12,
+     2.99,
+     4.14,
+     5.1,
+     7.18,
+     8.08,
+     8.86,
+     9.22,
+     9.36,
+     7.9,
+     null,
+     0.68,
+     1.71,
+     3.09,
+     3.81,
+     4.81,
+     6.39,
+     7.39,
+     7.92,
+     8.48,
+     8.49,
+     null,
+     null,
+     0.16,
+     1.68,
+     2.6,
+     3.79,
+     4.57,
+     5.88,
+     6.38,
+     6.84,
+     7.2,
+     7.81,
+     7.72,
+     null,
+     null,
+     1.29,
+     2.14,
+     3.08,
+     4.16,
+     4.79,
+     5.35,
+     5.72,
+     6.69,
+     7.06,
+     7.02,
+     null,
+     null,
+     1.02,
+     1.77,
+     2.55,
+     3.49,
+     3.94,
+     4.31,
+     4.68,
+     5.52,
+     5.71,
+     5.63,
+     null,
+     null,
+     0.73,
+     1.43,
+     2.04,
+     2.49,
+     3.08,
+     3.41,
+     3.7,
+     4.41,
+     4.63,
+     4.1,
+     null,
+     null,
+     0.56,
+     1.12,
+     1.49,
+     1.97,
+     2.34,
+     2.61,
+     3.14,
+     3.37,
+     3.5,
+     null,
+     null,
+     null,
+     0.48,
+     0.82,
+     1.01,
+     1.42,
+     1.7,
+     2.08,
+     2.29,
+     2.49,
+     2.46,
+     null,
+     null,
+     null,
+     0.35,
+     0.47,
+     0.78,
+     1.05,
+     1.32,
+     1.48,
+     1.63,
+     1.73,
+     null,
+     null,
+     null,
+     null,
+     0.21,
+     0.35,
+     0.54,
+     0.72,
+     0.97,
+     1.08,
+     1.17,
+     1.19,
+     null,
+     null,
+     null,
+     null,
+     0.11,
+     0.32,
+     0.42,
+     0.61,
+     0.78,
+     0.87,
+     0.9,
+     0.83,
+     null,
+     null,
+     null,
+     null,
+     0.1,
+     0.27,
+     0.42,
+     0.61,
+     0.73,
+     0.81,
+     0.8,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.2,
+     0.2,
+     0.43,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.45,
+     0.25,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 9997
+    },
+    {
+     "triangles": 4997
+    },
+    {
+     "triangles": 2499
+    },
+    {
+     "triangles": 1249
+    },
+    {
+     "triangles": 333
+    }
+   ],
+   "lodDistances": [
+    45.9,
+    93.9,
+    146.0,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/nordic-end-left.collision.bin",
+    "vertices": 965,
+    "triangles": 1919,
+    "sha256": "6ea0ffde2bafdfea3ce79d6f64ccd3290c47f705ed1f40a7c86d8c2c0673bdb6",
+    "within95": 0.071,
+    "within": 0.221,
+    "openEdges": 21
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/nordic-end-left_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/nordic-end-left_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.4485,
+     0.3695,
+     0.2952
+    ]
+   },
+   "source": {
+    "scan": "huge_nordic_coastal_cliff_ullqbb1ga_high.glb",
+    "sha256": "7f5a8e48c01223523bcf59b89aecfc0a1b9f7048c8f2a3ea37dd11ad15a9a6a7",
+    "yaw": -95,
+    "span": [
+     -8.0,
+     5.5
+    ],
+    "scale": 1.6,
+    "mirror": false,
+    "ends": [
+     "taper",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "nordic-end-right",
+   "family": "nordic",
+   "role": "end",
+   "file": "res://assets/surface/cliffkit/nordic-end-right.glb",
+   "material": "res://assets/surface/cliffkit/materials/nordic-end-right.tres",
+   "size": [
+    15.226,
+    18.69,
+    21.297
+   ],
+   "bounds": {
+    "min": [
+     -14.033,
+     -3.007,
+     -14.921
+    ],
+    "max": [
+     1.194,
+     18.69,
+     6.376
+    ]
+   },
+   "top": 19.37,
+   "skirt": 3.0,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      0.733,
+      0.0,
+      3.616
+     ],
+     "direction": [
+      -0.505,
+      0.0,
+      0.863
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": true
+   },
+   "scale": [
+    0.7,
+    1.3
+   ],
+   "anchors": [
+    [
+     -0.015,
+     0.0,
+     2.937
+    ],
+    [
+     -0.345,
+     0.0,
+     -0.951
+    ],
+    [
+     -1.693,
+     0.0,
+     -4.662
+    ],
+    [
+     -3.04,
+     0.0,
+     -8.373
+    ],
+    [
+     -4.388,
+     0.0,
+     -12.083
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -0.015,
+      0.0,
+      2.937
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.345,
+      0.0,
+      -0.951
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.693,
+      0.0,
+      -4.662
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -3.04,
+      0.0,
+      -8.373
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -4.388,
+      0.0,
+      -12.083
+     ],
+     "below": 1.5,
+     "above": 2.0
+    }
+   ],
+   "footprint": [
+    [
+     -14.002,
+     2.422
+    ],
+    [
+     -13.885,
+     0.904
+    ],
+    [
+     -8.764,
+     -13.858
+    ],
+    [
+     -7.056,
+     -14.921
+    ],
+    [
+     -6.432,
+     -14.724
+    ],
+    [
+     -5.061,
+     -13.933
+    ],
+    [
+     -1.868,
+     -11.833
+    ],
+    [
+     -1.194,
+     -11.352
+    ],
+    [
+     -0.828,
+     -10.829
+    ],
+    [
+     0.417,
+     -8.37
+    ],
+    [
+     1.194,
+     -5.909
+    ],
+    [
+     1.008,
+     -0.31
+    ],
+    [
+     0.756,
+     3.907
+    ],
+    [
+     0.656,
+     4.872
+    ],
+    [
+     -0.096,
+     6.068
+    ],
+    [
+     -2.137,
+     6.364
+    ],
+    [
+     -2.509,
+     6.376
+    ],
+    [
+     -2.856,
+     6.307
+    ]
+   ],
+   "outline": [
+    [
+     -14.033,
+     2.268
+    ],
+    [
+     -14.011,
+     1.818
+    ],
+    [
+     -13.871,
+     0.535
+    ],
+    [
+     -13.845,
+     0.395
+    ],
+    [
+     -13.055,
+     -2.446
+    ],
+    [
+     -12.09,
+     -5.289
+    ],
+    [
+     -10.979,
+     -8.454
+    ],
+    [
+     -8.957,
+     -13.725
+    ],
+    [
+     -8.816,
+     -13.948
+    ],
+    [
+     -7.056,
+     -14.921
+    ],
+    [
+     -6.432,
+     -14.724
+    ],
+    [
+     -5.061,
+     -13.933
+    ],
+    [
+     -0.747,
+     -11.306
+    ],
+    [
+     -0.522,
+     -10.963
+    ],
+    [
+     -0.135,
+     -10.34
+    ],
+    [
+     1.574,
+     -4.755
+    ],
+    [
+     1.577,
+     -4.691
+    ],
+    [
+     1.5,
+     4.433
+    ],
+    [
+     1.306,
+     5.487
+    ],
+    [
+     1.17,
+     5.93
+    ],
+    [
+     0.825,
+     6.838
+    ],
+    [
+     0.627,
+     7.239
+    ],
+    [
+     0.269,
+     7.718
+    ],
+    [
+     -14.002,
+     2.422
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -15,
+     -15
+    ],
+    "columns": 17,
+    "rows": 22,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1.68,
+     1.45,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.49,
+     2.38,
+     1.67,
+     1.41,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.76,
+     2.99,
+     2.42,
+     1.58,
+     1.36,
+     0.08,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.26,
+     4.47,
+     3.84,
+     3.12,
+     1.93,
+     1.54,
+     0.19,
+     0.12,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.88,
+     4.48,
+     4.45,
+     3.08,
+     2.15,
+     2.06,
+     -0.06,
+     -0.15,
+     0.1,
+     -0.33,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.12,
+     5.41,
+     5.56,
+     5.04,
+     3.53,
+     2.71,
+     3.13,
+     1.54,
+     -0.17,
+     -0.22,
+     -0.14,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.59,
+     6.05,
+     5.41,
+     5.18,
+     4.0,
+     4.95,
+     5.06,
+     2.52,
+     -0.47,
+     -0.38,
+     -0.22,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     4.04,
+     4.98,
+     5.24,
+     5.04,
+     4.23,
+     6.91,
+     7.16,
+     5.66,
+     2.4,
+     -0.54,
+     -0.42,
+     -0.38,
+     null,
+     null,
+     null,
+     null,
+     3.42,
+     4.36,
+     4.97,
+     5.36,
+     8.23,
+     8.63,
+     8.96,
+     8.7,
+     6.48,
+     5.88,
+     -0.51,
+     -0.51,
+     -0.4,
+     null,
+     null,
+     null,
+     null,
+     3.72,
+     4.55,
+     5.14,
+     11.18,
+     11.4,
+     11.45,
+     10.64,
+     9.17,
+     7.55,
+     6.1,
+     0.25,
+     -0.45,
+     -0.47,
+     null,
+     null,
+     null,
+     null,
+     3.93,
+     4.94,
+     5.36,
+     5.56,
+     11.44,
+     13.52,
+     11.3,
+     9.2,
+     8.85,
+     6.58,
+     3.08,
+     -0.11,
+     -0.34,
+     -0.56,
+     null,
+     null,
+     3.45,
+     4.22,
+     5.26,
+     5.49,
+     5.78,
+     15.22,
+     15.57,
+     13.07,
+     11.59,
+     10.48,
+     4.9,
+     2.66,
+     0.28,
+     -0.16,
+     null,
+     null,
+     null,
+     3.67,
+     4.44,
+     6.1,
+     5.96,
+     12.27,
+     16.65,
+     15.73,
+     14.31,
+     11.73,
+     9.9,
+     4.38,
+     1.37,
+     0.37,
+     -0.04,
+     null,
+     null,
+     null,
+     3.78,
+     4.55,
+     5.57,
+     6.13,
+     18.03,
+     17.41,
+     14.67,
+     13.46,
+     11.41,
+     8.33,
+     2.59,
+     0.49,
+     0.18,
+     -0.15,
+     null,
+     null,
+     3.27,
+     3.82,
+     4.65,
+     6.45,
+     11.92,
+     18.47,
+     17.64,
+     15.09,
+     12.59,
+     9.52,
+     5.72,
+     1.87,
+     0.22,
+     -0.1,
+     -0.3,
+     null,
+     null,
+     2.96,
+     3.32,
+     4.36,
+     6.18,
+     15.13,
+     15.53,
+     15.38,
+     15.0,
+     10.8,
+     7.32,
+     3.29,
+     1.1,
+     0.28,
+     -0.18,
+     -0.4,
+     null,
+     null,
+     2.44,
+     2.72,
+     4.22,
+     10.33,
+     10.48,
+     11.19,
+     11.3,
+     11.46,
+     9.24,
+     8.91,
+     6.26,
+     4.94,
+     2.86,
+     0.2,
+     -0.45,
+     null,
+     null,
+     1.79,
+     -1.69,
+     -0.8,
+     4.23,
+     5.36,
+     5.32,
+     5.88,
+     10.31,
+     10.7,
+     9.19,
+     8.67,
+     6.82,
+     3.98,
+     1.48,
+     -0.48,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -2.69,
+     -1.2,
+     0.17,
+     10.46,
+     11.03,
+     10.51,
+     8.06,
+     4.92,
+     2.06,
+     -0.46,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.89,
+     9.8,
+     9.45,
+     5.7,
+     5.47,
+     2.95,
+     -0.25,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     0.76,
+     1.07,
+     1.33,
+     1.53,
+     -0.42,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.59,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 9999
+    },
+    {
+     "triangles": 4999
+    },
+    {
+     "triangles": 2498
+    },
+    {
+     "triangles": 1248
+    },
+    {
+     "triangles": 333
+    }
+   ],
+   "lodDistances": [
+    46.9,
+    95.8,
+    149.1,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/nordic-end-right.collision.bin",
+    "vertices": 965,
+    "triangles": 1919,
+    "sha256": "4843f8241884904bf2d33394d196588d3057674e14e2fb08e58ea58e76ac366e",
+    "within95": 0.106,
+    "within": 0.324,
+    "openEdges": 21
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/nordic-end-right_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/nordic-end-right_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.4278,
+     0.3782,
+     0.3084
+    ]
+   },
+   "source": {
+    "scan": "massive_nordic_coastal_cliff_vfmjadufa_high.glb",
+    "sha256": "81674aec9494836222b95fdd82e3647e2b8f26e1e49747a3e3ab345b8d0bcbe5",
+    "yaw": -105,
+    "span": [
+     1.0,
+     9.5
+    ],
+    "scale": 1.6,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "natural"
+    ]
+   }
+  },
+  {
+   "key": "tundra-jut-a",
+   "family": "tundra",
+   "role": "jut",
+   "file": "res://assets/surface/cliffkit/tundra-jut-a.glb",
+   "material": "res://assets/surface/cliffkit/materials/tundra-jut-a.tres",
+   "size": [
+    13.453,
+    7.686,
+    21.995
+   ],
+   "bounds": {
+    "min": [
+     -11.719,
+     -1.937,
+     -11.025
+    ],
+    "max": [
+     1.734,
+     7.686,
+     10.97
+    ]
+   },
+   "top": 7.696,
+   "skirt": 1.924,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -1.742,
+      0.0,
+      8.41
+     ],
+     "direction": [
+      0.3,
+      0.0,
+      0.954
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -0.709,
+      0.0,
+      -7.639
+     ],
+     "direction": [
+      -0.3,
+      0.0,
+      -0.954
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.7,
+    1.4
+   ],
+   "anchors": [
+    [
+     -1.043,
+     0.0,
+     7.951
+    ],
+    [
+     -0.547,
+     0.0,
+     4.169
+    ],
+    [
+     -0.051,
+     0.0,
+     0.387
+    ],
+    [
+     -0.434,
+     0.0,
+     -3.396
+    ],
+    [
+     -0.917,
+     0.0,
+     -7.179
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -1.043,
+      0.0,
+      7.951
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.547,
+      0.0,
+      4.169
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.051,
+      0.0,
+      0.387
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.434,
+      0.0,
+      -3.396
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.917,
+      0.0,
+      -7.179
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -7.445,
+      6.333,
+      6.06
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -6.303,
+      6.629,
+      0.387
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -6.55,
+      6.619,
+      -5.287
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -11.024,
+     -10.037
+    ],
+    [
+     -11.022,
+     -10.048
+    ],
+    [
+     -10.904,
+     -10.532
+    ],
+    [
+     -10.871,
+     -10.667
+    ],
+    [
+     -10.241,
+     -10.941
+    ],
+    [
+     -7.626,
+     -11.025
+    ],
+    [
+     -7.427,
+     -11.0
+    ],
+    [
+     -2.861,
+     -10.38
+    ],
+    [
+     -0.081,
+     -9.952
+    ],
+    [
+     0.182,
+     -9.873
+    ],
+    [
+     0.566,
+     -7.155
+    ],
+    [
+     0.979,
+     -3.745
+    ],
+    [
+     1.734,
+     3.932
+    ],
+    [
+     1.252,
+     5.962
+    ],
+    [
+     0.854,
+     6.932
+    ],
+    [
+     0.077,
+     8.017
+    ],
+    [
+     -1.144,
+     9.6
+    ],
+    [
+     -4.626,
+     10.677
+    ],
+    [
+     -9.38,
+     10.472
+    ],
+    [
+     -9.589,
+     10.175
+    ]
+   ],
+   "outline": [
+    [
+     -11.736,
+     -9.002
+    ],
+    [
+     -10.757,
+     -11.28
+    ],
+    [
+     -10.399,
+     -11.419
+    ],
+    [
+     -9.377,
+     -11.756
+    ],
+    [
+     -9.217,
+     -11.791
+    ],
+    [
+     -0.211,
+     -10.7
+    ],
+    [
+     0.182,
+     -9.873
+    ],
+    [
+     0.566,
+     -7.155
+    ],
+    [
+     0.979,
+     -3.745
+    ],
+    [
+     1.734,
+     3.932
+    ],
+    [
+     1.252,
+     5.962
+    ],
+    [
+     0.854,
+     6.932
+    ],
+    [
+     0.077,
+     8.017
+    ],
+    [
+     -1.144,
+     9.6
+    ],
+    [
+     -4.626,
+     10.677
+    ],
+    [
+     -5.735,
+     10.955
+    ],
+    [
+     -6.015,
+     10.97
+    ],
+    [
+     -8.935,
+     10.902
+    ],
+    [
+     -9.234,
+     10.862
+    ],
+    [
+     -9.687,
+     10.757
+    ],
+    [
+     -9.862,
+     10.319
+    ],
+    [
+     -10.068,
+     9.186
+    ],
+    [
+     -10.351,
+     7.53
+    ],
+    [
+     -10.731,
+     3.118
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -12,
+     -12
+    ],
+    "columns": 14,
+    "rows": 23,
+    "top": [
+     null,
+     null,
+     -1.5,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     -0.12,
+     0.92,
+     1.14,
+     2.49,
+     -0.44,
+     0.01,
+     -0.77,
+     null,
+     -1.7,
+     -1.63,
+     -1.83,
+     null,
+     null,
+     null,
+     4.18,
+     4.75,
+     4.88,
+     5.97,
+     3.39,
+     4.82,
+     4.64,
+     3.4,
+     0.6,
+     0.52,
+     -0.41,
+     null,
+     null,
+     null,
+     7.0,
+     6.73,
+     6.39,
+     5.87,
+     5.51,
+     5.08,
+     4.54,
+     4.16,
+     0.89,
+     0.62,
+     0.17,
+     null,
+     null,
+     null,
+     7.17,
+     7.11,
+     6.42,
+     6.07,
+     5.48,
+     4.89,
+     4.25,
+     3.78,
+     0.83,
+     0.68,
+     0.3,
+     null,
+     null,
+     null,
+     7.18,
+     6.99,
+     6.44,
+     6.28,
+     6.23,
+     5.56,
+     4.36,
+     3.39,
+     0.78,
+     0.54,
+     0.29,
+     -0.26,
+     null,
+     null,
+     7.14,
+     7.24,
+     6.83,
+     6.25,
+     6.58,
+     6.09,
+     5.44,
+     4.75,
+     3.71,
+     1.27,
+     0.23,
+     -0.18,
+     null,
+     null,
+     1.8,
+     7.24,
+     7.23,
+     7.04,
+     6.69,
+     6.1,
+     5.32,
+     4.87,
+     4.29,
+     3.29,
+     0.5,
+     -0.08,
+     null,
+     null,
+     null,
+     7.61,
+     7.47,
+     7.21,
+     6.82,
+     6.33,
+     5.4,
+     4.65,
+     4.08,
+     1.0,
+     0.3,
+     -0.08,
+     null,
+     null,
+     null,
+     7.61,
+     7.4,
+     7.13,
+     6.9,
+     6.59,
+     5.74,
+     4.66,
+     4.19,
+     0.45,
+     0.24,
+     -0.02,
+     null,
+     null,
+     null,
+     7.32,
+     7.25,
+     7.04,
+     6.83,
+     6.43,
+     5.7,
+     4.78,
+     4.1,
+     0.37,
+     0.16,
+     -0.83,
+     null,
+     null,
+     null,
+     7.25,
+     7.13,
+     6.93,
+     6.74,
+     6.15,
+     5.59,
+     4.84,
+     4.01,
+     0.32,
+     0.13,
+     -0.03,
+     null,
+     null,
+     null,
+     7.27,
+     7.06,
+     6.84,
+     6.66,
+     6.0,
+     5.57,
+     4.61,
+     3.83,
+     0.35,
+     0.18,
+     0.07,
+     null,
+     null,
+     null,
+     7.14,
+     7.04,
+     6.73,
+     6.47,
+     5.96,
+     5.38,
+     4.35,
+     2.88,
+     0.72,
+     0.45,
+     0.12,
+     null,
+     null,
+     6.99,
+     7.13,
+     6.97,
+     6.59,
+     6.31,
+     5.81,
+     5.09,
+     4.3,
+     2.76,
+     1.15,
+     1.12,
+     0.62,
+     null,
+     null,
+     6.93,
+     7.11,
+     6.91,
+     6.38,
+     5.97,
+     5.57,
+     4.76,
+     4.08,
+     3.0,
+     2.72,
+     1.23,
+     0.97,
+     -0.08,
+     null,
+     6.91,
+     7.12,
+     6.75,
+     6.18,
+     5.81,
+     5.27,
+     4.39,
+     2.89,
+     2.41,
+     1.7,
+     1.07,
+     0.64,
+     null,
+     null,
+     null,
+     7.09,
+     6.95,
+     6.28,
+     6.56,
+     4.77,
+     4.16,
+     2.71,
+     2.38,
+     1.92,
+     0.74,
+     0.37,
+     null,
+     null,
+     null,
+     7.18,
+     6.98,
+     6.46,
+     5.55,
+     4.49,
+     3.6,
+     2.64,
+     2.1,
+     0.66,
+     0.32,
+     0.12,
+     null,
+     null,
+     null,
+     7.12,
+     7.06,
+     6.55,
+     5.61,
+     4.18,
+     3.51,
+     2.45,
+     1.22,
+     0.34,
+     0.06,
+     null,
+     null,
+     null,
+     null,
+     7.05,
+     6.97,
+     6.39,
+     5.33,
+     4.05,
+     3.62,
+     1.46,
+     0.24,
+     0.0,
+     -0.99,
+     null,
+     null,
+     null,
+     null,
+     6.92,
+     6.72,
+     5.95,
+     4.71,
+     3.65,
+     2.79,
+     0.64,
+     -0.2,
+     -0.29,
+     null,
+     null,
+     null,
+     null,
+     null,
+     6.61,
+     5.98,
+     4.85,
+     3.99,
+     2.87,
+     1.79,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 9998
+    },
+    {
+     "triangles": 4999
+    },
+    {
+     "triangles": 2499
+    },
+    {
+     "triangles": 1249
+    },
+    {
+     "triangles": 332
+    }
+   ],
+   "lodDistances": [
+    48.4,
+    99.0,
+    154.0,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/tundra-jut-a.collision.bin",
+    "vertices": 963,
+    "triangles": 1919,
+    "sha256": "449167869e61d1f034d5b8044ce750bd512194d15c53a3cd9b3795da02f1d6e0",
+    "within95": 0.058,
+    "within": 0.149,
+    "openEdges": 9
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/tundra-jut-a_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/tundra-jut-a_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.3291,
+     0.3018,
+     0.2544
+    ]
+   },
+   "source": {
+    "scan": "large_tundra_rock_formation_wdysbfoga_high.glb",
+    "sha256": "6bbfad15a37583a1ae632b53edb6b9ee63499ac907838a2c00569de57dd3c8bc",
+    "yaw": -79,
+    "span": [
+     -18.0,
+     0.0
+    ],
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "tundra-jut-b",
+   "family": "tundra",
+   "role": "jut",
+   "file": "res://assets/surface/cliffkit/tundra-jut-b.glb",
+   "material": "res://assets/surface/cliffkit/materials/tundra-jut-b.tres",
+   "size": [
+    14.777,
+    8.127,
+    24.882
+   ],
+   "bounds": {
+    "min": [
+     -12.492,
+     -2.047,
+     -9.882
+    ],
+    "max": [
+     2.284,
+     8.127,
+     15.0
+    ]
+   },
+   "top": 8.146,
+   "skirt": 2.036,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -0.474,
+      0.0,
+      8.266
+     ],
+     "direction": [
+      0.027,
+      0.0,
+      1.0
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -1.941,
+      0.0,
+      -8.201
+     ],
+     "direction": [
+      -0.027,
+      0.0,
+      -1.0
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.7,
+    1.4
+   ],
+   "anchors": [
+    [
+     -0.346,
+     0.0,
+     7.8
+    ],
+    [
+     -0.172,
+     0.0,
+     3.869
+    ],
+    [
+     -0.013,
+     0.0,
+     -0.061
+    ],
+    [
+     -0.8,
+     0.0,
+     -3.917
+    ],
+    [
+     -1.588,
+     0.0,
+     -7.772
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -0.346,
+      0.0,
+      7.8
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.172,
+      0.0,
+      3.869
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.013,
+      0.0,
+      -0.061
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.8,
+      0.0,
+      -3.917
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.588,
+      0.0,
+      -7.772
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -6.962,
+      6.329,
+      5.834
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -6.711,
+      7.095,
+      -0.061
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -6.612,
+      7.599,
+      -5.845
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -12.286,
+     14.399
+    ],
+    [
+     -7.996,
+     -8.708
+    ],
+    [
+     -7.908,
+     -9.04
+    ],
+    [
+     -6.218,
+     -9.715
+    ],
+    [
+     -5.622,
+     -9.712
+    ],
+    [
+     -1.711,
+     -8.395
+    ],
+    [
+     -1.141,
+     -8.078
+    ],
+    [
+     -0.444,
+     -7.684
+    ],
+    [
+     0.257,
+     -7.274
+    ],
+    [
+     0.822,
+     -6.832
+    ],
+    [
+     1.414,
+     -6.353
+    ],
+    [
+     1.767,
+     -5.964
+    ],
+    [
+     2.058,
+     -5.475
+    ],
+    [
+     2.23,
+     -5.127
+    ],
+    [
+     2.284,
+     -4.575
+    ],
+    [
+     1.969,
+     0.007
+    ],
+    [
+     1.425,
+     6.217
+    ],
+    [
+     1.141,
+     8.364
+    ],
+    [
+     0.919,
+     9.714
+    ],
+    [
+     0.134,
+     11.067
+    ],
+    [
+     -0.01,
+     11.248
+    ],
+    [
+     -7.978,
+     14.912
+    ],
+    [
+     -10.22,
+     14.995
+    ],
+    [
+     -11.313,
+     15.0
+    ]
+   ],
+   "outline": [
+    [
+     -12.38,
+     13.425
+    ],
+    [
+     -9.522,
+     -3.61
+    ],
+    [
+     -8.77,
+     -7.643
+    ],
+    [
+     -8.548,
+     -8.228
+    ],
+    [
+     -7.887,
+     -9.252
+    ],
+    [
+     -7.306,
+     -9.65
+    ],
+    [
+     -6.479,
+     -9.871
+    ],
+    [
+     -5.871,
+     -9.873
+    ],
+    [
+     -4.354,
+     -9.501
+    ],
+    [
+     -1.711,
+     -8.395
+    ],
+    [
+     0.257,
+     -7.274
+    ],
+    [
+     1.414,
+     -6.353
+    ],
+    [
+     1.767,
+     -5.964
+    ],
+    [
+     2.23,
+     -5.127
+    ],
+    [
+     2.284,
+     -4.575
+    ],
+    [
+     1.969,
+     0.007
+    ],
+    [
+     1.425,
+     6.217
+    ],
+    [
+     1.141,
+     8.364
+    ],
+    [
+     0.577,
+     11.578
+    ],
+    [
+     0.404,
+     12.056
+    ],
+    [
+     -7.634,
+     14.93
+    ],
+    [
+     -10.668,
+     15.018
+    ],
+    [
+     -11.313,
+     15.0
+    ],
+    [
+     -12.43,
+     14.798
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -13,
+     -10
+    ],
+    "columns": 16,
+    "rows": 25,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     6.18,
+     5.85,
+     4.52,
+     3.03,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     7.07,
+     7.17,
+     7.12,
+     5.61,
+     3.03,
+     1.02,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     7.33,
+     7.29,
+     7.31,
+     7.2,
+     6.5,
+     4.5,
+     1.53,
+     0.05,
+     -0.06,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     7.33,
+     7.71,
+     7.65,
+     6.85,
+     5.95,
+     3.98,
+     3.54,
+     1.26,
+     -0.0,
+     -0.05,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     7.61,
+     8.03,
+     7.79,
+     6.47,
+     5.25,
+     3.86,
+     3.5,
+     2.77,
+     0.59,
+     0.06,
+     0.1,
+     null,
+     null,
+     null,
+     null,
+     null,
+     7.54,
+     7.9,
+     7.29,
+     6.47,
+     4.96,
+     3.76,
+     3.39,
+     2.84,
+     1.21,
+     0.18,
+     0.16,
+     null,
+     null,
+     null,
+     null,
+     7.2,
+     7.64,
+     7.59,
+     7.28,
+     6.14,
+     5.81,
+     4.31,
+     3.99,
+     1.62,
+     0.45,
+     0.24,
+     -0.44,
+     null,
+     null,
+     null,
+     null,
+     7.18,
+     7.27,
+     7.26,
+     7.06,
+     5.95,
+     5.57,
+     5.06,
+     4.04,
+     3.64,
+     0.45,
+     0.26,
+     0.07,
+     null,
+     null,
+     null,
+     null,
+     7.28,
+     7.31,
+     7.05,
+     6.88,
+     6.49,
+     5.6,
+     5.22,
+     4.65,
+     3.82,
+     0.49,
+     0.28,
+     0.16,
+     null,
+     null,
+     null,
+     null,
+     7.45,
+     7.59,
+     7.28,
+     6.95,
+     6.45,
+     5.58,
+     5.03,
+     4.7,
+     4.34,
+     0.5,
+     0.35,
+     0.14,
+     null,
+     null,
+     null,
+     null,
+     7.54,
+     7.65,
+     7.42,
+     7.05,
+     6.1,
+     5.31,
+     4.88,
+     4.7,
+     3.98,
+     0.48,
+     0.31,
+     0.06,
+     null,
+     null,
+     null,
+     null,
+     7.38,
+     7.57,
+     7.36,
+     7.03,
+     6.72,
+     5.22,
+     4.76,
+     4.39,
+     3.49,
+     0.51,
+     0.28,
+     0.01,
+     null,
+     null,
+     null,
+     null,
+     7.49,
+     7.34,
+     7.13,
+     6.9,
+     6.66,
+     6.25,
+     4.69,
+     3.15,
+     0.82,
+     0.5,
+     0.25,
+     null,
+     null,
+     null,
+     null,
+     -0.49,
+     7.64,
+     7.49,
+     7.02,
+     6.63,
+     6.25,
+     5.41,
+     4.89,
+     3.99,
+     0.7,
+     0.46,
+     0.3,
+     null,
+     null,
+     null,
+     null,
+     5.4,
+     7.57,
+     7.46,
+     7.07,
+     6.29,
+     5.94,
+     5.39,
+     4.49,
+     4.05,
+     3.58,
+     0.48,
+     0.36,
+     -0.08,
+     null,
+     null,
+     null,
+     7.37,
+     7.45,
+     7.2,
+     6.9,
+     6.15,
+     5.91,
+     4.88,
+     4.51,
+     4.06,
+     3.31,
+     0.72,
+     0.41,
+     null,
+     null,
+     null,
+     null,
+     7.3,
+     7.14,
+     6.9,
+     6.52,
+     6.23,
+     5.97,
+     5.57,
+     4.38,
+     3.98,
+     1.78,
+     0.75,
+     0.42,
+     null,
+     null,
+     null,
+     null,
+     7.44,
+     7.3,
+     7.07,
+     6.53,
+     6.14,
+     5.77,
+     5.36,
+     4.87,
+     3.78,
+     1.31,
+     0.75,
+     0.38,
+     null,
+     null,
+     null,
+     null,
+     7.45,
+     7.37,
+     6.83,
+     6.53,
+     5.93,
+     5.51,
+     5.08,
+     4.64,
+     4.23,
+     0.94,
+     0.73,
+     0.31,
+     null,
+     null,
+     null,
+     null,
+     7.36,
+     7.56,
+     7.08,
+     6.51,
+     6.38,
+     5.5,
+     4.79,
+     4.24,
+     3.8,
+     1.05,
+     0.7,
+     0.17,
+     null,
+     null,
+     null,
+     7.29,
+     7.3,
+     7.28,
+     7.1,
+     6.49,
+     6.73,
+     6.38,
+     5.41,
+     3.79,
+     1.08,
+     0.88,
+     0.71,
+     null,
+     null,
+     null,
+     null,
+     7.45,
+     7.69,
+     7.74,
+     7.43,
+     7.15,
+     6.04,
+     5.42,
+     3.77,
+     2.23,
+     1.65,
+     -0.92,
+     -0.63,
+     -0.8,
+     null,
+     null,
+     null,
+     7.48,
+     7.79,
+     7.35,
+     6.56,
+     5.57,
+     3.88,
+     3.29,
+     0.93,
+     1.76,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     6.67,
+     5.05,
+     3.29,
+     3.18,
+     3.14,
+     0.83,
+     -1.66,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.13,
+     2.93,
+     0.08,
+     0.08,
+     -1.18,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 9999
+    },
+    {
+     "triangles": 4998
+    },
+    {
+     "triangles": 2499
+    },
+    {
+     "triangles": 1249
+    },
+    {
+     "triangles": 333
+    }
+   ],
+   "lodDistances": [
+    54.7,
+    112.0,
+    174.2,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/tundra-jut-b.collision.bin",
+    "vertices": 963,
+    "triangles": 1919,
+    "sha256": "953f05b8a37410198d33323700aac7483ebde1de958bf793bf7d87def871f331",
+    "within95": 0.079,
+    "within": 0.361,
+    "openEdges": 9
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/tundra-jut-b_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/tundra-jut-b_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.3275,
+     0.3003,
+     0.2554
+    ]
+   },
+   "source": {
+    "scan": "large_tundra_rock_formation_wdysbfoga_high.glb",
+    "sha256": "6bbfad15a37583a1ae632b53edb6b9ee63499ac907838a2c00569de57dd3c8bc",
+    "yaw": -79,
+    "span": [
+     -1.0,
+     18.5
+    ],
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "cut",
+     "cut"
+    ]
+   }
+  },
+  {
+   "key": "tundra-jut-c",
+   "family": "tundra",
+   "role": "jut",
+   "file": "res://assets/surface/cliffkit/tundra-jut-c.glb",
+   "material": "res://assets/surface/cliffkit/materials/tundra-jut-c.tres",
+   "size": [
+    12.329,
+    4.063,
+    26.647
+   ],
+   "bounds": {
+    "min": [
+     -9.543,
+     -1.026,
+     -13.415
+    ],
+    "max": [
+     2.786,
+     4.063,
+     13.233
+    ]
+   },
+   "top": 4.072,
+   "skirt": 1.018,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -7.525,
+      0.0,
+      11.947
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      -2.866,
+      0.0,
+      -11.947
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.7,
+    1.4
+   ],
+   "anchors": [
+    [
+     -6.101,
+     0.0,
+     10.902
+    ],
+    [
+     -3.253,
+     0.0,
+     5.813
+    ],
+    [
+     -0.405,
+     0.0,
+     0.725
+    ],
+    [
+     -1.043,
+     0.0,
+     -4.891
+    ],
+    [
+     -2.258,
+     0.0,
+     -10.595
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -6.101,
+      0.0,
+      10.902
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -3.253,
+      0.0,
+      5.813
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.405,
+      0.0,
+      0.725
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.043,
+      0.0,
+      -4.891
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -2.258,
+      0.0,
+      -10.595
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -2.714,
+      2.586,
+      8.358
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -4.374,
+      2.17,
+      0.725
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -4.075,
+      1.575,
+      -7.743
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -9.414,
+     -12.588
+    ],
+    [
+     -9.413,
+     -12.594
+    ],
+    [
+     -7.255,
+     -13.087
+    ],
+    [
+     -5.471,
+     -13.342
+    ],
+    [
+     -4.781,
+     -13.415
+    ],
+    [
+     -3.374,
+     -13.401
+    ],
+    [
+     -2.526,
+     -13.367
+    ],
+    [
+     -2.512,
+     -13.365
+    ],
+    [
+     -1.375,
+     -11.653
+    ],
+    [
+     2.786,
+     3.148
+    ],
+    [
+     2.163,
+     8.925
+    ],
+    [
+     1.826,
+     10.702
+    ],
+    [
+     1.482,
+     11.419
+    ],
+    [
+     1.097,
+     11.621
+    ],
+    [
+     -0.292,
+     12.216
+    ],
+    [
+     -1.226,
+     12.499
+    ],
+    [
+     -1.715,
+     12.635
+    ],
+    [
+     -2.433,
+     12.798
+    ],
+    [
+     -2.608,
+     12.834
+    ],
+    [
+     -4.079,
+     13.035
+    ],
+    [
+     -6.672,
+     13.231
+    ],
+    [
+     -9.409,
+     -12.461
+    ],
+    [
+     -9.414,
+     -12.523
+    ]
+   ],
+   "outline": [
+    [
+     -9.559,
+     -1.211
+    ],
+    [
+     -9.414,
+     -12.588
+    ],
+    [
+     -9.413,
+     -12.594
+    ],
+    [
+     -7.255,
+     -13.087
+    ],
+    [
+     -5.471,
+     -13.342
+    ],
+    [
+     -4.781,
+     -13.415
+    ],
+    [
+     -3.374,
+     -13.401
+    ],
+    [
+     -2.526,
+     -13.367
+    ],
+    [
+     -2.512,
+     -13.365
+    ],
+    [
+     -1.375,
+     -11.653
+    ],
+    [
+     0.15,
+     -6.659
+    ],
+    [
+     2.786,
+     3.148
+    ],
+    [
+     2.163,
+     8.925
+    ],
+    [
+     1.826,
+     10.702
+    ],
+    [
+     1.482,
+     11.419
+    ],
+    [
+     1.097,
+     11.621
+    ],
+    [
+     -0.292,
+     12.216
+    ],
+    [
+     -1.226,
+     12.499
+    ],
+    [
+     -1.715,
+     12.635
+    ],
+    [
+     -2.433,
+     12.798
+    ],
+    [
+     -2.608,
+     12.834
+    ],
+    [
+     -4.079,
+     13.035
+    ],
+    [
+     -6.673,
+     13.237
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -10,
+     -14
+    ],
+    "columns": 13,
+    "rows": 28,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1.49,
+     1.49,
+     1.79,
+     0.55,
+     0.57,
+     0.29,
+     -0.03,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.56,
+     2.27,
+     2.01,
+     1.75,
+     1.09,
+     0.35,
+     -0.06,
+     -0.13,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.6,
+     2.35,
+     2.21,
+     2.02,
+     1.55,
+     0.61,
+     -0.02,
+     -0.08,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.49,
+     2.32,
+     2.3,
+     2.27,
+     2.05,
+     0.55,
+     0.25,
+     -0.02,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.32,
+     2.15,
+     2.23,
+     2.11,
+     1.89,
+     1.38,
+     0.1,
+     -0.06,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.24,
+     2.24,
+     2.33,
+     2.08,
+     1.7,
+     1.22,
+     0.49,
+     -0.03,
+     -0.49,
+     null,
+     null,
+     null,
+     null,
+     2.25,
+     2.27,
+     2.33,
+     2.34,
+     2.24,
+     1.99,
+     0.14,
+     -0.03,
+     -0.03,
+     null,
+     null,
+     null,
+     null,
+     2.24,
+     2.32,
+     2.49,
+     2.7,
+     2.73,
+     2.15,
+     0.2,
+     -0.1,
+     -0.2,
+     null,
+     null,
+     null,
+     null,
+     2.54,
+     2.54,
+     2.67,
+     2.94,
+     3.02,
+     2.16,
+     0.55,
+     -0.03,
+     -0.14,
+     null,
+     null,
+     null,
+     null,
+     3.39,
+     2.81,
+     2.87,
+     3.01,
+     2.92,
+     1.94,
+     0.42,
+     0.1,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.78,
+     4.01,
+     2.88,
+     3.07,
+     2.83,
+     1.93,
+     0.5,
+     0.21,
+     null,
+     null,
+     null,
+     null,
+     3.22,
+     3.89,
+     3.82,
+     2.99,
+     2.99,
+     2.66,
+     1.71,
+     0.59,
+     0.18,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.78,
+     2.98,
+     3.1,
+     2.99,
+     2.49,
+     1.8,
+     0.64,
+     0.67,
+     -0.72,
+     null,
+     null,
+     null,
+     null,
+     3.0,
+     3.12,
+     3.08,
+     2.79,
+     2.19,
+     1.48,
+     0.72,
+     0.63,
+     0.29,
+     0.3,
+     null,
+     null,
+     null,
+     null,
+     2.94,
+     3.03,
+     3.03,
+     2.59,
+     1.22,
+     1.51,
+     0.68,
+     0.32,
+     0.28,
+     null,
+     null,
+     null,
+     null,
+     2.83,
+     3.3,
+     3.02,
+     2.35,
+     1.71,
+     1.86,
+     1.61,
+     0.9,
+     0.78,
+     0.3,
+     -0.02,
+     null,
+     null,
+     null,
+     3.06,
+     2.91,
+     2.45,
+     2.62,
+     2.25,
+     1.81,
+     0.69,
+     0.62,
+     -0.07,
+     null,
+     null,
+     null,
+     null,
+     3.13,
+     2.99,
+     2.77,
+     2.57,
+     2.57,
+     2.1,
+     0.92,
+     0.13,
+     -0.58,
+     null,
+     null,
+     null,
+     null,
+     3.14,
+     3.58,
+     3.57,
+     3.36,
+     3.19,
+     2.3,
+     0.78,
+     0.05,
+     -0.04,
+     null,
+     null,
+     null,
+     null,
+     3.28,
+     3.28,
+     3.4,
+     3.3,
+     3.19,
+     2.83,
+     1.16,
+     0.01,
+     -0.05,
+     null,
+     null,
+     null,
+     null,
+     3.23,
+     3.35,
+     3.3,
+     3.01,
+     2.75,
+     2.64,
+     1.21,
+     0.02,
+     -0.09,
+     null,
+     null,
+     null,
+     null,
+     null,
+     3.04,
+     3.04,
+     2.75,
+     2.54,
+     2.41,
+     0.99,
+     0.18,
+     0.19,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.72,
+     2.67,
+     2.6,
+     2.18,
+     1.62,
+     0.91,
+     0.56,
+     0.39,
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.31,
+     2.28,
+     2.43,
+     2.2,
+     1.42,
+     1.0,
+     0.66,
+     0.1,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1.83,
+     1.81,
+     1.73,
+     1.4,
+     1.23,
+     1.13,
+     -0.11,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     1.47,
+     1.4,
+     1.09,
+     0.94,
+     0.6,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 9999
+    },
+    {
+     "triangles": 4998
+    },
+    {
+     "triangles": 2499
+    },
+    {
+     "triangles": 1249
+    },
+    {
+     "triangles": 332
+    }
+   ],
+   "lodDistances": [
+    58.6,
+    119.9,
+    186.5,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/tundra-jut-c.collision.bin",
+    "vertices": 962,
+    "triangles": 1919,
+    "sha256": "65cbf287e9cb7c961c69f7c6d597b856d1e18f7314cd5f4853b1ab71251c0b10",
+    "within95": 0.044,
+    "within": 0.168,
+    "openEdges": 3
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/tundra-jut-c_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/tundra-jut-c_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.3738,
+     0.3416,
+     0.29
+    ]
+   },
+   "source": {
+    "scan": "massive_tundra_rock_formation_wd4icipcb_high.glb",
+    "sha256": "92c2325f0da0afb8002dd169ea47c6cf317ebbcacd2ff7772a49dd19ab662f21",
+    "yaw": -100,
+    "span": null,
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "natural",
+     "natural"
+    ]
+   }
+  },
+  {
+   "key": "tundra-jut-d",
+   "family": "tundra",
+   "role": "jut",
+   "file": "res://assets/surface/cliffkit/tundra-jut-d.glb",
+   "material": "res://assets/surface/cliffkit/materials/tundra-jut-d.tres",
+   "size": [
+    4.817,
+    2.978,
+    9.729
+   ],
+   "bounds": {
+    "min": [
+     -3.922,
+     -0.747,
+     -4.868
+    ],
+    "max": [
+     0.895,
+     2.978,
+     4.861
+    ]
+   },
+   "top": 2.981,
+   "skirt": 0.745,
+   "sockets": [
+    {
+     "name": "left",
+     "position": [
+      -2.151,
+      0.0,
+      3.372
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      1.0
+     ]
+    },
+    {
+     "name": "right",
+     "position": [
+      0.165,
+      0.0,
+      -3.372
+     ],
+     "direction": [
+      0.0,
+      0.0,
+      -1.0
+     ]
+    }
+   ],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.8,
+    2.0
+   ],
+   "anchors": [
+    [
+     -1.739,
+     0.0,
+     3.939
+    ],
+    [
+     -0.915,
+     0.0,
+     2.073
+    ],
+    [
+     -0.091,
+     0.0,
+     0.206
+    ],
+    [
+     0.062,
+     0.0,
+     -1.814
+    ],
+    [
+     0.131,
+     0.0,
+     -3.853
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      -1.739,
+      0.0,
+      3.939
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.915,
+      0.0,
+      2.073
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.091,
+      0.0,
+      0.206
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.062,
+      0.0,
+      -1.814
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.131,
+      0.0,
+      -3.853
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -2.248,
+      2.294,
+      3.006
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -2.46,
+      2.559,
+      0.206
+     ],
+     "below": 4.0,
+     "above": 1.0
+    },
+    {
+     "kind": "top",
+     "position": [
+      -1.85,
+      2.174,
+      -2.833
+     ],
+     "below": 4.0,
+     "above": 1.0
+    }
+   ],
+   "footprint": [
+    [
+     -3.793,
+     -3.466
+    ],
+    [
+     -3.713,
+     -4.171
+    ],
+    [
+     -3.198,
+     -4.521
+    ],
+    [
+     -2.786,
+     -4.647
+    ],
+    [
+     -2.314,
+     -4.736
+    ],
+    [
+     0.186,
+     -4.868
+    ],
+    [
+     0.53,
+     -4.731
+    ],
+    [
+     0.595,
+     -4.528
+    ],
+    [
+     0.68,
+     -3.887
+    ],
+    [
+     0.766,
+     -2.487
+    ],
+    [
+     0.895,
+     0.565
+    ],
+    [
+     0.435,
+     4.173
+    ],
+    [
+     0.281,
+     4.362
+    ],
+    [
+     -0.359,
+     4.518
+    ],
+    [
+     -1.562,
+     4.779
+    ],
+    [
+     -2.027,
+     4.856
+    ],
+    [
+     -2.43,
+     4.784
+    ],
+    [
+     -2.816,
+     4.503
+    ],
+    [
+     -2.904,
+     4.299
+    ],
+    [
+     -3.247,
+     3.083
+    ],
+    [
+     -3.383,
+     2.11
+    ],
+    [
+     -3.545,
+     0.355
+    ],
+    [
+     -3.747,
+     -1.958
+    ],
+    [
+     -3.789,
+     -2.608
+    ]
+   ],
+   "outline": [
+    [
+     -3.895,
+     -4.193
+    ],
+    [
+     -3.645,
+     -4.389
+    ],
+    [
+     -3.172,
+     -4.619
+    ],
+    [
+     -2.789,
+     -4.711
+    ],
+    [
+     -1.432,
+     -4.79
+    ],
+    [
+     0.186,
+     -4.868
+    ],
+    [
+     0.53,
+     -4.731
+    ],
+    [
+     0.595,
+     -4.528
+    ],
+    [
+     0.68,
+     -3.887
+    ],
+    [
+     0.723,
+     -3.309
+    ],
+    [
+     0.829,
+     -1.146
+    ],
+    [
+     0.895,
+     0.565
+    ],
+    [
+     0.435,
+     4.173
+    ],
+    [
+     0.281,
+     4.362
+    ],
+    [
+     -0.359,
+     4.518
+    ],
+    [
+     -1.562,
+     4.779
+    ],
+    [
+     -2.237,
+     4.861
+    ],
+    [
+     -2.527,
+     4.778
+    ],
+    [
+     -2.88,
+     4.536
+    ],
+    [
+     -2.977,
+     4.3
+    ],
+    [
+     -3.272,
+     3.1
+    ],
+    [
+     -3.399,
+     1.98
+    ],
+    [
+     -3.779,
+     -2.198
+    ],
+    [
+     -3.915,
+     -3.914
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -4,
+     -5
+    ],
+    "columns": 5,
+    "rows": 10,
+    "top": [
+     null,
+     1.97,
+     1.22,
+     0.67,
+     0.21,
+     2.91,
+     2.25,
+     1.73,
+     1.06,
+     0.57,
+     2.92,
+     2.61,
+     1.94,
+     1.45,
+     0.11,
+     2.83,
+     2.56,
+     1.97,
+     1.29,
+     0.06,
+     2.67,
+     2.5,
+     1.71,
+     0.94,
+     0.07,
+     2.55,
+     2.55,
+     1.67,
+     0.37,
+     0.03,
+     null,
+     2.6,
+     1.7,
+     0.46,
+     0.04,
+     null,
+     2.59,
+     1.57,
+     0.64,
+     0.11,
+     null,
+     2.28,
+     1.41,
+     0.71,
+     null,
+     null,
+     1.92,
+     1.31,
+     0.64,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 5000
+    },
+    {
+     "triangles": 2500
+    },
+    {
+     "triangles": 1250
+    },
+    {
+     "triangles": 625
+    },
+    {
+     "triangles": 165
+    }
+   ],
+   "lodDistances": [
+    25.0,
+    50.0,
+    90.0,
+    250.0,
+    0.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/tundra-jut-d.collision.bin",
+    "vertices": 962,
+    "triangles": 1920,
+    "sha256": "c14bb0ce8f07d8a02d02a2ae45e61e99be15d847d8c6fd6a3e9630d68af0560a",
+    "within95": 0.014,
+    "within": 0.05,
+    "openEdges": 0
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/tundra-jut-d_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/tundra-jut-d_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.3405,
+     0.2976,
+     0.2353
+    ]
+   },
+   "source": {
+    "scan": "tundra_rock_formation_vi5nachmw_high.glb",
+    "sha256": "f9405f7e551cfc65e703080b3f9979b7180231bf76373123fd617c40d16580b0",
+    "yaw": -95,
+    "span": null,
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "natural",
+     "natural"
+    ]
+   }
+  },
+  {
+   "key": "rubble-desert-a",
+   "family": "desert",
+   "role": "rubble",
+   "file": "res://assets/surface/cliffkit/rubble-desert-a.glb",
+   "material": "res://assets/surface/cliffkit/materials/rubble-desert-a.tres",
+   "size": [
+    3.853,
+    1.45,
+    3.069
+   ],
+   "bounds": {
+    "min": [
+     -1.935,
+     -0.409,
+     -1.546
+    ],
+    "max": [
+     1.918,
+     1.45,
+     1.524
+    ]
+   },
+   "top": 1.451,
+   "skirt": 0.4,
+   "sockets": [],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.6,
+    2.5
+   ],
+   "anchors": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     -1.354,
+     0.0,
+     -0.182
+    ],
+    [
+     -0.774,
+     0.0,
+     0.86
+    ],
+    [
+     1.335,
+     0.0,
+     0.448
+    ],
+    [
+     0.535,
+     0.0,
+     -0.893
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.354,
+      0.0,
+      -0.182
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.774,
+      0.0,
+      0.86
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      1.335,
+      0.0,
+      0.448
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.535,
+      0.0,
+      -0.893
+     ],
+     "below": 1.5,
+     "above": 2.0
+    }
+   ],
+   "footprint": [
+    [
+     -1.935,
+     -0.26
+    ],
+    [
+     -1.862,
+     -0.446
+    ],
+    [
+     -1.703,
+     -0.721
+    ],
+    [
+     -0.266,
+     -1.523
+    ],
+    [
+     0.045,
+     -1.546
+    ],
+    [
+     0.764,
+     -1.276
+    ],
+    [
+     1.403,
+     -0.87
+    ],
+    [
+     1.493,
+     -0.785
+    ],
+    [
+     1.638,
+     -0.6
+    ],
+    [
+     1.772,
+     -0.336
+    ],
+    [
+     1.915,
+     -0.006
+    ],
+    [
+     1.907,
+     0.64
+    ],
+    [
+     1.791,
+     0.808
+    ],
+    [
+     1.462,
+     1.141
+    ],
+    [
+     1.29,
+     1.269
+    ],
+    [
+     0.948,
+     1.441
+    ],
+    [
+     0.584,
+     1.515
+    ],
+    [
+     0.372,
+     1.524
+    ],
+    [
+     -0.6,
+     1.435
+    ],
+    [
+     -1.106,
+     1.229
+    ],
+    [
+     -1.238,
+     1.134
+    ],
+    [
+     -1.476,
+     0.887
+    ],
+    [
+     -1.813,
+     0.369
+    ],
+    [
+     -1.888,
+     0.179
+    ]
+   ],
+   "outline": [
+    [
+     -1.935,
+     -0.26
+    ],
+    [
+     -1.862,
+     -0.446
+    ],
+    [
+     -1.703,
+     -0.721
+    ],
+    [
+     -0.266,
+     -1.523
+    ],
+    [
+     0.045,
+     -1.546
+    ],
+    [
+     0.764,
+     -1.276
+    ],
+    [
+     1.403,
+     -0.87
+    ],
+    [
+     1.493,
+     -0.785
+    ],
+    [
+     1.638,
+     -0.6
+    ],
+    [
+     1.772,
+     -0.336
+    ],
+    [
+     1.915,
+     -0.006
+    ],
+    [
+     1.907,
+     0.64
+    ],
+    [
+     1.791,
+     0.808
+    ],
+    [
+     1.462,
+     1.141
+    ],
+    [
+     1.29,
+     1.269
+    ],
+    [
+     0.948,
+     1.441
+    ],
+    [
+     0.584,
+     1.515
+    ],
+    [
+     0.372,
+     1.524
+    ],
+    [
+     -0.6,
+     1.435
+    ],
+    [
+     -1.106,
+     1.229
+    ],
+    [
+     -1.238,
+     1.134
+    ],
+    [
+     -1.476,
+     0.887
+    ],
+    [
+     -1.813,
+     0.369
+    ],
+    [
+     -1.888,
+     0.179
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -2,
+     -2
+    ],
+    "columns": 4,
+    "rows": 4,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     -0.09,
+     1.16,
+     0.89,
+     -0.01,
+     1.26,
+     1.17,
+     1.07,
+     0.8,
+     null,
+     null,
+     -0.21,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 2999
+    },
+    {
+     "triangles": 1499
+    },
+    {
+     "triangles": 749
+    },
+    {
+     "triangles": 374
+    },
+    {
+     "triangles": 156
+    }
+   ],
+   "lodDistances": [
+    25.0,
+    50.0,
+    90.0,
+    250.0,
+    600.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/rubble-desert-a.collision.bin",
+    "vertices": 958,
+    "triangles": 1919,
+    "sha256": "deb50c851e3e15cca3d3f4471b20e8c35ada186a3e52e816c40d986bd53197d3",
+    "within95": 0.017,
+    "within": 0.143,
+    "openEdges": 15
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/rubble-desert-a_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/rubble-desert-a_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.4237,
+     0.2508,
+     0.1662
+    ]
+   },
+   "source": {
+    "scan": "desert_western_rock_large_11_ulbpfjj_high.glb",
+    "sha256": "8656bd2f3eb35c52a9a68850a09b2c058c1985c1c1b16172e81b55b212949d6c",
+    "yaw": 0,
+    "span": null,
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "natural",
+     "natural"
+    ]
+   }
+  },
+  {
+   "key": "rubble-desert-b",
+   "family": "desert",
+   "role": "rubble",
+   "file": "res://assets/surface/cliffkit/rubble-desert-b.glb",
+   "material": "res://assets/surface/cliffkit/materials/rubble-desert-b.tres",
+   "size": [
+    2.373,
+    1.261,
+    1.794
+   ],
+   "bounds": {
+    "min": [
+     -1.187,
+     -0.404,
+     -0.912
+    ],
+    "max": [
+     1.186,
+     1.261,
+     0.882
+    ]
+   },
+   "top": 1.265,
+   "skirt": 0.4,
+   "sockets": [],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.6,
+    2.5
+   ],
+   "anchors": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     -0.831,
+     0.0,
+     0.026
+    ],
+    [
+     0.142,
+     0.0,
+     0.617
+    ],
+    [
+     0.812,
+     0.0,
+     -0.428
+    ],
+    [
+     -0.399,
+     0.0,
+     -0.613
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.831,
+      0.0,
+      0.026
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.142,
+      0.0,
+      0.617
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.812,
+      0.0,
+      -0.428
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.399,
+      0.0,
+      -0.613
+     ],
+     "below": 1.5,
+     "above": 2.0
+    }
+   ],
+   "footprint": [
+    [
+     -1.187,
+     0.037
+    ],
+    [
+     -1.169,
+     -0.06
+    ],
+    [
+     -1.114,
+     -0.257
+    ],
+    [
+     -0.942,
+     -0.73
+    ],
+    [
+     -0.853,
+     -0.774
+    ],
+    [
+     -0.57,
+     -0.876
+    ],
+    [
+     -0.487,
+     -0.893
+    ],
+    [
+     -0.254,
+     -0.912
+    ],
+    [
+     -0.156,
+     -0.905
+    ],
+    [
+     0.488,
+     -0.823
+    ],
+    [
+     0.628,
+     -0.796
+    ],
+    [
+     0.972,
+     -0.719
+    ],
+    [
+     1.084,
+     -0.671
+    ],
+    [
+     1.16,
+     -0.611
+    ],
+    [
+     1.186,
+     -0.51
+    ],
+    [
+     1.173,
+     -0.273
+    ],
+    [
+     1.157,
+     -0.189
+    ],
+    [
+     0.966,
+     0.173
+    ],
+    [
+     0.922,
+     0.245
+    ],
+    [
+     0.203,
+     0.882
+    ],
+    [
+     -0.687,
+     0.558
+    ],
+    [
+     -0.965,
+     0.419
+    ],
+    [
+     -1.111,
+     0.272
+    ],
+    [
+     -1.148,
+     0.186
+    ]
+   ],
+   "outline": [
+    [
+     -1.187,
+     0.037
+    ],
+    [
+     -1.169,
+     -0.06
+    ],
+    [
+     -1.114,
+     -0.257
+    ],
+    [
+     -0.942,
+     -0.73
+    ],
+    [
+     -0.853,
+     -0.774
+    ],
+    [
+     -0.57,
+     -0.876
+    ],
+    [
+     -0.487,
+     -0.893
+    ],
+    [
+     -0.254,
+     -0.912
+    ],
+    [
+     -0.156,
+     -0.905
+    ],
+    [
+     0.488,
+     -0.823
+    ],
+    [
+     0.628,
+     -0.796
+    ],
+    [
+     0.972,
+     -0.719
+    ],
+    [
+     1.084,
+     -0.671
+    ],
+    [
+     1.16,
+     -0.611
+    ],
+    [
+     1.186,
+     -0.51
+    ],
+    [
+     1.173,
+     -0.273
+    ],
+    [
+     1.157,
+     -0.189
+    ],
+    [
+     0.966,
+     0.173
+    ],
+    [
+     0.922,
+     0.245
+    ],
+    [
+     0.203,
+     0.882
+    ],
+    [
+     -0.687,
+     0.558
+    ],
+    [
+     -0.965,
+     0.419
+    ],
+    [
+     -1.111,
+     0.272
+    ],
+    [
+     -1.148,
+     0.186
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -2,
+     -1
+    ],
+    "columns": 4,
+    "rows": 2,
+    "top": [
+     null,
+     0.92,
+     0.9,
+     null,
+     null,
+     0.83,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 2999
+    },
+    {
+     "triangles": 1498
+    },
+    {
+     "triangles": 748
+    },
+    {
+     "triangles": 374
+    },
+    {
+     "triangles": 120
+    }
+   ],
+   "lodDistances": [
+    25.0,
+    50.0,
+    90.0,
+    250.0,
+    600.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/rubble-desert-b.collision.bin",
+    "vertices": 962,
+    "triangles": 1920,
+    "sha256": "6f22d807e82a5f9bd18b26db7c56a5a6ad2f0a8f34067d0ac424824594acc730",
+    "within95": 0.006,
+    "within": 0.022,
+    "openEdges": 0
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/rubble-desert-b_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/rubble-desert-b_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.3831,
+     0.2423,
+     0.174
+    ]
+   },
+   "source": {
+    "scan": "desert_western_rock_large_13_ulmfceq_high.glb",
+    "sha256": "647c4eef61de7fa86c00187b6ee9d66c9e5842a8b665c0eaa99a627a2b3c4685",
+    "yaw": 0,
+    "span": null,
+    "scale": 1.0,
+    "mirror": false,
+    "ends": [
+     "natural",
+     "natural"
+    ]
+   }
+  },
+  {
+   "key": "rubble-nordic",
+   "family": "nordic",
+   "role": "rubble",
+   "file": "res://assets/surface/cliffkit/rubble-nordic.glb",
+   "material": "res://assets/surface/cliffkit/materials/rubble-nordic.tres",
+   "size": [
+    2.902,
+    2.108,
+    2.296
+   ],
+   "bounds": {
+    "min": [
+     -1.451,
+     -0.042,
+     -1.15
+    ],
+    "max": [
+     1.451,
+     2.108,
+     1.146
+    ]
+   },
+   "top": 2.109,
+   "skirt": 0.527,
+   "sockets": [],
+   "caps": {
+    "left": false,
+    "right": false
+   },
+   "scale": [
+    0.6,
+    2.5
+   ],
+   "anchors": [
+    [
+     0.0,
+     0.0,
+     0.0
+    ],
+    [
+     -1.01,
+     0.0,
+     -0.375
+    ],
+    [
+     -0.643,
+     0.0,
+     0.393
+    ],
+    [
+     -0.066,
+     0.0,
+     0.575
+    ],
+    [
+     0.458,
+     0.0,
+     -0.063
+    ]
+   ],
+   "checks": [
+    {
+     "kind": "foot",
+     "position": [
+      0.0,
+      0.0,
+      0.0
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -1.01,
+      0.0,
+      -0.375
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.643,
+      0.0,
+      0.393
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      -0.066,
+      0.0,
+      0.575
+     ],
+     "below": 1.5,
+     "above": 2.0
+    },
+    {
+     "kind": "foot",
+     "position": [
+      0.458,
+      0.0,
+      -0.063
+     ],
+     "below": 1.5,
+     "above": 2.0
+    }
+   ],
+   "footprint": [
+    [
+     -1.451,
+     -0.536
+    ],
+    [
+     -1.446,
+     -0.57
+    ],
+    [
+     -1.396,
+     -0.644
+    ],
+    [
+     -1.135,
+     -1.011
+    ],
+    [
+     -1.071,
+     -1.053
+    ],
+    [
+     -0.803,
+     -1.15
+    ],
+    [
+     -0.717,
+     -1.142
+    ],
+    [
+     -0.23,
+     -1.044
+    ],
+    [
+     0.161,
+     -0.921
+    ],
+    [
+     0.282,
+     -0.869
+    ],
+    [
+     0.453,
+     -0.774
+    ],
+    [
+     0.849,
+     -0.429
+    ],
+    [
+     1.239,
+     -0.052
+    ],
+    [
+     1.16,
+     0.215
+    ],
+    [
+     1.029,
+     0.559
+    ],
+    [
+     0.947,
+     0.758
+    ],
+    [
+     0.798,
+     0.824
+    ],
+    [
+     -0.318,
+     1.136
+    ],
+    [
+     -0.387,
+     1.146
+    ],
+    [
+     -0.597,
+     0.988
+    ],
+    [
+     -0.871,
+     0.764
+    ],
+    [
+     -0.911,
+     0.71
+    ],
+    [
+     -1.402,
+     -0.185
+    ],
+    [
+     -1.427,
+     -0.242
+    ]
+   ],
+   "outline": [
+    [
+     -1.451,
+     -0.536
+    ],
+    [
+     -1.446,
+     -0.57
+    ],
+    [
+     -1.135,
+     -1.011
+    ],
+    [
+     -1.071,
+     -1.053
+    ],
+    [
+     -0.803,
+     -1.15
+    ],
+    [
+     -0.717,
+     -1.142
+    ],
+    [
+     0.783,
+     -0.94
+    ],
+    [
+     1.258,
+     -0.479
+    ],
+    [
+     1.318,
+     -0.379
+    ],
+    [
+     1.435,
+     -0.144
+    ],
+    [
+     1.451,
+     -0.082
+    ],
+    [
+     1.442,
+     0.06
+    ],
+    [
+     1.244,
+     0.502
+    ],
+    [
+     1.08,
+     0.676
+    ],
+    [
+     1.022,
+     0.724
+    ],
+    [
+     0.798,
+     0.824
+    ],
+    [
+     0.519,
+     0.912
+    ],
+    [
+     -0.318,
+     1.136
+    ],
+    [
+     -0.387,
+     1.146
+    ],
+    [
+     -0.597,
+     0.988
+    ],
+    [
+     -0.871,
+     0.764
+    ],
+    [
+     -0.911,
+     0.71
+    ],
+    [
+     -1.402,
+     -0.185
+    ],
+    [
+     -1.427,
+     -0.242
+    ]
+   ],
+   "grid": {
+    "cell": 1.0,
+    "origin": [
+     -2,
+     -2
+    ],
+    "columns": 4,
+    "rows": 4,
+    "top": [
+     null,
+     null,
+     null,
+     null,
+     null,
+     2.01,
+     2.01,
+     null,
+     null,
+     1.79,
+     1.86,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
+   },
+   "lods": [
+    {
+     "triangles": 3000
+    },
+    {
+     "triangles": 1500
+    },
+    {
+     "triangles": 750
+    },
+    {
+     "triangles": 374
+    },
+    {
+     "triangles": 120
+    }
+   ],
+   "lodDistances": [
+    25.0,
+    50.0,
+    90.0,
+    250.0,
+    600.0
+   ],
+   "shadowLod": 2,
+   "collision": {
+    "file": "res://assets/surface/cliffkit/rubble-nordic.collision.bin",
+    "vertices": 962,
+    "triangles": 1920,
+    "sha256": "22e67d7b2730e34668118c2ae8f45a9a85c780f114b816519edcd6e201260731",
+    "within95": 0.008,
+    "within": 0.033,
+    "openEdges": 0
+   },
+   "textures": {
+    "albedo": "res://assets/surface/cliffkit/textures/rubble-nordic_albedo.png",
+    "normal": "res://assets/surface/cliffkit/textures/rubble-nordic_normal.png",
+    "size": 1024,
+    "scanColour": [
+     0.4343,
+     0.3979,
+     0.3637
+    ]
+   },
+   "source": {
+    "scan": "nordic_beach_boulder_vcyqebjfa_high.glb",
+    "sha256": "dc1fa6be025e1b76095014afd94132ade703d942f83fed6f24a0a4f01aa83819",
+    "yaw": 0,
+    "span": null,
+    "scale": 2.5,
+    "mirror": false,
+    "ends": [
+     "natural",
+     "natural"
+    ]
+   }
+  }
+ ]
+}
