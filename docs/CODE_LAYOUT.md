@@ -490,6 +490,8 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `ShipFuel.cs` | 88 | ShipFuel | ShipFuel: a tank's whole fuel units plus the fraction drawn into its engine; only whole units move through inventory; migrates old float saves. |
 | `ShipInterior.cs` | 389 | ShipPartKind, ShipPartDef, ShipPiece, BoardingBox, ShipSocket, ShipBuildZone, ShipExclusion, StationBarrelData, StationGeometry, ShipFixture, ShipRoom, PartPose, ShipInterior | How one of a ship's parts moves (the data file's part kinds, IRON_WAKE.md §9.1). |
 | `ShipLayout.cs` | 282 | SeatRole, SeatSitters, SeatWorks, DoorOpens, DoorEase, ShipPartHealth, ShipSeatDef, ShipDoorDef, ShipTargetPart, NozzleDrive, ShipNozzle, LightPower, ShipLight | What a seat's occupant does (ships.json seats' role, IRON_WAKE.md §5.2). |
+| `GroundMotor.cs` | 443 | WheelDef, GroundDef, GroundMotor [WheelLoad] | A vehicle on wheels (VEHICLES.md §6.2): wheels and how it drives, and the ground motor: sprung wheels by rays, tyres' grip along and across within grip x load, drive, brakes, holding, the hull swept, the ground turning under it. |
+| `ShipMotors.cs` | 72 | IShipMotor, ShipMotors, FlightMotor | A ship's whole step by ships.json motor (VEHICLES.md §9.2): flight (ShipMotor.Step with its drive) or ground. |
 | `ShipDrives.cs` | 142 | ShipDriveContext, IShipDrive, ShipDrives | What a drive sees when it decides a tick's thrust and turn; the drives by kind (ships.json drive). |
 | `ShipMotor.cs` | 736 | ShipContext, ShipMotor [SkidLoad] | What a ship's step needs to know about where it happens. |
 | `ShipQueries.cs` | 156 | ShipQueryHit, ShipQueries | What a query of the zone's frame met in a ship's space: the ship's frame, the hit there, and how far along the query it is. |

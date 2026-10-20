@@ -259,7 +259,7 @@ public static class ShipAssembler
             {
                 hull.Add(box with { Centre = box.Centre + o });
                 hullParts.Add(body);
-                if (!box.Skid)
+                if (!box.Skid && !box.Fragile)
                 {
                     water += 8 * box.HalfExtents.X * box.HalfExtents.Y * box.HalfExtents.Z;
                 }

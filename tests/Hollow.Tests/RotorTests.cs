@@ -6,6 +6,7 @@ using Hollow.Simulation;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Ships.Modules;
 using Hollow.Surface;
 
 namespace Hollow.Tests;
@@ -31,15 +32,36 @@ public static class RotorTests
 {
     private const int T = CharacterMotor.TickRate;
 
+    /// <summary>The KA-FA's frame, the kind (docs/MINICOPTER.md §4.1): its modules make the craft.</summary>
     public static ShipDef KaFa => ContentFixture.Content.Ship("ka-fa-1500")!;
+
+    /// <summary>A build of the KA-FA's sockets: each (socket, module) at level 1.</summary>
+    public static ShipBuild Build(params (string Socket, string Module)[] modules)
+    {
+        ShipDef kind = KaFa;
+        var entries = new Installed[modules.Length];
+        for (int i = 0; i < modules.Length; i++)
+        {
+            int socket = -1;
+            for (int k = 0; k < kind.Sockets.Count; k++)
+            {
+                if (kind.Sockets[k].Key == modules[i].Socket) socket = k;
+            }
+            entries[i] = new Installed((byte)socket, 1, ContentFixture.Content.Item(modules[i].Module)!.Id);
+        }
+        return new ShipBuild(entries);
+    }
+
+    /// <summary>The KA-FA as a build makes it (by default its own: the twin, the rotor, the jerry tank and the rear seat).</summary>
+    public static ShipDef Composed(ShipBuild? build = null) => ContentFixture.Content.Compose(KaFa, build ?? KaFa.DefaultBuild);
 
     private static ShipRig Earth(ISurface? surface = null) => new(surface, worldSpec: ZoneSpec.StartingWorld(10, 20));
 
     /// <summary>A KA-FA on the ground (or <paramref name="height"/> over it), its rotor at <paramref name="spool"/>.</summary>
-    private static Ship Add(ShipRig rig, float height = 0, float spool = 0, float yaw = 0, float fuel = 250)
+    private static Ship Add(ShipRig rig, float height = 0, float spool = 0, float yaw = 0, float fuel = 250, ShipBuild? build = null)
     {
         Vector3 ground = rig.Zone.GroundAt(0, 0);
-        Ship ship = rig.Zone.Ships().SpawnShip(KaFa, ground + rig.Zone.Frame.UpAt(ground) * height, yaw, EntityId.None, fuel);
+        Ship ship = rig.Zone.Ships().SpawnShip(Composed(build), ground + rig.Zone.Frame.UpAt(ground) * height, yaw, EntityId.None, fuel);
         ship.State.Spool = spool;
         if (height > 0)
         {
@@ -62,7 +84,7 @@ public static class RotorTests
     [Test]
     public static void RotorKaFaLoadsAsARotorcraft()
     {
-        ShipDef def = KaFa;
+        ShipDef def = Composed();
         Assert.True(def.Drive is ShipRotor, "the KA-FA flies on the rotor drive");
         Assert.True(def.NeedsPilot && def.HasFragile && def.StrikeShare > 0, "its engine needs a pilot; its rotor's disc is fragile");
         Assert.Equal("rotor", def.Controls, "its control scheme");
@@ -70,6 +92,72 @@ public static class RotorTests
         Assert.True(def.Seats[1].Exposed && def.Seats[0].Exposed, "both seats are open");
         Assert.True(Vector3.Distance(ShipSeats.Forward(def, 1, ReadOnlySpan<float>.Empty), -Vector3.UnitX) < 1e-5f, "the rear seat looks out to the right");
         Assert.Equal(750f, def.Health, "Rust's minicopter's hull");
+    }
+
+    /// <summary>§4.2: the default build makes the craft M1 measured: 480 kg, 250 lamp oil, the twin's 9.6 kN on the rotor.</summary>
+    [Test]
+    public static void RotorModulesComposeTheCraft()
+    {
+        ShipDef kind = KaFa, def = Composed();
+        Assert.True(kind.Drive is ShipRotor { Lift: 0 }, "the frame alone has no lift: its engine and rotor are modules");
+        Assert.Equal(1, kind.Seats.Count, "the frame has the pilot's seat");
+        Assert.Near(480, def.Mass, 1e-3, "frame 290 + twin 95 + rotor 45 + jerry tank 30 + rear seat 20");
+        Assert.Near(250, def.FuelCapacity, 1e-3, "the frame's 10 and the jerry tank's 240");
+        Assert.True(def.Drive is ShipRotor { Lift: 9600 }, "the twin's lift, turned by the rotor");
+        Assert.True(def.HasFragile, "the rotor's disc is fragile");
+        Fixtures.Report($"KA-FA composed: centre of mass ({def.CentreOfMass.X:0.00}, {def.CentreOfMass.Y:0.00}, {def.CentreOfMass.Z:0.00}), inertia ({def.Inertia.X:0}, {def.Inertia.Y:0}, {def.Inertia.Z:0})");
+        Assert.InRange(0.85, 1.1, def.CentreOfMass.Y, "the centre of mass sits about a metre up");
+    }
+
+    /// <summary>§4.1: without its engine, or without its rotor, the frame doesn't leave the ground (the rotor doesn't even turn).</summary>
+    [Test]
+    public static void RotorNeedsBothEngineAndRotor()
+    {
+        foreach ((string what, ShipBuild build) in new[]
+        {
+            ("no engine", Build(("rotor", "ka-fa-rotor"), ("tank", "ka-fa-jerry-tank"))),
+            ("no rotor", Build(("engine", "ka-fa-twin"), ("tank", "ka-fa-jerry-tank"))),
+        })
+        {
+            using var rig = Earth();
+            Ship ship = Add(rig, build: build);
+            Assert.True(ship.Def.Drive is ShipRotor { Lift: 0 }, $"{what}: no lift");
+            rig.Fly(ship, new ShipInput { Vertical = 1 }, 10 * T);
+            Assert.True(rig.Height(ship) < 0.3f && ship.State.Spool == 0, $"{what}: still on the ground, the rotor still");
+        }
+    }
+
+    /// <summary>§4.2: the heavy build (long tank, cargo box, plating) still flies on the twin, and the tuned twin carries it easier.</summary>
+    [Test]
+    public static void RotorTunedTwinCarriesAHeavyBuild()
+    {
+        float Hover(string engine)
+        {
+            using var rig = Earth();
+            ShipBuild heavy = Build(("engine", engine), ("rotor", "ka-fa-rotor"), ("tank", "ka-fa-long-tank"), ("rear", "ka-fa-cargo-box"),
+                ("plating", "ka-fa-plating"));
+            Ship ship = Add(rig, height: 30, spool: 1, fuel: 500, build: heavy);
+            rig.Fly(ship, default, 3 * T);
+            float start = rig.Height(ship);
+            rig.Fly(ship, new ShipInput { Vertical = 1 }, 5 * T);
+            float climbed = rig.Height(ship) - start;
+            Fixtures.Report($"KA-FA heavy build ({ship.Def.Mass:0} kg, {ship.Def.FuelCapacity:0} fuel) on the {engine}: collective {ship.State.Thrust.Y:0.00} climbing, {climbed:0.0} m in 5 s");
+            Assert.Near(500, ship.Def.FuelCapacity, 1e-3, "the long tank's 490 and the frame's 10");
+            Assert.True(climbed > 20, $"the {engine} still climbs with it");
+            return ship.State.Thrust.Y;
+        }
+        float twin = Hover("ka-fa-twin"), tuned = Hover("ka-fa-tuned-twin");
+        Assert.True(tuned < twin, "the tuned twin works less to carry the same load");
+    }
+
+    /// <summary>§4.2: the cargo box in the rear bay is one hold of 12 slots, in place of the passenger's seat.</summary>
+    [Test]
+    public static void RotorCargoBoxIsItsHold()
+    {
+        ShipDef def = Composed(Build(("engine", "ka-fa-twin"), ("rotor", "ka-fa-rotor"), ("tank", "ka-fa-jerry-tank"), ("rear", "ka-fa-cargo-box")));
+        Assert.Equal(1, def.Seats.Count, "no rear seat");
+        Assert.Equal(1, def.Holds.Count, "one hold");
+        Assert.Equal(12, def.Holds[0].Slots, "of 12 slots");
     }
 
     /// <summary>§5.1: the rotor spools up over 5 s; it can't lift off at once, then climbs at its 7 m/s.</summary>
@@ -303,12 +391,15 @@ public static class RotorTests
     {
         using var rig = Earth(new FloodedSurface(ZoneSpec.StartingWorld(10, 20).Radius));
         Ship ship = Add(rig, height: 2, spool: 1);
+        // Down into the sea, its centre of mass a metre under the surface (the ground probe may stand on the water).
+        double sea = rig.Zone.Surface.SeaRadius, at = rig.Zone.Frame.ToBody(ship.State.Position).Length;
+        ship.State.Position -= rig.Up(ship) * (float)(at - (sea - 1));
         rig.Fly(ship, default, 6 * T);
         float spool = ship.State.Spool;
         rig.Fly(ship, new ShipInput { Vertical = 1 }, 4 * T);
         Fixtures.Report($"KA-FA in the sea: spool {spool:0.00} after 6 s, then {ship.State.Spool:0.00}; wet {ship.State.Has(ShipFlags.Wet)}, climb {Climb(rig, ship):0.00} m/s");
         Assert.True(ship.State.Has(ShipFlags.Wet), "afloat in the sea");
-        Assert.True(ship.State.Spool < 0.3f, "the drowned engine let the rotor stop");
+        Assert.True(ship.State.Spool == 0, "the blades met the water and the drowned engine won't turn them");
         Assert.True(Climb(rig, ship) < 0.5f, "it can't climb out");
     }
 

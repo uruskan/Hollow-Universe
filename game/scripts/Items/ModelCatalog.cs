@@ -155,7 +155,23 @@ public static class ModelCatalog
         float[] distances = entry.LodDistances ?? DefaultLodDistances(LocalBounds(root, 0));
         SetLodRanges(root, distances);
         GunAttachmentPresentation.Prepare(root, entry);
+        HideBlurs(root);
         return root;
+    }
+
+    /// <summary>
+    /// A rotor's blurred disc (a mesh named <c>…Blur</c>, docs/MINICOPTER.md §8) is shown only by a view that spins it: at
+    /// rest, in an icon or the model viewer, the blades show alone.
+    /// </summary>
+    private static void HideBlurs(Node root)
+    {
+        foreach (MeshInstance3D mesh in Meshes(root))
+        {
+            if (mesh.Name.ToString().EndsWith("Blur", StringComparison.Ordinal))
+            {
+                mesh.Visible = false;
+            }
+        }
     }
 
     /// <summary>

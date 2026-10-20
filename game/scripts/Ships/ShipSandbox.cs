@@ -159,8 +159,9 @@ public partial class ShipSandbox : Node3D
 
     // ---------------------------------------------------------------- set-up
 
-    // The flattest open spot near the landing site: the workbench, its bay and the ship parked on it (the Tin Finch, or the
-    // kind --ship names: the KA-FA 1500's rotor needs its own room), and the pilot.
+    // The flattest open spot near the landing site: the workbench, its bay and the ship parked on it, and the pilot. --ship
+    // names a ship people sit in for the pad (a vehicle on wheels, VEHICLES.md; the KA-FA 1500, whose rotor needs its own
+    // room); the Tin Finch by default.
     private void BuildPad(ShipDef? kind)
     {
         _padYaw = -MathF.PI / 2; // the nose east: in the morning the sun lights the hatch side
@@ -177,8 +178,8 @@ public partial class ShipSandbox : Node3D
         _bench = new Deployable(_zone.NextId(), benchDef, benchAt, _zone.Frame.UpAt(benchAt), _padYaw, owner);
         _zone.Things().AddStatic(_bench);
         _ship = _zone.Ships().SpawnShip(def, _pad, _padYaw, owner, def.FuelCapacity);
-        _controls.Scheme = ShipControlSchemes.For(def.Controls);
-        _shipView = new ShipView(def);
+        _controls.Scheme = ShipControlSchemes.For(_ship.Def.Controls);
+        _shipView = new ShipView(_ship.Def);
         AddChild(_shipView);
         _benchModel = ModelCatalog.Instantiate("vehicle-workbench");
         if (_benchModel != null)
@@ -354,6 +355,15 @@ public partial class ShipSandbox : Node3D
                 _shipCamera.LookAhead = -2;
                 break;
             }
+            case "drive" when def.Ground != null:
+            {
+                // A vehicle on wheels driven off the pad and turning (VEHICLES.md §6), seen from behind.
+                Board();
+                Fly(new ShipInput { Throttle = 1 }, 75);
+                Fly(new ShipInput { Throttle = 0.6f, Yaw = 0.6f }, 30);
+                _shipCamera.Mode = ShipCameraMode.Chase;
+                break;
+            }
             default:
             {
                 // On foot by the ship on its pad, the hatch open, the workbench behind it.
@@ -479,6 +489,13 @@ public partial class ShipSandbox : Node3D
             _shipView.FromCockpit = Seated && _shipCamera.Mode == ShipCameraMode.Cockpit && _observer == null;
             _shipView.Show(new ShipLook(Pivot(shown), _ship.Doors.Length > 0 ? _ship.DoorAt(0, _zone.Tick) : 0, shown.Thrust,
                 shown.Has(ShipFlags.EnginesOn), shown.Has(ShipFlags.Boosting), _ship.Piloted, _ship.Destroyed, shown.Spool), delta);
+            if (_ship.Def.Ground is { } ground)
+            {
+                // Its wheels on the ground under them, steered and rolling (the stand-in's, ShipView.Blocks.cs).
+                float along = Num.Vector3.Dot(shown.Velocity, shown.Forward);
+                _shipView.ShowWheels(p => _zone.HeightAboveGround(new Num.Vector3(p.X, p.Y, p.Z)), _ship.Input.Yaw * GroundMotor.SteerAngle(ground, along),
+                    along, delta);
+            }
         }
         else
         {

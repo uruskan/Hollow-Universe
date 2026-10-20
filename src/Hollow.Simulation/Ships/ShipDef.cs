@@ -607,7 +607,7 @@ public sealed class ShipDef
             min = Vector3.Min(min, box.Centre - box.HalfExtents);
             max = Vector3.Max(max, box.Centre + box.HalfExtents);
             radius = MathF.Max(radius, Vector3.Distance(box.Centre, CentreOfMass) + box.HalfExtents.Length());
-            if (!box.Skid)
+            if (!box.Skid && !box.Fragile)
             {
                 volume += 8 * box.HalfExtents.X * box.HalfExtents.Y * box.HalfExtents.Z;
             }

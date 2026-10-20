@@ -17,8 +17,10 @@ namespace Hollow.Simulation.Ships;
 /// rotor's lift is <see cref="Lift"/> × spool² × the air's share (thinner air lifts less: the craft's ceiling), the spool
 /// (<see cref="ShipState.Spool"/>) rising while the engine runs and falling while it doesn't; under water the engine
 /// drowns. On its skids with the collective not raised the rotor stays flat and the stick does nothing.
+/// Its lift may come from its modules (docs/MINICOPTER.md §4, VEHICLES.md §9.5): an engine's <c>lift</c> and a rotor's
+/// <c>rotor</c> in the build's drive sums (<see cref="Compose"/>); with no rotor turning on it, it has none.
 /// </summary>
-public sealed class ShipRotor : IShipDrive
+public sealed record ShipRotor : IShipDrive
 {
     public const string Key = "rotor";
 
@@ -27,8 +29,14 @@ public sealed class ShipRotor : IShipDrive
     /// <summary>The rotor works on the ground: it spools up and lifts off from its skids.</summary>
     public bool IdlesOnSkids => false;
 
-    /// <summary>The rotor's most thrust at full spool in air of <see cref="AirReference"/> (N).</summary>
+    /// <summary>
+    /// The rotor's most thrust at full spool in air of <see cref="AirReference"/> (N): the frame's own (ships.json
+    /// <c>drive.lift</c>) and, composed, its engine modules' (<see cref="Compose"/>); 0 without a rotor.
+    /// </summary>
     public float Lift { get; init; }
+
+    /// <summary>The frame carries its own rotor (ships.json <c>drive.rotor</c>, true by default); false: a rotor module does.</summary>
+    public bool OwnRotor { get; init; } = true;
 
     /// <summary>Seconds from still to working speed with the engine running, and back to still without it.</summary>
     public float SpoolUp { get; init; } = 5;
@@ -71,12 +79,13 @@ public sealed class ShipRotor : IShipDrive
 
     internal static IShipDrive Read(JsonFields f, JsonElement block, string where)
     {
-        f.OnlyKnown(block, where, "kind", "lift", "spoolUp", "spoolDown", "airReference", "airExponent", "airCap", "pitch", "roll",
+        f.OnlyKnown(block, where, "kind", "lift", "rotor", "spoolUp", "spoolDown", "airReference", "airExponent", "airCap", "pitch", "roll",
             "level", "climb", "sink", "response", "weathervane", "tipped", "floods");
         const float degrees = MathF.PI / 180;
         return new ShipRotor
         {
-            Lift = f.Number(block, "lift", where),
+            Lift = f.Number(block, "lift", where, 0),
+            OwnRotor = f.Flag(block, "rotor", where, true),
             SpoolUp = f.Number(block, "spoolUp", where, 5),
             SpoolDown = f.Number(block, "spoolDown", where, 7),
             AirReference = f.Number(block, "airReference", where, 1.225f),
@@ -94,6 +103,17 @@ public sealed class ShipRotor : IShipDrive
         };
     }
 
+    /// <summary>
+    /// The rotor a build makes (VEHICLES.md §9.5's drive sums, docs/MINICOPTER.md §4.2): the engines' <c>lift</c> added to
+    /// the frame's, while a rotor turns on it (its own, or a module's <c>rotor</c>); none: no lift at all.
+    /// </summary>
+    public IShipDrive Compose(IReadOnlyDictionary<string, float> sums)
+    {
+        float rotors = sums.TryGetValue("rotor", out float r) ? r : 0;
+        float lift = Lift + (sums.TryGetValue("lift", out float l) ? l : 0);
+        return this with { Lift = OwnRotor || rotors > 0 ? lift : 0 };
+    }
+
     /// <summary>The air's share of the rotor's lift at a density (kg/m³).</summary>
     public float AirFactor(float density) =>
         density <= 0 || AirReference <= 0 ? 0 : MathF.Min(AirCap, (float)DMath.Pow(density / AirReference, AirExponent));
@@ -108,8 +128,11 @@ public sealed class ShipRotor : IShipDrive
     public void Advance(ref ShipState s, in ShipDriveContext c, in ShipInput input, ShipDef def)
     {
         const float dt = CharacterMotor.DeltaTime;
-        bool runs = c.Engines && !Drowned(c.Submerged);
-        s.Spool = runs ? MathF.Min(1, s.Spool + dt / MathF.Max(SpoolUp, dt)) : MathF.Max(0, s.Spool - dt / MathF.Max(SpoolDown, dt));
+        // No lift, no engine to run: a frame without its engine or rotor (docs/MINICOPTER.md §4.1). In the sea the blades
+        // meet the water and stop at once, and the drowned engine won't turn them while the hull floats that low.
+        bool drowned = Drowned(c.Submerged);
+        bool runs = c.Engines && Lift > 0 && !drowned;
+        s.Spool = drowned ? 0 : runs ? MathF.Min(1, s.Spool + dt / MathF.Max(SpoolUp, dt)) : MathF.Max(0, s.Spool - dt / MathF.Max(SpoolDown, dt));
         if (runs || s.Spool > 0)
         {
             // A turning rotor never sleeps: the craft is never parked under it, and its spin goes on to the end.
@@ -202,9 +225,10 @@ public sealed class ShipRotor : IShipDrive
 
     public IEnumerable<string> Problems(ShipDef ship)
     {
-        if (!(Lift > ship.Mass * 9.80665f * 1.05f))
+        if (Lift < 0 || (Lift > 0 && !(Lift > ship.Mass * 9.80665f * 1.05f)))
         {
-            yield return "rotor: its lift must carry the craft at 1 g with some to spare";
+            // A frame whose lift comes from its modules has none of its own (its default build's is a test's to measure).
+            yield return "rotor: its lift, if it has its own, must carry the craft at 1 g with some to spare";
         }
         if (!(SpoolUp > 0) || !(SpoolDown > 0) || !(Response > 0) || !(LevelGain > 0))
         {

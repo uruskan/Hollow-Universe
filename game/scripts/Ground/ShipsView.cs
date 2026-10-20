@@ -111,6 +111,11 @@ public partial class ShipsView : Node3D
                 continue;
             }
             _seen.Add(ship.NetId);
+            if (_drawn.TryGetValue(ship.NetId, out Drawn? old) && old.View.Def != def)
+            {
+                // Its build changed (or its details arrived with one, VEHICLES.md §9.5): drawn again from the new layout.
+                Forget(ship.NetId, old);
+            }
             if (!_drawn.TryGetValue(ship.NetId, out Drawn? d))
             {
                 d = new Drawn { View = new ShipView(def) };
@@ -171,17 +176,22 @@ public partial class ShipsView : Node3D
         }
         foreach (uint id in _gone)
         {
-            Drawn d = _drawn[id];
-            d.Sounds?.StopAll();
-            StopEffects(d);
-            if (d.Fire.IsValid)
-            {
-                FxDirector.Stop(d.Fire);
-            }
-            d.View.QueueFree();
-            _drawn.Remove(id);
-            _stations?.Forget(id);
+            Forget(id, _drawn[id]);
         }
+    }
+
+    // A ship no longer drawn (gone, or drawn again for a new build): its sounds, effects, view and stations' state.
+    private void Forget(uint id, Drawn d)
+    {
+        d.Sounds?.StopAll();
+        StopEffects(d);
+        if (d.Fire.IsValid)
+        {
+            FxDirector.Stop(d.Fire);
+        }
+        d.View.QueueFree();
+        _drawn.Remove(id);
+        _stations?.Forget(id);
     }
 
     private static Transform3D Pivot(Num.Vector3 origin, Num.Quaternion q) =>

@@ -259,15 +259,29 @@
     {
       "key": "ka-fa-1500",
       "item": "ka-fa-1500",
-      "drive": { "kind": "rotor", "lift": 9600, "spoolUp": 5, "spoolDown": 7, "airExponent": 0.75, "pitch": 30, "roll": 28, "level": 3.0, "climb": 7, "sink": 6, "response": 0.4, "weathervane": 2.5, "tipped": 60, "floods": 0.6 },
+      "drive": { "kind": "rotor", "rotor": false, "spoolUp": 5, "spoolDown": 7, "airExponent": 0.75, "pitch": 30, "roll": 28, "level": 3.0, "climb": 7, "sink": 6, "response": 0.4, "weathervane": 2.5, "tipped": 60, "floods": 0.3 },
       "controls": "rotor",
       "needsPilot": true,
       "rotors": [
         { "node": "Rotor", "axis": [0, 1, 0], "rpm": 480, "blur": "RotorBlur", "wash": true },
         { "node": "TailRotor", "axis": [1, 0, 0], "rpm": 2600, "blur": "TailRotorBlur" }
       ],
-      "mass": 480,
-      "inertia": [650, 820, 330],
+      "sockets": [
+        { "key": "engine", "at": [0, 0.465, -0.55], "fits": ["ka-fa-engine"] },
+        { "key": "rotor", "at": [0, 2.3, -0.15], "fits": ["ka-fa-rotor"] },
+        { "key": "tank", "at": [0, 0.42, 0.2], "fits": ["ka-fa-tank"] },
+        { "key": "rear", "at": [0, 0.465, -1.3], "fits": ["ka-fa-rear"] },
+        { "key": "plating", "at": [0, 0, 0], "fits": ["ka-fa-plating"] }
+      ],
+      "buildHeight": 3,
+      "build": [
+        { "socket": "engine", "module": "ka-fa-twin" },
+        { "socket": "rotor", "module": "ka-fa-rotor" },
+        { "socket": "tank", "module": "ka-fa-jerry-tank" },
+        { "socket": "rear", "module": "ka-fa-rear-seat" }
+      ],
+      "mass": 290,
+      "inertia": [350, 450, 180],
       "centreOfMass": [0, 0.95, -0.3],
       "health": 750,
       "damage": { "melee": 0.25, "arrow": 0.1, "bullet": 0.5, "explosive": 1.0 },
@@ -279,7 +293,7 @@
       "landing": { "maxSlope": 20, "assist": [1.5, 0.25] },
       "skids": { "points": [[0.8, 0, 0.85], [0.8, 0, -0.75], [-0.8, 0, 0.85], [-0.8, 0, -0.75]], "stiffness": 40000, "damping": 3500, "travel": 0.08, "friction": 0.6 },
       "crash": { "safe": 5, "scale": 1, "fatal": 30, "least": 0.15, "tipped": 5, "strike": 0.35, "pilot": 0.1 },
-      "fuel": { "item": "lamp-oil", "capacity": 250, "idle": 0.25, "full": 0.5, "placed": 50 },
+      "fuel": { "item": "lamp-oil", "capacity": 10, "idle": 0.25, "full": 0.5, "placed": 50 },
       "water": { "below": 0.5, "above": 0.9, "volume": 0.6 },
       "cargo": 0,
       "hull": [
@@ -287,21 +301,17 @@
         { "centre": [0, 0.91, -0.875], "size": [0.42, 0.49, 0.725] },
         { "centre": [0, 1.84, -0.15], "size": [0.16, 0.44, 0.2] },
         { "centre": [0, 1.1, -2.925], "size": [0.18, 0.55, 1.325] },
-        { "centre": [0, 2.32, -0.15], "size": [3.5, 0.06, 1.45], "fragile": true },
-        { "centre": [0, 2.32, -0.15], "size": [1.45, 0.06, 3.5], "fragile": true },
         { "centre": [-0.22, 1.1, -4.08], "size": [0.06, 0.45, 0.45], "fragile": true },
         { "centre": [0.8, 0.04, 0.1], "size": [0.045, 0.045, 1.15], "skid": true },
         { "centre": [-0.8, 0.04, 0.1], "size": [0.045, 0.045, 1.15], "skid": true }
       ],
       "seats": [
-        { "key": "pilot", "name": "Pilot's seat", "role": "helm", "verb": "fly", "sitters": "unlocked", "exposed": true, "at": [0, 0.57, 0.25], "eye": [0, 1.37, 0.3], "exits": [[1.25, 0, 0.3], [-1.25, 0, 0.3], [0, 0, 2.2]] },
-        { "key": "rear", "name": "Rear seat", "role": "passenger", "verb": "sit", "sitters": "unlocked", "exposed": true, "at": { "at": [-0.12, 0.84, -1.28], "forward": [-1, 0, 0] }, "eye": [-0.22, 1.62, -1.28], "exits": [[-1.3, 0, -1.2], [1.3, 0, -1.2], [0, 0, -2.4]] }
+        { "key": "pilot", "name": "Pilot's seat", "role": "helm", "verb": "fly", "sitters": "unlocked", "exposed": true, "at": [0, 0.57, 0.25], "eye": [0, 1.37, 0.3], "exits": [[1.25, 0, 0.3], [-1.25, 0, 0.3], [0, 0, 2.2]] }
       ],
       "doors": [],
       "parts": [
         { "key": "hull" },
         { "key": "pilot", "name": "Pilot's seat", "at": [0, 0.8, 0.25], "radius": 0.6, "capabilities": ["seat", "cupboard"], "seat": "pilot" },
-        { "key": "rear", "name": "Rear seat", "at": [-0.12, 1.0, -1.28], "radius": 0.5, "capabilities": ["seat"], "seat": "rear" },
         { "key": "fuel", "name": "Fuel cap", "at": [0.4, 0.6, 0.37], "radius": 0.3, "capabilities": ["fuel"] }
       ],
       "nozzles": {},
