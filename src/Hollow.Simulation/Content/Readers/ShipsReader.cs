@@ -31,7 +31,7 @@ internal sealed class ShipsReader : IContentReader
             string where = $"ships.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
                 "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "seats", "doors", "parts", "nozzles", "lights", "ceiling",
-                "wreck", "placement", "model", "interior", "water", "assist", "drive", "controls", "buoyancy", "needsPilot");
+                "wreck", "placement", "model", "interior", "water", "assist", "drive", "controls", "buoyancy", "needsPilot", "rotors");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             // The inside people walk in (IRON_WAKE.md §4.3): its data file, read first, since the sockets and the hull may
             // name what it holds.
@@ -245,6 +245,7 @@ internal sealed class ShipsReader : IContentReader
                 CargoPart = parts.FirstOrDefault(p => p.Capabilities.Has(r.Loaded.Capabilities?.Index("container") ?? -1))?.Index ?? 0,
                 Nozzles = ShipLayoutReader.Nozzles(f, nozzles, where + ".nozzles", interior),
                 Lights = ShipLayoutReader.Lights(f, e, where, interior),
+                Rotors = Rotors(f, e, where),
                 NavLights = !(f.TryChild(e, "lights", out JsonElement lightsBlock) && lightsBlock.ValueKind == JsonValueKind.Object &&
                     lightsBlock.TryGetProperty("nav", out JsonElement nav) && nav.ValueKind == JsonValueKind.False),
                 Ceiling = f.Number(e, "ceiling", where),
@@ -270,6 +271,27 @@ internal sealed class ShipsReader : IContentReader
             }
             item.Ship = def;
         }
+    }
+
+    // A ship's rotors as drawn (presentation only, docs/MINICOPTER.md §8): each a node, an axis, its turns a minute, its blur.
+    private static List<Ships.ShipRotorLook> Rotors(JsonFields f, JsonElement e, string where)
+    {
+        var rotors = new List<Ships.ShipRotorLook>();
+        foreach (JsonElement r in f.List(e, "rotors", where, required: false))
+        {
+            string at = where + ".rotors";
+            f.OnlyKnown(r, at, "node", "axis", "rpm", "blur", "wash");
+            Vector3 axis = f.Vector(r, "axis", at);
+            float rpm = f.Number(r, "rpm", at);
+            if (axis.LengthSquared() < 1e-6f || rpm is <= 0 or > 20_000)
+            {
+                f.Problem(at, "a rotor turns about an axis that isn't nothing, at 0 … 20,000 turns a minute");
+                continue;
+            }
+            rotors.Add(new Ships.ShipRotorLook(f.Text(r, "node", at), Vector3.Normalize(axis), rpm, f.Text(r, "blur", at, ""),
+                f.Flag(r, "wash", at, false)));
+        }
+        return rotors;
     }
 
     // The stations a ship's seats work (IRON_WAKE.md §6.1): the data file's geometry, the battery its kind names, the seat

@@ -47,6 +47,7 @@ SCRIPTS = {
     "props": "models/props.py",
     "raid": "models/raid.py",
     "animal_items": "models/animal_items.py",
+    "ka_fa_1500": "models/ka_fa_1500.py",
 }
 
 wanted = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []

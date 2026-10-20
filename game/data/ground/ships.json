@@ -260,6 +260,10 @@
       "drive": { "kind": "rotor", "lift": 9600, "spoolUp": 5, "spoolDown": 7, "airExponent": 0.75, "pitch": 30, "roll": 28, "level": 3.0, "climb": 7, "sink": 6, "response": 0.4, "weathervane": 2.5, "tipped": 60, "floods": 0.6 },
       "controls": "rotor",
       "needsPilot": true,
+      "rotors": [
+        { "node": "Rotor", "axis": [0, 1, 0], "rpm": 480, "blur": "RotorBlur", "wash": true },
+        { "node": "TailRotor", "axis": [1, 0, 0], "rpm": 2600, "blur": "TailRotorBlur" }
+      ],
       "mass": 480,
       "inertia": [650, 820, 330],
       "centreOfMass": [0, 0.95, -0.3],

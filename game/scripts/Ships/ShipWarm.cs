@@ -21,7 +21,7 @@ public static class ShipWarm
             spot.Holder.AddChild(view);
             Transform3D pivot = spot.Holder.GlobalTransform * new Transform3D(Basis.Identity, spot.Place);
             view.Show(new ShipLook(pivot, 1, new System.Numerics.Vector3(1, 1, 1.5f), Engines: true, Boosting: true, Piloted: true,
-                Destroyed: false), 0.5);
+                Destroyed: false, Spool: 1), 0.5);
             return view;
         }));
 }

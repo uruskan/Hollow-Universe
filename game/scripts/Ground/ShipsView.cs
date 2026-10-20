@@ -124,12 +124,13 @@ public partial class ShipsView : Node3D
                 ShipState s = Client.Ships().OwnShip;
                 Num.Quaternion q = Client.Ships().OwnShipRenderRotation;
                 Num.Vector3 origin = Client.Ships().OwnShipRenderPosition - Num.Vector3.Transform(def.CentreOfMass, q);
-                look = new ShipLook(Pivot(origin, q), ship.DoorAt(0, Client.ServerTickNow), s.Thrust, s.Has(ShipFlags.EnginesOn), s.Has(ShipFlags.Boosting), true, false);
+                look = new ShipLook(Pivot(origin, q), ship.DoorAt(0, Client.ServerTickNow), s.Thrust, s.Has(ShipFlags.EnginesOn), s.Has(ShipFlags.Boosting), true, false,
+                    s.Spool);
             }
             else
             {
                 look = new ShipLook(Pivot(ship.Origin, ship.Rotation), ship.DoorAt(0, Client.RenderTick), ship.Thrust, ship.Has(ShipNetFlags.EnginesOn),
-                    ship.Has(ShipNetFlags.Boosting), ship.Has(ShipNetFlags.Piloted), ship.Has(ShipNetFlags.Destroyed));
+                    ship.Has(ShipNetFlags.Boosting), ship.Has(ShipNetFlags.Piloted), ship.Has(ShipNetFlags.Destroyed), ship.Spool);
             }
             d.View.Visible = !ship.Has(ShipNetFlags.InOrbit);
             d.View.FromCockpit = mine && Cockpit;

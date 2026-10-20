@@ -461,6 +461,9 @@ public sealed class ShipDef
     /// <summary>The nozzles (ships.json <c>nozzles</c>): where each is, its drive and its plume's size (presentation only).</summary>
     public IReadOnlyList<ShipNozzle> Nozzles { get; init; } = Array.Empty<ShipNozzle>();
 
+    /// <summary>Its rotors as the views draw them (ships.json <c>rotors</c>, docs/MINICOPTER.md §8; presentation only).</summary>
+    public IReadOnlyList<ShipRotorLook> Rotors { get; init; } = Array.Empty<ShipRotorLook>();
+
     /// <summary>The lamps (ships.json <c>lights</c>, IRON_WAKE.md §9.4): data until IW6 draws them.</summary>
     public IReadOnlyList<ShipLight> Lights { get; init; } = Array.Empty<ShipLight>();
 

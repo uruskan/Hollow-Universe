@@ -24,6 +24,9 @@ public interface IShipControlScheme
     /// <summary>The helm's keys for the HUD's corner, in the cockpit or the orbit camera.</summary>
     string Hints(bool cockpit);
 
+    /// <summary>What the HUD's left gauge and status show: the throttle lever and flight assist, or a rotor's spin.</summary>
+    HudGauge Gauge => HudGauge.Throttle;
+
     /// <summary>The tick's input; <paramref name="mouseSteering"/> false: a camera-only view, the cursor let go.</summary>
     ShipInput Read(ShipControls controls, double delta, bool mouseSteering);
 }
@@ -35,6 +38,7 @@ public static class ShipControlSchemes
     {
         [FlightControls.SchemeKey] = new FlightControls(),
         [BoatControls.SchemeKey] = new BoatControls(),
+        [RotorControls.SchemeKey] = new RotorControls(),
     };
 
     /// <summary>The scheme a ship's data names, or flight (with a warning for a key nobody knows).</summary>
@@ -130,6 +134,67 @@ public sealed class BoatControls : IShipControlScheme
         {
             Throttle = controls.Throttle,
             Yaw = Math.Clamp(Held(Godot.Key.D) - Held(Godot.Key.A) + Held(Godot.Key.Right) - Held(Godot.Key.Left), -1, 1),
+        };
+    }
+}
+
+/// <summary>
+/// A rotor (the KA-FA 1500, docs/MINICOPTER.md §5.2), on Rust's minicopter's keys: W climbs and S (or Ctrl) sinks, neither
+/// holding the height; A and D yaw; the mouse tilts it (forward noses it down, as a cyclic is pushed; left and right roll)
+/// through a stick that stays where it is put, so a cruise needs no fight with the mouse. A small tilt left alone for half a
+/// second springs back to level (Rust's self-levelling), and the middle button levels it at once. The arrow keys are a
+/// keyboard stick, which is what tilts it in the orbit camera.
+/// </summary>
+public sealed class RotorControls : IShipControlScheme
+{
+    public const string SchemeKey = "rotor";
+
+    /// <summary>A stick nearer the middle than this, left still for <see cref="SettleSeconds"/>, springs back to level.</summary>
+    public const float Detent = 0.2f;
+
+    public const double SettleSeconds = 0.5;
+
+    private System.Numerics.Vector2 _last;
+    private double _still;
+
+    public string Key => SchemeKey;
+
+    public bool MouseSteers => true;
+
+    public bool Flies => true;
+
+    public HudGauge Gauge => HudGauge.Rotor;
+
+    public string Hints(bool cockpit) =>
+        "W climb · S sink · A/D yaw · " + (cockpit ? "Mouse tilt · MMB level · ALT look · V orbit" : "Arrows tilt · RMB drag orbit · Wheel zoom · V cockpit") +
+        " · SPACE leave";
+
+    public ShipInput Read(ShipControls controls, double delta, bool mouseSteering)
+    {
+        if (!mouseSteering) controls.CentreSteering();
+        static float Held(Godot.Key key) => Input.IsPhysicalKeyPressed(key) ? 1 : 0;
+        System.Numerics.Vector2 cursor = controls.Steering.Cursor;
+        _still = cursor == _last ? _still + delta : 0;
+        if (_still >= SettleSeconds && cursor != System.Numerics.Vector2.Zero && cursor.Length() < Detent)
+        {
+            // Rust's self-levelling: a small tilt left alone eases back to the middle over a quarter of a second.
+            float ease = (float)Math.Min(1, delta * 4);
+            controls.Steering.Move(-cursor * ease);
+            if (controls.Steering.Cursor.Length() < 0.01f) controls.CentreSteering();
+        }
+        _last = controls.Steering.Cursor;
+        System.Numerics.Vector2 smooth = controls.Steering.Step((float)delta);
+        Vector2 keys = new(Held(Godot.Key.Right) - Held(Godot.Key.Left), Held(Godot.Key.Up) - Held(Godot.Key.Down));
+        Vector2 stick = new Vector2(smooth.X, smooth.Y) + keys;
+        controls.Throttle = 0;
+        controls.AssistOff = false;
+        return new ShipInput
+        {
+            // The stick forward (the mouse pushed away, or Up) noses it down: + pitch is nose up.
+            Pitch = -Math.Clamp(stick.Y, -1, 1),
+            Roll = Math.Clamp(stick.X, -1, 1),
+            Yaw = Held(Godot.Key.D) - Held(Godot.Key.A),
+            Vertical = Held(Godot.Key.W) - Math.Max(Held(Godot.Key.S), Held(Ground.SeatKeys.Sink)),
         };
     }
 }

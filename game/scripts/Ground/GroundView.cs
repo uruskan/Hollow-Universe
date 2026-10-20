@@ -1238,6 +1238,7 @@ public partial class GroundView : Node3D
         d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  RESUME FLIGHT" : null;
         d.Notice = null;
         d.Flies = _shipControls.Scheme.Flies;
+        d.Gauge = _shipControls.Scheme.Gauge;
         d.Hints = _shipControls.Scheme.Hints(_shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit) +
             (seatLine.Length > 0 ? " · " + seatLine : "");
         _shipHud.Refresh();

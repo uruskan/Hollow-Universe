@@ -149,7 +149,7 @@ public partial class ShipSandbox : Node3D
         _hud = new ShipHud { Name = "ShipHud" };
         _layer.AddChild(_hud);
 
-        BuildPad();
+        BuildPad(kind);
         SetScene(_scene);
         if (!_shot && !_touring && !OS.HasFeature("headless"))
         {
@@ -159,13 +159,14 @@ public partial class ShipSandbox : Node3D
 
     // ---------------------------------------------------------------- set-up
 
-    // The flattest open spot near the landing site: the workbench, its bay and the ship parked on it, and the pilot.
-    private void BuildPad()
+    // The flattest open spot near the landing site: the workbench, its bay and the ship parked on it (the Tin Finch, or the
+    // kind --ship names: the KA-FA 1500's rotor needs its own room), and the pilot.
+    private void BuildPad(ShipDef? kind)
     {
         _padYaw = -MathF.PI / 2; // the nose east: in the morning the sun lights the hatch side
-        ShipDef finch = _content.Ship("tin-finch") ?? _content.Ships[0];
+        ShipDef def = kind ?? _content.Ship("tin-finch") ?? _content.Ships[0];
         _pad = FindSite(Num.Vector3.Zero, 90, 6, s => s.Spread < 0.6f && s.Trees < 0.004 ? -s.Spread - (float)s.Trees * 200 - s.Distance * 0.002f : float.MinValue,
-            fallback: Num.Vector3.Zero, accept: g => _zone.Ships().ShipSpaceClear(finch, g, _padYaw));
+            fallback: Num.Vector3.Zero, accept: g => _zone.Ships().ShipSpaceClear(def, g, _padYaw));
         Num.Vector3 up = _zone.Frame.UpAt(_pad);
         (Num.Vector3 forward, Num.Vector3 right) = CharacterMotor.HorizontalBasis(_padYaw, up);
         DeployableDef benchDef = _content.Deployable("vehicle-workbench")!;
@@ -175,8 +176,8 @@ public partial class ShipSandbox : Node3D
         EntityId owner = _zone.Players().PlayerOf(player)!.Id;
         _bench = new Deployable(_zone.NextId(), benchDef, benchAt, _zone.Frame.UpAt(benchAt), _padYaw, owner);
         _zone.Things().AddStatic(_bench);
-        ShipDef def = _content.Ship("tin-finch") ?? _content.Ships[0];
         _ship = _zone.Ships().SpawnShip(def, _pad, _padYaw, owner, def.FuelCapacity);
+        _controls.Scheme = ShipControlSchemes.For(def.Controls);
         _shipView = new ShipView(def);
         AddChild(_shipView);
         _benchModel = ModelCatalog.Instantiate("vehicle-workbench");
@@ -270,9 +271,10 @@ public partial class ShipSandbox : Node3D
         {
             case "hover":
             {
-                // Hovering 8 m over the pad under flight assist: the lift nozzles carry it.
+                // Hovering 8 m over the pad under flight assist: the lift nozzles carry it (a rotor at its working speed).
                 Board();
                 Teleport(_pad + up * (8 + def.CentreOfMass.Y), _padYaw, Num.Vector3.Zero);
+                _ship.State.Spool = 1;
                 Step(75);
                 Num.Vector3 centre = _ship.State.Position;
                 _observer = (_zone.Settle(_pad + right * 13 + forward * 10) + up * 1.6f, centre - up * 1.2f);
@@ -295,12 +297,15 @@ public partial class ShipSandbox : Node3D
                 Num.Vector3 start = _zone.Settle(forest - heading * (cockpit ? 260 : 330));
                 float yaw = Facing.YawOf(heading, _zone.Frame.UpAt(start));
                 float height = cockpit ? 42 : 65;
-                float speed = cockpit ? 55 : 95;
+                // A rotor cruises at its top speed with the stick held forward; thrusters at their lever's speed.
+                bool rotor = def.Drive is ShipRotor;
+                float speed = rotor ? 30 : cockpit ? 55 : 95;
                 Board();
                 Num.Vector3 ground = _zone.Settle(start);
                 Teleport(ground + _zone.Frame.UpAt(ground) * height, yaw, heading * speed);
-                _controls.Throttle = speed / def.ForwardSpeed;
-                Fly(new ShipInput { Throttle = _controls.Throttle }, 45);
+                _ship.State.Spool = 1;
+                _controls.Throttle = rotor ? 0 : speed / def.ForwardSpeed;
+                Fly(rotor ? new ShipInput { Pitch = -1 } : new ShipInput { Throttle = _controls.Throttle }, 45);
                 _shipCamera.Mode = cockpit ? ShipCameraMode.Cockpit : ShipCameraMode.Chase;
                 break;
             }
@@ -321,6 +326,7 @@ public partial class ShipSandbox : Node3D
                 float yaw = Facing.YawOf(across, hillUp);
                 Board();
                 Teleport(hill + hillUp * (6 + def.CentreOfMass.Y), yaw, Num.Vector3.Zero);
+                _ship.State.Spool = 1;
                 Fly(new ShipInput { Vertical = -1 }, 30 * 15, untilLanded: true);
                 Num.Vector3 centre = _ship.State.Position;
                 // From ahead of the nose and a little downhill: the slope falls across the picture and the ship leans with it.
@@ -351,7 +357,10 @@ public partial class ShipSandbox : Node3D
             default:
             {
                 // On foot by the ship on its pad, the hatch open, the workbench behind it.
-                _zone.Ships().SetDoorAtOnce(_ship, 0, 1);
+                if (_ship.Doors.Length > 0)
+                {
+                    _zone.Ships().SetDoorAtOnce(_ship, 0, 1);
+                }
                 Step(2);
                 Num.Vector3 eye = _zone.Settle(_pad + forward * 6.5f + right * 6f) + up * 2.3f;
                 _observer = (eye, _pad + up * 1.0f - forward * 1.6f);
@@ -372,7 +381,10 @@ public partial class ShipSandbox : Node3D
         ref Character c = ref _zone.Entities.Get<Character>(_player);
         Num.Vector3 outward = Num.Vector3.Transform(-Num.Vector3.UnitX, ship.State.Rotation);
         c.State.Position = _zone.Settle(hatch + outward * 1.2f) + _zone.Frame.UpAt(hatch) * 0.05f;
-        _zone.Ships().SetDoorAtOnce(ship, 0, 1);
+        if (ship.Doors.Length > 0)
+        {
+            _zone.Ships().SetDoorAtOnce(ship, 0, 1);
+        }
         Outcome result = _zone.Interaction().Interact(_player, Hatch, ship.Def.Helm.VerbKey);
         if (result != OutcomeCode.Done)
         {
@@ -466,7 +478,7 @@ public partial class ShipSandbox : Node3D
             _shipView.Visible = true;
             _shipView.FromCockpit = Seated && _shipCamera.Mode == ShipCameraMode.Cockpit && _observer == null;
             _shipView.Show(new ShipLook(Pivot(shown), _ship.Doors.Length > 0 ? _ship.DoorAt(0, _zone.Tick) : 0, shown.Thrust,
-                shown.Has(ShipFlags.EnginesOn), shown.Has(ShipFlags.Boosting), _ship.Piloted, _ship.Destroyed), delta);
+                shown.Has(ShipFlags.EnginesOn), shown.Has(ShipFlags.Boosting), _ship.Piloted, _ship.Destroyed, shown.Spool), delta);
         }
         else
         {
@@ -691,10 +703,13 @@ public partial class ShipSandbox : Node3D
         d.Throttle = _controls.Throttle;
         d.Stick = _controls.Stick;
         d.AssistOff = _controls.AssistOff;
+        d.Flies = _controls.Scheme.Flies;
+        d.Gauge = _controls.Scheme.Gauge;
         d.TimeToGround = d.VerticalSpeed < -0.5f ? d.OverGround / -d.VerticalSpeed : float.PositiveInfinity;
         d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  RESUME FLIGHT"
             : s.Has(ShipFlags.Landed) || s.Asleep ? "F  STEP OUT     H  HATCH" : null;
-        d.Hints = $"V {(_shipCamera.Mode == ShipCameraMode.Cockpit ? "chase" : "cockpit")} camera · Z flight assist · X throttle 0 · Shift boost";
+        d.Hints = d.Gauge == HudGauge.Rotor ? _controls.Scheme.Hints(_shipCamera.Mode == ShipCameraMode.Cockpit)
+            : $"V {(_shipCamera.Mode == ShipCameraMode.Cockpit ? "chase" : "cockpit")} camera · Z flight assist · X throttle 0 · Shift boost";
         _hud.Refresh();
     }
 

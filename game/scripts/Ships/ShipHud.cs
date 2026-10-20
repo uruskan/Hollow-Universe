@@ -10,6 +10,16 @@ using G = HollowUniverse.Common.Ui.Ground;
 namespace HollowUniverse.Ships;
 
 /// <summary>What the flight HUD shows this frame (the host fills it from the zone or the client's prediction).</summary>
+/// <summary>What the HUD's left gauge and status show (the control scheme says, <see cref="IShipControlScheme.Gauge"/>).</summary>
+public enum HudGauge : byte
+{
+    /// <summary>The throttle lever and flight assist (thrusters, a boat's lever).</summary>
+    Throttle,
+
+    /// <summary>A rotor's spin and collective (docs/MINICOPTER.md §8); no flight assist, no orbit.</summary>
+    Rotor,
+}
+
 public sealed class ShipHudData
 {
     public ShipDef? Def;
@@ -35,6 +45,9 @@ public sealed class ShipHudData
 
     /// <summary>The ship flies (altitude, climb, flight assist, orbit); false: a boat's HUD, speed and heading alone.</summary>
     public bool Flies = true;
+
+    /// <summary>The left gauge: the throttle lever, or a rotor's spin.</summary>
+    public HudGauge Gauge;
 
     /// <summary>Seconds to hit the ground at this sink rate (infinite when climbing).</summary>
     public float TimeToGround = float.PositiveInfinity;
@@ -168,7 +181,14 @@ public partial class ShipHud : Control
         }
         PaintCentre(d);
         PaintReadouts(d);
-        PaintThrottle(d);
+        if (d.Gauge == HudGauge.Rotor)
+        {
+            PaintRotor(d);
+        }
+        else
+        {
+            PaintThrottle(d);
+        }
         PaintHullAndFuel(d);
         PaintWarnings(d);
     }
@@ -292,6 +312,32 @@ public partial class ShipHud : Control
         }
     }
 
+    // A rotor's spin (how fast its blades turn, rising over seconds as the engine starts) and beside it the collective (the
+    // share of the rotor's lift it is giving now), where the throttle lever stands for thrusters.
+    private void PaintRotor(ShipHudData d)
+    {
+        _o = LeftFrame;
+        const float x = 24, top = 618, height = 252, w = 44;
+        ShipState s = d.State;
+        float spool = Math.Clamp(s.Spool, 0, 1), load = Math.Clamp(s.Thrust.Y, 0, 1);
+        Rect(x, top, w, height, G.HudSlot);
+        float fill = (height - 8) * spool;
+        if (fill > 0)
+        {
+            Rect(x + 4, top + height - 4 - fill, w - 8, fill, new Color(spool >= 0.999f ? G.Selected : G.Warning, 0.95f));
+        }
+        const float lx = x + w + 6, lw = 10;
+        Rect(lx, top, lw, height, G.HudSlot);
+        float lift = (height - 4) * load;
+        if (lift > 0)
+        {
+            Rect(lx + 2, top + height - 2 - lift, lw - 4, lift, new Color(G.Ink, 0.85f));
+        }
+        Text("ROTOR", x, top - 24, 16, G.Ink, bold: true, shadow: true);
+        Text(N(MathF.Round(spool * 100)) + "%", lx + lw + 10, top + height - 30, 22, G.Ink, bold: true, condensed: true, shadow: true);
+        Text("LIFT " + N(MathF.Round(load * 100)) + "%", lx + lw + 10, top + height - 54, 16, G.Ink, bold: true, shadow: true);
+    }
+
     // Hull and fuel where the vitals sit, flight assist, boost, landed and orbit stacked above them.
     private void PaintHullAndFuel(ShipHudData d)
     {
@@ -325,7 +371,19 @@ public partial class ShipHud : Control
             Text(label, 1350, y + 5, 18, G.Ink, bold: true);
             TextIn(value, 1340, y + 5, 230, 18, G.Ink, HorizontalAlignment.Right, bold: true);
         }
-        if (d.Flies)
+        if (d.Gauge == HudGauge.Rotor)
+        {
+            // The rotor's state: still, coming up to speed (not yet enough to lift), or turning at its working speed.
+            if (s.Spool <= 0)
+            {
+                Status("ROTOR", "STOPPED", G.HudSlot);
+            }
+            else if (s.Spool < 0.999f)
+            {
+                Status("ROTOR", s.Has(ShipFlags.EnginesOn) ? "SPOOLING" : "WINDING DOWN", G.Short);
+            }
+        }
+        else if (d.Flies)
         {
             Status("FLIGHT ASSIST", d.AssistOff ? "OFF" : "ON", d.AssistOff ? G.Red : G.HudSlot);
         }
@@ -383,9 +441,9 @@ public partial class ShipHud : Control
         {
             Line("LOW FUEL", G.Warning);
         }
-        if (!d.Flies)
+        if (!d.Flies || d.Gauge == HudGauge.Rotor)
         {
-            // A boat goes nowhere near the orbit's lines.
+            // A boat goes nowhere near the orbit's lines, and a rotor's ceiling is far below them.
         }
         else if (s.Has(ShipFlags.AtEdge))
         {
