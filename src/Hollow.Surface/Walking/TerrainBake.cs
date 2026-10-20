@@ -10,6 +10,9 @@ namespace Hollow.Surface;
 /// <summary>What the bake reads of the designed relief at a cell: its height, and how much of it is tableland or mountain.</summary>
 public readonly record struct BakeInput(double Height, double Tableland, double Mountains);
 
+/// <summary>A patch of flat dry land: the centre of the largest circle inside it, that circle's radius (m), its area (m²).</summary>
+public readonly record struct FlatSite(Vector3D Centre, double Radius, double Area);
+
 /// <summary>
 /// The planet's large shape, baked once (docs/WORLD_TERRAIN_PLAN.md §4.1): the designed relief, sampled on a cube-sphere
 /// grid of about <see cref="WalkingParameters.BakeCell"/> metres, worn down by water and gravity. Each step floods the
@@ -158,6 +161,115 @@ public sealed class TerrainBake
             }
         }
         return best;
+    }
+
+    /// <summary>
+    /// The flat dry land where large things could stand (a monument's pad): every patch of cells no steeper than
+    /// <paramref name="maxSlope"/> to any neighbour, at least <paramref name="minHeight"/> above the sea and out of the
+    /// lakes, with the largest circle inside it (its centre, and its radius in metres), largest first.
+    /// </summary>
+    public List<FlatSite> FlatSites(double maxSlope, double minHeight)
+    {
+        int count = _height.Length;
+        var flat = new bool[count];
+        for (int i = 0; i < count; i++)
+        {
+            if (_height[i] < minHeight || _lakeOf[i] >= 0)
+            {
+                continue;
+            }
+            bool ok = true;
+            for (int k = 0; k < 8 && ok; k++)
+            {
+                int j = _nb[i * 8 + k];
+                if (j >= 0)
+                {
+                    double run = (_dir[i] - _dir[j]).Length * _radius;
+                    ok = Math.Abs(_height[i] - _height[j]) <= maxSlope * run;
+                }
+            }
+            flat[i] = ok;
+        }
+        // The distance from every flat cell to the nearest cell that is not, through the grid (Dijkstra from the edges).
+        var distance = new double[count];
+        var queue = new PriorityQueue<int, (double, int)>();
+        for (int i = 0; i < count; i++)
+        {
+            distance[i] = flat[i] ? double.PositiveInfinity : 0;
+            if (!flat[i])
+            {
+                bool edge = false;
+                for (int k = 0; k < 8 && !edge; k++)
+                {
+                    int j = _nb[i * 8 + k];
+                    edge = j >= 0 && flat[j];
+                }
+                if (edge)
+                {
+                    queue.Enqueue(i, (0, i));
+                }
+            }
+        }
+        while (queue.TryDequeue(out int i, out (double D, int) priority))
+        {
+            if (priority.D > distance[i])
+            {
+                continue;
+            }
+            for (int k = 0; k < 8; k++)
+            {
+                int j = _nb[i * 8 + k];
+                if (j < 0 || !flat[j])
+                {
+                    continue;
+                }
+                double d = distance[i] + (_dir[i] - _dir[j]).Length * _radius;
+                if (d < distance[j])
+                {
+                    distance[j] = d;
+                    queue.Enqueue(j, (d, j));
+                }
+            }
+        }
+        // Each patch: its area and the cell farthest inside it.
+        var seen = new bool[count];
+        var sites = new List<FlatSite>();
+        var stack = new Stack<int>();
+        for (int s = 0; s < count; s++)
+        {
+            if (!flat[s] || seen[s])
+            {
+                continue;
+            }
+            seen[s] = true;
+            stack.Push(s);
+            double area = 0, best = -1;
+            int centre = s;
+            int cells = 0;
+            while (stack.Count > 0)
+            {
+                int i = stack.Pop();
+                cells++;
+                if (distance[i] > best || distance[i] == best && i < centre)
+                {
+                    (best, centre) = (distance[i], i);
+                }
+                for (int k = 0; k < 8; k++)
+                {
+                    int j = _nb[i * 8 + k];
+                    if (j >= 0 && flat[j] && !seen[j])
+                    {
+                        seen[j] = true;
+                        stack.Push(j);
+                    }
+                }
+            }
+            double cell = 4 * Math.PI * _radius * _radius / count;
+            area = cells * cell;
+            sites.Add(new FlatSite(_dir[centre], best, area));
+        }
+        sites.Sort((a, b) => b.Radius.CompareTo(a.Radius));
+        return sites;
     }
 
     private double Sample(float[] values, Vector3D p)

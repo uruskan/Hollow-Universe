@@ -454,6 +454,52 @@ The grass session owns the grass, and the terrain-texture session owns the groun
 Iteration 3 is planned with the texture session before it starts. Builds and Godot runs take turns as before.
 Iteration 4 runs in its own session on art files only.
 
+## 7a. Where it stands (20 October 2026, end of the first session)
+
+- **Done, checked by the owner:**
+  - iteration 1, Earth's shape baked and eroded (30fedf03, `TerrainBake`);
+  - the cliff kit (f58b0207, `art/cliffkit`, 21 pieces);
+  - iteration 5, the kit placed on Earth (6a1199c1: `CliffKitPlacements`, `CliffKitField`, with the ground fitted behind the walls).
+
+  The owner liked the cliffs but not fully. They put that down to Earth's poor layout, and noted that none of the
+  project's 57 built monuments (12 medium, 10 large, 8 landmarks in `game/data/monuments`) stand on Earth: only 6
+  roadside ones from `src/Hollow.Surface/Data/monuments.json` are placed.
+- **The order now, as the owner chose** (Rust's generator places monuments before rivers and cliffs):
+  1. **Candidate layouts.** An `earth layouts <folder>` command, not yet written:
+     - Earth with `LayoutVariant` 0–11 (5 is today's), each baked, with the kit placed;
+     - one equal-area relief map each (`WalkingReport.Map`'s helpers are internal now), with cliff pieces as dark red
+       dots and flat sites as circles: magenta for large (radius ≥ 150 m), yellow for medium (≥ 75 m), from
+       `TerrainBake.FlatSites(maxSlope ≈ 0.09, minHeight 2)`;
+     - a contact sheet with numbers;
+     - per candidate: land share, relief shares, highest ground, lakes, cliff pieces, flat sites.
+
+     The owner picks one, or describes the Earth they want.
+  2. **Monument sites.** About 2 large, 5 medium and 10 small, plus roadside ones, on the flattest sites. Their pads
+     are flattened in the bake before erosion, so drainage and cliffs respect them.
+  3. **Rivers.** The design is ready but no code is written:
+     - a river node per bake cell draining 12 ha or more, from D8 receivers on the last flood, with the water level
+       falling downstream, half-width 1 + 2.2·√(A/10⁵) m, depth 0.5 + 0.35·√(A/10⁵) m and a signed bend;
+     - the network cached in the bake (raise `TerrainBake.Version`);
+     - channels carved at run time in `WalkingWorld`'s height: a steep cut bank outside a bend, a gentle point bar
+       inside, a lip that keeps the water in;
+     - the water given through `WalkingSample.Water`, as lakes are;
+     - kit cliffs kept out of rivers.
+  4. **Cliffs again** on the final ground. To fix:
+     - slivers of bare ground where the coarse far terrain cuts the fitted ground;
+     - tiers kept 24 m apart;
+     - `KitLeanBack` and the seed slopes.
+  5. **Roads** between monuments.
+- **Uncommitted when the session ended:** nothing. Earth's sea is three times deeper (`SeaDepth` 3, floor at most
+  300 m), at the owner's word that it was far too shallow; Earth's bake re-runs once (about 13 s).
+- **Way of working:** fast iterations the owner checks by hand; no tests or screenshot runs until they approve a look.
+  Then polish:
+  - tests, including `TerrainSaveTests` and the cliff tests;
+  - docs;
+  - save revisions;
+  - the protocol bump.
+
+  Commit by explicit path: other sessions share the checkout.
+
 ## 8. What the research could not settle
 
 - **Times are estimates:** the bake's run time and the ground shader's cost are not yet measured. Iterations 1 and 3

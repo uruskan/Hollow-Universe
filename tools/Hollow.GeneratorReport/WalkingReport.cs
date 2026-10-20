@@ -438,7 +438,7 @@ public static class WalkingReport
     private const double Sqrt2 = 1.4142135623730951;
 
     // Pixel → latitude and longitude (radians), or false outside the ellipse.
-    private static bool MollweideInverse(double x, double y, int width, int height, double lon0, out double lat, out double lon)
+    internal static bool MollweideInverse(double x, double y, int width, int height, double lon0, out double lat, out double lon)
     {
         double mx = ((x + 0.5) / width * 2 - 1) * 2 * Sqrt2, my = (1 - (y + 0.5) / height * 2) * Sqrt2;
         lat = lon = 0;
@@ -453,7 +453,7 @@ public static class WalkingReport
         return true;
     }
 
-    private static (double X, double Y) MollweideForward(double lat, double lon, int width, int height, double lon0)
+    internal static (double X, double Y) MollweideForward(double lat, double lon, int width, int height, double lon0)
     {
         double theta = lat;
         for (int i = 0; i < 12; i++)
@@ -527,7 +527,7 @@ public static class WalkingReport
         return (Byte(r * light), Byte(g * light), Byte(b * light));
     }
 
-    private static double Light(WalkingWorld world, Vector3D d, double step)
+    internal static double Light(WalkingWorld world, Vector3D d, double step)
     {
         Vector3D up = d;
         Vector3D east = Vector3D.Cross(Vector3D.UnitY, up);
@@ -570,7 +570,7 @@ public static class WalkingReport
         return (r, g, b);
     }
 
-    private static (double, double, double) Water(double depth, bool plain)
+    internal static (double, double, double) Water(double depth, bool plain)
     {
         if (plain)
         {
@@ -580,7 +580,7 @@ public static class WalkingReport
         return (70 - 45 * t, 140 - 70 * t, 190 - 50 * t);
     }
 
-    private static (double, double, double) Hypsometric(double h)
+    internal static (double, double, double) Hypsometric(double h)
     {
         ReadOnlySpan<double> stops = stackalloc double[] { -160, -40, -5, 0, 3, 15, 40, 80, 140, 220, 320, 450 };
         (double, double, double)[] colours =

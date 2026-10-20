@@ -29,6 +29,7 @@ public sealed record WalkingParameters
         Baked = true,
         CliffFormations = false,
         KitCliffs = true,
+        SeaDepth = 3,
     };
 
     private static readonly IReadOnlyDictionary<(ulong System, uint Body), WalkingParameters> Profiles =
@@ -93,6 +94,14 @@ public sealed record WalkingParameters
 
     /// <summary>The highest a rocky coast rises straight from the sea (m); the rest of the land's height comes further inland.</summary>
     public double SeaCliffHeight { get; init; } = 26;
+
+    /// <summary>
+    /// How much deeper than the coast curve the sea floor lies (×), and the deepest it goes (m). Earth's is three times:
+    /// about 6 m deep 15 m out, 27 m at 60 m and 84 m at 150 m (the owner found the sea far too shallow).
+    /// </summary>
+    public double SeaDepth { get; init; } = 1;
+
+    public double SeaFloorMost { get; init; } = 300;
 
     // ------------------------------------------------------------ relief provinces (§3)
 

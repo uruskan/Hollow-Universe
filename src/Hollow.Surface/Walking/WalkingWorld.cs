@@ -394,6 +394,10 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
         Vector3D q = Warp(p);
         double c = Landmass(q) - _threshold;
         double h = CoastCurve.Evaluate(c);
+        if (h < 0)
+        {
+            h = Math.Max(-_p.SeaFloorMost, h * _p.SeaDepth); // a deeper sea where the table asks for one
+        }
         // The relief rises inland of the continents' coast, over any pocket of sea inside it (which it lifts out of the
         // sea where the land is high: no crater at sea level among the hills), and inland of the coast itself near it.
         double shore = Math.Max(c, Continents(q) - _continentsCoast - PocketMargin);
