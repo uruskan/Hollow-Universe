@@ -3215,11 +3215,11 @@ viewer; the ground mode's hookup comes after it (the list at the end).
 | Part | Where |
 |---|---|
 | Numbers | `game/data/ground/ships.json` (the Tin Finch's flight model, hull, skids, fuel, cargo, sockets); `items.json` (140 vehicle workbench, 141 Tin Finch), `deployables.json` (the bench and its bay), `recipes.json` (`station`), `categories.json` (Vehicles) |
-| Flight | `src/Hollow.Simulation/Ships/`: `ShipDef` (the data), `ShipState` and `ShipInput`, `ShipMotor` (the step), `ShipCollider` (Jolt queries and parked ships' bodies), `Ship` (the zone's entity) |
+| Flight | `src/Hollow.Simulation/Ships/`: `ShipDef` (the data), `ShipState` and `ShipInput`, `ShipMotor` (the step), `ShipDrives` (`IShipDrive`, what the engines give each tick, by ships.json's `drive`; `ShipThrusters` the default), `ShipCollider` (Jolt queries and parked ships' bodies), `Ship` (the zone's entity) |
 | In the zone | `src/Hollow.Simulation/ShipSystem`: building at the bench, the hatch, boarding and stepping out, the lock, fuel, cargo, damage, wrecks, orbit |
 | Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 5 (`ships`) in `GameDatabase.cs`; `ShipModule` loads and saves |
 | Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/ShipModule`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `ShipModule`, `LocalPlayer.Ships.cs` |
-| Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
+| Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse, read by the ship's control scheme: `ShipControlSchemes`, ships.json's `controls`, flight by default), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
 | Ships people walk in (IW1) | IRON_WAKE.md §4.13: `ships.json`'s `interior` block and its data file (`ships/iron-wake.json`), `ShipInterior`, `ShipSpace`, `ShipFrame`/`ClientShipFrame`, `MoveFrames`, `ShipQueries`, `ShipSystem.Spaces.cs` (parking, `MovePart`), the sandbox's walk-in mode (`ShipSandbox.Aboard.cs`: `--ship iron-wake`) |
 | Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly), `ShipPersistenceTests.cs` (storage) |
 
@@ -3231,6 +3231,13 @@ gravity along −up (`ZoneFrame.UpAt`; the planet's own 9.0 m/s², not the chara
 spec carries it: 2.7 kg/m³ at the first world's 2.23 atmospheres, a scale height of 9.4 km; since S3 that height is
 scaled by the leaving height over the old ceiling, 4.82 km over 15 km, to about 3 km, so the climb to orbit thins the
 air as it did). The skiff has no wings: it is thrust-borne.
+- **Drives** (20 October 2026): what the engines give each tick is the ship's drive's (`IShipDrive`, found by ships.json's
+  `drive.kind` in `ShipDrives`; without the block, `thrusters`). It turns the input into an acceleration along the
+  ship's axes and an angular acceleration about them, says how hard the engines work (the fuel's burn) and what the
+  views show as thrust, and judges its own numbers in the content check. The rest of the step (gravity, drag, the sea,
+  skids, sweeps, crashes, sleep) is shared. `thrusters`, the Tin Finch's and the Iron Wake's, is the flight assist
+  below. A client reads the helm's keys by the ship's control scheme (ships.json `controls`, `ShipControlSchemes`;
+  `flight` by default, the keys below).
 - **Flight assist** (on by default) holds a velocity in the ship's frame: the throttle's forward speed (reverse below 0),
   strafe and up/down at their speeds, and the turn rates the stick asks for, as fast as each axis's thrusters allow,
   counting gravity and drag in. With no input it hovers where it is. Near the ground (30 m) with the throttle closed it

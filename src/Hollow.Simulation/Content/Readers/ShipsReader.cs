@@ -28,7 +28,7 @@ internal sealed class ShipsReader : IContentReader
             string where = $"ships.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
                 "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "seats", "doors", "parts", "nozzles", "lights", "ceiling",
-                "wreck", "placement", "model", "interior", "water", "assist");
+                "wreck", "placement", "model", "interior", "water", "assist", "drive", "controls");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             // The inside people walk in (IRON_WAKE.md §4.3): its data file, read first, since the sockets and the hull may
             // name what it holds.
@@ -143,10 +143,14 @@ internal sealed class ShipsReader : IContentReader
                 ShipLayoutReader.Read(r, e, where, item.Name, interior);
             // Its crewed batteries (IRON_WAKE.md §6, IW3): the data file's stations that a seat works, each of a kind of batteries.json.
             List<Ships.ShipStationDef> stations = Stations(r, where, interior, seats, parts);
+            // What its engines do (ships.json drive, a kind from Ships.ShipDrives with its own numbers; thrusters without one).
+            Ships.IShipDrive drive = Ships.ShipDrives.Read(f, f.TryChild(e, "drive", out JsonElement driveBlock) ? driveBlock : null, where + ".drive");
             var def = new Ships.ShipDef
             {
                 Key = key,
                 Item = item,
+                Drive = drive,
+                Controls = f.Text(e, "controls", where, Ships.ShipDef.DefaultControls),
                 Mass = f.Number(e, "mass", where),
                 Inertia = f.Vector(e, "inertia", where),
                 CentreOfMass = f.Vector(e, "centreOfMass", where),
@@ -389,19 +393,10 @@ internal sealed class ShipsReader : IContentReader
             {
                 c.Problem(where, "mass, inertia and health must be positive");
             }
-            if (new[] { ship.MainThrust, ship.RetroThrust, ship.LateralThrust, ship.LiftThrust, ship.DownThrust }.Any(t => t <= 0) ||
-                ship.LiftThrust / ship.Mass < 10)
+            // Thrust, speeds, boost and rates are its drive's to judge (thrusters want every axis).
+            foreach (string problem in ship.Drive.Problems(ship))
             {
-                c.Problem(where, "thrust on every axis; the lift nozzles must carry it at 1 g with some to spare (10 m/s²)");
-            }
-            if (new[] { ship.ForwardSpeed, ship.ReverseSpeed, ship.LateralSpeed, ship.UpSpeed, ship.DownSpeed }.Any(v => v is <= 0 or > 1000) ||
-                ship.BoostSpeed < ship.ForwardSpeed || ship.BoostThrust < 1 || ship.BoostSeconds <= 0 || ship.BoostCooldownSeconds < 0)
-            {
-                c.Problem(where, "speeds 0 … 1000 m/s, boost at least the forward speed and thrust, a positive boost time");
-            }
-            if (new[] { ship.Pitch, ship.Yaw, ship.Roll }.Any(t => t.MaxRate <= 0 || t.Acceleration <= 0))
-            {
-                c.Problem(where, "rates: positive rates and accelerations");
+                c.Problem(where, problem);
             }
             if (new[] { ship.DragForward, ship.DragSide, ship.DragTop, ship.TurnDrag }.Any(d => d < 0))
             {

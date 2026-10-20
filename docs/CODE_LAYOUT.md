@@ -489,9 +489,11 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `ShipFuel.cs` | 88 | ShipFuel | ShipFuel: a tank's whole fuel units plus the fraction drawn into its engine; only whole units move through inventory; migrates old float saves. |
 | `ShipInterior.cs` | 389 | ShipPartKind, ShipPartDef, ShipPiece, BoardingBox, ShipSocket, ShipBuildZone, ShipExclusion, StationBarrelData, StationGeometry, ShipFixture, ShipRoom, PartPose, ShipInterior | How one of a ship's parts moves (the data file's part kinds, IRON_WAKE.md §9.1). |
 | `ShipLayout.cs` | 282 | SeatRole, SeatSitters, SeatWorks, DoorOpens, DoorEase, ShipPartHealth, ShipSeatDef, ShipDoorDef, ShipTargetPart, NozzleDrive, ShipNozzle, LightPower, ShipLight | What a seat's occupant does (ships.json seats' role, IRON_WAKE.md §5.2). |
-| `ShipMotor.cs` | 827 | ShipContext, ShipMotor [SkidLoad] | What a ship's step needs to know about where it happens. |
+| `ShipDrives.cs` | 142 | ShipDriveContext, IShipDrive, ShipDrives | What a drive sees when it decides a tick's thrust and turn; the drives by kind (ships.json drive). |
+| `ShipMotor.cs` | 736 | ShipContext, ShipMotor [SkidLoad] | What a ship's step needs to know about where it happens. |
 | `ShipQueries.cs` | 156 | ShipQueryHit, ShipQueries | What a query of the zone's frame met in a ship's space: the ship's frame, the hit there, and how far along the query it is. |
 | `ShipState.cs` | 204 | ShipFlags, ShipButtons, ShipInput, ShipState, ShipEvents | What a ship is doing, besides its motion. Some are found by the last step (outputs), some set by the zone. |
+| `ShipThrusters.cs` | 171 | ShipThrusters | Thrusters on every axis (GROUND.md §6.6), the Tin Finch's and the Iron Wake's drive and the default, with flight assist. |
 | `ShipStations.cs` | 662 | StationBarrel, ShipStationDef, StationInput, StationAim, LoaderState, StationState, StationRules, LoaderPoses [NodePose, HolderView] | A ship's stations (IRON_WAKE.md §6): defs, state, loader records, the mount and fire rules both sides run, the mechanism's poses. |
 
 ### src/Hollow.Simulation/Systems (45 files, 13,286 lines)
@@ -1119,7 +1121,8 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `ShipCamera.cs` | 90 | ShipCameraMode, ShipCamera | First person, from the pilot's eye in the cockpit, looking along the nose. |
-| `ShipControls.cs` | 102 | ShipControls | The pilot's keyboard and mouse (G6, GROUND.md §6.7), read into a tick of ShipInput. The mouse is a |
+| `ShipControlSchemes.cs` | 92 | IShipControlScheme, ShipControlSchemes, FlightControls | How the helm's keys and mouse fly one kind of ship (ships.json controls); flight, the Tin Finch's. |
+| `ShipControls.cs` | 74 | ShipControls | The pilot's keyboard and mouse (G6, GROUND.md §6.7), read into a tick of ShipInput by the ship's control |
 | `ShipHud.cs` | 391 | ShipHudData, ShipHud | What the flight HUD shows this frame (the host fills it from the zone or the client's prediction). |
 | `ShipSandbox.Aboard.cs` | 610 | ShipSandbox [Walk] | The ship sandbox for a ship people walk in (IRON_WAKE.md §4, IW1): `--view ship --ship iron-wake`. The ship parked in a |
 | `ShipSandbox.Tour.cs` | 216 | ShipSandbox [Leg] | --tour: the sandbox played by a script through the same keys a player presses (Input.ParseInputEvent), to check the |
