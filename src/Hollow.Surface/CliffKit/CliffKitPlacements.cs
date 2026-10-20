@@ -278,12 +278,19 @@ public sealed class CliffKitPlacements
 
     // ---------------------------------------------------------------- collision
 
-    /// <summary>The ground tile's collision with the closed shells of the pieces that reach it.</summary>
+    /// <summary>
+    /// The ground tile's collision with the kit's shells cut to it: only the pieces whose footprint reaches the tile, and
+    /// of each only the triangles with a corner over the tile or within <paramref name="margin"/> of it, so a piece across
+    /// several tiles is shared out among them. Whole shells of every piece within the tile's reach and 60 m more made one
+    /// tile at the busiest cliffs 436,000 triangles, 97% of them shells, most from pieces that never touched it.
+    /// </summary>
     public TriangleMesh AddCollision(TriangleMesh ground, in ZoneFrame frame, TileKey tile, double margin)
     {
         Vector3D centre = tile.Centre;
-        double tileReach = TileKey.EdgeLength(tile.Level, _radius) * 0.75 + margin;
-        Vector3D middle = centre * (_radius + _ground(centre));
+        double edge = TileKey.EdgeLength(tile.Level, _radius);
+        double tileReach = edge * 0.75 + margin; // a circle round the tile (its half-diagonal is about 0.71 of an edge)
+        double inner = edge * 0.45;              // a circle inside it
+        double pad = margin / (DMath.Pi / 4 * _radius); // the margin in face coordinates (the warp keeps them near even)
         var cells = new List<TileKey>();
         TileKey.Around(centre, tileReach + CellMargin + _maxReach, _radius, Level, cells);
         List<float>? positions = null;
@@ -292,28 +299,85 @@ public sealed class CliffKitPlacements
         {
             foreach (KitPlacement k in At(cell))
             {
-                if (Vector3D.Distance(k.Position, middle) > tileReach + k.Reach + 60)
+                // Measured along the ground: heights play no part in which tile a triangle lies over.
+                double apart = Vector3D.Distance(k.Position.Normalized, centre) * _radius;
+                if (apart > tileReach + k.Reach)
                 {
                     continue;
                 }
-                positions ??= new List<float>(ground.Positions);
-                indices ??= new List<int>(ground.Indices);
+                bool whole = apart + k.Reach < inner;
                 CliffCollision shell = _collision[k.Piece].Value;
-                int offset = positions.Count / 3;
-                foreach (Vector3D v in shell.Vertices)
+                int n = shell.Vertices.Length;
+                var body = new Vector3D[n];
+                var over = new bool[n];
+                var index = new int[n];
+                for (int i = 0; i < n; i++)
                 {
-                    System.Numerics.Vector3 local = frame.ToLocal(k.Transform(v));
-                    positions.Add(local.X);
-                    positions.Add(local.Y);
-                    positions.Add(local.Z);
+                    body[i] = k.Transform(shell.Vertices[i]);
+                    over[i] = whole || Over(tile, body[i], pad, tileReach);
+                    index[i] = -1;
                 }
-                foreach (int index in shell.Indices)
+                for (int t = 0; t < shell.Indices.Length; t += 3)
                 {
-                    indices.Add(offset + index);
+                    int a = shell.Indices[t], b = shell.Indices[t + 1], c = shell.Indices[t + 2];
+                    if (!(over[a] || over[b] || over[c]))
+                    {
+                        continue;
+                    }
+                    positions ??= new List<float>(ground.Positions);
+                    indices ??= new List<int>(ground.Indices);
+                    foreach (int corner in new[] { a, b, c })
+                    {
+                        if (index[corner] < 0)
+                        {
+                            index[corner] = positions.Count / 3;
+                            System.Numerics.Vector3 local = frame.ToLocal(body[corner]);
+                            positions.Add(local.X);
+                            positions.Add(local.Y);
+                            positions.Add(local.Z);
+                        }
+                        indices.Add(index[corner]);
+                    }
                 }
             }
         }
         return positions == null ? ground : new TriangleMesh(positions.ToArray(), indices!.ToArray());
+    }
+
+    /// <summary>Every piece's closed shell, by piece number (loaded on first use).</summary>
+    public IReadOnlyList<CliffCollision> Shells => _shells ??= Array.ConvertAll(_collision, shell => shell.Value);
+
+    private CliffCollision[]? _shells;
+
+    /// <summary>The pieces whose pivot lies over a tile (of any level), added to <paramref name="into"/>.</summary>
+    public void Over(TileKey tile, List<KitPlacement> into)
+    {
+        // A pivot over the tile was seeded by a cell within its margin of the pivot; a cell's edge more makes sure of it.
+        var cells = new List<TileKey>();
+        TileKey.Around(tile.Centre, TileKey.EdgeLength(tile.Level, _radius) * 0.75 + CellMargin + TileKey.EdgeLength(Level, _radius),
+            _radius, Level, cells);
+        foreach (TileKey cell in cells)
+        {
+            foreach (KitPlacement k in At(cell))
+            {
+                if (TileKey.At(k.Position, tile.Level) == tile)
+                {
+                    into.Add(k);
+                }
+            }
+        }
+    }
+
+    // Whether a body-frame point lies over a tile, or within `pad` (face coordinates) of it; past the tile's cube edge,
+    // within the circle round the tile.
+    private bool Over(TileKey tile, Vector3D point, double pad, double reach)
+    {
+        (int face, double u, double v) = CubeSphere.FromDirection(point);
+        if (face == tile.Face)
+        {
+            return u >= tile.U0 - pad && u <= tile.U0 + tile.Span + pad && v >= tile.V0 - pad && v <= tile.V0 + tile.Span + pad;
+        }
+        return Vector3D.Distance(point.Normalized, tile.Centre) * _radius <= reach;
     }
 
     // ---------------------------------------------------------------- placement

@@ -1,6 +1,6 @@
 # Hollow Universe AB Test B
 
-## 20 October 2026 — World terrain: Earth's candidate layouts, and what the owner's playtest found
+## 20 October 2026 — World terrain: Earth's candidate layouts, the playtest's findings, the cliffs' collision cut
 
 `earth layouts <folder>` (`tools/Hollow.GeneratorReport/EarthLayoutsReport.cs`) bakes Earth with each layout variant
 (0–11 by default), places the cliff kit on it and draws an equal-area relief map: kit pieces as dark red dots, flat
@@ -18,8 +18,14 @@ WORLD_TERRAIN_PLAN.md §7a:
 - white pans of very shallow sea filled with the shore foam's 3.1 m texture;
 - a sea's edge that never moves.
 
-Checked: the maps and contact sheet by eye, and the collision counts by `earth kit`. No test was run (fast iteration,
-by the owner's rule).
+The collision is fixed in part. A ground tile now takes only the cliff pieces whose footprint reaches it, and of each
+only the triangles over the tile: at the six busiest sites, 75,000–100,000 triangles instead of 282,000–436,000. The
+client's cosmetic ground (`GroundCollision.cs`) no longer copies shells into its tiles. It makes each piece's shape once
+and places it on the tile its pivot stands over (`IInstancedSolids`, implemented by `WalkingWorld`). Its tiles are now
+the bare ground, about 9,800 triangles.
+
+Checked: the maps and contact sheet by eye, and the collision counts by `earth kit`. The game's C# compiles. No test
+was run, and the fix has not yet been tried in the game (fast iteration, by the owner's rule).
 
 ## 20 October 2026 — Ground vehicles designed: the modular car, the motorbike and the lift (V0)
 

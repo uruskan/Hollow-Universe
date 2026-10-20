@@ -250,8 +250,7 @@ public static class WalkingReport
             {
                 busiest.Add(d);
                 Console.WriteLine($"  {cell.Count()} pieces: teleport {At(d)}");
-                // What the ground collision tile there carries: the kit's shells against the ground, and how many of
-                // the pieces it takes reach the tile at all (the rest are copies of pieces up to 60 m beyond its reach).
+                // What the ground collision tile there carries: the kit's shells, cut to the tile, against the ground.
                 TileKey tile = TileKey.At(d, GroundCollisionLayout.LevelOn(world.Radius));
                 var timer = Stopwatch.StartNew();
                 TriangleMesh mesh = world.GroundCollision(ZoneFrame.World, tile, GroundCollisionLayout.MarginMetres);
@@ -259,19 +258,16 @@ public static class WalkingReport
                 int kitTriangles = kit.AddCollision(new TriangleMesh(Array.Empty<float>(), Array.Empty<int>()), ZoneFrame.World, tile,
                     GroundCollisionLayout.MarginMetres).TriangleCount;
                 double tileReach = TileKey.EdgeLength(tile.Level, world.Radius) * 0.75 + GroundCollisionLayout.MarginMetres;
-                Vector3D middle = tile.Centre * (world.Radius + world.HeightAt(tile.Centre));
-                int taken = 0, reaching = 0;
-                foreach ((TileKey _, KitPlacement[] near) in kit.Near(middle, 400))
+                int reaching = 0;
+                foreach ((TileKey _, KitPlacement[] near) in kit.Near(tile.Centre * world.Radius, 400))
                 {
                     foreach (KitPlacement k in near)
                     {
-                        double apart = Vector3D.Distance(k.Position, middle);
-                        taken += apart <= tileReach + k.Reach + 60 ? 1 : 0;
-                        reaching += apart <= tileReach + k.Reach ? 1 : 0;
+                        reaching += Vector3D.Distance(k.Position.Normalized, tile.Centre) * world.Radius <= tileReach + k.Reach ? 1 : 0;
                     }
                 }
                 Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-                    $"    collision tile: {mesh.TriangleCount:N0} triangles ({kitTriangles:N0} of them the kit's), built in {ms:0} ms; {taken} pieces taken, {reaching} of them reach the tile"));
+                    $"    collision tile: {mesh.TriangleCount:N0} triangles ({kitTriangles:N0} of them the kit's, from {reaching} pieces), built in {ms:0} ms"));
             }
             if (busiest.Count == 6)
             {

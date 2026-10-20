@@ -51,7 +51,7 @@ public readonly record struct WalkingSample(
 /// <para>Deterministic (ARCHITECTURE.md §8): <see cref="DMath"/>, <see cref="Hash64"/>, <see cref="Rng"/> and the
 /// surface's gradient noise, so the server's collision and every client's ground agree to the bit.</para>
 /// </summary>
-public sealed partial class WalkingWorld : ISurface, IScatterField
+public sealed partial class WalkingWorld : ISurface, IScatterField, IInstancedSolids
 {
     /// <summary>The base generator's seed version; body-specific changes use WalkingParameters.TerrainRevision.</summary>
     public const int Version = 1;
@@ -252,6 +252,14 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
 
     /// <summary>The cliff kit's pieces on a baked world (WalkingParameters.KitCliffs), or null.</summary>
     public CliffKitPlacements? KitCliffs => _kitCliffs;
+
+    // The kit's pieces as instanced solids, for physics that can place one shape many times (the client's cosmetic ground).
+    IReadOnlyList<CliffCollision> IInstancedSolids.SolidShapes => _kitCliffs?.Shells ?? Array.Empty<CliffCollision>();
+
+    void IInstancedSolids.SolidsOver(TileKey tile, List<KitPlacement> into) => _kitCliffs?.Over(tile, into);
+
+    TriangleMesh IInstancedSolids.GroundCollisionWithoutSolids(in ZoneFrame frame, TileKey tile, double margin) =>
+        _selected != null ? SelectedCollision(frame, tile, margin) : Monuments.AddCollision(Cliffs.Collision(frame, tile, margin), frame, tile, margin);
 
     // What the kit's placement reads besides the bake's ground: tableland or not, near the sea, under a lake. No heights,
     // so the placement never reads the ground its own pieces fit.
