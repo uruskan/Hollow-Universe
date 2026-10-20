@@ -271,6 +271,21 @@ public sealed class ShipCollider : IDisposable
     /// <summary>Whether a parked ship's body has this ID now.</summary>
     public bool HasParked(uint id) => _bodies.Contains(id);
 
+    /// <summary>
+    /// Moves a ship's body to a pose (centre of mass and rotation): a vehicle on wheels keeps its body while it moves
+    /// (VEHICLES.md §6.4), as a door's leaf does (DOORS.md §5). Characters meet it where it is now; their next step's
+    /// penetration recovery takes them out of where it came to.
+    /// </summary>
+    public void MoveParked(uint id, Vector3 position, Quaternion rotation)
+    {
+        if (id == 0 || !_bodies.Contains(id) || _disposed)
+        {
+            return;
+        }
+        _world.Jolt.BodyInterface.SetPositionAndRotation(new BodyID(id), position, rotation, Activation.DontActivate);
+        _world.NoteBodyChanged();
+    }
+
     public void RemoveParked(uint id)
     {
         if (id == 0 || !_bodies.Remove(id) || _disposed)

@@ -174,6 +174,14 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder, IAuthorisation
     /// </summary>
     public bool Autopilot { get; set; }
 
+    /// <summary>
+    /// Started by hand (the hold-E radial's ENGINE ON) with nobody at the helm of one whose engine needs a pilot
+    /// (<see cref="ShipDef.NeedsPilot"/>: the TOGG, the Zamazingo, the KA-FA): it idles with its controls let go until
+    /// switched off, the tank runs dry, or someone takes the helm (from then on it is theirs, and stops when they leave).
+    /// The server's alone: not saved, not sent (its running engine is, as <see cref="ShipFlags.EnginesOn"/>).
+    /// </summary>
+    public bool HandStarted { get; set; }
+
     public Container Cargo { get; }
 
     /// <summary>Its modules' holds (<see cref="ShipDef.Holds"/>' order, VEHICLES.md §9.1): each opened at its own part.</summary>
@@ -190,8 +198,18 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder, IAuthorisation
 
     Container? IContainerHolder.Container => Cargo;
 
-    /// <summary>The static body while parked (0: none).</summary>
+    /// <summary>The static body while parked (0: none); a vehicle on wheels keeps it while it moves (VEHICLES.md §6.4).</summary>
     public uint ParkedBody { get; set; }
+
+    /// <summary>The pose its kept body was last put at (a vehicle on wheels: moved only when the ship moved).</summary>
+    internal Vector3 BodyPosition;
+
+    internal Quaternion BodyRotation;
+
+    /// <summary>What its riders weighed and where (kg; their centre in its frame) as it last moved: asleep, it wakes when that changes.</summary>
+    internal float RestLoad;
+
+    internal Vector3 RestLoadAt;
 
     /// <summary>Where it left the zone for orbit (the descent comes back over it), when <see cref="ShipFlags.InOrbit"/>.</summary>
     public Vector3 OrbitAnchor { get; set; }

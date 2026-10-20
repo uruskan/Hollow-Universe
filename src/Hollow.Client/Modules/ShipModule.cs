@@ -32,6 +32,7 @@ public sealed class ShipModule : ClientModule
     private readonly Dictionary<uint, RemoteShip> _ships = new();
     private readonly Dictionary<uint, uint> _parkedBodies = new();
     private readonly Dictionary<uint, uint> _shipsByBody = new();
+    private readonly Dictionary<uint, (Vector3 At, Quaternion Turn)> _bodyPoses = new();
     private readonly Dictionary<uint, ClientShipFrame> _frames = new();
     private readonly List<uint> _framesGone = new();
     private float[] _scratchParts = Array.Empty<float>();
@@ -177,6 +178,7 @@ public sealed class ShipModule : ClientModule
         }
         _parkedBodies.Clear();
         _shipsByBody.Clear();
+        _bodyPoses.Clear();
         _ships.Clear();
         _shipCollider = null;
         _shipPredictor = null;
@@ -367,10 +369,35 @@ public sealed class ShipModule : ClientModule
             {
                 Park(netId, ship, state);
             }
-            else if (!parked)
+            else if (parked)
+            {
+                // A vehicle on wheels keeps its body as it moves (VEHICLES.md §6.4): the copy follows it.
+                MoveBody(netId, state);
+            }
+            else
             {
                 Unpark(netId);
             }
+        }
+    }
+
+    // A kept body to a newer pose the server sent (a vehicle rocking on its springs, or driven), when it moved.
+    private void MoveBody(uint netId, in ShipNetState state)
+    {
+        if (!_ownsShipBodies || _shipCollider == null || !_parkedBodies.TryGetValue(netId, out uint body))
+        {
+            return;
+        }
+        Vector3 at = ShipConvert.PositionOf(state);
+        Quaternion turn = ShipConvert.RotationOf(state);
+        if (_bodyPoses.TryGetValue(netId, out (Vector3 At, Quaternion Turn) was) && was.At == at && was.Turn == turn)
+        {
+            return;
+        }
+        _bodyPoses[netId] = (at, turn);
+        lock (JoltRuntime.Gate)
+        {
+            _shipCollider.MoveParked(body, at, turn);
         }
     }
 
@@ -413,6 +440,7 @@ public sealed class ShipModule : ClientModule
             {
                 _parkedBodies.Add(netId, state.Body);
                 _shipsByBody.Add(state.Body, netId);
+                _bodyPoses[netId] = (ShipConvert.PositionOf(state), ShipConvert.RotationOf(state));
             }
         }
     }
@@ -422,6 +450,7 @@ public sealed class ShipModule : ClientModule
         if (_parkedBodies.Remove(netId, out uint body))
         {
             _shipsByBody.Remove(body);
+            _bodyPoses.Remove(netId);
             lock (JoltRuntime.Gate)
             {
                 if (_ownsShipBodies) _shipCollider?.RemoveParked(body);

@@ -90,6 +90,8 @@
       "ingredients": [["metal-fragments", 300], ["wood", 200], ["gears", 2], ["metal-pipe", 1], ["rope", 4], ["lamp-oil", 20]] },
     { "output": "togg", "seconds": 90, "station": "vehicle-workbench",
       "ingredients": [["metal-fragments", 900], ["refined-metal", 40], ["wood", 150], ["gears", 4], ["metal-pipe", 4], ["lamp-oil", 20]] },
+    { "output": "monster-togg", "seconds": 150, "station": "vehicle-workbench",
+      "ingredients": [["metal-fragments", 2200], ["refined-metal", 140], ["wood", 200], ["gears", 10], ["metal-pipe", 8], ["lamp-oil", 30]] },
     { "output": "zamazingo", "seconds": 60, "station": "vehicle-workbench",
       "ingredients": [["metal-fragments", 400], ["refined-metal", 15], ["gears", 2], ["metal-pipe", 2], ["lamp-oil", 10]] },
     { "output": "ka-fa-1500", "seconds": 90, "station": "vehicle-workbench",

@@ -27,6 +27,15 @@
           "health": { "max": 500, "protection": "metal", "table": "pieces", "repair": ["refined-metal", 20] } }
       ]
     },
+    {
+      "key": "monster-togg-engine", "item": "monster-togg-engine", "fits": ["bay", "engine-mount"], "levels": [1], "height": 1.45,
+      "mass": 400, "centreOfMass": [0, 0.45, 0.6], "power": 450000,
+      "hull": [{ "centre": [0, 0.5, 0.6], "size": [0.9, 0.5, 0.58] }],
+      "parts": [
+        { "key": "engine", "name": "Blown six", "at": [0, 0.6, 0.6], "radius": 0.65,
+          "health": { "max": 900, "protection": "metal", "table": "pieces", "repair": ["refined-metal", 40] } }
+      ]
+    },
     { "key": "ka-fa-twin", "item": "ka-fa-twin", "fits": ["ka-fa-engine"], "levels": [1], "height": 0.7, "mass": 95, "centreOfMass": [0, 0.2, 0], "drive": {"lift": 9600}, "hull": [{"centre": [0, 0.22, 0], "size": [0.43, 0.2, 0.2]}, {"centre": [-0.48, 0.12, -0.48], "size": [0.06, 0.06, 0.3]}], "parts": [{"key": "engine", "name": "Flat twin", "at": [0, 0.3, 0], "radius": 0.45, "health": {"max": 300, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 60]}}]},
     { "key": "ka-fa-tuned-twin", "item": "ka-fa-tuned-twin", "fits": ["ka-fa-engine"], "levels": [1], "height": 0.7, "mass": 90, "centreOfMass": [0, 0.2, 0], "drive": {"lift": 11500}, "hull": [{"centre": [0, 0.22, 0], "size": [0.43, 0.2, 0.2]}, {"centre": [-0.48, 0.12, -0.48], "size": [0.06, 0.06, 0.3]}], "parts": [{"key": "engine", "name": "Tuned twin", "at": [0, 0.3, 0], "radius": 0.45, "health": {"max": 300, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 80]}}]},
     { "key": "ka-fa-rotor", "item": "ka-fa-rotor", "fits": ["ka-fa-rotor"], "levels": [1], "height": 0.1, "mass": 45, "centreOfMass": [0, 0.03, 0], "drive": {"rotor": 1}, "hull": [{"centre": [0, 0.03, 0], "size": [0.12, 0.05, 0.07]}, {"centre": [0, 0.03, 0], "size": [3.5, 0.04, 1.45], "fragile": true}, {"centre": [0, 0.03, 0], "size": [1.45, 0.04, 3.5], "fragile": true}], "parts": [{"key": "rotor", "name": "Rotor", "at": [0, 0.05, 0], "radius": 0.3, "health": {"max": 200, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 40]}}]},

@@ -89,7 +89,8 @@
       { "item": "tin-finch", "cost": 500 },
       { "item": "ka-fa-1500", "cost": 250 },
       { "item": "togg", "cost": 200 },
-      { "item": "zamazingo", "cost": 125 }
+      { "item": "zamazingo", "cost": 125 },
+      { "item": "monster-togg", "cost": 600, "after": ["togg"] }
     ] },
     { "station": "engineering-workbench", "note": "CRAFT-01/02: separate unlevelled tree; technologies remain undefined in the design, so none are invented here.", "nodes": [] }
   ],

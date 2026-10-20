@@ -383,9 +383,10 @@ public sealed class GroundMotor : IShipMotor
             s.Velocity = Vector3.Zero;
             s.AngularVelocity = Vector3.Zero;
         }
-        // At rest on its wheels (nobody asking it to move), or with nobody driving and held by whatever it touches.
+        // At rest on its wheels (nobody asking it to move: its springs settled, so a car rocked by a person jumping on its
+        // back rocks until it is still), or off its wheels with nobody driving and held by whatever it touches.
         bool slow = speed < ShipMotor.RestSpeed && s.AngularVelocity.Length() < ShipMotor.RestSpin;
-        if ((onWheels && speed < 0.05f && s.AngularVelocity.Length() < 0.02f && !wants) || (!engines && (loaded > 0 || touched) && slow))
+        if ((onWheels && speed < 0.05f && s.AngularVelocity.Length() < 0.02f && !wants) || (!engines && !onWheels && (loaded > 0 || touched) && slow))
         {
             s.RestTicks++;
             if (s.RestTicks >= ShipMotor.SleepTicks)

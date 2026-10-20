@@ -150,6 +150,16 @@ public sealed partial class ShipSystem
         if (ship.Def.Seats[seat].Flies)
         {
             ship.Input = ship.Input.Unattended();
+            if (!p.Sleeping)
+            {
+                // Its engine is the pilot's now: one started by hand no longer idles by itself. One that needs a pilot
+                // (VEHICLES.md §6.5) runs while they sit here, switched off by hand or not, and stops when they leave.
+                ship.HandStarted = false;
+                if (ship.Def.NeedsPilot)
+                {
+                    ship.State.Flags &= ~ShipFlags.EngineStopped;
+                }
+            }
             // Restore seats sleepers before their reconnect; preserve their saved target until they actually wake.
             if (!p.Sleeping) ShipAttitudeHold.Clear(ref ship.State);
         }

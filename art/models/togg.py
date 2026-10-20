@@ -12,6 +12,12 @@ front. Each of its modules is a model of its own, mounted by the view at its soc
 togg.glb is the car as its default build makes it (the chassis, the cab in bay 3 and the engine in the nose): the item's
 model, its icon and the placement ghost.
 
+`-- --monster` builds the Monster TOGG instead (docs/VEHICLES.md §9.9): the same chassis lifted 0.75 m on long-travel arms
+over 1.7 m tyres on a 2.84 m track, no fenders, a step ladder each side, and its blown six (monster-togg-engine.glb: the
+TOGG's six with a supercharger, a scoop and taller stacks); it wears the TOGG's cab and the TOGG's atlas and materials.
+monster-togg-frame.glb and monster-togg.glb are its chassis and its default build. Each engine has an `Exhaust_<n>` empty
+at the top of each stack, where the view puts its smoke.
+
 The rig the view poses (ShipView.Rig.cs): each wheel a `Wheel_<key>` at its hub (what turns with the steering under its
 `Steer`, what rolls under `Spin`); its wishbones and half-shaft `Arm_<key>_<n>` at their inner pivots, each with a `Tip`;
 its coil-over `Shock_<key>` at the top mount, pointing at `ShockLow_<key>` on the lower arm, its `Rod` sliding and its
@@ -21,7 +27,7 @@ Written in the vehicle's frame (vehicle_kit.py: +X left, +Y up, +Z forward; the 
 origin, the data's own numbers). No downloaded meshes or pixels: one 2048 px atlas (vehicle_paint.togg), a perspex and the
 lamps' lenses; three hand-built LODs; vertex occlusion.
 
-    blender -b --factory-startup --python art/models/togg.py [-- --preview] [-- --holes <absolute prefix>]
+    blender -b --factory-startup --python art/models/togg.py [-- --preview] [-- --monster]
 """
 from pathlib import Path
 import json
@@ -41,11 +47,13 @@ import vehicle_paint as paint
 from vehicle_kit import (b, place, rotation, toward, beam, rod, block, disc, lathe, flat_disc, quad, grid_panel, orient, pipe, bolt,
                          bolts, weld, spring, tyre, steel_rim, built as kit_built, shade, plain, empty, adopt, tris)
 
-KEY = 'togg'
-OUT = REPO / '.artifacts/itemart' / KEY
-OUT.mkdir(parents=True, exist_ok=True)
 ARGS = script_args()
 PREVIEW = '--preview' in ARGS
+MONSTER = '--monster' in ARGS
+KEY = 'togg'                                   # the atlas's and the materials' name: the monster wears the TOGG's
+NAME = 'monster-togg' if MONSTER else KEY      # the files'
+OUT = REPO / '.artifacts/itemart' / NAME
+OUT.mkdir(parents=True, exist_ok=True)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.scene.unit_settings.system = 'METRIC'
@@ -53,15 +61,21 @@ col = collection('Togg')
 
 # ---------------------------------------------------------------- the data's numbers (ships.json, modules.json)
 
-WHEEL_R, WHEEL_W, RIM_R, TRAVEL = .48, .32, .23, .35
-HUB_X, HUB_Y = .975, .48
+LIFT = .75 if MONSTER else 0.0   # the monster's chassis and everything on it over the TOGG's
+if MONSTER:
+    WHEEL_R, WHEEL_W, RIM_R, TRAVEL = .85, .62, .40, .60
+    HUB_X, HUB_Y = 1.42, .85
+else:
+    WHEEL_R, WHEEL_W, RIM_R, TRAVEL = .48, .32, .23, .35
+    HUB_X, HUB_Y = .975, .48
+THICK = 1.45 if MONSTER else 1.0  # its arms', shafts' and coil-overs' thickness over the TOGG's
 CORNERS = {  # key: (side, axle z, steers)
     'front-left': (1, 3.6, True), 'front-right': (-1, 3.6, True),
     'rear-left': (1, 0.0, False), 'rear-right': (-1, 0.0, False),
 }
-SOCKETS = {'bay1': (0, .98, -1.2), 'bay2': (0, .98, .2), 'bay3': (0, .98, 1.6), 'nose': (0, .98, 3.0)}
+SOCKETS = {'bay1': (0, .98 + LIFT, -1.2), 'bay2': (0, .98 + LIFT, .2), 'bay3': (0, .98 + LIFT, 1.6), 'nose': (0, .98 + LIFT, 3.0)}
 DEFAULT_BUILD = [('bay3', 'cab-one'), ('nose', 'engine')]
-FUEL_CAP = (.9, .85, -1.3)
+FUEL_CAP = (.9, .85, -1.3)                     # on the chassis as it is built (the monster's lifted with it)
 
 RAIL_X, RAIL_LO, RAIL_HI = .50, .78, .94   # the ladder's rails: their centre line, bottom and top
 DECK = .98                                 # the bays' bolt rails' top: where modules stand
@@ -73,13 +87,28 @@ LOWER_SPREAD, UPPER_SPREAD = .21, .16             # the wishbones' pivots fore a
 SHOCK_TOP, SHOCK_LOW = (.575, .955), (.68, .375)
 SHAFT_IN = (.17, .43)                               # the differential's output
 
+
+def lifted(p):
+    """A point of the chassis as built (x, y) where it ends up: the monster's 0.75 m higher."""
+    return (p[0], p[1] + LIFT)
+
+
+# The moving parts' ends: their pivots on the chassis (lifted with it), their tips at the hub; the coil-over's lower eye on
+# the lower arm. The monster's long arms reach down and out from the lifted frame to its hubs.
+ARM_LOWER, ARM_UPPER, ARM_SHOCK_TOP, ARM_SHAFT_IN = lifted(LOWER_PIVOT), lifted(UPPER_PIVOT), lifted(SHOCK_TOP), lifted(SHAFT_IN)
+if MONSTER:
+    LOWER_TIP, UPPER_TIP = (HUB_X - .14, HUB_Y - .155), (HUB_X - .15, HUB_Y + .175)
+    SHOCK_LOW = (ARM_LOWER[0] + .7 * (LOWER_TIP[0] - ARM_LOWER[0]), ARM_LOWER[1] + .7 * (LOWER_TIP[1] - ARM_LOWER[1]) + .04)
+STACK_TOP = 1.62 if MONSTER else 1.18   # the engine's stacks' tops over its socket, under their tips and caps
+
 # ---------------------------------------------------------------- textures and materials
 
-albedo, orm, height = paint.togg()
-paths = {}
-for key, pixels in [('albedo', albedo), ('orm', orm), ('normal', normal_from_height(height, 2.0))]:
-    paths[key] = write_png(TEXTURES / KEY / f'{KEY}_{key}.png', pixels)
-    write_texture_import(paths[key], normal_map=key == 'normal')
+paths = {key: TEXTURES / KEY / f'{KEY}_{key}.png' for key in ('albedo', 'orm', 'normal')}
+if not (MONSTER and all(p.exists() for p in paths.values())):
+    albedo, orm, height = paint.togg()
+    for key, pixels in [('albedo', albedo), ('orm', orm), ('normal', normal_from_height(height, 2.0))]:
+        paths[key] = write_png(TEXTURES / KEY / f'{KEY}_{key}.png', pixels)
+        write_texture_import(paths[key], normal_map=key == 'normal')
 MATERIALS = {
     'M_Hollow_Togg': write_material('togg', 'M_Hollow_Togg', albedo=paths['albedo'], orm=paths['orm'], normal=paths['normal'],
                                     normal_scale=.6, vertex_colour=True, vertex_colour_srgb=False),
@@ -364,8 +393,24 @@ def chassis(mesh):
     drivetrain(mesh)
     bumpers(mesh)
     tank(mesh)
-    fenders(mesh)
+    if not MONSTER:
+        fenders(mesh)
     details(mesh)
+
+
+def ladders(mesh):
+    """The monster's step ladders under its cab doors (where it stands, not lifted): two rails from the step down to a
+    knee's height, three treads, a grab handle up the side."""
+    lod = mesh.lod
+    top = .52 + LIFT
+    for s in (1, -1):
+        for z in (2.0, 2.6):
+            beam(mesh, 'LadderRail', (1.05 * s, top, z), (1.08 * s, .38, z), (.035, .035), 'frame')
+            weld(mesh, (1.05 * s, top - .02, z), .04, axis='X')
+        for y in (.42, .72, 1.0):
+            block(mesh, 'LadderTread', (1.075 * s, y, 2.3), (.16, .02, .62), 'tread', bevel=.003)
+            if lod < 2:
+                bolts(mesh, [(1.075 * s, y + .012, z) for z in (2.03, 2.57)], (0, 1, 0), .008)
 
 
 def lenses(mesh):
@@ -381,14 +426,14 @@ def lenses(mesh):
 
 def lower_arm(mesh, s, z):
     lod = mesh.lod
-    (px, py), (tx, ty) = LOWER_PIVOT, LOWER_TIP
+    (px, py), (tx, ty) = ARM_LOWER, LOWER_TIP
     tip = (tx * s, ty, z)
     for dz in (-LOWER_SPREAD, LOWER_SPREAD):
-        rod(mesh, 'LowerTube', (px * s, py, z + dz), tip, .024, 'frame')
-        disc(mesh, 'Bushing', (px * s, py, z + dz), .034, .07, 'frame', axis='Z')
+        rod(mesh, 'LowerTube', (px * s, py, z + dz), tip, .024 * THICK, 'frame')
+        disc(mesh, 'Bushing', (px * s, py, z + dz), .034 * THICK, .07, 'frame', axis='Z')
         if lod < 2:
-            disc(mesh, 'BushingRubber', (px * s, py, z + dz), .022, .074, 'rubber', axis='Z')
-    rod(mesh, 'LowerBrace', ((px + .12) * s, py - .006, z - LOWER_SPREAD * .74), ((px + .12) * s, py - .006, z + LOWER_SPREAD * .74), .018, 'frame')
+            disc(mesh, 'BushingRubber', (px * s, py, z + dz), .022 * THICK, .074, 'rubber', axis='Z')
+    rod(mesh, 'LowerBrace', ((px + .12) * s, py - .006, z - LOWER_SPREAD * .74), ((px + .12) * s, py - .006, z + LOWER_SPREAD * .74), .018 * THICK, 'frame')
     # The coil-over's lower tab, a skid plate under the arm.
     lx, ly = SHOCK_LOW
     block(mesh, 'ShockTab', (lx * s, ly - .01, z - .04), (.06, .06, .008), 'frame', bevel=.002)
@@ -398,24 +443,24 @@ def lower_arm(mesh, s, z):
         grid_panel(mesh, 'ArmSkid', lambda u, v: (((px + .1) + (tx - px - .14) * u) * s, py - .03 - .02 * u, z + (LOWER_SPREAD * (1 - u) * .9 + .02) * (2 * v - 1)),
                    2, 1, 'frame', smooth=False, want=lambda c: Vector((0, 0, -1)))
     # The ball joint at the tip.
-    disc(mesh, 'BallJoint', tip, .04, .05, 'dark', axis='Y')
+    disc(mesh, 'BallJoint', tip, .04 * THICK, .05, 'dark', axis='Y')
 
 
 def upper_arm(mesh, s, z):
-    (px, py), (tx, ty) = UPPER_PIVOT, UPPER_TIP
+    (px, py), (tx, ty) = ARM_UPPER, UPPER_TIP
     tip = (tx * s, ty, z)
     for dz in (-UPPER_SPREAD, UPPER_SPREAD):
-        rod(mesh, 'UpperTube', (px * s, py, z + dz), tip, .02, 'frame')
-        disc(mesh, 'Bushing', (px * s, py, z + dz), .03, .06, 'frame', axis='Z')
-    rod(mesh, 'UpperBrace', ((px + .1) * s, py - .01, z - UPPER_SPREAD * .7), ((px + .1) * s, py - .01, z + UPPER_SPREAD * .7), .015, 'frame')
-    disc(mesh, 'BallJoint', tip, .034, .045, 'dark', axis='Y')
+        rod(mesh, 'UpperTube', (px * s, py, z + dz), tip, .02 * THICK, 'frame')
+        disc(mesh, 'Bushing', (px * s, py, z + dz), .03 * THICK, .06, 'frame', axis='Z')
+    rod(mesh, 'UpperBrace', ((px + .1) * s, py - .01, z - UPPER_SPREAD * .7), ((px + .1) * s, py - .01, z + UPPER_SPREAD * .7), .015 * THICK, 'frame')
+    disc(mesh, 'BallJoint', tip, .034 * THICK, .045, 'dark', axis='Y')
 
 
 def half_shaft(mesh, s, z):
     lod = mesh.lod
-    a = (SHAFT_IN[0] * s + .03 * s, SHAFT_IN[1], z)
+    a = (ARM_SHAFT_IN[0] * s + .03 * s, ARM_SHAFT_IN[1], z)
     t = ((HUB_X - .19) * s, HUB_Y - .005, z)
-    rod(mesh, 'HalfShaft', a, t, .022, 'steel')
+    rod(mesh, 'HalfShaft', a, t, .022 * THICK, 'steel')
     for p, toward_ in ((a, t), (t, a)):
         d = (Vector(toward_) - Vector(p)).normalized()
         q = Vector(p) + d * .09
@@ -429,40 +474,50 @@ def half_shaft(mesh, s, z):
         lathe(mesh, 'CVBoot', rings, p, 'rubber', axis=d, segments=(14, 9, 6)[lod])
 
 
-def shock_body(mesh):
+def shock_body(mesh, length=.30):
     """The coil-over's body hung from the top mount (its frame: the top eye at the origin, the shock along -Y): the eye,
     the reservoir-less body in zinc, the top spring seat."""
     lod = mesh.lod
-    disc(mesh, 'TopEye', (0, 0, 0), .026, .04, 'zinc', axis='Z')
-    rod(mesh, 'Body', (0, -.02, 0), (0, -.30, 0), .033, 'zinc')
-    disc(mesh, 'TopSeat', (0, -.05, 0), .062, .014, 'dark', axis='Y')
-    disc(mesh, 'Collar', (0, -.07, 0), .04, .02, 'steel', axis='Y')
+    t = THICK if MONSTER else 1
+    disc(mesh, 'TopEye', (0, 0, 0), .026 * t, .04, 'zinc', axis='Z')
+    rod(mesh, 'Body', (0, -.02, 0), (0, -length, 0), .033 * t, 'zinc')
+    disc(mesh, 'TopSeat', (0, -.05, 0), .062 * t, .014, 'dark', axis='Y')
+    disc(mesh, 'Collar', (0, -.07, 0), .04 * t, .02, 'steel', axis='Y')
     if lod < 2:
-        disc(mesh, 'BodyCap', (0, -.30, 0), .035, .012, 'dark', axis='Y')
+        disc(mesh, 'BodyCap', (0, -length, 0), .035 * t, .012, 'dark', axis='Y')
+    if MONSTER:
+        # A remote reservoir clamped to the body, its hose to the top.
+        rod(mesh, 'Reservoir', (.075, -.10, 0), (.075, -.10 - length * .55, 0), .026, 'zinc')
+        if lod < 2:
+            pipe(mesh, 'ReservoirHose', [(.075, -.09, 0), (.06, -.03, 0), (.03, -.01, 0)], .008, 'hose', caps=False)
 
 
-def shock_rod(mesh, rest):
+def shock_rod(mesh, rest, length=.30):
     """The shaft and lower eye (its frame: the lower eye at the origin, the shaft up along +Y into the body), the lower
     spring seat on it."""
-    disc(mesh, 'LowEye', (0, 0, 0), .024, .04, 'zinc', axis='Z')
-    rod(mesh, 'Shaft', (0, .02, 0), (0, rest - .2, 0), .011, 'steel')
-    disc(mesh, 'LowSeat', (0, .06, 0), .058, .014, 'dark', axis='Y')
-    block(mesh, 'BumpRubber', (0, rest - .33, 0), (.03, .03, .03), 'rubber', bevel=.006)
+    t = THICK if MONSTER else 1
+    disc(mesh, 'LowEye', (0, 0, 0), .024 * t, .04, 'zinc', axis='Z')
+    rod(mesh, 'Shaft', (0, .02, 0), (0, rest - (length - .1), 0), .011 * t, 'steel')
+    disc(mesh, 'LowSeat', (0, .06, 0), .058 * t, .014, 'dark', axis='Y')
+    block(mesh, 'BumpRubber', (0, rest - (length + .03), 0), (.03 * t, .03, .03 * t), 'rubber', bevel=.006)
 
 
 SPRING_TOP, SPRING_LOW = .057, .067   # the seats' distances from the top eye and from the lower eye
 
 
 def coil(mesh, length):
-    spring(mesh, 'Spring', (0, 0, 0), (0, -length, 0), .052, .011, 6, 'red')
+    if MONSTER:
+        spring(mesh, 'Spring', (0, 0, 0), (0, -length, 0), .072, .015, 8, 'red')
+    else:
+        spring(mesh, 'Spring', (0, 0, 0), (0, -length, 0), .052, .011, 6, 'red')
 
 
 def knuckle(mesh, s, front):
     """The upright round the hub bearing (its frame: the hub; turns with the steering on the front corners): the ball
     joints' bosses, the brake caliper, a steering arm on the front ones."""
     lod = mesh.lod
-    ix = -s * .135
-    block(mesh, 'Upright', (ix, .01, 0), (.05, .30, .09), 'frame', bevel=.01)
+    ix = -s * (.135 if not MONSTER else .20)
+    block(mesh, 'Upright', (ix, .01, 0), (.05 * THICK, .30, .09 * THICK), 'frame', bevel=.01)
     for y in (LOWER_TIP[1] - HUB_Y, UPPER_TIP[1] - HUB_Y):
         block(mesh, 'UprightBoss', (ix, y + (.02 if y < 0 else -.02), 0), (.06, .05, .07), 'frame', bevel=.008)
     disc(mesh, 'Bearing', (-s * .10, 0, 0), .075, .06, 'dark', axis='X')
@@ -479,6 +534,14 @@ def knuckle(mesh, s, front):
 
 def wheel(mesh, s):
     """A whole wheel about its hub (axle along X): the knobbed tyre, the cream beadlock rim, the brake disc."""
+    if MONSTER:
+        # A flotation tyre's tall sidewall and deep lugs; an eight-stud beadlock; a big vented disc.
+        tyre(mesh, WHEEL_R, WHEEL_W, RIM_R, knob=.05, side=s)
+        steel_rim(mesh, RIM_R, WHEEL_W - .10, dish=.06, region='cream', side=s, bolt_count=8)
+        disc(mesh, 'BrakeDisc', (-s * .09, 0, 0), .28, .032, 'steel', axis='X', inner=.10)
+        if mesh.lod < 2:
+            disc(mesh, 'DiscHat', (-s * .06, 0, 0), .15, .04, 'dark', axis='X')
+        return
     tyre(mesh, WHEEL_R, WHEEL_W, RIM_R, knob=.026, side=s)
     steel_rim(mesh, RIM_R, WHEEL_W - .06, dish=.035, region='cream', side=s)
     disc(mesh, 'BrakeDisc', (-s * .055, 0, 0), .165, .022, 'steel', axis='X', inner=.06)
@@ -733,24 +796,29 @@ def engine(mesh):
         pipe(mesh, 'IntakeRunner', [(.16, .48, z), (.24, .52, z), (.27, .58, (z + .56) / 2), (.20, .68, .56)], .022, 'alu', caps=False, per=1)
     block(mesh, 'Plenum', (.20, .68, .56), (.12, .06, .22), 'alu', bevel=.012)
     block(mesh, 'Carburettor', (.20, .76, .56), (.10, .10, .10), 'alu', bevel=.01)
-    lathe(mesh, 'AirFilter', [(0, 0), (0, .21), (.012, .22), (.10, .22), (.112, .21), (.112, 0)], (.12, .82, .56), 'dark', axis='Y',
-          segments=(28, 16, 10)[lod])
-    disc(mesh, 'AirFilterLid', (.12, .935, .56), .19, .012, 'cream', axis='Y')
-    lathe(mesh, 'WingNut', [(0, 0), (0, .02), (.02, .015), (.035, 0)], (.12, .94, .56), 'steel', axis='Y', segments=6)
-    if lod < 2:
-        block(mesh, 'WingNutEars', (.12, .965, .56), (.07, .02, .012), 'steel', bevel=.003)
+    if MONSTER:
+        blower(mesh)
+    else:
+        lathe(mesh, 'AirFilter', [(0, 0), (0, .21), (.012, .22), (.10, .22), (.112, .21), (.112, 0)], (.12, .82, .56), 'dark', axis='Y',
+              segments=(28, 16, 10)[lod])
+        disc(mesh, 'AirFilterLid', (.12, .935, .56), .19, .012, 'cream', axis='Y')
+        lathe(mesh, 'WingNut', [(0, 0), (0, .02), (.02, .015), (.035, 0)], (.12, .94, .56), 'steel', axis='Y', segments=6)
+        if lod < 2:
+            block(mesh, 'WingNutEars', (.12, .965, .56), (.07, .02, .012), 'steel', bevel=.003)
     # Exhaust on the right: the manifold into two short stacks standing up, their rain caps.
     for k in range(6):
         z = .28 + k * .112
         pipe(mesh, 'Header', [(-.16, .42, z), (-.24, .44, z), (-.30, .46, (z + (.36 if k < 3 else .76)) / 2), (-.34, .50, .36 if k < 3 else .76)],
              .022, 'rust', caps=False, per=1)
+    top = STACK_TOP
     for z in (.36, .76):
-        pipe(mesh, 'Stack', [(-.34, .48, z), (-.40, .60, z), (-.42, .80, z), (-.42, 1.18, z)], .038, 'heat', caps=False)
-        rod(mesh, 'StackTip', (-.42, 1.18, z), (-.42, 1.30, z), .04, 'rust')
+        pipe(mesh, 'Stack', [(-.34, .48, z), (-.40, .60, z), (-.42, .80, z), (-.42, top, z)], .038 if not MONSTER else .046, 'heat', caps=False)
+        rod(mesh, 'StackTip', (-.42, top, z), (-.42, top + .12, z), .04 if not MONSTER else .05, 'rust')
         # A flapper cap on its hinge, a little open.
-        place(disc(mesh, 'RainCap', (0, 0, 0), .046, .006, 'rust', axis='Y'), Matrix.Translation((-.42, 1.31, z)) @ rotation('X', 18) @ Matrix.Translation((0, 0, .02)))
-        rod(mesh, 'CapHinge', (-.42, 1.30, z - .045), (-.42, 1.31, z - .03), .008, 'steel')
-        for y in (.75, 1.0):
+        place(disc(mesh, 'RainCap', (0, 0, 0), .046 if not MONSTER else .056, .006, 'rust', axis='Y'),
+              Matrix.Translation((-.42, top + .13, z)) @ rotation('X', 18) @ Matrix.Translation((0, 0, .02)))
+        rod(mesh, 'CapHinge', (-.42, top + .12, z - .045), (-.42, top + .13, z - .03), .008, 'steel')
+        for y in ((.75, 1.0) if not MONSTER else (.75, 1.05, 1.35)):
             block(mesh, 'StackClamp', (-.42, y, z), (.10, .02, .10), 'steel', bevel=.004)
         beam(mesh, 'StackStay', (-.42, .90, z), (-.60, .02, z), (.02, .02), 'frame')
     # The front of the block: crank pulley, water pump and fan, the alternator, the belt.
@@ -793,23 +861,57 @@ def engine(mesh):
     rod(mesh, 'OverflowCap', (-.55, .26, .95), (-.55, .30, .95), .025, 'dark')
 
 
+def blower(mesh):
+    """The monster's supercharger on the intake: a ribbed alloy case on an adaptor plate, its rotors' snout and toothed
+    belt down to the crank, two carburettors on top under a black scoop with its butterfly slats."""
+    lod = mesh.lod
+    block(mesh, 'BlowerPlate', (.18, .74, .56), (.20, .03, .56), 'alu', bevel=.006)
+    block(mesh, 'Blower', (.18, .86, .56), (.24, .20, .50), 'alu', bevel=.03)
+    if lod < 2:
+        for z in np_range(.36, .76, 9 if lod == 0 else 5):
+            block(mesh, 'BlowerRib', (.18, .86, z), (.255, .17, .012), 'alu', bevel=.002)
+        bolts(mesh, [(.18 + .10 * sx, .965, .56 + .22 * sz) for sx in (1, -1) for sz in (1, -1)], (0, 1, 0), .008)
+    # The snout forward, its pulley on the rotors' shaft, the toothed belt to the crank pulley.
+    rod(mesh, 'BlowerSnout', (.18, .86, .81), (.18, .86, .90), .055, 'alu')
+    disc(mesh, 'BlowerPulley', (.18, .86, .93), .075, .045, 'steel', axis='Z')
+    pipe(mesh, 'BlowerBelt', [(.18 + .075, .86, .935), (.08, .18, .935), (-.08, .18, .935), (.18 - .075, .86, .935), (.18 + .075, .86, .935)],
+         .012, 'rubber', caps=False, per=(3, 2, 1)[lod])
+    # Two carburettors on its top, the scoop over them open to the front.
+    for z in (.44, .68):
+        block(mesh, 'TopCarb', (.18, 1.01, z), (.12, .10, .10), 'alu', bevel=.01)
+    block(mesh, 'ScoopBase', (.18, 1.08, .58), (.26, .04, .42), 'dark', bevel=.01)
+    for s in (1, -1):
+        block(mesh, 'ScoopSide', (.18 + .125 * s, 1.18, .58), (.02, .18, .42), 'dark', bevel=.006)
+    block(mesh, 'ScoopTop', (.18, 1.275, .56), (.27, .025, .46), 'dark', bevel=.01)
+    block(mesh, 'ScoopBack', (.18, 1.18, .37), (.27, .2, .02), 'dark', bevel=.006)
+    for k in range(5 if lod < 2 else 2):
+        y = 1.115 + k * (.13 / 4 if lod < 2 else .13)
+        block(mesh, 'Butterfly', (.18, y, .785), (.23, .012, .02), 'steel', turn=rotation('X', -25), bevel=0)
+
+
 def np_range(a, b_, n):
     return [a + (b_ - a) * k / max(n - 1, 1) for k in range(n)]
 
 
 # ---------------------------------------------------------------- building every level
 
-report = {'asset': KEY, 'files': {}}
+report = {'asset': NAME, 'files': {}}
 
 
 def lods(builder, name, material=mat):
     return [kit_built(col, builder, name, material, REGIONS, lod) for lod in range(3)]
 
 
-# The chassis and its lamps.
+# The chassis and its lamps (the monster's lifted with all that is on them).
 body = lods(chassis, 'Body')
 lens = kit_built(col, lenses, 'Lamps', lamp_mat, REGIONS, 0)
 lens.name = lens.data.name = 'Lamps'
+if MONSTER:
+    for o in body + [lens]:
+        o.data.transform(Matrix.Translation(b((0, LIFT, 0))))
+    steps = lods(ladders, 'Ladders')
+else:
+    steps = []
 
 # Each corner: its wheel (meshes shared by the two corners of a side), knuckle, arms, half-shaft and coil-over.
 wheel_meshes = {s: lods(lambda m, s=s: wheel(m, s), 'Wheel' + ('L' if s > 0 else 'R')) for s in (1, -1)}
@@ -823,12 +925,13 @@ for key, (s, z, front) in CORNERS.items():
         'upper': lods(lambda m, s=s, z=z: upper_arm(m, s, z), f'UpperArm{title}'),
         'shaft': lods(lambda m, s=s, z=z: half_shaft(m, s, z), f'HalfShaft{title}'),
     }
-    top = Vector((SHOCK_TOP[0] * s, SHOCK_TOP[1], z))
+    top = Vector((ARM_SHOCK_TOP[0] * s, ARM_SHOCK_TOP[1], z))
     low = Vector((SHOCK_LOW[0] * s, SHOCK_LOW[1], z))
     rest = (top - low).length
     k['rest'] = rest
-    k['shock_body'] = lods(shock_body, f'ShockBody{title}')
-    k['shock_rod'] = lods(lambda m, rest=rest: shock_rod(m, rest), f'ShockRod{title}')
+    body_length = round(rest * .5, 3) if MONSTER else .30
+    k['shock_body'] = lods(lambda m, length=body_length: shock_body(m, length), f'ShockBody{title}')
+    k['shock_rod'] = lods(lambda m, rest=rest, length=body_length: shock_rod(m, rest, length), f'ShockRod{title}')
     k['spring'] = lods(lambda m, rest=rest: coil(m, rest - SPRING_TOP - SPRING_LOW), f'Spring{title}')
     if key.startswith('rear'):
         # The same side's wheel meshes again, as linked copies (one mesh, two nodes).
@@ -865,7 +968,7 @@ def placed_copy(objs, offset):
         o.location = b(offset)
 
 
-together = [body[0]]
+together = [body[0]] + steps[:1]
 for key, k in corner_nodes.items():
     s, z, front = CORNERS[key]
     for part in ('knuckle', 'wheel'):
@@ -886,7 +989,7 @@ for o in together + [objs[0] for objs in cab_parts.values()]:
 for k in corner_nodes.values():
     k['wheel'][0].location = (0, 0, 0)
 bpy.context.view_layer.update()
-for o in body[1:] + cab_parts['body'][1:] + cab_parts['door'][1:] + cab_parts['door_r'][1:] + engine_parts['body'][1:]:
+for o in body[1:] + steps[1:] + cab_parts['body'][1:] + cab_parts['door'][1:] + cab_parts['door_r'][1:] + engine_parts['body'][1:]:
     shade([o], samples=4, distance=.25)
 for k in corner_nodes.values():
     for part in ('knuckle', 'lower', 'upper', 'shaft'):
@@ -922,9 +1025,9 @@ def rig(parent=None):
         nodes += [w, steer, spin] + k['knuckle'] + k['wheel']
         # The arms at their inner pivots, each with its tip.
         arms = {
-            'lower': ((LOWER_PIVOT[0] * s, LOWER_PIVOT[1], z), (LOWER_TIP[0] * s, LOWER_TIP[1], z)),
-            'upper': ((UPPER_PIVOT[0] * s, UPPER_PIVOT[1], z), (UPPER_TIP[0] * s, UPPER_TIP[1], z)),
-            'shaft': ((SHAFT_IN[0] * s, SHAFT_IN[1], z), ((HUB_X - .19) * s, HUB_Y - .005, z)),
+            'lower': ((ARM_LOWER[0] * s, ARM_LOWER[1], z), (LOWER_TIP[0] * s, LOWER_TIP[1], z)),
+            'upper': ((ARM_UPPER[0] * s, ARM_UPPER[1], z), (UPPER_TIP[0] * s, UPPER_TIP[1], z)),
+            'shaft': ((ARM_SHAFT_IN[0] * s, ARM_SHAFT_IN[1], z), ((HUB_X - .19) * s, HUB_Y - .005, z)),
         }
         arm_nodes = {}
         for name, (pivot, tip) in arms.items():
@@ -935,7 +1038,7 @@ def rig(parent=None):
             arm_nodes[name] = a
             nodes += [a, t] + k[name]
         # The coil-over: its top mount pointing at its lower eye on the lower arm.
-        top = (SHOCK_TOP[0] * s, SHOCK_TOP[1], z)
+        top = (ARM_SHOCK_TOP[0] * s, ARM_SHOCK_TOP[1], z)
         low = (SHOCK_LOW[0] * s, SHOCK_LOW[1], z)
         up = tuple(Vector(top) - Vector(low))
         target = empty(col, f'ShockLow_{key}', low, arm_nodes['lower'], axis_up=up)
@@ -957,7 +1060,7 @@ def sockets(parent=None):
     out = []
     for k, v in SOCKETS.items():
         out.append(empty(col, f'socket_{k}', v, parent))
-    out.append(empty(col, 'socket_fuel', FUEL_CAP, parent))
+    out.append(empty(col, 'socket_fuel', (FUEL_CAP[0], FUEL_CAP[1] + LIFT, FUEL_CAP[2]), parent))
     return out
 
 
@@ -981,24 +1084,27 @@ for o in cab_parts['body'] + cab_parts['door_r'] + cab_parts['glass'] + cab_part
     o.parent, o.matrix_parent_inverse = cab_root, Matrix.Identity(4)
 cab_hull = convex_hull([cab_parts['body'][0]], 'Cab_hull0-convcolonly', col, max_faces=48)
 cab_nodes = [cab_root, hatch] + [o for objs in cab_parts.values() for o in objs] + [cab_spot]
-path = export_glb(WORLD / f'{KEY}-cab-one.glb', cab_nodes + [cab_hull], MATERIALS)
-report['files'][path.name] = tris([o for o in cab_nodes if o.type == 'MESH'])
+if not MONSTER:
+    path = export_glb(WORLD / f'{KEY}-cab-one.glb', cab_nodes + [cab_hull], MATERIALS)
+    report['files'][path.name] = tris([o for o in cab_nodes if o.type == 'MESH'])
 
 engine_root = empty(col, 'EngineRoot')
 for o in engine_parts['body']:
     o.parent, o.matrix_parent_inverse = engine_root, Matrix.Identity(4)
+# Where its smoke comes out: over each stack's rain cap (the view's exhaust, ShipView.Exhaust.cs).
+exhausts = [empty(col, f'Exhaust_{n}', (-.42, STACK_TOP + .17, z), engine_root, axis_up=(0, 1, 0)) for n, z in enumerate((.36, .76))]
 engine_hull = convex_hull([engine_parts['body'][0]], 'Engine_hull0-convcolonly', col, max_faces=48)
-path = export_glb(WORLD / f'{KEY}-engine.glb', [engine_root] + engine_parts['body'] + [engine_hull], MATERIALS)
+path = export_glb(WORLD / f'{NAME}-engine.glb', [engine_root] + exhausts + engine_parts['body'] + [engine_hull], MATERIALS)
 report['files'][path.name] = tris(engine_parts['body'])
 
 # The chassis alone (togg-frame.glb, ships.json's model), its rig and sockets.
 frame_root = empty(col, 'Chassis')
-for o in body + [lens]:
+for o in body + steps + [lens]:
     o.parent, o.matrix_parent_inverse = frame_root, Matrix.Identity(4)
 rig_nodes = rig(frame_root)
 frame_sockets = sockets(frame_root)
-frame_nodes = [frame_root] + body + [lens] + rig_nodes + frame_sockets
-path = export_glb(WORLD / f'{KEY}-frame.glb', frame_nodes + [hull], MATERIALS)
+frame_nodes = [frame_root] + body + steps + [lens] + rig_nodes + frame_sockets
+path = export_glb(WORLD / f'{NAME}-frame.glb', frame_nodes + [hull], MATERIALS)
 report['files'][path.name] = tris([o for o in frame_nodes if o.type == 'MESH'])
 
 # The car as its default build makes it (togg.glb): the chassis with its modules under Module_<socket>_<level> nodes.
@@ -1009,8 +1115,8 @@ for socket, module in DEFAULT_BUILD:
     root.parent, root.matrix_parent_inverse = node, Matrix.Identity(4)
     root.matrix_basis = Matrix.Identity(4)
     car.append(node)
-    car += cab_nodes if module == 'cab-one' else [engine_root] + engine_parts['body']
-path = export_glb(WORLD / f'{KEY}.glb', car, MATERIALS)
+    car += cab_nodes if module == 'cab-one' else [engine_root] + exhausts + engine_parts['body']
+path = export_glb(WORLD / f'{NAME}.glb', car, MATERIALS)
 report['files'][path.name] = tris([o for o in car if o.type == 'MESH'])
 
 bpy.context.view_layer.update()
@@ -1018,7 +1124,7 @@ pts = [o.matrix_world @ v.co for o in [o for o in car if o.type == 'MESH' and o.
 report['bounds_vehicle_frame'] = {'min': [min(p.x for p in pts), min(p.z for p in pts), min(-p.y for p in pts)],
                                   'max': [max(p.x for p in pts), max(p.z for p in pts), max(-p.y for p in pts)]}
 report['lod0_triangles'] = sum(v for name, v in tris(car).items() if name.endswith('_lod0'))
-bpy.ops.wm.save_as_mainfile(filepath=str(OUT / f'{KEY}-source.blend'))
+bpy.ops.wm.save_as_mainfile(filepath=str(OUT / f'{NAME}-source.blend'))
 (OUT / 'geometry.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
 print(json.dumps({k: sum(v.values()) for k, v in report['files'].items()}), report['lod0_triangles'], flush=True)
 
@@ -1027,8 +1133,10 @@ print(json.dumps({k: sum(v.values()) for k, v in report['files'].items()}), repo
 if PREVIEW:
     import vehicle_preview
     shown = [o for o in car if o.type == 'MESH' and o.name.endswith('_lod0') or o in (lens, cab_spot)]
-    vehicle_preview.render(KEY, OUT, paths['albedo'], shown, {
-        'front': ((4.6, 1.9, 8.6), (0, .9, 1.6)), 'rear': ((-4.2, 2.6, -5.4), (0, 1.0, 1.2)), 'side': ((8.8, 1.3, 1.6), (0, 1.0, 1.5)),
-        'low': ((2.6, .45, 5.6), (0, .7, 3.0)), 'corner': ((1.9, .8, 4.6), (.9, .5, 3.6)), 'cab': ((0, 1.24 + .98, .75 + 1.6), (0, 1.5, 6.0)),
-        'top': ((.01, 12, 1.4), (0, 0, 1.4)), 'under': ((3.2, -.9, 1.4), (0, .6, 1.6)),
+    k = 1.45 if MONSTER else 1.0
+    vehicle_preview.render(NAME, OUT, paths['albedo'], shown, {
+        'front': ((4.6 * k, 1.9 * k, 8.6 * k), (0, .9 + LIFT, 1.6)), 'rear': ((-4.2 * k, 2.6 * k, -5.4 * k), (0, 1.0 + LIFT, 1.2)),
+        'side': ((8.8 * k, 1.3 * k, 1.6), (0, 1.0 + LIFT * .6, 1.5)), 'low': ((2.6 * k, .45, 5.6 * k), (0, .7, 3.0)),
+        'corner': ((1.9 * k, .8 * k, 4.6 * k), (HUB_X - .05, HUB_Y, 3.6)), 'cab': ((0, 1.24 + .98 + LIFT, .75 + 1.6), (0, 1.5 + LIFT, 6.0)),
+        'top': ((.01, 12 * k, 1.4), (0, 0, 1.4)), 'under': ((3.2 * k, -.9, 1.4), (0, .6 + LIFT, 1.6)),
     })

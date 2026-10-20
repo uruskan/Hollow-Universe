@@ -275,20 +275,24 @@ public sealed partial class ShipSystem : ZoneSystem
                 pilot = PlayerOf(pilotEntity);
             }
             // Leaving the helm releases rotation/boost, not the movement lever or engine switch.
-            ShipInput input = pilot is { Sleeping: false } || ship.Autopilot ? ship.Input : ship.Input.Unattended();
-            // A ship whose engines need a pilot (the KA-FA 1500's, docs/MINICOPTER.md M12) stops when nobody awake is at its helm.
-            input.Engines = !ship.State.Has(ShipFlags.EngineStopped) && (ship.Def.NeedsPilot
-                ? pilot is { Sleeping: false } || ship.Autopilot
-                : pilot != null || ship.Autopilot || ship.State.Has(ShipFlags.EnginesOn));
+            bool attended = pilot is { Sleeping: false } || ship.Autopilot;
+            ShipInput input = attended ? ship.Input : ship.Input.Unattended();
+            // A ship whose engines need a pilot (the KA-FA 1500's, docs/MINICOPTER.md M12; the TOGG's) stops when nobody
+            // awake is at its helm, unless it was started by hand, when it idles hands off (ShipSystem.Engine.cs).
+            input.Engines = EnginesRun(ship, attended, ref input);
             ReconcileAttitudeHold(ship, input, pilot);
-            if (ship.ParkedBody != 0 && input.Engines)
+            // A vehicle on wheels keeps its body while it moves (VEHICLES.md §6.4, below); a ship's goes when it wakes to fly.
+            if (ship.ParkedBody != 0 && input.Engines && !KeepsBody(ship) && !ship.State.Asleep)
             {
                 ShipCollider.RemoveParked(ship.ParkedBody);
                 ship.ParkedBody = 0;
             }
+            // Its riders' weight, a landing's blow and a jump's push on its springs (ShipSystem.Riders.cs).
+            Riders(ship);
             ship.Events = ship.Def.Motor.Step(ref ship.State, input, ship.Def, context, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody);
             ship.Fuel.Consume(ship.Events.FuelUsed);
             ship.SyncFuel();
+            IdleByHand(ship);
             ShipSteps++;
             RunOver(ship);
             StepDoors(ship);
@@ -307,7 +311,11 @@ public sealed partial class ShipSystem : ZoneSystem
             }
             CarrySeated(ship);
             bool park = ship.State.Asleep && !ship.Piloted && !ship.Autopilot && !ship.Destroyed && !ship.InOrbit;
-            if (park && ship.ParkedBody == 0)
+            if (KeepsBody(ship) && !ship.Destroyed && !ship.InOrbit)
+            {
+                KeepBody(ship);
+            }
+            else if (park && ship.ParkedBody == 0)
             {
                 Park(ship);
             }

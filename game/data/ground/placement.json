@@ -101,6 +101,7 @@
     {"kind": "ship", "key": "motorboat"},
     {"kind": "ship", "key": "ka-fa-1500"},
     {"kind": "ship", "key": "togg"},
-    {"kind": "ship", "key": "zamazingo"}
+    {"kind": "ship", "key": "zamazingo"},
+    {"kind": "ship", "key": "monster-togg"}
   ]
 }
