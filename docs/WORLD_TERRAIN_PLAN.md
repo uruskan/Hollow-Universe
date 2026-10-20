@@ -474,7 +474,8 @@ Iteration 4 runs in its own session on art files only.
        cliff pieces, flat sites, the landing site.
 
      All twelve take 76 s, three at a time (15 s once their bakes are cached). The owner picks one, or describes the
-     Earth they want.
+     Earth they want. Layout 6, the one I recommended, went into the game the same day (revision 12) for the owner to
+     fly before choosing. `earth bake` lists its places worth a look, flat sites included, as F1 teleports.
   2. **Monument sites.** About 2 large, 5 medium and 10 small, plus roadside ones, on the flattest sites. Their pads
      are flattened in the bake before erosion, so drainage and cliffs respect them.
   3. **Rivers.** The design is ready but no code is written:

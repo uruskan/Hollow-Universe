@@ -210,6 +210,12 @@ public static class WalkingReport
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                 $"lake: {lake.Area / 10_000:0.0} ha, {lake.MaxDepth:0.0} m deep at {lake.Level:0.0} m: teleport {At(lake.Centre)}"));
         }
+        // Flat land for monuments: the largest circles of nearly level ground (the layouts' magenta and yellow circles).
+        foreach (FlatSite site in bake.FlatSites(0.09, 2).Where(s => s.Radius >= 75))
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"flat land: a circle of {site.Radius:0} m, {site.Area / 10_000:0.0} ha in all: teleport {At(site.Centre)}"));
+        }
         return 0;
     }
 

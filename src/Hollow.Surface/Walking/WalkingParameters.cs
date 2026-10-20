@@ -13,16 +13,17 @@ public sealed record WalkingParameters
     public static WalkingParameters Default { get; } = new();
 
     /// <summary>
-    /// Earth revision 11: layout variant 5, with corrected ice/alpine biome allocation and generated populations (5),
+    /// Earth revision 12: layout variant 6, with corrected ice/alpine biome allocation and generated populations (5),
     /// cliff formations traced along their faces (6–9), and since 10 its shape baked and eroded (docs/WORLD_TERRAIN_PLAN.md
     /// §4.1, iteration 1), with T2's cliff formations off until the cliff kit replaces them. Revision 10 is also where doors
     /// are saved with a layout, hinge side and swing side (docs/DOORS.md; door version 2 reads version 1 as well). 11: the
-    /// cliff kit placed (iteration 5), a sea three times deeper, and the kit's collision cut to each tile.
+    /// cliff kit placed (iteration 5), a sea three times deeper, and the kit's collision cut to each tile. 12: layout 6
+    /// (it was 5), for the owner to fly before choosing one (WORLD_TERRAIN_PLAN.md §7a, step 1).
     /// </summary>
     public static WalkingParameters Earth { get; } = new()
     {
-        TerrainRevision = 11,
-        LayoutVariant = 5,
+        TerrainRevision = 12,
+        LayoutVariant = 6,
         OceanCover = 0.35,
         ContinentWavelength = 3200,
         IslandShare = 0.12,
