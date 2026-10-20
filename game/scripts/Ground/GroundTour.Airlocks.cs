@@ -14,9 +14,9 @@ namespace HollowUniverse.Ground;
 
 public partial class GroundTour
 {
-    // --tour-steps airlocks (docs/DOORS.md §7): the hosted game's two airlocks, each built by the admin's `airlock` command on a
-    // level dry site: a triangle with two single doors (layouts 1 and 2) and a square room with a double door and a single
-    // door (0 and 1). Each is pictured shut and then, the doors opened through the door verb, open: from above, from outside
+    // --tour-steps airlocks (docs/DOORS.md §7): the hosted game's three airlocks, each built by the admin's `airlock` command on a
+    // level dry site: a triangle with two single doors (layouts 1 and 2), a square room with a double door and a single
+    // door (0 and 1), and the owner's airlock, the triangle with both doors swinging in (0 and 0). Each is pictured shut and then, the doors opened through the door verb, open: from above, from outside
     // the first doorway, from outside the second and from inside, with the doors moving by the server's motion record.
     private async Task AirlockTour()
     {
@@ -30,7 +30,7 @@ public partial class GroundTour
         View.Interface.Visible = false;
         try
         {
-            foreach ((string kind, string layouts) in new[] { ("triangle", "1 2"), ("room", "0 1") })
+            foreach ((string kind, string layouts, string label) in new[] { ("triangle", "1 2", "triangle"), ("room", "0 1", "room"), ("triangle", "0 0", "triangle-both-in") })
             {
                 Num.Vector3 site = await AirlockSite(ground);
                 Admin("noclip", "off");
@@ -70,10 +70,10 @@ public partial class GroundTour
                     Vector3D centre = (InFrame(first, 0, 0, 0) + InFrame(second, 0, 0, 0)) / 2;
                     Vector3D above = (InFrame(first, 0, 0, 2.2) + InFrame(second, 0, 0, 2.2)) / 2 + Vector3D.UnitY * 5.4;
                     string state = open ? "open" : "shut";
-                    await ClanBaseShot($"airlock-{kind}-{state}-above", frame, above, centre + Vector3D.UnitY * 0.3);
-                    await ClanBaseShot($"airlock-{kind}-{state}-outside-first", frame, InFrame(first, 0.2, 1.5, 3.4), InFrame(first, 0, 1.0, 0));
-                    await ClanBaseShot($"airlock-{kind}-{state}-outside-second", frame, InFrame(second, -0.2, 1.5, 3.4), InFrame(second, 0, 1.0, 0));
-                    await ClanBaseShot($"airlock-{kind}-{state}-inside", frame, InFrame(second, 0.1, 1.5, -0.6), InFrame(first, 0, 1.0, 0));
+                    await ClanBaseShot($"airlock-{label}-{state}-above", frame, above, centre + Vector3D.UnitY * 0.3);
+                    await ClanBaseShot($"airlock-{label}-{state}-outside-first", frame, InFrame(first, 0.2, 1.5, 3.4), InFrame(first, 0, 1.0, 0));
+                    await ClanBaseShot($"airlock-{label}-{state}-outside-second", frame, InFrame(second, -0.2, 1.5, 3.4), InFrame(second, 0, 1.0, 0));
+                    await ClanBaseShot($"airlock-{label}-{state}-inside", frame, InFrame(second, 0.1, 1.5, -0.6), InFrame(first, 0, 1.0, 0));
                 }
                 View.CameraLift = 0;
                 GD.Print($"[airlocks] {kind} {layouts}: shut and open pictured.");

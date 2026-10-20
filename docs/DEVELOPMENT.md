@@ -4734,3 +4734,13 @@ space 3.2 to 5.6 m up through the opening is clear open, shut and every 7 ticks 
 The shove test now asserts each tick that the closing leaf never has the player on its far side, instead of a side. `DOORS.md` marks
 the new door's default layout and the reversal on a second press as unconfirmed or proposed (owner to decide), and notes protocol 44 and 45 for a
 re-check at landing. Validation: build 0 warnings; `DoorTests` 9/9.
+
+### 20 October 2026 — doors: the owner's airlock, both doors swinging in
+
+The second review pointed out that the airlock tested so far (outer door in, inner door out) was not the owner's: both open leaves end up in the small
+room. `DoorTests` now has that layout (`AnAirlockWithBothDoorsSwingingIntoTheRoomClosesTheWalkWithoutTheLeavesCrossing`, and 0/0, 1/1 and 0/1 in the walking
+test): layouts 0, 0 (or its mirror 1, 1) close the walk and the open leaves clear one another; 1, 0 closes it but the leaves cross (both hang at the corner);
+0, 1 is free. A leaf-against-leaf sampling check also shows the room airlock's leaves clear of one another. `DOORS.md` §7 names the layouts and the known
+cost of the doubled back faces (kit GLBs 2.7–3.3 MB → 6.3–8.0 MB). Pictures: sandbox `triangle-both-in-*` and hosted `airlock-triangle-both-in-*`
+(`--tour-steps airlocks` now takes three layouts; the hosted set was re-taken whole). Validation: build 0 warnings; `DoorTests` 10/10. The layouts follow the
+owner's words as relayed; the owner's own pictures were not seen here.

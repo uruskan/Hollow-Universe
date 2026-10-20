@@ -342,6 +342,60 @@ public static class DoorTests
         }
     }
 
+    // Whether any open leaf of one door passes through any open leaf of another (doors ignore each other, so two leaves that
+    // cross would be drawn through one another): the leaves' volumes sampled every 4 cm against the other's convex parts.
+    private static bool LeavesCross(Door a, Door b)
+    {
+        for (int i = 0; i < a.Def.Leaves.Count; i++)
+        {
+            for (int j = 0; j < b.Def.Leaves.Count; j++)
+            {
+                (Vector3 pa, Quaternion ra) = a.Leaf(i, a.Open);
+                (Vector3 pb, Quaternion rb) = b.Leaf(j, b.Open);
+                Quaternion inverseA = Quaternion.Inverse(ra);
+                foreach (ConvexPart theirs in BuildingWorld.LeafParts(b, j))
+                {
+                    for (float x = theirs.Min.X; x <= theirs.Max.X + 1e-4f; x += 0.04f)
+                    {
+                        for (float y = theirs.Min.Y; y <= theirs.Max.Y + 1e-4f; y += 0.04f)
+                        {
+                            for (float z = theirs.Min.Z; z <= theirs.Max.Z + 1e-4f; z += 0.02f)
+                            {
+                                Vector3 inA = Vector3.Transform(pb + Vector3.Transform(new Vector3(x, y, z), rb) - pa, inverseA);
+                                foreach (ConvexPart mine in BuildingWorld.LeafParts(a, i))
+                                {
+                                    if (mine.Outside(inA) < 0)
+                                    {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    [Test]
+    public static void AnAirlockWithBothDoorsSwingingIntoTheRoomClosesTheWalkWithoutTheLeavesCrossing()
+    {
+        // The owner's airlock (DOORS.md §7): the outer door swings in and so does the inner one ("the inner door opens toward the
+        // outside"): both open leaves end up in the small room, one hung against a wall, the other across the walk. Doors ignore
+        // each other, so two hinge sides that put the leaves through one another are no airlock, whatever they block.
+        foreach ((int a, int b, bool walkable, bool cross) in new[] { (0, 0, false, false), (1, 1, false, false), (1, 0, false, true), (0, 1, true, false) })
+        {
+            (BuildingWorld world, Piece slab, Piece pa, Piece pb) = Triangle(a, b, open: true);
+            using (world)
+            {
+                Assert.Equal(walkable, Walkable(world, slab, pa, pb), $"layouts {a}/{b}, both open and swinging in: the walk is " + (walkable ? "free" : "closed"));
+                Assert.Equal(cross, LeavesCross(pa.Door!, pb.Door!), $"layouts {a}/{b}: the open leaves " + (cross ? "cross" : "clear one another"));
+                Assert.True(pa.Door!.Layout >> 1 == 0 && pb.Door!.Layout >> 1 == 0, $"layouts {a}/{b} both swing in (bit 1 is the swing)");
+            }
+        }
+    }
+
     [Test]
     public static void ADoubleDoorOpenInwardAndASingleDoorHingedOnTheRightMakeAnAirlockOnlyTogether()
     {
@@ -350,6 +404,15 @@ public static class DoorTests
         Assert.True(!RoomWalk(0, 3) && RoomWalk(-1, 3), "the single door swinging out, hinged on the right, does too");
         Assert.True(RoomWalk(0, 0) && RoomWalk(0, 2), "hinged on the left it does not");
         Assert.True(RoomWalk(2, 0) && RoomWalk(2, 1) && RoomWalk(2, 2) && RoomWalk(2, 3), "a double door swinging out leaves every layout free");
+        // Doors ignore each other, so the airlock's two open leaves must not pass through one another.
+        foreach (int single in new[] { 1, 3 })
+        {
+            (BuildingWorld world, _, Piece wide, Piece door) = Room(0, single);
+            using (world)
+            {
+                Assert.True(!LeavesCross(wide.Door!, door.Door!), $"the double door in and the single door at layout {single}: the open leaves clear one another");
+            }
+        }
     }
 
     // A piece on a slab's edge as a player would have it (the placement's own plan).
@@ -362,7 +425,7 @@ public static class DoorTests
     [Test]
     public static void ACharacterWalkingToTheOtherDoorIsStoppedByTheAirlockAndWalksThroughItsMirror()
     {
-        foreach ((int a, int b, bool through) in new[] { (1, 2, false), (0, 3, true) })
+        foreach ((int a, int b, bool through) in new[] { (1, 2, false), (0, 3, true), (0, 0, false), (1, 1, false), (0, 1, true) })
         {
             using var rig = new GameRig();
             Zone zone = rig.Zone;

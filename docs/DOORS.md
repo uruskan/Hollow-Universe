@@ -38,6 +38,11 @@ door standing out of its frame). A mirrored right-hinged copy of every single le
 the kit's own left and right leaves, made symmetric the same way. The garage door's art is the kit's own, unchanged: its
 two faces are slatted alike, its housing is wider than the wall on purpose.
 
+**A known cost.** Both faces alike means the back face is a copy of the front's relief, so each leaf has about twice the triangles,
+and the kit GLBs are bigger: `doors_metal.glb` 3.3 → 8.0 MB, `doors_wood.glb` 2.8 → 6.3 MB, `doors_armored.glb` 2.7 → 6.3 MB (the
+files the placed doors are drawn from). A lighter back (the front's decimated copy) is an
+option if the cost shows in a frame or a download; it has not been measured to.
+
 ## 3. Layouts: hinge side and swing side
 
 A **layout** says on which side of the opening the hinge is and which way the leaves swing. It is one small number
@@ -136,21 +141,35 @@ pose (`Door.LockSpot`).
 An airlock is two doors the builder places so that, with both open, the walkway between them is blocked. Our rule needs
 nothing special for it: leaves are solid whether open or shut, and the layouts (§3) let a builder choose where the open leaf
 ends up. `DoorTests` finds which layouts close which walks by flooding the floor with the character's capsule (the movement
-tuning's radius and height) and, for the two cases below, by walking a character through the real movement code:
+tuning's radius and height), by walking a character through the real movement code, and by sampling whether two open leaves
+pass through one another (doors ignore each other, so leaves that cross would be drawn through each other and are no airlock):
 
-1. **A triangle foundation with two single doors** on two of its edges (any two meet at a corner, 60° inside). Seen from
-   outside, one door's right and the other's left point to that shared corner. A door **hinged on the corner's side and
-   swinging into the room** puts its leaf across the walk to the other doorway: the first door (cyclically) with layout 1 or the
-   second with layout 0. With the first door at layout 1 and the second swinging out (layout 2) both open, nobody passes (the
-   outer door opens in, the inner opens out); hung the other way (layouts 0 and 3: hinged at the far sides, one swinging out)
-   the leaves lie against the walls and the walk is free. In so small a room one inward leaf is enough; the second door
-   only has to open away.
-2. **A double door on one wall and a single door on the next** in a square room: the double door swinging in (layout 0) with the
+1. **The owner's airlock: a triangle foundation with two single doors, both swinging into the room.** The owner's words: the
+   outside door opens toward the inside and the inside door opens toward the outside, so that with both open nobody gets in.
+   The inside door "opens toward the outside" as the base's inside sees it: into the airlock, so both open leaves end up in the
+   small room, one hung against a wall and the other across the walk. Any two edges of a triangle meet at a corner, 60° inside;
+   seen from outside, one door's right and the other's left point to it. For two doors that both swing in (layouts 0 to 1,
+   `DoorTests.AnAirlockWithBothDoorsSwingingIntoTheRoomClosesTheWalkWithoutTheLeavesCrossing`):
+
+   | First, second | The walk | The open leaves |
+   |---|---|---|
+   | **0, 0** | closed: the first hangs from the far side and lies against the third wall, the second hangs at the corner and stands across the walk | clear one another |
+   | **1, 1** | closed: the mirror of 0, 0: the first stands across, the second lies against its wall | clear one another |
+   | 1, 0 | closed | **cross** (both hang at the corner): not usable |
+   | 0, 1 | free: both lie against the walls | clear one another |
+
+   Use **0, 0** (or its mirror 1, 1). Pictures: `images/abtest-b/doors/airlocks-sandbox/triangle-both-in-*` and the hosted
+   `airlock-triangle-both-in-*`. (The layouts above follow the owner's description; the owner's own pictures were not seen here.)
+2. **The same triangle with the outer door swinging in and the inner one out** is an airlock too, from the outer door alone: the
+   first door with layout 1 (hung at the corner, swinging in) or the second with layout 0 closes the walk; with the second door
+   swinging out (layout 2) its leaf is outside the room and the outer leaf does all the blocking. Hung the other way (layouts 0
+   and 3: hinged at the far sides, one swinging out) the leaves lie against the walls and the walk is free. Kept as an extra layout.
+3. **A double door on one wall and a single door on the next** in a square room: the double door swinging in (layout 0) with the
    single door hinged on the right, in or out (layout 1 or 3), leaves the way free with either door open alone and closes it with
-   both open. Hinged on the left (0 or 2), or with the double door swinging out, the way is free.
+   both open, the open leaves clear of one another. Hinged on the left (0 or 2), or with the double door swinging out, the way is free.
 
-Pictures of both, open and shut: `images/abtest-b/doors/airlocks-sandbox` (`--view build --scene airlocks --tour`), and the hosted
-set `images/abtest-b/doors/hosted`.
+Pictures of each, open and shut: `images/abtest-b/doors/airlocks-sandbox` (`--view build --scene airlocks --tour`), and the
+hosted set `images/abtest-b/doors/hosted`.
 
 ## 8. Replication and saving
 

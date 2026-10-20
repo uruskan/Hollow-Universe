@@ -16,6 +16,8 @@ namespace HollowUniverse.Build;
 //      S1  the same triangle hung the other way (layouts 0 and 3): the leaves hug the walls and the way is free
 //      S2  a square room with a wooden double door swinging in on one edge and a wooden door hinged on the right (layout 1) on
 //          the next: either alone leaves the way free, together they close it
+//      S3  the owner's airlock: the same triangle with both doors swinging in (layouts 0 and 0): the first hangs against a wall,
+//          the second across the walk, and the open leaves clear one another
 //
 // --tour <folder> (relative to game/) takes, for each structure and for open and shut doors, a picture from above, one from
 // outside the first doorway and one from inside, and a sheet of them all, then quits.
@@ -27,7 +29,7 @@ public partial class BuildSandbox
 
     private void Airlocks(BuildingFrame first)
     {
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 4; i++)
         {
             var flat = new BuildingFrame(first.ToZone(new Vector3D(JointSpacing * i, 0, 0)), first.AxisX, first.AxisY, first.AxisZ);
             double highest = double.MinValue;
@@ -53,9 +55,10 @@ public partial class BuildSandbox
             {
                 0 => new[] { Fit("wooden-door", one, 1), Fit("wooden-door", two, 2) },
                 1 => new[] { Fit("wooden-door", one, 0), Fit("wooden-door", two, 3) },
-                _ => new[] { Fit("wooden-double-door", one, 0), Fit("wooden-door", two, 1) },
+                2 => new[] { Fit("wooden-double-door", one, 0), Fit("wooden-door", two, 1) },
+                _ => new[] { Fit("wooden-door", one, 0), Fit("wooden-door", two, 0) },
             };
-            _airlocks.Add(new Airlock(frame, one, two, doors, i switch { 0 => "triangle-airlock", 1 => "triangle-free", _ => "room-airlock" }));
+            _airlocks.Add(new Airlock(frame, one, two, doors, i switch { 0 => "triangle-airlock", 1 => "triangle-free", 2 => "room-airlock", _ => "triangle-both-in" }));
         }
         _model.SelectBelt(1);
         Look(_airlocks[0].Frame, new Vector3D(0, 6, 5), new Vector3D(0, 0.3, 0));
