@@ -3,7 +3,7 @@
 Generated from the repository: every C# file, the types it declares (nested ones in brackets), its length and its
 own first line of explanation. HOW_IT_WORKS.md says how these run together; this is the map. Regenerate it after
 a package with the script in the session that made it, or by hand: the shape is one table per folder.
-1,085 files, 273,522 lines of C#.
+1,086 files, 274,539 lines of C#.
 
 ## src/Hollow.Core
 
@@ -70,13 +70,13 @@ The 1:1 galaxy: the density model, sectors and cells, the catalogue, names, star
 
 Planets as surfaces: the cube-sphere, terrain, biomes, scatter, the sky, the zone frame.
 
-### src/Hollow.Surface (36 files, 7,909 lines)
+### src/Hollow.Surface (36 files, 7,912 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `Biomes.cs` | 407 | Biome, GroundMaterial, ScatterKind, ClimateSample, BiomeTable | Land biomes (GROUND.md §4.6), picked from the climate: annual mean temperature, moisture and height. |
 | `CliffGeometry.cs` | 87 | CliffGeometry | CliffGeometry: the cliff scans' low-complexity collision meshes and bounds (height, width, gradient range, material family), read once from data. |
-| `CliffPlacements.cs` | 847 | CliffPlacement, CliffFaceSample, CliffFormationCacheDiagnostics, CliffPlacements [CacheEntry, FaceSample, WallSection] | CliffPlacements: stable cliff formations on the walking world's steep dry faces (docs/TERRAIN_SCENERY_PLAN.md T2): surveys, placements, hit and hold tests, cache. |
+| `CliffPlacements.cs` | 850 | CliffPlacement, CliffFaceSample, CliffFormationCacheDiagnostics, CliffPlacements [CacheEntry, FaceSample, WallSection] | CliffPlacements: stable cliff formations on the walking world's steep dry faces (docs/TERRAIN_SCENERY_PLAN.md T2): surveys, placements, hit and hold tests, cache. |
 | `CliffRecipe.cs` | 149 | CliffRecipe | CliffRecipe: a cliff formation recipe (docs/TERRAIN_SCENERY_PLAN.md T2, docs/LANDFORM_SURVEY.md): which scans a face takes, group size and rock share on gentle faces. |
 | `CliffWalls.cs` | 414 | CliffWall, CliffWallLod, CliffPlacements [WallStation] | A wall's rock skin in one cell (docs/TERRAIN_SCENERY_PLAN.md T2): a mesh following the heightfield's steep face from foot to crest, traced a metre and a half at a time along its run, with coarser triangle lists over the same vertices |
 | `CubeSphere.cs` | 263 | CubeSphere, TileKey | The cube-sphere of a planet surface (GROUND.md §4.6): six faces, each a square of face coordinates |
@@ -168,7 +168,7 @@ Planets as surfaces: the cube-sphere, terrain, biomes, scatter, the sky, the zon
 | `FormationWorldSelection.cs` | 63 | FormationWorldSelection | Explicit immutable selection for a formation-capable world factory. |
 | `IGradedTerrain.cs` | 100 | IGradedTerrain, GradedTerrainFields, FormationProtectedSite, FormationPlannerSettings, FormationPlannerLimits | IGradedTerrain, the finalized radial terrain a planner may read (height, water, raw fields), with protected sites, planner settings and limits. |
 
-### src/Hollow.Surface/Walking (9 files, 2,172 lines)
+### src/Hollow.Surface/Walking (10 files, 3,091 lines)
 
 The walking-scale ground of S4 ([WALKING_GROUND.md](WALKING_GROUND.md)).
 
@@ -177,12 +177,13 @@ The walking-scale ground of S4 ([WALKING_GROUND.md](WALKING_GROUND.md)).
 | `Drainage.cs` | 844 | WalkingLake, DrainageSegment, Drainage | Where water goes, worked out once: a priority flood on a cube-sphere grid of about 30 m, catchments, lakes in hollows with smooth shores, streams and dry valleys from source to the sea or a lake, canyons and gorges; `Shape` cuts them into a height |
 | `ReliefProvinces.cs` | 134 | Relief, ReliefProvinces | Plains, hills, tablelands and mountains: provinces spread over the sphere, picked by shares and an uplift field, blended by normalised Gaussian weights |
 | `RidgedNoise.cs` | 88 | RidgedNoise | Eroded ridged noise for the walking ground's mountains: every octave turned by its own rotation and crests rounded, so no ridgeline runs straight |
+| `TerrainBake.cs` | 769 | BakeInput, TerrainBake | What the bake reads of the designed relief at a cell: its height, and how much of it is tableland or mountain. |
 | `WalkingGradedTerrain.cs` | 69 | WalkingGradedTerrain | WalkingGradedTerrain: the walking world exposed as IGradedTerrain for formation construction, with the physical input identity of its generator. |
-| `WalkingParameters.cs` | 260 | WalkingParameters | The walking-scale ground's numbers in one table |
+| `WalkingParameters.cs` | 315 | WalkingParameters | The walking-scale ground's numbers in one table |
 | `WalkingWorld.Collision.cs` | 32 | WalkingWorld | WalkingWorld's planned ground collision: prepares and builds a tile's selected collision mesh from the selected bundle. |
 | `WalkingWorld.Formations.cs` | 59 | WalkingWorld [SelectedBundle] | WalkingWorld's selected bundle: lattice, formation field, pins and monument collision built together, plus identity matching of descriptor and limits. |
 | `WalkingWorld.Trace.cs` | 22 | WalkingWorld | WalkingWorld's TraceGround: the selected ground trace through formations and monuments, unsupported on worlds without selected collision. |
-| `WalkingWorld.cs` | 664 | WalkingSample, WalkingWorld | The ground of a small world at walking scale: an `ISurface` and `IScatterField` from landmasses, provinces, coasts and the drainage; climate at real-equivalent heights, biomes, woods, the landing site |
+| `WalkingWorld.cs` | 759 | WalkingSample, WalkingWorld | The ground of a small world at walking scale: an `ISurface` and `IScatterField` from landmasses, provinces, coasts and the drainage; climate at real-equivalent heights, biomes, woods, the landing site |
 
 ## src/Hollow.Simulation
 
@@ -871,7 +872,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `SoundMeter.cs` | 80 | SoundMeter | Loudness of the game's own sound files, measured in the engine: each stream is decoded through Godot |
 | `SoundViewer.cs` | 788 | SoundViewer | The audition viewer (--view sounds, GROUND.md §4.9): every event of the catalogue in a list (a click plays |
 
-### game/scripts/Build (15 files, 3,242 lines)
+### game/scripts/Build (15 files, 3,266 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -879,9 +880,9 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `BuildSandbox.Airlocks.cs` | 125 | BuildSandbox [Airlock] | --view build --scene airlocks: the airlocks of docs/DOORS.md §7, each a structure of its own 14 m apart, doors open and shut: S0 a triangle foundation with a wooden door on each of two edges … |
 | `BuildSandbox.Check.cs` | 143 | BuildSandbox | --view build --scene empty --build-check: plays one round of building through the sandbox's own input paths (the aim, |
 | `BuildSandbox.ClanBase.cs` | 22 | BuildSandbox | BuildSandbox's clan scene (--view build --scene clan): places the server's 3x3 clan base preset (data/ground/admin-bases/clan-3x3.json) at --grade 2 by default and aims the camera |
-| `BuildSandbox.Doors.cs` | 156 | BuildSandbox | --view build --scene doors: every door the building has, each in its own doorway or wall frame along one wall, for the pictures of docs/DOORS.md (both faces, the lock on both faces, the frame holding the leaf). |
+| `BuildSandbox.Doors.cs` | 177 | BuildSandbox | --view build --scene doors: every door the building has, each in its own doorway or wall frame along one wall, for the pictures of docs/DOORS.md (both faces, the lock on both faces, the frame holding the leaf). |
 | `BuildSandbox.Joints.cs` | 227 | BuildSandbox | --view build --scene joints: the building's joints in every grade (GROUND.md §6.3, "Fit"), one group a grade on a |
-| `BuildSandbox.cs` | 794 | BuildSandbox [Surroundings] | The build sandbox (--view build, GROUND.md §6.3): a local zone on the first world's stand-in surface with one |
+| `BuildSandbox.cs` | 797 | BuildSandbox [Surroundings] | The build sandbox (--view build, GROUND.md §6.3): a local zone on the first world's stand-in surface with one |
 | `BuildSandboxUi.cs` | 208 | BuildSandboxUi | The ground interface's view model for the build sandbox (GROUND.md §6.3, §8.1): a belt of building tools, the plan's |
 | `BuildingAssets.cs` | 271 | BuildingAssets | The building kit's art in the game (GROUND.md §6.3, §9): the meshes of every piece in every grade at three levels of |
 | `BuildingRadials.cs` | 147 | IHammerActions, PlanRadial, BuildingRadials | What the hammer's radial does to the piece aimed at: the game sends intents, the build sandbox applies the rules. |
@@ -1320,7 +1321,7 @@ Tools: the bots and the load test, the message generator, the generator's report
 |---|---|---|---|
 | `Program.cs` | 948 | Program [Row] | Converts a star catalogue (CSV) into Hollow Universe's compact catalogue (GALAXY.md §8). |
 
-### tools/Hollow.GeneratorReport (10 files, 4,113 lines)
+### tools/Hollow.GeneratorReport (10 files, 4,184 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
@@ -1333,7 +1334,7 @@ Tools: the bots and the load test, the message generator, the generator's report
 | `Program.cs` | 487 | Program | Measurements of the generator that are too slow or too visual for the test suite: generation speed, and later |
 | `Shells.cs` | 170 | Shells | Real plus generated stars per level in shells around Sol, against what the density model expects |
 | `SurfaceReport.cs` | 564 | SurfaceReport | The first world's surface (GROUND.md §3, §4.6): maps, speed, the landing-site search and the times of day used for |
-| `WalkingReport.cs` | 1289 | WalkingReport [Spot, Shot] | The walking-scale ground (WALKING_GROUND.md §15): equal-area maps, globe views, close-ups with the scatter, slope maps, places for close-ups and for the game's ground-level shots, the ground's materials and plants at a point, the stand-in beside it, speed and numbers |
+| `WalkingReport.cs` | 1360 | WalkingReport [Spot, Shot] | The walking-scale ground (WALKING_GROUND.md §15): equal-area maps, globe views, close-ups with the scatter, slope maps, places for close-ups and for the game's ground-level shots, the ground's materials and plants at a point, the stand-in beside it, speed and numbers |
 
 ### tools/Hollow.MapExport (4 files, 1,404 lines)
 
