@@ -1731,6 +1731,10 @@ def door_roles(material, placement=None):
 
 # Item keys (items.json, models.json) and door keys (building.json) → role → event. The ground mode asks
 # SoundCatalogData.ItemEvent(item, role); the tests check every item that needs a sound has its roles.
+# Ground vehicles' engines, tyres and suspension by ship kind (sounds.json `engines`; vehicle_sounds.ENGINES, filled by
+# everything()).
+ENGINES = {}
+
 ITEMS = {
     "rock": MELEE, "torch": MELEE, "stone-hatchet": HEAVY, "stone-pickaxe": HEAVY, "metal-hatchet": HEAVY,
     "metal-pickaxe": HEAVY, "salvaged-axe": HEAVY, "wooden-spear": HEAVY, "stone-spear": HEAVY, "machete": MELEE,
@@ -1882,4 +1886,10 @@ def everything():
     motorboat()
     __import__("repair_actions").recipes()
     __import__("ka_fa_sounds").recipes()
+    # Ground vehicles (docs/VEHICLES.md §7.1): their events, their start, stop and landing roles, and their engines.
+    vehicles = __import__("vehicle_sounds")
+    vehicles.recipes()
+    ITEMS.update(vehicles.ROLES)
+    ENGINES.clear()
+    ENGINES.update(vehicles.ENGINES)
     return list(OUTS), list(EVENTS)

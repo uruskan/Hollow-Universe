@@ -6,8 +6,8 @@ namespace Hollow.Client.Effects;
 /// What a ground vehicle's diesel shows at its stacks (VEHICLES.md §9.9), from plain inputs every client knows: whether it
 /// runs, its throttle, the load the engine works against and a gear change. A thin haze at idle; black soot that comes in
 /// quickly with the load and goes slowly; a puff on starting, at a gear change and on a stab of the throttle. The view
-/// (ShipsView.Vehicles.cs) turns these into fx.json's <c>exhaust.*</c> effects. Until the shared revs model gives a load and
-/// its gear changes, the load is the throttle and there are no shifts.
+/// (ShipsView.Vehicles.cs) turns these into fx.json's <c>exhaust.*</c> effects, the load and the gear changes its revs'
+/// (<c>Hollow.Client.Vehicles.VehicleRevs</c>).
 /// </summary>
 public sealed class VehicleSmoke
 {

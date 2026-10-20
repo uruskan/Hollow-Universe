@@ -143,9 +143,9 @@ a water tank, a roof-mounted gun station (the Iron Wake's stations, IRON_WAKE.md
 
 | | Value |
 |---|---|
-| Wheelbase | 1.52 m |
-| Tyres | **0.80 m** front (0.53 m rim), **0.76 m** rear (0.46 m rim), knobbed: an enduro's, not a scooter's |
-| Seat height | 0.95 to 1.0 m; 0.32 m under the frame; 0.28 m of travel |
+| Wheelbase | 1.544 m |
+| Tyres | **0.90 m** front (0.53 m rim, 0.15 m wide), **0.86 m** rear (0.46 m rim, 0.20 m wide), tall knobs: an off-road bike's, not a scooter's (the owner found the first 0.80 and 0.76 m too small for off-road, 20 October 2026) |
+| Seat height | 1.05 m (0.95 to 1.0 m before the bigger tyres); 0.28 m of travel |
 | Mass | Frame 95 kg; about 160 kg ready |
 | Tank | 60 fuel (long-range tank 120) |
 
@@ -369,6 +369,30 @@ a control post with a lever and a lamp, wheel chocks and a bike clamp. Its power
 two-seat cab and the nose engine, at player height and at 30 m, in the game's light. Until then the game draws blocks of the right
 size (the sheet's), so the driving can be tuned without the art. (On 20 October 2026 the owner asked for the finished models
 at once; the first pass is §9.8.)
+
+### 7.1 The sound (the owner, 20 October 2026: "a really good diesel heavy motor sound … suspension sounds, tire sounds based on
+where it's driven … AAA level quality")
+
+A vehicle is heard as a machine with a gearbox, not as a pitch that rises with speed:
+
+- **Revs.** The motor drives the wheels by power alone; the sound's gearbox (`VehicleRevs`, presentation) gives the engine its
+  revs from what every client sees: its speed along its nose, its throttle, its engine running and its wheels on the ground. It
+  slips the clutch to pull away, changes up as the speed grows and down as it falls (each change a clunk and a moment off the
+  load), free-revs in neutral and with its wheels in the air, bounces off its limiter, drags on the overrun, and spools a
+  turbo by revs and load. Its revs, gear, load and boost are also the HUD's and the exhaust's.
+- **The engine** is loops made at several revs, on the throttle and off it (`sounds.json` `engines`): each pitched to the revs
+  and crossfaded with its neighbours at equal power, the throttle's loops against the overrun's by the load. The Zamazingo
+  is an air-cooled single: its thump at idle, its bark under load, pops and crackle on the overrun. The TOGG is a turbo-diesel
+  six: its clatter at idle, the lope of its six cylinders, a deep load through two stacks, the turbo's whistle and its release,
+  and only air on the overrun (fuel cut). Starts and stops are their own sounds: the bike kicked, the diesel cranked by its
+  starter, cold and loud until it settles.
+- **The tyres** play the ground under the vehicle (its physical surface: grass, dirt, gravel, sand, rock, snow, water; wood
+  and metal as rock), swelled and pitched by speed, a new ground crossfading in; a skid when it slides sideways or spins its
+  wheels pulling away on loose ground; a splash into water.
+- **The suspension** knocks when a wheel hits its stop or is struck hard, creaks as it works (people climbing on, the body
+  rocking), and a landing slams it.
+- Each kind's numbers (idle, redline, gears, flywheel, loops and their levels, tyres' pitch and level, which knock) are its
+  `engines` entry, so a new vehicle is a new entry; the monster TOGG is the TOGG's, pitched down and louder.
 
 ## 8. The vehicle lift
 
@@ -594,7 +618,7 @@ and replace the blocks:
   barrel and head, the header curling to a high silencer), a mustard tank between shrouds with the name across a black
   band, a long ribbed seat, cream plastics (the high fender, the number board with its lamp and a hand-painted 7, the
   tail), a box-section swingarm on a red mono-shock, the chain, wire-spoked wheels on knobbed tyres, drilled discs. 34.8k
-  triangles at LOD0 (§7's 25–35k), 18k and 7.6k.
+  triangles at LOD0 (§7's 25–35k), 18k and 7.6k; with §9.9's bigger tyres 36.2k, 18.8k and 8.0k.
 - **The rig** (`ShipView.Rig.cs`): the view poses the model's own nodes for each wheel of the data: `Wheel_<key>` rides its
   spring, its `Steer` turns and its `Spin` rolls; `Arm_<key>_<n>` (wishbones, half-shafts) turn about their pivots so their
   `Tip` follows the hub; `Shock_<key>` points at `ShockLow_<key>`, its `Rod` slides and its `Spring` squeezes; the bike's
@@ -651,6 +675,45 @@ version of this with very very high power and bigger tires". Branch `claude/togg
     ground under it.
 - **Not yet:** the sounds (the bike session's shared engine sounds and revs); seeing a vehicle's parts at the workbench;
   the owner's look at the monster and the effects.
+
+### 9.9 The rear wheel, the bike's tyres and the sound (V8, 20 October 2026: the owner's playtest)
+
+The owner rode the Zamazingo: "back tire doesnt spin, sounds are not made and I think tires needs to be bigger for offroad";
+and of the TOGG, its tyres don't turn and it should sound like a heavy diesel.
+
+- **Wheels that didn't turn:** Blender keeps object names unique, so a model's second wheel's `Steer` and `Spin` (and its
+  arms' `Tip`, its dampers' `Rod`, `Spring` and `SeatLow`) were exported as `Steer.001`, `Spin.001`, which Godot imports as
+  `Steer_001`. The rig found only the first wheel's: the bike's rear and three of the TOGG's four wheels neither rolled nor
+  steered, and most of the TOGG's arms and dampers stood still. `ShipView.Rig.cs` now finds a part by its name with any such
+  number after it, so every model's rig works without renaming.
+- **Bigger tyres on the bike** (§4): 0.90 m front and 0.86 m rear (were 0.80 and 0.76), 0.15 and 0.20 m wide (0.12 and
+  0.16), the rims as they were so the sidewalls are taller, the knobs taller (22 and 26 mm). The bike stands 0.10 m higher
+  (the origin stays on the ground under the rear axle; `LIFT` in `zamazingo.py`), so under the seat it keeps its room at
+  full bump; the seat is at 1.05 m and the wheelbase 1.544 m. Around the wheels: the fork's legs out to 0.13 m either side
+  with an axle and spacers, a fender curving 3 cm over the tyre at full bump, the down tube and cradle drawn back, the
+  header under the crankcase and the silencer out past the tyre, a swingarm flaring from 0.10 m at the pivot to 0.155 at the
+  axle, the chain line at 0.13 m, the airbox forward between the carburettor and the shock. Posed at full bump, full droop
+  and full lock, no tyre touches anything; the hole check's sheets show none. ships.json's wheels, hull boxes, seat, eye,
+  fuel cap, lamps and centre of mass follow.
+- **The sound** (§7.1) as built:
+  - `art/audio/engines.py` makes everything in code, as the KA-FA's and the motorboat's sounds are (no CC0 recording on
+    this PC is an engine). The single's loops are at 1,450 (idle), 2,400, 3,600, 5,000, 6,600 and 8,600 rpm; the six's at
+    750 (idle), 1,050, 1,450, 1,950, 2,500 and 3,000. The tyres are grains of the CC0 footstep recordings already used for
+    footsteps (NOX's surface banks, BigSoundBank's gravel and water) strewn under the tread's hum and roar, at 10 m/s.
+  - `art/audio/vehicle_sounds.py` holds the events (`veh.*`, files under `game/assets/audio/vehicle/`), each kind's
+    `engines` entry and its `start` and `shutdown` roles. `python -I art/audio/build.py --only vehicle` makes
+    them; sounds.json's `engines` section is written from it (tune the numbers there, not in sounds.json).
+  - `Hollow.Client.Vehicles.VehicleRevs` is the gearbox: one per vehicle drawn (`ShipsView`, `RevsOf(netId)` for the HUD and
+    the exhaust).
+  - `game/scripts/Ships/VehicleSounds.cs` plays it: the engine's loops by revs and load (the loops come in as the start's
+    run-up ends), the turbo, gear changes, the tyres by the ground under the vehicle (looked up four times a second), skids,
+    the suspension's knocks and creaks from the rig's wheels (`ShipView.SuspensionBump`, `SuspensionWork`,
+    `SuspensionBottomed`), a landing only after a quarter of a second in the air (as hard as it fell: the wheels leave and
+    meet the ground all the time, so the ships' `touchdown` role isn't a vehicle's), a splash.
+  - Checked by `VehicleSoundTests`: the gearbox changing up and down, slipping its clutch, free-revving in the air,
+    reversing and running down, a turbo spooling and its release; and every ground vehicle kind's entry (its gears reach its
+    top speed, its loops span idle to redline and are loops, tyres on every ground, its start and stop, its suspension's
+    knock, creak and landing, and no `touchdown` role).
 
 ## 10. Crafting and progression
 

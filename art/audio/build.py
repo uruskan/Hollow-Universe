@@ -396,7 +396,8 @@ def main(argv):
         if failures:
             print("%d failed" % len(failures))
             return 1
-    write_catalogue(catalogue, events.ITEMS, getattr(events, "SPACES", {}), replace_prefixes=("footstep.",))
+    write_catalogue(catalogue, events.ITEMS, getattr(events, "SPACES", {}), replace_prefixes=("footstep.",),
+                    engines=getattr(events, "ENGINES", {}))
     changed = fix_imports(outs)
     if changed:
         print("%d .import files updated: run Godot's import again" % changed)
@@ -428,11 +429,12 @@ def fix_imports(outs):
     return changed
 
 
-def write_catalogue(events_list, items, spaces=None, replace_prefixes=()):
+def write_catalogue(events_list, items, spaces=None, replace_prefixes=(), engines=None):
     """sounds.json: the build owns each event's files and category and the item map; every other field of an event
     is kept as edited unless the recipe declares it in _generatedFields (authoring data owns those values).
     `spaces` are the listener's reverb presets (events.SPACES): a preset or field tuned by hand in
-    sounds.json is kept, a missing one is added."""
+    sounds.json is kept, a missing one is added. `engines` (events.ENGINES, from vehicle_sounds.py) are ground
+    vehicles' revs, loops, tyres and suspension by kind: written as they are (tune them in vehicle_sounds.py)."""
     old = load_json(CATALOGUE, {})
     kept = old.get("spaces", {})
     merged_spaces = {}
@@ -474,6 +476,7 @@ def write_catalogue(events_list, items, spaces=None, replace_prefixes=()):
         "categories": {k: {"metric": v[0], "target": v[1], "min": v[2], "max": v[3]} for k, v in CATEGORIES.items()},
         "spaces": merged_spaces,
         "items": items,
+        "engines": engines or old.get("engines", {}),
         "events": merged,
     }
     # Runtime scheduling is authored alongside mix settings, never reset by an asset rebuild.
@@ -484,6 +487,12 @@ def write_catalogue(events_list, items, spaces=None, replace_prefixes=()):
         for role, key in roles.items():
             if key not in keys:
                 raise SystemExit("items: %s %s plays %s, which isn't an event" % (item, role, key))
+    for kind, engine in data["engines"].items():
+        named = [l[k] for l in engine.get("loops", []) for k in ("on", "off")] + list(engine.get("tyres", {}).values())
+        named += [engine[k] for k in ("turbo", "blowoff", "shift", "skidLoose", "skidHard", "knock", "creak", "land", "splash") if engine.get(k)]
+        for key in named:
+            if key not in keys:
+                raise SystemExit("engines: %s plays %s, which isn't an event" % (kind, key))
     write_catalogue_json(data)
 
 
@@ -509,6 +518,23 @@ def write_catalogue_json(data):
     for i, (k, v) in enumerate(its):
         lines.append('    %s: %s%s' % (json.dumps(k), json.dumps(v), "," if i < len(its) - 1 else ""))
     lines.append("  },")
+    if data.get("engines"):
+        lines.append('  "engines": {')
+        ens = list(data["engines"].items())
+        for i, (k, v) in enumerate(ens):
+            lines.append('    %s: {' % json.dumps(k))
+            fields = list(v.items())
+            for j, (f, x) in enumerate(fields):
+                comma = "," if j < len(fields) - 1 else ""
+                if f == "loops":
+                    lines.append('      "loops": [')
+                    for q, l in enumerate(x):
+                        lines.append('        %s%s' % (json.dumps(l), "," if q < len(x) - 1 else ""))
+                    lines.append("      ]" + comma)
+                else:
+                    lines.append('      %s: %s%s' % (json.dumps(f), json.dumps(x), comma))
+            lines.append("    }" + ("," if i < len(ens) - 1 else ""))
+        lines.append("  },")
     lines.append('  "events": [')
     evs = data["events"]
     for i, e in enumerate(evs):

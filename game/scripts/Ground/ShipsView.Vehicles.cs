@@ -12,7 +12,7 @@ namespace HollowUniverse.Ground;
 
 /// <summary>
 /// A ground vehicle's own effects (VEHICLES.md §9.9): its diesel's haze at idle, black soot under load and a puff on
-/// starting, at a gear change and on a stab of the throttle, out of every <c>Exhaust_&lt;n&gt;</c> point of its model
+/// starting, at a gear change and on a stab of the throttle (by its revs, <c>VehicleRevs</c>), out of every <c>Exhaust_&lt;n&gt;</c> point of its model
 /// (<see cref="VehicleSmoke"/>); dust behind each tyre on the ground, tinted by the ground under it, with grit and gravel,
 /// by its speed and its spin pulling away; and spray where a tyre runs through shallow water. Drawn within
 /// <see cref="VehicleFxReach"/> of the camera only.
@@ -43,17 +43,18 @@ public partial class ShipsView
     /// <summary>The tyre of the TOGG, the radius its dust is made for (a bigger tyre's is scaled up).</summary>
     private const float DustTyre = 0.48f;
 
-    // Every frame for a vehicle on wheels: its throttle is its thrust along its nose (GroundMotor), its load the throttle
-    // until the shared revs model gives one (and its gear changes).
+    // Every frame for a vehicle on wheels: its throttle is its thrust along its nose (GroundMotor); its load and gear changes
+    // are its revs' (VehicleRevs, stepped by its sounds just before), the throttle and none for a kind without an engine's
+    // sounds.
     private void VehicleEffects(Drawn d, ShipDef def, in ShipLook look, Num.Vector3 velocity, bool shown)
     {
         if (def.Ground == null)
         {
             return;
         }
-        VehicleFx fx = d.Vehicle ??= new VehicleFx();
+        VehicleFx fx = d.Fx ??= new VehicleFx();
         float throttle = look.Thrust.Z;
-        fx.Smoke.Update(look.Engines, throttle, MathF.Abs(throttle), shifted: false, (float)_delta);
+        fx.Smoke.Update(look.Engines, throttle, d.Revs?.Load ?? MathF.Abs(throttle), d.Revs?.Shifted ?? false, (float)_delta);
         Camera3D? camera = GetViewport()?.GetCamera3D();
         bool near = shown && (camera == null || camera.GlobalPosition.DistanceTo(d.View.GlobalPosition) < VehicleFxReach);
         Exhaust(fx, d.View, near);

@@ -20,7 +20,9 @@ namespace HollowUniverse.Ships;
 /// <item><c>Shock_&lt;key&gt;</c>: a damper from its top mount pointing at <c>ShockLow_&lt;key&gt;</c> (on an arm), its <c>Rod</c>
 /// sliding down its axis and its <c>Spring</c> squeezed between the top seat and the rod's <c>SeatLow</c>.</item>
 /// </list>
-/// Presentation only; a model without these nodes draws no wheels of its own (the blocks do, ShipView.Blocks.cs).
+/// Presentation only; a model without these nodes draws no wheels of its own (the blocks do, ShipView.Blocks.cs). The
+/// parts under a wheel, an arm or a damper (<c>Steer</c>, <c>Spin</c>, <c>Tip</c>, <c>Rod</c>, <c>Spring</c>, <c>SeatLow</c>) are
+/// found by their name with any number Blender added to keep it unique (<c>Steer.001</c>, imported as <c>Steer_001</c>).
 /// </summary>
 public partial class ShipView
 {
@@ -52,7 +54,15 @@ public partial class ShipView
         public RigArm? Carrier;
         public readonly List<RigArm> Arms = new();
         public float Angle;
+        public float Lift;
+        public bool Posed;
     }
+
+    /// <summary>This frame's suspension (its sounds, VehicleSounds): the fastest a wheel was pushed up (m/s), the fastest one
+    /// moved either way, and whether one hit its stop going up.</summary>
+    public float SuspensionBump { get; private set; }
+    public float SuspensionWork { get; private set; }
+    public bool SuspensionBottomed { get; private set; }
 
     private sealed class RigShock
     {
@@ -77,8 +87,8 @@ public partial class ShipView
                 continue;
             }
             var wheel = new RigWheel { Def = w, Hub = hub, HubRest = hub.Position, Slide = Vector3.Up };
-            wheel.Steer = hub.GetNodeOrNull<Node3D>("Steer");
-            wheel.Spin = wheel.Steer?.GetNodeOrNull<Node3D>("Spin") ?? hub.GetNodeOrNull<Node3D>("Spin");
+            wheel.Steer = Part(hub, "Steer");
+            wheel.Spin = (wheel.Steer != null ? Part(wheel.Steer, "Spin") : null) ?? Part(hub, "Spin");
             wheel.SteerRest = wheel.Steer?.Basis ?? Basis.Identity;
             wheel.SpinRest = wheel.Spin?.Basis ?? Basis.Identity;
             if (_model.FindChild($"Fork_{w.Key}", true, false) is Node3D fork)
@@ -96,7 +106,7 @@ public partial class ShipView
             }
             foreach (Node found in _model.FindChildren($"Arm_{w.Key}_*", "", true, false))
             {
-                if (found is Node3D arm && arm.GetNodeOrNull<Node3D>("Tip") is { } tip)
+                if (found is Node3D arm && Part(arm, "Tip") is { } tip)
                 {
                     wheel.Arms.Add(Arm(arm, InModel(tip).Origin));
                 }
@@ -109,6 +119,36 @@ public partial class ShipView
             _rig.Add(wheel);
         }
         return _rig.Count > 0;
+    }
+
+    /// <summary>
+    /// The child of <paramref name="parent"/> named <paramref name="name"/>, or that name with the number Blender adds to
+    /// a repeated name (<c>Spin.001</c>; the glTF importer makes it <c>Spin_001</c>, or appends a plain number).
+    /// </summary>
+    private static Node3D? Part(Node parent, string name)
+    {
+        if (parent.GetNodeOrNull<Node3D>(name) is { } exact)
+        {
+            return exact;
+        }
+        foreach (Node child in parent.GetChildren())
+        {
+            string n = child.Name;
+            if (child is not Node3D found || n.Length <= name.Length || !n.StartsWith(name, StringComparison.Ordinal))
+            {
+                continue;
+            }
+            int at = name.Length;
+            if (n[at] is '.' or '_')
+            {
+                at++;
+            }
+            if (at < n.Length && n.AsSpan(at).IndexOfAnyExceptInRange('0', '9') < 0)
+            {
+                return found;
+            }
+        }
+        return null;
     }
 
     private RigArm Arm(Node3D node, Vector3 tipInModel)
@@ -131,10 +171,10 @@ public partial class ShipView
         var shock = new RigShock
         {
             Node = node, Rest = rest, ParentRest = node.GetParent() is Node3D p && p != _model ? InModel(p) : Transform3D.Identity,
-            Target = target, Rod = node.GetNodeOrNull<Node3D>("Rod"), Spring = node.GetNodeOrNull<Node3D>("Spring"),
+            Target = target, Rod = Part(node, "Rod"), Spring = Part(node, "Spring"),
             RestLength = (InModel(target).Origin - rest.Origin).Length(),
         };
-        if (shock.Spring != null && shock.Rod?.GetNodeOrNull<Node3D>("SeatLow") is { } seat)
+        if (shock.Spring != null && shock.Rod != null && Part(shock.Rod, "SeatLow") is { } seat)
         {
             shock.SpringFree = -shock.Spring.Position.Y + seat.Position.Y;
             shock.SpringRest = shock.RestLength - shock.SpringFree;
@@ -163,6 +203,8 @@ public partial class ShipView
     /// <summary>Poses the rig: each wheel on its spring, the steered ones turned, all rolled, then the arms and dampers.</summary>
     private void ShowRig(Func<Vector3, float?> groundBelow, float steer, float along, double delta)
     {
+        SuspensionBump = SuspensionWork = 0;
+        SuspensionBottomed = false;
         foreach (RigWheel w in _rig)
         {
             WheelDef d = w.Def;
@@ -171,6 +213,15 @@ public partial class ShipView
             float reach = d.Travel + d.Radius;
             float distance = MathF.Min(groundBelow(top) ?? reach, reach);
             float lift = Math.Clamp(d.Travel / 2 - (distance - d.Radius), -d.Travel / 2, d.Travel / 2);
+            if (w.Posed && delta > 1e-4)
+            {
+                float speed = (lift - w.Lift) / (float)delta;
+                SuspensionBump = MathF.Max(SuspensionBump, speed);
+                SuspensionWork = MathF.Max(SuspensionWork, MathF.Abs(speed));
+                SuspensionBottomed |= lift >= d.Travel / 2 - 0.002f && w.Lift < d.Travel / 2 - 0.002f && speed > 0.6f;
+            }
+            w.Lift = lift;
+            w.Posed = true;
             float turn = d.Steers ? -steer : 0;
             if (w.Carrier is { } carrier)
             {

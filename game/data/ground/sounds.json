@@ -125,7 +125,117 @@
     "armoured-window-bars": {"place": "build.place.armoured"},
     "reinforced-glass-window": {"place": "build.place.metal"},
     "horizontal-embrasure": {"place": "build.place.metal"},
-    "vertical-embrasure": {"place": "build.place.metal"}
+    "vertical-embrasure": {"place": "build.place.metal"},
+    "zamazingo": {"start": "veh.single.start", "shutdown": "veh.single.stop", "crash": "ship.crash", "destroyed": "explosion"},
+    "togg": {"start": "veh.diesel.start", "shutdown": "veh.diesel.stop", "crash": "ship.crash", "destroyed": "explosion"},
+    "monster-togg": {"start": "veh.diesel.start", "shutdown": "veh.diesel.stop", "crash": "ship.crash", "destroyed": "explosion"}
+  },
+  "engines": {
+    "zamazingo": {
+      "idle": 1450,
+      "redline": 8800,
+      "limiter": 9100,
+      "gears": [7.0, 11.0, 15.0, 19.5, 25.6],
+      "reverse": 4.0,
+      "response": 0.06,
+      "upshift": 0.86,
+      "downshift": 0.42,
+      "shiftTime": 0.12,
+      "launch": 0.42,
+      "pitch": 1.0,
+      "volume": 0.0,
+      "loops": [
+        {"rpm": 1450, "on": "veh.single.idle", "off": "veh.single.idle", "onDb": -7.0, "offDb": -7.0},
+        {"rpm": 2400, "on": "veh.single.on.2400", "off": "veh.single.off.2400", "onDb": -4.5, "offDb": -10.0},
+        {"rpm": 3600, "on": "veh.single.on.3600", "off": "veh.single.off.3600", "onDb": -3.0, "offDb": -9.0},
+        {"rpm": 5000, "on": "veh.single.on.5000", "off": "veh.single.off.5000", "onDb": -1.5, "offDb": -8.0},
+        {"rpm": 6600, "on": "veh.single.on.6600", "off": "veh.single.off.6600", "onDb": -0.5, "offDb": -7.0},
+        {"rpm": 8600, "on": "veh.single.on.8600", "off": "veh.single.off.8600", "onDb": 0.5, "offDb": -6.0}
+      ],
+      "shift": "veh.single.shift",
+      "tyres": {"gravel": "veh.tyre.gravel", "dirt": "veh.tyre.dirt", "grass": "veh.tyre.grass", "sand": "veh.tyre.sand", "snow": "veh.tyre.snow", "rock": "veh.tyre.rock", "water": "veh.tyre.water", "hard": "veh.tyre.rock"},
+      "tyreSpeed": 10.0,
+      "tyrePitch": 1.15,
+      "tyreDb": -7.0,
+      "skidLoose": "veh.tyre.skid.loose",
+      "skidHard": "veh.tyre.skid.hard",
+      "knock": "veh.susp.knock.light",
+      "creak": "veh.susp.creak.light",
+      "land": "veh.susp.land.light",
+      "splash": "veh.splash"
+    },
+    "togg": {
+      "idle": 750,
+      "redline": 3000,
+      "limiter": 3100,
+      "gears": [4.2, 7.0, 10.5, 15.0, 20.6],
+      "reverse": 5.0,
+      "response": 0.22,
+      "upshift": 0.85,
+      "downshift": 0.45,
+      "shiftTime": 0.45,
+      "launch": 0.42,
+      "turboSpool": 0.8,
+      "pitch": 1.0,
+      "volume": 0.0,
+      "loops": [
+        {"rpm": 750, "on": "veh.diesel.idle", "off": "veh.diesel.idle", "onDb": -4.0, "offDb": -4.0},
+        {"rpm": 1050, "on": "veh.diesel.on.1050", "off": "veh.diesel.off.1050", "onDb": -3.5, "offDb": -9.0},
+        {"rpm": 1450, "on": "veh.diesel.on.1450", "off": "veh.diesel.off.1450", "onDb": -2.5, "offDb": -8.0},
+        {"rpm": 1950, "on": "veh.diesel.on.1950", "off": "veh.diesel.off.1950", "onDb": -1.5, "offDb": -7.0},
+        {"rpm": 2500, "on": "veh.diesel.on.2500", "off": "veh.diesel.off.2500", "onDb": -0.5, "offDb": -6.0},
+        {"rpm": 3000, "on": "veh.diesel.on.3000", "off": "veh.diesel.off.3000", "onDb": 0.5, "offDb": -5.0}
+      ],
+      "turbo": "veh.diesel.turbo",
+      "blowoff": "veh.diesel.release",
+      "shift": "veh.diesel.shift",
+      "tyres": {"gravel": "veh.tyre.gravel", "dirt": "veh.tyre.dirt", "grass": "veh.tyre.grass", "sand": "veh.tyre.sand", "snow": "veh.tyre.snow", "rock": "veh.tyre.rock", "water": "veh.tyre.water", "hard": "veh.tyre.rock"},
+      "tyreSpeed": 10.0,
+      "tyrePitch": 0.8,
+      "tyreDb": -3.0,
+      "skidLoose": "veh.tyre.skid.loose",
+      "skidHard": "veh.tyre.skid.hard",
+      "knock": "veh.susp.knock.heavy",
+      "creak": "veh.susp.creak.heavy",
+      "land": "veh.susp.land.heavy",
+      "splash": "veh.splash"
+    },
+    "monster-togg": {
+      "idle": 750,
+      "redline": 3000,
+      "limiter": 3100,
+      "gears": [7.0, 11.7, 17.6, 25.1, 34.5],
+      "reverse": 9.0,
+      "response": 0.22,
+      "upshift": 0.85,
+      "downshift": 0.45,
+      "shiftTime": 0.45,
+      "launch": 0.42,
+      "turboSpool": 0.8,
+      "pitch": 0.86,
+      "volume": 3.0,
+      "loops": [
+        {"rpm": 750, "on": "veh.diesel.idle", "off": "veh.diesel.idle", "onDb": -4.0, "offDb": -4.0},
+        {"rpm": 1050, "on": "veh.diesel.on.1050", "off": "veh.diesel.off.1050", "onDb": -3.5, "offDb": -9.0},
+        {"rpm": 1450, "on": "veh.diesel.on.1450", "off": "veh.diesel.off.1450", "onDb": -2.5, "offDb": -8.0},
+        {"rpm": 1950, "on": "veh.diesel.on.1950", "off": "veh.diesel.off.1950", "onDb": -1.5, "offDb": -7.0},
+        {"rpm": 2500, "on": "veh.diesel.on.2500", "off": "veh.diesel.off.2500", "onDb": -0.5, "offDb": -6.0},
+        {"rpm": 3000, "on": "veh.diesel.on.3000", "off": "veh.diesel.off.3000", "onDb": 0.5, "offDb": -5.0}
+      ],
+      "turbo": "veh.diesel.turbo",
+      "blowoff": "veh.diesel.release",
+      "shift": "veh.diesel.shift",
+      "tyres": {"gravel": "veh.tyre.gravel", "dirt": "veh.tyre.dirt", "grass": "veh.tyre.grass", "sand": "veh.tyre.sand", "snow": "veh.tyre.snow", "rock": "veh.tyre.rock", "water": "veh.tyre.water", "hard": "veh.tyre.rock"},
+      "tyreSpeed": 10.0,
+      "tyrePitch": 0.7,
+      "tyreDb": -1.5,
+      "skidLoose": "veh.tyre.skid.loose",
+      "skidHard": "veh.tyre.skid.hard",
+      "knock": "veh.susp.knock.heavy",
+      "creak": "veh.susp.creak.heavy",
+      "land": "veh.susp.land.heavy",
+      "splash": "veh.splash"
+    }
   },
   "events": [
     {
@@ -6805,6 +6915,759 @@
         "res://assets/audio/kafa/twin_stop_01.ogg",
         "res://assets/audio/kafa/twin_stop_02.ogg",
         "res://assets/audio/kafa/twin_stop_03.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.idle",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 220.0,
+      "priority": 66,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/single_idle.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.on.2400",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 260.0,
+      "priority": 66,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/single_on_2400.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.off.2400",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 200.0,
+      "priority": 66,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/single_off_2400.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.on.3600",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 260.0,
+      "priority": 66,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/single_on_3600.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.off.3600",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 200.0,
+      "priority": 66,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/single_off_3600.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.on.5000",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 260.0,
+      "priority": 66,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/single_on_5000.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.off.5000",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 200.0,
+      "priority": 66,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/single_off_5000.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.on.6600",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 260.0,
+      "priority": 66,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/single_on_6600.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.off.6600",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 200.0,
+      "priority": 66,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/single_off_6600.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.on.8600",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 260.0,
+      "priority": 66,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/single_on_8600.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.off.8600",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 200.0,
+      "priority": 66,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/single_off_8600.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.start",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 6.0,
+      "maxDistance": 180.0,
+      "priority": 66,
+      "limit": 2,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "files": [
+        "res://assets/audio/vehicle/single_start_01.ogg",
+        "res://assets/audio/vehicle/single_start_02.ogg",
+        "res://assets/audio/vehicle/single_start_03.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.stop",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -4.0,
+      "unitSize": 6.0,
+      "maxDistance": 150.0,
+      "priority": 66,
+      "limit": 2,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "files": [
+        "res://assets/audio/vehicle/single_stop_01.ogg",
+        "res://assets/audio/vehicle/single_stop_02.ogg"
+      ]
+    },
+    {
+      "key": "veh.single.shift",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": -6.0,
+      "unitSize": 3.0,
+      "maxDistance": 40.0,
+      "priority": 50,
+      "limit": 2,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/single_shift_01.ogg",
+        "res://assets/audio/vehicle/single_shift_02.ogg",
+        "res://assets/audio/vehicle/single_shift_03.ogg",
+        "res://assets/audio/vehicle/single_shift_04.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.idle",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 260.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_idle.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.on.1050",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 340.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_on_1050.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.off.1050",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 220.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_off_1050.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.on.1450",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 340.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_on_1450.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.off.1450",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 220.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_off_1450.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.on.1950",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 340.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_on_1950.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.off.1950",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 220.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_off_1950.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.on.2500",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 340.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_on_2500.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.off.2500",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 220.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_off_2500.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.on.3000",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 340.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_on_3000.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.off.3000",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 220.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_off_3000.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.turbo",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": -6.0,
+      "unitSize": 5.0,
+      "maxDistance": 120.0,
+      "priority": 55,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/diesel_turbo.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.release",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -8.0,
+      "unitSize": 5.0,
+      "maxDistance": 100.0,
+      "priority": 55,
+      "limit": 2,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/diesel_release_01.ogg",
+        "res://assets/audio/vehicle/diesel_release_02.ogg",
+        "res://assets/audio/vehicle/diesel_release_03.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.start",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 260.0,
+      "priority": 68,
+      "limit": 2,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "files": [
+        "res://assets/audio/vehicle/diesel_start_01.ogg",
+        "res://assets/audio/vehicle/diesel_start_02.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.stop",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 9.0,
+      "maxDistance": 200.0,
+      "priority": 68,
+      "limit": 2,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "files": [
+        "res://assets/audio/vehicle/diesel_stop_01.ogg",
+        "res://assets/audio/vehicle/diesel_stop_02.ogg"
+      ]
+    },
+    {
+      "key": "veh.diesel.shift",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": -4.0,
+      "unitSize": 4.0,
+      "maxDistance": 50.0,
+      "priority": 50,
+      "limit": 2,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/diesel_shift_01.ogg",
+        "res://assets/audio/vehicle/diesel_shift_02.ogg",
+        "res://assets/audio/vehicle/diesel_shift_03.ogg",
+        "res://assets/audio/vehicle/diesel_shift_04.ogg"
+      ]
+    },
+    {
+      "key": "veh.tyre.gravel",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 90.0,
+      "priority": 48,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/tyre_gravel.ogg"
+      ]
+    },
+    {
+      "key": "veh.tyre.dirt",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 90.0,
+      "priority": 48,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/tyre_dirt.ogg"
+      ]
+    },
+    {
+      "key": "veh.tyre.grass",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 90.0,
+      "priority": 48,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/tyre_grass.ogg"
+      ]
+    },
+    {
+      "key": "veh.tyre.sand",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 90.0,
+      "priority": 48,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/tyre_sand.ogg"
+      ]
+    },
+    {
+      "key": "veh.tyre.snow",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 90.0,
+      "priority": 48,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/tyre_snow.ogg"
+      ]
+    },
+    {
+      "key": "veh.tyre.rock",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 90.0,
+      "priority": 48,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/tyre_rock.ogg"
+      ]
+    },
+    {
+      "key": "veh.tyre.water",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 4.0,
+      "maxDistance": 90.0,
+      "priority": 48,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/tyre_water.ogg"
+      ]
+    },
+    {
+      "key": "veh.tyre.skid.loose",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 5.0,
+      "maxDistance": 140.0,
+      "priority": 52,
+      "limit": 4,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/skid_loose.ogg"
+      ]
+    },
+    {
+      "key": "veh.tyre.skid.hard",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 5.0,
+      "maxDistance": 140.0,
+      "priority": 52,
+      "limit": 4,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/skid_hard.ogg"
+      ]
+    },
+    {
+      "key": "veh.susp.knock.light",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": -6.0,
+      "unitSize": 4.0,
+      "maxDistance": 90.0,
+      "priority": 55,
+      "limit": 3,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/knock_light_01.ogg",
+        "res://assets/audio/vehicle/knock_light_02.ogg",
+        "res://assets/audio/vehicle/knock_light_03.ogg",
+        "res://assets/audio/vehicle/knock_light_04.ogg"
+      ]
+    },
+    {
+      "key": "veh.susp.creak.light",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": -12.0,
+      "unitSize": 3.0,
+      "maxDistance": 35.0,
+      "priority": 35,
+      "limit": 2,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/creak_light_01.ogg",
+        "res://assets/audio/vehicle/creak_light_02.ogg",
+        "res://assets/audio/vehicle/creak_light_03.ogg",
+        "res://assets/audio/vehicle/creak_light_04.ogg"
+      ]
+    },
+    {
+      "key": "veh.susp.land.light",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 6.0,
+      "maxDistance": 140.0,
+      "priority": 62,
+      "limit": 2,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/land_light_01.ogg",
+        "res://assets/audio/vehicle/land_light_02.ogg",
+        "res://assets/audio/vehicle/land_light_03.ogg"
+      ]
+    },
+    {
+      "key": "veh.susp.knock.heavy",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 4.0,
+      "maxDistance": 90.0,
+      "priority": 55,
+      "limit": 3,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/knock_heavy_01.ogg",
+        "res://assets/audio/vehicle/knock_heavy_02.ogg",
+        "res://assets/audio/vehicle/knock_heavy_03.ogg",
+        "res://assets/audio/vehicle/knock_heavy_04.ogg"
+      ]
+    },
+    {
+      "key": "veh.susp.creak.heavy",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": -12.0,
+      "unitSize": 3.0,
+      "maxDistance": 35.0,
+      "priority": 35,
+      "limit": 2,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/creak_heavy_01.ogg",
+        "res://assets/audio/vehicle/creak_heavy_02.ogg",
+        "res://assets/audio/vehicle/creak_heavy_03.ogg",
+        "res://assets/audio/vehicle/creak_heavy_04.ogg"
+      ]
+    },
+    {
+      "key": "veh.susp.land.heavy",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 6.0,
+      "maxDistance": 140.0,
+      "priority": 62,
+      "limit": 2,
+      "pitch": [0.96, 1.04],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/land_heavy_01.ogg",
+        "res://assets/audio/vehicle/land_heavy_02.ogg",
+        "res://assets/audio/vehicle/land_heavy_03.ogg"
+      ]
+    },
+    {
+      "key": "veh.splash",
+      "category": "impact",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 5.0,
+      "maxDistance": 90.0,
+      "priority": 55,
+      "limit": 3,
+      "pitch": [0.92, 1.05],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/splash_1519.ogg",
+        "res://assets/audio/vehicle/splash_1520.ogg",
+        "res://assets/audio/vehicle/splash_1521.ogg"
       ]
     }
   ]

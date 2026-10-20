@@ -757,21 +757,28 @@ The client without graphics: the host and its modules, prediction, the local pla
 | `RemoteThings.cs` | 313 | RemoteThing, ClientProjectile, Arc | A static thing as this client knows it (GROUND.md §6): a deployable, a bag of dropped items or a corpse, sent reliably |
 | `ShipPredictor.cs` | 141 | ShipPredictor | The ship the player flies, predicted (GROUND.md §6.7), as Predictor predicts the character: every tick |
 
-### src/Hollow.Client/Audio (11 files, 1,501 lines)
+### src/Hollow.Client/Audio (12 files, 1,688 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `AmbienceMix.cs` | 168 | AmbienceInput, AmbienceLevels, AmbienceMix | Where the listener is, for the ambience (GROUND.md §4.9). Distances in metres, angles in degrees. |
+| `EngineSoundData.cs` | 98 | EngineLoop, EngineSoundData | What a ground vehicle's engine, gearbox, tyres and suspension sound like by its kind (sounds.json `engines`, VEHICLES.md §7.1). |
 | `AudioVoiceBudget.cs` | 63 | AudioVoiceBudget | AudioVoiceBudget: the voice pools, update rate and audibility limits read from sounds.json's optional voiceBudget, with validation. |
 | `FootstepEnvironment.cs` | 77 | FootstepEnvironment | Picks the FootSurface under a character's feet from a ship's deck, deployables, constructed floors and terrain; WaterDepth counts lakes and streams as well as sea. |
 | `FootwearAudioData.cs` | 139 | FootwearAudioData | Footstep profiles from footsteps.json: items name a profile on their wear capability, and worn equipment, local or remote, resolves to one; bare feet use the default. |
 | `Loudness.cs` | 238 | LoudnessResult, Loudness [KWeighting] | A sound's loudness (ITU-R BS.1770), as the sound pipeline measures it with ffmpeg's ebur128. |
 | `MeleeSwingCue.cs` | 75 | MeleeSwingCue | MeleeSwingCue: one presentation-only swish armed from an attack's start and contact ticks and fired late in its anticipation; never an impact or a result. |
 | `RemoteMeleeSwingCue.cs` | 40 | RemoteMeleeSwingCue | The swish for another player's melee swing, timed on the server clock rather than the buffered render clock so it cannot trail the impact. |
-| `SoundCatalogData.cs` | 313 | SoundCategory, SoundLayer, SoundSpace, SoundEventData, SoundCatalogData | How loud the files of one category are made (GROUND.md §4.9): a metric, a target and a range in LUFS. |
+| `SoundCatalogData.cs` | 402 | SoundCategory, SoundLayer, SoundSpace, SoundEventData, SoundCatalogData | How loud the files of one category are made (GROUND.md §4.9): a metric, a target and a range in LUFS. |
 | `SoundLoopEnvelope.cs` | 54 | SoundLoopEnvelope | Gain, pitch and playhead of a logical loop (fades and stop), advanced whether or not the loop holds an audible voice. |
 | `SoundRules.cs` | 250 | DistanceLayers, FootSurface, FootGait, FootInput, FootEvent, Footsteps, FootstepCadence | Distance layering of loud sounds (GROUND.md §4.9): which layers play at a distance, and when they arrive. |
 | `SoundVoiceScheduler.cs` | 84 | SoundVoiceCandidate, SoundVoiceScheduler [Ranked] | Chooses which one-shots and logical loops get the bounded voice pool: by loudness and priority, with event limits and a retention margin for voiced loops. |
+
+### src/Hollow.Client/Vehicles (1 file, 205 lines)
+
+| File | Lines | Types | What |
+|---|---|---|---|
+| `VehicleRevs.cs` | 205 | VehicleRevs | A ground vehicle's revs, gear, load, engine braking and turbo as heard and read (VEHICLES.md §7.1): a presentation gearbox from its speed, throttle, engine and wheels; its sounds', HUD's and exhaust's numbers. |
 
 ### src/Hollow.Client/Diagnostics (1 file, 341 lines)
 
@@ -1145,8 +1152,9 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ShipSandbox.cs` | 898 | ShipSandbox [Site] | The ship sandbox (--view ship, GROUND.md §6.7): the Tin Finch on the first world's ground (the stand-in world |
 | `ShipSounds.cs` | 469 | ShipSounds | What one ship sounds like (IW6, IRON_WAKE.md §10): every role of its kind's in sounds.json from the replicated state, slow and fast loops crossfaded. |
 | `ShipView.Modules.cs` | 33 | ShipView | A ship's modules drawn (VEHICLES.md §9.5, docs/MINICOPTER.md §8): each installed module's model at its origin. |
-| `ShipView.Rig.cs` | 245 | ShipView [RigArm, RigWheel, RigShock] | A vehicle's own wheels and suspension posed from its model's nodes (VEHICLES.md §9.8): hubs on their springs, steering, rolling, wishbones, a raked fork, a swingarm, dampers. |
+| `ShipView.Rig.cs` | 278 | ShipView [RigArm, RigWheel, RigShock] | A vehicle's own wheels and suspension posed from its model's nodes (VEHICLES.md §9.8, §9.9): hubs on their springs, steering, rolling, wishbones, a raked fork, a swingarm, dampers; parts found by name with Blender's numbers; the suspension's work for its sounds. |
 | `ShipView.cs` | 663 | ShipLook, ShipView [PartNode, Drive, Plume] | What a ship is doing this frame, as a ShipView draws it: plumes, lamps by power, reflection probes, sockets where drawn. |
+| `VehicleSounds.cs` | 334 | VehicleSounds | What a ground vehicle sounds like as it drives (VEHICLES.md §7.1): its engine's loops by revs and load, turbo, gear changes, tyres by the ground under it, skids, the suspension's knocks and creaks, a splash. |
 | `ShipWarm.cs` | 28 | ShipWarm | The ships' part of the renderer's warm-up (GROUND.md §4.3.1, §6.7): every ship of ships.json as |
 | `StationAmmoRadial.cs` | 95 | StationAmmoRadial | A gunner's rockets (IW3), R held at a station: the kinds and counts; a tap cycles. |
 | `StationSight.cs` | 244 | SightBarrel, SightKind, StationSightData, StationSight | The gunner's sight (IW3, IRON_WAKE.md §6.8) in the ground interface's style. |

@@ -40,12 +40,17 @@ public partial class GroundTour
         await Shot("monster-parked");
 
         // Into the driver's seat; the engine started (its puff), then idling.
-        byte seat = (byte)def.HelmPart();
+        byte seat = (byte)def.PartOfSeat(def.Helm.Index);
         await TeleportTo(car.PointOf(def.PartPoint(seat) + new Num.Vector3(1.6f, 0, 0)));
         Face(car.PointOf(def.PartPoint(seat)));
         await Seconds(0.5);
+        void Refused(IntentAnswer a) => GD.Print($"[tour] monster: refused {a.Code} {a.Detail}");
+        Me.IntentRejected += Refused;
+        GD.Print($"[tour] monster: {def.Helm.VerbKey} at part {seat}, " +
+            $"{Num.Vector3.Distance(Client.Character.Position, car.PointOf(def.PartPoint(seat))):0.0} m from it");
         Me.Interact(new TargetRef(TargetFamily.Ship, car.Id.Value, seat), def.Helm.VerbKey);
         await Until(() => Client.Ships().Piloting, 5);
+        Me.IntentRejected -= Refused;
         if (!Client.Ships().Piloting)
         {
             throw new InvalidOperationException("monster: the driver's seat wasn't taken");
