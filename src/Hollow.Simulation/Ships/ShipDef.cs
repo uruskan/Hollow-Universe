@@ -5,8 +5,12 @@ using Hollow.Simulation.Content;
 
 namespace Hollow.Simulation.Ships;
 
-/// <summary>One box of a ship's hull, in the ship's frame: its centre and half extents.</summary>
-public readonly record struct HullBox(Vector3 Centre, Vector3 HalfExtents, bool Skid);
+/// <summary>
+/// One box of a ship's hull, in the ship's frame: its centre and half extents. A skid's box is raised to its travel's end
+/// for sweeps. A fragile box (a rotor's disc, docs/MINICOPTER.md §5.5) meets the world only while the ship flies: a fast
+/// contact on it is a strike, shots pass through it, and a parked ship's body leaves it out.
+/// </summary>
+public readonly record struct HullBox(Vector3 Centre, Vector3 HalfExtents, bool Skid, bool Fragile = false);
 
 /// <summary>Per-axis turning: the most rate flight assist asks for, and the thrusters' angular acceleration (radians).</summary>
 public readonly record struct TurnAxis(float MaxRate, float Acceleration);
@@ -164,6 +168,66 @@ public sealed class ShipDef
     public float CrashScale { get; init; }
 
     public float CrashPilotShare { get; init; }
+
+    /// <summary>
+    /// Rust's crash rule instead (ships.json crash <c>fatal</c>, docs/MINICOPTER.md M10), when above 0: an impact faster
+    /// than the safe speed costs the hull's whole times its place between safe and <c>fatal</c>, at least
+    /// <see cref="CrashLeast"/> of it, and <see cref="CrashTipped"/> times that with the ship tipped past 60°.
+    /// </summary>
+    public float CrashFatalSpeed { get; init; }
+
+    public float CrashLeast { get; init; }
+
+    public float CrashTipped { get; init; } = 1;
+
+    /// <summary>The share of the hull a strike on a fragile box costs (ships.json crash <c>strike</c>).</summary>
+    public float StrikeShare { get; init; }
+
+    /// <summary>
+    /// The hull damage an impact at <paramref name="speed"/> does, <paramref name="upness"/> the cosine of the ship's tilt
+    /// from level: the quadratic rule, or Rust's (<see cref="CrashFatalSpeed"/>).
+    /// </summary>
+    public float CrashDamage(float speed, float upness)
+    {
+        if (speed <= CrashSafeSpeed)
+        {
+            return 0;
+        }
+        if (CrashFatalSpeed > CrashSafeSpeed)
+        {
+            float share = MathF.Max(Math.Clamp((speed - CrashSafeSpeed) / (CrashFatalSpeed - CrashSafeSpeed), 0, 1), CrashLeast);
+            return share * Health * (upness < 0.5f ? CrashTipped : 1);
+        }
+        float over = speed - CrashSafeSpeed;
+        return over * over * CrashScale;
+    }
+
+    /// <summary>Whether a point of the ship's frame (from the pivot) lies on a fragile hull box (or within 10 cm of one).</summary>
+    public bool FragileAt(Vector3 local)
+    {
+        foreach (HullBox box in Hull)
+        {
+            if (!box.Fragile)
+            {
+                continue;
+            }
+            Vector3 d = Vector3.Abs(local - box.Centre);
+            if (d.X <= box.HalfExtents.X + 0.1f && d.Y <= box.HalfExtents.Y + 0.1f && d.Z <= box.HalfExtents.Z + 0.1f)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Whether the hull has a fragile box at all.</summary>
+    public bool HasFragile { get; private set; }
+
+    /// <summary>
+    /// Its engines stop when nobody awake is at its helm (ships.json <c>needsPilot</c>, Rust's minicopter: docs/MINICOPTER.md
+    /// M12); without it they run on as the pilot left them (the Tin Finch's, which holds itself where it was).
+    /// </summary>
+    public bool NeedsPilot { get; init; }
 
     /// <summary>The fuel (an item), the tank, and units burnt a second at idle and at full thrust; boost burns this many times more.</summary>
     public ItemDef Fuel { get; init; } = null!;
@@ -449,6 +513,7 @@ public sealed class ShipDef
         foreach (HullBox box in Hull)
         {
             boxes += box.Skid ? 0 : 1;
+            HasFragile |= box.Fragile;
         }
         MostContacts = Math.Max(4, boxes);
     }

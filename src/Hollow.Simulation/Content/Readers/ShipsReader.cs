@@ -28,7 +28,7 @@ internal sealed class ShipsReader : IContentReader
             string where = $"ships.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
                 "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "seats", "doors", "parts", "nozzles", "lights", "ceiling",
-                "wreck", "placement", "model", "interior", "water", "assist", "drive", "controls");
+                "wreck", "placement", "model", "interior", "water", "assist", "drive", "controls", "needsPilot");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             // The inside people walk in (IRON_WAKE.md §4.3): its data file, read first, since the sockets and the hull may
             // name what it holds.
@@ -62,7 +62,7 @@ internal sealed class ShipsReader : IContentReader
             f.OnlyKnown(drag, where + ".drag", "forward", "side", "top", "turn");
             f.OnlyKnown(landing, where + ".landing", "maxSlope", "assist");
             f.OnlyKnown(skids, where + ".skids", "points", "stiffness", "damping", "travel", "friction");
-            f.OnlyKnown(crash, where + ".crash", "safe", "scale", "pilot");
+            f.OnlyKnown(crash, where + ".crash", "safe", "scale", "pilot", "fatal", "least", "tipped", "strike");
             f.OnlyKnown(fuel, where + ".fuel", "item", "capacity", "idle", "full", "boost", "placed");
             var hull = new List<Ships.HullBox>();
             Vector3[] skidPoints;
@@ -92,8 +92,9 @@ internal sealed class ShipsReader : IContentReader
             {
                 foreach (JsonElement h in f.List(e, "hull", where))
                 {
-                    f.OnlyKnown(h, where + ".hull", "centre", "size", "skid");
-                    hull.Add(new Ships.HullBox(f.Vector(h, "centre", where + ".hull"), f.Vector(h, "size", where + ".hull"), f.Flag(h, "skid", where + ".hull", false)));
+                    f.OnlyKnown(h, where + ".hull", "centre", "size", "skid", "fragile");
+                    hull.Add(new Ships.HullBox(f.Vector(h, "centre", where + ".hull"), f.Vector(h, "size", where + ".hull"), f.Flag(h, "skid", where + ".hull", false),
+                        f.Flag(h, "fragile", where + ".hull", false)));
                 }
                 skidPoints = f.Vectors(skids, "points", where + ".skids");
             }
@@ -199,6 +200,11 @@ internal sealed class ShipsReader : IContentReader
                 CrashSafeSpeed = f.Number(crash, "safe", where + ".crash"),
                 CrashScale = f.Number(crash, "scale", where + ".crash"),
                 CrashPilotShare = f.Number(crash, "pilot", where + ".crash", 0),
+                CrashFatalSpeed = f.Number(crash, "fatal", where + ".crash", 0),
+                CrashLeast = f.Number(crash, "least", where + ".crash", 0),
+                CrashTipped = f.Number(crash, "tipped", where + ".crash", 1),
+                StrikeShare = f.Number(crash, "strike", where + ".crash", 0),
+                NeedsPilot = f.Flag(e, "needsPilot", where, false),
                 Fuel = fuelItem,
                 FuelCapacity = f.Number(fuel, "capacity", where + ".fuel"),
                 FuelIdle = f.Number(fuel, "idle", where + ".fuel"),
@@ -410,6 +416,11 @@ internal sealed class ShipsReader : IContentReader
             if (ship.CrashSafeSpeed <= 0 || ship.CrashScale <= 0 || ship.CrashPilotShare is < 0 or > 1)
             {
                 c.Problem(where, "crash: a positive safe speed and scale, a pilot share of 0 … 1");
+            }
+            if ((ship.CrashFatalSpeed != 0 && ship.CrashFatalSpeed <= ship.CrashSafeSpeed) || ship.CrashLeast is < 0 or > 1 || ship.CrashTipped < 1 ||
+                ship.StrikeShare is < 0 or > 1 || (ship.StrikeShare > 0) != ship.HasFragile)
+            {
+                c.Problem(where, "crash: a fatal speed above the safe one, a least share of 0 … 1, tipped at least 1, and a strike share (0 … 1) exactly when the hull has a fragile box");
             }
             if (ship.FuelCapacity <= 0 || ship.FuelIdle < 0 || ship.FuelFull < ship.FuelIdle || ship.FuelBoost < 1)
             {

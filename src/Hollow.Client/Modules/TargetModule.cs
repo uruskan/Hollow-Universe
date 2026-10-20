@@ -832,6 +832,10 @@ public sealed class TargetModule : ClientModule
                             Vector3 x = drawn.Pose.DirectionToWorld(Vector3.UnitX), y = drawn.Pose.DirectionToWorld(Vector3.UnitY), z = drawn.Pose.DirectionToWorld(Vector3.UnitZ);
                             foreach (HullBox box in def.Hull)
                             {
+                                if (box.Fragile)
+                                {
+                                    continue;
+                                }
                                 float distance = Geometry.RayBox(ray.Origin, ray.Direction, ray.Upto(best), drawn.Pose.ToWorld(box.Centre), box.HalfExtents + new Vector3(radius), x, y, z);
                                 ray.Consider(ref best, distance, new TargetRef(TargetFamily.Ship, ship.Id.Value), AimKind.Backdrop);
                             }

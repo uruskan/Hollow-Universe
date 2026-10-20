@@ -119,6 +119,7 @@ public static class ShipDrives
     private static readonly Dictionary<string, Reader> Readers = new(StringComparer.Ordinal)
     {
         [ShipThrusters.Key] = ShipThrusters.Read,
+        [ShipRotor.Key] = ShipRotor.Read,
     };
 
     /// <summary>Every kind a ship may name.</summary>

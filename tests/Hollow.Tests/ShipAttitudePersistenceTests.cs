@@ -29,8 +29,8 @@ public static class ShipAttitudePersistenceTests
     {
         Ship ship = SavedShip();
         byte[] bytes = ShipCodec.Encode(ship, ZoneFrame.World);
-        Assert.Equal((byte)6, bytes[0], "explicit v6 payload");
-        Assert.Equal((byte)1, bytes[^ShipCodec.AttitudeTrailerBytes], "fixed trailer activation");
+        Assert.Equal(ShipCodec.Version, bytes[0], "explicit current payload");
+        Assert.Equal((byte)1, bytes[^(ShipCodec.AttitudeTrailerBytes + ShipCodec.SpoolBytes)], "fixed trailer activation");
         ZoneFrame frame = ZoneFrame.At(ShipAttitudeTests.Surface, 0.4, -1.2);
         Ship restored = ShipCodec.Decode(ship.Id, bytes, ContentFixture.Content, frame)!.Ship;
         Assert.True(restored.State.AttitudeHoldActive, "active target survives decode");
@@ -79,20 +79,20 @@ public static class ShipAttitudePersistenceTests
             using (var stream = new MemoryStream(data))
             using (var writer = new BinaryWriter(stream))
             {
-                stream.Position = data.Length - 16;
+                stream.Position = data.Length - 16 - ShipCodec.SpoolBytes;
                 writer.Write(invalid.X); writer.Write(invalid.Y); writer.Write(invalid.Z); writer.Write(invalid.W);
             }
             Ship decoded = ShipCodec.Decode(ship.Id, data, ContentFixture.Content, ZoneFrame.World)!.Ship;
             Assert.True(!decoded.State.AttitudeHoldActive, "invalid quaternion disables hold instead of becoming an identity target");
             Assert.True(ShipAttitudeTests.Degrees(decoded.State.Rotation, ship.State.Rotation) < 0.001, "physical pose remains intact");
         }
-        for (int removed = 1; removed <= ShipCodec.AttitudeTrailerBytes; removed++)
+        for (int removed = 1; removed <= ShipCodec.AttitudeTrailerBytes + ShipCodec.SpoolBytes; removed++)
         {
             byte[] truncated = original[..^removed];
             Throws<EndOfStreamException>(() => ShipCodec.Decode(ship.Id, truncated, ContentFixture.Content, ZoneFrame.World));
         }
         byte[] badActive = (byte[])original.Clone();
-        badActive[^ShipCodec.AttitudeTrailerBytes] = 2;
+        badActive[^(ShipCodec.AttitudeTrailerBytes + ShipCodec.SpoolBytes)] = 2;
         Throws<InvalidDataException>(() => ShipCodec.Decode(ship.Id, badActive, ContentFixture.Content, ZoneFrame.World));
         ShipAttitudeHold.Clear(ref ship.State);
         Ship inactive = ShipCodec.Decode(ship.Id, ShipCodec.Encode(ship, ZoneFrame.World), ContentFixture.Content, ZoneFrame.World)!.Ship;

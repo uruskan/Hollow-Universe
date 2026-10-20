@@ -264,8 +264,10 @@ public sealed partial class ShipSystem : ZoneSystem
             }
             // Leaving the helm releases rotation/boost, not the movement lever or engine switch.
             ShipInput input = pilot is { Sleeping: false } || ship.Autopilot ? ship.Input : ship.Input.Unattended();
-            input.Engines = !ship.State.Has(ShipFlags.EngineStopped)
-                && (pilot != null || ship.Autopilot || ship.State.Has(ShipFlags.EnginesOn));
+            // A ship whose engines need a pilot (the KA-FA 1500's, docs/MINICOPTER.md M12) stops when nobody awake is at its helm.
+            input.Engines = !ship.State.Has(ShipFlags.EngineStopped) && (ship.Def.NeedsPilot
+                ? pilot is { Sleeping: false } || ship.Autopilot
+                : pilot != null || ship.Autopilot || ship.State.Has(ShipFlags.EnginesOn));
             ReconcileAttitudeHold(ship, input, pilot);
             if (ship.ParkedBody != 0 && input.Engines)
             {
@@ -687,6 +689,10 @@ public sealed partial class ShipSystem : ZoneSystem
             Vector3 z = Vector3.Transform(Vector3.UnitZ, pose.Rotation);
             foreach (HullBox box in ship.Def.Hull)
             {
+                if (box.Fragile)
+                {
+                    continue; // shots pass through a rotor's disc
+                }
                 float t = Geometry.RayBox(origin, direction, length, pose.ToWorld(box.Centre), box.HalfExtents + new Vector3(thickness), x, y, z);
                 if (t >= 0 && (best < 0 || t < best))
                 {

@@ -70,6 +70,11 @@ public sealed class ShipCollider : IDisposable
                 var boxes = new List<BoxShapeSettings>();
                 foreach (HullBox box in def.Hull)
                 {
+                    if (box.Fragile && !swept)
+                    {
+                        // A parked rotor's blades are two thin sticks, not its disc (docs/MINICOPTER.md §5.5).
+                        continue;
+                    }
                     Vector3 centre = box.Centre, half = box.HalfExtents;
                     if (swept && box.Skid)
                     {

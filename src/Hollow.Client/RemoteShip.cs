@@ -71,6 +71,9 @@ public sealed class RemoteShip
     /// <summary>Each axis's thrust as a fraction (x + left, y + up, z + forward; boost above 1).</summary>
     public Vector3 Thrust { get; private set; }
 
+    /// <summary>The drive's engine speed (a rotor's spin), 0 … 1, interpolated like the thrust.</summary>
+    public float Spool { get; private set; }
+
     public ShipNetFlags Flags { get; private set; }
 
     /// <summary>What the server tells this player of it (GROUND_SYSTEMS.md §3.3): theirs, a teammate's, locked.</summary>
@@ -384,6 +387,7 @@ public sealed class RemoteShip
         float span = (_ticks[b] - _ticks[a]) / (float)Simulation.Movement.CharacterMotor.TickRate;
         Velocity = span > 0 ? (pb - pa) / span : Vector3.Zero;
         Thrust = Vector3.Lerp(ShipConvert.ThrustOf(sa), ShipConvert.ThrustOf(sb), Math.Clamp(t, 0, 1));
+        Spool = float.Lerp(ShipConvert.SpoolOf(sa), ShipConvert.SpoolOf(sb), Math.Clamp(t, 0, 1));
         ShipNetState discrete = t < 0.5f ? sa : sb;
         Flags = discrete.Flags;
         Viewer = discrete.Viewer;

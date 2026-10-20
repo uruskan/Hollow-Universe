@@ -237,6 +237,9 @@
     { "id": 142, "key": "iron-wake", "name": "Iron Wake", "category": "vehicles",
       "description": "A 58 m carrier: an open construction deck behind a stern ramp, a glazed bridge, two siege batteries and four defense mounts. Burns lamp oil. Crewed, not built: there is no recipe yet.",
       "ship": "iron-wake" },
+    { "id": 250, "key": "ka-fa-1500", "name": "KA-FA 1500", "category": "vehicles",
+      "description": "A two-seat rotorcraft welded from scrap: a flat twin belted to a teetering rotor, a truss tail and a road sign for a fin. Hovers by itself and goes where it is tilted. Burns lamp oil. Built at a vehicle workbench.",
+      "ship": "ka-fa-1500" },
 
     { "id": 150, "key": "salvage", "name": "Salvage", "category": "resources", "stack": 1000,
       "description": "Scrap metal, wire and broken parts picked out of barrels, crates and old machines. Everyone takes it: the recycler pays in it, and workbenches, research and the tech tree cost it." },

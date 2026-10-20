@@ -4752,3 +4752,24 @@ The review found the four dropped door items 8–10 times heavier than the stand
 same ratio only where a level is over 6,000 / 2,000 / 600 triangles: 4,888 / 1,000 / 600, 5,112 / 888 / 599, 6,000 / 1,999 / 598 and 5,912 / 1,999 / 599, files
 0.40, 0.41, 0.59 and 0.57 MB; the icons were re-rendered by `IconRenderer` and look as before (`docs/ITEM_ART_DOORS.md`). Validation: build 0 warnings;
 `ContentTests`, `Model`, `Icon`, `Gib` and `DoorTests` pass. Not done: a live drop or placement check.
+
+### 20 October 2026 — the KA-FA 1500 (our minicopter): M1, the rotor drive
+
+The owner asked for Rust's minicopter in our own style, modular and craftable, and named it the KA-FA 1500. `docs/MINICOPTER.md`
+is the design (M0, waiting for the owner's answers on §2). It shares two seams with the boat and car sessions: the boat's drive
+registry (98621ac7, 8806f350, merged into `claude/minicopter`) and the car's module core (VEHICLES.md §9, coming).
+M1 is built on `claude/minicopter`:
+- **The rotor drive** (`ShipRotor`): it hovers with no input, moves by tilting, levels itself, and its tail weathercocks.
+  Its lift goes with the spool squared and the thinning air, which gives it a ceiling.
+- **The spool** in the state (protocol 46, codec 7).
+- **Shared step:** fragile hull boxes (rotor strikes), Rust's crash rule as data, and engines that need a pilot.
+- **Data:** the KA-FA as a fixed two-seat build, its item (250), recipe, tree node and placeable.
+
+Validation:
+- Full solution build: 0 warnings.
+- `RotorTests` 15/15 (the measurements are in MINICOPTER.md §5.4).
+- `Ship Seat Content Net IronWake Placement Codec Persistence Snapshot Interaction`: 214/215. The one failure is the known
+  terrain test `EnvironmentDetailTests.EarthCliffsHaveStablePlacementsAndSharedCollision`, which fails on the boat's branch too.
+
+Not done: the model, the client (control scheme, view, HUD, sound) and modules; nothing was flown in Godot yet.
+

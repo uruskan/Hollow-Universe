@@ -97,6 +97,7 @@
     {"kind": "deployable", "key": "wood-spike-barricade"},
     {"kind": "deployable", "key": "metal-barricade"},
     {"kind": "deployable", "key": "auto-turret"},
-    {"kind": "deployable", "key": "wooden-ladder"}
+    {"kind": "deployable", "key": "wooden-ladder"},
+    {"kind": "ship", "key": "ka-fa-1500"}
   ]
 }
