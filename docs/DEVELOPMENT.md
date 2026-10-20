@@ -1,5 +1,26 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — World terrain: Earth's candidate layouts, and what the owner's playtest found
+
+`earth layouts <folder>` (`tools/Hollow.GeneratorReport/EarthLayoutsReport.cs`) bakes Earth with each layout variant
+(0–11 by default), places the cliff kit on it and draws an equal-area relief map: kit pieces as dark red dots, flat
+sites as circles (magenta for a radius of 150 m or more, yellow for 75 m or more) and the landing site as a white cross.
+It also writes a numbered contact sheet and each layout's numbers. All twelve take 76 s; the maps went to the owner in
+`.artifacts/earth-layouts/`, not committed. `earth kit` now also reports each busy site's collision tile.
+
+The owner's playtest of today's Earth found six problems, none fixed yet. Their measured causes are in
+WORLD_TERRAIN_PLAN.md §7a:
+- collision tiles at cliffs of up to 436,000 triangles, 97% of them the kit's shells, copied from pieces as far as 60 m
+  beyond each tile;
+- cliffs that read as scattered assets;
+- bare beaches;
+- ground textures that repeat in visible squares;
+- white pans of very shallow sea filled with the shore foam's 3.1 m texture;
+- a sea's edge that never moves.
+
+Checked: the maps and contact sheet by eye, and the collision counts by `earth kit`. No test was run (fast iteration,
+by the owner's rule).
+
 ## 20 October 2026 — Ground vehicles designed: the modular car, the motorbike and the lift (V0)
 
 At the owner's request, a design and nothing built: [VEHICLES.md](VEHICLES.md) and its proportion sheet
