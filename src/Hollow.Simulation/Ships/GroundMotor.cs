@@ -23,10 +23,11 @@ public sealed record WheelDef(string Key, Vector3 Hub, float Radius, float Width
 /// brakes and the tyres can push, the steering's lock at a crawl and at top speed, rolling resistance, what grip the rear
 /// tyres keep with the handbrake on, and how far over the ground the tyres' grip acts (as Unity's wheels' force point: a
 /// tall truck turning hard slides before it rolls, a tall build on it rolls first), and the engine's braking off the
-/// throttle as a share of the brakes. Its power is its engines' (<see cref="ShipDef.EnginePower"/>).
+/// throttle as a share of the brakes; and running people over (VEHICLES.md §6.4): above <see cref="RunOverSpeed"/> (m/s) the
+/// square of what is over it times <see cref="RunOverScale"/>. Its power is its engines' (<see cref="ShipDef.EnginePower"/>).
 /// </summary>
 public sealed record GroundDef(float TopSpeed, float ReverseSpeed, float Brake, float Traction, float Steer, float SteerFast, float Rolling,
-    float HandbrakeGrip, float GripHeight = 0, float Coast = 0.1f);
+    float HandbrakeGrip, float GripHeight = 0, float Coast = 0.1f, float RunOverSpeed = 4, float RunOverScale = 2);
 
 /// <summary>
 /// A vehicle on wheels (VEHICLES.md §6.2): the ship's six degrees of freedom under the planet's gravity, held up by a sprung

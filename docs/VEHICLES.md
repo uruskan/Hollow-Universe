@@ -545,7 +545,10 @@ On branch `claude/vehicles` (abtest-b with the motorboat's and the minicopter's 
   - 30 m of climb in eight seconds up 20°, none up 42° (it slides back and rolls);
   - 1.1 km round a 2.41 km world on its wheels.
   - On the stand-in's ground with its trees it drives into them and rolls, as it should.
-- **Not yet:** a moving vehicle is not solid to people and runs nobody over (§6.4); no hosted drive has been run; the
+- **Running people over** (`ShipSystem.RunOver.cs`, §6.4): a person whose capsule the hull boxes meet, closing faster than
+  `runOverSpeed` (4 m/s), takes (closing − 4)² × `runOverScale` (2) through the characters' receiver, by the driver, and
+  is thrown along; nobody in its seats, nobody twice a second. Animals are not run over yet.
+- **Not yet:** a moving vehicle is not solid to people below that speed (it passes through them); no hosted drive has been run; the
   42° slope shows the tyres at their limit sliding back rather than holding still under the brakes (μ 1 against
   tan 42° = 0.9), worth a look in play.
 
@@ -584,7 +587,7 @@ wrecks to recover belong with the roads, later.
 |---|---|---|
 | V0 | This document; the owner's answers to §12 | — |
 | V1 (done, §9.5) | The module core: modules.json, sockets, the assembler, holds, the build saved (codec 8) and on the wire (protocol 47), the hull mended with the hammer; **shared** with the minicopter. The motor registry moves to V2 | `ModuleTests` (7) |
-| V2 (driving done, §9.6) | The ground motor and the TOGG on its wheels, drawn as blocks in the ship sandbox (`--view ship --ship togg`). Left: a moving vehicle solid to people, running them over, a hosted drive | `GroundMotorTests` (5); the sandbox pictures |
+| V2 (driving and run-overs done, §9.6) | The ground motor and the TOGG on its wheels, drawn as blocks in the ship sandbox (`--view ship --ship togg`); people run over. Left: a moving vehicle solid to people, animals run over, a hosted drive | `GroundMotorTests` (6); the sandbox pictures |
 | V3 | Seats, the car and bike control schemes, prediction of passengers, the HUD; the hosted game | Network tests; a hosted drive with a passenger |
 | V4 | The lift: item, power, the vehicle screen, locks; engine parts and tiers; crafting and the tree | `Lift`; `ContentTests`; the screen in `--view ui --screen vehicle` |
 | V5 | The car's modules and stacking; build zones aboard (beds and bags as respawn points, boxes); decay outside claims | `Modules`, `Decay`, `Respawn`; a camp built and driven |

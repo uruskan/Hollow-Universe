@@ -191,4 +191,29 @@ public static class GroundMotorTests
         Assert.True(arc > 900, "about a kilometre round the ball");
         Assert.True(MathF.Abs(t.Height) < 0.3f && t.Upright > 0.98f && t.Car.State.Has(ShipFlags.Landed), "still on its wheels, up the ball's way");
     }
+
+    /// <summary>
+    /// VEHICLES.md §6.4: a person standing in the TOGG's way is unharmed while it stands, and hurt when it drives into them
+    /// above a walk, by its driver, thrown along; the one in its seat isn't.
+    /// </summary>
+    [Test]
+    public static void ItRunsPeopleOverAboveAWalk()
+    {
+        using var t = new Drive();
+        Zone z = t.Zone;
+        Vector3 up = z.Frame.UpAt(t.Car.State.Position);
+        Entity bo = z.Players().AddPlayer(z.NextId(), "Bo", z.NewCharacter(z.Settle(t.Car.Origin + t.Car.State.Forward * 30) + up * 0.05f));
+        Hollow.Simulation.Players.Player pb = z.Players().PlayerOf(bo)!;
+        Hollow.Simulation.Players.Player ada = z.Players().PlayerOf(t.Driver)!;
+        float health = pb.Vitals.Health, driver = ada.Vitals.Health;
+        t.Go(default, 30);
+        Fixtures.Report($"standing: {z.Ships().RunOvers} hit, Bo's health {health:0.00} then {pb.Vitals.Health:0.00}");
+        Assert.True(z.Ships().RunOvers == 0, "a car standing 30 m off hurts nobody");
+        health = pb.Vitals.Health;
+        t.Go(new ShipInput { Throttle = 1 }, 150);
+        Fixtures.Report($"driven at Bo: {z.Ships().RunOvers} hit, Bo's health {pb.Vitals.Health:0} of {health:0}, dead {pb.Dead}, killed by {pb.KilledBy}");
+        Assert.True(z.Ships().RunOvers >= 1 && (pb.Vitals.Health < health || pb.Dead), "Bo is run over");
+        Assert.True(!pb.Dead || pb.KilledBy == "Ada", "by Ada, if it killed him");
+        Assert.True(ada.Vitals.Health >= driver, "the driver isn't run over by her own car");
+    }
 }
