@@ -79,6 +79,9 @@ Read first, in this order:
    touch interaction, placement, held items, item information, damage or anything a player does to a world thing;
    its §12, the kernel, says where a rule (a `ZoneSystem`), an event, a message, a server or client module or a data
    file goes, and how the host, the modules and the readers are listed.
+9. [docs/DOORS.md](docs/DOORS.md): how doors behave (the owner's rules of 20 October 2026: both faces alike, hinge and swing
+   chosen apart, doors that ignore what is in their way and whose collision follows their motion), if you touch doors, locks
+   on doors, their art or their network state.
 
 ## Rules
 
