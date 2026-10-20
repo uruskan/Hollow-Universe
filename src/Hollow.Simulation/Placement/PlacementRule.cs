@@ -5,8 +5,9 @@ namespace Hollow.Simulation.Placement;
 
 /// <summary>
 /// What a placement stands on or is fitted to (placement.json's surfaces): the ground, the top of a foundation, floor or
-/// stairs' landing, a wall, a roof, a doorway or wall frame, a door's leaf, a deployable or prop, a tree or rock, a ship.
-/// A rule allows a set of them; a candidate is on one.
+/// stairs' landing, a wall, a roof, a doorway or wall frame, a door's leaf, a deployable or prop, a tree or rock, a ship,
+/// the water's surface (a boat's; the aim meets it only for a rule that allows it, docs/MOTORBOAT.md §4). A rule allows a
+/// set of them; a candidate is on one.
 /// </summary>
 [Flags]
 public enum PlacementSurfaces : ushort
@@ -21,6 +22,7 @@ public enum PlacementSurfaces : ushort
     Thing = 64,
     Natural = 128,
     Ship = 256,
+    Water = 512,
     Any = Terrain | Floor | Wall | Roof | Opening | Door | Thing | Natural | Ship,
 }
 

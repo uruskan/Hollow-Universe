@@ -387,7 +387,7 @@ taken back; a client aims and offers as the server. The old intents' tests use `
 
 | Field | Meaning |
 |---|---|
-| `surfaces` | where it may stand: `terrain`, `floor` (tops of foundations, floors and stairs' landings), `wall`, `opening` (doorway or wall frame), `door` (a door leaf), `any` (pieces, doors, deployables, trees, rocks, terrain) |
+| `surfaces` | where it may stand: `terrain`, `floor` (tops of foundations, floors and stairs' landings), `wall`, `opening` (doorway or wall frame), `door` (a door leaf), `water` (the water's surface, met by the aim only for a rule that allows it, with `water: true`: the motorboat, docs/MOTORBOAT.md §4), `any` (pieces, doors, deployables, trees, rocks, terrain) |
 | `solver` | `free` (onto the surface under the aim), `socket` (building pieces), `opening`, `attach`, `sweep` (charges) |
 | `footprint` | half extents, or the model's hull from the catalogue (ships) |
 | `support` | `corners` (every footprint corner supported, RustMVP) or `centre` |

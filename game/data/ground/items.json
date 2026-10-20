@@ -352,6 +352,7 @@
     {"id": 233, "key": "metal-barricade", "name": "Metal barricade", "category": "construction", "description": "A reinforced metal barrier.", "deploys": "metal-barricade"},
     {"id": 234, "key": "auto-turret", "name": "Auto turret", "category": "construction", "description": "Uses 10 electricity and passes the remainder onward. Install a firearm and matching ammunition. Hold E to manage power and cupboard-derived or local authorization.", "deploys": "auto-turret"},
     {"id": 235, "key": "wooden-ladder", "name": "Wooden ladder", "category": "construction", "description": "Place against a wall. Move forward to climb, back to descend, jump to leave.", "deploys": "wooden-ladder"},
+    {"id": 239, "key": "motorboat", "name": "Motorboat", "category": "vehicles", "description": "A small open boat welded from salvaged sheet, a steering wheel cabled to an outboard motor at the stern. Seats a driver and one more, with a crate in the bow. Burns lamp oil. Put it on the water.", "ship": "motorboat"},
     {"id":238,"key":"wire-tool","name":"Wire Tool","category":"construction","description":"Click an output port, add optional surface routing points, then click an input. Maximum 20 m between ports. Right-click cancels; R disconnects the aimed port.","wiring":{"reach":4,"maxAnchors":32,"draftSeconds":120}}
   ]
 }

@@ -133,6 +133,12 @@ public sealed class ShipDef
 
     public float WaterVolume { get; internal set; }
 
+    /// <summary>
+    /// A hull that floats on its own shape (ships.json <c>buoyancy</c>: a boat's), or null: the band above, the flight
+    /// assist holding it level.
+    /// </summary>
+    public ShipBuoyancy? Buoyancy { get; init; }
+
     /// <summary>The model catalogue's key the views draw it with (ships.json <c>model</c>; by default its own key).</summary>
     public string Model { get; init; } = "";
 
@@ -393,6 +399,12 @@ public sealed class ShipDef
 
     /// <summary>The lamps (ships.json <c>lights</c>, IRON_WAKE.md §9.4): data until IW6 draws them.</summary>
     public IReadOnlyList<ShipLight> Lights { get; init; } = Array.Empty<ShipLight>();
+
+    /// <summary>
+    /// The views' red, green and white flight glows at the hull's tips (ships.json <c>lights.nav</c>, true unless false: a
+    /// boat has none).
+    /// </summary>
+    public bool NavLights { get; init; } = true;
 
     /// <summary>
     /// The orbital-altitude marker, in world radii above the mean surface. Kept as <c>ceiling</c> in the data for

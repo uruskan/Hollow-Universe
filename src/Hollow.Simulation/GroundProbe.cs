@@ -96,9 +96,29 @@ public readonly struct GroundProbe(ISurface surface, ZoneFrame frame)
     }
 
     /// <summary>Where a ray first goes below the ground (within <paramref name="length"/>), or −1.</summary>
-    public float Crossing(Vector3 origin, Vector3 direction, float length)
+    public float Crossing(Vector3 origin, Vector3 direction, float length) => March(origin, direction, length, water: false);
+
+    /// <summary>
+    /// Where a ray first goes below the water's surface (the sea, a lake, a stream; within <paramref name="length"/>), or
+    /// −1: what a boat is put on (docs/MOTORBOAT.md §4).
+    /// </summary>
+    public float WaterCrossing(Vector3 origin, Vector3 direction, float length) => March(origin, direction, length, water: true);
+
+    /// <summary>How far a point is above the water's surface (negative: under it), +∞ where no water lies.</summary>
+    public float HeightAboveWater(Vector3 point)
     {
-        float previous = HeightAbove(origin);
+        Core.Vector3D body = Frame.ToBody(point);
+        double length = body.Length;
+        double level = length > 0 ? Surface.WaterLevelAt(body / length) : double.NegativeInfinity;
+        return double.IsFinite(level) ? (float)(length - (Surface.Radius + level)) : float.PositiveInfinity;
+    }
+
+    private float Height(Vector3 point, bool water) => water ? HeightAboveWater(point) : HeightAbove(point);
+
+    // Half-metre steps along the ray until a point is below the surface, then halving between it and the last above.
+    private float March(Vector3 origin, Vector3 direction, float length, bool water)
+    {
+        float previous = Height(origin, water);
         if (previous < 0)
         {
             return -1; // starting under the ground: the surface doesn't block (it would block everything)
@@ -108,14 +128,14 @@ public readonly struct GroundProbe(ISurface surface, ZoneFrame frame)
         for (int i = 1; i <= steps; i++)
         {
             float t1 = length * i / steps;
-            if (HeightAbove(origin + direction * t1) < 0)
+            if (Height(origin + direction * t1, water) < 0)
             {
                 // Bisect between the last point above and this one.
                 float lo = t0, hi = t1;
                 for (int k = 0; k < 8; k++)
                 {
                     float mid = (lo + hi) / 2;
-                    if (HeightAbove(origin + direction * mid) < 0)
+                    if (Height(origin + direction * mid, water) < 0)
                     {
                         hi = mid;
                     }

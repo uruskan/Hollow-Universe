@@ -193,6 +193,28 @@ public sealed class PlacementWorld
         return true;
     }
 
+    /// <summary>
+    /// <see cref="Ray(Vector3, Vector3, float, out PlacementHit)"/>, and the water's surface first when the rule allows it
+    /// (<paramref name="wanted"/> holds <see cref="PlacementSurfaces.Water"/>: a boat's, docs/MOTORBOAT.md §4): the water
+    /// has no body, so the aim meets it here, as the ground's own, facing up.
+    /// </summary>
+    public bool Ray(Vector3 origin, Vector3 direction, float length, PlacementSurfaces wanted, out PlacementHit hit)
+    {
+        bool met = Ray(origin, direction, length, out hit);
+        if ((wanted & PlacementSurfaces.Water) == 0)
+        {
+            return met;
+        }
+        float t = Ground.WaterCrossing(origin, direction, met ? hit.Distance : length);
+        if (t < 0)
+        {
+            return met;
+        }
+        Vector3 point = origin + direction * t;
+        hit = new PlacementHit(t, point, Frame.UpAt(point), TargetRef.Ground, PlacementSurfaces.Water);
+        return true;
+    }
+
     // The surface each family of world thing offers (a piece's is its own family's, placement.json's pieceSurfaces), and
     // the family each layer of props names its bodies by: lookups, by number.
     private static readonly PlacementSurfaces[] FamilySurfaces = Surfaces();

@@ -86,7 +86,8 @@ internal static class Checks
                 return Outcome.Done;
             }
             bool floorsOnly = (allowed & PlacementSurfaces.Floor) != 0 && (allowed & PlacementSurfaces.Terrain) == 0;
-            return floorsOnly ? OutcomeCode.NotOnStructure : OutcomeCode.BadPlacement;
+            bool waterOnly = allowed == PlacementSurfaces.Water;
+            return waterOnly ? OutcomeCode.NotOnWater : floorsOnly ? OutcomeCode.NotOnStructure : OutcomeCode.BadPlacement;
         }
     }
 
@@ -133,7 +134,7 @@ internal static class Checks
             foreach (Vector3 corner in corners[..count])
             {
                 Vector3 up = world.Frame.UpAt(corner);
-                if (!world.Ray(corner + up * step, -up, 2 * step, out PlacementHit hit) || (hit.Surface & ctx.Rule.Surfaces) == 0 ||
+                if (!world.Ray(corner + up * step, -up, 2 * step, ctx.Rule.Surfaces, out PlacementHit hit) || (hit.Surface & ctx.Rule.Surfaces) == 0 ||
                     Vector3.Dot(hit.Normal, up) < CornerUp)
                 {
                     return OutcomeCode.Overhangs;

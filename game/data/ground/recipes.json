@@ -86,6 +86,8 @@
     { "output": "engineering-workbench", "seconds": 45, "workbench": 2, "ingredients": [["metal-fragments", 500], ["refined-metal", 20], ["wood", 200]] },
     { "output": "tin-finch", "seconds": 120, "station": "vehicle-workbench",
       "ingredients": [["metal-fragments", 1200], ["refined-metal", 120], ["wood", 300], ["fibre", 100], ["lamp-oil", 50]] },
+    { "output": "motorboat", "seconds": 60, "workbench": 1,
+      "ingredients": [["metal-fragments", 300], ["wood", 200], ["gears", 2], ["metal-pipe", 1], ["rope", 4], ["lamp-oil", 20]] },
 
     { "output": "bone-knife", "seconds": 10, "ingredients": [["bone-fragments", 30]] },
     { "output": "bone-club", "seconds": 10, "ingredients": [["bone-fragments", 20]] },

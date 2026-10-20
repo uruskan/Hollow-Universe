@@ -45,7 +45,8 @@
       {"item": "horizontal-embrasure", "cost": 75, "after": ["metal-door"]},
       {"item": "vertical-embrasure", "cost": 75, "after": ["metal-door"]},
       {"item": "wooden-barricade", "cost": 75},
-      {"item": "wood-compound-wall", "cost": 75}
+      {"item": "wood-compound-wall", "cost": 75},
+      {"item": "motorboat", "cost": 125}
     ] },
     { "workbench": 2, "nodes": [
       { "item": "pistol", "cost": 125 },

@@ -15,6 +15,9 @@ internal sealed class ShipsReader : IContentReader
 {
     public string File => "ships.json";
 
+    // An empty object, for the blocks a ship may leave out.
+    private static readonly JsonElement Empty = JsonDocument.Parse("{}").RootElement;
+
     public void Read(ContentReading r)
     {
         JsonFields f = r.Fields;
@@ -28,7 +31,7 @@ internal sealed class ShipsReader : IContentReader
             string where = $"ships.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
                 "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "seats", "doors", "parts", "nozzles", "lights", "ceiling",
-                "wreck", "placement", "model", "interior", "water", "assist", "drive", "controls");
+                "wreck", "placement", "model", "interior", "water", "assist", "drive", "controls", "buoyancy");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             // The inside people walk in (IRON_WAKE.md §4.3): its data file, read first, since the sockets and the hull may
             // name what it holds.
@@ -36,7 +39,7 @@ internal sealed class ShipsReader : IContentReader
                 ? ShipInteriorReader.Read(r, interiorBlock, where + ".interior")
                 : null;
             var blocks = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-            foreach (string name in new[] { "damage", "thrust", "speed", "boost", "rates", "drag", "landing", "skids", "crash", "fuel", "nozzles" })
+            foreach (string name in new[] { "damage", "thrust", "speed", "rates", "drag", "landing", "skids", "crash", "fuel" })
             {
                 if (f.TryChild(e, name, out JsonElement child) && child.ValueKind == JsonValueKind.Object)
                 {
@@ -47,13 +50,17 @@ internal sealed class ShipsReader : IContentReader
                     f.Problem(where, $"needs \"{name}\" (an object)");
                 }
             }
-            if (blocks.Count < 11)
+            if (blocks.Count < 9)
             {
                 continue;
             }
-            JsonElement damage = blocks["damage"], thrust = blocks["thrust"], speed = blocks["speed"], boost = blocks["boost"];
+            // A ship without a boost or nozzles (a boat) leaves them out: none, nothing drawn.
+            JsonElement boost = f.TryChild(e, "boost", out JsonElement boostBlock) ? boostBlock : Empty;
+            JsonElement nozzles = f.TryChild(e, "nozzles", out JsonElement nozzleBlock) ? nozzleBlock : Empty;
+            bool boosts = boost.ValueKind == JsonValueKind.Object && boost.EnumerateObject().Any();
+            JsonElement damage = blocks["damage"], thrust = blocks["thrust"], speed = blocks["speed"];
             JsonElement rates = blocks["rates"], drag = blocks["drag"], landing = blocks["landing"], skids = blocks["skids"];
-            JsonElement crash = blocks["crash"], fuel = blocks["fuel"], nozzles = blocks["nozzles"];
+            JsonElement crash = blocks["crash"], fuel = blocks["fuel"];
             f.OnlyKnown(damage, where + ".damage", "melee", "arrow", "bullet", "explosive");
             f.OnlyKnown(thrust, where + ".thrust", "main", "retro", "lateral", "lift", "down");
             f.OnlyKnown(speed, where + ".speed", "forward", "reverse", "lateral", "up", "down");
@@ -111,6 +118,22 @@ internal sealed class ShipsReader : IContentReader
                 levelRoll = level == null ? 0 : (float)level[1] * MathF.PI / 180;
                 levelReturn = f.Number(assistBlock, "return", where + ".assist", 0.6f);
             }
+            // A hull that floats on its own shape (docs/MOTORBOAT.md §3), optional.
+            Ships.ShipBuoyancy? buoyancy = null;
+            if (f.TryChild(e, "buoyancy", out JsonElement buoyancyBlock))
+            {
+                string bAt = where + ".buoyancy";
+                f.OnlyKnown(buoyancyBlock, bAt, "points", "depth", "volume", "damping", "drag", "turn");
+                buoyancy = new Ships.ShipBuoyancy
+                {
+                    Points = f.Vectors(buoyancyBlock, "points", bAt),
+                    Depth = f.Number(buoyancyBlock, "depth", bAt),
+                    Volume = f.Number(buoyancyBlock, "volume", bAt),
+                    Damping = f.Vector(buoyancyBlock, "damping", bAt),
+                    Drag = f.Vector(buoyancyBlock, "drag", bAt),
+                    TurnDamping = f.Vector(buoyancyBlock, "turn", bAt),
+                };
+            }
             float waterBelow = 1.2f, waterAbove = 1.2f, waterVolume = 0;
             if (f.TryChild(e, "water", out JsonElement waterBlock))
             {
@@ -127,9 +150,9 @@ internal sealed class ShipsReader : IContentReader
                     wreck.Add(new ItemAmount(wreckItem, (int)values[0]));
                 }
             }
-            float[] assist = f.List(landing, "assist", where + ".landing").Where(x => x.ValueKind == JsonValueKind.Number)
+            float[] assist = f.List(landing, "assist", where + ".landing", required: false).Where(x => x.ValueKind == JsonValueKind.Number)
                 .Select(x => (float)x.GetDouble()).ToArray();
-            if (assist.Length != 2)
+            if (f.Has(landing, "assist") && assist.Length != 2)
             {
                 f.Problem(where + ".landing", "\"assist\" is [least descent m/s, descent per metre of height]");
             }
@@ -161,21 +184,22 @@ internal sealed class ShipsReader : IContentReader
                 ExplosiveDamage = f.Number(damage, "explosive", where + ".damage"),
                 MainThrust = f.Number(thrust, "main", where + ".thrust"),
                 RetroThrust = f.Number(thrust, "retro", where + ".thrust"),
-                LateralThrust = f.Number(thrust, "lateral", where + ".thrust"),
-                LiftThrust = f.Number(thrust, "lift", where + ".thrust"),
-                DownThrust = f.Number(thrust, "down", where + ".thrust"),
+                // Axes a drive doesn't use may be left out (a boat's lift and strafe); its drive judges what it needs.
+                LateralThrust = f.Number(thrust, "lateral", where + ".thrust", 0),
+                LiftThrust = f.Number(thrust, "lift", where + ".thrust", 0),
+                DownThrust = f.Number(thrust, "down", where + ".thrust", 0),
                 ForwardSpeed = f.Number(speed, "forward", where + ".speed"),
                 ReverseSpeed = f.Number(speed, "reverse", where + ".speed"),
-                LateralSpeed = f.Number(speed, "lateral", where + ".speed"),
-                UpSpeed = f.Number(speed, "up", where + ".speed"),
-                DownSpeed = f.Number(speed, "down", where + ".speed"),
-                BoostThrust = f.Number(boost, "thrust", where + ".boost"),
-                BoostSpeed = f.Number(boost, "speed", where + ".boost"),
-                BoostSeconds = f.Number(boost, "seconds", where + ".boost"),
-                BoostCooldownSeconds = f.Number(boost, "cooldown", where + ".boost"),
-                Pitch = f.Turn(rates, "pitch", where + ".rates"),
+                LateralSpeed = f.Number(speed, "lateral", where + ".speed", 0),
+                UpSpeed = f.Number(speed, "up", where + ".speed", 0),
+                DownSpeed = f.Number(speed, "down", where + ".speed", 0),
+                BoostThrust = boosts ? f.Number(boost, "thrust", where + ".boost") : 1,
+                BoostSpeed = boosts ? f.Number(boost, "speed", where + ".boost") : f.Number(speed, "forward", where + ".speed"),
+                BoostSeconds = boosts ? f.Number(boost, "seconds", where + ".boost") : 0,
+                BoostCooldownSeconds = boosts ? f.Number(boost, "cooldown", where + ".boost") : 0,
+                Pitch = f.Has(rates, "pitch") ? f.Turn(rates, "pitch", where + ".rates") : default,
                 Yaw = f.Turn(rates, "yaw", where + ".rates"),
-                Roll = f.Turn(rates, "roll", where + ".rates"),
+                Roll = f.Has(rates, "roll") ? f.Turn(rates, "roll", where + ".rates") : default,
                 DragForward = f.Number(drag, "forward", where + ".drag"),
                 DragSide = f.Number(drag, "side", where + ".drag"),
                 DragTop = f.Number(drag, "top", where + ".drag"),
@@ -189,6 +213,7 @@ internal sealed class ShipsReader : IContentReader
                 WaterBelow = waterBelow,
                 WaterAbove = waterAbove,
                 WaterVolume = waterVolume,
+                Buoyancy = buoyancy,
                 Model = f.Text(e, "model", where, key),
                 Interior = interior,
                 SkidPoints = skidPoints,
@@ -214,6 +239,8 @@ internal sealed class ShipsReader : IContentReader
                 CargoPart = parts.FirstOrDefault(p => p.Capabilities.Has(r.Loaded.Capabilities?.Index("container") ?? -1))?.Index ?? 0,
                 Nozzles = ShipLayoutReader.Nozzles(f, nozzles, where + ".nozzles", interior),
                 Lights = ShipLayoutReader.Lights(f, e, where, interior),
+                NavLights = !(f.TryChild(e, "lights", out JsonElement lightsBlock) && lightsBlock.ValueKind == JsonValueKind.Object &&
+                    lightsBlock.TryGetProperty("nav", out JsonElement nav) && nav.ValueKind == JsonValueKind.False),
                 Ceiling = f.Number(e, "ceiling", where),
                 Wreck = wreck,
             };
@@ -425,6 +452,10 @@ internal sealed class ShipsReader : IContentReader
                 c.Problem(where, "cargo 0 … 64 slots, a ceiling of 1 … 3 world radii, damage multipliers 0 … 10");
             }
             ShipLayoutReader.Check(c, ship, where);
+            foreach (string problem in ship.Buoyancy?.Problems(ship) ?? Enumerable.Empty<string>())
+            {
+                c.Problem(where, problem);
+            }
             if (ship.WaterBelow <= 0 || ship.WaterAbove <= 0 || ship.WaterVolume < 0 || ship.LevelPitch is < 0 or > 1.05f ||
                 ship.LevelRoll is < 0 or > 1.05f || ship.LevelReturn is < 0 or > 10)
             {

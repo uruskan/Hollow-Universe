@@ -358,7 +358,7 @@ public sealed partial class ShipSystem
 
     // The first exit of a seat whose spot is clear: aboard a ship people walk in, a standing capsule on a floor in its space
     // (in the ship's frame, at its parts' states); on one they only sit in, a spot on the ground below the exit, clear of
-    // the hull, deployables, trees and walls, no drop and no bank.
+    // the hull, deployables, trees and walls, no drop and no bank (over deep water, the exit itself: they swim).
     private bool ExitPoint(Ship ship, ShipSeatDef seat, out Vector3 at)
     {
         Vector3 up = Frame.UpAt(ship.State.Position);
@@ -396,6 +396,17 @@ public sealed partial class ShipSystem
                     continue;
                 }
                 Vector3 ground = Settle(point);
+                if (Ground.InWater(ground, -1f))
+                {
+                    // Over water deeper than a metre (a boat afloat on the sea or a lake): over the side at the authored
+                    // exit, into the water to swim, never down to the bottom; in the shallows they stand as on land.
+                    if (!InsideHull(ship, point, up) && CapsuleClear(point, up))
+                    {
+                        at = point;
+                        return true;
+                    }
+                    continue;
+                }
                 if (Vector3.Dot(point - ground, up) > ExitHeight + 1 || Vector3.Dot(ground - point, up) > 1.5f)
                 {
                     continue; // a drop or a bank there
