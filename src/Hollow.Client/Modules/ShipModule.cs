@@ -183,8 +183,9 @@ public sealed class ShipModule : ClientModule
 
     // Where the player's seat is after a tick (the character's prediction carries the seated player there), by the one seat
     // rule (ShipSeats.Pose, the server's): in a ship people walk in, the seat's socket in the ship's frame at its parts'
-    // states then (a gunner's turns with the turret), still; in one they only sit in, where the ship flown carries it.
-    // Null when the seat's ship or state isn't known here (the character then stays where it was).
+    // states then (a gunner's turns with the turret), still; in one they only sit in, where the ship carries it: the ship
+    // flown as predicted, or one someone else drives (an open boat's passenger) as its states have it, carried on past the
+    // newest along its motion. Null when the seat's ship or state isn't known here (the character then stays where it was).
     private (ulong Frame, Vector3 Position, Vector3 Velocity)? SeatAt(uint tick)
     {
         if (SeatShip is not { Def: { } def } ship || _ownSeat >= def.Seats.Count)
@@ -192,9 +193,23 @@ public sealed class ShipModule : ClientModule
             return null;
         }
         ShipState state = default;
-        if (def.Interior == null && !(_shipPredictor is { Active: true } own && own.NetId == ship.NetId && own.TryGetState(tick, out state)))
+        if (def.Interior == null)
         {
-            return null;
+            if (_shipPredictor is { Active: true } own && own.NetId == ship.NetId)
+            {
+                if (!own.TryGetState(tick, out state))
+                {
+                    return null;
+                }
+            }
+            else if (ship.TryPoseAt(tick, out ShipPose carried))
+            {
+                state = new ShipState { Position = carried.Position, Rotation = carried.Rotation, Velocity = carried.Velocity };
+            }
+            else
+            {
+                return null;
+            }
         }
         (bool aboard, Vector3 position, Vector3 velocity) = ShipSeats.Pose(def, _ownSeat, state, SeatParts(ship, def, tick));
         return (aboard ? ship.NetId : 0, position, velocity);
@@ -217,13 +232,19 @@ public sealed class ShipModule : ClientModule
         return _seatParts;
     }
 
-    // The eye of the player's seat as drawn (IRON_WAKE.md §5.2: a station's camera socket), in a ship people walk in; null
-    // otherwise (the character's own eye; the helm of one they only sit in has the ship's cameras).
+    // The eye of the player's seat as drawn (IRON_WAKE.md §5.2: a station's camera socket), in a ship people walk in, or in
+    // a seat of one they only sit in that someone else drives (an open boat's passenger: the seat's eye on the ship as drawn,
+    // so the view rides the boat the player sees); null otherwise (the helm of one they only sit in has the ship's cameras
+    // and the character's own eye).
     private Vector3? SeatEye()
     {
-        if (SeatShip is not { Def: { Interior: not null } def } ship || _ownSeat >= def.Seats.Count || DrawnPose(ship.NetId) is not { } pose)
+        if (SeatShip is not { Def: { } def } ship || _ownSeat >= def.Seats.Count || DrawnPose(ship.NetId) is not { } pose)
         {
             return null;
+        }
+        if (def.Interior == null)
+        {
+            return Piloting && _shipPredictor!.NetId == ship.NetId ? null : pose.ToWorld(ShipSeats.EyeInFrame(def, _ownSeat, ReadOnlySpan<float>.Empty));
         }
         ReadOnlySpan<float> parts = SeatParts(ship, def, (long)Client.RenderTick);
         if (_frames.TryGetValue(ship.NetId, out ClientShipFrame? frame))
