@@ -516,7 +516,9 @@ Iteration 4 runs in its own session on art files only.
 - **Uncommitted when the session ended:** nothing. Earth's sea is three times deeper (`SeaDepth` 3, floor at most
   300 m), at the owner's word that it was far too shallow; Earth's bake re-runs once (about 13 s).
 - **Way of working:** fast iterations the owner checks by hand; no tests or screenshot runs until they approve a look.
-  Then polish:
+  Every change to Earth's shape, its parameters or its solids raises `WalkingParameters.Earth.TerrainRevision` in the
+  same commit. Otherwise the owner's hosted save, which records the parameters' fingerprint, refuses to start. The
+  deeper sea of 20 October did exactly that (now revision 11). Then polish:
   - tests, including `TerrainSaveTests` and the cliff tests;
   - docs;
   - save revisions;

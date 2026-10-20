@@ -24,6 +24,11 @@ client's cosmetic ground (`GroundCollision.cs`) no longer copies shells into its
 and places it on the tile its pivot stands over (`IInstancedSolids`, implemented by `WalkingWorld`). Its tiles are now
 the bare ground, about 9,800 triangles.
 
+Earth's terrain revision is now 11. The owner's hosted save refused to start ("contains terrain revision 10 ...") because
+the deeper sea changed Earth's parameters, and with them the fingerprint the save records, without a new revision. A
+new revision gives the hosted game a fresh save (`...-earth-v11.db`) and keeps the old one. The bake is reused: its key
+leaves the revision out.
+
 Checked: the maps and contact sheet by eye, and the collision counts by `earth kit`. The game's C# compiles. No test
 was run, and the fix has not yet been tried in the game (fast iteration, by the owner's rule).
 
