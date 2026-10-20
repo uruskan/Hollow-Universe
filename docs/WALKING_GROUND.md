@@ -728,6 +728,11 @@ materials are the terrain's, so grass grows where the terrain paints it.
 - **Submission**: Godot culls each tile's batches by their bounds, so only tiles in view are drawn. Each tile is drawn at
   the level its nearest clump asks for. Its instances are sorted by rank, so the clumps a distance keeps are a prefix
   (`VisibleInstanceCount`): far tiles submit fewer.
+- **Changing a tile's level** (20 October 2026, found driving the Monster TOGG at 33 m/s). A MultiMesh given another mesh
+  while it holds instances reads them back from the GPU, about 2.3 ms a time. At speed 100–190 batches changed every
+  frame, and a slow frame only crossed more bands in the next: frames of 0.2–2.4 s. Now a batch is emptied, given the
+  level's mesh, and its instances again from the build it keeps (`Batch.SetLod`), at most 24 a frame
+  (`LodSwitchesPerFrame`); the rest keep their level a frame or two longer. At 33 m/s: 19–21 ms a frame.
 - **Stable thinning**: cards drop one by one with distance by their rank (each clump a little sooner or later), and a
   tile only switches to a level lacking cards once those cards have dropped from all its clumps: a switch removes
   segments, not cards. Clumps thin by their rank to 45% from 30% to 75% of the reach, the survivors widening (at most

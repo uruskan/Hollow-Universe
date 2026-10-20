@@ -346,7 +346,7 @@
       "fuel": { "item": "lamp-oil", "capacity": 160, "idle": 0.02, "full": 0.28, "placed": 30 },
       "ground": {
         "topSpeed": 34, "reverseSpeed": 9, "brake": 34000, "traction": 30000, "steer": 30, "steerFast": 7, "rolling": 0.02,
-        "handbrakeGrip": 0.5, "gripHeight": 0.7, "coast": 0.14,
+        "handbrakeGrip": 0.5, "gripHeight": 0.7, "coast": 0.14, "righting": 40, "rightingDamping": 6,
         "wheels": [
           { "key": "front-left", "hub": [1.42, 0.85, 3.6], "radius": 0.85, "width": 0.62, "travel": 0.6, "stiffness": 14400, "damping": 2600, "grip": 1.15, "steers": true, "drives": true },
           { "key": "front-right", "hub": [-1.42, 0.85, 3.6], "radius": 0.85, "width": 0.62, "travel": 0.6, "stiffness": 14400, "damping": 2600, "grip": 1.15, "steers": true, "drives": true },

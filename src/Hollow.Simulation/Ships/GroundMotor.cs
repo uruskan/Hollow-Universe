@@ -27,11 +27,13 @@ public sealed record WheelDef(string Key, Vector3 Hub, float Radius, float Width
 /// square of what is over it times <see cref="RunOverScale"/>; and a two-wheeler's balance (VEHICLES.md §6.3: it keeps the
 /// lean that balances the turn it is in). Its power is its engines' (<see cref="ShipDef.EnginePower"/>). The tyres' grip across
 /// their way may act higher than along it (<see cref="SideGripHeight"/>): a two-wheeler's at its centre of mass, so its rider's
-/// balance, not its tyres, sets its lean, while its drive still shifts its weight onto the rear tyre.
+/// balance, not its tyres, sets its lean, while its drive still shifts its weight onto the rear tyre. A vehicle that rights
+/// itself (<see cref="Righting"/>, <see cref="RightingDamping"/>, VEHICLES.md §9.9: the Monster TOGG) is sprung back toward
+/// the ground under its tyres once it tips past <see cref="GroundMotor.RightingFrom"/>: a lean or a wheel lifted comes back.
 /// </summary>
 public sealed record GroundDef(float TopSpeed, float ReverseSpeed, float Brake, float Traction, float Steer, float SteerFast, float Rolling,
     float HandbrakeGrip, float GripHeight = 0, float Coast = 0.1f, float RunOverSpeed = 4, float RunOverScale = 2, bool Balance = false,
-    float SideGripHeight = 0);
+    float SideGripHeight = 0, float Righting = 0, float RightingDamping = 0);
 
 /// <summary>
 /// A vehicle on wheels (VEHICLES.md §6.2): the ship's six degrees of freedom under the planet's gravity, held up by a sprung
@@ -81,6 +83,13 @@ public sealed class GroundMotor : IShipMotor
     /// <summary>A two-wheeler's drive eases off with less than this share of its weight on its front tyre, its brakes with less on its rear (no wheelies, no stoppies).</summary>
     public const float WheelieShare = 0.2f;
 
+    /// <summary>
+    /// A vehicle that rights itself (GroundDef.Righting): tipped past this (radians) off the ground under its tyres, or the
+    /// planet's up with none down, it is sprung back; never harder than <see cref="RightingMost"/> (rad/s²), so one on its
+    /// roof rolls back over rather than leaping.
+    /// </summary>
+    public const float RightingFrom = 0.12f, RightingMost = 30;
+
     /// <summary>The most wheels a vehicle has (a car's four, a long one's six, a track's road wheels later).</summary>
     public const int MostWheels = 16;
 
@@ -108,7 +117,8 @@ public sealed class GroundMotor : IShipMotor
         }
         if (g.TopSpeed is <= 0 or > 80 || g.ReverseSpeed < 0 || g.Brake <= 0 || g.Traction <= 0 || g.Steer is <= 0 or > 1.2f ||
             g.SteerFast < 0 || g.SteerFast > g.Steer || g.Rolling is < 0 or > 0.2f || g.HandbrakeGrip is < 0 or > 1 || g.GripHeight is < 0 or > 2 ||
-            g.SideGripHeight is < 0 or > 2 || g.Coast is < 0 or > 1)
+            g.SideGripHeight is < 0 or > 2 || g.Coast is < 0 or > 1 || g.Righting is < 0 or > 200 ||
+            g.RightingDamping is < 0 or > 50)
         {
             yield return "ground: a top speed of 0 … 80 m/s, reverse 0 or more, positive brakes and traction, steering of 0 … 70° " +
                 "that narrows with speed, rolling 0 … 0.2, the handbrake's grip 0 … 1, the grip's height 0 … 2 m, coasting 0 … 1";
@@ -127,6 +137,28 @@ public sealed class GroundMotor : IShipMotor
     }
 
     /// <summary>How far the front wheels turn for full steering at a speed (m/s): the lock narrows as it goes faster.</summary>
+    /// <summary>
+    /// The righting of a vehicle that rights itself (body frame, rad/s²): its roll and pitch sprung back toward
+    /// <paramref name="toward"/> (the ground under its tyres; <paramref name="up"/>, the planet's, when it is no way) past
+    /// <see cref="RightingFrom"/>, within <see cref="RightingMost"/>, and damped while it is tipped.
+    /// </summary>
+    public static Vector3 Righting(GroundDef g, Quaternion q, Quaternion qi, Vector3 spin, Vector3 toward, Vector3 up)
+    {
+        toward = toward.LengthSquared() > 1e-8f ? Vector3.Normalize(toward) : up;
+        Vector3 bodyUp = Vector3.Transform(Vector3.UnitY, q);
+        Vector3 axis = Vector3.Cross(bodyUp, toward);
+        float sine = axis.Length(), cosine = Vector3.Dot(bodyUp, toward);
+        float tilt = (float)DMath.Atan2(sine, cosine);
+        if (tilt <= RightingFrom)
+        {
+            return Vector3.Zero;
+        }
+        // Straight onto its roof the way back is any: over its side (about its nose).
+        Vector3 local = sine > 1e-6f ? Vector3.Transform(axis / sine, qi) : Vector3.UnitZ;
+        Vector3 spring = local * MathF.Min(g.Righting * (tilt - RightingFrom), RightingMost);
+        return spring - new Vector3(spin.X, 0, spin.Z) * g.RightingDamping;
+    }
+
     public static float SteerAngle(GroundDef g, float speed) =>
         g.Steer + (g.SteerFast - g.Steer) * Math.Clamp(MathF.Abs(speed) / g.TopSpeed, 0, 1);
 
@@ -281,6 +313,10 @@ public sealed class GroundMotor : IShipMotor
                 float target = loaded > 0
                     ? Math.Clamp((float)DMath.Atan2(Vector3.Dot(s.Velocity, bodyForward) * turning, ctx.Gravity), -MostLean, MostLean) : 0;
                 angular.Z += BalanceStiffness * (target - lean) - BalanceDamping * s.AngularVelocity.Z;
+            }
+            if (g.Righting > 0)
+            {
+                angular += Righting(g, q, qi, s.AngularVelocity, loaded > 0 ? groundNormal : under, under);
             }
             s.Velocity += accel * h;
             s.AngularVelocity += angular * h;

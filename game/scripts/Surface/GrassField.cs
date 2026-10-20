@@ -37,6 +37,9 @@ public sealed partial class GrassField : Node3D
     private const long UploadByteTarget = 768 * 1024;
     private const double UploadMilliseconds = 1.0;
 
+    /// <summary>The most batches given another level of detail's mesh in one frame (each a re-upload of its instances).</summary>
+    private const int LodSwitchesPerFrame = 24;
+
     private float _far = FarRadius, _litterFar = LitterRadius;
 
     /// <summary>The grass distance and density this field was built with.</summary>
@@ -311,6 +314,7 @@ public sealed partial class GrassField : Node3D
                 if (data.Count == 0) continue;
                 Batch batch = AcquireBatch(s, data.Capacity);
                 batch.MultiMesh.Buffer = data.Buffer;
+                batch.Buffer = data.Buffer;
                 batch.Count = data.Count;
                 batch.Ranks = data.Ranks;
                 batch.MultiMesh.CustomAabb = new Aabb(V(data.Minimum), V(data.Maximum - data.Minimum));
@@ -372,7 +376,7 @@ public sealed partial class GrassField : Node3D
         (Vector3 up, Vector3 east, Vector3 north) = _frame.LocalAxes(camera);
         _ = up;
         UpdateMaterials(walking ? new Vector4(feet.X, feet.Y, feet.Z, 0.9f) : Vector4.Zero, east, north);
-        int instances = 0;
+        int instances = 0, switches = 0;
         foreach (GrassTile tile in _tiles.Values)
         {
             if (tile.Batches.Count == 0) continue;
@@ -389,11 +393,13 @@ public sealed partial class GrassField : Node3D
                 if (show)
                 {
                     int lod = species.LodFor(d, batch.Lod);
-                    if (lod != batch.Lod)
+                    // A few changes of mesh a frame: the rest keep theirs a frame or two longer (a fast vehicle crosses
+                    // many tiles' bands at once, and a slow frame would only cross more of them in the next).
+                    if (lod != batch.Lod && (batch.Lod < 0 || switches < LodSwitchesPerFrame))
                     {
+                        if (batch.Lod >= 0) switches++;
                         batch.Lod = lod;
-                        batch.MultiMesh.Mesh = species.Meshes[lod];
-                        batch.Instance.MaterialOverride = species.Materials[lod];
+                        batch.SetLod(species.Meshes[lod], species.Materials[lod]);
                     }
                     count = batch.Prefix(species.Kept((float)d));
                     if (count == 0) show = false;

@@ -239,4 +239,51 @@ public static class VehicleRiderTests
             Assert.True(moved < 0.5f, $"{kind.Key}: and it stays put");
         }
     }
+
+    // How far up the car's own up still points: 1 level, 0 on its side, -1 on its roof.
+    private static float Upright(Yard y) => Vector3.Dot(y.Car.State.Up, y.Zone.Frame.UpAt(y.Car.State.Position));
+
+    /// <summary>
+    /// The owner, 20 October 2026, on the Monster TOGG lifting onto two wheels in a fast full-lock turn: rather than never
+    /// tipping, "make torque high and like when it kind of tips over it can come back". Flat out on full lock it may lean
+    /// and lift, but it comes back onto its wheels; set down at 60 degrees on its side, or nearly on its roof, it rights itself.
+    /// </summary>
+    [Test]
+    public static void TheMonsterToggComesBackWhenItTips()
+    {
+        using (var y = new Yard("monster-togg"))
+        {
+            y.Settle();
+            Assert.True(y.Zone.Ships().Reseat(y.Ada, y.Car, y.Car.Def.Helm.Index), "Ada drives");
+            y.Car.Input = new ShipInput { Throttle = 1 };
+            y.Step(300);
+            float fast = y.Car.State.Velocity.Length();
+            y.Car.Input = new ShipInput { Throttle = 1, Yaw = 1 };
+            float least = 1;
+            for (int i = 0; i < 150; i++)
+            {
+                y.Step(1);
+                least = MathF.Min(least, Upright(y));
+            }
+            y.Car.Input = new ShipInput { Throttle = 1 };
+            y.Step(90);
+            Fixtures.Report($"full lock at {fast:0} m/s for 5 s: upright at least {least:0.00} (cos), {Upright(y):0.00} after 3 s straight");
+            Assert.True(Upright(y) > 0.95f, "after a hard turn it is back on its wheels");
+        }
+        foreach (int degrees in new[] { 60, 150 })
+        {
+            using var y = new Yard("monster-togg");
+            y.Settle();
+            // Tipped onto its right side (or nearly onto its roof), lifted clear of the ground, and let go.
+            Vector3 up = y.Zone.Frame.UpAt(y.Car.State.Position);
+            Vector3 nose = Vector3.Transform(Vector3.UnitZ, y.Car.State.Rotation);
+            y.Car.State.Rotation = Quaternion.Normalize(Quaternion.Concatenate(y.Car.State.Rotation,
+                Quaternion.CreateFromAxisAngle(nose, degrees * MathF.PI / 180)));
+            y.Car.State.Position += up * (degrees > 90 ? 1.6f : 0.6f);
+            ShipSystem.WakeShip(y.Car);
+            y.Step(180);
+            Fixtures.Report($"tipped {degrees} degrees: upright {Upright(y):0.00} (cos) after 6 s");
+            Assert.True(Upright(y) > 0.95f, $"set down {degrees} degrees over, it rights itself");
+        }
+    }
 }

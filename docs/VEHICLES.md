@@ -691,8 +691,18 @@ version of this with very very high power and bigger tires". Branch `claude/togg
   - **Spray.** A tyre in water up to 1.5 of its radius deep throws a rooster tail of drops and mist from the surface.
   - **The effects API** gains `FxDirector.SetDirection` and `SetTint` for loops: a tyre's dust follows its way and the
     ground under it.
-- **Not yet:** the sounds (the bike session's shared engine sounds and revs); seeing a vehicle's parts at the workbench;
-  the owner's look at the monster and the effects.
+- **Righting** (the owner, 20 October 2026: "when it kind of tips over it can come back"). The monster lifted onto two
+  wheels in a fast full-lock turn. Rather than never tipping, a vehicle may right itself: ships.json ground `righting`
+  (rad/s² per radian) and `rightingDamping` (per rad/s), the monster's 40 and 6. Past 7° off the ground under its tyres
+  (or the planet's up with no tyre down), the ground motor springs its roll and pitch back, at most 30 rad/s², damped while
+  tipped (`GroundMotor.Righting`, the same on the server and in the client's prediction). Set down 60° or 150° over, it is
+  upright after 6 s.
+- **Lighter dust.** A bigger tyre's dust grows at most 1.25 times the TOGG's and comes no more often. The puffs are
+  fewer and shorter-lived, culled at 160 m: about a seventh of the first pass's see-through dust on the monster.
+- **The lag at speed** (the owner: "very unoptimized, it makes it laggy") was the grass, not the monster: changing a grass
+  tile's level of detail stalled on the GPU, and a vehicle over about 20 m/s crossed enough tiles to stall every frame
+  (docs/WALKING_GROUND.md §18.4). Fixed there; pulling away to 33 m/s now runs at 19–21 ms a frame.
+- **Not yet:** seeing a vehicle's parts at the workbench; the owner's look at the monster, its righting and the effects.
 
 ### 9.9 The rear wheel, the bike's tyres and the sound (V8, 20 October 2026: the owner's playtest)
 

@@ -76,13 +76,14 @@ internal sealed class ShipsReader : IContentReader
             {
                 string gAt = where + ".ground";
                 f.OnlyKnown(groundBlock, gAt, "power", "topSpeed", "reverseSpeed", "brake", "traction", "steer", "steerFast", "rolling", "handbrakeGrip", "gripHeight",
-                    "sideGripHeight", "coast", "balance", "wheels");
+                    "sideGripHeight", "coast", "balance", "righting", "rightingDamping", "wheels");
                 ground = new Ships.GroundDef(f.Number(groundBlock, "topSpeed", gAt), f.Number(groundBlock, "reverseSpeed", gAt),
                     f.Number(groundBlock, "brake", gAt), f.Number(groundBlock, "traction", gAt), f.Number(groundBlock, "steer", gAt) * MathF.PI / 180,
                     f.Number(groundBlock, "steerFast", gAt) * MathF.PI / 180, f.Number(groundBlock, "rolling", gAt), f.Number(groundBlock, "handbrakeGrip", gAt),
                     f.Number(groundBlock, "gripHeight", gAt, 0), f.Number(groundBlock, "coast", gAt, 0.1f),
                     Balance: f.Flag(groundBlock, "balance", gAt, false),
-                    SideGripHeight: f.Number(groundBlock, "sideGripHeight", gAt, f.Number(groundBlock, "gripHeight", gAt, 0)));
+                    SideGripHeight: f.Number(groundBlock, "sideGripHeight", gAt, f.Number(groundBlock, "gripHeight", gAt, 0)),
+                    Righting: f.Number(groundBlock, "righting", gAt, 0), RightingDamping: f.Number(groundBlock, "rightingDamping", gAt, 0));
                 wheels = Wheels(f, groundBlock, gAt);
                 enginePower = f.Number(groundBlock, "power", gAt, 0);
             }

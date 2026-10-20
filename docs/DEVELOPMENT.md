@@ -53,7 +53,27 @@ tires". Built on branch `claude/togg-physics`, merged with `abtest-b`'s shared r
   - 111 km/h after 4 s flat out, down to 53 km/h after 3 s of braking;
   - soot pours at launch, dust trails the tyres at 31 m/s, a thin haze at idle.
 - **Found:** turning at full lock at 30 m/s, the monster lifts onto its outer wheels (a high centre of mass on a 2.84 m
-  track). Left as is for the owner's call: its `steerFast`, its centre of mass or anti-roll.
+  track). The owner chose righting over never tipping: "when it kind of tips over it can come back" (below).
+
+**Later the same night: the monster rights itself, and lighter dust.**
+- **Righting** (`GroundDef.Righting`, `RightingDamping`; ships.json ground `righting`, `rightingDamping`): tipped past 7°
+  off the ground under its tyres (or the planet's up with none down), a vehicle that sets these is sprung back on its roll
+  and pitch, at most 30 rad/s², damped while tipped. The Monster TOGG's are 40 and 6. Others are unchanged.
+  `TheMonsterToggComesBackWhenItTips`: set down 60° or 150° over, it is upright after 6 s.
+- **"Very laggy": the grass, not the monster.** Driving at over about 20 m/s, frames took 0.2–2.4 s. The cause was
+  `GrassField`'s level-of-detail switches: giving a grass batch's MultiMesh another mesh while it holds instances makes
+  Godot read them back from the GPU, about 2.3 ms a time. At speed 100–190 batches switched every frame, and a slow frame
+  only crossed more bands in the next. Now a batch is emptied, given its mesh and its instances again from the build it
+  keeps (`Batch.SetLod`), at most 24 a frame (`LodSwitchesPerFrame`). Pulling away to 33 m/s: 19–21 ms a frame on
+  average (95 % under 32 ms), against 600–1000 ms before. Any fast vehicle met it; the monster was the first fast enough.
+  Found with the tour's per-second timings and instruments since removed. Not it: the physics (the same cost per tick as
+  the TOGG's), the effects (the same frame times without them), the network (no corrections).
+- **Lighter dust** anyway: a bigger tyre's puffs grow at most 1.25× and come no more often, fewer and shorter-lived,
+  culled at 160 m (about a seventh on the monster). The tour prints frame times each second (`HOLLOW_TOUR_NO_FX=1`,
+  `HOLLOW_TOUR_TWO=1`).
+- **Still:** a single 160–200 ms frame from the "people" part in each run, near the crash that killed the driver (not
+  confirmed as its cause). Driving straight at 33 m/s from the landing site, the monster crashed into something and killed
+  its driver (crash `safe` 13 m/s).
 - **Not done:** the sounds were checked by test only, not by ear. Seeing a vehicle's parts at the workbench is still
   to do. The look waits for the owner.
 

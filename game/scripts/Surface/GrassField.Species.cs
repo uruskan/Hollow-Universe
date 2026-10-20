@@ -237,6 +237,24 @@ public sealed partial class GrassField
         public int Species, Capacity, Count, Lod = -1, Visible = -1, Shown = -1;
         public float[] Ranks = Array.Empty<float>();
 
+        /// <summary>Its instances as uploaded (the tile's build keeps them), for a change of mesh (<see cref="SetLod"/>).</summary>
+        public float[] Buffer = Array.Empty<float>();
+
+        /// <summary>
+        /// Draws its instances with another mesh. A MultiMesh given a new mesh while it holds instances reads them back from
+        /// the GPU (to measure them again), a stall of milliseconds; emptied first, it takes the mesh at once and its
+        /// instances again from <see cref="Buffer"/>, a plain upload. Its visible count is to be set again after.
+        /// </summary>
+        public void SetLod(Mesh mesh, Material material)
+        {
+            MultiMesh.InstanceCount = 0;
+            MultiMesh.Mesh = mesh;
+            MultiMesh.InstanceCount = Capacity;
+            if (Buffer.Length > 0) MultiMesh.Buffer = Buffer;
+            Instance.MaterialOverride = material;
+            Visible = -1;
+        }
+
         /// <summary>How many of the batch's clumps (sorted by rank) a share keeps.</summary>
         public int Prefix(float keep)
         {
@@ -293,6 +311,7 @@ public sealed partial class GrassField
         batch.Lod = -1;
         batch.Count = 0;
         batch.Ranks = Array.Empty<float>();
+        batch.Buffer = Array.Empty<float>();
         if (_stopped)
         {
             FreeBatch(batch);
