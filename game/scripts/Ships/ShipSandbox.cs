@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Godot;
+using Hollow.Client.Vehicles;
 using Hollow.Simulation.Nature;
 using Hollow.Core;
 using Hollow.Galaxy.Systems;
@@ -17,6 +18,7 @@ using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
 using Hollow.Surface;
 using HollowUniverse.App;
+using HollowUniverse.Audio;
 using HollowUniverse.Common;
 using HollowUniverse.Items;
 using HollowUniverse.Surface;
@@ -52,6 +54,8 @@ public partial class ShipSandbox : Node3D
     private Camera3D _camera = null!;
     private Ship _ship = null!;
     private ShipView _shipView = null!;
+    private VehicleRevs? _revs;
+    private VehicleSounds? _vehicleSounds;
     private Deployable _bench = null!;
     private Node3D? _benchModel;
     private Entity _player;
@@ -505,6 +509,7 @@ public partial class ShipSandbox : Node3D
                 float along = Num.Vector3.Dot(shown.Velocity, shown.Forward);
                 _shipView.ShowWheels(p => _zone.HeightAboveGround(new Num.Vector3(p.X, p.Y, p.Z)), _ship.Input.Yaw * GroundMotor.SteerAngle(ground, along),
                     along, delta);
+                Hear(shown, along, delta);
             }
         }
         else
@@ -518,6 +523,34 @@ public partial class ShipSandbox : Node3D
         }
         FillHud(shown);
         Trace(delta, shown);
+    }
+
+    // A ground vehicle's engine, tyres and suspension heard (VEHICLES.md §7.1), as the hosted game's ShipsView hears them.
+    private void Hear(ShipState shown, float along, double delta)
+    {
+        if (_revs == null)
+        {
+            if (SoundLibrary.Data.Engine(_ship.Def.Key) is not { } engine)
+            {
+                return;
+            }
+            if (AudioDirector.Instance == null && !Options.ContainsKey("mute"))
+            {
+                // The sandbox's own ears (as the animal sandbox's), at its camera; --sound-trace prints what starts.
+                var audio = new AudioDirector { Name = "Audio", Listener = _camera };
+                AddChild(audio);
+                if (Options.ContainsKey("sound-trace"))
+                {
+                    audio.Started += (key, layer, distance, db, pitch) => GD.Print($"[sound] {key} {db:0.0} dB x{pitch:0.00} at {distance:0} m");
+                }
+            }
+            _revs = new VehicleRevs(engine);
+            _vehicleSounds = new VehicleSounds(_ship.Def, _shipView, engine);
+        }
+        bool landed = shown.Has(ShipFlags.Landed);
+        _revs.Step(along, shown.Thrust.Z, shown.Has(ShipFlags.EnginesOn) && !_ship.Destroyed, landed, (float)delta);
+        string surface = _content.Surfaces.Key(_content.Surfaces.AtGround(_zone.Surface, _zone.Frame, shown.Position));
+        _vehicleSounds!.Update(_revs, shown.Velocity, shown.Rotation, landed, surface, _shipView.Visible, delta);
     }
 
     private void Tick(double delta)
@@ -792,7 +825,9 @@ public partial class ShipSandbox : Node3D
         float pitch = MathF.Asin(Math.Clamp(Num.Vector3.Dot(s.Forward, up), -1, 1)) * 180 / MathF.PI;
         float roll = MathF.Asin(Math.Clamp(Num.Vector3.Dot(s.Right, up), -1, 1)) * 180 / MathF.PI;
         GD.Print(FormattableString.Invariant(
-            $"[trace] t={_clock:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} ticks={_tickMs:0.00}ms ship {s.Velocity.Length():0.0} m/s climb {Num.Vector3.Dot(s.Velocity, up):0.0} {over:0.0} m over ground pitch {pitch:0.0}° roll {roll:0.0}° thrust ({s.Thrust.X:0.00},{s.Thrust.Y:0.00},{s.Thrust.Z:0.00}) fuel {s.Fuel:0} hull {s.Health:0} {s.Flags} tiles={_surface.Terrain.DrawnTiles} pending={_surface.Terrain.Pending} ready={_surface.IsReady} exposure={ShipView.Exposure:0.###}"));
+            $"[trace] t={_clock:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} ticks={_tickMs:0.00}ms ship {s.Velocity.Length():0.0} m/s climb {Num.Vector3.Dot(s.Velocity, up):0.0} {over:0.0} m over ground pitch {pitch:0.0}° roll {roll:0.0}° thrust ({s.Thrust.X:0.00},{s.Thrust.Y:0.00},{s.Thrust.Z:0.00}) fuel {s.Fuel:0} hull {s.Health:0} {s.Flags} tiles={_surface.Terrain.DrawnTiles} pending={_surface.Terrain.Pending} ready={_surface.IsReady} exposure={ShipView.Exposure:0.###}")
+            + (_revs != null ? FormattableString.Invariant(
+                $" revs {_revs.Rpm:0} gear {_revs.Gear} load {_revs.Load:0.00} overrun {_revs.Overrun:0.00} boost {_revs.Boost:0.00}") : ""));
     }
 
     // ---------------------------------------------------------------- input

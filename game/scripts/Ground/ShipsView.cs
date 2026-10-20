@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Godot;
 using Hollow.Client;
 using Hollow.Client.Audio;
+using Hollow.Client.Vehicles;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
 using Hollow.Simulation.Ships;
@@ -45,6 +46,13 @@ public partial class ShipsView : Node3D
 
         // A vehicle on wheels: its nose's way last frame (its turning, for the steered wheels).
         public Num.Vector3 LastForward;
+
+        // A ground vehicle with an engine's sounds (VEHICLES.md §7.1): its revs (read by its sounds, the HUD and the
+        // exhaust), its engine, tyres and suspension heard, and the ground under it, looked up a few times a second.
+        public VehicleRevs? Revs;
+        public VehicleSounds? Vehicle;
+        public string Surface = "unknown";
+        public double SurfaceIn;
     }
 
     private readonly Dictionary<uint, Drawn> _drawn = new();
@@ -82,6 +90,7 @@ public partial class ShipsView : Node3D
         foreach ((uint id, Drawn drawn) in _drawn)
         {
             drawn.Sounds?.StopAll();
+            drawn.Vehicle?.StopAll();
             StopEffects(drawn);
             FxDirector.Stop(drawn.Fire, immediate: true);
             _stations?.Forget(id);
@@ -100,6 +109,9 @@ public partial class ShipsView : Node3D
 
     /// <summary>The ship view of a ship by its net ID, if drawn (screenshots frame it).</summary>
     public ShipView? ViewOf(uint netId) => _drawn.TryGetValue(netId, out Drawn? d) ? d.View : null;
+
+    /// <summary>A ground vehicle's revs, gear, load and boost by its net ID, if drawn (its HUD, its exhaust).</summary>
+    public VehicleRevs? RevsOf(uint netId) => _drawn.TryGetValue(netId, out Drawn? d) ? d.Revs : null;
 
     /// <summary>Every frame, after the client's update: each ship where it is drawn, and what it sounds like.</summary>
     public void Refresh(double delta, float exposure)
@@ -150,6 +162,8 @@ public partial class ShipsView : Node3D
             {
                 ShowWheels(d, def, wheeled, mine ? Client.Ships().OwnShipRenderRotation : ship.Rotation,
                     mine ? Client.Ships().OwnShip.Velocity : ship.Velocity, delta);
+                Revs(d, def, look, mine ? Client.Ships().OwnShipRenderRotation : ship.Rotation,
+                    mine ? Client.Ships().OwnShip.Velocity : ship.Velocity, Landed(ship, mine), delta);
             }
             if (def.Interior is { } interior)
             {
@@ -195,6 +209,7 @@ public partial class ShipsView : Node3D
     private void Forget(uint id, Drawn d)
     {
         d.Sounds?.StopAll();
+        d.Vehicle?.StopAll();
         StopEffects(d);
         if (d.Fire.IsValid)
         {
@@ -215,6 +230,13 @@ public partial class ShipsView : Node3D
         d.Sounds ??= new ShipSounds(def, d.View);
         SoundSpace? aboard = Client.RenderFrame == ship.NetId ? _space : null;
         d.Sounds.Update(look, ship, velocity, tick, d.View.Visible, aboard, _delta);
+        if (d.Revs != null)
+        {
+            bool mine = Client.Ships().OwnShipRemote?.NetId == ship.NetId;
+            d.Vehicle ??= new VehicleSounds(def, d.View, d.Revs.Engine);
+            d.Vehicle.Update(d.Revs, velocity, mine ? Client.Ships().OwnShipRenderRotation : ship.Rotation, Landed(ship, mine),
+                GroundUnder(d, ship), d.View.Visible && !look.Destroyed, _delta);
+        }
         if (d.Known && (ship.Flags & ShipNetFlags.Destroyed) != 0 && (d.Flags & ShipNetFlags.Destroyed) == 0)
         {
             // The wreck: a blast, its debris, and the hull burning until it goes (two seconds).
@@ -232,6 +254,39 @@ public partial class ShipsView : Node3D
 
     /// <summary>Full wash at this height and under.</summary>
     private const float WashFull = 4f;
+
+    private bool Landed(RemoteShip ship, bool mine) =>
+        mine ? Client.Ships().OwnShip.Has(ShipFlags.Landed) : ship.Has(ShipNetFlags.Landed);
+
+    // A ground vehicle's revs (VEHICLES.md §7.1): one VehicleRevs for each drawn, stepped every frame by its speed along its
+    // nose, its throttle, its engine and its wheels on the ground, when its kind has an engine's sounds.
+    private static void Revs(Drawn d, ShipDef def, in ShipLook look, Num.Quaternion rotation, Num.Vector3 velocity, bool landed,
+        double delta)
+    {
+        if (d.Revs == null)
+        {
+            if (SoundLibrary.Data.Engine(def.Key) is not { } engine)
+            {
+                return;
+            }
+            d.Revs = new VehicleRevs(engine);
+        }
+        float along = Num.Vector3.Dot(velocity, Num.Vector3.Transform(Num.Vector3.UnitZ, rotation));
+        d.Revs.Step(along, look.Thrust.Z, look.Engines && !look.Destroyed, landed, (float)delta);
+    }
+
+    // The physical surface under a ground vehicle (contact-surfaces.json's), or "water" where it wades, a few times a second.
+    private string GroundUnder(Drawn d, RemoteShip ship)
+    {
+        d.SurfaceIn -= _delta;
+        if (d.SurfaceIn <= 0)
+        {
+            d.SurfaceIn = 0.25;
+            Num.Vector3 at = ship.Position;
+            d.Surface = GroundAudio.WaterDepth(Client, at) > 0.15 ? "water" : GroundAudio.PhysicalSurfaceAt(Client, at);
+        }
+        return d.Surface;
+    }
 
     // A vehicle's wheels (VEHICLES.md §6): on the ground under each, rolled by its speed, the steered ones turned by how it
     // turns (its nose's turn since the last frame over its wheelbase), so another player's car steers as it goes.

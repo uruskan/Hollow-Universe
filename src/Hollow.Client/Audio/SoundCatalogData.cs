@@ -102,9 +102,11 @@ public sealed class SoundCatalogData
     public const string FileName = "sounds.json";
 
     private SoundCatalogData(Dictionary<string, SoundCategory> categories, List<SoundEventData> events,
-        Dictionary<string, IReadOnlyDictionary<string, string>> items, Dictionary<string, SoundSpace> spaces)
+        Dictionary<string, IReadOnlyDictionary<string, string>> items, Dictionary<string, SoundSpace> spaces,
+        Dictionary<string, EngineSoundData> engines)
     {
         Spaces = spaces;
+        Engines = engines;
         Categories = categories;
         Events = events;
         Items = items;
@@ -137,6 +139,12 @@ public sealed class SoundCatalogData
         }
         return Outside;
     }
+
+    /// <summary>Ground vehicles' engines, tyres and suspension by ship kind (VEHICLES.md §7.1).</summary>
+    public IReadOnlyDictionary<string, EngineSoundData> Engines { get; }
+
+    /// <summary>A ground vehicle kind's engine sounds, if it has them.</summary>
+    public EngineSoundData? Engine(string kind) => Engines.TryGetValue(kind, out EngineSoundData? e) ? e : null;
 
     /// <summary>Item keys (and building.json's door kinds) → role ("swing", "shot", "open"...) → event key.</summary>
     public IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Items { get; }
@@ -281,12 +289,95 @@ public sealed class SoundCatalogData
                     (float)Num(v, "predelayFeedback", 0.2), (float)Num(v, "structureDb", -80), rooms);
             }
         }
+        var engines = new Dictionary<string, EngineSoundData>(StringComparer.Ordinal);
+        if (root.TryGetProperty("engines", out JsonElement ens) && ens.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty en in ens.EnumerateObject())
+            {
+                EngineSoundData engine = ParseEngine(en.Name, en.Value);
+                engines[en.Name] = engine;
+                foreach (string key in engine.Events())
+                {
+                    if (!seen.Contains(key))
+                    {
+                        problems.Add($"engines: {en.Name} plays {key}, which isn't an event");
+                    }
+                }
+                if (engine.Gears.Count == 0 || engine.Loops.Count == 0 || engine.Redline <= engine.IdleRpm)
+                {
+                    problems.Add($"engines: {en.Name} needs gears, loops and a redline above its idle");
+                }
+            }
+        }
         if (problems.Count > 0)
         {
             throw new FormatException("sounds.json: " + string.Join("; ", problems));
         }
-        return new SoundCatalogData(categories, events, items, spaces);
+        return new SoundCatalogData(categories, events, items, spaces, engines);
     }
+
+    private static EngineSoundData ParseEngine(string kind, JsonElement v)
+    {
+        var loops = new List<EngineLoop>();
+        if (v.TryGetProperty("loops", out JsonElement ls) && ls.ValueKind == JsonValueKind.Array)
+        {
+            foreach (JsonElement l in ls.EnumerateArray())
+            {
+                string on = Str(l, "on", "");
+                loops.Add(new EngineLoop((float)Num(l, "rpm", 1000), on, Str(l, "off", on), (float)Num(l, "onDb", 0),
+                    (float)Num(l, "offDb", 0)));
+            }
+        }
+        loops.Sort((a, b) => a.Rpm.CompareTo(b.Rpm));
+        float[] gears = v.TryGetProperty("gears", out JsonElement gs) && gs.ValueKind == JsonValueKind.Array
+            ? gs.EnumerateArray().Select(x => (float)x.GetDouble()).ToArray()
+            : Array.Empty<float>();
+        var tyres = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (v.TryGetProperty("tyres", out JsonElement ts) && ts.ValueKind == JsonValueKind.Object)
+        {
+            foreach (JsonProperty t in ts.EnumerateObject())
+            {
+                if (t.Value.ValueKind == JsonValueKind.String && t.Value.GetString() is { Length: > 0 } key)
+                {
+                    tyres[t.Name] = key;
+                }
+            }
+        }
+        float redline = (float)Num(v, "redline", 6000);
+        return new EngineSoundData
+        {
+            Kind = kind,
+            IdleRpm = (float)Num(v, "idle", 800),
+            Redline = redline,
+            Limiter = (float)Num(v, "limiter", redline * 1.03),
+            Gears = gears,
+            Reverse = (float)Num(v, "reverse", 4),
+            Response = (float)Num(v, "response", 0.1),
+            Upshift = (float)Num(v, "upshift", 0.9),
+            Downshift = (float)Num(v, "downshift", 0.45),
+            ShiftTime = (float)Num(v, "shiftTime", 0.25),
+            Launch = (float)Num(v, "launch", 0.4),
+            TurboSpool = (float)Num(v, "turboSpool", 0),
+            Pitch = (float)Num(v, "pitch", 1),
+            Volume = (float)Num(v, "volume", 0),
+            Loops = loops,
+            Turbo = Optional(v, "turbo"),
+            Blowoff = Optional(v, "blowoff"),
+            Shift = Optional(v, "shift"),
+            Tyres = tyres,
+            TyreSpeed = (float)Num(v, "tyreSpeed", 10),
+            TyrePitch = (float)Num(v, "tyrePitch", 1),
+            TyreDb = (float)Num(v, "tyreDb", 0),
+            SkidLoose = Optional(v, "skidLoose"),
+            SkidHard = Optional(v, "skidHard"),
+            Knock = Optional(v, "knock"),
+            Creak = Optional(v, "creak"),
+            Land = Optional(v, "land"),
+            Splash = Optional(v, "splash"),
+        };
+    }
+
+    private static string? Optional(JsonElement e, string name) => Str(e, name, "") is { Length: > 0 } s ? s : null;
 
     private static IReadOnlyList<string> Files(JsonElement e) =>
         e.TryGetProperty("files", out JsonElement f) && f.ValueKind == JsonValueKind.Array

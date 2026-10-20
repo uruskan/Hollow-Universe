@@ -1,5 +1,33 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 (evening) — Vehicles: wheels that turn, engines and tyres you can hear
+
+The owner rode the Zamazingo: "back tire doesnt spin, sounds are not made and I think tires needs to be bigger for
+offroad"; of the TOGG, its tyres don't turn and it should sound like a heavy diesel, with suspension and tyre sounds by
+the ground it's on, at "AAA level quality". (The TOGG's exhaust smoke, its HUD, its engine switched on from the hold-E
+radial and its suspension answering people are the vehicles session's, in its own worktree.)
+
+- **The wheels:** Blender keeps names unique, so every wheel but a model's first was exported with `Steer.001`, `Spin.001`
+  (and its arms' `Tip.001`…, its dampers' `Rod.001`…), which Godot imports as `Steer_001`; the rig looked for `Steer` and
+  `Spin` only. The bike's rear wheel and three of the TOGG's four neither rolled nor steered, and most of the TOGG's arms
+  and dampers stood still. `ShipView.Rig.cs` finds a part by its name with any such number.
+- **The sound** (VEHICLES.md §7.1, §9.9), all made in code (`art/audio/engines.py`; no CC0 engine recording is on this PC):
+  the single's loops at six revs and the diesel six's at six, on the throttle and off it; kick and crank starts, stops, gear
+  clunks; the turbo's whistle and release; tyres on grass, dirt, gravel, sand, rock, snow and water (grains of the CC0
+  footstep recordings under a tread's hum and roar), skids on loose ground and hard, the suspension's knocks, creaks and
+  landings, a splash. 77 files, every one in its loudness range, 0 problems in the engine's `--sound-check`.
+- **Driven by a gearbox** (`Hollow.Client.Vehicles.VehicleRevs`): revs from the speed along the nose, throttle, engine and
+  wheels on the ground; five gears changing up and down with a clunk, the clutch slipping away from rest, free revs in
+  neutral and in the air, the limiter, engine braking, a turbo spooling. One per vehicle drawn (`ShipsView.RevsOf`, for the
+  HUD and the exhaust); `VehicleSounds` pitches each loop to the revs and crossfades its neighbours, plays the tyres of the
+  ground under the vehicle, a skid, the suspension from the rig's wheels, a landing only after a jump. sounds.json's
+  `engines` gives each kind its numbers (`monster-togg` too: the TOGG's six, lower and louder).
+- **Heard in the ship sandbox too** (`--view ship --ship zamazingo --scene drive`; `--trace` prints the revs and gear).
+- **Listen without the game:** `python -I art/audio/vehicle_demo.py <kind> [surface]` mixes a drive (idle, through the
+  gears, cruise, a stop) from the built files as the game does, into `.artifacts/vehicle-demo/`.
+- **Checked:** `VehicleSoundTests` 4/4 (the gearbox; every ground vehicle's entry), the sound catalogue's and audio tests
+  26/26, the engine's sound check, the build. Not yet heard by the owner; the synthesis is my judgement from spectrograms.
+
 ## 20 October 2026 — A small motorboat, craftable; the vehicle workbench's bay shown
 
 The owner asked for a small craftable motorboat ([MOTORBOAT.md](MOTORBOAT.md); every number a proposal). Built on
