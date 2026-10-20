@@ -3,8 +3,8 @@
     blender -b --factory-startup --python art/build.py              # everything
     blender -b --factory-startup --python art/build.py -- tools     # one script: starter_kit, frontier_rifle,
                                                                      # tin_finch, iron_wake, resources, tools, supplies,
-                                                                     # clothing, deployables, nodes, attachments, props,
-                                                                     # raid, animal_items
+                                                                     # clothing, deployables, doors, nodes, attachments,
+                                                                     # props, raid, animal_items
 
 Then render the icons with Godot (a real window, not --headless):
 
@@ -41,6 +41,7 @@ SCRIPTS = {
     "clothing": "models/clothing.py",
     "garment_items": "models/garment_items.py",
     "deployables": "models/deployables.py",
+    "doors": "models/doors.py",
     "nodes": "models/nodes.py",
     "attachments": "models/attachments.py",
     "props": "models/props.py",

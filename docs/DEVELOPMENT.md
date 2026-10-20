@@ -4716,3 +4716,11 @@ groups, and Net 65/65, rerun after); a building load test with 30 bots (`loadtes
 36,030 reconciliations, 0 corrections, 1.47 ms a tick; hosted pictures as above. After rebasing onto abtest-b's terrain bake only
 `EarthTerrainTests.EarthTerrainRemainsDeterministic` fails (its golden hash, the bake's, not the doors'). Not done: the 100-bot load test; door gibs
 of a right-hinged or outward door fly from the left-hinged leaf's place; the keypad is on the frame's +Z face whichever side the lock was aimed at.
+
+### 20 October 2026 — doors D4: the four door items drawn from the corrected kit
+
+`wooden-door`, `armoured-door`, `double-door` (the sheet metal one: kit Metal) and `garage-door` are no longer stand-ins: `art/models/doors.py` (`art/build.py -- doors`)
+assembles each from the D1 kit's frame and shut leaf or leaves (or the garage curtain's rest pose, the Close clip's end) at the building's hinges, with the kit's three
+levels and one hull; the stand-in door builders left `deployables.py`. Triangles per level 16,000/4,888/1,000, 16,000/5,112/888, 23,999/12,000/2,096 and 10,232/4,624/1,395
+(only the heavy LOD0 leaves are decimated); `models.json` lost the `standIn` notes; icons rendered by `IconRenderer`; record in `docs/ITEM_ART_DOORS.md`.
+Validation: build 0 warnings; `ContentTests` 3/3, `Model` and `Icon` groups pass; rebuilt files byte-identical; the model viewer and the eight PNGs looked at. Not done: a live inventory or placement check, owner acceptance.
