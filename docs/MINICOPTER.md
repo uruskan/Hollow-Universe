@@ -309,6 +309,11 @@ Seated item use (a passenger firing, M11) is a shared seats feature, not this pa
   `socket_engine_audio`, the seats', the fuel cap's, the tail rotor's).
 - The catalogue hides every `…Blur` mesh until a view spins it (`ModelCatalog.HideBlurs`), so icons and the viewer show
   the blades.
+- **No holes** (checked 20 October 2026): `art/models/hole_check.py` draws a saved source's LOD0 meshes with back faces
+  culled, as Godot draws them, against magenta from eight sides, above and below, one contact sheet per part
+  (`blender -b --factory-startup .artifacts/itemart/ka-fa-1500/ka-fa-1500-source.blend --python art/models/hole_check.py
+  -- <absolute prefix> Body Twin TunedTwin JerryTank LongTank CargoBox Plating RearSeat Rotor`). The frame and all eight
+  modules are closed from every side.
 
 ### M3 (20 October 2026): the client
 
