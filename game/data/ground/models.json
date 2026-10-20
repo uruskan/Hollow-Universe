@@ -418,6 +418,8 @@
       "icon": { "view": [38, 22, 0] }, "lodDistances": [60, 160, 0], "source": "Tin Finch TF-01 (our own, converted)" },
     { "key": "ka-fa-1500", "kind": "world", "class": "vehicle", "file": "res://assets/world/ka-fa-1500.glb", "lods": 3, "collision": "convex",
       "icon": { "view": [38, 22, 0] }, "lodDistances": [45, 130, 0], "source": "Ours: art/models/ka_fa_1500.py (docs/MINICOPTER.md §10)" },
+    { "key": "ka-fa-1500-frame", "kind": "world", "class": "vehicle", "file": "res://assets/world/ka-fa-1500-frame.glb", "lods": 3,
+      "collision": "convex", "lodDistances": [45, 130, 0], "source": "Ours: art/models/ka_fa_1500.py, the KA-FA's frame (its modules mounted by the view)" },
     { "key": "ka-fa-twin", "kind": "item", "class": "vehicle-module", "file": "res://assets/world/ka-fa-1500-twin.glb", "lods": 3, "collision": "convex",
       "icon": { "view": [38, 26, 0] }, "source": "Ours: art/models/ka_fa_1500.py, the KA-FA's twin module" },
     { "key": "ka-fa-tuned-twin", "kind": "item", "class": "vehicle-module", "file": "res://assets/world/ka-fa-1500-tuned-twin.glb", "lods": 3, "collision": "convex",

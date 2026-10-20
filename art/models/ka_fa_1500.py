@@ -10,8 +10,8 @@ sign for a fin) and its modules, each its own model mounted at a socket of the f
 - the plating.
 
 Blender's axes: +X the craft's left, -Y its nose (Godot +Z), +Z up; the pivot on the ground between the skids. Each
-module is built in its socket's frame. `ka-fa-1500.glb` is the frame alone: the view mounts each installed module's model at its
-socket (ShipView.Modules.cs).
+module is built in its socket's frame. `ka-fa-1500-frame.glb` is the frame alone, what the view mounts modules on; `ka-fa-1500.glb` is the
+craft as its default build makes it (the frame with the twin, the rotor, the jerry tank and the rear seat), the item's model.
 No downloaded meshes or pixels: one 2048 px atlas (art/models/ka_fa_1500_paint.py), a glass, the blades' blur and the
 lamps' lenses; three hand-built LODs; vertex occlusion.
 
@@ -666,19 +666,48 @@ for name, (builder, socket, default) in MODULES.items():
             o.parent = hub
         rotor_blur.parent = hub
         extra = [hub, rotor_blur]
-    path = export_glb(WORLD / f'{KEY}-{name}.glb', objects + extra, MATERIALS)
+    # Its collision as a dropped item: one convex hull round its first level.
+    title = ''.join(part.capitalize() for part in name.split('-'))
+    module_hull = convex_hull([objects[0]], f'{title}_hull0-convcolonly', col, max_faces=48)
+    path = export_glb(WORLD / f'{KEY}-{name}.glb', objects + extra + [module_hull], MATERIALS)
+    bpy.data.objects.remove(module_hull)
     report['files'][path.name] = tris(objects)
     if name == 'rotor':
         for o in objects + [rotor_blur]:
             o.parent = None
         bpy.data.objects.remove(hub)
 
-# The frame: its body, glass, lamps and tail rotor (its modules are their own models, mounted by the view at their sockets,
-# docs/MINICOPTER.md §8; the default build is ships.json's).
-craft = list(body) + glass + [lens, tail] + tail_meshes + [tail_blur, hull]
+# The frame alone (ka-fa-1500-frame.glb, ships.json's model): its body, glass, lamps and tail rotor. The view mounts each
+# installed module's own model at its socket (ShipView.Modules.cs, docs/MINICOPTER.md §8).
+frame_nodes = list(body) + glass + [lens, tail] + tail_meshes + [tail_blur, hull]
+frame_sockets = sockets()
+path = export_glb(WORLD / f'{KEY}-frame.glb', frame_nodes + frame_sockets, MATERIALS)
+report['files'][path.name] = tris(body + glass + tail_meshes + [hull])
+for o in frame_sockets:
+    bpy.data.objects.remove(o)
+
+# The craft as its default build makes it (ka-fa-1500.glb, the item's model: its icon and the model viewer): the frame
+# with the twin, the rotor, the jerry tank and the rear seat under Module_<socket> nodes.
+craft = list(frame_nodes)
+for name, (builder, socket, default) in MODULES.items():
+    if not default:
+        continue
+    node = empty(f'Module_{socket}', SOCKETS[socket])
+    craft.append(node)
+    holder = node
+    if name == 'rotor':
+        holder = empty('Rotor', parent=node)
+        craft.append(holder)
+        rotor_blur.parent = holder
+        rotor_blur.matrix_parent_inverse = Matrix.Identity(4)
+        craft.append(rotor_blur)
+    for o in module_objects[name]:
+        o.parent = holder
+        o.matrix_parent_inverse = Matrix.Identity(4)
+        craft.append(o)
 craft += sockets()
 path = export_glb(WORLD / f'{KEY}.glb', craft, MATERIALS)
-report['files'][path.name] = tris(body + glass + tail_meshes + [hull])
+report['files'][path.name] = tris([o for o in craft if o.type == 'MESH'])
 bpy.context.view_layer.update()
 lo = [min((o.matrix_world @ v.co)[i] for o in body[:1] for v in o.data.vertices) for i in range(3)]
 hi = [max((o.matrix_world @ v.co)[i] for o in body[:1] for v in o.data.vertices) for i in range(3)]
@@ -692,9 +721,5 @@ print(json.dumps(report['files']), flush=True)
 if PREVIEW:
     import preview_scene
     shown = [o for o in craft if o.type == 'MESH' and (o.name.endswith('_lod0') or '_lod' not in o.name) and 'hull' not in o.name]
-    for name, (builder, socket, default) in MODULES.items():
-        if default:
-            module_objects[name][0].location = SOCKETS[socket]
-            shown.append(module_objects[name][0])
     preview_scene.render(KEY, OUT, paths['albedo'], blur_png, lod0=shown,
                          extras={n: module_objects[n][0] for n in MODULES if not MODULES[n][2]}, sockets=SOCKETS)

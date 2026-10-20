@@ -259,6 +259,7 @@
     {
       "key": "ka-fa-1500",
       "item": "ka-fa-1500",
+      "model": "ka-fa-1500-frame",
       "drive": { "kind": "rotor", "rotor": false, "spoolUp": 5, "spoolDown": 7, "airExponent": 0.75, "pitch": 30, "roll": 28, "level": 3.0, "climb": 7, "sink": 6, "response": 0.4, "weathervane": 2.5, "tipped": 60, "floods": 0.3 },
       "controls": "rotor",
       "needsPilot": true,
