@@ -193,6 +193,68 @@
       "wreck": [["metal-fragments", 3000], ["refined-metal", 200]]
     },
     {
+      "key": "motorboat",
+      "item": "motorboat",
+      "drive": { "kind": "propeller", "at": [0, -0.12, -2.3], "rudder": 4, "wash": 2.5 },
+      "controls": "boat",
+      "mass": 380,
+      "inertia": [630, 690, 100],
+      "centreOfMass": [0, 0.32, -0.35],
+      "health": 400,
+      "damage": { "melee": 0.3, "arrow": 0.2, "bullet": 0.6, "explosive": 1.0 },
+      "thrust": { "main": 2200, "retro": 900 },
+      "speed": { "forward": 8, "reverse": 2.5 },
+      "rates": { "yaw": [40, 90] },
+      "drag": { "forward": 0.6, "side": 1.5, "top": 2.0, "turn": 0.2 },
+      "landing": { "maxSlope": 25 },
+      "skids": {
+        "points": [[0.42, -0.03, -1.7], [-0.42, -0.03, -1.7], [0, -0.03, 1.05]],
+        "stiffness": 60000, "damping": 5000, "travel": 0.08, "friction": 0.6
+      },
+      "crash": { "safe": 4, "scale": 3, "pilot": 0.1 },
+      "fuel": { "item": "lamp-oil", "capacity": 100, "idle": 0.01, "full": 0.12, "placed": 20 },
+      "buoyancy": {
+        "points": [[0.5, 0.02, -1.6], [-0.5, 0.02, -1.6], [0.55, 0.02, 0], [-0.55, 0.02, 0], [0.35, 0.1, 1.3], [-0.35, 0.1, 1.3]],
+        "depth": 0.7, "volume": 2.0,
+        "damping": [1.0, 4.0, 0.12], "drag": [1.4, 2.5, 0.05], "turn": [5, 1.2, 4]
+      },
+      "cargo": 8,
+      "hull": [
+        { "centre": [0, 0.38, -0.5], "size": [0.78, 0.36, 1.55] },
+        { "centre": [0, 0.5, 1.6], "size": [0.5, 0.36, 0.6] },
+        { "centre": [0, 0.75, -2.28], "size": [0.17, 0.4, 0.22] }
+      ],
+      "seats": [
+        {
+          "key": "helm", "name": "Helm", "role": "helm", "verb": "take-helm", "sitters": "unlocked", "exposed": true,
+          "at": [0, 0.44, -1.45], "eye": [0, 1.24, -1.38],
+          "exits": [[-1.3, 0.25, -1.4], [1.3, 0.25, -1.4], [0, 0.25, -3.1], [0, 0.25, 3.0]]
+        },
+        {
+          "key": "bench", "name": "Bench", "role": "passenger", "verb": "sit", "sitters": "anyone", "exposed": true,
+          "at": [0, 0.44, 0.2], "eye": [0, 1.24, 0.27],
+          "exits": [[-1.3, 0.25, 0.2], [1.3, 0.25, 0.2], [0, 0.25, 3.0], [0, 0.25, -3.1]]
+        }
+      ],
+      "doors": [],
+      "parts": [
+        { "key": "hull" },
+        { "key": "helm", "name": "Helm", "at": [0, 0.75, -1.03], "radius": 0.4, "capabilities": ["seat", "cupboard"], "seat": "helm" },
+        { "key": "bench", "name": "Bench", "at": [0, 0.45, 0.2], "radius": 0.45, "capabilities": ["seat"], "seat": "bench" },
+        { "key": "fuel", "name": "Fuel can", "at": [0.48, 0.3, -1.75], "radius": 0.3, "capabilities": ["fuel"] },
+        { "key": "cargo", "name": "Crate", "at": [0, 0.42, 1.45], "radius": 0.4, "capabilities": ["container"] }
+      ],
+      "lights": {
+        "lamps": [
+          { "key": "bow-lamp", "at": [0, 0.98, 2.05], "direction": [0, -0.12, 1], "spot": true, "angle": 30, "colour": [1.0, 0.92, 0.78], "energy": 3, "range": 45 }
+        ],
+        "nav": false
+      },
+      "placement": { "surfaces": ["water"], "water": true, "reach": 8, "sight": 0.5 },
+      "ceiling": 2,
+      "wreck": [["metal-fragments", 120], ["wood", 80], ["gears", 1]]
+    },
+    {
       "key": "ka-fa-1500",
       "item": "ka-fa-1500",
       "drive": { "kind": "rotor", "lift": 9600, "spoolUp": 5, "spoolDown": 7, "airExponent": 0.75, "pitch": 30, "roll": 28, "level": 3.0, "climb": 7, "sink": 6, "response": 0.4, "weathervane": 2.5, "tipped": 60, "floods": 0.6 },

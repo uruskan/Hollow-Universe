@@ -381,7 +381,7 @@ internal static class ShipLayoutReader
             return lights;
         }
         where += ".lights";
-        f.OnlyKnown(o, where, "lamps", "fixtures", "emergency");
+        f.OnlyKnown(o, where, "lamps", "fixtures", "emergency", "nav");
         foreach (JsonElement l in f.List(o, "lamps", where, required: false))
         {
             string key = f.Text(l, "key", where + ".lamps");

@@ -117,9 +117,10 @@ internal sealed class RecipesReader : IContentReader
             {
                 c.Problem(where, "an ingredient is its own output");
             }
-            if (r.Output.Ship != null && (r.Station?.Bay == null || r.Amount != 1))
+            if (r.Output.Ship != null && (r.Amount != 1 || (r.Station != null && r.Station.Bay == null)))
             {
-                c.Problem(where, "a ship is made one at a time at a station with a bay to roll out onto (G6)");
+                // At a station it rolls out onto the bay (G6); without one it is its item, put down by hand (a boat on the water).
+                c.Problem(where, "a ship is made one at a time, at a station with a bay to roll out onto or as its item");
             }
         }
     }

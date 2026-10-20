@@ -121,9 +121,9 @@ public sealed class CraftQueue
 
     /// <summary>
     /// One tick of crafting: the front job's unit advances; when it is done its output goes into the inventory (what
-    /// doesn't fit into <paramref name="overflow"/>) and is reported in <paramref name="finished"/>. A ship (G6) is rolled
-    /// out at its station by <paramref name="deliver"/>, or waits and asks again a second later. A free admin ship without
-    /// a station becomes its placeable inventory item.
+    /// doesn't fit into <paramref name="overflow"/>) and is reported in <paramref name="finished"/>. A ship (G6) made at a
+    /// station is rolled out there by <paramref name="deliver"/>, or waits and asks again a second later. A ship whose recipe
+    /// names no station (the motorboat), and a free admin ship without a station, become its placeable inventory item.
     /// </summary>
     public void Advance(GameContent content, PlayerInventory inventory, List<ItemStack> overflow, List<ItemAmount> finished,
         Func<Recipe, ulong, bool>? deliver = null)
@@ -139,8 +139,9 @@ public sealed class CraftQueue
             return;
         }
         Recipe? recipe = content.Recipe(job.Recipe);
-        // A free ship without a station becomes its existing placeable item; placement still validates its hull and rights.
-        if (recipe?.Output.Ship != null && (!job.Free || job.Station != 0))
+        // A ship made at a station rolls out onto its bay. A ship whose recipe names no station (a boat, put on the water by
+        // hand), and a free admin ship without a station, become the placeable item; placement validates hull and rights.
+        if (recipe?.Output.Ship != null && recipe.Station != null && (!job.Free || job.Station != 0))
         {
             if (deliver == null || !deliver(recipe, job.Station))
             {

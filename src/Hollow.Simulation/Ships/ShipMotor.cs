@@ -160,6 +160,14 @@ public static class ShipMotor
             // The hull fills a band round its centre of mass (ships.json water: the Tin Finch's 1.2 m each way).
             submerged = Math.Clamp((float)(ctx.Surface.SeaRadius - radius + def.WaterBelow) / (def.WaterBelow + def.WaterAbove), 0, 1);
         }
+        // A hull that floats on its shape (ships.json buoyancy, a boat's) instead: the water under it this tick (the sea, a
+        // lake or a stream) and its columns' share in it.
+        double water = 0;
+        if (def.Buoyancy is { } floats)
+        {
+            water = ShipBuoyancy.WaterRadius(ctx.Surface, bodyPoint, radius);
+            submerged = floats.Submerged(s, def, ctx, water);
+        }
 
         bool engines = input.Engines && !s.Has(ShipFlags.EngineStopped) && s.Fuel > 0;
         bool boosting = TickBoost(ref s, def, engines && input.Has(ShipButtons.Boost), ref events);
@@ -174,7 +182,7 @@ public static class ShipMotor
         Quaternion qi = Quaternion.Conjugate(q);
         Vector3 vLocal = Vector3.Transform(s.Velocity, qi);
         Vector3 gLocal = Vector3.Transform(-up * ctx.Gravity, qi);
-        var driving = new ShipDriveContext(ctx, q, up, vLocal, gLocal, density, airRatio, overGround, submerged, engines, boosting, assist);
+        var driving = new ShipDriveContext(ctx, q, up, vLocal, gLocal, density, airRatio, overGround, submerged, engines, boosting, assist, water);
         drive.Advance(ref s, driving, input, def);
         Vector3 thrust = Vector3.Zero, turn = Vector3.Zero;
         if (engines && !landedIdle)
@@ -249,7 +257,12 @@ public static class ShipMotor
             vLocal = Vector3.Transform(s.Velocity, qi);
             Vector3 accel = Vector3.Transform(thrust + Drag(vLocal, density, def), q) - up * ctx.Gravity;
             Vector3 angular = turn - s.AngularVelocity * (def.TurnDrag * airRatio);
-            if (submerged > 0)
+            if (def.Buoyancy is { } hull)
+            {
+                // Each column's lift where it pushes, and the water's drag: the hull rides level, pitches and rolls back.
+                hull.Apply(s, def, ctx, water, ref accel, ref angular);
+            }
+            else if (submerged > 0)
             {
                 accel += up * (WaterDensity * def.WaterVolume * submerged * ctx.Gravity / m) - s.Velocity * (2f * submerged);
                 angular -= s.AngularVelocity * (2f * submerged);
@@ -531,7 +544,15 @@ public static class ShipMotor
         {
             return true;
         }
-        if (ctx.Surface.SeaRadius > 0 && ctx.Surface.SeaRadius + def.WaterBelow > ctx.Frame.ToBody(s.Position).Length)
+        if (def.Buoyancy is { } hull)
+        {
+            Vector3D body = ctx.Frame.ToBody(s.Position);
+            if (hull.Submerged(s, def, ctx, ShipBuoyancy.WaterRadius(ctx.Surface, body, body.Length)) > 0)
+            {
+                return true; // afloat on its hull
+            }
+        }
+        else if (ctx.Surface.SeaRadius > 0 && ctx.Surface.SeaRadius + def.WaterBelow > ctx.Frame.ToBody(s.Position).Length)
         {
             return true; // afloat
         }

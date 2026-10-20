@@ -385,6 +385,10 @@ public partial class ShipView : Node3D
             Visible = false,
         };
         _model.AddChild(_belly);
+        if (!_def.NavLights)
+        {
+            return; // a boat carries its own lamps (ships.json lights.nav false)
+        }
         // Nav lights at the tips of the outermost hull boxes (the Tin Finch's engine pods: red on the left, green on the
         // right), a white beacon over the top of the hull.
         float podX = 1.18f, podY = 0.97f, podZ = -2.95f, top = 1.845f;

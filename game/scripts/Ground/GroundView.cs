@@ -585,7 +585,10 @@ public partial class GroundView : Node3D
         }
         // Free look while Alt is held and the game has the mouse (on foot, or in the cockpit): letting go, or the cursor
         // showing (inventory, crafting, map, menu, chat, keypad), turns the camera back to the view at once.
-        _freeLook.Hold(!AdminThirdPerson && !IsolatedCapture && Input.IsPhysicalKeyPressed(Key.Alt) && Input.MouseMode == Input.MouseModeEnum.Captured &&
+        // At a helm whose mouse doesn't steer (a boat's), the mouse always looks round in the cockpit view.
+        bool lookingRound = Client.Ships().Piloting && !_shipControls.Scheme.MouseSteers;
+        _freeLook.Hold(!AdminThirdPerson && !IsolatedCapture && (Input.IsPhysicalKeyPressed(Key.Alt) || lookingRound) &&
+            Input.MouseMode == Input.MouseModeEnum.Captured &&
             (!Client.Ships().Piloting || _shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit));
         InputFrame input = ReadInput(delta);
         if (!AdmireAvailable || input.Primary || input.PrimaryPressed || input.Secondary || input.Sprint ||
@@ -1234,7 +1237,8 @@ public partial class GroundView : Node3D
         string seatLine = SeatKeys.Line(SeatKeys.Of(def, def.Helm), inOrbit: false, includeCamera: false, includeLeave: false);
         d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  RESUME FLIGHT" : null;
         d.Notice = null;
-        d.Hints = SeatKeys.FlightHints(_shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit) +
+        d.Flies = _shipControls.Scheme.Flies;
+        d.Hints = _shipControls.Scheme.Hints(_shipCamera.Mode == HollowUniverse.Ships.ShipCameraMode.Cockpit) +
             (seatLine.Length > 0 ? " · " + seatLine : "");
         _shipHud.Refresh();
     }

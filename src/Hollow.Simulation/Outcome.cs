@@ -294,6 +294,9 @@ public enum OutcomeCode : byte
 
     /// <summary>A crewed battery: the barrel's line, from the breech to 6 m past the muzzle, meets the ship's own space.</summary>
     HullBlocked = 123,
+
+    /// <summary>A boat goes on the water (the sea, a lake, a stream), not on land (docs/MOTORBOAT.md §4).</summary>
+    NotOnWater = 124,
 }
 
 /// <summary>

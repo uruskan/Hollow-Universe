@@ -14,8 +14,9 @@ namespace Hollow.Simulation.Ships;
 public readonly struct ShipDriveContext
 {
     public ShipDriveContext(in ShipContext world, Quaternion rotation, Vector3 up, Vector3 velocityLocal, Vector3 gravityLocal,
-        float density, float airRatio, float overGround, float submerged, bool engines, bool boosting, bool assist)
+        float density, float airRatio, float overGround, float submerged, bool engines, bool boosting, bool assist, double water = 0)
     {
+        Water = water;
         World = world;
         Rotation = rotation;
         Inverse = Quaternion.Conjugate(rotation);
@@ -55,8 +56,17 @@ public readonly struct ShipDriveContext
     /// <summary>The centre of mass's height over the ground under it (m).</summary>
     public readonly float OverGround;
 
-    /// <summary>How much of the hull's water band is under the sea, 0 … 1 (ships.json <c>water</c>).</summary>
+    /// <summary>
+    /// How much of the hull is in the water, 0 … 1: its columns' share for a hull that floats on its shape (ships.json
+    /// <c>buoyancy</c>), else the band round its centre of mass under the sea (ships.json <c>water</c>).
+    /// </summary>
     public readonly float Submerged;
+
+    /// <summary>
+    /// The water's surface under the ship (sea, lake or stream) as its distance from the world's centre (metres), or 0:
+    /// none there, or a ship that doesn't float on its shape (only those sample it).
+    /// </summary>
+    public readonly double Water;
 
     /// <summary>The engines run this tick (someone at the helm, fuel in the tank, not switched off).</summary>
     public readonly bool Engines;
@@ -119,6 +129,7 @@ public static class ShipDrives
     private static readonly Dictionary<string, Reader> Readers = new(StringComparer.Ordinal)
     {
         [ShipThrusters.Key] = ShipThrusters.Read,
+        [ShipPropeller.Key] = ShipPropeller.Read,
         [ShipRotor.Key] = ShipRotor.Read,
     };
 

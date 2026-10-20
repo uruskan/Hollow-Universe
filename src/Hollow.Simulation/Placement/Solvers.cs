@@ -75,7 +75,7 @@ internal sealed class FreeSolver : IPlacementSolver
     public void Aim(PlacementWorld world, in PlacementContext ctx, in PlacementAim aim, List<PlacementCandidate> into)
     {
         float reach = ctx.Rule.Reach + Solvers.AimSlack;
-        bool met = world.Ray(ctx.Eye, aim.Direction, reach, out PlacementHit hit);
+        bool met = world.Ray(ctx.Eye, aim.Direction, reach, ctx.Rule.Surfaces, out PlacementHit hit);
         // A ship's pieces first (a parked one's body in the zone is the same hull): the candidate is the ship's frame's,
         // with its down (IRON_WAKE.md §8).
         if (Aboard.Ray(world, ctx.Eye, aim.Direction, met ? hit.Distance + 0.05f : reach, out AboardHit aboard))
@@ -125,7 +125,7 @@ internal sealed class FreeSolver : IPlacementSolver
         Vector3 up = world.Frame.UpAt(aimed);
         float step = ctx.Rule.MaxStep;
         var c = new PlacementCandidate(ctx.Placeable);
-        if (world.Ray(from + up * above, -up, above + step + 0.05f, out PlacementHit under))
+        if (world.Ray(from + up * above, -up, above + step + 0.05f, ctx.Rule.Surfaces, out PlacementHit under))
         {
             c.Position = under.Point;
             c.Support = under.Target;
