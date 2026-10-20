@@ -4687,7 +4687,7 @@ A door has a layout (`Door.Layout`, replacing `Flip`): bit 0 hinges it on the ri
 bit 1 swings it out; a single door has four, a double door two, the garage one. The hinge pin is on the face the leaf swings toward,
 so the open leaf stands clear of its jamb. R steps the layouts (placement rotation `layout`, was `flip`), starting hinged on the
 viewer's left and swinging away from them; the ghost shows the leaves part open and the swing's arc. `DoorNet` carries the layout
-(protocol 44), the save a door version 2 (version 1's half turn reads as layout 3), the Earth save revision is 10 (`earth-v10`).
+(protocol 44), the save a door version 2 (version 1's half turn reads as layout 3); the Earth save revision 10 (`earth-v10`) is the one the terrain bake took on abtest-b the same day: the doors share it.
 `DoorTests` (five): every layout's pin, side and body; the steps of R; two airlocks found by flooding the floor with the character's capsule
 (a triangle with two single doors: one door hinged at the shared corner and swinging in closes the walk to the other doorway; a square room: a
 double door in with a single door hinged on the right, only together) and one by a character walking through the movement code.
@@ -4711,5 +4711,8 @@ by a coming-down curtain; `BuildingNetTests`: the server's and the client's leaf
 mesh (z 0.2, 9.2 cm; it was 8 cm at 0.12, off the mesh).
 Hosted pictures: `--view ground ... --tour-steps airlocks` with the admin's new `airlock` command (a triangle with two single doors, layouts 1 and 2, and a
 square room with a double door and a single door, 0 and 1), shut and open, outside and inside: `docs/images/abtest-b/doors/hosted`.
-Validation: see the commit message. Not done: a load test of 100 building bots with the new door motion (the bots' shared mirror is stepped by each
-bot's prediction; `StepDoors` takes a lock); door gibs of a right-hinged or outward door fly from the left-hinged leaf's place.
+Validation: the whole suite 1042/1042 on the tree before the airlock command and the lock round the mirror's door list (Console, ClanBase and Door
+groups, and Net 65/65, rerun after); a building load test with 30 bots (`loadtest --count 30 --duration 60 --script build`, 238 door toggles):
+36,030 reconciliations, 0 corrections, 1.47 ms a tick; hosted pictures as above. After rebasing onto abtest-b's terrain bake only
+`EarthTerrainTests.EarthTerrainRemainsDeterministic` fails (its golden hash, the bake's, not the doors'). Not done: the 100-bot load test; door gibs
+of a right-hinged or outward door fly from the left-hinged leaf's place; the keypad is on the frame's +Z face whichever side the lock was aimed at.
