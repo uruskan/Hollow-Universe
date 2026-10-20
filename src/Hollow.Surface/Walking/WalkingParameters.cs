@@ -13,18 +13,20 @@ public sealed record WalkingParameters
     public static WalkingParameters Default { get; } = new();
 
     /// <summary>
-    /// Earth revision 9: layout variant 5, with corrected ice/alpine biome allocation and generated populations (5), and
-    /// cliff formations traced along their faces (6, 7 and 8: CliffPlacements generations 3, 4 and 5), with the walls'
-    /// rock skins solid (9: generation 6).
+    /// Earth revision 10: layout variant 5, with corrected ice/alpine biome allocation and generated populations (5),
+    /// cliff formations traced along their faces (6–9), and since 10 its shape baked and eroded (docs/WORLD_TERRAIN_PLAN.md
+    /// §4.1, iteration 1), with T2's cliff formations off until the cliff kit replaces them.
     /// </summary>
     public static WalkingParameters Earth { get; } = new()
     {
-        TerrainRevision = 9,
+        TerrainRevision = 10,
         LayoutVariant = 5,
         OceanCover = 0.35,
         ContinentWavelength = 3200,
         IslandShare = 0.12,
         CoastDetail = 0.02,
+        Baked = true,
+        CliffFormations = false,
     };
 
     private static readonly IReadOnlyDictionary<(ulong System, uint Body), WalkingParameters> Profiles =
@@ -213,6 +215,58 @@ public sealed record WalkingParameters
     public double GorgeDepth { get; init; } = 8;
 
     public double GorgeWall { get; init; } = 1.1;
+
+    // ------------------------------------------------------------ the bake (docs/WORLD_TERRAIN_PLAN.md §4.1)
+
+    /// <summary>
+    /// Whether the ground's large shape is baked: the relief eroded by water and gravity on a grid (<see cref="TerrainBake"/>),
+    /// with its lakes, instead of drawn straight from the relief with the drainage's channels cut into it.
+    /// </summary>
+    public bool Baked { get; init; }
+
+    /// <summary>Whether T2's cliff scans and wall skins are placed; off on a baked world until the cliff kit replaces them.</summary>
+    public bool CliffFormations { get; init; } = true;
+
+    /// <summary>The bake's cell, metres (Earth: level 8, about 7.4 m).</summary>
+    public double BakeCell { get; init; } = 7;
+
+    public int BakeSteps { get; init; } = 100;
+
+    /// <summary>How much wider than its designed cliff an escarpment's ramp is made for the bake, which erodes its edge.</summary>
+    public double BakeRamp { get; init; } = 2.5;
+
+    /// <summary>Stream power per step on soft rock (K·dt), and the hardness of mountains and of caprock as shares of it.</summary>
+    public double ErosionRate { get; init; } = 0.02;
+
+    public double MountainHardness { get; init; } = 0.7;
+
+    public double CaprockHardness { get; init; } = 0.12;
+
+    /// <summary>On tablelands, rock above this height (m, varied by this much) is the hard caprock.</summary>
+    public double CaprockBase { get; init; } = 36;
+
+    public double CaprockVariation { get; init; } = 5;
+
+    /// <summary>The steepest slope (rise over run) loose ground holds: soft ground (33°), mountains (40°), caprock (50°).</summary>
+    public double TalusSlope { get; init; } = 0.65;
+
+    public double MountainTalusSlope { get; init; } = 0.84;
+
+    public double CaprockTalusSlope { get; init; } = 1.19;
+
+    /// <summary>Sweeps of sliding per step.</summary>
+    public int ThermalSweeps { get; init; } = 4;
+
+    /// <summary>Roughness added to the land before the bake (m, at about 90 m), so water gathers into branching valleys.</summary>
+    public double BakeRoughness { get; init; } = 2;
+
+    /// <summary>Soil creep per step: how far each cell eases toward its neighbours (share of the difference).</summary>
+    public double BakeCreep { get; init; } = 0.01;
+
+    /// <summary>A baked hollow holds a lake if its water covers this much (m²) and stands this deep (m); smaller ones fill.</summary>
+    public double BakeLakeMinArea { get; init; } = 2_500;
+
+    public double BakeLakeMinDepth { get; init; } = 1;
 
     // ------------------------------------------------------------ climate (§5)
 

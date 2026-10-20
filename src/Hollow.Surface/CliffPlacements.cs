@@ -72,6 +72,8 @@ public sealed partial class CliffPlacements
     private static readonly Lazy<Vector3D[][]> FitPoints = new(BuildFitPoints);
     private readonly ISurface _surface;
     private readonly ulong _seed;
+    // False on a world whose cliffs the kit will place (WalkingParameters.CliffFormations): no scans, no wall skins.
+    private readonly bool _enabled;
     private readonly object _cacheGate = new();
     private readonly Dictionary<TileKey, CacheEntry> _cache = new();
     private readonly LinkedList<TileKey> _recency = new();
@@ -107,10 +109,11 @@ public sealed partial class CliffPlacements
     /// <summary>The ground the formations stand on.</summary>
     public ISurface Surface => _surface;
 
-    public CliffPlacements(ISurface surface, ulong seed)
+    public CliffPlacements(ISurface surface, ulong seed, bool enabled = true)
     {
         _surface = surface;
         _seed = seed;
+        _enabled = enabled;
         Level = TileKey.LevelFor(surface.Radius, CellMetres);
     }
 
@@ -183,7 +186,7 @@ public sealed partial class CliffPlacements
 
     private CliffPlacement[] Build(TileKey tile)
     {
-        if (!MayHoldFace(tile)) return Array.Empty<CliffPlacement>();
+        if (!_enabled || !MayHoldFace(tile)) return Array.Empty<CliffPlacement>();
         List<List<FaceSample>> faces = Faces(Survey(tile));
         if (faces.Count == 0) return Array.Empty<CliffPlacement>();
         Vector3D centre = tile.Centre;

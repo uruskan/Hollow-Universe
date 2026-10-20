@@ -113,7 +113,7 @@ public sealed partial class CliffPlacements
     /// </summary>
     public CliffWall[] GenerateWalls(TileKey cell)
     {
-        if (cell.Level != Level || !MayHold(cell, SkinRise)) return Array.Empty<CliffWall>();
+        if (!_enabled || cell.Level != Level || !MayHold(cell, SkinRise)) return Array.Empty<CliffWall>();
         List<List<WallStation>> chains = TraceWalls(cell);
         if (chains.Count == 0) return Array.Empty<CliffWall>();
         Vector3D centre = cell.Centre;

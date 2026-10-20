@@ -1,5 +1,31 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — World terrain, iteration 1: Earth's shape baked and eroded
+
+The owner rejected T2's cliffs and, after two research passes, approved
+[WORLD_TERRAIN_PLAN.md](WORLD_TERRAIN_PLAN.md): the ground keeps to runnable slopes, each planet's large shape is baked
+once with erosion and drainage, and steep rock becomes placed kit models. For this redo the owner checks each fast
+iteration by hand; tests, captures and polish come after the owner approves a look, so none were run or updated here.
+
+- `TerrainBake` (`src/Hollow.Surface/Walking/TerrainBake.cs`): Earth's designed relief on a cube-sphere grid of 7.4 m
+  (level 8, 393,216 cells), its escarpment and rocky-coast walls widened into ramps, plus 2 m of roughness, worn by 100
+  steps: a priority flood (lakes fill to their spill), steepest-way receivers with hashed ties, catchment shared among
+  all lower neighbours, stream power solved implicitly (K·dt 0.02 on soft rock, 0.7 of it on mountains, 0.12 on
+  tablelands' caprock above about 36 m), four sweeps of sliding (33° soft, 40° mountains, 50° caprock) and
+  soil creep. Lakes of 0.25 ha and 1 m deep keep their water; smaller hollows fill. Heights are read back by a plane
+  fitted to the 3 × 3 cells round a point (a weighted average dimpled every cell). 13.5 s on this PC; cached by a
+  key of everything it depends on under `%LOCALAPPDATA%\HollowUniverseABTestB\bakes` and loaded in 0.1 s.
+- `WalkingParameters.Baked` (Earth on), `CliffFormations` (Earth off: T2's scans and skins are not placed), Earth save
+  revision 10 (a fresh hosted save). The old drainage's channels and canyons are not cut on a baked world; rivers are
+  iteration 2.
+- `earth bake [--force]` bakes or loads Earth and lists places to look at (highest and steepest ground, largest lakes)
+  as F1 teleports.
+
+Checked: the solution builds; `earth relief`, `zoom` and `slopes` maps were drawn to find faults (parallel rills, then
+dimples, both fixed); a hosted game loads the baked Earth (server ready at 6.7 s, the world at 44 s). Earth now has 12
+lakes (46.8 ha) and its highest ground at 220 m, lower than the designed peaks: erosion and sliding wear them down. No
+test was run; Earth's cliff tests and the save-revision test will need updating in the polish phase.
+
 ## 20 October 2026 — T4 and T5: the grass rebuilt as clumps on tiles
 
 The ground's grass was one five-card tuft a cell everywhere, submitted for a whole cube face every frame, each vertex

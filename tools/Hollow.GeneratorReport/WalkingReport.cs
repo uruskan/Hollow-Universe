@@ -30,6 +30,7 @@ public static class WalkingReport
         if (earth && command == "wall") return EarthSurvey.Wall(args);
         if (earth && command == "formations") return EarthSurvey.Formations(args);
         if (earth && command == "cliffs-bench") return EarthSurvey.CliffsBench(args);
+        if (earth && command == "bake") return Bake(args);
         string Arg(int i, string fallback) => args.Length > i ? args[i] : fallback;
         double Num(int i, double fallback) => args.Length > i ? double.Parse(args[i], CultureInfo.InvariantCulture) : fallback;
         var watch = Stopwatch.StartNew();
@@ -138,6 +139,76 @@ public static class WalkingReport
                 }
             }
         }
+    }
+
+    // Bakes Earth's shape (docs/WORLD_TERRAIN_PLAN.md §4.1) into the cache the game reads, or reports the cached one;
+    // --force deletes every cached bake first.
+    private static int Bake(string[] args)
+    {
+        if (Array.IndexOf(args, "--force") >= 0 && Directory.Exists(TerrainBake.CacheFolder))
+        {
+            foreach (string file in Directory.GetFiles(TerrainBake.CacheFolder, "*.bake"))
+            {
+                File.Delete(file);
+            }
+        }
+        var watch = Stopwatch.StartNew();
+        WalkingWorld world = Build(earth: true);
+        TerrainBake bake = world.Bake ?? throw new InvalidOperationException("Earth is not baked (WalkingParameters.Baked).");
+        double lakeArea = 0;
+        foreach (WalkingLake lake in bake.Lakes)
+        {
+            lakeArea += lake.Area;
+        }
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"Earth's bake: level {bake.Level}, {bake.Count:N0} cells, {(bake.FromCache ? "loaded from the cache" : "baked")} in {bake.Time.TotalSeconds:0.0} s; world built in {watch.Elapsed.TotalSeconds:0.0} s"));
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"{bake.Lakes.Count} lakes, {lakeArea / 10_000:0.0} ha; cache {TerrainBake.CacheFolder}"));
+
+        // Places worth a look, as the F1 console's teleport takes them: the landing site, the highest ground, the steepest
+        // ground (plateau edges, mountain faces) and the largest lakes, each at least 250 m from the others.
+        static string At(Vector3D d) =>
+            string.Create(CultureInfo.InvariantCulture, $"{Math.Asin(Math.Clamp(d.Y, -1, 1)) * 180 / Math.PI:0.000} {Math.Atan2(-d.Z, d.X) * 180 / Math.PI:0.000}");
+        Console.WriteLine($"landing site: teleport {At(world.LandingSite)}");
+        var samples = new List<(Vector3D D, double Height, double Slope)>();
+        double step = 4 / world.Radius;
+        foreach (Vector3D d in PlanetSurface.FibonacciSphere(60_000))
+        {
+            WalkingSample s = world.Fields(d);
+            if (s.Wetted || s.Height < 1)
+            {
+                continue;
+            }
+            Vector3D east = Vector3D.Cross(Vector3D.UnitY, d).Normalized, north = Vector3D.Cross(d, east);
+            double hx = world.HeightAt((d + east * step).Normalized) - world.HeightAt((d - east * step).Normalized);
+            double hy = world.HeightAt((d + north * step).Normalized) - world.HeightAt((d - north * step).Normalized);
+            samples.Add((d, s.Height, Math.Sqrt(hx * hx + hy * hy) / 8));
+        }
+        void Best(string what, IEnumerable<(Vector3D D, double Height, double Slope)> ordered, int count, Func<(Vector3D D, double Height, double Slope), string> say)
+        {
+            var chosen = new List<Vector3D>();
+            foreach (var s in ordered)
+            {
+                if (chosen.Count == count)
+                {
+                    break;
+                }
+                if (chosen.TrueForAll(c => Vector3D.Distance(c, s.D) * world.Radius > 250))
+                {
+                    chosen.Add(s.D);
+                    Console.WriteLine($"{what}: {say(s)}: teleport {At(s.D)}");
+                }
+            }
+        }
+        Best("high ground", samples.OrderByDescending(s => s.Height), 3, s => $"{s.Height:0} m");
+        Best("steep ground", samples.OrderByDescending(s => s.Slope), 5,
+            s => string.Create(CultureInfo.InvariantCulture, $"{Math.Atan(s.Slope) * 180 / Math.PI:0}° at {s.Height:0} m"));
+        foreach (WalkingLake lake in bake.Lakes.OrderByDescending(l => l.Area).Take(3))
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"lake: {lake.Area / 10_000:0.0} ha, {lake.MaxDepth:0.0} m deep at {lake.Level:0.0} m: teleport {At(lake.Centre)}"));
+        }
+        return 0;
     }
 
     internal static WalkingWorld Build(bool earth = false)

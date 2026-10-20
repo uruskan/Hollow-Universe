@@ -72,6 +72,9 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
     private readonly double _threshold;
     private readonly double _continentsCoast;
     private readonly Drainage? _drainage;
+    // A baked world's shape and lakes (WalkingParameters.Baked), and which of its lakes lie frozen.
+    private readonly TerrainBake? _bake;
+    private readonly bool[] _bakeFrozen = Array.Empty<bool>();
     private readonly double _meanTemperature;
     private readonly bool _hasSea;
     private readonly ScatterPlan _plan;
@@ -131,13 +134,33 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
         Array.Sort(values);
         _threshold = Quantile(values, _hasSea ? Math.Clamp(oceanCover, 0, 0.98) : 0.02);
 
-        _drainage = new Drainage(Hash64.Of(seed, 0x44524E47), radius, _p, d => // "DRNG"
+        if (_p.Baked)
         {
-            WalkingSample s = Compute(d, carve: false, detail: false);
-            return (s.Height, s.Mountains, s.Tableland);
-        }, water: _hasSea);
-        // Lakes whose water lies below freezing all year are ice to walk on.
-        _drainage.Freeze(lake => MeanTemperature(lake.Centre, Math.Max(0, lake.Level)) < _p.FrozenLakeTemperature);
+            // The relief, worn down by water and gravity once (docs/WORLD_TERRAIN_PLAN.md §4.1), or its cached bake.
+            int level = TileKey.LevelFor(radius, _p.BakeCell, 12);
+            _bake = TerrainBake.Get(TerrainBake.Key(_p, seed, radius, oceanCover), radius, level, () =>
+                TerrainBake.Build(radius, level, _hasSea, _p, d =>
+                {
+                    WalkingSample s = Compute(d, carve: false, detail: false);
+                    return new BakeInput(s.Height, s.Tableland, s.Mountains);
+                }, Hash64.Of(seed, 0x42414B45))); // "BAKE"
+            _bakeFrozen = new bool[_bake.Lakes.Count];
+            for (int k = 0; k < _bakeFrozen.Length; k++)
+            {
+                WalkingLake lake = _bake.Lakes[k];
+                _bakeFrozen[k] = MeanTemperature(lake.Centre, Math.Max(0, lake.Level)) < _p.FrozenLakeTemperature;
+            }
+        }
+        else
+        {
+            _drainage = new Drainage(Hash64.Of(seed, 0x44524E47), radius, _p, d => // "DRNG"
+            {
+                WalkingSample s = Compute(d, carve: false, detail: false);
+                return (s.Height, s.Mountains, s.Tableland);
+            }, water: _hasSea);
+            // Lakes whose water lies below freezing all year are ice to walk on.
+            _drainage.Freeze(lake => MeanTemperature(lake.Centre, Math.Max(0, lake.Level)) < _p.FrozenLakeTemperature);
+        }
 
         // The ice line: the temperature below which the real ice cover lies, at the ground's real-equivalent height.
         var temperatures = new double[CalibrationSamples];
@@ -155,7 +178,7 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
         Array.Sort(temperatures);
         IceTemperature = iceCover > 0.001 ? Quantile(temperatures, iceCover) : -1000;
         cancellation.ThrowIfCancellationRequested();
-        if (selected == null) _legacyCliffs = new CliffPlacements(this, seed);
+        if (selected == null) _legacyCliffs = new CliffPlacements(this, seed, _p.CliffFormations);
         Monuments = new MonumentPlacements(this, seed);
         if (selected != null) _selected = BuildSelected(selected, cancellation);
         cancellation.ThrowIfCancellationRequested();
@@ -205,7 +228,10 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
         _selected != null ? SelectedCollision(frame, tile, margin) : Monuments.AddCollision(Cliffs.Collision(frame, tile, margin), frame, tile, margin);
 
     /// <summary>The lakes, largest share of the world first by their place in the grid (a fixed order).</summary>
-    public IReadOnlyList<WalkingLake> Lakes => _drainage?.Lakes ?? Array.Empty<WalkingLake>();
+    public IReadOnlyList<WalkingLake> Lakes => _bake?.Lakes ?? _drainage?.Lakes ?? Array.Empty<WalkingLake>();
+
+    /// <summary>A baked world's shape (WalkingParameters.Baked), or null.</summary>
+    public TerrainBake? Bake => _bake;
 
     /// <summary>The drainage network's pieces: streams and rivers with water, and dry valleys.</summary>
     public IReadOnlyList<DrainageSegment> Drainage => _drainage?.Segments ?? Array.Empty<DrainageSegment>();
@@ -250,16 +276,29 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
 
     private Vector3D FindLanding()
     {
-        if (_drainage == null)
+        // The drainage grid's cells, or on a baked world the tiles of about 30 m.
+        const int BakedLevel = 6;
+        int count;
+        Func<int, Vector3D> centre;
+        if (_drainage != null)
+        {
+            count = _drainage.CellCount;
+            centre = _drainage.CellCentre;
+        }
+        else if (_bake != null)
+        {
+            count = (int)TileKey.CountAt(BakedLevel);
+            centre = i => TileKey.FromIndex(BakedLevel, i)!.Value.Centre;
+        }
+        else
         {
             return Vector3D.UnitX;
         }
-        Drainage grid = _drainage;
         int best = -1;
         double bestScore = double.NegativeInfinity;
-        for (int i = 0; i < grid.CellCount; i++)
+        for (int i = 0; i < count; i++)
         {
-            Vector3D d = grid.CellCentre(i);
+            Vector3D d = centre(i);
             double latitude = Math.Abs(DMath.Asin(Math.Clamp(d.Y, -1, 1)) * DMath.RadToDeg);
             if (latitude < 30 || latitude > 60)
             {
@@ -277,7 +316,7 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
                 (best, bestScore) = (i, score);
             }
         }
-        return best >= 0 ? grid.CellCentre(best) : Vector3D.UnitX;
+        return best >= 0 ? centre(best) : Vector3D.UnitX;
     }
 
     public SurfaceSample Sample(Vector3D direction)
@@ -320,6 +359,22 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
         Span<double> a = stackalloc double[ReliefProvinces.TypeCount];
         Span<double> centre = stackalloc double[ReliefProvinces.TypeCount];
         double rough = 0;
+        if (_bake != null && carve)
+        {
+            // A baked world's ground comes from its bake; the relief's fields still say what kind of ground it is.
+            if (shore > 0)
+            {
+                _provinces.Weights(q, w, a, centre);
+                rough = Roughness(p, w);
+            }
+            double baked = _bake.HeightAt(p);
+            if (detail && shore > 0)
+            {
+                baked += (_p.GroundDetail + _p.StonyDetail * rough) * Noise.Fbm(p, Radius, 22, 3, 0.5, _seed + 6, NoiseBasis.Corners)
+                    * DMath.SmoothStep(0, 0.02, shore);
+            }
+            return Baked(p, baked, c, rocky, rough, w);
+        }
         if (shore > 0)
         {
             // Relief rises inland of the coast: within a few metres on rocky coasts (sea cliffs where the land is high),
@@ -345,11 +400,12 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
             }
             // Sandy coasts rise slowly; rocky ones in a sea cliff (at most SeaCliffHeight), the rest of the land behind it.
             double slow = DMath.SmoothStep(0, _p.SandyShoreRamp, shore);
-            double cliff = relief > 0 ? Math.Min(1, _p.SeaCliffHeight / relief) * DMath.SmoothStep(0, _p.RockyShoreRamp, shore) : 0;
+            // A baked world starts from a rocky coast's wider ramp; the bake wears it into its slope.
+            double rockyRamp = _p.Baked ? _p.RockyShoreRamp * 4 : _p.RockyShoreRamp;
+            double cliff = relief > 0 ? Math.Min(1, _p.SeaCliffHeight / relief) * DMath.SmoothStep(0, rockyRamp, shore) : 0;
             double inland = slow + (1 - slow) * rocky * cliff;
             h += inland * relief;
-            rough = Math.Clamp(0.3 + 0.4 * Noise.Fbm(p, Radius, 1500, 2, 0.5, _seed + 5, NoiseBasis.Corners) + 0.7 * w[(int)Relief.Mountains]
-                + 0.35 * w[(int)Relief.Tableland], 0, 1);
+            rough = Roughness(p, w);
             if (detail)
             {
                 // Metre-scale ground, rougher on stony ground; none at the waterline.
@@ -365,6 +421,40 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
             h = _drainage.Shape(p, h, out double inland, out wet, out ice);
             water = _hasSea && h < 0 ? Math.Max(0, inland) : inland;
         }
+        return new WalkingSample(h, water, c, w[(int)Relief.Plains], w[(int)Relief.Hills], w[(int)Relief.Tableland],
+            w[(int)Relief.Mountains], rocky, rough, wet, ice ? 1 : 0);
+    }
+
+    // How rough the ground is, 0 to 1: patches, more on mountains and tablelands.
+    private double Roughness(Vector3D p, ReadOnlySpan<double> w) =>
+        Math.Clamp(0.3 + 0.4 * Noise.Fbm(p, Radius, 1500, 2, 0.5, _seed + 5, NoiseBasis.Corners) + 0.7 * w[(int)Relief.Mountains]
+            + 0.35 * w[(int)Relief.Tableland], 0, 1);
+
+    // A baked world's sample: the bake's ground, the sea below 0, its lakes' water (ice on frozen ones), and wet ground
+    // where much water drains.
+    private WalkingSample Baked(Vector3D p, double h, double c, double rocky, double rough, ReadOnlySpan<double> w)
+    {
+        TerrainBake bake = _bake!;
+        double water = _hasSea && h < 0 ? 0 : double.NegativeInfinity;
+        bool ice = false;
+        int lake = bake.LakeAt(p);
+        if (lake >= 0)
+        {
+            double level = bake.Lakes[lake].Level;
+            if (_bakeFrozen[lake])
+            {
+                if (h < level)
+                {
+                    h = level;
+                    ice = true;
+                }
+            }
+            else if (level > h)
+            {
+                water = Math.Max(water, level);
+            }
+        }
+        double wet = DMath.SmoothStep(8_000, 120_000, bake.CatchmentAt(p));
         return new WalkingSample(h, water, c, w[(int)Relief.Plains], w[(int)Relief.Hills], w[(int)Relief.Tableland],
             w[(int)Relief.Mountains], rocky, rough, wet, ice ? 1 : 0);
     }
@@ -411,6 +501,11 @@ public sealed partial class WalkingWorld : ISurface, IScatterField
     // the talus below it over a band four times as wide. 0 below, 1 on top.
     private double Escarpment(double field, double level, double band)
     {
+        if (_p.Baked)
+        {
+            // A baked world starts from a wide ramp; its caprock and the bake's erosion make the escarpment.
+            return DMath.SmoothStep(level - band * 4 * _p.BakeRamp, level + band * _p.BakeRamp, field);
+        }
         double cliff = DMath.SmoothStep(level - band * _p.CliffBand, level + band * _p.CliffBand, field);
         double talus = DMath.SmoothStep(level - band * 4, level, field);
         return _p.CliffShare * cliff + (1 - _p.CliffShare) * talus;
