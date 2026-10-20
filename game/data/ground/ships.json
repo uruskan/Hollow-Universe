@@ -331,6 +331,7 @@
     {
       "key": "togg",
       "item": "togg",
+      "model": "togg-frame",
       "motor": "ground",
       "controls": "car",
       "needsPilot": true,
@@ -377,7 +378,14 @@
         { "key": "hull" },
         { "key": "fuel", "name": "Fuel cap", "at": [0.9, 0.85, -1.3], "radius": 0.3, "capabilities": ["fuel"] }
       ],
-      "lights": { "lamps": [], "nav": false },
+      "lights": {
+        "lamps": [
+          { "key": "head-left", "at": [0.58, 1.3, 4.46], "direction": [0, -0.12, 1], "spot": true, "angle": 32, "colour": [1.0, 0.9, 0.72], "energy": 3, "range": 45 },
+          { "key": "head-right", "at": [-0.58, 1.3, 4.46], "direction": [0, -0.12, 1], "spot": true, "angle": 32, "colour": [1.0, 0.9, 0.72], "energy": 3, "range": 45 },
+          { "key": "tail", "at": [0, 0.84, -1.6], "colour": [1.0, 0.08, 0.04], "energy": 0.8, "range": 3 }
+        ],
+        "nav": false
+      },
       "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 12, "sight": 0.5 },
       "ceiling": 2,
       "wreck": [["metal-fragments", 150], ["gears", 2]]
@@ -422,7 +430,13 @@
         { "key": "rider", "name": "Saddle", "at": [0, 0.95, 0.5], "radius": 0.5, "capabilities": ["seat", "cupboard"], "seat": "rider" },
         { "key": "fuel", "name": "Fuel cap", "at": [0, 1.02, 0.98], "radius": 0.22, "capabilities": ["fuel"] }
       ],
-      "lights": { "lamps": [], "nav": false },
+      "lights": {
+        "lamps": [
+          { "key": "head", "at": [0, 1.07, 1.4], "direction": [0, -0.15, 1], "spot": true, "angle": 30, "colour": [1.0, 0.9, 0.72], "energy": 2.5, "range": 40 },
+          { "key": "tail", "at": [0, 0.975, -0.66], "colour": [1.0, 0.08, 0.04], "energy": 0.5, "range": 2 }
+        ],
+        "nav": false
+      },
       "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 8, "sight": 0.5 },
       "ceiling": 2,
       "wreck": [["metal-fragments", 60], ["gears", 1]]

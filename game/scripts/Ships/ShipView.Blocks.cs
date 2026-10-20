@@ -7,7 +7,7 @@ using Hollow.Simulation.Ships.Modules;
 namespace HollowUniverse.Ships;
 
 /// <summary>
-/// A ship with no model yet (the TOGG until its art, VEHICLES.md §7 and §11 V8) drawn as blocks of the right size: each hull
+/// A ship with no model (a kind whose art is not made yet, VEHICLES.md §7) drawn as blocks of the right size: each hull
 /// box, the chassis's in steel and each module's in its own colour (the Tin Finch's paint: pale blue cabs, cream engines),
 /// and a tyre and rim at each wheel that ride their springs, steer and roll. Presentation only.
 /// </summary>
@@ -90,6 +90,11 @@ public partial class ShipView
     /// </summary>
     public void ShowWheels(Func<Vector3, float?> groundBelow, float steer, float along, double delta)
     {
+        if (_rig.Count > 0)
+        {
+            ShowRig(groundBelow, steer, along, delta); // the model's own (ShipView.Rig.cs)
+            return;
+        }
         foreach (WheelNode w in _wheels)
         {
             WheelDef d = w.Def;

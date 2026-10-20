@@ -4,7 +4,7 @@
     blender -b --factory-startup --python art/build.py -- tools     # one script: starter_kit, frontier_rifle,
                                                                      # tin_finch, iron_wake, resources, tools, supplies,
                                                                      # clothing, deployables, doors, nodes, attachments,
-                                                                     # props, raid, animal_items
+                                                                     # props, raid, animal_items, ka_fa_1500, togg, zamazingo
 
 Then render the icons with Godot (a real window, not --headless):
 
@@ -49,6 +49,8 @@ SCRIPTS = {
     "raid": "models/raid.py",
     "animal_items": "models/animal_items.py",
     "ka_fa_1500": "models/ka_fa_1500.py",
+    "togg": "models/togg.py",
+    "zamazingo": "models/zamazingo.py",
 }
 
 wanted = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []

@@ -1145,6 +1145,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ShipSandbox.cs` | 898 | ShipSandbox [Site] | The ship sandbox (--view ship, GROUND.md §6.7): the Tin Finch on the first world's ground (the stand-in world |
 | `ShipSounds.cs` | 469 | ShipSounds | What one ship sounds like (IW6, IRON_WAKE.md §10): every role of its kind's in sounds.json from the replicated state, slow and fast loops crossfaded. |
 | `ShipView.Modules.cs` | 33 | ShipView | A ship's modules drawn (VEHICLES.md §9.5, docs/MINICOPTER.md §8): each installed module's model at its origin. |
+| `ShipView.Rig.cs` | 245 | ShipView [RigArm, RigWheel, RigShock] | A vehicle's own wheels and suspension posed from its model's nodes (VEHICLES.md §9.8): hubs on their springs, steering, rolling, wishbones, a raked fork, a swingarm, dampers. |
 | `ShipView.cs` | 663 | ShipLook, ShipView [PartNode, Drive, Plume] | What a ship is doing this frame, as a ShipView draws it: plumes, lamps by power, reflection probes, sockets where drawn. |
 | `ShipWarm.cs` | 28 | ShipWarm | The ships' part of the renderer's warm-up (GROUND.md §4.3.1, §6.7): every ship of ships.json as |
 | `StationAmmoRadial.cs` | 95 | StationAmmoRadial | A gunner's rockets (IW3), R held at a station: the kinds and counts; a tap cycles. |

@@ -148,6 +148,10 @@ public partial class ShipView : Node3D
             BuildBlocks(); // no art yet: blocks of the right size (ShipView.Blocks.cs)
         }
         MountModules();
+        if (model != null)
+        {
+            FindRig(); // its own wheels and suspension, if it has them (ShipView.Rig.cs)
+        }
         FindHatch();
         FindParts();
         FindRotors();

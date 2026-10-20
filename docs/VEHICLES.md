@@ -367,7 +367,8 @@ a control post with a lever and a lamp, wheel chocks and a bike clamp. Its power
 
 **Look first.** The owner checks the look before the kit is built: a first sample is the chassis on its four tyres with one
 two-seat cab and the nose engine, at player height and at 30 m, in the game's light. Until then the game draws blocks of the right
-size (the sheet's), so the driving can be tuned without the art.
+size (the sheet's), so the driving can be tuned without the art. (On 20 October 2026 the owner asked for the finished models
+at once; the first pass is §9.8.)
 
 ## 8. The vehicle lift
 
@@ -569,8 +570,44 @@ On branch `claude/vehicles` (abtest-b with the motorboat's and the minicopter's 
   without falling and stopping upright; and the TOGG over the real network (a loopback server and two clients): the
   server gives it, both clients compose its layout, Ada drives it at 15 m/s with no correction of her prediction, Bo
   sees it go.
-- **Still rough:** blocks for art; no lift (modules can't be changed in play yet: each vehicle comes with its default
+- **Still rough:** no lift (modules can't be changed in play yet: each vehicle comes with its default
   build); no engine parts; a slow vehicle passes through people; animals aren't run over; no rider thrown from the bike.
+
+### 9.8 Their art, first pass (V8, 20 October 2026: the owner asked for "AAA models")
+
+Both vehicles are built from code in Blender, as the KA-FA is (no downloaded meshes or pixels), to §7's look and contract,
+and replace the blocks:
+
+- **The TOGG** (`art/models/togg.py`): `togg-frame.glb` (ships.json's `model`): a welded ladder frame in black chassis
+  paint, a tread-plate deck in the bays and their bolt rails, four corners on double wishbones with red coil-overs, CV
+  half-shafts to two differentials and a transfer case, a red fuel drum, a front beam with a winch and a grille guard, round
+  lamps, sheet fenders, steps, the battery box and a jerry can; knobbed 0.96 m tyres (the blocks moulded, the sidewall's
+  rings and name raised) on cream beadlock steel rims with brake discs. Its modules are their own models, mounted at their
+  sockets by the view: `togg-cab-one.glb` (square tube and sea-green sheet, perspex in bolted strips, TOGG stencilled on both
+  doors, a cream roof with a rack and spot lamp, a shovel on the back; inside, a bucket seat, the wheel on its column, the
+  dash and three gauges, pedals and levers; its left door the `Hatch`, swinging out on its front hinges as door 0 opens)
+  and `togg-engine.glb` (an open cream six with a red rocker cover, the air-filter can, six runners and headers to two
+  stacks with rain caps, the radiator, fan, belt, hoses and battery). `togg.glb` is the default build, for the item,
+  its icon and the placement ghost. Triangles at LOD0: chassis 28.5k, each wheel 7.8k (tyre about 4k, the rest rim and
+  disc), cab 15.6k, engine 10k; the whole car 108k, 58k at LOD1 (50 m), 22k at LOD2 (140 m).
+- **The Zamazingo** (`art/models/zamazingo.py`, `zamazingo.glb`): a black cradle frame, an air-cooled single (finned
+  barrel and head, the header curling to a high silencer), a mustard tank between shrouds with the name across a black
+  band, a long ribbed seat, cream plastics (the high fender, the number board with its lamp and a hand-painted 7, the
+  tail), a box-section swingarm on a red mono-shock, the chain, wire-spoked wheels on knobbed tyres, drilled discs. 34.8k
+  triangles at LOD0 (§7's 25–35k), 18k and 7.6k.
+- **The rig** (`ShipView.Rig.cs`): the view poses the model's own nodes for each wheel of the data: `Wheel_<key>` rides its
+  spring, its `Steer` turns and its `Spin` rolls; `Arm_<key>_<n>` (wishbones, half-shafts) turn about their pivots so their
+  `Tip` follows the hub; `Shock_<key>` points at `ShockLow_<key>`, its `Rod` slides and its `Spring` squeezes; the bike's
+  `Fork_front` steers about the raked axis with the wheel sliding up it, and `Swing_rear` carries the rear wheel about its
+  pivot. A model without these nodes is drawn by the blocks as before.
+- **Lamps** (ships.json): the TOGG's two headlamps and a tail lamp, the Zamazingo's headlamp and tail lamp; their lenses
+  are each model's `_Lamps` material, lit with the engine as the other ships' are.
+- **Atlases** (`art/models/vehicle_paint.py`): one 2048 px atlas each, painted from noise on the KA-FA's painter, with a
+  small stencil font for the names. Shared shapes (tyres, rims, springs, the vehicle frame) are `art/models/vehicle_kit.py`.
+- **Checked:** look-dev renders from every side (`-- --preview`), and `art/models/hole_check.py`'s back-face-culled sheets
+  of the chassis, cab, door, engine, a wheel and the bike's parts: no holes.
+- **Not yet:** the rider's pose on the bike; the bike's side stand down when parked; sounds and effects (§11, V8's rest);
+  the other modules' art as they arrive (V5).
 
 ## 10. Crafting and progression
 
@@ -613,7 +650,7 @@ wrecks to recover belong with the roads, later.
 | V5 | The car's modules and stacking; build zones aboard (beds and bags as respawn points, boxes); decay outside claims | `Modules`, `Decay`, `Respawn`; a camp built and driven |
 | V6 | The motorbike: frame, lean, crash, sidecars | `Bike` |
 | V7 | Tracks and the snow kit | `GroundMotor` slopes and snow |
-| V8 | Art: the look sample first (§7), then the kit; sounds (engine by load and speed, tyres by ground, suspension), effects (dust, mud, exhaust, lamps) | The owner's approval; pictures |
+| V8 (models done, §9.8) | Art: the look sample first (§7), then the kit; sounds (engine by load and speed, tyres by ground, suspension), effects (dust, mud, exhaust, lamps) | The owner's approval; pictures |
 | V9 | Bots driving, a persistence soak, balance | The load test |
 
 The look sample (V8's first step) can start in parallel with V1–V3: it needs only §7's contract.
