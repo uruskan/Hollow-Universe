@@ -54,6 +54,18 @@ public sealed class ShipDef
         _ => MeleeDamage,
     };
 
+    /// <summary>What its engines do each tick (ships.json <c>drive</c>, <see cref="ShipDrives"/>; by default thrusters).</summary>
+    public IShipDrive Drive { get; init; } = ShipThrusters.Instance;
+
+    /// <summary>The control scheme a client reads its helm's keys by when none is named (the Tin Finch's flight).</summary>
+    public const string DefaultControls = "flight";
+
+    /// <summary>
+    /// How a pilot's keys and mouse fly it (ships.json <c>controls</c>): a key of the client's control schemes, which turn
+    /// the keyboard into the same <see cref="ShipInput"/> (presentation only; the step never reads it).
+    /// </summary>
+    public string Controls { get; init; } = DefaultControls;
+
     /// <summary>Thrust along each axis: forward (main engine), back (retro), sideways, up (lift nozzles), down.</summary>
     public float MainThrust { get; init; }
 

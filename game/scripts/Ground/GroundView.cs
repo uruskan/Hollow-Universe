@@ -862,6 +862,7 @@ public partial class GroundView : Node3D
             if (!_wasPiloting)
             {
                 _wasPiloting = true;
+                _shipControls.Scheme = HollowUniverse.Ships.ShipControlSchemes.For(Client.Ships().OwnShipDef?.Controls);
                 _shipControls.Reset();
                 _shipControls.Throttle = Client.Ships().OwnShipCruise.Throttle;
                 _shipControls.AssistOff = Client.Ships().OwnShip.Has(ShipFlags.AssistOff);

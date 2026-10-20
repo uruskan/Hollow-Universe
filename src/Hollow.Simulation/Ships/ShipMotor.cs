@@ -48,9 +48,9 @@ public readonly struct ShipContext
 
 /// <summary>
 /// Ship flight (GROUND.md §6.6): six degrees of freedom in the zone's frame under the planet's gravity (along −up from
-/// <see cref="ZoneFrame.UpAt"/>) and its air's drag. Flight assist (on by default) holds the velocity the throttle,
-/// strafe and up/down ask for and the rotation rates the stick asks for, within the thrusters' limits, and so hovers
-/// against gravity; with it off the controls are thrust and torque (Newtonian, but the air still drags). Boost, fuel,
+/// <see cref="ZoneFrame.UpAt"/>) and its air's drag. What the engines give each tick is the ship's drive's
+/// (<see cref="IShipDrive"/>, ships.json <c>drive</c>: by default <see cref="ShipThrusters"/>, whose flight assist holds
+/// the velocity and rates the controls ask for and so hovers against gravity). Boost, fuel,
 /// landing on sprung skids with friction (so a ship stands on a slope it may land on and slides off a steeper one),
 /// the hull swept against the static world each substep (no tunnelling), crash damage, sleep at rest. The server and a
 /// pilot's prediction run exactly this, one fixed tick at a time. Callers hold <see cref="Physics.JoltRuntime.Gate"/>.
@@ -163,64 +163,25 @@ public static class ShipMotor
 
         bool engines = input.Engines && !s.Has(ShipFlags.EngineStopped) && s.Fuel > 0;
         bool boosting = TickBoost(ref s, def, engines && input.Has(ShipButtons.Boost), ref events);
+        IShipDrive drive = def.Drive;
         // On its skids with nothing asked of it, the engines idle and the ship sits (or slides off what is too steep).
-        bool landedIdle = s.Has(ShipFlags.Touching) && !input.WantsMotion;
+        bool landedIdle = drive.IdlesOnSkids && s.Has(ShipFlags.Touching) && !input.WantsMotion;
         bool assist = !input.Has(ShipButtons.AssistOff);
         float m = def.Mass;
 
-        // ---------------------------------------------------------------- what the thrusters do this tick
+        // ---------------------------------------------------------------- what the engines do this tick (its drive)
         Quaternion q = s.Rotation;
         Quaternion qi = Quaternion.Conjugate(q);
         Vector3 vLocal = Vector3.Transform(s.Velocity, qi);
         Vector3 gLocal = Vector3.Transform(-up * ctx.Gravity, qi);
-        float boost = boosting ? def.BoostThrust : 1;
-        float capForward = def.MainThrust * boost / m, capBack = def.RetroThrust / m, capSide = def.LateralThrust / m;
-        float capUp = def.LiftThrust / m, capDown = def.DownThrust / m;
+        var driving = new ShipDriveContext(ctx, q, up, vLocal, gLocal, density, airRatio, overGround, submerged, engines, boosting, assist);
+        drive.Advance(ref s, driving, input, def);
         Vector3 thrust = Vector3.Zero, turn = Vector3.Zero;
         if (engines && !landedIdle)
         {
-            if (assist)
-            {
-                var target = new Vector3(
-                    -input.Strafe * def.LateralSpeed,
-                    input.Vertical >= 0 ? input.Vertical * def.UpSpeed : input.Vertical * def.DownSpeed,
-                    boosting ? def.BoostSpeed : input.Throttle >= 0 ? input.Throttle * def.ForwardSpeed : input.Throttle * def.ReverseSpeed);
-                if (!boosting && MathF.Abs(input.Throttle) < 0.05f && overGround < LandingAssistHeight)
-                {
-                    // Hovering down near the ground: flight assist eases the descent (it never stops one at full throttle).
-                    Vector3 world = Vector3.Transform(target, q);
-                    float descent = def.LandingDescent + MathF.Max(overGround, 0) * def.LandingDescentPerMetre;
-                    float along = Vector3.Dot(world, up);
-                    if (along < -descent)
-                    {
-                        target = Vector3.Transform(world + up * (-descent - along), qi);
-                    }
-                }
-                Vector3 need = (target - vLocal) / dt - gLocal - Drag(vLocal, density, def) - Buoyancy(qi, up, submerged, ctx.Gravity, def);
-                thrust = new Vector3(Math.Clamp(need.X, -capSide, capSide), Math.Clamp(need.Y, -capDown, capUp), Math.Clamp(need.Z, -capBack, capForward));
-                var rates = new Vector3(-input.Pitch * def.Pitch.MaxRate, -input.Yaw * def.Yaw.MaxRate, input.Roll * def.Roll.MaxRate);
-                if (s.AttitudeHoldActive)
-                {
-                    rates = ShipAttitudeHold.Rates(q, s.AttitudeHoldRotation, def);
-                }
-                else if (def.LevelPitch > 0 || def.LevelRoll > 0)
-                {
-                    rates = HoldLevel(rates, q, up, input, def);
-                }
-                Vector3 angular = (rates - s.AngularVelocity) / dt + s.AngularVelocity * (def.TurnDrag * airRatio + submerged * 2f);
-                turn = new Vector3(Math.Clamp(angular.X, -def.Pitch.Acceleration, def.Pitch.Acceleration),
-                    Math.Clamp(angular.Y, -def.Yaw.Acceleration, def.Yaw.Acceleration),
-                    Math.Clamp(angular.Z, -def.Roll.Acceleration, def.Roll.Acceleration));
-            }
-            else
-            {
-                thrust = new Vector3(-input.Strafe * capSide,
-                    input.Vertical >= 0 ? input.Vertical * capUp : input.Vertical * capDown,
-                    boosting ? capForward : input.Throttle >= 0 ? input.Throttle * capForward : input.Throttle * capBack);
-                turn = new Vector3(-input.Pitch * def.Pitch.Acceleration, -input.Yaw * def.Yaw.Acceleration, input.Roll * def.Roll.Acceleration);
-            }
+            drive.Command(driving, ref s, input, def, out thrust, out turn);
             // Fuel: an idle burn, more with the thrust given, more again boosting.
-            float effort = Math.Min(1f, (MathF.Abs(thrust.X) + MathF.Abs(thrust.Y) + MathF.Abs(thrust.Z)) * m / (def.MainThrust + def.LiftThrust));
+            float effort = drive.Effort(thrust, def);
             float requestedFuel = (def.FuelIdle + effort * (def.FuelFull - def.FuelIdle)) * (boosting ? def.FuelBoost : 1) * dt;
             events.FuelUsed = Math.Min(s.Fuel, requestedFuel);
             if (requestedFuel > 0 && events.FuelUsed < requestedFuel)
@@ -242,8 +203,7 @@ public static class ShipMotor
                 s.BoostTicks = 0;
             }
         }
-        s.Thrust = new Vector3(thrust.X / capSide, thrust.Y >= 0 ? thrust.Y / capUp : thrust.Y / capDown,
-            thrust.Z >= 0 ? thrust.Z * m / def.MainThrust : thrust.Z / capBack);
+        s.Thrust = drive.Output(thrust, def);
         s.Flags = (s.Flags & ~(ShipFlags.EnginesOn | ShipFlags.Boosting | ShipFlags.AssistOff | ShipFlags.AtEdge | ShipFlags.Wet))
             | (engines && !landedIdle ? ShipFlags.EnginesOn : ShipFlags.None)
             | (boosting ? ShipFlags.Boosting : ShipFlags.None)
@@ -508,7 +468,7 @@ public static class ShipMotor
     }
 
     /// <summary>Aerodynamic drag as an acceleration in the ship's frame, for a velocity in the ship's frame.</summary>
-    private static Vector3 Drag(Vector3 vLocal, float density, ShipDef def)
+    internal static Vector3 Drag(Vector3 vLocal, float density, ShipDef def)
     {
         float speed = vLocal.Length();
         if (speed < 1e-6f || density <= 0)
@@ -520,58 +480,8 @@ public static class ShipMotor
     }
 
     // The sea's lift on the hull, as an acceleration in the ship's frame.
-    private static Vector3 Buoyancy(Quaternion qi, Vector3 up, float submerged, float gravity, ShipDef def) =>
+    internal static Vector3 Buoyancy(Quaternion qi, Vector3 up, float submerged, float gravity, ShipDef def) =>
         submerged <= 0 ? Vector3.Zero : Vector3.Transform(up * (WaterDensity * def.WaterVolume * submerged * gravity / def.Mass), qi);
-
-    /// <summary>
-    /// Flight assist's level hold (ships.json <c>assist.level</c>, IRON_WAKE.md §5.4): the stick's pitch and roll rates
-    /// stop short of the most pitch and roll the ship may take, and with the stick centred the ship comes back toward
-    /// level at <see cref="ShipDef.LevelReturn"/> radians a second per radian off. The rates are the ship's own (x: +
-    /// nose down, z: + roll right); a heavy carrier never stands on its tail.
-    /// </summary>
-    private static Vector3 HoldLevel(Vector3 rates, Quaternion q, Vector3 up, in ShipInput input, ShipDef def)
-    {
-        float k = def.LevelReturn;
-        if (def.LevelPitch > 0)
-        {
-            // The nose's elevation, + up; its rate up is −x.
-            float pitch = (float)DMath.Asin(Math.Clamp(Vector3.Dot(Vector3.Transform(Vector3.UnitZ, q), up), -1f, 1f));
-            float noseUp = -rates.X;
-            if (MathF.Abs(input.Pitch) < 0.05f)
-            {
-                noseUp = Math.Clamp(-k * pitch, -def.Pitch.MaxRate, def.Pitch.MaxRate);
-            }
-            else if (noseUp > 0)
-            {
-                noseUp = MathF.Min(noseUp, k * (def.LevelPitch - pitch));
-            }
-            else
-            {
-                noseUp = MathF.Max(noseUp, -k * (def.LevelPitch + pitch));
-            }
-            rates.X = -noseUp;
-        }
-        if (def.LevelRoll > 0)
-        {
-            // The roll, + right wing down: the ship's right (−X) dips below the horizontal.
-            float roll = (float)DMath.Asin(Math.Clamp(-Vector3.Dot(Vector3.Transform(-Vector3.UnitX, q), up), -1f, 1f));
-            float right = rates.Z;
-            if (MathF.Abs(input.Roll) < 0.05f)
-            {
-                right = Math.Clamp(-k * roll, -def.Roll.MaxRate, def.Roll.MaxRate);
-            }
-            else if (right > 0)
-            {
-                right = MathF.Min(right, k * (def.LevelRoll - roll));
-            }
-            else
-            {
-                right = MathF.Max(right, -k * (def.LevelRoll + roll));
-            }
-            rates.Z = right;
-        }
-        return rates;
-    }
 
     /// <summary>The ground a ship's prefetch builds ahead covers this much of its way.</summary>
     public const float PrefetchSeconds = 1.5f;

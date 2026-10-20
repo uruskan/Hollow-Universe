@@ -5,15 +5,16 @@ using Hollow.Simulation.Ships;
 namespace HollowUniverse.Ships;
 
 /// <summary>
-/// The pilot's keyboard and mouse (G6, GROUND.md §6.7), read into a tick of <see cref="ShipInput"/>. The mouse is a
-/// persistent steering cursor: right keeps turning right until moved back or explicitly centred with MMB.
-/// W and S move the throttle lever, which stays where it is put (X pulls it to zero);
-/// A and D slide sideways, Shift and Ctrl rise and sink, Q and E roll, the arrow keys are a keyboard stick, B boosts,
-/// Z switches flight assist (the keys are <c>SeatKeys</c>', KNOWN_PROBLEMS.md finding 28; Space leaves the seat). With
-/// flight assist on the lever sets the speed to hold and the cursor sets the rates to turn at.
+/// The pilot's keyboard and mouse (G6, GROUND.md §6.7), read into a tick of <see cref="ShipInput"/> by the ship's control
+/// scheme (<see cref="Scheme"/>, ships.json <c>controls</c>; flight by default, <see cref="FlightControls"/>). This keeps
+/// what the schemes share between frames: the throttle lever, which stays where it is put (X pulls it to zero), the
+/// persistent steering cursor (the mouse in the cockpit; MMB centres it) and flight assist's switch (Z).
 /// </summary>
 public sealed class ShipControls
 {
+    /// <summary>How the keys fly the ship at the helm (set on taking the helm from its kind's data).</summary>
+    public IShipControlScheme Scheme { get; set; } = ShipControlSchemes.For(null);
+
     /// <summary>The throttle lever, −1 (full reverse) to 1 (full ahead).</summary>
     public float Throttle { get; set; }
 
@@ -21,15 +22,15 @@ public sealed class ShipControls
     public bool AssistOff { get; set; }
 
     /// <summary>The steering cursor: x turns right, y raises the nose; each axis is −1 to 1.</summary>
-    private readonly Hollow.Client.PilotSteering _steering = new();
-    public Vector2 Stick => new(_steering.Cursor.X, _steering.Cursor.Y);
+    internal Hollow.Client.PilotSteering Steering { get; } = new();
+    public Vector2 Stick => new(Steering.Cursor.X, Steering.Cursor.Y);
     public const float SteeringReach = 220;
 
     /// <summary>Stick per pixel of mouse travel (at interface scale 1).</summary>
     public float MouseSensitivity { get; set; } = 1 / SteeringReach;
 
     /// <summary>Explicitly centre steering; resting the mouse does not change it.</summary>
-    public void CentreSteering() => _steering.Centre();
+    public void CentreSteering() => Steering.Centre();
 
     /// <summary>How fast W and S move the lever (a full stroke in this many seconds).</summary>
     public float ThrottleStroke { get; set; } = 1.6f;
@@ -37,7 +38,7 @@ public sealed class ShipControls
     /// <summary>Feeds the mouse's movement (pixels).</summary>
     public void Mouse(Vector2 relative)
     {
-        _steering.Move(new System.Numerics.Vector2(relative.X, -relative.Y) * MouseSensitivity);
+        Steering.Move(new System.Numerics.Vector2(relative.X, -relative.Y) * MouseSensitivity);
     }
 
     /// <summary>Handles a key press; true when it was a pilot's key (Z flight assist, X throttle to zero).</summary>
@@ -64,38 +65,10 @@ public sealed class ShipControls
     public void Reset()
     {
         Throttle = 0;
-        _steering.Centre();
+        Steering.Centre();
         AssistOff = false;
     }
 
-    /// <summary>Reads the flight keys; only the cockpit uses the persistent mouse cursor. Camera-only views release it.</summary>
-    public ShipInput Read(double delta, bool mouseSteering = true)
-    {
-        if (!mouseSteering) CentreSteering();
-        static float Held(Key key) => Input.IsPhysicalKeyPressed(key) ? 1 : 0;
-        float lever = Held(Godot.Key.W) - Held(Godot.Key.S);
-        Throttle = Hollow.Client.PilotSteering.AdjustThrottle(Throttle, lever * (float)delta * 2 / ThrottleStroke);
-        Vector2 keys = new(Held(Godot.Key.Right) - Held(Godot.Key.Left), Held(Godot.Key.Up) - Held(Godot.Key.Down));
-        System.Numerics.Vector2 smooth = _steering.Step((float)delta);
-        Vector2 stick = new Vector2(smooth.X, smooth.Y) + keys;
-        static float Shape(float v) => Math.Clamp(v, -1, 1);
-        var input = new ShipInput
-        {
-            Pitch = Shape(stick.Y),
-            Yaw = Shape(stick.X),
-            Roll = Held(Godot.Key.E) - Held(Godot.Key.Q),
-            Throttle = Throttle,
-            Strafe = Held(Godot.Key.D) - Held(Godot.Key.A),
-            Vertical = Held(Ground.SeatKeys.Rise) - Held(Ground.SeatKeys.Sink),
-        };
-        if (Input.IsPhysicalKeyPressed(Ground.SeatKeys.Boost))
-        {
-            input.Buttons |= ShipButtons.Boost;
-        }
-        if (AssistOff)
-        {
-            input.Buttons |= ShipButtons.AssistOff;
-        }
-        return input;
-    }
+    /// <summary>Reads the helm's keys by the scheme; only the cockpit uses the persistent mouse cursor. Camera-only views release it.</summary>
+    public ShipInput Read(double delta, bool mouseSteering = true) => Scheme.Read(this, delta, mouseSteering);
 }

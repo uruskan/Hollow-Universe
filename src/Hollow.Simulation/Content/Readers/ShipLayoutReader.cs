@@ -430,9 +430,10 @@ internal static class ShipLayoutReader
             {
                 c.Problem($"{where}.seats \"{seat.Key}\"", "a seat needs a way out (exits)");
             }
-            if (ship.Interior == null && seat.Door < 0 && !seat.Flies)
+            if (ship.Interior == null && seat.Door < 0 && !seat.Flies && !seat.Exposed)
             {
-                c.Problem($"{where}.seats \"{seat.Key}\"", "a ship people only sit in is boarded through a door");
+                // An open seat (exposed: an open boat's bench) is sat in from outside; a sheltered one through its door.
+                c.Problem($"{where}.seats \"{seat.Key}\"", "a ship people only sit in is boarded through a door, unless the seat is in the open (exposed)");
             }
         }
         if (ship.Seats.Select(s => s.Key).Distinct().Count() != ship.Seats.Count || ship.Doors.Select(d => d.Key).Distinct().Count() != ship.Doors.Count ||
