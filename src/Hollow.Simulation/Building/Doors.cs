@@ -143,7 +143,42 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
     /// <summary>Whose it is to a viewer (GROUND_SYSTEMS.md §3.3): its lock's fitter while it has a lock, else who fitted the door.</summary>
     ulong IOwned.OwnerId => Lock?.Owner ?? Owner;
 
+    /// <summary>
+    /// Open or shut as the door is going to be: its target (a door still swinging open is open). Where its leaves are is
+    /// <see cref="Progress"/>.
+    /// </summary>
     public bool Open { get; internal set; }
+
+    /// <summary>The progress at <see cref="Since"/>: 0 shut to 1 open (DOORS.md §4).</summary>
+    public float From { get; internal set; }
+
+    /// <summary>+1 opening, −1 shutting, 0 still.</summary>
+    public sbyte Moving { get; internal set; }
+
+    /// <summary>The tick its motion began (or, still, the tick it stopped).</summary>
+    public long Since { get; internal set; }
+
+    /// <summary>Where its leaves' bodies are now, 0 shut to 1 open: the progress they were last put at.</summary>
+    public float Progress { get; internal set; }
+
+    /// <summary>Where it is at a tick: the same arithmetic on every machine (before its motion began, where it began).</summary>
+    public float ProgressAt(long tick) =>
+        Moving == 0 || tick <= Since ? From : Math.Clamp(From + Moving * ((tick - Since) * Def.ProgressPerTick), 0f, 1f);
+
+    /// <summary>Where it is at a fractional tick (drawing).</summary>
+    public float ProgressAt(double tick) =>
+        Moving == 0 || tick <= Since ? From : (float)Math.Clamp(From + Moving * ((tick - Since) * Def.ProgressPerTick), 0.0, 1.0);
+
+    /// <summary>The tick its motion ends at its target, or <see cref="Since"/> when still.</summary>
+    public long EndsAt => Moving == 0 ? Since : Since + (long)Math.Ceiling((Moving > 0 ? 1 - From : From) / Def.ProgressPerTick);
+
+    // Puts the door still at its target, where its record says (a door restored or made).
+    internal void Rest(bool open)
+    {
+        Open = open && Def.Opens;
+        From = Progress = Open ? 1f : 0f;
+        Moving = 0;
+    }
 
     public double Health { get; internal set; }
 
@@ -164,6 +199,9 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
     /// <summary>Its leaves' Jolt body IDs.</summary>
     public IReadOnlyList<uint> BodyIds => Bodies;
 
+    /// <summary>A leaf's pose in the zone where its body is now (<see cref="LeafAt"/> at <see cref="Progress"/>).</summary>
+    public (Vector3 Position, Quaternion Rotation) LeafNow(int index) => LeafAt(index, Progress);
+
     /// <summary>A leaf's pose in the zone, open or shut (<see cref="LeafAt"/> at 1 or 0).</summary>
     public (Vector3 Position, Quaternion Rotation) Leaf(int index, bool open) => LeafAt(index, open && Def.Opens ? 1f : 0f);
 
@@ -180,8 +218,8 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
         Vector3 local = hinging.Pin + Vector3.Transform(hinging.Offset, turn);
         if (Def.Rolls)
         {
-            // A garage door's curtain rolls up into its header.
-            local += new Vector3(0, leaf.Size.Y * progress, 0);
+            // A garage door's curtain rolls up into its header, as far as the kit's clip has it at this progress.
+            local += new Vector3(0, Def.LiftAt(progress, leaf.Size.Y), 0);
         }
         (Vector3 position, Quaternion rotation) = Frame.ZoneTransform;
         return (position + Vector3.Transform(local, rotation), Quaternion.Normalize(rotation * turn));
@@ -205,7 +243,7 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
     {
         get
         {
-            (Vector3 position, Quaternion rotation) = Leaf(0, Open);
+            (Vector3 position, Quaternion rotation) = LeafNow(0);
             return (position + Vector3.Transform(LockOffset(Def.Leaves[0], HingeRight), rotation), rotation);
         }
     }
@@ -215,7 +253,7 @@ public sealed class Door : IBuildingPart, IOwned, ILockHost
     {
         get
         {
-            (Vector3 position, Quaternion rotation) = Leaf(0, Open);
+            (Vector3 position, Quaternion rotation) = LeafNow(0);
             return (position + Vector3.Transform(LockBackOffset(Def.Leaves[0], HingeRight), rotation),
                 Quaternion.Normalize(rotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
         }
@@ -258,7 +296,8 @@ public sealed partial class BuildingWorld
     /// <summary>
     /// Whether a door fits into a frame piece in a layout (the door's own rules: building rights, reach and sight are the
     /// placement pipeline's, GROUND_SYSTEMS.md §6): single doors into doorways, double doors and the garage door into wall
-    /// frames, one per opening, shut, its leaves clear of players. The layout's bits the door doesn't choose are ignored.
+    /// frames, one per opening. The layout's bits the door doesn't choose are ignored. Nothing in the way (a player, another
+    /// door, an object) refuses a door, at fitting or ever after (DOORS.md §1).
     /// </summary>
     public Outcome CanFitDoor(DoorDef def, Piece frame, int layout)
     {
@@ -279,7 +318,7 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.HasDoor;
         }
-        return LeavesBlocked(new Door(EntityId.None, def, frame, layout, 0), open: false) ? OutcomeCode.PlayerInTheWay : Outcome.Done;
+        return Outcome.Done;
     }
 
     /// <summary>Fits a door into a frame piece (the checks of <see cref="CanFitDoor"/> again): shut, unlocked, owned by its fitter.</summary>
@@ -292,6 +331,7 @@ public sealed partial class BuildingWorld
             return fits;
         }
         var fitted = new Door(_newId(), def, frame, layout, player);
+        fitted.Rest(false);
         frame.Door = fitted;
         _doorIds[fitted.Id] = fitted;
         for (int i = 0; i < def.Leaves.Count; i++)
@@ -321,32 +361,115 @@ public sealed partial class BuildingWorld
         {
             return;
         }
-        (Vector3 position, Quaternion rotation) = door.Leaf(index, door.Open);
+        (Vector3 position, Quaternion rotation) = door.LeafNow(index);
         door.Bodies[index] = Physics.Add(new DoorLeaf(door, index), LeafShape(door, index), position, rotation);
     }
 
-    // Whether a player stands where the door's leaves would be.
-    private bool LeavesBlocked(Door door, bool open)
+    // ---------------------------------------------------------------- motion (DOORS.md §4, §5)
+
+    // The doors still going to their ends (the server's), or whose last motion a replay may still need (a mirror's).
+    private readonly List<Door> _moving = new();
+
+    // A mirror keeps a door's motion this long after it ended, for the ticks its prediction replays.
+    private const long MirrorKeepTicks = 160;
+
+    /// <summary>The tick the doors were last put at: a motion begun now begins at it.</summary>
+    public long DoorTick { get; private set; }
+
+    /// <summary>Doors that are moving, or may still be asked where they were a moment ago.</summary>
+    public int MovingDoors => _moving.Count;
+
+    /// <summary>
+    /// Puts every moving door's leaf bodies at the pose of its progress at a tick (the zone's tick on the server, once a tick,
+    /// after the characters moved; a mirror's prediction calls it before each tick it predicts, replays included, with the
+    /// tick before it): nothing stops a door, a character in the way is moved by the controller's own penetration recovery.
+    /// A door whose motion has reached its end rests there (a mirror keeps the record, for a replay).
+    /// </summary>
+    public void StepDoors(long tick)
     {
-        for (int i = 0; i < door.Def.Leaves.Count; i++)
+        // A mirror shared by many bots is stepped by each of their predictions, and told by their network threads.
+        lock (_moving)
         {
-            if (open && door.Def.Rolls)
+            StepDoorsLocked(tick);
+        }
+    }
+
+    private void StepDoorsLocked(long tick)
+    {
+        DoorTick = tick;
+        for (int i = _moving.Count - 1; i >= 0; i--)
+        {
+            Door door = _moving[i];
+            if (door.Gone)
             {
+                _moving.RemoveAt(i);
                 continue;
             }
-            (Vector3 position, Quaternion rotation) = door.Leaf(i, open);
-            if (CharacterInside(LeafParts(door, i), position, rotation))
+            float progress = door.ProgressAt(tick);
+            PoseDoor(door, progress);
+            if (Mirror ? tick > door.EndsAt + MirrorKeepTicks : door.Moving != 0 && tick >= door.EndsAt)
             {
-                return true;
+                if (!Mirror)
+                {
+                    door.From = progress;
+                    door.Moving = 0;
+                    door.Since = tick;
+                }
+                _moving.RemoveAt(i);
             }
         }
-        return false;
+    }
+
+    /// <summary>Puts every moving door at its end at once (a scene made in one go, a test that does not step ticks).</summary>
+    public void FinishDoors()
+    {
+        lock (_moving)
+        {
+            foreach (Door door in _moving.ToArray())
+            {
+                door.From = door.Moving > 0 ? 1f : door.Moving < 0 ? 0f : door.From;
+                door.Moving = 0;
+                door.Since = DoorTick;
+                PoseDoor(door, door.From);
+            }
+            _moving.Clear();
+        }
+    }
+
+    // A door's leaf bodies at a progress.
+    private void PoseDoor(Door door, float progress)
+    {
+        if (progress == door.Progress)
+        {
+            return;
+        }
+        door.Progress = progress;
+        for (int i = 0; i < door.Def.Leaves.Count; i++)
+        {
+            (Vector3 position, Quaternion rotation) = door.LeafAt(i, progress);
+            Physics?.Move(door.Bodies[i], position, rotation);
+        }
+    }
+
+    // Starts a door going toward open or shut from where it is this tick (a second press mid-way reverses it from there).
+    private void StartMotion(Door door, bool open)
+    {
+        door.From = door.ProgressAt(DoorTick);
+        door.Since = DoorTick;
+        door.Open = open;
+        door.Moving = (sbyte)(open ? 1 : -1);
+        if (!_moving.Contains(door))
+        {
+            _moving.Add(door);
+        }
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
     }
 
     /// <summary>
-    /// Opens or shuts a door. A locked lock lets through only those it knows: a key lock its owner and anyone holding
-    /// its key (<paramref name="keys"/>, the key codes the player carries), a code lock the players authorised on it.
-    /// No building rights needed. The leaves' new pose must be clear of players.
+    /// Opens or shuts a door: it starts to swing (or roll) at once and takes its travel time; a second press on the way
+    /// reverses it. A locked lock lets through only those it knows: a key lock its owner and anyone holding its key
+    /// (<paramref name="keys"/>, the key codes the player carries), a code lock the players authorised on it. No building
+    /// rights needed. Nothing in its way refuses it (DOORS.md §1).
     /// </summary>
     public Outcome Toggle(ulong player, Door door, IReadOnlyCollection<int>? keys = null)
     {
@@ -362,24 +485,8 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.Locked;
         }
-        if (LeavesBlocked(door, !door.Open))
-        {
-            return OutcomeCode.SwingBlocked;
-        }
-        SetOpen(door, !door.Open);
+        StartMotion(door, !door.Open);
         return Outcome.Done;
-    }
-
-    // Opens or shuts a door's leaves (their bodies move with them).
-    private void SetOpen(Door door, bool open)
-    {
-        door.Open = open;
-        for (int i = 0; i < door.Def.Leaves.Count; i++)
-        {
-            (Vector3 position, Quaternion rotation) = door.Leaf(i, door.Open);
-            Physics?.Move(door.Bodies[i], position, rotation);
-        }
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
     }
 
     /// <summary>Whether a player can open and shut a door now.</summary>
@@ -421,6 +528,7 @@ public sealed partial class BuildingWorld
             return;
         }
         door.Gone = true;
+        _moving.Remove(door);
         _doorIds.Remove(door.Id);
         for (int i = 0; i < door.Bodies.Length; i++)
         {

@@ -761,6 +761,7 @@ Decisions:
 | `WorldSystem` | Zone.World.cs | props, loot spots, recyclers and research, teams, map markers (once a second) |
 | `ActionSystem` | Zone.Actions.cs, Zone.Players.cs (part) | containers, looting, item actions; the loot check (once a second); craft queues |
 | `BuildingSystem` | Zone.Building.cs | building, doors, locks, the cupboard; decay and upkeep |
+| `DoorMotionSystem` | (none) | the doors' leaves put where their progress is, under the physics gate after the characters moved (DOORS.md §5) |
 | `HistorySystem` | Zone.Players.cs (part) | records the second of poses hits are judged against (last) |
 | `ShipSystem` | Zone.Ships.cs | ships (inside the physics gate, after movement) |
 | `DamageSystem` | Zone.Damage.cs | the damage pipeline (no step) |

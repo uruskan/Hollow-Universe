@@ -6,6 +6,7 @@ using Hollow.Core;
 using Hollow.Simulation;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Raid;
 
 namespace Hollow.Tests;
 
@@ -371,7 +372,7 @@ public static class DoorTests
             zone.Physics.EnsureGround(at);
             double now = zone.Building().BuildingNow;
             PieceDef triangle = data.Piece("foundation-triangle")!;
-            Piece slab = world.AddFirst(Hollow.Simulation.Raid.TestBases.FrameOver(zone, data, triangle, at, 0), triangle, 2, Ada, now);
+            Piece slab = world.AddFirst(TestBases.FrameOver(zone, data, triangle, at, 0), triangle, 2, Ada, now);
             Piece doorwayA = OnEdge(world, slab, 0, "doorway", now), doorwayB = OnEdge(world, slab, 1, "doorway", now);
             OnEdge(world, slab, 2, "wall", now);
             DoorDef wooden = data.Door("wooden-door")!;
@@ -400,6 +401,209 @@ public static class DoorTests
                 }
             }
             Assert.Equal(through, next == route.Length, $"layouts {a}/{b}: a character " + (through ? "walks through" : "is stopped") + $" (reached waypoint {next} of {route.Length})");
+        }
+    }
+
+    // ---------------------------------------------------------------- motion (DOORS.md §4, §5)
+
+    // Whether a standing character's capsule at a point (feet) reaches into a leaf at the pose of a progress.
+    private static bool Touches(Door door, int leaf, float progress, Vector3 feet, Vector3 up)
+    {
+        const float radius = 0.32f, height = 1.76f;
+        (Vector3 position, Quaternion rotation) = door.LeafAt(leaf, progress);
+        Quaternion inverse = Quaternion.Inverse(rotation);
+        for (float along = radius; along <= height - radius + 1e-3f; along += 0.2f)
+        {
+            Vector3 local = Vector3.Transform(feet + up * along - position, inverse);
+            foreach (ConvexPart part in BuildingWorld.LeafParts(door, leaf))
+            {
+                if (part.Outside(local) < radius)
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // A hut's doorway (no door in it), on the rig's ground, and the door the test fits: open, in the layout.
+    private static (TestBases.Hut Hut, Door Door) HutWithDoor(GameRig rig, string door, int layout, bool open)
+    {
+        TestBases.Hut hut = Raids.Hut(rig, 0, 12, door: null);
+        BuildingWorld world = rig.Zone.Building().World!;
+        DoorDef def = rig.C.Building.Door(door)!;
+        Door fitted = world.RestoreDoor(rig.Zone.NextId(), def, hut.Doorway, layout, hut.Owner, open, def.Health) ?? throw new TestFailure("no door");
+        return (hut, fitted);
+    }
+
+    [Test]
+    public static void ADoorTakesItsTravelTimeAndItsBodyIsWhereItsMotionPutsItEveryTick()
+    {
+        using var rig = new GameRig();
+        Zone zone = rig.Zone;
+        (TestBases.Hut hut, Door door) = HutWithDoor(rig, "wooden-door", 1, open: false);
+        BuildingWorld world = zone.Building().World!;
+        Assert.Equal(30, (int)Math.Round(1.0 / door.Def.ProgressPerTick), "a leaf swings in a second: 30 ticks");
+        Assert.True(world.Toggle(1, door).Ok && door.Open && door.Moving == 1, "asked to open: it begins to move");
+        long began = door.Since;
+        Assert.Equal(zone.Tick, began, "from the tick it was asked at");
+        for (int tick = 1; tick <= 34; tick++)
+        {
+            rig.Step();
+            float progress = door.ProgressAt(zone.Tick);
+            float expected = Math.Min(1f, (float)tick / 30);
+            Assert.Near(expected, progress, 1e-4, $"tick {tick}: progress");
+            // The leaf's body is where the pose of that progress is: a ray at the leaf's middle from its +Z face hits the body at the core's face.
+            (Vector3 position, Quaternion rotation) = door.LeafAt(0, progress);
+            Vector3 middle = position + Vector3.Transform(new Vector3(door.HingeRight ? -0.6f : 0.6f, 1.0f, 0f), rotation);
+            Vector3 out_ = Vector3.Transform(Vector3.UnitZ, rotation);
+            bool hit = world.Physics!.Ray(middle + out_ * 0.5f, -out_, 1f, out RayHit ray, buildingOnly: true);
+            Assert.True(hit && world.Physics.OwnerOf(ray.Body) is DoorLeaf, $"tick {tick}: the leaf's body is there");
+            Assert.Near(0.5 - door.Def.Leaves[0].Size.Z / 2, ray.Distance, 0.02, $"tick {tick}: its face");
+        }
+        Assert.True(door.Moving == 0 && door.Progress == 1f && door.From == 1f, "arrived, at rest");
+        // A second press mid-way turns it round from where it is.
+        Assert.True(world.Toggle(1, door).Ok, "shut");
+        rig.Step(10);
+        float midway = door.Progress;
+        Assert.Near(1f - 10f / 30, midway, 1e-3, "shutting, ten ticks on");
+        Assert.True(world.Toggle(1, door).Ok && door.Moving == 1, "asked to open again mid-way: nothing refuses it");
+        rig.Step(3);
+        Assert.Near(midway + 3f / 30, door.Progress, 1e-3, "it went back the other way from where it was");
+    }
+
+    [Test]
+    public static void ADoorClosingOnAStandingPlayerShovesThemClearAndNothingStopsIt()
+    {
+        using var rig = new GameRig();
+        Zone zone = rig.Zone;
+        (TestBases.Hut hut, Door door) = HutWithDoor(rig, "wooden-door", 0, open: true);
+        BuildingWorld world = zone.Building().World!;
+        zone.Step();
+        Entity ada = rig.Add("Ada", 0, 0);
+        // Inside, in the path of the leaf as it closes (it lies along the inside of the wall, hinged on the left).
+        Vector3 spot = ToZone(hut.Doorway, new Vector3(0.2f, 0f, -0.45f));
+        Raids.Stand(rig, ada, zone.Settle(spot));
+        rig.Step(3);
+        Vector3 up = zone.Frame.UpAt(rig.Ch(ada).State.Position);
+        Assert.True(!Touches(door, 0, 1f, rig.Ch(ada).State.Position, up), "the open leaf is clear of her");
+        bool inItsSweep = false;
+        for (float progress = 0.05f; progress < 1f; progress += 0.05f)
+        {
+            inItsSweep |= Touches(door, 0, progress, rig.Ch(ada).State.Position, up);
+        }
+        Assert.True(inItsSweep, "she stands in the leaf's sweep as it closes");
+        Assert.True(world.Toggle(1, door).Ok, "asked to shut with her in its way: nothing refuses it (it used to: swing blocked)");
+        rig.Step(45);
+        Assert.True(door.Moving == 0 && door.Progress == 0f && !door.Open, "it shut, all the way");
+        Vector3 feet = rig.Ch(ada).State.Position;
+        Assert.True(!Touches(door, 0, 0f, feet, zone.Frame.UpAt(feet)), "she is outside the leaf, shoved clear");
+        Assert.True(ToFrame(hut.Doorway, feet).Z > 0.04f, $"ahead of the leaf, which swept her out through the doorway (z {ToFrame(hut.Doorway, feet).Z:0.00})");
+        Assert.True(!rig.Ch(ada).State.IsDead, "and none the worse");
+    }
+
+    [Test]
+    public static void ADoorFitsAndShutsWithAPlayerInTheWay()
+    {
+        using var rig = new GameRig();
+        Zone zone = rig.Zone;
+        TestBases.Hut hut = Raids.Hut(rig, 0, 12, door: null);
+        Entity ada = rig.Add("Ada", 0, 0);
+        Raids.Stand(rig, ada, zone.Settle(ToZone(hut.Doorway, new Vector3(0, 0, 0.0f))));
+        rig.Step(2);
+        BuildingWorld world = zone.Building().World!;
+        DoorDef wooden = rig.C.Building.Door("wooden-door")!;
+        Assert.True(world.CanFitDoor(wooden, hut.Doorway, 0).Ok, "a door is fitted into a doorway she stands in");
+        Assert.True(world.PlaceDoor(1, wooden, hut.Doorway, 0, out Door? door).Ok, "and fits");
+        Assert.True(world.Toggle(1, door!).Ok, "and opens, whoever stands in its way");
+    }
+
+    // A lone square foundation with a wall frame on its edge 0 and a garage door in it, open or shut.
+    private static (Piece Frame, Door Door) GarageOnGround(GameRig rig, bool open)
+    {
+        Zone zone = rig.Zone;
+        BuildingWorld world = zone.Building().World!;
+        BuildingData data = world.Data;
+        Vector3 at = zone.GroundAt(30, 30);
+        zone.Physics.EnsureGround(at);
+        double now = zone.Building().BuildingNow;
+        PieceDef foundation = data.Piece("foundation")!;
+        Piece slab = world.AddFirst(TestBases.FrameOver(zone, data, foundation, at, 0), foundation, 2, Ada, now);
+        Piece frame = OnEdge(world, slab, 0, "wall-frame", now);
+        DoorDef garage = data.Door("garage-door")!;
+        Door door = world.RestoreDoor(zone.NextId(), garage, frame, 0, Ada, open, garage.Health) ?? throw new TestFailure("no garage door");
+        rig.Step(2);
+        return (frame, door);
+    }
+
+    // The tick-by-tick walk of a character at the garage door's opening from 2.4 m outside, for some ticks; the character's
+    // distance outward of the opening's plane after it (positive: still outside).
+    private static float WalkAtTheGarage(GameRig rig, Piece frame, int ticks)
+    {
+        Zone zone = rig.Zone;
+        Entity walker = zone.Players().AddPlayer(zone.NextId(), "Walker", zone.NewCharacter(zone.Settle(ToZone(frame, new Vector3(0, 0, 2.4f)))));
+        Vector3 inside = ToZone(frame, new Vector3(0, 0, -3f));
+        for (int tick = 0; tick < ticks; tick++)
+        {
+            rig.Look(walker, inside);
+            rig.Ch(walker).Input.Forward = 1;
+            rig.Step();
+        }
+        return ToFrame(frame, rig.Ch(walker).State.Position).Z;
+    }
+
+    [Test]
+    public static void AGarageCurtainsBodyRisesAndFallsWithTheKitsClipAndNobodyWalksUnderItWhileItIsLow()
+    {
+        DoorDef garage = ContentFixture.Content.Building.Door("garage-door")!;
+        Assert.Equal(90, (int)Math.Round(1.0 / garage.ProgressPerTick), "the curtain rolls in 3 s: 90 ticks");
+        for (int i = 1; i < garage.Lift.Count; i++)
+        {
+            Assert.True(garage.Lift[i] >= garage.Lift[i - 1] - 1e-3f, "the curtain's lower edge only rises");
+        }
+        Assert.Near(0, garage.LiftAt(0, 2.85f), 1e-6, "shut: the edge is on the floor");
+        Assert.InRange(2.3, 2.6, garage.LiftAt(1, 2.85f), "open: the curtain is curled in the header");
+
+        using (var rig = new GameRig())
+        {
+            Zone zone = rig.Zone;
+            (Piece frame, Door door) = GarageOnGround(rig, open: true);
+            BuildingWorld world = zone.Building().World!;
+            Assert.True(world.Toggle(1, door).Ok, "shut, asked");
+            Vector3 along = Vector3.Transform(Vector3.UnitZ, frame.ZoneTransform.Rotation);
+            for (int tick = 1; tick <= 90; tick += 7)
+            {
+                rig.Step(tick == 1 ? 1 : 7);
+                float progress = door.ProgressAt(zone.Tick);
+                float edge = garage.LiftAt(progress, 2.85f);
+                Assert.Near(progress, door.Progress, 1e-4, $"tick {tick}: the body is at the tick's progress");
+                // Rays through the opening along its depth, just under and just over the curtain's lower edge.
+                if (edge > 0.35f)
+                {
+                    Assert.True(!world.Physics!.Ray(ToZone(frame, new Vector3(0.3f, edge - 0.2f, 1.8f)), -along, 3.6f, out RayHit under, buildingOnly: true),
+                        $"tick {tick}: under the curtain's edge ({edge:0.00} m) the way is clear");
+                }
+                Assert.True(world.Physics!.Ray(ToZone(frame, new Vector3(0.3f, edge + 0.2f, 1.8f)), -along, 3.6f, out RayHit over, buildingOnly: true) &&
+                    world.Physics.OwnerOf(over.Body) is DoorLeaf, $"tick {tick}: over its edge the curtain is there");
+            }
+            rig.Step(10);
+            Assert.True(door.Moving == 0 && door.Progress == 0f, "shut at the end");
+        }
+        // Nobody walks under it while its edge is lower than they are tall: one walks in when it is open, and not when it is coming down.
+        using (var rig = new GameRig())
+        {
+            (Piece frame, Door door) = GarageOnGround(rig, open: true);
+            Assert.True(WalkAtTheGarage(rig, frame, 150) < -0.5f, "through the open garage door: in");
+        }
+        using (var rig = new GameRig())
+        {
+            Zone zone = rig.Zone;
+            (Piece frame, Door door) = GarageOnGround(rig, open: true);
+            Assert.True(zone.Building().World!.Toggle(1, door).Ok, "shut, asked");
+            rig.Step(50);
+            float edge = garage.LiftAt(door.Progress, 2.85f);
+            Assert.True(edge < 1.5f && edge > 0.3f, $"the curtain is part way down ({edge:0.00} m)");
+            Assert.True(WalkAtTheGarage(rig, frame, 150) > 0.25f, "under a curtain that is coming down, nobody gets in");
         }
     }
 }

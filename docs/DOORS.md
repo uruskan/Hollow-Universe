@@ -69,30 +69,38 @@ afterwards, because a player, another door or an object is in the way.
 ## 4. Motion
 
 A door has a **progress** from 0 (shut) to 1 (open) and a motion record, as the Iron Wake's doors do (IRON_WAKE.md
-§5.3): the progress *from* at a tick *since*, and whether it is *moving* open, moving shut or still. Where it is at any
-tick is arithmetic: `from + moving × (tick − since) × rate`, clamped to 0..1, the same on every machine. The rate comes
-from data: a leaf swings in **1.0 s** (30 ticks, easing at both ends), the garage curtain rolls in **3.07 s** (the
-kit's clip). A press of the verb sets `from` to the progress now, `since` to the tick, and the direction: pressing
-during a move reverses it from where it is, with no refusal. A door left to finish ends still at 0 or 1.
+§5.3): the progress *from* at a tick *since*, and whether it is *moving* open (+1), moving shut (−1) or still (0), besides
+its *target* (`Door.Open`: where it is going). Where it is at any tick is arithmetic, the same on every machine:
+`from + moving × (tick − since) × rate`, clamped to 0..1, with `rate = 1 / (travel × 30)` per tick. The travel comes from
+data (building.json `travel`): a leaf swings in **1.0 s** (30 ticks, easing at both ends: `DoorDef.Ease`), the garage curtain
+rolls in **3.0 s** (90 ticks: the kit's Open clip, frames 2 to 92 at 30 per second, measured in Blender). A press of the verb
+starts the motion from the progress at that tick; a second press during a move reverses it from where it is, with no refusal. The server
+rests a door at its end (progress 0 or 1, still) and does not announce it: the record already says so.
 
-The pose of a leaf is a function of its progress alone (§5), so the server, every client and a test compute the same
-pose at the same tick. The record is what is replicated (§8) and saved (a door saved mid-move is saved as finished).
+The pose of a leaf is a function of its progress alone (§5), so the server, every client and a test compute the same pose at the
+same tick. The record is what is replicated (§8); a door saved mid-move is saved as finished (its target).
 
 ## 5. Collision follows the motion
 
-- Every tick the server puts each moving door's leaf bodies at the pose of the tick's progress (a swing: the leaf
-  turned about its pin by `openYaw × ease(progress)`; the garage: the curtain's body, a box of the curtain's size, lifted
-  so its lower edge is where the skinned curtain's lower edge is, taken from the kit's clip and stored in building.json).
-  A door at rest keeps its bodies where they are; an open leaf is solid.
-- **Order.** In one tick the characters move first, then the systems; a door's bodies are put at progress(tick) in the
-  building system's step, so the characters' movement in tick *t + 1* meets the poses of tick *t*. A client's prediction
-  poses its copies of the bodies at progress(*t* − 1) before it predicts tick *t* (including every tick of a replay).
-- **A character in the way is shoved.** The character controller's penetration recovery pushes a capsule out of a
-  body that has moved into it; nothing stops the door. A door that closes on a standing player ends up with them outside
-  its leaf (on the side the leaf came from, since it sweeps them ahead of it). A garage curtain comes down on a player
-  standing under it, who is pressed down and aside by the controller; nobody can *walk* under it while its lower edge is
-  lower than they are tall (standing 1.8 m, crouching 1.0 m).
-- A door that finishes (progress 0 or 1) moves its bodies once more, to the exact pose of the end.
+- **Each tick** the building's `DoorMotionSystem` (under the physics gate, right after the characters moved, before the systems
+  that follow what rides on a leaf) puts every moving door's leaf bodies at the pose of the tick's progress: a swing is the
+  leaf turned about its pin by `openYaw × ease(progress)`; the garage's body is a box of the curtain's size lifted by the
+  kit's clip's lower-edge height at that progress (`building.json` `lift`: 25 heights at equal steps of progress, 0 to 2.43 m,
+  measured on the clip in Blender), so the body is where the skinned curtain's lower edge is. A door at rest keeps its bodies
+  where they are; an open leaf is solid. At most two bodies a door, moved with Jolt's own call (the broadphase is
+  rebuilt once a tick while any door moves: 0.1–0.3 ms).
+- **Order.** In one tick the characters move first, then the systems; so the characters' movement in tick *t + 1* meets the poses of
+  tick *t*. A client's prediction poses its copies of the bodies at progress(*t* − 1) before it predicts tick *t*
+  (`Predictor.BeforeStep`, every tick of a replay too: `BuildingWorld.StepDoors`), and draws a door at the same tick
+  (`PredictedTickClock − 1`), so what a player walks into is what they see.
+- **A character in the way is shoved.** The character controller's penetration recovery pushes a capsule out of a body that has
+  moved into it; nothing stops the door. A door that closes on a standing player ends up with them outside its leaf: the leaf
+  sweeps them ahead of it, and near its end it pushes toward the doorway, so a door closing from the inside sees them out
+  through it (`DoorTests`: z +0.38 outside the doorway). A garage curtain coming down presses a standing player down and aside; nobody
+  can *walk* under it while its lower edge is lower than they are tall (standing 1.76 m, crouching 1.10 m): a walker at a curtain
+  with its edge at about 0.9 m is stopped.
+- **No refusals.** `Toggle` has no `SwingBlocked`, fitting a door no `PlayerInTheWay`; locks and keys are the only things that
+  refuse a door (`Locked`), as before.
 
 ## 6. Locks on both faces
 
@@ -135,13 +143,13 @@ set `images/abtest-b/doors/hosted`.
 
 ## 8. Replication and saving
 
-- `DoorNet` carries the **layout** (replacing the flip flag; 2 bits, since protocol 44, D2), whether it is open, and the motion record (D3): *from*
-  (progress as a fraction of 65,535), *since* (the tick, 32 bits) and *moving* (two bits). A door that is still has
-  `moving = 0`. The protocol number goes up (44), because the meaning of a door message changes.
-- A client's copy of a door animates from the record against the client's own tick (the one its prediction runs on), so
-  the picture and the predicted collision are the same pose. Its first sight of a moving door is a little ahead of the
-  server's pose by the lead of its clock; no client prediction of the press itself (a press is answered by the server's
-  next door message).
+- `DoorNet` carries the **layout** (replacing the flip flag; 2 bits, since protocol 44, D2), whether it is open (its target),
+  and the motion record (protocol 45, D3): *from* (progress as a fraction of 65,535), *since* (the tick, a varint) and *moving* (two
+  bits: 0 still, 1 opening, 2 shutting). A door that is still has `moving = 0`.
+- A client's copy of a door animates from the record against the client's own tick (the one its prediction runs on, less
+  one), so the picture and the predicted collision are the same pose. Its first sight of a moving door is a little ahead
+  of the server's pose by the lead of its clock; the press itself is not predicted (it is answered by the server's next door
+  message).
 - The save stores the layout in the door's row (door version 2; a version-1 row's half turn reads as layout 3) and the door open
   or shut as it finishes. The meaning of the stored number changed, so the Earth save revision went up with it (10; the default
   hosted save is `hollow-server-earth-v10.db`).
@@ -153,7 +161,7 @@ set `images/abtest-b/doors/hosted`.
 | D0 | This document | — |
 | D1 (done) | Symmetric leaves, centred frame, both-face locks | `images/abtest-b/doors/before` and `after` (`doors.jpg`: every door from outside and inside; `locks.jpg`: the lock seat on both faces) |
 | D2 (done) | Hinge and swing chosen separately, the ghost's arc, the airlock layouts | `DoorTests` (five): every layout's pose, pin and body; R's steps and default; the two airlocks by flood and a character walking |
-| D3 | No refusals; bodies follow the motion every tick; the motion record on the wire; the protocol and save revision | `DoorTests`: closing on a player, the garage curtain at mid-close, server and client leaf poses agree mid-swing |
+| D3 (done) | No refusals; bodies follow the motion every tick; the motion record on the wire (protocol 45) | `DoorTests` (eight in all): the travel time and the body's ray test every tick, closing on a player, fitting and shutting with a player in the way, the garage curtain's edge and walkers; `BuildingNetTests`: the server's and the client's leaf agree at every tick |
 | D4 | The four door items' icons and dropped models from the corrected kit doors (docs/ITEM_ART_SALVAGE.md's pattern) | the item pictures; `models.json` loses their stand-in notes |
 
 Hosted pictures of the two airlock layouts, open and shut, from outside and inside, close D1 to D3. Owner visual

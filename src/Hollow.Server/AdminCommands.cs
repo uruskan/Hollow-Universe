@@ -208,6 +208,9 @@ public sealed partial class GameServer
             case "raidbase":
                 this.Console().RaidBase(ctx, args);
                 break;
+            case "airlock":
+                this.Console().Airlock(ctx, args);
+                break;
             case "admin" when args.Count >= 1:
                 this.Console().SetAdmin(ctx, string.Join(' ', args), true);
                 break;

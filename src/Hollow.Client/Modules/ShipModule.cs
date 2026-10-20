@@ -150,7 +150,7 @@ public sealed class ShipModule : ClientModule
             IgnoreBody = () => _shipPredictor != null && _parkedBodies.TryGetValue(_shipPredictor.NetId, out uint body) ? body : ShipCollider.NoBody,
         };
         Prediction.Seat = SeatAt;
-        Prediction.BeforeStep = PoseFrames;
+        Prediction.BeforeStep += PoseFrames;
         Client.DrawnFrame = DrawnPose;
         Client.SeatEye = SeatEye;
     }

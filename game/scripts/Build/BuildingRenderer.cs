@@ -33,6 +33,12 @@ public partial class BuildingRenderer : Node3D
     private readonly Dictionary<Piece, Batch> _of = new();
     private readonly HashSet<Batch> _dirty = new();
     private readonly Dictionary<Door, DoorView> _doors = new();
+
+    /// <summary>
+    /// The tick (fractional) the doors are drawn at: the one the prediction's collision meets them at, so the picture and the
+    /// leaves a character walks into are the same (docs/DOORS.md §4, §5). Null: a door eases to its target on its own.
+    /// </summary>
+    public Func<double>? Clock { get; set; }
     private readonly Dictionary<ClaimDevice, MeshInstance3D> _claims = new();
     private BuildingWorld _world = null!;
     private BuildingAssets _assets = null!;
@@ -240,7 +246,7 @@ public partial class BuildingRenderer : Node3D
     private void AddDoor(Door door)
     {
         var view = new DoorView { Name = "Door " + door.Id, Door = door, Assets = _assets, Target = door.Open,
-            PresentationTargets = PresentationTargets };
+            PresentationTargets = PresentationTargets, Clock = Clock };
         AddChild(view);
         _doors[door] = view;
     }
@@ -375,8 +381,11 @@ public partial class DoorView : Node3D
 
     public BuildingAssets Assets { get; set; } = null!;
 
-    /// <summary>Open (true) or shut: the leaves move toward it.</summary>
+    /// <summary>Open (true) or shut: the leaves move toward it (when there is no <see cref="Clock"/>).</summary>
     public bool Target { get; set; }
+
+    /// <summary>The tick the door is drawn at (the door's motion record says where it is then), or null.</summary>
+    public Func<double>? Clock { get; set; }
 
     /// <summary>The first mesh of leaf <paramref name="index"/> (its origin is the leaf's middle plane at its hinge), or null for a garage door.</summary>
     public MeshInstance3D? LeafMesh(int index) => index >= 0 && index < _leafMeshes.Count ? _leafMeshes[index] : null;
@@ -401,7 +410,7 @@ public partial class DoorView : Node3D
                 _presentation.Add(RenderedTargetFrame.Register(targets, target, _leafMeshes[i], new TargetPose(at, turn)));
             }
         }
-        _swing = Target ? 1 : 0;
+        _swing = Clock != null ? Door.ProgressAt(Clock()) : Target ? 1 : 0;
         _Process(0);
     }
 
@@ -469,27 +478,31 @@ public partial class DoorView : Node3D
 
     public override void _Process(double delta)
     {
+        // By the motion record against the clock when there is one (the leaves are then exactly where the collision is),
+        // else easing to the target over the door's travel.
         float goal = Target ? 1 : 0;
+        if (Clock != null)
+        {
+            _swing = Door.ProgressAt(Clock());
+        }
+        else
+        {
+            _swing = Mathf.MoveToward(_swing, goal, (float)delta / (float)Door.Def.TravelSeconds);
+        }
         if (_garage != null)
         {
-            if (!_shown || Mathf.Abs(goal - _swing) > 0.001f)
+            // The kit's Open clip, scrubbed to the progress: the curtain is where its body is (the lift table is measured on it).
+            if (_garage.HasAnimation("Open"))
             {
-                string clip = Target ? "Open" : "Close";
-                if (_garage.HasAnimation(clip) && _garage.CurrentAnimation != clip)
+                if (_garage.CurrentAnimation != "Open")
                 {
-                    _garage.Play(clip);
-                    if (!_shown)
-                    {
-                        _garage.Seek(_garage.CurrentAnimationLength, true);
-                    }
+                    _garage.Play("Open", customSpeed: 0);
+                    _garage.Pause();
                 }
-                _swing = goal;
-                _shown = true;
+                _garage.Seek(_swing * _garage.GetAnimation("Open").Length, true);
             }
             return;
         }
-        // The kit's leaves travel in one second, easing at both ends.
-        _swing = Mathf.MoveToward(_swing, goal, (float)delta);
         float eased = DoorDef.Ease(_swing);
         foreach ((Node3D pivot, float openYaw) in _leaves)
         {

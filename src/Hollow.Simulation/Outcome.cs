@@ -172,6 +172,8 @@ public enum OutcomeCode : byte
     OpenItFirst = 64,
     RemoveLockFirst = 65,
     UnlockItFirst = 66,
+
+    /// <summary>No longer answered: a door ignores what is in its way and always moves (docs/DOORS.md §1). The code keeps its number.</summary>
     SwingBlocked = 67,
     HasClaim = 68,
     NotOnStructure = 69,

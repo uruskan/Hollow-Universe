@@ -746,6 +746,54 @@ public sealed class ConsoleModule : ServerModule
         }
     }
 
+    // airlock [triangle|room] [layoutFirst] [layoutSecond] [open|shut] [player]: TestBases.BuildAirlock 9 m ahead.
+    internal void Airlock(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        bool room = args.Count > 0 && args[0].Equals("room", StringComparison.OrdinalIgnoreCase);
+        int next = args.Count > 0 && (room || args[0].Equals("triangle", StringComparison.OrdinalIgnoreCase)) ? 1 : 0;
+        int layoutFirst = room ? 0 : 1, layoutSecond = room ? 1 : 2;
+        if (next < args.Count && int.TryParse(args[next], NumberStyles.Integer, CultureInfo.InvariantCulture, out int a))
+        {
+            layoutFirst = Math.Clamp(a, 0, 3);
+            next++;
+            if (next < args.Count && int.TryParse(args[next], NumberStyles.Integer, CultureInfo.InvariantCulture, out int b))
+            {
+                layoutSecond = Math.Clamp(b, 0, 3);
+                next++;
+            }
+        }
+        bool open = next < args.Count && args[next].Equals("open", StringComparison.OrdinalIgnoreCase);
+        if (next < args.Count && (open || args[next].Equals("shut", StringComparison.OrdinalIgnoreCase)))
+        {
+            next++;
+        }
+        PlayerSession? whom = Server.TargetOrMe(ctx, args, next);
+        if (!Server.Alive(ctx, whom, out Player owner))
+        {
+            return;
+        }
+        if (Zone.Building().World == null)
+        {
+            ctx.Error("This zone has no building.");
+            return;
+        }
+        ref Character c = ref Zone.Entities.Get<Character>(whom!.Entity);
+        Vector3 feet = Zone.WorldOf(c.State);
+        Vector3 up = Zone.Frame.UpAt(feet);
+        Vector3 ahead = Zone.Settle(feet + Facing.Basis(Zone.ViewOf(c), up).Forward * 9);
+        Vector3 aheadUp = Zone.Frame.UpAt(ahead), back = feet - ahead;
+        back -= aheadUp * Vector3.Dot(back, aheadUp);
+        double heading = BuildingFrame.HeadingOf(new Vector3D(back.X, back.Y, back.Z), new Vector3D(aheadUp.X, aheadUp.Y, aheadUp.Z));
+        if (TestBases.BuildAirlock(Zone, ahead, heading, 2, owner.Id.Value, room, layoutFirst, layoutSecond, open) != null)
+        {
+            ctx.Done($"An airlock ({(room ? "a double door and a single door" : "two single doors")}, layouts {layoutFirst} and {layoutSecond}, {(open ? "open" : "shut")}) 9 m in front of {GameServer.Whom(ctx, whom)}.");
+        }
+        else
+        {
+            ctx.Error("No room or no ground there for an airlock.");
+        }
+    }
+
     private static int? Grade(string word) =>
         int.TryParse(word, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? Math.Clamp(n, 0, 4)
         : word.ToLowerInvariant() == "armored" ? 4

@@ -113,6 +113,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         _renderer = new BuildingRenderer
         {
             Name = "Buildings",
+            Clock = () => _clock * CharacterMotor.TickRate,
             FinestOnly = Options.ContainsKey("finest"),
             OnlyLod = Options.TryGetValue("lod", out string? lodOption) ? int.Parse(lodOption, CultureInfo.InvariantCulture) : -1,
         };
@@ -338,6 +339,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
                 if (house.F.Structure.Pieces.FirstOrDefault(p => p.Door is { Def.Opening: Opening.Double })?.Door is Door wide)
                 {
                     _world.Toggle(Player, wide);
+                    _world.FinishDoors();
                 }
                 _model.SelectBelt(1);
                 Look(frame, new Vector3D(-4.7, 2.9, 9.9), new Vector3D(0.75, 2.45, 4.5));
@@ -408,6 +410,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         _frames++;
         _clock += delta;
         _world.Tick(_clock);
+        _world.StepDoors((long)(_clock * CharacterMotor.TickRate));
         if (_frames % 15 == 0)
         {
             DoorLocks.Sync(_renderer);

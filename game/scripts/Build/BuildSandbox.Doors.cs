@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Godot;
 using Hollow.Core;
 using Hollow.Simulation.Building;
@@ -131,6 +132,23 @@ public partial class BuildSandbox
             }
         }
         Sheet(locks, 2).SaveJpg(Path.Combine(dir, "locks.jpg"), 0.9f);
+        // Motion (docs/DOORS.md §4): the wooden door and the garage door opened, a picture every 0.45 s from outside.
+        var motion = new List<Image>();
+        foreach (int k in new[] { 0, 6 })
+        {
+            Door door = _world.Doors.Single(d => d.Def.Key == DoorRow[k].Door);
+            (Vector3D from, Vector3D at) = FaceView(k, outside: true);
+            _world.Toggle(1, door);
+            for (int step = 0; step < 6; step++)
+            {
+                Image shot = await Shoot(_doorFrame, from, at);
+                shot.SaveJpg(Path.Combine(dir, $"motion-{DoorRow[k].Door}-{step}.jpg"), 0.9f);
+                motion.Add(shot);
+                await Settled(k == 6 ? 0.55 : 0.18);
+            }
+            await Settled(3.2);
+        }
+        Sheet(motion, 6).SaveJpg(Path.Combine(dir, "motion.jpg"), 0.9f);
         GD.Print($"[doors] tour saved in {dir}");
         GetTree().Quit(0);
     }

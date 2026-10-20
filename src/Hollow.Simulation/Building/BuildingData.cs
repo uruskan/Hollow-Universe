@@ -263,6 +263,30 @@ public sealed class DoorDef
 
     public string FrameMesh { get; init; } = "";
 
+    /// <summary>Seconds a door takes to swing open or shut, or a garage curtain to roll (the kit's clip: 3 s).</summary>
+    public double TravelSeconds { get; init; } = 1.0;
+
+    /// <summary>The progress a tick adds to a door that is moving (the same arithmetic on every machine).</summary>
+    public float ProgressPerTick => (float)(1.0 / (TravelSeconds * Movement.CharacterMotor.TickRate));
+
+    /// <summary>
+    /// For a rolling door: how high the curtain's lower edge has risen, in metres, at equal steps of progress from shut to
+    /// open (measured on the kit's clip; the first is 0). Empty: the curtain rises by its height in proportion to progress.
+    /// </summary>
+    public IReadOnlyList<float> Lift { get; init; } = Array.Empty<float>();
+
+    /// <summary>How far a rolling door's curtain has risen at a progress, in metres (<see cref="Lift"/>, read between its steps).</summary>
+    public float LiftAt(float progress, float height)
+    {
+        if (Lift.Count < 2)
+        {
+            return height * Math.Clamp(progress, 0f, 1f);
+        }
+        float at = Math.Clamp(progress, 0f, 1f) * (Lift.Count - 1);
+        int i = Math.Min((int)at, Lift.Count - 2);
+        return Lift[i] + (Lift[i + 1] - Lift[i]) * (at - i);
+    }
+
     /// <summary>Whether the builder chooses the hinge side (a single door; layout bit 0 hangs the leaf on the right).</summary>
     public bool Hinges { get; init; }
 
@@ -802,6 +826,8 @@ public sealed class BuildingData
                 FrameMesh = r.Text(d, "frameMesh", ""),
                 Hinges = r.Boolean(d, "hinges", false),
                 Swings = r.Boolean(d, "swings", false),
+                TravelSeconds = r.Number(d, "travel", 1.0),
+                Lift = r.Array(d, "lift").Select(e => e.ValueKind == JsonValueKind.Number ? (float)e.GetDouble() : 0f).ToArray(),
             };
             doors.Add(door);
             _doors[key] = door;
@@ -965,6 +991,14 @@ public sealed class BuildingData
             if ((d.Hinges || d.Swings) && (!d.Opens || d.Rolls || d.Leaves.Any(l => l.OpenYaw == 0)))
             {
                 problems.Add($"door {d.Key}: a hinge or swing side can only be chosen on a door whose leaves swing");
+            }
+            if (!(d.TravelSeconds is > 0.1 and <= 30))
+            {
+                problems.Add($"door {d.Key}: travel is 0.1 to 30 seconds");
+            }
+            if (d.Lift.Count == 1 || d.Lift.Any(h => !float.IsFinite(h) || h < 0))
+            {
+                problems.Add($"door {d.Key}: lift needs at least two finite heights");
             }
             if (d.Hinges && d.Leaves.Any(l => l.MirrorMesh.Length == 0))
             {

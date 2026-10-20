@@ -230,6 +230,9 @@ public sealed class GameClient : INetEventListener, IDisposable
 
     internal double TickClock => _tickClock;
 
+    /// <summary>The tick the client is predicting now, fractional: what the doors are drawn at (docs/DOORS.md §5), less one.</summary>
+    public double PredictedTickClock => _tickClock;
+
     internal uint NextTick => _nextTick;
 
     internal Dictionary<uint, RemoteEntity> Remotes => _remotes;

@@ -4694,3 +4694,22 @@ double door in with a single door hinged on the right, only together) and one by
 Since the door lies inside its frame, from beyond the jamb's line the frame hides it (FoundationTests' door from aside is 0.5 m, was 1.6).
 Validation: see the commit message. Not done: the hosted pictures (end of D3); `--view build --scene airlocks --tour` pictures are in
 `docs/images/abtest-b/doors/airlocks-sandbox`.
+
+### 20 October 2026 — doors D3: doors that ignore what is in their way, and whose bodies follow their motion
+
+A door is a motion record (`From` progress at `Since` tick, `Moving` +1/-1/0, its target `Open`) and its progress at a tick is arithmetic:
+a leaf swings in 30 ticks (building.json `travel`), the garage curtain rolls in 90 (the kit's Open clip is frames 2 to 92 at 30 fps,
+measured in Blender; its lower edge's height at 25 steps of progress is `lift`, the body rises with it). `DoorMotionSystem` (under the physics
+gate, after the characters moved) poses the leaf bodies at the tick's progress every tick; the character controller's penetration recovery
+shoves anyone in the way (a door closing from the inside on a player sees them out through the doorway); a second press reverses from
+where the door is. `SwingBlocked` and the player check when fitting a door are gone (nothing but a lock refuses a door). `DoorNet` carries
+the record (protocol 45); the client mirror poses its bodies before every tick it predicts and replays (`Predictor.BeforeStep`, one tick back)
+and draws doors at the same tick, the garage's Open clip scrubbed to the progress. Three tests used to assume instant doors (the garage's aim,
+a charge riding a leaf, the door-opening aside) and step ticks now. `DoorTests` (8): the travel time and the body's ray test every tick, closing on
+a player, fitting and opening with a player in the way, the garage curtain's edge (rays under and over it every few ticks) and a walker stopped
+by a coming-down curtain; `BuildingNetTests`: the server's and the client's leaf agree at every tick. The garage curtain's body now matches the
+mesh (z 0.2, 9.2 cm; it was 8 cm at 0.12, off the mesh).
+Hosted pictures: `--view ground ... --tour-steps airlocks` with the admin's new `airlock` command (a triangle with two single doors, layouts 1 and 2, and a
+square room with a double door and a single door, 0 and 1), shut and open, outside and inside: `docs/images/abtest-b/doors/hosted`.
+Validation: see the commit message. Not done: a load test of 100 building bots with the new door motion (the bots' shared mirror is stepped by each
+bot's prediction; `StepDoors` takes a lock); door gibs of a right-hinged or outward door fly from the left-hinged leaf's place.

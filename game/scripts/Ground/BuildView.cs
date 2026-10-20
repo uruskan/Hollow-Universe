@@ -199,7 +199,7 @@ public partial class BuildView : Node3D, IHammerActions
         try
         {
             _assets = BuildingAssets.Load(Data);
-            _renderer = new BuildingRenderer { Name = "Buildings", PresentationTargets = Client.Targets() };
+            _renderer = new BuildingRenderer { Name = "Buildings", PresentationTargets = Client.Targets(), Clock = () => Client.PredictedTickClock - 1 };
             AddChild(_renderer);
             _renderer.Attach(world, _assets);
             BindWorld(world);

@@ -75,6 +75,7 @@ public partial class GroundTour : Node
             ("admire", AdmireTour),
             ("bow-alignment", BowAlignmentTour),
             ("clan-base", ClanBaseTour),
+            ("airlocks", AirlockTour),
             ("attack-sync", AttackSync),
             ("attack-launcher", AttackLauncher),
             ("resources", Resources),

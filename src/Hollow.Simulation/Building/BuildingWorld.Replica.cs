@@ -107,9 +107,9 @@ public sealed partial class BuildingWorld
         }
         var door = new Door(id, def, frame, layout, owner)
         {
-            Open = open && def.Opens,
             Health = Math.Clamp(health, 0, def.Health),
         };
+        door.Rest(open);
         frame.Door = door;
         _doorIds[id] = door;
         for (int i = 0; i < def.Leaves.Count; i++)
@@ -118,7 +118,7 @@ public sealed partial class BuildingWorld
             {
                 break;
             }
-            (Vector3 position, Quaternion rotation) = door.Leaf(i, door.Open);
+            (Vector3 position, Quaternion rotation) = door.LeafNow(i);
             uint requested = bodies != null && i < bodies.Count ? bodies[i] : 0;
             door.Bodies[i] = Physics.Add(new DoorLeaf(door, i), LeafShape(door, i), position, rotation, requested);
         }
@@ -272,22 +272,30 @@ public sealed partial class BuildingWorld
         }
     }
 
-    /// <summary>A mirror takes a door's state from the server: open or shut (the leaves' bodies move), its health.</summary>
-    public void Apply(Door door, bool open, double health)
+    /// <summary>
+    /// A mirror takes a door's state from the server: its target, its motion record (the progress at a tick, which way it
+    /// goes) and its health. The leaves' bodies go where the record puts them at the tick the doors are at.
+    /// </summary>
+    public void Apply(Door door, bool open, float from, int moving, long since, double health)
     {
         if (door.Gone)
         {
             return;
         }
         door.Health = Math.Clamp(health, 0, door.Def.Health);
-        if (open != door.Open)
+        lock (_moving)
         {
-            SetOpen(door, open);
+            door.Open = open && door.Def.Opens;
+            door.From = Math.Clamp(from, 0f, 1f);
+            door.Moving = (sbyte)(door.Def.Opens ? Math.Clamp(moving, -1, 1) : 0);
+            door.Since = since;
+            if (door.Moving != 0 && !_moving.Contains(door))
+            {
+                _moving.Add(door);
+            }
+            PoseDoor(door, door.ProgressAt(DoorTick));
         }
-        else
-        {
-            Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
-        }
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
     }
 
     /// <summary>A mirror shows a door's lock as the server describes it: none, a key lock or a code lock, locked or not.</summary>

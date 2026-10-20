@@ -2377,10 +2377,11 @@ whose state is in DEVELOPMENT.md): both faces of a door look the same; the hinge
 separately (four layouts for a single door, two for a double, one for the garage), so doors can make airlocks; doors
 ignore players, objects and other doors and always open and shut; their collision follows their motion every tick (a
 leaf along its swing, the curtain along its roll) over their travel time (1 s, the garage 3 s), shoving whoever is in
-the way; a code lock shows on both faces. Built so far (D1, D2): the leaves hang inside their frame on pins at the kit
+the way; a code lock shows on both faces. Built (D1 to D3): the leaves hang inside their frame on pins at the kit
 manifest's hinges (single: 56.2 cm either side of centre, 100°), each door has its layout (`Door.Layout`: bit 0 hinge on the
-right, bit 1 swing out; R steps through them), and a lock shows on both faces. Until D3 lands a door refuses to move into a
-player and its bodies jump to the new pose. A garage door rolls up. Opening a door needs no rights, only its lock's consent. Picking a door up needs it open with
+right, bit 1 swing out; R steps through them), a lock shows on both faces, a door is a motion record (its progress at a tick, 30 ticks
+a swing, 90 a garage roll) whose leaf bodies `DoorMotionSystem` moves every tick, shoving whoever is in the way (nothing refuses
+a door but its lock), and the record is on the wire (`DoorNet`, protocol 45). A garage door rolls up. Opening a door needs no rights, only its lock's consent. Picking a door up needs it open with
 no lock on it. **Key lock** (Rust's): its owner opens it without a key; anyone with a key cut for it (its key code)
 opens it and it stays locked. **Code lock** (RustMVP's, no guest codes): four digits; setting the code locks it and
 leaves only the setter authorised; the right code authorises (up to 64); wrong codes make the player wait 1, 5, 5, 5,
@@ -4141,6 +4142,7 @@ the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <nam
 | `clearinv` | `[player]` | admins | server | Empties an inventory: main, belt and clothing. |
 | `ship` | `[player] [kind]` | admins | server | A ship beside a player, theirs, fuelled, its hatch open, its way in toward them: a Tin Finch, or the kind named (`ship Ada iron-wake`, as `spawn iron-wake`; IRON_WAKE.md §5.6). |
 | `raidbase` | `[grade] [player]` | admins | server | A claimed hut 8 m in front, listing the player (`twig`, `wood`, `stone`, `metal`, `armoured` or 0–4; stone by default). |
+| `airlock` | `[triangle\|room] [layoutFirst] [layoutSecond] [open\|shut] [player]` | admins | server | Two doors that can close the walk between them (DOORS.md §7), 9 m in front: a triangle with two single doors (layouts 1 and 2 close it) or a square room with a double door and a single door (0 and 1); a layout is 0 to 3 (bit 0 hinges on the right, bit 1 swings out). Wooden doors, stone, owned by the player. |
 | `admin`, `unadmin` | `<name>` | admins | server | Gives or takes admin rights until the server stops (admins.txt keeps them). |
 | `world`, `animals` | | admins | server | The world's props, teams and economy; the animals, by kind, and what they cost. |
 

@@ -371,7 +371,7 @@ public static class FoundationTests
         Assert.True(z.Supports().DependentsOf(door.Ref).Contains(charge.Ref), "the door lists it as resting on it");
         Vector3 shut = charge.Position;
         Assert.True(z.Building().World!.Toggle(1, door).Ok, "the door opens");
-        rig.Step(1);
+        rig.Step(15);
         Assert.True(Vector3.Distance(charge.Position, shut) > 0.2f && charge.State == ExplosiveState.Stuck, "the charge swung with the leaf");
         Assert.True(z.Supports().TryLinkPose(charge.Link, out TargetPose on) && Vector3.Distance(on.Position, charge.Position) < 1e-3f, "where its link says");
         z.Building().DamageBuilding(door, Vector3.UnitZ, 1_000_000, projectile: false);

@@ -660,7 +660,7 @@ public sealed class TargetSystem : ZoneSystem
                 return false;
             }
             (Vector3 position, Quaternion rotation) = target.Part > 0 && target.Part <= door.Def.Leaves.Count
-                ? door.Leaf(target.Part - 1, door.Open)
+                ? door.LeafNow(target.Part - 1)
                 : door.Frame.ZoneTransform;
             pose = new TargetPose(position, rotation);
             return true;
