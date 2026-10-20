@@ -1,6 +1,7 @@
 # Ground vehicles: the modular car, the modular motorbike and the vehicle lift (design, 20 October 2026)
 
-Status: **design, waiting for the owner's review. Nothing is built.** Every rule is marked **Owner** (the owner asked for it on
+Status: **design; the owner answered most of its questions on 20 October 2026 (R13 to R18), four remain (§12). Nothing is
+built.** Every rule is marked **Owner** (the owner asked for it on
 20 October 2026), **DESIGN.md** (already confirmed there) or is a **proposal** (everything unmarked). Numbers are starting
 values for tuning in play, not promises.
 
@@ -23,6 +24,12 @@ The proportion sheet: [images/vehicles/proportions.svg](images/vehicles/proporti
 | R10 | Tap E, hold E for the radial; Rust's interface; a health bar on everything that takes damage | DESIGN.md INT-01 to INT-03, UI-01, UI-03 |
 | R11 | Vehicles persist with what they carry; optimisation is a constraint | DESIGN.md WORLD-05 |
 | R12 | Names our own; Rust's mechanics, numbers and interface may be used | AGENTS.md rules |
+| R13 | The car is the **TOGG**, the motorbike the **Zamazingo** | Owner |
+| R14 | Engine parts can be swapped on the road, away from the lift | Owner |
+| R15 | Vehicles **decay when they are not in a tool cupboard's zone** | Owner |
+| R16 | A bed or sleeping bag on a vehicle is a respawn point | Owner |
+| R17 | **Space** gets out of a vehicle (as in Rust and our ship seats) | Owner |
+| R18 | Builds too tall for the garage door are accepted; real garage doors for vehicles come later | Owner |
 
 **What Rust does** (the reference for R1, from Facepunch's own beta post, rust.facepunch.com/blog/vehicles-beta-branch, and
 two player guides): three chassis lengths of 2, 3 and 4 module slots; modules for cockpits (plain, with an engine, armoured),
@@ -79,7 +86,7 @@ like everything players make, so no badge or body shape is copied from the real 
 | Suspension | Independent arms, coil-overs, **0.35 m of travel** | Rough baked terrain (slopes to about 45°) and no roads yet |
 | Under the frame | 0.42 m | Crosses the eroded ground without beaching |
 | Deck | Top of the frame at 0.98 m; three bays of 1.4 × 2.0 m | |
-| Height | A cab: 2.6 m (passes the 2.85 m garage opening); a camper shell 2.95 m and two levels up to **3.9 m** (they do not: a choice the builder makes) | §3.3, §12 |
+| Height | A cab: 2.6 m (passes the 2.85 m garage opening); a camper shell 2.95 m and two levels up to **3.9 m** (they do not: accepted, R18; a vehicle garage door comes later) | §3.3 |
 | Mass | Chassis 650 kg bare; load at most 1,800 kg | The mass budget is the trade-off between armour, people and a camp |
 | Chassis tank | 100 fuel | The fuel is lamp oil, the stand-in for low-grade fuel (as the ships use) |
 
@@ -195,8 +202,23 @@ the same parts or one more slot. Which ones is content for later; the system nee
 ### 5.3 Where parts are changed
 
 - **At the lift**: everything.
-- **On the road** (proposal): an authorised player opens a stopped vehicle's engine (hold E on it → OPEN ENGINE) and swaps parts
-  by hand, so a broken spark plug far from home is a repair and not a walk. Modules and running gear stay a lift job.
+- **On the road** (R14): an authorised player opens a stopped vehicle's engine (hold E on it → OPEN ENGINE) and swaps parts
+  by hand, so a broken spark plug far from home is a repair and not a walk. Modules and running gear stay a lift job, a flat
+  tyre too (as proposed and not changed by the owner).
+
+### 5.4 Decay (R15)
+
+- **Outside every tool cupboard's zone** a vehicle decays; **inside one it does not**. The zone is the claim device's area
+  (`Building/ClaimDevice.cs`); any cupboard's zone counts, as the owner's words name the zone and not who is authorised on it
+  (a reading to confirm). A vehicle on a lift in a base is therefore safe.
+- **The rate** (a starting value): Rust's default for a modular car outside, a full-health vehicle reaching zero in
+  **216 minutes**. Every module and the chassis lose the same fraction of their health each minute; tyres and parts in an
+  engine do not (parts wear by use, §5.2).
+- **Not while in use** (proposal): decay waits until nobody has sat in the vehicle for ten minutes, so a long drive costs no
+  health.
+- **At zero** a module is broken (it stops working until repaired with the hammer); when the chassis reaches zero the vehicle
+  becomes a wreck, as a ship does: a lootable heap holding what its lockers, engine and build zones held.
+- Ships keep their own open question on decay (IRON_WAKE.md); the minicopter's design may take this rule.
 
 ## 6. Running gear and driving
 
@@ -265,19 +287,26 @@ crash, and it replays exactly.
   Open seats (bench, pillion, sidecar) may fire held weapons; whether today's seats allow that is to be checked, and if not,
   it is a package of its own.
 
-### 6.5 Controls (proposal; Rust's)
+### 6.5 Controls (Rust's; Space to get out is the owner's, R17)
 
 | Key | Car | Bike |
 |---|---|---|
 | W / S | Throttle / brake, then reverse | Same |
 | A / D | Steer | Steer (it leans by itself) |
-| Space | Handbrake | Rear brake |
-| E | Get out (Rust's; our ship seats use Space: §12) | Same |
+| Space | **Get out** (R17), as from every seat | Same |
+| Left Ctrl | Handbrake (proposal) | Rear brake (proposal) |
 | Mouse | Look round (the camera orbits) | Same |
 | V | First person or chase camera | Same |
 | F | Lamps | Same |
 | H | Horn | Same |
 | 1–9 | Move to another free seat | 2: pillion or sidecar |
+
+### 6.6 Beds aboard (R16)
+
+A sleeping bag or bed placed in a build zone (a camp deck, a camper shell) is a respawn point like any other, with SURV-04's
+cooldowns, and goes wherever the vehicle goes. Proposal: it can be chosen only while its vehicle is still (a respawn onto a
+moving deck is refused with its line, the bed listed as moving), and it goes with the vehicle when that is wrecked. When
+the vehicle is out of the zone's streaming the bed is still listed, at the vehicle's last saved place.
 
 ## 7. The look
 
@@ -368,10 +397,12 @@ while three sessions work in it. What is new:
 | The ground motor | `src/Hollow.Simulation/Ships/GroundMotor.cs` | §6.2, one step for wheels, tracks and skis, chosen by `ships.json` `"motor": "ground"` (§9.2) |
 | Lift | A `service` block on the deployable (holds which kinds, power, raise, platform) and a `service` capability with its verbs | The only place a build changes. A rotorcraft's service could be the Vehicle Workbench's bay: the same block on another deployable |
 | Editing | One reliable message, `ModuleIntent` (install, remove, move; socket; inventory slot), checked by the server: authorised, still, nobody seated, held by a powered service station, §3.3's rules | Answers through `Outcome` codes and `texts.json` lines |
-| Seats | The boat session's seat flag (open seats need no door; `ShipLayoutReader.Check` today requires one in a ship people only sit in) | Bench, pillion, sidecar, the rotorcraft's open seat |
-| Passengers | The client predicts a seated passenger only in its own predicted ship (`Client/Modules/ShipModule.cs` `SeatAt`); passengers of someone else's vehicle are corrected, not predicted | Fixed in the shared seat code (the boat session is looking at it) |
+| Seats | The existing `"exposed": true` seat flag now also means "needs no door" in a ship without an interior (the boat session's 8806f350 on `claude/motorboat`, not on abtest-b yet) | Bench, pillion, sidecar, the rotorcraft's open seat |
+| Passengers | A passenger in a vehicle they don't drive is posed from the drawn vehicle (`RemoteShip.TryPoseAt`) in `Client/Modules/ShipModule.cs` `SeatAt` | The same commit, 8806f350 |
 | Moving bodies | A driven vehicle's hull is a body moved each tick in the ship body range (as doors since D3) | §6.4 |
 | Run-over | An *impact* delivery in `DamageSystem` | §6.4 |
+| Decay | Once a minute in the ship system: outside every claim (the claim device's area query), unused for ten minutes, each module and the chassis lose 1/216 of their health | §5.4 |
+| Beds aboard | Bags and beds placed in a build zone are ordinary respawn points (SURV-04's cooldowns), carried by the vehicle | §6.6 |
 | Network | `ShipNetState` gains the build's number; `ShipDetails` carries the build (modules and each one's health); clients compose the same layout. Remote vehicles' wheel compression is cast by the client in its own physics copy, not sent | Bandwidth stays a ship's |
 | Saving | `ShipCodec` version 7: the build, each module's health and container, the running gear with its condition, the engine parts | WORLD-05 |
 | Controls | The boat session's data-chosen control schemes (`game/scripts/Ships/ShipControlSchemes.cs`): `car` and `bike` | §6.5 |
@@ -415,6 +446,9 @@ Engine-free tests, by name:
   powered lift; a build leaves only when complete.
 - `RunOver`, `Impact`: damage by closing speed; nothing below 4 m/s; a person pushed out of a moving hull.
 - `Bike`: lean, crash thresholds, the rider thrown, righting.
+- `Decay`: outside a claim the health falls at the rate; inside any claim it does not; it waits ten minutes after use; a
+  decayed chassis makes a wreck with the contents.
+- `Respawn`: a bed on a still vehicle respawns its owner on it; a moving one is refused; a wrecked vehicle's bed is gone.
 - Content: every module, part, tyre and recipe valid (`ContentTests`).
 - Load: 20 bots driving with `--script drive` for 60 s (tick time, bandwidth), as the ships' `fly` script.
 - Pictures for every visual step, and the owner's look approval (§7).
@@ -457,7 +491,7 @@ wrecks to recover belong with the roads, later.
 | V2 | The ground motor on a fixed build of blocks: driving the baked Earth in `--view vehicle`; moving bodies; run-over. First, `ShipMotor`'s shared helpers (gravity and the curvature turn, the hull's sweep, crash damage, sleep) pulled out as statics: the drive seam (98621ac7 on `claude/motorboat`) leaves them inside the step | `GroundMotor`, `RunOver`; the sandbox tour |
 | V3 | Seats, the car and bike control schemes, prediction of passengers, the HUD; the hosted game | Network tests; a hosted drive with a passenger |
 | V4 | The lift: item, power, the vehicle screen, locks; engine parts and tiers; crafting and the tree | `Lift`; `ContentTests`; the screen in `--view ui --screen vehicle` |
-| V5 | The car's modules and stacking; build zones aboard (beds, boxes) | `Modules`; a camp built and driven |
+| V5 | The car's modules and stacking; build zones aboard (beds and bags as respawn points, boxes); decay outside claims | `Modules`, `Decay`, `Respawn`; a camp built and driven |
 | V6 | The motorbike: frame, lean, crash, sidecars | `Bike` |
 | V7 | Tracks and the snow kit | `GroundMotor` slopes and snow |
 | V8 | Art: the look sample first (§7), then the kit; sounds (engine by load and speed, tyres by ground, suspension), effects (dust, mud, exhaust, lamps) | The owner's approval; pictures |
@@ -469,12 +503,6 @@ The look sample (V8's first step) can start in parallel with V1–V3: it needs o
 
 1. **One car length or three?** This design has one chassis, as asked ("one modular car"): three bays and a nose mount, which
    hold every example the owner gave. Rust has 2, 3 and 4 slots; other lengths would be data later.
-2. **Field repairs**: may engine parts be swapped away from the lift (§5.3: proposed yes)? A flat tyre (proposed: lift only)?
-3. **Decay**: none, as ships have today, or Rust's (216 minutes outside by default, ten times that under a roof, in Facepunch's
-   post)? Decay is how Rust keeps abandoned cars from piling up.
-4. **Beds on vehicles as respawn points** (DESIGN.md SURV-04 allows them on spacecraft): also on a camp deck or a camper shell?
-5. **Getting out**: E, as in Rust, or Space, as in our ship seats? One key for every seat would be simplest.
-6. **The bike's crash**: thrown off and hurt above 8 m/s (Rust-like, proposed), or more forgiving?
-7. **Tall builds**: a camper shell (2.95 m) and a two-level build (to 3.9 m) do not pass the 2.85 m garage opening. Accept it as
-   the price of the camp and the second level, or make them lower (a shell under 2.85 m is too low inside to stand)?
-8. **Rare engines**: which ones, and from which monuments (a later content pass)?
+2. **The bike's crash**: thrown off and hurt above 8 m/s (Rust-like, proposed), or more forgiving?
+3. **Rare engines**: which ones, and from which monuments (a later content pass)?
+4. **Decay's zone** (§5.4): does any tool cupboard's zone stop a vehicle's decay, or only one its owner or crew is authorised on?

@@ -14,7 +14,14 @@ At the owner's request, a design and nothing built: [VEHICLES.md](VEHICLES.md) a
 Vehicles are ships in the code, with one module system shared with the minicopter and motorboat sessions (agreed by
 message today) and a `ground` motor of our own. Jolt's vehicle constraint is in the bundled binding, but it needs dynamic
 stepping and cannot save its state for the client's replay. The sheet was checked by eye in the browser pane; no test was
-run. Nine questions waited for the owner (§12); the names are answered since: the TOGG and the Zamazingo.
+run. Nine questions waited for the owner (§12). The owner answered six the same day (R13 to R18):
+- the names are the TOGG and the Zamazingo;
+- engine parts can be swapped on the road;
+- vehicles decay outside tool cupboard zones;
+- beds aboard are respawn points;
+- Space gets out;
+- tall builds are accepted until vehicle garage doors come.
+Three remain, and a fourth came from the decay answer (does any cupboard's zone count).
 
 ## 20 October 2026 — World terrain, iteration 5: the cliff kit placed on the baked Earth
 
