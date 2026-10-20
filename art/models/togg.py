@@ -881,7 +881,7 @@ engine_parts['body'][0].location = b(engine_at)
 together.append(engine_parts['body'][0])
 bpy.context.view_layer.update()
 shade(together)
-for o in together:
+for o in together + [objs[0] for objs in cab_parts.values()]:
     o.location = (0, 0, 0)
 for k in corner_nodes.values():
     k['wheel'][0].location = (0, 0, 0)
