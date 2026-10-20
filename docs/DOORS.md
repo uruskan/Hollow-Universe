@@ -162,10 +162,10 @@ set `images/abtest-b/doors/hosted`.
 | D1 (done) | Symmetric leaves, centred frame, both-face locks | `images/abtest-b/doors/before` and `after` (`doors.jpg`: every door from outside and inside; `locks.jpg`: the lock seat on both faces) |
 | D2 (done) | Hinge and swing chosen separately, the ghost's arc, the airlock layouts | `DoorTests` (five): every layout's pose, pin and body; R's steps and default; the two airlocks by flood and a character walking |
 | D3 (done) | No refusals; bodies follow the motion every tick; the motion record on the wire (protocol 45) | `DoorTests` (eight in all): the travel time and the body's ray test every tick, closing on a player, fitting and shutting with a player in the way, the garage curtain's edge and walkers; `BuildingNetTests`: the server's and the client's leaf agree at every tick |
-| D4 | The four door items' icons and dropped models from the corrected kit doors (docs/ITEM_ART_SALVAGE.md's pattern) | the item pictures; `models.json` loses their stand-in notes |
+| D4 (done) | The four door items' icons and dropped models from the corrected kit doors (docs/ITEM_ART_SALVAGE.md's pattern; docs/ITEM_ART_DOORS.md) | the item pictures; `models.json` lost their stand-in notes; `ContentTests`, `Model`, `Icon`, `Gib` |
 
 The placement ghost's four layouts of a single door (R's steps; leaves part open, the swing arc on the floor): `images/abtest-b/doors/ghosts-wooden-door.jpg`. Hosted pictures of the two airlock layouts, open and shut, from outside and inside, close D1 to D3. Owner visual
-acceptance is pending after D4.
+acceptance is pending.
 
 ## 10. Open points (not decided here)
 
@@ -175,3 +175,5 @@ acceptance is pending after D4.
   double and garage 2.7 × 2.85 m) are the PSG kits' own contract (`dimension_contract.json`), taken as RustMVP's;
   REPAIR_BUILDING.md already says the 3 m footing depth is a local tuning value, not a claimed Rust constant. They have not
   been measured against Rust's here; a size audit is a separate package.
+- **The fitted double doors' items** (`items/fitted/wooden-double-door.glb`, `armoured-double-door.glb`) are still cut from the kit before D1
+  (asymmetric leaves); the sheet metal one was redrawn with D4. A separate small package.
