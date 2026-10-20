@@ -485,7 +485,8 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `Ship.cs` | 309 | ShipDoorState, Ship, ShipLink, ShipSeat | A ship's door as the rules have it (IRON_WAKE.md §5.3): its progress (0 shut … 1 open) at a tick and which way it moves |
 | `ShipAttitudeHold.cs` | 60 | ShipAttitudeHold | ShipAttitudeHold: captures an unattended ship's attitude and holds it; desired rates still pass through the motor's torque, fuel and contact rules. |
 | `ShipCollider.cs` | 306 | ShipRayHit, ShipContact, ShipCollider [ExceptBody] | Where a ray from a ship met the world: how far, the point and the surface's normal there. |
-| `ShipDef.cs` | 458 | HullBox, TurnAxis, ShipDef, ShipParts | One box of a ship's hull, in the ship's frame: its centre and half extents. |
+| `ShipBuoyancy.cs` | 141 | ShipBuoyancy | A hull that floats on its own shape (ships.json buoyancy, docs/MOTORBOAT.md §3): columns that lift where they are, on the sea, a lake or a stream; the water's drag. |
+| `ShipDef.cs` | 490 | HullBox, TurnAxis, ShipDef, ShipWake, ShipParts | One box of a ship's hull, in the ship's frame: its centre and half extents. |
 | `ShipFrame.cs` | 66 | ShipFrame | A ship's frame in a zone (IRON_WAKE.md §4.3): what characters aboard it move in, keyed by the ship's entity ID. Up is |
 | `ShipFuel.cs` | 88 | ShipFuel | ShipFuel: a tank's whole fuel units plus the fraction drawn into its engine; only whole units move through inventory; migrates old float saves. |
 | `ShipInterior.cs` | 389 | ShipPartKind, ShipPartDef, ShipPiece, BoardingBox, ShipSocket, ShipBuildZone, ShipExclusion, StationBarrelData, StationGeometry, ShipFixture, ShipRoom, PartPose, ShipInterior | How one of a ship's parts moves (the data file's part kinds, IRON_WAKE.md §9.1). |
@@ -495,6 +496,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `ShipDrives.cs` | 142 | ShipDriveContext, IShipDrive, ShipDrives | What a drive sees when it decides a tick's thrust and turn; the drives by kind (ships.json drive). |
 | `ShipMotor.cs` | 736 | ShipContext, ShipMotor [SkidLoad] | What a ship's step needs to know about where it happens. |
 | `ShipRotor.cs` | 250 | ShipRotor | A rotor (docs/MINICOPTER.md §5, the KA-FA 1500): one thrust along the craft's up holding the vertical speed the collective asks for, the stick a wanted tilt that levels itself, the spool, the thinning air's ceiling, its lift from its modules. |
+| `ShipPropeller.cs` | 123 | ShipPropeller | An outboard motor (ships.json drive propeller, docs/MOTORBOAT.md §3): pushes only under the water, steers by the water past its leg. |
 | `ShipQueries.cs` | 156 | ShipQueryHit, ShipQueries | What a query of the zone's frame met in a ship's space: the ship's frame, the hit there, and how far along the query it is. |
 | `ShipState.cs` | 204 | ShipFlags, ShipButtons, ShipInput, ShipState, ShipEvents | What a ship is doing, besides its motion. Some are found by the last step (outputs), some set by the zone. |
 | `ShipThrusters.cs` | 171 | ShipThrusters | Thrusters on every axis (GROUND.md §6.6), the Tin Finch's and the Iron Wake's drive and the default, with flight assist. |
@@ -1013,6 +1015,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 |---|---|---|---|
 | `ArrowsView.cs` | 81 | ArrowsView | Spent arrows stuck where they hit (GROUND_SYSTEMS.md §5): every one this client knows, placed each frame where its holder |
 | `BuildPanels.cs` | 247 | Keypad, RectSnapping | The code lock's keypad (GROUND.md §6.5), in the RustMVP interface's manner: a dark dialog in the middle of the |
+| `BayMarking.cs` | 197 | BayMarking | A station's bay shown in the world (deployables.json bay, G6): paint and corner posts in front of a placed vehicle workbench, the outline on its ghost. |
 | `BuildView.cs` | 419 | BuildView, GodotVectors [LiveBuildingWallet] | Building in the ground game (GROUND.md §6.5, phase 2b): the replicated structures drawn by the building package's |
 | `ChildServer.cs` | 195 | ChildServer | A game hosted on this computer in a process of its own (GROUND.md §4.3): the dedicated server (Hollow.Server, built |
 | `ClientConsole.Bindings.cs` | 91 | ClientConsole | ClientConsole's key bindings: bind, unbind, binds and noclipspeed, running a bound command (N admires), kept in user://console-bindings.cfg |
@@ -1054,6 +1057,8 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `GroundTour.Audio.cs` | 230 | GroundTour | GroundTour's audio-movement step: walks, runs, crouches and jumps by real prediction input while recording the Master and Footsteps buses, checks footfalls and writes audio-movement.json |
 | `GroundTour.Bow.cs` | 137 | GroundTour | GroundTour's bow-alignment step (--tour-steps bow-alignment): real mouse draws and looses arrows, checking the arrow converges on the crosshair, wrist attachment and admire interruption |
 | `GroundTour.ClanBase.cs` | 113 | GroundTour | GroundTour's clan-base step: finds a level dry site, runs the F1 spawn raidbase command, checks the stone preset replicated with four doors and a cupboard, and takes four views |
+| `GroundTour.Bay.cs` | 49 | GroundTour | The vehicle workbench's bay (--tour-steps bay): the bench's ghost with the bay's outline, then the bench put down and its bay marked. |
+| `GroundTour.Boat.cs` | 143 | GroundTour | The motorboat in the game (--tour-steps boat): its ghost on the water, placed, the helm taken from the water, driven, turned, coasting, its driver over the side. |
 | `GroundTour.Compound.cs` | 298 | GroundTour | GroundTour's compound step: pays for and places walls, gates, windmill, SAM site, auto turret and furnace through the client, fits locks, wires power, loads weapons, checks each |
 | `GroundTour.Fitted.cs` | 74 | GroundTour | GroundTour's fitted step: places five windows and both double doors in apertures through the normal client pipeline, checks the fitted mesh and open and close, one view each |
 | `GroundTour.MapDrag.cs` | 86 | GroundTour | GroundTour's map-drag step: drags the on-foot map with the real mouse, measures frame time and overlay cost idle and dragging, and checks no marker is added |
@@ -1134,7 +1139,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ShipCamera.cs` | 90 | ShipCameraMode, ShipCamera | First person, from the pilot's eye in the cockpit, looking along the nose. |
 | `ShipControlSchemes.cs` | 245 | IShipControlScheme, ShipControlSchemes, FlightControls, BoatControls, RotorControls, CarControls | How the helm's keys and mouse fly one kind of ship (ships.json controls); flight, the Tin Finch's; a boat's; the KA-FA's rotor on Rust's keys; driving. |
 | `ShipControls.cs` | 74 | ShipControls | The pilot's keyboard and mouse (G6, GROUND.md §6.7), read into a tick of ShipInput by the ship's control |
-| `ShipHud.cs` | 391 | ShipHudData, ShipHud | What the flight HUD shows this frame (the host fills it from the zone or the client's prediction). |
+| `ShipHud.cs` | 407 | ShipHudData, ShipHud | What the flight HUD shows this frame (the host fills it from the zone or the client's prediction). |
 | `ShipSandbox.Aboard.cs` | 610 | ShipSandbox [Walk] | The ship sandbox for a ship people walk in (IRON_WAKE.md §4, IW1): `--view ship --ship iron-wake`. The ship parked in a |
 | `ShipSandbox.Tour.cs` | 216 | ShipSandbox [Leg] | --tour: the sandbox played by a script through the same keys a player presses (Input.ParseInputEvent), to check the |
 | `ShipSandbox.cs` | 898 | ShipSandbox [Site] | The ship sandbox (--view ship, GROUND.md §6.7): the Tin Finch on the first world's ground (the stand-in world |
@@ -1484,6 +1489,7 @@ The tests, one file per area (the runner needs no packages).
 | `MapTests.cs` | 231 | MapTests | The map of a whole world (docs/WHOLE_WORLD.md §11): projection round trip and far side hidden, camera drag and zoom, grid cell names, the picture of the whole world. |
 | `MeleeSwingCueTests.cs` | 216 | MeleeSwingCueTests [RemoteCueRig] | The melee swish cue's timing: waits for contact preparation, never plays after contact or a clock rewind, cancellation, remote swishes on the server clock behind interpolated snapshots. |
 | `ModelCatalogueTests.cs` | 476 | ModelCatalogueTests | The ground game's model catalogue (GROUND.md §9), checked without Godot: every model file is a GLB with its LOD |
+| `MotorboatTests.cs` | 341 | CoastSurface, MotorboatTests | The motorboat (docs/MOTORBOAT.md): it floats on its hull, drives on its propeller, is put on the water and crafted at a workbench. |
 | `MovementTests.cs` | 307 | LevelSurface, Lap, MovementRig, MovementTests | A test surface: a smooth sphere whose ground sits at a fixed height, with an optional sea. |
 | `MultiplayerTests.cs` | 472 | LoopbackRig, MultiplayerTests | An in-process server and clients on loopback: on a background thread and the wall clock, or (`simulated: true`) stepped by the rig itself on a simulated clock with a `SimulatedRelay` for a bad line, and `WaitUntilSettled` (clock and ground) before a test counts anything. |
 | `NaturalAimSegmentQueryTests.cs` | 154 | NaturalAimSegmentQueryTests [SyntheticNature, FlatSurface] | Aim queries along a segment through natural objects: interaction and attack aim match exhaustive shapes for every content kind, tall endpoints, canonical ties, a bounded 2 km corridor. |

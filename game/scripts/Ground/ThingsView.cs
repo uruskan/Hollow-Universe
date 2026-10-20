@@ -239,6 +239,11 @@ public partial class ThingsView : Node3D
                 {
                     node.AddChild(model);
                 }
+                if (def.Bay is { } bay)
+                {
+                    // A station that builds ships: its bay painted on the ground in front of it, where they roll out.
+                    node.AddChild(BayMarking.Mark(bay));
+                }
                 break;
             }
             case StaticKind.Prop when thing.Prop(Client.Content) is { } prop:

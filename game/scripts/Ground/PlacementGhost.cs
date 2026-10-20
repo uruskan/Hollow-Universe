@@ -44,6 +44,7 @@ public partial class PlacementGhost : Node3D
     {
         ["piece"] = Piece,
         ["door"] = Door,
+        ["deployable"] = Deployable,
     };
 
     private Dictionary<string, Func<Placeable, int, Node3D?>>? _sources;
@@ -152,6 +153,18 @@ public partial class PlacementGhost : Node3D
         }
         model.Visible = false;
         AddChild(model);
+        return model;
+    }
+
+    // A deployable: the catalogue's model, and for a station that builds ships its bay's outline on the ground in front of
+    // it (deployables.json bay), the room a ship will need there.
+    private static Node3D? Deployable(Placeable placeable, int variant)
+    {
+        Node3D model = Catalogue(placeable);
+        if (placeable.Definition is Hollow.Simulation.Content.DeployableDef { Bay: { } bay })
+        {
+            model.AddChild(BayMarking.Outline(bay));
+        }
         return model;
     }
 

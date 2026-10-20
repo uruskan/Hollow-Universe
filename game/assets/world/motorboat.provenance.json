@@ -1,0 +1,129 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "motorboat",
+  "date": "2026-10-20",
+  "replaces": null,
+  "authorship": "Original cosmetic geometry, procedural PBR atlas and rendered icons; no reference game files",
+  "visual_reference": {
+    "page": null,
+    "image": null,
+    "observed": "No reference image: a welded steel skiff with a car steering wheel on a console cabled to an outboard, after LORE.md section 4 (scrap: welded sheet, bolts, salvaged panels, mismatched paint).",
+    "use": "None"
+  },
+  "authoring_source": [
+    {
+      "path": "art/models/motorboat.py",
+      "sha256": "e5dac264716db37aee6b85706f7c1b0d3760a77ee34df0dea9a7c645e44c4584"
+    }
+  ],
+  "authoring_helpers": [
+    {
+      "path": "art/hollow/component_mesh.py",
+      "sha256": "8991c9a2503976f758c3fe8b1b97f2642c9050548149d8d329598983629fcb34"
+    },
+    {
+      "path": "art/hollow/rounded.py",
+      "sha256": "0d865ac93e2e8ede730d94890db165ad30726e6b0e54c1bc26808c39728f97ac"
+    },
+    {
+      "path": "art/hollow/export.py",
+      "sha256": "bca4862ce3d4b2a67c016857d2e78d97ef867d19af5d1991942aa10d52552bde"
+    },
+    {
+      "path": "art/hollow/textures.py",
+      "sha256": "64c6983b08e70a9ba97d9e9771fcb4791fca3014671215885b6c37ff77bf3c70"
+    },
+    {
+      "path": "art/hollow/godot.py",
+      "sha256": "8742a7167ee1b482dfc5c6e9e40d19391a9793aa711e23fd2a31f3f664d46cd2"
+    }
+  ],
+  "geometry": {
+    "asset": "motorboat",
+    "dimensions_blender_xyz_m": [
+      1.7080000638961792,
+      4.950000047683716,
+      1.3349999487400055
+    ],
+    "min": [
+      -0.8540000319480896,
+      -2.390000104904175,
+      -0.1599999964237213
+    ],
+    "max": [
+      0.8540000319480896,
+      2.559999942779541,
+      1.1749999523162842
+    ],
+    "texture_size": 2048,
+    "material_count": 1,
+    "lod_triangles": {
+      "Body_lod0": 13531,
+      "Body_lod1": 6033,
+      "Body_lod2": 1915
+    },
+    "hull_triangles": 66,
+    "vertex_ao_samples": 8,
+    "sockets": {
+      "socket_engine_audio": [
+        0.0,
+        2.369999885559082,
+        1.0099999904632568
+      ]
+    },
+    "deck": 0.26,
+    "seat": 0.6,
+    "wheel": [
+      0.0,
+      0.94,
+      -1.03
+    ],
+    "prop": [
+      0.0,
+      -0.02,
+      -2.34
+    ],
+    "lamp": [
+      0,
+      1.1067259942501506,
+      2.02
+    ],
+    "transom_top": 0.8,
+    "gunwale_mid": [
+      0.82,
+      0.8
+    ],
+    "waterplane_note": "ships.json buoyancy depth = gunwale amidships"
+  },
+  "files": {
+    "game/assets/world/motorboat.glb": {
+      "sha256": "436bc4dc1ed4be496923d7716d6e17142a361bae69cb03ddbd4ceef015895d21",
+      "bytes": 1005716
+    },
+    "game/assets/textures/motorboat/motorboat_albedo.png": {
+      "sha256": "0ff46a88b612d59ecc03fa20eef425d907f4cf7e0a0303e0e8146ba4a2f53d90",
+      "bytes": 3808934
+    },
+    "game/assets/textures/motorboat/motorboat_orm.png": {
+      "sha256": "e65d2995cc58481eb85ca737ba1845960f0c8c0e59a1f8fa7ab8204a23f00a50",
+      "bytes": 757776
+    },
+    "game/assets/textures/motorboat/motorboat_normal.png": {
+      "sha256": "91389b60e832a96cce6d38a58b4d1a7a8f3b187dbf7e29ad474e80f9a91be3b9",
+      "bytes": 2165529
+    },
+    "game/assets/materials/motorboat.tres": {
+      "sha256": "172a1dd0076e53de95a32caf176d1205a8bee62752d9e503cdee9e5d8370701e",
+      "bytes": 627
+    },
+    "game/assets/items/icons/128/motorboat.png": {
+      "sha256": "a1ccec1aae7b9932ff7abf08d1afc14ce5f2b6de8c165b70ae9d98eec001828f",
+      "bytes": 12664
+    },
+    "game/assets/items/icons/256/motorboat.png": {
+      "sha256": "bc77638e8d91139b87404e6a19e64687ec5e105ba98f1ed3505d53f2f42a1cb8",
+      "bytes": 40942
+    }
+  }
+}

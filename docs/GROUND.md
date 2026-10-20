@@ -3290,6 +3290,13 @@ unit waits, asks again every second and tells its builder once. The recipe's lam
 Tin Finch's item (an admin's `give`) is placed by hand like a deployable (§6.10): its hull clear, its skids on the ground
 or a slab's top no steeper than 20°, dry, within 12 m, with ships.json's `fuel.placed` of lamp oil (50, the recipe's
 tank); the bay and the hand share the hull's check (`HullFootprint.Clear`).
+The bay shows (20 October 2026, `game/scripts/Ground/BayMarking.cs`):
+- a placed bench marks it on the ground: worn hazard stripes round its 3.4 × 6.6 m edge and two chevrons the way a ship
+  faces as it rolls out (a decal), with a striped post at each corner that stands above grass (presentation only:
+  nothing collides with them);
+- the bench's placement ghost draws the bay's outline, so the room a ship needs shows before the bench is put down.
+A ship whose recipe names no station is made as its item and put down by hand: the motorboat (docs/MOTORBOAT.md), on
+the water.
 
 **Boarding.** The hatch opens and shuts in a second (the model's clip); it opens only while the ship is still (landed,
 or slower than 2.5 m/s within 3.5 m of the ground). Boarding needs the hatch open, the seat free and reach of the
@@ -5751,7 +5758,8 @@ Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn 
 - S3. **Lamp oil is ship fuel** (our low-grade fuel), as Rust's helicopters burn low-grade fuel: a 500-unit tank, 0.1 a
   second idling to 0.9 at full thrust, twice that boosting (about 9 to 80 minutes of flying a tank).
 - S4. **Ships are built, not carried:** the vehicle workbench builds the Tin Finch onto its bay, never into an inventory
-  (Rust's helicopters stand on a vendor's pad); a finished one waits while the bay is blocked.
+  (Rust's helicopters stand on a vendor's pad); a finished one waits while the bay is blocked. (A boat is made as its
+  item at a workbench and put on the water by hand: docs/MOTORBOAT.md.)
 - S5. **The hull:** Rust's minicopter's 750; melee does a quarter of its damage, arrows a tenth, bullets half, explosives
   all. Ships aren't rewound for hits as characters are (shooters lead them by their ping), and the pilot sits out of
   the hit history: the cabin takes the shots.

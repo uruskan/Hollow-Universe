@@ -890,6 +890,18 @@
           { "batch": "chunk_stone", "rate": 12, "at": [0.0, 1.0, 0.0], "jitter": 2.0, "size": [0.01, 0.025], "speed": [5, 16], "life": [1.2, 2.2],
             "dir": "ring", "cone": 30, "color": [0.45, 0.4, 0.33], "vary": 0.15 }
         ] } },
+    { "key": "wake.boat", "family": "ship",
+      "about": "A boat's wake at its stern (a loop on the water's surface, by its speed; docs/MOTORBOAT.md): spray thrown up and back by the propeller, foam left on the water behind, rings spreading.",
+      "cap": 8, "cull": 300, "hero": 1.0, "stage": "water",
+      "loop": { "fadeIn": 0.4, "fadeOut": 1.2,
+        "emit": [
+          { "batch": "droplet", "rate": 70, "at": [0.0, 0.08, 0.0], "jitter": 0.35, "size": [0.05, 0.11], "width": 0.012, "speed": [1.2, 3.2],
+            "life": [0.35, 0.75], "dir": "up", "cone": 40, "color": [0.84, 0.9, 0.93], "alpha": [0.55, 0.85] },
+          { "batch": "dust", "rate": 24, "at": [0.0, 0.05, 0.0], "jitter": 0.5, "size": [0.35, 0.65], "grow": 2.2, "life": [1.2, 2.4],
+            "speed": [0.1, 0.6], "dir": "ring", "cone": 8, "color": [0.92, 0.96, 0.98], "vary": 0.04, "alpha": [0.22, 0.36] },
+          { "batch": "ring", "rate": 3, "at": [0.0, 0.02, 0.0], "jitter": 0.4, "size": [0.4, 0.6], "grow": 5, "life": [1.6, 2.6],
+            "color": [0.92, 0.96, 1.0], "alpha": [0.1, 0.15] }
+        ] } },
     { "key": "impact.hull", "family": "ship",
       "about": "A bullet striking the Iron Wake's steel hull plate: a hard spray of sparks, a flash, a puff of paint and grit, a bright dent of bare steel in chipped paint.",
       "cap": 48, "cull": 200, "duration": 1.0, "hero": 0.05, "stage": "hull",

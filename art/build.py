@@ -36,6 +36,7 @@ SCRIPTS = {
     "blueprint": "models/blueprint.py",
     "research_table": "models/research_table.py",
     "wire_tool": "models/wire_tool.py",
+    "motorboat": "models/motorboat.py",
     "tools": "models/tools.py",
     "supplies": "models/supplies.py",
     "clothing": "models/clothing.py",
