@@ -56,6 +56,61 @@ branch `claude/motorboat`, beside the minicopter and car sessions, with which th
 - Not done: the daylight retake (a game was open on this PC), and judging the sound by ear. The look and the numbers
   wait for the owner.
 
+## 20 October 2026 — World terrain: Earth's candidate layouts, the playtest's findings, the cliffs' collision cut
+
+`earth layouts <folder>` (`tools/Hollow.GeneratorReport/EarthLayoutsReport.cs`) bakes Earth with each layout variant
+(0–11 by default), places the cliff kit on it and draws an equal-area relief map: kit pieces as dark red dots, flat
+sites as circles (magenta for a radius of 150 m or more, yellow for 75 m or more) and the landing site as a white cross.
+It also writes a numbered contact sheet and each layout's numbers. All twelve take 76 s; the maps went to the owner in
+`.artifacts/earth-layouts/`, not committed. `earth kit` now also reports each busy site's collision tile.
+
+The owner's playtest of today's Earth found six problems, none fixed yet. Their measured causes are in
+WORLD_TERRAIN_PLAN.md §7a:
+- collision tiles at cliffs of up to 436,000 triangles, 97% of them the kit's shells, copied from pieces as far as 60 m
+  beyond each tile;
+- cliffs that read as scattered assets;
+- bare beaches;
+- ground textures that repeat in visible squares;
+- white pans of very shallow sea filled with the shore foam's 3.1 m texture;
+- a sea's edge that never moves.
+
+The collision is fixed in part. A ground tile now takes only the cliff pieces whose footprint reaches it, and of each
+only the triangles over the tile: at the six busiest sites, 75,000–100,000 triangles instead of 282,000–436,000. The
+client's cosmetic ground (`GroundCollision.cs`) no longer copies shells into its tiles. It makes each piece's shape once
+and places it on the tile its pivot stands over (`IInstancedSolids`, implemented by `WalkingWorld`). Its tiles are now
+the bare ground, about 9,800 triangles.
+
+Earth's terrain revision is now 11. The owner's hosted save refused to start ("contains terrain revision 10 ...") because
+the deeper sea changed Earth's parameters, and with them the fingerprint the save records, without a new revision. A
+new revision gives the hosted game a fresh save (`...-earth-v11.db`) and keeps the old one. The bake is reused: its key
+leaves the revision out.
+
+Checked: the maps and contact sheet by eye, and the collision counts by `earth kit`. The game's C# compiles. No test
+was run, and the fix has not yet been tried in the game (fast iteration, by the owner's rule).
+
+## 20 October 2026 — Ground vehicles designed: the modular car, the motorbike and the lift (V0)
+
+At the owner's request, a design and nothing built: [VEHICLES.md](VEHICLES.md) and its proportion sheet
+(`images/vehicles/proportions.svg`, drawn by `proportions.py`). It covers:
+
+- a car with a nose engine mount and three bays on two levels, on tyres or tracks;
+- cabins of one or two seats, which can be stacked, or a camper shell as a portable base;
+- a motorbike built from mount points, with a sidecar and a snow kit;
+- five engine parts in three tiers;
+- a lift drawing 20 through the electrical graph.
+
+Vehicles are ships in the code, with one module system shared with the minicopter and motorboat sessions (agreed by
+message today) and a `ground` motor of our own. Jolt's vehicle constraint is in the bundled binding, but it needs dynamic
+stepping and cannot save its state for the client's replay. The sheet was checked by eye in the browser pane; no test was
+run. Nine questions waited for the owner (§12). The owner answered six the same day (R13 to R18):
+- the names are the TOGG and the Zamazingo;
+- engine parts can be swapped on the road;
+- vehicles decay outside tool cupboard zones;
+- beds aboard are respawn points;
+- Space gets out;
+- tall builds are accepted until vehicle garage doors come.
+Three remain, and a fourth came from the decay answer (does any cupboard's zone count).
+
 ## 20 October 2026 — World terrain, iteration 5: the cliff kit placed on the baked Earth
 
 At the owner's word the kit (f58b0207) went onto Earth before the rivers. A fast iteration the owner checks by hand.
