@@ -494,6 +494,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `ShipMotors.cs` | 72 | IShipMotor, ShipMotors, FlightMotor | A ship's whole step by ships.json motor (VEHICLES.md §9.2): flight (ShipMotor.Step with its drive) or ground. |
 | `ShipDrives.cs` | 142 | ShipDriveContext, IShipDrive, ShipDrives | What a drive sees when it decides a tick's thrust and turn; the drives by kind (ships.json drive). |
 | `ShipMotor.cs` | 736 | ShipContext, ShipMotor [SkidLoad] | What a ship's step needs to know about where it happens. |
+| `ShipRotor.cs` | 250 | ShipRotor | A rotor (docs/MINICOPTER.md §5, the KA-FA 1500): one thrust along the craft's up holding the vertical speed the collective asks for, the stick a wanted tilt that levels itself, the spool, the thinning air's ceiling, its lift from its modules. |
 | `ShipQueries.cs` | 156 | ShipQueryHit, ShipQueries | What a query of the zone's frame met in a ship's space: the ship's frame, the hit there, and how far along the query it is. |
 | `ShipState.cs` | 204 | ShipFlags, ShipButtons, ShipInput, ShipState, ShipEvents | What a ship is doing, besides its motion. Some are found by the last step (outputs), some set by the zone. |
 | `ShipThrusters.cs` | 171 | ShipThrusters | Thrusters on every axis (GROUND.md §6.6), the Tin Finch's and the Iron Wake's drive and the default, with flight assist. |
@@ -1131,13 +1132,14 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `ShipCamera.cs` | 90 | ShipCameraMode, ShipCamera | First person, from the pilot's eye in the cockpit, looking along the nose. |
-| `ShipControlSchemes.cs` | 92 | IShipControlScheme, ShipControlSchemes, FlightControls | How the helm's keys and mouse fly one kind of ship (ships.json controls); flight, the Tin Finch's. |
+| `ShipControlSchemes.cs` | 245 | IShipControlScheme, ShipControlSchemes, FlightControls, BoatControls, RotorControls, CarControls | How the helm's keys and mouse fly one kind of ship (ships.json controls); flight, the Tin Finch's; a boat's; the KA-FA's rotor on Rust's keys; driving. |
 | `ShipControls.cs` | 74 | ShipControls | The pilot's keyboard and mouse (G6, GROUND.md §6.7), read into a tick of ShipInput by the ship's control |
 | `ShipHud.cs` | 391 | ShipHudData, ShipHud | What the flight HUD shows this frame (the host fills it from the zone or the client's prediction). |
 | `ShipSandbox.Aboard.cs` | 610 | ShipSandbox [Walk] | The ship sandbox for a ship people walk in (IRON_WAKE.md §4, IW1): `--view ship --ship iron-wake`. The ship parked in a |
 | `ShipSandbox.Tour.cs` | 216 | ShipSandbox [Leg] | --tour: the sandbox played by a script through the same keys a player presses (Input.ParseInputEvent), to check the |
 | `ShipSandbox.cs` | 898 | ShipSandbox [Site] | The ship sandbox (--view ship, GROUND.md §6.7): the Tin Finch on the first world's ground (the stand-in world |
 | `ShipSounds.cs` | 469 | ShipSounds | What one ship sounds like (IW6, IRON_WAKE.md §10): every role of its kind's in sounds.json from the replicated state, slow and fast loops crossfaded. |
+| `ShipView.Modules.cs` | 33 | ShipView | A ship's modules drawn (VEHICLES.md §9.5, docs/MINICOPTER.md §8): each installed module's model at its origin. |
 | `ShipView.cs` | 663 | ShipLook, ShipView [PartNode, Drive, Plume] | What a ship is doing this frame, as a ShipView draws it: plumes, lamps by power, reflection probes, sockets where drawn. |
 | `ShipWarm.cs` | 28 | ShipWarm | The ships' part of the renderer's warm-up (GROUND.md §4.3.1, §6.7): every ship of ships.json as |
 | `StationAmmoRadial.cs` | 95 | StationAmmoRadial | A gunner's rockets (IW3), R held at a station: the kinds and counts; a tap cycles. |

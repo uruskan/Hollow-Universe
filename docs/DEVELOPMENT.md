@@ -4826,3 +4826,25 @@ Validation:
 
 Not done: the model, the client (control scheme, view, HUD, sound) and modules; nothing was flown in Godot yet.
 
+### 20 October 2026 — the KA-FA 1500: M2–M4, model, client, sound and modules
+
+On `claude/minicopter`, after M1; merged with the car session's V1 and V2 and the boat's seam. docs/MINICOPTER.md §13 has
+the details.
+- **M2:** the model from text (`art/models/ka_fa_1500.py`): the frame and eight modules, our own atlas, glass, blur, lamps.
+- **M3:**
+  - rotors spun by the spool from data (`rotors`);
+  - Rust's keys (`RotorControls`) and the HUD's rotor gauge;
+  - the sandbox on `--ship ka-fa-1500`;
+  - the rotor's sound, made in code (`art/audio/rotorcraft.py`).
+- **M4:** the KA-FA as a frame plus modules on the shared module core: the default build makes M1's craft; the lift
+  comes from the engine only while a rotor is fitted; module models are mounted by the view.
+
+Validation:
+- Solution build: 0 warnings.
+- `RotorTests` 19/19; Rotor/Ship/Content/Module/Seat 113/113.
+- Blender preview renders looked at: front, rear, side, top, cockpit, modules.
+
+Not done:
+- the item icons, the sandbox tour, screenshots and a hosted flight (Godot was held by other clients);
+- swapping modules (V4's lift).
+

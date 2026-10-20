@@ -1,7 +1,7 @@
 # The KA-FA 1500: our minicopter
 
-Status: **proposal, 20 October 2026.** The owner named it the **KA-FA 1500**; every other default in §2 waits for the
-owner's yes or no. Work happens on the branch `claude/minicopter` (worktree `.claude/worktrees/minicopter`). Two other
+Status: **M1–M4 built, 20 October 2026** (§13), on `claude/minicopter`. The owner named it the **KA-FA 1500**; every
+other default in §2 waits for the owner's yes or no, and the look (§10) for the owner's approval. Work happens on the branch `claude/minicopter` (worktree `.claude/worktrees/minicopter`). Two other
 sessions are building vehicles at the same time, and the three share two seams instead of each inventing its own:
 - **The drive** (the boat session, commit 98621ac7, merged here): `ShipMotor`'s thrust-and-turn block sits behind
   `IShipDrive` (`Ships/ShipDrives.cs`), chosen by ships.json's `drive.kind`. The Tin Finch keeps `thrusters`, the boat
@@ -249,9 +249,9 @@ LODs. The owner approves the look on renders before the client work is finished.
 |---|---|---|
 | M0 | This document | the owner's yes, or the changes asked for |
 | M1 | The rotor drive, the spool in the state, the network and the codec; the KA-FA as a fixed build (twin, rotor, jerry tank, rear seat) in ships.json, its item and recipe | **Built 20 October 2026** (§13). `RotorTests` 15/15: spool, hover, climb, top speed, levelling, yaw and banked turns, the ceiling, leaving in flight, landing, out of fuel, crashes, a strike, the sea, determinism, storage |
-| M2 | The model and the modules' models (`art/models/ka_fa_1500.py`), icons | renders the owner approves |
-| M3 | The client: the view (rotors, blur, modules), the control scheme, camera, HUD, sound, wash; `--view ship --ship ka-fa-1500` and its tour | the tour's exit code 0; screenshots |
-| M4 | Modules on the shared core (VEHICLES.md V1): sockets, module items, the bay as a service station, saves and the network | `MinicopterModuleTests`; the vehicle screen at the bay |
+| M2 | The model and the modules' models (`art/models/ka_fa_1500.py`), icons | **Built** (§13); renders the owner approves |
+| M3 | The client: the view (rotors, blur, modules), the control scheme, camera, HUD, sound, wash; `--view ship --ship ka-fa-1500` and its tour | **Built** but for the tour (§13); screenshots wait for Godot |
+| M4 | Modules on the shared core (VEHICLES.md V1): sockets, module items, the bay as a service station, saves and the network | **Built** but for swapping them (the car session's lift, V4) (§13) |
 | M5 | Progression: the tree, recipes, the tuned twin's blueprint in monument loot; decay; SAM sites target it | ContentTests; a hosted game: build, assemble, fly, land, leave |
 
 Seated item use (a passenger firing, M11) is a shared seats feature, not this package's.
@@ -291,3 +291,75 @@ Seated item use (a passenger firing, M11) is a shared seats feature, not this pa
     the flight keys, so it can't be flown well yet.
   - Modules (M4, on the car session's V1).
   - Decay, SAM sites, the tuned twin (M5).
+
+### M2 (20 October 2026): the model, from text
+
+`art/models/ka_fa_1500.py` (`art/build.py -- ka_fa_1500`; `-- --preview` renders look-dev pictures to
+`.artifacts/itemart/ka-fa-1500/` with `art/models/preview_scene.py`):
+- **The frame** (`game/assets/world/ka-fa-1500.glb`, 17,000 triangles at LOD0): primer-red welded tube, bent-pipe skids on
+  rubber pads, a bucket seat with a harness, a bent clear windscreen, the stick, lever, pedals and two gauges, the mast with
+  its pulley, swashplate and push rods, a truss tail boom with its drive shaft, the tail rotor (`TailRotor`, its
+  `TailRotorBlur`) behind a hazard-taped hoop, a stabiliser, a road sign for a fin, the headlamp and tail lamp.
+- **The modules**, each its own GLB in its socket's frame (`ka-fa-1500-<module>.glb`): twin, tuned twin, rotor (`Rotor`,
+  its `RotorBlur`), jerry tank, long tank, rear seat, cargo box, plating.
+- **Materials:** one 2,048 px atlas of our own pixels (`art/models/ka_fa_1500_paint.py`: primer, olive, jerry red, steel,
+  dark steel, cast aluminium, rubber, a worn vinyl seat, diamond plate, the blades' grey, hazard tape, the fin's sign, the
+  gauges' dials, lenses, rust, exhaust wrap), plus a glass, the rotors' blur and the lamps' lenses (`M_Hollow_KaFa_Lamps`).
+- Three LODs, vertex occlusion, sockets (`socket_engine`, `socket_rotor`, `socket_tank`, `socket_rear`, `socket_plating`,
+  `socket_engine_audio`, the seats', the fuel cap's, the tail rotor's).
+- The catalogue hides every `…Blur` mesh until a view spins it (`ModelCatalog.HideBlurs`), so icons and the viewer show
+  the blades.
+
+### M3 (20 October 2026): the client
+
+- **Rotors drawn:** ships.json `rotors` (node, axis, rpm, blur, wash; `ShipRotorLook`). `ShipView` turns each by the
+  spool and fades its blades into the blur from 40 to 70 % of working speed. A washing rotor raises the lift-wash dust
+  under its hub. `ShipLook` carries the spool: the own ship's predicted, everyone else's from the snapshot.
+- **Controls:** `RotorControls` (§5.2): Rust's keys, the mouse a stick that stays where it is put and springs back from a
+  small tilt after half a second, the middle button levels, the arrows a keyboard stick.
+- **HUD:** `HudGauge.Rotor` (the scheme says): the rotor's spin and lift share in place of the throttle lever, its state
+  (STOPPED, SPOOLING, WINDING DOWN) in place of flight assist, no orbit lines.
+- **Sandbox:** `--view ship --ship ka-fa-1500 [--scene hover|forest|cockpit|slope]` stands the KA-FA on the workbench's
+  pad with its control scheme and HUD.
+- **Sound** (M17): `art/audio/rotorcraft.py` models the rotor (the blades' slap at each pass with a thump under it, the
+  swelling whoosh, the tail rotor's buzz, the twin's firing, pops and tappets, all geared to the rotor's speed), the
+  twin's pull-start and its cut. `art/audio/ka_fa_sounds.py` makes them events (`kafa.rotor.slow/fast/load`,
+  `kafa.twin.start/stop`). `ShipSounds` plays the rotor while it turns, engine running or not, crossfaded by the spool,
+  the load's slap by the collective.
+- **Not yet:** the tour (`--tour`), screenshots and a hosted flight. They wait for a turn on the PC's Godot.
+
+### M4 (20 October 2026): a frame with modules
+
+- **The core:** the car session's (VEHICLES.md §9.5): sockets, modules.json, the assembler, the default build, the drive
+  sums.
+- **The frame** (ships.json `ka-fa-1500`): 290 kg, its own 10 lamp oil, the pilot's seat, the tail rotor's fragile box.
+  Its sockets are `engine`, `rotor`, `tank`, `rear` and `plating`. Its default build (twin, rotor, jerry tank, rear seat)
+  makes M1's craft exactly: 480 kg, 250 lamp oil, 9.6 kN.
+- **The modules** (modules.json, items 251–258), each with a body part that has health:
+
+  | Module | What it gives |
+  |---|---|
+  | Twin | drive `lift` 9,600 |
+  | Tuned twin | `lift` 11,500 |
+  | Rotor | drive `rotor` 1, and the disc's fragile boxes |
+  | Jerry tank | 240 fuel |
+  | Long tank | 490 fuel |
+  | Rear seat | the exposed seat, looking right |
+  | Cargo box | a hold of 12 |
+  | Plating | boxes that take the shots meant for the cockpit and the engine |
+
+- **The drive composes:** `ShipRotor.Compose` takes the engines' lift while a rotor turns on the craft; without either,
+  nothing lifts and the rotor doesn't turn.
+- **Drawn:** `ShipView.Modules.cs` mounts each installed module's model at its origin, and `ShipsView` draws a ship again
+  when its layout changes.
+- **Measured** (`RotorTests` 19/19):
+
+  | Build | Result |
+  |---|---|
+  | Heavy (long tank, cargo box, plating), 630 kg | climbs 30 m in 5 s on the twin at a collective of 0.67 |
+  | The same on the tuned twin | 0.56 |
+  | No engine, or no rotor | stays on the ground, its rotor still |
+
+- **Not yet:** swapping modules at the bay (the car session's lift and vehicle screen, V4), and the modules' recipes and
+  tree nodes. Until the swap exists, a module item does nothing.
+
