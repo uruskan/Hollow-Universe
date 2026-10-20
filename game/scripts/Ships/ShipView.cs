@@ -122,8 +122,13 @@ public partial class ShipView : Node3D
     public override void _Ready()
     {
         // A ship people walk in keeps its hulls (each under the part it moves with) on the feet's layer.
-        _model = ModelCatalog.Instantiate(ModelKey, use: _def.Interior != null ? ModelUse.Parts : ModelUse.Display) ?? new Node3D { Name = _def.Key };
+        Node3D? model = ModelCatalog.Instantiate(ModelKey, use: _def.Interior != null ? ModelUse.Parts : ModelUse.Display);
+        _model = model ?? new Node3D { Name = _def.Key };
         AddChild(_model);
+        if (model == null)
+        {
+            BuildBlocks(); // no art yet: blocks of the right size (ShipView.Blocks.cs)
+        }
         FindHatch();
         FindParts();
         BuildPlumes();

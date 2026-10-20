@@ -1,5 +1,18 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — Vehicles V2: the TOGG drives (VEHICLES.md §9.6)
+
+On `claude/vehicles`. A ship's whole step is now its motor's: `flight`, today's, or `ground`, a vehicle on sprung wheels
+with tyres' grip, drive, brakes and steering. The TOGG is a kind with four wheels and two modules (a one-seat cab, an
+engine), made with them by default. The other vehicle sessions got the drive numbers modules add and a kind's default build.
+Without art it is drawn as blocks with wheels that ride, steer and roll, in the ship sandbox: `--view ship --ship togg`,
+`--scene drive`.
+
+Checked: `GroundMotorTests` 5/5, run on the game's data with no stand-in trees. The figures are in §9.6: it stands, reaches
+19.5 m/s, turns upright, brakes, sleeps, gives the same bits twice, climbs 20° and not 42°, and goes 1.1 km round the ball.
+`ModuleTests`, `ContentTests`, `ShipFuel` and `ShipPersistence` also pass, 22/22; the solution builds with 0 warnings.
+Not yet: people versus a moving vehicle (solid, run over), a hosted drive.
+
 ## 20 October 2026 — Vehicles V1: the module core
 
 At the owner's go (VEHICLES.md §11), on branch `claude/vehicles` in its own worktree. It is shared with the minicopter

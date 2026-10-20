@@ -502,6 +502,53 @@ On branch `claude/vehicles` (abtest-b with the motorboat's and the minicopter's 
 - **Not yet:** changing a build at runtime (the lift, V4), engines and their parts (V4), running gear and the ground motor
   (V2), modules on a ship people walk in (refused by the content check for now).
 
+### 9.6 V2 as built (20 October 2026)
+
+- **The motor registry** (`Ships/ShipMotors.cs`): `IShipMotor`, the whole step, by ships.json `motor`: `flight` (today's
+  `ShipMotor.Step` and its drive) and `ground` (`GroundMotor`). The server's step and the client's prediction both call
+  `def.Motor.Step`. A motor that doesn't fly leaves the flight blocks out of its entry, and it judges its own numbers
+  (`Problems`); the skid and drive checks moved into `FlightMotor`. `ShipMotor`'s contact helpers became internal
+  statics and the curve carry `CarryOverCurve`, with no change in behaviour.
+- **The ground motor** (`Ships/GroundMotor.cs`, §6.2):
+  - each wheel a ray from its bump stop down its travel and tyre, with a spring, a damper and a stiff bump stop;
+  - along each loaded tyre:
+    - drive (the engines' power over the speed, capped by traction, fading over the last 3 m/s to the top speed);
+    - brakes against the motion; engine braking off the throttle (`coast`, a share of the brakes); rolling resistance;
+    - held still below 1.5 m/s with no throttle, and by the handbrake on the wheels it holds;
+  - across each tyre the sliding is taken out in four passes, the whole within grip × load;
+  - the grip acts `gripHeight` up the body, as Unity's wheels' force point does, so the TOGG slides before it rolls in a
+    hard turn and a tall build rolls first;
+  - four substeps a tick, the hull swept and pushed out as a ship's, the ground turning under it, rest and sleep.
+  - There is no wheel spin in the state: the server's and a client's replays are the same bits.
+- **Steering** is in the input: the `car` control scheme turns the wheel toward full lock at 2.5 a second and back at 4,
+  so the server and the prediction steer alike. The lock narrows from 34° at a crawl to 8° at top speed.
+- **The TOGG** (items 240–242):
+  - the kind: 650 kg, four 0.96 m wheels on 0.35 m of travel at 15 kN/m, 4×4, the rear wheels on the handbrake, three
+    bays and the nose mount, a fuel cap at the back, the hull mended for 200 metal fragments;
+  - two modules: the one-seat cab (220 kg, its seat reached through its door, verb `drive`) and the engine (280 kg,
+    90 kW);
+  - made with both by default (ships.json `build`);
+  - it needs a driver (`needsPilot`): out of the seat, the engine stops and the brakes hold.
+- **For the other vehicles:** modules add drive numbers by name (`drive`, summed into `ShipDef.DriveSums`, with `power`),
+  read by a drive's `Compose`; a kind's default build is made by `SpawnShip` when a bare kind is spawned.
+- **Drawn:** `ShipView` draws a ship with no model as blocks of its hull boxes (steel, a cab pale blue, an engine
+  cream) and a tyre and rim at each wheel that ride their springs, steer and roll (`ShipView.Blocks.cs`). The ship
+  sandbox takes `--ship togg`: the TOGG on the vehicle workbench's pad, driven with the car scheme; `--scene drive`
+  drives it off and turns.
+- **Measured** (`GroundMotorTests`, on the game's data with nothing growing on the stand-in ground):
+  - 0.04 m from its ride height on four wheels, level;
+  - 19.5 m/s after ten seconds;
+  - 75° of turn in three seconds at 18 m/s, upright;
+  - from 19.4 m/s to rest in 2.2 s and 22 m;
+  - reverse; rest and sleep;
+  - the same bits twice;
+  - 30 m of climb in eight seconds up 20°, none up 42° (it slides back and rolls);
+  - 1.1 km round a 2.41 km world on its wheels.
+  - On the stand-in's ground with its trees it drives into them and rolls, as it should.
+- **Not yet:** a moving vehicle is not solid to people and runs nobody over (§6.4); no hosted drive has been run; the
+  42° slope shows the tyres at their limit sliding back rather than holding still under the brakes (μ 1 against
+  tan 42° = 0.9), worth a look in play.
+
 ## 10. Crafting and progression
 
 Everything is learned in the **Vehicle Workbench tree** (R6) and crafted at that workbench, except tier-3 parts and rare
@@ -537,7 +584,7 @@ wrecks to recover belong with the roads, later.
 |---|---|---|
 | V0 | This document; the owner's answers to §12 | — |
 | V1 (done, §9.5) | The module core: modules.json, sockets, the assembler, holds, the build saved (codec 8) and on the wire (protocol 47), the hull mended with the hammer; **shared** with the minicopter. The motor registry moves to V2 | `ModuleTests` (7) |
-| V2 | The ground motor on a fixed build of blocks: driving the baked Earth in `--view vehicle`; moving bodies; run-over. First, `ShipMotor`'s shared helpers (gravity and the curvature turn, the hull's sweep, crash damage, sleep) pulled out as statics: the drive seam (98621ac7 on `claude/motorboat`) leaves them inside the step | `GroundMotor`, `RunOver`; the sandbox tour |
+| V2 (driving done, §9.6) | The ground motor and the TOGG on its wheels, drawn as blocks in the ship sandbox (`--view ship --ship togg`). Left: a moving vehicle solid to people, running them over, a hosted drive | `GroundMotorTests` (5); the sandbox pictures |
 | V3 | Seats, the car and bike control schemes, prediction of passengers, the HUD; the hosted game | Network tests; a hosted drive with a passenger |
 | V4 | The lift: item, power, the vehicle screen, locks; engine parts and tiers; crafting and the tree | `Lift`; `ContentTests`; the screen in `--view ui --screen vehicle` |
 | V5 | The car's modules and stacking; build zones aboard (beds and bags as respawn points, boxes); decay outside claims | `Modules`, `Decay`, `Respawn`; a camp built and driven |
