@@ -110,6 +110,7 @@
     "rifle-ammo-explosive": {"explode": "impact.metal"},
     "tin-finch": {"engine": "ship.engine", "load": "ship.thrust", "boost": "ship.boost", "hatchOpen": "ship.hatch.open", "hatchClose": "ship.hatch.close", "touchdown": "ship.touchdown", "crash": "ship.crash", "destroyed": "explosion"},
     "iron-wake": {"start": "iw.drive.start", "idle": "iw.drive.idle.slow", "idleFast": "iw.drive.idle.fast", "load": "iw.drive.load.slow", "loadFast": "iw.drive.load.fast", "release": "iw.drive.release", "shutdown": "iw.drive.shutdown", "lift": "iw.lift.loop.slow", "liftFast": "iw.lift.loop.fast", "rcs": "iw.rcs.puff", "boostLoop": "iw.boost.strain.slow", "boostLoopFast": "iw.boost.strain.fast", "boostRelease": "iw.boost.release", "strainLight": "iw.hull.strain.light", "strainMedium": "iw.hull.strain.medium", "strainHeavy": "iw.hull.strain.heavy", "touchdown": "iw.touchdown", "crash": "ship.crash", "destroyed": "explosion", "ventilation": "iw.interior.ventilation", "machinery": "iw.interior.machinery", "alarmHull": "iw.alarm.hull", "rampOpen": "iw.ramp.release", "rampClose": "iw.ramp.release", "rampTravel": "iw.ramp.actuator", "rampOpened": "iw.ramp.contact", "rampShut": "iw.ramp.lock", "airlockOpen": "iw.airlock.slide", "airlockClose": "iw.airlock.slide", "airlockShut": "iw.airlock.seal"},
+    "motorboat": {"start": "boat.motor.start", "idle": "boat.motor.idle", "load": "boat.motor.load.slow", "loadFast": "boat.motor.load.fast", "shutdown": "boat.motor.stop", "crash": "ship.crash", "destroyed": "explosion"},
     "wooden-door": {"open": "door.open.wood", "close": "door.close.wood", "place": "build.place.wood"},
     "metal-door": {"open": "door.open.metal", "close": "door.close.metal", "place": "build.place.metal"},
     "armoured-door": {"open": "door.open.armoured", "close": "door.close.armoured", "place": "build.place.armoured"},
@@ -6504,6 +6505,87 @@
       "loop": true,
       "files": [
         "res://assets/audio/iron-wake/fire_patch_large.ogg"
+      ]
+    },
+    {
+      "key": "boat.motor.idle",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 6.0,
+      "maxDistance": 120.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/boat/motor_idle.ogg"
+      ]
+    },
+    {
+      "key": "boat.motor.load.slow",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 6.0,
+      "maxDistance": 250.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/boat/motor_load_slow.ogg"
+      ]
+    },
+    {
+      "key": "boat.motor.load.fast",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 6.0,
+      "maxDistance": 250.0,
+      "priority": 65,
+      "limit": 4,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/boat/motor_load_fast.ogg"
+      ]
+    },
+    {
+      "key": "boat.motor.start",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 6.0,
+      "maxDistance": 150.0,
+      "priority": 66,
+      "limit": 2,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "files": [
+        "res://assets/audio/boat/motor_start_01.ogg",
+        "res://assets/audio/boat/motor_start_02.ogg",
+        "res://assets/audio/boat/motor_start_03.ogg"
+      ]
+    },
+    {
+      "key": "boat.motor.stop",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -5.0,
+      "unitSize": 6.0,
+      "maxDistance": 150.0,
+      "priority": 66,
+      "limit": 2,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.5,
+      "files": [
+        "res://assets/audio/boat/motor_stop_01.ogg",
+        "res://assets/audio/boat/motor_stop_02.ogg"
       ]
     },
     {

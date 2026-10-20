@@ -25,9 +25,9 @@ The minicopter session adds a `rotor` drive the same way.
 
 | What | Value | Why |
 |---|---|---|
-| Size | 4.4 m long (transom to stem), 1.6 m beam, 0.75 m deep | a small skiff |
-| Mass | 380 kg; inertia 630, 690, 100 kg·m² (pitch, yaw, roll) | hull, motor, fittings |
-| Centre of mass | 0, 0.32, −0.35 m (the motor pulls it aft) | |
+| Size | 4.4 m long (transom to stem), 1.64 m beam, 0.8 m deep amidships (1.02 m at the bow) | a small skiff |
+| Mass | 390 kg; inertia 670, 730, 115 kg·m² (pitch, yaw, roll) | hull, motor, fittings |
+| Centre of mass | 0, 0.34, −0.35 m (the motor pulls it aft) | |
 | Health | 400 | Tin Finch 750 |
 | Damage taken | melee 0.3, arrow 0.2, bullet 0.6, explosive 1.0 | thin sheet |
 | Thrust | 2,200 N ahead, 900 N astern | about a 10 hp outboard |
@@ -44,8 +44,9 @@ The minicopter session adds a `rotor` drive the same way.
 
 ## 3. On the water
 
-**Buoyancy** (`src/Hollow.Simulation/Ships/ShipBuoyancy.cs`). The hull is six columns, 0.7 m tall, from the bottom at
-three stations (stern, middle and bow, port and starboard), together displacing 2 m³ when wholly under. Each column
+**Buoyancy** (`src/Hollow.Simulation/Ships/ShipBuoyancy.cs`). The hull is six columns, 0.8 m tall (the gunwale
+amidships), from the bottom at three stations (stern, middle and bow, port and starboard), together displacing 2.4 m³
+when wholly under. Each column
 lifts by how far it is under the water, where it is, so the hull rides level, pitches and rolls back and settles at
 its draft: 18 cm at rest, 13 cm at speed with the bow 0.8° up. In the water it drags little ahead, much sideways (its
 keel: under 1° of slip at full speed, under 3° turning) and up and down, and its turning is damped.
@@ -105,6 +106,8 @@ It hides altitude, climb, flight assist, LANDED, PULL UP and the orbit's lines.
 
 ShipView draws no flight glows on it (ships.json `lights.nav` false). A bow lamp, a spot of 45 m, lights while
 someone is at the helm.
+In the water and moving it throws a wake at its stern: ships.json `wake`, the effect `wake.boat` in fx.json
+(spray up and back, foam left on the water, rings spreading), full at 7 m/s (`ShipsView.Wake`).
 
 ## 6. Seats
 
@@ -117,11 +120,42 @@ someone is at the helm.
   carried past the newest, and `SeatEye` puts the passenger's eye at the bench's eye on the boat as drawn. Before
   this, a passenger stayed where they sat while the ship drove off.
 
-## 7. Model
+## 7. Model and sound
 
-`art/models/motorboat.py` (§8): to be written in this package.
+**The model** is original, built from code (`art/models/motorboat.py`; `blender -b --factory-startup --python
+art/build.py -- motorboat`; `-- --preview <prefix>` renders Eevee look-dev views with back faces culled as the game culls
+them, and `-- --holes <prefix>` renders against a magenta sky with no water from every side, from below and into the
+bow, where sky seen through the hull is a hole):
+- a hard-chined hull of welded panels in faded teal over steel, chipped and rust-streaked, with a primer-red patch and
+  a dark bottom; its sides meet on the centreline at the stem, closed, with a steel stem bar outside;
+- a plank deck 0.26 m over the keel, above the waterline (about 0.15 m), because the sea is one plane that nothing
+  masks inside a hull: below the deck nothing shows. The deck runs a centimetre into the inner walls, which go 5 cm
+  below it, and it closes to the keel at the bow, so no crack shows the sea;
+- two thwarts with canvas cushions at the seats' height (0.62 m);
+- a welded console with a car's steering wheel where ShipView's helm grips put the driver's hands (0.32 m over the
+  seat, 0.42 m ahead), a throttle lever, cables aft;
+- a weathered outboard on a transom clamp (its propeller where the drive pushes from, 0.02 m under the keel);
+- a red fuel can with its hose, a lashed crate in the bow (the cargo), a foredeck with a coil of rope, cleats, a
+  spare paddle and the bow lamp on its post.
 
-## 8. Tests
+One 2048 px atlas and material (`M_Hollow_Motorboat`). Three hand-built levels: 13,531 / 6,033 / 1,915 triangles, and
+a 68-triangle convex hull. Every open panel is turned to face where it is seen from (the shared mesh helper turns an
+open panel as if it were a closed solid, and the game culls back faces). The engine sound plays from `socket_engine_audio` on the powerhead. Icons are rendered by
+`--view icons --only motorboat`; provenance is in `game/assets/world/motorboat.provenance.json`. ShipView draws it like
+any ship without an interior, its lamp lit while someone is at the helm.
+
+**The sound** is made in code (`art/audio/machines.py` `outboard_*`, `events.py` `motorboat()`; `python -I
+art/audio/build.py --only boat/`), because no recording on this PC is an outboard. It models a small twin two-stroke:
+- each firing rings the leg's exhaust passages (a buzz at 190, 460 and 1,150 Hz);
+- its gas burbles out under the water;
+- the crank's orders, the gears' whine, the reeds' chatter and the intake's hiss;
+- a firing that misses now and then, more often at idle.
+
+Loops: idle (900 rpm), part throttle (2,900 rpm) and full (5,300 rpm), which ShipSounds crossfades by the motor's
+thrust. Also a pull start (one to three pulls) and the kill switch. They were checked as waveforms and spectrograms
+only, not by ear: the owner's ear decides.
+
+## 8. Tests and the game
 
 `dotnet run --project tests/Hollow.Tests -- Motorboat`: ten tests.
 - Its kind.
@@ -135,11 +169,23 @@ someone is at the helm.
 - Crafted at a workbench as its item.
 - A driver and a passenger: boarding from the water, riding, getting out over deep water.
 
+In the game, the tour step `boat` (`--view ground --host --tour <folder> --tour-steps boat`, `GroundTour.Boat.cs`) runs
+from a beach:
+- it finds water 1.5 m deep and sets the time to 11:00 there;
+- it shows the boat's ghost on the water from the shore, places the boat and photographs it afloat;
+- it swims to the helm, takes it and drives (orbit camera, then the helm's view);
+- it coasts, and its driver goes over the side.
+
+Its step `bay` photographs the vehicle workbench's bay (GROUND.md §6.7). The admin's `ship <player> motorboat` puts a
+boat on the nearest water a metre deep within 55 m.
+
 ## 9. Open
 
 - **Tuning.** Every number in §2 waits for the owner's feel in the game.
 - **No pushing.** A beached boat can't be pushed back into the water (Rust's push).
 - **No waves.** The simulation's water is flat, while the sea's shader swells up to about 0.34 m. A low hull may show
   the swell through its sides near the camera.
-- **No wake or spray** yet.
 - **Helm hands.** The driver's hands go to ShipView's fixed helm grips: the wheel is placed there.
+- **Moving parts.** The propeller doesn't spin, and the wheel and motor don't turn: ShipView animates parts only for
+  ships with an interior file.
+- **The view from the helm** looks over the wheel, which sits below the eye's field of view.

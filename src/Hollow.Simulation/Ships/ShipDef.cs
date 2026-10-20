@@ -397,6 +397,9 @@ public sealed class ShipDef
     /// <summary>The nozzles (ships.json <c>nozzles</c>): where each is, its drive and its plume's size (presentation only).</summary>
     public IReadOnlyList<ShipNozzle> Nozzles { get; init; } = Array.Empty<ShipNozzle>();
 
+    /// <summary>The wake a ship throws in the water as it goes (ships.json <c>wake</c>; presentation only), or null.</summary>
+    public ShipWake? Wake { get; init; }
+
     /// <summary>The lamps (ships.json <c>lights</c>, IRON_WAKE.md §9.4): data until IW6 draws them.</summary>
     public IReadOnlyList<ShipLight> Lights { get; init; } = Array.Empty<ShipLight>();
 
@@ -473,6 +476,12 @@ public sealed class ShipDef
 
     public override string ToString() => Key;
 }
+
+/// <summary>
+/// A ship's wake (ships.json <c>wake</c>, docs/MOTORBOAT.md §7): the effect (fx.json) a client runs on the water's surface
+/// under a point of its frame while it is in the water and moving, full at <paramref name="FullSpeed"/> m/s.
+/// </summary>
+public sealed record ShipWake(Vector3 At, string Effect, float FullSpeed);
 
 /// <summary>The hull's number among a ship's target parts (GROUND_SYSTEMS.md §3.1): 0, the rest of the ship.</summary>
 public static class ShipParts

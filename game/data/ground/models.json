@@ -419,6 +419,8 @@
     { "key": "iron-wake", "kind": "world", "class": "vehicle", "file": "res://assets/ships/iron-wake.glb", "lods": 5, "collision": "convex",
       "icon": { "view": [38, 22, 0] }, "lodDistances": [70, 180, 450, 1200, 4000],
       "source": "Iron Wake Buildable Shell R01 (the owner's own Iron Wake, converted by art/import/iron_wake.py; Poly Haven CC0 materials)" },
+    { "key": "motorboat", "kind": "world", "class": "vehicle", "file": "res://assets/world/motorboat.glb", "lods": 3, "collision": "convex",
+      "icon": { "view": [38, 22, 0] }, "lodDistances": [45, 120, 0], "source": "Hollow original motorboat (art/models/motorboat.py); provenance: assets/world/motorboat.provenance.json" },
     {"key": "metal-window-bars", "kind": "item", "class": "door", "file": "res://assets/items/fitted/metal-window-bars.glb", "lods": 3, "collision": "convex", "icon": {"view": [24, 12, 0]}, "source": "PSG Door Window Kit R01: existing imported meshes; tools/integrate_fitted_attachments.py"},
     {"key": "armoured-window-bars", "kind": "item", "class": "door", "file": "res://assets/items/fitted/armoured-window-bars.glb", "lods": 3, "collision": "convex", "icon": {"view": [24, 12, 0]}, "source": "PSG Door Window Kit R01: existing imported meshes; tools/integrate_fitted_attachments.py"},
     {"key": "reinforced-glass-window", "kind": "item", "class": "door", "file": "res://assets/items/fitted/reinforced-glass-window.glb", "lods": 3, "collision": "convex", "icon": {"view": [24, 12, 0]}, "source": "PSG Door Window Kit R01: existing imported meshes; tools/integrate_fitted_attachments.py"},

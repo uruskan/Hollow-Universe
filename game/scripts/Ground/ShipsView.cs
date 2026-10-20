@@ -39,6 +39,9 @@ public partial class ShipsView : Node3D
         public FxHandle[]? Smoke;
         public FxHandle HullSmoke;
         public Node3D? HullSmokeAt;
+
+        // The wake it throws in the water as it goes (ships.json wake: the motorboat's).
+        public FxHandle Wake;
     }
 
     private readonly Dictionary<uint, Drawn> _drawn = new();
@@ -158,7 +161,7 @@ public partial class ShipsView : Node3D
             }
             Num.Vector3 velocity = mine ? Client.Ships().OwnShip.Velocity : ship.Velocity;
             Hear(d, ship, def, look, velocity, mine ? Client.ServerTickNow : Client.RenderTick);
-            Effects(d, ship, def, look);
+            Effects(d, ship, def, look, velocity);
         }
         _gone.Clear();
         foreach (uint id in _drawn.Keys)
@@ -213,9 +216,10 @@ public partial class ShipsView : Node3D
 
     // The ship's own effects (IRON_WAKE.md §11): dust under each lift nozzle within 25 m of the ground, by its plume and
     // nearness; smoke pouring from each disabled battery's gun house and from the hull below a quarter, until mended.
-    private void Effects(Drawn d, RemoteShip ship, ShipDef def, in ShipLook look)
+    private void Effects(Drawn d, RemoteShip ship, ShipDef def, in ShipLook look, Num.Vector3 velocity)
     {
         bool shown = d.View.Visible && !look.Destroyed;
+        Wake(d, ship, def, shown, velocity);
         d.Wash ??= new FxHandle[d.View.LiftNozzles];
         GroundProbe? ground = Client.Surface is { } world ? new GroundProbe(world, Client.Frame) : null;
         for (int i = 0; i < d.Wash.Length; i++)
@@ -286,8 +290,42 @@ public partial class ShipsView : Node3D
         }
     }
 
+    // A ship's wake (ships.json wake): on the water's surface under its point as drawn, while it is in the water and moving,
+    // by its speed.
+    private void Wake(Drawn d, RemoteShip ship, ShipDef def, bool shown, Num.Vector3 velocity)
+    {
+        if (def.Wake is not { } wake)
+        {
+            return;
+        }
+        float k = Math.Clamp((velocity.Length() - 0.4f) / Math.Max(wake.FullSpeed, 0.5f), 0f, 1f);
+        Vector3 at = d.View.SocketWorld(new ShipSocket { Position = wake.At }).Origin;
+        var point = new Num.Vector3(at.X, at.Y, at.Z);
+        GroundProbe? ground = Client.Surface is { } world ? new GroundProbe(world, Client.Frame) : null;
+        float over = ground?.HeightAboveWater(point) ?? float.PositiveInfinity;
+        if (!shown || !ship.Has(ShipNetFlags.Wet) || k < 0.02f || over is > 0.6f or < -0.8f)
+        {
+            if (d.Wake.IsValid)
+            {
+                FxDirector.Stop(d.Wake);
+                d.Wake = default;
+            }
+            return;
+        }
+        Num.Vector3 up = Client.Frame.UpAt(point);
+        Vector3 surface = GroundView.ToGodot(point - up * over);
+        if (!d.Wake.IsValid)
+        {
+            d.Wake = FxDirector.Start(wake.Effect, surface, GroundView.ToGodot(up), new FxParams());
+        }
+        FxDirector.Move(d.Wake, surface);
+        FxDirector.SetIntensity(d.Wake, k);
+    }
+
     private static void StopEffects(Drawn d)
     {
+        FxDirector.Stop(d.Wake);
+        d.Wake = default;
         foreach (FxHandle h in d.Wash ?? Array.Empty<FxHandle>())
         {
             FxDirector.Stop(h);

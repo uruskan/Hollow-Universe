@@ -1,5 +1,61 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — A small motorboat, craftable; the vehicle workbench's bay shown
+
+The owner asked for a small craftable motorboat ([MOTORBOAT.md](MOTORBOAT.md); every number a proposal). Built on
+branch `claude/motorboat`, beside the minicopter and car sessions, with which the shared ship seam was agreed.
+
+**The shared seam (98621ac7):**
+- What a ship's engines give each tick is its drive's: `IShipDrive`, by ships.json `drive.kind` in `ShipDrives`.
+  Today's thrusters moved verbatim into `ShipThrusters`, the default; there is no behaviour change.
+- A client reads the helm's keys by the ship's control scheme (ships.json `controls`, `ShipControlSchemes`).
+
+**Seats (8806f350):**
+- An open (`exposed`) seat on a ship people only sit in needs no door.
+- A passenger rides a ship someone else drives, on the client too: before this, the client left them where they sat.
+
+**The boat (bf69935d and after):**
+- A hull that floats on its own shape: `ShipBuoyancy`, six columns that lift where they are, on the sea, a lake or a
+  stream.
+- An outboard: `ShipPropeller`, which pushes only under the water and steers by the water past its leg.
+- Placement on the water: a `water` placement surface the aim meets only when the rule allows it.
+  Ashore the answer is "Put it on the water" (`NotOnWater`, 124).
+- Crafting: a ship recipe without a station gives its item. The boat is 60 s at a level 1 workbench, learnt in its
+  tree for 125 salvage.
+- Seats over deep water: leaving one puts the occupant in the water to swim.
+- Client: the `boat` controls (W/S held, A/D wheel, the mouse looks round) and a boat HUD (speed in m/s and knots,
+  heading; no altitude, assist or orbit). No flight glows (`lights.nav`). A wake at the stern (`wake`, fx.json
+  `wake.boat`).
+- Admin: `ship <player> motorboat` puts one on the nearest water.
+- The model is original, built from code (`art/models/motorboat.py`, 13.5k / 6.0k / 1.9k triangles), with its
+  rendered icons.
+- The sound is an outboard made in code (`machines.py` `outboard_*`; idle, part and full loops, a pull start, the kill
+  switch). It was checked as waveforms only.
+
+**The vehicle workbench's bay, shown (the owner's report: "I don't see any bays"):**
+- A placed bench marks its bay on the ground in front of it: hazard-stripe paint (a decal) and a striped post at each
+  corner (`BayMarking`).
+- The bench's placement ghost draws the bay's outline.
+
+**Validation:**
+- Build 0 errors.
+- `Motorboat` 10/10, and ship, seat, placement, content, model catalogue and sound 141/142. The failure is the
+  terrain's `EarthCliffsHaveStablePlacementsAndSharedCollision`.
+- The full suite was 1046/1055. Every failure is the terrain's (`EarthTerrainRemainsDeterministic`, cliffs, formations,
+  the environment route, and `ArchitectureTests` on `CliffKitPlacements.cs` and `TerrainBake.cs`), except the boat
+  sounds' `.import` files, which were imported afterwards.
+- One hosted run of the tour steps `boat,bay`, at night:
+  - the boat placed on the water from a beach;
+  - the helm taken from the water;
+  - 8.0 m/s ahead, 0.8 m/s after 8 s coasting;
+  - the driver overboard, swimming;
+  - the bench placed with its bay.
+- The owner saw an opening at the bow in that run. It was there: the sides stopped short of the stem with a 24 cm
+  slot, and there were hairline gaps along the deck's edges. Both were closed and checked with the model's `--holes`
+  renders.
+- Not done: the daylight retake (a game was open on this PC), and judging the sound by ear. The look and the numbers
+  wait for the owner.
+
 ## 20 October 2026 — World terrain, iteration 5: the cliff kit placed on the baked Earth
 
 At the owner's word the kit (f58b0207) went onto Earth before the rivers. A fast iteration the owner checks by hand.

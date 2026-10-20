@@ -29,7 +29,7 @@ public enum ArgKind : byte
     OnOff,
     Command,
 
-    /// <summary>A ship's kind (ships.json's keys: tin-finch, iron-wake).</summary>
+    /// <summary>A ship's kind (ships.json's keys: tin-finch, iron-wake, motorboat).</summary>
     Ship,
 }
 

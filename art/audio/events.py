@@ -1815,6 +1815,10 @@ ITEMS = {
         "alarmHull": "iw.alarm.hull", "rampOpen": "iw.ramp.release", "rampClose": "iw.ramp.release",
         "rampTravel": "iw.ramp.actuator", "rampOpened": "iw.ramp.contact", "rampShut": "iw.ramp.lock",
         "airlockOpen": "iw.airlock.slide", "airlockClose": "iw.airlock.slide", "airlockShut": "iw.airlock.seal"},
+    # The motorboat (docs/MOTORBOAT.md §7): its outboard's start, idle, part and full throttle and stop; a hull's crash.
+    "motorboat": {"start": "boat.motor.start", "idle": "boat.motor.idle", "load": "boat.motor.load.slow",
+                  "loadFast": "boat.motor.load.fast", "shutdown": "boat.motor.stop", "crash": "ship.crash",
+                  "destroyed": "explosion"},
     "wooden-door": door_roles("wood"), "metal-door": door_roles("metal"), "armoured-door": door_roles("armoured"),
     "double-door": door_roles("wood"), "garage-door": door_roles("garage"),
     "sheet-metal-door": door_roles("metal"), "wooden-double-door": door_roles("wood"),
@@ -1824,6 +1828,35 @@ ITEMS = {
     "reinforced-glass-window": {"place": "build.place.metal"}, "horizontal-embrasure": {"place": "build.place.metal"},
     "vertical-embrasure": {"place": "build.place.metal"},
 }
+
+
+BOAT = "boat/"
+
+
+def motorboat():
+    """The motorboat's outboard (docs/MOTORBOAT.md §7): a small twin two-stroke made in code (machines.py
+    outboard_parts: each firing ringing the leg's exhaust passages, its gas burbling out under the water, the crank, the
+    gears and the reeds; no recording on this PC is one), at idle, part throttle and full; a pull start and the kill
+    switch. The game crossfades the loops by the motor's thrust (ShipSounds)."""
+    m = __import__("machines")
+    seconds, pre = 8.0, 2.0
+    for key, revs, load in (("idle", 15.0, 0.0), ("load.slow", 48.0, 0.5), ("load.fast", 88.0, 1.0)):
+        name = key.replace(".", "_")
+        event("boat.motor." + key, [Out(BOAT + "motor_%s.ogg" % name, "engine",
+                                        [Seg(m.outboard_loop("outboard_" + name, revs=revs, load=load, seconds=seconds,
+                                                             pre=pre, seed=17))],
+                                        fx="highpass=f=30", loop=(seconds, 0.0, pre))],
+              "SFX", -3.0, unitSize=6.0, maxDistance=250.0 if key.startswith("load") else 120.0, priority=65, limit=4,
+              pitch=[1.0, 1.0], jitter=0.0)
+    outs = [Out(BOAT + numbered("motor_start", k), "machine",
+                [Seg(m.outboard_start("outboard_start_%d" % k, seed=3 + k, pulls=(2, 1, 3)[k]))],
+                fx="highpass=f=30", tail_db=-50, max_fade=0.5) for k in range(3)]
+    event("boat.motor.start", outs, "SFX", -3.0, unitSize=6.0, maxDistance=150.0, priority=66, limit=2,
+          pitch=[0.98, 1.02], jitter=0.5)
+    outs = [Out(BOAT + numbered("motor_stop", k), "machine", [Seg(m.outboard_stop("outboard_stop_%d" % k, seed=9 + k))],
+                fx="highpass=f=30", tail_db=-50, max_fade=0.5) for k in range(2)]
+    event("boat.motor.stop", outs, "SFX", -5.0, unitSize=6.0, maxDistance=150.0, priority=66, limit=2,
+          pitch=[0.98, 1.02], jitter=0.5)
 
 
 def everything():
@@ -1841,5 +1874,6 @@ def everything():
     ambience()
     animals()
     iron_wake()
+    motorboat()
     __import__("repair_actions").recipes()
     return list(OUTS), list(EVENTS)

@@ -31,7 +31,7 @@ internal sealed class ShipsReader : IContentReader
             string where = $"ships.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "key", "item", "mass", "inertia", "centreOfMass", "health", "damage", "thrust", "speed", "boost",
                 "rates", "drag", "landing", "skids", "crash", "fuel", "cargo", "hull", "seats", "doors", "parts", "nozzles", "lights", "ceiling",
-                "wreck", "placement", "model", "interior", "water", "assist", "drive", "controls", "buoyancy");
+                "wreck", "placement", "model", "interior", "water", "assist", "drive", "controls", "buoyancy", "wake");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             // The inside people walk in (IRON_WAKE.md §4.3): its data file, read first, since the sockets and the hull may
             // name what it holds.
@@ -238,6 +238,7 @@ internal sealed class ShipsReader : IContentReader
                 Stations = stations,
                 CargoPart = parts.FirstOrDefault(p => p.Capabilities.Has(r.Loaded.Capabilities?.Index("container") ?? -1))?.Index ?? 0,
                 Nozzles = ShipLayoutReader.Nozzles(f, nozzles, where + ".nozzles", interior),
+                Wake = f.TryChild(e, "wake", out JsonElement wakeBlock) ? Wake(f, wakeBlock, where + ".wake") : null,
                 Lights = ShipLayoutReader.Lights(f, e, where, interior),
                 NavLights = !(f.TryChild(e, "lights", out JsonElement lightsBlock) && lightsBlock.ValueKind == JsonValueKind.Object &&
                     lightsBlock.TryGetProperty("nav", out JsonElement nav) && nav.ValueKind == JsonValueKind.False),
@@ -264,6 +265,13 @@ internal sealed class ShipsReader : IContentReader
             }
             item.Ship = def;
         }
+    }
+
+    // A ship's wake (presentation): where it is thrown, its effect's key in fx.json, the speed it is full at.
+    private static Ships.ShipWake Wake(JsonFields f, JsonElement block, string where)
+    {
+        f.OnlyKnown(block, where, "at", "effect", "full");
+        return new Ships.ShipWake(f.Vector(block, "at", where), f.Text(block, "effect", where), f.Number(block, "full", where, 6f));
     }
 
     // The stations a ship's seats work (IRON_WAKE.md §6.1): the data file's geometry, the battery its kind names, the seat
