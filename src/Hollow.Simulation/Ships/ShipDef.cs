@@ -58,8 +58,23 @@ public sealed class ShipDef
         _ => MeleeDamage,
     };
 
+    /// <summary>
+    /// How it moves through a tick (ships.json <c>motor</c>, <see cref="ShipMotors"/>, VEHICLES.md §9.2): flight by default, or
+    /// on wheels (<see cref="GroundMotor"/>).
+    /// </summary>
+    public IShipMotor Motor { get; init; } = FlightMotor.Instance;
+
+    /// <summary>How a vehicle on wheels drives (ships.json <c>ground</c>), or null: it doesn't.</summary>
+    public GroundDef? Ground { get; init; }
+
+    /// <summary>Its wheels (the kind's, then its modules', each where its socket puts it).</summary>
+    public IReadOnlyList<WheelDef> Wheels { get; internal set; } = Array.Empty<WheelDef>();
+
+    /// <summary>Its engines' power in watts (ships.json <c>ground.power</c> and its modules' <c>power</c>): a ground motor's drive.</summary>
+    public float EnginePower { get; internal set; }
+
     /// <summary>What its engines do each tick (ships.json <c>drive</c>, <see cref="ShipDrives"/>; by default thrusters).</summary>
-    public IShipDrive Drive { get; init; } = ShipThrusters.Instance;
+    public IShipDrive Drive { get; internal set; } = ShipThrusters.Instance;
 
     /// <summary>The control scheme a client reads its helm's keys by when none is named (the Tin Finch's flight).</summary>
     public const string DefaultControls = "flight";
@@ -501,6 +516,21 @@ public sealed class ShipDef
 
     private ShipDef? _kind;
 
+    /// <summary>
+    /// What its modules add to its drive, by name (modules.json <c>drive</c> summed over the build, and each module's
+    /// <c>power</c> as "power"); empty for a kind as read.
+    /// </summary>
+    public IReadOnlyDictionary<string, float> DriveSums { get; private set; } = new Dictionary<string, float>();
+
+    /// <summary>
+    /// What a ship of this kind is made with when it is made without a build (ships.json <c>build</c>: crafted, placed, the
+    /// admin's <c>ship</c>): empty for none. Read once the modules are (ModulesReader).
+    /// </summary>
+    public Modules.ShipBuild DefaultBuild { get; internal set; } = Modules.ShipBuild.Empty;
+
+    /// <summary>The default build as ships.json names it: socket keys, levels, module keys.</summary>
+    internal IReadOnlyList<(string Socket, int Level, string Module)> DefaultBuildKeys { get; init; } = Array.Empty<(string, int, string)>();
+
     /// <summary>The modules installed (empty for a kind as read): with <see cref="Kind"/>, what this layout is.</summary>
     public Modules.ShipBuild Build { get; private set; } = Modules.ShipBuild.Empty;
 
@@ -537,16 +567,19 @@ public sealed class ShipDef
     /// after. A copy, so whatever a kind gains later is carried over without the assembler naming it.
     /// </summary>
     internal ShipDef CopyFor(Modules.ShipBuild build, IReadOnlyList<Modules.PlacedModule> placed, IReadOnlyList<byte> hullParts,
-        IReadOnlyList<Modules.ShipHold> holds)
+        IReadOnlyList<Modules.ShipHold> holds, IReadOnlyDictionary<string, float> driveSums)
     {
         var copy = (ShipDef)MemberwiseClone();
         copy._kind = Kind;
         copy._helm = null;
         copy._partOfPieces = null;
         copy.Build = build;
+        copy.DriveSums = driveSums;
+        copy.Drive = Drive.Compose(driveSums);
         copy.Placed = placed;
         copy.HullParts = hullParts;
         copy.Holds = holds;
+        copy.DefaultBuild = Modules.ShipBuild.Empty;
         return copy;
     }
 

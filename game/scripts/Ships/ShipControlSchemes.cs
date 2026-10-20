@@ -35,6 +35,7 @@ public static class ShipControlSchemes
     {
         [FlightControls.SchemeKey] = new FlightControls(),
         [BoatControls.SchemeKey] = new BoatControls(),
+        [CarControls.SchemeKey] = new CarControls(),
     };
 
     /// <summary>The scheme a ship's data names, or flight (with a warning for a key nobody knows).</summary>
@@ -130,6 +131,50 @@ public sealed class BoatControls : IShipControlScheme
         {
             Throttle = controls.Throttle,
             Yaw = Math.Clamp(Held(Godot.Key.D) - Held(Godot.Key.A) + Held(Godot.Key.Right) - Held(Godot.Key.Left), -1, 1),
+        };
+    }
+}
+
+/// <summary>
+/// Driving (VEHICLES.md §6.5), the TOGG's: W drives on, S brakes and then reverses (the ground motor knows which), A and D
+/// steer, the wheel turning toward full lock at a rate and back to centre faster when let go (the ramp is in the input, so
+/// the server and the prediction steer alike); Left Ctrl is the handbrake; the mouse looks round; Space gets out
+/// (<c>SeatKeys</c>, the owner's R17).
+/// </summary>
+public sealed class CarControls : IShipControlScheme
+{
+    public const string SchemeKey = "car";
+
+    /// <summary>How fast the wheel turns toward a held lock, and back to centre when let go (full locks a second).</summary>
+    private const float SteerRate = 2.5f, CentreRate = 4f;
+
+    private float _steer;
+
+    public string Key => SchemeKey;
+
+    public bool MouseSteers => false;
+
+    public bool Flies => false;
+
+    public string Hints(bool cockpit) =>
+        "W drive · S brake, reverse · A/D steer · CTRL handbrake · " + (cockpit ? "Mouse look · V orbit" : "RMB drag orbit · Wheel zoom · V seat view") +
+        " · SPACE get out";
+
+    public ShipInput Read(ShipControls controls, double delta, bool mouseSteering)
+    {
+        controls.CentreSteering();
+        static float Held(Godot.Key key) => Input.IsPhysicalKeyPressed(key) ? 1 : 0;
+        controls.Throttle = Held(Godot.Key.W) - Held(Godot.Key.S);
+        controls.AssistOff = false;
+        float target = Math.Clamp(Held(Godot.Key.D) - Held(Godot.Key.A) + Held(Godot.Key.Right) - Held(Godot.Key.Left), -1, 1);
+        float rate = target == 0 || MathF.Sign(target) != MathF.Sign(_steer) ? CentreRate : SteerRate;
+        float step = rate * (float)delta;
+        _steer = MathF.Abs(target - _steer) <= step ? target : _steer + MathF.Sign(target - _steer) * step;
+        return new ShipInput
+        {
+            Throttle = controls.Throttle,
+            Yaw = _steer,
+            Vertical = Held(Godot.Key.Ctrl),
         };
     }
 }

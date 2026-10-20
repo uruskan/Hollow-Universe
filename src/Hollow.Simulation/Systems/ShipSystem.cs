@@ -171,6 +171,11 @@ public sealed partial class ShipSystem : ZoneSystem
     /// <summary>A new ship standing level on the ground at a point, its nose toward <paramref name="yaw"/>.</summary>
     public Ship SpawnShip(ShipDef def, Vector3 ground, float yaw, EntityId owner, float fuel)
     {
+        // A kind made without a build comes with its default one (ships.json build, VEHICLES.md §9.1).
+        if (def.Build.IsEmpty && !def.DefaultBuild.IsEmpty && Content != null)
+        {
+            def = Content.Compose(def, def.DefaultBuild);
+        }
         Vector3 up = Frame.UpAt(ground);
         ShipState state = ShipMotor.Standing(def, ground + up * 0.02f, up, yaw);
         // Level where its centre of mass is, the point the motor flies: on a small world the pivot's up is a hair off
@@ -274,7 +279,7 @@ public sealed partial class ShipSystem : ZoneSystem
                 ShipCollider.RemoveParked(ship.ParkedBody);
                 ship.ParkedBody = 0;
             }
-            ship.Events = ShipMotor.Step(ref ship.State, input, ship.Def, context, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody);
+            ship.Events = ship.Def.Motor.Step(ref ship.State, input, ship.Def, context, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody);
             ship.Fuel.Consume(ship.Events.FuelUsed);
             ship.SyncFuel();
             ShipSteps++;

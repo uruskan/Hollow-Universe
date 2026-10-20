@@ -369,16 +369,7 @@ public static class ShipMotor
             // it, and a straight step over the curve doesn't lift it (only its way up does), so the ball flies as the flat
             // ground did (gravity straight down, no orbit below the leaving height: on a 2.41 km world at 0.92 g about
             // 147 m/s would be one), and straight ahead with the stick still goes round the world at its height.
-            Vector3 over = ctx.Frame.UpAt(s.Position);
-            double rise = ctx.Frame.ToBody(s.Position).Length - ctx.Frame.ToBody(from).Length - Vector3.Dot(s.Position - from, under);
-            s.Position -= over * (float)rise;
-            Quaternion carry = Facing.Turn(under, over);
-            s.Rotation = Quaternion.Normalize(carry * s.Rotation);
-            if (s.AttitudeHoldActive)
-            {
-                s.AttitudeHoldRotation = Quaternion.Normalize(carry * s.AttitudeHoldRotation);
-            }
-            s.Velocity = Vector3.Transform(s.Velocity, carry);
+            CarryOverCurve(ref s, ctx, from, under);
         }
 
         // ---------------------------------------------------------------- what the step found
@@ -459,7 +450,25 @@ public static class ShipMotor
         return events;
     }
 
-    private static bool Finite(Vector3 v) => float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
+    /// <summary>
+    /// The ground turning under a ship over a substep from <paramref name="from"/> (where up was <paramref name="under"/>):
+    /// the rise a straight step over the curve makes is taken back, and its attitude and velocity turn with the ground.
+    /// </summary>
+    internal static void CarryOverCurve(ref ShipState s, in ShipContext ctx, Vector3 from, Vector3 under)
+    {
+        Vector3 over = ctx.Frame.UpAt(s.Position);
+        double rise = ctx.Frame.ToBody(s.Position).Length - ctx.Frame.ToBody(from).Length - Vector3.Dot(s.Position - from, under);
+        s.Position -= over * (float)rise;
+        Quaternion carry = Facing.Turn(under, over);
+        s.Rotation = Quaternion.Normalize(carry * s.Rotation);
+        if (s.AttitudeHoldActive)
+        {
+            s.AttitudeHoldRotation = Quaternion.Normalize(carry * s.AttitudeHoldRotation);
+        }
+        s.Velocity = Vector3.Transform(s.Velocity, carry);
+    }
+
+    internal static bool Finite(Vector3 v) => float.IsFinite(v.X) && float.IsFinite(v.Y) && float.IsFinite(v.Z);
 
     /// <summary>A strike counts while the drive's engine turns faster than this share (its <see cref="ShipState.Spool"/>).</summary>
     public const float StrikeSpool = 0.2f;
@@ -526,7 +535,7 @@ public static class ShipMotor
     /// the sea holds it up, or its hull, lowered <see cref="SupportProbe"/>, still meets what it lay on (a ship held on its
     /// hull beside its pads, or on its side).
     /// </summary>
-    private static bool Supported(in ShipState s, ShipDef def, in ShipContext ctx, uint ignoreBody)
+    internal static bool Supported(in ShipState s, ShipDef def, in ShipContext ctx, uint ignoreBody)
     {
         ctx.Collider!.World.EnsureGroundAround(s.Position, Reach(def, 0));
         Vector3 down = -Vector3.Transform(Vector3.UnitY, s.Rotation);
@@ -561,7 +570,7 @@ public static class ShipMotor
     }
 
     /// <summary>The ship's inverse inertia applied to a world-frame vector.</summary>
-    private static Vector3 InverseInertia(in ShipState s, ShipDef def, Vector3 world) =>
+    internal static Vector3 InverseInertia(in ShipState s, ShipDef def, Vector3 world) =>
         Vector3.Transform(Vector3.Transform(world, Quaternion.Conjugate(s.Rotation)) / def.Inertia, s.Rotation);
 
     /// <summary>
@@ -569,7 +578,7 @@ public static class ShipMotor
     /// it (bouncing back by <paramref name="restitution"/>) and takes out sliding up to the hull's friction. Returns the
     /// speed it went in at (0 if it was leaving).
     /// </summary>
-    private static float Collide(ref ShipState s, ShipDef def, Vector3 arm, Vector3 normal, float restitution)
+    internal static float Collide(ref ShipState s, ShipDef def, Vector3 arm, Vector3 normal, float restitution)
     {
         Vector3 spin = Vector3.Transform(s.AngularVelocity, s.Rotation);
         Vector3 u = s.Velocity + Vector3.Cross(spin, arm);
@@ -622,7 +631,7 @@ public static class ShipMotor
         return total;
     }
 
-    private static void Apply(ref ShipState s, ShipDef def, Vector3 arm, Vector3 impulse)
+    internal static void Apply(ref ShipState s, ShipDef def, Vector3 arm, Vector3 impulse)
     {
         s.Velocity += impulse / def.Mass;
         Vector3 spin = Vector3.Transform(s.AngularVelocity, s.Rotation) + InverseInertia(s, def, Vector3.Cross(arm, impulse));
@@ -661,7 +670,7 @@ public static class ShipMotor
 
     // The current local flight volume ends at this sphere. Stop only outward travel: the pilot can still turn, fly
     // around the planet, and descend. Interplanetary transfers will extend the playable space beyond this boundary.
-    private static void KeepInZone(ref ShipState s, float edge)
+    internal static void KeepInZone(ref ShipState s, float edge)
     {
         float r = s.Position.Length();
         if (r <= edge || r <= 0)

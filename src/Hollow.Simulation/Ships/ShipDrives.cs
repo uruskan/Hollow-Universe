@@ -112,6 +112,12 @@ public interface IShipDrive
 
     /// <summary>What is wrong with a ship's numbers for this drive (the content check), each a sentence.</summary>
     IEnumerable<string> Problems(ShipDef ship);
+
+    /// <summary>
+    /// This drive for a build whose modules add to it (VEHICLES.md §9.1: modules.json <c>drive</c>, summed by name over the
+    /// build: a rotor's lift, an engine's power). A drive no module changes is itself.
+    /// </summary>
+    IShipDrive Compose(IReadOnlyDictionary<string, float> sums) => this;
 }
 
 /// <summary>

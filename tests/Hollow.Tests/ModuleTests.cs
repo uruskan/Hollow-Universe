@@ -24,9 +24,8 @@ namespace Hollow.Tests;
 /// </summary>
 public static class ModuleTests
 {
+    // The test's two modules, put at the head of the game's own list (whatever it holds).
     private const string Modules = """
-        {
-          "modules": [
             { "key": "test-locker", "item": "test-locker", "fits": ["rack"], "levels": [1, 2], "height": 0.8, "carries": true,
               "mass": 120, "centreOfMass": [0, 0.4, 0],
               "hull": [{ "centre": [0, 0.4, 0], "size": [0.5, 0.4, 0.4] }],
@@ -45,9 +44,7 @@ public static class ModuleTests
               "parts": [
                 { "key": "body", "name": "Bench", "at": [0, 0.6, -0.5], "radius": 0.5, "capabilities": ["seat"], "seat": "rider",
                   "health": { "max": 200, "protection": "wood", "table": "pieces", "repair": ["wood", 20] } }
-              ] }
-          ]
-        }
+              ] },
         """;
 
     private const string Sockets = """
@@ -62,7 +59,7 @@ public static class ModuleTests
     private static readonly Lazy<GameContent> Loaded = new(() =>
     {
         Dictionary<string, string> texts = GameContent.ReadTexts(ContentFixture.Folder);
-        texts["modules.json"] = Modules;
+        texts["modules.json"] = ReplaceOnce(texts["modules.json"], "\"modules\": [", "\"modules\": [\n" + Modules);
         texts["ships.json"] = ReplaceOnce(texts["ships.json"], "\"item\": \"tin-finch\",", "\"item\": \"tin-finch\",\n" + Sockets);
         texts["items.json"] = ReplaceOnce(texts["items.json"], "\"items\": [",
             "\"items\": [\n    { \"id\": 9001, \"key\": \"test-locker\", \"name\": \"Test locker\", \"category\": \"vehicles\", \"module\": \"test-locker\" },\n" +
@@ -227,9 +224,9 @@ public static class ModuleTests
     public static void BadModuleDataIsTold()
     {
         Dictionary<string, string> texts = GameContent.ReadTexts(ContentFixture.Folder);
-        texts["modules.json"] = Modules.Replace("\"hold\": 12", "\"hold\": 0", StringComparison.Ordinal)
+        texts["modules.json"] = ReplaceOnce(texts["modules.json"], "\"modules\": [", "\"modules\": [\n" + Modules.Replace("\"hold\": 12", "\"hold\": 0", StringComparison.Ordinal)
             .Replace("\"exposed\": true", "\"exposed\": false", StringComparison.Ordinal)
-            .Replace("\"levels\": [1, 2]", "\"levels\": [3]", StringComparison.Ordinal);
+            .Replace("\"levels\": [1, 2]", "\"levels\": [3]", StringComparison.Ordinal));
         texts["items.json"] = ReplaceOnce(texts["items.json"], "\"items\": [",
             "\"items\": [\n    { \"id\": 9001, \"key\": \"test-locker\", \"name\": \"Test locker\", \"category\": \"vehicles\", \"module\": \"test-locker\" },\n" +
             "    { \"id\": 9002, \"key\": \"test-bench\", \"name\": \"Test bench\", \"category\": \"vehicles\", \"module\": \"test-bench\" },");

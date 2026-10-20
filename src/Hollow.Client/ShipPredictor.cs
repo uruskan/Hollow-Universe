@@ -128,7 +128,7 @@ public sealed class ShipPredictor
         ShipContext context = _context();
         lock (JoltRuntime.Gate)
         {
-            ShipMotor.Step(ref state, input, Def!, context, IgnoreBody?.Invoke() ?? ShipCollider.NoBody);
+            Def!.Motor.Step(ref state, input, Def!, context, IgnoreBody?.Invoke() ?? ShipCollider.NoBody);
         }
     }
 
