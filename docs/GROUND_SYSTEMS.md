@@ -154,6 +154,10 @@ through walls are refused, and the client's one targeting query (§5) meets wall
 would refuse. Every verb names its reach (interactions.json, §5); a ship's parts use it since P1. Placement (deployables
 3 m, building 8 m) keeps its own until P2. Test: `FoundationTests.ReachIsToTheNearestSurfaceInSight`.
 
+A family may offer more points to see a thing by (`ITargetFamily.SightPoints`): when the ray to the nearest point is blocked,
+`Reach` tries them and the thing is seen if any is. Doors do (their leaves' points and their doorway, DOORS.md §5): an open
+leaf's nearest point lies behind its own jamb as seen from the side, which refused closing a door from a few metres off axis.
+
 ### 3.5 Registries
 A small `Registry<THandler>` keyed by the data list's index, filled at start-up, validated against the data. Used by
 every system below.

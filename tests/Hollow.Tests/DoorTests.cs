@@ -582,6 +582,77 @@ public static class DoorTests
     }
 
     [Test]
+    public static void ADoorIsNeverRefusedForSightWhereItsDoorwayShowsAndStillNotThroughAWall()
+    {
+        // The owner's report: closing an open door from a bit far away answered "Something is in the way". That was the interaction's
+        // line of sight to the door's nearest point, which for an open leaf lies behind its own jamb as seen from anywhere but the
+        // doorway's axis. A door is now seen when any of its leaves' points or its doorway is (TargetSystem.Reach). Open and shut,
+        // every layout: from a ring of eyes round the doorway (1.6 m up, 1.5 to 3.3 m out, up to 75 degrees off its axis) and from
+        // inside the hut, the answer is Done or, beyond the reach, OutOfReach, never OutOfSight.
+        foreach (bool open in new[] { true, false })
+        {
+            foreach (int layout in new[] { 0, 1, 2, 3 })
+            {
+                using var rig = new GameRig();
+                Zone zone = rig.Zone;
+                (TestBases.Hut hut, Door door) = HutWithDoor(rig, "wooden-door", layout, open);
+                rig.Step(2);
+                var eyes = new List<(string Where, Vector3 Eye)>();
+                foreach (float radius in new[] { 1.5f, 2.5f, 3.3f })
+                {
+                    for (int degrees = -75; degrees <= 75; degrees += 15)
+                    {
+                        float a = degrees * MathF.PI / 180;
+                        eyes.Add(($"outside {radius} m at {degrees} degrees", ToZone(hut.Doorway, new Vector3(MathF.Sin(a) * radius, 1.6f, MathF.Cos(a) * radius))));
+                    }
+                }
+                foreach ((float x, float z) in new[] { (-0.6f, -1.4f), (0f, -2.0f), (-0.8f, -2.2f), (0.2f, -1.2f) })
+                {
+                    eyes.Add(($"inside at {x}, {z}", ToZone(hut.Doorway, new Vector3(x, 1.6f, z))));
+                }
+                int reached = 0;
+                foreach ((string where, Vector3 eye) in eyes)
+                {
+                    for (int part = 0; part <= door.Def.Leaves.Count; part++)
+                    {
+                        Outcome why = zone.Targets().Reach(eye, door.Ref with { Part = (byte)part }, 3.5f);
+                        Assert.True(why.Ok || why.Code == OutcomeCode.OutOfReach,
+                            $"layout {layout}, {(open ? "open" : "shut")}: from {where} the door's part {part} answers {why.Code}");
+                        reached += why.Ok ? 1 : 0;
+                    }
+                }
+                Assert.True(reached > eyes.Count, $"layout {layout}: the door is reached from most of them ({reached})");
+                // A solid wall still hides it: beside the hut, behind its side wall, in reach of the door but not in sight of it.
+                Vector3 behind = ToZone(hut.Doorway, new Vector3(2.3f, 1.6f, -1.0f));
+                Assert.Equal(OutcomeCode.OutOfSight, zone.Targets().Reach(behind, door.Ref with { Part = 1 }, 3.5f).Code,
+                    $"layout {layout}: through the hut's side wall the door is not seen");
+            }
+        }
+    }
+
+    [Test]
+    public static void AGarageDoorIsNeverRefusedForSightFromWhereItsOpeningShows()
+    {
+        foreach (bool open in new[] { true, false })
+        {
+            using var rig = new GameRig();
+            Zone zone = rig.Zone;
+            (Piece frame, Door door) = GarageOnGround(rig, open);
+            for (float radius = 2.0f; radius <= 4.0f; radius += 1.0f)
+            {
+                for (int degrees = -60; degrees <= 60; degrees += 20)
+                {
+                    float a = degrees * MathF.PI / 180;
+                    Vector3 eye = ToZone(frame, new Vector3(MathF.Sin(a) * radius, 1.6f, MathF.Cos(a) * radius));
+                    Outcome why = zone.Targets().Reach(eye, door.Ref with { Part = 1 }, 3.5f);
+                    Assert.True(why.Ok || why.Code == OutcomeCode.OutOfReach,
+                        $"{(open ? "open" : "shut")} garage door from {radius} m at {degrees} degrees answers {why.Code}");
+                }
+            }
+        }
+    }
+
+    [Test]
     public static void ADoorFitsAndShutsWithAPlayerInTheWay()
     {
         using var rig = new GameRig();

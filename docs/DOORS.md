@@ -117,6 +117,15 @@ same tick. The record is what is replicated (§8); a door saved mid-move is save
   is not tested.
 - **No refusals.** `Toggle` has no `SwingBlocked`, fitting a door no `PlayerInTheWay`; locks and keys are the only things that
   refuse a door (`Locked`), as before.
+- **Nor for sight, where the door shows.** The interaction's one line-of-sight ray (GROUND_SYSTEMS.md §3.4) used to go to the door's
+  *nearest* point, which for an open leaf lies behind its own jamb as seen from anywhere but the doorway's axis: an inward-swinging
+  door could be closed from 3.3 m only from almost straight in front, and from the side the answer was "Something is in the way"
+  (the owner's report, 20 October). A door is now seen when the eye sees any of its leaves' points (three across, two up, where
+  the leaf is now) or its doorway (three across, two up, in the wall's middle plane): `ITargetFamily.SightPoints`,
+  `DoorShapes.SightPoints`, `AimShapes.DoorwaySightPoints`. What still refuses is a real wall: from behind the hut's side wall
+  the door is not seen. `DoorTests.ADoorIsNeverRefusedForSightWhereItsDoorwayShowsAndStillNotThroughAWall` (every layout, open and
+  shut; the answer is Done or OutOfReach, never OutOfSight; before the fix, with the door open, 76 of the 132 sample points of the ring refused at least one of its two targets, the leaf or the opening) and
+  `AGarageDoorIsNeverRefusedForSightFromWhereItsOpeningShows`. The reach itself (3.5 m to the nearest surface) is unchanged.
 
 ## 6. Locks on both faces
 

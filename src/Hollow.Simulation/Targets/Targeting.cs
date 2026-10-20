@@ -176,6 +176,42 @@ public static class DoorShapes
     }
 
     public static Vector3 NearestOnLeaves(Door door, Vector3 at) => Nearest(door, at).Point;
+
+    /// <summary>
+    /// Points to see a door's leaves by besides the nearest one: three along each leaf at two heights, where the leaf is now. A door
+    /// is seen when any of them, or its doorway (<see cref="AimShapes.DoorwaySightPoints"/>), is. Returns how many were written.
+    /// </summary>
+    public static int SightPoints(Door door, Span<Vector3> into)
+    {
+        int n = 0;
+        for (int i = 0; i < door.Def.Leaves.Count; i++)
+        {
+            (Vector3 position, Quaternion rotation) = door.LeafNow(i);
+            ConvexPart[] parts = BuildingWorld.LeafParts(door, i);
+            if (parts.Length == 0)
+            {
+                continue;
+            }
+            Vector3 min = parts[0].Min, max = parts[0].Max;
+            foreach (ConvexPart part in parts)
+            {
+                min = Vector3.Min(min, part.Min);
+                max = Vector3.Max(max, part.Max);
+            }
+            foreach (float across in new[] { 0.25f, 0.5f, 0.75f })
+            {
+                foreach (float up in new[] { 0.3f, 0.7f })
+                {
+                    if (n < into.Length)
+                    {
+                        into[n++] = position + Vector3.Transform(new Vector3(min.X + (max.X - min.X) * across, min.Y + (max.Y - min.Y) * up,
+                            (min.Z + max.Z) / 2), rotation);
+                    }
+                }
+            }
+        }
+        return n;
+    }
 }
 
 /// <summary>The nearest point of a ship's hull (its boxes), the same on both sides.</summary>
@@ -527,6 +563,33 @@ public static class AimShapes
     }
 
     /// <summary>The nearest point of a frame piece's opening (the rectangle in its plane) to a point.</summary>
+    /// <summary>
+    /// Points of a doorway's plane (the wall's middle, in the opening) to see a door by: three across and two up. A door whose open
+    /// leaf lies behind a jamb is seen through its doorway. Returns how many were written.
+    /// </summary>
+    public static int DoorwaySightPoints(BuildingData data, Piece frame, Span<Vector3> into)
+    {
+        if (!data.TryOpening(frame.Def.Opening, out var aperture))
+        {
+            return 0;
+        }
+        BuildingFrame f = frame.Structure.Frame;
+        int n = 0;
+        foreach (double across in new[] { -0.35, 0.0, 0.35 })
+        {
+            foreach (double up in new[] { 0.4, 0.7 })
+            {
+                if (n < into.Length)
+                {
+                    var local = new Core.Vector3D(aperture.Width * across, aperture.Sill + aperture.Height * up, 0);
+                    Core.Vector3D zone = f.ToZone(PieceGeometry.ToFrame(frame.Pose, local));
+                    into[n++] = new Vector3((float)zone.X, (float)zone.Y, (float)zone.Z);
+                }
+            }
+        }
+        return n;
+    }
+
     public static bool NearestInDoorway(BuildingData data, Piece frame, Vector3 from, out Vector3 point)
     {
         point = from;

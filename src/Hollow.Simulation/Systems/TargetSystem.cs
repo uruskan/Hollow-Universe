@@ -683,6 +683,17 @@ public sealed class TargetSystem : ZoneSystem
             return true;
         }
 
+        // What else shows a door: its leaves' middles (open or shut, wherever they have swung or rolled to) and its doorway.
+        public int SightPoints(in TargetRef target, Vector3 eye, Span<Vector3> into)
+        {
+            if (Find(target.Id) is not { } door || zone.Building().World is not { } building)
+            {
+                return 0;
+            }
+            int n = DoorShapes.SightPoints(door, into);
+            return n + AimShapes.DoorwaySightPoints(building.Data, door.Frame, into[n..]);
+        }
+
         // The leaves are building bodies (the pieces' query finds them); the openings are aimed at here, so an open door,
         // whose leaves swung or rolled out of the way, is still what the aim through its doorway meets.
         public void Aim(in AimRay ray, ref AimHit best)
@@ -1042,7 +1053,28 @@ public sealed class TargetSystem : ZoneSystem
         {
             return OutcomeCode.OutOfReach;
         }
-        return !sight || InSight(eye, point, target) ? Outcome.Done : OutcomeCode.OutOfSight;
+        return !sight || InSight(eye, point, target) || SeenByAnotherPoint(eye, target) ? Outcome.Done : OutcomeCode.OutOfSight;
+    }
+
+    // A thing whose nearest point is hidden (a door's open leaf behind its own jamb, seen from the side) is still seen when the eye
+    // sees another of the points its family offers: the owner's rule is that a door is always operable, not only from where its nearest
+    // point shows.
+    private bool SeenByAnotherPoint(Vector3 eye, in TargetRef target)
+    {
+        if (FamilyOf(target.Family) is not { } family)
+        {
+            return false;
+        }
+        Span<Vector3> points = stackalloc Vector3[32];
+        int count = family.SightPoints(target, eye, points);
+        for (int i = 0; i < count; i++)
+        {
+            if (InSight(eye, points[i], target))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>

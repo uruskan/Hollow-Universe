@@ -1,3 +1,4 @@
+using System;
 using System.Numerics;
 
 namespace Hollow.Simulation.Targets;
@@ -129,6 +130,13 @@ public interface ITargetFamily : ITargetView
 
     /// <summary>Whether the thing is still in the world (a broken, removed, felled, dead or gone one isn't).</summary>
     bool Exists(ulong id);
+
+    /// <summary>
+    /// Further points the eye may see the thing by when it cannot see its nearest one (a door's open leaf lies behind its own jamb
+    /// as seen from the side, but its doorway and its leaf's middle show): writes up to <c>into.Length</c> of them and returns how many.
+    /// None by default (GROUND_SYSTEMS.md §3.4).
+    /// </summary>
+    int SightPoints(in TargetRef target, Vector3 eye, Span<Vector3> into) => 0;
 
     /// <summary>The thing itself (its store's object), or null when it doesn't exist.</summary>
     object? Resolve(ulong id);

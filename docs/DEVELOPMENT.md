@@ -5240,3 +5240,13 @@ Validation:
   WorldStoreTests, ArchitectureTests (CliffKitPlacements.cs and TerrainBake.cs), the car's togg model, and
   GunNetTests.GunfightOverTheNetwork (passes alone: a real-time flake).
 
+
+### 20 October 2026 — doors: sight no longer refuses a door whose doorway shows
+
+The owner could not close a door from a bit far away: "Something is in the way". That was not the removed swing-blocked check but the interaction's line of
+sight (`TargetSystem.Reach`, `OutOfSight`) to the door's *nearest* point: for an open inward-swinging leaf (the default from outside, layout 0) that point
+lies behind its own jamb except from the doorway's axis, so at 3.3 m only a few degrees off axis worked (a map of the real rule over a ring of eyes showed
+`XXXXo.XXXXX`, `X` refused). `ITargetFamily.SightPoints` lets a family offer more points; doors offer their leaves' points and their doorway's, and the
+door is seen when the eye sees any (every layout now answers Done or OutOfReach round the doorway; behind a solid wall still OutOfSight). `DoorTests`
+(12): without the fallback the ring test fails (76 of its 132 open-door sample points refused the leaf or the opening in the first map); a garage test too. My earlier work and its tests had covered obstacles to the swing
+and to fitting, not this gate. Validation: build 0 warnings; `DoorTests` 12/12.
