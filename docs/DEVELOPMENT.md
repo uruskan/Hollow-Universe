@@ -1,5 +1,21 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — Ground vehicles designed: the modular car, the motorbike and the lift (V0)
+
+At the owner's request, a design and nothing built: [VEHICLES.md](VEHICLES.md) and its proportion sheet
+(`images/vehicles/proportions.svg`, drawn by `proportions.py`). It covers:
+
+- a car with a nose engine mount and three bays on two levels, on tyres or tracks;
+- cabins of one or two seats, which can be stacked, or a camper shell as a portable base;
+- a motorbike built from mount points, with a sidecar and a snow kit;
+- five engine parts in three tiers;
+- a lift drawing 20 through the electrical graph.
+
+Vehicles are ships in the code, with one module system shared with the minicopter and motorboat sessions (agreed by
+message today) and a `ground` motor of our own. Jolt's vehicle constraint is in the bundled binding, but it needs dynamic
+stepping and cannot save its state for the client's replay. The sheet was checked by eye in the browser pane; no test was
+run. Nine questions wait for the owner (§12).
+
 ## 20 October 2026 — World terrain, iteration 5: the cliff kit placed on the baked Earth
 
 At the owner's word the kit (f58b0207) went onto Earth before the rivers. A fast iteration the owner checks by hand.
