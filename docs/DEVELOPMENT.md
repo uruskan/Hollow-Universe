@@ -39,6 +39,37 @@ ship codec 8 are this work's. What was built is in VEHICLES.md §9.5:
 Checked: `ModuleTests` 7/7 (data, rules, composition, a zone's holds, shots and hammer, codec 8 with a lost module, the
 details on the wire); before the merge, Ship, Content, Seat, Raid, Gun and Damage 128/128; the solution builds with 0
 warnings. The full suite: see the next line. No Godot run: nothing is drawn yet.
+## 20 October 2026 — World terrain: Earth's candidate layouts, the playtest's findings, the cliffs' collision cut
+
+`earth layouts <folder>` (`tools/Hollow.GeneratorReport/EarthLayoutsReport.cs`) bakes Earth with each layout variant
+(0–11 by default), places the cliff kit on it and draws an equal-area relief map: kit pieces as dark red dots, flat
+sites as circles (magenta for a radius of 150 m or more, yellow for 75 m or more) and the landing site as a white cross.
+It also writes a numbered contact sheet and each layout's numbers. All twelve take 76 s; the maps went to the owner in
+`.artifacts/earth-layouts/`, not committed. `earth kit` now also reports each busy site's collision tile.
+
+The owner's playtest of today's Earth found six problems, none fixed yet. Their measured causes are in
+WORLD_TERRAIN_PLAN.md §7a:
+- collision tiles at cliffs of up to 436,000 triangles, 97% of them the kit's shells, copied from pieces as far as 60 m
+  beyond each tile;
+- cliffs that read as scattered assets;
+- bare beaches;
+- ground textures that repeat in visible squares;
+- white pans of very shallow sea filled with the shore foam's 3.1 m texture;
+- a sea's edge that never moves.
+
+The collision is fixed in part. A ground tile now takes only the cliff pieces whose footprint reaches it, and of each
+only the triangles over the tile: at the six busiest sites, 75,000–100,000 triangles instead of 282,000–436,000. The
+client's cosmetic ground (`GroundCollision.cs`) no longer copies shells into its tiles. It makes each piece's shape once
+and places it on the tile its pivot stands over (`IInstancedSolids`, implemented by `WalkingWorld`). Its tiles are now
+the bare ground, about 9,800 triangles.
+
+Earth's terrain revision is now 11. The owner's hosted save refused to start ("contains terrain revision 10 ...") because
+the deeper sea changed Earth's parameters, and with them the fingerprint the save records, without a new revision. A
+new revision gives the hosted game a fresh save (`...-earth-v11.db`) and keeps the old one. The bake is reused: its key
+leaves the revision out.
+
+Checked: the maps and contact sheet by eye, and the collision counts by `earth kit`. The game's C# compiles. No test
+was run, and the fix has not yet been tried in the game (fast iteration, by the owner's rule).
 
 ## 20 October 2026 — Ground vehicles designed: the modular car, the motorbike and the lift (V0)
 

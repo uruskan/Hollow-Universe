@@ -32,6 +32,7 @@ public static class WalkingReport
         if (earth && command == "cliffs-bench") return EarthSurvey.CliffsBench(args);
         if (earth && command == "bake") return Bake(args);
         if (earth && command == "kit") return Kit();
+        if (earth && command == "layouts") return EarthLayoutsReport.Run(args);
         string Arg(int i, string fallback) => args.Length > i ? args[i] : fallback;
         double Num(int i, double fallback) => args.Length > i ? double.Parse(args[i], CultureInfo.InvariantCulture) : fallback;
         var watch = Stopwatch.StartNew();
@@ -87,7 +88,7 @@ public static class WalkingReport
                 All(world, Arg(2, Folder));
                 return 0;
             default:
-                Console.Error.WriteLine("usage: walking stats | relief|biomes|rivers [png] [width] | globe [png] [size] | zoom|slopes lat lon metres [png] [size] | spots | shots | cover lat lon | compare | all; earth candidates <new-folder> [samples:2000..16000] [map-width:256..1024]");
+                Console.Error.WriteLine("usage: walking stats | relief|biomes|rivers [png] [width] | globe [png] [size] | zoom|slopes lat lon metres [png] [size] | spots | shots | cover lat lon | compare | all; earth candidates <new-folder> [samples:2000..16000] [map-width:256..1024]; earth layouts <folder> [--variants 0-11] [--width 1600]");
                 return 2;
         }
     }
@@ -209,6 +210,12 @@ public static class WalkingReport
             Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
                 $"lake: {lake.Area / 10_000:0.0} ha, {lake.MaxDepth:0.0} m deep at {lake.Level:0.0} m: teleport {At(lake.Centre)}"));
         }
+        // Flat land for monuments: the largest circles of nearly level ground (the layouts' magenta and yellow circles).
+        foreach (FlatSite site in bake.FlatSites(0.09, 2).Where(s => s.Radius >= 75))
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"flat land: a circle of {site.Radius:0} m, {site.Area / 10_000:0.0} ha in all: teleport {At(site.Centre)}"));
+        }
         return 0;
     }
 
@@ -249,6 +256,24 @@ public static class WalkingReport
             {
                 busiest.Add(d);
                 Console.WriteLine($"  {cell.Count()} pieces: teleport {At(d)}");
+                // What the ground collision tile there carries: the kit's shells, cut to the tile, against the ground.
+                TileKey tile = TileKey.At(d, GroundCollisionLayout.LevelOn(world.Radius));
+                var timer = Stopwatch.StartNew();
+                TriangleMesh mesh = world.GroundCollision(ZoneFrame.World, tile, GroundCollisionLayout.MarginMetres);
+                double ms = timer.Elapsed.TotalMilliseconds;
+                int kitTriangles = kit.AddCollision(new TriangleMesh(Array.Empty<float>(), Array.Empty<int>()), ZoneFrame.World, tile,
+                    GroundCollisionLayout.MarginMetres).TriangleCount;
+                double tileReach = TileKey.EdgeLength(tile.Level, world.Radius) * 0.75 + GroundCollisionLayout.MarginMetres;
+                int reaching = 0;
+                foreach ((TileKey _, KitPlacement[] near) in kit.Near(tile.Centre * world.Radius, 400))
+                {
+                    foreach (KitPlacement k in near)
+                    {
+                        reaching += Vector3D.Distance(k.Position.Normalized, tile.Centre) * world.Radius <= tileReach + k.Reach ? 1 : 0;
+                    }
+                }
+                Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                    $"    collision tile: {mesh.TriangleCount:N0} triangles ({kitTriangles:N0} of them the kit's, from {reaching} pieces), built in {ms:0} ms"));
             }
             if (busiest.Count == 6)
             {
@@ -262,8 +287,13 @@ public static class WalkingReport
     {
         var galaxy = new Galaxy.Galaxy(null);
         var found = earth ? StartingWorld.Find() : FirstWorld.Find(galaxy) ?? throw new InvalidOperationException("The first world is gone.");
-        WalkingParameters parameters = WalkingParameters.ForBody(found.System.Address.Value, found.Planet.Path);
-        // Look-dev: HOLLOW_WALKING="StreamValley=20;Meander=0" changes numbers of the table for one run.
+        WalkingParameters parameters = LookDev(WalkingParameters.ForBody(found.System.Address.Value, found.Planet.Path));
+        return WalkingWorld.For(found.System, found.Planet, earth ? Galaxy.GameScale.PlanetRadius(found.Planet) : FirstWorldRadius, parameters);
+    }
+
+    // Look-dev: HOLLOW_WALKING="StreamValley=20;Meander=0" changes numbers of the table for one run.
+    internal static WalkingParameters LookDev(WalkingParameters parameters)
+    {
         foreach (string pair in (Environment.GetEnvironmentVariable("HOLLOW_WALKING") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
             string[] kv = pair.Split('=');
@@ -273,7 +303,7 @@ public static class WalkingReport
             property.SetValue(parameters, value);
             Console.WriteLine($"look-dev: {kv[0].Trim()} = {kv[1]}");
         }
-        return WalkingWorld.For(found.System, found.Planet, earth ? Galaxy.GameScale.PlanetRadius(found.Planet) : FirstWorldRadius, parameters);
+        return parameters;
     }
 
     // ---------------------------------------------------------------- numbers

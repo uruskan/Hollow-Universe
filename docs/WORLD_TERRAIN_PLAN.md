@@ -465,15 +465,17 @@ Iteration 4 runs in its own session on art files only.
   project's 57 built monuments (12 medium, 10 large, 8 landmarks in `game/data/monuments`) stand on Earth: only 6
   roadside ones from `src/Hollow.Surface/Data/monuments.json` are placed.
 - **The order now, as the owner chose** (Rust's generator places monuments before rivers and cliffs):
-  1. **Candidate layouts.** An `earth layouts <folder>` command, not yet written:
+  1. **Candidate layouts.** `earth layouts <folder> [--variants 0-11] [--width 1600]`, written on 20 October:
      - Earth with `LayoutVariant` 0–11 (5 is today's), each baked, with the kit placed;
-     - one equal-area relief map each (`WalkingReport.Map`'s helpers are internal now), with cliff pieces as dark red
-       dots and flat sites as circles: magenta for large (radius ≥ 150 m), yellow for medium (≥ 75 m), from
-       `TerrainBake.FlatSites(maxSlope ≈ 0.09, minHeight 2)`;
-     - a contact sheet with numbers;
-     - per candidate: land share, relief shares, highest ground, lakes, cliff pieces, flat sites.
+     - an equal-area relief map each (`layout-NN.png`): cliff pieces as dark red dots, flat sites from
+       `TerrainBake.FlatSites(0.09, 2)` as circles, magenta from a radius of 150 m and yellow from 75 m, the landing
+       site as a white cross;
+     - a numbered contact sheet, and `layouts.txt` and `layouts.json`: land share, relief shares, highest ground, lakes,
+       cliff pieces, flat sites, the landing site.
 
-     The owner picks one, or describes the Earth they want.
+     All twelve take 76 s, three at a time (15 s once their bakes are cached). The owner picks one, or describes the
+     Earth they want. Layout 6, the one I recommended, went into the game the same day (revision 12) for the owner to
+     fly before choosing. `earth bake` lists its places worth a look, flat sites included, as F1 teleports.
   2. **Monument sites.** About 2 large, 5 medium and 10 small, plus roadside ones, on the flattest sites. Their pads
      are flattened in the bake before erosion, so drainage and cliffs respect them.
   3. **Rivers.** The design is ready but no code is written:
@@ -489,10 +491,35 @@ Iteration 4 runs in its own session on art files only.
      - tiers kept 24 m apart;
      - `KitLeanBack` and the seed slopes.
   5. **Roads** between monuments.
+- **Found in the owner's playtest of 20 October, not yet fixed:**
+  - **Cliffs cost the most in collision; fixed in part the same day.** At the busiest cliff sites one 64 m collision
+    tile carried 280,000–436,000 triangles, 97% of them the kit's shells; the bare ground is about 9,800.
+    `CliffKitPlacements.AddCollision` added the whole shell of every piece within the tile's reach plus 60 m: 139–222
+    pieces, of which 65–89 reach the tile. The client's cosmetic ground (`GroundCollision.cs`) then made each tile a
+    concave shape on the main thread.
+    - Now a tile takes only the pieces whose footprint reaches it, and of each only the triangles over the tile (or
+      within its 2 m margin): 75,000–100,000 triangles at those sites.
+    - The cosmetic ground no longer copies shells into tiles. It makes each piece's shape once and places it on the
+      tile its pivot stands over (`IInstancedSolids`), so its tiles hold the bare ground alone.
+    - Still to do in step 6: the server's and the prediction's tiles keep the cut shells, which is 7–10 times the
+      ground. Fewer pieces (step 4) and instanced shapes in Jolt would bring them down. `earth kit` prints these
+      numbers.
+  - **The cliffs read as scattered assets.** Chains stand on every slope over 32°, ledges are stacked in rows round
+    mountains, and gaps are left between them. Each piece also shows its own scan's textures, so neighbours don't
+    match. For step 4.
+  - **Beaches are bare:** no driftwood, boulders, pebbles or wrack. The owned scans include a Nordic beach boulder,
+    coast rocks and coast lines, and dead logs that could be bleached into driftwood.
+  - **The ground's textures tile visibly** on even ground and from the air. The shader blends two or three scales of
+    the same scan, so the repeats still show as squares; iteration 3's anti-tiling is not built.
+  - **White pans by the beaches.** About 19 ha of sea is under 18 cm deep, and the water shader fills it with its
+    shore foam, a texture that repeats every 3.1 m.
+  - **The sea's edge never moves.** There is no run-up or backwash, and the shore foam drifts at about 6 cm/s.
 - **Uncommitted when the session ended:** nothing. Earth's sea is three times deeper (`SeaDepth` 3, floor at most
   300 m), at the owner's word that it was far too shallow; Earth's bake re-runs once (about 13 s).
 - **Way of working:** fast iterations the owner checks by hand; no tests or screenshot runs until they approve a look.
-  Then polish:
+  Every change to Earth's shape, its parameters or its solids raises `WalkingParameters.Earth.TerrainRevision` in the
+  same commit. Otherwise the owner's hosted save, which records the parameters' fingerprint, refuses to start. The
+  deeper sea of 20 October did exactly that (now revision 11). Then polish:
   - tests, including `TerrainSaveTests` and the cliff tests;
   - docs;
   - save revisions;
