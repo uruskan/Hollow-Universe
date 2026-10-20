@@ -452,7 +452,7 @@ wrecks to recover belong with the roads, later.
 |---|---|---|
 | V0 | This document; the owner's answers to §12 | — |
 | V1 | The module core and the motor registry: modules.json, the assembler, the build in the state, codec 7 and the network; **shared**, built by whichever of the three sessions starts first | `Modules` tests |
-| V2 | The ground motor on a fixed build of blocks: driving the baked Earth in `--view vehicle`; moving bodies; run-over | `GroundMotor`, `RunOver`; the sandbox tour |
+| V2 | The ground motor on a fixed build of blocks: driving the baked Earth in `--view vehicle`; moving bodies; run-over. First, `ShipMotor`'s shared helpers (gravity and the curvature turn, the hull's sweep, crash damage, sleep) pulled out as statics: the drive seam (98621ac7 on `claude/motorboat`) leaves them inside the step | `GroundMotor`, `RunOver`; the sandbox tour |
 | V3 | Seats, the car and bike control schemes, prediction of passengers, the HUD; the hosted game | Network tests; a hosted drive with a passenger |
 | V4 | The lift: item, power, the vehicle screen, locks; engine parts and tiers; crafting and the tree | `Lift`; `ContentTests`; the screen in `--view ui --screen vehicle` |
 | V5 | The car's modules and stacking; build zones aboard (beds, boxes) | `Modules`; a camp built and driven |
