@@ -98,10 +98,12 @@ public partial class ShipSandbox : Node3D
         _shot = Options.ContainsKey("shot");
         _touring = Options.ContainsKey("tour");
         _scene = Options.TryGetValue("scene", out string? scene) ? scene : "pad";
-        ZoneSpec? spec = ZoneSpec.FirstWorld(GalaxyService.Galaxy, FirstWorld.LandingLatitude, FirstWorld.LandingLongitude);
-        if (spec == null || PlanetBodies.Find(spec.SystemAddress, spec.BodyPath) is not { } found)
+        // Earth at its landing site, its walking-scale ground, as the ground game builds it (GroundMode; the old 2.41 km first
+        // world is past the planets' surface-area bound since WORLD-01's scale).
+        ZoneSpec spec = ZoneSpec.StartingWorld(StartingWorld.LandingLatitude, StartingWorld.LandingLongitude) with { Ground = GroundKind.Walking };
+        if (PlanetBodies.Find(spec.SystemAddress, spec.BodyPath) is not { } found)
         {
-            GD.PushError("--view ship: the first world is not in this universe.");
+            GD.PushError("--view ship: Earth is not in this universe.");
             return;
         }
         _content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
@@ -469,7 +471,15 @@ public partial class ShipSandbox : Node3D
         }
         if (_touring)
         {
-            Tour();
+            // A rotorcraft flies its own tour (ShipSandbox.RotorTour.cs); everything else the Tin Finch's.
+            if (_ship.Def.Drive is ShipRotor)
+            {
+                RotorTour();
+            }
+            else
+            {
+                Tour();
+            }
         }
         if (!_paused)
         {
@@ -536,7 +546,14 @@ public partial class ShipSandbox : Node3D
             _zone.Step();
             if (_touring)
             {
-                TourStep();
+                if (_ship.Def.Drive is ShipRotor)
+                {
+                    RotorTourStep();
+                }
+                else
+                {
+                    TourStep();
+                }
             }
             Events();
             _shipNow = _ship.State;

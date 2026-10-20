@@ -317,6 +317,7 @@
       ],
       "nozzles": {},
       "lights": {
+        "nav": false,
         "lamps": [
           { "key": "landing", "at": [0, 0.5, 1.42], "direction": [0, -0.4, 1], "spot": true, "angle": 28, "colour": [1.0, 0.92, 0.78], "energy": 3, "range": 60 },
           { "key": "tail", "at": [0, 1.24, -4.17], "colour": [1.0, 0.08, 0.04], "energy": 0.8, "range": 3 }

@@ -223,6 +223,31 @@ public static class RotorTests
         Assert.True(along > 0.99f, "it goes the way its nose points");
     }
 
+    /// <summary>§5.3: from full speed, the stick pulled back flares it to a stop without losing its height.</summary>
+    [Test]
+    public static void RotorFlaresToAStop()
+    {
+        using var rig = Earth();
+        Ship ship = Add(rig, height: 40, spool: 1);
+        rig.Fly(ship, new ShipInput { Pitch = -1 }, 15 * T);
+        float from = Horizontal(rig, ship), start = rig.Height(ship), lowest = start;
+        int ticks = 0;
+        while (Horizontal(rig, ship) > 2.5f && ticks < 15 * T)
+        {
+            rig.Fly(ship, new ShipInput { Pitch = 1 }, 1);
+            lowest = MathF.Min(lowest, rig.Height(ship));
+            ticks++;
+            if (ticks % 15 == 0)
+            {
+                Fixtures.Report($"  flare t {ticks / (float)T:0.0}: speed {Horizontal(rig, ship):0.0} height {rig.Height(ship):0.0} climb {Climb(rig, ship):0.0} tilt {TiltDegrees(rig, ship):0} collective {ship.State.Thrust.Y:0.00} hull {ship.State.Health:0}");
+            }
+        }
+        Fixtures.Report($"KA-FA flare from {from:0.0} m/s: stopped in {ticks / (float)T:0.0} s, lowest {lowest - start:0.0} m from where it began, hull {ship.State.Health:0}");
+        Assert.True(Horizontal(rig, ship) <= 2.5f, "the flare stops it");
+        Assert.True(start - lowest < 5, "without losing much height");
+        Assert.Equal(750f, ship.State.Health, "unhurt");
+    }
+
     /// <summary>§5.3: let go of the stick and it comes back to level by itself.</summary>
     [Test]
     public static void RotorLevelsItselfWhenLetGo()
