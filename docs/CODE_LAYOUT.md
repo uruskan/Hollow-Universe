@@ -317,6 +317,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `InteractionsReader.cs` | 104 | InteractionsReader | Reads interactions.json (GROUND_SYSTEMS.md §5) once survival.json's reaches are known (a verb names one of them). |
 | `ItemsReader.cs` | 312 | ItemsReader | items.json: every item with its parts (melee, bow, ammo, consume, wear, fuel, |
 | `LootReader.cs` | 79 | LootReader | loot.json: the loot tables (guaranteed entries, then weighted rolls): the respawn kit, the load tests' kits, the |
+| `ModulesReader.cs` | 190 | ModulesReader | modules.json (VEHICLES.md §9.1): the kinds of module a ship's sockets take, each an item with its fit, span, levels, height, load, mass, hull boxes, and seats, doors and parts read as a ship's (its first part its body); the hold, the fuel. |
 | `PhysicalSurfacesReader.cs` | 48 | PhysicalSurfacesReader | Reads the physical-surfaces data file and checks that every terrain, grade, door, deployable, natural object, ship and part has a surface. |
 | `PlacementReader.cs` | 393 | PlacementReader | placement.json (GROUND_SYSTEMS.md §6): the defaults every placement rule starts from, each kind's block over them, the |
 | `ReaderHelpers.cs` | 74 | ReaderHelpers | Fields more than one reader shares: lists of numbers as vectors (the deployables' bays, the ships) and a ship's turn axis. |
@@ -490,6 +491,8 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `ShipFuel.cs` | 88 | ShipFuel | ShipFuel: a tank's whole fuel units plus the fraction drawn into its engine; only whole units move through inventory; migrates old float saves. |
 | `ShipInterior.cs` | 389 | ShipPartKind, ShipPartDef, ShipPiece, BoardingBox, ShipSocket, ShipBuildZone, ShipExclusion, StationBarrelData, StationGeometry, ShipFixture, ShipRoom, PartPose, ShipInterior | How one of a ship's parts moves (the data file's part kinds, IRON_WAKE.md §9.1). |
 | `ShipLayout.cs` | 282 | SeatRole, SeatSitters, SeatWorks, DoorOpens, DoorEase, ShipPartHealth, ShipSeatDef, ShipDoorDef, ShipTargetPart, NozzleDrive, ShipNozzle, LightPower, ShipLight | What a seat's occupant does (ships.json seats' role, IRON_WAKE.md §5.2). |
+| `GroundMotor.cs` | 443 | WheelDef, GroundDef, GroundMotor [WheelLoad] | A vehicle on wheels (VEHICLES.md §6.2): wheels and how it drives, and the ground motor: sprung wheels by rays, tyres' grip along and across within grip x load, drive, brakes, holding, the hull swept, the ground turning under it. |
+| `ShipMotors.cs` | 72 | IShipMotor, ShipMotors, FlightMotor | A ship's whole step by ships.json motor (VEHICLES.md §9.2): flight (ShipMotor.Step with its drive) or ground. |
 | `ShipDrives.cs` | 142 | ShipDriveContext, IShipDrive, ShipDrives | What a drive sees when it decides a tick's thrust and turn; the drives by kind (ships.json drive). |
 | `ShipMotor.cs` | 736 | ShipContext, ShipMotor [SkidLoad] | What a ship's step needs to know about where it happens. |
 | `ShipPropeller.cs` | 123 | ShipPropeller | An outboard motor (ships.json drive propeller, docs/MOTORBOAT.md §3): pushes only under the water, steers by the water past its leg. |
@@ -497,6 +500,13 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `ShipState.cs` | 204 | ShipFlags, ShipButtons, ShipInput, ShipState, ShipEvents | What a ship is doing, besides its motion. Some are found by the last step (outputs), some set by the zone. |
 | `ShipThrusters.cs` | 171 | ShipThrusters | Thrusters on every axis (GROUND.md §6.6), the Tin Finch's and the Iron Wake's drive and the default, with flight assist. |
 | `ShipStations.cs` | 662 | StationBarrel, ShipStationDef, StationInput, StationAim, LoaderState, StationState, StationRules, LoaderPoses [NodePose, HolderView] | A ship's stations (IRON_WAKE.md §6): defs, state, loader records, the mount and fire rules both sides run, the mechanism's poses. |
+
+### src/Hollow.Simulation/Ships/Modules (2 files, 508 lines)
+
+| File | Lines | Types | What |
+|---|---|---|---|
+| `ModuleDef.cs` | 171 | ShipSocketDef, ModuleDef, Installed, ShipBuild, PlacedModule, ShipHold | A kind's sockets, a kind of module, one module installed, a ship's build (its entries in socket and level order, equal whatever order they came in), a module where it stands in a composed layout, a module's hold (VEHICLES.md §9.1). |
+| `ShipAssembler.cs` | 337 | BuildProblem, ShipAssembler | Checks a build against its kind's sockets (§3.3) and composes kind + build into one ShipDef, copied from the kind, made once per build: seats, doors, parts and hull boxes moved by their socket, one helm, mass, centre of mass, inertia, fuel, holds; makes untrusted builds sane. |
 
 ### src/Hollow.Simulation/Systems (45 files, 13,286 lines)
 

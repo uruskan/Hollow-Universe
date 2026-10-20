@@ -5,8 +5,12 @@ using Hollow.Simulation.Content;
 
 namespace Hollow.Simulation.Ships;
 
-/// <summary>One box of a ship's hull, in the ship's frame: its centre and half extents.</summary>
-public readonly record struct HullBox(Vector3 Centre, Vector3 HalfExtents, bool Skid);
+/// <summary>
+/// One box of a ship's hull, in the ship's frame: its centre and half extents. A skid's box is raised to its travel's end
+/// for sweeps. A fragile box (a rotor's disc, docs/MINICOPTER.md §5.5) meets the world only while the ship flies: a fast
+/// contact on it is a strike, shots pass through it, and a parked ship's body leaves it out.
+/// </summary>
+public readonly record struct HullBox(Vector3 Centre, Vector3 HalfExtents, bool Skid, bool Fragile = false);
 
 /// <summary>Per-axis turning: the most rate flight assist asks for, and the thrusters' angular acceleration (radians).</summary>
 public readonly record struct TurnAxis(float MaxRate, float Acceleration);
@@ -27,12 +31,12 @@ public sealed class ShipDef
 
     public string Name => Item.Name;
 
-    public float Mass { get; init; }
+    public float Mass { get; internal set; }
 
     /// <summary>Moments of inertia about the ship's x (pitch), y (yaw) and z (roll) axes through the centre of mass.</summary>
-    public Vector3 Inertia { get; init; }
+    public Vector3 Inertia { get; internal set; }
 
-    public Vector3 CentreOfMass { get; init; }
+    public Vector3 CentreOfMass { get; internal set; }
 
     public float Health { get; init; }
 
@@ -54,8 +58,23 @@ public sealed class ShipDef
         _ => MeleeDamage,
     };
 
+    /// <summary>
+    /// How it moves through a tick (ships.json <c>motor</c>, <see cref="ShipMotors"/>, VEHICLES.md §9.2): flight by default, or
+    /// on wheels (<see cref="GroundMotor"/>).
+    /// </summary>
+    public IShipMotor Motor { get; init; } = FlightMotor.Instance;
+
+    /// <summary>How a vehicle on wheels drives (ships.json <c>ground</c>), or null: it doesn't.</summary>
+    public GroundDef? Ground { get; init; }
+
+    /// <summary>Its wheels (the kind's, then its modules', each where its socket puts it).</summary>
+    public IReadOnlyList<WheelDef> Wheels { get; internal set; } = Array.Empty<WheelDef>();
+
+    /// <summary>Its engines' power in watts (ships.json <c>ground.power</c> and its modules' <c>power</c>): a ground motor's drive.</summary>
+    public float EnginePower { get; internal set; }
+
     /// <summary>What its engines do each tick (ships.json <c>drive</c>, <see cref="ShipDrives"/>; by default thrusters).</summary>
-    public IShipDrive Drive { get; init; } = ShipThrusters.Instance;
+    public IShipDrive Drive { get; internal set; } = ShipThrusters.Instance;
 
     /// <summary>The control scheme a client reads its helm's keys by when none is named (the Tin Finch's flight).</summary>
     public const string DefaultControls = "flight";
@@ -171,10 +190,70 @@ public sealed class ShipDef
 
     public float CrashPilotShare { get; init; }
 
+    /// <summary>
+    /// Rust's crash rule instead (ships.json crash <c>fatal</c>, docs/MINICOPTER.md M10), when above 0: an impact faster
+    /// than the safe speed costs the hull's whole times its place between safe and <c>fatal</c>, at least
+    /// <see cref="CrashLeast"/> of it, and <see cref="CrashTipped"/> times that with the ship tipped past 60°.
+    /// </summary>
+    public float CrashFatalSpeed { get; init; }
+
+    public float CrashLeast { get; init; }
+
+    public float CrashTipped { get; init; } = 1;
+
+    /// <summary>The share of the hull a strike on a fragile box costs (ships.json crash <c>strike</c>).</summary>
+    public float StrikeShare { get; init; }
+
+    /// <summary>
+    /// The hull damage an impact at <paramref name="speed"/> does, <paramref name="upness"/> the cosine of the ship's tilt
+    /// from level: the quadratic rule, or Rust's (<see cref="CrashFatalSpeed"/>).
+    /// </summary>
+    public float CrashDamage(float speed, float upness)
+    {
+        if (speed <= CrashSafeSpeed)
+        {
+            return 0;
+        }
+        if (CrashFatalSpeed > CrashSafeSpeed)
+        {
+            float share = MathF.Max(Math.Clamp((speed - CrashSafeSpeed) / (CrashFatalSpeed - CrashSafeSpeed), 0, 1), CrashLeast);
+            return share * Health * (upness < 0.5f ? CrashTipped : 1);
+        }
+        float over = speed - CrashSafeSpeed;
+        return over * over * CrashScale;
+    }
+
+    /// <summary>Whether a point of the ship's frame (from the pivot) lies on a fragile hull box (or within 10 cm of one).</summary>
+    public bool FragileAt(Vector3 local)
+    {
+        foreach (HullBox box in Hull)
+        {
+            if (!box.Fragile)
+            {
+                continue;
+            }
+            Vector3 d = Vector3.Abs(local - box.Centre);
+            if (d.X <= box.HalfExtents.X + 0.1f && d.Y <= box.HalfExtents.Y + 0.1f && d.Z <= box.HalfExtents.Z + 0.1f)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// <summary>Whether the hull has a fragile box at all.</summary>
+    public bool HasFragile { get; private set; }
+
+    /// <summary>
+    /// Its engines stop when nobody awake is at its helm (ships.json <c>needsPilot</c>, Rust's minicopter: docs/MINICOPTER.md
+    /// M12); without it they run on as the pilot left them (the Tin Finch's, which holds itself where it was).
+    /// </summary>
+    public bool NeedsPilot { get; init; }
+
     /// <summary>The fuel (an item), the tank, and units burnt a second at idle and at full thrust; boost burns this many times more.</summary>
     public ItemDef Fuel { get; init; } = null!;
 
-    public float FuelCapacity { get; init; }
+    public float FuelCapacity { get; internal set; }
 
     public float FuelIdle { get; init; }
 
@@ -187,12 +266,12 @@ public sealed class ShipDef
 
     public int CargoSlots { get; init; }
 
-    public IReadOnlyList<HullBox> Hull { get; init; } = Array.Empty<HullBox>();
+    public IReadOnlyList<HullBox> Hull { get; internal set; } = Array.Empty<HullBox>();
 
     // ---------------------------------------------------------------- seats, doors and parts (IRON_WAKE.md §5.1)
 
     /// <summary>Its seats (ships.json <c>seats</c>, §5.2): by index, the wire's and the saves' number.</summary>
-    public IReadOnlyList<ShipSeatDef> Seats { get; init; } = Array.Empty<ShipSeatDef>();
+    public IReadOnlyList<ShipSeatDef> Seats { get; internal set; } = Array.Empty<ShipSeatDef>();
 
     /// <summary>The seat that flies it (the one with the helm's role; the content check wants exactly one).</summary>
     public ShipSeatDef Helm => _helm ??= FirstHelm();
@@ -212,12 +291,12 @@ public sealed class ShipDef
     }
 
     /// <summary>Its doors (ships.json <c>doors</c>, §5.3): by index, the wire's and the saves' number.</summary>
-    public IReadOnlyList<ShipDoorDef> Doors { get; init; } = Array.Empty<ShipDoorDef>();
+    public IReadOnlyList<ShipDoorDef> Doors { get; internal set; } = Array.Empty<ShipDoorDef>();
 
     /// <summary>
     /// Its target parts (ships.json <c>parts</c>, GROUND_SYSTEMS.md §3.1): <c>TargetRef.Part</c> is an index here, 0 the hull.
     /// </summary>
-    public IReadOnlyList<ShipTargetPart> Parts { get; init; } = Array.Empty<ShipTargetPart>();
+    public IReadOnlyList<ShipTargetPart> Parts { get; internal set; } = Array.Empty<ShipTargetPart>();
 
     /// <summary>Its crewed batteries (IRON_WAKE.md §6, IW3): by index, the wire's and the saves' number.</summary>
     public IReadOnlyList<ShipStationDef> Stations { get; init; } = Array.Empty<ShipStationDef>();
@@ -421,6 +500,92 @@ public sealed class ShipDef
     /// <summary>What a destroyed ship leaves in its wreck besides its cargo and fuel.</summary>
     public IReadOnlyList<ItemAmount> Wreck { get; init; } = Array.Empty<ItemAmount>();
 
+    /// <summary>
+    /// What mending its hull with the hammer costs (ships.json <c>repair</c>: the material and a full repair's cost; VEHICLES.md
+    /// §5.5), or null: the hull isn't mended.
+    /// </summary>
+    public ShipRepair? HullRepair { get; init; }
+
+    // ---------------------------------------------------------------- modules (VEHICLES.md §9.1)
+
+    /// <summary>Where modules go on this kind (ships.json <c>sockets</c>): none for a kind that takes none.</summary>
+    public IReadOnlyList<Modules.ShipSocketDef> Sockets { get; init; } = Array.Empty<Modules.ShipSocketDef>();
+
+    /// <summary>The tallest a build may stand over the ship's origin (ships.json <c>buildHeight</c>, metres; 0: no limit).</summary>
+    public float BuildHeight { get; init; }
+
+    /// <summary>The kind this layout is of: itself for a kind as read, the kind for one composed with modules.</summary>
+    public ShipDef Kind => _kind ?? this;
+
+    private ShipDef? _kind;
+
+    /// <summary>
+    /// What its modules add to its drive, by name (modules.json <c>drive</c> summed over the build, and each module's
+    /// <c>power</c> as "power"); empty for a kind as read.
+    /// </summary>
+    public IReadOnlyDictionary<string, float> DriveSums { get; private set; } = new Dictionary<string, float>();
+
+    /// <summary>
+    /// What a ship of this kind is made with when it is made without a build (ships.json <c>build</c>: crafted, placed, the
+    /// admin's <c>ship</c>): empty for none. Read once the modules are (ModulesReader).
+    /// </summary>
+    public Modules.ShipBuild DefaultBuild { get; internal set; } = Modules.ShipBuild.Empty;
+
+    /// <summary>The default build as ships.json names it: socket keys, levels, module keys.</summary>
+    internal IReadOnlyList<(string Socket, int Level, string Module)> DefaultBuildKeys { get; init; } = Array.Empty<(string, int, string)>();
+
+    /// <summary>The modules installed (empty for a kind as read): with <see cref="Kind"/>, what this layout is.</summary>
+    public Modules.ShipBuild Build { get; private set; } = Modules.ShipBuild.Empty;
+
+    /// <summary>Each installed module where it stands, in the build's order (the views draw them; empty without modules).</summary>
+    public IReadOnlyList<Modules.PlacedModule> Placed { get; private set; } = Array.Empty<Modules.PlacedModule>();
+
+    /// <summary>
+    /// The target part each hull box belongs to, by the hull's order (a module's boxes its body part, a shot's part), or empty:
+    /// every box the hull's.
+    /// </summary>
+    public IReadOnlyList<byte> HullParts { get; private set; } = Array.Empty<byte>();
+
+    /// <summary>The target part a hull box belongs to (0: the hull).</summary>
+    public byte HullPart(int box) => box >= 0 && box < HullParts.Count ? HullParts[box] : ShipParts.Hull;
+
+    /// <summary>The modules' holds (a locker's slots, opened at its part), by index; the kind's own cargo is apart.</summary>
+    public IReadOnlyList<Modules.ShipHold> Holds { get; private set; } = Array.Empty<Modules.ShipHold>();
+
+    /// <summary>The hold opened at a target part, or −1.</summary>
+    public int HoldOfPart(int part)
+    {
+        for (int i = 0; i < Holds.Count; i++)
+        {
+            if (Holds[i].Part == part)
+            {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// A copy of this kind for a build (<see cref="Modules.ShipAssembler"/>): every field the kind has, the build's own set
+    /// after. A copy, so whatever a kind gains later is carried over without the assembler naming it.
+    /// </summary>
+    internal ShipDef CopyFor(Modules.ShipBuild build, IReadOnlyList<Modules.PlacedModule> placed, IReadOnlyList<byte> hullParts,
+        IReadOnlyList<Modules.ShipHold> holds, IReadOnlyDictionary<string, float> driveSums)
+    {
+        var copy = (ShipDef)MemberwiseClone();
+        copy._kind = Kind;
+        copy._helm = null;
+        copy._partOfPieces = null;
+        copy.Build = build;
+        copy.DriveSums = driveSums;
+        copy.Drive = Drive.Compose(driveSums);
+        copy.Placed = placed;
+        copy.HullParts = hullParts;
+        copy.Holds = holds;
+        copy.DefaultBuild = Modules.ShipBuild.Empty;
+        return copy;
+    }
+
     /// <summary>The hull's extent: the half size of the box holding every hull box (for quick tests).</summary>
     public Vector3 BoundsCentre { get; internal set; }
 
@@ -464,6 +629,7 @@ public sealed class ShipDef
         foreach (HullBox box in Hull)
         {
             boxes += box.Skid ? 0 : 1;
+            HasFragile |= box.Fragile;
         }
         MostContacts = Math.Max(4, boxes);
     }
@@ -482,6 +648,9 @@ public sealed class ShipDef
 /// under a point of its frame while it is in the water and moving, full at <paramref name="FullSpeed"/> m/s.
 /// </summary>
 public sealed record ShipWake(Vector3 At, string Effect, float FullSpeed);
+
+/// <summary>What one full mend costs (ships.json <c>repair</c>): the material, and how much of it from nothing to whole.</summary>
+public sealed record ShipRepair(ItemDef Material, int Full);
 
 /// <summary>The hull's number among a ship's target parts (GROUND_SYSTEMS.md §3.1): 0, the rest of the ship.</summary>
 public static class ShipParts

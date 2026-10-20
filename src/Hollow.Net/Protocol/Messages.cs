@@ -301,6 +301,9 @@ public partial struct OwnShipState
     public float CruiseVertical;
     /// <summary>The engine's partial unit; its separate precision keeps prediction and authoritative burn identical.</summary>
     public float FuelReserve;
+
+    /// <summary>The drive's engine speed (a rotor's spin, <c>ShipState.Spool</c>): the lift depends on it.</summary>
+    public float Spool;
 }
 
 /// <summary>
@@ -326,6 +329,9 @@ public partial struct ShipNetState
     [Signed(8)] public sbyte ThrustY;
     [Signed(8)] public sbyte ThrustZ;
     public byte Health;
+
+    /// <summary>The drive's engine speed (a rotor's spin) in 1/255: what the rotor's blades and sound show.</summary>
+    public byte Spool;
     [VarInt] public uint Kind;
 
     /// <summary>
@@ -788,7 +794,8 @@ public partial struct ShipIntent
 /// details differ from a new one's comes into range: its moving parts away from rest that no door drives (their states'
 /// bits exactly, so a client's space poses as the server's and its prediction aboard stays exact; every part not listed
 /// is at the interior's rest), each door's motion (where it was at a tick and which way it goes: a client works out its
-/// progress at any tick as the server does), who sits in each seat taken, and each part's health below its most.
+/// progress at any tick as the server does), who sits in each seat taken, and each part's health below its most; and its
+/// build (VEHICLES.md §9.1), from which a client composes the layout the seats, doors and parts are numbered by.
 /// </summary>
 [NetMessage(121)]
 public partial struct ShipDetails
@@ -798,6 +805,16 @@ public partial struct ShipDetails
     [MaxCount(16)] public ShipDoorNet[] Doors;
     [MaxCount(31)] public ShipSeatNet[] Seats;
     [MaxCount(255)] public ShipPartHealthNet[] Health;
+    [MaxCount(32)] public ShipModuleNet[] Modules;
+}
+
+/// <summary>A module installed (VEHICLES.md §9.1): the socket it starts at, its level, its item.</summary>
+[NetStruct]
+public partial struct ShipModuleNet
+{
+    public byte Socket;
+    [Bits(2)] public byte Level;
+    public ushort Module;
 }
 
 /// <summary>One part's state: its index in the interior, the float's bits.</summary>

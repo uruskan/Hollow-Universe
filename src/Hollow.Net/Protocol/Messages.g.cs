@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xC29244CC11267FFFUL;
+    public const ulong SchemaHash = 0x24B5A958945B62CBUL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -533,6 +533,7 @@ partial struct OwnShipState
         w.WriteFloat(CruiseStrafe);
         w.WriteFloat(CruiseVertical);
         w.WriteFloat(FuelReserve);
+        w.WriteFloat(Spool);
     }
 
     public static OwnShipState Read(BitReader r)
@@ -563,6 +564,7 @@ partial struct OwnShipState
         v.CruiseStrafe = r.ReadFloat();
         v.CruiseVertical = r.ReadFloat();
         v.FuelReserve = r.ReadFloat();
+        v.Spool = r.ReadFloat();
         return v;
     }
 }
@@ -584,6 +586,7 @@ partial struct ShipNetState
         w.WriteSigned(ThrustY, 8);
         w.WriteSigned(ThrustZ, 8);
         w.WriteBits((uint)Health, 8);
+        w.WriteBits((uint)Spool, 8);
         w.WriteVarUInt(Kind);
         w.WriteVarUInt(Body);
     }
@@ -604,6 +607,7 @@ partial struct ShipNetState
         v.ThrustY = (sbyte)r.ReadSigned(8);
         v.ThrustZ = (sbyte)r.ReadSigned(8);
         v.Health = (byte)r.ReadBits(8);
+        v.Spool = (byte)r.ReadBits(8);
         v.Kind = r.ReadVarUInt();
         v.Body = r.ReadVarUInt();
         return v;
@@ -729,6 +733,15 @@ partial struct ShipNetState
         {
             w.WriteBool(false);
         }
+        if (Spool != b.Spool)
+        {
+            w.WriteBool(true);
+            w.WriteBits((uint)Spool, 8);
+        }
+        else
+        {
+            w.WriteBool(false);
+        }
         if (Kind != b.Kind)
         {
             w.WriteBool(true);
@@ -806,6 +819,10 @@ partial struct ShipNetState
         }
         if (r.ReadBool())
         {
+            v.Spool = (byte)r.ReadBits(8);
+        }
+        if (r.ReadBool())
+        {
             v.Kind = r.ReadVarUInt();
         }
         if (r.ReadBool())
@@ -815,7 +832,7 @@ partial struct ShipNetState
         return v;
     }
 
-    public readonly bool SameAs(in ShipNetState o) => X == o.X && Y == o.Y && Z == o.Z && TurnLargest == o.TurnLargest && TurnA == o.TurnA && TurnB == o.TurnB && TurnC == o.TurnC && Flags == o.Flags && Viewer == o.Viewer && ThrustX == o.ThrustX && ThrustY == o.ThrustY && ThrustZ == o.ThrustZ && Health == o.Health && Kind == o.Kind && Body == o.Body;
+    public readonly bool SameAs(in ShipNetState o) => X == o.X && Y == o.Y && Z == o.Z && TurnLargest == o.TurnLargest && TurnA == o.TurnA && TurnB == o.TurnB && TurnC == o.TurnC && Flags == o.Flags && Viewer == o.Viewer && ThrustX == o.ThrustX && ThrustY == o.ThrustY && ThrustZ == o.ThrustZ && Health == o.Health && Spool == o.Spool && Kind == o.Kind && Body == o.Body;
 
     /// <summary>The bits <see cref="WriteDelta"/> takes, without writing.</summary>
     public readonly int DeltaBits(in ShipNetState b)
@@ -834,16 +851,17 @@ partial struct ShipNetState
         bits += ThrustY == b.ThrustY ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustY - (int)b.ThrustY));
         bits += ThrustZ == b.ThrustZ ? 1 : 1 + BitWriter.DeltaBits(unchecked((int)ThrustZ - (int)b.ThrustZ));
         bits += Health == b.Health ? 1 : 9;
+        bits += Spool == b.Spool ? 1 : 9;
         bits += Kind == b.Kind ? 1 : 1 + BitWriter.VarUIntBits(Kind);
         bits += Body == b.Body ? 1 : 1 + BitWriter.VarUIntBits(Body);
         return bits;
     }
 
     /// <summary>The exact bits <see cref="Write"/> takes for this state, without writing.</summary>
-    public readonly int EncodedBits => 32 + 32 + 32 + 2 + 16 + 16 + 16 + 11 + 8 + 8 + 8 + 8 + 8 + BitWriter.VarUIntBits(Kind) + BitWriter.VarUIntBits(Body);
+    public readonly int EncodedBits => 32 + 32 + 32 + 2 + 16 + 16 + 16 + 11 + 8 + 8 + 8 + 8 + 8 + 8 + BitWriter.VarUIntBits(Kind) + BitWriter.VarUIntBits(Body);
 
     /// <summary>The maximum bits <see cref="Write"/> takes.</summary>
-    public const int FullBits = 277;
+    public const int FullBits = 285;
 }
 
 partial struct CharacterNetState
@@ -2308,6 +2326,12 @@ partial struct ShipDetails : INetMessage<ShipDetails>
         {
             Health![i].Write(w);
         }
+        int countModules = Modules == null ? 0 : Math.Min(Modules.Length, 32);
+        w.WriteBits((uint)countModules, 6);
+        for (int i = 0; i < countModules; i++)
+        {
+            Modules![i].Write(w);
+        }
     }
 
     public static ShipDetails Read(BitReader r)
@@ -2358,6 +2382,36 @@ partial struct ShipDetails : INetMessage<ShipDetails>
         {
             v.Health[i] = ShipPartHealthNet.Read(r);
         }
+        int countModules = (int)r.ReadBits(6);
+        if (countModules > 32)
+        {
+            r.Fail();
+            countModules = 0;
+        }
+        v.Modules = new ShipModuleNet[countModules];
+        for (int i = 0; i < countModules; i++)
+        {
+            v.Modules[i] = ShipModuleNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct ShipModuleNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Socket, 8);
+        w.WriteBits((uint)Level, 2);
+        w.WriteBits((uint)Module, 16);
+    }
+
+    public static ShipModuleNet Read(BitReader r)
+    {
+        var v = new ShipModuleNet();
+        v.Socket = (byte)r.ReadBits(8);
+        v.Level = (byte)r.ReadBits(2);
+        v.Module = (ushort)r.ReadBits(16);
         return v;
     }
 }

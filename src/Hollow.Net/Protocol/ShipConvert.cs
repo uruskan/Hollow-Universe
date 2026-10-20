@@ -6,6 +6,7 @@ using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Ships.Modules;
 using Hollow.Simulation.Targets;
 
 namespace Hollow.Net.Protocol;
@@ -70,6 +71,7 @@ public static class ShipConvert
         CruiseThrottle = cruise.Throttle,
         CruiseStrafe = cruise.Strafe,
         CruiseVertical = cruise.Vertical,
+        Spool = s.Spool,
     };
 
     /// <summary>The state an own-ship message carries (untrusted floats: a rotation that isn't one becomes level).</summary>
@@ -93,6 +95,7 @@ public static class ShipConvert
             CooldownTicks = o.CooldownTicks,
             RestTicks = o.RestTicks,
             Flags = o.Flags,
+            Spool = float.IsFinite(o.Spool) ? Math.Clamp(o.Spool, 0, 1) : 0,
         };
     }
 
@@ -125,6 +128,7 @@ public static class ShipConvert
             ThrustY = Thrust(s.Thrust.Y),
             ThrustZ = Thrust(s.Thrust.Z),
             Health = (byte)Math.Clamp(MathF.Ceiling(s.Health / ship.Def.Health * 255), 0, 255),
+            Spool = (byte)Math.Clamp(MathF.Round(s.Spool * 255), 0, 255),
             Kind = ship.Def.Id,
             Body = ship.ParkedBody,
         };
@@ -181,7 +185,25 @@ public static class ShipConvert
                 health.Add(new ShipPartHealthNet { Part = (byte)i, Health = Share(ship.PartHealth[i], max) });
             }
         }
-        return new ShipDetails { Ship = netId, Parts = parts.ToArray(), Doors = doors, Seats = seats.ToArray(), Health = health.ToArray() };
+        var modules = new ShipModuleNet[def.Build.Count];
+        for (int i = 0; i < modules.Length; i++)
+        {
+            Installed e = def.Build.Entries[i];
+            modules[i] = new ShipModuleNet { Socket = e.Socket, Level = e.Level, Module = e.Module };
+        }
+        return new ShipDetails { Ship = netId, Parts = parts.ToArray(), Doors = doors, Seats = seats.ToArray(), Health = health.ToArray(), Modules = modules };
+    }
+
+    /// <summary>The build a ship's details carry (VEHICLES.md §9.1), as it came: untrusted, to be made sane on its kind.</summary>
+    public static Installed[] BuildOf(in ShipDetails m)
+    {
+        var entries = new Installed[m.Modules?.Length ?? 0];
+        for (int i = 0; i < entries.Length; i++)
+        {
+            ShipModuleNet n = m.Modules![i];
+            entries[i] = new Installed(n.Socket, n.Level, n.Module);
+        }
+        return entries;
     }
 
     /// <summary>A door's motion as the wire carries it.</summary>
@@ -209,6 +231,9 @@ public static class ShipConvert
 
     /// <summary>The thrust fractions a state carries (each axis's thrust; the main engine's boost goes over 1).</summary>
     public static Vector3 ThrustOf(in ShipNetState s) => new(s.ThrustX / 63.5f, s.ThrustY / 63.5f, s.ThrustZ / 63.5f);
+
+    /// <summary>The drive's engine speed a snapshot carries, 0 … 1.</summary>
+    public static float SpoolOf(in ShipNetState s) => s.Spool / 255f;
 
     /// <summary>
     /// A rotation as yaw (about the zone's +Y), pitch (then about its own x; + nose down) and roll (then about its own z;

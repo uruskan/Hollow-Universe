@@ -56,6 +56,45 @@ branch `claude/motorboat`, beside the minicopter and car sessions, with which th
 - Not done: the daylight retake (a game was open on this PC), and judging the sound by ear. The look and the numbers
   wait for the owner.
 
+## 20 October 2026 — The TOGG and the Zamazingo in the game, rough (VEHICLES.md §9.7)
+
+At the owner's word ("just add them to the game and we will polish them later"):
+- both are crafted at the Vehicle Workbench and learned in its tree;
+- the Zamazingo, a rough two-wheeler, keeps its balance by a roll spring;
+- the hosted game draws both as blocks, with wheels;
+- a network test drives the TOGG through a loopback server with no prediction correction.
+
+`GroundMotorTests` 8/8. No hosted game picture yet: the PC's Godot slot was taken.
+
+## 20 October 2026 — Vehicles V2: the TOGG drives (VEHICLES.md §9.6)
+
+On `claude/vehicles`. A ship's whole step is now its motor's: `flight`, today's, or `ground`, a vehicle on sprung wheels
+with tyres' grip, drive, brakes and steering. The TOGG is a kind with four wheels and two modules (a one-seat cab, an
+engine), made with them by default. The other vehicle sessions got the drive numbers modules add and a kind's default build.
+Without art it is drawn as blocks with wheels that ride, steer and roll, in the ship sandbox: `--view ship --ship togg`,
+`--scene drive`.
+
+Checked: `GroundMotorTests` 5/5, run on the game's data with no stand-in trees. The figures are in §9.6: it stands, reaches
+19.5 m/s, turns upright, brakes, sleeps, gives the same bits twice, climbs 20° and not 42°, and goes 1.1 km round the ball.
+`ModuleTests`, `ContentTests`, `ShipFuel` and `ShipPersistence` also pass, 22/22; the solution builds with 0 warnings.
+Not yet: people versus a moving vehicle (solid, run over), a hosted drive.
+
+## 20 October 2026 — Vehicles V1: the module core
+
+At the owner's go (VEHICLES.md §11), on branch `claude/vehicles` in its own worktree. It is shared with the minicopter
+session, which declares the KA-FA 1500's modules in this format. The motorboat's seam and the minicopter's rotor core
+(`98621ac7`, `8806f350`, `bf69935d`, `39220a1c`) are merged into the branch, so their numbers come first: protocol 47 and
+ship codec 8 are this work's. What was built is in VEHICLES.md §9.5:
+- `modules.json` and a kind's `sockets`;
+- the build rules and the composer, which copies the kind and appends modules;
+- each module's own hold;
+- shots and blasts that find module bodies;
+- the hammer mending hulls through the one repair path (the Tin Finch and the Iron Wake got repair costs);
+- the build saved after the kind and sent in the ship's details.
+
+Checked: `ModuleTests` 7/7 (data, rules, composition, a zone's holds, shots and hammer, codec 8 with a lost module, the
+details on the wire); before the merge, Ship, Content, Seat, Raid, Gun and Damage 128/128; the solution builds with 0
+warnings. The full suite: see the next line. No Godot run: nothing is drawn yet.
 ## 20 October 2026 — World terrain: Earth's candidate layouts, the playtest's findings, the cliffs' collision cut
 
 `earth layouts <folder>` (`tools/Hollow.GeneratorReport/EarthLayoutsReport.cs`) bakes Earth with each layout variant
@@ -4863,3 +4902,24 @@ The review found the four dropped door items 8–10 times heavier than the stand
 same ratio only where a level is over 6,000 / 2,000 / 600 triangles: 4,888 / 1,000 / 600, 5,112 / 888 / 599, 6,000 / 1,999 / 598 and 5,912 / 1,999 / 599, files
 0.40, 0.41, 0.59 and 0.57 MB; the icons were re-rendered by `IconRenderer` and look as before (`docs/ITEM_ART_DOORS.md`). Validation: build 0 warnings;
 `ContentTests`, `Model`, `Icon`, `Gib` and `DoorTests` pass. Not done: a live drop or placement check.
+
+### 20 October 2026 — the KA-FA 1500 (our minicopter): M1, the rotor drive
+
+The owner asked for Rust's minicopter in our own style, modular and craftable, and named it the KA-FA 1500. `docs/MINICOPTER.md`
+is the design (M0, waiting for the owner's answers on §2). It shares two seams with the boat and car sessions: the boat's drive
+registry (98621ac7, 8806f350, merged into `claude/minicopter`) and the car's module core (VEHICLES.md §9, coming).
+M1 is built on `claude/minicopter`:
+- **The rotor drive** (`ShipRotor`): it hovers with no input, moves by tilting, levels itself, and its tail weathercocks.
+  Its lift goes with the spool squared and the thinning air, which gives it a ceiling.
+- **The spool** in the state (protocol 46, codec 7).
+- **Shared step:** fragile hull boxes (rotor strikes), Rust's crash rule as data, and engines that need a pilot.
+- **Data:** the KA-FA as a fixed two-seat build, its item (250), recipe, tree node and placeable.
+
+Validation:
+- Full solution build: 0 warnings.
+- `RotorTests` 15/15 (the measurements are in MINICOPTER.md §5.4).
+- `Ship Seat Content Net IronWake Placement Codec Persistence Snapshot Interaction`: 214/215. The one failure is the known
+  terrain test `EnvironmentDetailTests.EarthCliffsHaveStablePlacementsAndSharedCollision`, which fails on the boat's branch too.
+
+Not done: the model, the client (control scheme, view, HUD, sound) and modules; nothing was flown in Godot yet.
+

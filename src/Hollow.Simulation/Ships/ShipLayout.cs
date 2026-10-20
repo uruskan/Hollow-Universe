@@ -105,7 +105,7 @@ public sealed class ShipPartHealth
 public sealed class ShipSeatDef
 {
     /// <summary>The verbs that sit (the seat capability's, interactions.json): each seat names one, its words.</summary>
-    public static readonly string[] Verbs = { "board", "take-helm", "man", "sit" };
+    public static readonly string[] Verbs = { "board", "take-helm", "man", "sit", "fly", "drive" };
 
     public int Index { get; init; }
 

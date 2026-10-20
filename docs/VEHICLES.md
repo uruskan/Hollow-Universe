@@ -223,15 +223,20 @@ the same parts or one more slot. Which ones is content for later; the system nee
 
 ### 5.5 Repairs with the hammer (R19)
 
-- **The standard hammer**, as on building pieces: aim at the damaged thing, hit, and each hit mends a share of its health for
-  its share of the cost, taken from the inventory. Anywhere: on the road, in a base, on the lift (where REPAIR ALL does every
-  hit at once for the sum).
-- **What it mends**: every module, the chassis or frame, and the running gear (a flat tyre comes back up). Engine parts are
-  not mended: they wear and are replaced (§5.2).
-- **The cost depends on what is repaired**, from each one's data (the ship parts' `RepairMaterial` and `RepairFull`: the
-  material and the cost of a full repair). Starting values: **metal fragments** for the chassis, the frame, cabs, decks, the
-  camper shell, lockers, the bench, fuel tanks, tyres and the bike's modules; **refined metal** for engine modules, track
-  units and, later, the armoured cab.
+**Nothing here is the vehicles' own: it is the game's one repair system.** The hammer mends everything repairable through
+one path: `BuildingSystem.Repair` (the hammer in hand, reach, sight) asks the aimed thing's target family to mend it
+(`IRepairFamily`: building pieces, doors, deployables, ship parts each implement it once; GROUND_SYSTEMS.md §5), and pays from
+what the player carries. What a thing costs is its data. Vehicles are ships in the code, so the ship family's repair mends their
+modules, chassis and running gear, and each one's cost is a line in `modules.json` (the ship parts' `health` block: `RepairMaterial`,
+`RepairFull`, the material and the cost of a full repair). No car or bike code decides a repair.
+
+- **A hit** mends a share of the thing's health for its share of the cost, as on building pieces. Anywhere: on the road, in a
+  base, on the lift (where REPAIR ALL is every hit at once for the sum).
+- **Costs by data** (starting values): **metal fragments** for the chassis, the frame, cabs, decks, the camper shell, lockers,
+  the bench, fuel tanks, tyres and the bike's modules; **refined metal** for engine modules, track units and, later, the
+  armoured cab. Engine parts are not mended: they wear and are replaced (§5.2).
+- **One change to the shared code**: today the ship family refuses to mend a ship's hull (`ShipSystem.RepairPart`, part 0).
+  It will mend any part whose data gives it health, the hull included, so the Tin Finch's hull becomes repairable too.
 - A broken module mended above zero works again. A wreck is not mended: it is looted.
 
 ## 6. Running gear and driving
@@ -467,6 +472,106 @@ Engine-free tests, by name:
 - Load: 20 bots driving with `--script drive` for 60 s (tick time, bandwidth), as the ships' `fly` script.
 - Pictures for every visual step, and the owner's look approval (§7).
 
+### 9.5 V1 as built (20 October 2026)
+
+On branch `claude/vehicles` (abtest-b with the motorboat's and the minicopter's ship work merged):
+
+- **Data.** `game/data/ground/modules.json` (empty until a vehicle declares its modules); a `ships.json` kind may name
+  `sockets` (`key`, `at`, `fits`, `row`, `levels`) and a `buildHeight`; an item names its module (`"module": "<key>"`).
+  A module is read by the ships' own layout reader: its seats (optional), doors and parts in its own frame, its first part
+  its body with health, met by a ball (the interact key and the hammer aim at it) and by the module's hull boxes (a shot
+  and a blast take it). A module's seat is reached through its door or is exposed, every seat, the helm too.
+- **Rules** (`ShipAssembler.Check`, `BuildProblem`): a socket that takes the module's tag; a long module along one row;
+  level 2 only on roofs that carry load, all at one height; the kind's build height; at most 32 modules. Level 1 is placed
+  before level 2. `Sane` makes an untrusted build (a save's, a client's) possible by leaving out what can't be.
+- **Composition** (`ShipAssembler.Compose`): the kind's `ShipDef` is copied (so every field another session adds, a drive,
+  buoyancy, a rotor's fragile boxes, is carried without the assembler naming it), then each module's seats, doors, parts
+  and hull boxes are appended, moved by their socket (sockets don't turn modules); keys become `socket.level.key`. One
+  helm: the kind's own, else the first level-1 module's in socket order; any other helm seat rides as a passenger. Mass,
+  centre of mass (the moment's sum), inertia (the kind's moved by the parallel axis, each module a solid box of its hull's
+  bounds), fuel capacity and water volume add up. Made once per kind and build and kept; `Ship.Def` is the composed one,
+  `Def.Kind` and `Def.Build` say what it is made of.
+- **Holds.** Each module with a `hold` gets a container on the ship, opened at its part through the shared container verb
+  (which now passes the aimed part), kept open by the ship's reach rule, emptied into the wreck.
+- **Damage and repair.** `TraceShips` reports the part a box belongs to, blasts reach module bodies by their boxes, and the
+  hammer mends hulls through the ship family's one `RepairPart`: a kind's `repair` gives the hull its material and cost
+  (the Tin Finch 150, the Iron Wake 3,600 metal fragments: 0.2 a point, 100 a hit after 30 s).
+- **Saved and sent.** `ShipCodec` 8 writes the build after the kind (so the layout is known before the seats, doors and parts
+  numbered by it) and each hold after the cargo by its module's socket and level; `ShipDetails` carries the build
+  (protocol 47) and the client composes the same layout before applying the rest.
+- **Not yet:** changing a build at runtime (the lift, V4), engines and their parts (V4), running gear and the ground motor
+  (V2), modules on a ship people walk in (refused by the content check for now).
+
+### 9.6 V2 as built (20 October 2026)
+
+- **The motor registry** (`Ships/ShipMotors.cs`): `IShipMotor`, the whole step, by ships.json `motor`: `flight` (today's
+  `ShipMotor.Step` and its drive) and `ground` (`GroundMotor`). The server's step and the client's prediction both call
+  `def.Motor.Step`. A motor that doesn't fly leaves the flight blocks out of its entry, and it judges its own numbers
+  (`Problems`); the skid and drive checks moved into `FlightMotor`. `ShipMotor`'s contact helpers became internal
+  statics and the curve carry `CarryOverCurve`, with no change in behaviour.
+- **The ground motor** (`Ships/GroundMotor.cs`, §6.2):
+  - each wheel a ray from its bump stop down its travel and tyre, with a spring, a damper and a stiff bump stop;
+  - along each loaded tyre:
+    - drive (the engines' power over the speed, capped by traction, fading over the last 3 m/s to the top speed);
+    - brakes against the motion; engine braking off the throttle (`coast`, a share of the brakes); rolling resistance;
+    - held still below 1.5 m/s with no throttle, and by the handbrake on the wheels it holds;
+  - across each tyre the sliding is taken out in four passes, the whole within grip × load;
+  - the grip acts `gripHeight` up the body, as Unity's wheels' force point does, so the TOGG slides before it rolls in a
+    hard turn and a tall build rolls first;
+  - four substeps a tick, the hull swept and pushed out as a ship's, the ground turning under it, rest and sleep.
+  - There is no wheel spin in the state: the server's and a client's replays are the same bits.
+- **Steering** is in the input: the `car` control scheme turns the wheel toward full lock at 2.5 a second and back at 4,
+  so the server and the prediction steer alike. The lock narrows from 34° at a crawl to 8° at top speed.
+- **The TOGG** (items 240–242):
+  - the kind: 650 kg, four 0.96 m wheels on 0.35 m of travel at 15 kN/m, 4×4, the rear wheels on the handbrake, three
+    bays and the nose mount, a fuel cap at the back, the hull mended for 200 metal fragments;
+  - two modules: the one-seat cab (220 kg, its seat reached through its door, verb `drive`) and the engine (280 kg,
+    90 kW);
+  - made with both by default (ships.json `build`);
+  - it needs a driver (`needsPilot`): out of the seat, the engine stops and the brakes hold.
+- **For the other vehicles:** modules add drive numbers by name (`drive`, summed into `ShipDef.DriveSums`, with `power`),
+  read by a drive's `Compose`; a kind's default build is made by `SpawnShip` when a bare kind is spawned.
+- **Drawn:** `ShipView` draws a ship with no model as blocks of its hull boxes (steel, a cab pale blue, an engine
+  cream) and a tyre and rim at each wheel that ride their springs, steer and roll (`ShipView.Blocks.cs`). The ship
+  sandbox takes `--ship togg`: the TOGG on the vehicle workbench's pad, driven with the car scheme; `--scene drive`
+  drives it off and turns.
+- **Measured** (`GroundMotorTests`, on the game's data with nothing growing on the stand-in ground):
+  - 0.04 m from its ride height on four wheels, level;
+  - 19.5 m/s after ten seconds;
+  - 75° of turn in three seconds at 18 m/s, upright;
+  - from 19.4 m/s to rest in 2.2 s and 22 m;
+  - reverse; rest and sleep;
+  - the same bits twice;
+  - 30 m of climb in eight seconds up 20°, none up 42° (it slides back and rolls);
+  - 1.1 km round a 2.41 km world on its wheels.
+  - On the stand-in's ground with its trees it drives into them and rolls, as it should.
+- **Running people over** (`ShipSystem.RunOver.cs`, §6.4): a person whose capsule the hull boxes meet, closing faster than
+  `runOverSpeed` (4 m/s), takes (closing − 4)² × `runOverScale` (2) through the characters' receiver, by the driver, and
+  is thrown along; nobody in its seats, nobody twice a second. Animals are not run over yet.
+- **Not yet:** a moving vehicle is not solid to people below that speed (it passes through them); no hosted drive has been run; the
+  42° slope shows the tyres at their limit sliding back rather than holding still under the brakes (μ 1 against
+  tan 42° = 0.9), worth a look in play.
+
+### 9.7 In the game, rough (20 October 2026, the owner: "just add them to the game and we will polish them later")
+
+- **Crafted at the Vehicle Workbench**, learned in its tree: the TOGG (200 salvage; 900 metal fragments, 40 refined metal,
+  150 wood, 4 gears, 4 pipes, 20 lamp oil, 90 s) and the Zamazingo (125 salvage; 400 metal fragments, 15 refined metal,
+  2 gears, 2 pipes, 10 lamp oil, 60 s). They roll out at the workbench's bay as ships do; the admin's `ship <name> togg`
+  or `zamazingo` gives one at once. Placeable from the item too (ship placement).
+- **The Zamazingo, rough** (item 243): a ground kind on two wheels (0.80 m front, 0.76 m rear), 35 kW, 25 m/s, an open
+  saddle (exposed: its rider can be shot), no modules yet (§4's mount points come later). It keeps its balance: a roll
+  spring toward the lean that balances its turn (atan of speed × turning over gravity, at most 43°), upright when still
+  (`GroundDef.Balance`, §6.3). It has no crash that throws the rider yet.
+- **Getting in:** E opens the cab's door, E again drives (as the Tin Finch's hatch); the Zamazingo's saddle at once.
+- **Drawn as blocks** in the hosted game too (`ShipsView`): the view is made again when a ship's composed layout changes
+  (its build arrives after its first sight), and a wheeled ship's wheels ride the ground, roll, and steer by how it turns.
+- **Checked:** `GroundMotorTests` 8/8, among them the Zamazingo standing, going (24 m/s), leaning into a right turn
+  without falling and stopping upright; and the TOGG over the real network (a loopback server and two clients): the
+  server gives it, both clients compose its layout, Ada drives it at 15 m/s with no correction of her prediction, Bo
+  sees it go.
+- **Still rough:** blocks for art; no lift (modules can't be changed in play yet: each vehicle comes with its default
+  build); no engine parts; a slow vehicle passes through people; animals aren't run over; no rider thrown from the bike.
+
 ## 10. Crafting and progression
 
 Everything is learned in the **Vehicle Workbench tree** (R6) and crafted at that workbench, except tier-3 parts and rare
@@ -501,8 +606,8 @@ wrecks to recover belong with the roads, later.
 | | What | Checked by |
 |---|---|---|
 | V0 | This document; the owner's answers to §12 | — |
-| V1 | The module core and the motor registry: modules.json, the assembler, the build in the state, codec 7 and the network; **shared**, built by whichever of the three sessions starts first | `Modules` tests |
-| V2 | The ground motor on a fixed build of blocks: driving the baked Earth in `--view vehicle`; moving bodies; run-over. First, `ShipMotor`'s shared helpers (gravity and the curvature turn, the hull's sweep, crash damage, sleep) pulled out as statics: the drive seam (98621ac7 on `claude/motorboat`) leaves them inside the step | `GroundMotor`, `RunOver`; the sandbox tour |
+| V1 (done, §9.5) | The module core: modules.json, sockets, the assembler, holds, the build saved (codec 8) and on the wire (protocol 47), the hull mended with the hammer; **shared** with the minicopter. The motor registry moves to V2 | `ModuleTests` (7) |
+| V2 (driving and run-overs done, §9.6) | The ground motor and the TOGG on its wheels, drawn as blocks in the ship sandbox (`--view ship --ship togg`); people run over. Left: a moving vehicle solid to people, animals run over, a hosted drive | `GroundMotorTests` (6); the sandbox pictures |
 | V3 | Seats, the car and bike control schemes, prediction of passengers, the HUD; the hosted game | Network tests; a hosted drive with a passenger |
 | V4 | The lift: item, power, the vehicle screen, locks; engine parts and tiers; crafting and the tree | `Lift`; `ContentTests`; the screen in `--view ui --screen vehicle` |
 | V5 | The car's modules and stacking; build zones aboard (beds and bags as respawn points, boxes); decay outside claims | `Modules`, `Decay`, `Respawn`; a camp built and driven |

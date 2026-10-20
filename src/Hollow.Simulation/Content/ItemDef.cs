@@ -282,6 +282,11 @@ public sealed class ItemDef
 
     public Ships.ShipDef? Ship { get; internal set; }
 
+    /// <summary>The module this item is (modules.json, VEHICLES.md §9.1): it goes into a ship's socket at a service station.</summary>
+    public string? ModuleKey { get; init; }
+
+    public Ships.Modules.ModuleDef? Module { get; internal set; }
+
     /// <summary>A firearm's numbers (weapons.json), a round's, an attachment's; null for other items (G4).</summary>
     public FirearmStats? Firearm { get; internal set; }
 

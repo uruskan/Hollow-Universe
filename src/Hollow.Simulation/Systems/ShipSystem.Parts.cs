@@ -10,6 +10,7 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Ships.Modules;
 using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation;
@@ -169,15 +170,19 @@ public sealed partial class ShipSystem
     }
 
     /// <summary>
-    /// One hammer hit of repair on a ship's part with health (a door, a battery; IRON_WAKE.md §5.5), as the building's: up to
-    /// building.json's <c>repairPerHit</c>, not within its <c>repairDelay</c> of damage, for max(1, ⌈full cost × restored /
-    /// most⌉) of the part's material; its crew alone (or anyone, on a ship with no crew). A broken door, mended to full, works
-    /// again (it stays open until shut).
+    /// One hammer hit of repair on a ship's part with health (a door, a battery, a module; IRON_WAKE.md §5.5), or on its hull
+    /// where its kind says what that costs (ships.json <c>repair</c>, VEHICLES.md §5.5), as the building's: up to building.json's
+    /// <c>repairPerHit</c>, not within its <c>repairDelay</c> of damage, for max(1, ⌈full cost × restored / most⌉) of the
+    /// material; its crew alone (or anyone, on a ship with no crew). A broken door, mended to full, works again (it stays open
+    /// until shut).
     /// </summary>
     internal Outcome RepairPart(Entity entity, Player p, Ship ship, int part, IBuildingWallet wallet)
     {
         (float health, float max, ShipPartHealth? def) = PartHealthOf(ship, part);
-        if (def == null || ship.Destroyed)
+        // A part with health of its own costs its own; the hull (or a part that takes the hull's) its kind's.
+        (ItemDef Material, int Full)? repair = def != null ? (def.RepairMaterial, def.RepairFull) :
+            ship.Def.HullRepair is { } hull ? (hull.Material, hull.Full) : null;
+        if (repair is not { } cost0 || ship.Destroyed)
         {
             return OutcomeCode.NotUsable;
         }
@@ -197,23 +202,26 @@ public sealed partial class ShipSystem
             return OutcomeCode.RecentlyDamaged.With((int)Math.Ceiling(wait));
         }
         float restored = MathF.Min((float)data.RepairPerHit, max - health);
-        int cost = (int)Math.Max(1, Math.Ceiling(def.RepairFull * (double)restored / max - 1e-9));
-        string material = def.RepairMaterial.Key;
+        int cost = (int)Math.Max(1, Math.Ceiling(cost0.Full * (double)restored / max - 1e-9));
+        string material = cost0.Material.Key;
         if (wallet.Count(material) < cost || !wallet.Take(material, cost))
         {
-            return OutcomeCode.NotEnough.With(def.RepairMaterial.Id);
+            return OutcomeCode.NotEnough.With(cost0.Material.Id);
         }
-        ShipTargetPart target = ship.Def.Parts[part];
-        if (target.Door >= 0)
+        if (def == null)
         {
-            ship.Doors[target.Door].Health = MathF.Min(max, health + restored);
+            ship.State.Health = MathF.Min(max, health + restored);
+        }
+        else if (ship.Def.Parts[part].Door is >= 0 and var door)
+        {
+            ship.Doors[door].Health = MathF.Min(max, health + restored);
         }
         else
         {
             ship.PartHealth[part] = MathF.Min(max, health + restored);
         }
         ship.DetailsRevision++;
-        Events.Add(new ItemsGained(Player: p.Id, Item: def.RepairMaterial.Id, Count: -cost, Reason: GainReason.Used));
+        Events.Add(new ItemsGained(Player: p.Id, Item: cost0.Material.Id, Count: -cost, Reason: GainReason.Used));
         return Outcome.Done;
     }
 
@@ -250,10 +258,10 @@ public sealed partial class ShipSystem
                 ray.Consider(ref best, hit.Distance, walked.Ref with { Part = (byte)walked.Def.PartOfPieces(hit.Hit.Part) },
                     normal: pose.DirectionToWorld(hit.Hit.Normal));
             }
-            float t = ships.TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship, out Vector3 normal, ray.ViewTick);
+            float t = ships.TraceShips(ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Ship? ship, out Vector3 normal, out byte part, ray.ViewTick);
             if (ship != null)
             {
-                ray.Consider(ref best, t, ship.Ref, normal: normal);
+                ray.Consider(ref best, t, ship.Ref with { Part = part }, normal: normal);
             }
         }
 
@@ -290,6 +298,22 @@ public sealed partial class ShipSystem
                 }
                 else
                 {
+                    // A module's body (VEHICLES.md §9.1) by its own hull boxes, as a part with health.
+                    foreach (PlacedModule placed in ship.Def.Placed)
+                    {
+                        int part = placed.FirstPart;
+                        if (placed.Module.Parts.Count == 0 || zone.Ships().PartHealthOf(ship, part).Def is null ||
+                            !ShipShapes.NearestOnPart(ship.Def, ship.State.Position, ship.State.Rotation, blast.At, part, out Vector3 at))
+                        {
+                            continue;
+                        }
+                        bool onPart = stuck && blast.StuckTo.Part == part;
+                        float distance = onPart ? 0 : Vector3.Distance(at, blast.At);
+                        if (distance <= blast.Radius)
+                        {
+                            into.Add(Target(ship, (byte)part, at, distance, onPart, blast.At, table: true));
+                        }
+                    }
                     point = ShipClosestPoint(ship, blast.At);
                 }
                 bool onHull = stuck && (blast.StuckTo.Part == 0 || zone.Ships().PartHealthOf(ship, blast.StuckTo.Part).Def is null);

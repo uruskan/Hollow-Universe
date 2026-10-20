@@ -42,6 +42,9 @@ public partial class ShipsView : Node3D
 
         // The wake it throws in the water as it goes (ships.json wake: the motorboat's).
         public FxHandle Wake;
+
+        // A vehicle on wheels: its nose's way last frame (its turning, for the steered wheels).
+        public Num.Vector3 LastForward;
     }
 
     private readonly Dictionary<uint, Drawn> _drawn = new();
@@ -114,6 +117,14 @@ public partial class ShipsView : Node3D
                 continue;
             }
             _seen.Add(ship.NetId);
+            if (_drawn.TryGetValue(ship.NetId, out Drawn? old) && old.View.Def != def)
+            {
+                // Its layout changed (its build came, or changed: VEHICLES.md §9.1): drawn again from the new one.
+                old.Sounds?.StopAll();
+                StopEffects(old);
+                old.View.QueueFree();
+                _drawn.Remove(ship.NetId);
+            }
             if (!_drawn.TryGetValue(ship.NetId, out Drawn? d))
             {
                 d = new Drawn { View = new ShipView(def) };
@@ -137,6 +148,11 @@ public partial class ShipsView : Node3D
             d.View.Visible = !ship.Has(ShipNetFlags.InOrbit);
             d.View.FromCockpit = mine && Cockpit;
             d.View.Show(look, delta);
+            if (def.Ground is { } wheeled)
+            {
+                ShowWheels(d, def, wheeled, mine ? Client.Ships().OwnShipRenderRotation : ship.Rotation,
+                    mine ? Client.Ships().OwnShip.Velocity : ship.Velocity, delta);
+            }
             if (def.Interior is { } interior)
             {
                 // Its ramp, airlock and turrets (IRON_WAKE.md §4.7, §5.3): as its space is posed where the player has one (the
@@ -213,6 +229,29 @@ public partial class ShipsView : Node3D
 
     /// <summary>Full wash at this height and under.</summary>
     private const float WashFull = 4f;
+
+    // A vehicle's wheels (VEHICLES.md §6): on the ground under each, rolled by its speed, the steered ones turned by how it
+    // turns (its nose's turn since the last frame over its wheelbase), so another player's car steers as it goes.
+    private void ShowWheels(Drawn d, ShipDef def, GroundDef ground, Num.Quaternion rotation, Num.Vector3 velocity, double delta)
+    {
+        Num.Vector3 forward = Num.Vector3.Transform(Num.Vector3.UnitZ, rotation), up = Num.Vector3.Transform(Num.Vector3.UnitY, rotation);
+        float along = Num.Vector3.Dot(velocity, forward);
+        float front = float.MinValue, back = float.MaxValue;
+        foreach (WheelDef w in def.Wheels)
+        {
+            front = MathF.Max(front, w.Hub.Z);
+            back = MathF.Min(back, w.Hub.Z);
+        }
+        float steer = 0;
+        if (d.LastForward != Num.Vector3.Zero && delta > 0 && front > back)
+        {
+            float right = -Num.Vector3.Dot(Num.Vector3.Cross(d.LastForward, forward), up) / (float)delta;
+            steer = Math.Clamp(MathF.Atan((front - back) * right / MathF.Max(MathF.Abs(along), 1)), -ground.Steer, ground.Steer);
+        }
+        d.LastForward = forward;
+        GroundProbe? probe = Client.Surface is { } world ? new GroundProbe(world, Client.Frame) : null;
+        d.View.ShowWheels(p => probe?.HeightAbove(new Num.Vector3(p.X, p.Y, p.Z)), steer, along, delta);
+    }
 
     // The ship's own effects (IRON_WAKE.md §11): dust under each lift nozzle within 25 m of the ground, by its plume and
     // nearness; smoke pouring from each disabled battery's gun house and from the hull below a quarter, until mended.

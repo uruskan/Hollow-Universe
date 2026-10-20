@@ -90,8 +90,10 @@ public static class ShipFuelTests
             State = ShipMotor.Standing(def, frame.ToLocal(new Hollow.Core.Vector3D(spec.Radius + 100, 0, 0)), System.Numerics.Vector3.UnitX, 0),
         };
         ship.LoadFuel(5999.75f);
-        byte[] bytes = ShipCodec.Encode(ship, frame)[..^ShipCodec.AttitudeTrailerBytes];
-        bytes[0] = 5; // Genuine v5 bytes, including its tank fields but not the v6 attitude trailer.
+        byte[] all = ShipCodec.Encode(ship, frame)[..^(ShipCodec.AttitudeTrailerBytes + ShipCodec.SpoolBytes)];
+        // Genuine v5 bytes, including its tank fields but not v8's modules block (none) nor the v6 attitude trailer.
+        byte[] bytes = [.. all[..ShipCodec.ModulesAt], .. all[(ShipCodec.ModulesAt + ShipCodec.NoModulesBytes)..]];
+        bytes[0] = 5;
         Ship restored = ShipCodec.Decode(ship.Id, bytes, c, frame)!.Ship;
         Assert.Equal(5999, restored.Fuel.Units, "oversized tank item survives v5 save");
         Assert.Near(0.75, restored.Fuel.Reserve, 1e-7, "fraction survives v5 save");

@@ -101,6 +101,9 @@ public partial class ShipView : Node3D
         Name = def.Key;
     }
 
+    /// <summary>The layout it draws (a ship's composed one, VEHICLES.md §9.1): a new one needs a new view.</summary>
+    public ShipDef Def => _def;
+
     /// <summary>The model's root (its meshes are in the ship's frame: +Z the nose, +Y up, +X left).</summary>
     public Node3D Model => _model;
 
@@ -122,8 +125,13 @@ public partial class ShipView : Node3D
     public override void _Ready()
     {
         // A ship people walk in keeps its hulls (each under the part it moves with) on the feet's layer.
-        _model = ModelCatalog.Instantiate(ModelKey, use: _def.Interior != null ? ModelUse.Parts : ModelUse.Display) ?? new Node3D { Name = _def.Key };
+        Node3D? model = ModelCatalog.Instantiate(ModelKey, use: _def.Interior != null ? ModelUse.Parts : ModelUse.Display);
+        _model = model ?? new Node3D { Name = _def.Key };
         AddChild(_model);
+        if (model == null)
+        {
+            BuildBlocks(); // no art yet: blocks of the right size (ShipView.Blocks.cs)
+        }
         FindHatch();
         FindParts();
         BuildPlumes();

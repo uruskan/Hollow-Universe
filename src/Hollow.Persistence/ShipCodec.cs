@@ -8,6 +8,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Ships.Modules;
 using Hollow.Surface;
 
 namespace Hollow.Persistence;
@@ -34,10 +35,20 @@ public static class ShipCodec
     /// Raised by hand when the layout changes; decoding reads every older version. 2: seats, doors, parts, crew (IW2); 3: the
     /// crewed batteries' stations (IW3): the chosen kind, the mount's aim, the shots, each chamber, each loader's cycle and
     /// the magazine. 4: unattended controls. 5: the fuel tank's items and fractional burn reserve. 6: captured attitude.
+    /// 7: the drive's spool (a rotor's spin, docs/MINICOPTER.md §9), so a craft held hovering is still hovering after a restart.
+    /// 8: one block right after its kind (VEHICLES.md §9.1): its build, so the layout its seats, doors and parts are numbered by
+    /// is known before they are read, and its modules' holds, each by the socket and level of its module. An older version's
+    /// bytes are a version 8's without that block.
     /// </summary>
-    public const byte Version = 6;
+    public const byte Version = 8;
+
+    /// <summary>Where version 8's block starts (after the version and the kind), and its size for a ship without modules.</summary>
+    public const int ModulesAt = 3, NoModulesBytes = 2;
 
     public const int AttitudeTrailerBytes = 17;
+
+    /// <summary>Version 7's spool, after the attitude trailer: the stored form's last bytes.</summary>
+    public const int SpoolBytes = 4;
 
     private const int HatchTicksV1 = 30;
 
@@ -51,6 +62,22 @@ public static class ShipCodec
             Quaternion toBody = BodyTurn(zone);
             w.Write(Version);
             w.Write(ship.Def.Id);
+            // Version 8: the build, and the holds, each by its module's socket and level.
+            w.Write((byte)ship.Def.Build.Count);
+            foreach (Installed entry in ship.Def.Build.Entries)
+            {
+                w.Write(entry.Socket);
+                w.Write(entry.Level);
+                w.Write(entry.Module);
+            }
+            w.Write((byte)ship.Holds.Length);
+            for (int i = 0; i < ship.Holds.Length; i++)
+            {
+                Installed module = ship.Def.Placed[ship.Def.Holds[i].Module].Entry;
+                w.Write(module.Socket);
+                w.Write(module.Level);
+                WorldCodec.WriteContainer(w, ship.Holds[i]);
+            }
             w.Write(ship.Owner.Value);
             w.Write(ship.Locked);
             Write(w, zone.ToBody(s.Position));
@@ -132,6 +159,8 @@ public static class ShipCodec
             bool hold = s.AttitudeHoldActive && ShipAttitudeHold.Valid(s.AttitudeHoldRotation);
             w.Write((byte)(hold ? 1 : 0));
             Write(w, hold ? Quaternion.Normalize(toBody * s.AttitudeHoldRotation) : Quaternion.Identity);
+            // Version 7: the drive's spool.
+            w.Write(s.Spool);
         }
         return stream.ToArray();
     }
@@ -146,6 +175,28 @@ public static class ShipCodec
             throw new InvalidDataException($"ship version {version}; this build reads up to {Version}");
         }
         ShipDef? def = content.Ship(r.ReadUInt16());
+        var holds = new List<(byte Socket, byte Level, Container Stored)>();
+        if (version >= 8)
+        {
+            // The build, made sane on the kind as it is now (a module the game lost, a socket gone: left out).
+            var entries = new Installed[r.ReadByte()];
+            for (int i = 0; i < entries.Length; i++)
+            {
+                entries[i] = new Installed(r.ReadByte(), r.ReadByte(), r.ReadUInt16());
+            }
+            if (def != null && entries.Length > 0)
+            {
+                def = content.Compose(def, ShipAssembler.Sane(def, entries, content.Module));
+            }
+            int count = r.ReadByte();
+            for (int i = 0; i < count; i++)
+            {
+                byte socket = r.ReadByte(), level = r.ReadByte();
+                var stored = new Container(ContainerKind.Box, 64);
+                WorldCodec.ReadContainer(r, stored, content, WorldCodec.PlayerVersion);
+                holds.Add((socket, level, stored));
+            }
+        }
         var owner = new EntityId(r.ReadUInt64());
         bool locked = r.ReadBoolean();
         Vector3D body = ReadD(r);
@@ -230,6 +281,19 @@ public static class ShipCodec
             return null; // a wreck that was never cleared: gone
         }
         WorldCodec.ReadContainer(r, ship.Cargo, content, WorldCodec.PlayerVersion);
+        // Each hold onto the hold of the module at its socket and level; one whose module is gone was read and is dropped.
+        foreach ((byte socket, byte level, Container stored) in holds)
+        {
+            int hold = HoldAt(def, socket, level);
+            for (int k = 0; hold >= 0 && k < stored.Size && k < ship.Holds[hold].Size; k++)
+            {
+                ship.Holds[hold].Set(k, stored[k]);
+            }
+            if (hold >= 0)
+            {
+                ship.Holds[hold].ClearDirty();
+            }
+        }
         if (version >= 3)
         {
             ReadStations(r, ship, content);
@@ -264,6 +328,11 @@ public static class ShipCodec
                 ship.State.AttitudeHoldRotation = Quaternion.Normalize(toZone * target);
                 ship.State.AttitudeHoldActive = true;
             }
+        }
+        if (version >= 7)
+        {
+            float spool = r.ReadSingle();
+            ship.State.Spool = float.IsFinite(spool) ? Math.Clamp(spool, 0, 1) : 0;
         }
         // The moving parts first (a turret's angle), then the doors over theirs (their parts follow their progress).
         for (int i = 0; i < parts.Count && i < ship.Parts.Length; i++)
@@ -382,6 +451,20 @@ public static class ShipCodec
                 ship.Parts[st.Def.PitchPart] = st.Pitch;
             }
         }
+    }
+
+    // The hold of the module that stands at a socket and level, or −1.
+    private static int HoldAt(ShipDef def, byte socket, byte level)
+    {
+        for (int i = 0; i < def.Holds.Count; i++)
+        {
+            Installed entry = def.Placed[def.Holds[i].Module].Entry;
+            if (entry.Socket == socket && entry.Level == level)
+            {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /// <summary>The turn from a zone's frame to the body frame (its axes are east, up and south).</summary>
