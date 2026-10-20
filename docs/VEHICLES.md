@@ -1,6 +1,6 @@
 # Ground vehicles: the modular car, the modular motorbike and the vehicle lift (design, 20 October 2026)
 
-Status: **design; the owner answered most of its questions on 20 October 2026 (R13 to R18), four remain (§12). Nothing is
+Status: **design; the owner answered most of its questions on 20 October 2026 (R13 to R19), four remain (§12). Nothing is
 built.** Every rule is marked **Owner** (the owner asked for it on
 20 October 2026), **DESIGN.md** (already confirmed there) or is a **proposal** (everything unmarked). Numbers are starting
 values for tuning in play, not promises.
@@ -30,6 +30,7 @@ The proportion sheet: [images/vehicles/proportions.svg](images/vehicles/proporti
 | R16 | A bed or sleeping bag on a vehicle is a respawn point | Owner |
 | R17 | **Space** gets out of a vehicle (as in Rust and our ship seats) | Owner |
 | R18 | Builds too tall for the garage door are accepted; real garage doors for vehicles come later | Owner |
+| R19 | Repairs on the road are made with the **hammer**, hit by hit as on building, each costing **metal fragments or refined metal** by what is repaired | Owner |
 
 **What Rust does** (the reference for R1, from Facepunch's own beta post, rust.facepunch.com/blog/vehicles-beta-branch, and
 two player guides): three chassis lengths of 2, 3 and 4 module slots; modules for cockpits (plain, with an engine, armoured),
@@ -203,8 +204,8 @@ the same parts or one more slot. Which ones is content for later; the system nee
 
 - **At the lift**: everything.
 - **On the road** (R14): an authorised player opens a stopped vehicle's engine (hold E on it → OPEN ENGINE) and swaps parts
-  by hand, so a broken spark plug far from home is a repair and not a walk. Modules and running gear stay a lift job, a flat
-  tyre too (as proposed and not changed by the owner).
+  by hand, so a broken spark plug far from home is a repair and not a walk. Modules and running gear are swapped only at the
+  lift; damage anywhere is mended with the hammer (§5.5).
 
 ### 5.4 Decay (R15)
 
@@ -216,9 +217,22 @@ the same parts or one more slot. Which ones is content for later; the system nee
   engine do not (parts wear by use, §5.2).
 - **Not while in use** (proposal): decay waits until nobody has sat in the vehicle for ten minutes, so a long drive costs no
   health.
-- **At zero** a module is broken (it stops working until repaired with the hammer); when the chassis reaches zero the vehicle
+- **At zero** a module is broken (it stops working until mended with the hammer, §5.5); when the chassis reaches zero the vehicle
   becomes a wreck, as a ship does: a lootable heap holding what its lockers, engine and build zones held.
 - Ships keep their own open question on decay (IRON_WAKE.md); the minicopter's design may take this rule.
+
+### 5.5 Repairs with the hammer (R19)
+
+- **The standard hammer**, as on building pieces: aim at the damaged thing, hit, and each hit mends a share of its health for
+  its share of the cost, taken from the inventory. Anywhere: on the road, in a base, on the lift (where REPAIR ALL does every
+  hit at once for the sum).
+- **What it mends**: every module, the chassis or frame, and the running gear (a flat tyre comes back up). Engine parts are
+  not mended: they wear and are replaced (§5.2).
+- **The cost depends on what is repaired**, from each one's data (the ship parts' `RepairMaterial` and `RepairFull`: the
+  material and the cost of a full repair). Starting values: **metal fragments** for the chassis, the frame, cabs, decks, the
+  camper shell, lockers, the bench, fuel tanks, tyres and the bike's modules; **refined metal** for engine modules, track
+  units and, later, the armoured cab.
+- A broken module mended above zero works again. A wreck is not mended: it is looted.
 
 ## 6. Running gear and driving
 
@@ -232,8 +246,8 @@ the same parts or one more slot. Which ones is content for later; the system nee
 | **Snow kit** (ski + track) | Bike | 55 km/h | 35° | Best on snow | |
 
 The running gear is all one kind on a car (four tyres or two tracks). **A tyre is a target**: shot to zero it is flat (its
-radius falls to the rim's, grip drops, the car pulls to that side and drags) and stays usable, slowly, until replaced at the
-lift. Tracks only take explosive damage. Earth is 1,200 m in radius and 7.5 km round
+radius falls to the rim's, grip drops, the car pulls to that side and drags) and stays usable, slowly, until mended with the
+hammer (§5.5) or replaced at the lift. Tracks only take explosive damage. Earth is 1,200 m in radius and 7.5 km round
 (EARTH_TERRAIN.md): these speeds put a lap of it at six to seven minutes by car, close to crossing a Rust map.
 
 ### 6.2 The driving model
