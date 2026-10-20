@@ -367,6 +367,24 @@ public partial class FxDirector : Node3D
         }
     }
 
+    /// <summary>A loop's way (its emitters' <c>along</c> and <c>back</c>): a tyre's dust thrown behind it as it turns.</summary>
+    public static void SetDirection(FxHandle handle, Vector3 direction)
+    {
+        if (_instance != null && _instance._loops.TryGetValue(handle.Id, out FxLoop? loop))
+        {
+            loop.Params.Direction = direction;
+        }
+    }
+
+    /// <summary>A loop's tint (<see cref="FxParams.Tint"/>): a tyre's dust as the ground under it changes.</summary>
+    public static void SetTint(FxHandle handle, Color tint)
+    {
+        if (_instance != null && _instance._loops.TryGetValue(handle.Id, out FxLoop? loop))
+        {
+            loop.Params.Tint = tint;
+        }
+    }
+
     /// <summary>Moves a loop that follows no node.</summary>
     public static void Move(FxHandle handle, Vector3 position)
     {

@@ -607,7 +607,50 @@ and replace the blocks:
 - **Checked:** look-dev renders from every side (`-- --preview`), and `art/models/hole_check.py`'s back-face-culled sheets
   of the chassis, cab, door, engine, a wheel and the bike's parts: no holes.
 - **Not yet:** the rider's pose on the bike; the bike's side stand down when parked; sounds and effects (§11, V8's rest);
-  the other modules' art as they arrive (V5).
+  the other modules' art as they arrive (V5). (The effects are §9.9's; the sounds are the bike session's shared engine model.)
+
+### 9.9 Riding, the engine by hand, the Monster TOGG and the effects (20 October 2026)
+
+The owner's findings on the TOGG, 20 October 2026: "it doesn't even move when I keep jumping in the back of it even though
+it has suspensions", "hold E, select engine on but nothing happens ... present in all vehicles", no sounds, and "a monster
+version of this with very very high power and bigger tires". Branch `claude/togg-physics`.
+
+- **People on its back (§6.4)** (`ShipSystem.Riders.cs`). A vehicle on wheels keeps its solid body as it moves. People
+  standing on its top weigh on its springs, 85 kg each. A landing is a blow and a jump a push, each 0.7 of the person's
+  momentum. Walking about moves the weight. Each of these wakes it, and it rests again once its springs settle (GroundMotor
+  no longer holds a vehicle still on its wheels while it rocks). The client's physics copy of the body follows the server's
+  pose (`ShipModule.MoveBody`, `ShipCollider.MoveParked`), so feet stand on it where it is drawn.
+- **ENGINE ON with nobody at the wheel** (`ShipSystem.Engine.cs`). Until now the server dropped it at the next tick: the
+  car "needs a pilot". Now it starts the engine by hand (`Ship.HandStarted`), for every kind, and only while the vehicle is
+  at rest. It idles with every control let go (on wheels, the handbrake on) and burns its idle fuel. It stops when switched
+  off or dry. Someone awake taking the helm takes the engine over.
+- **The Monster TOGG** (items 244 and 245, `monster-togg`). It is crafted at the vehicle workbench in 150 s, and its tree
+  node (600) comes after the TOGG's. It is the TOGG's chassis lifted 0.75 m on long-travel arms (0.6 m of travel), over
+  1.7 m tyres on a 2.84 m track, with a 1.73 m deck. Its engine is the blown six (`monster-togg-engine`), 450 kW, five
+  times the TOGG's. It weighs 1,300 kg, its top speed is 34 m/s, it has four-wheel drive and its fuel holds 160. Measured:
+  0 to 100 km/h in about 3 s, 120 km/h at the top, and it stands level. Every number is a proposal for the owner. The
+  model is `art/models/togg.py -- --monster`, which leaves the TOGG's own files as they were. It wears the TOGG's cab,
+  atlas and materials. Its own parts are flotation tyres with deep lugs on 8-stud beadlocks, coil-overs with remote
+  reservoirs, a step ladder each side, no fenders, and the six with a supercharger, two carburettors under a scoop and
+  taller stacks. It has 110k triangles at LOD0. The hole check (`art/models/hole_check.py`, back faces culled against
+  magenta) of its engine, wheel, ladders, arms, knuckle and coil-over showed no holes.
+- **Effects** (`ShipsView.Vehicles.cs`, fx.json `exhaust.*`, `dust.tyre`, `spray.tyre`). They are drawn within
+  220 m of the camera:
+  - **Exhaust.** Every `Exhaust_<n>` point of the model, at the top of each stack (`ShipView.Exhaust.cs`), has two loops:
+    a thin blue-grey haze at idle (`exhaust.diesel`) and black soot under load (`exhaust.soot`). Soot comes in within
+    0.12 s and clears over 0.7 s. A black puff (`exhaust.puff`) comes on starting, on a stab of the throttle (a rise of
+    0.45 over its last 0.3 s, at most one each 0.8 s) and at a gear change. The engine-free rule is
+    `Hollow.Client.Effects.VehicleSmoke` (`VehicleSmokeTests`), fed plain inputs: running, throttle, load and shifted.
+    Until the shared revs and gear model (`Hollow.Client.Vehicles.VehicleRevs`, the bike session's) lands, the load is the
+    throttle and there are no gear changes. Wiring its `Load` and `Shifted` in is one line in `VehicleEffects`.
+  - **Tyre dust.** Each tyre on the ground throws dust behind it, by its speed (from 1.2 m/s, full at 15 m/s) and by
+    wheelspin pulling away (hard throttle under 6 m/s). The dust is tinted by the ground under it (contact-responses.json
+    `dust`, looked at again every 0.5 s), with grit and gravel, and scaled by the tyre's radius over the TOGG's.
+  - **Spray.** A tyre in water up to 1.5 of its radius deep throws a rooster tail of drops and mist from the surface.
+  - **The effects API** gains `FxDirector.SetDirection` and `SetTint` for loops: a tyre's dust follows its way and the
+    ground under it.
+- **Not yet:** the sounds (the bike session's shared engine sounds and revs); seeing a vehicle's parts at the workbench;
+  the owner's look at the monster and the effects.
 
 ## 10. Crafting and progression
 

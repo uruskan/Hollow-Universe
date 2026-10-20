@@ -929,6 +929,56 @@
           { "batch": "ember", "rate": 4, "at": [0.0, 0.1, 0.0], "jitter": 0.3, "size": [0.02, 0.04], "life": [0.8, 1.8], "speed": [0.5, 1.6],
             "dir": "up", "cone": 35, "color": [1.0, 0.5, 0.15] }
         ],
-        "light": {"color": [1.0, 0.5, 0.2], "energy": 0.8, "range": 3.5, "flicker": 0.5, "at": [0.0, 0.2, 0.0]} } }
+        "light": {"color": [1.0, 0.5, 0.2], "energy": 0.8, "range": 3.5, "flicker": 0.5, "at": [0.0, 0.2, 0.0]} } },
+    { "key": "exhaust.diesel", "family": "ship",
+      "about": "A ground vehicle's diesel at idle (a loop on each Exhaust_<n> point of its engine, VEHICLES.md §9.9; intensity: running): a thin blue-grey haze rising from the stack.",
+      "cap": 24, "cull": 220, "hero": 0.4, "stage": "dirt",
+      "loop": { "fadeIn": 0.6, "fadeOut": 1.2,
+        "emit": [
+          { "batch": "smoke", "rate": 7, "at": [0.0, 0.0, 0.0], "jitter": 0.02, "size": [0.10, 0.16], "grow": 5, "life": [1.6, 2.6], "speed": [0.9, 1.6],
+            "dir": "up", "cone": 10, "color": [0.52, 0.53, 0.56], "vary": 0.06, "alpha": [0.10, 0.16] }
+        ] } },
+    { "key": "exhaust.soot", "family": "ship",
+      "about": "A ground vehicle's diesel under load (a loop on each Exhaust_<n> point; intensity: the engine's load): black soot pouring up and leaning back.",
+      "cap": 24, "cull": 300, "hero": 0.8, "stage": "dirt",
+      "loop": { "fadeIn": 0.15, "fadeOut": 0.6,
+        "emit": [
+          { "batch": "smoke", "rate": 26, "at": [0.0, 0.0, 0.0], "jitter": 0.03, "size": [0.16, 0.26], "grow": 6, "life": [1.8, 3.2], "speed": [2.2, 4.0],
+            "dir": "up", "cone": 14, "color": [0.07, 0.065, 0.06], "vary": 0.1, "alpha": [0.35, 0.55] },
+          { "batch": "smoke", "rate": 8, "at": [0.0, 0.05, 0.0], "jitter": 0.05, "size": [0.24, 0.36], "grow": 5, "life": [3.0, 4.5], "speed": [1.4, 2.4],
+            "dir": "up", "cone": 20, "color": [0.2, 0.19, 0.18], "vary": 0.08, "alpha": [0.2, 0.3] }
+        ] } },
+    { "key": "exhaust.puff", "family": "ship",
+      "about": "A diesel's black puff (at an Exhaust_<n> point; Scale: how hard): on starting, at a gear change and on a stab of the throttle.",
+      "cap": 24, "cull": 300, "duration": 3, "hero": 0.5, "stage": "dirt",
+      "layers": [
+        { "batch": "smoke", "count": [4, 6], "size": [0.22, 0.34], "grow": 5, "life": [1.6, 2.8], "speed": [2.5, 4.5], "jitter": 0.04, "dir": "up", "cone": 18,
+          "color": [0.06, 0.055, 0.05], "vary": 0.1, "alpha": [0.55, 0.75] },
+        { "batch": "smoke", "count": [2, 3], "size": [0.3, 0.45], "grow": 4, "life": [2.5, 3.5], "speed": [1.2, 2.2], "jitter": 0.06, "dir": "up", "cone": 25,
+          "color": [0.18, 0.17, 0.16], "vary": 0.08, "alpha": [0.3, 0.4] },
+        { "batch": "ember", "count": [0, 2], "size": [0.012, 0.02], "life": [0.2, 0.45], "speed": [3, 5], "dir": "up", "cone": 12, "color": [1.0, 0.45, 0.12] }
+      ] },
+    { "key": "dust.tyre", "family": "ship",
+      "about": "Dust thrown up behind a tyre on the ground (a loop at its contact patch; Direction: behind it; Tint: the ground's dust; intensity: its speed and spin): a rolling cloud low behind it, grit and gravel kicked back.",
+      "cap": 48, "cull": 260, "hero": 0.6, "stage": "dirt",
+      "loop": { "fadeIn": 0.3, "fadeOut": 1.0,
+        "emit": [
+          { "batch": "dust", "rate": 16, "at": [0.0, 0.15, 0.0], "jitter": 0.25, "size": [0.5, 0.9], "grow": 2.6, "life": [1.4, 2.6], "speed": [1.5, 4.0],
+            "dir": "back", "cone": 30, "color": [1.05, 1.0, 0.92], "vary": 0.08, "alpha": [0.18, 0.3] },
+          { "batch": "dust", "rate": 4, "at": [0.0, 0.4, 0.0], "jitter": 0.4, "size": [1.0, 1.6], "grow": 2.2, "life": [2.5, 4.0], "speed": [0.5, 1.5],
+            "dir": "back", "cone": 45, "color": [1.08, 1.02, 0.94], "vary": 0.06, "alpha": [0.1, 0.18] },
+          { "batch": "chunk_stone", "rate": 14, "at": [0.0, 0.08, 0.0], "jitter": 0.15, "size": [0.012, 0.03], "speed": [3, 7], "life": [0.6, 1.2],
+            "dir": "back", "cone": 25, "color": [0.5, 0.46, 0.4], "vary": 0.2 }
+        ] } },
+    { "key": "spray.tyre", "family": "ship",
+      "about": "Water thrown up by a tyre in shallow water (a loop at the water's surface by it; Direction: behind it; intensity: its speed): a rooster tail of drops and a mist over it.",
+      "cap": 32, "cull": 220, "hero": 0.5, "stage": "water",
+      "loop": { "fadeIn": 0.2, "fadeOut": 0.6,
+        "emit": [
+          { "batch": "droplet", "rate": 90, "at": [0.0, 0.05, 0.0], "jitter": 0.25, "size": [0.06, 0.12], "width": 0.014, "speed": [2.5, 6.0],
+            "life": [0.4, 0.9], "dir": "back", "cone": 35, "color": [0.84, 0.9, 0.93], "alpha": [0.55, 0.85] },
+          { "batch": "dust", "rate": 10, "at": [0.0, 0.3, 0.0], "jitter": 0.3, "size": [0.5, 0.9], "grow": 2.2, "life": [0.8, 1.6], "speed": [1.0, 2.5],
+            "dir": "back", "cone": 40, "color": [0.92, 0.96, 0.98], "vary": 0.04, "alpha": [0.15, 0.25] }
+        ] } }
   ]
 }

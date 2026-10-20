@@ -45,6 +45,9 @@ public partial class ShipsView : Node3D
 
         // A vehicle on wheels: its nose's way last frame (its turning, for the steered wheels).
         public Num.Vector3 LastForward;
+
+        // A vehicle on wheels: its exhaust, tyre dust and spray (ShipsView.Vehicles.cs).
+        public VehicleFx? Vehicle;
     }
 
     private readonly Dictionary<uint, Drawn> _drawn = new();
@@ -262,6 +265,7 @@ public partial class ShipsView : Node3D
     {
         bool shown = d.View.Visible && !look.Destroyed;
         Wake(d, ship, def, shown, velocity);
+        VehicleEffects(d, def, look, velocity, shown);
         d.Wash ??= new FxHandle[d.View.LiftNozzles];
         GroundProbe? ground = Client.Surface is { } world ? new GroundProbe(world, Client.Frame) : null;
         for (int i = 0; i < d.Wash.Length; i++)
@@ -377,6 +381,7 @@ public partial class ShipsView : Node3D
             FxDirector.Stop(h);
         }
         FxDirector.Stop(d.HullSmoke);
+        StopVehicle(d.Vehicle);
     }
 
     // The listener's space (IRON_WAKE.md §10.1): aboard a ship, the space of the room the player stands in (sounds.json's
