@@ -29,7 +29,7 @@ internal sealed class ItemsReader : IContentReader
             string key = f.Text(e, "key", $"items.json: items[{i}]");
             string where = $"items.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "id", "key", "name", "description", "category", "stack", "condition", "melee", "bow", "ammo",
-                "consume", "wear", "fuel", "cook", "deploys", "building", "door", "ship", "wiring");
+                "consume", "wear", "fuel", "cook", "deploys", "building", "door", "ship", "wiring", "module");
             int id = f.Integer(e, "id", where);
             if (id is < 1 or > ushort.MaxValue)
             {
@@ -56,6 +56,7 @@ internal sealed class ItemsReader : IContentReader
                 Building = f.Has(e, "building") ? Role(f, f.Text(e, "building", where), where) : BuildingRole.None,
                 DoorKey = f.Has(e, "door") ? f.Text(e, "door", where) : null,
                 ShipKey = f.Has(e, "ship") ? f.Text(e, "ship", where) : null,
+                ModuleKey = f.Has(e, "module") ? f.Text(e, "module", where) : null,
             };
             if (!r.AddItem(item))
             {

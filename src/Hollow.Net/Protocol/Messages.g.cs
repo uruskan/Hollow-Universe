@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0xCEE2C4B5997AC9F6UL;
+    public const ulong SchemaHash = 0x24B5A958945B62CBUL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -2326,6 +2326,12 @@ partial struct ShipDetails : INetMessage<ShipDetails>
         {
             Health![i].Write(w);
         }
+        int countModules = Modules == null ? 0 : Math.Min(Modules.Length, 32);
+        w.WriteBits((uint)countModules, 6);
+        for (int i = 0; i < countModules; i++)
+        {
+            Modules![i].Write(w);
+        }
     }
 
     public static ShipDetails Read(BitReader r)
@@ -2376,6 +2382,36 @@ partial struct ShipDetails : INetMessage<ShipDetails>
         {
             v.Health[i] = ShipPartHealthNet.Read(r);
         }
+        int countModules = (int)r.ReadBits(6);
+        if (countModules > 32)
+        {
+            r.Fail();
+            countModules = 0;
+        }
+        v.Modules = new ShipModuleNet[countModules];
+        for (int i = 0; i < countModules; i++)
+        {
+            v.Modules[i] = ShipModuleNet.Read(r);
+        }
+        return v;
+    }
+}
+
+partial struct ShipModuleNet
+{
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteBits((uint)Socket, 8);
+        w.WriteBits((uint)Level, 2);
+        w.WriteBits((uint)Module, 16);
+    }
+
+    public static ShipModuleNet Read(BitReader r)
+    {
+        var v = new ShipModuleNet();
+        v.Socket = (byte)r.ReadBits(8);
+        v.Level = (byte)r.ReadBits(2);
+        v.Module = (ushort)r.ReadBits(16);
         return v;
     }
 }

@@ -203,6 +203,34 @@ public static class ShipShapes
         }
         return centre + Vector3.Transform(best - def.CentreOfMass, rotation);
     }
+
+    /// <summary>
+    /// The nearest point to <paramref name="at"/> on the hull boxes of one target part (a module's body, VEHICLES.md §9.1), and
+    /// whether the part has any.
+    /// </summary>
+    public static bool NearestOnPart(Ships.ShipDef def, Vector3 centre, Quaternion rotation, Vector3 at, int part, out Vector3 point)
+    {
+        Vector3 local = Vector3.Transform(at - centre, Quaternion.Conjugate(rotation)) + def.CentreOfMass;
+        Vector3 best = local;
+        float nearest = float.MaxValue;
+        for (int i = 0; i < def.Hull.Count; i++)
+        {
+            if (def.HullPart(i) != part)
+            {
+                continue;
+            }
+            Ships.HullBox box = def.Hull[i];
+            Vector3 p = Vector3.Clamp(local, box.Centre - box.HalfExtents, box.Centre + box.HalfExtents);
+            float d = Vector3.DistanceSquared(p, local);
+            if (d < nearest)
+            {
+                nearest = d;
+                best = p;
+            }
+        }
+        point = centre + Vector3.Transform(best - def.CentreOfMass, rotation);
+        return nearest < float.MaxValue;
+    }
 }
 
 /// <summary>

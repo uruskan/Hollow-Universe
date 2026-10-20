@@ -71,6 +71,11 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder, IAuthorisation
         Def = def;
         Owner = owner;
         Cargo = new Container(ContainerKind.Box, Math.Max(1, def.CargoSlots));
+        Holds = new Container[def.Holds.Count];
+        for (int i = 0; i < Holds.Length; i++)
+        {
+            Holds[i] = new Container(ContainerKind.Box, def.Holds[i].Slots);
+        }
         Fuel = new ShipFuel(def);
         Parts = def.Interior?.Rest.Clone() as float[] ?? Array.Empty<float>();
         Occupants = new EntityId[def.Seats.Count];
@@ -170,6 +175,9 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder, IAuthorisation
     public bool Autopilot { get; set; }
 
     public Container Cargo { get; }
+
+    /// <summary>Its modules' holds (<see cref="ShipDef.Holds"/>' order, VEHICLES.md §9.1): each opened at its own part.</summary>
+    public Container[] Holds { get; }
 
     public ShipFuel Fuel { get; }
 

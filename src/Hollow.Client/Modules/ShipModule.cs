@@ -10,6 +10,7 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Ships.Modules;
 using JoltPhysicsSharp;
 
 namespace Hollow.Client;
@@ -295,9 +296,13 @@ public sealed class ShipModule : ClientModule
             RemoteShip ship = RemoteShipOf(spawn.NetId);
             ship.Spawned = true;
             ship.Id = new EntityId(spawn.EntityId);
-            ship.Def ??= Content.Ship(spawn.Name ?? "");
+            ship.Def ??= Composed(Content.Ship(spawn.Name ?? ""), ship.Build);
         }
     }
+
+    // A kind with a build as this client's data makes it (VEHICLES.md §9.1): the untrusted build made sane on the kind.
+    private ShipDef? Composed(ShipDef? kind, ShipBuild build) =>
+        kind == null || build.IsEmpty ? kind : Content.Compose(kind, ShipAssembler.Sane(kind, build.Entries, Content.Module));
 
     protected internal override void Despawned(uint netId)
     {
@@ -315,6 +320,12 @@ public sealed class ShipModule : ClientModule
     {
         RemoteShip ship = RemoteShipOf(m.Ship);
         int parts = ship.PartsVersion;
+        // Its build first (VEHICLES.md §9.1): the layout the seats, doors and parts below are numbered by.
+        ship.Build = new ShipBuild(ShipConvert.BuildOf(m));
+        if (ship.Def is { } known)
+        {
+            ship.Def = Composed(known.Kind, ship.Build);
+        }
         ship.SetDetails(m);
         if (ship.PartsVersion != parts && _parkedBodies.ContainsKey(m.Ship))
         {
@@ -344,7 +355,7 @@ public sealed class ShipModule : ClientModule
         foreach ((uint netId, ShipNetState state) in DecodedShips)
         {
             RemoteShip ship = RemoteShipOf(netId);
-            ship.Def ??= Content.Ship((int)Math.Min(state.Kind, ushort.MaxValue));
+            ship.Def ??= Composed(Content.Ship((int)Math.Min(state.Kind, ushort.MaxValue)), ship.Build);
             ship.Add(serverTick, state);
             // Parked as the server has it: its body there, with that body's ID (a new ID is a new parking).
             bool parked = state.Body != 0;
@@ -528,7 +539,10 @@ public sealed class ShipModule : ClientModule
             Vertical = Math.Clamp(float.IsFinite(o.CruiseVertical) ? o.CruiseVertical : 0, -1, 1),
             Buttons = o.Flags.HasFlag(ShipFlags.AssistOff) ? ShipButtons.AssistOff : ShipButtons.None,
         };
-        if (Content.Ship((int)Math.Min(o.Kind, ushort.MaxValue)) is not { } def)
+        // The layout it is flown with: its own (its build's, from its details) when known, else its kind's.
+        ShipDef? def = _ships.TryGetValue(o.NetId, out RemoteShip? flown) && flown.Def is { } known && known.Id == o.Kind
+            ? known : Content.Ship((int)Math.Min(o.Kind, ushort.MaxValue));
+        if (def == null)
         {
             return;
         }

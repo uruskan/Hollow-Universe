@@ -1,5 +1,45 @@
 # Hollow Universe AB Test B
 
+## 20 October 2026 — Vehicles V1: the module core
+
+At the owner's go (VEHICLES.md §11), on branch `claude/vehicles` in its own worktree. It is shared with the minicopter
+session, which declares the KA-FA 1500's modules in this format. The motorboat's seam and the minicopter's rotor core
+(`98621ac7`, `8806f350`, `bf69935d`, `39220a1c`) are merged into the branch, so their numbers come first: protocol 47 and
+ship codec 8 are this work's. What was built is in VEHICLES.md §9.5:
+- `modules.json` and a kind's `sockets`;
+- the build rules and the composer, which copies the kind and appends modules;
+- each module's own hold;
+- shots and blasts that find module bodies;
+- the hammer mending hulls through the one repair path (the Tin Finch and the Iron Wake got repair costs);
+- the build saved after the kind and sent in the ship's details.
+
+Checked: `ModuleTests` 7/7 (data, rules, composition, a zone's holds, shots and hammer, codec 8 with a lost module, the
+details on the wire); before the merge, Ship, Content, Seat, Raid, Gun and Damage 128/128; the solution builds with 0
+warnings. The full suite: see the next line. No Godot run: nothing is drawn yet.
+
+## 20 October 2026 — Ground vehicles designed: the modular car, the motorbike and the lift (V0)
+
+At the owner's request, a design and nothing built: [VEHICLES.md](VEHICLES.md) and its proportion sheet
+(`images/vehicles/proportions.svg`, drawn by `proportions.py`). It covers:
+
+- a car with a nose engine mount and three bays on two levels, on tyres or tracks;
+- cabins of one or two seats, which can be stacked, or a camper shell as a portable base;
+- a motorbike built from mount points, with a sidecar and a snow kit;
+- five engine parts in three tiers;
+- a lift drawing 20 through the electrical graph.
+
+Vehicles are ships in the code, with one module system shared with the minicopter and motorboat sessions (agreed by
+message today) and a `ground` motor of our own. Jolt's vehicle constraint is in the bundled binding, but it needs dynamic
+stepping and cannot save its state for the client's replay. The sheet was checked by eye in the browser pane; no test was
+run. Nine questions waited for the owner (§12). The owner answered six the same day (R13 to R18):
+- the names are the TOGG and the Zamazingo;
+- engine parts can be swapped on the road;
+- vehicles decay outside tool cupboard zones;
+- beds aboard are respawn points;
+- Space gets out;
+- tall builds are accepted until vehicle garage doors come.
+Three remain, and a fourth came from the decay answer (does any cupboard's zone count).
+
 ## 20 October 2026 — World terrain, iteration 5: the cliff kit placed on the baked Earth
 
 At the owner's word the kit (f58b0207) went onto Earth before the rivers. A fast iteration the owner checks by hand.

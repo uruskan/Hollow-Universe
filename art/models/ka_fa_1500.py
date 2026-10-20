@@ -337,6 +337,8 @@ def frame(mesh):
     rod(mesh, 'TailLampHousing', (0, 4.13, 1.24), (0, 4.17, 1.24), .03, 'dark')
     # A step on the left strut, a grab handle on the hoop.
     block(mesh, 'Step', (.64, -.62, .31), (.16, .07, .01), 'tread', bevel=.002)
+    # The windscreen's bolts at its corners and sides.
+    screen_bolts(mesh)
     if lod < 2:
         pipe(mesh, 'GrabHandle', [(.36, -1.04, 1.0), (.42, -1.0, 1.1), (.42, -.92, 1.2), (.35, -.88, 1.3)], .011, 'rubber')
 
@@ -363,7 +365,7 @@ def windscreen(mesh):
 
 def screen_bolts(mesh):
     for p in ((.33, -1.37, .58), (-.33, -1.37, .58), (.29, -.82, 1.43), (-.29, -.82, 1.43), (.31, -1.12, 1.0), (-.31, -1.12, 1.0)):
-        disc(mesh, 'ScreenBolt', p, .012, .012, 'steel', axis=(0, -.6, .4), segments=8)
+        disc(mesh, 'ScreenBolt', p, .012, .012, 'steel', axis=(0, -.6, .4), segments=(8, 6, 4)[mesh.lod])
 
 
 def lamps(mesh):
@@ -597,7 +599,6 @@ report = {'asset': KEY, 'sockets': {**{f'socket_{k}': list(v) for k, v in SOCKET
 # The frame and its moving tail rotor.
 body = [built(frame, 'Body', mat, lod) for lod in range(3)]
 glass = [built(windscreen, 'Glass', glass_mat, lod) for lod in range(3)]
-bolts = built(screen_bolts, 'ScreenBolts', mat, 0)
 lens = built(lamps, 'Lamps', lamp_mat, 0)
 lens.name = lens.data.name = 'Lamps'
 tail_meshes = [built(tail_rotor, 'TailRotorBlades', mat, lod) for lod in range(3)]
@@ -615,7 +616,7 @@ for o in [rotor_blur] + [m for objs in module_objects.values() for m in objs]:
     o.location = (0, 0, 0)
 
 # Occlusion: the craft as M1 flies it, seen together at LOD0 (modules moved to their sockets for the rays, then back).
-together = [body[0], bolts]
+together = [body[0]]
 for name, (builder, socket, default) in MODULES.items():
     if default:
         o = module_objects[name][0]
@@ -673,7 +674,7 @@ for name, (builder, socket, default) in MODULES.items():
         bpy.data.objects.remove(hub)
 
 # The craft as M1 flies it: the frame, its tail rotor, and the default modules under Module_<socket>.
-craft = list(body) + glass + [bolts, lens, tail] + tail_meshes + [tail_blur, hull]
+craft = list(body) + glass + [lens, tail] + tail_meshes + [tail_blur, hull]
 for name, (builder, socket, default) in MODULES.items():
     if not default:
         continue

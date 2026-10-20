@@ -6,6 +6,7 @@ using Hollow.Core;
 using Hollow.Net.Bits;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Ships.Modules;
 using Hollow.Simulation.Targets;
 
 namespace Hollow.Net.Protocol;
@@ -184,7 +185,25 @@ public static class ShipConvert
                 health.Add(new ShipPartHealthNet { Part = (byte)i, Health = Share(ship.PartHealth[i], max) });
             }
         }
-        return new ShipDetails { Ship = netId, Parts = parts.ToArray(), Doors = doors, Seats = seats.ToArray(), Health = health.ToArray() };
+        var modules = new ShipModuleNet[def.Build.Count];
+        for (int i = 0; i < modules.Length; i++)
+        {
+            Installed e = def.Build.Entries[i];
+            modules[i] = new ShipModuleNet { Socket = e.Socket, Level = e.Level, Module = e.Module };
+        }
+        return new ShipDetails { Ship = netId, Parts = parts.ToArray(), Doors = doors, Seats = seats.ToArray(), Health = health.ToArray(), Modules = modules };
+    }
+
+    /// <summary>The build a ship's details carry (VEHICLES.md §9.1), as it came: untrusted, to be made sane on its kind.</summary>
+    public static Installed[] BuildOf(in ShipDetails m)
+    {
+        var entries = new Installed[m.Modules?.Length ?? 0];
+        for (int i = 0; i < entries.Length; i++)
+        {
+            ShipModuleNet n = m.Modules![i];
+            entries[i] = new Installed(n.Socket, n.Level, n.Module);
+        }
+        return entries;
     }
 
     /// <summary>A door's motion as the wire carries it.</summary>
