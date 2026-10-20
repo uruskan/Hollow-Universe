@@ -4945,3 +4945,19 @@ Not done:
 - the item icons, the sandbox tour, screenshots and a hosted flight (Godot was held by other clients);
 - swapping modules (V4's lift).
 
+### 20 October 2026 — the KA-FA 1500 in Godot: the sandbox on Earth, its tour
+
+- **Sandbox:** `--view ship` now builds Earth, as the ground game does; the retired 2.41 km first world broke it for
+  every ship.
+- **Pictures:** the KA-FA on the workbench's pad and hovering with its rotors blurred (`.artifacts/itemart/ka-fa-1500/game`).
+- **Tour:** `--tour` for a rotorcraft (MINICOPTER.md §13) passes: out and back to its pad in 96 s, touched down at
+  0.1 m/s, unhurt.
+- **Fuel fix:** the tour found that a spawned KA-FA had only the frame's 10 lamp oil, because callers fill the kind's
+  tank; `SpawnShip` now fills the build's.
+
+Validation:
+- `RotorTests` 21/21.
+- Full suite 1078/1090. The 12 failures are all also on abtest-b: eight terrain and formation tests, TerrainSaveTests,
+  WorldStoreTests, ArchitectureTests (CliffKitPlacements.cs and TerrainBake.cs), the car's togg model, and
+  GunNetTests.GunfightOverTheNetwork (passes alone: a real-time flake).
+

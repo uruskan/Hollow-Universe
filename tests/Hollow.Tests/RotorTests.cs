@@ -109,6 +109,16 @@ public static class RotorTests
         Assert.InRange(0.85, 1.1, def.CentreOfMass.Y, "the centre of mass sits about a metre up");
     }
 
+    /// <summary>A KA-FA spawned from its kind with the kind's tank full (the admin's ship command, the sandbox) has the build's full tank.</summary>
+    [Test]
+    public static void RotorSpawnedFullHasItsBuildsTank()
+    {
+        using var rig = new ShipRig(content: true, worldSpec: ZoneSpec.StartingWorld(10, 20));
+        Ship ship = rig.Zone.Ships().SpawnShip(KaFa, rig.Zone.GroundAt(0, 0), 0, EntityId.None, KaFa.FuelCapacity);
+        Assert.Near(250, ship.Def.FuelCapacity, 1e-3, "the composed craft's tank");
+        Assert.Near(250, ship.State.Fuel, 1e-3, "filled to it, not to the frame's 10");
+    }
+
     /// <summary>§4.1: without its engine, or without its rotor, the frame doesn't leave the ground (the rotor doesn't even turn).</summary>
     [Test]
     public static void RotorNeedsBothEngineAndRotor()

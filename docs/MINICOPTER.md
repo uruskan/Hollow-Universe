@@ -326,7 +326,17 @@ Seated item use (a passenger firing, M11) is a shared seats feature, not this pa
   twin's pull-start and its cut. `art/audio/ka_fa_sounds.py` makes them events (`kafa.rotor.slow/fast/load`,
   `kafa.twin.start/stop`). `ShipSounds` plays the rotor while it turns, engine running or not, crossfaded by the spool,
   the load's slap by the collective.
-- **Not yet:** the tour (`--tour`), screenshots and a hosted flight. They wait for a turn on the PC's Godot.
+- **The tour** (`--view ship --ship ka-fa-1500 --tour`, `ShipSandbox.RotorTour.cs`) flies through Rust's keys and exits 0
+  when every check holds. It walks to the seat and sits, holds W while the rotor spools and lifts it, climbs to 100 m,
+  cruises with the stick forward, turns on the pedals, flares, flies back over the open pad it started from (steering
+  its velocity with the arrow keys), lands and steps out. On Earth, 20 October 2026: lift-off 4.5 s after sitting,
+  31.6 m/s, a 62° turn in 3 s, a flare from 29 to 2.4 m/s in 4.4 s, back within 1.4 m of the pad, touched down at
+  0.1 m/s, unhurt, 35.5 lamp oil in 96 s.
+- **The sandbox runs on Earth** (it built the old 2.41 km first world, which the planets' size bound now refuses:
+  `--view ship` failed for every ship).
+- **A spawned craft gets its build's tank:** a caller filling the kind's own tank (the sandbox, the admin's `ship`) gets
+  the composed craft's full tank (`SpawnShip`). Before this fix the KA-FA was given only the frame's 10 lamp oil.
+- **Not yet:** a hosted flight with a second player watching, and pictures from the cockpit and over the forest.
 
 ### M4 (20 October 2026): a frame with modules
 

@@ -174,7 +174,14 @@ public sealed partial class ShipSystem : ZoneSystem
         // A kind made without a build comes with its default one (ships.json build, VEHICLES.md §9.1).
         if (def.Build.IsEmpty && !def.DefaultBuild.IsEmpty && Content != null)
         {
+            float full = def.FuelCapacity;
             def = Content.Compose(def, def.DefaultBuild);
+            // A caller filling the kind's own tank fills the build's: its modules add tanks (the KA-FA's jerry tank holds
+            // 240 of its 250, docs/MINICOPTER.md §4.2).
+            if (fuel >= full)
+            {
+                fuel = def.FuelCapacity;
+            }
         }
         Vector3 up = Frame.UpAt(ground);
         ShipState state = ShipMotor.Standing(def, ground + up * 0.02f, up, yaw);

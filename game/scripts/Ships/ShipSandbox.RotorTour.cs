@@ -11,11 +11,12 @@ namespace HollowUniverse.Ships;
 // --tour for a rotorcraft (the KA-FA 1500, docs/MINICOPTER.md §5): the sandbox played through the keys a pilot presses
 // (Rust's: W climb, S sink, A/D yaw, the arrows a keyboard stick), to check the whole flight end to end and measure it: walk
 // to the seat, sit, hold W while the rotor spools and lifts it, climb, push the stick forward and cruise, turn on the
-// pedals, pull the stick back to stop, sink to a landing, step out. Prints what happened and quits with 0 when every check
-// holds. The mouse is never captured.
+// pedals, pull the stick back to stop, fly back over the open pad it started from (a 7 m rotor lands where there are no
+// trees), sink to a landing, step out. Prints what happened and quits with 0 when every check holds. The mouse is never
+// captured.
 public partial class ShipSandbox
 {
-    private enum RotorLeg { Walk, Board, Spool, Climb, Cruise, Turn, Flare, Descend, Settle, Exit, Done }
+    private enum RotorLeg { Walk, Board, Spool, Climb, Cruise, Turn, Flare, Return, Descend, Settle, Exit, Done }
 
     private RotorLeg _rotorLeg = RotorLeg.Walk;
     private float _liftOffAt = -1, _headingBefore, _rotorTurned, _cruiseSpeed, _flareFrom;
@@ -60,13 +61,15 @@ public partial class ShipSandbox
         }
         if (_clock - _tourStarted > 180 && _rotorLeg != RotorLeg.Done)
         {
-            GD.PrintErr($"[tour] stuck in {_rotorLeg} after 180 s: {s}");
+            float tilt = MathF.Acos(Math.Clamp(Num.Vector3.Dot(s.Up, up), -1, 1)) * 180 / MathF.PI;
+            GD.PrintErr(FormattableString.Invariant(
+                $"[tour] stuck in {_rotorLeg} after 180 s: {Over(s):0.00} m over the ground, tilted {tilt:0.0}°, {_ship.Events.Contacts} skid contacts, {Num.Vector3.Distance(s.Position, _pad):0.0} m from the pad's point; {s}"));
             FinishRotor(false);
             return;
         }
         // Like a pilot watching the ground: the collective up over the hills and the trees (a 7 m rotor) while cruising,
         // turning and flaring.
-        if (_rotorLeg is RotorLeg.Cruise or RotorLeg.Turn or RotorLeg.Flare)
+        if (_rotorLeg is RotorLeg.Cruise or RotorLeg.Turn or RotorLeg.Flare or RotorLeg.Return)
         {
             bool low = Over(s) < 70;
             if (low != _rotorClimbing)
@@ -156,6 +159,17 @@ public partial class ShipSandbox
                         Hold(Godot.Key.W, false);
                     }
                     _log += FormattableString.Invariant($"  flared from {_flareFrom:0} m/s to {FlatSpeed(s):0.0} m/s in {t:0.0} s\n");
+                    NextRotor(RotorLeg.Return);
+                }
+                break;
+            case RotorLeg.Return:
+                if (FlyTo(s, _pad, t))
+                {
+                    if (_rotorClimbing)
+                    {
+                        _rotorClimbing = false;
+                        Hold(Godot.Key.W, false);
+                    }
                     NextRotor(RotorLeg.Descend);
                     Hold(Godot.Key.S, true);
                 }
@@ -183,6 +197,49 @@ public partial class ShipSandbox
                 }
                 break;
         }
+    }
+
+    // Flies over a point of the ground through the keys, as a pilot on a keyboard would: the stick (the arrows) tilts it
+    // toward the velocity it wants (toward the point, slower as it nears), the pedals face it there while it is far. True once
+    // it hovers within 3 m of the point.
+    private bool FlyTo(in ShipState s, Num.Vector3 point, double t)
+    {
+        Num.Vector3 up = _zone.Frame.UpAt(s.Position);
+        Num.Vector3 to = point - s.Position;
+        to -= up * Num.Vector3.Dot(to, up);
+        Num.Vector3 v = s.Velocity - up * Num.Vector3.Dot(s.Velocity, up);
+        float distance = to.Length(), speed = v.Length();
+        if ((distance < 1.5f && speed < 0.8f) || t > 90)
+        {
+            foreach (Godot.Key key in new[] { Godot.Key.A, Godot.Key.D, Godot.Key.Up, Godot.Key.Down, Godot.Key.Left, Godot.Key.Right })
+            {
+                Hold(key, false);
+            }
+            _log += FormattableString.Invariant($"  back over the pad: {distance:0.0} m off at {speed:0.0} m/s\n");
+            return true;
+        }
+        Num.Vector3 forward = s.Forward - up * Num.Vector3.Dot(s.Forward, up);
+        forward = forward.LengthSquared() > 1e-6f ? Num.Vector3.Normalize(forward) : forward;
+        Num.Vector3 right = Num.Vector3.Cross(forward, up);
+        Num.Vector3 want = distance > 0.1f ? to / distance * MathF.Min(18, 0.3f * distance) : Num.Vector3.Zero;
+        Num.Vector3 miss = want - v;
+        float ahead = Num.Vector3.Dot(miss, forward), aside = Num.Vector3.Dot(miss, right);
+        // Finer near the point: a dead band of 1.2 m/s far off, 0.4 m/s within 10 m.
+        float band = distance < 10 ? 0.4f : 1.2f;
+        Hold(Godot.Key.Up, ahead > band);
+        Hold(Godot.Key.Down, ahead < -band);
+        Hold(Godot.Key.Right, aside > band);
+        Hold(Godot.Key.Left, aside < -band);
+        // Far off, the nose toward it (+ yaw is to the left: A); near, the pedals let go.
+        float error = 0;
+        if (distance > 40)
+        {
+            error = (ShipMotor.YawOf(ShipMotor.Basis(to, up), up) - ShipMotor.YawOf(s.Rotation, up)) * 180 / MathF.PI;
+            error = ((error % 360) + 540) % 360 - 180;
+        }
+        Hold(Godot.Key.A, error > 8);
+        Hold(Godot.Key.D, error < -8);
+        return false;
     }
 
     // After each zone step while touring a rotorcraft: the touchdown and any crash.
