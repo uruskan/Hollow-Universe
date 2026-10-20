@@ -1815,6 +1815,11 @@ ITEMS = {
         "alarmHull": "iw.alarm.hull", "rampOpen": "iw.ramp.release", "rampClose": "iw.ramp.release",
         "rampTravel": "iw.ramp.actuator", "rampOpened": "iw.ramp.contact", "rampShut": "iw.ramp.lock",
         "airlockOpen": "iw.airlock.slide", "airlockClose": "iw.airlock.slide", "airlockShut": "iw.airlock.seal"},
+    # The KA-FA 1500 (docs/MINICOPTER.md §8): its rotor by the spool and the collective, the twin's start and cut
+    # (art/audio/ka_fa_sounds.py).
+    "ka-fa-1500": {"rotor": "kafa.rotor.slow", "rotorFast": "kafa.rotor.fast", "rotorLoad": "kafa.rotor.load",
+                   "start": "kafa.twin.start", "shutdown": "kafa.twin.stop", "touchdown": "ship.touchdown",
+                   "crash": "ship.crash", "destroyed": "explosion"},
     "wooden-door": door_roles("wood"), "metal-door": door_roles("metal"), "armoured-door": door_roles("armoured"),
     "double-door": door_roles("wood"), "garage-door": door_roles("garage"),
     "sheet-metal-door": door_roles("metal"), "wooden-double-door": door_roles("wood"),
@@ -1842,4 +1847,5 @@ def everything():
     animals()
     iron_wake()
     __import__("repair_actions").recipes()
+    __import__("ka_fa_sounds").recipes()
     return list(OUTS), list(EVENTS)

@@ -110,6 +110,7 @@
     "rifle-ammo-explosive": {"explode": "impact.metal"},
     "tin-finch": {"engine": "ship.engine", "load": "ship.thrust", "boost": "ship.boost", "hatchOpen": "ship.hatch.open", "hatchClose": "ship.hatch.close", "touchdown": "ship.touchdown", "crash": "ship.crash", "destroyed": "explosion"},
     "iron-wake": {"start": "iw.drive.start", "idle": "iw.drive.idle.slow", "idleFast": "iw.drive.idle.fast", "load": "iw.drive.load.slow", "loadFast": "iw.drive.load.fast", "release": "iw.drive.release", "shutdown": "iw.drive.shutdown", "lift": "iw.lift.loop.slow", "liftFast": "iw.lift.loop.fast", "rcs": "iw.rcs.puff", "boostLoop": "iw.boost.strain.slow", "boostLoopFast": "iw.boost.strain.fast", "boostRelease": "iw.boost.release", "strainLight": "iw.hull.strain.light", "strainMedium": "iw.hull.strain.medium", "strainHeavy": "iw.hull.strain.heavy", "touchdown": "iw.touchdown", "crash": "ship.crash", "destroyed": "explosion", "ventilation": "iw.interior.ventilation", "machinery": "iw.interior.machinery", "alarmHull": "iw.alarm.hull", "rampOpen": "iw.ramp.release", "rampClose": "iw.ramp.release", "rampTravel": "iw.ramp.actuator", "rampOpened": "iw.ramp.contact", "rampShut": "iw.ramp.lock", "airlockOpen": "iw.airlock.slide", "airlockClose": "iw.airlock.slide", "airlockShut": "iw.airlock.seal"},
+    "ka-fa-1500": {"rotor": "kafa.rotor.slow", "rotorFast": "kafa.rotor.fast", "rotorLoad": "kafa.rotor.load", "start": "kafa.twin.start", "shutdown": "kafa.twin.stop", "touchdown": "ship.touchdown", "crash": "ship.crash", "destroyed": "explosion"},
     "wooden-door": {"open": "door.open.wood", "close": "door.close.wood", "place": "build.place.wood"},
     "metal-door": {"open": "door.open.metal", "close": "door.close.metal", "place": "build.place.metal"},
     "armoured-door": {"open": "door.open.armoured", "close": "door.close.armoured", "place": "build.place.armoured"},
@@ -6640,6 +6641,88 @@
         "res://assets/audio/deploy/recycler_stop_01.ogg",
         "res://assets/audio/deploy/recycler_stop_02.ogg",
         "res://assets/audio/deploy/recycler_stop_03.ogg"
+      ]
+    },
+    {
+      "key": "kafa.rotor.slow",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 12.0,
+      "maxDistance": 700.0,
+      "priority": 72,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/kafa/rotor_slow.ogg"
+      ]
+    },
+    {
+      "key": "kafa.rotor.fast",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 12.0,
+      "maxDistance": 700.0,
+      "priority": 72,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/kafa/rotor_fast.ogg"
+      ]
+    },
+    {
+      "key": "kafa.rotor.load",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 12.0,
+      "maxDistance": 700.0,
+      "priority": 72,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/kafa/rotor_load.ogg"
+      ]
+    },
+    {
+      "key": "kafa.twin.start",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 8.0,
+      "maxDistance": 250.0,
+      "priority": 70,
+      "limit": 2,
+      "pitch": [0.97, 1.03],
+      "jitter": 0.5,
+      "files": [
+        "res://assets/audio/kafa/twin_start_01.ogg",
+        "res://assets/audio/kafa/twin_start_02.ogg",
+        "res://assets/audio/kafa/twin_start_03.ogg"
+      ]
+    },
+    {
+      "key": "kafa.twin.stop",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 8.0,
+      "maxDistance": 250.0,
+      "priority": 70,
+      "limit": 2,
+      "pitch": [0.97, 1.03],
+      "jitter": 0.5,
+      "files": [
+        "res://assets/audio/kafa/twin_stop_01.ogg",
+        "res://assets/audio/kafa/twin_stop_02.ogg",
+        "res://assets/audio/kafa/twin_stop_03.ogg"
       ]
     }
   ]
