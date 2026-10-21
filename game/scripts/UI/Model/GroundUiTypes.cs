@@ -119,6 +119,12 @@ public sealed record LootView(ContainerKind Kind, string Title, IReadOnlyList<It
 
     /// <summary>A vehicle: what its build makes (mass, power, top speed, tyres, lift), and its warnings.</summary>
     public IReadOnlyList<string> Lines { get; init; } = Array.Empty<string>();
+
+    /// <summary>A vehicle: the panel's heading when not its bay's (VEHICLE: looked at away from a bay).</summary>
+    public string? Heading { get; init; }
+
+    /// <summary>A vehicle: the line under it when nothing stops a change (null: how to drag modules in and out).</summary>
+    public string? Hint { get; init; }
 }
 
 /// <summary>Building rights where the player stands.</summary>

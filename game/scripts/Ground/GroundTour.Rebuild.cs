@@ -54,7 +54,8 @@ public partial class GroundTour
         await TeleportTo(at + side * 4f);
         Face(at);
         await Settle();
-        var ghost = Client.Placement().PlanAt(Placeable("vehicle-workbench")!, at, yaw + MathF.PI)
+        // At the car's own yaw its front, and so its bay (BayStats.Axes), faces the car.
+        var ghost = Client.Placement().PlanAt(Placeable("vehicle-workbench")!, at, yaw)
             ?? throw new InvalidOperationException("rebuild: no ghost for the bench");
         GD.Print($"[tour] rebuild: the bench's ghost {(ghost.Valid ? "fits" : "doesn't fit: " + ghost.Outcome)}");
         var before = Client.Survival().Things.Select(t => t.Id).ToHashSet();
@@ -62,8 +63,8 @@ public partial class GroundTour
         await Until(() => Client.Survival().Things.Any(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == "vehicle-workbench"), 4);
         RemoteThing bench = Client.Survival().Things.FirstOrDefault(t => !before.Contains(t.Id) && t.Deployable(Client.Content)?.Key == "vehicle-workbench")
             ?? throw new InvalidOperationException("rebuild: the bench was not placed");
-        (Num.Vector3 benchRight, Num.Vector3 benchForward) = Hollow.Simulation.Combat.Geometry.Axes(bench.Up, bench.Yaw);
-        Num.Vector3 centre = bench.Position + benchRight * bay.At.X + benchForward * bay.At.Z;
+        (Num.Vector3 benchRight, Num.Vector3 benchOut) = BayStats.Axes(bench.Up, bench.Yaw);
+        Num.Vector3 centre = bay.Centre(bench.Position, bench.Up, bench.Yaw);
         GD.Print($"[tour] rebuild: the bench placed {Num.Vector3.Distance(bench.Position, at):0.00} m from where it was aimed; its bay's centre " +
             $"{Num.Vector3.Distance(centre, car.Position):0.0} m ahead of the car");
 
@@ -94,7 +95,7 @@ public partial class GroundTour
         await RebuildPicture(car, side, "rebuild-togg");
 
         // The bench's tech tree, then its VEHICLE IN BAY button: the vehicle screen beside the inventory.
-        await TeleportTo(ground.Offset(bench.Position + benchRight * (benchDef.HalfExtents.X + 1.3f) + benchForward * 1.2f, 0, 0));
+        await TeleportTo(ground.Offset(bench.Position + benchRight * (benchDef.HalfExtents.X + 1.3f) + benchOut * 1.2f, 0, 0));
         Face(car.Position);
         await Settle();
         View.Interface.OpenTechTree();
@@ -106,9 +107,15 @@ public partial class GroundTour
         await Until(() => View.Model.Loot is { Kind: UI.Model.ContainerKind.Vehicle, Slots.Count: > 0 }, 4);
         await Seconds(0.8);
         await Shot("rebuild-screen");
-        // The stock tyres and engine out, the lift kit, the monster tyres and the blown six in: each a drag.
-        await RebuildDrag(car, "WHEELS", null);
+        // The engine out first (the owner's way, 21 October 2026): the car is still worked with at its door; then the stock
+        // tyres, which leave its hubs bare; then the lift kit, the monster tyres and the blown six in: each a drag.
         await RebuildDrag(car, "NOSE", null);
+        await RebuildDoorCheck(car, "its engine out");
+        await RebuildOpenScreen(car);
+        await RebuildDrag(car, "WHEELS", null);
+        await RebuildDoorCheck(car, "its tyres off too");
+        await RebuildPicture(car, side, "rebuild-bare", 3.2f);
+        await RebuildOpenScreen(car);
         await RebuildDrag(car, "SUSPENSION", "togg-lift-kit");
         await RebuildDrag(car, "WHEELS", "monster-tyres");
         await RebuildDrag(car, "NOSE", "monster-togg-engine");
@@ -142,14 +149,82 @@ public partial class GroundTour
         Me.LeaveSeat();
         await Until(() => !Client.Ships().Seated, 5);
         GD.Print($"[tour] rebuild: backed out, {Num.Vector3.Distance(car.Position, centre):0.0} m from the bay's centre");
+
+        // Out of the bay, its own INSPECT VEHICLE: the same screen, read-only, its modules' condition.
+        await Seconds(1.5);
+        await TeleportTo(car.PointOf(def.PartPoint(seat) + new Num.Vector3(2.2f, 0, 0)));
+        Face(car.Position);
+        await Settle();
+        View.Model.OpenVehicle(new TargetRef(TargetFamily.Ship, car.Id.Value, 0));
+        View.Interface.Open(GroundScreen.Inventory);
+        await Until(() => View.Model.Loot is { Kind: UI.Model.ContainerKind.Vehicle, Heading: "VEHICLE" }, 4);
+        await Seconds(0.8);
+        GD.Print($"[tour] rebuild: inspected away from the bay: {View.Model.Loot?.Heading} {View.Model.Loot?.Title}, " +
+            $"{string.Join(", ", View.Model.Loot?.Labels.Where(l => l.Contains('%')) ?? Array.Empty<string>())}; {View.Model.Loot?.Hint}");
+        await Shot("rebuild-inspect");
+        View.Interface.Open(GroundScreen.Hud);
+    }
+
+    // E at the car's door from beside it, as a player does: what the game's aim meets and its prompt; then its door opened
+    // and shut through the verbs. Thrown when the door doesn't answer.
+    private async Task RebuildDoorCheck(RemoteShip car, string when)
+    {
+        View.Interface.Open(GroundScreen.Hud);
+        ShipDef def = car.Def!;
+        ShipTargetPart door = def.Parts.First(p => p.Door >= 0 && p.Seat >= 0);
+        await TeleportTo(car.PointOf(door.At.Position + new Num.Vector3(1.6f, -0.7f, 0)));
+        Face(car.PointOf(door.At.Position));
+        await Settle();
+        await Seconds(0.6);
+        InteractAim? aim = View.Model.Aimed;
+        GD.Print($"[tour] rebuild: {when}, E at its door meets {(aim == null ? "nothing" : $"{aim.Target.Family} part {aim.Target.Part} of {car.Def!.Parts.Count}")}; " +
+            $"the prompt \"{View.Model.Prompt?.Action ?? "none"}\"");
+        var target = new TargetRef(TargetFamily.Ship, car.Id.Value, (byte)door.Index);
+        bool wasOpen = car.Doors.Length > door.Door && car.Doors[door.Door].Opening;
+        if (wasOpen)
+        {
+            Me.Interact(target, "hatch-close");
+            await Until(() => !car.Doors[door.Door].Opening, 3);
+        }
+        Me.Interact(target, "hatch-open");
+        await Until(() => car.Doors.Length > door.Door && car.Doors[door.Door].Opening, 3);
+        bool opened = car.Doors.Length > door.Door && car.Doors[door.Door].Opening;
+        Me.Interact(target, "hatch-close");
+        await Until(() => car.Doors.Length > door.Door && !car.Doors[door.Door].Opening, 3);
+        GD.Print($"[tour] rebuild: {when}, its door {(opened ? "opened and shut" : "did not open")}");
+        if (aim == null || aim.Target.Id != car.Id.Value || !opened)
+        {
+            throw new InvalidOperationException($"rebuild: {when}, the car isn't worked with at its door");
+        }
+        if (wasOpen)
+        {
+            // Left as it was found: the drive out goes in through it.
+            Me.Interact(target, "hatch-open");
+            await Until(() => car.Doors[door.Door].Opening, 3);
+        }
+        await Seconds(1.5);
+    }
+
+    // Back beside the bench, its vehicle screen open again.
+    private async Task RebuildOpenScreen(RemoteShip car)
+    {
+        RemoteThing bench = Client.Survival().Things.First(t => t.Deployable(Client.Content)?.Bay != null);
+        (Num.Vector3 right, Num.Vector3 outward) = BayStats.Axes(bench.Up, bench.Yaw);
+        await TeleportTo(Client.Placement().Ground!.Value.Offset(bench.Position + right * (bench.Deployable(Client.Content)!.HalfExtents.X + 1.3f) + outward * 1.2f, 0, 0));
+        Face(car.Position);
+        await Settle();
+        View.Model.OpenVehicle(new TargetRef(TargetFamily.Thing, bench.Id.Value, 0));
+        View.Interface.Open(GroundScreen.Inventory);
+        await Until(() => View.Model.Loot is { Kind: UI.Model.ContainerKind.Vehicle, Heading: null, Slots.Count: > 0 }, 4);
+        await Seconds(0.5);
     }
 
     // A picture of the car in the bay from beside its rear corner, the bench behind it.
-    private async Task RebuildPicture(RemoteShip car, Num.Vector3 side, string name)
+    private async Task RebuildPicture(RemoteShip car, Num.Vector3 side, string name, float distance = 7f)
     {
         Num.Vector3 up = Client.Frame.UpAt(car.Position);
         Num.Vector3 nose = Num.Vector3.Transform(Num.Vector3.UnitZ, car.Rotation);
-        await TeleportTo(car.Position - nose * 7f + side * 7f);
+        await TeleportTo(car.Position - nose * distance + side * distance);
         await Settle();
         Face(car.Position + up * 0.6f);
         await Seconds(1);
@@ -160,7 +235,8 @@ public partial class GroundTour
     private async Task RebuildDrag(RemoteShip car, string socket, string? item)
     {
         LootView screen = View.Model.Loot ?? throw new InvalidOperationException("rebuild: the vehicle screen is closed");
-        int slot = screen.Labels.ToList().IndexOf(socket);
+        // A fitted module's label carries its condition ("NOSE  100%").
+        int slot = screen.Labels.ToList().FindIndex(l => l == socket || l.StartsWith(socket + "  ", StringComparison.Ordinal));
         Hollow.Simulation.Ships.Modules.ShipBuild was = car.Def!.Build;
         if (item == null)
         {

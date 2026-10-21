@@ -940,6 +940,29 @@ now a build was fixed when the car was crafted, and the tyres were the kind's ow
 
   A vehicle on wheels with no running gear stays where it is in the bay it was changed in, as on a lift's arms (`Ship.Bay`,
   not saved), instead of dropping onto its belly.
+- **The bay is where it is painted** (fixed 21 October 2026, after the owner drove a TOGG onto the paint and nothing
+  happened). `BayStats`' numbers are in the station's frame as its model is drawn: x its right, y up, z out of its front,
+  the model's +Z (`Geometry.Upright`), which is *against* its yaw's forward. A placed bench faces whoever put it down, so
+  its bay lies on their side. The client always painted it there, but the rules measured along the yaw's forward, the
+  bench's other side. Every rule now reads the bay through `BayStats.Axes`, `Centre` and `Holds`: the vehicle in it, the
+  player's reach, and a crafted ship rolling out (facing away from the bench, `RollOutYaw`). The ship sandbox draws its
+  bench as the game does.
+- **Drawn into the bay**, as Rust's car lift draws a car in (the owner, 21 October 2026). A vehicle on its wheels counts
+  when it moves slower than 4 m/s and its centre of mass comes within 1.5 m of the bay's clear space (`BayPull`,
+  `BayPullSpeed`). It then glides in over half a second (`BayPullTicks`, `ShipSystem.PullIntoBay` and `GlideIntoBay`).
+  It ends with its centre of mass over the bay's middle, its nose along the bay the way it was nearer to, and still.
+  While it glides its step is skipped and its controls wait. That bay won't draw it in again until it has left
+  (`Ship.PulledInto`, the server's alone). It is not drawn in when:
+  - another vehicle stands in the bay;
+  - anything but the ground, its own body and its own riders would be in the way where it ends.
+- **INSPECT VEHICLE** (interactions.json `inspect-vehicle`, held E at a vehicle built of modules, anyone, anywhere; the
+  owner, 21 October 2026: "even when vehicle is not in the bay I should be able to see its components healths"). It opens
+  the same vehicle screen under VEHICLE, read-only, with "DRIVE IT INTO A VEHICLE WORKBENCH'S BAY TO CHANGE IT"; a drag
+  says it needs a vehicle workbench. When the vehicle stands in a bay the player is near, the screen works as the bench's.
+  On either screen:
+  - every fitted module shows its condition, its parts' health at the weakest, as a bar on its slot and a percentage by
+    its label;
+  - the first line is the chassis's health.
 - **Saved** (`ShipCodec` 9, the same bytes as 8). An older save's vehicle on wheels, whose build lacks its running gear, is
   dropped. The owner said, 21 October 2026: "do not think about old saves we are in development".
 - **Crafting** at the Vehicle Workbench, each learned in its tree. The recipes are in recipes.json; tyres are cloth and
@@ -954,10 +977,13 @@ now a build was fixed when the car was crafted, and the tyres were the kind's ow
   | Monster tyres | 250 | the lift kit |
   | Blown six | 400 | the TOGG engine |
 
-- **Checked** by `VehicleBayTests` (6):
+- **Checked** by `VehicleBayTests` (9):
   - the preset's layout matches the old kind's numbers;
   - the rules between parts;
   - a stock TOGG made a monster in the bay, held up with its tyres off;
+  - the bay's rules where its paint is, at four headings, and nothing on the bench's other side;
+  - a TOGG left 1 m beside the bay, askew, drawn in to 9 mm of its middle and along it, and one 3 m beside it left alone;
+  - INSPECT VEHICLE offered on any TOGG, and not on the Tin Finch;
   - every refusal;
   - a rebuilt car saved and restored, and an old one dropped;
   - the same changes over the network, both clients composing the new build.
@@ -965,15 +991,20 @@ now a build was fixed when the car was crafted, and the tyres were the kind's ow
   `GroundMotorTests`, `ModuleTests` and `VehicleRiderTests` were updated for tyres as a module. In the hosted game,
   `--tour-steps rebuild` (`GroundTour.Rebuild.cs`):
   - sets a TOGG down and places a vehicle workbench ahead of it;
-  - drives the TOGG into the bay;
+  - drives the TOGG toward the bay, which draws it in (it ends 0.00 m along and 0.07 m across the bay's middle);
   - opens the tech tree and its VEHICLE IN BAY;
   - drags the stock tyres and engine out, and the lift kit, the monster tyres and the blown six in;
-  - pictures each step, and backs the monster out of the bay.
+  - pictures each step, and backs the monster out of the bay;
+  - opens the monster's own INSPECT VEHICLE away from the bay.
 - **Pictures** (`docs/images/vehicles/bay/`):
   - [the TOGG in the bay](images/vehicles/bay/rebuild-togg.jpg);
   - [the bench's tech tree with VEHICLE IN BAY](images/vehicles/bay/rebuild-techtree.jpg);
   - the vehicle screen [before](images/vehicles/bay/rebuild-screen.jpg) and [after](images/vehicles/bay/rebuild-screen-monster.jpg);
   - [the same TOGG made a monster](images/vehicles/bay/rebuild-monster.jpg) and [backing out](images/vehicles/bay/rebuild-monster-out.jpg);
+  - [INSPECT VEHICLE away from the bay](images/vehicles/bay/rebuild-inspect.jpg), each module's condition;
+  - [its tyres off](images/vehicles/bay/rebuild-bare.jpg): the frame's wheels the data no longer has hide what rolls (their
+    `Spin`: tyre and rim; `ShipView.HideMissingWheels`), the hubs, arms and dampers stay (the owner, 21 October 2026: "when
+    I took out the tires I can still see them on the chassis");
   - the screen in the interface viewer (`--view ui --screen vehicle`, [vehicle-screen.png](images/vehicles/bay/vehicle-screen.png)).
 - **Not yet:**
   - a vehicle without running gear in a bay falls when the server restarts (the hold isn't saved);

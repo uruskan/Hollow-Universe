@@ -182,7 +182,8 @@ public partial class ShipSandbox : Node3D
         Num.Vector3 benchAt = _zone.Settle(_pad - forward * bay);
         Entity player = AddPlayer(_pad + right * 4.5f - forward * 0.5f);
         EntityId owner = _zone.Players().PlayerOf(player)!.Id;
-        _bench = new Deployable(_zone.NextId(), benchDef, benchAt, _zone.Frame.UpAt(benchAt), _padYaw, owner);
+        // Its front, and so its bay (BayStats.Axes), toward the pad.
+        _bench = new Deployable(_zone.NextId(), benchDef, benchAt, _zone.Frame.UpAt(benchAt), _padYaw + MathF.PI, owner);
         _zone.Things().AddStatic(_bench);
         _ship = _zone.Ships().SpawnShip(def, _pad, _padYaw, owner, def.FuelCapacity);
         _controls.Scheme = ShipControlSchemes.For(_ship.Def.Controls);
@@ -519,8 +520,8 @@ public partial class ShipSandbox : Node3D
         }
         if (_benchModel != null)
         {
-            (Num.Vector3 f, _) = CharacterMotor.HorizontalBasis(_bench.Yaw, _bench.Up);
-            _benchModel.GlobalTransform = new Transform3D(Basis.LookingAt(Dir(-f), Dir(_bench.Up)), R(_bench.Position));
+            // As the game draws a deployable (ThingsView).
+            _benchModel.GlobalTransform = new Transform3D(HollowUniverse.Ground.NatureView.Upright(_bench.Up, _bench.Yaw), R(_bench.Position));
         }
         FillHud(shown);
         Trace(delta, shown);

@@ -553,7 +553,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public void CloseLoot()
     {
-        _bay = EntityId.None;
+        _bay = _inspected = EntityId.None;
         if (Me.LootKind != LootKind.None)
         {
             Me.Close();

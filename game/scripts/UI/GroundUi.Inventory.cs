@@ -249,7 +249,7 @@ public partial class GroundUi
         // A take-only grid (a crate, a bag of dropped items) shows the rows its stacks fill: nothing goes into the rest.
         int cells = loot.Kind == ContainerKind.Crate ? FilledRows(slots) * 6 : slots.Count;
         float y = loot.Kind is ContainerKind.Corpse or ContainerKind.Vehicle || cells > 36 ? 70 : 191;
-        Section(loot.Kind == ContainerKind.Vehicle ? "VEHICLE BAY" : "LOOT", 1040, y);
+        Section(loot.Kind == ContainerKind.Vehicle ? loot.Heading ?? "VEHICLE BAY" : "LOOT", 1040, y);
         Rect(1040, y + 34, 475, 27, G.Panel);
         Text(loot.Title.ToUpperInvariant(), 1050, y + 34, 16, G.Ink, bold: true);
         void Cell(int index, float x, float top, float size = 75)

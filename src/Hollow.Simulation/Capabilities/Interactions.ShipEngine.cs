@@ -10,18 +10,22 @@ public static partial class CapabilityHandlers
 {
     // The existing ship capability is present on its hull and every part. Hold-E therefore offers the same
     // engine switch at the helm or elsewhere aboard; authorization, reach and sight use the shared interaction gates.
+    // A vehicle built of modules offers anyone INSPECT VEHICLE, the vehicle screen read-only (VEHICLES.md §9.11).
     private sealed partial class ShipCapability : IInteractCapability
     {
         private readonly VerbActions _verbs;
-        private readonly int _on, _off, _fuel;
+        private readonly int _on, _off, _fuel, _inspect;
         public ShipCapability(InteractionData data)
         {
             _verbs = new VerbActions(data,
                 ("engine-on", (in InteractContext c, in InteractArgs a) => Engine(c, true)),
                 ("engine-off", (in InteractContext c, in InteractArgs a) => Engine(c, false)),
-                ("open-fuel", OpenFuel));
+                ("open-fuel", OpenFuel),
+                // The screen is the interface's to open: a panel's verb never reaches the server.
+                ("inspect-vehicle", (in InteractContext c, in InteractArgs a) => OutcomeCode.NotUsable));
             (_on, _off) = (_verbs["engine-on"], _verbs["engine-off"]);
             _fuel = _verbs["open-fuel"];
+            _inspect = _verbs["inspect-vehicle"];
         }
 
         public IReadOnlyList<string> Verbs => _verbs.Keys;
@@ -31,6 +35,10 @@ public static partial class CapabilityHandlers
             {
                 into.Add(InteractOption.Can(ctx.Has(ViewerFlags.Lit) ? _off : _on));
                 into.Add(InteractOption.Can(_fuel));
+            }
+            if (ctx.Facts.Ship is { Sockets.Count: > 0 })
+            {
+                into.Add(InteractOption.Can(_inspect));
             }
         }
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);

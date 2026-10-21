@@ -1,5 +1,44 @@
 # Hollow Universe AB Test B
 
+## 21 October 2026 — Vehicles: the bay where it is painted, drawn into it, and INSPECT VEHICLE (VEHICLES.md §9.11)
+
+The owner drove a TOGG onto the vehicle workbench's painted bay and the screen still said "Drive a vehicle into the bay".
+
+- **The cause.** The client paints the bay in the frame it draws the bench in, where +Z is the model's front, against the
+  bench's yaw. The rules measured the bay along the yaw, on the bench's other side. Every rule now reads the bay through
+  `BayStats.Axes`, `Centre` and `Holds`, so the rules follow the paint. This covers the screen, fitting and taking off,
+  reach, and a crafted ship's roll-out, which now faces away from the bench. The ship sandbox draws its bench as the game
+  does. The rebuild, bay and ship tours place and look at the bench this way, and `ShipGameTests` stands Ada behind the
+  bench.
+- **Drawn into the bay** (the owner: "when you drive near of the vehicle workbenchs bay your vehicle should
+  automatically be moved inside it", as in Rust). A vehicle on its wheels slower than 4 m/s, its centre of mass within
+  1.5 m of the bay, glides over half a second to the bay's middle, along it, and stops. The same bay draws it in once,
+  until it has left. Not when another vehicle stands there or anything else would be in the way.
+- **INSPECT VEHICLE** (the owner: "even when vehicle is not in the bay I should be able to see its components healths").
+  It is a held-E verb on any vehicle built of modules. It opens the vehicle screen read-only, away from a bay. Both
+  screens now show:
+  - each module's condition, as a bar and a percentage;
+  - the chassis's health.
+- **Checked:** `VehicleBay`, `ShipGame` and `ShipFuel`: 18/18. Three of those are new: the bay where it's painted, drawn
+  in, and the verb offered. The hosted rebuild tour, after the bay fix and before the draw-in, ran to its end. The TOGG
+  stopped 1.43 m along and 0.18 m across the bay's middle, the screen listed it, and it was rebuilt into a monster.
+- **The hosted tour with everything** (`--tour-steps rebuild`) also ran to its end:
+  - drawn in, the TOGG ended 0.00 m along and 0.07 m across the bay's middle;
+  - the same rebuild followed;
+  - the monster's INSPECT VEHICLE, 28 m from the bay, showed VEHICLE, each module at 100%, the chassis line and the hint.
+
+  Its pictures replace `docs/images/vehicles/bay/`, with `rebuild-inspect.jpg` new, and the interface viewer's
+  `vehicle-screen.png` shows the condition bars.
+- **Tyres taken off still showed** (the owner): tyre modules have no model, since the frame model carries the wheels. A
+  wheel the build no longer has now hides its `Spin` (tyre and rim) and keeps its hub, arms and damper.
+- **"I took out the engine and I can no longer interact with the vehicle"** isn't reproduced yet. The tests cover the engine
+  out, and a blown six in a cargo bay and out again, on the server and through the client's aim, and the door offers
+  itself each time. The rebuild tour now takes the engine out first, as the owner did. With the engine out it shows
+  "DRIVE DRIVER'S SEAT" at the door and opens and shuts it, and again with the tyres off.
+- **Full suite:** 1,115 of 1,125 pass. The ten failures are Earth terrain, cliff and geology tests in `Hollow.Surface`:
+  the golden hash, layout 6 against 5, formations, and `Math.Cos` and `Stopwatch` in `CliffKitPlacements` and
+  `TerrainBake`. They come from the terrain work uncommitted in this checkout; this change doesn't touch them.
+
 ## 21 October 2026 — Vehicles: the TOGG's locomotive smoke and its heavy shaking engine (VEHICLES.md §9.10)
 
 The owner, after the first pass: "I was expecting more proper locomotive like black smoke coming out with heavy roaring

@@ -289,11 +289,12 @@ public sealed partial class ShipSystem : ZoneSystem
             }
             // Its riders' weight, a landing's blow and a jump's push on its springs (ShipSystem.Riders.cs).
             Riders(ship);
-            ship.Events = HeldInBay(ship) ? default
+            ship.Events = HeldInBay(ship) || GlideIntoBay(ship) ? default
                 : ship.Def.Motor.Step(ref ship.State, input, ship.Def, context, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody);
             ship.Fuel.Consume(ship.Events.FuelUsed);
             ship.SyncFuel();
             IdleByHand(ship);
+            PullIntoBay(ship);
             ShipSteps++;
             RunOver(ship);
             StepDoors(ship);
@@ -359,9 +360,8 @@ public sealed partial class ShipSystem : ZoneSystem
         float maxSlope;
         if (Things.StaticOf(new EntityId(stationId)) is Deployable { Def.Bay: { } bay } station)
         {
-            (Vector3 right, Vector3 forward) = Geometry.Axes(station.Up, station.Yaw);
-            at = station.Position + right * bay.At.X + forward * bay.At.Z;
-            yaw = station.Yaw;
+            at = bay.Centre(station.Position, station.Up, station.Yaw);
+            yaw = BayStats.RollOutYaw(station.Yaw);
             maxSlope = bay.MaxSlopeDegrees * MathF.PI / 180;
         }
         else

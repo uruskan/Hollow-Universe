@@ -37,7 +37,7 @@ public partial class GroundUi
         }
         else
         {
-            Text("DRAG A MODULE IN TO FIT IT, OUT TO TAKE IT OFF", 1040, at + 4, 14, Caption, bold: true);
+            Text(loot.Hint ?? "DRAG A MODULE IN TO FIT IT, OUT TO TAKE IT OFF", 1040, at + 4, 14, Caption, bold: true);
             at += 31;
         }
         return at;

@@ -37,11 +37,12 @@ public partial class GroundTour
         await Seconds(1.0);
         GD.Print($"[tour] bay: the bench {(Client.Survival().Things.Count > things ? "placed" : "not placed")}");
         Me.HeldSlot = -1;
-        // From beside the bay, across it toward the bench.
+        // From beside the bay, across it toward the bench. The bench faces the player who put it down, and its bay lies out of
+        // its front (BayStats.Axes): back where the player stood.
         Num.Vector3 up = Client.Frame.UpAt(feet);
         Num.Vector3 side = Num.Vector3.Normalize(Num.Vector3.Cross(up, towards));
-        Num.Vector3 middle = bench + towards * 5f;
-        await TeleportTo(middle + side * 6f - towards * 1.5f);
+        Num.Vector3 middle = bench - towards * 4.6f;
+        await TeleportTo(middle + side * 6f + towards * 1.5f);
         Face(middle - up * 0.6f);
         await Seconds(1.0);
         await Shot("bay-painted");

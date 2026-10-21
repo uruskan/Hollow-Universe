@@ -223,18 +223,18 @@ public sealed partial class MockGroundUi
     /// </summary>
     public void OpenVehicle()
     {
-        string[] labels = { "BAY 1", "BAY 1 ROOF", "BAY 2", "BAY 2 ROOF", "BAY 3", "BAY 3 ROOF", "NOSE", "SUSPENSION", "WHEELS" };
+        string[] labels = { "BAY 1", "BAY 1 ROOF", "BAY 2", "BAY 2 ROOF", "BAY 3  82%", "BAY 3 ROOF", "NOSE  64%", "SUSPENSION  100%", "WHEELS" };
         _loot = new ItemStack[labels.Length];
-        _loot[4] = new ItemStack("togg-cab-one", 1);
-        _loot[6] = new ItemStack("monster-togg-engine", 1);
-        _loot[7] = new ItemStack("togg-lift-kit", 1);
+        _loot[4] = new ItemStack("togg-cab-one", 1, 0.82f);
+        _loot[6] = new ItemStack("monster-togg-engine", 1, 0.64f);
+        _loot[7] = new ItemStack("togg-lift-kit", 1, 1f);
         _main[0] = new ItemStack("togg-tyres", 1);
         _main[1] = new ItemStack("togg-engine", 1);
         _main[2] = new ItemStack("monster-tyres", 1);
         Loot = new LootView(ContainerKind.Vehicle, "TOGG", _loot)
         {
             Labels = labels,
-            Lines = new[] { "MASS 1520 KG", "POWER 450 KW", "TOP SPEED 122 KM/H", "NO WHEELS", "LIFTED 0.75 M" },
+            Lines = new[] { "CHASSIS 91%", "MASS 1520 KG", "POWER 450 KW", "TOP SPEED 122 KM/H", "NO WHEELS", "LIFTED 0.75 M" },
         };
     }
 

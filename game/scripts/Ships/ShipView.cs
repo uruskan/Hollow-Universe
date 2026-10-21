@@ -151,6 +151,7 @@ public partial class ShipView : Node3D
         if (model != null)
         {
             FindRig(); // its own wheels and suspension, if it has them (ShipView.Rig.cs)
+            HideMissingWheels();
         }
         FindHatch();
         FindParts();

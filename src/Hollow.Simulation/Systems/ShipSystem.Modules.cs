@@ -1,10 +1,13 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
+using Hollow.Simulation.Placement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.Ships;
 using Hollow.Simulation.Ships.Modules;
@@ -113,6 +116,143 @@ public sealed partial class ShipSystem
     /// <summary>A point in a station's bay (the clear space in front of it, VEHICLES.md §9.11).</summary>
     public static bool IsInBay(Deployable station, Vector3 point) =>
         station.Def.Bay is { } bay && bay.Holds(station.Position, station.Up, station.Yaw, point);
+
+    /// <summary>
+    /// How far beyond a bay's clear space a vehicle's centre of mass may be for the bay to draw it in (metres), and the most
+    /// it may be moving then (metres per second): Rust's car lift (VEHICLES.md §9.11).
+    /// </summary>
+    public const float BayPull = 1.5f, BayPullSpeed = 4f;
+
+    /// <summary>The ticks a vehicle drawn into a bay glides for (half a second).</summary>
+    public const int BayPullTicks = CharacterMotor.TickRate / 2;
+
+    private readonly List<Deployable> _bays = new();
+    private float _bayRadius = -1;
+
+    /// <summary>
+    /// A vehicle on wheels driven slowly onto a station's bay, or up to its edge (<see cref="BayPull"/>), is drawn into it as
+    /// Rust's car lift draws a car: it glides there in <see cref="BayPullTicks"/> (<see cref="GlideIntoBay"/>), its centre of
+    /// mass over the bay's middle, its nose along the bay whichever way it was nearer to, and stops. Once: it drives off as
+    /// ever, and that bay leaves it alone until it has left it. Not when another vehicle stands in the bay, or anything but
+    /// the ground, its own body and its own riders would be in the way where it ends.
+    /// </summary>
+    private void PullIntoBay(Ship ship)
+    {
+        // On its wheels: one without is held where it stands in its bay (HeldInBay).
+        if (ship.Destroyed || ship.InOrbit || ship.Def.Ground == null || ship.Def.Sockets.Count == 0 || ship.Def.Wheels.Count == 0)
+        {
+            return;
+        }
+        Vector3 com = ship.State.Position;
+        if (!ship.PulledInto.IsNone)
+        {
+            if (Things.StaticOf(ship.PulledInto) is Deployable { Def.Bay: { } held } at && held.Holds(at.Position, at.Up, at.Yaw, com, BayPull + 0.5f))
+            {
+                return;
+            }
+            ship.PulledInto = EntityId.None;
+        }
+        // Asleep it isn't arriving anywhere.
+        if (ship.State.Asleep || ship.State.Velocity.LengthSquared() > BayPullSpeed * BayPullSpeed)
+        {
+            return;
+        }
+        if (_bayRadius < 0)
+        {
+            // The furthest a centre of mass drawn in can be from its station's base.
+            _bayRadius = Content?.Deployables.Where(d => d.Bay != null).Select(d => d.Bay!.At.Length() + d.Bay!.Clear.Length() + BayPull).DefaultIfEmpty(0).Max() ?? 0;
+        }
+        _bays.Clear();
+        Things.DeployablesNear(com, _bayRadius, _bays);
+        foreach (Deployable station in _bays)
+        {
+            if (station.Def.Bay is not { } bay || !bay.Holds(station.Position, station.Up, station.Yaw, com, BayPull) ||
+                _ships.Any(s => s != ship && !s.Destroyed && s.Def.Sockets.Count > 0 && IsInBay(station, s.State.Position)))
+            {
+                continue;
+            }
+            Vector3 up = Frame.UpAt(com);
+            // Its nose along the bay, out of it or into it, whichever is nearer its heading.
+            float heading = ShipMotor.YawOf(ship.State.Rotation, up), outward = BayStats.RollOutYaw(station.Yaw);
+            float yaw = MathF.Abs(MathF.IEEERemainder(heading - outward, MathF.Tau)) <= MathF.PI / 2 ? outward : station.Yaw;
+            // Its centre of mass over the bay's middle: the pivot set back by the centre of mass's reach along the ground.
+            Vector3 middle = bay.Centre(station.Position, station.Up, station.Yaw);
+            Vector3 reach = Vector3.Transform(ship.Def.CentreOfMass, ShipMotor.Orientation(up, yaw));
+            Vector3 ground = Settle(middle - (reach - up * Vector3.Dot(reach, up)));
+            ShipState standing = ShipMotor.Standing(ship.Def, ground + Frame.UpAt(ground) * 0.02f, Frame.UpAt(ground), yaw);
+            Quaternion turn = Quaternion.Normalize(Facing.Turn(Frame.UpAt(ground), Frame.UpAt(standing.Position)) * standing.Rotation);
+            if (!PullClear(ship, standing.Position, turn))
+            {
+                continue;
+            }
+            ship.PulledInto = station.Id;
+            ship.PullPosition = standing.Position;
+            ship.PullRotation = turn;
+            ship.PullTicks = BayPullTicks;
+            return;
+        }
+    }
+
+    /// <summary>
+    /// A vehicle a bay draws in moves its share of the rest of the way this tick, still (nobody is run over), awake (its body
+    /// follows), its step skipped and its controls waiting: true while it glides.
+    /// </summary>
+    private static bool GlideIntoBay(Ship ship)
+    {
+        if (ship.PullTicks <= 0)
+        {
+            return false;
+        }
+        if (ship.Destroyed)
+        {
+            ship.PullTicks = 0;
+            return false;
+        }
+        float share = 1f / ship.PullTicks--;
+        ship.State.Position += (ship.PullPosition - ship.State.Position) * share;
+        ship.State.Rotation = Quaternion.Normalize(Quaternion.Slerp(ship.State.Rotation, ship.PullRotation, share));
+        ship.State.Velocity = ship.State.AngularVelocity = Vector3.Zero;
+        ship.State.RestTicks = 0;
+        return true;
+    }
+
+    // Whether a vehicle would stand at a pose clear of all but the ground, its own body and its own riders.
+    private bool PullClear(Ship ship, Vector3 position, Quaternion rotation)
+    {
+        if (Placement.World is { Ships: { } collider, Physics: not null })
+        {
+            Span<ShipContact> contacts = stackalloc ShipContact[4];
+            int found;
+            lock (JoltRuntime.Gate)
+            {
+                found = collider.Overlaps(ship.Def, position, rotation, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody, contacts);
+            }
+            for (int i = 0; i < found; i++)
+            {
+                if (!PhysicsWorld.IsGroundBody(contacts[i].Body) || contacts[i].Depth > HullFootprint.GroundDepth)
+                {
+                    return false;
+                }
+            }
+        }
+        ComponentPool<PlayerLink> players = Entities.Pool<PlayerLink>();
+        float reach = ship.Def.BoundingRadius + 1;
+        for (int i = 0; i < players.Count; i++)
+        {
+            Entity entity = Entities.AtSlot(players.Slots[i]);
+            if (players.Values[i].Player.Dead || SeatOf(entity) == ship)
+            {
+                continue;
+            }
+            ref Character c = ref Entities.Get<Character>(entity);
+            Vector3 feet = WorldOf(c.State);
+            if (Vector3.DistanceSquared(feet, position) <= reach * reach && HullFootprint.Inside(ship.Def, position, rotation, feet + UpOf(c.State) * 0.9f, 0.4f))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
 
     /// <summary>
     /// A vehicle on wheels with none fitted, standing in the bay it was changed in, is held there as on a lift's arms (its tyres

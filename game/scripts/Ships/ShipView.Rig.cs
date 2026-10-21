@@ -124,6 +124,32 @@ public partial class ShipView
     }
 
     /// <summary>
+    /// Running gear taken off (VEHICLES.md §9.11): a vehicle's wheels are its frame model's, so a wheel of the model that the
+    /// data no longer has (its tyres taken off in a bay) hides what rolls, its <c>Spin</c> (the tyre and rim). Its hub,
+    /// knuckle, arms and damper stay.
+    /// </summary>
+    private void HideMissingWheels()
+    {
+        if (_def.Ground == null)
+        {
+            return;
+        }
+        var kept = new HashSet<string>();
+        foreach (WheelDef w in _def.Wheels)
+        {
+            kept.Add(w.Key[(w.Key.LastIndexOf('.') + 1)..]);
+        }
+        foreach (Node found in _model.FindChildren("Wheel_*", "", true, false))
+        {
+            if (found is Node3D hub && !kept.Contains(hub.Name.ToString()["Wheel_".Length..]))
+            {
+                Node3D? spin = (Part(hub, "Steer") is { } steer ? Part(steer, "Spin") : null) ?? Part(hub, "Spin");
+                (spin ?? hub).Visible = false;
+            }
+        }
+    }
+
+    /// <summary>
     /// The child of <paramref name="parent"/> named <paramref name="name"/>, or that name with the number Blender adds to
     /// a repeated name (<c>Spin.001</c>; the glTF importer makes it <c>Spin_001</c>, or appends a plain number).
     /// </summary>

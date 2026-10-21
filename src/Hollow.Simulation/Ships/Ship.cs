@@ -189,6 +189,19 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder, IAuthorisation
     /// </summary>
     public EntityId Bay { get; set; }
 
+    /// <summary>
+    /// The station whose bay drew it in (<c>ShipSystem.PullIntoBay</c>, as Rust's car lift does), or none: that bay doesn't
+    /// draw it in again until it has left. The server's alone, not saved.
+    /// </summary>
+    public EntityId PulledInto { get; set; }
+
+    /// <summary>While a bay draws it in: the ticks left of its glide there, and the pose it ends in (centre of mass, turn).</summary>
+    public int PullTicks { get; set; }
+
+    public Vector3 PullPosition { get; set; }
+
+    public Quaternion PullRotation { get; set; } = Quaternion.Identity;
+
     public Container Cargo { get; }
 
     /// <summary>Its modules' holds (<see cref="ShipDef.Holds"/>' order, VEHICLES.md §9.1): each opened at its own part.</summary>

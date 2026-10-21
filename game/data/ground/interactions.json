@@ -64,6 +64,7 @@
     {"key":"defense-clear","label":"Clear all authorization","glyph":"clear-list","description":"Remove everyone's protection here and stop Tool Cupboard inheritance on this device.","priority":15,"reach":"open"},
     {"key":"fly","label":"Fly","glyph":"board","description":"Into the pilot's seat: the rotor starts.","priority":70},
     {"key":"drive","label":"Drive","glyph":"board","description":"Into the driver's seat: its crew alone, or anyone while it is unlocked.","priority":70},
-    {"key":"edit-vehicle","label":"Edit vehicle","named":false,"glyph":"tech-tree","description":"The vehicle in its bay: its modules out into your inventory, yours into its sockets.","priority":50,"reach":"station","sight":false,"panel":"vehicle"}
+    {"key":"edit-vehicle","label":"Edit vehicle","named":false,"glyph":"tech-tree","description":"The vehicle in its bay: its modules out into your inventory, yours into its sockets.","priority":50,"reach":"station","sight":false,"panel":"vehicle"},
+    {"key":"inspect-vehicle","label":"Inspect vehicle","named":false,"glyph":"tech-tree","description":"Its modules and their condition, and what its build makes. Change them in a vehicle workbench's bay.","priority":25,"panel":"vehicle"}
   ]
 }

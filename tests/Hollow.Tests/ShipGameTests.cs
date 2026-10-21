@@ -132,7 +132,7 @@ public static class ShipGameTests
         Zone zone = rig.Zone;
         GameContent c = ContentFixture.Content;
         Recipe recipe = c.Recipe(c.ItemByKey("tin-finch").Id)!;
-        Entity ada = AddPlayer(rig, "Ada", zone.GroundAt(0, 2));
+        Entity ada = AddPlayer(rig, "Ada", zone.GroundAt(0, -2)); // behind the bench, out of its bay
         Player p = zone.Players().PlayerOf(ada)!;
         foreach (ItemAmount a in recipe.Ingredients)
         {
@@ -140,7 +140,7 @@ public static class ShipGameTests
         }
         Assert.Equal(OutcomeCode.NeedsStation, zone.Actions().Craft(ada, recipe.Id, 1, out _), "no vehicle workbench in reach");
 
-        // The bench, facing north; its bay is in front of it.
+        // The bench, its yaw north: its model's front, and its bay, face south (BayStats.Axes).
         DeployableDef bench = c.Deployable("vehicle-workbench")!;
         Vector3 at = zone.Landing;
         var station = new Deployable(zone.NextId(), bench, at, zone.Frame.UpAt(at), 0, p.Id);
@@ -149,7 +149,7 @@ public static class ShipGameTests
         p.Blueprints.Learn(recipe); // ProgressionTests covers learning at the bench and from a blueprint.
         // Something in the way on the bay first: a box.
         DeployableDef boxDef = c.Deployable("large-box")!;
-        Vector3 bay = zone.GroundAt(0, -bench.Bay!.At.Z);
+        Vector3 bay = zone.GroundAt(0, bench.Bay!.At.Z);
         var box = new Deployable(zone.NextId(), boxDef, bay, zone.Frame.UpAt(bay), 0, p.Id);
         zone.Things().AddStatic(box);
         Assert.Equal(OutcomeCode.Done, zone.Actions().Craft(ada, recipe.Id, 1, out _), "starts the Tin Finch at the bench");

@@ -220,8 +220,11 @@ public sealed class DeployableDef
 }
 
 /// <summary>
-/// A station's bay (deployables.json, G6): where a ship it builds rolls out, in the station's frame (x across, y up, z out
-/// of its front), the half size of the space that must be clear there, and the steepest ground it may stand on.
+/// A station's bay (deployables.json, G6): where a ship it builds rolls out, in the station's frame as its model is drawn
+/// (x its right, y up, z out of its front: the model's +Z, against its yaw's forward, <see cref="Combat.Geometry.Upright"/>; so a
+/// placed station's bay lies toward whoever put it down), the half size of the space that must be clear there, and the
+/// steepest ground it may stand on. The client paints it in that frame (BayMarking), and every rule reads it through
+/// <see cref="Axes"/>, so the paint and the rules agree.
 /// </summary>
 public sealed class BayStats
 {
@@ -231,6 +234,23 @@ public sealed class BayStats
 
     public float MaxSlopeDegrees { get; init; } = 20;
 
+    /// <summary>A station's right and the way out of its front (against its yaw's forward): the bay's x and z.</summary>
+    public static (Vector3 Right, Vector3 Out) Axes(Vector3 up, float yaw)
+    {
+        (Vector3 right, Vector3 forward) = Combat.Geometry.Axes(up, yaw);
+        return (right, -forward);
+    }
+
+    /// <summary>The middle of the bay's floor for a station standing at a base point (its up and yaw).</summary>
+    public Vector3 Centre(Vector3 basePoint, Vector3 up, float yaw)
+    {
+        (Vector3 right, Vector3 outward) = Axes(up, yaw);
+        return basePoint + right * At.X + up * At.Y + outward * At.Z;
+    }
+
+    /// <summary>The heading a ship rolled out onto the bay of a station at this yaw faces: out of the bay, away from the station.</summary>
+    public static float RollOutYaw(float yaw) => MathF.IEEERemainder(yaw + MathF.PI, MathF.Tau);
+
     /// <summary>
     /// A point in the bay of a station standing at a base point (its up and yaw): within its clear space across and along, from
     /// half a metre under its ground to its clear height, grown by <paramref name="margin"/> across and along (VEHICLES.md
@@ -238,10 +258,10 @@ public sealed class BayStats
     /// </summary>
     public bool Holds(Vector3 basePoint, Vector3 up, float yaw, Vector3 point, float margin = 0)
     {
-        (Vector3 right, Vector3 forward) = Combat.Geometry.Axes(up, yaw);
-        Vector3 d = point - (basePoint + right * At.X + up * At.Y + forward * At.Z);
+        (Vector3 right, Vector3 outward) = Axes(up, yaw);
+        Vector3 d = point - Centre(basePoint, up, yaw);
         float above = Vector3.Dot(d, up);
-        return MathF.Abs(Vector3.Dot(d, right)) <= Clear.X + margin && MathF.Abs(Vector3.Dot(d, forward)) <= Clear.Z + margin &&
+        return MathF.Abs(Vector3.Dot(d, right)) <= Clear.X + margin && MathF.Abs(Vector3.Dot(d, outward)) <= Clear.Z + margin &&
             above >= -0.5f && above <= Clear.Y * 2;
     }
 }

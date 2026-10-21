@@ -978,8 +978,9 @@ public partial class GroundTour : Node
                 Outcome? refused = null;
                 void Refused(IntentAnswer answer) => refused = answer.Outcome;
                 Me.IntentRejected += Refused;
+                // Turned to face away, so that its front and bay (BayStats.Axes) lie beyond it, not where the player stands.
                 if (SlotOf(Me.Inventory.Main, "vehicle-workbench") is int slot && Placeable("vehicle-workbench") is { } workbench &&
-                    Client.Placement().PlanAt(workbench, Client.Placement().Ground?.Settle(at) ?? at, View.Yaw) is { } ghost)
+                    Client.Placement().PlanAt(workbench, Client.Placement().Ground?.Settle(at) ?? at, View.Yaw + MathF.PI) is { } ghost)
                 {
                     if (ghost.Valid)
                     {
