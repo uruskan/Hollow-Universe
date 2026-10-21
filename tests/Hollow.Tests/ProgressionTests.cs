@@ -67,7 +67,7 @@ public static class ProgressionTests
         Assert.Equal(node.Cost, player.Inventory.Count(c.ItemByKey("salvage")), "one unlock price consumed");
         Assert.Equal(OutcomeCode.AlreadyKnown, Unlock(vehicle), "duplicate unlock refused");
         Assert.Equal(node.Cost, player.Inventory.Count(c.ItemByKey("salvage")), "duplicate does not charge again");
-        Assert.Near(recipe.Seconds, CraftingSpeed.Seconds(c, recipe, 3), 0.001, "standard bench speed does not accelerate specialized assembly");
+        Assert.Near(recipe.Seconds / 2, CraftingSpeed.Seconds(c, recipe, 3), 0.05, "a level 3 workbench in reach halves the vehicle workbench's assembly (the owner, 21 October 2026)");
 
         rig.Ch(ada).State.Position = rig.Zone.GroundAt(90, 90);
         foreach (ItemAmount ingredient in recipe.Ingredients)

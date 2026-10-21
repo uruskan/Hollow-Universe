@@ -6336,7 +6336,9 @@ owner, to confirm or overturn (numbered V1 on):
 - V11. **The workbench's speed is recipes.json's** (`workbenchSpeed.byLevelsAbove`: 1, 0.5, 0.25), beside the recipes it
   shortens, rather than in deployables.json (whose placement block P2 rewrites): one level above a recipe's halves it, two
   or more quarter it, by the best workbench in reach when the job starts. A recipe made at a station of its own (the Tin
-  Finch at the vehicle workbench) isn't shortened by a workbench.
+  Finch at the vehicle workbench) counts the levels above the one its station is made at: the vehicle workbench is made
+  at level 2, so a level 3 workbench in reach halves a vehicle's time (the owner, 21 October 2026: "having workbench 3
+  nearby doesn't make it faster").
 - V12. **The console's `give` takes `<item>.blueprint`** (a blueprint of that item's recipe), so a blueprint to LEARN can be
   given; the tour's `held` step uses it.
 

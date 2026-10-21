@@ -340,7 +340,8 @@ public static class HeldTests
             Math.Abs(spearTicks[2] - spear.UnitTicks / 4.0) <= 0.5 && spearTicks[3] == spearTicks[2], "all, a half, a quarter, a quarter");
         Assert.True(CraftingSpeed.UnitTicks(c, levelOne, 1) == levelOne.UnitTicks && Math.Abs(CraftingSpeed.UnitTicks(c, levelOne, 2) - levelOne.UnitTicks / 2.0) <= 0.5,
             "a level 1 recipe: all its time at a level 1 workbench, half at a level 2");
-        Assert.Equal(ship.UnitTicks, CraftingSpeed.UnitTicks(c, ship, 3), "a station's recipe keeps its own time");
+        Assert.Equal(ship.UnitTicks, CraftingSpeed.UnitTicks(c, ship, 2), "a station's recipe: all its time beside the level 2 its station needs");
+        Assert.True(Math.Abs(CraftingSpeed.UnitTicks(c, ship, 3) - ship.UnitTicks / 2.0) <= 0.5, "and half with a level 3 workbench in reach");
 
         // In the zone: a spear started beside a level 2 workbench takes a quarter of its time, even once the bench is gone.
         using var rig = new GameRig();
