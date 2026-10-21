@@ -7,7 +7,7 @@ using Hollow.Simulation.Targets;
 
 namespace Hollow.Simulation.Placement;
 
-/// <summary>A material a placement costs (a building piece's twig, from the carried slots).</summary>
+/// <summary>A material a placement costs, from the carried slots.</summary>
 public readonly record struct PlacementCost(string Material, int Amount);
 
 /// <summary>
@@ -39,6 +39,12 @@ public sealed class Placeable
 
     /// <summary>Materials taken from the carried slots (a piece's twig).</summary>
     public IReadOnlyList<PlacementCost> Costs { get; init; } = Array.Empty<PlacementCost>();
+
+    /// <summary>Optional costs by building grade, resolved once from the kind's data.</summary>
+    public IReadOnlyList<IReadOnlyList<PlacementCost>> GradeCosts { get; init; } = Array.Empty<IReadOnlyList<PlacementCost>>();
+
+    public IReadOnlyList<PlacementCost> CostsFor(int grade) =>
+        (uint)grade < (uint)GradeCosts.Count ? GradeCosts[grade] : Costs;
 
     /// <summary>What it occupies for the overlap, support and reach checks.</summary>
     public Footprint Footprint { get; init; } = Footprint.Point;
@@ -112,7 +118,7 @@ public sealed class PlacementData
 }
 
 /// <summary>Who places what, from where: the player, their eye, the placeable, and what they can pay with.</summary>
-public readonly struct PlacementContext(ulong player, Vector3 eye, Placeable placeable, IBuildingWallet? wallet)
+public readonly struct PlacementContext(ulong player, Vector3 eye, Placeable placeable, IBuildingWallet? wallet, int buildGrade = -1)
 {
     public ulong Player { get; } = player;
 
@@ -124,6 +130,12 @@ public readonly struct PlacementContext(ulong player, Vector3 eye, Placeable pla
 
     /// <summary>The materials the player carries (a piece's price), or null not to count them.</summary>
     public IBuildingWallet? Wallet { get; } = wallet;
+
+    /// <summary>The requested structural grade; -1 (ordinary building) uses twig.</summary>
+    public int BuildGrade { get; } = buildGrade == -1 ? 0 : buildGrade;
+
+    /// <summary>The price for this placement's grade, shared by prediction and authoritative payment.</summary>
+    public IReadOnlyList<PlacementCost> Costs => Placeable.CostsFor(BuildGrade);
 }
 
 /// <summary>Where a player aims (the client's every frame): along a direction from the eye, the view's yaw, R pressed so often.</summary>
@@ -184,6 +196,9 @@ public sealed class PlacementCandidate
 
     /// <summary>The ground doesn't hide it (a foundation sits partly in the ground).</summary>
     public bool SightThroughGround { get; set; }
+
+    /// <summary>The attachment's own support may cover its socket (a lock on the far face of its door leaf).</summary>
+    public bool SightThroughSupport { get; set; }
 
     /// <summary>What its kind and solver worked out: a piece's <see cref="PlacementPlan"/>, a door's frame, a lock's door.</summary>
     public object? Detail { get; set; }

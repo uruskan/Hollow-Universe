@@ -1,0 +1,16 @@
+[gd_resource type="StandardMaterial3D" load_steps=3 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/textures/ka-fa-1500/ka-fa-1500_albedo.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/textures/ka-fa-1500/ka-fa-1500_albedo.png" id="2"]
+
+[resource]
+resource_name = "M_Hollow_KaFa_Lamps"
+vertex_color_use_as_albedo = false
+albedo_color = Color(1, 1, 1, 1)
+albedo_texture = ExtResource("2")
+roughness = 0.15
+metallic = 0
+emission_enabled = true
+emission_texture = ExtResource("2")
+emission_energy_multiplier = 2
+texture_filter = 5

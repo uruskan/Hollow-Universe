@@ -15,7 +15,7 @@ namespace Hollow.Simulation.Placement;
 
 /// <summary>What a kind finds a placeable's key to name in the game data (its definition and the items it involves).</summary>
 internal readonly record struct ResolvedPlaceable(object Definition, ItemDef? Item, ItemDef? Tool, string ModelKey, string Name,
-    IReadOnlyList<PlacementCost> Costs);
+    IReadOnlyList<PlacementCost> Costs, IReadOnlyList<IReadOnlyList<PlacementCost>>? GradeCosts = null);
 
 /// <summary>
 /// What placing puts things into (GROUND_SYSTEMS.md §6): a zone on the server; the build sandbox's building alone. The
@@ -33,6 +33,10 @@ public interface IPlacementSite
     Outcome PutCharge(ulong player, ThrowableStats stats, PlacementCandidate c);
 
     Outcome PutShip(ulong player, ShipDef def, PlacementCandidate c);
+
+    Outcome PutLock(ulong player, LockKind kind, in TargetRef target) =>
+        target.Family == TargetFamily.Door && Building is { } building && building.DoorOf(new EntityId(target.Id)) is { } door
+            ? building.AttachLock(player, door, kind, out _) : OutcomeCode.NotFound;
 }
 
 /// <summary>The game data a kind resolves its keys in, while it is read.</summary>
@@ -91,6 +95,9 @@ public abstract class PlaceableKind
 {
     /// <summary>Its name in placement.json.</summary>
     public abstract string Name { get; }
+
+    /// <summary>Building free of costs keeps its source item; consumable placement kinds can opt out.</summary>
+    public virtual bool RetainItemWhenFree => true;
 
     /// <summary>The definition and items its key names in the game data, or null.</summary>
     internal abstract ResolvedPlaceable? Resolve(string key, PlacementSources sources);
@@ -172,7 +179,9 @@ internal sealed class PieceKind : PlaceableKind
             return null;
         }
         ItemDef? plan = sources.Loaded.Items.FirstOrDefault(i => i.Building == BuildingRole.Plan);
-        return new ResolvedPlaceable(def, null, plan, def.Key, def.Name, new[] { new PlacementCost(data.Grades[0].Material, data.CostOf(def, 0)) });
+        IReadOnlyList<PlacementCost>[] costs = data.Grades.Select((g, index) =>
+            (IReadOnlyList<PlacementCost>)new[] { new PlacementCost(g.Material, data.CostOf(def, index)) }).ToArray();
+        return new ResolvedPlaceable(def, null, plan, def.Key, def.Name, costs[0], costs);
     }
 
     internal override JsonElement Own(string key, PlacementSources sources) => sources.Own("building.json", "pieces", "key", key);
@@ -180,8 +189,15 @@ internal sealed class PieceKind : PlaceableKind
     // As its plan lays it: the socket's orientation, or a free foundation's heading.
     public override Quaternion Orient(PlacementCandidate c) => c.Detail is PlacementPlan plan ? plan.ZoneTransform.Rotation : base.Orient(c);
 
-    public override Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) =>
-        c.Detail is PlacementPlan plan && world.Building is { } building ? building.CheckBuilding(plan, ctx.Player, ctx.Wallet) : OutcomeCode.NoSocket;
+    public override Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c)
+    {
+        if (c.Detail is not PlacementPlan plan || world.Building is not { } building)
+        {
+            return OutcomeCode.NoSocket;
+        }
+        plan.Grade = ctx.BuildGrade;
+        return building.CheckBuilding(plan, ctx.Player, ctx.Wallet);
+    }
 
     public override Outcome Put(IPlacementSite site, ulong player, PlacementCandidate c) =>
         c.Detail is PlacementPlan plan && site.Building is { } building ? building.Build(plan, player, site.BuildingNow, out _) : OutcomeCode.NoSocket;
@@ -199,11 +215,8 @@ internal sealed class DoorKind : PlaceableKind
 
     internal override JsonElement Own(string key, PlacementSources sources) => sources.Own("building.json", "doors", "key", key);
 
-    // As its frame stands, turned round when its variant (R's flip) says so.
-    public override Quaternion Orient(PlacementCandidate c) =>
-        c.Detail is Piece frame
-            ? Quaternion.Normalize(frame.ZoneTransform.Rotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, (c.Variant & 1) * MathF.PI))
-            : base.Orient(c);
+    // As its frame stands: the variant (R's layout: hinge side and swing side) is in how its leaves hang, not in the frame.
+    public override Quaternion Orient(PlacementCandidate c) => c.Detail is Piece frame ? frame.ZoneTransform.Rotation : base.Orient(c);
 
     public override Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) =>
         c.Detail is Piece frame && world.Building is { } building ? building.CanFitDoor((DoorDef)c.Placeable.Definition, frame, c.Variant) : OutcomeCode.NotAnOpening;
@@ -228,14 +241,14 @@ internal sealed class LockPlacement : PlaceableKind
         sources.Building.Lock(key) is { } def ? sources.OwnAt("building.json", "locks", def.Field) : default;
 
     // As it sits at its spot on the door's first leaf.
-    public override Quaternion Orient(PlacementCandidate c) => c.Detail is Door door ? door.LockSpot.Rotation : base.Orient(c);
+    public override Quaternion Orient(PlacementCandidate c) => c.Detail is LockMount mount ? mount.Pose.Rotation : base.Orient(c);
 
     public override Outcome Check(PlacementWorld world, in PlacementContext ctx, PlacementCandidate c) =>
-        c.Detail is Door door ? door.Lock != null ? OutcomeCode.HasLock : Outcome.Done : OutcomeCode.NotFound;
+        c.Detail is LockMount mount ? !mount.Lockable ? OutcomeCode.NotUsable : mount.Lock != LockKind.None ? OutcomeCode.HasLock : Outcome.Done : OutcomeCode.NotFound;
 
     public override Outcome Put(IPlacementSite site, ulong player, PlacementCandidate c) =>
-        c.Detail is Door door && site.Building is { } building
-            ? building.AttachLock(player, door, ((LockDef)c.Placeable.Definition).Kind, out _)
+        c.Detail is LockMount mount
+            ? site.PutLock(player, ((LockDef)c.Placeable.Definition).Kind, mount.Target)
             : OutcomeCode.NotFound;
 }
 
@@ -278,6 +291,8 @@ internal sealed class ChargeKind : PlaceableKind
 {
     public override string Name => "charge";
 
+    public override bool RetainItemWhenFree => false;
+
     internal override ResolvedPlaceable? Resolve(string key, PlacementSources sources) =>
         sources.Item(key) is { Throwable: { Sticky: true } stats } item
             ? new ResolvedPlaceable(stats, item, null, item.Key, item.Name, Array.Empty<PlacementCost>())
@@ -303,10 +318,15 @@ internal sealed class ShipKind : PlaceableKind
 {
     public override string Name => "ship";
 
-    internal override ResolvedPlaceable? Resolve(string key, PlacementSources sources) =>
-        sources.Loaded.Ships.FirstOrDefault(s => s.Key == key) is { } def
-            ? new ResolvedPlaceable(def, def.Item, null, def.Key, def.Name, Array.Empty<PlacementCost>())
-            : null;
+    // A kind by its key, or a preset item that makes one with a build of its own (ships.json presets, VEHICLES.md §9.11: the
+    // Monster TOGG is a TOGG): the kind is the definition, the item says which build PutShip makes.
+    internal override ResolvedPlaceable? Resolve(string key, PlacementSources sources)
+    {
+        ShipDef? def = sources.Loaded.Ships.FirstOrDefault(s => s.Key == key);
+        ItemDef? item = def?.Item ?? sources.Loaded.Items.FirstOrDefault(i => i.Key == key && i.ShipKey != null && i.Ship != null);
+        def ??= item?.Ship;
+        return def != null && item != null ? new ResolvedPlaceable(def, item, null, key, item.Name, Array.Empty<PlacementCost>()) : null;
+    }
 
     internal override JsonElement Own(string key, PlacementSources sources) => sources.Own("ships.json", "ships", "key", key);
 

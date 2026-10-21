@@ -66,12 +66,7 @@ public static class ViewmodelMotion
             new(1f, Vector3.Zero, Vector3.Zero, Ease.Smooth),
         };
         (Vector3 turn, Vector3 offset) = Sample(keys, t);
-        // The impact: a short, damped shake of the head through the handle.
-        float after = (t - s) * seconds;
-        if (after > 0f)
-        {
-            turn.X += 0.07f * MathF.Sin(after * MathF.Tau * 20f) * MathF.Exp(-after * 16f);
-        }
+        // Contact response belongs to the accepted hit, never to the clock crossing a strike time on a miss.
         return (turn, offset);
     }
 
@@ -119,5 +114,12 @@ public static class ViewmodelMotion
         };
         Vector3 w = Sample(keys, t).Turn;
         return new Vector4(Math.Max(0f, 1f - w.X - w.Y - Math.Min(1f, w.Z)), w.X, w.Y, w.Z);
+    }
+
+    /// <summary>The under-barrel support palm turns sideways to wrap a vertical magazine, then returns to its grip.</summary>
+    public static Basis ReloadGrip(Basis support, float phase)
+    {
+        float handOffGrip = Math.Clamp(1f - ReloadHand(phase).X, 0, 1);
+        return new Basis(support.GetRotationQuaternion().Slerp(HandFrame.PowerGrip.GetRotationQuaternion(), handOffGrip));
     }
 }

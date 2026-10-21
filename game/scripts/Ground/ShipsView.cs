@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Godot;
 using Hollow.Client;
 using Hollow.Client.Audio;
+using Hollow.Client.Vehicles;
 using Hollow.Net.Protocol;
 using Hollow.Simulation;
 using Hollow.Simulation.Ships;
@@ -39,6 +40,23 @@ public partial class ShipsView : Node3D
         public FxHandle[]? Smoke;
         public FxHandle HullSmoke;
         public Node3D? HullSmokeAt;
+
+        // The wake it throws in the water as it goes (ships.json wake: the motorboat's).
+        public FxHandle Wake;
+
+        // A vehicle on wheels: its nose's way last frame (its turning, for the steered wheels).
+        public Num.Vector3 LastForward;
+
+        // A ground vehicle with an engine's sounds (VEHICLES.md §7.1): its revs (read by its sounds, the HUD and the
+        // exhaust), its engine, tyres and suspension heard, and the ground under it, looked up a few times a second.
+        public VehicleRevs? Revs;
+        public EngineRock? Rock;
+        public VehicleSounds? Vehicle;
+        public string Surface = "unknown";
+        public double SurfaceIn;
+
+        // A vehicle on wheels: its exhaust, tyre dust and spray (ShipsView.Vehicles.cs).
+        public VehicleFx? Fx;
     }
 
     private readonly Dictionary<uint, Drawn> _drawn = new();
@@ -58,23 +76,49 @@ public partial class ShipsView : Node3D
             if (_stations == null)
             {
                 _stations = new StationsView { Client = Client };
-                Client.Stations().Shot += shot =>
-                {
-                    if (Client.Ships().ShipByNetId(shot.Ship)?.Def is { } def)
-                    {
-                        _stations.Shot(shot, def);
-                    }
-                };
+                Client.Stations().Shot += OnStationShot;
             }
             return _stations;
         }
     }
+
+    private void OnStationShot(StationShotView shot)
+    {
+        if (Client.Ships().ShipByNetId(shot.Ship)?.Def is { } def) _stations?.Shot(shot, def);
+    }
+
+    /// <summary>Ship IDs, station state and their native views belong to the retiring session.</summary>
+    public void RetireWorld()
+    {
+        if (_stations != null) Client.Stations().Shot -= OnStationShot;
+        foreach ((uint id, Drawn drawn) in _drawn)
+        {
+            drawn.Sounds?.StopAll();
+            drawn.Vehicle?.StopAll();
+            StopEffects(drawn);
+            FxDirector.Stop(drawn.Fire, immediate: true);
+            _stations?.Forget(id);
+            if (drawn.View.GetParent() == this) RemoveChild(drawn.View);
+            drawn.View.QueueFree();
+        }
+        _drawn.Clear(); _seen.Clear(); _gone.Clear();
+        _stations = null;
+        _space = SoundSpace.Open; _delta = 0; Cockpit = false;
+    }
+
+    public override void _ExitTree() => RetireWorld();
 
     /// <summary>The player's own ship is seen from its cockpit: its plumes nearest the eye hide.</summary>
     public bool Cockpit { get; set; }
 
     /// <summary>The ship view of a ship by its net ID, if drawn (screenshots frame it).</summary>
     public ShipView? ViewOf(uint netId) => _drawn.TryGetValue(netId, out Drawn? d) ? d.View : null;
+
+    /// <summary>A ground vehicle's revs, gear, load and boost by its net ID, if drawn (its HUD, its exhaust).</summary>
+    public VehicleRevs? RevsOf(uint netId) => _drawn.TryGetValue(netId, out Drawn? d) ? d.Revs : null;
+
+    /// <summary>A drawn ground vehicle's engine rocking on its mounts (VEHICLES.md §9.10), or null.</summary>
+    public EngineRock? RockOf(uint netId) => _drawn.TryGetValue(netId, out Drawn? d) ? d.Rock : null;
 
     /// <summary>Every frame, after the client's update: each ship where it is drawn, and what it sounds like.</summary>
     public void Refresh(double delta, float exposure)
@@ -92,6 +136,11 @@ public partial class ShipsView : Node3D
                 continue;
             }
             _seen.Add(ship.NetId);
+            if (_drawn.TryGetValue(ship.NetId, out Drawn? old) && old.View.Def != def)
+            {
+                // Its build changed (or its details arrived with one, VEHICLES.md §9.5): drawn again from the new layout.
+                Forget(ship.NetId, old);
+            }
             if (!_drawn.TryGetValue(ship.NetId, out Drawn? d))
             {
                 d = new Drawn { View = new ShipView(def) };
@@ -105,16 +154,24 @@ public partial class ShipsView : Node3D
                 ShipState s = Client.Ships().OwnShip;
                 Num.Quaternion q = Client.Ships().OwnShipRenderRotation;
                 Num.Vector3 origin = Client.Ships().OwnShipRenderPosition - Num.Vector3.Transform(def.CentreOfMass, q);
-                look = new ShipLook(Pivot(origin, q), ship.DoorAt(0, Client.ServerTickNow), s.Thrust, s.Has(ShipFlags.EnginesOn), s.Has(ShipFlags.Boosting), true, false);
+                look = new ShipLook(Pivot(origin, q), ship.DoorAt(0, Client.ServerTickNow), s.Thrust, s.Has(ShipFlags.EnginesOn), s.Has(ShipFlags.Boosting), true, false,
+                    s.Spool);
             }
             else
             {
                 look = new ShipLook(Pivot(ship.Origin, ship.Rotation), ship.DoorAt(0, Client.RenderTick), ship.Thrust, ship.Has(ShipNetFlags.EnginesOn),
-                    ship.Has(ShipNetFlags.Boosting), ship.Has(ShipNetFlags.Piloted), ship.Has(ShipNetFlags.Destroyed));
+                    ship.Has(ShipNetFlags.Boosting), ship.Has(ShipNetFlags.Piloted), ship.Has(ShipNetFlags.Destroyed), ship.Spool);
             }
             d.View.Visible = !ship.Has(ShipNetFlags.InOrbit);
             d.View.FromCockpit = mine && Cockpit;
             d.View.Show(look, delta);
+            if (def.Ground is { } wheeled)
+            {
+                ShowWheels(d, def, wheeled, mine ? Client.Ships().OwnShipRenderRotation : ship.Rotation,
+                    mine ? Client.Ships().OwnShip.Velocity : ship.Velocity, delta);
+                Revs(d, def, look, mine ? Client.Ships().OwnShipRenderRotation : ship.Rotation,
+                    mine ? Client.Ships().OwnShip.Velocity : ship.Velocity, Landed(ship, mine), delta);
+            }
             if (def.Interior is { } interior)
             {
                 // Its ramp, airlock and turrets (IRON_WAKE.md §4.7, §5.3): as its space is posed where the player has one (the
@@ -139,7 +196,7 @@ public partial class ShipsView : Node3D
             }
             Num.Vector3 velocity = mine ? Client.Ships().OwnShip.Velocity : ship.Velocity;
             Hear(d, ship, def, look, velocity, mine ? Client.ServerTickNow : Client.RenderTick);
-            Effects(d, ship, def, look);
+            Effects(d, ship, def, look, velocity);
         }
         _gone.Clear();
         foreach (uint id in _drawn.Keys)
@@ -151,17 +208,23 @@ public partial class ShipsView : Node3D
         }
         foreach (uint id in _gone)
         {
-            Drawn d = _drawn[id];
-            d.Sounds?.StopAll();
-            StopEffects(d);
-            if (d.Fire.IsValid)
-            {
-                FxDirector.Stop(d.Fire);
-            }
-            d.View.QueueFree();
-            _drawn.Remove(id);
-            _stations?.Forget(id);
+            Forget(id, _drawn[id]);
         }
+    }
+
+    // A ship no longer drawn (gone, or drawn again for a new build): its sounds, effects, view and stations' state.
+    private void Forget(uint id, Drawn d)
+    {
+        d.Sounds?.StopAll();
+        d.Vehicle?.StopAll();
+        StopEffects(d);
+        if (d.Fire.IsValid)
+        {
+            FxDirector.Stop(d.Fire);
+        }
+        d.View.QueueFree();
+        _drawn.Remove(id);
+        _stations?.Forget(id);
     }
 
     private static Transform3D Pivot(Num.Vector3 origin, Num.Quaternion q) =>
@@ -174,6 +237,13 @@ public partial class ShipsView : Node3D
         d.Sounds ??= new ShipSounds(def, d.View);
         SoundSpace? aboard = Client.RenderFrame == ship.NetId ? _space : null;
         d.Sounds.Update(look, ship, velocity, tick, d.View.Visible, aboard, _delta);
+        if (d.Revs != null)
+        {
+            bool mine = Client.Ships().OwnShipRemote?.NetId == ship.NetId;
+            d.Vehicle ??= new VehicleSounds(def, d.View, d.Revs.Engine);
+            d.Vehicle.Update(d.Revs, velocity, mine ? Client.Ships().OwnShipRenderRotation : ship.Rotation, Landed(ship, mine),
+                GroundUnder(d, ship), d.View.Visible && !look.Destroyed, _delta);
+        }
         if (d.Known && (ship.Flags & ShipNetFlags.Destroyed) != 0 && (d.Flags & ShipNetFlags.Destroyed) == 0)
         {
             // The wreck: a blast, its debris, and the hull burning until it goes (two seconds).
@@ -192,11 +262,73 @@ public partial class ShipsView : Node3D
     /// <summary>Full wash at this height and under.</summary>
     private const float WashFull = 4f;
 
+    private bool Landed(RemoteShip ship, bool mine) =>
+        mine ? Client.Ships().OwnShip.Has(ShipFlags.Landed) : ship.Has(ShipNetFlags.Landed);
+
+    // A ground vehicle's revs (VEHICLES.md §7.1): one VehicleRevs for each drawn, stepped every frame by its speed along its
+    // nose, its throttle, its engine, its wheels on the ground and its overboost, when its kind has an engine's sounds; and
+    // its engine rocking on its mounts by them (§9.10).
+    private static void Revs(Drawn d, ShipDef def, in ShipLook look, Num.Quaternion rotation, Num.Vector3 velocity, bool landed,
+        double delta)
+    {
+        if (d.Revs == null)
+        {
+            if (SoundLibrary.Data.Engine(def.Sound) is not { } engine)
+            {
+                return;
+            }
+            d.Revs = new VehicleRevs(engine);
+        }
+        float along = Num.Vector3.Dot(velocity, Num.Vector3.Transform(Num.Vector3.UnitZ, rotation));
+        d.Revs.Step(along, look.Thrust.Z, look.Engines && !look.Destroyed, landed, (float)delta, look.Boosting);
+        d.Rock ??= new EngineRock();
+        d.Rock.Step(d.Revs, along, (float)delta);
+        d.View.ShowRock(d.Rock.Lean + d.Rock.Shake, d.Rock.Twist + d.Rock.Shudder);
+    }
+
+    // The physical surface under a ground vehicle (contact-surfaces.json's), or "water" where it wades, a few times a second.
+    private string GroundUnder(Drawn d, RemoteShip ship)
+    {
+        d.SurfaceIn -= _delta;
+        if (d.SurfaceIn <= 0)
+        {
+            d.SurfaceIn = 0.25;
+            Num.Vector3 at = ship.Position;
+            d.Surface = GroundAudio.WaterDepth(Client, at) > 0.15 ? "water" : GroundAudio.PhysicalSurfaceAt(Client, at);
+        }
+        return d.Surface;
+    }
+
+    // A vehicle's wheels (VEHICLES.md §6): on the ground under each, rolled by its speed, the steered ones turned by how it
+    // turns (its nose's turn since the last frame over its wheelbase), so another player's car steers as it goes.
+    private void ShowWheels(Drawn d, ShipDef def, GroundDef ground, Num.Quaternion rotation, Num.Vector3 velocity, double delta)
+    {
+        Num.Vector3 forward = Num.Vector3.Transform(Num.Vector3.UnitZ, rotation), up = Num.Vector3.Transform(Num.Vector3.UnitY, rotation);
+        float along = Num.Vector3.Dot(velocity, forward);
+        float front = float.MinValue, back = float.MaxValue;
+        foreach (WheelDef w in def.Wheels)
+        {
+            front = MathF.Max(front, w.Hub.Z);
+            back = MathF.Min(back, w.Hub.Z);
+        }
+        float steer = 0;
+        if (d.LastForward != Num.Vector3.Zero && delta > 0 && front > back)
+        {
+            float right = -Num.Vector3.Dot(Num.Vector3.Cross(d.LastForward, forward), up) / (float)delta;
+            steer = Math.Clamp(MathF.Atan((front - back) * right / MathF.Max(MathF.Abs(along), 1)), -ground.Steer, ground.Steer);
+        }
+        d.LastForward = forward;
+        GroundProbe? probe = Client.Surface is { } world ? new GroundProbe(world, Client.Frame) : null;
+        d.View.ShowWheels(p => probe?.HeightAbove(new Num.Vector3(p.X, p.Y, p.Z)), steer, along, delta);
+    }
+
     // The ship's own effects (IRON_WAKE.md §11): dust under each lift nozzle within 25 m of the ground, by its plume and
     // nearness; smoke pouring from each disabled battery's gun house and from the hull below a quarter, until mended.
-    private void Effects(Drawn d, RemoteShip ship, ShipDef def, in ShipLook look)
+    private void Effects(Drawn d, RemoteShip ship, ShipDef def, in ShipLook look, Num.Vector3 velocity)
     {
         bool shown = d.View.Visible && !look.Destroyed;
+        Wake(d, ship, def, shown, velocity);
+        VehicleEffects(d, def, look, velocity, shown);
         d.Wash ??= new FxHandle[d.View.LiftNozzles];
         GroundProbe? ground = Client.Surface is { } world ? new GroundProbe(world, Client.Frame) : null;
         for (int i = 0; i < d.Wash.Length; i++)
@@ -220,8 +352,8 @@ public partial class ShipsView : Node3D
             Vector3 point = GroundView.ToGodot(under), normal = GroundView.ToGodot(ground.Value.Normal(under).Normal);
             if (!d.Wash[i].IsValid)
             {
-                FxSurface surface = GroundAudio.WaterDepth(Client, under) > 0.05 ? FxSurface.Water : FxSurfaces.Of(GroundAudio.MaterialAt(Client, under));
-                d.Wash[i] = FxDirector.Start("wash.lift", point, normal, new FxParams { Tint = FxSurfaces.Dust(surface) });
+                string surface = GroundAudio.PhysicalSurfaceAt(Client, under);
+                d.Wash[i] = FxDirector.Start("wash.lift", point, normal, new FxParams { Tint = ContactFeedback.Dust(surface) });
             }
             FxDirector.Move(d.Wash[i], point);
             FxDirector.SetIntensity(d.Wash[i], k);
@@ -267,8 +399,42 @@ public partial class ShipsView : Node3D
         }
     }
 
+    // A ship's wake (ships.json wake): on the water's surface under its point as drawn, while it is in the water and moving,
+    // by its speed.
+    private void Wake(Drawn d, RemoteShip ship, ShipDef def, bool shown, Num.Vector3 velocity)
+    {
+        if (def.Wake is not { } wake)
+        {
+            return;
+        }
+        float k = Math.Clamp((velocity.Length() - 0.4f) / Math.Max(wake.FullSpeed, 0.5f), 0f, 1f);
+        Vector3 at = d.View.SocketWorld(new ShipSocket { Position = wake.At }).Origin;
+        var point = new Num.Vector3(at.X, at.Y, at.Z);
+        GroundProbe? ground = Client.Surface is { } world ? new GroundProbe(world, Client.Frame) : null;
+        float over = ground?.HeightAboveWater(point) ?? float.PositiveInfinity;
+        if (!shown || !ship.Has(ShipNetFlags.Wet) || k < 0.02f || over is > 0.6f or < -0.8f)
+        {
+            if (d.Wake.IsValid)
+            {
+                FxDirector.Stop(d.Wake);
+                d.Wake = default;
+            }
+            return;
+        }
+        Num.Vector3 up = Client.Frame.UpAt(point);
+        Vector3 surface = GroundView.ToGodot(point - up * over);
+        if (!d.Wake.IsValid)
+        {
+            d.Wake = FxDirector.Start(wake.Effect, surface, GroundView.ToGodot(up), new FxParams());
+        }
+        FxDirector.Move(d.Wake, surface);
+        FxDirector.SetIntensity(d.Wake, k);
+    }
+
     private static void StopEffects(Drawn d)
     {
+        FxDirector.Stop(d.Wake);
+        d.Wake = default;
         foreach (FxHandle h in d.Wash ?? Array.Empty<FxHandle>())
         {
             FxDirector.Stop(h);
@@ -278,6 +444,7 @@ public partial class ShipsView : Node3D
             FxDirector.Stop(h);
         }
         FxDirector.Stop(d.HullSmoke);
+        StopVehicle(d.Fx);
     }
 
     // The listener's space (IRON_WAKE.md §10.1): aboard a ship, the space of the room the player stands in (sounds.json's

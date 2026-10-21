@@ -16,6 +16,9 @@ public sealed class PlacementPlan
 {
     public required PieceDef Piece { get; init; }
 
+    /// <summary>The structural grade selected by the server or shared placement context; ordinary placement is twig.</summary>
+    public int Grade { get; internal set; }
+
     /// <summary>The structure it joins, or null when it starts a new one (a free foundation).</summary>
     public Structure? Structure { get; init; }
 
@@ -32,11 +35,12 @@ public sealed class PlacementPlan
 
     /// <summary>
     /// A free foundation's aim point (zone frame: where the aim meets the ground, or the point on the aim at the free
-    /// distance, whose height lifts the top) and its heading in 15° steps, as the wire asks for it.
+    /// distance, whose height lifts the top).
     /// </summary>
     public Vector3 Point { get; init; }
 
-    public int HeadingSteps { get; init; }
+    /// <summary>Free foundation heading in radians; its existing pose yaw field carries this on the wire.</summary>
+    public double Heading { get; init; }
 
     public Outcome Outcome { get; internal set; } = Outcome.Done;
 
@@ -50,10 +54,10 @@ public sealed class PlacementPlan
 
     /// <summary>
     /// What a placement intent says of it (GROUND_SYSTEMS.md §6): its support, socket and orientation, or (a free
-    /// foundation) the ground, its top's middle and its heading in 15° steps.
+    /// foundation) the ground, its top's middle and its continuous heading.
     /// </summary>
     public Placement.PlacementClaim Claim => Support == null
-        ? new Placement.PlacementClaim(Targets.TargetRef.Ground, 0, ZoneTransform.Position, 0, HeadingSteps)
+        ? new Placement.PlacementClaim(Targets.TargetRef.Ground, 0, ZoneTransform.Position, (float)Heading, 0)
         : new Placement.PlacementClaim(Support.Ref, Socket.Code, ZoneTransform.Position, 0, Orientation);
 
     public override string ToString() =>
@@ -177,7 +181,7 @@ public sealed partial class BuildingWorld
                 double score = miss + bias + 0.02 * turn * turn;
                 if (support.Structure.At(piece, pose) != null)
                 {
-                    score += 1e7;
+                    continue;
                 }
                 _candidates.Add((score, support, socket, o, pose));
             }
@@ -211,7 +215,7 @@ public sealed partial class BuildingWorld
     /// A foundation on open ground (RustMVP's free foundation): where the aim meets the ground, at most
     /// <see cref="BuildingData.FreeFoundationDistance"/> away across it; aimed further, it stays at that distance and the
     /// aim's height there lifts its top (<see cref="FoundationAt"/>), so raising the view raises the foundation within
-    /// its depth. Square to the player's view (15° steps, R turns it 90°). It starts a new structure whose frame has the
+    /// its depth. Square to the player's view (R turns it 90°). It starts a new structure whose frame has the
     /// planet's up there.
     /// </summary>
     private PlacementPlan? FreeFoundation(PieceDef piece, Vector3 eye, Vector3 direction, int turns)
@@ -238,11 +242,10 @@ public sealed partial class BuildingWorld
         // The point on the aim at that distance across the ground: the ground where the aim meets it nearer, else in
         // the air, its height the top's.
         Vector3 point = eye + direction * (distance / across);
-        // Square to the view, in 15° steps; R turns it a quarter.
+        // Square to the actual view; R turns it a quarter. Only the existing wire angle quantization remains.
         BuildingFrame level = BuildingFrame.At(D(point), D(up), 0);
         Vector3D forward = level.DirectionToLocal(D(flat));
         double heading = Math.Atan2(-forward.X, -forward.Z) + turns * Math.PI / 2;
-        heading = Math.Round(heading / (Math.PI / 12)) * (Math.PI / 12);
         return FoundationAt(piece, point, heading);
     }
 
@@ -293,11 +296,10 @@ public sealed partial class BuildingWorld
         double high = lowest + Data.FoundationDepth - FoundationMargin;
         double top = Math.Max(low, Math.Min(aimed, high));
         BuildingFrame frame = BuildingFrame.At(D(centre) + upD * top, upD, headingRadians);
-        int steps = (int)Math.Round(headingRadians / HeadingStep);
         return new PlacementPlan
         {
             Piece = piece, Structure = null, Frame = frame, Pose = new Pose(Vector3D.Zero, 0), Point = point,
-            HeadingSteps = ((steps % HeadingSteps) + HeadingSteps) % HeadingSteps,
+            Heading = headingRadians,
         };
     }
 
@@ -337,6 +339,10 @@ public sealed partial class BuildingWorld
 
     private Outcome CheckRules(PlacementPlan plan, IBuildingWallet? wallet)
     {
+        if ((uint)plan.Grade >= (uint)Data.Grades.Count)
+        {
+            return OutcomeCode.Invalid;
+        }
         PieceDef piece = plan.Piece;
         BuildingFrame frame = plan.Frame;
         Pose pose = plan.Pose;
@@ -399,14 +405,14 @@ public sealed partial class BuildingWorld
             return OutcomeCode.JoinsClaims;
         }
 
-        // The price: a twig piece's cost in its material.
+        // The price: the chosen grade's cost in its material.
         if (wallet != null)
         {
-            GradeDef twig = Data.Grades[0];
-            int cost = Data.CostOf(piece, 0);
-            if (wallet.Count(twig.Material) < cost)
+            GradeDef grade = Data.Grades[plan.Grade];
+            int cost = Data.CostOf(piece, plan.Grade);
+            if (wallet.Count(grade.Material) < cost)
             {
-                return OutcomeCode.NotEnough.With(Data.MaterialItem(twig.Material));
+                return OutcomeCode.NotEnough.With(Data.MaterialItem(grade.Material));
             }
         }
         return Outcome.Done;
@@ -554,7 +560,7 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>
-    /// Places a planned piece after checking the building's rules again (<see cref="CheckBuilding"/>), paying its twig cost:
+    /// Places a planned piece after checking the building's rules again (<see cref="CheckBuilding"/>), paying its grade's cost:
     /// the sandbox's and the tests' way; the game places through the placement pipeline, which checks reach, sight and rights
     /// too and takes the price itself (<see cref="Build"/>).
     /// </summary>
@@ -565,16 +571,16 @@ public sealed partial class BuildingWorld
         {
             return plan.Outcome;
         }
-        GradeDef twig = Data.Grades[0];
-        if (!wallet.Take(twig.Material, Data.CostOf(plan.Piece, 0)))
+        GradeDef grade = Data.Grades[plan.Grade];
+        if (!wallet.Take(grade.Material, Data.CostOf(plan.Piece, plan.Grade)))
         {
-            return OutcomeCode.NotEnough.With(Data.MaterialItem(twig.Material));
+            return OutcomeCode.NotEnough.With(Data.MaterialItem(grade.Material));
         }
         return Build(plan, player, now, out piece);
     }
 
     /// <summary>
-    /// Adds a planned piece at full twig health, after checking the building's rules again (without its price: the caller
+    /// Adds a planned piece at full health in its chosen grade, after checking the building's rules again (without its price: the caller
     /// takes it): a new structure for a free foundation, else onto its support's.
     /// </summary>
     public Outcome Build(PlacementPlan plan, ulong player, double now, out Piece? piece)
@@ -585,8 +591,8 @@ public sealed partial class BuildingWorld
             return plan.Outcome;
         }
         piece = plan.Structure == null
-            ? AddFirst(plan.Frame, plan.Piece, 0, player, now)
-            : Add(plan.Structure, plan.Piece, 0, plan.Pose, player, now);
+            ? AddFirst(plan.Frame, plan.Piece, plan.Grade, player, now)
+            : Add(plan.Structure, plan.Piece, plan.Grade, plan.Pose, player, now);
         return Outcome.Done;
     }
 
@@ -596,7 +602,7 @@ public sealed partial class BuildingWorld
     /// </summary>
     public Piece? OpeningAimed(Vector3 eye, Vector3 direction, float reach)
     {
-        if (Target(eye, direction, reach, out _) is Piece { Def.Opening: Opening.Door or Opening.Double } aimed)
+        if (Target(eye, direction, reach, out _) is Piece aimed && Data.TryOpening(aimed.Def.Opening, out _))
         {
             return aimed;
         }
@@ -606,14 +612,14 @@ public sealed partial class BuildingWorld
         double nearest = double.MaxValue;
         foreach (Piece p in _aimed)
         {
-            if (p.Gone || p.Collapsing || p.Def.Opening is not (Opening.Door or Opening.Double))
+            if (p.Gone || p.Collapsing || !Data.TryOpening(p.Def.Opening, out var aperture))
             {
                 continue;
             }
-            (double w, double h) = p.Def.Opening == Opening.Door ? Data.DoorOpening : Data.DoubleOpening;
             BuildingFrame frame = p.Structure.Frame;
             Vector3D from = D(eye);
-            if (PieceGeometry.RayOpening(p.Pose, w, h, frame.ToLocal(from), frame.ToLocal(D(end)), out Vector3D hit))
+            Pose opening = p.Pose with { Position = p.Pose.Position + Vector3D.UnitY * aperture.Sill };
+            if (PieceGeometry.RayOpening(opening, aperture.Width, aperture.Height, frame.ToLocal(from), frame.ToLocal(D(end)), out Vector3D hit))
             {
                 double distance = (frame.ToZone(hit) - from).Length;
                 if (distance < nearest)
@@ -647,11 +653,6 @@ public sealed partial class BuildingWorld
             Orientation = orientation,
         };
     }
-
-    /// <summary>A free foundation turns in steps of 15° (24 to the turn).</summary>
-    public const int HeadingSteps = 24;
-
-    public const double HeadingStep = Math.PI / 12;
 
     /// <summary>Planet up at a zone point (the zone frame's), or +Y without physics.</summary>
     public Vector3 Up(Vector3 zonePoint) => Physics != null ? Physics.World.Frame.UpAt(zonePoint) : Vector3.UnitY;

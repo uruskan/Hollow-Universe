@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "woven-gloves",
+  "date": "2026-10-20",
+  "replaces": "the art/models/clothing.py stand-in model and the icon rendered from it",
+  "authorship": "Our own worn garment (art/characters/build_clothing.py, the character package) as the item: its mesh at three LODs, its own material and textures; rendered icons. No reference game files",
+  "visual_reference": null,
+  "authoring_source": [
+    {
+      "path": "art/models/garment_items.py",
+      "sha256": "900ae50a1d7579285054b058a773cde175beeb4d2d788bbd23856da260fad7ce"
+    }
+  ],
+  "authoring_helpers": [
+    {
+      "path": "art/hollow/export.py",
+      "sha256": "bca4862ce3d4b2a67c016857d2e78d97ef867d19af5d1991942aa10d52552bde"
+    },
+    {
+      "path": "art/hollow/godot.py",
+      "sha256": "8742a7167ee1b482dfc5c6e9e40d19391a9793aa711e23fd2a31f3f664d46cd2"
+    },
+    {
+      "path": "art/characters/build_clothing.py",
+      "sha256": "ce422ec0273a6076413832320ff1cf0271aa96a2217277a20da85410fab6d9e6"
+    }
+  ],
+  "geometry": {
+    "asset": "woven-gloves",
+    "garment": "woven_gloves",
+    "dimensions_blender_xyz_m": [
+      0.321466326713562,
+      0.06785239279270172,
+      0.2555418014526367
+    ],
+    "material": "game/assets/materials/garment-woven-gloves.tres",
+    "material_count": 1,
+    "lod_triangles": {
+      "WovenGloves_lod0": 6844,
+      "WovenGloves_lod1": 2872,
+      "WovenGloves_lod2": 1092
+    },
+    "hull_triangles": 42
+  },
+  "files": {
+    "game/assets/items/woven-gloves.glb": {
+      "sha256": "517540f5b138c1f5a56a200c76856c6972761e0f37a6580e163741c0dd628fcf",
+      "bytes": 276236
+    },
+    "game/assets/items/woven-gloves.glb.import": {
+      "sha256": "743ef8b606887f4a0825ead99942649a3ca94a39cbd25920ed8f554430abc62b",
+      "bytes": 1388
+    },
+    "game/assets/items/icons/128/woven-gloves.png": {
+      "sha256": "14309cb1ae794f440326e2d24b82075a4f7ea50b67fb28d49ac26295be608754",
+      "bytes": 15175
+    },
+    "game/assets/items/icons/128/woven-gloves.png.import": {
+      "sha256": "1394e8c220ef94b6ec56835d3395f8ca376afd14c2efa7261355334c75aa71e2",
+      "bytes": 963
+    },
+    "game/assets/items/icons/256/woven-gloves.png": {
+      "sha256": "6abe4921f43b084fd4a98f06de7b4fa123ddba5ca210635f84035e046b759d29",
+      "bytes": 44624
+    },
+    "game/assets/items/icons/256/woven-gloves.png.import": {
+      "sha256": "67437d8bcdd19365ed6178c0a0d7e0e71a7c719fddb8b511e9753ab621afe819",
+      "bytes": 963
+    },
+    "game/assets/materials/garment-woven-gloves.tres": {
+      "sha256": "350fba4aea28b7d1b9f7fc050a7a93c510920d786982f14b9cc7534ad5a72cd9",
+      "bytes": 943
+    },
+    "game/assets/characters/clothing.glb": {
+      "sha256": "c5d78471f97429dce027f65915278d19733578b73e407822a05aef5bec62bd1b",
+      "bytes": 3204960
+    },
+    "game/shaders/character_cloth.gdshader": {
+      "sha256": "4f1bea15d8b2abfb97274b4af0662bde54ad543660a98b01e49025859dcb5de4",
+      "bytes": 327
+    },
+    "game/shaders/character_cloth.gdshaderinc": {
+      "sha256": "30aabd93bdb406ad5f1525923c9ca7585f19a6a7d5fc7b0b67b0a562cc0c438e",
+      "bytes": 1656
+    },
+    "game/shaders/character_common.gdshaderinc": {
+      "sha256": "4d5697bde5469a263499f9cfda6df8d29f7f9a5e5a77fcf25ab0309b05dcb7fe",
+      "bytes": 1193
+    },
+    "game/assets/characters/textures/woven_gloves_albedo.png": {
+      "sha256": "e650a6190798302783ad42e3c8b51922f6b20116cf6e94cde2e8243012b7aedb",
+      "bytes": 116402
+    },
+    "game/assets/characters/textures/woven_gloves_albedo.png.import": {
+      "sha256": "5ef14ebdffbc69f84eb209643c62bd8fa5683c40dc3854f3dd4959abf32b731c",
+      "bytes": 1036
+    },
+    "game/assets/characters/textures/woven_gloves_normal.png": {
+      "sha256": "6114a5fc4a57f531db0a43c9d1ab12683e2fcfe58c4ddc8683ec48e1073a8dcb",
+      "bytes": 273777
+    },
+    "game/assets/characters/textures/woven_gloves_normal.png.import": {
+      "sha256": "b4f8252b1fdac90a932a52573b071387dd967f5fa72c6e115079ea96bf4bdd76",
+      "bytes": 1036
+    },
+    "game/assets/characters/textures/knit_normal.png": {
+      "sha256": "585023b33e74653b0435dd0d53e75e332d5c361da9c4f441e038313b94686a38",
+      "bytes": 623140
+    },
+    "game/assets/characters/textures/knit_normal.png.import": {
+      "sha256": "8b547f2697ea4e9d6b681c26789f52094aa23543bcb726143733cf701ff08f69",
+      "bytes": 1012
+    }
+  }
+}

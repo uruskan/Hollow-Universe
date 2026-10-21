@@ -31,8 +31,8 @@ namespace HollowUniverse.Ground;
 /// base being built with the plan's ghost, a finished hut with a code lock and its keypad, a timed charge on its wall
 /// and the blast, a firefight at the hut, the Tin Finch crafted, boarded, flown and landed, G7's team, props, recycler,
 /// tech tree, research table and map, a bag of dropped items and its loot, the death screen, night by a fire, P3's held
-/// items: a gun's slot and rounds, the AK's, bag charge's and a blueprint's panels, crafting at a workbench, and things
-/// placed with their one ghost) and quits;
+/// items: a gun's slot and rounds, the AK's, bag charge's and a blueprint's panels, crafting at a workbench, things
+/// placed with their one ghost, interaction through the keys, and the forest a kilometre out from above) and quits;
 /// with <c>--tour guest</c>, a second
 /// client that dresses in what it is given, takes up its hatchet and faces the host, fires a rifle it is given at the
 /// nearest building wall, and takes a team invite. Pictures are 1600 × 900 JPEG at the window's size.
@@ -67,9 +67,30 @@ public partial class GroundTour : Node
             ("hud", Hud), ("berries", Berries), ("inventory", Inventory), ("crafting", Crafting), ("player", OtherPlayer),
             ("chop", Chop), ("mine", Mine), ("gun", Gun), ("build", Build), ("base", Base), ("charge", Charge), ("firefight", Firefight), ("ship", Ship),
             ("world", World), ("bags", Bags), ("death", Death), ("night", Night), ("f1", F1), ("f2", F2), ("look", Look),
-            ("foundations", Foundations), ("held", Held), ("place", Place), ("interact", Interaction), ("map", Map),
+            ("foundations", Foundations), ("held", Held), ("place", Place), ("interact", Interaction), ("map", Map), ("far", Far),
+            ("repair-ships", RepairShips),
+            ("repair-corpses", RepairCorpses),
+            ("repair-attachments", RepairAttachments),
+            ("admin-camera", AdminCamera),
+            ("admire", AdmireTour),
+            ("bow-alignment", BowAlignmentTour),
+            ("clan-base", ClanBaseTour),
+            ("airlocks", AirlockTour),
+            ("attack-sync", AttackSync),
+            ("attack-launcher", AttackLauncher),
+            ("resources", Resources),
+            ("map-drag", MapDrag),
+            ("fitted", FittedTour),
+            ("compound", Compound),
+            ("boat", BoatTour),
+            ("bay", BayTour),
+            ("monster", MonsterTour),
+            ("bike", BikeTour),
+            ("truck", TruckTour),
+            ("rebuild", RebuildTour),
         };
-        _steps.Enqueue(Prepare);
+        // The movement-audio diagnostic needs no inventory grants or equipment changes.
+        if (Only?.SetEquals(new[] { "audio-movement" }) != true) _steps.Enqueue(Prepare);
         foreach ((string name, Func<Task> step) in all)
         {
             if (Only == null || Only.Contains(name))
@@ -77,6 +98,7 @@ public partial class GroundTour : Node
                 _steps.Enqueue(step);
             }
         }
+        if (Only?.Contains("audio-movement") == true) _steps.Enqueue(AudioMovement);
     }
 
     /// <summary>Only these steps (names, comma-separated on the command line: <c>--tour-steps hud,player</c>); null: all.</summary>
@@ -84,6 +106,11 @@ public partial class GroundTour : Node
 
     /// <summary>The kind of tree the chop step fells (<c>--tour-tree pine-tree</c>); null: a birch or a broadleaf if near.</summary>
     public string? Tree { get; set; }
+
+    /// <summary>Diagnostic chop/idle runs skip screenshot readbacks and start measuring only at the settled tree.</summary>
+    public bool Profile { get; set; }
+
+    public bool ProfileIdle { get; set; }
 
     public override void _Process(double delta)
     {
@@ -108,11 +135,27 @@ public partial class GroundTour : Node
             {
                 await _steps.Dequeue()();
             }
+            if (Profile && GetParent().GetNodeOrNull<GroundMeasure>("Measure") is { } measure)
+            {
+                await Until(() => measure.Complete, measure.Seconds + 3);
+                if (!measure.Complete) throw new InvalidOperationException("tour profile did not complete its measurement window");
+            }
             GD.Print("[tour] done");
         }
         catch (Exception e)
         {
+            if (Profile && GetParent().GetNodeOrNull<GroundMeasure>("Measure") is { IsMeasuring: false } failedMeasure)
+            {
+                failedMeasure.CancelPendingStart();
+                GD.Print($"[tour-profile] failed outside measurement: {failedMeasure.Readiness}");
+                await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
+                using Image failure = GetViewport().GetTexture().GetImage();
+                string failurePath = Path.Combine(Folder, "profile-preparation-failed.png");
+                GD.Print($"[tour-profile] failure image {failure.SavePng(failurePath)}: {failurePath}");
+            }
             GD.PushError($"[tour] failed: {e}");
+            GetTree().Quit(1);
+            return;
         }
         GetTree().Quit();
     }
@@ -121,6 +164,7 @@ public partial class GroundTour : Node
 
     private async Task Prepare()
     {
+        if (Profile) await RepairGod(true);
         Admin("give", "stone-hatchet 1");
         Admin("give", "stone-pickaxe 1");
         Admin("give", "bandage 3");
@@ -265,20 +309,62 @@ public partial class GroundTour : Node
         }
         if (tree is not { } trunk)
         {
-            GD.PushWarning("[tour] no tree to chop");
-            return;
+            throw new InvalidOperationException("chop tour needs a nearby tree; choose a forest landing site");
         }
         NaturalKind kind = Client.Content.Natural(trunk.Kind)!;
         float radius = kind.Radius * trunk.Scale;
-        await TeleportTo(Away(trunk.Position, radius + 1.45f));
+        Num.Vector3 profileStand = Away(trunk.Position, radius + 1.45f);
+        await TeleportTo(profileStand);
         Face(trunk.Position + trunk.Up * 1.3f);
         Me.HeldSlot = 2;
-        await Settle();
+        GroundMeasure? profileMeasure = Profile ? GetParent().GetNodeOrNull<GroundMeasure>("Measure") : null;
+        if (Profile)
+        {
+            if (profileMeasure == null) throw new InvalidOperationException("tour-profile requires a measurement node");
+            View.Scripted = new InputFrame(); // stable idle input while streaming, including when the window has focus
+            double began = Time.GetTicksMsec() / 1000.0, stableSince = -1, nextReport = began;
+            while (Time.GetTicksMsec() / 1000.0 - began < 90)
+            {
+                double now = Time.GetTicksMsec() / 1000.0;
+                if (profileMeasure.ReadyToStart)
+                {
+                    if (stableSince < 0) stableSince = now;
+                    if (now - stableSince >= 2) break;
+                }
+                else stableSince = -1;
+                if (now >= nextReport)
+                {
+                    Vector3D body = Client.Frame.ToBody(Client.Character.Position);
+                    Num.Vector3 up = Client.Frame.UpAt(Client.Character.Position);
+                    double radialHeight = body.Length - (Client.Surface?.Radius ?? 0);
+                    GD.Print($"[tour-profile] preparing {now - began:0}s {profileMeasure.Readiness}; " +
+                        $"target={trunk.Position} stand={profileStand} actual={Client.Character.Position} " +
+                        $"radialHeight={radialHeight:0.00}m up={up} treeUp={trunk.Up} velocity={Client.Character.Velocity}");
+                    nextReport = now + 10;
+                }
+                if (Me.IsDead) throw new InvalidOperationException("tour profile died during preparation despite verified god mode");
+                await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            }
+            if (!profileMeasure.ReadyToStart || stableSince < 0 || Time.GetTicksMsec() / 1000.0 - stableSince < 2)
+                throw new InvalidOperationException("tour profile did not become ready for two steady seconds within 90 s: " + profileMeasure.Readiness);
+            profileMeasure.StartCapture();
+            await Until(() => profileMeasure.IsMeasuring, 15);
+            if (!profileMeasure.IsMeasuring) throw new InvalidOperationException("tour measurement did not start: " + profileMeasure.Readiness);
+            GD.Print($"[tour-profile] {(ProfileIdle ? "idle" : "chop")} tree={kind.Key} id={trunk.Id} position={trunk.Position}");
+            if (ProfileIdle)
+            {
+                await Until(() => profileMeasure.Complete, profileMeasure.Seconds + 2);
+                return;
+            }
+        }
+        else await Settle();
         // The first hit: the X appears, facing the player near the hit's height.
         int wood = Count("wood");
         View.Scripted = new InputFrame { Primary = true };
         await Until(() => Hits(trunk.Id).Seen >= 1, 5);
         View.Scripted = null;
+        if (Hits(trunk.Id).Seen < 1)
+            throw new InvalidOperationException($"chop tour received no accepted hit on {kind.Key} {trunk.Id} within5s; player={Client.Character.Position}, tree={trunk.Position}");
         await Seconds(1.0);
         if (Client.Survival().Natural?.WeakSpot(trunk, kind) is { } x)
         {
@@ -292,7 +378,7 @@ public partial class GroundTour : Node
         bool burst = false;
         double started = Time.GetTicksMsec() / 1000.0;
         View.Scripted = new InputFrame { Primary = true };
-        while (Time.GetTicksMsec() / 1000.0 - started < 60 && Client.Survival().Natural?.IsDepleted(trunk.Id) != true)
+        while (Time.GetTicksMsec() / 1000.0 - started < 60 && Client.Survival().Natural?.IsDepleted(trunk.Id) != true && profileMeasure?.Complete != true)
         {
             if (Client.Survival().Natural?.WeakSpot(trunk, kind) is { } spot)
             {
@@ -313,7 +399,15 @@ public partial class GroundTour : Node
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
         View.Scripted = null;
-        GD.Print($"[tour] chop: wood a hit {string.Join(" ", log)}; felled {Count("wood") - wood}");
+        bool depleted = Client.Survival().Natural?.IsDepleted(trunk.Id) == true;
+        GD.Print($"[tour] chop: wood a hit {string.Join(" ", log)}; depleted={depleted}; final-hit wood {Count("wood") - wood}");
+        if (Profile && profileMeasure != null)
+        {
+            await Until(() => profileMeasure.Complete, profileMeasure.Seconds + 2);
+            return; // Keep the final hit-point view for the rest of the comparison window.
+        }
+        if (!depleted)
+            throw new InvalidOperationException($"chop tour did not deplete {kind.Key} {trunk.Id} within60s; accepted hits={Hits(trunk.Id).Seen}; no falling/landed shots taken");
         // It tips away from the blow and lands along the ground.
         Num.Vector3 away = trunk.Position - Client.Character.Position;
         away = Num.Vector3.Normalize(away - trunk.Up * Num.Vector3.Dot(away, trunk.Up));
@@ -372,7 +466,7 @@ public partial class GroundTour : Node
         View.Scripted = new InputFrame { Primary = true };
         while (Time.GetTicksMsec() / 1000.0 - started < 40 && Hits(rock.Id).Stage < 2 && !Client.Survival().Natural!.IsDepleted(rock.Id))
         {
-            if (Client.Survival().Natural.WeakSpot(rock, kind) is { } spot)
+            if (Client.Survival().Natural?.WeakSpot(rock, kind) is { } spot)
             {
                 Face(spot);
             }
@@ -407,7 +501,7 @@ public partial class GroundTour : Node
         double mining = Time.GetTicksMsec() / 1000.0;
         while (Time.GetTicksMsec() / 1000.0 - mining < 40 && !Client.Survival().Natural!.IsDepleted(rock.Id))
         {
-            if (Client.Survival().Natural.WeakSpot(rock, kind) is { } spot)
+            if (Client.Survival().Natural?.WeakSpot(rock, kind) is { } spot)
             {
                 Face(spot);
             }
@@ -415,7 +509,7 @@ public partial class GroundTour : Node
         }
         View.Scripted = null;
         GD.Print($"[tour] the outcrop {(Client.Survival().Natural!.IsDepleted(rock.Id) ? "is mined out" : "still stands")}");
-        if (Client.Survival().Natural.IsDepleted(rock.Id))
+        if (Client.Survival().Natural?.IsDepleted(rock.Id) == true)
         {
             Face(rock.Position + rock.Up * 0.3f);
             await Seconds(0.3);
@@ -560,7 +654,7 @@ public partial class GroundTour : Node
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
-        Admin("raidbase", "2");
+        Admin("raidbase", "hut 2");
         await Until(() => Doors().Count() > doors, 5);
         await Settle();
         if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)
@@ -806,7 +900,14 @@ public partial class GroundTour : Node
         }
         // The tank filled with the lamp oil left over from the recipe.
         Me.Interact(atHatch with { Part = (byte)Math.Max(0, def.PartIndex("fuel")) }, "refuel");
-        await Seconds(0.5);
+        await Until(() => Me.LootTarget == ship.Id && Me.Loot != null, 3);
+        if (SlotOf(Me.Inventory.Main, "lamp-oil") is int fuelSlot)
+        {
+            Me.QuickMove(ContainerRef.Main, fuelSlot);
+            await Seconds(0.5);
+        }
+        Me.Close();
+        View.Interface.Open(GroundScreen.Hud);
         Face(hatch);
         await Seconds(0.4);
         await Shot("ship-boarding");
@@ -877,8 +978,9 @@ public partial class GroundTour : Node
                 Outcome? refused = null;
                 void Refused(IntentAnswer answer) => refused = answer.Outcome;
                 Me.IntentRejected += Refused;
+                // Turned to face away, so that its front and bay (BayStats.Axes) lie beyond it, not where the player stands.
                 if (SlotOf(Me.Inventory.Main, "vehicle-workbench") is int slot && Placeable("vehicle-workbench") is { } workbench &&
-                    Client.Placement().PlanAt(workbench, Client.Placement().Ground?.Settle(at) ?? at, View.Yaw) is { } ghost)
+                    Client.Placement().PlanAt(workbench, Client.Placement().Ground?.Settle(at) ?? at, View.Yaw + MathF.PI) is { } ghost)
                 {
                     if (ghost.Valid)
                     {
@@ -1950,7 +2052,7 @@ public partial class GroundTour : Node
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
-        Admin("raidbase", "1");
+        Admin("raidbase", "hut 1");
         await Until(() => Doors().Count() > doors, 5);
         await Settle();
         if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)
@@ -2075,7 +2177,7 @@ public partial class GroundTour : Node
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
-        Admin("raidbase", "2");
+        Admin("raidbase", "hut 2");
         await Until(() => Doors().Count() > doors, 5);
         await Settle();
         if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)
@@ -2137,7 +2239,7 @@ public partial class GroundTour : Node
         View.Pitch = 0;
         await Seconds(0.6);
         int doors = Doors().Count();
-        Admin("raidbase", "1");
+        Admin("raidbase", "hut 1");
         await Until(() => Doors().Count() > doors, 5);
         await Settle();
         if (Doors().OrderBy(d => Num.Vector3.Distance(Centre(d.Frame), Client.Character.Position)).FirstOrDefault() is not { } door)
@@ -2308,6 +2410,62 @@ public partial class GroundTour : Node
         await Shot("garage-closing");
     }
 
+    // The forest a kilometre from the landing site, from above the crowns, looking away from the landing site and back
+    // towards it: the near set's impostors (170 to 290 m) must show both ways. Their bounds were once a fixed box round
+    // the landing site, so out there they vanished whenever it was out of view (docs/KNOWN_PROBLEMS.md).
+    private async Task Far()
+    {
+        var found = new List<NaturalObject>();
+        int Trees(Num.Vector3 at, float half)
+        {
+            found.Clear();
+            Client.Survival().Nature?.Query(at, half, found);
+            return found.Count(o => Client.Content.Natural(o.Kind)?.Class == NaturalClass.Tree);
+        }
+        // Of sixteen points a kilometre out, one on wooded ground with the most trees 170 to 290 m beyond it.
+        (Num.Vector3 Spot, Num.Vector3 Out, int Ahead) best = (Num.Vector3.Zero, new Num.Vector3(0, 0, -1), -1);
+        for (int k = 0; k < 16; k++)
+        {
+            float a = k * MathF.Tau / 16;
+            var outward = new Num.Vector3(MathF.Cos(a), 0, MathF.Sin(a));
+            int ahead = Trees(outward * 1230, 60);
+            if (ahead > best.Ahead && Trees(outward * 1000, 40) > 0)
+            {
+                best = (outward * 1000, outward, ahead);
+            }
+        }
+        if (best.Ahead < 0)
+        {
+            GD.PushWarning("[tour] no wooded ground a kilometre from the landing site");
+            return;
+        }
+        // Empty hands: nothing over the middle of the picture, where those impostors are.
+        int held = Me.HeldSlot;
+        Me.HeldSlot = 5;
+        Command?.Invoke($"noclip on {Client.Name}");
+        await Until(() => (Client.Console().Cheats & MoveCheats.Noclip) != 0, 5);
+        await TeleportTo(best.Spot);
+        Num.Vector3 ground = Client.Character.Position;
+        View.Scripted = new InputFrame { Jump = true };
+        await Until(() => Num.Vector3.Distance(Client.Character.Position, ground) > 35, 8);
+        View.Scripted = new InputFrame();
+        View.Yaw = MathF.Atan2(-best.Out.X, -best.Out.Z);
+        View.Pitch = -0.15f;
+        await Settle();
+        GD.Print($"[tour] far: {Flat(Client.Character.Position):0} m from the landing site, " +
+            $"{Num.Vector3.Distance(Client.Character.Position, ground):0} m up, {best.Ahead} trees 170 to 290 m ahead; " +
+            $"{View.World?.Plants?.MeshInstances} plants near, {View.World?.Plants?.ImpostorInstances} impostors far");
+        await Shot("away");
+        View.Yaw = MathF.Atan2(best.Out.X, best.Out.Z);
+        await Seconds(0.5);
+        await Settle();
+        await Shot("toward");
+        View.Scripted = null;
+        await TeleportTo(Num.Vector3.Zero);
+        Command?.Invoke($"noclip off {Client.Name}");
+        Me.HeldSlot = held;
+    }
+
     // A key pressed or let go, as the player's own.
     private static void Press(Godot.Key key, bool pressed) =>
         Input.ParseInputEvent(new InputEventKey { Keycode = key, PhysicalKeycode = key, Pressed = pressed });
@@ -2379,13 +2537,13 @@ public partial class GroundTour : Node
     // The nearest natural object of a kind, preferring ones with no tree within 3 m (in the open).
     private NaturalObject? Nearest(string key, Num.Vector3 near, float radius, bool open)
     {
-        if (Client.Survival().Nature == null || Client.Content.Natural(key) is not { } kind)
+        if (Client.Survival().Nature is not { } nature || Client.Survival().Natural is not { } natural || Client.Content.Natural(key) is not { } kind)
         {
             return null;
         }
         var all = new List<NaturalObject>();
-        Client.Survival().Nature.Query(near, radius, all);
-        IEnumerable<NaturalObject> candidates = all.Where(o => o.Kind == kind.Index && !Client.Survival().Natural!.IsDepleted(o.Id));
+        nature.Query(near, radius, all);
+        IEnumerable<NaturalObject> candidates = all.Where(o => o.Kind == kind.Index && !natural.IsDepleted(o.Id));
         if (open)
         {
             var solid = all.Where(o => Client.Content.Natural(o.Kind)!.IsSolid).ToList();
@@ -2447,8 +2605,21 @@ public partial class GroundTour : Node
 
     private async Task TeleportTo(Num.Vector3 point)
     {
-        Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"teleport {Client.Name} {point.X:0.00} {point.Z:0.00}"));
-        await Until(() => new Num.Vector2(Client.Character.Position.X - point.X, Client.Character.Position.Z - point.Z).Length() < 1.5f, 5);
+        // Console x/z numbers are offsets from the landing site, not whole-world Cartesian coordinates.
+        // Explicit degree suffixes avoid the console's ambiguous two-number shorthand, including at the equator.
+        Vector3D body = Client.Frame.ToBody(point).Normalized;
+        double latitude = Math.Asin(Math.Clamp(body.Y, -1, 1)) * 180 / Math.PI;
+        double longitude = Math.Atan2(-body.Z, body.X) * 180 / Math.PI;
+        if (Command?.Invoke(string.Create(CultureInfo.InvariantCulture, $"teleport {Client.Name} {latitude:0.000000}° {longitude:0.000000}°")) != true)
+            throw new InvalidOperationException("Tour could not submit its teleport command to the hosted server");
+        float DistanceFromTarget()
+        {
+            Num.Vector3 difference = Client.Character.Position - point, up = Client.Frame.UpAt(point);
+            return (difference - up * Num.Vector3.Dot(difference, up)).Length();
+        }
+        await Until(() => DistanceFromTarget() < 1.5f, 5);
+        if (DistanceFromTarget() >= 1.5f)
+            throw new TimeoutException($"Tour teleport did not arrive within5s: target={point}, actual={Client.Character.Position}, tangent error={DistanceFromTarget():0.00}m");
         await Seconds(0.5);
     }
 
@@ -2472,6 +2643,7 @@ public partial class GroundTour : Node
 
     private async Task Shot(string name, int frames = 3)
     {
+        if (Profile) return; // GPU readbacks/file encoding would contaminate hit-frame timing.
         // A far teleport is an arrival (GROUND.md §4.3.1): its short loading screen goes first.
         await Until(() => !View.LoadingShown, 30);
         for (int i = 0; i < frames; i++)

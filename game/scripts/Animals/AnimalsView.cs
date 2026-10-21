@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using Godot;
 using Hollow.Client;
 using Hollow.Simulation.Animals;
+using Hollow.Simulation.Movement;
+using HollowUniverse.Characters;
 using Hollow.Surface;
 using Num = System.Numerics;
 
@@ -121,7 +123,7 @@ public partial class AnimalsView : Node3D
                 Data = a.Species,
                 Position = ToRender(a.Position),
                 Up = ToRender(frame.UpAt(a.Position)),
-                Yaw = a.Yaw,
+                Yaw = RenderYaw(frame.UpAt(a.Position), a.Yaw),
                 State = a.State,
                 Speed = a.Speed,
                 Alert = a.Alert,
@@ -143,7 +145,7 @@ public partial class AnimalsView : Node3D
         Data = a.Species,
         Position = ToRender(position),
         Up = ToRender(frame.UpAt(position)),
-        Yaw = yaw,
+        Yaw = RenderYaw(frame.UpAt(position), yaw),
         State = a.State,
         Speed = a.IsDead ? 0 : a.Speed,
         Alert = a.Alert,
@@ -156,6 +158,10 @@ public partial class AnimalsView : Node3D
     };
 
     public static Vector3 ToRender(Num.Vector3 v) => new(v.X, v.Y, v.Z);
+
+    /// <summary>The simulation measures yaw from planetary north; views use projected -Z. Convert via the direction.</summary>
+    public static float RenderYaw(Num.Vector3 up, float yaw) =>
+        CharacterFrame.YawToward(ToRender(up), ToRender(Facing.Basis(yaw, up).Forward));
 
     private AnimalView? Take(string species)
     {

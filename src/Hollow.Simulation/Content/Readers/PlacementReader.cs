@@ -27,7 +27,7 @@ internal sealed class PlacementReader : IContentReader
     {
         ["terrain"] = PlacementSurfaces.Terrain, ["floor"] = PlacementSurfaces.Floor, ["wall"] = PlacementSurfaces.Wall,
         ["roof"] = PlacementSurfaces.Roof, ["opening"] = PlacementSurfaces.Opening, ["door"] = PlacementSurfaces.Door,
-        ["thing"] = PlacementSurfaces.Thing, ["natural"] = PlacementSurfaces.Natural, ["ship"] = PlacementSurfaces.Ship,
+        ["thing"] = PlacementSurfaces.Thing, ["natural"] = PlacementSurfaces.Natural, ["ship"] = PlacementSurfaces.Ship, ["water"] = PlacementSurfaces.Water,
         ["any"] = PlacementSurfaces.Any,
     };
 
@@ -140,6 +140,7 @@ internal sealed class PlacementReader : IContentReader
                 Item = resolved.Item,
                 Tool = resolved.Tool,
                 Costs = resolved.Costs,
+                GradeCosts = resolved.GradeCosts ?? Array.Empty<IReadOnlyList<PlacementCost>>(),
                 Footprint = footprint,
                 ModelKey = resolved.ModelKey,
                 Name = resolved.Name,
@@ -329,6 +330,12 @@ internal sealed class PlacementReader : IContentReader
         if (Array.IndexOf(rotations, rotation) < 0)
         {
             f.Problem(where, $"its rotation \"{rotation}\" isn't in \"rotations\"");
+        }
+
+        if ((surfaces & PlacementSurfaces.Water) != 0 &&
+            !(fields.TryGetValue("water", out (JsonElement Value, string Where) wet) && wet.Value.ValueKind == JsonValueKind.True))
+        {
+            f.Problem(where, "a rule that puts it on the water lets it stand in it (\"water\": true)");
         }
 
         float sight = 0.1f;

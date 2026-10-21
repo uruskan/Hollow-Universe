@@ -23,13 +23,16 @@ public struct CraftJob
 
     /// <summary>The station it is made at (a vehicle workbench's entity ID, G6), or 0.</summary>
     public ulong Station;
+
+    /// <summary>No ingredients were paid for this job; cancellation and death must not refund any.</summary>
+    public bool Free;
 }
 
 /// <summary>
 /// A player's crafting queue (GROUND.md §6, RustMVP inventory_survival.md §7): at most <see cref="MaxJobs"/> jobs, the
 /// ingredients of every unit taken when the job starts and given back in full on cancel (the unit in progress too),
 /// only the front job advancing, one tick at a time. A unit whose output doesn't fit is dropped at the player's feet
-/// (Rust) rather than holding the queue.
+/// (Rust) rather than holding the queue. Free admin jobs pay and refund nothing.
 /// </summary>
 public sealed class CraftQueue
 {
@@ -53,9 +56,10 @@ public sealed class CraftQueue
     /// level within reach and the materials for all units, then takes them. <paramref name="workbench"/> is the best
     /// level within reach: above the recipe's, the job is faster (<see cref="CraftingSpeed"/>, fixed now);
     /// <paramref name="station"/> the station the job is made at (a ship at the vehicle workbench, G6), 0 for none.
+    /// <paramref name="free"/> bypasses prerequisites and payment, with the job retaining that fact for refunds.
     /// </summary>
     public Outcome Start(GameContent content, PlayerInventory inventory, int recipeId, int count, int workbench, out uint ticket,
-        BlueprintBook? known = null, ulong station = 0)
+        BlueprintBook? known = null, ulong station = 0, bool free = false)
     {
         ticket = 0;
         Recipe? recipe = content.Recipe(recipeId);
@@ -63,15 +67,15 @@ public sealed class CraftQueue
         {
             return OutcomeCode.Invalid;
         }
-        if (!recipe.Known && known?.Knows(recipe) != true)
+        if (!free && !recipe.Known && known?.Knows(recipe) != true)
         {
             return OutcomeCode.UnknownRecipe;
         }
-        if (workbench < recipe.Workbench)
+        if (!free && workbench < recipe.Workbench)
         {
             return OutcomeCode.NeedsWorkbench.With(recipe.Workbench);
         }
-        if (recipe.Station != null && station == 0)
+        if (!free && recipe.Station != null && station == 0)
         {
             return OutcomeCode.NeedsStation.With(recipe.Station.Item.Id);
         }
@@ -79,13 +83,13 @@ public sealed class CraftQueue
         {
             return OutcomeCode.QueueFull;
         }
-        if (!inventory.Take(recipe.Ingredients, count))
+        if (!free && !inventory.Take(recipe.Ingredients, count))
         {
             return OutcomeCode.NotEnough;
         }
         ticket = NextTicket++;
         int unit = CraftingSpeed.UnitTicks(content, recipe, workbench);
-        _jobs.Add(new CraftJob { Ticket = ticket, Recipe = recipe.Id, Count = count, TicksLeft = unit, UnitTicks = unit, Station = station });
+        _jobs.Add(new CraftJob { Ticket = ticket, Recipe = recipe.Id, Count = count, TicksLeft = unit, UnitTicks = unit, Station = station, Free = free });
         Revision++;
         return OutcomeCode.Done;
     }
@@ -105,7 +109,7 @@ public sealed class CraftQueue
         _jobs.RemoveAt(index);
         Revision++;
         Recipe? recipe = content.Recipe(job.Recipe);
-        if (recipe != null)
+        if (recipe != null && !job.Free)
         {
             foreach (ItemAmount a in recipe.Ingredients)
             {
@@ -117,9 +121,9 @@ public sealed class CraftQueue
 
     /// <summary>
     /// One tick of crafting: the front job's unit advances; when it is done its output goes into the inventory (what
-    /// doesn't fit into <paramref name="overflow"/>) and is reported in <paramref name="finished"/>. A ship (G6) never goes
-    /// into an inventory: <paramref name="deliver"/> rolls it out at its station, or says to wait (it asks again a second
-    /// later).
+    /// doesn't fit into <paramref name="overflow"/>) and is reported in <paramref name="finished"/>. A ship (G6) made at a
+    /// station is rolled out there by <paramref name="deliver"/>, or waits and asks again a second later. A ship whose recipe
+    /// names no station (the motorboat), and a free admin ship without a station, become its placeable inventory item.
     /// </summary>
     public void Advance(GameContent content, PlayerInventory inventory, List<ItemStack> overflow, List<ItemAmount> finished,
         Func<Recipe, ulong, bool>? deliver = null)
@@ -135,7 +139,9 @@ public sealed class CraftQueue
             return;
         }
         Recipe? recipe = content.Recipe(job.Recipe);
-        if (recipe?.Output.Ship != null)
+        // A ship made at a station rolls out onto its bay. A ship whose recipe names no station (a boat, put on the water by
+        // hand), and a free admin ship without a station, become the placeable item; placement validates hull and rights.
+        if (recipe?.Output.Ship != null && recipe.Station != null && (!job.Free || job.Station != 0))
         {
             if (deliver == null || !deliver(recipe, job.Station))
             {
@@ -173,7 +179,7 @@ public sealed class CraftQueue
         var result = new List<ItemStack>();
         foreach (CraftJob job in _jobs)
         {
-            if (content.Recipe(job.Recipe) is not { } recipe)
+            if (job.Free || content.Recipe(job.Recipe) is not { } recipe)
             {
                 continue;
             }

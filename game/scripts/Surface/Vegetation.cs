@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Godot;
+using Hollow.Client.Streaming;
 using Hollow.Core;
 using Hollow.Surface;
 using HollowUniverse.Surface.Flora;
@@ -66,10 +67,11 @@ public sealed partial class Vegetation : Node3D
     private RenderFrame _frame = null!;
     private TextureLayered _groundAlbedo = null!;
     private TextureLayered _groundNormal = null!;
-    private Task<FloraLibrary.Data>? _data;
+    private LibraryBuild? _data;
     private FloraLibrary? _library;
     private readonly Dictionary<(FloraLibrary.Variant, int), LodSet> _sets = new();
     private readonly List<float> _nearImpostorBuffer = new();
+    private Aabb _nearImpostorBounds;
     private MultiMeshInstance3D? _nearImpostors;
 
     // Each object's level (0, 1, 2 = impostor), the level it is leaving and since when (the LOD clock), and the rebuild
@@ -82,7 +84,7 @@ public sealed partial class Vegetation : Node3D
         public int Seen;
     }
 
-    private readonly Dictionary<(ulong Tile, int Index), LodState> _lods = new();
+    private Dictionary<(ulong Tile, int Index), LodState> _lods = new();
     private int _rebuild;
     private ulong _startUsec;
 
@@ -93,9 +95,8 @@ public sealed partial class Vegetation : Node3D
     private ArrayMesh _quad = null!;
     private readonly ConcurrentDictionary<ulong, IReadOnlyList<ScatterItem>> _full = new();
     private readonly ConcurrentDictionary<ulong, IReadOnlyList<ScatterItem>> _trees = new();
-    private readonly ConcurrentDictionary<ulong, byte> _requested = new();
-    private readonly BlockingQueue _jobs = new();
-    private readonly List<Thread> _workers = new();
+    private ScatterRequestSet _requested = new();
+    private readonly WorkSession _jobs = new();
     private readonly Dictionary<ulong, Block> _blocks = new();
     private Vector3D _nearCentre = new(double.MaxValue, 0, 0);
     private Vector3D _nearAnchor;
@@ -109,7 +110,8 @@ public sealed partial class Vegetation : Node3D
     public int ImpostorInstances { get; private set; }
 
     /// <summary>True when the library is built, the impostors baked and no scatter is pending around the camera.</summary>
-    public bool IsIdle => _impostors != null && _jobs.Count == 0 && _nearMissing == 0 && Volatile.Read(ref _busy) == 0;
+    public bool IsIdle => !_stopping && !_requiredFailed && _jobs.Faults == 0 && _impostors != null && _jobs.Count == 0
+        && _nearMissing == 0 && Volatile.Read(ref _busy) == 0 && _nearJob == null && _blockJobs.Count == 0;
 
     public FloraLibrary? Library => _library;
 
@@ -127,6 +129,8 @@ public sealed partial class Vegetation : Node3D
     /// <summary>Starts drawing a source's plants on a surface; <paramref name="seed"/> paints the species' variants.</summary>
     public void Setup(ISurface surface, IPlantSource plants, ulong seed, RenderFrame frame, TextureLayered groundAlbedo, TextureLayered groundNormal)
     {
+        if (_setup || _stopping) throw new InvalidOperationException("Vegetation.Setup is single-use.");
+        _setup = true;
         _surface = surface;
         _plants = plants;
         _level = plants.Level;
@@ -138,19 +142,8 @@ public sealed partial class Vegetation : Node3D
         _quad = BuildQuad();
         _startUsec = Time.GetTicksUsec();
         int librarySeed = (int)(seed & 0x7FFFFFFF);
-        _data = Task.Run(() => FloraLibrary.Build(librarySeed));
-        for (int i = 0; i < 2; i++)
-        {
-            var t = new Thread(Work) { IsBackground = true, Name = $"Scatter {i}", Priority = ThreadPriority.BelowNormal };
-            t.Start();
-            _workers.Add(t);
-        }
-    }
-
-    public override void _ExitTree()
-    {
-        _stopping = true;
-        _jobs.Stop();
+        _data = new LibraryBuild(librarySeed);
+        _jobs.Start(plants);
     }
 
     // ---------------------------------------------------------------- library
@@ -161,22 +154,33 @@ public sealed partial class Vegetation : Node3D
         {
             return true;
         }
-        if (_data == null || !_data.IsCompleted)
+        if (_data == null || !_data.TryTake(out FloraLibrary.Data? data, out string? error))
         {
             return false;
         }
-        if (_data.IsFaulted)
-        {
-            GD.PushError($"Flora failed: {_data.Exception}");
-            _data = null;
-            return false;
-        }
-        _library = FloraLibrary.Create(_data.Result, _groundAlbedo, _groundNormal);
         _data = null;
+        if (data == null)
+        {
+            _requiredFailed = true;
+            _assetFailures++;
+            GD.PushError($"Flora failed: {error}");
+            return false;
+        }
+        try { _library = FloraLibrary.Create(data, _groundAlbedo, _groundNormal); }
+        catch (Exception failure)
+        {
+            _requiredFailed = true;
+            _assetFailures++;
+            GD.PushError($"Flora resources failed: {failure}");
+            return false;
+        }
+        finally { DisposeData(data); }
         foreach (FloraLibrary.Species s in _library.All)
         {
             foreach (FloraLibrary.Variant v in s.Variants)
             {
+                _variantIds[v] = _variants.Count;
+                _variants.Add(v);
                 for (int lod = 0; lod < 2; lod++)
                 {
                     _sets[(v, lod)] = new LodSet { Species = s, Variant = v, Lod = lod };
@@ -185,17 +189,30 @@ public sealed partial class Vegetation : Node3D
         }
         _baker = new ImpostorBaker { Name = "Impostors" };
         AddChild(_baker);
-        BakeImpostors();
+        _bakeTask = _baker.Bake(_library);
         return true;
     }
 
-    private async void BakeImpostors()
+    private void ApplyImpostors()
     {
-        ImpostorBaker.Result result = await _baker!.Bake(_library!);
+        if (_bakeTask is not { IsCompleted: true } task) return;
+        _bakeTask = null;
+        if (!task.IsCompletedSuccessfully)
+        {
+            _requiredFailed = true;
+            _assetFailures++;
+            if (task.IsFaulted) GD.PushError($"Flora baking failed: {task.Exception}");
+            _baker?.Stop();
+            _baker?.QueueFree();
+            _baker = null;
+            return;
+        }
+        ImpostorBaker.Result result = _baker!.TakeResult();
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/surface_impostor.gdshader") };
         material.SetShaderParameter("colour_atlas", result.Colour);
         material.SetShaderParameter("normal_atlas", result.Normal);
         material.SetShaderParameter("rows", (float)result.Rows);
+        material.SetShaderParameter("native_rows", result.NativeRows);
         material.SetShaderParameter("views", (float)ImpostorBaker.Views);
         material.SetShaderParameter("fade_out", ImpostorEnd);
         _impostors = material;
@@ -221,10 +238,13 @@ public sealed partial class Vegetation : Node3D
     /// <summary>Streams scatter around the camera (body frame) and rebuilds what it draws.</summary>
     public void UpdateVegetation(Vector3D camera)
     {
+        if (!_setup || _stopping) return;
+        CollectScatter();
         if (!EnsureLibrary())
         {
             return;
         }
+        ApplyImpostors();
         RenderingServer.GlobalShaderParameterSet("hu_lod_clock", Clock);
         double edge = TileKey.EdgeLength(_level, _surface.Radius);
         Vector3D up = camera.Normalized;
@@ -344,35 +364,10 @@ public sealed partial class Vegetation : Node3D
 
     private void Request(TileKey key, bool full, double priority)
     {
-        ulong id = key.Packed ^ (full ? 1UL << 63 : 0);
-        if (_requested.TryAdd(id, 0))
+        if (!_stopping && _requested.TryAdd(key, full))
         {
-            Interlocked.Increment(ref _busy);
-            _jobs.Add(priority + (full ? 0 : 1e6), () =>
-            {
-                try
-                {
-                    IReadOnlyList<ScatterItem> items = _plants.Tile(key, treesOnly: !full);
-                    (full ? _full : _trees)[key.Packed] = items;
-                }
-                catch (Exception e)
-                {
-                    GD.PushError($"Scatter {key} failed: {e}");
-                }
-                finally
-                {
-                    Interlocked.Decrement(ref _busy);
-                }
-            });
-        }
-    }
-
-    private void Work()
-    {
-        while (!_stopping)
-        {
-            Action? job = _jobs.Take();
-            job?.Invoke();
+            _jobs.Add(priority + (full ? 0 : 1e6), key, full);
+            Volatile.Write(ref _busy, _jobs.Busy);
         }
     }
 
@@ -383,88 +378,104 @@ public sealed partial class Vegetation : Node3D
         _nearCentre = camera;
         _nearDirty = false;
         // Anchored at the camera, so the near set's bounds follow it (docs/WHOLE_WORLD.md §12).
-        PlaceNear(ComputeNear(tiles, camera, camera, Clock, (key, item) => DrawnKind(key, item)));
+        PlaceNear(ComputeNear(CaptureNear(tiles, camera, (key, item) => DrawnKind(key, item)), CancellationToken.None));
     }
 
-    // What the near set draws: each variant's buffers per level, and the near impostors.
+    // What the near set draws: each variant's buffers per level, and the near impostors with their bounds.
     private sealed class NearData
     {
         public Vector3D Anchor;
-        public readonly Dictionary<(FloraLibrary.Variant, int), List<float>> Sets = new();
+        public readonly Dictionary<(int Variant, int Lod), List<float>> Sets = new();
         public readonly List<float> Impostors = new();
+        public Dictionary<(ulong Tile, int Index), LodState> Lods = null!;
+        public int Rebuild;
+
+        // Every near impostor's quad however it turns, in render axes from the anchor. The shader places the corners, so
+        // Godot can't bound them from the mesh, and the near set may lie anywhere from its anchor (in play the anchor is
+        // the landing site).
+        public Aabb ImpostorBounds;
         public int Count;
+
+        // Grows the bounds by the impostor just added. Its quad turns about the tree's up through the foot, its corners
+        // within half the extent of that axis and half the height ± half the extent up it (surface_impostor.gdshader):
+        // all within half the height plus the extent of the foot.
+        public void Bound(Transform3D t, VariantInput variant)
+        {
+            // Pack's extent and height back out of the one float.
+            float whole = MathF.Floor(variant.Packed);
+            float extent = whole / 100, height = (variant.Packed - whole) * 100;
+            float reach = (height * 0.5f + extent) * t.Basis.Y.Length();
+            var box = new Aabb(t.Origin - new Vector3(reach, reach, reach), new Vector3(2 * reach, 2 * reach, 2 * reach));
+            ImpostorBounds = Impostors.Count > 16 ? ImpostorBounds.Merge(box) : box;
+        }
     }
 
     // Lays out the near set from the scatter around the camera, with each object drawn as `kinds` says. It touches no
     // node, so the ground game runs it on a worker thread (Vegetation.Game.cs); one runs at a time.
-    private NearData ComputeNear(List<TileKey> tiles, Vector3D camera, Vector3D anchor, float clock, Func<TileKey, ScatterItem, ScatterKind> kinds)
+    private static NearData ComputeNear(NearInput input, CancellationToken cancellation)
     {
-        var data = new NearData { Anchor = anchor };
-        _rebuild++;
+        var data = new NearData { Anchor = input.Anchor, Lods = input.Lods, Rebuild = input.Rebuild };
+        AppearanceInput appearance = input.Appearance;
+        float clock = input.Clock;
         double margin = 2 * RebuildDistance;
-        foreach (TileKey key in tiles)
+        foreach (PlantInput plant in input.Plants)
         {
-            if (!_full.TryGetValue(key.Packed, out IReadOnlyList<ScatterItem>? items))
+            cancellation.ThrowIfCancellationRequested();
+            TileKey key = plant.Tile;
+            ScatterItem item = plant.Item;
+            if (!appearance.Species.TryGetValue(plant.Kind, out SpeciesInput? species) || species.Variants.Length == 0)
             {
                 continue;
             }
-            foreach (ScatterItem item in items)
+            Vector3D body = item.Position(appearance.Radius);
+            double d = Vector3D.Distance(body, input.Camera);
+            bool tree = species.Tree && appearance.HasImpostors;
+            if (d > (tree ? NearImpostorEnd : species.Bands.Far * appearance.Detail) + margin)
             {
-                FloraLibrary.Species? species = _library!.For(kinds(key, item));
-                if (species == null || species.Variants.Count == 0)
-                {
-                    continue;
-                }
-                Vector3D body = item.Position(_surface.Radius);
-                double d = Vector3D.Distance(body, camera);
-                bool tree = species.Tree && _impostors != null;
-                if (d > (tree ? NearImpostorEnd : species.Bands.Far * Detail) + margin)
-                {
-                    continue;
-                }
-                // The object's level, held between rebuilds with some hysteresis; a change starts a cross-fade.
-                var id = (key.Packed, item.Index);
-                bool known = _lods.TryGetValue(id, out LodState state);
-                int lod = Level(species, tree, d, known ? state.Lod : -1);
-                if (!known)
-                {
-                    state = new LodState { Lod = (byte)lod, From = (byte)lod, Since = -1 };
-                }
-                else if (state.Lod != lod)
-                {
-                    state.From = state.Lod;
-                    state.Lod = (byte)lod;
-                    state.Since = clock;
-                }
-                state.Seen = _rebuild;
-                _lods[id] = state;
-                bool fading = state.From != state.Lod && clock - state.Since < 0.5f;
-
-                FloraLibrary.Variant variant = species.Variants[item.Variant % species.Variants.Count];
-                float scale = item.Scale * species.Scale;
-                float sink = item.Kind == ScatterKind.Rock ? -0.12f * scale : -0.05f;
-                Transform3D t = InstanceTransform(item, body, data.Anchor, scale, sink);
-                (float a, float b) = Shade(item);
-                Emit(data, variant, state.Lod, t, a, b, fading ? state.Since : 0);
-                if (fading)
-                {
-                    Emit(data, variant, state.From, t, a, b, -state.Since);
-                }
-                data.Count++;
+                continue;
             }
+            // The object's level, held between rebuilds with some hysteresis; a change starts a cross-fade.
+            var id = (key.Packed, item.Index);
+            bool known = data.Lods.TryGetValue(id, out LodState state);
+            int lod = Level(species, tree, d, known ? state.Lod : -1, appearance.Detail);
+            if (!known)
+            {
+                state = new LodState { Lod = (byte)lod, From = (byte)lod, Since = -1 };
+            }
+            else if (state.Lod != lod)
+            {
+                state.From = state.Lod;
+                state.Lod = (byte)lod;
+                state.Since = clock;
+            }
+            state.Seen = data.Rebuild;
+            data.Lods[id] = state;
+            bool fading = state.From != state.Lod && clock - state.Since < 0.5f;
+
+            VariantInput variant = species.Variants[item.Variant % species.Variants.Length];
+            float scale = item.Scale * species.Scale;
+            float sink = item.Kind == ScatterKind.Rock ? -0.12f * scale : -0.05f;
+            Transform3D t = InstanceTransform(appearance.Axes, item, body, data.Anchor, scale, sink);
+            (float a, float b) = Shade(item);
+            Emit(data, variant, state.Lod, t, a, b, fading ? state.Since : 0);
+            if (fading)
+            {
+                Emit(data, variant, state.From, t, a, b, -state.Since);
+            }
+            data.Count++;
         }
         // Forget objects the near set no longer holds.
         var gone = new List<(ulong, int)>();
-        foreach ((var id, LodState state) in _lods)
+        foreach ((var id, LodState state) in data.Lods)
         {
-            if (state.Seen != _rebuild)
+            if (state.Seen != data.Rebuild)
             {
                 gone.Add(id);
             }
         }
         foreach (var id in gone)
         {
-            _lods.Remove(id);
+            data.Lods.Remove(id);
         }
         return data;
     }
@@ -473,10 +484,12 @@ public sealed partial class Vegetation : Node3D
     private void PlaceNear(NearData data)
     {
         _nearAnchor = data.Anchor;
+        _lods = data.Lods;
+        _rebuild = data.Rebuild;
         foreach (((FloraLibrary.Variant, int) key, LodSet set) in _sets)
         {
             set.Buffer.Clear();
-            if (data.Sets.TryGetValue(key, out List<float>? buffer))
+            if (data.Sets.TryGetValue((_variantIds[key.Item1], key.Item2), out List<float>? buffer))
             {
                 set.Buffer.AddRange(buffer);
             }
@@ -484,38 +497,40 @@ public sealed partial class Vegetation : Node3D
         }
         _nearImpostorBuffer.Clear();
         _nearImpostorBuffer.AddRange(data.Impostors);
+        _nearImpostorBounds = data.ImpostorBounds;
         FillNearImpostors();
         MeshInstances = data.Count;
     }
 
     // Level for an object at distance d, given the level it has (-1: none yet): meshes 0 and 1, impostor 2.
-    private static int Level(FloraLibrary.Species species, bool tree, double d, int previous)
+    private static int Level(SpeciesInput species, bool tree, double d, int previous, float detail)
     {
         if (tree)
         {
-            double near = TreeNear + (previous == 0 ? 3 : -3);
+            double near = 50 * detail + (previous == 0 ? 3 : -3);
             if (d < near)
             {
                 return 0;
             }
-            double mid = ImpostorStart + (previous is 0 or 1 ? 6 : -6);
+            double mid = 170 * detail + (previous is 0 or 1 ? 6 : -6);
             return d < mid ? 1 : 2;
         }
-        double n = species.Bands.Near * Detail + (previous == 0 ? 2 : -2);
+        double n = species.Bands.Near * detail + (previous == 0 ? 2 : -2);
         return d < n ? 0 : 1;
     }
 
-    private static void Emit(NearData data, FloraLibrary.Variant variant, int lod, Transform3D t, float a, float b, float fade)
+    private static void Emit(NearData data, VariantInput variant, int lod, Transform3D t, float a, float b, float fade)
     {
         if (lod == 2)
         {
-            Append(data.Impostors, t, a, variant.ImpostorRow, Pack(variant), fade);
+            Append(data.Impostors, t, a, variant.ImpostorRow, variant.Packed, fade);
+            data.Bound(t, variant);
         }
         else
         {
-            if (!data.Sets.TryGetValue((variant, lod), out List<float>? buffer))
+            if (!data.Sets.TryGetValue((variant.Id, lod), out List<float>? buffer))
             {
-                data.Sets[(variant, lod)] = buffer = new List<float>();
+                data.Sets[(variant.Id, lod)] = buffer = new List<float>();
             }
             Append(buffer, t, a, b, fade, 0);
         }
@@ -544,7 +559,6 @@ public sealed partial class Vegetation : Node3D
                     TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
                     UseCustomData = true,
                     Mesh = _quad,
-                    CustomAabb = new Aabb(new Vector3(-400, -400, -400), new Vector3(800, 800, 800)),
                 },
                 MaterialOverride = _impostors,
                 CastShadow = GeometryInstance3D.ShadowCastingSetting.Off,
@@ -555,6 +569,7 @@ public sealed partial class Vegetation : Node3D
         }
         _nearImpostors.Multimesh.InstanceCount = n;
         _nearImpostors.Multimesh.Buffer = _nearImpostorBuffer.ToArray();
+        _nearImpostors.Multimesh.CustomAabb = _nearImpostorBounds;
         _nearImpostors.Transform = new Transform3D(Basis.Identity, _frame.ToRender(_nearAnchor));
         _nearImpostors.Visible = true;
     }
@@ -613,13 +628,17 @@ public sealed partial class Vegetation : Node3D
 
     // Instance transform in render axes relative to an anchor: the object's up is the planet's up there.
     private Transform3D InstanceTransform(in ScatterItem item, Vector3D body, Vector3D anchor, float scale, float sink)
+        => InstanceTransform(new(_frame.DirectionToBody(Vector3.Right), _frame.DirectionToBody(Vector3.Up),
+            _frame.DirectionToBody(Vector3.Back)), item, body, anchor, scale, sink);
+
+    private static Transform3D InstanceTransform(Axes axes, in ScatterItem item, Vector3D body, Vector3D anchor, float scale, float sink)
     {
-        Vector3 up = _frame.DirectionToRender(item.Direction);
+        Vector3 up = axes.ToRender(item.Direction);
         Vector3 reference = Math.Abs(up.Z) < 0.9f ? Vector3.Back : Vector3.Right;
         Vector3 x = reference.Cross(up).Normalized();
         Vector3 z = x.Cross(up);
         var basis = new Basis(x, up, z).Rotated(up, item.Yaw).Scaled(new Vector3(scale, scale, scale));
-        Vector3 origin = _frame.DirectionToRender(body - anchor) + up * sink;
+        Vector3 origin = axes.ToRender(body - anchor) + up * sink;
         return new Transform3D(basis, origin);
     }
 
@@ -705,7 +724,7 @@ public sealed partial class Vegetation : Node3D
         {
             return;
         }
-        List<float> buffer = ImpostorBuffer(tiles, block.Anchor, (key, item) => DrawnKind(key, item));
+        List<float> buffer = ImpostorBuffer(CaptureBlock(tiles, block.Anchor, (key, item) => DrawnKind(key, item)), CancellationToken.None);
         if (buffer.Count > 0 && !DebugSkip.Contains("impostor"))
         {
             var mm = new MultiMesh
@@ -733,35 +752,28 @@ public sealed partial class Vegetation : Node3D
         block.Built = true;
     }
 
-    // A block's tree impostors, each drawn as `kinds` says. It touches no node, so the ground game rebuilds a block
-    // on a worker thread (Vegetation.Game.cs).
-    private List<float> ImpostorBuffer(List<TileKey> tiles, Vector3D anchor, Func<TileKey, ScatterItem, ScatterKind> kinds)
+    // A block's tree impostors from copied metadata and scatter; no Node, world or callback is retained.
+    private static List<float> ImpostorBuffer(BlockInput input, CancellationToken cancellation)
     {
         var buffer = new List<float>();
-        foreach (TileKey key in tiles)
+        AppearanceInput appearance = input.Appearance;
+        foreach (PlantInput plant in input.Plants)
         {
-            IReadOnlyList<ScatterItem>? items = _full.TryGetValue(key.Packed, out var f) ? f : _trees.TryGetValue(key.Packed, out var t) ? t : null;
-            if (items == null)
+            cancellation.ThrowIfCancellationRequested();
+            ScatterItem item = plant.Item;
+            if (!appearance.Species.TryGetValue(plant.Kind, out SpeciesInput? species) || !species.Tree)
             {
                 continue;
             }
-            foreach (ScatterItem item in items)
+            VariantInput variant = species.Variants[item.Variant % species.Variants.Length];
+            if (variant.ImpostorRow < 0)
             {
-                FloraLibrary.Species? species = _library!.For(kinds(key, item));
-                if (species == null || !species.Tree)
-                {
-                    continue;
-                }
-                FloraLibrary.Variant variant = species.Variants[item.Variant % species.Variants.Count];
-                if (variant.ImpostorRow < 0)
-                {
-                    continue;
-                }
-                float scale = item.Scale * species.Scale;
-                Transform3D tr = InstanceTransform(item, item.Position(_surface.Radius), anchor, scale, -0.05f);
-                (float a, _) = Shade(item);
-                Append(buffer, tr, a, variant.ImpostorRow, Pack(variant), 0);
+                continue;
             }
+            float scale = item.Scale * species.Scale;
+            Transform3D tr = InstanceTransform(appearance.Axes, item, item.Position(appearance.Radius), input.Anchor, scale, -0.05f);
+            (float a, _) = Shade(item);
+            Append(buffer, tr, a, variant.ImpostorRow, variant.Packed, 0);
         }
         return buffer;
     }
@@ -769,6 +781,7 @@ public sealed partial class Vegetation : Node3D
     /// <summary>Re-anchors everything after the render origin moved.</summary>
     public void Reanchor()
     {
+        if (!_setup || _stopping) return;
         foreach (LodSet set in _sets.Values)
         {
             if (set.Instance != null)
@@ -789,66 +802,4 @@ public sealed partial class Vegetation : Node3D
         }
     }
 
-    /// <summary>A queue of jobs taken lowest priority value first.</summary>
-    private sealed class BlockingQueue
-    {
-        private readonly List<(double Priority, Action Job)> _items = new();
-        private readonly object _lock = new();
-        private bool _stopped;
-
-        public int Count
-        {
-            get
-            {
-                lock (_lock)
-                {
-                    return _items.Count;
-                }
-            }
-        }
-
-        public void Add(double priority, Action job)
-        {
-            lock (_lock)
-            {
-                _items.Add((priority, job));
-                Monitor.Pulse(_lock);
-            }
-        }
-
-        public Action? Take()
-        {
-            lock (_lock)
-            {
-                while (_items.Count == 0 && !_stopped)
-                {
-                    Monitor.Wait(_lock);
-                }
-                if (_stopped)
-                {
-                    return null;
-                }
-                int best = 0;
-                for (int i = 1; i < _items.Count; i++)
-                {
-                    if (_items[i].Priority < _items[best].Priority)
-                    {
-                        best = i;
-                    }
-                }
-                Action job = _items[best].Job;
-                _items.RemoveAt(best);
-                return job;
-            }
-        }
-
-        public void Stop()
-        {
-            lock (_lock)
-            {
-                _stopped = true;
-                Monitor.PulseAll(_lock);
-            }
-        }
-    }
 }

@@ -10,6 +10,7 @@ public static class ClientModules
 {
     public static ClientModule[] All() => new ClientModule[]
     {
+        new AttackModule(),
         new SurvivalModule(),
         new TargetModule(),
         new WorldModule(),

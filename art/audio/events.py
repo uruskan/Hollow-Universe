@@ -2,7 +2,7 @@
 
 `everything()` gives (outs, events): the files build.py renders and the catalogue entries it writes into
 game/data/ground/sounds.json. A catalogue entry's playback fields (volume, pitch, attenuation, bus, priority...)
-are only defaults here: build.py keeps whatever sounds.json already says for them.
+are normally defaults: build.py keeps sounds.json edits. Footwear volume and distance are owned by footsteps.json.
 """
 
 import os
@@ -124,20 +124,23 @@ def corsica(kind, i):
     return pack("oga-corsica-snow-gravel", "Corsica_S-Walking_in_Snow/Corsica_S-Walking_on_%s_%02d.flac" % (kind, i))
 
 
-def footstep_set(surface, walk, run, crouch_from, land):
+def footstep_set(surface, walk, run, crouch_from, land, contact_fx=None):
     """walk/run: lists of Seg lists (one per variant); crouch_from: Seg lists to soften; land: Seg lists."""
     base = "footstep/%s/" % surface
+    contact = dict(fx=contact_fx, length=0.32, max_fade=0.07) if contact_fx else dict(fx=STEP_FX)
+    crouch = dict(contact, fade_in=0.012) if contact_fx else dict(fx=SOFT_FX, fade_in=0.012)
     sets = {
-        "walk": [Out(base + numbered("walk", i), "footstep", segs, fx=STEP_FX) for i, segs in enumerate(walk)],
-        "run": [Out(base + numbered("run", i), "footstep", segs, fx=STEP_FX) for i, segs in enumerate(run)],
-        "crouch": [Out(base + numbered("crouch", i), "footstep", segs, fx=SOFT_FX, fade_in=0.012)
+        "walk": [Out(base + numbered("walk", i), "footstep", segs, **contact) for i, segs in enumerate(walk)],
+        "run": [Out(base + numbered("run", i), "footstep", segs, **contact) for i, segs in enumerate(run)],
+        "crouch": [Out(base + numbered("crouch", i), "footstep", segs, **crouch)
                    for i, segs in enumerate(crouch_from)],
-        "land": [Out(base + numbered("land", i), "footstep", segs, fx=STEP_FX) for i, segs in enumerate(land)],
+        "land": [Out(base + numbered("land", i), "footstep", segs, **contact) for i, segs in enumerate(land)],
     }
     volume = {"walk": 0.0, "run": 3.0, "crouch": -7.0, "land": 4.0}
     reach = {"walk": 30.0, "run": 45.0, "crouch": 14.0, "land": 45.0}
     for stance, outs in sets.items():
-        event("footstep.%s.%s" % (stance, surface), outs, "Footsteps", volume[stance], maxDistance=reach[stance])
+        variation = dict(pitch=[0.98, 1.02], jitter=0.8) if contact_fx else {}
+        event("footstep.%s.%s" % (stance, surface), outs, "Footsteps", volume[stance], maxDistance=reach[stance], **variation)
 
 
 def thump(gain=-8.0, at=0.0, i=0):
@@ -145,97 +148,9 @@ def thump(gain=-8.0, at=0.0, i=0):
 
 
 def footsteps():
-    # Grass: slow steps through short grass for walking, a run through tall grass.
-    g1, g2, grun = bsb("1253"), bsb("0854"), bsb("1843")
-    walk_ev = [(g1, e) for e in steps(g1, 4, min_sep=0.6, max_len=0.55)] + \
-              [(g2, e) for e in steps(g2, 3, min_sep=0.6, max_len=0.5)]
-    run_ev = [(grun, e) for e in steps(grun, 7, min_sep=0.25, max_len=0.32)]
-    soft = "highshelf=f=7000:g=-6"
-    footstep_set(
-        "grass",
-        walk=[[seg_of(s, e, fx=soft)] for s, e in walk_ev[:6]],
-        run=[[seg_of(s, e, fx=soft)] for s, e in run_ev[:6]],
-        crouch_from=[[seg_of(s, e, pitch=0.97)] for s, e in walk_ev[1:5]],
-        land=[[seg_of(grun, run_ev[k][1]), seg_of(grun, run_ev[k + 1][1], at=0.03, gain=-3), thump(-9, i=k)]
-              for k in range(3)])
-
-    # Dirt: a mountain path recorded in first person (BigSoundBank 3216); runs add a swish of motion.
-    d = bsb("3216")
-    dirt = steps(d, 9, min_sep=0.4, max_len=0.45)
-    footstep_set(
-        "dirt",
-        walk=[[seg_of(d, e)] for e in dirt[:6]],
-        run=[[seg_of(d, dirt[k], pitch=0.95), seg_of(grun, run_ev[k][1], gain=-10), thump(-12, i=k)]
-             for k in range(6)],
-        crouch_from=[[seg_of(d, e, pitch=0.98)] for e in dirt[2:6]],
-        land=[[seg_of(d, dirt[k]), seg_of(d, dirt[k + 3], at=0.035, gain=-3), thump(-8, i=k)] for k in range(3)])
-
-    # Sand: Fantozzi's sand steps.
-    sand = [fantozzi("Sand%s%d" % (side, i)) for side in "LR" for i in (1, 2, 3)]
-    footstep_set(
-        "sand",
-        walk=[[Seg(s)] for s in sand],
-        run=[[Seg(s, pitch=0.93, gain=1), thump(-12, i=k)] for k, s in enumerate(sand)],
-        crouch_from=[[Seg(s, pitch=1.02)] for s in sand[:4]],
-        land=[[Seg(sand[k]), Seg(sand[k + 3], at=0.03, gain=-2), thump(-8, i=k)] for k in range(3)])
-
-    # Rock: Fantozzi's stone steps; runs from fast steps on concrete.
-    stone = [fantozzi("Stone%s%d" % (side, i)) for side in "LR" for i in (1, 2, 3)]
-    c = bsb("1318")
-    crun = steps(c, 6, min_sep=0.22, max_len=0.25)
-    footstep_set(
-        "rock",
-        walk=[[Seg(s)] for s in stone],
-        run=[[seg_of(c, e, extra=0.04)] for e in crun],
-        crouch_from=[[Seg(s, pitch=1.02)] for s in stone[:4]],
-        land=[[seg_of(c, crun[k], extra=0.04), Seg(stone[k], at=0.03, gain=-2), thump(-9, i=k)] for k in range(3)])
-
-    # Snow: Corsica_S's steps on snow-covered gravel; runs from quick steps in snow.
-    snow = [corsica("snow_covered_gravel", i) for i in (1, 3, 5, 7, 9, 11)]
-    sq = bsb("3363")
-    srun = steps(sq, 6, min_sep=0.25, max_len=0.35)
-    footstep_set(
-        "snow",
-        walk=[[Seg(s)] for s in snow],
-        run=[[seg_of(sq, e)] for e in srun],
-        crouch_from=[[Seg(s, pitch=1.02)] for s in snow[:4]],
-        land=[[seg_of(sq, srun[k]), Seg(snow[k], at=0.03, gain=-2), thump(-9, i=k)] for k in range(3)])
-
-    # Wood (building floors): shoes on a wooden floor; runs from a second floor recording, heavier, and TinyWorlds'
-    # wood steps; landings from jumps onto a wooden pontoon.
-    w = bsb("0165")
-    wood = steps(w, 6, min_sep=0.45, max_len=0.4)
-    w2 = bsb("1516")
-    wrun = steps(w2, 3, min_sep=0.45, max_len=0.4)
-    footstep_set(
-        "wood",
-        walk=[[seg_of(w, e)] for e in wood],
-        run=[[seg_of(w2, e, pitch=0.95), thump(-14, i=k)] for k, e in enumerate(wrun)] +
-            [[Seg(pack("oga-tinyworlds-different-steps", "wood0%d.ogg" % i), pitch=0.97)] for i in (1, 2, 3)],
-        crouch_from=[[seg_of(w, e, pitch=1.02)] for e in wood[:4]],
-        land=[[Seg(bsb("1841"))], [Seg(bsb("1842"))], [seg_of(w, wood[0]), seg_of(w2, wrun[1], at=0.03), thump(-8)]])
-
-    # Metal (sheet floors): our layering of a hard shoe step and a thin metal plate's ring.
-    plate = [kenney("impactPlate_light_%03d.ogg" % i) for i in range(5)]
-    ring = "highpass=f=180,lowpass=f=5200"
-    footstep_set(
-        "metal",
-        walk=[[Seg(stone[k]), Seg(plate[k % 5], gain=-9, fx=ring, pitch=0.9)] for k in range(6)],
-        run=[[seg_of(c, crun[k], extra=0.04), Seg(plate[k % 5], gain=-6, fx=ring, pitch=0.85)] for k in range(6)],
-        crouch_from=[[Seg(stone[k]), Seg(plate[k], gain=-12, fx=ring, pitch=0.9)] for k in range(4)],
-        land=[[seg_of(c, crun[k], extra=0.04), Seg(kenney("impactMetal_heavy_%03d.ogg" % k), gain=-8, fx=ring),
-               thump(-9, i=k)] for k in range(3)])
-
-    # Shallow water: shoes in water; runs add a small splash; landings are big splashes.
-    wa = bsb("0690")
-    water = steps(wa, 10, min_sep=0.6, max_len=0.75, within_db=7)
-    small = [bsb(s) for s in ("1529", "1530", "1531", "1532", "1533", "1534")]
-    footstep_set(
-        "water",
-        walk=[[seg_of(wa, e)] for e in water[:6]],
-        run=[[seg_of(wa, water[k]), Seg(small[k], dur=0.45, gain=-8, fade_out=0.2)] for k in range(6)],
-        crouch_from=[[seg_of(wa, e, pitch=1.02)] for e in water[6:10]],
-        land=[[Seg(bsb(s), dur=1.2, fade_out=0.5)] for s in ("1519", "1520", "1521")])
+    # Surface/gait recordings and footwear treatment are declared in data.
+    from footstep_banks import generate
+    generate(event)
 
     # Swimming: strokes of a board through water (BigSoundBank 1514).
     sw = bsb("1514")
@@ -989,7 +904,7 @@ def iron_wake():
     _iw_alarms(m)
     _iw_siege(m, hull_ir, ir)
     _iw_loader(m)
-    _iw_defense(m, ir)
+    _iw_defense(m, hull_ir, ir)
     _iw_turret(m)
     _iw_rockets(m, ir)
     _iw_fire(m)
@@ -1584,7 +1499,7 @@ def _iw_loader(m):
         Seg(bsb("1988"), 0.27, 0.2, pitch=0.7, gain=-6, at=0.16)], 0.30)
 
 
-def _iw_defense(m, ir):
+def _iw_defense(m, hull_ir, ir):
     # The defense mount's report: sharper and smaller than the siege gun's and its own: a rifle's hard crack, the
     # launch tube's steel ring and the rocket's hiss tearing out of it ("tchang-fsss"), a small blast and a short
     # push of air. Rippled three at a time a quarter second apart.
@@ -1640,6 +1555,28 @@ def _iw_defense(m, ir):
             fx="highpass=f=60", tail_db=-50, max_fade=0.2))
     event("defense.fire.mechanism", outs, "SFX", 0.0, unitSize=4.0, maxDistance=80.0, priority=72, limit=6,
           pitch=[0.97, 1.03], jitter=1.0)
+    _iw_defense_interior(m, hull_ir)
+
+
+def _iw_defense_interior(m, hull_ir):
+    # The smaller mount transmitted through the hull: a muffled rifle body, a short plate response and fittings
+    # shaken by the launch. Keep it distinct from both the outside report and the siege gun's heavier interior.
+    outs = []
+    for k in range(4):
+        rf, rfs = _first_shot(RIFLES_NEAR[k], 0)
+        outs.append(Out(IW + numbered("defense_interior", k), "impact", [
+            Seg(rf, rfs, 0.55, pitch=0.72, fx="lowpass=f=650,lowpass=f=650", ir=hull_ir, wet=0.2, dry=1.0),
+            Seg(m.boom("def_in_sub_%d" % k, seconds=0.45, seed=1001 + k, f_start=92.0, f_end=64.0,
+                       decay_s=0.22), gain=-4),
+            Seg(m.strike("def_in_plate_%d" % k, seconds=0.75, seed=1011 + k, f0=(145.0, 160.0, 136.0, 174.0)[k],
+                         ratios=m.PLATE, decay_s=0.42, hardness=0.35), gain=-12, ir=hull_ir, wet=0.2, dry=1.0),
+            Seg(m.rattle_burst("def_in_rattle_%d" % k, seconds=0.45, seed=1021 + k, rate=38.0,
+                               f0=(1.1, 1.2, 1.05, 1.25)[k], decay_s=0.25), gain=-14, at=0.025),
+            Seg(kenney("impactMetal_light_%03d.ogg" % k), pitch=0.65, gain=-18, at=0.035,
+                fx="lowpass=f=2500")],
+            fx="highpass=f=40,lowpass=f=4500", tail_db=-52, max_fade=0.35))
+    event("defense.fire.interior", outs, "SFX", -3.0, unitSize=30.0, maxDistance=120.0, priority=84, limit=6,
+          pitch=[0.97, 1.03], jitter=0.8, occlude=False)
 
 
 def _iw_turret(m):
@@ -1783,17 +1720,24 @@ def gun_roles(kind):
 
 PLACE = {"place": "deploy.place"}
 DOOR = {"wood": "wood", "metal": "metal", "armoured": "armoured", "garage": "garage"}
+FURNACE = {"place": "deploy.place", "loop": "furnace.loop", "ignite": "furnace.ignite",
+           "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"}
 
 
-def door_roles(material):
-    return {"open": "door.open.%s" % material, "close": "door.close.%s" % material, "place": "build.place.wood"}
+def door_roles(material, placement=None):
+    return {"open": "door.open.%s" % material, "close": "door.close.%s" % material,
+            "place": "build.place.%s" % (placement or ("metal" if material == "garage" else material))}
 
 
 # Item keys (items.json, models.json) and door keys (building.json) → role → event. The ground mode asks
 # SoundCatalogData.ItemEvent(item, role); the tests check every item that needs a sound has its roles.
+# Ground vehicles' engines, tyres and suspension by ship kind (sounds.json `engines`; vehicle_sounds.ENGINES, filled by
+# everything()).
+ENGINES = {}
+
 ITEMS = {
     "rock": MELEE, "torch": MELEE, "stone-hatchet": HEAVY, "stone-pickaxe": HEAVY, "metal-hatchet": HEAVY,
-    "metal-pickaxe": HEAVY, "wooden-spear": HEAVY, "stone-spear": HEAVY, "machete": MELEE,
+    "metal-pickaxe": HEAVY, "salvaged-axe": HEAVY, "wooden-spear": HEAVY, "stone-spear": HEAVY, "machete": MELEE,
     "bow": {"draw": "bow.draw", "release": "bow.release", "flight": "arrow.flight", "impact": "arrow.impact",
             "impactFlesh": "arrow.impact.flesh", "hitMarker": "hit.marker", "headshot": "hit.headshot",
             "kill": "hit.kill"},
@@ -1801,7 +1745,7 @@ ITEMS = {
               "pickup": "gather.pickup"},
     "pistol": gun_roles("pistol"), "rifle": gun_roles("rifle"),
     "silencer": {"shotPistol": "pistol.shot.silenced", "shotRifle": "rifle.shot.silenced"},
-    "bandage": {"use": "survival.bandage"}, "medical-injector": {"use": "survival.bandage"},
+    "bandage": {"use": "survival.bandage"}, "medical-injector": {"use": "survival.inject"},
     "red-berries": {"use": "survival.eat"}, "blue-berries": {"use": "survival.eat"},
     "wild-tuber": {"use": "survival.eat"}, "roasted-tuber": {"use": "survival.eat"},
     # G7 animals (GROUND.md §6.9): meat is eaten like any food; the bone knife and club are swung like the other blades.
@@ -1812,8 +1756,13 @@ ITEMS = {
     "vehicle-workbench": PLACE, "engineering-workbench": PLACE, "claim-device": PLACE, "ladder": PLACE,
     "campfire": {"place": "deploy.place", "loop": "campfire.loop", "ignite": "campfire.ignite",
                  "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"},
-    "furnace": {"place": "deploy.place", "loop": "furnace.loop", "ignite": "furnace.ignite",
-                "extinguish": "fire.extinguish", "open": "box.open", "close": "box.close"},
+    "furnace": FURNACE, "large-furnace": FURNACE,
+    "wooden-barricade": {"place": "build.place.wood"}, "wood-spike-barricade": {"place": "build.place.wood"},
+    "metal-barricade": {"place": "build.place.metal"}, "wooden-ladder": {"place": "build.place.wood"},
+    "wood-compound-wall": {"place": "build.place.wood"}, "stone-compound-wall": {"place": "build.place.stone"},
+    "wood-compound-gate": door_roles("wood"), "stone-compound-gate": door_roles("metal", "stone"),
+    "windmill": {"place": "build.place.metal"}, "sam-site": {"place": "build.place.metal"},
+    "auto-turret": {"place": "build.place.metal"},
     "small-box": {"place": "deploy.place", "open": "box.open", "close": "box.close"},
     "large-box": {"place": "deploy.place", "open": "box.open", "close": "box.close"},
     # G7: the research table, the blueprint and the world's props, on stand-ins from the events above (GROUND.md §11 W).
@@ -1823,7 +1772,7 @@ ITEMS = {
     "loot-barrel-2": {"hit": "impact.metal", "break": "impact.metal"},
     "loot-crate": {"open": "box.open", "close": "box.close"},
     "military-crate": {"open": "box.open", "close": "box.close"},
-    "recycler": {"open": "box.open", "close": "box.close", "start": "furnace.ignite", "loop": "furnace.loop", "stop": "fire.extinguish"},
+    "recycler": {"open": "box.open", "close": "box.close", "start": "recycler.start", "loop": "recycler.loop", "stop": "recycler.stop"},
     "building-plan": {"placeTwig": "build.place.twig", "placeWood": "build.place.wood",
                       "placeStone": "build.place.stone", "placeMetal": "build.place.metal",
                       "placeArmoured": "build.place.armoured"},
@@ -1842,8 +1791,8 @@ ITEMS = {
     "tin-grenade": {"fuse": "explosive.fuse", "explode": "explosion", "debris": "explosion.debris",
                     "place": "deploy.place", "throw": "melee.swing", "bounce": "impact.metal",
                     "fizzle": "fire.extinguish", "relight": "campfire.ignite"},
-    "rocket-launcher": {"shot": "rifle.shot", "magOut": "reload.rifle.magout", "magIn": "reload.rifle.magin",
-                        "rack": "reload.rifle.bolt", "dryFire": "gun.dryfire", "hitMarker": "hit.marker",
+    "rocket-launcher": {"shot": "launcher.shot", "magOut": "launcher.open", "magIn": "launcher.load",
+                        "rack": "launcher.lock", "dryFire": "gun.dryfire", "hitMarker": "hit.marker",
                         "kill": "hit.kill"},
     # IW4 (IRON_WAKE.md §10.1): every rocket's motor catching where it leaves and its roar on it until it stops (the
     # rockets' view loops "flight" on the rocket); the incendiary rocket's burst, its fuel catching and its fire (a
@@ -1870,11 +1819,53 @@ ITEMS = {
         "alarmHull": "iw.alarm.hull", "rampOpen": "iw.ramp.release", "rampClose": "iw.ramp.release",
         "rampTravel": "iw.ramp.actuator", "rampOpened": "iw.ramp.contact", "rampShut": "iw.ramp.lock",
         "airlockOpen": "iw.airlock.slide", "airlockClose": "iw.airlock.slide", "airlockShut": "iw.airlock.seal"},
+    # The KA-FA 1500 (docs/MINICOPTER.md §8): its rotor by the spool and the collective, the twin's start and cut
+    # (art/audio/ka_fa_sounds.py).
+    "ka-fa-1500": {"rotor": "kafa.rotor.slow", "rotorFast": "kafa.rotor.fast", "rotorLoad": "kafa.rotor.load",
+                   "start": "kafa.twin.start", "shutdown": "kafa.twin.stop", "touchdown": "ship.touchdown",
+                   "crash": "ship.crash", "destroyed": "explosion"},
+    # The motorboat (docs/MOTORBOAT.md §7): its outboard's start, idle, part and full throttle and stop; a hull's crash.
+    "motorboat": {"start": "boat.motor.start", "idle": "boat.motor.idle", "load": "boat.motor.load.slow",
+                  "loadFast": "boat.motor.load.fast", "shutdown": "boat.motor.stop", "crash": "ship.crash",
+                  "destroyed": "explosion"},
     "wooden-door": door_roles("wood"), "metal-door": door_roles("metal"), "armoured-door": door_roles("armoured"),
     "double-door": door_roles("wood"), "garage-door": door_roles("garage"),
     "sheet-metal-door": door_roles("metal"), "wooden-double-door": door_roles("wood"),
     "sheet-metal-double-door": door_roles("metal"), "armoured-double-door": door_roles("armoured"),
+    # Fixed window fittings are placed; they have no opening action (building.json opens=false).
+    "metal-window-bars": {"place": "build.place.metal"}, "armoured-window-bars": {"place": "build.place.armoured"},
+    "reinforced-glass-window": {"place": "build.place.metal"}, "horizontal-embrasure": {"place": "build.place.metal"},
+    "vertical-embrasure": {"place": "build.place.metal"},
 }
+
+
+BOAT = "boat/"
+
+
+def motorboat():
+    """The motorboat's outboard (docs/MOTORBOAT.md §7): a small twin two-stroke made in code (machines.py
+    outboard_parts: each firing ringing the leg's exhaust passages, its gas burbling out under the water, the crank, the
+    gears and the reeds; no recording on this PC is one), at idle, part throttle and full; a pull start and the kill
+    switch. The game crossfades the loops by the motor's thrust (ShipSounds)."""
+    m = __import__("machines")
+    seconds, pre = 8.0, 2.0
+    for key, revs, load in (("idle", 15.0, 0.0), ("load.slow", 48.0, 0.5), ("load.fast", 88.0, 1.0)):
+        name = key.replace(".", "_")
+        event("boat.motor." + key, [Out(BOAT + "motor_%s.ogg" % name, "engine",
+                                        [Seg(m.outboard_loop("outboard_" + name, revs=revs, load=load, seconds=seconds,
+                                                             pre=pre, seed=17))],
+                                        fx="highpass=f=30", loop=(seconds, 0.0, pre))],
+              "SFX", -3.0, unitSize=6.0, maxDistance=250.0 if key.startswith("load") else 120.0, priority=65, limit=4,
+              pitch=[1.0, 1.0], jitter=0.0)
+    outs = [Out(BOAT + numbered("motor_start", k), "machine",
+                [Seg(m.outboard_start("outboard_start_%d" % k, seed=3 + k, pulls=(2, 1, 3)[k]))],
+                fx="highpass=f=30", tail_db=-50, max_fade=0.5) for k in range(3)]
+    event("boat.motor.start", outs, "SFX", -3.0, unitSize=6.0, maxDistance=150.0, priority=66, limit=2,
+          pitch=[0.98, 1.02], jitter=0.5)
+    outs = [Out(BOAT + numbered("motor_stop", k), "machine", [Seg(m.outboard_stop("outboard_stop_%d" % k, seed=9 + k))],
+                fx="highpass=f=30", tail_db=-50, max_fade=0.5) for k in range(2)]
+    event("boat.motor.stop", outs, "SFX", -5.0, unitSize=6.0, maxDistance=150.0, priority=66, limit=2,
+          pitch=[0.98, 1.02], jitter=0.5)
 
 
 def everything():
@@ -1892,4 +1883,13 @@ def everything():
     ambience()
     animals()
     iron_wake()
+    motorboat()
+    __import__("repair_actions").recipes()
+    __import__("ka_fa_sounds").recipes()
+    # Ground vehicles (docs/VEHICLES.md §7.1): their events, their start, stop and landing roles, and their engines.
+    vehicles = __import__("vehicle_sounds")
+    vehicles.recipes()
+    ITEMS.update(vehicles.ROLES)
+    ENGINES.clear()
+    ENGINES.update(vehicles.ENGINES)
     return list(OUTS), list(EVENTS)

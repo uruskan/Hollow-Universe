@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+
 namespace Hollow.Surface;
 
 /// <summary>
@@ -9,6 +11,59 @@ namespace Hollow.Surface;
 public sealed record WalkingParameters
 {
     public static WalkingParameters Default { get; } = new();
+
+    /// <summary>
+    /// Earth revision 12: layout variant 6, with corrected ice/alpine biome allocation and generated populations (5),
+    /// cliff formations traced along their faces (6–9), and since 10 its shape baked and eroded (docs/WORLD_TERRAIN_PLAN.md
+    /// §4.1, iteration 1), with T2's cliff formations off until the cliff kit replaces them. Revision 10 is also where doors
+    /// are saved with a layout, hinge side and swing side (docs/DOORS.md; door version 2 reads version 1 as well). 11: the
+    /// cliff kit placed (iteration 5), a sea three times deeper, and the kit's collision cut to each tile. 12: layout 6
+    /// (it was 5), for the owner to fly before choosing one (WORLD_TERRAIN_PLAN.md §7a, step 1).
+    /// </summary>
+    public static WalkingParameters Earth { get; } = new()
+    {
+        TerrainRevision = 12,
+        LayoutVariant = 6,
+        OceanCover = 0.35,
+        ContinentWavelength = 3200,
+        IslandShare = 0.12,
+        CoastDetail = 0.02,
+        Baked = true,
+        CliffFormations = false,
+        KitCliffs = true,
+        SeaDepth = 3,
+    };
+
+    private static readonly IReadOnlyDictionary<(ulong System, uint Body), WalkingParameters> Profiles =
+        new Dictionary<(ulong, uint), WalkingParameters>
+        {
+            [(StartingWorld.System.Value, StartingWorld.BodyPath)] = Earth,
+        };
+
+    /// <summary>Shared body-specific tuning; addresses, never display names, select a profile.</summary>
+    public static WalkingParameters ForBody(ulong systemAddress, uint bodyPath) =>
+        Profiles.TryGetValue((systemAddress, bodyPath), out WalkingParameters? profile) ? profile : Default;
+
+    /// <summary>
+    /// Save compatibility includes heights, generated solids and populations. Revision 1 fences CliffPlacements
+    /// generation 2; revision 2 corrects biome allocation; revisions 3, 4, 5 and 6 fence CliffPlacements generations 3,
+    /// 4, 5 and 6 (faces traced, T2; 6, the walls' rock skins). Zero is legacy walking or stand-in ground.
+    /// </summary>
+    public int TerrainRevision { get; init; } = 6;
+
+    /// <summary>Optional deterministic geography variation. Zero preserves the existing world exactly.
+    /// Earth candidates set this explicitly; selecting one for production also requires a new terrain/save revision.</summary>
+    public int LayoutVariant { get; init; }
+
+    /// <summary>Optional playable ocean target, independent of the body's physical reference metadata.</summary>
+    public double? OceanCover { get; init; }
+
+    /// <summary>Small original monuments per candidate cell; tune world dressing without changing galaxy seeds.</summary>
+    public double MonumentSpacing { get; init; } = 300;
+    public double MonumentChance { get; init; } = 0.7;
+
+    /// <summary>Harvestable outcrops relative to the inherited sparse planet scatter. Provisional gameplay balance.</summary>
+    public double ResourceDensity { get; init; } = 2.2;
 
     // ------------------------------------------------------------ landmasses (§2)
 
@@ -41,6 +96,14 @@ public sealed record WalkingParameters
 
     /// <summary>The highest a rocky coast rises straight from the sea (m); the rest of the land's height comes further inland.</summary>
     public double SeaCliffHeight { get; init; } = 26;
+
+    /// <summary>
+    /// How much deeper than the coast curve the sea floor lies (×), and the deepest it goes (m). Earth's is three times:
+    /// about 6 m deep 15 m out, 27 m at 60 m and 84 m at 150 m (the owner found the sea far too shallow).
+    /// </summary>
+    public double SeaDepth { get; init; } = 1;
+
+    public double SeaFloorMost { get; init; } = 300;
 
     // ------------------------------------------------------------ relief provinces (§3)
 
@@ -82,6 +145,13 @@ public sealed record WalkingParameters
 
     /// <summary>How much of an escarpment is cliff (the rest is the talus below it).</summary>
     public double CliffShare { get; init; } = 0.75;
+
+    /// <summary>
+    /// The width of an escarpment's cliff across its field's band, either side of its level (the talus spans four
+    /// bands). At 0.3 a tableland's cliff rises tens of metres within a few, a wall the heightfield draws as a scalloped
+    /// sheet; wider keeps it a steep slope the cliff scans can dress (LANDFORM_SURVEY.md, the proposed shape change).
+    /// </summary>
+    public double CliffBand { get; init; } = 0.3;
 
     /// <summary>Mountains: the highest peaks' height and the ridges' wavelength.</summary>
     public double MountainHeight { get; init; } = 400;
@@ -158,6 +228,77 @@ public sealed record WalkingParameters
     public double GorgeDepth { get; init; } = 8;
 
     public double GorgeWall { get; init; } = 1.1;
+
+    // ------------------------------------------------------------ the bake (docs/WORLD_TERRAIN_PLAN.md §4.1)
+
+    /// <summary>
+    /// Whether the ground's large shape is baked: the relief eroded by water and gravity on a grid (<see cref="TerrainBake"/>),
+    /// with its lakes, instead of drawn straight from the relief with the drainage's channels cut into it.
+    /// </summary>
+    public bool Baked { get; init; }
+
+    /// <summary>Whether T2's cliff scans and wall skins are placed; off on a baked world until the cliff kit replaces them.</summary>
+    public bool CliffFormations { get; init; } = true;
+
+    /// <summary>
+    /// Whether the cliff kit is placed on a baked world (docs/WORLD_TERRAIN_PLAN.md §4.3, iteration 5): chains of pieces
+    /// on steep ground, the ground fitted behind each.
+    /// </summary>
+    public bool KitCliffs { get; init; }
+
+    /// <summary>The grade (rise over run) a seed needs (32°), and below which a chain ends in a slope end (24°).</summary>
+    public double KitSeedSlope { get; init; } = 0.62;
+
+    public double KitChainSlope { get; init; } = 0.45;
+
+    /// <summary>Chains a 59 m cell may seed, and pieces in a chain at most.</summary>
+    public int KitSeedsPerCell { get; init; } = 4;
+
+    public int KitMaxChain { get; init; } = 8;
+
+    /// <summary>How far a piece leans back into its slope (radians, about 7°).</summary>
+    public double KitLeanBack { get; init; } = 0.12;
+
+    /// <summary>The bake's cell, metres (Earth: level 8, about 7.4 m).</summary>
+    public double BakeCell { get; init; } = 7;
+
+    public int BakeSteps { get; init; } = 100;
+
+    /// <summary>How much wider than its designed cliff an escarpment's ramp is made for the bake, which erodes its edge.</summary>
+    public double BakeRamp { get; init; } = 2.5;
+
+    /// <summary>Stream power per step on soft rock (K·dt), and the hardness of mountains and of caprock as shares of it.</summary>
+    public double ErosionRate { get; init; } = 0.02;
+
+    public double MountainHardness { get; init; } = 0.7;
+
+    public double CaprockHardness { get; init; } = 0.12;
+
+    /// <summary>On tablelands, rock above this height (m, varied by this much) is the hard caprock.</summary>
+    public double CaprockBase { get; init; } = 36;
+
+    public double CaprockVariation { get; init; } = 5;
+
+    /// <summary>The steepest slope (rise over run) loose ground holds: soft ground (33°), mountains (40°), caprock (50°).</summary>
+    public double TalusSlope { get; init; } = 0.65;
+
+    public double MountainTalusSlope { get; init; } = 0.84;
+
+    public double CaprockTalusSlope { get; init; } = 1.19;
+
+    /// <summary>Sweeps of sliding per step.</summary>
+    public int ThermalSweeps { get; init; } = 4;
+
+    /// <summary>Roughness added to the land before the bake (m, at about 90 m), so water gathers into branching valleys.</summary>
+    public double BakeRoughness { get; init; } = 2;
+
+    /// <summary>Soil creep per step: how far each cell eases toward its neighbours (share of the difference).</summary>
+    public double BakeCreep { get; init; } = 0.01;
+
+    /// <summary>A baked hollow holds a lake if its water covers this much (m²) and stands this deep (m); smaller ones fill.</summary>
+    public double BakeLakeMinArea { get; init; } = 2_500;
+
+    public double BakeLakeMinDepth { get; init; } = 1;
 
     // ------------------------------------------------------------ climate (§5)
 

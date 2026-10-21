@@ -94,8 +94,7 @@ public sealed class FxLights
             float t = (float)(now - e.Start);
             if (t >= e.Duration)
             {
-                e.Active = false;
-                e.Light.Visible = false;
+                Retire(e);
                 continue;
             }
             active++;
@@ -117,5 +116,20 @@ public sealed class FxLights
             }
         }
         Active = active;
+    }
+
+    /// <summary>Retires every transient light and its followed owner, retaining the allocated pool.</summary>
+    public void Clear()
+    {
+        foreach (Entry entry in _pool) Retire(entry);
+        Active = 0;
+    }
+
+    private static void Retire(Entry entry)
+    {
+        entry.Active = false;
+        entry.Follow = null;
+        entry.Light.Visible = false;
+        entry.Light.LightEnergy = 0;
     }
 }

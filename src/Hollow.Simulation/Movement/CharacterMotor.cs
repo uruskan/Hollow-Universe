@@ -12,10 +12,11 @@ namespace Hollow.Simulation.Movement;
 /// </summary>
 public readonly struct MoveContext
 {
-    public MoveContext(IMoveFrame frame, MovementTuning tuning)
+    public MoveContext(IMoveFrame frame, MovementTuning tuning, Climbing? climbs = null)
     {
         Frame = frame;
         Tuning = tuning;
+        Climbs = climbs;
     }
 
     /// <summary>The zone's frame, as before ship spaces (the movement check, tests).</summary>
@@ -34,6 +35,8 @@ public readonly struct MoveContext
     public float Gravity => Frame.Gravity;
 
     public readonly MovementTuning Tuning;
+
+    public readonly Climbing? Climbs;
 
     /// <summary>A character's gravity on a body with this surface gravity (in g, as the generator gives it).</summary>
     public static float CharacterGravity(double surfaceGravityG, MovementTuning tuning) =>
@@ -103,6 +106,28 @@ public static class CharacterMotor
 
         // The view's horizontal basis at the character, and the wanted direction of travel.
         (Vector3 forward, Vector3 right) = Facing.Basis(input.View, up);
+        if (!crawling && context.Climbs is { } climbs && climbs.Contact(state.Frame, state.Position, forward, out ClimbContact ladder) &&
+            Vector3.Dot(state.Velocity, ladder.Toward) >= -0.5f)
+        {
+            if (input.Has(MoveButtons.JumpPressed))
+            {
+                state.Velocity = -ladder.Toward * tuning.WalkSpeed + up * tuning.JumpSpeed;
+                events.Jumped = true;
+            }
+            else
+            {
+                // The capsule still moves through physics: ladder use never passes through a wall or ceiling.
+                Vector3 velocityOnLadder = ladder.Axis * (Math.Clamp(input.Forward, -1, 1) * ladder.Speed)
+                    + right * (Math.Clamp(input.Right, -1, 1) * tuning.WalkSpeed);
+                if (input.Forward > 0 && ladder.Along > ladder.Height - 0.2f)
+                    velocityOnLadder += forward * ladder.Speed;
+                body.Move(velocityOnLadder, dt, up, false);
+                state.Position = body.Position;
+                state.Velocity = velocityOnLadder;
+                state.Flags = MoveFlags.None;
+                return events;
+            }
+        }
         Vector3 wish = forward * Math.Clamp(input.Forward, -1f, 1f) + right * Math.Clamp(input.Right, -1f, 1f);
         float wishLength = wish.Length();
         if (wishLength > 1f)
@@ -227,7 +252,8 @@ public static class CharacterMotor
         {
             wish /= length;
         }
-        state.Velocity = wish * (input.Has(MoveButtons.Sprint) ? NoclipFastSpeed : NoclipSpeed);
+        float speed = float.IsFinite(input.NoclipSpeed) && input.NoclipSpeed > 0 ? Math.Clamp(input.NoclipSpeed, 1, 200) : NoclipSpeed;
+        state.Velocity = wish * speed * (input.Has(MoveButtons.Sprint) ? NoclipFastSpeed / NoclipSpeed : 1);
         Vector3 next = state.Position + state.Velocity * DeltaTime;
         if (context.Radius > 0)
         {

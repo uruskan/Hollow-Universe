@@ -1,5 +1,5 @@
 {
-  "source": "Ours (GROUND.md §6.6). The Tin Finch TF-01's sizes, sockets, skids and nozzles come from its asset (D:/GameDev/Assets/TinFinch_TF01: socket_manifest.json and the source geometry, in the game model's axes: +Z the nose, +Y up, +X the left side, metres from the pivot on the ground between the skids). Mass, thrust, rates and drag are chosen for a weighty, thrust-borne skiff flown the Elite way (flight assist on by default, boost); drag areas are Cd x area. The hull's 750 is Rust's minicopter's; it burns lamp oil, our low-grade fuel, as Rust's helicopters burn theirs. The air comes from the planet (the zone's spec), not from here. P2 (GROUND_SYSTEMS.md §6): placed from its item (placement.json's ship rule with its own 'placement' on top), its hull must be clear and its skids on the ground or a foundation's top no steeper than 20 degrees (the vehicle workbench bay's slope), within 12 m of the eye; it carries fuel.placed of lamp oil, the same 50 its recipe's first tank holds. The Iron Wake (IRON_WAKE.md §5.4, IW1): a carrier people walk in. Its numbers are §5.4's proposals; its model, ten sweep boxes, four landing pads, sockets and interior (convex pieces by part, boarding volume, rooms) come from its data file, ships/iron-wake.json, written by its import; its centre of mass is the asset's hint (the data file's, checked); it floats on 1,680 m3 in a band 4.1 m below and 2.3 m above its centre of mass, and flight assist holds it within 20 degrees of pitch and 12 of roll. Seats, doors and parts (IRON_WAKE.md §5.1, IW2): a point is a socket of the data file by name or three numbers; a seat's role flies (helm), rides (passenger) or works a station of the data file (station:<id>); its verb is the interaction verb that sits there, its sitters who may (anyone; unlocked: anyone while the ship is unlocked, its crew while locked; crew: those on its list, authorised at its helm); a door drives parts of the data file by its progress (or the views sample the model's clip), opens always, still or slow (at rest, or under 5 m/s within 30 m of the ground) and shuts any time; parts are the targets a TargetRef's part names, in their wire order, the first the hull, each met by a ball (at, radius) or by pieces of the data file. Health: the ramp and the airlock as the building's armoured door (1,000, protection armoured, a blast's doors' table, mended with refined metal, 10 from nothing); a battery 1,500 of metal, mended with metal fragments. Plume sizes are what ShipView drew, the Tin Finch's scaled by the square root of a ship's size over the Tin Finch's. Lamps: the Tin Finch's nav lights, beacon and landing light where ShipView put them; the Iron Wake's data file's fixtures, warm white (the lamp material's colour), the four on Deck A and the bridge's two casting shadows, dim red emergency lamps without power (IRON_WAKE.md §9.4); drawn from IW6.",
+  "source": "Ours (GROUND.md §6.6). The Tin Finch TF-01's sizes, sockets, skids and nozzles come from its asset (D:/GameDev/Assets/TinFinch_TF01: socket_manifest.json and the source geometry, in the game model's axes: +Z the nose, +Y up, +X the left side, metres from the pivot on the ground between the skids). Mass, thrust, rates and drag are chosen for a weighty, thrust-borne skiff flown the Elite way (flight assist on by default, boost); drag areas are Cd x area. The hull's 750 is Rust's minicopter's; it burns lamp oil, our low-grade fuel, as Rust's helicopters burn theirs. The air comes from the planet (the zone's spec), not from here. P2 (GROUND_SYSTEMS.md §6): placed from its item (placement.json's ship rule with its own 'placement' on top), its hull must be clear and its skids on the ground or a foundation's top no steeper than 20 degrees (the vehicle workbench bay's slope), within 12 m of the eye; it carries fuel.placed of lamp oil, the same 50 its recipe's first tank holds. The Iron Wake (IRON_WAKE.md §5.4, IW1): a carrier people walk in. Its numbers are §5.4's proposals; its model, ten sweep boxes, four landing pads, sockets and interior (convex pieces by part, boarding volume, rooms) come from its data file, ships/iron-wake.json, written by its import; its centre of mass is the asset's hint (the data file's, checked); it floats on 1,680 m3 in a band 4.1 m below and 2.3 m above its centre of mass, and flight assist holds it within 20 degrees of pitch and 12 of roll. Seats, doors and parts (IRON_WAKE.md §5.1, IW2): a point is a socket of the data file by name or three numbers; a seat's role flies (helm), rides (passenger) or works a station of the data file (station:<id>); its verb is the interaction verb that sits there, its sitters who may (anyone; unlocked: anyone while the ship is unlocked, its crew while locked; crew: those on its list, authorised at its helm); a door drives parts of the data file by its progress (or the views sample the model's clip), opens always, still or slow (at rest, or under 5 m/s within 30 m of the ground) and shuts any time; parts are the targets a TargetRef's part names, in their wire order, the first the hull, each met by a ball (at, radius) or by pieces of the data file. Health: the ramp and the airlock as the building's armoured door (1,000, protection armoured, a blast's doors' table, mended with refined metal, 10 from nothing); a battery 1,500 of metal, mended with metal fragments. Plume sizes are what ShipView drew, the Tin Finch's scaled by the square root of a ship's size over the Tin Finch's. Lamps: the Tin Finch's nav lights, beacon and landing light where ShipView put them; the Iron Wake's data file's fixtures, warm white (the lamp material's colour), the four on Deck A and the bridge's two casting shadows, dim red emergency lamps without power (IRON_WAKE.md §9.4); drawn from IW6. Repair (VEHICLES.md §5.5): the hammer mends a hull as it mends a building's pieces, 100 a hit after 30 s without damage, for 0.2 metal fragments a point of health (the Tin Finch 150 from nothing, the Iron Wake 3,600). Sockets (VEHICLES.md §9.1): where modules go, none yet.",
   "ships": [
     {
       "key": "tin-finch",
@@ -8,6 +8,7 @@
       "inertia": [16200, 16500, 8700],
       "centreOfMass": [0, 1.23, -0.28],
       "health": 750,
+      "repair": ["metal-fragments", 150],
       "damage": { "melee": 0.25, "arrow": 0.1, "bullet": 0.5, "explosive": 1.0 },
       "thrust": { "main": 150000, "retro": 90000, "lateral": 45000, "lift": 110000, "down": 40000 },
       "speed": { "forward": 160, "reverse": 40, "lateral": 40, "up": 25, "down": 20 },
@@ -72,13 +73,14 @@
       "inertia": [103000000, 107000000, 21000000],
       "centreOfMass": [0, 5.5, -1.0],
       "health": 18000,
+      "repair": ["metal-fragments", 3600],
       "damage": { "melee": 0.05, "arrow": 0.02, "bullet": 0.2, "explosive": 1.0 },
       "thrust": { "main": 2100000, "retro": 1300000, "lateral": 850000, "lift": 7600000, "down": 800000 },
       "speed": { "forward": 110, "reverse": 25, "lateral": 18, "up": 15, "down": 12 },
       "boost": { "thrust": 1.5, "speed": 150, "seconds": 6, "cooldown": 12 },
-      "rates": { "pitch": [9, 6], "yaw": [8, 5], "roll": [7, 5] },
+      "rates": { "pitch": [28, 75], "yaw": [32, 90], "roll": [30, 85] },
       "drag": { "forward": 190, "side": 950, "top": 1150, "turn": 0.4 },
-      "assist": { "level": [20, 12], "return": 0.6 },
+      "assist": { "level": [35, 25], "return": 1.4 },
       "landing": { "maxSlope": 12, "assist": [1.0, 0.15] },
       "skids": { "stiffness": 6300000, "damping": 1100000, "travel": 0.35, "friction": 0.6 },
       "crash": { "safe": 3, "scale": 60, "pilot": 0.05 },
@@ -191,6 +193,256 @@
       "placement": { "surfaces": ["terrain"], "maxSlope": 12, "reach": 30, "sight": 0.5 },
       "ceiling": 2,
       "wreck": [["metal-fragments", 3000], ["refined-metal", 200]]
+    },
+    {
+      "key": "motorboat",
+      "item": "motorboat",
+      "drive": { "kind": "propeller", "at": [0, -0.02, -2.34], "rudder": 4, "wash": 2.5 },
+      "controls": "boat",
+      "mass": 390,
+      "inertia": [670, 730, 115],
+      "centreOfMass": [0, 0.34, -0.35],
+      "health": 400,
+      "damage": { "melee": 0.3, "arrow": 0.2, "bullet": 0.6, "explosive": 1.0 },
+      "thrust": { "main": 2200, "retro": 900 },
+      "speed": { "forward": 8, "reverse": 2.5 },
+      "rates": { "yaw": [40, 90] },
+      "drag": { "forward": 0.6, "side": 1.5, "top": 2.0, "turn": 0.2 },
+      "landing": { "maxSlope": 25 },
+      "skids": {
+        "points": [[0.42, -0.03, -1.7], [-0.42, -0.03, -1.7], [0, -0.03, 0.55]],
+        "stiffness": 60000, "damping": 5000, "travel": 0.08, "friction": 0.6
+      },
+      "crash": { "safe": 4, "scale": 3, "pilot": 0.1 },
+      "fuel": { "item": "lamp-oil", "capacity": 100, "idle": 0.01, "full": 0.12, "placed": 20 },
+      "buoyancy": {
+        "points": [[0.48, 0.02, -1.6], [-0.48, 0.02, -1.6], [0.52, 0.02, 0], [-0.52, 0.02, 0], [0.33, 0.12, 1.3], [-0.33, 0.12, 1.3]],
+        "depth": 0.8, "volume": 2.4,
+        "damping": [1.0, 4.0, 0.12], "drag": [1.4, 2.5, 0.05], "turn": [5, 1.2, 4]
+      },
+      "wake": { "at": [0, 0.1, -2.3], "effect": "wake.boat", "full": 7 },
+      "cargo": 8,
+      "hull": [
+        { "centre": [0, 0.41, -0.45], "size": [0.82, 0.39, 1.6] },
+        { "centre": [0, 0.6, 1.62], "size": [0.5, 0.42, 0.55] },
+        { "centre": [0, 0.68, -2.36], "size": [0.13, 0.5, 0.2] }
+      ],
+      "seats": [
+        {
+          "key": "helm", "name": "Helm", "role": "helm", "verb": "take-helm", "sitters": "unlocked", "exposed": true,
+          "at": [0, 0.62, -1.45], "eye": [0, 1.42, -1.38],
+          "exits": [[-1.3, 0.35, -1.4], [1.3, 0.35, -1.4], [0, 0.35, -3.1], [0, 0.35, 3.0]]
+        },
+        {
+          "key": "bench", "name": "Bench", "role": "passenger", "verb": "sit", "sitters": "anyone", "exposed": true,
+          "at": [0, 0.62, 0.2], "eye": [0, 1.42, 0.27],
+          "exits": [[-1.3, 0.35, 0.2], [1.3, 0.35, 0.2], [0, 0.35, 3.0], [0, 0.35, -3.1]]
+        }
+      ],
+      "doors": [],
+      "parts": [
+        { "key": "hull" },
+        { "key": "helm", "name": "Helm", "at": [0, 0.94, -1.03], "radius": 0.35, "capabilities": ["seat", "cupboard"], "seat": "helm" },
+        { "key": "bench", "name": "Bench", "at": [0, 0.62, 0.2], "radius": 0.45, "capabilities": ["seat"], "seat": "bench" },
+        { "key": "fuel", "name": "Fuel can", "at": [0.48, 0.44, -1.78], "radius": 0.28, "capabilities": ["fuel"] },
+        { "key": "cargo", "name": "Crate", "at": [0, 0.46, 1.42], "radius": 0.4, "capabilities": ["container"] }
+      ],
+      "lights": {
+        "lamps": [
+          { "key": "bow-lamp", "at": [0, 1.11, 2.1], "direction": [0, -0.12, 1], "spot": true, "angle": 30, "colour": [1.0, 0.92, 0.78], "energy": 3, "range": 45 }
+        ],
+        "nav": false
+      },
+      "placement": { "surfaces": ["water"], "water": true, "reach": 8, "sight": 0.5 },
+      "ceiling": 2,
+      "wreck": [["metal-fragments", 120], ["wood", 80], ["gears", 1]]
+    },
+    {
+      "key": "ka-fa-1500",
+      "item": "ka-fa-1500",
+      "model": "ka-fa-1500-frame",
+      "drive": { "kind": "rotor", "rotor": false, "spoolUp": 5, "spoolDown": 7, "airExponent": 0.75, "pitch": 30, "roll": 28, "level": 3.0, "climb": 7, "sink": 6, "response": 0.4, "weathervane": 2.5, "tipped": 60, "floods": 0.3 },
+      "controls": "rotor",
+      "needsPilot": true,
+      "rotors": [
+        { "node": "Rotor", "axis": [0, 1, 0], "rpm": 480, "blur": "RotorBlur", "wash": true },
+        { "node": "TailRotor", "axis": [1, 0, 0], "rpm": 2600, "blur": "TailRotorBlur" }
+      ],
+      "sockets": [
+        { "key": "engine", "at": [0, 0.465, -0.55], "fits": ["ka-fa-engine"] },
+        { "key": "rotor", "at": [0, 2.3, -0.15], "fits": ["ka-fa-rotor"] },
+        { "key": "tank", "at": [0, 0.42, 0.2], "fits": ["ka-fa-tank"] },
+        { "key": "rear", "at": [0, 0.465, -1.3], "fits": ["ka-fa-rear"] },
+        { "key": "plating", "at": [0, 0, 0], "fits": ["ka-fa-plating"] }
+      ],
+      "buildHeight": 3,
+      "build": [
+        { "socket": "engine", "module": "ka-fa-twin" },
+        { "socket": "rotor", "module": "ka-fa-rotor" },
+        { "socket": "tank", "module": "ka-fa-jerry-tank" },
+        { "socket": "rear", "module": "ka-fa-rear-seat" }
+      ],
+      "mass": 290,
+      "inertia": [350, 450, 180],
+      "centreOfMass": [0, 0.95, -0.3],
+      "health": 750,
+      "damage": { "melee": 0.25, "arrow": 0.1, "bullet": 0.5, "explosive": 1.0 },
+      "thrust": { "main": 0, "retro": 0, "lateral": 0, "lift": 9600, "down": 0 },
+      "speed": { "forward": 30, "reverse": 10, "lateral": 10, "up": 7, "down": 6 },
+      "boost": { "thrust": 1, "speed": 30, "seconds": 0.1, "cooldown": 0 },
+      "rates": { "pitch": [100, 300], "yaw": [100, 240], "roll": [120, 360] },
+      "drag": { "forward": 4.5, "side": 6.0, "top": 9.0, "turn": 1.2 },
+      "landing": { "maxSlope": 20, "assist": [1.5, 0.25] },
+      "skids": { "points": [[0.8, 0, 0.85], [0.8, 0, -0.75], [-0.8, 0, 0.85], [-0.8, 0, -0.75]], "stiffness": 40000, "damping": 3500, "travel": 0.08, "friction": 0.6 },
+      "crash": { "safe": 5, "scale": 1, "fatal": 30, "least": 0.15, "tipped": 5, "strike": 0.35, "pilot": 0.1 },
+      "fuel": { "item": "lamp-oil", "capacity": 10, "idle": 0.25, "full": 0.5, "placed": 50 },
+      "water": { "below": 0.5, "above": 0.9, "volume": 0.6 },
+      "cargo": 0,
+      "hull": [
+        { "centre": [0, 1.05, 0.635], "size": [0.42, 0.65, 0.785] },
+        { "centre": [0, 0.91, -0.875], "size": [0.42, 0.49, 0.725] },
+        { "centre": [0, 1.84, -0.15], "size": [0.16, 0.44, 0.2] },
+        { "centre": [0, 1.1, -2.925], "size": [0.18, 0.55, 1.325] },
+        { "centre": [-0.22, 1.1, -4.08], "size": [0.06, 0.45, 0.45], "fragile": true },
+        { "centre": [0.8, 0.04, 0.1], "size": [0.045, 0.045, 1.15], "skid": true },
+        { "centre": [-0.8, 0.04, 0.1], "size": [0.045, 0.045, 1.15], "skid": true }
+      ],
+      "seats": [
+        { "key": "pilot", "name": "Pilot's seat", "role": "helm", "verb": "fly", "sitters": "unlocked", "exposed": true, "at": [0, 0.57, 0.25], "eye": [0, 1.37, 0.3], "exits": [[1.25, 0, 0.3], [-1.25, 0, 0.3], [0, 0, 2.2]] }
+      ],
+      "doors": [],
+      "parts": [
+        { "key": "hull" },
+        { "key": "pilot", "name": "Pilot's seat", "at": [0, 0.8, 0.25], "radius": 0.6, "capabilities": ["seat", "cupboard"], "seat": "pilot" },
+        { "key": "fuel", "name": "Fuel cap", "at": [0.4, 0.6, 0.37], "radius": 0.3, "capabilities": ["fuel"] }
+      ],
+      "nozzles": {},
+      "lights": {
+        "nav": false,
+        "lamps": [
+          { "key": "landing", "at": [0, 0.5, 1.42], "direction": [0, -0.4, 1], "spot": true, "angle": 28, "colour": [1.0, 0.92, 0.78], "energy": 3, "range": 60 },
+          { "key": "tail", "at": [0, 1.24, -4.17], "colour": [1.0, 0.08, 0.04], "energy": 0.8, "range": 3 }
+        ]
+      },
+      "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 12, "sight": 0.5 },
+      "ceiling": 2,
+      "wreck": [["metal-fragments", 200], ["refined-metal", 10]]
+    },
+    {
+      "key": "togg",
+      "item": "togg",
+      "model": "togg-frame",
+      "motor": "ground",
+      "controls": "car",
+      "needsPilot": true,
+      "mass": 530,
+      "inertia": [1773.3, 1976.5, 273.8],
+      "centreOfMass": [0, 0.8111, 1.4321],
+      "health": 1000,
+      "repair": ["metal-fragments", 200],
+      "damage": { "melee": 0.25, "arrow": 0.1, "bullet": 0.5, "explosive": 1.0 },
+      "drag": { "forward": 1.2, "side": 3.0, "top": 4.0, "turn": 0.4 },
+      "crash": { "safe": 9, "scale": 2.5, "pilot": 0.3 },
+      "fuel": { "item": "lamp-oil", "capacity": 100, "idle": 0.01, "full": 0.08, "boost": 2.0, "placed": 20 },
+      "ground": {
+        "topSpeed": 20, "reverseSpeed": 6, "brake": 14000, "traction": 9000, "steer": 34, "steerFast": 8, "rolling": 0.015,
+        "handbrakeGrip": 0.45, "gripHeight": 0.55, "coast": 0.12
+      },
+      "hull": [
+        { "centre": [0, 0.89, 1.45], "size": [1.0, 0.09, 3.0] },
+        { "centre": [0, 0.6, 1.8], "size": [0.35, 0.18, 1.6] },
+        { "centre": [0, 0.85, 4.33], "size": [1.0, 0.25, 0.12] },
+        { "centre": [0, 0.85, -1.43], "size": [1.0, 0.22, 0.12] }
+      ],
+      "sockets": [
+        { "key": "bay1", "name": "Bay 1", "at": [0, 0.98, -1.2], "fits": ["bay"], "row": "deck", "levels": 2 },
+        { "key": "bay2", "name": "Bay 2", "at": [0, 0.98, 0.2], "fits": ["bay"], "row": "deck", "levels": 2 },
+        { "key": "bay3", "name": "Bay 3", "at": [0, 0.98, 1.6], "fits": ["bay"], "row": "deck", "levels": 2 },
+        { "key": "nose", "name": "Nose", "at": [0, 0.98, 3.0], "fits": ["engine-mount"] },
+        { "key": "suspension", "name": "Suspension", "at": [0, 0, 0], "fits": ["togg-lift"], "ground": true },
+        { "key": "wheels", "name": "Wheels", "at": [0, 0, 0], "fits": ["togg-wheels"], "ground": true }
+      ],
+      "buildHeight": 3.9,
+      "build": [
+        { "socket": "bay3", "module": "togg-cab-one" }, { "socket": "nose", "module": "togg-engine" }, { "socket": "wheels", "module": "togg-tyres" }
+      ],
+      "seats": [],
+      "doors": [],
+      "parts": [
+        { "key": "hull" },
+        { "key": "fuel", "name": "Fuel cap", "at": [0.9, 0.85, -1.3], "radius": 0.3, "capabilities": ["fuel"] }
+      ],
+      "lights": {
+        "lamps": [
+          { "key": "head-left", "at": [0.58, 1.3, 4.46], "direction": [0, -0.12, 1], "spot": true, "angle": 32, "colour": [1.0, 0.9, 0.72], "energy": 3, "range": 45 },
+          { "key": "head-right", "at": [-0.58, 1.3, 4.46], "direction": [0, -0.12, 1], "spot": true, "angle": 32, "colour": [1.0, 0.9, 0.72], "energy": 3, "range": 45 },
+          { "key": "tail", "at": [0, 0.84, -1.6], "colour": [1.0, 0.08, 0.04], "energy": 0.8, "range": 3 }
+        ],
+        "nav": false
+      },
+      "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 12, "sight": 0.5 },
+      "ceiling": 2,
+      "wreck": [["metal-fragments", 150], ["gears", 2]]
+    },
+    {
+      "key": "zamazingo",
+      "item": "zamazingo",
+      "motor": "ground",
+      "controls": "car",
+      "needsPilot": true,
+      "mass": 160,
+      "inertia": [80, 70, 21],
+      "centreOfMass": [0, 0.72, 0.76],
+      "health": 400,
+      "repair": ["metal-fragments", 80],
+      "damage": { "melee": 0.4, "arrow": 0.3, "bullet": 0.7, "explosive": 1.0 },
+      "drag": { "forward": 0.5, "side": 1.0, "top": 1.0, "turn": 0.3 },
+      "crash": { "safe": 8, "scale": 3, "pilot": 0.5 },
+      "fuel": { "item": "lamp-oil", "capacity": 60, "idle": 0.005, "full": 0.04, "placed": 10 },
+      "ground": {
+        "power": 35000, "topSpeed": 25, "reverseSpeed": 2, "brake": 2500, "traction": 2400, "steer": 30, "steerFast": 4,
+        "rolling": 0.015, "handbrakeGrip": 0.5, "gripHeight": 0.2, "sideGripHeight": 0.7, "coast": 0.12, "balance": true,
+        "wheels": [
+          { "key": "front", "hub": [0, 0.45, 1.544], "radius": 0.45, "width": 0.15, "travel": 0.28, "stiffness": 5000, "damping": 500, "grip": 1.2, "steers": true },
+          { "key": "rear", "hub": [0, 0.43, 0], "radius": 0.43, "width": 0.2, "travel": 0.28, "stiffness": 5000, "damping": 500, "grip": 1.3, "drives": true, "handbrake": true }
+        ]
+      },
+      "hull": [
+        { "centre": [0, 0.78, 0.76], "size": [0.18, 0.26, 0.75] },
+        { "centre": [0, 0.7, 1.544], "size": [0.09, 0.24, 0.42] },
+        { "centre": [0, 0.68, 0], "size": [0.12, 0.24, 0.42] }
+      ],
+      "seats": [
+        {
+          "key": "rider", "name": "Saddle", "role": "helm", "verb": "drive", "sitters": "unlocked", "exposed": true,
+          "at": [0, 1.05, 0.45], "eye": [0, 1.72, 0.55], "exits": [[0.95, 0, 0.5], [-0.95, 0, 0.5], [0, 0, -1.2]]
+        }
+      ],
+      "doors": [],
+      "parts": [
+        { "key": "hull" },
+        { "key": "rider", "name": "Saddle", "at": [0, 1.05, 0.5], "radius": 0.5, "capabilities": ["seat", "cupboard"], "seat": "rider" },
+        { "key": "fuel", "name": "Fuel cap", "at": [0, 1.12, 0.98], "radius": 0.22, "capabilities": ["fuel"] }
+      ],
+      "lights": {
+        "lamps": [
+          { "key": "head", "at": [0, 1.17, 1.4], "direction": [0, -0.15, 1], "spot": true, "angle": 30, "colour": [1.0, 0.9, 0.72], "energy": 2.5, "range": 40 },
+          { "key": "tail", "at": [0, 1.075, -0.66], "colour": [1.0, 0.08, 0.04], "energy": 0.5, "range": 2 }
+        ],
+        "nav": false
+      },
+      "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 8, "sight": 0.5 },
+      "ceiling": 2,
+      "wreck": [["metal-fragments", 60], ["gears", 1]]
+    }
+  ],
+  "presets": [
+    {
+      "item": "monster-togg",
+      "build": [
+        { "socket": "bay3", "module": "togg-cab-one" }, { "socket": "nose", "module": "monster-togg-engine" },
+        { "socket": "suspension", "module": "togg-lift-kit" }, { "socket": "wheels", "module": "monster-tyres" }
+      ]
     }
   ]
 }

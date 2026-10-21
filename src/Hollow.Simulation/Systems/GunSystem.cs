@@ -22,6 +22,8 @@ public sealed class Bullet
 
     /// <summary>The shooter's gun action that fired it.</summary>
     public uint Seq;
+    public AttackId Attack;
+    public uint ActionTick;
     public FirearmStats Gun = null!;
     public BulletStats Round = null!;
     public ItemDef Ammo = null!;
@@ -66,7 +68,7 @@ public sealed class Bullet
 // Firearms (GROUND.md §6.3): shots and reloads the clients asked for, applied at the tick they happened on with the
 // rules both sides share (Combat/Firearms.cs); bullets flown with drop and drag and tested against characters where
 // the shooter saw them; damage by distance, body part and armour; attachments put on and taken off.
-public sealed class GunSystem : ZoneSystem
+public sealed partial class GunSystem : ZoneSystem
 {
     private ActionSystem? _actionsSystem;
     private ActionSystem Actions => _actionsSystem ??= Zone.Require<ActionSystem>();
@@ -122,8 +124,8 @@ public sealed class GunSystem : ZoneSystem
     /// A shot or reload the player's client asked for (a fire or reload intent), queued for its tick in sequence order
     /// (they travel unordered, so a resent one may come after later ones). Returns what it was refused for already (it is
     /// still answered in order), or <see cref="OutcomeCode.Done"/> when it waits for its tick;
-    /// <see cref="OutcomeCode.Stale"/> for one already seen or passed (dropped without an answer: the client's prediction
-    /// starts again from the server's state anyway).
+    /// <see cref="OutcomeCode.Stale"/> for one already seen or passed (fire attempts receive their original decision
+    /// or an explicit refusal). A gap waits within the bounded late-request window before advancing cumulative state.
     /// </summary>
     public OutcomeCode QueueGunAction(Entity entity, GunAction action)
     {
@@ -131,17 +133,30 @@ public sealed class GunSystem : ZoneSystem
         {
             return OutcomeCode.Invalid;
         }
+        AttackId id = new(AttackDomain.Firearm, action.Seq, p.AttackSession);
+        if (action.Kind == GunActionKind.Fire && p.GunAttackJournal.TryGet(id, out AttackResolution known))
+        {
+            Events.Add(new AttackResolved(p.Id, known));
+            return OutcomeCode.Stale; // Queue status only; the wire answer is the original authoritative decision.
+        }
         int at = p.GunQueue.Count;
         while (at > 0 && p.GunQueue[at - 1].Seq > action.Seq)
         {
             at--;
         }
-        if (action.Seq <= p.Gun.LastSeq || (at > 0 && p.GunQueue[at - 1].Seq == action.Seq))
+        if (at > 0 && p.GunQueue[at - 1].Seq == action.Seq)
         {
+            // The first request still owns this attempt; its answer will settle both deliveries.
+            return OutcomeCode.Stale;
+        }
+        if (action.Seq <= p.Gun.LastSeq || action.Kind == GunActionKind.Fire && p.GunAttackJournal.IsExpired(id))
+        {
+            ResolveAttack(p, action, OutcomeCode.Stale);
             return OutcomeCode.Stale;
         }
         if (p.GunQueue.Count >= MaxQueuedGunActions)
         {
+            ResolveAttack(p, action, OutcomeCode.RateLimited);
             return OutcomeCode.RateLimited;
         }
         if (action.Refused == OutcomeCode.Done)
@@ -159,10 +174,12 @@ public sealed class GunSystem : ZoneSystem
                 action.Refused = OutcomeCode.Invalid;
             }
         }
-        if (action.Refused != OutcomeCode.Done && p.GunQueue.Count == 0)
+        if (action.Refused != OutcomeCode.Done && p.GunQueue.Count == 0 &&
+            (!p.CanAct || !AttackOrder.AwaitingEarlier(action.Seq, (ulong)p.Gun.LastSeq + 1, action.Tick, Tick, GunActionLateTicks)))
         {
-            // Nothing before it: answered now (the dead and the sleeping don't step their guns).
-            Settle(p, action.Seq, action.Refused);
+            // An out-of-order refusal must not acknowledge unseen earlier shots/reloads. The dead and
+            // sleeping do not step their guns, so their terminal refusals can still be answered immediately.
+            Settle(p, action, action.Refused);
             return action.Refused;
         }
         p.GunQueue.Insert(at, action);
@@ -180,18 +197,23 @@ public sealed class GunSystem : ZoneSystem
         while (p.GunQueue.Count > 0)
         {
             GunAction a = p.GunQueue[0];
+            if (AttackOrder.AwaitingEarlier(a.Seq, (ulong)p.Gun.LastSeq + 1, a.Tick, Tick, GunActionLateTicks))
+            {
+                break; // Preserve ammunition/recoil/reload order while a missing reliable request is retransmitted.
+            }
             if (a.Refused == OutcomeCode.Done && a.Tick > Tick)
             {
                 break;
             }
             p.GunQueue.RemoveAt(0);
             OutcomeCode result = a.Refused != OutcomeCode.Done ? a.Refused : ApplyGunAction(entity, ref c, p, gun, a);
-            Settle(p, a.Seq, result);
+            Settle(p, a, result);
         }
     }
 
-    private void Settle(Player p, uint seq, OutcomeCode result)
+    private void Settle(Player p, in GunAction action, OutcomeCode result)
     {
+        uint seq = action.Seq;
         GunResults[(int)result & 127]++;
         p.Gun.LastSeq = Math.Max(p.Gun.LastSeq, seq);
         if (result != OutcomeCode.Done)
@@ -200,6 +222,18 @@ public sealed class GunSystem : ZoneSystem
             p.GunRefused = result;
         }
         p.GunRevision++;
+        ResolveAttack(p, action, result);
+    }
+
+    private void ResolveAttack(Player p, in GunAction action, OutcomeCode result)
+    {
+        if (action.Kind != GunActionKind.Fire) return;
+        var resolution = new AttackResolution(new AttackId(AttackDomain.Firearm, action.Seq, p.AttackSession), result,
+            (uint)Math.Clamp(action.Tick, 0, uint.MaxValue),
+            StartTick: result == OutcomeCode.Done ? (uint)Math.Clamp(action.Tick, 0, uint.MaxValue) : 0,
+            ReadyTick: (uint)Math.Clamp((p.Gun.NextFire16 + 15) / 16, 0, uint.MaxValue), StateSequence: p.Gun.LastSeq);
+        p.GunAttackJournal.Remember(resolution);
+        Events.Add(new AttackResolved(p.Id, resolution));
     }
 
     private OutcomeCode ApplyGunAction(Entity entity, ref Character c, Player p, FirearmStats? gun, in GunAction a)
@@ -231,14 +265,9 @@ public sealed class GunSystem : ZoneSystem
             OutcomeCode reload = FirearmRules.BeginReload(ref p.Gun, weapon, gun, ammo, ammo == 0 ? 0 : InventoryRules.Count(carried, ammo), a.Tick);
             if (reload == OutcomeCode.Done)
             {
-                p.ActionCount++;
-                p.LastAction = ActionKind.Reload;
+                p.RecordAction(ActionKind.Reload, weapon.Item, a.Tick);
             }
             return reload;
-        }
-        if ((c.State.Flags & (MoveFlags.Sprinting | MoveFlags.Swimming)) != 0)
-        {
-            return OutcomeCode.Lowered;
         }
         // On its tick the shot leaves from where the shooter is; a late one (its intent was resent) from where they were.
         // Aboard a ship (IRON_WAKE.md §4.9) it is worked out in the ship's frame, as the shooter's client predicted it, and
@@ -246,13 +275,29 @@ public sealed class GunSystem : ZoneSystem
         ulong frame = c.State.Frame;
         Vector3 up = frame == 0 ? Frame.UpAt(c.State.Position) : Vector3.UnitY;
         Vector3 eye = c.State.Position + up * Tuning.EyeHeight(c.State.Stance);
-        if (a.Tick < Tick && History.SampleLocal(p.Id, a.Tick, out HitPose pose, out ulong then))
+        Vector3 velocity = c.State.Velocity;
+        bool crouched = c.State.Stance == Stance.Crouching;
+        MoveFlags flags = c.State.Flags;
+        if (a.Tick < Tick)
         {
+            if (!History.SampleLocalAtTick(p.Id, a.Tick, out HitPose pose, out ulong then)) return OutcomeCode.TooLate;
             frame = then;
             up = pose.Up;
             eye = pose.Feet + pose.Up * (pose.Pose == Pose.Crouching ? Tuning.CrouchingEyeHeight : Tuning.StandingEyeHeight);
+            velocity = pose.Velocity;
+            crouched = pose.Pose == Pose.Crouching;
+            flags = pose.Flags;
         }
-        Vector3 view = Zone.Frames.ViewIn(a.View, a.Frame, frame, Tick);
+        if ((flags & (MoveFlags.Sprinting | MoveFlags.Swimming)) != 0) return OutcomeCode.Lowered;
+        Vector3 view = a.View;
+        if (a.Frame != frame)
+        {
+            // Server ShipFrame.TryPose is current-only: a queued handover needs the recorded
+            // source and target frames at the shot tick, before the seen-pose spawn conversion below.
+            if (Zone.SeenPose(a.Frame, a.Tick, out ShipPose source)) view = source.DirectionToWorld(view);
+            if (Zone.SeenPose(frame, a.Tick, out ShipPose target)) view = target.DirectionToLocal(view);
+            view = Vector3.Normalize(view);
+        }
         var context = new ShotContext
         {
             Shooter = p.Id,
@@ -263,9 +308,9 @@ public sealed class GunSystem : ZoneSystem
             Aimed = a.Aimed,
             Eye = eye,
             Up = up,
-            Velocity = c.State.Velocity,
-            Crouched = c.State.Stance == Stance.Crouching,
-            Airborne = (c.State.Flags & (MoveFlags.OnGround | MoveFlags.Swimming)) == 0,
+            Velocity = velocity,
+            Crouched = crouched,
+            Airborne = (flags & (MoveFlags.OnGround | MoveFlags.Swimming)) == 0,
         };
         OutcomeCode result = FirearmRules.Fire(ref p.Gun, ref weapon, content, gun, context, out Shot shot);
         if (result != OutcomeCode.Done)
@@ -282,8 +327,7 @@ public sealed class GunSystem : ZoneSystem
             shot = shot with { Origin = origin, Direction = seen.DirectionToWorld(shot.Direction) };
         }
         LaunchBullet(p, gun, shot, a, shipVelocity);
-        p.ActionCount++;
-        p.LastAction = ActionKind.Shoot;
+        p.RecordAction(ActionKind.Shoot, weapon.Item, a.Tick);
         Combat.Wear(entity, p, p.HeldSlot);
         return OutcomeCode.Done;
     }
@@ -320,11 +364,12 @@ public sealed class GunSystem : ZoneSystem
     }
 
     /// <summary>A new life or a death: nothing in hand, and every waiting action answered (the client drops them).</summary>
-    internal static void ResetGun(Player p)
+    internal void ResetGun(Player p)
     {
         uint last = p.Gun.LastSeq;
         foreach (GunAction a in p.GunQueue)
         {
+            ResolveAttack(p, a, OutcomeCode.Dead);
             last = Math.Max(last, a.Seq);
         }
         p.GunQueue.Clear();
@@ -338,7 +383,7 @@ public sealed class GunSystem : ZoneSystem
     {
         foreach (GunAction a in p.GunQueue)
         {
-            Settle(p, a.Seq, result);
+            Settle(p, a, result);
         }
         p.GunQueue.Clear();
         if (p.Gun.Reloading)
@@ -368,6 +413,8 @@ public sealed class GunSystem : ZoneSystem
             Shooter = p.Id,
             ShooterName = p.Name,
             Seq = a.Seq,
+            Attack = new AttackId(AttackDomain.Firearm, a.Seq, p.AttackSession),
+            ActionTick = (uint)Math.Clamp(a.Tick, 0, uint.MaxValue),
             Gun = gun,
             Round = shot.Round.Bullet!,
             Ammo = shot.Round,
@@ -384,7 +431,10 @@ public sealed class GunSystem : ZoneSystem
             Silenced = shot.Mods.Silenced,
         };
         _bullets.Add(bullet);
-        Events.Add(new ProjectileLaunched(Shooter: p.Id, Projectile: bullet.Id, Ammo: shot.Round.Id, Position: bullet.Position, Velocity: bullet.Velocity, Seq: a.Seq, Silenced: bullet.Silenced));
+        Events.Add(new ProjectileLaunched(Shooter: p.Id, Projectile: bullet.Id, Ammo: shot.Round.Id, Position: bullet.Position, Velocity: bullet.Velocity, Seq: a.Seq, Silenced: bullet.Silenced)
+        {
+            Attack = bullet.Attack, Tick = (uint)Tick, Weapon = gun.Item.Id, Gravity = bullet.Gravity, Drag = (float)bullet.Drag,
+        });
     }
 
     /// <summary>
@@ -394,7 +444,7 @@ public sealed class GunSystem : ZoneSystem
     /// off where it stops. Its shooter is the gunner; its number is the station's shot's.
     /// </summary>
     public Bullet LaunchBattery(EntityId shooter, string shooterName, ItemDef round, BatteryDef battery, LaunchProfile profile, Vector3 origin, Vector3 direction,
-        Vector3 carried, uint number, int station, int barrel, float rewindTicks, ulong ownShip = 0)
+        Vector3 carried, uint number, int station, int barrel, float rewindTicks, ulong ownShip = 0, AttackId attack = default)
     {
         var bullet = new Bullet
         {
@@ -402,6 +452,8 @@ public sealed class GunSystem : ZoneSystem
             Shooter = shooter,
             ShooterName = shooterName,
             Seq = number,
+            Attack = attack,
+            ActionTick = (uint)Tick,
             Round = round.Bullet!,
             Ammo = round,
             Origin = origin,
@@ -421,6 +473,7 @@ public sealed class GunSystem : ZoneSystem
         Events.Add(new ProjectileLaunched(Shooter: shooter, Projectile: bullet.Id, Ammo: round.Id, Position: bullet.Position, Velocity: bullet.Velocity, Seq: number)
         {
             Battery = battery.Index + 1,
+            Attack = attack, Tick = (uint)Tick, Gravity = (float)(Spec.SurfaceGravity * 9.80665),
         });
         return bullet;
     }
@@ -498,8 +551,11 @@ public sealed class GunSystem : ZoneSystem
         BulletTime += System.Diagnostics.Stopwatch.GetElapsedTime(started);
     }
 
-    private void EndBullet(Bullet b, Vector3 at, TargetRef target) =>
-        Events.Add(new ProjectileEnded(Shooter: b.Shooter, Projectile: b.Id, Position: at, Target: target, Seq: b.Seq));
+    private void EndBullet(Bullet b, Vector3 at, TargetRef target, SurfaceContact contact = default) =>
+        Events.Add(new ProjectileEnded(Shooter: b.Shooter, Projectile: b.Id, Position: at, Target: target, Seq: b.Seq)
+        {
+            Attack = b.Attack, Tick = (uint)Tick, Battery = b.Battery + 1, Ammo = b.Ammo.Id, Contact = contact,
+        });
 
     // Out of range or time in the air: a bullet just stops; a rocket goes off where it is (G5).
     private void EndFlight(Bullet b)
@@ -515,7 +571,7 @@ public sealed class GunSystem : ZoneSystem
     private void BulletHit(Bullet b, in TraceHit hit)
     {
         float distance = b.Distance + hit.Distance;
-        EndBullet(b, hit.Point, hit.Target);
+        EndBullet(b, hit.Point, hit.Target, hit.Contact);
         Players.TryFindPlayer(b.Shooter, out _, out Player? shooter);
         if (b.Round.Blast is { } rocket && b.Damage <= 0)
         {
@@ -547,6 +603,8 @@ public sealed class GunSystem : ZoneSystem
             Attacker = shooter?.Id ?? EntityId.None,
             AttackerName = shooter?.Name ?? b.ShooterName,
             Weapon = b.Gun.Item.Id,
+            Attack = b.Attack,
+            ActionTick = b.ActionTick,
             Delivery = DamageDelivery.Bullet,
             Channel = DamageType.Bullet,
             Amounts = new DamageAmounts

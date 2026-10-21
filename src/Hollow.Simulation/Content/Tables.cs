@@ -167,8 +167,22 @@ public sealed class DeployableDef
 
     public DeviceStats? Device { get; init; }
 
+    /// <summary>Optional shared electrical, defense and compound-assembly behaviors.</summary>
+    public PowerStats? Power { get; init; }
+    public DefenseStats? Defense { get; init; }
+    public string? Assembly { get; init; }
+    public CompoundGateStats? Gate { get; init; }
+    public CompoundClimbStats? Climb { get; init; }
+    public ContactHazardStats? ContactHazard { get; init; }
+
+    /// <summary>Full material basis for hammer repairs; the shared building fraction and restored health scale it.</summary>
+    public IReadOnlyList<ItemAmount> RepairCost { get; init; } = Array.Empty<ItemAmount>();
+
     /// <summary>The workbench level it gives within reach (0: not a workbench).</summary>
     public int Workbench { get; init; }
+
+    /// <summary>The tree offered here, linked from world.json. Specialized stations retain workbench level zero.</summary>
+    public TechTree? TechTree { get; internal set; }
 
     /// <summary>Its storage is take only (a world crate, G7).</summary>
     public bool TakeOnly { get; init; }
@@ -206,8 +220,11 @@ public sealed class DeployableDef
 }
 
 /// <summary>
-/// A station's bay (deployables.json, G6): where a ship it builds rolls out, in the station's frame (x across, y up, z out
-/// of its front), the half size of the space that must be clear there, and the steepest ground it may stand on.
+/// A station's bay (deployables.json, G6): where a ship it builds rolls out, in the station's frame as its model is drawn
+/// (x its right, y up, z out of its front: the model's +Z, against its yaw's forward, <see cref="Combat.Geometry.Upright"/>; so a
+/// placed station's bay lies toward whoever put it down), the half size of the space that must be clear there, and the
+/// steepest ground it may stand on. The client paints it in that frame (BayMarking), and every rule reads it through
+/// <see cref="Axes"/>, so the paint and the rules agree.
 /// </summary>
 public sealed class BayStats
 {
@@ -216,6 +233,37 @@ public sealed class BayStats
     public Vector3 Clear { get; init; }
 
     public float MaxSlopeDegrees { get; init; } = 20;
+
+    /// <summary>A station's right and the way out of its front (against its yaw's forward): the bay's x and z.</summary>
+    public static (Vector3 Right, Vector3 Out) Axes(Vector3 up, float yaw)
+    {
+        (Vector3 right, Vector3 forward) = Combat.Geometry.Axes(up, yaw);
+        return (right, -forward);
+    }
+
+    /// <summary>The middle of the bay's floor for a station standing at a base point (its up and yaw).</summary>
+    public Vector3 Centre(Vector3 basePoint, Vector3 up, float yaw)
+    {
+        (Vector3 right, Vector3 outward) = Axes(up, yaw);
+        return basePoint + right * At.X + up * At.Y + outward * At.Z;
+    }
+
+    /// <summary>The heading a ship rolled out onto the bay of a station at this yaw faces: out of the bay, away from the station.</summary>
+    public static float RollOutYaw(float yaw) => MathF.IEEERemainder(yaw + MathF.PI, MathF.Tau);
+
+    /// <summary>
+    /// A point in the bay of a station standing at a base point (its up and yaw): within its clear space across and along, from
+    /// half a metre under its ground to its clear height, grown by <paramref name="margin"/> across and along (VEHICLES.md
+    /// §9.11: a vehicle whose centre of mass is in it is the bay's; a player near it may work on it).
+    /// </summary>
+    public bool Holds(Vector3 basePoint, Vector3 up, float yaw, Vector3 point, float margin = 0)
+    {
+        (Vector3 right, Vector3 outward) = Axes(up, yaw);
+        Vector3 d = point - Centre(basePoint, up, yaw);
+        float above = Vector3.Dot(d, up);
+        return MathF.Abs(Vector3.Dot(d, right)) <= Clear.X + margin && MathF.Abs(Vector3.Dot(d, outward)) <= Clear.Z + margin &&
+            above >= -0.5f && above <= Clear.Y * 2;
+    }
 }
 
 /// <summary>A loot table (loot.json).</summary>
@@ -331,6 +379,10 @@ public sealed class SurvivalTuning
     public float SpawnCalories { get; init; } = 260;
     public float SpawnHydration { get; init; } = 160;
 
+    public float BreathSeconds { get; init; } = 20;
+    public float BreathRecoveryPerSecond { get; init; } = 5;
+    public float SuffocationDamagePerSecond { get; init; } = 10;
+
     public float CaloriesPerSecond { get; init; }
     public float HydrationPerSecond { get; init; }
     public float SprintFactor { get; init; } = 1;
@@ -375,6 +427,8 @@ public sealed class SurvivalTuning
     public LifetimeRule BagLifetime { get; init; } = new(300, LifetimeRestart.Deposit, true);
 
     public LifetimeRule BodyLifetime { get; init; } = new(300, LifetimeRestart.None, true);
+
+    public Hollow.Simulation.World.CorpseTuning Corpse { get; init; } = new();
 
     /// <summary>A dud (a charge whose fuse went out) nobody lights again.</summary>
     public LifetimeRule DudLifetime { get; init; } = new(600, LifetimeRestart.None, false);

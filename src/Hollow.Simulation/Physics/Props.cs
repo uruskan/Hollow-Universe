@@ -1,4 +1,6 @@
 using System.Numerics;
+using System.Collections.Generic;
+using Hollow.Simulation.Building;
 using JoltPhysicsSharp;
 
 namespace Hollow.Simulation.Physics;
@@ -37,6 +39,7 @@ public enum PropKind : byte
     Sphere,
 
     Box,
+    Compound,
 }
 
 /// <summary>A static collision shape for a prop (GROUND.md §4.5: deployables and natural objects use simple shapes).</summary>
@@ -55,6 +58,12 @@ public readonly record struct PropShape
     public float HalfHeight { get; init; }
 
     public Vector3 HalfExtents { get; init; }
+    public ConvexPart[]? Parts { get; init; }
+
+    public static PropShape Compound(Vector3 at, Quaternion rotation, ConvexPart[] parts) => new()
+    {
+        Kind = PropKind.Compound, Centre = at, Rotation = rotation, Parts = parts,
+    };
 
     public static PropShape Capsule(Vector3 a, Vector3 b, float radius, Vector3 up) => new()
     {
@@ -96,20 +105,36 @@ public readonly record struct PropShape
     {
         switch (Kind)
         {
+            case PropKind.Compound:
+            {
+                using var compound = new StaticCompoundShapeSettings().Owned();
+                var settings = new List<ConvexHullShapeSettings>();
+                try
+                {
+                    foreach (ConvexPart part in Parts!)
+                    {
+                        var hull = new ConvexHullShapeSettings(part.Points, 0.005f).Owned();
+                        settings.Add(hull);
+                        compound.AddShape(Vector3.Zero, Quaternion.Identity, hull, 0);
+                    }
+                    return compound.Create();
+                }
+                finally { foreach (var hull in settings) hull.Dispose(); }
+            }
             case PropKind.Capsule:
             {
-                using var settings = new CapsuleShapeSettings(System.Math.Max(0.01f, HalfHeight), Radius);
+                using var settings = new CapsuleShapeSettings(System.Math.Max(0.01f, HalfHeight), Radius).Owned();
                 return settings.Create();
             }
             case PropKind.Sphere:
             {
-                using var settings = new SphereShapeSettings(Radius);
+                using var settings = new SphereShapeSettings(Radius).Owned();
                 return settings.Create();
             }
             default:
             {
                 Vector3 half = Vector3.Max(HalfExtents, new Vector3(0.06f));
-                using var settings = new BoxShapeSettings(half, 0.05f);
+                using var settings = new BoxShapeSettings(half, 0.05f).Owned();
                 return settings.Create();
             }
         }

@@ -10,6 +10,7 @@ using Hollow.Simulation.Content;
 using Hollow.Simulation.Economy;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
+using Hollow.Simulation.Targets;
 using HollowUniverse.UI.Model;
 using Num = System.Numerics;
 using SimRecipe = Hollow.Simulation.Content.Recipe;
@@ -32,10 +33,12 @@ public sealed partial class ClientGroundUi
     private const double QuietSeconds = 3;
 
     private MapView? _mapView;
+    private Hollow.Client.Map.ZoneMap? _mapSource;
     private readonly List<MapMarkerView> _mapMarkers = new();
     private double _mapMarkersAt = double.MinValue;
     private TechTreeView? _tree;
-    private (int Level, int Salvage, long Known) _treeKey = (-1, -1, -1);
+    private (TechTree? Tree, int Salvage, long Known) _treeKey;
+    private TargetRef _techBench;
     private TeamView? _teamFrom;
     private TeamInfo? _team;
     private readonly List<TeamInviteInfo> _invites = new();
@@ -59,9 +62,16 @@ public sealed partial class ClientGroundUi
     {
         get
         {
-            if (_mapView == null && _client.World().Map is { } map)
+            if (_client.World().Map is not { } map)
             {
-                _mapView = new MapView(map.CacheKey, MapPixels, () => map.Render(MapPixels).Rgba, map.Radius, map.Cells);
+                _mapSource = null;
+                return _mapView = null;
+            }
+            if (_mapView == null || !ReferenceEquals(_mapSource, map))
+            {
+                _mapSource = map;
+                _mapView = new MapView(map.CacheKey, MapPixels, () => map.Render(MapPixels).Rgba, map.Radius, map.Cells,
+                    token => map.Render(MapPixels, token).Rgba);
             }
             return _mapView;
         }
@@ -90,7 +100,7 @@ public sealed partial class ClientGroundUi
             foreach (RespawnPointView point in Me.RespawnPoints)
             {
                 _mapMarkers.Add(At(point.Bed ? MapMarkerKind.Bed : MapMarkerKind.Bag, point.Position,
-                    C.Item(point.Bed ? "bed" : "sleeping-bag")?.Name ?? (point.Bed ? "Bed" : "Sleeping bag")));
+                    point.Name.Length > 0 ? point.Name : C.Item(point.Bed ? "bed" : "sleeping-bag")?.Name ?? (point.Bed ? "Bed" : "Sleeping bag")));
             }
             if (Me.DeathPoint is { } death)
             {
@@ -181,13 +191,17 @@ public sealed partial class ClientGroundUi
     {
         get
         {
-            int level = Me.WorkbenchLevel;
-            if (level <= 0 || C.World.Tree(level) is not { Nodes.Count: > 0 } tree)
+            if (_techBench.IsNone)
             {
+                _techBench = _client.Interaction().BenchNear();
+            }
+            if (_client.Interaction().TechTreeAt(_techBench) is not { } tree)
+            {
+                _techBench = TargetRef.None;
                 return null;
             }
             int salvage = C.World.Currency is { } currency ? Me.Inventory.Count(currency) : 0;
-            (int, int, long) key = (level, salvage, KnownSignature());
+            (TechTree, int, long) key = (tree, salvage, KnownSignature());
             if (_tree != null && key == _treeKey)
             {
                 return _tree;
@@ -202,7 +216,7 @@ public sealed partial class ClientGroundUi
                     : TechNodeState.Open;
                 nodes[i] = new TechNodeView(node.Item.Key, node.Cost, node.Depth, node.After.Select(a => a.Item.Key).ToArray(), state);
             }
-            return _tree = new TechTreeView(level, nodes, salvage);
+            return _tree = new TechTreeView(tree.Workbench, nodes, salvage, tree.Station?.Item.Name) { Bay = tree.Station?.Bay != null };
         }
     }
 
@@ -218,10 +232,14 @@ public sealed partial class ClientGroundUi
             Notice?.Invoke(C.Texts.Line(can));
             return;
         }
-        Me.Unlock(_client.Interaction().BenchNear(), node.Recipe.Id);
+        if (_client.Interaction().TechTreeAt(_techBench)?.Nodes.Contains(node) != true)
+        {
+            return;
+        }
+        Me.Unlock(_techBench, node.Recipe.Id);
     }
 
-    // What the player has learnt, as one number (the same set gives the same number, in any order).
+    // Available knowledge, including the admin override (the same learnt set gives the same number in any order).
     private long KnownSignature()
     {
         IReadOnlyCollection<ushort> learnt = Me.Blueprints.Learnt;
@@ -231,7 +249,7 @@ public sealed partial class ClientGroundUi
             sum += id;
             mix ^= (id * 2654435761L) & 0xFFFFFFFF;
         }
-        return ((long)learnt.Count << 40) ^ (sum << 20) ^ mix;
+        return ((long)learnt.Count << 40) ^ (sum << 20) ^ mix ^ (Me.FreeBuild ? long.MinValue : 0);
     }
 
     // ---------------------------------------------------------------- the team

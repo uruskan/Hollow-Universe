@@ -17,7 +17,6 @@ public sealed class PlacementModule : ClientModule
 {
     private readonly Dictionary<TargetRef, int> _thingsOn = new();
     private PlacementWorld? _placement;
-    private ItemWallet? _placementWallet;
     private SurvivalModule? _survivalModule;
     private SurvivalModule Survival => _survivalModule ??= Client.Require<SurvivalModule>();
     private BuildingModule? _buildingModule;
@@ -44,8 +43,7 @@ public sealed class PlacementModule : ClientModule
         {
             return null;
         }
-        _placementWallet ??= new ItemWallet(Content, Local.Inventory.Carried);
-        var ctx = new PlacementContext(EntityId.Value, eye, placeable, _placementWallet);
+        var ctx = new PlacementContext(EntityId.Value, eye, placeable, new ItemWallet(Content, Local.Inventory.Carried, Local.FreeBuild), Local.BuildGrade);
         return Placer.Plan(world, ctx, new PlacementAim(direction, viewYaw, turns));
     }
 
@@ -74,9 +72,8 @@ public sealed class PlacementModule : ClientModule
         {
             return null;
         }
-        _placementWallet ??= new ItemWallet(Content, Local.Inventory.Carried);
         Vector3 eye = Prediction!.WorldPose(EyeHeight).Eye; // aboard a ship, where it carries the player (IRON_WAKE.md §4.8)
-        return Placer.Settle(world, new PlacementContext(EntityId.Value, eye, placeable, _placementWallet), claim, out refused);
+        return Placer.Settle(world, new PlacementContext(EntityId.Value, eye, placeable, new ItemWallet(Content, Local.Inventory.Carried, Local.FreeBuild), Local.BuildGrade), claim, out refused);
     }
 
     /// <summary>The surface's own ground, asked as the zone asks it (<see cref="Simulation.GroundProbe"/>); null before joining.</summary>
@@ -126,7 +123,8 @@ public sealed class PlacementModule : ClientModule
             {
                 if (Vector3.DistanceSquared(thing.Position, point) <= radius * radius && thing.Deployable(client.Content) is { } def)
                 {
-                    into.Add(new PlacedThing(new TargetRef(TargetFamily.Thing, thing.Id.Value), def, thing.Position, thing.Up, thing.Yaw));
+                    into.Add(new PlacedThing(new TargetRef(TargetFamily.Thing, thing.Id.Value), def, thing.Position, thing.Up, thing.Yaw,
+                        thing.Utility.Open, thing.Utility.Lock));
                 }
             }
         }

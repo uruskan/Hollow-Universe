@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using Godot;
 using Hollow.Simulation.Ships;
@@ -9,6 +10,16 @@ using G = HollowUniverse.Common.Ui.Ground;
 namespace HollowUniverse.Ships;
 
 /// <summary>What the flight HUD shows this frame (the host fills it from the zone or the client's prediction).</summary>
+/// <summary>What the HUD's left gauge and status show (the control scheme says, <see cref="IShipControlScheme.Gauge"/>).</summary>
+public enum HudGauge : byte
+{
+    /// <summary>The throttle lever and flight assist (thrusters, a boat's lever).</summary>
+    Throttle,
+
+    /// <summary>A rotor's spin and collective (docs/MINICOPTER.md §8); no flight assist, no orbit.</summary>
+    Rotor,
+}
+
 public sealed class ShipHudData
 {
     public ShipDef? Def;
@@ -20,7 +31,7 @@ public sealed class ShipHudData
     /// <summary>Metres over the ground (or the sea) below, and over the planet's datum (the ceiling's measure).</summary>
     public float OverGround, Height;
 
-    /// <summary>The leaving height over the datum on this world, in metres (the ship's ceiling in world radii, docs/WHOLE_WORLD.md decision 4).</summary>
+    /// <summary>The orbital-altitude marker over the datum, in metres; flight continues through it.</summary>
     public float Ceiling = float.PositiveInfinity;
 
     /// <summary>Degrees from north toward east, the nose's heading.</summary>
@@ -31,6 +42,12 @@ public sealed class ShipHudData
 
     public Vector2 Stick;
     public bool AssistOff;
+
+    /// <summary>The ship flies (altitude, climb, flight assist, orbit); false: a boat's HUD, speed and heading alone.</summary>
+    public bool Flies = true;
+
+    /// <summary>The left gauge: the throttle lever, or a rotor's spin.</summary>
+    public HudGauge Gauge;
 
     /// <summary>Seconds to hit the ground at this sink rate (infinite when climbing).</summary>
     public float TimeToGround = float.PositiveInfinity;
@@ -145,7 +162,7 @@ public partial class ShipHud : Control
         if (d.Hints != null)
         {
             _o = Vector2.Zero;
-            Text(d.Hints, 24, 18, 16, G.Ink, bold: true, shadow: true);
+            PaintHints(d.Hints);
         }
         if (d.Def == null)
         {
@@ -164,9 +181,56 @@ public partial class ShipHud : Control
         }
         PaintCentre(d);
         PaintReadouts(d);
-        PaintThrottle(d);
+        if (d.Gauge == HudGauge.Rotor)
+        {
+            PaintRotor(d);
+        }
+        else
+        {
+            PaintThrottle(d);
+        }
         PaintHullAndFuel(d);
         PaintWarnings(d);
+    }
+
+    // Keep the flight help within the viewport at any UI scale, with at most two measured lines.
+    private void PaintHints(string hints)
+    {
+        float width = Math.Max(1, Size.X - Ui.Px(48));
+        List<string> Lines(float size)
+        {
+            FontFile font = G.Font(size, bold: true);
+            int px = Ui.Px(size);
+            var lines = new List<string>();
+            foreach (string paragraph in hints.Split('\n'))
+            {
+                string line = "";
+                foreach (string hint in paragraph.Split('·', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+                {
+                    string next = line.Length == 0 ? hint : line + " · " + hint;
+                    if (line.Length > 0 && font.GetStringSize(next, HorizontalAlignment.Left, -1, px).X > width)
+                    {
+                        lines.Add(line);
+                        line = hint;
+                    }
+                    else line = next;
+                }
+                if (line.Length > 0) lines.Add(line);
+            }
+            return lines;
+        }
+        float size = 16;
+        List<string> lines = Lines(size);
+        while (size > 13 && lines.Count > 2) lines = Lines(--size);
+        for (int i = 0; i < Math.Min(2, lines.Count); i++)
+        {
+            string line = lines[i];
+            if (i == 1 && lines.Count > 2) line += " …";
+            FontFile font = G.Font(size, bold: true);
+            while (line.Length > 1 && font.GetStringSize(line, HorizontalAlignment.Left, -1, Ui.Px(size)).X > width)
+                line = line.TrimEnd(' ', '…')[..^1] + "…";
+            Text(line, 24, 18 + i * (size + 5), size, G.Ink, bold: true, shadow: true);
+        }
     }
 
     // The crosshair and the stick: a ring for the stick's reach, a dot where it is.
@@ -175,11 +239,10 @@ public partial class ShipHud : Control
         _o = CentreFrame;
         var faint = new Color(G.Ink, 0.28f);
         Ring(800, 450, 6, new Color(G.Ink, 0.85f), 1.5f);
-        Ring(800, 450, 70, faint, 1f);
-        Vector2 stick = d.Stick.LimitLength(1);
+        Vector2 stick = d.Stick;
         if (stick.Length() > 0.02f)
         {
-            Vector2 at = new(800 + stick.X * 70, 450 - stick.Y * 70);
+            Vector2 at = new(800 + stick.X * ShipControls.SteeringReach, 450 - stick.Y * ShipControls.SteeringReach);
             DrawLine(Pt(800, 450), Pt(at.X, at.Y), new Color(G.Ink, 0.35f), Math.Max(1f, Ui.Pxf(1.5f)), true);
             DrawCircle(Pt(at.X, at.Y), Ui.Pxf(4.5f), new Color(G.Ink, 0.9f));
         }
@@ -194,14 +257,17 @@ public partial class ShipHud : Control
     {
         _o = CanvasFrame;
         const float w = 172, h = 66, gap = 6, y = 900 - 24 - h;
-        float x0 = 800 - (3 * w + 2 * gap) / 2;
         string climb = (d.VerticalSpeed >= 0 ? "+" : "−") + N(MathF.Abs(d.VerticalSpeed), MathF.Abs(d.VerticalSpeed) < 10 ? "0.0" : "0");
-        (string Label, string Value, string Unit)[] slots =
-        {
-            ("SPEED", N(d.Speed), "m/s"),
-            ("ALTITUDE", d.OverGround >= 10_000 ? N(d.OverGround / 1000, "0.0") : N(MathF.Max(d.OverGround, 0)), d.OverGround >= 10_000 ? "km" : "m"),
-            ("VERTICAL", climb, "m/s"),
-        };
+        // A boat's speed alone, in knots too (1 m/s is 1.944 knots): nothing climbs.
+        (string Label, string Value, string Unit)[] slots = d.Flies
+            ? new[]
+            {
+                ("SPEED", N(d.Speed), "m/s"),
+                ("ALTITUDE", d.OverGround >= 10_000 ? N(d.OverGround / 1000, "0.0") : N(MathF.Max(d.OverGround, 0)), d.OverGround >= 10_000 ? "km" : "m"),
+                ("VERTICAL", climb, "m/s"),
+            }
+            : new[] { ("SPEED", N(d.Speed, "0.0"), "m/s"), ("SPEED", N(d.Speed * 1.944f, "0.0"), "kn") };
+        float x0 = 800 - (slots.Length * w + (slots.Length - 1) * gap) / 2;
         for (int i = 0; i < slots.Length; i++)
         {
             float x = x0 + i * (w + gap);
@@ -246,6 +312,32 @@ public partial class ShipHud : Control
         }
     }
 
+    // A rotor's spin (how fast its blades turn, rising over seconds as the engine starts) and beside it the collective (the
+    // share of the rotor's lift it is giving now), where the throttle lever stands for thrusters.
+    private void PaintRotor(ShipHudData d)
+    {
+        _o = LeftFrame;
+        const float x = 24, top = 618, height = 252, w = 44;
+        ShipState s = d.State;
+        float spool = Math.Clamp(s.Spool, 0, 1), load = Math.Clamp(s.Thrust.Y, 0, 1);
+        Rect(x, top, w, height, G.HudSlot);
+        float fill = (height - 8) * spool;
+        if (fill > 0)
+        {
+            Rect(x + 4, top + height - 4 - fill, w - 8, fill, new Color(spool >= 0.999f ? G.Selected : G.Warning, 0.95f));
+        }
+        const float lx = x + w + 6, lw = 10;
+        Rect(lx, top, lw, height, G.HudSlot);
+        float lift = (height - 4) * load;
+        if (lift > 0)
+        {
+            Rect(lx + 2, top + height - 2 - lift, lw - 4, lift, new Color(G.Ink, 0.85f));
+        }
+        Text("ROTOR", x, top - 24, 16, G.Ink, bold: true, shadow: true);
+        Text(N(MathF.Round(spool * 100)) + "%", lx + lw + 10, top + height - 30, 22, G.Ink, bold: true, condensed: true, shadow: true);
+        Text("LIFT " + N(MathF.Round(load * 100)) + "%", lx + lw + 10, top + height - 54, 16, G.Ink, bold: true, shadow: true);
+    }
+
     // Hull and fuel where the vitals sit, flight assist, boost, landed and orbit stacked above them.
     private void PaintHullAndFuel(ShipHudData d)
     {
@@ -279,8 +371,32 @@ public partial class ShipHud : Control
             Text(label, 1350, y + 5, 18, G.Ink, bold: true);
             TextIn(value, 1340, y + 5, 230, 18, G.Ink, HorizontalAlignment.Right, bold: true);
         }
-        Status("FLIGHT ASSIST", d.AssistOff ? "OFF" : "ON", d.AssistOff ? G.Red : G.HudSlot);
-        if (s.Has(ShipFlags.Boosting))
+        if (d.Gauge == HudGauge.Rotor)
+        {
+            // The rotor's state: still, coming up to speed (not yet enough to lift), or turning at its working speed.
+            if (s.Spool <= 0)
+            {
+                Status("ROTOR", "STOPPED", G.HudSlot);
+            }
+            else if (s.Spool < 0.999f)
+            {
+                Status("ROTOR", s.Has(ShipFlags.EnginesOn) ? "SPOOLING" : "WINDING DOWN", G.Short);
+            }
+        }
+        else if (d.Flies)
+        {
+            Status("FLIGHT ASSIST", d.AssistOff ? "OFF" : "ON", d.AssistOff ? G.Red : G.HudSlot);
+        }
+        else if (!s.Has(ShipFlags.Wet))
+        {
+            Status("AGROUND", "", G.Short);
+        }
+        if (s.Has(ShipFlags.Boosting) && def.Ground != null)
+        {
+            // A vehicle's overboost (VEHICLES.md §9.10) has no timer: it lasts while Shift is held.
+            Status("OVERBOOST", "", G.Selected);
+        }
+        else if (s.Has(ShipFlags.Boosting))
         {
             Status("BOOST", N(s.BoostTicks / 30f, "0.0") + " s", G.Selected);
         }
@@ -292,11 +408,11 @@ public partial class ShipHud : Control
         {
             Status("IN ORBIT", "", G.Category);
         }
-        else if (s.Has(ShipFlags.Landed))
+        else if (d.Flies && s.Has(ShipFlags.Landed))
         {
             Status("LANDED", "", G.Green);
         }
-        else if (s.Has(ShipFlags.Touching))
+        else if (d.Flies && s.Has(ShipFlags.Touching))
         {
             Status("ON THE GROUND", "TOO STEEP", G.Short);
         }
@@ -318,7 +434,7 @@ public partial class ShipHud : Control
             TextIn(text, 0, y, 1600, size, colour, HorizontalAlignment.Center, bold: true, condensed: true, shadow: true);
             y += size + 8;
         }
-        if (!s.Has(ShipFlags.InOrbit) && d.TimeToGround < 4 && d.Speed > 15 && d.VerticalSpeed < -8)
+        if (d.Flies && !s.Has(ShipFlags.InOrbit) && d.TimeToGround < 4 && d.Speed > 15 && d.VerticalSpeed < -8)
         {
             Line("PULL UP", G.Red, 40);
         }
@@ -330,9 +446,21 @@ public partial class ShipHud : Control
         {
             Line("LOW FUEL", G.Warning);
         }
-        if (!s.Has(ShipFlags.InOrbit) && d.Height > d.Ceiling - 1000)
+        if (!d.Flies || d.Gauge == HudGauge.Rotor)
         {
-            Line($"ORBIT IN {N(MathF.Max(d.Ceiling - d.Height, 0))} M  ·  CEILING {N(d.Ceiling / 1000)} KM", G.Ink, 24);
+            // A boat goes nowhere near the orbit's lines, and a rotor's ceiling is far below them.
+        }
+        else if (s.Has(ShipFlags.AtEdge))
+        {
+            Line("LOCAL FLIGHT LIMIT  ·  TURN OR DESCEND", G.Warning, 24);
+        }
+        else if (!s.Has(ShipFlags.InOrbit) && d.Height >= d.Ceiling)
+        {
+            Line("ORBITAL ALTITUDE  ·  FLIGHT CONTROLS ACTIVE", G.Ink, 24);
+        }
+        else if (!s.Has(ShipFlags.InOrbit) && d.Height > d.Ceiling - 1000)
+        {
+            Line($"ORBITAL ALTITUDE IN {N(d.Ceiling - d.Height)} M", G.Ink, 24);
         }
         if (d.Notice != null)
         {

@@ -95,7 +95,7 @@ public sealed class WoundedSystem : ZoneSystem
         }
     }
 
-    private void GetUp(Entity entity, Player p, EntityId helper)
+    internal void GetUp(Entity entity, Player p, EntityId helper)
     {
         p.Wounded = false;
         p.VitalsRevision++;

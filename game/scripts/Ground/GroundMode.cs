@@ -38,8 +38,10 @@ public partial class GroundMode : Node
     private GameClient? _client;
     private GroundView? _view;
     private GroundTour? _tour;
+    private EnvironmentRoute? _environmentRoute;
     private Node3D? _menu;
     private GameContent _content = null!;
+    private readonly WorldStore _worldStore = new(new WorldStoreOptions());
 
     // The body chosen in the menu (or with --body female|male), sent at connect.
     private bool _female;
@@ -47,16 +49,29 @@ public partial class GroundMode : Node
     /// <summary>The command-line options; set before adding to the tree.</summary>
     public Dictionary<string, string> Options { get; set; } = new();
 
+    private bool IsolatedShot => HollowUniverse.App.CaptureIsolation.Requested(Options);
+
+    public void ReportCapture()
+    {
+        if (_view == null) return;
+        GD.Print($"[capture] ground state={_client?.State} position={_client?.Character.Position} yaw={_view.Yaw:0.000000} pitch={_view.Pitch:0.000000} " +
+            $"ready={_view.ReadyForShot} loading={_view.LoadingShown} hostPort={_view.HostedPort}");
+    }
+
     /// <summary>For automated screenshots: playing, the world drawn, and the player to face (if any) in view.</summary>
-    public bool ReadyForShot => _tour == null && (_view?.ReadyForShot ?? _menuWorld?.IsReady ?? _menu != null);
+    public bool ReadyForShot => _tour == null && _environmentRoute == null && (_view?.ReadyForShot ?? _menuWorld?.IsReady ?? _menu != null);
 
     private SurfaceView? _menuWorld;
 
     /// <summary>The scripted screenshot run takes its own shots (Main doesn't).</summary>
-    public bool TakesOwnShots => Options.ContainsKey("tour");
+    public bool TakesOwnShots => Options.ContainsKey("tour") || Options.ContainsKey("environment-route");
 
     public override void _Ready()
     {
+        if (Options.TryGetValue("environment-route", out string? routeFolder) &&
+            (routeFolder == "true" || Options.ContainsKey("shot") || Options.ContainsKey("tour") ||
+             Options.ContainsKey("measure") || Options.ContainsKey("tour-profile")))
+            throw new InvalidOperationException("--environment-route needs a folder and cannot share --shot, --tour or --measure");
         StartLoadTrace();
         Prefetch();
         // A game: no blocking full collections in the middle of play where they can be avoided.
@@ -93,29 +108,42 @@ public partial class GroundMode : Node
 
     // ---------------------------------------------------------------- the main menu
 
-    private void ShowMenu()
+    private void ShowMenu(string? status = null)
     {
         _menu = new Node3D { Name = "Menu" };
         AddChild(_menu);
         // Behind the menu: the landing site, the camera turning slowly at eye height.
-        if (PlanetSurfaces.Find(FirstWorld.System.Value, FirstWorld.BodyPath) is { } planet)
+        if (PlanetBodies.Find(StartingWorld.System.Value, StartingWorld.BodyPath) is { } planet)
         {
+            ZoneSpec spec = ZoneSpec.StartingWorld(StartingWorld.LandingLatitude, StartingWorld.LandingLongitude) with { Ground = GroundKind.Walking };
+            using WorldLease lease = _worldStore.Acquire(spec.EnvironmentDescriptor());
+            WalkingWorld surface = (WalkingWorld)lease.Surface;
             var world = new SurfaceView { Name = "World", Driven = true };
             _menu.AddChild(world);
             _menuWorld = world;
-            Vector3D direction = ZoneFrame.Direction(FirstWorld.LandingLatitude * Math.PI / 180, FirstWorld.LandingLongitude * Math.PI / 180);
-            Vector3D origin = direction * (planet.Surface.Radius + planet.Surface.HeightAt(direction));
-            world.OpenZone(planet.System, planet.Body, planet.Surface, origin, TimeOption() ?? UniverseTime.Now, ZoneSpec.DefaultRotationTimeScale);
+            Vector3D direction = surface.LandingSite;
+            Vector3D origin = direction * (surface.Radius + surface.HeightAt(direction));
+            world.OpenWorld(planet.System, planet.Body, surface, new SurfacePlants(surface), spec.SurfaceSeed,
+                TimeOption() ?? UniverseTime.Now, spec.RotationTimeScale, (float)(spec.SurfaceGravity * Units.StandardGravity), lease: lease.Fork());
             world.Camera.Current = true;
             world.Camera.Fov = 70;
-            _menu.AddChild(new MenuCamera { Camera = world.Camera });
+            var frame = new ZoneFrame(origin);
+            static Vector3 V(Vector3D value) => new((float)value.X, (float)value.Y, (float)value.Z);
+            var anchor = new Transform3D(new Basis(V(frame.East), V(frame.Up), V(frame.South)), V(origin));
+            world.Camera.Transform = anchor * new Transform3D(Basis.Identity, new Vector3(0, 1.7f, 0));
+            _menu.AddChild(new MenuCamera { Camera = world.Camera, Anchor = anchor });
         }
         var layer = new CanvasLayer { Name = "MenuInterface" };
         _menu.AddChild(layer);
-        var ui = new GroundUi { Name = "GroundUi", Model = new MenuGroundUi() };
+        var ui = new GroundUi
+        {
+            Name = "GroundUi", Model = new MenuGroundUi(),
+            ConnectionPortOverride = Options.ContainsKey("port") ? Math.Clamp((int)Number("port", Protocol.DefaultPort), 1, 65535) : null,
+        };
         layer.AddChild(ui);
         ui.ShowMenu(inGame: false);
-        ui.HostRequested += player => Begin(player, null, Protocol.DefaultPort, ui.FemaleBody);
+        if (status != null) ui.SetMenuStatus(status);
+        ui.HostRequested += player => Begin(player, null, ui.ConnectionPort, ui.FemaleBody);
         ui.ConnectRequested += (player, host, port) => Begin(player, host, port, ui.FemaleBody);
         ui.QuitRequested += () => GetTree().Quit();
         Input.MouseMode = Input.MouseModeEnum.Visible;
@@ -125,27 +153,45 @@ public partial class GroundMode : Node
     private partial class MenuCamera : Node
     {
         public Camera3D Camera = null!;
+        public Transform3D Anchor = Transform3D.Identity;
         private double _time;
 
         public override void _Process(double delta)
         {
             _time += delta;
             float yaw = 1.05f + (float)(_time * 0.012);
-            Camera.Transform = new Transform3D(Basis.FromEuler(new Vector3(0.02f, -yaw, 0), EulerOrder.Yxz), new Vector3(0, 1.7f, 0));
+            Camera.Transform = Anchor * new Transform3D(Basis.FromEuler(new Vector3(0.02f, -yaw, 0), EulerOrder.Yxz), new Vector3(0, 1.7f, 0));
         }
     }
 
     // From a menu: the menu (or the game before) goes, the game starts.
     private void Begin(string name, string? host, int port, bool female)
     {
+        if (IsolatedShot) return; // GUI actions must never replace or start another server during a capture.
         _female = female;
         Callable.From(() =>
         {
-            _menu?.QueueFree();
+            if (_menu != null)
+            {
+                RemoveChild(_menu);
+                _menu.QueueFree();
+            }
             _menu = null;
             _menuWorld = null;
             Stop();
             Start(name, host, port);
+        }).CallDeferred();
+    }
+
+    private void Disconnect()
+    {
+        if (IsolatedShot) return;
+        // Defer teardown until the menu has finished handling this click.
+        Callable.From(() =>
+        {
+            if (_view == null) return;
+            Stop();
+            ShowMenu();
         }).CallDeferred();
     }
 
@@ -186,14 +232,15 @@ public partial class GroundMode : Node
             {
                 _server = new GameServer(new ServerOptions
                 {
+                    WorldStore = _worldStore,
                     Port = port,
                     Name = $"{name}'s game",
                     DatabasePath = database,
                     Content = _content,
                     SpawnAtOrigin = Option("spawn", "beach") == "origin",
                     Ground = ground == "walking" ? Hollow.Simulation.GroundKind.Walking : Hollow.Simulation.GroundKind.StandIn,
-                    Latitude = Number("lat", FirstWorld.LandingLatitude),
-                    Longitude = Number("lon", FirstWorld.LandingLongitude),
+                    Latitude = Number("lat", StartingWorld.LandingLatitude),
+                    Longitude = Number("lon", StartingWorld.LandingLongitude),
                     // The hosting player is the game's admin (GROUND.md §8.2).
                     Admins = new[] { name },
                     Log = line => GD.Print("[server] " + line),
@@ -206,6 +253,13 @@ public partial class GroundMode : Node
                 Start(name, "127.0.0.1", port);
                 return;
             }
+            catch (Exception e) when (e is Hollow.Persistence.TerrainMismatchException or Hollow.Persistence.NewerSaveException)
+            {
+                EndLoading();
+                GD.PushWarning(e.Message);
+                ShowMenu(e.Message);
+                return;
+            }
             _server.StartThread();
             port = _server.Port;
             host = "127.0.0.1";
@@ -213,7 +267,9 @@ public partial class GroundMode : Node
         NetConditions conditions = NetConditions.FromOptions(key => Options.TryGetValue(key, out string? v) ? v : null);
         _client = new GameClient(new ClientOptions
         {
+            WorldStore = _worldStore,
             Name = name,
+            BackgroundTransport = true,
             Body = (byte)(_female ? 1 : 0),
             Conditions = conditions,
             Content = _content,
@@ -228,6 +284,7 @@ public partial class GroundMode : Node
         {
             Name = "GroundView",
             Client = _client,
+            IsolatedCapture = IsolatedShot,
             Loading = loading,
             HostedPort = _server?.Port ?? _child?.Port,
             FaceName = Options.TryGetValue("face", out string? face) ? face : null,
@@ -238,22 +295,27 @@ public partial class GroundMode : Node
             TimeOverride = TimeOption(),
             // Screenshots from above (docs/WHOLE_WORLD.md §10.5): the camera lifted along up, looking down.
             CameraLift = (float)Number("lift", 0),
+            FovOverride = Options.ContainsKey("fov") ? Math.Clamp((float)Number("fov", 75), 20, 120) : null,
             ShotPitch = Options.ContainsKey("pitch") ? (float)Number("pitch", 0) * MathF.PI / 180 : null,
             ShotYaw = Options.ContainsKey("yaw") ? (float)Number("yaw", 0) * MathF.PI / 180 : null,
             Clouds = Options.ContainsKey("clouds") ? (float)Number("clouds", 0.35) : null,
+            DebugView = (int)Number("debug-sky", 0),
             ServerAddress = host == "127.0.0.1" && (_server != null || _child != null)
                 ? $"this computer, port {port} (hosted here)"
                 : $"{host}:{port}",
         };
         _view.QuitRequested += () => GetTree().Quit();
         AddChild(_view);
+        _view.Interface.DisconnectRequested += Disconnect;
         _view.Interface.HostRequested += player => Begin(player, null, Protocol.DefaultPort, _view.Interface.FemaleBody);
         _view.Interface.ConnectRequested += (player, address, p) => Begin(player, address, p, _view.Interface.FemaleBody);
-        if (Options.ContainsKey("measure"))
+        bool tourProfile = Options.ContainsKey("tour-profile");
+        if (Options.ContainsKey("measure") || tourProfile)
         {
             AddChild(new GroundMeasure
             {
                 Name = "Measure", View = _view, Server = _server, Command = Command, Seconds = Number("measure", 20), Expect = (int)Number("expect", 0),
+                AutoStart = !tourProfile, QuitWhenComplete = !tourProfile,
             });
         }
         if (Options.TryGetValue("tour", out string? folder) && folder != "true")
@@ -261,10 +323,24 @@ public partial class GroundMode : Node
             _tour = new GroundTour
             {
                 Name = "Tour", View = _view, Folder = folder, Command = Command,
-                Only = Options.TryGetValue("tour-steps", out string? steps) ? new HashSet<string>(steps.Split(',')) : null,
+                Only = tourProfile ? new HashSet<string> { "chop" } : Options.TryGetValue("tour-steps", out string? steps) ? new HashSet<string>(steps.Split(',')) : null,
                 Tree = Options.TryGetValue("tour-tree", out string? tree) ? tree : null,
+                Profile = tourProfile, ProfileIdle = Options.TryGetValue("tour-profile", out string? profile) && profile == "idle",
             };
             AddChild(_tour);
+        }
+        if (Options.TryGetValue("environment-route", out string? routeFolder))
+        {
+            _environmentRoute = new EnvironmentRoute
+            {
+                Name = "EnvironmentRoute", View = _view, Folder = routeFolder,
+                ProfileSeconds = Number("environment-profile", 20),
+                ObserveSeconds = Number("environment-observe", 0), SolarHour = Number("hour", 10),
+                PerformanceBreakdown = Options.ContainsKey("environment-breakdown"),
+                PerformanceBaselineOnly = Option("environment-breakdown", "") == "baseline",
+                PerformanceShadowSweep = Option("environment-breakdown", "") == "shadows",
+            };
+            AddChild(_environmentRoute);
         }
         ShowLoading(_server != null || _child != null ? $"{name}'s game, on this computer" : $"{host}:{port}");
     }
@@ -326,28 +402,52 @@ public partial class GroundMode : Node
 
     private void Stop()
     {
-        EndLoading();
-        _tour?.QueueFree();
+        var failures = new System.Collections.Generic.List<Exception>();
+        void Clean(Action action)
+        {
+            try { action(); }
+            catch (Exception error) { failures.Add(error); }
+        }
+        Clean(EndLoading);
+        Clean(() => _environmentRoute?.Cancel());
+        Clean(() => _environmentRoute?.QueueFree());
+        _environmentRoute = null;
+        Clean(() => _tour?.QueueFree());
         _tour = null;
-        _view?.QueueFree();
+        if (_view != null)
+        {
+            // Exit hooks release session-wide audio/UI/render state before a replacement is created.
+            // They also unsubscribe from the client while its modules are still alive.
+            Clean(() => { if (_view.IsInsideTree()) RemoveChild(_view); });
+            Clean(_view.QueueFree);
+        }
         _view = null;
-        _client?.Dispose();
+        Clean(() => _client?.Dispose());
         _client = null;
         _connectWhenReady = null;
         if (_server != null)
         {
-            _server.Stop();
-            _server.Dispose();
+            Clean(_server.Stop);
+            Clean(_server.Dispose);
             _server = null;
         }
         if (_child != null)
         {
-            _child.Dispose();
+            Clean(_child.Dispose);
             _child = null;
         }
+        if (failures.Count != 0) throw new AggregateException("Ground session shutdown failed after all owners retired.", failures).Flatten();
     }
 
-    public override void _ExitTree() => Stop();
+    public override void _ExitTree()
+    {
+        try { Stop(); }
+        finally
+        {
+            try { _menuWorld?.Stop(); }
+            finally { _worldStore.Dispose(); }
+        }
+    }
 
     public override void _Notification(int what)
     {
@@ -380,15 +480,22 @@ public partial class GroundMode : Node
         {
             return UniverseTime.SecondsSinceJ2000(DateTime.Parse(t, CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal));
         }
-        if (!Options.ContainsKey("hour") || PlanetSurfaces.Find(FirstWorld.System.Value, FirstWorld.BodyPath) is not { } planet)
+        if (!Options.ContainsKey("hour") || PlanetBodies.Find(StartingWorld.System.Value, StartingWorld.BodyPath) is not { } planet)
         {
             return null;
         }
         double hour = Number("hour", 10);
         var sky = new SkyEphemeris(planet.System, planet.Body);
         sky.SetRotationTimeScale(ZoneSpec.DefaultRotationTimeScale, 0);
-        // The hour where the game lands (--lat and --lon, else the first world's landing site).
-        Vector3D site = ZoneFrame.Direction(Number("lat", FirstWorld.LandingLatitude) * Math.PI / 180, Number("lon", FirstWorld.LandingLongitude) * Math.PI / 180);
+        // Match the live walking world's dry landing site for --spawn origin and the menu preview.
+        double latitude = Number("lat", StartingWorld.LandingLatitude), longitude = Number("lon", StartingWorld.LandingLongitude);
+        Vector3D site = ZoneFrame.Direction(latitude * Math.PI / 180, longitude * Math.PI / 180);
+        if (latitude == StartingWorld.LandingLatitude && longitude == StartingWorld.LandingLongitude)
+        {
+            ZoneSpec spec = ZoneSpec.StartingWorld(latitude, longitude) with { Ground = GroundKind.Walking };
+            using WorldLease lease = _worldStore.Acquire(spec.EnvironmentDescriptor());
+            site = ((WalkingWorld)lease.Surface).LandingSite;
+        }
         double now = UniverseTime.Now, best = now, bestError = double.MaxValue;
         for (double s = 0; s < 6 * 3600; s += 20)
         {

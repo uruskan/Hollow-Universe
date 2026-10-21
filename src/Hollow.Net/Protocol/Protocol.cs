@@ -40,7 +40,39 @@ public static partial class Protocol
     /// in the input (<see cref="StationControls"/>), the stations' records (<see cref="ShipStations"/>), shots
     /// (<see cref="TurretShot"/>), a battery's rocket named in its launch, a seated gunner's Tab (<see cref="ShipAction.Magazine"/>).
     /// </summary>
-    public const uint Version = 27;
+    // 28: persistent unattended cruise, breath state and bounded admin flight input;
+    // shared scanned cliff collision changes geometry beyond the JSON content hash.
+    // 29: held action item/start tick, including accepted uses and repairs.
+    // 30: admin construction tools and craft-job payment provenance.
+    // 31: explicit attack identity, reconciliation and authoritative projectile lifecycle.
+    // 32: Earth terrain revision 2; peers must generate identical coastlines and collision.
+    // 33: cliff formation generation revision 2 changes transformed collision solids on every WalkingWorld body.
+    // 34: replicated compound power, defense and articulation; Earth layout variant 5 / terrain revision 4.
+    // 35: dynamic deployable capabilities and the shared key/code lock kind on compound gates.
+    // 36: port-addressed cables, Wire Tool intents and separate per-device authorization facts.
+    // 37: normalized ice/alpine biome allocation changes generated populations (Earth save revision 5, others 2).
+    // 38: verify physical descriptor and qualification compatibility before login and world publication.
+    // 39: authoritative projectile material, target, normal and moving-surface attachment metadata.
+    // 40: cliff formations traced along their faces (generation 3) change collision solids on every WalkingWorld body
+    //     (Earth save revision 6, others 3).
+    // 41: sea-cliff toes in the surf and coastal scans (generation 4; Earth save revision 7, others 4).
+    // 42: the recipe chooses a scan's family, eight columns a face (generation 5; Earth save revision 8, others 5).
+    // 43: the walls' rock skins are solid (generation 6; Earth save revision 9, others 6).
+    // 44: a door carries its layout (hinge side and swing side) instead of a flip; doors are saved with it (door version 2;
+    //     Earth save revision 10, others 6).
+    // 45: a door carries its motion record (progress at a tick, which way it goes), so every machine poses its leaves alike.
+    // 46: a ship's drive spool (a rotor's spin, docs/MINICOPTER.md §9) in its own state and everyone's view of it.
+    // 47: a ship's details carry its build (VEHICLES.md §9.1: the modules in its sockets), so every client composes its layout.
+    // 48: a vehicle's build changed in the vehicle workbench's bay (ModuleIntent, VEHICLES.md §9.11); an answer's code is 8 bits
+    //     (codes past 127).
+    public const uint Version = 48;
+
+    /// <summary>Fixed upper bound for Hello, WorldOffer, WorldAccept and Welcome, including their type byte.</summary>
+    public const int MaxWorldHandshakeBytes = 512;
+
+    /// <summary>Live connections awaiting world acceptance have a separate finite count and deadline.</summary>
+    public const int MaxPendingWorldJoins = 128;
+    public const int WorldHandshakeTimeoutSeconds = 10;
 
     /// <summary>Default UDP port of a server.</summary>
     public const int DefaultPort = 27015;
@@ -50,6 +82,13 @@ public static partial class Protocol
 
     /// <summary>Remote entities are drawn this far in the past, so there are snapshots on both sides to blend.</summary>
     public const float InterpolationDelaySeconds = 0.1f;
+
+    /// <summary>
+    /// How long the server looks back when it reports how early inputs reached it: the least margin over this many seconds
+    /// (<c>PlayerSession.InputMargin</c>). A client that moves its clock must wait this long, and a round trip, before the
+    /// next report can describe inputs sent after the move (<c>GameClient.SteerClock</c>).
+    /// </summary>
+    public const double InputMarginWindowSeconds = 0.5;
 
     /// <summary>Each input packet repeats this many earlier inputs besides the newest.</summary>
     public const int RedundantInputs = 3;
@@ -74,6 +113,7 @@ public enum GoodbyeReason : byte
     ServerShutdown,
     Timeout,
     ContentMismatch,
+    EnvironmentMismatch,
 }
 
 public enum EntityKind : byte
@@ -157,4 +197,3 @@ public enum TeammateState : byte
     Down,
     Dead,
 }
-

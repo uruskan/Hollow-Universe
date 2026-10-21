@@ -158,8 +158,8 @@ public sealed class CharacterBody : IDisposable
     private static Shape Capsule(float radius, float height)
     {
         float half = height / 2;
-        using var capsule = new CapsuleShapeSettings(half - radius, radius);
-        using var placed = new RotatedTranslatedShapeSettings(new Vector3(0, half, 0), Quaternion.Identity, capsule);
+        using var capsule = new CapsuleShapeSettings(half - radius, radius).Owned();
+        using var placed = new RotatedTranslatedShapeSettings(new Vector3(0, half, 0), Quaternion.Identity, capsule).Owned();
         return placed.Create();
     }
 

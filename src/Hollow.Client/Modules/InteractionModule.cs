@@ -130,18 +130,44 @@ public sealed class InteractionModule : ClientModule
         }
         Vector3 eye = Survival.StationEye;
         float reach = Content.Survival.StationReach;
-        int best = 0;
+        int best = -1;
+        float nearest = float.MaxValue;
         TargetRef bench = TargetRef.None;
         foreach (RemoteThing thing in Survival.Things)
         {
-            if (thing.Deployable(Content) is { Workbench: > 0 } d && d.Workbench > best &&
-                Vector3.DistanceSquared(Geometry.NearestOnBox(thing.Position, Frame.UpAt(thing.Position), thing.Yaw, d.HalfExtents, eye), eye) <= reach * reach)
+            if (thing.Deployable(Content) is not { TechTree: not null } d)
+            {
+                continue;
+            }
+            float distance = Vector3.DistanceSquared(Geometry.NearestOnBox(thing.Position, Frame.UpAt(thing.Position), thing.Yaw, d.HalfExtents, eye), eye);
+            if (distance <= reach * reach && (d.Workbench > best || d.Workbench == best && distance < nearest))
             {
                 best = d.Workbench;
+                nearest = distance;
                 bench = new TargetRef(TargetFamily.Thing, thing.Id.Value);
             }
         }
         return bench;
+    }
+
+    /// <summary>The selected bench's tree while it remains within station reach; no fallback to a different station.</summary>
+    public TechTree? TechTreeAt(in TargetRef target)
+    {
+        if (!HasCharacter || target.Family != TargetFamily.Thing)
+        {
+            return null;
+        }
+        Vector3 eye = Survival.StationEye;
+        float reach = Content.Survival.StationReach;
+        foreach (RemoteThing thing in Survival.Things)
+        {
+            if (thing.Id.Value == target.Id && thing.Deployable(Content) is { TechTree: not null } d &&
+                Vector3.DistanceSquared(Geometry.NearestOnBox(thing.Position, Frame.UpAt(thing.Position), thing.Yaw, d.HalfExtents, eye), eye) <= reach * reach)
+            {
+                return d.TechTree;
+            }
+        }
+        return null;
     }
 }
 

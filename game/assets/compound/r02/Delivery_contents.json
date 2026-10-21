@@ -1,0 +1,1148 @@
+{
+  "revision": "R02",
+  "files": [
+    {
+      "path": "Exports/FBX/01_Large_Furnace/SM_01_Large_Furnace_Body.fbx",
+      "bytes": 13730060,
+      "sha256": "934a052e0cd11ee13eb9270e2dfa12a1cb3b5a7ddc4ff940fe6e406fade2d48f"
+    },
+    {
+      "path": "Exports/FBX/01_Large_Furnace/SM_01_Large_Furnace_Body_LOD1.fbx",
+      "bytes": 6777468,
+      "sha256": "92f03dd58656a4e823f365da511d34d20db4e536fe2abab1f4ee5d9cf5e6c970"
+    },
+    {
+      "path": "Exports/FBX/01_Large_Furnace/SM_01_Large_Furnace_Body_LOD2.fbx",
+      "bytes": 2658876,
+      "sha256": "96720f5fbd1fb971742da2cf4d4047164828eb72a07d7ae05ceea92d36c8a8f0"
+    },
+    {
+      "path": "Exports/FBX/02_Wooden_Barricade/SM_02_Wooden_Barricade_Body.fbx",
+      "bytes": 1600060,
+      "sha256": "831e4679f9b251eb255c14b2bb5624dadaa93575920af29fa93175241f8afd62"
+    },
+    {
+      "path": "Exports/FBX/02_Wooden_Barricade/SM_02_Wooden_Barricade_Body_LOD1.fbx",
+      "bytes": 757676,
+      "sha256": "4751c00351b7d30e163bdfe2f8d612230ee0510fd692adb4dd13f42ffd782f6f"
+    },
+    {
+      "path": "Exports/FBX/02_Wooden_Barricade/SM_02_Wooden_Barricade_Body_LOD2.fbx",
+      "bytes": 335180,
+      "sha256": "3eae2908d819f59a6279363261889425dfdb896b66b3eb46faaa161e827ab421"
+    },
+    {
+      "path": "Exports/FBX/03_Wood_Compound_Wall/SM_03_Wood_Compound_Wall_Body.fbx",
+      "bytes": 2269948,
+      "sha256": "5f84f1534d032ecae259d5061d57d85a43c12b4720f8d298fce6440ac058300f"
+    },
+    {
+      "path": "Exports/FBX/03_Wood_Compound_Wall/SM_03_Wood_Compound_Wall_Body_LOD1.fbx",
+      "bytes": 1096668,
+      "sha256": "c405cf432bbc9189200d9ba9dfa86d3aff6d63b0336680c2101933a0b249d726"
+    },
+    {
+      "path": "Exports/FBX/03_Wood_Compound_Wall/SM_03_Wood_Compound_Wall_Body_LOD2.fbx",
+      "bytes": 491820,
+      "sha256": "1be0dcd9c384ed7c151087a04b6489d825de2525dad7653853eb7c5755401918"
+    },
+    {
+      "path": "Exports/FBX/04_Wood_Compound_Gate/SM_04_Wood_Compound_Gate_Frame.fbx",
+      "bytes": 9564236,
+      "sha256": "cc12b1496b8a4312fbe3ad66add3b731b0fe7c1ae2cba76184820d73fe594376"
+    },
+    {
+      "path": "Exports/FBX/04_Wood_Compound_Gate/SM_04_Wood_Compound_Gate_Frame_LOD1.fbx",
+      "bytes": 4543356,
+      "sha256": "10cd9570ce1d75fda1802b5b10401f2e00850c71680250964bb53081c2bb5bb9"
+    },
+    {
+      "path": "Exports/FBX/04_Wood_Compound_Gate/SM_04_Wood_Compound_Gate_Frame_LOD2.fbx",
+      "bytes": 1728108,
+      "sha256": "62675f1967cd28480283d015e12933f0162ce4ffd15c8bed1b7e70ff0f3d3abc"
+    },
+    {
+      "path": "Exports/FBX/04_Wood_Compound_Gate/SM_04_Wood_Compound_Gate_Leaf_L.fbx",
+      "bytes": 1374620,
+      "sha256": "493a874c00db037566b2c510ad0134f3bb0ab983c3ebea26ebd9128d3a2ad301"
+    },
+    {
+      "path": "Exports/FBX/04_Wood_Compound_Gate/SM_04_Wood_Compound_Gate_Leaf_L_LOD1.fbx",
+      "bytes": 679756,
+      "sha256": "762706f236e58f8f89294401d4bd643720a1ff5f44cdf6659e7b4594294c925c"
+    },
+    {
+      "path": "Exports/FBX/04_Wood_Compound_Gate/SM_04_Wood_Compound_Gate_Leaf_L_LOD2.fbx",
+      "bytes": 294940,
+      "sha256": "38ce2a88587cceb85d4269a6faf605b82923b0a25903d8f76635923183dfcc8f"
+    },
+    {
+      "path": "Exports/FBX/04_Wood_Compound_Gate/SM_04_Wood_Compound_Gate_Leaf_R.fbx",
+      "bytes": 1363500,
+      "sha256": "36959441bb0ed045c54303c15b3560e02a2a44947936627d1294bc62cf1cd841"
+    },
+    {
+      "path": "Exports/FBX/04_Wood_Compound_Gate/SM_04_Wood_Compound_Gate_Leaf_R_LOD1.fbx",
+      "bytes": 672220,
+      "sha256": "db27b28fd1130157ec2b3a05f5cffb74dea9fbfa4ae27d1a796b41b64699eb3e"
+    },
+    {
+      "path": "Exports/FBX/04_Wood_Compound_Gate/SM_04_Wood_Compound_Gate_Leaf_R_LOD2.fbx",
+      "bytes": 291036,
+      "sha256": "17210c0eb14acf14ba7d1b1a61812904ac8e7268efd84d1ae2199c16fd8f5456"
+    },
+    {
+      "path": "Exports/FBX/05_Stone_Compound_Wall/SM_05_Stone_Compound_Wall_Body.fbx",
+      "bytes": 2782556,
+      "sha256": "53497a7ae820dca524db8ebb5a3b3cc268898e4d2fcb34ec319cc52f4e2679c4"
+    },
+    {
+      "path": "Exports/FBX/05_Stone_Compound_Wall/SM_05_Stone_Compound_Wall_Body_LOD1.fbx",
+      "bytes": 1358556,
+      "sha256": "4f3d000ca3a8ca3f6126d99eb352de5894bfa16a62629202d13aa15643d6ddb5"
+    },
+    {
+      "path": "Exports/FBX/05_Stone_Compound_Wall/SM_05_Stone_Compound_Wall_Body_LOD2.fbx",
+      "bytes": 534588,
+      "sha256": "3473320d20d5db04af2d0741f18fbda1488936e4b4b72e4c81656aaba9a3db18"
+    },
+    {
+      "path": "Exports/FBX/06_Stone_Compound_Gate/SM_06_Stone_Compound_Gate_Frame.fbx",
+      "bytes": 3519868,
+      "sha256": "692ac2ff70684f7cb806c6c3fe08d463741e0d489581ad099d9b044d44601d7c"
+    },
+    {
+      "path": "Exports/FBX/06_Stone_Compound_Gate/SM_06_Stone_Compound_Gate_Frame_LOD1.fbx",
+      "bytes": 1665180,
+      "sha256": "55c856141a64bc0ef03361f59cf368ab32e95dafb67a0fbc40b66b4b4c28b2e7"
+    },
+    {
+      "path": "Exports/FBX/06_Stone_Compound_Gate/SM_06_Stone_Compound_Gate_Frame_LOD2.fbx",
+      "bytes": 661916,
+      "sha256": "9f05d9964ad6a0eb301ed92ff4a6e4e4cf1e43632277d46566279eaeef9ef8c7"
+    },
+    {
+      "path": "Exports/FBX/06_Stone_Compound_Gate/SM_06_Stone_Compound_Gate_Leaf_L.fbx",
+      "bytes": 1540476,
+      "sha256": "6a3d9808e3c1edf5db4758e5e6f9701910611f84217ebce5c358e15dabadf5c1"
+    },
+    {
+      "path": "Exports/FBX/06_Stone_Compound_Gate/SM_06_Stone_Compound_Gate_Leaf_L_LOD1.fbx",
+      "bytes": 841948,
+      "sha256": "77eae92defaada9ea17da17240a66e7d2b06c0e83121f66c1be6d375f1d7769c"
+    },
+    {
+      "path": "Exports/FBX/06_Stone_Compound_Gate/SM_06_Stone_Compound_Gate_Leaf_L_LOD2.fbx",
+      "bytes": 337180,
+      "sha256": "bd862cf97acdaa782da9622b9fc879900de25cf88e96e4553cd2b8013525187f"
+    },
+    {
+      "path": "Exports/FBX/06_Stone_Compound_Gate/SM_06_Stone_Compound_Gate_Leaf_R.fbx",
+      "bytes": 1548956,
+      "sha256": "bcecdd793747618d848529f164e101d2b6864a56734068c497e351021955a381"
+    },
+    {
+      "path": "Exports/FBX/06_Stone_Compound_Gate/SM_06_Stone_Compound_Gate_Leaf_R_LOD1.fbx",
+      "bytes": 851676,
+      "sha256": "be0bc9c21a684f42474e622c98f150ee7acb4913e22d996d2853ccc3cb1653fe"
+    },
+    {
+      "path": "Exports/FBX/06_Stone_Compound_Gate/SM_06_Stone_Compound_Gate_Leaf_R_LOD2.fbx",
+      "bytes": 338060,
+      "sha256": "45327b9efa4fb443b191455ea112da31c261698c58f981aea6a629b0aa2a2eef"
+    },
+    {
+      "path": "Exports/FBX/07_Windmill/SM_07_Windmill_Rotor.fbx",
+      "bytes": 2300108,
+      "sha256": "efce6078b4c185a9693080d18a4e5191767c25ed792c41ef0efc149c2239a8b4"
+    },
+    {
+      "path": "Exports/FBX/07_Windmill/SM_07_Windmill_Rotor_LOD1.fbx",
+      "bytes": 1156604,
+      "sha256": "663e836cd2b7e401db01535c5cecb04b2897679433a8b8615e358e800e83aa9b"
+    },
+    {
+      "path": "Exports/FBX/07_Windmill/SM_07_Windmill_Rotor_LOD2.fbx",
+      "bytes": 473308,
+      "sha256": "c3ed7748671b46f0088dbb082803afbdf8c5555ee5bc51541f8df9361211f72c"
+    },
+    {
+      "path": "Exports/FBX/07_Windmill/SM_07_Windmill_Tower.fbx",
+      "bytes": 4198844,
+      "sha256": "0b08bc66b3c209766213cbfcde854402c0d2247a2482d5d9c8da024f2ff5e519"
+    },
+    {
+      "path": "Exports/FBX/07_Windmill/SM_07_Windmill_Tower_LOD1.fbx",
+      "bytes": 2107692,
+      "sha256": "23337ffb5839094f513954e19ab67b97921f5ddbd78fbed18705e011c91b20b8"
+    },
+    {
+      "path": "Exports/FBX/07_Windmill/SM_07_Windmill_Tower_LOD2.fbx",
+      "bytes": 870556,
+      "sha256": "5135225fb25c58039a185fe6322329b74b63f5305456762584cd7f229d433fd5"
+    },
+    {
+      "path": "Exports/FBX/07_Windmill/SM_07_Windmill_YawHead.fbx",
+      "bytes": 459340,
+      "sha256": "044a57c9dbde79dee274d6cb4ebabffdbfa9036c57f35c01d0b65ca10c10e837"
+    },
+    {
+      "path": "Exports/FBX/07_Windmill/SM_07_Windmill_YawHead_LOD1.fbx",
+      "bytes": 241740,
+      "sha256": "bae51613c95a743c799d2834838d2fd2635494aebc60ccb59de4b39bd2fd5a3b"
+    },
+    {
+      "path": "Exports/FBX/07_Windmill/SM_07_Windmill_YawHead_LOD2.fbx",
+      "bytes": 100492,
+      "sha256": "86d40af565fe022cd5e4fec85d8007e9d6676b08166bf51f5ec788ad7f2f5c1a"
+    },
+    {
+      "path": "Exports/FBX/08_Orbital_SAM/SM_08_Orbital_SAM_Base.fbx",
+      "bytes": 1680988,
+      "sha256": "987121a580cdbaf8984e9983a42ac2268f0ed314452cd6814988ca8f3231e37a"
+    },
+    {
+      "path": "Exports/FBX/08_Orbital_SAM/SM_08_Orbital_SAM_Base_LOD1.fbx",
+      "bytes": 924076,
+      "sha256": "427b9093f54613c5144d3e40a5fcef9351a4881867f6cdfc7b0afafe226afde9"
+    },
+    {
+      "path": "Exports/FBX/08_Orbital_SAM/SM_08_Orbital_SAM_Base_LOD2.fbx",
+      "bytes": 373468,
+      "sha256": "b09492355d540814cf803dcc838c58dab26f8762dc04f12a36f9fc1c3763a1a4"
+    },
+    {
+      "path": "Exports/FBX/08_Orbital_SAM/SM_08_Orbital_SAM_Elevation.fbx",
+      "bytes": 16541836,
+      "sha256": "23f081781aef23a756b131d0675d733068872daf64eddc235975c07d36c780e7"
+    },
+    {
+      "path": "Exports/FBX/08_Orbital_SAM/SM_08_Orbital_SAM_Elevation_LOD1.fbx",
+      "bytes": 8012988,
+      "sha256": "a8caab037e010a9810c1e5f835886682c8609c1f7dca74c78e87f20a5ba45592"
+    },
+    {
+      "path": "Exports/FBX/08_Orbital_SAM/SM_08_Orbital_SAM_Elevation_LOD2.fbx",
+      "bytes": 3195932,
+      "sha256": "3ab5beab84e8b44026bdd67671d237499021f7c40a7486a72c47a7c02e56cb9b"
+    },
+    {
+      "path": "Exports/FBX/08_Orbital_SAM/SM_08_Orbital_SAM_Yaw.fbx",
+      "bytes": 6564604,
+      "sha256": "ca84238669e380c9c8175ae70fcf71422b64a17834ec4170cfc42534ae268c8f"
+    },
+    {
+      "path": "Exports/FBX/08_Orbital_SAM/SM_08_Orbital_SAM_Yaw_LOD1.fbx",
+      "bytes": 3634140,
+      "sha256": "8c0f723ef716692d54dd10fe44ead9e6cf042d1a8abc44b3ea00beb42fa7441f"
+    },
+    {
+      "path": "Exports/FBX/08_Orbital_SAM/SM_08_Orbital_SAM_Yaw_LOD2.fbx",
+      "bytes": 1619724,
+      "sha256": "30e3934dfef5f56d490f6062638c91bd5cd914f5f2746b7e355b3b77bff4f8e1"
+    },
+    {
+      "path": "Exports/FBX/09_Wood_Spike_Barricade/SM_09_Wood_Spike_Barricade_Body.fbx",
+      "bytes": 2827244,
+      "sha256": "c804d93e3a5beb745d5a8a0adb31ce0956bbe9cf431059c7670a382b7db010ef"
+    },
+    {
+      "path": "Exports/FBX/09_Wood_Spike_Barricade/SM_09_Wood_Spike_Barricade_Body_LOD1.fbx",
+      "bytes": 1268844,
+      "sha256": "9ed06856e94d4825a02938c7f5ba3dc431af585e7ef668a5d0e3f69be50d9be4"
+    },
+    {
+      "path": "Exports/FBX/09_Wood_Spike_Barricade/SM_09_Wood_Spike_Barricade_Body_LOD2.fbx",
+      "bytes": 547804,
+      "sha256": "b726bb4191200b7acd1f879e21a1867abd44c114b3fde5d9cd97a30dc4d832fd"
+    },
+    {
+      "path": "Exports/FBX/10_Metal_Barricade/SM_10_Metal_Barricade_Body.fbx",
+      "bytes": 1510044,
+      "sha256": "d878e3be456ca797353eb68a5ca0e4a22917f900641cf288cc0d0e498af75ee6"
+    },
+    {
+      "path": "Exports/FBX/10_Metal_Barricade/SM_10_Metal_Barricade_Body_LOD1.fbx",
+      "bytes": 677100,
+      "sha256": "4bf8f9a2426483f96774b519ba50193ad5976699d04c237a91857d2dd6841d45"
+    },
+    {
+      "path": "Exports/FBX/10_Metal_Barricade/SM_10_Metal_Barricade_Body_LOD2.fbx",
+      "bytes": 310428,
+      "sha256": "9c1ec08e1e5fe72ddc5dafad3b96ed07e0bfdd53a76874ab723162b6c7dad76a"
+    },
+    {
+      "path": "Exports/FBX/11_Auto_Turret_Gunless/SM_11_Auto_Turret_Gunless_Base.fbx",
+      "bytes": 3146540,
+      "sha256": "0695abec24070506ece46c6ed75bbb8880302abc63f4ba8ca63f8558188bd01d"
+    },
+    {
+      "path": "Exports/FBX/11_Auto_Turret_Gunless/SM_11_Auto_Turret_Gunless_Base_LOD1.fbx",
+      "bytes": 1468236,
+      "sha256": "18c35c1c7f64f9123ad992c05f2c808cf8ae177935d9282926c22c21634483cc"
+    },
+    {
+      "path": "Exports/FBX/11_Auto_Turret_Gunless/SM_11_Auto_Turret_Gunless_Base_LOD2.fbx",
+      "bytes": 590364,
+      "sha256": "feb64fd1a97262c8b2f4894254f7caa7d2ea6caa46ca58556c37610b16f075e4"
+    },
+    {
+      "path": "Exports/FBX/11_Auto_Turret_Gunless/SM_11_Auto_Turret_Gunless_Pitch.fbx",
+      "bytes": 2919244,
+      "sha256": "c744cacc42b2b915b64f9a954b7beff4be219e3daf3776b3e036f8d143b27084"
+    },
+    {
+      "path": "Exports/FBX/11_Auto_Turret_Gunless/SM_11_Auto_Turret_Gunless_Pitch_LOD1.fbx",
+      "bytes": 1660732,
+      "sha256": "c6a5b8f04caa951308a7dbd89ab6710b63ddab2f6c4c8ee6a4b2da39c3ead87d"
+    },
+    {
+      "path": "Exports/FBX/11_Auto_Turret_Gunless/SM_11_Auto_Turret_Gunless_Pitch_LOD2.fbx",
+      "bytes": 700764,
+      "sha256": "39b63bfb4365d64c324fa96b9b42c1c71025cf7104565d505dbe47e80c9f3041"
+    },
+    {
+      "path": "Exports/FBX/11_Auto_Turret_Gunless/SM_11_Auto_Turret_Gunless_Yaw.fbx",
+      "bytes": 5520108,
+      "sha256": "96346b9920ac35b32419837a251165ac597d30755ca9c7a9de2d300df59e2eae"
+    },
+    {
+      "path": "Exports/FBX/11_Auto_Turret_Gunless/SM_11_Auto_Turret_Gunless_Yaw_LOD1.fbx",
+      "bytes": 2636700,
+      "sha256": "18cf41f3ded8c88efacac0751ad37b9eae84435c7f4412770b9bc81139f4e273"
+    },
+    {
+      "path": "Exports/FBX/11_Auto_Turret_Gunless/SM_11_Auto_Turret_Gunless_Yaw_LOD2.fbx",
+      "bytes": 1028012,
+      "sha256": "b1242bb66b10fc2dc0c9a564fc4458677eb864f124b09d9119d1f4294458027b"
+    },
+    {
+      "path": "Exports/FBX/12_Wooden_Ladder/SM_12_Wooden_Ladder_Body.fbx",
+      "bytes": 3555036,
+      "sha256": "af20dd768ecc3800f2f960ce0fd869496b0f0a541938da25a77e034bb6dadce4"
+    },
+    {
+      "path": "Exports/FBX/12_Wooden_Ladder/SM_12_Wooden_Ladder_Body_LOD1.fbx",
+      "bytes": 1665452,
+      "sha256": "3f8a4200a63201ae78ff8a9d4fe5741dcb1813bf60c164b3c3bb069bfab13c2e"
+    },
+    {
+      "path": "Exports/FBX/12_Wooden_Ladder/SM_12_Wooden_Ladder_Body_LOD2.fbx",
+      "bytes": 739948,
+      "sha256": "565855a307bb88e4ae2ee83841b4d39bc3d7268e07dfe0cb62f6108c83a2dd52"
+    },
+    {
+      "path": "Exports/GLB/01_Large_Furnace.glb",
+      "bytes": 77958332,
+      "sha256": "6beaa845e8424d5308921b0c662f1383255a39829f9af95841f5138e329e9b04"
+    },
+    {
+      "path": "Exports/GLB/02_Wooden_Barricade.glb",
+      "bytes": 20250204,
+      "sha256": "1e97da8bed0be744475f96dc9a572ed158ce8463213c9d52de74f9e6207e5235"
+    },
+    {
+      "path": "Exports/GLB/03_Wood_Compound_Wall.glb",
+      "bytes": 69372888,
+      "sha256": "9bd63f34cd4781247902e9e92ec540591ebe14eefed19baaeec18b0e8b814083"
+    },
+    {
+      "path": "Exports/GLB/04_Wood_Compound_Gate.glb",
+      "bytes": 84716304,
+      "sha256": "2941d5789b51ee3ec3d36a84437cdfc735ac57751d7adc16ef870340bccc9c25"
+    },
+    {
+      "path": "Exports/GLB/05_Stone_Compound_Wall.glb",
+      "bytes": 61181768,
+      "sha256": "8037a941234644220607c5396550f00a2f9fa102b2f5994a68bc6a2d4a619f13"
+    },
+    {
+      "path": "Exports/GLB/06_Stone_Compound_Gate.glb",
+      "bytes": 63981948,
+      "sha256": "e2c1833a9fa5fd272ccc8ef0a3080754f96264abc407b6aab279663e74f75b65"
+    },
+    {
+      "path": "Exports/GLB/07_Windmill.glb",
+      "bytes": 66207320,
+      "sha256": "20ee6dd0871c22d39adac49cd0f8f39a03f2a7ac7c6481b7e9944350ad7f052e"
+    },
+    {
+      "path": "Exports/GLB/08_Orbital_SAM.glb",
+      "bytes": 76456500,
+      "sha256": "a8997fec2cfeb82959a593b3817ed79db6ad734f849b4400202e4b8a606b92d0"
+    },
+    {
+      "path": "Exports/GLB/09_Wood_Spike_Barricade.glb",
+      "bytes": 20360912,
+      "sha256": "90135e667a80a7480126ef87eabe9450c4e80e4356aed51eff06bfb38db46d92"
+    },
+    {
+      "path": "Exports/GLB/10_Metal_Barricade.glb",
+      "bytes": 16764820,
+      "sha256": "74602174db7a08a2dde60cb2ae907731dbfcfcb3802ee446a466e4e32c30c9d4"
+    },
+    {
+      "path": "Exports/GLB/11_Auto_Turret_Gunless.glb",
+      "bytes": 26043104,
+      "sha256": "febac47c6bc2b3512780958ece183e9ee21cb580c33d8ad3f58ca3b2159e1bcd"
+    },
+    {
+      "path": "Exports/GLB/12_Wooden_Ladder.glb",
+      "bytes": 22402492,
+      "sha256": "05a91eb101e20b886639bd0f8ffc785a5753cbcc4205da3f25f04220c9bae11c"
+    },
+    {
+      "path": "Preview/01_Large_Furnace_R02.png",
+      "bytes": 2353025,
+      "sha256": "b29813f36d1abb45765be8e22c4bb9d26ab01384a28ac94083611e524382ccba"
+    },
+    {
+      "path": "Preview/02_Wooden_Barricade_R02.png",
+      "bytes": 2483654,
+      "sha256": "439e01f6ba54cf315f3405963366179b2b3d40bec2dcca5b5dc575d6f4a1cac4"
+    },
+    {
+      "path": "Preview/03_Wood_Compound_Wall_R02.png",
+      "bytes": 2904374,
+      "sha256": "f216d1168fcfa8dc5ee5106115358e2f2bfe30dbcbf076099c8a42ecaec93182"
+    },
+    {
+      "path": "Preview/04_Wood_Compound_Gate_R02.png",
+      "bytes": 2762198,
+      "sha256": "e70c6312ddfe6b5b6fce16cd9269dc6c34bc872825641618b37d3a593e280d2d"
+    },
+    {
+      "path": "Preview/05_Stone_Compound_Wall_R02.png",
+      "bytes": 2684834,
+      "sha256": "a0988820988256adc388fa6e7201fa15e57de927e55e4b3d25a901fb5fc8cb1a"
+    },
+    {
+      "path": "Preview/06_Stone_Compound_Gate_R02.png",
+      "bytes": 2765789,
+      "sha256": "8cfdd7405ac6f18352044cc59298f00e374f2cad74103a30f8c7074ee6d5f983"
+    },
+    {
+      "path": "Preview/07_Windmill_R02.png",
+      "bytes": 2309310,
+      "sha256": "7a2d9e57a84b7d8889dd61fa344e2af5ddd7d86058de807a3debb06d95ae830e"
+    },
+    {
+      "path": "Preview/08_Orbital_SAM_R02.png",
+      "bytes": 2400301,
+      "sha256": "68ca6fd74aee2bf2ba2a6e5b1a13de0e44a71e987c3db232ad37262c6030a85c"
+    },
+    {
+      "path": "Preview/09_Wood_Spike_Barricade_R02.png",
+      "bytes": 2337049,
+      "sha256": "a2896849bb2021539ca8f3eda25130fc29c4bc3abd5b1f62fed7ee0eff403c0a"
+    },
+    {
+      "path": "Preview/10_Metal_Barricade_R02.png",
+      "bytes": 2232666,
+      "sha256": "02aa7e4d566ab01f2081c8970a87cd2e65445b3f4f1f9dc0bef7f2f7fd69ba83"
+    },
+    {
+      "path": "Preview/11_Auto_Turret_Gunless_R02.png",
+      "bytes": 2140965,
+      "sha256": "b3f68be33e6e1163a7d958d38dffb0d18b5c41aa1d14aa327e5f1f5a2cb5e2f5"
+    },
+    {
+      "path": "Preview/12_Wooden_Ladder_R02.png",
+      "bytes": 2145734,
+      "sha256": "88d393b9e74d998260cd8325b55aed85d21bb35ec50d16beef82311537a9e4f8"
+    },
+    {
+      "path": "Preview/PSG_Compound_Utilities_R02_Contact.jpg",
+      "bytes": 1580101,
+      "sha256": "063ecdc773b2f342d6f885feff01298a66dc2c4cd1b12917362b89f818a60fa2"
+    },
+    {
+      "path": "README_Import_and_Assembly.md",
+      "bytes": 8058,
+      "sha256": "ea89bd3ea8dafe945dc61248dca0cb532b24e065289a4b07ca3099c0a18314ff"
+    },
+    {
+      "path": "Reports/Articulation_QA.json",
+      "bytes": 4195,
+      "sha256": "feb9c9bf915d71b9da41fca93032fe2105872cadcd909b86938c2253451839d1"
+    },
+    {
+      "path": "Reports/Asset_manifest.json",
+      "bytes": 95808,
+      "sha256": "078680fb38e796ffbb4abb134d7609c4393487d7a1e336f5aac45c1640b634cd"
+    },
+    {
+      "path": "Reports/Final_QA_Summary.json",
+      "bytes": 10529,
+      "sha256": "89055485971a9b218ec8bf9bda55ab2d13602456a2abdfd0b0160b7a495107da"
+    },
+    {
+      "path": "Reports/Open_File_Validation.json",
+      "bytes": 4594,
+      "sha256": "339ee0f4b8418c24c9b554230a9f4b122c6d2db93dd603b82aad539e86a4f839"
+    },
+    {
+      "path": "Reports/QA/01_Large_Furnace.json",
+      "bytes": 3862,
+      "sha256": "9547459b997ab511d7705a73eeed4f62cebd3443787cc0867b5dfa3853be1853"
+    },
+    {
+      "path": "Reports/QA/02_Wooden_Barricade.json",
+      "bytes": 3910,
+      "sha256": "d39db2e3f7dc1bd3110f3d656440ac41694ad4f8d90b4276c0be2a9125950df8"
+    },
+    {
+      "path": "Reports/QA/03_Wood_Compound_Wall.json",
+      "bytes": 3931,
+      "sha256": "ee9c59d86978455bea5584bf1b7ab618dbc80a5e3f087d34a6266969a8daae13"
+    },
+    {
+      "path": "Reports/QA/04_Wood_Compound_Gate.json",
+      "bytes": 4854,
+      "sha256": "0847130c9b15813cffcaeb8d64a49d87644c8928fc47dd85074164f709d9c47a"
+    },
+    {
+      "path": "Reports/QA/05_Stone_Compound_Wall.json",
+      "bytes": 3951,
+      "sha256": "4d5db08cf03734ee44315e8e5e1f56311ecb5ba9eacb778ee5dd60518b7fd383"
+    },
+    {
+      "path": "Reports/QA/06_Stone_Compound_Gate.json",
+      "bytes": 4892,
+      "sha256": "4d2daf8cd251d8be97421623d9c6d98ce54a805d0009cefc5db3a58fd9870236"
+    },
+    {
+      "path": "Reports/QA/07_Windmill.json",
+      "bytes": 4639,
+      "sha256": "99647903e1c0500668487da92e749476584998f1ac34349580a7de1f09a82800"
+    },
+    {
+      "path": "Reports/QA/08_Orbital_SAM.json",
+      "bytes": 4713,
+      "sha256": "33e20a19335323216121db344eb59935156859b0d1f1dc5657ad28a465e64db0"
+    },
+    {
+      "path": "Reports/QA/09_Wood_Spike_Barricade.json",
+      "bytes": 3943,
+      "sha256": "fd5350b093481b014eaa89479b43bb346337c851b495aef076019be86ed802dc"
+    },
+    {
+      "path": "Reports/QA/10_Metal_Barricade.json",
+      "bytes": 3881,
+      "sha256": "4ce98bf0179f2420561c54eb08f29fcee999cd4b571c190af55816fa799e1d24"
+    },
+    {
+      "path": "Reports/QA/11_Auto_Turret_Gunless.json",
+      "bytes": 4852,
+      "sha256": "b0cdd33ed6b3deee68a08e07acc69e11a5d49df43df343d3c6acbb92d61d8020"
+    },
+    {
+      "path": "Reports/QA/12_Wooden_Ladder.json",
+      "bytes": 3854,
+      "sha256": "ad40036c9554ed46189f9ada00f63c75b44b5881177cd5c83989a32912468711"
+    },
+    {
+      "path": "Reports/Texture_sources.json",
+      "bytes": 4266,
+      "sha256": "8698d63d6e2c042acf9b6725138470c80452691b35ae263489096900dcf2e174"
+    },
+    {
+      "path": "Reports/Unreal_Assembly_Transforms_cm.json",
+      "bytes": 8779,
+      "sha256": "3c56d395843aa9fca3e155e85a2b1677f013ed7430465878af0b8a7e08dc9d2e"
+    },
+    {
+      "path": "Source/GameReady/01_Large_Furnace.blend",
+      "bytes": 7773483,
+      "sha256": "d2c51b199b743018613db90810e485cef1f9fceafa43e11df80893ea12304e12"
+    },
+    {
+      "path": "Source/GameReady/02_Wooden_Barricade.blend",
+      "bytes": 610888,
+      "sha256": "dfc91d096cfd5aa4b5d209063ad6ee6abb4d58aec772017206b8ad8cce99733a"
+    },
+    {
+      "path": "Source/GameReady/03_Wood_Compound_Wall.blend",
+      "bytes": 846311,
+      "sha256": "0991ca1f6e6abdaa496e3bc032cc7a4ce0e8b2387718c64e62efe8034714fde1"
+    },
+    {
+      "path": "Source/GameReady/04_Wood_Compound_Gate.blend",
+      "bytes": 5104070,
+      "sha256": "bed546070d89cf6b5c077e2850c16cdc33031374a789f6eb53d5e9e646caa981"
+    },
+    {
+      "path": "Source/GameReady/05_Stone_Compound_Wall.blend",
+      "bytes": 1091919,
+      "sha256": "7934e5523e06dd71eb8d54c688a4c536b173207870cc05aff2cbf8748c3d202e"
+    },
+    {
+      "path": "Source/GameReady/06_Stone_Compound_Gate.blend",
+      "bytes": 2681232,
+      "sha256": "227ce13f36fb39d304c738cc1d941a850d375978b412a30f4a8fb4d3c0e8b7a9"
+    },
+    {
+      "path": "Source/GameReady/07_Windmill.blend",
+      "bytes": 2989043,
+      "sha256": "28619917b944960239026cfda954b2e4aa5dfce5bf99b975881037e98c8d0974"
+    },
+    {
+      "path": "Source/GameReady/08_Orbital_SAM.blend",
+      "bytes": 13589553,
+      "sha256": "599017c75d0cb7065aedc84501d9a28efa39acf4ca27e35a5b4f93a6a01db5a2"
+    },
+    {
+      "path": "Source/GameReady/09_Wood_Spike_Barricade.blend",
+      "bytes": 990962,
+      "sha256": "76f9a01e97bb8f095c0c2f62ed2fc833da861d3f6bb11a8c39a7c2334af9822e"
+    },
+    {
+      "path": "Source/GameReady/10_Metal_Barricade.blend",
+      "bytes": 578438,
+      "sha256": "d54c18e532a700e5cd7a7546051a8ffc3ce989044308866b6c85cfc8dc10e3fc"
+    },
+    {
+      "path": "Source/GameReady/11_Auto_Turret_Gunless.blend",
+      "bytes": 5550150,
+      "sha256": "1fbb294fca188ee4b63d9994adf2e7a09ad6ee177be19c34064354d7742ecce6"
+    },
+    {
+      "path": "Source/GameReady/12_Wooden_Ladder.blend",
+      "bytes": 1421194,
+      "sha256": "437e451c1f2a9bd9d68cafe7a4371f3dbd2b335854fca598619bbe4ebc775a48"
+    },
+    {
+      "path": "Source/PSG_Compound_Utilities.blend",
+      "bytes": 12964699,
+      "sha256": "77d2c77f9db552a2f82754fcb6b8f512db13db40a1446496de3e597762e0be33"
+    },
+    {
+      "path": "Source/PSG_Compound_Utilities_R02_GameReady.blend",
+      "bytes": 42818245,
+      "sha256": "55b2749a2250a9ee6006c01b50feabad0656858b52b62cc1bfa2d3270442d5e1"
+    },
+    {
+      "path": "Textures/Baked/01_Large_Furnace/T_01_Large_Furnace_BaseColor.png",
+      "bytes": 22931605,
+      "sha256": "546edb871f064b8a304fb0c5c41f994feb303dc29b30276fa7fa818407733576"
+    },
+    {
+      "path": "Textures/Baked/01_Large_Furnace/T_01_Large_Furnace_NormalDX.png",
+      "bytes": 25049891,
+      "sha256": "1f0d128d5ad6f6677ac578d6f4dd38d2b9239f129615c8d23d0235696f19a3a8"
+    },
+    {
+      "path": "Textures/Baked/01_Large_Furnace/T_01_Large_Furnace_NormalGL.png",
+      "bytes": 25048607,
+      "sha256": "8aef6cca90590d6ef396d48e4f02d3a0babb7b631bbd063f596f3b1f0316bd62"
+    },
+    {
+      "path": "Textures/Baked/01_Large_Furnace/T_01_Large_Furnace_ORM.png",
+      "bytes": 18210524,
+      "sha256": "98cbfc0eb4299d42af4e98124ebe5fb5a3fbdb122d625a079d925aab8b31540e"
+    },
+    {
+      "path": "Textures/Baked/02_Wooden_Barricade/T_02_Wooden_Barricade_BaseColor.png",
+      "bytes": 6722964,
+      "sha256": "af32b4b06771071e27a0de960d30a0c3e6a4db84e41bd9ed18e03c8b67aad2e6"
+    },
+    {
+      "path": "Textures/Baked/02_Wooden_Barricade/T_02_Wooden_Barricade_NormalDX.png",
+      "bytes": 7475645,
+      "sha256": "ee7c42eeb9f08fa6be5e53a3fb287b5d32e244721a03966fa45b0f56cb6b9660"
+    },
+    {
+      "path": "Textures/Baked/02_Wooden_Barricade/T_02_Wooden_Barricade_NormalGL.png",
+      "bytes": 7475898,
+      "sha256": "85bffb0b2476670adc4330a9f58580543feef9d14a93a76c85b25e73f3ea56f9"
+    },
+    {
+      "path": "Textures/Baked/02_Wooden_Barricade/T_02_Wooden_Barricade_ORM.png",
+      "bytes": 5319841,
+      "sha256": "145dc2a1595bb87690929150bc721f5e95e649325ba043560acfe0debd1fe639"
+    },
+    {
+      "path": "Textures/Baked/03_Wood_Compound_Wall/T_03_Wood_Compound_Wall_BaseColor.png",
+      "bytes": 23940663,
+      "sha256": "c2ff604f46e1609dacb896d9a377cfd4705991435e8c0ac06dc1b6d8c314a83e"
+    },
+    {
+      "path": "Textures/Baked/03_Wood_Compound_Wall/T_03_Wood_Compound_Wall_NormalDX.png",
+      "bytes": 26018595,
+      "sha256": "9c2efb596773ab3e6f65a1180e072382309df90b43a0caef6d5aeff89e6f710e"
+    },
+    {
+      "path": "Textures/Baked/03_Wood_Compound_Wall/T_03_Wood_Compound_Wall_NormalGL.png",
+      "bytes": 26019533,
+      "sha256": "8416170abcf8429fd5d9bc90a5b8c0fbf265ab3492a979329b482bd35f33a96f"
+    },
+    {
+      "path": "Textures/Baked/03_Wood_Compound_Wall/T_03_Wood_Compound_Wall_ORM.png",
+      "bytes": 18319256,
+      "sha256": "def2da4a41779e1eae3119b75e45cc89bf3c39869eef9c52a25eb8e630d7d900"
+    },
+    {
+      "path": "Textures/Baked/04_Wood_Compound_Gate/T_04_Wood_Compound_Gate_BaseColor.png",
+      "bytes": 26115775,
+      "sha256": "b140b500289c49845bab98c188fbf969fd35312742cd513c870219728e44de29"
+    },
+    {
+      "path": "Textures/Baked/04_Wood_Compound_Gate/T_04_Wood_Compound_Gate_NormalDX.png",
+      "bytes": 29480667,
+      "sha256": "93c5196488066d6e019699d4a8cf65702b059ca0a9af46c6e285408e421f6683"
+    },
+    {
+      "path": "Textures/Baked/04_Wood_Compound_Gate/T_04_Wood_Compound_Gate_NormalGL.png",
+      "bytes": 29480271,
+      "sha256": "63292bad35afb2d1283d509a95c9f169adbc5cdfd8cbc793bbf21df10af586d3"
+    },
+    {
+      "path": "Textures/Baked/04_Wood_Compound_Gate/T_04_Wood_Compound_Gate_ORM.png",
+      "bytes": 23206168,
+      "sha256": "b2a72f20eb76d146db1c4134a484256698bc361c6022c909bd6eb015c2d6ccb5"
+    },
+    {
+      "path": "Textures/Baked/05_Stone_Compound_Wall/T_05_Stone_Compound_Wall_BaseColor.png",
+      "bytes": 20639409,
+      "sha256": "648166923a806ad41d4f3b837b97b13b2fb8177ed337a98acf52069affaa3cd2"
+    },
+    {
+      "path": "Textures/Baked/05_Stone_Compound_Wall/T_05_Stone_Compound_Wall_NormalDX.png",
+      "bytes": 19296417,
+      "sha256": "1043186483ba5dde12e7213f7e8f0b1788885b4ca5f1216a12033536a07b08d1"
+    },
+    {
+      "path": "Textures/Baked/05_Stone_Compound_Wall/T_05_Stone_Compound_Wall_NormalGL.png",
+      "bytes": 19292088,
+      "sha256": "617490823c92a6487aa705f27b3e5b8bcf8ee4945c0148431925f2567fc198a7"
+    },
+    {
+      "path": "Textures/Baked/05_Stone_Compound_Wall/T_05_Stone_Compound_Wall_ORM.png",
+      "bytes": 19401554,
+      "sha256": "520d832105f2af3b7510138ada462b1d7519509422cdfdf33a3670cee7d50690"
+    },
+    {
+      "path": "Textures/Baked/06_Stone_Compound_Gate/T_06_Stone_Compound_Gate_BaseColor.png",
+      "bytes": 21136490,
+      "sha256": "a1631e47ee65dc141a647ef04954ee1d1ed6585e981d6e00facfb9bb0653abea"
+    },
+    {
+      "path": "Textures/Baked/06_Stone_Compound_Gate/T_06_Stone_Compound_Gate_NormalDX.png",
+      "bytes": 15656581,
+      "sha256": "1383f15e0238e2906913567fbdc09485dd434465c19a2345c4e3727de45a7acd"
+    },
+    {
+      "path": "Textures/Baked/06_Stone_Compound_Gate/T_06_Stone_Compound_Gate_NormalGL.png",
+      "bytes": 15649842,
+      "sha256": "36e7b964a4f43da0db727a3ebd3dab1128614bc187d7072a99cca7264fb9294d"
+    },
+    {
+      "path": "Textures/Baked/06_Stone_Compound_Gate/T_06_Stone_Compound_Gate_ORM.png",
+      "bytes": 23542656,
+      "sha256": "4e0ecaa04f5b333b1b97af09f18462d3a5c841bce1d47400e96fc7c94e1e420d"
+    },
+    {
+      "path": "Textures/Baked/07_Windmill/T_07_Windmill_BaseColor.png",
+      "bytes": 22135172,
+      "sha256": "2ef9b8ec1d8b0001ca43c3729cfdb40b05e5dfbd8e7eb15f06282cda69bb9e0f"
+    },
+    {
+      "path": "Textures/Baked/07_Windmill/T_07_Windmill_NormalDX.png",
+      "bytes": 18995099,
+      "sha256": "30ea351649cf4635b95353b0ad8513446cf68eef9845911e7e7e3aca18432b4f"
+    },
+    {
+      "path": "Textures/Baked/07_Windmill/T_07_Windmill_NormalGL.png",
+      "bytes": 18989923,
+      "sha256": "88ccb9e7bddcf90ad78f495c2322b478a2337b40d0b118ada0e585ac7f78926b"
+    },
+    {
+      "path": "Textures/Baked/07_Windmill/T_07_Windmill_ORM.png",
+      "bytes": 21399118,
+      "sha256": "868426a9d25753b96069d03ae0d2bcc6dba871e688666acda7c2935201e9fe51"
+    },
+    {
+      "path": "Textures/Baked/08_Orbital_SAM/T_08_Orbital_SAM_BaseColor.png",
+      "bytes": 16086082,
+      "sha256": "d372025a662aab746d1d41a4821cf68ff1a3f96b04ebf0ec772095301ad02674"
+    },
+    {
+      "path": "Textures/Baked/08_Orbital_SAM/T_08_Orbital_SAM_NormalDX.png",
+      "bytes": 12190987,
+      "sha256": "dad825f891e06c267107b07833bb8fa1c9131af98c73beb039b763ff1173d453"
+    },
+    {
+      "path": "Textures/Baked/08_Orbital_SAM/T_08_Orbital_SAM_NormalGL.png",
+      "bytes": 12180233,
+      "sha256": "d7446700b49641ff871b385331ebc8d8346251ec0f5f9ec8cdb0e00c7340a2ed"
+    },
+    {
+      "path": "Textures/Baked/08_Orbital_SAM/T_08_Orbital_SAM_ORM.png",
+      "bytes": 25362674,
+      "sha256": "b372b3ab8c053c0ca76b0d1353e24c7468add37b451616c527f195b9e48d3ffa"
+    },
+    {
+      "path": "Textures/Baked/09_Wood_Spike_Barricade/T_09_Wood_Spike_Barricade_BaseColor.png",
+      "bytes": 6096328,
+      "sha256": "dd907fb3423ea23f70ca7b27eddcf0d171c205747603e20785223f8a76ed3f30"
+    },
+    {
+      "path": "Textures/Baked/09_Wood_Spike_Barricade/T_09_Wood_Spike_Barricade_NormalDX.png",
+      "bytes": 6984144,
+      "sha256": "4eb311042790d713966582d16bcd5645f64a607827e8bffd1599907d3d50d1b9"
+    },
+    {
+      "path": "Textures/Baked/09_Wood_Spike_Barricade/T_09_Wood_Spike_Barricade_NormalGL.png",
+      "bytes": 6984026,
+      "sha256": "c6b8f24b8f5c88fe0886b295907ac3f7e9be3154d1e2d93dc22fe74fa4759303"
+    },
+    {
+      "path": "Textures/Baked/09_Wood_Spike_Barricade/T_09_Wood_Spike_Barricade_ORM.png",
+      "bytes": 6025677,
+      "sha256": "b0d976b2345a700d633d9fcb9c9073e973301f6c6ff4a3a48f8c31d1f3f672bb"
+    },
+    {
+      "path": "Textures/Baked/10_Metal_Barricade/T_10_Metal_Barricade_BaseColor.png",
+      "bytes": 5243400,
+      "sha256": "e28bc33820d57dcba02bfe804a5483b8f7492253b53f9727abfab49bd7c98bbb"
+    },
+    {
+      "path": "Textures/Baked/10_Metal_Barricade/T_10_Metal_Barricade_NormalDX.png",
+      "bytes": 3505015,
+      "sha256": "c55d20ca2ba0848f867bb485b29c71387ecc214a40d10ea2c49a09ea663d7137"
+    },
+    {
+      "path": "Textures/Baked/10_Metal_Barricade/T_10_Metal_Barricade_NormalGL.png",
+      "bytes": 3503766,
+      "sha256": "869044d9c1e158c76fde02400ec5ce7e62a294e222dc158439d5e913990e9588"
+    },
+    {
+      "path": "Textures/Baked/10_Metal_Barricade/T_10_Metal_Barricade_ORM.png",
+      "bytes": 7089384,
+      "sha256": "5ee3af4f575ab3e898750a427383aeef59960254142025dc52bc54ad45d2f7db"
+    },
+    {
+      "path": "Textures/Baked/11_Auto_Turret_Gunless/T_11_Auto_Turret_Gunless_BaseColor.png",
+      "bytes": 5128769,
+      "sha256": "d1cc4ba5bb540035149f4e8127c11115796c06faf0ead57af29bb8706acb20e5"
+    },
+    {
+      "path": "Textures/Baked/11_Auto_Turret_Gunless/T_11_Auto_Turret_Gunless_NormalDX.png",
+      "bytes": 1972841,
+      "sha256": "deb4829f1d63127e032884cc6ff0bd849dc8a397ba3a00bf13e0c965efd6abba"
+    },
+    {
+      "path": "Textures/Baked/11_Auto_Turret_Gunless/T_11_Auto_Turret_Gunless_NormalGL.png",
+      "bytes": 1972034,
+      "sha256": "7493fb4068854a74d292773f03e7690b39f6c4d2111aae2c80a741cd5c117046"
+    },
+    {
+      "path": "Textures/Baked/11_Auto_Turret_Gunless/T_11_Auto_Turret_Gunless_ORM.png",
+      "bytes": 7509257,
+      "sha256": "09a91bb0407de5e7b63cc6c2e622b84cdf94a778cf9fa591e8c9b62c4da80a11"
+    },
+    {
+      "path": "Textures/Baked/12_Wooden_Ladder/T_12_Wooden_Ladder_BaseColor.png",
+      "bytes": 6723528,
+      "sha256": "2ec9fc5898289c315d9917301fd7b4f7aa24c1ebd14104e285ff86a7baefbc14"
+    },
+    {
+      "path": "Textures/Baked/12_Wooden_Ladder/T_12_Wooden_Ladder_NormalDX.png",
+      "bytes": 8055591,
+      "sha256": "9dacdfa3c080028185439f3100c787fa1fd0f2a448c998a6ba3e612ae21eb397"
+    },
+    {
+      "path": "Textures/Baked/12_Wooden_Ladder/T_12_Wooden_Ladder_NormalGL.png",
+      "bytes": 8056903,
+      "sha256": "a005166472dedf64d3d22d6b419b2f5e3c86a69fefe5228f28daf657c5a60bc4"
+    },
+    {
+      "path": "Textures/Baked/12_Wooden_Ladder/T_12_Wooden_Ladder_ORM.png",
+      "bytes": 6152976,
+      "sha256": "1b20edee44e9affbeb179ad1673b44957a5aec04a9ccf8e125ff58ce27218963"
+    },
+    {
+      "path": "Textures/Dependencies/T_Brass_BaseColor.png",
+      "bytes": 4695759,
+      "sha256": "cbf6e7696d55a156ae08020f4b67f1e2198fe0934c567b40d4ff2bbae132608a"
+    },
+    {
+      "path": "Textures/Dependencies/T_Brass_ORM.png",
+      "bytes": 4635155,
+      "sha256": "e5679f9c2451b132a7c472a0b94d4aaeee99c45a1ccc35c518f583d68ba29315"
+    },
+    {
+      "path": "Textures/Dependencies/T_CutWood_BaseColor_Aged.png",
+      "bytes": 765292,
+      "sha256": "2f706900d52168f2e9588965b2bb6c60e8fc9effd00914bba5ecb247452d6e1e"
+    },
+    {
+      "path": "Textures/Dependencies/T_CutWood_NormalGL.png",
+      "bytes": 1457788,
+      "sha256": "a18aebfb8bfc0824041f7dac6fb8fbc5873d7bdf4fba95a7c0e50b8f84408be9"
+    },
+    {
+      "path": "Textures/Dependencies/T_CutWood_ORM.png",
+      "bytes": 687850,
+      "sha256": "0c004beb4e2af8e29420b0eb721b3a9ba47426da762dbced62860cbad35285ef"
+    },
+    {
+      "path": "Textures/Dependencies/T_Lens_BaseColor.png",
+      "bytes": 17824,
+      "sha256": "7ae0252641223ab810116591ddb79976e3b2429e9ff8f9905e34658c5c8973dd"
+    },
+    {
+      "path": "Textures/Dependencies/T_Lens_NormalGL.png",
+      "bytes": 15960,
+      "sha256": "9d635534e475c7dc60f869767dbd9b0f37a94ddd7aa9a7b98642a6bd4febe8bc"
+    },
+    {
+      "path": "Textures/Dependencies/T_Lens_ORM.png",
+      "bytes": 15964,
+      "sha256": "72178a2c7a1b84cd2d2ffe79a068893e37acca3cead9480ab3a1ef05cda45400"
+    },
+    {
+      "path": "Textures/Dependencies/T_Marking_BaseColor.png",
+      "bytes": 277788,
+      "sha256": "076b81dbe68f462fdc5e9db3b277ebc86ef6ccbed8d0063a870379e01905ea12"
+    },
+    {
+      "path": "Textures/Dependencies/T_Marking_ORM.png",
+      "bytes": 4588,
+      "sha256": "9941468bcc3053f2f6b52839b7721e488b2f998805b61a16132b1788fbf73fe8"
+    },
+    {
+      "path": "Textures/Dependencies/T_Rubber_BaseColor.png",
+      "bytes": 1290141,
+      "sha256": "85e8f96696ba05438c0be70b4105399afa61f3f55c83d6b76692ac912369ee8e"
+    },
+    {
+      "path": "Textures/Dependencies/T_Rubber_ORM.png",
+      "bytes": 1440065,
+      "sha256": "3c6e9e95b60e7cb5ea5826d01aa16bba4d01aae68abd1618becf6cfb27871021"
+    },
+    {
+      "path": "Textures/Dependencies/T_Soot_BaseColor.png",
+      "bytes": 123430,
+      "sha256": "7550315af94def3a6aa4ca5f5bbb28333f0a4d27361f21676b33bdd60a5dfd08"
+    },
+    {
+      "path": "Textures/Dependencies/T_Soot_ORM.png",
+      "bytes": 1269620,
+      "sha256": "a2c465be4a725e73e728074e6153df6d06c2d1433b6d4b2fe0ab04db3a52f446"
+    },
+    {
+      "path": "Textures/Dependencies/T_bark_brown_02_NormalGL.png",
+      "bytes": 33954449,
+      "sha256": "f9f11e2d671095e56282c7ff456e3ecc39d389adb310c331f2ff0f5fabae1753"
+    },
+    {
+      "path": "Textures/Dependencies/T_bark_brown_02_ORM.png",
+      "bytes": 26374136,
+      "sha256": "53910a82b686dc783816f8eb28db752955ee97a14c708b9a61bad4f6e2ced22a"
+    },
+    {
+      "path": "Textures/Dependencies/T_concrete_wall_001_NormalGL.png",
+      "bytes": 29166873,
+      "sha256": "4282b56c2484ba8d20c099c892af39bd0ed87d6b8d9904aa633143ccc267194b"
+    },
+    {
+      "path": "Textures/Dependencies/T_concrete_wall_001_ORM.png",
+      "bytes": 22458717,
+      "sha256": "300e949066819d506157a4af88ff6af0b9651b1ea55d0dc07d4c0dfbd38a112e"
+    },
+    {
+      "path": "Textures/Dependencies/T_rock_boulder_dry_NormalGL.png",
+      "bytes": 33044840,
+      "sha256": "dbb978b9220b7d9427b729a6472cffa3ee26a3a8e2e7630f1c5ebf9157e40d0f"
+    },
+    {
+      "path": "Textures/Dependencies/T_rock_boulder_dry_ORM.png",
+      "bytes": 27457093,
+      "sha256": "698ca670182b7512f786832960bf6374536ae1e738b881fa930716e17d5c64c5"
+    },
+    {
+      "path": "Textures/Dependencies/T_rusty_metal_04_NormalGL.png",
+      "bytes": 31176225,
+      "sha256": "a683d091f2c53fabe04b37f9e84a33e40a5599c9b89d0c1e4f85d0b57480a71d"
+    },
+    {
+      "path": "Textures/Dependencies/T_rusty_metal_04_ORM.png",
+      "bytes": 29336815,
+      "sha256": "61b5d1faa8bd9d86542acb5c1247fb1d0b50ce196725077c9e8974209d012fcf"
+    },
+    {
+      "path": "Textures/Dependencies/T_wood_planks_grey_NormalGL.png",
+      "bytes": 21588881,
+      "sha256": "6d179b4fb4a4c5b03688a2f276b9aaf4890c7bc9eb1612439ac750d0fd27d30c"
+    },
+    {
+      "path": "Textures/Dependencies/T_wood_planks_grey_ORM.png",
+      "bytes": 21789833,
+      "sha256": "1d31b76dd1e9b8db7474049330d543edbf6cf9aa0ffbc333ac98912e3974b0d1"
+    },
+    {
+      "path": "Textures/Dependencies/bark_brown_02_diff_4k.jpg",
+      "bytes": 7259413,
+      "sha256": "6c8a25592af62af9630091d5153f5dbabe3a8e8863dc03724a3027a7b3036c39"
+    },
+    {
+      "path": "Textures/Dependencies/concrete_wall_001_diff_4k.jpg",
+      "bytes": 1517155,
+      "sha256": "e876c8a6c430b7134d333cf5da3bc4b4c92fdfbdded9b63a37ccf8687f8980c8"
+    },
+    {
+      "path": "Textures/Dependencies/rusty_metal_04_diff_4k.jpg",
+      "bytes": 12664895,
+      "sha256": "e6ae313a5ba2b7348c0156a3470ac2816b495af6b595a3c696c4d4e20294cbe5"
+    },
+    {
+      "path": "Textures/Dependencies/wood_planks_grey_diff_4k.jpg",
+      "bytes": 4088029,
+      "sha256": "b68cb655dcce4350939059bdfa99fe8c494137871c70ec9198107c31203d1aa8"
+    },
+    {
+      "path": "Textures/Source/Rope001/Rope001_2K-PNG_Color.png",
+      "bytes": 2312202,
+      "sha256": "02c1af677edaf54d841cfacd949c516aa12aa8d1ff72bd201fb3b69a7023ec1f"
+    },
+    {
+      "path": "Textures/Source/Rope001/Rope001_2K-PNG_NormalGL.png",
+      "bytes": 11154485,
+      "sha256": "7c5b2c24f4468730950d3ecc062884fc409c67db4ebc0fd02471909257f52bc3"
+    },
+    {
+      "path": "Textures/Source/blue_metal_plate/blue_metal_plate_arm_4k.exr",
+      "bytes": 15126573,
+      "sha256": "4e55245b43ac06337cd9713559a42ccbe8b32646c757da9357a5559531ceac14"
+    },
+    {
+      "path": "Textures/Source/blue_metal_plate/blue_metal_plate_diff_4k.jpg",
+      "bytes": 5753951,
+      "sha256": "297bf7902e3b808bfa75629066cd7010a54e0c5c8f8389e1c2cf3b61444d8e76"
+    },
+    {
+      "path": "Textures/Source/blue_metal_plate/blue_metal_plate_nor_gl_4k.exr",
+      "bytes": 6685163,
+      "sha256": "61d53cc22841673843b501769884d36f2023626fe22a50b9bfce08d7be14412d"
+    },
+    {
+      "path": "Textures/Source/medieval_red_brick/medieval_red_brick_arm_4k.exr",
+      "bytes": 17767379,
+      "sha256": "d4a8ecd6779ad3aa307c0a9789b6276bf525bff4f886d371b3d32899dcc7f9b3"
+    },
+    {
+      "path": "Textures/Source/medieval_red_brick/medieval_red_brick_diff_4k.jpg",
+      "bytes": 13394923,
+      "sha256": "90636edd1744353088b35596a18d3f3395cbf822b9f1b1f20e20b30598c7b5e4"
+    },
+    {
+      "path": "Textures/Source/medieval_red_brick/medieval_red_brick_nor_gl_4k.exr",
+      "bytes": 34833234,
+      "sha256": "f93297034f2a3f0d957e66c8fc06f452baaab235d5db0093f31437d96c32e8ae"
+    },
+    {
+      "path": "Textures/Source/metal_plate_02/metal_plate_02_arm_4k.exr",
+      "bytes": 36749367,
+      "sha256": "b1b25d9231a98211d69565474d72028c1fc6d589aaa765ec5f723ff01b6ea1c6"
+    },
+    {
+      "path": "Textures/Source/metal_plate_02/metal_plate_02_diff_4k.jpg",
+      "bytes": 10488395,
+      "sha256": "8f87ae49fa2e8245db08f18d4847fbdd75f2ef03c6405c7f90679b137541bb53"
+    },
+    {
+      "path": "Textures/Source/metal_plate_02/metal_plate_02_nor_gl_4k.exr",
+      "bytes": 3509548,
+      "sha256": "5bba1ebbc59726d6921103fba67b9f7d1ef31e3a2571ba2d1d1be347ec22540d"
+    },
+    {
+      "path": "Textures/Source/reed_roof_03/reed_roof_03_arm_4k.exr",
+      "bytes": 28916764,
+      "sha256": "08ccc9ffd99cff3ed114c43913bf197e1568fe4d5e7fe1bf65cd730a7ee856e9"
+    },
+    {
+      "path": "Textures/Source/reed_roof_03/reed_roof_03_diff_4k.jpg",
+      "bytes": 8847286,
+      "sha256": "f1b7c92b04d53d1a1d3c61652516643289350863fc9efdf38b763ae304b3e779"
+    },
+    {
+      "path": "Textures/Source/reed_roof_03/reed_roof_03_nor_gl_4k.exr",
+      "bytes": 35577225,
+      "sha256": "8268418066a766cb877afb434d2b119259b181c668a1ec50c64573bf5a8cdc40"
+    },
+    {
+      "path": "Textures/Source/rock_boulder_dry/rock_boulder_dry_diff_4k.jpg",
+      "bytes": 14349759,
+      "sha256": "2787cfdf899ea12442e67e337e32712d6e25f4a0763ab3df63fd9306a02e156f"
+    },
+    {
+      "path": "Textures/Source/rusty_metal_02/rusty_metal_02_arm_4k.exr",
+      "bytes": 28820484,
+      "sha256": "7c1fcc76f98963749e0efeb7e5337e0a713db68669ae2f62858c7878b8d224fd"
+    },
+    {
+      "path": "Textures/Source/rusty_metal_02/rusty_metal_02_diff_4k.jpg",
+      "bytes": 6794718,
+      "sha256": "0110d6bf4a7a233968047cccf7bb366927278f625de6299821f6b4a9cb441d75"
+    },
+    {
+      "path": "Textures/Source/rusty_metal_02/rusty_metal_02_nor_gl_4k.exr",
+      "bytes": 8116690,
+      "sha256": "7b07644ed9d15705f47c6d3e1ead93b6808aa98b5113e4ca0b0634609a4ff2ee"
+    },
+    {
+      "path": "Textures/Source/rusty_metal_03/rusty_metal_03_arm_4k.exr",
+      "bytes": 14533680,
+      "sha256": "b2733e21ab9a964589e239e122f7707a41b00fa312fb6caa9444fca00f438cfa"
+    },
+    {
+      "path": "Textures/Source/rusty_metal_03/rusty_metal_03_diff_4k.jpg",
+      "bytes": 10784797,
+      "sha256": "b04f4e2c4107b5b8e145bfc486b3835b8a762cf4a5df1bb743d4a3c959db0acf"
+    },
+    {
+      "path": "Textures/Source/rusty_metal_03/rusty_metal_03_nor_gl_4k.exr",
+      "bytes": 25461453,
+      "sha256": "cebd5e83cd6b32f99b80e993f2ff799659a6d9baf1cb5a7e5b7daefc4de7442a"
+    },
+    {
+      "path": "Textures/Source/rusty_painted_metal/rusty_painted_metal_arm_4k.exr",
+      "bytes": 10865604,
+      "sha256": "87c86251747cb9c0ef7c9bd1e9e5f5c59bc65a935c7823cbbea126d34c55dd0a"
+    },
+    {
+      "path": "Textures/Source/rusty_painted_metal/rusty_painted_metal_diff_4k.jpg",
+      "bytes": 8055504,
+      "sha256": "714a7afb10317bf3817f5f6a7f43bde8db0ec6819aced5d23754d2cc0aaa3143"
+    },
+    {
+      "path": "Textures/Source/rusty_painted_metal/rusty_painted_metal_nor_gl_4k.exr",
+      "bytes": 23945087,
+      "sha256": "e43b5d99eb109d85e561e8b40be65d4d87eda5d4663d8ea77d610faf20acaae9"
+    },
+    {
+      "path": "Textures/Source/worn_corrugated_iron/worn_corrugated_iron_arm_4k.exr",
+      "bytes": 23601865,
+      "sha256": "dae02dadb1dafbb56277626dca4fd7a274af8c1b2cfeb23a837daba4698d3c82"
+    },
+    {
+      "path": "Textures/Source/worn_corrugated_iron/worn_corrugated_iron_diff_4k.jpg",
+      "bytes": 11758690,
+      "sha256": "a1638c0b28a7a2ebb6c9c3bbc4cc430085fa86b80fd6178ff858f64157dc04bb"
+    },
+    {
+      "path": "Textures/Source/worn_corrugated_iron/worn_corrugated_iron_nor_gl_4k.exr",
+      "bytes": 35417672,
+      "sha256": "afe1c1732bc09ec8851f8dfb4d6ccfa07093757dae81b3dcd755d2bccfcd57d7"
+    },
+    {
+      "path": "Textures/T_Rope001_ORM.png",
+      "bytes": 1361530,
+      "sha256": "454d604e3f763fce9d37894d8de8fe5c47b52189935f2906f1421f5eae7aace8"
+    }
+  ],
+  "count": 228,
+  "uncompressed_bytes": 2376766291,
+  "notes": "Source and game-ready .blend files, exports, all used source material maps, baked textures, actual renders and current QA reports. R01 backups, rejected first-pass previews, caches and font files are excluded."
+}

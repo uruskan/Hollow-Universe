@@ -1,5 +1,9 @@
 # Hollow Universe — Game Design
 
+**Historical source-project design.** For AB Test B, [DESIGN.md](DESIGN.md) is authoritative. Its 18 October 2026
+travel revision adopts Elite Dangerous-inspired flight, charging and scooping; this does not reactivate every
+older "Decided" entry, scale choice or feature on this page. Implementation status is in DEVELOPMENT.md.
+
 Status: draft 1, 10 October 2026; the scale (pillar 1, §4) revised on 14 October 2026 ([SCALE.md](SCALE.md)). Owner:
 Yusuf. This is what the game is. [ARCHITECTURE.md](ARCHITECTURE.md) says how it's built.
 

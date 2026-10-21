@@ -1,0 +1,420 @@
+{
+  "revision": "R01",
+  "jobs": [
+    {
+      "name": "model-build",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "-b",
+        "--factory-startup",
+        "-t",
+        "2",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "art/models/torn_schematic.py"
+      ],
+      "owned_pid": 12652,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 4.2,
+      "free_gib_before": 6.44,
+      "exit_code": 0,
+      "run_seconds": 10.0
+    },
+    {
+      "name": "review-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review\\TornSchematicReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 39972,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 4.0,
+      "free_gib_before": 6.54,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "import-textures",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 12800,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 15.6,
+      "free_gib_before": 6.57,
+      "exit_code": 0,
+      "run_seconds": 5.0
+    },
+    {
+      "name": "import-model",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 39692,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 0.5,
+      "free_gib_before": 6.5,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "lod0",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review",
+        "--",
+        "--lod=0",
+        "--output=torn-schematic-lod0.png"
+      ],
+      "owned_pid": 6668,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 0.1,
+      "free_gib_before": 6.39,
+      "exit_code": 0,
+      "run_seconds": 5.0
+    },
+    {
+      "name": "icons-render",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review",
+        "--",
+        "--icons",
+        "--output=icon-sheet.png"
+      ],
+      "owned_pid": 13516,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 26.3,
+      "free_gib_before": 6.57,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 31452,
+      "closed": true,
+      "wait_seconds": 16.08,
+      "cpu_before": 31.7,
+      "free_gib_before": 6.29,
+      "exit_code": 0,
+      "run_seconds": 6.01
+    },
+    {
+      "name": "slots",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review",
+        "--",
+        "--slots",
+        "--output=icon-slots.png"
+      ],
+      "owned_pid": 15416,
+      "closed": true,
+      "wait_seconds": 16.3,
+      "cpu_before": 7.6,
+      "free_gib_before": 6.7,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "review-build-final",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review\\TornSchematicReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 27412,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 2.6,
+      "free_gib_before": 6.56,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod0-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review",
+        "--",
+        "--lod=0",
+        "--output=torn-schematic-lod0.png"
+      ],
+      "owned_pid": 38500,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 0.4,
+      "free_gib_before": 6.67,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod1-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review",
+        "--",
+        "--lod=1",
+        "--output=torn-schematic-lod1.png"
+      ],
+      "owned_pid": 40792,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 19.5,
+      "free_gib_before": 6.7,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod2-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review",
+        "--",
+        "--lod=2",
+        "--output=torn-schematic-lod2.png"
+      ],
+      "owned_pid": 30828,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 27.2,
+      "free_gib_before": 6.46,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "back-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\review",
+        "--",
+        "--lod=0",
+        "--yaw=155",
+        "--output=torn-schematic-back.png"
+      ],
+      "owned_pid": 40388,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 7.3,
+      "free_gib_before": 6.24,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "checks-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\TornSchematicChecks.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 20280,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 4.0,
+      "free_gib_before": 6.02,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "catalogue-content-tests",
+      "command": [
+        "dotnet",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\checks-bin\\net10.0\\Hollow.Tests.dll"
+      ],
+      "owned_pid": 10148,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 3.1,
+      "free_gib_before": 6.31,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "mesh-check",
+      "command": [
+        "C:\\Python314\\python.exe",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\torn-schematic-r01\\check_glb.py"
+      ],
+      "owned_pid": 29608,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 18.4,
+      "free_gib_before": 6.41,
+      "exit_code": 0,
+      "run_seconds": 1.0
+    },
+    {
+      "name": "solution-build",
+      "command": [
+        "dotnet",
+        "build",
+        "HollowUniverse.sln",
+        "--no-restore",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false",
+        "/p:BuildInParallel=false"
+      ],
+      "owned_pid": 6520,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 56.8,
+      "free_gib_before": 5.57,
+      "exit_code": 0,
+      "run_seconds": 79.04
+    }
+  ],
+  "resolved_build_issue": {
+    "attempt": {
+      "name": "model-build",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "-b",
+        "--factory-startup",
+        "-t",
+        "2",
+        "--python",
+        "art/models/torn_schematic.py"
+      ],
+      "owned_pid": 15108,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 51.4,
+      "free_gib_before": 6.21,
+      "exit_code": 0,
+      "run_seconds": 11.01
+    },
+    "error": "Traceback (most recent call last):\n  File \"D:\\GameDev\\Projects\\HollowUniverseABTestB\\art\\models\\torn_schematic.py\", line 50, in <module>\n    me.from_pydata(points,[],[[lookup[tuple(p)] for p in t] for t in triangles]);me.update()\n                                      ~~~~~^^^\nTypeError: 'int' object is not iterable\n",
+    "resolution": "Handled Blender 5.2 tessellation index triples; rerun used --python-exit-code 1 and succeeded."
+  },
+  "icon_checks": {
+    "128": {
+      "rgba": true,
+      "size": [
+        128,
+        128
+      ],
+      "unclipped_bounds": [
+        21,
+        9,
+        107,
+        119
+      ]
+    },
+    "256": {
+      "rgba": true,
+      "size": [
+        256,
+        256
+      ],
+      "unclipped_bounds": [
+        42,
+        18,
+        214,
+        238
+      ]
+    }
+  },
+  "tests": "  RUN  ContentTests.GroundDataIsComplete\n      137 items, 94 recipes, 17 natural kinds, 24 deployables, 11 loot tables; hash A29EF438726C4597\n  ok   ContentTests.GroundDataIsComplete (403 ms)\n  RUN  ContentTests.BrokenDataIsReported\n      42 problems found, e.g. items.json: \"arrow\": unknown field \"stak\" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship, wiring)\n  ok   ContentTests.BrokenDataIsReported (56 ms)\n  RUN  ContentTests.EveryDataFileHasOneReader\n      22 readers for 21 files, and the checks across them\n  ok   ContentTests.EveryDataFileHasOneReader (1 ms)\n  RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (7 ms)\n  RUN  ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 264 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (698 ms)\n11/11 passed in 1.2 s.\n",
+  "provider": "Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org\nVulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER\n\ntorn-schematic rendered provider: 32px PASS\ntorn-schematic rendered provider: 48px PASS\ntorn-schematic rendered provider: 64px PASS\ntorn-schematic rendered provider: 96px PASS\ntorn-schematic rendered provider: 128px PASS\ntorn-schematic rendered provider: 256px PASS\ntorn-schematic capture: D:/GameDev/Projects/HollowUniverseABTestB/.artifacts/torn-schematic-r01/review/../icon-slots.png, Ok\n",
+  "mesh": {
+    "glb_bytes": 105336,
+    "triangles": {
+      "TornSchematic_hull0-convcolonly": 34,
+      "TornSchematic_lod0": 2880,
+      "TornSchematic_lod1": 828,
+      "TornSchematic_lod2": 140
+    },
+    "finite_attributes": true,
+    "unit_normals": true,
+    "images_embedded": false
+  },
+  "captures": {
+    "icon-slots.png": "a4c33bb6fc770570c94844b7b72888b90162f944c046608c7df6ad5c4fb6a4a4",
+    "torn-schematic-back.png": "94e93f15acef32cb4676848b8e77469d6da992459057025da52d9c0c01ef0cbf",
+    "torn-schematic-lod0.png": "b8c7429f655978359e6fb2acb4ba00ec49f861b4998b09b69d36f353ab4d8924",
+    "torn-schematic-lod1.png": "9188999d06d55b811758752245b104283c11898b85be7dd76cc67541677f1d00",
+    "torn-schematic-lod2.png": "d0aced439aee7345e9aa7f10a2db5bd0252041506a9041560252b47679fafc97"
+  },
+  "solution_build_output": "\n\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:01:17.95\n",
+  "broader_suite": {
+    "status": "not_started_memory_gate",
+    "observed_free_gib": 2.02,
+    "required_free_gib": 3.5,
+    "test_children_started": 0
+  },
+  "compiled_references": {
+    "Hollow.Client.dll": "939e1dd7687619a84d6746fe5abb8a6b3ba584419d9bde36f239044b992da66b",
+    "Hollow.Core.dll": "1d1b759f3b9b21eff14c494135015ebb60693123425fa9e9733c2a99dd709a1c",
+    "Hollow.Galaxy.dll": "3a898960e08a75b0eda081b785af82e87e6fb359fd055594282618d7296f2cb3",
+    "Hollow.Net.dll": "9082b53031726dd95bef7a3dd3e8f7daac57830d2cc185fdffcf654f928a85e1",
+    "Hollow.Persistence.dll": "0d708320ad0a986dc0ac07312d8c290b50bdcf341f1528619c633eb1782d1942",
+    "Hollow.Server.dll": "bbfcf65bf2aa4b5a5cdef81b76c5af940a731c3955ca8c5453df1ed06c5a50ef",
+    "Hollow.Simulation.dll": "c951e8faaabaee9c2fe7cafeace8959a10eeaa37a9ab62f9ed84bc290cd843d7",
+    "Hollow.Surface.dll": "c0047f9987977e88aec7b29c5af32381aeb751cf5710c3dd2c17638937738cd0",
+    "HollowUniverse.dll": "2c7c79c12b156952b6e2217e203cb0ddc0f135dd834d43737ab8e36ef63f82a3",
+    "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+    "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+    "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+    "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+    "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+    "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+  },
+  "compiled_test_sources": {
+    "tests/Hollow.Tests/TestRunner.cs": "2d0ceee0cbd64c3ccecb62f566f49541957ac100289e4dcb4fbcd8d0554e16f2",
+    "tests/Hollow.Tests/ModelCatalogueTests.cs": "6b15b7706f9df7cc268c86a97f7dd151d6fe134d6a17b224a12fd6c2f2fba635",
+    "tests/Hollow.Tests/ContentTests.cs": "5f84b75009fff31b9e653affaef56be7b1f96a3e93569471b27d9f304dfc5bc6"
+  },
+  "limits": [
+    "Native production ModelViewer/IconRenderer/CatalogItemIcons in isolated harness with existing compiled game code.",
+    "Full solution build and eleven focused catalogue/content tests passed. Broader isolated suite did not start: free RAM ~2 GiB was below its 3.5 GiB launch gate. Slots are diagnostic, not live gameplay inventory.",
+    "All owned children exited; own temporary reference browser tab closed. No world/server/interactive Blender launched.",
+    "Owner artistic acceptance is pending."
+  ]
+}

@@ -163,6 +163,11 @@ public sealed class BuildSandboxUi : IGroundUi
     {
     }
 
+    public void DropAll()
+    {
+        // Like single-item drops, inventory changes are unavailable in this presentation sandbox.
+    }
+
     public void QuickMove(SlotRef slot)
     {
     }

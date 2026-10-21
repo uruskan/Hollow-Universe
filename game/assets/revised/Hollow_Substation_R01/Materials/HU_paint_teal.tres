@@ -1,0 +1,20 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_paint_teal_BaseColor.png" id="1_40roc"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_paint_shared_ORM.png" id="2_8ulrp"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_paint_shared_NormalGL.png" id="3_l8ocd"]
+
+[resource]
+resource_name = "HU_paint_teal"
+albedo_texture = ExtResource("1_40roc")
+metallic = 1.0
+metallic_texture = ExtResource("2_8ulrp")
+metallic_texture_channel = 2
+roughness_texture = ExtResource("2_8ulrp")
+roughness_texture_channel = 1
+normal_enabled = true
+normal_scale = 0.7
+normal_texture = ExtResource("3_l8ocd")
+ao_enabled = true
+ao_texture = ExtResource("2_8ulrp")
+texture_filter = 5

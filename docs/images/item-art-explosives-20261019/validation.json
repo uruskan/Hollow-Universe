@@ -1,0 +1,426 @@
+{
+  "revision": "R01",
+  "captures": {
+    "explosives-lod0.png": "2a92173e468d21548d0f6f339fd755ca582a5793b6ac1b642b66f2253b52229f",
+    "explosives-lod1.png": "3550d1d68a6efcadfe6385d2587ac6e179422b0d61381e0d54d29328df78b926",
+    "explosives-lod2.png": "e773f0d186a1111e94a0efa84b4eda82d5f368e91793f78552f4d459b7bbd4f8",
+    "explosives-back.png": "0c221c2f975430839a6eae888189f6a65a3714fe1e37ad81f629988743051ac7",
+    "icon-slots.png": "d5409d2edb71e27943eb1960bc8c357b2e72b8f32b14459d4800c9176715b267"
+  },
+  "capture_inputs": {
+    "review_project": ".artifacts/itemart/explosives/review (this worktree; not committed)",
+    "catalogue_entry": {
+      "key": "explosives",
+      "kind": "item",
+      "class": "resource",
+      "file": "res://assets/items/explosives.glb",
+      "lods": 3,
+      "collision": "convex",
+      "icon": {
+        "view": [
+          28,
+          34,
+          0
+        ]
+      },
+      "source": "Hollow original bundled explosive compound (art/models/explosives.py); provenance: assets/items/explosives.provenance.json"
+    },
+    "previous_icon": "game/assets/items/icons/256/sulphur.png",
+    "resources_sha256": {
+      "assets/items/explosives.glb": "ac622556baf85048f1eab63a799e08057333d503a21cd7297147c6a4d6b06e9d",
+      "assets/items/explosives.glb.import": "8709e5732ddeae93e98a935f331f3e8bcdc55f45e94a5a107d0b16ea4be9aea8",
+      "assets/materials/explosives.tres": "3182af9145716196140aec749634ee4ed2254270f0aa32cbe890b48d8cc7ef76",
+      "assets/textures/explosives/explosives_albedo.png": "7544473e2366cbfb86773c18500ea0f28acf1fdcd9e6c18f0d5b5a04731a96fb",
+      "assets/textures/explosives/explosives_albedo.png.import": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "assets/textures/explosives/explosives_orm.png": "aed88f76f6988af43be03e7c5a5037cc7c4bf1153ca9aee9cd8bcea01133c95f",
+      "assets/textures/explosives/explosives_orm.png.import": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "assets/textures/explosives/explosives_normal.png": "a863b3c3e011b35dafeecae9414f44027cf9f82363398be9ee8206332ac21a65",
+      "assets/textures/explosives/explosives_normal.png.import": "6a3487d4f443cf9f68b41462d6eb05969c23e1c4617e2524147c066742dab360",
+      "assets/fonts/Barlow/Barlow-Medium.ttf": "f8906f762cb73dca441da034bc363b2d8e2e68bc10d5c05e58717646c20cc4b4",
+      "assets/fonts/Barlow/Barlow-SemiBold.ttf": "86577cb32f8abe3673db53ca0f4221e6856751a4f6730c867e00f720f8bb1fc5",
+      "assets/fonts/Barlow/BarlowCondensed-Bold.ttf": "e476562ec9c1e16cf16475895b511f08c804f438cc9a9f80a44ea50a0eeb5b65",
+      "assets/fonts/Barlow/BarlowCondensed-Medium.ttf": "262bd143292ce479ee0cd09a42b47ab173fca8e9c6eb5ed0b5c8a845bc371d17",
+      "assets/fonts/Inter/InterVariable.ttf": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf"
+    },
+    "resources_match_committed_assets": true,
+    "compiled_references": {
+      "Hollow.Client.dll": "6cd3d36d48e0607ede6ce488ee7448fef980dfffb65e77a174d2bc2b4fa7709e",
+      "Hollow.Core.dll": "7a145208083332c9a0bd3e77ff3ebe7ada056179edf81f1d7845b9eb594119cc",
+      "Hollow.Galaxy.dll": "8aeec465f83935b3ac8577794230a49d39df694ccdddc38f2d3e3a7c9d0701ba",
+      "Hollow.Net.dll": "b88add871df56dc373182c81d4bc78ecda5b601ebe19c0e061126e20aeb7d68e",
+      "Hollow.Persistence.dll": "443afedcb059e2485ff0363a0d588af5e87784867af76ae7a3b42616ecc168e6",
+      "Hollow.Server.dll": "4ec7baaa2d93402a93db00db705f2871290caa606029877c9a5b34ed3bd4bcdc",
+      "Hollow.Simulation.dll": "1be188f0d3a09829b9bf65d4e3e0f72058be704a29b871de90a480c9bd7465af",
+      "Hollow.Surface.dll": "456dc96be36a8154a7942b25170e6be7ac157f3cac9fe65b1c90fefd55d2d1b6",
+      "HollowUniverse.dll": "df4a14adfae324e7485ec0af725c1d43813a4145af183ba1f026b8438d166ccc",
+      "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+      "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+      "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+      "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+      "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+      "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+    }
+  },
+  "capture_jobs": [
+    {
+      "name": "model-build",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "2",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "art/models/explosives.py"
+      ],
+      "owned_pid": 8680,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 13.8,
+      "free_gib_before": 3.88,
+      "exit_code": 0,
+      "run_seconds": 8.01
+    },
+    {
+      "name": "review-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\explosives\\review\\ItemReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 17216,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 64.8,
+      "free_gib_before": 3.6,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "import-textures",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\explosives\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 14404,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 35.2,
+      "free_gib_before": 3.24,
+      "exit_code": 0,
+      "run_seconds": 6.03
+    },
+    {
+      "name": "import-model",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\explosives\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 10468,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 36.7,
+      "free_gib_before": 2.79,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "lod0",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\explosives\\review",
+        "--",
+        "--key=explosives",
+        "--zoom=0.7",
+        "--lod=0",
+        "--yaw=-25",
+        "--output=explosives-lod0.png"
+      ],
+      "owned_pid": 17148,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 23.1,
+      "free_gib_before": 2.77,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod1",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\explosives\\review",
+        "--",
+        "--key=explosives",
+        "--zoom=0.7",
+        "--lod=1",
+        "--yaw=-25",
+        "--output=explosives-lod1.png"
+      ],
+      "owned_pid": 4412,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 29.6,
+      "free_gib_before": 2.77,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod2",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\explosives\\review",
+        "--",
+        "--key=explosives",
+        "--zoom=0.7",
+        "--lod=2",
+        "--yaw=-25",
+        "--output=explosives-lod2.png"
+      ],
+      "owned_pid": 15328,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 11.5,
+      "free_gib_before": 3.0,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "back",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\explosives\\review",
+        "--",
+        "--key=explosives",
+        "--zoom=0.7",
+        "--lod=0",
+        "--yaw=155",
+        "--output=explosives-back.png"
+      ],
+      "owned_pid": 17084,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 20.3,
+      "free_gib_before": 2.97,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-render",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\explosives\\review",
+        "--",
+        "--key=explosives",
+        "--zoom=0.7",
+        "--icons",
+        "--output=icon-sheet.png"
+      ],
+      "owned_pid": 4908,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 23.8,
+      "free_gib_before": 3.0,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\explosives\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 15768,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 16.8,
+      "free_gib_before": 3.02,
+      "exit_code": 0,
+      "run_seconds": 5.0
+    },
+    {
+      "name": "slots",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\explosives\\review",
+        "--",
+        "--key=explosives",
+        "--zoom=0.7",
+        "--title=EXPLOSIVES",
+        "--previous=res://previous/previous.png",
+        "--slots",
+        "--output=icon-slots.png"
+      ],
+      "owned_pid": 13008,
+      "closed": true,
+      "wait_seconds": 6.03,
+      "cpu_before": 22.4,
+      "free_gib_before": 2.98,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "solution-build",
+      "command": [
+        "dotnet",
+        "build",
+        "HollowUniverse.sln",
+        "-v:q",
+        "-m:2",
+        "-nodeReuse:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 1652,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 28.3,
+      "free_gib_before": 3.31,
+      "exit_code": 0,
+      "run_seconds": 24.17
+    },
+    {
+      "name": "tests-modelcatalogue",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "ModelCatalogue"
+      ],
+      "owned_pid": 13476,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 49.2,
+      "free_gib_before": 2.86,
+      "exit_code": 0,
+      "run_seconds": 38.07
+    },
+    {
+      "name": "tests-content",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "ContentTests"
+      ],
+      "owned_pid": 7324,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 11.3,
+      "free_gib_before": 3.6,
+      "exit_code": 0,
+      "run_seconds": 37.25
+    }
+  ],
+  "provider": "Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org\nVulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER\n\nexplosives rendered provider: 16px PASS\nexplosives rendered provider: 32px PASS\nexplosives rendered provider: 48px PASS\nexplosives rendered provider: 64px PASS\nexplosives rendered provider: 96px PASS\nexplosives rendered provider: 128px PASS\nexplosives rendered provider: 256px PASS\nexplosives capture: D:/GameDev/Projects/HollowUniverseABTestB/.claude/worktrees/charming-hugle-0ff484/.artifacts/itemart/explosives/review/../icon-slots.png, Ok\n",
+  "icon_checks": {
+    "128": {
+      "rgba": true,
+      "size": [
+        128,
+        128
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        9,
+        25,
+        119,
+        103
+      ]
+    },
+    "256": {
+      "rgba": true,
+      "size": [
+        256,
+        256
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        18,
+        50,
+        238,
+        206
+      ]
+    }
+  },
+  "mesh": {
+    "glb": "game/assets/items/explosives.glb",
+    "glb_bytes": 398660,
+    "triangles": {
+      "Explosives_hull0-convcolonly": 42,
+      "Explosives_lod0": 7272,
+      "Explosives_lod1": 3616,
+      "Explosives_lod2": 1740
+    },
+    "lods": {
+      "lod0": {
+        "triangles": 7272,
+        "budget": 8000,
+        "within": true
+      },
+      "lod1": {
+        "triangles": 3616,
+        "budget": 4500,
+        "within": true
+      },
+      "lod2": {
+        "triangles": 1740,
+        "budget": 2500,
+        "within": true
+      }
+    },
+    "nodes": [
+      "Explosives_hull0-convcolonly",
+      "Explosives_lod0",
+      "Explosives_lod1",
+      "Explosives_lod2"
+    ],
+    "finite_attributes": true,
+    "unit_normals": true,
+    "images_embedded": false
+  },
+  "solution_build": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:00:23.58\n",
+  "tests": {
+    "tests-modelcatalogue": "RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (16 ms)\n  RUN  ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.ExplosivesHaveTheirOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ExplosivesHaveTheirOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 270 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (1021 ms)\n11/11 passed in 1.1 s.\n",
+    "tests-content": "RUN  ContentTests.GroundDataIsComplete\n      137 items, 94 recipes, 17 natural kinds, 24 deployables, 11 loot tables; hash A29EF438726C4597\n  ok   ContentTests.GroundDataIsComplete (542 ms)\n  RUN  ContentTests.BrokenDataIsReported\n      42 problems found, e.g. items.json: \"arrow\": unknown field \"stak\" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship, wiring)\n  ok   ContentTests.BrokenDataIsReported (72 ms)\n  RUN  ContentTests.EveryDataFileHasOneReader\n      22 readers for 21 files, and the checks across them\n  ok   ContentTests.EveryDataFileHasOneReader (2 ms)\n3/3 passed in 0.6 s.\n"
+  },
+  "visual_iteration": "The first pass read as sugar cubes: too white and smooth. The compound was darkened to a grey-beige with low-contrast grime and pores and given deeper handling dents; a pass with stronger grime read as marble and was toned down. Captures were taken closer (zoom 0.7) to check the bands, twine and bows.",
+  "limits": [
+    "Native production ModelViewer, IconRenderer and CatalogItemIcons in an isolated review project with this worktree's compiled game code; the slots are diagnostic, not live gameplay inventory.",
+    "The loose block's band and twine pass about 2 mm into the top of the bound pair where the block rests; hidden in every capture.",
+    "The broader test suite was not rerun for this asset-only change.",
+    "Owner artistic acceptance is pending."
+  ]
+}

@@ -97,11 +97,10 @@ public partial class GroundMode
         _loading?.Update(seconds);
     }
 
-    // The first world's surface and air, built on worker threads while the server starts: a game lands there, and the
-    // client would otherwise build both on the main thread when it is welcomed and opens the world.
+    // Prepare the starting body's atmosphere while the server starts; metadata lookup does not construct terrain.
     private static void Prefetch() => Task.Run(() =>
     {
-        if (PlanetSurfaces.Find(FirstWorld.System.Value, FirstWorld.BodyPath) is { } world)
+        if (PlanetBodies.Find(StartingWorld.System.Value, StartingWorld.BodyPath) is { } world)
         {
             AtmosphereModel.Prepare(world.Body);
         }

@@ -10,6 +10,7 @@ using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Physics;
 using Hollow.Simulation.Ships;
+using Hollow.Simulation.Ships.Modules;
 using JoltPhysicsSharp;
 
 namespace Hollow.Client;
@@ -30,6 +31,8 @@ public sealed class ShipModule : ClientModule
 
     private readonly Dictionary<uint, RemoteShip> _ships = new();
     private readonly Dictionary<uint, uint> _parkedBodies = new();
+    private readonly Dictionary<uint, uint> _shipsByBody = new();
+    private readonly Dictionary<uint, (Vector3 At, Quaternion Turn)> _bodyPoses = new();
     private readonly Dictionary<uint, ClientShipFrame> _frames = new();
     private readonly List<uint> _framesGone = new();
     private float[] _scratchParts = Array.Empty<float>();
@@ -51,6 +54,9 @@ public sealed class ShipModule : ClientModule
 
     /// <summary>A ship by its net ID (the wire's name for it, and for its frame), or null.</summary>
     public RemoteShip? ShipByNetId(uint netId) => _ships.GetValueOrDefault(netId);
+
+    /// <summary>A parked collision body's ship, including ships without walkable interiors.</summary>
+    public RemoteShip? ShipForBody(uint body) => _shipsByBody.TryGetValue(body, out uint netId) ? ShipByNetId(netId) : null;
 
     /// <summary>The ships' frames this client keeps (IRON_WAKE.md §4.3): their spaces, for the aim and the views.</summary>
     public IReadOnlyCollection<ClientShipFrame> Frames => _frames.Values;
@@ -102,6 +108,9 @@ public sealed class ShipModule : ClientModule
     /// <summary>The ship flown, as predicted (its newest tick), its kind, and its remote copy (the hatch, the flags).</summary>
     public ShipState OwnShip => _shipPredictor?.Latest ?? default;
 
+    /// <summary>The server's retained helm command, used when taking over a ship already in flight.</summary>
+    public ShipInput OwnShipCruise { get; private set; }
+
     public ShipDef? OwnShipDef => _shipPredictor?.Def;
 
     public RemoteShip? OwnShipRemote => Piloting && _ships.TryGetValue(_shipPredictor!.NetId, out RemoteShip? s) ? s : null;
@@ -123,6 +132,9 @@ public sealed class ShipModule : ClientModule
     /// <summary>The ship prediction, for statistics and tests.</summary>
     public ShipPredictor? ShipPrediction => _shipPredictor;
 
+    /// <summary>The largest correction of the ship flown since it was last reset (metres; statistics, tours).</summary>
+    public float LargestCorrection { get; set; }
+
     /// <summary>The ships' world on this client: the zone's frame and ground, the planet's gravity and air, the prediction's physics.</summary>
     public ShipContext ShipContext => new(Frame, Surface!, ShipContext.GravityOf(Zone!.SurfaceGravity), (float)Zone.AirDensity,
         (float)Zone.AirScaleHeight, _shipCollider);
@@ -143,7 +155,7 @@ public sealed class ShipModule : ClientModule
             IgnoreBody = () => _shipPredictor != null && _parkedBodies.TryGetValue(_shipPredictor.NetId, out uint body) ? body : ShipCollider.NoBody,
         };
         Prediction.Seat = SeatAt;
-        Prediction.BeforeStep = PoseFrames;
+        Prediction.BeforeStep += PoseFrames;
         Client.DrawnFrame = DrawnPose;
         Client.SeatEye = SeatEye;
     }
@@ -162,12 +174,14 @@ public sealed class ShipModule : ClientModule
             {
                 foreach (uint body in _parkedBodies.Values)
                 {
-                    _shipCollider.RemoveParked(body);
+                    if (_ownsShipBodies) _shipCollider.RemoveParked(body);
                 }
             }
             _shipCollider.Dispose();
         }
         _parkedBodies.Clear();
+        _shipsByBody.Clear();
+        _bodyPoses.Clear();
         _ships.Clear();
         _shipCollider = null;
         _shipPredictor = null;
@@ -175,8 +189,9 @@ public sealed class ShipModule : ClientModule
 
     // Where the player's seat is after a tick (the character's prediction carries the seated player there), by the one seat
     // rule (ShipSeats.Pose, the server's): in a ship people walk in, the seat's socket in the ship's frame at its parts'
-    // states then (a gunner's turns with the turret), still; in one they only sit in, where the ship flown carries it.
-    // Null when the seat's ship or state isn't known here (the character then stays where it was).
+    // states then (a gunner's turns with the turret), still; in one they only sit in, where the ship carries it: the ship
+    // flown as predicted, or one someone else drives (an open boat's passenger) as its states have it, carried on past the
+    // newest along its motion. Null when the seat's ship or state isn't known here (the character then stays where it was).
     private (ulong Frame, Vector3 Position, Vector3 Velocity)? SeatAt(uint tick)
     {
         if (SeatShip is not { Def: { } def } ship || _ownSeat >= def.Seats.Count)
@@ -184,9 +199,23 @@ public sealed class ShipModule : ClientModule
             return null;
         }
         ShipState state = default;
-        if (def.Interior == null && !(_shipPredictor is { Active: true } own && own.NetId == ship.NetId && own.TryGetState(tick, out state)))
+        if (def.Interior == null)
         {
-            return null;
+            if (_shipPredictor is { Active: true } own && own.NetId == ship.NetId)
+            {
+                if (!own.TryGetState(tick, out state))
+                {
+                    return null;
+                }
+            }
+            else if (ship.TryPoseAt(tick, out ShipPose carried))
+            {
+                state = new ShipState { Position = carried.Position, Rotation = carried.Rotation, Velocity = carried.Velocity };
+            }
+            else
+            {
+                return null;
+            }
         }
         (bool aboard, Vector3 position, Vector3 velocity) = ShipSeats.Pose(def, _ownSeat, state, SeatParts(ship, def, tick));
         return (aboard ? ship.NetId : 0, position, velocity);
@@ -209,13 +238,19 @@ public sealed class ShipModule : ClientModule
         return _seatParts;
     }
 
-    // The eye of the player's seat as drawn (IRON_WAKE.md §5.2: a station's camera socket), in a ship people walk in; null
-    // otherwise (the character's own eye; the helm of one they only sit in has the ship's cameras).
+    // The eye of the player's seat as drawn (IRON_WAKE.md §5.2: a station's camera socket), in a ship people walk in, or in
+    // a seat of one they only sit in that someone else drives (an open boat's passenger: the seat's eye on the ship as drawn,
+    // so the view rides the boat the player sees); null otherwise (the helm of one they only sit in has the ship's cameras
+    // and the character's own eye).
     private Vector3? SeatEye()
     {
-        if (SeatShip is not { Def: { Interior: not null } def } ship || _ownSeat >= def.Seats.Count || DrawnPose(ship.NetId) is not { } pose)
+        if (SeatShip is not { Def: { } def } ship || _ownSeat >= def.Seats.Count || DrawnPose(ship.NetId) is not { } pose)
         {
             return null;
+        }
+        if (def.Interior == null)
+        {
+            return Piloting && _shipPredictor!.NetId == ship.NetId ? null : pose.ToWorld(ShipSeats.EyeInFrame(def, _ownSeat, ReadOnlySpan<float>.Empty));
         }
         ReadOnlySpan<float> parts = SeatParts(ship, def, (long)Client.RenderTick);
         if (_frames.TryGetValue(ship.NetId, out ClientShipFrame? frame))
@@ -266,9 +301,13 @@ public sealed class ShipModule : ClientModule
             RemoteShip ship = RemoteShipOf(spawn.NetId);
             ship.Spawned = true;
             ship.Id = new EntityId(spawn.EntityId);
-            ship.Def ??= Content.Ship(spawn.Name ?? "");
+            ship.Def ??= Composed(Content.Ship(spawn.Name ?? ""), ship.Build);
         }
     }
+
+    // A kind with a build as this client's data makes it (VEHICLES.md §9.1): the untrusted build made sane on the kind.
+    private ShipDef? Composed(ShipDef? kind, ShipBuild build) =>
+        kind == null || build.IsEmpty ? kind : Content.Compose(kind, ShipAssembler.Sane(kind, build.Entries, Content.Module));
 
     protected internal override void Despawned(uint netId)
     {
@@ -286,8 +325,16 @@ public sealed class ShipModule : ClientModule
     {
         RemoteShip ship = RemoteShipOf(m.Ship);
         int parts = ship.PartsVersion;
+        ShipDef? before = ship.Def;
+        // Its build first (VEHICLES.md §9.1): the layout the seats, doors and parts below are numbered by.
+        ship.Build = new ShipBuild(ShipConvert.BuildOf(m));
+        if (ship.Def is { } known)
+        {
+            ship.Def = Composed(known.Kind, ship.Build);
+        }
         ship.SetDetails(m);
-        if (ship.PartsVersion != parts && _parkedBodies.ContainsKey(m.Ship))
+        // A build changed at a lift (VEHICLES.md §9.11) is another hull: its parked body is made again as well.
+        if ((ship.PartsVersion != parts || ship.Def != before) && _parkedBodies.ContainsKey(m.Ship))
         {
             Unpark(m.Ship);
             Park(m.Ship, ship, ship.Newest);
@@ -315,7 +362,7 @@ public sealed class ShipModule : ClientModule
         foreach ((uint netId, ShipNetState state) in DecodedShips)
         {
             RemoteShip ship = RemoteShipOf(netId);
-            ship.Def ??= Content.Ship((int)Math.Min(state.Kind, ushort.MaxValue));
+            ship.Def ??= Composed(Content.Ship((int)Math.Min(state.Kind, ushort.MaxValue)), ship.Build);
             ship.Add(serverTick, state);
             // Parked as the server has it: its body there, with that body's ID (a new ID is a new parking).
             bool parked = state.Body != 0;
@@ -327,10 +374,35 @@ public sealed class ShipModule : ClientModule
             {
                 Park(netId, ship, state);
             }
-            else if (!parked)
+            else if (parked)
+            {
+                // A vehicle on wheels keeps its body as it moves (VEHICLES.md §6.4): the copy follows it.
+                MoveBody(netId, state);
+            }
+            else
             {
                 Unpark(netId);
             }
+        }
+    }
+
+    // A kept body to a newer pose the server sent (a vehicle rocking on its springs, or driven), when it moved.
+    private void MoveBody(uint netId, in ShipNetState state)
+    {
+        if (!_ownsShipBodies || _shipCollider == null || !_parkedBodies.TryGetValue(netId, out uint body))
+        {
+            return;
+        }
+        Vector3 at = ShipConvert.PositionOf(state);
+        Quaternion turn = ShipConvert.RotationOf(state);
+        if (_bodyPoses.TryGetValue(netId, out (Vector3 At, Quaternion Turn) was) && was.At == at && was.Turn == turn)
+        {
+            return;
+        }
+        _bodyPoses[netId] = (at, turn);
+        lock (JoltRuntime.Gate)
+        {
+            _shipCollider.MoveParked(body, at, turn);
         }
     }
 
@@ -339,17 +411,19 @@ public sealed class ShipModule : ClientModule
     // the server's body ID (the same contacts in the same order). Another ship's body holding that ID here is a stale one.
     private void Park(uint netId, RemoteShip ship, in ShipNetState state)
     {
-        if (!_ownsShipBodies || ship.Def == null || _shipCollider == null || state.Body == 0)
+        if (ship.Def == null || _shipCollider == null || state.Body == 0)
         {
             return;
         }
-        foreach ((uint other, uint held) in _parkedBodies)
+        if (_shipsByBody.TryGetValue(state.Body, out uint other) && other != netId)
         {
-            if (held == state.Body && other != netId)
-            {
-                Unpark(other);
-                break;
-            }
+            Unpark(other);
+        }
+        if (!_ownsShipBodies)
+        {
+            _parkedBodies.Add(netId, state.Body);
+            _shipsByBody.Add(state.Body, netId);
+            return;
         }
         Shape shape;
         if (ship.Def.Interior is { } interior)
@@ -370,6 +444,8 @@ public sealed class ShipModule : ClientModule
             if (_shipCollider.AddParkedAt(state.Body, shape, ShipConvert.PositionOf(state), ShipConvert.RotationOf(state)))
             {
                 _parkedBodies.Add(netId, state.Body);
+                _shipsByBody.Add(state.Body, netId);
+                _bodyPoses[netId] = (ShipConvert.PositionOf(state), ShipConvert.RotationOf(state));
             }
         }
     }
@@ -378,9 +454,11 @@ public sealed class ShipModule : ClientModule
     {
         if (_parkedBodies.Remove(netId, out uint body))
         {
+            _shipsByBody.Remove(body);
+            _bodyPoses.Remove(netId);
             lock (JoltRuntime.Gate)
             {
-                _shipCollider?.RemoveParked(body);
+                if (_ownsShipBodies) _shipCollider?.RemoveParked(body);
             }
         }
     }
@@ -488,7 +566,17 @@ public sealed class ShipModule : ClientModule
             return;
         }
         OwnShipState o = own[0];
-        if (Content.Ship((int)Math.Min(o.Kind, ushort.MaxValue)) is not { } def)
+        OwnShipCruise = new ShipInput
+        {
+            Throttle = Math.Clamp(float.IsFinite(o.CruiseThrottle) ? o.CruiseThrottle : 0, -1, 1),
+            Strafe = Math.Clamp(float.IsFinite(o.CruiseStrafe) ? o.CruiseStrafe : 0, -1, 1),
+            Vertical = Math.Clamp(float.IsFinite(o.CruiseVertical) ? o.CruiseVertical : 0, -1, 1),
+            Buttons = o.Flags.HasFlag(ShipFlags.AssistOff) ? ShipButtons.AssistOff : ShipButtons.None,
+        };
+        // The layout it is flown with: its own (its build's, from its details) when known, else its kind's.
+        ShipDef? def = _ships.TryGetValue(o.NetId, out RemoteShip? flown) && flown.Def is { } known && known.Id == o.Kind
+            ? known : Content.Ship((int)Math.Min(o.Kind, ushort.MaxValue));
+        if (def == null)
         {
             return;
         }
@@ -498,6 +586,7 @@ public sealed class ShipModule : ClientModule
         if (error is > 0)
         {
             Stats.ShipCorrections++;
+            LargestCorrection = MathF.Max(LargestCorrection, error.Value);
         }
         Vector3 jump = before - _shipPredictor.Latest.Position;
         _shipSmoothing = wasActive && (_shipSmoothing + jump).LengthSquared() < 4f ? _shipSmoothing + jump : Vector3.Zero;

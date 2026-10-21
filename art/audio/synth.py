@@ -16,6 +16,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import audiolib  # noqa: E402
+from longpath import fs  # noqa: E402
 
 RATE = audiolib.RATE
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -41,8 +42,8 @@ def write_wav(path, channels, rate=RATE):
         for c in channels:
             data.append(c[i])
     raw = data.tobytes()
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "wb") as f:
+    os.makedirs(fs(os.path.dirname(path)), exist_ok=True)
+    with open(fs(path), "wb") as f:
         nch = len(channels)
         f.write(b"RIFF" + struct.pack("<I", 36 + len(raw)) + b"WAVE")
         f.write(b"fmt " + struct.pack("<IHHIIHH", 16, 3, nch, rate, rate * 4 * nch, 4 * nch, 32))
@@ -59,7 +60,7 @@ def outdoor_ir(name, seconds=2.6, t60=1.8, reflections=((0.09, 0.45), (0.21, 0.3
                                                          (0.95, 0.1)), bright=7000.0, dark=700.0, seed=1):
     """An outdoor tail: sparse early reflections and a diffuse decay that darkens from `bright` to `dark` Hz."""
     path = cached(name, (seconds, t60, reflections, bright, dark, seed, 1))
-    if os.path.isfile(path):
+    if os.path.isfile(fs(path)):
         return path
     n = int(seconds * RATE)
     rng = Lcg(seed)
@@ -92,7 +93,7 @@ def wind(name, seconds=40.0, seed=7, body=(0.55, 0.22, 0.12, 0.08), whistle=(0.2
          body_band=(70.0, 520.0), whistle_band=(650.0, 1400.0), stereo=True):
     """A wind bed: a low rushing body and a breathy whistle band, each swelling in slow gusts."""
     path = cached(name, (seconds, seed, body, whistle, body_band, whistle_band, stereo, 1))
-    if os.path.isfile(path):
+    if os.path.isfile(fs(path)):
         return path
     n = int(seconds * RATE)
     chans = []
@@ -133,7 +134,7 @@ def tones(name, notes, seconds, square=0.0):
     """Electronic beeps (a keypad's piezo): notes = [(frequency Hz, start s, length s)], each with a 4 ms rise and a
     short decay; `square` mixes in odd harmonics for a harsher buzz."""
     path = cached(name, (tuple(notes), seconds, square, 1))
-    if os.path.isfile(path):
+    if os.path.isfile(fs(path)):
         return path
     n = int(seconds * RATE)
     out = [0.0] * n

@@ -29,12 +29,14 @@ retargeting, all made by the scripts in `art/`.
 
 ## Ground textures (`surface/ground/layers/`)
 
-Sixteen layers, one a `Hollow.Surface.GroundMaterial` (docs/WALKING_GROUND.md §8), built by
-`tools/blender/surface_layers.py` from the scans in `D:\GameDev\Assets`: each layer's base colour and normal map at 4K
-are the scan's own files (the Megascans JPEGs copied byte for byte; the two Poly Haven PNGs written as lossless WebP), and
-a 2K lossless WebP holds its roughness and height. Godot compresses them for the GPU when it imports them; the game puts
-them together into texture arrays (`game/scripts/Surface/GroundLayers.cs`). Every set was bought for this game or is
-CC0; the Fab ones ship only inside the game.
+Thirty-five textures: sixteen layers, one a `Hollow.Surface.GroundMaterial` (docs/WALKING_GROUND.md §8), and after
+them the alternatives a material switches to by place (16 on), built by `tools/blender/surface_layers.py` from the
+scans in `D:\GameDev\Assets`: each texture's base colour and normal map at 4K are the scan's own files (the Megascans
+JPEGs copied byte for byte; the Poly Haven and ambientCG PNG and EXR maps written as lossless WebP; a scan twice as
+wide as high repeated along its short side into a square), and a 2K lossless WebP holds its roughness and height. Godot compresses
+them for the GPU when it imports them; the game puts them together into texture arrays
+(`game/scripts/Surface/GroundLayers.cs`). Every set was bought for this game or is CC0; the Fab ones ship only inside
+the game.
 
 | Layer | Set | Source | Licence |
 |---|---|---|---|
@@ -54,10 +56,36 @@ CC0; the Fab ones ship only inside the game.
 | 13 sandstone | Canyon Sandstone Rock (Quixel Megascans, `vimldgeg`) | https://www.fab.com/listings/2ff5cf78-69c9-4c87-bbf3-a81d857e7ba3 | Fab Standard License |
 | 14 dry earth | Desert Western Ground Dirt Coarse 07 (Quixel Megascans, `xiqebhm`) | Fab, Quixel Megascans; `desert_western_ground_dirt_coarse_07_xiqebhm_4k.zip` | Fab Standard License |
 | 15 ice | Frozen Lake (Quixel Megascans, `tcbkdcfr`) | Fab, Quixel Megascans; `frozen_lake_tcbkdcfr_4k.zip` | Fab Standard License |
+| 16 forest floor 2 (an alternative of 1) | Forest Floor (Quixel Megascans, `wgyhdgy`) | Fab, Quixel Megascans; `forest_floor_wgyhdgy_4k.zip` | Fab Standard License |
+| 17 coastal rock (of 3) | Cracked Nordic Coastal Rock (Quixel Megascans, `ukohaj0mw`) | Fab, Quixel Megascans; `cracked_nordic_coastal_rock_ukohaj0mw_4k.zip` | Fab Standard License |
+| 18 desert gravel (of 4) | Desert Western Ground Gravel Coarse 02 (Quixel Megascans, `xglmbct`) | Fab, Quixel Megascans; `desert_western_ground_gravel_coarse_02_xglmbct_4k.zip` | Fab Standard License |
+| 19 tundra gravel (of 4) | Tundra Gravel Ground (Quixel Megascans, `vjepchymw`) | Fab, Quixel Megascans; `tundra_gravel_ground_vjepchymw_4k.zip` | Fab Standard License |
+| 20 pebbly sand (of 5) | Beach Sand With Pebbles (Quixel Megascans, `vl0fdilo`) | Fab, Quixel Megascans; `beach_sand_with_pebbles_vl0fdilo_4k.zip` | Fab Standard License |
+| 21 desert sand (of 5) | Desert Sand (Quixel Megascans, `wkjgche`) | Fab, Quixel Megascans; `desert_sand_wkjgche_4k.zip` | Fab Standard License |
+| 22 icy grass (of 6) | Icy Snow On Dry Grass (Quixel Megascans, `sjziebea`) | Fab, Quixel Megascans; `icy_snow_on_dry_grass_sjziebea_4k.zip` | Fab Standard License |
+| 23 melting snow (of 6) | Melting Snow (Quixel Megascans, `uexjbdudy`) | Fab, Quixel Megascans; `melting_snow_uexjbdudy_4k.zip` | Fab Standard License |
+| 24 snow cliff (of 6) | Snow Cliff (Quixel Megascans, `uhqncfpdy`) | Fab, Quixel Megascans; `snow_cliff_uhqncfpdy_4k.zip` | Fab Standard License |
+| 25 damp sand (of 8) | `damp_sand` (Poly Haven, from the "Namaqualand" scene pack) | https://polyhaven.com/a/damp_sand | CC0 |
+| 26 gravelly sand (of 9) | `gravelly_sand` (Poly Haven, from the "Namaqualand" scene pack) | https://polyhaven.com/a/gravelly_sand | CC0 |
+| 27 sleet gravel (of 9) | Sleet Covered Gravel (Quixel Megascans, `tb5oaf2s`) | Fab, Quixel Megascans; `sleet_covered_gravel_tb5oaf2s_4k.zip` | Fab Standard License |
+| 28 tundra rocky ground (of 12) | Tundra Rocky Ground (Quixel Megascans, `vi2mahnmw`) | Fab, Quixel Megascans; `tundra_rocky_ground_vi2mahnmw_4k.zip` | Fab Standard License |
+| 29 lichened rock (of 12) | Tundra Lichened Rock (Quixel Megascans, `vjbode1mw`) | Fab, Quixel Megascans; `tundra_lichened_rock_vjbode1mw_4k.zip` | Fab Standard License |
+| 30 snowy stones (of 12) | Windswept Snowy Stones (Quixel Megascans, `tdloaf1r`) | Fab, Quixel Megascans; `windswept_snowy_stones_tdloaf1r_4k.zip` | Fab Standard License |
+| 31 outback rocky ground (of 14) | Desert Outback Ground Rocky 06 (Quixel Megascans, `xiqgafr`) | Fab, Quixel Megascans; `desert_outback_ground_rocky_06_xiqgafr_4k.zip` | Fab Standard License |
+| 32 desert sand fine (of 14) | Desert Western Ground Sand Fine 01 (Quixel Megascans, `xgmpdek`) | Fab, Quixel Megascans; `desert_western_ground_sand_fine_01_xgmpdek_4k.zip` | Fab Standard License |
+| 33 ice wall (of 15) | Ice Wall (Quixel Megascans, `uebjabcr`) | Fab, Quixel Megascans; `ice_wall_uebjabcr_4k.zip` | Fab Standard License |
+| 34 meadow (of 0: the floor under lush grass) | `leafy_grass` (Poly Haven, by Charlotte Baglioni: trampled grass blades with leaf litter and twigs, a 2 m scan), its four 4K PNG maps (diffuse, OpenGL normal, roughness, displacement) downloaded on 19 October 2026 | https://polyhaven.com/a/leafy_grass; the files in `leafy_grass_4k` with their provenance record (each file's SHA-256 and its MD5 against Poly Haven's) | CC0 1.0 (https://polyhaven.com/license) |
 
 The archives named are in `D:\GameDev\Assets` (each unpacked beside it with its `_EXTRACTION_PROVENANCE.json`, which
 holds every file's SHA-256); the Fab listing URLs of layers 0-6 and 13 are from
-`D:\GameDev\Assets\Bare-World-Manual\DOWNLOAD-MANIFEST-VERIFIED.json`.
+`D:\GameDev\Assets\Bare-World-Manual\DOWNLOAD-MANIFEST-VERIFIED.json`. Left out on purpose: `RedRock02_4K` (no record
+of where it came from or under what licence), Beach Sand `uinladeo` (featureless beside `ukviejtlw`), the desert sands
+`sfilxqh` and `sfiodwh` and Fresh Windswept Snow `uehnaazn` (a fourth alternative would need a fourth slot), and the
+2K ambientCG sets (`Ground023`, `Ground037`, `Ground048`, `Ground054`, `Ice003`, `Snow002`: below the 4K the ground is
+built at), and ambientCG's Ground 037 at 4K (`Ground037_4K-PNG.zip`, CC0, SHA-256
+`5117129a141d483db469343f77e6199f35842e941137f14dee7f511b39d0a02b`, unpacked beside it with its provenance record on
+19 October 2026: it was texture 34 for an hour, and read as moss rather than grass under the tufts; kept in the
+assets folder, unused).
 
 ## Item and world models (`items/`, `world/`, `textures/`, `materials/`)
 
@@ -74,8 +102,6 @@ else in them was made for the project.
 | `textures/tin-finch/` | The Tin Finch's surface and markings atlases (2048 and 1024 px) | Tin Finch TF-01, generated for the project (its `README.md`: no third-party textures) | Ours |
 | `items/`, `world/` | GLB models: the PSG Starter Kit R02 items and the Frontier AK R05 (converted, renamed), the Tin Finch, and our own models | As above | Ours (no third-party geometry) |
 | `items/icons/` | Item icons, rendered from the models by `--view icons` | Ours | Ours |
-| `textures/salvage/`, `materials/salvage_*.tres`, `items/{gears,springs,metal-pipe,sheet-metal,tech-scrap,rope}.glb` and their icons | The six salvage pickups, installed on 15 October 2026 by `art/import/production_kits.py`: original geometry, procedural trim and rope textures, and one galvanized colour source made with an image generator and derived into PBR maps locally (record: the package's `Reports/provenance.json`) | `D:\GameDev\Assets\Hollow_Salvage_R01`: made for this project | Ours (project-owned; no third-party art) |
-| `textures/loot/`, `materials/loot_*.tres`, `world/{loot-crate,military-crate,loot-barrel-1}.glb` | The loot crate, military crate and drum, installed on 15 October 2026 by `art/import/production_kits.py`: original geometry, atlas and markings; the timber maps are Poly Haven's weathered_brown_planks (the PSG building kit's texture, as the package's `Reports/provenance.json` records) | `D:\GameDev\Assets\Hollow_LootContainers_R01`: made for this project | Ours; the timber CC0 1.0 |
 | `building/` (GLB) | The building kit's 13 pieces in 5 grades and the door and window kit's doors, garage door, bars, glass and embrasures, converted by `art/import/`; 7 more pieces built by the same scripts with the kit's own generator | `D:\GameDev\Assets\PSG_BuildingKit_R01`, `PSG_DoorWindowKit_R01`: our own kits, made by Blender Python (GROUND.md §9) | Ours |
 | `building/textures/` | The kits' surface atlases, shrunk to 2K: Poly Haven's weathered brown planks, brown bark 02, rock surface, rusty metal sheet and painted concrete, as the kits' `texture_manifest.json` and `source_texture_provenance.json` record | [Poly Haven](https://polyhaven.com) | CC0 1.0 |
 
@@ -145,6 +171,21 @@ IRON_WAKE.md §10): its drives, lift engines, pumps, contactors, hydraulics, ser
 rocket motors, klaxon, alarm bell, interior beds and the steel space's impulse response, layered in `audio/iron-wake/`
 with the recordings below.
 
+AB Test B action foley (15 October 2026): `art/audio/repair_actions.py` mixes the existing Kenney Impact/RPG,
+Rubberduck metal recordings, and BigSoundBank 0683 / 1340 / 1341 / 1344 with our machinery synthesis into the
+injector, launcher and recycler's dedicated sounds. The recycler additionally uses BigSoundBank 0304,
+"Grinding metal gate #2", CC0: `D:/GameDev/Assets/Downloads/bigsoundbank/0304.wav` (195,686 bytes),
+SHA-256 `1e37e32462a455daa53c2f514d02df2220781c02f98b4b647fbb02fb797d6f94`.
+Its recorded source is https://bigsoundbank.com/s0304.html; no new download was required.
+
+AB Test B footstep repair (16 October 2026): grass uses four selected contacts from BigSoundBank 2889,
+already listed below. Dirt uses four contacts from Joseph Sardin's BigSoundBank 1117, "Footsteps on gravels #2",
+CC0 1.0: https://bigsoundbank.com/s1117.html, source https://bigsoundbank.com/UPLOAD/bwf-en/1117.wav,
+SHA-256 `44237b5bb27a5e5690acb8b816a0a737d51cf6cdc47adcedcf27e3b1499c88f3`.
+Both were already in the verified local source catalogue. `art/audio/events.py` records the filtering,
+selection and gait recipes; `docs/reports/audio-action-checklist.json` includes exact cuts and source hashes.
+Earlier recordings remain credited below as provenance of the retained before/after review evidence.
+
 | Download | Licence | SHA-256 | Used for |
 |---|---|---|---|
 | Kenney (kenney.nl), Impact Sounds: `kenney_impact-sounds.zip`, https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip (page: https://kenney.nl/assets/impact-sounds), 800,850 bytes | CC0 1.0 | `029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8` | 70 files: `impactGlass_light_000.ogg`, `impactGlass_light_001.ogg`, `impactMetal_heavy_000.ogg`, `impactMetal_heavy_001.ogg`, `impactMetal_heavy_002.ogg`, `impactMetal_heavy_003.ogg`, `impactMetal_heavy_004.ogg`, `impactMetal_light_000.ogg`, `impactMetal_light_001.ogg`, `impactMetal_light_002.ogg`, `impactMetal_light_003.ogg`, `impactMetal_light_004.ogg` ... |
@@ -167,6 +208,7 @@ with the recordings below.
 | [0006](https://bigsoundbank.com/s0006.html) | Nail and hammer #2 | https://bigsoundbank.com/UPLOAD/bwf-en/0006.wav (637,378 bytes) | `88a4244edacc13f7848b315b022948b118370cccd321971d2581ee5b2fe8e87c` |
 | [0013](https://bigsoundbank.com/s0013.html) | Cloth | https://bigsoundbank.com/UPLOAD/bwf-en/0013.wav (868,366 bytes) | `7427de6e911d52a966c8a1106c160358f8703e71689637b7e86add909a8ff91e` |
 | [0037](https://bigsoundbank.com/s0037.html) | Interior door lock | https://bigsoundbank.com/UPLOAD/bwf-en/0037.wav (223,100 bytes) | `3dd0d8c535beab13a9dc687d75640815e785f7bb46e762b7166bec99d63a5435` |
+| [0085](https://bigsoundbank.com/s0085.html) | Step on gravels | https://bigsoundbank.com/UPLOAD/bwf-en/0085.wav (697,404 bytes) | `7c079413e32fe6f93225aa8d3a15f538c2c5c4f38c7c07f9b957bc30f26e254e` |
 | [0146](https://bigsoundbank.com/s0146.html) | Strong Wind #1 | https://bigsoundbank.com/UPLOAD/bwf-en/0146.wav (6,929,366 bytes) | `9b62b250ca33821b2f26b1f16f48cef813a9646f476f2c4854766fa25928b808` |
 | [0165](https://bigsoundbank.com/s0165.html) | Man Footsteps on the Wooden Floor | https://bigsoundbank.com/UPLOAD/bwf-en/0165.wav (763,722 bytes) | `ed4009d9d94b0aa8d87b2ec6209c72edbe8d1ae45b667f2e9a723d3096addad8` |
 | [0191](https://bigsoundbank.com/s0191.html) | Lock | https://bigsoundbank.com/UPLOAD/bwf-en/0191.wav (827,900 bytes) | `3cb87357bddeda17622aca3501a28a85bac94c40cf48d51aaaae394d63a78106` |
@@ -177,6 +219,7 @@ with the recordings below.
 | [0299](https://bigsoundbank.com/s0299.html) | Adhesive tape #3 | https://bigsoundbank.com/UPLOAD/bwf-en/0299.wav (535,536 bytes) | `84e5c140ffe095dadfa49190ffc0346ce3b20e74c365163c80c40b7c236eff31` |
 | [0302](https://bigsoundbank.com/s0302.html) | Creaking Door #1 | https://bigsoundbank.com/UPLOAD/bwf-en/0302.wav (219,890 bytes) | `5517b877c776f2749d91d43b3703d42b0de8c56df11d2c71b1af2c8550db98e3` |
 | [0495](https://bigsoundbank.com/s0495.html) | Steps in the Mud | https://bigsoundbank.com/UPLOAD/bwf-en/0495.wav (918,852 bytes) | `1fc9a1686e1441cb17c317943208aba4fa2e084f6281b9759d2da64e6fe6de25` |
+| [0510](https://bigsoundbank.com/s0510.html) | Footsteps on gravels #1 | https://bigsoundbank.com/UPLOAD/bwf-en/0510.wav (957,522 bytes) | `346f52d1529a960a849d480aba5de9fb0819936aeb85238c58cdb90a504bdbb8` |
 | [0513](https://bigsoundbank.com/s0513.html) | Sliding automatic gate | https://bigsoundbank.com/UPLOAD/bwf-en/0513.wav (2,769,104 bytes) | `f6d205ecaebdb75298770feedae0199ba17b7a447c0d025e6a8f1cf834298463` |
 | [0516](https://bigsoundbank.com/s0516.html) | Wooden chair falling on carpet | https://bigsoundbank.com/UPLOAD/bwf-en/0516.wav (2,634,538 bytes) | `8e6ab6dd50d04e61efe82e21e54c6946eb0da4d1ea0baa22b2926c799677a89b` |
 | [0536](https://bigsoundbank.com/s0536.html) | Ax on Wood | https://bigsoundbank.com/UPLOAD/bwf-en/0536.wav (1,872,916 bytes) | `c5af139a5f47940df3e74093d967df7861d71aa0b77474b5e62336bb8f298cbb` |
@@ -192,6 +235,7 @@ with the recordings below.
 | [0758](https://bigsoundbank.com/s0758.html) | Beeps of digital code | https://bigsoundbank.com/UPLOAD/bwf-en/0758.wav (139,720 bytes) | `9dbeef051aff82f1dff49540f64f92f223b61b8238ef0ec129f2d5a447f787b5` |
 | [0773](https://bigsoundbank.com/s0773.html) | Metal filing cabinet | https://bigsoundbank.com/UPLOAD/bwf-en/0773.wav (2,139,838 bytes) | `043e2fbc35de6709f421451c071e924138418090500be3130d507c920521be16` |
 | [0792](https://bigsoundbank.com/s0792.html) | Metal drawer #1 | https://bigsoundbank.com/UPLOAD/bwf-en/0792.wav (2,212,172 bytes) | `e36ac45de0670227968b1629d161be6ada2e669a7e55a08c2f26970bc9a8fa58` |
+| [0839](https://bigsoundbank.com/s0839.html) | Feet on pebbles | https://bigsoundbank.com/UPLOAD/bwf-en/0839.wav (3,008,912 bytes) | `0b920dd6d30d6ca7aa27242b34d25e640e51f089fc8a44cb653aad3b4c88aa73` |
 | [0854](https://bigsoundbank.com/s0854.html) | Steps in the short grass | https://bigsoundbank.com/UPLOAD/bwf-en/0854.wav (2,894,298 bytes) | `cc34d25dda9c0cba1cb881bba0ab837e3cdb12d0aef1fcbeeb51705af7d0353d` |
 | [0898](https://bigsoundbank.com/s0898.html) | Countryside #2 | https://bigsoundbank.com/UPLOAD/bwf-en/0898.wav (13,900,056 bytes) | `25f40521e5aef25a33711cb05a43cd9e2a5e36dd8d978097125efa36f5d19b6c` |
 | [0904](https://bigsoundbank.com/s0904.html) | Wind in the Trees | https://bigsoundbank.com/UPLOAD/bwf-en/0904.wav (41,941,854 bytes) | `0977950ade4efe3c1a975c4c7c983b1487bfeb4adb456895e4d0b637ba81373b` |
@@ -203,6 +247,7 @@ with the recordings below.
 | [1023](https://bigsoundbank.com/s1023.html) | Explosion far Away #1 | https://bigsoundbank.com/UPLOAD/bwf-en/1023.wav (436,220 bytes) | `9b77f30f6a27b2e7a32dce4a39ed14d4c19933341bcbcc01350c225a90a5f700` |
 | [1113](https://bigsoundbank.com/s1113.html) | Apple crunched #1 | https://bigsoundbank.com/UPLOAD/bwf-en/1113.wav (1,296,964 bytes) | `e61cca2148e9dc8308c5eebc37e445eec1677f4ae6773ed0c385c35d4ff630c6` |
 | [1114](https://bigsoundbank.com/s1114.html) | Apple crunched #2 | https://bigsoundbank.com/UPLOAD/bwf-en/1114.wav (765,836 bytes) | `401a107daac65c09b32d549e8416af719a23fbdfd8329af2c6bef880ffe4c698` |
+| [1117](https://bigsoundbank.com/s1117.html) | Footsteps on gravels #2 | https://bigsoundbank.com/UPLOAD/bwf-en/1117.wav (8,810,524 bytes) | `44237b5bb27a5e5690acb8b816a0a737d51cf6cdc47adcedcf27e3b1499c88f3` |
 | [1127](https://bigsoundbank.com/s1127.html) | Log wood boiler #2 | https://bigsoundbank.com/UPLOAD/bwf-en/1127.wav (21,034,624 bytes) | `b345e0ae09b34e30094aa3db20c0f832144699ea5ea8d8ec2e4cedfb1013a627` |
 | [1253](https://bigsoundbank.com/s1253.html) | Steps in the Grass, Slow | https://bigsoundbank.com/UPLOAD/bwf-en/1253.wav (3,370,818 bytes) | `d09ce9a99cfc36046392f411df230544ffcb9a5733bc9a7749915f67aa7e2570` |
 | [1271](https://bigsoundbank.com/s1271.html) | Match #2 | https://bigsoundbank.com/UPLOAD/bwf-en/1271.wav (1,512,262 bytes) | `f778c6e53449f04fcebcc4f9606291df7b7108841b641ad5707b537067d9af75` |
@@ -291,6 +336,7 @@ with the recordings below.
 | [3113](https://bigsoundbank.com/s3113.html) | Thunder #2 | https://bigsoundbank.com/UPLOAD/bwf-en/3113.wav (725,418 bytes) | `88b9cc1944d63662da3989114683ac616b0e93480d8b5fe4547fca7f52de17c2` |
 | [3114](https://bigsoundbank.com/s3114.html) | Thunder #3 | https://bigsoundbank.com/UPLOAD/bwf-en/3114.wav (1,614,196 bytes) | `448d45edf4022a0ac979a076e997321abcef3807cc8f41dcae2be2e317360255` |
 | [3179](https://bigsoundbank.com/s3179.html) | Thunder #6 | https://bigsoundbank.com/UPLOAD/bwf-en/3179.wav (1,982,322 bytes) | `1fdd78bec376bd36c13ad2463f05356ce83fdcf4d1fecbc18d421fcfa5aa51f2` |
+| [3202](https://bigsoundbank.com/s3202.html) | Footsteps on Gravels #3 | https://bigsoundbank.com/UPLOAD/bwf-en/3202.wav (10,571,054 bytes) | `d9c20ca5e7ded7971afb005d601a410d211219d911565856dd4df144a7f9bcff` |
 | [3205](https://bigsoundbank.com/s3205.html) | Creaking Door #2 | https://bigsoundbank.com/UPLOAD/bwf-en/3205.wav (456,256 bytes) | `864dd8c1b216639d334847ceabcd16264e1a6ecacf6cc2353a14d458878eda56` |
 | [3211](https://bigsoundbank.com/s3211.html) | Creaking Door #8 | https://bigsoundbank.com/UPLOAD/bwf-en/3211.wav (355,034 bytes) | `fa56af8d79f381cff34312e9ef8617384478c258dd7937c5cef6fd67a87049b8` |
 | [3216](https://bigsoundbank.com/s3216.html) | Footsteps on Gravels #4 | https://bigsoundbank.com/UPLOAD/bwf-en/3216.wav (6,802,382 bytes) | `8e7f5bdecf9729c32e040a08027dcb9735d3eab34b49535bcd2852d8bd6daf18` |
@@ -301,6 +347,35 @@ with the recordings below.
 | [3463](https://bigsoundbank.com/s3463.html) | Carrion Crow #3 | https://bigsoundbank.com/UPLOAD/bwf-en/3463.wav (392,316 bytes) | `46bc06fea635eefeafe35751c175dea30b6cd47c03695bbf24b3ecd81cf8ea42` |
 | [3589](https://bigsoundbank.com/s3589.html) | Anvil #1 | https://bigsoundbank.com/UPLOAD/bwf-en/3589.wav (4,727,472 bytes) | `ebc51af2da517a3b3a2e21a7f7be1ce0c5942f3583a0a8702506af87d4ca10c0` |
 | [3590](https://bigsoundbank.com/s3590.html) | Anvil #2 | https://bigsoundbank.com/UPLOAD/bwf-en/3590.wav (3,170,872 bytes) | `62c4aa8d870f3a5a7b94825bd5cbf44261013f430169b589536a4402520367d1` |
+
+### The TOGG's recorded diesel (`audio/vehicle/truck/`, 21 October 2026)
+
+The owner asked for recorded truck sounds over synthesized ones (docs/VEHICLES.md §9.10). They chose to use them
+whatever their licence while nothing is sold ("do not think about licences as right now we are not selling anything").
+Each source is listed here with the licence its page gives, so the set can be swapped before any release. The files are
+freesound's public high-quality previews (MP3, about 190 kbps, no account), Pixabay's MP3s and two YouTube shorts the
+owner picked, downloaded by `D:\GameDev\Tools\yt-dlp`. Each is in `art/audio/sources.py` with its SHA-256
+(`freesound.json`, `pixabay.json`, `youtube.json`), under `D:\GameDev\Assets\Downloads\freesound-previews\`, `pixabay\`
+and `youtube\`. `art/audio/truck_sounds.py` cuts, pitches and filters them. A freesound original saved by hand into
+`freesound\` and recorded with `sources.py --adopt` replaces its preview (the same recording, the same cut times).
+Every candidate downloaded (35 freesound previews, 4 Pixabay files, 4 YouTube shorts, 8 more BigSoundBank WAVs) is in
+those rosters. The table lists only what the sounds use. The turbo's whistle under the recorded whine is our own
+synthesis (`art/audio/engines.py`).
+
+| Source | Recording (author) | Licence | File (bytes) | SHA-256 |
+|---|---|---|---|---|
+| [freesound 107039](https://freesound.org/people/Cameron%20Johnson/sounds/107039/) | Pegasus shifting.WAV (Cameron Johnson) | CC0 1.0 | preview https://cdn.freesound.org/previews/107/107039_938268-hq.mp3 (431,985 bytes) | `690925b8983e4a27755b524c13e727fb50d1ee50eb38dfcddee765891d441334` |
+| [freesound 165167](https://freesound.org/people/goose278/sounds/165167/) | tractor connecting to trailer with air brk.WAV (goose278) | CC0 1.0 | preview https://cdn.freesound.org/previews/165/165167_2994289-hq.mp3 (293,520 bytes) | `449fad830f945f42f1e3f6d98032c0219e7374d3413362bf6635a9aecdaa5d11` |
+| [freesound 435656](https://freesound.org/people/YellowJacketStudios/sounds/435656/) | FORD LTL 9000_engine start and idle.wav (YellowJacketStudios) | CC0 1.0 | preview https://cdn.freesound.org/previews/435/435656_2347916-hq.mp3 (1,037,088 bytes) | `18efb5d007e13f3d684f43080472fcf9777fd3d01388056da6f3bcf01078d8a2` |
+| [freesound 435667](https://freesound.org/people/YellowJacketStudios/sounds/435667/) | FORD LTL 9000_back up and engine shutdown.wav (YellowJacketStudios) | CC0 1.0 | preview https://cdn.freesound.org/previews/435/435667_2347916-hq.mp3 (1,658,208 bytes) | `e76eb7f218d40756f282c239cf1067b501e8684909bb8ecb8e68ccad564cabbf` |
+| [freesound 504865](https://freesound.org/people/rabbydaw/sounds/504865/) | air_brakes_loud_fade_out.wav (rabbydaw) | CC0 1.0 | preview https://cdn.freesound.org/previews/504/504865_7708176-hq.mp3 (127,680 bytes) | `0ea51edef294c8bc6ed5ce7d26ccf179a936035d7fb51166dd9463d2a3703365` |
+| [freesound 518294](https://freesound.org/people/lucasfuchs/sounds/518294/) | Tractor Engine (lucasfuchs) | CC0 1.0 | preview https://cdn.freesound.org/previews/518/518294_8270369-hq.mp3 (992,544 bytes) | `733ce5bea4254383a331c0db97cb9c660c7829bdab732108ba985a588bbd23aa` |
+| [freesound 637914](https://freesound.org/people/kyles/sounds/637914/) | truck big diesel engine work up a hill sustained rev and pass by2.flac (kyles) | CC0 1.0 | preview https://cdn.freesound.org/previews/637/637914_612689-hq.mp3 (551,904 bytes) | `dc700413027edbc1c84181f0705d7f833507518d69abecfc561505de27c5da54` |
+| [Pixabay 336362](https://pixabay.com/sound-effects/film-special-effects-turbo-flutter-336362/) | Turbo flutter (spinopel) | Pixabay Content License | https://cdn.pixabay.com/download/audio/2025/05/03/audio_5f6ebb6f52.mp3 (269,165 bytes) | `f0cdab565f6a95a69b214bc517356cf8ba79d5cccb7af61723994a3379af3246` |
+| [Pixabay 345714](https://pixabay.com/sound-effects/city-turbo-flutter-on-a-diesel-345714/) | Turbo flutter on a diesel (spinopel) | Pixabay Content License | https://cdn.pixabay.com/download/audio/2025/05/22/audio_22aa274d3c.mp3 (244,924 bytes) | `4f9db34d3837f8f5a2f9012ddf7c3bb5e292e26d9b112b1b5cd2bb508b4ba417` |
+| [Pixabay 63220](https://pixabay.com/sound-effects/city-truck-jake-brake-63220/) | truck jake brake (nuncaconoci (freesound_community)) | Pixabay Content License | https://cdn.pixabay.com/download/audio/2022/03/14/audio_1085375ceb.mp3 (409,920 bytes) | `7bfb868c652e4dbf081f7c3c655989be58582d9da695c198fc2880c757382d02` |
+| [YouTube DoC1_kqCoh0](https://www.youtube.com/shorts/DoC1_kqCoh0) | This Twin Turbo Power Stroke Diesel Tractor Is Epic! (The Journey HQ) | Standard YouTube licence (the owner's choice, 21 October 2026) | `DoC1_kqCoh0.webm` by yt-dlp (401,717 bytes) | `bb329ef058a7f2d9eb2b4a7d49b25c064e6e8dc99d46fdd104f79699ac1bf7ae` |
+| [YouTube rzCpNBSp7YY](https://www.youtube.com/shorts/rzCpNBSp7YY) | V12 COLD START!!! #v12 #coldstart #peterbilt (OL2STROKER) | Standard YouTube licence (the owner's choice, 21 October 2026) | `rzCpNBSp7YY.webm` by yt-dlp (1,005,536 bytes) | `06e39d52368101763a6586bcc6123f58ce6cb79d525d45eeea2970de6e26831a` |
 
 ## Animals (`animals/`, `audio/animals/`)
 
@@ -319,3 +394,100 @@ All our own (G7, GROUND.md §6.9); nothing was downloaded for them:
 |---|---|---|---|
 | `fx/c4/` | The PSG C4 VFX kit R01, converted by `art/fx/build.py` (GROUND.md §9.3): smoke and fire flipbooks, flash, pressure ring, heat distortion, dust puff, spark, scorch, and the procedural concrete texture of its debris; its concrete shards and metal fragments are in `fx/chunks.glb` | `D:\GameDev\Assets\PSG_C4VFX_R01`: our own kit, made for this project by Blender Python (a Mantaflow simulation rendered by Blender, textures generated in `Source/build_support.py`); no third-party content | Ours |
 | `fx/textures/`, `fx/decals/`, `fx/chunks.glb` (the rest), `fx/shaders/` | The muzzle flash atlas, noise, soft dot, droplet, bullet holes, blood, scuff and debris shapes, painted and modelled by `art/fx/build.py`; the shaders | Ours | Ours |
+
+## Nox surface contacts and derived footwear profiles (18 October 2026)
+
+The 579 derived files under `audio/footstep/` for grass, dirt, sand, rock, snow, wood, metal and shallow water use
+193 source contacts from Nox Sound Design's
+[Essentials Series](https://nox-sound-design.itch.io/essentials-series-sfx-nox-sound), released by its creator
+under CC0 1.0 for personal and commercial use. Walk, run and land sources receive the softened contact treatment
+and three derived profiles: barefoot, shoes and boots. Crouch shares walk sources. The owner approved the initial
+six-contact grass and six-contact dirt auditions; the expanded selection has not received listening approval.
+Source footwear is unidentified, so the profiles are processing choices rather than separately recorded authentic
+barefoot, shoe and boot sessions. Vegetation movement, jump takeoffs and clipped rock landing takes are excluded.
+The four existing swim recordings keep their earlier sources.
+
+The external `Essentials_Series_NOX_SOUND.zip` is 1,036,374,981 bytes, SHA-256
+`0df9a98cc8d0499787cb3c29f3e278fdacd75ca3e94106828ea8b5c115ae8d3d`.
+`art/audio/nox_footsteps.json` v2 retains the creator page, archive identity and all 193 source-member hashes;
+`art/audio/sources.py` verifies them, and `game/data/ground/footsteps.json` records the shared treatment, profiles
+and gait mapping. The audio build records encoded output hashes and measurements in `audio/levels.json`.
+Originals remain in the external Downloads library. These contacts replace the earlier eight surface banks;
+no audio from the user's Rust reference video is incorporated.
+
+## Environment repair additions (15 October 2026)
+
+| Path | Source and use | Rights and provenance |
+|---|---|---|
+| `surface/cliffs/coastal_cliff_04_lod*.glb` | Local `D:/GameDev/Assets/coastal_cliff_04_4k.gltf`; [Poly Haven Coastal Cliff 04](https://polyhaven.com/a/coastal_cliff_04), reduced to two mesh levels with 2K PBR textures | [CC0](https://polyhaven.com/license). Original/output SHA-256s and conversion measurements: `surface/cliffs/provenance.json`; reproducible conversion: `tools/blender/environment_cliffs.py`. |
+| `surface/cliffs/namaqualand_cliff_02_lod*.glb` | Local `D:/GameDev/Assets/namaqualand_cliff_02_4k.gltf`; [Poly Haven Namaqualand Cliff 02](https://polyhaven.com/a/namaqualand_cliff_02) | CC0, with the same receipt and conversion. |
+| `revised/Hollow_Substation_R01/` | Five selected native scenes and required materials/textures from the owner's local package: service court, transformer, switchgear, cable reel and barrier | Original owner-controlled geometry and labels; CC0 Poly Haven scan derivatives. Source material audit: the package's `Reports/texture_provenance.json`. |
+| `revised/Hollow_PowerKit_R01/` | Breaker, open disconnect and termination pedestal, with native PBR materials and LODs | Original owner-controlled Blender geometry and synthesized textures. The source package's `Reports/provenance.json` records construction and reference-only hardware documents; no external model/image or commercial-game extraction. |
+| `revised/Hollow_RuinDressing_R01/` | Hardware cluster and localized oil-seep decal with their required dependencies | Original owner-controlled geometry/masks plus documented CC0 scan derivatives and an earlier ImageGen-derived painted-steel source. The source package's `Reports/provenance.json` records those inputs; no image generation was performed by this integration. |
+
+`revised/substation-integration.json` records source manifest hashes, the 69 selected dependency source/output
+SHA-256s, and the combined service-substation layout. `tools/blender/environment_substation.py` verifies those
+manifests before copying, remaps resource paths and derives shared collision from the actual authored hulls.
+The five other live monument types reuse the project's original `monuments/` assemblies and collision metadata.
+No extracted commercial-game geometry, textures or map placements were incorporated.
+
+### Authored ground cover (repair pass, 15 October 2026)
+
+`surface/ground-cover/` contains derivatives of the owner's Wild Grass (`vlkhcbxia`), Cotton Grass (`wlykecdia`),
+Tundra Grass (`wk2oaeyqx`) and Bracken Fern (`seEoW`) Quixel/Fab plant archives in `D:/GameDev/Assets`.
+Use is under the same owner-supplied Fab Standard License basis as the ground scans above; these are not CC0.
+Three variants per family retain authored UVs, opacity and lower LODs. Original source files remain external and
+unchanged. `surface/ground-cover/catalog.json` contains archive hashes, verified input hashes and output hashes;
+`tools/blender/environment_ground_cover.py` reproduces metre normalization and 2048-pixel texture derivatives.
+No commercial-game extraction, remote generation or provider job was used.
+
+### Scanned geology (16 October 2026)
+
+`surface/rocks/` uses the owner's Poly Haven Rock Moss Set 02 (CC0-1.0,
+https://polyhaven.com/a/rock_moss_set_02), Tundra Boulder `vixsch3dw` and Tundra
+Lichened Boulder `vivvbfhaw` (owner-supplied Fab Standard License library). The seven
+moss variants share an atlas; the two tundra scans keep their original PBR maps.
+`catalog.json` records source/dependency and exported glTF/buffer/texture SHA-256s.
+
+The external glTFs in `surface/cliffs/` add Huge Nordic Coastal Cliff `vefkehbva`,
+Huge Nordic Coastal Cliff `ullqbb1ga`, and Nordic Forest Cliff Large `xibjbg3` from
+the same owner-supplied Fab library. The first two are also used by RustMVP's local
+scan replacement pipeline. The earlier two Poly Haven cliff sources remain CC0.
+`provenance.json` records individual licenses and hashes. Fab scans are not CC0;
+they ship only as part of the game. Originals remain unchanged in `D:/GameDev/Assets`.
+No Rust geometry, textures, map data, Unreal packages or provider generation was copied.
+
+### Cliff kit (20 October 2026)
+
+`surface/cliffkit/` holds the modular cliff pieces of docs/WORLD_TERRAIN_PLAN.md §4.3, cut by
+`art/cliffkit/build.py` from the owner's Quixel Megascans scans in `D:/GameDev/Assets` (bought on Fab,
+Fab Standard License): Desert Western Cliff Layered Corner XL 01 `ulfucbn`, Desert Western Cliff
+Layered XL 04 `ulcofaf`, Desert Western Cliff Layered Large 01 `venqdcc`, Desert Western Ledge Rock
+Large 03 `vbvqbbofa`, Desert Western Ledge Rock Medium 01 `xgkneh0`, Desert Western Rock Large 11
+`ulbpfjj` and 13 `ulmfceq`, Massive Nordic Coastal Cliff `vfmjadufa`, Huge Nordic Coastal Cliff
+`vefkehbva` and `ullqbb1ga`, Nordic Forest Cliff Large `xibjbg3`, Nordic Beach Boulder `vcyqebjfa`,
+Large Tundra Rock Formation `wdysbfoga`, Massive Tundra Rock Formation `wd4icipcb` and Tundra Rock
+Formation `vi5nachmw`. Each piece's mesh is the scan remeshed, cut and decimated; its albedo (with the
+scan's occlusion) and normal map are baked in Blender from the scan's own maps onto new UVs. The three
+families' tiling detail (`textures/*_detail_*.png`) is the Megascans surfaces Canyon Sandstone Rock
+`vimldgeg`, Cracked Nordic Coastal Rock `ukohaj0mw` and Tundra Lichened Rock `vjbode1mw`, brought to 2K
+and repacked. `cliffkit.json` names each piece's scan and its SHA-256. These are not CC0; they ship only
+inside the game. Originals remain unchanged.
+
+### Authored trees (16 October 2026)
+
+`surface/trees/` contains three fir and three birch variants derived from the owner's
+LOLIPOP Fir Trees and Five Birch Trees packs in `D:/GameDev/Assets/Fab/LOLIPOP`.
+Their original UVs, texture maps and supplied LODs are retained under the owner's
+supplied-asset authorization; these commercial pack derivatives are not CC0.
+
+The pine derives from the documented Poly Haven pine-forest source through the
+owner's existing `RustMVP/assets/SourceWorld/extras/pine_forest/mature_pine_a.glb`.
+That source receipt describes scanned bark and authored twig cards, and notes that
+the archive's exact origin was not independently authenticated. No Facepunch Rust
+asset is used. Original libraries and the reference checkout remain unchanged.
+
+`surface/trees/catalog.json` records source and exported dependency hashes, native
+material inputs, dimensions and stem fitting. Conversion and import settings are
+reproducible with `tools/blender/environment_trees.py` and
+`tools/blender/environment_tree_import_settings.py`; see `docs/REPAIR_TREES.md`.

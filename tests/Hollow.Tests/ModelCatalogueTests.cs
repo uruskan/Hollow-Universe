@@ -35,7 +35,239 @@ public static class ModelCatalogueTests
     };
 
     // Models that replaced stand-ins: none of them may be marked as a stand-in again.
-    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary" };
+    private static readonly string[] NotStandIns = { "gunpowder", "metal-mask", "pistol-ammo-incendiary", "cloth", "sewing-kit", "metal-blade", "sign-plate", "receiver", "rifle-frame", "torn-schematic", "sealed-schematic", "salvage", "explosives", "blueprint", "research-table",
+        "woven-hood", "woven-shirt", "woven-trousers", "woven-gloves", "work-boots", "chest-plate", "door-key" };
+
+    [Test]
+    public static void ClothHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement cloth = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "cloth");
+        Assert.Equal("res://assets/items/cloth.glb", cloth.GetProperty("file").GetString(), "cloth model identity");
+        Assert.True(!cloth.GetProperty("icon").TryGetProperty("key", out _), "cloth must render its own icon, not borrow another item's");
+        Assert.True(!cloth.TryGetProperty("standIn", out _), "cloth must not return to the fibre stand-in");
+    }
+
+    [Test]
+    public static void SewingKitHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement kit = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "sewing-kit");
+        Assert.Equal("res://assets/items/sewing-kit.glb", kit.GetProperty("file").GetString(), "sewing kit model identity");
+        Assert.True(!kit.GetProperty("icon").TryGetProperty("key", out _), "sewing kit must render its own icon");
+        Assert.True(!kit.TryGetProperty("standIn", out _), "sewing kit must not return to the fibre stand-in");
+    }
+
+    [Test]
+    public static void MetalBladeHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement blade = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "metal-blade");
+        Assert.Equal("res://assets/items/metal-blade.glb", blade.GetProperty("file").GetString(), "metal blade model identity");
+        Assert.True(!blade.GetProperty("icon").TryGetProperty("key", out _), "metal blade must render its own icon");
+        Assert.True(!blade.TryGetProperty("standIn", out _), "metal blade must not return to the refined-metal stand-in");
+    }
+
+    [Test]
+    public static void SignPlateHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement sign = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "sign-plate");
+        Assert.Equal("res://assets/items/sign-plate.glb", sign.GetProperty("file").GetString(), "sign plate model identity");
+        Assert.True(!sign.GetProperty("icon").TryGetProperty("key", out _), "sign plate must render its own icon");
+        Assert.True(!sign.TryGetProperty("standIn", out _), "sign plate must not return to the refined-metal stand-in");
+    }
+
+    [Test]
+    public static void ReceiverHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "receiver");
+        Assert.Equal("res://assets/items/receiver.glb", item.GetProperty("file").GetString(), "receiver model identity");
+        Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "receiver must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "receiver must not return to the refined-metal stand-in");
+    }
+
+    [Test]
+    public static void RifleFrameHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "rifle-frame");
+        Assert.Equal("res://assets/items/rifle-frame.glb", item.GetProperty("file").GetString(), "rifle frame model identity");
+        Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "rifle frame must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "rifle frame must not return to the refined-metal stand-in");
+    }
+
+    [Test]
+    public static void TornSchematicHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "torn-schematic");
+        Assert.Equal("res://assets/items/torn-schematic.glb", item.GetProperty("file").GetString(), "torn schematic model identity");
+        Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "torn schematic must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "torn schematic must not return to the building-plan stand-in");
+    }
+
+    [Test]
+    public static void SealedSchematicHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "sealed-schematic");
+        Assert.Equal("res://assets/items/sealed-schematic.glb", item.GetProperty("file").GetString(), "sealed schematic model identity");
+        Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "sealed schematic must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "sealed schematic must not return to the building-plan stand-in");
+    }
+
+    [Test]
+    public static void SalvageHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "salvage");
+        Assert.Equal("res://assets/items/salvage.glb", item.GetProperty("file").GetString(), "salvage model identity");
+        Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "salvage must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "salvage must not return to the metal-fragments stand-in");
+    }
+
+    [Test]
+    public static void ExplosivesHaveTheirOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "explosives");
+        Assert.Equal("res://assets/items/explosives.glb", item.GetProperty("file").GetString(), "explosives model identity");
+        Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "explosives must render their own icon, not sulphur's");
+        Assert.True(!item.TryGetProperty("standIn", out _), "explosives must not return to the sulphur stand-in");
+    }
+
+    [Test]
+    public static void BlueprintHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "blueprint");
+        Assert.Equal("res://assets/items/blueprint.glb", item.GetProperty("file").GetString(), "blueprint model identity");
+        Assert.True(item.TryGetProperty("icon", out JsonElement icon) && !icon.TryGetProperty("key", out _), "blueprint must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "blueprint must not return to the building-plan stand-in");
+    }
+
+    [Test]
+    public static void ResearchBenchHasItsOwnModelGibsAndRenderedIcon()
+    {
+        string game = Path.Combine(Fixtures.Root, "game");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(game, "data", "ground", "models.json")));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "research-table");
+        Assert.Equal("res://assets/world/research-table.glb", item.GetProperty("file").GetString(), "research bench model identity");
+        Assert.Equal("res://assets/gibs/research-table.glb", item.GetProperty("gibs").GetProperty("file").GetString(), "research bench gibs");
+        Assert.True(item.TryGetProperty("icon", out JsonElement icon) && !icon.TryGetProperty("key", out _), "research bench must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "research bench must not return to the engineering-workbench stand-in");
+        // The drawn bench stays inside the bounds the server places, collides and destroys it by (deployables.json).
+        using JsonDocument deployables = JsonDocument.Parse(File.ReadAllText(Path.Combine(game, "data", "ground", "deployables.json")));
+        double[] half = deployables.RootElement.GetProperty("deployables").EnumerateArray()
+            .Single(d => d.GetProperty("key").GetString() == "research-table").GetProperty("size").EnumerateArray().Select(v => v.GetDouble()).ToArray();
+        (double[] min, double[] max) = GlbBounds(Path.Combine(game, "assets", "world", "research-table.glb"), "Body_lod0");
+        Assert.True(-half[0] <= min[0] && max[0] <= half[0] && -half[2] <= min[2] && max[2] <= half[2] && min[1] >= 0 && max[1] <= 2 * half[1],
+            $"research bench model {string.Join(",", min)} .. {string.Join(",", max)} outside its deployable bounds");
+    }
+
+    /// <summary>A GLB mesh node's position bounds in the file's frame (Godot's: +Y up), from its accessor's min and max.</summary>
+    private static (double[] Min, double[] Max) GlbBounds(string path, string node)
+    {
+        byte[] data = File.ReadAllBytes(path);
+        int length = BitConverter.ToInt32(data, 12);
+        using JsonDocument json = JsonDocument.Parse(new ReadOnlyMemory<byte>(data, 20, length));
+        JsonElement root = json.RootElement;
+        JsonElement n = root.GetProperty("nodes").EnumerateArray().Single(x => x.TryGetProperty("name", out JsonElement name) && name.GetString() == node);
+        JsonElement mesh = root.GetProperty("meshes")[n.GetProperty("mesh").GetInt32()];
+        var min = new[] { double.MaxValue, double.MaxValue, double.MaxValue };
+        var max = new[] { double.MinValue, double.MinValue, double.MinValue };
+        foreach (JsonElement primitive in mesh.GetProperty("primitives").EnumerateArray())
+        {
+            JsonElement accessor = root.GetProperty("accessors")[primitive.GetProperty("attributes").GetProperty("POSITION").GetInt32()];
+            double[] lo = accessor.GetProperty("min").EnumerateArray().Select(v => v.GetDouble()).ToArray();
+            double[] hi = accessor.GetProperty("max").EnumerateArray().Select(v => v.GetDouble()).ToArray();
+            for (int i = 0; i < 3; i++) { min[i] = Math.Min(min[i], lo[i]); max[i] = Math.Max(max[i], hi[i]); }
+        }
+        return (min, max);
+    }
+
+    [Test]
+    public static void WireToolHasItsOwnModelSocketsAndRenderedIcon()
+    {
+        string game = Path.Combine(Fixtures.Root, "game");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(game, "data", "ground", "models.json")));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "wire-tool");
+        Assert.Equal("res://assets/items/wire-tool.glb", item.GetProperty("file").GetString(), "wire tool model identity");
+        Assert.Equal(3, item.GetProperty("lods").GetInt32(), "wire tool levels of detail");
+        Assert.True(item.TryGetProperty("icon", out JsonElement icon) && !icon.TryGetProperty("key", out _), "wire tool must render its own icon");
+        // Its held presentation holds it by the grip and touches ports with the probe's point.
+        (List<string> nodes, _) = ReadGlb(Path.Combine(game, "assets", "items", "wire-tool.glb"));
+        using JsonDocument held = JsonDocument.Parse(File.ReadAllText(Path.Combine(game, "data", "ground", "held-presentations.json")));
+        string contact = held.RootElement.GetProperty("profiles").EnumerateArray()
+            .Single(p => p.GetProperty("item").GetString() == "wire-tool").GetProperty("contactSocket").GetString()!;
+        Assert.True(nodes.Contains("socket_grip_r") && nodes.Contains("socket_" + contact), $"wire tool needs socket_grip_r and socket_{contact}");
+    }
+
+    [Test]
+    public static void DoorKeyHasItsOwnModelAndRenderedIcon()
+    {
+        string path = Path.Combine(Fixtures.Root, "game", "data", "ground", "models.json");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(path));
+        JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray()
+            .Single(m => m.GetProperty("key").GetString() == "door-key");
+        Assert.Equal("res://assets/items/door-key.glb", item.GetProperty("file").GetString(), "the key's model, not the key lock's");
+        Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), "the key must render its own icon");
+        Assert.True(!item.TryGetProperty("standIn", out _), "the key must not return to the key lock's model");
+    }
+
+    [Test]
+    public static void ClothingItemsAreTheWornGarments()
+    {
+        // Each item is the character package's garment mesh with the garment's own material (art/models/garment_items.py).
+        var garments = new Dictionary<string, string>
+        {
+            ["woven-hood"] = "woven_hood", ["woven-shirt"] = "woven_shirt", ["woven-trousers"] = "woven_trousers",
+            ["woven-gloves"] = "woven_gloves", ["work-boots"] = "laced_boots", ["chest-plate"] = "riveted_breastplate",
+        };
+        string game = Path.Combine(Fixtures.Root, "game");
+        using JsonDocument doc = JsonDocument.Parse(File.ReadAllText(Path.Combine(game, "data", "ground", "models.json")));
+        foreach ((string key, string stem) in garments)
+        {
+            JsonElement item = doc.RootElement.GetProperty("models").EnumerateArray().Single(m => m.GetProperty("key").GetString() == key);
+            Assert.Equal($"res://assets/items/{key}.glb", item.GetProperty("file").GetString(), $"{key} model identity");
+            Assert.True(!item.TryGetProperty("standIn", out _), $"{key} must not return to its stand-in");
+            Assert.True(!item.GetProperty("icon").TryGetProperty("key", out _), $"{key} must render its own icon");
+            string material = $"res://assets/materials/garment-{stem.Replace('_', '-')}.tres";
+            string import = File.ReadAllText(Path.Combine(game, "assets", "items", key + ".glb.import"));
+            Assert.True(import.Contains($"\"{stem}\": {{", StringComparison.Ordinal) && import.Contains(material, StringComparison.Ordinal),
+                $"{key}: the garment's material {stem} must map to {material}");
+            string tres = File.ReadAllText(Local(game, material));
+            Assert.True(tres.Contains("res://shaders/character_cloth.gdshader", StringComparison.Ordinal) &&
+                tres.Contains($"res://assets/characters/textures/{stem}_albedo.png", StringComparison.Ordinal),
+                $"{key}: {material} must draw with the worn garment's shader and textures");
+        }
+    }
 
     // World objects the gathering rules place (gather.json) and the ship.
     private static readonly string[] RequiredWorld =
@@ -90,7 +322,8 @@ public static class ModelCatalogueTests
             {
                 string path = Local(game, res);
                 Assert.True(File.Exists(path), $"{key}: {res} is missing");
-                (List<string> nodes, List<string> materials) = ReadGlb(path);
+                bool nativeScene = path.EndsWith(".tscn", StringComparison.Ordinal);
+                (List<string> nodes, List<string> materials) = nativeScene ? ReadScene(game, path, convex) : ReadGlb(path);
                 List<string> parts = nodes.Where(n => n.EndsWith("_lod0", StringComparison.Ordinal)).Select(n => n[..^5]).ToList();
                 Assert.True(parts.Count > 0, $"{key}: {res} has no _lod0 mesh");
                 foreach (string part in parts)
@@ -100,7 +333,7 @@ public static class ModelCatalogueTests
                         Assert.True(nodes.Contains($"{part}_lod{lod}"), $"{key}: {res} has no {part}_lod{lod}");
                     }
                 }
-                if (convex)
+                if (convex && !nativeScene)
                 {
                     Assert.True(nodes.Any(n => n.EndsWith("-convcolonly", StringComparison.Ordinal)), $"{key}: {res} has no convex hull");
                 }
@@ -116,6 +349,13 @@ public static class ModelCatalogueTests
                     {
                         CheckGrip(key, grip);
                     }
+                    if (held.TryGetProperty("supportHand", out JsonElement support))
+                    {
+                        CheckGrip(key + " support hand", support);
+                        double[] pole = support.GetProperty("pole").EnumerateArray().Select(v => v.GetDouble()).ToArray();
+                        Assert.True(pole.Length == 3 && pole.All(double.IsFinite) && pole.Sum(v => v * v) > 0.1,
+                            $"{key}: support hand needs a finite elbow direction");
+                    }
                 }
                 // A gun's attachment sockets are nodes of its file.
                 if (m.TryGetProperty("sockets", out JsonElement sockets))
@@ -126,7 +366,7 @@ public static class ModelCatalogueTests
                         mounts.Add(socket.Name);
                     }
                 }
-                CheckImport(game, key, path, materials);
+                if (!nativeScene) CheckImport(game, key, path, materials);
                 files++;
             }
             if (m.TryGetProperty("slot", out JsonElement slot))
@@ -172,6 +412,36 @@ public static class ModelCatalogueTests
     {
         Assert.True(res.StartsWith("res://", StringComparison.Ordinal), $"{res}: not a res:// path");
         return Path.Combine(game, res["res://".Length..].Replace('/', Path.DirectorySeparatorChar));
+    }
+
+    /// <summary>Native packages embed the authored LOD meshes and supply their own collision/material wrappers.</summary>
+    private static (List<string> Nodes, List<string> Materials) ReadScene(string game, string path, bool convex)
+    {
+        string scene = File.ReadAllText(path);
+        Assert.True(scene.StartsWith("[gd_scene", StringComparison.Ordinal), $"{path}: not a Godot scene");
+        var nodes = Regex.Matches(scene, "\\[node name=\"([^\"]+)\"").Select(m => m.Groups[1].Value).ToList();
+        Assert.True(scene.Contains("type=\"ArrayMesh\"", StringComparison.Ordinal), $"{path}: has no embedded mesh");
+        if (convex)
+        {
+            Assert.True(scene.Contains("type=\"StaticBody3D\"", StringComparison.Ordinal) &&
+                scene.Contains("type=\"CollisionShape3D\"", StringComparison.Ordinal) &&
+                Regex.IsMatch(scene, "type=\"(ConvexPolygon|Box|Cylinder)Shape3D\""), $"{path}: missing convex collision");
+        }
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        void CheckReferences(string resource)
+        {
+            if (!seen.Add(resource)) return;
+            foreach (Match match in Regex.Matches(File.ReadAllText(resource), "path=\"(res://[^\"]+)\""))
+            {
+                string dependency = Local(game, match.Groups[1].Value);
+                Assert.True(File.Exists(dependency), $"{resource}: missing {dependency}");
+                if (dependency.EndsWith(".tres", StringComparison.Ordinal) || dependency.EndsWith(".tscn", StringComparison.Ordinal))
+                    CheckReferences(dependency);
+            }
+        }
+        CheckReferences(path);
+        Assert.True(seen.Count > 1, $"{path}: no external PBR material");
+        return (nodes, new List<string>());
     }
 
     /// <summary>Node and material names from a GLB's JSON chunk.</summary>

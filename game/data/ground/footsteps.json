@@ -1,0 +1,34 @@
+{
+  "source": "Footwear registry and recorded-contact authoring. Items declare wear.footstepProfile; runtime selects a profile event on the current surface. Run art/audio/repair_footsteps.py after changing processing or profile volume.",
+  "defaultProfile": "barefoot",
+  "profiles": [
+    {
+      "key": "barefoot",
+      "volumeDb": -2.0,
+      "filters": "lowpass=f=5200:p=2,treble=g=-2.5:f=2200:t=q:w=0.707"
+    },
+    {
+      "key": "shoes",
+      "volumeDb": 0.0,
+      "filters": "anull"
+    },
+    {
+      "key": "boots",
+      "volumeDb": 1.0,
+      "filters": "equalizer=f=850:t=q:w=0.8:g=1.2,treble=g=0.75:f=3800:t=q:w=0.707"
+    }
+  ],
+  "contactProcessing": {
+    "filters": "apad=pad_dur=0.08,volume=6dB,highpass=f=45:p=2,bass=g=-3:f=200:t=q:w=0.707,treble=g=-1:f=4000:t=q:w=0.707,acompressor=threshold=0.079432823:ratio=1.4:attack=0.7:release=40:knee=2:makeup=1:detection=peak,volume=-0.5dB",
+    "levelRange": [-38.5, -32.0],
+    "peakCeiling": -8.0,
+    "maxTailFade": 0.04
+  },
+  "gaits": {
+    "walk": { "sourceBank": "walk", "volumeDb": 0.0, "maxDistance": 30.0 },
+    "run": { "sourceBank": "run", "volumeDb": 3.0, "maxDistance": 45.0 },
+    "crouch": { "sourceBank": "walk", "volumeDb": -7.0, "maxDistance": 14.0 },
+    "land": { "sourceBank": "land", "volumeDb": 4.0, "maxDistance": 45.0 }
+  },
+  "provenanceNote": "Nox identifies surfaces and movement, not recorded footwear. These footwear banks are derived treatments of those recordings, not claims of authentic separate barefoot/shoe/boot sessions. Vegetation movement, takeoff sounds and clipped source contacts are excluded. Future items can share profiles or declare additional profile keys."
+}

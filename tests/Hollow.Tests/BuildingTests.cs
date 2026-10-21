@@ -714,7 +714,7 @@ public static class BuildingTests
             PlacementCandidate? ghost = Ghost(placing, P("foundation"), eye, WD(spot, aim), wallet);
             PlacementPlan? plan = ghost?.Detail as PlacementPlan;
             Assert.True(ghost is { Valid: true } && plan is { Support: null }, $"{what}: a valid free foundation, not {ghost}");
-            PlacementPlan again = world.FoundationAt(P("foundation"), plan!.Point, plan.HeadingSteps * BuildingWorld.HeadingStep)!;
+            PlacementPlan again = world.FoundationAt(P("foundation"), plan!.Point, plan.Heading)!;
             Assert.True(again.Frame.Equals(plan.Frame), $"{what}: the server's foundation from the plan's point is the ghost's");
             double top = L(spot, BuildingWorld_F(plan.Frame.Origin)).Y;
             Fixtures.Report($"{what}: top {top:0.000} m over the ground at its centre");
@@ -726,9 +726,60 @@ public static class BuildingTests
         // A little higher: 3.5 m out, the aim 0.5 m over the ground there.
         Assert.Near(0.5 + clearance, Top(new Vector3(0, -1.1f, -3.5f), "aimed a little higher"), 0.01, "the top follows the aim");
         // Higher still, and at the sky: held at the depth over the downhill corners.
-        Assert.InRange(highest - 0.03, highest, Top(new Vector3(0, -0.3f, -3.5f), "aimed higher"), "the top stops at the foundation's depth");
-        Assert.InRange(highest - 0.03, highest, Top(new Vector3(0, 0.5f, -3.5f), "aimed at the sky"), "the same at the sky");
+        Assert.InRange(highest - 0.03, highest, Top(new Vector3(0, (float)depth, -3.5f), "aimed higher"), "the top stops at the foundation's depth");
+        Assert.InRange(highest - 0.03, highest, Top(new Vector3(0, (float)depth + 1, -3.5f), "aimed at the sky"), "the same at the sky");
     }
 
     private static Vector3 BuildingWorld_F(Vector3D v) => new((float)v.X, (float)v.Y, (float)v.Z);
+
+    [Test]
+    public static void BuildingRepairFloorKeepsEveryBearingWall()
+    {
+        using var world = PureWorld();
+        Piece foundation = First(world);
+        Piece a = On(world, foundation, Edge(0), "half-wall");
+        Piece b = On(world, foundation, Edge(1), "half-wall");
+        // A triangular panel overlaps two wall tops without either edge being a complete socket match.
+        // Loading and linking use these same poses; support must be geometric, independent of the original snap parent.
+        var pose = new Pose(new Vector3D(0.6, 1.5, 0.75), 0);
+        Piece floor = world.Add(foundation.Structure, P("floor-triangle"), 0, pose, Ada, 0);
+        Assert.True(floor.SupportedBy.Any(l => l.Other == a) && floor.SupportedBy.Any(l => l.Other == b), "both bearing walls linked");
+        Assert.Equal(900, floor.Stability, "the strongest grounded wall path");
+        world.Remove(a, 1, immediate: true);
+        Assert.True(!floor.Gone && floor.Stability == 900, "the second wall still carries the triangle");
+        world.Remove(b, 2, immediate: true);
+        Assert.True(floor.Gone, "without either wall it collapses");
+
+        var cornerOnly = new Pose(new Vector3D(3, 1.5, 0), 0);
+        var sideOnly = new Pose(new Vector3D(0, 0.75, 0), 0);
+        var wall = new Pose(new Vector3D(0, 0, 1.5), 0);
+        Assert.True(!PieceGeometry.WallBearsFloor(Data, P("half-wall"), wall, P("floor"), cornerOnly), "one touching corner carries no load");
+        Assert.True(!PieceGeometry.WallBearsFloor(Data, P("half-wall"), wall, P("floor"), sideOnly), "a wall side carries no load");
+        Assert.True(!PieceGeometry.WallBearsFloor(Data, P("half-wall"), wall, P("floor-frame"), pose), "the empty centre of a frame is not a bearing panel");
+    }
+
+    [Test]
+    public static void BuildingRepairFreeFoundationFollowsViewAndWireHeading()
+    {
+        var surface = new RampSurface(ZoneSpec.FirstWorldRadius, 0);
+        ZoneFrame spot = ZoneFrame.At(surface, 0, 0);
+        using var physics = new PhysicsWorld(surface, ZoneFrame.World);
+        physics.EnsureGroundWithin(W(spot, Vector3.Zero), 48);
+        ulong next = 0;
+        using var world = new BuildingWorld(Data, physics, () => new EntityId(++next));
+        Vector3 eye = W(spot, new Vector3(0, 1.6f, 0));
+        Vector3 aim = WD(spot, Vector3.Normalize(new Vector3(0.73f, 0.15f, -1)));
+        var placing = Placing(world, surface);
+        PlacementCandidate ghost = Ghost(placing, P("foundation"), eye, aim, null) ?? throw new TestFailure("missing foundation");
+        var plan = (PlacementPlan)ghost.Detail!;
+        Assert.True(ghost.Valid && plan.Support == null, "a free foundation");
+        Vector3 local = L(spot, ghost.Position);
+        Assert.Near(0.73, local.X / -local.Z, 0.002, "its centre stays on the view ray");
+        Assert.True(Math.Abs(Math.IEEERemainder(plan.Heading, Math.PI / 12)) > 0.03, "heading is not quantized to 15 degrees");
+        PlacementClaim claim = ghost.Claim with { Yaw = Quantize.FromAngle16(Quantize.Angle16(ghost.Claim.Yaw)) };
+        PlacementCandidate? settled = Placer.Settle(placing, Context(P("foundation"), Ada, eye, null), claim, out Outcome refused);
+        Assert.True(settled != null && refused.Ok, "wire heading reconstructs a valid placement");
+        Assert.True(Math.Abs(Quaternion.Dot(ghost.Rotation, settled!.Rotation)) > 0.99999f, "server and preview face the same way");
+        Assert.True(Data.FoundationDepth >= Data.Storey, "one storey of usable footing on uneven terrain");
+    }
 }

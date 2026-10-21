@@ -1,0 +1,103 @@
+{
+  "art_sources": "Original geometry and procedural trim/rope textures, plus one built-in ImageGen galvanized colour source with locally authored PBR derivation. No extracted game files, scans or downloaded assets incorporated.",
+  "license": "Project-owned original work; supplied for Hollow. No blanket CC0/public redistribution license asserted.",
+  "third_party_art_inputs": [],
+  "code_reuse": [
+    {
+      "path": "D:/GameDev/Assets/Hollow_Substation_R01/Source/inspect_glb.py",
+      "sha256": "bbb20066ff0beabec86093e2d6f10f80de166f378f61038afff46a617fcceaa5",
+      "usage": "Decoded GLB/accessor/topology audit code adapted and reviewed for six pickups; stale Substation entry points removed. Reference delivery read-only."
+    }
+  ],
+  "visual_reference": {
+    "user_supplied_path": "C:/Users/uruskan/AppData/Local/Temp/codex-clipboard-663b02ea-10f1-4594-b869-7558f893c9da.png",
+    "sha256": "122bf3a71e325f55c9c3d72313eec8643c9f484936d98ad9979c1a81d97fbad1",
+    "usage": "Visual direction for thin corrugated rusty offcuts only. Image is not distributed, traced, used as a texture or embedded in the source.",
+    "license": "Not asserted; reference only."
+  },
+  "provider_jobs": [
+    {
+      "provider": "built-in image_gen",
+      "mode": "generate",
+      "date_local": "2026-10-15 Europe/Istanbul",
+      "job_id": "not exposed by built-in result",
+      "prompt_path": "Source/MaterialSources/imagegen_prompt.txt",
+      "prompt_sha256": "5a6cbc5d33ad35f95fbed20f3eff505845ba037a85911ad40fb5f53eb0d76921",
+      "source_path": "Source/MaterialSources/galvanized_source.png",
+      "source_sha256": "c18c5c26676ff771d4580f29ff9e7e649f4a53fec8c79f633b0a863b2ae2bdf5",
+      "actual_source_dimensions": [
+        1254,
+        1254
+      ],
+      "runtime_dimensions": [
+        2048,
+        2048
+      ],
+      "derivation": "Source/material_revision.py corrugated_from_source; material-class masks drive roughness/metalness. High-pass surface residual only for restrained normals. Resampling adds no source colour detail.",
+      "generation_receipt": "Tool returned the displayed image and saved PNG; no separate provider billing or job receipt exposed."
+    }
+  ],
+  "material_seed": 231104,
+  "source_scripts": [
+    {
+      "path": "Source/audit.py",
+      "sha256": "120fc45f3dc6e338a94addc7e25ad7a7b8680f00e1fb637df411937ff568115e"
+    },
+    {
+      "path": "Source/build.py",
+      "sha256": "a233873c8b3af977bbfba713d5219e5b090d17c4789b6d09f7ec24e66b4beabc"
+    },
+    {
+      "path": "Source/contact_sheets.py",
+      "sha256": "4531ddcb6c09402d70d0efc6c5bc29a55912489fbbcf10c3a289d53aea7c9d2e"
+    },
+    {
+      "path": "Source/finish.py",
+      "sha256": "d03133bb3ac72efe4e67169e8a003f522a148000220a788ff0c3d236a03e5b85"
+    },
+    {
+      "path": "Source/inspect_glb.py",
+      "sha256": "89a8c0ae6f6369649decc775b233fdccfabce8b1036f935154ea0436350e7685"
+    },
+    {
+      "path": "Source/material_revision.py",
+      "sha256": "d0a0840805eba2cf6f4c0236cc89721acf542f9627ebe8bc6fd3f8626a9ab86d"
+    },
+    {
+      "path": "Source/prepare_engine.py",
+      "sha256": "9de0d29a4ef1a0c77e0501449365898ab816d2bfceb14f9ef1c1842d70ec1cf6"
+    },
+    {
+      "path": "Source/prepare_textures.py",
+      "sha256": "8f125653d4083733d7fcdf841648c3163afa2abf31f4394562a3859e89fc4971"
+    },
+    {
+      "path": "Source/revision_evidence.py",
+      "sha256": "8dee2a90fb87894ea9475e132c0c2bb98a688cfba0b2c273bb8c97530ff1e722"
+    }
+  ],
+  "material_revision": {
+    "date_local": "2026-10-15 Europe/Istanbul",
+    "source": "Source/material_revision.py",
+    "seed": 151026,
+    "coordinator_triage": "D:/GameDev/Assets/Hollow_Production_Reviews/Salvage_R01/COORDINATOR_TRIAGE.txt",
+    "triage_sha256": "1dd3677cc952cdffc7b97c5b000e88e09a0c33659d4852d168352c2b585f1669",
+    "reference_reasoning": [
+      {
+        "url": "https://galvanizeit.org/knowledgebase/article/atmospheric-corrosion-of-hot-dip-galvanized-steel",
+        "organization": "American Galvanizers Association",
+        "accessed": "2026-10-15",
+        "application": "Weathered zinc patina supports broad dull gray surviving coating; limited exposed-steel corrosion chosen as art direction."
+      },
+      {
+        "url": "https://galvanizeit.org/design-and-fabrication/fabrication-considerations/dulling-surfaces",
+        "organization": "American Galvanizers Association",
+        "accessed": "2026-10-15",
+        "application": "Aged galvanizing loses reflectivity. Roughness is separated from metal abrasion and dark oxide."
+      }
+    ],
+    "external_pixels_incorporated": "No web/reference-image pixels; one built-in generated source recorded in provider_jobs",
+    "before_snapshot": "Reports/Revisions/2026-10-15_material/before",
+    "change_log": "Reports/Revisions/2026-10-15_material/CHANGELOG.md"
+  }
+}

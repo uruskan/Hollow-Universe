@@ -30,6 +30,9 @@ public partial class GroundTerrain : Node3D
     /// <summary>Every tile around the player is drawn.</summary>
     public bool IsSettled { get; private set; }
 
+    public string StreamingStatus => $"requested={_near.Count} drawn={_tiles.Count} pending={_building.Count} " +
+        $"missing={_near.Count(k => !_tiles.ContainsKey(k))} faulted={_building.Count(b => b.Value.IsFaulted)}";
+
     public void Follow(PhysicsWorld world, Num.Vector3 feet)
     {
         _material ??= new StandardMaterial3D { VertexColorUseAsAlbedo = true, VertexColorIsSrgb = true, Roughness = 0.95f };
@@ -61,7 +64,9 @@ public partial class GroundTerrain : Node3D
             }
         }
 
-        foreach (TileKey key in _tiles.Keys.Where(k => Distance(k) > Reach + 120).ToList())
+        // Around samples a square; corner tiles may lie beyond the radial retention distance.
+        // A requested tile must survive until the view moves, or readiness can never settle.
+        foreach (TileKey key in _tiles.Keys.Where(k => !_near.Contains(k) && Distance(k) > Reach + 120).ToList())
         {
             _tiles[key].QueueFree();
             _tiles.Remove(key);

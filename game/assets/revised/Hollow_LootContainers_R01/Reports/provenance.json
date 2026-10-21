@@ -1,0 +1,148 @@
+{
+  "original_work": "Geometry, atlas, markings, damage designs and scripts authored for Hollow. Original work remains owner-controlled; no blanket CC0 grant.",
+  "seed": 40419,
+  "imagegen_used": false,
+  "paid_providers_used": false,
+  "imported_sources": [
+    {
+      "path": "D:\\GameDev\\Assets\\Hollow_Substation_R01\\Textures\\T_HS_wood_BaseColor.png",
+      "sha256": "8bb354944152400f02672688fbfde2755a4baabbe12b38d18576688b8f4f396f",
+      "output": "Textures\\T_LC_Wood_BaseColor.png",
+      "licence": "CC0-1.0",
+      "source_page": "https://polyhaven.com/a/weathered_brown_planks",
+      "licence_url": "https://polyhaven.com/license",
+      "upstream_records": {
+        "weathered_brown_planks/BC": {
+          "path": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Source\\SurfaceSources\\weathered_brown_planks_BC.png",
+          "sha256": "3c121aef3a753b1c9d8e0fef2fe4ff81fb83dcedd477723417cd5c6a1db2e161",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/weathered_brown_planks/weathered_brown_planks_diff_2k.png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "license": "CC0-1.0",
+          "license_url": "https://polyhaven.com/license",
+          "local_provenance": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Reports\\texture_manifest.json"
+        },
+        "weathered_brown_planks/N": {
+          "path": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Source\\SurfaceSources\\weathered_brown_planks_N.png",
+          "sha256": "60934139dbb2c6612987f4fe8bf0988ff7d6cb2130428541e85cd647d5306915",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/weathered_brown_planks/weathered_brown_planks_nor_gl_2k.png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "license": "CC0-1.0",
+          "license_url": "https://polyhaven.com/license",
+          "local_provenance": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Reports\\texture_manifest.json"
+        },
+        "weathered_brown_planks/ORM": {
+          "path": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Source\\SurfaceSources\\weathered_brown_planks_ORM.png",
+          "sha256": "54d75851f8e531daf53b7edde22bd6fd6673a68973d40384f445624a17ac3eb3",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/weathered_brown_planks/weathered_brown_planks_arm_2k.png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "license": "CC0-1.0",
+          "license_url": "https://polyhaven.com/license",
+          "local_provenance": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Reports\\texture_manifest.json"
+        }
+      }
+    },
+    {
+      "path": "D:\\GameDev\\Assets\\Hollow_Substation_R01\\Textures\\T_HS_wood_NormalGL.png",
+      "sha256": "ad84e9b7bf18d1ea0456304a4da94149ad80ef5a6d08c14b80247925a21f6059",
+      "output": "Textures\\T_LC_Wood_NormalGL.png",
+      "licence": "CC0-1.0",
+      "source_page": "https://polyhaven.com/a/weathered_brown_planks",
+      "licence_url": "https://polyhaven.com/license",
+      "upstream_records": {
+        "weathered_brown_planks/BC": {
+          "path": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Source\\SurfaceSources\\weathered_brown_planks_BC.png",
+          "sha256": "3c121aef3a753b1c9d8e0fef2fe4ff81fb83dcedd477723417cd5c6a1db2e161",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/weathered_brown_planks/weathered_brown_planks_diff_2k.png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "license": "CC0-1.0",
+          "license_url": "https://polyhaven.com/license",
+          "local_provenance": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Reports\\texture_manifest.json"
+        },
+        "weathered_brown_planks/N": {
+          "path": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Source\\SurfaceSources\\weathered_brown_planks_N.png",
+          "sha256": "60934139dbb2c6612987f4fe8bf0988ff7d6cb2130428541e85cd647d5306915",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/weathered_brown_planks/weathered_brown_planks_nor_gl_2k.png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "license": "CC0-1.0",
+          "license_url": "https://polyhaven.com/license",
+          "local_provenance": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Reports\\texture_manifest.json"
+        },
+        "weathered_brown_planks/ORM": {
+          "path": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Source\\SurfaceSources\\weathered_brown_planks_ORM.png",
+          "sha256": "54d75851f8e531daf53b7edde22bd6fd6673a68973d40384f445624a17ac3eb3",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/weathered_brown_planks/weathered_brown_planks_arm_2k.png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "license": "CC0-1.0",
+          "license_url": "https://polyhaven.com/license",
+          "local_provenance": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Reports\\texture_manifest.json"
+        }
+      }
+    },
+    {
+      "path": "D:\\GameDev\\Assets\\Hollow_Substation_R01\\Textures\\T_HS_wood_ORM.png",
+      "sha256": "66a9010fefc0101c2c697818839db1fbd03fe6b5e1ab461be9d0aa8b98bcfd48",
+      "output": "Textures\\T_LC_Wood_ORM.png",
+      "licence": "CC0-1.0",
+      "source_page": "https://polyhaven.com/a/weathered_brown_planks",
+      "licence_url": "https://polyhaven.com/license",
+      "upstream_records": {
+        "weathered_brown_planks/BC": {
+          "path": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Source\\SurfaceSources\\weathered_brown_planks_BC.png",
+          "sha256": "3c121aef3a753b1c9d8e0fef2fe4ff81fb83dcedd477723417cd5c6a1db2e161",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/weathered_brown_planks/weathered_brown_planks_diff_2k.png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "license": "CC0-1.0",
+          "license_url": "https://polyhaven.com/license",
+          "local_provenance": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Reports\\texture_manifest.json"
+        },
+        "weathered_brown_planks/N": {
+          "path": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Source\\SurfaceSources\\weathered_brown_planks_N.png",
+          "sha256": "60934139dbb2c6612987f4fe8bf0988ff7d6cb2130428541e85cd647d5306915",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/weathered_brown_planks/weathered_brown_planks_nor_gl_2k.png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "license": "CC0-1.0",
+          "license_url": "https://polyhaven.com/license",
+          "local_provenance": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Reports\\texture_manifest.json"
+        },
+        "weathered_brown_planks/ORM": {
+          "path": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Source\\SurfaceSources\\weathered_brown_planks_ORM.png",
+          "sha256": "54d75851f8e531daf53b7edde22bd6fd6673a68973d40384f445624a17ac3eb3",
+          "url": "https://dl.polyhaven.org/file/ph-assets/Textures/png/2k/weathered_brown_planks/weathered_brown_planks_arm_2k.png",
+          "dimensions": [
+            2048,
+            2048
+          ],
+          "license": "CC0-1.0",
+          "license_url": "https://polyhaven.com/license",
+          "local_provenance": "D:\\GameDev\\Assets\\PSG_BuildingKit_R01\\Reports\\texture_manifest.json"
+        }
+      }
+    }
+  ],
+  "cli_discovery": "game-dev not on PATH; direct authorized Blender/Python/Godot workflow used, no canonical game-dev receipt claimed.",
+  "font": "Bahnschrift used for raster labels; font file not distributed."
+}

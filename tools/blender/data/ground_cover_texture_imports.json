@@ -1,0 +1,272 @@
+{
+  "schema": "hollow.cover-texture-import-policy.v2",
+  "runtimeAppearanceApproved": false,
+  "catalogSha256": "11f87351b1bf2486dd645c12d46edcaf2c0457c2f66db987dbf0dfbba6599239",
+  "notes": "Lossless correction for packed billboard N-T only. Requires caller-pinned immutable v1 parent receipt and unchanged candidate settings; all other four imported maps remain unchanged. Exact native all-mip equality is pending, and no runtime appearance acceptance is claimed.",
+  "families": [
+    {
+      "key": "wild",
+      "model": "res://assets/surface/ground-cover/wild.glb",
+      "modelSha256": "2565dfc05e49ba66cd92b4425b4f6ecebd245deb8bb14d05e3cdd9b6b49cbb62",
+      "modelBytes": 27530716,
+      "images": [
+        {
+          "imageIndex": 0,
+          "imageName": "T_vlkhcbxia_4K_N",
+          "path": "assets/surface/ground-cover/wild_T_vlkhcbxia_4K_N.png",
+          "sha256": "919840afede6e37e96e753214fbc55ac29f6d99cf2db8528126f2008641cddfb",
+          "bytes": 5508370,
+          "uses": [
+            "0/normal"
+          ],
+          "role": "normal_xy"
+        },
+        {
+          "imageIndex": 1,
+          "imageName": "T_vlkhcbxia_4K_B-O",
+          "path": "assets/surface/ground-cover/wild_T_vlkhcbxia_4K_B-O.png",
+          "sha256": "e98364ca6956f1334456c9caa29fd6f5b2825529ccb67c2fa6224af02db3a476",
+          "bytes": 5966800,
+          "uses": [
+            "0/baseColor"
+          ],
+          "role": "albedo_cutout"
+        },
+        {
+          "imageIndex": 2,
+          "imageName": "T_vlkhcbxia_4K_ORT",
+          "path": "assets/surface/ground-cover/wild_T_vlkhcbxia_4K_ORT.png",
+          "sha256": "0771f215ace7241c33f4a09ab12e2c146fd85c7b8c4c78ecff1b09e22835a37b",
+          "bytes": 4051859,
+          "uses": [
+            "0/metallicRoughness"
+          ],
+          "role": "packed_ort"
+        },
+        {
+          "imageIndex": 3,
+          "imageName": "T_vlkhcbxia_4K_Billboard_N-T",
+          "path": "assets/surface/ground-cover/wild_T_vlkhcbxia_4K_Billboard_N-T.png",
+          "sha256": "d2f1715a21d3301f0482feccf7017acc372122e016832e2fdaf7bab2329aa9e6",
+          "bytes": 5968325,
+          "uses": [
+            "1/normal"
+          ],
+          "role": "billboard_normal_alpha"
+        },
+        {
+          "imageIndex": 4,
+          "imageName": "T_vlkhcbxia_4K_Billboard_B-O",
+          "path": "assets/surface/ground-cover/wild_T_vlkhcbxia_4K_Billboard_B-O.png",
+          "sha256": "d329d9de4831064a9360223d432fd52769c026eb67125b1b36bf81c6081f27ef",
+          "bytes": 4869473,
+          "uses": [
+            "1/baseColor"
+          ],
+          "role": "albedo_cutout"
+        }
+      ]
+    },
+    {
+      "key": "cotton",
+      "model": "res://assets/surface/ground-cover/cotton.glb",
+      "modelSha256": "3826eba31ee4aaf0f7be7342a86b7ecf15cab70d071eb0b28ad1d3df35db0ebc",
+      "modelBytes": 16638032,
+      "images": [
+        {
+          "imageIndex": 0,
+          "imageName": "T_wlykecdia_4K_N",
+          "path": "assets/surface/ground-cover/cotton_T_wlykecdia_4K_N.png",
+          "sha256": "68276db6d3e0525b19729a52cc9a98c6c3238fd72fc9d30ab617fc15e4cc9744",
+          "bytes": 3645134,
+          "uses": [
+            "0/normal"
+          ],
+          "role": "normal_xy"
+        },
+        {
+          "imageIndex": 1,
+          "imageName": "T_wlykecdia_4K_B-O",
+          "path": "assets/surface/ground-cover/cotton_T_wlykecdia_4K_B-O.png",
+          "sha256": "e47e875191a9b49b31e70deec133bd689dcfa127d4acc25519d2b34a85436130",
+          "bytes": 3881781,
+          "uses": [
+            "0/baseColor"
+          ],
+          "role": "albedo_cutout"
+        },
+        {
+          "imageIndex": 2,
+          "imageName": "T_wlykecdia_4K_ORT",
+          "path": "assets/surface/ground-cover/cotton_T_wlykecdia_4K_ORT.png",
+          "sha256": "091d7514f6cc8c80d21dcd33f09135e2c269a01f5d35500c9d8c8aa95ff8e6c9",
+          "bytes": 2842054,
+          "uses": [
+            "0/metallicRoughness"
+          ],
+          "role": "packed_ort"
+        },
+        {
+          "imageIndex": 3,
+          "imageName": "T_wlykecdia_4K_Billboard_N-T",
+          "path": "assets/surface/ground-cover/cotton_T_wlykecdia_4K_Billboard_N-T.png",
+          "sha256": "584e8381881f8100209439a0f572cc6126d2f512de4795c530ca32a6ebb73bd9",
+          "bytes": 3075736,
+          "uses": [
+            "1/normal"
+          ],
+          "role": "billboard_normal_alpha"
+        },
+        {
+          "imageIndex": 4,
+          "imageName": "T_wlykecdia_4K_Billboard_B-O",
+          "path": "assets/surface/ground-cover/cotton_T_wlykecdia_4K_Billboard_B-O.png",
+          "sha256": "997d0e70131a8552cd0f759056b3702a6902f85c935ddb09ff02d4ed9f49fbe7",
+          "bytes": 2315723,
+          "uses": [
+            "1/baseColor"
+          ],
+          "role": "albedo_cutout"
+        }
+      ]
+    },
+    {
+      "key": "tundra",
+      "model": "res://assets/surface/ground-cover/tundra.glb",
+      "modelSha256": "94df8a5a501cad73c8a4b09e9524074209e07a85049218c2caa7f8b52dfc95bb",
+      "modelBytes": 25903812,
+      "images": [
+        {
+          "imageIndex": 0,
+          "imageName": "T_wk2oaeyqx_4K_N",
+          "path": "assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_N.png",
+          "sha256": "2d488ceaad03fa125985a09efe985ace7b69fa00f857d9ffba580ce44bfde0f0",
+          "bytes": 4791970,
+          "uses": [
+            "0/normal"
+          ],
+          "role": "normal_xy"
+        },
+        {
+          "imageIndex": 1,
+          "imageName": "T_wk2oaeyqx_4K_B-O",
+          "path": "assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_B-O.png",
+          "sha256": "ee81599fe0d35b8821a000ba5160463479be2f187bcdc891bd29fae06ed6346a",
+          "bytes": 6127560,
+          "uses": [
+            "0/baseColor"
+          ],
+          "role": "albedo_cutout"
+        },
+        {
+          "imageIndex": 2,
+          "imageName": "T_wk2oaeyqx_4K_ORT",
+          "path": "assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_ORT.png",
+          "sha256": "a52addd61db2a43cdb5103630db548f28e97db224379e2242dddc125972e2389",
+          "bytes": 4444840,
+          "uses": [
+            "0/metallicRoughness"
+          ],
+          "role": "packed_ort"
+        },
+        {
+          "imageIndex": 3,
+          "imageName": "T_wk2oaeyqx_4K_Billboard_N-T",
+          "path": "assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_Billboard_N-T.png",
+          "sha256": "0d93bfc5d77cda716ec467792cc22ed2a7f85aefe94c7ffd406aa81b5e6ab991",
+          "bytes": 5388090,
+          "uses": [
+            "1/normal"
+          ],
+          "role": "billboard_normal_alpha"
+        },
+        {
+          "imageIndex": 4,
+          "imageName": "T_wk2oaeyqx_4K_Billboard_B-O",
+          "path": "assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_Billboard_B-O.png",
+          "sha256": "e927bad2b1214fc5f11af0ed9ec79bebb8150dc37afeac52bfbaa54e6ec9c034",
+          "bytes": 4219185,
+          "uses": [
+            "1/baseColor"
+          ],
+          "role": "albedo_cutout"
+        }
+      ]
+    },
+    {
+      "key": "fern",
+      "model": "res://assets/surface/ground-cover/fern.glb",
+      "modelSha256": "0fd809d2af27e5acbf6f881c8194fed0be7bd116d06edafc3cbaa4db9d3d8404",
+      "modelBytes": 23547260,
+      "images": [
+        {
+          "imageIndex": 0,
+          "imageName": "T_seEoW_4K_N",
+          "path": "assets/surface/ground-cover/fern_T_seEoW_4K_N.png",
+          "sha256": "6f60d88e9984a207032b026431c36a1165d67525fe7c10e1afbfd4eba051e95c",
+          "bytes": 4528778,
+          "uses": [
+            "0/normal"
+          ],
+          "role": "normal_xy"
+        },
+        {
+          "imageIndex": 1,
+          "imageName": "T_seEoW_4K_B-O",
+          "path": "assets/surface/ground-cover/fern_T_seEoW_4K_B-O.png",
+          "sha256": "d57c2665e17d00a79ca0e7b990a19838b15d66e6759bb2562d491e6218fe725f",
+          "bytes": 4838749,
+          "uses": [
+            "0/baseColor"
+          ],
+          "role": "albedo_cutout"
+        },
+        {
+          "imageIndex": 2,
+          "imageName": "T_seEoW_4K_ORT",
+          "path": "assets/surface/ground-cover/fern_T_seEoW_4K_ORT.png",
+          "sha256": "8e628f12c1d9d3845af9bffa19f0ae3fd08d2de91346e2c4513c4fb788a7c42e",
+          "bytes": 3759716,
+          "uses": [
+            "0/metallicRoughness"
+          ],
+          "role": "packed_ort"
+        },
+        {
+          "imageIndex": 3,
+          "imageName": "T_seEoW_4K_Billboard_N-T",
+          "path": "assets/surface/ground-cover/fern_T_seEoW_4K_Billboard_N-T.png",
+          "sha256": "1f9378b0bfa11f68ac951b254a993c43f1d8d39126cbeb5353aa9f2766dfdcb6",
+          "bytes": 5533048,
+          "uses": [
+            "1/normal"
+          ],
+          "role": "billboard_normal_alpha"
+        },
+        {
+          "imageIndex": 4,
+          "imageName": "T_seEoW_4K_Billboard_B-O",
+          "path": "assets/surface/ground-cover/fern_T_seEoW_4K_Billboard_B-O.png",
+          "sha256": "5654cf2e403d97d42fe7ca55e8254d5e4dca59298601ae2552171fc3f2328f37",
+          "bytes": 4815247,
+          "uses": [
+            "1/baseColor"
+          ],
+          "role": "albedo_cutout"
+        }
+      ]
+    }
+  ],
+  "billboardSettings": {
+    "compress/mode": "0",
+    "compress/high_quality": "true",
+    "compress/normal_map": "2",
+    "detect_3d/compress_to": "0",
+    "mipmaps/generate": "true"
+  },
+  "previousPolicy": {
+    "schema": "hollow.cover-texture-import-policy.v1",
+    "sha256": "3407f8a44be725d868dec88ceca02307bd2741c03865e37d67528dd2a16714bf",
+    "utf8": "{\n  \"schema\": \"hollow.cover-texture-import-policy.v1\",\n  \"runtimeAppearanceApproved\": false,\n  \"catalogSha256\": \"11f87351b1bf2486dd645c12d46edcaf2c0457c2f66db987dbf0dfbba6599239\",\n  \"notes\": \"Explicit original embedded PNG roles and hashes. Compression policy approval is not visual acceptance or root admission. Apply only the family explicitly selected by the coordinating owner.\",\n  \"families\": [\n    {\n      \"key\": \"wild\",\n      \"model\": \"res://assets/surface/ground-cover/wild.glb\",\n      \"modelSha256\": \"2565dfc05e49ba66cd92b4425b4f6ecebd245deb8bb14d05e3cdd9b6b49cbb62\",\n      \"modelBytes\": 27530716,\n      \"images\": [\n        {\"imageIndex\":0,\"imageName\":\"T_vlkhcbxia_4K_N\",\"path\":\"assets/surface/ground-cover/wild_T_vlkhcbxia_4K_N.png\",\"sha256\":\"919840afede6e37e96e753214fbc55ac29f6d99cf2db8528126f2008641cddfb\",\"bytes\":5508370,\"uses\":[\"0/normal\"],\"role\":\"normal_xy\"},\n        {\"imageIndex\":1,\"imageName\":\"T_vlkhcbxia_4K_B-O\",\"path\":\"assets/surface/ground-cover/wild_T_vlkhcbxia_4K_B-O.png\",\"sha256\":\"e98364ca6956f1334456c9caa29fd6f5b2825529ccb67c2fa6224af02db3a476\",\"bytes\":5966800,\"uses\":[\"0/baseColor\"],\"role\":\"albedo_cutout\"},\n        {\"imageIndex\":2,\"imageName\":\"T_vlkhcbxia_4K_ORT\",\"path\":\"assets/surface/ground-cover/wild_T_vlkhcbxia_4K_ORT.png\",\"sha256\":\"0771f215ace7241c33f4a09ab12e2c146fd85c7b8c4c78ecff1b09e22835a37b\",\"bytes\":4051859,\"uses\":[\"0/metallicRoughness\"],\"role\":\"packed_ort\"},\n        {\"imageIndex\":3,\"imageName\":\"T_vlkhcbxia_4K_Billboard_N-T\",\"path\":\"assets/surface/ground-cover/wild_T_vlkhcbxia_4K_Billboard_N-T.png\",\"sha256\":\"d2f1715a21d3301f0482feccf7017acc372122e016832e2fdaf7bab2329aa9e6\",\"bytes\":5968325,\"uses\":[\"1/normal\"],\"role\":\"billboard_normal_alpha\"},\n        {\"imageIndex\":4,\"imageName\":\"T_vlkhcbxia_4K_Billboard_B-O\",\"path\":\"assets/surface/ground-cover/wild_T_vlkhcbxia_4K_Billboard_B-O.png\",\"sha256\":\"d329d9de4831064a9360223d432fd52769c026eb67125b1b36bf81c6081f27ef\",\"bytes\":4869473,\"uses\":[\"1/baseColor\"],\"role\":\"albedo_cutout\"}\n      ]\n    },\n    {\n      \"key\": \"cotton\",\n      \"model\": \"res://assets/surface/ground-cover/cotton.glb\",\n      \"modelSha256\": \"3826eba31ee4aaf0f7be7342a86b7ecf15cab70d071eb0b28ad1d3df35db0ebc\",\n      \"modelBytes\": 16638032,\n      \"images\": [\n        {\"imageIndex\":0,\"imageName\":\"T_wlykecdia_4K_N\",\"path\":\"assets/surface/ground-cover/cotton_T_wlykecdia_4K_N.png\",\"sha256\":\"68276db6d3e0525b19729a52cc9a98c6c3238fd72fc9d30ab617fc15e4cc9744\",\"bytes\":3645134,\"uses\":[\"0/normal\"],\"role\":\"normal_xy\"},\n        {\"imageIndex\":1,\"imageName\":\"T_wlykecdia_4K_B-O\",\"path\":\"assets/surface/ground-cover/cotton_T_wlykecdia_4K_B-O.png\",\"sha256\":\"e47e875191a9b49b31e70deec133bd689dcfa127d4acc25519d2b34a85436130\",\"bytes\":3881781,\"uses\":[\"0/baseColor\"],\"role\":\"albedo_cutout\"},\n        {\"imageIndex\":2,\"imageName\":\"T_wlykecdia_4K_ORT\",\"path\":\"assets/surface/ground-cover/cotton_T_wlykecdia_4K_ORT.png\",\"sha256\":\"091d7514f6cc8c80d21dcd33f09135e2c269a01f5d35500c9d8c8aa95ff8e6c9\",\"bytes\":2842054,\"uses\":[\"0/metallicRoughness\"],\"role\":\"packed_ort\"},\n        {\"imageIndex\":3,\"imageName\":\"T_wlykecdia_4K_Billboard_N-T\",\"path\":\"assets/surface/ground-cover/cotton_T_wlykecdia_4K_Billboard_N-T.png\",\"sha256\":\"584e8381881f8100209439a0f572cc6126d2f512de4795c530ca32a6ebb73bd9\",\"bytes\":3075736,\"uses\":[\"1/normal\"],\"role\":\"billboard_normal_alpha\"},\n        {\"imageIndex\":4,\"imageName\":\"T_wlykecdia_4K_Billboard_B-O\",\"path\":\"assets/surface/ground-cover/cotton_T_wlykecdia_4K_Billboard_B-O.png\",\"sha256\":\"997d0e70131a8552cd0f759056b3702a6902f85c935ddb09ff02d4ed9f49fbe7\",\"bytes\":2315723,\"uses\":[\"1/baseColor\"],\"role\":\"albedo_cutout\"}\n      ]\n    },\n    {\n      \"key\": \"tundra\",\n      \"model\": \"res://assets/surface/ground-cover/tundra.glb\",\n      \"modelSha256\": \"94df8a5a501cad73c8a4b09e9524074209e07a85049218c2caa7f8b52dfc95bb\",\n      \"modelBytes\": 25903812,\n      \"images\": [\n        {\"imageIndex\":0,\"imageName\":\"T_wk2oaeyqx_4K_N\",\"path\":\"assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_N.png\",\"sha256\":\"2d488ceaad03fa125985a09efe985ace7b69fa00f857d9ffba580ce44bfde0f0\",\"bytes\":4791970,\"uses\":[\"0/normal\"],\"role\":\"normal_xy\"},\n        {\"imageIndex\":1,\"imageName\":\"T_wk2oaeyqx_4K_B-O\",\"path\":\"assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_B-O.png\",\"sha256\":\"ee81599fe0d35b8821a000ba5160463479be2f187bcdc891bd29fae06ed6346a\",\"bytes\":6127560,\"uses\":[\"0/baseColor\"],\"role\":\"albedo_cutout\"},\n        {\"imageIndex\":2,\"imageName\":\"T_wk2oaeyqx_4K_ORT\",\"path\":\"assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_ORT.png\",\"sha256\":\"a52addd61db2a43cdb5103630db548f28e97db224379e2242dddc125972e2389\",\"bytes\":4444840,\"uses\":[\"0/metallicRoughness\"],\"role\":\"packed_ort\"},\n        {\"imageIndex\":3,\"imageName\":\"T_wk2oaeyqx_4K_Billboard_N-T\",\"path\":\"assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_Billboard_N-T.png\",\"sha256\":\"0d93bfc5d77cda716ec467792cc22ed2a7f85aefe94c7ffd406aa81b5e6ab991\",\"bytes\":5388090,\"uses\":[\"1/normal\"],\"role\":\"billboard_normal_alpha\"},\n        {\"imageIndex\":4,\"imageName\":\"T_wk2oaeyqx_4K_Billboard_B-O\",\"path\":\"assets/surface/ground-cover/tundra_T_wk2oaeyqx_4K_Billboard_B-O.png\",\"sha256\":\"e927bad2b1214fc5f11af0ed9ec79bebb8150dc37afeac52bfbaa54e6ec9c034\",\"bytes\":4219185,\"uses\":[\"1/baseColor\"],\"role\":\"albedo_cutout\"}\n      ]\n    },\n    {\n      \"key\": \"fern\",\n      \"model\": \"res://assets/surface/ground-cover/fern.glb\",\n      \"modelSha256\": \"0fd809d2af27e5acbf6f881c8194fed0be7bd116d06edafc3cbaa4db9d3d8404\",\n      \"modelBytes\": 23547260,\n      \"images\": [\n        {\"imageIndex\":0,\"imageName\":\"T_seEoW_4K_N\",\"path\":\"assets/surface/ground-cover/fern_T_seEoW_4K_N.png\",\"sha256\":\"6f60d88e9984a207032b026431c36a1165d67525fe7c10e1afbfd4eba051e95c\",\"bytes\":4528778,\"uses\":[\"0/normal\"],\"role\":\"normal_xy\"},\n        {\"imageIndex\":1,\"imageName\":\"T_seEoW_4K_B-O\",\"path\":\"assets/surface/ground-cover/fern_T_seEoW_4K_B-O.png\",\"sha256\":\"d57c2665e17d00a79ca0e7b990a19838b15d66e6759bb2562d491e6218fe725f\",\"bytes\":4838749,\"uses\":[\"0/baseColor\"],\"role\":\"albedo_cutout\"},\n        {\"imageIndex\":2,\"imageName\":\"T_seEoW_4K_ORT\",\"path\":\"assets/surface/ground-cover/fern_T_seEoW_4K_ORT.png\",\"sha256\":\"8e628f12c1d9d3845af9bffa19f0ae3fd08d2de91346e2c4513c4fb788a7c42e\",\"bytes\":3759716,\"uses\":[\"0/metallicRoughness\"],\"role\":\"packed_ort\"},\n        {\"imageIndex\":3,\"imageName\":\"T_seEoW_4K_Billboard_N-T\",\"path\":\"assets/surface/ground-cover/fern_T_seEoW_4K_Billboard_N-T.png\",\"sha256\":\"1f9378b0bfa11f68ac951b254a993c43f1d8d39126cbeb5353aa9f2766dfdcb6\",\"bytes\":5533048,\"uses\":[\"1/normal\"],\"role\":\"billboard_normal_alpha\"},\n        {\"imageIndex\":4,\"imageName\":\"T_seEoW_4K_Billboard_B-O\",\"path\":\"assets/surface/ground-cover/fern_T_seEoW_4K_Billboard_B-O.png\",\"sha256\":\"5654cf2e403d97d42fe7ca55e8254d5e4dca59298601ae2552171fc3f2328f37\",\"bytes\":4815247,\"uses\":[\"1/baseColor\"],\"role\":\"albedo_cutout\"}\n      ]\n    }\n  ]\n}\n"
+  }
+}

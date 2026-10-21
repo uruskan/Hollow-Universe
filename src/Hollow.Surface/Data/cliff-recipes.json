@@ -1,0 +1,55 @@
+{
+  "comment": "Formation recipes (docs/TERRAIN_SCENERY_PLAN.md T2, docs/LANDFORM_SURVEY.md). Each face takes the first recipe whose 'where' lists its setting: coast (the sea within coastMetres), otherwise its dominant relief (Plains, Hills, Tableland, Mountains). families weights the scans' material families; scale is the group's size range; gentleRockShare (at the face grade, 0.62) rising to rockShare (by grade 1.2) is the share of a face's ground meant to carry rock (walls always take rock; the rest stays soil and scree); typicalHeight and typicalWidth (metres, before scale) set the tiers' and columns' spacing; wetToe lets a sea cliff's toe stand in the surf. The recipe picks a scan's family by these weights; the family picks one of its scans by the scans' own weights. wallTextures are the ground textures (layers.json keys, the first a run loads) that dress the face's walls, their rock skin traced along the face from foot to crest; the scans' own textures are atlases of their meshes and cannot tile; wallStrata is how strongly the skin shows its beds.",
+  "coastMetres": 80,
+  "recipes": [
+    {
+      "key": "coastal-scarp",
+      "where": ["coast"],
+      "families": { "sandstone": 1.0, "nordic": 0.6, "coastal": 0.5 },
+      "wetToe": true,
+      "wallTextures": ["sandstone"],
+      "wallStrata": 1.0,
+      "scale": [1.3, 1.7],
+      "rockShare": 0.85,
+      "gentleRockShare": 0.45,
+      "typicalHeight": 8,
+      "typicalWidth": 21
+    },
+    {
+      "key": "plateau-face",
+      "where": ["Tableland"],
+      "families": { "sandstone": 1.0, "nordic": 0.3 },
+      "wallTextures": ["sandstone"],
+      "wallStrata": 1.0,
+      "scale": [1.35, 1.72],
+      "rockShare": 0.9,
+      "gentleRockShare": 0.5,
+      "typicalHeight": 8,
+      "typicalWidth": 19
+    },
+    {
+      "key": "mountain-face",
+      "where": ["Mountains"],
+      "families": { "nordic": 1.0, "sandstone": 0.3 },
+      "wallTextures": ["lichened_rock", "rock"],
+      "wallStrata": 0.3,
+      "scale": [1.35, 1.72],
+      "rockShare": 0.9,
+      "gentleRockShare": 0.4,
+      "typicalHeight": 12,
+      "typicalWidth": 23
+    },
+    {
+      "key": "inland-outcrop",
+      "where": ["Plains", "Hills"],
+      "families": { "sandstone": 1.0, "forest": 0.8, "nordic": 0.4 },
+      "wallTextures": ["sandstone"],
+      "wallStrata": 1.0,
+      "scale": [1.25, 1.6],
+      "rockShare": 0.8,
+      "gentleRockShare": 0.45,
+      "typicalHeight": 7,
+      "typicalWidth": 20
+    }
+  ]
+}

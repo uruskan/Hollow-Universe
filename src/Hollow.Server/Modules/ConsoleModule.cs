@@ -90,11 +90,30 @@ public sealed class ConsoleModule : ServerModule
     /// <summary>A player joined: the zone's clock for them, and who is on for everyone (the F1 console's view, GROUND.md §8.2).</summary>
     protected internal override void Joined(PlayerSession session, bool newCharacter)
     {
+        ResetBuildingTools(session);
         SendClock(session);
         SendServerStateToAll();
     }
 
-    protected internal override void Left(PlayerSession session) => SendServerStateToAll();
+    protected internal override void Left(PlayerSession session)
+    {
+        // The host has already detached session.Entity; the persistent ID still names its sleeper.
+        if (Zone.Players().TryFindPlayer(session.EntityId, out _, out Player player))
+        {
+            player.FreeBuild = false;
+            player.BuildGrade = -1;
+        }
+        SendServerStateToAll();
+    }
+
+    private void ResetBuildingTools(PlayerSession session)
+    {
+        if (Zone.Players().PlayerOf(session.Entity) is { } player)
+        {
+            player.FreeBuild = IsAdmin(session);
+            player.BuildGrade = -1;
+        }
+    }
 
     // ---------------------------------------------------------------- admins
 
@@ -147,6 +166,10 @@ public sealed class ConsoleModule : ServerModule
             : $"{name} {(admin ? "was an admin already" : "wasn't an admin")}.");
         if (changed)
         {
+            foreach (PlayerSession session in Players.Where(s => s.Playing && string.Equals(s.Name, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                ResetBuildingTools(session);
+            }
             SendServerStateToAll();
         }
     }
@@ -182,10 +205,13 @@ public sealed class ConsoleModule : ServerModule
     // The console's view of the server: this player's rights and who is on.
     private void SendServerState(PlayerSession session)
     {
+        Player? player = Zone.Players().PlayerOf(session.Entity);
         Writer.Reset();
         new ServerState
         {
             Admin = IsAdmin(session),
+            FreeBuild = IsAdmin(session) && player?.FreeBuild == true,
+            BuildGrade = IsAdmin(session) && player is { BuildGrade: >= 0 } ? (byte)(player.BuildGrade + 1) : (byte)0,
             MaxPlayers = (uint)Math.Max(0, Options.MaxPlayers),
             Players = Players.Where(s => s.Playing).OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
                 .Take(256).Select(s => new ServerPlayerNet { Name = s.Name, Admin = IsAdmin(s) }).ToArray(),
@@ -648,9 +674,14 @@ public sealed class ConsoleModule : ServerModule
         : name.EndsWith("f", StringComparison.Ordinal) ? name[..^1] + "ves"
         : name + "s";
 
-    // raidbase [grade] [player], or the older raidbase <player> [grade]: a claimed hut 8 m in front, its doorway facing them.
+    private BuildingBlueprint? _clanBase;
+
+    // raidbase [clan|hut] [grade] [player]; the default is the large admin preset.
     internal void RaidBase(CommandContext ctx, IReadOnlyList<string> args)
     {
+        bool hutPreset = args.Count > 0 && args[0].Equals("hut", StringComparison.OrdinalIgnoreCase);
+        if (hutPreset || (args.Count > 0 && args[0].Equals("clan", StringComparison.OrdinalIgnoreCase)))
+            args = args.Skip(1).ToArray();
         int grade = 2;
         PlayerSession? whom;
         if (args.Count > 0 && Grade(args[0]) is { } g)
@@ -682,12 +713,29 @@ public sealed class ConsoleModule : ServerModule
         ref Character c = ref Zone.Entities.Get<Character>(whom!.Entity);
         Vector3 feet = Zone.WorldOf(c.State);
         Vector3 up = Zone.Frame.UpAt(feet);
-        Vector3 ahead = Zone.Settle(feet + Facing.Basis(Zone.ViewOf(c), up).Forward * 8);
+        float distance = hutPreset ? 8 : 26;
+        Vector3 ahead = Zone.Settle(feet + Facing.Basis(Zone.ViewOf(c), up).Forward * distance);
         // Its doorway toward the player.
         Vector3 aheadUp = Zone.Frame.UpAt(ahead), back = feet - ahead;
         back -= aheadUp * Vector3.Dot(back, aheadUp);
-        TestBases.Hut? hut = TestBases.Build(Zone, ahead,
-            BuildingFrame.HeadingOf(new Vector3D(back.X, back.Y, back.Z), new Vector3D(aheadUp.X, aheadUp.Y, aheadUp.Z)), grade, owner.Id.Value);
+        double heading = BuildingFrame.HeadingOf(new Vector3D(back.X, back.Y, back.Z), new Vector3D(aheadUp.X, aheadUp.Y, aheadUp.Z));
+        if (!hutPreset)
+        {
+            try
+            {
+                _clanBase ??= BuildingBlueprint.Parse(Content.Building, File.ReadAllText(Path.Combine(
+                    GameContent.FindFolder() ?? throw new ContentException("Ground data folder not found."), "admin-bases", "clan-3x3.json")));
+                if (BuildingBlueprintSpawner.TryPlace(Zone, _clanBase, ahead, heading, grade, owner.Id.Value, out var pieces, out string reason))
+                    ctx.Done($"A claimed {Content.Building.Grades[grade].Name.ToLowerInvariant()} 3×3 clan base ({pieces.Count} pieces) 26 m in front of {GameServer.Whom(ctx, whom)}. Cupboard authorized; airlock, stairs, shooting floor and roof peeks ready.");
+                else ctx.Error(reason);
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or ContentException)
+            {
+                ctx.Error("Cannot load the clan-base preset: " + e.Message);
+            }
+            return;
+        }
+        TestBases.Hut? hut = TestBases.Build(Zone, ahead, heading, grade, owner.Id.Value);
         if (hut != null)
         {
             ctx.Done($"A claimed {Content.Building.Grades[grade].Name.ToLowerInvariant()} hut 8 m in front of {GameServer.Whom(ctx, whom)}, listing {GameServer.Whom(ctx, whom)}.");
@@ -698,12 +746,112 @@ public sealed class ConsoleModule : ServerModule
         }
     }
 
+    // airlock [triangle|room] [layoutFirst] [layoutSecond] [open|shut] [player]: TestBases.BuildAirlock 9 m ahead.
+    internal void Airlock(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        bool room = args.Count > 0 && args[0].Equals("room", StringComparison.OrdinalIgnoreCase);
+        int next = args.Count > 0 && (room || args[0].Equals("triangle", StringComparison.OrdinalIgnoreCase)) ? 1 : 0;
+        int layoutFirst = room ? 0 : 1, layoutSecond = room ? 1 : 2;
+        if (next < args.Count && int.TryParse(args[next], NumberStyles.Integer, CultureInfo.InvariantCulture, out int a))
+        {
+            layoutFirst = Math.Clamp(a, 0, 3);
+            next++;
+            if (next < args.Count && int.TryParse(args[next], NumberStyles.Integer, CultureInfo.InvariantCulture, out int b))
+            {
+                layoutSecond = Math.Clamp(b, 0, 3);
+                next++;
+            }
+        }
+        bool open = next < args.Count && args[next].Equals("open", StringComparison.OrdinalIgnoreCase);
+        if (next < args.Count && (open || args[next].Equals("shut", StringComparison.OrdinalIgnoreCase)))
+        {
+            next++;
+        }
+        PlayerSession? whom = Server.TargetOrMe(ctx, args, next);
+        if (!Server.Alive(ctx, whom, out Player owner))
+        {
+            return;
+        }
+        if (Zone.Building().World == null)
+        {
+            ctx.Error("This zone has no building.");
+            return;
+        }
+        ref Character c = ref Zone.Entities.Get<Character>(whom!.Entity);
+        Vector3 feet = Zone.WorldOf(c.State);
+        Vector3 up = Zone.Frame.UpAt(feet);
+        Vector3 ahead = Zone.Settle(feet + Facing.Basis(Zone.ViewOf(c), up).Forward * 9);
+        Vector3 aheadUp = Zone.Frame.UpAt(ahead), back = feet - ahead;
+        back -= aheadUp * Vector3.Dot(back, aheadUp);
+        double heading = BuildingFrame.HeadingOf(new Vector3D(back.X, back.Y, back.Z), new Vector3D(aheadUp.X, aheadUp.Y, aheadUp.Z));
+        if (TestBases.BuildAirlock(Zone, ahead, heading, 2, owner.Id.Value, room, layoutFirst, layoutSecond, open) != null)
+        {
+            ctx.Done($"An airlock ({(room ? "a double door and a single door" : "two single doors")}, layouts {layoutFirst} and {layoutSecond}, {(open ? "open" : "shut")}) 9 m in front of {GameServer.Whom(ctx, whom)}.");
+        }
+        else
+        {
+            ctx.Error("No room or no ground there for an airlock.");
+        }
+    }
+
     private static int? Grade(string word) =>
         int.TryParse(word, NumberStyles.Integer, CultureInfo.InvariantCulture, out int n) ? Math.Clamp(n, 0, 4)
         : word.ToLowerInvariant() == "armored" ? 4
         : Array.IndexOf(CompletionSources.Grades, word.ToLowerInvariant()) is var i and >= 0 ? i : null;
 
     // ---------------------------------------------------------------- cheats
+
+    private Player? BuildingAdmin(CommandContext ctx, IReadOnlyList<string> args, int playerAt, out PlayerSession? session)
+    {
+        session = Server.TargetOrMe(ctx, args, playerAt);
+        if (session == null) return null;
+        if (!IsAdmin(session))
+        {
+            ctx.Error("Building tools can only be enabled for an admin.");
+            return null;
+        }
+        if (!session.Playing || Zone.Players().PlayerOf(session.Entity) is not { } player)
+        {
+            ctx.Error($"{session.Name} isn't in the world yet.");
+            return null;
+        }
+        return player;
+    }
+
+    internal void FreeBuild(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        bool? wanted = args.Count > 0 ? OnOff(args[0]) : null;
+        if (args.Count > 0 && wanted == null)
+        {
+            ctx.Error("Usage: freebuild [on|off] [player]");
+            return;
+        }
+        if (BuildingAdmin(ctx, args, args.Count > 0 ? 1 : 0, out PlayerSession? session) is not { } player) return;
+        player.FreeBuild = wanted ?? !player.FreeBuild;
+        SendServerState(session!);
+        ctx.Done($"Free building and crafting {(player.FreeBuild ? "on" : "off")} for {session!.Name}.");
+    }
+
+    internal void BuildGrade(CommandContext ctx, IReadOnlyList<string> args)
+    {
+        int grade = -1;
+        if (args.Count > 0 && !string.Equals(args[0], "off", StringComparison.OrdinalIgnoreCase))
+        {
+            string key = args[0].ToLowerInvariant();
+            if (key == "wooden") key = "wood";
+            if (key == "armored") key = "armoured";
+            grade = Content.Building.Grades.ToList().FindIndex(g => string.Equals(g.Key, key, StringComparison.OrdinalIgnoreCase));
+            if (grade < 0 && (!int.TryParse(key, NumberStyles.Integer, CultureInfo.InvariantCulture, out grade) || grade < 0 || grade >= Content.Building.Grades.Count))
+            {
+                ctx.Error("Choose off or a building grade: " + string.Join(", ", Content.Building.Grades.Select(g => g.Key)) + ".");
+                return;
+            }
+        }
+        if (BuildingAdmin(ctx, args, args.Count > 0 ? 1 : 0, out PlayerSession? session) is not { } player) return;
+        if (args.Count > 0) player.BuildGrade = grade;
+        SendServerState(session!);
+        ctx.Done($"BGrade {(player.BuildGrade < 0 ? "off (normal twig)" : Content.Building.Grades[player.BuildGrade].Name)} for {session!.Name}.");
+    }
 
     // god|noclip [on|off] [player]: a toggle without on or off.
     internal void Cheat(CommandContext ctx, IReadOnlyList<string> args, MoveCheats cheat, string name)

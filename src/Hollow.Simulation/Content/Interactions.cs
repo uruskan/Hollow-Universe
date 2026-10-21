@@ -50,6 +50,9 @@ public sealed class VerbDef
     /// <summary>A four-digit code is asked first (the keypad), and goes with the intent.</summary>
     public bool Code { get; init; }
 
+    /// <summary>Ask for a plain-text label through the shared interaction dialog.</summary>
+    public bool Text { get; init; }
+
     /// <summary>A panel of the interface it opens instead of asking the server (the tech tree), or null.</summary>
     public string? Panel { get; init; }
 

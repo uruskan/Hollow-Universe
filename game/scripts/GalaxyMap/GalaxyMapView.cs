@@ -10,14 +10,14 @@ using HollowUniverse.Common;
 namespace HollowUniverse.GalaxyMap;
 
 /// <summary>
-/// The galaxy map (GALAXY.md §11): the whole Milky Way as a glowing volume, real and generated stars streamed
-/// around the focus, the sector grid, search, selection and the way into a system map.
+/// The finite playable galaxy: compact diagram positions, bounded search and selection, and system inspection.
 /// </summary>
 public partial class GalaxyMapView : Node3D
 {
     private const double RecentreDistance = 768;
 
     private Galaxy _galaxy = null!;
+    private PlayableGalaxy _playable = null!;
     private MapCamera _view = null!;
     private Camera3D _camera = null!;
     private Node3D _world = null!;
@@ -36,7 +36,7 @@ public partial class GalaxyMapView : Node3D
     private bool _panning;
     private Vector2 _pressPosition;
     private bool _dragged;
-    private CatalogueStar[] _named = Array.Empty<CatalogueStar>();
+    private GalaxyStar[] _named = Array.Empty<GalaxyStar>();
     private double _fps;
     private MeshInstance3D _stalks = null!;
     private ImmediateMesh _stalkMesh = null!;
@@ -81,7 +81,8 @@ public partial class GalaxyMapView : Node3D
     public override void _Ready()
     {
         _galaxy = GalaxyService.Galaxy;
-        _view = new MapCamera(Vector3D.Zero, 80, 0.65, 0.6);
+        _playable = GalaxyService.Playable;
+        _view = new MapCamera(Vector3D.Zero, 780, 0.65, 1.01);
 
         _glow = new GalaxyGlow(_galaxy.Density);
         var environment = new Godot.Environment
@@ -141,15 +142,15 @@ public partial class GalaxyMapView : Node3D
         };
         _world.AddChild(_stalks);
 
-        _starMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/stars.gdshader") };
-        _stars = new StarStreamer { Name = "Stars", Galaxy = _galaxy, Material = _starMaterial };
+        _starMaterial = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/playable_stars.gdshader") };
+        _stars = new StarStreamer { Name = "Stars", Galaxy = _galaxy, Playable = _playable, Material = _starMaterial };
         _world.AddChild(_stars);
 
         _uiLayer = new CanvasLayer();
         AddChild(_uiLayer);
         _ui = new GalaxyMapUi();
         _uiLayer.AddChild(_ui);
-        _ui.SearchChanged += text => _ui.SetResults(text.Trim().Length < 2 ? new List<SearchResult>() : _galaxy.Search(text, 8));
+        _ui.SearchChanged += text => _ui.SetResults(text.Trim().Length < 2 ? new List<SearchResult>() : _playable.Search(text, 8));
         _ui.ResultChosen += OnResultChosen;
         _ui.OpenSystemRequested += () =>
         {
@@ -159,10 +160,7 @@ public partial class GalaxyMapView : Node3D
             }
         };
 
-        if (_galaxy.Catalogue != null)
-        {
-            _named = _galaxy.Catalogue.Primaries.Where(s => IsFriendlyName(s.SystemName.Length > 0 ? s.SystemName : s.Name)).ToArray();
-        }
+        _named = _playable.Systems.Select(entry => entry.MapStar).ToArray();
         Recentre(Vector3D.Zero);
     }
 
@@ -190,12 +188,8 @@ public partial class GalaxyMapView : Node3D
         _selected = star;
         if (star is GalaxyStar s)
         {
-            int companions = 0;
-            if (_galaxy.FindCatalogueStar(s.Address) is CatalogueStar real)
-            {
-                companions = real.Companions.Count;
-            }
-            _ui.ShowSelection(_galaxy.NameOf(s), s, PlaceName(s.Position), companions);
+            int companions = Math.Max(0, (_playable.Find(s.Address)?.StarCount ?? 1) - 1);
+            _ui.ShowSelection(_playable.NameOf(s), s, "Playable galaxy", companions);
         }
         else
         {
@@ -208,8 +202,8 @@ public partial class GalaxyMapView : Node3D
 
     public bool SelectByName(string name)
     {
-        List<SearchResult> results = _galaxy.Search(name, 1);
-        if (results.Count == 0 || results[0].IsSector || !_galaxy.TryGetStar(results[0].Address, out GalaxyStar star))
+        List<SearchResult> results = _playable.Search(name, 1);
+        if (results.Count == 0 || results[0].IsSector || !_playable.TryGetStar(results[0].Address, out GalaxyStar star))
         {
             return false;
         }
@@ -224,7 +218,7 @@ public partial class GalaxyMapView : Node3D
             _view.FlyTo(result.Position, Math.Max(_view.TargetDistance, 2500));
             return;
         }
-        if (_galaxy.TryGetStar(result.Address, out GalaxyStar star))
+        if (_playable.TryGetStar(result.Address, out GalaxyStar star))
         {
             Select(star);
             _view.FlyTo(star.Position, Math.Min(_view.TargetDistance, 40));
@@ -269,65 +263,34 @@ public partial class GalaxyMapView : Node3D
             _lastStalkMs = watch.Elapsed.TotalMilliseconds;
         }
 
-        _ui.SetFocus(Galaxy.SectorNameAt(_view.Focus), Regions.At(_view.Focus), _view.Focus, _view.Distance);
-        _ui.SetStatus($"{_stars.LoadedStars:N0} stars loaded · {_stars.LoadedBlocks:N0} blocks · {_stars.PendingBlocks:N0} generating · {_fps:0} fps");
+        _ui.SetFocus("Hollow", null, _view.Focus, _view.Distance);
+        _ui.SetStatus($"{_playable.Systems.Count:N0} systems · {_playable.StarCount:N0} stars · {_fps:0} fps");
         DrawOverlay();
     }
 
-    // Brightness, size and glow by zoom level, so the map reads well from 1 ly to the whole galaxy.
+    // The finite map is a readable diagram: symbol size is independent of physical stellar magnitude.
     private void Tune(double distance, Vector3 focus)
     {
-        double logD = Math.Log10(Math.Max(distance, 0.1));
-        // Zooming out shows ever more luminous stars at ever greater distances, so the apparent brightness of a
-        // typical visible star barely changes: the reference magnitude only drifts slightly.
-        float referenceMagnitude = (float)(8.5 - 0.5 * (logD - Math.Log10(80)));
-        float sizeScale = (float)Math.Clamp(1.15 - 0.12 * (logD - 2), 0.6, 1.2);
-        // From far away the galaxy is the glow; individual stars fade out.
-        float exposure = (float)(1.0 - 0.85 * SmoothStep(8000, 60000, distance));
-        _starMaterial.SetShaderParameter("reference_magnitude", referenceMagnitude);
-        _starMaterial.SetShaderParameter("size_scale", sizeScale);
-        _starMaterial.SetShaderParameter("exposure", exposure);
-        _starMaterial.SetShaderParameter("focus_position", focus);
-        _starMaterial.SetShaderParameter("view_radius", (float)StarStreamer.ViewRadius(distance));
-        var radii = new float[StarClassTable.LevelCount];
-        var fadeStart = new float[StarClassTable.LevelCount];
-        for (int level = 0; level < radii.Length; level++)
-        {
-            radii[level] = StarStreamer.LevelVisible(level, distance) ? (float)_stars.LevelRadius(level) : 0f;
-            // A level cut short by the budget fades out gradually, so its edge doesn't read as a solid ball.
-            fadeStart[level] = _stars.IsBudgetLimited(level) ? 0.3f : 0.7f;
-        }
-        float[] levelExposure = CrowdingExposure(distance, referenceMagnitude, sizeScale, exposure, fadeStart);
-        _starMaterial.SetShaderParameter("level_radius", radii);
-        _starMaterial.SetShaderParameter("level_exposure", levelExposure);
-        _starMaterial.SetShaderParameter("level_fade_start", fadeStart);
+        _starMaterial.SetShaderParameter("point_size", Ui.Pxf(7));
+        _starMaterial.SetShaderParameter("brightness", 1.15f);
+        _glow.Intensity = 0.055f;
+        _glow.Gamma = 2.0f;
 
-        // Inside the disk the glow is a dark sky with the Milky Way band; from outside it is the whole galaxy.
-        // Where the sky is much brighter than at Sol (inside the bulge) the glow is dimmed, like an eye adapting.
-        double outside = SmoothStep(3.5, 4.8, logD);
-        double adapt = 1.0 / Math.Pow(Math.Max(1.0, _skyBrightness), 0.7);
-        _glow.Intensity = (float)((0.10 + 0.20 * outside) * (adapt + (1 - adapt) * outside));
-        _glow.Gamma = (float)(2.0 - 1.1 * outside);
-
-        // The grid sits on the horizontal plane through the focus. Sector lines (1024 ly) when zoomed out,
-        // a finer power-of-two grid when zoomed in, always aligned with the sector grid.
-        double gridAlpha = 1 - SmoothStep(25000, 60000, distance);
-        _grid.Visible = gridAlpha > 0.01;
-        _grid.Position = new Vector3(focus.X, focus.Y, focus.Z);
-        _grid.Scale = Vector3.One * (float)Math.Clamp(distance / 8000, 0.002, 1);
-        double fine = Math.Pow(2, Math.Round(Math.Log2(Math.Max(distance / 5, 0.25))));
-        fine = Math.Min(fine, 1024);
-        double major = distance > 2000 ? 1024 : Math.Min(fine * 8, 1024);
-        Vector3D gridOrigin = SectorGrid.Origin - _origin;
-        _gridMaterial.SetShaderParameter("grid_origin", new Vector3((float)gridOrigin.X, (float)gridOrigin.Y, (float)gridOrigin.Z));
-        _gridMaterial.SetShaderParameter("focus", focus);
-        _gridMaterial.SetShaderParameter("cell", (float)major);
-        _gridMaterial.SetShaderParameter("fine_cell", (float)fine);
-        _gridMaterial.SetShaderParameter("fade_radius", (float)Math.Clamp(distance * 1.5, 3, 24000));
-        _gridMaterial.SetShaderParameter("alpha", (float)(0.42 * gridAlpha));
-        _gridMaterial.SetShaderParameter("fine_alpha", (float)(fine < major ? 0.6 : 0.0));
+        // A quiet coordinate guide bounded to the diagram, rather than the old galaxy-wide sector grid.
+        float extent = (float)(_playable.MapRadius * 2.6);
+        Vector3 centre = ToRender(Vector3D.Zero);
+        _grid.Visible = true;
+        _grid.Position = centre;
+        _grid.Scale = Vector3.One * (extent / 48000f);
+        double fine = Math.Clamp(Math.Pow(2, Math.Round(Math.Log2(Math.Max(distance / 7, 1)))), 4, 128);
+        _gridMaterial.SetShaderParameter("grid_origin", centre);
+        _gridMaterial.SetShaderParameter("focus", centre);
+        _gridMaterial.SetShaderParameter("cell", (float)fine);
+        _gridMaterial.SetShaderParameter("fine_cell", (float)(fine / 4));
+        _gridMaterial.SetShaderParameter("fade_radius", (float)(_playable.MapRadius * 1.2));
+        _gridMaterial.SetShaderParameter("alpha", 0.07f);
+        _gridMaterial.SetShaderParameter("fine_alpha", 0.12f);
     }
-
     // Vertical lines from the stars nearest the focus down (or up) to the focus plane, so their 3D position
     // reads on a flat screen.
     private void UpdateStalks()
@@ -641,7 +604,7 @@ public partial class GalaxyMapView : Node3D
                 _view.FlyTo(Vector3D.Zero, 60);
                 break;
             case Key.G:
-                _view.FlyTo(GalaxyFrame.GalacticCentre, 95000);
+                _view.FlyTo(Vector3D.Zero, 780);
                 _view.Orbit(0, 0.9 - _view.Pitch);
                 break;
             case Key.Enter:
@@ -719,9 +682,8 @@ public partial class GalaxyMapView : Node3D
                     {
                         continue;
                     }
-                    double distance = Math.Max(Math.Sqrt(vx * vx + vy * vy + vz * vz), 0.01);
-                    double apparent = StarColors.DisplayMagnitude(s.Class, s.Physics.AbsoluteMagnitude) + 5 * Math.Log10(distance / 32.616);
-                    double score = d2 + apparent * 6;
+                    // Every schematic symbol has the same readable weight: select the nearest visible dot.
+                    double score = d2;
                     if (score < bestScore)
                     {
                         bestScore = score;
@@ -811,13 +773,13 @@ public partial class GalaxyMapView : Node3D
             selectedAddress = selected.Address;
             overlay.Rings.Add(new MapOverlay.Ring(sp, Ui.Pxf(13), Ui.Warm, Ui.Pxf(2)));
             overlay.Rings.Add(new MapOverlay.Ring(sp, Ui.Pxf(18), new Color(Ui.Warm, 0.35f), Ui.Pxf(1)));
-            front.Add(AlwaysLabel(labeller, sp, Ui.Pxf(19), _galaxy.NameOf(selected), Ui.Warm, 16,
+            front.Add(AlwaysLabel(labeller, sp, Ui.Pxf(19), _playable.NameOf(selected), Ui.Warm, 16,
                 [LabelSide.Below, LabelSide.Above, LabelSide.Right, LabelSide.Left]));
         }
         if (_hover is GalaxyStar hover && !hover.Address.Equals(selectedAddress) && Project(hover.Position, view, projection, size, out Vector2 hp))
         {
             overlay.Rings.Add(new MapOverlay.Ring(hp, Ui.Pxf(10), new Color(Ui.Accent, 0.7f), Ui.Pxf(1.5f)));
-            front.Insert(0, AlwaysLabel(labeller, hp, Ui.Pxf(11), _galaxy.NameOf(hover), Ui.Text, 15,
+            front.Insert(0, AlwaysLabel(labeller, hp, Ui.Pxf(11), _playable.NameOf(hover), Ui.Text, 15,
                 [LabelSide.Right, LabelSide.Left, LabelSide.Above, LabelSide.Below]));
         }
 
@@ -831,44 +793,14 @@ public partial class GalaxyMapView : Node3D
             }
         }
 
-        // Sector names around the focus while the grid is visible.
-        if (_grid.Visible && _view.Distance > 900)
-        {
-            if (SectorGrid.TrySectorOf(_view.Focus, out int fx, out int fy, out int fz))
-            {
-                int span = _view.Distance < 8000 ? 1 : 2;
-                for (int dz = -span; dz <= span; dz++)
-                {
-                    for (int dx = -span; dx <= span; dx++)
-                    {
-                        int sx = fx + dx;
-                        int sz = fz + dz;
-                        if (sx < 0 || sz < 0 || sx >= SectorGrid.SectorsPerAxis || sz >= SectorGrid.SectorsPerAxis)
-                        {
-                            continue;
-                        }
-                        Vector3D centre = SectorGrid.SectorCentre(sx, fy, sz);
-                        centre = new Vector3D(centre.X, _view.Focus.Y, centre.Z);
-                        if (Project(centre, view, projection, size, out Vector2 p))
-                        {
-                            float alpha = dx == 0 && dz == 0 ? 0.75f : 0.4f;
-                            var text = new MapOverlay.Text(p, SectorNames.Name(sx, fy, sz).ToUpperInvariant(), new Color(0.48f, 0.74f, 0.96f, alpha), 13, true, MapLabel.Region);
-                            if (labeller.TryPlace(text))
-                            {
-                                regions.Add(text);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         // Names of the brightest named stars as seen from the camera.
         Vector3D camera = _view.Position;
         var candidates = new List<(double Apparent, Vector2 Screen, string Name)>();
-        foreach (CatalogueStar star in _named)
+        foreach (GalaxyStar star in _named)
         {
-            if (star.Id == 0 || star.Id == selectedId || star.Id == hoveredId)
+            if (star.Address.Equals(Hollow.Galaxy.Systems.SolSystem.Address)
+                || (_selected is GalaxyStar chosen && star.Address.Equals(chosen.Address))
+                || (_hover is GalaxyStar hovered && star.Address.Equals(hovered.Address)))
             {
                 continue;
             }
@@ -882,7 +814,7 @@ public partial class GalaxyMapView : Node3D
                 continue;
             }
             double apparent = star.Physics.AbsoluteMagnitude + 5 * Math.Log10(distance / 32.616);
-            candidates.Add((apparent, p, star.SystemName.Length > 0 ? star.SystemName : star.Name));
+            candidates.Add((apparent, p, _playable.NameOf(star)));
         }
         candidates.Sort((a, b) => a.Apparent.CompareTo(b.Apparent));
         int labelled = 0;
@@ -904,30 +836,6 @@ public partial class GalaxyMapView : Node3D
                 labeller.Block(screen, Ui.Pxf(4));
                 names.Add(label);
                 labelled++;
-            }
-        }
-
-        // Named regions (GALAXY.md §15.2), real clusters and nebulae, last: a ring of their size and their name where
-        // there is room. Shown from outside, out to 60 times their radius (at least 2,500 ly).
-        double focal = 0.5 * size.Y / Math.Tan(0.5 * _camera.Fov * Math.PI / 180);
-        foreach (Region r in Regions.All)
-        {
-            double away = Vector3D.Distance(r.Centre, camera);
-            if (away <= r.Radius * 1.2 || away > Math.Max(2500, 60 * r.Radius) || !Project(r.Centre, view, projection, size, out Vector2 rp)
-                || rp.X < 0 || rp.Y < 0 || rp.X > size.X || rp.Y > size.Y)
-            {
-                continue;
-            }
-            float pixels = (float)(r.Radius / away * focal);
-            Color colour = RegionColour(r.Kind);
-            if (pixels >= Ui.Pxf(5))
-            {
-                overlay.Rings.Add(new MapOverlay.Ring(rp, Math.Min(pixels, size.Y), new Color(colour, 0.5f), Ui.Pxf(1)));
-            }
-            if (labeller.TryPlaceAround(rp, Math.Max(pixels, Ui.Pxf(3)), r.Name, new Color(colour, 0.95f), 14, MapLabel.Name,
-                    [LabelSide.Below, LabelSide.Above, LabelSide.Right, LabelSide.Left], out MapOverlay.Text label))
-            {
-                names.Add(label);
             }
         }
 

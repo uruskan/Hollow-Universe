@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using Hollow.Simulation.World;
 
 namespace Hollow.Simulation.Content.Readers;
 
@@ -17,8 +19,8 @@ internal sealed class SurvivalReader : IContentReader
     {
         JsonFields f = r.Fields;
         GameContent.Loaded loaded = r.Loaded;
-        JsonElement root = r.Root("survival.json", "vitals", "metabolism", "bleeding", "burning", "wounded", "temperature",
-            "climateStandIn", "combat", "world", "bag", "rateLimits", "reach", "lifetimes", "arrows");
+        JsonElement root = r.Root("survival.json", "vitals", "metabolism", "bleeding", "burning", "wounded", "temperature", "breathing",
+            "climateStandIn", "combat", "world", "bag", "rateLimits", "reach", "lifetimes", "arrows", "corpse");
         string w = "survival.json";
         JsonElement Section(string name, params string[] fields)
         {
@@ -70,6 +72,12 @@ internal sealed class SurvivalReader : IContentReader
         JsonElement bag = Section("bag", "name", "slots", "mergeRadius");
         JsonElement limits = Section("rateLimits", "intentBurst", "intentsPerSecond", "gunBurst", "gunActionsPerSecond");
         JsonElement burning = Section("burning", "damagePerSecond");
+        JsonElement breathing = Section("breathing", "seconds", "recoveryPerSecond", "damagePerSecond");
+        foreach (string key in new[] { "seconds", "recoveryPerSecond", "damagePerSecond" })
+        {
+            float value = f.Number(breathing, key, w + ": breathing");
+            if (value <= 0 || value > 600) f.Problem(w + ": breathing", key + " must be greater than zero and at most 600");
+        }
         JsonElement wounded = Section("wounded", "maxDamage", "health", "seconds", "recoverChance", "fedBonus");
         (float Least, float Most) Pair(JsonElement e, string name, string where, float least, float most)
         {
@@ -91,6 +99,16 @@ internal sealed class SurvivalReader : IContentReader
         }
         (float woundedHealthLeast, float woundedHealthMost) = Pair(wounded, "health", w + ": wounded", 7, 12);
         (float woundedSecondsLeast, float woundedSecondsMost) = Pair(wounded, "seconds", w + ": wounded", 40, 50);
+        JsonElement corpse = Section("corpse", "bodySeconds", "harvestHealth", "yield");
+        var corpseYield = new List<ItemAmount>();
+        foreach (JsonElement yield in f.List(corpse, "yield", w + ": corpse"))
+        {
+            if (f.Tuple(yield, w + ": corpse.yield", 1, out string itemKey, out double[] values) && r.Resolve(itemKey, w + ": corpse.yield") is { } item)
+            {
+                if (values[0] < 1 || values[0] > 1000 || values[0] != Math.Truncate(values[0])) f.Problem(w + ": corpse.yield", "whole counts 1 … 1000");
+                else corpseYield.Add(new ItemAmount(item, (int)values[0]));
+            }
+        }
         loaded.Survival = new SurvivalTuning
         {
             MaxHealth = f.Number(vitals, "maxHealth", w + ": vitals", 100),
@@ -99,6 +117,9 @@ internal sealed class SurvivalReader : IContentReader
             SpawnHealth = f.Number(spawn, "health", w + ": vitals.spawn", 60),
             SpawnCalories = f.Number(spawn, "calories", w + ": vitals.spawn", 260),
             SpawnHydration = f.Number(spawn, "hydration", w + ": vitals.spawn", 160),
+            BreathSeconds = f.Number(breathing, "seconds", w + ": breathing", 20),
+            BreathRecoveryPerSecond = f.Number(breathing, "recoveryPerSecond", w + ": breathing", 5),
+            SuffocationDamagePerSecond = f.Number(breathing, "damagePerSecond", w + ": breathing", 10),
             CaloriesPerSecond = f.Number(m, "caloriesPerSecond", w + ": metabolism"),
             HydrationPerSecond = f.Number(m, "hydrationPerSecond", w + ": metabolism"),
             SprintFactor = f.Number(m, "sprintFactor", w + ": metabolism", 1),
@@ -130,6 +151,12 @@ internal sealed class SurvivalReader : IContentReader
             EquipSeconds = f.Number(k, "equipSeconds", w + ": combat", 0.3f),
             BagLifetime = Lifetime("bag"),
             BodyLifetime = Lifetime("body"),
+            Corpse = new CorpseTuning
+            {
+                BodySeconds = f.Number(corpse, "bodySeconds", w + ": corpse", 150),
+                HarvestHealth = f.Number(corpse, "harvestHealth", w + ": corpse", 100),
+                Yield = corpseYield,
+            },
             DudLifetime = Lifetime("dud"),
             ArrowLifetime = Lifetime("arrow"),
             ArrowsMost = Math.Clamp(f.Integer(arrows, "most", w + ": arrows"), 0, 65536),
@@ -165,6 +192,8 @@ internal sealed class SurvivalReader : IContentReader
     {
         GameContent.Loaded loaded = c.Loaded;
         SurvivalTuning s = loaded.Survival;
+        if (s.Corpse.BodySeconds is <= 0 or > 86400 || s.Corpse.HarvestHealth is <= 0 or > 10000 || s.Corpse.Yield.Count == 0)
+            c.Problem("survival.json: corpse", "positive body duration up to 86400 seconds, positive harvest health up to 10000, and a nonempty yield");
         if (!loaded.Loot.Any(t => t.Key == s.RespawnKitKey))
         {
             c.Problem("survival.json: world.respawnKit", $"no loot table \"{s.RespawnKitKey}\"");

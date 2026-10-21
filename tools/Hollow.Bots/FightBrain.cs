@@ -23,6 +23,7 @@ namespace Hollow.Bots;
 /// </summary>
 public sealed class FightBrain
 {
+    private readonly BotGround _ground;
     private const float Range = 60f;
 
     private Rng _rng;
@@ -41,8 +42,9 @@ public sealed class FightBrain
     private Vector2 _aimError;
     private readonly float _skill;
 
-    public FightBrain(int index)
+    public FightBrain(int index, BotGround ground)
     {
+        _ground = ground;
         _rng = new Rng(Hash64.Of((ulong)index, 0xF16B7));
         _yaw = (float)_rng.Range(-Math.PI, Math.PI);
         _nextPlan = _rng.Range(0, 1);
@@ -100,7 +102,7 @@ public sealed class FightBrain
             }
             else
             {
-                Wander(ref input, feet, BotGround.Home(client), delta);
+                Wander(ref input, feet, _ground.Home(client), delta);
             }
             return Remember(input);
         }

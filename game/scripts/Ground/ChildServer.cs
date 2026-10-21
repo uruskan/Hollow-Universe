@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Text;
 using Hollow.Client.Loading;
 
 namespace HollowUniverse.Ground;
@@ -78,6 +79,11 @@ public sealed class ChildServer : IDisposable
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
+            // Match the dedicated server's redirected console contract, independent of Windows console code pages.
+            // No BOM: the first command must not acquire an invisible prefix.
+            StandardInputEncoding = new UTF8Encoding(false),
+            StandardOutputEncoding = new UTF8Encoding(false),
+            StandardErrorEncoding = new UTF8Encoding(false),
         };
         if (!File.Exists(exe))
         {

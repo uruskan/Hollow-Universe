@@ -107,6 +107,39 @@ public static class TestBases
         return hut;
     }
 
+    /// <summary>An airlock's pieces: two doorways with doors (docs/DOORS.md §7).</summary>
+    public sealed record AirlockBase(Piece Slab, Piece First, Piece Second, Door FirstDoor, Door SecondDoor);
+
+    /// <summary>
+    /// An airlock over a zone point, its first doorway toward <paramref name="heading"/>'s +Z, every piece at
+    /// <paramref name="grade"/>: a triangle foundation with a doorway on its edges 0 and 1 and a wall on the third (two single
+    /// doors in <paramref name="layoutFirst"/> and <paramref name="layoutSecond"/>), or, <paramref name="room"/>, a square
+    /// foundation with a wall frame on its edge 0 (a double door, its layout's swing) and a doorway on its edge 1 (a single
+    /// door) and walls on the others. Doors open or shut; no claim device, owned by <paramref name="owner"/>. Null where there
+    /// is no ground.
+    /// </summary>
+    public static AirlockBase? BuildAirlock(Zone zone, Vector3 at, double heading, int grade, ulong owner, bool room, int layoutFirst, int layoutSecond, bool open)
+    {
+        BuildingWorld world = zone.Building().World ?? throw new InvalidOperationException("The zone has no building (no game data).");
+        BuildingData data = world.Data;
+        zone.Physics.EnsureGround(at);
+        PieceDef slabDef = data.Piece(room ? "foundation" : "foundation-triangle")!;
+        double now = zone.Building().BuildingNow;
+        Piece slab = world.AddFirst(FrameOver(zone, data, slabDef, at, heading), slabDef, grade, owner, now);
+        Piece first = On(world, slab, new SocketId(SocketKind.Edge, 0), room ? "wall-frame" : "doorway", grade, owner, now);
+        Piece second = On(world, slab, new SocketId(SocketKind.Edge, 1), "doorway", grade, owner, now);
+        for (int edge = 2; edge < slabDef.EdgeCount; edge++)
+        {
+            On(world, slab, new SocketId(SocketKind.Edge, edge), "wall", grade, owner, now);
+        }
+        Door Fit(string key, Piece frame, int layout)
+        {
+            DoorDef def = data.Door(key)!;
+            return world.RestoreDoor(zone.NextId(), def, frame, layout, owner, open, def.Health)!;
+        }
+        return new AirlockBase(slab, first, second, Fit(room ? "wooden-double-door" : "wooden-door", first, layoutFirst), Fit("wooden-door", second, layoutSecond));
+    }
+
     // The claim device in its corner of the foundation, listing whom it lists: put straight in like the pieces, since the
     // placement rules would refuse it under a neighbour's claim (which reaches over the next huts of a ring) or over a
     // character standing there.

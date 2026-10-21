@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "research-table",
+  "date": "2026-10-19",
+  "replaces": "engineering-workbench.glb stand-in (larger than the bench's placement bounds), its gibs, and the SVG drawing",
+  "authorship": "Original cosmetic geometry, procedural PBR atlas and rendered icons; no reference game files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/research.table",
+    "image": "https://files.facepunch.com/rust/item/research.table_512.png",
+    "observed": "A tilted drafting board on a blue steel trestle with a crank wheel at its side and a magnifier on an arm over a blueprint sheet; worn paint and rust; reads at small size by the inclined top and the steel frame.",
+    "use": "Visual observation before authoring only; no downloaded reference files"
+  },
+  "authoring_source": [
+    {
+      "path": "art/models/research_table.py",
+      "sha256": "f29b66587af3aac673728a5f8978a45a3f93fcd38365b7efcb36ceeed18637ce"
+    }
+  ],
+  "authoring_helpers": [
+    {
+      "path": "art/hollow/component_mesh.py",
+      "sha256": "8991c9a2503976f758c3fe8b1b97f2642c9050548149d8d329598983629fcb34"
+    },
+    {
+      "path": "art/hollow/rounded.py",
+      "sha256": "0d865ac93e2e8ede730d94890db165ad30726e6b0e54c1bc26808c39728f97ac"
+    },
+    {
+      "path": "art/hollow/diagram_texture.py",
+      "sha256": "c961749d370602f8d1dbba3baf4b4d6dd9c9ebb3c30e423419b4dd36e43df226"
+    },
+    {
+      "path": "art/gibs/build.py",
+      "sha256": "8f0fde2e7833985c9d0ef98916aae392637c31cc4701f155c6c5603f7f5563f7"
+    }
+  ],
+  "geometry": {
+    "asset": "research-table",
+    "dimensions_blender_xyz_m": [
+      1.465000033378601,
+      0.781499981880188,
+      0.8917457461357117
+    ],
+    "bounds": {
+      "min": [
+        -0.7325000166893005,
+        -0.39399999380111694,
+        0.0
+      ],
+      "max": [
+        0.7325000166893005,
+        0.38749998807907104,
+        0.8917457461357117
+      ],
+      "deployable_half_extents_xyz_m": [
+        0.75,
+        0.4,
+        0.45
+      ],
+      "inside_bounds": true
+    },
+    "texture_size": 2048,
+    "material_count": 1,
+    "lod_triangles": {
+      "Body_lod0": 14412,
+      "Body_lod1": 6588,
+      "Body_lod2": 2788
+    },
+    "hull_triangles": 54,
+    "vertex_ao_samples": 8,
+    "sockets": {
+      "socket_use": [
+        0.0,
+        -0.41999998688697815,
+        0.800000011920929
+      ]
+    }
+  },
+  "files": {
+    "game/assets/world/research-table.glb": {
+      "sha256": "06f72ab887230b7312592b1a03d30a6191955c96380e880a19eff43809b0a3c7",
+      "bytes": 1402480
+    },
+    "game/assets/world/research-table.glb.import": {
+      "sha256": "30edf2efd2f74b8da9fec9fa9e6efbc8a23e4195f3a4e62bcd47bce43d45c615",
+      "bytes": 476
+    },
+    "game/assets/materials/research-table.tres": {
+      "sha256": "95f9fc3fc327dddcee264283bbcda59be49700bf9b6b833398c51d46aed21343",
+      "bytes": 661
+    },
+    "game/assets/textures/research-table/research-table_albedo.png": {
+      "sha256": "5cd3b4794d0f778a812605159c17afbdcf21c49e81fbd1de3cdb2d3b20f543e5",
+      "bytes": 3378027
+    },
+    "game/assets/textures/research-table/research-table_albedo.png.import": {
+      "sha256": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "bytes": 208
+    },
+    "game/assets/textures/research-table/research-table_normal.png": {
+      "sha256": "dfb454ef09cfa350330956acc3ec201cbc5ec2036a16240c9346f7fe4ddd35ba",
+      "bytes": 2094931
+    },
+    "game/assets/textures/research-table/research-table_normal.png.import": {
+      "sha256": "6a3487d4f443cf9f68b41462d6eb05969c23e1c4617e2524147c066742dab360",
+      "bytes": 208
+    },
+    "game/assets/textures/research-table/research-table_orm.png": {
+      "sha256": "31e8bb442a63fb8ea5419e3e6845078af9a1899bdb9f9e8e0c8aa579ba134615",
+      "bytes": 421451
+    },
+    "game/assets/textures/research-table/research-table_orm.png.import": {
+      "sha256": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "bytes": 208
+    },
+    "game/assets/items/icons/128/research-table.png": {
+      "sha256": "0a6e3fc5d5e2f80e2e03741de316606e059253a78e2366493f34e62866e1ea75",
+      "bytes": 18123
+    },
+    "game/assets/items/icons/128/research-table.png.import": {
+      "sha256": "a7937ed47c4cd85d9fa6f84521f806e5e709294116afe9c0cce6113e99fa5a55",
+      "bytes": 969
+    },
+    "game/assets/items/icons/256/research-table.png": {
+      "sha256": "879e3daccd2f479098c46556f6fd79189ed6b3eb4a70ede56f66ad83f25ad6bc",
+      "bytes": 59288
+    },
+    "game/assets/items/icons/256/research-table.png.import": {
+      "sha256": "97fa748115be2ec4748e4687a8e13ec13dd6cebdba9842f985353ae693fadaa9",
+      "bytes": 969
+    },
+    "game/assets/gibs/research-table.glb": {
+      "sha256": "652ff43089a298032041d574d7403c39f2fd9c07c8e5fe433e4ce433fe292cf9",
+      "bytes": 173960
+    },
+    "game/assets/gibs/research-table.glb.import": {
+      "sha256": "30edf2efd2f74b8da9fec9fa9e6efbc8a23e4195f3a4e62bcd47bce43d45c615",
+      "bytes": 476
+    }
+  }
+}

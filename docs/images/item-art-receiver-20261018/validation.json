@@ -1,0 +1,312 @@
+{
+  "revision": "R01",
+  "jobs": [
+    {
+      "name": "review-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\review\\ReceiverReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 28960,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 21.9,
+      "free_gib_before": 5.37,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "model-build-final",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "-b",
+        "--factory-startup",
+        "-t",
+        "2",
+        "--python",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\art\\models\\receiver.py"
+      ],
+      "owned_pid": 22428,
+      "closed": true,
+      "wait_seconds": 16.04,
+      "cpu_before": 8.4,
+      "free_gib_before": 5.98,
+      "exit_code": 0,
+      "run_seconds": 8.0
+    },
+    {
+      "name": "import-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 20544,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 24.2,
+      "free_gib_before": 5.51,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "icons-render-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\review",
+        "--",
+        "--icons",
+        "--output=icon-sheet-final.png"
+      ],
+      "owned_pid": 36780,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 30.0,
+      "free_gib_before": 5.38,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-import-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 26056,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 19.6,
+      "free_gib_before": 5.42,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "slots-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\review",
+        "--",
+        "--slots",
+        "--output=icon-slots.png"
+      ],
+      "owned_pid": 30752,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 35.8,
+      "free_gib_before": 5.44,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "lod0-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\review",
+        "--",
+        "--lod=0",
+        "--output=receiver-lod0.png"
+      ],
+      "owned_pid": 6764,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 40.9,
+      "free_gib_before": 5.64,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod1-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\review",
+        "--",
+        "--lod=1",
+        "--output=receiver-lod1.png"
+      ],
+      "owned_pid": 2204,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 15.2,
+      "free_gib_before": 5.76,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod2-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\review",
+        "--",
+        "--lod=2",
+        "--output=receiver-lod2.png"
+      ],
+      "owned_pid": 13760,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 2.2,
+      "free_gib_before": 5.92,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "back-final",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\review",
+        "--",
+        "--lod=0",
+        "--yaw=155",
+        "--output=receiver-back.png"
+      ],
+      "owned_pid": 37132,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 2.0,
+      "free_gib_before": 6.02,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "checks-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\ReceiverChecks.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "/p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 7264,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 0.9,
+      "free_gib_before": 6.08,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "catalogue-content-tests",
+      "command": [
+        "dotnet",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\checks-bin\\net10.0\\Hollow.Tests.dll"
+      ],
+      "owned_pid": 35532,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 23.0,
+      "free_gib_before": 6.95,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "mesh-check",
+      "command": [
+        "C:\\Python314\\python.exe",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\receiver-r01\\check_glb.py"
+      ],
+      "owned_pid": 17596,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 16.0,
+      "free_gib_before": 6.94,
+      "exit_code": 0,
+      "run_seconds": 1.0
+    }
+  ],
+  "icon_checks": {
+    "128": {
+      "rgba": true,
+      "size": [
+        128,
+        128
+      ],
+      "unclipped_bounds": [
+        9,
+        13,
+        119,
+        115
+      ]
+    },
+    "256": {
+      "rgba": true,
+      "size": [
+        256,
+        256
+      ],
+      "unclipped_bounds": [
+        18,
+        26,
+        238,
+        230
+      ]
+    }
+  },
+  "tests": "  RUN  ContentTests.GroundDataIsComplete\n      137 items, 94 recipes, 17 natural kinds, 24 deployables, 11 loot tables; hash 29C35EA60BAD80F9\n  ok   ContentTests.GroundDataIsComplete (402 ms)\n  RUN  ContentTests.BrokenDataIsReported\n      42 problems found, e.g. items.json: \"arrow\": unknown field \"stak\" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship, wiring)\n  ok   ContentTests.BrokenDataIsReported (55 ms)\n  RUN  ContentTests.EveryDataFileHasOneReader\n      22 readers for 21 files, and the checks across them\n  ok   ContentTests.EveryDataFileHasOneReader (1 ms)\n  RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 260 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (661 ms)\n9/9 passed in 1.1 s.\n",
+  "provider": "Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org\nVulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER\n\nreceiver rendered provider: 32px PASS\nreceiver rendered provider: 48px PASS\nreceiver rendered provider: 64px PASS\nreceiver rendered provider: 96px PASS\nreceiver rendered provider: 128px PASS\nreceiver rendered provider: 256px PASS\nreceiver capture: D:/GameDev/Projects/HollowUniverseABTestB/.artifacts/receiver-r01/review/../icon-slots.png, Ok\n",
+  "mesh": {
+    "glb_bytes": 377368,
+    "triangles": {
+      "Receiver_hull0-convcolonly": 46,
+      "Receiver_lod0": 4704,
+      "Receiver_lod1": 2200,
+      "Receiver_lod2": 984
+    },
+    "finite_attributes": true,
+    "unit_normals": true,
+    "images_embedded": false
+  },
+  "captures": {
+    "icon-slots.png": "7af7082f8e5afa1149102b72fcd9ab0753f6e3c2ff3b2d90d36e6282f2f19500",
+    "receiver-back.png": "5bf18d3b39ccd5ea46a56509789a45c8cebb23ef8688713b8ed8de2918de9c43",
+    "receiver-lod0.png": "c7476bf61eaec7a47b2423e6804047faca76c4e6f13bca8cb02fde1f0db1f219",
+    "receiver-lod1.png": "6439dec3a5eab2afc20ac6e7e4f404f30b2d30387fed53443e4318bfb40021e8",
+    "receiver-lod2.png": "ec7aa0ed1360b2cef02f0871e2fd98a5e2bae5da74a680b9ee85902f1d71eea6"
+  },
+  "compiled_references": {
+    "Hollow.Client.dll": "9e658bd3c6e601372b093741713a78358bff5434f9d81ccf96fed29ed8bbd637",
+    "Hollow.Core.dll": "f5481daf53760a2b9451575c4687de0416b65ea2a926908f6352f1b8f1cb14c1",
+    "Hollow.Galaxy.dll": "784dcd088f8e250da4d97ec54e4139d7e6387b9488462590c33363729364cd99",
+    "Hollow.Net.dll": "e6c4165cc89bccbe576e1ccce6cb5459fc36effd82dbb5e645a318b961a4a7f3",
+    "Hollow.Persistence.dll": "cebf9cde51bd36c766d9768e318281f805d5b60e4d6d274ceb67e3a956c59ef1",
+    "Hollow.Server.dll": "b453a2a9b940a221ff651ed46ae071903f200d33660ef7890f77e8b62b6315ee",
+    "Hollow.Simulation.dll": "a1f80dcb11658291ea963edea33e214453391d3a1588ce0b0d81dd6fe6459386",
+    "Hollow.Surface.dll": "f24aee6f042362022b32c1988d1a61b28492e6bc570fdaeec38acb038e23213e",
+    "HollowUniverse.dll": "09b74d13d8d40fc9096aebe85a0bf0dec390ef4dd4249243bf1e1f2472f31430",
+    "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+    "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+    "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+    "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+    "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+    "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+  },
+  "compiled_test_sources": {
+    "tests/Hollow.Tests/TestRunner.cs": "2d0ceee0cbd64c3ccecb62f566f49541957ac100289e4dcb4fbcd8d0554e16f2",
+    "tests/Hollow.Tests/ModelCatalogueTests.cs": "fb5c34ce15d8bdf7d8be7fb976d5a1a7216b9f9fe2b146b7a49d6d5fff8bda0b",
+    "tests/Hollow.Tests/ContentTests.cs": "5f84b75009fff31b9e653affaef56be7b1f96a3e93569471b27d9f304dfc5bc6"
+  },
+  "limits": [
+    "Native production ModelViewer/IconRenderer/CatalogItemIcons in isolated harness with existing compiled game code.",
+    "Slots are diagnostic, not live gameplay inventory. Full solution and gameplay suite were not run; focused builds and nine tests passed.",
+    "All owned children exited; own temporary reference browser tab closed. No world/server/interactive Blender launched.",
+    "Owner artistic acceptance is pending."
+  ]
+}

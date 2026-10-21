@@ -22,16 +22,16 @@ namespace Hollow.Simulation.Physics;
 /// body ID, so this keeps a character's movement identical on both sides where tiles meet.
 /// </para>
 /// </summary>
-public sealed class PhysicsWorld : IDisposable
+public sealed partial class PhysicsWorld : IDisposable
 {
     /// <summary>The edge, in metres, a ground tile's level is chosen for.</summary>
-    public const float TileSize = 64f;
+    public const float TileSize = GroundCollisionLayout.TileMetres;
 
     /// <summary>The deepest level ground tiles take, so every tile of the world has its own body ID (6 × 4⁶ of them).</summary>
-    public const int MaxTileLevel = 6;
+    public const int MaxTileLevel = GroundCollisionLayout.MaximumLevel;
 
     /// <summary>A ground tile keeps the surface's triangles this far beyond its edges (neighbours overlap by this much).</summary>
-    public const float ClipMargin = 2f;
+    public const float ClipMargin = GroundCollisionLayout.MarginMetres;
 
     /// <summary>How far round a point <see cref="EnsureGround"/> makes sure of the ground, and <see cref="Prefetch"/> builds ahead.</summary>
     public const float EnsureReach = 64f, PrefetchReach = 128f;
@@ -73,9 +73,7 @@ public sealed class PhysicsWorld : IDisposable
     private readonly bool[] _propIdUsed = new bool[MaxProps];
     private int _tilesBuilt;
     private long _buildTicks;
-    private readonly ObjectLayerPairFilterTable _layerPairs;
-    private readonly BroadPhaseLayerInterfaceTable _broadPhaseLayers;
-    private readonly ObjectVsBroadPhaseLayerFilterTable _objectVsBroadPhase;
+    private readonly NativeSetup _nativeSetup;
     private long _epoch;
     private bool _disposed;
 
@@ -87,41 +85,18 @@ public sealed class PhysicsWorld : IDisposable
     private readonly byte[] _bodies = new byte[FirstShipBody + MaxShipBodies];
     private readonly Shape _parked;
 
-    public PhysicsWorld(ISurface surface, ZoneFrame frame)
+    public PhysicsWorld(ISurface surface, ZoneFrame frame) : this(surface, frame, CreateLegacySetup(surface)) { }
+
+    private PhysicsWorld(ISurface surface, ZoneFrame frame, NativeSetup setup)
     {
         Surface = surface;
         Frame = frame;
         Level = LevelOn(surface.Radius);
         _near = new NearTiles(surface.Radius, Level);
-        JoltRuntime.EnsureInitialised();
-        lock (JoltRuntime.Gate)
-        {
-            using (var parked = new SphereShapeSettings(0.01f))
-            {
-                _parked = parked.Create();
-            }
-            _layerPairs = new ObjectLayerPairFilterTable(2);
-            _layerPairs.EnableCollision(StaticLayer, MovingLayer);
-            _layerPairs.EnableCollision(MovingLayer, MovingLayer);
-            _broadPhaseLayers = new BroadPhaseLayerInterfaceTable(2, 2);
-            _broadPhaseLayers.MapObjectToBroadPhaseLayer(StaticLayer, new BroadPhaseLayer(0));
-            _broadPhaseLayers.MapObjectToBroadPhaseLayer(MovingLayer, new BroadPhaseLayer(1));
-            _objectVsBroadPhase = new ObjectVsBroadPhaseLayerFilterTable(_broadPhaseLayers, 2, _layerPairs, 2);
-            Jolt = new PhysicsSystem(new PhysicsSystemSettings
-            {
-                // Ground tile IDs take the bottom of the range (see the class remarks); later bodies take the rest.
-                MaxBodies = FirstShipBody + MaxShipBodies,
-                MaxBodyPairs = 4096,
-                MaxContactConstraints = 4096,
-                NumBodyMutexes = 0,
-                ObjectLayerPairFilter = _layerPairs,
-                BroadPhaseLayerInterface = _broadPhaseLayers,
-                ObjectVsBroadPhaseLayerFilter = _objectVsBroadPhase,
-            });
-        }
+        _nativeSetup = setup; _parked = setup.Parked; Jolt = setup.System;
     }
 
-    public ISurface Surface { get; }
+    public ISurface Surface { get; private set; }
 
     public ZoneFrame Frame { get; }
 
@@ -129,7 +104,7 @@ public sealed class PhysicsWorld : IDisposable
     public int Level { get; }
 
     /// <summary>The ground tiles' level on a world of this radius (what <see cref="Level"/> is; for code without a world).</summary>
-    public static int LevelOn(double radius) => Math.Min(TileKey.LevelFor(radius, TileSize), MaxTileLevel);
+    public static int LevelOn(double radius) => GroundCollisionLayout.LevelOn(radius);
 
     internal PhysicsSystem Jolt { get; }
 
@@ -137,7 +112,7 @@ public sealed class PhysicsWorld : IDisposable
     public TickProfile? Profile { get; set; }
 
     /// <summary>Ground tiles currently in the world.</summary>
-    public int TileCount => _tiles.Count;
+    public int TileCount => _selectedGround?.ResidentCount ?? _tiles.Count;
 
     /// <summary>Ground tiles built so far, and the time that took (on whatever thread), for statistics.</summary>
     public int TilesBuilt => Volatile.Read(ref _tilesBuilt);
@@ -162,6 +137,7 @@ public sealed class PhysicsWorld : IDisposable
     /// <summary><see cref="EnsureGround"/> within a reach of its own, in metres.</summary>
     public void EnsureGroundWithin(Vector3 position, float reach)
     {
+        RequireLegacyGround();
         AdoptPrefetched();
         foreach (TileKey tile in TilesNear(position, reach))
         {
@@ -213,6 +189,7 @@ public sealed class PhysicsWorld : IDisposable
     /// <summary><see cref="Prefetch"/> within a reach of its own, in metres.</summary>
     public void PrefetchWithin(Vector3 position, float reach)
     {
+        RequireLegacyGround();
         using TickProfile.Scope timed = Profile.Time(ProfileSection.Prefetch);
         foreach (TileKey tile in TilesNear(position, reach))
         {
@@ -232,6 +209,7 @@ public sealed class PhysicsWorld : IDisposable
     /// </summary>
     public void PrefetchAlong(Vector3 from, Vector3 to, float reach)
     {
+        RequireLegacyGround();
         const float step = TileSize / 2;
         float length = Vector3.Distance(from, to);
         int n = Math.Max(1, (int)MathF.Ceiling(length / step));
@@ -248,6 +226,7 @@ public sealed class PhysicsWorld : IDisposable
     /// </summary>
     public bool GroundReady(Vector3 position)
     {
+        RequireLegacyGround();
         PrefetchWithin(position, EnsureReach);
         foreach (TileKey tile in TilesNear(position, EnsureReach))
         {
@@ -346,6 +325,7 @@ public sealed class PhysicsWorld : IDisposable
     /// </summary>
     public void ReleaseUnusedGround(int keepEpochs)
     {
+        RequireLegacyGround();
         _epoch++;
         _expired.Clear();
         foreach ((TileKey key, Tile tile) in _tiles)
@@ -374,7 +354,8 @@ public sealed class PhysicsWorld : IDisposable
     }
 
     /// <summary>The triangles of a tile, as the surface gives them (also what the client draws as placeholder ground).</summary>
-    public TriangleMesh TileMesh(TileKey tile) => Surface.GroundCollision(Frame, tile, ClipMargin);
+    public TriangleMesh TileMesh(TileKey tile)
+    { RequireLegacyGround(); return Surface.GroundCollision(Frame, tile, ClipMargin); }
 
     // The mesh shape of a tile: the surface's triangles over the tile and its margin, then Jolt's tree over them.
     // Thread-safe (a pure function of the surface, and Jolt builds shapes without the shared allocator), so prefetching
@@ -384,6 +365,7 @@ public sealed class PhysicsWorld : IDisposable
         long start = Stopwatch.GetTimestamp();
         // Pooled, as the arrays below: these are large-object-heap sized, and tiles come and go all the time.
         using PooledTriangles mesh = Surface.GroundCollisionPooled(Frame, tile, ClipMargin);
+        GroundMeshCheck.Require(tile, mesh.Positions, mesh.Indices, mesh.VertexCount, mesh.TriangleCount);
         Vector3[] vertices = ArrayPool<Vector3>.Shared.Rent(mesh.VertexCount);
         IndexedTriangle[] triangles = ArrayPool<IndexedTriangle>.Shared.Rent(mesh.TriangleCount);
         Shape shape;
@@ -397,8 +379,8 @@ public sealed class PhysicsWorld : IDisposable
             {
                 triangles[t] = new IndexedTriangle(mesh.Indices[3 * t], mesh.Indices[3 * t + 1], mesh.Indices[3 * t + 2], 0, 0);
             }
-            using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, mesh.TriangleCount));
-            shape = settings.Create();
+            using var settings = new MeshShapeSettings(vertices.AsSpan(0, mesh.VertexCount), triangles.AsSpan(0, mesh.TriangleCount)).Owned();
+            shape = settings.Create() ?? throw new MalformedGroundTileException(tile, "Jolt refused its mesh");
         }
         finally
         {
@@ -457,7 +439,7 @@ public sealed class PhysicsWorld : IDisposable
             {
                 case NoBody:
                 {
-                    using var creation = new BodyCreationSettings(shape, position, rotation, MotionType.Static, StaticLayer);
+                    using var creation = new BodyCreationSettings(shape, position, rotation, MotionType.Static, StaticLayer).Owned();
                     _ = bodies.CreateBodyWithID(bodyId, creation) ?? throw new InvalidOperationException($"Jolt refused body {id}.");
                     BodiesMade++;
                     break;
@@ -515,13 +497,22 @@ public sealed class PhysicsWorld : IDisposable
     // ---------------------------------------------------------------- props
 
     /// <summary>Told when ground tiles come and go, on the owning thread (natural objects follow the tiles).</summary>
-    public ITileListener? Listener { get; set; }
+    private ITileListener? _listener;
+    public ITileListener? Listener
+    {
+        get => _listener;
+        set
+        {
+            if (_selectedMode && value != null) throw new NotSupportedException("Selected ground requires transactional natural-body ownership before listeners can attach.");
+            _listener = value;
+        }
+    }
 
     /// <summary>Whether a ground tile is in the world now.</summary>
-    public bool HasTile(TileKey tile) => _tiles.ContainsKey(tile);
+    public bool HasTile(TileKey tile) => _selectedGround?.HasTile(tile) ?? _tiles.ContainsKey(tile);
 
     /// <summary>The ground tiles in the world now (the developer panel draws them).</summary>
-    public IEnumerable<TileKey> Tiles => _tiles.Keys;
+    public IEnumerable<TileKey> Tiles => _selectedGround?.Tiles ?? _tiles.Keys;
 
     /// <summary>Props in the world now.</summary>
     public int PropCount => _props.Count;
@@ -546,6 +537,7 @@ public sealed class PhysicsWorld : IDisposable
     /// </summary>
     public void AddProp(PropLayer layer, ulong key, in PropShape prop)
     {
+        if (_selectedMode) throw new NotSupportedException("Selected natural/prop collision has no admitted transaction yet.");
         if (_props.ContainsKey((layer, key)) || _disposed)
         {
             return;
@@ -589,7 +581,7 @@ public sealed class PhysicsWorld : IDisposable
     private void MakePropBodies()
     {
         _propBodiesMade = true;
-        using var creation = new BodyCreationSettings(_parked, Vector3.Zero, Quaternion.Identity, MotionType.Static, StaticLayer);
+        using var creation = new BodyCreationSettings(_parked, Vector3.Zero, Quaternion.Identity, MotionType.Static, StaticLayer).Owned();
         BodyInterface bodies = Jolt.BodyInterface;
         for (uint id = TileIdCount + MaxProps - 1; id >= TileIdCount; id--)
         {
@@ -622,11 +614,24 @@ public sealed class PhysicsWorld : IDisposable
         {
             return;
         }
+        if (_selectedMode) { DisposeSelected(); return; }
+        if (JoltRuntime.Gate.IsHeldByCurrentThread)
+            throw new InvalidOperationException("Drain physics workers outside the Jolt gate before disposing their world.");
         _closing = true;
+        List<Exception>? failures = null;
         foreach (TileBuild building in _pending.Values)
         {
-            building.Worker.Wait();
-            building.Take()?.Dispose();
+            try
+            {
+                // Drain every worker before destroying the world, even if an earlier build failed. Never wait
+                // under the Jolt gate: other worlds may need it while their surface work is still running.
+                building.Worker.GetAwaiter().GetResult();
+                Release(building.Take());
+            }
+            catch (Exception error)
+            {
+                (failures ??= new()).Add(error);
+            }
         }
         _pending.Clear();
         lock (JoltRuntime.Gate)
@@ -636,19 +641,31 @@ public sealed class PhysicsWorld : IDisposable
             _disposed = true;
             foreach (Prop prop in _props.Values)
             {
-                prop.Shape.Dispose();
+                Release(prop.Shape);
             }
             _props.Clear();
             foreach (Tile tile in _tiles.Values)
             {
-                tile.Shape.Dispose();
+                Release(tile.Shape);
             }
             _tiles.Clear();
-            _parked.Dispose();
-            Jolt.Dispose();
-            _objectVsBroadPhase.Dispose();
-            _broadPhaseLayers.Dispose();
-            _layerPairs.Dispose();
+            Release(_nativeSetup);
+        }
+        if (failures != null)
+        {
+            throw new AggregateException("Physics world cleanup failed after draining its tile builds.", failures).Flatten();
+        }
+
+        void Release(IDisposable? resource)
+        {
+            try
+            {
+                resource?.Dispose();
+            }
+            catch (Exception error)
+            {
+                (failures ??= new()).Add(error);
+            }
         }
     }
 

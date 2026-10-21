@@ -1,0 +1,14 @@
+{
+  "status": "incomplete-memory-stop",
+  "ownedProcessId": 25208,
+  "action": "Secondary read-only memory check observed approximately 1.80 GiB free; verified the owned Godot executable path, then killed only that process tree.",
+  "approximateObservedFreeGiB": 1.8,
+  "watchdogReceiptCaveat": "The process was stopped between watchdog samples. Preserve receipt.json: its stopReason is null and its sampled minimum is 2.034 GiB; these do not include the secondary observation. The following watchdog sample was after shutdown.",
+  "elapsedSecondsFromWatchdog": 49.79,
+  "observedLoadingFailure": "Server logged player Timeout during initial loading; client subsequently logged PeerNotFound and remained Disconnected/loading. No ready checkpoint was reached.",
+  "screenshotsProduced": 0,
+  "routeReportProduced": false,
+  "cpuGpuFrameProfilesProduced": false,
+  "cleanupVerified": "No Godot, Hollow.Server, Hollow.Tests, Hollow.Bots, dotnet or MSBuild process remained in the cleanup check; UDP 27182 was unbound. Free memory recovered to 7.275 GiB, commit 50 percent.",
+  "retryStarted": false
+}

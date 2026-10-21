@@ -28,7 +28,7 @@ public enum ShipEventKind : byte
     /// <summary>A ship crashed into something hard enough to hurt it (to everyone near).</summary>
     Crashed,
 
-    /// <summary>A ship reached orbit (amount 1) or came back down from it (0), to its pilot.</summary>
+    /// <summary>A ship crossed orbital altitude (amount 1) or resumed from legacy orbit parking (0), to its pilot.</summary>
     Orbit,
 }
 
@@ -46,7 +46,7 @@ public readonly record struct ShipEvent(ShipEventKind Kind, Ship Ship, float Amo
 
 // Ships in the zone (GROUND.md §6.7, IRON_WAKE.md §5): built at a vehicle workbench, flown by whoever sits at their helm,
 // parked on their skids (a static body characters walk into), fuelled, looted, hurt by weapons and crashes, wrecked when
-// the hull goes, parked in orbit above the ceiling. Their seats (ShipSystem.Seats.cs), doors (ShipSystem.Doors.cs), crew
+// the hull goes, and flown continuously through orbital altitude. Their seats (ShipSystem.Seats.cs), doors (ShipSystem.Doors.cs), crew
 // and parts' health (ShipSystem.Parts.cs) and the spaces people walk in (ShipSystem.Spaces.cs) are this system's too.
 public sealed partial class ShipSystem : ZoneSystem
 {
@@ -171,6 +171,18 @@ public sealed partial class ShipSystem : ZoneSystem
     /// <summary>A new ship standing level on the ground at a point, its nose toward <paramref name="yaw"/>.</summary>
     public Ship SpawnShip(ShipDef def, Vector3 ground, float yaw, EntityId owner, float fuel)
     {
+        // A kind made without a build comes with its default one (ships.json build, VEHICLES.md §9.1).
+        if (def.Build.IsEmpty && !def.DefaultBuild.IsEmpty && Content != null)
+        {
+            float full = def.FuelCapacity;
+            def = Content.Compose(def, def.DefaultBuild);
+            // A caller filling the kind's own tank fills the build's: its modules add tanks (the KA-FA's jerry tank holds
+            // 240 of its 250, docs/MINICOPTER.md §4.2).
+            if (fuel >= full)
+            {
+                fuel = def.FuelCapacity;
+            }
+        }
         Vector3 up = Frame.UpAt(ground);
         ShipState state = ShipMotor.Standing(def, ground + up * 0.02f, up, yaw);
         // Level where its centre of mass is, the point the motor flies: on a small world the pivot's up is a hair off
@@ -180,7 +192,7 @@ public sealed partial class ShipSystem : ZoneSystem
         {
             State = state,
         };
-        ship.State.Fuel = Math.Clamp(fuel, 0, def.FuelCapacity);
+        ship.LoadFuel(fuel);
         Physics.EnsureGround(ground);
         return AddShip(ship);
     }
@@ -233,7 +245,7 @@ public sealed partial class ShipSystem : ZoneSystem
 
     // After the characters move, inside the movement pass's Jolt lock: every ship's seats are checked (an occupant gone,
     // dead or no longer seated frees theirs), every ship steps with its helm's input (or none), its doors move, it carries
-    // whoever sits in it, parks or wakes, goes to orbit, crashes or burns as its step says.
+    // whoever sits in it, parks or wakes, crosses orbital altitude, crashes or burns as its step says.
     private void StepShips()
     {
         if (_ships.Count == 0)
@@ -247,6 +259,7 @@ public sealed partial class ShipSystem : ZoneSystem
         {
             if (ship.Destroyed)
             {
+                ShipAttitudeHold.Clear(ref ship.State);
                 if (++ship.WreckAge >= Ship.WreckTicks)
                 {
                     _shipsGone.Add(ship);
@@ -254,22 +267,36 @@ public sealed partial class ShipSystem : ZoneSystem
                 continue;
             }
             CheckSeats(ship);
+            ship.SyncFuel();
             Player? pilot = null;
             Entity pilotEntity = Entity.None;
             if (ship.Piloted && Entities.TryFind(ship.Pilot, out pilotEntity))
             {
                 pilot = PlayerOf(pilotEntity);
             }
-            // The helm's controls; asleep (logged off) the engines hold the ship where it is (flight assist, no input).
-            ShipInput input = pilot != null ? (pilot.Sleeping ? new ShipInput() : ship.Input) : ship.Autopilot ? ship.Input : default;
-            input.Engines = pilot != null || ship.Autopilot;
-            if (ship.ParkedBody != 0 && input.Engines)
+            // Leaving the helm releases rotation/boost, not the movement lever or engine switch.
+            bool attended = pilot is { Sleeping: false } || ship.Autopilot;
+            ShipInput input = attended ? ship.Input : ship.Input.Unattended();
+            // A ship whose engines need a pilot (the KA-FA 1500's, docs/MINICOPTER.md M12; the TOGG's) stops when nobody
+            // awake is at its helm, unless it was started by hand, when it idles hands off (ShipSystem.Engine.cs).
+            input.Engines = EnginesRun(ship, attended, ref input);
+            ReconcileAttitudeHold(ship, input, pilot);
+            // A vehicle on wheels keeps its body while it moves (VEHICLES.md §6.4, below); a ship's goes when it wakes to fly.
+            if (ship.ParkedBody != 0 && input.Engines && !KeepsBody(ship) && !ship.State.Asleep)
             {
                 ShipCollider.RemoveParked(ship.ParkedBody);
                 ship.ParkedBody = 0;
             }
-            ship.Events = ShipMotor.Step(ref ship.State, input, ship.Def, context, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody);
+            // Its riders' weight, a landing's blow and a jump's push on its springs (ShipSystem.Riders.cs).
+            Riders(ship);
+            ship.Events = HeldInBay(ship) || GlideIntoBay(ship) ? default
+                : ship.Def.Motor.Step(ref ship.State, input, ship.Def, context, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody);
+            ship.Fuel.Consume(ship.Events.FuelUsed);
+            ship.SyncFuel();
+            IdleByHand(ship);
+            PullIntoBay(ship);
             ShipSteps++;
+            RunOver(ship);
             StepDoors(ship);
             StepStations(ship);
             if (ship.Events.CrashDamage > 0)
@@ -282,11 +309,15 @@ public sealed partial class ShipSystem : ZoneSystem
             }
             if (ship.Events.ReachedCeiling && (ship.Piloted || ship.Autopilot) && !ship.Destroyed)
             {
-                EnterOrbit(ship);
+                CrossedOrbitalAltitude(ship);
             }
             CarrySeated(ship);
             bool park = ship.State.Asleep && !ship.Piloted && !ship.Autopilot && !ship.Destroyed && !ship.InOrbit;
-            if (park && ship.ParkedBody == 0)
+            if (KeepsBody(ship) && !ship.Destroyed && !ship.InOrbit)
+            {
+                KeepBody(ship);
+            }
+            else if (park && ship.ParkedBody == 0)
             {
                 Park(ship);
             }
@@ -322,15 +353,15 @@ public sealed partial class ShipSystem : ZoneSystem
     /// </summary>
     internal bool DeliverShip(Entity builder, Player p, Recipe recipe, ulong stationId)
     {
-        ShipDef def = recipe.Output.Ship!;
+        // What the item makes: its kind with its preset's build or the kind's default (VEHICLES.md §9.11), its space cleared as built.
+        ShipDef def = Content?.ShipMade(recipe.Output) ?? recipe.Output.Ship!;
         Vector3 at;
         float yaw;
         float maxSlope;
         if (Things.StaticOf(new EntityId(stationId)) is Deployable { Def.Bay: { } bay } station)
         {
-            (Vector3 right, Vector3 forward) = Geometry.Axes(station.Up, station.Yaw);
-            at = station.Position + right * bay.At.X + forward * bay.At.Z;
-            yaw = station.Yaw;
+            at = bay.Centre(station.Position, station.Up, station.Yaw);
+            yaw = BayStats.RollOutYaw(station.Yaw);
             maxSlope = bay.MaxSlopeDegrees * MathF.PI / 180;
         }
         else
@@ -350,7 +381,7 @@ public sealed partial class ShipSystem : ZoneSystem
             if (_shipNotices.GetValueOrDefault(p.Id, long.MinValue / 2) + 30 * CharacterMotor.TickRate <= Tick)
             {
                 _shipNotices[p.Id] = Tick;
-                Events.Add(new Notice(Player: p.Id, Text: steep                         ? $"Your {def.Name} is ready, but the ground in front of the bench is too steep for it."                         : $"Your {def.Name} is ready: clear the space in front of the vehicle workbench."));
+                Events.Add(new Notice(Player: p.Id, Text: steep                         ? $"Your {recipe.Output.Name} is ready, but the ground in front of the bench is too steep for it."                         : $"Your {recipe.Output.Name} is ready: clear the space in front of the vehicle workbench."));
             }
             return false;
         }
@@ -420,47 +451,39 @@ public sealed partial class ShipSystem : ZoneSystem
     public bool ShipSlow(Ship ship) =>
         ShipStill(ship) || (ship.State.Velocity.Length() < ShipDoorDef.SlowSpeed && HeightAboveGround(ship.Origin) < ShipDoorDef.SlowHeight);
 
-    /// <summary>Fills a ship's tank from the player's lamp oil (main slots, then belt), as much as fits.</summary>
-    internal Outcome Refuel(Player p, Ship ship)
+    /// <summary>Opens the tank through the shared inventory; a negative loot part remembers which part was reached.</summary>
+    internal Outcome OpenFuel(Player p, Ship ship, int reachedPart)
     {
-        int room = (int)MathF.Floor(ship.Def.FuelCapacity - ship.State.Fuel);
-        if (room <= 0)
-        {
-            return OutcomeCode.NoSpace;
-        }
-        int have = p.Inventory.Count(ship.Def.Fuel);
-        if (have <= 0)
-        {
-            return OutcomeCode.NotEnough;
-        }
-        int taken = Math.Min(room, have);
-        p.Inventory.Take(new[] { new ItemAmount(ship.Def.Fuel, taken) });
-        ship.State.Fuel += taken;
-        WakeShip(ship);
-        Events.Add(new ItemsGained(Player: p.Id, Item: ship.Def.Fuel.Id, Count: -taken, Reason: GainReason.Used));
-        return OutcomeCode.Done;
+        if (!p.CanAct || ship.Destroyed) return OutcomeCode.NotAllowed;
+        if (!ship.IsAuthorised(p.Id.Value)) return OutcomeCode.NotCrew;
+        if (reachedPart < 0 || reachedPart >= ship.Def.Parts.Count) return OutcomeCode.Invalid;
+        return Zone.Interaction().OpenLoot(p, ship.Id, -1 - reachedPart);
     }
 
-    /// <summary>The ship whose cargo (or a station's magazine) a player has open, or null.</summary>
+    /// <summary>The ship whose cargo, tank or station magazine a player has open, or null.</summary>
     public Ship? LootShip(Player p) => p.Looting.IsNone ? null : ShipOf(p.Looting) is { Destroyed: false } ship ? ship : null;
 
-    /// <summary>What a player looting a ship has open: a station's magazine at the part they opened (IRON_WAKE.md §6.5), else its cargo.</summary>
+    /// <summary>The fuel tank for a negative loot part, a station's magazine for its part, a module's hold for its part, otherwise the cargo.</summary>
     public Container LootContainer(Player p, Ship ship) =>
+        p.LootPart < 0 ? ship.Fuel.Tank :
         p.LootPart > 0 && p.LootPart < ship.Def.Parts.Count && ship.Def.Parts[p.LootPart].Station is >= 0 and var station && station < ship.Stations.Length
-            ? ship.Stations[station].Magazine : ship.Cargo;
+            ? ship.Stations[station].Magazine :
+        ship.Def.HoldOfPart(p.LootPart) is >= 0 and var hold && hold < ship.Holds.Length ? ship.Holds[hold] : ship.Cargo;
 
     // Whether a player looting a ship's cargo or a magazine may go on (CheckLoot, once a second): from one of its seats, or
     // beside its part within the reach that keeps a container open (GROUND_SYSTEMS.md §3.4), the cargo of one people sit in
     // only while it is at rest.
     internal bool StillAtShip(Entity entity, Ship ship, int part = 0)
     {
+        if (part < 0 && (PlayerOf(entity) is not { } player || !ship.IsAuthorised(player.Id.Value))) return false;
         if (SeatOf(entity) == ship)
         {
             return true;
         }
         bool magazine = part > 0 && part < ship.Def.Parts.Count && ship.Def.Parts[part].Station >= 0;
-        int at = magazine ? part : ship.Def.CargoPart;
-        return at > 0 && Content != null && !ship.InOrbit && (magazine || ShipStill(ship)) &&
+        bool fuel = part < 0;
+        int at = fuel ? -1 - part : magazine || ship.Def.HoldOfPart(part) >= 0 ? part : ship.Def.CargoPart;
+        return (at > 0 || fuel) && Content != null && !ship.InOrbit && (fuel || magazine || ShipStill(ship)) &&
             Targets.Reach(EyeOf(Entities.Get<Character>(entity).State), new TargetRef(TargetFamily.Ship, ship.Id.Value, (byte)at), Content.Survival.KeepOpenReach,
                 sight: false).Ok;
     }
@@ -468,37 +491,30 @@ public sealed partial class ShipSystem : ZoneSystem
     // ---------------------------------------------------------------- orbit (GROUND.md §6.7: the seam for G8)
 
     /// <summary>
-    /// Asked when a ship climbs above its ceiling: a handler that takes it to the space layer (G8, ARCHITECTURE.md §12,
-    /// "local space ↔ surface") returns true. Until that exists the zone parks it at its orbit marker above where it left.
+    /// Asked once per upward crossing of orbital altitude: a handler that takes the ship to another space returns true.
+    /// With no transfer, flight continues in this local world. Crossing the height never parks or teleports a ship.
     /// </summary>
     public Func<Ship, bool>? OrbitTransfer { get; set; }
 
-    private void EnterOrbit(Ship ship)
+    private void CrossedOrbitalAltitude(Ship ship)
     {
         if (OrbitTransfer?.Invoke(ship) == true)
         {
             return;
         }
-        ship.OrbitAnchor = ship.State.Position;
-        ShipMotor.ParkInOrbit(ref ship.State);
         ShipEvents.Add(new ShipEvent(ShipEventKind.Orbit, ship, 1, ship.Pilot));
     }
 
-    /// <summary>From orbit, back down over the spot it left: level, nose where it was, falling at 40 m/s with flight assist on (the helm's key).</summary>
+    /// <summary>
+    /// Releases a legacy parked orbit state in place. Current flights descend using the normal controls; this action
+    /// stays for saved parked ships and the existing protocol, without the old 250 m teleport or imposed fall.
+    /// </summary>
     public Outcome Descend(Entity entity)
     {
         if (PlayerOf(entity) is not { Dead: false } || SeatOf(entity) is not { InOrbit: true } ship || ship.Pilot != Entities.IdOf(entity))
         {
             return OutcomeCode.NotAllowed;
         }
-        Vector3 up = Frame.UpAt(ship.OrbitAnchor);
-        float yaw = ShipMotor.YawOf(ship.State.Rotation, up);
-        Vector3 start = ship.OrbitAnchor - up * 250f;
-        Vector3 startUp = Frame.UpAt(start);
-        ship.State.Rotation = ShipMotor.Orientation(startUp, yaw);
-        ship.State.Position = start;
-        ship.State.Velocity = -startUp * 40f;
-        ship.State.AngularVelocity = Vector3.Zero;
         ship.State.Flags &= ~ShipFlags.InOrbit;
         ship.State.RestTicks = 0;
         ShipEvents.Add(new ShipEvent(ShipEventKind.Orbit, ship, 0, ship.Pilot));
@@ -645,10 +661,24 @@ public sealed partial class ShipSystem : ZoneSystem
                 }
             }
         }
-        int fuel = (int)MathF.Floor(ship.State.Fuel * 0.5f);
-        if (fuel > 0)
+        foreach (Container hold in ship.Holds)
         {
-            stacks.Add(ItemStack.Of(ship.Def.Fuel, Math.Min(fuel, ship.Def.Fuel.StackSize)));
+            // The modules' holds (VEHICLES.md §9.1).
+            foreach (ItemStack s in hold.Slots)
+            {
+                if (!s.IsEmpty)
+                {
+                    stacks.Add(s);
+                }
+            }
+        }
+        int fuel = (int)MathF.Floor(ship.Fuel.Amount * 0.5f);
+        ship.LoadFuel(0);
+        while (fuel > 0)
+        {
+            int count = Math.Min(fuel, ship.Def.Fuel.StackSize);
+            stacks.Add(ItemStack.Of(ship.Def.Fuel, count));
+            fuel -= count;
         }
         foreach (ItemAmount a in ship.Def.Wreck)
         {
@@ -673,9 +703,16 @@ public sealed partial class ShipSystem : ZoneSystem
     /// pose history at <paramref name="viewTick"/>): the distance along it (−1 for none) and the ship. One people walk in
     /// is met by its space (<see cref="ShipQueries"/>).
     /// </summary>
-    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit, double viewTick = double.MaxValue)
+    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit, out Vector3 normal, double viewTick = double.MaxValue) =>
+        TraceShips(origin, direction, length, thickness, out hit, out normal, out _, viewTick);
+
+    /// <summary>As above, with the target part the box met belongs to (a module's body, VEHICLES.md §9.1; else the hull).</summary>
+    internal float TraceShips(Vector3 origin, Vector3 direction, float length, float thickness, out Ship? hit, out Vector3 normal, out byte part,
+        double viewTick = double.MaxValue)
     {
         hit = null;
+        normal = -direction;
+        part = ShipParts.Hull;
         float best = -1;
         foreach (Ship ship in _ships)
         {
@@ -691,13 +728,20 @@ public sealed partial class ShipSystem : ZoneSystem
             Vector3 x = Vector3.Transform(Vector3.UnitX, pose.Rotation);
             Vector3 y = Vector3.Transform(Vector3.UnitY, pose.Rotation);
             Vector3 z = Vector3.Transform(Vector3.UnitZ, pose.Rotation);
-            foreach (HullBox box in ship.Def.Hull)
+            for (int i = 0; i < ship.Def.Hull.Count; i++)
             {
+                HullBox box = ship.Def.Hull[i];
+                if (box.Fragile)
+                {
+                    continue; // shots pass through a rotor's disc
+                }
                 float t = Geometry.RayBox(origin, direction, length, pose.ToWorld(box.Centre), box.HalfExtents + new Vector3(thickness), x, y, z);
                 if (t >= 0 && (best < 0 || t < best))
                 {
                     best = t;
                     hit = ship;
+                    part = ship.Def.HullPart(i);
+                    normal = ContactGeometry.BoxNormal(origin + direction * t, pose.ToWorld(box.Centre), box.HalfExtents + new Vector3(thickness), x, y, z);
                 }
             }
         }

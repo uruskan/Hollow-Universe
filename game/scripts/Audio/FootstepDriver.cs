@@ -8,9 +8,8 @@ namespace HollowUniverse.Audio;
 /// <see cref="Update"/>; it plays a step each stride (walk, run or crouch by speed and stance), a landing after a fall,
 /// swim strokes, on the surface under the feet. The player's own feet play flat and a little quieter
 /// (<see cref="Local"/>); everyone else's are placed at their feet.
-/// <para>The surface comes from <see cref="Footsteps.FromGround"/> (the terrain's strongest ground material at the
-/// feet), <see cref="Footsteps.FromBiome"/> when only the biome is known, or <see cref="Footsteps.FromGrade"/> on a
-/// building floor.</para>
+/// <para><see cref="FootstepEnvironment"/> resolves the contacted floor through the shared physical surface and
+/// response tables. Footwear selection and cadence remain independent of that material lookup.</para>
 /// </summary>
 public partial class FootstepDriver : Node3D
 {
@@ -27,6 +26,12 @@ public partial class FootstepDriver : Node3D
     /// <summary>The last sound played, for debugging and the viewer.</summary>
     public string LastKey { get; private set; } = "";
 
+    public void Reset()
+    {
+        _cadence.Reset();
+        LastKey = "";
+    }
+
     /// <summary>Call every frame with the character's movement; <paramref name="feet"/> in render space.</summary>
     public void Update(double delta, in FootInput input, Vector3 feet)
     {
@@ -41,14 +46,15 @@ public partial class FootstepDriver : Node3D
         {
             return;
         }
-        LastKey = e.Key;
+        string key = SoundLibrary.Footwear.ResolveEvent(e.Key, input.FootwearProfile, SoundLibrary.Data);
+        LastKey = key;
         if (Local)
         {
-            director.Play2D(e.Key, (float)e.VolumeDb + LocalVolumeDb);
+            director.Play2D(key, (float)e.VolumeDb + LocalVolumeDb);
         }
         else
         {
-            director.Play(e.Key, feet, (float)e.VolumeDb);
+            director.Play(key, feet, (float)e.VolumeDb);
         }
     }
 }

@@ -236,8 +236,7 @@ public sealed partial class BuildingWorld : IDisposable
     }
 
     /// <summary>
-    /// Whether a child sits exactly where one of the parent's sockets would put it (stability links come only from exact
-    /// snaps, never from pieces merely touching), and the least loss of such a link.
+    /// Whether a child sits on a socket or a floor bears along a wall's top, and the least loss of such a link.
     /// </summary>
     public bool Supports(PieceDef parent, in Pose parentPose, PieceDef child, in Pose childPose, out int loss)
     {
@@ -245,6 +244,10 @@ public sealed partial class BuildingWorld : IDisposable
         if ((parent.Height + LinkRadius) * (parent.Height + LinkRadius) < (parentPose.Position - childPose.Position).LengthSquared)
         {
             return false;
+        }
+        if (PieceGeometry.WallBearsFloor(Data, parent, parentPose, child, childPose))
+        {
+            loss = Data.LossFromWall;
         }
         PieceGeometry.Sockets(parent, child, _sockets);
         foreach (SocketId socket in _sockets)

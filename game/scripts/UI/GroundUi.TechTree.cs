@@ -29,20 +29,36 @@ public partial class GroundUi
         Button("", 802, 0, 250, 60, () => Open(GroundScreen.Inventory), 30);
         Arrow(833, 33, -1);
         Text("INVENTORY", 869, 13, 30, G.Ink, bold: true, condensed: true);
+        if (tree is { Bay: true })
+        {
+            // The vehicle in the bench's bay (VEHICLES.md §9.11): its build changed beside the inventory.
+            Button("", 1062, 0, 250, 60, () =>
+            {
+                Model.OpenBayVehicle();
+                Open(GroundScreen.Inventory);
+            }, 30);
+            Text("VEHICLE IN BAY", 1092, 13, 30, G.Ink, bold: true, condensed: true);
+        }
 
         _o = CanvasFrame;
         Rect(87, 65, 1046, 690, G.Panel);
         PanelArea(79, 65, 1414, 690);
-        if (tree == null || tree.Nodes.Count == 0)
+        if (tree == null)
         {
             Text("NO WORKBENCH IN REACH", 110, 90, 40, G.Ink, bold: true, condensed: true);
             Paragraph("Stand at a workbench to see its tech tree: what it can teach you, and for how much salvage.", 112, 140, 900, 21, G.Ink);
             return;
         }
-        Text($"WORKBENCH LEVEL {tree.Workbench}", 110, 78, 36, G.Ink, bold: true, condensed: true);
+        Text(tree.StationName?.ToUpperInvariant() ?? $"WORKBENCH LEVEL {tree.Workbench}", 110, 78, 36, G.Ink, bold: true, condensed: true);
         Text("TECH TREE", 112, 118, 18, G.Muted, bold: true);
         Icon("salvage", 1010, 78, 36, 36);
         TextIn(tree.Salvage.ToString("N0", CultureInfo.InvariantCulture), 900, 84, 104, 24, G.Ink, HorizontalAlignment.Right, bold: true);
+
+        if (tree.Nodes.Count == 0)
+        {
+            Paragraph("No technologies are available at this workbench yet.", 112, 170, 900, 21, G.Ink);
+            return;
+        }
 
         Dictionary<string, (float X, float Y)> places = LayOut(tree, 110, 160, 1000, 580);
         var byKey = new Dictionary<string, TechNodeView>();
@@ -152,7 +168,7 @@ public partial class GroundUi
         string key2 = node.Key;
         Button(node.State == TechNodeState.Known ? "KNOWN" : $"UNLOCK  ·  {node.Cost} SALVAGE", 1145, 640, 340, 56, can ? () => Model.Unlock(key2) : null, 24,
             can ? new Color(G.Green, 0.6f) : G.Panel, enabled: can);
-        Paragraph("Unlocked blueprints last through death. A research table teaches what a tree doesn't.", 1153, 704, 324, 15, new Color(G.Ink, 0.8f), 3);
+        Paragraph("Learned blueprints last through death. Research Benches turn obtained items into learnable blueprints.", 1153, 704, 324, 15, new Color(G.Ink, 0.8f), 3);
     }
 
     // Each subtree takes as many columns as it has leaves, its root centred over them; rows by depth.

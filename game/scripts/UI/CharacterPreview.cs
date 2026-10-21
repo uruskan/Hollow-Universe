@@ -13,6 +13,11 @@ public partial class CharacterPreview : SubViewport
     private Node3D _figure = null!;
     private string _signature = "";
 
+    /// <summary>The figure's turn, independent of its clothing and held-item rebuilds.</summary>
+    public float Yaw => _figure.Rotation.Y;
+
+    public void Turn(float designPixels) => _figure.RotateY(designPixels * 0.01f);
+
     /// <summary>
     /// The game's own body for the figure (the character package's), built for the held item key; null keeps the
     /// wooden mannequin. <see cref="BodyLook"/> names what it wears, so a change of clothes builds it again.

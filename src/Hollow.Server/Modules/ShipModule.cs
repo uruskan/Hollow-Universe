@@ -6,6 +6,7 @@ using Hollow.Net.Protocol;
 using Hollow.Net.Replication;
 using Hollow.Persistence;
 using Hollow.Simulation;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Ships;
@@ -45,6 +46,106 @@ public sealed class ShipModule : ServerModule
         public readonly Dictionary<uint, uint> StationsSent = new();
     }
 
+    private sealed class StationAttacks
+    {
+        public readonly AttackJournal Results = new();
+        public readonly HashSet<AttackId> Waiting = new();
+        public readonly List<AttackRequest> Queue = new();
+        public uint NextSequence = 1;
+    }
+
+    /// <summary>Reliable, identified fire attempts, bounded independently of the player's movement input.</summary>
+    public void QueueAttack(PlayerSession session, in AttackRequest request)
+    {
+        StationAttacks attacks = session.State<StationAttacks>();
+        if (attacks.Results.TryGet(request.Id, out AttackResolution previous))
+        {
+            Zone.Events.Add(new AttackResolved(session.EntityId, previous));
+            return;
+        }
+        if (attacks.Waiting.Contains(request.Id))
+        {
+            return;
+        }
+        OutcomeCode refused = OutcomeCode.Done;
+        if (attacks.Results.IsExpired(request.Id) || request.Id.Sequence < attacks.NextSequence)
+        {
+            refused = OutcomeCode.Stale;
+        }
+        else if (!session.Playing || request.Id.IsNone || request.Cancel || request.Tick > Zone.Tick + GunSystem.GunActionLeadTicks)
+        {
+            refused = OutcomeCode.Invalid;
+        }
+        else if (request.Tick < Zone.Tick - GunSystem.GunActionLateTicks)
+        {
+            refused = OutcomeCode.TooLate;
+        }
+        else if (request.Refused != OutcomeCode.Done)
+        {
+            refused = request.Refused;
+        }
+        else if (attacks.Queue.Count >= GunSystem.MaxQueuedGunActions)
+        {
+            refused = OutcomeCode.RateLimited;
+        }
+        if (refused != OutcomeCode.Done)
+        {
+            ResolveStation(session, attacks, new AttackResolution(request.Id, refused, request.Tick));
+            return;
+        }
+        attacks.Waiting.Add(request.Id);
+        int at = attacks.Queue.Count;
+        while (at > 0 && attacks.Queue[at - 1].Id.Sequence > request.Id.Sequence)
+        {
+            at--;
+        }
+        attacks.Queue.Insert(at, request);
+    }
+
+    private void ResolveStation(PlayerSession session, StationAttacks attacks, in AttackResolution result)
+    {
+        attacks.Results.Remember(result);
+        Zone.Events.Add(new AttackResolved(session.EntityId, result));
+    }
+
+    private void ApplyStationAttacks()
+    {
+        foreach (PlayerSession session in Players)
+        {
+            StationAttacks attacks = session.State<StationAttacks>();
+            uint attackSession = Zone.Players().PlayerOf(session.Entity)?.AttackSession ?? 0;
+            AdvanceStationSequence(attacks, attackSession);
+            while (attacks.Queue.Count > 0 && attacks.Queue[0].Tick <= Zone.Tick)
+            {
+                AttackRequest request = attacks.Queue[0];
+                if (AttackOrder.AwaitingEarlier(request.Id.Sequence, attacks.NextSequence, request.Tick, Zone.Tick, GunSystem.GunActionLateTicks))
+                {
+                    break; // A lost earlier attempt may be retransmitted; preserve barrel/ammunition order.
+                }
+                attacks.Queue.RemoveAt(0);
+                attacks.Waiting.Remove(request.Id);
+                AttackResolution result = session.Playing
+                    ? Zone.Ships().FireStation(session.Entity, request)
+                    : new AttackResolution(request.Id, OutcomeCode.Dead, request.Tick);
+                ResolveStation(session, attacks, result);
+                attacks.NextSequence = request.Id.Sequence + 1;
+                AdvanceStationSequence(attacks, attackSession);
+                if (result.Code == OutcomeCode.Done)
+                {
+                    break; // Retransmitted backlog never launches multiple rounds in one server tick.
+                }
+            }
+        }
+    }
+
+    private static void AdvanceStationSequence(StationAttacks attacks, uint attackSession)
+    {
+        while (attacks.NextSequence != 0 && attacks.Results.TryGet(new AttackId(AttackDomain.Station, attacks.NextSequence, attackSession), out _))
+        {
+            attacks.NextSequence++;
+        }
+    }
+
     protected internal override void Init(MessageHandlers<PlayerSession> handlers)
     {
         handlers.On<ShipIntent>((PlayerSession session, in ShipIntent message) =>
@@ -74,8 +175,18 @@ public sealed class ShipModule : ServerModule
                 return result;
             });
         });
-        // A battery's shot (IW3), to everyone its ship is relevant to: the gunner's client matches its predicted shot by the
-        // number, others play it.
+        // A vehicle's build changed in the vehicle workbench's bay (VEHICLES.md §9.11): the server checks everything; the new
+        // build goes out with the ship's details.
+        handlers.On<ModuleIntent>((PlayerSession session, in ModuleIntent message) =>
+        {
+            ModuleIntent m = message;
+            Entity me = session.Entity;
+            Intent(session, m.Seq, () => m.Fit
+                ? Zone.Ships().FitModule(me, new EntityId(m.Station), new EntityId(m.Ship), m.Socket, m.Level, m.From, m.Slot)
+                : Zone.Ships().TakeModule(me, new EntityId(m.Station), new EntityId(m.Ship), m.Socket, m.Level));
+        });
+        // A battery's shot (IW3), to everyone its ship is relevant to: its owner reconciles the complete attempt identity,
+        // and observers play the authoritative muzzle and direction.
         Zone.Events.On<TurretFired>((in TurretFired e) =>
         {
             if (!_shipNetIds.TryGetValue(e.Ship, out uint netId))
@@ -86,6 +197,9 @@ public sealed class ShipModule : ServerModule
             new TurretShot
             {
                 Ship = netId, Station = (byte)e.Station, Barrel = (byte)e.Barrel, Number = e.Number, Tick = (uint)e.Tick, Kind = e.Kind, Gunner = NetIdOf(e.Gunner),
+                AttackKind = e.Attack.Kind, AttackSeq = e.Attack.Sequence, AttackSession = e.Attack.Session,
+                OriginX = e.Origin.X, OriginY = e.Origin.Y, OriginZ = e.Origin.Z,
+                DirectionX = e.Direction.X, DirectionY = e.Direction.Y, DirectionZ = e.Direction.Z,
             }.WriteMessage(Writer);
             foreach (PlayerSession session in Players)
             {
@@ -133,7 +247,9 @@ public sealed class ShipModule : ServerModule
         {
             // A gunner (IW3): the controls ride beside the view, which is the asked direction in the world (§6.2).
             Vector3 world = Zone.Frames.ViewIn(NetConvert.View(input.ViewU, input.ViewV), c.Input.Frame, 0, Zone.Tick);
-            Zone.Ships().SetStationInput(session.Entity, StationConvert.ToInput(input, world));
+            StationInput station = StationConvert.ToInput(input, world);
+            station.Fire = false; // Identified AttackIntent is the only network firing path.
+            Zone.Ships().SetStationInput(session.Entity, station);
         }
     }
 
@@ -159,6 +275,7 @@ public sealed class ShipModule : ServerModule
     // when the input gave it in another (the tick of a hand-over).
     protected internal override void AfterStep()
     {
+        ApplyStationAttacks();
         AnnounceShips();
         ComponentPool<NetPresence> presences = Zone.Entities.Pool<NetPresence>();
         for (int i = 0; i < presences.Count; i++)
@@ -319,7 +436,7 @@ public sealed class ShipModule : ServerModule
         {
             return null;
         }
-        return new[] { ShipConvert.ToOwn(ship.State, netId, ship.Def.Id) };
+        return new[] { ShipConvert.ToOwn(ship.State, netId, ship.Def.Id, ship.Input) };
     }
 
     // ---------------------------------------------------------------- storage
@@ -451,7 +568,8 @@ public sealed class ShipModule : ServerModule
     /// <c>ship [player] [kind]</c>, the F1 panel's spawn), else the first (every new player's Tin Finch with
     /// <see cref="ServerOptions.ShipOnJoin"/>). It stands on the nearest clear spot of rings round them, as far out as its
     /// size needs, with its way in toward them (<see cref="WayIn"/>); in a wood with no room for it, at the nearest spot
-    /// whose only obstacles are trees and rocks, they go (<see cref="ShipSystem.ClearNatureFor"/>).
+    /// whose only obstacles are trees and rocks, they go (<see cref="ShipSystem.ClearNatureFor"/>). A ship put on the water
+    /// (the motorboat) floats on the nearest water a metre deep, within 55 m (docs/MOTORBOAT.md §4).
     /// </summary>
     public Ship? GiveShip(PlayerSession session, ShipDef? kind = null)
     {
@@ -468,9 +586,13 @@ public sealed class ShipModule : ServerModule
         Vector3 side = Vector3.Normalize(Vector3.Cross(up, north));
         float wayYaw = way.X * way.X + way.Z * way.Z > 1e-6f ? Facing.YawOf(side * way.X + north * way.Z, up) : 0;
         float beyond = MathF.Max(0, MathF.Max(def.BoundsHalf.X, def.BoundsHalf.Z) - 4);
+        // A ship put on the water (its placement rule's surfaces, the motorboat's): the water's surface over a metre of it,
+        // looked for farther out, as the shore may be.
+        bool afloat = def.Item.Places is { } placeable && (placeable.Rule.Surfaces & Hollow.Simulation.Placement.PlacementSurfaces.Water) != 0;
+        float[] rings = afloat ? new[] { 6f, 9f, 12f, 16f, 22f, 30f, 40f, 55f } : new[] { 6f, 9f, 12f, 16f, 22f };
         for (int pass = 0; pass < 2; pass++)
         {
-            foreach (float ring in new[] { 6f, 9f, 12f, 16f, 22f })
+            foreach (float ring in rings)
             {
                 float distance = ring + beyond;
                 for (int i = 0; i < 12; i++)
@@ -478,6 +600,14 @@ public sealed class ShipModule : ServerModule
                     float angle = i * MathF.PI / 6 + ring;
                     Vector3 at = feet + (north * MathF.Cos(angle) + east * MathF.Sin(angle)) * distance;
                     Vector3 ground = Zone.Settle(at);
+                    if (afloat)
+                    {
+                        if (!Zone.Ground.InWater(ground, -1f))
+                        {
+                            continue;
+                        }
+                        ground -= Zone.Frame.UpAt(ground) * Zone.Ground.HeightAboveWater(ground);
+                    }
                     float yaw = Facing.YawOf(feet - at, up) - wayYaw;
                     int cleared = pass == 1 ? Zone.Ships().ClearNatureFor(def, ground, yaw) : 0;
                     if (Zone.Ships().ShipSpaceClear(def, ground, yaw))

@@ -13,10 +13,10 @@ cd /d "%~dp0"
 if "%GODOT%"=="" set "GODOT=D:\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64.exe"
 if not exist "%GODOT%" goto nogodot
 echo Building...
-dotnet build HollowUniverse.sln -nologo -v quiet -clp:ErrorsOnly
+dotnet build HollowUniverse.sln -nologo -v quiet -clp:ErrorsOnly --disable-build-servers -m:1 -nodeReuse:false -p:UseSharedCompilation=false
 if errorlevel 1 exit /b 1
 rem The hosted game runs the dedicated server in a process of its own: build it for speed too.
-dotnet build src\Hollow.Server -c Release -nologo -v quiet -clp:ErrorsOnly
+dotnet build src\Hollow.Server -c Release -nologo -v quiet -clp:ErrorsOnly --disable-build-servers -m:1 -nodeReuse:false -p:UseSharedCompilation=false
 if errorlevel 1 exit /b 1
 rem Import the assets when any is newer than the last import (a clone, a merge that brought new ones).
 powershell -NoProfile -Command "$s = Get-Item game\.godot\hollow-import.stamp -ErrorAction SilentlyContinue; if ($s -and -not (Get-ChildItem game\assets, game\data -Recurse -File | Where-Object { $_.LastWriteTime -gt $s.LastWriteTime } | Select-Object -First 1)) { exit 0 } else { exit 1 }"

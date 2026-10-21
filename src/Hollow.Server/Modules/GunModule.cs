@@ -37,6 +37,15 @@ public sealed class GunModule : ServerModule
             Entity me = session.Entity;
             Intent(session, m.Seq, () => Zone.Guns().Attach(me, m.From, m.Slot, m.WeaponIn, m.WeaponSlot, Expected(m.Expected)));
         });
+        handlers.On<AttachmentMoveIntent>((PlayerSession session, in AttachmentMoveIntent message) =>
+        {
+            AttachmentMoveIntent m = message;
+            Entity me = session.Entity;
+            Intent(session, m.Seq, () => SlotSnapshot.TryRead(m.ExpectedFrom, out var from) && SlotSnapshot.TryRead(m.ExpectedTo, out var to)
+                ? Zone.Guns().MoveAttachment(me, m.From, m.FromSlot, m.FromMod == byte.MaxValue ? -1 : m.FromMod,
+                    m.To, m.ToSlot, m.ToMod == byte.MaxValue ? -1 : m.ToMod, from, to)
+                : OutcomeCode.Invalid);
+        });
     }
 
     // A shot or reload: from its own budget (a refused one is still answered in order), queued for its tick in the zone.

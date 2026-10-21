@@ -3,13 +3,13 @@
   "currency": "salvage",
   "blueprint": "blueprint",
   "props": [
-    { "key": "loot-barrel-1", "id": 1, "name": "Barrel", "kind": "barrel", "health": 25, "size": [0.3, 0.44, 0.3], "slots": 8,
+    { "key": "loot-barrel-1", "id": 1, "name": "Barrel", "kind": "barrel", "health": 25, "size": [0.301, 0.44825, 0.30225], "slots": 8,
       "loot": "barrel", "respawn": 1200 },
     { "key": "loot-barrel-2", "id": 2, "name": "Fuel barrel", "kind": "barrel", "health": 25, "size": [0.3, 0.44, 0.3], "slots": 8,
       "loot": "fuel-barrel", "respawn": 1200 },
-    { "key": "loot-crate", "id": 3, "name": "Crate", "kind": "crate", "size": [0.49, 0.29, 0.32], "slots": 12,
+    { "key": "loot-crate", "id": 3, "name": "Crate", "kind": "crate", "size": [0.537625, 0.2785, 0.3385], "slots": 12,
       "loot": "crate", "respawn": 1800 },
-    { "key": "military-crate", "id": 4, "name": "Military crate", "kind": "crate", "size": [0.62, 0.3, 0.34], "slots": 12,
+    { "key": "military-crate", "id": 4, "name": "Military crate", "kind": "crate", "size": [0.66786, 0.29525, 0.348], "slots": 12,
       "loot": "military-crate", "respawn": 2700 },
     { "key": "recycler", "id": 5, "name": "Recycler", "kind": "recycler", "size": [0.78, 0.8, 0.52], "slots": 12 }
   ],
@@ -40,7 +40,13 @@
       { "item": "pistol-ammo", "cost": 75 },
       { "item": "weapon-light", "cost": 75, "after": ["pistol-ammo"] },
       { "item": "tin-grenade", "cost": 125, "after": ["pistol-ammo"] },
-      { "item": "bag-charge", "cost": 125, "after": ["tin-grenade"] }
+      { "item": "bag-charge", "cost": 125, "after": ["tin-grenade"] },
+      {"item": "metal-window-bars", "cost": 75, "after": ["metal-door"]},
+      {"item": "horizontal-embrasure", "cost": 75, "after": ["metal-door"]},
+      {"item": "vertical-embrasure", "cost": 75, "after": ["metal-door"]},
+      {"item": "wooden-barricade", "cost": 75},
+      {"item": "wood-compound-wall", "cost": 75},
+      {"item": "motorboat", "cost": 125}
     ] },
     { "workbench": 2, "nodes": [
       { "item": "pistol", "cost": 125 },
@@ -57,7 +63,14 @@
       { "item": "rocket-launcher", "cost": 500, "after": ["explosives"] },
       { "item": "rocket", "cost": 250, "after": ["rocket-launcher"] },
       { "item": "rocket-hv", "cost": 125, "after": ["rocket-launcher"] },
-      { "item": "rocket-incendiary", "cost": 125, "after": ["rocket-launcher"] }
+      { "item": "rocket-incendiary", "cost": 125, "after": ["rocket-launcher"] },
+      {"item": "reinforced-glass-window", "cost": 125, "after": ["garage-door"]},
+      {"item": "large-furnace", "cost": 125},
+      {"item": "wood-compound-gate", "cost": 125},
+      {"item": "stone-compound-wall", "cost": 125},
+      {"item": "stone-compound-gate", "cost": 125},
+      {"item": "windmill", "cost": 125},
+      {"item": "metal-barricade", "cost": 125}
     ] },
     { "workbench": 3, "nodes": [
       { "item": "rifle", "cost": 500 },
@@ -66,8 +79,26 @@
       { "item": "rifle-ammo-explosive", "cost": 250, "after": ["rifle-ammo-incendiary"] },
       { "item": "scope", "cost": 250, "after": ["rifle"] },
       { "item": "armoured-door", "cost": 300 },
-      { "item": "timed-charge", "cost": 500, "after": ["armoured-door"] }
-    ] }
+      { "item": "timed-charge", "cost": 500, "after": ["armoured-door"] },
+      {"item": "armoured-window-bars", "cost": 125, "after": ["armoured-door"]},
+      {"item": "armoured-double-door", "cost": 300, "after": ["armoured-door"]},
+      {"item": "sam-site", "cost": 500},
+      {"item": "auto-turret", "cost": 500}
+    ] },
+    { "station": "vehicle-workbench", "note": "CRAFT-01/04: an unlevelled tree, distinct from standard workbench speed. Tin Finch's 500 salvage is provisional balance.", "nodes": [
+      { "item": "tin-finch", "cost": 500 },
+      { "item": "ka-fa-1500", "cost": 250 },
+      { "item": "togg", "cost": 200 },
+      { "item": "zamazingo", "cost": 125 },
+      { "item": "monster-togg", "cost": 600, "after": ["togg"] },
+      { "item": "togg-cab-one", "cost": 75, "after": ["togg"] },
+      { "item": "togg-engine", "cost": 125, "after": ["togg"] },
+      { "item": "togg-tyres", "cost": 50, "after": ["togg"] },
+      { "item": "togg-lift-kit", "cost": 250, "after": ["togg"] },
+      { "item": "monster-tyres", "cost": 250, "after": ["togg-lift-kit"] },
+      { "item": "monster-togg-engine", "cost": 400, "after": ["togg-engine"] }
+    ] },
+    { "station": "engineering-workbench", "note": "CRAFT-01/02: separate unlevelled tree; technologies remain undefined in the design, so none are invented here.", "nodes": [] }
   ],
   "loot": {
     "cell": 130, "clear": 90, "spread": 6,

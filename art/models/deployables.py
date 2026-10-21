@@ -1,9 +1,8 @@
-"""Things placed in the world: campfire, furnace, small box, ladder, the door variants, and the containers left on
-the ground (a dead body's backpack, a bag of dropped items).
+"""Things placed in the world: campfire, furnace, small box, ladder, and the containers left on the ground (a dead
+body's backpack, a bag of dropped items). The door items are made from the door kit by doors.py.
 
 World objects face Blender -Y (Godot +Z, the model front) with their footprint centred on the origin at ground
-level. Doors hang from their lower hinge corner at the origin and close across +X, like the kit's sheet-metal door;
-the garage door's origin is the middle of its bottom edge.
+level.
 
     blender -b --factory-startup --python art/models/deployables.py -- [keys...]
 """
@@ -208,111 +207,6 @@ def ladder(seed=107):
                 (x, 0.15, height - 0.02)], 0.012, sides=8, tile=GUNMETAL, tint=(0.85, 0.85, 0.85), metres=0.3)
     m.socket("top", (0, 0.15, height))
     m.export(hulls=[((0, 0.03, height / 2), (half * 2 + 0.08, 0.14, height + 0.1), (0, 0, 0))])
-
-
-def door_hinges(m, x, zs, tile=GUNMETAL):
-    for z in zs:
-        m.cylinder(0.022, 0.14, (x, -0.02, z), sides=12, bevel=0.003, tile=tile, tint=(0.85, 0.85, 0.85), metres=0.2)
-
-
-def wooden_door(seed=109):
-    m = Model("wooden-door", WORLD, seed=seed)
-    width, height, t = 0.94, 2.1, 0.045
-    n = 6
-    for k in range(n):
-        x = width / n * (k + 0.5)
-        plank(m, (width / n - 0.006, t, height - 0.01), (x, -t / 2, height / 2), tint=(0.86, 0.78, 0.68))
-    for z in (0.32, 1.05, 1.78):
-        plank(m, (width - 0.06, 0.03, 0.14), (width / 2, -t - 0.015, z), tint=(0.72, 0.64, 0.56))
-    for (z0, z1) in ((0.32, 1.05), (1.05, 1.78)):
-        a, b = Vector((0.1, -t - 0.016, z0 + 0.06)), Vector((width - 0.1, -t - 0.016, z1 - 0.06))
-        mid = (a + b) / 2
-        length = (b - a).length
-        ang = math.degrees(math.atan2(b.z - a.z, b.x - a.x))
-        plank(m, (length, 0.028, 0.12), mid, (0, -ang, 0), tint=(0.7, 0.62, 0.54))
-    for z in (0.32, 1.78):
-        m.box((0.42, 0.012, 0.05), (0.21, -t - 0.035, z), bevel=0.003, tile=RUST, tint=(0.8, 0.78, 0.76), metres=0.4)
-        for x in (0.05, 0.16, 0.3):
-            m.cylinder(0.008, 0.008, (x, -t - 0.043, z), (90, 0, 0), sides=8, tile=STEEL, tint=(0.8, 0.8, 0.8), metres=0.05)
-    door_hinges(m, 0.0, (0.32, 1.78), tile=RUST)
-    m.tube([(0.83, -t - 0.005, 0.94), (0.83, -t - 0.06, 0.96), (0.83, -t - 0.06, 1.14), (0.83, -t - 0.005, 1.16)], 0.011, sides=8,
-           tile=STEEL, tint=(0.8, 0.8, 0.8), metres=0.2)
-    m.socket("lock", (0.83, -t - 0.01, 1.05))
-    m.socket("hinge", (0, 0, 0))
-    m.socket("use", (0.7, -0.77, 1.1))
-    m.export(hulls=[((width / 2, -t / 2, height / 2), (width, t, height), (0, 0, 0))])
-
-
-def armoured_door(seed=111):
-    m = Model("armoured-door", WORLD, seed=seed)
-    width, height, t = 0.94, 2.1, 0.07
-    m.box((width, t, height), (width / 2, -t / 2, height / 2), bevel=0.008, tile=GUNMETAL, tint=(0.8, 0.8, 0.82), metres=1.0)
-    # Overlaid plates and bars, rivets round the edge, a closed viewing slot.
-    for z0, z1 in ((0.08, 0.98), (1.12, 2.02)):
-        m.box((width - 0.12, 0.018, z1 - z0), (width / 2, -t - 0.009, (z0 + z1) / 2), bevel=0.006, tile=RUST, tint=(0.8, 0.78, 0.76), metres=1.0)
-    for z in (0.5, 1.05, 1.6):
-        m.box((width - 0.04, 0.03, 0.09), (width / 2, -t - 0.03, z), bevel=0.008, tile=STEEL, tint=(0.82, 0.82, 0.84), metres=0.6)
-        for x in (0.07, 0.3, 0.64, 0.87):
-            m.cylinder(0.011, 0.01, (x, -t - 0.048, z), (90, 0, 0), sides=10, tile=STEEL, tint=(0.9, 0.9, 0.9), metres=0.03)
-    for k in range(13):
-        z = 0.1 + k * (height - 0.2) / 12
-        for x in (0.035, width - 0.035):
-            m.cylinder(0.008, 0.01, (x, -t - 0.003, z), (90, 0, 0), sides=8, tile=STEEL, tint=(0.9, 0.9, 0.9), metres=0.03)
-    m.box((0.3, 0.03, 0.06), (width / 2, -t - 0.035, 1.72), bevel=0.006, tile=GUNMETAL, tint=(0.6, 0.6, 0.62), metres=0.3)
-    m.box((0.26, 0.012, 0.022), (width / 2, -t - 0.05, 1.72), bevel=0.003, tile=RUBBER, tint=(0.2, 0.2, 0.2), metres=0.1)
-    door_hinges(m, 0.0, (0.3, 1.05, 1.8))
-    m.tube([(0.84, -t - 0.01, 0.92), (0.84, -t - 0.07, 0.95), (0.84, -t - 0.07, 1.15), (0.84, -t - 0.01, 1.18)], 0.014, sides=8,
-           tile=STEEL, tint=(0.8, 0.8, 0.8), metres=0.2)
-    m.socket("lock", (0.84, -t - 0.01, 1.05))
-    m.socket("hinge", (0, 0, 0))
-    m.socket("use", (0.7, -0.79, 1.1))
-    m.export(hulls=[((width / 2, -t / 2, height / 2), (width, t, height), (0, 0, 0))])
-
-
-def double_door(seed=113):
-    m = Model("double-door", WORLD, seed=seed)
-    leaf, height, t = 0.94, 2.1, 0.045
-    for name, x0, sign in (("Left", 0.0, 1), ("Right", 2 * leaf, -1)):
-        m.part(name, (x0, 0, 0))
-        cx = x0 + sign * leaf / 2
-        m.box((leaf - 0.01, t, height), (cx, -t / 2, height / 2), bevel=0.005, tile=RUST, tint=(0.84, 0.82, 0.8), metres=1.2)
-        for z in (0.06, height - 0.06):
-            m.box((leaf - 0.01, 0.02, 0.1), (cx, -t - 0.01, z), bevel=0.004, tile=GUNMETAL, tint=(0.8, 0.8, 0.82), metres=0.6)
-        for xx in (x0 + sign * 0.05, x0 + sign * (leaf - 0.06)):
-            m.box((0.08, 0.02, height - 0.12), (xx, -t - 0.01, height / 2), bevel=0.004, tile=GUNMETAL, tint=(0.8, 0.8, 0.82), metres=1.2)
-        # A diagonal brace and rivets.
-        length = math.hypot(leaf - 0.2, height - 0.3)
-        ang = math.degrees(math.atan2(height - 0.3, (leaf - 0.2))) * sign
-        m.box((length, 0.016, 0.08), (cx, -t - 0.008, height / 2), (0, -ang, 0), bevel=0.004, tile=GUNMETAL,
-              tint=(0.76, 0.76, 0.78), metres=1.2)
-        door_hinges(m, x0, (0.3, 1.05, 1.8))
-        hx = x0 + sign * (leaf - 0.1)
-        m.tube([(hx, -t - 0.005, 0.95), (hx, -t - 0.055, 0.97), (hx, -t - 0.055, 1.13), (hx, -t - 0.005, 1.15)], 0.011, sides=8,
-               tile=STEEL, tint=(0.8, 0.8, 0.8), metres=0.2)
-    m.part("Body")
-    m.socket("lock", (leaf + 0.1, -t - 0.01, 1.05))
-    m.socket("use", (leaf, -0.8, 1.1))
-    m.export(hulls=[((leaf, -t / 2, height / 2), (2 * leaf, t, height), (0, 0, 0))])
-
-
-def garage_door(seed=115):
-    m = Model("garage-door", WORLD, seed=seed)
-    width, height = 2.8, 2.8
-    slats = 14
-    for k in range(slats):
-        z = height / slats * (k + 0.5)
-        tile = STEEL if k % 5 else RUST
-        m.box((width, 0.04, height / slats - 0.012), (0, -0.02, z), bevel=0.012, segments=2, tile=tile,
-              tint=(0.8, 0.8, 0.82) if tile == STEEL else (0.78, 0.76, 0.74), metres=1.4)
-        m.box((width - 0.02, 0.012, 0.03), (0, -0.044, z - height / slats / 2 + 0.02), bevel=0.004, tile=GUNMETAL,
-              tint=(0.6, 0.6, 0.62), metres=1.0)
-    m.box((width + 0.02, 0.07, 0.09), (0, -0.03, 0.045), bevel=0.01, tile=GUNMETAL, tint=(0.7, 0.7, 0.72), metres=1.2)
-    for x in (-0.5, 0.5):
-        m.tube([(x - 0.1, -0.07, 0.25), (x - 0.1, -0.12, 0.26), (x + 0.1, -0.12, 0.26), (x + 0.1, -0.07, 0.25)], 0.012, sides=8,
-               tile=STEEL, tint=(0.8, 0.8, 0.8), metres=0.2)
-    m.socket("lock", (0, -0.08, 0.5))
-    m.socket("use", (0, -0.9, 1.1))
-    m.export(hulls=[((0, -0.03, height / 2), (width, 0.08, height), (0, 0, 0))])
 
 
 def loot_sack(seed=117):
@@ -825,8 +719,7 @@ def smoothstep(a, b, x):
 
 QUILT_TILE = 9
 
-ALL = {"campfire": campfire, "furnace": furnace, "small-box": small_box, "bed": bed, "ladder": ladder, "wooden-door": wooden_door,
-       "armoured-door": armoured_door, "double-door": double_door, "garage-door": garage_door, "loot-sack": loot_sack,
+ALL = {"campfire": campfire, "furnace": furnace, "small-box": small_box, "bed": bed, "ladder": ladder, "loot-sack": loot_sack,
        "dropped-bag": dropped_bag}
 
 for key in script_args() or list(ALL):

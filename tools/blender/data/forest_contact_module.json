@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "status": "proposed-unadmitted",
+  "assetKey": "nordic_forest_ledge",
+  "receiptSha256": "f8dca592e6590f555290c6a494af840e07d785de9650c9e406a703dd4c3c2219",
+  "sourceSha256": "4ec1ce193afe9b6c7bd2a9f95a9824728487fa53a18e8a7434056fdbbea81971",
+  "physicalSha256": "24ab6d14fecb8868b20e1e63262b9395acc9372abfdb85184e259d30189c2305",
+  "expectedOuterEdges": 314,
+  "scale": 1,
+  "outerGuideRule": "global-collar-y-envelope-v1",
+  "returnRailProfile": {
+    "rule": "rear-vertical-low-return-v1",
+    "boundsSemantics": "complete-authenticated-near-position-bounds",
+    "baseClearanceMetres": 0.10
+  },
+  "anchors": {
+    "crest-left": {"physicalVertex": 79, "positionMetres": [-9.379647254943848, 3.797736644744873, -2.1853203773498535]},
+    "crest-right": {"physicalVertex": 2639, "positionMetres": [8.693384170532227, 4.76438570022583, -2.1518726348876953]},
+    "toe-right": {"physicalVertex": 3397, "positionMetres": [9.804009437561035, 0.0036408863961696625, 0.05296727269887924]},
+    "toe-left": {"physicalVertex": 67, "positionMetres": [-9.387274742126465, 0.013208913616836071, 0.15002721548080444]}
+  },
+  "dimensionsMetres": {
+    "rearExtension": 1.2,
+    "toeExtension": 0.8,
+    "leftExtension": 0.3,
+    "rightExtension": 0.3,
+    "baseBelowLowestSource": 0.4,
+    "collarWidth": 0.12,
+    "crestOuterRise": 0.08,
+    "toeOuterRise": 0.02
+  },
+  "budgets": {"maximumAddedTriangles": 1800, "maximumPhysicalTriangles": 8500, "maximumAddedVertices": 800},
+  "normalAuthoring": {
+    "schema": "forest-contact-soil-normal-fans-v2",
+    "smoothGroups": ["soil-cap-candidate", "toe-apron-candidate"],
+    "fanRule": "sorted-indexed-edge-pairwise-normal-cone-v2",
+    "weighting": "exact-oriented-area-vector-sum-v1",
+    "hardBoundaryRule": "different-semantics-and-original-scan-boundary-v1",
+    "maximumNormalSpreadDegrees": 60,
+    "minimumNormalCosine": 0.5,
+    "maximumPairTests": 131072,
+    "maximumFaces": 1800,
+    "maximumCorners": 5400,
+    "maximumEdges": 5400
+  },
+  "uvAuthoring": {
+    "schema": "forest-contact-metric-uv-v1",
+    "metresPerCoordinate": 1,
+    "originMetres": [0, 0, 0],
+    "maximumLinearDistortion": 2,
+    "preferredNormalCosineMinimum": 0.5,
+    "projectionRule": "semantic-preferred-then-signed-dominant-axis-v1",
+    "seams": "edge-connected-semantic-signed-projection-v1",
+    "maximumFaces": 1800,
+    "maximumCharts": 1800,
+    "maximumEdges": 5400
+  }
+}

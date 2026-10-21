@@ -8,6 +8,8 @@ using Hollow.Simulation.Movement;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
 using Hollow.Client.Audio;
+using Hollow.Client.Feedback;
+using Hollow.Simulation.Targets;
 using HollowUniverse.Audio;
 using HollowUniverse.Characters;
 using HollowUniverse.Fx;
@@ -19,8 +21,7 @@ namespace HollowUniverse.Ground;
 /// The other players (GROUND.md §4.8): each a <see cref="CharacterView"/> fed every frame from what the client
 /// replicates (position, up, yaw, pitch, the velocity seen, stance, ground, the item in hand), with their swings and
 /// shots, flinches when hurt, a ragdoll when they die, lying down asleep when logged off, and their clothing. Corpses
-/// are ragdolls too: a player's own body when they died in view, a fresh one when the corpse comes into range later;
-/// after <see cref="BodySeconds"/>, or when first seen far away, only the body's backpack is drawn.
+/// use the server's supported pose and saved appearance until its replicated phase becomes a backpack.
 /// </summary>
 public partial class PeopleView : Node3D
 {
@@ -43,34 +44,37 @@ public partial class PeopleView : Node3D
         public ushort[] Wear = Array.Empty<ushort>();
         public byte Body;
         public FootstepDriver? Feet;
+        public readonly RemoteMeleeSwingCue SwingCue = new();
+        public readonly ActionCuePlayer ReloadCues = new();
+        public byte ReloadAction;
+        public ushort ReloadItem;
+        public string ReloadKey = "";
+        public string? SwingCueSound;
         public FxHandle Flame;
         public Node3D? FlameSocket;
         public FootSurface Surface = FootSurface.Grass;
         public Num.Vector3 SurfaceAt = new(float.MaxValue);
+        public uint SurfaceFrame = uint.MaxValue;
     }
 
     private sealed class Corpse
     {
         public CharacterView? View;
         public Node3D? Bag;
-        public int Frames;
-        public bool Fallen;
-        public double Since;
     }
-
-    /// <summary>How long a body lies in view before only its backpack is left (Rust's corpse turning into a bag).</summary>
-    public const double BodySeconds = 150;
-
-    /// <summary>A corpse first seen farther than this is drawn as its backpack at once (no body to make).</summary>
-    public const float BodyDistance = 80;
 
     private readonly Dictionary<uint, Person> _people = new();
     private readonly Dictionary<uint, Corpse> _corpses = new();
     private readonly HashSet<uint> _seen = new();
     private ushort[] _myWear = Array.Empty<ushort>();
     private uint _wearRevision = uint.MaxValue;
+    private Person? _ownPlayer;
+    private uint _ownWear = uint.MaxValue;
+    private ushort _ownHeld;
+    private bool _ownReloading;
 
     public GameClient Client { get; set; } = null!;
+    public RecentContactFeedback? Contacts { get; set; }
 
     /// <summary>
     /// Players to name: the point above their head, their name, how far, and whether they are in the player's team.
@@ -109,9 +113,61 @@ public partial class PeopleView : Node3D
     /// <summary>The character view of a player by name (for screenshots that face them).</summary>
     public CharacterView? ViewOf(string name) => _people.Values.FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase))?.View;
 
-    public override void _Ready() => Client.Survival().LookChanged += OnLook;
+    public override void _Ready()
+    {
+        Client.Survival().LookChanged += OnLook;
+        Client.Local.Gun.ShotFired += OnOwnShot;
+        Client.Melee.Started += OnOwnSwing;
+        Client.Melee.Cancelled += CancelOwnAction;
+        Client.Local.DamageTaken += OnOwnDamage;
+    }
 
-    public override void _ExitTree() => Client.Survival().LookChanged -= OnLook;
+    public override void _ExitTree()
+    {
+        Client.Survival().LookChanged -= OnLook;
+        Client.Local.Gun.ShotFired -= OnOwnShot;
+        Client.Melee.Started -= OnOwnSwing;
+        Client.Melee.Cancelled -= CancelOwnAction;
+        Client.Local.DamageTaken -= OnOwnDamage;
+        RetireWorld();
+    }
+
+    /// <summary>Person/corpse IDs and animation history never carry into another world session.</summary>
+    public void RetireWorld()
+    {
+        foreach (Person person in _people.Values)
+        {
+            Torch(person, null);
+            person.SwingCue.Cancel();
+            person.View.CancelActions();
+            Release(person.View);
+            if (person.Feet is { } feet)
+            {
+                if (feet.GetParent() == this) RemoveChild(feet);
+                feet.QueueFree();
+            }
+        }
+        foreach (Corpse corpse in _corpses.Values)
+        {
+            foreach (Node3D? node in new Node3D?[] { corpse.View, corpse.Bag })
+                if (node != null)
+                {
+                    if (node.GetParent() == this) RemoveChild(node);
+                    node.QueueFree();
+                }
+        }
+        if (_ownPlayer is { } own)
+        {
+            Torch(own, null);
+            own.View.CancelActions();
+            Release(own.View);
+            _ownPlayer = null;
+        }
+        _people.Clear(); _corpses.Clear(); _seen.Clear();
+        _myWear = Array.Empty<ushort>();
+        _wearRevision = _ownWear = uint.MaxValue;
+        _ownHeld = 0; _ownReloading = false;
+    }
 
     private void OnLook(RemoteEntity entity)
     {
@@ -222,10 +278,149 @@ public partial class PeopleView : Node3D
     /// <summary>The ships as drawn (seated people sit where their seats are drawn).</summary>
     public ShipsView? Ships { get; set; }
 
+    /// <summary>Whether the local full body is currently drawn, for camera and runtime checks.</summary>
+    public bool OwnPlayerVisible => _ownPlayer?.View.Visible == true;
+
+    /// <summary>Compatibility for seat-only callers; all local body presentation goes through <see cref="ShowOwnPlayer"/>.</summary>
+    public void ShowOwnSeat(bool show) => ShowOwnPlayer(show && Client.Ships().Seated, Num.Vector3.Zero, 0);
+
+    /// <summary>
+    /// The predicted local player in an inspection camera, or a seat's ordinary orbit camera. Facing is the player's
+    /// aim in world space, never the orbit camera's direction. The same body, clothing and held models draw both views.
+    /// </summary>
+    public void ShowOwnPlayer(bool show, Num.Vector3 facing, float pitch)
+    {
+        if (!show || !Client.HasCharacter || Client.Local.IsDead)
+        {
+            HideOwnPlayer();
+            return;
+        }
+        CharacterFrame frame;
+        bool seated = Client.Ships().Seated;
+        ItemDef? item = seated ? null : Client.Local.HeldItem;
+        if (seated)
+        {
+            if (SeatFrame(Client.EntityId, 0, 0, 0, 0) is not { } seat)
+            {
+                HideOwnPlayer();
+                return;
+            }
+            frame = seat;
+            frame.LookYaw = 0;
+        }
+        else
+        {
+            CharacterState state = Client.Character;
+            Num.Vector3 velocity = state.Velocity;
+            if (state.Frame != 0)
+                velocity = Client.Ships().DrawnPose((uint)state.Frame) is { } ship ? ship.DirectionToWorld(velocity) : Num.Vector3.Zero;
+            Vector3 up = GroundView.ToGodot(Client.RenderUp);
+            bool swimming = (state.Flags & MoveFlags.Swimming) != 0;
+            (HeldKind kind, string? model) = item != null && ItemLooks.Held(item.Key) is { } held
+                ? held : (HeldKind.Unarmed, (string?)null);
+            frame = new CharacterFrame
+            {
+                Position = GroundView.ToGodot(Client.RenderPosition),
+                Up = up,
+                Yaw = CharacterFrame.YawToward(up, GroundView.ToGodot(facing)),
+                Pitch = pitch,
+                Velocity = GroundView.ToGodot(velocity),
+                Stance = Client.Local.IsWounded || state.Stance == Stance.Crawling ? CharacterStance.Crawl
+                    : swimming ? CharacterStance.Swim : state.Stance == Stance.Crouching ? CharacterStance.Crouch : CharacterStance.Stand,
+                Grounded = (state.Flags & MoveFlags.OnGround) != 0 || swimming,
+                Held = kind,
+                HeldItem = model,
+                Aiming = Client.Local.Gun.Aimed,
+            };
+        }
+        var body = (BodyType)Client.Body;
+        if (_ownPlayer != null && _ownPlayer.View.Body != body)
+        {
+            Torch(_ownPlayer, null);
+            Release(_ownPlayer.View);
+            _ownPlayer = null;
+        }
+        if (_ownPlayer == null)
+        {
+            CharacterView view;
+            if (!Spare(body).TryPop(out view!))
+            {
+                view = new CharacterView { Body = body };
+                AddChild(view);
+            }
+            view.Name = "Local player";
+            _ownPlayer = new Person { View = view, Body = Client.Body, Id = Client.EntityId };
+            _ownWear = uint.MaxValue;
+        }
+        CharacterView own = _ownPlayer.View;
+        if (_ownWear != Client.Local.Inventory.Wear.Revision)
+        {
+            _ownWear = Client.Local.Inventory.Wear.Revision;
+            own.Wear(ItemLooks.Outfit(Client.Content, _myWear));
+        }
+        bool wasVisible = own.Visible;
+        own.Visible = true;
+        own.Apply(frame);
+        ushort heldItem = item?.Id ?? 0;
+        if (!wasVisible || _ownHeld != heldItem || seated || Client.Local.IsWounded)
+        {
+            own.CancelActions();
+            _ownReloading = false;
+        }
+        _ownHeld = heldItem;
+        if (item?.Firearm != null && frame.HeldItem != null && own.HeldModel is { } gun)
+            GunEffects.Dress(Client.Content, gun, frame.HeldItem, Client.Local.Gun.Mods.Bits);
+        bool reloading = !seated && !Client.Local.IsWounded && Client.Local.Gun.Reloading;
+        if (reloading && !_ownReloading && item != null)
+            PlayOwnAction(item, "reload", Client.Local.Gun.ReloadProgress);
+        else if (!reloading && _ownReloading) own.CancelActions();
+        _ownReloading = reloading;
+        string? flame = item != null ? HollowUniverse.Items.ModelCatalog.Find(item.Key)?.Held?.Flame : null;
+        Torch(_ownPlayer, flame != null ? GunEffects.Socket(own.HeldModel, "flame") : null, flame ?? "fire.torch");
+    }
+
+    private void HideOwnPlayer()
+    {
+        if (_ownPlayer != null)
+        {
+            if (_ownPlayer.View.Visible) _ownPlayer.View.CancelActions();
+            _ownPlayer.View.Visible = false;
+            Torch(_ownPlayer, null);
+        }
+        _ownReloading = false;
+    }
+
+    private void OnOwnShot(ShotEvent shot)
+    {
+        if (OwnPlayerVisible && !Client.Ships().Seated && !Client.Local.IsWounded)
+            _ownPlayer!.View.Trigger(CharacterEvent.Fire);
+    }
+
+    private void OnOwnSwing(ItemDef item) => PlayOwnAction(item, "swing");
+
+    private void PlayOwnAction(ItemDef item, string action, float phase = 0)
+    {
+        if (!OwnPlayerVisible || Client.Ships().Seated || Client.Local.IsWounded || HeldItems.Find(item.Key) == null ||
+            !HeldPresentations.All.TryGetValue(item.Key, out HeldPresentationProfile? profile) ||
+            !profile.Actions.TryGetValue(action, out HeldPresentationClip? clip)) return;
+        _ownPlayer!.View.PlayItemAction(item.Key, action, HeldActionTiming.Duration(item, action, clip.Duration), phase);
+    }
+
+    private void CancelOwnAction() => _ownPlayer?.View.CancelActions();
+
+    private void OnOwnDamage(DamageEvent damage)
+    {
+        if (!OwnPlayerVisible || Client.Local.IsDead) return;
+        Vector3 direction = GroundView.ToGodot(Client.RenderPosition - damage.From).Normalized();
+        _ownPlayer!.View.Trigger(CharacterEvent.Hit, direction);
+    }
+
     // A seated character's frame (IRON_WAKE.md §9.6): the hips on the seat as its ship is drawn (a gunner's seat on its
     // turning mount), facing the seat's way with the head following the view; a station's gunner with both hands on its
     // grips (the data file's), a helm's pilot on the controls in front of the seat, a passenger's hands in the lap.
-    private CharacterFrame? SeatedFrame(RemoteEntity e, float viewYaw)
+    private CharacterFrame? SeatedFrame(RemoteEntity e, float viewYaw) => SeatFrame(e.Id, e.Pitch, viewYaw, e.LookYaw, e.LookPitch);
+
+    private CharacterFrame? SeatFrame(Hollow.Simulation.Entities.EntityId id, float pitch, float viewYaw, float lookYaw, float lookPitch)
     {
         if (Ships == null)
         {
@@ -233,7 +428,7 @@ public partial class PeopleView : Node3D
         }
         foreach (RemoteShip ship in Client.Ships().All)
         {
-            int seat = ship.SeatOf(e.Id);
+            int seat = ship.SeatOf(id);
             if (seat < 0 || ship.Def is not { } def || Ships.ViewOf(ship.NetId) is not { } view || seat >= def.Seats.Count)
             {
                 continue;
@@ -248,9 +443,9 @@ public partial class PeopleView : Node3D
                 Seat = at.Origin,
                 Up = up,
                 Yaw = yaw,
-                Pitch = e.Pitch,
-                LookYaw = Mathf.AngleDifference(yaw, viewYaw) + e.LookYaw,
-                LookPitch = e.LookPitch,
+                Pitch = pitch,
+                LookYaw = Mathf.AngleDifference(yaw, viewYaw) + lookYaw,
+                LookPitch = lookPitch,
                 Stance = CharacterStance.Sit,
                 Grounded = true,
             };
@@ -276,6 +471,7 @@ public partial class PeopleView : Node3D
     {
         if (p.Body != e.Body && !p.Down)
         {
+            p.SwingCue.Cancel();
             // Another body: a new view (a view's body is chosen when it is made), dressed as before.
             Release(p.View);
             p.View = NewView(e);
@@ -284,6 +480,7 @@ public partial class PeopleView : Node3D
             p.Frames = 0;
         }
         p.Frames++;
+        p.Dead = (e.Flags & MoveFlags.Dead) != 0;
         // Up where it stands as drawn (aboard a ship, its deck's: IRON_WAKE.md §4.8), and how it moves there: aboard, its
         // walk on the deck (the ship's own motion isn't a walk), turned as the ship is drawn.
         Num.Vector3 up = e.Up;
@@ -311,11 +508,14 @@ public partial class PeopleView : Node3D
         // In a ship's seat (IRON_WAKE.md §9.6): drawn sitting at the seat as the ship is drawn, every ship's.
         if (e.Stance == Stance.Seated && SeatedFrame(e, facing) is { } seated)
         {
+            p.SwingCue.Cancel();
+            p.ReloadCues.Cancel();
             p.View.Apply(seated);
             // Nothing in hand, no steps; what it did meanwhile isn't replayed when it stands up.
             Torch(p, null);
             p.Actions = e.ActionCount;
             p.Health = e.Health;
+            p.Feet?.Reset();
             return;
         }
         p.View.Apply(new CharacterFrame
@@ -328,10 +528,11 @@ public partial class PeopleView : Node3D
             LookPitch = e.LookPitch,
             Velocity = p.Velocity,
             // Crawling (down, G4) has no pose in the character contract yet: crouched is the nearest.
-            Stance = swimming ? CharacterStance.Swim : e.Stance is Stance.Crouching or Stance.Crawling ? CharacterStance.Crouch : CharacterStance.Stand,
+            Stance = e.Sleeping ? CharacterStance.Sleep : e.Wounded ? CharacterStance.Crawl : swimming ? CharacterStance.Swim : e.Stance == Stance.Crouching ? CharacterStance.Crouch : CharacterStance.Stand,
             Grounded = (e.Flags & MoveFlags.OnGround) != 0 || swimming,
             Held = kind,
             HeldItem = model,
+            Aiming = e.Aiming,
         });
         if (model != null && e.Held != 0 && Client.Content.Item(e.Held)?.Firearm != null && p.View.HeldModel is { } theirGun)
         {
@@ -353,6 +554,7 @@ public partial class PeopleView : Node3D
         {
             Steps(p, e, up, swimming, dt);
         }
+        else p.Feet?.Reset();
         if (down != p.Down)
         {
             p.Down = down;
@@ -377,9 +579,32 @@ public partial class PeopleView : Node3D
         {
             if (e.ActionCount != p.Actions)
             {
-                ItemDef? heldItem = e.Held != 0 ? Client.Content.Item(e.Held) : null;
+                p.SwingCue.Cancel();
+                ItemDef? heldItem = Client.Content.Item(e.ActionItem != 0 ? e.ActionItem : e.Held);
+                HeldPresentationProfile? profile = heldItem != null && HeldItems.Find(heldItem.Key) != null ? HeldPresentations.Get(heldItem.Key) : null;
+                string? action = e.Action switch
+                {
+                    ActionKind.Swing => "swing",
+                    ActionKind.Reload => "reload",
+                    ActionKind.Draw => "draw",
+                    ActionKind.Throw => "throw",
+                    ActionKind.Use => profile?.UseAction,
+                    ActionKind.Repair => "repair",
+                    _ => null,
+                };
+                if (action != null && heldItem != null && profile?.Actions.TryGetValue(action, out HeldPresentationClip? clip) == true)
+                {
+                    float duration = HeldActionTiming.Duration(heldItem, action, clip.Duration);
+                    float phase = (float)Math.Max(0, e.RenderTick - e.ActionTick) / CharacterTicks.Rate / duration;
+                    if (e.Action is ActionKind.Throw or ActionKind.Use or ActionKind.Repair)
+                        phase += HeldActionTiming.CommitFraction(action, duration);
+                    if (phase < 1f) p.View.PlayItemAction(heldItem.Key, action, duration, phase);
+                }
                 switch (e.Action)
                 {
+                    case ActionKind.None:
+                        p.View.CancelActions();
+                        break;
                     case ActionKind.Shoot:
                         p.View.Trigger(CharacterEvent.Fire);
                         if (heldItem?.Firearm != null)
@@ -388,18 +613,33 @@ public partial class PeopleView : Node3D
                         }
                         break;
                     case ActionKind.Reload:
-                        p.View.Trigger(CharacterEvent.Reload);
                         if (heldItem?.Firearm is { } gun)
                         {
-                            ReloadSounds(heldItem.Key, (float)gun.ReloadSeconds, head);
+                            p.ReloadAction = e.ActionCount;
+                            p.ReloadItem = heldItem.Id;
+                            p.ReloadKey = heldItem.Key;
+                            p.ReloadCues.Start(ContactFeedback.Actions.For("reload"), HeldActionTiming.Duration(heldItem, "reload", HeldActionTiming.Seconds(gun.ReloadTicks)),
+                                Math.Max(0, e.RenderTick - e.ActionTick) / CharacterTicks.Rate);
                         }
                         break;
                     case ActionKind.Draw:
                         Sounds.At("bow.draw", head);
                         break;
-                    default:
-                        p.View.Trigger(CharacterEvent.Swing);
-                        Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, "swing") ?? "melee.swing" : "melee.swing", head);
+                    case ActionKind.Swing:
+                        if (heldItem?.Melee != null)
+                        {
+                            p.SwingCueSound = Sounds.Item(heldItem.Key, "swing") ?? "melee.swing";
+                            p.SwingCue.Start(e, heldItem);
+                        }
+                        break;
+                    case ActionKind.Throw:
+                        Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, "throw") : null, head);
+                        break;
+                    case ActionKind.Use:
+                        Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, profile?.UseAction ?? "use") ?? Sounds.Item(heldItem.Key, "use") : null, head);
+                        break;
+                    case ActionKind.Repair:
+                        Sounds.At(heldItem != null ? Sounds.Item(heldItem.Key, "repair") : null, head);
                         break;
                 }
             }
@@ -410,12 +650,18 @@ public partial class PeopleView : Node3D
                 Sounds.At("survival.hurt", head);
                 // A blow or a bite bleeds here; a bullet's blood was shown where it hit.
                 Vector3 chest = GroundView.ToGodot(e.Position + up * 1.25f);
-                if (!GunEffects.FleshShown(chest, Client.ClockSeconds))
+                if (Contacts?.Contains(new TargetRef(TargetFamily.Character, p.Id.Value), Client.ClockSeconds) != true)
                 {
                     FxDirector.Play("blood.hit", chest + front * 0.15f, front, new FxParams { Direction = front });
                 }
             }
         }
+        if (p.SwingCue.Step(Client, e, !down))
+            Sounds.At(p.SwingCueSound, head);
+        p.ReloadCues.Advance(Math.Max(0, e.RenderTick - e.ActionTick) / CharacterTicks.Rate,
+            !down && !e.Wounded && e.Stance != Stance.Seated && e.ActionCount == p.ReloadAction &&
+            e.Action == ActionKind.Reload && e.Held == p.ReloadItem,
+            role => Sounds.At(Sounds.Item(p.ReloadKey, role), head));
         p.Actions = e.ActionCount;
         p.Health = e.Health;
     }
@@ -423,7 +669,7 @@ public partial class PeopleView : Node3D
     private int _silencers = -1;
 
     // A torch in their hand burns (the effects library's flame on its flame socket), out when they put it away.
-    private static void Torch(Person p, Node3D? socket)
+    private static void Torch(Person p, Node3D? socket, string effect = "fire.torch")
     {
         if (socket == p.FlameSocket)
         {
@@ -437,7 +683,7 @@ public partial class PeopleView : Node3D
         p.FlameSocket = socket;
         if (socket != null)
         {
-            p.Flame = FxDirector.Start("fire.torch", socket.GlobalPosition, Vector3.Up, new FxParams { Follow = socket });
+            p.Flame = FxDirector.Start(effect, socket.GlobalPosition, Vector3.Up, new FxParams { Follow = socket });
         }
     }
 
@@ -473,15 +719,7 @@ public partial class PeopleView : Node3D
         }
     }
 
-    // A reload's parts as they come: magazine out, in, the slide or bolt.
-    private void ReloadSounds(string gun, float seconds, Vector3 at)
-    {
-        Sounds.At(Sounds.Item(gun, "magOut"), at);
-        GetTree().CreateTimer(seconds * 0.55).Timeout += () => Sounds.At(Sounds.Item(gun, "magIn"), at);
-        GetTree().CreateTimer(seconds * 0.85).Timeout += () => Sounds.At(Sounds.Item(gun, "rack"), at);
-    }
-
-    // Their footsteps, at their feet, on the ground under them (looked up again every 4 m).
+    // Their footsteps in zone space, using deck-relative velocity and the surface directly underfoot.
     private void Steps(Person p, RemoteEntity e, Num.Vector3 up, bool swimming, float dt)
     {
         if (p.Feet == null)
@@ -489,10 +727,11 @@ public partial class PeopleView : Node3D
             p.Feet = new FootstepDriver { Name = "Feet " + e.Name };
             AddChild(p.Feet);
         }
-        if (Num.Vector3.Distance(e.Position, p.SurfaceAt) > 4)
+        if (e.Frame != p.SurfaceFrame || Num.Vector3.Distance(e.Position, p.SurfaceAt) > 0.6f)
         {
             p.SurfaceAt = e.Position;
-            p.Surface = GroundAudio.SurfaceAt(Client, e.Position);
+            p.SurfaceFrame = e.Frame;
+            p.Surface = GroundAudio.SurfaceAt(Client, e.Position, e.Frame, e.LocalPosition);
         }
         Vector3 upG = GroundView.ToGodot(up);
         float vertical = p.Velocity.Dot(upG);
@@ -505,17 +744,24 @@ public partial class PeopleView : Node3D
             Crouching = e.Stance is Stance.Crouching or Stance.Crawling,
             Swimming = swimming,
             Sprinting = speed > 4.5f,
+            Suppressed = e.Stance == Stance.Seated || (e.Flags & MoveFlags.Dead) != 0,
             Surface = p.Surface,
-            WaterDepth = GroundAudio.WaterDepth(Client, e.Position),
+            FootwearProfile = SoundLibrary.Footwear.Profile(Client.Content, e.Wear),
+            WaterDepth = e.Frame == 0 ? GroundAudio.WaterDepth(Client, e.Position) : 0,
         }, GroundView.ToGodot(e.Position));
     }
 
-    // Corpses: a dead player's ragdoll becomes their corpse; a corpse that came into range on its own gets a body that
-    // falls where it lies; an old or far one is its backpack.
+    // The server owns support, phase and death-time appearance. A stable prone pose stays on Jolt building floors
+    // and moving decks; a client-only ragdoll cannot collide with the server's building collision world.
     private void UpdateCorpses()
     {
-        double now = Time.GetTicksMsec() / 1000.0;
         var things = new HashSet<uint>();
+        foreach (Person person in _people.Values)
+        {
+            // Dead characters can remain replicated after their body expired. Their only visible representation is
+            // the authoritative corpse, including for somebody who joins after it has already gone.
+            if (person.Dead) person.View.Visible = false;
+        }
         foreach (RemoteThing thing in Client.Survival().Things)
         {
             if (thing.Kind != StaticKind.Corpse)
@@ -523,54 +769,39 @@ public partial class PeopleView : Node3D
                 continue;
             }
             things.Add(thing.NetId);
-            if (_corpses.TryGetValue(thing.NetId, out Corpse? known))
+            if (!_corpses.TryGetValue(thing.NetId, out Corpse? known))
             {
-                // A body aboard a ship (IRON_WAKE.md §4.10) is its backpack, where the ship is drawn this frame.
-                if (thing.Aboard && known.Bag != null)
-                {
-                    known.Bag.Transform = new Transform3D(NatureView.Upright(thing.Up, thing.Yaw), GroundView.ToGodot(thing.Position));
-                }
-                if (known.View != null && now - known.Since > BodySeconds)
-                {
-                    known.View.QueueFree();
-                    known.View = null;
-                    known.Bag = Bag(thing);
-                }
-                continue;
-            }
-            Vector3 at = GroundView.ToGodot(thing.Position);
-            // Far, or aboard a ship (a ragdoll doesn't ride a deck): its backpack.
-            if (thing.Aboard || Num.Vector3.Distance(thing.Position, Client.Character.Position) > BodyDistance)
-            {
-                _corpses[thing.NetId] = new Corpse { Bag = Bag(thing), Fallen = true, Since = now };
-                continue;
-            }
-            Person? died = _people.Values.FirstOrDefault(p => p.Dead && p.View.GlobalPosition.DistanceTo(at) < 3f && string.Equals(p.Name, thing.Name, StringComparison.Ordinal));
-            if (died != null)
-            {
-                // Adopt the falling body; the player gets a new one when they come back.
-                uint key = _people.First(kv => kv.Value == died).Key;
-                _people.Remove(key);
-                _corpses[thing.NetId] = new Corpse { View = died.View, Fallen = true, Since = now };
-                continue;
-            }
-            Person? owner = _people.Values.FirstOrDefault(p => p.Name == thing.Name);
-            byte body = thing.Name == Client.Name ? Client.Body : owner?.Body ?? 0;
-            var view = new CharacterView { Name = "Corpse " + thing.Name, Body = (BodyType)body };
-            AddChild(view);
-            ushort[] wear = thing.Name == Client.Name ? _myWear : owner?.Wear ?? Array.Empty<ushort>();
-            view.Wear(ItemLooks.Outfit(Client.Content, wear));
-            Num.Vector3 up = Client.Frame.UpAt(thing.Position);
-            view.Apply(CharacterFrame.Standing(at, GroundView.ToGodot(up), thing.Yaw));
-            _corpses[thing.NetId] = new Corpse { View = view, Since = now };
-        }
-        foreach ((uint id, Corpse corpse) in _corpses)
-        {
-            if (!corpse.Fallen && ++corpse.Frames >= 2)
-            {
-                corpse.Fallen = true;
-                corpse.View?.Trigger(CharacterEvent.Death, Vector3.Zero);
+                _corpses[thing.NetId] = known = new Corpse();
                 FrameEvents.Note("corpse");
+            }
+            if (thing.IsBody)
+            {
+                if (known.View == null)
+                {
+                    known.Bag?.QueueFree();
+                    known.Bag = null;
+                    var body = (BodyType)thing.CorpseBody;
+                    known.View = new CharacterView { Name = "Corpse " + thing.Name, Body = body,
+                        Look = Looks.ForPlayer(thing.CorpseOwner, body), FootPlacement = false, BlinkOverride = 1 };
+                    AddChild(known.View);
+                    known.View.Wear(ItemLooks.Outfit(Client.Content, thing.CorpseWear));
+                }
+                (Num.Vector3 forward, _) = Facing.Basis(thing.Yaw, thing.Up);
+                Vector3 up = GroundView.ToGodot(thing.Up);
+                known.View.Apply(new CharacterFrame
+                {
+                    Position = GroundView.ToGodot(thing.Position), Up = up,
+                    Yaw = CharacterFrame.YawToward(up, GroundView.ToGodot(forward)),
+                    Stance = CharacterStance.Sleep, Grounded = true,
+                });
+            }
+            else
+            {
+                known.View?.QueueFree();
+                known.View = null;
+                known.Bag ??= Bag(thing);
+                if (known.Bag != null)
+                    known.Bag.Transform = new Transform3D(NatureView.Upright(thing.Up, thing.Yaw), GroundView.ToGodot(thing.Position));
             }
         }
         foreach (uint gone in _corpses.Keys.Where(k => !things.Contains(k)).ToList())

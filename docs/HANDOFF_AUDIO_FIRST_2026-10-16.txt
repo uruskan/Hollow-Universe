@@ -1,0 +1,150 @@
+Continue development and quality repairs of Hollow Universe AB Test B. AUDIO IS THE FIRST PRIORITY. This is a continuation of substantial existing work, not a request to restart the game or merely write another plan. Inspect the actual implementation and evidence, preserve working repairs, and implement the remaining work in coordinated batches.
+
+CONTEXT AND EXPECTATIONS
+
+The owner reports that the game still looks and feels poor despite a long repair session. They thought audio had been finished because work had been done on it. Correct that distinction: routing repairs, source audits, successful builds and technically valid files do not establish good sound design or finished gameplay. The owner wants a coherent, convincing game, with proper sounds for everything and no placeholder shortcuts. Do not call the environment, audio, performance or all 47 reported issues finished.
+
+On 16 October the owner initially reported no grass, then confirmed: "ok its there but like everything else is still trashlike". Grass is present; the current problem is overall quality and poor night readability, not an established global grass-disappearance defect. They explicitly clarified that the old grass coverage was useful: it needed much greater diversity and realism. Preserve coverage while improving it.
+
+PROJECT AND RULES
+
+- Working project: D:\GameDev\Projects\HollowUniverseABTestB, branch abtest-b. No push remote. Handoff code checkpoint: 6b0100f3, following repair commit 353a62e5. Check current status before edits; other work may have arrived.
+- D:\GameDev\Projects\Hollow Universe is reference/source only. Do not edit or merge into it. RustMVP and hollow-orbit-source are references, not the working project.
+- Read AGENTS.md and docs/DESIGN.md first. DESIGN.md supersedes inherited design/lore/scale/workflow statements. Retain distinctions between confirmed requirements and proposals.
+- Godot 4.7.2 .NET, C#, standard build. No custom precision build or realistic astronomical simulation assumed. Maximum 1,000 playable stars; planet total surface area at most approximately 23.04 km²; Earth start with one rock and one torch; compressed direct flight without supercruise; preserve the ground UI. A source catalogue log of 99,142 stars is not by itself the playable-star count.
+- Keep simulation/rules engine-free in src/, Godot presentation in game/, deterministic generation and shared data-driven systems. Extend capabilities/registries rather than adding parallel item-specific paths.
+- Assets available under D:\GameDev\Assets. Use original/owned/permitted sources and retain provenance. Reference other games' mechanics and appearance; do not import their proprietary files into this repository.
+- Saves/settings are isolated under C:\Users\uruskan\AppData\Roaming\HollowUniverseABTestB. Never implicitly load the original game's saves. Copy saves for destructive/reproduction tests and preserve the user's session.
+- Split agent ownership before parallel edits. Root coordinates builds, imports, GPU runs and profiling. Use available concurrency in waves; do not pretend tens of agents can run simultaneously when the tool limit is smaller.
+- The owner authorized coordination with the chats named "Clarify the problem" (held-item work) and "Add salvaged axe". Both released their prior ownership; inspect current state before messaging or overlapping changes. That authorization does not cover unrelated chats.
+- Record work and honest validation in docs/DEVELOPMENT.md and update docs/REPAIR_STATUS.md. Visual changes need actual unedited game captures; audio quality needs listening to real playback and gameplay recordings. Never count a timeout/fallback capture or a file-load audit as artistic acceptance.
+
+READ THESE SOURCES
+
+docs/REPAIR_STATUS.md is the consolidated checkpoint. docs/reports/current-17-issues.md and docs/reports/legacy-30-issues.txt contain the owner's reports. Read relevant REPAIR_AUDIO, REPAIR_ENVIRONMENT, REPAIR_RESOURCE_NODES, REPAIR_ASSETS, REPAIR_PERFORMANCE, REPAIR_BUILDING, REPAIR_SHIPS, REPAIR_SURVIVAL, REPAIR_CLIENT, REPAIR_CORPSES, REPAIR_ATTACHMENTS and REPAIR_NETWORK documents. Also read docs/HELD_ITEMS.md for the coordinated animation/editor work. Some package documents contain older "pending" paragraphs superseded by later build17/18 evidence; resolve chronology before reopening already repaired defects. Historical reports are evidence of problems, not instructions to repeat old plans or approval flows.
+
+PRIORITY 1: FINISH AUDIO QUALITY AND ACTION FEEDBACK
+
+What was actually done:
+- The inherited library already contained recorded footsteps, firearm sounds, reloads, foley, voices and ambience. It was not replaced wholesale.
+- All 263 source downloads were checked against recorded hashes; zero were missing. D:\GameDev\Assets\Audio was empty at audit time. Useful packs were under D:\GameDev\Assets\Downloads: Kenney, Fantozzi/Corsica/Tinyworlds/Rubberduck, HaelDB, Still North Media, and BigSoundBank. Recheck availability rather than assuming these are the only usable sources.
+- Planet/ship-relative walking velocity, contact material sampling, shallow inland-water splashes, cadence resets and spherical ambient probes were corrected.
+- Eight dedicated injector, launcher and recycler events gained 22 distinct OGG variants, replacing misleading bandage/rifle/fire aliases. These are designed mixes of recordings and original synthesis, not authentic field recordings of every device.
+- Godot's engine audit loaded 235 events / 783 files with zero validation problems. This proves loading/measurement validity, NOT sound quality, audible synchronization, completeness or a finished mix.
+
+Do next:
+1. Build an action-by-action audio checklist with the current event, source, actual gameplay trigger, spatial/distance behavior, variation, mix level, animation timing, observed defect, replacement decision and listening evidence. Audit the whole catalogue, not only recently changed files.
+2. Start with player body-hit/headshot/kill confirmations and gun/melee feedback. Distinct confirmation events already exist; diagnose audibility, timing and mixing before duplicating them. Make body and headshot feedback concise and distinguishable without masking useful world audio. Test accepted hits, misses, armor, local/remote combat and competing effects.
+3. Audition walk/run/crouch/landing across grass, dirt, sand, gravel, stone, snow, constructed grades, scanned cliffs, monument interiors, shallow lakes/streams, swimming and moving ship decks. Check cadence, pitch variation, floor edges and feet/animation synchronization. Airborne/seated/dead/noclip states must not produce walking steps; inspect sleeping transitions too. Exact natural-prop/monument material identification remains incomplete.
+4. Improve firearm reports, reload stages, dry fire, shells, ricochets and material impacts; bow draw/release/flight/impact; melee swing/contact/weak spots; tree/ore depletion. Preserve authoritative action timing and distinct near/far layers. Check first-hit stalls before blaming every perceived delay on the waveform.
+5. Replace synthetic animal calls with appropriate recorded species-specific sounds, including calm/movement/alert/attack/hurt/death where appropriate. Validate believable repetition, distance and behavior transitions.
+6. Audit consumables and survival, clothing/gear, water and immersion, doors/locks, placement/build/repair/demolition, crafting/research/recycler/fire, inventory/attachment drag, ships/engines/thrusters, weapons/explosions, weather and biome ambience. Missing or inappropriate mappings remain work even when every file decodes.
+7. Select a coherent library/mix and replace weak sources deliberately. Do not indiscriminately swap good existing recordings, use another game's extracted audio, buy paid content without applicable authorization, or invent quality claims. Preserve provenance, hashes, shuffle variation, attenuation, voice budgets and the existing build pipeline.
+8. Validate changed routing with focused tests, source/measurement checks, --view sounds --sound-check and catalogue playback. Then record actual local/remote gameplay in representative environments and listen to it. A --play-all smoke test alone cannot establish gameplay quality. Report exactly what was auditioned; do not claim human approval that was not given.
+
+PRIORITY 2: ENVIRONMENT AND ASSET QUALITY
+
+Existing integration to preserve: dense legacy grass underlayer plus four scanned vegetation families (twelve variants with LODs); sixteen ground layers; reduced dry-ground sheen; local-water wetness corrections; four resource-node families and depletion stages; scanned cliff meshes/collision; six monument families; supplied substation components; water underside/immersion repairs. These are bounded improvements, not the requested final look.
+
+Remaining: large flat/cartoonish grass blades, repetitive placement, poor species/height/color transitions, coarse legacy trees/bark/crowns and rocks, weak ground-to-rock blending, sparse or unconvincing dressing, water/shore quality, night readability and excessive stars. Preserve lush coverage, build convincing forests and clearings, and verify readable biome/landform variety: valleys, riverbeds, lakes, hills, cliffs, mountains and flat areas. Validate resources and monuments in ordinary new/restored sessions rather than only at known test coordinates. Use Subsistence as DESIGN.md's direct atmosphere reference alongside the owner's Rust/Sons of the Forest/DayZ/NMS references. Study RustMVP's existing cliff/terrain solution without copying proprietary game assets.
+
+Asset integration status: six salvage replacements (gears, springs, pipe, sheet metal, tech scrap, rope) and three containers (wooden crate, reinforced crate, standard loot barrel) are installed with native materials and reviewed in Godot. Fuel barrels retain a separate model. Environment components from the Power/Substation/Ruin packages have some real placements; do not claim all 27 designs/every variant are fully integrated. Reconcile D:\GameDev\Assets\Hollow_Production_Briefs_R01\ASSET_INVENTORY.json with actual catalogue entries, placed scenes, collision, LODs, icons and gameplay. Wreck modules and remaining kit pieces need explicit disposition. Matching replacement destruction gibs were not supplied; old gibs remain. Held tools/workstations/waterworks were unproduced in that R01 inventory; this does not negate the separately completed salvaged axe. Recheck actual production state.
+
+Latest saved-game evidence:
+- The running client/server were the current ABTestB build, not an old launcher. The user was Survivor, port27025, using hollow-host-abtest-b.db with Maximum settings (grass density1.0, grass distance1.4).
+- Wake location was approximately (-693.6,632.2,-757.6), latitude31.61184°, longitude132.47481°. A later live hillside capture was near (-907.34845,800.36298,-67.84657). These are diagnostic coordinates, not guaranteed current positions.
+- .artifacts/grass-user-live-before.png shows dense but very dark grass. The 5,289-authored-plant startup log was a one-time population count, not continuous visibility proof. Noclip hides near grass above its configured ground distance, roughly58.8m at these settings; this is not a proven cause of the owner's original report.
+- Previous accepted environment comparisons used a fresh save, a selected location, fixed daylight and High. They did not validate the user's ordinary restored Maximum/night session.
+- A later copied-save night capture timed out/disconnected and was stopped. It is NOT accepted baseline evidence. The user's original running game/save were preserved.
+
+Pending lighting fix: .artifacts/cloud-shadow-stage contains eight candidate shader files, a manifest, DIAGNOSIS.md and two UNRUN source-contract tests. Live shaders apply a sun-direction cloud ray to every directional light, including moonlight. The candidate passes each light's actual direction. It has NOT been applied, compiled or visually validated, and ignored .artifacts files are not part of commit6b0100f3. Verify source hashes and inspect the patch before applying; reconstruct from diagnosis if staging is unavailable. Obtain fixed-camera night/day and clear/clouded comparisons at real saved locations. Record local hour, sun/moon elevation, moon phase and exposure. StarBoost400 and a visible star field omitted from ambient cubemap lighting are separate night-balance findings; no star/exposure/ambient retuning has been implemented. Do not brighten individual materials arbitrarily or claim this pending fix alone solves night quality.
+
+PRIORITY 3: PERFORMANCE, WEAPON FEEL AND REMAINING LIVE CHECKS
+
+Performance: the cube-face/full-scatter request-key collision was repaired, along with unnecessary vegetation/outcrop rebuilding on ordinary tree hits. Seven ordinary hits produced zero such uploads; terminal depletion retained one update and correct rewards/effects. First-hit cue/marker setup and broader stalls remain. Prior FPS comparisons overlapped external rendering/imports and cannot support an overall improvement claim. Profile the Ryzen3600/RTX2070SUPER/16GB machine with isolated idle, movement, tree-hit/depletion, dense-biome, ship and combat scenarios. Collect frame-time distributions, worst spikes, GPU/CPU cost, streaming and allocations; verify the changes against identical scenarios. Coordinate competing processes, do not kill unrelated jobs. Preserve honest quality/performance tradeoffs.
+
+Gunplay: held profiles, bow actions, rifle reloads, attachment drag, holo/scope ADS and weapon lights received substantial fixes. The inherited recoil/recovery and overall weapon feel have not received the requested pre-recoil-change Rust-inspired design pass. Research mechanics deliberately, then coordinate animation, recoil, aim, input, audio, camera response, hit timing and network confirmation. Preserve working hand alignment and the ADS-only512² scope viewport, world/FPS culling, FOV and underwater-fog synchronization. Measure scope cost in real combat.
+
+EXHAUSTIVE STATUS OF THE 17 CURRENT REPORTS
+
+R1 Unattended powered flight: implemented and actual pilot-exit flight tested. Preserve throttle/translation/assist until fuel exhaustion or engine off; releasing the pilot clears rotational input/held boost. Engine off removes thrust, not momentum. Keep persistence/network regressions.
+R2 Grass/nodes/monuments/empty planet: integrated foundations described above; full environment diversity, distribution and realism remain open. Owner now confirms grass exists.
+R3 Iron Wake agility: turning changes and bounded-turn tests implemented; evaluate feel during wider gameplay without losing turret stabilization.
+R4 Mouse flight: persistent steering/flicker repairs implemented; wider subjective BSGO-like control acceptance remains, not an exact recreation claim.
+R5 All-seat free TPS camera: implemented, actual pilot V/LMB/wheel sequence passed. Passenger/turret input isolation and live views still need checks. Camera can pass through ship geometry; occlusion behavior remains a limitation. Use hosted gameplay, not the old standalone ship-sandbox camera.
+R6 Plastic ground/immersive environment: bounded sheen/material repair accepted; broad environment art remains open.
+R7 Inventory character rotation: implemented and actual UI input tested; preserve it.
+R8 Broken arms/animations: coordinated held/bow/rifle repairs and male/female checks passed; maintain regression coverage while improving weapon feel. Do not reopen all animations as entirely unimplemented.
+R9 Proper sounds for everything: technical/routing work only; AUDIO-FIRST programme above remains.
+R10 Drowning/underwater/water: shared drowning and immersion implemented, underside capture accepted. Final water appearance and broader shore/swim/underwater transitions still need work.
+R11 Cliff/hill geometry: scanned cliffs integrated; broader dressing, blending and varied-landform acceptance remain.
+R12 Noclip wheel/F1 binds: implemented with admin/prediction checks; preserve persistent bindings and seated/menu input precedence.
+R13 Thirty old issues: every item is enumerated below; audit completion does not close them.
+R14 God-mode death/crash: central immunity, direct-death/wounded/wreck paths tested. Original native crash cause is unproven without a useful stack/repro. Reproduce safely on a save copy and keep diagnostics; do not mark every death crash fixed.
+R15 H-hover loot stops at panel boundary: latch behavior implemented and UI input tested.
+R16 Planet animals/AI/foundation safety: radial frames, grounding and attack-feasibility rules repaired; herd/chase captures inspected. Additional foundation/obstacle/attack cases, collider inspection and convincing behavior/art remain. Research Rust behavior from suitable sources; do not reduce this to blanket invulnerability on all structures.
+R17 Display modes: windowed, borderless and exclusive fullscreen implemented; three native modes checked.
+
+EXHAUSTIVE STATUS OF THE 30 LEGACY REPORTS
+
+L1 Whole-world map: implementation/projection tests exist; recheck actual whole-sphere coverage, projection, markers, labels and interaction before rewriting.
+L2 Flexible foundation heights on uneven land: support/placement repairs and tests exist; targeted uneven-terrain gameplay validation remains.
+L3 Bland forest-only world and30–80FPS: terrain/assets improved but world quality and clean performance evidence remain open; see environment/performance priorities.
+L4 First foundation snaps sideways: free-heading correction implemented; verify first placement and transitions into snapping with real input.
+L5 Triangle floor collapses despite two supports: support regressions repaired; reproduce that exact topology/removal sequence live.
+L6 Floor-joint glitching: solid-grade LOD0 joints inspected; twig shimmer, moving-camera edges and other LODs remain.
+L7 Window interior glitching: targeted window/stair/roof/material/LOD checks remain; general exterior captures are insufficient.
+L8 Door opening direction unclear during placement: inspect actual orientation preview and resulting door swing; do not count underlying rules alone as closure.
+L9 Cannot lock middle garage door in three triangular bays: placement/lock regressions exist; exact three-bay live reproduction still required.
+L10 Oversized deployable collisions/general snapping: measured fit and support-relative rotation improved; arbitrary positional snapping to every nearby wall/object is NOT implemented. Check bounds and real workbench clearances; extend shared placement systems as needed.
+L11 Bad ghost-to-placed transition: pending-ghost rules repaired; actual material/light transition checks remain.
+L12 Bed name/radial pickup/friend option: bed naming and authority/persistence/network tests pass. Inspect tap/hold/pickup behavior. Optional "give to friend" entry remains absent; owner allowed it to be nonfunctional initially.
+L13 Vehicle workbench E does nothing: existing technology-tree/network implementation passes tests; verify actual E route/scene before deciding a rewrite is needed.
+L14 Campfire and other fitting items rejected: measured fit improved; specific campfire/workbench interior gameplay cases remain.
+L15 Invisible corpse/loot/harvest/backpack: implemented and actual death-respawn-loot-harvest-body-to-bag sequence accepted. Uses a stable authored prone pose, not persistent physical ragdolls. Preserve same-container contents, late join, restart and support on buildings/ships.
+L16 Reversed FPS hand: substantial held-pose corrections accepted; maintain both-body FPS/TPS regressions.
+L17 Attachments/sockets/drag/sound/function: sockets, drag and network authority implemented; redundant REMOVE action filtered; actual holo/scope/light visuals passed. Audition drag audio, inspect remaining attachment types and measure combat cost.
+L18 Broken bow presentation: draw/release/held presentation repaired and reviewed. Verify audio feel/synchronization as part of priority1.
+L19 Missing body/headshot sound: distinct server-confirmed events already wired; actual audible prominence/timing/mix remains unfinished.
+L20 Clothing protection stats/tooltips: implemented and UI checked.
+L21 Poor gunplay/sound/recoil: open quality programme; existing recoil is inherited, not a completed old-Rust-style feel redesign.
+L22 Need proper models/animations: shared held editor and coordinated asset/animation work exist. Use Blender/appropriate production tools for identified deficiencies; do not invent a need for paid AI or declare all asset production finished.
+L23 Axe/tree-hit slowdown and desync: redundant redraws repaired; first-hit setup, clean frame-time measurements and animation/audio/contact synchronization remain.
+L24 Damaged-target health bar: shared rule and UI implemented; actual corpse acquisition passed. Verify barrel/wall/other target families in world, including visibility/range/target changes.
+L25 Radial text clipping: layout repairs and actual UI checks passed; preserve at supported scales/resolutions and longer labels.
+L26 HV versus normal rocket speed/drop/lethality: distinct trajectories/data and simulation tests already exist; live comparison, impacts and bear lethality need reconfirmation before speculative tuning.
+L27 Ship fuel inventory: normal one-slot Open tank implemented and live-tested. Preserve accepted-fuel filtering, capacities, fractional reserve and exact burn/prediction. Current persistence is ShipCodec5; older paragraphs mentioning4 are historical. The internal refuel verb ID remains for compatibility but performs Open, not automatic transfer.
+L28 Q/E flight, Space exits seats: routing and actual pilot airborne exit tested. Passenger/turret mode transitions and no accidental firing/menu activation still need live checks.
+L29 General ship up/down/control and noclip speed: controls and persistent speed/binds implemented; wider flight feel/input checks remain.
+L30 God-mode ship-crash death/architecture concern: central immunity/wreck logic tested; native crash cause remains unproven. Keep shared damage rules; avoid scattered special cases.
+
+ADDITIONAL COMPLETED WORK TO PRESERVE
+
+- Salvaged axe: model, icons, recipe/research/loot, sound and held profile integrated; focused checks/captures passed.
+- Snapshot bandwidth: exact generated state/header accounting repaired without weakening packet budgets or priority-service requirements.
+- Capture isolation and readiness: physical input, window preferences and unintended session switching are isolated for standalone screenshots. Planet scatter collision and building-corner tile eviction/readiness issues were fixed.
+- FPS overlay was NOT removed. Latest inspected preference was fps=false in user://ground-settings.cfg. F1 command fps toggles it and saves the preference. The previous response gave instructions; it did not change the user's setting. Do not silently reset unrelated preferences.
+
+LARGER DESIGN SCOPE
+
+This handoff is exhaustive for the47 reported issues plus the added asset/lighting/audio follow-ups; it is not proof that the entire DESIGN.md is implemented. After the quality priorities, maintain requirement-to-code/test/live-evidence coverage for the larger game: star-map presentation, compact direct interplanetary/interstellar travel and continuous ascent/descent; configurable monuments, biomes, changing weather, ore veins/autominers; shared oxygen/equipment/survival; respawn options across planets/ships; dropped-loot merging; specialized workbenches, research, rare blueprints/variants; modular spacecraft, cargo/interiors/raiding/capture and player-operated weapons; electricity/batteries/wiring/turrets; persistence, multiplayer and low-population renewal. Inspect before classifying each as complete, partial or missing. Do not promote design proposals, future NPCs or unresolved decisions into confirmed scope.
+
+VALIDATION AND DELIVERY
+
+Historical evidence: full engine-free suite384/384 on build16; subsequent builds17/18 and Release server clean with zero warnings/errors; final focused8/8 after renderer changes; actual UI47/47; engine sound235/783. These are checkpoint-specific, not a new full suite on current edits and not user acceptance of appearance/sound. Captures live in docs/images/abtest-b/repairs. Some exit diagnostics (Texture/ObjectDB leaks and held-editor Jolt warnings) remain recorded; do not hide them or assert they explain the reported native crash without evidence.
+
+Useful commands from the project root:
+  dotnet build HollowUniverse.sln
+  dotnet build src/Hollow.Server -c Release
+  dotnet run --project tests/Hollow.Tests
+  dotnet run --project tests/Hollow.Tests -- AudioRepair SoundCatalogue
+  python -I art/audio/sources.py --verify
+  python -I art/audio/build.py
+  Godot --headless --path game --editor --import
+  Godot --headless --path game -- --view sounds --sound-check
+  Godot --path game -- --view sounds --sound rifle.shot --play --trace
+  Godot --path game -- --view sounds --play-all --trace
+
+Godot executable: D:\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64\Godot_v4.7.2-stable_mono_win64_console.exe. Use the actual executable instead of the shorthand above. Coordinate builds/imports/tests and inspect command support before relying on a run. Regenerate networking if Messages.cs changes. Use fresh/copy saves, unique ports and normal hosted gameplay for input/authority checks. Do not use overlapping GPU jobs for performance claims.
+
+Begin by checking the current checkout/processes and assigning bounded ownership. Establish the audio checklist and representative gameplay recording first; parallelize independent environment diagnosis or remaining gameplay checks within available slots. Preserve already working systems. Deliver concrete improvements with files changed, tests, unedited screenshots/audio recordings, observed limitations and an updated issue matrix. Distinguish IMPLEMENTED, TECHNICALLY VERIFIED, VISUALLY/AUDIBLY REVIEWED, USER-ACCEPTED and STILL OPEN. Do not stop at another proposal or claim the complete game is finished because a large automated suite passes.

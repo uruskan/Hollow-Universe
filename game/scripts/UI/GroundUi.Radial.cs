@@ -274,28 +274,33 @@ public partial class GroundUi
         {
             RadialOption option = options[shown];
             OptionIcon(option.Icon, new Vector2(800, 345), G.Brick, 64);
-            float title = 40;
-            while (title > 22 && Measure(option.Title, title, true, true) > 355)
-            {
-                title--;
-            }
-            CentreText(option.Title, 431, title, G.Ivory);
-            float description = 20;
-            while (description > 15 && Measure(option.Description, description, false, true) > 355)
-            {
-                description--;
-            }
-            CentreText(option.Description, 480, description, G.Ivory, bold: false);
+            RadialText(option.Title, 415, 355, 58, 30, G.Ivory, bold: true);
+            RadialText(option.Description, 476, 340, 50, 18, G.Ivory);
             if (option.Cost != null)
             {
-                CentreText(option.Cost, 568, 20, G.Ivory, bold: false);
+                RadialText(option.Cost, 530, 310, 40, 18, G.Ivory);
             }
             if ((option.Reason ?? option.Warning) is { } why)
             {
-                CentreText(why, 601, 17, G.Warning, bold: false);
+                RadialText(why, 575, 230, 40, 17, G.Warning);
             }
         }
         CentreText($"RELEASE {Triggers[_radialInput].Label} TO SELECT   ·   ESC TO CANCEL", 792, 17, G.Ivory, bold: false);
+    }
+
+    // Every centre field wraps and fits its own area, including cost/refusal strings. Long words split safely.
+    private void RadialText(string value, float y, float width, float height, float size, Color colour, bool bold = false)
+    {
+        List<string> lines = WrapLines(value, width, size, bold);
+        while (size > 13 && lines.Count * (size + 3) > height)
+        {
+            size--;
+            lines = WrapLines(value, width, size, bold);
+        }
+        for (int i = 0; i < lines.Count; i++)
+        {
+            TextIn(lines[i], 800 - width / 2, y + i * (size + 3), width, size, colour, HorizontalAlignment.Center, bold);
+        }
     }
 
     // A filled ring sector, with antialiased edges.

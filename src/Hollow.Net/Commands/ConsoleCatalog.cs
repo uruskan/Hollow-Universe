@@ -29,7 +29,7 @@ public enum ArgKind : byte
     OnOff,
     Command,
 
-    /// <summary>A ship's kind (ships.json's keys: tin-finch, iron-wake).</summary>
+    /// <summary>A ship's kind (ships.json's keys: tin-finch, iron-wake, motorboat).</summary>
     Ship,
 }
 
@@ -59,10 +59,15 @@ public static class ConsoleCatalog
         Def("quit", ["quit"], "Leaves the game (a hosted game saves and stops).", false, CommandSide.Client, [], "exit", "global.quit"),
         Def("fps", ["fps"], "Shows or hides the frame rate.", false, CommandSide.Client, [], "perf", "global.fps"),
         Def("netgraph", ["netgraph"], "Shows or hides the network graph (F3).", false, CommandSide.Client, [], "global.netgraph"),
-        Def("fov", ["fov [degrees]"], "The field of view, 60 to 100 degrees (75 by default); kept on this computer.", false, CommandSide.Client,
+        Def("fov", ["fov [degrees]"], "The field of view, 30 to 110 degrees (75 by default; 40 matches a long lens); kept on this computer.", false, CommandSide.Client,
             [ArgKind.Number], "graphics.fov"),
         Def("sensitivity", ["sensitivity [x]"], "Mouse sensitivity, 0.1 to 5 (1 by default); kept on this computer.", false, CommandSide.Client,
             [ArgKind.Number], "input.sensitivity"),
+        Def("bind", ["bind <key> [command]", "bind F6 \"noclip\""], "Assign a console command to a physical key or MWHEELUP/MWHEELDOWN; saved locally. Without a command, shows the binding.", false, CommandSide.Client, [ArgKind.Text, ArgKind.Command]),
+        Def("unbind", ["unbind <key>"], "Remove a saved console-command binding.", false, CommandSide.Client, [ArgKind.Text]),
+        Def("binds", ["binds"], "List saved console-command bindings.", false, CommandSide.Client, []),
+        Def("admire", ["admire"], "Inspect the held item without using it. Default key N; use bind <key> admire to assign another key and unbind N to remove the default.", false, CommandSide.Client, []),
+        Def("noclipspeed", ["noclipspeed [1..200]"], "Preferred noclip speed in m/s, sprint multiplies by four. Only affects players granted noclip by the server; wheel adjusts it while flying.", false, CommandSide.Client, [ArgKind.Number], "noclip.speed"),
 
         // ---------------------------------------------------------------- everyone, on the server
         Def("kill", ["kill", "kill <player>  (admin)"],
@@ -73,6 +78,8 @@ public static class ConsoleCatalog
             false, CommandSide.Server, [], "pos", "global.whereami"),
 
         // ---------------------------------------------------------------- admins
+        Def("thirdperson", ["thirdperson [on|off]"], "See your own character with a free orbit camera: hold right mouse to turn, mouse wheel to zoom. Toggles when no option is supplied; lasts for this session.",
+            true, CommandSide.Client, [ArgKind.OnOff], "tps", "selfcamera"),
         Def("give", ["give <item> [amount] [player]"], "Puts items into an inventory (item keys as in items.json, <item>.blueprint for its blueprint; the rest drops at the feet).",
             true, CommandSide.Server, [ArgKind.Item, ArgKind.Amount, ArgKind.Player], "inventory.give", "inventory.giveto", "giveto", "inventory.giveid"),
         Def("kit", ["kit <loot table> [player]"], "Gives a loot table's items (loot.json), e.g. supply-crate or gunfight-kit.",
@@ -94,6 +101,10 @@ public static class ConsoleCatalog
         Def("heal", ["heal [player]"], "Full health, food and water, and no bleeding.", true, CommandSide.Server, [ArgKind.Player], "global.heal"),
         Def("god", ["god [on|off] [player]"], "No damage of any kind.", true, CommandSide.Server, [ArgKind.OnOff, ArgKind.Player],
             "global.god", "godmode"),
+        Def("freebuild", ["freebuild [on|off] [player]"], "Toggle free building and crafting for an admin; on by default. No ingredients, blueprints or workbenches required.",
+            true, CommandSide.Server, [ArgKind.OnOff, ArgKind.Player]),
+        Def("bgrade", ["bgrade [off|twig|wood|stone|metal|armoured] [player]"], "Choose the grade of newly placed building pieces, or off for normal twig placement.",
+            true, CommandSide.Server, [ArgKind.Grade, ArgKind.Player]),
         Def("noclip", ["noclip [on|off] [player]"],
             "Flies through everything: W A S D along the view, Space up, Ctrl down, Shift fast.", true, CommandSide.Server,
             [ArgKind.OnOff, ArgKind.Player], "global.noclip", "fly"),
@@ -112,8 +123,11 @@ public static class ConsoleCatalog
             "inventory.clear", "strip"),
         Def("ship", ["ship [player] [kind]"], "A ship beside a player, theirs and fuelled, its way in toward them: a Tin Finch, or the kind named (iron-wake).",
             true, CommandSide.Server, [ArgKind.Player, ArgKind.Ship]),
-        Def("raidbase", ["raidbase [grade] [player]"], "A claimed hut 8 m in front of a player, listing them (twig, wood, stone, metal, armoured).",
+        Def("raidbase", ["raidbase [grade] [player]", "raidbase hut [grade] [player]"], "A claimed 3×3 clan base 26 m ahead, with honeycomb, stairs, shooting floor and roof peeks. Choose twig, wood, stone, metal or armoured. Use 'hut' for the small test fixture.",
             true, CommandSide.Server, [ArgKind.Grade, ArgKind.Player]),
+        Def("airlock", ["airlock [triangle|room] [layoutFirst] [layoutSecond] [open|shut] [player]"],
+            "Two doors that can close the walk between them (docs/DOORS.md §7), 9 m ahead: a triangle with two single doors (layouts 1 and 2 close it) or a square room with a double door and a single door (0 and 1). A layout is 0 to 3: bit 0 hinges on the right, bit 1 swings out.",
+            true, CommandSide.Server, [ArgKind.Text, ArgKind.Number, ArgKind.Number, ArgKind.Text, ArgKind.Player]),
         Def("admin", ["admin <name>"], "Gives a player admin rights until the server stops (admins.txt keeps them).", true, CommandSide.Server,
             [ArgKind.Player], "ownerid", "moderatorid"),
         Def("unadmin", ["unadmin <name>"], "Takes admin rights away until the server stops.", true, CommandSide.Server, [ArgKind.Player],

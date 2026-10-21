@@ -21,6 +21,7 @@ public static class GroundSystems
         new BlastSystem(),
         // Under the physics gate, after the characters moved.
         new ShipSystem(),
+        new DoorMotionSystem(),
         // GROUND.md §4.2's order: actions, projectiles and damage, survival, devices, AI, decay and upkeep.
         new PlayerSystem(),
         new CombatSystem(),
@@ -32,6 +33,12 @@ public static class GroundSystems
         new VitalsSystem(),
         new NatureSystem(),
         new ThingSystem(),
+        new CompoundInteractionSystem(),
+        new PowerSystem(),
+        new DeviceAuthorizationSystem(),
+        new WiringSystem(),
+        new DefenseSystem(),
+        new ContactHazardSystem(),
         new ArrowSystem(),
         new WorldSystem(),
         new ActionSystem(),

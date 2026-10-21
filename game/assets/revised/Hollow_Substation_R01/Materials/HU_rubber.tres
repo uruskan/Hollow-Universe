@@ -1,0 +1,7 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[resource]
+resource_name = "HU_rubber"
+albedo_color = Color(0.025, 0.03, 0.032, 1)
+roughness = 0.79
+texture_filter = 5

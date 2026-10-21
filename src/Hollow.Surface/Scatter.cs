@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using Hollow.Core;
 
 namespace Hollow.Surface;
@@ -67,6 +69,9 @@ public interface IScatterField
 
     /// <summary>Height of the ground above the mean radius at a unit direction, metres.</summary>
     double HeightAt(Vector3D direction);
+
+    /// <summary>Footprints reserved by world structures, checked at the actual candidate after density interpolation.</summary>
+    bool AllowsScatter(Vector3D direction) => true;
 
     /// <summary>
     /// Densities of everything the scatter places at a point, from its sample and the ground's slope (the sine of its
@@ -138,9 +143,21 @@ public readonly record struct ScatterPlan(int Level, int TreeCells, int BushCell
         ScatterKind.Bush => BushCells,
         ScatterKind.Fern => FernCells,
         ScatterKind.BerryRed or ScatterKind.BerryBlue => BerryCells,
-        ScatterKind.StoneOutcrop => OutcropCells,
+        ScatterKind.StoneOutcrop or ScatterKind.HighGradeOutcrop => OutcropCells,
         _ => RockCells,
     };
+}
+
+/// <summary>
+/// Explicit bounded generation admission. Managed bytes are conservative estimates, not process memory.
+/// </summary>
+public sealed record ScatterGenerationLimits
+{
+    public const int MaximumCandidates = 4194304, MaximumItems = 1048576;
+    public const long MaximumEstimatedBytes = 128L * 1024 * 1024;
+    public required long MaxCandidateVisits { get; init; }
+    public required int MaxItems { get; init; }
+    public required long MaxEstimatedBytes { get; init; }
 }
 
 /// <summary>
@@ -189,31 +206,78 @@ public static class Scatter
     /// The scatter of a tile, or only its trees (for drawing far away). The trees are the same objects either way: each
     /// kind has its own candidates and random streams.
     /// </summary>
-    public static List<ScatterItem> ForTile(IScatterField surface, TileKey tile, bool treesOnly)
+    public static List<ScatterItem> ForTile(IScatterField surface, TileKey tile, bool treesOnly) =>
+        ForTileCore(surface, tile, treesOnly, null, default);
+
+    /// <summary>Exact candidate visits, before density sampling. Tree species share one candidate stream.</summary>
+    public static long CandidateCount(ScatterPlan plan, bool treesOnly = false)
     {
-        var items = new List<ScatterItem>();
+        if (plan.Level is < 0 or > 26) throw new ArgumentOutOfRangeException(nameof(plan));
+        static long Square(int cells) => cells > 0 ? checked((long)cells * cells) :
+            throw new ArgumentOutOfRangeException(nameof(plan));
+        long trees = Square(plan.TreeCells);
+        return treesOnly ? trees : checked(trees + Square(plan.BushCells) + Square(plan.FernCells) +
+            Square(plan.RockCells) + 2 * Square(plan.BerryCells) + 2 * Square(plan.OutcropCells));
+    }
+
+    /// <summary>Managed estimate for density arrays and an exact-capacity item list, not process memory.</summary>
+    public static long EstimatedBuildBytes(int maximumItems)
+    {
+        if (maximumItems < 0 || maximumItems > ScatterGenerationLimits.MaximumItems)
+            throw new ArgumentOutOfRangeException(nameof(maximumItems));
+        return checked(4096L + 121L * (2 * Unsafe.SizeOf<Vector3D>() + Unsafe.SizeOf<SurfaceSample>()) +
+            81L * Unsafe.SizeOf<Densities>() + (long)maximumItems * Unsafe.SizeOf<ScatterItem>());
+    }
+
+    /// <summary>All-or-fail bounded generation. Accepted order, values and seed streams are identical to ForTile.</summary>
+    public static List<ScatterItem> ForTile(IScatterField surface, TileKey tile, ScatterGenerationLimits limits,
+        CancellationToken cancellation = default, bool treesOnly = false)
+    {
+        ArgumentNullException.ThrowIfNull(limits);
+        return ForTileCore(surface, tile, treesOnly, limits, cancellation);
+    }
+
+    private static List<ScatterItem> ForTileCore(IScatterField surface, TileKey tile, bool treesOnly,
+        ScatterGenerationLimits? limits, CancellationToken cancellation)
+    {
         ScatterPlan plan = surface.ScatterPlan;
+        int maximumItems = int.MaxValue, capacity = 0;
+        if (limits != null)
+        {
+            long candidates = CandidateCount(plan, treesOnly);
+            if (limits.MaxCandidateVisits < 0 || limits.MaxCandidateVisits > ScatterGenerationLimits.MaximumCandidates ||
+                limits.MaxItems < 0 || limits.MaxItems > ScatterGenerationLimits.MaximumItems || limits.MaxEstimatedBytes < 1 ||
+                limits.MaxEstimatedBytes > ScatterGenerationLimits.MaximumEstimatedBytes)
+                throw new ArgumentOutOfRangeException(nameof(limits));
+            capacity = (int)Math.Min(candidates, limits.MaxItems); maximumItems = limits.MaxItems;
+            if (candidates > limits.MaxCandidateVisits || EstimatedBuildBytes(capacity) > limits.MaxEstimatedBytes)
+                throw new FormationCapacityException("Scatter generation exceeds its admitted candidate or byte allowance.");
+        }
+        cancellation.ThrowIfCancellationRequested();
+        var items = capacity == 0 ? new List<ScatterItem>() : new List<ScatterItem>(capacity);
         if (tile.Level != plan.Level)
         {
             return items;
         }
-        Densities[] grid = DensityField(surface, tile);
+        Densities[] grid = DensityField(surface, tile, cancellation);
         ulong tileSeed = Hash64.Of(surface.ScatterSeed, 0x53434154, tile.Packed); // "SCAT"
-        Place(surface, plan, tile, grid, tileSeed, ScatterKind.Fir, items);
+        Place(surface, plan, tile, grid, tileSeed, ScatterKind.Fir, items, maximumItems, cancellation);
         if (!treesOnly)
         {
-            Place(surface, plan, tile, grid, tileSeed, ScatterKind.Bush, items);
-            Place(surface, plan, tile, grid, tileSeed, ScatterKind.Fern, items);
-            Place(surface, plan, tile, grid, tileSeed, ScatterKind.Rock, items);
-            Place(surface, plan, tile, grid, tileSeed, ScatterKind.BerryRed, items);
-            Place(surface, plan, tile, grid, tileSeed, ScatterKind.BerryBlue, items);
+            Place(surface, plan, tile, grid, tileSeed, ScatterKind.Bush, items, maximumItems, cancellation);
+            Place(surface, plan, tile, grid, tileSeed, ScatterKind.Fern, items, maximumItems, cancellation);
+            Place(surface, plan, tile, grid, tileSeed, ScatterKind.Rock, items, maximumItems, cancellation);
+            Place(surface, plan, tile, grid, tileSeed, ScatterKind.BerryRed, items, maximumItems, cancellation);
+            Place(surface, plan, tile, grid, tileSeed, ScatterKind.BerryBlue, items, maximumItems, cancellation);
             // Gameplay kinds after the plants, each from its own candidates and streams, so adding them moved nothing.
-            Place(surface, plan, tile, grid, tileSeed, ScatterKind.StoneOutcrop, items);
+            Place(surface, plan, tile, grid, tileSeed, ScatterKind.StoneOutcrop, items, maximumItems, cancellation);
+            Place(surface, plan, tile, grid, tileSeed, ScatterKind.HighGradeOutcrop, items, maximumItems, cancellation);
         }
+        cancellation.ThrowIfCancellationRequested();
         return items;
     }
 
-    private static Densities[] DensityField(IScatterField surface, TileKey tile)
+    private static Densities[] DensityField(IScatterField surface, TileKey tile, CancellationToken cancellation)
     {
         int n = DensityGrid + 1, m = n + 2;
         var directions = new Vector3D[m * m];
@@ -223,6 +287,7 @@ public static class Scatter
         {
             for (int i = 0; i < m; i++)
             {
+                cancellation.ThrowIfCancellationRequested();
                 Vector3D d = TileMesh.Direction(tile, DensityGrid, i - 1, j - 1);
                 SurfaceSample s = surface.Sample(d);
                 int k = j * m + i;
@@ -236,6 +301,7 @@ public static class Scatter
         {
             for (int i = 0; i < n; i++)
             {
+                cancellation.ThrowIfCancellationRequested();
                 int k = (j + 1) * m + (i + 1);
                 Vector3D du = points[k + 1] - points[k - 1], dv = points[k + m] - points[k - m];
                 Vector3D cross = Vector3D.Cross(du, dv);
@@ -251,7 +317,7 @@ public static class Scatter
     }
 
     private static void Place(IScatterField surface, ScatterPlan plan, TileKey tile, Densities[] grid, ulong tileSeed,
-        ScatterKind kind, List<ScatterItem> items)
+        ScatterKind kind, List<ScatterItem> items, int maximumItems, CancellationToken cancellation)
     {
         int n = DensityGrid + 1;
         int cells = plan.CellsFor(kind);
@@ -261,6 +327,7 @@ public static class Scatter
         {
             for (int ci = 0; ci < cells; ci++)
             {
+                cancellation.ThrowIfCancellationRequested();
                 int candidate = cj * cells + ci;
                 var rng = new Rng(Hash64.Of(tileSeed, (ulong)kind, (ulong)candidate));
                 double fu = (ci + rng.Range(0.12, 0.88)) / cells, fv = (cj + rng.Range(0.12, 0.88)) / cells;
@@ -277,6 +344,7 @@ public static class Scatter
                 }
                 double u = tile.U0 + fu * span, v = tile.V0 + fv * span;
                 Vector3D direction = CubeSphere.Direction(tile.Face, u, v);
+                if (!surface.AllowsScatter(direction)) continue;
                 ScatterKind placed = kind;
                 float scale;
                 if (kind == ScatterKind.Fir)
@@ -292,9 +360,10 @@ public static class Scatter
                     double r = rng.NextDouble();
                     scale = (float)(0.25 + 2.2 * r * r * r);
                 }
-                else if (kind == ScatterKind.StoneOutcrop)
+                else if (kind is ScatterKind.StoneOutcrop or ScatterKind.HighGradeOutcrop)
                 {
-                    placed = OutcropKind(ref rng, Bilinear(a.Mountain, b.Mountain, c.Mountain, d.Mountain, tx, ty));
+                    placed = kind == ScatterKind.HighGradeOutcrop ? kind
+                        : OutcropKind(ref rng, Bilinear(a.Mountain, b.Mountain, c.Mountain, d.Mountain, tx, ty));
                     scale = (float)rng.Range(0.8, 1.25);
                 }
                 else
@@ -304,6 +373,8 @@ public static class Scatter
                 byte variant = (byte)rng.NextInt(256);
                 float yaw = (float)rng.Range(0, DMath.TwoPi);
                 float height = (float)surface.HeightAt(direction);
+                if (items.Count == maximumItems)
+                    throw new FormationCapacityException("Scatter output exceeds its admitted item allowance.");
                 items.Add(new ScatterItem((int)placed << 24 | candidate, placed, variant, direction, height, yaw, scale));
             }
         }
@@ -361,6 +432,7 @@ public static class Scatter
         ScatterKind.BerryRed => d.RedBerries,
         ScatterKind.BerryBlue => d.BlueBerries,
         ScatterKind.StoneOutcrop => d.Outcrops,
+        ScatterKind.HighGradeOutcrop => d.Outcrops * 0.075,
         _ => d.Rocks,
     };
 

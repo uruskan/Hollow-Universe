@@ -1,0 +1,273 @@
+{
+  "method": "uniform normalization; source UVs, tangent normals and roughness retained",
+  "collision": "existing conservative boulder sphere retained; not a triangle-exact collider",
+  "sources": [
+    {
+      "family": "rock_moss_set_02",
+      "license": "CC0-1.0",
+      "files": [
+        {
+          "path": "D:\\GameDev\\Assets\\rock_moss_set_02_4k.gltf\\rock_moss_set_02_4k.gltf",
+          "sha256": "2ee8f3e231ee13250fa5a9340834abec48d604d0715c62df0dfe16d1c1a52296"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\rock_moss_set_02_4k.gltf\\rock_moss_set_02.bin",
+          "sha256": "2df9d8eaaca4207529b0f613d4886d3962d0b9ffc0cdfd2bc4bf35dbcd391cb5"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\rock_moss_set_02_4k.gltf\\textures\\rock_moss_set_02_nor_gl_4k.jpg",
+          "sha256": "db381487b6b52dce6bd73235dd1d943d0da1b75791714b1a3686bf08eaedf4b1"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\rock_moss_set_02_4k.gltf\\textures\\rock_moss_set_02_diff_4k.jpg",
+          "sha256": "c605c4b3d2cdf92eb4a4b65d825b7ec27d6e6e138a77849de50948bc485710be"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\rock_moss_set_02_4k.gltf\\textures\\rock_moss_set_02_rough_4k.jpg",
+          "sha256": "3abc61dd81678c44dd277d7fd0415629ce1a83ee429a44c7e7530ea8a86ef2f3"
+        }
+      ]
+    },
+    {
+      "family": "tundra_boulder",
+      "license": "Fab Standard License",
+      "files": [
+        {
+          "path": "D:\\GameDev\\Assets\\tundra_boulder_vixsch3dw_high.glb",
+          "sha256": "6d98335a68e6c95f7c10b6df82afc9a12e585c519ea0bd8b33cb2117cea02665"
+        }
+      ]
+    },
+    {
+      "family": "tundra_lichened",
+      "license": "Fab Standard License",
+      "files": [
+        {
+          "path": "D:\\GameDev\\Assets\\tundra_lichened_boulder_vivvbfhaw_high.glb",
+          "sha256": "4e3ba76223b865436333f1397049090357645cd52e0ee51341ab802cbc80559b"
+        }
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "key": "rock_moss_set_02_00",
+      "source_mesh": "rock_moss_set_02_rock07",
+      "uniform_scale": 0.9678858836178298,
+      "levels": [
+        {
+          "node": "rock_moss_set_02_00_lod0",
+          "triangles": 6500,
+          "height": 0.7207807302474976,
+          "extent": 0.819319486618042
+        },
+        {
+          "node": "rock_moss_set_02_00_lod1",
+          "triangles": 898,
+          "height": 0.7195789217948914,
+          "extent": 0.8197891712188721
+        }
+      ]
+    },
+    {
+      "key": "rock_moss_set_02_01",
+      "source_mesh": "rock_moss_set_02_rock08",
+      "uniform_scale": 1.2617279550212421,
+      "levels": [
+        {
+          "node": "rock_moss_set_02_01_lod0",
+          "triangles": 6499,
+          "height": 0.6670401096343994,
+          "extent": 0.7610309720039368
+        },
+        {
+          "node": "rock_moss_set_02_01_lod1",
+          "triangles": 900,
+          "height": 0.6571252942085266,
+          "extent": 0.7693787813186646
+        }
+      ]
+    },
+    {
+      "key": "rock_moss_set_02_02",
+      "source_mesh": "rock_moss_set_02_rock09",
+      "uniform_scale": 1.0100126205354822,
+      "levels": [
+        {
+          "node": "rock_moss_set_02_02_lod0",
+          "triangles": 6499,
+          "height": 0.615960955619812,
+          "extent": 0.8226190805435181
+        },
+        {
+          "node": "rock_moss_set_02_02_lod1",
+          "triangles": 900,
+          "height": 0.6151320338249207,
+          "extent": 0.8256683945655823
+        }
+      ]
+    },
+    {
+      "key": "rock_moss_set_02_03",
+      "source_mesh": "rock_moss_set_02_rock10",
+      "uniform_scale": 0.8301645106472603,
+      "levels": [
+        {
+          "node": "rock_moss_set_02_03_lod0",
+          "triangles": 6499,
+          "height": 0.6379430890083313,
+          "extent": 0.9143945574760437
+        },
+        {
+          "node": "rock_moss_set_02_03_lod1",
+          "triangles": 900,
+          "height": 0.6373446583747864,
+          "extent": 0.9132731556892395
+        }
+      ]
+    },
+    {
+      "key": "rock_moss_set_02_04",
+      "source_mesh": "rock_moss_set_02_rock11",
+      "uniform_scale": 0.587551378570705,
+      "levels": [
+        {
+          "node": "rock_moss_set_02_04_lod0",
+          "triangles": 6499,
+          "height": 0.7699999809265137,
+          "extent": 0.5739491581916809
+        },
+        {
+          "node": "rock_moss_set_02_04_lod1",
+          "triangles": 900,
+          "height": 0.7668788433074951,
+          "extent": 0.575998842716217
+        }
+      ]
+    },
+    {
+      "key": "rock_moss_set_02_05",
+      "source_mesh": "rock_moss_set_02_rock12",
+      "uniform_scale": 0.9923006787939309,
+      "levels": [
+        {
+          "node": "rock_moss_set_02_05_lod0",
+          "triangles": 6499,
+          "height": 0.7303435206413269,
+          "extent": 0.7836955785751343
+        },
+        {
+          "node": "rock_moss_set_02_05_lod1",
+          "triangles": 899,
+          "height": 0.7314499616622925,
+          "extent": 0.7864199280738831
+        }
+      ]
+    },
+    {
+      "key": "rock_moss_set_02_06",
+      "source_mesh": "rock_moss_set_02_rock13",
+      "uniform_scale": 0.6128461168487568,
+      "levels": [
+        {
+          "node": "rock_moss_set_02_06_lod0",
+          "triangles": 6500,
+          "height": 0.7699990272521973,
+          "extent": 0.640862226486206
+        },
+        {
+          "node": "rock_moss_set_02_06_lod1",
+          "triangles": 900,
+          "height": 0.7714235782623291,
+          "extent": 0.6461774706840515
+        }
+      ]
+    },
+    {
+      "key": "tundra_boulder_00",
+      "source_mesh": "vixsch3dw_LOD0_TIER1_000_MatID_1_0",
+      "uniform_scale": 0.6586254498108236,
+      "levels": [
+        {
+          "node": "tundra_boulder_00_lod0",
+          "triangles": 6499,
+          "height": 0.5781325697898865,
+          "extent": 0.8702617883682251
+        },
+        {
+          "node": "tundra_boulder_00_lod1",
+          "triangles": 900,
+          "height": 0.5762155652046204,
+          "extent": 0.8696359992027283
+        }
+      ]
+    },
+    {
+      "key": "tundra_lichened_00",
+      "source_mesh": "vivvbfhaw_LOD0_TIER1_000_MatID_1_0",
+      "uniform_scale": 0.5858309500024573,
+      "levels": [
+        {
+          "node": "tundra_lichened_00_lod0",
+          "triangles": 6500,
+          "height": 0.7698790431022644,
+          "extent": 0.6165515184402466
+        },
+        {
+          "node": "tundra_lichened_00_lod1",
+          "triangles": 900,
+          "height": 0.7693027853965759,
+          "extent": 0.6178595423698425
+        }
+      ]
+    }
+  ],
+  "model": "res://assets/surface/rocks/authored_rocks.gltf",
+  "sha256": "225f1bb89f06332c80fa78105e9150b282b76b1722dca028dd69135d63acea96",
+  "outputs": [
+    {
+      "file": "game/assets/surface/rocks/authored_rocks.gltf",
+      "sha256": "225f1bb89f06332c80fa78105e9150b282b76b1722dca028dd69135d63acea96"
+    },
+    {
+      "file": "game/assets/surface/rocks/authored_rocks.bin",
+      "sha256": "00c44f2c0f695ac4a3bc60bb4cabb69949d04e031c43c66714b16f8c4a0dfbb8"
+    },
+    {
+      "file": "game/assets/surface/rocks/rock_moss_set_02_nor_gl_4k.jpg",
+      "sha256": "db381487b6b52dce6bd73235dd1d943d0da1b75791714b1a3686bf08eaedf4b1"
+    },
+    {
+      "file": "game/assets/surface/rocks/rock_moss_set_02_diff_4k.jpg",
+      "sha256": "c605c4b3d2cdf92eb4a4b65d825b7ec27d6e6e138a77849de50948bc485710be"
+    },
+    {
+      "file": "game/assets/surface/rocks/rock_moss_set_02_rough_4k.jpg",
+      "sha256": "3abc61dd81678c44dd277d7fd0415629ce1a83ee429a44c7e7530ea8a86ef2f3"
+    },
+    {
+      "file": "game/assets/surface/rocks/tundra_boulder_Image_2.jpg",
+      "sha256": "ad8e3290223f292c281c67aac696c495edd3dbb6c138314545248505f50f26ea"
+    },
+    {
+      "file": "game/assets/surface/rocks/tundra_boulder_Image_1.png",
+      "sha256": "2e61ab1a7414762e5e038f68cd0777f06cd259406d72f0bfc13ea8f73f1e97ab"
+    },
+    {
+      "file": "game/assets/surface/rocks/tundra_boulder_Image_0.jpg",
+      "sha256": "9a8edd0a6e6d0c2a84cee969815dfa3616575fd474a2ff5d0f46f43014a868c5"
+    },
+    {
+      "file": "game/assets/surface/rocks/tundra_lichened_Image_2.jpg",
+      "sha256": "4e683156f4f4811e427ef6067497d8e77ea6f7c2d0ccbada7c65d3f5f164219c"
+    },
+    {
+      "file": "game/assets/surface/rocks/tundra_lichened_Image_1.png",
+      "sha256": "133cbcf5648e8bd20592cd0114b06f56e1b89b2c29d56cb29562ba3904b3a0f7"
+    },
+    {
+      "file": "game/assets/surface/rocks/tundra_lichened_Image_0.jpg",
+      "sha256": "945bf31584ea281fa5ded0a3eb381c551b74eca8e7b687f67b38513bbd696f86"
+    }
+  ]
+}

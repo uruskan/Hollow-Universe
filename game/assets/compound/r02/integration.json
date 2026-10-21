@@ -1,0 +1,618 @@
+{
+  "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02",
+  "destination": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\assets\\compound\\r02",
+  "verifiedEntries": 228,
+  "deliverySha256": "b1ebf046e82f590d3efd361a1461640060902b154c98721688649e3b9398dfea",
+  "models": [
+    "large-furnace",
+    "wooden-barricade",
+    "wood-compound-wall",
+    "wood-compound-gate",
+    "stone-compound-wall",
+    "stone-compound-gate",
+    "windmill",
+    "sam-site",
+    "wood-spike-barricade",
+    "metal-barricade",
+    "auto-turret",
+    "wooden-ladder"
+  ],
+  "adapter": "tools/integrate_compound.py",
+  "provenance": "Owner-authored assemblies; Poly Haven / ambientCG CC0 materials. Source notices retained.",
+  "boundary": "Byte integrity and deterministic orientation/collision conversion; runtime validation is separate.",
+  "files": [
+    {
+      "path": "game/assets/compound/r02/textures/8aef6cca90590d6ef396d48e4f02d3a0babb7b631bbd063f596f3b1f0316bd62.png",
+      "sha256": "8aef6cca90590d6ef396d48e4f02d3a0babb7b631bbd063f596f3b1f0316bd62",
+      "bytes": 25048607
+    },
+    {
+      "path": "game/assets/compound/r02/textures/98cbfc0eb4299d42af4e98124ebe5fb5a3fbdb122d625a079d925aab8b31540e.png",
+      "sha256": "98cbfc0eb4299d42af4e98124ebe5fb5a3fbdb122d625a079d925aab8b31540e",
+      "bytes": 18210524
+    },
+    {
+      "path": "game/assets/compound/r02/textures/546edb871f064b8a304fb0c5c41f994feb303dc29b30276fa7fa818407733576.png",
+      "sha256": "546edb871f064b8a304fb0c5c41f994feb303dc29b30276fa7fa818407733576",
+      "bytes": 22931605
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_01_Large_Furnace_Baked.tres",
+      "sha256": "c2acb6d8cf0106f5f431bda8cd21a0ae71728ac99afbc8a75555ea97d66b2083",
+      "bytes": 1028
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\01_Large_Furnace.glb",
+      "sourceSha256": "6beaa845e8424d5308921b0c662f1383255a39829f9af95841f5138e329e9b04",
+      "path": "game/assets/compound/r02/large-furnace.glb",
+      "sha256": "38ae502b9a2a331eb5937bfcf5280a0e4b043885b8eedcf699daeb41c770e031",
+      "bytes": 11767060
+    },
+    {
+      "path": "game/assets/compound/r02/large-furnace.glb.import",
+      "sha256": "cf16b43a34d5b83608f7f5a79428b7a2c119b8b8c97de84de1f8ab1e583ecce8",
+      "bytes": 373
+    },
+    {
+      "path": "game/assets/compound/r02/textures/85bffb0b2476670adc4330a9f58580543feef9d14a93a76c85b25e73f3ea56f9.png",
+      "sha256": "85bffb0b2476670adc4330a9f58580543feef9d14a93a76c85b25e73f3ea56f9",
+      "bytes": 7475898
+    },
+    {
+      "path": "game/assets/compound/r02/textures/145dc2a1595bb87690929150bc721f5e95e649325ba043560acfe0debd1fe639.png",
+      "sha256": "145dc2a1595bb87690929150bc721f5e95e649325ba043560acfe0debd1fe639",
+      "bytes": 5319841
+    },
+    {
+      "path": "game/assets/compound/r02/textures/af32b4b06771071e27a0de960d30a0c3e6a4db84e41bd9ed18e03c8b67aad2e6.png",
+      "sha256": "af32b4b06771071e27a0de960d30a0c3e6a4db84e41bd9ed18e03c8b67aad2e6",
+      "bytes": 6722964
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_02_Wooden_Barricade_Baked.tres",
+      "sha256": "367dfb739e437621ecb45ac6f3eae18990de3c62e8e353f99a206bd448787293",
+      "bytes": 1031
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\02_Wooden_Barricade.glb",
+      "sourceSha256": "1e97da8bed0be744475f96dc9a572ed158ce8463213c9d52de74f9e6207e5235",
+      "path": "game/assets/compound/r02/wooden-barricade.glb",
+      "sha256": "97dd2442eee24720d68355f3a516a3d6594947dd8a6a4d25264e66757a0c85c8",
+      "bytes": 730976
+    },
+    {
+      "path": "game/assets/compound/r02/wooden-barricade.glb.import",
+      "sha256": "fcb0fb4427151626b8211627831912c3822b5db637b564420a6fa3cc0f65edff",
+      "bytes": 1359
+    },
+    {
+      "path": "game/assets/compound/r02/textures/8416170abcf8429fd5d9bc90a5b8c0fbf265ab3492a979329b482bd35f33a96f.png",
+      "sha256": "8416170abcf8429fd5d9bc90a5b8c0fbf265ab3492a979329b482bd35f33a96f",
+      "bytes": 26019533
+    },
+    {
+      "path": "game/assets/compound/r02/textures/def2da4a41779e1eae3119b75e45cc89bf3c39869eef9c52a25eb8e630d7d900.png",
+      "sha256": "def2da4a41779e1eae3119b75e45cc89bf3c39869eef9c52a25eb8e630d7d900",
+      "bytes": 18319256
+    },
+    {
+      "path": "game/assets/compound/r02/textures/c2ff604f46e1609dacb896d9a377cfd4705991435e8c0ac06dc1b6d8c314a83e.png",
+      "sha256": "c2ff604f46e1609dacb896d9a377cfd4705991435e8c0ac06dc1b6d8c314a83e",
+      "bytes": 23940663
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_03_Wood_Compound_Wall_Baked.tres",
+      "sha256": "8db19bceab69539fc69ac1450952e71c573bdccf1a36bf53eb8f75f1be61b01f",
+      "bytes": 1033
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\03_Wood_Compound_Wall.glb",
+      "sourceSha256": "9bd63f34cd4781247902e9e92ec540591ebe14eefed19baaeec18b0e8b814083",
+      "path": "game/assets/compound/r02/wood-compound-wall.glb",
+      "sha256": "8a02a7a71543e7e9771d219baa00d1f0d5d81de0b821ff50a449eee938afa901",
+      "bytes": 1092888
+    },
+    {
+      "path": "game/assets/compound/r02/wood-compound-wall.glb.import",
+      "sha256": "cacc27d568cf623e11c6397b3c0261687f4f99f0cfcfdae1c2a5b0e2589f1f67",
+      "bytes": 1369
+    },
+    {
+      "path": "game/assets/compound/r02/textures/63292bad35afb2d1283d509a95c9f169adbc5cdfd8cbc793bbf21df10af586d3.png",
+      "sha256": "63292bad35afb2d1283d509a95c9f169adbc5cdfd8cbc793bbf21df10af586d3",
+      "bytes": 29480271
+    },
+    {
+      "path": "game/assets/compound/r02/textures/b2a72f20eb76d146db1c4134a484256698bc361c6022c909bd6eb015c2d6ccb5.png",
+      "sha256": "b2a72f20eb76d146db1c4134a484256698bc361c6022c909bd6eb015c2d6ccb5",
+      "bytes": 23206168
+    },
+    {
+      "path": "game/assets/compound/r02/textures/b140b500289c49845bab98c188fbf969fd35312742cd513c870219728e44de29.png",
+      "sha256": "b140b500289c49845bab98c188fbf969fd35312742cd513c870219728e44de29",
+      "bytes": 26115775
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_04_Wood_Compound_Gate_Baked.tres",
+      "sha256": "c61a57f9140210abc3ffb3b8970f20ae022a856aa708060dbded126675228fb7",
+      "bytes": 1033
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\04_Wood_Compound_Gate.glb",
+      "sourceSha256": "2941d5789b51ee3ec3d36a84437cdfc735ac57751d7adc16ef870340bccc9c25",
+      "path": "game/assets/compound/r02/wood-compound-gate.glb",
+      "sha256": "103b6254353e5d1f7260ac39eac80372e538ac1aba71081eee05b11f3a6ba986",
+      "bytes": 5913636
+    },
+    {
+      "path": "game/assets/compound/r02/wood-compound-gate.glb.import",
+      "sha256": "5b5710ba6e8c5efdec01b4a0da222c68a0a2c29f8737c89716022f953be75fc6",
+      "bytes": 383
+    },
+    {
+      "path": "game/assets/compound/r02/textures/617490823c92a6487aa705f27b3e5b8bcf8ee4945c0148431925f2567fc198a7.png",
+      "sha256": "617490823c92a6487aa705f27b3e5b8bcf8ee4945c0148431925f2567fc198a7",
+      "bytes": 19292088
+    },
+    {
+      "path": "game/assets/compound/r02/textures/520d832105f2af3b7510138ada462b1d7519509422cdfdf33a3670cee7d50690.png",
+      "sha256": "520d832105f2af3b7510138ada462b1d7519509422cdfdf33a3670cee7d50690",
+      "bytes": 19401554
+    },
+    {
+      "path": "game/assets/compound/r02/textures/648166923a806ad41d4f3b837b97b13b2fb8177ed337a98acf52069affaa3cd2.png",
+      "sha256": "648166923a806ad41d4f3b837b97b13b2fb8177ed337a98acf52069affaa3cd2",
+      "bytes": 20639409
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_05_Stone_Compound_Wall_Baked.tres",
+      "sha256": "dbf6e2290d8a6bb8b400294fd232a2ba3fb59f1faa662eb728dfc0395a5ea661",
+      "bytes": 1034
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\05_Stone_Compound_Wall.glb",
+      "sourceSha256": "8037a941234644220607c5396550f00a2f9fa102b2f5994a68bc6a2d4a619f13",
+      "path": "game/assets/compound/r02/stone-compound-wall.glb",
+      "sha256": "c64b711dc5f4f741b6e6aa766fd37dc666d683235c5c9c600af226007ec300c2",
+      "bytes": 1848164
+    },
+    {
+      "path": "game/assets/compound/r02/stone-compound-wall.glb.import",
+      "sha256": "1ea54e2780899dcde89230e161d50457f0bd95a1fd54420d9c840ee44c8beb90",
+      "bytes": 385
+    },
+    {
+      "path": "game/assets/compound/r02/textures/36e7b964a4f43da0db727a3ebd3dab1128614bc187d7072a99cca7264fb9294d.png",
+      "sha256": "36e7b964a4f43da0db727a3ebd3dab1128614bc187d7072a99cca7264fb9294d",
+      "bytes": 15649842
+    },
+    {
+      "path": "game/assets/compound/r02/textures/4e0ecaa04f5b333b1b97af09f18462d3a5c841bce1d47400e96fc7c94e1e420d.png",
+      "sha256": "4e0ecaa04f5b333b1b97af09f18462d3a5c841bce1d47400e96fc7c94e1e420d",
+      "bytes": 23542656
+    },
+    {
+      "path": "game/assets/compound/r02/textures/a1631e47ee65dc141a647ef04954ee1d1ed6585e981d6e00facfb9bb0653abea.png",
+      "sha256": "a1631e47ee65dc141a647ef04954ee1d1ed6585e981d6e00facfb9bb0653abea",
+      "bytes": 21136490
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_06_Stone_Compound_Gate_Baked.tres",
+      "sha256": "3f79f113eb2ab06f9bc3a31eeaae5560487680d3db4bbb35953609911e5be13e",
+      "bytes": 1034
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\06_Stone_Compound_Gate.glb",
+      "sourceSha256": "e2c1833a9fa5fd272ccc8ef0a3080754f96264abc407b6aab279663e74f75b65",
+      "path": "game/assets/compound/r02/stone-compound-gate.glb",
+      "sha256": "6177e59e9f913dc1e1c2e18e5e1f40f1e414ea7f6ffe752333c797565ba20318",
+      "bytes": 3652504
+    },
+    {
+      "path": "game/assets/compound/r02/stone-compound-gate.glb.import",
+      "sha256": "acb537ac0086f31350624721fe6e828bf35a08e664c75b05bf081492e9422fc6",
+      "bytes": 385
+    },
+    {
+      "path": "game/assets/compound/r02/textures/88ccb9e7bddcf90ad78f495c2322b478a2337b40d0b118ada0e585ac7f78926b.png",
+      "sha256": "88ccb9e7bddcf90ad78f495c2322b478a2337b40d0b118ada0e585ac7f78926b",
+      "bytes": 18989923
+    },
+    {
+      "path": "game/assets/compound/r02/textures/868426a9d25753b96069d03ae0d2bcc6dba871e688666acda7c2935201e9fe51.png",
+      "sha256": "868426a9d25753b96069d03ae0d2bcc6dba871e688666acda7c2935201e9fe51",
+      "bytes": 21399118
+    },
+    {
+      "path": "game/assets/compound/r02/textures/2ef9b8ec1d8b0001ca43c3729cfdb40b05e5dfbd8e7eb15f06282cda69bb9e0f.png",
+      "sha256": "2ef9b8ec1d8b0001ca43c3729cfdb40b05e5dfbd8e7eb15f06282cda69bb9e0f",
+      "bytes": 22135172
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_07_Windmill_Baked.tres",
+      "sha256": "ebbe3d2f0a29973586aa14b97d88436f12dbe0e1bac5b0fb39e46d06a8ee207e",
+      "bytes": 1023
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\07_Windmill.glb",
+      "sourceSha256": "20ee6dd0871c22d39adac49cd0f8f39a03f2a7ac7c6481b7e9944350ad7f052e",
+      "path": "game/assets/compound/r02/windmill.glb",
+      "sha256": "c923ef7e73182a7b63cf728fdbfa49ba1454b9d3a883fd23ee885cadf436f874",
+      "bytes": 3682648
+    },
+    {
+      "path": "game/assets/compound/r02/windmill.glb.import",
+      "sha256": "714106948e4f76569b7848d71dc5d7b90dcc10b4474552ae87199f0577a51dc1",
+      "bytes": 363
+    },
+    {
+      "path": "game/assets/compound/r02/textures/d7446700b49641ff871b385331ebc8d8346251ec0f5f9ec8cdb0e00c7340a2ed.png",
+      "sha256": "d7446700b49641ff871b385331ebc8d8346251ec0f5f9ec8cdb0e00c7340a2ed",
+      "bytes": 12180233
+    },
+    {
+      "path": "game/assets/compound/r02/textures/b372b3ab8c053c0ca76b0d1353e24c7468add37b451616c527f195b9e48d3ffa.png",
+      "sha256": "b372b3ab8c053c0ca76b0d1353e24c7468add37b451616c527f195b9e48d3ffa",
+      "bytes": 25362674
+    },
+    {
+      "path": "game/assets/compound/r02/textures/d372025a662aab746d1d41a4821cf68ff1a3f96b04ebf0ec772095301ad02674.png",
+      "sha256": "d372025a662aab746d1d41a4821cf68ff1a3f96b04ebf0ec772095301ad02674",
+      "bytes": 16086082
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_08_Orbital_SAM_Baked.tres",
+      "sha256": "7d409cae6722083e4be4b9df914bbb91487f5ea4cb0ca4cef6a61a3fae816f68",
+      "bytes": 1026
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\08_Orbital_SAM.glb",
+      "sourceSha256": "a8997fec2cfeb82959a593b3817ed79db6ad734f849b4400202e4b8a606b92d0",
+      "path": "game/assets/compound/r02/sam-site.glb",
+      "sha256": "4d6c59201c3be661d2fe5e051004b338cb3dd431e917488d6d8d1415b4041f57",
+      "bytes": 22827060
+    },
+    {
+      "path": "game/assets/compound/r02/sam-site.glb.import",
+      "sha256": "8bd822193c8a98d077002280647e5a045f0e80eaa8a12f43724f6a01bb8a9684",
+      "bytes": 369
+    },
+    {
+      "path": "game/assets/compound/r02/textures/c6b8f24b8f5c88fe0886b295907ac3f7e9be3154d1e2d93dc22fe74fa4759303.png",
+      "sha256": "c6b8f24b8f5c88fe0886b295907ac3f7e9be3154d1e2d93dc22fe74fa4759303",
+      "bytes": 6984026
+    },
+    {
+      "path": "game/assets/compound/r02/textures/b0d976b2345a700d633d9fcb9c9073e973301f6c6ff4a3a48f8c31d1f3f672bb.png",
+      "sha256": "b0d976b2345a700d633d9fcb9c9073e973301f6c6ff4a3a48f8c31d1f3f672bb",
+      "bytes": 6025677
+    },
+    {
+      "path": "game/assets/compound/r02/textures/dd907fb3423ea23f70ca7b27eddcf0d171c205747603e20785223f8a76ed3f30.png",
+      "sha256": "dd907fb3423ea23f70ca7b27eddcf0d171c205747603e20785223f8a76ed3f30",
+      "bytes": 6096328
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_09_Wood_Spike_Barricade_Baked.tres",
+      "sha256": "f19780f141260c30fa9aabeb7a27a88324270ffd0c2b026e33890b8ea13263ed",
+      "bytes": 1035
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\09_Wood_Spike_Barricade.glb",
+      "sourceSha256": "90135e667a80a7480126ef87eabe9450c4e80e4356aed51eff06bfb38db46d92",
+      "path": "game/assets/compound/r02/wood-spike-barricade.glb",
+      "sha256": "7d4cfb836ccddde4d544c774f1b810407f3177d387906a3aff787eeb88787716",
+      "bytes": 1254332
+    },
+    {
+      "path": "game/assets/compound/r02/wood-spike-barricade.glb.import",
+      "sha256": "b7f24a32ac921054d02613e1be984e076cfdcb27edf06e4f4dea61de2dd2b04d",
+      "bytes": 1379
+    },
+    {
+      "path": "game/assets/compound/r02/textures/869044d9c1e158c76fde02400ec5ce7e62a294e222dc158439d5e913990e9588.png",
+      "sha256": "869044d9c1e158c76fde02400ec5ce7e62a294e222dc158439d5e913990e9588",
+      "bytes": 3503766
+    },
+    {
+      "path": "game/assets/compound/r02/textures/5ee3af4f575ab3e898750a427383aeef59960254142025dc52bc54ad45d2f7db.png",
+      "sha256": "5ee3af4f575ab3e898750a427383aeef59960254142025dc52bc54ad45d2f7db",
+      "bytes": 7089384
+    },
+    {
+      "path": "game/assets/compound/r02/textures/e28bc33820d57dcba02bfe804a5483b8f7492253b53f9727abfab49bd7c98bbb.png",
+      "sha256": "e28bc33820d57dcba02bfe804a5483b8f7492253b53f9727abfab49bd7c98bbb",
+      "bytes": 5243400
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_10_Metal_Barricade_Baked.tres",
+      "sha256": "a47e20d054017d3e4c5819c48e404db2bbe681d22d37251a8f129d36908f7175",
+      "bytes": 1030
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\10_Metal_Barricade.glb",
+      "sourceSha256": "74602174db7a08a2dde60cb2ae907731dbfcfcb3802ee446a466e4e32c30c9d4",
+      "path": "game/assets/compound/r02/metal-barricade.glb",
+      "sha256": "2a2bb3e37193d54f71926c30c9b58d1377dd334440b1055158505090bdac7548",
+      "bytes": 927736
+    },
+    {
+      "path": "game/assets/compound/r02/metal-barricade.glb.import",
+      "sha256": "b00ca126f58b5c41dbfcb59f141f628f845d0168a5a925eb323fc51e670b7f77",
+      "bytes": 377
+    },
+    {
+      "path": "game/assets/compound/r02/textures/7493fb4068854a74d292773f03e7690b39f6c4d2111aae2c80a741cd5c117046.png",
+      "sha256": "7493fb4068854a74d292773f03e7690b39f6c4d2111aae2c80a741cd5c117046",
+      "bytes": 1972034
+    },
+    {
+      "path": "game/assets/compound/r02/textures/09a91bb0407de5e7b63cc6c2e622b84cdf94a778cf9fa591e8c9b62c4da80a11.png",
+      "sha256": "09a91bb0407de5e7b63cc6c2e622b84cdf94a778cf9fa591e8c9b62c4da80a11",
+      "bytes": 7509257
+    },
+    {
+      "path": "game/assets/compound/r02/textures/d1cc4ba5bb540035149f4e8127c11115796c06faf0ead57af29bb8706acb20e5.png",
+      "sha256": "d1cc4ba5bb540035149f4e8127c11115796c06faf0ead57af29bb8706acb20e5",
+      "bytes": 5128769
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_11_Auto_Turret_Gunless_Baked.tres",
+      "sha256": "db51cc172ec72c80e7bdb59017b49fa814573ce68f2e6de0d466459216b8f4b2",
+      "bytes": 1034
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\11_Auto_Turret_Gunless.glb",
+      "sourceSha256": "febac47c6bc2b3512780958ece183e9ee21cb580c33d8ad3f58ca3b2159e1bcd",
+      "path": "game/assets/compound/r02/auto-turret.glb",
+      "sha256": "7ec14c2a47ddd684c5e95518799d306eafc61e96f72e7d983fc8de48abaac195",
+      "bytes": 11432584
+    },
+    {
+      "path": "game/assets/compound/r02/auto-turret.glb.import",
+      "sha256": "8bd04890bbff54e6a4a76705f9d4a96fe986175951e08b7678370e9acfa7a2c2",
+      "bytes": 385
+    },
+    {
+      "path": "game/assets/compound/r02/textures/a005166472dedf64d3d22d6b419b2f5e3c86a69fefe5228f28daf657c5a60bc4.png",
+      "sha256": "a005166472dedf64d3d22d6b419b2f5e3c86a69fefe5228f28daf657c5a60bc4",
+      "bytes": 8056903
+    },
+    {
+      "path": "game/assets/compound/r02/textures/1b20edee44e9affbeb179ad1673b44957a5aec04a9ccf8e125ff58ce27218963.png",
+      "sha256": "1b20edee44e9affbeb179ad1673b44957a5aec04a9ccf8e125ff58ce27218963",
+      "bytes": 6152976
+    },
+    {
+      "path": "game/assets/compound/r02/textures/2ec9fc5898289c315d9917301fd7b4f7aa24c1ebd14104e285ff86a7baefbc14.png",
+      "sha256": "2ec9fc5898289c315d9917301fd7b4f7aa24c1ebd14104e285ff86a7baefbc14",
+      "bytes": 6723528
+    },
+    {
+      "path": "game/assets/compound/r02/materials/M_12_Wooden_Ladder_Baked.tres",
+      "sha256": "8341c2d71e44ca12c6cee1a88f2a1772ae2f85c878eff19053789a5f09b1492d",
+      "bytes": 1028
+    },
+    {
+      "source": "D:\\GameDev\\Assets\\PSG_Compound_Utilities_R02\\Exports\\GLB\\12_Wooden_Ladder.glb",
+      "sourceSha256": "05a91eb101e20b886639bd0f8ffc785a5753cbcc4205da3f25f04220c9bae11c",
+      "path": "game/assets/compound/r02/wooden-ladder.glb",
+      "sha256": "664954009de915ae0fdea376869e35bbc90b16f1ace94d652543cd9604dceedd",
+      "bytes": 1468556
+    },
+    {
+      "path": "game/assets/compound/r02/wooden-ladder.glb.import",
+      "sha256": "2179078f3220cdddb450945a3c1023d68774c915d0d19a584321ec608fdcfc1c",
+      "bytes": 1343
+    },
+    {
+      "path": "game/assets/compound/r02/textures/8aef6cca90590d6ef396d48e4f02d3a0babb7b631bbd063f596f3b1f0316bd62.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/98cbfc0eb4299d42af4e98124ebe5fb5a3fbdb122d625a079d925aab8b31540e.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/546edb871f064b8a304fb0c5c41f994feb303dc29b30276fa7fa818407733576.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/85bffb0b2476670adc4330a9f58580543feef9d14a93a76c85b25e73f3ea56f9.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/145dc2a1595bb87690929150bc721f5e95e649325ba043560acfe0debd1fe639.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/af32b4b06771071e27a0de960d30a0c3e6a4db84e41bd9ed18e03c8b67aad2e6.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/8416170abcf8429fd5d9bc90a5b8c0fbf265ab3492a979329b482bd35f33a96f.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/def2da4a41779e1eae3119b75e45cc89bf3c39869eef9c52a25eb8e630d7d900.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/c2ff604f46e1609dacb896d9a377cfd4705991435e8c0ac06dc1b6d8c314a83e.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/63292bad35afb2d1283d509a95c9f169adbc5cdfd8cbc793bbf21df10af586d3.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/b2a72f20eb76d146db1c4134a484256698bc361c6022c909bd6eb015c2d6ccb5.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/b140b500289c49845bab98c188fbf969fd35312742cd513c870219728e44de29.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/617490823c92a6487aa705f27b3e5b8bcf8ee4945c0148431925f2567fc198a7.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/520d832105f2af3b7510138ada462b1d7519509422cdfdf33a3670cee7d50690.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/648166923a806ad41d4f3b837b97b13b2fb8177ed337a98acf52069affaa3cd2.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/36e7b964a4f43da0db727a3ebd3dab1128614bc187d7072a99cca7264fb9294d.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/4e0ecaa04f5b333b1b97af09f18462d3a5c841bce1d47400e96fc7c94e1e420d.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/a1631e47ee65dc141a647ef04954ee1d1ed6585e981d6e00facfb9bb0653abea.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/88ccb9e7bddcf90ad78f495c2322b478a2337b40d0b118ada0e585ac7f78926b.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/868426a9d25753b96069d03ae0d2bcc6dba871e688666acda7c2935201e9fe51.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/2ef9b8ec1d8b0001ca43c3729cfdb40b05e5dfbd8e7eb15f06282cda69bb9e0f.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/d7446700b49641ff871b385331ebc8d8346251ec0f5f9ec8cdb0e00c7340a2ed.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/b372b3ab8c053c0ca76b0d1353e24c7468add37b451616c527f195b9e48d3ffa.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/d372025a662aab746d1d41a4821cf68ff1a3f96b04ebf0ec772095301ad02674.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/c6b8f24b8f5c88fe0886b295907ac3f7e9be3154d1e2d93dc22fe74fa4759303.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/b0d976b2345a700d633d9fcb9c9073e973301f6c6ff4a3a48f8c31d1f3f672bb.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/dd907fb3423ea23f70ca7b27eddcf0d171c205747603e20785223f8a76ed3f30.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/869044d9c1e158c76fde02400ec5ce7e62a294e222dc158439d5e913990e9588.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/5ee3af4f575ab3e898750a427383aeef59960254142025dc52bc54ad45d2f7db.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/e28bc33820d57dcba02bfe804a5483b8f7492253b53f9727abfab49bd7c98bbb.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/7493fb4068854a74d292773f03e7690b39f6c4d2111aae2c80a741cd5c117046.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/09a91bb0407de5e7b63cc6c2e622b84cdf94a778cf9fa591e8c9b62c4da80a11.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/d1cc4ba5bb540035149f4e8127c11115796c06faf0ead57af29bb8706acb20e5.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/a005166472dedf64d3d22d6b419b2f5e3c86a69fefe5228f28daf657c5a60bc4.png.import",
+      "sha256": "765a74da20041559837ba947a0fb17ababf2871b6a93fd674d7c7a1d1f71d022",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/1b20edee44e9affbeb179ad1673b44957a5aec04a9ccf8e125ff58ce27218963.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/textures/2ec9fc5898289c315d9917301fd7b4f7aa24c1ebd14104e285ff86a7baefbc14.png.import",
+      "sha256": "4f21853e1a56e22c4937507458c0c7b69117edcb75774f28e08469f4d3390dfa",
+      "bytes": 231
+    },
+    {
+      "path": "game/assets/compound/r02/README_Import_and_Assembly.md",
+      "sha256": "ea89bd3ea8dafe945dc61248dca0cb532b24e065289a4b07ca3099c0a18314ff",
+      "bytes": 8058
+    },
+    {
+      "path": "game/assets/compound/r02/Texture_sources.json",
+      "sha256": "8698d63d6e2c042acf9b6725138470c80452691b35ae263489096900dcf2e174",
+      "bytes": 4266
+    },
+    {
+      "path": "game/assets/compound/r02/Delivery_contents.json",
+      "sha256": "b1ebf046e82f590d3efd361a1461640060902b154c98721688649e3b9398dfea",
+      "bytes": 45520
+    },
+    {
+      "path": "game/data/ground/compound.json",
+      "sha256": "6fa791a7cab50c0caed8b123be0de012ade38de2ab07792ada197649c6fc77db",
+      "bytes": 103444
+    }
+  ],
+  "geometrySha256": "6fa791a7cab50c0caed8b123be0de012ade38de2ab07792ada197649c6fc77db",
+  "adapterSha256": "1adf6e6cc28ce77b21419c8d427124932730a5f34b4ab9f01c91a6249f0162b6",
+  "formatVersion": 2,
+  "textures": {
+    "count": 36,
+    "bytes": 539092394,
+    "policy": "Original PNG bytes, SHA256 deduplication, mipmapped VRAM compression; no resizing"
+  },
+  "lods": "One authored mesh child per named part; Godot generates internal mesh LODs at import"
+}

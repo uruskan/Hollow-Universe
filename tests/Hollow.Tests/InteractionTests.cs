@@ -149,6 +149,8 @@ public static class InteractionTests
         Assert.Equal("door-open*, door-pick-up (OpenItFirst)", Offer(z, ada, shut.Target), "shut: E opens it");
         Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, shut.Target, "door-open"), "opened");
         Assert.True(door.Open, "rolled up");
+        rig.Step(100);
+        Assert.True(door.Progress >= 0.999f, "the curtain has finished rolling up (3 s)");
 
         AimHit open = z.Interaction().Aim(eye, middle - eye, me);
         Assert.True(open.Target.Family == TargetFamily.Door && open.Target.Id == door.Id.Value, $"through its opening, the door ({open.Target})");

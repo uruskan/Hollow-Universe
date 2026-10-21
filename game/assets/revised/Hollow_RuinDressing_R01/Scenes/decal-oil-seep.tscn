@@ -1,0 +1,18 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_RuinDressing_R01/Textures/oil-seep_BaseColor.png" id="1_yo21i"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_RuinDressing_R01/Textures/oil-seep_NormalGL.png" id="2_anmc3"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_RuinDressing_R01/Textures/oil-seep_ORM.png" id="3_3vqku"]
+
+[node name="oil-seep" type="Decal" unique_id=1703216439]
+size = Vector3(1, 0.1, 1)
+texture_albedo = ExtResource("1_yo21i")
+texture_normal = ExtResource("2_anmc3")
+texture_orm = ExtResource("3_3vqku")
+normal_fade = 0.65
+upper_fade = 0.0
+lower_fade = 0.0
+distance_fade_enabled = true
+distance_fade_begin = 28.0
+distance_fade_length = 12.0
+cull_mask = 1

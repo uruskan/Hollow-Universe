@@ -5,10 +5,10 @@ using G = HollowUniverse.Common.Ui.Ground;
 
 namespace HollowUniverse.UI;
 
-// The settings panel (GROUND.md §8.6), opened by the menu's SETTINGS (the main menu and the Esc menu): GRAPHICS and
-// INTERFACE tabs, a row per setting with its value and a line saying what it does. Changes show at once; APPLY saves
+// The settings panel (GROUND.md §8.6), opened by the menu's SETTINGS (the main menu and the Esc menu): five tabs,
+// a row per setting with its value and a line saying what it does. Changes show at once; APPLY saves
 // them, REVERT goes back to the saved ones, DEFAULTS to this computer's, and Esc or BACK closes, dropping what was not
-// applied. Keys: Up and Down choose a row, Left and Right change it, Enter flips or steps it, Tab the other tab.
+// applied. Keys: Up and Down choose a row, Left and Right change it, Enter flips or steps it, Tab the next tab.
 public partial class GroundUi
 {
     private const float SetX = 470, SetY = 70, SetW = 1070, SetH = 750;
@@ -21,7 +21,19 @@ public partial class GroundUi
     private int _settingsDrag = -1;
     private float _settingsDragX, _settingsDragW;
 
-    private SettingRow[] SettingsRows => _settingsTab == 0 ? SettingRows.Graphics : SettingRows.Interface;
+    private SettingRow[] SettingsRows => _settingsTab switch
+    {
+        0 => SettingRows.Graphics, 1 => SettingRows.Interface, 2 => SettingRows.Display,
+        3 => SettingRows.Shadows, _ => SettingRows.Crosshair,
+    };
+
+    /// <summary>Opens a settings tab, also used by reproducible UI captures.</summary>
+    public void ShowSettings(int tab = 0)
+    {
+        ShowMenu(_inGame);
+        OpenSettings();
+        _settingsTab = Math.Clamp(tab, 0, 4);
+    }
 
     private void OpenSettings()
     {
@@ -57,6 +69,7 @@ public partial class GroundUi
             return;
         }
         _settingsRow = row;
+        if (!rows[row].IsActive(GraphicsSettings.Current)) return;
         GraphicsSettings.Preview(change(rows[row], GraphicsSettings.Current));
     }
 
@@ -66,15 +79,15 @@ public partial class GroundUi
         Rect(SetX, SetY, 4, SetH, G.Red);
         PanelArea(SetX, SetY, SetW, SetH);
         Text("SETTINGS", SetX + 36, SetY + 22, 43, G.Ink, bold: true);
-        string[] tabs = { "GRAPHICS", "INTERFACE" };
+        string[] tabs = { "GRAPHICS", "INTERFACE", "DISPLAY", "SHADOWS", "CROSSHAIR" };
         for (int t = 0; t < tabs.Length; t++)
         {
             int tab = t;
-            Button(tabs[t], SetX + SetW - 36 - (tabs.Length - t) * 176, SetY + 30, 170, 44, () =>
+            Button(tabs[t], SetX + SetW - 36 - (tabs.Length - t) * 140, SetY + 30, 134, 44, () =>
             {
                 _settingsTab = tab;
                 _settingsRow = 0;
-            }, 22, _settingsTab == t ? G.Red : G.Panel);
+            }, 20, _settingsTab == t ? G.Red : G.Panel);
         }
 
         GraphicsValues values = GraphicsSettings.Current;
@@ -86,26 +99,52 @@ public partial class GroundUi
             float y = SetY + SetFirstRow + i % SetRowsPerColumn * SetRowHeight;
             PaintSettingRow(rows[i], i, x, y, values);
         }
+        if (_settingsTab == 4)
+        {
+            PaintCrosshairPreview(values.Crosshair);
+        }
 
         // The foot: what is shown against what is saved, this computer's card, and the buttons.
         float foot = SetY + SetH - 66;
         Rect(SetX + 36, foot - 12, SetW - 72, 1, new Color(0.8f, 0.82f, 0.75f, 0.18f));
         bool dirty = GraphicsSettings.Dirty;
-        Text(dirty ? "NOT APPLIED: the changes show now; APPLY keeps them, Esc drops them." : "Saved. Changes show at once.",
-            SetX + 36, foot + 2, 16, dirty ? G.Warning : G.Muted);
-        Text($"{RenderingServer.GetVideoAdapterName()}: {GraphicsSettings.DefaultPreset.ToString().ToUpperInvariant()} by default.",
-            SetX + 36, foot + 26, 15, G.Muted);
+        const float buttonGap = 10;
         float bx = SetX + SetW - 36;
         void FootButton(string label, float w, Action click, Color? fill = null, bool enabled = true)
         {
             bx -= w;
             Button(label, bx, foot, w, 44, click, 22, fill, enabled);
-            bx -= 10;
+            bx -= buttonGap;
         }
         FootButton("BACK", 120, CloseSettings);
         FootButton("DEFAULTS", 150, () => GraphicsSettings.Preview(GraphicsSettings.Defaults()));
         FootButton("REVERT", 130, GraphicsSettings.Revert, enabled: dirty);
         FootButton("APPLY", 140, GraphicsSettings.Save, dirty ? G.Red : G.Panel, dirty);
+        float textX = SetX + 36, textWidth = bx + buttonGap - 16 - textX;
+        Text(dirty ? "NOT APPLIED: APPLY saves; Esc reverts." : "Saved. Changes show at once.",
+            textX, foot + 2, 16, dirty ? G.Warning : G.Muted);
+        Text(Fit($"{RenderingServer.GetVideoAdapterName()}: {GraphicsSettings.DefaultPreset.ToString().ToUpperInvariant()} by default.",
+            textWidth, 15), textX, foot + 26, 15, G.Muted);
+    }
+
+    private void PaintCrosshairPreview(CrosshairValues values)
+    {
+        const float x = SetX + 36 + SetColumn + SetGap;
+        const float y = SetY + SetFirstRow;
+        Text("LIVE PREVIEW", x, y, 25, G.Ink, bold: true, condensed: true);
+        Text("Shown at the size you will see in game.", x, y + 34, 17, G.Muted);
+
+        const float top = y + 80, height = 280;
+        Rect(x, top, SetColumn / 2, height, new Color(0.065f, 0.08f, 0.085f));
+        Rect(x + SetColumn / 2, top, SetColumn / 2, height, new Color(0.43f, 0.46f, 0.41f));
+        Text("DARK", x + 16, top + 15, 15, G.Muted, bold: true, condensed: true);
+        TextIn("LIGHT", x + SetColumn / 2, top + 15, SetColumn / 2 - 16, 15,
+            new Color(0.9f, 0.9f, 0.85f), HorizontalAlignment.Right, bold: true, condensed: true);
+        CrosshairPainter.Draw(_p, Pt(x + SetColumn / 2, top + height / 2), values);
+
+        Text("Always at the exact center of your screen.", x, top + height + 25, 18, G.Ink);
+        Text("Choose a style, then adjust its details on the left.", x, top + height + 55, 17, G.Muted);
+        Text("Use arrow keys or drag the sliders.", x, top + height + 80, 17, G.Muted);
     }
 
     private void PaintSettingRow(SettingRow row, int index, float x, float y, GraphicsValues values)
@@ -130,14 +169,14 @@ public partial class GroundUi
             {
                 bool on = row.Get(values) > 0.5f;
                 Button(text, cx + ControlW - 96, y - 3, 96, 28, () => ChangeSetting(index, (r, v) => r.Move(v, 1)), 18,
-                    on ? G.Red : G.Panel);
+                    on ? G.Red : G.Panel, enabled: active);
                 break;
             }
             case SettingKind.Choice:
-                Button("<", cx, y - 3, 30, 28, () => ChangeSetting(index, (r, v) => r.Move(v, -1)), 18);
+                Button("<", cx, y - 3, 30, 28, () => ChangeSetting(index, (r, v) => r.Move(v, -1)), 18, enabled: active);
                 Button(text, cx + 34, y - 3, ControlW - 68, 28, () => ChangeSetting(index, (r, v) => r.Move(v, 1)), 18, Transparent,
-                    muted: !active);
-                Button(">", cx + ControlW - 30, y - 3, 30, 28, () => ChangeSetting(index, (r, v) => r.Move(v, 1)), 18);
+                    enabled: active, muted: !active);
+                Button(">", cx + ControlW - 30, y - 3, 30, 28, () => ChangeSetting(index, (r, v) => r.Move(v, 1)), 18, enabled: active);
                 break;
             default:
             {
@@ -151,7 +190,7 @@ public partial class GroundUi
                     _settingsDragX = cx;
                     _settingsDragW = TrackW;
                     DragSetting();
-                }, fill: Transparent);
+                }, fill: Transparent, enabled: active);
                 Rect(cx, y + 8, TrackW, 6, G.Panel);
                 Rect(cx, y + 8, TrackW * fraction, 6, active ? G.Red : G.Muted);
                 Rect(cx + TrackW * fraction - 4, y + 2, 8, 18, active ? G.Ink : G.Muted);
@@ -207,7 +246,7 @@ public partial class GroundUi
                 ChangeSetting(_settingsRow, (r, v) => r.Move(v, 1));
                 return true;
             case Key.Tab:
-                _settingsTab = 1 - _settingsTab;
+                _settingsTab = (_settingsTab + 1) % 5;
                 _settingsRow = 0;
                 return true;
             default:

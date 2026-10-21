@@ -45,7 +45,7 @@ public readonly record struct TeammateView(EntityId Id, string Name, Vector3 Pos
 public readonly record struct MarkerView(int Index, Vector3 Position, byte Colour, string Label);
 
 /// <summary>One of the player's sleeping bags or beds, for the map.</summary>
-public readonly record struct RespawnPointView(EntityId Id, Vector3 Position, bool Bed);
+public readonly record struct RespawnPointView(EntityId Id, Vector3 Position, bool Bed, string Name = "");
 
 /// <summary>The recycler or research table being looted (G7): running, how far through the batch or research, what it researches.</summary>
 public sealed record MachineView(EntityId Target, bool Running, float Progress, float SecondsLeft, ItemDef? Researching);
@@ -67,7 +67,7 @@ public sealed partial class LocalPlayer
     public BlueprintBook Blueprints { get; } = new();
 
     /// <summary>Whether a recipe can be crafted as far as knowing it goes (default or learnt).</summary>
-    public bool Knows(Recipe recipe) => Blueprints.Knows(recipe);
+    public bool Knows(Recipe recipe) => FreeBuild || Blueprints.Knows(recipe);
 
     /// <summary>The player's team, or null.</summary>
     public TeamView? Team { get; private set; }
@@ -114,7 +114,7 @@ public sealed partial class LocalPlayer
     /// argument), for its salvage: the blueprint is known and the salvage gone at once (rolled back if the server says no).
     /// </summary>
     public uint Unlock(in Simulation.Targets.TargetRef bench, int recipeId) =>
-        Interact(bench, Content.Interactions.Index("unlock"), (uint)Math.Max(0, recipeId), null, new Pending(p => p.ApplyUnlock(recipeId)));
+        SendInteraction(bench, Content.Interactions.Index("unlock"), (uint)Math.Max(0, recipeId), null, new Pending(p => p.ApplyUnlock(recipeId)));
 
     /// <summary>Whether a tech tree node can be unlocked now (as the server will judge it), and why not.</summary>
     public Outcome CanUnlock(TechNode node)
@@ -124,7 +124,11 @@ public sealed partial class LocalPlayer
         {
             return can;
         }
-        if (WorkbenchLevel < node.Tier)
+        if (node.Station is { } station && (StationNear?.Invoke(station) ?? 0) == 0)
+        {
+            return OutcomeCode.NeedsStation.With(station.Item.Id);
+        }
+        if (node.Station == null && WorkbenchLevel < node.Tier)
         {
             return OutcomeCode.NeedsWorkbench.With(node.Tier);
         }
@@ -276,7 +280,7 @@ public sealed partial class LocalPlayer
         _points.Clear();
         foreach (RespawnPointNet p in m.Points ?? Array.Empty<RespawnPointNet>())
         {
-            _points.Add(new RespawnPointView(new EntityId(p.Id), new Vector3(p.X, p.Y, p.Z), p.Bed));
+            _points.Add(new RespawnPointView(new EntityId(p.Id), new Vector3(p.X, p.Y, p.Z), p.Bed, p.Name ?? ""));
         }
         Acknowledge(m.LastSeq);
         MapChanged?.Invoke();

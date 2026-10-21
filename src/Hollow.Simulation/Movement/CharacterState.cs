@@ -91,6 +91,9 @@ public struct MoveInput
     /// </summary>
     public ulong Frame;
 
+    /// <summary>Requested noclip speed in m/s (0: default); ignored unless the server granted noclip.</summary>
+    public float NoclipSpeed;
+
     public readonly bool Has(MoveButtons button) => (Buttons & button) != 0;
 
     /// <summary>The heading of the view at a point with this up (from local north, <see cref="Facing"/>).</summary>

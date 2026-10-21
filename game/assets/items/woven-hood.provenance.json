@@ -1,0 +1,116 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "woven-hood",
+  "date": "2026-10-20",
+  "replaces": "the art/models/clothing.py stand-in model and the icon rendered from it",
+  "authorship": "Our own worn garment (art/characters/build_clothing.py, the character package) as the item: its mesh at three LODs, its own material and textures; rendered icons. No reference game files",
+  "visual_reference": null,
+  "authoring_source": [
+    {
+      "path": "art/models/garment_items.py",
+      "sha256": "900ae50a1d7579285054b058a773cde175beeb4d2d788bbd23856da260fad7ce"
+    }
+  ],
+  "authoring_helpers": [
+    {
+      "path": "art/hollow/export.py",
+      "sha256": "bca4862ce3d4b2a67c016857d2e78d97ef867d19af5d1991942aa10d52552bde"
+    },
+    {
+      "path": "art/hollow/godot.py",
+      "sha256": "8742a7167ee1b482dfc5c6e9e40d19391a9793aa711e23fd2a31f3f664d46cd2"
+    },
+    {
+      "path": "art/characters/build_clothing.py",
+      "sha256": "ce422ec0273a6076413832320ff1cf0271aa96a2217277a20da85410fab6d9e6"
+    }
+  ],
+  "geometry": {
+    "asset": "woven-hood",
+    "garment": "woven_hood",
+    "dimensions_blender_xyz_m": [
+      0.5700547099113464,
+      0.32164162397384644,
+      0.4429718255996704
+    ],
+    "material": "game/assets/materials/garment-woven-hood.tres",
+    "material_count": 1,
+    "lod_triangles": {
+      "WovenHood_lod0": 8374,
+      "WovenHood_lod1": 3517,
+      "WovenHood_lod2": 1339
+    },
+    "hull_triangles": 42
+  },
+  "files": {
+    "game/assets/items/woven-hood.glb": {
+      "sha256": "6771fc20300059dca21feb5016064bddaee95dbda0a471e237e2a956a6af4572",
+      "bytes": 348776
+    },
+    "game/assets/items/woven-hood.glb.import": {
+      "sha256": "6f5abd50a87a601fd096877bbbb46d35f3a98516a451a67e26d4b630916af6e6",
+      "bytes": 1376
+    },
+    "game/assets/items/icons/128/woven-hood.png": {
+      "sha256": "7675efaae57e4f12c05b64bef10bb5f3bd03d02c256899d0464781c8a3d13a21",
+      "bytes": 12624
+    },
+    "game/assets/items/icons/128/woven-hood.png.import": {
+      "sha256": "7ca17aec67fdfffe54b4aaedba5f0a6590a1f57ed798e146c011ed83d767aeee",
+      "bytes": 956
+    },
+    "game/assets/items/icons/256/woven-hood.png": {
+      "sha256": "37c5b717edc59a9e2908ae06717c34818ce5218ffd0b097d1b60f27ae5b40264",
+      "bytes": 37009
+    },
+    "game/assets/items/icons/256/woven-hood.png.import": {
+      "sha256": "68aae4b72719879c370c4680aef77750e1f404ecc2101aca14d23667c7028b07",
+      "bytes": 956
+    },
+    "game/assets/materials/garment-woven-hood.tres": {
+      "sha256": "1db69af1bbd857dcfaa15442e9fbe558ada662394953e2e98958801792a9fa79",
+      "bytes": 940
+    },
+    "game/assets/characters/clothing.glb": {
+      "sha256": "c5d78471f97429dce027f65915278d19733578b73e407822a05aef5bec62bd1b",
+      "bytes": 3204960
+    },
+    "game/shaders/character_cloth.gdshader": {
+      "sha256": "4f1bea15d8b2abfb97274b4af0662bde54ad543660a98b01e49025859dcb5de4",
+      "bytes": 327
+    },
+    "game/shaders/character_cloth.gdshaderinc": {
+      "sha256": "30aabd93bdb406ad5f1525923c9ca7585f19a6a7d5fc7b0b67b0a562cc0c438e",
+      "bytes": 1656
+    },
+    "game/shaders/character_common.gdshaderinc": {
+      "sha256": "4d5697bde5469a263499f9cfda6df8d29f7f9a5e5a77fcf25ab0309b05dcb7fe",
+      "bytes": 1193
+    },
+    "game/assets/characters/textures/woven_hood_albedo.png": {
+      "sha256": "7f791b2dd7d380256faa1c9c6f557af5776e25782946a74407c35081fe0aa66a",
+      "bytes": 104967
+    },
+    "game/assets/characters/textures/woven_hood_albedo.png.import": {
+      "sha256": "d622dd910f0ea893875ac8ea71a12e1b8e862eb782523ade0e6b9fbf1c3dd1c5",
+      "bytes": 1029
+    },
+    "game/assets/characters/textures/woven_hood_normal.png": {
+      "sha256": "88cb92510930a92a44582807a01b3a8ee2b67464195bd0e9fbb4e80f12936f6a",
+      "bytes": 169960
+    },
+    "game/assets/characters/textures/woven_hood_normal.png.import": {
+      "sha256": "65de004391204ecd7debb3910fa8e3b50a97be36d3da2770f99def2d44da32c3",
+      "bytes": 1030
+    },
+    "game/assets/characters/textures/weave_normal.png": {
+      "sha256": "0f050cad903afd7f6e70b929422edbdc9e16b7b538bff8fd15fe0edcaf8e4f76",
+      "bytes": 443192
+    },
+    "game/assets/characters/textures/weave_normal.png.import": {
+      "sha256": "b0e6d1eb4a82d7364af6b7343ce91d805055ca3ced145296b707e3eb957dd184",
+      "bytes": 1015
+    }
+  }
+}

@@ -4,12 +4,15 @@ using System.IO;
 using System.Numerics;
 using System.Text;
 using Hollow.Core;
+using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
 using Hollow.Simulation.Players;
 using Hollow.Simulation.World;
 using Hollow.Simulation.Targets;
+using Hollow.Simulation.Authorization;
+using Hollow.Simulation.Electricity;
 
 namespace Hollow.Persistence;
 
@@ -27,9 +30,10 @@ public static class WorldCodec
     /// attachments in its stack; a character's burning and being down. 3: the body the player chose. 4 (G7): the
     /// blueprints learnt, the map's markers and the last death's point. 5 (S3): the same layout, the markers and the
     /// death's point in the body frame (a whole world's zone frame, docs/WHOLE_WORLD.md §9); an older state's are
-    /// dropped, being in a frame at the old landing site.
+    /// dropped, being in a frame at the old landing site. 6: breathing state. 7: craft job payment provenance
+    /// (free jobs never refund ingredients) and the delivery station.
     /// </summary>
-    public const byte PlayerVersion = 5;
+    public const byte PlayerVersion = 7;
 
     /// <summary>A world prop's stored state (G7, <see cref="EncodeProp"/>).</summary>
     public const byte PropVersion = 1;
@@ -40,8 +44,10 @@ public static class WorldCodec
     /// comes back as a bag of it). 4 (P2, GROUND_SYSTEMS.md §6): what a deployable stands on (a piece's family and ID).
     /// 5 (IW5, IRON_WAKE.md §8): what rides a ship (a deployable built aboard, a bag or a body lying there) keeps the ship
     /// and its pose in the ship's frame, so it comes back aboard wherever the ship is.
+    /// 9: deployable repair delay and the shared key/code lock payload; attached deployables retain Thing supports.
+    /// 10: explicit incoming cable and bounded device authorization overrides.
     /// </summary>
-    public const byte ThingVersion = 5;
+    public const byte ThingVersion = 10;
 
     // ---------------------------------------------------------------- characters
 
@@ -80,6 +86,8 @@ public static class WorldCodec
                 w.Write(job.Count);
                 w.Write(job.TicksLeft);
                 w.Write(job.UnitTicks);
+                w.Write(job.Free);
+                w.Write(job.Station);
             }
             w.Write(p.Body);
             // 4 (G7): blueprints, markers (zone frame), the last death's point.
@@ -102,6 +110,7 @@ public static class WorldCodec
             w.Write(death.X);
             w.Write(death.Y);
             w.Write(death.Z);
+            w.Write(v.BreathUsed);
         }
         return stream.ToArray();
     }
@@ -148,6 +157,11 @@ public static class WorldCodec
         for (int i = 0; i < jobs; i++)
         {
             var job = new CraftJob { Ticket = r.ReadUInt32(), Recipe = r.ReadUInt16(), Count = r.ReadInt32(), TicksLeft = r.ReadInt32(), UnitTicks = r.ReadInt32() };
+            if (version >= 7)
+            {
+                job.Free = r.ReadBoolean();
+                job.Station = r.ReadUInt64();
+            }
             if (content.Recipe(job.Recipe) != null && job.Count is > 0 and <= CraftQueue.MaxCount && job.UnitTicks > 0 && job.TicksLeft is > 0)
             {
                 job.TicksLeft = Math.Min(job.TicksLeft, job.UnitTicks);
@@ -183,6 +197,10 @@ public static class WorldCodec
             bool died = r.ReadBoolean();
             var point = new Vector3(Finite(r.ReadSingle()), Finite(r.ReadSingle()), Finite(r.ReadSingle()));
             p.DeathPoint = died && version >= 5 ? point : null;
+        }
+        if (version >= 6)
+        {
+            p.Vitals.BreathUsed = Math.Clamp(Finite(r.ReadSingle()), 0, content.Survival.BreathSeconds);
         }
         if (p.Dead)
         {
@@ -253,8 +271,137 @@ public static class WorldCodec
                 w.Write(thing.Link.Rotation.Z);
                 w.Write(thing.Link.Rotation.W);
             }
+            // Version6: a deployable's optional player-facing label. PlayerVersion6 breath data is independent.
+            if (thing is Deployable named) w.Write(named.CustomName);
+            // Version 8: wiring, charge, defense switch and gate state survive a restart.
+            // Output, targeting and powered state are recomputed by the authoritative systems.
+            if (thing is Deployable utility)
+            {
+                w.Write(utility.PowerSourceEntityId);
+                w.Write(utility.PowerEnabled);
+                w.Write(utility.StoredEnergy);
+                w.Write(utility.DefenseEnabled);
+                w.Write(utility.Open);
+                // Version 9: raid repair delay and the same persisted lock payload used by structural doors.
+                w.Write(utility.LastDamagedAtUnixMs);
+                LockCodec.Write(w, utility.Lock);
+                WriteUtilityPolicy(w, utility);
+            }
+            // Version 7: server-owned body phase, exact partial harvest, appearance and a fixed floor support.
+            if (thing is Corpse bodyCorpse)
+            {
+                w.Write((byte)bodyCorpse.Support.Family);
+                w.Write(bodyCorpse.Support.Id);
+                w.Write(bodyCorpse.Life != null);
+                if (bodyCorpse.Life is { } life)
+                {
+                    w.Write((byte)life.Stage);
+                    w.Write(life.RemainingBodyTicks(tick));
+                    w.Write(life.HarvestLeft);
+                    w.Write(life.Body);
+                    w.Write((byte)life.Wear.Count);
+                    foreach (ushort item in life.Wear) w.Write(item);
+                }
+            }
         }
         return stream.ToArray();
+    }
+
+    private static void WriteUtilityPolicy(BinaryWriter w, Deployable device)
+    {
+        CableRecord? cable = device.PowerCable;
+        w.Write(cable != null);
+        if (cable != null)
+        {
+            if (cable.Anchors.Length > PowerPorts.MaximumAnchors || cable.Id == 0 || cable.Output.EntityId == 0 ||
+                cable.Input.EntityId != device.Id.Value)
+                throw new InvalidDataException("invalid cable identity, input or anchor count");
+            w.Write(cable.Id);
+            w.Write(cable.Output.EntityId); w.Write(cable.Output.PortId);
+            w.Write(cable.Input.EntityId); w.Write(cable.Input.PortId);
+            w.Write(cable.Revision);
+            w.Write((byte)cable.Anchors.Length);
+            foreach (RouteAnchor anchor in cable.Anchors)
+            {
+                if (!ValidAnchor(anchor)) throw new InvalidDataException("invalid cable anchor");
+                w.Write((byte)anchor.Support.Family); w.Write(anchor.Support.Id); w.Write(anchor.Support.Part);
+                w.Write(anchor.Position.X); w.Write(anchor.Position.Y); w.Write(anchor.Position.Z);
+            }
+        }
+        DeviceAuthorizationState policy = device.Authorization;
+        w.Write(policy.Initialized);
+        w.Write((byte)policy.Mode);
+        w.Write(policy.Revision);
+        WriteIdentities(w, policy.Grants);
+        WriteIdentities(w, policy.Exclusions);
+    }
+
+    private static void ReadUtilityPolicy(BinaryReader r, Deployable device)
+    {
+        if (r.ReadBoolean())
+        {
+            ulong id = r.ReadUInt64();
+            var output = new PortRef(r.ReadUInt64(), r.ReadUInt16());
+            var input = new PortRef(r.ReadUInt64(), r.ReadUInt16());
+            uint revision = r.ReadUInt32();
+            int count = r.ReadByte();
+            if (count > PowerPorts.MaximumAnchors || id == 0 || output.EntityId == 0 || input.EntityId != device.Id.Value)
+                throw new InvalidDataException("invalid saved cable identity, input or anchor count");
+            var anchors = new RouteAnchor[count];
+            for (int i = 0; i < count; i++)
+            {
+                var support = new TargetRef((TargetFamily)r.ReadByte(), r.ReadUInt64(), r.ReadByte());
+                anchors[i] = new RouteAnchor(support, new Vector3(r.ReadSingle(), r.ReadSingle(), r.ReadSingle()));
+                if (!ValidAnchor(anchors[i])) throw new InvalidDataException("invalid saved cable anchor");
+            }
+            device.PowerCable = new CableRecord(id, output, input, anchors, revision);
+        }
+        DeviceAuthorizationState policy = device.Authorization;
+        policy.Initialized = r.ReadBoolean();
+        byte mode = r.ReadByte();
+        if (mode > (byte)DeviceAuthorizationMode.ManualOnly)
+            throw new InvalidDataException("invalid saved device authorization mode");
+        policy.Mode = (DeviceAuthorizationMode)mode;
+        policy.Revision = r.ReadUInt32();
+        ReadIdentities(r, policy.Grants);
+        ReadIdentities(r, policy.Exclusions);
+        // A local exclusion always wins, including in a hand-edited or partially migrated record.
+        policy.Grants.ExceptWith(policy.Exclusions);
+    }
+
+    private static bool ValidAnchor(in RouteAnchor anchor)
+    {
+        bool support = anchor.Support.Family == TargetFamily.Ground
+            ? anchor.Support.Id == 0 && anchor.Support.Part == 0
+            : (anchor.Support.Family is TargetFamily.Thing or TargetFamily.Piece or TargetFamily.Door or
+                TargetFamily.Cupboard or TargetFamily.Natural) && anchor.Support.Id != 0;
+        Vector3 point = anchor.Position;
+        return support && float.IsFinite(point.X) && float.IsFinite(point.Y) && float.IsFinite(point.Z) &&
+            Math.Abs(point.X) <= 1_000_000 && Math.Abs(point.Y) <= 1_000_000 && Math.Abs(point.Z) <= 1_000_000;
+    }
+
+    private static void WriteIdentities(BinaryWriter w, HashSet<ulong> identities)
+    {
+        if (identities.Count > DeviceAuthorizationState.MaximumEntries || identities.Contains(0))
+            throw new InvalidDataException("invalid device authorization list");
+        var ordered = new ulong[identities.Count];
+        identities.CopyTo(ordered);
+        Array.Sort(ordered);
+        w.Write((byte)ordered.Length);
+        foreach (ulong id in ordered) w.Write(id);
+    }
+
+    private static void ReadIdentities(BinaryReader r, HashSet<ulong> identities)
+    {
+        int count = r.ReadByte();
+        if (count > DeviceAuthorizationState.MaximumEntries)
+            throw new InvalidDataException("saved device authorization list exceeds its limit");
+        identities.Clear();
+        for (int i = 0; i < count; i++)
+        {
+            ulong id = r.ReadUInt64();
+            if (id == 0 || !identities.Add(id)) throw new InvalidDataException("invalid saved authorization identity");
+        }
     }
 
     // Version 5: what a thing rides (a ship, IRON_WAKE.md §8) and its pose there, untrusted: only a ship, finite and within
@@ -341,11 +488,37 @@ public static class WorldCodec
                     // What it stands on (untrusted: the zone holds it to it, and lets it go if that doesn't come back).
                     byte family = r.ReadByte();
                     ulong support = r.ReadUInt64();
-                    d.Support = family == (byte)TargetFamily.Piece && support != 0 ? new TargetRef(TargetFamily.Piece, support) : TargetRef.None;
+                    d.Support = (family is (byte)TargetFamily.Piece or (byte)TargetFamily.Thing) && support != 0
+                        ? new TargetRef((TargetFamily)family, support) : TargetRef.None;
                 }
                 if (version >= 5)
                 {
                     ReadLink(r, d);
+                }
+                if (version >= 6 && Hollow.Simulation.Interaction.Names.TryNormalize(r.ReadString(), out string label)) d.Rename(label);
+                if (version >= 8)
+                {
+                    d.PowerSourceEntityId = r.ReadUInt64();
+                    d.PowerEnabled = r.ReadBoolean();
+                    d.StoredEnergy = Math.Clamp(Finite(r.ReadSingle()), 0, d.Def.Power?.Capacity ?? 0);
+                    d.DefenseEnabled = r.ReadBoolean();
+                    d.Open = r.ReadBoolean() && d.Def.Gate != null;
+                }
+                if (version >= 9)
+                {
+                    d.LastDamagedAtUnixMs = Math.Max(0, r.ReadInt64());
+                    DoorLock? fitted = LockCodec.Read(r, content.Building.LockMaxAuthorised);
+                    if (((ILockHost)d).Lockable) ((ILockHost)d).Lock = fitted;
+                }
+                if (version >= 10) ReadUtilityPolicy(r, d);
+                else if (def.Defense != null)
+                {
+                    // Legacy immunity was implicit. Follow live cupboards, without importing creator/team grants.
+                    // In particular, claims have not necessarily restored when this device is registered.
+                    d.Authorization.Initialized = true;
+                    // The single device switch preserves either legacy reason for being disabled.
+                    d.PowerEnabled &= d.DefenseEnabled;
+                    d.DefenseEnabled = d.PowerEnabled;
                 }
                 return d;
             }
@@ -400,6 +573,30 @@ public static class WorldCodec
                 if (version >= 5)
                 {
                     ReadLink(r, corpse);
+                }
+                if (version >= 7)
+                {
+                    byte family = r.ReadByte();
+                    ulong support = r.ReadUInt64();
+                    if (!corpse.Rides && ((TargetFamily)family is TargetFamily.Piece or TargetFamily.Thing) && support != 0 && support != corpse.Id.Value)
+                        corpse.Support = new TargetRef((TargetFamily)family, support);
+                    if (r.ReadBoolean())
+                    {
+                        CorpseStage stage = (CorpseStage)r.ReadByte();
+                        long bodyLeft = r.ReadInt64();
+                        float harvestLeft = r.ReadSingle();
+                        byte bodyType = r.ReadByte();
+                        int worn = r.ReadByte();
+                        var wear = new List<ushort>();
+                        for (int i = 0; i < worn; i++)
+                        {
+                            ushort item = r.ReadUInt16();
+                            if (i < 7) wear.Add(content.Item(item)?.Wear != null ? item : (ushort)0);
+                        }
+                        corpse.Life = new CorpseLifecycle(content.Survival.Corpse, tick, bodyType, wear);
+                        corpse.Life.Restore(stage, bodyLeft, harvestLeft, tick);
+                        if (corpse.IsBody) corpse.DespawnTick = corpse.Life.BodyUntilTick;
+                    }
                 }
                 return corpse;
             }

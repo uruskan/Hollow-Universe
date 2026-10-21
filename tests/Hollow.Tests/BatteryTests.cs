@@ -142,6 +142,37 @@ public static class BatteryTests
         Assert.True(worst <= st.Def.Battery.Mount.Alignment / Deg, "the aim held in the world within the battery's alignment");
     }
 
+    [Test]
+    public static void ShipRepairBatteryTracksCurrentPoseThroughAccelerationAndReversal()
+    {
+        ShipDef ship = ContentFixture.Content.Ship("iron-wake")!;
+        ShipInterior interior = ship.Interior!;
+        ShipStationDef station = ship.Stations.First(s => s.Id == "Siege_Forward");
+        var st = new StationState(station) { Input = new StationInput { View = Vector3.Normalize(new Vector3(0, 0.1f, 1)) } };
+        float[] parts = (float[])interior.Rest.Clone();
+        for (int i = 0; i < 90; i++) StationRules.Slew(interior, st, Quaternion.Identity);
+        float yaw = 0, speed = 0, worst = 0;
+        const float dt = 1f / 30;
+        for (int tick = 0; tick < 240; tick++)
+        {
+            float target = tick / 60 % 2 == 0 ? 32 : -32;
+            speed += Math.Clamp(target - speed, -90 * dt, 90 * dt);
+            yaw += speed * dt;
+            Quaternion rotation = Quaternion.CreateFromAxisAngle(Vector3.UnitY, yaw * Deg);
+            float before = st.Yaw;
+            StationRules.Slew(interior, st, rotation);
+            StationRules.Into(st, parts);
+            Assert.True(!st.Limit, "this tracking course stays inside the mechanical arc");
+            Assert.True(MathF.Abs(st.Yaw - before) <= station.Battery.Mount.YawRate * dt + 1e-5f, "tracking respects the mount rate");
+            worst = MathF.Max(worst, StationRules.Misalignment(interior, st, parts, rotation) / Deg);
+        }
+        Fixtures.Report($"battery error through full-rate starts/reversals: {worst:0.000} degrees");
+        Assert.True(worst <= station.Battery.Mount.Alignment / Deg, "current-pose tracking meets the original half-degree alignment");
+        st.Input = new StationInput { View = Vector3.UnitZ };
+        StationRules.Slew(interior, st, Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI));
+        Assert.True(st.Limit, "aim beyond the mechanical arc still reports a limit");
+    }
+
     /// <summary>
     /// IRON_WAKE.md §6.3, §6.6: the forward siege battery, its magazine holding six rockets, loads both barrels from an empty
     /// breech; one press fires barrel 0, the next barrel 1. Barrel 0's loader then runs batteries.json's phases: each begins
@@ -292,12 +323,31 @@ public static class BatteryTests
         dorsal.Pitch = found.down * Deg;
         dorsal.HasTarget = false;
         rig.Zone.Ships().MoveParts(rig.Ship, new[] { dorsal.Def.YawPart, dorsal.Def.PitchPart }, new[] { dorsal.Yaw, dorsal.Pitch });
-        Vector3 across = Direction(rig, found.yaw, found.down);
-        Aim(rig, bo, across);
-        rig.Step(30);
-        Press(rig, bo, across);
+        // Place the crosshair on the surface along this obstructed barrel line. Sending its angle as a camera
+        // direction would now select a different point and slew the offset mount clear of the bridge.
+        Vector3 centre = Vector3.Zero;
+        foreach (StationBarrel barrel in dorsal.Def.Barrels)
+        {
+            centre += rig.Pose.ToWorld(StationRules.BarrelLine(rig.Def.Interior!, dorsal.Def, barrel.Index, rig.Ship.Parts).Muzzle);
+        }
+        centre /= dorsal.Def.Barrels.Count;
+        Vector3 barrelView = rig.Pose.DirectionToWorld(StationRules.BarrelDirection(rig.Def.Interior!, dorsal.Def, rig.Ship.Parts));
+        TraceHit contact = rig.Zone.Damage().Trace(centre, barrelView, StationRules.AimDistance, 0, rig.Game.P(bo).Id,
+            rig.Zone.Tick, ignoreShip: rig.Ship.Id.Value);
+        Vector3 target = contact.Hit ? contact.Point : centre + barrelView * StationRules.AimDistance;
+        Vector3 CameraView() => Vector3.Normalize(target - rig.Pose.ToWorld(ShipSeats.EyeInFrame(rig.Def, dorsal.Def.Seat, rig.Ship.Parts)));
+        for (int i = 0; i < 90; i++)
+        {
+            Aim(rig, bo, CameraView());
+            rig.Step();
+        }
+        Assert.True(!dorsal.Limit && !dorsal.Aim.Blocked && Misaligned(rig, dorsal) <= dorsal.Def.Battery.Mount.Alignment / Deg,
+            "the crosshair target is reachable and the converged mount is aligned");
+        Assert.True(rig.Zone.Ships().HullBlocked(rig.Ship, dorsal, 0), "the settled barrel still crosses the physical bridge");
+        List<TurretFired> blockedShots = Press(rig, bo, CameraView());
         Fixtures.Report($"LOADING at {progress}%; the dorsal battery's line meets the ship laid {found.yaw:0}° and {found.down:0.0}°: {dorsal.Refused}");
         Assert.Equal(OutcomeCode.HullBlocked, dorsal.Refused, "HULL BLOCKED across the bridge");
+        Assert.True(blockedShots.Count == 0 && dorsal.Loaded(0) && dorsal.Loaded(1), "a blocked converged shot consumes no round");
     }
 
     // A hut ahead of the forward battery, its wall facing the ship, and the line from the station's muzzle to that wall's middle.
@@ -337,24 +387,63 @@ public static class BatteryTests
         return (hut, wall, hut.Face(wall, height: 1.4).Point);
     }
 
-    // The asked direction from a barrel's muzzle that puts the round's flight through a target: the straight line, then the
-    // pitch raised until the motor's flight (RocketFlight, as the server flies it) passes nearest it.
+    [Test]
+    public static void ManualStationAuthorityConvergesOnTheSurfaceUnderItsSeatCameraRay()
+    {
+        using var rig = new IronWakeRig();
+        (_, _, Vector3 target) = HutAhead(rig, 75);
+        Entity gunner = Gunner(rig, "CentreRay", "Siege_Forward");
+        StationState st = Station(rig, "Siege_Forward");
+        Vector3 eye = default, view = default;
+        for (int i = 0; i < 120; i++)
+        {
+            eye = rig.Pose.ToWorld(ShipSeats.EyeInFrame(rig.Def, st.Def.Seat, rig.Ship.Parts));
+            view = Vector3.Normalize(target - eye);
+            Aim(rig, gunner, view);
+            rig.Step();
+        }
+        eye = rig.Pose.ToWorld(ShipSeats.EyeInFrame(rig.Def, st.Def.Seat, rig.Ship.Parts));
+        view = Vector3.Normalize(target - eye);
+        TraceHit contact = rig.Zone.Damage().Trace(eye, view, StationRules.AimDistance, 0, rig.Game.P(gunner).Id,
+            rig.Zone.Tick, ignoreShip: rig.Ship.Id.Value);
+        Assert.True(contact.Hit && contact.Target.Family == TargetFamily.Piece, "the actual camera centre ray meets the hut");
+        st.Magazine.Clear();
+        Array.Clear(st.Loaders);
+        st.Chambers[0] = ContentFixture.Item("rocket").Id;
+        var request = new AttackRequest(new AttackId(AttackDomain.Station, 71, rig.Game.P(gunner).AttackSession), (uint)rig.Zone.Tick,
+            View: view, Source: rig.Ship.Id, Station: st.Def.Index);
+        AttackResolution result = rig.Zone.Ships().FireStation(gunner, request);
+        Assert.Equal(OutcomeCode.Done, result.Code, "the converged mount can fire");
+        TurretFired shot = rig.Zone.Events.Of<TurretFired>().Single(e => e.Ship == rig.Ship.Id && e.Number == result.StateSequence);
+        Vector3 muzzle = rig.Pose.ToWorld(StationRules.BarrelLine(rig.Def.Interior!, st.Def, result.Barrel, rig.Ship.Parts).Muzzle);
+        Assert.True(Vector3.Distance(muzzle, shot.Origin) < 0.001f, "authority retains the physical muzzle origin");
+        Vector3 crossing = shot.Origin + shot.Direction * Vector3.Dot(contact.Point - shot.Origin, shot.Direction);
+        Assert.True(Vector3.Distance(crossing, contact.Point) < 0.005f, "authority's initial shot line meets the crosshair surface before gravity acts");
+        Assert.True(Vector3.Distance(eye, shot.Origin) > 1, "camera and muzzle remain distinct, so this exercises parallax");
+    }
+
+    // The camera direction whose converged muzzle launch and ballistic flight pass nearest the target. Input no longer
+    // means a parallel muzzle ray: include the same centre-ray world query and convergence that actual fire uses.
     private static Vector3 Lay(IronWakeRig rig, StationState st, int barrel, string round, Vector3 target)
     {
         ShipInterior interior = rig.Def.Interior!;
         (Vector3 muzzleLocal, _) = StationRules.BarrelLine(interior, st.Def, barrel, rig.Ship.Parts);
         Vector3 muzzle = rig.Pose.ToWorld(muzzleLocal);
+        Vector3 eye = rig.Pose.ToWorld(ShipSeats.EyeInFrame(rig.Def, st.Def.Seat, rig.Ship.Parts));
         LaunchProfile profile = st.Def.Battery.Launch.Of(rig.Game.C.ItemByKey(round).Id)!;
         RocketMotor motor = RocketMotor.Of(st.Def.Battery.Launch, profile);
         float g = (float)(rig.Zone.Spec.SurfaceGravity * 9.80665);
-        Vector3 straight = Vector3.Normalize(target - muzzle), up = rig.Zone.Frame.UpAt(muzzle);
+        Vector3 straight = Vector3.Normalize(target - eye), up = rig.Zone.Frame.UpAt(muzzle);
         Vector3 side = Vector3.Normalize(Vector3.Cross(straight, up));
         Vector3 best = straight;
         float nearest = float.MaxValue;
         for (float raise = -1; raise < 6; raise += 0.02f)
         {
             Vector3 dir = Vector3.Normalize(Vector3.Transform(straight, Quaternion.CreateFromAxisAngle(side, raise * Deg)));
-            Vector3 p = muzzle, v = dir * profile.Muzzle;
+            TraceHit hit = rig.Zone.Damage().Trace(eye, dir, StationRules.AimDistance, 0, rig.Ship.Occupants[st.Def.Seat], rig.Zone.Tick, ignoreShip: rig.Ship.Id.Value);
+            StationAim aim = StationRules.AimAt(interior, st.Def, rig.Ship.Parts, rig.Pose, eye, dir, hit.Hit ? hit.Distance : StationRules.AimDistance);
+            Vector3 launch = StationRules.LaunchDirection(aim, muzzle, dir);
+            Vector3 p = muzzle, v = launch * profile.Muzzle;
             float flown = 0, burnt = 0, closest = float.MaxValue;
             for (int i = 0; i < 2 * 30 * 6; i++)
             {

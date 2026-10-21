@@ -11,8 +11,8 @@ render_mode cull_disabled, depth_draw_opaque, diffuse_burley, specular_schlick_g
 
 #include "res://shaders/surface_atmosphere.gdshaderinc"
 #include "res://shaders/surface_clouds.gdshaderinc"
+#include "res://shaders/surface_world_phase.gdshaderinc"
 
-global uniform vec3 hu_texture_offset;
 global uniform vec4 hu_wind; // xyz: direction the wind blows toward (render space, unit, along the ground at the camera); w: strength (1 = a breeze)
 // A tool's blow (GROUND.md §9.3): the plant standing at xyz (render space) sways w metres at its top, away along
 // hu_shake_dir.xyz, settling over the seconds since the blow (hu_shake_dir.w). w = 0: none.
@@ -35,7 +35,6 @@ const float LOD_FADE = 0.45; // seconds a change of level of detail takes (custo
 varying vec3 v_world;
 varying float v_fade_in;
 varying float v_fade_out;
-varying float v_cloud;
 varying vec3 v_tint;
 varying float v_local_y;
 
@@ -56,14 +55,14 @@ void vertex() {
 	} else {
 		mat3 m = mat3(MODEL_MATRIX);
 		float s2 = max(dot(m[0], m[0]), 1e-6);
-		vec3 base = origin + hu_texture_offset;
+		vec3 phases = hu_body_wave_phases(origin);
 		// The wind blows along the ground where the plant stands (its own up is the model's Y).
 		vec3 plant_up = m[1] / sqrt(max(dot(m[1], m[1]), 1e-6));
 		vec3 wind = (hu_wind.xyz - plant_up * dot(hu_wind.xyz, plant_up)) * hu_wind.w;
 		vec3 wl = vec3(dot(m[0], wind), dot(m[1], wind), dot(m[2], wind)) / s2;
-		float ph = dot(base, vec3(0.061, 0.047, 0.053));
+		float ph = phases.x;
 		// Gusts roll across the forest: a slow wave in space and time.
-		float gust = 0.55 + 0.45 * sin(TIME * 0.37 - dot(base, hu_wind.xyz) * 0.035 + dot(base, vec3(0.011, 0.007, 0.009)) * 6.0);
+		float gust = 0.55 + 0.45 * sin(TIME * 0.37 + phases.y);
 		float bend = CUSTOM0.x * (0.65 + 0.35 * sin(TIME * wind_params.y + ph)) * gust;
 		vec3 v = VERTEX + wl * bend * wind_params.x;
 		float flutter = CUSTOM0.y * sin(TIME * 7.3 + ph * 4.0 + dot(VERTEX, vec3(2.1, 1.7, 2.3))) * gust * hu_wind.w;
@@ -137,12 +136,12 @@ void fragment() {
 	hu_aerial(v_world, CAMERA_POSITION_WORLD, 6, a, fog);
 	ALBEDO = a;
 	FOG = fog;
-	v_cloud = hu_cloud_shadow(v_world);
+
 }
 
 void light() {
 	float ndl = dot(NORMAL, LIGHT);
-	float cloud = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
+	float cloud = LIGHT_IS_DIRECTIONAL ? hu_cloud_shadow(v_world, normalize((INV_VIEW_MATRIX * vec4(LIGHT, 0.0)).xyz)) : 1.0;
 	vec3 light = LIGHT_COLOR * ATTENUATION * cloud / HU_PI;
 	DIFFUSE_LIGHT += light * clamp(ndl, 0.0, 1.0);
 	if (mode == 0) {

@@ -85,6 +85,9 @@ public sealed class RemoteEntity
     public byte ActionCount { get; private set; }
 
     public Simulation.Players.ActionKind Action { get; private set; }
+    public ushort ActionItem { get; private set; }
+    public uint ActionTick { get; private set; }
+    public double RenderTick { get; private set; }
 
     /// <summary>Logged off and asleep in the world (lying down, lootable).</summary>
     public bool Sleeping { get; private set; }
@@ -122,6 +125,7 @@ public sealed class RemoteEntity
     /// <summary>Sets what is drawn for a (fractional) server tick.</summary>
     public void Sample(double renderTick)
     {
+        RenderTick = renderTick;
         if (_count == 0)
         {
             return;
@@ -188,6 +192,8 @@ public sealed class RemoteEntity
         Held = discrete.Held;
         ActionCount = discrete.ActionCount;
         Action = discrete.Action;
+        ActionItem = discrete.ActionItem;
+        ActionTick = discrete.ActionTick;
         Sleeping = discrete.Sleeping;
         Aiming = discrete.Aiming;
         HeldMods = discrete.HeldMods;

@@ -251,6 +251,14 @@ public sealed partial class BuildingWorld
         return covered ? Privilege.Allowed : Privilege.None;
     }
 
+    /// <summary>Collects live claim dependencies once when a stationary device's geometric binding changes.</summary>
+    public void ClaimsCovering(Vector3 point, List<ClaimDevice> into)
+    {
+        into.Clear();
+        foreach (Structure structure in _structures)
+            if (structure.Claim is { Gone: false } claim && Covers(structure, claim, point, 0)) into.Add(claim);
+    }
+
     private bool Covers(Structure structure, ClaimDevice claim, Vector3 point, double padding)
     {
         Vector3D local = structure.Frame.ToLocal(D(point));

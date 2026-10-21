@@ -1,5 +1,10 @@
 # Space concept: how the galaxy fits the game
 
+**Historical source-project concept.** AB Test B follows [DESIGN.md](DESIGN.md), including its travel revision of
+18 October 2026 and the current star-count/planet-size limits. Charged jumps, supercruise and fuel scooping are the
+new travel direction. The older autopilot, drones and scale statements below are not newly approved by that choice.
+See TRAVEL_IMPLEMENTATION.md for the current integration proposal and DEVELOPMENT.md for actual implementation status.
+
 Status: **direction agreed by the owner on 13 October 2026** (the four ideas in §2). The details are proposals. Nothing in
 [GAME_DESIGN.md](GAME_DESIGN.md) changes until the owner approves the table in §4.
 

@@ -1,7 +1,7 @@
 {
   "source": "Ingredients: hollow-orbit js/game/items.js, Rust's where it has the item (spears, bow, arrows). Times are ours, between hollow-orbit's and Rust's. G4: gunpowder (30 charcoal and 20 sulphur make 10), pistol and rifle rounds (10 metal fragments and 5 gunpowder make 4 and 3, at workbench 1 and 2) and the rifle's tier (workbench 3) are hollow-orbit's and Rust's; the variants, attachments and the metal mask are ours. Building items (G3): hollow-orbit's plan, hammer, claim device (its tool cupboard), wooden and sheet metal doors and code lock; Rust's key lock, double and garage doors and workbench levels; G5: Rust's raiding recipes and workbench levels (explosives 50 gunpowder, 3 low-grade fuel, 10 sulphur and 10 metal fragments at workbench 2; the timed charge 20 explosives at 3; the satchel-like bag charge four grenades at 1; the grenade 60 gunpowder and 20 metal fragments; rockets 10 explosives and 150 gunpowder, the high-velocity one 100 gunpowder, the incendiary one (IW4) 150 gunpowder and 75 low-grade fuel; explosive rounds 20 gunpowder and 10 sulphur for two, at 3), so a timed charge costs 2,200 sulphur, a rocket 1,400, a bag charge 480 and an explosive round 25, as in Rust. Lamp oil stands in for low-grade fuel, fibre for cloth and the stash. G6 (ours): the vehicle workbench at workbench 2, and the Tin Finch built at a vehicle workbench (its 'station'): mostly metal, with lamp oil for its first tank. G7 (world.json): salvage pays for workbenches as in Rust (50, 500, 1,250), and the level 2 and 3 workbenches also need three torn or sealed schematics (Rust's blueprint fragments); higher tiers need components as in Rust: the pistol a receiver and a pipe, the rifle a rifle frame and four springs, sights tech scrap, the silencer a pipe, the garage and armoured doors gears, rockets and the launcher pipes, the timed charge tech scrap, the bag charge rope, the bed a sewing kit; rope, cloth and the sewing kit are made of fibre (our cloth), the research table of metal fragments and salvage (Rust's). Which recipes a player knows: those in no tech tree from the start, the rest once learnt (world.json). G7 animals: Rust's low-grade fuel recipe (3 animal fat and 1 cloth make 4 in 5 s) as a second way to make lamp oil, with its own key and id (220), beside the charcoal recipe; Rust's bone knife (30 bone fragments) and a bone club (20); all three in no tech tree, so known from the start (as in Rust).",
   "workbenchSpeed": {
-    "note": "GROUND_SYSTEMS.md §7: a workbench above the level a recipe needs crafts it faster (Rust's: one level above, half the time; two or more, a quarter). Each job's time is fixed when it starts, by the best workbench in reach then; the list's place is the levels above (the last holds for more). A recipe made at a station of its own (a ship at the vehicle workbench) takes its own time.",
+    "note": "GROUND_SYSTEMS.md §7: a workbench above the level a recipe needs crafts it faster (Rust's: one level above, half the time; two or more, a quarter). Each job's time is fixed when it starts, by the best workbench in reach then; the list's place is the levels above (the last holds for more). A recipe made at a station of its own (a vehicle at the vehicle workbench) counts the levels above the one its station is made at (the vehicle workbench's 2: a level 3 workbench halves it).",
     "byLevelsAbove": [1, 0.5, 0.25]
   },
   "recipes": [
@@ -11,6 +11,7 @@
     { "output": "stone-pickaxe", "seconds": 15, "ingredients": [["wood", 200], ["stone", 100]] },
     { "output": "metal-hatchet", "seconds": 30, "workbench": 1, "ingredients": [["wood", 100], ["metal-fragments", 75]] },
     { "output": "metal-pickaxe", "seconds": 30, "workbench": 1, "ingredients": [["wood", 100], ["metal-fragments", 125]] },
+    { "output": "salvaged-axe", "seconds": 45, "workbench": 2, "known": false, "ingredients": [["wood", 100], ["metal-fragments", 150], ["metal-blade", 2], ["metal-pipe", 1]] },
 
     { "output": "wooden-spear", "seconds": 10, "ingredients": [["wood", 300]] },
     { "output": "stone-spear", "seconds": 15, "ingredients": [["wooden-spear", 1], ["stone", 20]] },
@@ -82,10 +83,53 @@
     { "output": "research-table", "seconds": 20, "workbench": 1, "ingredients": [["metal-fragments", 200], ["salvage", 20]] },
 
     { "output": "vehicle-workbench", "seconds": 60, "workbench": 2, "ingredients": [["metal-fragments", 800], ["refined-metal", 40], ["wood", 300]] },
+    { "output": "engineering-workbench", "seconds": 45, "workbench": 2, "ingredients": [["metal-fragments", 500], ["refined-metal", 20], ["wood", 200]] },
     { "output": "tin-finch", "seconds": 120, "station": "vehicle-workbench",
       "ingredients": [["metal-fragments", 1200], ["refined-metal", 120], ["wood", 300], ["fibre", 100], ["lamp-oil", 50]] },
+    { "output": "motorboat", "seconds": 60, "workbench": 1,
+      "ingredients": [["metal-fragments", 300], ["wood", 200], ["gears", 2], ["metal-pipe", 1], ["rope", 4], ["lamp-oil", 20]] },
+    { "output": "togg", "seconds": 45, "station": "vehicle-workbench",
+      "ingredients": [["metal-fragments", 900], ["refined-metal", 40], ["wood", 150], ["gears", 4], ["metal-pipe", 4], ["lamp-oil", 20]] },
+    { "output": "monster-togg", "seconds": 75, "station": "vehicle-workbench",
+      "ingredients": [["metal-fragments", 2200], ["refined-metal", 140], ["wood", 200], ["gears", 10], ["metal-pipe", 8], ["lamp-oil", 30]] },
+    { "output": "togg-cab-one", "seconds": 30, "station": "vehicle-workbench",
+      "ingredients": [["metal-fragments", 250], ["refined-metal", 5], ["wood", 50]] },
+    { "output": "togg-engine", "seconds": 40, "station": "vehicle-workbench",
+      "ingredients": [["metal-fragments", 250], ["refined-metal", 15], ["gears", 2], ["metal-pipe", 1]] },
+    { "output": "togg-tyres", "seconds": 30, "station": "vehicle-workbench",
+      "ingredients": [["metal-fragments", 120], ["cloth", 40]] },
+    { "output": "togg-lift-kit", "seconds": 45, "station": "vehicle-workbench",
+      "ingredients": [["metal-fragments", 400], ["refined-metal", 25], ["gears", 2], ["metal-pipe", 4]] },
+    { "output": "monster-tyres", "seconds": 45, "station": "vehicle-workbench",
+      "ingredients": [["metal-fragments", 300], ["refined-metal", 10], ["cloth", 100]] },
+    { "output": "monster-togg-engine", "seconds": 60, "station": "vehicle-workbench",
+      "ingredients": [["metal-fragments", 400], ["refined-metal", 40], ["gears", 4], ["metal-pipe", 2]] },
+    { "output": "zamazingo", "seconds": 30, "station": "vehicle-workbench",
+      "ingredients": [["metal-fragments", 400], ["refined-metal", 15], ["gears", 2], ["metal-pipe", 2], ["lamp-oil", 10]] },
+    { "output": "ka-fa-1500", "seconds": 90, "station": "vehicle-workbench",
+      "ingredients": [["metal-fragments", 1050], ["refined-metal", 60], ["wood", 250], ["lamp-oil", 50]] },
 
     { "output": "bone-knife", "seconds": 10, "ingredients": [["bone-fragments", 30]] },
-    { "output": "bone-club", "seconds": 10, "ingredients": [["bone-fragments", 20]] }
+    { "output": "bone-club", "seconds": 10, "ingredients": [["bone-fragments", 20]] },
+    {"id": 300, "key": "metal-window-bars", "output": "metal-window-bars", "seconds": 20, "workbench": 1, "ingredients": [["metal-fragments", 100]]},
+    {"id": 301, "key": "armoured-window-bars", "output": "armoured-window-bars", "seconds": 20, "workbench": 3, "ingredients": [["refined-metal", 10]]},
+    {"id": 302, "key": "reinforced-glass-window", "output": "reinforced-glass-window", "seconds": 20, "workbench": 2, "ingredients": [["metal-fragments", 100]]},
+    {"id": 303, "key": "horizontal-embrasure", "output": "horizontal-embrasure", "seconds": 20, "workbench": 1, "ingredients": [["metal-fragments", 100]]},
+    {"id": 304, "key": "vertical-embrasure", "output": "vertical-embrasure", "seconds": 20, "workbench": 1, "ingredients": [["metal-fragments", 100]]},
+    {"id": 305, "key": "wooden-double-door", "output": "wooden-double-door", "seconds": 30, "ingredients": [["wood", 600]]},
+    {"id": 306, "key": "armoured-double-door", "output": "armoured-double-door", "seconds": 30, "ingredients": [["refined-metal", 40], ["gears", 10]], "workbench": 3},
+    {"id": 307, "key": "large-furnace", "output": "large-furnace", "seconds": 30, "workbench": 2, "ingredients": [["stone", 1500], ["wood", 500], ["lamp-oil", 500]]},
+    {"id": 308, "key": "wooden-barricade", "output": "wooden-barricade", "seconds": 30, "workbench": 1, "ingredients": [["wood", 300], ["rope", 1]]},
+    {"id": 309, "key": "wood-compound-wall", "output": "wood-compound-wall", "seconds": 30, "workbench": 1, "ingredients": [["wood", 1500]]},
+    {"id": 310, "key": "wood-compound-gate", "output": "wood-compound-gate", "seconds": 30, "workbench": 2, "ingredients": [["wood", 3000], ["gears", 5]]},
+    {"id": 311, "key": "stone-compound-wall", "output": "stone-compound-wall", "seconds": 30, "workbench": 2, "ingredients": [["stone", 1500]]},
+    {"id": 312, "key": "stone-compound-gate", "output": "stone-compound-gate", "seconds": 30, "workbench": 2, "ingredients": [["stone", 3000], ["wood", 1500], ["gears", 5]]},
+    {"id": 313, "key": "windmill", "output": "windmill", "seconds": 30, "workbench": 2, "ingredients": [["wood", 1500], ["metal-fragments", 500], ["gears", 5], ["sheet-metal", 3]]},
+    {"id": 314, "key": "sam-site", "output": "sam-site", "seconds": 30, "workbench": 3, "ingredients": [["metal-fragments", 1000], ["refined-metal", 100], ["tech-scrap", 5], ["gears", 10]]},
+    {"id": 315, "key": "wood-spike-barricade", "output": "wood-spike-barricade", "seconds": 30, "workbench": 0, "ingredients": [["wood", 300]]},
+    {"id": 316, "key": "metal-barricade", "output": "metal-barricade", "seconds": 30, "workbench": 2, "ingredients": [["metal-fragments", 500], ["metal-blade", 2]]},
+    {"id": 317, "key": "auto-turret", "output": "auto-turret", "seconds": 30, "workbench": 3, "ingredients": [["refined-metal", 40], ["tech-scrap", 3], ["gears", 5]]},
+    {"id": 318, "key": "wooden-ladder", "output": "wooden-ladder", "seconds": 30, "workbench": 0, "ingredients": [["wood", 300], ["rope", 3]]},
+    {"id":319,"key":"wire-tool","output":"wire-tool","seconds":5,"workbench":0,"ingredients":[["metal-fragments",10]]}
   ]
 }

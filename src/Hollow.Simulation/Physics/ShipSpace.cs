@@ -204,7 +204,7 @@ public sealed class ShipSpace : IDisposable
     private static void Add(BodyInterface bodies, uint id, Shape shape, in PartPose pose)
     {
         var bodyId = new BodyID(id);
-        using var creation = new BodyCreationSettings(shape, pose.Translation, pose.Rotation, MotionType.Static, PhysicsWorld.StaticLayer);
+        using var creation = new BodyCreationSettings(shape, pose.Translation, pose.Rotation, MotionType.Static, PhysicsWorld.StaticLayer).Owned();
         _ = bodies.CreateBodyWithID(bodyId, creation) ?? throw new InvalidOperationException($"Jolt refused a ship space's body {id}.");
         bodies.AddBody(bodyId, Activation.DontActivate);
     }
@@ -322,7 +322,7 @@ public sealed class ShipSpace : IDisposable
     private bool Meets(in Capsule c, ReadOnlySpan<bool> moved)
     {
         float half = c.Height / 2;
-        using var capsule = new CapsuleShapeSettings(MathF.Max(0.01f, half - c.Radius), c.Radius);
+        using var capsule = new CapsuleShapeSettings(MathF.Max(0.01f, half - c.Radius), c.Radius).Owned();
         using Shape shape = capsule.Create();
         Vector3 up = c.Up.LengthSquared() > 1e-6f ? Vector3.Normalize(c.Up) : Vector3.UnitY;
         Quaternion turn = Facing.Turn(Vector3.UnitY, up);
@@ -426,7 +426,7 @@ public sealed class ShipSpace : IDisposable
         {
             return false;
         }
-        using var sphere = new SphereShapeSettings(radius);
+        using var sphere = new SphereShapeSettings(radius).Owned();
         using Shape shape = sphere.Create();
         Matrix4x4 at = Matrix4x4.Transpose(Matrix4x4.CreateTranslation(point));
         Vector3 scale = Vector3.One, offset = Vector3.Zero;
@@ -460,7 +460,7 @@ public sealed class ShipSpace : IDisposable
         {
             return;
         }
-        using var sphere = new SphereShapeSettings(radius);
+        using var sphere = new SphereShapeSettings(radius).Owned();
         using Shape shape = sphere.Create();
         Matrix4x4 at = Matrix4x4.Transpose(Matrix4x4.CreateTranslation(point));
         Vector3 scale = Vector3.One, offset = Vector3.Zero;
@@ -515,8 +515,8 @@ public sealed class ShipSpace : IDisposable
             return _capsule;
         }
         float half = tuning.StandingHeight / 2;
-        using var capsule = new CapsuleShapeSettings(half - tuning.Radius, tuning.Radius);
-        using var placed = new RotatedTranslatedShapeSettings(new Vector3(0, half, 0), Quaternion.Identity, capsule);
+        using var capsule = new CapsuleShapeSettings(half - tuning.Radius, tuning.Radius).Owned();
+        using var placed = new RotatedTranslatedShapeSettings(new Vector3(0, half, 0), Quaternion.Identity, capsule).Owned();
         _capsule = placed.Create();
         _capsuleFor = tuning;
         return _capsule;
@@ -532,7 +532,7 @@ public sealed class ShipSpace : IDisposable
         {
             if (!BoxShapes.TryGetValue(half, out Shape? shape))
             {
-                using var box = new BoxShapeSettings(half, ConvexRadius);
+                using var box = new BoxShapeSettings(half, ConvexRadius).Owned();
                 shape = box.Create();
                 BoxShapes.Add(half, shape);
             }
@@ -586,7 +586,7 @@ public sealed class ShipSpace : IDisposable
                 Shape? hull = null;
                 try
                 {
-                    using var settings = new ConvexHullShapeSettings(piece.Points, ConvexRadius);
+                    using var settings = new ConvexHullShapeSettings(piece.Points, ConvexRadius).Owned();
                     hull = settings.Create();
                 }
                 catch (Exception)
@@ -620,7 +620,7 @@ public sealed class ShipSpace : IDisposable
         {
             return shapes[0];
         }
-        using var compound = new StaticCompoundShapeSettings();
+        using var compound = new StaticCompoundShapeSettings().Owned();
         for (int i = 0; i < shapes.Count; i++)
         {
             compound.AddShape(Vector3.Zero, Quaternion.Identity, shapes[i], (uint)i);
@@ -666,7 +666,7 @@ public sealed class ShipSpace : IDisposable
         KindShapes kind = ShapesOf(interior);
         lock (JoltRuntime.Gate)
         {
-            using var compound = new StaticCompoundShapeSettings();
+            using var compound = new StaticCompoundShapeSettings().Owned();
             compound.AddShape(-interior.CentreOfMass, Quaternion.Identity, kind.Hull, 0);
             for (int part = 1; part < kind.Parts.Length; part++)
             {
@@ -690,6 +690,8 @@ public sealed class ShipSpace : IDisposable
         _body?.Dispose();
         lock (JoltRuntime.Gate)
         {
+            // Otherwise the native system, its bodies and their shapes are never freed (JoltRuntime.HandOverToSystem).
+            JoltRuntime.HandOverToSystem(Jolt, _layerPairs, _broadPhaseLayers, _objectVsBroadPhase);
             Jolt.Dispose();
             _piecesOnly.Dispose();
             _objectVsBroadPhase.Dispose();

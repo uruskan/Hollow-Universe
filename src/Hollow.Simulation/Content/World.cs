@@ -105,6 +105,9 @@ public sealed class TechNode
     /// <summary>The workbench level whose tree it is in.</summary>
     public int Tier { get; init; }
 
+    /// <summary>A specialized, unlevelled workbench required to learn this node; null for a standard tree.</summary>
+    public DeployableDef? Station { get; init; }
+
     public int Cost { get; init; }
 
     /// <summary>Unlocked once any of these is known (none: a root).</summary>
@@ -122,6 +125,9 @@ public sealed class TechNode
 public sealed class TechTree
 {
     public int Workbench { get; init; }
+
+    /// <summary>Its specialized workbench, independent of standard levels and crafting speed.</summary>
+    public DeployableDef? Station { get; init; }
 
     public IReadOnlyList<TechNode> Nodes { get; init; } = Array.Empty<TechNode>();
 }
@@ -216,7 +222,7 @@ public sealed class WorldData
     /// <summary>The tech tree node unlocking a recipe, or null (the recipe is in no tree).</summary>
     public TechNode? NodeOf(int recipe) => recipe is > 0 and <= ushort.MaxValue && _nodes.TryGetValue((ushort)recipe, out TechNode? n) ? n : null;
 
-    public TechTree? Tree(int workbench) => TechTrees.FirstOrDefault(t => t.Workbench == workbench);
+    public TechTree? Tree(int workbench) => TechTrees.FirstOrDefault(t => t.Station == null && t.Workbench == workbench);
 
     /// <summary>What recycling one unit of an item gives when it has its own list (loot-only components), or null.</summary>
     public IReadOnlyList<ItemAmount>? FixedYield(ushort item) => _yields.GetValueOrDefault(item);
@@ -225,7 +231,7 @@ public sealed class WorldData
     public IReadOnlyList<Recipe> BlueprintPool(int tier) => tier is >= 0 and <= 3 ? _pools[tier] : Array.Empty<Recipe>();
 
     /// <summary>The tier a recipe is researched and found at: its tree's workbench level, else the level it needs.</summary>
-    public int TierOf(Recipe recipe) => NodeOf(recipe.Id)?.Tier ?? recipe.Workbench;
+    public int TierOf(Recipe recipe) => NodeOf(recipe.Id) is { Station: null } node ? node.Tier : recipe.Workbench;
 
     internal void SetYield(ushort item, IReadOnlyList<ItemAmount> yields) => _yields[item] = yields;
 

@@ -1,0 +1,19 @@
+[gd_resource type="ShaderMaterial" load_steps=6 format=3]
+
+[ext_resource type="Shader" path="res://shaders/cliffkit.gdshader" id="1"]
+[ext_resource type="Texture2D" path="res://assets/surface/cliffkit/textures/desert-end-left_albedo.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/surface/cliffkit/textures/desert-end-left_normal.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/surface/cliffkit/textures/desert_detail_albedo.png" id="4"]
+[ext_resource type="Texture2D" path="res://assets/surface/cliffkit/textures/desert_detail_normal.png" id="5"]
+
+[resource]
+resource_name = "cliffkit_desert-end-left"
+shader = ExtResource("1")
+shader_parameter/albedo_map = ExtResource("2")
+shader_parameter/normal_map = ExtResource("3")
+shader_parameter/detail_albedo = ExtResource("4")
+shader_parameter/detail_normal = ExtResource("5")
+shader_parameter/scan_colour = Color(0.4797, 0.3271, 0.2450, 1)
+shader_parameter/detail_mean = Color(0.4570, 0.2673, 0.1898, 1)
+shader_parameter/cover_default = Color(0.6000, 0.4700, 0.3200, 0.8000)
+shader_parameter/ground_default = Color(0.5600, 0.4100, 0.2900, 1.0000)

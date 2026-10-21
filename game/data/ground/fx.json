@@ -16,7 +16,8 @@
     "bag-charge": { "explode": "explosion.bag-charge" },
     "tin-grenade": { "explode": "explosion.grenade" },
     "campfire": { "fire": "fire.campfire" },
-    "furnace": { "fire": "fire.furnace" }
+    "furnace": { "fire": "fire.furnace" },
+    "large-furnace": { "fire": "fire.furnace" }
   },
   "effects": [
     { "key": "muzzle.rifle", "family": "muzzle", "about": "Rifle shot: a long flame, a flicker of light, a wisp of smoke, now and then a spark.",
@@ -552,7 +553,7 @@
           { "batch": "smoke", "rate": 2, "at": [0.0, 0.2, 0.0], "size": [0.08, 0.14], "grow": 4, "life": [1.5, 2.5], "speed": [0.3, 0.6], "dir": "up",
             "cone": 12, "color": [0.5, 0.48, 0.46], "alpha": [0.1, 0.16] }
         ],
-        "light": {"color": [1.0, 0.58, 0.25], "energy": 1.5, "range": 6, "flicker": 0.3, "at": [0.0, 0.1, 0.0]} } },
+        "light": {"color": [1.0, 0.58, 0.25], "energy": 1.5, "range": 6, "shadows": true, "flicker": 0.3, "at": [0.0, 0.1, 0.0]} } },
     { "key": "fire.burning", "family": "fire",
       "about": "Something burning (an incendiary hit, a burning player): a few licks of flame, embers, dark smoke.", "cap": 32, "cull": 200, "hero": 1.2,
       "stage": "dirt",
@@ -889,6 +890,18 @@
           { "batch": "chunk_stone", "rate": 12, "at": [0.0, 1.0, 0.0], "jitter": 2.0, "size": [0.01, 0.025], "speed": [5, 16], "life": [1.2, 2.2],
             "dir": "ring", "cone": 30, "color": [0.45, 0.4, 0.33], "vary": 0.15 }
         ] } },
+    { "key": "wake.boat", "family": "ship",
+      "about": "A boat's wake at its stern (a loop on the water's surface, by its speed; docs/MOTORBOAT.md): spray thrown up and back by the propeller, foam left on the water behind, rings spreading.",
+      "cap": 8, "cull": 300, "hero": 1.0, "stage": "water",
+      "loop": { "fadeIn": 0.4, "fadeOut": 1.2,
+        "emit": [
+          { "batch": "droplet", "rate": 70, "at": [0.0, 0.08, 0.0], "jitter": 0.35, "size": [0.05, 0.11], "width": 0.012, "speed": [1.2, 3.2],
+            "life": [0.35, 0.75], "dir": "up", "cone": 40, "color": [0.84, 0.9, 0.93], "alpha": [0.55, 0.85] },
+          { "batch": "dust", "rate": 24, "at": [0.0, 0.05, 0.0], "jitter": 0.5, "size": [0.35, 0.65], "grow": 2.2, "life": [1.2, 2.4],
+            "speed": [0.1, 0.6], "dir": "ring", "cone": 8, "color": [0.92, 0.96, 0.98], "vary": 0.04, "alpha": [0.22, 0.36] },
+          { "batch": "ring", "rate": 3, "at": [0.0, 0.02, 0.0], "jitter": 0.4, "size": [0.4, 0.6], "grow": 5, "life": [1.6, 2.6],
+            "color": [0.92, 0.96, 1.0], "alpha": [0.1, 0.15] }
+        ] } },
     { "key": "impact.hull", "family": "ship",
       "about": "A bullet striking the Iron Wake's steel hull plate: a hard spray of sparks, a flash, a puff of paint and grit, a bright dent of bare steel in chipped paint.",
       "cap": 48, "cull": 200, "duration": 1.0, "hero": 0.05, "stage": "hull",
@@ -916,6 +929,89 @@
           { "batch": "ember", "rate": 4, "at": [0.0, 0.1, 0.0], "jitter": 0.3, "size": [0.02, 0.04], "life": [0.8, 1.8], "speed": [0.5, 1.6],
             "dir": "up", "cone": 35, "color": [1.0, 0.5, 0.15] }
         ],
-        "light": {"color": [1.0, 0.5, 0.2], "energy": 0.8, "range": 3.5, "flicker": 0.5, "at": [0.0, 0.2, 0.0]} } }
+        "light": {"color": [1.0, 0.5, 0.2], "energy": 0.8, "range": 3.5, "flicker": 0.5, "at": [0.0, 0.2, 0.0]} } },
+    { "key": "exhaust.diesel", "family": "ship",
+      "about": "A ground vehicle's diesel at idle (a loop on each Exhaust_<n> point of its engine, VEHICLES.md §9.9; intensity: running): a thin blue-grey haze rising from the stack.",
+      "cap": 24, "cull": 220, "hero": 0.4, "stage": "dirt",
+      "loop": { "fadeIn": 0.6, "fadeOut": 1.2,
+        "emit": [
+          { "batch": "smoke", "rate": 7, "at": [0.0, 0.0, 0.0], "jitter": 0.02, "size": [0.10, 0.16], "grow": 5, "life": [1.6, 2.6], "speed": [0.9, 1.6],
+            "dir": "up", "cone": 10, "color": [0.52, 0.53, 0.56], "vary": 0.06, "alpha": [0.10, 0.16] }
+        ] } },
+    { "key": "exhaust.soot", "family": "ship",
+      "about": "A ground vehicle's diesel under load (a loop on each Exhaust_<n> point; intensity: the engine's load): black soot pouring up and leaning back.",
+      "cap": 24, "cull": 300, "hero": 0.8, "stage": "dirt",
+      "loop": { "fadeIn": 0.15, "fadeOut": 0.6,
+        "emit": [
+          { "batch": "smoke", "rate": 28, "at": [0.0, 0.0, 0.0], "jitter": 0.03, "size": [0.2, 0.3], "grow": 7, "life": [2.2, 3.8], "speed": [3.0, 5.5],
+            "dir": "up", "cone": 12, "color": [0.045, 0.042, 0.04], "vary": 0.1, "alpha": [0.45, 0.65] },
+          { "batch": "smoke", "rate": 7, "at": [0.0, 0.05, 0.0], "jitter": 0.05, "size": [0.3, 0.42], "grow": 5, "life": [3.5, 5.0], "speed": [1.6, 2.8],
+            "dir": "up", "cone": 20, "color": [0.15, 0.145, 0.14], "vary": 0.08, "alpha": [0.22, 0.32] }
+        ] } },
+    { "key": "exhaust.puff", "family": "ship",
+      "about": "A diesel's black puff (at an Exhaust_<n> point; Scale: how hard): on starting, at a gear change and on a stab of the throttle.",
+      "cap": 24, "cull": 300, "duration": 3, "hero": 0.5, "stage": "dirt",
+      "layers": [
+        { "batch": "smoke", "count": [4, 6], "size": [0.22, 0.34], "grow": 5, "life": [1.6, 2.8], "speed": [2.5, 4.5], "jitter": 0.04, "dir": "up", "cone": 18,
+          "color": [0.06, 0.055, 0.05], "vary": 0.1, "alpha": [0.55, 0.75] },
+        { "batch": "smoke", "count": [2, 3], "size": [0.3, 0.45], "grow": 4, "life": [2.5, 3.5], "speed": [1.2, 2.2], "jitter": 0.06, "dir": "up", "cone": 25,
+          "color": [0.18, 0.17, 0.16], "vary": 0.08, "alpha": [0.3, 0.4] },
+        { "batch": "ember", "count": [0, 2], "size": [0.012, 0.02], "life": [0.2, 0.45], "speed": [3, 5], "dir": "up", "cone": 12, "color": [1.0, 0.45, 0.12] }
+      ] },
+    { "key": "exhaust.black", "family": "ship",
+      "about": "A diesel overboosted (a loop on each Exhaust_<n> point, over its soot, VEHICLES.md §9.10; intensity: the overboost by the load): a locomotive's column, jet-black smoke shot high out of the stack and rolling over into a wide dark plume, sparks now and then. The billows (exhaust.billow) come in the engine's rhythm over it.",
+      "cap": 24, "cull": 320, "hero": 0.9, "stage": "dirt",
+      "loop": { "fadeIn": 0.15, "fadeOut": 0.9,
+        "emit": [
+          { "batch": "smoke", "rate": 18, "at": [0.0, 0.02, 0.0], "jitter": 0.04, "size": [0.3, 0.42], "grow": 8, "life": [3.5, 5.5], "speed": [7.0, 11.0],
+            "dir": "up", "cone": 7, "color": [0.022, 0.02, 0.019], "vary": 0.06, "alpha": [0.82, 0.95] },
+          { "batch": "smoke", "rate": 4, "at": [0.0, 0.15, 0.0], "jitter": 0.1, "size": [0.45, 0.6], "grow": 6, "life": [5.0, 7.5], "speed": [2.5, 4.0],
+            "dir": "up", "cone": 18, "color": [0.07, 0.067, 0.064], "vary": 0.06, "alpha": [0.4, 0.55] },
+          { "batch": "ember", "rate": 3, "at": [0.0, 0.0, 0.0], "size": [0.012, 0.022], "life": [0.25, 0.5], "speed": [6, 9], "dir": "up", "cone": 10,
+            "color": [1.0, 0.45, 0.12] }
+        ] } },
+    { "key": "exhaust.billow", "family": "ship",
+      "about": "A locomotive's billow (at an Exhaust_<n> point; Scale: how hard, VEHICLES.md §9.10): a heavy round puff of jet-black smoke thrown high in the engine's rhythm, overboosted or pulling hard, with a rumble felt close by.",
+      "cap": 24, "cull": 320, "duration": 8, "hero": 0.8, "stage": "dirt",
+      "layers": [
+        { "batch": "smoke", "count": [2, 3], "size": [0.5, 0.7], "grow": 8, "life": [4.5, 7.0], "speed": [6.0, 10.0], "jitter": 0.08, "dir": "up", "cone": 9,
+          "color": [0.018, 0.017, 0.016], "vary": 0.06, "alpha": [0.85, 0.95] },
+        { "batch": "smoke", "count": 1, "size": [0.6, 0.8], "grow": 6, "life": [6.0, 8.0], "speed": [3.0, 5.0], "jitter": 0.12, "dir": "up", "cone": 16,
+          "color": [0.08, 0.077, 0.074], "vary": 0.05, "alpha": [0.45, 0.6] },
+        { "batch": "ember", "count": [0, 2], "size": [0.012, 0.022], "life": [0.25, 0.5], "speed": [6, 9], "dir": "up", "cone": 10, "color": [1.0, 0.45, 0.12] },
+        { "type": "shake", "strength": 0.1, "radius": 14, "duration": 0.45 }
+      ] },
+    { "key": "exhaust.billow.quiet", "family": "ship",
+      "about": "exhaust.billow without its rumble: the other stacks' billows (one stack's shake is enough).",
+      "cap": 24, "cull": 320, "duration": 8, "hero": 0.8, "stage": "dirt",
+      "layers": [
+        { "batch": "smoke", "count": [2, 3], "size": [0.5, 0.7], "grow": 8, "life": [4.5, 7.0], "speed": [6.0, 10.0], "jitter": 0.08, "dir": "up", "cone": 9,
+          "color": [0.018, 0.017, 0.016], "vary": 0.06, "alpha": [0.85, 0.95] },
+        { "batch": "smoke", "count": 1, "size": [0.6, 0.8], "grow": 6, "life": [6.0, 8.0], "speed": [3.0, 5.0], "jitter": 0.12, "dir": "up", "cone": 16,
+          "color": [0.08, 0.077, 0.074], "vary": 0.05, "alpha": [0.45, 0.6] },
+        { "batch": "ember", "count": [0, 2], "size": [0.012, 0.022], "life": [0.25, 0.5], "speed": [6, 9], "dir": "up", "cone": 10, "color": [1.0, 0.45, 0.12] }
+      ] },
+    { "key": "dust.tyre", "family": "ship",
+      "about": "Dust thrown up behind a tyre on the ground (a loop at its contact patch; Direction: behind it; Tint: the ground's dust; intensity: its speed and spin): a rolling cloud low behind it, grit and gravel kicked back.",
+      "cap": 48, "cull": 160, "hero": 0.6, "stage": "dirt",
+      "loop": { "fadeIn": 0.3, "fadeOut": 1.0,
+        "emit": [
+          { "batch": "dust", "rate": 22, "at": [0.0, 0.15, 0.0], "jitter": 0.3, "size": [0.6, 1.0], "grow": 2.6, "life": [1.4, 2.4], "speed": [1.5, 4.0],
+            "dir": "back", "cone": 30, "color": [1.05, 1.0, 0.92], "vary": 0.08, "alpha": [0.18, 0.3] },
+          { "batch": "dust", "rate": 5, "at": [0.0, 0.4, 0.0], "jitter": 0.5, "size": [1.2, 1.8], "grow": 2.2, "life": [2.5, 3.8], "speed": [0.5, 1.5],
+            "dir": "back", "cone": 45, "color": [1.08, 1.02, 0.94], "vary": 0.06, "alpha": [0.1, 0.18] },
+          { "batch": "chunk_stone", "rate": 16, "at": [0.0, 0.08, 0.0], "jitter": 0.15, "size": [0.012, 0.03], "speed": [3, 7], "life": [0.6, 1.2],
+            "dir": "back", "cone": 25, "color": [0.5, 0.46, 0.4], "vary": 0.2 }
+        ] } },
+    { "key": "spray.tyre", "family": "ship",
+      "about": "Water thrown up by a tyre in shallow water (a loop at the water's surface by it; Direction: behind it; intensity: its speed): a rooster tail of drops and a mist over it.",
+      "cap": 32, "cull": 220, "hero": 0.5, "stage": "water",
+      "loop": { "fadeIn": 0.2, "fadeOut": 0.6,
+        "emit": [
+          { "batch": "droplet", "rate": 90, "at": [0.0, 0.05, 0.0], "jitter": 0.25, "size": [0.06, 0.12], "width": 0.014, "speed": [2.5, 6.0],
+            "life": [0.4, 0.9], "dir": "back", "cone": 35, "color": [0.84, 0.9, 0.93], "alpha": [0.55, 0.85] },
+          { "batch": "dust", "rate": 10, "at": [0.0, 0.3, 0.0], "jitter": 0.3, "size": [0.5, 0.9], "grow": 2.2, "life": [0.8, 1.6], "speed": [1.0, 2.5],
+            "dir": "back", "cone": 40, "color": [0.92, 0.96, 0.98], "vary": 0.04, "alpha": [0.15, 0.25] }
+        ] } }
   ]
 }

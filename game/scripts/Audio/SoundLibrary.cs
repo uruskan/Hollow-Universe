@@ -14,11 +14,19 @@ public static class SoundLibrary
 {
     public const string DataPath = "res://data/ground/sounds.json";
     public const string LevelsPath = "res://assets/audio/levels.json";
+    public const string FootwearPath = "res://data/ground/footsteps.json";
 
     private static SoundCatalogData? _data;
-    private static readonly Dictionary<string, AudioStream?> Streams = new(StringComparer.Ordinal);
+    private static FootwearAudioData? _footwear;
+    private static AudioVoiceBudget? _voiceBudget;
+    private static readonly Dictionary<(string Path, bool Loop), AudioStream?> Streams = new();
+    // Only these resources are ours. ResourceLoader's original resources may have other users.
+    private static readonly HashSet<AudioStream> OwnedModes = new();
+    internal static int OwnedModeCount => OwnedModes.Count;
 
     public static SoundCatalogData Data => _data ??= Load();
+    public static FootwearAudioData Footwear => _footwear ??= LoadFootwear();
+    public static AudioVoiceBudget VoiceBudget => _voiceBudget ??= LoadVoiceBudget();
 
     public static SoundEventData? Find(string key) => Data.Find(key);
 
@@ -28,7 +36,7 @@ public static class SoundLibrary
     /// <summary>A file's stream, loaded once; null (and a warning) when it is missing.</summary>
     public static AudioStream? Stream(string path, bool loop = false)
     {
-        if (Streams.TryGetValue(path, out AudioStream? cached))
+        if (Streams.TryGetValue((path, loop), out AudioStream? cached))
         {
             return cached;
         }
@@ -37,24 +45,37 @@ public static class SoundLibrary
         {
             GD.PushWarning($"Sound file {path} is missing.");
         }
-        else if (loop)
+        else
         {
             switch (stream)
             {
-                case AudioStreamOggVorbis ogg:
-                    ogg.Loop = true;
+                case AudioStreamOggVorbis ogg when ogg.Loop != loop:
+                    // A caller may explicitly loop a one-shot. Do not mutate the resource used by ordinary plays.
+                    var loopOgg = (AudioStreamOggVorbis)ogg.Duplicate();
+                    loopOgg.Loop = loop;
+                    stream = loopOgg;
+                    OwnedModes.Add(stream);
                     break;
-                case AudioStreamWav wav:
-                    wav.LoopMode = AudioStreamWav.LoopModeEnum.Forward;
+                case AudioStreamWav wav when (wav.LoopMode != AudioStreamWav.LoopModeEnum.Disabled) != loop:
+                    var loopWav = (AudioStreamWav)wav.Duplicate();
+                    loopWav.LoopMode = loop ? AudioStreamWav.LoopModeEnum.Forward : AudioStreamWav.LoopModeEnum.Disabled;
+                    if (loop && loopWav.LoopEnd <= loopWav.LoopBegin) loopWav.LoopEnd = (int)(loopWav.GetLength() * loopWav.MixRate);
+                    stream = loopWav;
+                    OwnedModes.Add(stream);
                     break;
             }
         }
-        Streams[path] = stream;
+        Streams[(path, loop)] = stream;
         return stream;
     }
 
-    /// <summary>Lets go of the loaded streams (the director does when it leaves the tree).</summary>
-    public static void Release() => Streams.Clear();
+    /// <summary>Releases mode clones after the last director clears its players; shared imported resources are never disposed here.</summary>
+    public static void Release()
+    {
+        Streams.Clear();
+        foreach (AudioStream stream in OwnedModes) stream.Dispose();
+        OwnedModes.Clear();
+    }
 
     /// <summary>Loads every file of these events now, so their first play doesn't wait on the disk.</summary>
     public static void Preload(IEnumerable<string> keys)
@@ -87,6 +108,31 @@ public static class SoundLibrary
             GD.PushError(e.Message);
             return SoundCatalogData.Parse("{\"events\": []}");
         }
+    }
+
+    private static FootwearAudioData LoadFootwear()
+    {
+        if (!FileAccess.FileExists(FootwearPath))
+        {
+            GD.PushWarning($"{FootwearPath} is missing: using legacy foot contacts.");
+            return FootwearAudioData.Fallback;
+        }
+        try
+        {
+            return FootwearAudioData.Parse(FileAccess.GetFileAsString(FootwearPath));
+        }
+        catch (FormatException e)
+        {
+            GD.PushError(e.Message);
+            return FootwearAudioData.Fallback;
+        }
+    }
+
+    private static AudioVoiceBudget LoadVoiceBudget()
+    {
+        if (!FileAccess.FileExists(DataPath)) return AudioVoiceBudget.Default;
+        try { return AudioVoiceBudget.Parse(FileAccess.GetFileAsString(DataPath)); }
+        catch (FormatException e) { GD.PushError(e.Message); return AudioVoiceBudget.Default; }
     }
 }
 

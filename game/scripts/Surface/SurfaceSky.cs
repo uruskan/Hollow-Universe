@@ -18,8 +18,9 @@ public sealed class SurfaceSky
     /// <summary>Sunlight above the air at Earth's distance from the Sun, in render units.</summary>
     public const float SolarConstant = 3.0f;
 
-    /// <summary>Stars and the galaxy's band are brightened by this much: eyes adapted to the dark see them better than a camera.</summary>
-    private const float StarBoost = 400f;
+    /// <summary>System bodies and the galaxy retain their existing presentation; procedural stars have a separate night balance.</summary>
+    private const float SystemAndGalaxyBoost = 400f;
+    private const float ProceduralStarBoost = 100f;
 
     private readonly SkyEphemeris _ephemeris;
     private readonly AtmosphereModel _air;
@@ -174,7 +175,7 @@ public sealed class SurfaceSky
                 e = (float)(sunAtPlanet * 0.35 * Math.Pow(b.Radius / d, 2) * lambert);
                 colour = b.PlanetType is PlanetType.IceGiant ? new Vector3(0.8f, 0.92f, 1f) : new Vector3(1f, 0.95f, 0.88f);
             }
-            points.Add(new Vector4(0, 0, 0, e * StarBoost) + V4(frame.DirectionToRender(p / d)));
+            points.Add(new Vector4(0, 0, 0, e * SystemAndGalaxyBoost) + V4(frame.DirectionToRender(p / d)));
             colours.Add(colour);
             if (points.Count == 8)
             {
@@ -193,9 +194,9 @@ public sealed class SurfaceSky
         skyMaterial.SetShaderParameter("galaxy_centre", galacticToSystem * ToGodot(toCentre));
         skyMaterial.SetShaderParameter("galaxy_pole", galacticToSystem * Vector3.Up);
         // A magnitude-0 star relative to this sun (magnitude −26.7 at Earth's sunlight).
-        float magnitudeZero = SolarConstant * 2.2e-11f * StarBoost;
-        skyMaterial.SetShaderParameter("star_brightness", magnitudeZero);
-        skyMaterial.SetShaderParameter("galaxy_brightness", magnitudeZero * 2.5e3f);
+        float magnitudeZero = SolarConstant * 2.2e-11f;
+        skyMaterial.SetShaderParameter("star_brightness", magnitudeZero * ProceduralStarBoost);
+        skyMaterial.SetShaderParameter("galaxy_brightness", magnitudeZero * SystemAndGalaxyBoost * 2.5e3f);
         skyMaterial.SetShaderParameter("pixel_angle", pixelAngle);
 
         // Lights at the ground: sunlight and moonlight through the air.

@@ -160,6 +160,18 @@ public sealed class WearStats
 
     public BodyRegions Covers { get; init; }
 
+    /// <summary>Foot-contact profile in footsteps.json; only items worn on the feet may declare one.</summary>
+    public string? FootstepProfile { get; init; }
+
+    /// <summary>Profile keys form sound-event suffixes and may be extended by data without new item rules.</summary>
+    public static bool IsFootstepProfileKey(string? key)
+    {
+        if (string.IsNullOrEmpty(key) || key.Length > 64 || key[0] is < 'a' or > 'z') return false;
+        foreach (char c in key)
+            if (c is not (>= 'a' and <= 'z') and not (>= '0' and <= '9') and not '-' and not '_') return false;
+        return true;
+    }
+
     /// <summary>Fractions of melee and projectile damage taken off hits on the covered regions.</summary>
     public float Melee { get; init; }
 
@@ -240,6 +252,7 @@ public sealed class ItemDef
     public int MaxCondition { get; init; }
 
     public MeleeStats? Melee { get; init; }
+    public WiringStats? Wiring { get; init; }
 
     public BowStats? Bow { get; init; }
 
@@ -268,6 +281,20 @@ public sealed class ItemDef
     public string? ShipKey { get; init; }
 
     public Ships.ShipDef? Ship { get; internal set; }
+
+    /// <summary>
+    /// The build a preset makes its ship with (ships.json <c>presets</c>, VEHICLES.md §9.11: the Monster TOGG is a TOGG made
+    /// with monster parts), or null: the kind's default build.
+    /// </summary>
+    public Ships.Modules.ShipBuild? ShipBuild { get; internal set; }
+
+    /// <summary>A preset's build as ships.json names it: socket keys, levels, module keys.</summary>
+    internal IReadOnlyList<(string Socket, int Level, string Module)>? ShipBuildKeys { get; set; }
+
+    /// <summary>The module this item is (modules.json, VEHICLES.md §9.1): it goes into a ship's socket at a service station.</summary>
+    public string? ModuleKey { get; init; }
+
+    public Ships.Modules.ModuleDef? Module { get; internal set; }
 
     /// <summary>A firearm's numbers (weapons.json), a round's, an attachment's; null for other items (G4).</summary>
     public FirearmStats? Firearm { get; internal set; }

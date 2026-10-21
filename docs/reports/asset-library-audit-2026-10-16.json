@@ -1,0 +1,2870 @@
+{
+  "audit_date_local": "2026-10-16",
+  "project": "D:/GameDev/Projects/HollowUniverseABTestB",
+  "source_library": "D:/GameDev/Assets",
+  "scope": "Local file inventory and active-project source/data inspection, not a live account refresh or runtime playtest. Counts include package variants/backups and are not counts of unique usable assets.",
+  "source_file_count": 12721,
+  "source_groups": [
+    {
+      "name": "(root files)",
+      "files": 128,
+      "extensions": {
+        ".blend": 1,
+        ".exe": 1,
+        ".fbx": 1,
+        ".glb": 51,
+        ".json": 1,
+        ".m4a": 1,
+        ".rgt_map": 1,
+        ".sha256": 2,
+        ".zip": 69
+      }
+    },
+    {
+      "name": "Bare-ResourceNodes",
+      "files": 1,
+      "extensions": {
+        ".zip": 1
+      }
+    },
+    {
+      "name": "Bare-World-Manual",
+      "files": 253,
+      "extensions": {
+        ".blend": 1,
+        ".fbx": 117,
+        ".glb": 2,
+        ".jpg": 102,
+        ".json": 19,
+        ".md": 1,
+        ".zip": 11
+      }
+    },
+    {
+      "name": "Bare-World-Prepared",
+      "files": 146,
+      "extensions": {
+        ".blend": 2,
+        ".exr": 2,
+        ".fbx": 36,
+        ".jpg": 17,
+        ".json": 16,
+        ".log": 2,
+        ".png": 71
+      }
+    },
+    {
+      "name": "Downloads",
+      "files": 290,
+      "extensions": {
+        ".7z": 3,
+        ".blend": 1,
+        ".fbx": 4,
+        ".glb": 3,
+        ".png": 12,
+        ".txt": 3,
+        ".wav": 251,
+        ".zip": 13
+      }
+    },
+    {
+      "name": "Fab",
+      "files": 16,
+      "extensions": {
+        ".blend": 1,
+        ".glb": 4,
+        ".zip": 11
+      }
+    },
+    {
+      "name": "HollowGround_Audit_2026-10-14",
+      "files": 9,
+      "extensions": {
+        ".err": 3,
+        ".log": 3,
+        ".png": 3
+      }
+    },
+    {
+      "name": "Hollow_LootContainers_R01",
+      "files": 207,
+      "extensions": {
+        "(no extension)": 7,
+        ".bin": 1,
+        ".blend": 1,
+        ".blend1": 1,
+        ".cache": 6,
+        ".cfg": 9,
+        ".cmd": 1,
+        ".cs": 3,
+        ".csproj": 1,
+        ".ctex": 14,
+        ".dll": 6,
+        ".editorconfig": 1,
+        ".glb": 6,
+        ".godot": 1,
+        ".import": 13,
+        ".json": 24,
+        ".log": 10,
+        ".md": 1,
+        ".md5": 13,
+        ".pdb": 2,
+        ".png": 46,
+        ".props": 1,
+        ".ps1": 2,
+        ".py": 9,
+        ".pyc": 2,
+        ".scn": 6,
+        ".targets": 1,
+        ".tres": 2,
+        ".tscn": 10,
+        ".txt": 3,
+        ".uid": 1,
+        ".up2date": 1,
+        ".zip": 2
+      }
+    },
+    {
+      "name": "Hollow_PowerKit_R01",
+      "files": 255,
+      "extensions": {
+        "(no extension)": 6,
+        ".bin": 1,
+        ".blend": 1,
+        ".blend1": 1,
+        ".cache": 6,
+        ".cfg": 10,
+        ".cmd": 1,
+        ".cs": 4,
+        ".csproj": 1,
+        ".ctex": 10,
+        ".dll": 6,
+        ".editorconfig": 1,
+        ".glb": 7,
+        ".godot": 1,
+        ".import": 17,
+        ".json": 25,
+        ".log": 11,
+        ".md": 3,
+        ".md5": 17,
+        ".pdb": 2,
+        ".png": 82,
+        ".props": 1,
+        ".ps1": 2,
+        ".py": 9,
+        ".pyc": 1,
+        ".scn": 7,
+        ".targets": 1,
+        ".tres": 3,
+        ".tscn": 10,
+        ".txt": 3,
+        ".uid": 2,
+        ".up2date": 1,
+        ".zip": 2
+      }
+    },
+    {
+      "name": "Hollow_Production_Briefs_R01",
+      "files": 15,
+      "extensions": {
+        ".json": 4,
+        ".py": 1,
+        ".txt": 10
+      }
+    },
+    {
+      "name": "Hollow_Production_Reviews",
+      "files": 14,
+      "extensions": {
+        ".json": 3,
+        ".log": 1,
+        ".md": 2,
+        ".png": 1,
+        ".py": 2,
+        ".pyc": 1,
+        ".txt": 4
+      }
+    },
+    {
+      "name": "Hollow_RuinDressing_R01",
+      "files": 415,
+      "extensions": {
+        "(no extension)": 6,
+        ".bin": 1,
+        ".blend": 1,
+        ".blend1": 1,
+        ".cache": 6,
+        ".cfg": 7,
+        ".cmd": 1,
+        ".cs": 3,
+        ".csproj": 1,
+        ".ctex": 86,
+        ".dll": 6,
+        ".editorconfig": 1,
+        ".glb": 4,
+        ".godot": 1,
+        ".import": 47,
+        ".json": 54,
+        ".log": 7,
+        ".md": 4,
+        ".md5": 47,
+        ".pdb": 2,
+        ".png": 87,
+        ".props": 1,
+        ".ps1": 2,
+        ".py": 10,
+        ".pyc": 1,
+        ".scn": 4,
+        ".targets": 1,
+        ".tres": 3,
+        ".tscn": 13,
+        ".txt": 3,
+        ".uid": 1,
+        ".up2date": 1,
+        ".zip": 2
+      }
+    },
+    {
+      "name": "Hollow_Salvage_R01",
+      "files": 363,
+      "extensions": {
+        "(no extension)": 6,
+        ".bin": 1,
+        ".blend": 2,
+        ".blend1": 1,
+        ".cache": 6,
+        ".cfg": 9,
+        ".cmd": 1,
+        ".cs": 4,
+        ".csproj": 1,
+        ".ctex": 31,
+        ".dll": 6,
+        ".editorconfig": 1,
+        ".glb": 12,
+        ".godot": 1,
+        ".import": 28,
+        ".json": 29,
+        ".log": 9,
+        ".md": 3,
+        ".md5": 28,
+        ".pdb": 2,
+        ".png": 139,
+        ".props": 1,
+        ".ps1": 2,
+        ".py": 14,
+        ".pyc": 2,
+        ".scn": 6,
+        ".targets": 1,
+        ".tres": 3,
+        ".tscn": 7,
+        ".txt": 4,
+        ".uid": 1,
+        ".up2date": 1,
+        ".zip": 1
+      }
+    },
+    {
+      "name": "Hollow_Substation_R01",
+      "files": 275,
+      "extensions": {
+        "(no extension)": 6,
+        ".bin": 1,
+        ".blend": 1,
+        ".blend1": 1,
+        ".cache": 12,
+        ".cfg": 8,
+        ".cmd": 1,
+        ".cs": 6,
+        ".csproj": 1,
+        ".ctex": 24,
+        ".dll": 12,
+        ".editorconfig": 2,
+        ".err": 6,
+        ".glb": 5,
+        ".godot": 1,
+        ".import": 29,
+        ".json": 17,
+        ".log": 13,
+        ".md": 2,
+        ".md5": 29,
+        ".pdb": 4,
+        ".png": 37,
+        ".props": 2,
+        ".py": 10,
+        ".pyc": 10,
+        ".scn": 5,
+        ".targets": 2,
+        ".tres": 16,
+        ".tscn": 6,
+        ".txt": 2,
+        ".uid": 2,
+        ".up2date": 2
+      }
+    },
+    {
+      "name": "Hollow_WreckModules_R01",
+      "files": 381,
+      "extensions": {
+        "(no extension)": 6,
+        ".bin": 1,
+        ".blend": 1,
+        ".blend1": 1,
+        ".cache": 104,
+        ".cfg": 19,
+        ".cmd": 1,
+        ".cs": 3,
+        ".csproj": 1,
+        ".ctex": 4,
+        ".dll": 6,
+        ".editorconfig": 1,
+        ".glb": 9,
+        ".godot": 1,
+        ".import": 13,
+        ".jpg": 5,
+        ".json": 21,
+        ".jsonl": 1,
+        ".log": 65,
+        ".md": 7,
+        ".md5": 13,
+        ".pdb": 2,
+        ".png": 63,
+        ".props": 1,
+        ".py": 9,
+        ".pyc": 2,
+        ".res": 1,
+        ".scn": 9,
+        ".targets": 1,
+        ".tres": 1,
+        ".tscn": 4,
+        ".txt": 2,
+        ".uid": 1,
+        ".up2date": 1,
+        ".zip": 1
+      }
+    },
+    {
+      "name": "Inventory",
+      "files": 16,
+      "extensions": {
+        ".csv": 1,
+        ".js": 1,
+        ".json": 6,
+        ".jsonl": 1,
+        ".md": 3,
+        ".py": 1,
+        ".pyc": 1,
+        ".txt": 2
+      }
+    },
+    {
+      "name": "IronWake_Benchmark_20261015",
+      "files": 910,
+      "extensions": {
+        "(no extension)": 5,
+        ".bin": 5,
+        ".blend": 2,
+        ".blend1": 2,
+        ".cfg": 26,
+        ".cmd": 1,
+        ".ctex": 21,
+        ".fbx": 356,
+        ".gd": 19,
+        ".gdshader": 3,
+        ".glb": 4,
+        ".gltf": 4,
+        ".godot": 2,
+        ".import": 35,
+        ".jpg": 8,
+        ".json": 55,
+        ".log": 34,
+        ".md": 7,
+        ".md5": 35,
+        ".png": 140,
+        ".py": 37,
+        ".pyc": 39,
+        ".sample": 23,
+        ".tif": 1,
+        ".tscn": 1,
+        ".txt": 1,
+        ".uid": 20,
+        ".wav": 24
+      }
+    },
+    {
+      "name": "IronWake_Buildable_R01",
+      "files": 608,
+      "extensions": {
+        "(no extension)": 1,
+        ".bin": 4,
+        ".blend": 3,
+        ".blend1": 2,
+        ".fbx": 356,
+        ".gd": 1,
+        ".glb": 4,
+        ".gltf": 4,
+        ".godot": 1,
+        ".json": 40,
+        ".log": 19,
+        ".md": 4,
+        ".png": 73,
+        ".py": 34,
+        ".pyc": 60,
+        ".txt": 2
+      }
+    },
+    {
+      "name": "IronWake_IW09",
+      "files": 849,
+      "extensions": {
+        "(no extension)": 6,
+        ".b64": 1,
+        ".bin": 11,
+        ".blend": 4,
+        ".blend1": 2,
+        ".fbx": 428,
+        ".glb": 2,
+        ".gltf": 4,
+        ".in": 2,
+        ".ini": 19,
+        ".json": 28,
+        ".list": 2,
+        ".log": 26,
+        ".md": 2,
+        ".png": 30,
+        ".pth": 2,
+        ".py": 14,
+        ".pyc": 3,
+        ".ref": 2,
+        ".txt": 13,
+        ".uasset": 238,
+        ".umap": 2,
+        ".uproject": 2,
+        ".ush": 4,
+        ".xml": 2
+      }
+    },
+    {
+      "name": "KritaResources",
+      "files": 209,
+      "extensions": {
+        "(no extension)": 1,
+        ".bundle": 4,
+        ".ggr": 17,
+        ".gpl": 13,
+        ".kgm": 6,
+        ".kpp": 16,
+        ".kse": 1,
+        ".kwl": 2,
+        ".kws": 9,
+        ".myb": 7,
+        ".pat": 78,
+        ".png": 41,
+        ".sqlite": 1,
+        ".svg": 4,
+        ".tag": 9
+      }
+    },
+    {
+      "name": "Oxum-Test",
+      "files": 2568,
+      "extensions": {
+        "(no extension)": 2,
+        ".bin": 2,
+        ".cfg": 4,
+        ".cmd": 1,
+        ".ctex": 347,
+        ".gd": 1,
+        ".glb": 2,
+        ".gltf": 1,
+        ".godot": 1,
+        ".import": 348,
+        ".json": 9,
+        ".log": 4,
+        ".md": 2,
+        ".md5": 348,
+        ".png": 1484,
+        ".ps1": 1,
+        ".py": 6,
+        ".pyc": 1,
+        ".scn": 1,
+        ".tscn": 1,
+        ".txt": 1,
+        ".uid": 1
+      }
+    },
+    {
+      "name": "PSG_BuildingKit_R01",
+      "files": 640,
+      "extensions": {
+        ".b64": 1,
+        ".bin": 7,
+        ".blend": 4,
+        ".blend1": 2,
+        ".cpp": 18,
+        ".cs": 1,
+        ".csv": 1,
+        ".deps": 1,
+        ".dll": 3,
+        ".dmp": 1,
+        ".exp": 1,
+        ".fbx": 195,
+        ".h": 25,
+        ".in": 1,
+        ".ini": 34,
+        ".json": 36,
+        ".lib": 1,
+        ".list": 1,
+        ".log": 31,
+        ".md": 1,
+        ".modules": 1,
+        ".obj": 5,
+        ".old": 7,
+        ".pdb": 3,
+        ".png": 43,
+        ".pth": 1,
+        ".py": 13,
+        ".pyc": 3,
+        ".res": 1,
+        ".rsp": 19,
+        ".runtime-xml": 1,
+        ".sarif": 6,
+        ".target": 1,
+        ".txt": 14,
+        ".uasset": 145,
+        ".uhtmanifest": 1,
+        ".uhtpath": 1,
+        ".uhtsettings": 1,
+        ".uhttimestamps": 1,
+        ".umap": 3,
+        ".uplugin": 1,
+        ".uproject": 1,
+        ".ush": 2,
+        ".xml": 1
+      }
+    },
+    {
+      "name": "PSG_C4VFX_R01",
+      "files": 1070,
+      "extensions": {
+        "(no extension)": 2,
+        ".bin": 1,
+        ".blend": 8,
+        ".blend1": 2,
+        ".dmp": 1,
+        ".exr": 64,
+        ".fbx": 6,
+        ".in": 9,
+        ".ini": 11,
+        ".json": 64,
+        ".list": 1,
+        ".log": 46,
+        ".png": 37,
+        ".pth": 1,
+        ".py": 43,
+        ".runtime-xml": 1,
+        ".txt": 31,
+        ".uasset": 37,
+        ".uni": 231,
+        ".uproject": 1,
+        ".usf": 8,
+        ".ush": 2,
+        ".vdb": 462,
+        ".xml": 1
+      }
+    },
+    {
+      "name": "PSG_DoorWindowKit_R01",
+      "files": 173,
+      "extensions": {
+        ".b64": 1,
+        ".blend": 3,
+        ".blend1": 1,
+        ".cmd": 1,
+        ".fbx": 72,
+        ".json": 18,
+        ".log": 29,
+        ".md": 2,
+        ".png": 20,
+        ".py": 14,
+        ".pyc": 3,
+        ".txt": 4,
+        ".uproject": 1,
+        ".zip": 4
+      }
+    },
+    {
+      "name": "PSG_DoorWindowKit_R02_GameReady",
+      "files": 95,
+      "extensions": {
+        ".cpp": 3,
+        ".cs": 1,
+        ".dll": 1,
+        ".h": 2,
+        ".json": 10,
+        ".md": 1,
+        ".modules": 1,
+        ".png": 3,
+        ".uasset": 70,
+        ".umap": 2,
+        ".uplugin": 1
+      }
+    },
+    {
+      "name": "PSG_ResourceNodes_R01",
+      "files": 421,
+      "extensions": {
+        "(no extension)": 5,
+        ".bat": 2,
+        ".bin": 3,
+        ".blend": 23,
+        ".blend1": 21,
+        ".csv": 1,
+        ".fbx": 65,
+        ".html": 1,
+        ".in": 1,
+        ".ini": 18,
+        ".jpg": 6,
+        ".json": 45,
+        ".list": 1,
+        ".log": 41,
+        ".md": 5,
+        ".png": 61,
+        ".pth": 1,
+        ".py": 20,
+        ".pyc": 2,
+        ".ref": 1,
+        ".txt": 9,
+        ".uasset": 83,
+        ".umap": 2,
+        ".uproject": 1,
+        ".ush": 2,
+        ".xml": 1
+      }
+    },
+    {
+      "name": "PSG_StarterKit_R02",
+      "files": 445,
+      "extensions": {
+        "(no extension)": 5,
+        ".b64": 1,
+        ".bin": 4,
+        ".blend": 22,
+        ".blend1": 22,
+        ".complete": 1,
+        ".fbx": 93,
+        ".in": 1,
+        ".ini": 25,
+        ".jpg": 1,
+        ".json": 63,
+        ".list": 1,
+        ".log": 47,
+        ".md": 4,
+        ".png": 37,
+        ".ps1": 2,
+        ".pth": 1,
+        ".py": 25,
+        ".pyc": 5,
+        ".ref": 1,
+        ".txt": 9,
+        ".uasset": 70,
+        ".umap": 1,
+        ".uproject": 1,
+        ".ush": 2,
+        ".xml": 1
+      }
+    },
+    {
+      "name": "PSG_StarterKit_R02_UE583",
+      "files": 76,
+      "extensions": {
+        ".json": 6,
+        ".md": 4,
+        ".uasset": 65,
+        ".umap": 1
+      }
+    },
+    {
+      "name": "Recovery",
+      "files": 2,
+      "extensions": {
+        ".blend": 2
+      }
+    },
+    {
+      "name": "RedRock02_4K",
+      "files": 7,
+      "extensions": {
+        ".json": 1,
+        ".png": 6
+      }
+    },
+    {
+      "name": "ResourceNodes",
+      "files": 28,
+      "extensions": {
+        ".err": 2,
+        ".glb": 3,
+        ".json": 3,
+        ".log": 3,
+        ".md": 1,
+        ".png": 15,
+        ".py": 1
+      }
+    },
+    {
+      "name": "RustMapsResearch",
+      "files": 1224,
+      "extensions": {
+        ".before-adoption": 2,
+        ".bin": 21,
+        ".cjs": 1,
+        ".csv": 1,
+        ".f32": 260,
+        ".glb": 70,
+        ".hlsl": 3,
+        ".i32": 1,
+        ".ini": 2,
+        ".jpg": 22,
+        ".js": 3,
+        ".json": 424,
+        ".jsonl": 3,
+        ".log": 28,
+        ".map": 1,
+        ".npy": 18,
+        ".npz": 1,
+        ".obj": 3,
+        ".png": 333,
+        ".protobuf": 1,
+        ".py": 11,
+        ".raw16": 3,
+        ".rgt_map": 1,
+        ".txt": 10,
+        ".wasm": 1
+      }
+    },
+    {
+      "name": "Textures",
+      "files": 3,
+      "extensions": {
+        ".kra": 1,
+        ".kra~": 1,
+        ".png": 1
+      }
+    },
+    {
+      "name": "TinFinch_TF01",
+      "files": 65,
+      "extensions": {
+        ".b64": 3,
+        ".bin": 4,
+        ".blend": 2,
+        ".blend1": 1,
+        ".fbx": 8,
+        ".glb": 1,
+        ".gltf": 4,
+        ".jpg": 4,
+        ".json": 6,
+        ".log": 5,
+        ".md": 1,
+        ".png": 14,
+        ".py": 9,
+        ".pyc": 1,
+        ".svg": 2
+      }
+    },
+    {
+      "name": "alpine_bearberry_xb0gdazqx_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "beach_gravel_with_pebbles_tbvqegas_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "beach_sand_uinladeo_4k",
+      "files": 10,
+      "extensions": {
+        ".jpg": 8,
+        ".json": 2
+      }
+    },
+    {
+      "name": "beach_sand_with_pebbles_vl0fdilo_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "bilberry_vldufeiha_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "bracken_fern_seeow_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "canyon_sandstone_rock_vimldgeg_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "clean_snow_ueqmfe3fw_4k",
+      "files": 12,
+      "extensions": {
+        ".jpg": 10,
+        ".json": 2
+      }
+    },
+    {
+      "name": "coast_line_01_4k.gltf",
+      "files": 6,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 1,
+        ".jpg": 3,
+        ".json": 1
+      }
+    },
+    {
+      "name": "coast_line_02_4k.gltf",
+      "files": 6,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 1,
+        ".jpg": 3,
+        ".json": 1
+      }
+    },
+    {
+      "name": "coast_rocks_01_4k.gltf",
+      "files": 6,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 1,
+        ".jpg": 3,
+        ".json": 1
+      }
+    },
+    {
+      "name": "coast_rocks_02_4k.gltf",
+      "files": 6,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 1,
+        ".jpg": 3,
+        ".json": 1
+      }
+    },
+    {
+      "name": "coastal_cliff_04_4k.gltf",
+      "files": 6,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 1,
+        ".jpg": 3,
+        ".json": 1
+      }
+    },
+    {
+      "name": "cotton_grass_wlykecdia_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "cracked_nordic_coastal_rock_ukohaj0mw_4k",
+      "files": 10,
+      "extensions": {
+        ".jpg": 8,
+        ".json": 2
+      }
+    },
+    {
+      "name": "crowberry_xeolbhcja_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "dead_shrubs_vdknafgha_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "desert_outback_ground_rocky_06_xiqgafr_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "desert_sand_sfilxqh_4k",
+      "files": 10,
+      "extensions": {
+        ".jpg": 8,
+        ".json": 2
+      }
+    },
+    {
+      "name": "desert_sand_sfiodwh_4k",
+      "files": 10,
+      "extensions": {
+        ".jpg": 8,
+        ".json": 2
+      }
+    },
+    {
+      "name": "desert_sand_wkjgche_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "desert_western_ground_dirt_coarse_07_xiqebhm_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "desert_western_ground_gravel_coarse_02_xglmbct_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "desert_western_ground_sand_fine_01_xgmpdek_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "downy_willow_wknlfiuqx_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "dry_grass_tbbqejqr_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "dwarf_birch_xblnaabqx_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "forest_floor_wgyhdgy_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "fresh_windswept_snow_uehnaazn_4k",
+      "files": 12,
+      "extensions": {
+        ".jpg": 10,
+        ".json": 2
+      }
+    },
+    {
+      "name": "frozen_lake_tcbkdcfr_4k",
+      "files": 12,
+      "extensions": {
+        ".jpg": 10,
+        ".json": 2
+      }
+    },
+    {
+      "name": "ice_wall_uebjabcr_4k",
+      "files": 12,
+      "extensions": {
+        ".jpg": 10,
+        ".json": 2
+      }
+    },
+    {
+      "name": "icy_snow_on_dry_grass_sjziebea_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "melting_snow_uexjbdudy_4k",
+      "files": 12,
+      "extensions": {
+        ".jpg": 10,
+        ".json": 2
+      }
+    },
+    {
+      "name": "mossy_embankment_tkvsei1fa_high",
+      "files": 13,
+      "extensions": {
+        ".fbx": 1,
+        ".jpg": 10,
+        ".json": 2
+      }
+    },
+    {
+      "name": "mossy_ground_tj4ocdjr_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "mountainside_4k.gltf",
+      "files": 6,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 1,
+        ".jpg": 3,
+        ".json": 1
+      }
+    },
+    {
+      "name": "namaqualand_cliff_02_4k.gltf",
+      "files": 6,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 1,
+        ".jpg": 3,
+        ".json": 1
+      }
+    },
+    {
+      "name": "nordic_coastal_groundcover_vlqkdeaja_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "pine_roots_4k.gltf",
+      "files": 9,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 1,
+        ".jpg": 6,
+        ".json": 1
+      }
+    },
+    {
+      "name": "rhazya_xdjmfeqqx_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "rock_moss_set_02_4k.gltf",
+      "files": 6,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 1,
+        ".jpg": 3,
+        ".json": 1
+      }
+    },
+    {
+      "name": "sleet_covered_gravel_tb5oaf2s_4k",
+      "files": 12,
+      "extensions": {
+        ".jpg": 10,
+        ".json": 2
+      }
+    },
+    {
+      "name": "snow_cliff_uhqncfpdy_4k",
+      "files": 12,
+      "extensions": {
+        ".jpg": 10,
+        ".json": 2
+      }
+    },
+    {
+      "name": "tundra_grass_wk2oaeyqx_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "tundra_gravel_ground_vjepchymw_4k",
+      "files": 10,
+      "extensions": {
+        ".jpg": 8,
+        ".json": 2
+      }
+    },
+    {
+      "name": "tundra_lichened_rock_vjbode1mw_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "tundra_mossy_ground_vjulbjjr_4k",
+      "files": 10,
+      "extensions": {
+        ".jpg": 8,
+        ".json": 2
+      }
+    },
+    {
+      "name": "tundra_rocky_ground_vi2mahnmw_4k",
+      "files": 10,
+      "extensions": {
+        ".jpg": 8,
+        ".json": 2
+      }
+    },
+    {
+      "name": "wet_grass_ground_sjzkdjba_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "wet_plain_sand_rldas3p0_4k",
+      "files": 11,
+      "extensions": {
+        ".jpg": 9,
+        ".json": 2
+      }
+    },
+    {
+      "name": "wild_grass_vlkhcbxia_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    },
+    {
+      "name": "windswept_snowy_stones_tdloaf1r_4k",
+      "files": 12,
+      "extensions": {
+        ".jpg": 10,
+        ".json": 2
+      }
+    },
+    {
+      "name": "wood_sorrel_wcwmchzja_ue_high",
+      "files": 11,
+      "extensions": {
+        ".bin": 1,
+        ".gltf": 2,
+        ".json": 2,
+        ".png": 6
+      }
+    }
+  ],
+  "ownership_inventory_records": 1264,
+  "ownership_inventory_metadata": {
+    "captured_at": "2026-09-06T21:37:18.737Z",
+    "crawl_started": "2026-09-06T21:10:09.546Z",
+    "completeness": "quoted_quixel_ui_scan_finished_account_completeness_unverified",
+    "library_displayed_count": 16,
+    "quixel_catalog_displayed_count": "21K (rounded UI value)",
+    "source": "Authenticated Fab UI: My Library download buttons and seller Saved in My Library badges; full DOM links.",
+    "ownership_rule": "My Library + download button or Saved in My Library badge; price/search not ownership",
+    "downloaded_or_imported": false,
+    "observed_unique": 1264,
+    "quixel_requested_query": "\"my assets\"",
+    "quixel_query_displayed_results": 677,
+    "scope_note": "All ownership-confirmed records from the completed observed Quixel quoted-query UI scan, plus prior verified My Library and seller observations. Overall account completeness is unverified due to Fab count discrepancy and query-limited scope. UI DOM extraction succeeded; direct API export remains unverified.",
+    "quixel_owned_count": 1249,
+    "quixel_query_scan": {
+      "query": "\"my assets\"",
+      "seller": "Quixel Megascans",
+      "displayed_results": 677,
+      "started_at": "2026-09-06T21:32:02.251Z",
+      "completeness": "observed_query_ui_exhausted",
+      "finished_at": "2026-09-06T21:37:18.737Z",
+      "loaded_card_count": 2354,
+      "unique_candidates": 2353,
+      "owned_count": 1223,
+      "ownership_not_confirmed": 1130,
+      "completion_evidence": "Title A-Z reached Zucchini, visible page footer, subsequent scroll loaded no further cards.",
+      "scope_note": "Fab header displayed 677 but rendered 2354 cards (2353 unique IDs). Query remained quoted my assets. Count mismatch is unresolved; this scan is not proof of complete account or complete Quixel entitlements.",
+      "final_ui_status_reported_results": 2354
+    },
+    "last_supplement_at": "2026-09-06T23:10:19Z",
+    "supplement_note": "Added owned European Black Alder from authenticated product page. Earlier quoted-query capture statistics are historical and unchanged; inventory is still not account-complete."
+  },
+  "project_model_entries": 142,
+  "missing_model_entry_files": [],
+  "window_insert_meshes": [
+    "Embrasure_Horizontal",
+    "Embrasure_Horizontal_col00-convcolonly",
+    "Embrasure_Horizontal_col01-convcolonly",
+    "Embrasure_Horizontal_col02-convcolonly",
+    "Embrasure_Horizontal_col03-convcolonly",
+    "Embrasure_Horizontal_col04-convcolonly",
+    "Embrasure_Horizontal_col05-convcolonly",
+    "Embrasure_Horizontal_col06-convcolonly",
+    "Embrasure_Horizontal_LOD1",
+    "Embrasure_Horizontal_LOD2",
+    "Embrasure_Vertical",
+    "Embrasure_Vertical_col00-convcolonly",
+    "Embrasure_Vertical_col01-convcolonly",
+    "Embrasure_Vertical_col02-convcolonly",
+    "Embrasure_Vertical_col03-convcolonly",
+    "Embrasure_Vertical_col04-convcolonly",
+    "Embrasure_Vertical_col05-convcolonly",
+    "Embrasure_Vertical_col06-convcolonly",
+    "Embrasure_Vertical_LOD1",
+    "Embrasure_Vertical_LOD2",
+    "Window_ArmoredBars",
+    "Window_ArmoredBars_col00-convcolonly",
+    "Window_ArmoredBars_col01-convcolonly",
+    "Window_ArmoredBars_col02-convcolonly",
+    "Window_ArmoredBars_col03-convcolonly",
+    "Window_ArmoredBars_col04-convcolonly",
+    "Window_ArmoredBars_col05-convcolonly",
+    "Window_ArmoredBars_col06-convcolonly",
+    "Window_ArmoredBars_col07-convcolonly",
+    "Window_ArmoredBars_col08-convcolonly",
+    "Window_ArmoredBars_col09-convcolonly",
+    "Window_ArmoredBars_col10-convcolonly",
+    "Window_ArmoredBars_col11-convcolonly",
+    "Window_ArmoredBars_LOD1",
+    "Window_ArmoredBars_LOD2",
+    "Window_GlassFrame",
+    "Window_GlassFrame_col00-convcolonly",
+    "Window_GlassFrame_col01-convcolonly",
+    "Window_GlassFrame_col02-convcolonly",
+    "Window_GlassFrame_col03-convcolonly",
+    "Window_GlassFrame_LOD1",
+    "Window_GlassFrame_LOD2",
+    "Window_GlassPane",
+    "Window_GlassPane_col00-convcolonly",
+    "Window_GlassPane_LOD1",
+    "Window_GlassPane_LOD2",
+    "Window_GlassWire",
+    "Window_GlassWire_LOD1",
+    "Window_GlassWire_LOD2",
+    "Window_MetalBars",
+    "Window_MetalBars_col00-convcolonly",
+    "Window_MetalBars_col01-convcolonly",
+    "Window_MetalBars_col02-convcolonly",
+    "Window_MetalBars_col03-convcolonly",
+    "Window_MetalBars_col04-convcolonly",
+    "Window_MetalBars_col05-convcolonly",
+    "Window_MetalBars_col06-convcolonly",
+    "Window_MetalBars_col07-convcolonly",
+    "Window_MetalBars_LOD1",
+    "Window_MetalBars_LOD2"
+  ],
+  "window_insert_sha256": "7c59c002b41292bd4d195a8ffac49438e9d70ad2a7ba3d6c6f2c4e8c6729444e",
+  "active_monument_keys": [
+    "crashed-skiff",
+    "hab-pods",
+    "relay-mast",
+    "service-substation",
+    "weather-station",
+    "wellhead"
+  ],
+  "archive_monuments": [
+    {
+      "key": "arcology",
+      "title": "Arcology",
+      "tier": "landmark",
+      "size_metres": [
+        2940.719,
+        529.141,
+        2922.495
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/arcology.glb"
+    },
+    {
+      "key": "atmosphere-processor",
+      "title": "Atmosphere Processor",
+      "tier": "landmark",
+      "size_metres": [
+        1400.24,
+        1007.382,
+        1400.24
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/atmosphere-processor.glb"
+    },
+    {
+      "key": "biodome",
+      "title": "Biodome",
+      "tier": "medium",
+      "size_metres": [
+        160.196,
+        76.627,
+        164.339
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/biodome.glb"
+    },
+    {
+      "key": "bucket-wheel-pit",
+      "title": "Bucket-Wheel Pit",
+      "tier": "large",
+      "size_metres": [
+        1040.288,
+        124.42,
+        844.589
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/bucket-wheel-pit.glb"
+    },
+    {
+      "key": "bunker-hatch",
+      "title": "Bunker Hatch",
+      "tier": "roadside",
+      "size_metres": [
+        8.025,
+        5.89,
+        8.0
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/bunker-hatch.glb"
+    },
+    {
+      "key": "cargo-port",
+      "title": "Cargo Port",
+      "tier": "medium",
+      "size_metres": [
+        350.0,
+        85.801,
+        195.157
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/cargo-port.glb"
+    },
+    {
+      "key": "checkpoint",
+      "title": "Checkpoint",
+      "tier": "roadside",
+      "size_metres": [
+        19.928,
+        9.025,
+        34.14
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/checkpoint.glb"
+    },
+    {
+      "key": "coast-beacon",
+      "title": "Coast Beacon",
+      "tier": "small",
+      "size_metres": [
+        43.009,
+        46.265,
+        38.299
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/coast-beacon.glb"
+    },
+    {
+      "key": "colony-ruins",
+      "title": "Colony Ruins",
+      "tier": "large",
+      "size_metres": [
+        524.2,
+        81.644,
+        478.943
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/colony-ruins.glb"
+    },
+    {
+      "key": "colony-ship",
+      "title": "Grounded Colony Ship",
+      "tier": "landmark",
+      "size_metres": [
+        4872.998,
+        333.808,
+        2910.81
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/colony-ship.glb"
+    },
+    {
+      "key": "container-spill",
+      "title": "Container Spill",
+      "tier": "roadside",
+      "size_metres": [
+        48.14,
+        2.982,
+        19.693
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/container-spill.glb"
+    },
+    {
+      "key": "crashed-skiff",
+      "title": "Crashed Skiff",
+      "tier": "roadside",
+      "size_metres": [
+        16.798,
+        4.188,
+        18.549
+      ],
+      "in_live_selection": true,
+      "model": "res://assets/monuments/crashed-skiff.glb"
+    },
+    {
+      "key": "deep-bore",
+      "title": "Deep Bore",
+      "tier": "landmark",
+      "size_metres": [
+        2335.245,
+        1221.56,
+        2076.46
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/deep-bore.glb"
+    },
+    {
+      "key": "detention-block",
+      "title": "Detention Block",
+      "tier": "medium",
+      "size_metres": [
+        213.496,
+        43.299,
+        231.932
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/detention-block.glb"
+    },
+    {
+      "key": "drainage-works",
+      "title": "Drainage Works",
+      "tier": "medium",
+      "size_metres": [
+        150.0,
+        44.633,
+        89.666
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/drainage-works.glb"
+    },
+    {
+      "key": "drop-pod",
+      "title": "Drop Pod",
+      "tier": "roadside",
+      "size_metres": [
+        23.334,
+        7.093,
+        25.28
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/drop-pod.glb"
+    },
+    {
+      "key": "exchange",
+      "title": "Exchange",
+      "tier": "medium",
+      "size_metres": [
+        224.14,
+        45.703,
+        171.139
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/exchange.glb"
+    },
+    {
+      "key": "field-clinic",
+      "title": "Field Clinic",
+      "tier": "small",
+      "size_metres": [
+        69.06,
+        7.322,
+        56.207
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/field-clinic.glb"
+    },
+    {
+      "key": "fishing-wharf",
+      "title": "Fishing Wharf",
+      "tier": "small",
+      "size_metres": [
+        101.26,
+        18.702,
+        60.224
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/fishing-wharf.glb"
+    },
+    {
+      "key": "freight-yard",
+      "title": "Freight Yard",
+      "tier": "large",
+      "size_metres": [
+        744.0,
+        44.43,
+        318.08
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/freight-yard.glb"
+    },
+    {
+      "key": "frigate-wreck",
+      "title": "Frigate Wreck",
+      "tier": "large",
+      "size_metres": [
+        722.257,
+        103.604,
+        193.376
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/frigate-wreck.glb"
+    },
+    {
+      "key": "fuel-depot",
+      "title": "Fuel Depot",
+      "tier": "small",
+      "size_metres": [
+        70.02,
+        7.808,
+        48.01
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/fuel-depot.glb"
+    },
+    {
+      "key": "fusion-plant",
+      "title": "Fusion Plant",
+      "tier": "large",
+      "size_metres": [
+        603.21,
+        121.228,
+        485.915
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/fusion-plant.glb"
+    },
+    {
+      "key": "garrison",
+      "title": "Garrison",
+      "tier": "medium",
+      "size_metres": [
+        224.495,
+        53.615,
+        202.186
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/garrison.glb"
+    },
+    {
+      "key": "great-dam",
+      "title": "Great Dam",
+      "tier": "landmark",
+      "size_metres": [
+        1200.0,
+        281.39,
+        820.813
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/great-dam.glb"
+    },
+    {
+      "key": "grid-substation",
+      "title": "Grid Substation",
+      "tier": "roadside",
+      "size_metres": [
+        40.376,
+        25.35,
+        108.554
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/grid-substation.glb"
+    },
+    {
+      "key": "hab-pods",
+      "title": "Hab Pods",
+      "tier": "roadside",
+      "size_metres": [
+        19.846,
+        8.428,
+        17.809
+      ],
+      "in_live_selection": true,
+      "model": "res://assets/monuments/hab-pods.glb"
+    },
+    {
+      "key": "homestead",
+      "title": "Homestead",
+      "tier": "small",
+      "size_metres": [
+        120.15,
+        29.313,
+        81.146
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/homestead.glb"
+    },
+    {
+      "key": "ice-station",
+      "title": "Ice Station",
+      "tier": "large",
+      "size_metres": [
+        400.0,
+        61.668,
+        300.0
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/ice-station.glb"
+    },
+    {
+      "key": "landing-field",
+      "title": "Landing Field",
+      "tier": "medium",
+      "size_metres": [
+        392.376,
+        42.051,
+        250.268
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/landing-field.glb"
+    },
+    {
+      "key": "launch-complex",
+      "title": "Launch Complex",
+      "tier": "large",
+      "size_metres": [
+        694.527,
+        142.737,
+        532.419
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/launch-complex.glb"
+    },
+    {
+      "key": "mass-driver",
+      "title": "Mass Driver",
+      "tier": "landmark",
+      "size_metres": [
+        760.345,
+        122.046,
+        2140.972
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/mass-driver.glb"
+    },
+    {
+      "key": "mining-camp",
+      "title": "Mining Camp",
+      "tier": "small",
+      "size_metres": [
+        96.0,
+        26.819,
+        94.094
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/mining-camp.glb"
+    },
+    {
+      "key": "mountain-redoubt",
+      "title": "Mountain Redoubt",
+      "tier": "large",
+      "size_metres": [
+        448.0,
+        166.604,
+        816.09
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/mountain-redoubt.glb"
+    },
+    {
+      "key": "ore-smelter",
+      "title": "Ore Smelter",
+      "tier": "large",
+      "size_metres": [
+        500.172,
+        110.92,
+        315.262
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/ore-smelter.glb"
+    },
+    {
+      "key": "reclaimer-camp",
+      "title": "Reclaimer Camp",
+      "tier": "medium",
+      "size_metres": [
+        191.18,
+        28.287,
+        145.703
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/reclaimer-camp.glb"
+    },
+    {
+      "key": "refinery",
+      "title": "Refinery",
+      "tier": "medium",
+      "size_metres": [
+        293.272,
+        86.0,
+        200.268
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/refinery.glb"
+    },
+    {
+      "key": "relay-mast",
+      "title": "Relay Mast",
+      "tier": "roadside",
+      "size_metres": [
+        30.459,
+        65.5,
+        26.905
+      ],
+      "in_live_selection": true,
+      "model": "res://assets/monuments/relay-mast.glb"
+    },
+    {
+      "key": "research-outpost",
+      "title": "Research Outpost",
+      "tier": "medium",
+      "size_metres": [
+        198.688,
+        35.412,
+        150.248
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/research-outpost.glb"
+    },
+    {
+      "key": "ring-fall",
+      "title": "Ring Fall",
+      "tier": "landmark",
+      "size_metres": [
+        2541.135,
+        551.335,
+        2482.592
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/ring-fall.glb"
+    },
+    {
+      "key": "scrapyard",
+      "title": "Scrapyard",
+      "tier": "small",
+      "size_metres": [
+        126.02,
+        11.52,
+        99.9
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/scrapyard.glb"
+    },
+    {
+      "key": "shuttle-wreck",
+      "title": "Shuttle Wreck",
+      "tier": "small",
+      "size_metres": [
+        35.063,
+        12.735,
+        81.483
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/shuttle-wreck.glb"
+    },
+    {
+      "key": "stalled-crawler",
+      "title": "Stalled Crawler",
+      "tier": "roadside",
+      "size_metres": [
+        32.016,
+        6.925,
+        10.733
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/stalled-crawler.glb"
+    },
+    {
+      "key": "strip-mine-metal",
+      "title": "Strip Mine (Metal)",
+      "tier": "small",
+      "size_metres": [
+        121.926,
+        14.765,
+        109.02
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/strip-mine-metal.glb"
+    },
+    {
+      "key": "strip-mine-stone",
+      "title": "Strip Mine (Stone)",
+      "tier": "small",
+      "size_metres": [
+        121.926,
+        14.85,
+        109.02
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/strip-mine-stone.glb"
+    },
+    {
+      "key": "strip-mine-sulphur",
+      "title": "Strip Mine (Sulphur)",
+      "tier": "small",
+      "size_metres": [
+        121.926,
+        14.578,
+        109.02
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/strip-mine-sulphur.glb"
+    },
+    {
+      "key": "supply-depot",
+      "title": "Supply Depot",
+      "tier": "small",
+      "size_metres": [
+        84.02,
+        11.121,
+        65.172
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/supply-depot.glb"
+    },
+    {
+      "key": "survey-marker",
+      "title": "Survey Marker",
+      "tier": "roadside",
+      "size_metres": [
+        8.555,
+        5.45,
+        8.164
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/survey-marker.glb"
+    },
+    {
+      "key": "tether-anchor",
+      "title": "Tether Anchor",
+      "tier": "landmark",
+      "size_metres": [
+        3488.668,
+        482.278,
+        1668.925
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/tether-anchor.glb"
+    },
+    {
+      "key": "toppled-pylon",
+      "title": "Toppled Pylon",
+      "tier": "roadside",
+      "size_metres": [
+        66.019,
+        6.453,
+        27.616
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/toppled-pylon.glb"
+    },
+    {
+      "key": "transit-station",
+      "title": "Transit Station",
+      "tier": "medium",
+      "size_metres": [
+        200.0,
+        31.299,
+        97.777
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/transit-station.glb"
+    },
+    {
+      "key": "uplink-array",
+      "title": "Uplink Array",
+      "tier": "medium",
+      "size_metres": [
+        212.376,
+        61.058,
+        160.248
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/uplink-array.glb"
+    },
+    {
+      "key": "valve-station",
+      "title": "Valve Station",
+      "tier": "roadside",
+      "size_metres": [
+        32.424,
+        7.685,
+        17.162
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/valve-station.glb"
+    },
+    {
+      "key": "water-tower",
+      "title": "Water Tower",
+      "tier": "small",
+      "size_metres": [
+        68.02,
+        35.284,
+        37.949
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/water-tower.glb"
+    },
+    {
+      "key": "water-works",
+      "title": "Water Works",
+      "tier": "large",
+      "size_metres": [
+        400.36,
+        72.775,
+        331.08
+      ],
+      "in_live_selection": false,
+      "model": "res://assets/monuments/water-works.glb"
+    },
+    {
+      "key": "weather-station",
+      "title": "Weather Station",
+      "tier": "roadside",
+      "size_metres": [
+        15.164,
+        11.529,
+        13.161
+      ],
+      "in_live_selection": true,
+      "model": "res://assets/monuments/weather-station.glb"
+    },
+    {
+      "key": "wellhead",
+      "title": "Wellhead",
+      "tier": "roadside",
+      "size_metres": [
+        24.021,
+        6.115,
+        16.45
+      ],
+      "in_live_selection": true,
+      "model": "res://assets/monuments/wellhead.glb"
+    }
+  ],
+  "original_monument_glb_comparison": [
+    {
+      "file": "game/assets/monuments/arcology.glb",
+      "source_sha256": "997d53dfc3037bc920b0f1c68163a49ad4e181bcda17fc1d52f25178ee841886",
+      "project_sha256": "997d53dfc3037bc920b0f1c68163a49ad4e181bcda17fc1d52f25178ee841886",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/atmosphere-processor.glb",
+      "source_sha256": "c0fd58b8329bc306b5222094edeec205cd7daf80b48cf2df3359c9d924d5643d",
+      "project_sha256": "c0fd58b8329bc306b5222094edeec205cd7daf80b48cf2df3359c9d924d5643d",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/biodome.glb",
+      "source_sha256": "de1cec80d60bbbf93859e8451e63a551d66751d184cc91220b5b1c52b63fa911",
+      "project_sha256": "de1cec80d60bbbf93859e8451e63a551d66751d184cc91220b5b1c52b63fa911",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/bucket-wheel-pit.glb",
+      "source_sha256": "8c76cf2c0174f5c7b9bb2de1967b3abaead6d73f65721b2c7edb62802fae57c3",
+      "project_sha256": "8c76cf2c0174f5c7b9bb2de1967b3abaead6d73f65721b2c7edb62802fae57c3",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/bunker-hatch.glb",
+      "source_sha256": "850edfd85130ce8fcb1d15d518e1f516313b5cb20cdb24ea2a4443061b119597",
+      "project_sha256": "850edfd85130ce8fcb1d15d518e1f516313b5cb20cdb24ea2a4443061b119597",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/cargo-port.glb",
+      "source_sha256": "ac2dc8176cc5737521c1c2a607a1f9d0141669d6da844a0759fa003c25fe114b",
+      "project_sha256": "ac2dc8176cc5737521c1c2a607a1f9d0141669d6da844a0759fa003c25fe114b",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/checkpoint.glb",
+      "source_sha256": "609c6f68524f32d339b7b483c3d899c40465aabe610c5f765f4e9e77252ae4be",
+      "project_sha256": "609c6f68524f32d339b7b483c3d899c40465aabe610c5f765f4e9e77252ae4be",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/coast-beacon.glb",
+      "source_sha256": "d4b96391ca761ba7e6ed612fd0610347b5da06b39907ded26bac183a4b02237b",
+      "project_sha256": "d4b96391ca761ba7e6ed612fd0610347b5da06b39907ded26bac183a4b02237b",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/colony-ruins.glb",
+      "source_sha256": "fd7d04864ae89c719cb79682f48b8edebbf41cd651de448ab11cd4ae145ea91a",
+      "project_sha256": "fd7d04864ae89c719cb79682f48b8edebbf41cd651de448ab11cd4ae145ea91a",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/colony-ship.glb",
+      "source_sha256": "50141a0fa92ad33c91044cbfa9170e674305a85f9b7d62702fba3d457432338e",
+      "project_sha256": "50141a0fa92ad33c91044cbfa9170e674305a85f9b7d62702fba3d457432338e",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/container-spill.glb",
+      "source_sha256": "6fa82025cb0cedadc6abd1ee86696d30f89816891e5eb8471286d7385613b4d1",
+      "project_sha256": "6fa82025cb0cedadc6abd1ee86696d30f89816891e5eb8471286d7385613b4d1",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/crashed-skiff.glb",
+      "source_sha256": "8edcd6c488c530c540df044ff7f4940c79d173f1a9228fd7e01d57bb7ee6b020",
+      "project_sha256": "8edcd6c488c530c540df044ff7f4940c79d173f1a9228fd7e01d57bb7ee6b020",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/deep-bore.glb",
+      "source_sha256": "0388b6e963073707c8be262d2891d7ae325d5587e49b553ad4658aeec5899e0f",
+      "project_sha256": "0388b6e963073707c8be262d2891d7ae325d5587e49b553ad4658aeec5899e0f",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/detention-block.glb",
+      "source_sha256": "3f44ac98e5300396724e1cde95e9d785ce74e31fae8a1c586daeb0d68a0c05bd",
+      "project_sha256": "3f44ac98e5300396724e1cde95e9d785ce74e31fae8a1c586daeb0d68a0c05bd",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/drainage-works.glb",
+      "source_sha256": "b250466b766bdc60616887f830b6603c411e748c2d674cb1d7b804ca42567102",
+      "project_sha256": "b250466b766bdc60616887f830b6603c411e748c2d674cb1d7b804ca42567102",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/drop-pod.glb",
+      "source_sha256": "0fba368d992a42acc229ece09ad98f3acb6cea3f06eba147dd06faa1ed0fabb1",
+      "project_sha256": "0fba368d992a42acc229ece09ad98f3acb6cea3f06eba147dd06faa1ed0fabb1",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/exchange.glb",
+      "source_sha256": "fd0363ba0987f8bac12c37502742caeedc5695905ed8de1b8c4b5cf8c38ef929",
+      "project_sha256": "fd0363ba0987f8bac12c37502742caeedc5695905ed8de1b8c4b5cf8c38ef929",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/field-clinic.glb",
+      "source_sha256": "b63334ca949702c0ff27ab67fc6f74c39ecad691c98c122b5d29b36a23c29fc0",
+      "project_sha256": "b63334ca949702c0ff27ab67fc6f74c39ecad691c98c122b5d29b36a23c29fc0",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/fishing-wharf.glb",
+      "source_sha256": "2e7e2c57061f374fa704afc4f63b5c0518e2c5364cfbfe882a1cf145fd1f7654",
+      "project_sha256": "2e7e2c57061f374fa704afc4f63b5c0518e2c5364cfbfe882a1cf145fd1f7654",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/freight-yard.glb",
+      "source_sha256": "a62dd3223e612e99fd71367dfeb18d5ba5746429aaac2328468475c19e0279f0",
+      "project_sha256": "a62dd3223e612e99fd71367dfeb18d5ba5746429aaac2328468475c19e0279f0",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/frigate-wreck.glb",
+      "source_sha256": "e086b438c583acf7706532ccf4afb7b0ab72fd50f2a5c40b170d3747575d54b4",
+      "project_sha256": "e086b438c583acf7706532ccf4afb7b0ab72fd50f2a5c40b170d3747575d54b4",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/fuel-depot.glb",
+      "source_sha256": "eeafb9089cadeefdedc06cc78ea2be04c49f9d22caf86061ff20a4060f58eb5d",
+      "project_sha256": "eeafb9089cadeefdedc06cc78ea2be04c49f9d22caf86061ff20a4060f58eb5d",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/fusion-plant.glb",
+      "source_sha256": "bc0c15c5a3fb8324fa14e07ef4c66acb1a821dda73ca19194eec09c764849a9c",
+      "project_sha256": "bc0c15c5a3fb8324fa14e07ef4c66acb1a821dda73ca19194eec09c764849a9c",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/garrison.glb",
+      "source_sha256": "079ee78bcf362ee0b561da533e58324af321a3fc228156fa6616f9cf2f23b30d",
+      "project_sha256": "079ee78bcf362ee0b561da533e58324af321a3fc228156fa6616f9cf2f23b30d",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/great-dam.glb",
+      "source_sha256": "e88285a33f91a90ed37ba3a15736c92d2e96ca741acf8a51f19eb823690ef9cf",
+      "project_sha256": "e88285a33f91a90ed37ba3a15736c92d2e96ca741acf8a51f19eb823690ef9cf",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/grid-substation.glb",
+      "source_sha256": "da8ce4ca263ce21c4d14c8139a5d64805442cc683969bd513d0ce7d5aca33972",
+      "project_sha256": "da8ce4ca263ce21c4d14c8139a5d64805442cc683969bd513d0ce7d5aca33972",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/hab-pods.glb",
+      "source_sha256": "fc2523876c9e554f21ddcbd9aa87290d2b29b4430520c864c0ca76fd538159b3",
+      "project_sha256": "fc2523876c9e554f21ddcbd9aa87290d2b29b4430520c864c0ca76fd538159b3",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/homestead.glb",
+      "source_sha256": "204ba8f7b50ec106f7014b8c88053f4b464a61e615069e19d16151e1e18f681e",
+      "project_sha256": "204ba8f7b50ec106f7014b8c88053f4b464a61e615069e19d16151e1e18f681e",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/ice-station.glb",
+      "source_sha256": "e9156c022595f5327655093e53781e8acb7f151884455f7c208050fd0543d6b2",
+      "project_sha256": "e9156c022595f5327655093e53781e8acb7f151884455f7c208050fd0543d6b2",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/apc.glb",
+      "source_sha256": "9565e2a585b07e03755ad02b8d8e4ccb0bddc4c198e54b62f2b009a650f3c83f",
+      "project_sha256": "9565e2a585b07e03755ad02b8d8e4ccb0bddc4c198e54b62f2b009a650f3c83f",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/boxcar.glb",
+      "source_sha256": "cea320df45b2efd4eb325187e9d2c19315783d42b9c4d728aa382ec66ba10156",
+      "project_sha256": "cea320df45b2efd4eb325187e9d2c19315783d42b9c4d728aa382ec66ba10156",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/breaker.glb",
+      "source_sha256": "b1e51407c1dd15664bb15d167b5d5ba24d324ab785e4bd766989eef9c9c96c56",
+      "project_sha256": "b1e51407c1dd15664bb15d167b5d5ba24d324ab785e4bd766989eef9c9c96c56",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/bunk.glb",
+      "source_sha256": "a68fa8a75f910bdd2536de7dda9f4fc636ea978fbb73ac1a26f41160db8c867d",
+      "project_sha256": "a68fa8a75f910bdd2536de7dda9f4fc636ea978fbb73ac1a26f41160db8c867d",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/cable-reel.glb",
+      "source_sha256": "c32efba1eae74991b7fe6676b8eea90f15c18bfb28017d34daa4ff49e4a254eb",
+      "project_sha256": "c32efba1eae74991b7fe6676b8eea90f15c18bfb28017d34daa4ff49e4a254eb",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/capacitor-bank.glb",
+      "source_sha256": "3388ffc00d5557250c06621b039f35a161c2a2d215d4b054451c407809e12f2a",
+      "project_sha256": "3388ffc00d5557250c06621b039f35a161c2a2d215d4b054451c407809e12f2a",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/car-flat-b.glb",
+      "source_sha256": "2277ab486515232992528ea42f8aa4259259b9989b436b5825649701395291a0",
+      "project_sha256": "2277ab486515232992528ea42f8aa4259259b9989b436b5825649701395291a0",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/car-flat.glb",
+      "source_sha256": "8af8595d532f5c185ceae16fbd31cc022153c669e78d764418a25f366d941416",
+      "project_sha256": "8af8595d532f5c185ceae16fbd31cc022153c669e78d764418a25f366d941416",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/car-wreck.glb",
+      "source_sha256": "80d69056459c65840556ea0edb4242a23bd81e01e1e125d83c2f414183e4da6e",
+      "project_sha256": "80d69056459c65840556ea0edb4242a23bd81e01e1e125d83c2f414183e4da6e",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/cctv.glb",
+      "source_sha256": "4fb9b7471ab62416958d62d631b49371da4b6052f2ff1aad27b653667d9e4348",
+      "project_sha256": "4fb9b7471ab62416958d62d631b49371da4b6052f2ff1aad27b653667d9e4348",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/cell-front.glb",
+      "source_sha256": "1b99aaee2505cccfda5db20de42bc7dd39abb5d9addf71045ab82013cb142dfd",
+      "project_sha256": "1b99aaee2505cccfda5db20de42bc7dd39abb5d9addf71045ab82013cb142dfd",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/climber-car.glb",
+      "source_sha256": "7696ab4282dc2150c7124ac1c0af1d401a6d589aa81ad81982fd6951e0ad51ef",
+      "project_sha256": "7696ab4282dc2150c7124ac1c0af1d401a6d589aa81ad81982fd6951e0ad51ef",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/concertina-5m.glb",
+      "source_sha256": "00019987b5746124b8afe51b796517c7d4d9c0dd5f11996e8dcfa0060af6e9f9",
+      "project_sha256": "00019987b5746124b8afe51b796517c7d4d9c0dd5f11996e8dcfa0060af6e9f9",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/console.glb",
+      "source_sha256": "17bb1f2f531f60d1b0e9e6a0072dabf454efcbcd986c701022c205de7b8cd8eb",
+      "project_sha256": "17bb1f2f531f60d1b0e9e6a0072dabf454efcbcd986c701022c205de7b8cd8eb",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/container-20.glb",
+      "source_sha256": "f0092da2a544b5906fcb6ba8dc50b6c8cc7eee15f523c4ddd57de474fc7aba52",
+      "project_sha256": "f0092da2a544b5906fcb6ba8dc50b6c8cc7eee15f523c4ddd57de474fc7aba52",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/container-40.glb",
+      "source_sha256": "d1b68f3831edaeff519abb390bf008f2328466ec7cf67b2b97fa665ae1bc0827",
+      "project_sha256": "d1b68f3831edaeff519abb390bf008f2328466ec7cf67b2b97fa665ae1bc0827",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/crate-stack.glb",
+      "source_sha256": "06d190332d270121a8a810ca6a26c469f208c15a0a5f53849cc3df62298b9f21",
+      "project_sha256": "06d190332d270121a8a810ca6a26c469f208c15a0a5f53849cc3df62298b9f21",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/cryo-rack.glb",
+      "source_sha256": "ec03d859d97a1e2b17e292473efa599a804ef91bcdc565b5b348da50428c526c",
+      "project_sha256": "ec03d859d97a1e2b17e292473efa599a804ef91bcdc565b5b348da50428c526c",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/driver-pylon-section.glb",
+      "source_sha256": "0d53e233c5b9023ff982a5af529102d8678e2bcc6b7f8eeeb51651edadd82c7a",
+      "project_sha256": "0d53e233c5b9023ff982a5af529102d8678e2bcc6b7f8eeeb51651edadd82c7a",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/driver-pylon.glb",
+      "source_sha256": "27dc7cb697fb61bc1bb7604dd32f83fc2479b518dccc1cd9d533fece662b6951",
+      "project_sha256": "27dc7cb697fb61bc1bb7604dd32f83fc2479b518dccc1cd9d533fece662b6951",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/driver-rail.glb",
+      "source_sha256": "95dc30b8567e7bcfa18577451c18f41e13e7570c5fa03645d8bba16fd368c110",
+      "project_sha256": "95dc30b8567e7bcfa18577451c18f41e13e7570c5fa03645d8bba16fd368c110",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/drum-stack.glb",
+      "source_sha256": "ba9f4d80619a4334998977ed05b3e686dbc3aeec0e94c2245bd2669786462108",
+      "project_sha256": "ba9f4d80619a4334998977ed05b3e686dbc3aeec0e94c2245bd2669786462108",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/dumpster.glb",
+      "source_sha256": "8cd0118ee372072c512d0df99338159681a34cfcacaf94348144dd8725ac7739",
+      "project_sha256": "8cd0118ee372072c512d0df99338159681a34cfcacaf94348144dd8725ac7739",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/fire-barrel.glb",
+      "source_sha256": "f5183145b8b4e60a760093b52ef663c1e33a35bfb09f4c87b5ae3ae796a445f7",
+      "project_sha256": "f5183145b8b4e60a760093b52ef663c1e33a35bfb09f4c87b5ae3ae796a445f7",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/flatcar.glb",
+      "source_sha256": "02ac7a96f1891218851ce92f13f07f7dfa7272d758101e71fe90d57751f7fa68",
+      "project_sha256": "02ac7a96f1891218851ce92f13f07f7dfa7272d758101e71fe90d57751f7fa68",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/flood-mast.glb",
+      "source_sha256": "14b6d59efdced6b052aba0f6f17e7312e74578a49f0522545937bd3b64181360",
+      "project_sha256": "14b6d59efdced6b052aba0f6f17e7312e74578a49f0522545937bd3b64181360",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/fuel-pump.glb",
+      "source_sha256": "51661e541ce470c1dc973c4bb54b46a4c31ffe45e7469203e132d38a5402a02f",
+      "project_sha256": "51661e541ce470c1dc973c4bb54b46a4c31ffe45e7469203e132d38a5402a02f",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/gabion-row.glb",
+      "source_sha256": "faa70491544aed04cbc980892a6c989408b90dc0d40d7550b796255002ef72f5",
+      "project_sha256": "faa70491544aed04cbc980892a6c989408b90dc0d40d7550b796255002ef72f5",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/gantry.glb",
+      "source_sha256": "8e2b29a357a8ebce5042d455ee20a50b70a2429769e73196dc20186d209b9337",
+      "project_sha256": "8e2b29a357a8ebce5042d455ee20a50b70a2429769e73196dc20186d209b9337",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/hab-can.glb",
+      "source_sha256": "479c2b64a99a305095e1515da927af4ef165374f77bab6dd8b282e6d28e81257",
+      "project_sha256": "479c2b64a99a305095e1515da927af4ef165374f77bab6dd8b282e6d28e81257",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/haul-truck.glb",
+      "source_sha256": "7d50aaf0dff27453d87b9f6d364899ce5bc7326781044c1cadabaf651f03bbf8",
+      "project_sha256": "7d50aaf0dff27453d87b9f6d364899ce5bc7326781044c1cadabaf651f03bbf8",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/hauler-truck.glb",
+      "source_sha256": "eab7b8f9f4e5b8ed9fc3cc56da6bb84ab88a97b863cd940b48d67de4a4900391",
+      "project_sha256": "eab7b8f9f4e5b8ed9fc3cc56da6bb84ab88a97b863cd940b48d67de4a4900391",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/hopper-wagon.glb",
+      "source_sha256": "52b516cf6c78ea1052fbddec0a7df9b19f23d990659369f93b46669979ea8eb6",
+      "project_sha256": "52b516cf6c78ea1052fbddec0a7df9b19f23d990659369f93b46669979ea8eb6",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/jersey-barrier.glb",
+      "source_sha256": "c301bfbd4b4f567be37ea0cbd4fe4e5d87eb0eb6a525629d5f0b7fc7f0e45463",
+      "project_sha256": "c301bfbd4b4f567be37ea0cbd4fe4e5d87eb0eb6a525629d5f0b7fc7f0e45463",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/lamp-post.glb",
+      "source_sha256": "4beb64d42cfc75f380e62fa8d6fdc5388aa25b3e6221c2968f69b186f8bc7268",
+      "project_sha256": "4beb64d42cfc75f380e62fa8d6fdc5388aa25b3e6221c2968f69b186f8bc7268",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/locomotive.glb",
+      "source_sha256": "b7fbce8348d5089b77f7d550bd218a9819648500981b1db1a5109aaf5fdcf41c",
+      "project_sha256": "b7fbce8348d5089b77f7d550bd218a9819648500981b1db1a5109aaf5fdcf41c",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/main-transformer.glb",
+      "source_sha256": "5351f46c9c09bdd1f2f07113e0e8c487fc327bb9c091d675f42d70075f2c3b37",
+      "project_sha256": "5351f46c9c09bdd1f2f07113e0e8c487fc327bb9c091d675f42d70075f2c3b37",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/ore-hauler.glb",
+      "source_sha256": "ee148fa2bb1ecd6f5c33d2093871178110b36063f43f3a2c60c5c1c24014e581",
+      "project_sha256": "ee148fa2bb1ecd6f5c33d2093871178110b36063f43f3a2c60c5c1c24014e581",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/pallet-boxes.glb",
+      "source_sha256": "c076a0c5f521ec4f56942a8485a2e29730eca4d2998957a21a672c12308ed50e",
+      "project_sha256": "c076a0c5f521ec4f56942a8485a2e29730eca4d2998957a21a672c12308ed50e",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/rack-row.glb",
+      "source_sha256": "04b018b6a57639982a9b9421bb9b354a056d1fb3222a9b7c76ff0d55a0583547",
+      "project_sha256": "04b018b6a57639982a9b9421bb9b354a056d1fb3222a9b7c76ff0d55a0583547",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/railcar.glb",
+      "source_sha256": "5c2db3ab6ef4aa9e64fce72e3739223ab919569e7ab400ba515b5cf576768376",
+      "project_sha256": "5c2db3ab6ef4aa9e64fce72e3739223ab919569e7ab400ba515b5cf576768376",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/razor-coil.glb",
+      "source_sha256": "5cbe56dea498d804b52c690adef6f7607b871ac8b66e7f5c6e4d63c7299feb9d",
+      "project_sha256": "5cbe56dea498d804b52c690adef6f7607b871ac8b66e7f5c6e4d63c7299feb9d",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/recycler.glb",
+      "source_sha256": "2e50d12f53b4cf1ed94bef746dc4c408e385724ab866af074dcfdc5bf95aea32",
+      "project_sha256": "2e50d12f53b4cf1ed94bef746dc4c408e385724ab866af074dcfdc5bf95aea32",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/sack-pallet.glb",
+      "source_sha256": "f1daa7263d86920f090d613ca97a1e236c796d06e205501a532bd551c240aab4",
+      "project_sha256": "f1daa7263d86920f090d613ca97a1e236c796d06e205501a532bd551c240aab4",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/sandbag-nest.glb",
+      "source_sha256": "1f8bea7bb6244ac2356e6c95e43cd0a5ae85d0260a07bf6f0b1b3a5f55f82e8f",
+      "project_sha256": "1f8bea7bb6244ac2356e6c95e43cd0a5ae85d0260a07bf6f0b1b3a5f55f82e8f",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/sandbag-run.glb",
+      "source_sha256": "a9ee474f726889c0d8f92ddb8a2f9c3440ce937a42f8837655f3679b8c129465",
+      "project_sha256": "a9ee474f726889c0d8f92ddb8a2f9c3440ce937a42f8837655f3679b8c129465",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/sandbags-2m.glb",
+      "source_sha256": "ecdf535f98c18e2f9d3840558172ebcade260938f8ceee57f0fd8cf13cbdc4f4",
+      "project_sha256": "ecdf535f98c18e2f9d3840558172ebcade260938f8ceee57f0fd8cf13cbdc4f4",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/snowcat.glb",
+      "source_sha256": "30907dcff5baa250a0cde181855064a504807d3668e2d40343773e8596ffb69b",
+      "project_sha256": "30907dcff5baa250a0cde181855064a504807d3668e2d40343773e8596ffb69b",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/tank-wagon.glb",
+      "source_sha256": "85ea35b8bd3e85a2064eba94c26f8130036664a4a1a0ec3ce4923f7538da8d95",
+      "project_sha256": "85ea35b8bd3e85a2064eba94c26f8130036664a4a1a0ec3ce4923f7538da8d95",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/tether-segment-torn.glb",
+      "source_sha256": "25304c2cecc2c3f6b6371a6b003eb32a02ace9159a2ea8430c536a8f0cbfd22d",
+      "project_sha256": "25304c2cecc2c3f6b6371a6b003eb32a02ace9159a2ea8430c536a8f0cbfd22d",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/tether-segment.glb",
+      "source_sha256": "4de444de6094fcc34965c22c12060deb4806562f54cda7a23f4b265509e0d284",
+      "project_sha256": "4de444de6094fcc34965c22c12060deb4806562f54cda7a23f4b265509e0d284",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/track-10.glb",
+      "source_sha256": "c967eb390f365e346eb479c122569812f635b0be8880ee0b30722ee0731383ba",
+      "project_sha256": "c967eb390f365e346eb479c122569812f635b0be8880ee0b30722ee0731383ba",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/transformer.glb",
+      "source_sha256": "de95f7fad9c5302d74fab12dd96ab36eb5decc6a1e0c76ba8f3e2f81ee85dbd8",
+      "project_sha256": "de95f7fad9c5302d74fab12dd96ab36eb5decc6a1e0c76ba8f3e2f81ee85dbd8",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/turret-mast.glb",
+      "source_sha256": "e4b364f2f10b677fe73e16458e38d6e49a175a39fabec4b92569d4f753dc18cc",
+      "project_sha256": "e4b364f2f10b677fe73e16458e38d6e49a175a39fabec4b92569d4f753dc18cc",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/utility-truck.glb",
+      "source_sha256": "5060800a191fc1c12ed30e8914c629b6188c739cea665b736a048a7f876729f4",
+      "project_sha256": "5060800a191fc1c12ed30e8914c629b6188c739cea665b736a048a7f876729f4",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/vendor-stall-blue.glb",
+      "source_sha256": "b31c375fd908bf8e216ee311467e40acc5b95588f96264890889f1fdcff97d52",
+      "project_sha256": "b31c375fd908bf8e216ee311467e40acc5b95588f96264890889f1fdcff97d52",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/vendor-stall-green.glb",
+      "source_sha256": "5359342d102363373af23db835d8d6b6fa846325a9a8bc1e019ae93dc6908c51",
+      "project_sha256": "5359342d102363373af23db835d8d6b6fa846325a9a8bc1e019ae93dc6908c51",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/vendor-stall-orange.glb",
+      "source_sha256": "28da16c0e2cf51092dde2fda41742976eeab6090cf202b34db48006628e5ffa5",
+      "project_sha256": "28da16c0e2cf51092dde2fda41742976eeab6090cf202b34db48006628e5ffa5",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/weapon-rack.glb",
+      "source_sha256": "ef1b81c5a31f4207dd74434cb8dc2e473c23dd74aff5488a9bb1d386c337b43f",
+      "project_sha256": "ef1b81c5a31f4207dd74434cb8dc2e473c23dd74aff5488a9bb1d386c337b43f",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/wheel-crawler.glb",
+      "source_sha256": "30b73de7a299cc04f395c5aa2c01139390b58bd0670b47d8580e92a3c7fbc988",
+      "project_sha256": "30b73de7a299cc04f395c5aa2c01139390b58bd0670b47d8580e92a3c7fbc988",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/wheel-haul.glb",
+      "source_sha256": "311cb345e52b5c1db6128b8c8e0935d6d5a3ee1af0301ea20e6d85b82d7686d5",
+      "project_sha256": "311cb345e52b5c1db6128b8c8e0935d6d5a3ee1af0301ea20e6d85b82d7686d5",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/wheel-road.glb",
+      "source_sha256": "9454e1984bc97c8a59b4a31cc981313ff6605f20248e18d335849c3eb15e11ca",
+      "project_sha256": "9454e1984bc97c8a59b4a31cc981313ff6605f20248e18d335849c3eb15e11ca",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/wreck-car.glb",
+      "source_sha256": "1e4ac035285691d5a4e96feba2e85fa74876b13b6f75dd209dc4bf6958223bfc",
+      "project_sha256": "1e4ac035285691d5a4e96feba2e85fa74876b13b6f75dd209dc4bf6958223bfc",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/kit/wreck-truck.glb",
+      "source_sha256": "a3b2313db7d7a09257a0e79f0c88cdb7febca6297445567fd7a86fd5f94fa3c2",
+      "project_sha256": "a3b2313db7d7a09257a0e79f0c88cdb7febca6297445567fd7a86fd5f94fa3c2",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/landing-field.glb",
+      "source_sha256": "c85620b837ceb7e263cffb4641ab0315d52c841fb8147faa16189dc40a04f49d",
+      "project_sha256": "c85620b837ceb7e263cffb4641ab0315d52c841fb8147faa16189dc40a04f49d",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/launch-complex.glb",
+      "source_sha256": "755dbec0a451255f7da881a03c53a665bfbd62a53184145186e44a28040b4393",
+      "project_sha256": "755dbec0a451255f7da881a03c53a665bfbd62a53184145186e44a28040b4393",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/mass-driver.glb",
+      "source_sha256": "4da35d41cb71de97a839659e82213e08ab1fdfc3940f5f5f74f9e7278635b521",
+      "project_sha256": "4da35d41cb71de97a839659e82213e08ab1fdfc3940f5f5f74f9e7278635b521",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/mining-camp.glb",
+      "source_sha256": "cdf827ee8fa194ade08d0a924999a0b348c818fd6992149cd3be937fca254612",
+      "project_sha256": "cdf827ee8fa194ade08d0a924999a0b348c818fd6992149cd3be937fca254612",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/mountain-redoubt.glb",
+      "source_sha256": "8c9b32bca930715293affcaaacd6334ec4f1710a6bcc206fbb0ef12e3796f621",
+      "project_sha256": "8c9b32bca930715293affcaaacd6334ec4f1710a6bcc206fbb0ef12e3796f621",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/ore-smelter.glb",
+      "source_sha256": "6aa2144af4e7fef5ea9117d621e7807d087fa1df9345ec7d45cec0a59acbef36",
+      "project_sha256": "6aa2144af4e7fef5ea9117d621e7807d087fa1df9345ec7d45cec0a59acbef36",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/reclaimer-camp.glb",
+      "source_sha256": "0b65a9ca7b9a8589385876d9e6515a28cd0cc9b5e6040aa0b87b03e8f92b5d5a",
+      "project_sha256": "0b65a9ca7b9a8589385876d9e6515a28cd0cc9b5e6040aa0b87b03e8f92b5d5a",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/refinery.glb",
+      "source_sha256": "88059ffa51d9ec23458488772acbbca855f9907395fbf44331831b95f6a406b0",
+      "project_sha256": "88059ffa51d9ec23458488772acbbca855f9907395fbf44331831b95f6a406b0",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/relay-mast.glb",
+      "source_sha256": "46a94d2b569ba08dd4475b89e6ae3ec3f088d6e682cc57f49dc170e99297df95",
+      "project_sha256": "46a94d2b569ba08dd4475b89e6ae3ec3f088d6e682cc57f49dc170e99297df95",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/research-outpost.glb",
+      "source_sha256": "05b2902811fd9e4bab2dcae1eda6d3ae66ce4d779c72849dab57f761db2a5334",
+      "project_sha256": "05b2902811fd9e4bab2dcae1eda6d3ae66ce4d779c72849dab57f761db2a5334",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/ring-fall.glb",
+      "source_sha256": "1a254b8de04f78cbd07bc9d4477f48d74bf8ca02a84fce015617e039eea7325b",
+      "project_sha256": "1a254b8de04f78cbd07bc9d4477f48d74bf8ca02a84fce015617e039eea7325b",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/scrapyard.glb",
+      "source_sha256": "60d900fe238aaf7ae054f7db123c6f87f8cc2fffc954dcaf025868a8d067038f",
+      "project_sha256": "60d900fe238aaf7ae054f7db123c6f87f8cc2fffc954dcaf025868a8d067038f",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/shuttle-wreck.glb",
+      "source_sha256": "7e735c38738dae8acdaa3c5eea5f92b9a90cb9e6c0898bc38e629f6692c6ba61",
+      "project_sha256": "7e735c38738dae8acdaa3c5eea5f92b9a90cb9e6c0898bc38e629f6692c6ba61",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/stalled-crawler.glb",
+      "source_sha256": "e21e2bf298a3a409de03db880d26415c8435d5b7dfddb3673d6aab13b340e788",
+      "project_sha256": "e21e2bf298a3a409de03db880d26415c8435d5b7dfddb3673d6aab13b340e788",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/strip-mine-metal.glb",
+      "source_sha256": "aca40355f43e20b97badbc88cc05ce9134c6ba1d4adb73eb5eafc7f9febaa06d",
+      "project_sha256": "aca40355f43e20b97badbc88cc05ce9134c6ba1d4adb73eb5eafc7f9febaa06d",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/strip-mine-stone.glb",
+      "source_sha256": "57166bf9cb54bb35bf4e49c3d0e41663b286d289af9be46e4153c681b527103d",
+      "project_sha256": "57166bf9cb54bb35bf4e49c3d0e41663b286d289af9be46e4153c681b527103d",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/strip-mine-sulphur.glb",
+      "source_sha256": "7c0c1e5db99d0b907f7d2bf46cda16654d1f29903c09d201b623d16864172fed",
+      "project_sha256": "7c0c1e5db99d0b907f7d2bf46cda16654d1f29903c09d201b623d16864172fed",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/supply-depot.glb",
+      "source_sha256": "fa02ec1290f9ca9694c23e169c3504111adb258c7d5bcd37cd93cc9c27204a4c",
+      "project_sha256": "fa02ec1290f9ca9694c23e169c3504111adb258c7d5bcd37cd93cc9c27204a4c",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/survey-marker.glb",
+      "source_sha256": "e49b10a550fa16fcc6e660bd28759f96aaabc461e20ac804545727b25a8a44dd",
+      "project_sha256": "e49b10a550fa16fcc6e660bd28759f96aaabc461e20ac804545727b25a8a44dd",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/tether-anchor.glb",
+      "source_sha256": "860c1e8f7ad8048e9efb05d2a2ee10612077ac75387f2f27e6f021b903df45cb",
+      "project_sha256": "860c1e8f7ad8048e9efb05d2a2ee10612077ac75387f2f27e6f021b903df45cb",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/toppled-pylon.glb",
+      "source_sha256": "90f3fa9afe1f64de26f8c8c2e88a50394e901f3b2aa41de9aabcafeef916e00c",
+      "project_sha256": "90f3fa9afe1f64de26f8c8c2e88a50394e901f3b2aa41de9aabcafeef916e00c",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/transit-station.glb",
+      "source_sha256": "1c388af261447aa71bde91901af6d3ddcf1937f3a88ac9d36d0fdbca280ac342",
+      "project_sha256": "1c388af261447aa71bde91901af6d3ddcf1937f3a88ac9d36d0fdbca280ac342",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/uplink-array.glb",
+      "source_sha256": "05339be1d2e75c29e5d6487714dfcf3a15a102286e4fae45b3dd58de78d735eb",
+      "project_sha256": "05339be1d2e75c29e5d6487714dfcf3a15a102286e4fae45b3dd58de78d735eb",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/valve-station.glb",
+      "source_sha256": "b1e0283f130aec3ffb7b12421305d8829ece98a0f22e2b5b9ab4f81e4c90e8cd",
+      "project_sha256": "b1e0283f130aec3ffb7b12421305d8829ece98a0f22e2b5b9ab4f81e4c90e8cd",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/water-tower.glb",
+      "source_sha256": "7aa07fd612692680e75b56888ddc31a55d996121da2af2790b9d4c51f8ccf4db",
+      "project_sha256": "7aa07fd612692680e75b56888ddc31a55d996121da2af2790b9d4c51f8ccf4db",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/water-works.glb",
+      "source_sha256": "4db5123aa760b0e2027152307aa277b10bf22b52b14e655ae6134d7540913910",
+      "project_sha256": "4db5123aa760b0e2027152307aa277b10bf22b52b14e655ae6134d7540913910",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/weather-station.glb",
+      "source_sha256": "23f3b336d29cf82fa93149d45e57b07d20d57683b9217bb96496acb50d0f4810",
+      "project_sha256": "23f3b336d29cf82fa93149d45e57b07d20d57683b9217bb96496acb50d0f4810",
+      "identical": true
+    },
+    {
+      "file": "game/assets/monuments/wellhead.glb",
+      "source_sha256": "f9ee2c4170b976c42d0daef40f9e453ed378fe18a548891968913482e641e111",
+      "project_sha256": "f9ee2c4170b976c42d0daef40f9e453ed378fe18a548891968913482e641e111",
+      "identical": true
+    }
+  ],
+  "source_package_manifest_checks": [
+    {
+      "package": "Hollow_LootContainers_R01",
+      "manifest_sha256": "1349467b838100fd2bcbd4c3dd198845ed29d46b03e5a3b419421f9955739b35",
+      "entries": 125,
+      "matching": 125,
+      "mismatches": [],
+      "scope": "Every recorded manifest entry checked; not canonical game-dev closure validation or art/runtime acceptance."
+    },
+    {
+      "package": "Hollow_PowerKit_R01",
+      "manifest_sha256": "1ed8b949f9f469fd5c7ec848ebe78f5047a00f8c5f1bc1e56da912789327e21b",
+      "entries": 171,
+      "matching": 171,
+      "mismatches": [],
+      "scope": "Every recorded manifest entry checked; not canonical game-dev closure validation or art/runtime acceptance."
+    },
+    {
+      "package": "Hollow_RuinDressing_R01",
+      "manifest_sha256": "0e8fc27dbdd4522237c84a187a90f060f4ba918a07ec2b9be6ea70f56b0548c3",
+      "entries": 233,
+      "matching": 233,
+      "mismatches": [],
+      "scope": "Every recorded manifest entry checked; not canonical game-dev closure validation or art/runtime acceptance."
+    },
+    {
+      "package": "Hollow_Salvage_R01",
+      "manifest_sha256": "c88ae6052a2a0e9b3acc6dbafce9c24a8ce3dffa12fc3ad8c798a338c98dbe5c",
+      "entries": 256,
+      "matching": 256,
+      "mismatches": [],
+      "scope": "Every recorded manifest entry checked; not canonical game-dev closure validation or art/runtime acceptance."
+    },
+    {
+      "package": "Hollow_Substation_R01",
+      "manifest_sha256": "46267f5e3aa16dce9e692be99db7cc7f6d3c683c21a255ffabf2c0871f458c4d",
+      "entries": 88,
+      "matching": 88,
+      "mismatches": [],
+      "scope": "Every recorded manifest entry checked; not canonical game-dev closure validation or art/runtime acceptance."
+    },
+    {
+      "package": "Hollow_WreckModules_R01",
+      "manifest_sha256": "c4847d09b923c48dce3cd0efe395dfc5d7bfb03dd4eeacc512a8912bc8cdbf58",
+      "entries": 204,
+      "matching": 200,
+      "mismatches": [
+        {
+          "path": "project.godot",
+          "expected_sha256": "d4bb1e96ff2e1775cc1c63b44523bcf61f0cc58ab044c7839d55646eead1dc1c",
+          "actual_sha256": "a569c8b68c3f231a7b03cca868785c1fe6c5ba3608c10d9700b85253718cf447"
+        },
+        {
+          "path": "Textures/Wreck_BaseColor.png.import",
+          "expected_sha256": "55c715026e146cddf54094ddc768cd9ee32b4783599c1e801e600943850411c9",
+          "actual_sha256": "887798b1bd4925fd7bb73cff404125fa2b513e1cfb287ccd349f8e68491429df"
+        },
+        {
+          "path": "Textures/Wreck_NormalGL.png.import",
+          "expected_sha256": "233a0fdac0b610b5440da1f505d754c8dd5758a97455e489b2000593036f3842",
+          "actual_sha256": "bf47e2f8e2cf39e4b130c6d00f6c745153640a45e76d1a116553f0586670c266"
+        },
+        {
+          "path": "Textures/Wreck_ORM.png.import",
+          "expected_sha256": "6e710231ab566c82092893693a73b39f02c630e0c6e72e99487816754c249e29",
+          "actual_sha256": "6b6fe32d5aaa7d2bc91964f6d96d5ac0174fd9b9eef823b7a1624a80bd2def0a"
+        }
+      ],
+      "scope": "Every recorded manifest entry checked; not canonical game-dev closure validation or art/runtime acceptance."
+    }
+  ],
+  "installed_receipt_checks": [
+    {
+      "receipt": "game/assets/revised/integration.json",
+      "source": "D:\\GameDev\\Assets\\Hollow_Salvage_R01",
+      "file_pairs": 34,
+      "mismatches": []
+    },
+    {
+      "receipt": "game/assets/revised/integration.json",
+      "source": "D:\\GameDev\\Assets\\Hollow_LootContainers_R01",
+      "file_pairs": 15,
+      "mismatches": []
+    },
+    {
+      "receipt": "game/assets/revised/substation-integration.json",
+      "source": "D:\\GameDev\\Assets\\Hollow_Substation_R01",
+      "file_pairs": 45,
+      "mismatches": []
+    },
+    {
+      "receipt": "game/assets/revised/substation-integration.json",
+      "source": "D:\\GameDev\\Assets\\Hollow_PowerKit_R01",
+      "file_pairs": 15,
+      "mismatches": []
+    },
+    {
+      "receipt": "game/assets/revised/substation-integration.json",
+      "source": "D:\\GameDev\\Assets\\Hollow_RuinDressing_R01",
+      "file_pairs": 9,
+      "mismatches": []
+    }
+  ]
+}

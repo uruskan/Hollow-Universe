@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-16",
+  "items": [
+    "rock",
+    "stone-hatchet",
+    "metal-hatchet",
+    "salvaged-axe",
+    "stone-pickaxe",
+    "metal-pickaxe"
+  ],
+  "source": [
+    {
+      "sha256": "93f8079b1fbf68ba2bae75cae4c852ab4550696da276421a021081eeb9d5b85d",
+      "path": "game/data/ground/held-presentations.json"
+    },
+    {
+      "sha256": "2ebda24680d4bae94e5724108b8d290a9d81bb1c598fbba0a2ef4a363b1890da",
+      "path": "game/scripts/Characters/HandPoses.cs"
+    },
+    {
+      "sha256": "b008933b4d8add1f496733189f0874f76259e59c0020cf94b595d0bc26668608",
+      "path": "game/scripts/Characters/HeldPresentationViewmodel.cs"
+    },
+    {
+      "sha256": "a9cdd4d95d392bda11f3f5b9f6d45a1531d8c963f5453ad8eaf500ac12ddcf88",
+      "path": "game/scripts/Characters/HeldItemEditor.cs"
+    },
+    {
+      "sha256": "7bde8475167b8a7b84f2a7ab7b172ffef50a1f1809478783ddd6c76bdfdb6cc2",
+      "path": "game/scripts/Characters/HeldItemEditor.Inspector.cs"
+    },
+    {
+      "sha256": "3e81c3946a06c28b1586c698251d0dc4e0aad5d635a6f4f5f5f8404922a4ab26",
+      "path": "game/scripts/Characters/HeldItemEditor.Automation.cs"
+    }
+  ],
+  "engine": "Godot 4.7.2 .NET",
+  "sheetCommand": "Godot --path game --resolution 1600x900 -- --view held-editor --item ITEM --action swing --editor-sheet OUTPUT.png",
+  "animationCommand": "Godot --path game --resolution 1600x900 -- --view held-editor --item ITEM --action swing --game-timing --editor-animation-dir EMPTY_DIRECTORY",
+  "video": "24 fps; four repeats of each actual sampled cycle; source frame manifests under .artifacts/held-tools-review/ITEM-motion-review",
+  "checks": [
+    "dotnet build HollowUniverse.sln --nologo",
+    "dotnet run --no-build --project tests/Hollow.Tests -- Held ContentTests Architecture",
+    "dotnet run --no-build --project tests/Hollow.Tests -- HeldPresentation",
+    "Godot --headless --path game -- --view held-editor --body BODY --editor-check --editor-check-only rock,stone-hatchet,metal-hatchet,salvaged-axe,stone-pickaxe,metal-pickaxe --editor-check-max-reach 0.08 --editor-check-max-palm 0.025 --editor-check-max-wrist 65 --editor-check-grip-margin 0.06"
+  ],
+  "limitations": "Workshop gameplay-rig playback, not a hosted combat test. Owner acceptance pending; see docs/HELD_ITEMS.md."
+}

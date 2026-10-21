@@ -1,0 +1,21 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_concrete_BaseColor.png" id="1_806ai"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_concrete_ORM.png" id="2_hhb8m"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_concrete_NormalGL.png" id="3_xxdkd"]
+
+[resource]
+resource_name = "HU_concrete"
+albedo_texture = ExtResource("1_806ai")
+metallic = 1.0
+metallic_texture = ExtResource("2_hhb8m")
+metallic_texture_channel = 2
+roughness_texture = ExtResource("2_hhb8m")
+roughness_texture_channel = 1
+normal_enabled = true
+normal_scale = 0.7
+normal_texture = ExtResource("3_xxdkd")
+ao_enabled = true
+ao_texture = ExtResource("2_hhb8m")
+uv1_scale = Vector3(0.5, 0.5, 1)
+texture_filter = 5

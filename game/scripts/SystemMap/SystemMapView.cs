@@ -269,7 +269,7 @@ public partial class SystemMapView : Node3D
     {
         Body body = view.Body;
         var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://shaders/planet.gdshader") };
-        PlanetLook.Apply(material, body);
+        PlanetLook.Apply(material, body, _system!.Address.Value);
         view.Mesh = new MeshInstance3D
         {
             Mesh = new SphereMesh { Radius = view.Radius, Height = view.Radius * 2, RadialSegments = 40, Rings = 20 },

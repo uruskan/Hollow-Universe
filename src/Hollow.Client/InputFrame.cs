@@ -38,6 +38,9 @@ public struct InputFrame
     public bool Crouch;
     public bool Sprint;
 
+    /// <summary>Requested admin noclip speed, quantized before prediction; grants no movement permission.</summary>
+    public float NoclipSpeed;
+
     /// <summary>Jump went down this frame; kept until the next tick uses it, so a quick tap is never lost.</summary>
     public bool JumpPressed;
 

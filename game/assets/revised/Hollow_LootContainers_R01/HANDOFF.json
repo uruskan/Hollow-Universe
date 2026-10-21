@@ -1,0 +1,229 @@
+{
+  "assignment": "04_LOOT_CONTAINERS",
+  "status": "ready_for_review",
+  "output_root": "D:/GameDev/Assets/Hollow_LootContainers_R01",
+  "summary": "Three container refinements, six intact/damaged GLBs, editable Blender components, nine textured reusable Godot scenes, three LODs, preserved use sockets and movable lids, 34 actual engine captures, including above/below drum-lip evidence across both states and all LODs. Front of equipment crate revised to a continuous sheet with narrow pressed beads and a small inventory label carrier.",
+  "revision": "2026-10-15 drum lip orientation correction",
+  "triangle_count_authority": "Actual exported GLB index buffers, not pre-export Blender polygon counts.",
+  "revision_backup": "Revisions/2026-10-15-pre-lip-fix/delivery-before-lip-fix.zip",
+  "delivery_archive": "Archives/Hollow_LootContainers_R01_2026-10-15.zip",
+  "assets": [
+    {
+      "name": "loot-crate",
+      "source": "Source/Hollow_LootContainers_R01.blend",
+      "model": "Models/loot-crate.glb",
+      "damaged_model": "Models/loot-crate-damaged.glb",
+      "godot_scene": "Scenes/loot-crate.tscn",
+      "open_scene": "Scenes/loot-crate-open.tscn",
+      "dimensions_xyz_metres": [
+        1.0752499103546143,
+        0.5570000186562538,
+        0.6769999861717224
+      ],
+      "dimension_coordinate_system": "glTF/Godot Y-up, measured closed render bounds including hardware",
+      "lod_triangles": [
+        9774,
+        4398,
+        1466
+      ],
+      "damaged_lod_triangles": [
+        10034,
+        4514,
+        1504
+      ],
+      "lod_material_surfaces": [
+        4,
+        4,
+        4
+      ],
+      "distinct_materials": 2,
+      "collision": "One scene-owned closed convex proxy; box for crates / cylinder for drum. Handles and lid motion approximated. GLB contains render hierarchy and metadata.",
+      "uv0": "Intentional metric timber tiling (2m repeat) and aspect-preserving metal panel atlas (10px gutters); cylindrical arclength unwrap; separate label rectangles.",
+      "uv1": "Not supplied: no unique bake or lightmap occupancy claim.",
+      "texture_sets": [
+        "LC_Metal",
+        "LC_Wood"
+      ],
+      "sockets_and_moving_parts": [
+        {
+          "node": "socket_use",
+          "blender_xyz": [
+            0,
+            -0.8,
+            0.45
+          ]
+        },
+        {
+          "node": "Lid",
+          "blender_xyz": [
+            0,
+            0.3,
+            0.51
+          ],
+          "motion": "local X -105 degrees"
+        }
+      ]
+    },
+    {
+      "name": "military-crate",
+      "source": "Source/Hollow_LootContainers_R01.blend",
+      "model": "Models/military-crate.glb",
+      "damaged_model": "Models/military-crate-damaged.glb",
+      "godot_scene": "Scenes/military-crate.tscn",
+      "open_scene": "Scenes/military-crate-open.tscn",
+      "dimensions_xyz_metres": [
+        1.3357200622558594,
+        0.5905000269412994,
+        0.695999950170517
+      ],
+      "dimension_coordinate_system": "glTF/Godot Y-up, measured closed render bounds including hardware",
+      "lod_triangles": [
+        8204,
+        3690,
+        1228
+      ],
+      "damaged_lod_triangles": [
+        8528,
+        3836,
+        1276
+      ],
+      "lod_material_surfaces": [
+        2,
+        2,
+        2
+      ],
+      "distinct_materials": 1,
+      "collision": "One scene-owned closed convex proxy; box for crates / cylinder for drum. Handles and lid motion approximated. GLB contains render hierarchy and metadata.",
+      "uv0": "Intentional metric timber tiling (2m repeat) and aspect-preserving metal panel atlas (10px gutters); cylindrical arclength unwrap; separate label rectangles.",
+      "uv1": "Not supplied: no unique bake or lightmap occupancy claim.",
+      "texture_sets": [
+        "LC_Metal"
+      ],
+      "sockets_and_moving_parts": [
+        {
+          "node": "socket_use",
+          "blender_xyz": [
+            0,
+            -0.85,
+            0.5
+          ]
+        },
+        {
+          "node": "Lid",
+          "blender_xyz": [
+            0,
+            0.31,
+            0.51
+          ],
+          "motion": "local X -105 degrees"
+        }
+      ]
+    },
+    {
+      "name": "loot-barrel-1",
+      "source": "Source/Hollow_LootContainers_R01.blend",
+      "model": "Models/loot-barrel-1.glb",
+      "damaged_model": "Models/loot-barrel-1-damaged.glb",
+      "godot_scene": "Scenes/loot-barrel-1.tscn",
+      "open_scene": "Scenes/loot-barrel-1-open.tscn",
+      "dimensions_xyz_metres": [
+        0.6019999980926514,
+        0.8964999839663506,
+        0.604500025510788
+      ],
+      "dimension_coordinate_system": "glTF/Godot Y-up, measured closed render bounds including hardware",
+      "lod_triangles": [
+        7392,
+        3344,
+        1145
+      ],
+      "damaged_lod_triangles": [
+        7392,
+        3344,
+        1145
+      ],
+      "lod_material_surfaces": [
+        2,
+        2,
+        2
+      ],
+      "distinct_materials": 1,
+      "collision": "One scene-owned closed convex proxy; box for crates / cylinder for drum. Handles and lid motion approximated. GLB contains render hierarchy and metadata.",
+      "uv0": "Intentional metric timber tiling (2m repeat) and aspect-preserving metal panel atlas (10px gutters); cylindrical arclength unwrap; separate label rectangles.",
+      "uv1": "Not supplied: no unique bake or lightmap occupancy claim.",
+      "texture_sets": [
+        "LC_Metal"
+      ],
+      "sockets_and_moving_parts": [
+        {
+          "node": "socket_use",
+          "blender_xyz": [
+            0,
+            -0.6,
+            0.6
+          ]
+        },
+        {
+          "node": "Lid",
+          "blender_xyz": [
+            0,
+            0.27,
+            0.864
+          ],
+          "motion": "lift +0.28m on Godot Y"
+        }
+      ]
+    }
+  ],
+  "preview_launcher": "View.cmd",
+  "review_images": [
+    "Renders/engine-intact.png",
+    "Renders/engine-damaged.png",
+    "Renders/engine-open.png",
+    "Renders/engine-player.png",
+    "Renders/engine-wood-close.png",
+    "Renders/engine-steel-close.png",
+    "Renders/engine-drum-close.png",
+    "Renders/engine-back.png",
+    "Renders/engine-side.png",
+    "Renders/engine-wire.png",
+    "Renders/engine-checker.png",
+    "Renders/engine-lod2.png",
+    "Renders/engine-lip-intact-lod0-top.png",
+    "Renders/engine-lip-intact-lod0-under.png",
+    "Renders/engine-lip-damaged-closed.png"
+  ],
+  "validation_reports": [
+    "Reports/glb_validation.json",
+    "Reports/texture_validation.json",
+    "Reports/engine_validation.json",
+    "Reports/engine_library.json",
+    "Reports/engine_capture.json",
+    "Reports/barrel_clearance_audit.json",
+    "Reports/visual_review.json",
+    "Reports/delivery_validation.json",
+    "Reports/lip_orientation_audit.json",
+    "Reports/revision_scope_validation.json",
+    "Reports/engine_lip_capture.json"
+  ],
+  "provenance_report": "Reports/provenance.json",
+  "sha256_manifest": "Reports/package_manifest.json",
+  "commands_run": [
+    "& 'C:\\Users\\uruskan\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' 'D:\\GameDev\\Assets\\Hollow_LootContainers_R01\\Source\\prepare_textures.py'",
+    "& 'C:\\Python314\\python.exe' 'D:\\GameDev\\Assets\\Hollow_Production_Briefs_R01\\run_heavy.py' -- 'D:\\GameDev\\Tools\\blender-5.2.1-windows-x64\\blender.exe' --background --factory-startup --python 'D:\\GameDev\\Assets\\Hollow_LootContainers_R01\\Source\\build.py'",
+    "& 'C:\\Users\\uruskan\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' 'D:\\GameDev\\Assets\\Hollow_LootContainers_R01\\Source\\validate.py'",
+    "dotnet build 'D:\\GameDev\\Assets\\Hollow_LootContainers_R01\\HollowLootPreview.csproj' --nologo",
+    "& 'D:\\GameDev\\Assets\\Hollow_LootContainers_R01\\Source\\final_engine.ps1' (five sequential shared-wrapper invocations: import, library export, engine validation, family capture, lip capture)",
+    "& 'C:\\Users\\uruskan\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' 'D:\\GameDev\\Assets\\Hollow_LootContainers_R01\\Source\\package.py'"
+  ],
+  "known_issues": [
+    "Human art approval remains pending; ready_for_review is not AAA approval.",
+    "No game integration or actual gib meshes. Current crates are unbreakable; barrel opens only in inspection.",
+    "Closed collision proxies do not follow moving lids or allow interior collision.",
+    "Shared UV0 only; no unique bake UV1 or lightmap bake.",
+    "Damaged drum wall is nominal 4mm at construction rings; sampled triangulated thickness varies about1.77\u20135.90mm, remaining positive.",
+    "game-dev CLI was unavailable; no canonical CLI-package receipt. This delivery is verified directly in Blender/GLB/Godot."
+  ],
+  "integration_proposal": "Reports/integration_proposal.json; main game remains unchanged.",
+  "next_reviewer_action": "Inspect the revised equipment front, neutral/material/damaged/open engine views, editable source, explicit LODs and mapping proposal. Human art and integration acceptance required."
+}

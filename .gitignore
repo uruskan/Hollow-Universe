@@ -15,6 +15,16 @@ export_presets.cfg
 
 # Local tools
 .tmp/
+.artifacts/
+
+# Held-item editor recovery files (the actual JSON catalogue remains tracked)
+game/data/ground/held-presentations.json.bak
+game/data/ground/.held-*.tmp
+
+# Runtime state belongs to the local installation, never version control
+*.db
+*.db-shm
+*.db-wal
 
 # Blender build scratch
 art/.cache/

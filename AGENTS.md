@@ -1,4 +1,32 @@
-# Working on Hollow Universe (for AI agents and people)
+# Hollow Universe AB Test B — active project instructions
+
+This independent project lives in `D:\GameDev\Projects\HollowUniverseABTestB` on branch `abtest-b`.
+The user approved Godot 4.7.2 .NET and C# on 15 October 2026. The original repository at
+`D:\GameDev\Projects\Hollow Universe` is a reusable source/reference, not this project's working directory.
+Do not edit or merge into it as part of this project. This repository has no push remote.
+
+## Authoritative design and precedence
+
+Read `docs/DESIGN.md`, copied from the user's `D:\GameDev\Projects\x\design.md`, as the current design.
+It supersedes the historical design, lore, scale, travel, faction, and workflow statements below and in inherited docs.
+Keep confirmed requirements distinct from proposals. Current requirements include a maximum of 1,000 stars,
+planets with at most 23.04 km² total surface area, initial spawn on Earth with one rock and one torch,
+Elite Dangerous-inspired normal flight, supercruise, charged interstellar jumps and fuel scooping,
+and preservation of the ground UI. The travel revision of 18 October 2026 in DESIGN.md TRAVEL-01–05
+supersedes the earlier direct-flight/no-supercruise rule; detailed tuning remains open.
+Use the standard Godot build; custom precision builds are not an assumed requirement.
+
+Retain C#, engine-free simulation, deterministic generation, data-driven shared systems, build/test checks,
+and screenshots for visual changes from the engineering rules below. Existing implementation is a reusable
+foundation, not evidence that new design requirements are already complete. Record current work and honest
+validation in `docs/DEVELOPMENT.md`. Existing source docs describe inherited behavior until explicitly updated.
+
+Separate agent ownership before parallel edits. Coordinate builds and Godot runs with the root agent.
+Local save data is isolated under `HollowUniverseABTestB`; never load the original game's saves implicitly.
+
+---
+
+# Historical source-project guide (reference only where consistent with the above)
 
 ## Where development is now (14 October 2026)
 
@@ -51,6 +79,9 @@ Read first, in this order:
    touch interaction, placement, held items, item information, damage or anything a player does to a world thing;
    its §12, the kernel, says where a rule (a `ZoneSystem`), an event, a message, a server or client module or a data
    file goes, and how the host, the modules and the readers are listed.
+9. [docs/DOORS.md](docs/DOORS.md): how doors behave (the owner's rules of 20 October 2026: both faces alike, hinge and swing
+   chosen apart, doors that ignore what is in their way and whose collision follows their motion), if you touch doors, locks
+   on doors, their art or their network state.
 
 ## Rules
 
@@ -131,7 +162,9 @@ dotnet run -c Release --project tools/Hollow.GeneratorReport -- surface map|reli
                                                  # the first world's surface: maps, speed, landing site, look-dev
                                                  # spots (forest|meadow|beach|mountain), sun and moon by the hour
 blender -b --factory-startup --python tools/blender/surface_layers.py -- D:/GameDev/Assets game/assets/surface/ground/layers <scratch>
-                                                 # the ground's sixteen 4K layers from the owned scans (docs/WALKING_GROUND.md §8)
+                                                 # the ground's 34 4K textures from the owned scans: the sixteen materials' and their
+                                                 # alternatives (docs/WALKING_GROUND.md §8); files already built are kept; then
+                                                 # $GODOT --headless --path game --import (BPTC at 4K: long)
 blender -b --factory-startup --python art/build.py   # every item and world model → game/assets/items, world (GROUND.md §9.1)
 blender -b --factory-startup --python art/build.py -- iron_wake   # the Iron Wake → game/assets/ships, its materials, and
                                                  # game/data/ground/ships/iron-wake.json (IRON_WAKE.md §9.1; 5 min; from
@@ -155,6 +188,8 @@ blender --background --factory-startup --python art/import/building_kit.py [-- t
 blender --background --factory-startup --python art/import/door_kit.py
 # The sounds (GROUND.md §4.9, §9.2; Python's standard library and ffmpeg, HOLLOW_FFMPEG):
 python -I art/audio/sources.py --fetch    # the CC0 downloads that are missing, each checked by SHA-256
+python -I art/audio/sources.py --youtube <URL>   # one video's audio by D:/GameDev/Tools/yt-dlp, recorded in youtube.json
+python -I art/audio/sources.py --adopt    # records freesound originals saved by hand into Downloads/freesound (VEHICLES.md §9.10)
 python -I art/audio/build.py              # sounds whose recipe changed → game/assets/audio, sounds.json, levels.json
                                           # (--only <path prefix>, --force, --credits); after Godot imports new files, run it again
 ```
@@ -276,7 +311,9 @@ Client options (after `--`):
   Space again, C the cause, P pause; `--gib-parts a,b` the building's parts shown), `--gibs raid` (a stone wall blown in,
   ten barrels shot), `--gibs <key>[/<part>]` (one close up, `--yaw`, `--distance`); with `--shot`, held `--at <s>` after
   the break; `--stress gibs --measure <s>` (the raid every 2.5 s, gibs off and on: prints what they cost and quits).
-- Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second).
+- Run: `--wait <s>`, `--trace` (prints streaming, exposure and timing once a second), `--no-far-cliffs` (the walking
+  world's cliffs without their far layer, as before it, and so without the walls' rock skins, which it builds) and
+  `--no-cliff-skins` (without the skins alone): for comparisons; docs/TERRAIN_SCENERY_PLAN.md T2.
 - Ground (GROUND.md §4.3): `--view ground` alone opens the main menu; `--body male|female` (default: the menu's last
   choice); `--mute` (no sound), `--sound-trace` (print every sound started); `--name <n>` with `--host [--port <n>]` (the
   dedicated server started as a process of its own; `--in-process` runs it on a thread of the game) or
@@ -288,10 +325,12 @@ Client options (after `--`):
   arrive at the landing site rather than on a beach), `--ground walking` (hosted: S4's walking-scale ground, off by
   default; docs/WALKING_GROUND.md §12), `--lat <deg> --lon <deg>` (hosted: the server's landing site, where `--spawn
   origin` arrives), `--yaw <deg>` (screenshots: turn to that bearing from north on arrival), `--clouds <0–1>` (this client's cloud
-  cover), `--time <UTC>` or `--hour <h>`
+  cover), `--debug-sky <n>` (as the surface view's: 11 to 16 show the ground's material weights, normals, climate, lighting
+  and face seams), `--time <UTC>` or `--hour <h>`
   (show another time of day: a universe time, or the next time it is h o'clock at the landing site, or at `--lat`/`--lon`;
-  this client's sky only), `--tour <folder>`
-  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact,map`
+  this client's sky only), `--fov <deg>` (this run's field of view, 20 to 120, unsaved: 40 matches a long lens for pictures
+  beside a reference; the F1 `fov` command and the settings slider take 30 to 110), `--tour <folder>`
+  with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact,map,far`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and
   `mine` picture the X, a hit's burst, the fall, the hotspot and a stage breaking, and `--tour-tree <kind>` picks the
@@ -306,6 +345,8 @@ Client options (after `--`):
   pictures P1's interaction through the keys: the prompt and E held on a fresh code lock's door (SET CODE first), the
   tool cupboard's options, arrows stuck in a wall (one taken back with E) and in a deer, and a garage door shut through
   its opening; `map` pictures the map of the whole world as G opens it, `map-open.jpg`, WHOLE_WORLD.md §11),
+  its opening; `far` pictures the forest a kilometre from the landing site from 35 m up (noclip), looking away from the
+  landing site (`away.jpg`) and towards it (`toward.jpg`): the near trees' impostors, 170 to 290 m out, show both ways),
   `--measure <s> [--expect <n>]` (once n others are in view, turns to them, measures the frame
   time for s seconds with vsync off, prints it with the slowest frames and what they did, and, when hosting, the
   server's tick; then quits), `--load-trace [s]` (GROUND.md §4.3.1: times the start from the process's start to steady

@@ -1,0 +1,39 @@
+{
+  "source": "Physical contact identities shared by authority, footsteps and impact presentation. IDs are append-only wire values; 0 is unknown. Missing content mappings fail validation.",
+  "definitions": [
+    {"id":1,"key":"grass"}, {"id":2,"key":"dirt"}, {"id":3,"key":"sand"},
+    {"id":4,"key":"rock"}, {"id":5,"key":"snow"}, {"id":6,"key":"wood"},
+    {"id":7,"key":"metal"}, {"id":8,"key":"water"}, {"id":9,"key":"flesh"},
+    {"id":10,"key":"hull"}, {"id":11,"key":"glass"}, {"id":12,"key":"cloth"}, {"id":13,"key":"gravel"}
+  ],
+  "terrain": {
+    "Grass":"grass", "ForestFloor":"dirt", "Soil":"dirt", "Rock":"rock", "Gravel":"gravel",
+    "Sand":"sand", "Snow":"snow", "Moss":"grass", "WetSand":"sand", "Shingle":"gravel",
+    "WetGrass":"grass", "MossyFloor":"dirt", "Tundra":"grass", "Sandstone":"rock", "DryEarth":"dirt", "Ice":"snow"
+  },
+  "grades": {"twig":"wood","wood":"wood","stone":"rock","metal":"metal","armoured":"metal"},
+  "deployables": {
+    "sleeping-bag":"cloth", "bed":"cloth", "campfire":"wood", "furnace":"rock",
+    "small-box":"wood", "large-box":"wood", "workbench-1":"wood", "workbench-2":"metal",
+    "workbench-3":"metal", "vehicle-workbench":"metal", "research-table":"metal", "engineering-workbench":"metal",
+    "large-furnace":"rock", "wooden-barricade":"wood", "wood-compound-wall":"wood", "wood-compound-gate":"wood",
+    "stone-compound-wall":"rock", "stone-compound-gate":"rock", "windmill":"metal", "sam-site":"metal",
+    "wood-spike-barricade":"wood", "metal-barricade":"metal", "auto-turret":"metal", "wooden-ladder":"wood",
+    "claim-device":"wood", "loot-barrel-1":"metal", "loot-barrel-2":"metal", "loot-crate":"wood", "military-crate":"metal", "recycler":"metal"
+  },
+  "doors": {
+    "wooden-door":"wood", "sheet-metal-door":"metal", "armoured-door":"metal", "wooden-double-door":"wood",
+    "sheet-metal-double-door":"metal", "armoured-double-door":"metal", "garage-door":"metal",
+    "metal-window-bars":"metal", "armoured-window-bars":"metal", "reinforced-glass-window":"glass",
+    "horizontal-embrasure":"metal", "vertical-embrasure":"metal"
+  },
+  "natural": {
+    "pine-tree":"wood", "broadleaf-tree":"wood", "stone-node":"rock", "metal-node":"rock", "sulphur-node":"rock",
+    "wood-pile":"wood", "stone-pile":"rock", "metal-pile":"metal", "sulphur-pile":"rock",
+    "fibre-plant":"grass", "tuber-plant":"grass", "red-berry-bush":"grass", "blue-berry-bush":"grass",
+    "fir-tree":"wood", "birch-tree":"wood", "boulder":"rock", "high-grade-node":"rock"
+  },
+  "ships": {"tin-finch":"hull", "iron-wake":"hull", "motorboat":"hull", "ka-fa-1500":"hull", "togg":"hull", "zamazingo":"hull"},
+  "shipParts": {},
+  "deployableParts": {}
+}

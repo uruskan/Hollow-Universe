@@ -161,21 +161,19 @@ public sealed class BuildingReplica : IDisposable
             var id = new EntityId(d.Id);
             double health = d.Health / 65535.0 * def.Health;
             Door? door = World.DoorOf(id);
-            if (door != null)
-            {
-                World.Apply(door, d.Open, health);
-            }
-            else if (World.PieceOf(new EntityId(d.Frame)) is { } frame)
+            if (door == null && World.PieceOf(new EntityId(d.Frame)) is { } frame)
             {
                 _bodies.Clear();
                 _bodies.Add(d.Body0);
                 _bodies.Add(d.Body1);
-                door = World.RestoreDoor(id, def, frame, d.Flip ? 1 : 0, 0, d.Open, health, _bodies);
+                door = World.RestoreDoor(id, def, frame, d.Layout, 0, d.Open, health, _bodies);
             }
             if (door == null)
             {
                 continue;
             }
+            // Its state and its motion record: the leaves' bodies go where the record puts them at the tick the doors are at.
+            World.Apply(door, d.Open, d.From / 65535f, d.Moving == 1 ? 1 : d.Moving == 2 ? -1 : 0, d.Since, health);
             var state = new DoorState(d.Lock, d.Flags);
             World.ApplyLock(door, d.Lock, new EntityId(d.LockId), state.Locked);
             _doors[id] = state;

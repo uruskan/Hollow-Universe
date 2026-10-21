@@ -1,4 +1,6 @@
 using System.Linq;
+using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Text.Json;
 
@@ -24,7 +26,8 @@ internal sealed class DeployablesReader : IContentReader
             JsonElement e = list[i];
             string key = f.Text(e, "key", $"deployables.json: deployables[{i}]");
             string where = $"deployables.json: {JsonFields.Quote(key)}";
-            f.OnlyKnown(e, where, "key", "item", "health", "size", "placement", "solid", "respawn", "slots", "device", "workbench", "bay", "pickup", "burns");
+            f.OnlyKnown(e, where, "key", "item", "health", "size", "placement", "solid", "respawn", "slots", "device", "workbench", "bay", "pickup", "burns",
+                "power", "defense", "assembly", "gate", "climb", "contactHazard", "repairCost");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             JsonElement[] size = f.List(e, "size", where);
             Vector3 half = Vector3.Zero;
@@ -74,6 +77,20 @@ internal sealed class DeployablesReader : IContentReader
             {
                 continue;
             }
+            var repairCost = new List<ItemAmount>();
+            if (f.Has(e, "repairCost"))
+            {
+                foreach (JsonElement entry in f.List(e, "repairCost", where))
+                {
+                    if (!f.Tuple(entry, where + ".repairCost", 1, out string material, out double[] values)) continue;
+                    if (values[0] is <= 0 or > 1_000_000 || values[0] != Math.Truncate(values[0]))
+                    {
+                        f.Problem(where + ".repairCost", "material quantities must be whole numbers from 1 to 1000000");
+                        continue;
+                    }
+                    if (r.Resolve(material, where + ".repairCost") is { } repairItem) repairCost.Add(new ItemAmount(repairItem, (int)values[0]));
+                }
+            }
             var def = new DeployableDef
             {
                 Key = key,
@@ -84,6 +101,13 @@ internal sealed class DeployablesReader : IContentReader
                 RespawnSeconds = f.Number(e, "respawn", where, 0),
                 Slots = f.Integer(e, "slots", where, 0),
                 Device = device,
+                Power = f.TryChild(e, "power", out JsonElement power) ? PowerStats.Read(r, power, where + ".power") : null,
+                Defense = f.TryChild(e, "defense", out JsonElement defense) ? DefenseStats.Read(r, defense, where + ".defense") : null,
+                Assembly = e.TryGetProperty("assembly", out _) ? f.Text(e, "assembly", where) : null,
+                Gate = f.TryChild(e, "gate", out JsonElement gate) ? CompoundGateStats.Read(r, gate, where + ".gate") : null,
+                Climb = f.TryChild(e, "climb", out JsonElement climb) ? CompoundClimbStats.Read(r, climb, where + ".climb") : null,
+                ContactHazard = f.TryChild(e, "contactHazard", out JsonElement hazard) ? ContactHazardStats.Read(r, hazard, where + ".contactHazard") : null,
+                RepairCost = repairCost,
                 Workbench = f.Integer(e, "workbench", where, 0),
                 Bay = bay,
                 Pickup = f.Flag(e, "pickup", where, false),
@@ -130,6 +154,13 @@ internal sealed class DeployablesReader : IContentReader
         foreach (DeployableDef d in loaded.Deployables)
         {
             string where = $"deployables.json: \"{d.Key}\"";
+            PowerStats.Check(c, d);
+            DefenseStats.Check(c, d);
+            CompoundGateStats.Check(c, d);
+            CompoundClimbStats.Check(c, d);
+            ContactHazardStats.Check(c, d);
+            if (d.RepairCost.Select(a => a.Item.Id).Distinct().Count() != d.RepairCost.Count)
+                c.Problem(where + ".repairCost", "each material must occur once");
             if (d.Item.Deploys != d)
             {
                 c.Problem(where, $"item \"{d.Item.Key}\" must say \"deploys\": \"{d.Key}\"");

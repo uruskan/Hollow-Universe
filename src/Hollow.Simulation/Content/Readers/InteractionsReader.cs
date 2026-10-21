@@ -43,7 +43,7 @@ internal sealed class InteractionsReader : IContentReader
         {
             string where = $"{file}: verbs[{i}]";
             f.OnlyKnown(e, where, "key", "label", "named", "glyph", "description", "priority", "reach", "sight", "code", "panel", "menu",
-                "switch", "alive", "awake", "wounded", "seated", "note");
+                "switch", "alive", "awake", "wounded", "seated", "note", "text");
             string key = f.Text(e, "key", where);
             if (!keys.Add(key))
             {
@@ -74,6 +74,7 @@ internal sealed class InteractionsReader : IContentReader
                 ReachName = reachName,
                 Sight = f.Flag(e, "sight", where, true),
                 Code = f.Flag(e, "code", where, false),
+                Text = f.Flag(e, "text", where, false),
                 Panel = panel.Length > 0 ? panel : null,
                 Menu = f.Flag(e, "menu", where, true),
                 Switch = turns,

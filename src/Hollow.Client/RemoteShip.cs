@@ -51,6 +51,9 @@ public sealed class RemoteShip
 
     private ShipDef? _def;
 
+    /// <summary>The modules its details last said it has (VEHICLES.md §9.1): its <see cref="Def"/> is its kind with these.</summary>
+    public Simulation.Ships.Modules.ShipBuild Build { get; set; } = Simulation.Ships.Modules.ShipBuild.Empty;
+
     public uint NewestTick => _newest < 0 ? 0 : _ticks[_newest];
 
     public bool HasState => _count > 0;
@@ -70,6 +73,9 @@ public sealed class RemoteShip
 
     /// <summary>Each axis's thrust as a fraction (x + left, y + up, z + forward; boost above 1).</summary>
     public Vector3 Thrust { get; private set; }
+
+    /// <summary>The drive's engine speed (a rotor's spin), 0 … 1, interpolated like the thrust.</summary>
+    public float Spool { get; private set; }
 
     public ShipNetFlags Flags { get; private set; }
 
@@ -384,6 +390,7 @@ public sealed class RemoteShip
         float span = (_ticks[b] - _ticks[a]) / (float)Simulation.Movement.CharacterMotor.TickRate;
         Velocity = span > 0 ? (pb - pa) / span : Vector3.Zero;
         Thrust = Vector3.Lerp(ShipConvert.ThrustOf(sa), ShipConvert.ThrustOf(sb), Math.Clamp(t, 0, 1));
+        Spool = float.Lerp(ShipConvert.SpoolOf(sa), ShipConvert.SpoolOf(sb), Math.Clamp(t, 0, 1));
         ShipNetState discrete = t < 0.5f ? sa : sb;
         Flags = discrete.Flags;
         Viewer = discrete.Viewer;

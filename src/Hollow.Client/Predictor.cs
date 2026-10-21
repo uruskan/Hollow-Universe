@@ -25,6 +25,7 @@ public sealed class Predictor : IDisposable
     private readonly PhysicsWorld _world;
     private readonly bool _ownsWorld;
     private readonly CharacterBody _body;
+    private bool _disposed;
     private readonly InputCommand[] _inputs = new InputCommand[History];
     private readonly uint[] _inputTicks = new uint[History];
     private readonly CharacterState[] _states = new CharacterState[History];
@@ -37,9 +38,17 @@ public sealed class Predictor : IDisposable
         Frame = spec.CreateFrame(surface);
         _world = shared ?? new PhysicsWorld(surface, Frame);
         _ownsWorld = shared == null;
-        _body = new CharacterBody(_world, tuning, Vector3.Zero, Vector3.UnitY);
-        // The zone's frame as the server's zone has it (its radius bounds noclip there too).
-        Frames = new MoveFrames(new ZoneMoveFrame(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, tuning), surface.Radius, _body, surface), tuning);
+        try
+        {
+            _body = new CharacterBody(_world, tuning, Vector3.Zero, Vector3.UnitY);
+            // The zone's frame as the server's zone has it (its radius bounds noclip there too).
+            Frames = new MoveFrames(new ZoneMoveFrame(Frame, surface.SeaRadius, MoveContext.CharacterGravity(spec.SurfaceGravity, tuning), surface.Radius, _body, surface), tuning);
+        }
+        catch
+        {
+            if (_ownsWorld) _world.Dispose();
+            throw;
+        }
     }
 
     public ZoneFrame Frame { get; }
@@ -283,10 +292,18 @@ public sealed class Predictor : IDisposable
 
     public void Dispose()
     {
-        _body.Dispose();
-        if (_ownsWorld)
+        if (_disposed) return;
+        if (JoltRuntime.Gate.IsHeldByCurrentThread)
+            throw new InvalidOperationException("Retire prediction outside the Jolt gate.");
+        _disposed = true;
+        Exception? bodyFailure = null;
+        try { _body.Dispose(); }
+        catch (Exception error) { bodyFailure = error; }
+        try
         {
-            _world.Dispose();
+            if (_ownsWorld) _world.Dispose();
         }
+        catch (Exception error) when (bodyFailure != null) { throw new AggregateException(bodyFailure, error); }
+        if (bodyFailure != null) throw new AggregateException("Prediction character retirement failed.", bodyFailure);
     }
 }

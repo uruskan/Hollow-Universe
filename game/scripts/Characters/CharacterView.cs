@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
+using Hollow.Simulation.Content;
 
 namespace HollowUniverse.Characters;
 
@@ -53,12 +54,15 @@ public partial class CharacterView : Node3D
     private UseMotion _use;
     private float _useTime = -1f;
     private float _thrust = -1f;
-    private float _draw, _bowAim, _loose = -1f;
+    private float _draw, _releasedDraw, _bowAim, _loose = -1f;
     private BowRig? _bowRig;
     private float _pistolReload = -1f;
-    private Node3D? _pistolMagazine;
-    private Transform3D _pistolMagazineRest;
-    private MeshInstance3D? _magazineProp;
+    private HeldReloadParts? _reloadParts;
+    private Transform3D? _reloadMagazineHand;
+
+    public bool HasReloadMagazine => _reloadParts != null;
+    public bool CarryingReloadMagazine => _reloadParts?.Carrying == true;
+    public Transform3D? PresentedMagazine => _reloadParts?.MagazineGlobal;
 
     // Held item.
     private BoneAttachment3D _handR = null!, _handL = null!;
@@ -337,6 +341,9 @@ public partial class CharacterView : Node3D
         {
             return;
         }
+        if (TryPresentationEvent(e)) return;
+        if (e == CharacterEvent.Fire && CurrentPresentation != null)
+            PlayAction(_itemModel?.LeftHanded == true ? "release" : "fire");
         switch (e)
         {
             case CharacterEvent.Swing:
@@ -345,7 +352,7 @@ public partial class CharacterView : Node3D
                     _thrust = 0f;
                     break;
                 }
-                PlayAction(_held switch
+                PlayBodyAction(_held switch
                 {
                     HeldKind.Tool when _itemModel?.LeftHanded == true => "",
                     // Hatchets, picks, hammers and torches chop; blades slash; the rock is brought down overhand.
@@ -361,20 +368,17 @@ public partial class CharacterView : Node3D
                     if (_draw > 0.15f)
                     {
                         _loose = 0f;
+                        _releasedDraw = _draw;
                         _draw = 0f;
                     }
                     break;
-                }
-                if (_held == HeldKind.Pistol)
-                {
-                    PlayAction("pistol_fire");
                 }
                 _recoil = 1f;
                 break;
             case CharacterEvent.Reload:
                 if (_held == HeldKind.Pistol)
                 {
-                    PlayAction("pistol_reload");
+                    PlayBodyAction("pistol_reload");
                     _pistolReload = 0f;
                 }
                 else if (_held == HeldKind.Rifle)
@@ -407,7 +411,7 @@ public partial class CharacterView : Node3D
                 break;
             case CharacterEvent.Eat:
                 // The clip lifts the left hand to the mouth: the food goes to that hand while it eats.
-                PlayAction("consume");
+                PlayBodyAction("consume");
                 _eating = _assets.Clips.TryGetValue("consume", out ClipInfo? eat) ? eat.Length : 1.3f;
                 MoveItemTo(left: true);
                 break;
@@ -467,7 +471,7 @@ public partial class CharacterView : Node3D
         _poser.Active = true;
     }
 
-    private void PlayAction(string clip)
+    private void PlayBodyAction(string clip)
     {
         if (clip.Length == 0)
         {
@@ -481,6 +485,7 @@ public partial class CharacterView : Node3D
 
     private void Die(Vector3 direction)
     {
+        CancelActions();
         _ragdoll ??= new CharacterRagdoll(_skeleton);
         Vector3 push = direction.LengthSquared() > 1e-6f ? direction.Normalized() * 2.2f : Vector3.Zero;
         // Where the body is: the bodies start from the skeleton's pose in the world, and on a whole world the scene's
@@ -539,7 +544,12 @@ public partial class CharacterView : Node3D
         }
         Animate(dt, lod);
         _tree.Advance(dt);
+        ApplySkeletalHeldMotion();
+        PoseHeldFingers();
         _skeleton.Advance(dt);
+        UpdateSkeletalHeldItem();
+        if (_reloadMagazineHand is Transform3D seated && _poser.LeftHandWeight > 0.001f)
+            _reloadParts?.Update(_reload, _skeleton.GlobalTransform * _skeleton.GetBoneGlobalPose(_skeleton.FindBone("hand_l")), seated);
     }
 
     private int PickLod()
@@ -823,6 +833,14 @@ public partial class CharacterView : Node3D
 
     private void UpdateHeld(CharacterFrame f, float dt)
     {
+        _reloadParts?.Restore();
+        _reloadMagazineHand = null;
+        AdvancePresentation(dt);
+        if (_actionCarryRemaining > 0 && _actionCarryItem != null && (f.HeldItem == null || f.HeldItem == _actionCarryItem))
+        {
+            f.HeldItem = _actionCarryItem;
+            f.Held = _itemModel?.Kind ?? f.Held;
+        }
         if (f.Held != _held || f.HeldItem != _heldId)
         {
             _held = f.Held;
@@ -838,6 +856,7 @@ public partial class CharacterView : Node3D
             }
         }
         bool lying = Lying;
+        if (lying || _stance == CharacterStance.Sit) CancelActions();
         if (_item != null)
         {
             // Nothing is held lying down (the wounded can't use items; sleepers hold nothing).
@@ -862,10 +881,13 @@ public partial class CharacterView : Node3D
                 _tree.Set(CharacterAnimator.Action, (int)AnimationNodeOneShot.OneShotRequest.FadeOut);
             }
         }
-        Advance(ref _reload, dt / ReloadSeconds);
-        Advance(ref _pistolReload, dt / PistolReloadSeconds);
+        if (_presentationAction == null && _previewAction == null)
+        {
+            Advance(ref _reload, dt / PresentationReloadSeconds);
+            Advance(ref _pistolReload, dt / PresentationReloadSeconds);
+        }
         Advance(ref _thrust, dt / Math.Max(0.5f, _itemModel?.SwingTime ?? 0.9f));
-        if (_useTime >= 0f)
+        if (_useTime >= 0f && _presentationAction == null && _previewAction == null)
         {
             _useTime += dt;
             if (_useTime >= UseSeconds(_use))
@@ -874,7 +896,7 @@ public partial class CharacterView : Node3D
                 _use = UseMotion.None;
             }
         }
-        if (_loose >= 0f)
+        if (_loose >= 0f && _previewAction == null && _presentationAction != "release")
         {
             _loose += dt;
             if (_loose > 0.5f)
@@ -882,7 +904,6 @@ public partial class CharacterView : Node3D
                 _loose = -1f;
             }
         }
-        AnimatePistolMagazine();
         if (_eating >= 0f)
         {
             _eating -= dt;
@@ -900,10 +921,6 @@ public partial class CharacterView : Node3D
         // their grips.
         bool acting = (bool)_tree.Get(CharacterAnimator.ActionActive) || BodyActing;
         _hold = Math.Clamp(_hold + (acting ? -dt * 9f : dt * 5f), 0f, 1f);
-        if (_magazineProp != null)
-        {
-            _magazineProp.Visible = false;
-        }
         if (lying)
         {
             _poser.RightHandWeight = 0f;
@@ -953,6 +970,7 @@ public partial class CharacterView : Node3D
             _poser.RightHandWeight = 0f;
             _poser.LeftHandWeight = 0f;
         }
+        ApplyHeldPresentation();
     }
 
     private Transform3D GetParentNode3DOrIdentity() => GetParent() is Node3D parent ? parent.GlobalTransform : Transform3D.Identity;
@@ -960,7 +978,8 @@ public partial class CharacterView : Node3D
     private static Transform3D Orthonormal(Transform3D t) => new(t.Basis.Orthonormalized(), t.Origin);
 
     /// <summary>The server's reload time (weapons.json: 2.4 s); the pistol's third-person reload is its clip's length.</summary>
-    private const float ReloadSeconds = 2.4f, PistolReloadSeconds = 1.67f;
+    private float PresentationReloadSeconds => CurrentPresentation?.Actions.TryGetValue("reload", out HeldPresentationClip? clip) == true
+        ? Math.Max(Hollow.Simulation.Content.HeldActionTiming.Seconds(1), Hollow.Simulation.Content.HeldActionTiming.Quantize(clip.Duration)) : 1f;
 
     private static float UseSeconds(UseMotion use) => use == UseMotion.Bandage ? 2.3f : 1.4f;
 
@@ -1002,16 +1021,27 @@ public partial class CharacterView : Node3D
     /// </summary>
     private void PlaceBow(CharacterFrame f, float dt)
     {
-        _bowAim = Math.Clamp(_bowAim + (f.Aiming ? dt * 3.5f : -dt * 3f), 0f, 1f);
-        if (f.Aiming && _loose < 0f && _bowAim > 0.5f)
+        if (_previewAction == null && !f.Aiming && _presentationAction == "draw")
         {
-            _draw = Math.Min(1f, _draw + dt / 0.95f);
+            _presentationAction = null;
+            _actionCarryRemaining = 0;
+            _actionCarryItem = null;
         }
-        else if (!f.Aiming)
+        if (_previewAction == null && _presentationAction != "draw" && f.Aiming)
+        {
+            _draw = Math.Min(1f, _draw + dt / Math.Max(HeldActionTiming.Seconds(1), HeldActionTiming.Quantize(_itemModel?.DrawSeconds ?? 1f)));
+        }
+        else if (_previewAction == null && !f.Aiming)
         {
             _draw = Math.Max(0f, _draw - dt * 2.5f);
         }
-        _bowRig?.Update(Smooth(_draw), f.Aiming && _loose < 0f);
+        if (_previewAction == null)
+        {
+            _bowAim = _presentationAction == "release"
+                ? f.Aiming ? 1f : 1f - Smooth(Math.Clamp((_presentationTime / _presentationDuration - 0.2f) / 0.8f, 0f, 1f))
+                : f.Aiming ? Math.Clamp(_draw / 0.25f, 0f, 1f) : Math.Max(0f, _bowAim - dt * 3f);
+        }
+        _bowRig?.Update(Smooth(_draw), (_previewAction == "draw" || f.Aiming) && _loose < 0f);
         float a = Smooth(_bowAim);
         if (a <= 0.001f)
         {
@@ -1026,8 +1056,10 @@ public partial class CharacterView : Node3D
         Vector3 grip = anchor + new Vector3(0.1f, 0.27f, 0.05f) + forward * 0.62f;
         var gripFrame = new Transform3D(bow, grip);
         // Where the bow then is, so the right hand finds the string's nock on it.
-        Transform3D item = gripFrame * HeldItems.Socket(_item!, "grip_l").AffineInverse();
-        Vector3 nock = item * (_bowRig?.Nock(Smooth(_draw)) ?? new Vector3(-0.1f - 0.55f * _draw, 0f, 0f));
+        Transform3D item = gripFrame * HeldItems.Grip(_item!, _itemModel!).AffineInverse();
+        float returnToNock = _loose >= 0f ? Smooth(Math.Clamp((_loose / Math.Max(0.01f, _presentationDuration) - 0.5f) / 0.5f, 0f, 1f)) : 1f;
+        float handDraw = Mathf.Lerp(_releasedDraw, _draw, returnToNock);
+        Vector3 nock = item * (_bowRig?.Nock(Smooth(handDraw)) ?? new Vector3(-0.1f - 0.55f * handDraw, 0f, 0f));
         if (_loose >= 0f)
         {
             // The release: the drawing hand flies back past the jaw and opens.
@@ -1066,12 +1098,13 @@ public partial class CharacterView : Node3D
         Vector3 along = aim * new Vector3(0, 0, 1);
         Vector3 up = aim * Vector3.Up;
         var basis = new Basis(along, up, along.Cross(up));
-        Transform3D gripR = HeldItems.Socket(_item!, "grip_r");
+        Transform3D gripR = HeldItems.Grip(_item!, _itemModel!);
         Vector3 back = anchor + new Vector3(-0.15f, -0.24f, 0.12f) + along * thrust.X;
         var item = new Transform3D(basis, back - basis * gripR.Origin);
         _item!.Transform = item;
         Vector3 tip = HeldItems.HasSocket(_item, "tip") ? HeldItems.Socket(_item, "tip").Origin : gripR.Origin + Vector3.Right;
-        var gripL = new Transform3D(gripR.Basis, gripR.Origin + (tip - gripR.Origin).Normalized() * 0.42f);
+        var gripL = new Transform3D(gripR.Basis, gripR.Origin + (tip - gripR.Origin).Normalized() * 0.42f) *
+            (CurrentPresentation?.LeftHand.GripOffset.Transform ?? Transform3D.Identity);
         _poser.RightHand = HandFrame.HandFor(item * gripR, HandFrame.PowerGrip, _gripR);
         _poser.LeftHand = HandFrame.HandFor(item * gripL, HandFrame.SupportGrip, _gripL);
         _poser.RightHandWeight = Smooth(_hold);
@@ -1098,7 +1131,8 @@ public partial class CharacterView : Node3D
     private void PlaceUse()
     {
         Vector3 anchor = _skeleton.GetBoneGlobalPose(_skeleton.FindBone("spine_03")).Origin;
-        float t = _useTime;
+        float t = _presentationDuration > 0 && (_presentationAction != null || _previewAction != null)
+            ? _useTime / _presentationDuration * UseSeconds(_use) : _useTime;
         float seconds = UseSeconds(_use);
         float weight = Smooth(Math.Clamp(t / 0.25f, 0f, 1f)) * (1f - Smooth(Math.Clamp((t - (seconds - 0.3f)) / 0.3f, 0f, 1f)));
         if (_use == UseMotion.Bandage)
@@ -1137,36 +1171,19 @@ public partial class CharacterView : Node3D
         _poser.RightPole = new Vector3(-0.6f, -0.7f, -0.1f);
     }
 
-    /// <summary>The pistol's magazine in a reload: out and away down the grip, then a full one pushed home.</summary>
-    private void AnimatePistolMagazine()
-    {
-        if (_pistolMagazine == null)
-        {
-            return;
-        }
-        float t = _pistolReload;
-        if (t < 0f)
-        {
-            _pistolMagazine.Transform = _pistolMagazineRest;
-            _pistolMagazine.Visible = true;
-            return;
-        }
-        float drop = t < 0.18f ? 0f : t < 0.32f ? Smooth((t - 0.18f) / 0.14f) : t < 0.56f ? 1f : t < 0.72f ? 0.65f * (1f - Smooth((t - 0.56f) / 0.16f)) : 0f;
-        _pistolMagazine.Visible = t < 0.32f || t > 0.56f;
-        _pistolMagazine.Transform = _pistolMagazineRest.Translated(new Vector3(0f, -0.11f * drop, 0f));
-    }
-
     private static float Smooth(float t) => t * t * (3f - 2f * t);
 
     private static float Kick(float t) => t <= 0f ? 0f : MathF.Sin(MathF.Min(1f, (1f - t) * 4f) * MathF.PI * 0.5f) * t;
 
     private void SwapItem(HeldItemModel? model)
     {
+        CancelActions();
+        _presentationRevision = -1;
         _item?.QueueFree();
         _item = null;
         _itemModel = model;
         _bowRig = null;
-        _pistolMagazine = null;
+        _reloadParts = null;
         _draw = _bowAim = 0f;
         _thrust = -1f;
         _eating = -1f;
@@ -1180,12 +1197,11 @@ public partial class CharacterView : Node3D
             return;
         }
         HeldItems.SetLod(_item, Math.Min(2, Math.Max(0, _lod) + 1));
-        _pistolMagazine = model.Kind == HeldKind.Pistol ? _item.FindChild("Magazine", true, false) as Node3D : null;
-        _pistolMagazineRest = _pistolMagazine?.Transform ?? Transform3D.Identity;
         _bowRig = model.LeftHanded ? BowRig.Attach(_item) : null;
         if (model.Kind == HeldKind.Rifle || model.Class == "spear")
         {
             _carry.AddChild(_item);
+            _reloadParts = HeldReloadParts.Attach(_item);
             return;
         }
         // Held in one hand (the right, or the left for a bow): its grip socket in the palm. Where the hand bone would
@@ -1195,6 +1211,7 @@ public partial class CharacterView : Node3D
         Transform3D grip = HeldItems.Socket(_item, left ? "grip_l" : "grip_r");
         Transform3D handInItem = HandFrame.HandFor(grip, HandFrame.PowerGrip, left ? _gripL : _gripR);
         _item.Transform = handInItem.AffineInverse();
+        _reloadParts = HeldReloadParts.Attach(_item);
     }
 
     /// <summary>
@@ -1224,51 +1241,30 @@ public partial class CharacterView : Node3D
             Vector3 barrel = aim * Vector3.Back;
             b = new Basis(barrel, 0.55f * window) * new Basis(aim * Vector3.Right, -0.22f * window) * b;
         }
-        Transform3D gripR = HeldItems.Socket(_item!, "grip_r");
+        Transform3D gripR = HeldItems.Grip(_item!, _itemModel!);
         // Place the item so its right grip sits at the shoulder anchor.
         var item = new Transform3D(b, shoulder - b * gripR.Origin);
         _item!.Transform = item;
-        Transform3D gripL = HeldItems.Socket(_item!, "grip_l");
+        Transform3D gripL = HeldItems.Socket(_item!, "grip_l") * (CurrentPresentation?.LeftHand.GripOffset.Transform ?? Transform3D.Identity);
         _poser.RightHand = HandFrame.HandFor(item * gripR, HandFrame.PowerGrip, _gripR);
-        Transform3D left = HandFrame.HandFor(item * gripL, HandFrame.SupportGrip, _gripL);
+        Basis support = _itemModel!.SupportFrame;
+        Transform3D left = HandFrame.HandFor(item * gripL, support, _gripL);
         if (t >= 0f)
         {
             Vector4 w = ViewmodelMotion.ReloadHand(t);
             Vector3 well = (gripR.Origin + gripL.Origin) * 0.5f + new Vector3(0f, -0.09f, 0f);
+            _reloadMagazineHand = HandFrame.HandFor(new Transform3D(gripL.Basis, well), HandFrame.PowerGrip, _gripL) *
+                (CurrentPresentation?.LeftHand.WristOffset.Transform ?? Transform3D.Identity);
             Vector3 pouch = item.AffineInverse() * (anchor + new Vector3(0.13f, -0.2f, 0.16f));
             Vector3 handle = gripR.Origin + new Vector3(0.13f, 0.065f, 0.05f);
             Vector3 pull = new Vector3(-0.12f, 0f, 0f) * Math.Max(0f, w.W - 1f);
             Vector3 at = gripL.Origin * w.X + well * w.Y + pouch * w.Z + (handle + pull) * Math.Min(1f, w.W);
-            left = HandFrame.HandFor(new Transform3D(gripL.Basis, at), HandFrame.SupportGrip, _gripL);
+            left = HandFrame.HandFor(new Transform3D(gripL.Basis, at), ViewmodelMotion.ReloadGrip(support, t), _gripL);
             left = new Transform3D(item.Basis * left.Basis, item * left.Origin);
-            // A full magazine in the hand from the pouch until it is seated.
-            if (t > 0.36f && t < 0.6f)
-            {
-                ShowMagazine(item * at, item.Basis);
-            }
         }
         _poser.LeftHand = left;
         _poser.RightHandWeight = Smooth(_hold);
         _poser.LeftHandWeight = Smooth(_hold);
-    }
-
-    /// <summary>The magazine a rifle's reload brings from the pouch: a dark steel box curving forward, under the hand.</summary>
-    private void ShowMagazine(Vector3 palm, Basis gun)
-    {
-        if (_magazineProp == null)
-        {
-            _magazineProp = new MeshInstance3D
-            {
-                Name = "Magazine",
-                Mesh = new BoxMesh { Size = new Vector3(0.075f, 0.17f, 0.03f) },
-                MaterialOverride = new StandardMaterial3D { AlbedoColor = new Color(0.07f, 0.07f, 0.075f), Metallic = 0.6f, Roughness = 0.45f },
-            };
-            _carry.AddChild(_magazineProp);
-        }
-        _magazineProp.Visible = true;
-        // Item axes: +X barrel, +Y up; the magazine hangs below the palm, leaning forward like the gun's own.
-        Basis lean = gun * new Basis(Vector3.Back, 0.25f);
-        _magazineProp.Transform = new Transform3D(lean, palm + gun * new Vector3(0.01f, -0.07f, 0f));
     }
 
     // ---------------------------------------------------------------- ground probe for the feet

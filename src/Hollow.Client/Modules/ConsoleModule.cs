@@ -29,6 +29,10 @@ public sealed class ConsoleModule : ClientModule
     /// <summary>Whether this player may run the admin commands here (the server says, at joining and when it changes).</summary>
     public bool IsAdmin { get; private set; }
 
+    public bool FreeBuild => Local.FreeBuild;
+
+    public int BuildGrade => Local.BuildGrade;
+
     /// <summary>The players on the server, by name, and whether each is an admin.</summary>
     public IReadOnlyList<(string Name, bool Admin)> ServerPlayers => _serverPlayers;
 
@@ -68,8 +72,16 @@ public sealed class ConsoleModule : ClientModule
     private void OnServerState(in ServerState m)
     {
         IsAdmin = m.Admin;
+        Local.SetAdminBuilding(m.Admin && m.FreeBuild,
+            m.Admin && m.BuildGrade > 0 && m.BuildGrade <= Content.Building.Grades.Count ? m.BuildGrade - 1 : -1);
         MaxPlayers = (int)Math.Min(m.MaxPlayers, int.MaxValue);
         _serverPlayers = (m.Players ?? Array.Empty<ServerPlayerNet>()).Select(p => (p.Name ?? "", p.Admin)).ToArray();
+    }
+
+    public override void Dispose()
+    {
+        IsAdmin = false;
+        Local.SetAdminBuilding(false, -1);
     }
 
     private void OnZoneClock(in ZoneClock m)

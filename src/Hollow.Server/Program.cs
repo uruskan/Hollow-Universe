@@ -14,7 +14,10 @@ public static class Program
 {
     public static int Main(string[] args)
     {
-        Console.OutputEncoding = System.Text.Encoding.UTF8;
+        Console.OutputEncoding = new System.Text.UTF8Encoding(false);
+        // Hosted commands arrive through ChildServer's UTF-8 pipe (including degree suffixes and player names).
+        // A directly opened interactive console keeps its own input code page.
+        if (Console.IsInputRedirected) Console.InputEncoding = new System.Text.UTF8Encoding(false);
         Dictionary<string, string> o = ParseOptions(args);
         if (o.ContainsKey("help"))
         {
@@ -29,7 +32,7 @@ public static class Program
         {
             Port = (int)Number(o, "port", Net.Protocol.Protocol.DefaultPort),
             Name = o.GetValueOrDefault("name", "Hollow development server"),
-            DatabasePath = o.ContainsKey("no-db") ? null : o.GetValueOrDefault("db", "hollow-server.db"),
+            DatabasePath = o.ContainsKey("no-db") ? null : o.GetValueOrDefault("db", ServerOptions.DefaultDatabasePath),
             Latitude = Number(o, "lat", Surface.FirstWorld.LandingLatitude),
             Longitude = Number(o, "lon", Surface.FirstWorld.LandingLongitude),
             RotationTimeScale = Math.Clamp(Number(o, "day-scale", Simulation.ZoneSpec.DefaultRotationTimeScale), 0.01, 10000),
@@ -55,7 +58,7 @@ public static class Program
         // its menu finds them), or --crash-dir.
         var crash = new Diagnostics.CrashLog(
             o.GetValueOrDefault("crash-dir") ?? System.IO.Path.Combine(
-                System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(options.DatabasePath ?? "hollow-server.db")) ?? ".", "crashes"),
+                System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(options.DatabasePath ?? ServerOptions.DefaultDatabasePath)) ?? ".", "crashes"),
             "server", typeof(Program).Assembly)
         {
             Running = () => $"the dedicated server \"{options.Name}\" on port {options.Port}",
@@ -78,6 +81,12 @@ public static class Program
             // One line the hosting game shows on its menu ("error: "), and the path for whoever reads the log.
             Console.Error.WriteLine($"error: {e.Message}");
             Console.Error.WriteLine($"The save is {e.SavePath}: run the build that wrote it, or give this one another (--db <path>).");
+            crash.Stop();
+            return 2;
+        }
+        catch (Hollow.Persistence.TerrainMismatchException e)
+        {
+            Console.Error.WriteLine($"error: {e.Message}");
             crash.Stop();
             return 2;
         }

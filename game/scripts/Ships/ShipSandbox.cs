@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Godot;
+using Hollow.Client.Vehicles;
 using Hollow.Simulation.Nature;
 using Hollow.Core;
 using Hollow.Galaxy.Systems;
@@ -17,6 +18,7 @@ using Hollow.Simulation.Targets;
 using Hollow.Simulation.World;
 using Hollow.Surface;
 using HollowUniverse.App;
+using HollowUniverse.Audio;
 using HollowUniverse.Common;
 using HollowUniverse.Items;
 using HollowUniverse.Surface;
@@ -47,12 +49,14 @@ public partial class ShipSandbox : Node3D
     private const int MaxTicksPerFrame = 6;
 
     private GameContent _content = null!;
-    private PlanetSurface _planet = null!;
     private Zone _zone = null!;
     private SurfaceView _surface = null!;
     private Camera3D _camera = null!;
     private Ship _ship = null!;
     private ShipView _shipView = null!;
+    private VehicleRevs? _revs;
+    private readonly EngineRock _rock = new();
+    private VehicleSounds? _vehicleSounds;
     private Deployable _bench = null!;
     private Node3D? _benchModel;
     private Entity _player;
@@ -99,15 +103,16 @@ public partial class ShipSandbox : Node3D
         _shot = Options.ContainsKey("shot");
         _touring = Options.ContainsKey("tour");
         _scene = Options.TryGetValue("scene", out string? scene) ? scene : "pad";
-        ZoneSpec? spec = ZoneSpec.FirstWorld(GalaxyService.Galaxy, FirstWorld.LandingLatitude, FirstWorld.LandingLongitude);
-        if (spec == null || PlanetSurfaces.Find(spec.SystemAddress, spec.BodyPath) is not { } found)
+        // Earth at its landing site, its walking-scale ground, as the ground game builds it (GroundMode; the old 2.41 km first
+        // world is past the planets' surface-area bound since WORLD-01's scale).
+        ZoneSpec spec = ZoneSpec.StartingWorld(StartingWorld.LandingLatitude, StartingWorld.LandingLongitude) with { Ground = GroundKind.Walking };
+        if (PlanetBodies.Find(spec.SystemAddress, spec.BodyPath) is not { } found)
         {
-            GD.PushError("--view ship: the first world is not in this universe.");
+            GD.PushError("--view ship: Earth is not in this universe.");
             return;
         }
         _content = GameContent.Load(ProjectSettings.GlobalizePath("res://data/ground"));
         _zone = new Zone(spec, content: _content);
-        _planet = found.Surface;
         // --ship names the kind: one people walk in (IRON_WAKE.md §4) parks in a clearing with you behind its ramp, on the
         // zone's own ground drawn as the ground game draws it; the Tin Finch stands on its workbench's bay.
         ShipDef? kind = Options.TryGetValue("ship", out string? key) ? _content.Ship(key) : null;
@@ -151,7 +156,7 @@ public partial class ShipSandbox : Node3D
         _hud = new ShipHud { Name = "ShipHud" };
         _layer.AddChild(_hud);
 
-        BuildPad();
+        BuildPad(kind);
         SetScene(_scene);
         if (!_shot && !_touring && !OS.HasFeature("headless"))
         {
@@ -161,13 +166,15 @@ public partial class ShipSandbox : Node3D
 
     // ---------------------------------------------------------------- set-up
 
-    // The flattest open spot near the landing site: the workbench, its bay and the ship parked on it, and the pilot.
-    private void BuildPad()
+    // The flattest open spot near the landing site: the workbench, its bay and the ship parked on it, and the pilot. --ship
+    // names a ship people sit in for the pad (a vehicle on wheels, VEHICLES.md; the KA-FA 1500, whose rotor needs its own
+    // room); the Tin Finch by default.
+    private void BuildPad(ShipDef? kind)
     {
         _padYaw = -MathF.PI / 2; // the nose east: in the morning the sun lights the hatch side
-        ShipDef finch = _content.Ship("tin-finch") ?? _content.Ships[0];
+        ShipDef def = kind ?? _content.Ship("tin-finch") ?? _content.Ships[0];
         _pad = FindSite(Num.Vector3.Zero, 90, 6, s => s.Spread < 0.6f && s.Trees < 0.004 ? -s.Spread - (float)s.Trees * 200 - s.Distance * 0.002f : float.MinValue,
-            fallback: Num.Vector3.Zero, accept: g => _zone.Ships().ShipSpaceClear(finch, g, _padYaw));
+            fallback: Num.Vector3.Zero, accept: g => _zone.Ships().ShipSpaceClear(def, g, _padYaw));
         Num.Vector3 up = _zone.Frame.UpAt(_pad);
         (Num.Vector3 forward, Num.Vector3 right) = CharacterMotor.HorizontalBasis(_padYaw, up);
         DeployableDef benchDef = _content.Deployable("vehicle-workbench")!;
@@ -175,11 +182,12 @@ public partial class ShipSandbox : Node3D
         Num.Vector3 benchAt = _zone.Settle(_pad - forward * bay);
         Entity player = AddPlayer(_pad + right * 4.5f - forward * 0.5f);
         EntityId owner = _zone.Players().PlayerOf(player)!.Id;
-        _bench = new Deployable(_zone.NextId(), benchDef, benchAt, _zone.Frame.UpAt(benchAt), _padYaw, owner);
+        // Its front, and so its bay (BayStats.Axes), toward the pad.
+        _bench = new Deployable(_zone.NextId(), benchDef, benchAt, _zone.Frame.UpAt(benchAt), _padYaw + MathF.PI, owner);
         _zone.Things().AddStatic(_bench);
-        ShipDef def = _content.Ship("tin-finch") ?? _content.Ships[0];
         _ship = _zone.Ships().SpawnShip(def, _pad, _padYaw, owner, def.FuelCapacity);
-        _shipView = new ShipView(def);
+        _controls.Scheme = ShipControlSchemes.For(_ship.Def.Controls);
+        _shipView = new ShipView(_ship.Def);
         AddChild(_shipView);
         _benchModel = ModelCatalog.Instantiate("vehicle-workbench");
         if (_benchModel != null)
@@ -272,9 +280,10 @@ public partial class ShipSandbox : Node3D
         {
             case "hover":
             {
-                // Hovering 8 m over the pad under flight assist: the lift nozzles carry it.
+                // Hovering 8 m over the pad under flight assist: the lift nozzles carry it (a rotor at its working speed).
                 Board();
                 Teleport(_pad + up * (8 + def.CentreOfMass.Y), _padYaw, Num.Vector3.Zero);
+                _ship.State.Spool = 1;
                 Step(75);
                 Num.Vector3 centre = _ship.State.Position;
                 _observer = (_zone.Settle(_pad + right * 13 + forward * 10) + up * 1.6f, centre - up * 1.2f);
@@ -297,12 +306,15 @@ public partial class ShipSandbox : Node3D
                 Num.Vector3 start = _zone.Settle(forest - heading * (cockpit ? 260 : 330));
                 float yaw = Facing.YawOf(heading, _zone.Frame.UpAt(start));
                 float height = cockpit ? 42 : 65;
-                float speed = cockpit ? 55 : 95;
+                // A rotor cruises at its top speed with the stick held forward; thrusters at their lever's speed.
+                bool rotor = def.Drive is ShipRotor;
+                float speed = rotor ? 30 : cockpit ? 55 : 95;
                 Board();
                 Num.Vector3 ground = _zone.Settle(start);
                 Teleport(ground + _zone.Frame.UpAt(ground) * height, yaw, heading * speed);
-                _controls.Throttle = speed / def.ForwardSpeed;
-                Fly(new ShipInput { Throttle = _controls.Throttle }, 45);
+                _ship.State.Spool = 1;
+                _controls.Throttle = rotor ? 0 : speed / def.ForwardSpeed;
+                Fly(rotor ? new ShipInput { Pitch = -1 } : new ShipInput { Throttle = _controls.Throttle }, 45);
                 _shipCamera.Mode = cockpit ? ShipCameraMode.Cockpit : ShipCameraMode.Chase;
                 break;
             }
@@ -323,6 +335,7 @@ public partial class ShipSandbox : Node3D
                 float yaw = Facing.YawOf(across, hillUp);
                 Board();
                 Teleport(hill + hillUp * (6 + def.CentreOfMass.Y), yaw, Num.Vector3.Zero);
+                _ship.State.Spool = 1;
                 Fly(new ShipInput { Vertical = -1 }, 30 * 15, untilLanded: true);
                 Num.Vector3 centre = _ship.State.Position;
                 // From ahead of the nose and a little downhill: the slope falls across the picture and the ship leans with it.
@@ -350,10 +363,22 @@ public partial class ShipSandbox : Node3D
                 _shipCamera.LookAhead = -2;
                 break;
             }
+            case "drive" when def.Ground != null:
+            {
+                // A vehicle on wheels driven off the pad and turning (VEHICLES.md §6), seen from behind.
+                Board();
+                Fly(new ShipInput { Throttle = 1 }, 75);
+                Fly(new ShipInput { Throttle = 0.6f, Yaw = 0.6f }, 30);
+                _shipCamera.Mode = ShipCameraMode.Chase;
+                break;
+            }
             default:
             {
                 // On foot by the ship on its pad, the hatch open, the workbench behind it.
-                _zone.Ships().SetDoorAtOnce(_ship, 0, 1);
+                if (_ship.Doors.Length > 0)
+                {
+                    _zone.Ships().SetDoorAtOnce(_ship, 0, 1);
+                }
                 Step(2);
                 Num.Vector3 eye = _zone.Settle(_pad + forward * 6.5f + right * 6f) + up * 2.3f;
                 _observer = (eye, _pad + up * 1.0f - forward * 1.6f);
@@ -374,7 +399,10 @@ public partial class ShipSandbox : Node3D
         ref Character c = ref _zone.Entities.Get<Character>(_player);
         Num.Vector3 outward = Num.Vector3.Transform(-Num.Vector3.UnitX, ship.State.Rotation);
         c.State.Position = _zone.Settle(hatch + outward * 1.2f) + _zone.Frame.UpAt(hatch) * 0.05f;
-        _zone.Ships().SetDoorAtOnce(ship, 0, 1);
+        if (ship.Doors.Length > 0)
+        {
+            _zone.Ships().SetDoorAtOnce(ship, 0, 1);
+        }
         Outcome result = _zone.Interaction().Interact(_player, Hatch, ship.Def.Helm.VerbKey);
         if (result != OutcomeCode.Done)
         {
@@ -449,7 +477,15 @@ public partial class ShipSandbox : Node3D
         }
         if (_touring)
         {
-            Tour();
+            // A rotorcraft flies its own tour (ShipSandbox.RotorTour.cs); everything else the Tin Finch's.
+            if (_ship.Def.Drive is ShipRotor)
+            {
+                RotorTour();
+            }
+            else
+            {
+                Tour();
+            }
         }
         if (!_paused)
         {
@@ -468,7 +504,15 @@ public partial class ShipSandbox : Node3D
             _shipView.Visible = true;
             _shipView.FromCockpit = Seated && _shipCamera.Mode == ShipCameraMode.Cockpit && _observer == null;
             _shipView.Show(new ShipLook(Pivot(shown), _ship.Doors.Length > 0 ? _ship.DoorAt(0, _zone.Tick) : 0, shown.Thrust,
-                shown.Has(ShipFlags.EnginesOn), shown.Has(ShipFlags.Boosting), _ship.Piloted, _ship.Destroyed), delta);
+                shown.Has(ShipFlags.EnginesOn), shown.Has(ShipFlags.Boosting), _ship.Piloted, _ship.Destroyed, shown.Spool), delta);
+            if (_ship.Def.Ground is { } ground)
+            {
+                // Its wheels on the ground under them, steered and rolling (the stand-in's, ShipView.Blocks.cs).
+                float along = Num.Vector3.Dot(shown.Velocity, shown.Forward);
+                _shipView.ShowWheels(p => _zone.HeightAboveGround(new Num.Vector3(p.X, p.Y, p.Z)), _ship.Input.Yaw * GroundMotor.SteerAngle(ground, along),
+                    along, delta);
+                Hear(shown, along, delta);
+            }
         }
         else
         {
@@ -476,11 +520,41 @@ public partial class ShipSandbox : Node3D
         }
         if (_benchModel != null)
         {
-            (Num.Vector3 f, _) = CharacterMotor.HorizontalBasis(_bench.Yaw, _bench.Up);
-            _benchModel.GlobalTransform = new Transform3D(Basis.LookingAt(Dir(-f), Dir(_bench.Up)), R(_bench.Position));
+            // As the game draws a deployable (ThingsView).
+            _benchModel.GlobalTransform = new Transform3D(HollowUniverse.Ground.NatureView.Upright(_bench.Up, _bench.Yaw), R(_bench.Position));
         }
         FillHud(shown);
         Trace(delta, shown);
+    }
+
+    // A ground vehicle's engine, tyres and suspension heard (VEHICLES.md §7.1), as the hosted game's ShipsView hears them.
+    private void Hear(ShipState shown, float along, double delta)
+    {
+        if (_revs == null)
+        {
+            if (SoundLibrary.Data.Engine(_ship.Def.Sound) is not { } engine)
+            {
+                return;
+            }
+            if (AudioDirector.Instance == null && !Options.ContainsKey("mute"))
+            {
+                // The sandbox's own ears (as the animal sandbox's), at its camera; --sound-trace prints what starts.
+                var audio = new AudioDirector { Name = "Audio", Listener = _camera };
+                AddChild(audio);
+                if (Options.ContainsKey("sound-trace"))
+                {
+                    audio.Started += (key, layer, distance, db, pitch) => GD.Print($"[sound] {key} {db:0.0} dB x{pitch:0.00} at {distance:0} m");
+                }
+            }
+            _revs = new VehicleRevs(engine);
+            _vehicleSounds = new VehicleSounds(_ship.Def, _shipView, engine);
+        }
+        bool landed = shown.Has(ShipFlags.Landed);
+        _revs.Step(along, shown.Thrust.Z, shown.Has(ShipFlags.EnginesOn) && !_ship.Destroyed, landed, (float)delta, shown.Has(ShipFlags.Boosting));
+        _rock.Step(_revs, along, (float)delta);
+        _shipView.ShowRock(_rock.Lean + _rock.Shake, _rock.Twist + _rock.Shudder);
+        string surface = _content.Surfaces.Key(_content.Surfaces.AtGround(_zone.Surface, _zone.Frame, shown.Position));
+        _vehicleSounds!.Update(_revs, shown.Velocity, shown.Rotation, landed, surface, _shipView.Visible, delta);
     }
 
     private void Tick(double delta)
@@ -509,7 +583,14 @@ public partial class ShipSandbox : Node3D
             _zone.Step();
             if (_touring)
             {
-                TourStep();
+                if (_ship.Def.Drive is ShipRotor)
+                {
+                    RotorTourStep();
+                }
+                else
+                {
+                    TourStep();
+                }
             }
             Events();
             _shipNow = _ship.State;
@@ -533,7 +614,7 @@ public partial class ShipSandbox : Node3D
                     Notice(FormattableString.Invariant($"Hit the ground at {_ship.Events.ImpactSpeed:0} m/s: {e.Amount:0} hull lost"));
                     break;
                 case ShipEventKind.Orbit when e.Amount > 0:
-                    Notice("Orbit reached: parked over this spot. J to descend.");
+                    Notice("Orbital altitude reached. Continue flying or descend with the flight controls.");
                     break;
                 case ShipEventKind.Destroyed:
                     Notice("The Tin Finch is destroyed.");
@@ -693,10 +774,13 @@ public partial class ShipSandbox : Node3D
         d.Throttle = _controls.Throttle;
         d.Stick = _controls.Stick;
         d.AssistOff = _controls.AssistOff;
+        d.Flies = _controls.Scheme.Flies;
+        d.Gauge = _controls.Scheme.Gauge;
         d.TimeToGround = d.VerticalSpeed < -0.5f ? d.OverGround / -d.VerticalSpeed : float.PositiveInfinity;
-        d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  DESCEND OVER THE SAME SPOT"
+        d.Prompt = s.Has(ShipFlags.InOrbit) ? "J  RESUME FLIGHT"
             : s.Has(ShipFlags.Landed) || s.Asleep ? "F  STEP OUT     H  HATCH" : null;
-        d.Hints = $"V {(_shipCamera.Mode == ShipCameraMode.Cockpit ? "chase" : "cockpit")} camera · Z flight assist · X throttle 0 · Shift boost";
+        d.Hints = d.Gauge == HudGauge.Rotor ? _controls.Scheme.Hints(_shipCamera.Mode == ShipCameraMode.Cockpit)
+            : $"V {(_shipCamera.Mode == ShipCameraMode.Cockpit ? "chase" : "cockpit")} camera · Z flight assist · X throttle 0 · Shift boost";
         _hud.Refresh();
     }
 
@@ -745,7 +829,9 @@ public partial class ShipSandbox : Node3D
         float pitch = MathF.Asin(Math.Clamp(Num.Vector3.Dot(s.Forward, up), -1, 1)) * 180 / MathF.PI;
         float roll = MathF.Asin(Math.Clamp(Num.Vector3.Dot(s.Right, up), -1, 1)) * 180 / MathF.PI;
         GD.Print(FormattableString.Invariant(
-            $"[trace] t={_clock:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} ticks={_tickMs:0.00}ms ship {s.Velocity.Length():0.0} m/s climb {Num.Vector3.Dot(s.Velocity, up):0.0} {over:0.0} m over ground pitch {pitch:0.0}° roll {roll:0.0}° thrust ({s.Thrust.X:0.00},{s.Thrust.Y:0.00},{s.Thrust.Z:0.00}) fuel {s.Fuel:0} hull {s.Health:0} {s.Flags} tiles={_surface.Terrain.DrawnTiles} pending={_surface.Terrain.Pending} ready={_surface.IsReady} exposure={ShipView.Exposure:0.###}"));
+            $"[trace] t={_clock:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} ticks={_tickMs:0.00}ms ship {s.Velocity.Length():0.0} m/s climb {Num.Vector3.Dot(s.Velocity, up):0.0} {over:0.0} m over ground pitch {pitch:0.0}° roll {roll:0.0}° thrust ({s.Thrust.X:0.00},{s.Thrust.Y:0.00},{s.Thrust.Z:0.00}) fuel {s.Fuel:0} hull {s.Health:0} {s.Flags} tiles={_surface.Terrain.DrawnTiles} pending={_surface.Terrain.Pending} ready={_surface.IsReady} exposure={ShipView.Exposure:0.###}")
+            + (_revs != null ? FormattableString.Invariant(
+                $" revs {_revs.Rpm:0} gear {_revs.Gear} load {_revs.Load:0.00} overrun {_revs.Overrun:0.00} boost {_revs.Boost:0.00} overboost {_revs.Overboost:0.00} lean {_rock.Lean * 180 / MathF.PI:0.0}°") : ""));
     }
 
     // ---------------------------------------------------------------- input
@@ -878,7 +964,7 @@ public partial class ShipSandbox : Node3D
     private static double Parse(string text) => double.Parse(text, NumberStyles.Float, CultureInfo.InvariantCulture);
 
     /// <summary>The first moment from <paramref name="from"/> when it is <paramref name="hour"/> o'clock, local solar time, at the landing site on the play clock.</summary>
-    private static double PlayTime(PlanetSurfaces.Entry planet, double rotationTimeScale, double from, double hour)
+    private static double PlayTime(PlanetBodies.Entry planet, double rotationTimeScale, double from, double hour)
     {
         var sky = new SkyEphemeris(planet.System, planet.Body);
         sky.SetRotationTimeScale(rotationTimeScale, 0);

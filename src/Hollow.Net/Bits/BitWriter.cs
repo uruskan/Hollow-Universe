@@ -108,6 +108,18 @@ public sealed class BitWriter
         WriteBits((uint)value, 8);
     }
 
+    /// <summary>Exact encoded size of a 7-bit-group unsigned integer, including continuation bits.</summary>
+    public static int VarUIntBits(ulong value)
+    {
+        int bits = 8;
+        while (value >= 0x80)
+        {
+            bits += 8;
+            value >>= 7;
+        }
+        return bits;
+    }
+
     public void WriteFloat(float value) => WriteBits(BitConverter.SingleToUInt32Bits(value), 32);
 
     public void WriteDouble(double value) => WriteBits64(BitConverter.DoubleToUInt64Bits(value), 64);

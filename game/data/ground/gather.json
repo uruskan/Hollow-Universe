@@ -35,12 +35,12 @@
       "radius": 0.48, "height": 10, "standIn": { "perTile": 3 }, "scatter": { "kinds": ["broadleaf"] } },
 
     { "key": "stone-node", "name": "Stone outcrop", "class": "node", "health": 500, "yield": [["stone", 300]], "stages": 3, "respawn": 600,
-      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 1.4 }, "scatter": { "kinds": ["stone-outcrop"] } },
+      "radius": 1.1, "height": 1.66, "standIn": { "perTile": 1.4 }, "scatter": { "kinds": ["stone-outcrop"] } },
     { "key": "metal-node", "name": "Metal outcrop", "class": "node", "health": 500, "yield": [["metal-ore", 250], ["high-grade-ore", 20]], "stages": 3, "respawn": 600,
-      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 0.9 }, "scatter": { "kinds": ["metal-outcrop"] },
+      "radius": 1.1, "height": 1.83, "standIn": { "perTile": 0.9 }, "scatter": { "kinds": ["metal-outcrop"] },
       "look": { "hit": { "fx": "gather.sparks", "sound": "gather.ore.hit" } } },
     { "key": "sulphur-node", "name": "Sulphur outcrop", "class": "node", "health": 500, "yield": [["sulphur-ore", 250]], "stages": 3, "respawn": 600,
-      "radius": 1.0, "height": 1.4, "standIn": { "perTile": 0.6 }, "scatter": { "kinds": ["sulphur-outcrop"] },
+      "radius": 1.1, "height": 1.69, "standIn": { "perTile": 0.6 }, "scatter": { "kinds": ["sulphur-outcrop"] },
       "look": { "hit": { "fx": "gather.sparks", "sound": "gather.ore.hit" } } },
 
     { "key": "wood-pile", "name": "Wood pile", "class": "pickup", "yield": [["wood", 50]], "respawn": 480,
@@ -65,6 +65,10 @@
     { "key": "birch-tree", "name": "Birch", "class": "tree", "health": 300, "yield": [["wood", 160]], "respawn": 1200,
       "radius": 0.24, "height": 11, "scatter": { "kinds": ["birch"] } },
     { "key": "boulder", "name": "Boulder", "class": "boulder", "yield": [], "respawn": 600,
-      "radius": 0.95, "height": 0.65, "scatter": { "kinds": ["rock"], "minScale": 0.9 } }
+      "radius": 0.95, "height": 0.65, "scatter": { "kinds": ["rock"], "minScale": 0.9 } },
+    { "key": "high-grade-node", "name": "High-grade metal outcrop", "class": "node", "health": 600,
+      "yield": [["high-grade-ore", 60], ["metal-ore", 80]], "stages": 3, "respawn": 900,
+      "radius": 1.05, "height": 1.86, "standIn": { "perTile": 0.12 }, "scatter": { "kinds": ["high-grade-outcrop"] },
+      "look": { "hit": { "fx": "gather.sparks", "sound": "gather.ore.hit" } } }
   ]
 }

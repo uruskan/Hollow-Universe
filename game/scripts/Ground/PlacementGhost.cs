@@ -28,10 +28,10 @@ public partial class PlacementGhost : Node3D
 
     private static Shader? _shader;
 
-    private readonly Dictionary<Placeable, Node3D> _live = new();
-    private readonly Dictionary<Placeable, List<Node3D>> _pending = new();
+    private readonly Dictionary<(Placeable, int), Node3D> _live = new();
+    private readonly Dictionary<(Placeable, int), List<Node3D>> _pending = new();
     private readonly List<Node3D> _usedPending = new();
-    private readonly Dictionary<Placeable, int> _taken = new();
+    private readonly Dictionary<(Placeable, int), int> _taken = new();
     private ShaderMaterial _liveMaterial = null!;
     private ShaderMaterial _pendingMaterial = null!;
     private Node3D? _shown;
@@ -40,13 +40,14 @@ public partial class PlacementGhost : Node3D
     public BuildingAssets? Assets { get; set; }
 
     /// <summary>Models by a placeable kind's name (placement.json's kinds); a kind not here takes the catalogue's model.</summary>
-    private Dictionary<string, Func<Placeable, Node3D?>> Sources => _sources ??= new(StringComparer.Ordinal)
+    private Dictionary<string, Func<Placeable, int, Node3D?>> Sources => _sources ??= new(StringComparer.Ordinal)
     {
         ["piece"] = Piece,
         ["door"] = Door,
+        ["deployable"] = Deployable,
     };
 
-    private Dictionary<string, Func<Placeable, Node3D?>>? _sources;
+    private Dictionary<string, Func<Placeable, int, Node3D?>>? _sources;
 
     public override void _Ready()
     {
@@ -71,7 +72,7 @@ public partial class PlacementGhost : Node3D
         float exposure = Glow.Exposure;
         _liveMaterial.SetShaderParameter("exposure", exposure);
         _pendingMaterial.SetShaderParameter("exposure", exposure);
-        Node3D? model = candidate != null ? Live(candidate.Placeable) : null;
+        Node3D? model = candidate != null ? Live(candidate.Placeable, candidate.Variant) : null;
         if (_shown != null && _shown != model)
         {
             _shown.Visible = false;
@@ -97,16 +98,17 @@ public partial class PlacementGhost : Node3D
         _taken.Clear();
         foreach (PendingPlacement p in pending)
         {
-            if (!_pending.TryGetValue(p.Placeable, out List<Node3D>? pool))
+            (Placeable, int) key = (p.Placeable, Varies(p.Placeable) ? p.Variant : 0);
+            if (!_pending.TryGetValue(key, out List<Node3D>? pool))
             {
                 pool = new List<Node3D>();
-                _pending.Add(p.Placeable, pool);
+                _pending.Add(key, pool);
             }
-            int index = _taken.GetValueOrDefault(p.Placeable);
-            _taken[p.Placeable] = index + 1;
+            int index = _taken.GetValueOrDefault(key);
+            _taken[key] = index + 1;
             if (index >= pool.Count)
             {
-                if (Make(p.Placeable, _pendingMaterial) is not { } made)
+                if (Make(p.Placeable, key.Item2, _pendingMaterial) is not { } made)
                 {
                     continue;
                 }
@@ -119,23 +121,27 @@ public partial class PlacementGhost : Node3D
         }
     }
 
-    private Node3D? Live(Placeable placeable)
+    // Only a door's model depends on its variant (its layout): one model for each layout it is shown in.
+    private static bool Varies(Placeable placeable) => placeable.Kind.Name == "door";
+
+    private Node3D? Live(Placeable placeable, int variant)
     {
-        if (!_live.TryGetValue(placeable, out Node3D? model))
+        (Placeable, int) key = (placeable, Varies(placeable) ? variant : 0);
+        if (!_live.TryGetValue(key, out Node3D? model))
         {
-            model = Make(placeable, _liveMaterial);
+            model = Make(placeable, key.Item2, _liveMaterial);
             if (model != null)
             {
-                _live.Add(placeable, model);
+                _live.Add(key, model);
             }
         }
         return model;
     }
 
     // A placeable's model from its kind's source (or the catalogue's), every mesh in the hologram material, no shadows.
-    private Node3D? Make(Placeable placeable, Material material)
+    private Node3D? Make(Placeable placeable, int variant, Material material)
     {
-        Node3D? model = Sources.TryGetValue(placeable.Kind.Name, out Func<Placeable, Node3D?>? source) ? source(placeable) : Catalogue(placeable);
+        Node3D? model = Sources.TryGetValue(placeable.Kind.Name, out Func<Placeable, int, Node3D?>? source) ? source(placeable, variant) : Catalogue(placeable);
         if (model == null)
         {
             return null;
@@ -147,6 +153,18 @@ public partial class PlacementGhost : Node3D
         }
         model.Visible = false;
         AddChild(model);
+        return model;
+    }
+
+    // A deployable: the catalogue's model, and for a station that builds ships its bay's outline on the ground in front of
+    // it (deployables.json bay), the room a ship will need there.
+    private static Node3D? Deployable(Placeable placeable, int variant)
+    {
+        Node3D model = Catalogue(placeable);
+        if (placeable.Definition is Hollow.Simulation.Content.DeployableDef { Bay: { } bay })
+        {
+            model.AddChild(BayMarking.Outline(bay));
+        }
         return model;
     }
 
@@ -165,7 +183,7 @@ public partial class PlacementGhost : Node3D
     }
 
     // A building piece: the kit's mesh (the stone grade's middle level, as the plan's ghost always was), else its hulls.
-    private Node3D? Piece(Placeable placeable)
+    private Node3D? Piece(Placeable placeable, int variant)
     {
         if (Assets == null)
         {
@@ -177,15 +195,61 @@ public partial class PlacementGhost : Node3D
         return root;
     }
 
-    // A door: the kit's frame and leaves, shut (or the garage door's frame and curtain).
-    private Node3D? Door(Placeable placeable)
+    // The door as it would hang (docs/DOORS.md §3): its leaves part way open on their hinge pins in the layout, and the arc each
+    // sweeps to open drawn on the floor, so the hinge side and the swing side show before the door is placed.
+    private Node3D? Door(Placeable placeable, int variant)
     {
         if (Assets == null)
         {
             return null;
         }
         var root = new Node3D { Name = placeable.Key };
-        DoorView.Parts((DoorDef)placeable.Definition, Assets, root);
+        var def = (DoorDef)placeable.Definition;
+        var leaves = new List<(Node3D Pivot, float OpenYaw)>();
+        DoorView.Parts(def, variant, Assets, root, leaves);
+        foreach ((Node3D pivot, float openYaw) in leaves)
+        {
+            pivot.Rotation = new Vector3(0, openYaw * 0.35f, 0);
+        }
+        if (def.Rolls)
+        {
+            // A raised arrow shows the roll direction and identifies the operated face of the curtain.
+            root.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0.025f, BottomRadius = 0.025f, Height = 0.5f }, Position = new Vector3(0, 1.35f, 0.25f) });
+            root.AddChild(new MeshInstance3D { Mesh = new CylinderMesh { TopRadius = 0, BottomRadius = 0.12f, Height = 0.22f }, Position = new Vector3(0, 1.7f, 0.25f) });
+        }
+        else
+        {
+            for (int i = 0; i < def.Leaves.Count; i++)
+            {
+                root.AddChild(SwingArc(def, i, variant));
+            }
+        }
         return root;
+    }
+
+    // The floor the leaf sweeps over as it opens: a fan of triangles about its hinge pin from the shut leaf to the open one,
+    // a few centimetres over the sill, drawn from both sides.
+    private static MeshInstance3D SwingArc(DoorDef def, int index, int layout)
+    {
+        LeafDef leaf = def.Leaves[index];
+        LeafHinging hinging = def.Hinging(index, layout);
+        var reach = new Vector3(Math.Abs(leaf.Size.X) * (hinging.Mirrored ? -1 : Math.Sign(leaf.Size.X)), 0, hinging.Offset.Z);
+        var pin = new Vector3(hinging.Pin.X, 0.03f, hinging.Pin.Z);
+        const int segments = 16;
+        var tool = new SurfaceTool();
+        tool.Begin(Mesh.PrimitiveType.Triangles);
+        for (int s = 0; s < segments; s++)
+        {
+            Vector3 a = pin + reach.Rotated(Vector3.Up, hinging.OpenYaw * s / segments);
+            Vector3 b = pin + reach.Rotated(Vector3.Up, hinging.OpenYaw * (s + 1) / segments);
+            tool.AddVertex(pin);
+            tool.AddVertex(a);
+            tool.AddVertex(b);
+            tool.AddVertex(pin);
+            tool.AddVertex(b);
+            tool.AddVertex(a);
+        }
+        tool.GenerateNormals();
+        return new MeshInstance3D { Name = "Swing arc", Mesh = tool.Commit() };
     }
 }

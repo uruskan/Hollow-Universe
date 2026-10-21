@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "item": "rifle",
+  "camera": "external",
+  "cycle": "",
+  "fps": 24,
+  "frameCount": 6,
+  "width": 1280,
+  "height": 720,
+  "framePattern": "frame-%04d.png",
+  "sampledSeconds": 0.23000000417232513,
+  "playbackSeconds": 0.25,
+  "requestedSeconds": 0.23000000417232513,
+  "truncated": false,
+  "gameplayTiming": false,
+  "aiming": false,
+  "attachment": null,
+  "orbit": [
+    105,
+    -20,
+    0.48
+  ],
+  "body": "Male",
+  "viewmodelFov": 60,
+  "worldFov": 50,
+  "rigPosition": [
+    0,
+    0,
+    0
+  ],
+  "rigRotation": [
+    0,
+    0,
+    0
+  ],
+  "profileSha256": "33C3BCCCE9E3B498D1D85405F69801ED5DF17F966CA9AACF2230AD64441FC90A",
+  "segments": [
+    {
+      "action": "fire",
+      "seconds": 0.23000000417232513,
+      "skeletal": null
+    }
+  ]
+}

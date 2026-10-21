@@ -49,6 +49,10 @@ public interface IGroundUi
 
     Vitals Vitals { get; }
 
+    CrosshairView Crosshair => new();
+
+    IReadOnlyList<ProtectionStat> Protection => Array.Empty<ProtectionStat>();
+
     /// <summary>A container's slots: Main 24, Belt 6, Wear 7, Loot as many as the open container has (none if closed).</summary>
     IReadOnlyList<ItemStack> Slots(ContainerId container);
 
@@ -76,8 +80,11 @@ public interface IGroundUi
     /// <summary>The crafting categories in display order, each with its number of recipes.</summary>
     IReadOnlyList<CraftCategory> Categories { get; }
 
-    /// <summary>The recipes the player knows.</summary>
+    /// <summary>The recipes the player knows, or every recipe when free crafting is authorised.</summary>
     IReadOnlyList<Recipe> Recipes { get; }
+
+    /// <summary>The server authorises crafting without ingredients, learned blueprints or a workbench.</summary>
+    bool FreeCrafting => false;
 
     /// <summary>The level of the workbench in reach, 0 for none.</summary>
     int Workbench { get; }
@@ -102,6 +109,8 @@ public interface IGroundUi
 
     /// <summary>What pressing the interaction key would do now, or null.</summary>
     InteractionPrompt? Prompt { get; }
+
+    TargetHealthView? TargetHealth => null;
 
     /// <summary>
     /// The held inputs that open a radial menu and what each opens now (GROUND_SYSTEMS.md §4): the right mouse with the
@@ -134,6 +143,17 @@ public interface IGroundUi
     /// <summary>Moves <paramref name="amount"/> of a stack onto another slot: merges, swaps or splits.</summary>
     void Move(SlotRef from, SlotRef to, int amount);
 
+    IReadOnlyList<AttachmentSlotView> Attachments(SlotRef weapon) => Array.Empty<AttachmentSlotView>();
+
+    int AttachmentKind(string key) => -1;
+
+    /// <summary>Captured on mouse-down to cancel a drag when its source/selected weapon changes.</summary>
+    string MoveSignature(SlotRef slot)
+    {
+        IReadOnlyList<ItemStack> slots = Slots(slot.Container);
+        return slot.Index >= 0 && slot.Index < slots.Count ? slots[slot.Index].ToString() : "";
+    }
+
     /// <summary>
     /// The item panel's ACTIONS for a slot's stack (GROUND_SYSTEMS.md §7), besides DROP (the panel's own): what its parts
     /// offer (EAT or USE, WEAR or UNEQUIP, LEARN, UNLOAD, REMOVE an attachment), each with why it can't be done now when it
@@ -146,6 +166,9 @@ public interface IGroundUi
 
     /// <summary>Drops <paramref name="amount"/> of a stack on the ground.</summary>
     void Drop(SlotRef slot, int amount);
+
+    /// <summary>Drops the backpack contents, keeping the six hotbar slots and worn equipment.</summary>
+    void DropAll();
 
     /// <summary>Moves a stack to the other side: into the open container and back, or between main and belt.</summary>
     void QuickMove(SlotRef slot);
@@ -164,6 +187,12 @@ public interface IGroundUi
 
     /// <summary>The player closed the loot panel.</summary>
     void CloseLoot();
+
+    /// <summary>
+    /// The tech tree's VEHICLE button at a bench with a bay (VEHICLES.md §9.11): opens the vehicle screen of the vehicle in its
+    /// bay as the loot panel.
+    /// </summary>
+    void OpenBayVehicle() { }
 
     void Say(string text);
 

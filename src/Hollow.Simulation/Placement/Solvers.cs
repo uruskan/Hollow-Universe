@@ -75,7 +75,7 @@ internal sealed class FreeSolver : IPlacementSolver
     public void Aim(PlacementWorld world, in PlacementContext ctx, in PlacementAim aim, List<PlacementCandidate> into)
     {
         float reach = ctx.Rule.Reach + Solvers.AimSlack;
-        bool met = world.Ray(ctx.Eye, aim.Direction, reach, out PlacementHit hit);
+        bool met = world.Ray(ctx.Eye, aim.Direction, reach, ctx.Rule.Surfaces, out PlacementHit hit);
         // A ship's pieces first (a parked one's body in the zone is the same hull): the candidate is the ship's frame's,
         // with its down (IRON_WAKE.md §8).
         if (Aboard.Ray(world, ctx.Eye, aim.Direction, met ? hit.Distance + 0.05f : reach, out AboardHit aboard))
@@ -125,7 +125,7 @@ internal sealed class FreeSolver : IPlacementSolver
         Vector3 up = world.Frame.UpAt(aimed);
         float step = ctx.Rule.MaxStep;
         var c = new PlacementCandidate(ctx.Placeable);
-        if (world.Ray(from + up * above, -up, above + step + 0.05f, out PlacementHit under))
+        if (world.Ray(from + up * above, -up, above + step + 0.05f, ctx.Rule.Surfaces, out PlacementHit under))
         {
             c.Position = under.Point;
             c.Support = under.Target;
@@ -198,13 +198,13 @@ internal sealed class SocketSolver : IPlacementSolver
         }
         else
         {
-            // A free foundation: laid again from its top (the claim's position) and heading (the variant's 15° steps).
-            if (piece.Family != PieceFamily.Foundation || claim.Variant is < 0 or >= BuildingWorld.HeadingSteps)
+            // A free foundation: laid again from its top and the existing wire pose's continuous heading.
+            if (claim.Support != TargetRef.Ground || piece.Family != PieceFamily.Foundation || !float.IsFinite(claim.Yaw))
             {
                 return null;
             }
             Vector3 up = world.Frame.UpAt(claim.Position);
-            plan = building.FoundationAt(piece, claim.Position - up * (float)building.Data.FoundationClearance, claim.Variant * BuildingWorld.HeadingStep);
+            plan = building.FoundationAt(piece, claim.Position - up * (float)building.Data.FoundationClearance, claim.Yaw);
             refused = OutcomeCode.Floating;
         }
         if (plan == null)
@@ -238,7 +238,8 @@ internal sealed class SocketSolver : IPlacementSolver
             Support = plan.Support?.Ref ?? TargetRef.Ground,
             Surface = free ? PlacementSurfaces.Terrain : world.Data.SurfaceOf(plan.Support!.Def.Family),
             Socket = free ? 0 : plan.Socket.Code,
-            Variant = free ? plan.HeadingSteps : plan.Orientation,
+            Variant = free ? 0 : plan.Orientation,
+            Yaw = free ? (float)plan.Heading : 0,
             Nearest = Solvers.F(frame.ToZone(PieceGeometry.ClosestPoint(world.Building!.Data, plan.Piece, plan.Pose, eyeLocal))),
             SightThroughGround = plan.Piece.Family == PieceFamily.Foundation,
             Detail = plan,
@@ -310,9 +311,10 @@ internal sealed class AttachSolver : IPlacementSolver
 
     public void Aim(PlacementWorld world, in PlacementContext ctx, in PlacementAim aim, List<PlacementCandidate> into)
     {
-        if (world.Building?.Target(ctx.Eye, aim.Direction, ctx.Rule.Reach + Solvers.AimSlack, out _) is Door door)
+        if (world.Ray(ctx.Eye, aim.Direction, ctx.Rule.Reach + Solvers.AimSlack, out PlacementHit hit) &&
+            world.TryLockMount(hit.Target, ctx.Eye, out LockMount mount))
         {
-            PlacementCandidate c = Of(ctx, door);
+            PlacementCandidate c = Of(ctx, mount);
             Solvers.Turn(world, ctx, aim, c);
             into.Add(c);
         }
@@ -321,11 +323,11 @@ internal sealed class AttachSolver : IPlacementSolver
     public PlacementCandidate? Settle(PlacementWorld world, in PlacementContext ctx, in PlacementClaim claim, out Outcome refused)
     {
         refused = OutcomeCode.NotFound;
-        if (claim.Support.Family != TargetFamily.Door || world.Building?.DoorOf(new EntityId(claim.Support.Id)) is not { Gone: false } door)
+        if (!world.TryLockMount(claim.Support, ctx.Eye, out LockMount mount))
         {
             return null;
         }
-        PlacementCandidate c = Of(ctx, door);
+        PlacementCandidate c = Of(ctx, mount);
         if (!Solvers.Agrees(ctx, c.Position, claim.Position))
         {
             refused = OutcomeCode.Misplaced;
@@ -336,9 +338,10 @@ internal sealed class AttachSolver : IPlacementSolver
         return c;
     }
 
-    private static PlacementCandidate Of(in PlacementContext ctx, Door door)
+    private static PlacementCandidate Of(in PlacementContext ctx, in LockMount mount)
     {
-        (Vector3 position, Quaternion rotation) = door.LockSpot;
+        Vector3 position = mount.Pose.Position;
+        Quaternion rotation = mount.Pose.Rotation;
         Vector3 up = Vector3.Transform(Vector3.UnitY, rotation);
         return new PlacementCandidate(ctx.Placeable)
         {
@@ -346,10 +349,11 @@ internal sealed class AttachSolver : IPlacementSolver
             Rotation = rotation,
             Up = up,
             Normal = up,
-            Support = door.Ref with { Part = 1 },
+            Support = mount.Target,
             Surface = PlacementSurfaces.Door,
+            SightThroughSupport = true,
             Nearest = position,
-            Detail = door,
+            Detail = mount,
         };
     }
 }
@@ -383,7 +387,17 @@ internal sealed class SweepSolver : IPlacementSolver
         {
             return null;
         }
-        Vector3 toward = claim.Position - ctx.Eye;
+        Vector3 probe = claim.Position;
+        if (ctx.Placeable.Definition is Content.DeployableDef { Climb: not null })
+        {
+            if (!float.IsFinite(claim.Yaw)) return null;
+            Vector3 up = world.Frame.UpAt(claim.Position);
+            Vector3 outward = Vector3.Transform(Vector3.UnitZ, Combat.Geometry.Upright(up, claim.Yaw));
+            // The wire carries the model's base. Reconstruct the original wall contact at its centre.
+            Vector3 half = ctx.Placeable.Footprint.HalfExtents;
+            probe += up * half.Y - outward * (half.Z + ExplosiveSystem.StuckOffset);
+        }
+        Vector3 toward = probe - ctx.Eye;
         float distance = toward.Length();
         if (distance < 1e-3f)
         {
@@ -404,14 +418,28 @@ internal sealed class SweepSolver : IPlacementSolver
         return c;
     }
 
-    private static PlacementCandidate Of(PlacementWorld world, in PlacementContext ctx, in PlacementHit hit) => new(ctx.Placeable)
+    private static PlacementCandidate Of(PlacementWorld world, in PlacementContext ctx, in PlacementHit hit)
     {
-        Position = hit.Point + hit.Normal * ExplosiveSystem.StuckOffset,
-        Nearest = hit.Point,
-        Normal = hit.Normal,
-        Up = ctx.Rule.Align == AlignMode.Normal ? hit.Normal : world.Frame.UpAt(hit.Point),
-        Support = hit.Target,
-        Surface = hit.Surface,
-        Detail = hit.Point,
-    };
+        var c = new PlacementCandidate(ctx.Placeable)
+        {
+            Position = hit.Point + hit.Normal * ExplosiveSystem.StuckOffset,
+            Nearest = hit.Point, Normal = hit.Normal,
+            Up = ctx.Rule.Align == AlignMode.Normal ? hit.Normal : world.Frame.UpAt(hit.Point),
+            Support = hit.Target, Surface = hit.Surface, Detail = hit.Point,
+        };
+        if (ctx.Placeable.Definition is Content.DeployableDef { Climb: not null })
+        {
+            // A climbable span stays upright and faces out from the contacted wall; its cursor is its centre.
+            c.Up = world.Frame.UpAt(hit.Point);
+            Vector3 half = ctx.Placeable.Footprint.HalfExtents;
+            Vector3 outward = hit.Normal - c.Up * Vector3.Dot(hit.Normal, c.Up);
+            if (outward.LengthSquared() > .01f)
+            {
+                outward = Vector3.Normalize(outward);
+                c.Position = hit.Point + outward * (half.Z + ExplosiveSystem.StuckOffset) - c.Up * half.Y;
+                c.Yaw = Movement.Facing.YawOf(-outward, c.Up);
+            }
+        }
+        return c;
+    }
 }

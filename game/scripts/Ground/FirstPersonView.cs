@@ -2,8 +2,13 @@ using System;
 using System.Linq;
 using Godot;
 using Hollow.Client;
+using Hollow.Client.Audio;
+using Hollow.Client.Feedback;
+using Hollow.Simulation;
+using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Targets;
 using HollowUniverse.Characters;
 using HollowUniverse.Fx;
 using Num = System.Numerics;
@@ -30,7 +35,50 @@ public partial class FirstPersonView : Node3D
     private string? _heldKey;
     private int _wearRevision = -1;
     private double _sinceEquip;
+    private int _equippedSlot = -2;
+    private ushort _equippedItem;
+    private uint _equipReadyTick;
     private float _lastYaw, _lastPitch;
+    private (ItemDef Item, string Action, float Seconds, uint Intent, uint StartedTick)? _pendingAction;
+    private ItemDef? _actionItem;
+    private double _actionUntil;
+    private int _actionSlot = -1;
+    private uint _actionIntent, _confirmedSwing;
+    private AttackId _meleePresentation, _confirmedMelee;
+    private readonly MeleeSwingCue<AttackId> _swingCue = new();
+    private string? _swingCueSound;
+    private ushort _swingCueItem;
+    private int _swingCueSlot;
+    private bool _wasReloading;
+    private readonly ActionCuePlayer _reloadCues = new();
+    private double _reloadAt;
+    private int _reloadEquip;
+    private string _reloadWeapon = "";
+    private readonly HeldActionQueue _queued = new();
+    private int _admireSlot = -1;
+    private ushort _admireItem;
+
+    public bool Admiring => _arms?.ActiveAction == "admire";
+
+    /// <summary>Cosmetic only: it never enters the held-action queue or sends an intent.</summary>
+    public bool Admire()
+    {
+        LocalPlayer me = Client.Local;
+        if (_arms == null || me.IsDead || me.IsWounded || Client.Ships().Seated || !ShowBody ||
+            me.HeldItem is not { } item || item.Id != _equippedItem || me.HeldSlot != _equippedSlot ||
+            Client.PredictedTick < _equipReadyTick || me.Gun.Reloading || me.Gun.Aimed ||
+            _pendingAction != null || _queued.Pending || _arms.ActiveAction != "idle" ||
+            _arms.CurrentPresentation?.Actions.ContainsKey("admire") != true) return false;
+        _admireSlot = me.HeldSlot;
+        _admireItem = item.Id;
+        _arms.PlayAction("admire");
+        return true;
+    }
+
+    public void CancelAdmire()
+    {
+        if (Admiring) _arms.CancelActions();
+    }
 
     public GameClient Client { get; set; } = null!;
 
@@ -44,13 +92,36 @@ public partial class FirstPersonView : Node3D
     {
         Client.Local.Gun.ShotFired += OnShot;
         Client.Local.Gun.ReloadStarted += OnReload;
+        Client.Survival().ProjectileLaunched += OnProjectile;
+        Client.Melee.Started += Swing;
+        Client.Melee.Cancelled += CancelMeleePresentation;
+        Client.Melee.Reconciled += OnMeleeReconciled;
+        Client.Local.HitMarker += OnHit;
+        Client.Local.IntentRejected += OnRejected;
     }
 
     public override void _ExitTree()
     {
         Client.Local.Gun.ShotFired -= OnShot;
         Client.Local.Gun.ReloadStarted -= OnReload;
+        Client.Survival().ProjectileLaunched -= OnProjectile;
+        Client.Melee.Started -= Swing;
+        Client.Melee.Cancelled -= CancelMeleePresentation;
+        Client.Melee.Reconciled -= OnMeleeReconciled;
+        Client.Local.HitMarker -= OnHit;
+        Client.Local.IntentRejected -= OnRejected;
     }
+
+    private void OnProjectile(ClientProjectile projectile)
+    {
+        if (projectile.Shooter == Client.NetId && Client.Content.Item(projectile.Ammo)?.Ammo != null && _arms?.Model?.LeftHanded == true)
+        {
+            _arms.Trigger(CharacterEvent.Fire);
+        }
+    }
+
+    /// <summary>The held control supplies aim state for non-firearms, using the same frame as its server input.</summary>
+    public void Aim(bool aiming) => _arms.Aim(aiming);
 
     // A shot of our own, at once (predicted): the arms kick, the gun sounds, its muzzle effect plays on the gun in hand
     // (by its attachments: silenced, braked or plain; a rocket's), drawn with the arms (G4, GROUND.md §6.4, §9.3).
@@ -77,19 +148,120 @@ public partial class FirstPersonView : Node3D
     /// <summary>An explosive thrown: the arm's overhand motion and the throw's sound.</summary>
     public void Throw(string itemKey)
     {
-        _arms.Trigger(CharacterEvent.Swing);
+        if (Client.Content.ItemByKey(itemKey) is { } item) Play(item, "throw");
         Sounds.Flat(Sounds.Item(itemKey, "throw"));
     }
 
     /// <summary>A swing of the item in hand: the arms' motion and its sound.</summary>
     public void Swing(ItemDef item)
     {
-        _arms.Trigger(CharacterEvent.Swing);
-        Sounds.Flat(Sounds.Item(item.Key, "swing") ?? "melee.swing");
+        _confirmedSwing = 0;
+        _confirmedMelee = default;
+        _meleePresentation = Client.Melee.AttackId;
+        Play(item, "swing");
+        if (item.Melee is { } melee)
+        {
+            _swingCueItem = item.Id;
+            _swingCueSlot = Client.Local.HeldSlot;
+            _swingCueSound = Sounds.Item(item.Key, "swing") ?? "melee.swing";
+            _swingCue.Start(_meleePresentation, Client.Melee.ActionTick, (double)Client.Melee.ActionTick + melee.StrikeTicks);
+        }
+    }
+
+    /// <summary>Presentation of an attempted held action. The server's refusal cancels it; it never grants a gameplay result.</summary>
+    public void Play(ItemDef item, string action, uint intent = 0)
+    {
+        if (HeldItems.Find(item.Key) == null || !HeldPresentations.All.TryGetValue(item.Key, out HeldPresentationProfile? profile)) return;
+        if (action == "use") action = profile.UseAction;
+        if (!profile.Actions.TryGetValue(action, out HeldPresentationClip? clip)) return;
+        if (action != "swing") _swingCue.Cancel();
+        float seconds = HeldActionTiming.Duration(item, action, clip.Duration);
+        _pendingAction = (item, action, seconds, intent, Client.PredictedTick);
+        _actionSlot = Client.Local.HeldSlot;
+    }
+
+    public bool BeginAction(ItemDef item, string action, Func<uint> dispatch)
+    {
+        // Ghost-only placement has no held model to animate and keeps its ordinary validated intent path.
+        if (HeldItems.Find(item.Key) == null || !HeldPresentations.All.TryGetValue(item.Key, out HeldPresentationProfile? profile)) return dispatch() != 0;
+        if (item.Id != _equippedItem || Client.Local.HeldSlot != _equippedSlot || Client.PredictedTick < _equipReadyTick) return false;
+        if (action == "use") action = profile.UseAction;
+        if (!profile.Actions.TryGetValue(action, out HeldPresentationClip? clip)) return false;
+        float duration = HeldActionTiming.Duration(item, action, clip.Duration);
+        if (!_queued.Schedule(Client.PredictedTick, item.Id, Client.Local.HeldSlot, action, duration, dispatch)) return false;
+        Play(item, action);
+        return true;
+    }
+
+    private void OnRejected(IntentAnswer answer)
+    {
+        if (answer.Seq != 0 && (answer.Seq == _actionIntent || answer.Seq == _pendingAction?.Intent)) CancelAction();
+    }
+
+    private void CancelAction()
+    {
+        _swingCue.Cancel();
+        _queued.Cancel();
+        _pendingAction = null;
+        _actionItem = null;
+        _actionUntil = 0;
+        _actionIntent = 0;
+        _arms?.CancelActions();
+    }
+
+    private void CancelMeleePresentation()
+    {
+        _swingCue.Cancel();
+        if (_pendingAction?.Action == "swing" || _arms?.ActiveAction == "swing") CancelAction();
+    }
+
+    private void OnHit(HitMarkerEvent hit)
+    {
+        if (_camera == null || Client.Local.IsDead || Client.Local.IsWounded || Client.Ships().Seated ||
+            Client.Local.HeldItem?.Id != hit.Weapon || Client.Local.HeldItem.Melee == null ||
+            _arms.ActiveAction != "swing") return;
+        // The attempt is stable when authority shifts a late request's start tick. A
+        // confirmation for an older attempt must never make the current swing recoil.
+        if (!hit.Attack.IsNone)
+        {
+            if (hit.Attack != _meleePresentation || hit.Attack != Client.Melee.AttackId || _confirmedMelee == hit.Attack) return;
+        }
+        else if (hit.ActionTick != Client.Melee.ActionTick || _confirmedSwing == hit.ActionTick) return;
+        // A confirmed impact is already past anticipation, even if a delayed acceptance has not caught up.
+        _swingCue.Cancel();
+        _confirmedSwing = hit.ActionTick;
+        _confirmedMelee = hit.Attack;
+        _arms.SetContactTarget(_body.GlobalTransform.AffineInverse() * GroundView.ToGodot(hit.Point), confirmed: true);
+    }
+
+    private void OnMeleeReconciled(AttackResolution result)
+    {
+        if (result.Code != OutcomeCode.Done || result.Cancelled || result.Id != _meleePresentation ||
+            Client.Local.HeldItem is not { Melee: not null } item) return;
+        _swingCue.Reconcile(result.Id, result.StartTick, result.ContactTick);
+        // Hit confirmation can arrive first on the network. Do not erase its contact
+        // response when a delayed acceptance subsequently reconciles the same attempt.
+        if (_confirmedMelee == result.Id) return;
+        if (_pendingAction is { Action: "swing" } pending)
+        {
+            _pendingAction = (pending.Item, pending.Action, pending.Seconds, pending.Intent, result.StartTick);
+            return;
+        }
+        if (_arms?.ActiveAction != "swing") return;
+        float seconds = HeldActionTiming.Duration(item, "swing", item.Melee.SwingSeconds);
+        float elapsed = Math.Max(0, (long)Client.PredictedTick - result.StartTick) / (float)CharacterTicks.Rate;
+        _actionUntil = Client.ClockSeconds + Math.Max(0f, seconds - elapsed);
+        // Seek the existing action; never play the swing sound or start another presentation.
+        _arms.PlayAction("swing", seconds, Math.Clamp(elapsed / seconds, 0f, 1f));
     }
 
     /// <summary>Counts every change of what is in hand (a held control starts afresh when it changes).</summary>
     public int Equipped { get; private set; }
+
+    /// <summary>Hide camera-mounted arms and their flame while the admin inspects the full character.</summary>
+    public bool ShowBody { get; set; } = true;
+
+    public bool BodyVisible => _body?.Visible == true;
 
     /// <summary>Seconds since what is in hand was taken up.</summary>
     public double SinceEquip => _sinceEquip;
@@ -99,7 +271,7 @@ public partial class FirstPersonView : Node3D
     {
         if (HeldModel is { } gun)
         {
-            GunEffects.Dress(Client.Content, gun, _arms.Model!.Id, Client.Local.Gun.Mods.Bits, ForArms);
+            GunEffects.Dress(Client.Content, gun, _arms.Model!.Id, Client.Local.Gun.Mods.Bits, ForArms, firstPerson: true);
         }
     }
 
@@ -125,13 +297,14 @@ public partial class FirstPersonView : Node3D
     // A reload: the arms play it, and its parts sound as they come (magazine out, in, the slide or bolt).
     private void OnReload(ReloadEvent reload)
     {
-        _arms.Trigger(CharacterEvent.Reload);
-        string key = reload.Weapon.Key;
-        Sounds.Flat(Sounds.Item(key, "magOut"));
-        SceneTreeTimer magIn = GetTree().CreateTimer(reload.Seconds * 0.55);
-        magIn.Timeout += () => Sounds.Flat(Sounds.Item(key, "magIn"));
-        SceneTreeTimer rack = GetTree().CreateTimer(reload.Seconds * 0.85);
-        rack.Timeout += () => Sounds.Flat(Sounds.Item(key, "rack"));
+        Play(reload.Weapon, "reload");
+        _wasReloading = true;
+        float seconds = HeldActionTiming.Duration(reload.Weapon, "reload", reload.Seconds);
+        _reloadAt = Client.ClockSeconds;
+        _reloadEquip = Equipped;
+        _reloadWeapon = reload.Weapon.Key;
+        _reloadCues.Start(ContactFeedback.Actions.For("reload"), seconds);
+        _reloadCues.Advance(0, true, role => Sounds.Flat(Sounds.Item(_reloadWeapon, role)));
     }
 
     /// <summary>Puts the arms on the player's camera (on the aim, <see cref="ArmsTurn"/>).</summary>
@@ -145,28 +318,85 @@ public partial class FirstPersonView : Node3D
     }
 
     /// <summary>Every frame, after the camera is placed: what is held, and how the arms move.</summary>
-    public void Refresh(double delta, in InputFrame input, float yaw, float pitch)
+    public void Refresh(double delta, in InputFrame input, float yaw, float pitch, bool handsAvailable = true)
     {
         LocalPlayer me = Client.Local;
+        bool canAct = !me.IsDead && !me.IsWounded && !Client.Ships().Seated;
+        if (Admiring && (!canAct || !handsAvailable || !ShowBody || me.HeldSlot != _admireSlot ||
+            me.HeldItem?.Id != _admireItem || me.Gun.Reloading || me.Gun.Aimed)) CancelAdmire();
+        bool equipChanged = _equippedSlot != me.HeldSlot || _equippedItem != (me.HeldItem?.Id ?? 0);
+        if (equipChanged)
+        {
+            _swingCue.Cancel();
+            _equippedSlot = me.HeldSlot;
+            _equippedItem = me.HeldItem?.Id ?? 0;
+            _equipReadyTick = Client.PredictedTick + (uint)Math.Max(0, CharacterTicks.From(Client.Content.Survival.EquipSeconds));
+            _sinceEquip = 0;
+            Equipped++;
+        }
+        if (!canAct || _actionSlot != me.HeldSlot && _actionItem != null) CancelAction();
+        if (_wasReloading && !me.Gun.Reloading)
+        {
+            if (_pendingAction?.Action == "reload") _pendingAction = null;
+            _arms.CancelActions();
+        }
+        _wasReloading = me.Gun.Reloading;
+        _reloadCues.Advance(Client.ClockSeconds - _reloadAt,
+            canAct && handsAvailable && Equipped == _reloadEquip && me.Gun.Reloading,
+            role => Sounds.Flat(Sounds.Item(_reloadWeapon, role)));
         // In a ship's seat the hands are on the stick: nothing held is drawn (G6).
-        ItemDef? item = me.IsDead || Client.Ships().Seated ? null : me.HeldItem;
+        ItemDef? item = canAct ? me.HeldItem : null;
+        if (canAct && item == null && _actionSlot == me.HeldSlot)
+        {
+            item = _pendingAction?.Item ?? (Client.ClockSeconds < _actionUntil ? _actionItem : null);
+        }
         string? key = item?.Key;
         if (key != _heldKey)
         {
             _heldKey = key;
             _sinceEquip = 0;
-            Equipped++;
+            if (!equipChanged) Equipped++;
             (HeldKind kind, string? model) = key != null && ItemLooks.Held(key) is { } held ? held : (HeldKind.Unarmed, (string?)null);
             _heldKind = kind;
             _arms.Hold(kind, model);
         }
+        if (canAct && _pendingAction is { } pending && item?.Key == pending.Item.Key)
+        {
+            _pendingAction = null;
+            _actionItem = pending.Item;
+            float elapsed = Math.Max(0, (long)Client.PredictedTick - pending.StartedTick) / (float)CharacterTicks.Rate;
+            _actionUntil = Client.ClockSeconds + Math.Max(0f, pending.Seconds - elapsed);
+            _actionIntent = pending.Intent;
+            _arms.PlayAction(pending.Action, pending.Seconds, Math.Clamp(elapsed / pending.Seconds, 0f, 1f));
+        }
+        // Activate first: a frame hitch may cross the commit tick before the first drawn pose. The returned intent
+        // must survive activation so a refusal can cancel it, and its pose starts at the elapsed input-tick phase.
+        if (_queued.Pending)
+        {
+            uint sent = _queued.Step(Client.PredictedTick, me.HeldItem?.Id ?? 0, me.HeldSlot, canAct && handsAvailable);
+            if (sent != 0) _actionIntent = sent;
+            else if (!_queued.Pending) CancelAction();
+        }
         _sinceEquip += delta;
         DressArms();
         // Seated, the first-person arms hide: the hands are on the controls, drawn for others (IRON_WAKE.md §9.6).
-        _body.Visible = !Client.Ships().Seated;
+        _body.Visible = canAct && ShowBody;
 
         // Motion of the arms: velocity in their own frame (the aim's), how fast the view turns.
         _body.Basis = ArmsTurn;
+        if (_swingCue.Step(Client.PredictedTick, canAct && handsAvailable &&
+            me.HeldItem?.Id == _swingCueItem && me.HeldSlot == _swingCueSlot && Client.Melee.AttackId == _meleePresentation))
+            Sounds.Flat(_swingCueSound);
+        bool contactConfirmed = Client.Melee.AttackId.IsNone ? _confirmedSwing == Client.Melee.ActionTick : _confirmedMelee == Client.Melee.AttackId;
+        if (item?.Melee is { } melee && !contactConfirmed && _arms.ActiveAction == "swing")
+        {
+            Num.Vector3 eye = Client.RenderEye;
+            Vector3 aim = -_body.GlobalBasis.Z;
+            Num.Vector3 forward = new(aim.X, aim.Y, aim.Z);
+            AimHit contact = Client.Targets().PredictMelee(eye, forward, melee.Reach);
+            _arms.SetContactTarget(contact.Hit && contact.Target.Family != TargetFamily.Ground
+                ? _body.GlobalTransform.AffineInverse() * GroundView.ToGodot(contact.Point) : null);
+        }
         CharacterState state = Client.Character;
         Basis view = _body.GlobalBasis;
         Vector3 v = GroundView.ToGodot(state.Velocity);
@@ -178,13 +408,14 @@ public partial class FirstPersonView : Node3D
         _arms.Apply(new ViewmodelFrame
         {
             LocalVelocity = view.Inverse() * v,
+            GroundSpeed = (float)Footsteps.Input(state, Client.Frame, false, FootSurface.Grass, 0).Speed,
             LookRate = rate,
             Grounded = grounded,
             Sprinting = (state.Flags & MoveFlags.Sprinting) != 0,
             Crouching = state.Stance == Stance.Crouching,
             Aiming = Client.Local.Gun.Aimed,
         });
-        UpdateFlame(item);
+        UpdateFlame(ShowBody ? item : null);
         Bleed(delta);
     }
 

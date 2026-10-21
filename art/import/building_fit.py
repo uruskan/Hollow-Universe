@@ -341,6 +341,13 @@ def fit_points(points, tris, piece, module, grade):
         ramp = np.clip((np.abs(fitted[:, 0]) - (half - walls["endLength"])) / walls["endLength"], 0, 1)
         fitted[:, 1] -= walls["drop"] + walls["endSag"] * ramp
         fitted[:, 0] += walls["endShear"] * fitted[:, 2] * ramp
+    elif piece["family"] == "foundation":
+        # Preserve the walking cap; the footing must reach the same depth as placement/collision.
+        old_depth = -fitted[:, 1].min()
+        cap = min(0.2, old_depth * 0.5)
+        below = fitted[:, 1] < -cap
+        fitted[below, 1] = -cap + (fitted[below, 1] + cap) * (module["foundationDepth"] - cap) / (old_depth - cap)
+        lines.append(f"foundation skirt: {old_depth:.3f} -> {module['foundationDepth']:.3f} m; top {cap:.3f} m preserved")
     return fitted, lines
 
 

@@ -28,7 +28,7 @@ namespace HollowUniverse.Build;
 /// Keys: 1 plan, 2 hammer, 3–5 doors, 6 claim device; hold the right mouse button for the plan's or the hammer's radial;
 /// left button places, repairs, fits a door or places the device; R turns the piece (or flips the door); E opens and
 /// shuts a door; F2 the stability overlay; F5 one hour of upkeep and decay. Options (after "--"): <c>--scene
-/// house|stability|ghost-valid|ghost-invalid|stress|empty|joints</c> (joints: <c>--tour folder</c>), <c>--overlay</c>,
+/// house|stability|ghost-valid|ghost-invalid|stress|empty|joints|doors|airlocks</c> (joints: <c>--tour folder</c>), <c>--overlay</c>,
 /// <c>--tool</c> 1–6, <c>--piece key</c>.
 /// </para>
 /// </summary>
@@ -43,6 +43,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
     private Texts _texts = null!;
     private Zone _zone = null!;
     private BuildingWorld _world = null!;
+    private Func<EntityId> _nextBuildId = null!;
     private BuildingAssets _assets = null!;
     private BuildingRenderer _renderer = null!;
     private PlacementGhost _ghost = null!;
@@ -64,6 +65,9 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
     private bool _jumpPressed;
     private double _clock;
     private int _turns, _tool;
+
+    // Presses of R the doors tour adds to the ghost's (so it can picture each layout).
+    private int _extraTurns;
     private object? _target;
     private RayHit _targetHit;
     private bool _shot;
@@ -98,9 +102,11 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
             LatitudeDegrees = 28.4,
             LongitudeDegrees = -61.7,
         };
-        _zone = new Zone(spec);
+        // The first world's historical stand-in radius is a diagnostic one now (docs/WHOLE_WORLD.md): a viewer asks for it as such.
+        _zone = new Zone(spec.CreateSurface(diagnostic: true), spec);
         ulong next = 0;
-        _world = new BuildingWorld(_data, _zone.Physics, () => new EntityId(++next)) { Characters = Capsules };
+        _nextBuildId = () => new EntityId(++next);
+        _world = new BuildingWorld(_data, _zone.Physics, _nextBuildId) { Characters = Capsules };
         _placement = new PlacementWorld(content, _zone.Frame, _zone.Surface, _zone.Physics, _world, new Surroundings(this));
 
         BuildEnvironment();
@@ -110,6 +116,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         _renderer = new BuildingRenderer
         {
             Name = "Buildings",
+            Clock = () => _clock * CharacterMotor.TickRate,
             FinestOnly = Options.ContainsKey("finest"),
             OnlyLod = Options.TryGetValue("lod", out string? lodOption) ? int.Parse(lodOption, CultureInfo.InvariantCulture) : -1,
         };
@@ -176,6 +183,14 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         {
             JointTour(tour);
         }
+        else if (_scene == "doors" && Options.TryGetValue("tour", out string? doorTour))
+        {
+            DoorTour(doorTour);
+        }
+        else if (_scene == "airlocks" && Options.TryGetValue("tour", out string? airlockTour))
+        {
+            AirlockTour(airlockTour);
+        }
     }
 
 
@@ -212,7 +227,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
 
     // ---------------------------------------------------------------- scenes
 
-    // The flattest 34 m square within 150 m of the zone's origin, by the stand-in surface's heights.
+    // The flattest 34 m square within 150 m of the landing site, by radial terrain height.
     private Num.Vector3 FlatSite()
     {
         float best = float.MaxValue;
@@ -226,9 +241,10 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
                 {
                     for (int j = 0; j <= 10; j++)
                     {
-                        float y = _zone.GroundAt(cx * 10 + (i - 5) * 3.4f, cz * 10 + (j - 5) * 3.4f).Y;
-                        lo = MathF.Min(lo, y);
-                        hi = MathF.Max(hi, y);
+                        Num.Vector3 point = _zone.GroundAt(cx * 10 + (i - 5) * 3.4f, cz * 10 + (j - 5) * 3.4f);
+                        float height = (float)_zone.Frame.ToBody(point).Length;
+                        lo = MathF.Min(lo, height);
+                        hi = MathF.Max(hi, height);
                     }
                 }
                 if (hi - lo < best)
@@ -245,18 +261,36 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
     {
         _scene = Options.TryGetValue("scene", out string? s) ? s : "house";
         PlacementPlan? first = _world.FoundationAt(_data.Piece("foundation")!, site, 0.35);
-        Num.Vector3 spawn = site + new Num.Vector3(2, 0.5f, 12);
+        Num.Vector3 siteUp = _zone.Frame.UpAt(site);
+        (Num.Vector3 north, Num.Vector3 east) = Facing.Compass(siteUp);
+        Num.Vector3 Offset(float x, float y, float z) => site + east * x + siteUp * y - north * z;
+        Num.Vector3 spawn = Offset(2, 0.5f, 12);
         if (first == null)
         {
-            AddPlayer(site + new Num.Vector3(0, 0.5f, 6));
+            AddPlayer(Offset(0, 0.5f, 6));
             return;
         }
         BuildingFrame frame = first.Frame;
         switch (_scene)
         {
+            case "clan":
+                ClanBase(frame);
+                spawn = F(frame.ToZone(new Vector3D(0, 0.5, 11)));
+                break;
             case "empty":
                 // Nothing built: the first foundation's frame only measures --from and --at (a free foundation's ghost).
-                spawn = site + new Num.Vector3(0, 0.5f, 6);
+                spawn = Offset(0, 0.5f, 6);
+                break;
+            case "doors":
+                // Every door in its opening along one wall (BuildSandbox.Doors.cs); --from and --at are in the first foundation's frame.
+                Doors(first);
+                spawn = F(frame.ToZone(new Vector3D(0, 0.5, 8)));
+                break;
+            case "airlocks":
+                // The airlocks of docs/DOORS.md §7 (BuildSandbox.Airlocks.cs); --from and --at are in the first one's frame.
+                Airlocks(frame);
+                frame = _airlocks[0].Frame;
+                spawn = F(frame.ToZone(new Vector3D(0, 0.5, 8)));
                 break;
             case "joints":
                 // Every grade's joints (BuildSandbox.Joints.cs); --from and --at are in the twig group's frame.
@@ -308,6 +342,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
                 if (house.F.Structure.Pieces.FirstOrDefault(p => p.Door is { Def.Opening: Opening.Double })?.Door is Door wide)
                 {
                     _world.Toggle(Player, wide);
+                    _world.FinishDoors();
                 }
                 _model.SelectBelt(1);
                 Look(frame, new Vector3D(-4.7, 2.9, 9.9), new Vector3D(0.75, 2.45, 4.5));
@@ -332,11 +367,11 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
             {
                 // Playing: the builder stands under the scene's view, facing what it looks at.
                 spawn = N(eye);
-                Num.Vector3 ground = _zone.GroundAt(spawn.X, spawn.Z);
-                Num.Vector3 look = N(target) - (ground + N(up) * _zone.Tuning.StandingEyeHeight);
-                Num.Vector3 flat = look - N(up) * Num.Vector3.Dot(look, N(up));
-                _yaw = MathF.Atan2(-flat.X, -flat.Z);
-                _pitch = MathF.Atan2(Num.Vector3.Dot(look, N(up)), flat.Length());
+                Num.Vector3 ground = _zone.Settle(spawn);
+                Num.Vector3 localUp = _zone.Frame.UpAt(ground);
+                Num.Vector3 look = Num.Vector3.Normalize(N(target) - (ground + localUp * _zone.Tuning.StandingEyeHeight));
+                _yaw = Facing.YawOf(look, localUp);
+                _pitch = Facing.PitchOf(look, localUp);
             }
         }
         AddPlayer(spawn);
@@ -353,9 +388,11 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
 
     private void AddPlayer(Num.Vector3 near)
     {
-        Num.Vector3 ground = _zone.GroundAt(near.X, near.Z);
+        Num.Vector3 ground = _zone.Settle(near);
         _player = _zone.AddCharacter(new EntityId(1000), "Builder", _zone.NewCharacter(ground + _zone.Frame.UpAt(ground) * 0.05f));
         _feetBefore = _feetNow = _zone.Entities.Get<Character>(_player).State.Position;
+        GD.Print($"[build] builder planet-frame position={_feetNow} up={_zone.Frame.UpAt(_feetNow)} " +
+            $"groundClearance={_zone.HeightAboveGround(_feetNow):0.000}m siteDistance={Num.Vector3.Distance(_feetNow, _site):0.00}m");
     }
 
     private IEnumerable<Capsule> Capsules()
@@ -376,6 +413,11 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         _frames++;
         _clock += delta;
         _world.Tick(_clock);
+        _world.StepDoors((long)(_clock * CharacterMotor.TickRate));
+        if (_frames % 15 == 0)
+        {
+            DoorLocks.Sync(_renderer);
+        }
         Walk(delta);
         Num.Vector3 feet = Num.Vector3.Lerp(_feetBefore, _feetNow, (float)(_accumulator / CharacterMotor.DeltaTime));
         Num.Vector3 up = _zone.Frame.UpAt(feet);
@@ -391,7 +433,8 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
             Num.Vector3 forward = CharacterMotor.ViewDirection(_yaw, _pitch, up);
             _camera.GlobalTransform = new Transform3D(Basis.LookingAt(G(forward), G(up)), G(eye));
         }
-        _terrain.Follow(_zone.Physics, _fixedCamera.HasValue ? N(_camera.GlobalPosition) - up * 1.7f : feet);
+        Num.Vector3 cameraPosition = N(_camera.GlobalPosition);
+        _terrain.Follow(_zone.Physics, _fixedCamera.HasValue ? cameraPosition - _zone.Frame.UpAt(cameraPosition) * 1.7f : feet);
         Aim();
         Measure(delta);
         bool wantsCursor = _ui.WantsCursor;
@@ -463,7 +506,7 @@ public partial class BuildSandbox : Node3D, IHammerActions, IPlacementSite
         }
         Placeable? placing = (uint)tool < (uint)Tools.Length ? Tools[tool](this) : null;
         _candidate = placing != null
-            ? Placer.Plan(_placement, new PlacementContext(Player, eye, placing, _wallet), new PlacementAim(forward, MathF.Atan2(-forward.X, -forward.Z), _turns))
+            ? Placer.Plan(_placement, new PlacementContext(Player, eye, placing, _wallet), new PlacementAim(forward, Facing.YawOf(forward, _zone.Frame.UpAt(eye)), _turns + _extraTurns))
             : null;
         _ghost.Show(_candidate);
         if (placing != null)

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using Godot;
 using Hollow.Core;
 using Hollow.Surface;
@@ -49,15 +50,21 @@ public sealed partial class TerrainLod : Node3D
         public double Distance;
         public bool Split;
         public bool Drawn;
+        public bool Failed;
         public float MinHeight;
         public float MaxHeight;
+        public Vector2 MorphRange;
     }
 
     private sealed class Job
     {
         public Node Node = null!;
+        public TileKey Key;
         public double Priority;
         public volatile bool Cancelled;
+        public TileGrid? Grid;
+        public TileMeshData? Data;
+        public Exception? Error;
     }
 
     private ISurface _surface = null!;
@@ -68,39 +75,56 @@ public sealed partial class TerrainLod : Node3D
     private ShaderMaterial? _waterMaterial;
     private readonly Stack<MeshInstance3D> _waterPool = new();
     private readonly Node[] _roots = new Node[CubeSphere.FaceCount];
-    private readonly List<Job> _queue = new();
-    private readonly object _lock = new();
-    private readonly ConcurrentQueue<Job> _done = new();
-    private readonly SemaphoreSlim _signal = new(0);
-    private readonly List<Thread> _workers = new();
+    private BuildSession? _work;
     private readonly List<Node> _drawn = new();
     private readonly Stack<MeshInstance3D> _pool = new();
     private readonly List<Node> _built = new();
-    private volatile bool _stopping;
-    private int _pending;
     private Vector3D _camera;
+    private int _requiredFailures;
 
     /// <summary>Tiles drawn last frame.</summary>
     public int DrawnTiles => _drawn.Count;
 
     /// <summary>Tile grids waiting for a worker or for upload.</summary>
-    public int Pending => Volatile.Read(ref _pending);
+    public int Pending => _work?.Pending ?? 0;
+
+    /// <summary>Failed builds keep required terrain from reporting ready. Reset by a new Setup.</summary>
+    public int FailedBuilds => _requiredFailures;
+
+    /// <summary>Worker completion for the current setup; retain this task before retiring the view.</summary>
+    public Task WorkersStopped => _work?.Completion ?? Task.CompletedTask;
+
+    /// <summary>Managed/native submission state for streaming evidence, including the source radii of drawn grids.</summary>
+    public (int Drawn, int Pending, int Failed, double MinimumRadius, double MaximumRadius) CaptureDiagnostics()
+    {
+        double minimum = double.PositiveInfinity, maximum = double.NegativeInfinity;
+        foreach (Node node in _drawn)
+        {
+            if (node.Grid == null) continue;
+            minimum = Math.Min(minimum, node.Grid.Radius);
+            maximum = Math.Max(maximum, node.Grid.Radius);
+        }
+        return (_drawn.Count, Pending, FailedBuilds, _drawn.Count == 0 ? 0 : minimum, _drawn.Count == 0 ? 0 : maximum);
+    }
 
     /// <summary>True when nothing is queued and the drawn set didn't change last update.</summary>
     public bool IsIdle { get; private set; }
 
     /// <summary>Microseconds spent per tile build, averaged (for --trace).</summary>
-    public double BuildMicroseconds { get; private set; }
+    public double BuildMicroseconds => _work?.BuildMicroseconds ?? 0;
 
-    private long _buildTicks;
-    private int _builds;
-
-    public void Setup(ISurface surface, RenderFrame frame, ShaderMaterial material, ShaderMaterial? water)
+    public void Setup(ISurface surface, RenderFrame frame, ShaderMaterial material, ShaderMaterial? water, TerrainViewLimits? limits = null)
     {
+        ArgumentNullException.ThrowIfNull(surface);
+        ArgumentNullException.ThrowIfNull(frame);
+        ArgumentNullException.ThrowIfNull(material);
+        ValidateViewSetup(surface, limits); // Refusal preserves the coherent current setup and all its tickets.
+        Stop();
+        BeginCohorts(surface, limits);
         _surface = surface;
         _seaLevel = surface.SeaRadius > 0 ? surface.SeaRadius - surface.Radius : 0;
         _bounds = surface.HeightBounds;
-        MaxLevel = TileKey.LevelFor(surface.Radius, FinestTileMetres);
+        MaxLevel = TerrainLattice.Of(surface)?.FinestTileLevel ?? TileKey.LevelFor(surface.Radius, FinestTileMetres);
         _frame = frame;
         _material = material;
         _waterMaterial = water;
@@ -108,22 +132,41 @@ public sealed partial class TerrainLod : Node3D
         {
             _roots[f] = NewNode(new TileKey(f, 0, 0, 0), null);
         }
-        int count = Math.Clamp(System.Environment.ProcessorCount - 4, 2, 8);
-        for (int i = 0; i < count; i++)
-        {
-            var thread = new Thread(Work) { IsBackground = true, Name = $"Terrain {i}", Priority = ThreadPriority.BelowNormal };
-            thread.Start();
-            _workers.Add(thread);
-        }
+        _work = new BuildSession(surface, Math.Min(Math.Clamp(System.Environment.ProcessorCount - 4, 2, 8),
+            limits?.MaxOutstandingJobs ?? 8), _workReservation, limits?.MaxOutstandingJobs ?? int.MaxValue);
+        IsIdle = false;
     }
 
-    public override void _ExitTree()
+    public override void _ExitTree() => Stop();
+
+    /// <summary>
+    /// Retires this setup without blocking the scene thread. Running jobs own their original surface and can only
+    /// finish into their retired session, never into a replacement. Completion can be awaited by diagnostics/shutdown.
+    /// </summary>
+    public void Stop()
     {
-        _stopping = true;
-        if (_workers.Count > 0)
+        RetireCohorts(); // Invalidate readiness before touching workers or native instances.
+        InvalidateContactTiles();
+        _work?.Stop();
+        foreach (Node root in _roots)
         {
-            _signal.Release(_workers.Count); // none were started when it leaves before it was ready
+            if (root == null) continue;
+            Prune(root);
+            Release(root);
         }
+        Array.Clear(_roots);
+        _nodes.Clear();
+        _drawn.Clear();
+        _requiredFailures = 0;
+        _built.Clear();
+        CollectRetiredInstances();
+        while (_pool.TryPop(out MeshInstance3D? mesh)) RetireInstance(mesh);
+        while (_waterPool.TryPop(out MeshInstance3D? water)) RetireInstance(water);
+        _surface = null!;
+        _frame = null!;
+        _material = null!;
+        _waterMaterial = null;
+        IsIdle = false;
     }
 
     private Node NewNode(TileKey key, Node? parent)
@@ -134,6 +177,7 @@ public sealed partial class TerrainLod : Node3D
         node.MinHeight = parent?.MinHeight ?? (float)_bounds.Low;
         node.MaxHeight = parent?.MaxHeight ?? (float)_bounds.High;
         node.Radius = edge * 0.75 + Math.Max(Math.Abs(node.MinHeight), Math.Abs(node.MaxHeight));
+        _nodes.Add(key, node);
         return node;
     }
 
@@ -142,16 +186,38 @@ public sealed partial class TerrainLod : Node3D
     /// <summary>Picks the tiles to draw for a camera position (body frame) and uploads finished tiles.</summary>
     public void UpdateLod(Vector3D camera)
     {
+        if (_work == null || _work.Stopped) return;
         _camera = camera;
+        _capacityDeferred = 0;
+        _retiringTerrain.RemoveAll(session => session.Completion.IsCompleted);
+        CollectRetiredInstances();
         int uploads = 0;
-        while (uploads < (Hurry ? HurriedMeshesPerFrame : MeshesPerFrame) && _done.TryDequeue(out Job? job))
+        while (uploads < (Hurry ? HurriedMeshesPerFrame : MeshesPerFrame) && _work.TryTake(out Job? job))
         {
-            Interlocked.Decrement(ref _pending);
-            if (job.Cancelled || job.Node.Data == null || job.Node.Job != job)
+            if (job!.Cancelled || job.Node.Job != job)
             {
+                job.Data = null;
+                job.Grid = null;
                 continue;
             }
-            Upload(job.Node);
+            if (job.Error != null)
+            {
+                FailNode(job.Node, job.Error);
+                job.Data = null;
+                job.Grid = null;
+                continue;
+            }
+            if (job.Data == null)
+            {
+                FailNode(job.Node, new InvalidOperationException("Terrain worker completed without vertex data."));
+                continue;
+            }
+            job.Node.Data = job.Data;
+            job.Node.Grid = job.Grid;
+            job.Data = null;
+            job.Grid = null;
+            try { Upload(job.Node); }
+            catch (Exception error) { FailNode(job.Node, error); }
             uploads++;
         }
 
@@ -161,10 +227,9 @@ public sealed partial class TerrainLod : Node3D
         }
         var previous = new HashSet<Node>(_drawn);
         _drawn.Clear();
-        foreach (Node root in _roots)
-        {
-            Visit(root);
-        }
+        // Forced paths get scheduling opportunities first even when another face is near the camera.
+        foreach (Node root in _roots) if (_forcedNodes.ContainsKey(root.Key)) Visit(root);
+        foreach (Node root in _roots) if (!_forcedNodes.ContainsKey(root.Key)) Visit(root);
         bool changed = previous.Count != _drawn.Count;
         foreach (Node n in _drawn)
         {
@@ -178,17 +243,23 @@ public sealed partial class TerrainLod : Node3D
         {
             Hide(n);
         }
-        lock (_lock)
-        {
-            foreach (Job j in _queue)
-            {
-                j.Priority = Priority(j.Node);
-            }
-        }
-        IsIdle = !changed && Pending == 0 && _done.IsEmpty;
+        if (changed) InvalidateContactTiles();
+        _work.Reprioritize(j => Priority(j.Node));
+        IsIdle = !changed && Pending == 0 && FailedBuilds == 0 && _capacityDeferred == 0;
     }
 
-    private double Priority(Node n) => DistanceTo(n) / TileKey.EdgeLength(n.Key.Level, _surface.Radius) - n.Key.Level * 0.01;
+    private double Priority(Node n) => _forcedNodes.ContainsKey(n.Key) ? -1_000_000 + n.Key.Level :
+        DistanceTo(n) / TileKey.EdgeLength(n.Key.Level, _surface.Radius) - n.Key.Level * 0.01;
+
+    private void FailNode(Node node, Exception error)
+    {
+        if (!node.Failed) { node.Failed = true; _requiredFailures++; }
+        node.Requested = false; node.Job = null;
+        node.Mesh?.Dispose(); node.Mesh = null;
+        node.WaterMesh?.Dispose(); node.WaterMesh = null;
+        node.Data = null; node.Grid = null;
+        GD.PushError($"Terrain tile {node.Key} failed: {error}");
+    }
 
     private double DistanceTo(Node n) => Math.Max(0, (n.Centre - _camera).Length - n.Radius);
 
@@ -208,18 +279,18 @@ public sealed partial class TerrainLod : Node3D
     {
         double edge = TileKey.EdgeLength(node.Key.Level, _surface.Radius);
         node.Distance = SplitDistance(node);
-        bool wantSplit = node.Key.Level < MaxLevel && node.Distance < (node.Split ? MergeFactor : SplitFactor) * edge;
+        bool wantSplit = node.Key.Level < MaxLevel && (_forcedSplits.ContainsKey(node.Key) ||
+            node.Distance < (node.Split ? MergeFactor : SplitFactor) * edge);
         if (node.Mesh == null)
         {
             // Only roots get here before they are ready; everything else is visited once its grid is drawn.
             Request(node);
             return;
         }
-        if (wantSplit)
+        if (wantSplit && TryCreateChildren(node))
         {
-            node.Children ??= new[] { NewNode(node.Key.Child(0), node), NewNode(node.Key.Child(1), node), NewNode(node.Key.Child(2), node), NewNode(node.Key.Child(3), node) };
             bool ready = true;
-            foreach (Node c in node.Children)
+            foreach (Node c in node.Children!)
             {
                 if (c.Mesh == null)
                 {
@@ -230,14 +301,14 @@ public sealed partial class TerrainLod : Node3D
             if (ready)
             {
                 node.Split = true;
-                foreach (Node c in node.Children)
+                foreach (Node c in node.Children!)
                 {
                     Visit(c);
                 }
                 return;
             }
         }
-        else if (node.Children != null)
+        else if (!wantSplit && node.Children != null)
         {
             Prune(node);
         }
@@ -263,41 +334,34 @@ public sealed partial class TerrainLod : Node3D
 
     private void Release(Node n)
     {
+        if (n.Failed) { n.Failed = false; _requiredFailures--; }
         Hide(n);
+        n.Mesh?.Dispose();
+        n.WaterMesh?.Dispose();
         n.Mesh = null;
         n.WaterMesh = null;
         n.Grid = null;
         n.Data = null;
         if (n.Requested && n.Job != null)
         {
-            n.Job.Cancelled = true;
-            lock (_lock)
-            {
-                if (_queue.Remove(n.Job))
-                {
-                    Interlocked.Decrement(ref _pending);
-                }
-            }
+            _work?.Cancel(n.Job);
         }
         n.Job = null;
         n.Requested = false;
+        n.Drawn = false;
+        _nodes.Remove(n.Key);
     }
 
     private void Request(Node n)
     {
-        if (n.Requested)
+        if (n.Requested || n.Failed)
         {
             return;
         }
+        var job = new Job { Node = n, Key = n.Key, Priority = Priority(n) };
+        if (!_work!.TryRequest(job)) { _capacityDeferred++; return; }
         n.Requested = true;
-        Interlocked.Increment(ref _pending);
-        var job = new Job { Node = n, Priority = Priority(n) };
         n.Job = job;
-        lock (_lock)
-        {
-            _queue.Add(job);
-        }
-        _signal.Release();
     }
 
     // ---------------------------------------------------------------- drawing
@@ -318,7 +382,8 @@ public sealed partial class TerrainLod : Node3D
             {
                 start = end = 1e12f;
             }
-            n.Instance.SetInstanceShaderParameter("morph_range", new Vector2(start, end));
+            n.MorphRange = new Vector2(start, end);
+            n.Instance.SetInstanceShaderParameter("morph_range", n.MorphRange);
             n.Instance.SetInstanceShaderParameter("tile_face", (int)n.Key.Face);
             n.Instance.Visible = true;
             if (n.WaterMesh != null && _waterMaterial != null)
@@ -326,7 +391,7 @@ public sealed partial class TerrainLod : Node3D
                 n.WaterInstance = _waterPool.Count > 0 ? _waterPool.Pop() : NewWaterInstance();
                 n.WaterInstance.Mesh = n.WaterMesh;
                 n.WaterInstance.Transform = n.Instance.Transform;
-                n.WaterInstance.SetInstanceShaderParameter("morph_range", new Vector2(start, end));
+                n.WaterInstance.SetInstanceShaderParameter("morph_range", n.MorphRange);
                 n.WaterInstance.SetInstanceShaderParameter("tile_face", (int)n.Key.Face);
                 n.WaterInstance.Visible = true;
             }
@@ -390,12 +455,13 @@ public sealed partial class TerrainLod : Node3D
                 }
             }
         }
+        InvalidateContactTiles();
     }
 
     private void Upload(Node n)
     {
         TileMeshData data = n.Data!;
-        var arrays = new Godot.Collections.Array();
+        using var arrays = new Godot.Collections.Array();
         arrays.Resize((int)Mesh.ArrayType.Max);
         arrays[(int)Mesh.ArrayType.Vertex] = data.Vertices;
         arrays[(int)Mesh.ArrayType.Normal] = data.Normals;
@@ -413,12 +479,13 @@ public sealed partial class TerrainLod : Node3D
             | ((int)Mesh.ArrayCustomFormat.RgbaFloat << (int)Mesh.ArrayFormat.FormatCustom2Shift)
             | ((int)Mesh.ArrayCustomFormat.Rgba8Unorm << (int)Mesh.ArrayFormat.FormatCustom3Shift));
         var mesh = new ArrayMesh();
+        n.Mesh = mesh; // Failure cleanup owns the native resource even when upload itself throws.
         mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, arrays, null, null, format);
-        n.Mesh = mesh;
+        if (mesh.GetSurfaceCount() != 1) throw new InvalidOperationException("Terrain upload did not create a native surface.");
         n.WaterMesh = null;
         if (data.WaterVertices != null)
         {
-            var water = new Godot.Collections.Array();
+            using var water = new Godot.Collections.Array();
             water.Resize((int)Mesh.ArrayType.Max);
             water[(int)Mesh.ArrayType.Vertex] = data.WaterVertices;
             water[(int)Mesh.ArrayType.TexUV] = data.WaterDepth!;
@@ -426,9 +493,10 @@ public sealed partial class TerrainLod : Node3D
             water[(int)Mesh.ArrayType.Custom0] = data.WaterMorph!;
             water[(int)Mesh.ArrayType.Index] = data.WaterIndices!;
             var waterMesh = new ArrayMesh();
+            n.WaterMesh = waterMesh;
             waterMesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, water, null, null,
                 (Mesh.ArrayFormat)((int)Mesh.ArrayCustomFormat.RgbFloat << (int)Mesh.ArrayFormat.FormatCustom0Shift));
-            n.WaterMesh = waterMesh;
+            if (waterMesh.GetSurfaceCount() != 1) throw new InvalidOperationException("Water upload did not create a native surface.");
         }
         // The grid's heights are above the sea; the split test measures from the mean radius.
         n.MinHeight = n.Grid!.MinHeight + (float)_seaLevel;
@@ -440,60 +508,6 @@ public sealed partial class TerrainLod : Node3D
         n.Job = null;
     }
 
-    // ---------------------------------------------------------------- workers
-
-    private void Work()
-    {
-        while (!_stopping)
-        {
-            _signal.Wait();
-            if (_stopping)
-            {
-                return;
-            }
-            Job? job = null;
-            lock (_lock)
-            {
-                int best = -1;
-                for (int i = 0; i < _queue.Count; i++)
-                {
-                    if (best < 0 || _queue[i].Priority < _queue[best].Priority)
-                    {
-                        best = i;
-                    }
-                }
-                if (best >= 0)
-                {
-                    job = _queue[best];
-                    _queue.RemoveAt(best);
-                }
-            }
-            if (job == null)
-            {
-                continue;
-            }
-            if (job.Cancelled)
-            {
-                _done.Enqueue(job);
-                continue;
-            }
-            try
-            {
-                long start = System.Diagnostics.Stopwatch.GetTimestamp();
-                TileGrid grid = TileMesh.Build(_surface, job.Node.Key);
-                job.Node.Data = TileMeshData.From(grid);
-                job.Node.Grid = grid;
-                Interlocked.Add(ref _buildTicks, System.Diagnostics.Stopwatch.GetTimestamp() - start);
-                int builds = Interlocked.Increment(ref _builds);
-                BuildMicroseconds = _buildTicks * 1e6 / System.Diagnostics.Stopwatch.Frequency / builds;
-            }
-            catch (Exception e)
-            {
-                GD.PushError($"Terrain tile {job.Node.Key} failed: {e}");
-            }
-            _done.Enqueue(job);
-        }
-    }
 }
 
 /// <summary>A tile grid as Godot vertex arrays, with skirts, prepared on a worker thread.</summary>
@@ -502,6 +516,7 @@ public sealed class TileMeshData
     public Vector3[] Vertices = Array.Empty<Vector3>();
     public Vector3[] Normals = Array.Empty<Vector3>();
     public Color[] Climate = Array.Empty<Color>();
+    /// <summary>Terrain UV.x: height above local water; UV.y: skirt flag. Water uses its separate depth array.</summary>
     public Vector2[] Heights = Array.Empty<Vector2>();
     public Vector2[] FaceMetres = Array.Empty<Vector2>();
     public float[] MorphPositions = Array.Empty<float>();
@@ -635,7 +650,9 @@ public sealed class TileMeshData
         }
         d.Climate[target] = new Color(grid.Climate[4 * source] / 255f, grid.Climate[4 * source + 1] / 255f,
             grid.Climate[4 * source + 2] / 255f, grid.Climate[4 * source + 3] / 255f);
-        d.Heights[target] = new Vector2(grid.Heights[source], offset == Vector3.Zero ? 0 : 1);
+        // Terrain UV.x is the wetness height: use the same local stream/lake/sea level as the water mesh.
+        // TileGrid.Heights itself remains ocean-relative for terrain bounds, water depth and physics.
+        d.Heights[target] = new Vector2(grid.Heights[source] - grid.WaterLevels[source], offset == Vector3.Zero ? 0 : 1);
         d.FaceMetres[target] = new Vector2(grid.FaceMetres[2 * source], grid.FaceMetres[2 * source + 1]);
     }
 

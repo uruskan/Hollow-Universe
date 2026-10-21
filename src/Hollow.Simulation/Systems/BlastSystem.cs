@@ -220,7 +220,7 @@ public sealed class BlastSystem : ZoneSystem
     }
 
     // A door's second point: its first leaf's centre.
-    internal static Vector3 CentreOf(Door door) => ClosestPoint(door, door.Leaf(0, door.Open).Position).Centre;
+    internal static Vector3 CentreOf(Door door) => ClosestPoint(door, door.LeafNow(0).Position).Centre;
 }
 
 /// <summary>The accessor on the zone (GROUND_SYSTEMS.md §12.2, K4).</summary>

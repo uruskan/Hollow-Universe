@@ -20,6 +20,8 @@ public partial class PlacementView : Node3D, IPlacement
 {
     private PlacementGhost _ghost = null!;
     private bool _aimed;
+    private PendingPlacement? _lastPlaced;
+    private bool _samePlacement;
 
     public GameClient Client { get; set; } = null!;
 
@@ -49,6 +51,32 @@ public partial class PlacementView : Node3D, IPlacement
     {
         _ghost = new PlacementGhost { Name = "Ghost" };
         AddChild(_ghost);
+        Client.Local.IntentRejected += Rejected;
+    }
+
+    public override void _ExitTree()
+    {
+        Client.Local.IntentRejected -= Rejected;
+        RetireWorld();
+    }
+
+    /// <summary>Placement details may hold the old world's sockets and pieces; no candidate survives retirement.</summary>
+    public void RetireWorld()
+    {
+        _aimed = _samePlacement = false;
+        _lastPlaced = null;
+        Placeable = null; Current = null; Turns = 0;
+        if (_ghost != null)
+        {
+            _ghost.Show(null);
+            _ghost.ShowPending(Array.Empty<PendingPlacement>());
+            _ghost.Assets = null;
+        }
+    }
+
+    private void Rejected(IntentAnswer answer)
+    {
+        if (_lastPlaced?.Seq == answer.Seq) _lastPlaced = null;
     }
 
     /// <summary>A frame starts: the ghost shows only if what is held aims it before <see cref="EndFrame"/>.</summary>
@@ -62,6 +90,7 @@ public partial class PlacementView : Node3D, IPlacement
             Placeable = null;
             Current = null;
             Turns = 0;
+            _lastPlaced = null;
             _ghost.Show(null);
         }
         _ghost.ShowPending(Client.Local.PendingPlacements);
@@ -77,7 +106,14 @@ public partial class PlacementView : Node3D, IPlacement
         }
         _aimed = true;
         Current = Client.Placement().Plan(placeable, eye, forward, viewYaw, Turns);
-        _ghost.Show(Current);
+        _samePlacement = Current != null && _lastPlaced is { } placed && placed.Placeable == placeable &&
+            Num.Vector3.DistanceSquared(placed.Position, Current.Position) < 0.0025f &&
+            Math.Abs(Num.Quaternion.Dot(placed.Rotation, Current.Rotation)) > 0.999f;
+        if (!_samePlacement) _lastPlaced = null;
+        // Do not layer the active preview over its pending copy or a newly occupied socket.
+        bool pending = Current != null && System.Linq.Enumerable.Any(Client.Local.PendingPlacements,
+            p => p.Placeable == placeable && Num.Vector3.DistanceSquared(p.Position, Current.Position) < 0.0025f);
+        _ghost.Show(_samePlacement || pending || Current?.Outcome.Code is OutcomeCode.Occupied or OutcomeCode.HasDoor or OutcomeCode.HasLock ? null : Current);
     }
 
     /// <summary>R: the next turn by the rule (a step, the other side of a door).</summary>
@@ -89,9 +125,16 @@ public partial class PlacementView : Node3D, IPlacement
     /// </summary>
     public uint Place(ContainerRef from, int slot)
     {
-        if (Current is { Valid: true } candidate)
+        if (Current is { Valid: true } candidate && !_samePlacement)
         {
-            return Client.Local.Place(candidate, from, slot);
+            uint seq = Client.Local.Place(candidate, from, slot);
+            if (seq != 0)
+            {
+                _lastPlaced = new PendingPlacement(seq, candidate.Placeable, candidate.Position, candidate.Rotation, candidate.Detail, candidate.Variant);
+                _samePlacement = true;
+                _ghost.Show(null);
+            }
+            return seq;
         }
         if (Reason is { } why)
         {
@@ -109,7 +152,7 @@ public partial class PlacementView : Node3D, IPlacement
         }
     }
 
-    void IPlacement.Place(HeldContext ctx) => Place(ContainerRef.Belt, ctx.Slot);
+    uint IPlacement.Place(HeldContext ctx) => Place(ContainerRef.Belt, ctx.Slot);
 
     void IPlacement.Turn(HeldContext ctx) => Turn();
 

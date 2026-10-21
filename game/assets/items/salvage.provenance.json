@@ -1,0 +1,92 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "salvage",
+  "date": "2026-10-19",
+  "replaces": "metal-fragments.glb stand-in and SVG fallback",
+  "authorship": "Original cosmetic geometry, procedural PBR atlas and rendered icons; no reference game files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/scrap",
+    "image": "https://files.facepunch.com/rust/item/scrap_512.png",
+    "use": "Visual observation before authoring only; no downloaded reference files"
+  },
+  "authoring_source": {
+    "path": "art/models/salvage.py",
+    "sha256": "afeb7a696b286703ea4f15ef2acca9d673935c00c4ef73e439426a91b7163fc9"
+  },
+  "authoring_helper": {
+    "path": "art/hollow/component_mesh.py",
+    "sha256": "8991c9a2503976f758c3fe8b1b97f2642c9050548149d8d329598983629fcb34"
+  },
+  "geometry": {
+    "asset": "salvage",
+    "dimensions_blender_xyz_m": [
+      0.36922547221183777,
+      0.31860433518886566,
+      0.11096013337373734
+    ],
+    "texture_size": 1024,
+    "material_count": 1,
+    "lod_triangles": {
+      "Salvage_lod0": 7752,
+      "Salvage_lod1": 4972,
+      "Salvage_lod2": 3184
+    },
+    "hull_triangles": 42,
+    "vertex_ao_samples": 8
+  },
+  "files": {
+    "game/assets/items/salvage.glb": {
+      "sha256": "d721dce0260c3167c3e3762fee9793688d441d2cf285ef5bb971741700b65572",
+      "bytes": 896940
+    },
+    "game/assets/items/salvage.glb.import": {
+      "sha256": "60a2a0427c2e767f835d9b1bf9a94bf8c556279a8128694d475b4aad5b7231b4",
+      "bytes": 1351
+    },
+    "game/assets/materials/salvage.tres": {
+      "sha256": "fa4c5e828507f06d98d1f6e1fa17fa13a563418446567c219a6b1fef118b0f32",
+      "bytes": 613
+    },
+    "game/assets/textures/salvage/salvage_albedo.png": {
+      "sha256": "c82041f40f6eacea2373f3943ffd4b7c03d8a151548aa74526601f98a27b632b",
+      "bytes": 1271719
+    },
+    "game/assets/textures/salvage/salvage_albedo.png.import": {
+      "sha256": "75b26746c70286ff5b820ad2302762242ede0b7c88fadfb9e5987522aea6e5ba",
+      "bytes": 1018
+    },
+    "game/assets/textures/salvage/salvage_normal.png": {
+      "sha256": "8f83337cc2029a98bd1ae1212dd4f4d9f39bd3742469207202b2045e3ca0d018",
+      "bytes": 1097445
+    },
+    "game/assets/textures/salvage/salvage_normal.png.import": {
+      "sha256": "4a8c592ca514ff553353d00dce52d33d88c0797e7fc1c1f93654dbe9b18cf9e3",
+      "bytes": 1017
+    },
+    "game/assets/textures/salvage/salvage_orm.png": {
+      "sha256": "eb4351c87f84db8a15db2a739c4e8690690d91d7af9ed3e71881f468f57b9213",
+      "bytes": 523928
+    },
+    "game/assets/textures/salvage/salvage_orm.png.import": {
+      "sha256": "4b54f42ff9054f27209bd87242157f01f7adcdadc8efbc7abb96b76167a23bef",
+      "bytes": 1009
+    },
+    "game/assets/items/icons/128/salvage.png": {
+      "sha256": "0d6fe1ab4705144d7610d5ce90aad23c4a68901938f4ec9319c2f5adb46d1f0c",
+      "bytes": 19996
+    },
+    "game/assets/items/icons/128/salvage.png.import": {
+      "sha256": "50c3a833341d7af16f6bbeb65196392100c88a856f96984236963110204bc6a9",
+      "bytes": 947
+    },
+    "game/assets/items/icons/256/salvage.png": {
+      "sha256": "d66e9db86646541b4bcba21a35faab950b8154a4c6b0dffe109d7e0a59790a89",
+      "bytes": 63638
+    },
+    "game/assets/items/icons/256/salvage.png.import": {
+      "sha256": "639972657a1c945170ba446065ae1b53422899873c29a70ca99692851c0f7637",
+      "bytes": 948
+    }
+  }
+}

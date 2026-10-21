@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "sealed-schematic",
+  "date": "2026-10-19",
+  "replaces": "building-plan.glb stand-in and SVG fallback",
+  "authorship": "Original cosmetic geometry, procedural PBR atlas and rendered icons; no reference game files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/advancedblueprintfragment",
+    "image": "https://files.facepunch.com/rust/item/advancedblueprintfragment_512.png",
+    "use": "Visual observation before authoring only; no downloaded reference files"
+  },
+  "authoring_source": {
+    "path": "art/models/sealed_schematic.py",
+    "sha256": "4aee8d1fb264789ce2578d434cdb7de7386e6e25bef441cbf22b78473adfdb0b"
+  },
+  "authoring_helper": {
+    "path": "art/hollow/diagram_texture.py",
+    "sha256": "c961749d370602f8d1dbba3baf4b4d6dd9c9ebb3c30e423419b4dd36e43df226"
+  },
+  "geometry": {
+    "asset": "sealed-schematic",
+    "dimensions_blender_xyz_m": [
+      0.24208562076091766,
+      0.022714053746312857,
+      0.30231595039367676
+    ],
+    "texture_size": 1024,
+    "material_count": 1,
+    "lod_triangles": {
+      "SealedSchematic_lod0": 2432,
+      "SealedSchematic_lod1": 656,
+      "SealedSchematic_lod2": 188
+    },
+    "hull_triangles": 34
+  },
+  "files": {
+    "game/assets/items/sealed-schematic.glb": {
+      "sha256": "15d327db657ca1d92e646bb62a42c34e5f973b04d6abd60812ced3acdc502a65",
+      "bytes": 100048
+    },
+    "game/assets/items/sealed-schematic.glb.import": {
+      "sha256": "5e5336170cdfa5b93beb3d8eed06e1e414720ceadd3fc09633cf9bfff2597efd",
+      "bytes": 1403
+    },
+    "game/assets/materials/sealed-schematic.tres": {
+      "sha256": "d7f80bc06a9e02e82354ec85acb80396db4775c2e7f492122f1cb7fa232eb8cd",
+      "bytes": 677
+    },
+    "game/assets/textures/sealed-schematic/sealed_schematic_albedo.png": {
+      "sha256": "bd23eb4b9f8d81bbaac6593d3989a70ae54a12cea9a5ecc5abc44f5117ec45b4",
+      "bytes": 1043841
+    },
+    "game/assets/textures/sealed-schematic/sealed_schematic_albedo.png.import": {
+      "sha256": "ea0e5ee9aaf5c25a489a7b52f9a78095901c227f1cde5cba07488cf8ee10152f",
+      "bytes": 1054
+    },
+    "game/assets/textures/sealed-schematic/sealed_schematic_normal.png": {
+      "sha256": "02f39147d410162574accc65dea1e10cb8647f67bdda0a4a5515baeb1c2a66b8",
+      "bytes": 520356
+    },
+    "game/assets/textures/sealed-schematic/sealed_schematic_normal.png.import": {
+      "sha256": "d6024dfb1565438552e5cbf6f37fef981f6ab65ac1e8799c12759669c9c6118e",
+      "bytes": 1053
+    },
+    "game/assets/textures/sealed-schematic/sealed_schematic_orm.png": {
+      "sha256": "c2c68d88e3061d5351180aa02028be5b0d416666e2d1afc4312e8bb1f6a94656",
+      "bytes": 4581
+    },
+    "game/assets/textures/sealed-schematic/sealed_schematic_orm.png.import": {
+      "sha256": "26b75f77f1975a5f13d560508fb205a17086688928c95f50c7a78492b773c925",
+      "bytes": 1045
+    },
+    "game/assets/items/icons/128/sealed-schematic.png": {
+      "sha256": "a674a7c86c61eaee05bcf2a4e2cacbb556f89dfd65bb4ceecb592143da81e961",
+      "bytes": 17205
+    },
+    "game/assets/items/icons/128/sealed-schematic.png.import": {
+      "sha256": "672d97852d8f411d47fe26b5f9e2d07c72bd71a5c3e77d1a3cf24c75a97c6722",
+      "bytes": 975
+    },
+    "game/assets/items/icons/256/sealed-schematic.png": {
+      "sha256": "6e6612f2e8e71b473edc7251fa542ad333feff091f3eaa1c490a6e91be7f376f",
+      "bytes": 60766
+    },
+    "game/assets/items/icons/256/sealed-schematic.png.import": {
+      "sha256": "c62cb51945219f8caf5330474b193758476951079fa682bafd4fadb0ec3696d9",
+      "bytes": 975
+    }
+  }
+}

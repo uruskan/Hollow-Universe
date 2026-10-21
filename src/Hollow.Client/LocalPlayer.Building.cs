@@ -44,7 +44,7 @@ public sealed partial class LocalPlayer
         BuildingData data = Content.Building;
         string material = grade >= 0 && grade < data.Grades.Count ? data.Grades[grade].Material : "";
         int cost = data.CostOf(piece.Def, grade);
-        return Intend(new Pending(p => new ItemWallet(p.Content, p.Inventory.Carried).Take(material, cost)),
+        return Intend(new Pending(p => new ItemWallet(p.Content, p.Inventory.Carried, p.FreeBuild).Take(material, cost)),
             w => new HammerIntent { Seq = _nextSeq, Action = HammerAction.Upgrade, Target = piece.Id.Value, Grade = (byte)Math.Clamp(grade, 0, 7) }.WriteMessage(w));
     }
 
@@ -61,7 +61,7 @@ public sealed partial class LocalPlayer
         string material = data.Grades[piece.Grade].Material;
         double restored = Math.Min(data.RepairPerHit, piece.MaxHealth - piece.Health);
         int cost = restored > 0 ? piece.Structure.World.RepairCost(data.CostOf(piece.Def, piece.Grade), restored, piece.MaxHealth) : 0;
-        return Intend(new Pending(p => new ItemWallet(p.Content, p.Inventory.Carried).Take(material, cost)),
+        return Intend(new Pending(p => new ItemWallet(p.Content, p.Inventory.Carried, p.FreeBuild).Take(material, cost)),
             w => new HammerIntent { Seq = _nextSeq, Action = HammerAction.Repair, Target = piece.Id.Value, Family = (byte)TargetFamily.Piece }.WriteMessage(w));
     }
 

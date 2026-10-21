@@ -35,6 +35,11 @@ public sealed class HeldItemModel
 
     public float StrikeTime { get; init; } = 0.3f;
 
+    public float DrawSeconds { get; init; } = 1f;
+
+    public Basis SupportFrame => Entry.Held?.SupportHand is { } support
+        ? HandFrame.Axes(support.Fingers, support.Thumb) : HandFrame.SupportGrip;
+
     /// <summary>Swung like a hatchet: held by a handle at the hip, head forward (tools and blades).</summary>
     public bool Swung => Kind == HeldKind.Tool && Class is "tool" or "blade" && Id != "building-plan" && !LeftHanded;
 
@@ -52,13 +57,16 @@ public sealed class HeldItemModel
         : Entry.Held?.Grip is { Radius: <= 0f } ? HandPoses.Grip.Relaxed : HandPoses.Grip.Fist;
 
     /// <summary>The radius the right hand's fingers close round: the catalogue's grip (a rock's girth), else a handle's.</summary>
-    public float GripRadius => Entry.Held?.Grip is { Radius: > 0f } grip ? grip.Radius : HandPoses.DefaultRadius(Fingers);
+    public float GripRadius => (LeftHanded ? Presentation.LeftHand : Presentation.RightHand).Radius;
 
     /// <summary>How far out from the palm what is held sits: the catalogue's seat, else its radius (a handle's 1.8 cm).</summary>
-    public float GripSeat => Entry.Held?.Grip is { } grip ? grip.Seat ?? Math.Max(grip.Radius, 0f) : HandPoses.HandleSeat;
+    public float GripSeat => (LeftHanded ? Presentation.LeftHand : Presentation.RightHand).Seat;
 
     /// <summary>Where a first-person swing turns about, from the grip (camera space): the hand, or the catalogue's pivot.</summary>
-    public Vector3 SwingPivot => Entry.Held?.Grip?.Pivot ?? Vector3.Zero;
+    public Vector3 SwingPivot => Presentation.SwingPivot;
+
+    /// <summary>Resolved on demand so editor replacement and reload also update already-equipped models.</summary>
+    public HeldPresentationProfile Presentation => HeldPresentations.Get(Id);
 }
 
 /// <summary>
@@ -144,6 +152,13 @@ public static class HeldItems
     /// </summary>
     public static Transform3D Grip(Node3D item, HeldItemModel model)
     {
+        HeldPresentationHand hand = model.LeftHanded ? model.Presentation.LeftHand : model.Presentation.RightHand;
+        return RawGrip(item, model) * hand.GripOffset.Transform;
+    }
+
+    /// <summary>The source model grip before the shared presentation profile's artist adjustment.</summary>
+    public static Transform3D RawGrip(Node3D item, HeldItemModel model)
+    {
         if (model.Entry.Held?.Grip is not { } grip)
         {
             return Socket(item, model.LeftHanded ? "grip_l" : "grip_r");
@@ -182,7 +197,7 @@ public static class HeldItems
         }
         _all = new List<HeldItemModel>();
         _byId = new Dictionary<string, HeldItemModel>(StringComparer.Ordinal);
-        Dictionary<string, (string Name, float Swing, float Strike)> items = ItemData();
+        Dictionary<string, (string Name, float Swing, float Strike, float Draw)> items = ItemData();
         foreach (ModelEntry entry in ModelCatalog.Entries)
         {
             if (!entry.IsItem || entry.Held == null)
@@ -195,6 +210,7 @@ public static class HeldItems
                 Name = items.TryGetValue(entry.Key, out var data) ? data.Name : NameFromKey(entry.Key),
                 SwingTime = data.Swing > 0f ? data.Swing : 0.85f,
                 StrikeTime = data.Strike > 0f ? data.Strike : 0.3f,
+                DrawSeconds = data.Draw > 0f ? data.Draw : 1f,
                 // The arms' pose is the catalogue's (held.pose: pistol or rifle), a tool's by default.
                 Kind = Enum.TryParse(entry.Held.Pose, ignoreCase: true, out HeldKind pose) ? pose : HeldKind.Tool,
                 Class = entry.Class,
@@ -209,9 +225,9 @@ public static class HeldItems
     }
 
     /// <summary>Each item's name and melee timing by key, from items.json (read once).</summary>
-    private static Dictionary<string, (string Name, float Swing, float Strike)> ItemData()
+    private static Dictionary<string, (string Name, float Swing, float Strike, float Draw)> ItemData()
     {
-        var items = new Dictionary<string, (string, float, float)>(StringComparer.Ordinal);
+        var items = new Dictionary<string, (string, float, float, float)>(StringComparer.Ordinal);
         const string path = "res://data/ground/items.json";
         if (!FileAccess.FileExists(path))
         {
@@ -230,7 +246,8 @@ public static class HeldItems
                 swing = melee.TryGetProperty("swing", out JsonElement sw) ? sw.GetSingle() : 0f;
                 strike = melee.TryGetProperty("strike", out JsonElement st) ? st.GetSingle() : 0f;
             }
-            items[key.GetString()!] = (name.GetString()!, swing, strike);
+            float draw = item.TryGetProperty("bow", out JsonElement bow) && bow.TryGetProperty("draw", out JsonElement d) ? d.GetSingle() : 1f;
+            items[key.GetString()!] = (name.GetString()!, swing, strike, draw);
         }
         return items;
     }
@@ -255,8 +272,14 @@ public static class HandFrame
     /// <summary>Left palm under a barrel, item space: thumb forward (+X), palm up (+Y), fingers to the right (+Z).</summary>
     public static readonly Basis SupportGrip = new(new Vector3(0, 0, 1), new Vector3(1, 0, 0), new Vector3(0, 1, 0));
 
-    /// <summary>Left palm against the right hand on a pistol grip: palm to the right (+Z), thumb forward, fingers down.</summary>
-    public static readonly Basis PistolSupport = new(new Vector3(0, -1, 0), new Vector3(1, 0, 0), new Vector3(0, 0, 1));
+    /// <summary>Orthonormal grip axes; parallel or zero axes are rejected instead of twisting the wrist unpredictably.</summary>
+    public static Basis Axes(Vector3 fingers, Vector3 thumb)
+    {
+        Vector3 f = fingers.Normalized();
+        Vector3 t = thumb - f * thumb.Dot(f);
+        return f.LengthSquared() < 0.5f || t.LengthSquared() < 1e-6f ? Basis.Identity
+            : new Basis(f, t.Normalized(), f.Cross(t.Normalized()));
+    }
 
     /// <summary>
     /// The constant rotation from the grip frame to the hand bone, and the palm centre in the grip frame (relative to

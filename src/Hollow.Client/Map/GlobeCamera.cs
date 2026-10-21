@@ -131,9 +131,10 @@ public sealed class GlobeCamera
     /// Time passing: away from the poles the screen's up turns back towards local north, as a compass settles (nothing
     /// while following, which holds north up).
     /// </summary>
-    public void Settle(double seconds)
+    public void Settle(double seconds, bool dragging = false)
     {
-        if (Following || seconds <= 0 || GlobeProjection.Compass(Centre) is not { } compass)
+        // A held point must stay under the pointer. North-up settling resumes only after release.
+        if (dragging || Following || seconds <= 0 || GlobeProjection.Compass(Centre) is not { } compass)
         {
             return;
         }

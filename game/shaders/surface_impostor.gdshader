@@ -13,6 +13,7 @@ uniform sampler2D colour_atlas : source_color, filter_linear_mipmap, repeat_disa
 uniform sampler2D normal_atlas : filter_linear_mipmap, repeat_disable;
 uniform float rows = 1.0;
 uniform float views = 8.0;
+uniform vec2 native_rows = vec2(1e6, 1e6); // authored rows [start,end), legacy rows keep their lighting
 uniform float fade_out = 4500.0;
 global uniform float hu_lod_clock;
 instance uniform vec2 cut = vec2(0.0, 1e9); // drawn from x to y metres (the near set, or the far blocks)
@@ -24,12 +25,12 @@ varying float v_frame;
 varying float v_row;
 varying float v_fade_in;
 varying float v_fade_out;
-varying float v_cloud;
 varying vec3 v_right;
 varying vec3 v_up;
 varying vec3 v_toward;
 varying vec3 v_tint;
 varying float v_height;
+varying float v_native;
 
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
@@ -58,6 +59,7 @@ void vertex() {
 	float azimuth = atan(local.x, local.z);
 	v_frame = fract(azimuth / 6.2831853) * views;
 	v_row = INSTANCE_CUSTOM.y;
+	v_native = step(native_rows.x, v_row) * (1.0-step(native_rows.y, v_row));
 	vec3 corner = origin + right * (VERTEX.x * extent) + up * (height * 0.5 + (VERTEX.y - 0.5) * extent);
 	if (v_fade <= 0.0) {
 		corner = origin;
@@ -69,6 +71,7 @@ void vertex() {
 	float t = INSTANCE_CUSTOM.x, h = fract(t * 7.31);
 	float k = 0.86 + 0.28 * t;
 	v_tint = vec3(k * (0.92 + 0.16 * h), k, k * (1.04 - 0.1 * h));
+	v_tint = mix(v_tint, vec3(0.94+0.12*t), v_native);
 	v_height = VERTEX.y;
 	VERTEX = (VIEW_MATRIX * vec4(corner, 1.0)).xyz;
 	NORMAL = normalize((VIEW_MATRIX * vec4(toward, 0.0)).xyz);
@@ -88,10 +91,9 @@ void fragment() {
 	if (dither > v_fade_out || 1.0 - dither > v_fade_in) {
 		discard;
 	}
-	ALPHA = c.a;
-	ALPHA_SCISSOR_THRESHOLD = 0.5;
-	ALPHA_ANTIALIASING_EDGE = 0.25;
-	ALPHA_TEXTURE_COORDINATE = vec2(UV.x, UV.y) * vec2(256.0);
+	// Opaque cutout keeps tree colour and depth together for refracting water.
+	// Texture/mip coverage and LOD dither remain; no alpha-to-coverage smoothing.
+	if (c.a < 0.5) discard;
 	vec3 n0 = texture(normal_atlas, uv0).rgb * 2.0 - 1.0;
 	vec3 n1 = texture(normal_atlas, uv1).rgb * 2.0 - 1.0;
 	vec3 nc = normalize(mix(n0, n1, t) + vec3(0.0, 0.0, 0.25));
@@ -105,14 +107,16 @@ void fragment() {
 	hu_aerial(v_world, CAMERA_POSITION_WORLD, 6, a, fog);
 	ALBEDO = a;
 	FOG = fog;
-	v_cloud = hu_cloud_shadow(v_world);
+
 }
 
 void light() {
 	float ndl = dot(NORMAL, LIGHT);
-	float cloud = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
+	float cloud = LIGHT_IS_DIRECTIONAL ? hu_cloud_shadow(v_world, normalize((INV_VIEW_MATRIX * vec4(LIGHT, 0.0)).xyz)) : 1.0;
 	vec3 light = LIGHT_COLOR * ATTENUATION * cloud / HU_PI;
 	float back = clamp(dot(VIEW, LIGHT), 0.0, 1.0);
 	float wrap = clamp(-ndl * 0.6 + 0.4, 0.0, 1.0);
-	DIFFUSE_LIGHT += light * (clamp(ndl, 0.0, 1.0) + translucency * (pow(back, 4.0) * 1.6 + wrap * 0.35) * vec3(0.9, 1.05, 0.55));
+	vec3 legacy = translucency * (pow(back, 4.0) * 1.6 + wrap * 0.35) * vec3(0.9, 1.05, 0.55);
+	vec3 native = vec3(0.22*pow(back,4.0)+0.10*clamp(-ndl,0.0,1.0));
+	DIFFUSE_LIGHT += light * (clamp(ndl, 0.0, 1.0) + mix(legacy,native,v_native));
 }

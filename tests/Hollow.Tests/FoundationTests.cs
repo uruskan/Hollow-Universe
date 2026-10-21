@@ -49,7 +49,7 @@ public static class FoundationTests
         Assert.Equal("Needs a level 2 workbench nearby", texts.Line(OutcomeCode.NeedsWorkbench.With(2)), "a level");
         Assert.True(OutcomeCode.Stale == new Outcome(OutcomeCode.Stale, 3) && !new Outcome(OutcomeCode.Stale).Ok && Outcome.Done.Ok,
             "an answer is its code, whatever its detail");
-        Assert.True((int)Enum.GetValues<OutcomeCode>().Max() < 128, "the codes fit IntentResult's 7 bits");
+        Assert.True((int)Enum.GetValues<OutcomeCode>().Max() < 256, "the codes fit IntentResult's 8 bits");
 
         Dictionary<string, string> files = GameContent.ReadTexts(ContentFixture.Folder);
         ulong hash = GameContent.FromTexts(files).Hash;
@@ -207,11 +207,12 @@ public static class FoundationTests
         Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, chest.Ref, "open"), "from inside it opens");
         z.Actions().Close(ada);
 
-        // The door, from aside in front of the doorway: its frame holds it and doesn't hide it.
+        // The door, from aside in front of the doorway (within the line of its jambs: the door lies inside its frame now, so from
+        // further aside the frame hides it, as a wall hides what is behind it): its frame holds it and doesn't hide it.
         Door door = hut.Door!;
         (Vector3 front, Vector3 doorOut) = hut.Face(hut.Doorway, height: 0);
         Vector3 aside = Vector3.Normalize(Vector3.Cross(z.Frame.UpAt(front), doorOut));
-        Raids.Stand(rig, ada, z.Settle(front + doorOut * 0.8f + aside * 1.6f));
+        Raids.Stand(rig, ada, z.Settle(front + doorOut * 0.8f + aside * 0.5f));
         Assert.Equal(OutcomeCode.Done, z.Interaction().Interact(ada, door.Ref, "door-open"), "the door opens from aside");
 
         // A dud stuck on the east wall's outside: not lit through the wall, lit from in front.
@@ -370,7 +371,7 @@ public static class FoundationTests
         Assert.True(z.Supports().DependentsOf(door.Ref).Contains(charge.Ref), "the door lists it as resting on it");
         Vector3 shut = charge.Position;
         Assert.True(z.Building().World!.Toggle(1, door).Ok, "the door opens");
-        rig.Step(1);
+        rig.Step(15);
         Assert.True(Vector3.Distance(charge.Position, shut) > 0.2f && charge.State == ExplosiveState.Stuck, "the charge swung with the leaf");
         Assert.True(z.Supports().TryLinkPose(charge.Link, out TargetPose on) && Vector3.Distance(on.Position, charge.Position) < 1e-3f, "where its link says");
         z.Building().DamageBuilding(door, Vector3.UnitZ, 1_000_000, projectile: false);
@@ -478,7 +479,13 @@ public static class FoundationTests
             z.Targets().Families.Find((int)TargetFamily.Animal)!.Capabilities(deer.Id.Value).Has(lifetime), "their capabilities say so");
         Assert.Equal(4, z.Things().LooseCount, "the bag, the body, the dud and the carcass lie loose, nothing else");
 
-        // Their time up, the one step ends each through its family.
+        // A player's body first becomes a bag. The same lifetime step does that without removing its inventory.
+        body.Life!.Restore(CorpseStage.Body, 1, body.Life.HarvestLeft, z.Tick);
+        rig.Step(31);
+        Assert.True(!body.IsBody && z.Things().StaticOf(body.Id) == body && body.Loot[0].Count == 20,
+            "body phase ends into the same lootbag with its contents");
+        Assert.Equal(4, z.Things().LooseCount, "phase change keeps exactly one loose container");
+        // Their final time up, the one step ends each through its family.
         foreach (ILifetime loose in new ILifetime[] { bag, body, dud, deer })
         {
             loose.EndsAt = z.Tick + 5;

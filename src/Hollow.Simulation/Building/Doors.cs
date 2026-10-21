@@ -98,19 +98,19 @@ public sealed class CodeLock : DoorLock
 
 /// <summary>
 /// A door fitted into a doorway (single) or a wall frame (double, garage): a deployable item with its own health, never
-/// upgraded. Its leaves swing on the hinges from the kit's assembly manifest; open or shut they collide, so an open
-/// door still blocks (RustMVP's rule).
+/// upgraded. Its leaves swing about hinge pins whose side and swing side are its layout (docs/DOORS.md §3); open or shut
+/// they collide, so an open door still blocks (RustMVP's rule).
 /// </summary>
-public sealed class Door : IBuildingPart, IOwned
+public sealed class Door : IBuildingPart, IOwned, ILockHost
 {
     internal uint[] Bodies;
 
-    internal Door(EntityId id, DoorDef def, Piece frame, int flip, ulong owner)
+    internal Door(EntityId id, DoorDef def, Piece frame, int layout, ulong owner)
     {
         Id = id;
         Def = def;
         Frame = frame;
-        Flip = flip;
+        Layout = layout & def.LayoutMask;
         Owner = owner;
         Health = def.Health;
         Bodies = new uint[def.Leaves.Count];
@@ -126,21 +126,70 @@ public sealed class Door : IBuildingPart, IOwned
     /// <summary>The doorway or wall frame it's fitted into.</summary>
     public Piece Frame { get; }
 
-    /// <summary>0, or 1 when turned 180° (the other hinge side and swing).</summary>
-    public int Flip { get; }
+    /// <summary>Which side the hinge is on and which way the leaves swing: bit 0 hinges on the right, bit 1 swings out (+Z); see <see cref="DoorDef.Hinging"/>.</summary>
+    public int Layout { get; }
+
+    /// <summary>Hinged on the right (seen from +Z): its leaf is the mirrored one.</summary>
+    public bool HingeRight => (Layout & 1) != 0;
+
+    /// <summary>Swinging out, toward the +Z side of its frame.</summary>
+    public bool SwingOut => (Layout & 2) != 0;
+
+    /// <summary>The mesh leaf <paramref name="index"/> is drawn with in this layout.</summary>
+    public string LeafMesh(int index) => HingeRight && Def.Leaves[index].MirrorMesh.Length > 0 ? Def.Leaves[index].MirrorMesh : Def.Leaves[index].Mesh;
 
     public ulong Owner { get; }
 
     /// <summary>Whose it is to a viewer (GROUND_SYSTEMS.md §3.3): its lock's fitter while it has a lock, else who fitted the door.</summary>
     ulong IOwned.OwnerId => Lock?.Owner ?? Owner;
 
+    /// <summary>
+    /// Open or shut as the door is going to be: its target (a door still swinging open is open). Where its leaves are is
+    /// <see cref="Progress"/>.
+    /// </summary>
     public bool Open { get; internal set; }
+
+    /// <summary>The progress at <see cref="Since"/>: 0 shut to 1 open (DOORS.md §4).</summary>
+    public float From { get; internal set; }
+
+    /// <summary>+1 opening, −1 shutting, 0 still.</summary>
+    public sbyte Moving { get; internal set; }
+
+    /// <summary>The tick its motion began (or, still, the tick it stopped).</summary>
+    public long Since { get; internal set; }
+
+    /// <summary>Where its leaves' bodies are now, 0 shut to 1 open: the progress they were last put at.</summary>
+    public float Progress { get; internal set; }
+
+    /// <summary>Where it is at a tick: the same arithmetic on every machine (before its motion began, where it began).</summary>
+    public float ProgressAt(long tick) =>
+        Moving == 0 || tick <= Since ? From : Math.Clamp(From + Moving * ((tick - Since) * Def.ProgressPerTick), 0f, 1f);
+
+    /// <summary>Where it is at a fractional tick (drawing).</summary>
+    public float ProgressAt(double tick) =>
+        Moving == 0 || tick <= Since ? From : (float)Math.Clamp(From + Moving * ((tick - Since) * Def.ProgressPerTick), 0.0, 1.0);
+
+    /// <summary>The tick its motion ends at its target, or <see cref="Since"/> when still.</summary>
+    public long EndsAt => Moving == 0 ? Since : Since + (long)Math.Ceiling((Moving > 0 ? 1 - From : From) / Def.ProgressPerTick);
+
+    // Puts the door still at its target, where its record says (a door restored or made).
+    internal void Rest(bool open)
+    {
+        Open = open && Def.Opens;
+        From = Progress = Open ? 1f : 0f;
+        Moving = 0;
+    }
 
     public double Health { get; internal set; }
 
     public double LastDamagedAt { get; internal set; } = double.NegativeInfinity;
 
     public DoorLock? Lock { get; internal set; }
+
+    DoorLock? ILockHost.Lock { get => Lock; set => Lock = value; }
+    bool ILockHost.Lockable => Def.Lockable;
+    bool ILockHost.LockGone => Gone;
+    void ILockHost.LockChanged() => Frame.Structure.World.NotifyLockChanged(this);
 
     public bool Gone { get; internal set; }
 
@@ -150,39 +199,63 @@ public sealed class Door : IBuildingPart, IOwned
     /// <summary>Its leaves' Jolt body IDs.</summary>
     public IReadOnlyList<uint> BodyIds => Bodies;
 
+    /// <summary>A leaf's pose in the zone where its body is now (<see cref="LeafAt"/> at <see cref="Progress"/>).</summary>
+    public (Vector3 Position, Quaternion Rotation) LeafNow(int index) => LeafAt(index, Progress);
+
+    /// <summary>A leaf's pose in the zone, open or shut (<see cref="LeafAt"/> at 1 or 0).</summary>
+    public (Vector3 Position, Quaternion Rotation) Leaf(int index, bool open) => LeafAt(index, open && Def.Opens ? 1f : 0f);
+
     /// <summary>
-    /// A leaf's pose in the zone, open or shut: the frame's transform, the flip, the hinge from the manifest, then the
-    /// leaf's yaw about its hinge.
+    /// A leaf's pose in the zone at a progress from 0 (shut) to 1 (open): its shut pose in the frame turned about its hinge
+    /// pin by the layout's open yaw times the ease, then the frame's transform. A garage door's curtain rises instead.
     /// </summary>
-    public (Vector3 Position, Quaternion Rotation) Leaf(int index, bool open)
+    public (Vector3 Position, Quaternion Rotation) LeafAt(int index, float progress)
     {
         LeafDef leaf = Def.Leaves[index];
-        (Vector3 position, Quaternion rotation) = Frame.ZoneTransform;
-        Quaternion flip = Quaternion.CreateFromAxisAngle(Vector3.UnitY, Flip * MathF.PI);
-        Quaternion swing = Quaternion.CreateFromAxisAngle(Vector3.UnitY, open && !Def.Rolls ? (float)(leaf.OpenYaw * Math.PI / 180) : 0f);
-        Vector3 hinge = leaf.Hinge;
-        if (open && Def.Rolls)
+        LeafHinging hinging = Def.Hinging(index, Layout);
+        progress = Math.Clamp(progress, 0f, 1f);
+        Quaternion turn = Quaternion.CreateFromAxisAngle(Vector3.UnitY, Def.Rolls ? 0f : hinging.OpenYaw * DoorDef.Ease(progress));
+        Vector3 local = hinging.Pin + Vector3.Transform(hinging.Offset, turn);
+        if (Def.Rolls)
         {
-            // A garage door's curtain rolls up into its header.
-            hinge += new Vector3(0, leaf.Size.Y, 0);
+            // A garage door's curtain rolls up into its header, as far as the kit's clip has it at this progress.
+            local += new Vector3(0, Def.LiftAt(progress, leaf.Size.Y), 0);
         }
-        Quaternion frameFlip = Quaternion.Normalize(rotation * flip);
-        return (position + Vector3.Transform(hinge, frameFlip), Quaternion.Normalize(frameFlip * swing));
+        (Vector3 position, Quaternion rotation) = Frame.ZoneTransform;
+        return (position + Vector3.Transform(local, rotation), Quaternion.Normalize(rotation * turn));
     }
 
     /// <summary>
-    /// Where a lock sits on a door's first leaf, in the leaf's frame (its origin the hinge): by the free edge at hand
-    /// height, its back on the outside face. The lock is drawn there and placed there.
+    /// Where a lock sits on a door's first leaf, in the leaf's frame (its origin the hinge on the leaf's middle plane): by
+    /// the free edge at hand height, its back resting on the front of the handle plate on the +Z face (the outside of
+    /// the frame), where the keypad or the key cylinder shows. The lock is drawn there and placed there (DOORS.md §6).
     /// </summary>
-    public static Vector3 LockOffset(LeafDef leaf) => new(leaf.Size.X * 0.86f, 1.05f, MathF.Abs(leaf.Size.Z) / 2 + 0.002f);
+    public static Vector3 LockOffset(LeafDef leaf, bool mirrored = false) => new(leaf.Size.X * 0.86f * (mirrored ? -1 : 1), 1.05f, leaf.LockDepth);
+
+    /// <summary>
+    /// Where the back plate of a lock sits, on the leaf's other face (−Z), at the same place seen from that side: a
+    /// matching housing, so a door with a lock shows one from both sides. It is turned half round: its front faces −Z.
+    /// </summary>
+    public static Vector3 LockBackOffset(LeafDef leaf, bool mirrored = false) => LockOffset(leaf, mirrored) with { Z = -leaf.LockDepth };
 
     /// <summary>Where a lock on this door is now (it swings with the leaf), in the zone.</summary>
     public (Vector3 Position, Quaternion Rotation) LockSpot
     {
         get
         {
-            (Vector3 position, Quaternion rotation) = Leaf(0, Open);
-            return (position + Vector3.Transform(LockOffset(Def.Leaves[0]), rotation), rotation);
+            (Vector3 position, Quaternion rotation) = LeafNow(0);
+            return (position + Vector3.Transform(LockOffset(Def.Leaves[0], HingeRight), rotation), rotation);
+        }
+    }
+
+    /// <summary>Where the back plate of a lock on this door is now, in the zone (facing the way the leaf's −Z face does).</summary>
+    public (Vector3 Position, Quaternion Rotation) LockBackSpot
+    {
+        get
+        {
+            (Vector3 position, Quaternion rotation) = LeafNow(0);
+            return (position + Vector3.Transform(LockBackOffset(Def.Leaves[0], HingeRight), rotation),
+                Quaternion.Normalize(rotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI)));
         }
     }
 
@@ -200,7 +273,6 @@ public sealed partial class BuildingWorld
     /// <summary>Key numbers run 1 … this (a key's condition holds its lock's).</summary>
     public const int MaxKeyCode = ushort.MaxValue;
 
-    private readonly Dictionary<object, ConvexPart[]> _leafParts = new();
     private int _nextKeyCode = 1;
 
     /// <summary>Every door in the world.</summary>
@@ -222,41 +294,44 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>
-    /// Whether a door fits into a frame piece, turned by <paramref name="flip"/> (the door's own rules: building rights,
-    /// reach and sight are the placement pipeline's, GROUND_SYSTEMS.md §6): single doors into doorways, double doors and the
-    /// garage door into wall frames, one per opening, shut, its leaves clear of players.
+    /// Whether a door fits into a frame piece in a layout (the door's own rules: building rights, reach and sight are the
+    /// placement pipeline's, GROUND_SYSTEMS.md §6): single doors into doorways, double doors and the garage door into wall
+    /// frames, one per opening. The layout's bits the door doesn't choose are ignored. Nothing in the way (a player, another
+    /// door, an object) refuses a door, at fitting or ever after (DOORS.md §1).
     /// </summary>
-    public Outcome CanFitDoor(DoorDef def, Piece frame, int flip)
+    public Outcome CanFitDoor(DoorDef def, Piece frame, int layout)
     {
         if (frame.Gone || frame.Collapsing)
         {
             return OutcomeCode.NotFound;
         }
-        if (frame.Def.Opening is not (Opening.Door or Opening.Double))
+        if (!Data.TryOpening(frame.Def.Opening, out _))
         {
             return OutcomeCode.NotAnOpening;
         }
         if (frame.Def.Opening != def.Opening)
         {
-            return def.Opening == Opening.Door ? OutcomeCode.NeedsDoorway : OutcomeCode.NeedsWallFrame;
+            return def.Opening == Opening.Door ? OutcomeCode.NeedsDoorway
+                : def.Opening == Opening.Double ? OutcomeCode.NeedsWallFrame : OutcomeCode.NotAnOpening;
         }
         if (frame.Door != null)
         {
             return OutcomeCode.HasDoor;
         }
-        return LeavesBlocked(new Door(EntityId.None, def, frame, flip & 1, 0), open: false) ? OutcomeCode.PlayerInTheWay : Outcome.Done;
+        return Outcome.Done;
     }
 
     /// <summary>Fits a door into a frame piece (the checks of <see cref="CanFitDoor"/> again): shut, unlocked, owned by its fitter.</summary>
-    public Outcome PlaceDoor(ulong player, DoorDef def, Piece frame, int flip, out Door? door)
+    public Outcome PlaceDoor(ulong player, DoorDef def, Piece frame, int layout, out Door? door)
     {
         door = null;
-        Outcome fits = CanFitDoor(def, frame, flip);
+        Outcome fits = CanFitDoor(def, frame, layout);
         if (!fits.Ok)
         {
             return fits;
         }
-        var fitted = new Door(_newId(), def, frame, flip & 1, player);
+        var fitted = new Door(_newId(), def, frame, layout, player);
+        fitted.Rest(false);
         frame.Door = fitted;
         _doorIds[fitted.Id] = fitted;
         for (int i = 0; i < def.Leaves.Count; i++)
@@ -268,14 +343,29 @@ public sealed partial class BuildingWorld
         return Outcome.Done;
     }
 
-    private ConvexPart[] LeafParts(LeafDef leaf)
+    // A leaf's solid parts as this door hangs it: the leaf's own, or those mirrored for a right-hinged leaf; a rolling curtain's
+    // are only what still hangs below the header at the door's progress (a shorter box as it rises, DOORS.md §5).
+    internal static ConvexPart[] LeafParts(Door door, int index)
     {
-        if (!_leafParts.TryGetValue(leaf, out ConvexPart[]? parts))
+        LeafDef leaf = door.Def.Leaves[index];
+        if (door.Def.Rolls)
         {
-            parts = new[] { PieceShapes.Leaf(leaf) };
-            _leafParts.Add(leaf, parts);
+            return leaf.HangingParts(leaf.HangingCentimetres(door.Def.LiftAt(door.Progress, leaf.Size.Y)));
         }
-        return parts;
+        return door.HingeRight && leaf.MirrorMesh.Length > 0 ? leaf.MirroredParts : leaf.Parts;
+    }
+
+    // The shared Jolt shape of a leaf as this door hangs it (one for each side a leaf can hang on, one for each height of a curtain).
+    internal JoltPhysicsSharp.Shape LeafShape(Door door, int index)
+    {
+        LeafDef leaf = door.Def.Leaves[index];
+        if (door.Def.Rolls)
+        {
+            int centimetres = leaf.HangingCentimetres(door.Def.LiftAt(door.Progress, leaf.Size.Y));
+            return Physics!.ShapeFor(leaf.HangingKey(centimetres), leaf.HangingParts(centimetres));
+        }
+        bool mirrored = door.HingeRight && leaf.MirrorMesh.Length > 0;
+        return Physics!.ShapeFor(mirrored ? leaf.MirrorKey : leaf, LeafParts(door, index));
     }
 
     private void AddLeafBody(Door door, int index)
@@ -284,33 +374,127 @@ public sealed partial class BuildingWorld
         {
             return;
         }
-        LeafDef leaf = door.Def.Leaves[index];
-        (Vector3 position, Quaternion rotation) = door.Leaf(index, door.Open);
-        door.Bodies[index] = Physics.Add(new DoorLeaf(door, index), Physics.ShapeFor(leaf, LeafParts(leaf)), position, rotation);
+        (Vector3 position, Quaternion rotation) = door.LeafNow(index);
+        door.Bodies[index] = Physics.Add(new DoorLeaf(door, index), LeafShape(door, index), position, rotation);
     }
 
-    // Whether a player stands where the door's leaves would be.
-    private bool LeavesBlocked(Door door, bool open)
+    // ---------------------------------------------------------------- motion (DOORS.md §4, §5)
+
+    // The doors still going to their ends (the server's), or whose last motion a replay may still need (a mirror's).
+    private readonly List<Door> _moving = new();
+
+    // A mirror keeps a door's motion this long after it ended, for the ticks its prediction replays.
+    private const long MirrorKeepTicks = 160;
+
+    /// <summary>The tick the doors were last put at: a motion begun now begins at it.</summary>
+    public long DoorTick { get; private set; }
+
+    /// <summary>Doors that are moving, or may still be asked where they were a moment ago.</summary>
+    public int MovingDoors => _moving.Count;
+
+    /// <summary>
+    /// Puts every moving door's leaf bodies at the pose of its progress at a tick (the zone's tick on the server, once a tick,
+    /// after the characters moved; a mirror's prediction calls it before each tick it predicts, replays included, with the
+    /// tick before it): nothing stops a door, a character in the way is moved by the controller's own penetration recovery.
+    /// A door whose motion has reached its end rests there (a mirror keeps the record, for a replay).
+    /// </summary>
+    public void StepDoors(long tick)
     {
-        for (int i = 0; i < door.Def.Leaves.Count; i++)
+        // A mirror shared by many bots is stepped by each of their predictions, and told by their network threads.
+        lock (_moving)
         {
-            if (open && door.Def.Rolls)
+            StepDoorsLocked(tick);
+        }
+    }
+
+    private void StepDoorsLocked(long tick)
+    {
+        DoorTick = tick;
+        for (int i = _moving.Count - 1; i >= 0; i--)
+        {
+            Door door = _moving[i];
+            if (door.Gone)
             {
+                _moving.RemoveAt(i);
                 continue;
             }
-            (Vector3 position, Quaternion rotation) = door.Leaf(i, open);
-            if (CharacterInside(LeafParts(door.Def.Leaves[i]), position, rotation))
+            float progress = door.ProgressAt(tick);
+            PoseDoor(door, progress);
+            if (Mirror ? tick > door.EndsAt + MirrorKeepTicks : door.Moving != 0 && tick >= door.EndsAt)
             {
-                return true;
+                if (!Mirror)
+                {
+                    door.From = progress;
+                    door.Moving = 0;
+                    door.Since = tick;
+                }
+                _moving.RemoveAt(i);
             }
         }
-        return false;
+    }
+
+    /// <summary>Puts every moving door at its end at once (a scene made in one go, a test that does not step ticks).</summary>
+    public void FinishDoors()
+    {
+        lock (_moving)
+        {
+            foreach (Door door in _moving.ToArray())
+            {
+                door.From = door.Moving > 0 ? 1f : door.Moving < 0 ? 0f : door.From;
+                door.Moving = 0;
+                door.Since = DoorTick;
+                PoseDoor(door, door.From);
+            }
+            _moving.Clear();
+        }
+    }
+
+    // A door's leaf bodies at a progress.
+    private void PoseDoor(Door door, float progress)
+    {
+        if (progress == door.Progress)
+        {
+            return;
+        }
+        door.Progress = progress;
+        if (Physics == null)
+        {
+            return;
+        }
+        for (int i = 0; i < door.Def.Leaves.Count; i++)
+        {
+            (Vector3 position, Quaternion rotation) = door.LeafAt(i, progress);
+            if (door.Def.Rolls)
+            {
+                // A curtain's body is the part still hanging: it gets shorter as the lower edge rises.
+                Physics.Reshape(door.Bodies[i], LeafShape(door, i), position, rotation);
+            }
+            else
+            {
+                Physics.Move(door.Bodies[i], position, rotation);
+            }
+        }
+    }
+
+    // Starts a door going toward open or shut from where it is this tick (a second press mid-way reverses it from there).
+    private void StartMotion(Door door, bool open)
+    {
+        door.From = door.ProgressAt(DoorTick);
+        door.Since = DoorTick;
+        door.Open = open;
+        door.Moving = (sbyte)(open ? 1 : -1);
+        if (!_moving.Contains(door))
+        {
+            _moving.Add(door);
+        }
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
     }
 
     /// <summary>
-    /// Opens or shuts a door. A locked lock lets through only those it knows: a key lock its owner and anyone holding
-    /// its key (<paramref name="keys"/>, the key codes the player carries), a code lock the players authorised on it.
-    /// No building rights needed. The leaves' new pose must be clear of players.
+    /// Opens or shuts a door: it starts to swing (or roll) at once and takes its travel time; a second press on the way
+    /// reverses it. A locked lock lets through only those it knows: a key lock its owner and anyone holding its key
+    /// (<paramref name="keys"/>, the key codes the player carries), a code lock the players authorised on it. No building
+    /// rights needed. Nothing in its way refuses it (DOORS.md §1).
     /// </summary>
     public Outcome Toggle(ulong player, Door door, IReadOnlyCollection<int>? keys = null)
     {
@@ -318,32 +502,20 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.NotFound;
         }
+        if (!door.Def.Opens)
+        {
+            return OutcomeCode.NotUsable;
+        }
         if (!CanUse(player, door, keys))
         {
             return OutcomeCode.Locked;
         }
-        if (LeavesBlocked(door, !door.Open))
-        {
-            return OutcomeCode.SwingBlocked;
-        }
-        SetOpen(door, !door.Open);
+        StartMotion(door, !door.Open);
         return Outcome.Done;
     }
 
-    // Opens or shuts a door's leaves (their bodies move with them).
-    private void SetOpen(Door door, bool open)
-    {
-        door.Open = open;
-        for (int i = 0; i < door.Def.Leaves.Count; i++)
-        {
-            (Vector3 position, Quaternion rotation) = door.Leaf(i, door.Open);
-            Physics?.Move(door.Bodies[i], position, rotation);
-        }
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
-    }
-
     /// <summary>Whether a player can open and shut a door now.</summary>
-    public static bool CanUse(ulong player, Door door, IReadOnlyCollection<int>? keys = null) => door.Lock switch
+    public static bool CanUse(ulong player, ILockHost door, IReadOnlyCollection<int>? keys = null) => door.Lock switch
     {
         null => true,
         KeyLock key => key.CanUse(player, keys),
@@ -362,9 +534,13 @@ public sealed partial class BuildingWorld
         {
             return OutcomeCode.RemoveLockFirst;
         }
-        if (!door.Open)
+        if (door.Def.Opens && !door.Open)
         {
             return OutcomeCode.OpenItFirst;
+        }
+        if (!door.Def.Opens && PrivilegeAt(player, door.Frame.ZoneTransform.Position) == Privilege.Blocked)
+        {
+            return OutcomeCode.BuildingBlocked;
         }
         RemoveDoor(door);
         return Outcome.Done;
@@ -377,6 +553,7 @@ public sealed partial class BuildingWorld
             return;
         }
         door.Gone = true;
+        _moving.Remove(door);
         _doorIds.Remove(door.Id);
         for (int i = 0; i < door.Bodies.Length; i++)
         {
@@ -395,6 +572,9 @@ public sealed partial class BuildingWorld
         (world, owner) => new CodeLock(world._newId(), owner),
     };
 
+    internal void NotifyLockChanged(Door door) =>
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+
     private int NextKeyCode()
     {
         int code = _nextKeyCode;
@@ -406,12 +586,16 @@ public sealed partial class BuildingWorld
     /// Fits a lock of a kind to a door without one: a key lock unlocked, its owner the fitter; a code lock with no code yet,
     /// unlocked, its owner authorised. Building rights are the placement pipeline's (GROUND_SYSTEMS.md §6).
     /// </summary>
-    public Outcome AttachLock(ulong player, Door door, LockKind kind, out DoorLock? fitted)
+    public Outcome AttachLock(ulong player, ILockHost door, LockKind kind, out DoorLock? fitted)
     {
         fitted = null;
-        if (door.Gone)
+        if (door.LockGone)
         {
             return OutcomeCode.NotFound;
+        }
+        if (!door.Lockable)
+        {
+            return OutcomeCode.NotUsable;
         }
         if (door.Lock != null)
         {
@@ -423,12 +607,12 @@ public sealed partial class BuildingWorld
         }
         fitted = make(this, player);
         door.Lock = fitted;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        door.LockChanged();
         return Outcome.Done;
     }
 
     /// <summary>Fits a key lock (<see cref="AttachLock"/>).</summary>
-    public Outcome AttachKeyLock(ulong player, Door door, out KeyLock? keyLock)
+    public Outcome AttachKeyLock(ulong player, ILockHost door, out KeyLock? keyLock)
     {
         Outcome done = AttachLock(player, door, LockKind.Key, out DoorLock? fitted);
         keyLock = fitted as KeyLock;
@@ -436,7 +620,7 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>Fits a code lock (<see cref="AttachLock"/>).</summary>
-    public Outcome AttachCodeLock(ulong player, Door door, out CodeLock? codeLock)
+    public Outcome AttachCodeLock(ulong player, ILockHost door, out CodeLock? codeLock)
     {
         Outcome done = AttachLock(player, door, LockKind.Code, out DoorLock? fitted);
         codeLock = fitted as CodeLock;
@@ -447,7 +631,7 @@ public sealed partial class BuildingWorld
     /// Sets or changes a code lock's code: four digits, by an authorised player, while it's unlocked. It locks at once
     /// and only the setter stays authorised (RustMVP's rule).
     /// </summary>
-    public Outcome SetCode(ulong player, Door door, string code)
+    public Outcome SetCode(ulong player, ILockHost door, string code)
     {
         if (door.Lock is not CodeLock codeLock)
         {
@@ -469,7 +653,7 @@ public sealed partial class BuildingWorld
         codeLock.Locked = true;
         codeLock.AuthorisedList.Clear();
         codeLock.AuthorisedList.Add(player);
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        door.LockChanged();
         return Outcome.Done;
     }
 
@@ -477,7 +661,7 @@ public sealed partial class BuildingWorld
     /// Enters a code: the right one authorises the player (up to the list's limit); a wrong one makes them wait 1, then
     /// 5, then 30 seconds before the next try (<see cref="BuildingData.WrongCodeWait"/>).
     /// </summary>
-    public Outcome EnterCode(ulong player, Door door, string code, double now)
+    public Outcome EnterCode(ulong player, ILockHost door, string code, double now)
     {
         if (door.Lock is not CodeLock codeLock)
         {
@@ -501,7 +685,7 @@ public sealed partial class BuildingWorld
                     return OutcomeCode.ListFull;
                 }
                 codeLock.AuthorisedList.Add(player);
-                Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+                door.LockChanged();
             }
             return Outcome.Done;
         }
@@ -515,7 +699,7 @@ public sealed partial class BuildingWorld
     /// "Authorise team" (G7, Rust's): a player on a code lock's list puts the members of their team on it too, up to the
     /// list's limit. Refused for a stranger (it would be a way round the code) or a key lock.
     /// </summary>
-    public Outcome AuthoriseOnLock(ulong player, Door door, IEnumerable<ulong> members)
+    public Outcome AuthoriseOnLock(ulong player, ILockHost door, IEnumerable<ulong> members)
     {
         if (door.Lock is not CodeLock codeLock)
         {
@@ -542,13 +726,13 @@ public sealed partial class BuildingWorld
         }
         if (changed)
         {
-            Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+            door.LockChanged();
         }
         return full && !changed ? OutcomeCode.ListFull : Outcome.Done;
     }
 
     /// <summary>Locks a lock: a code lock by an authorised player once it has a code; a key lock by its owner or a key holder.</summary>
-    public Outcome SetLocked(ulong player, Door door, bool locked, IReadOnlyCollection<int>? keys = null)
+    public Outcome SetLocked(ulong player, ILockHost door, bool locked, IReadOnlyCollection<int>? keys = null)
     {
         switch (door.Lock)
         {
@@ -572,12 +756,12 @@ public sealed partial class BuildingWorld
                 return OutcomeCode.NoLock;
         }
         door.Lock.Locked = locked;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        door.LockChanged();
         return Outcome.Done;
     }
 
     /// <summary>Takes a lock off: unlocked, by an authorised player (a code lock) or its owner (a key lock). It comes back as an item.</summary>
-    public Outcome RemoveLock(ulong player, Door door)
+    public Outcome RemoveLock(ulong player, ILockHost door)
     {
         switch (door.Lock)
         {
@@ -592,7 +776,7 @@ public sealed partial class BuildingWorld
             return OutcomeCode.UnlockItFirst;
         }
         door.Lock = null;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        door.LockChanged();
         return Outcome.Done;
     }
 
@@ -620,6 +804,25 @@ public sealed partial class BuildingWorld
             Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
         }
         return new DamageResult(loss, false, destroyed);
+    }
+
+    /// <summary>Repairs any fitted attachment through the shared hammer, with its data-defined material and full-repair cost.</summary>
+    public Outcome Repair(ulong player, Door door, IBuildingWallet wallet, double now)
+    {
+        if (door.Gone || door.Frame.Gone || door.Frame.Collapsing) return OutcomeCode.NotFound;
+        if (PrivilegeAt(player, door.Frame.ZoneTransform.Position, Data.ClaimPadding) == Privilege.Blocked)
+            return OutcomeCode.BuildingBlocked;
+        if (door.Health >= door.Def.Health) return OutcomeCode.FullHealth;
+        double wait = door.LastDamagedAt + Data.RepairDelay - now;
+        if (wait > 0) return OutcomeCode.RecentlyDamaged.With((int)Math.Ceiling(wait));
+        double restored = Math.Min(Data.RepairPerHit, door.Def.Health - door.Health);
+        int cost = (int)Math.Max(1, Math.Ceiling(door.Def.RepairFull * restored / door.Def.Health - 1e-9));
+        string material = door.Def.RepairMaterial;
+        if (wallet.Count(material) < cost || !wallet.Take(material, cost))
+            return OutcomeCode.NotEnough.With(Data.MaterialItem(material));
+        door.Health = Math.Min(door.Def.Health, door.Health + restored);
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        return Outcome.Done;
     }
 
     private bool ValidCode(string code)

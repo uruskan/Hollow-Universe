@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Threading;
 using System.Threading.Tasks;
 using Hollow.Core;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Movement;
 using Hollow.Simulation.Nature;
+using Hollow.Simulation.Physics;
 using Hollow.Surface;
 
 namespace Hollow.Simulation.Animals;
@@ -61,7 +63,7 @@ public sealed class NavArea
 /// start, whose cells look their flags up wherever they fall, so face seams and corners need nothing special. Building
 /// pieces and deployables change, so the steering asks the zone about those directly.
 /// </summary>
-public sealed class NavGrid
+public sealed class NavGrid : IDisposable
 {
     /// <summary>The edge, in metres, an area's level is chosen for.</summary>
     public const float AreaSize = 64f;
@@ -75,14 +77,17 @@ public sealed class NavGrid
     /// <summary>A trunk or rock blocks the cells within its radius and this much more.</summary>
     public const float Clearance = 0.45f;
 
-    private readonly ISurface _surface;
+    private ISurface _surface;
     private readonly ZoneFrame _frame;
-    private readonly INaturalObjects? _nature;
-    private readonly GameContent? _content;
+    private INaturalObjects? _nature;
+    private GameContent? _content;
     private readonly Dictionary<TileKey, NavArea> _areas = new();
     private readonly Dictionary<TileKey, Task<NavArea>> _pending = new();
     private readonly List<TileKey> _done = new();
     private readonly NearTiles _near;
+    private readonly CancellationTokenSource _cancellation = new();
+    private volatile bool _stopped;
+    private bool _disposed;
     private long _epoch;
 
     public NavGrid(ISurface surface, ZoneFrame frame, INaturalObjects? nature, GameContent? content)
@@ -105,6 +110,11 @@ public sealed class NavGrid
 
     public int Count => _areas.Count;
 
+    /// <summary>Admitted builds still owned by this grid; read on the owning thread.</summary>
+    public int Pending => _pending.Count;
+
+    public bool IsStopped => _stopped;
+
     /// <summary>Builds areas on the calling thread instead of on workers (tests that want everything at once).</summary>
     public bool Synchronous { get; set; }
 
@@ -120,6 +130,7 @@ public sealed class NavGrid
     /// </summary>
     public void Prefetch(Vector3 point, float radius)
     {
+        ThrowIfStopped();
         foreach (TileKey tile in _near.Around(_frame.ToBody(point), radius))
         {
             if (_areas.TryGetValue(tile, out NavArea? area))
@@ -137,13 +148,15 @@ public sealed class NavGrid
                 continue;
             }
             TileKey key = tile;
-            _pending.Add(tile, Task.Run(() => Build(key)));
+            CancellationToken cancellation = _cancellation.Token;
+            _pending.Add(tile, Task.Run(() => Build(key, cancellation), cancellation));
         }
     }
 
     /// <summary>Takes in the areas whose build finished. Once a tick, on the zone's thread.</summary>
     public void Adopt()
     {
+        if (_stopped) return;
         _epoch++;
         if (_pending.Count == 0)
         {
@@ -157,27 +170,34 @@ public sealed class NavGrid
                 _done.Add(key);
             }
         }
+        List<Exception>? failures = null;
         foreach (TileKey key in _done)
         {
             _pending.Remove(key, out Task<NavArea>? task);
-            if (task!.IsCompletedSuccessfully)
+            try
             {
-                NavArea area = task.Result;
+                NavArea area = task!.GetAwaiter().GetResult();
                 area.LastUsed = _epoch;
                 _areas[key] = area;
                 Built++;
             }
+            catch (Exception error)
+            {
+                (failures ??= new()).Add(error);
+            }
         }
+        if (failures != null) throw new AggregateException("Navigation area builds failed.", failures).Flatten();
     }
 
     /// <summary>Whether the area under a point is built (an animal on unbuilt ground waits for it).</summary>
-    public bool IsReady(Vector3 point) => _areas.ContainsKey(AreaOf(point));
+    public bool IsReady(Vector3 point) => !_stopped && _areas.ContainsKey(AreaOf(point));
 
     /// <summary>The area under a point, built now if a worker hasn't (waits for one under way).</summary>
     public NavArea Ensure(Vector3 point) => Ensure(AreaOf(point));
 
     private NavArea Ensure(TileKey tile)
     {
+        ThrowIfStopped();
         if (_areas.TryGetValue(tile, out NavArea? area))
         {
             area.LastUsed = _epoch;
@@ -185,11 +205,11 @@ public sealed class NavGrid
         }
         if (_pending.Remove(tile, out Task<NavArea>? building))
         {
-            area = building.Result;
+            area = building.GetAwaiter().GetResult();
         }
         else
         {
-            area = Build(tile);
+            area = Build(tile, _cancellation.Token);
             BuiltOnDemand++;
         }
         area.LastUsed = _epoch;
@@ -201,6 +221,7 @@ public sealed class NavGrid
     /// <summary>Drops the areas nobody used in the last <paramref name="keepEpochs"/> epochs (ticks).</summary>
     public void Release(long keepEpochs)
     {
+        if (_stopped) return;
         if (_epoch % 30 != 0 || _areas.Count < 64)
         {
             return;
@@ -218,6 +239,52 @@ public sealed class NavGrid
             _areas.Remove(key);
         }
     }
+
+    /// <summary>
+    /// Closes admission and cancels queued/active work without waiting. Call on the owning thread, after its final
+    /// query. An in-progress surface/nature call must return before cancellation can be observed.
+    /// </summary>
+    public void Stop()
+    {
+        if (_stopped) return;
+        _stopped = true;
+        _cancellation.Cancel();
+    }
+
+    /// <summary>
+    /// Retires every admitted reader before releasing its inputs. Owner-thread only, outside the physics gate.
+    /// Cancellation is normal retirement; other failures are reported together after every task has drained.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        if (JoltRuntime.Gate.IsHeldByCurrentThread)
+            throw new InvalidOperationException("Navigation retirement must run outside the Jolt gate.");
+        Stop();
+        CancellationToken cancellation = _cancellation.Token;
+        List<Exception>? failures = null;
+        foreach (Task<NavArea> task in _pending.Values)
+        {
+            try { task.GetAwaiter().GetResult(); }
+            catch (OperationCanceledException error) when (error.CancellationToken == cancellation) { }
+            catch (Exception error) { (failures ??= new()).Add(error); }
+        }
+        _pending.Clear();
+        _areas.Clear();
+        _done.Clear();
+        _open.Clear();
+        _cameFrom.Clear();
+        _cost.Clear();
+        _walkable = Array.Empty<sbyte>();
+        _surface = null!;
+        _nature = null;
+        _content = null;
+        _cancellation.Dispose();
+        _disposed = true;
+        if (failures != null) throw new AggregateException("Navigation retirement observed failed builds.", failures).Flatten();
+    }
+
+    private void ThrowIfStopped() => ObjectDisposedException.ThrowIf(_stopped, this);
 
     // ---------------------------------------------------------------- queries
 
@@ -304,6 +371,7 @@ public sealed class NavGrid
     /// </summary>
     public bool FindPath(Vector3 from, Vector3 to, float maxSlope, out Vector3 next, int window = 24, int budget = 1200)
     {
+        ThrowIfStopped();
         next = to;
         Vector3 up = _frame.UpAt(from);
         (Vector3 north, Vector3 east) = Facing.Compass(up);
@@ -423,14 +491,16 @@ public sealed class NavGrid
 
     // ---------------------------------------------------------------- building an area
 
-    private NavArea Build(TileKey tile)
+    private NavArea Build(TileKey tile, CancellationToken cancellation)
     {
+        cancellation.ThrowIfCancellationRequested();
         var area = new NavArea(tile);
         double sea = _surface.SeaRadius;
         var under = new bool[NavArea.Corners * NavArea.Corners];
         var points = new Vector3D[NavArea.Corners * NavArea.Corners];
         for (int j = 0; j < NavArea.Corners; j++)
         {
+            cancellation.ThrowIfCancellationRequested();
             for (int i = 0; i < NavArea.Corners; i++)
             {
                 Vector3D direction = CubeSphere.Direction(tile.Face, TileKey.GridCoordinate(tile.X, tile.Level, i, NavArea.Cells),
@@ -444,6 +514,7 @@ public sealed class NavGrid
         }
         for (int j = 0; j < NavArea.Cells; j++)
         {
+            cancellation.ThrowIfCancellationRequested();
             for (int i = 0; i < NavArea.Cells; i++)
             {
                 int k = j * NavArea.Corners + i;
@@ -465,17 +536,21 @@ public sealed class NavGrid
         // Trunks and rocks: the zone's natural objects (on the planet, its own scatter's trees and boulders).
         if (_nature != null && _content != null)
         {
+            cancellation.ThrowIfCancellationRequested();
             var objects = new List<NaturalObject>();
             double edge = TileKey.EdgeLength(tile.Level, _surface.Radius);
             _nature.Query(_frame.ToLocal(tile.Centre * _surface.Radius), (float)(edge * 0.8 + 6), objects);
+            cancellation.ThrowIfCancellationRequested();
             foreach (NaturalObject o in objects)
             {
+                cancellation.ThrowIfCancellationRequested();
                 if (_content.Natural(o.Kind) is { IsSolid: true } kind)
                 {
                     Stamp(area, points, _frame.ToBody(o.Position), kind.Radius * o.Scale);
                 }
             }
         }
+        cancellation.ThrowIfCancellationRequested();
         return area;
     }
 

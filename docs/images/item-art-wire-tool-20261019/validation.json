@@ -1,0 +1,517 @@
+{
+  "revision": "R01",
+  "captures": {
+    "wire-tool-lod0.png": "fd88c08bbbc361fb639415cbb7aef8fc7374da4d964de0cc767e5775337f1f30",
+    "wire-tool-lod1.png": "fb38853eed3fe88a5ad3926721eaebb88d3e6bf7c93fcd828b213cf38a21ef14",
+    "wire-tool-lod2.png": "7145fb945b4c3ed5104a55e47a63332b2bebe73c67f6d31afa416ba3c7ab35d5",
+    "wire-tool-back.png": "e75b13814101e0c34c1d9e82b5cd4c28966baf3239616ee492b0074d4d1278ad",
+    "icon-slots.png": "5fa84eaa62962f3b6b62f16cc236c7de1247e6803ce67a743c447e6353f09bfc"
+  },
+  "capture_inputs": {
+    "review_project": ".artifacts/itemart/wire-tool/review (this worktree; not committed)",
+    "catalogue_entry": {
+      "key": "wire-tool",
+      "kind": "item",
+      "class": "tool",
+      "file": "res://assets/items/wire-tool.glb",
+      "lods": 3,
+      "collision": "convex",
+      "icon": {
+        "view": [
+          -35,
+          20,
+          -30
+        ]
+      },
+      "held": {
+        "firstPerson": {
+          "position": [
+            0.25,
+            -0.26,
+            -0.48
+          ],
+          "rotation": [
+            0,
+            0,
+            -15
+          ]
+        },
+        "thirdPerson": {
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ]
+        }
+      },
+      "source": "Hollow original wiring probe with a wire reel (art/models/wire_tool.py); provenance: assets/items/wire-tool.provenance.json"
+    },
+    "previous_icon": ".artifacts/itemart/wire-tool/previous-wire-tool-256.png",
+    "resources_sha256": {
+      "assets/items/wire-tool.glb": "5c5578fe3de320c8d2f7911bf1c6ef2d60e22bda4869933a46bfbf5dd86060ad",
+      "assets/items/wire-tool.glb.import": "a5da049669ad0d4ce43c006359011e9ca52d7e1bb9cf8fdd04170dd943f5e0b0",
+      "assets/materials/wire-tool.tres": "6b400087e7daf91b4833b5450747beb755baa084746c2d76b632ffcce021173d",
+      "assets/textures/wire-tool/wire-tool_albedo.png": "e26a025c0a472122ae74e9545bc2d00f33ac83b7d85acf280860f1be509d4132",
+      "assets/textures/wire-tool/wire-tool_albedo.png.import": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "assets/textures/wire-tool/wire-tool_orm.png": "1f3e91a4a711f25f9aaac76211d752cab8b7c1a12d08b7adf499ca13cf7ecc71",
+      "assets/textures/wire-tool/wire-tool_orm.png.import": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "assets/textures/wire-tool/wire-tool_normal.png": "f1fa02708951f3df22f5646dad5eee51e0e90dd1fe0bfb7cf8313cd0702fbe25",
+      "assets/textures/wire-tool/wire-tool_normal.png.import": "6a3487d4f443cf9f68b41462d6eb05969c23e1c4617e2524147c066742dab360",
+      "assets/textures/wire-tool/wire-tool_emission.png": "f2e0965f8aac10debff5d9be47fd3c152f3f57c2c2b3cfb4735b8071ff75b016",
+      "assets/textures/wire-tool/wire-tool_emission.png.import": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "assets/fonts/Barlow/Barlow-Medium.ttf": "f8906f762cb73dca441da034bc363b2d8e2e68bc10d5c05e58717646c20cc4b4",
+      "assets/fonts/Barlow/Barlow-SemiBold.ttf": "86577cb32f8abe3673db53ca0f4221e6856751a4f6730c867e00f720f8bb1fc5",
+      "assets/fonts/Barlow/BarlowCondensed-Bold.ttf": "e476562ec9c1e16cf16475895b511f08c804f438cc9a9f80a44ea50a0eeb5b65",
+      "assets/fonts/Barlow/BarlowCondensed-Medium.ttf": "262bd143292ce479ee0cd09a42b47ab173fca8e9c6eb5ed0b5c8a845bc371d17",
+      "assets/fonts/Inter/InterVariable.ttf": "4989b125924991b90d05b2d16e0e388c48f7d5bb8b30539bbf9c755278d0ccaf"
+    },
+    "resources_match_committed_assets": true,
+    "compiled_references": {
+      "Hollow.Client.dll": "88b36e60b3dfea15269ff9dc2a2a032b1f24be94ff0feeb3a91b1db7c529722e",
+      "Hollow.Core.dll": "d5748d6125c85de1464ee5c3a5969e23d9dcf5a9ac1bb1c32fce3ae7789c8cc2",
+      "Hollow.Galaxy.dll": "ee52bda7f9422dd30872bb2d187868a5122772a2b39988e99e31a7ffed271a7f",
+      "Hollow.Net.dll": "f95ec7894aca38581f1a33fb2ac806bfea0e749f85a47d199ce235caf7b5cfaf",
+      "Hollow.Persistence.dll": "33c9001d3f390eb6e5381fc1be74cd6ce12e0a91173614204727981dc2bd1df4",
+      "Hollow.Server.dll": "76df541288ffd820c61e3bcd6a59c7c551c0369a7ba1b80d53d9cf35c4335c7a",
+      "Hollow.Simulation.dll": "cf6b04bf2f8e0fbcddaa6b1a5b479161e35deeeb3678fbf3af6b82bd340398a9",
+      "Hollow.Surface.dll": "aae5c6a3f108db69ad69da3134062dd948fd7fe3994960fa8a15b1f6b7aece5e",
+      "HollowUniverse.dll": "8e2f39890747c981bdf08720242dcef78196f215a456f2c30fda791aac049c4a",
+      "JoltPhysicsSharp.dll": "d264ef58add6948432d6101eeb162b041bf42bf6272b5da7591131771fe9dd48",
+      "LiteNetLib.dll": "67e3d477e5835083882aa7a7b4756ea96cda520e0906939f79c0bb3cf061fb56",
+      "Microsoft.Data.Sqlite.dll": "b98d957462be432895b00dccca012d3c127e118d3d4262418014b92c7bbd66cf",
+      "SQLitePCLRaw.batteries_v2.dll": "815ce410c9eab531dd219318e3ba16c5e38e83d361cfbbdbb4bbca222c497b0b",
+      "SQLitePCLRaw.core.dll": "af340ac9eb9195795660d7fc1114f486b6ab63998f33176e2f24c8e0acb9aa84",
+      "SQLitePCLRaw.provider.e_sqlite3.dll": "df996bcae63c2cabcfe8d4b9c5110eb39a2a4706178b07d875665391c6eb3995"
+    }
+  },
+  "capture_jobs": [
+    {
+      "name": "model-build",
+      "command": [
+        "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe",
+        "--background",
+        "--factory-startup",
+        "--threads",
+        "2",
+        "--python-exit-code",
+        "1",
+        "--python",
+        "art/models/wire_tool.py"
+      ],
+      "owned_pid": 1940,
+      "closed": true,
+      "wait_seconds": 6.02,
+      "cpu_before": 0.3,
+      "free_gib_before": 7.07,
+      "exit_code": 0,
+      "run_seconds": 11.02
+    },
+    {
+      "name": "review-build",
+      "command": [
+        "dotnet",
+        "build",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\wire-tool\\review\\ItemReview.csproj",
+        "-v:q",
+        "-m:1",
+        "-nodeReuse:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 15040,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 31.5,
+      "free_gib_before": 3.03,
+      "exit_code": 0,
+      "run_seconds": 5.0
+    },
+    {
+      "name": "import-textures",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\wire-tool\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 11980,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 27.1,
+      "free_gib_before": 2.86,
+      "exit_code": 0,
+      "run_seconds": 5.0
+    },
+    {
+      "name": "import-model",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\wire-tool\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 16848,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 16.8,
+      "free_gib_before": 2.89,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "lod0",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\wire-tool\\review",
+        "--",
+        "--key=wire-tool",
+        "--zoom=0.8",
+        "--lod=0",
+        "--yaw=-25",
+        "--output=wire-tool-lod0.png"
+      ],
+      "owned_pid": 4964,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 17.2,
+      "free_gib_before": 3.1,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod1",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\wire-tool\\review",
+        "--",
+        "--key=wire-tool",
+        "--zoom=0.8",
+        "--lod=1",
+        "--yaw=-25",
+        "--output=wire-tool-lod1.png"
+      ],
+      "owned_pid": 15824,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 13.0,
+      "free_gib_before": 3.44,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "lod2",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\wire-tool\\review",
+        "--",
+        "--key=wire-tool",
+        "--zoom=0.8",
+        "--lod=2",
+        "--yaw=-25",
+        "--output=wire-tool-lod2.png"
+      ],
+      "owned_pid": 12452,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 23.6,
+      "free_gib_before": 3.6,
+      "exit_code": 0,
+      "run_seconds": 3.01
+    },
+    {
+      "name": "back",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:/GameDev/Projects/HollowUniverseABTestB/.claude/worktrees/charming-hugle-0ff484/.artifacts/itemart/wire-tool/review",
+        "--",
+        "--key=wire-tool",
+        "--zoom=1.15",
+        "--lod=0",
+        "--yaw=200",
+        "--output=wire-tool-back.png"
+      ],
+      "owned_pid": 16236,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 14.0,
+      "free_gib_before": 8.73,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-render",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\wire-tool\\review",
+        "--",
+        "--key=wire-tool",
+        "--zoom=0.8",
+        "--icons",
+        "--output=icon-sheet.png"
+      ],
+      "owned_pid": 576,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 10.2,
+      "free_gib_before": 4.05,
+      "exit_code": 0,
+      "run_seconds": 3.0
+    },
+    {
+      "name": "icons-import",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--headless",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\wire-tool\\review",
+        "--editor",
+        "--import"
+      ],
+      "owned_pid": 13796,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 12.5,
+      "free_gib_before": 4.25,
+      "exit_code": 0,
+      "run_seconds": 4.0
+    },
+    {
+      "name": "slots",
+      "command": [
+        "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64_console.exe",
+        "--path",
+        "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.claude\\worktrees\\charming-hugle-0ff484\\.artifacts\\itemart\\wire-tool\\review",
+        "--",
+        "--key=wire-tool",
+        "--zoom=0.8",
+        "--title=WIRE TOOL",
+        "--previous=res://previous/previous.png",
+        "--slots",
+        "--output=icon-slots.png"
+      ],
+      "owned_pid": 7264,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 0.3,
+      "free_gib_before": 8.95,
+      "exit_code": 0,
+      "run_seconds": 2.0
+    },
+    {
+      "name": "solution-build",
+      "command": [
+        "dotnet",
+        "build",
+        "HollowUniverse.sln",
+        "-v:q",
+        "-m:2",
+        "-nodeReuse:false",
+        "-p:UseSharedCompilation=false"
+      ],
+      "owned_pid": 14340,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 5.0,
+      "free_gib_before": 8.85,
+      "exit_code": 0,
+      "run_seconds": 121.27
+    },
+    {
+      "name": "tests-modelcatalogue",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "ModelCatalogue"
+      ],
+      "owned_pid": 10820,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 49.5,
+      "free_gib_before": 3.6,
+      "exit_code": 0,
+      "run_seconds": 39.07
+    },
+    {
+      "name": "tests-content",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "ContentTests"
+      ],
+      "owned_pid": 15772,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 30.2,
+      "free_gib_before": 5.02,
+      "exit_code": 0,
+      "run_seconds": 32.02
+    },
+    {
+      "name": "tests-held",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "HeldPresentation"
+      ],
+      "owned_pid": 15532,
+      "closed": true,
+      "wait_seconds": 6.0,
+      "cpu_before": 10.9,
+      "free_gib_before": 4.11,
+      "exit_code": 0,
+      "run_seconds": 35.02
+    },
+    {
+      "name": "tests-wiring",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "tests/Hollow.Tests",
+        "--",
+        "Wiring"
+      ],
+      "owned_pid": 12464,
+      "closed": true,
+      "wait_seconds": 6.01,
+      "cpu_before": 14.7,
+      "free_gib_before": 4.16,
+      "exit_code": 0,
+      "run_seconds": 43.05
+    }
+  ],
+  "provider": "Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org\nVulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER\n\nwire-tool rendered provider: 16px PASS\nwire-tool rendered provider: 32px PASS\nwire-tool rendered provider: 48px PASS\nwire-tool rendered provider: 64px PASS\nwire-tool rendered provider: 96px PASS\nwire-tool rendered provider: 128px PASS\nwire-tool rendered provider: 256px PASS\nwire-tool capture: D:/GameDev/Projects/HollowUniverseABTestB/.claude/worktrees/charming-hugle-0ff484/.artifacts/itemart/wire-tool/review/../icon-slots.png, Ok\n",
+  "icon_checks": {
+    "128": {
+      "rgba": true,
+      "size": [
+        128,
+        128
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        30,
+        9,
+        98,
+        119
+      ]
+    },
+    "256": {
+      "rgba": true,
+      "size": [
+        256,
+        256
+      ],
+      "alpha_range": [
+        0,
+        255
+      ],
+      "unclipped_bounds": [
+        61,
+        18,
+        195,
+        238
+      ]
+    }
+  },
+  "mesh": {
+    "glb": "game/assets/items/wire-tool.glb",
+    "glb_bytes": 502116,
+    "triangles": {
+      "WireTool_hull0-convcolonly": 48,
+      "WireTool_lod0": 8088,
+      "WireTool_lod1": 4148,
+      "WireTool_lod2": 1928
+    },
+    "lods": {
+      "lod0": {
+        "triangles": 8088,
+        "budget": 9000,
+        "within": true
+      },
+      "lod1": {
+        "triangles": 4148,
+        "budget": 4500,
+        "within": true
+      },
+      "lod2": {
+        "triangles": 1928,
+        "budget": 2200,
+        "within": true
+      }
+    },
+    "nodes": [
+      "socket_grip_r",
+      "socket_wire_tip",
+      "WireTool_hull0-convcolonly",
+      "WireTool_lod0",
+      "WireTool_lod1",
+      "WireTool_lod2"
+    ],
+    "finite_attributes": true,
+    "unit_normals": true,
+    "images_embedded": false
+  },
+  "solution_build": "\nBuild succeeded.\n    0 Warning(s)\n    0 Error(s)\n\nTime Elapsed 00:02:01.00\n",
+  "tests": {
+    "tests-modelcatalogue": "RUN  ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ClothHasItsOwnModelAndRenderedIcon (14 ms)\n  RUN  ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SewingKitHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.MetalBladeHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SignPlateHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ReceiverHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.RifleFrameHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.TornSchematicHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SealedSchematicHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.SalvageHasItsOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.ExplosivesHaveTheirOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.ExplosivesHaveTheirOwnModelAndRenderedIcon (1 ms)\n  RUN  ModelCatalogueTests.BlueprintHasItsOwnModelAndRenderedIcon\n  ok   ModelCatalogueTests.BlueprintHasItsOwnModelAndRenderedIcon (2 ms)\n  RUN  ModelCatalogueTests.ResearchBenchHasItsOwnModelGibsAndRenderedIcon\n  ok   ModelCatalogueTests.ResearchBenchHasItsOwnModelGibsAndRenderedIcon (13 ms)\n  RUN  ModelCatalogueTests.WireToolHasItsOwnModelSocketsAndRenderedIcon\n  ok   ModelCatalogueTests.WireToolHasItsOwnModelSocketsAndRenderedIcon (21 ms)\n  RUN  ModelCatalogueTests.ModelCatalogueIsComplete\n      163 models, 171 files, 274 icons\n  ok   ModelCatalogueTests.ModelCatalogueIsComplete (1031 ms)\n14/14 passed in 1.1 s.\n",
+    "tests-content": "RUN  ContentTests.GroundDataIsComplete\n      137 items, 94 recipes, 17 natural kinds, 24 deployables, 11 loot tables; hash A29EF438726C4597\n  ok   ContentTests.GroundDataIsComplete (512 ms)\n  RUN  ContentTests.BrokenDataIsReported\n      42 problems found, e.g. items.json: \"arrow\": unknown field \"stak\" (known: id, key, name, description, category, stack, condition, melee, bow, ammo, consume, wear, fuel, cook, deploys, building, door, ship, wiring)\n  ok   ContentTests.BrokenDataIsReported (86 ms)\n  RUN  ContentTests.EveryDataFileHasOneReader\n      22 readers for 21 files, and the checks across them\n  ok   ContentTests.EveryDataFileHasOneReader (2 ms)\n3/3 passed in 0.6 s.\n",
+    "tests-held": "RUN  HeldPresentationTests.EveryHeldModelHasAnExplicitPresentation\n      42 held models have explicit editable profiles\n  ok   HeldPresentationTests.EveryHeldModelHasAnExplicitPresentation (40 ms)\n  RUN  HeldPresentationTests.HeldActionsCoverGameplayAndHaveContinuousTimelines\n      218 authored action curves cover their whole normalized timeline\n  ok   HeldPresentationTests.HeldActionsCoverGameplayAndHaveContinuousTimelines (445 ms)\n  RUN  HeldPresentationTests.HeldSkeletalBindingsResolveToBothBodyArmAnimations\n      20 skeletal held-action bindings resolve on both bodies with authored torso and arm rotations\n  ok   HeldPresentationTests.HeldSkeletalBindingsResolveToBothBodyArmAnimations (180 ms)\n  RUN  HeldPresentationTests.ReloadableMagazinesAreSeparateMeshesAtEveryLod\n  ok   HeldPresentationTests.ReloadableMagazinesAreSeparateMeshesAtEveryLod (8 ms)\n4/4 passed in 0.7 s.\n",
+    "tests-wiring": "RUN  WiringTests.WiringToolRequiresHeldCapabilityAndRejectsForgedOrRemotePorts\n  ok   WiringTests.WiringToolRequiresHeldCapabilityAndRejectsForgedOrRemotePorts (2484 ms)\n  RUN  WiringTests.WiringToolRejectsOccludedPortAndUnauthorizedEndpoint\n  ok   WiringTests.WiringToolRejectsOccludedPortAndUnauthorizedEndpoint (359 ms)\n  RUN  WiringTests.WiringDecorativeRouteMayExceedTwentyMetresWithNearbyEndpoints\n  ok   WiringTests.WiringDecorativeRouteMayExceedTwentyMetresWithNearbyEndpoints (363 ms)\n  RUN  WiringTests.WiringFailedCommitKeepsDraftAndRechecksBothEndpointRights\n  ok   WiringTests.WiringFailedCommitKeepsDraftAndRechecksBothEndpointRights (381 ms)\n  RUN  WiringTests.WiringConcurrentDraftsCannotDoubleOccupyOutput\n  ok   WiringTests.WiringConcurrentDraftsCannotDoubleOccupyOutput (292 ms)\n  RUN  WiringTests.WiringCancellationToolSwitchAndDeathNeverPublishDrafts\n  ok   WiringTests.WiringCancellationToolSwitchAndDeathNeverPublishDrafts (356 ms)\n  RUN  WiringTests.WiringSpanAndToolReachUseSocketPositionsInsteadOfModelOrigins\n  ok   WiringTests.WiringSpanAndToolReachUseSocketPositionsInsteadOfModelOrigins (273 ms)\n  RUN  WiringTests.WiringAnchorsRequireRealOwnedSurfacesAndRevalidateOnCommit\n  ok   WiringTests.WiringAnchorsRequireRealOwnedSurfacesAndRevalidateOnCommit (376 ms)\n  RUN  WiringTests.WiringDisconnectRequiresCurrentRightsAtBothEnds\n  ok   WiringTests.WiringDisconnectRequiresCurrentRightsAtBothEnds (273 ms)\n9/9 passed in 5.2 s.\n"
+  },
+  "visual_iteration": "Review verdict: the previous model was Codex's self-described functional foundation art (a box grip, a box head, a flat cyan screen and a cone), so it was replaced rather than re-rendered. The new probe keeps its frame and sockets. The first back capture was framed off the edge of the view and was retaken from yaw 200 at zoom 1.15.",
+  "limits": [
+    "Native production ModelViewer, IconRenderer and CatalogItemIcons in an isolated review project with this worktree's compiled game code; the slots are diagnostic, not live gameplay inventory.",
+    "The held presentation (held-presentations.json) is unchanged and the model keeps the old frame: grip at the origin (socket_grip_r), length up Godot +Y, screen toward Godot +Z, the point at 0.275 m (socket_wire_tip, its contact socket). The first- and third-person views were not captured in the game for this change.",
+    "The reel widens the tool to 0.073 m on its right side (the old head reached 0.055 m).",
+    "The full test suite was not rerun for this asset-only change.",
+    "Owner artistic acceptance is pending."
+  ],
+  "review_verdict": "replace",
+  "previous_model": {
+    "file": "game/assets/items/wire-tool.tscn",
+    "source": "game/assets/items/wire-tool-source.tscn",
+    "builder": "game/scripts/Items/WireToolAssetBuilder.cs",
+    "lods": 1,
+    "parts": [
+      "Grip box 0.065 x 0.18 x 0.06",
+      "Head box 0.11 x 0.075 x 0.06",
+      "Display slab",
+      "Probe cone"
+    ]
+  },
+  "removed": [
+    "game/assets/items/wire-tool.tscn",
+    "game/assets/items/wire-tool-source.tscn",
+    "game/assets/items/materials/wire-tool-grip.tres",
+    "game/assets/items/materials/wire-tool-display.tres",
+    "game/assets/items/materials/wire-tool-probe.tres",
+    "game/scripts/Items/WireToolAssetBuilder.cs",
+    "game/scripts/App/Main.cs --build-wire-tool option"
+  ]
+}

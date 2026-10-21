@@ -1,0 +1,552 @@
+{
+  "source": "Owner-supplied Quixel/Fab plant archives; originals retained outside the game",
+  "textureResolution": 2048,
+  "lodDistances": [
+    8,
+    22,
+    42
+  ],
+  "farDistanceNote": "42 metres multiplied by the selected graphics grass distance",
+  "families": [
+    {
+      "key": "wild",
+      "model": "res://assets/surface/ground-cover/wild.glb",
+      "sourceArchive": "D:\\GameDev\\Assets\\wild_grass_vlkhcbxia_ue_high.zip",
+      "archiveSha256": "e4fa182cc7d1f29b2082ce435d9c83dbadad501a9b45d41a97bf0cb6baf83e51",
+      "inputs": [
+        {
+          "path": "D:\\GameDev\\Assets\\wild_grass_vlkhcbxia_ue_high\\vlkhcbxia_tier_1.bin",
+          "sha256": "000afe2c30810fab172e1ce91973ee091d2cff0914a269ced84e3c535e967e17"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\wild_grass_vlkhcbxia_ue_high\\vlkhcbxia_tier_1.gltf",
+          "sha256": "bf04488dfa7cd69b42ab09e458dd49ad021799227a6f9f5c75a8b5333b5f4088"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\wild_grass_vlkhcbxia_ue_high\\standard\\vlkhcbxia_tier_1_nonUE.gltf",
+          "sha256": "13f328c03f29acc9c2aa16c8181d871d034e0d4df97c8e928ed741218bef8658"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\wild_grass_vlkhcbxia_ue_high\\Textures\\T_vlkhcbxia_4K_B-O.png",
+          "sha256": "e3fbaf69ba87b088a3b99effcabe345191f1f6717f3e9bbda24b01ea33114d32"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\wild_grass_vlkhcbxia_ue_high\\Textures\\T_vlkhcbxia_4K_B.png",
+          "sha256": "7656edb212476576976411cbfbc1fbcf7b4ced8a7a3027547b829481d4affbc6"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\wild_grass_vlkhcbxia_ue_high\\Textures\\T_vlkhcbxia_4K_Billboard_B-O.png",
+          "sha256": "dc02ef99d70b5e793b1ddade331a687c659d985deb6829a398f60d30374cd24d"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\wild_grass_vlkhcbxia_ue_high\\Textures\\T_vlkhcbxia_4K_Billboard_N-T.png",
+          "sha256": "1cd909c66d2d1c7230477988ac839fad153f1dbd96dc598f82530bc62135b0d2"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\wild_grass_vlkhcbxia_ue_high\\Textures\\T_vlkhcbxia_4K_N.png",
+          "sha256": "d30b3061950e94b63ca7340fa3ef07db58d7c53317c567825ddd7433dc28e594"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\wild_grass_vlkhcbxia_ue_high\\Textures\\T_vlkhcbxia_4K_ORT.png",
+          "sha256": "6c3479fb5f46a4765cf05fcc6757bc95f4ca9ec723647bd8f461ba5cb0937f17"
+        }
+      ],
+      "variants": [
+        {
+          "variant": 0,
+          "levels": [
+            {
+              "node": "wild_v0_lod0",
+              "sourceNode": "SM_vlkhcbxia_VarB_LOD1",
+              "triangles": 2328,
+              "height": 0.17654578760266304,
+              "width": 0.5528530776500702,
+              "billboard": false
+            },
+            {
+              "node": "wild_v0_lod1",
+              "sourceNode": "SM_vlkhcbxia_VarB_LOD2",
+              "triangles": 842,
+              "height": 0.1765454150736332,
+              "width": 0.5528510808944702,
+              "billboard": false
+            },
+            {
+              "node": "wild_v0_lod2",
+              "sourceNode": "SM_vlkhcbxia_VarB_LOD3",
+              "triangles": 6,
+              "height": 0.17158115946222097,
+              "width": 0.5459795594215393,
+              "billboard": true
+            }
+          ]
+        },
+        {
+          "variant": 1,
+          "levels": [
+            {
+              "node": "wild_v1_lod0",
+              "sourceNode": "SM_vlkhcbxia_VarC_LOD1",
+              "triangles": 2782,
+              "height": 0.1573494840413332,
+              "width": 0.4964023232460022,
+              "billboard": false
+            },
+            {
+              "node": "wild_v1_lod1",
+              "sourceNode": "SM_vlkhcbxia_VarC_LOD2",
+              "triangles": 978,
+              "height": 0.1573494840413332,
+              "width": 0.4505629241466522,
+              "billboard": false
+            },
+            {
+              "node": "wild_v1_lod2",
+              "sourceNode": "SM_vlkhcbxia_VarC_LOD3",
+              "triangles": 5,
+              "height": 0.14719964109826833,
+              "width": 0.49638450145721436,
+              "billboard": true
+            }
+          ]
+        },
+        {
+          "variant": 2,
+          "levels": [
+            {
+              "node": "wild_v2_lod0",
+              "sourceNode": "SM_vlkhcbxia_VarA_LOD1",
+              "triangles": 1246,
+              "height": 0.40949559956789017,
+              "width": 0.530906081199646,
+              "billboard": false
+            },
+            {
+              "node": "wild_v2_lod1",
+              "sourceNode": "SM_vlkhcbxia_VarA_LOD2",
+              "triangles": 862,
+              "height": 0.40959926694631577,
+              "width": 0.5308995544910431,
+              "billboard": false
+            },
+            {
+              "node": "wild_v2_lod2",
+              "sourceNode": "SM_vlkhcbxia_VarA_LOD3",
+              "triangles": 6,
+              "height": 0.40337812528014183,
+              "width": 0.5304755866527557,
+              "billboard": true
+            }
+          ]
+        }
+      ],
+      "outputSha256": "2565dfc05e49ba66cd92b4425b4f6ecebd245deb8bb14d05e3cdd9b6b49cbb62",
+      "outputBytes": 27530716
+    },
+    {
+      "key": "cotton",
+      "model": "res://assets/surface/ground-cover/cotton.glb",
+      "sourceArchive": "D:\\GameDev\\Assets\\cotton_grass_wlykecdia_ue_high.zip",
+      "archiveSha256": "b5281b16a922c3e8e1466752fe1f83c2f6acc2910af95013d7472decb9dfd7de",
+      "inputs": [
+        {
+          "path": "D:\\GameDev\\Assets\\cotton_grass_wlykecdia_ue_high\\wlykecdia_tier_1.bin",
+          "sha256": "beac3ec518997012951b9c54f5f7d4adf68a15b7c7260feeb7ce455109a7923e"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\cotton_grass_wlykecdia_ue_high\\wlykecdia_tier_1.gltf",
+          "sha256": "a065ad6590b51af9f49cd852e50d8c5a34d20b1c7860a81f8a0e440cc1efd89e"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\cotton_grass_wlykecdia_ue_high\\standard\\wlykecdia_tier_1_nonUE.gltf",
+          "sha256": "8ba6fd9491a42b24b5ef6cf8766f96a261b51ca31da253a932ca75e64ab26497"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\cotton_grass_wlykecdia_ue_high\\Textures\\T_wlykecdia_4K_B-O.png",
+          "sha256": "ac80cdbc2c504a7e87e69a213497ae0d04737946c89d92a4a58694c211987001"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\cotton_grass_wlykecdia_ue_high\\Textures\\T_wlykecdia_4K_B.png",
+          "sha256": "9717a2a4e042f90a67faaa843bde142360a21e171e2a0d62e8c3cc61236762f9"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\cotton_grass_wlykecdia_ue_high\\Textures\\T_wlykecdia_4K_Billboard_B-O.png",
+          "sha256": "0f216293ece3e57631b1180f7949c37d4af850038e83592b578deb42b99c97c2"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\cotton_grass_wlykecdia_ue_high\\Textures\\T_wlykecdia_4K_Billboard_N-T.png",
+          "sha256": "4b1476daaf23ba6f758e2d44e29e8e5d5dc00ecb2faabda37641e9f176f7a135"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\cotton_grass_wlykecdia_ue_high\\Textures\\T_wlykecdia_4K_N.png",
+          "sha256": "ccf6e4efde2e692171d691ecd683af86f3fe5cee2f5ff6f7525cfaee542485e3"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\cotton_grass_wlykecdia_ue_high\\Textures\\T_wlykecdia_4K_ORT.png",
+          "sha256": "d53e63440b3e32c1b2c1795fa113bd4ff0c65e89a48043f3837cf4b3a74fb39c"
+        }
+      ],
+      "variants": [
+        {
+          "variant": 0,
+          "levels": [
+            {
+              "node": "cotton_v0_lod0",
+              "sourceNode": "SM_wlykecdia_VarB_LOD1",
+              "triangles": 671,
+              "height": 0.555468266364187,
+              "width": 0.5077544748783112,
+              "billboard": false
+            },
+            {
+              "node": "cotton_v0_lod1",
+              "sourceNode": "SM_wlykecdia_VarB_LOD2",
+              "triangles": 500,
+              "height": 0.555468266364187,
+              "width": 0.5077544748783112,
+              "billboard": false
+            },
+            {
+              "node": "cotton_v0_lod2",
+              "sourceNode": "SM_wlykecdia_VarB_LOD3",
+              "triangles": 3,
+              "height": 0.552923436742276,
+              "width": 0.5063419789075851,
+              "billboard": true
+            }
+          ]
+        },
+        {
+          "variant": 1,
+          "levels": [
+            {
+              "node": "cotton_v1_lod0",
+              "sourceNode": "SM_wlykecdia_VarC_LOD1",
+              "triangles": 353,
+              "height": 0.5142731633968651,
+              "width": 0.4821137487888336,
+              "billboard": false
+            },
+            {
+              "node": "cotton_v1_lod1",
+              "sourceNode": "SM_wlykecdia_VarC_LOD2",
+              "triangles": 288,
+              "height": 0.5142731633968651,
+              "width": 0.4821137487888336,
+              "billboard": false
+            },
+            {
+              "node": "cotton_v1_lod2",
+              "sourceNode": "SM_wlykecdia_VarC_LOD3",
+              "triangles": 4,
+              "height": 0.5126861571334302,
+              "width": 0.37112554907798767,
+              "billboard": true
+            }
+          ]
+        },
+        {
+          "variant": 2,
+          "levels": [
+            {
+              "node": "cotton_v2_lod0",
+              "sourceNode": "SM_wlykecdia_VarF_LOD1",
+              "triangles": 2369,
+              "height": 0.875511254183948,
+              "width": 0.6526599824428558,
+              "billboard": false
+            },
+            {
+              "node": "cotton_v2_lod1",
+              "sourceNode": "SM_wlykecdia_VarF_LOD2",
+              "triangles": 2121,
+              "height": 0.8770507825538516,
+              "width": 0.6506361663341522,
+              "billboard": false
+            },
+            {
+              "node": "cotton_v2_lod2",
+              "sourceNode": "SM_wlykecdia_VarF_LOD3",
+              "triangles": 4,
+              "height": 0.863795860670507,
+              "width": 0.6370150148868561,
+              "billboard": true
+            }
+          ]
+        }
+      ],
+      "outputSha256": "3826eba31ee4aaf0f7be7342a86b7ecf15cab70d071eb0b28ad1d3df35db0ebc",
+      "outputBytes": 16638032
+    },
+    {
+      "key": "tundra",
+      "model": "res://assets/surface/ground-cover/tundra.glb",
+      "sourceArchive": "D:\\GameDev\\Assets\\tundra_grass_wk2oaeyqx_ue_high.zip",
+      "archiveSha256": "3e35467f8c6ffe7a96416814aa3ed6f3238ab0eb27d11e39b2abe17e94528cf2",
+      "inputs": [
+        {
+          "path": "D:\\GameDev\\Assets\\tundra_grass_wk2oaeyqx_ue_high\\wk2oaeyqx_tier_1.bin",
+          "sha256": "664a74f6aa8d12b09a337c466a60d2460f90d6ffa34dd06bcf1644029ba41c0d"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\tundra_grass_wk2oaeyqx_ue_high\\wk2oaeyqx_tier_1.gltf",
+          "sha256": "5a383e41f809f575e3b78536fd989f658a912a7f01071c36739bbd26fba3d192"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\tundra_grass_wk2oaeyqx_ue_high\\standard\\wk2oaeyqx_tier_1_nonUE.gltf",
+          "sha256": "4500a6bf73d66fc132520ec6a983fdd5ca7fc10ad064879fcc84c69b93fd1e8b"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\tundra_grass_wk2oaeyqx_ue_high\\Textures\\T_wk2oaeyqx_4K_B-O.png",
+          "sha256": "c0e229cf488b27f1918f74b7f6f029305a1a0768f1dd91d65738c900f970b03e"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\tundra_grass_wk2oaeyqx_ue_high\\Textures\\T_wk2oaeyqx_4K_B.png",
+          "sha256": "8579b2289e89b95ec92a03c98bcb39aea2d0101605baf9e5e152a72690f7695b"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\tundra_grass_wk2oaeyqx_ue_high\\Textures\\T_wk2oaeyqx_4K_Billboard_B-O.png",
+          "sha256": "73fcfc951be7c8f71dbd559487c5c9a36573885602e7d494dacaa3576e84aa02"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\tundra_grass_wk2oaeyqx_ue_high\\Textures\\T_wk2oaeyqx_4K_Billboard_N-T.png",
+          "sha256": "0026dfad83b83207dfa31d9388f7b21c9dbbfbad9cd37bdf12d4cb31480d079e"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\tundra_grass_wk2oaeyqx_ue_high\\Textures\\T_wk2oaeyqx_4K_N.png",
+          "sha256": "0f8a71d21661f79d9b7ddb93ff259dba877c797503f2a030e6439ab335e9f7cd"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\tundra_grass_wk2oaeyqx_ue_high\\Textures\\T_wk2oaeyqx_4K_ORT.png",
+          "sha256": "cd4cb3902ac05e4ae131c99cd6a97a2504b0341fc91a5cab2fbf5b647696a59d"
+        }
+      ],
+      "variants": [
+        {
+          "variant": 0,
+          "levels": [
+            {
+              "node": "tundra_v0_lod0",
+              "sourceNode": "SM_wk2oaeyqx_VarA_LOD1",
+              "triangles": 1645,
+              "height": 0.3173885834403336,
+              "width": 0.37432828545570374,
+              "billboard": false
+            },
+            {
+              "node": "tundra_v0_lod1",
+              "sourceNode": "SM_wk2oaeyqx_VarA_LOD3",
+              "triangles": 364,
+              "height": 0.31580242654308677,
+              "width": 0.37890174984931946,
+              "billboard": false
+            },
+            {
+              "node": "tundra_v0_lod2",
+              "sourceNode": "SM_wk2oaeyqx_VarA_LOD4",
+              "triangles": 6,
+              "height": 0.31537094968371093,
+              "width": 0.3337746113538742,
+              "billboard": true
+            }
+          ]
+        },
+        {
+          "variant": 1,
+          "levels": [
+            {
+              "node": "tundra_v1_lod0",
+              "sourceNode": "SM_wk2oaeyqx_VarB_LOD1",
+              "triangles": 2031,
+              "height": 0.6296539157629013,
+              "width": 0.4030688405036926,
+              "billboard": false
+            },
+            {
+              "node": "tundra_v1_lod1",
+              "sourceNode": "SM_wk2oaeyqx_VarB_LOD3",
+              "triangles": 373,
+              "height": 0.6304381643421948,
+              "width": 0.40114904940128326,
+              "billboard": false
+            },
+            {
+              "node": "tundra_v1_lod2",
+              "sourceNode": "SM_wk2oaeyqx_VarB_LOD4",
+              "triangles": 6,
+              "height": 0.6291060952935368,
+              "width": 0.40199898183345795,
+              "billboard": true
+            }
+          ]
+        },
+        {
+          "variant": 2,
+          "levels": [
+            {
+              "node": "tundra_v2_lod0",
+              "sourceNode": "SM_wk2oaeyqx_VarC_LOD1",
+              "triangles": 1828,
+              "height": 0.6612630434101447,
+              "width": 0.6693617105484009,
+              "billboard": false
+            },
+            {
+              "node": "tundra_v2_lod1",
+              "sourceNode": "SM_wk2oaeyqx_VarC_LOD3",
+              "triangles": 418,
+              "height": 0.6617298829369247,
+              "width": 0.6617118120193481,
+              "billboard": false
+            },
+            {
+              "node": "tundra_v2_lod2",
+              "sourceNode": "SM_wk2oaeyqx_VarC_LOD4",
+              "triangles": 6,
+              "height": 0.6484452579170465,
+              "width": 0.6683372557163239,
+              "billboard": true
+            }
+          ]
+        }
+      ],
+      "outputSha256": "94df8a5a501cad73c8a4b09e9524074209e07a85049218c2caa7f8b52dfc95bb",
+      "outputBytes": 25903812
+    },
+    {
+      "key": "fern",
+      "model": "res://assets/surface/ground-cover/fern.glb",
+      "sourceArchive": "D:\\GameDev\\Assets\\bracken_fern_seeow_ue_high.zip",
+      "archiveSha256": "621b16b574b242a90c6a476ed840965f784391ee33edb2ddd8ff890e55541696",
+      "inputs": [
+        {
+          "path": "D:\\GameDev\\Assets\\bracken_fern_seeow_ue_high\\seEoW_tier_1.bin",
+          "sha256": "197d81ede6211036eb1dadb19480c570916ac9372240f6233a7a26352aee227c"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\bracken_fern_seeow_ue_high\\seEoW_tier_1.gltf",
+          "sha256": "543df8a496a86f6fecc084d6de1defb84083b23d6aebcfe02a2877ca2f4dc8b5"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\bracken_fern_seeow_ue_high\\standard\\seEoW_tier_1_nonUE.gltf",
+          "sha256": "6e5496f2dbbbc6115fbb7392163affe309b112e70b66777249fff56820df3d1b"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\bracken_fern_seeow_ue_high\\Textures\\T_seEoW_4K_B-O.png",
+          "sha256": "20e351aa71f1f145fae9326d7bf26bf1a3468c2d8a9840392373892045935d38"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\bracken_fern_seeow_ue_high\\Textures\\T_seEoW_4K_B.png",
+          "sha256": "91f181175ccec9babf6670011b375d2477de3531251d0e611a787a7c5fe60cf9"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\bracken_fern_seeow_ue_high\\Textures\\T_seEoW_4K_Billboard_B-O.png",
+          "sha256": "bccefcb5504774675881d165dcd5f1233b7a5ed484d9bec742d34f1e7ba90397"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\bracken_fern_seeow_ue_high\\Textures\\T_seEoW_4K_Billboard_N-T.png",
+          "sha256": "bdbc28af341b993c5d5602e924014b066df3af5dd67808801ac86cdd7684ad5a"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\bracken_fern_seeow_ue_high\\Textures\\T_seEoW_4K_N.png",
+          "sha256": "c49f1f97a13167e104ead40249a3a2f1392fca0536c2c34db1078f126a828814"
+        },
+        {
+          "path": "D:\\GameDev\\Assets\\bracken_fern_seeow_ue_high\\Textures\\T_seEoW_4K_ORT.png",
+          "sha256": "00c7648b34026a937b43f0deb8a19b17bde88a6779d727fa69600bad277baeba"
+        }
+      ],
+      "variants": [
+        {
+          "variant": 0,
+          "levels": [
+            {
+              "node": "fern_v0_lod0",
+              "sourceNode": "SM_seEoW_VarA",
+              "triangles": 88,
+              "height": 0.8566812574863434,
+              "width": 1.5032960772514343,
+              "billboard": false
+            },
+            {
+              "node": "fern_v0_lod1",
+              "sourceNode": "SM_seEoW_VarA",
+              "triangles": 88,
+              "height": 0.8566812574863434,
+              "width": 1.5032960772514343,
+              "billboard": false
+            },
+            {
+              "node": "fern_v0_lod2",
+              "sourceNode": "SM_seEoW_VarA_LOD1",
+              "triangles": 7,
+              "height": 0.9771188795566559,
+              "width": 1.399487555027008,
+              "billboard": true
+            }
+          ]
+        },
+        {
+          "variant": 1,
+          "levels": [
+            {
+              "node": "fern_v1_lod0",
+              "sourceNode": "SM_seEoW_VarC",
+              "triangles": 72,
+              "height": 0.9514173567295074,
+              "width": 1.105726569890976,
+              "billboard": false
+            },
+            {
+              "node": "fern_v1_lod1",
+              "sourceNode": "SM_seEoW_VarC",
+              "triangles": 72,
+              "height": 0.9514173567295074,
+              "width": 1.105726569890976,
+              "billboard": false
+            },
+            {
+              "node": "fern_v1_lod2",
+              "sourceNode": "SM_seEoW_VarC_LOD1",
+              "triangles": 8,
+              "height": 0.8500940669327974,
+              "width": 0.9488340616226196,
+              "billboard": true
+            }
+          ]
+        },
+        {
+          "variant": 2,
+          "levels": [
+            {
+              "node": "fern_v2_lod0",
+              "sourceNode": "SM_seEoW_VarE",
+              "triangles": 58,
+              "height": 0.5412395789753646,
+              "width": 1.5586646795272827,
+              "billboard": false
+            },
+            {
+              "node": "fern_v2_lod1",
+              "sourceNode": "SM_seEoW_VarE",
+              "triangles": 58,
+              "height": 0.5412395789753646,
+              "width": 1.5586646795272827,
+              "billboard": false
+            },
+            {
+              "node": "fern_v2_lod2",
+              "sourceNode": "SM_seEoW_VarE_LOD1",
+              "triangles": 8,
+              "height": 0.6160725876688957,
+              "width": 1.5246736407279968,
+              "billboard": true
+            }
+          ]
+        }
+      ],
+      "outputSha256": "0fd809d2af27e5acbf6f881c8194fed0be7bd116d06edafc3cbaa4db9d3d8404",
+      "outputBytes": 23547260
+    }
+  ]
+}

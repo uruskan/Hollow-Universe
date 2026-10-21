@@ -13,54 +13,20 @@ namespace HollowUniverse.Ground;
 /// <summary>Melee: the attack button held swings, in the tool's rhythm (the server's); the arms swing with it.</summary>
 public sealed class MeleeControl : IHeldControl
 {
-    private double _swing = -1;
-    private int _equipped = -1;
-
     public void Hands(HeldContext ctx, ref InputFrame input, in HandButtons buttons)
     {
         input.Primary = buttons.Attack;
         input.PrimaryPressed = buttons.Clicked;
     }
 
-    // Swings follow the server's rhythm: one every swing time while the attack is held, once the item is ready.
-    public void Arms(HeldContext ctx, double delta, in InputFrame input)
-    {
-        MeleeStats melee = ctx.Item.Melee!;
-        if (_equipped != ctx.Arms.Equipped)
-        {
-            _equipped = ctx.Arms.Equipped;
-            _swing = -1;
-        }
-        if (ctx.Arms.SinceEquip <= 0.3)
-        {
-            return;
-        }
-        bool swingNow = false;
-        if (_swing < 0 && input.Primary)
-        {
-            _swing = 0;
-            swingNow = true;
-        }
-        else if (_swing >= 0)
-        {
-            _swing += delta;
-            if (_swing >= melee.SwingSeconds)
-            {
-                _swing = input.Primary ? 0 : -1;
-                swingNow = input.Primary;
-            }
-        }
-        if (swingNow)
-        {
-            ctx.Arms.Swing(ctx.Item);
-        }
-    }
+    // LocalMelee starts the arms on the same input tick as the simulated action; there is no frame-rate timer here.
 }
 
 /// <summary>The bow: the aim button draws, a press of the attack button looses; the string sounds as it is drawn.</summary>
 public sealed class BowControl : IHeldControl
 {
     private bool _drawing;
+    private int _equipped = -1;
 
     public void Hands(HeldContext ctx, ref InputFrame input, in HandButtons buttons)
     {
@@ -73,7 +39,15 @@ public sealed class BowControl : IHeldControl
 
     public void Arms(HeldContext ctx, double delta, in InputFrame input)
     {
-        bool drawing = input.Secondary;
+        if (_equipped != ctx.Arms.Equipped)
+        {
+            _equipped = ctx.Arms.Equipped;
+            _drawing = false;
+        }
+        bool drawing = input.Secondary && ctx.Arms.SinceEquip >= HeldActionTiming.Quantize(ctx.Content.Survival.EquipSeconds) &&
+            (ctx.Client.Character.Flags & Hollow.Simulation.Movement.MoveFlags.Swimming) == 0 &&
+            ctx.Item.Bow!.Ammo.Any(a => ctx.Me.Inventory.Count(a) > 0);
+        ctx.Arms.Aim(drawing);
         if (drawing && !_drawing)
         {
             Sounds.Flat(Sounds.Item(ctx.Item.Key, "draw") ?? "bow.draw");
@@ -112,8 +86,6 @@ public sealed class FirearmControl : IHeldControl
 /// </summary>
 public sealed class ThrowableControl : IHeldControl
 {
-    private double _thrownAt = -10;
-
     // A charge's ghost on the surface the view meets.
     public void Aim(HeldContext ctx, Num.Vector3 eye, Num.Vector3 forward)
     {
@@ -129,20 +101,19 @@ public sealed class ThrowableControl : IHeldControl
         {
             return;
         }
-        ThrowableStats throwable = ctx.Item.Throwable!;
-        if (ctx.Client.ClockSeconds - _thrownAt < throwable.CooldownSeconds)
-        {
-            return;
-        }
-        _thrownAt = ctx.Client.ClockSeconds;
         bool secondary = buttons.AimClicked && !buttons.Clicked;
         if (secondary && ctx.Item.Places != null)
         {
-            ctx.Placement.Place(ctx);
+            ctx.Arms.BeginAction(ctx.Item, "throw", () => ctx.Placement.Place(ctx));
             return;
         }
-        ctx.Me.Throw(ctx.Slot, ctx.Yaw, ctx.Pitch, lob: secondary);
-        ctx.Arms.Throw(ctx.Item.Key);
+        ItemDef item = ctx.Item;
+        ctx.Arms.BeginAction(item, "throw", () =>
+        {
+            uint intent = ctx.Me.Throw(ctx.Slot, ctx.Yaw, ctx.Pitch, lob: secondary);
+            if (intent != 0) Sounds.Flat(Sounds.Item(item.Key, "throw"));
+            return intent;
+        });
     }
 }
 
@@ -156,7 +127,7 @@ public class PlacerControl : IHeldControl
     {
         if (buttons.Clicked)
         {
-            ctx.Placement.Place(ctx);
+            ctx.Arms.BeginAction(ctx.Item, "use", () => ctx.Placement.Place(ctx));
         }
         if (buttons.Reload)
         {
@@ -180,7 +151,7 @@ public sealed class HammerControl : IHeldControl
     {
         if (buttons.Clicked)
         {
-            ctx.Build.Use();
+            ctx.Arms.BeginAction(ctx.Item, "repair", () => ctx.Build.Use());
         }
     }
 
@@ -199,10 +170,17 @@ public sealed class UsesItsPartControl : IHeldControl
         {
             return;
         }
-        if (ctx.Me.FirstAction(ContainerRef.Belt, ctx.Slot, part) is { Refusal: null } option)
+        ItemDef item = ctx.Item;
+        if (ctx.Me.FirstAction(ContainerRef.Belt, ctx.Slot, part) is not { Refusal: null } option)
         {
-            Sounds.Flat(Sounds.Item(ctx.Item.Key, option.Action.Key) ?? Sounds.Item(ctx.Item.Key, "use"));
+            ctx.Me.UsePart(ContainerRef.Belt, ctx.Slot, part); // ordinary refusal message, with no visual action
+            return;
         }
-        ctx.Me.UsePart(ContainerRef.Belt, ctx.Slot, part);
+        ctx.Arms.BeginAction(item, "use", () =>
+        {
+            uint intent = ctx.Me.UsePart(ContainerRef.Belt, ctx.Slot, part);
+            if (intent != 0) Sounds.Flat(Sounds.Item(item.Key, option.Action.Key) ?? Sounds.Item(item.Key, "use"));
+            return intent;
+        });
     }
 }

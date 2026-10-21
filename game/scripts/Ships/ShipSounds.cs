@@ -31,6 +31,8 @@ public sealed class ShipSounds
 
     private SoundHandle _engine, _idle, _idleFast, _load, _loadFast, _liftSlow, _liftFast, _boostSlow, _boostFast;
     private SoundHandle _ventilation, _machinery;
+    private SoundHandle _rotorSlow, _rotorFast, _rotorLoad;
+    private readonly Node3D _rotor;
     private SoundHandle[] _travel;
     private float[] _doorWas;
     private bool[] _opening;
@@ -50,6 +52,8 @@ public sealed class ShipSounds
         // The engines heard at the model's engine socket, else between the main nozzles; the lift engines between theirs.
         _drive = GunEffects.Socket(view.Model, "engine_audio") ?? Point(view, "DriveSound", Centre(def, NozzleDrive.Main) ?? def.CentreOfMass);
         _lift = Point(view, "LiftSound", Centre(def, NozzleDrive.Lift) ?? def.CentreOfMass);
+        // A rotor's sound comes from over the centre of mass, where its blades pass (docs/MINICOPTER.md §8).
+        _rotor = Point(view, "RotorSound", def.CentreOfMass + new Num.Vector3(0, 1.3f, 0));
         _doors = new Node3D[def.Doors.Count];
         for (int i = 0; i < _doors.Length; i++)
         {
@@ -82,7 +86,7 @@ public sealed class ShipSounds
         return n > 0 ? sum / n : null;
     }
 
-    private string? Role(string role) => Sounds.Item(_def.Key, role);
+    private string? Role(string role) => Sounds.Item(_def.Sound, role);
 
     private static AudioDirector? Director => AudioDirector.Instance;
 
@@ -142,6 +146,7 @@ public sealed class ShipSounds
             Engines(look, ship, dt);
         }
         Boost(running && look.Boosting);
+        Rotor(look, visible);
         Doors(ship, tick);
         if (_known)
         {
@@ -218,6 +223,37 @@ public sealed class ShipSounds
         Stop(ref _loadFast, shutdown ? 0.5f : 0.4f);
         Stop(ref _liftSlow, 0.8f);
         Stop(ref _liftFast, 0.8f);
+    }
+
+    // A rotor (roles rotor, rotorFast, rotorLoad): heard while it turns, the engine running or not (it winds down after a
+    // stop), its slow and working-speed loops crossfaded by the spool and quieter as it slows, the load's slap laid on by the
+    // collective's share.
+    private void Rotor(in ShipLook look, bool visible)
+    {
+        float spool = look.Destroyed || !visible ? 0 : Math.Clamp(look.Spool, 0, 1);
+        bool turning = spool > 0.03f && Role("rotor") != null;
+        if (turning && !_rotorSlow.IsValid)
+        {
+            _rotorSlow = Loop("rotor", _rotor, Silent);
+            _rotorFast = Loop("rotorFast", _rotor, Silent);
+            _rotorLoad = Loop("rotorLoad", _rotor, Silent);
+        }
+        else if (!turning && _rotorSlow.IsValid)
+        {
+            Stop(ref _rotorSlow, 0.4f);
+            Stop(ref _rotorFast, 0.4f);
+            Stop(ref _rotorLoad, 0.4f);
+        }
+        if (!_rotorSlow.IsValid)
+        {
+            return;
+        }
+        (float slow, float fast) = Cross((spool - 0.4f) / 0.55f);
+        float level = Db(MathF.Pow(spool, 1.3f));
+        Gain(_rotorSlow, slow + level);
+        Gain(_rotorFast, fast + level);
+        float load = Math.Clamp((look.Thrust.Y - 0.45f) / 0.5f, 0, 1) * spool;
+        Gain(_rotorLoad, Db(load) - 2);
     }
 
     private static float Length(string key)
@@ -460,6 +496,9 @@ public sealed class ShipSounds
         Stop(ref _boostFast, 0.3f);
         Stop(ref _ventilation, 0.5f);
         Stop(ref _machinery, 0.5f);
+        Stop(ref _rotorSlow, 0.3f);
+        Stop(ref _rotorFast, 0.3f);
+        Stop(ref _rotorLoad, 0.3f);
         for (int i = 0; i < _travel.Length; i++)
         {
             Stop(ref _travel[i], 0.2f);

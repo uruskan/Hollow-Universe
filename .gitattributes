@@ -13,3 +13,11 @@
 *.so binary
 *.cmd text eol=crlf
 *.webp binary
+# Vendored package receipts hash exact bytes, including source text line endings.
+game/assets/revised/** -text
+# Text files whose SHA-256 a receipt pins hold the same LF bytes in every checkout: with -text git never rewrites
+# their line endings, and a stale CRLF copy shows as modified (restore it with `git checkout -- <path>`).
+src/Hollow.Surface/Data/cliffs.json -text
+game/assets/surface/cliffs/provenance.json -text
+# Preserve the owner's original pasted report verbatim.
+docs/reports/legacy-30-issues.txt -text

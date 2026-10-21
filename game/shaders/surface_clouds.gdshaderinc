@@ -163,15 +163,15 @@ vec4 hu_clouds(vec3 rd, int steps, int light_steps, float jitter) {
 	return vec4((light * Ta + L * (1.0 - T)) * far_fade, alpha);
 }
 
-// How much of the sun reaches a point through the clouds (0–1): the field where the sun's ray from it crosses the layer.
-float hu_cloud_shadow(vec3 world_point) {
+// A directional light reaching a point through clouds (0–1). Each light supplies its world-space ray.
+float hu_cloud_shadow(vec3 world_point, vec3 light_direction) {
 	if (hu_cloud_coverage <= 0.0) {
 		return 1.0;
 	}
 	float mid = mix(hu_cloud_layer.x, hu_cloud_layer.y, 0.35);
 	float altitude = hu_height(world_point);
-	float mus = max(dot(hu_sun_direction, hu_up(world_point)), 0.08);
-	vec3 q = world_point + hu_sun_direction * (mid - altitude) / mus;
+	float mus = max(dot(light_direction, hu_up(world_point)), 0.08);
+	vec3 q = world_point + light_direction * (mid - altitude) / mus;
 	float d = hu_cloud_density(q, mid);
 	return exp(-d * HU_CLOUD_EXTINCTION * (hu_cloud_layer.y - hu_cloud_layer.x) * 0.25 / mus);
 }

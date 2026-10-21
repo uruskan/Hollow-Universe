@@ -35,6 +35,53 @@ public static class WorldNetTests
 
     private static T OnServer<T>(LoopbackRig rig, Func<GameServer, T> look) => rig.Server.Inspect(look);
 
+    [Test]
+    public static void SpecializedWorkbenchProgressionOverTheNetwork()
+    {
+        using var rig = new LoopbackRig();
+        GameClient ada = rig.Join("Ada");
+        rig.WaitUntilPlaying();
+        GameContent c = ada.Content;
+        Recipe ship = c.Recipe(c.ItemByKey("tin-finch").Id)!;
+        TechNode node = c.World.NodeOf(ship.Id)!;
+        (TargetRef vehicle, TargetRef standard) = OnServer(rig, sv =>
+        {
+            Zone zone = sv.Zone;
+            zone.Players().TryFindPlayer(ada.EntityId, out Entity entity, out Player player);
+            Vector3 feet = zone.Entities.Get<Character>(entity).State.Position;
+            Deployable Add(string key, float east)
+            {
+                Vector3 at = zone.Settle(zone.Frame.Beside(feet, east, 0, 0));
+                var bench = new Deployable(zone.NextId(), sv.Content.Deployable(key)!, at, zone.Frame.UpAt(at), 0, player.Id);
+                zone.Things().AddStatic(bench);
+                return bench;
+            }
+            player.Inventory.Give(sv.Content, sv.Content.ItemByKey("salvage"), node.Cost);
+            return (Add("vehicle-workbench", 2).Ref, Add("workbench-3", -2).Ref);
+        });
+        RunUntil(rig, () => ada.Interaction().TechTreeAt(vehicle) != null && ada.Local.WorkbenchLevel == 3 &&
+            ada.Local.Inventory.Count(c.ItemByKey("salvage")) == node.Cost, "both workbenches and salvage");
+        Assert.Equal("vehicle-workbench", ada.Interaction().TechTreeAt(vehicle)!.Station!.Key, "E's target selects the vehicle tree even beside a level 3 bench");
+        Assert.Equal(3, ada.Interaction().TechTreeAt(standard)!.Workbench, "the other target retains its standard tree");
+        Assert.Equal(OutcomeCode.Done, ada.Local.CanUnlock(node), "the client finds the unlevelled station");
+
+        var rejected = new List<IntentAnswer>();
+        ada.Local.IntentRejected += rejected.Add;
+        ada.Local.Unlock(standard, ship.Id); // A forged target must not substitute its standard level for the station.
+        RunUntil(rig, () => rejected.Count > 0 && ada.Local.PendingCount == 0, "wrong-station rejection");
+        Assert.True(!ada.Local.Knows(ship), "optimistic knowledge rolled back");
+        Assert.Equal(node.Cost, ada.Local.Inventory.Count(c.ItemByKey("salvage")), "optimistic salvage charge rolled back");
+
+        ada.Local.Unlock(vehicle, ship.Id);
+        RunUntil(rig, () => ada.Local.PendingCount == 0 && ada.Local.Knows(ship), "vehicle technology confirmation");
+        Assert.Equal(0, ada.Local.Inventory.Count(c.ItemByKey("salvage")), "one confirmed unlock price");
+        Assert.True(OnServer(rig, sv =>
+        {
+            sv.Zone.Players().TryFindPlayer(ada.EntityId, out _, out Player player);
+            return player.Blueprints.HasLearnt(ship.Id);
+        }), "authoritative knowledge matches the client");
+    }
+
     // Teleports a player next to the world prop of a kind nearest the landing site, on its side toward the landing site,
     // and waits until their client has them there.
     private static Vector3 NextTo(LoopbackRig rig, GameClient client, WorldPropKind kind, out EntityId prop)

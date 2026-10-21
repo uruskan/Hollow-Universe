@@ -18,7 +18,7 @@ public sealed partial class BuildingWorld
 {
     /// <summary>
     /// A removal's piece or door as the Destroyed event names it: a piece by its key and grade at its own transform, a door
-    /// by its key on its frame piece, turned half round when it was fitted the other way (as it is drawn). Null for a claim
+    /// by its key on its frame piece (the way it hung is in its leaves, not its frame). Null for a claim
     /// device (drawn as the deployable it also is) and anything else.
     /// </summary>
     public static RemovedPart? Removed(in BuildingEvent e)
@@ -33,10 +33,6 @@ public sealed partial class BuildingWorld
             case BuildingChange.DoorRemoved when e.Door is { } door:
             {
                 (Vector3 position, Quaternion rotation) = door.Frame.ZoneTransform;
-                if (door.Flip % 2 != 0)
-                {
-                    rotation = Quaternion.Normalize(rotation * Quaternion.CreateFromAxisAngle(Vector3.UnitY, MathF.PI));
-                }
                 return new RemovedPart(door.Ref, door.Def.Key, 0, position, rotation, door.Open);
             }
             default:

@@ -1,0 +1,16 @@
+[
+  {
+    "source": "1117",
+    "label": "dry contact A",
+    "start": 0.0,
+    "end": 2.2,
+    "fx": "highpass=f=180:poles=2,equalizer=f=900:t=o:w=2:g=-9,lowpass=f=7500"
+  },
+  {
+    "source": "2889",
+    "label": "organic contact B",
+    "start": 3.2,
+    "end": 5.4,
+    "fx": "highpass=f=180:poles=2,lowpass=f=6500"
+  }
+]

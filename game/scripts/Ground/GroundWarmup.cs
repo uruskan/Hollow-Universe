@@ -36,7 +36,7 @@ public static class GroundWarmup
             .Concat(GibWarm.Items())
             .Concat(FxWarm.Items())
             .Concat(AnimalWarm.Items(content.Animals.Select(a => a.Key)))
-            .Concat(ShipWarm.Items(content.Ships))
+            .Concat(ShipWarm.Items(content))
             .Append(new WarmItem("weak spots", _ => NatureView.Warmup(content)))
             .Append(WarmItem.Load("sounds", SoundLibrary.Files));
 }

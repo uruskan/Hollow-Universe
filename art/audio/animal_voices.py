@@ -18,6 +18,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import synth  # noqa: E402
+from longpath import fs  # noqa: E402
 
 RATE = synth.RATE
 VERSION = 1
@@ -48,7 +49,7 @@ def voice(name, seconds, f0, amp, seed=1, jitter=0.01, shimmer=0.05, breath=0.08
             tuple((tuple(f) if isinstance(f, (list, tuple)) else f, b, g) for f, b, g in formants),
             rattle, sub, drive, tone, lowpass, VERSION)
     path = synth.cached("animal_" + name, args)
-    if os.path.isfile(path):
+    if os.path.isfile(fs(path)):
         return path
     n = int(seconds * RATE)
     rng = synth.Lcg(seed)
@@ -126,7 +127,7 @@ def voice(name, seconds, f0, amp, seed=1, jitter=0.01, shimmer=0.05, breath=0.08
 def click(name, freq, decay, seconds=0.12, noise=0.4, seed=1, at=0.004):
     """A hard little transient (teeth snapping shut, a jaw's pop, a hoof's tock): a decaying ring and a scratch."""
     path = synth.cached("animal_" + name, (freq, decay, seconds, noise, seed, at, VERSION))
-    if os.path.isfile(path):
+    if os.path.isfile(fs(path)):
         return path
     n = int(seconds * RATE)
     rng = synth.Lcg(seed)

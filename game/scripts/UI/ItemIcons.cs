@@ -195,6 +195,7 @@ public static class GroundGlyphs
         "water" => "<path d=\"m7 6 18 0-3 22H10Zm3 3 2 16h8l2-16Z\" fill-rule=\"evenodd\"/>",
         "food" => "<path d=\"M7 4h2v7h2V4h2v7h2V4h2v9c0 3-2 5-4 5v10h-4V18c-2 0-4-2-4-5V4Zm17 0h2v24h-4V18h-3V9c0-3 2-5 5-5Z\"/>",
         // Statuses.
+        "oxygen" => $"<path d=\"M16 4v15M14 10C10 6 5 12 5 21c0 7 8 6 9 1Zm4 0c4-4 9 2 9 11 0 7-8 6-9 1Z\" {Line}/>",
         "bleeding" => "<path d=\"M16 3C12 10 7 15 7 20a9 9 0 0 0 18 0c0-5-5-10-9-17Z\"/>",
         "wet" => "<path d=\"M11 4C8 9 5 12 5 16a6 6 0 0 0 12 0c0-4-3-7-6-12Zm11 10c-2 4-4 6-4 9a4 4 0 0 0 8 0c0-3-2-5-4-9Z\"/>",
         "cold" => $"<path d=\"M16 3v26M4.7 9.5l22.6 13M4.7 22.5l22.6-13M12 5l4 3 4-3M12 27l4-3 4 3\" {Line}/>",

@@ -6,6 +6,7 @@ using Hollow.Simulation.Combat;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Movement;
+using Hollow.Simulation.Physics;
 
 namespace Hollow.Simulation.Animals;
 
@@ -45,6 +46,8 @@ public struct AnimalNoise
 /// <summary>What the zone does for the animals: hurting players, telling them about walls and boxes.</summary>
 public interface IAnimalHost
 {
+    /// <summary>Whether the target can be physically reached; also checked again when the attack lands.</summary>
+    bool CanAttackPlayer(Animal animal, EntityId player);
     /// <summary>The animal's attack lands on a player (armour applies); false if they are gone or dead.</summary>
     bool AnimalAttacksPlayer(Animal animal, EntityId player);
 
@@ -62,7 +65,7 @@ public interface IAnimalHost
 /// player sleep. Server state, on the zone's thread; deterministic given the zone's inputs. On a whole world
 /// (docs/WHOLE_WORLD.md §7.3): headings from local north, distances in three dimensions, steps along the ground.
 /// </summary>
-public sealed partial class AnimalWorld
+public sealed partial class AnimalWorld : IDisposable
 {
     /// <summary>
     /// The AI thinks every so many ticks, staggered by animal: engaged (fleeing, chasing, alert) 7.5 times a second,
@@ -89,6 +92,7 @@ public sealed partial class AnimalWorld
     private readonly List<Animal> _bodies = new();
     private readonly ulong _seed;
     private long _localIds = 1;
+    private bool _disposed;
 
     internal AnimalWorld(Zone zone, IAnimalHost host, GameContent content, ulong seed)
     {
@@ -152,6 +156,7 @@ public sealed partial class AnimalWorld
     /// </summary>
     public Herd SpawnHerd(AnimalSpecies species, Vector3 at, int count, float range = 70, SpawnSlot? slot = null, float? facing = null)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         var herd = new Herd(species, at, range) { Slot = slot, WanderGoal = at };
         for (int i = 0; i < count; i++)
         {
@@ -201,6 +206,7 @@ public sealed partial class AnimalWorld
     /// <summary>Adds an animal (or a corpse restored from storage).</summary>
     public void Add(Animal animal)
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         _animals.Add(animal);
         _byId[animal.Id] = animal;
         Added.Add(animal);
@@ -248,6 +254,7 @@ public sealed partial class AnimalWorld
     /// </summary>
     public void Step()
     {
+        ObjectDisposedException.ThrowIf(_disposed, this);
         Steps++;
         Added.Clear();
         Gone.Clear();
@@ -300,6 +307,36 @@ public sealed partial class AnimalWorld
         PruneNoises();
         Record();
         Nav.Release(60 * CharacterTicks.Rate);
+    }
+
+    /// <summary>Stops animal navigation before the enclosing zone releases its world. Outside the physics gate.</summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        if (JoltRuntime.Gate.IsHeldByCurrentThread)
+            throw new InvalidOperationException("Animal retirement must run outside the Jolt gate.");
+        _disposed = true;
+        try { Nav.Dispose(); }
+        finally
+        {
+            foreach (Animal animal in _animals) History.Forget(animal.Id);
+            _animals.Clear();
+            _byId.Clear();
+            _cells.Clear();
+            _spareCells.Clear();
+            _removed.Clear();
+            _near.Clear();
+            _bodies.Clear();
+            _areas.Clear();
+            _manual.Clear();
+            _nearAreas.Clear();
+            _tiles.Clear();
+            Observers.Clear();
+            Noises.Clear();
+            Watchers.Clear();
+            Added.Clear();
+            Gone.Clear();
+        }
     }
 
     private static bool Engaged(Animal a) => a.State is AnimalState.Flee or AnimalState.Chase or AnimalState.Attack or AnimalState.Alert;
@@ -657,23 +694,11 @@ public sealed partial class AnimalWorld
         {
             return gained;
         }
-        float max = corpse.Species.HarvestHealth;
-        float before = corpse.HarvestLeft, after = MathF.Max(0, before - rate);
-        foreach (ItemAmount y in corpse.Species.Harvest)
-        {
-            int n = Gathered(y.Count, max, after) - Gathered(y.Count, max, before);
-            if (n > 0)
-            {
-                gained.Add(new ItemAmount(y.Item, n));
-            }
-        }
-        corpse.HarvestLeft = after;
+        float left = corpse.HarvestLeft;
+        Hollow.Simulation.World.HarvestProgress.Take(corpse.Species.Harvest, corpse.Species.HarvestHealth, ref left, rate, gained);
+        corpse.HarvestLeft = left;
         return gained;
     }
-
-    // Units gathered once health has fallen to `left` of `max`: in proportion, all of it at none.
-    private static int Gathered(int total, float max, float left) =>
-        left <= 0 ? total : (int)MathF.Floor(total * (1 - left / max) + 1e-4f);
 
     // ---------------------------------------------------------------- small helpers
 

@@ -1,0 +1,511 @@
+{
+  "label": "baseline-max-day-r3",
+  "startedUtc": "2026-10-16T17:18:54.2597031Z",
+  "args": [
+    "--windowed",
+    "--path",
+    "game",
+    "--resolution",
+    "1600x900",
+    "--",
+    "--view",
+    "ground",
+    "--host",
+    "--name",
+    "P2Environment",
+    "--port",
+    "27182",
+    "--db",
+    "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\p2-environment\\baseline-max-day-r3.db",
+    "--spawn",
+    "origin",
+    "--lat",
+    "-30.486486",
+    "--lon",
+    "43.059333",
+    "--quality",
+    "maximum",
+    "--hour",
+    "10",
+    "--clouds",
+    "0.25",
+    "--environment-route",
+    "D:\\GameDev\\Projects\\HollowUniverseABTestB\\docs\\images\\repairs\\p2-environment\\baseline-max-day-r3",
+    "--environment-profile",
+    "20",
+    "--environment-detail-views",
+    "--in-process"
+  ],
+  "godot": "D:/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64/Godot_v4.7.2-stable_mono_win64.exe",
+  "database": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\.artifacts\\p2-environment\\baseline-max-day-r3.db",
+  "initialMemory": {
+    "utc": "2026-10-16T17:18:53.3159357Z",
+    "freeGiB": 7.651,
+    "commitPercent": 48.0
+  },
+  "maximumSeconds": 480,
+  "inProcess": true,
+  "processes": [
+    {
+      "ProcessId": 28952,
+      "Name": "blender-mcp.exe",
+      "CommandLine": "\"D:\\GameDev\\MCP\\venv\\Scripts\\blender-mcp.exe\""
+    },
+    {
+      "ProcessId": 11924,
+      "Name": "blender-mcp.exe",
+      "CommandLine": "D:\\GameDev\\MCP\\venv\\Scripts\\blender-mcp.exe"
+    },
+    {
+      "ProcessId": 17804,
+      "Name": "blender-mcp.exe",
+      "CommandLine": "D:\\GameDev\\MCP\\venv\\Scripts\\blender-mcp.exe"
+    }
+  ],
+  "files": [
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_brow.gdshader",
+      "sha256": "99B2BD8969B2630FC54E637937D6110B58E7DE6B84DCB2A0D04FE5F9AA4B15C1"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_cloth_viewmodel.gdshader",
+      "sha256": "890FE8BB3D611C1B4C41FFB32CCD12A01F0611BB2826120DB3587EEEEFA4A10B"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_cloth.gdshader",
+      "sha256": "4F1BEA15D8B2ABFB97274B4AF0662BDE54AD543660A98B01E49025859DCB5DE4"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_cloth.gdshaderinc",
+      "sha256": "30AABD93BDB406AD5F1525923C9CA7585F19A6A7D5FC7B0B67B0A562CC0C438E"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_common.gdshaderinc",
+      "sha256": "4D5697BDE5469A263499F9CFDA6DF8D29F7F9A5E5A77FCF25AB0309B05DCB7FE"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_hair.gdshader",
+      "sha256": "E90F8880DFA5671A46F76E14AE5F4A4D0A7B36A4FB46C2D090F2AFB944DFB21E"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_hair.gdshaderinc",
+      "sha256": "4B9E5452D25A46A124EC61722F2C1CCCCF9E2F42969E80BFC6D8695609AB0ECD"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_skin_viewmodel.gdshader",
+      "sha256": "DCB462CE14AB74835295F4112CCE58A43AC9CB7D3928E0CA25599C6C1388EB48"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_skin.gdshader",
+      "sha256": "27CC085FCC67AB0EAC8CC86850148692C63D735BFB84E5B05B5354A9A6B1B9ED"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\character_skin.gdshaderinc",
+      "sha256": "8B8F681E8F516BBCE55502A510D8C8F2C5F9A0CA4063338F5D03C0152A5DCE3D"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\galaxy_sky.gdshader",
+      "sha256": "FD17F7C494A013E5467AB22FC9EC5D8A828EE12D79D4C50BCADC38C8FDBE8B3E"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\halo.gdshader",
+      "sha256": "64B71A5EB8D63BDCD99004FC8FA8E6C32114CC36DD37D070E31846D6630D217C"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\iron_wake_surface.gdshader",
+      "sha256": "0A1349E3DD35F2B958E9591144571B57FDE240F4FF23E034FFF52934A3551D1B"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\monument.gdshader",
+      "sha256": "FDC43063D0A76BE42CF67033CA7087EBBA0F1F87CE1B1DA188B022CA88E7AA00"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\optic_lens_viewmodel.gdshader",
+      "sha256": "EE1AA0C18098DFCBEFDDAF47204C38B8212043F281FB6BD3D953A4DE18AB4198"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\optic_lens.gdshader",
+      "sha256": "C21DF92E57E8423AA0F70B395DEC445A046E9E4153456D3B8B2F2C1C2A717E88"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\optic_lens.gdshaderinc",
+      "sha256": "C6624347256ED7498198D1861971E9BDDA3C9D3637049E9F445DC058B30231F2"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\placement_ghost.gdshader",
+      "sha256": "4BB2C93825D8CE10FB975BF81E083B05BF7EEBB3DCC370C0F99444225CB68190"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\planet.gdshader",
+      "sha256": "DE7E71DD3B1280E1E73C9BC417D9AA8C71452B1A0FAF8F38C8F53EBB54A7F6ED"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\playable_stars.gdshader",
+      "sha256": "D26A113E6C86D030B61845EC9662F31BB67EDC390D85A4B5E79C0448B42B0236"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\ring.gdshader",
+      "sha256": "B35FE7D1307BC9A7C5A7DD70774F01B06B72B84A4FDEEDD50087AB7D9AD79E78"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\sector_grid.gdshader",
+      "sha256": "5406A756FBC34C72C0F52255053DA62A44419BC2D2C1E548F723C8030D792D83"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\ship_exhaust.gdshader",
+      "sha256": "6691677AE4CBD6377CB4F3DE6C2AC4FF888659628E9D9E68398E621F3ED555AB"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\star.gdshader",
+      "sha256": "C288266BD23202EFAC0CC2E965B0A3C32BEEAF33A5B4B404FB59C50652F78E48"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\stars.gdshader",
+      "sha256": "0CC729AADB33455105D8E31D060C9823161215DF90679AF5605AC0EFA95B8F59"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_atmosphere.gdshaderinc",
+      "sha256": "8E1EDC5D30B3F107789375DAE339826D0C984568ADC5B3403EEC0EB71F2BB8F3"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_authored_cover.gdshader",
+      "sha256": "F0AEC37BABB5FA0DF8EB9F9C5D1F18D591EE2B86112B10BCCA8FFA931AC42397"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_authored_tree.gdshader",
+      "sha256": "3B85A07A19AD304F21ED0911ADC547C88625C8A5BBD48DECB2E4CB13BF04266E"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_clouds.gdshaderinc",
+      "sha256": "A8ADF8C53B20898FC63BCCE3C5FECF8647E753E4338D6CFDB394D0D881057D0D"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_foliage.gdshader",
+      "sha256": "E6461B3EA6EE15F7B7AA299BDA9FA3A51918CB1C4E5064BDFD2A353D87DE4AAB"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_grass.gdshader",
+      "sha256": "51130F391CF8CC0A43723874A4911161DB2425EC162FD467DC2BFCC3AA3A67F7"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_grass.gdshaderinc",
+      "sha256": "00C7B4ED31ADEE5446B445B298FA7BD384C30531C17EF7C4FAA8B571BE839283"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_impostor_bake.gdshader",
+      "sha256": "D1FFDEE0AD94C68BF267BF030E2BD6C92A5E1088E5EB49D0A0D14B5A43CDB399"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_impostor.gdshader",
+      "sha256": "22128944F4DF41CE95F72200D57559DD676F440A35EFD31839C217FCE20A7016"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_planet.gdshaderinc",
+      "sha256": "258196627E08689D56355923236DED9B0515262406D3CD8FDC1040A279DC0CB3"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_rock.gdshader",
+      "sha256": "50F56D564FD9D7DC1B888ACD691716E4DA8BFBE82E437C68EA45C23E06DC9BEE"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_scanned_rock.gdshader",
+      "sha256": "BE681EBF20382375A5A5728ECC38D65E7B25AE1C31AA5D39C1D35939BA6CB705"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_sky.gdshader",
+      "sha256": "835DADF5129F2ABED218E555249A62A0D574E7C0182744137AF880E46BADCDE3"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_terrain.gdshader",
+      "sha256": "C3BCFAAAA58346C05CAC550FE54B23F8FBA9C5CD7F9A6AEBD4A18BC54E7DEEEF"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_underwater.gdshader",
+      "sha256": "2158D04ED656166E23E024F7D32A322D6B60933B1C8A252BD8EF374A2F6D99DE"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\shaders\\surface_water.gdshader",
+      "sha256": "86E738B155EA9B7481C7FA381F0B603872D3D426E9783ED0D39FA5BA06E971B7"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\AerialTable.cs",
+      "sha256": "177C1DF66CAC5D7EE4F3EF087ECBEF662ADED5BCC25DBCE29A003C46B01854DC"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\AtmosphereModel.cs",
+      "sha256": "D63D65B4D17B6DA2358D4D6362B5CCEE3883465D55C8E3F8B05F586B02CB93B1"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\CliffField.cs",
+      "sha256": "0DFC69FB9AFA17BB92F4C2E154CB776E70C0EF291EEB814086F780ADC750F7C6"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\GeologyReview.cs",
+      "sha256": "E6B064FD820164D344E4AB3143C60C13E8A6B342BD6B8FD0B9FFEDD011E5E317"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\GrassField.Authored.cs",
+      "sha256": "ACF7445D487096928C3F2F2CC617B767BFD2F6DB5829BD746F0DD0C0D07AE912"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\GrassField.cs",
+      "sha256": "93F3B53E91903737C881F5F9952B23F514FB9D61F81730F7D335B714A3A6B843"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\GroundLayers.cs",
+      "sha256": "ACDDB6A33CB56EE271B30E85F37F17E78CB226D4C9A22D4E239FE18DD8F2C2F8"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\MonumentField.cs",
+      "sha256": "35DEB353F6766CFDFC8DFC2BA674F104F75C95D008BFB2FA71B162FA234B0C37"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\NoiseTextures.cs",
+      "sha256": "2B92C5DD4E7460C6EC1047FA93BF7F849B7EA4B7D0E3E47A7CE9FF2551722BA5"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\PlanetGlobals.cs",
+      "sha256": "D9A93DF7AB8EFA91C4681409BAB170D4BB99EF7B2ADDF6E1BFEECF771A4BB726"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\PlantSource.cs",
+      "sha256": "E484275525944B4C3C4C0A4AC7AC4D1910EE7CEB74A371A5F2C8114D0FC51D15"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\RenderFrame.cs",
+      "sha256": "A248D3939D3DFBD8D7429E9B040A5F4E9ABA2300F09D8B779FC7912745D8BF89"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\SurfaceSky.cs",
+      "sha256": "EEFDDA0C0D27EBC0BC5A5941A4D2CD451B9C2368C1B5D4042E7726BB4ADC6EFD"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\SurfaceStreamingDiagnostics.cs",
+      "sha256": "26C875FA43E80837546CBC577A45E4DB6F161E4CDDA70A8BEDFBC9C6959F2564"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\SurfaceUi.cs",
+      "sha256": "A9D12484455704305ED5C6E5530D246AAFDF84DDC42610903E9267FC5630D069"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\SurfaceView.cs",
+      "sha256": "124DD196C69B32D73B46275B4D4ABD8FAECC386C4AA1B93E7E6CE8EE67950155"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\SurfaceView.Game.cs",
+      "sha256": "57E1E6F3A23B57A01B9C92558C68E1A501E25A75155336B252578C3CE570717B"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\SurfaceView.LightingDiagnostics.cs",
+      "sha256": "273E57B89C06EE194C08B8BD66EB9CD57DAB49F0E4862EC320AA9A0BCDED1C26"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\SurfaceView.Loading.cs",
+      "sha256": "38B8B5BDF96FA7ECDB394F976A8FB06BE7E2CD0FE9F51DE56BD64806CF7B6289"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\SurfaceView.Water.cs",
+      "sha256": "FF43ADD1314B147FA542CFC6C5B3CD95CE10E0041B469F93D6B6FBA0E0CFD96D"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\TerrainLod.cs",
+      "sha256": "3EE9C6F1F39D4DB9F99BBC75070A57C521802F49116EA15FC0CFF820F8440B50"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\TerrainLod.Loading.cs",
+      "sha256": "A0CE2D9C6301F017A68CFD9CA5AA50D9B11727D8A53BDF404E3E66B52A98B4F3"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\Vegetation.cs",
+      "sha256": "DE449CEE7DF193FCA07C9ACBF454AE896BEB536E7647EFEC7C5687FF184EB625"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\Vegetation.Game.cs",
+      "sha256": "2195A5977AC5BF83AB6627EE9FDD8AF2C8650BFB1CF7B0BB563B3EB1372C07E0"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\Vegetation.Loading.cs",
+      "sha256": "010DD7A202D0A3D83AD7E4DEAEDC3991752032A42BA2D4901F0B4438C2026DF2"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\Flora\\FloraGeometry.cs",
+      "sha256": "CCCBA69B73BA9E997EFCC5955BFE02E0D98A457B0940AF89CD798FFABFFBF282"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\Flora\\FloraLibrary.cs",
+      "sha256": "1E3DC8D269C73BEB8EF4AF68824352699BC83575A1216B47C070BAA3183F837C"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\Flora\\FloraLibrary.Rocks.cs",
+      "sha256": "EEE2211AD27741E8E16038342E398578F5323E5A4BC2640D3F019B7B9AF24DAB"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\Flora\\FloraLibrary.Trees.cs",
+      "sha256": "C9EBA1717925D6B3368183BF91807040BF2C2AB693BB9A82AB41CB1D73A8D8F3"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\Flora\\FloraTextures.cs",
+      "sha256": "52DE4C6D8E2E8D59346C1571918B4BCE824535D5EF6E177191F5754159EEEED2"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\Flora\\ImpostorBaker.cs",
+      "sha256": "F44C92725D7B7DA171B837B0E7E5E4F476306A2BC83F2081FE5AEB6E798C5223"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\scripts\\Surface\\Flora\\Painter.cs",
+      "sha256": "F03200742008C344C39A2AA5BED52B5D6A44575D53FB768633A6DC88F4C7CBE4"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\Biomes.cs",
+      "sha256": "5427A618CD7B7843000D8A0B4148D52367BD7948D31F5246EDA6FAE29452E202"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\CliffGeometry.cs",
+      "sha256": "4B58F46BCA02C534EC39256F46DC2D0842E8265EF26DEC29D16DCAD7DA606EF2"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\CliffPlacements.cs",
+      "sha256": "F183BA53FE5B3AA690C69D21AF0C216868CD387FD4686536B6694AF6B8204606"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\CubeSphere.cs",
+      "sha256": "974F988506EFBD1B766E2622DB57859ED5F91D790D89EB9A158FC0AA5E360823"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\FirstWorld.cs",
+      "sha256": "DE77D32F00FA109FB1B84621DB88B931E9E7A682CE4B4EB0BDE009709B070C35"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\GroundDetailCover.cs",
+      "sha256": "6CEDF92E2E14704DFEB6546E57E161DE049C3415B5217FF95B808670E726E8F5"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\ISurface.cs",
+      "sha256": "130A6EDDB8C76AA9B2B43A5B66844FB9BE4A655916DEC3C28C036A774E3EB5A1"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\MonumentDefinition.cs",
+      "sha256": "77AF11FA4C122F367BBC8FD3A1BFC3D4C4BD213C75943463654DD4752216913A"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\MonumentPlacements.cs",
+      "sha256": "FDCB1D93E6BDFA4B5231676891BC9448D91AFD16070246FCE2347EB9369454FE"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\NearTiles.cs",
+      "sha256": "07EFB274A355D1CC95FF2CB311F2E2C021C8F1CBCE1C15D5BD06969CBFDFC0B3"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\Noise.cs",
+      "sha256": "66E10832200478D4E37BF224788BE4BFBD2C412E068A004A2EF707D9A835002C"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\PlanetSurface.cs",
+      "sha256": "B3E821F2A765B9EEE528443A3AE31FDAA2B279BE8312C9E8A5F68362EB60C7F0"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\PlanetSurfaces.cs",
+      "sha256": "ECBD57BFDE9E0F0600545E245C421AC738F82FD6B1203EF07F4B6E342C5F43D2"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\Plates.cs",
+      "sha256": "8C3FE703B96565C723D115D7101A602B6973B48A4C2B17E86A36FA3AE9AE64E9"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\Scatter.cs",
+      "sha256": "7DCC77CC43404FDD5B1503B66A51677EBAD609296467FFF88E83F90BF5AF6070"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\SkyEphemeris.cs",
+      "sha256": "9BC6E29DB0E8FAA2CA5948974CE9473B13B4BBC2AB6D69FF90B03D59662745ED"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\SphereSurface.cs",
+      "sha256": "9835B860111503BD14D5DFAA4E99894E3D74504A644837493C2B8870861D72A8"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\StandInWorld.cs",
+      "sha256": "35C0FBBC7AD9278DB5740632E8DEC15C34032050B416895BDEAA0312D5C2FD00"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\StartingWorld.cs",
+      "sha256": "FC666C4684556B99DB45D8F6C33ABE36A955BF011D3DE01C44DADB930C42238B"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\SurfaceGrid.cs",
+      "sha256": "3F82E53858B3FB007A64B0B2B5627B238DBB4B623862568564369C17E0200299"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\TileMesh.cs",
+      "sha256": "78010CFFD3D00F041668D5B952993E277B8BEAFBDF09645F45EECB852A0CD117"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\WorldGrid.cs",
+      "sha256": "28944C6D4690392C5825431FFC064648D531991BEC07A00017AC2D01EC6507AD"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\ZoneFrame.cs",
+      "sha256": "DE6BA7340CF3EB63FC3565E846049A550AD40ED37C92F11C15201D3A1E88AC65"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\Walking\\Drainage.cs",
+      "sha256": "DBA70AC4920AFDEC284727F6E7577A5B80C5646BB6C2EEEBE8C6762596433FD4"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\Walking\\ReliefProvinces.cs",
+      "sha256": "3725CE9B49F24B92BE5DC48B7023DF22D4716C14F9BEF3B5D95A3F6FB7237FC2"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\Walking\\RidgedNoise.cs",
+      "sha256": "F4F2AF21EB7D8044DD26BB36FBDD5D8D51FAD7519488A6DAB05AA879F89D819E"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\Walking\\WalkingParameters.cs",
+      "sha256": "C02E0F8DE80BD255AC67A1FCA878D54250167DFA3A8D6103C8758698667D28E9"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\Walking\\WalkingWorld.cs",
+      "sha256": "B4B9CFCF0CE4EF934C62D95ED1C4CC5041A7E3916900E76274E2863DB957C768"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\src\\Hollow.Surface\\Walking\\WalkingWorlds.cs",
+      "sha256": "B28AD63DEC6F2AAA1437935BCE958474F522A5F662830F6A095592649EB7B28D"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Client.dll",
+      "sha256": "EB22F88854CF584F5651A25C77E1C6E45E19603C71AEF83555D8D98AEFCC5010"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Core.dll",
+      "sha256": "D5E51C99B5F847CBAB0E567E2695717D881CEE82D2AC7EF551522E6C1DFE60CC"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Galaxy.dll",
+      "sha256": "8DDF7CBC2BCB5A97CBA55A8E07BF3C6261A4F18FAF29A499D5B0995210FABD75"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Net.dll",
+      "sha256": "FD31B3166E934FE65CC3C37CE9FDA820CAF40FE9F8D0D662BEA05329DBB8810F"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Persistence.dll",
+      "sha256": "03B134F8EAB38A03F66ADC2BDD8E1A5FBD1A4423E2FB7D5D75AC50F1FCE43EA0"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Server.dll",
+      "sha256": "3B123392818CC320557826CA869AB621E9AE9F32D5885EA6A6FE470AB93FBA2A"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Simulation.dll",
+      "sha256": "0F29D5365A31536AD6BC54C13B24F0B5336C5ECEBBE1C2F1B7645F0F2257663E"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\Hollow.Surface.dll",
+      "sha256": "97F0572AD894A12CB0091B84233B9DDDAB35E83750FF37E33182EA17C7BF4B6D"
+    },
+    {
+      "path": "D:\\GameDev\\Projects\\HollowUniverseABTestB\\game\\.godot\\mono\\temp\\bin\\Debug\\HollowUniverse.dll",
+      "sha256": "6E9F640EB671E2A84002B3DE500D4DE213141BA5193BD677F86778A4AE7EC407"
+    }
+  ]
+}

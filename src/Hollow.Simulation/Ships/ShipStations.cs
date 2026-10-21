@@ -92,6 +92,9 @@ public struct StationInput
 
     public bool Fire;
 
+    /// <summary>A render-frame press retained until the next input tick; network fire uses an identified attack intent.</summary>
+    public bool FirePressed;
+
     public bool Zoom;
 
     /// <summary>The kind asked for, its index in the battery's ammo + 1 (0: no change).</summary>
@@ -100,6 +103,9 @@ public struct StationInput
     /// <summary>A counter a tap of R raises (two bits): a change draws chambered rounds of another kind back (§6.5).</summary>
     public byte Cycle;
 }
+
+/// <summary>A camera-ray target and the mount's converged direction, resolved locally from world geometry.</summary>
+public readonly record struct StationAim(Vector3 Point, Vector3 Direction, bool Blocked);
 
 /// <summary>
 /// A loader's cycle as the rules have it (IRON_WAKE.md §6.6): at work or idle, waiting with nothing to load, running in
@@ -170,6 +176,9 @@ public sealed class StationState
     public float Yaw, Pitch, YawRate, PitchRate, YawTarget, PitchTarget;
 
     public bool HasTarget;
+
+    /// <summary>Transient aiming geometry, never accepted from the network or persisted.</summary>
+    public StationAim Aim;
 
     /// <summary>The asked direction was beyond the mount's arcs last tick.</summary>
     public bool Limit;
@@ -288,12 +297,13 @@ public static class StationRules
     {
         ShipStationDef s = st.Def;
         BatteryMount m = s.Battery.Mount;
-        Vector3 view = st.Input.View;
+        Vector3 view = st.Aim.Direction.LengthSquared() > 0.25f ? st.Aim.Direction : st.Input.View;
         if (view.LengthSquared() < 0.25f)
         {
             // Nothing asked yet: it holds where it is.
             bool moving = st.YawRate != 0 || st.PitchRate != 0;
             st.YawRate = st.PitchRate = 0;
+            st.HasTarget = false;
             st.Limit = false;
             return moving;
         }
@@ -308,7 +318,8 @@ public static class StationRules
         float pitch = Math.Clamp(pitchWanted, m.PitchMin, m.PitchMax);
         bool pitchBeyond = MathF.Abs(pitch - pitchWanted) > 1e-4f;
         st.Limit = yawBeyond || pitchBeyond;
-        float yawFollow = st.HasTarget ? Math.Clamp((yaw - st.YawTarget) / Dt, -m.YawRate, m.YawRate) : 0;
+        float yawChange = s.FullCircle ? (float)DMath.WrapAngle(yaw - st.YawTarget) : yaw - st.YawTarget;
+        float yawFollow = st.HasTarget ? Math.Clamp(yawChange / Dt, -m.YawRate, m.YawRate) : 0;
         float pitchFollow = st.HasTarget ? Math.Clamp((pitch - st.PitchTarget) / Dt, -m.PitchRate, m.PitchRate) : 0;
         st.YawTarget = yaw;
         st.PitchTarget = pitch;
@@ -338,10 +349,11 @@ public static class StationRules
         float wanted = Math.Clamp(follow + MathF.Sign(gap) * closing, -most, most);
         rate += Math.Clamp(wanted - rate, -accel * Dt, accel * Dt);
         float next = position + rate * Dt;
-        float ahead = target + follow * Dt;
-        if ((position <= ahead && ahead <= next) || (next <= ahead && ahead <= position) || MathF.Abs(ahead - next) < 1e-6f)
+        // Slew runs after the hull's step (and against the client's pose for this tick). The target is already current:
+        // adding a further follow*Dt aimed one tick ahead, causing a permanent error proportional to hull turn speed.
+        if ((position <= target && target <= next) || (next <= target && target <= position) || MathF.Abs(target - next) < 1e-6f)
         {
-            next = ahead;
+            next = target;
             rate = follow;
         }
         position = next;
@@ -359,6 +371,45 @@ public static class StationRules
         return (pitch.Apply(b.Muzzle.Position), pitch.Apply(b.Breech));
     }
 
+    /// <summary>When the centre ray sees sky, converge at the far end of the station sight's displayed range.</summary>
+    public const float AimDistance = 2000;
+
+    /// <summary>
+    /// Resolve the centre-ray point into the direction the mount must track. Every barrel shares that point but keeps
+    /// its own physical muzzle. A surface between the camera and the muzzle blocks firing rather than reversing a shot
+    /// or spawning it through the surface. Distance comes from the caller's own world query, never a client claim.
+    /// </summary>
+    public static StationAim AimAt(ShipInterior interior, ShipStationDef station, ReadOnlySpan<float> states,
+        in ShipPose pose, Vector3 eye, Vector3 view, float distance)
+    {
+        if (view.LengthSquared() < 0.25f || !float.IsFinite(view.LengthSquared())) return default;
+        view = Vector3.Normalize(view);
+        Vector3 point = eye + view * (float.IsFinite(distance) && distance >= 0 ? Math.Min(distance, AimDistance) : AimDistance);
+        Vector3 centre = Vector3.Zero;
+        bool blocked = false;
+        foreach (StationBarrel barrel in station.Barrels)
+        {
+            Vector3 muzzle = pose.ToWorld(BarrelLine(interior, station, barrel.Index, states).Muzzle);
+            centre += muzzle;
+            blocked |= Vector3.Dot(point - muzzle, view) <= 0.05f;
+        }
+        centre /= Math.Max(1, station.Barrels.Count);
+        // Track from the barrel axis at its pitch pivot, retaining any authored transverse offset. Tracking from
+        // the moving muzzle makes its own traverse move the requested direction backwards; the slew controller's
+        // target-motion feed-forward then chases that self-motion, oscillating even at a stationary near target.
+        PartPose pitch = interior.PartPose(station.PitchPart, states);
+        Vector3 pivot = pose.ToWorld(pitch.Apply(interior.Parts[station.PitchPart].Pivot));
+        Vector3 along = pose.DirectionToWorld(BarrelDirection(interior, station, states));
+        Vector3 trackingOrigin = centre - along * Vector3.Dot(centre - pivot, along);
+        Vector3 toward = point - trackingOrigin;
+        return new StationAim(point, blocked || toward.LengthSquared() < 1e-6f ? view : Vector3.Normalize(toward), blocked);
+    }
+
+    /// <summary>The launch direction to the same centre-ray point, independent of the barrel's lateral offset.</summary>
+    public static Vector3 LaunchDirection(in StationAim aim, Vector3 muzzle, Vector3 barrelDirection) =>
+        !aim.Blocked && aim.Direction.LengthSquared() > 0.25f && (aim.Point - muzzle).LengthSquared() > 1e-6f
+            ? Vector3.Normalize(aim.Point - muzzle) : barrelDirection;
+
     /// <summary>The angle between where the barrels point and the asked direction (radians; π with nothing asked).</summary>
     public static float Misalignment(ShipInterior interior, StationState st, ReadOnlySpan<float> states, Quaternion shipRotation)
     {
@@ -367,7 +418,8 @@ public static class StationRules
             return MathF.PI;
         }
         Vector3 barrel = Vector3.Transform(BarrelDirection(interior, st.Def, states), shipRotation);
-        float dot = Math.Clamp(Vector3.Dot(barrel, Vector3.Normalize(st.Input.View)), -1f, 1f);
+        Vector3 wanted = st.Aim.Direction.LengthSquared() > 0.25f ? st.Aim.Direction : st.Input.View;
+        float dot = Math.Clamp(Vector3.Dot(barrel, Vector3.Normalize(wanted)), -1f, 1f);
         return (float)DMath.Acos(dot);
     }
 
@@ -417,6 +469,10 @@ public static class StationRules
         if (st.Limit)
         {
             return OutcomeCode.Limit;
+        }
+        if (st.Aim.Blocked)
+        {
+            return OutcomeCode.HullBlocked;
         }
         if (misalignment > s.Battery.Mount.Alignment)
         {

@@ -1,0 +1,263 @@
+{
+  "assignment": "02_SALVAGE_PICKUPS",
+  "status": "ready_for_review",
+  "output_root": "D:/GameDev/Assets/Hollow_Salvage_R01",
+  "summary": "Six original recognisable salvage drop pickups, including thin corrugated offcuts with revised irregular corrosion/dull zinc, and construction-specific wear across the shared salvage atlas. Editable Blender source, 18 LOD meshes, six convex envelopes, three 2K runtime PBR sets (sheet colour source 1254px), 12 transparent engine-rendered icons, standalone C# Godot inspection scene and measured QA.",
+  "assets": [
+    {
+      "name": "gears",
+      "source": "Source/Hollow_Salvage_R01.blend",
+      "model": "Models/gears.glb",
+      "godot_scene": "Scenes/gears.tscn",
+      "dimensions_xyz_metres": [
+        0.2664877474308014,
+        0.03999999910593033,
+        0.18398508429527283
+      ],
+      "dimensions_convention": "glTF/Godot X,Y,Z; Y up",
+      "lod_triangles": [
+        2304,
+        1036,
+        344
+      ],
+      "lod_material_surfaces": [
+        1,
+        1,
+        1
+      ],
+      "collision": "One closed convex box envelope, 8 vertices / 12 triangles. Conservative pickup approximation; openings filled.",
+      "uv0": "Pipe: dedicated cylindrical outside, separate oily bore strip and planar rims in existing atlas. Other rigid steel uses 0.32 x 0.64m metric projection with selected flank trim; PCB has dedicated board graphic tile.",
+      "uv1": "Not supplied. No unique bake UV or occupancy claim.",
+      "texture_sets": [
+        "SalvageTrim"
+      ],
+      "sockets_and_moving_parts": [],
+      "icons": [
+        "Icons/128/gears.png",
+        "Icons/256/gears.png"
+      ]
+    },
+    {
+      "name": "springs",
+      "source": "Source/Hollow_Salvage_R01.blend",
+      "model": "Models/springs.glb",
+      "godot_scene": "Scenes/springs.tscn",
+      "dimensions_xyz_metres": [
+        0.2694348096847534,
+        0.11560000479221344,
+        0.11559999734163284
+      ],
+      "dimensions_convention": "glTF/Godot X,Y,Z; Y up",
+      "lod_triangles": [
+        2700,
+        1214,
+        404
+      ],
+      "lod_material_surfaces": [
+        1,
+        1,
+        1
+      ],
+      "collision": "One closed convex box envelope, 8 vertices / 12 triangles. Conservative pickup approximation; openings filled.",
+      "uv0": "Pipe: dedicated cylindrical outside, separate oily bore strip and planar rims in existing atlas. Other rigid steel uses 0.32 x 0.64m metric projection with selected flank trim; PCB has dedicated board graphic tile.",
+      "uv1": "Not supplied. No unique bake UV or occupancy claim.",
+      "texture_sets": [
+        "SalvageTrim"
+      ],
+      "sockets_and_moving_parts": [],
+      "icons": [
+        "Icons/128/springs.png",
+        "Icons/256/springs.png"
+      ]
+    },
+    {
+      "name": "metal-pipe",
+      "source": "Source/Hollow_Salvage_R01.blend",
+      "model": "Models/metal-pipe.glb",
+      "godot_scene": "Scenes/metal-pipe.tscn",
+      "dimensions_xyz_metres": [
+        0.3051999807357788,
+        0.09939999878406525,
+        0.09939999878406525
+      ],
+      "dimensions_convention": "glTF/Godot X,Y,Z; Y up",
+      "lod_triangles": [
+        1536,
+        690,
+        230
+      ],
+      "lod_material_surfaces": [
+        1,
+        1,
+        1
+      ],
+      "collision": "One closed convex box envelope, 8 vertices / 12 triangles. Conservative pickup approximation; openings filled.",
+      "uv0": "Pipe: dedicated cylindrical outside, separate oily bore strip and planar rims in existing atlas. Other rigid steel uses 0.32 x 0.64m metric projection with selected flank trim; PCB has dedicated board graphic tile.",
+      "uv1": "Not supplied. No unique bake UV or occupancy claim.",
+      "texture_sets": [
+        "SalvageTrim"
+      ],
+      "sockets_and_moving_parts": [],
+      "icons": [
+        "Icons/128/metal-pipe.png",
+        "Icons/256/metal-pipe.png"
+      ]
+    },
+    {
+      "name": "sheet-metal",
+      "source": "Source/Hollow_Salvage_R01.blend",
+      "model": "Models/sheet-metal.glb",
+      "godot_scene": "Scenes/sheet-metal.tscn",
+      "dimensions_xyz_metres": [
+        0.316023051738739,
+        0.04179820790886879,
+        0.25902578234672546
+      ],
+      "dimensions_convention": "glTF/Godot X,Y,Z; Y up",
+      "lod_triangles": [
+        2272,
+        1022,
+        340
+      ],
+      "lod_material_surfaces": [
+        1,
+        1,
+        1
+      ],
+      "collision": "One closed convex box envelope, 8 vertices / 12 triangles. Conservative pickup approximation; openings filled.",
+      "uv0": "Corrugation arc length U and longitudinal V; second sheet rotates shared UVs 180 degrees without wrap seams, separate thin-edge strips.",
+      "uv1": "Not supplied. No unique bake UV or occupancy claim.",
+      "texture_sets": [
+        "CorrugatedSteel"
+      ],
+      "sockets_and_moving_parts": [],
+      "icons": [
+        "Icons/128/sheet-metal.png",
+        "Icons/256/sheet-metal.png"
+      ]
+    },
+    {
+      "name": "tech-scrap",
+      "source": "Source/Hollow_Salvage_R01.blend",
+      "model": "Models/tech-scrap.glb",
+      "godot_scene": "Scenes/tech-scrap.tscn",
+      "dimensions_xyz_metres": [
+        0.31299999356269836,
+        0.04701552167534828,
+        0.1834999918937683
+      ],
+      "dimensions_convention": "glTF/Godot X,Y,Z; Y up",
+      "lod_triangles": [
+        2016,
+        906,
+        296
+      ],
+      "lod_material_surfaces": [
+        1,
+        1,
+        1
+      ],
+      "collision": "One closed convex box envelope, 8 vertices / 12 triangles. Conservative pickup approximation; openings filled.",
+      "uv0": "Pipe: dedicated cylindrical outside, separate oily bore strip and planar rims in existing atlas. Other rigid steel uses 0.32 x 0.64m metric projection with selected flank trim; PCB has dedicated board graphic tile.",
+      "uv1": "Not supplied. No unique bake UV or occupancy claim.",
+      "texture_sets": [
+        "SalvageTrim"
+      ],
+      "sockets_and_moving_parts": [],
+      "icons": [
+        "Icons/128/tech-scrap.png",
+        "Icons/256/tech-scrap.png"
+      ]
+    },
+    {
+      "name": "rope",
+      "source": "Source/Hollow_Salvage_R01.blend",
+      "model": "Models/rope.glb",
+      "godot_scene": "Scenes/rope.tscn",
+      "dimensions_xyz_metres": [
+        0.24828481674194336,
+        0.02462310716509819,
+        0.28836938738822937
+      ],
+      "dimensions_convention": "glTF/Godot X,Y,Z; Y up",
+      "lod_triangles": [
+        4392,
+        1976,
+        658
+      ],
+      "lod_material_surfaces": [
+        1,
+        1,
+        1
+      ],
+      "collision": "One closed convex box envelope, 8 vertices / 12 triangles. Conservative pickup approximation; openings filled.",
+      "uv0": "Analytical circumference U and accumulated centreline V / circumference; repeated fibre texture, equal physical density; seam along cord, planar end caps.",
+      "uv1": "Not supplied. No unique bake UV or occupancy claim.",
+      "texture_sets": [
+        "RopeFibre"
+      ],
+      "sockets_and_moving_parts": [],
+      "icons": [
+        "Icons/128/rope.png",
+        "Icons/256/rope.png"
+      ]
+    }
+  ],
+  "coordinate_conventions": "Metres; Blender Z-up converted by glTF exporter to Godot Y-up; ground-centred pivots, no held-item socket contract.",
+  "preview_launcher": "View.cmd",
+  "review_images": [
+    "Renders/inventory_silhouettes.png",
+    "Renders/material_closeups.png",
+    "Renders/neutral_views.png",
+    "Renders/player_distance.png",
+    "Renders/wireframe.png",
+    "Renders/uv_checker.png",
+    "Renders/lod_comparison.png",
+    "Renders/engine_family.png",
+    "Renders/sheet-metal_close.png",
+    "Renders/material_revision_before_after.png",
+    "Renders/sheet-metal_material_before_after.png",
+    "Renders/sheet-metal_side_before_after.png",
+    "Renders/sheet-metal_distance_before_after.png"
+  ],
+  "validation_reports": [
+    "Reports/glb_validation.json",
+    "Reports/engine_library_validation.json",
+    "Reports/engine_texture_validation.json",
+    "Reports/engine_capture_validation.json",
+    "Reports/engine_lod_validation.json",
+    "Reports/icon_validation.json",
+    "Reports/delivery_validation.json",
+    "Reports/visual_review.json",
+    "Reports/engine_capture_bindings.json",
+    "Reports/material_revision_review.json",
+    "Reports/material_revision_validation.json"
+  ],
+  "material_revision": "Reports/Revisions/2026-10-15_material/CHANGELOG.md",
+  "provenance_report": "Reports/provenance.json",
+  "sha256_manifest": "Reports/package_manifest.json",
+  "commands_run": [
+    "& 'C:\\Users\\uruskan\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' 'D:\\GameDev\\Assets\\Hollow_Salvage_R01\\Source\\prepare_textures.py'",
+    "& 'C:\\Python314\\python.exe' 'D:\\GameDev\\Assets\\Hollow_Production_Briefs_R01\\run_heavy.py' -- 'D:\\GameDev\\Tools\\blender-5.2.1-windows-x64\\blender.exe' --background --factory-startup --python-exit-code 1 --python 'D:\\GameDev\\Assets\\Hollow_Salvage_R01\\Source\\build.py'",
+    "dotnet build 'D:\\GameDev\\Assets\\Hollow_Salvage_R01\\HollowSalvagePreview.csproj' --nologo --verbosity minimal",
+    "& 'C:\\Python314\\python.exe' 'D:\\GameDev\\Assets\\Hollow_Production_Briefs_R01\\run_heavy.py' -- 'D:\\Godot_v4.7.2-stable_mono_win64\\Godot_v4.7.2-stable_mono_win64\\Godot_v4.7.2-stable_mono_win64_console.exe' --headless --path 'D:\\GameDev\\Assets\\Hollow_Salvage_R01' --import",
+    "& 'C:\\Python314\\python.exe' 'D:\\GameDev\\Assets\\Hollow_Production_Briefs_R01\\run_heavy.py' -- 'D:\\Godot_v4.7.2-stable_mono_win64\\Godot_v4.7.2-stable_mono_win64\\Godot_v4.7.2-stable_mono_win64_console.exe' --headless --path 'D:\\GameDev\\Assets\\Hollow_Salvage_R01' -- --export-library",
+    "& 'C:\\Python314\\python.exe' 'D:\\GameDev\\Assets\\Hollow_Production_Briefs_R01\\run_heavy.py' -- 'D:\\Godot_v4.7.2-stable_mono_win64\\Godot_v4.7.2-stable_mono_win64\\Godot_v4.7.2-stable_mono_win64_console.exe' --path 'D:\\GameDev\\Assets\\Hollow_Salvage_R01' --resolution 1440x960 -- --capture",
+    "& 'C:\\Users\\uruskan\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' 'D:\\GameDev\\Assets\\Hollow_Salvage_R01\\Source\\audit.py'",
+    "& 'C:\\Users\\uruskan\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' 'D:\\GameDev\\Assets\\Hollow_Salvage_R01\\Source\\prepare_engine.py'",
+    "& 'C:\\Users\\uruskan\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' 'D:\\GameDev\\Assets\\Hollow_Salvage_R01\\Source\\contact_sheets.py'",
+    "& 'C:\\Users\\uruskan\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' 'D:\\GameDev\\Assets\\Hollow_Salvage_R01\\Source\\revision_evidence.py'",
+    "& 'C:\\Users\\uruskan\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe' 'D:\\GameDev\\Assets\\Hollow_Salvage_R01\\Source\\finish.py'"
+  ],
+  "known_issues": [
+    "Standalone asset delivery; main-game integration and coordinator art acceptance remain pending.",
+    "Convex pickup envelopes intentionally fill openings and empty assembly space.",
+    "No unique bake UV channel or high-to-low bake is supplied; UV0 uses documented metric/trim reuse.",
+    "Distant LODs are visibly coarse when enlarged; switches are at 6/16m, cull at 45m.",
+    "Procedural trim/rope and generated-source sheet material supplied for review; no AAA approval or photogrammetry claim.",
+    "CorrugatedSteel colour source is native 1254px, resampled to 2048 runtime; no additional source colour detail is claimed.",
+    "game-dev CLI unavailable locally; independent binary/engine/package audits are supplied instead of a registry receipt."
+  ],
+  "integration_proposal": "Reports/catalogue_mapping_proposal.json; main game remains unchanged.",
+  "next_reviewer_action": "Inspect the revised sheet metal and the six engine/LOD/icon views, then review the catalogue/material remaps before integration. No AAA approval is claimed."
+}

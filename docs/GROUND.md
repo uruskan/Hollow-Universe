@@ -226,6 +226,11 @@ Godot.
     (`Checkout.HostedSave`): `user://hollow-host.db` on `main`, `user://hollow-host-<branch>.db` on another, since a
     branch's server may write a newer schema than an older build reads. A server given a save it can't read (a newer
     schema) says so in one line ("error: ...") and stops with exit code 2; the menu shows that line.
+  - **Leaving a session:** Esc opens RESUME, DISCONNECT, SETTINGS and QUIT. DISCONNECT closes the client and
+    returns to the main menu with the connection form open, so another server can be joined without restarting.
+    A server hosted by this client saves and stops through the normal shutdown path; a remote server keeps running.
+    The old view leaves the scene tree before the next menu or session is created, releasing its shared UI/audio
+    state before the replacement registers its own. QUIT still exits the application.
   - **The world** is the planet package's `SurfaceView` driven by the game (`SurfaceView.OpenWorld`, S3c,
     WHOLE_WORLD.md §10): the zone's own surface (the stand-in world until S4), whole, drawn in the zone's own frame
     (`RenderFrame.World`: origin at the centre, the body's axes, no floating origin; a float steps a quarter of a
@@ -345,7 +350,13 @@ menu as before. Neither the screen nor the hand-over knows which parts exist.
 | `land` | Painting the land | `SurfaceView.LoadStages` | the terrain idle for 10 frames (progress: the finest level drawn) | arrival |
 | `forest` | Growing the forest | `SurfaceView.LoadStages` | the plants (library, impostor bake, scatter) and the grass idle for 10 frames | arrival |
 | `renderer` | Warming up the renderer | `RenderWarmup.Stage` (the ground view) | everything shown, then 10 frames without a pipeline built (40 s at most) | start |
-| `steady` | Arriving | `SteadyFrames.Stage` (the ground view) | 0.75 s of frames each under 33.4 ms, counted once every other stage is done | start |
+| `steady` | Arriving | `SteadyFrames.Stage` (the ground view) | 0.75 s of frames each under 33.4 ms, or 5 s spent waiting after every other stage is done | start |
+
+The final settling stage has a five-second upper bound (`steady.mostSeconds`, added 16 October 2026). Previously,
+every frame above 33.4 ms reset its only completion condition, so a fully loaded world below 30 FPS could stay at
+97% forever. The bound starts only after every preceding stage is ready; it does not skip world streaming or renderer
+warm-up. A normal smooth start still completes after 0.75 s. This prevents a loading lockout; it does not improve the
+frame rate itself.
 
 A joined game (`play-ground.cmd join`) has no `server` stage; `--in-process` builds its server before the first frame
 (O16).
@@ -403,9 +414,10 @@ all of it under the screen.
 **Measuring a start:** `--load-trace [seconds]` prints the timeline since the process started (the server ready, the
 connection, the world's opening and streaming, each stage done, play handed over), every frame over 33 ms with its
 process time, garbage collection, JIT and the pipelines built in it, the pipelines built after spawning and in play,
-the ground view's slowest parts, the warm-up's costliest items and the memory, then quits; `--load-shot <file>` saves
-the screen once the load is half done; `--arrival-check` teleports the hosting player to the landing site three
-seconds into play and times the arrival.
+the ground view's slowest parts, the warm-up's costliest items and the memory (the private bytes split into the
+graphics driver's write-combined commit, mostly video memory's backing, and the rest), then quits; `--load-shot
+<file>` saves the screen once the load is half done; `--arrival-check` teleports the hosting player to the landing
+site three seconds into play and times the arrival.
 
 ### 4.4 Network
 
@@ -420,9 +432,16 @@ seconds into play and times the arrival.
 - For testing, the transport can add latency, jitter and packet loss, and the client shows a network graph.
 
 **As built in G1** (`src/Hollow.Net`):
-- **Transport:** LiteNetLib 2.1 in manual mode (no background threads: the server polls once a tick, a client once a
-  frame). Reliable ordered: `Welcome`, `Spawn`, `Despawn`, chat. Sequenced (unreliable, newest wins): inputs and
-  snapshots.
+- **Transport:** LiteNetLib 2.1.4. The server polls in manual mode once a tick; manual mode remains the default for
+  bots and engine-free tests. The graphical client opts into background transport so asset/shader stalls do not stop
+  receive/send or keepalives. All unsynchronized-event options are false: `GameClient.Update` still dispatches queued
+  gameplay events on its caller's thread, then runs prediction/modules there. Background mode triggers its own send
+  loop rather than calling `ManualUpdate`; disconnect/disposal use the same distinction, and transport stops before
+  simulation resources are released. Both peers retain the 10-second timeout. Reliable ordered: `Welcome`, `Spawn`,
+  `Despawn`, chat. Sequenced (unreliable, newest wins): inputs and snapshots. The coordinated 16 October startup/loading/
+  architecture batch passed 15/15: a 12-second stalled caller preserved the background session while the manual control
+  timed out; queued callbacks, resumed messaging, disconnect and disposal passed. Native Maximum world-startup acceptance
+  remains pending ([P8 evidence](repair-results/P8-performance.md)).
 - **Connecting:** the connection request carries `Hello` (protocol version, the generated schema hash, the name, the body chosen). A
   refusal carries a `Goodbye` with a reason (protocol mismatch, bad name, name in use, server full; also kick and
   shutdown). An accepted player gets `Welcome`: net and entity IDs, the server tick, the rates, the zone (body, radius
@@ -431,8 +450,12 @@ seconds into play and times the arrival.
   time: every snapshot says how early this client's inputs arrived (the least over the last half second). The client
   aims for 2 ticks: 4 % faster below, 3 % slower above 4, and it jumps when inputs arrive late or very early. A jump
   forward runs the extra ticks over the next frames (their inputs still go out); one of over a second skips them (the
-  server and the prediction both fill skipped ticks by repeating the last input). A jump back pauses. The first lead
-  comes from the connect handshake's round trip.
+  server and the prediction both fill skipped ticks by repeating the last input). A jump back pauses. After a jump
+  the client waits out the server's half-second window and a round trip (plus 0.1 s) before it steers again, because
+  until then the reports still describe the old clock; at a 150 ms ping the earlier fixed 0.6 s acted on stale reports,
+  moved the clock twice for one error and swung it by tens of ticks for good (`TickClockSettlesAfterASlowHandshakeAtALongPing`).
+  The first lead comes from the connect handshake's round trip, so a join that lost a packet starts the clock too far
+  ahead and takes one such move to put right.
 - **Inputs:** one packet per client tick: the tick's input (move axes in 1/127, the view: since protocol 21 a
   direction, octahedral in 2 × 16 bits, before it yaw and pitch in 1/65,536 of a turn, the head's free look in 1.5°
   steps, a byte each way, buttons: jump held, jump pressed this tick, crouch, sprint) and the three before it, the
@@ -753,21 +776,20 @@ real-size view). Both draw with the same parts:
   - *Ranges follow the horizon* (WHOLE_WORLD.md §10.3): plants are laid out to where the lowest ground there can be
     hides the tallest plant on the highest, at most the impostors' 2.2 km (about 1.2 km from the ground on a 2.41 km
     world); the near set and its impostors are anchored at the camera, their bounds following it.
-- **Grass and ground cover** are not in the scatter and have no models: `GrassField` draws tufts on the cells of the
-  cube faces at the level nearest 0.46 m (level 13 on a 2.41 km world, 24 on the real first world) round the camera
-  (to 42 m; they shrink into the ground from 22 m), and a second, flat grid of leaf litter, needles and twigs (to 26 m).
-  What grows in each cell (place, height, width, turn, lean, colour, dryness, kind: grass, meadow grass, dry grass,
-  flowers; ferns, herbs and seedlings under trees; dead leaves of the trees around) comes from a hash of the face and
-  the cell, so nothing shifts as the grid moves; near a seam each face's cells are drawn by a grid of their own (up to
-  three at a corner), each keeping the cells whose middles lie on its face. A worker lays out a lattice of the cells'
-  corners round the camera every 14 m (about 250 a side): each corner on the drawn ground (the finest tiles' own
-  triangles, so tufts sit on it), as offsets from an anchor in render axes, with the grass density, moisture, flowers,
-  forest cover and small plants from `ISurface.Cover`; each tuft stands along up from the centre, turned in the plane
-  of its cell, and the wind bends it along the ground there. Where grass is thin it grows in patches, and a tuft is a
-  few narrow cards of ragged blades, not a block. The blades are hollow-orbit's painted blade cards, coloured by one
-  function shared with the ground's grass layer (`surface_grass.gdshaderinc`), their foot in the ground's colour,
-  normals up on both faces so a field lights as one in sun and shade, light through the tips toward a low sun; wind
-  bends them in gusts drifting downwind with a ripple; they bend away from the walker's feet.
+- **Grass and ground cover** are not in the scatter (docs/WALKING_GROUND.md §18): `GrassField` draws clumps of five
+  species of our own (field grass, tall grass in seed, dry grass, a flower clump, heather or a leafy herb; cards of
+  painted blades built by `art/grass/build_grass.py`, three levels of detail and a billboard, at most 100 triangles
+  near by) and the forest floor's litter, on placement cells of half a terrain cell (0.46 m on Earth) to 42 m (times
+  the grass distance setting). One habitat rule (`GroundCoverHabitats`: meadow, forest edge, forest floor, dry country,
+  tundra) sets each cell's occupancy, species, size and patches once from the drawn terrain's own climate, and puts the
+  scanned plants (ferns, cotton grass, tundra grass) in as accents. Cells are gathered into tiles of 16 terrain cells
+  (about 15 m), built on workers from the grid the terrain draws there (roots on its triangles, the slope a shear,
+  the terrain's morph followed far off), uploaded a few a frame into pooled MultiMeshes, and submitted only in view, at
+  the level of detail their distance asks for, the clumps a distance keeps a prefix of each tile's buffer sorted by
+  rank. Cards drop one by one with distance and the last clumps dissolve one by one at the reach; the clumps' colour is
+  the terrain's grass colour at their roots (`hu_grass_tint_of`), their light diffuse, a bounded glow through the
+  blades toward a low sun and a rough sheen (`surface_foliage.gdshaderinc`); wind bends cards and normals; they bend
+  away from the walker's feet.
 - **Time:** the clock runs at the universe time; `RotationTimeScale` (client setting `[surface]
   rotation_time_scale` in `user://settings.cfg`, or `--time-scale`) turns the planet faster than real without
   moving anything else. Keys: `[` `]` jump the clock an hour (Shift: six), T cycles the day speed 1×, 60×, 600×,
@@ -1169,6 +1191,36 @@ the air and 2.2 m/s down, louder the harder (−8 to +3 dB); swim strokes every 
 floor, soil and gravel → dirt; rock → rock; sand → sand; snow → snow (`Footsteps.FromGround`, `FromWeights` for a
 vertex's eight weights, `FromBiome` when only the biome is known); building floors by grade (twig and wood → wood, stone
 → rock, metal and armoured → metal, `FromGrade`). The player's own feet play flat, 3 dB down; others' at their feet.
+
+AB Test B audio follow-up (16 October 2026, grass/dirt sources superseded below): these events used short contacts
+from BSB 2889/1117, whose audition samples the owner confirmed have no "boink". Generic soft-heavy impact layers
+are removed from footsteps; grass/dirt landings use single contacts. `LocalGun.DryFired` now feeds the
+item's `dryFire` role on fresh empty trigger presses; held triggers and action refusals do not repeat it. Accepted
+hit contacts use the event's weapon rather than the currently held item. `ThingsView` alone owns bow release audio,
+using accepted-projectile `Shooter` for the local/remote choice. The opt-in hosted `audio-movement` tour records
+real prediction, emitted events and unedited mix/footstep WAVs. These are technical changes; listening acceptance
+and remaining catalogue gaps are tracked in [REPAIR_AUDIO.md](REPAIR_AUDIO.md).
+
+On 18 October 2026 the owner approved the softened Nox grass and dirty-ground auditions for use, while describing
+them as better but not perfect. Each preview contained six different recorded contacts. The expanded library uses
+193 Nox contacts across grass, dirt, sand, rock, snow, wood, metal and shallow water, with separate walk, run and land
+sources; crouch shares the walk bank. Three derived footwear profiles produce 579 OGGs; the four existing swim
+recordings remain. Vegetation movement, jump takeoffs and clipped rock landings are excluded. The v2 roster in
+`art/audio/nox_footsteps.json` pins the CC0 archive and all 193 source-member hashes. The expanded selection has not
+received the owner's listening approval; the earlier twelve-contact auditions are the accepted reference.
+
+`game/data/ground/footsteps.json` defines the footwear profiles, source-bank mapping, processing and gait gain.
+Local and remote steps resolve the current surface, gait and the Feet item's `wear.footstepProfile`: empty feet use
+`barefoot`, `work-boots` declares `boots`, and future footwear can share `shoes` or declare another registered profile.
+There is no per-item code branch. Filters are baked into the recorded variants; runtime retains the existing cadence,
+shuffle bags, small pitch/volume variation and spatial attenuation. Profile gain is −2/0/+1 dB for barefoot/shoes/boots;
+walk/run/crouch/land add 0/+3/−7/+4 dB, with landing speed still supplying impact intensity.
+
+The build uses the approved light EQ/compression, retains full contacts instead of the old 0.32-second crop, and
+adjusts only loudness outliers into −38.5 to −32 event LUFS with a −8 dBTP ceiling. The `footstep-contact` measurement
+range is −43 to −30 event LUFS after the profile treatment. These profiles are derived sound treatments: Nox does
+not identify the performer's footwear, so they are not separate authentic barefoot, shoe and boot recordings.
+Validation and engine-import results are recorded in [DEVELOPMENT.md](DEVELOPMENT.md).
 
 **Ambience** (`AmbienceDirector`, rules in `AmbienceMix`): flat loops on the Ambience bus, gliding to their levels over
 1.5 s, started when heard and stopped after 4 s unheard. Wind always (stronger with wind, height and exposure; a strong
@@ -2320,9 +2372,16 @@ max(1, ⌈cost × 0.2 × restored ÷ max⌉) of the grade's material, worked in 
 
 **Doors.** Deployable items fitted into an opening: single doors into doorways, double doors and the garage door into
 wall frames, one per opening, never upgraded. Wooden 200, sheet metal 250, armoured 1,000 health (RustMVP), garage 600
-(ours). Their leaves swing on the kit manifest's hinges (single: 56.2 cm left of centre, 17.2 cm out, 100°; doubles
-mirrored) and collide open or shut; a turn of 180° on placing swaps the hinge side. A garage door rolls up. Opening a
-door needs no rights, only its lock's consent, and its new pose clear of players. Picking a door up needs it open with
+(ours). **How they behave is specified in [DOORS.md](DOORS.md)** (the owner's rules of 20 October 2026; packages D1 to D4,
+whose state is in DEVELOPMENT.md): both faces of a door look the same; the hinge side and the swing side are chosen
+separately (four layouts for a single door, two for a double, one for the garage), so doors can make airlocks; doors
+ignore players, objects and other doors and always open and shut; their collision follows their motion every tick (a
+leaf along its swing, the curtain along its roll) over their travel time (1 s, the garage 3 s), shoving whoever is in
+the way; a code lock shows on both faces. Built (D1 to D3): the leaves hang inside their frame on pins at the kit
+manifest's hinges (single: 56.2 cm either side of centre, 100°), each door has its layout (`Door.Layout`: bit 0 hinge on the
+right, bit 1 swing out; R steps through them), a lock shows on both faces, a door is a motion record (its progress at a tick, 30 ticks
+a swing, 90 a garage roll) whose leaf bodies `DoorMotionSystem` moves every tick, shoving whoever is in the way (nothing refuses
+a door but its lock), and the record is on the wire (`DoorNet`, protocol 45). A garage door rolls up. Opening a door needs no rights, only its lock's consent. Picking a door up needs it open with
 no lock on it. **Key lock** (Rust's): its owner opens it without a key; anyone with a key cut for it (its key code)
 opens it and it stays locked. **Code lock** (RustMVP's, no guest codes): four digits; setting the code locks it and
 leaves only the setter authorised; the right code authorises (up to 64); wrong codes make the player wait 1, 5, 5, 5,
@@ -2369,7 +2428,7 @@ ground.
 | File | What |
 |---|---|
 | `building_<grade>.glb` (twig, wood, stone, metal, armoured) | Every piece under its key, with `_LOD1` and `_LOD2` (the kit's three levels; the stone floor frames' `_LOD2` left out, Fit below) and its hulls as `<key>_colNN-convcolonly` (Godot's convex collision; the game's collision comes from the rules, not these), every drawn mesh fitted to its slot (Fit, below). The kit's 13 families come from its FBX files; the 7 pieces it lacks (low wall, L and U stairs, ramp, steps, square and triangle roofs with their gables) are built by the same script with the kit's own generator (its `MeshBuilder`, tier surfaces and atlas tiles, and the twig revision's `TwigMesh`), so they share its look and texel density. Wood, stone, metal and armoured also hold the corner posts, `corner-<angle>-<cm>` (60°, 90°, 120°, 150°; 1, 1.5 and 3 m). |
-| `doors_wood.glb`, `doors_metal.glb`, `doors_armored.glb` | Single and double doors: frame insert and leaves (each leaf's origin is its hinge), with levels and hulls. |
+| `doors_wood.glb`, `doors_metal.glb`, `doors_armored.glb` | Single and double doors: frame insert and leaves (each leaf's origin is its hinge on its middle plane), with levels and hulls. Leaves are symmetric (the kit's detailed face on both sides), 0.8 as deep as the kit's, and lie inside a frame centred in the wall; every single door also has a right-hinged leaf (`<Kind>_SingleDoor_Right`, the left one mirrored); DOORS.md §2. |
 | `garage_door.glb` | The frame and the skinned curtain with the kit's Open and Close clips. |
 | `window_inserts.glb` | Metal and armoured bars, reinforced glass, horizontal and vertical embrasures (art only in phase 1). |
 | `textures/` | Each grade's atlas (base colour, OpenGL normal map, ORM) shrunk from 4K to 2K JPEG, stored once: the GLBs carry no images, and the doors share the grades' sets (the door kit's are the same files). Saved as stored, without Blender's view transform; every channel's mean is within 0.006 of the kit's. |
@@ -2685,7 +2744,7 @@ the compensation to the view; zoom the camera by `Zoom` while `Aimed`; on `ShotF
 silenced), the sound, the viewmodel's kick and a tracer from the muzzle to the shot's line; draw `Projectiles` that are
 bullets as tracers and their impacts by `EndTarget` (nothing for `Nothing`); others' shots and reloads from `ActionCount`
 and `Action`, their aim pose from `Aiming`, the crawl from `Stance`, their attachments (and a light cone) from `HeldMods`;
-the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, a crosshair from `Spread` (none aimed), the hit marker
+the HUD's ammo counter (`Loaded` / `Reserve`), reload progress, the player's configured crosshair (optionally expanded by `Spread`), the hit marker
 (head, downed), the damage arcs, the wounded screen with its countdown and the "Help up" prompt.
 
 **As built** (`game/scripts/Ground`): `GroundView`, after the client's update, adds `TakeCompensation` to the view, passes
@@ -2695,7 +2754,7 @@ R is the gun's held control's (GROUND_SYSTEMS.md §7): a tap reloads with the lo
 reload's parts (magazine out at once, in at 55 %, the slide or bolt at 85 %); `ThingsView` draws some bullets as
 tracers and, where each stops, the hit's effect and sound by what it hit; `PeopleView` plays others' shots (silenced
 from `HeldMods`) with their muzzle effect and their reloads; the HUD's ammo counter and the gun's slot show the
-magazine; `GroundOverlay` draws the hip crosshair from `Spread`, a reload's progress under the centre, and the
+magazine; `GroundUi` draws one configured crosshair at the exact viewport centre; `GroundOverlay` draws a reload's progress under the centre and the
 wounded screen with its countdown; a wounded player in reach gets the "Help up" prompt. The muzzle effects, tracers
 and hits are the effects library's (§9.3, as hooked up there). Attachments show on guns in hand (`GunEffects.Dress`
 through `ModelCatalog.Attach`: a sight on the rail, a silencer or a brake on the muzzle, the light under the barrel):
@@ -3156,11 +3215,11 @@ viewer; the ground mode's hookup comes after it (the list at the end).
 | Part | Where |
 |---|---|
 | Numbers | `game/data/ground/ships.json` (the Tin Finch's flight model, hull, skids, fuel, cargo, sockets); `items.json` (140 vehicle workbench, 141 Tin Finch), `deployables.json` (the bench and its bay), `recipes.json` (`station`), `categories.json` (Vehicles) |
-| Flight | `src/Hollow.Simulation/Ships/`: `ShipDef` (the data), `ShipState` and `ShipInput`, `ShipMotor` (the step), `ShipCollider` (Jolt queries and parked ships' bodies), `Ship` (the zone's entity) |
+| Flight | `src/Hollow.Simulation/Ships/`: `ShipDef` (the data), `ShipState` and `ShipInput`, `ShipMotor` (the step), `ShipDrives` (`IShipDrive`, what the engines give each tick, by ships.json's `drive`; `ShipThrusters` the default), `ShipCollider` (Jolt queries and parked ships' bodies), `Ship` (the zone's entity) |
 | In the zone | `src/Hollow.Simulation/ShipSystem`: building at the bench, the hatch, boarding and stepping out, the lock, fuel, cargo, damage, wrecks, orbit |
 | Storage | `src/Hollow.Persistence/ShipCodec.cs`, schema 5 (`ships`) in `GameDatabase.cs`; `ShipModule` loads and saves |
 | Network | `src/Hollow.Net`: `Messages.cs` (`ShipControls` in the input, `OwnShipState` in the header, `ShipNetState`, `ShipIntent` 120), `ShipConvert.cs`, `Replication/DeltaChannel.cs`; `src/Hollow.Server/ShipModule`; `src/Hollow.Client`: `ShipPredictor`, `RemoteShip`, `ShipModule`, `LocalPlayer.Ships.cs` |
-| Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
+| Client and viewer | `game/scripts/Ships/`: `ShipView` (the model, plumes, lights, hatch), `ShipCamera` (cockpit and chase), `ShipControls` (keyboard and mouse, read by the ship's control scheme: `ShipControlSchemes`, ships.json's `controls`, flight by default), `ShipHud` (the flight HUD), `ShipSandbox` (`--view ship`, and `--tour`); `game/shaders/ship_exhaust.gdshader` |
 | Ships people walk in (IW1) | IRON_WAKE.md §4.13: `ships.json`'s `interior` block and its data file (`ships/iron-wake.json`), `ShipInterior`, `ShipSpace`, `ShipFrame`/`ClientShipFrame`, `MoveFrames`, `ShipQueries`, `ShipSystem.Spaces.cs` (parking, `MovePart`), the sandbox's walk-in mode (`ShipSandbox.Aboard.cs`: `--ship iron-wake`) |
 | Tests | `tests/Hollow.Tests/ShipTests.cs` (the flight model), `ShipGameTests.cs` (the game), `ShipNetTests.cs` (prediction, others seeing it fly), `ShipPersistenceTests.cs` (storage) |
 
@@ -3172,6 +3231,15 @@ gravity along −up (`ZoneFrame.UpAt`; the planet's own 9.0 m/s², not the chara
 spec carries it: 2.7 kg/m³ at the first world's 2.23 atmospheres, a scale height of 9.4 km; since S3 that height is
 scaled by the leaving height over the old ceiling, 4.82 km over 15 km, to about 3 km, so the climb to orbit thins the
 air as it did). The skiff has no wings: it is thrust-borne.
+- **Drives** (20 October 2026): what the engines give each tick is the ship's drive's (`IShipDrive`, found by ships.json's
+  `drive.kind` in `ShipDrives`; without the block, `thrusters`). It turns the input into an acceleration along the
+  ship's axes and an angular acceleration about them, says how hard the engines work (the fuel's burn) and what the
+  views show as thrust, and judges its own numbers in the content check. The rest of the step (gravity, drag, the sea,
+  skids, sweeps, crashes, sleep) is shared. `thrusters`, the Tin Finch's and the Iron Wake's, is the flight assist
+  below. A client reads the helm's keys by the ship's control scheme (ships.json `controls`, `ShipControlSchemes`;
+  `flight` by default, the keys below). The motorboat (docs/MOTORBOAT.md) has a `propeller` drive, the `boat` controls
+  and a hull that floats on its shape (ships.json `buoyancy`, `ShipBuoyancy`: columns that lift where they are, on the
+  sea, a lake or a stream); other ships float by the band round their centre of mass on the sea.
 - **Flight assist** (on by default) holds a velocity in the ship's frame: the throttle's forward speed (reverse below 0),
   strafe and up/down at their speeds, and the turn rates the stick asks for, as fast as each axis's thrusters allow,
   counting gravity and drag in. With no input it hovers where it is. Near the ground (30 m) with the throttle closed it
@@ -3222,6 +3290,13 @@ unit waits, asks again every second and tells its builder once. The recipe's lam
 Tin Finch's item (an admin's `give`) is placed by hand like a deployable (§6.10): its hull clear, its skids on the ground
 or a slab's top no steeper than 20°, dry, within 12 m, with ships.json's `fuel.placed` of lamp oil (50, the recipe's
 tank); the bay and the hand share the hull's check (`HullFootprint.Clear`).
+The bay shows (20 October 2026, `game/scripts/Ground/BayMarking.cs`):
+- a placed bench marks it on the ground: worn hazard stripes round its 3.4 × 6.6 m edge and two chevrons the way a ship
+  faces as it rolls out (a decal), with a striped post at each corner that stands above grass (presentation only:
+  nothing collides with them);
+- the bench's placement ghost draws the bay's outline, so the room a ship needs shows before the bench is put down.
+A ship whose recipe names no station is made as its item and put down by hand: the motorboat (docs/MOTORBOAT.md), on
+the water.
 
 **Boarding.** The hatch opens and shuts in a second (the model's clip); it opens only while the ship is still (landed,
 or slower than 2.5 m/s within 3.5 m of the ground). Boarding needs the hatch open, the seat free and reach of the
@@ -3943,7 +4018,7 @@ $GODOT --path game --resolution 1600x900 -- --view ui --screen inventory --shot 
   partial files per screen. Every design length goes through `Ui.Px`, so at 1600 × 900 each element sits where
   RustMVP put it and at other sizes it is still whole pixels; fonts and icons are rasterised at their final size.
 - **Anchoring:** the canvas sits centred on the window's bottom edge, so the belt doesn't move when the inventory
-  opens. Vitals, statuses and pickups follow the bottom-right corner; chat and notices the bottom-left; the centre dot,
+  opens. Vitals, statuses and pickups follow the bottom-right corner; chat and notices the bottom-left; the configured crosshair,
   prompts and radials the centre; the inventory and crafting tabs hang from the top edge. The scale is the usual
   `Ui.Scale` (1.0 up to 1080p, ARCHITECTURE.md §15).
 - **Style:** `Ui.Ground` in `Ui.cs`, beside the map styles: RustMVP's palette (ink `#E3DFD6`, panel `(.71,.69,.65)`
@@ -4011,6 +4086,38 @@ allow (§8.2.2). Pictures from the real game (`--tour-steps f1`, 1600 × 900): `
 
 #### 8.2.1 Commands
 
+**AB Test B, 16 October 2026:** TOOLS also has a BUILDING section. `freebuild [on|off] [player]`
+toggles resource-free construction and crafting (on by default for admins when joining or granted
+rights). `bgrade [off|twig|wood|stone|metal|armoured] [player]` selects the grade of new structural
+pieces; no argument reports the current grade, and off restores ordinary twig placement. Both
+commands require admin rights and only affect an admin target. Revocation/disconnect clears the
+session tools; they are not stored with the character. BGrade applies full health immediately,
+and costs the chosen grade's materials when FREE BUILD is off.
+
+Free building covers structural placement, upgrades, hammer repairs, key cutting and retention
+of placed deployables/doors/locks/cupboards/ships; placed explosive charges are still consumed.
+Tools or a placeable item must still be carried. Reach, sight, collision, claim authorization,
+support and ownership limits remain enforced. Free crafting exposes every recipe and bypasses
+ingredients, learning and workbench requirements, while retaining queue/count limits and time.
+A free ship craft without a vehicle bench produces its placeable inventory item. At a bench,
+the normal launch delivery applies. Paid jobs still refund normally; free jobs never refund
+ingredients on cancel or death, including after turning the option off or reloading a save.
+
+Protocol 30 carries authoritative FreeBuild/BGrade in ServerState and the free-payment marker
+in CraftJobNet. Player record version 7 retains each craft job's payment marker and station;
+older records remain readable as paid jobs. Placement grade and cost use the shared pipeline,
+and client prediction/UI use server-acknowledged privileges.
+
+TOOLS also offers CAMERA → THIRD PERSON for admins. `thirdperson [on|off]` (aliases
+`tps`, `selfcamera`) toggles a local self-inspection view: hold right mouse to orbit
+the full character and wheel to zoom from 1.5 to 20 metres. Clothing, held items,
+walking and crouching use the shared character renderer. The camera follows the
+player with planetary/ship up and pulls inward at solid obstacles. Movement stays
+available; held-item actions, placement and interaction targeting pause while inspecting.
+Orbit never changes the character's aim. Disable it in F1 to return to first person;
+death, disconnect, lost admin rights or entering a seat also ends it. Seat cameras
+retain their existing V controls. The mode is off by default and is not saved.
+
 Words are split at spaces; "double quotes" keep a name with spaces whole; a leading slash is ignored (so chat's
 `/give rifle` works too). Names and aliases are any case. Where a command takes a player, a part of the name is enough
 when only one player's name has it; without one, it means the player who typed it ("me"). The server's own console
@@ -4051,6 +4158,7 @@ the older forms (`give <name> <item> [count]`, `kit <name> <table>`, `learn <nam
 | `clearinv` | `[player]` | admins | server | Empties an inventory: main, belt and clothing. |
 | `ship` | `[player] [kind]` | admins | server | A ship beside a player, theirs, fuelled, its hatch open, its way in toward them: a Tin Finch, or the kind named (`ship Ada iron-wake`, as `spawn iron-wake`; IRON_WAKE.md §5.6). |
 | `raidbase` | `[grade] [player]` | admins | server | A claimed hut 8 m in front, listing the player (`twig`, `wood`, `stone`, `metal`, `armoured` or 0–4; stone by default). |
+| `airlock` | `[triangle\|room] [layoutFirst] [layoutSecond] [open\|shut] [player]` | admins | server | Two doors that can close the walk between them (DOORS.md §7), 9 m in front: a triangle with two single doors (layouts 1 and 2 close it) or a square room with a double door and a single door (0 and 1); a layout is 0 to 3 (bit 0 hinges on the right, bit 1 swings out). Wooden doors, stone, owned by the player. |
 | `admin`, `unadmin` | `<name>` | admins | server | Gives or takes admin rights until the server stops (admins.txt keeps them). |
 | `world`, `animals` | | admins | server | The world's props, teams and economy; the animals, by kind, and what they cost. |
 
@@ -4117,6 +4225,12 @@ spills, empties), but it doesn't come back once gone and isn't kept across a res
 
 ### 8.3 Behaviour
 
+- **Admire:** press **N** to raise and turn the held item for a short inspection, then
+  return to the resting pose. Item use and aiming interrupt it immediately. It is
+  unavailable while hands are busy, menus are open, sprinting, swimming, free looking,
+  wounded/dead or seated. This cosmetic action spends no items or ammunition. To remap
+  it in F1, use `bind J admire` and `unbind N`; both persist on this computer.
+
 RustMVP's rules, with Rust's where RustMVP had none:
 
 - **Keys:** Tab opens and closes the inventory (even from a text field); Q opens crafting, and again returns to the
@@ -4141,7 +4255,7 @@ RustMVP's rules, with Rust's where RustMVP had none:
   computer). The time is a unit's here: in green, with how much faster on the workbench line, when a workbench in reach
   is above the recipe's level (P3). The queue at the bottom left shows each job's seconds and count, the first one's progress; a click
   cancels and refunds.
-- **HUD:** the centre dot; the hit marker (red for a head shot); red arcs pointing to where damage came from; the
+- **HUD:** the configured centred crosshair (a dot by default, §8.6); the hit marker (red for a head shot); red arcs pointing to where damage came from; the
   interaction prompt; the belt with the active slot in blue, condition bars, loaded rounds and their kind's icon; the ammo counter above
   it; status rows above the vitals (building privilege or blocked, bleeding, cold or hot, wet, comfort); pickups and
   crafts ("+20 Wood") above those, fading after four seconds; chat at the bottom left, fading after twelve; RustMVP's
@@ -4289,11 +4403,24 @@ costs the server nothing while nobody watches.
 ### 8.6 Settings
 
 SETTINGS in the main menu and in the Esc menu opens a panel over the menu, in the ground interface's style
-(`GroundUi.Settings.cs`). Its tabs: **GRAPHICS** and **INTERFACE**. Every row shows its value and one line saying what
+(`GroundUi.Settings.cs`). Its tabs: **GRAPHICS**, **INTERFACE**, **DISPLAY**, **SHADOWS** and **CROSSHAIR**. Every row shows its value and one line saying what
 it does; the rows are data (`game/scripts/Settings/SettingRows.cs`: a switch, a choice or a slider, read and written as
 a number), the panel one loop over them. Changes show at once; **APPLY** saves them, **REVERT** goes back to what is
 saved, **DEFAULTS** to this computer's preset; Esc or BACK closes and drops what was not applied. Keys: Up and Down
-choose a row, Left and Right change it, Enter flips or steps it, Tab the other tab; a slider's track drags.
+choose a row, Left and Right change it, Enter flips or steps it, Tab cycles the tabs; a slider's track drags.
+
+**Crosshair (18 October 2026, DESIGN.md UI-06).** One `CrosshairPainter` draws the ground HUD crosshair and the
+settings preview using geometry, centred on the exact half-width/half-height of the viewport even at odd resolutions.
+The old text-glyph dot and independent gun spread ticks are removed. A static white dot is the default, including
+for existing settings files without crosshair preferences. CROSSHAIR offers Off, Dot, Cross, Cross + Dot, Ring and
+Ring + Dot; six colours; arm length/ring radius, dot diameter, line thickness, central gap, opacity and black outline.
+Show While Aiming defaults on; switching it off hides the HUD crosshair during ADS. Dynamic Spread defaults off;
+when on, a cross's gap or ring's radius follows the firearm cone while hip-firing. The dot stays at screen centre.
+These preferences are saved in `[crosshair]` in `user://graphics.cfg` and are independent of graphics presets.
+Inventory, menus, radials, death, the helm, weapon stations and the admin self-camera do not draw this ground aiming marker.
+Physical optic reticles and ship station sights keep their own presentation. Reload progress and hit feedback
+remain independent of crosshair style. `--view ui --screen settings-crosshair --shot <path>` captures the panel;
+`--view ui --crosshair-check [--crosshair-shots <folder>]` runs the native regression checks.
 
 - **The model** (`game/scripts/Settings/GraphicsSettings.cs`): `GraphicsValues`, the values shown (`Current`) and saved
   (`Saved`: `user://graphics.cfg`; the field of view stays in `ground-settings.cfg` beside the F1 console's `fov`, which
@@ -4307,12 +4434,12 @@ choose a row, Left and Right change it, Enter flips or steps it, Tab the other t
   contrast-adaptive sharpening on a canvas layer under every interface, so text is never sharpened (when FSR draws,
   its own sharpening does it). The surface view applies its environment and sun, and builds a new grass field when the
   grass's distance or density changes. The drawers read their factors from `Current`: the terrain's split distance,
-  the trees' and plants' detail bands, the grass's reach and the share of tufts kept (`density_scale`, a hash of each
-  tuft's own), the models' LOD ranges (models made after the change).
+  the trees' and plants' detail bands, the grass's reach and the share of clumps kept (each clump's own stable rank,
+  applied when its tile is built; docs/WALKING_GROUND.md §18), the models' LOD ranges (models made after the change).
 - **Presets:** Low, Medium, High, Ultra and Maximum; any single change makes it Custom (and a change that lands on a
   preset's values shows that preset). High is the game as it looked before the settings. Vsync, the frame cap, the
-  field of view and the interface scale are the player's own; no preset touches them. With nothing saved, the
-  computer's preset is Maximum on a discrete graphics card, Medium on an integrated one, else High.
+  field of view, interface scale and crosshair are the player's own; no preset touches them. With nothing saved, the
+  computer's preset is High on a discrete graphics card and Medium on an integrated one.
   `--quality low|medium|high|ultra|maximum` shows a preset for one run without saving it (screenshots).
 
 | | Low | Medium | High | Ultra | Maximum |
@@ -4324,9 +4451,29 @@ choose a row, Left and Right change it, Enter flips or steps it, Tab the other t
 | Reflections, fog | –, – | –, – | –, – | on, on | on, on |
 | Effect quality | low | medium | medium | high | high |
 | Shadows | low (2048, soft very low), 600 m | medium (4096, soft low), 1,000 m | medium, 1,600 m | high (soft medium), 1,600 m | ultra (soft high, tight cascades), 2,000 m |
+| Sun shadow cascades | 1 | 2 | 2 | 4 | 4 |
+| Maximum local shadow lights | 0 | 1 | 2 | 4 | 6 |
+| Local shadow influence distance | 20 m | 30 m | 40 m | 60 m | 80 m |
 | Terrain, plants, grass reach, models | 75, 75, 70, 75 % | 90, 90, 85, 90 % | 100 % | 115, 115, 120, 125 % | 135, 130, 140, 150 % |
 | Grass density | 60 % | 80 % | 100 % | 100 % | 100 % |
 | Texture filtering | 2× | 4× | 4× | 8× | 16× |
+
+**Shadow budgets (AB Test B, 16 October 2026).** Cascade count is independent of shadow texture/filter quality;
+the sun supports 1/2/4 cascades, while the moon retains one cascade and at most 300 m reach. Split blending is used
+only at Medium shadow quality and above. Existing settings files without a cascade value retain four sun cascades until
+the player chooses a new value or preset. The SHADOWS tab also exposes sun distance (50–3,000 m), maximum local
+shadow lights (0–8), and local shadow influence distance (10–100 m). Shadows OFF disables both directional shadows
+and the shared local budget. This does not disable the lights' illumination.
+
+`LocalShadowBudget` is the single registry for eligible FX loop, ship and first-person attachment lights. Owners
+register their authored shadow capability once. Torch light now opts into this data flag. `GraphicsNode` selects after light transforms update, using the
+active viewport/camera, visibility, energy, influence distance, priority and proximity. The player's held light has
+priority; 10% incumbent distance hysteresis avoids repeated swaps between nearly equal candidates. Freed lights
+unregister. The engine-free `LocalShadowSelector` uses reusable/stack buffers and O(n × 8) bounded selection; no
+scene-wide search or per-item shadow rule is introduced. New eligible light owners must use this registry.
+
+Godot's baked LightmapGI shadowmask is not enabled: the generated terrain, moving sun, trees and player structures
+have no static lightmap bake. A shadowmask switch without those data would not provide this feature.
 
 - **On the ball world:** SDFGI's cascades follow the camera along the world's axes, which are nowhere the local up but
   at the poles, so its vertical scale stays 100 % (the flat-world 50 % would halve its detail sideways where the
@@ -4430,13 +4577,13 @@ $GODOT --path game --resolution 1600x900 -- --view models --model tin-finch --ya
 | `import/iron_wake.py` | The Iron Wake (docs/IRON_WAKE.md §9.1–§9.3): body, hold and 31 moving parts with five LODs, 358 hulls, 91 sockets, occluders, 20 clips, its sixteen finishes on one shader (`iron_wake_surfaces.py`: the derived maps, the curvature masks, the ShaderMaterials; `iron_wake_finishes.json`: the asset's finishes and display tiles as the import keeps them), and the ship's data file `game/data/ground/ships/iron-wake.json` (`-- data` writes the data file alone). Every merged mesh is repaired into closed solids facing out, and the import fails when rays from outside or from the rooms meet back faces at any level (§9.1 "As built: the holes"). With `ships/iron_wake_loaders.py`, its hook, the batteries' loading mechanisms (§9.5, rebuilt 15 October 2026: whole barrels into closed breeches): 84 more moving parts, 36 slot and breech sockets, 8 review clips, checked for clearance at every import. `iron_wake_review.py` renders the exported GLB as Godot draws it (back faces culled) for the review pictures |
 | `models/resources.py` | The twelve resources as small piles (their dropped look; gunpowder a heap on an opened paper), and the four world pickups as bigger piles |
 | `models/tools.py` | Torch, metal hatchet and pickaxe, wooden and stone spears, machete, bow, arrow |
-| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock |
-| `models/clothing.py` | Stand-ins for the woven hood, shirt, trousers and gloves, the work boots and the chest plate; the metal mask (the item; the character package models it worn) |
+| `models/supplies.py` | Bandage, medical injector, red and blue berries, wild and roasted tuber, pistol and rifle ammunition of every kind, key lock, door key |
+| `models/clothing.py` | The metal mask (the item; the character package models it worn) |
+| `models/garment_items.py` | The woven hood, shirt, trousers and gloves, the work boots and the chest plate as items: the worn garments' own meshes from `clothing.glb` with their own material (docs/ITEM_ART_CLOTHING.md) |
 | `models/deployables.py` | Campfire, furnace, small box, bed, ladder, wooden, armoured, double and garage doors, the dead body's backpack (`loot-sack`) and the bag dropped items lie in (`dropped-bag`, U4: a canvas-wrapped bundle strapped shut, below) |
 | `models/nodes.py` | Stone, metal, sulphur and high-grade outcrops, three depletion stages each |
 | `models/attachments.py` | G4 attachments: holographic sight, scope, silencer, weapon light, muzzle brake |
-| `models/props.py` | G7 world props: the fuel barrel (`loot-barrel-2`) and the recycler; the first barrel, the loot crate and the military crate it also builds are no longer in a plain run (below) |
-| `import/production_kits.py` | The production packages in `D:\GameDev\Assets` (15 October 2026), installed as they are, in plain Python: the six salvage pickups (`Hollow_Salvage_R01`: gears, springs, metal pipe, sheet metal, tech scrap, rope; replacing the refined-metal, fibre and metal-fragments stand-ins; with their icons) and the three containers (`Hollow_LootContainers_R01`: loot crate, military crate, the drum `loot-barrel-1`; replacing `props.py`'s). It copies the GLB (its wrapper node dropped, a container given the hull of its closed proxy), the 2K textures into `game/assets/textures/{salvage,loot}`, the packages' materials (`salvage_*.tres`, `loot_*.tres`) and the `.import` mapping them. Their gibs are rebuilt by `art/gibs/build.py` (`LC_Wood`, `LC_Metal` in its table). The packages' power kit, wreck modules and ruin dressing are monument parts and wait for the monuments' kit (`art/monuments/monkit`) |
+| `models/props.py` | G7 world props: two roadside loot barrels, a loot crate, a military crate, a recycler |
 | `models/raid.py` | G5 raid items: bag charge, tin grenade, rocket launcher, rocket and high-velocity rocket; the incendiary rocket (IW-A) |
 
 **Conversion of the kits:** metres (the `.blend` sources, never the centimetre FBX); the kit's LOD0–LOD2 kept (the
@@ -4602,7 +4749,10 @@ piezo tones (the code lock's verdicts and the charge's timer). No sound comes fr
    `levels.json`; a recipe that didn't change isn't built again.
 
 Archives are unpacked into `art/.cache/audio/src` by Python's `zipfile` and our own 7z reader (`art/audio/sevenzip.py`:
-LZMA, LZMA2, BCJ, Delta; names kept inside the folder); nothing in a download is ever run. The waveform and
+LZMA, LZMA2, BCJ, Delta; names kept inside the folder); nothing in a download is ever run. In a checkout at a long
+path (a worktree under `.claude\worktrees`) the deepest cached members pass Windows' 260-character limit, so the
+pipeline hands paths of 240 characters or more to the file system and ffmpeg in their extended-length form
+(`\\?\D:\...`, `art/audio/longpath.py`); shorter paths, recipe keys and the output are unchanged. The waveform and
 spectrogram pictures (`inspect.py`) were how cuts and layers were checked, since nobody listened while they were made.
 
 **The Iron Wake** (IRON_WAKE.md §10, 15 October 2026): 56 events, 198 files in `iron-wake/`. What no recording on this
@@ -5204,8 +5354,8 @@ they merge beside the other packages' items):
   outcrop is made too, though gather.json gets high-grade ore from metal outcrops.
 - M2. **Doors:** the door kit is the building package's. Until it converts it, our own wooden, armoured, double and
   garage doors stand in (marked `standIn`); the metal door is the Starter Kit's sheet-metal door.
-- M3. **Clothing icons come from stand-in garments** (`models/clothing.py`, marked `standIn`); render them again from
-  the character package's meshes when they can be posed for the inventory.
+- M3. **Clothing items are the worn garments** (`models/garment_items.py`, docs/ITEM_ART_CLOTHING.md): the character
+  package's meshes and material, so the icon and the dropped item show what is worn; the stand-ins are gone.
 - M4. **The rock is fist-sized** (the kit's 39 cm two-handed rock at 0.4, 16 cm), as items.json describes it.
 - M5. **Held items use the character package's frame** (+X forward, palm sockets `grip_r` and `grip_l`, LODs `_lod0`),
   so its hands can hold any of them. `HeldItems` loads them through `ModelCatalog`; the character package's test
@@ -5371,8 +5521,8 @@ Decisions taken for the sound (§4.9, §9.2) without the owner, to confirm or ov
 
 Decisions taken in G3's phase 2a (§6.5, building over the network), to confirm or overturn:
 
-- B1. **The key is an item of its own** (`door-key`) whose condition holds its lock's number; it has no model yet, so the
-  catalogue lists it with the key lock's model and icon.
+- B1. **The key is an item of its own** (`door-key`) whose condition holds its lock's number, with a model of its own: a
+  cut key on a split ring with a brass tag (`models/supplies.py`, docs/ITEM_ART_DOOR_KEY.md).
 - B2. **No ladder yet:** climbing needs the movement code (and the prediction) to know ladders; it comes with the
   ground-mode hookup or later.
 - B3. **`double-door` is the sheet metal double door** (Rust's common one); the wooden and armoured doubles stay in
@@ -5608,7 +5758,8 @@ Decisions taken for ships (§6.7, G6) without the owner, to confirm or overturn 
 - S3. **Lamp oil is ship fuel** (our low-grade fuel), as Rust's helicopters burn low-grade fuel: a 500-unit tank, 0.1 a
   second idling to 0.9 at full thrust, twice that boosting (about 9 to 80 minutes of flying a tank).
 - S4. **Ships are built, not carried:** the vehicle workbench builds the Tin Finch onto its bay, never into an inventory
-  (Rust's helicopters stand on a vendor's pad); a finished one waits while the bay is blocked.
+  (Rust's helicopters stand on a vendor's pad); a finished one waits while the bay is blocked. (A boat is made as its
+  item at a workbench and put on the water by hand: docs/MOTORBOAT.md.)
 - S5. **The hull:** Rust's minicopter's 750; melee does a quarter of its damage, arrows a tenth, bullets half, explosives
   all. Ships aren't rewound for hits as characters are (shooters lead them by their ping), and the pilot sits out of
   the hit history: the cabin takes the shots.
@@ -6185,7 +6336,9 @@ owner, to confirm or overturn (numbered V1 on):
 - V11. **The workbench's speed is recipes.json's** (`workbenchSpeed.byLevelsAbove`: 1, 0.5, 0.25), beside the recipes it
   shortens, rather than in deployables.json (whose placement block P2 rewrites): one level above a recipe's halves it, two
   or more quarter it, by the best workbench in reach when the job starts. A recipe made at a station of its own (the Tin
-  Finch at the vehicle workbench) isn't shortened by a workbench.
+  Finch at the vehicle workbench) counts the levels above the one its station is made at: the vehicle workbench is made
+  at level 2, so a level 3 workbench in reach halves a vehicle's time (the owner, 21 October 2026: "having workbench 3
+  nearby doesn't make it faster").
 - V12. **The console's `give` takes `<item>.blueprint`** (a blueprint of that item's recipe), so a blueprint to LEARN can be
   given; the tour's `held` step uses it.
 
@@ -6204,8 +6357,9 @@ overturn (numbered O1 on):
 - O3. **Play waits for every stage**: no input is read, the mouse stays free, mouse look and keys do nothing, and the
   character stands where it arrived. The interface is drawn all along under the screen (its first draw would otherwise be
   the first frame of play) and greets the player at the hand-over, rather than at its start, unseen.
-- O4. **The last stage is 0.75 s of steady frames** (each under 33.4 ms, the measurements' budget), counted only once
-  every other stage is done: streaming and warming end with a quiet world, and play starts on smooth frames.
+- O4. **The last stage aims for 0.75 s of steady frames** (each under 33.4 ms, the measurements' budget), counted only
+  once every other stage is done. Since 16 October 2026 it waits at most five seconds after that point, so a ready
+  world remains accessible on machines below the target frame rate.
 - O5. **The world's things are in when nothing new came for 0.5 s** after the character arrived (6 s at most in a place
   that never goes quiet). The server sends its backlog a part every snapshot while there is one, so no message or
   protocol change was needed.

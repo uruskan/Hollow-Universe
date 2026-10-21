@@ -1,0 +1,7 @@
+# Keep captured traces/logs byte-identical to the SHA-256 evidence receipt.
+*.json -text whitespace=cr-at-eol
+*.log binary
+*.wav binary
+# Frame-by-frame raw telemetry has a readable summary in DEVELOPMENT/REPAIR_AUDIO.
+gameplay-grass.json binary
+verification/grass.json binary

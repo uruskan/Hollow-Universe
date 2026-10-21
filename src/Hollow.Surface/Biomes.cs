@@ -102,6 +102,9 @@ public enum ScatterKind : byte
 
     /// <summary>A sulphur-ore outcrop.</summary>
     SulphurOutcrop = 11,
+
+    /// <summary>A rarer concentrated high-grade metal outcrop, in its own stable candidate stream.</summary>
+    HighGradeOutcrop = 12,
 }
 
 /// <summary>The climate at a point: what the biome, materials and plants are picked from.</summary>
@@ -244,7 +247,8 @@ public static class BiomeTable
             weights[b] = w;
             sum += w;
         }
-        double land = (1 - ice) * (1 - alpine) / Math.Max(sum, 1e-12);
+        // Alpine already includes its non-ice share; ordinary biomes receive the remainder.
+        double land = Math.Max(0, 1 - ice - alpine) / Math.Max(sum, 1e-12);
         for (int b = (int)Biome.Tundra; b <= (int)Biome.TropicalForest; b++)
         {
             weights[b] *= land;

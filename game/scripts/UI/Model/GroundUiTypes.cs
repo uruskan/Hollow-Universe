@@ -23,7 +23,10 @@ public enum ContainerId : byte
 }
 
 /// <summary>A slot: its container and its index there.</summary>
-public readonly record struct SlotRef(ContainerId Container, int Index);
+public readonly record struct SlotRef(ContainerId Container, int Index, int Attachment = -1);
+
+/// <summary>A real firearm socket and the catalogue parts it accepts; no sockets are invented by the UI.</summary>
+public sealed record AttachmentSlotView(int Index, string Label, ItemStack Stack, IReadOnlyList<string> Compatible);
 
 /// <summary>
 /// What a slot holds. <see cref="Condition"/> runs from 0 to 1, or is negative for items without one;
@@ -36,6 +39,10 @@ public readonly record struct ItemStack(string Key, int Amount, float Condition 
 
     /// <summary>A gun's loaded round (its item key), drawn small at the slot's bottom left (GROUND_SYSTEMS.md §7); null for anything else.</summary>
     public string? Round { get; init; }
+
+    public string? Sight { get; init; }
+    public string? Muzzle { get; init; }
+    public string? Rail { get; init; }
 
     public bool IsEmpty => string.IsNullOrEmpty(Key) || Amount <= 0;
 
@@ -80,6 +87,12 @@ public enum ContainerKind : byte
 
     /// <summary>G7: a world crate, take only.</summary>
     Crate,
+
+    /// <summary>
+    /// A vehicle in the vehicle workbench's bay (VEHICLES.md §9.11): a slot for each socket and level of its kind, the module there or empty; a
+    /// module dragged in is fitted, one dragged out is taken out.
+    /// </summary>
+    Vehicle,
 }
 
 /// <summary>The container the player has open.</summary>
@@ -100,6 +113,18 @@ public sealed record LootView(ContainerKind Kind, string Title, IReadOnlyList<It
     public int Cost { get; init; }
 
     public string? Reason { get; init; }
+
+    /// <summary>A vehicle: each slot's socket ("BAY 3", "BAY 3 ROOF", "WHEELS").</summary>
+    public IReadOnlyList<string> Labels { get; init; } = Array.Empty<string>();
+
+    /// <summary>A vehicle: what its build makes (mass, power, top speed, tyres, lift), and its warnings.</summary>
+    public IReadOnlyList<string> Lines { get; init; } = Array.Empty<string>();
+
+    /// <summary>A vehicle: the panel's heading when not its bay's (VEHICLE: looked at away from a bay).</summary>
+    public string? Heading { get; init; }
+
+    /// <summary>A vehicle: the line under it when nothing stops a change (null: how to drag modules in and out).</summary>
+    public string? Hint { get; init; }
 }
 
 /// <summary>Building rights where the player stands.</summary>
@@ -115,7 +140,7 @@ public enum Privilege : byte
 /// RustMVP). Temperature is what the body feels in °C (air, clothing and fires); bleeding is health lost per second.
 /// </summary>
 public sealed record Vitals(float Health, float Calories, float Hydration, float Temperature = 20, float Comfort = 0,
-    float Bleeding = 0, float Wetness = 0, Privilege Building = Privilege.None)
+    float Bleeding = 0, float Wetness = 0, Privilege Building = Privilege.None, float BreathFraction = 1, bool Suffocating = false)
 {
     public const float MaxHealth = 100, MaxCalories = 500, MaxHydration = 250;
 
@@ -127,6 +152,8 @@ public sealed record Vitals(float Health, float Calories, float Hydration, float
 /// <summary>A weapon's loaded rounds and the matching rounds in the inventory.</summary>
 public readonly record struct HeldAmmo(int Loaded, int Reserve, bool Reloading = false);
 
+public sealed record ProtectionStat(string Name, string Value, string Description);
+
 /// <summary>An ingredient of a recipe.</summary>
 public readonly record struct Ingredient(string Key, int Amount);
 
@@ -137,8 +164,20 @@ public sealed record Recipe(string Key, string Category, float Seconds, IReadOnl
 /// <summary>A crafting category and how many recipes it holds.</summary>
 public readonly record struct CraftCategory(string Name, int Count);
 
-/// <summary>A job in the crafting queue. The first one is being made; <see cref="Remaining"/> counts down.</summary>
-public sealed record CraftJob(int Ticket, string Key, int Count, float Remaining, float Seconds);
+/// <summary>
+/// A job in the crafting queue. Key identifies the recipe; Count is the remaining output units (yield already
+/// applied). The first job is being made; Remaining counts down the seconds for all its remaining crafts.
+/// </summary>
+public sealed record CraftJob(int Ticket, string Key, int Count, float Remaining, float Seconds)
+{
+    public string OutputKey { get; init; } = Key;
+
+    /// <summary>Progress toward the next recipe completion, from 0 to 1.</summary>
+    public float UnitProgress { get; init; }
+}
+
+/// <summary>The active craft and actual carried output count, as painted on the normal ground HUD.</summary>
+public sealed record CraftingHudStatus(CraftJob Job, int Owned);
 
 /// <summary>A sleeping bag or bed to respawn at, with its cooldown and where it is (a body-frame point or direction, for the map).</summary>
 public sealed record RespawnBag(string Id, string Name, float Cooldown, System.Numerics.Vector3 At);
@@ -151,6 +190,9 @@ public sealed record DeathInfo(float AliveSeconds, string KilledBy, string? Weap
 
 /// <summary>The interaction prompt: "[E]  OPEN", with "Hold [E] for more options" when there are more.</summary>
 public sealed record InteractionPrompt(string Key, string Action, bool MoreOptions = false);
+
+/// <summary>The common nearby damaged-target bar; the client adapter owns targeting and visibility rules.</summary>
+public sealed record TargetHealthView(string Name, float Fraction);
 
 /// <summary>A chat message.</summary>
 public sealed record ChatLine(string From, string Text, bool FromServer = false)

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using Hollow.Client;
+using Hollow.Client.Streaming;
 using Hollow.Core;
 using Hollow.Simulation.Content;
 using Hollow.Simulation.Nature;
@@ -55,6 +56,31 @@ public partial class NatureView : Node3D
     private Num.Vector3 _markedAt = new(float.MaxValue);
     private Num.Vector3 _scannedAt = new(float.MaxValue);
     private bool _hooked;
+    private bool _stopped;
+    public Task WorkersStopped { get; private set; } = Task.CompletedTask;
+
+    public void Stop()
+    {
+        if (_stopped) return;
+        _stopped = true;
+        if (World?.Plants is { } vegetation)
+        {
+            vegetation.Changes = null;
+            vegetation.ChangesSnapshot = null;
+        }
+        WorkersStopped = Task.WhenAll(_falls.Where(f => f.Item != null).Select(f => (Task)f.Item!));
+        _ = WorkersStopped.ContinueWith(static task => { _ = task.Exception; },
+            TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+        foreach (TreeFall fall in _falls) fall.Instance?.QueueFree();
+        _falls.Clear();
+        _falling.Clear();
+        _pending.Clear();
+        Plants = null;
+        World = null;
+    }
+
+    public override void _ExitTree() => Stop();
+    private readonly NaturalRenderState _renderState = new();
 
     private readonly record struct PendingSound(double At, string Key, Vector3 Position);
 
@@ -110,12 +136,13 @@ public partial class NatureView : Node3D
     /// <summary>Where the player is (feet), for what is drawn near them.</summary>
     public void Refresh(Num.Vector3 feet, double delta)
     {
-        if (Client.Survival().Nature == null || Client.Survival().Natural == null)
+        if (_stopped) return;
+        if (Client.Survival().Nature == null || Client.Survival().Natural is not { } natural)
         {
             return;
         }
         long bytes = GC.GetAllocatedBytesForCurrentThread(), start = System.Diagnostics.Stopwatch.GetTimestamp();
-        bool quiet = Client.Survival().Natural.Revision == _revision;
+        bool quiet = natural.Revision == _revision;
         RefreshNow(feet, delta);
         long allocated = GC.GetAllocatedBytesForCurrentThread() - bytes;
         _costTicks += System.Diagnostics.Stopwatch.GetTimestamp() - start;
@@ -131,28 +158,29 @@ public partial class NatureView : Node3D
     private void RefreshNow(Num.Vector3 feet, double delta)
     {
         long t = System.Diagnostics.Stopwatch.GetTimestamp();
+        bool changed = FrameEvents.Enabled && Client.Survival().Natural!.Revision != _revision;
         Hook();
         TakeChanges(feet);
-        Lap("changes", ref t);
+        Lap("changes", ref t, changed);
         RedrawPlants();
-        Lap("redraw", ref t);
+        Lap("redraw", ref t, changed);
         UpdateOutcrops(feet, _changedTiles);
-        Lap("outcrops", ref t);
+        Lap("outcrops", ref t, changed);
         UpdateMarkers(feet);
-        Lap("markers", ref t);
+        Lap("markers", ref t, changed);
         UpdateFalls(delta);
         UpdateShake();
         PlayPending();
-        Lap("falls", ref t);
+        Lap("falls", ref t, changed);
     }
 
-    private static void Lap(string what, ref long since)
+    private static void Lap(string what, ref long since, bool changed)
     {
         long now = System.Diagnostics.Stopwatch.GetTimestamp();
         double ms = (now - since) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
-        if (ms > 4)
+        if (FrameEvents.Enabled && (ms > 4 || changed))
         {
-            FrameEvents.Note($"{what} {ms:0} ms");
+            FrameEvents.Note($"nature {what} {ms:0.00} ms");
         }
         since = now;
     }
@@ -161,10 +189,11 @@ public partial class NatureView : Node3D
 
     private void Hook()
     {
-        if (_hooked || World?.Plants is not { } plants)
+        if (_hooked || World?.Plants is not { Library: { } library } plants)
         {
             return;
         }
+        Plants?.BindLibrary(library);
         _hooked = true;
         plants.Changes = DrawnKind;
         plants.ChangesSnapshot = FrozenKinds;
@@ -220,8 +249,8 @@ public partial class NatureView : Node3D
         return Picked(item.Kind);
     }
 
-    // The objects whose state changed since last frame: their hits play, their scatter tiles are drawn again, felled
-    // trees near the player fall, and the 64 m tiles of outcrops that changed are rebuilt (into _changedTiles).
+    // Every accepted hit keeps its cues. Only changed presence dirties plant buffers, and only changed presence or
+    // model stage dirties an outcrop tile. Health/weak-spot changes do not change either drawn mesh.
     private void TakeChanges(Num.Vector3 feet)
     {
         _changedTiles.Clear();
@@ -243,30 +272,43 @@ public partial class NatureView : Node3D
             bool falls = false;
             // A far object counts as a tree (its impostor block is drawn again) unless it is known not to be one.
             bool tree = true;
+            bool plant = true;
+            NaturalRenderChange appearance;
             if (distance < FallDistance + 60 && Cached(id, out NaturalObject o))
             {
-                tree = Client.Content.Natural(o.Kind)?.Class == NaturalClass.Tree;
-                _changedTiles.Add(TileOf(o.Position));
+                NaturalKind? kind = Client.Content.Natural(o.Kind);
+                tree = kind?.Class == NaturalClass.Tree;
+                plant = Plants?.Draws(o.Kind) != false;
                 distance = Num.Vector3.Distance(o.Position, feet);
                 falls = React(o, tile, distance);
+                appearance = _renderState.Observe(id, state.IsDepleted(id), _falling.Contains(id),
+                    kind == null ? null : state.Stage(o, kind));
+                if (!plant && appearance.Models) _changedTiles.Add(TileOf(o.Position));
             }
             else
             {
                 _spotted.Remove(id);
+                appearance = _renderState.Observe(id, state.IsDepleted(id), _falling.Contains(id));
             }
-            // The plants near the camera (within 300 m) are drawn again at once for what is within reach or starts
-            // to fall, otherwise every five seconds for everything that changed meanwhile (others gathering).
-            if (distance < NearPlants)
-            {
-                Schedule(_nearRedraw, tile.Packed, falls || distance < 25 ? 0 : 5);
-            }
-            // A tree's impostor shows beyond 58 m: its block is drawn again every ten seconds.
-            if (tree && distance > 45)
-            {
-                Schedule(_blockRedraw, tile.Packed, 10);
-            }
+            if (!plant || !appearance.Plants) continue;
+            ScheduleAppearance(tile, distance, tree, falls);
         }
         state.Changed.Clear();
+    }
+
+    private void ScheduleAppearance(TileKey tile, float distance, bool tree, bool immediate)
+    {
+        // The plants near the camera (within 300 m) are drawn again at once for what is within reach or starts
+        // to fall, otherwise every five seconds for everything that changed meanwhile (others gathering).
+        if (distance < NearPlants)
+        {
+            Schedule(_nearRedraw, tile.Packed, immediate || distance < 25 ? 0 : 5);
+        }
+        // A tree's impostor shows beyond 58 m: its block is drawn again every ten seconds.
+        if (tree && distance > 45)
+        {
+            Schedule(_blockRedraw, tile.Packed, 10);
+        }
     }
 
     // What each object near the player was when last seen, so a change shows what happened to it.
@@ -309,6 +351,10 @@ public partial class NatureView : Node3D
         if (current.Hits == before.Hits)
         {
             return false;
+        }
+        if (FrameEvents.Enabled)
+        {
+            FrameEvents.Note($"natural hit {o.Kind} #{current.Hits} stage {before.Stage}->{current.Stage} gone={current.Gone}");
         }
         GatherLook look = rules.Look;
         Num.Vector3 point = o.Position + now.LastHit;
@@ -366,7 +412,12 @@ public partial class NatureView : Node3D
         Vector3 point = GroundView.ToGodot(at), n = GroundView.ToGodot(normal);
         if (cue.Fx != null)
         {
+            long began = FrameEvents.Enabled ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
             FxDirector.Play(cue.Fx, point, n, new FxParams { Scale = cue.FxScale * scale, Floor = ground });
+            if (FrameEvents.Enabled)
+            {
+                FrameEvents.Note($"gather fx {cue.Fx} {System.Diagnostics.Stopwatch.GetElapsedTime(began).TotalMilliseconds:0.00} ms");
+            }
         }
         if (cue.Sound == null)
         {
@@ -382,7 +433,12 @@ public partial class NatureView : Node3D
         }
         else
         {
+            long began = FrameEvents.Enabled ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
             Sounds.At(key, point, 0, pitch);
+            if (FrameEvents.Enabled)
+            {
+                FrameEvents.Note($"gather sound {key} {System.Diagnostics.Stopwatch.GetElapsedTime(began).TotalMilliseconds:0.00} ms");
+            }
         }
     }
 
@@ -443,11 +499,15 @@ public partial class NatureView : Node3D
         {
             return;
         }
+        plants.MeasureRefreshes = FrameEvents.Enabled;
         plants.ApplyRefreshes();
         if (plants.NearBuilds != _nearBuilds)
         {
             _nearBuilds = plants.NearBuilds;
-            FrameEvents.Note("plants in place");
+            if (FrameEvents.Enabled)
+            {
+                FrameEvents.Note($"plants in place {plants.MeshInstances} instances upload {plants.LastNearUploadMilliseconds:0.00} ms {plants.LastNearUploadBytes / 1024.0:0.0} KB");
+            }
         }
         double now = Now;
         if (_nearRedraw.Count > 0 && Due(_nearRedraw, now))
@@ -480,7 +540,7 @@ public partial class NatureView : Node3D
     {
         // The placeholders take the plants' rock material: wait for it.
         PlaceholderModels.Library ??= World?.Plants?.Library;
-        if (PlaceholderModels.Library == null && GroundModels.Provider is PlaceholderModels || Client.Surface == null)
+        if (Plants is { Ready: false } || PlaceholderModels.Library == null && GroundModels.Provider is PlaceholderModels || Client.Surface == null)
         {
             return;
         }
@@ -716,6 +776,7 @@ public partial class NatureView : Node3D
                 }
                 if (!task.IsCompletedSuccessfully || task.Result is not { } item || !Build(fall, item))
                 {
+                    if (task.IsFaulted) GD.PushWarning($"Falling-tree lookup failed: {task.Exception}");
                     End(i);
                     continue;
                 }
@@ -794,5 +855,13 @@ public partial class NatureView : Node3D
         fall.Instance?.QueueFree();
         _falls.RemoveAt(index);
         _falling.Remove(fall.Id);
+        // Usually depletion still hides the tree. If it respawned during a long fall, reveal it now; the earlier
+        // respawn correctly kept the standing copy hidden while its falling presentation was still alive.
+        if (Client.Survival().Natural is { } state && _renderState.Observe(fall.Id, state.IsDepleted(fall.Id)).Plants &&
+            Client.Survival().Nature?.TileOf(fall.Id) is { } tile)
+        {
+            float distance = GroundView.ToGodot(Client.RenderPosition).DistanceTo(fall.Base.Origin);
+            ScheduleAppearance(tile, distance, tree: true, immediate: true);
+        }
     }
 }

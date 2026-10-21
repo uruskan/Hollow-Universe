@@ -22,7 +22,7 @@ public static class GatheringTests
     private static (ZoneSpec Spec, ISurface Surface, ZoneFrame Frame, INaturalObjects Objects) World()
     {
         ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, 28.4, -61.7)! with { StandIn = true };
-        ISurface surface = spec.CreateSurface();
+        ISurface surface = spec.CreateSurface(diagnostic: true);
         ZoneFrame frame = spec.CreateFrame(surface);
         return (spec, surface, frame, spec.CreateNature(surface, frame, C));
     }

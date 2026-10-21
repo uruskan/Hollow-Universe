@@ -18,8 +18,8 @@ public interface INetState<T> where T : struct, INetState<T>
 
     static abstract T ReadDelta(BitReader r, in T baseline);
 
-    /// <summary>The bits of a state written in full.</summary>
-    static abstract int FullSize { get; }
+    /// <summary>The exact bits of this state written in full, including actual varint widths.</summary>
+    int EncodedBits { get; }
 }
 
 /// <summary>An entity offered to a snapshot section: its net ID, its state now, and how much it matters to this client.</summary>
@@ -173,7 +173,7 @@ internal sealed class DeltaChannel<T> where T : struct, INetState<T>
     }
 
     private int EntityBits<TC>(in TC c, uint sequence) where TC : struct, IDeltaCandidate<T> =>
-        AgeBits + (Baseline(c.Id, sequence, out T b, out _) ? c.Value.DeltaBits(b) : T.FullSize);
+        AgeBits + (Baseline(c.Id, sequence, out T b, out _) ? c.Value.DeltaBits(b) : c.Value.EncodedBits);
 
     private int ExactBits<TC>(ReadOnlySpan<TC> candidates, uint sequence) where TC : struct, IDeltaCandidate<T>
     {

@@ -23,7 +23,7 @@ public sealed class ViewSettings
     private const string FilePath = "user://ground-settings.cfg";
 
     /// <summary>
-    /// Vertical field of view in degrees (60–100; 75 by default): the graphics settings' (GROUND.md §8.6), so the F1
+    /// Vertical field of view in degrees (30–110; 75 by default): the graphics settings' (GROUND.md §8.6), so the F1
     /// console's fov and the settings panel show and change the same value.
     /// </summary>
     public float Fov
@@ -35,6 +35,9 @@ public sealed class ViewSettings
     /// <summary>Mouse look sensitivity (0.1–5; 1 by default: 0.002 radians a mouse count).</summary>
     public float Sensitivity { get; set; } = 1;
 
+    /// <summary>Preferred admin flight speed; permission comes from the server's character state.</summary>
+    public float NoclipSpeed { get; set; } = 10;
+
     public bool ShowFps { get; set; }
 
     public static ViewSettings Load()
@@ -43,8 +46,9 @@ public sealed class ViewSettings
         file.Load(FilePath);
         return new ViewSettings
         {
-            Fov = Math.Clamp((float)file.GetValue("view", "fov", 75.0).AsDouble(), 60, 100),
+            Fov = Math.Clamp((float)file.GetValue("view", "fov", 75.0).AsDouble(), 30, 110),
             Sensitivity = Math.Clamp((float)file.GetValue("view", "sensitivity", 1.0).AsDouble(), 0.1f, 5),
+            NoclipSpeed = Math.Clamp((float)file.GetValue("view", "noclip_speed", 10.0).AsDouble(), 1, 200),
             ShowFps = file.GetValue("view", "fps", false).AsBool(),
         };
     }
@@ -55,6 +59,7 @@ public sealed class ViewSettings
         file.Load(FilePath);
         file.SetValue("view", "fov", Fov);
         file.SetValue("view", "sensitivity", Sensitivity);
+        file.SetValue("view", "noclip_speed", NoclipSpeed);
         file.SetValue("view", "fps", ShowFps);
         file.Save(FilePath);
     }
@@ -66,7 +71,7 @@ public sealed class ViewSettings
 /// netgraph, fov, sensitivity) run here, everything else goes to the server, which checks the player's rights and
 /// answers line by line; the INFO, NET, ITEMS and TOOLS tabs' reads.
 /// </summary>
-public sealed class ClientConsole : IConsoleModel, IDisposable
+public sealed partial class ClientConsole : IConsoleModel, IDisposable
 {
     private const int MaxLines = 600;
     private const int MaxHistory = 100;
@@ -85,6 +90,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
     private SkyEphemeris? _sky;
     private ZoneDay? _skyDay;
     private IReadOnlyList<ToolGroup>? _spawns;
+    private IReadOnlyList<ToolButton>? _buildGrades;
 
     public ClientConsole(GameClient client, ViewSettings settings)
     {
@@ -92,6 +98,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
         Settings = settings;
         _client.Console().ConsoleAnswered += OnAnswer;
         LoadHistory();
+        LoadBindings();
         Add("Hollow Universe console. Type help for the commands; Tab completes, Up and Down go through what you typed.", ConsoleLineKind.System);
     }
 
@@ -101,6 +108,15 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
 
     /// <summary>Shows or hides the network graph (F3); returns whether it shows now.</summary>
     public Func<bool>? ToggleNetGraph { get; set; }
+
+    /// <summary>Starts the held item's cosmetic admire animation when the hands are available.</summary>
+    public Func<bool>? Admire { get; set; }
+
+    /// <summary>Whether the session's admin camera currently shows the local character in third person.</summary>
+    public Func<bool>? ThirdPerson { get; set; }
+
+    /// <summary>Requests the admin camera mode; returns the resulting active state.</summary>
+    public Func<bool, bool>? SetThirdPerson { get; set; }
 
     /// <summary>Leaves the game.</summary>
     public Action? Quit { get; set; }
@@ -195,7 +211,14 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
         }
         if (command.Side == CommandSide.Client)
         {
+            if (command.Admin && !Admin)
+            {
+                Fail("This command needs admin rights on this server.");
+                if (toast) Notice?.Invoke(_lastAnswer[^1].Text);
+                return;
+            }
             RunHere(command, args);
+            if (toast && _lastAnswer.Count > 1) Notice?.Invoke(_lastAnswer[^1].Text);
             return;
         }
         uint seq = _client.Console().SendConsole(line);
@@ -233,6 +256,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
     // The game's own commands.
     private void RunHere(ConsoleCommandDef command, IReadOnlyList<string> args)
     {
+        if (RunBindingCommand(command.Name, args)) return;
         switch (command.Name)
         {
             case "help":
@@ -259,12 +283,47 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
                 Out(shown ? "The network graph shows at the top right (F3 hides it)." : "The network graph is hidden.");
                 break;
             case "fov":
-                Setting(args, "Field of view", Settings.Fov, 60, 100, "°", v => Settings.Fov = v);
+                Setting(args, "Field of view", Settings.Fov, 30, 110, "°", v => Settings.Fov = v);
                 break;
             case "sensitivity":
                 Setting(args, "Mouse sensitivity", Settings.Sensitivity, 0.1f, 5, "", v => Settings.Sensitivity = v);
                 break;
+            case "admire":
+                if (args.Count != 0) Fail("Usage: admire");
+                else if (Admire?.Invoke() != true) Fail("Cannot admire the held item right now.");
+                break;
+            case "thirdperson":
+                SetCamera(args);
+                break;
         }
+    }
+
+    private void SetCamera(IReadOnlyList<string> args)
+    {
+        if (args.Count > 1 || args.Count == 1 &&
+            !string.Equals(args[0], "on", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(args[0], "off", StringComparison.OrdinalIgnoreCase))
+        {
+            Fail("Usage: thirdperson [on|off]");
+            return;
+        }
+        if (ThirdPerson == null || SetThirdPerson == null)
+        {
+            Fail("The third-person camera is unavailable in this view.");
+            return;
+        }
+        bool enabled = args.Count == 0 ? !ThirdPerson() : string.Equals(args[0], "on", StringComparison.OrdinalIgnoreCase);
+        bool active = SetThirdPerson(enabled);
+        if (active != enabled)
+        {
+            Fail(enabled ? "Third person is unavailable for the current character." : "The camera could not switch to first person.");
+            return;
+        }
+        string message = active
+            ? "Third person on. Close F1, hold right mouse to orbit; mouse wheel zooms."
+            : "Third person off. First-person controls restored.";
+        Add(message, ConsoleLineKind.Success);
+        _lastAnswer.Add(new ConsoleLine(message, ConsoleLineKind.Success));
     }
 
     private void Setting(IReadOnlyList<string> args, string name, float now, float least, float most, string unit, Action<float> set)
@@ -461,7 +520,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
             var world = new List<InfoRow>();
             if (_client.Zone is { } zone)
             {
-                PlanetSurfaces.Entry? planet = PlanetSurfaces.Find(zone.SystemAddress, zone.BodyPath);
+                PlanetBodies.Entry? planet = PlanetBodies.Find(zone.SystemAddress, zone.BodyPath);
                 world.Add(new InfoRow("Planet", planet != null ? $"{planet.Body.Name}" : "unknown body"));
                 world.Add(new InfoRow("System", planet != null
                     ? string.Create(CultureInfo.InvariantCulture, $"{planet.System.Name} ({zone.SystemAddress:X16})")
@@ -569,7 +628,14 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
             double factor = day is { } d && _client.Zone is { RotationTimeScale: > 0 } z ? d.Scale / z.RotationTimeScale : 1;
             return new ToolsView((cheats & MoveCheats.God) != 0, (cheats & MoveCheats.Noclip) != 0, ZoneHours() ?? 12, factor, day?.Overridden ?? false,
                 _client.Console().ServerPlayers.Select(p => p.Name).Where(n => !string.Equals(n, _client.Name, StringComparison.OrdinalIgnoreCase)).ToArray(),
-                _spawns ??= SpawnGroups(_client.Content));
+                _spawns ??= SpawnGroups(_client.Content))
+            {
+                ThirdPerson = Admin && (ThirdPerson?.Invoke() ?? false),
+                FreeBuild = _client.Console().FreeBuild,
+                BuildGrade = _client.Console().BuildGrade,
+                BuildGrades = _buildGrades ??= _client.Content.Building.Grades
+                    .Select(g => new ToolButton(g.Name.ToUpperInvariant(), $"bgrade {g.Key}")).ToArray(),
+            };
         }
     }
 
@@ -605,7 +671,7 @@ public sealed class ClientConsole : IConsoleModel, IDisposable
                 .Concat(c.World.Props.Where(p => !Spawning.PropNames.Any(n => n.Prop == p.Key)).Select(p => new ToolButton(Label(p.Name), $"spawn {p.Key}")))
                 .ToArray()),
             new("DEPLOYABLES", c.Deployables.Select(d => new ToolButton(Label(d.Item.Name.Replace(", level ", " ", StringComparison.OrdinalIgnoreCase)), $"spawn {d.Key}")).ToArray()),
-            new("RAID BASE (A CLAIMED HUT)", CompletionSources.Grades.Select((g, i) => new ToolButton(Label(g), $"spawn raidbase {i}")).ToArray()),
+            new("CLAN BASE (3×3 CORE)", CompletionSources.Grades.Select((g, i) => new ToolButton(Label(g), $"spawn raidbase {i}")).ToArray()),
         };
         return groups;
     }

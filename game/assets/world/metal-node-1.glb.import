@@ -41,15 +41,10 @@ materials/extract_format=0
 materials/extract_path=""
 _subresources={
 "materials": {
-"M_Hollow_Glossy": {
+"M_PSG_Metal_1": {
 "use_external/enabled": true,
-"use_external/fallback_path": "res://assets/materials/hollow_glossy.tres",
-"use_external/path": "res://assets/materials/hollow_glossy.tres"
-},
-"M_Hollow_Rock": {
-"use_external/enabled": true,
-"use_external/fallback_path": "res://assets/materials/hollow_rock.tres",
-"use_external/path": "res://assets/materials/hollow_rock.tres"
+"use_external/fallback_path": "res://assets/revised/PSG_ResourceNodes_R01/Materials/metal-node-1.tres",
+"use_external/path": "res://assets/revised/PSG_ResourceNodes_R01/Materials/metal-node-1.tres"
 }
 }
 }

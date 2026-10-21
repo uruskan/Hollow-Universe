@@ -27,6 +27,17 @@ public sealed class ConvexPart
 
     public Vector3[] Points { get; }
 
+    /// <summary>The same part mirrored in X (a leaf hung on the other side).</summary>
+    public ConvexPart MirroredX()
+    {
+        var mirrored = new Vector3[Points.Length];
+        for (int i = 0; i < mirrored.Length; i++)
+        {
+            mirrored[i] = new Vector3(-Points[i].X, Points[i].Y, Points[i].Z);
+        }
+        return new ConvexPart(mirrored);
+    }
+
     /// <summary>Outward face planes: a point p is inside when Dot(Normal, p) ≤ D for every plane.</summary>
     public (Vector3 Normal, float D)[] Planes { get; }
 
@@ -160,7 +171,6 @@ public static class PieceShapes
                 break;
             case PieceFamily.Roof:
                 parts.Add(Roof(data, piece));
-                parts.AddRange(Gables(data, piece));
                 break;
         }
         return parts.ToArray();
@@ -349,49 +359,6 @@ public static class PieceShapes
             points.Add(bottom + offset);
         }
         return new ConvexPart(points.ToArray());
-    }
-
-    /// <summary>The thickness of a roof's gable panels.</summary>
-    public const double GableThickness = 0.06;
-
-    /// <summary>
-    /// A roof's gables: the upright triangles closing the space under its slope above its sides (a square roof's two
-    /// sides, a triangle roof's two slanting edges), so two roofs meeting in a ridge close the gable end. Each is a thin
-    /// panel just inside the footprint.
-    /// </summary>
-    public static IEnumerable<ConvexPart> Gables(BuildingData data, PieceDef piece)
-    {
-        (double X, double Z)[] polygon = Polygon(piece.Shape, data.Width);
-        (double low, double span) = PieceGeometry.RoofSpan(piece.Shape, data.Width);
-        double h = piece.Height, t = GableThickness;
-        double Rise(double z) => h * (low - z) / span;
-        // The footprint's edges other than the low one (edge 0) carry a gable.
-        for (int i = 1; i < polygon.Length; i++)
-        {
-            (double ax, double az) = polygon[i];
-            (double bx, double bz) = polygon[(i + 1) % polygon.Length];
-            if (piece.Shape == PieceShape.Square && i == 2)
-            {
-                continue; // the high edge: the next roof or a wall goes there
-            }
-            // Inward normal of the edge (the footprint runs counter-clockwise seen from above: inside is on the left).
-            double ex = bx - ax, ez = bz - az, length = Math.Sqrt(ex * ex + ez * ez);
-            double nx = ez / length, nz = -ex / length;
-            var points = new List<Vector3>();
-            foreach ((double x, double z) in new[] { (ax, az), (bx, bz) })
-            {
-                foreach (double inset in new[] { 0.0, t })
-                {
-                    double px = x + nx * inset, pz = z + nz * inset;
-                    points.Add(new Vector3((float)px, 0, (float)pz));
-                    if (Rise(z) > 1e-6)
-                    {
-                        points.Add(new Vector3((float)px, (float)Rise(z), (float)pz));
-                    }
-                }
-            }
-            yield return new ConvexPart(points.ToArray());
-        }
     }
 
     /// <summary>A door leaf's box in its hinge's frame: from the hinge across its width, up its height, centred on its thickness.</summary>

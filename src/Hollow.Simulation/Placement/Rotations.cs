@@ -11,7 +11,7 @@ namespace Hollow.Simulation.Placement;
 /// How a placement is turned (GROUND_SYSTEMS.md §6's rotation): from the view and R's presses on the client, from the
 /// claim on the server. Sets the candidate's yaw and variant; its kind then says how that is drawn
 /// (<see cref="PlaceableKind.Orient"/>). Registered by name: free, steps (of the rule's degrees), support (in its
-/// support's steps), flip (a door's side), fixed (as its solver found it).
+/// support's steps), layout (a door's hinge side and swing side), fixed (as its solver found it).
 /// </summary>
 public interface IPlacementRotation
 {
@@ -27,7 +27,7 @@ public interface IPlacementRotation
 /// <summary>The rotations, by name.</summary>
 internal static class Rotations
 {
-    public static IPlacementRotation[] All => new IPlacementRotation[] { new Free(), new Steps(), new Support(), new Flip(), new Fixed() };
+    public static IPlacementRotation[] All => new IPlacementRotation[] { new Free(), new Steps(), new Support(), new Layout(), new Fixed() };
 
     private static float Wrap(float yaw) => MathF.IEEERemainder(yaw, MathF.Tau);
 
@@ -104,14 +104,30 @@ internal static class Rotations
         }
     }
 
-    /// <summary>A side: R swaps it (a door hung the other way round in its frame), as the variant; the yaw is the solver's.</summary>
-    private sealed class Flip : IPlacementRotation
+    /// <summary>
+    /// A door's layout (docs/DOORS.md §3): hinge side and swing side, the variant. It starts hinged on the viewer's left and
+    /// swinging away from the viewer, and each press of R steps to the next of the door's layouts; the server takes the
+    /// claim's (the bits the door chooses).
+    /// </summary>
+    private sealed class Layout : IPlacementRotation
     {
-        public string Name => "flip";
+        public string Name => "layout";
 
-        public void Turn(PlacementWorld world, in PlacementContext ctx, in PlacementAim aim, PlacementCandidate c) => c.Variant = aim.Turns & 1;
+        public void Turn(PlacementWorld world, in PlacementContext ctx, in PlacementAim aim, PlacementCandidate c)
+        {
+            if (ctx.Placeable.Definition is not DoorDef def || c.Detail is not Piece frame)
+            {
+                c.Variant = 0;
+                return;
+            }
+            // From which side of its frame the viewer looks: the sign of the eye along the frame's +Z.
+            (Vector3 position, Quaternion rotation) = frame.ZoneTransform;
+            float along = Vector3.Dot(Vector3.Transform(Vector3.UnitZ, rotation), ctx.Eye - position);
+            c.Variant = def.Turned(def.DefaultLayout(fromOutside: along >= 0), aim.Turns);
+        }
 
-        public void Settle(PlacementWorld world, in PlacementContext ctx, in PlacementClaim claim, PlacementCandidate c) => c.Variant = claim.Variant & 1;
+        public void Settle(PlacementWorld world, in PlacementContext ctx, in PlacementClaim claim, PlacementCandidate c) =>
+            c.Variant = ctx.Placeable.Definition is DoorDef def ? claim.Variant & def.LayoutMask : 0;
     }
 
     /// <summary>

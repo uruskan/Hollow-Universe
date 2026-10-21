@@ -122,6 +122,7 @@ public sealed class TargetSystem : ZoneSystem
     internal sealed class GroundTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Ground;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Content!.Surfaces.AtGround(zone.Surface, zone.Frame, point);
 
         public bool Moves => false;
 
@@ -160,6 +161,7 @@ public sealed class TargetSystem : ZoneSystem
     internal sealed class CharacterTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Character;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Content!.Surfaces.FleshId;
 
         public bool Moves => true;
 
@@ -277,6 +279,7 @@ public sealed class TargetSystem : ZoneSystem
     internal sealed class AnimalTargets(Zone zone) : ITargetFamily
     {
         public TargetFamily Family => TargetFamily.Animal;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Content!.Surfaces.FleshId;
 
         public bool Moves => true;
 
@@ -357,7 +360,8 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
-            facts = new TargetFacts { Capabilities = Capabilities(target.Id), Name = a.Species.Name, Position = a.Position };
+            facts = new TargetFacts { Capabilities = Capabilities(target.Id), Name = a.Species.Name, Position = a.Position,
+                Vitality = !a.IsDead ? new TargetVitality(a.Health, a.Species.Health) : null };
             return true;
         }
 
@@ -378,6 +382,7 @@ public sealed class TargetSystem : ZoneSystem
     internal sealed class NaturalTargets(Zone zone) : ITargetFamily, IPickupFamily
     {
         public TargetFamily Family => TargetFamily.Natural;
+        public byte Surface(in TargetRef target, Vector3 point) => Find(target.Id, out _, out NaturalKind? kind) ? zone.Content!.Surfaces.FromNatural(kind!.Key) : (byte)0;
 
         public bool Moves => false;
 
@@ -429,7 +434,8 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
-            facts = new TargetFacts { Capabilities = Of(kind!), Name = kind!.Name, Stays = kind.Class == NaturalClass.Bush, Count = 1, Position = o.Position };
+            facts = new TargetFacts { Capabilities = Of(kind!), Name = kind!.Name, Stays = kind.Class == NaturalClass.Bush, Count = 1, Position = o.Position,
+                Vitality = !kind.IsPicked && zone.Natural != null ? new TargetVitality(zone.Natural.Health(o, kind), NaturalShapes.MaxHealth(o, kind)) : null };
             return true;
         }
 
@@ -459,9 +465,14 @@ public sealed class TargetSystem : ZoneSystem
     }
 
     /// <summary>The static things of the entity store: deployables, world props, bags of dropped items, bodies.</summary>
-    internal sealed class ThingTargets(Zone zone) : ITargetFamily, IPickupFamily
+    internal sealed class ThingTargets(Zone zone) : ITargetFamily, IPickupFamily, IRepairFamily
     {
+        public Outcome Repair(Entity entity, Player p, in TargetRef target, IBuildingWallet wallet) =>
+            zone.Things().StaticOf(new EntityId(target.Id)) is Deployable d
+                ? zone.Things().RepairDeployable(p.Id, d, wallet) : OutcomeCode.NotUsable;
+
         public TargetFamily Family => TargetFamily.Thing;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Things().StaticOf(new EntityId(target.Id))?.ContactSurface(zone.Content!.Surfaces, target.Part) ?? 0;
 
         public bool Moves => false;
 
@@ -476,6 +487,7 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
+            if (thing is Deployable d) return CompoundGeometry.TryPartPose(zone.Content!, d.Def, d.Open, d.Position, d.Up, d.Yaw, target.Part, out pose);
             pose = new TargetPose(thing.Position, Geometry.Upright(thing.Up, thing.Yaw));
             return true;
         }
@@ -487,7 +499,7 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
-            point = thing.Nearest(from);
+            point = thing is Deployable d ? CompoundGeometry.Nearest(zone.Content!, d.Def, d.Open, d.Position, d.Up, d.Yaw, from) : thing.Nearest(from);
             return true;
         }
 
@@ -501,12 +513,13 @@ public sealed class TargetSystem : ZoneSystem
         {
             float length = ray.Upto(best);
             zone.Interaction()._aimThings.Clear();
-            zone.Things().DeployablesNear(ray.Origin + ray.Direction * (length / 2), length / 2 + 2f, zone.Interaction()._aimThings);
+            zone.Things().DeployablesNear(ray.Origin + ray.Direction * (length / 2), length / 2 + zone.Things().BoundsRadius, zone.Interaction()._aimThings);
             foreach (Deployable d in zone.Interaction()._aimThings)
             {
                 if (zone.Building().ClaimOf(d) == null)
                 {
-                    ray.Consider(ref best, AimShapes.Box(ray, d.Position, d.Up, d.Yaw, d.Def.HalfExtents), d.Ref);
+                    ray.Consider(ref best, CompoundGeometry.Ray(zone.Content!, d.Def, d.Open, d.Position, d.Up, d.Yaw,
+                        ray.Origin, ray.Direction, ray.Length, ray.AttackRadius ?? 0), d.Ref);
                 }
             }
             foreach (ILifetime loose in zone.Things()._loose)
@@ -534,6 +547,11 @@ public sealed class TargetSystem : ZoneSystem
                 Capabilities = thing.CapabilitiesIn(zone.Content!.Capabilities), Flags = zone.Targets().FlagsFor(target, viewer) | crew,
                 Name = thing.Name.Length > 0 ? thing.Name : def?.Item.Name ?? "", Count = thing.ShownCount,
                 Body = thing.Kind == StaticKind.Corpse, Deployable = def, Position = thing.Position, Aboard = ship != null,
+                DeviceAccess = thing is Deployable device ? zone.DeviceAuthorization().Facts(device, viewer.Id) : default,
+                Open = thing is Deployable { Open: true },
+                Lock = (thing as ILockHost)?.Lock?.Kind ?? LockKind.None,
+                Vitality = thing is Deployable d ? new TargetVitality(d.Health, d.Def.Health) :
+                    thing is Corpse { Life: { IsBody: true } life } ? new TargetVitality(life.HarvestLeft, life.Tuning.HarvestHealth) : null,
             };
             return true;
         }
@@ -560,6 +578,7 @@ public sealed class TargetSystem : ZoneSystem
             zone.Building().Hammer(entity, HammerAction.Repair, new EntityId(target.Id), 0);
 
         public TargetFamily Family => TargetFamily.Piece;
+        public byte Surface(in TargetRef target, Vector3 point) => Find(target.Id) is { } piece ? zone.Content!.Surfaces.FromGrade(zone.Content.Building.Grades[piece.Grade].Key) : (byte)0;
 
         public bool Moves => false;
 
@@ -610,7 +629,7 @@ public sealed class TargetSystem : ZoneSystem
             {
                 return false;
             }
-            facts = new TargetFacts { Name = piece.Def.Name, Position = piece.ZoneTransform.Position };
+            facts = new TargetFacts { Name = piece.Def.Name, Position = piece.ZoneTransform.Position, Vitality = new TargetVitality(piece.Health, piece.MaxHealth) };
             return true;
         }
 
@@ -618,9 +637,14 @@ public sealed class TargetSystem : ZoneSystem
     }
 
     /// <summary>Doors in their frames; a door's parts are its leaves (part i + 1: leaf i), which swing.</summary>
-    internal sealed class DoorTargets(Zone zone) : ITargetFamily
+    internal sealed class DoorTargets(Zone zone) : ITargetFamily, IRepairFamily
     {
+        public Outcome Repair(Entity entity, Player p, in TargetRef target, IBuildingWallet wallet) =>
+            Find(target.Id) is { } door && zone.Building().World is { } building
+                ? building.Repair(p.Id.Value, door, wallet, zone.Building().BuildingNow) : OutcomeCode.NotFound;
+
         public TargetFamily Family => TargetFamily.Door;
+        public byte Surface(in TargetRef target, Vector3 point) => Find(target.Id) is { } door ? zone.Content!.Surfaces.FromDoor(door.Def.Key) : (byte)0;
 
         public bool Moves => true;
 
@@ -636,7 +660,7 @@ public sealed class TargetSystem : ZoneSystem
                 return false;
             }
             (Vector3 position, Quaternion rotation) = target.Part > 0 && target.Part <= door.Def.Leaves.Count
-                ? door.Leaf(target.Part - 1, door.Open)
+                ? door.LeafNow(target.Part - 1)
                 : door.Frame.ZoneTransform;
             pose = new TargetPose(position, rotation);
             return true;
@@ -657,6 +681,17 @@ public sealed class TargetSystem : ZoneSystem
                 point = opening;
             }
             return true;
+        }
+
+        // What else shows a door: its leaves' middles (open or shut, wherever they have swung or rolled to) and its doorway.
+        public int SightPoints(in TargetRef target, Vector3 eye, Span<Vector3> into)
+        {
+            if (Find(target.Id) is not { } door || zone.Building().World is not { } building)
+            {
+                return 0;
+            }
+            int n = DoorShapes.SightPoints(door, into);
+            return n + AimShapes.DoorwaySightPoints(building.Data, door.Frame, into[n..]);
         }
 
         // The leaves are building bodies (the pieces' query finds them); the openings are aimed at here, so an open door,
@@ -680,6 +715,7 @@ public sealed class TargetSystem : ZoneSystem
             {
                 Capabilities = Capabilities(target.Id), Flags = zone.Targets().FlagsFor(target, viewer), Name = door.Def.Name, Open = door.Open,
                 Lock = door.Lock?.Kind ?? LockKind.None, Position = door.Frame.ZoneTransform.Position,
+                Vitality = new TargetVitality(door.Health, door.Def.Health),
             };
             return true;
         }
@@ -711,6 +747,7 @@ public sealed class TargetSystem : ZoneSystem
             Find(target.Id) is { } claim ? zone.Building().World!.ClearAuthorised(p.Id.Value, claim) : OutcomeCode.NotFound;
 
         public TargetFamily Family => TargetFamily.Cupboard;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Content!.Surfaces.FromDeployable(zone.Content.ClaimDeployable.Key);
 
         public bool Moves => false;
 
@@ -763,6 +800,7 @@ public sealed class TargetSystem : ZoneSystem
                 Capabilities = Capabilities(target.Id),
                 Flags = zone.Targets().FlagsFor(target, viewer) | zone.Targets().FlagsFor(new TargetRef(TargetFamily.Thing, claim.Id.Value), viewer),
                 Name = zone.Content!.ClaimDeployable.Item.Name, Position = claim.ZoneTransform.Position, Deployable = zone.Content!.ClaimDeployable,
+                Vitality = new TargetVitality(claim.Health, zone.Content.Building.ClaimHealth),
             };
             return true;
         }
@@ -856,6 +894,7 @@ public sealed class TargetSystem : ZoneSystem
         private readonly List<(int Part, Vector3 Point, float Distance)> _near = new();
 
         public TargetFamily Family => TargetFamily.Ship;
+        public byte Surface(in TargetRef target, Vector3 point) => zone.Ships().ShipOf(new EntityId(target.Id)) is { } ship ? zone.Content!.Surfaces.FromShip(ship.Def.Key, target.Part) : (byte)0;
 
         public bool Moves => true;
 
@@ -873,6 +912,15 @@ public sealed class TargetSystem : ZoneSystem
             }
             pose = target.Part == ShipParts.Hull ? new TargetPose(ship.Origin, ship.State.Rotation)
                 : ShipAim.PartPose(ship.Def, target.Part, ShipFrame.PoseOf(ship.State, ship.Def.CentreOfMass), ship.Parts);
+            return true;
+        }
+
+        public bool TryPoseAt(in TargetRef target, double viewTick, out TargetPose pose)
+        {
+            if (zone.Ships().ShipOf(new EntityId(target.Id)) is not { } ship || viewTick >= zone.Tick || !zone.History.SampleShip(target.Id, viewTick, out ShipPose then))
+                return TryPose(target, out pose);
+            pose = target.Part == ShipParts.Hull ? new TargetPose(then.ToWorld(Vector3.Zero), then.Rotation)
+                : ShipAim.PartPose(ship.Def, target.Part, then, ship.Parts);
             return true;
         }
 
@@ -957,6 +1005,7 @@ public sealed class TargetSystem : ZoneSystem
                 Ship = def, ShipPart = target.Part, DoorRule = part.Door >= 0 ? ships.MayOpen(ship, part.Door).Code : OutcomeCode.Done,
                 DoorReady = seatDoor >= 0 && ships.DoorOpenEnough(ship, seatDoor), Jammed = part.Door >= 0 && ships.DoorJammed(ship, part.Door),
                 Broken = part.Seat >= 0 && ships.SeatDisabled(ship, part.Seat), Health = healthDef != null ? health / max : -1,
+                Vitality = target.Part == 0 ? new TargetVitality(ship.State.Health, def.Health) : healthDef != null ? new TargetVitality(health, max) : null,
                 Position = ship.State.Position,
             };
             return true;
@@ -1004,7 +1053,28 @@ public sealed class TargetSystem : ZoneSystem
         {
             return OutcomeCode.OutOfReach;
         }
-        return !sight || InSight(eye, point, target) ? Outcome.Done : OutcomeCode.OutOfSight;
+        return !sight || InSight(eye, point, target) || SeenByAnotherPoint(eye, target) ? Outcome.Done : OutcomeCode.OutOfSight;
+    }
+
+    // A thing whose nearest point is hidden (a door's open leaf behind its own jamb, seen from the side) is still seen when the eye
+    // sees another of the points its family offers: the owner's rule is that a door is always operable, not only from where its nearest
+    // point shows.
+    private bool SeenByAnotherPoint(Vector3 eye, in TargetRef target)
+    {
+        if (FamilyOf(target.Family) is not { } family)
+        {
+            return false;
+        }
+        Span<Vector3> points = stackalloc Vector3[32];
+        int count = family.SightPoints(target, eye, points);
+        for (int i = 0; i < count; i++)
+        {
+            if (InSight(eye, points[i], target))
+            {
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>

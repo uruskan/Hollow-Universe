@@ -46,15 +46,24 @@ public sealed class BuildingModule : ClientModule
             _ownsBuilding = true;
         }
         Local.Building = _buildingReplica;
+        // The doors' leaves go where the server's were when the tick before began, for every tick the prediction steps and
+        // replays: its movement then meets what the server's does (docs/DOORS.md §5).
+        BuildingWorld doors = _buildingReplica.World;
+        Prediction.BeforeStep += tick => doors.StepDoors((long)tick - 1);
     }
 
     public override void Dispose()
     {
-        if (_ownsBuilding)
+        try
         {
-            _buildingReplica?.Dispose();
+            if (_ownsBuilding) _buildingReplica?.Dispose();
         }
-        _buildingReplica = null;
+        finally
+        {
+            Local.Building = null;
+            _buildingReplica = null;
+            _ownsBuilding = false;
+        }
     }
 }
 

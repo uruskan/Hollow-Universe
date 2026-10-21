@@ -70,10 +70,40 @@ public partial struct ZoneInfo
     public float AirScaleHeight;
 }
 
-/// <summary>The server's first message to an accepted client.</summary>
+/// <summary>Bounded compatibility facts; qualification is separate from physical generation identity.</summary>
+[NetStruct]
+public partial struct EnvironmentIdentity
+{
+    public int DescriptorSchema;
+    [MaxLength(64)] public string DescriptorIdentity;
+    [MaxLength(64)] public string ProfileId;
+    [MaxLength(64)] public string QualificationIdentity;
+}
+
+/// <summary>The server offers its acquired world before login or player publication.</summary>
+[NetMessage(4)]
+public partial struct WorldOffer
+{
+    public uint OfferId;
+    public ZoneInfo Zone;
+    public EnvironmentIdentity Environment;
+}
+
+/// <summary>The client has reconstructed and verified this offer without acquiring a world.</summary>
+[NetMessage(5)]
+public partial struct WorldAccept
+{
+    public uint OfferId;
+    public EnvironmentIdentity Environment;
+}
+
+/// <summary>Player publication after accepting the offered world.</summary>
 [NetMessage(3)]
 public partial struct Welcome
 {
+    public uint OfferId;
+    public EnvironmentIdentity Environment;
+    [VarInt] public uint AttackSession;
     [VarInt] public uint NetId;
     public ulong EntityId;
     public uint ServerTick;
@@ -132,6 +162,9 @@ public partial struct InputCommand
     /// (0 the zone's). On the tick of a hand-over it is the other: the server turns the view through the ship's pose.
     /// </summary>
     [VarInt] public uint Frame;
+
+    /// <summary>Noclip speed request in metres/second (0: default); authority must already grant noclip.</summary>
+    public byte FlySpeed;
 }
 
 /// <summary>One tick of a pilot's controls (G6), each −127 … 127: stick, throttle lever, strafe, up and down.</summary>
@@ -262,7 +295,15 @@ public partial struct OwnShipState
     public ushort BoostTicks;
     public ushort CooldownTicks;
     public ushort RestTicks;
-    [Bits(9)] public ShipFlags Flags;
+    [Bits(10)] public ShipFlags Flags;
+    public float CruiseThrottle;
+    public float CruiseStrafe;
+    public float CruiseVertical;
+    /// <summary>The engine's partial unit; its separate precision keeps prediction and authoritative burn identical.</summary>
+    public float FuelReserve;
+
+    /// <summary>The drive's engine speed (a rotor's spin, <c>ShipState.Spool</c>): the lift depends on it.</summary>
+    public float Spool;
 }
 
 /// <summary>
@@ -288,6 +329,9 @@ public partial struct ShipNetState
     [Signed(8)] public sbyte ThrustY;
     [Signed(8)] public sbyte ThrustZ;
     public byte Health;
+
+    /// <summary>The drive's engine speed (a rotor's spin) in 1/255: what the rotor's blades and sound show.</summary>
+    public byte Spool;
     [VarInt] public uint Kind;
 
     /// <summary>
@@ -320,6 +364,10 @@ public partial struct CharacterNetState
     public ushort Held;
     [Bits(4)] public byte ActionCount;
     [Bits(3)] public ActionKind Action;
+    /// <summary>The item which performed the last action, even after its final unit was consumed or thrown.</summary>
+    public ushort ActionItem;
+    /// <summary>Authoritative action start, for sampling the same action phase at the interpolated render tick.</summary>
+    [VarInt] public uint ActionTick;
 
     /// <summary>Logged off and asleep in the world.</summary>
     public bool Sleeping;
@@ -399,8 +447,8 @@ public partial struct ThingSpawn
     /// <summary>What the receiver is told of it (GROUND_SYSTEMS.md §3.3): lit, theirs, empty, a teammate's.</summary>
     [Bits(8)] public ViewerFlags Flags;
 
-    /// <summary>Its own name: a body's (the dead player's), a bag's, a world prop's; empty for a deployable (named by its item).</summary>
-    [MaxLength(32)] public string Name;
+    /// <summary>Its own name: a player's label, body's, bag's or world prop's; empty uses the item name.</summary>
+    [MaxLength(192)] public string Name;
 
     /// <summary>What it stands on (GROUND_SYSTEMS.md §6): a building piece's or a ship's family and ID, or none (the ground).</summary>
     [Bits(4)] public TargetFamily SupportFamily;
@@ -411,6 +459,11 @@ public partial struct ThingSpawn
     /// it, the same set the server's rules see.
     /// </summary>
     [VarInt] public ulong Capabilities;
+
+    /// <summary>Authoritative body phase; wrecks and expired player bodies are bags.</summary>
+    public bool IsBody;
+    [MaxCount(1)] public CorpseAppearance[] Corpse;
+    [MaxCount(1)] public UtilityState[] Utility;
 }
 
 /// <summary>A relevant static thing changed: health, count, or what the receiver is told of it.</summary>
@@ -421,6 +474,88 @@ public partial struct ThingUpdate
     public byte Health;
     [VarInt] public uint Count;
     [Bits(8)] public ViewerFlags Flags;
+    [MaxLength(192)] public string Name;
+    public bool IsBody;
+    [VarInt] public ulong Capabilities;
+    [MaxCount(1)] public UtilityState[] Utility;
+}
+
+/// <summary>Optional state of a placed utility; simulation remains authoritative.</summary>
+[NetStruct]
+public partial struct UtilityState
+{
+    [VarInt] public ulong PowerSource;
+    public bool Powered;
+    public bool PowerEnabled;
+    public float PowerOutput;
+    public float PowerInput;
+    public float PowerConsumed;
+    public float StoredEnergy;
+    public bool HasCableUpdate;
+    [MaxCount(1)] public PowerCableNet[] Cables;
+    public bool AuthorizationPresent;
+    public bool Friendly;
+    public bool CanManage;
+    public bool FollowsCupboard;
+    [VarInt] public uint AuthorizationRevision;
+    public bool DefenseEnabled;
+    public float DefenseYaw;
+    public float DefensePitch;
+    public long DefenseLastFireTick;
+    [VarInt] public uint InstalledWeapon;
+    public bool Open;
+    [Bits(2)] public LockKind Lock;
+}
+
+/// <summary>One directed cable owned by its input device. Anchors only describe its visible route.</summary>
+[NetStruct]
+public partial struct PowerCableNet
+{
+    [VarInt] public ulong CableId;
+    [VarInt] public uint Revision;
+    [VarInt] public ulong OutputEntity;
+    public ushort OutputPort;
+    public float OutputX;
+    public float OutputY;
+    public float OutputZ;
+    [VarInt] public ulong InputEntity;
+    public ushort InputPort;
+    [MaxCount(32)] public CableAnchorNet[] Anchors;
+}
+
+[NetStruct]
+public partial struct CableAnchorNet
+{
+    public TargetNet Support;
+    public float X;
+    public float Y;
+    public float Z;
+    public float WorldX;
+    public float WorldY;
+    public float WorldZ;
+}
+
+/// <summary>Wire Tool intent; the server validates actor, tool, physical hit, permissions and topology.</summary>
+[NetMessage(232)]
+public partial struct WireIntent
+{
+    [VarInt] public uint Seq;
+    public byte Operation;
+    public TargetNet Target;
+    public ushort Port;
+    public float X;
+    public float Y;
+    public float Z;
+    [VarInt] public uint Revision;
+}
+
+/// <summary>Appearance saved at death, independent of the former player's connection or later inventory.</summary>
+[NetStruct]
+public partial struct CorpseAppearance
+{
+    public ulong Owner;
+    public byte Body;
+    [MaxCount(7)] public WornItem[] Wear;
 }
 
 /// <summary>An item worn (for <see cref="CharacterLook"/>).</summary>
@@ -479,6 +614,13 @@ public partial struct NaturalStates
 [NetMessage(41)]
 public partial struct ProjectileLaunch
 {
+    [VarInt] public uint AttackSession;
+    [Bits(2)] public AttackDomain AttackKind;
+    [VarInt] public uint AttackSeq;
+    public uint Tick;
+    [VarInt] public uint Weapon;
+    public float Gravity;
+    public float Drag;
     [VarInt] public uint Id;
     [VarInt] public uint Shooter;
     [VarInt] public uint Ammo;
@@ -501,11 +643,36 @@ public partial struct ProjectileLaunch
 [NetMessage(42)]
 public partial struct ProjectileEnd
 {
+    [VarInt] public uint AttackSession;
+    [Bits(2)] public AttackDomain AttackKind;
+    [VarInt] public uint AttackSeq;
+    [VarInt] public uint Shooter;
+    public uint Tick;
+    [Bits(4)] public byte Battery;
     [VarInt] public uint Id;
     public float X;
     public float Y;
     public float Z;
     [Bits(4)] public TargetFamily Target;
+    public SurfaceContactNet Contact;
+}
+
+/// <summary>Authoritative contact metadata; the enclosing terminal carries its world point.</summary>
+[NetStruct]
+public partial struct SurfaceContactNet
+{
+    public TargetNet Target;
+    public byte Surface;
+    [Quantize(-1, 1, 12)] public float NormalX;
+    [Quantize(-1, 1, 12)] public float NormalY;
+    [Quantize(-1, 1, 12)] public float NormalZ;
+    public TargetNet Anchor;
+    public float LocalX;
+    public float LocalY;
+    public float LocalZ;
+    [Quantize(-1, 1, 12)] public float LocalNormalX;
+    [Quantize(-1, 1, 12)] public float LocalNormalY;
+    [Quantize(-1, 1, 12)] public float LocalNormalZ;
 }
 
 /// <summary>A thing named on the wire (GROUND_SYSTEMS.md §3.1): its family, its ID, and a part of it (0: the whole).</summary>
@@ -556,6 +723,14 @@ public partial struct DropIntent
     [VarInt] public uint Expected;
 }
 
+/// <summary>Drop the complete captured backpack atomically; belt, clothing and open loot are excluded.</summary>
+[NetMessage(166)]
+public partial struct DropAllIntent
+{
+    [VarInt] public uint Seq;
+    [MaxCount(24)] public SlotNet[] Expected;
+}
+
 /// <summary>Start crafting a recipe (its output item's ID).</summary>
 [NetMessage(54)]
 public partial struct CraftIntent
@@ -596,7 +771,7 @@ public partial struct RespawnIntent
 public partial struct IntentResult
 {
     [VarInt] public uint Seq;
-    [Bits(7)] public OutcomeCode Code;
+    [Bits(8)] public OutcomeCode Code;
     [VarInt] public uint Detail;
 }
 
@@ -619,7 +794,8 @@ public partial struct ShipIntent
 /// details differ from a new one's comes into range: its moving parts away from rest that no door drives (their states'
 /// bits exactly, so a client's space poses as the server's and its prediction aboard stays exact; every part not listed
 /// is at the interior's rest), each door's motion (where it was at a tick and which way it goes: a client works out its
-/// progress at any tick as the server does), who sits in each seat taken, and each part's health below its most.
+/// progress at any tick as the server does), who sits in each seat taken, and each part's health below its most; and its
+/// build (VEHICLES.md §9.1), from which a client composes the layout the seats, doors and parts are numbered by.
 /// </summary>
 [NetMessage(121)]
 public partial struct ShipDetails
@@ -629,6 +805,16 @@ public partial struct ShipDetails
     [MaxCount(16)] public ShipDoorNet[] Doors;
     [MaxCount(31)] public ShipSeatNet[] Seats;
     [MaxCount(255)] public ShipPartHealthNet[] Health;
+    [MaxCount(32)] public ShipModuleNet[] Modules;
+}
+
+/// <summary>A module installed (VEHICLES.md §9.1): the socket it starts at, its level, its item.</summary>
+[NetStruct]
+public partial struct ShipModuleNet
+{
+    public byte Socket;
+    [Bits(2)] public byte Level;
+    public ushort Module;
 }
 
 /// <summary>One part's state: its index in the interior, the float's bits.</summary>
@@ -686,6 +872,7 @@ public partial struct ShipStations
 [NetStruct]
 public partial struct StationNet
 {
+    [Bits(3)] public byte NextBarrel;
     [Bits(4)] public byte Station;
     [Bits(2)] public byte Chosen;
     [VarInt] public uint Shots;
@@ -693,7 +880,7 @@ public partial struct StationNet
     [MaxCount(8)] public StationBarrelNet[] Barrels;
     [MaxCount(8)] public LoaderNet[] Loaders;
     [MaxCount(3)] public MagazineCountNet[] Counts;
-    [Bits(7)] public OutcomeCode Refused;
+    [Bits(8)] public OutcomeCode Refused;
     [VarInt] public uint RefusedDetail;
     public uint RefusedTick;
 }
@@ -734,6 +921,15 @@ public partial struct MagazineCountNet
 [NetMessage(123)]
 public partial struct TurretShot
 {
+    [VarInt] public uint AttackSession;
+    [Bits(2)] public AttackDomain AttackKind;
+    [VarInt] public uint AttackSeq;
+    public float OriginX;
+    public float OriginY;
+    public float OriginZ;
+    public float DirectionX;
+    public float DirectionY;
+    public float DirectionZ;
     [VarInt] public uint Ship;
     [Bits(4)] public byte Station;
     [Bits(3)] public byte Barrel;
@@ -776,6 +972,9 @@ public partial struct ContainerContents
     [Bits(3)] public ContainerRef Which;
     public byte Size;
     [MaxCount(255)] public SlotNet[] Slots;
+    /// <summary>Specialised storage constraints; zero means ordinary item/kind rules.</summary>
+    [VarInt] public uint AcceptedItem;
+    [VarInt] public uint StackLimit;
 }
 
 /// <summary>Slots of a container that changed (an emptied slot has item 0).</summary>
@@ -785,6 +984,8 @@ public partial struct ContainerSlots
     [VarInt] public uint LastSeq;
     [Bits(3)] public ContainerRef Which;
     [MaxCount(255)] public SlotNet[] Slots;
+    [VarInt] public uint AcceptedItem;
+    [VarInt] public uint StackLimit;
 }
 
 /// <summary>What the player is looting now (target 0: nothing); its containers follow.</summary>
@@ -815,6 +1016,9 @@ public partial struct VitalsUpdate
     public byte Cold;
     public bool Comfort;
     public bool Wet;
+    /// <summary>Breath reserve, 255 full; suffocation is server-authoritative.</summary>
+    public byte Breath;
+    public bool Suffocating;
 }
 
 /// <summary>A crafting job as the client shows it.</summary>
@@ -826,6 +1030,7 @@ public partial struct CraftJobNet
     [VarInt] public uint Count;
     [VarInt] public uint TicksLeft;
     [VarInt] public uint UnitTicks;
+    public bool Free;
 }
 
 /// <summary>The crafting queue, when it changes: <c>TicksLeft</c> counts from <c>ServerTick</c>.</summary>
@@ -842,6 +1047,14 @@ public partial struct CraftQueueState
 [NetMessage(76)]
 public partial struct HitMarker
 {
+    [VarInt] public uint AttackSession;
+    [Bits(2)] public AttackDomain AttackKind;
+    [VarInt] public uint AttackSeq;
+    public ushort Weapon;
+    [VarInt] public uint ActionTick;
+    public float PointX;
+    public float PointY;
+    public float PointZ;
     [Bits(4)] public TargetFamily Target;
     [Bits(2)] public HitRegion Region;
     [VarInt] public uint Damage;
@@ -850,6 +1063,42 @@ public partial struct HitMarker
 
     /// <summary>The hit knocked the player down (G4).</summary>
     public bool Downed;
+}
+
+/// <summary>Explicit attack/cancellation, reliably unordered; movement and continuous aim stay in inputs.</summary>
+[NetMessage(162)]
+public partial struct AttackIntent
+{
+    [VarInt] public uint Session;
+    [Bits(2)] public AttackDomain Kind;
+    [VarInt] public uint Seq;
+    public uint Tick;
+    public byte Slot;
+    [VarInt] public uint Item;
+    public ushort ViewU;
+    public ushort ViewV;
+    [VarInt] public uint Frame;
+    public byte ViewDelay;
+    [VarInt] public uint Ship;
+    [Bits(4)] public byte Station;
+    public bool Cancel;
+}
+
+/// <summary>One attack decision, reliably unordered to its owner; independent of coalesced resource snapshots.</summary>
+[NetMessage(163)]
+public partial struct AttackResult
+{
+    [VarInt] public uint Session;
+    [Bits(2)] public AttackDomain Kind;
+    [VarInt] public uint Seq;
+    [Bits(8)] public OutcomeCode Code;
+    public uint RequestedTick;
+    public uint StartTick;
+    public uint ContactTick;
+    public uint ReadyTick;
+    [VarInt] public uint StateSequence;
+    public sbyte Barrel;
+    public bool Cancelled;
 }
 
 /// <summary>Items gained or lost and why (gathered, picked up, crafted; a tool broke), for notifications.</summary>
@@ -890,6 +1139,7 @@ public partial struct BagNet
     public float Y;
     public float Z;
     [VarInt] public uint ReadySeconds;
+    [MaxLength(192)] public string Name;
 }
 
 /// <summary>Alive or dead; when dead, how, by whom, and where the player can respawn.</summary>
@@ -955,6 +1205,22 @@ public partial struct AttachIntent
     [VarInt] public uint Expected;
 }
 
+/// <summary>Atomic attachment drag. Mod 255 means an ordinary slot; 0..2 are sight/muzzle/rail.
+/// Full stack snapshots reject a changed weapon, attachment, magazine or destination.</summary>
+[NetMessage(65)]
+public partial struct AttachmentMoveIntent
+{
+    [VarInt] public uint Seq;
+    [Bits(3)] public ContainerRef From;
+    public byte FromSlot;
+    public byte FromMod;
+    [Bits(3)] public ContainerRef To;
+    public byte ToSlot;
+    public byte ToMod;
+    public SlotNet ExpectedFrom;
+    public SlotNet ExpectedTo;
+}
+
 /// <summary>
 /// The gun in the player's hand as the server has it (to the owner, reliable, when it changes: each shot or reload
 /// applied, a reload done, an equip): the last gun action applied and the last refused (and why), the gun and its
@@ -965,7 +1231,7 @@ public partial struct GunUpdate
 {
     [VarInt] public uint LastSeq;
     [VarInt] public uint RefusedSeq;
-    [Bits(7)] public OutcomeCode Refused;
+    [Bits(8)] public OutcomeCode Refused;
     [Bits(3)] public byte Slot;
     [VarInt] public uint Item;
     [VarInt] public uint Loaded;
@@ -1081,7 +1347,9 @@ public partial struct BuildRemoved
 }
 
 /// <summary>
-/// A door: its frame piece, which door (building.json's order), flipped, open; health as a fraction of 65,535; its
+/// A door: its frame piece, which door (building.json's order), its layout (hinge side and swing side), its target (open or
+/// shut) and its motion record (the progress as a fraction of 65,535 at a tick, and whether it is opening, 1, shutting, 2,
+/// or still, 0: DOORS.md §4); health as a fraction of 65,535; its
 /// lock; what this player is told of it (GROUND_SYSTEMS.md §3.3: may pass, locked, its lock's code set, on its list,
 /// theirs); its leaves' body IDs.
 /// </summary>
@@ -1091,8 +1359,11 @@ public partial struct DoorNet
     public ulong Id;
     public ulong Frame;
     public byte Door;
-    public bool Flip;
+    [Bits(2)] public byte Layout;
     public bool Open;
+    public ushort From;
+    [Bits(2)] public byte Moving;
+    [VarInt] public uint Since;
     public ushort Health;
     [Bits(2)] public LockKind Lock;
     public ulong LockId;
@@ -1405,6 +1676,7 @@ public partial struct RespawnPointNet
     public float Y;
     public float Z;
     public bool Bed;
+    [MaxLength(192)] public string Name;
 }
 
 /// <summary>What the player's map shows of their own: their markers, where they died last, their sleeping bags and beds.</summary>
@@ -1463,6 +1735,9 @@ public partial struct ServerPlayerNet
 public partial struct ServerState
 {
     public bool Admin;
+    public bool FreeBuild;
+    /// <summary>Zero for normal placement, otherwise the selected building grade index plus one.</summary>
+    [Bits(8)] public byte BuildGrade;
     [VarInt] public uint MaxPlayers;
     [MaxCount(256)] public ServerPlayerNet[] Players;
 }
@@ -1497,6 +1772,26 @@ public partial struct InteractIntent
     [VarInt] public uint Verb;
     [VarInt] public uint Arg;
     [MaxLength(8)] public string Code;
+    [MaxLength(192)] public string Text;
+}
+
+/// <summary>
+/// A vehicle's build changed in the vehicle workbench's bay (VEHICLES.md §9.11): the module in an inventory slot fitted into a
+/// socket and level (<see cref="Fit"/>), or the module there taken out into the inventory. The server checks the player, the
+/// station, the vehicle in its bay and the build's rules, and answers with <see cref="IntentResult"/>; the vehicle's new
+/// details follow.
+/// </summary>
+[NetMessage(233)]
+public partial struct ModuleIntent
+{
+    [VarInt] public uint Seq;
+    [VarInt] public ulong Station;
+    [VarInt] public ulong Ship;
+    public bool Fit;
+    public byte Socket;
+    [Bits(2)] public byte Level;
+    [Bits(3)] public ContainerRef From;
+    public byte Slot;
 }
 
 /// <summary>

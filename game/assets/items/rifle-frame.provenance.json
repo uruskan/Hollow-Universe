@@ -1,0 +1,91 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "rifle-frame",
+  "date": "2026-10-18",
+  "replaces": "refined-metal.glb stand-in and SVG fallback",
+  "authorship": "Original cosmetic geometry, procedural PBR atlas and rendered icons; no reference game files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/riflebody",
+    "image": "https://files.facepunch.com/rust/item/riflebody_512.png",
+    "use": "Visual observation before authoring only; no downloaded reference files"
+  },
+  "authoring_source": {
+    "path": "art/models/rifle_frame.py",
+    "sha256": "61235dfd4d4f5324d31de4668d124b49cfa16eefdcf333de7ced0b81110eba3e"
+  },
+  "authoring_helper": {
+    "path": "art/hollow/component_mesh.py",
+    "sha256": "8991c9a2503976f758c3fe8b1b97f2642c9050548149d8d329598983629fcb34"
+  },
+  "geometry": {
+    "asset": "rifle-frame",
+    "dimensions_blender_xyz_m": [
+      0.37791211903095245,
+      0.0860000029206276,
+      0.09500000276602805
+    ],
+    "texture_size": 1024,
+    "material_count": 1,
+    "lod_triangles": {
+      "RifleFrame_lod0": 5720,
+      "RifleFrame_lod1": 2624,
+      "RifleFrame_lod2": 996
+    },
+    "hull_triangles": 48
+  },
+  "files": {
+    "game/assets/items/rifle-frame.glb": {
+      "sha256": "c25293c8be689f764561cd2f32763c341398a9ee05cc643ec9d47e24a589c2b7",
+      "bytes": 542476
+    },
+    "game/assets/items/rifle-frame.glb.import": {
+      "sha256": "8faf71aafe716a95931dd1689e78379a04f441c0f7dcb648e937178667a7e0aa",
+      "bytes": 1374
+    },
+    "game/assets/materials/rifle-frame.tres": {
+      "sha256": "c4b97da1240c16cffb168b892d04f5b6ce03af183dc000b71f3fd673b624a8f1",
+      "bytes": 642
+    },
+    "game/assets/textures/rifle-frame/rifle_frame_albedo.png": {
+      "sha256": "0350ebc0915baf3d3526c860195a9d2edd1347579b48c41b5a04a6097407226f",
+      "bytes": 1163057
+    },
+    "game/assets/textures/rifle-frame/rifle_frame_albedo.png.import": {
+      "sha256": "6248bf72b7e90fc105a6507b0512085646d4ce6cf77a485b7564a47094ac08b3",
+      "bytes": 1033
+    },
+    "game/assets/textures/rifle-frame/rifle_frame_normal.png": {
+      "sha256": "989f169b4184d8a4b3e260b2bc0721201bfe78033ca6ef30289b0f8fcce91171",
+      "bytes": 1063031
+    },
+    "game/assets/textures/rifle-frame/rifle_frame_normal.png.import": {
+      "sha256": "6d3491de29113ae9952b9e6fc9c411dc2eba3770ab721744e1c5b3cb64672cf6",
+      "bytes": 1034
+    },
+    "game/assets/textures/rifle-frame/rifle_frame_orm.png": {
+      "sha256": "528fe62b3077f527d16921dfe7ea043222a098f8742635cb0d881f2428095706",
+      "bytes": 108321
+    },
+    "game/assets/textures/rifle-frame/rifle_frame_orm.png.import": {
+      "sha256": "b2e9fab35641401e755a30b0c3ce77dac580e055a98437093de9ccb5ea09c147",
+      "bytes": 1025
+    },
+    "game/assets/items/icons/128/rifle-frame.png": {
+      "sha256": "2e6a2be57cad8468c790bf0b81d75ffd4e0edb0b203031d4270594decde9ac3d",
+      "bytes": 14145
+    },
+    "game/assets/items/icons/128/rifle-frame.png.import": {
+      "sha256": "1a3ba5a1e3ef5b2f2f3627e8852f98c705d6f64211e83743c39d7a32e2c0b00f",
+      "bytes": 959
+    },
+    "game/assets/items/icons/256/rifle-frame.png": {
+      "sha256": "de67a228c986103bc4bd714213b9dc2c46b0234a220a240721bbf26aa05f44bb",
+      "bytes": 44417
+    },
+    "game/assets/items/icons/256/rifle-frame.png.import": {
+      "sha256": "b56a20eff8f03d19907c1eff5932692167ba2cff073e8efae561bf5b075cdfeb",
+      "bytes": 960
+    }
+  }
+}

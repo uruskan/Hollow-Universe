@@ -86,6 +86,47 @@ public static class ArchitectureTests
     }
 
     /// <summary>
+    /// T0.3: JoltPhysicsSharp 2.23.0 creates shape and body-creation settings, and physics systems, without ownership of
+    /// their native handles, so disposing them released nothing. Every settings construction in the engine-free libraries
+    /// goes through <c>Owned()</c>, and every file that creates a physics system hands its filters over to it
+    /// (<c>JoltRuntime.HandOverToSystem</c>) before disposing it.
+    /// </summary>
+    [Test]
+    public static void JoltNativeObjectsAreReleasedWhenDisposed()
+    {
+        var settings = new Regex(@"new (\w*ShapeSettings|BodyCreationSettings)\(");
+        var problems = new List<string>();
+        int found = 0, systems = 0;
+        foreach (string file in Directory.EnumerateFiles(Path.Combine(Fixtures.Root, "src"), "*.cs", SearchOption.AllDirectories))
+        {
+            string relative = Path.GetRelativePath(Fixtures.Root, file).Replace('\\', '/');
+            if (relative.Contains("/obj/", StringComparison.Ordinal) || relative.Contains("/bin/", StringComparison.Ordinal)) continue;
+            string text = File.ReadAllText(file);
+            foreach (Match match in settings.Matches(text))
+            {
+                found++;
+                int depth = 0, at = match.Index + match.Length - 1;
+                for (; at < text.Length; at++)
+                {
+                    if (text[at] == '(') depth++;
+                    else if (text[at] == ')' && --depth == 0) break;
+                }
+                if (!text.AsSpan(at + 1).StartsWith(".Owned()", StringComparison.Ordinal))
+                    problems.Add($"{relative}: {match.Value} is not .Owned()");
+            }
+            if (text.Contains("new PhysicsSystem(", StringComparison.Ordinal))
+            {
+                systems++;
+                if (!text.Contains("JoltRuntime.HandOverToSystem(", StringComparison.Ordinal))
+                    problems.Add($"{relative}: creates a PhysicsSystem without JoltRuntime.HandOverToSystem");
+            }
+        }
+        Fixtures.Report($"{found} Jolt settings constructions and {systems} physics-system files checked");
+        Assert.True(found > 20 && systems >= 2, "found the Jolt constructions");
+        Assert.True(problems.Count == 0, "Jolt objects that would leak natively:\n        " + string.Join("\n        ", problems));
+    }
+
+    /// <summary>
     /// GROUND_SYSTEMS.md §12.2, K6: the zone is a host and the rules are its systems. No partial file of Zone is left,
     /// every system is in GroundSystems' lists exactly once (completeness, as a registry), and the host stays small.
     /// </summary>

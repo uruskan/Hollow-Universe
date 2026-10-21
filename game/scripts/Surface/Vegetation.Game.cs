@@ -16,6 +16,7 @@ public sealed partial class Vegetation
     public const ScatterKind NotDrawn = (ScatterKind)255;
 
     private readonly Dictionary<ulong, (Task<List<float>> Job, Block Block)> _blockJobs = new();
+    private readonly HashSet<ulong> _blockAgain = new();
 
     /// <summary>
     /// Set by the ground game: the kind to draw a scatter object of a tile as: its own, another (a picked berry bush as
@@ -29,7 +30,8 @@ public sealed partial class Vegetation
     /// <summary>
     /// Set by the ground game: the meshes near the camera are then rebuilt on a worker thread (10–15 ms of work every
     /// 8 m walked and whenever the game changes a plant), and the old ones show until the new are ready. It returns
-    /// <see cref="Changes"/> frozen as they are when a rebuild starts: a function safe to call from another thread.
+    /// <see cref="Changes"/> frozen as they are when a rebuild starts. That function is evaluated on the main thread;
+    /// workers receive only copied kind decisions, placement values, appearance scalars and their own LOD history.
     /// Null: rebuilt on the main thread, as the planet viewer does.
     /// </summary>
     public Func<Func<TileKey, ScatterItem, ScatterKind>>? ChangesSnapshot { get; set; }
@@ -37,33 +39,35 @@ public sealed partial class Vegetation
     /// <summary>How many times the meshes near the camera were put in place (the game notes it when measuring).</summary>
     public int NearBuilds { get; private set; }
 
+    /// <summary>Opt-in main-thread upload timings for the ground game's frame profiler.</summary>
+    public bool MeasureRefreshes { get; set; }
+
+    public double LastNearUploadMilliseconds { get; private set; }
+
+    public long LastNearUploadBytes { get; private set; }
+
     private Task<NearData>? _nearJob;
 
     private void RebuildNear(List<TileKey> tiles, Vector3D camera)
     {
+        if (_stopping || _requiredFailed || _nearJob != null) return;
         if (ChangesSnapshot == null)
         {
             BuildNear(tiles, camera);
             NearBuilds++;
             return;
         }
-        if (_nearJob != null)
-        {
-            return; // one at a time: what asked for this one is still there when it lands
-        }
         _nearCentre = camera;
         _nearDirty = false;
         Func<TileKey, ScatterItem, ScatterKind> kinds = ChangesSnapshot();
-        var list = new List<TileKey>(tiles);
-        // Anchored at the camera, so the near set's bounds follow it (docs/WHOLE_WORLD.md §12).
-        Vector3D anchor = camera;
-        float clock = Clock;
-        _nearJob = Task.Run(() => ComputeNear(list, camera, anchor, clock, kinds));
+        NearInput input = CaptureNear(tiles, camera, kinds);
+        _nearJob = _jobs.Run(input, static (snapshot, token) => ComputeNear(snapshot, token));
     }
 
     // Puts a near set laid out on a worker in place (the upload of its buffers).
     private void ApplyNear()
     {
+        if (_stopping) return;
         if (_nearJob is not { IsCompleted: true } job)
         {
             return;
@@ -71,10 +75,18 @@ public sealed partial class Vegetation
         _nearJob = null;
         if (!job.IsCompletedSuccessfully)
         {
-            _nearDirty = true;
+            _requiredFailed = true;
             return;
         }
+        bool measure = MeasureRefreshes;
+        long began = measure ? System.Diagnostics.Stopwatch.GetTimestamp() : 0;
+        long bytes = measure ? GC.GetAllocatedBytesForCurrentThread() : 0;
         PlaceNear(job.Result);
+        if (measure)
+        {
+            LastNearUploadMilliseconds = System.Diagnostics.Stopwatch.GetElapsedTime(began).TotalMilliseconds;
+            LastNearUploadBytes = GC.GetAllocatedBytesForCurrentThread() - bytes;
+        }
         NearBuilds++;
     }
 
@@ -86,6 +98,7 @@ public sealed partial class Vegetation
     /// </summary>
     public void Refresh(TileKey tile, bool near = true, bool trees = true)
     {
+        if (_stopping || _requiredFailed) return;
         _nearDirty |= near;
         if (!trees)
         {
@@ -97,9 +110,15 @@ public sealed partial class Vegetation
         }
         int shift = _level - _blockLevel;
         var key = new TileKey(tile.Face, _blockLevel, tile.X >> shift, tile.Y >> shift);
-        if (!_blocks.TryGetValue(key.Packed, out Block? b) || !b.Built || _blockJobs.ContainsKey(key.Packed))
+        if (!_blocks.TryGetValue(key.Packed, out Block? b) || !b.Built)
         {
             return; // not built yet: it will be, with the change
+        }
+        if (_blockJobs.ContainsKey(key.Packed))
+        {
+            // Its worker captured an earlier state. Retain the newer change until that job is applied.
+            _blockAgain.Add(key.Packed);
+            return;
         }
         if (b.Instance == null || _library == null || ChangesSnapshot == null)
         {
@@ -116,13 +135,14 @@ public sealed partial class Vegetation
             }
         }
         Func<TileKey, ScatterItem, ScatterKind> kinds = ChangesSnapshot();
-        Vector3D anchor = b.Anchor;
-        _blockJobs[key.Packed] = (Task.Run(() => ImpostorBuffer(tiles, anchor, kinds)), b);
+        BlockInput input = CaptureBlock(tiles, b.Anchor, kinds);
+        _blockJobs[key.Packed] = (_jobs.Run(input, static (snapshot, token) => ImpostorBuffer(snapshot, token)), b);
     }
 
     /// <summary>Puts impostor blocks laid out on workers in place (call every frame).</summary>
     public void ApplyRefreshes()
     {
+        if (_stopping) return;
         if (_blockJobs.Count == 0)
         {
             return;
@@ -135,7 +155,8 @@ public sealed partial class Vegetation
                 continue;
             }
             done.Add(key);
-            if (!job.IsCompletedSuccessfully || block.Instance == null || !_blocks.ContainsKey(key))
+            if (!job.IsCompletedSuccessfully || block.Instance == null || !_blocks.TryGetValue(key, out Block? drawn) ||
+                !ReferenceEquals(block, drawn))
             {
                 continue;
             }
@@ -145,7 +166,13 @@ public sealed partial class Vegetation
         }
         foreach (ulong key in done)
         {
+            Block prior = _blockJobs[key].Block;
             _blockJobs.Remove(key);
+            if (_blockAgain.Remove(key) && _blocks.TryGetValue(key, out Block? current) && ReferenceEquals(prior, current))
+            {
+                int span = 1 << (_level - _blockLevel);
+                Refresh(new TileKey(current.Key.Face, _level, current.Key.X * span, current.Key.Y * span), near: false);
+            }
         }
     }
 }

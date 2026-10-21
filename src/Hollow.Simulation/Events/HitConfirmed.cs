@@ -21,6 +21,8 @@ public readonly record struct HitConfirmed(
     Vector3 Point = default,
     ushort Weapon = 0) : IZoneEvent
 {
+    public AttackId Attack { get; init; }
+    public uint ActionTick { get; init; }
     /// <summary>Who hit.</summary>
     public EntityId By { get; init; } = By;
 

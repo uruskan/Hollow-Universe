@@ -24,6 +24,7 @@ namespace Hollow.Bots;
 /// </summary>
 public sealed class WorldBrain
 {
+    private readonly BotGround _ground;
     public const float Roam = 450f;
 
     private enum Goal
@@ -64,8 +65,9 @@ public sealed class WorldBrain
     private bool _listening;
     private static readonly bool Trace = Environment.GetEnvironmentVariable("HOLLOW_BOT_REFUSALS") != null;
 
-    public WorldBrain(int index)
+    public WorldBrain(int index, BotGround ground)
     {
+        _ground = ground;
         _index = index;
         _rng = new Rng(Hash64.Of((ulong)index, 0x60A7));
         _heading = (float)_rng.Range(-Math.PI, Math.PI);
@@ -165,7 +167,7 @@ public sealed class WorldBrain
                 Research(ref input, time, delta, client, me, feet, eye, up);
                 break;
             case Goal.Wander:
-                Wander(ref input, feet, BotGround.Home(client), delta);
+                Wander(ref input, feet, _ground.Home(client), delta);
                 break;
         }
         _yaw = input.Yaw;
@@ -201,7 +203,7 @@ public sealed class WorldBrain
             Begin(Goal.Research, default, time, 45);
             return;
         }
-        Vector3 home = BotGround.Home(client);
+        Vector3 home = _ground.Home(client);
         List<RemoteThing> loot = client.World().Props
             .Where(p => p.Prop(c)!.Kind is WorldPropKind.Barrel or WorldPropKind.Crate && !_skip.Contains(p.Id) &&
                         Vector3.Distance(p.Position, home) < Roam)
@@ -592,7 +594,7 @@ public sealed class WorldBrain
         {
             _marked = true;
             float angle = (float)_rng.Range(-Math.PI, Math.PI), distance = (float)_rng.Range(50, 300);
-            Note(me.PlaceMarker(BotGround.Offset(client, BotGround.Home(client), MathF.Sin(angle) * distance, MathF.Cos(angle) * distance), (byte)(_index % 6), "loot"), "PlaceMarker");
+            Note(me.PlaceMarker(BotGround.Offset(client, _ground.Home(client), MathF.Sin(angle) * distance, MathF.Cos(angle) * distance), (byte)(_index % 6), "loot"), "PlaceMarker");
         }
     }
 

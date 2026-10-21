@@ -15,6 +15,7 @@ namespace Hollow.Client;
 /// <summary>The player's vitals as the UI shows them.</summary>
 public readonly record struct VitalsView
 {
+    public VitalsView() { }
     public float Health { get; init; }
     public float MaxHealth { get; init; }
     public float Calories { get; init; }
@@ -34,6 +35,8 @@ public readonly record struct VitalsView
     /// <summary>Near a lit fire; wet from swimming.</summary>
     public bool Comfort { get; init; }
     public bool Wet { get; init; }
+    public float BreathFraction { get; init; } = 1;
+    public bool Suffocating { get; init; }
 
     public bool IsBleeding => Bleeding > 0;
     public bool IsBurning => Burning > 0;
@@ -49,7 +52,7 @@ public readonly record struct CraftJobView(uint Ticket, Recipe Recipe, int Count
     float UnitSeconds = 0);
 
 /// <summary>A place to respawn: a sleeping bag (or the beach, with no bag), ready in some seconds.</summary>
-public readonly record struct RespawnOption(EntityId Bag, Vector3 Position, double ReadyAtSeconds)
+public readonly record struct RespawnOption(EntityId Bag, Vector3 Position, double ReadyAtSeconds, string Name = "")
 {
     public bool IsBeach => Bag.IsNone;
 }
@@ -68,7 +71,8 @@ public sealed record LifeView
 }
 
 /// <summary>A hit landed (the UI's hit marker): <paramref name="Downed"/> when it knocked the player down (G4).</summary>
-public readonly record struct HitMarkerEvent(TargetFamily Target, HitRegion Region, float Damage, bool Killed, bool WeakSpot, bool Downed = false);
+public readonly record struct HitMarkerEvent(TargetFamily Target, HitRegion Region, float Damage, bool Killed, bool WeakSpot, bool Downed = false,
+    ushort Weapon = 0, uint ActionTick = 0, Vector3 Point = default, AttackId Attack = default);
 
 /// <summary>Items gained (gathered, picked up, crafted, refunded) or lost (a tool broke), for the notifications.</summary>
 public readonly record struct ItemsChangedEvent(ItemDef Item, int Count, GainReason Reason, bool WeakSpot);
@@ -102,6 +106,18 @@ public readonly record struct IntentAnswer(uint Seq, OutcomeCode Code, int Detai
 /// </summary>
 public sealed partial class LocalPlayer
 {
+    public AttackLedger Attacks { get; } = new();
+    /// <summary>Session-only building tools, accepted from the server's admin state.</summary>
+    public bool FreeBuild { get; private set; }
+    public int BuildGrade { get; private set; } = -1;
+
+    internal void SetAdminBuilding(bool freeBuild, int buildGrade)
+    {
+        FreeBuild = freeBuild;
+        BuildGrade = buildGrade;
+        _dirty = true;
+    }
+
     private readonly PlayerInventory _server = new();
     private readonly CraftQueue _serverCraft = new();
     private readonly CraftQueue _craft = new();
@@ -292,6 +308,17 @@ public sealed partial class LocalPlayer
             w => new DropIntent { Seq = _nextSeq, From = from, Slot = (byte)slot, Amount = (uint)Math.Max(0, amount), Expected = expected }.WriteMessage(w));
     }
 
+    /// <summary>Drops everything currently shown in the backpack, retaining the six hotbar slots and clothing.</summary>
+    public uint DropAll()
+    {
+        if (Inventory.Main.IsEmpty) return 0;
+        ItemStack[] expected = Inventory.Main.Slots.ToArray();
+        var slots = new SlotNet[expected.Length];
+        for (int i = 0; i < expected.Length; i++) slots[i] = SlotSnapshot.Of(expected[i]);
+        return Intend(new Pending(p => InventoryRules.RemoveAll(p.Inventory.Main, expected).Ok),
+            w => new DropAllIntent { Seq = _nextSeq, Expected = slots }.WriteMessage(w));
+    }
+
     /// <summary>
     /// An inventory action (GROUND_SYSTEMS.md §7) on a stack in the player's own slots: eat, use, wear, take off, learn,
     /// unload, take an attachment off (<paramref name="arg"/>: which), by its number in items.json's list. Predicted with
@@ -340,21 +367,25 @@ public sealed partial class LocalPlayer
 
     /// <summary>Starts crafting <paramref name="count"/> of a recipe (by its output item's ID).</summary>
     public uint Craft(int recipeId, int count = 1) =>
-        Intend(new Pending(p => p._craft.Start(p.Content, p.Inventory, recipeId, count, p.WorkbenchLevel, out _, p.Blueprints, p.StationFor(recipeId)) == OutcomeCode.Done),
+        Intend(new Pending(p => p._craft.Start(p.Content, p.Inventory, recipeId, count, p.WorkbenchLevel, out _, p.Blueprints, p.StationFor(recipeId), p.FreeBuild) == OutcomeCode.Done),
             w => new CraftIntent { Seq = _nextSeq, Recipe = (uint)Math.Max(0, recipeId), Count = (uint)Math.Max(0, count) }.WriteMessage(w));
 
     /// <summary>Whether a recipe could start now (known, bench in reach, materials for <paramref name="count"/>), as the UI shows it.</summary>
     public Outcome CanCraft(Recipe recipe, int count = 1)
     {
-        if (!Blueprints.Knows(recipe))
+        if (count is < 1 or > CraftQueue.MaxCount)
+        {
+            return OutcomeCode.Invalid;
+        }
+        if (!FreeBuild && !Blueprints.Knows(recipe))
         {
             return OutcomeCode.UnknownRecipe;
         }
-        if (WorkbenchLevel < recipe.Workbench)
+        if (!FreeBuild && WorkbenchLevel < recipe.Workbench)
         {
             return OutcomeCode.NeedsWorkbench.With(recipe.Workbench);
         }
-        if (recipe.Station is { } needs && (StationNear?.Invoke(needs) ?? 0) == 0)
+        if (!FreeBuild && recipe.Station is { } needs && (StationNear?.Invoke(needs) ?? 0) == 0)
         {
             return OutcomeCode.NeedsStation.With(needs.Item.Id);
         }
@@ -362,7 +393,7 @@ public sealed partial class LocalPlayer
         {
             return OutcomeCode.QueueFull;
         }
-        return Inventory.Has(recipe.Ingredients, count) ? OutcomeCode.Done : OutcomeCode.NotEnough;
+        return FreeBuild || Inventory.Has(recipe.Ingredients, count) ? OutcomeCode.Done : OutcomeCode.NotEnough;
     }
 
     /// <summary>Cancels a job (its ingredients come back).</summary>
@@ -460,6 +491,19 @@ public sealed partial class LocalPlayer
         return true;
     }
 
+    /// <summary>Unanswered world actions cannot retain old pieces or redraw ghosts after a replacement Welcome.</summary>
+    internal void RetireWorldIntents()
+    {
+        _pending.Clear();
+        _pendingPlacements.Clear();
+        _targets.Clear();
+        _scratch.Clear();
+        _serverLoot = _serverLootBelt = _serverLootWear = null;
+        _openedPending = false;
+        ApplyClose();
+        _dirty = true;
+    }
+
     // The server's copy, then every intent not yet answered on top.
     private void Rebuild()
     {
@@ -546,6 +590,7 @@ public sealed partial class LocalPlayer
         Container? target = ServerContainer(m.Which, m.Size);
         if (target != null)
         {
+            target.SetConstraints((ushort)Math.Min(m.AcceptedItem, ushort.MaxValue), (int)Math.Min(m.StackLimit, ushort.MaxValue));
             target.Clear();
             foreach (SlotNet s in m.Slots ?? Array.Empty<SlotNet>())
             {
@@ -569,6 +614,7 @@ public sealed partial class LocalPlayer
         };
         if (target != null)
         {
+            target.SetConstraints((ushort)Math.Min(m.AcceptedItem, ushort.MaxValue), (int)Math.Min(m.StackLimit, ushort.MaxValue));
             foreach (SlotNet s in m.Slots ?? Array.Empty<SlotNet>())
             {
                 SetSlot(target, s);
@@ -701,6 +747,8 @@ public sealed partial class LocalPlayer
             Burning = m.Burning,
             Comfort = m.Comfort,
             Wet = m.Wet,
+            BreathFraction = m.Breath / 255f,
+            Suffocating = m.Suffocating,
         };
         _dirty = true;
     }
@@ -714,6 +762,7 @@ public sealed partial class LocalPlayer
             {
                 Ticket = j.Ticket, Recipe = (ushort)Math.Min(j.Recipe, ushort.MaxValue), Count = (int)Math.Min(j.Count, int.MaxValue),
                 TicksLeft = (int)Math.Min(j.TicksLeft, int.MaxValue), UnitTicks = (int)Math.Min(j.UnitTicks, int.MaxValue),
+                Free = j.Free,
             });
         }
         _serverCraft.Set(jobs, m.NextTicket);
@@ -748,7 +797,7 @@ public sealed partial class LocalPlayer
             options.Add(new RespawnOption(EntityId.None, Vector3.Zero, ClockSeconds + m.BeachReadySeconds));
             foreach (BagNet bag in m.Bags ?? Array.Empty<BagNet>())
             {
-                options.Add(new RespawnOption(new EntityId(bag.Id), new Vector3(bag.X, bag.Y, bag.Z), ClockSeconds + bag.ReadySeconds));
+                options.Add(new RespawnOption(new EntityId(bag.Id), new Vector3(bag.X, bag.Y, bag.Z), ClockSeconds + bag.ReadySeconds, bag.Name ?? ""));
             }
         }
         bool wasDown = Life.Wounded;
@@ -781,7 +830,8 @@ public sealed partial class LocalPlayer
     /// <summary>Seconds until a respawn option is ready (0: now).</summary>
     public double SecondsUntilReady(RespawnOption option) => Math.Max(0, option.ReadyAtSeconds - ClockSeconds);
 
-    internal void OnHitMarker(in HitMarker m) => HitMarker?.Invoke(new HitMarkerEvent(m.Target, m.Region, m.Damage / 10f, m.Killed, m.WeakSpot, m.Downed));
+    internal void OnHitMarker(in HitMarker m) => HitMarker?.Invoke(new HitMarkerEvent(m.Target, m.Region, m.Damage / 10f, m.Killed, m.WeakSpot, m.Downed,
+        m.Weapon, m.ActionTick, new Vector3(m.PointX, m.PointY, m.PointZ), new AttackId(m.AttackKind, m.AttackSeq, m.AttackSession)));
 
     internal void OnItemsChanged(in ItemsChanged m)
     {

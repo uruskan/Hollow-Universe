@@ -31,6 +31,7 @@ public sealed class ActionSystem : ZoneSystem
     private ThingSystem Things => _thingsSystem ??= Zone.Require<ThingSystem>();
 
     private readonly List<ItemStack> _refunds = new();
+    private readonly List<ItemStack> _drops = new();
     private readonly List<Container> _targets = new();
 
     internal bool Acting(Entity entity, out Player p)
@@ -50,6 +51,8 @@ public sealed class ActionSystem : ZoneSystem
         }
         if (Things.StaticOf(e) is { Container: not null } thing)
         {
+            if (thing is Deployable { Def.Defense: not null } defense && !Zone.Defenses().CanManage(defense, p.Id))
+                return default;
             return (thing, null, e);
         }
         if (Players.PlayerOf(e) is { Dead: false } sleeper && (sleeper.Sleeping || sleeper.Wounded))
@@ -171,6 +174,15 @@ public sealed class ActionSystem : ZoneSystem
         return result;
     }
 
+    /// <summary>Drops the captured backpack contents together, preserving the belt, worn items and open loot.</summary>
+    public Outcome DropAll(Entity entity, IReadOnlyList<ItemStack> expected)
+    {
+        if (!Acting(entity, out Player p)) return OutcomeCode.Dead;
+        Outcome result = InventoryRules.RemoveAll(p.Inventory.Main, expected, _drops);
+        if (result.Ok) Spill.Drop(entity, _drops);
+        return result;
+    }
+
     /// <summary>
     /// An inventory action (GROUND_SYSTEMS.md §7) on a stack in the player's own slots: eat, use, wear, take off, learn,
     /// unload, take an attachment off, by its number in items.json's list (and its argument: which attachment). The
@@ -182,7 +194,14 @@ public sealed class ActionSystem : ZoneSystem
         {
             return OutcomeCode.Dead;
         }
-        return Content.ItemActions.Do(new PlayerActor(Zone, entity, p), from, slot, expected, action, arg);
+        Container? usedFrom = from is ContainerRef.Main or ContainerRef.Belt or ContainerRef.Wear ? p.Inventory[from] : null;
+        ushort usedItem = usedFrom?.InRange(slot) == true ? usedFrom[slot].Item : (ushort)0;
+        Outcome result = Content.ItemActions.Do(new PlayerActor(Zone, entity, p), from, slot, expected, action, arg);
+        if (result.Ok && Content.Item(usedItem)?.Held is HeldUse.Consumable or HeldUse.Blueprint)
+        {
+            p.RecordAction(ActionKind.Use, usedItem, Tick);
+        }
+        return result;
     }
 
     /// <summary>The player an item action acts for, as the zone has them: eating feeds them, learning counts, the gun in hand hears of its magazine.</summary>
@@ -236,13 +255,16 @@ public sealed class ActionSystem : ZoneSystem
         if (Content.Recipe(recipe) is { Station: { } needs })
         {
             // Made at a station (a ship at the vehicle workbench, G6): the nearest within reach builds it.
-            if (Ships.StationNear(at, needs) is not { } found)
+            if (Ships.StationNear(at, needs) is { } found)
+            {
+                station = found.Id.Value;
+            }
+            else if (!p.FreeBuild)
             {
                 return OutcomeCode.NeedsStation.With(needs.Item.Id);
             }
-            station = found.Id.Value;
         }
-        return p.Crafting.Start(Content, p.Inventory, recipe, count, bench, out ticket, p.Blueprints, station);
+        return p.Crafting.Start(Content, p.Inventory, recipe, count, bench, out ticket, p.Blueprints, station, p.FreeBuild);
     }
 
     public Outcome CancelCraft(Entity entity, uint ticket)

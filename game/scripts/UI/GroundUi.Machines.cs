@@ -7,9 +7,42 @@ namespace HollowUniverse.UI;
 
 // The loot panels of G7's machines (GROUND.md §6.8), in the furnace's manner: the recycler's six inputs and six outputs
 // with its switch (no fuel), and the research table's item, salvage and blueprint slots with the price and BEGIN
-// RESEARCH. A world crate is the box's grid (take only).
+// RESEARCH. A world crate is the box's grid (take only). A vehicle in the vehicle workbench's bay (VEHICLES.md §9.11) shows
+// its sockets.
 public partial class GroundUi
 {
+    // A vehicle in a workbench's bay (VEHICLES.md §9.11): a slot for each socket and level under its name, three to a row; then what its
+    // build makes, and why it can't be changed now.
+    private float PaintVehicle(LootView loot, float y, Action<int, float, float, float> cell)
+    {
+        float top = y + 67;
+        for (int i = 0; i < loot.Slots.Count; i++)
+        {
+            float x = 1040 + i % 3 * 160, row = top + i / 3 * 104;
+            Text(i < loot.Labels.Count ? loot.Labels[i] : "", x, row, 14, Caption, bold: true);
+            cell(i, x, row + 22, 75);
+        }
+        float at = top + (loot.Slots.Count + 2) / 3 * 104 + 4;
+        foreach (string line in loot.Lines)
+        {
+            Rect(1040, at, 475, 27, G.Panel);
+            Text(line, 1050, at, 16, G.Ink, bold: true);
+            at += 31;
+        }
+        if (loot.Reason is { } reason)
+        {
+            Rect(1040, at, 475, 27, new Color(G.Red, 0.85f));
+            Text(reason.ToUpperInvariant(), 1050, at, 16, G.Ink, bold: true);
+            at += 31;
+        }
+        else
+        {
+            Text(loot.Hint ?? "DRAG A MODULE IN TO FIT IT, OUT TO TAKE IT OFF", 1040, at + 4, 14, Caption, bold: true);
+            at += 31;
+        }
+        return at;
+    }
+
     /// <summary>Paints a machine's panel below its LOOT heading at <paramref name="y"/>; returns its bottom.</summary>
     private float PaintMachine(LootView loot, float y, Action<int, float, float, float> cell)
     {

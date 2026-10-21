@@ -29,7 +29,7 @@ internal sealed class ItemsReader : IContentReader
             string key = f.Text(e, "key", $"items.json: items[{i}]");
             string where = $"items.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "id", "key", "name", "description", "category", "stack", "condition", "melee", "bow", "ammo",
-                "consume", "wear", "fuel", "cook", "deploys", "building", "door", "ship");
+                "consume", "wear", "fuel", "cook", "deploys", "building", "door", "ship", "wiring", "module");
             int id = f.Integer(e, "id", where);
             if (id is < 1 or > ushort.MaxValue)
             {
@@ -45,6 +45,7 @@ internal sealed class ItemsReader : IContentReader
                 StackSize = f.Integer(e, "stack", where, 1),
                 MaxCondition = f.Integer(e, "condition", where, 0),
                 Melee = f.TryChild(e, "melee", out JsonElement melee) ? Melee(f, melee, where + ".melee") : null,
+                Wiring = f.TryChild(e, "wiring", out JsonElement wiring) ? WiringStats.Read(f, wiring, where + ".wiring") : null,
                 Bow = f.TryChild(e, "bow", out JsonElement bow) ? Bow(f, bow, where + ".bow") : null,
                 Ammo = f.TryChild(e, "ammo", out JsonElement ammo) ? Ammo(f, ammo, where + ".ammo") : null,
                 Consume = f.TryChild(e, "consume", out JsonElement consume) ? Consume(f, consume, where + ".consume") : null,
@@ -55,6 +56,7 @@ internal sealed class ItemsReader : IContentReader
                 Building = f.Has(e, "building") ? Role(f, f.Text(e, "building", where), where) : BuildingRole.None,
                 DoorKey = f.Has(e, "door") ? f.Text(e, "door", where) : null,
                 ShipKey = f.Has(e, "ship") ? f.Text(e, "ship", where) : null,
+                ModuleKey = f.Has(e, "module") ? f.Text(e, "module", where) : null,
             };
             if (!r.AddItem(item))
             {
@@ -166,7 +168,7 @@ internal sealed class ItemsReader : IContentReader
 
     private static WearStats Wear(JsonFields f, JsonElement e, string where)
     {
-        f.OnlyKnown(e, where, "layers", "covers", "melee", "projectile", "insulation");
+        f.OnlyKnown(e, where, "layers", "covers", "melee", "projectile", "insulation", "footstepProfile");
         WearLayer layers = WearLayer.None;
         foreach (string name in f.Texts(e, "layers", where))
         {
@@ -203,6 +205,7 @@ internal sealed class ItemsReader : IContentReader
         {
             Layers = layers,
             Covers = covers,
+            FootstepProfile = f.Has(e, "footstepProfile") ? f.Text(e, "footstepProfile", where) : null,
             Melee = f.Number(e, "melee", where, 0),
             Projectile = f.Number(e, "projectile", where, 0),
             Insulation = f.Number(e, "insulation", where, 0),
@@ -277,6 +280,13 @@ internal sealed class ItemsReader : IContentReader
             if (item.Wear is { } wear && (wear.Layers == WearLayer.None || wear.Melee is < 0 or > 0.9f || wear.Projectile is < 0 or > 0.9f))
             {
                 c.Problem(where, "wear: needs a layer; protection 0 … 0.9");
+            }
+            if (item.Wear is { FootstepProfile: { } profile } footwear)
+            {
+                if ((footwear.Layers & WearLayer.Feet) == 0)
+                    c.Problem(where, "wear.footstepProfile: only clothing worn on the feet may declare a profile");
+                if (!WearStats.IsFootstepProfileKey(profile))
+                    c.Problem(where, "wear.footstepProfile: expected a lowercase profile key (letters, digits, hyphens or underscores; 1 … 64 characters)");
             }
             if (item.Fuel is { } fuel && fuel.Seconds <= 0)
             {

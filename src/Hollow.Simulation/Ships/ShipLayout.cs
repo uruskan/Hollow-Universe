@@ -105,7 +105,7 @@ public sealed class ShipPartHealth
 public sealed class ShipSeatDef
 {
     /// <summary>The verbs that sit (the seat capability's, interactions.json): each seat names one, its words.</summary>
-    public static readonly string[] Verbs = { "board", "take-helm", "man", "sit" };
+    public static readonly string[] Verbs = { "board", "take-helm", "man", "sit", "fly", "drive" };
 
     public int Index { get; init; }
 
@@ -279,3 +279,12 @@ public enum LightPower : byte
 /// </summary>
 public sealed record ShipLight(string Key, Vector3 At, Vector3 Direction, bool Spot, Vector3 Colour, float Energy, float Range, bool Shadows, LightPower Power,
     float Angle = 50f);
+
+/// <summary>
+/// A rotor as the views draw it (ships.json <c>rotors</c>, docs/MINICOPTER.md §8): the model's node that turns (its blades
+/// under it), the axis it turns about in the model's frame, its turns a minute at full spool, the node of its blurred disc
+/// shown in place of the blades as it speeds up (or empty), and whether its downwash raises dust from the ground below.
+/// Presentation only: the step never reads it.
+/// </summary>
+public sealed record ShipRotorLook(string Node, Vector3 Axis, float Rpm, string Blur, bool Wash);
+

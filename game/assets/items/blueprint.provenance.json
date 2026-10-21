@@ -1,0 +1,106 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "blueprint",
+  "date": "2026-10-19",
+  "replaces": "building-plan.glb stand-in and the SVG drawing",
+  "authorship": "Original cosmetic geometry, procedural PBR atlas and rendered icons; no reference game files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/blueprintbase",
+    "image": "https://files.facepunch.com/rust/item/blueprintbase_512.png",
+    "observed": "A flat-shaded blue sheet folded in three zig-zag panels with pale outline and floor-plan lines; reads at small size by the blue and the folded outline.",
+    "use": "Visual observation before authoring only; no downloaded reference files"
+  },
+  "authoring_source": [
+    {
+      "path": "art/models/blueprint.py",
+      "sha256": "5b016698082b01be5183fa177aaddce70f05981890c59a54d72e7787484edc38"
+    }
+  ],
+  "authoring_helpers": [
+    {
+      "path": "art/hollow/component_mesh.py",
+      "sha256": "8991c9a2503976f758c3fe8b1b97f2642c9050548149d8d329598983629fcb34"
+    },
+    {
+      "path": "art/hollow/diagram_texture.py",
+      "sha256": "c961749d370602f8d1dbba3baf4b4d6dd9c9ebb3c30e423419b4dd36e43df226"
+    }
+  ],
+  "geometry": {
+    "asset": "blueprint",
+    "dimensions_blender_xyz_m": [
+      0.2733175754547119,
+      0.2100645750761032,
+      0.04818902164697647
+    ],
+    "unfolded_sheet_m": [
+      0.3,
+      0.21
+    ],
+    "paper_thickness_m": 0.0006,
+    "texture_size": 1024,
+    "material_count": 1,
+    "lod_triangles": {
+      "Blueprint_lod0": 2232,
+      "Blueprint_lod1": 696,
+      "Blueprint_lod2": 236
+    },
+    "hull_triangles": 44,
+    "vertex_ao_samples": 8
+  },
+  "files": {
+    "game/assets/items/blueprint.glb": {
+      "sha256": "72fd12a8f0847496c674fa191899b26b08e921def9dc149e5caa62bf80d1fb18",
+      "bytes": 122316
+    },
+    "game/assets/items/blueprint.glb.import": {
+      "sha256": "2e6a356501ebb44815def2a10ac967de73edbf8cbd15270f7bfb9977e4cde780",
+      "bytes": 462
+    },
+    "game/assets/materials/blueprint.tres": {
+      "sha256": "dfb3c4c1499ec79ebcd98d67f8959e146875396501123e4f8628020318c3a613",
+      "bytes": 627
+    },
+    "game/assets/textures/blueprint/blueprint_albedo.png": {
+      "sha256": "f9acdfcbf19e6c9cb77765010f7c1965b3f28832823d1ab184abf293885704a7",
+      "bytes": 896792
+    },
+    "game/assets/textures/blueprint/blueprint_albedo.png.import": {
+      "sha256": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "bytes": 208
+    },
+    "game/assets/textures/blueprint/blueprint_normal.png": {
+      "sha256": "0c9fc9f01a7f91687a85221292c34a1fc22fcd1900cb7d4644b9b3b8ee2ce921",
+      "bytes": 514619
+    },
+    "game/assets/textures/blueprint/blueprint_normal.png.import": {
+      "sha256": "6a3487d4f443cf9f68b41462d6eb05969c23e1c4617e2524147c066742dab360",
+      "bytes": 208
+    },
+    "game/assets/textures/blueprint/blueprint_orm.png": {
+      "sha256": "728a7a3c6c5e3109ccede28f89bfecd23357cab6e6d953f81bd8bcf82c4509f9",
+      "bytes": 59922
+    },
+    "game/assets/textures/blueprint/blueprint_orm.png.import": {
+      "sha256": "9875379b0b0d340683579eb944bd8b622f2b015463b5e639b8ef61db2996f2f0",
+      "bytes": 208
+    },
+    "game/assets/items/icons/128/blueprint.png": {
+      "sha256": "5acd1e26223ece5d7a70d7791bf64999c5c8ffd914be85f0000fa28b8621c001",
+      "bytes": 13283
+    },
+    "game/assets/items/icons/128/blueprint.png.import": {
+      "sha256": "48f8573fc83b31c048ea01d9bd0e7ce8c36b85518756d745f90c339456274cfe",
+      "bytes": 954
+    },
+    "game/assets/items/icons/256/blueprint.png": {
+      "sha256": "11be3b445657bd385f888e6b559c56cae41049cffe4845aad5651aee48cad75e",
+      "bytes": 43442
+    },
+    "game/assets/items/icons/256/blueprint.png.import": {
+      "sha256": "cafc0bd51f1b1dbcf9f0faf49b142cb95dbd294f56cbb423add199e60a2bda4d",
+      "bytes": 954
+    }
+  }
+}

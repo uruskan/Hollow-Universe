@@ -30,6 +30,7 @@ public partial class GroundUi
 
     private void PaintScreen()
     {
+        HudCrafting = null;
         switch (Screen)
         {
             case GroundScreen.Menu:
@@ -71,6 +72,10 @@ public partial class GroundUi
         {
             PaintBelt(inventory);
             PaintVitals(inventory);
+            if (Screen == GroundScreen.Hud)
+            {
+                PaintCraftingHud();
+            }
         }
         if (Screen == GroundScreen.Hud)
         {
@@ -196,6 +201,40 @@ public partial class GroundUi
             Ui.Px(w), px, maxLines, colour);
     }
 
+    private static List<string> WrapLines(string text, float width, float size, bool bold = false)
+    {
+        var lines = new List<string>();
+        string line = "";
+        foreach (string word in text.Replace('\n', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        {
+            string joined = line.Length == 0 ? word : line + " " + word;
+            if (Measure(joined, size, bold) <= width)
+            {
+                line = joined;
+                continue;
+            }
+            if (line.Length > 0)
+            {
+                lines.Add(line);
+            }
+            line = "";
+            foreach (char c in word)
+            {
+                if (line.Length > 0 && Measure(line + c, size, bold) > width)
+                {
+                    lines.Add(line);
+                    line = "";
+                }
+                line += c;
+            }
+        }
+        if (line.Length > 0)
+        {
+            lines.Add(line);
+        }
+        return lines;
+    }
+
     /// <summary>An item's icon, fitted square and centred in the box.</summary>
     private void Icon(string? key, float x, float y, float w, float h, float alpha = 1f)
     {
@@ -263,7 +302,7 @@ public partial class GroundUi
     /// (a refused action says why).
     /// </summary>
     private void Button(string label, float x, float y, float w, float h, Action? click, float size = 24, Color? fill = null,
-        bool enabled = true, bool left = false, string? tip = null, bool muted = false)
+        bool enabled = true, bool left = false, string? tip = null, bool muted = false, string? tooltip = null)
     {
         Color f = fill ?? G.Panel;
         Rect2 area = Area(x, y, w, h);
@@ -285,7 +324,7 @@ public partial class GroundUi
         }
         if (enabled && click != null)
         {
-            _hits.Add(new Hit(area, HitKind.Button, click, Key: tip));
+            _hits.Add(new Hit(area, HitKind.Button, click, Key: tip, Tooltip: tooltip));
         }
     }
 

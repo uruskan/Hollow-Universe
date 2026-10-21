@@ -13,7 +13,8 @@ Each sound is a recipe (events.py): parts of recordings, each with its own gain,
 offset, mixed, filtered, cut where it starts and where its tail has died away (or made into a seamless loop by a
 crossfade), brought to its category's loudness (ITU-R BS.1770: the highest momentary loudness of a one-shot, the
 integrated loudness of a loop) without passing -1 dBTP, and encoded as Ogg Vorbis at 48 kHz (short interface clicks
-as 16-bit WAV). Every file is measured again after encoding; game/assets/audio/levels.json keeps the measurements
+as 16-bit WAV). Approved source-level recipes can opt out of normalization while retaining peak/range checks.
+Every file is measured again after encoding; game/assets/audio/levels.json keeps the measurements
 with each file's SHA-256, and the tests check them (tests/Hollow.Tests/SoundCatalogueTests.cs).
 
 Encoding is bit-exact (no random Ogg serials, no encoder tags), so rebuilding unchanged recipes writes the same bytes.
@@ -31,6 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import audiolib  # noqa: E402
 import sources  # noqa: E402
+from longpath import fs  # noqa: E402
 
 REPO = sources.REPO
 ASSETS = os.path.join(REPO, "game", "assets", "audio")
@@ -46,6 +48,10 @@ ENCODE_CEILING = -1.6  # dBTP aimed at before encoding; Vorbis adds a few tenths
 # 400 ms window, audiolib.event_loudness); "integrated" the gated loudness of a loop.
 CATEGORIES = {
     "footstep": ("event", -26.0, -30.0, -22.0, 2.0),
+    # Approved quiet contacts keep their source dynamics; the target is descriptive for these recipes.
+    "footstep-soft": ("event", -35.0, -40.0, -31.0, 0.0),
+    # Footwear banks retain natural level variation inside a bounded range and a quieter peak ceiling.
+    "footstep-contact": ("event", -35.0, -43.0, -30.0, 2.0),
     "foley": ("event", -23.0, -27.0, -19.0, 3.0),
     "click": ("event", -27.0, -33.0, -21.0, 6.0),
     "gather": ("event", -19.0, -23.0, -15.0, 4.0),
@@ -84,7 +90,7 @@ class Seg:
 
     def key(self):
         rel = os.path.relpath(self.src, sources.DOWNLOADS if self.src.startswith(sources.DOWNLOADS) else sources.CACHE)
-        return [rel.replace("\\", "/"), os.path.getsize(self.src), round(self.start, 4),
+        return [rel.replace("\\", "/"), os.path.getsize(fs(self.src)), round(self.start, 4),
                 None if self.dur is None else round(self.dur, 4), self.gain, self.pitch, self.fx, self.at,
                 self.fade_in, self.fade_out, self.reverse,
                 os.path.basename(self.ir) if self.ir else None, self.wet, self.dry, self.post]
@@ -94,16 +100,22 @@ class Out:
     """One sound file: `rel` under game/assets/audio."""
 
     def __init__(self, rel, category, segs, fx="", channels=1, fade_in=0.002, tail_db=-48.0, max_fade=0.25,
-                 length=None, loop=None, quality=5, lead_db=-45.0):
+                 length=None, loop=None, quality=5, lead_db=-45.0, normalize=True, level_range=None, peak_ceiling=None):
         self.rel, self.category, self.segs, self.fx, self.channels = rel, category, segs, fx, channels
         self.fade_in, self.tail_db, self.max_fade, self.length = fade_in, tail_db, max_fade, length
         self.loop, self.quality, self.lead_db = loop, quality, lead_db
         self.wav = rel.endswith(".wav")
+        self.normalize = normalize
+        self.level_range, self.peak_ceiling = level_range, peak_ceiling
 
     def recipe(self):
         data = [self.rel, self.category, CATEGORIES[self.category], [s.key() for s in self.segs], self.fx,
                 self.channels, self.fade_in, self.tail_db, self.max_fade, self.length, self.loop, self.quality,
                 self.lead_db, 3]
+        if not self.normalize:
+            data.append({"normalize": False})
+        if self.level_range is not None or self.peak_ceiling is not None:
+            data.append({"levelRange": self.level_range, "peakCeiling": self.peak_ceiling})
         return hashlib.sha256(json.dumps(data).encode()).hexdigest()[:16]
 
 
@@ -121,12 +133,12 @@ def render_mix(out, path):
             args += ["-ss", "%.5f" % s.start]
         if s.dur:
             args += ["-t", "%.5f" % s.dur]
-        args += ["-i", s.src]
+        args += ["-i", fs(s.src)]
         src_index = inputs
         inputs += 1
         ir_index = None
         if s.ir:
-            args += ["-i", s.ir]
+            args += ["-i", fs(s.ir)]
             ir_index = inputs
             inputs += 1
         chain = ["aresample=%d" % RATE, "aformat=sample_fmts=flt:channel_layouts=%s" % layout(out.channels)]
@@ -163,7 +175,7 @@ def render_mix(out, path):
         post.append(out.fx)
     post.append("aformat=sample_fmts=flt:channel_layouts=%s" % layout(out.channels))
     graph = ";".join(parts) + ";" + ",".join(post) + "[out]"
-    audiolib.run(args + ["-filter_complex", graph, "-map", "[out]", "-ar", str(RATE), "-c:a", "pcm_f32le", path])
+    audiolib.run(args + ["-filter_complex", graph, "-map", "[out]", "-ar", str(RATE), "-c:a", "pcm_f32le", fs(path)])
 
 
 def cut(out, src, dst):
@@ -186,7 +198,7 @@ def cut(out, src, dst):
     if out.fade_in:
         chain += ",afade=t=in:d=%.4f" % out.fade_in
     chain += ",afade=t=out:st=%.5f:d=%.5f:curve=exp" % (max(0.0, t1 - t0 - fade), fade)
-    audiolib.run(["-i", src, "-af", chain, "-c:a", "pcm_f32le", dst])
+    audiolib.run(["-i", fs(src), "-af", chain, "-c:a", "pcm_f32le", fs(dst)])
 
 
 def make_loop(out, src, dst):
@@ -196,8 +208,8 @@ def make_loop(out, src, dst):
     length, overlap = out.loop[0], out.loop[1]
     if overlap <= 0:
         skip = out.loop[2] if len(out.loop) > 2 else 0.0
-        audiolib.run(["-i", src, "-af", "atrim=start_sample=%d:end_sample=%d,asetpts=PTS-STARTPTS"
-                      % (round(skip * RATE), round((skip + length) * RATE)), "-c:a", "pcm_f32le", dst])
+        audiolib.run(["-i", fs(src), "-af", "atrim=start_sample=%d:end_sample=%d,asetpts=PTS-STARTPTS"
+                      % (round(skip * RATE), round((skip + length) * RATE)), "-c:a", "pcm_f32le", fs(dst)])
         return
     graph = ("[0:a]asplit=3[a][b][c];"
              "[a]atrim=0:%.5f,asetpts=PTS-STARTPTS,afade=t=in:d=%.5f:curve=qsin[h];"
@@ -206,7 +218,7 @@ def make_loop(out, src, dst):
              "[c]atrim=%.5f:%.5f,asetpts=PTS-STARTPTS[body];"
              "[m][body]concat=n=2:v=0:a=1[out]") % (overlap, overlap, length, length + overlap, overlap, overlap,
                                                     length)
-    audiolib.run(["-i", src, "-filter_complex", graph, "-map", "[out]", "-c:a", "pcm_f32le", dst])
+    audiolib.run(["-i", fs(src), "-filter_complex", graph, "-map", "[out]", "-c:a", "pcm_f32le", fs(dst)])
 
 
 def level_of(m, metric):
@@ -220,19 +232,19 @@ def encode(out, src, dst, gain, limit):
         chain.append("alimiter=limit=%.4f:attack=1:release=%d:level=0" % (10 ** (limit / 20.0),
                                                                           30 if out.category in FAST else 60))
     chain.append("aformat=channel_layouts=%s" % layout(out.channels))
-    args = ["-i", src, "-af", ",".join(chain), "-ar", str(RATE), "-fflags", "+bitexact", "-flags", "+bitexact",
+    args = ["-i", fs(src), "-af", ",".join(chain), "-ar", str(RATE), "-fflags", "+bitexact", "-flags", "+bitexact",
             "-map_metadata", "-1"]
     if out.wav:
         args += ["-c:a", "pcm_s16le"]
     else:
         args += ["-c:a", "libvorbis", "-q:a", str(out.quality)]
-    audiolib.run(args + [dst])
+    audiolib.run(args + [fs(dst)])
 
 
 def build(out):
     metric, target, low, high, max_limit = CATEGORIES[out.category]
     base = os.path.join(WORK, out.rel.replace("/", "__"))
-    os.makedirs(WORK, exist_ok=True)
+    os.makedirs(fs(WORK), exist_ok=True)
     mix, shaped = base + ".mix.wav", base + ".shaped.wav"
     render_mix(out, mix)
     if out.loop:
@@ -240,45 +252,50 @@ def build(out):
     else:
         cut(out, mix, shaped)
     m = audiolib.measure(shaped)
-    gain = target - level_of(m, metric)
-    over = m["truePeak"] + gain - ENCODE_CEILING
+    gain = target - level_of(m, metric) if out.normalize else 0.0
+    if out.level_range is not None:
+        value = level_of(m, metric)
+        gain = min(out.level_range[1], max(out.level_range[0], value)) - value
+    peak_limit = TRUE_PEAK_CEILING if out.peak_ceiling is None else min(TRUE_PEAK_CEILING, out.peak_ceiling)
+    encode_ceiling = min(ENCODE_CEILING, peak_limit - 0.6)
+    over = m["truePeak"] + gain - encode_ceiling
     limit = None
     if over > 0:
         if over > max_limit:
             gain -= over - max_limit
         if max_limit > 0:
-            limit = ENCODE_CEILING - 0.2
+            limit = encode_ceiling - 0.2
     dst = os.path.join(ASSETS, out.rel)
-    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    os.makedirs(fs(os.path.dirname(dst)), exist_ok=True)
     tmp = dst + ".part" + os.path.splitext(dst)[1]
     for _ in range(8):
         encode(out, shaped, tmp, gain, limit)
         final = audiolib.measure(tmp)
-        if final["truePeak"] <= TRUE_PEAK_CEILING - 0.05:
+        if final["truePeak"] <= peak_limit - 0.05:
             break
-        excess = final["truePeak"] - TRUE_PEAK_CEILING + 0.15
+        excess = final["truePeak"] - peak_limit + 0.15
         # Encoding rings over a limited peak: lower the limiter's ceiling rather than the level.
         if limit is not None:
             limit -= excess
         else:
             gain -= excess
-    os.replace(tmp, dst)
+    os.replace(fs(tmp), fs(dst))
     for p in (mix, shaped):
         try:
-            os.remove(p)
+            os.remove(fs(p))
         except OSError:
             pass
     final["category"] = out.category
     final["gain"] = round(gain, 2)
     final["recipe"] = out.recipe()
     final["sha256"] = sha256(dst)
-    final["bytes"] = os.path.getsize(dst)
+    final["bytes"] = os.path.getsize(fs(dst))
     return final
 
 
 def sha256(path):
     h = hashlib.sha256()
-    with open(path, "rb") as f:
+    with open(fs(path), "rb") as f:
         h.update(f.read())
     return h.hexdigest()
 
@@ -342,7 +359,7 @@ def main(argv):
                 continue
             dst = os.path.join(ASSETS, o.rel)
             old = levels.get(o.rel)
-            if not force and old and old.get("recipe") == o.recipe() and os.path.isfile(dst) \
+            if not force and old and old.get("recipe") == o.recipe() and os.path.isfile(fs(dst)) \
                     and old.get("sha256") == sha256(dst):
                 continue
             todo.append(o)
@@ -373,17 +390,19 @@ def main(argv):
                 del levels[rel]
                 p = os.path.join(ASSETS, rel)
                 for path in (p, p + ".import"):
-                    if os.path.isfile(path):
-                        os.remove(path)
+                    if os.path.isfile(fs(path)):
+                        os.remove(fs(path))
         write_levels(levels)
         if failures:
             print("%d failed" % len(failures))
             return 1
-    write_catalogue(catalogue, events.ITEMS, getattr(events, "SPACES", {}))
+    write_catalogue(catalogue, events.ITEMS, getattr(events, "SPACES", {}), replace_prefixes=("footstep.",),
+                    engines=getattr(events, "ENGINES", {}))
     changed = fix_imports(outs)
     if changed:
         print("%d .import files updated: run Godot's import again" % changed)
-    total = sum(os.path.getsize(os.path.join(ASSETS, o.rel)) for o in outs if os.path.isfile(os.path.join(ASSETS, o.rel)))
+    total = sum(os.path.getsize(fs(os.path.join(ASSETS, o.rel))) for o in outs
+                if os.path.isfile(fs(os.path.join(ASSETS, o.rel))))
     print("catalogue: %d events; audio: %.1f MB" % (len(catalogue), total / 1e6))
     return 0
 
@@ -393,9 +412,9 @@ def fix_imports(outs):
     changed = 0
     for o in outs:
         path = os.path.join(ASSETS, o.rel) + ".import"
-        if not os.path.isfile(path):
+        if not os.path.isfile(fs(path)):
             continue
-        with open(path, encoding="utf-8") as f:
+        with open(fs(path), encoding="utf-8") as f:
             text = f.read()
         new = text
         if o.wav:
@@ -404,16 +423,18 @@ def fix_imports(outs):
             want = "loop=true" if o.loop else "loop=false"
             new = new.replace("loop=true", want).replace("loop=false", want)
         if new != text:
-            with open(path, "w", encoding="utf-8", newline="\n") as f:
+            with open(fs(path), "w", encoding="utf-8", newline="\n") as f:
                 f.write(new)
             changed += 1
     return changed
 
 
-def write_catalogue(events_list, items, spaces=None):
+def write_catalogue(events_list, items, spaces=None, replace_prefixes=(), engines=None):
     """sounds.json: the build owns each event's files and category and the item map; every other field of an event
-    is kept as edited. `spaces` are the listener's reverb presets (events.SPACES): a preset or field tuned by hand in
-    sounds.json is kept, a missing one is added."""
+    is kept as edited unless the recipe declares it in _generatedFields (authoring data owns those values).
+    `spaces` are the listener's reverb presets (events.SPACES): a preset or field tuned by hand in
+    sounds.json is kept, a missing one is added. `engines` (events.ENGINES, from vehicle_sounds.py) are ground
+    vehicles' revs, loops, tyres and suspension by kind: written as they are (tune them in vehicle_sounds.py)."""
     old = load_json(CATALOGUE, {})
     kept = old.get("spaces", {})
     merged_spaces = {}
@@ -424,11 +445,13 @@ def write_catalogue(events_list, items, spaces=None):
     by_key = {e["key"]: e for e in old.get("events", [])}
     merged = []
     for e in events_list:
+        e = dict(e)
+        generated_fields = e.pop("_generatedFields", ())
         cur = by_key.pop(e["key"], None)
         if cur is None:
             merged.append(e)
             continue
-        for field in ("category", "files", "loop"):
+        for field in ("category", "files", "loop", *generated_fields):
             if field in e:
                 cur[field] = e[field]
             elif field in cur and field != "loop":
@@ -445,27 +468,41 @@ def write_catalogue(events_list, items, spaces=None):
                     layers.append(l)
             cur["layers"] = layers
         merged.append(cur)
-    # Events added by hand (not built here) stay.
-    merged += by_key.values()
+    # Hand-authored events stay, except namespaces explicitly owned by this generator.
+    merged += (e for key, e in by_key.items() if not key.startswith(replace_prefixes))
     data = {
         "source": old.get("source", "GROUND.md §4.9. Written by art/audio/build.py, which owns each event's files "
                                     "and category; every other field may be tuned by hand and is kept."),
         "categories": {k: {"metric": v[0], "target": v[1], "min": v[2], "max": v[3]} for k, v in CATEGORIES.items()},
         "spaces": merged_spaces,
         "items": items,
+        "engines": engines or old.get("engines", {}),
         "events": merged,
     }
+    # Runtime scheduling is authored alongside mix settings, never reset by an asset rebuild.
+    if "voiceBudget" in old:
+        data["voiceBudget"] = old["voiceBudget"]
     keys = {e["key"] for e in merged}
     for item, roles in items.items():
         for role, key in roles.items():
             if key not in keys:
                 raise SystemExit("items: %s %s plays %s, which isn't an event" % (item, role, key))
+    for kind, engine in data["engines"].items():
+        named = [l[k] for l in engine.get("loops", []) for k in ("on", "off")] + list(engine.get("tyres", {}).values())
+        named += [engine[k] for k in ("turbo", "blowoff", "shift", "skidLoose", "skidHard", "knock", "creak", "land", "splash",
+                                                                  "airBrake", "jake", "labour") if engine.get(k)]
+        for key in named:
+            if key not in keys:
+                raise SystemExit("engines: %s plays %s, which isn't an event" % (kind, key))
     write_catalogue_json(data)
 
 
 def write_catalogue_json(data):
     """Readable JSON: one line per event field, files on their own lines."""
-    lines = ["{", '  "source": %s,' % json.dumps(data["source"], ensure_ascii=False), '  "categories": {']
+    lines = ["{", '  "source": %s,' % json.dumps(data["source"], ensure_ascii=False)]
+    if "voiceBudget" in data:
+        lines.append('  "voiceBudget": %s,' % json.dumps(data["voiceBudget"]))
+    lines.append('  "categories": {')
     cats = list(data["categories"].items())
     for i, (k, v) in enumerate(cats):
         lines.append('    %s: %s%s' % (json.dumps(k), json.dumps(v), "," if i < len(cats) - 1 else ""))
@@ -482,6 +519,23 @@ def write_catalogue_json(data):
     for i, (k, v) in enumerate(its):
         lines.append('    %s: %s%s' % (json.dumps(k), json.dumps(v), "," if i < len(its) - 1 else ""))
     lines.append("  },")
+    if data.get("engines"):
+        lines.append('  "engines": {')
+        ens = list(data["engines"].items())
+        for i, (k, v) in enumerate(ens):
+            lines.append('    %s: {' % json.dumps(k))
+            fields = list(v.items())
+            for j, (f, x) in enumerate(fields):
+                comma = "," if j < len(fields) - 1 else ""
+                if f == "loops":
+                    lines.append('      "loops": [')
+                    for q, l in enumerate(x):
+                        lines.append('        %s%s' % (json.dumps(l), "," if q < len(x) - 1 else ""))
+                    lines.append("      ]" + comma)
+                else:
+                    lines.append('      %s: %s%s' % (json.dumps(f), json.dumps(x), comma))
+            lines.append("    }" + ("," if i < len(ens) - 1 else ""))
+        lines.append("  },")
     lines.append('  "events": [')
     evs = data["events"]
     for i, e in enumerate(evs):
@@ -521,7 +575,7 @@ def credits():
         p = sources.PACKS[n]
         members = sorted(m for (k, m) in sources.USED if k == n)
         rows.append("| %s, %s: `%s`, %s (page: %s), %s bytes | %s | `%s` | %d files: %s |" % (
-            p.author, p.title, p.file, p.url, p.page, format(p.size, ","), p.licence, p.sha256, len(members),
+            p.author, p.title, p.file, p.url or "manual download from creator page", p.page, format(p.size, ","), p.licence, p.sha256, len(members),
             ", ".join("`%s`" % m.split("/")[-1] for m in members[:12]) + (" ..." if len(members) > 12 else "")))
     rows.append("")
     rows.append("| BigSoundBank id | Title | File | SHA-256 |")

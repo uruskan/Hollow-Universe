@@ -1,6 +1,8 @@
 using System.Collections.Generic;
+using Hollow.Core;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Content;
+using Hollow.Simulation.Entities;
 using Hollow.Simulation.Interaction;
 using Hollow.Simulation.Targets;
 
@@ -27,14 +29,18 @@ public static partial class CapabilityHandlers
 
         public void Offer(in InteractContext ctx, List<InteractOption> into)
         {
-            int swing = ctx.Facts.Open ? _close : _open;
-            into.Add(ctx.Has(ViewerFlags.CanUse) ? InteractOption.Can(swing, primary: true) : InteractOption.Cannot(swing, OutcomeCode.Locked, primary: true));
+            bool opens = ctx.Building?.DoorOf(new EntityId(ctx.Target.Id))?.Def.Opens ?? true;
+            if (opens)
+            {
+                int swing = ctx.Facts.Open ? _close : _open;
+                into.Add(ctx.Has(ViewerFlags.CanUse) ? InteractOption.Can(swing, primary: true) : InteractOption.Cannot(swing, OutcomeCode.Locked, primary: true));
+            }
             if (ctx.Facts.Lock == LockKind.None)
             {
-                Outcome why = !ctx.Facts.Open ? OutcomeCode.OpenItFirst
+                Outcome why = opens && !ctx.Facts.Open ? OutcomeCode.OpenItFirst
                     : ctx.Building?.PrivilegeAt(ctx.Doer.Id.Value, ctx.Facts.Position) == Privilege.Blocked ? OutcomeCode.BuildingBlocked
                     : Outcome.Done;
-                into.Add(new InteractOption(_pickUp, why));
+                into.Add(new InteractOption(_pickUp, why, Primary: !opens));
             }
         }
 
@@ -80,13 +86,13 @@ public static partial class CapabilityHandlers
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
         private static Outcome Turn(in InteractContext ctx, bool locked) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building().World!.SetLocked(ctx.Doer.Id.Value, door, locked, ctx.Zone!.Building().KeysOf(ctx.Player!)) : OutcomeCode.NotFound;
+            ctx.Thing is ILockHost door ? ctx.Zone!.Building().World!.SetLocked(ctx.Doer.Id.Value, door, locked, ctx.Zone!.Building().KeysOf(ctx.Player!)) : OutcomeCode.NotFound;
 
         private static Outcome Cut(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building().CutKey(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
+            ctx.Thing is ILockHost door ? ctx.Zone!.Building().CutKey(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
 
         private static Outcome Remove(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building().TakeLock(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
+            ctx.Thing is ILockHost door ? ctx.Zone!.Building().TakeLock(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
     }
 
     /// <summary>
@@ -142,19 +148,19 @@ public static partial class CapabilityHandlers
 
         // Setting a code, or changing it: four digits, unlocked; it locks, and lists only the setter.
         private static Outcome SetCode(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building().World!.SetCode(ctx.Doer.Id.Value, door, args.Code) : OutcomeCode.NotFound;
+            ctx.Thing is ILockHost door ? ctx.Zone!.Building().World!.SetCode(ctx.Doer.Id.Value, door, args.Code) : OutcomeCode.NotFound;
 
         private static Outcome EnterCode(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building().World!.EnterCode(ctx.Doer.Id.Value, door, args.Code, ctx.Zone!.Building().BuildingNow) : OutcomeCode.NotFound;
+            ctx.Thing is ILockHost door ? ctx.Zone!.Building().World!.EnterCode(ctx.Doer.Id.Value, door, args.Code, ctx.Zone!.Building().BuildingNow) : OutcomeCode.NotFound;
 
         private static Outcome Turn(in InteractContext ctx, bool locked) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building().World!.SetLocked(ctx.Doer.Id.Value, door, locked) : OutcomeCode.NotFound;
+            ctx.Thing is ILockHost door ? ctx.Zone!.Building().World!.SetLocked(ctx.Doer.Id.Value, door, locked) : OutcomeCode.NotFound;
 
         private static Outcome Team(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building().World!.AuthoriseOnLock(ctx.Doer.Id.Value, door, ctx.Zone!.World().TeamOf(ctx.Player!)) : OutcomeCode.NotFound;
+            ctx.Thing is ILockHost door ? ctx.Zone!.Building().World!.AuthoriseOnLock(ctx.Doer.Id.Value, door, ctx.Zone!.World().TeamOf(ctx.Player!)) : OutcomeCode.NotFound;
 
         private static Outcome Remove(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Thing is Door door ? ctx.Zone!.Building().TakeLock(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
+            ctx.Thing is ILockHost door ? ctx.Zone!.Building().TakeLock(ctx.Entity, ctx.Player!, door) : OutcomeCode.NotFound;
     }
 
     /// <summary>

@@ -6,6 +6,8 @@ art/.cache/audio/src (not committed) by Python's zipfile and our own 7z reader; 
 
     python -I art/audio/sources.py --verify      checks every download that is present
     python -I art/audio/sources.py --fetch       downloads the missing ones (new folders), then verifies
+    python -I art/audio/sources.py --adopt       records the SHA-256 of freesound originals saved by hand (freesound.json)
+    python -I art/audio/sources.py --youtube <id or URL>   one YouTube video's audio by yt-dlp, recorded in youtube.json
 """
 
 import hashlib
@@ -18,6 +20,7 @@ import zipfile
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import sevenzip  # noqa: E402
+from longpath import fs  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
@@ -26,9 +29,11 @@ CACHE = os.path.join(REPO, "art", ".cache", "audio", "src")
 
 
 class Pack:
-    def __init__(self, title, file, url, page, author, licence, sha256, size):
+    def __init__(self, title, file, url, page, author, licence, sha256, size, members=None):
         self.title, self.file, self.url, self.page = title, file, url, page
         self.author, self.licence, self.sha256, self.size = author, licence, sha256, size
+        # Optional closed roster: extract only approved members, and verify cached bytes on every build.
+        self.members = members
 
 
 KENNEY = "Kenney (kenney.nl)"
@@ -95,6 +100,15 @@ PACKS = {
         "e6ee04d91c5f4d30cfda1260d2c9d1faf96fda36319287215fbd07bcb1a80451", 1624406),
 }
 
+with open(os.path.join(HERE, "nox_footsteps.json"), encoding="utf-8") as f:
+    NOX_FOOTSTEPS = json.load(f)
+PACKS[NOX_FOOTSTEPS["downloadFolder"]] = Pack(
+    NOX_FOOTSTEPS["title"], NOX_FOOTSTEPS["file"], None, NOX_FOOTSTEPS["page"],
+    NOX_FOOTSTEPS["author"], NOX_FOOTSTEPS["licence"], NOX_FOOTSTEPS["archiveSha256"],
+    NOX_FOOTSTEPS["archiveBytes"],
+    {v["member"]: v["sha256"] for surface in NOX_FOOTSTEPS["banks"].values()
+     for bank in surface.values() for v in bank})
+
 # BigSoundBank (https://bigsoundbank.com): one WAV per sound by Joseph Sardin. Its licence page lists CC0 1.0 (also
 # WTFPL and a public-domain dedication) and says nothing is mandatory. Folder "bigsoundbank", files <id>.wav from
 # https://bigsoundbank.com/UPLOAD/bwf-en/<id>.wav; each sound's page is https://bigsoundbank.com/s<id>.html.
@@ -102,34 +116,76 @@ BIGSOUNDBANK_AUTHOR = "Joseph Sardin (BigSoundBank.com)"
 with open(os.path.join(HERE, "bigsoundbank.json"), encoding="utf-8") as _f:
     BIGSOUNDBANK = json.load(_f)
 
+# freesound.org (VEHICLES.md §9.10, the TOGG's recorded diesel): each sound's public high-quality preview (an MP3 of about
+# 190 kbps, no account) in folder "freesound-previews" as <id>.mp3, checked by SHA-256. The original WAV or FLAC needs a
+# freesound account: saved by hand into folder "freesound" under the name freesound gives it ("<id>__<author>__<name>.wav")
+# and recorded by --adopt, it is used in the preview's place (the same recording, so the same cut times).
+with open(os.path.join(HERE, "freesound.json"), encoding="utf-8") as _f:
+    FREESOUND = json.load(_f)
+
+# Pixabay (Pixabay Content License): MP3s from its CDN, folder "pixabay", <id>.mp3. The page refuses scripts, but its CDN
+# serves the file the page names.
+with open(os.path.join(HERE, "pixabay.json"), encoding="utf-8") as _f:
+    PIXABAY = json.load(_f)
+
+# YouTube (VEHICLES.md §9.10: the owner's picks for the TOGG's diesel, 21 October 2026): each video's best audio by
+# D:/GameDev/Tools/yt-dlp (folder "youtube", <id>.webm, with yt-dlp's .info.json beside it), checked by SHA-256. Not
+# fetched by --fetch: python -I art/audio/sources.py --youtube <id or URL> downloads one and records it.
+with open(os.path.join(HERE, "youtube.json"), encoding="utf-8") as _f:
+    YOUTUBE = json.load(_f)
+
 USED = set()
 
 
 def pack(name, member):
     """The path of a file inside a pack, unpacked into the cache on first use."""
     p = PACKS[name]
+    if p.members is not None and member not in p.members:
+        raise SystemExit("%s: member is not in the approved source roster: %s" % (name, member))
     root = os.path.join(CACHE, name)
-    if not os.path.isdir(root):
+    if p.members is not None:
+        # A roster can grow while the cache already exists. Admit each missing member atomically;
+        # never trust an existing cache directory as proof that all requested bytes are present.
+        path = sevenzip.safe(os.path.realpath(root), member)
+        if not os.path.isfile(fs(path)):
+            archive = os.path.join(DOWNLOADS, name, p.file)
+            if not os.path.isfile(fs(archive)):
+                raise SystemExit("download the archive from %s and save it as %s" % (p.page, archive))
+            check(archive, p.sha256)
+            with zipfile.ZipFile(fs(archive)) as z:
+                data = z.read(member)
+            if hashlib.sha256(data).hexdigest() != p.members[member]:
+                raise SystemExit("%s: source member failed its roster hash" % member)
+            os.makedirs(fs(os.path.dirname(path)), exist_ok=True)
+            with open(fs(path + ".part"), "wb") as stream:
+                stream.write(data)
+            os.replace(fs(path + ".part"), fs(path))
+        check(path, p.members[member])
+        USED.add((name, member))
+        return path
+    if not os.path.isdir(fs(root)):
         archive = os.path.join(DOWNLOADS, name, p.file)
-        if not os.path.isfile(archive):
+        if not os.path.isfile(fs(archive)):
+            if p.url is None:
+                raise SystemExit("download the archive from %s and save it as %s" % (p.page, archive))
             raise SystemExit("missing download %s (python -I art/audio/sources.py --fetch)" % archive)
         check(archive, p.sha256)
         part = root + ".part"
-        os.makedirs(part, exist_ok=True)
+        os.makedirs(fs(part), exist_ok=True)
         if p.file.endswith(".zip"):
-            with zipfile.ZipFile(archive) as z:
+            with zipfile.ZipFile(fs(archive)) as z:
                 for m in z.infolist():
                     if m.is_dir():
                         continue
                     path = sevenzip.safe(os.path.realpath(part), m.filename)
-                    os.makedirs(os.path.dirname(path), exist_ok=True)
-                    with z.open(m) as i, open(path, "wb") as o:
+                    os.makedirs(fs(os.path.dirname(path)), exist_ok=True)
+                    with z.open(m) as i, open(fs(path), "wb") as o:
                         o.write(i.read())
         else:
             sevenzip.Archive(archive).extract(part)
-        os.replace(part, root)
+        os.replace(fs(part), fs(root))
     path = os.path.join(root, *member.split("/"))
-    if not os.path.isfile(path):
+    if not os.path.isfile(fs(path)):
         raise SystemExit("%s has no %s" % (name, member))
     USED.add((name, member))
     return path
@@ -140,11 +196,109 @@ def bsb(sid):
     if sid not in BIGSOUNDBANK:
         raise SystemExit("unknown BigSoundBank id %s" % sid)
     path = os.path.join(DOWNLOADS, "bigsoundbank", sid + ".wav")
-    if not os.path.isfile(path):
+    if not os.path.isfile(fs(path)):
         raise SystemExit("missing download %s (python -I art/audio/sources.py --fetch)" % path)
     check(path, BIGSOUNDBANK[sid]["sha256"])
     USED.add(("bigsoundbank", sid))
     return path
+
+
+def _original(sid):
+    """A freesound original saved by hand ("<id>__…"), or None."""
+    folder = os.path.join(DOWNLOADS, "freesound")
+    if not os.path.isdir(fs(folder)):
+        return None
+    for name in sorted(os.listdir(fs(folder))):
+        if name.startswith(sid + "__") and not name.endswith(".part"):
+            return os.path.join(folder, name)
+    return None
+
+
+def freesound(sid):
+    """A freesound recording by its id ("435656"): the original when saved by hand and adopted, else its preview."""
+    if sid not in FREESOUND:
+        raise SystemExit("unknown freesound id %s" % sid)
+    v = FREESOUND[sid]
+    original = _original(sid)
+    if original is not None and v.get("original") == os.path.basename(original):
+        check(original, v["originalSha256"])
+        USED.add(("freesound", sid))
+        return original
+    if original is not None:
+        print("note: %s is not adopted yet (python -I art/audio/sources.py --adopt); using the preview" % original)
+    path = os.path.join(DOWNLOADS, "freesound-previews", sid + ".mp3")
+    if not os.path.isfile(fs(path)):
+        raise SystemExit("missing download %s (python -I art/audio/sources.py --fetch)" % path)
+    check(path, v["sha256"])
+    USED.add(("freesound", sid))
+    return path
+
+
+def pixabay(pid):
+    """A Pixabay recording by its id ("63220")."""
+    if pid not in PIXABAY:
+        raise SystemExit("unknown Pixabay id %s" % pid)
+    path = os.path.join(DOWNLOADS, "pixabay", pid + ".mp3")
+    if not os.path.isfile(fs(path)):
+        raise SystemExit("missing download %s (python -I art/audio/sources.py --fetch)" % path)
+    check(path, PIXABAY[pid]["sha256"])
+    USED.add(("pixabay", pid))
+    return path
+
+
+def youtube(vid):
+    """A YouTube video's audio by its id ("rzCpNBSp7YY")."""
+    if vid not in YOUTUBE:
+        raise SystemExit("unknown YouTube id %s (python -I art/audio/sources.py --youtube %s)" % (vid, vid))
+    path = os.path.join(DOWNLOADS, "youtube", YOUTUBE[vid]["file"])
+    if not os.path.isfile(fs(path)):
+        raise SystemExit("missing download %s (python -I art/audio/sources.py --youtube %s)" % (path, vid))
+    check(path, YOUTUBE[vid]["sha256"])
+    USED.add(("youtube", vid))
+    return path
+
+
+def fetch_youtube(ref):
+    """Downloads one video's best audio with yt-dlp and records it in youtube.json."""
+    import subprocess
+    tool = os.environ.get("HOLLOW_YTDLP", "D:/GameDev/Tools/yt-dlp/yt-dlp.exe")
+    folder = os.path.join(DOWNLOADS, "youtube")
+    os.makedirs(fs(folder), exist_ok=True)
+    url = ref if ref.startswith("http") else "https://www.youtube.com/watch?v=" + ref
+    subprocess.run([tool, "-q", "--no-playlist", "--no-progress", "-f", "bestaudio", "-o", "%(id)s.%(ext)s", "--write-info-json",
+                    "--no-write-comments", url], cwd=fs(folder), check=True)
+    infos = sorted((os.path.getmtime(fs(os.path.join(folder, n))), n) for n in os.listdir(fs(folder)) if n.endswith(".info.json"))
+    with open(fs(os.path.join(folder, infos[-1][1])), encoding="utf-8") as f:
+        info = json.load(f)
+    media = os.path.join(folder, info["id"] + "." + info["ext"])
+    with open(fs(media), "rb") as f:
+        data = f.read()
+    YOUTUBE[info["id"]] = {"title": info["title"], "author": info.get("uploader") or info.get("channel"),
+                           "page": url, "file": os.path.basename(media), "licence": "Standard YouTube licence (the owner's choice)",
+                           "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data), "seconds": info.get("duration")}
+    with open(os.path.join(HERE, "youtube.json"), "w", encoding="utf-8", newline="\n") as f:
+        json.dump(YOUTUBE, f, indent=1, ensure_ascii=False)
+    print("recorded", info["id"], info["title"])
+
+
+def adopt():
+    """Records the SHA-256, size and name of each freesound original saved by hand (trusted on first use)."""
+    changed = 0
+    for sid, v in FREESOUND.items():
+        original = _original(sid)
+        if original is None or v.get("original") == os.path.basename(original):
+            continue
+        h = hashlib.sha256()
+        with open(fs(original), "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
+        v["original"], v["originalSha256"], v["originalBytes"] = os.path.basename(original), h.hexdigest(), os.path.getsize(fs(original))
+        print("adopted", original)
+        changed += 1
+    if changed:
+        with open(os.path.join(HERE, "freesound.json"), "w", encoding="utf-8", newline="\n") as f:
+            json.dump(FREESOUND, f, indent=1, ensure_ascii=False)
+    print("%d originals adopted" % changed)
 
 
 _checked = set()
@@ -154,7 +308,7 @@ def check(path, sha256):
     if path in _checked:
         return
     h = hashlib.sha256()
-    with open(path, "rb") as f:
+    with open(fs(path), "rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
             h.update(chunk)
     if h.hexdigest() != sha256:
@@ -167,16 +321,24 @@ def verify(fetch=False):
     items = [(os.path.join(DOWNLOADS, n, p.file), p.url, p.sha256) for n, p in PACKS.items()]
     items += [(os.path.join(DOWNLOADS, "bigsoundbank", sid + ".wav"),
                "https://bigsoundbank.com/UPLOAD/bwf-en/%s.wav" % sid, v["sha256"]) for sid, v in BIGSOUNDBANK.items()]
+    items += [(os.path.join(DOWNLOADS, "freesound-previews", sid + ".mp3"), v["preview"], v["sha256"]) for sid, v in FREESOUND.items()]
+    items += [(os.path.join(DOWNLOADS, "pixabay", pid + ".mp3"), v["url"], v["sha256"]) for pid, v in PIXABAY.items()]
+    # A missing YouTube download is fetched by --youtube, not here.
+    items += [(os.path.join(DOWNLOADS, "youtube", v["file"]), None, v["sha256"]) for v in YOUTUBE.values()]
     for path, url, sha in items:
-        if not os.path.isfile(path):
+        if not os.path.isfile(fs(path)):
             if not fetch:
                 missing += 1
                 continue
-            os.makedirs(os.path.dirname(path), exist_ok=True)
+            if url is None:
+                missing += 1
+                print("manual creator download required: %s (see the page in nox_footsteps.json)" % path)
+                continue
+            os.makedirs(fs(os.path.dirname(path)), exist_ok=True)
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (Hollow Universe sound pipeline)"})
-            with urllib.request.urlopen(req, timeout=300) as r, open(path + ".part", "wb") as o:
+            with urllib.request.urlopen(req, timeout=300) as r, open(fs(path + ".part"), "wb") as o:
                 o.write(r.read())
-            os.replace(path + ".part", path)
+            os.replace(fs(path + ".part"), fs(path))
             print("fetched", path)
         check(path, sha)
     print("%d downloads checked, %d missing" % (len(items) - missing, missing))
@@ -184,8 +346,12 @@ def verify(fetch=False):
 
 
 if __name__ == "__main__":
-    if "--fetch" in sys.argv:
-        verify(fetch=True)
+    if "--youtube" in sys.argv:
+        fetch_youtube(sys.argv[sys.argv.index("--youtube") + 1])
+    elif "--adopt" in sys.argv:
+        adopt()
+    elif "--fetch" in sys.argv:
+        sys.exit(0 if verify(fetch=True) else 1)
     elif "--verify" in sys.argv:
         sys.exit(0 if verify() else 1)
     else:

@@ -116,20 +116,22 @@ public static class BuildingPersistenceTests
         EntityId twig, wood, wall;
         ulong system;
         uint body;
+        TerrainIdentity terrain;
         using (var rig = new LoopbackRig(file.Path))
         {
-            (twig, wood, wall, system, body) = rig.Server.Inspect(sv =>
+            (twig, wood, wall, system, body, terrain) = rig.Server.Inspect(sv =>
             {
                 Zone z = sv.Zone;
                 Piece t = BuildingNetTests.Foundation(z, z.GroundAt(-30, 20), Ada, grade: 0);
                 Piece f = BuildingNetTests.Foundation(z, z.GroundAt(-30, 30), Ada, grade: 1);
                 Piece w = BuildingNetTests.On(z, f, BuildingNetTests.Facing(f, 1, 0), "wall", Ada, grade: 1);
-                return (t.Id, f.Id, w.Id, sv.Spec.SystemAddress, sv.Spec.BodyPath);
+                return (t.Id, f.Id, w.Id, sv.Spec.SystemAddress, sv.Spec.BodyPath,
+                    TerrainIdentity.FromDescriptor(sv.Spec.EnvironmentDescriptor()));
             });
             rig.Run(0.2, (_, _) => default);
         }
         // The server was last up an hour ago.
-        using (GameDatabase db = GameDatabase.Open(file.Path))
+        using (GameDatabase db = GameDatabase.Open(file.Path, terrain))
         {
             double hourAgo = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0 - 3600;
             db.SaveZone(new ZoneSave { SystemAddress = system, BodyPath = body, SavedAtUnixMilliseconds = 0, Meta = BuildingCodec.EncodeZone(hourAgo) });

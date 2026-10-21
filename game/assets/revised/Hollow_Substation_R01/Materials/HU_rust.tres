@@ -1,0 +1,21 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_rust_BaseColor.png" id="1_6wr3a"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_rust_ORM.png" id="2_ryq5b"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_rust_NormalGL.png" id="3_6pgnb"]
+
+[resource]
+resource_name = "HU_rust"
+albedo_texture = ExtResource("1_6wr3a")
+metallic = 1.0
+metallic_texture = ExtResource("2_ryq5b")
+metallic_texture_channel = 2
+roughness_texture = ExtResource("2_ryq5b")
+roughness_texture_channel = 1
+normal_enabled = true
+normal_scale = 0.7
+normal_texture = ExtResource("3_6pgnb")
+ao_enabled = true
+ao_texture = ExtResource("2_ryq5b")
+uv1_scale = Vector3(0.5, 0.5, 1)
+texture_filter = 5

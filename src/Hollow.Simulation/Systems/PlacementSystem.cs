@@ -82,8 +82,8 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
         {
             return placeable.Item == null ? OutcomeCode.NoTool.With(needs.Id) : OutcomeCode.NotUsable;
         }
-        var wallet = new ItemWallet(Content, p.Inventory.Carried);
-        var ctx = new PlacementContext(p.Id.Value, EyeOf(Entities.Get<Character>(entity).State), placeable, wallet);
+        var wallet = new ItemWallet(Content, p.Inventory.Carried, p.FreeBuild);
+        var ctx = new PlacementContext(p.Id.Value, EyeOf(Entities.Get<Character>(entity).State), placeable, wallet, p.BuildGrade);
         if (Placer.Settle(World, ctx, request.Claim, out Outcome refused) is not { } candidate)
         {
             return refused;
@@ -93,14 +93,16 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
         {
             return put;
         }
-        if (placeable.Item != null)
+        if (placeable.Item != null && !(p.FreeBuild && placeable.Kind.RetainItemWhenFree))
         {
             InventoryRules.Remove(source, request.Slot, 1, 0, out _);
         }
-        foreach (PlacementCost cost in placeable.Costs)
+        foreach (PlacementCost cost in ctx.Costs)
         {
             wallet.Take(cost.Material, cost.Amount);
         }
+        // A charge already recorded its release in PutCharge; ordinary placement is one accepted use.
+        if (needs.Throwable == null) p.RecordAction(ActionKind.Use, needs.Id, Tick);
         return Outcome.Done;
     }
 
@@ -115,7 +117,7 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
             return null;
         }
         ref Character c = ref Entities.Get<Character>(entity);
-        var ctx = new PlacementContext(p.Id.Value, EyeOf(c.State), placeable, new ItemWallet(Content, p.Inventory.Carried));
+        var ctx = new PlacementContext(p.Id.Value, EyeOf(c.State), placeable, new ItemWallet(Content, p.Inventory.Carried, p.FreeBuild), p.BuildGrade);
         return Placer.Plan(World, ctx, new PlacementAim(direction, Facing.YawOf(ViewOf(c), UpOf(c.State)), turns));
     }
 
@@ -145,9 +147,18 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
     /// <summary>A ship from its item, set down where the checked candidate says, the player's, with the tank ships.json gives it.</summary>
     public Outcome PutShip(ulong player, ShipDef def, PlacementCandidate c)
     {
+        // The item placed makes its kind with its preset's build, or the kind's default (VEHICLES.md §9.11).
+        if (c.Placeable.Item is { } item && Content?.ShipMade(item) is { } made && made.Kind == def.Kind)
+        {
+            def = made;
+        }
         Ships.SpawnShip(def, c.Position, c.Yaw, new EntityId(player), def.PlacedFuel);
         return Outcome.Done;
     }
+
+    public Outcome PutLock(ulong player, LockKind kind, in TargetRef target) =>
+        Targets.Resolve(target) is ILockHost host && Building.World is { } world
+            ? world.AttachLock(player, host, kind, out _) : OutcomeCode.NotFound;
 
     /// <summary>
     /// After a restart, once the building is back (and again once the ships are, <paramref name="ships"/>): every thing
@@ -200,7 +211,7 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
             zone.Things().DeployablesNear(point, radius, _near);
             foreach (Deployable d in _near)
             {
-                into.Add(new PlacedThing(d.Ref, d.Def, d.Position, d.Up, d.Yaw));
+                into.Add(new PlacedThing(d.Ref, d.Def, d.Position, d.Up, d.Yaw, d.Open, d.Lock?.Kind ?? LockKind.None));
             }
         }
 

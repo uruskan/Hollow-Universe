@@ -88,7 +88,7 @@ public static class PlacementTests
             "a furnace: the defaults, the deployables' 20 to a structure, its own slope");
         Assert.True(Rule("sleeping-bag").PerPlayer == 128, "128 sleeping bags a player");
         Assert.True(Rule("claim-device") is { Surfaces: PlacementSurfaces.Floor, PerStructure: 1, Rotation: "support" }, "the claim device: on a slab, one to a structure");
-        Assert.True(Rule("wooden-door") is { Solver: "opening", Rotation: "flip", Surfaces: PlacementSurfaces.Opening }, "a door: into an opening, R flips it");
+        Assert.True(Rule("wooden-door") is { Solver: "opening", Rotation: "layout", Surfaces: PlacementSurfaces.Opening }, "a door: into an opening, R steps its layouts");
         Assert.True(Rule("code-lock") is { Solver: "attach", Rotation: "fixed", Surfaces: PlacementSurfaces.Door }, "a lock: onto a door");
         Assert.True(Rule("timed-charge") is { Solver: "sweep", Privilege: PrivilegeMode.Ignored, Align: AlignMode.Normal, Water: true },
             "a charge: wherever the view meets a surface, without building rights");
@@ -181,6 +181,42 @@ public static class PlacementTests
         Assert.Equal(OutcomeCode.Done, Place(rig, bo, charge!).Code, "stuck");
     }
 
+    [Test]
+    public static void ClimbableLaddersMountUprightOnCompoundAndBuildingWalls()
+    {
+        using var rig = new GameRig();
+        Entity ada = rig.Add("Ada", 0, 0);
+        rig.Give(ada, "wooden-ladder", 2);
+        DeployableDef ladder = rig.C.ItemByKey("wooden-ladder").Deploys!;
+        Deployable compound = rig.Zone.Players().SpawnDeployable(rig.C.ItemByKey("stone-compound-wall").Deploys!,
+            rig.Zone.GroundAt(0, 6), 0, rig.P(ada).Id);
+        rig.Clear(rig.Ch(ada).State.Position, compound.Position);
+        Assert.True(Ghost(rig, ada, "wooden-ladder", rig.Zone.GroundAt(1.8f, .7f)) is not { Valid: true },
+            "a ladder cannot fall back to placement on terrain");
+        PlacementCandidate? onCompound = Ghost(rig, ada, "wooden-ladder", compound.Position + compound.Up * (ladder.HalfExtents.Y + .08f));
+        Check(onCompound, compound.Ref);
+        Assert.Equal(OutcomeCode.Done, Place(rig, ada, onCompound!).Code, "server reconstructs the compound wall contact from the ladder base");
+
+        TestBases.Hut hut = Raids.Hut(rig, 0, 18, owner: rig.P(ada).Id.Value, door: null);
+        Piece wall = hut.Walls.Skip(1).MinBy(w => Vector3.Distance(hut.Face(w).Point, rig.Ch(ada).State.Position))!;
+        (Vector3 face, Vector3 outward) = hut.Face(wall);
+        Raids.Stand(rig, ada, rig.Zone.Settle(face + outward * 1.4f));
+        rig.Clear(rig.Ch(ada).State.Position, face);
+        PlacementCandidate? onBuilding = Ghost(rig, ada, "wooden-ladder", face + rig.Zone.Frame.UpAt(face) * .15f);
+        Check(onBuilding, wall.Ref);
+        Assert.Equal(OutcomeCode.Done, Place(rig, ada, onBuilding!).Code, "server also accepts the structural wall mount");
+
+        void Check(PlacementCandidate? candidate, TargetRef support)
+        {
+            Assert.True(candidate is { Valid: true } && candidate.Support.Whole == support.Whole, $"wall mount ({candidate})");
+            Assert.True(Vector3.Dot(candidate!.Up, rig.Zone.Frame.UpAt(candidate.Position)) > .999f, "ladder stays vertical");
+            Vector3 outwardFace = Vector3.Transform(Vector3.UnitZ, Hollow.Simulation.Combat.Geometry.Upright(candidate.Up, candidate.Yaw));
+            Assert.True(Vector3.Dot(outwardFace, candidate.Normal) > .99f, "rungs face away from the contacted wall");
+            Assert.True(MathF.Abs(Vector3.Dot(candidate.Nearest - candidate.Position, candidate.Up) - ladder.HalfExtents.Y) < .02f,
+                "cursor contact is at the ladder centre, not its base");
+        }
+    }
+
     /// <summary>
     /// Limits (RustMVP's): so many of a kind on a structure (one claim device), so many of a thing a player. Rules of the
     /// test's own, one each, stand in for the deployables' 20 to a structure and the bags' 128.
@@ -240,7 +276,7 @@ public static class PlacementTests
     }
 
     /// <summary>
-    /// Doors and locks go where they fit: a door into the doorway aimed through, R hanging it the other way round; a garage
+    /// Doors and locks go where they fit: a door into the doorway aimed through, R stepping its hinge side and swing side; a garage
     /// door needs a wall frame (its ghost says so); a door claimed a metre away is refused; a lock goes onto the door,
     /// one to a door.
     /// </summary>
@@ -260,8 +296,10 @@ public static class PlacementTests
         Assert.Equal(OutcomeCode.NeedsWallFrame, Ghost(rig, ada, "garage-door", opening)?.Outcome.Code, "a garage door in a doorway");
         PlacementCandidate? door = Ghost(rig, ada, "wooden-door", opening), turned = Ghost(rig, ada, "wooden-door", opening, turns: 1);
         Assert.True(door is { Valid: true, Variant: 0 } && turned is { Valid: true, Variant: 1 } && door.Support == hut.Doorway.Ref,
-            $"a door in the doorway ({door}); R hangs it the other way ({turned})");
-        Assert.True(MathF.Abs(Quaternion.Dot(door!.Rotation, turned!.Rotation)) < 0.01f, "turned round");
+            $"a door in the doorway ({door}); R hangs it on the right ({turned})");
+        Assert.True(MathF.Abs(Quaternion.Dot(door!.Rotation, turned!.Rotation)) > 0.999f, "the frame's own turn: the layout is in how the leaves hang");
+        Assert.True(Ghost(rig, ada, "wooden-door", opening, turns: 2)?.Variant == 3 && Ghost(rig, ada, "wooden-door", opening, turns: 3)?.Variant == 2 &&
+            Ghost(rig, ada, "wooden-door", opening, turns: 4)?.Variant == 0, "R steps hinge right, then swing out, then hinge left, then back");
         Placeable wooden = door.Placeable;
         Outcome refused = rig.Zone.Placement().Place(ada, new PlaceRequest(ContainerRef.Main, SlotOf(rig.P(ada).Inventory.Main, wooden.Item!), 0, wooden.Index,
             door.Claim with { Position = door.Position + Vector3.Cross(outward, rig.Zone.Frame.UpAt(face)) }));
@@ -274,6 +312,59 @@ public static class PlacementTests
         Assert.Equal(OutcomeCode.Done, Place(rig, ada, codeLock!).Code, "fitted");
         Assert.True(fitted.Lock is CodeLock, "a code lock on the door");
         Assert.Equal(OutcomeCode.HasLock, Ghost(rig, ada, "key-lock", fitted.LockSpot.Position)?.Outcome.Code, "one lock to a door");
+    }
+
+    [Test]
+    public static void BuildingRepairGarageLockFitsFromEitherSideBetweenDoors()
+    {
+        using var rig = new GameRig();
+        Entity ada = rig.Add("Ada", 0, 0);
+        BuildingWorld world = rig.Zone.Building().World!;
+        Piece basePiece = BuildingNetTests.Foundation(rig.Zone, rig.Zone.GroundAt(0, 12), rig.P(ada).Id.Value);
+        PlacementPlan framePlan = world.FromIntent(rig.C.Building.Piece("wall-frame")!, basePiece, new SocketId(SocketKind.Edge, 0), 0)!;
+        Piece frame = world.Add(basePiece.Structure, framePlan.Piece, 0, framePlan.Pose, rig.P(ada).Id.Value, 0);
+        Assert.True(world.PlaceDoor(rig.P(ada).Id.Value, rig.C.Building.Door("garage-door")!, frame, 0, out Door? garage).Ok, "garage fitted");
+        for (int edge = 1; edge <= 2; edge++)
+        {
+            PlacementPlan wingPlan = world.FromIntent(rig.C.Building.Piece("foundation-triangle")!, basePiece, new SocketId(SocketKind.Edge, edge), 0)!;
+            Piece wing = world.Add(basePiece.Structure, wingPlan.Piece, 0, wingPlan.Pose, rig.P(ada).Id.Value, 0);
+            PlacementPlan doorPlan = world.FromIntent(rig.C.Building.Piece("doorway")!, wing, new SocketId(SocketKind.Edge, 1), 0)!;
+            Piece doorway = world.Add(wing.Structure, doorPlan.Piece, 0, doorPlan.Pose, rig.P(ada).Id.Value, 0);
+            Assert.True(world.PlaceDoor(rig.P(ada).Id.Value, rig.C.Building.Door("wooden-door")!, doorway, 0, out _).Ok, "neighbour door fitted");
+        }
+        rig.Give(ada, "code-lock", 1);
+        var (position, rotation) = garage!.LockSpot;
+        Vector3 normal = Vector3.Transform(Vector3.UnitZ, rotation);
+        Vector3 up = Vector3.Transform(Vector3.UnitY, rotation);
+        foreach (int side in new[] { -1, 1 })
+        {
+            Raids.Stand(rig, ada, position + normal * (side * 1.4f) - up * 1.05f);
+            PlacementCandidate? candidate = Ghost(rig, ada, "code-lock", position);
+            Assert.True(candidate is { Valid: true }, $"garage lock reached from side {side}: {candidate}");
+            PlacementCandidate? server = Placer.Settle(rig.Zone.Placement().World,
+                new PlacementContext(rig.P(ada).Id.Value, rig.Zone.EyeOf(rig.Ch(ada).State), candidate!.Placeable, null), candidate.Claim, out Outcome refused);
+            Assert.True(server != null && refused.Ok, "authoritative solver agrees");
+        }
+    }
+
+    [Test]
+    public static void BuildingRepairWorkbenchFitsItsMeasuredSpace()
+    {
+        using var rig = new GameRig();
+        Entity ada = rig.Add("Ada", 0, 0);
+        BuildingWorld world = rig.Zone.Building().World!;
+        Piece foundation = BuildingNetTests.Foundation(rig.Zone, rig.Zone.GroundAt(0, 12), rig.P(ada).Id.Value);
+        PlacementPlan wallPlan = world.FromIntent(rig.C.Building.Piece("wall")!, foundation, new SocketId(SocketKind.Edge, 1), 0)!;
+        world.Add(foundation.Structure, wallPlan.Piece, 0, wallPlan.Pose, rig.P(ada).Id.Value, 0);
+        Vector3 at = Top(rig.Zone, foundation, 0.3, 0);
+        Raids.Stand(rig, ada, BuildingWorld.F(foundation.Structure.Frame.ToZone(new Vector3D(0.3, 0, -2.7))));
+        rig.Give(ada, "workbench-3", 1);
+        PlacementCandidate? ghost = Ghost(rig, ada, "workbench-3", at);
+        Assert.True(ghost is { Valid: true }, $"the actual 1.86 m bench fits beside the wall: {ghost}");
+        var context = new PlacementContext(rig.P(ada).Id.Value, rig.Zone.EyeOf(rig.Ch(ada).State), ghost!.Placeable, null);
+        Assert.Equal(OutcomeCode.Blocked, new BoxFootprint(new Vector3(1.3f, 1, 0.7f)).Clear(rig.Zone.Placement().World, context, ghost).Code,
+            "the old 2.6 m footprint incorrectly blocks this space");
+        Assert.True(ghost.Placeable.Rule.Rotation == "support", "bench aligns with the foundation; R selects the next quarter turn");
     }
 
     /// <summary>

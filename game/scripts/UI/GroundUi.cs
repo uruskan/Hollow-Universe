@@ -68,6 +68,9 @@ public partial class GroundUi : Control
     /// <summary>The menu's CONNECT: player name, address and port.</summary>
     public event Action<string, string, int>? ConnectRequested;
 
+    /// <summary>The connected menu's DISCONNECT: leave this session and return to the main menu.</summary>
+    public event Action? DisconnectRequested;
+
     public event Action? QuitRequested;
 
     /// <summary>
@@ -164,6 +167,7 @@ public partial class GroundUi : Control
         Model.ChatReceived += OnChat;
         Resized += Layout;
         Ui.ScaleChanged += Layout;
+        GetWindow().FocusExited += CancelInventoryGestures;
         Open(Screen);
     }
 
@@ -172,6 +176,7 @@ public partial class GroundUi : Control
 
     public override void _ExitTree()
     {
+        StopMapWork();
         Model.HitConfirmed -= OnHit;
         Model.Damaged -= OnDamaged;
         Model.Gathered -= OnGathered;
@@ -179,6 +184,7 @@ public partial class GroundUi : Control
         Model.Notice -= OnNotice;
         Model.ChatReceived -= OnChat;
         Ui.ScaleChanged -= Layout;
+        GetWindow().FocusExited -= CancelInventoryGestures;
     }
 
     private LineEdit Field(string name, float fontSize, Color fill, Color focused)
@@ -205,10 +211,7 @@ public partial class GroundUi : Control
             {
                 Sound?.Invoke(open ? "ui.inventory.open" : "ui.inventory.close");
             }
-            _drag = null;
-            _splitTracking = false;
-            _hoverDone.Clear();
-            _hoverStarted.Clear();
+            CancelInventoryGestures();
         }
         // The F2 panel is watched by the server while it is open (GROUND.md §8.5).
         if (screen != Screen && (screen == GroundScreen.Developer || Screen == GroundScreen.Developer))
@@ -258,6 +261,19 @@ public partial class GroundUi : Control
 
     /// <summary>Where a point of the inventory's design canvas is on the window, in pixels.</summary>
     public Vector2 CanvasPoint(Vector2 design) => CanvasFrame + design * Ui.Scale;
+
+    /// <summary>The centre of a visible slot, for input-driven UI regression checks.</summary>
+    public Vector2 SlotPoint(SlotRef slot)
+    {
+        foreach (Hit hit in _hits)
+        {
+            if (hit.Kind == HitKind.Slot && hit.Slot == slot)
+            {
+                return hit.Rect.GetCenter();
+            }
+        }
+        throw new InvalidOperationException($"Slot {slot} is not visible.");
+    }
 
     /// <summary>Holds the pointer at a design-canvas point, for screenshots of hover states and wheels.</summary>
     public void HoldPointer(Vector2 design)
@@ -387,6 +403,7 @@ public partial class GroundUi : Control
     // Tab works even while a text field has focus (RustMVP routes it first).
     public override void _Input(InputEvent e)
     {
+        InventoryInput(e);
         if (e is InputEventKey { Pressed: true } panelKey && (DeveloperKey(panelKey) || ConsoleKey(panelKey)))
         {
             GetViewport().SetInputAsHandled();
@@ -522,6 +539,11 @@ public partial class GroundUi : Control
             PressInventory(h, button);
             return;
         }
+        if (Screen == GroundScreen.Inventory && h.Kind == HitKind.Character && button == MouseButton.Left)
+        {
+            _characterDragging = true;
+            return;
+        }
         if (h.Kind == HitKind.Map)
         {
             PressGlobe(button);
@@ -550,11 +572,12 @@ public partial class GroundUi : Control
         SplitIcon,
         SplitTrack,
         Panel,
+        Character,
         Map,
     }
 
     /// <summary>Something under the pointer: a button with its action, a slot, or a panel (so a press on it goes nowhere).</summary>
-    private readonly record struct Hit(Rect2 Rect, HitKind Kind, Action? Click = null, SlotRef Slot = default, string? Key = null);
+    private readonly record struct Hit(Rect2 Rect, HitKind Kind, Action? Click = null, SlotRef Slot = default, string? Key = null, string? Tooltip = null);
 
     private readonly List<Hit> _hits = new();
 
@@ -652,6 +675,10 @@ public partial class GroundUi : Control
     /// <summary>The body chosen in the menu (GROUND.md §4.8): female or not (male).</summary>
     public bool FemaleBody { get; set; }
 
+    /// <summary>A launch-specified port takes precedence over the last connection preference.</summary>
+    public int? ConnectionPortOverride { get; set; }
+    public int ConnectionPort => MenuPort();
+
     /// <summary>The body last chosen in the menu, as saved on this computer.</summary>
     public static bool SavedFemaleBody()
     {
@@ -667,7 +694,7 @@ public partial class GroundUi : Control
         FemaleBody = (string)file.GetValue("connection", "body", "male") == "female";
         _name.Text = (string)file.GetValue("connection", "name", "Survivor");
         _host.Text = (string)file.GetValue("connection", "host", "127.0.0.1");
-        _port.Text = ((int)file.GetValue("connection", "port", 27015)).ToString(CultureInfo.InvariantCulture);
+        _port.Text = (ConnectionPortOverride ?? (int)file.GetValue("connection", "port", 27015)).ToString(CultureInfo.InvariantCulture);
         foreach (string key in (string[])file.GetValue("crafting", "favourites", Array.Empty<string>()))
         {
             _favourites.Add(key);

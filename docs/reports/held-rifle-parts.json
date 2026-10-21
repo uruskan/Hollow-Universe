@@ -1,0 +1,71 @@
+{
+  "asset": "rifle",
+  "source": "D:\\GameDev\\Projects\\RustMVP\\assets\\PSG_FrontierAK_R05\\Source\\FrontierAK_R05_Game.blend",
+  "sourceLicense": "Owned geometry; game/assets/THIRD_PARTY.md",
+  "command": "D:/GameDev/Tools/blender-5.2.1-windows-x64/blender.exe --background --factory-startup --python art/import/frontier_rifle.py",
+  "blenderVersion": "5.2.1 LTS",
+  "output": "game/assets/items/rifle.glb",
+  "sourcePreserved": true,
+  "method": "Rigid source Magazine/Bolt weights partition the matching static pickup LOD1/2/3. Body is the exact remaining topology; no remeshing or new geometry.",
+  "triangleCounts": [
+    {
+      "Body": 17856,
+      "Magazine": 3158,
+      "Bolt": 314
+    },
+    {
+      "Body": 5938,
+      "Magazine": 992,
+      "Bolt": 66
+    },
+    {
+      "Body": 2304,
+      "Magazine": 314,
+      "Bolt": 36
+    }
+  ],
+  "parts": {
+    "Bolt": {
+      "translation": [
+        0.15800000727176666,
+        0.08100000023841858,
+        0.0
+      ],
+      "children": [
+        "Bolt_lod0",
+        "Bolt_lod1",
+        "Bolt_lod2"
+      ]
+    },
+    "Magazine": {
+      "translation": [
+        0.15000000596046448,
+        0.03200000151991844,
+        0.0
+      ],
+      "children": [
+        "Magazine_lod0",
+        "Magazine_lod1",
+        "Magazine_lod2"
+      ]
+    }
+  },
+  "socketCount": 8,
+  "collisionHulls": 6,
+  "maximumPositionDeltaMetres": 0,
+  "maximumNormalComponentDelta": 0.02288907766342163,
+  "maximumUvDelta": 0,
+  "maximumNormalAngleDeltaDegrees": 1.8904122114181519,
+  "normalNote": "Blender custom-normal re-encoding changes a few lowest-LOD corner directions slightly; vertex positions, topology, UVs, material assignments and socket/hull transforms compare unchanged.",
+  "sourceSha256": "f064ca6bf73692a865818bb3edcdb3f057497f7c58281c57b3941d406c1cd45f",
+  "outputSha256": "c0713eff6923338c291328ab3af6525919e6a9223364ba9f272e1ff17acae3dc",
+  "materials": [
+    "M_FrontierAK_Metal",
+    "M_FrontierAK_Furniture"
+  ],
+  "animations": 0,
+  "skins": 0,
+  "embeddedImages": 0,
+  "verification": "Every exported triangle matched the previous rifle by world-space corner positions, UVs and material; all 8 socket transforms and 6 collision hulls matched. Each movable part has 3 LOD mesh children.",
+  "godotImportAndVisualReview": "Completed 15 October 2026: imported into Godot 4.7.2 .NET; shared build13 has zero warnings/errors. Male/female gun checks each passed 12 actions and 200 FPS/TPS samples, including actual magazine presence and carrying phase assertions. Inspected all 56 frames of final FPS rifle reload and FPS/TPS contact sheet; actual magazine extraction/insertion and camera-clear recovery verified. Evidence: .artifacts/held-reload-final2-male.log, .artifacts/held-reload-final2-female.log, docs/images/held-items/rifle-reload.png and rifle-reload.mp4. Headless shutdown still reports six Jolt shapes and one ObjectDB instance, also present before this asset split."
+}

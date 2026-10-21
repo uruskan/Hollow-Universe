@@ -33,7 +33,7 @@ public readonly record struct ClaimRecord(EntityId Id, EntityId Support, Vector3
 public static class BuildingCodec
 {
     public const byte PieceVersion = 1;
-    public const byte DoorVersion = 1;
+    public const byte DoorVersion = 2;
     public const byte ClaimVersion = 1;
 
     // ---------------------------------------------------------------- frames between the zone and the body
@@ -145,44 +145,21 @@ public static class BuildingCodec
         w.Write(DoorVersion);
         w.Write(d.Frame.Id.Value);
         w.Write(d.Def.Key);
-        w.Write((byte)d.Flip);
+        w.Write((byte)d.Layout);
         w.Write(d.Open);
         w.Write(d.Health);
         w.Write(d.Owner);
-        switch (d.Lock)
-        {
-            case KeyLock key:
-                w.Write((byte)LockKind.Key);
-                w.Write(key.Id.Value);
-                w.Write(key.Owner);
-                w.Write(key.Locked);
-                w.Write(key.KeyCode);
-                break;
-            case CodeLock code:
-                w.Write((byte)LockKind.Code);
-                w.Write(code.Id.Value);
-                w.Write(code.Owner);
-                w.Write(code.Locked);
-                w.Write(code.CodeHash);
-                w.Write((ushort)code.Authorised.Count);
-                foreach (ulong player in code.Authorised)
-                {
-                    w.Write(player);
-                }
-                break;
-            default:
-                w.Write((byte)LockKind.None);
-                break;
-        }
+        LockCodec.Write(w, d.Lock);
     });
 
     /// <summary>Puts a stored door (and its lock) back on its frame piece; null when the piece or the door's kind is gone.</summary>
     public static Door? RestoreDoor(BuildingWorld building, EntityId id, byte[] data)
     {
-        using BinaryReader r = Reader(data, DoorVersion, "door", out _);
+        using BinaryReader r = Reader(data, DoorVersion, "door", out byte version);
         var frameId = new EntityId(r.ReadUInt64());
         string key = r.ReadString();
-        int flip = r.ReadByte();
+        // Version 1 stored a half turn of the whole door (hinge on the other side and swinging the other way: layout 3).
+        int layout = version < 2 ? (r.ReadByte() != 0 ? 3 : 0) : r.ReadByte();
         bool open = r.ReadBoolean();
         double health = r.ReadDouble();
         ulong owner = r.ReadUInt64();
@@ -190,31 +167,14 @@ public static class BuildingCodec
         {
             return null;
         }
-        Door? door = building.RestoreDoor(id, def, frame, flip, owner, open, health);
+        Door? door = building.RestoreDoor(id, def, frame, layout, owner, open, health);
         if (door == null)
         {
             return null;
         }
-        switch ((LockKind)r.ReadByte())
-        {
-            case LockKind.Key:
-            {
-                var lockId = new EntityId(r.ReadUInt64());
-                ulong lockOwner = r.ReadUInt64();
-                bool locked = r.ReadBoolean();
-                building.RestoreKeyLock(door, lockId, lockOwner, r.ReadInt32(), locked);
-                break;
-            }
-            case LockKind.Code:
-            {
-                var lockId = new EntityId(r.ReadUInt64());
-                ulong lockOwner = r.ReadUInt64();
-                bool locked = r.ReadBoolean();
-                ulong hash = r.ReadUInt64();
-                building.RestoreCodeLock(door, lockId, lockOwner, hash, locked, ReadPlayers(r));
-                break;
-            }
-        }
+        ((ILockHost)door).Lock = LockCodec.Read(r, building.Data.LockMaxAuthorised);
+        building.ObserveLock(door.Lock);
+        ((ILockHost)door).LockChanged();
         return door;
     }
 

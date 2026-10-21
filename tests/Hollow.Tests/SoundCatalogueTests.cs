@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Hollow.Client.Audio;
+using Hollow.Simulation.Content;
 
 namespace Hollow.Tests;
 
@@ -215,7 +216,8 @@ public static class SoundCatalogueTests
                         Need(key, "shot", "magOut", "magIn", "rack", "dryFire");
                         break;
                     case "door":
-                        Need(key, "open", "close");
+                        Need(key, "place");
+                        if (ContentFixture.Content.Building.Door(key)?.Opens != false) Need(key, "open", "close");
                         break;
                     case "lock":
                     case "explosive":
@@ -224,13 +226,17 @@ public static class SoundCatalogueTests
                 }
             }
         }
-        // Every door kind of the building rules.
-        using (JsonDocument building = JsonDocument.Parse(File.ReadAllText(Path.Combine(data, "building.json"))))
+        // Follow the rule capability: stationary window fittings are placed but cannot open or close.
+        foreach (var door in ContentFixture.Content.Building.Doors)
         {
-            foreach (JsonElement door in building.RootElement.GetProperty("doors").EnumerateArray())
-            {
-                Need(door.GetProperty("key").GetString()!, "open", "close");
-            }
+            Need(door.Key, "place");
+            if (door.Opens) Need(door.Key, "open", "close");
+        }
+        // Compound gates and fuelled devices extend the same roles; adding a variant cannot silently omit them.
+        foreach (var deployable in ContentFixture.Content.Deployables)
+        {
+            if (deployable.Gate != null) Need(deployable.Key, "place", "open", "close");
+            if (deployable.Device != null) Need(deployable.Key, "loop", "ignite", "extinguish", "open", "close");
         }
         // Every footstep the rules can ask for, and every ambience bed and accent.
         foreach (string key in Footsteps.AllKeys().Concat(new AmbienceLevels().Beds().Select(b => b.Key))
@@ -243,6 +249,43 @@ public static class SoundCatalogueTests
         }
         Assert.True(problems.Count == 0, string.Join("; ", problems));
         Fixtures.Report($"{c.Items.Count} items and door kinds with sounds");
+    }
+
+    [Test]
+    public static void SoundCatalogueCoversBatteryFire()
+    {
+        SoundCatalogData c = Catalogue();
+        IReadOnlyList<BatteryDef> batteries = ContentFixture.Content.Batteries;
+        Assert.True(batteries.Count > 0, "no batteries loaded for sound coverage");
+        var problems = new List<string>();
+        foreach (BatteryDef battery in batteries)
+        {
+            foreach (string role in new[] { "report", "mechanism", "interior" })
+            {
+                string key = $"{battery.Key}.fire.{role}";
+                SoundEventData? sound = c.Find(key);
+                if (sound == null)
+                {
+                    problems.Add($"no event {key}");
+                    continue;
+                }
+                if (!sound.AllFiles.Any())
+                {
+                    problems.Add($"{key}: no playable files");
+                }
+                if (sound.Loop)
+                {
+                    problems.Add($"{key}: a battery shot must not loop");
+                }
+                // StationsView plays the interior with Play2D, which selects top-level files only.
+                if (role == "interior" && (sound.Layered || sound.Files.Count == 0))
+                {
+                    problems.Add($"{key}: interior needs non-layered top-level files for Play2D");
+                }
+            }
+        }
+        Assert.True(problems.Count == 0, string.Join("; ", problems));
+        Fixtures.Report($"{batteries.Count} batteries with report, mechanism and interior shot sounds");
     }
 
     private static string Local(string res)

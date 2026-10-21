@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Threading;
 
 namespace HollowUniverse.UI.Model;
 
@@ -14,7 +15,8 @@ namespace HollowUniverse.UI.Model;
 /// <see cref="Radius"/> in metres; and its grid of <see cref="Cells"/> × <see cref="Cells"/> cells a face, named by
 /// <c>WorldGrid</c> ("C K12").
 /// </summary>
-public sealed record MapView(string CacheKey, int Pixels, Func<byte[]> Render, double Radius, int Cells);
+public sealed record MapView(string CacheKey, int Pixels, Func<byte[]> Render, double Radius, int Cells,
+    Func<CancellationToken, byte[]>? RenderCancellable = null);
 
 /// <summary>What a map marker is.</summary>
 public enum MapMarkerKind : byte
@@ -59,7 +61,11 @@ public enum TechNodeState : byte
 public sealed record TechNodeView(string Key, int Cost, int Depth, IReadOnlyList<string> After, TechNodeState State);
 
 /// <summary>The tech tree of the workbench in reach: its level, its nodes in order, the salvage the player has.</summary>
-public sealed record TechTreeView(int Workbench, IReadOnlyList<TechNodeView> Nodes, int Salvage);
+public sealed record TechTreeView(int Workbench, IReadOnlyList<TechNodeView> Nodes, int Salvage, string? StationName = null)
+{
+    /// <summary>Its station has a bay where a vehicle's build is changed (the vehicle workbench, VEHICLES.md §9.11).</summary>
+    public bool Bay { get; init; }
+}
 
 /// <summary>A member of the player's team.</summary>
 public sealed record TeamMemberInfo(string Id, string Name, bool Online, bool Leader, bool Me);

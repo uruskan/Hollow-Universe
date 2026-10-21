@@ -61,11 +61,15 @@ public sealed class ZoneMoveFrame(ZoneFrame frame, double seaRadius, float gravi
 
     public float Submersion(Vector3 position, MovementTuning tuning)
     {
-        if (SeaRadius <= 0)
+        if (surface == null && SeaRadius <= 0)
         {
             return 0f;
         }
-        double depth = SeaRadius - Frame.ToBody(position).Length;
+        var point = Frame.ToBody(position);
+        double radial = point.Length;
+        double waterRadius = surface != null && radial > 0
+            ? surface.Radius + surface.WaterLevelAt(point / radial) : SeaRadius;
+        double depth = waterRadius - radial;
         return depth <= 0 ? 0f : (float)Math.Min(1.0, depth / tuning.StandingHeight);
     }
 }
@@ -141,6 +145,8 @@ public sealed class MoveFrames
 
     public MovementTuning Tuning { get; }
 
+    public Climbing? Climbs { get; set; }
+
     /// <summary>The ships' frames, in the order they were added (stable: the hand-over tests them in it).</summary>
     public IReadOnlyList<IShipFrame> Ships => _order;
 
@@ -190,7 +196,7 @@ public sealed class MoveFrames
             turned.View = ViewIn(input.View, input.Frame, state.Frame, tick);
         }
         turned.Frame = state.Frame;
-        events = CharacterMotor.Step(ref state, turned, body, new MoveContext(frame, Tuning));
+        events = CharacterMotor.Step(ref state, turned, body, new MoveContext(frame, Tuning, Climbs));
         if (!state.IsDead && state.Stance != Stance.Seated && !state.Has(MoveCheats.Noclip))
         {
             HandOver(ref state, frame, body, tick);

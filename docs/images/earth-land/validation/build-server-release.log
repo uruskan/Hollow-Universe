@@ -1,0 +1,13 @@
+  Hollow.Core -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Core\bin\Release\net10.0\Hollow.Core.dll
+  Hollow.Galaxy -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Galaxy\bin\Release\net10.0\Hollow.Galaxy.dll
+  Hollow.Surface -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Surface\bin\Release\net10.0\Hollow.Surface.dll
+  Hollow.Simulation -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Simulation\bin\Release\net10.0\Hollow.Simulation.dll
+  Hollow.Net -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Net\bin\Release\net10.0\Hollow.Net.dll
+  Hollow.Persistence -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Persistence\bin\Release\net10.0\Hollow.Persistence.dll
+  Hollow.Server -> D:\GameDev\Projects\HollowUniverseABTestB\src\Hollow.Server\bin\Release\net10.0\Hollow.Server.dll
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:01.12

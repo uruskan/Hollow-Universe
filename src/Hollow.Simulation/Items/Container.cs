@@ -153,6 +153,28 @@ public sealed class Container
     /// <summary>What a magazine takes (its battery's rockets), by item ID; null for every other kind.</summary>
     public IReadOnlySet<ushort>? Takes { get; init; }
 
+    /// <summary>A single accepted item (0: the kind's normal rules), such as a ship's fuel.</summary>
+    public ushort AcceptedItem { get; private set; }
+
+    /// <summary>A specialised slot capacity (0 with no accepted-item filter: the item's normal stack size).</summary>
+    public int StackLimit { get; private set; }
+
+    public int Limit(ItemDef item) => AcceptedItem != 0 || StackLimit > 0 ? StackLimit : item.StackSize;
+
+    /// <summary>Constraints travel with full and incremental container updates, including when the slot is empty.</summary>
+    public void SetConstraints(ushort acceptedItem, int stackLimit)
+    {
+        stackLimit = Math.Max(0, stackLimit);
+        if (AcceptedItem == acceptedItem && StackLimit == stackLimit) return;
+        AcceptedItem = acceptedItem;
+        StackLimit = stackLimit;
+        for (int i = 0; i < Size; i++)
+        {
+            if (!_dirty[i]) { _dirty[i] = true; _dirtyCount++; }
+        }
+        Revision++;
+    }
+
     /// <summary>Raised on every change.</summary>
     public uint Revision { get; private set; }
 
@@ -234,6 +256,7 @@ public sealed class Container
     /// <summary>Copies another container's slots into this one (same size), marking changes.</summary>
     public void CopyFrom(Container other)
     {
+        SetConstraints(other.AcceptedItem, other.StackLimit);
         for (int i = 0; i < Math.Min(Size, other.Size); i++)
         {
             Set(i, other[i]);
@@ -253,9 +276,13 @@ public sealed class Container
             return false;
         }
         ItemDef? item = content.Item(stack.Item);
-        if (item == null || stack.Count > item.StackSize)
+        if (item == null || stack.Count > Limit(item) || (AcceptedItem != 0 && item.Id != AcceptedItem))
         {
             return false;
+        }
+        if (Deployable?.Defense is { } defense)
+        {
+            return defense.Accepts(content, this, slot, stack);
         }
         switch (Kind)
         {

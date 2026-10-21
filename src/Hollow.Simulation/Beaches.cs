@@ -55,6 +55,7 @@ public sealed class Beaches
                 {
                     var tile = new TileKey(face, level, x, y);
                     Vector3D direction = tile.Centre;
+                    if (surface is WalkingWorld walking && walking.Monuments.At(direction, 8) != null) continue;
                     double h = surface.HeightAt(direction) - sea;
                     if (h < 0.5 || h > 3.5 || surface.BiomeAt(direction) != Biome.Beach ||
                         !Gentle(surface, direction, h + sea) || !WaterNear(surface, direction, sea))

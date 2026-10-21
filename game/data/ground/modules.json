@@ -1,0 +1,101 @@
+{
+  "source": "VEHICLES.md §3.2, §9.1. Modules a ship's sockets take: each an item, its frame's origin at its socket (a bay's rear centre on the deck, +Z forward, +Y up, +X the left side), its first part its body (a ball for the interact key and the hammer; its hull boxes for shots and blasts). The TOGG's (V2): a one-seat cab whose seat drives when it is the front-most cab on level 1, reached through its door, and an engine that goes in a bay or the nose mount; its running gear (VEHICLES.md §9.11) on the ground sockets: the stock tyres or the monster tyres, which need the lift kit (it raises the body 0.75 m and draws the Monster TOGG's frame). A module's ground, drag, crash and fuelUse blocks replace the kind's numbers while it is fitted (ShipTuning). Numbers are VEHICLES.md's starting values.",
+  "modules": [
+    {
+      "key": "togg-cab-one", "item": "togg-cab-one", "fits": ["bay"], "levels": [1, 2], "height": 1.6, "carries": true,
+      "mass": 220, "centreOfMass": [0, 0.8, 0.7],
+      "hull": [{ "centre": [0, 0.8, 0.7], "size": [0.95, 0.8, 0.68] }],
+      "seats": [
+        {
+          "key": "driver", "name": "Driver's seat", "role": "helm", "verb": "drive", "sitters": "unlocked", "works": ["doors"], "door": "door",
+          "at": [0, 0.42, 0.65], "eye": [0, 1.24, 0.75], "exits": [[1.55, -0.98, 0.7], [-1.55, -0.98, 0.7], [0, -0.98, -2.2]]
+        }
+      ],
+      "doors": [{ "key": "door", "name": "Door", "clip": "Door_Open", "seconds": 0.6, "opens": "always" }],
+      "parts": [
+        { "key": "cab", "name": "Cab", "at": [0, 1.2, 0.7], "radius": 0.55,
+          "health": { "max": 600, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 60] } },
+        { "key": "door", "name": "Cab door", "at": [0.98, 0.7, 0.7], "radius": 0.45, "capabilities": ["ship-door", "seat", "cupboard"], "door": "door", "seat": "driver" }
+      ]
+    },
+    {
+      "key": "togg-engine", "item": "togg-engine", "fits": ["bay", "engine-mount"], "levels": [1], "height": 0.95,
+      "mass": 280, "centreOfMass": [0, 0.4, 0.6], "power": 90000, "boost": 1.4,
+      "hull": [{ "centre": [0, 0.42, 0.6], "size": [0.9, 0.42, 0.58] }],
+      "parts": [
+        { "key": "engine", "name": "Engine", "at": [0, 0.5, 0.6], "radius": 0.6,
+          "health": { "max": 500, "protection": "metal", "table": "pieces", "repair": ["refined-metal", 20] } }
+      ]
+    },
+    {
+      "key": "monster-togg-engine", "item": "monster-togg-engine", "fits": ["bay", "engine-mount"], "levels": [1], "height": 1.45,
+      "mass": 400, "centreOfMass": [0, 0.45, 0.6], "power": 450000, "boost": 1.4, "fuel": 60, "sound": "monster-togg",
+      "ground": { "topSpeed": 34, "reverseSpeed": 9, "traction": 30000, "coast": 0.14 }, "fuelUse": { "idle": 0.02, "full": 0.28 },
+      "hull": [{ "centre": [0, 0.5, 0.6], "size": [0.9, 0.5, 0.58] }],
+      "parts": [
+        { "key": "engine", "name": "Blown six", "at": [0, 0.6, 0.6], "radius": 0.65,
+          "health": { "max": 900, "protection": "metal", "table": "pieces", "repair": ["refined-metal", 40] } }
+      ]
+    },
+    {
+      "key": "togg-tyres", "item": "togg-tyres", "model": "", "fits": ["togg-wheels"], "excludes": ["togg-lift"], "levels": [1], "height": 0.96,
+      "mass": 120, "centreOfMass": [0, 0.48, 1.8],
+      "hull": [
+        { "centre": [0.975, 0.55, 3.6], "size": [0.16, 0.3, 0.42] }, { "centre": [-0.975, 0.55, 3.6], "size": [0.16, 0.3, 0.42] },
+        { "centre": [0.975, 0.55, 0], "size": [0.16, 0.3, 0.42] }, { "centre": [-0.975, 0.55, 0], "size": [0.16, 0.3, 0.42] }
+      ],
+      "wheels": [
+        { "key": "front-left", "hub": [0.975, 0.48, 3.6], "radius": 0.48, "width": 0.32, "travel": 0.35, "stiffness": 15000, "damping": 1800, "steers": true, "drives": true },
+        { "key": "front-right", "hub": [-0.975, 0.48, 3.6], "radius": 0.48, "width": 0.32, "travel": 0.35, "stiffness": 15000, "damping": 1800, "steers": true, "drives": true },
+        { "key": "rear-left", "hub": [0.975, 0.48, 0], "radius": 0.48, "width": 0.32, "travel": 0.35, "stiffness": 15000, "damping": 1800, "drives": true, "handbrake": true },
+        { "key": "rear-right", "hub": [-0.975, 0.48, 0], "radius": 0.48, "width": 0.32, "travel": 0.35, "stiffness": 15000, "damping": 1800, "drives": true, "handbrake": true }
+      ],
+      "parts": [
+        { "key": "tyres", "name": "Tyres", "at": [0.975, 0.48, 0], "radius": 0.5,
+          "health": { "max": 400, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 40] } }
+      ]
+    },
+    {
+      "key": "monster-tyres", "item": "monster-tyres", "model": "", "fits": ["togg-wheels"], "needs": ["togg-lift"], "levels": [1], "height": 1.7,
+      "mass": 400, "centreOfMass": [0, 0.85, 1.8],
+      "ground": { "brake": 34000, "steer": 30, "steerFast": 7, "rolling": 0.02, "handbrakeGrip": 0.5 },
+      "crash": { "safe": 13, "scale": 1.8, "pilot": 0.2 },
+      "hull": [
+        { "centre": [1.42, 1.0, 3.6], "size": [0.31, 0.45, 0.6] }, { "centre": [-1.42, 1.0, 3.6], "size": [0.31, 0.45, 0.6] },
+        { "centre": [1.42, 1.0, 0], "size": [0.31, 0.45, 0.6] }, { "centre": [-1.42, 1.0, 0], "size": [0.31, 0.45, 0.6] }
+      ],
+      "wheels": [
+        { "key": "front-left", "hub": [1.42, 0.85, 3.6], "radius": 0.85, "width": 0.62, "travel": 0.6, "stiffness": 14400, "damping": 2600, "grip": 1.15, "steers": true, "drives": true },
+        { "key": "front-right", "hub": [-1.42, 0.85, 3.6], "radius": 0.85, "width": 0.62, "travel": 0.6, "stiffness": 14400, "damping": 2600, "grip": 1.15, "steers": true, "drives": true },
+        { "key": "rear-left", "hub": [1.42, 0.85, 0], "radius": 0.85, "width": 0.62, "travel": 0.6, "stiffness": 14400, "damping": 2600, "grip": 1.15, "drives": true, "handbrake": true },
+        { "key": "rear-right", "hub": [-1.42, 0.85, 0], "radius": 0.85, "width": 0.62, "travel": 0.6, "stiffness": 14400, "damping": 2600, "grip": 1.15, "drives": true, "handbrake": true }
+      ],
+      "parts": [
+        { "key": "tyres", "name": "Monster tyres", "at": [1.42, 0.85, 0], "radius": 0.85,
+          "health": { "max": 900, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 90] } }
+      ]
+    },
+    {
+      "key": "togg-lift-kit", "item": "togg-lift-kit", "model": "", "fits": ["togg-lift"], "levels": [1], "height": 1.5, "raise": 0.75,
+      "frame": "monster-togg-frame", "mass": 370, "centreOfMass": [0, 0.89, 1.63], "inertia": [1751.7, 1725.8, 550.9],
+      "ground": { "gripHeight": 0.7, "righting": 40, "rightingDamping": 6 },
+      "drag": { "forward": 1.6, "side": 4.0, "top": 5.0, "turn": 0.5 },
+      "hull": [
+        { "centre": [1.0, 1.35, 3.6], "size": [0.12, 0.15, 0.12] }, { "centre": [-1.0, 1.35, 3.6], "size": [0.12, 0.15, 0.12] },
+        { "centre": [1.0, 1.35, 0], "size": [0.12, 0.15, 0.12] }, { "centre": [-1.0, 1.35, 0], "size": [0.12, 0.15, 0.12] }
+      ],
+      "parts": [
+        { "key": "kit", "name": "Lift kit", "at": [1.0, 1.3, 1.8], "radius": 0.5,
+          "health": { "max": 800, "protection": "metal", "table": "pieces", "repair": ["refined-metal", 30] } }
+      ]
+    },
+    { "key": "ka-fa-twin", "item": "ka-fa-twin", "fits": ["ka-fa-engine"], "levels": [1], "height": 0.7, "mass": 95, "centreOfMass": [0, 0.2, 0], "drive": {"lift": 9600}, "hull": [{"centre": [0, 0.22, 0], "size": [0.43, 0.2, 0.2]}, {"centre": [-0.48, 0.12, -0.48], "size": [0.06, 0.06, 0.3]}], "parts": [{"key": "engine", "name": "Flat twin", "at": [0, 0.3, 0], "radius": 0.45, "health": {"max": 300, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 60]}}]},
+    { "key": "ka-fa-tuned-twin", "item": "ka-fa-tuned-twin", "fits": ["ka-fa-engine"], "levels": [1], "height": 0.7, "mass": 90, "centreOfMass": [0, 0.2, 0], "drive": {"lift": 11500}, "hull": [{"centre": [0, 0.22, 0], "size": [0.43, 0.2, 0.2]}, {"centre": [-0.48, 0.12, -0.48], "size": [0.06, 0.06, 0.3]}], "parts": [{"key": "engine", "name": "Tuned twin", "at": [0, 0.3, 0], "radius": 0.45, "health": {"max": 300, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 80]}}]},
+    { "key": "ka-fa-rotor", "item": "ka-fa-rotor", "fits": ["ka-fa-rotor"], "levels": [1], "height": 0.1, "mass": 45, "centreOfMass": [0, 0.03, 0], "drive": {"rotor": 1}, "hull": [{"centre": [0, 0.03, 0], "size": [0.12, 0.05, 0.07]}, {"centre": [0, 0.03, 0], "size": [3.5, 0.04, 1.45], "fragile": true}, {"centre": [0, 0.03, 0], "size": [1.45, 0.04, 3.5], "fragile": true}], "parts": [{"key": "rotor", "name": "Rotor", "at": [0, 0.05, 0], "radius": 0.3, "health": {"max": 200, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 40]}}]},
+    { "key": "ka-fa-jerry-tank", "item": "ka-fa-jerry-tank", "fits": ["ka-fa-tank"], "levels": [1], "height": 0, "mass": 30, "centreOfMass": [0, -0.13, 0], "fuel": 240, "hull": [{"centre": [0, -0.13, 0], "size": [0.25, 0.11, 0.22]}], "parts": [{"key": "tank", "name": "Jerry tank", "at": [0, -0.13, 0], "radius": 0.3, "health": {"max": 150, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 25]}}]},
+    { "key": "ka-fa-long-tank", "item": "ka-fa-long-tank", "fits": ["ka-fa-tank"], "levels": [1], "height": 0, "mass": 55, "centreOfMass": [0, -0.18, 0], "fuel": 490, "hull": [{"centre": [0, -0.18, 0], "size": [0.15, 0.15, 0.47]}], "parts": [{"key": "tank", "name": "Long tank", "at": [0, -0.18, 0], "radius": 0.35, "health": {"max": 200, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 40]}}]},
+    { "key": "ka-fa-rear-seat", "item": "ka-fa-rear-seat", "fits": ["ka-fa-rear"], "levels": [1], "height": 1.1, "mass": 20, "centreOfMass": [0, 0.35, 0], "hull": [{"centre": [-0.02, 0.5, 0], "size": [0.24, 0.5, 0.24]}], "seats": [{"key": "rear", "name": "Rear seat", "role": "passenger", "verb": "sit", "sitters": "unlocked", "exposed": true, "at": {"at": [-0.12, 0.375, 0.02], "forward": [-1, 0, 0]}, "eye": [-0.22, 1.155, 0.02], "exits": [[-1.3, -0.465, 0.1], [1.3, -0.465, 0.1], [0, -0.465, -1.1]]}], "parts": [{"key": "seat", "name": "Rear seat", "at": [-0.1, 0.45, 0], "radius": 0.5, "capabilities": ["seat"], "seat": "rear", "health": {"max": 100, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 20]}}]},
+    { "key": "ka-fa-cargo-box", "item": "ka-fa-cargo-box", "fits": ["ka-fa-rear"], "levels": [1], "height": 0.5, "mass": 35, "centreOfMass": [0, 0.22, 0], "hold": 12, "hull": [{"centre": [0, 0.24, 0], "size": [0.32, 0.25, 0.29]}], "parts": [{"key": "box", "name": "Cargo box", "at": [0, 0.3, 0], "radius": 0.45, "capabilities": ["container"], "health": {"max": 200, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 30]}}]},
+    { "key": "ka-fa-plating", "item": "ka-fa-plating", "fits": ["ka-fa-plating"], "levels": [1], "height": 0, "mass": 110, "centreOfMass": [0, 0.6, 0.2], "hull": [{"centre": [0.39, 0.66, 0.56], "size": [0.01, 0.21, 0.53]}, {"centre": [-0.39, 0.66, 0.56], "size": [0.01, 0.21, 0.53]}, {"centre": [0.41, 0.74, -0.56], "size": [0.01, 0.23, 0.26]}, {"centre": [-0.41, 0.74, -0.56], "size": [0.01, 0.23, 0.26]}, {"centre": [0, 0.412, 0.55], "size": [0.37, 0.01, 0.58]}], "parts": [{"key": "plates", "name": "Plating", "at": [0.4, 0.66, 0.3], "radius": 0.5, "health": {"max": 250, "protection": "metal", "table": "pieces", "repair": ["metal-fragments", 80]}}]}
+  ]
+}

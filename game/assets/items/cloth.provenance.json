@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "item": "cloth",
+  "date": "2026-10-18",
+  "authorship": "Original project-authored mesh, procedural weave, material maps and rendered icons; no external asset files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/cloth",
+    "image": "https://files.facepunch.com/rust/item/cloth_512.png",
+    "use": "Visual observation only; linked, not copied into the repository"
+  },
+  "authoring_source": {
+    "path": "art/models/cloth.py",
+    "sha256": "9f8d790918582aaaadf285e198c8070cce8a5cfc2df80623fdc7d1a9c321f540"
+  },
+  "geometry": {
+    "asset": "cloth",
+    "origin": "Original authored geometry and procedural weave; no external assets",
+    "dimensions_blender_xyz_m": [
+      0.31421035528182983,
+      0.2994540333747864,
+      0.06525831669569016
+    ],
+    "texture_size": 512,
+    "texture_repeat_m": 0.04,
+    "fabric_thickness_m": 0.0015,
+    "lod_triangles": {
+      "Cloth_lod0": 5916,
+      "Cloth_lod1": 2356,
+      "Cloth_lod2": 968
+    },
+    "hull_triangles": 54
+  },
+  "files": {
+    "game/assets/items/cloth.glb": {
+      "sha256": "71103e01053556e1217d444b89f24105bf48345c91775166b92a939a91b8bb36",
+      "bytes": 262388
+    },
+    "game/assets/items/cloth.glb.import": {
+      "sha256": "e5d9277dbc65a156097c0281b07aabb7881f3e2cbf04bfed802e1984f4519324",
+      "bytes": 1339
+    },
+    "game/assets/materials/cloth.tres": {
+      "sha256": "cb2226a330dcd88d314b6fe322389a03f8a0cef4285b4a5404f57879032deacb",
+      "bytes": 600
+    },
+    "game/assets/textures/cloth/cloth_albedo.png": {
+      "sha256": "4f51eb0d0275a479d4f6b820be5c1db5ebd327c2e2475b50155979d1c1945b68",
+      "bytes": 106174
+    },
+    "game/assets/textures/cloth/cloth_albedo.png.import": {
+      "sha256": "3a66d30b2d11a6635832dae6319602aa1a5a4a56d505ea341bafd4c971ce5ef3",
+      "bytes": 1010
+    },
+    "game/assets/textures/cloth/cloth_normal.png": {
+      "sha256": "d5533d35a5464f36bb8ef9672f118d0497b3a9e799c0b8fcca3fb03d26e4e6d5",
+      "bytes": 125154
+    },
+    "game/assets/textures/cloth/cloth_normal.png.import": {
+      "sha256": "8e9fd6c495b41b68aa1630c9c9d1dd14833d9da7be6bdcf8f04664cdfeffb747",
+      "bytes": 1010
+    },
+    "game/assets/textures/cloth/cloth_orm.png": {
+      "sha256": "6d1e89866610a8d9a917c98cf6e380f681897cf59f6390294073f3dbc5f7ee1e",
+      "bytes": 62937
+    },
+    "game/assets/textures/cloth/cloth_orm.png.import": {
+      "sha256": "c348efc3f96fd409146ac6cedb45eaa2d09b10d67dc72d9f5313f2acf6afa217",
+      "bytes": 1001
+    },
+    "game/assets/items/icons/128/cloth.png": {
+      "sha256": "a7894a853fab2206fee85fe7dc7e56eed6cc93cf532eaa34bb75970e7569cfe7",
+      "bytes": 9890
+    },
+    "game/assets/items/icons/128/cloth.png.import": {
+      "sha256": "a4f2890e504190ab45c913011220df8a06c13f60568c1d4afed87c379d88e51a",
+      "bytes": 942
+    },
+    "game/assets/items/icons/256/cloth.png": {
+      "sha256": "79cf5534307914fbca5202ba4bb61b2cb947b638ce21674efa703d25be4fbe53",
+      "bytes": 31133
+    },
+    "game/assets/items/icons/256/cloth.png.import": {
+      "sha256": "b4b7848ef64a0bd282cb821def0e6b65ea524414c5ca4cd65b1c8f8ae3c69677",
+      "bytes": 942
+    }
+  }
+}

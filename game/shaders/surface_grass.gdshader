@@ -1,18 +1,19 @@
-// Grass and ground cover of the surface view (GROUND.md §4.6, docs/WHOLE_WORLD.md §10.3): no plant models, a field of
-// small cards drawn by the GPU on a grid that follows the camera. Every instance is a cell of a cube face (one grid a
-// face near a seam: GrassField.cs), so what grows in it (place, size, lean, colour, dryness, kind) comes from a hash of
-// the face and the cell and never shifts as the grid moves; a cell whose middle lies beyond its face's edge is left to
-// the neighbouring face's grid. The cells' corners lie on the drawn ground (a lattice texture made on the CPU, with the
-// grass density); the moisture, flowers, forest cover and small plants come from a second texture. Each tuft stands along
-// up from the planet's centre, turned in the ground's own plane; its colour is measured in metres on the face, as the
-// terrain's grass layer under it.
-// - Layer 0, upright: grass tufts (fewer, looser blades where grass is sparse), meadow grass, dry grass, flowers;
-//   under trees ferns, herbs and seedlings. Blades are hollow-orbit's painted cards, coloured like the ground's grass
-//   layer under them, with normals that mostly point up so a field lights as one; the base takes the ground's colour.
-//   Wind bends them with gusts that roll across the field; they bend away from the walker's feet.
-// - Layer 1, flat: leaf litter, needles and twigs lying on the forest floor (the atlas's leaf and twig cells, faded
-//   to browns).
-// Far away everything shrinks into the ground.
+// The ground's grass clumps (GROUND.md §4.6, docs/WALKING_GROUND.md §18): five species of our own (art/grass/build_grass.py)
+// and the forest floor's litter, each a bundle of cards carrying painted blades, drawn as MultiMesh instances that
+// GrassField lays out per tile on a worker, rooted on the drawn terrain's own triangles. Per instance:
+// - transform: the root (on the finest drawn triangle), the clump's turn and size, and the ground's slope as a shear, so
+//   blades stay upright while their feet follow the ground;
+// - colour: the place's grass brightness (r, GrassField.Tint.cs: the terrain's own tint noise at the root), dryness (g)
+//   and canopy over it (b) (Godot multiplies the instance colour into COLOR; the meshes carry none of their own, their
+//   cards' height fraction and rank being UV2);
+// - custom: the terrain's morph at the root (x, metres along up: the drawn ground sinks toward its parent's grid far off),
+//   a wind phase (y), the clump's stable thinning rank (z) and its variant and palette draw (w).
+// With distance, cards drop one by one in a stable order (each level of detail is the first cards of the nearest, with
+// fewer segments; GrassField switches a tile's level once the cards it lacks are gone), whole clumps thin by their rank
+// while the rest widen, and the far edge dissolves clump by clump instead of shrinking into a flat ring.
+// Wind bends the cards with gusts rolling across the field, and their normals with them; the walker's feet push them
+// aside. Light: the cards' own normals (bent with the card, rounded across it, tilted by the painted blades' folds), a
+// bounded glow through the blades toward a low sun and a rough sheen (surface_foliage.gdshaderinc).
 shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque, diffuse_burley, specular_schlick_ggx, skip_vertex_transform;
 
@@ -20,302 +21,225 @@ render_mode cull_disabled, depth_draw_opaque, diffuse_burley, specular_schlick_g
 #include "res://shaders/surface_planet.gdshaderinc"
 #include "res://shaders/surface_clouds.gdshaderinc"
 #include "res://shaders/surface_grass.gdshaderinc"
+#include "res://shaders/surface_foliage.gdshaderinc"
 
 global uniform vec4 hu_wind;
 
-uniform int layer = 0;              // 0 upright tufts and plants, 1 flat litter
-uniform int grid_width = 180;
-uniform ivec2 grid_offset;          // the grid's first cell in the lattice
-uniform float far_radius = 42.0;    // blades are gone here
-uniform float shrink_start = 24.0;  // and start shrinking here
-uniform float density_scale = 1.0;  // the share of tufts kept (the graphics settings' grass density)
-
-uniform sampler2D lattice : filter_nearest, repeat_disable;       // xyz: the cell corner from the anchor; w: grass density
-uniform sampler2D lattice_cover : filter_nearest, repeat_disable; // r: moisture, g: flowers, b: forest cover (litter), a: small plants
-uniform int lattice_size = 256;     // corners along a side
-uniform ivec2 lattice_cell;         // the face's cell index of the lattice's first cell
-uniform int face_cells = 8192;      // cells along a face's edge
-uniform int face = 0;               // the cube face
-uniform vec3 anchor;                // render position the corners are measured from
-uniform vec2 face_origin;           // metres on the face of the first corner (less the texture anchor)
-uniform float cell_metres = 0.46;
-
-uniform sampler2D atlas : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
-uniform vec4 cell_grass;            // atlas cells (u0, v bottom, u1, v top)
-uniform vec4 cell_dry;
-uniform vec4 cell_meadow;
-uniform vec4 cell_flower;
-uniform vec4 cell_herb;
-uniform vec4 cell_fern;
-uniform vec4 cell_bush;
-uniform vec4 cell_leaves_a;         // broadleaf, beech, dark oak and birch leaves: litter
-uniform vec4 cell_leaves_b;
-uniform vec4 cell_leaves_c;
-uniform vec4 cell_leaves_d;
-uniform vec4 cell_twigs;            // twigs and fallen conifer sprigs
-uniform vec4 cell_needles;
-
-uniform sampler2DArray ground_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D albedo_atlas : source_color, filter_linear_mipmap_anisotropic, repeat_disable;
+uniform sampler2D detail_atlas : filter_linear_mipmap_anisotropic, repeat_disable; // fold across, along; accent; translucency
 uniform sampler2D macro_noise : filter_linear_mipmap, repeat_enable;
-uniform float grass_layer_size = 4.0;
-uniform vec3 blade_mean = vec3(0.5, 0.63, 0.34);
-uniform vec4 trample = vec4(0.0);   // xyz: the walker's feet (render space), w: radius (0: none)
-uniform float translucency = 0.35;
-uniform float seam_band = 2.0;      // metres either side of a face seam the colours blend over (as the terrain's)
+uniform int kind = 0;                    // 0 clump cards, 1 billboard (two crossed quads), 2 litter lying flat
+uniform vec2 variant_offset = vec2(0.125, 0.0); // the atlas offset of variant bit 1 (u) and bit 2 (v)
+uniform vec3 species_mean = vec3(0.24, 0.33, 0.14); // the species' painted mean colour (grass.json)
+uniform vec3 blade_mean = vec3(0.5, 0.63, 0.34);    // the terrain's grass reference: its grass is blade_mean × tint
+uniform float mesh_height = 0.5;         // the clump's height at scale one
+uniform float mesh_reach = 0.35;         // its cards' farthest reach from the root
+uniform float dry_bias = 0.0;            // added to the place's dryness (seed heads paler)
+uniform float dry_floor = 0.0;           // dryness at least this (dry grass: straw anywhere)
+uniform float green = 0.0;               // keeps the colour this much lush (herbs)
+uniform vec4 accent_a : source_color = vec4(1.0);  // accents (petals, seed heads, bells) take one of these
+uniform vec4 accent_b : source_color = vec4(1.0);
+uniform vec4 accent_c : source_color = vec4(1.0);
+uniform vec4 accent_d : source_color = vec4(1.0);
+uniform float accent_tint = 0.0;
+uniform float translucency = 0.6;
+uniform vec3 glow = vec3(1.0, 0.95, 0.72); // the colour light picks up through the blades
+uniform float roughness = 0.55;
+uniform float sheen = 0.25;
+uniform float fold = 0.6;                // how far the painted folds tilt the normal
+uniform float stiffness = 1.0;           // the species' resistance to wind
+uniform vec4 card_curve = vec4(5.0, 23.0, 0.3, 0.0); // cards all kept to x m, down to z kept at y m
+uniform vec4 thin = vec4(12.6, 31.5, 0.45, 0.0);    // clumps all kept to x m, down to z kept at y m
+uniform vec2 fade = vec2(35.7, 42.0);    // the last clumps dissolve between these distances
+uniform vec2 morph_range = vec2(1e6, 2e6); // the finest terrain's morph toward its parent (TerrainLod)
+uniform vec2 dome = vec2(0.5, 0.82);     // normals smoothed toward the clump's dome: near, far
+uniform vec4 trample = vec4(0.0);        // xyz: the walker's feet (render space), w: radius (0: none)
+uniform vec3 wind_east = vec3(1.0, 0.0, 0.0); // the ground's axes at the camera (render), for the gusts' pattern
+uniform vec3 wind_north = vec3(0.0, 0.0, -1.0);
 
 varying vec3 v_world;
-varying vec4 v_cell;
-varying vec3 v_tint;
-varying vec3 v_ground;
-varying float v_t;
+varying vec3 v_normal;                   // the card's own normal (flipped to the viewer in fragment)
+varying vec3 v_dome;                     // the clump's dome normal
+varying vec3 v_across;                   // across the card (+u), for the painted folds
+varying float v_t;                       // height fraction along the card
+varying float v_dome_blend;
+varying flat vec3 v_colour;              // the clump's colour: blade_mean × the place's tint (litter: its brightness)
+varying flat vec4 v_accent;              // rgb: the accent colour, a: the canopy over the clump
+varying flat vec2 v_variant;
+varying vec3 v_air;
+varying vec4 v_fog;
 varying float v_cloud;
-varying float v_kind;               // 0 grass, 1 plant, 2 litter (faded to browns)
-varying float v_cover;              // forest cover: the canopy keeps sky light off the floor
-varying float v_seed;               // per tuft, for the ragged outline of its blades
-varying vec3 v_normal;              // world normal, the same on both faces of a blade
 
-uint hash_u(uint x) {
-	x ^= x >> 16u;
-	x *= 0x7feb352du;
-	x ^= x >> 15u;
-	x *= 0x846ca68bu;
-	x ^= x >> 16u;
-	return x;
+// The share of a clump's cards kept at a distance (GrassField.CardsKept is the same).
+float cards_kept(float d) {
+	return mix(1.0, card_curve.z, smoothstep(card_curve.x, card_curve.y, d));
 }
 
-float rnd(inout uint s) {
-	s = hash_u(s);
-	return float(s >> 8u) / 16777216.0;
+// The share of clumps kept at a distance (GrassField.ClumpsKept is the same).
+float clumps_kept(float d) {
+	return mix(1.0, thin.z, smoothstep(thin.x, thin.y, d)) * (1.0 - smoothstep(fade.x, fade.y, d));
 }
 
 void vertex() {
-	int i = INSTANCE_ID % grid_width;
-	int j = INSTANCE_ID / grid_width;
-	ivec2 c = grid_offset + ivec2(i, j);
-	ivec2 g = lattice_cell + c;
-	uint s = hash_u(uint(g.x) * 0x9e3779b9u ^ hash_u(uint(g.y) + 0x632be5abu) ^ uint(layer) * 0x51ed27u ^ uint(face) * 0x27d4eb2fu);
-	vec2 jit = vec2(rnd(s), rnd(s));
-	// The tuft's foot on the ground: between its cell's four corners.
-	vec4 n00 = texelFetch(lattice, c, 0);
-	vec4 n10 = texelFetch(lattice, c + ivec2(1, 0), 0);
-	vec4 n01 = texelFetch(lattice, c + ivec2(0, 1), 0);
-	vec4 n11 = texelFetch(lattice, c + ivec2(1, 1), 0);
-	vec4 f = mix(mix(n00, n10, jit.x), mix(n01, n11, jit.x), jit.y);
-	vec4 f2 = texelFetch(lattice_cover, c, 0);
-	vec3 base = anchor + f.xyz;
-	float dist = length(base - CAMERA_POSITION_WORLD);
-	// Only the cells whose middle lies on this face: the neighbour's grid draws the rest.
-	float inside = (g.x >= 0 && g.y >= 0 && g.x < face_cells && g.y < face_cells) ? 1.0 : 0.0;
-	vec2 wp = face_origin + (vec2(c) + jit) * cell_metres;
-	// The ground's plane at the tuft: up from the planet's centre, across along the face's cells.
-	vec3 up = hu_up(base);
-	vec3 across = n10.xyz - n00.xyz;
-	vec3 tx = normalize(across - up * dot(across, up) + vec3(1e-6));
-	vec3 tz = cross(tx, up);
+	vec3 X = MODEL_MATRIX[0].xyz;
+	vec3 Y = MODEL_MATRIX[1].xyz;
+	vec3 Z = MODEL_MATRIX[2].xyz;
+	vec3 root = MODEL_MATRIX[3].xyz;
+	float sy = length(Y);
+	vec3 up = Y / max(sy, 1e-6);
+	float dist = length(root - CAMERA_POSITION_WORLD);
+	// The drawn terrain morphs toward its parent's grid far off: the root follows it (the morph's own factor).
+	float morph = clamp((dist - morph_range.x) / max(morph_range.y - morph_range.x, 1.0), 0.0, 1.0);
+	root += up * INSTANCE_CUSTOM.x * morph;
 
-	// What grows in this cell. Thin grass grows in patches, not evenly spread.
-	float density = f.w;
-	float patchy = texture(macro_noise, wp / 5.3 + vec2(0.71, 0.29)).r;
-	float patches = mix(0.25 + 1.5 * smoothstep(0.3, 0.7, patchy), 1.0, smoothstep(0.55, 0.9, density)); // dense meadows stay closed
-	density = clamp(density * patches, 0.0, 1.0) * step(0.02, density);
-	float roll = rnd(s);
-	float kind = -1.0; // -1 nothing, 0 grass, 1 plant, 2 litter
-	if (layer == 0) {
-		if (roll < density) {
-			kind = 0.0;
-		} else if (roll < density + (1.0 - density) * f2.a * 0.3) {
-			kind = 1.0;
-		}
-	} else if (roll < f2.b * 0.85) {
-		kind = 2.0;
+	float rank = INSTANCE_CUSTOM.z;
+	float draw = INSTANCE_CUSTOM.w * 4.0;
+	float variant = floor(draw);
+	float palette = fract(draw);
+	float keep = clumps_kept(dist);
+	float alive = 1.0 - smoothstep(keep - 0.06, keep, rank);
+	float widen = clamp(inversesqrt(max(keep, 0.2)), 1.0, 1.45);
+	float card_rank = UV2.y;
+	float shade = fract(card_rank * 19.19 + 0.31);
+	float card_stiffness = 0.6 + 0.4 * fract(card_rank * 7.77 + 0.53);
+	float card = 1.0;
+	if (kind == 0) {
+		float kept = cards_kept(dist);
+		float jitter = (fract(palette * 13.7) - 0.5) * 0.06;
+		card = 1.0 - smoothstep(kept - 0.08, kept, card_rank + jitter + 0.04);
+		widen *= clamp(inversesqrt(max(kept, 0.25)), 1.0, 1.5);
 	}
-	// The graphics settings thin the tufts out by a hash of their own (the cell's other draws stay as they were).
-	float keep = float(hash_u(s ^ 0xA511E9B3u) & 0xFFFFu) / 65535.0;
-	kind = keep <= density_scale ? kind : -1.0;
-	float size = inside * step(0.0, kind) * (1.0 - smoothstep(shrink_start, far_radius, dist));
-	v_kind = kind;
-	v_cover = f2.b;
-	v_seed = float(s & 1023u) * 0.6180339;
-	v_t = COLOR.a;
+	float size = alive * card;
+	v_t = UV2.x;
 	v_world = vec3(0.0);
-	v_cell = cell_grass;
-	v_tint = vec3(1.0);
-	v_ground = vec3(0.0);
 	v_normal = up;
-	// Each card has eight vertices: drop the cards a sparse tuft doesn't have, so thin grass is loose blades.
-	int card = VERTEX_ID / 8;
-	float cards = 5.0;
-	if (kind == 0.0) {
-		cards = 1.0 + floor(clamp(density * 4.6 + rnd(s) * 0.9, 0.0, 4.0));
-	} else if (kind == 1.0) {
-		cards = 2.0 + floor(rnd(s) * 2.0);
-	}
-	if (size <= 0.0 || float(card) >= cards) {
+	v_dome = up;
+	v_across = vec3(1.0, 0.0, 0.0);
+	v_dome_blend = 0.0;
+	v_colour = vec3(1.0);
+	v_accent = vec4(1.0, 1.0, 1.0, COLOR.b);
+	v_variant = vec2(mod(variant, 2.0) >= 1.0 ? variant_offset.x : 0.0, variant >= 2.0 ? variant_offset.y : 0.0);
+	v_air = vec3(1.0);
+	v_fog = vec4(0.0);
+	v_cloud = 1.0;
+	if (size <= 0.002) {
 		VERTEX = vec3(0.0);
 		NORMAL = vec3(0.0, 0.0, 1.0);
 	} else {
-		// The grass's colour, as the terrain's grass layer has it: measured on this face, and within a seam's band
-		// blended with the neighbour's, as the ground under it is.
-		vec3 d = hu_body_direction(base);
-		ivec3 faces;
-		vec3 fw;
-		hu_face_blend(d, seam_band, faces, fw);
-		float r_dry = (rnd(s) - 0.5) * 0.3;
-		float dry_face = 0.0;
-		vec3 tint_face = vec3(0.0);
-		vec3 detail = vec3(0.0);
-		for (int k = 0; k < 3; k++) {
-			if (fw[k] > 0.0) {
-				vec2 q = faces[k] == face ? wp : hu_face_metres(d, faces[k]);
-				float dk = clamp(hu_grass_dryness(q, f2.r, macro_noise) + r_dry, 0.0, 1.0);
-				dry_face += dk * fw[k];
-				tint_face += hu_grass_tint(q, dk, macro_noise) * fw[k];
-				detail += textureLod(ground_albedo, vec3(q / grass_layer_size, 0.0), 5.0).rgb * fw[k];
-			}
-		}
-		float r_kind = rnd(s);
-		float dry = dry_face;
-		float lush = 1.0 - dry;
-		float height = (0.28 + 0.26 * rnd(s)) * (0.7 + 0.45 * density) * (0.75 + 0.35 * lush);
-		float width = 0.8 + 0.4 * rnd(s);
-		float yaw = rnd(s) * 6.2831853;
-		float lean_a = rnd(s) * 6.2831853;
-		float lean = 0.05 + 0.12 * rnd(s);
-		float v = rnd(s);
-		if (kind == 0.0) {
-			float flower = step(r_kind, f2.g * 0.06);
-			v_cell = flower > 0.5 ? (rnd(s) < 0.75 ? cell_flower : cell_herb) : (dry > 0.62 ? cell_dry : (r_kind > 0.82 ? cell_meadow : cell_grass));
-			v_tint = tint_face * (0.8 + 0.4 * v);
-			if (flower > 0.5) {
-				height = 0.38 + 0.2 * rnd(s);
-				float p = rnd(s);
-				v_tint = p < 0.3 ? vec3(1.0, 0.82, 0.12) : p < 0.55 ? vec3(0.95, 0.95, 0.9) : p < 0.75 ? vec3(0.62, 0.38, 0.92) : p < 0.9 ? vec3(0.95, 0.35, 0.22) : vec3(1.0, 0.62, 0.18);
-			}
-			// Where grass is thin, a tuft is a few narrow cards: a handful of loose blades, not a block.
-			width *= mix(0.32, 1.0, smoothstep(0.08, 0.65, density));
-			height *= mix(0.8, 1.0, smoothstep(0.08, 0.65, density));
-		} else if (kind == 1.0) {
-			// Forest floor plants: ferns, herbs and seedlings, in the shade's greens.
-			float p = rnd(s);
-			v_cell = p < 0.6 ? cell_fern : p < 0.85 ? cell_herb : cell_leaves_a;
-			height = p < 0.55 ? 0.3 + 0.3 * rnd(s) : p < 0.8 ? 0.16 + 0.18 * rnd(s) : 0.3 + 0.3 * rnd(s);
-			width = p < 0.55 ? 0.8 + 0.35 * rnd(s) : 0.7 + 0.3 * rnd(s);
-			lean = p < 0.55 ? 0.45 + 0.35 * rnd(s) : 0.15 + 0.25 * rnd(s);
-			v_tint = vec3(0.85 + 0.3 * v, 0.95 + 0.2 * v, 0.75 + 0.2 * v) * (p < 0.55 ? 1.0 : 0.9);
-		} else {
-			// Litter: dead leaves of the trees around, sprigs and twigs; colour comes from the leaf's own shading.
-			float p = rnd(s);
-			v_cell = p < 0.2 ? cell_leaves_a : p < 0.4 ? cell_leaves_b : p < 0.55 ? cell_leaves_c : p < 0.65 ? cell_leaves_d : p < 0.85 ? cell_needles : cell_twigs;
-			float q = rnd(s);
-			v_tint = q < 0.3 ? vec3(0.45, 0.3, 0.16) : q < 0.55 ? vec3(0.5, 0.38, 0.22) : q < 0.75 ? vec3(0.32, 0.22, 0.13) : q < 0.9 ? vec3(0.55, 0.45, 0.25) : vec3(0.42, 0.25, 0.12);
-			v_tint *= 0.8 + 0.4 * v;
-			if (p >= 0.65) {
-				v_tint *= vec3(0.8, 0.75, 0.7);
-			}
-			height = 1.0;
-			width = 0.5 + 0.45 * rnd(s);
-		}
-
-		float t = COLOR.a;
-		float co = cos(yaw), sn = sin(yaw);
-		vec3 p3 = VERTEX;
-		vec2 bend = vec2(0.0);
-		if (kind == 2.0) {
-			// Flat pieces: the mesh is already lying down; scale and turn it.
-			p3.xz = vec2(co * p3.x - sn * p3.z, sn * p3.x + co * p3.z) * width * (0.4 + 0.6 * size);
-			p3.y *= size;
-		} else {
-			p3.xz = vec2(co * p3.x - sn * p3.z, sn * p3.x + co * p3.z) * width * (0.5 + 0.5 * size);
-			p3.y *= height * size;
-			bend = vec2(cos(lean_a), sin(lean_a)) * lean * t * t * height;
-			// Wind, along the ground here: gusts as patches of the macro noise drifting downwind, and a ripple along it.
-			vec2 wd = normalize(vec2(dot(hu_wind.xyz, tx), dot(hu_wind.xyz, tz)) + vec2(1e-5));
+		// The clump's axes without the slope's shear: its turn and width.
+		vec3 Xh = X - up * dot(X, up);
+		vec3 Zh = Z - up * dot(Z, up);
+		vec3 xn = normalize(Xh);
+		vec3 zn = normalize(Zh);
+		float height = sy * mesh_height;
+		float t = UV2.x;
+		float w = widen * size;
+		vec3 offset = (X * VERTEX.x + Z * VERTEX.z) * w;     // across the ground, its slope's lift included
+		vec3 rise = up * (sy * VERTEX.y * mix(0.35, 1.0, size));
+		vec3 normal = normalize(xn * NORMAL.x + up * NORMAL.y + zn * NORMAL.z);
+		vec3 bend = vec3(0.0);
+		vec3 bend_rate = vec3(0.0);
+		if (kind != 2) {
+			// Wind: gusts as patches of the noise drifting downwind, a ripple along them, each card a little flutter.
+			vec2 wp = vec2(dot(root, wind_east), dot(root, wind_north));
+			vec2 wd = normalize(vec2(dot(hu_wind.xyz, wind_east), dot(hu_wind.xyz, wind_north)) + vec2(1e-5));
+			vec3 wdir = normalize(wind_east * wd.x + wind_north * wd.y);
+			vec3 wside = normalize(cross(up, wdir));
 			float gust = texture(macro_noise, wp / 70.0 - wd * TIME * 0.085).a;
-			float ripple = sin(dot(wp, wd) * 0.45 - TIME * 2.4 + v * 1.2) * 0.5 + 0.5;
-			float w = hu_wind.w * (0.2 + 1.2 * smoothstep(0.3, 0.75, gust)) * (0.55 + 0.45 * ripple) * (kind == 1.0 ? 0.4 : 1.0);
-			bend += wd * w * 0.28 * t * t * height;
-			bend += vec2(-wd.y, wd.x) * sin(TIME * 5.1 + v * 30.0 + wp.x * 0.7) * 0.012 * t * hu_wind.w;
-			// Bend away from the walker's feet.
+			float ripple = sin(dot(wp, wd) * 0.45 - TIME * 2.4 + INSTANCE_CUSTOM.y * 6.283) * 0.5 + 0.5;
+			float strength = hu_wind.w * (0.2 + 1.2 * smoothstep(0.3, 0.75, gust)) * (0.55 + 0.45 * ripple);
+			float give = strength * 0.24 / (stiffness * card_stiffness);
+			float flutter = sin(TIME * (4.1 + 2.0 * shade) + INSTANCE_CUSTOM.y * 30.0 + shade * 12.0) * 0.035 * hu_wind.w;
+			bend = wdir * (give * t * t * height) + wside * (flutter * t * height);
+			bend_rate = wdir * (2.0 * give * t) + wside * flutter;
 			if (trample.w > 0.0) {
-				vec3 off = base + tx * p3.x + tz * p3.z - trample.xyz;
-				vec2 away = vec2(dot(off, tx), dot(off, tz));
+				vec3 off = root + offset - trample.xyz;
+				vec3 away = off - up * dot(off, up);
 				float dd = length(away);
-				float k = (1.0 - smoothstep(trample.w * 0.3, trample.w, dd)) * step(abs(dot(base - trample.xyz, up)), 1.5);
-				bend += away / max(dd, 1e-3) * k * 0.6 * t * height;
+				float k = (1.0 - smoothstep(trample.w * 0.3, trample.w, dd)) * step(abs(dot(root - trample.xyz, up)), 1.5);
+				vec3 push = away / max(dd, 1e-3) * (k * 0.6);
+				bend += push * (t * height);
+				bend_rate += push;
 			}
 		}
+		// Bending keeps a blade's length: what leans over comes down.
 		float b = length(bend);
-		p3.xz += bend;
-		p3.y -= min(b * b / max(height, 0.05), height * 0.6) * t;
-
-		vec3 world = base + up * ((kind == 2.0 ? 0.004 : -0.03) + p3.y) + tx * p3.x + tz * p3.z;
+		vec3 world = root + offset + rise + bend - up * (min(b * b / max(height, 0.05), height * 0.6) * t);
+		// The bent card's normal: p' = p + f(h)·d tilts the normal by the bend's rate along the height.
+		normal = normalize(normal - up * dot(bend_rate, normal));
+		vec3 across = normalize(xn * TANGENT.x + up * TANGENT.y + zn * TANGENT.z);
+		vec3 radial = offset - up * dot(offset, up);
+		vec3 dome_normal = normalize(up + radial / max(mesh_reach * sy, 0.05) * 0.35);
+		if (kind == 2) {
+			normal = up;
+			dome_normal = up;
+		}
 		v_world = world;
+		v_normal = normal;
+		v_dome = dome_normal;
+		v_across = across;
+		v_dome_blend = kind == 1 ? 0.8 : mix(dome.x, dome.y, smoothstep(4.0, 30.0, dist));
 		VERTEX = (VIEW_MATRIX * vec4(world, 1.0)).xyz;
-		vec3 nl = kind == 2.0 ? vec3(0.0, 1.0, 0.0) : normalize(vec3(co * NORMAL.x - sn * NORMAL.z, NORMAL.y * 2.5, sn * NORMAL.x + co * NORMAL.z));
-		vec3 n = normalize(tx * nl.x + up * nl.y + tz * nl.z);
-		NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
-		v_normal = n;
+		NORMAL = normalize((VIEW_MATRIX * vec4(normal, 0.0)).xyz);
 
-		// The ground's own colour at the tuft's foot, as the terrain shader draws its grass layer.
-		float lum = dot(detail, vec3(0.2126, 0.7152, 0.0722));
-		v_ground = clamp(lum / 0.1, 0.4, 1.8) * blade_mean * tint_face;
+		// The clump's colour: the place's grass tint at its root (the terrain's, for its dryness), or litter's brown.
+		if (kind == 2) {
+			v_colour = vec3(0.7 + 0.6 * palette) * mix(1.0, 0.75, COLOR.b);
+		} else {
+			float dry = clamp(max(COLOR.g + dry_bias, dry_floor), 0.0, 1.0) * (1.0 - green);
+			v_colour = blade_mean * hu_grass_tint_of(dry, COLOR.r) * mix(0.92, 1.08, shade);
+		}
+		float pick = fract(palette * 7.31);
+		vec3 accent = pick < 0.25 ? accent_a.rgb : pick < 0.5 ? accent_b.rgb : pick < 0.75 ? accent_c.rgb : accent_d.rgb;
+		v_accent = vec4(accent, COLOR.b);
+		hu_aerial_terms(root, CAMERA_POSITION_WORLD, v_air, v_fog);
+		v_cloud = hu_cloud_shadow(root, hu_sun_direction);
 	}
 }
 
 void fragment() {
-	vec2 uv = vec2(mix(v_cell.x, v_cell.z, UV.x), mix(v_cell.y, v_cell.w, UV.y));
-	vec4 tex = texture(atlas, uv);
-	float alpha = tex.a;
-	if (v_kind < 0.5) {
-		// Grass: blades of different heights (a ragged top) and a tuft that narrows upward, so no card reads as a block.
-		float x = UV.x * 9.0 + v_seed;
-		float cell_x = floor(x);
-		float h0 = fract(sin(cell_x * 12.9898 + v_seed * 3.1) * 43758.5453);
-		float h1 = fract(sin((cell_x + 1.0) * 12.9898 + v_seed * 3.1) * 43758.5453);
-		float top = 0.42 + 0.58 * mix(h0, h1, smoothstep(0.0, 1.0, fract(x)));
-		alpha *= step(UV.y, top) * step(abs(UV.x - 0.5), 0.5 - 0.22 * UV.y);
-	}
-	ALPHA = alpha;
-	ALPHA_SCISSOR_THRESHOLD = 0.5;
-	ALPHA_ANTIALIASING_EDGE = 0.25;
-	ALPHA_TEXTURE_COORDINATE = uv * vec2(textureSize(atlas, 0));
+	vec2 uv = UV + v_variant;
+	vec4 tex = texture(albedo_atlas, uv);
+	// Mip levels average a blade's edge into its gaps: sharpen alpha by the level so blades keep their coverage far off.
+	vec2 texel = uv * vec2(textureSize(albedo_atlas, 0));
+	vec2 dx = dFdx(texel);
+	vec2 dy = dFdy(texel);
+	float level = max(0.0, 0.5 * log2(max(dot(dx, dx), dot(dy, dy))));
+	// Cut-outs stay in the opaque pass: water needs their colour and depth in its screen snapshot.
+	if (tex.a * (1.0 + 0.25 * level) < 0.5) discard;
+	vec4 detail = texture(detail_atlas, uv);
+	vec3 n_card = normalize(v_normal) * (FRONT_FACING ? 1.0 : -1.0);
+	vec3 across = normalize(v_across - n_card * dot(v_across, n_card));
+	vec3 along = cross(n_card, across);
+	vec2 tilt = (detail.rg * 2.0 - 1.0) * fold;
+	vec3 n = normalize(n_card + across * tilt.x + along * tilt.y);
+	n = normalize(mix(n, normalize(v_dome), v_dome_blend));
 	vec3 albedo;
-	if (v_kind > 1.5) {
-		// Dead leaves and twigs: the painted shading, faded to the litter's browns.
-		float lum = dot(tex.rgb, vec3(0.2126, 0.7152, 0.0722));
-		albedo = v_tint * clamp(lum * 2.2, 0.3, 1.25);
+	if (kind == 2) {
+		albedo = tex.rgb * v_colour;
 	} else {
-		vec3 blade = tex.rgb * v_tint * (0.78 + 0.3 * v_t);
-		albedo = v_kind > 0.5 ? blade : mix(v_ground, blade, smoothstep(0.0, 0.45, v_t));
+		albedo = tex.rgb / species_mean * v_colour;
+		float lum = dot(tex.rgb, vec3(0.2126, 0.7152, 0.0722));
+		albedo = mix(albedo, v_accent.rgb * clamp(lum / 0.7, 0.3, 1.3), detail.b * accent_tint);
 	}
-	ALBEDO = albedo;
-	// Blades are thin: both faces take the sky's light from above. (Godot would turn the normal down on back faces,
-	// leaving every card seen from behind black in the shade.)
-	NORMAL = normalize((VIEW_MATRIX * vec4(v_normal, 0.0)).xyz);
-	ROUGHNESS = 0.85;
-	SPECULAR = 0.2;
-	AO = 1.0 - 0.38 * smoothstep(0.15, 0.85, v_cover);
-	if (v_kind > 1.5) {
-		SPECULAR = 0.08;
-	}
+	// The clump's dense, shaded foot.
+	float foot = smoothstep(0.0, 0.4, v_t);
+	ALBEDO = albedo * mix(0.86, 1.0, kind == 2 ? 1.0 : foot) * v_air;
+	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
+	ROUGHNESS = roughness;
+	SPECULAR = 0.16;
+	AO = (kind == 2 ? 0.8 : mix(0.78, 1.0, foot)) * (1.0 - 0.38 * smoothstep(0.15, 0.85, v_accent.a));
 	AO_LIGHT_AFFECT = 0.0;
-	vec3 a = ALBEDO;
-	vec4 fog;
-	hu_aerial(v_world, CAMERA_POSITION_WORLD, 6, a, fog);
-	ALBEDO = a;
-	FOG = fog;
-	v_cloud = hu_cloud_shadow(v_world);
+	BACKLIGHT = vec3(translucency * detail.a);
+	FOG = v_fog;
 }
 
 void light() {
-	float ndl = dot(NORMAL, LIGHT);
-	float cloud = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
-	vec3 light = LIGHT_COLOR * ATTENUATION * cloud / HU_PI;
-	DIFFUSE_LIGHT += light * clamp(ndl, 0.0, 1.0);
-	if (v_kind < 1.5) {
-		// Light through the blades: the tips glow looking toward a low sun.
-		float toward = clamp(dot(-VIEW, LIGHT), 0.0, 1.0);
-		float wrap = clamp(-ndl * 0.6 + 0.4, 0.0, 1.0);
-		DIFFUSE_LIGHT += light * translucency * (pow(toward, 4.0) * 1.4 * v_t + wrap * 0.35) * vec3(0.9, 1.05, 0.55);
-	}
+	float shadow = LIGHT_IS_DIRECTIONAL ? v_cloud : 1.0;
+	vec3 diffuse = vec3(0.0);
+	vec3 specular = vec3(0.0);
+	hu_foliage_light(NORMAL, VIEW, LIGHT, LIGHT_COLOR * ATTENUATION * shadow, kind == 2 ? 0.0 : BACKLIGHT.r, v_t,
+		ROUGHNESS, kind == 2 ? 0.05 : sheen, glow, diffuse, specular);
+	DIFFUSE_LIGHT += diffuse;
+	SPECULAR_LIGHT += specular;
 }

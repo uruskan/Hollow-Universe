@@ -639,6 +639,23 @@ public partial class GroundUi
             ToolToggleAt(label, command, Math.Abs(tools.TimeScale - (at switch { 0 => 0, 1 => 1, 2 => 10, _ => 60 })) < 1e-6, x + at * 115, y, 108);
         }
 
+        // Building preferences are server-authorised, and every choice runs the same console command as typing it.
+        y += 58;
+        Section("BUILDING", x, y);
+        y += 40;
+        ToolToggleAt("FREE BUILD" + (tools.FreeBuild ? "  ON" : "  OFF"), tools.FreeBuild ? "freebuild off" : "freebuild on",
+            tools.FreeBuild, x, y, 184);
+        Text("No building resource costs.", x + 196, y + 10, 16, G.Muted);
+        Text("Crafting needs no ingredients, blueprints or workbench.", x, y + 45, 16, G.Muted);
+        Text("BGRADE · NEW BUILDING TIER", x, y + 99, 16, G.Muted, bold: true);
+        for (int i = -1; i < tools.BuildGrades.Count; i++)
+        {
+            ToolButton grade = i < 0 ? new ToolButton("OFF", "bgrade off") : tools.BuildGrades[i];
+            int at = i + 1;
+            ToolToggleAt(grade.Label, grade.Command, tools.BuildGrade == i, x + at % 3 * 154, y + 123 + at / 3 * 40, 148);
+        }
+        Text("OFF uses normal building placement.", x, y + 209, 16, G.Muted);
+
         // Spawning: what each kind puts in front of the player.
         float sx = 548, sy = 98;
         Section("SPAWN IN FRONT OF YOU", sx, sy);
@@ -686,6 +703,14 @@ public partial class GroundUi
         ToolButtonAt("STATUS", "status", tx, ty, 240, 18);
         ToolButtonAt("PLAYERS", "players", tx + 246, ty, 240, 18);
         ty += 52;
+
+        Section("CAMERA", tx, ty);
+        ty += 40;
+        ToolToggleAt("THIRD PERSON" + (tools.ThirdPerson ? "  ON" : "  OFF"), tools.ThirdPerson ? "thirdperson off" : "thirdperson on",
+            tools.ThirdPerson, tx, ty, 240);
+        Text("Hold right mouse to orbit · Mouse wheel to zoom", tx, ty + 45, 16, G.Muted);
+        Text("Close F1 to control the camera.", tx, ty + 66, 16, G.Muted);
+        ty += 96;
         PaintAnswer(console, tx, ty, 486);
     }
 

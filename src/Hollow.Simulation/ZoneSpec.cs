@@ -90,7 +90,7 @@ public sealed record ZoneSpec
     /// </summary>
     public SkyEphemeris? CreateSky()
     {
-        if (PlanetSurfaces.Find(SystemAddress, BodyPath) is not { } found)
+        if (PlanetBodies.Find(SystemAddress, BodyPath) is not { } found)
         {
             return null;
         }
@@ -111,12 +111,11 @@ public sealed record ZoneSpec
             return null;
         }
         (StarSystem system, Body planet) = found.Value;
+        // Keep reference-world regression scenarios unchanged. Hosted/dedicated play uses StartingWorld below.
         (double density, double scaleHeight) = Air(planet.SurfacePressure, planet.Temperature, planet.SurfaceGravity);
         return new ZoneSpec
         {
             AirDensity = density,
-            // Real-equivalent heights (docs/WHOLE_WORLD.md §6.5): the climb to the leaving height thins the air as the
-            // climb to the old 15 km ceiling did.
             AirScaleHeight = scaleHeight * (LeavingRadii * FirstWorldRadius / RealCeiling),
             SystemAddress = system.Address.Value,
             BodyPath = planet.Path,
@@ -129,15 +128,42 @@ public sealed record ZoneSpec
         };
     }
 
+    /// <summary>Earth, the live game's starting world (LOOP-01), without optional catalogue dependencies.</summary>
+    public static ZoneSpec StartingWorld(double latitudeDegrees, double longitudeDegrees)
+    {
+        (StarSystem system, Body planet) = Hollow.Surface.StartingWorld.Find();
+        return ForBody(system, planet, latitudeDegrees, longitudeDegrees);
+    }
+
+    /// <summary>One scaling boundary for all playable planets; source physics and generation are unchanged.</summary>
+    public static ZoneSpec ForBody(StarSystem system, Body planet, double latitudeDegrees, double longitudeDegrees)
+    {
+        double radius = Galaxy.GameScale.PlanetRadius(planet);
+        (double density, double scaleHeight) = Air(planet.SurfacePressure, planet.Temperature, planet.SurfaceGravity);
+        return new ZoneSpec
+        {
+            AirDensity = density,
+            // Real-equivalent heights (docs/WHOLE_WORLD.md §6.5): the climb to the leaving height thins the air as the
+            // climb to the old 15 km ceiling did.
+            AirScaleHeight = scaleHeight * (LeavingRadii * radius / RealCeiling),
+            SystemAddress = system.Address.Value,
+            BodyPath = planet.Path,
+            Radius = radius,
+            SurfaceGravity = planet.SurfaceGravity,
+            SurfaceSeed = Core.Hash64.Of(system.Address.Value, planet.Path),
+            LatitudeDegrees = latitudeDegrees,
+            LongitudeDegrees = longitudeDegrees,
+            StandIn = true,
+        };
+    }
+
     /// <summary>
     /// Where a server on a ground lands players: the latitude and longitude it was given, except that on the walking-scale
     /// ground the first world's default site gives way to the ground's own landing site (docs/WALKING_GROUND.md §11).
     /// </summary>
-    public static (double Latitude, double Longitude) LandingFor(GroundKind ground, Galaxy.Galaxy galaxy, double latitude, double longitude)
+    public static (double Latitude, double Longitude) LandingFor(ISurface surface, double latitude, double longitude)
     {
-        if (ground != GroundKind.Walking || latitude != Hollow.Surface.FirstWorld.LandingLatitude || longitude != Hollow.Surface.FirstWorld.LandingLongitude
-            || Hollow.Surface.FirstWorld.Find(galaxy) is not var (system, planet)
-            || WalkingWorlds.Find(system.Address.Value, planet.Path, FirstWorldRadius) is not { } walking)
+        if (surface is not WalkingWorld walking || latitude != Hollow.Surface.StartingWorld.LandingLatitude || longitude != Hollow.Surface.StartingWorld.LandingLongitude)
         {
             return (latitude, longitude);
         }
@@ -146,8 +172,8 @@ public sealed record ZoneSpec
     }
 
     /// <summary>
-    /// The first world's game radius in metres (SCALE.md §3.1, docs/WHOLE_WORLD.md §1): a constant until S1's
-    /// <c>GameScale</c> gives every body its own.
+    /// The inherited reference world's radius, retained for regression fixtures and explicit development viewers.
+    /// Live worlds use <see cref="StartingWorld"/> and <see cref="Galaxy.GameScale"/> instead.
     /// </summary>
     public const double FirstWorldRadius = 2410;
 
@@ -161,16 +187,30 @@ public sealed record ZoneSpec
     public Core.Vector3D LandingDirection => ZoneFrame.Direction(LatitudeDegrees * Math.PI / 180, LongitudeDegrees * Math.PI / 180);
 
     /// <summary>
-    /// The ground of this zone's body. <b>The one place that picks the surface</b> (GROUND.md §4.6). By default the
-    /// stand-in world (docs/WHOLE_WORLD.md §4); with <see cref="GroundKind.Walking"/> the body's walking-scale ground
-    /// (docs/WALKING_GROUND.md), shared by everything in the process (<see cref="WalkingWorlds"/>), or the stand-in if the
-    /// universe doesn't know the body. The real <see cref="PlanetSurface"/> is built at its real radius, which a zone
-    /// measured from its centre can't hold.
+    /// Resolves immutable generation inputs from metadata only. Untrusted/unsupported bodies, generator kinds and
+    /// radii are refused before construction. Explicit diagnostics may use historical fixture radii; network callers
+    /// must use the default playable validation. This legacy zone contract reconstructs the default universe only.
     /// </summary>
-    public ISurface CreateSurface() =>
-        Ground == GroundKind.Walking && WalkingWorlds.Find(SystemAddress, BodyPath, Radius) is { } walking
-            ? walking
-            : new StandInWorld(Radius, SurfaceSeed, LandingDirection);
+    public PlanetEnvironmentDescriptor EnvironmentDescriptor(bool diagnostic = false)
+    {
+        if (!Enum.IsDefined(Ground)) throw new ArgumentOutOfRangeException(nameof(Ground));
+        if (!double.IsFinite(LatitudeDegrees) || LatitudeDegrees is < -90 or > 90 ||
+            !double.IsFinite(LongitudeDegrees) || LongitudeDegrees is < -180 or > 180)
+            throw new ArgumentOutOfRangeException(nameof(LatitudeDegrees), "Landing coordinates must be finite degrees on the globe.");
+        if (!double.IsFinite(SurfaceGravity) || SurfaceGravity < 0 || !double.IsFinite(AirDensity) || AirDensity < 0 ||
+            !double.IsFinite(AirScaleHeight) || AirScaleHeight <= 0 || !double.IsFinite(RotationTimeScale) || RotationTimeScale < 0)
+            throw new ArgumentException("Zone physics and clock values must be finite and in range.");
+        EnvironmentSurfaceKind kind = Ground == GroundKind.Walking ? EnvironmentSurfaceKind.Walking : EnvironmentSurfaceKind.StandIn;
+        return EnvironmentDescriptors.Resolve(SystemAddress, BodyPath, Radius, kind,
+            surfaceSeed: SurfaceSeed, landing: kind == EnvironmentSurfaceKind.StandIn ? LandingDirection : null,
+            diagnostic: diagnostic) ?? throw new ArgumentException("The zone does not identify a supported planet or moon.");
+    }
+
+    /// <summary>
+    /// Explicit uncached construction for standalone callers. The caller owns the result; production sessions acquire
+    /// <see cref="WorldLease"/>s from their <see cref="WorldStore"/> instead. No global terrain cache or fallback is used.
+    /// </summary>
+    public ISurface CreateSurface(bool diagnostic = false) => EnvironmentWorldFactory.Create(EnvironmentDescriptor(diagnostic));
 
     /// <summary>
     /// The natural objects of this zone's ground (trees, outcrops, pickups, bushes). <b>The one place that picks

@@ -57,7 +57,7 @@ public static class ShipPersistenceTests
                 ship.Cargo.Set(0, rifle);
                 ship.Cargo.Set(3, ItemStack.Of(c.ItemByKey("metal-fragments"), 777));
                 ship.Locked = true;
-                ship.State.Fuel = 321.5f;
+                ship.LoadFuel(321.5f);
                 sv.Zone.Ships().DamageShip(ship, 300, ShipDamage.Bullet, null);
                 return (ship.Id, Fingerprint(ship), ship.State.Position, ship.State.Rotation);
             });

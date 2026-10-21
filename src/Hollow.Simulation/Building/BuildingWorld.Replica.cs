@@ -98,18 +98,18 @@ public sealed partial class BuildingWorld
     }
 
     /// <summary>Puts a door back into its frame (shut or open, with its health); a mirror passes the server's leaf bodies.</summary>
-    public Door? RestoreDoor(EntityId id, DoorDef def, Piece frame, int flip, ulong owner, bool open, double health,
+    public Door? RestoreDoor(EntityId id, DoorDef def, Piece frame, int layout, ulong owner, bool open, double health,
         IReadOnlyList<uint>? bodies = null)
     {
         if (frame.Gone || frame.Door != null || frame.Def.Opening != def.Opening)
         {
             return null;
         }
-        var door = new Door(id, def, frame, flip & 1, owner)
+        var door = new Door(id, def, frame, layout, owner)
         {
-            Open = open,
             Health = Math.Clamp(health, 0, def.Health),
         };
+        door.Rest(open);
         frame.Door = door;
         _doorIds[id] = door;
         for (int i = 0; i < def.Leaves.Count; i++)
@@ -118,43 +118,39 @@ public sealed partial class BuildingWorld
             {
                 break;
             }
-            LeafDef leaf = def.Leaves[i];
-            (Vector3 position, Quaternion rotation) = door.Leaf(i, door.Open);
+            (Vector3 position, Quaternion rotation) = door.LeafNow(i);
             uint requested = bodies != null && i < bodies.Count ? bodies[i] : 0;
-            door.Bodies[i] = Physics.Add(new DoorLeaf(door, i), Physics.ShapeFor(leaf, LeafParts(leaf)), position, rotation, requested);
+            door.Bodies[i] = Physics.Add(new DoorLeaf(door, i), LeafShape(door, i), position, rotation, requested);
         }
         Changed?.Invoke(new BuildingEvent(BuildingChange.DoorAdded, frame, door, Structure: frame.Structure));
         return door;
     }
 
     /// <summary>Puts a key lock back on a door, with its number (later locks get higher ones).</summary>
-    public KeyLock RestoreKeyLock(Door door, EntityId id, ulong owner, int keyCode, bool locked)
+    public KeyLock RestoreKeyLock(ILockHost door, EntityId id, ulong owner, int keyCode, bool locked)
     {
-        keyCode = Math.Clamp(keyCode, 1, MaxKeyCode);
-        var keyLock = new KeyLock(id, owner, keyCode) { Locked = locked };
+        var keyLock = LockState.RestoreKey(id, owner, keyCode, locked);
         door.Lock = keyLock;
-        if (keyCode >= _nextKeyCode)
-        {
-            _nextKeyCode = keyCode % MaxKeyCode + 1;
-        }
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
+        ObserveLock(keyLock);
+        door.LockChanged();
         return keyLock;
     }
 
-    /// <summary>Puts a code lock back on a door: its code's hash (0: none set), locked or not, and who it lets in.</summary>
-    public CodeLock RestoreCodeLock(Door door, EntityId id, ulong owner, ulong codeHash, bool locked, IEnumerable<ulong> authorised)
+    /// <summary>Advances the shared key allocator past a restored lock on any host.</summary>
+    public void ObserveLock(DoorLock? fitted)
     {
-        var codeLock = new CodeLock(id, owner) { CodeHash = codeHash, Locked = locked && codeHash != 0 };
-        codeLock.AuthorisedList.Clear();
-        foreach (ulong player in authorised.Distinct().Take(Data.LockMaxAuthorised))
-        {
-            codeLock.AuthorisedList.Add(player);
-        }
-        door.Lock = codeLock;
-        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
-        return codeLock;
+        if (fitted is KeyLock key && key.KeyCode >= _nextKeyCode)
+            _nextKeyCode = key.KeyCode % MaxKeyCode + 1;
     }
 
+    /// <summary>Puts a code lock back on its host without exposing its secrets to clients.</summary>
+    public CodeLock RestoreCodeLock(ILockHost door, EntityId id, ulong owner, ulong codeHash, bool locked, IEnumerable<ulong> authorised)
+    {
+        var codeLock = LockState.RestoreCode(id, owner, codeHash, locked, authorised, Data.LockMaxAuthorised);
+        door.Lock = codeLock;
+        door.LockChanged();
+        return codeLock;
+    }
     /// <summary>
     /// Puts a claim device back on its piece: where it stood in the frame, its health and authorised list; a mirror
     /// passes the server's body. Null when the piece already has one or isn't a slab.
@@ -276,22 +272,30 @@ public sealed partial class BuildingWorld
         }
     }
 
-    /// <summary>A mirror takes a door's state from the server: open or shut (the leaves' bodies move), its health.</summary>
-    public void Apply(Door door, bool open, double health)
+    /// <summary>
+    /// A mirror takes a door's state from the server: its target, its motion record (the progress at a tick, which way it
+    /// goes) and its health. The leaves' bodies go where the record puts them at the tick the doors are at.
+    /// </summary>
+    public void Apply(Door door, bool open, float from, int moving, long since, double health)
     {
         if (door.Gone)
         {
             return;
         }
         door.Health = Math.Clamp(health, 0, door.Def.Health);
-        if (open != door.Open)
+        lock (_moving)
         {
-            SetOpen(door, open);
+            door.Open = open && door.Def.Opens;
+            door.From = Math.Clamp(from, 0f, 1f);
+            door.Moving = (sbyte)(door.Def.Opens ? Math.Clamp(moving, -1, 1) : 0);
+            door.Since = since;
+            if (door.Moving != 0 && !_moving.Contains(door))
+            {
+                _moving.Add(door);
+            }
+            PoseDoor(door, door.ProgressAt(DoorTick));
         }
-        else
-        {
-            Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
-        }
+        Changed?.Invoke(new BuildingEvent(BuildingChange.DoorChanged, door.Frame, door, Structure: door.Frame.Structure));
     }
 
     /// <summary>A mirror shows a door's lock as the server describes it: none, a key lock or a code lock, locked or not.</summary>

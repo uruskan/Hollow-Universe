@@ -17,7 +17,8 @@ namespace HollowUniverse.Items;
 /// the model's clips; H plays the next; <c>--anim-time s</c> holds it at s seconds), <c>--slots a,b</c> (rocket models
 /// in a ship's ammunition slots, in turn), <c>--attach a,b</c> (mount attachments on a gun), <c>--upright</c> (a held
 /// item as it is held, not lying down), <c>--first-person</c>,
-/// <c>--lineup items|world</c>, <c>--pitch deg</c> (the lineup's camera). <c>--from=x,y,z --at=x,y,z</c> place the turntable's
+/// <c>--lineup items|world|cliffs</c> (cliffs: the cliff kit's pieces on their ground lines, a family to a row; docs/WORLD_TERRAIN_PLAN.md
+/// §4.3), <c>--pitch deg</c> (the lineup's camera). <c>--from=x,y,z --at=x,y,z</c> place the turntable's
 /// camera in the model's own frame (metres, its +Z the front) and hold the turntable still, for a close look at one place
 /// (a turret, a deck); <c>--fov deg</c> sets the camera's field of view. <c>--survey-surfaces &lt;path&gt;</c> measures the
 /// outcrops' drawn surfaces for the rules (<see cref="SurfaceSurvey"/>) and quits.
@@ -59,6 +60,8 @@ public partial class ModelViewer : Node3D
             return;
         }
         _entries.AddRange(ModelCatalog.Entries.Where(e => e.Files.Count > 0 && !e.IsKit));
+        // The cliff kit's pieces (--lineup cliffs).
+        _entries.AddRange(HollowUniverse.Surface.CliffKitModels.Entries());
         BuildWorld();
         BuildHud();
         if (Options.TryGetValue("stage", out string? stage))
@@ -190,7 +193,7 @@ public partial class ModelViewer : Node3D
     {
         ModelEntry entry = _entries[_index];
         int stage = Math.Clamp(_stage, 0, entry.Stages - 1);
-        Node3D? model = ModelCatalog.Instantiate(entry.Key, stage);
+        Node3D? model = Instantiate(entry, stage);
         if (model == null)
         {
             return;
@@ -198,8 +201,13 @@ public partial class ModelViewer : Node3D
         var pivot = new Node3D { Name = "Turntable" };
         _content.AddChild(pivot);
         Aabb bounds = ModelCatalog.LocalBounds(model);
+        // A cliff piece stands on its ground line, its skirt below the ground.
+        if (IsCliff(entry))
+        {
+            model.Position = Vector3.Zero;
+        }
         // A small vehicle stands on a plain stand; a ship big enough to carry its own landing legs stands on them.
-        if (entry.Class == "vehicle" && bounds.Size.Z < 25)
+        else if (entry.Class == "vehicle" && bounds.Size.Z < 25)
         {
             float lift = 0.45f;
             pivot.AddChild(Stand(bounds, lift));
@@ -321,26 +329,28 @@ public partial class ModelViewer : Node3D
     }
 
     /// <summary>
-    /// The held item as the player sees it: its grip at its catalogue pose (as the arms hold it, GROUND.md §4.8) in front
-    /// of a camera with the arms' field of view.
+    /// The real first-person rig, including its authored item placement and hands. Using the gameplay view avoids
+    /// showing a catalogue-only placement that disagrees with what the player actually holds.
     /// </summary>
     private void ShowFirstPerson()
     {
         ModelEntry entry = _entries[_index];
-        Node3D? model = entry.Held == null ? null : ModelCatalog.Instantiate(entry.Key);
+        var held = HollowUniverse.Characters.HeldItems.Find(entry.Key);
         _camera.Fov = HollowUniverse.Characters.CharacterMaterials.ViewmodelFov;
         _camera.Position = new Vector3(0, 1.6f, 0);
         _camera.Rotation = Vector3.Zero;
-        if (model == null)
+        if (held == null)
         {
             return;
         }
-        Mount(entry, model);
-        ModelCatalog.ForceLod(model, 0);
-        Transform3D grip = HollowUniverse.Characters.HeldItems.Find(entry.Key) is { } held
-            ? HollowUniverse.Characters.HeldItems.Grip(model, held) : Transform3D.Identity;
-        model.Transform = entry.Held!.FirstPerson.Transform * grip.AffineInverse();
-        _camera.AddChild(model);
+        var arms = new HollowUniverse.Characters.ViewmodelView { Name = "Viewmodel" };
+        _camera.AddChild(arms);
+        arms.Hold(held.Kind, held.Id);
+        if (arms.GetNodeOrNull<Node3D>(held.Id) is { } model)
+        {
+            Mount(entry, model);
+            HollowUniverse.Characters.ViewmodelView.PrepareItem(model);
+        }
     }
 
     private void ShowLineup()
@@ -348,16 +358,21 @@ public partial class ModelViewer : Node3D
         // Groups from the camera outward, each wrapped into rows: small items, larger items, deployables and doors,
         // outcrops. The ship has its own shot (--model tin-finch); --lineup items|world shows one half.
         string only = Options.TryGetValue("lineup", out string? l) ? l : "all";
+        if (only == "cliffs")
+        {
+            ShowCliffs();
+            return;
+        }
         var groups = new List<List<(ModelEntry Entry, Node3D Model, Aabb Bounds)>> { new(), new(), new(), new() };
         foreach (ModelEntry entry in _entries)
         {
-            if (entry.Class == "vehicle" || (only == "items" && IsPlaced(entry)) || (only == "world" && !IsPlaced(entry)))
+            if (entry.Class == "vehicle" || IsCliff(entry) || (only == "items" && IsPlaced(entry)) || (only == "world" && !IsPlaced(entry)))
             {
                 continue;
             }
             for (int stage = 0; stage < entry.Stages; stage++)
             {
-                Node3D? model = ModelCatalog.Instantiate(entry.Key, stage);
+                Node3D? model = Instantiate(entry, stage);
                 if (model == null)
                 {
                     continue;
@@ -442,14 +457,81 @@ public partial class ModelViewer : Node3D
         {
             return;
         }
-        // Frame the whole layout from in front and above: the nearest distance at which every corner is in view.
-        float pitch = Mathf.DegToRad(Options.TryGetValue("pitch", out string? p) ? float.Parse(p, CultureInfo.InvariantCulture) : 44f);
+        Frame(all, 44f);
+    }
+
+    /// <summary>
+    /// The cliff kit (<c>--lineup cliffs</c>): every piece on its ground line, its face toward the camera, a family to
+    /// a row (desert nearest), with a 1.8 m figure at the front for scale.
+    /// </summary>
+    private void ShowCliffs()
+    {
+        var rows = new List<List<(ModelEntry Entry, Node3D Model, Aabb Bounds)>>();
+        var families = new List<string>();
+        foreach (ModelEntry entry in _entries.Where(IsCliff))
+        {
+            Node3D? model = Instantiate(entry, 0);
+            if (model == null)
+            {
+                continue;
+            }
+            // Turned so that the face (+X) looks at the camera (+Z): left end to the left.
+            model.Rotation = new Vector3(0, -MathF.PI / 2, 0);
+            Aabb bounds = new Transform3D(model.Basis, Vector3.Zero) * ModelCatalog.LocalBounds(model);
+            string family = entry.Key.StartsWith("rubble", StringComparison.Ordinal) ? "rubble" : entry.Class;
+            int row = families.IndexOf(family);
+            if (row < 0)
+            {
+                families.Add(family);
+                rows.Add(new());
+                row = rows.Count - 1;
+            }
+            rows[row].Add((entry, model, bounds));
+        }
+        const float gap = 8f;
+        float z = 0;
+        Aabb all = default;
+        bool any = false;
+        foreach (var row in rows)
+        {
+            float width = row.Sum(m => m.Bounds.Size.X) + gap * (row.Count - 1);
+            float depth = row.Max(m => m.Bounds.Size.Z);
+            float x = -width / 2;
+            foreach ((ModelEntry _, Node3D model, Aabb bounds) in row)
+            {
+                // The ground line stays at y = 0 (the skirt below the ground); the face's foot on the row's front line.
+                var at = new Vector3(x - bounds.Position.X, 0, z - bounds.End.Z);
+                model.Position = at;
+                _content.AddChild(model);
+                ApplyLod(model);
+                Aabb placed = new(bounds.Position + at, bounds.Size);
+                all = any ? all.Merge(placed) : placed;
+                any = true;
+                x += bounds.Size.X + gap;
+            }
+            z -= depth + gap * 2;
+        }
+        if (!any)
+        {
+            return;
+        }
+        Node3D person = Figure();
+        person.Position = new Vector3(all.Position.X - 3f, 0, 2f);
+        _content.AddChild(person);
+        _sun.DirectionalShadowMaxDistance = MathF.Max(70, all.Size.Length() * 1.2f);
+        Frame(all, 28f);
+    }
+
+    /// <summary>The camera on a layout from in front and above: the nearest distance at which every corner is in view.</summary>
+    private void Frame(Aabb all, float defaultPitch)
+    {
+        float pitch = Mathf.DegToRad(Options.TryGetValue("pitch", out string? p) ? float.Parse(p, CultureInfo.InvariantCulture) : defaultPitch);
         Vector3 centre = all.GetCenter();
         Vector3 target = new(centre.X, all.Position.Y + all.Size.Y * 0.15f, centre.Z);
         var forward = new Vector3(0, -MathF.Sin(pitch), -MathF.Cos(pitch));
         Vector3 right = Vector3.Right, up = right.Cross(forward).Normalized();
         float tanV = MathF.Tan(Mathf.DegToRad(_camera.Fov) / 2), tanH = tanV * 16f / 9f;
-        float lo = 0.5f, hi = 200f;
+        float lo = 0.5f, hi = MathF.Max(200f, all.Size.Length() * 3f);
         for (int i = 0; i < 40; i++)
         {
             float d = (lo + hi) / 2;
@@ -470,9 +552,16 @@ public partial class ModelViewer : Node3D
                 lo = d;
             }
         }
+        _camera.Far = MathF.Max(600, hi * 3);
         _camera.Position = target - forward * hi;
         _camera.LookAt(target, Vector3.Up);
     }
+
+    private static bool IsCliff(ModelEntry entry) => entry.Kind == HollowUniverse.Surface.CliffKitModels.Kind;
+
+    /// <summary>A model of the catalogue, or a piece of the cliff kit.</summary>
+    private static Node3D? Instantiate(ModelEntry entry, int stage) =>
+        IsCliff(entry) ? HollowUniverse.Surface.CliffKitModels.Instantiate(entry) : ModelCatalog.Instantiate(entry.Key, stage);
 
     /// <summary>Things that stand in the world as they are placed (deployables, doors, outcrops...).</summary>
     private static bool IsPlaced(ModelEntry entry) => !entry.IsItem || entry.Class is "deployable" or "container" or "door" or "building";

@@ -61,7 +61,8 @@ internal static class Checks
             {
                 return Outcome.Done;
             }
-            return (hit.Target.Family == TargetFamily.Ground && c.SightThroughGround) || hit.Distance >= distance - slack ||
+            return (hit.Target.Family == TargetFamily.Ground && c.SightThroughGround) ||
+                (c.SightThroughSupport && !c.Support.IsNone && hit.Target.Whole == c.Support.Whole) || hit.Distance >= distance - slack ||
                 Vector3.Distance(hit.Point, c.Nearest) <= slack
                 ? Outcome.Done
                 : OutcomeCode.OutOfSight;
@@ -78,10 +79,15 @@ internal static class Checks
             PlacementSurfaces allowed = ctx.Rule.Surfaces;
             if ((allowed & c.Surface) != 0)
             {
+                // Climbable wall mounts can use structural walls or a deployable's vertical face, never its top.
+                if (ctx.Placeable.Definition is Content.DeployableDef { Climb: not null } &&
+                    MathF.Abs(Vector3.Dot(c.Normal, world.Frame.UpAt(c.Nearest))) > .2f)
+                    return OutcomeCode.BadPlacement;
                 return Outcome.Done;
             }
             bool floorsOnly = (allowed & PlacementSurfaces.Floor) != 0 && (allowed & PlacementSurfaces.Terrain) == 0;
-            return floorsOnly ? OutcomeCode.NotOnStructure : OutcomeCode.BadPlacement;
+            bool waterOnly = allowed == PlacementSurfaces.Water;
+            return waterOnly ? OutcomeCode.NotOnWater : floorsOnly ? OutcomeCode.NotOnStructure : OutcomeCode.BadPlacement;
         }
     }
 
@@ -128,7 +134,7 @@ internal static class Checks
             foreach (Vector3 corner in corners[..count])
             {
                 Vector3 up = world.Frame.UpAt(corner);
-                if (!world.Ray(corner + up * step, -up, 2 * step, out PlacementHit hit) || (hit.Surface & ctx.Rule.Surfaces) == 0 ||
+                if (!world.Ray(corner + up * step, -up, 2 * step, ctx.Rule.Surfaces, out PlacementHit hit) || (hit.Surface & ctx.Rule.Surfaces) == 0 ||
                     Vector3.Dot(hit.Normal, up) < CornerUp)
                 {
                     return OutcomeCode.Overhangs;

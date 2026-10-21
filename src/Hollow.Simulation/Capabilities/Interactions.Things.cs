@@ -65,6 +65,7 @@ public static partial class CapabilityHandlers
         // (and those on its list).
         public void Offer(in InteractContext ctx, List<InteractOption> into)
         {
+            if (ctx.Facts.DeviceAccess.Present) return; // Its shared access capability supplies the storage action.
             int verb = ctx.Facts.Body ? _loot : _open;
             bool lockedOut = ctx.Has(ViewerFlags.Locked) && !ctx.Has(ViewerFlags.Mine) && !ctx.Has(ViewerFlags.Authorised);
             into.Add(lockedOut ? InteractOption.Cannot(verb, OutcomeCode.Locked, primary: true) : InteractOption.Can(verb, primary: true));
@@ -72,7 +73,9 @@ public static partial class CapabilityHandlers
 
         public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
 
-        private static Outcome Open(in InteractContext ctx, in InteractArgs args) => ctx.Zone!.Interaction().OpenLoot(ctx.Player!, new EntityId(ctx.Target.Id));
+        private static Outcome Open(in InteractContext ctx, in InteractArgs args) =>
+            ctx.Thing is Deployable { Def.Defense: not null } device && !ctx.Zone!.DeviceAuthorization().CanManage(device, ctx.Doer.Id)
+                ? OutcomeCode.NotAuthorised : ctx.Zone!.Interaction().OpenLoot(ctx.Player!, new EntityId(ctx.Target.Id), ctx.Target.Part);
     }
 
     /// <summary>Taken whole with E: a natural pickup, a berry bush (picked bare), a bag of dropped items (all that fits), a spent arrow.</summary>
@@ -126,7 +129,13 @@ public static partial class CapabilityHandlers
         {
             // Aboard a ship its crew takes things up (IRON_WAKE.md §8: its list is its claim); elsewhere, where no one
             // else's claim covers.
-            Outcome why = ctx.Facts.Capabilities.Has(_container) && !ctx.Has(ViewerFlags.Empty) ? OutcomeCode.NotEmpty
+            bool restrictedUtility = (ctx.Facts.Deployable?.Defense != null || ctx.Facts.Deployable?.Power != null) &&
+                !ctx.Has(ViewerFlags.Mine) && !ctx.Has(ViewerFlags.Authorised) && !ctx.Has(ViewerFlags.Teammate) &&
+                ctx.Building?.PrivilegeAt(ctx.Doer.Id.Value, ctx.Facts.Position) != Privilege.Allowed;
+            Outcome why = ctx.Facts.Lock != LockKind.None ? OutcomeCode.RemoveLockFirst
+                : ctx.Facts.Deployable?.Gate != null && !ctx.Facts.Open ? OutcomeCode.OpenItFirst
+                : restrictedUtility ? OutcomeCode.NotAuthorised
+                : ctx.Facts.Capabilities.Has(_container) && !ctx.Has(ViewerFlags.Empty) ? OutcomeCode.NotEmpty
                 : ctx.Facts.Aboard ? ctx.Has(ViewerFlags.Authorised) ? Outcome.Done : OutcomeCode.NotCrew
                 : ctx.Building?.PrivilegeAt(ctx.Doer.Id.Value, ctx.Facts.Position) == Privilege.Blocked ? OutcomeCode.BuildingBlocked
                 : Outcome.Done;
@@ -196,6 +205,42 @@ public static partial class CapabilityHandlers
     }
 
     /// <summary>
+    /// A station with a bay (deployables.json bay: the vehicle workbench, VEHICLES.md §9.11): EDIT VEHICLE (held E; the tech
+    /// tree stays its tap) opens the vehicle screen, the interface's panel, where the vehicle standing in its bay is changed
+    /// through <c>ShipSystem.FitModule</c> and <c>TakeModule</c> (each its own intent).
+    /// </summary>
+    private sealed class VehicleService : ICapability, IInteractCapability
+    {
+        private readonly VerbActions _verbs;
+        private readonly int _edit;
+
+        public VehicleService(InteractionData data)
+        {
+            _verbs = new VerbActions(data, ("edit-vehicle", Panel));
+            _edit = _verbs["edit-vehicle"];
+        }
+
+        public string Key => "vehicle-service";
+
+        public ViewerFlags Flags(object thing, in Viewer viewer) => ViewerFlags.None;
+
+        public IReadOnlyList<string> Verbs => _verbs.Keys;
+
+        public void Offer(in InteractContext ctx, List<InteractOption> into)
+        {
+            if (ctx.Facts.Deployable?.Bay != null)
+            {
+                into.Add(InteractOption.Can(_edit));
+            }
+        }
+
+        public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
+
+        // The screen is the interface's to open: a panel's verb never reaches the server.
+        private static Outcome Panel(in InteractContext ctx, in InteractArgs args) => OutcomeCode.NotUsable;
+    }
+
+    /// <summary>
     /// A workbench (deployables.json workbench): its tech tree (the interface's panel, E's primary) and the tree's unlocks,
     /// which the panel sends with the recipe as the verb's argument.
     /// </summary>
@@ -218,7 +263,7 @@ public static partial class CapabilityHandlers
 
         public void Offer(in InteractContext ctx, List<InteractOption> into)
         {
-            if (ctx.Facts.Deployable is { Workbench: > 0 } bench && ctx.Content.World.Tree(bench.Workbench) != null)
+            if (ctx.Facts.Deployable?.TechTree != null)
             {
                 into.Add(InteractOption.Can(_tree, primary: true));
                 into.Add(InteractOption.Can(_unlock));
@@ -232,6 +277,8 @@ public static partial class CapabilityHandlers
 
         // A node of the tree, for its salvage, at a bench of its level within reach (as crafting counts benches).
         private static Outcome Unlock(in InteractContext ctx, in InteractArgs args) =>
-            ctx.Zone!.World().UnlockNode(ctx.Entity, ctx.Player!, (int)Math.Min(args.Arg, int.MaxValue));
+            ctx.Facts.Deployable is { } bench
+                ? ctx.Zone!.World().UnlockNode(ctx.Entity, ctx.Player!, (int)Math.Min(args.Arg, int.MaxValue), bench)
+                : OutcomeCode.NotFound;
     }
 }

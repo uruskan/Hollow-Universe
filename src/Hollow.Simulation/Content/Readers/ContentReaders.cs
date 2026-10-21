@@ -18,6 +18,7 @@ internal static class ContentReaders
         new RecipesReader(),
         new SurfacesReader(),
         new GatherReader(),
+        new CompoundReader(),
         new DeployablesReader(),
         new LootReader(),
         new SurvivalReader(),
@@ -26,11 +27,13 @@ internal static class ContentReaders
         new ExplosivesReader(),
         new BatteriesReader(),
         new ShipsReader(),
+        new ModulesReader(),
         new WorldReader(),
         new AnimalsReader(),
         new TextsReader(),
         new BuildingReader(),
         new PlacementReader(),
+        new PhysicalSurfacesReader(),
         new CrossChecks(),
     };
 }

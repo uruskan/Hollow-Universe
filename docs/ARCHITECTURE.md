@@ -1,10 +1,39 @@
 # Hollow Universe — Architecture
 
-Status: draft 1, 10 October 2026. This is the foundation plan: how the code is organised and why.
-[GAME_DESIGN.md](GAME_DESIGN.md) says what the game is. [GALAXY.md](GALAXY.md) specifies the universe
-generator in detail. When code and this document disagree, one of them is wrong: fix it in the same commit.
+Status: foundation plan begun 10 October 2026, with dated AB Test B updates. [DESIGN.md](DESIGN.md) is the
+current game design; GAME_DESIGN.md and older scale decisions are historical references. [GALAXY.md](GALAXY.md)
+specifies the source generator. Distinguish planned architecture here from the implementation recorded in DEVELOPMENT.md.
+
+Travel revision, **18 October 2026**: normal flight, supercruise, charged interstellar jumps and fuel scooping are the
+approved direction under DESIGN.md TRAVEL-01–05. [TRAVEL_IMPLEMENTATION.md](TRAVEL_IMPLEMENTATION.md) proposes the
+runtime, fuel, transfer and client work. The space layers and transfer table below are planned architecture; the
+running game still has one planetary runtime and its local flight boundary. Historical 2.41 km world measurements
+below describe source fixtures; AB Test B's current scale follows IMPLEMENTATION_SCALE.md and DESIGN.md WORLD-01.
+
+AB Test B online combat extension (16 October 2026): [ATTACK_SYSTEM.md](ATTACK_SYSTEM.md)
+defines the shared predicted-attack identity, authoritative decisions, ammunition reservations,
+projectile reconciliation and bounded network history used by melee, firearms, launchers and cannons.
+The current universe design remains [DESIGN.md](DESIGN.md).
+
+AB Test B electrical and device-authorization foundation (**18 October 2026**):
+[ELECTRICITY_AND_AUTHORIZATION.md](ELECTRICITY_AND_AUTHORIZATION.md) defines shared
+physical ports, directed cables, Wire Tool transactions, indexed circuit evaluation and
+separate device friendship/control policies. DESIGN.md ELEC-02–03 and AUTH-01 record the
+confirmed 20 m endpoint span and clearing of inherited protection. The runtime now uses
+an indexed directed graph, registered transfer handlers and a separate authorization
+resolver. Windmill, turret and SAM declare their physical ports in data; shared tool,
+network and save paths replace the old source-ID bus and owner/team defense shortcuts.
+Routes remain visual, and zero-time topology edits never integrate stored energy.
+DEVELOPMENT.md records validation and explicit first-slice limits.
 
 ---
+
+AB Test B environment program (**18 October 2026**):
+[WORLD_ENVIRONMENT_ARCHITECTURE.md](WORLD_ENVIRONMENT_ARCHITECTURE.md) defines the shared
+terrain, formation, support, soil, ecology and rendering boundaries, world ownership and
+seed/version contracts. [TERRAIN_SCENERY_PLAN.md](TERRAIN_SCENERY_PLAN.md) contains the
+research and delivery gates. Implementation status is explicit; the complete environment
+pipeline and multiworld lease store are not yet built.
 
 ## 1. What the architecture has to carry
 
@@ -278,6 +307,10 @@ one, measured from its centre:
   touch them (a character's surroundings, what a ship's queries can reach this tick), built ahead on worker threads
   and taken in a few a tick; Jolt bodies are kept once made and the broadphase is updated incrementally, so the
   world's churn costs little (GROUND.md §4.5).
+- **Native ownership**: JoltPhysicsSharp 2.23.0 leaves physics systems, shape settings and body-creation settings
+  without ownership of their native handles, so their `Dispose` frees nothing. Create every settings object with
+  `.Owned()` and call `JoltRuntime.HandOverToSystem` before disposing a physics system and its filters; an
+  architecture test enforces both. Without them every world leaked its system, bodies and shapes (KNOWN_PROBLEMS.md).
 
 ### 10.4 Elapsed time (nothing ticks while unloaded)
 
@@ -304,6 +337,14 @@ schedule, and alerts wait for the owners' login.
 
 - UDP through LiteNetLib. Channels: reliable ordered (commands, events, static entities) and unreliable
   sequenced (inputs, snapshots).
+- The graphical client uses LiteNetLib's background transport to keep network progress independent of render/asset
+  stalls. Application events remain queued until `GameClient.Update` polls on its caller's thread; prediction and
+  modules stay on that thread. Server, bots and tests retain manual transport by default. Background transport never
+  runs a concurrent `ManualUpdate`, and is stopped before client simulation resources are disposed. Normal disconnect
+  timeouts stay unchanged. The 16 October coordinated startup/loading/architecture batch passed 15/15, including a
+  12-second update stall: the manual control timed out, background transport survived, and callbacks/disconnect/disposal
+  passed on the caller's thread. Native Maximum world-startup acceptance remains pending
+  ([P8 evidence](repair-results/P8-performance.md)).
 - **Login flow**: the client logs in to the account service over HTTPS and receives a signed **connect
   token** (shard address, expiry, account ID, session key). It presents the token to the shard. After that,
   every packet is encrypted with the session key (ChaCha20-Poly1305, built into .NET).
@@ -362,17 +403,26 @@ schedule, and alerts wait for the owners' login.
 
 ## 12. Transfers
 
+Planned connected-travel contracts, updated 18 October 2026; current local ascent is documented in LOCAL_FLIGHT.md.
+The server must validate drive charging, destination/range and fuel before authorizing a mode change or jump.
+Charge and transfer are separate operations: a ready drive does not prove the destination is ready.
+
 | Transfer | Trigger | What happens |
 |---|---|---|
 | Surface ↔ surface | none since S3 (14 October 2026): a surface zone holds its whole world (§10.1) | Nothing: a world has no zone borders. |
 | Local space ↔ surface | descending below the handover altitude (or climbing above it) | Ship and occupants are handed over. The client keeps rendering. |
 | Supercruise ↔ local space | drop out / jump to supercruise | Join the local zone at that point, or create one. Join an existing zone if one is within range. |
-| Star system → star system | frame shift jump | A 10–15 s hyperspace sequence on the client covers loading the target system. |
-| Process ↔ process (phase 2) | load balancing, or a jump to a system hosted elsewhere | Serialize, hand over ownership through the coordinator, reconnect hidden behind a jump or loading moment. |
+| Star system → star system | charged drive jump after authoritative validation | Countdown, hyperspace sequence and destination arrival; duration is tuning to be defined, with prepared destination and transactional ownership. |
+| Process ↔ process (phase 2) | load balancing, or a jump to a system hosted elsewhere | Serialize and hand over ownership through the coordinator; preserve the logical session, with transport handover covered by the relevant flight/jump transition. |
 
 Ownership handover is transactional (P6). The source marks the object "in transit" and the database
 commits the new owner before the target accepts. After a crash, the coordinator resolves every object to
 exactly one owner.
+
+The transfer includes the ship, seated/walking/sleeping crew, supported objects and cargo, plus travel state and
+committed fuel accounting. Fuel scooping and drive consumption use one server-owned fuel system. Cancellation,
+packet retries, stale source saves and crash recovery must not duplicate entities or fuel. See the current travel
+plan for implementation order and separate planetary/interstellar validation gates.
 
 ---
 
@@ -393,6 +443,14 @@ exactly one owner.
   Accounts survive wipes. (Whether the game wipes at all is a design decision; the architecture supports
   both.)
 - **Schema changes**: versioned payloads plus migration code. Tests load old saves.
+- **Playable terrain compatibility (AB Test B, 16 October 2026)**: body-specific walking profiles are
+  selected by system/body address, independently of physical planet metadata. Schema 9 records each saved
+  body's terrain revision. The server checks it read-only before migrations or restoration; incompatible
+  populated saves are preserved and refused. Revisions cover heights and generated solids: cliff generation 2
+  advances Earth to save revision 3 and other walking bodies to revision 1 without rerolling their heights.
+  Current walking bodies cannot adopt revision-zero spatial state; stand-in ground retains revision zero.
+  Default filenames include the Earth revision; protocol 33 rejects peers using earlier coastlines or cliff
+  collision. See [EARTH_TERRAIN.md](EARTH_TERRAIN.md).
 
 ---
 
@@ -413,6 +471,13 @@ Each is an interface from day one, so moving it to its own process later is a de
 ---
 
 ## 15. Client (Godot)
+
+The shared contact/audio/VFX boundary is specified in [AUDIO_VFX.md](AUDIO_VFX.md).
+Authoritative contacts retain target/part, physical surface and actual normal; one
+data-driven response table feeds the existing presentation directors. Continuous audio
+and visual effects retain logical ownership separately from bounded playback/render
+resources. Material identity and cue timing remain engine-free and shared by local and
+remote presentation.
 
 - **Layers**: App (modes, settings) → Connection (Hollow.Net client) → World view (entity views pooled by type,
   floating origin, LOD) → Presentation (planets, ships, characters, effects, audio) → UI (Godot controls,

@@ -47,6 +47,9 @@ public partial class LoadTrace : Node
     private double _lastFrame;
     private TimeSpan _gcPause, _jit;
     private Late? _late;
+    private bool _captureTrace;
+    private double _nextProgress;
+    private bool? _lastReady;
 
     // The last node to process each frame: when the process phase ended (the rest of a frame is drawing it).
     private sealed partial class Late : Node
@@ -83,6 +86,7 @@ public partial class LoadTrace : Node
     {
         using var process = System.Diagnostics.Process.GetCurrentProcess();
         _offset = Math.Max(0, (DateTime.Now - process.StartTime).TotalSeconds);
+        _captureTrace = Mode.Options.ContainsKey("capture-trace");
         ProcessPriority = int.MinValue;
         Mark("ground mode");
         _late = new Late { Name = "LoadTraceLate", ProcessPriority = int.MaxValue, Clock = _clock };
@@ -141,6 +145,7 @@ public partial class LoadTrace : Node
             _steadySince = now;
         }
         Watch(now, spawned);
+        ReportProgress(now);
         Arrival(now);
         if (ShotPath != null && !_shot && Mode.Loading is { ShowScreen: true, Progress: >= 0.5 })
         {
@@ -164,6 +169,51 @@ public partial class LoadTrace : Node
             _done = true;
             GetTree().Quit();
         }
+    }
+
+    // --capture-trace with --load-trace: preserve live readiness when an outer guard ends the process before Print().
+    // Existing state only; sampled every five seconds (and readiness changes), with no extra generation or draws.
+    private void ReportProgress(double now)
+    {
+        if (!_captureTrace) return;
+        bool ready = Mode.ReadyForShot;
+        if (now < _nextProgress && _lastReady == ready) return;
+        _nextProgress = now + 5;
+        _lastReady = ready;
+        var world = Mode.View?.World;
+        var loading = Mode.Loading;
+        HollowUniverse.Common.ProcessCommit.Split commit = HollowUniverse.Common.ProcessCommit.Measure();
+        GD.Print("[load-progress] " + System.Text.Json.JsonSerializer.Serialize(new
+        {
+            processSeconds = now, processId = System.Environment.ProcessId, processFrame = Engine.GetProcessFrames(),
+            clientState = Mode.Client?.State.ToString() ?? "absent", hasCharacter = Mode.Client?.HasCharacter == true,
+            serverReady = Mode.Child?.Ready, serverExited = Mode.Child?.Exited,
+            phase = loading?.Phase.ToString() ?? "absent", stage = loading?.Current?.Key,
+            progress = loading?.Progress, playing = loading?.Playing, readyForShot = ready,
+            viewReady = Mode.View?.ReadyForShot, worldReady = world?.IsReady,
+            windowVisible = GetWindow().Visible, windowMode = GetWindow().Mode.ToString(),
+            renderLoopEnabled = RenderingServer.RenderLoopEnabled,
+            warmupShown = Mode.View?.Warmup?.Shown, warmupItems = Mode.View?.Warmup?.Items,
+            warmupLivePreviews = Mode.View?.Warmup?.LivePreviews, warmupPeakPreviews = Mode.View?.Warmup?.PeakPreviews,
+            warmupHeldFiles = Mode.View?.Warmup?.HeldFiles, warmupLoadingFiles = Mode.View?.Warmup?.LoadingFiles,
+            warmupQueuedFiles = Mode.View?.Warmup?.QueuedFiles,
+            warmupAdmittedItems = Mode.View?.Warmup?.AdmittedItems,
+            warmupAdmittedPendingFiles = Mode.View?.Warmup?.AdmittedPendingFiles,
+            warmupQueuedAdmittedFiles = Mode.View?.Warmup?.QueuedAdmittedFiles,
+            warmupRequestedFiles = Mode.View?.Warmup?.RequestedFiles,
+            managedHeapMiB = GC.GetTotalMemory(false) / (1024.0 * 1024),
+            managedCommittedMiB = GC.GetGCMemoryInfo().TotalCommittedBytes / (1024.0 * 1024),
+            // Renderer accounting is not process working set or physical VRAM residency.
+            // Keep the components separate so captures can distinguish scene resources from the managed heap.
+            rendererTextureMiB = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.TextureMemUsed) / (1024.0 * 1024),
+            rendererBufferMiB = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.BufferMemUsed) / (1024.0 * 1024),
+            rendererTotalMiB = RenderingServer.GetRenderingInfo(RenderingServer.RenderingInfo.VideoMemUsed) / (1024.0 * 1024),
+            engineStaticMiB = OS.GetStaticMemoryUsage() / (1024.0 * 1024),
+            // The process's private bytes: the graphics driver's write-combined commit (video memory's backing,
+            // mapped GPU buffers) and the rest (native and managed heaps), docs/DEVELOPMENT.md 19 October 2026.
+            privateMiB = commit.PrivateMiB, graphicsCommitMiB = commit.GraphicsMiB, cpuCommitMiB = commit.CpuMiB,
+            streaming = world?.StreamingStatus,
+        }));
     }
 
     // The signals polled every frame: the connection, the world view's streaming, the replicated things.
@@ -326,6 +376,9 @@ public partial class LoadTrace : Node
             totals.Append(i + 1 < Pipelines.Length ? ", " : "");
         }
         GD.Print("[load] pipelines compiled: " + totals);
+        HollowUniverse.Common.ProcessCommit.Split commit = HollowUniverse.Common.ProcessCommit.Measure();
+        GD.Print(string.Create(c, $"[load] private memory {commit.PrivateMiB:0} MiB: graphics driver {commit.GraphicsMiB:0} MiB, " +
+            $"other {commit.CpuMiB:0} MiB; working set {System.Environment.WorkingSet / 1048576.0:0} MiB"));
         if (Mode.View is { } view)
         {
             GD.Print("[load] the ground view's slowest parts: " + string.Join(", ",

@@ -1,0 +1,29 @@
+{
+  "Variant": 5,
+  "TotalKm2": 18.09557368467721,
+  "DryKm2": 10.616069895010629,
+  "GentleKm2": 7.428232997559994,
+  "OpenGentleKm2": 6.1856702712121585,
+  "ForestShare": 0.11704545454545455,
+  "MountainShare": 0.07863607535940155,
+  "SignificantBiomes": 8,
+  "HeightP10": 4.439658377263812,
+  "HeightP90": 67.12313022279962,
+  "MaximumHeight": 261.5576964754269,
+  "ConnectedDryShare": 0.9998602580132334,
+  "BiomeShares": {
+    "Ocean": 0,
+    "Beach": 0.035994616904168254,
+    "IceSheet": 0.13736144806878478,
+    "Tundra": 0.013396919451613403,
+    "BorealForest": 0.1440198671241162,
+    "TemperateForest": 0.0985703235004158,
+    "Grassland": 0.10483921035354866,
+    "Shrubland": 0.10563562200447814,
+    "Desert": 0.009000608037695666,
+    "Savanna": 0.1101051139726571,
+    "TropicalForest": 0.23607631951705485,
+    "Alpine": 0.005630578933153169
+  },
+  "BroadVariedLand": true
+}

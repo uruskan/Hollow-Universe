@@ -41,10 +41,10 @@ materials/extract_format=0
 materials/extract_path=""
 _subresources={
 "materials": {
-"LC_Metal": {
+"M_PSG_Surface": {
 "use_external/enabled": true,
-"use_external/fallback_path": "res://assets/materials/loot_metal.tres",
-"use_external/path": "res://assets/materials/loot_metal.tres"
+"use_external/fallback_path": "res://assets/materials/psg_surface.tres",
+"use_external/path": "res://assets/materials/psg_surface.tres"
 }
 }
 }

@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-16",
+  "kind": "Owner supplied playtest screenshots; originals copied without image edits",
+  "notes": [
+    "Screenshots 6 and 7 have identical SHA-256; grass also visible in 3, 8, 9 and 10.",
+    "Images are visual evidence; capture settings, location and runtime entity identity require reproduction."
+  ],
+  "images": [
+    {
+      "screenshot": 1,
+      "file": "screenshot-01.png",
+      "source": "C:\\Users\\uruskan\\AppData\\Local\\Temp\\codex-clipboard-d666e863-02c5-4f2a-b40a-e671e4047c2d.png",
+      "sha256": "628da2af2ad16111bb00fa8bc59f8440bb2432d3687907736e8d133a4c04b54b",
+      "width": 1862,
+      "height": 866,
+      "bytes": 2729181
+    },
+    {
+      "screenshot": 2,
+      "file": "screenshot-02.png",
+      "source": "C:\\Users\\uruskan\\AppData\\Local\\Temp\\codex-clipboard-6db106ff-b8cf-4cb6-8b66-3690cbb55813.png",
+      "sha256": "37a00d1c769cddd255621ce4bc8fe94f32031f653b798dcf05c0a57d528bc8ba",
+      "width": 2476,
+      "height": 1396,
+      "bytes": 3876149
+    },
+    {
+      "screenshot": 3,
+      "file": "screenshot-03.png",
+      "source": "C:\\Users\\uruskan\\AppData\\Local\\Temp\\codex-clipboard-5ad45c4b-d964-4e49-a524-daae09341a6d.png",
+      "sha256": "00b52b47ac2103755aecabcabe9ff1f04b8643586a9ffd78b924111c690694de",
+      "width": 1331,
+      "height": 849,
+      "bytes": 2453940
+    },
+    {
+      "screenshot": 4,
+      "file": "screenshot-04.png",
+      "source": "C:\\Users\\uruskan\\AppData\\Local\\Temp\\codex-clipboard-cc36389f-67b1-4009-bb72-bc63fc0ccb0a.png",
+      "sha256": "e05d21de8895a541dd58b135a00a21ee290e3a79308e37ee820ff4d2fb95fb29",
+      "width": 1811,
+      "height": 1107,
+      "bytes": 3536806
+    },
+    {
+      "screenshot": 5,
+      "file": "screenshot-05.png",
+      "source": "C:\\Users\\uruskan\\AppData\\Local\\Temp\\codex-clipboard-f53d0634-655a-490c-9adb-b05df5d86c59.png",
+      "sha256": "1b66cc5aa1f73e2d010336f05cad9ec3758181b2d7288d0af58527432510f137",
+      "width": 1336,
+      "height": 786,
+      "bytes": 1294874
+    },
+    {
+      "screenshot": 6,
+      "file": "screenshot-06.png",
+      "source": "C:\\Users\\uruskan\\AppData\\Local\\Temp\\codex-clipboard-45ca67e1-1044-4e7a-b745-0aef9722a596.png",
+      "sha256": "76dd51f16a9ab5eb6c67cc31d754a9210f51963b36e26a1f49ad597da7f528fe",
+      "width": 2139,
+      "height": 1171,
+      "bytes": 3721959
+    },
+    {
+      "screenshot": 7,
+      "file": "screenshot-07.png",
+      "source": "C:\\Users\\uruskan\\AppData\\Local\\Temp\\codex-clipboard-ae9c4965-170a-4f0e-ae9e-b8db7d305c82.png",
+      "sha256": "76dd51f16a9ab5eb6c67cc31d754a9210f51963b36e26a1f49ad597da7f528fe",
+      "width": 2139,
+      "height": 1171,
+      "bytes": 3721959
+    },
+    {
+      "screenshot": 8,
+      "file": "screenshot-08.png",
+      "source": "C:\\Users\\uruskan\\AppData\\Local\\Temp\\codex-clipboard-a0b98fd9-7b74-447b-bb02-1d1820ffc7cb.png",
+      "sha256": "58c64145b05657be0703579519fe6f912b77abbf51298aae4893c270dc42c10b",
+      "width": 1693,
+      "height": 1164,
+      "bytes": 4873994
+    },
+    {
+      "screenshot": 9,
+      "file": "screenshot-09.png",
+      "source": "C:\\Users\\uruskan\\AppData\\Local\\Temp\\codex-clipboard-ebc6e2b8-86aa-4d3f-bfc2-32ca4d1de791.png",
+      "sha256": "0a517285d2257a720a99815810e78710e25e815dffc77e5cb44e3964b04306f3",
+      "width": 1978,
+      "height": 1390,
+      "bytes": 6044120
+    },
+    {
+      "screenshot": 10,
+      "file": "screenshot-10.png",
+      "source": "C:\\Users\\uruskan\\AppData\\Local\\Temp\\codex-clipboard-5e71a5f9-b929-40fd-a6dd-79666eeccadb.png",
+      "sha256": "3f3aaeb68ebc3fbdd926aae8f57d1ea2dfcb8a44f83066239b95ffccce4d9c05",
+      "width": 1602,
+      "height": 1237,
+      "bytes": 4435929
+    },
+    {
+      "screenshot": 11,
+      "file": "screenshot-11.png",
+      "source": "C:\\Users\\uruskan\\AppData\\Local\\Temp\\codex-clipboard-b5799b65-869a-4f97-ad0e-527917d8d846.png",
+      "sha256": "c4fb9377b5556b574556223f61a2c9d5004f40c50cfc15d261a4b8d15c1e08c5",
+      "width": 1572,
+      "height": 950,
+      "bytes": 3429717
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "metal-blade",
+  "date": "2026-10-18",
+  "replaces": "refined-metal.glb stand-in and SVG fallback",
+  "authorship": "Original authored geometry, procedural PBR atlas and production-rendered icons; no reference game files",
+  "visual_reference": {
+    "page": "https://wiki.facepunch.com/rust/item/metalblade",
+    "image": "https://files.facepunch.com/rust/item/metalblade_512.png",
+    "use": "Visual observation only, before modelling; no downloaded reference files"
+  },
+  "authoring_source": {
+    "path": "art/models/metal_blade.py",
+    "sha256": "5db0e64fbad7a6d4ce7d5e4693c1b70835e4197d68bcaf2c81ab90b150bac8fa"
+  },
+  "geometry": {
+    "asset": "metal-blade",
+    "dimensions_blender_xyz_m": [
+      0.32,
+      0.0052,
+      0.2301
+    ],
+    "texture_size": 1024,
+    "material_count": 1,
+    "lod_triangles": {
+      "MetalBlade_lod0": 1568,
+      "MetalBlade_lod1": 992,
+      "MetalBlade_lod2": 672
+    },
+    "hull_triangles": 37
+  },
+  "files": {
+    "game/assets/items/metal-blade.glb": {
+      "sha256": "d9ffc439ab0a3d9cde8bf56e72ab76672edb53bb185d38a0110d178458e93148",
+      "bytes": 184268
+    },
+    "game/assets/items/metal-blade.glb.import": {
+      "sha256": "52200b5d568bb473d8ad2a37ef23ebc0de96e755e04f0deba62d8f0a60543a6d",
+      "bytes": 1374
+    },
+    "game/assets/materials/metal-blade.tres": {
+      "sha256": "6f2a19705440133ff6a1e7de894f9fb30a9e8082b27e7df8656d107497babd4e",
+      "bytes": 642
+    },
+    "game/assets/textures/metal-blade/metal_blade_albedo.png": {
+      "sha256": "a96e4443a94a238c0d82c061bbc1517d1bc3d22e986953bb962192a9a005ca5a",
+      "bytes": 1496047
+    },
+    "game/assets/textures/metal-blade/metal_blade_albedo.png.import": {
+      "sha256": "71c104aa29f0dcece44d67d610528b2acefb9188b6398f85ebf95427777689d4",
+      "bytes": 1034
+    },
+    "game/assets/textures/metal-blade/metal_blade_normal.png": {
+      "sha256": "6e6904fd1551b16ee8699781089d43f887070beb6e70141203ff20852612772c",
+      "bytes": 1743112
+    },
+    "game/assets/textures/metal-blade/metal_blade_normal.png.import": {
+      "sha256": "b7588333875166fc1f80868a4c876a7c810252ba97f2ea7d44d01015965c316a",
+      "bytes": 1034
+    },
+    "game/assets/textures/metal-blade/metal_blade_orm.png": {
+      "sha256": "cef5068ee940b36e169003976c21250974d005af0aeb1e9ae9b4a99d61c813cb",
+      "bytes": 176560
+    },
+    "game/assets/textures/metal-blade/metal_blade_orm.png.import": {
+      "sha256": "74a135de3dd17995074c1b77988389dbd21e569d5b12d1ee294c5df4cd4490b1",
+      "bytes": 1025
+    },
+    "game/assets/items/icons/128/metal-blade.png": {
+      "sha256": "ef6fe027266cac2dc318aa57a329c6ff7617235d443c30a82d7292c0e71a6ec4",
+      "bytes": 11924
+    },
+    "game/assets/items/icons/128/metal-blade.png.import": {
+      "sha256": "e917ea200b0c918d3f069501efb0bd5e61c2e581e38f0e78126a41a67eb5066a",
+      "bytes": 959
+    },
+    "game/assets/items/icons/256/metal-blade.png": {
+      "sha256": "8de78c499ecd0971d3319b4be60281c98a3510849bcea6bbd30b3cb9fe3558fe",
+      "bytes": 42926
+    },
+    "game/assets/items/icons/256/metal-blade.png.import": {
+      "sha256": "7678b66a938d582b6414c437e06f7bb0b3edbd26465dd037824a59fe7194e93d",
+      "bytes": 960
+    }
+  }
+}

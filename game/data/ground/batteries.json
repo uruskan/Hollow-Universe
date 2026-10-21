@@ -17,7 +17,7 @@
       "recoil": {"travel": 0.48, "axis": [0, 0, -1], "seconds": 0.9, "times": [0.0, 0.02, 0.055, 0.08, 0.13, 0.22, 0.4, 0.62, 0.8, 0.9], "fractions": [0.0, 0.46, 0.94, 1.0, 0.98, 0.89, 0.63, 0.3, 0.06, 0.0]},
       "slots": {"rack": 3, "hood": 1, "perBarrel": "a ready rack of three rounds and a fourth waiting in its hood", "magazine": 12, "stack": 3},
       "launch": {"gravityBurning": 0.15, "gravity": 1.0, "drag": 0.0015, "profiles": {"rocket": {"muzzle": 70, "ignite": 4.0, "accel": 60, "burn": 1.2, "top": 142, "lifetime": 12, "reach": 900}, "rocket-incendiary": {"muzzle": 70, "ignite": 4.0, "accel": 60, "burn": 1.2, "top": 142, "lifetime": 12, "reach": 900}, "rocket-hv": {"muzzle": 120, "ignite": 4.0, "accel": 100, "burn": 1.4, "top": 260, "lifetime": 12, "reach": 1350}}},
-      "mount": {"yaw": {"arcs": "the data file's levelArcs for the station", "rate": 24, "accel": 40}, "pitch": {"min": -8, "max": 40, "rate": 16, "accel": 30}, "alignment": 0.5, "loaderSeconds": 4.6, "health": 1500, "zoom": 3},
+      "mount": {"yaw": {"arcs": "the data file's levelArcs for the station", "rate": 45, "accel": 180}, "pitch": {"min": -8, "max": 40, "rate": 40, "accel": 120}, "alignment": 0.5, "loaderSeconds": 4.6, "health": 1500, "zoom": 3},
       "loader": {
         "per": "barrel",
         "waitsBefore": "fetch",

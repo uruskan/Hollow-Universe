@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Hollow.Client;
+using Hollow.Client.Feedback;
 using Hollow.Core;
 using Hollow.Simulation;
 using Hollow.Simulation.Building;
@@ -40,11 +41,20 @@ public partial class BuildView : Node3D, IHammerActions
     private double _since;
     private object? _target;
     private RayHit _hit;
-    private ItemWallet? _wallet;
+    private IBuildingWallet? _wallet;
     private PlanRadial? _planRadial;
     private IRadialSource? _hammer;
+    private readonly ConfirmedFeedback _confirmedCues = new();
 
     public GameClient Client { get; set; } = null!;
+
+    public override void _Ready() => Client.Local.IntentAnswered += OnIntentAnswered;
+
+    private void OnIntentAnswered(IntentAnswer answer)
+    {
+        if (_confirmedCues.Complete(answer.Seq, answer.Done, Client.ClockSeconds) is { } cue)
+            Sounds.At(cue.Sound, GroundView.ToGodot(cue.Point));
+    }
 
     /// <summary>The placement controller (GROUND_SYSTEMS.md §6): what the held item places, its ghost and verdict.</summary>
     public PlacementView Placing { get; set; } = null!;
@@ -73,7 +83,8 @@ public partial class BuildView : Node3D, IHammerActions
     public PlanRadial Plan => _planRadial ??= NewPlan();
 
     /// <summary>The hammer's radial: upgrade, turn or demolish the piece aimed at.</summary>
-    public IRadialSource HammerRadial => _hammer ??= BuildingRadials.Hammer(() => _target as Piece, Data, Wallet, () => Client.ClockSeconds, this);
+    public IRadialSource HammerRadial => _hammer ??= BuildingRadials.Hammer(() => _target as Piece, Data, Wallet, () => Client.ClockSeconds, this,
+        () => Client.Local.FreeBuild);
 
     /// <summary>What the held item does in building (none: not a building tool).</summary>
     public BuildingRole Held { get; private set; }
@@ -137,9 +148,21 @@ public partial class BuildView : Node3D, IHammerActions
     private void PlacingLines(Hollow.Simulation.Placement.Placeable placing, ItemDef? item)
     {
         string line = placing.Name.ToUpperInvariant();
-        foreach (Hollow.Simulation.Placement.PlacementCost cost in placing.Costs)
+        int grade = Math.Clamp(Client.Local.BuildGrade, 0, Data.Grades.Count - 1);
+        if (Client.Local.BuildGrade >= 0 && placing.GradeCosts.Count > 0)
         {
-            line += $"  ·  {cost.Amount} {Data.MaterialName(cost.Material).ToUpperInvariant()} ({Owned(cost.Material):N0})";
+            line += $"  ·  {Data.Grades[grade].Name.ToUpperInvariant()}";
+        }
+        if (Client.Local.FreeBuild && placing.Kind.RetainItemWhenFree)
+        {
+            line += "  ·  FREE BUILD";
+        }
+        else
+        {
+            foreach (Hollow.Simulation.Placement.PlacementCost cost in placing.CostsFor(grade))
+            {
+                line += $"  ·  {cost.Amount} {Data.MaterialName(cost.Material).ToUpperInvariant()} ({Owned(cost.Material):N0})";
+            }
         }
         Hud.Line = line;
         Hud.Reason = Placing.Reason;
@@ -156,51 +179,12 @@ public partial class BuildView : Node3D, IHammerActions
 
     private double _lockSync;
 
-    // Locks on doors: the catalogue's code or key lock on the outside of the first leaf, by its free edge, so it swings
-    // with the door.
+    // Locks on doors: see DoorLocks.
     private void DrawLocks()
     {
-        if (_renderer == null)
+        if (_renderer != null)
         {
-            return;
-        }
-        foreach (Node child in _renderer.GetChildren())
-        {
-            if (child is not DoorView view || view.Door.Def.Leaves.Count == 0)
-            {
-                continue;
-            }
-            string? want = view.Door.Lock switch
-            {
-                CodeLock => "code-lock",
-                KeyLock => "key-lock",
-                _ => null,
-            };
-            LeafDef leaf = view.Door.Def.Leaves[0];
-            var hinge = new Vector3(leaf.Hinge.X, leaf.Hinge.Y, leaf.Hinge.Z);
-            MeshInstance3D? leafNode = view.GetChildren().OfType<MeshInstance3D>().FirstOrDefault(m => m.Position.IsEqualApprox(hinge));
-            if (leafNode == null)
-            {
-                continue;
-            }
-            Node3D? fitted = leafNode.GetNodeOrNull<Node3D>("Lock");
-            if (fitted != null && fitted.GetMeta("key", "").AsString() == want)
-            {
-                continue;
-            }
-            fitted?.QueueFree();
-            if (want == null || HollowUniverse.Items.ModelCatalog.Instantiate(want) is not { } model)
-            {
-                continue;
-            }
-            var holder = new Node3D { Name = "Lock" };
-            holder.SetMeta("key", want);
-            // By the free edge, at hand height, its back on the outside face (a mounted model faces +Z from its back): where
-            // the placement ghost put it.
-            Num.Vector3 spot = Door.LockOffset(leaf);
-            holder.Position = new Vector3(spot.X, spot.Y, spot.Z);
-            holder.AddChild(model);
-            leafNode.AddChild(holder);
+            DoorLocks.Sync(_renderer);
         }
     }
 
@@ -208,15 +192,26 @@ public partial class BuildView : Node3D, IHammerActions
 
     private void Attach()
     {
-        if (_world != null || Client.Building().World is not { } world)
+        BuildingWorld? world = Client.Building().World;
+        if (ReferenceEquals(_world, world)) return;
+        RetireWorld();
+        if (world == null) return;
+        try
         {
-            return;
+            _assets = BuildingAssets.Load(Data);
+            _renderer = new BuildingRenderer { Name = "Buildings", PresentationTargets = Client.Targets(), Clock = () => Client.PredictedTickClock - 1 };
+            AddChild(_renderer);
+            _renderer.Attach(world, _assets);
+            BindWorld(world);
         }
+        catch { RetireWorld(); throw; }
+    }
+
+    // Binding is independent of art, so retirement can also be checked with an empty native fixture.
+    internal void BindWorld(BuildingWorld world)
+    {
+        if (_world != null) throw new InvalidOperationException("Retire the previous building view before binding another world.");
         _world = world;
-        _assets = BuildingAssets.Load(Data);
-        _renderer = new BuildingRenderer { Name = "Buildings" };
-        AddChild(_renderer);
-        _renderer.Attach(world, _assets);
         foreach (Piece p in world.AllPieces)
         {
             _grades[p] = p.Grade;
@@ -228,12 +223,29 @@ public partial class BuildView : Node3D, IHammerActions
         world.Changed += OnChanged;
     }
 
+    /// <summary>Release world objects and event bindings before the client's building replica is disposed.</summary>
+    public void RetireWorld()
+    {
+        if (_world != null) _world.Changed -= OnChanged;
+        _world = null;
+        if (_renderer is { } renderer)
+        {
+            _renderer = null;
+            renderer.RetireWorld();
+            if (renderer.GetParent() == this) RemoveChild(renderer);
+            renderer.QueueFree();
+        }
+        _grades.Clear(); _open.Clear();
+        _confirmedCues.Clear();
+        _target = null; _hit = default; _assets = null;
+        _since = _lockSync = 0;
+        Held = BuildingRole.None; Aimed = default;
+    }
+
     public override void _ExitTree()
     {
-        if (_world != null)
-        {
-            _world.Changed -= OnChanged;
-        }
+        Client.Local.IntentAnswered -= OnIntentAnswered;
+        RetireWorld();
     }
 
     // What happens to the building sounds and shows: a piece placed (once the world is in) or upgraded; a door opened or
@@ -309,9 +321,22 @@ public partial class BuildView : Node3D, IHammerActions
     private PieceDef ChosenPiece => Plan.Chosen;
 
     // What the player carries, counted as the building rules count it.
-    private ItemWallet Wallet => _wallet ??= new ItemWallet(Client.Content, Client.Local.Inventory.Carried);
+    private IBuildingWallet Wallet => _wallet ??= new LiveBuildingWallet(Client);
 
-    private PlanRadial NewPlan() => new(Data, Wallet);
+    private PlanRadial NewPlan() => new(Data, Wallet, () => Client.Local.BuildGrade, () => Client.Local.FreeBuild);
+
+    // Radials retain this wallet, so every query must see the current session toggle without replacing it each frame.
+    private sealed class LiveBuildingWallet(GameClient client) : IBuildingWallet
+    {
+        private readonly ItemWallet _paid = new(client.Content, client.Local.Inventory.Carried);
+        private readonly ItemWallet _free = new(client.Content, client.Local.Inventory.Carried, free: true);
+
+        private ItemWallet Current => client.Local.FreeBuild ? _free : _paid;
+
+        public int Count(string material) => Current.Count(material);
+
+        public bool Take(string material, int amount) => Current.Take(material, amount);
+    }
 
     void IHammerActions.Upgrade(Piece piece, int grade) => Client.Local.Upgrade(piece, grade);
 
@@ -342,20 +367,26 @@ public partial class BuildView : Node3D, IHammerActions
     /// ship's door or battery, IRON_WAKE.md §5.5). (What a building tool places goes through the placement controller,
     /// <see cref="PlacementView"/>.)
     /// </summary>
-    public void Use()
+    public uint Use()
     {
         if (Held != BuildingRole.Hammer)
         {
-            return;
+            return 0;
         }
         if (_target is Piece piece)
         {
-            Client.Local.Repair(piece);
+            uint sequence = Client.Local.Repair(piece);
+            _confirmedCues.Track(sequence, Sounds.Item(Client.Local.HeldItem?.Key ?? "", "repair"), _hit.Point, Client.ClockSeconds);
+            return sequence;
         }
         else if (Mendable(out _) is { } thing)
         {
-            Client.Local.Repair(thing);
+            uint sequence = Client.Local.Repair(thing);
+            Num.Vector3 point = Client.Targets().TryPose(thing, out TargetPose pose) ? pose.Position : Client.Character.Position;
+            _confirmedCues.Track(sequence, Sounds.Item(Client.Local.HeldItem?.Key ?? "", "repair"), point, Client.ClockSeconds);
+            return sequence;
         }
+        return 0;
     }
 
     // What the interact aim names, when it is something other than a piece whose facts have health (a ship's part).

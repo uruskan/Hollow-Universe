@@ -220,18 +220,67 @@ the shore through `ISurface.Cover`, so the stand-in and the real planet use them
 | 14 | dry earth | Desert Western Ground Dirt Coarse 07 (`xiqebhm`) | deserts, savanna, shrubland |
 | 15 | ice | Frozen Lake (`tcbkdcfr`) | frozen lakes, bare ice on the ice sheets |
 
-- **Files** (`tools/blender/surface_layers.py`, from the asset folders): each layer's colour and normal map are the
-  scan's own 4K files (the Megascans JPEGs copied byte for byte; the Poly Haven PNGs as lossless WebP); a 2K lossless WebP
-  holds roughness and height. Nothing lossy is written. Godot compresses each for the GPU (BPTC, mipmaps) when it imports
-  it, and `GroundLayers` puts them together into three texture arrays when the game loads (1 to 3.4 s, under the loading
-  screen): colour, normals, roughness with height. About 810 MB on the GPU; 912 MB of files in the repository.
-- **Shading** (`surface_terrain.gdshader`): the scan at its own size near by, over a turned copy at about three times
-  the size (the detail blend), a far turned copy from the air, macro variation of brightness and hue, height-based
-  blending between layers by each scan's own height, roughness from each scan's map, triplanar granite and sandstone on
-  steep ground. Each layer's normals keep their scan's convention (`layers.json` gives the flips; all agree today).
-- **Not yet** (16 is the layers' count for now): the second beach sand and pebbles, coastal rock, the second forest
-  floor, three more tundra sets, red rock, desert gravel and three desert sands, the snow line's icy grass, melting and
-  windswept snow, the snow cliff and the ice wall. A 17th layer needs a 17th channel in the tile's vertex data (§17).
+**Added 19 October 2026: the materials' alternatives.** Sixteen is the count of materials the tile's vertex data can
+weigh (§17), not of scans: the texture arrays hold 35 textures, the sixteen materials' own scans first and after them
+nineteen alternatives (`layers.json`'s `textures` and each layer's `variants`), which a material switches to by place.
+The shader (`surface_ground_look.gdshaderinc`, `hu_ground_select`) gives each alternative a share by its selector,
+each taking its share of what the earlier ones left (so a material's patches are listed before the alternative that
+takes the rest of the place, or they never show), and samples every texture that has one:
+
+| Material | Alternative | Where (selector) |
+|---|---|---|
+| 0 grass (Dry Grassy Ground: trampled mud and straw) | 11 mossy ground | lush ground, in patches of some eight metres (`lush-patch`) |
+| | 34 meadow: Poly Haven's `leafy_grass`, a green grass ground (trampled grass blades with leaf litter and twigs, CC0; a 2 m scan laid at its own size), downloaded at 4K on 19 October 2026, darkened and turned green ×0.50, ×0.92, ×0.48 (the scan is bright and warm) | under lush grass (`lush`: the grass's dryness, the same rule that colours the blades) |
+| 1 forest floor | 16 Forest Floor (`wgyhdgy`) | patches of about fifty metres (`noise`) |
+| 3 granite rock | 17 Cracked Nordic Coastal Rock | `noise` (triplanar on cliffs, at the slot's size) |
+| 4 gravel | 18 Desert Western Gravel Coarse | hot and dry (`heat`) |
+| | 19 Tundra Gravel Ground | freezing (`cold`) |
+| 5 beach sand | 20 Beach Sand With Pebbles | `noise` |
+| | 21 Desert Sand (`wkjgche`) | `heat` |
+| 6 snow | 22 Icy Snow On Dry Grass | snow sharing the ground with grass or tundra (`snowline`) |
+| | 23 Melting Snow | around freezing (`thaw`) |
+| | 24 Snow Cliff | slopes (`steep`) |
+| 8 wet sand | 25 `damp_sand` (Poly Haven) | `noise` |
+| 9 shingle | 26 `gravelly_sand` (Poly Haven) | `noise` |
+| | 27 Sleet Covered Gravel | `cold` |
+| 12 tundra | 28 Tundra Rocky Ground | `noise` |
+| | 29 Tundra Lichened Rock | `steep` |
+| | 30 Windswept Snowy Stones | `cold` |
+| 14 dry earth | 31 Desert Outback Ground Rocky | `noise` |
+| | 32 Desert Western Sand Fine | `noise` (its own patches) |
+| 15 ice | 33 Ice Wall | `steep` |
+
+The meadow's ground had been the Dry Grassy Ground scan alone, which is trampled mud with a little straw: under the
+tufts the ground read as bare dirt, and it has almost no relief. Under lush grass it was first the Wet Grass Ground
+scan lifted ×2.0, ×2.7, ×1.6, which read green-olive, since the library had no green grass ground at 4K; since the
+evening of 19 October 2026 it is a green grass-ground scan of its own, Poly Haven's Leafy Grass (texture 34, `meadow`:
+trampled blades, which the owner chose over ambientCG's Ground 037, a mossy ground that was tried first and kept in
+the assets folder), with mossy patches; the mud stays where the grass is dry. The grass's clumps take the terrain's
+grass colour at their roots (§18; until 20 October the old tufts sampled this texture for their feet through
+`GroundLayers.ApplyGrass`). The beach gets pebbles in patches; deserts their own sand and gravel;
+the tundra its stones; the snow line its icy grass.
+
+- **Files** (`tools/blender/surface_layers.py`, from the asset folders): each texture's colour and normal map are the
+  scan's own 4K files (the Megascans JPEGs copied byte for byte; the Poly Haven and ambientCG PNG and EXR maps as
+  lossless WebP; a scan twice as wide as high repeated along its short side into a square, which keeps its metres); a
+  2K lossless WebP holds roughness and height. Nothing lossy is written, and a file already built is kept. Godot
+  compresses each for the GPU (BPTC, mipmaps) when it imports it, and `GroundLayers` puts them together into three
+  texture arrays when the game loads (under the loading screen): colour, normals, roughness with height. About 50 MB
+  on the GPU a texture: 810 MB for the sixteen, 1.8 GB with the alternatives, which every preset but Low loads (custom
+  settings: when their terrain detail is at least Low's 0.75; `GroundLayers.IncludeVariants`, decided when the arrays
+  are first built; the loading log's `[ground]` line says what was loaded and why). 2.1 GB of files in the repository.
+- **Shading** (`surface_terrain.gdshader`, `surface_ground_look.gdshaderinc`): the scan at its own size near by, over a
+  turned copy at about three times the size (the detail blend), a far turned copy from the air, macro variation of
+  brightness and hue, height-based blending between materials by each scan's own height, roughness from each scan's
+  map, triplanar granite and sandstone on steep ground (their alternatives at the slot's size). Each texture's normals
+  keep their scan's convention (`layers.json` gives the flips; all agree today). A texture's `gain` lifts a scan taken
+  wet or in shade to the place it stands for; the grass recolouring measures a scan against its own mean luminance, so
+  each keeps its detail.
+- **Left out on purpose**: `RedRock02_4K` (no record of its source or licence), Beach Sand `uinladeo` (featureless),
+  two more desert sands and Fresh Windswept Snow (a fourth alternative would need a fourth slot; `GroundLayers.MaxVariants`),
+  the 2K ambientCG sets, and ambientCG's Ground 037 at 4K (downloaded on 19 October 2026 as the meadow's floor; under
+  the tufts it read as moss rather than grass, so the owner chose Leafy Grass; kept in the assets folder). The scanned
+  plants (`*_ue_high`) are the authored ground cover's, not tiles.
 
 The table of the original plan, kept for the sets above:
 
@@ -575,7 +624,8 @@ the mountain; 69 fps.*
 - **Dashed lines at the waterline on flat beaches:** the swash's foam where the water is a few centimetres deep over
   the sand draws as short white dashes along the shore (the coast shot). To tune with S5's water.
 - **Grass on the edge of ice and snow:** the grass field samples its density every eight lattice nodes and interpolates,
-  so blades reach a few metres onto a frozen lake from its shore.
+  so blades reach a few metres onto a frozen lake from its shore. (Superseded on 20 October 2026: the clumps read the
+  drawn grid's own cover at every vertex and leave cells within 12 cm of water bare, §18.3.)
 
 ### 17.6 What is left
 
@@ -594,3 +644,131 @@ the test filters `Walking` (6 tests), `Architecture` (5), `CollisionMatchesRende
 tiles agree, 0.003 mm), `Sound` (5), `StandIn`, `Biome` and `Scatter` passed. Skipped: the full suite, the movement
 check, the network, console and building tests, the 100-bot load tests on the walking ground, the frame-time
 measurement with a crowd, the stand-in and real planet looked at in the game with the sixteen layers.
+
+## 18. The grass's clumps (T4 and T5, 20 October 2026)
+
+The grass of the ground game, rebuilt for docs/TERRAIN_SCENERY_PLAN.md T4 (coverage, contact, lighting) and T5 (bounded
+cost), after Rust's meadows (dense clumps of several species, tall grass in seed, dry grass, flowers, grazing backlight,
+the ground's own colour at the clumps' feet). Rust's pictures are a reference for the look only; every blade is ours.
+
+### 18.1 The clumps
+
+`art/grass/build_grass.py` (Blender 5.2.1, from text; `blender -b --factory-startup --python art/grass/build_grass.py`)
+paints a 2048² atlas and builds five species of clump and the forest floor's litter into
+`game/assets/surface/grass/` (`grass.glb`, `grass_albedo.png`, `grass_detail.png`, `grass.json`):
+
+| Species | Cards (LOD0, LOD1, LOD2) | Triangles | Height at scale 1 | What the cards carry |
+| --- | --- | --- | --- | --- |
+| field | 12 × 4, 7 × 2, 4 × 1 | 96, 28, 8 | 0.52 m | leafy blades, two variants |
+| seeding | 10 × 5, 6 × 3, 3 × 1 | 100, 36, 6 | 0.91 m | arching blades under stems with spikes or panicles |
+| dry | 11 × 4, 6 × 2, 4 × 1 | 88, 24, 8 | 0.45 m | thin straw blades, bent and broken |
+| flower | 10 × 4, 6 × 2, 3 × 1 | 80, 24, 6 | 0.50 m | a rosette of broad leaves under daisy or clustered heads |
+| herb | 9 × 3, 6 × 2, 3 × 1 | 54, 24, 6 | 0.35 m | heather sprigs with bells, or a leafy herb with small flowers |
+| litter | 3 flat pieces × 3 | 18 | | dead leaves, needles and twigs |
+
+Each clump species also has a billboard: two crossed quads (4 triangles) carrying a painted side view of the clump. The
+painter draws each blade, stem, petal and leaf as a stroke or blob: pale colour graded root to tip, alpha the cut-out,
+and a detail map with the blade's fold (normal across and along), an accent mask (petals, seed heads, bells take the
+instance's palette colour) and translucency. LOD1 and LOD2 are the first cards of LOD0 with fewer segments: the cards are
+ordered so any first few keep the clump's outline. Cards carry their real normals (perpendicular to the card, bent with
+it, rounded across it); UV2 carries each vertex's height fraction and its card's rank. The meshes have no vertex colour:
+Godot multiplies a MultiMesh's instance colour into `COLOR`.
+
+### 18.2 One coverage rule
+
+`GroundCoverHabitats` (src/Hollow.Surface, numbers in `Data/ground-cover-habitats.json`, tests
+`GroundCoverHabitatTests`) decides each placement cell once:
+
+- **Habitats**, weighted from the drawn terrain's own climate (tree cover, temperature, moisture): forest floor under
+  closed canopy, forest edge under broken canopy, tundra where it is cold, dry country where it is dry, meadow for the
+  rest. The weights add up to one.
+- **Occupancy**: each habitat's share of the ground (meadow 0.97, forest edge 0.85, forest floor 0.5, dry 0.68, tundra
+  0.72) over its range of the shared presentation cover's grass (`GroundDetailCover`, which already carries slope,
+  substrate and canopy). That one value is the only thinning; patches move it about (a patch noise of 5.5 m raises and
+  lowers each cell's threshold by up to the habitat's patchiness) without changing its mean.
+- **Species**: the habitats' mixes (meadow: field 0.64, seeding 0.15, dry 0.10, flower 0.06, herb 0.05), each species
+  gathered into drifts of its own (patch noise of 6 to 11 m), dry grass following the grass colour's dryness.
+- **Size**: the habitat's height (tundra 0.6, meadow 1.0) times a draw and a 13 m height patch; a width draw.
+- **Accents**: the scanned plants (ferns under trees, cotton grass where it is wet, tundra grass in the cold) stand in a
+  cell now and then instead of a clump; wild grass is no longer placed (the clumps are its meadow).
+- **Litter** by the cover's litter, under trees.
+
+The grass's colour is the terrain's: `GrassField.Tint.cs` samples the surface's macro noise on the CPU exactly as
+`surface_grass.gdshaderinc` does and gives each clump the dryness and brightness at its root, at the terrain's own
+texture coordinates (the drawn grid's face metres); the shader takes `hu_grass_tint_of(dryness, brightness)`, the
+function the terrain's grass layer uses, times the terrain's blade reference colour, and divides the painted texture by
+its own mean. Near the camera the terrain's grass layer now takes more of the blades' colour where the cover's grass is
+closed (`surface_ground_look.gdshaderinc`: the floor of a sward is in the blades' shade), and it turns fully to the
+blades' colour across the clumps' own reach (`grass_reach`, set by the field) instead of a fixed 22 to 42 m.
+
+### 18.3 Roots on the drawn ground
+
+Placement cells are half a terrain cell (0.46 m on Earth), one candidate a cell, its point jittered inside the cell by a
+hash of the cell. A tile's worker builds its instances from the very grid the terrain draws there
+(`TerrainLod.TryDrawnGrid`): each root lies on the finest drawn triangle (the grid's own diagonal), and the same point on
+the morph targets' triangle gives a morph offset along up, which the shader applies by the terrain's own morph factor
+far off. The ground's slope over the clump's footprint (four points at its cards' reach) is a shear in the instance's
+transform: blades stay upright, feet follow the slope. Where the footprint crosses a crest, the clump narrows (the float
+falls with the square of its width) and sinks by what is left, at most 6 cm; every clump sits 2 cm in, so a card's foot
+never shows as a straight line. Water (within 12 cm) and monument pads leave cells bare. The grid's climate and
+materials are the terrain's, so grass grows where the terrain paints it.
+
+### 18.4 Tiles, levels of detail and submission
+
+- **Tiles**: a finest terrain tile's 32 × 32 cells split into 16-cell tiles (about 15 m on Earth; `--grass-tile-cells 8`
+  for 7.4 m). Every cell belongs to one cube face, so tiles never overlap at seams. Tiles within the reach (42 m at the
+  grass distance 1, 67 m at the owner's 1.6) are wanted by one estimate (the tile at the camera's ground height, never
+  nearer than the real tile), released beyond it and 8 m more.
+- **Workers**: up to two builds at a time (four while nothing is drawn), each a versioned job; a result whose tile was
+  released or rebuilt since is dropped when collected, never published. A tile waits while its terrain tile still
+  streams; once the terrain is idle without it, the field does not wait for it.
+- **Uploads**: a few tiles a frame (six, 768 KB or 1 ms at most): one MultiMesh per species a tile, pooled by capacity
+  (powers of two), so a buffer is reallocated only for a new capacity. Bounds hold every root and its cards' reach,
+  widening and bending.
+- **Submission**: Godot culls each tile's batches by their bounds, so only tiles in view are drawn. Each tile is drawn at
+  the level its nearest clump asks for. Its instances are sorted by rank, so the clumps a distance keeps are a prefix
+  (`VisibleInstanceCount`): far tiles submit fewer.
+- **Changing a tile's level** (20 October 2026, found driving the Monster TOGG at 33 m/s). A MultiMesh given another mesh
+  while it holds instances reads them back from the GPU, about 2.3 ms a time. At speed 100–190 batches changed every
+  frame, and a slow frame only crossed more bands in the next: frames of 0.2–2.4 s. Now a batch is emptied, given the
+  level's mesh, and its instances again from the build it keeps (`Batch.SetLod`), at most 24 a frame
+  (`LodSwitchesPerFrame`); the rest keep their level a frame or two longer. At 33 m/s: 19–21 ms a frame.
+- **Stable thinning**: cards drop one by one with distance by their rank (each clump a little sooner or later), and a
+  tile only switches to a level lacking cards once those cards have dropped from all its clumps: a switch removes
+  segments, not cards. Clumps thin by their rank to 45% from 30% to 75% of the reach, the survivors widening (at most
+  ×1.45, cards ×1.5); between 85% and 100% of the reach the last clumps dissolve one by one rather than shrinking into a
+  flat ring. From 70% of the reach a tile draws the billboards.
+
+### 18.5 Light
+
+`surface_foliage.gdshaderinc`, shared with the authored cover: diffuse on the lit side, a glow through the blade that
+is strongest looking toward a low sun and at the tips, bounded to the light's own strength (`translucency` per species
+times the painted translucency), and a GGX sheen whose roughness never falls below 0.45. The card's normal is tilted by
+the painted folds, bent by the wind with its cards (the bend's rate along the height tilts it), and smoothed toward the
+clump's dome by half near and by 0.82 far. The air (aerial perspective) and the clouds' shadow are worked out once a
+vertex at the clump's root instead of once a pixel.
+
+### 18.6 Cost
+
+Hosted at the T0 clearing (−18.708761, −95.332092), hour 10, 1600 × 900, the environment breakdown (stationary, each
+layer removed in turn), on the RTX 2070 SUPER:
+
+| | High, before | High, after | Owner's profile, before | Owner's profile, after |
+| --- | ---: | ---: | ---: | ---: |
+| GPU, frame (start / end of the breakdown) | 21.29 / 21.55 ms | 15.68 / 16.69 ms | 9.30 / 9.76 ms | 4.73 / 5.03 ms |
+| GPU without the whole ground cover | 17.17 ms | 17.80 ms | 5.89 ms | 6.10 ms |
+| Ground cover's cost (what removing it saves) | 4.1–4.4 ms | −0.2 to −2.1 ms (two runs) | 3.4–3.9 ms | −1.1 to −1.4 ms |
+| Primitives | 12.5 M | 8.0 M | 10.8 M | 5.1 M |
+
+Removing the new grass makes the frame slower: the clumps hide the terrain shader's pixels (the 35-scan ground is the
+expensive layer near by), so the ground cover costs less than nothing at this site. The owner's profile submits about
+13,000 clumps in 182 batches over 34 tiles, uploaded once (2.4 MB). With 8-cell tiles at High: 165 tiles, 792 batches,
+141 more draw calls and 16% fewer clumps submitted, within the runs' noise in GPU time; 16 cells stay the default.
+
+### 18.7 Captures and limits
+
+`docs/images/ground/grass/`: the clearing (looking at the wood's edge and up the hillside south of it) and the open
+meadow of the T1 survey (−19.375, −63.875) at hour 10 and at low sun, the landing site looking down, and three frames 2 m
+apart along a walk. Open: looking straight down shows floor between clumps (cards are vertical); from 35 m up the cards
+are edge-on and vanish (the old cards did too); motion was checked on frames 2 m apart, not on video; the forest floor's
+clumps are dark under the canopy's ambient occlusion.

@@ -121,6 +121,7 @@ flight never enters a step aboard. What a character does in the world asks where
 | `WorldSystem` | once a second | world props (barrels, crates, recyclers), loot spots, recycling, research, teams, map markers |
 | `ActionSystem` | yes | containers and looting, inventory moves, item actions, the loot check; craft queues |
 | `BuildingSystem` | yes | the building (`BuildingWorld`: structures, sockets, stability), the hammer, doors, locks, the cupboard; decay and upkeep |
+| `DoorMotionSystem` | yes, under the gate | the doors' leaves moved each tick to their progress, under the physics gate, right after the characters' movement |
 | `HistorySystem` | yes, last | records everyone's pose for the next tick's hits |
 | `AutoRespawnSystem` | movement-only zones | G1's respawn, for the physics checks |
 

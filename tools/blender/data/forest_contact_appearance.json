@@ -1,0 +1,23 @@
+{
+  "schema": "forest-contact-additive-appearance-v1",
+  "status": "proposed-unadmitted",
+  "moduleReceiptSha256": "3d2e6b018f87eb7a263808a3023ec744003a8f260ac1b934c8518d8d48e00494",
+  "scale": 1,
+  "geometryChanges": false,
+  "rootPermissions": false,
+  "channels": ["scanToSubstrate", "outerContact", "capDomain", "toeDomain"],
+  "distanceRule": "shortest-existing-edge-path-v1",
+  "sourceBandMetres": {"crest": 0.25, "toe": 0.18, "left": 0.10, "right": 0.10},
+  "anchorTransitionMetres": 0.35,
+  "outerContactBandMetres": 0.35,
+  "materials": {
+    "cap": {"1": 0.55, "2": 0.35, "4": 0.10},
+    "toe": {"1": 0.05, "2": 0.40, "4": 0.55},
+    "return": {"3": 1.0}
+  },
+  "groundLayers": {
+    "file": "game/assets/surface/ground/layers/layers.json",
+    "sha256": "6167c0238b4070f7540301818e1170470628cc355fb00314c2370e88aca214ed"
+  },
+  "artReview": "Proposed metre bands and material weights. Existing vertex spacing and far simplification change interior interpolation; actual native close/grazing/LOD views are required. No appearance or vegetation approval."
+}

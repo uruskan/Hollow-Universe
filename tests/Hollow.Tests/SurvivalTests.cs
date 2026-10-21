@@ -24,7 +24,8 @@ public sealed class GameRig : IDisposable
     {
         ZoneSpec spec = ZoneSpec.FirstWorld(Fixtures.Galaxy, 28.4, -61.7)! with { StandIn = true };
         C = content ?? ContentFixture.Content;
-        Zone = surface == null ? new Zone(spec, content: C) : new Zone(surface(spec), spec, content: C);
+        // This inherited 2.41 km fixture deliberately exceeds live planet scale; opt in without weakening admission.
+        Zone = new Zone(surface == null ? spec.CreateSurface(diagnostic: true) : surface(spec), spec, content: C);
         Zone.UnixMilliseconds = 1_800_000_000_000;
         Zone.NewEntityId = () => new EntityId(0x100_0000 + (ulong)_ids++);
     }
@@ -205,7 +206,11 @@ public static class SurvivalTests
         Assert.Equal(OutcomeCode.NotAllowed, rig.Zone.Actions().MoveItem(bo, ContainerRef.Main, 0, ContainerRef.Loot, woodSlot, 10, 0), "no putting in");
         Assert.True(rig.P(bo).Inventory.Count(c.ItemByKey("wood")) > 0, "Bo has wood");
 
-        // Its timer: gone when it runs out.
+        // The server's body timer becomes a bag with the same inventory before the bag's own expiry.
+        corpse.Life!.Restore(CorpseStage.Body, 1, corpse.Life.HarvestLeft, rig.Zone.Tick);
+        rig.Step(31);
+        Assert.True(!corpse.IsBody && rig.Zone.Things().StaticOf(corpse.Id) == corpse, "body converts without replacing its inventory");
+        Assert.True(rig.P(bo).Looting == corpse.Id, "the open loot stays open across conversion");
         corpse.DespawnTick = rig.Zone.Tick + 31;
         rig.Step(70);
         Assert.True(!rig.Zone.Things().Statics().OfType<Corpse>().Any(), "despawned on its timer");

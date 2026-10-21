@@ -76,6 +76,23 @@ public partial class DevDraw : Node3D
         AddChild(_areas);
     }
 
+    /// <summary>Cached tile geometry and server revisions belong to one world even when tile keys are reused.</summary>
+    public void RetireWorld()
+    {
+        foreach (MeshInstance3D tile in _tiles.Values)
+        {
+            if (tile.GetParent() == this) RemoveChild(tile);
+            tile.QueueFree();
+        }
+        _tiles.Clear();
+        ClearLabels();
+        _frameMesh?.ClearSurfaces(); _navMesh?.ClearSurfaces(); _areasMesh?.ClearSurfaces();
+        _navSeen = _areasSeen = -1;
+        _navWas = _areasWas = false;
+    }
+
+    public override void _ExitTree() => RetireWorld();
+
     /// <summary>Every frame, from the view: what the toggles ask for, around the player's feet.</summary>
     public void Refresh(Num.Vector3 feet)
     {

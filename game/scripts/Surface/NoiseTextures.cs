@@ -111,7 +111,7 @@ public static class NoiseTextures
 
     /// <summary>
     /// 512² tiling normal map of small wind waves: a height field of fractal noise stretched across the wind,
-    /// turned into normals (tangent space, OpenGL convention).
+    /// turned into normals (tangent space, OpenGL convention), with a separate wave-height foam mask in alpha.
     /// </summary>
     public static ImageTexture WaveNormals(int seed)
     {
@@ -123,7 +123,8 @@ public static class NoiseTextures
             {
                 double u = (double)x / Size, v = (double)y / Size;
                 // Crests: sharpened noise, longer across the wind than along it.
-                double a = Fbm(u, v * 0.5 + 0.13 * Fbm(u, v, 4, 2, 0.5, seed + 5), 8, 4, 0.55, seed);
+                // V covers half a lattice period: wrap its gradients at that half-period too.
+                double a = Fbm(u, v * 0.5 + 0.13 * Fbm(u, v, 4, 2, 0.5, seed + 5), 8, 4, 0.55, seed, verticalPeriod: 4);
                 double b = Fbm(u + 0.31, v, 16, 3, 0.5, seed + 9);
                 height[y * Size + x] = 1 - Math.Abs(a) * 1.2 + 0.35 * b;
             }
@@ -140,7 +141,8 @@ public static class NoiseTextures
                 data[k] = ToByte(n.X * 0.5 + 0.5);
                 data[k + 1] = ToByte(n.Y * 0.5 + 0.5);
                 data[k + 2] = ToByte(n.Z * 0.5 + 0.5);
-                data[k + 3] = 255;
+                // Normal Z stays near one and is not a usable noise field. Foam reads this independent mask.
+                data[k + 3] = ToByte((height[y * Size + x] - 0.3) / 0.9);
             }
         }
         Image image = Image.CreateFromData(Size, Size, false, Image.Format.Rgba8, data);
@@ -150,15 +152,15 @@ public static class NoiseTextures
 
     private static byte ToByte(double x) => (byte)Math.Clamp((int)(x * 255 + 0.5), 0, 255);
 
-    // Tiling gradient noise: the lattice wraps every `period` cells.
-    private static double Perlin(double x, double y, int period, int seed)
+    // Tiling gradient noise with independent horizontal and vertical lattice periods.
+    private static double Perlin(double x, double y, int period, int verticalPeriod, int seed)
     {
         int x0 = (int)Math.Floor(x), y0 = (int)Math.Floor(y);
         double fx = x - x0, fy = y - y0;
         double ux = fx * fx * fx * (fx * (fx * 6 - 15) + 10), uy = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
         double Grad(int ix, int iy, double dx, double dy)
         {
-            int px = ((ix % period) + period) % period, py = ((iy % period) + period) % period;
+            int px = ((ix % period) + period) % period, py = ((iy % verticalPeriod) + verticalPeriod) % verticalPeriod;
             uint h = (uint)(px * 374761393 + py * 668265263 + seed * 1442695041);
             h = (h ^ (h >> 13)) * 1274126177;
             h ^= h >> 16;
@@ -173,15 +175,20 @@ public static class NoiseTextures
 
     /// <summary>Tiling fractal noise over the unit square, roughly −1 to 1.</summary>
     public static double Fbm(double u, double v, int period, int octaves, double gain, int seed)
+        => Fbm(u, v, period, octaves, gain, seed, period);
+
+    // The public/default path keeps square wrapping. Only the stretched wave field opts into a rectangle.
+    private static double Fbm(double u, double v, int period, int octaves, double gain, int seed, int verticalPeriod)
     {
         double sum = 0, amplitude = 1, norm = 0;
-        int p = period;
+        int p = period, py = verticalPeriod;
         for (int i = 0; i < octaves; i++)
         {
-            sum += amplitude * Perlin(u * p, v * p, p, seed + i * 31);
+            sum += amplitude * Perlin(u * p, v * p, p, py, seed + i * 31);
             norm += amplitude;
             amplitude *= gain;
             p *= 2;
+            py *= 2;
         }
         return sum / norm;
     }

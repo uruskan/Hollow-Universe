@@ -89,11 +89,13 @@ public sealed class BoxFootprint(Vector3 half) : Footprint
         }
         // Things without bodies (a sleeping bag, a campfire) by their boxes.
         Vector3 centre = lifted + c.Up * HalfExtents.Y;
+        // The same centimetre contact allowance as the physics overlap check: touching a neighbouring box fits.
+        Vector3 contactHalf = Vector3.Max(HalfExtents - new Vector3((float)(world.Building?.Data.ContactTolerance ?? 0.01)), new Vector3(0.001f));
         float reach = HalfExtents.Length() + 2.5f;
         foreach (PlacedThing thing in world.ThingsNear(c.Position, reach))
         {
             if (thing.Ref != c.Support.Whole &&
-                Geometry.BoxesOverlap(centre, HalfExtents, c.Yaw, thing.Centre, thing.Def.HalfExtents, thing.Yaw, c.Up))
+                Geometry.BoxesOverlap(centre, contactHalf, c.Yaw, thing.Centre, thing.Def.HalfExtents, thing.Yaw, c.Up))
             {
                 return OutcomeCode.Blocked;
             }

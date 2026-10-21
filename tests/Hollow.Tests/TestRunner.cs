@@ -89,19 +89,31 @@ public static class Program
     public static int Main(string[] args)
     {
         // Every test, or those whose name contains any of the words given.
-        List<MethodInfo> tests = typeof(Program).Assembly.GetTypes()
+        IEnumerable<MethodInfo> discovered = typeof(Program).Assembly.GetTypes()
             .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.Static))
-            .Where(m => m.GetCustomAttribute<TestAttribute>() != null)
-            .Where(m => args.Length == 0 || args.Any(f => (m.DeclaringType!.Name + "." + m.Name).Contains(f, StringComparison.OrdinalIgnoreCase)))
+            .Where(m => m.GetCustomAttribute<TestAttribute>() != null);
+        if (args.Length == 1 && args[0] == "--list-classes")
+        {
+            foreach (string name in discovered.Select(m => m.DeclaringType!.Name).Distinct().OrderBy(n => n, StringComparer.Ordinal))
+                Console.WriteLine(name);
+            return 0;
+        }
+        string? exactClass = args.Length == 2 && args[0] == "--class" ? args[1] : null;
+        List<MethodInfo> tests = discovered
+            .Where(m => exactClass != null ? m.DeclaringType!.Name == exactClass
+                : args.Length == 0 || args.Any(f => (m.DeclaringType!.Name + "." + m.Name).Contains(f, StringComparison.OrdinalIgnoreCase)))
             .OrderBy(m => m.DeclaringType!.Name, StringComparer.Ordinal)
             .ThenBy(m => m.MetadataToken)
             .ToList();
+        if (tests.Count == 0) { Console.Error.WriteLine("No matching tests."); return 2; }
         int failed = 0;
+        bool reportMemory = Environment.GetEnvironmentVariable("HOLLOW_TEST_MEMORY") == "1";
         var total = Stopwatch.StartNew();
         foreach (MethodInfo test in tests)
         {
             string name = test.DeclaringType!.Name + "." + test.Name;
             var watch = Stopwatch.StartNew();
+            if (reportMemory) ReportMemory(name, "before");
             try
             {
                 Console.WriteLine($"  RUN  {name}");
@@ -114,8 +126,27 @@ public static class Program
                 Exception inner = e.InnerException;
                 Console.WriteLine($"  FAIL {name}: {(inner is TestFailure ? inner.Message : inner.ToString())}");
             }
+            finally
+            {
+                if (reportMemory) ReportMemory(name, "after");
+            }
         }
         Console.WriteLine($"{tests.Count - failed}/{tests.Count} passed in {total.Elapsed.TotalSeconds:0.0} s.");
         return failed == 0 ? 0 : 1;
+    }
+
+    private static void ReportMemory(string test, string stage)
+    {
+        using Process process = Process.GetCurrentProcess();
+        GCMemoryInfo memory = GC.GetGCMemoryInfo();
+        Console.WriteLine("  MEMORY " + System.Text.Json.JsonSerializer.Serialize(new
+        {
+            test, stage, serverGc = System.Runtime.GCSettings.IsServerGC,
+            workingSetMiB = process.WorkingSet64 / 1048576.0,
+            privateMiB = process.PrivateMemorySize64 / 1048576.0,
+            managedMiB = GC.GetTotalMemory(false) / 1048576.0,
+            managedCommittedMiB = memory.TotalCommittedBytes / 1048576.0,
+            gen2Collections = GC.CollectionCount(2),
+        }));
     }
 }

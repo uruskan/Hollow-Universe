@@ -157,6 +157,7 @@ public static class BuildingNetTests
         Assert.Equal(1, ada.Local.PendingPlacements.Count, "and the piece shows at once");
         RunUntil(rig, () => ada.Building().World!.PieceCount == 1 && bo.Building().World!.PieceCount == 1, "the foundation on both clients");
         Assert.True(answers.Single(a => a.Seq == seq).Done, "placed");
+        Assert.Equal(0, ada.Local.PendingPlacements.Count, "accepted placement does not linger over its real mesh");
         RunUntil(rig, () => ada.Local.PendingPlacements.Count == 0, "the pending piece replaced by the real one");
 
         // A wall on the foundation's edge nearest Ada: the server derives the pose from support, socket and orientation.
@@ -379,5 +380,52 @@ public static class BuildingNetTests
         int[] mine = copy.AllPieces.OrderBy(p => p.Id.Value).Select(p => p.Stability).ToArray();
         int[] theirs = rig.Server.Inspect(sv => sv.Zone.Building().World!.AllPieces.OrderBy(p => p.Id.Value).Select(p => p.Stability).ToArray());
         Assert.True(mine.SequenceEqual(theirs), "stability as the server has it");
+    }
+
+    /// <summary>
+    /// docs/DOORS.md §4, §8: a door's layout and motion record (its target, the progress at a tick, which way it goes) reach a
+    /// client as the server has them, so the client's copy puts the leaf at the pose the server's has at every tick; and the
+    /// client's prediction poses its copy of the bodies at the tick before each one it predicts.
+    /// </summary>
+    [Test]
+    public static void ADoorsMotionRecordReachesTheClientAndItsLeafIsWhereTheServersIsAtEveryTick()
+    {
+        using var rig = new LoopbackRig();
+        GameClient ada = rig.Join("Ada");
+        rig.WaitUntilPlaying();
+        rig.Server.Execute("teleport Ada 0 0");
+        rig.Run(0.5, (_, _) => default);
+        ulong adaId = ada.EntityId.Value;
+        Vector3 adaAt = ada.Character.Position;
+        EntityId doorId = rig.Server.Inspect(sv =>
+        {
+            Piece f = Foundation(sv.Zone, sv.Zone.GroundAt(0, 3), adaId);
+            Piece doorway = On(sv.Zone, f, Nearest(f, adaAt), "doorway", adaId);
+            BuildingWorld w = sv.Zone.Building().World!;
+            Assert.True(w.PlaceDoor(adaId, w.Data.Door("wooden-door")!, doorway, 3, out Door? d).Ok, "the door fits (hinged right, swinging out)");
+            return d!.Id;
+        });
+        RunUntil(rig, () => ada.Building().World!.DoorOf(doorId) != null, "the door on the client");
+        Door mine = ada.Building().World!.DoorOf(doorId)!;
+        Assert.Equal(3, mine.Layout, "its layout arrived");
+        Assert.True(!mine.Open && mine.Moving == 0, "shut and still");
+        rig.Server.Inspect(sv => sv.Zone.Building().World!.Toggle(adaId, sv.Zone.Building().World!.DoorOf(doorId)!).Ok ? 1 : 0);
+        RunUntil(rig, () => mine.Open && mine.Moving != 0, "its motion on the client");
+        for (int sample = 0; sample < 6; sample++)
+        {
+            // The server's door at its tick, and the client's, put at that tick from the record it holds.
+            (long tick, float progress, float from, long since) = rig.Server.Inspect(sv =>
+            {
+                Door theirs = sv.Zone.Building().World!.DoorOf(doorId)!;
+                return (sv.Zone.Tick, theirs.Progress, theirs.From, theirs.Since);
+            });
+            Assert.Near(progress, mine.ProgressAt(tick), 2e-3, $"sample {sample}: the client's record puts the leaf where the server's body is at tick {tick}");
+            rig.Run(0.12, (_, _) => default);
+        }
+        // Its mirror's bodies stand at the prediction's tick before the newest one it predicted.
+        long predicted = ada.PredictedTick;
+        Assert.Near(mine.ProgressAt(predicted - 1), mine.Progress, 0.04, "the client's bodies are where its prediction last posed them");
+        RunUntil(rig, () => mine.Progress >= 1f, "the door arrived");
+        RunUntil(rig, () => rig.Server.Inspect(sv => sv.Zone.Building().World!.DoorOf(doorId)!.Progress) >= 1f, "the server's door arrived too (the client's, predicting ahead, arrives first)");
     }
 }

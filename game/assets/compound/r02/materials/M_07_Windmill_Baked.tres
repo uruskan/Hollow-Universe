@@ -1,0 +1,26 @@
+[gd_resource type="StandardMaterial3D" load_steps=4 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/2ef9b8ec1d8b0001ca43c3729cfdb40b05e5dfbd8e7eb15f06282cda69bb9e0f.png" id="1"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/88ccb9e7bddcf90ad78f495c2322b478a2337b40d0b118ada0e585ac7f78926b.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/compound/r02/textures/868426a9d25753b96069d03ae0d2bcc6dba871e688666acda7c2935201e9fe51.png" id="3"]
+
+[resource]
+resource_name = "M_07_Windmill_Baked"
+cull_mode = 2
+texture_filter = 5
+vertex_color_use_as_albedo = false
+albedo_color = Color(1, 1, 1, 1)
+metallic = 1
+roughness = 1
+albedo_texture = ExtResource("1")
+normal_texture = ExtResource("2")
+normal_enabled = true
+normal_scale = 1
+ao_texture = ExtResource("3")
+ao_enabled = true
+ao_texture_channel = 0
+ao_light_affect = 0.0
+roughness_texture = ExtResource("3")
+metallic_texture = ExtResource("3")
+roughness_texture_channel = 1
+metallic_texture_channel = 2

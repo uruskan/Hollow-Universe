@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Numerics;
 using Hollow.Core;
 using Hollow.Net.Bits;
@@ -8,6 +9,8 @@ using Hollow.Net.Protocol;
 using Hollow.Net.Replication;
 using Hollow.Persistence;
 using Hollow.Simulation;
+using Hollow.Simulation.Authorization;
+using Hollow.Simulation.Electricity;
 using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Diagnostics;
 using Hollow.Simulation.Entities;
@@ -68,7 +71,7 @@ public sealed class ThingModule : ServerModule
     // them.
     protected internal override void Restore(ZoneRecord stored, HashSet<EntityId> saved)
     {
-        int things = 0;
+        int things = 0, legacyDefenses = 0;
         foreach (ThingRecord t in stored.Things)
         {
             if (t.Kind is ExplosiveCodec.ThingKind or AnimalCodec.ThingKind)
@@ -80,6 +83,7 @@ public sealed class ThingModule : ServerModule
                 WorldObject? thing = WorldCodec.DecodeThing(t.Id, (StaticKind)t.Kind, t.Data, Content, Zone.Frame.ToLocal, Zone.Frame.UpAt, Zone.Tick);
                 if (thing != null && !Zone.Entities.TryFind(thing.Id, out _))
                 {
+                    if (thing is Deployable { Def.Defense: not null } && t.Data[0] < 10) legacyDefenses++;
                     Zone.Things().AddStatic(thing);
                     things++;
                 }
@@ -99,6 +103,17 @@ public sealed class ThingModule : ServerModule
             IndexOverride(n.ObjectId);
         }
         Log($"loaded {things} things and {stored.Naturals.Count} changed natural objects");
+        if (legacyDefenses > 0)
+            Log($"migrated {legacyDefenses} defense authorization policies: follow live cupboards with no owner/team grants; unclaimed owners must authorize themselves");
+    }
+
+    protected internal override void Start()
+    {
+        // All records and support transforms now exist; no defense has executed yet.
+        Zone.Power().RestoreConnections();
+        ElectricalGraph graph = Zone.Power().Graph;
+        if (graph.MigratedConnections > 0 || graph.RejectedRestoredConnections > 0)
+            Log($"electrical restore: migrated {graph.MigratedConnections} legacy cables; disconnected {graph.RejectedRestoredConnections} invalid/conflicting links for rewiring; devices and inventories preserved");
     }
 
     // Every static thing (a deployable claimed by a building is saved with it), and the natural objects that changed.
@@ -221,6 +236,11 @@ public sealed class ThingModule : ServerModule
             uint netId = _thingGrid[index].NetId;
             WorldObject thing = _things[netId];
             uint contents = thing.Container?.Revision ?? 0;
+            DeviceAccessFacts access = thing is Deployable device && device.Def.Defense != null
+                ? Zone.DeviceAuthorization().Facts(device, session.Viewer.Id) : default;
+            CableRecord? cable = (thing as Deployable)?.PowerCable;
+            ulong cableId = cable?.Id ?? 0;
+            uint cableRevision = cable?.Revision ?? 0;
             // Put somewhere else (it fell when the ship it lay on went): sent anew, as a spawn.
             if (view.ThingsSent.TryGetValue(netId, out ThingSent moved) && moved.Moved != thing.Moved)
             {
@@ -230,15 +250,18 @@ public sealed class ThingModule : ServerModule
             {
                 _thingsRelevant.Add(netId);
                 // Sent again when it changed, or when what the player is told of it did (its contents, the viewer).
-                if (sent.Revision != thing.Revision || sent.Contents != contents || session.ViewerChanged)
+                bool cableChanged = sent.CableId != cableId || sent.CableRevision != cableRevision;
+                if (sent.Revision != thing.Revision || sent.Contents != contents || session.ViewerChanged || sent.DeviceAccess != access || cableChanged)
                 {
                     ViewerFlags flags = Zone.Targets().FlagsFor(thing.Ref, session.Viewer);
-                    view.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags, thing.Moved);
-                    if (sent.Revision != thing.Revision || flags != sent.Flags)
+                    view.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags, thing.Moved, access, cableId, cableRevision);
+                    if (sent.Revision != thing.Revision || flags != sent.Flags || sent.DeviceAccess != access || cableChanged)
                     {
                         (byte health, uint count) = Look(thing);
                         Writer.Reset();
-                        new ThingUpdate { NetId = netId, Health = health, Count = count, Flags = flags }.WriteMessage(Writer);
+                        new ThingUpdate { NetId = netId, Health = health, Count = count, Flags = flags, Name = thing.Name,
+                            IsBody = thing is Corpse { IsBody: true }, Capabilities = thing.CapabilitiesIn(Content.Capabilities).Bits,
+                            Utility = UtilityOf(thing, access, cableChanged) }.WriteMessage(Writer);
                         Send(session);
                     }
                 }
@@ -248,7 +271,7 @@ public sealed class ThingModule : ServerModule
                 spawned++;
                 _thingsRelevant.Add(netId);
                 ViewerFlags flags = Zone.Targets().FlagsFor(thing.Ref, session.Viewer);
-                view.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags, thing.Moved);
+                view.ThingsSent[netId] = new ThingSent(thing.Revision, contents, flags, thing.Moved, access, cableId, cableRevision);
                 (byte health, uint count) = Look(thing);
                 // Aboard a ship (IRON_WAKE.md §8), its pose in the ship's frame: the client carries it where it draws the ship.
                 (Vector3 at, float yaw) = thing.Rides && thing.Support.Family == TargetFamily.Ship
@@ -272,6 +295,12 @@ public sealed class ThingModule : ServerModule
                     SupportFamily = thing.Support.Family,
                     Support = thing.Support.Id,
                     Capabilities = thing.CapabilitiesIn(Content.Capabilities).Bits,
+                    IsBody = thing is Corpse { IsBody: true },
+                    Utility = UtilityOf(thing, access, includeCable: true),
+                    Corpse = thing is Corpse { Life: { } life } corpse ? new[]
+                    {
+                        new CorpseAppearance { Owner = corpse.Of.Value, Body = life.Body, Wear = life.Wear.Select(item => new WornItem { Item = item }).ToArray() },
+                    } : Array.Empty<CorpseAppearance>(),
                 }.WriteMessage(Writer);
                 Send(session);
             }
@@ -288,6 +317,44 @@ public sealed class ThingModule : ServerModule
     // What a client is told of a thing besides its look and its viewer flags: health, a count (a bag's stacks).
     private static (byte Health, uint Count) Look(WorldObject thing) =>
         ((byte)Math.Clamp(Math.Ceiling(thing.HealthFraction * 255), 0, 255), (uint)Math.Max(0, thing.ShownCount));
+
+    private UtilityState[] UtilityOf(WorldObject thing, in DeviceAccessFacts access, bool includeCable) => thing is Deployable d &&
+        (d.Def.Power != null || d.Def.Defense != null || d.Def.Gate != null)
+        ? new[] { new UtilityState { PowerSource = d.PowerCable?.Output.EntityId ?? 0, Powered = d.Powered,
+            PowerEnabled = d.PowerEnabled, PowerOutput = d.PowerOutput, PowerInput = d.PowerInput, PowerConsumed = d.PowerConsumed,
+            StoredEnergy = d.StoredEnergy, HasCableUpdate = includeCable,
+            Cables = includeCable ? CableOf(d.PowerCable) : Array.Empty<PowerCableNet>(),
+            AuthorizationPresent = access.Present, Friendly = access.Friendly, CanManage = access.CanManage,
+            FollowsCupboard = access.FollowsCupboard, AuthorizationRevision = access.Revision,
+            DefenseEnabled = d.DefenseEnabled, DefenseYaw = d.DefenseYaw, DefensePitch = d.DefensePitch,
+            DefenseLastFireTick = d.DefenseLastFireTick, InstalledWeapon = d.InstalledWeapon, Open = d.Open,
+            Lock = d.Lock?.Kind ?? Hollow.Simulation.Building.LockKind.None } }
+        : Array.Empty<UtilityState>();
+
+    private PowerCableNet[] CableOf(CableRecord? cable)
+    {
+        if (cable == null) return Array.Empty<PowerCableNet>();
+        var anchors = new CableAnchorNet[cable.Anchors.Length];
+        for (int i = 0; i < anchors.Length; i++)
+        {
+            RouteAnchor anchor = cable.Anchors[i];
+            Vector3 world = Zone.Targets().TryPose(anchor.Support, out TargetPose pose)
+                ? pose.ToZone(anchor.Position) : anchor.Position;
+            anchors[i] = new CableAnchorNet
+            {
+                Support = new TargetNet { Family = anchor.Support.Family, Id = anchor.Support.Id, Part = anchor.Support.Part },
+                X = anchor.Position.X, Y = anchor.Position.Y, Z = anchor.Position.Z,
+                WorldX = world.X, WorldY = world.Y, WorldZ = world.Z,
+            };
+        }
+        Zone.Power().TryPort(cable.Output, out _, out _, out Vector3 outputPosition);
+        return new[] { new PowerCableNet
+        {
+            CableId = cable.Id, Revision = cable.Revision, OutputEntity = cable.Output.EntityId, OutputPort = cable.Output.PortId,
+            OutputX = outputPosition.X, OutputY = outputPosition.Y, OutputZ = outputPosition.Z,
+            InputEntity = cable.Input.EntityId, InputPort = cable.Input.PortId, Anchors = anchors,
+        } };
+    }
 
     protected internal override void Finish()
     {
@@ -405,7 +472,8 @@ public sealed class ThingModule : ServerModule
 }
 
 /// <summary>What a player was last sent of a static thing: its revision, its contents' revision, what they were told of it.</summary>
-public readonly record struct ThingSent(uint Revision, uint Contents, ViewerFlags Flags, uint Moved = 0);
+public readonly record struct ThingSent(uint Revision, uint Contents, ViewerFlags Flags, uint Moved = 0,
+    DeviceAccessFacts DeviceAccess = default, ulong CableId = 0, uint CableRevision = 0);
 
 /// <summary>The accessor on the server (GROUND_SYSTEMS.md §12.5): the static things and natural objects as replicated.</summary>
 public static class ThingModuleAccess

@@ -77,6 +77,7 @@ public enum ItemPart : byte
 
     /// <summary>recipes.json ingredients and world.json <c>recycle</c>: what other items are made of.</summary>
     Component,
+    Wiring,
 }
 
 /// <summary>
@@ -115,6 +116,7 @@ public enum HeldUse : byte
 
     /// <summary>Learnt (<see cref="ItemPart.Blueprint"/>).</summary>
     Blueprint,
+    Wiring,
 }
 
 /// <summary>The parts of an item (GROUND_SYSTEMS.md §7), as a set: bit <c>i</c> is <see cref="ItemPart"/> <c>i</c>.</summary>
@@ -193,6 +195,7 @@ internal static class ItemPartTable
         new(ItemPart.Door, "items.json building: door", HeldUse.Placer, (i, _) => i.Building == BuildingRole.Door),
         new(ItemPart.Blueprint, "world.json blueprint", HeldUse.Blueprint, (i, w) => w.Blueprint == i),
         new(ItemPart.Component, "recipes.json ingredients, world.json recycle", HeldUse.None, (i, w) => i.UsedIn.Count > 0 || w.FixedYield(i.Id) != null),
+        new(ItemPart.Wiring, "items.json wiring", HeldUse.Wiring, (i, _) => i.Wiring != null),
     };
 
     /// <summary>A part's row (the table lists the parts in their order; a test checks it).</summary>

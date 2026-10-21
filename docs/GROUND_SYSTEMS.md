@@ -1,8 +1,42 @@
 # Hollow Universe — the ground game's shared systems
 
+**Shared electricity and device authorization, 18 October 2026:**
+[ELECTRICITY_AND_AUTHORIZATION.md](ELECTRICITY_AND_AUTHORIZATION.md) extends the existing
+capability, held-tool, targeting and radial foundations with explicit ports/cables and
+separate friendship/control policies. `ElectricalGraph` owns indexed directed topology and
+dirty-circuit flow; `WiringSystem` owns bounded tool drafts and authoritative port/anchor
+validation. `DeviceAuthorizationSystem` owns revocable friendship independently of management.
+Windmill, turret and SAM use explicit data ports. Clearing a device overrides cupboard
+inheritance; defense targeting uses player or pilot/owner identity, without team immunity.
+Wire Tool held controls and physical cube/cable rendering extend the existing registries.
+Protocol 36 / thing codec 10 carry routes, per-viewer access facts and persisted policy.
+See DEVELOPMENT.md for measured validation and remaining scope limits.
+
+AB Test B, 17 October 2026: `compound.json` is a hashed catalogue of named assemblies, pivots,
+sockets and convex collision hulls. Optional deployable blocks bind electricity (`PowerSystem`),
+automated weapons (`DefenseSystem`), articulated entrances and climbing (`CompoundInteractionSystem`),
+and contact damage (`ContactHazardSystem`). No item key selects gameplay behaviour. The shared
+projectile/damage pipeline handles defensive weapons; the common movement motor handles ladders.
+`CompoundGeometry` supplies the same open/closed hulls to server movement, prediction and targeting.
+Gate, electrical and defense verbs use the existing interaction registry. Optional `UtilityState`
+is replicated with things under protocol 35; persistent wiring, charge, switches, gate state,
+repair delay and locks use thing codec 9. `ILockHost` lets structural doors and compound gates
+share the existing key/code handlers and allocator. `LockMounts` resolves authored sockets on
+moving leaves. Dynamic lock capabilities are sent to already connected clients, and a locked
+host cannot be picked up around its access rules.
+Fixed window fittings reuse the existing aperture attachment entity with `opens:false` and
+`lockable:false`; convex leaf parts preserve their shooting holes. Deployable hammer repair uses
+the same material wallet, permission, reach and post-damage delay rules as other repairable targets.
+
 Status: **approved by the owner on 13 October 2026**, with the defaults of §11; being built (§10). It changes how the
 ground game ([GROUND.md](GROUND.md)) is put together, not what it plays like. Where it and GROUND.md disagree on
 structure, this document wins.
+
+AB Test B, 16 October 2026: melee, firearms/shoulder launchers and crewed cannons use the
+[shared attack lifecycle](ATTACK_SYSTEM.md). `AttackId`, `AttackLedger`, `AttackJournal` and
+`AttackResolved` own identity, prediction, duplicate suppression and decisions. Existing
+capability handlers own cadence, resources and damage; successful-shot counts never identify
+input attempts. This extends the shared systems below without item-name routing.
 
 ---
 
@@ -119,6 +153,10 @@ the claim device, helping up, lighting a dud again, team invites and a workbench
 through walls are refused, and the client's one targeting query (§5) meets walls, so it no longer offers what the server
 would refuse. Every verb names its reach (interactions.json, §5); a ship's parts use it since P1. Placement (deployables
 3 m, building 8 m) keeps its own until P2. Test: `FoundationTests.ReachIsToTheNearestSurfaceInSight`.
+
+A family may offer more points to see a thing by (`ITargetFamily.SightPoints`): when the ray to the nearest point is blocked,
+`Reach` tries them and the thing is seen if any is. Doors do (their leaves' points and their doorway, DOORS.md §5): an open
+leaf's nearest point lies behind its own jamb as seen from the side, which refused closing a door from a few metres off axis.
 
 ### 3.5 Registries
 A small `Registry<THandler>` keyed by the data list's index, filled at start-up, validated against the data. Used by
@@ -339,7 +377,8 @@ old `ship` capability keeps no verbs: only its flags (locked, on the list).
   prompt says it.
 - The cupboard's verbs act on the list of the target's family (`IAuthoriseFamily`: a claim device's, a ship's), so the
   Iron Wake's helm is its tool cupboard with no second handler.
-- The hammer mends whatever the aim names through its family (`IRepairFamily`: a piece, a ship's door or battery;
+- The hammer mends whatever the aim names through its family (`IRepairFamily`: a piece, a ship's door or battery, a ship's
+  module, a ship's hull where its kind gives the cost (VEHICLES.md §5.5);
   `BuildingSystem.Repair`), within the building's reach and in sight.
 
 Tests (`InteractionTests`): every verb has exactly one handler; the one query meets the nearest thing; the garage door
@@ -353,13 +392,13 @@ taken back; a client aims and offers as the server. The old intents' tests use `
 
 | Field | Meaning |
 |---|---|
-| `surfaces` | where it may stand: `terrain`, `floor` (tops of foundations, floors and stairs' landings), `wall`, `opening` (doorway or wall frame), `door` (a door leaf), `any` (pieces, doors, deployables, trees, rocks, terrain) |
+| `surfaces` | where it may stand: `terrain`, `floor` (tops of foundations, floors and stairs' landings), `wall`, `opening` (doorway or wall frame), `door` (a door leaf), `water` (the water's surface, met by the aim only for a rule that allows it, with `water: true`: the motorboat, docs/MOTORBOAT.md §4), `any` (pieces, doors, deployables, trees, rocks, terrain) |
 | `solver` | `free` (onto the surface under the aim), `socket` (building pieces), `opening`, `attach`, `sweep` (charges) |
 | `footprint` | half extents, or the model's hull from the catalogue (ships) |
 | `support` | `corners` (every footprint corner supported, RustMVP) or `centre` |
 | `maxSlope`, `maxStep`, `water` | as today's deployable fields; water is now checked for every placeable |
 | `align` | `up` (the planet's) or `normal` (charges on walls) |
-| `rotation` | `free`, steps in degrees, `support` (takes the support's yaw), `flip` (doors) |
+| `rotation` | `free`, steps in degrees, `support` (takes the support's yaw), `layout` (doors: hinge side and swing side) |
 | `reach` | defaults 3 m for deployables, 8 m for building, as now |
 | `privilege` | `needed` (authorised where a cupboard covers), `blocked` (refused in others' cover), `ignored` (charges) |
 | `limits` | per structure (Rust: 20 deployables, one cupboard), per player (sleeping bags) |
@@ -389,7 +428,7 @@ straight down from a little above it to what it would stand on within the step; 
 doorway or wall frame the aim passes through), `attach` (the door aimed at, at its lock spot) and `sweep` (the
 explosives' own sweep to the first surface). **Rotations** (`Rotations.cs`): `free` (the view's yaw plus R's turns; since
 S3 a placement's yaw is a heading from local north, `Facing`),
-`steps`, `support` (square to the piece under it, in its 30° steps), `flip` (a door's side) and `fixed` (as the solver
+`steps`, `support` (square to the piece under it, in its 30° steps), `layout` (a door's hinge side and swing side, docs/DOORS.md §3) and `fixed` (as the solver
 found it: a piece's orientation on its socket, which R cycles, or a lock's spot). **Checks** (`Checks.cs`), in
 placement.json's order: reach (to the footprint's nearest point), surface, step, slope, water, overlap, support (every
 corner within 15 cm of an allowed surface facing up), sight, privilege, limits, and `own` (the kind's: a piece's
@@ -475,6 +514,28 @@ building's full checks (about 0.45 ms, as before P2). The server's verdict is on
 
 ## 7. Held items, item information, inventory actions (package P3)
 
+**Admire (17 October 2026):** N defaults to the local `admire` command; the existing
+`bind`/`unbind` commands can change it. Every held model declares an `admire` clip in
+`held-presentations.json`. The FPS renderer samples its camera-space offset over the
+actual idle pose, including skeletal idles and fitted attachments. It transforms the
+existing wrist-to-item relation and solves the holding arms while keeping shoulders
+rooted; a shared reach constraint keeps both holding hands attached. It never enters the gameplay action queue or
+sends an intent. Attack, aim, reload, sprint, swimming, menus, lost focus, free look,
+changing the belt slot/item, death/wounding and seats interrupt it. Busy hands cannot
+start it, and repeated presses do not restart an active inspection. This is local
+first-person presentation; remote players continue to see the ordinary held pose.
+
+**Bow aiming (17 October 2026):** the camera-attached arrow converges toward screen
+centre at a 10 m presentation reference distance after authored motion and reach solving.
+The shared bow rig preserves the authored cant and both hand attachments; this cosmetic
+constraint never changes projectile velocity, gravity, damage or the server's aim line.
+An optional hand `firstPersonShoulderOffset` (metres in camera space) adjusts procedural
+FPS reach independently of the shared shoulder placement and full-body animation. It is
+validated, saved and editable in the workshop; omitted values are zero. Native
+`--view held-editor --bow-check --bow-check-out <empty-folder>` measures the actual arrow
+axis/projection, hand attachment and camera clearance. The hosted `bow-alignment` tour
+checks real input through firing, redraw and admire interruption.
+
 **Held behaviour from parts.** Each item part that gives a held behaviour registers one handler: melee, bow, firearm,
 throwable, placer (deployables, doors, locks, the cupboard, ships), planner, hammer, consumable, blueprint. A load-time
 check allows at most one per item. The handler owns the client's mouse, R tap, R hold and radial options, the first-person
@@ -496,6 +557,14 @@ opens the ammo radial: every round of its calibre the player carries, with count
 
 **Dropping.** Releasing a dragged item anywhere that isn't a slot drops it, over panels and buttons too; releasing it
 over its own slot cancels (Rust). Today a release over any panel silently cancels.
+
+AB Test B, **18 October 2026**: **DROP ALL**, beside the inventory heading, drops only the 24 backpack
+slots. It preserves the six hotbar/belt slots, all worn equipment, and any open loot container. The button is
+disabled when the backpack is empty. One bounded `DropAllIntent` carries the displayed backpack snapshot;
+`InventoryRules.RemoveAll` checks every stack before removing anything, so stale requests cannot drop newly
+arrived or replaced items. Prediction uses the same rule, the server spends one ordinary intent budget unit,
+and `SpillSystem` creates/merges the ground lootbag through the existing drop path. Item condition, loaded
+rounds and fitted attachments remain on their stacks. The schema hash changes with the new message.
 
 **Workbench speed.** The station capability scales a job's time by how far the bench's level is above the recipe's
 (Rust's: one level above, half the time; two or more, a quarter; in data), fixed when the job starts.
@@ -600,7 +669,15 @@ relevance grid; replication and saving written once per component (NetGen extend
 interpolator; one client view per capability. Building pieces keep their structure solver (sockets, stability) behind the
 same capabilities. This is the largest and riskiest change; it is decided after P0–P5 have proved the capability model.
 
-## 9a. Later: characters and held items (package P7)
+## 9a. Characters and held items (package P7)
+
+**AB Test B, 15 October 2026:** the owner approved the shared FPS/TPS animation and timing
+repair, including a visual editor for all held items. Implementation and current validation
+are tracked in [HELD_ITEMS.md](HELD_ITEMS.md) and [DEVELOPMENT.md](DEVELOPMENT.md).
+Functional attached optics and held weapon lights use catalogue presentation capabilities, native eye/beam
+sockets and existing authoritative `HeldMods`; see [REPAIR_ATTACHMENTS.md](REPAIR_ATTACHMENTS.md) for integration
+and validation status. They add no separate inventory, damage, input message or saved light authority.
+The paragraph below records the original finding, not a claim that the repair is finished.
 
 The owner's playtest (13 October 2026) found the characters' presentation unpolished: items clip into the third-person
 body or are held oddly, the first-person rock wants Rust's closed grip, and a swing's visible contact misses the point the
@@ -689,6 +766,7 @@ Decisions:
 | `WorldSystem` | Zone.World.cs | props, loot spots, recyclers and research, teams, map markers (once a second) |
 | `ActionSystem` | Zone.Actions.cs, Zone.Players.cs (part) | containers, looting, item actions; the loot check (once a second); craft queues |
 | `BuildingSystem` | Zone.Building.cs | building, doors, locks, the cupboard; decay and upkeep |
+| `DoorMotionSystem` | (none) | the doors' leaves put where their progress is, under the physics gate after the characters moved (DOORS.md §5) |
 | `HistorySystem` | Zone.Players.cs (part) | records the second of poses hits are judged against (last) |
 | `ShipSystem` | Zone.Ships.cs | ships (inside the physics gate, after movement) |
 | `DamageSystem` | Zone.Damage.cs | the damage pipeline (no step) |
@@ -724,6 +802,13 @@ Decisions:
   snapshots of dynamic entities, saving and the console's plumbing.
 - **K11.** `ClientModule` likewise for `GameClient` (`Init`, `Update`, `Welcome`, `Dispose`); the presentation reads a
   module's state through its accessor (`client.Raid().Explosives`).
+
+The environment handshake has separate owned state objects, `ClientWorldHandshake` and
+`ServerWorldHandshake`. They validate offers, acceptance tokens, deadlines and admission
+without owning world leases or gameplay modules. The hosts retain world publication,
+persistence login, player creation and retirement. `ClientTransport` supplies stateless
+transport setup/update/send mechanics; the client remains responsible for disposing its
+transport and optional relay. These are collaborators, not hidden partial host files.
 
 ### 12.6 K4: one reader per data file
 
@@ -821,3 +906,16 @@ others it needs in lazily found fields. Renamed, as the zone's systems were: a m
 (`client.Survival().ThingOf`, `client.Ships().Piloting`, `client.Interaction().AimInteraction`). The conversion moved 385
 call sites outside the client (198 in the presentation, 42 in the bots, 145 in the tests) by a script from the compiler's
 error list, so the moved code's text is the same where it stands. Test: `ArchitectureTests.TheClientIsAHost`.
+
+## AB Test B: supported player bodies (15 October 2026)
+
+`CorpseLifecycle` owns a player body's server deadline, harvest progress and death-time appearance. `Corpse` retains
+one ordinary take-only inventory container across body and backpack phases. `PlayerSystem.Die` creates it after the
+central god-mode guard, using `SpillSystem.RestingPoint` and the existing support graph. Fixed floors release it when
+removed; ship support links carry it every tick. The Thing damage receiver and lifetime step own harvest and phase
+conversion. `HarvestProgress` is shared with animal carcasses so tool speed never changes total yield.
+
+WorldCodec7 saves remaining world time and partial yield; old saves without lifecycle metadata become bags without a
+new harvest allowance. ThingSpawn's optional corpse appearance and ThingSpawn/ThingUpdate's `IsBody` make phase and
+clothing independent of reconnect timing. PeopleView draws a supported prone body, then the existing large backpack;
+server-only Jolt floors do not depend on a local Godot ragdoll. See `REPAIR_CORPSES.md` for tuning and validation status.

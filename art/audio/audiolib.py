@@ -12,6 +12,8 @@ import re
 import shutil
 import subprocess
 
+from longpath import fs
+
 RATE = 48000
 
 _FFMPEG_CANDIDATES = [
@@ -45,7 +47,7 @@ def decode(path, rate=16000, start=0.0, duration=None, mono=True):
         args += ["-ss", "%.4f" % start]
     if duration:
         args += ["-t", "%.4f" % duration]
-    args += ["-i", path, "-ac", "1" if mono else "2", "-ar", str(rate), "-f", "f32le", "-"]
+    args += ["-i", fs(path), "-ac", "1" if mono else "2", "-ar", str(rate), "-f", "f32le", "-"]
     p = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if p.returncode != 0:
         raise RuntimeError(p.stderr.decode("utf-8", "replace"))
@@ -199,7 +201,7 @@ _FRAME = re.compile(r"t:\s*([0-9.]+)\s+TARGET:.*?M:\s*(-?[0-9.inf]+)\s+S:\s*(-?[
 
 def loudness_track(path):
     """(t, momentary, short-term) every 100 ms."""
-    log = run(["-i", path, "-af", "ebur128=framelog=info", "-f", "null", "-"])
+    log = run(["-i", fs(path), "-af", "ebur128=framelog=info", "-f", "null", "-"])
     out = []
     for m in _FRAME.finditer(log):
         out.append((float(m.group(1)), _num(m.group(2)), _num(m.group(3))))
@@ -222,8 +224,8 @@ def measure(path):
              "[c]highpass=f=10000,highpass=f=10000,astats=metadata=0[c1];"
              "[d]lowpass=f=40,lowpass=f=40,astats=metadata=0[d1];"
              "[a1][b1][c1][d1]amix=inputs=4[out]")
-    log = run(["-i", path, "-filter_complex", graph, "-map", "[out]", "-f", "null", "-"])
-    probe = run(["-i", path, "-f", "null", "-t", "0", "-"])
+    log = run(["-i", fs(path), "-filter_complex", graph, "-map", "[out]", "-f", "null", "-"])
+    probe = run(["-i", fs(path), "-f", "null", "-t", "0", "-"])
     m = re.search(r"Audio: (\w+).*?, (\d+) Hz, (mono|stereo|[0-9.]+ channels)", probe)
     dur = re.search(r"Duration: (\d+):(\d+):([0-9.]+)", probe)
     momentary = [_num(x.group(2)) for x in _FRAME.finditer(log)]

@@ -179,7 +179,12 @@ public sealed class GradeDef
 /// <summary>A door leaf: its mesh, its hinge in the frame's piece-local metres, its size and how far it swings open.</summary>
 public sealed class LeafDef
 {
+    private ConvexPart[]? _fallbackCollision;
+
     public string Mesh { get; init; } = "";
+
+    /// <summary>Additional meshes sharing this leaf's pose and physics body (for example a reinforced pane and its wire).</summary>
+    public IReadOnlyList<string> AdditionalMeshes { get; init; } = Array.Empty<string>();
 
     /// <summary>The hinge (the leaf's origin) in the doorway's frame: metres, Y up, outside +Z.</summary>
     public System.Numerics.Vector3 Hinge { get; init; }
@@ -189,9 +194,63 @@ public sealed class LeafDef
 
     /// <summary>Yaw of the open leaf about its hinge, degrees (from the kit's assembly manifest).</summary>
     public double OpenYaw { get; init; }
+
+    /// <summary>
+    /// How far out from the leaf's middle plane a lock's back rests on either face (DOORS.md §6): the front of the handle
+    /// plate the kit puts there, the same on both faces.
+    /// </summary>
+    public float LockDepth { get; init; }
+
+    /// <summary>Authored convex parts in leaf-local metres. Omitted for the existing solid rectangular leaves.</summary>
+    public ConvexPart[] Collision { get; init; } = Array.Empty<ConvexPart>();
+
+    /// <summary>The same solid parts for authoritative collision, placement and targeting; openings stay empty.</summary>
+    public ConvexPart[] Parts => Collision.Length > 0 ? Collision : _fallbackCollision ??= new[] { PieceShapes.Leaf(this) };
+
+    /// <summary>The mesh of this leaf hung on the other side, the kit's leaf mirrored in X ("" for a door whose hinge side is fixed).</summary>
+    public string MirrorMesh { get; init; } = "";
+
+    /// <summary>The same parts hung on the other side (mirrored in X), for a right-hinged leaf.</summary>
+    public ConvexPart[] MirroredParts => _mirrored ??= Parts.Select(p => p.MirroredX()).ToArray();
+
+    /// <summary>The key a mirrored leaf's shared body shape is kept under.</summary>
+    internal object MirrorKey { get; } = new();
+
+    /// <summary>
+    /// The height of a rolling curtain's body while its lower edge is <paramref name="lift"/> metres up, in whole centimetres
+    /// (rounded up, so shapes are shared and the top never falls short of the header): only the part still hanging, from the
+    /// lower edge up to the header, never the curtain's full size lifted (DOORS.md §5).
+    /// </summary>
+    public int HangingCentimetres(float lift) => Math.Clamp((int)MathF.Ceiling((Size.Y - lift) * 100f - 0.01f), 5, (int)MathF.Ceiling(Size.Y * 100f));
+
+    /// <summary>A rolling curtain's body of that height, standing on its (lifted) origin.</summary>
+    public ConvexPart[] HangingParts(int centimetres) => _hanging.GetOrAdd(centimetres, cm =>
+    {
+        float x0 = Math.Min(0, Size.X), x1 = Math.Max(0, Size.X), t = Size.Z / 2;
+        return new[] { ConvexPart.Box(x0, x1, 0, cm / 100f, -t, t) };
+    });
+
+    /// <summary>The key a hanging body's shared shape of that height is kept under.</summary>
+    internal object HangingKey(int centimetres) => (this, centimetres);
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, ConvexPart[]> _hanging = new();
+
+    /// <summary>
+    /// How far the hinge pin lies from the leaf's middle plane, toward the face the leaf swings to: half its thickness, so
+    /// the open leaf stands clear of the jamb it hangs on (DOORS.md §3).
+    /// </summary>
+    public float PinDepth => MathF.Abs(Size.Z) / 2;
+
+    private ConvexPart[]? _mirrored;
 }
 
-/// <summary>A door: a deployable item fitted into a doorway (single) or a wall frame (double, garage).</summary>
+/// <summary>
+/// Where a leaf hangs in a layout (<see cref="DoorDef.Hinging"/>): its hinge pin in the frame, where the leaf's own origin
+/// (its middle plane at the hinge) lies from the pin when shut, and the yaw of the open leaf about the pin.
+/// </summary>
+public readonly record struct LeafHinging(System.Numerics.Vector3 Pin, System.Numerics.Vector3 Offset, float OpenYaw, bool Mirrored);
+
+/// <summary>A fitted aperture attachment: a swinging/rolling door or a stationary window insert.</summary>
 public sealed class DoorDef
 {
     public string Key { get; init; } = "";
@@ -213,9 +272,104 @@ public sealed class DoorDef
     /// <summary>A garage door rolls up instead of swinging.</summary>
     public bool Rolls { get; init; }
 
+    /// <summary>Whether this attachment can open. Stationary inserts still share placement, damage, repair and persistence.</summary>
+    public bool Opens { get; init; } = true;
+
+    /// <summary>Whether a key/code lock may be fitted.</summary>
+    public bool Lockable { get; init; } = true;
+
     public IReadOnlyList<LeafDef> Leaves { get; init; } = Array.Empty<LeafDef>();
 
     public string FrameMesh { get; init; } = "";
+
+    /// <summary>Seconds a door takes to swing open or shut, or a garage curtain to roll (the kit's clip: 3 s).</summary>
+    public double TravelSeconds { get; init; } = 1.0;
+
+    /// <summary>The progress a tick adds to a door that is moving (the same arithmetic on every machine).</summary>
+    public float ProgressPerTick => (float)(1.0 / (TravelSeconds * Movement.CharacterMotor.TickRate));
+
+    /// <summary>
+    /// For a rolling door: how high the curtain's lower edge has risen, in metres, at equal steps of progress from shut to
+    /// open (measured on the kit's clip; the first is 0). Empty: the curtain rises by its height in proportion to progress.
+    /// </summary>
+    public IReadOnlyList<float> Lift { get; init; } = Array.Empty<float>();
+
+    /// <summary>How far a rolling door's curtain has risen at a progress, in metres (<see cref="Lift"/>, read between its steps).</summary>
+    public float LiftAt(float progress, float height)
+    {
+        if (Lift.Count < 2)
+        {
+            return height * Math.Clamp(progress, 0f, 1f);
+        }
+        float at = Math.Clamp(progress, 0f, 1f) * (Lift.Count - 1);
+        int i = Math.Min((int)at, Lift.Count - 2);
+        return Lift[i] + (Lift[i + 1] - Lift[i]) * (at - i);
+    }
+
+    /// <summary>Whether the builder chooses the hinge side (a single door; layout bit 0 hangs the leaf on the right).</summary>
+    public bool Hinges { get; init; }
+
+    /// <summary>Whether the builder chooses the swing side (layout bit 1 swings the leaves out, toward +Z).</summary>
+    public bool Swings { get; init; }
+
+    /// <summary>The layout bits that mean something for this door (DOORS.md §3).</summary>
+    public int LayoutMask => (Hinges ? 1 : 0) | (Swings ? 2 : 0);
+
+    /// <summary>How many layouts the door has: 4 for a single door, 2 for a double door, 1 otherwise.</summary>
+    public int Layouts => (Hinges ? 2 : 1) * (Swings ? 2 : 1);
+
+    /// <summary>
+    /// The layouts in the order R steps through them, each press changing one choice: left/in, right/in, right/out, left/out
+    /// for a single door; in, out for a double door.
+    /// </summary>
+    public IReadOnlyList<int> LayoutCycle => (Hinges, Swings) switch
+    {
+        (true, true) => new[] { 0, 1, 3, 2 },
+        (false, true) => new[] { 0, 2 },
+        (true, false) => new[] { 0, 1 },
+        _ => new[] { 0 },
+    };
+
+    /// <summary>
+    /// The layout a door starts at when aimed at from one side of its frame: hinged on the viewer's left, swinging away from
+    /// the viewer (from the +Z side that is hinge left and in, from −Z hinge right and out).
+    /// </summary>
+    public int DefaultLayout(bool fromOutside) => fromOutside ? 0 : LayoutMask & 3;
+
+    /// <summary>The layout <paramref name="turns"/> presses of R after <paramref name="from"/>.</summary>
+    public int Turned(int from, int turns)
+    {
+        IReadOnlyList<int> cycle = LayoutCycle;
+        int at = 0;
+        for (int i = 0; i < cycle.Count; i++)
+        {
+            if (cycle[i] == (from & LayoutMask))
+            {
+                at = i;
+            }
+        }
+        return cycle[(((at + turns) % cycle.Count) + cycle.Count) % cycle.Count];
+    }
+
+    /// <summary>Where leaf <paramref name="index"/> hangs and where it swings to in a layout (bits this door does not choose are ignored).</summary>
+    public LeafHinging Hinging(int index, int layout)
+    {
+        LeafDef leaf = Leaves[index];
+        layout &= LayoutMask;
+        bool mirrored = (layout & 1) != 0, swingOut = (layout & 2) != 0;
+        bool swings = leaf.OpenYaw != 0;
+        float pinZ = !swings ? 0f : swingOut ? leaf.PinDepth : -leaf.PinDepth;
+        var pin = new System.Numerics.Vector3(mirrored ? -leaf.Hinge.X : leaf.Hinge.X, leaf.Hinge.Y, leaf.Hinge.Z + pinZ);
+        float yaw = (float)(leaf.OpenYaw * Math.PI / 180) * (mirrored ? -1 : 1) * (swingOut ? -1 : 1);
+        return new LeafHinging(pin, new System.Numerics.Vector3(0, 0, -pinZ), yaw, mirrored);
+    }
+
+    /// <summary>How far open a leaf is at a progress from 0 (shut) to 1 (open): a swing eases at both ends.</summary>
+    public static float Ease(float progress)
+    {
+        float p = Math.Clamp(progress, 0f, 1f);
+        return p * p * (3 - 2 * p);
+    }
 }
 
 /// <summary>The building rules' numbers (<c>game/data/ground/building.json</c>), read by the server and the client.</summary>
@@ -225,6 +379,7 @@ public sealed class BuildingData
 
     private readonly Dictionary<string, PieceDef> _pieces = new(StringComparer.Ordinal);
     private readonly Dictionary<string, DoorDef> _doors = new(StringComparer.Ordinal);
+    private readonly Dictionary<Opening, (double Width, double Height, double Sill)> _apertures = new();
     private readonly Dictionary<string, string> _materialNames = new(StringComparer.Ordinal);
 
     private BuildingData()
@@ -249,6 +404,9 @@ public sealed class BuildingData
     public (double Width, double Height) DoubleOpening { get; private set; } = (2.7, 2.85);
     public (double Width, double Height) WindowOpening { get; private set; } = (1.8, 1.2);
     public double WindowSill { get; private set; } = 0.9;
+
+    /// <summary>The registered wall aperture's clear rectangle in piece-local metres.</summary>
+    public bool TryOpening(Opening opening, out (double Width, double Height, double Sill) bounds) => _apertures.TryGetValue(opening, out bounds);
 
     // ---------------------------------------------------------------- placement
 
@@ -459,6 +617,9 @@ public sealed class BuildingData
         DoubleOpening = r.Pair(m, "doubleOpening", DoubleOpening);
         WindowOpening = r.Pair(m, "windowOpening", WindowOpening);
         WindowSill = r.Number(m, "windowSill", 0.9);
+        _apertures[Opening.Door] = (DoorOpening.Width, DoorOpening.Height, 0);
+        _apertures[Opening.Double] = (DoubleOpening.Width, DoubleOpening.Height, 0);
+        _apertures[Opening.Window] = (WindowOpening.Width, WindowOpening.Height, WindowSill);
 
         JsonElement p = r.Object(root, "placement");
         SocketAimRadius = r.Number(p, "socketAimRadius", 1.75);
@@ -647,12 +808,18 @@ public sealed class BuildingData
             var leaves = new List<LeafDef>();
             foreach (JsonElement l in r.Array(d, "leaves"))
             {
+                System.Numerics.Vector3 size = r.Vector(l, "size");
                 leaves.Add(new LeafDef
                 {
                     Mesh = r.Text(l, "mesh", ""),
                     Hinge = r.Vector(l, "hinge"),
-                    Size = r.Vector(l, "size"),
+                    Size = size,
                     OpenYaw = r.Number(l, "openYaw", 0),
+                    MirrorMesh = r.Text(l, "mirrorMesh", ""),
+                    LockDepth = (float)r.Number(l, "lockDepth", Math.Abs(size.Z) / 2 + 0.002),
+                    AdditionalMeshes = r.Array(l, "additionalMeshes").Select(e => e.ValueKind == JsonValueKind.String
+                        ? e.GetString() ?? "" : Bad(r, "attachment mesh name must be text", "")).ToArray(),
+                    Collision = ReadLeafCollision(r, l),
                 });
             }
             string protection = r.Text(d, "protection", "wood");
@@ -666,19 +833,47 @@ public sealed class BuildingData
             {
                 Key = key,
                 Name = r.Text(d, "name", key),
-                Opening = r.Text(d, "opening", "door") == "double" ? Opening.Double : Opening.Door,
+                Opening = r.Enum(d, "opening", Opening.Door),
                 Health = r.Number(d, "health", 100),
                 Protection = grade ?? (Grades.Count > 0 ? Grades[0] : new GradeDef()),
                 RepairMaterial = r.Text(repair, "material", "wood"),
                 RepairFull = (int)r.Number(repair, "full", 1),
                 Rolls = d.TryGetProperty("rolls", out JsonElement rolls) && rolls.ValueKind == JsonValueKind.True,
+                Opens = r.Boolean(d, "opens", true),
+                Lockable = r.Boolean(d, "lockable", true),
                 Leaves = leaves,
                 FrameMesh = r.Text(d, "frameMesh", ""),
+                Hinges = r.Boolean(d, "hinges", false),
+                Swings = r.Boolean(d, "swings", false),
+                TravelSeconds = r.Number(d, "travel", 1.0),
+                Lift = r.Array(d, "lift").Select(e => e.ValueKind == JsonValueKind.Number ? (float)e.GetDouble() : 0f).ToArray(),
             };
             doors.Add(door);
             _doors[key] = door;
         }
         Doors = doors;
+    }
+
+    private static ConvexPart[] ReadLeafCollision(Reader r, JsonElement leaf)
+    {
+        var parts = new List<ConvexPart>();
+        foreach (JsonElement hull in r.Array(leaf, "collision"))
+        {
+            System.Numerics.Vector3[] points = r.Array(hull, "points").Select(r.Point).Distinct().ToArray();
+            if (points.Length is < 4 or > 64)
+            {
+                r.Problem("attachment collision needs 4 to 64 distinct finite points per convex part");
+                continue;
+            }
+            var part = new ConvexPart(points);
+            if (part.Planes.Length < 4 || part.Min.X >= part.Max.X || part.Min.Y >= part.Max.Y || part.Min.Z >= part.Max.Z)
+            {
+                r.Problem("attachment collision must enclose a three-dimensional convex solid");
+                continue;
+            }
+            parts.Add(part);
+        }
+        return parts.ToArray();
     }
 
     private void ReadLocks(Reader r, JsonElement root)
@@ -800,9 +995,33 @@ public sealed class BuildingData
             {
                 problems.Add($"door {d.Key}: needs at least one leaf");
             }
+            if (d.Leaves.Count > 2)
+            {
+                problems.Add($"door {d.Key}: at most two physics leaves fit the shared network state; group fixed meshes into additionalMeshes");
+            }
+            if (d.Opening == Opening.None || (!d.Opens && (d.Rolls || d.Lockable || d.Leaves.Any(l => l.OpenYaw != 0))))
+            {
+                problems.Add($"door {d.Key}: needs an aperture and consistent opening/locking capabilities");
+            }
             if (!Materials.Contains(d.RepairMaterial))
             {
                 problems.Add($"door {d.Key}: unknown repair material \"{d.RepairMaterial}\"");
+            }
+            if ((d.Hinges || d.Swings) && (!d.Opens || d.Rolls || d.Leaves.Any(l => l.OpenYaw == 0)))
+            {
+                problems.Add($"door {d.Key}: a hinge or swing side can only be chosen on a door whose leaves swing");
+            }
+            if (!(d.TravelSeconds is > 0.1 and <= 30))
+            {
+                problems.Add($"door {d.Key}: travel is 0.1 to 30 seconds");
+            }
+            if (d.Lift.Count == 1 || d.Lift.Any(h => !float.IsFinite(h) || h < 0))
+            {
+                problems.Add($"door {d.Key}: lift needs at least two finite heights");
+            }
+            if (d.Hinges && d.Leaves.Any(l => l.MirrorMesh.Length == 0))
+            {
+                problems.Add($"door {d.Key}: a door with a hinge choice needs each leaf's mirrorMesh");
             }
         }
         if (UpkeepBrackets.Count == 0)
@@ -877,6 +1096,26 @@ public sealed class BuildingData
                 problems.Add($"\"{name}\" must be text");
             }
             return fallback;
+        }
+
+        public bool Boolean(JsonElement o, string name, bool fallback)
+        {
+            if (o.ValueKind != JsonValueKind.Object || !o.TryGetProperty(name, out JsonElement v)) return fallback;
+            if (v.ValueKind is JsonValueKind.True or JsonValueKind.False) return v.GetBoolean();
+            problems.Add($"\"{name}\" must be true or false");
+            return fallback;
+        }
+
+        public System.Numerics.Vector3 Point(JsonElement value)
+        {
+            if (value.ValueKind == JsonValueKind.Array)
+            {
+                double[] xyz = value.EnumerateArray().Select(e => e.ValueKind == JsonValueKind.Number && e.TryGetDouble(out double v) ? v : double.NaN).ToArray();
+                if (xyz.Length == 3 && xyz.All(v => double.IsFinite(v) && Math.Abs(v) <= float.MaxValue))
+                    return new System.Numerics.Vector3((float)xyz[0], (float)xyz[1], (float)xyz[2]);
+            }
+            problems.Add("collision point must be three finite numbers");
+            return default;
         }
 
         public (double, double) Pair(JsonElement o, string name, (double, double) fallback)

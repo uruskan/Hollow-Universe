@@ -1,0 +1,10 @@
+WARNING: Warm-up: stopped after 40 s with 87 of 298 items not shown (gibs of loot-crate, gibs of military-crate, gibs of recycler, gibs of building-twig, gibs of building-wood).
+   at: void HollowUniverse.Ground.RenderWarmup._Process(double) (res://scripts/Ground/RenderWarmup.cs:135)
+   C# backtrace (most recent call first):
+       [0] void Godot.GD.PushWarning(string) (/root/godot/modules/mono/glue/GodotSharp/GodotSharp/Core/GD.cs:396)
+       [1] void HollowUniverse.Ground.RenderWarmup._Process(double) (D:\GameDev\Projects\HollowUniverseABTestB\game\scripts\Ground\RenderWarmup.cs:135)
+       [2] bool Godot.Node.InvokeGodotClassMethod(Godot.NativeInterop.godot_string_name&, Godot.NativeInterop.NativeVariantPtrArgs, Godot.NativeInterop.godot_variant&) (/root/godot/modules/mono/glue/GodotSharp/GodotSharp/Generated/GodotObjects/Node.cs:2654)
+       [3] bool HollowUniverse.Ground.RenderWarmup.InvokeGodotClassMethod(Godot.NativeInterop.godot_string_name&, Godot.NativeInterop.NativeVariantPtrArgs, Godot.NativeInterop.godot_variant&) (D:\GameDev\Projects\HollowUniverseABTestB\game\.godot\mono\temp\obj\Debug\Godot.SourceGenerators\Godot.SourceGenerators.ScriptMethodsGenerator\HollowUniverse.Ground.RenderWarmup_ScriptMethods.generated.cs:90)
+       [4] Godot.NativeInterop.godot_bool Godot.Bridge.CSharpInstanceBridge.Call(nint, Godot.NativeInterop.godot_string_name*, Godot.NativeInterop.godot_variant**, int, Godot.NativeInterop.godot_variant_call_error*, Godot.NativeInterop.godot_variant*) (/root/godot/modules/mono/glue/GodotSharp/GodotSharp/Core/Bridge/CSharpInstanceBridge.cs:24)
+WARNING: 14 ObjectDB instances were leaked at exit (run with `--verbose` for details).
+   at: cleanup (core/object/object.cpp:2536)

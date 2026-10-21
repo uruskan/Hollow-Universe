@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Numerics;
 using System;
+using System.Linq;
 using Hollow.Simulation.Building;
 using Hollow.Simulation.Capabilities;
 using Hollow.Simulation.Combat;
@@ -20,7 +21,7 @@ namespace Hollow.Simulation;
 // workbench reach; and the one lifetime step (GROUND_SYSTEMS.md §3.7) for every loose thing of any family (bags, bodies,
 // duds, carcasses). The zone keeps the loose things (those with a lifetime) and the working ones (burners and machines)
 // in lists of their own, so neither the lifetime step nor the devices' step looks at every static thing.
-public sealed class ThingSystem : ZoneSystem
+public sealed partial class ThingSystem : ZoneSystem
 {
     private BuildingSystem? _buildingSystem;
     private BuildingSystem Building => _buildingSystem ??= Zone.Require<BuildingSystem>();
@@ -47,6 +48,9 @@ public sealed class ThingSystem : ZoneSystem
     private readonly List<ILifetime> _over = new();
     private readonly List<Deployable> _workers = new();
     private readonly List<WorldObject> _riders = new();
+    private float _boundsRadius;
+    public float BoundsRadius => _boundsRadius > 0 ? _boundsRadius : _boundsRadius =
+        Content!.Deployables.Aggregate(2f, (radius, d) => MathF.Max(radius, d.HalfExtents.Length() + d.HalfExtents.Y));
 
     /// <summary>The things riding a moving support (IRON_WAKE.md §4.10, §8: a ship's deck), for statistics and tests.</summary>
     public IReadOnlyList<WorldObject> Riders => _riders;
@@ -82,13 +86,17 @@ public sealed class ThingSystem : ZoneSystem
         }
         if (thing is Deployable d)
         {
+            Zone.Building().World?.ObserveLock(d.Lock);
             Cell(d.Position).Add(d);
             if (d.Def.Solid && !d.Rides)
             {
-                Physics.AddProp(PropLayer.Deployable, d.Id.Value, PropShape.Box(d.Centre, d.Def.HalfExtents, d.Up, d.Yaw));
+                Physics.AddProp(PropLayer.Deployable, d.Id.Value, CompoundGeometry.Shape(Content!, d.Def, d.Position, d.Up, d.Yaw, d.Open));
             }
             World.RespawnPointChanged(d);
             Placement.CountOwned(d, +1);
+            Zone.Get<PowerSystem>()?.Register(d);
+            Zone.Get<DeviceAuthorizationSystem>()?.Register(d);
+            Zone.Get<DefenseSystem>()?.Register(d);
         }
         // Standing on a piece or aboard a ship, it goes with it (GROUND_SYSTEMS.md §3.6; restored, its support may come
         // back after it: a ship's are boarded when the ship is, Board).
@@ -100,6 +108,7 @@ public sealed class ThingSystem : ZoneSystem
 
     public void RemoveStatic(WorldObject thing)
     {
+        Supports.Release(thing.Ref);
         if (thing is ILifetime loose)
         {
             Unloose(loose);
@@ -116,6 +125,9 @@ public sealed class ThingSystem : ZoneSystem
         }
         if (thing is Deployable d)
         {
+            Zone.Get<DefenseSystem>()?.Unregister(d);
+            Zone.Get<DeviceAuthorizationSystem>()?.Unregister(d);
+            Zone.Get<PowerSystem>()?.Unregister(d);
             Cell(d.Position).Remove(d);
             Physics.RemoveProp(PropLayer.Deployable, d.Id.Value);
             Placement.CountOwned(d, -1);
@@ -130,6 +142,14 @@ public sealed class ThingSystem : ZoneSystem
             World.RespawnPointChanged(gone);
         }
         Supports.SupportGone(thing.Ref);
+    }
+
+    /// <summary>Replaces an articulated deployable's authoritative hull after its state changes.</summary>
+    public void RefreshCollision(Deployable d)
+    {
+        if (!d.Def.Solid || d.Rides) return;
+        Physics.RemoveProp(PropLayer.Deployable, d.Id.Value);
+        Physics.AddProp(PropLayer.Deployable, d.Id.Value, CompoundGeometry.Shape(Content!, d.Def, d.Position, d.Up, d.Yaw, d.Open));
     }
 
     /// <summary>Every static object, for saving and replication.</summary>
@@ -222,7 +242,7 @@ public sealed class ThingSystem : ZoneSystem
     /// </summary>
     internal void Fall(WorldObject thing)
     {
-        if (!thing.Rides || StaticOf(thing.Id) != thing)
+        if (thing.Support.IsNone || StaticOf(thing.Id) != thing)
         {
             return;
         }
@@ -231,7 +251,9 @@ public sealed class ThingSystem : ZoneSystem
         Supports.Release(thing.Ref);
         thing.Link = SupportLink.None;
         thing.Support = TargetRef.None;
-        Vector3 at = Spill.RestingPoint(thing.Position);
+        Vector3 at = Spill.RestingPoint(thing.Position, out TargetRef support,
+            thing is Corpse ? Zone.HeightAboveGround(thing.Position) + 2 : 4);
+        thing.Support = support;
         if (thing is Deployable d && ThingCellOf(d.Position) != ThingCellOf(at))
         {
             Cell(d.Position).Remove(d);
@@ -239,6 +261,7 @@ public sealed class ThingSystem : ZoneSystem
         }
         thing.Position = at;
         thing.Up = Frame.UpAt(at);
+        Supports.Hold(thing.Ref, thing.Support);
         // Lying on another ship's deck, it rides that one.
         if (Ships.DeckUnder(at, 0.05f, 0.3f, out _, out Ship? deck))
         {
@@ -379,21 +402,23 @@ public sealed class ThingSystem : ZoneSystem
 
         public void Raycast(in RayQuery ray, ref TraceHit best)
         {
+            zone.Things().TraceCorpses(ray, ref best);
             Vector3 end = ray.Origin + ray.Direction * ray.Length;
             zone.Combat()._traceThings.Clear();
-            zone.Things().DeployablesNear((ray.Origin + end) / 2, ray.Length / 2 + 2f, zone.Combat()._traceThings);
+            zone.Things().DeployablesNear((ray.Origin + end) / 2, ray.Length / 2 + zone.Things().BoundsRadius, zone.Combat()._traceThings);
             foreach (Deployable d in zone.Combat()._traceThings)
             {
-                (Vector3 right, Vector3 forward) = Geometry.Axes(d.Up, d.Yaw);
-                float t = Geometry.RayBox(ray.Origin, ray.Direction, ray.Length, d.Centre, d.Def.HalfExtents + new Vector3(ray.Thickness), right, d.Up, forward);
-                ray.Consider(ref best, t, d.Ref);
+                if (d.Id == ray.Ignore) continue;
+                float t = CompoundGeometry.Ray(zone.Content!, d.Def, d.Open, d.Position, d.Up, d.Yaw,
+                    ray.Origin, ray.Direction, ray.Length, ray.Thickness, out Vector3 normal, out byte part);
+                ray.Consider(ref best, t, d.Ref with { Part = part }, normal: normal);
             }
         }
 
         public void InReach(in BlastQuery blast, List<BlastTarget> into)
         {
             zone.Explosives()._blastThings.Clear();
-            zone.Things().DeployablesNear(blast.At, blast.Radius + 2f, zone.Explosives()._blastThings);
+            zone.Things().DeployablesNear(blast.At, blast.Radius + zone.Things().BoundsRadius, zone.Explosives()._blastThings);
             foreach (Deployable d in zone.Explosives()._blastThings)
             {
                 // A claim device's box is the building's (its receiver finds it).
@@ -417,6 +442,8 @@ public sealed class ThingSystem : ZoneSystem
 
         public DamageOutcome Receive(in DamageRequest r)
         {
+            if (zone.Things().StaticOf(new EntityId(r.Hit.Target.Id)) is Corpse corpse)
+                return zone.Things().HarvestCorpse(corpse, r);
             if (zone.Things().StaticOf(new EntityId(r.Hit.Target.Id)) is not Deployable d)
             {
                 return default;
@@ -447,6 +474,7 @@ public sealed class ThingSystem : ZoneSystem
             return false;
         }
         d.Health -= amount;
+        d.LastDamagedAtUnixMs = UnixMilliseconds;
         d.Revision++;
         if (d.Health > 0)
         {
@@ -640,6 +668,7 @@ public sealed class ThingSystem : ZoneSystem
         _over.Clear();
         foreach (ILifetime thing in _loose)
         {
+            if (thing is Corpse corpse) AdvanceCorpse(corpse);
             if (lifetimes.Over(thing, Tick))
             {
                 _over.Add(thing);

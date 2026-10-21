@@ -66,11 +66,13 @@ public partial class BuildSandbox
                 for (double z = -1.6; z <= 4.6; z += 0.55)
                 {
                     Num.Vector3 at = F(flat.ToZone(new Vector3D(x, 0, z)));
-                    highest = Math.Max(highest, Vector3D.Dot(D(_zone.GroundAt(at.X, at.Z)) - flat.Origin, flat.AxisY));
+                    highest = Math.Max(highest, Vector3D.Dot(D(_zone.Settle(at)) - flat.Origin, flat.AxisY));
                 }
             }
             var frame = new BuildingFrame(flat.Origin + flat.AxisY * (highest + 0.6), flat.AxisX, flat.AxisY, flat.AxisZ);
             _jointFrames.Add(frame);
+            GD.Print($"[joints] {_data.Grades[g].Key} planet-frame origin={frame.Origin} up={frame.AxisY} " +
+                $"groundClearance={_zone.HeightAboveGround(F(frame.Origin)):0.000}m");
             Piece f0 = _world.AddFirst(frame, _data.Piece("foundation")!, g, 1, 0);
             Piece f1 = DemoBases.On(_world, f0, DemoBases.Facing(f0, 1, 0), "foundation", g);
             Piece f2 = DemoBases.On(_world, f0, DemoBases.Facing(f0, 0, 1), "foundation", g);
@@ -95,8 +97,21 @@ public partial class BuildSandbox
         string dir = Path.IsPathRooted(folder) ? folder : Path.GetFullPath(Path.Combine(ProjectSettings.GlobalizePath("res://"), folder));
         Directory.CreateDirectory(dir);
         _interface.Visible = false;
+        ulong began = Time.GetTicksMsec(), lastReport = began;
         while (!ReadyForShot)
         {
+            ulong now = Time.GetTicksMsec();
+            if (now - lastReport >= 1000)
+            {
+                GD.Print($"[joints] waiting frames={_frames} terrainSettled={_terrain.IsSettled} {_terrain.StreamingStatus}");
+                lastReport = now;
+            }
+            if (now - began > 45000)
+            {
+                GD.PushError($"[joints] readiness failed after 45s: frames={_frames} {_terrain.StreamingStatus}");
+                GetTree().Quit(1);
+                return;
+            }
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         }
         // The control: the same view twice gives the same picture, so whatever changes below is the scene's doing.

@@ -245,7 +245,7 @@ public sealed class BuildingSystem : ZoneSystem
             if (zone.Building().World?.Physics is { } physics && physics.Ray(ray.Origin, ray.Direction, ray.Upto(best), out RayHit hit, buildingOnly: true) &&
                 physics.OwnerOf(hit.Body) is ITargetable owner)
             {
-                ray.Consider(ref best, hit.Distance, owner.Ref);
+                ray.Consider(ref best, hit.Distance, owner.Ref, normal: hit.Normal);
             }
         }
 
@@ -473,7 +473,12 @@ public sealed class BuildingSystem : ZoneSystem
             return OutcomeCode.NotUsable;
         }
         Outcome reach = Zone.Targets().Reach(eye, target, (float)Content!.Building.Reach);
-        return reach.Ok ? family.Repair(entity, p, target, new ItemWallet(Content, p.Inventory.Carried)) : reach;
+        Outcome result = reach.Ok ? family.Repair(entity, p, target, new ItemWallet(Content, p.Inventory.Carried, p.FreeBuild)) : reach;
+        if (result.Ok)
+        {
+            p.RecordAction(ActionKind.Repair, p.HeldItem, Tick);
+        }
+        return result;
     }
 
     public Outcome Hammer(Entity entity, HammerAction action, EntityId target, int grade)
@@ -492,7 +497,7 @@ public sealed class BuildingSystem : ZoneSystem
         {
             return OutcomeCode.NotFound;
         }
-        var wallet = new ItemWallet(Content, p.Inventory.Carried);
+        var wallet = new ItemWallet(Content, p.Inventory.Carried, p.FreeBuild);
         return action switch
         {
             HammerAction.Upgrade => building.Upgrade(p.Id.Value, piece, grade, wallet, eye),
@@ -528,7 +533,7 @@ public sealed class BuildingSystem : ZoneSystem
     }
 
     /// <summary>A key cut for a key lock, by its owner for its price in wood (the key lock capability's verb).</summary>
-    internal Outcome CutKey(Entity entity, Player p, Door door)
+    internal Outcome CutKey(Entity entity, Player p, ILockHost door)
     {
         if (door.Lock is not KeyLock keyLock)
         {
@@ -543,7 +548,7 @@ public sealed class BuildingSystem : ZoneSystem
         {
             return OutcomeCode.Invalid;
         }
-        if (!new ItemWallet(Content, p.Inventory.Carried).Take(data.KeyCostMaterial, data.KeyCost))
+        if (!new ItemWallet(Content, p.Inventory.Carried, p.FreeBuild).Take(data.KeyCostMaterial, data.KeyCost))
         {
             return OutcomeCode.NotEnough.With(data.MaterialItem(data.KeyCostMaterial));
         }
@@ -552,7 +557,7 @@ public sealed class BuildingSystem : ZoneSystem
     }
 
     /// <summary>A lock taken off its door as its item, unlocked (the lock capabilities' verb).</summary>
-    internal Outcome TakeLock(Entity entity, Player p, Door door)
+    internal Outcome TakeLock(Entity entity, Player p, ILockHost door)
     {
         BuildingWorld building = World!;
         bool coded = door.Lock is CodeLock;

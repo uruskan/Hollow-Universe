@@ -108,6 +108,8 @@ public struct DamageAmounts
 /// </summary>
 public struct DamageRequest
 {
+    public AttackId Attack;
+    public uint ActionTick;
     /// <summary>The attacking player while in the zone: their hit marker, raid alerts, an animal turning on them.</summary>
     public Player? By;
 

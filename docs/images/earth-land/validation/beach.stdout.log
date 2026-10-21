@@ -1,0 +1,30 @@
+Godot Engine v4.7.2.stable.mono.official.ed1daf0bf - https://godotengine.org
+Vulkan 1.4.351 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 2070 SUPER
+
+Hollow Universe 1.0.0+6746ea3f35a57247db29ca9e390a0f6576cf7d6d
+[capture] isolated input; requested resolution=(1600, 900); preferences are not saved
+Galaxy ready: 99142 catalogue stars, loaded in 658 ms.
+[server] Hollow.Server 1.0.0+6746ea3f35a57247db29ca9e390a0f6576cf7d6d
+[server] 50 beach points on the world: players arrive and respawn at the landing site
+[server] admins: EarthLandCapture
+[server] loaded 0 things and 0 changed natural objects
+[server] loaded the building: 0 pieces, 0 doors, 0 claim devices (0 left out); 0.0 h of upkeep and decay caught up, 0 pieces stand
+[server] loaded 0 teams and 0 changed world props
+[server] loaded 0 sleepers
+[server] world props: 1000 spots (20 coast, 79 forest-edge and 31 open clusters), 1000 standing, in 3986 ms
+[server] EarthLandCapture's game: zone on body 8000000000000000/10300000, radius 1200 m, 1.00 g, landing at -30.4865°, 43.0593°, walking-scale ground, port 27170, database D:\GameDev\Projects\HollowUniverseABTestB\.artifacts\earth-land-tuning\beach-v2.db, data BDA5596A98F3DEEB
+[server] Ready. Type help for commands.
+[client] connecting to 127.0.0.1:27170
+[client] connected; joining
+[server] EarthLandCapture joined from 127.0.0.1:53222 as #02E6D2DD36004000 (new) at (751.5, -613.3, -708.2) (admin)
+[client] joined EarthLandCapture's game as #02E6D2DD36004000 on body 8000000000000000/10300000, radius 1200 m, 1.00 g, landing at -30.4865°, 43.0593°, walking-scale ground
+[ground] 16 layers in arrays in 2942 ms
+[characters] Male: loaded 41 meshes, 43 clips in 114 ms
+[characters] Female: loaded 41 meshes, 43 clips in 97 ms
+[animals] first animal drawn: deer
+[cover] 486/486 authored plants; LOD 0/146/340; 12 draws; 72377 submitted triangles; batch 1.0 ms
+[capture] ready=True elapsed=9.15s path=D:/GameDev/Projects/HollowUniverseABTestB/docs/images/earth-land/earth-v2-ground.png
+[capture] resolution=(1600, 900) window=(1600, 900) mode=Windowed camera=@Camera3D@2 position=(752.4971, -614.16266, -709.2087) basis=[X: (0.15618406, -0.65862995, 0.7360796), Y: (0.6256985, -0.51065594, -0.5896881), Z: (0.7642696, 0.55266374, 0.33234742)] fov=90
+[capture] ground state=Playing position=<751.4334, -613.29456, -708.2062> yaw=-2.268928 pitch=0.000015 ready=True loading=False hostPort=27170
+Saved screenshot D:/GameDev/Projects/HollowUniverseABTestB/docs/images/earth-land/earth-v2-ground.png (1600x900).
+[client] disconnected (DisconnectPeerCalled)

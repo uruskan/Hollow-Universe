@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using Godot;
 using Hollow.Simulation;
@@ -176,11 +177,11 @@ public partial class AnimalSandbox
     {
         Person? dummy = null;
         Herd? pack = null;
-        var scene = new Scene { Name = "wolves", Site = site, Toward = toward, Hour = 16.5, Fov = 38 };
+        var scene = new Scene { Name = "wolves", Site = site, Toward = toward, Hour = 16.5, Fov = 50, HoldMomentForShot = true };
         scene.Build = () =>
         {
             dummy = AddPerson("Dummy", site, YawOf(toward, site), dummy: true);
-            pack = _zone.Animals().World!.SpawnHerd(_content.Animal("wolf")!, _zone.Settle(site + toward * 42), 4,
+            pack = _zone.Animals().World!.SpawnHerd(_content.Animal("wolf")!, _zone.Settle(site + toward * 18), 4,
                 range: 40, facing: YawOf(-toward, site));
             foreach (Animal w in pack.Members)
             {
@@ -190,14 +191,17 @@ public partial class AnimalSandbox
         scene.Camera = () =>
         {
             Num.Vector3 d = dummy != null ? dummy.Current : site;
-            Num.Vector3 c = pack != null ? Centre(pack) : site + toward * 40;
+            Num.Vector3 c = pack != null ? Centre(pack) : site + toward * 18;
             Num.Vector3 up = _zone.Frame.UpAt(d);
-            // Over the dummy's shoulder, a little above the grass, at the pack coming in.
-            return (d - toward * 2.8f + Side(toward, up) * 0.75f + up * 2.3f, Num.Vector3.Lerp(d, c, 0.62f) + up * 0.45f);
+            // A three-quarter overview includes the complete dummy and pack, above the understory.
+            return (d - toward * 9f + Side(toward, up) * 5f + up * 4.5f, Num.Vector3.Lerp(d, c, 0.55f) + up * 0.7f);
         };
-        // Stalking: the pack trotting in, its middle 9 to 15 m off.
-        scene.Moment = () => dummy != null && pack != null && pack.Members.All(w => w.State == AnimalState.Chase) &&
-            Flat(Centre(pack), dummy.Current) is > 9 and < 15;
+        // Every wolf must still be approaching. A mean distance can hide three wolves already at the dummy
+        // while a distant fourth keeps the centre in range; that produced clipped, unreadable photographs.
+        scene.Moment = () => dummy != null && pack != null && pack.Members.All(w =>
+            w.State == AnimalState.Chase && Flat(w.Position, dummy.Current) is > 8 and < 24);
+        scene.Trace = () => dummy == null || pack == null ? "pack not built" :
+            "wolf distances=" + string.Join(",", pack.Members.Select(w => Flat(w.Position, dummy.Current).ToString("0.0", CultureInfo.InvariantCulture)));
         _scenes.Add(scene);
     }
 

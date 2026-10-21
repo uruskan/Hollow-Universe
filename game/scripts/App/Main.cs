@@ -19,12 +19,14 @@ using HollowUniverse.UI.Viewer;
 namespace HollowUniverse.App;
 
 /// <summary>
-/// Entry point. Loads the galaxy and switches between the galaxy map and the system map.
+/// Entry point. Opens the survival game's main menu; explicit views keep the development viewers available.
 /// Command-line options (after "--") drive the views for automated screenshots, e.g.
 /// <c>-- --view system --focus Sol --time 2026-10-10T12:00:00Z --shot sol.png</c>.
 /// </summary>
 public partial class Main : Node
 {
+    private const string DefaultView = "ground";
+
     private GalaxyMapView _galaxyMap = null!;
     private SystemMapView _systemMap = null!;
     private SurfaceView _surfaceView = null!;
@@ -52,7 +54,9 @@ public partial class Main : Node
         // Crash reports first (GROUND.md §4.3): everything after may be what fails.
         CrashReporter.Install();
         _options = ParseOptions(OS.GetCmdlineUserArgs());
-        CrashReporter.Running = "view " + Option("view", "galaxy") + (_options.ContainsKey("host") ? ", hosting" : "") +
+        bool isolatedShot = CaptureIsolation.Requested(_options);
+        Vector2I captureResolution = CaptureIsolation.RequestedResolution(GetWindow().Size);
+        CrashReporter.Running = "view " + Option("view", DefaultView) + (_options.ContainsKey("host") ? ", hosting" : "") +
             (_options.TryGetValue("connect", out string? server) ? ", connected to " + server : "");
         if (_options.ContainsKey("physics-check"))
         {
@@ -61,7 +65,72 @@ public partial class Main : Node
         }
         // The graphics settings (GROUND.md §8.6), saved or this computer's defaults; --quality <preset> for this run.
         HollowUniverse.Settings.GraphicsSettings.Load(HollowUniverse.Settings.GraphicsSettings.ParsePreset(Option("quality", "")));
+        if (isolatedShot || Array.IndexOf(OS.GetCmdlineArgs(), "--windowed") >= 0)
+            HollowUniverse.Settings.GraphicsSettings.Preview(HollowUniverse.Settings.GraphicsSettings.Current with
+                { WindowMode = HollowUniverse.Settings.GameWindowMode.Windowed });
         AddChild(new HollowUniverse.Settings.GraphicsNode { Name = "Graphics" });
+        if (_options.TryGetValue("flora-impostor-export", out string? exportDirectory))
+        {
+            string seedOption = Option("flora-seed", "");
+            int exportSeed;
+            if (seedOption == "earth") exportSeed = (int)(Hollow.Simulation.ZoneSpec.StartingWorld(0, 0).SurfaceSeed & 0x7FFFFFFF);
+            else if (!int.TryParse(seedOption, NumberStyles.Integer, CultureInfo.InvariantCulture, out exportSeed))
+            { GD.PushError("--flora-impostor-export requires --flora-seed earth or an integer."); GetTree().Quit(1); return; }
+            AddChild(new HollowUniverse.Surface.Flora.FloraImpostorExport { OutputDirectory = exportDirectory, LibrarySeed = exportSeed });
+            SetProcess(false);
+            return;
+        }
+        if (_options.TryGetValue("environment-lifetime-check", out string? lifetimeOutput))
+        {
+            AddChild(new EnvironmentLifetimeCheck { OutputPath = lifetimeOutput });
+            SetProcess(false);
+            return;
+        }
+        if (_options.ContainsKey("gib-budget-check"))
+        {
+            AddChild(new HollowUniverse.Gibs.GibBudgetCheck
+            {
+                Name = "GibBudgetCheck", OutputPath = Option("gib-budget-check", ""),
+                ScreenshotPath = Option("shot", ""),
+            });
+            SetProcess(false);
+            return;
+        }
+        if (_options.ContainsKey("audio-loop-check"))
+        {
+            AddChild(new HollowUniverse.Audio.AudioLoopCheck());
+            SetProcess(false);
+            return;
+        }
+        if (_options.ContainsKey("fx-budget-check"))
+        {
+            AddChild(new HollowUniverse.Fx.FxBudgetCheck
+            {
+                OutputPath = Option("fx-budget-check", ""), ScreenshotPath = Option("shot", ""),
+            });
+            SetProcess(false);
+            return;
+        }
+        if (_options.ContainsKey("contact-feedback-check"))
+        {
+            AddChild(new ContactFeedbackCheck
+            {
+                OutputPath = Option("contact-feedback-check", ""), ScreenshotPath = Option("shot", ""),
+            });
+            SetProcess(false);
+            return;
+        }
+        if (_options.ContainsKey("shadow-budget-check"))
+        {
+            AddChild(new HollowUniverse.Settings.ShadowBudgetCheck
+            {
+                Name = "ShadowBudgetCheck", OutputPath = Option("shadow-budget-check", ""),
+                ScreenshotPath = Option("shot", ""),
+            });
+            SetProcess(false);
+            return;
+        }
+        if (isolatedShot) AddChild(new CaptureIsolation { Name = "CaptureIsolation", Resolution = captureResolution });
         // The interface scale has to be known before any interface is built.
         _scaler = new UiScaler { Name = "UiScaler" };
         if (_options.ContainsKey("ui-scale"))
@@ -69,51 +138,63 @@ public partial class Main : Node
             _scaler.Override = (float)Number("ui-scale", 1);
         }
         AddChild(_scaler);
+        if (_options.TryGetValue("electricity-review", out string? electricityOutput))
+        {
+            AddChild(new ElectricityReview { OutputDirectory = electricityOutput });
+            SetProcess(false);
+            return;
+        }
         // Item icons rendered from the models (GROUND.md §9); --placeholder-icons keeps the vector drawings.
         if (!_options.ContainsKey("placeholder-icons"))
         {
             CatalogItemIcons.Install();
         }
-        if (Option("view", "galaxy") == "icons")
+        if (Option("view", DefaultView) == "icons")
         {
             // Renders the item icons (--out <dir>) and shows them all on one sheet (GROUND.md §9).
             _icons = new IconRenderer { Name = "Icons", Options = _options };
             AddChild(_icons);
             return;
         }
-        if (Option("view", "galaxy") == "models")
+        if (Option("view", DefaultView) == "models")
         {
             // Every catalogue model on the ground, or one on a turntable (GROUND.md §9).
             _models = new ModelViewer { Name = "Models", Options = _options };
             AddChild(_models);
             return;
         }
-        if (Option("view", "galaxy") == "monuments")
+        if (Option("view", DefaultView) == "monuments")
         {
             // Every monument at its real size, a row per tier, with a fly camera (MONUMENTS.md §8.5).
             _monuments = new HollowUniverse.Monuments.MonumentViewer { Name = "Monuments", Options = _options };
             AddChild(_monuments);
             return;
         }
-        if (Option("view", "galaxy") == "fx")
+        if (Option("view", DefaultView) == "fx")
         {
             // The effects library on its stations, contact sheets, scenes and the firefight measurement (GROUND.md §9.3).
             _fx = new FxViewer { Name = "Fx", Options = _options };
             AddChild(_fx);
             return;
         }
-        if (Option("view", "galaxy") == "ui")
+        if (Option("view", DefaultView) == "ui")
         {
             // The ground game's interface on sample data (GROUND.md §8): --screen hud|inventory|crafting|...
             _ui = new UiViewer { Name = "UiViewer", Options = _options };
             AddChild(_ui);
             return;
         }
-        if (Option("view", "galaxy") == "sounds")
+        if (Option("view", DefaultView) == "sounds")
         {
             // The audition viewer (GROUND.md §4.9): every sound event, a source walking away, the ambience.
             _sounds = new SoundViewer { Name = "Sounds", Options = _options };
             AddChild(_sounds);
+            return;
+        }
+        if (Option("view", "") == "held-editor")
+        {
+            AddChild(new HollowUniverse.Characters.HeldItemEditor(_options));
+            SetProcess(false);
             return;
         }
         if (Option("view", "") == "character")
@@ -124,28 +205,28 @@ public partial class Main : Node
             return;
         }
         GalaxyService.Load();
-        if (Option("view", "galaxy") == "ground")
+        if (Option("view", DefaultView) == "ground")
         {
             // The ground game (GROUND.md §4.3): its own view; the maps aren't built.
             _ground = new GroundMode { Name = "Ground", Options = _options };
             AddChild(_ground);
             return;
         }
-        if (Option("view", "galaxy") == "animals")
+        if (Option("view", DefaultView) == "animals")
         {
             // The animal sandbox (GROUND.md §6.9): herds, a wolf pack, the bear, butchering and cooking on the real surface.
             _animals = new HollowUniverse.Animals.AnimalSandbox { Name = "Animals", Options = _options };
             AddChild(_animals);
             return;
         }
-        if (Option("view", "galaxy") == "build")
+        if (Option("view", DefaultView) == "build")
         {
             // The build sandbox (GROUND.md §6.3): the building rules and their art in a local zone.
             _build = new BuildSandbox { Name = "Build", Options = _options };
             AddChild(_build);
             return;
         }
-        if (Option("view", "galaxy") == "ship")
+        if (Option("view", DefaultView) == "ship")
         {
             // The ship sandbox (GROUND.md §6.7): the Tin Finch on the first world's real surface.
             _ship = new ShipSandbox { Name = "Ship", Options = _options };
@@ -216,7 +297,7 @@ public partial class Main : Node
 
     private bool OpenSystem(SystemAddress address, double time)
     {
-        StarSystem? system = GalaxyService.Galaxy.GetSystem(address);
+        StarSystem? system = GalaxyService.Playable.GetSystem(address);
         if (system == null)
         {
             return false;
@@ -232,16 +313,16 @@ public partial class Main : Node
     private void ApplyOptions()
     {
         Galaxy galaxy = GalaxyService.Galaxy;
-        string view = Option("view", "galaxy");
-        double distance = Number("distance", 80);
+        string view = Option("view", DefaultView);
+        double distance = Number("distance", 780);
         double yaw = Number("yaw", 37);
-        double pitch = Number("pitch", 34);
+        double pitch = Number("pitch", 58);
 
         Vector3D focus = Vector3D.Zero;
         SystemAddress? focusAddress = null;
         if (_options.TryGetValue("focus", out string? focusName))
         {
-            List<SearchResult> hits = galaxy.Search(focusName, 1);
+            List<SearchResult> hits = GalaxyService.Playable.Search(focusName, 1);
             if (hits.Count > 0)
             {
                 focus = hits[0].Position;
@@ -340,22 +421,48 @@ public partial class Main : Node
         if (_elapsed >= wait && (ready || _elapsed > wait + 90))
         {
             _capturing = true;
-            Capture(path);
+            Capture(path, ready);
         }
     }
 
-    private async void Capture(string path)
+    private async void Capture(string path, bool ready)
     {
+        // Opt-in phase markers distinguish readiness from a stalled frame/readback/save. They do not force drawing.
+        bool trace = _options.ContainsKey("capture-trace");
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        void Progress(string stage)
+        {
+            if (!trace) return;
+            GD.Print("[capture-progress] " + System.Text.Json.JsonSerializer.Serialize(new
+            {
+                stage, ready, captureSeconds = clock.Elapsed.TotalSeconds, sceneSeconds = _elapsed,
+                processId = System.Environment.ProcessId, processFrame = Engine.GetProcessFrames(), path,
+                windowVisible = GetWindow().Visible, windowMode = GetWindow().Mode.ToString(),
+                renderLoopEnabled = RenderingServer.RenderLoopEnabled,
+            }));
+        }
+        Progress("begin");
         // Let a few frames settle after streaming finished.
         for (int i = 0; i < 3; i++)
         {
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+            Progress($"settled-frame-{i + 1}");
         }
+        Progress("await-frame-post-draw");
         await ToSignal(RenderingServer.Singleton, RenderingServer.SignalName.FramePostDraw);
-        Image image = GetViewport().GetTexture().GetImage();
+        Progress("frame-post-draw");
+        GD.Print($"[capture] ready={ready} elapsed={_elapsed:0.00}s path={path}");
+        CaptureIsolation.Report(GetViewport());
+        _ground?.ReportCapture();
+        Progress("readback-begin");
+        using Image image = GetViewport().GetTexture().GetImage();
+        Progress("readback-complete");
+        Progress("save-begin");
         Error error = path.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ? image.SaveJpg(path, 0.9f) : image.SavePng(path);
+        Progress(error == Error.Ok ? "save-complete" : "save-failed");
         GD.Print(error == Error.Ok ? $"Saved screenshot {path} ({image.GetWidth()}x{image.GetHeight()})." : $"Could not save {path}: {error}");
-        GetTree().Quit(error == Error.Ok ? 0 : 1);
+        Progress("quit-requested");
+        GetTree().Quit(error == Error.Ok && ready ? 0 : 1);
     }
 
     private static Dictionary<string, string> ParseOptions(string[] args)

@@ -8,6 +8,24 @@ incendiary rocket and fire, §7 "As built") was built on the branch `iw4`. In a 
 
 ---
 
+## Camera-centre aiming update — 17 October 2026
+
+Manual stations now resolve the centre ray from the moving station seat-eye socket.
+Authority queries the world independently; the owning client predicts the same
+target. Each physical muzzle converges on that point, with a 2 km fallback for sky.
+Mount slew and arc restrictions still apply. A target before the muzzle refuses
+the shot, and both the physical barrel clearance and the converged exit ray must
+clear the firing ship. Projectile gravity, launch speed and inherited ship velocity
+remain unchanged. The sight's trajectory marks use the predicted launch line;
+the mount ring continues to report physical barrel alignment. Historical descriptions
+below of strictly parallel barrel firing are superseded by this update.
+
+The mount tracks from its pitch pivot while preserving authored transverse barrel
+offsets. Its moving muzzle is used for each launch, not as the tracking origin:
+using muzzle motion as target motion caused near-target slew oscillation and
+alternating ready/traversing decisions. A stepped regression checks stable alignment
+at 20 m, 30 m and 2 km in two hull orientations.
+
 ## 1. What the owner asked for
 
 On 14 October 2026 the owner gave the Iron Wake asset (`D:\GameDev\Assets\IronWake_Buildable_R01`) to the game:
@@ -2020,6 +2038,7 @@ bell, so the machinery is modelled in code (`art/audio/machines.py`) and layered
 | `siege.recover`, `siege.latch` (4, 4) | The recuperator pushing back to battery over 0.9 s and its firm stop; the latch catching | The recover phase; the latch at its end |
 | `loader.*` (3–4 each) | Breech open (0.45 s), arm swing (0.80 s and a 0.55 s short), rack index (a ratchet), transfer (0.40), ram (a chain rammer, ending as the rocket seats), retract (0.40), breech close (0.35); the cassette's release (0.30), eject (0.45: the drop into the chute), raise (0.70), seat (0.45), lock (0.30) | Each at its phase's start (§6.6); each fits its phase |
 | `defense.fire.report` (6 near, 4 mid, 3 far), `.mechanism` (5) | Its own report: a rifle's hard crack, the tube's steel ring and the rocket's hiss tearing out ("tchang-fsss"), a small blast; per barrel, a solenoid's snap and a knock | Per barrel of the ripple, 0.25 s apart |
+| `defense.fire.interior` (4) | The smaller mount through the structure: a muffled rifle body, a short plate answer, fittings shaken; lighter than the siege gun's | For listeners aboard, by `structureDb`; six voices so a ripple overlaps |
 | `turret.traverse.slow`, `.fast` (8 s loops), `turret.limit` (4) | The traverse drive: motor, gear mesh, the slewing ring's rumble and ticks; the stop at a limit | Crossfade by slew rate; the stop when it reaches an arc's end |
 | `rocket.ignite` (4), `rocket.flight` (2 × 6 s loops), `rocket.incendiary.burst` (4 near, 3 mid, 2 far) | The motor catching a few metres out; a rocket motor's roar and crackle with a gasoline fire's real turbulence; a small blast and the fuel's whoomp, splash and crackle | Ignition at the light-up point; the flight loop on the rocket's node (`Loop`, `Stop` on arrival); the burst at impact, delayed |
 | `fire.ignite` (4), `fire.patch.small`, `.large` (20 and 24 s loops) | Fuel catching with a whoomp; crackle; a roar | The fire's start; its 18 s by size (§7) |

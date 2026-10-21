@@ -1335,6 +1335,114 @@ def rattle_burst(seconds=0.9, seed=1, rate=45.0, f0=1.0, amp=1.0, decay_s=0.6):
     return [scale(add(out, buzz), amp)]
 
 
+# ---------------------------------------------------------------- the motorboat's outboard (docs/MOTORBOAT.md §7)
+
+def outboard_parts(n, revs, load, seed, period=None, start=0, choke=0.0):
+    """A small twin two-stroke outboard, sample by sample: `revs` the crank in revolutions a second, `load` 0-1 (the
+    throttle against the water). Each cylinder fires once a revolution: a pulse that rings the exhaust's passages (the
+    buzz), its gas bubbling out under the water through the hub (the burble), the crank's orders and the gears' whine,
+    the reed valves' chatter, and now and then a firing that misses (more at idle, `choke` more still)."""
+    parts = {}
+    jit = wander(n, seed + 1, 2.3, period)
+    fire = [2.0 * r * (1.0 + 0.012 * j) for r, j in zip(revs, jit)]
+    ph = phase(fire, period, start)
+    # The pulses: one at each whole cycle of the firing's phase, its strength jittering (periodic: the firing's
+    # count in a period repeats its numbers).
+    cycles = max(1, round(ph[start + period] - ph[start])) if period and start + period < n else 0
+    rng = Rand(seed + 2)
+    table = [(rng.uni(0.8, 1.15), rng.uni()) for _ in range(max(cycles, 1) if cycles else 4096)]
+    pulses = zeros(n)
+    width = max(1, ns(0.0012))
+    last = int(ph[0])
+    for i in range(1, n):
+        k = int(ph[i])
+        if k != last:
+            last = k
+            amp, chance = table[k % len(table)]
+            miss = 0.05 + 0.25 * max(0.0, 1.0 - revs[i] / 25.0) + choke
+            if chance < miss:
+                amp *= 0.15
+            amp *= 0.55 + 0.6 * min(1.0, load[i] + 0.15)
+            for j in range(width):
+                if i + j < n:
+                    pulses[i + j] += amp * sin(math.pi * (j + 0.5) / width)
+    bright = [0.4 + 0.8 * l for l in load]
+    parts["buzz"] = add(chain(pulses, ("bp", 190.0, 1.3)), mul(chain(pulses, ("bp", 460.0, 1.6)), scale(bright, 0.6)),
+                        mul(chain(pulses, ("bp", 1150.0, 2.2)), scale(bright, 0.35)))
+    # The burble: the exhaust's gas under the water, a low noise each firing opens, bubbles breaking at the surface.
+    w = white(n, seed + 3, period)
+    gate = decay(pulses, 18.0)
+    low = chain(w, ("lp", 320.0, 0.8), ("hp", 35.0))
+    parts["burble"] = mul(mul(low, gate), scale([0.6 + 0.6 * l for l in load], 0.9))
+    pops = chain(w, ("bp", 900.0, 3.0))
+    parts["bubbles"] = mul(mul(pops, decay(pulses, 6.0)), scale([0.2 + 0.3 * l for l in load], 1.0))
+    # The crank and the lower unit: its orders, the gears' mesh (13 teeth on the pinion), swelling with speed.
+    crank = phase([r * (1.0 + 0.012 * j) for r, j in zip(revs, jit)], period, start)
+    spin = [min(1.6, r / 50.0) for r in revs]
+    parts["crank"] = mul(tones(crank, ((1, 0.5, 0.0), (2, 1.0, 0.2), (3, 0.35, 0.4), (4, 0.4, 0.1), (6, 0.15, 0.7))),
+                         scale(spin, 0.05))
+    parts["gears"] = mul(tones(crank, ((13, 1.0, 0.0), (26, 0.25, 0.5))), scale([s * s for s in spin], 0.012))
+    # The reeds and the cowl rattling, faster with speed.
+    parts["rattle"] = _rattle(n, seed + 4, [3.0 + 22.0 * s + 15.0 * l for s, l in zip(spin, load)], 0.05, period)
+    # The intake's hiss under load.
+    parts["intake"] = mul(chain(white(n, seed + 5, period), ("bp", 2600.0, 0.9)), [0.004 + 0.02 * l * s for l, s in zip(load, spin)])
+    return parts
+
+
+def outboard_sound(n, revs, load, seed, period=None, start=0, choke=0.0):
+    return add(*outboard_parts(n, revs, load, seed, period, start, choke).values())
+
+
+@made
+def outboard_loop(revs, load, seconds=8.0, pre=2.0, seed=1):
+    """The outboard running steadily (a loop): `seconds` periodic after `pre` seconds of settling."""
+    n = ns(pre + seconds) + 64
+    return [outboard_sound(n, const(n, revs), const(n, load), seed, ns(seconds), ns(pre))]
+
+
+@made
+def outboard_start(seconds=2.4, seed=1, pulls=2, idle=15.0):
+    """A pull start: the cord's ratchet and the crank turned over (a pull that doesn't catch, then one that does), the
+    first firings sputtering as it catches, a little run-up and the idle."""
+    n = ns(seconds)
+    rng = Rand(seed + 10)
+    points = [(0.0, 0.0)]
+    t = 0.05
+    for k in range(pulls):
+        last = k == pulls - 1
+        points += [(t, 0.0), (t + 0.05, 9.0), (t + 0.35, 11.0), (t + 0.55, 2.0 if not last else 12.0)]
+        t += 0.75
+    catch = t - 0.2
+    points += [(catch + 0.25, idle * 1.45), (catch + 0.7, idle * 1.1), (seconds, idle)]
+    revs = env(n, points)
+    load = env(n, [(0.0, 0.0), (catch, 0.1), (catch + 0.3, 0.35), (catch + 0.9, 0.0)])
+    out = outboard_sound(n, revs, load, seed, choke=0.0)
+    # Before it catches, no firing: the crank alone (the cord's whirr and the compression's thumps).
+    mute = env(n, [(0.0, 0.08), (catch - 0.02, 0.08), (catch + 0.05, 1.0)])
+    out = mul(out, mute)
+    t = 0.05
+    for k in range(pulls):
+        cord = burst(ns(0.6), 0, seed + 20 + k, 0.01, 0.25, 0.25, 700.0, 4500.0, 0.25, 0.8)
+        add_at(out, cord, ns(t))
+        for j in range(5):
+            add_at(out, thump(ns(0.12), 0, 95.0, 70.0, 0.06, 0.18 * rng.uni(0.7, 1.0), seed + 30 + j), ns(t + 0.06 + 0.09 * j))
+        t += 0.75
+    return [out]
+
+
+@made
+def outboard_stop(seconds=1.6, seed=1, idle=15.0):
+    """The kill switch: the firing stops at once, the crank runs down with a last cough or two, the leg's water gurgles."""
+    n = ns(seconds)
+    revs = env(n, [(0.0, idle), (0.05, idle * 0.9), (0.6, idle * 0.3), (1.0, 0.0)])
+    firing = env(n, [(0.0, 1.0), (0.04, 0.2), (0.3, 0.05), (0.5, 0.0)])
+    out = mul(outboard_sound(n, revs, const(n, 0.0), seed, choke=0.3), firing)
+    add_at(out, burst(ns(0.5), 0, seed + 40, 0.004, 0.02, 0.18, 60.0, 600.0, 0.6, 0.2), ns(0.12))
+    add_at(out, burst(ns(0.5), 0, seed + 41, 0.004, 0.02, 0.15, 60.0, 500.0, 0.4, 0.2), ns(0.42))
+    gurgle = mul(chain(white(n, seed + 42), ("lp", 400.0, 0.9)), env(n, [(0.0, 0.0), (0.2, 0.25), (1.2, 0.0)]))
+    return [add(out, gurgle)]
+
+
 if __name__ == "__main__":
     import time
     t = time.time()

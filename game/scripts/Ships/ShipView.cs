@@ -11,8 +11,9 @@ namespace HollowUniverse.Ships;
 /// <param name="Pivot">The model's pivot (the ship frame's origin, on the ground between the skids) in render space, its axes the ship's.</param>
 /// <param name="Hatch">How far its first door is open, 0 shut to 1 open: a model with a <c>Hatch</c> node swings it by its open clip (the Tin Finch's).</param>
 /// <param name="Thrust"><see cref="ShipState.Thrust"/>: what the engines give on each axis (x + left, y + up, z + forward; above 1 boosting).</param>
+/// <param name="Spool"><see cref="ShipState.Spool"/>: how fast its rotors turn, 0 still to 1 at working speed.</param>
 public readonly record struct ShipLook(Transform3D Pivot, float Hatch, System.Numerics.Vector3 Thrust, bool Engines, bool Boosting,
-    bool Piloted, bool Destroyed);
+    bool Piloted, bool Destroyed, float Spool = 0);
 
 /// <summary>
 /// One ship drawn (G6, GROUND.md §6.7): the catalogue model of its kind (ships.json's <c>model</c>), whose levels of detail
@@ -53,6 +54,20 @@ public partial class ShipView : Node3D
     private float[]? _posedAt;
     private bool _loadersShown;
     private readonly Dictionary<string, Node3D?> _sockets = new();
+    private readonly List<Rotor> _rotors = new();
+    private float _spool;
+
+    // A rotor drawn (ships.json rotors): its node and rest, its blades (the meshes under it but its blur) and its blur, the
+    // angle it has turned to.
+    private sealed class Rotor
+    {
+        public required ShipRotorLook Def;
+        public required Node3D Node;
+        public required Transform3D Rest;
+        public required List<GeometryInstance3D> Blades;
+        public GeometryInstance3D? Blur;
+        public float Angle;
+    }
 
     /// <summary>A socket of the model by its name (<c>socket_&lt;name&gt;</c>), found once; null when the model has none.</summary>
     public Node3D? Socket(string name)
@@ -101,6 +116,9 @@ public partial class ShipView : Node3D
         Name = def.Key;
     }
 
+    /// <summary>The layout it draws (a ship's composed one, VEHICLES.md §9.1): a new one needs a new view.</summary>
+    public ShipDef Def => _def;
+
     /// <summary>The model's root (its meshes are in the ship's frame: +Z the nose, +Y up, +X left).</summary>
     public Node3D Model => _model;
 
@@ -117,15 +135,27 @@ public partial class ShipView : Node3D
     private string ModelKey => string.IsNullOrEmpty(_def.Model) ? _def.Key : _def.Model;
 
     // Plumes and lights grow with the ship: the Tin Finch's sizes, scaled by the square root of how much bigger it is.
-    private float Scale => MathF.Sqrt(MathF.Max(1, _def.BoundingRadius / 3.5f));
+    private float EffectsScale => MathF.Sqrt(MathF.Max(1, _def.BoundingRadius / 3.5f));
 
     public override void _Ready()
     {
         // A ship people walk in keeps its hulls (each under the part it moves with) on the feet's layer.
-        _model = ModelCatalog.Instantiate(ModelKey, use: _def.Interior != null ? ModelUse.Parts : ModelUse.Display) ?? new Node3D { Name = _def.Key };
+        Node3D? model = ModelCatalog.Instantiate(ModelKey, use: _def.Interior != null ? ModelUse.Parts : ModelUse.Display);
+        _model = model ?? new Node3D { Name = _def.Key };
         AddChild(_model);
+        if (model == null)
+        {
+            BuildBlocks(); // no art yet: blocks of the right size (ShipView.Blocks.cs)
+        }
+        MountModules();
+        if (model != null)
+        {
+            FindRig(); // its own wheels and suspension, if it has them (ShipView.Rig.cs)
+            HideMissingWheels();
+        }
         FindHatch();
         FindParts();
+        FindRotors();
         BuildPlumes();
         BuildLights();
         BuildLamps();
@@ -342,10 +372,13 @@ public partial class ShipView : Node3D
 
     private int _liftNozzles;
 
-    /// <summary>How many lift nozzles it has (ships.json <c>nozzles.lift</c>).</summary>
-    public int LiftNozzles => _liftNozzles;
+    /// <summary>How many points blow dust off the ground: its lift nozzles (ships.json <c>nozzles.lift</c>) and washing rotors.</summary>
+    public int LiftNozzles => Washers;
 
-    /// <summary>A lift nozzle where it is drawn (render space) and how hard its plume blows now (0 out, 1 full lift).</summary>
+    /// <summary>
+    /// A lift nozzle (or, after them, a washing rotor's hub) where it is drawn (render space) and how hard it blows now (0
+    /// out, 1 full lift; a rotor by its spin).
+    /// </summary>
     public (Vector3 At, float Shown) LiftNozzle(int index)
     {
         foreach (Plume p in _plumes)
@@ -355,13 +388,20 @@ public partial class ShipView : Node3D
                 return (_model.GlobalTransform * p.Nozzle, p.Shown);
             }
         }
+        foreach (Rotor r in _rotors)
+        {
+            if (r.Def.Wash && index-- == 0)
+            {
+                return (r.Node.GlobalPosition, _spool * _spool);
+            }
+        }
         return (GlobalPosition, 0);
     }
 
     private void BuildLights()
     {
         // The lift nozzles' light on the ground below: between them, reaching eight times their plumes' length (ships.json).
-        float scale = Scale;
+        float scale = EffectsScale;
         Vector3 liftAt = Vector3.Zero;
         float liftLength = 0, liftWidth = 0;
         foreach (Plume p in _plumes)
@@ -385,6 +425,10 @@ public partial class ShipView : Node3D
             Visible = false,
         };
         _model.AddChild(_belly);
+        if (!_def.NavLights)
+        {
+            return; // a boat carries its own lamps (ships.json lights.nav false)
+        }
         // Nav lights at the tips of the outermost hull boxes (the Tin Finch's engine pods: red on the left, green on the
         // right), a white beacon over the top of the hull.
         float podX = 1.18f, podY = 0.97f, podZ = -2.95f, top = 1.845f;
@@ -452,6 +496,7 @@ public partial class ShipView : Node3D
                 light.DistanceFadeShadow = 40;
             }
             _model.AddChild(light);
+            if (l.Shadows) HollowUniverse.Settings.LocalShadowBudget.Track(light, l.Range);
             _lights.Add((light, l));
         }
     }
@@ -523,6 +568,63 @@ public partial class ShipView : Node3D
         _probeFrames = 8;
     }
 
+    // ---------------------------------------------------------------- rotors (docs/MINICOPTER.md §8)
+
+    private void FindRotors()
+    {
+        foreach (ShipRotorLook def in _def.Rotors)
+        {
+            if (_model.FindChild(def.Node, true, false) is not Node3D node)
+            {
+                GD.PushWarning($"{_def.Key}: no rotor node \"{def.Node}\" in its model");
+                continue;
+            }
+            GeometryInstance3D? blur = def.Blur.Length > 0 ? node.FindChild(def.Blur, true, false) as GeometryInstance3D : null;
+            var blades = new List<GeometryInstance3D>();
+            var stack = new Stack<Node>();
+            stack.Push(node);
+            while (stack.Count > 0)
+            {
+                foreach (Node child in stack.Pop().GetChildren())
+                {
+                    if (child is GeometryInstance3D g && g != blur)
+                    {
+                        blades.Add(g);
+                    }
+                    stack.Push(child);
+                }
+            }
+            _rotors.Add(new Rotor { Def = def, Node = node, Rest = node.Transform, Blades = blades, Blur = blur });
+        }
+    }
+
+    /// <summary>How many points blow dust off the ground: the lift nozzles, then the rotors that wash (ships.json rotors).</summary>
+    private int Washers => _liftNozzles + _rotors.FindAll(r => r.Def.Wash).Count;
+
+    // The rotors turn by the spool; their blades fade into the blurred disc from 40 % to 70 % of working speed, as film of
+    // real rotors shows them (no strobing at the frame rate).
+    private void ShowRotors(float spool, double delta)
+    {
+        _spool += (spool - _spool) * (1 - MathF.Exp(-(float)delta / 0.15f));
+        float blurred = Math.Clamp((_spool - 0.4f) / 0.3f, 0, 1);
+        foreach (Rotor r in _rotors)
+        {
+            r.Angle = (r.Angle + r.Def.Rpm / 60f * MathF.Tau * _spool * (float)delta) % MathF.Tau;
+            var axis = new Vector3(r.Def.Axis.X, r.Def.Axis.Y, r.Def.Axis.Z);
+            r.Node.Transform = r.Rest * new Transform3D(new Basis(axis, r.Angle), Vector3.Zero);
+            foreach (GeometryInstance3D blade in r.Blades)
+            {
+                blade.Transparency = blurred;
+                blade.Visible = blurred < 0.999f;
+            }
+            if (r.Blur != null)
+            {
+                r.Blur.Transparency = 1 - blurred;
+                r.Blur.Visible = blurred > 0.001f;
+            }
+        }
+    }
+
     // ---------------------------------------------------------------- each frame
 
     /// <summary>Shows the ship as it is this frame; <paramref name="delta"/> smooths the plumes.</summary>
@@ -531,6 +633,7 @@ public partial class ShipView : Node3D
         _time += delta;
         GlobalTransform = look.Pivot;
         ShowHatch(look.Hatch);
+        ShowRotors(look.Destroyed ? 0 : look.Spool, delta);
         float energy = 1f / MathF.Max(Exposure, 1e-4f);
         _plumeMaterial!.SetShaderParameter("energy", 5f * energy);
         _glowMaterial!.SetShaderParameter("energy", 4f * energy);

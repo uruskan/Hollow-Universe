@@ -26,9 +26,16 @@ public enum AntiAliasingMode
     Fsr2,
 }
 
+public enum GameWindowMode
+{
+    Windowed,
+    Borderless,
+    ExclusiveFullscreen,
+}
+
 /// <summary>
 /// One set of graphics settings (GROUND.md §8.6). The presets set everything above <see cref="VSync"/>; vsync, the frame
-/// cap, the field of view and the interface scale are the player's own and no preset touches them.
+/// cap, gib amount, field of view, interface scale and crosshair are the player's own and no preset touches them.
 /// </summary>
 public sealed record GraphicsValues
 {
@@ -63,6 +70,15 @@ public sealed record GraphicsValues
     /// <summary>How far the sun's shadows reach, metres.</summary>
     public float ShadowDistance { get; set; } = 1600;
 
+    /// <summary>Directional shadow maps per light: 1, 2 or 4, independent of texture/filter quality.</summary>
+    public int ShadowCascades { get; set; } = 4;
+
+    /// <summary>Maximum local lights with real-time shadows at once; illumination is unaffected.</summary>
+    public int MaxShadowLights { get; set; } = 2;
+
+    /// <summary>Maximum camera distance from a local light's influence for its shadows, metres.</summary>
+    public float LocalShadowDistance { get; set; } = 40;
+
     /// <summary>Times the terrain's split distances (0.6–1.6): finer ground farther away.</summary>
     public float TerrainDetail { get; set; } = 1;
 
@@ -83,17 +99,25 @@ public sealed record GraphicsValues
 
     // ------------------------------------------------ the player's own (no preset sets them)
 
+    /// <summary>Maximum live cosmetic fragments as a percentage of the gib catalogue cap (0–100); zero keeps dust and sound.</summary>
+    public int GibAmount { get; set; } = 100;
+
+    public GameWindowMode WindowMode { get; set; } = GameWindowMode.Windowed;
+
     /// <summary>0 off, 1 on, 2 adaptive, 3 mailbox.</summary>
     public int VSync { get; set; } = 1;
 
     /// <summary>An index into <see cref="GraphicsSettings.FrameCaps"/> (0: none).</summary>
     public int FrameCap { get; set; }
 
-    /// <summary>Vertical field of view on foot, degrees (60–100); kept in ground-settings.cfg with the F1 console's fov.</summary>
+    /// <summary>Vertical field of view on foot, degrees (30–110); kept in ground-settings.cfg with the F1 console's fov.</summary>
     public float FieldOfView { get; set; } = 75;
 
     /// <summary>The interface scale preference (0.6–2), kept in settings.cfg as Ctrl + plus and minus keep it.</summary>
     public float InterfaceScale { get; set; } = 1;
+
+    /// <summary>The player's aiming reticle, independent of graphics quality presets.</summary>
+    public CrosshairValues Crosshair { get; set; } = new();
 }
 
 /// <summary>
@@ -124,10 +148,9 @@ public static class GraphicsSettings
     /// <summary>Raised after <see cref="Current"/> changes (on the main thread).</summary>
     public static event Action<GraphicsValues>? Changed;
 
-    /// <summary>This computer's preset when nothing is saved: Maximum on a discrete graphics card, Medium on an integrated one, else High.</summary>
+    /// <summary>This computer's preset when nothing is saved: Medium on an integrated graphics card, otherwise High.</summary>
     public static QualityPreset DefaultPreset => RenderingServer.GetVideoAdapterType() switch
     {
-        RenderingDevice.DeviceType.DiscreteGpu => QualityPreset.Maximum,
         RenderingDevice.DeviceType.IntegratedGpu => QualityPreset.Medium,
         _ => QualityPreset.High,
     };
@@ -137,7 +160,7 @@ public static class GraphicsSettings
 
     /// <summary>
     /// <paramref name="values"/> with <paramref name="preset"/>'s settings; the player's own (vsync, frame cap, field of
-    /// view, interface scale) kept. High is the game as it looked before the settings existed.
+    /// view, interface scale, gib amount, crosshair) kept. High is the game as it looked before the settings existed.
     /// </summary>
     public static GraphicsValues WithPreset(GraphicsValues values, QualityPreset preset)
     {
@@ -164,6 +187,9 @@ public static class GraphicsSettings
             EffectQuality = Pick(0, 1, 1, 2, 2),
             Shadows = Pick(1, 2, 2, 3, 4),
             ShadowDistance = Pick(600f, 1000f, 1600f, 1600f, 2000f),
+            ShadowCascades = Pick(1, 2, 2, 4, 4),
+            MaxShadowLights = Pick(0, 1, 2, 4, 6),
+            LocalShadowDistance = Pick(20f, 30f, 40f, 60f, 80f),
             TerrainDetail = Pick(0.75f, 0.9f, 1f, 1.15f, 1.35f),
             PlantDistance = Pick(0.75f, 0.9f, 1f, 1.15f, 1.3f),
             GrassDensity = Pick(0.6f, 0.8f, 1f, 1f, 1f),
@@ -187,8 +213,15 @@ public static class GraphicsSettings
     }
 
     /// <summary>The preset named on the command line (<c>--quality low|medium|high|ultra|maximum</c>), if it is one.</summary>
-    public static QualityPreset? ParsePreset(string? name) =>
-        Enum.TryParse(name, ignoreCase: true, out QualityPreset preset) && preset != QualityPreset.Custom ? preset : null;
+    public static QualityPreset? ParsePreset(string? name) => name?.ToLowerInvariant() switch
+    {
+        "low" => QualityPreset.Low,
+        "medium" => QualityPreset.Medium,
+        "high" => QualityPreset.High,
+        "ultra" => QualityPreset.Ultra,
+        "maximum" => QualityPreset.Maximum,
+        _ => null,
+    };
 
     /// <summary>
     /// Reads the saved settings (this computer's defaults where nothing is saved). <paramref name="forRun"/>, from
@@ -219,8 +252,13 @@ public static class GraphicsSettings
                 Reflections = B("reflections", d.Reflections),
                 Fog = B("fog", d.Fog),
                 EffectQuality = I("effect_quality", d.EffectQuality, 0, 3),
+                GibAmount = ReadGibAmount(file),
                 Shadows = I("shadows", d.Shadows, 0, 4),
-                ShadowDistance = F("shadow_distance", d.ShadowDistance, 300, 3000),
+                ShadowDistance = F("shadow_distance", d.ShadowDistance, 50, 3000),
+                // Old saves had four cascades. Keep their appearance until the player chooses a setting/preset.
+                ShadowCascades = Cascades(I("shadow_cascades", 4, 1, 4)),
+                MaxShadowLights = I("max_shadow_lights", d.MaxShadowLights, 0, 8),
+                LocalShadowDistance = F("local_shadow_distance", d.LocalShadowDistance, 10, 100),
                 TerrainDetail = F("terrain_detail", d.TerrainDetail, 0.6f, 1.6f),
                 PlantDistance = F("plant_distance", d.PlantDistance, 0.6f, 1.4f),
                 GrassDensity = F("grass_density", d.GrassDensity, 0.4f, 1f),
@@ -229,12 +267,14 @@ public static class GraphicsSettings
                 Anisotropy = I("anisotropy", d.Anisotropy, 0, 4),
                 VSync = I("vsync", d.VSync, 0, 3),
                 FrameCap = I("frame_cap", d.FrameCap, 0, FrameCaps.Length - 1),
+                WindowMode = (GameWindowMode)I("window_mode", (int)d.WindowMode, 0, (int)GameWindowMode.ExclusiveFullscreen),
+                Crosshair = ReadCrosshair(file),
             };
         }
         var view = new ConfigFile();
         if (view.Load(ViewPath) == Error.Ok)
         {
-            saved = saved with { FieldOfView = Math.Clamp((float)view.GetValue("view", "fov", 75.0).AsDouble(), 60, 100) };
+            saved = saved with { FieldOfView = Math.Clamp((float)view.GetValue("view", "fov", 75.0).AsDouble(), 30, 110) };
         }
         var ui = new ConfigFile();
         if (ui.Load(InterfacePath) == Error.Ok)
@@ -250,7 +290,12 @@ public static class GraphicsSettings
     /// <summary>Shows <paramref name="values"/> at once (the panel's preview); saved only by <see cref="Save"/>.</summary>
     public static void Preview(GraphicsValues values)
     {
-        GraphicsValues shown = values with { Preset = Match(values) };
+        GraphicsValues bounded = values with
+        {
+            GibAmount = Math.Clamp(values.GibAmount, 0, 100),
+            Crosshair = values.Crosshair.Normalize(),
+        };
+        GraphicsValues shown = bounded with { Preset = Match(bounded) };
         if (shown == Current)
         {
             return;
@@ -277,8 +322,12 @@ public static class GraphicsSettings
         file.SetValue("graphics", "reflections", v.Reflections);
         file.SetValue("graphics", "fog", v.Fog);
         file.SetValue("graphics", "effect_quality", v.EffectQuality);
+        WriteGibAmount(file, v.GibAmount);
         file.SetValue("graphics", "shadows", v.Shadows);
         file.SetValue("graphics", "shadow_distance", v.ShadowDistance);
+        file.SetValue("graphics", "shadow_cascades", v.ShadowCascades);
+        file.SetValue("graphics", "max_shadow_lights", v.MaxShadowLights);
+        file.SetValue("graphics", "local_shadow_distance", v.LocalShadowDistance);
         file.SetValue("graphics", "terrain_detail", v.TerrainDetail);
         file.SetValue("graphics", "plant_distance", v.PlantDistance);
         file.SetValue("graphics", "grass_density", v.GrassDensity);
@@ -287,6 +336,8 @@ public static class GraphicsSettings
         file.SetValue("graphics", "anisotropy", v.Anisotropy);
         file.SetValue("graphics", "vsync", v.VSync);
         file.SetValue("graphics", "frame_cap", v.FrameCap);
+        file.SetValue("graphics", "window_mode", (int)v.WindowMode);
+        WriteCrosshair(file, v.Crosshair);
         file.Save(FilePath);
         var view = new ConfigFile();
         view.Load(ViewPath);
@@ -302,10 +353,76 @@ public static class GraphicsSettings
     /// <summary>Back to what is saved.</summary>
     public static void Revert() => Preview(Saved);
 
+    // Old preferences keep the full catalogue budget. Reject non-numeric/non-finite values without unsafe Variant casts.
+    internal static int ReadGibAmount(ConfigFile file)
+    {
+        Variant value = file.GetValue("graphics", "gib_amount", 100);
+        double amount = value.VariantType switch
+        {
+            Variant.Type.Int => value.AsInt64(),
+            Variant.Type.Float => value.AsDouble(),
+            _ => 100,
+        };
+        return double.IsFinite(amount) ? (int)Math.Clamp(amount, 0, 100) : 100;
+    }
+
+    internal static void WriteGibAmount(ConfigFile file, int amount) =>
+        file.SetValue("graphics", "gib_amount", Math.Clamp(amount, 0, 100));
+
+    /// <summary>Old saves receive a centred dot; malformed preferences cannot reach the painter.</summary>
+    internal static CrosshairValues ReadCrosshair(ConfigFile file)
+    {
+        var d = new CrosshairValues();
+        double Number(string key, double fallback, double min, double max)
+        {
+            Variant value = file.GetValue("crosshair", key, fallback);
+            double number = value.VariantType switch
+            {
+                Variant.Type.Int => value.AsInt64(),
+                Variant.Type.Float => value.AsDouble(),
+                _ => fallback,
+            };
+            return double.IsFinite(number) ? Math.Clamp(number, min, max) : fallback;
+        }
+        bool Flag(string key, bool fallback)
+        {
+            Variant value = file.GetValue("crosshair", key, fallback);
+            return value.VariantType == Variant.Type.Bool ? value.AsBool() : fallback;
+        }
+        return new CrosshairValues
+        {
+            Style = (CrosshairStyle)(int)Number("style", (int)d.Style, 0, (int)CrosshairStyle.RingDot),
+            Color = (int)Number("color", d.Color, 0, 5),
+            Size = (float)Number("size", d.Size, 2, 24),
+            DotSize = (float)Number("dot_size", d.DotSize, 1, 12),
+            Thickness = (float)Number("thickness", d.Thickness, 1, 6),
+            Gap = (float)Number("gap", d.Gap, 0, 20),
+            Opacity = (float)Number("opacity", d.Opacity, 0.1f, 1),
+            Outline = (float)Number("outline", d.Outline, 0, 3),
+            ShowWhileAiming = Flag("show_while_aiming", d.ShowWhileAiming),
+            DynamicSpread = Flag("dynamic_spread", d.DynamicSpread),
+        };
+    }
+
+    internal static void WriteCrosshair(ConfigFile file, CrosshairValues values)
+    {
+        CrosshairValues v = values.Normalize();
+        file.SetValue("crosshair", "style", (int)v.Style);
+        file.SetValue("crosshair", "color", v.Color);
+        file.SetValue("crosshair", "size", v.Size);
+        file.SetValue("crosshair", "dot_size", v.DotSize);
+        file.SetValue("crosshair", "thickness", v.Thickness);
+        file.SetValue("crosshair", "gap", v.Gap);
+        file.SetValue("crosshair", "opacity", v.Opacity);
+        file.SetValue("crosshair", "outline", v.Outline);
+        file.SetValue("crosshair", "show_while_aiming", v.ShowWhileAiming);
+        file.SetValue("crosshair", "dynamic_spread", v.DynamicSpread);
+    }
+
     /// <summary>The field of view set elsewhere (the F1 console's fov, saved by it): shown and taken as saved.</summary>
     public static void SetFieldOfView(float degrees)
     {
-        float fov = Math.Clamp(degrees, 60, 100);
+        float fov = Math.Clamp(degrees, 30, 110);
         Saved = Saved with { FieldOfView = fov };
         Preview(Current with { FieldOfView = fov });
     }
@@ -327,6 +444,7 @@ public static class GraphicsSettings
     /// </summary>
     public static bool ApplyGlobal(Viewport viewport, GraphicsValues v)
     {
+        ApplyWindow(v.WindowMode);
         AntiAliasingMode aa = v.AntiAliasing;
         viewport.Msaa3D = aa switch
         {
@@ -367,6 +485,7 @@ public static class GraphicsSettings
         RenderingServer.DirectionalShadowAtlasSetSize(atlas, true);
         RenderingServer.DirectionalSoftShadowFilterSetQuality(filter);
         RenderingServer.PositionalSoftShadowFilterSetQuality(filter);
+        viewport.PositionalShadowAtlasSize = v.Shadows > 0 && v.MaxShadowLights > 0 ? Math.Min(atlas, 2048) : 0;
 
         int q = Math.Clamp(v.EffectQuality, 0, 3);
         RenderingServer.EnvironmentSetSsaoQuality((RenderingServer.EnvironmentSsaoQuality)(q + 1), q == 0, 0.5f, 2, 50, 300);
@@ -398,6 +517,46 @@ public static class GraphicsSettings
             DisplayServer.WindowSetVsyncMode(vsync);
         }
         return v.Sharpen && v.SharpenStrength > 0.001f && !fsr;
+    }
+
+    private static Vector2I? _windowSize, _windowPosition;
+
+    /// <summary>Godot's Fullscreen is borderless desktop fullscreen; ExclusiveFullscreen requests the exclusive mode.</summary>
+    private static void ApplyWindow(GameWindowMode value)
+    {
+        if (DisplayServer.GetName() == "headless" || Engine.IsEmbeddedInEditor())
+        {
+            return;
+        }
+        DisplayServer.WindowMode target = value switch
+        {
+            GameWindowMode.Borderless => DisplayServer.WindowMode.Fullscreen,
+            GameWindowMode.ExclusiveFullscreen => DisplayServer.WindowMode.ExclusiveFullscreen,
+            _ => DisplayServer.WindowMode.Windowed,
+        };
+        DisplayServer.WindowMode current = DisplayServer.WindowGetMode();
+        // Keep a maximized window maximized until the player actually chooses another mode.
+        if (current == target || target == DisplayServer.WindowMode.Windowed && current == DisplayServer.WindowMode.Maximized)
+        {
+            return;
+        }
+        if (current is DisplayServer.WindowMode.Windowed or DisplayServer.WindowMode.Maximized)
+        {
+            _windowSize = DisplayServer.WindowGetSize();
+            _windowPosition = DisplayServer.WindowGetPosition();
+        }
+        DisplayServer.WindowSetMode(target);
+        if (target == DisplayServer.WindowMode.Windowed)
+        {
+            if (_windowSize is { } size)
+            {
+                DisplayServer.WindowSetSize(size);
+            }
+            if (_windowPosition is { } at)
+            {
+                DisplayServer.WindowSetPosition(at);
+            }
+        }
     }
 
     /// <summary>The look of the air the volumetric fog stands for: its density per metre, colour and forward scattering.</summary>
@@ -460,6 +619,13 @@ public static class GraphicsSettings
     {
         sun.ShadowEnabled = v.Shadows > 0;
         sun.DirectionalShadowMaxDistance = v.ShadowDistance;
+        sun.DirectionalShadowMode = Cascades(v.ShadowCascades) switch
+        {
+            1 => DirectionalLight3D.ShadowMode.Orthogonal,
+            2 => DirectionalLight3D.ShadowMode.Parallel2Splits,
+            _ => DirectionalLight3D.ShadowMode.Parallel4Splits,
+        };
+        sun.DirectionalShadowBlendSplits = v.Shadows >= 2 && v.ShadowCascades > 1;
         bool tight = v.Shadows >= 4;
         // Godot's own splits at 1,600 m put the first cascade's edge 160 m out; ultra keeps it near 80 m however far
         // the shadows reach, so the ground at the feet stays sharp.
@@ -467,4 +633,6 @@ public static class GraphicsSettings
         sun.DirectionalShadowSplit2 = tight ? Math.Clamp(260f / v.ShadowDistance, 0.06f, 0.2f) : 0.2f;
         sun.DirectionalShadowSplit3 = tight ? 0.45f : 0.5f;
     }
+
+    private static int Cascades(int value) => value <= 1 ? 1 : value <= 2 ? 2 : 4;
 }

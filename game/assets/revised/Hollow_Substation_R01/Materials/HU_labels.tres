@@ -1,0 +1,12 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_Labels_BaseColor.png" id="1_6oqvb"]
+
+[resource]
+resource_name = "HU_labels"
+transparency = 2
+alpha_scissor_threshold = 0.3
+alpha_antialiasing_mode = 0
+albedo_texture = ExtResource("1_6oqvb")
+roughness = 0.57
+texture_filter = 5

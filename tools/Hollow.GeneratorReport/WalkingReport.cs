@@ -21,15 +21,25 @@ public static class WalkingReport
 
     private static string Folder => Path.Combine(Program.RepoRoot(), "docs", "images", "scale", "s4");
 
-    public static int Run(string[] args)
+    public static int Run(string[] args, bool earth = false)
     {
         string command = args.Length > 1 ? args[1] : "stats";
+        if (earth && command == "candidates") return EarthCandidatesReport.Run(args);
+        if (earth && command == "survey") return EarthSurvey.Run(args);
+        if (earth && command == "transect") return EarthSurvey.Transect(args);
+        if (earth && command == "wall") return EarthSurvey.Wall(args);
+        if (earth && command == "formations") return EarthSurvey.Formations(args);
+        if (earth && command == "cliffs-bench") return EarthSurvey.CliffsBench(args);
+        if (earth && command == "bake") return Bake(args);
+        if (earth && command == "kit") return Kit();
+        if (earth && command == "layouts") return EarthLayoutsReport.Run(args);
         string Arg(int i, string fallback) => args.Length > i ? args[i] : fallback;
         double Num(int i, double fallback) => args.Length > i ? double.Parse(args[i], CultureInfo.InvariantCulture) : fallback;
         var watch = Stopwatch.StartNew();
-        WalkingWorld world = Build();
+        WalkingWorld world = Build(earth);
+        string Folder = earth ? Path.Combine(Program.RepoRoot(), "docs", "images", "earth-land") : WalkingReport.Folder;
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"Walking-scale first world: radius {world.Radius:0} m, built in {watch.ElapsedMilliseconds} ms, ice below {world.IceTemperature:0.0} °C"));
+            $"Walking-scale {(earth ? "Earth" : "legacy first world")}: radius {world.Radius:0} m, ocean target {world.OceanCover:P0}, built in {watch.ElapsedMilliseconds} ms, ice below {world.IceTemperature:0.0} °C"));
         switch (command)
         {
             case "stats":
@@ -78,7 +88,7 @@ public static class WalkingReport
                 All(world, Arg(2, Folder));
                 return 0;
             default:
-                Console.Error.WriteLine("usage: walking stats | relief|biomes|rivers [png] [width] | globe [png] [size] | zoom|slopes lat lon metres [png] [size] | spots | shots | cover lat lon | compare | all");
+                Console.Error.WriteLine("usage: walking stats | relief|biomes|rivers [png] [width] | globe [png] [size] | zoom|slopes lat lon metres [png] [size] | spots | shots | cover lat lon | compare | all; earth candidates <new-folder> [samples:2000..16000] [map-width:256..1024]; earth layouts <folder> [--variants 0-11] [--width 1600]");
                 return 2;
         }
     }
@@ -133,12 +143,157 @@ public static class WalkingReport
         }
     }
 
-    internal static WalkingWorld Build()
+    // Bakes Earth's shape (docs/WORLD_TERRAIN_PLAN.md §4.1) into the cache the game reads, or reports the cached one;
+    // --force deletes every cached bake first.
+    private static int Bake(string[] args)
+    {
+        if (Array.IndexOf(args, "--force") >= 0 && Directory.Exists(TerrainBake.CacheFolder))
+        {
+            foreach (string file in Directory.GetFiles(TerrainBake.CacheFolder, "*.bake"))
+            {
+                File.Delete(file);
+            }
+        }
+        var watch = Stopwatch.StartNew();
+        WalkingWorld world = Build(earth: true);
+        TerrainBake bake = world.Bake ?? throw new InvalidOperationException("Earth is not baked (WalkingParameters.Baked).");
+        double lakeArea = 0;
+        foreach (WalkingLake lake in bake.Lakes)
+        {
+            lakeArea += lake.Area;
+        }
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"Earth's bake: level {bake.Level}, {bake.Count:N0} cells, {(bake.FromCache ? "loaded from the cache" : "baked")} in {bake.Time.TotalSeconds:0.0} s; world built in {watch.Elapsed.TotalSeconds:0.0} s"));
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"{bake.Lakes.Count} lakes, {lakeArea / 10_000:0.0} ha; cache {TerrainBake.CacheFolder}"));
+
+        // Places worth a look, as the F1 console's teleport takes them: the landing site, the highest ground, the steepest
+        // ground (plateau edges, mountain faces) and the largest lakes, each at least 250 m from the others.
+        static string At(Vector3D d) =>
+            string.Create(CultureInfo.InvariantCulture, $"{Math.Asin(Math.Clamp(d.Y, -1, 1)) * 180 / Math.PI:0.000} {Math.Atan2(-d.Z, d.X) * 180 / Math.PI:0.000}");
+        Console.WriteLine($"landing site: teleport {At(world.LandingSite)}");
+        var samples = new List<(Vector3D D, double Height, double Slope)>();
+        double step = 4 / world.Radius;
+        foreach (Vector3D d in PlanetSurface.FibonacciSphere(60_000))
+        {
+            WalkingSample s = world.Fields(d);
+            if (s.Wetted || s.Height < 1)
+            {
+                continue;
+            }
+            Vector3D east = Vector3D.Cross(Vector3D.UnitY, d).Normalized, north = Vector3D.Cross(d, east);
+            double hx = world.HeightAt((d + east * step).Normalized) - world.HeightAt((d - east * step).Normalized);
+            double hy = world.HeightAt((d + north * step).Normalized) - world.HeightAt((d - north * step).Normalized);
+            samples.Add((d, s.Height, Math.Sqrt(hx * hx + hy * hy) / 8));
+        }
+        void Best(string what, IEnumerable<(Vector3D D, double Height, double Slope)> ordered, int count, Func<(Vector3D D, double Height, double Slope), string> say)
+        {
+            var chosen = new List<Vector3D>();
+            foreach (var s in ordered)
+            {
+                if (chosen.Count == count)
+                {
+                    break;
+                }
+                if (chosen.TrueForAll(c => Vector3D.Distance(c, s.D) * world.Radius > 250))
+                {
+                    chosen.Add(s.D);
+                    Console.WriteLine($"{what}: {say(s)}: teleport {At(s.D)}");
+                }
+            }
+        }
+        Best("high ground", samples.OrderByDescending(s => s.Height), 3, s => $"{s.Height:0} m");
+        Best("steep ground", samples.OrderByDescending(s => s.Slope), 5,
+            s => string.Create(CultureInfo.InvariantCulture, $"{Math.Atan(s.Slope) * 180 / Math.PI:0}° at {s.Height:0} m"));
+        foreach (WalkingLake lake in bake.Lakes.OrderByDescending(l => l.Area).Take(3))
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"lake: {lake.Area / 10_000:0.0} ha, {lake.MaxDepth:0.0} m deep at {lake.Level:0.0} m: teleport {At(lake.Centre)}"));
+        }
+        // Flat land for monuments: the largest circles of nearly level ground (the layouts' magenta and yellow circles).
+        foreach (FlatSite site in bake.FlatSites(0.09, 2).Where(s => s.Radius >= 75))
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"flat land: a circle of {site.Radius:0} m, {site.Area / 10_000:0.0} ha in all: teleport {At(site.Centre)}"));
+        }
+        return 0;
+    }
+
+    // The cliff kit on the baked Earth (docs/WORLD_TERRAIN_PLAN.md iteration 5): every cell placed, the pieces counted by
+    // kind, the time it takes, and places to look at as F1 teleports.
+    private static int Kit()
+    {
+        WalkingWorld world = Build(earth: true);
+        CliffKitPlacements kit = world.KitCliffs ?? throw new InvalidOperationException("Earth has no cliff kit (KitCliffs, or the kit's files).");
+        var watch = Stopwatch.StartNew();
+        var all = new List<KitPlacement>();
+        int cellsWith = 0;
+        long count = TileKey.CountAt(kit.Level);
+        for (long i = 0; i < count; i++)
+        {
+            KitPlacement[] pieces = kit.At(TileKey.FromIndex(kit.Level, i)!.Value);
+            if (pieces.Length > 0)
+            {
+                cellsWith++;
+                all.AddRange(pieces);
+            }
+        }
+        Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+            $"cliff kit: {all.Count} pieces in {cellsWith} of {count} cells, placed in {watch.Elapsed.TotalSeconds:0.0} s"));
+        foreach (var group in all.GroupBy(k => kit.Kit.Pieces[k.Piece].Key).OrderByDescending(g => g.Count()))
+        {
+            Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"  {group.Key,-18} {group.Count(),5}   scale {group.Min(k => k.Scale):0.00}–{group.Max(k => k.Scale):0.00}"));
+        }
+        static string At(Vector3D d) =>
+            string.Create(CultureInfo.InvariantCulture, $"{Math.Asin(Math.Clamp(d.Y, -1, 1)) * 180 / Math.PI:0.000} {Math.Atan2(-d.Z, d.X) * 180 / Math.PI:0.000}");
+        // The busiest cells: where the most pieces stand.
+        var busiest = new List<Vector3D>();
+        foreach (var cell in all.GroupBy(k => TileKey.At(k.Position.Normalized, kit.Level)).OrderByDescending(g => g.Count()))
+        {
+            Vector3D d = cell.First().Position.Normalized;
+            if (busiest.TrueForAll(b => Vector3D.Distance(b, d) * world.Radius > 200))
+            {
+                busiest.Add(d);
+                Console.WriteLine($"  {cell.Count()} pieces: teleport {At(d)}");
+                // What the ground collision tile there carries: the kit's shells, cut to the tile, against the ground.
+                TileKey tile = TileKey.At(d, GroundCollisionLayout.LevelOn(world.Radius));
+                var timer = Stopwatch.StartNew();
+                TriangleMesh mesh = world.GroundCollision(ZoneFrame.World, tile, GroundCollisionLayout.MarginMetres);
+                double ms = timer.Elapsed.TotalMilliseconds;
+                int kitTriangles = kit.AddCollision(new TriangleMesh(Array.Empty<float>(), Array.Empty<int>()), ZoneFrame.World, tile,
+                    GroundCollisionLayout.MarginMetres).TriangleCount;
+                double tileReach = TileKey.EdgeLength(tile.Level, world.Radius) * 0.75 + GroundCollisionLayout.MarginMetres;
+                int reaching = 0;
+                foreach ((TileKey _, KitPlacement[] near) in kit.Near(tile.Centre * world.Radius, 400))
+                {
+                    foreach (KitPlacement k in near)
+                    {
+                        reaching += Vector3D.Distance(k.Position.Normalized, tile.Centre) * world.Radius <= tileReach + k.Reach ? 1 : 0;
+                    }
+                }
+                Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                    $"    collision tile: {mesh.TriangleCount:N0} triangles ({kitTriangles:N0} of them the kit's, from {reaching} pieces), built in {ms:0} ms"));
+            }
+            if (busiest.Count == 6)
+            {
+                break;
+            }
+        }
+        return 0;
+    }
+
+    internal static WalkingWorld Build(bool earth = false)
     {
         var galaxy = new Galaxy.Galaxy(null);
-        var found = FirstWorld.Find(galaxy) ?? throw new InvalidOperationException("The first world is gone.");
-        WalkingParameters parameters = WalkingParameters.Default;
-        // Look-dev: HOLLOW_WALKING="StreamValley=20;Meander=0" changes numbers of the table for one run.
+        var found = earth ? StartingWorld.Find() : FirstWorld.Find(galaxy) ?? throw new InvalidOperationException("The first world is gone.");
+        WalkingParameters parameters = LookDev(WalkingParameters.ForBody(found.System.Address.Value, found.Planet.Path));
+        return WalkingWorld.For(found.System, found.Planet, earth ? Galaxy.GameScale.PlanetRadius(found.Planet) : FirstWorldRadius, parameters);
+    }
+
+    // Look-dev: HOLLOW_WALKING="StreamValley=20;Meander=0" changes numbers of the table for one run.
+    internal static WalkingParameters LookDev(WalkingParameters parameters)
+    {
         foreach (string pair in (Environment.GetEnvironmentVariable("HOLLOW_WALKING") ?? "").Split(';', StringSplitOptions.RemoveEmptyEntries))
         {
             string[] kv = pair.Split('=');
@@ -148,7 +303,7 @@ public static class WalkingReport
             property.SetValue(parameters, value);
             Console.WriteLine($"look-dev: {kv[0].Trim()} = {kv[1]}");
         }
-        return WalkingWorld.For(found.System, found.Planet, FirstWorldRadius, parameters);
+        return parameters;
     }
 
     // ---------------------------------------------------------------- numbers
@@ -230,8 +385,9 @@ public static class WalkingReport
         heights.Sort();
         string Q(double f) => heights[Math.Clamp((int)(f * heights.Count), 0, heights.Count - 1)].ToString("0", CultureInfo.InvariantCulture);
         int dry = heights.Count;
+        double area = Galaxy.GameScale.SurfaceArea(world.Radius) / 1e6;
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
-            $"sea {(double)(points.Length - land) / points.Length:P1}; land {land * 73.0 / points.Length:0.0} km² of 73, of it under lakes and streams {(double)water / land:P1}"));
+            $"sea {(double)(points.Length - land) / points.Length:P1}; land above sea {land * area / points.Length:0.00} km² of {area:0.00}, of it under lakes and streams {(double)water / land:P1}; dry ground {dry * area / points.Length:0.00} km²"));
         Console.WriteLine($"land heights: p10 {Q(0.1)}  p50 {Q(0.5)}  p90 {Q(0.9)}  p99 {Q(0.99)}  max {Q(1)} m");
         Console.WriteLine(string.Create(CultureInfo.InvariantCulture,
             $"relief (dry land): plains {relief[0] / dry:P0}, hills {relief[1] / dry:P0}, tablelands {relief[2] / dry:P0}, mountains {relief[3] / dry:P0}"));
@@ -312,7 +468,7 @@ public static class WalkingReport
     private const double Sqrt2 = 1.4142135623730951;
 
     // Pixel → latitude and longitude (radians), or false outside the ellipse.
-    private static bool MollweideInverse(double x, double y, int width, int height, double lon0, out double lat, out double lon)
+    internal static bool MollweideInverse(double x, double y, int width, int height, double lon0, out double lat, out double lon)
     {
         double mx = ((x + 0.5) / width * 2 - 1) * 2 * Sqrt2, my = (1 - (y + 0.5) / height * 2) * Sqrt2;
         lat = lon = 0;
@@ -327,7 +483,7 @@ public static class WalkingReport
         return true;
     }
 
-    private static (double X, double Y) MollweideForward(double lat, double lon, int width, int height, double lon0)
+    internal static (double X, double Y) MollweideForward(double lat, double lon, int width, int height, double lon0)
     {
         double theta = lat;
         for (int i = 0; i < 12; i++)
@@ -349,13 +505,13 @@ public static class WalkingReport
     private static (double Lat, double Lon) LatLon(Vector3D d) =>
         (Math.Asin(Math.Clamp(d.Y, -1, 1)), Math.Atan2(-d.Z, d.X));
 
-    private static void Map(WalkingWorld world, string kind, string path, int width)
+    internal static void Map(WalkingWorld world, string kind, string path, int width, bool serial = false)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         int height = width / 2;
         var rgb = new byte[width * height * 3];
         double pixel = 2 * Math.PI * world.Radius / width * 0.8;
-        Parallel.For(0, height, y =>
+        void Row(int y)
         {
             Span<double> w = stackalloc double[BiomeTable.Count];
             for (int x = 0; x < width; x++)
@@ -370,7 +526,9 @@ public static class WalkingReport
                 (byte r, byte g, byte b) = Shaded(world, d, kind, pixel, w);
                 rgb[k] = r; rgb[k + 1] = g; rgb[k + 2] = b;
             }
-        });
+        }
+        if (serial) for (int y = 0; y < height; y++) Row(y);
+        else Parallel.For(0, height, Row);
         Rivers(world, rgb, width, height, (lat, lon) => MollweideForward(lat, lon, width, height, 0), kind == "rivers" ? 1.0 : 0.6, width / 2048.0);
         Png.Write(path, width, height, rgb);
         Console.WriteLine($"{path}: {kind}, equal-area, {width} × {height}");
@@ -399,7 +557,7 @@ public static class WalkingReport
         return (Byte(r * light), Byte(g * light), Byte(b * light));
     }
 
-    private static double Light(WalkingWorld world, Vector3D d, double step)
+    internal static double Light(WalkingWorld world, Vector3D d, double step)
     {
         Vector3D up = d;
         Vector3D east = Vector3D.Cross(Vector3D.UnitY, up);
@@ -442,7 +600,7 @@ public static class WalkingReport
         return (r, g, b);
     }
 
-    private static (double, double, double) Water(double depth, bool plain)
+    internal static (double, double, double) Water(double depth, bool plain)
     {
         if (plain)
         {
@@ -452,7 +610,7 @@ public static class WalkingReport
         return (70 - 45 * t, 140 - 70 * t, 190 - 50 * t);
     }
 
-    private static (double, double, double) Hypsometric(double h)
+    internal static (double, double, double) Hypsometric(double h)
     {
         ReadOnlySpan<double> stops = stackalloc double[] { -160, -40, -5, 0, 3, 15, 40, 80, 140, 220, 320, 450 };
         (double, double, double)[] colours =

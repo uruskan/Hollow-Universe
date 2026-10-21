@@ -1,0 +1,21 @@
+[gd_resource type="StandardMaterial3D" format=3]
+
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_paving_BaseColor.png" id="1_4jib3"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_concrete_ORM.png" id="2_hc5ci"]
+[ext_resource type="Texture2D" path="res://assets/revised/Hollow_Substation_R01/Textures/T_HS_concrete_NormalGL.png" id="3_6edox"]
+
+[resource]
+resource_name = "HU_paving"
+albedo_texture = ExtResource("1_4jib3")
+metallic = 1.0
+metallic_texture = ExtResource("2_hc5ci")
+metallic_texture_channel = 2
+roughness_texture = ExtResource("2_hc5ci")
+roughness_texture_channel = 1
+normal_enabled = true
+normal_scale = 0.7
+normal_texture = ExtResource("3_6edox")
+ao_enabled = true
+ao_texture = ExtResource("2_hc5ci")
+uv1_scale = Vector3(0.5, 0.5, 1)
+texture_filter = 5

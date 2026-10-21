@@ -69,6 +69,9 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public void Dispose()
     {
+        _mapView = null;
+        _mapSource = null;
+        _mapMarkers.Clear();
         LocalPlayer me = _client.Local;
         me.HitMarker -= OnHitMarker;
         me.DamageTaken -= OnDamage;
@@ -86,6 +89,9 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     /// <summary>The camera's yaw (radians, the movement code's convention), for the bearing of damage.</summary>
     public Func<float> ViewYaw { get; set; } = () => 0;
+
+    /// <summary>The camera/weapon state used by the ground HUD's single crosshair.</summary>
+    public CrosshairView Crosshair { get; set; }
 
     /// <summary>What the interact key acts on now, as the prompt says it (set every frame by <see cref="Aim"/>; none over the keypad).</summary>
     public InteractionPrompt? Prompt { get; set; }
@@ -129,7 +135,8 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             if (v != _vitalsFrom || rights != _vitals.Building)
             {
                 _vitalsFrom = v;
-                _vitals = new UiVitals(v.Health, v.Calories, v.Hydration, v.Temperature, v.Comfort ? 1 : 0, v.IsBleeding ? 1 : 0, v.Wet ? 1 : 0, rights);
+                _vitals = new UiVitals(v.Health, v.Calories, v.Hydration, v.Temperature, v.Comfort ? 1 : 0, v.IsBleeding ? 1 : 0, v.Wet ? 1 : 0, rights,
+                    v.BreathFraction, v.Suffocating);
             }
             return _vitals;
         }
@@ -138,12 +145,36 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     private VitalsView _vitalsFrom;
     private UiVitals _vitals = new(100, 500, 250);
 
+    private uint _protectionRevision = uint.MaxValue;
+    private readonly List<ProtectionStat> _protection = new();
+    public IReadOnlyList<ProtectionStat> Protection
+    {
+        get
+        {
+            if (_protectionRevision == Me.Inventory.Wear.Revision)
+            {
+                return _protection;
+            }
+            _protectionRevision = Me.Inventory.Wear.Revision;
+            _protection.Clear();
+            foreach ((bool projectile, string name) in new[] { (true, "PROJECTILES"), (false, "MELEE") })
+            {
+                string At(HitRegion region) => (Me.Inventory.Protection(C, region, projectile) * 100).ToString("0", CultureInfo.InvariantCulture) + "%";
+                _protection.Add(new ProtectionStat(name, At(HitRegion.Body),
+                    $"Damage reduced by worn clothing: head {At(HitRegion.Head)}, body {At(HitRegion.Body)}, limbs {At(HitRegion.Limb)}. The main number is body protection."));
+            }
+            _protection.Add(new ProtectionStat("WARMTH", Me.Inventory.Insulation(C).ToString("+0;-0;0", CultureInfo.InvariantCulture) + "°C",
+                "Clothing insulation added to the temperature your character feels."));
+            return _protection;
+        }
+    }
+
     public IReadOnlyList<UiStack> Slots(ContainerId container) => container switch
     {
         ContainerId.Main => Of(ContainerRef.Main, Me.Inventory.Main),
         ContainerId.Belt => Of(ContainerRef.Belt, Me.Inventory.Belt),
         ContainerId.Wear => Of(ContainerRef.Wear, Me.Inventory.Wear),
-        _ => LootSlots(),
+        _ => VehicleLoot()?.Slots ?? LootSlots(),
     };
 
     public int ActiveBelt => Me.HeldSlot;
@@ -160,6 +191,10 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     {
         get
         {
+            if (VehicleLoot() is { } vehicle)
+            {
+                return vehicle;
+            }
             if (Me.LootKind == LootKind.None || Me.Loot == null)
             {
                 return null;
@@ -194,7 +229,8 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
                 {
                     // The claim device's upkeep store opens like a box (GROUND.md §6.5).
                     bool claim = thing == null && _client.Building().World?.Claims.Any(c => c.Id == Me.LootTarget) == true;
-                    string title = claim ? C.Building.ClaimName : thing?.Deployable(C)?.Item.Name ?? "Box";
+                    string title = Me.Loot.AcceptedItem != 0 && Me.Loot.StackLimit > 0 ? "Fuel tank"
+                        : claim ? C.Building.ClaimName : thing?.Deployable(C)?.Item.Name ?? "Box";
                     return new LootView(UiContainerKind.Box, title.ToUpperInvariant(), LootSlots());
                 }
             }
@@ -210,7 +246,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         }
     }
 
-    /// <summary>The recipes the player knows (from the start, or learnt: G7), again whenever a blueprint is learnt.</summary>
+    /// <summary>The player's available recipes, refreshed when blueprints or admin free crafting change.</summary>
     public IReadOnlyList<UiRecipe> Recipes
     {
         get
@@ -238,6 +274,8 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public int Workbench => Me.WorkbenchLevel;
 
+    public bool FreeCrafting => Me.FreeBuild;
+
     public float SecondsHere(UiRecipe recipe) =>
         C.RecipeByKey(recipe.Key) is { } r ? CraftingSpeed.Seconds(C, r, Me.WorkbenchLevel) : recipe.Seconds;
 
@@ -250,11 +288,18 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
             _queue.Clear();
             foreach (CraftJobView job in Me.Crafting)
             {
-                _queue.Add(new CraftJob((int)job.Ticket, job.Recipe.Key, job.Count * job.Recipe.Amount, job.SecondsLeft, job.Count * job.UnitSeconds));
+                _queue.Add(ToUiCraftJob(job));
             }
             return _queue;
         }
     }
+
+    internal static CraftJob ToUiCraftJob(CraftJobView job) =>
+        new((int)job.Ticket, job.Recipe.Key, job.Count * job.Recipe.Amount, job.SecondsLeft, job.Count * job.UnitSeconds)
+        {
+            OutputKey = job.Recipe.Output.Key,
+            UnitProgress = job.UnitProgress,
+        };
 
     public DeathInfo? Death
     {
@@ -290,7 +335,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
                 {
                     continue;
                 }
-                string name = _client.Survival().ThingOf(option.Bag)?.Deployable(C)?.Item.Name ?? "Sleeping bag";
+                string name = option.Name.Length > 0 ? option.Name : _client.Survival().ThingOf(option.Bag)?.Deployable(C)?.Item.Name ?? "Sleeping bag";
                 _bags.Add(new RespawnBag(option.Bag.Value.ToString(CultureInfo.InvariantCulture), name, (float)Me.SecondsUntilReady(option), OnMap(option.Position)));
             }
             return _bags;
@@ -298,9 +343,14 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     }
 
     public KeyContext Keys => SeatKeys.Context(_client);
+    public bool SeatOrbit { get; set; }
+    public bool AdminCamera { get; set; }
 
-    public string? SeatLine => Keys is KeyContext.Seat or KeyContext.Station && _client.Ships() is { SeatShip.Def: { } def, Seat: { } seat }
-        ? (seat.Role == Hollow.Simulation.Ships.SeatRole.Station ? SeatKeys.StationMouse : "") + SeatKeys.Line(SeatKeys.Of(def, seat), inOrbit: false) : null;
+    public string? SeatLine => AdminCamera ? "ADMIN CAMERA     RMB DRAG  ORBIT     WHEEL  ZOOM     F1 TOOLS  CAMERA OFF"
+        : Keys is KeyContext.Seat or KeyContext.Station && _client.Ships() is { SeatShip.Def: { } def, Seat: { } seat }
+        ? (SeatOrbit ? (seat.Role == Hollow.Simulation.Ships.SeatRole.Station ? "LMB  FIRE     " : "") + "RMB DRAG  ORBIT     WHEEL  ZOOM     "
+            : seat.Role == Hollow.Simulation.Ships.SeatRole.Station ? SeatKeys.StationMouse : "")
+            + SeatKeys.Line(SeatKeys.Of(def, seat), inOrbit: false) : null;
 
     public bool StationNear(string station) => C.Deployable(station) is { } def && (Me.StationNear?.Invoke(def) ?? 0) != 0;
 
@@ -389,14 +439,9 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public void Move(SlotRef from, SlotRef to, int amount)
     {
+        if (MoveModule(from, to) || MoveSocket(from, to)) return;
         if (Resolve(from) is not var (a, i) || Resolve(to) is not var (b, j))
         {
-            return;
-        }
-        // An attachment dropped on a gun goes onto it (Rust's attachment slots, in one drop).
-        if (Own(a, i) is { } part && C.Item(part.Item)?.Attachment != null && Own(b, j) is { } gun && C.Item(gun.Item)?.Firearm != null)
-        {
-            Me.Attach(a, i, b, j);
             return;
         }
         Me.MoveItem(a, i, b, j, amount);
@@ -423,9 +468,13 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         }
         _options.Clear();
         Me.ItemActions(c, i, _options);
+        IReadOnlyList<AttachmentSlotView> sockets = Attachments(slot);
         var views = new List<ItemActionView>(_options.Count);
         foreach (ItemActionOption option in _options)
         {
+            // The socket itself is the detach gesture. Keep legacy server actions compatible without duplicating
+            // them as buttons when this weapon exposes that socket in the inventory.
+            if (option.Action.Key == "remove" && sockets.Any(s => s.Index == option.Arg)) continue;
             views.Add(new ItemActionView(option.Label, () => Act(c, i, option), option.Refusal is { } refused ? C.Texts.Line(refused) : null));
         }
         _actions = (key.slot, key.stack, key.Item3, key.Item4, key.Item5, key.Item6, key.Item7, views);
@@ -464,14 +513,19 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public void Drop(SlotRef slot, int amount)
     {
+        if (slot.Attachment >= 0) return;
         if (Resolve(slot) is var (c, i))
         {
             Me.Drop(c, i, amount);
         }
     }
 
+    public void DropAll() => Me.DropAll();
+
     public void QuickMove(SlotRef slot)
     {
+        if (slot.Attachment >= 0) { QuickMoveSocket(slot); return; }
+        if (QuickMoveModule(slot)) return;
         if (Resolve(slot) is var (c, i))
         {
             Me.QuickMove(c, i);
@@ -499,6 +553,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public void CloseLoot()
     {
+        _bay = _inspected = EntityId.None;
         if (Me.LootKind != LootKind.None)
         {
             Me.Close();
@@ -591,6 +646,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         return new UiStack(def.Key, s.Count, condition, def.Firearm != null ? s.Loaded : -1)
         {
             Round = def.Firearm != null ? C.Item(s.LoadedAmmo)?.Key : null,
+            Sight = C.Item(s.Sight)?.Key, Muzzle = C.Item(s.Muzzle)?.Key, Rail = C.Item(s.Rail)?.Key,
         };
     }
 

@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "revision": "R01",
+  "item": "work-boots",
+  "date": "2026-10-20",
+  "replaces": "the art/models/clothing.py stand-in model and the icon rendered from it",
+  "authorship": "Our own worn garment (art/characters/build_clothing.py, the character package) as the item: its mesh at three LODs, its own material and textures; rendered icons. No reference game files",
+  "visual_reference": null,
+  "authoring_source": [
+    {
+      "path": "art/models/garment_items.py",
+      "sha256": "900ae50a1d7579285054b058a773cde175beeb4d2d788bbd23856da260fad7ce"
+    }
+  ],
+  "authoring_helpers": [
+    {
+      "path": "art/hollow/export.py",
+      "sha256": "bca4862ce3d4b2a67c016857d2e78d97ef867d19af5d1991942aa10d52552bde"
+    },
+    {
+      "path": "art/hollow/godot.py",
+      "sha256": "8742a7167ee1b482dfc5c6e9e40d19391a9793aa711e23fd2a31f3f664d46cd2"
+    },
+    {
+      "path": "art/characters/build_clothing.py",
+      "sha256": "ce422ec0273a6076413832320ff1cf0271aa96a2217277a20da85410fab6d9e6"
+    }
+  ],
+  "geometry": {
+    "asset": "work-boots",
+    "garment": "laced_boots",
+    "dimensions_blender_xyz_m": [
+      0.32781416177749634,
+      0.2849668115377426,
+      0.24919211864471436
+    ],
+    "material": "game/assets/materials/garment-laced-boots.tres",
+    "material_count": 1,
+    "lod_triangles": {
+      "WorkBoots_lod0": 4768,
+      "WorkBoots_lod1": 2002,
+      "WorkBoots_lod2": 762
+    },
+    "hull_triangles": 54
+  },
+  "files": {
+    "game/assets/items/work-boots.glb": {
+      "sha256": "17f84decd555101f680c5146c3388112838b30ff27c22c3e505c329c5f4a9f0b",
+      "bytes": 203572
+    },
+    "game/assets/items/work-boots.glb.import": {
+      "sha256": "d71ad38573d51ae607956cca1824d0edf551e0c6d6a975937406c84a48b8182c",
+      "bytes": 1378
+    },
+    "game/assets/items/icons/128/work-boots.png": {
+      "sha256": "dd0238c25578a9a0fc44a4a35e6c0bb06fd2cb4cd70a9befc61a26c043df8803",
+      "bytes": 17778
+    },
+    "game/assets/items/icons/128/work-boots.png.import": {
+      "sha256": "37bf09e5c7d054815270e58f2d33d516884be051b60ac81293541e84e97109e0",
+      "bytes": 956
+    },
+    "game/assets/items/icons/256/work-boots.png": {
+      "sha256": "e5f63b48fd1f82c39c3f90a012ecfe5f94c21cb817b69ae7cfdfc996319dbad0",
+      "bytes": 59177
+    },
+    "game/assets/items/icons/256/work-boots.png.import": {
+      "sha256": "421a19b0d7c3658f7a281153efe694eb4e172c6659a56eb577561f3b33687393",
+      "bytes": 956
+    },
+    "game/assets/materials/garment-laced-boots.tres": {
+      "sha256": "120054db36bb3b5e302e66e24c4dbb86e2ac10d44c7b4743f6774d9ee2e66118",
+      "bytes": 1121
+    },
+    "game/assets/characters/clothing.glb": {
+      "sha256": "c5d78471f97429dce027f65915278d19733578b73e407822a05aef5bec62bd1b",
+      "bytes": 3204960
+    },
+    "game/shaders/character_cloth.gdshader": {
+      "sha256": "4f1bea15d8b2abfb97274b4af0662bde54ad543660a98b01e49025859dcb5de4",
+      "bytes": 327
+    },
+    "game/shaders/character_cloth.gdshaderinc": {
+      "sha256": "30aabd93bdb406ad5f1525923c9ca7585f19a6a7d5fc7b0b67b0a562cc0c438e",
+      "bytes": 1656
+    },
+    "game/shaders/character_common.gdshaderinc": {
+      "sha256": "4d5697bde5469a263499f9cfda6df8d29f7f9a5e5a77fcf25ab0309b05dcb7fe",
+      "bytes": 1193
+    },
+    "game/assets/characters/textures/laced_boots_albedo.png": {
+      "sha256": "b670121a28c0aa8bdfeb9f8ba5db40a671fd5aa8ea6f41586a28cfafa93a28fb",
+      "bytes": 55761
+    },
+    "game/assets/characters/textures/laced_boots_albedo.png.import": {
+      "sha256": "188de3fc2dfcf257f36a5b7441bd78aca0ef2e626ef7dc9e6d3ec7fc734b5403",
+      "bytes": 1033
+    },
+    "game/assets/characters/textures/laced_boots_normal.png": {
+      "sha256": "b8706694dd36c19eaeaa84e6123d0ab9f1926fb77f7054b87d8fced3fdcab6e2",
+      "bytes": 171929
+    },
+    "game/assets/characters/textures/laced_boots_normal.png.import": {
+      "sha256": "5bc55846f8aff84c95a22d3471e243416cdcd07618b48642c52dde07d74d290f",
+      "bytes": 1033
+    },
+    "game/assets/characters/textures/laced_boots_orm.png": {
+      "sha256": "d2414a58d43815021bd01d603d554a03f981f8d4abf26385d816da8ab6ff076d",
+      "bytes": 41873
+    },
+    "game/assets/characters/textures/laced_boots_orm.png.import": {
+      "sha256": "95f5a17c1bec3624c9189eff75e9d7008e8ae69c9f7b2a6fcdbbb59758368301",
+      "bytes": 1024
+    },
+    "game/assets/characters/textures/leather_normal.png": {
+      "sha256": "11d613316ae31fe5dfc32e218199d4401badf72b0b7f15269fa6b60a07afd2a3",
+      "bytes": 723787
+    },
+    "game/assets/characters/textures/leather_normal.png.import": {
+      "sha256": "c885978b7b493ec690a04627b2b26b174cd013dfb8f61741954a15272560b104",
+      "bytes": 1021
+    }
+  }
+}

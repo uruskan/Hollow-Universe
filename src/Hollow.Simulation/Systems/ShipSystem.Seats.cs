@@ -149,7 +149,19 @@ public sealed partial class ShipSystem
         p.DrawStartTick = -1;
         if (ship.Def.Seats[seat].Flies)
         {
-            ship.Input = default;
+            ship.Input = ship.Input.Unattended();
+            if (!p.Sleeping)
+            {
+                // Its engine is the pilot's now: one started by hand no longer idles by itself. One that needs a pilot
+                // (VEHICLES.md §6.5) runs while they sit here, switched off by hand or not, and stops when they leave.
+                ship.HandStarted = false;
+                if (ship.Def.NeedsPilot)
+                {
+                    ship.State.Flags &= ~ShipFlags.EngineStopped;
+                }
+            }
+            // Restore seats sleepers before their reconnect; preserve their saved target until they actually wake.
+            if (!p.Sleeping) ShipAttitudeHold.Clear(ref ship.State);
         }
         ship.DetailsRevision++;
         Carry(entity, ship, seat);
@@ -182,10 +194,6 @@ public sealed partial class ShipSystem
         if (PlayerOf(entity) is not { Dead: false } || !TrySeat(entity, out Ship ship, out ShipSeatDef seat))
         {
             return OutcomeCode.Invalid;
-        }
-        if (ship.Frame == null && (ship.InOrbit || !ShipStill(ship)))
-        {
-            return OutcomeCode.NotLanded;
         }
         if (ship.InOrbit)
         {
@@ -220,7 +228,7 @@ public sealed partial class ShipSystem
         {
             case SeatRelease.Disconnected:
             case SeatRelease.Disabled:
-                if (ship.InOrbit || (ship.Frame == null && !ShipStill(ship)) || !ExitPoint(ship, seat, out Vector3 at))
+                if (ship.InOrbit || !ExitPoint(ship, seat, out Vector3 at))
                 {
                     return false;
                 }
@@ -244,7 +252,8 @@ public sealed partial class ShipSystem
             ship.Occupants[seat] = EntityId.None;
             if (ship.Def.Seats[seat].Flies)
             {
-                ship.Input = default;
+                ship.Input = ship.Input.Unattended();
+                ReconcileAttitudeHold(ship);
             }
         }
         if (Entities.Has<ShipSeat>(entity))
@@ -276,6 +285,13 @@ public sealed partial class ShipSystem
         {
             Vector3 up = Frame.UpAt(at);
             c.State.Frame = 0;
+            if (!ShipStill(ship))
+            {
+                // Leaving an exposed aircraft seat inherits the velocity at its exit socket; gravity takes over.
+                Vector3 spin = Vector3.Transform(ship.State.AngularVelocity, ship.State.Rotation);
+                c.State.Velocity = ship.State.Velocity + Vector3.Cross(spin, at - ship.State.Position);
+                c.State.Flags = MoveFlags.None;
+            }
             c.Input.View = Facing.View(ShipMotor.YawOf(ship.State.Rotation, up), 0, up);
             c.Input.Frame = 0;
             Physics.EnsureGround(at);
@@ -299,7 +315,8 @@ public sealed partial class ShipSystem
                 ship.DetailsRevision++;
                 if (ship.Def.Seats[seat].Flies)
                 {
-                    ship.Input = default;
+                    ship.Input = ship.Input.Unattended();
+                    ReconcileAttitudeHold(ship);
                 }
                 continue;
             }
@@ -314,6 +331,11 @@ public sealed partial class ShipSystem
                 {
                     ship.Occupants[seat] = EntityId.None;
                     ship.DetailsRevision++;
+                    if (ship.Def.Seats[seat].Flies)
+                    {
+                        ship.Input = ship.Input.Unattended();
+                        ReconcileAttitudeHold(ship);
+                    }
                 }
             }
         }
@@ -346,7 +368,7 @@ public sealed partial class ShipSystem
 
     // The first exit of a seat whose spot is clear: aboard a ship people walk in, a standing capsule on a floor in its space
     // (in the ship's frame, at its parts' states); on one they only sit in, a spot on the ground below the exit, clear of
-    // the hull, deployables, trees and walls, no drop and no bank.
+    // the hull, deployables, trees and walls, no drop and no bank (over deep water, the exit itself: they swim).
     private bool ExitPoint(Ship ship, ShipSeatDef seat, out Vector3 at)
     {
         Vector3 up = Frame.UpAt(ship.State.Position);
@@ -373,7 +395,28 @@ public sealed partial class ShipSystem
             foreach (ShipSocket exit in seat.Exits)
             {
                 Vector3 point = ship.PointOf(exit.Position);
+                if (!ShipStill(ship))
+                {
+                    // In flight, leave beside the hull at the authored exit, never teleport down to the surface.
+                    if (!InsideHull(ship, point, up) && CapsuleClear(point, up))
+                    {
+                        at = point;
+                        return true;
+                    }
+                    continue;
+                }
                 Vector3 ground = Settle(point);
+                if (Ground.InWater(ground, -1f))
+                {
+                    // Over water deeper than a metre (a boat afloat on the sea or a lake): over the side at the authored
+                    // exit, into the water to swim, never down to the bottom; in the shallows they stand as on land.
+                    if (!InsideHull(ship, point, up) && CapsuleClear(point, up))
+                    {
+                        at = point;
+                        return true;
+                    }
+                    continue;
+                }
                 if (Vector3.Dot(point - ground, up) > ExitHeight + 1 || Vector3.Dot(ground - point, up) > 1.5f)
                 {
                     continue; // a drop or a bank there

@@ -1,7 +1,7 @@
 {
   "size": 4096,
   "roughHeightSize": 2048,
-  "layers": [
+  "textures": [
     {
       "index": 0,
       "key": "grass",
@@ -17,6 +17,11 @@
         0.4271,
         0.3282,
         0.2444
+      ],
+      "meanLinear": [
+        0.1548,
+        0.0896,
+        0.0499
       ],
       "roughness": 0.765
     },
@@ -36,6 +41,11 @@
         0.3884,
         0.3201
       ],
+      "meanLinear": [
+        0.2075,
+        0.1762,
+        0.1203
+      ],
       "roughness": 0.838
     },
     {
@@ -53,6 +63,11 @@
         0.7154,
         0.5478,
         0.3917
+      ],
+      "meanLinear": [
+        0.4795,
+        0.2688,
+        0.1327
       ],
       "roughness": 0.92
     },
@@ -72,7 +87,12 @@
         0.465,
         0.4308
       ],
-      "roughness": 0.904
+      "meanLinear": [
+        0.2267,
+        0.1998,
+        0.1716
+      ],
+      "roughness": 0.903
     },
     {
       "index": 4,
@@ -89,6 +109,11 @@
         0.2617,
         0.2185,
         0.1784
+      ],
+      "meanLinear": [
+        0.061,
+        0.0434,
+        0.03
       ],
       "roughness": 0.847
     },
@@ -108,6 +133,11 @@
         0.3778,
         0.3094
       ],
+      "meanLinear": [
+        0.1676,
+        0.1195,
+        0.0791
+      ],
       "roughness": 0.778
     },
     {
@@ -126,7 +156,12 @@
         0.9006,
         0.9007
       ],
-      "roughness": 0.888
+      "meanLinear": [
+        0.7908,
+        0.7909,
+        0.791
+      ],
+      "roughness": 0.887
     },
     {
       "index": 7,
@@ -143,6 +178,11 @@
         0.4156,
         0.3508,
         0.2643
+      ],
+      "meanLinear": [
+        0.1575,
+        0.1121,
+        0.0673
       ],
       "roughness": 0.9
     },
@@ -162,6 +202,11 @@
         0.1575,
         0.0737
       ],
+      "meanLinear": [
+        0.039,
+        0.0266,
+        0.0096
+      ],
       "roughness": 0.764
     },
     {
@@ -179,6 +224,11 @@
         0.4041,
         0.3495,
         0.2521
+      ],
+      "meanLinear": [
+        0.1694,
+        0.124,
+        0.0681
       ],
       "roughness": 0.783
     },
@@ -198,6 +248,11 @@
         0.1276,
         0.0832
       ],
+      "meanLinear": [
+        0.0199,
+        0.0173,
+        0.0097
+      ],
       "roughness": 0.747
     },
     {
@@ -215,6 +270,11 @@
         0.315,
         0.2716,
         0.1271
+      ],
+      "meanLinear": [
+        0.0868,
+        0.0639,
+        0.0184
       ],
       "roughness": 0.944
     },
@@ -234,6 +294,11 @@
         0.1721,
         0.1194
       ],
+      "meanLinear": [
+        0.037,
+        0.0306,
+        0.0184
+      ],
       "roughness": 0.88
     },
     {
@@ -251,6 +316,11 @@
         0.457,
         0.2669,
         0.1895
+      ],
+      "meanLinear": [
+        0.1779,
+        0.0589,
+        0.0308
       ],
       "roughness": 0.87
     },
@@ -270,6 +340,11 @@
         0.3444,
         0.2542
       ],
+      "meanLinear": [
+        0.2544,
+        0.1036,
+        0.0579
+      ],
       "roughness": 0.852
     },
     {
@@ -288,7 +363,818 @@
         0.4618,
         0.4786
       ],
-      "roughness": 0.243
+      "meanLinear": [
+        0.1956,
+        0.1975,
+        0.2113
+      ],
+      "roughness": 0.242
+    },
+    {
+      "index": 16,
+      "key": "forest_floor_2",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "16_forest_floor_2_albedo.jpg",
+      "normal": "16_forest_floor_2_normal.jpg",
+      "roughHeight": "16_forest_floor_2_rh.webp",
+      "meanColour": [
+        0.365,
+        0.2462,
+        0.1684
+      ],
+      "meanLinear": [
+        0.1147,
+        0.0532,
+        0.0267
+      ],
+      "roughness": 0.847
+    },
+    {
+      "index": 17,
+      "key": "coastal_rock",
+      "metres": 2.4,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "17_coastal_rock_albedo.webp",
+      "normal": "17_coastal_rock_normal.webp",
+      "roughHeight": "17_coastal_rock_rh.webp",
+      "meanColour": [
+        0.3996,
+        0.3446,
+        0.2761
+      ],
+      "meanLinear": [
+        0.1397,
+        0.1017,
+        0.0652
+      ],
+      "roughness": 0.823
+    },
+    {
+      "index": 18,
+      "key": "desert_gravel",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "18_desert_gravel_albedo.jpg",
+      "normal": "18_desert_gravel_normal.jpg",
+      "roughHeight": "18_desert_gravel_rh.webp",
+      "meanColour": [
+        0.5008,
+        0.3798,
+        0.3169
+      ],
+      "meanLinear": [
+        0.2192,
+        0.125,
+        0.0878
+      ],
+      "roughness": 0.857
+    },
+    {
+      "index": 19,
+      "key": "tundra_gravel",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "19_tundra_gravel_albedo.jpg",
+      "normal": "19_tundra_gravel_normal.jpg",
+      "roughHeight": "19_tundra_gravel_rh.webp",
+      "meanColour": [
+        0.2511,
+        0.2113,
+        0.1743
+      ],
+      "meanLinear": [
+        0.0607,
+        0.0446,
+        0.0322
+      ],
+      "roughness": 0.791
+    },
+    {
+      "index": 20,
+      "key": "pebbly_sand",
+      "metres": 2.5,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "20_pebbly_sand_albedo.jpg",
+      "normal": "20_pebbly_sand_normal.jpg",
+      "roughHeight": "20_pebbly_sand_rh.webp",
+      "meanColour": [
+        0.5512,
+        0.5308,
+        0.4632
+      ],
+      "meanLinear": [
+        0.267,
+        0.2466,
+        0.187
+      ],
+      "roughness": 0.858
+    },
+    {
+      "index": 21,
+      "key": "desert_sand",
+      "metres": 4.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "21_desert_sand_albedo.jpg",
+      "normal": "21_desert_sand_normal.jpg",
+      "roughHeight": "21_desert_sand_rh.webp",
+      "meanColour": [
+        0.4226,
+        0.2915,
+        0.2199
+      ],
+      "meanLinear": [
+        0.1517,
+        0.0705,
+        0.0407
+      ],
+      "roughness": 0.85
+    },
+    {
+      "index": 22,
+      "key": "icy_grass",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "22_icy_grass_albedo.jpg",
+      "normal": "22_icy_grass_normal.jpg",
+      "roughHeight": "22_icy_grass_rh.webp",
+      "meanColour": [
+        0.3897,
+        0.3419,
+        0.2676
+      ],
+      "meanLinear": [
+        0.1505,
+        0.1255,
+        0.1002
+      ],
+      "roughness": 0.739
+    },
+    {
+      "index": 23,
+      "key": "melting_snow",
+      "metres": 2.5,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "23_melting_snow_albedo.jpg",
+      "normal": "23_melting_snow_normal.jpg",
+      "roughHeight": "23_melting_snow_rh.webp",
+      "meanColour": [
+        0.8621,
+        0.8622,
+        0.862
+      ],
+      "meanLinear": [
+        0.7165,
+        0.7166,
+        0.7163
+      ],
+      "roughness": 0.448
+    },
+    {
+      "index": 24,
+      "key": "snow_cliff",
+      "metres": 2.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "24_snow_cliff_albedo.jpg",
+      "normal": "24_snow_cliff_normal.jpg",
+      "roughHeight": "24_snow_cliff_rh.webp",
+      "meanColour": [
+        0.8694,
+        0.8694,
+        0.8694
+      ],
+      "meanLinear": [
+        0.7301,
+        0.7301,
+        0.7301
+      ],
+      "roughness": 0.749
+    },
+    {
+      "index": 25,
+      "key": "damp_sand",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "25_damp_sand_albedo.jpg",
+      "normal": "25_damp_sand_normal.webp",
+      "roughHeight": "25_damp_sand_rh.webp",
+      "meanColour": [
+        0.4875,
+        0.3686,
+        0.2168
+      ],
+      "meanLinear": [
+        0.2081,
+        0.1167,
+        0.0422
+      ],
+      "roughness": 0.897
+    },
+    {
+      "index": 26,
+      "key": "gravelly_sand",
+      "metres": 2.5,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "26_gravelly_sand_albedo.jpg",
+      "normal": "26_gravelly_sand_normal.webp",
+      "roughHeight": "26_gravelly_sand_rh.webp",
+      "meanColour": [
+        0.5715,
+        0.4335,
+        0.2983
+      ],
+      "meanLinear": [
+        0.2954,
+        0.1649,
+        0.0787
+      ],
+      "roughness": 0.788
+    },
+    {
+      "index": 27,
+      "key": "sleet_gravel",
+      "metres": 2.5,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "27_sleet_gravel_albedo.jpg",
+      "normal": "27_sleet_gravel_normal.jpg",
+      "roughHeight": "27_sleet_gravel_rh.webp",
+      "meanColour": [
+        0.652,
+        0.6638,
+        0.6875
+      ],
+      "meanLinear": [
+        0.4218,
+        0.4379,
+        0.4771
+      ],
+      "roughness": 0.871
+    },
+    {
+      "index": 28,
+      "key": "tundra_rocky",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "28_tundra_rocky_albedo.jpg",
+      "normal": "28_tundra_rocky_normal.jpg",
+      "roughHeight": "28_tundra_rocky_rh.webp",
+      "meanColour": [
+        0.1466,
+        0.1207,
+        0.0821
+      ],
+      "meanLinear": [
+        0.0253,
+        0.0198,
+        0.0129
+      ],
+      "roughness": 0.852
+    },
+    {
+      "index": 29,
+      "key": "lichened_rock",
+      "metres": 2.5,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "29_lichened_rock_albedo.jpg",
+      "normal": "29_lichened_rock_normal.jpg",
+      "roughHeight": "29_lichened_rock_rh.webp",
+      "meanColour": [
+        0.4117,
+        0.3545,
+        0.3114
+      ],
+      "meanLinear": [
+        0.1709,
+        0.1312,
+        0.1057
+      ],
+      "roughness": 0.868
+    },
+    {
+      "index": 30,
+      "key": "snowy_stones",
+      "metres": 2.5,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "30_snowy_stones_albedo.jpg",
+      "normal": "30_snowy_stones_normal.jpg",
+      "roughHeight": "30_snowy_stones_rh.webp",
+      "meanColour": [
+        0.824,
+        0.8162,
+        0.8291
+      ],
+      "meanLinear": [
+        0.6588,
+        0.6447,
+        0.6688
+      ],
+      "roughness": 0.916
+    },
+    {
+      "index": 31,
+      "key": "outback_rocky",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "31_outback_rocky_albedo.jpg",
+      "normal": "31_outback_rocky_normal.jpg",
+      "roughHeight": "31_outback_rocky_rh.webp",
+      "meanColour": [
+        0.5774,
+        0.3741,
+        0.2809
+      ],
+      "meanLinear": [
+        0.3038,
+        0.1266,
+        0.0757
+      ],
+      "roughness": 0.873
+    },
+    {
+      "index": 32,
+      "key": "desert_sand_fine",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "32_desert_sand_fine_albedo.jpg",
+      "normal": "32_desert_sand_fine_normal.jpg",
+      "roughHeight": "32_desert_sand_fine_rh.webp",
+      "meanColour": [
+        0.4595,
+        0.2725,
+        0.189
+      ],
+      "meanLinear": [
+        0.1796,
+        0.061,
+        0.0302
+      ],
+      "roughness": 0.886
+    },
+    {
+      "index": 33,
+      "key": "ice_wall",
+      "metres": 3.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "33_ice_wall_albedo.jpg",
+      "normal": "33_ice_wall_normal.jpg",
+      "roughHeight": "33_ice_wall_rh.webp",
+      "meanColour": [
+        0.8002,
+        0.8033,
+        0.7981
+      ],
+      "meanLinear": [
+        0.6093,
+        0.6141,
+        0.6057
+      ],
+      "roughness": 0.685
+    },
+    {
+      "index": 34,
+      "key": "meadow",
+      "metres": 2.0,
+      "flip": [
+        1.0,
+        1.0
+      ],
+      "albedo": "34_meadow_albedo.webp",
+      "normal": "34_meadow_normal.webp",
+      "roughHeight": "34_meadow_rh.webp",
+      "meanColour": [
+        0.5924,
+        0.5153,
+        0.3497
+      ],
+      "meanLinear": [
+        0.3294,
+        0.2423,
+        0.1106
+      ],
+      "roughness": 0.685
+    }
+  ],
+  "layers": [
+    {
+      "index": 0,
+      "key": "grass",
+      "texture": 0,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": [
+        {
+          "texture": 11,
+          "select": "lush-patch",
+          "gain": [
+            1.15,
+            1.15,
+            1.05
+          ]
+        },
+        {
+          "texture": 34,
+          "select": "lush",
+          "gain": [
+            0.5,
+            0.92,
+            0.48
+          ]
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "key": "forest_floor",
+      "texture": 1,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": [
+        {
+          "texture": 16,
+          "select": "noise",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "key": "soil",
+      "texture": 2,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": []
+    },
+    {
+      "index": 3,
+      "key": "rock",
+      "texture": 3,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": [
+        {
+          "texture": 17,
+          "select": "noise",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "key": "gravel",
+      "texture": 4,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": [
+        {
+          "texture": 18,
+          "select": "heat",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "texture": 19,
+          "select": "cold",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "key": "sand",
+      "texture": 5,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": [
+        {
+          "texture": 20,
+          "select": "noise",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "texture": 21,
+          "select": "heat",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "key": "snow",
+      "texture": 6,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": [
+        {
+          "texture": 22,
+          "select": "snowline",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "texture": 23,
+          "select": "thaw",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "texture": 24,
+          "select": "steep",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "index": 7,
+      "key": "moss",
+      "texture": 7,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": []
+    },
+    {
+      "index": 8,
+      "key": "wet_sand",
+      "texture": 8,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": [
+        {
+          "texture": 25,
+          "select": "noise",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "index": 9,
+      "key": "shingle",
+      "texture": 9,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": [
+        {
+          "texture": 26,
+          "select": "noise",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "texture": 27,
+          "select": "cold",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "index": 10,
+      "key": "wet_grass",
+      "texture": 10,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": []
+    },
+    {
+      "index": 11,
+      "key": "mossy_floor",
+      "texture": 11,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": []
+    },
+    {
+      "index": 12,
+      "key": "tundra",
+      "texture": 12,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": [
+        {
+          "texture": 28,
+          "select": "noise",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "texture": 29,
+          "select": "steep",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "texture": 30,
+          "select": "cold",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "index": 13,
+      "key": "sandstone",
+      "texture": 13,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": []
+    },
+    {
+      "index": 14,
+      "key": "dry_earth",
+      "texture": 14,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": [
+        {
+          "texture": 31,
+          "select": "noise",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        },
+        {
+          "texture": 32,
+          "select": "noise",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
+    },
+    {
+      "index": 15,
+      "key": "ice",
+      "texture": 15,
+      "gain": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "variants": [
+        {
+          "texture": 33,
+          "select": "steep",
+          "gain": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ]
     }
   ]
 }

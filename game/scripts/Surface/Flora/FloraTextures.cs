@@ -10,7 +10,7 @@ namespace HollowUniverse.Surface.Flora;
 /// fronds, flowers and twigs; and tiling bark (grooved, and birch) with normal maps. The atlas's mipmaps keep the
 /// alpha-tested coverage of each cell, so far foliage doesn't thin out.
 /// </summary>
-public static class FloraTextures
+public static partial class FloraTextures
 {
     public const int AtlasSize = 2048;
     public const int Cell = 512;
@@ -152,15 +152,21 @@ public static class FloraTextures
             }
         }
 
-        // Grass blades from the bottom of the cell up: dark at the base, light at the tips.
-        void Blades(Painter p, float s, int n, int[][] pal, double hmin, double hmax, double wmax)
+        // Connected blades with separated roots: this painted alpha is the grass's sole silhouette mask.
+        // Consume the original six draws for all original iterations so every other atlas cell stays unchanged.
+        void Blades(Painter p, float s, int originalDrawCount, int blades, int[][] pal, double hmin, double hmax)
         {
-            for (int k = 0; k < n; k++)
+            float spacing = s * 0.92f / blades;
+            for (int k = 0; k < originalDrawCount; k++)
             {
-                float x = (float)(s * (0.04 + 0.92 * R())), h = (float)(s * (hmin + (hmax - hmin) * R())), w = (float)(4 + R() * wmax);
+                double rootRoll = R(), heightRoll = R(), widthRoll = R();
                 float lean = (float)((R() - 0.5) * s * 0.35);
                 int[] c = pal[(int)(R() * pal.Length)];
                 double sh = 0.75 + 0.45 * R();
+                if (k >= blades) continue;
+                float x = s * 0.04f + spacing * (k + 0.35f + 0.3f * (float)rootRoll);
+                float h = (float)(s * (hmin + (hmax - hmin) * heightRoll));
+                float w = spacing * (0.4f + 0.25f * (float)widthRoll);
                 float top = s - h;
                 p.BeginPath();
                 p.MoveTo(x - w / 2, s);
@@ -189,9 +195,9 @@ public static class FloraTextures
         At(BirchLeaf, (p, s) => Cluster(p, s, P(new[] { 112, 140, 50 }, new[] { 128, 152, 58 }, new[] { 96, 126, 44 }, new[] { 140, 160, 70 }), 420, 18, 30, 0.6, Rgba(90, 80, 70)));
         At(Bush, (p, s) => Cluster(p, s, P(new[] { 50, 82, 36 }, new[] { 62, 96, 42 }, new[] { 42, 70, 30 }), 700, 16, 28, 0.55, null));
         At(Berry, (p, s) => Cluster(p, s, P(new[] { 40, 74, 40 }, new[] { 50, 86, 46 }, new[] { 34, 62, 34 }), 620, 18, 30, 0.5, null));
-        At(Grass, (p, s) => Blades(p, s, 150, P(new[] { 200, 220, 170 }, new[] { 186, 206, 150 }, new[] { 214, 226, 184 }), 0.45, 0.98, 12));
-        At(DryGrass, (p, s) => Blades(p, s, 110, P(new[] { 226, 204, 150 }, new[] { 206, 186, 132 }, new[] { 236, 218, 170 }), 0.35, 0.95, 9));
-        At(Meadow, (p, s) => Blades(p, s, 90, P(new[] { 196, 222, 160 }, new[] { 220, 214, 150 }, new[] { 180, 204, 140 }), 0.55, 0.99, 7));
+        At(Grass, (p, s) => Blades(p, s, 150, 24, P(new[] { 200, 220, 170 }, new[] { 186, 206, 150 }, new[] { 214, 226, 184 }), 0.45, 0.98));
+        At(DryGrass, (p, s) => Blades(p, s, 110, 18, P(new[] { 226, 204, 150 }, new[] { 206, 186, 132 }, new[] { 236, 218, 170 }), 0.35, 0.95));
+        At(Meadow, (p, s) => Blades(p, s, 90, 20, P(new[] { 196, 222, 160 }, new[] { 220, 214, 150 }, new[] { 180, 204, 140 }), 0.55, 0.99));
 
         // Fern frond: a rachis from the bottom centre to the top, pinnae on both sides.
         At(Fern, (p, s) =>
@@ -293,15 +299,25 @@ public static class FloraTextures
     /// <summary>Spreads colour into fully transparent texels, so filtering at leaf edges blends with leaf colour, not black.</summary>
     public static void Dilate(float[] px, int w, int h, int passes)
     {
+        if (passes <= 0) return;
+        DilateRows(px, w, h, passes, new float[w * 4 * 3]);
+    }
+
+    // Each pass reads the previous pass's neighbours. Three untouched scanlines preserve that rule, including
+    // neighbours across atlas cells, without copying the entire float atlas for every pass.
+    private static void DilateRows(float[] px, int w, int h, int passes, float[] copy)
+    {
+        int stride = w * 4;
         for (int pass = 0; pass < passes; pass++)
         {
-            var copy = (float[])px.Clone();
+            Array.Copy(px, 0, copy, 0, stride);
             for (int y = 0; y < h; y++)
             {
+                if (y + 1 < h) Array.Copy(px, (y + 1) * stride, copy, ((y + 1) % 3) * stride, stride);
                 for (int x = 0; x < w; x++)
                 {
                     int k = (y * w + x) * 4;
-                    if (copy[k + 3] > 0.01f)
+                    if (copy[(y % 3) * stride + x * 4 + 3] > 0.01f)
                     {
                         continue;
                     }
@@ -315,7 +331,7 @@ public static class FloraTextures
                             {
                                 continue;
                             }
-                            int q = (yy * w + xx) * 4;
+                            int q = ((yy % 3) * w + xx) * 4;
                             float a = copy[q + 3] > 0.01f ? 1 : (copy[q] + copy[q + 1] + copy[q + 2] > 0 ? 0.5f : 0);
                             if (a <= 0)
                             {
@@ -344,93 +360,120 @@ public static class FloraTextures
     /// </summary>
     public static Image WithCoverageMipmaps(float[] level0, int width, int height, int cellsX, int cellsY)
     {
-        var levels = new System.Collections.Generic.List<float[]> { level0 };
-        var sizes = new System.Collections.Generic.List<(int W, int H)> { (width, height) };
         float[] coverage = CellCoverage(level0, width, height, cellsX, cellsY, 1);
-        while (sizes[^1].W > 1 || sizes[^1].H > 1)
-        {
-            (int sw, int sh) = sizes[^1];
-            int w = Math.Max(1, sw / 2), h = Math.Max(1, sh / 2);
-            float[] src = levels[^1];
-            var dst = new float[w * h * 4];
-            for (int y = 0; y < h; y++)
-            {
-                for (int x = 0; x < w; x++)
-                {
-                    float r = 0, g = 0, b = 0, a = 0;
-                    for (int j = 0; j < 2; j++)
-                    {
-                        for (int i = 0; i < 2; i++)
-                        {
-                            int sx = Math.Min(sw - 1, 2 * x + i), sy = Math.Min(sh - 1, 2 * y + j);
-                            int k = (sy * sw + sx) * 4;
-                            r += src[k];
-                            g += src[k + 1];
-                            b += src[k + 2];
-                            a += src[k + 3];
-                        }
-                    }
-                    int o = (y * w + x) * 4;
-                    dst[o] = r / 4;
-                    dst[o + 1] = g / 4;
-                    dst[o + 2] = b / 4;
-                    dst[o + 3] = a / 4;
-                }
-            }
-            if (w >= cellsX * 2 && h >= cellsY * 2)
-            {
-                // Scale each cell's alpha so its coverage at 0.5 matches the full-size texture.
-                int cw = w / cellsX, ch = h / cellsY;
-                for (int cy = 0; cy < cellsY; cy++)
-                {
-                    for (int cx = 0; cx < cellsX; cx++)
-                    {
-                        float want = coverage[cy * cellsX + cx];
-                        float lo = 0.5f, hi = 8f;
-                        for (int it = 0; it < 12; it++)
-                        {
-                            float mid = (lo + hi) / 2;
-                            float got = Coverage(dst, w, cx * cw, cy * ch, cw, ch, mid);
-                            if (got < want)
-                            {
-                                lo = mid;
-                            }
-                            else
-                            {
-                                hi = mid;
-                            }
-                        }
-                        float scale = (lo + hi) / 2;
-                        for (int y = cy * ch; y < (cy + 1) * ch; y++)
-                        {
-                            for (int x = cx * cw; x < (cx + 1) * cw; x++)
-                            {
-                                int k = (y * w + x) * 4 + 3;
-                                dst[k] = Math.Min(1, dst[k] * scale);
-                            }
-                        }
-                    }
-                }
-            }
-            levels.Add(dst);
-            sizes.Add((w, h));
-        }
-        int total = 0;
-        foreach (float[] level in levels)
-        {
-            total += level.Length;
-        }
-        var bytes = new byte[total];
-        int offset = 0;
-        foreach (float[] level in levels)
-        {
-            for (int i = 0; i < level.Length; i++)
-            {
-                bytes[offset + i] = (byte)Math.Clamp((int)(level[i] * 255 + 0.5f), 0, 255);
-            }
-            offset += level.Length;
-        }
+        var bytes = new byte[MipByteCount(width, height)];
+        PackLevel(level0, width * height * 4, bytes, 0);
+        AppendCoverageMipmaps(level0, width, height, cellsX, cellsY, coverage, bytes, width * height * 4, false);
         return Image.CreateFromData(width, height, true, Image.Format.Rgba8, bytes);
+    }
+
+    // Keep only two adjacent working levels. The supplied level is borrowed by the painted atlas path, and owned
+    // by the impostor path (where its already-packed pixels can be reused after the next level has read them).
+    private static void AppendCoverageMipmaps(float[] level, int width, int height, int cellsX, int cellsY,
+        float[] coverage, byte[] bytes, int offset, bool reuseLevel)
+    {
+        if (width == 1 && height == 1) return;
+        int nw = Math.Max(1, width / 2), nh = Math.Max(1, height / 2);
+        var a = new float[nw * nh * 4];
+        var b = reuseLevel ? level : new float[Math.Max(1, nw / 2) * Math.Max(1, nh / 2) * 4];
+        float[] src = level, dst = a;
+        int sw = width, sh = height;
+        while (sw > 1 || sh > 1)
+        {
+            int w = Math.Max(1, sw / 2), h = Math.Max(1, sh / 2);
+            DownsampleLevel(src, sw, sh, dst, w, h);
+            PreserveCoverage(dst, w, h, cellsX, cellsY, coverage);
+            int count = w * h * 4;
+            PackLevel(dst, count, bytes, offset);
+            offset += count;
+            src = dst;
+            dst = ReferenceEquals(dst, a) ? b : a;
+            sw = w; sh = h;
+        }
+    }
+
+    private static void DownsampleLevel(float[] src, int sw, int sh, float[] dst, int w, int h)
+    {
+        for (int y = 0; y < h; y++)
+        {
+            for (int x = 0; x < w; x++)
+            {
+                float r = 0, g = 0, b = 0, a = 0;
+                for (int j = 0; j < 2; j++)
+                {
+                    for (int i = 0; i < 2; i++)
+                    {
+                        int sx = Math.Min(sw - 1, 2 * x + i), sy = Math.Min(sh - 1, 2 * y + j);
+                        int k = (sy * sw + sx) * 4;
+                        r += src[k];
+                        g += src[k + 1];
+                        b += src[k + 2];
+                        a += src[k + 3];
+                    }
+                }
+                int o = (y * w + x) * 4;
+                dst[o] = r / 4;
+                dst[o + 1] = g / 4;
+                dst[o + 2] = b / 4;
+                dst[o + 3] = a / 4;
+            }
+        }
+    }
+
+    private static void PreserveCoverage(float[] dst, int w, int h, int cellsX, int cellsY, float[] coverage)
+    {
+        if (w >= cellsX * 2 && h >= cellsY * 2)
+        {
+            // Scale each cell's alpha so its coverage at 0.5 matches the full-size texture.
+            int cw = w / cellsX, ch = h / cellsY;
+            for (int cy = 0; cy < cellsY; cy++)
+            {
+                for (int cx = 0; cx < cellsX; cx++)
+                {
+                    float want = coverage[cy * cellsX + cx];
+                    float lo = 0.5f, hi = 8f;
+                    for (int it = 0; it < 12; it++)
+                    {
+                        float mid = (lo + hi) / 2;
+                        float got = Coverage(dst, w, cx * cw, cy * ch, cw, ch, mid);
+                        if (got < want)
+                        {
+                            lo = mid;
+                        }
+                        else
+                        {
+                            hi = mid;
+                        }
+                    }
+                    float scale = (lo + hi) / 2;
+                    for (int y = cy * ch; y < (cy + 1) * ch; y++)
+                    {
+                        for (int x = cx * cw; x < (cx + 1) * cw; x++)
+                        {
+                            int k = (y * w + x) * 4 + 3;
+                            dst[k] = Math.Min(1, dst[k] * scale);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    internal static int MipByteCount(int width, int height)
+    {
+        int total = 0;
+        while (true)
+        {
+            total = checked(total + width * height * 4);
+            if (width == 1 && height == 1) return total;
+            width = Math.Max(1, width / 2); height = Math.Max(1, height / 2);
+        }
+    }
+
+    private static void PackLevel(float[] level, int count, byte[] bytes, int offset)
+    {
+        for (int i = 0; i < count; i++)
+            bytes[offset + i] = (byte)Math.Clamp((int)(level[i] * 255 + 0.5f), 0, 255);
     }
 
     private static float[] CellCoverage(float[] px, int width, int height, int cellsX, int cellsY, float scale)

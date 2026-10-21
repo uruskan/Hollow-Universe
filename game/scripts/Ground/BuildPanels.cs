@@ -32,11 +32,14 @@ public partial class Keypad : Control
         SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         MouseFilter = MouseFilterEnum.Ignore;
         Visible = false;
+        PrepareTextEntry();
     }
 
     /// <summary>Opens the keypad with a title ("ENTER CODE", "NEW CODE").</summary>
     public void Ask(string title)
     {
+        TextMode = false;
+        _textEntry.Hide();
         _title = title;
         _code = "";
         Visible = true;
@@ -46,6 +49,8 @@ public partial class Keypad : Control
 
     public void Close()
     {
+        _textEntry.ReleaseFocus();
+        _textEntry.Hide();
         Visible = false;
         MouseFilter = MouseFilterEnum.Ignore;
     }
@@ -54,7 +59,7 @@ public partial class Keypad : Control
     {
         get
         {
-            float w = Ui.Pxf(300), h = Ui.Pxf(452);
+            float w = Ui.Pxf(TextMode ? 480 : 300), h = Ui.Pxf(TextMode ? 250 : 452);
             return new Rect2((Size - new Vector2(w, h)) / 2, new Vector2(w, h)).Snapped();
         }
     }
@@ -80,6 +85,7 @@ public partial class Keypad : Control
         DrawRect(d, G.Dialog);
         DrawRect(new Rect2(d.Position, new Vector2(Ui.Pxf(4), d.Size.Y)), G.Red);
         Text(_title, new Vector2(d.Position.X + Ui.Pxf(26), d.Position.Y + Ui.Pxf(48)), 32, G.Ink, condensed: true);
+        if (TextMode) { DrawTextEntry(d); return; }
         // The code: four boxes, a dot for each digit entered.
         float box = Ui.Pxf(44), gap = Ui.Pxf(10);
         float x0 = d.Position.X + (d.Size.X - Digits * box - (Digits - 1) * gap) / 2;
@@ -115,6 +121,7 @@ public partial class Keypad : Control
 
     public override void _GuiInput(InputEvent e)
     {
+        if (TextMode) { TextEntryInput(e); return; }
         switch (e)
         {
             case InputEventMouseMotion motion:
@@ -148,6 +155,14 @@ public partial class Keypad : Control
     {
         if (!Visible || e is not InputEventKey { Pressed: true, Echo: false } key)
         {
+            return;
+        }
+        if (TextMode)
+        {
+            if (key.Keycode == Key.Escape) Close();
+            else if (key.Keycode is Key.Enter or Key.KpEnter) SubmitText();
+            else return; // Editing, Unicode input and clipboard shortcuts belong to LineEdit.
+            GetViewport().SetInputAsHandled();
             return;
         }
         if (key.Keycode is >= Key.Key0 and <= Key.Key9)

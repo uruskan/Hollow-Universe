@@ -1,0 +1,1122 @@
+{
+  "Meshes/FBX/PSG_Node_HQMetal_S01/SM_PSG_Node_HQMetal_S01.fbx": {
+    "bytes": 3009820,
+    "sha256": "f808fe186da2717475a8f05aba3ac57335dcde0b8eead94e613ac8d8a6a3e4d2"
+  },
+  "Meshes/FBX/PSG_Node_HQMetal_S01/SM_PSG_Node_HQMetal_S01_LOD1.fbx": {
+    "bytes": 1347548,
+    "sha256": "9ad7302cc19bd0139c8b5d17eaa4a8e6fb86841711a070324e94623adb0fba24"
+  },
+  "Meshes/FBX/PSG_Node_HQMetal_S01/SM_PSG_Node_HQMetal_S01_LOD2.fbx": {
+    "bytes": 610300,
+    "sha256": "643572e14a14c6ee83b4f7858fe0b866763b318ecf167fc55d416f1fb6dd9948"
+  },
+  "Meshes/FBX/PSG_Node_HQMetal_S01/SM_PSG_Node_HQMetal_S01_LOD3.fbx": {
+    "bytes": 241932,
+    "sha256": "e35ae46084957e93a3b38a1c5438e21ea0cbaf38454d1f31eac2251c548cdfc1"
+  },
+  "Meshes/FBX/PSG_Node_HQMetal_S02/SM_PSG_Node_HQMetal_S02.fbx": {
+    "bytes": 2187340,
+    "sha256": "c2f37a96cc8d4778e237b065621b4c42ce7b3bb2358508ef18f0e1b4caa324aa"
+  },
+  "Meshes/FBX/PSG_Node_HQMetal_S02/SM_PSG_Node_HQMetal_S02_LOD1.fbx": {
+    "bytes": 998172,
+    "sha256": "013e5163602c31367ac49de82071f98ba8bf225c6f5b4b735015c3c9220ac846"
+  },
+  "Meshes/FBX/PSG_Node_HQMetal_S02/SM_PSG_Node_HQMetal_S02_LOD2.fbx": {
+    "bytes": 459452,
+    "sha256": "4049f61f894f21a9cc051d8f8ff5a3dd4e551db02602aff921d5038ded2bee9d"
+  },
+  "Meshes/FBX/PSG_Node_HQMetal_S02/SM_PSG_Node_HQMetal_S02_LOD3.fbx": {
+    "bytes": 185084,
+    "sha256": "a1044481f562f20bdab09ea5ca8912d9db93b154df105ae978b0c11bb4ee80a0"
+  },
+  "Meshes/FBX/PSG_Node_HQMetal_S03/SM_PSG_Node_HQMetal_S03.fbx": {
+    "bytes": 1289708,
+    "sha256": "c2640663360723c990eef0eea46337be0c72898a73f0dd1320b2d087c34a4723"
+  },
+  "Meshes/FBX/PSG_Node_HQMetal_S03/SM_PSG_Node_HQMetal_S03_LOD1.fbx": {
+    "bytes": 628636,
+    "sha256": "dc7d9693db45240324a832ca314eb8fe9f61880d4b8619e1e5ae9e9e0a9992ef"
+  },
+  "Meshes/FBX/PSG_Node_HQMetal_S03/SM_PSG_Node_HQMetal_S03_LOD2.fbx": {
+    "bytes": 292300,
+    "sha256": "bc387a06a39c5f21ebbfd5f2acd92b0fee3dee266d72c02f9187b93f05f50e33"
+  },
+  "Meshes/FBX/PSG_Node_HQMetal_S03/SM_PSG_Node_HQMetal_S03_LOD3.fbx": {
+    "bytes": 124556,
+    "sha256": "34e792685e42b1b706fb77df09be483184d5331604b876d6113466650529d2c6"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S01/SM_PSG_Node_Metal_S01.fbx": {
+    "bytes": 2749180,
+    "sha256": "67801133d076be25f8d6fcf122ea4b66653027b627e3c27dd009f15f0837d71f"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S01/SM_PSG_Node_Metal_S01_LOD1.fbx": {
+    "bytes": 1239436,
+    "sha256": "ccc21dc2237224884f5a2efe341a5c9912fb204e49ddbe3e81e0cf887c15cd0f"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S01/SM_PSG_Node_Metal_S01_LOD2.fbx": {
+    "bytes": 569004,
+    "sha256": "bfdfd8f95bb4c3889b3bac4f63378f2ff594f1f57d7d830e234220235a6d1e74"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S01/SM_PSG_Node_Metal_S01_LOD3.fbx": {
+    "bytes": 226300,
+    "sha256": "db0a4b02cf50f8e81b634250a1a0849870b2c875a8c3db9c86f6cc7321939ccf"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S02/SM_PSG_Node_Metal_S02.fbx": {
+    "bytes": 1871324,
+    "sha256": "8d8a18bf6a9637a88ca3a9842e59ae568d1594ff1d3813eaf6806a0fbd61b5a7"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S02/SM_PSG_Node_Metal_S02_LOD1.fbx": {
+    "bytes": 925228,
+    "sha256": "4d640a84a58ff46034140ccd71ccb6d699b7f7d54030fdf4cfbc64352f5780d1"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S02/SM_PSG_Node_Metal_S02_LOD2.fbx": {
+    "bytes": 424972,
+    "sha256": "893584c42053811a619b30102f42309bec0664d7dde302a7588c13a4014acd84"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S02/SM_PSG_Node_Metal_S02_LOD3.fbx": {
+    "bytes": 172252,
+    "sha256": "69fc6183c9872cc0ce73d4e7b9d96dcc53a0aa93a729cbb35c98bf6e746ccfc5"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S03/SM_PSG_Node_Metal_S03.fbx": {
+    "bytes": 1132988,
+    "sha256": "0eba185ecabeb54253c709ba1423ece26478993c11575b1898f766e09e051be7"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S03/SM_PSG_Node_Metal_S03_LOD1.fbx": {
+    "bytes": 583020,
+    "sha256": "07385c129bd14373136050134bfb82b11738b47c5f2c6c4a805c82cc96a49938"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S03/SM_PSG_Node_Metal_S03_LOD2.fbx": {
+    "bytes": 273404,
+    "sha256": "207bc341758bc984dc64267bdce150e0ec96abb5e755eebac0819f342edfed7b"
+  },
+  "Meshes/FBX/PSG_Node_Metal_S03/SM_PSG_Node_Metal_S03_LOD3.fbx": {
+    "bytes": 117196,
+    "sha256": "1fdce214a0501f265decac49a93bca4c5123d2ce253e97ffff4c11f054e9052d"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S01/SM_PSG_Node_Stone_S01.fbx": {
+    "bytes": 2560620,
+    "sha256": "05191981a2a831d5b28ea796fec50cfbc451de428211d9b8e0476810b2c3429d"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S01/SM_PSG_Node_Stone_S01_LOD1.fbx": {
+    "bytes": 1139340,
+    "sha256": "57615f2fdd5c93c39d51b055419917939daf451ccea0692adfe0c97dd90969ae"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S01/SM_PSG_Node_Stone_S01_LOD2.fbx": {
+    "bytes": 521180,
+    "sha256": "83ba6e64a7501940df455a53a6d0cbd7c32a33a0c8614d7d4206ed0ec81de82b"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S01/SM_PSG_Node_Stone_S01_LOD3.fbx": {
+    "bytes": 208924,
+    "sha256": "5146b06ac874a509e3bc8604f28890c674272c2fd689a0e782c97b27341f32ba"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S02/SM_PSG_Node_Stone_S02.fbx": {
+    "bytes": 1829052,
+    "sha256": "e445af999aee3e5f6bb1f85a0602f5f128549a3d57578019bc56901df054a23d"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S02/SM_PSG_Node_Stone_S02_LOD1.fbx": {
+    "bytes": 848348,
+    "sha256": "fce43e46c85362ce37b1d3e04b076400743ac1148ad889eb61931cabfe9868b0"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S02/SM_PSG_Node_Stone_S02_LOD2.fbx": {
+    "bytes": 389212,
+    "sha256": "22d445b2e6576ea0e68e67222ac1241743a393022aba02b7bf319bb6f18048e9"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S02/SM_PSG_Node_Stone_S02_LOD3.fbx": {
+    "bytes": 161340,
+    "sha256": "478bee8378c5aa9f8a6a8482c429b84f0de7fe8e9124fc39432b841efc7f473e"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S03/SM_PSG_Node_Stone_S03.fbx": {
+    "bytes": 1042060,
+    "sha256": "bcd94354cf71696b3c646e2de1398916ea3ce2d81e412254b0e1c39e3eb0160c"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S03/SM_PSG_Node_Stone_S03_LOD1.fbx": {
+    "bytes": 534844,
+    "sha256": "98e41f898fed928527fbb51c8f627a141fc8fb53192bf995bbdd0f1b07ab84ed"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S03/SM_PSG_Node_Stone_S03_LOD2.fbx": {
+    "bytes": 251580,
+    "sha256": "44f7d441d766b6377a7a8316f7bade176cf754a49a47c1d1cb164788624c01e0"
+  },
+  "Meshes/FBX/PSG_Node_Stone_S03/SM_PSG_Node_Stone_S03_LOD3.fbx": {
+    "bytes": 109532,
+    "sha256": "cc4646b742ad63c2692ba9de0d25d94d4e3f69283d861b039d0ba9683493dc6d"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S01/SM_PSG_Node_Sulfur_S01.fbx": {
+    "bytes": 2540156,
+    "sha256": "7c600484c2f2f475a5b783e4d03c2801aa0d3af5100a0d966e3d8f48ca735db3"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S01/SM_PSG_Node_Sulfur_S01_LOD1.fbx": {
+    "bytes": 1162908,
+    "sha256": "c9e2f94cba3e34e169722a16c7a044a3bfea044c23ecf5d90564b45980fdb636"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S01/SM_PSG_Node_Sulfur_S01_LOD2.fbx": {
+    "bytes": 533484,
+    "sha256": "6a756a335ba98564fc5aa7feed4e25b69bca4a5271b0f9554216320c979a2cd4"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S01/SM_PSG_Node_Sulfur_S01_LOD3.fbx": {
+    "bytes": 212220,
+    "sha256": "af356bb41b91e1b5381f1eaf8534be8687a64901df0eebf672481957a7500794"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S02/SM_PSG_Node_Sulfur_S02.fbx": {
+    "bytes": 1686892,
+    "sha256": "592c8878f30c0822edf18330657f55d32ae2f2947e885813f884b42890066114"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S02/SM_PSG_Node_Sulfur_S02_LOD1.fbx": {
+    "bytes": 859468,
+    "sha256": "602a4090aa72d07c710fb04f76191f8c6e6e9858d4f0ec4fb4fc387574b76516"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S02/SM_PSG_Node_Sulfur_S02_LOD2.fbx": {
+    "bytes": 397820,
+    "sha256": "188da983bcd455e2475531c34811ec3aa33c6fb535da9886f04ab2230f83469b"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S02/SM_PSG_Node_Sulfur_S02_LOD3.fbx": {
+    "bytes": 162748,
+    "sha256": "b826645b0d329679f72e1bf3d14639da83bffb045429cd119bfed2e54846b463"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S03/SM_PSG_Node_Sulfur_S03.fbx": {
+    "bytes": 1075692,
+    "sha256": "f4d44789062ab11c4e0ce068775fae618bdca940b1c3d6d34b0a296e4e66850f"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S03/SM_PSG_Node_Sulfur_S03_LOD1.fbx": {
+    "bytes": 537628,
+    "sha256": "65450de6906c08efcc24832a2a22c34c93db63af187fee10652952242040abb6"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S03/SM_PSG_Node_Sulfur_S03_LOD2.fbx": {
+    "bytes": 254460,
+    "sha256": "6d9afd3e665211b3c1a9f5d34212c958957ba6ab0a2ae150199f12cf649b2331"
+  },
+  "Meshes/FBX/PSG_Node_Sulfur_S03/SM_PSG_Node_Sulfur_S03_LOD3.fbx": {
+    "bytes": 110380,
+    "sha256": "3b9567d12af7c4f466c19d24c969c8bf794e1633630cfdf6493c9595ea78372e"
+  },
+  "Meshes/FBX/PSG_Vein_HQMetal_01/SM_PSG_Vein_HQMetal_01.fbx": {
+    "bytes": 2830524,
+    "sha256": "9edd01e12a7fa8a06c7b33747ed6d9d922cf5af7e87fe7c5749fbb6fe0d91cf1"
+  },
+  "Meshes/FBX/PSG_Vein_HQMetal_01/SM_PSG_Vein_HQMetal_01_LOD1.fbx": {
+    "bytes": 1204972,
+    "sha256": "50c31137f02b1cf833dbf251c0821435c140d95d2de07de9d8910c707a21c31b"
+  },
+  "Meshes/FBX/PSG_Vein_HQMetal_01/SM_PSG_Vein_HQMetal_01_LOD2.fbx": {
+    "bytes": 566652,
+    "sha256": "8a3c9263c596c7110bc08b6be38dd3fa4fa2174398af26cab40dac1d825ad79c"
+  },
+  "Meshes/FBX/PSG_Vein_HQMetal_01/SM_PSG_Vein_HQMetal_01_LOD3.fbx": {
+    "bytes": 174204,
+    "sha256": "203e850958e85359664a010ec9b6fd39ab5716fbbbbe7110ba9853f21715e058"
+  },
+  "Meshes/FBX/PSG_Vein_Metal_01/SM_PSG_Vein_Metal_01.fbx": {
+    "bytes": 2827660,
+    "sha256": "7975c660fab5aebf705fb73acd7a99db0a32215ae65b7866df810ee1c1be22ee"
+  },
+  "Meshes/FBX/PSG_Vein_Metal_01/SM_PSG_Vein_Metal_01_LOD1.fbx": {
+    "bytes": 1204652,
+    "sha256": "b39b792cf280114debbd4ad994343c581e697212bc17398609ac2a78ab20e813"
+  },
+  "Meshes/FBX/PSG_Vein_Metal_01/SM_PSG_Vein_Metal_01_LOD2.fbx": {
+    "bytes": 565612,
+    "sha256": "f1164d80f965e3fbb72c199ff71157206640d4a9cdb7a2c06ee3ce55e88effcd"
+  },
+  "Meshes/FBX/PSG_Vein_Metal_01/SM_PSG_Vein_Metal_01_LOD3.fbx": {
+    "bytes": 173852,
+    "sha256": "4569a16f5226e83771c69a29e383bdab2d747eae5203ba03f986f2dc526d7ab4"
+  },
+  "Meshes/FBX/PSG_Vein_Stone_01/SM_PSG_Vein_Stone_01.fbx": {
+    "bytes": 2772204,
+    "sha256": "bf3a8a176eb91f444389d86c3ee73936f50dc2a622364520b4975769f68fd30a"
+  },
+  "Meshes/FBX/PSG_Vein_Stone_01/SM_PSG_Vein_Stone_01_LOD1.fbx": {
+    "bytes": 1180220,
+    "sha256": "f02da53d265c78d6927a278875e0011490b7a089b69385918ec5fb3d60caa163"
+  },
+  "Meshes/FBX/PSG_Vein_Stone_01/SM_PSG_Vein_Stone_01_LOD2.fbx": {
+    "bytes": 555116,
+    "sha256": "806d402e5cb50b96072da999b77d3fa73436b2249d5dc6e81dc64c2f3b2282a2"
+  },
+  "Meshes/FBX/PSG_Vein_Stone_01/SM_PSG_Vein_Stone_01_LOD3.fbx": {
+    "bytes": 170508,
+    "sha256": "5bf65125fbd72ecc458a38cc0ee9949e3dd5bd64b55b24103323f261362b6fd7"
+  },
+  "Meshes/FBX/PSG_Vein_Sulfur_01/SM_PSG_Vein_Sulfur_01.fbx": {
+    "bytes": 2830476,
+    "sha256": "f663d8a3b08f71a372baf871b5cc2775545590a33846ffa245d74fbaa5507bf8"
+  },
+  "Meshes/FBX/PSG_Vein_Sulfur_01/SM_PSG_Vein_Sulfur_01_LOD1.fbx": {
+    "bytes": 1205356,
+    "sha256": "7460de1b9500f841eb9d2ccfd0c6e545faacdc09ee90a93a139f0c61bcfa3f45"
+  },
+  "Meshes/FBX/PSG_Vein_Sulfur_01/SM_PSG_Vein_Sulfur_01_LOD2.fbx": {
+    "bytes": 566748,
+    "sha256": "4ace07c566257102b8649886612c3f29822bdb6ec54ee562443e404bd777f5a5"
+  },
+  "Meshes/FBX/PSG_Vein_Sulfur_01/SM_PSG_Vein_Sulfur_01_LOD3.fbx": {
+    "bytes": 173644,
+    "sha256": "74cc80c439b2dadddf3063171ec8b0127f1accfe2de519235b7176adcc4acf49"
+  },
+  "OPEN_BLENDER_MASTER.bat": {
+    "bytes": 125,
+    "sha256": "a9de4ddcdfde316b0cc806c95bc32e7585e7b381cdf09d3342ccaac6a9f19434"
+  },
+  "OPEN_UNREAL_REVIEW.bat": {
+    "bytes": 110,
+    "sha256": "be27cae8f622c4a6e47570f2955d97b966f85ac8e9ace106a6b6fffc75d675eb"
+  },
+  "Previews/01_All_Node_Stages.png": {
+    "bytes": 3806598,
+    "sha256": "552009aa4154240bf27bc5d81de925bb108ee65caee5211e57a0d68ad4eddf8c"
+  },
+  "Previews/02_Miner_Deposits.png": {
+    "bytes": 3656933,
+    "sha256": "3148153ad945d4aad95adc893cb18daa9010234fc0de37d4bb6d2c64babf8787"
+  },
+  "Previews/HQMetal_Hero.png": {
+    "bytes": 2715173,
+    "sha256": "8df3ff3219a88ad90f7ab4edbc2b4a5f8804fe5e8c50c659fe63d4f63511d986"
+  },
+  "Previews/HQMetal_Three_Stages.png": {
+    "bytes": 2090282,
+    "sha256": "4bdf5af892c93d889b10222941dda0d2c903b182e635e6f9dbdf0840613c8780"
+  },
+  "Previews/Metal_Hero.png": {
+    "bytes": 2802047,
+    "sha256": "409a1886fde553cd155dbd5a0ffa99322aed0f1044a1920b379cc2d98d6563e3"
+  },
+  "Previews/Metal_Three_Stages.png": {
+    "bytes": 2161663,
+    "sha256": "0120864e07959d61c9b9d6738f16965b7ba799c52c8cf8d22ae2326857c4c629"
+  },
+  "Previews/Stone_Hero.png": {
+    "bytes": 2653350,
+    "sha256": "d1829d1e2d5c2dad1709823c4f2a288c15413239076bd5622594f62a33f9ba42"
+  },
+  "Previews/Stone_Three_Stages.png": {
+    "bytes": 2064351,
+    "sha256": "3a2767934255c32ca8a83af04a626e628079423f013f7e2acb02edde88292794"
+  },
+  "Previews/Sulfur_Hero.png": {
+    "bytes": 2725636,
+    "sha256": "741a64d5b667ad2ce8a1cd60624bcbc136577b6bcbe9b4fe3181088bfc16f252"
+  },
+  "Previews/Sulfur_Three_Stages.png": {
+    "bytes": 2091570,
+    "sha256": "0f5f5c758ec76861bfaaf794085578f40504ea8e5a5fab0c5c5f621cb1510393"
+  },
+  "Previews/UE583_Deposits_Overview.png": {
+    "bytes": 1923256,
+    "sha256": "280fbada2bdb1013c2430ba663bf22be1f3e793667baa208158538ecadb7e7fd"
+  },
+  "Previews/UE583_Nodes_Overview.png": {
+    "bytes": 1990300,
+    "sha256": "07af3f4a50893bcc0639e8765de59fb7adf333ce03fc00c34d3bcdfae8ebf2d9"
+  },
+  "README.md": {
+    "bytes": 10662,
+    "sha256": "aa1d7026d69dfe5c68dc45051957d4f035248603a92c0ea1618ade8d3b66c843"
+  },
+  "Reports/asset_inventory.csv": {
+    "bytes": 2876,
+    "sha256": "e4ec5c1666c86cf864d745f6e7fc3c4a8f9340515382bdd6af4f87698c66a32c"
+  },
+  "Reports/asset_manifest.json": {
+    "bytes": 20896,
+    "sha256": "be6d995678b15a5ba29344b192c6ed08b7a18f3c0b45355d545dc357ddb2889d"
+  },
+  "Reports/bake_validation.json": {
+    "bytes": 19373,
+    "sha256": "4617ed01da8a482bd772b8ac92cab22a1f655e8f589bef6fc2e03c231d955b68"
+  },
+  "Reports/presentation_status.json": {
+    "bytes": 98,
+    "sha256": "a8b19873a56200df4c2458d4fa31c7c2dc7ab3a51463ecbe79e596d727d95e5a"
+  },
+  "Reports/PSG_Node_HQMetal_S01.json": {
+    "bytes": 5834,
+    "sha256": "d07053b96fb5586841bd766683c1f52571b0876f8deeeb41179c956f6f7a89e6"
+  },
+  "Reports/PSG_Node_HQMetal_S02.json": {
+    "bytes": 5828,
+    "sha256": "86ee11beee35e08299333781099d7aa8106562ff86f882c08e6679635c812cd3"
+  },
+  "Reports/PSG_Node_HQMetal_S03.json": {
+    "bytes": 5824,
+    "sha256": "d86fb463b264732d3bddf5c51ddf8f5e337242ea9b0a1b5ae0bedc101a5851dc"
+  },
+  "Reports/PSG_Node_Metal_S01.json": {
+    "bytes": 5800,
+    "sha256": "7f9b9441df9eb3835e1b655dfd3b5a2ea7eb94480aa500bd81fb095dfaa7d8d3"
+  },
+  "Reports/PSG_Node_Metal_S02.json": {
+    "bytes": 5800,
+    "sha256": "2b133721a01b3ebc7bd29611f6ac990a71419fe32680ece9a624edcc03f5adf9"
+  },
+  "Reports/PSG_Node_Metal_S03.json": {
+    "bytes": 5783,
+    "sha256": "edfdb292598c9b8f06ddd2da9fcc2d22b663f767b73b19cf0e013a605b49c46b"
+  },
+  "Reports/PSG_Node_Stone_S01.json": {
+    "bytes": 5807,
+    "sha256": "869d38106758cfa4af8d3c6e0099756919251c13cd7496c86606f4a40875c417"
+  },
+  "Reports/PSG_Node_Stone_S02.json": {
+    "bytes": 5805,
+    "sha256": "836f451637add6cc26d18bab466556679a33abd002ef41c7c650d82564026883"
+  },
+  "Reports/PSG_Node_Stone_S03.json": {
+    "bytes": 5792,
+    "sha256": "2de730a11e83639244873aeb776202bb52dcd205a3d7e56580f23777c057e75f"
+  },
+  "Reports/PSG_Node_Sulfur_S01.json": {
+    "bytes": 5816,
+    "sha256": "ef108be915d303a362324ec29698499100984118353a0ac032612a8d1c83d5f8"
+  },
+  "Reports/PSG_Node_Sulfur_S02.json": {
+    "bytes": 5816,
+    "sha256": "5877fbeb2755519ce9c6108982caa591c605c008a355a9e7fdfe2733dd5b82f6"
+  },
+  "Reports/PSG_Node_Sulfur_S03.json": {
+    "bytes": 5805,
+    "sha256": "f468290cd2adb604c088e700e32f75ee7b111a3bb852aba3706355264604527b"
+  },
+  "Reports/PSG_Vein_HQMetal_01.json": {
+    "bytes": 5903,
+    "sha256": "291d5b6824c87eb508eef5f23df6240020fe397a37e7bb475446c320a42ad0ef"
+  },
+  "Reports/PSG_Vein_Metal_01.json": {
+    "bytes": 5864,
+    "sha256": "59c9ffa35cca81012cac9957cdd42ac02f96dc2f1737626f83161732c7360dc5"
+  },
+  "Reports/PSG_Vein_Stone_01.json": {
+    "bytes": 5871,
+    "sha256": "899d5955c241e87bd54c66da31dbfd58caec2070ed8f6a4759004cb5a7e043a1"
+  },
+  "Reports/PSG_Vein_Sulfur_01.json": {
+    "bytes": 5876,
+    "sha256": "335c169af93ab0270a5e67d51aefcdce82ac8cf66767cd1adbb0578b8eb5587f"
+  },
+  "Reports/unreal_capture.json": {
+    "bytes": 590,
+    "sha256": "a7af61e4f03cc41b0a97efb105d43c37651e14732e899f30ab5ebf8dc8ab3995"
+  },
+  "Reports/unreal_final_audit.json": {
+    "bytes": 20415,
+    "sha256": "391396e2b84f7821dcecb7e8d04e6de5f03c964922c2d552041ec05b9b1b8cb4"
+  },
+  "Reports/unreal_levels.json": {
+    "bytes": 497,
+    "sha256": "28d2bae0991a92c9cef3826c73612c0e0db4512861c6f29d6397a5ad5e1b9038"
+  },
+  "Reports/unreal_validation.json": {
+    "bytes": 16222,
+    "sha256": "581346d6dd917de051283c17fdba0594c54b99c440ba880f20725e376d313691"
+  },
+  "Scripts/build_presentation.py": {
+    "bytes": 7224,
+    "sha256": "6512f945c7ecffc28c4688d9a2b2c7c646c33df74e5a35efa69abc83d49ef517"
+  },
+  "Scripts/finalize_package.py": {
+    "bytes": 13232,
+    "sha256": "a5e793cdf4e6d8974afa605215a3c1ad5c5732f4d11f9b4fc1aa3be2bb3b6954"
+  },
+  "Scripts/psg_pipeline.py": {
+    "bytes": 24456,
+    "sha256": "cea7cad90af1e784101da27b690311c0305f3009a6f0df5b5ab5fc764f031a84"
+  },
+  "Scripts/psg_resources.py": {
+    "bytes": 18623,
+    "sha256": "e59136dd036deb141fc4d0a854707e9b9270e6a99ef5f33a302ec5f21c6db27d"
+  },
+  "Scripts/ue_build_review_levels.py": {
+    "bytes": 8718,
+    "sha256": "5cf70ae6ebfba90e6be5a910fd5fe0a9279e7d4729e2dc12be6ed564b201c85a"
+  },
+  "Scripts/ue_capture_reviews.py": {
+    "bytes": 3525,
+    "sha256": "f408be49ea8d8edc71888db48d645366100be3c0f4e859ac1a91c6818fe78cba"
+  },
+  "Scripts/ue_final_audit.py": {
+    "bytes": 2962,
+    "sha256": "c287c3eb29d1c41e2782db0f07a2ea6e2311dc99a3050168fc004ceaf59ae1df"
+  },
+  "Scripts/ue_finalize_reviews.py": {
+    "bytes": 249,
+    "sha256": "432b247bd5c8ae3b35f909e72d016374b6d0e8cec034cfb423ddf384358028b0"
+  },
+  "Scripts/ue_import_resources.py": {
+    "bytes": 11701,
+    "sha256": "7564d12ab8a089e02996406d8c1fa1644452716719c637032b8c45a1addc26c5"
+  },
+  "Scripts/validate_bakes.py": {
+    "bytes": 4104,
+    "sha256": "73bae6d7c8918ef39525b04f40102db7839f08bdb96686ace394a2f03d8d3ef0"
+  },
+  "Source/PSG_Node_HQMetal_S01.blend": {
+    "bytes": 11482704,
+    "sha256": "9b6f8c90afd03dfd95383534ff349d7250e6a6ad1a49bbc1fa91c00d851d55f1"
+  },
+  "Source/PSG_Node_HQMetal_S02.blend": {
+    "bytes": 11002591,
+    "sha256": "2dc536da3f01d17ede36f9b4672e42a3201202068477d013a81f891c9f62547b"
+  },
+  "Source/PSG_Node_HQMetal_S03.blend": {
+    "bytes": 10404621,
+    "sha256": "ebc983dd44af311ef15f1dc3a5960088ad0d9005a88dce2dd89492c72fa67c1c"
+  },
+  "Source/PSG_Node_Metal_S01.blend": {
+    "bytes": 11111705,
+    "sha256": "09916199f0a4eeffcbf11b3a5e44c6a85acba503a0ac5dca99e7b3f0ce7eb810"
+  },
+  "Source/PSG_Node_Metal_S02.blend": {
+    "bytes": 10654918,
+    "sha256": "058324ab425b9f6c7603732201938177bd571d9bc3e520644f8b3c2ba3cdf6b9"
+  },
+  "Source/PSG_Node_Metal_S03.blend": {
+    "bytes": 10168241,
+    "sha256": "24262f388e513e5b9eab54cac63b5c949078514de1d3b24d4be62fc86f22ecee"
+  },
+  "Source/PSG_Node_Stone_S01.blend": {
+    "bytes": 10553501,
+    "sha256": "9307c29ff6cb727c53b9bd5246d8288a9fe91c71e8a1d1b80007ae63a0387879"
+  },
+  "Source/PSG_Node_Stone_S02.blend": {
+    "bytes": 10195541,
+    "sha256": "8eb5d1a8dd0a4ad183cfb89142c3662deb3a2f36e7532345b7d10ebee4efbc3e"
+  },
+  "Source/PSG_Node_Stone_S03.blend": {
+    "bytes": 9713107,
+    "sha256": "296380920bc12150821f1dc3a836c46fe85cd00443cfbeb415ca715126b733e3"
+  },
+  "Source/PSG_Node_Sulfur_S01.blend": {
+    "bytes": 10964891,
+    "sha256": "a953e96e23e2bc8de9f13735d59829ed80ce80f2a5597ed075cbf6d714921eea"
+  },
+  "Source/PSG_Node_Sulfur_S02.blend": {
+    "bytes": 10534100,
+    "sha256": "8d50e2e941dd7a0d1316f10b2c0c56fa9ea625f54c37b58b259366588a5e060a"
+  },
+  "Source/PSG_Node_Sulfur_S03.blend": {
+    "bytes": 10013614,
+    "sha256": "b71bac1a3dc652f2979e05e7ae09439327b5dfac4bc84a0f96e57c14ef99d784"
+  },
+  "Source/PSG_ResourceNodes_Master.blend": {
+    "bytes": 12458623,
+    "sha256": "5e1d21af5d1fcfd2073a8eb5a9685a86c6ded25db4f5a14e05e87d699bcc3e5f"
+  },
+  "Source/PSG_Vein_HQMetal_01.blend": {
+    "bytes": 6700648,
+    "sha256": "95f46c685c10bebd2c25b618db4d603110a0c2d2e52f9705cdf64df8909cb545"
+  },
+  "Source/PSG_Vein_Metal_01.blend": {
+    "bytes": 6697732,
+    "sha256": "83a3b884ad182ab6e0844d91081ee19d83e77e5bc42f2f2ce74c87bafd9b79fc"
+  },
+  "Source/PSG_Vein_Stone_01.blend": {
+    "bytes": 6305995,
+    "sha256": "e87802d42a8ed110e6255048aa3d0cd17705b294349c524e54f054e65bee4a92"
+  },
+  "Source/PSG_Vein_Sulfur_01.blend": {
+    "bytes": 6710026,
+    "sha256": "fbc6afbacda85993bf5eddbbd11200a25c6bcf78939476b4f75b0359b3a86a4d"
+  },
+  "START_HERE.html": {
+    "bytes": 7588,
+    "sha256": "3cb99e39177118b88f5446fbb05123c7d39a1225e2e1b8d1aede416ec505aed9"
+  },
+  "Textures/PSG_Node_HQMetal_S01/T_PSG_Node_HQMetal_S01_BC.png": {
+    "bytes": 16248276,
+    "sha256": "500e9836ea9a1ecab6846a581562855e02fc9eb54533e79e8daa3cf295552895"
+  },
+  "Textures/PSG_Node_HQMetal_S01/T_PSG_Node_HQMetal_S01_N_DX.png": {
+    "bytes": 65192771,
+    "sha256": "d967069b18eaab2bb5f6c9303f9e506789c28fa95a3bc67cad1eca3ee543b77a"
+  },
+  "Textures/PSG_Node_HQMetal_S01/T_PSG_Node_HQMetal_S01_ORM.png": {
+    "bytes": 11206304,
+    "sha256": "addb98d4102c6507e4887fe219cf344f1d5f331e08d6d758c7f62250d415dd1d"
+  },
+  "Textures/PSG_Node_HQMetal_S02/T_PSG_Node_HQMetal_S02_BC.png": {
+    "bytes": 15343549,
+    "sha256": "44a8d65a4446e2f573872173407583bf1bc6bcfe9f75e2cc7fec735667e22a33"
+  },
+  "Textures/PSG_Node_HQMetal_S02/T_PSG_Node_HQMetal_S02_N_DX.png": {
+    "bytes": 62875852,
+    "sha256": "0e908586bb4fd38501ce1c7c991cd9db43878922bbf39c6152bbe44c5e1351dd"
+  },
+  "Textures/PSG_Node_HQMetal_S02/T_PSG_Node_HQMetal_S02_ORM.png": {
+    "bytes": 10436412,
+    "sha256": "7bc8eab6dc9e78552729607872955ea264326bd915fbeb0d3ccd442ec8cf92b0"
+  },
+  "Textures/PSG_Node_HQMetal_S03/T_PSG_Node_HQMetal_S03_BC.png": {
+    "bytes": 13505978,
+    "sha256": "e0a368e367527b24dde9a84c762a284d8960988b25d59da9fe5d602bf5c0cb97"
+  },
+  "Textures/PSG_Node_HQMetal_S03/T_PSG_Node_HQMetal_S03_N_DX.png": {
+    "bytes": 55978013,
+    "sha256": "aa7521809f5262fd5f1141a10a4a7b2476bc03298c9906df2b5d794db17ad343"
+  },
+  "Textures/PSG_Node_HQMetal_S03/T_PSG_Node_HQMetal_S03_ORM.png": {
+    "bytes": 8671485,
+    "sha256": "d9c4c665a89a503e67b10c434ff474942711613463d54663a6afe1eb792de0e0"
+  },
+  "Textures/PSG_Node_Metal_S01/T_PSG_Node_Metal_S01_BC.png": {
+    "bytes": 16082913,
+    "sha256": "f64744fe4af84f3bf15845078f6cf7f9642749a80ead77fdd16aa6bc0cd8b24e"
+  },
+  "Textures/PSG_Node_Metal_S01/T_PSG_Node_Metal_S01_N_DX.png": {
+    "bytes": 64522331,
+    "sha256": "44d3c0ba10f28b00a85d66198454895c88a6fbfc491191fc4a1a002b3cbb2c67"
+  },
+  "Textures/PSG_Node_Metal_S01/T_PSG_Node_Metal_S01_ORM.png": {
+    "bytes": 10080512,
+    "sha256": "9d2e762d98a5c13df27eb10c5fc523d49d2a8dfdc4e9b48283cc6b2557e18f56"
+  },
+  "Textures/PSG_Node_Metal_S02/T_PSG_Node_Metal_S02_BC.png": {
+    "bytes": 15141293,
+    "sha256": "5cc907fb7218e8b28d88d2008ac322c8a11d97eeb16da63881bf38451e7e2ae9"
+  },
+  "Textures/PSG_Node_Metal_S02/T_PSG_Node_Metal_S02_N_DX.png": {
+    "bytes": 62297877,
+    "sha256": "2ac3c0abae82f5ef20cc6b3a869b41838aa7820b531069a55304b5abf5ad5923"
+  },
+  "Textures/PSG_Node_Metal_S02/T_PSG_Node_Metal_S02_ORM.png": {
+    "bytes": 9560811,
+    "sha256": "b38abb90483073efd5f727b9aca49a86034346b5eac4a5ad23117e8c7bcaf06e"
+  },
+  "Textures/PSG_Node_Metal_S03/T_PSG_Node_Metal_S03_BC.png": {
+    "bytes": 11332863,
+    "sha256": "37429b4a900ec5d7529b2b649bf3bc34f837462ee31eba14e93a5b9f27264e59"
+  },
+  "Textures/PSG_Node_Metal_S03/T_PSG_Node_Metal_S03_N_DX.png": {
+    "bytes": 48230580,
+    "sha256": "e61b4e68b3823539ee6fb3db31119ef1e001543daa0c19efc3ed09344587b4d1"
+  },
+  "Textures/PSG_Node_Metal_S03/T_PSG_Node_Metal_S03_ORM.png": {
+    "bytes": 7527658,
+    "sha256": "221a8827b0bac242ad9a2b08142911178bf9efb32e59e72ce0e91f0e3fc384c4"
+  },
+  "Textures/PSG_Node_Stone_S01/T_PSG_Node_Stone_S01_BC.png": {
+    "bytes": 15993628,
+    "sha256": "7f9f64eb12cd099ced0db83b002859ec944325eac5a0d9de88d53a692c924c0c"
+  },
+  "Textures/PSG_Node_Stone_S01/T_PSG_Node_Stone_S01_N_DX.png": {
+    "bytes": 64667999,
+    "sha256": "9f7edba660e021bbf195fdf3ee57aff72b64f9806fa1f0abbe27eba655e2c7f3"
+  },
+  "Textures/PSG_Node_Stone_S01/T_PSG_Node_Stone_S01_ORM.png": {
+    "bytes": 8637856,
+    "sha256": "ed933cba8804e659361b515d3bb5d4b805175b6e68f915d365fafaf175f734c8"
+  },
+  "Textures/PSG_Node_Stone_S02/T_PSG_Node_Stone_S02_BC.png": {
+    "bytes": 14971002,
+    "sha256": "75cf1a9c2a12b7a207d9a3ec1f7dc6b80cdc0f6759f2f1ee5631f2200636bc5d"
+  },
+  "Textures/PSG_Node_Stone_S02/T_PSG_Node_Stone_S02_N_DX.png": {
+    "bytes": 61494800,
+    "sha256": "060683441f37a7e0a844f706a6f76dac483d49c5eb6dd7a58ec71b1a79c8e18f"
+  },
+  "Textures/PSG_Node_Stone_S02/T_PSG_Node_Stone_S02_ORM.png": {
+    "bytes": 8144164,
+    "sha256": "9ef9cc8c26cf4dc302aa374a9493b6c7a32d3440b32915341fe3e42d95e933d3"
+  },
+  "Textures/PSG_Node_Stone_S03/T_PSG_Node_Stone_S03_BC.png": {
+    "bytes": 13728752,
+    "sha256": "3e4ca3a661951de109faa9a943cb85bc4941e29f34539e41c4cb4869007d469b"
+  },
+  "Textures/PSG_Node_Stone_S03/T_PSG_Node_Stone_S03_N_DX.png": {
+    "bytes": 57497508,
+    "sha256": "057683b32e55eca710d411cc156220dc7418965f5fbf62ce45c129feac6531ee"
+  },
+  "Textures/PSG_Node_Stone_S03/T_PSG_Node_Stone_S03_ORM.png": {
+    "bytes": 7603926,
+    "sha256": "b2ecc99a62d496adef82d52a594761387b43506288063bc418a21286776001e9"
+  },
+  "Textures/PSG_Node_Sulfur_S01/T_PSG_Node_Sulfur_S01_BC.png": {
+    "bytes": 17720815,
+    "sha256": "1946384948fe54ea7c4132d71b721b14f10b261b40c92bc770a0fafe2f1fbd62"
+  },
+  "Textures/PSG_Node_Sulfur_S01/T_PSG_Node_Sulfur_S01_N_DX.png": {
+    "bytes": 64182038,
+    "sha256": "56d4029e97e24041ffe5711f484dcfe56a80ad5cb0bda1d4a17d731c06b511f5"
+  },
+  "Textures/PSG_Node_Sulfur_S01/T_PSG_Node_Sulfur_S01_ORM.png": {
+    "bytes": 8586146,
+    "sha256": "7bebb05abb2e9e220b1dc6165f68aed080685ef70cc21a64fcbd6e4f526d812d"
+  },
+  "Textures/PSG_Node_Sulfur_S02/T_PSG_Node_Sulfur_S02_BC.png": {
+    "bytes": 16100187,
+    "sha256": "8cc9546c02b554c29d2b0ec856213979d0e2b27efedd989099bce9c6175a96b9"
+  },
+  "Textures/PSG_Node_Sulfur_S02/T_PSG_Node_Sulfur_S02_N_DX.png": {
+    "bytes": 59474222,
+    "sha256": "f8fd7961d6974f4b951abb545a1dccaa939de7b6fca57f099afbbf48253e66cb"
+  },
+  "Textures/PSG_Node_Sulfur_S02/T_PSG_Node_Sulfur_S02_ORM.png": {
+    "bytes": 7937243,
+    "sha256": "e9cdb1ffeaee658625ee7c92646eec6a02b50f17c1bfd0077082e09138320057"
+  },
+  "Textures/PSG_Node_Sulfur_S03/T_PSG_Node_Sulfur_S03_BC.png": {
+    "bytes": 11504447,
+    "sha256": "6b71e38068d88775505390016866ba3f4389f0647b545d6b5a51565e3cd0c9eb"
+  },
+  "Textures/PSG_Node_Sulfur_S03/T_PSG_Node_Sulfur_S03_N_DX.png": {
+    "bytes": 43389933,
+    "sha256": "7bbb31d0dfc038b1dd50ae7c4c7e7373a8b244e69bdba87e6b81527d42753459"
+  },
+  "Textures/PSG_Node_Sulfur_S03/T_PSG_Node_Sulfur_S03_ORM.png": {
+    "bytes": 5545103,
+    "sha256": "3408597c3b4311c93d07cd1228974fd78d2d6cf59b37bbcbe510f693cdf73ed0"
+  },
+  "Textures/PSG_Vein_HQMetal_01/T_PSG_Vein_HQMetal_01_BC.png": {
+    "bytes": 13599802,
+    "sha256": "0d75587281644d20432ddc70153bb2f839d9684914aa387c6da1bbbe91ff0779"
+  },
+  "Textures/PSG_Vein_HQMetal_01/T_PSG_Vein_HQMetal_01_N_DX.png": {
+    "bytes": 54512164,
+    "sha256": "b8aa1e132cf203dc7733520f6dbf4ce5594698deaad5144a5df6a4d8ab54549c"
+  },
+  "Textures/PSG_Vein_HQMetal_01/T_PSG_Vein_HQMetal_01_ORM.png": {
+    "bytes": 7668892,
+    "sha256": "17deb9d17764b9d43e76467d67b709c8c06bc0e3672a0f9dc3e7e54f62d9dc7c"
+  },
+  "Textures/PSG_Vein_Metal_01/T_PSG_Vein_Metal_01_BC.png": {
+    "bytes": 13142099,
+    "sha256": "fdc0c2c11b34fed6ec9e9ebdd69ddcf12c9e7060ffb2ccd4e6077ed1b3dafe3a"
+  },
+  "Textures/PSG_Vein_Metal_01/T_PSG_Vein_Metal_01_N_DX.png": {
+    "bytes": 54493077,
+    "sha256": "8317e3f26e8c60ebfe681a55024d5d332d3d7f984ac132dfb8415e65ee65b168"
+  },
+  "Textures/PSG_Vein_Metal_01/T_PSG_Vein_Metal_01_ORM.png": {
+    "bytes": 7475939,
+    "sha256": "8571593cb38b1c7ecffce0c41a525587281b1dbf8c704d8b01e101d7eb5d0b01"
+  },
+  "Textures/PSG_Vein_Stone_01/T_PSG_Vein_Stone_01_BC.png": {
+    "bytes": 13569240,
+    "sha256": "b5d1ece4827065b62cec6e0b8a9f85f449e69af7d68a7ba60dcc43976cafc45f"
+  },
+  "Textures/PSG_Vein_Stone_01/T_PSG_Vein_Stone_01_N_DX.png": {
+    "bytes": 54498890,
+    "sha256": "1f85b8e5a4844b0dc54bbf22d153b63f902737d96282ffa52df88c6b01fa0d0f"
+  },
+  "Textures/PSG_Vein_Stone_01/T_PSG_Vein_Stone_01_ORM.png": {
+    "bytes": 6293475,
+    "sha256": "2746db6fb3a8b5e70ccf555567620a9bb1a93ec3b242e5c86d40daf170c191b4"
+  },
+  "Textures/PSG_Vein_Sulfur_01/T_PSG_Vein_Sulfur_01_BC.png": {
+    "bytes": 15284235,
+    "sha256": "f05dd5cf5fcd52ec93ba5048aa19289267f529f8edc28e2fe1819121e42b9386"
+  },
+  "Textures/PSG_Vein_Sulfur_01/T_PSG_Vein_Sulfur_01_N_DX.png": {
+    "bytes": 54466774,
+    "sha256": "6b7f006045733e1d782c7db70f081242cbec30ec6f25fdd13e95462c2ad77079"
+  },
+  "Textures/PSG_Vein_Sulfur_01/T_PSG_Vein_Sulfur_01_ORM.png": {
+    "bytes": 6423531,
+    "sha256": "2baaa65bf18e4d3799f00cbe28d4da1e22f08df57f3feae97bce9822b6e1b4af"
+  },
+  "ThirdParty/PolyHaven/download_status.json": {
+    "bytes": 1094,
+    "sha256": "8691297c86866df90093ef9904eaf18ec9b08d00bbb225df921a586045ea19d1"
+  },
+  "ThirdParty/PolyHaven/files_manifest.json": {
+    "bytes": 37596,
+    "sha256": "afc4645f68fafbc1f7293dbd5d97dba285120d70b8ca42773d1a78beaa2ca4e2"
+  },
+  "ThirdParty/PolyHaven/rock_08/download_status.json": {
+    "bytes": 766,
+    "sha256": "2c9c9d4d1d36ab478bcb859f0f7f5f60e85f8fa7387d615cf3c703e55fb26c82"
+  },
+  "ThirdParty/PolyHaven/rock_08/rock_08_diff_4k.jpg": {
+    "bytes": 9919017,
+    "sha256": "676d63d8a10dc2be8e979b9cc97fd52c276b9d355deba6465ec78b0c6ad5c84f"
+  },
+  "ThirdParty/PolyHaven/rock_08/rock_08_disp_4k.jpg": {
+    "bytes": 1453131,
+    "sha256": "73ea965928a21d4845bc71444ff0876b44f1f342f617c3d4976b51895673e497"
+  },
+  "ThirdParty/PolyHaven/rock_08/rock_08_rough_4k.jpg": {
+    "bytes": 4608131,
+    "sha256": "c7fc840b898c3a5ad31c981d922f99fc3038061370592f83720c0d03f7eea29f"
+  },
+  "ThirdParty/PolyHaven/rock_boulder_cracked_diff_4k.jpg": {
+    "bytes": 15067334,
+    "sha256": "34aa6d4a6a131353e2de2ae7dd3e3d804ea4ba2195ea6aaabef3674e6d541e10"
+  },
+  "ThirdParty/PolyHaven/rock_boulder_cracked_disp_4k.jpg": {
+    "bytes": 1883364,
+    "sha256": "b5cd3fb2e815d5ea2a8ccf8d0b98c87d37bedc8d77ae581e07a641135b5529e3"
+  },
+  "ThirdParty/PolyHaven/rock_boulder_cracked_rough_4k.jpg": {
+    "bytes": 6583310,
+    "sha256": "eaab6218fef01b2eb10df49ed1626efe9d98c95ffd6cd0b644dfe26a165063a2"
+  },
+  "ThirdParty/THIRD_PARTY_NOTICES.md": {
+    "bytes": 1219,
+    "sha256": "b79ec5a4c800ebffedb139e0ffa9cf92105985ba01b758ec698a76d7957f241a"
+  },
+  "Unreal/Config/DefaultEngine.ini": {
+    "bytes": 789,
+    "sha256": "eabc632127c21a0cfd5521906443fd7886b8a07c09c37d08dd578a5bbf86aadb"
+  },
+  "Unreal/Config/DefaultInput.ini": {
+    "bytes": 9574,
+    "sha256": "61e3fb622f7ba0121c8036ac599acc7122bb3987a97b02b25ad13c56d5ce8e3a"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Maps/L_PSG_MinerDeposits_Overview.umap": {
+    "bytes": 51410,
+    "sha256": "9d48c870c1686bef649169574e52df97bbd278224cca9483f06779d2e9ee16da"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Maps/L_PSG_Nodes_Overview.umap": {
+    "bytes": 81515,
+    "sha256": "0204ec281b9785c4108a5368a5525d770a414100e98342cd6fa20cb095585c71"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_HQMetal_S01.uasset": {
+    "bytes": 13585,
+    "sha256": "b0951984f1b68980252deeeffb6536be50c7c537e8d6219ab796f9ea227fb305"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_HQMetal_S02.uasset": {
+    "bytes": 13575,
+    "sha256": "f08d077634fae8201e67a630ad143a63875c0e45228e3abe043006c38286d464"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_HQMetal_S03.uasset": {
+    "bytes": 12773,
+    "sha256": "b9f6a247ca0ad3d3317e4408173c7236f331db516231f0b9268ff71f19770c55"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_Metal_S01.uasset": {
+    "bytes": 13216,
+    "sha256": "eabd024e398493af31507eecfbd4ec51e4ceae7fb39e9de1779a15663ce0c907"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_Metal_S02.uasset": {
+    "bytes": 13189,
+    "sha256": "1c4ceb5cdae48d265f8d485ddafc7f0d1eae3a2af126c9f428e5f207282a1175"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_Metal_S03.uasset": {
+    "bytes": 11983,
+    "sha256": "32b67ed23f412e47a0eba138020992da8d7a3cf418e1c7038a10766a6d3a8773"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_Stone_S01.uasset": {
+    "bytes": 12934,
+    "sha256": "f0bfca010372a8287d7598040c43b47e8af48177a46bf0a33d9749b9d4918a6d"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_Stone_S02.uasset": {
+    "bytes": 12976,
+    "sha256": "d2d1ca3823ff0150e886e61a570cc500964a9ed8f9b43d72dbafe403e011a43f"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_Stone_S03.uasset": {
+    "bytes": 12391,
+    "sha256": "49f2861e80660c87e05fee16640c5cdbf07668108eb1000cd0ecbf7d98669dcf"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_Sulfur_S01.uasset": {
+    "bytes": 13346,
+    "sha256": "ae471cab86e691c80f27b8c6878e85f1e40ac5bd89a22c8bd5949364c5540029"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_Sulfur_S02.uasset": {
+    "bytes": 12940,
+    "sha256": "19d5a640c0a78345b477c1c590a4dc06119131b2472e6ee56d4fc09ac557cc65"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Node_Sulfur_S03.uasset": {
+    "bytes": 12563,
+    "sha256": "44fd3eeccd6bb08172f27ae9687e5b1b30d57deff920edeba903cb353a7b574a"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Vein_HQMetal_01.uasset": {
+    "bytes": 12689,
+    "sha256": "da20dd668b54d83b4667583048c7685a4cff85165956d63ecff4aa554d03cb02"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Vein_Metal_01.uasset": {
+    "bytes": 11871,
+    "sha256": "3cb9058ce8f14daa4024e1568a83902cbd23534640fbb701d01e7ccef56733ad"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Vein_Stone_01.uasset": {
+    "bytes": 11822,
+    "sha256": "78d51c92b939bee767ae07778aadde62d7adc9a1f41a436eaffbc7f0cd837071"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Instances/MI_PSG_Vein_Sulfur_01.uasset": {
+    "bytes": 12026,
+    "sha256": "9ba0b4b64553d75a8b8d3b57c76acb46d0288a5627f6aa6def6b4e4966dc7e37"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/M_PSG_Resource.uasset": {
+    "bytes": 16990,
+    "sha256": "bb1485c2e5bbefb7f18baf5de0074c91bb9ca51f6a1d9c500ce74372ea47c85f"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Review/M_Review_Ground.uasset": {
+    "bytes": 8908,
+    "sha256": "56ae0a825d81d16477a76b237ab18ec9b7068601c92cebb4bdbd396a1c7a5d71"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Materials/Review/M_Review_Ruler.uasset": {
+    "bytes": 9207,
+    "sha256": "9e8b2151baf2dc19b2f8076e4a9d22e09f3c31ce6c0bcbf462cb0b6d621481b2"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Deposits/HQMetal/SM_PSG_Vein_HQMetal_01.uasset": {
+    "bytes": 2370796,
+    "sha256": "e57ced02eed8c807f39749242b76cbe8a27ebdd3adfeb53a38b66757baa7b646"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Deposits/Metal/SM_PSG_Vein_Metal_01.uasset": {
+    "bytes": 2364953,
+    "sha256": "a0c22cf0e7a97250e6d7d33f385fe1f3babc547f751ee4591d0c8cbf92851f93"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Deposits/Stone/SM_PSG_Vein_Stone_01.uasset": {
+    "bytes": 2304588,
+    "sha256": "67f35fbf1c0ad48c0b3e0fca3eb53323c8a8b73fcddc79ba8a36a5d11daf166e"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Deposits/Sulfur/SM_PSG_Vein_Sulfur_01.uasset": {
+    "bytes": 2373967,
+    "sha256": "dad44e2c1636372569ed6efc0d51bc759c83b5d19e4c7b2793e2259a2a26e7fd"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/HQMetal/SM_PSG_Node_HQMetal_S01.uasset": {
+    "bytes": 3016081,
+    "sha256": "912d8170d507f3957d10b3817b2c3f4f00cf5af8f4eba226f9b220d406b19eaf"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/HQMetal/SM_PSG_Node_HQMetal_S02.uasset": {
+    "bytes": 2165584,
+    "sha256": "386c1b3838317c8b9fe712e490bfd417680d0afd99725f55af25fa0d926e6578"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/HQMetal/SM_PSG_Node_HQMetal_S03.uasset": {
+    "bytes": 1360759,
+    "sha256": "75b1c67bfa0733d7637cf134bc75fa86235c55626b942de3c56a8c6a641b7731"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/Metal/SM_PSG_Node_Metal_S01.uasset": {
+    "bytes": 2823754,
+    "sha256": "a8cf83d3f2cde5b8a2dea35aed75a2a981b9c84a4953b0303277b47f6d2f5ad9"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/Metal/SM_PSG_Node_Metal_S02.uasset": {
+    "bytes": 2086801,
+    "sha256": "3ad7622ba0b95b9e9b6ecfd72239d4251c4661a6d2ed1480e3376337e3eedb0d"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/Metal/SM_PSG_Node_Metal_S03.uasset": {
+    "bytes": 1310919,
+    "sha256": "d4f51ae194651e2d3cb2bf74e68e4edba75fc272db81b5453cfee10277201ea6"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/Stone/SM_PSG_Node_Stone_S01.uasset": {
+    "bytes": 2443387,
+    "sha256": "4122df23fc9b644aa8ca5b4828642c13f809052e64695ce9dc1a42aa99cc8e62"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/Stone/SM_PSG_Node_Stone_S02.uasset": {
+    "bytes": 1891057,
+    "sha256": "2f0132a6906c9ff843beca0dd1fe1a9adf5aa08a894858cf51adc4026c4b262f"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/Stone/SM_PSG_Node_Stone_S03.uasset": {
+    "bytes": 1142385,
+    "sha256": "c9a563e1eb0f950d51126a9c746d0d762da8ee479de296956610e6fb01ea15ed"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/Sulfur/SM_PSG_Node_Sulfur_S01.uasset": {
+    "bytes": 2516486,
+    "sha256": "576ef30dbc104ba55cff603a4e968a59d50716596d8d7235dd9f8683de57bd64"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/Sulfur/SM_PSG_Node_Sulfur_S02.uasset": {
+    "bytes": 1929232,
+    "sha256": "ce382bce1e4aed405131894087a7b051f4f2d9f8ab81a6d269d8099f19fcdfd5"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Meshes/Nodes/Sulfur/SM_PSG_Node_Sulfur_S03.uasset": {
+    "bytes": 1155675,
+    "sha256": "551cf1cd1a3cc6bdb083561105143cf327aa2808601e4e1703f5da658c11c47d"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Node_HQMetal_S01_BC.uasset": {
+    "bytes": 15491410,
+    "sha256": "c4569c298bc0ebeb818bdbd081d18ffe363a8f3cf652da61598222732b0fa1f6"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Node_HQMetal_S01_N_DX.uasset": {
+    "bytes": 67491063,
+    "sha256": "cfa032554f3df35caed4c5c1d50cd5214730bc47ff5b3d5264d7421188f62930"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Node_HQMetal_S01_ORM.uasset": {
+    "bytes": 10937016,
+    "sha256": "3db0318224bd01661fe850f9ee93168a5e5868d64622c345fd12484a50000c8e"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Node_HQMetal_S02_BC.uasset": {
+    "bytes": 14669452,
+    "sha256": "f8146896be16f6fd09d7283b8511b482f8383b796b48ca218489806ffa66440a"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Node_HQMetal_S02_N_DX.uasset": {
+    "bytes": 65154670,
+    "sha256": "9ff76174417279adc8c0e73b61b85ed1318fe2abe3f6273e6ee1636240af92d7"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Node_HQMetal_S02_ORM.uasset": {
+    "bytes": 10105292,
+    "sha256": "a5009a09bbe6570de5280538dffafca6ec910b0c181f9796fac7c15c0f8bfc4d"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Node_HQMetal_S03_BC.uasset": {
+    "bytes": 12892850,
+    "sha256": "cdbbf9e2df7cfa8291e81c73abcc3d9dd300979b37f417941cb0c9c9e2eac8bf"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Node_HQMetal_S03_N_DX.uasset": {
+    "bytes": 58196361,
+    "sha256": "039a3138be49f0b33749d7ba396a3a95423d4478cda278a849604b62d8bf47b2"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Node_HQMetal_S03_ORM.uasset": {
+    "bytes": 8283767,
+    "sha256": "f7d32dd8050b360cf8807605dcd7e5d1f09f6f4b002529e05450e5f15521d5cc"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Vein_HQMetal_01_BC.uasset": {
+    "bytes": 13078125,
+    "sha256": "15dcaca761ad5889692e4dac1db626b76238968f19148b5fd6caaaf22aa21c8a"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Vein_HQMetal_01_N_DX.uasset": {
+    "bytes": 56104577,
+    "sha256": "f819ec042eb03592d9a3251ecd94f4b3e7063345b52e4ae1da0416bbf45553be"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/HQMetal/T_PSG_Vein_HQMetal_01_ORM.uasset": {
+    "bytes": 7347346,
+    "sha256": "bebd3d26a2f23fc48906d83734e968bcadf5000a640a3bbd0789e472372f6ac6"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Node_Metal_S01_BC.uasset": {
+    "bytes": 15762916,
+    "sha256": "9eae61457a990afba0200f7386f925e6acf65a8a2205858aa949a801fc521b41"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Node_Metal_S01_N_DX.uasset": {
+    "bytes": 66773112,
+    "sha256": "35c6fed73d458cee661323ffffb4244b37932975f08bac777d1c3d8f5a9e45d7"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Node_Metal_S01_ORM.uasset": {
+    "bytes": 9661515,
+    "sha256": "276055a6cae5e146f86a28e2f189ff07ac53288f991a422801ba9b948d254eb5"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Node_Metal_S02_BC.uasset": {
+    "bytes": 14887625,
+    "sha256": "3f5e6bb8422923a4b0ee2eb854f545abf30b377ef1709b8b4deeb9f12aef06ee"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Node_Metal_S02_N_DX.uasset": {
+    "bytes": 64538431,
+    "sha256": "4e071dba46657b9465bbd9e66520063b775a90c5e6010b79d130368baf2cdad3"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Node_Metal_S02_ORM.uasset": {
+    "bytes": 9096285,
+    "sha256": "9efa89d2ca87714f2c967460e91914eb070f6454d194dff4e4f26d6b36148457"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Node_Metal_S03_BC.uasset": {
+    "bytes": 11286273,
+    "sha256": "8c20292ab91a77a55d3233d3646b089331b84f569170cd400ba8057f133dd68d"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Node_Metal_S03_N_DX.uasset": {
+    "bytes": 50139134,
+    "sha256": "a29d9aec314f61333c568ccd9aa8e51a016ae444579fff9cda0c17fee0ba855e"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Node_Metal_S03_ORM.uasset": {
+    "bytes": 7110417,
+    "sha256": "b6c07c7c0817de216ccd33cd8ad49e6a7ac9446e3337034af88e0c348c30e45a"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Vein_Metal_01_BC.uasset": {
+    "bytes": 13143625,
+    "sha256": "056b0dd2d830550a2d8b4fb0e2f138048492c8811d1874c9fd69e6d35a8d0097"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Vein_Metal_01_N_DX.uasset": {
+    "bytes": 56079150,
+    "sha256": "0afb0ca2d1322d697a247c005dcd44b1e4950e96251c6943cf8d4d91ad68ed4f"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Metal/T_PSG_Vein_Metal_01_ORM.uasset": {
+    "bytes": 7149049,
+    "sha256": "a53db64e134f6fa95ff222c2f537dc9c339f2cd93b9d06f3d4c70193db79b46c"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Node_Stone_S01_BC.uasset": {
+    "bytes": 15110842,
+    "sha256": "816c4bd64ab2e89e746d33b6b4abd9f88a4a1bb3799b6ee015df00afd48077d0"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Node_Stone_S01_N_DX.uasset": {
+    "bytes": 66948401,
+    "sha256": "a94180de5ddfddbe1f6263c57e79804578cd27bcae9b7e7ac9813cb9c9697645"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Node_Stone_S01_ORM.uasset": {
+    "bytes": 7572287,
+    "sha256": "dd629233f33ae562992a94efa0068cd68a1c2e262c58340916813b6253d7b9f4"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Node_Stone_S02_BC.uasset": {
+    "bytes": 14183900,
+    "sha256": "6ba99c06198945fdff350bfcbe64851d8752647a22fd0b66e33e32f6ad356772"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Node_Stone_S02_N_DX.uasset": {
+    "bytes": 63688043,
+    "sha256": "b46578eb51c71f33c0dc305324c0990bc1096fb5e1089a6aa6714a5d6996fc19"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Node_Stone_S02_ORM.uasset": {
+    "bytes": 7120337,
+    "sha256": "435f7060b2e091ff7002fd1b320d8ef4dd397f90533e4be24b71c25dd0f324b1"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Node_Stone_S03_BC.uasset": {
+    "bytes": 13072334,
+    "sha256": "f4a5d8121c818250ef443ea5e92634d66eca3de4c757a4dd02cfbc3afdd74a3d"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Node_Stone_S03_N_DX.uasset": {
+    "bytes": 59760549,
+    "sha256": "8f075222260ca6d97b3cdfbb0ea4dd92f8f8398b247c2c997370d71baebf6ef9"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Node_Stone_S03_ORM.uasset": {
+    "bytes": 6617853,
+    "sha256": "afc991d0d96cb0724468135a0303feb269be689895bd8fa54187804e52465c70"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Vein_Stone_01_BC.uasset": {
+    "bytes": 12970720,
+    "sha256": "37574be94bca37007532d6da69ffe04b58f4a7943f23ffe0f43d159b19e5fbb2"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Vein_Stone_01_N_DX.uasset": {
+    "bytes": 56088361,
+    "sha256": "db8805f83a58a864a13260b06e8cd3cb383b9f3fa1309752c7d7da5394851a78"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Stone/T_PSG_Vein_Stone_01_ORM.uasset": {
+    "bytes": 5474228,
+    "sha256": "68833b106f514a26dae7ae36c008f8710294649543b1e6f48fbd4c9e56376d47"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Node_Sulfur_S01_BC.uasset": {
+    "bytes": 17544382,
+    "sha256": "f3f87651ca996cf915e98a8aa866e8fc0446206d2cf3bd87680718080e29745a"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Node_Sulfur_S01_N_DX.uasset": {
+    "bytes": 66502288,
+    "sha256": "cd9c044755cbc05a0d7b4436ec5ab88eb07fcbc0a9ce8191b0d596e0ecea5dd3"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Node_Sulfur_S01_ORM.uasset": {
+    "bytes": 7547602,
+    "sha256": "c1c6576f5787564ce2091ab5a8fc802f5d479fed70a0d48ededd2e8989fefdce"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Node_Sulfur_S02_BC.uasset": {
+    "bytes": 15873650,
+    "sha256": "e90ab750cb917fcecd414d83e33c67195770ea139ebea1775df1cb9f5eb3371f"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Node_Sulfur_S02_N_DX.uasset": {
+    "bytes": 61626790,
+    "sha256": "458fb911a61e90755d2a0112f0a21233594e41975c3d6b7d8e9adb06ad952a6a"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Node_Sulfur_S02_ORM.uasset": {
+    "bytes": 6942752,
+    "sha256": "1a3a2dc76bb78bd240f45eb3df4cc8f0efbf07442a04aef76962875aea71f659"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Node_Sulfur_S03_BC.uasset": {
+    "bytes": 11301080,
+    "sha256": "f294b8d40c81976c62fa19c990b204456728473c92f247f17accd57944b16344"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Node_Sulfur_S03_N_DX.uasset": {
+    "bytes": 44995065,
+    "sha256": "069843e8cb199cdb9c9acce08870fe8e9a8b4a2ccdab6856777db693d9644ae3"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Node_Sulfur_S03_ORM.uasset": {
+    "bytes": 4825456,
+    "sha256": "cbbd4014e5379f14eee4f0e26e05dd6ca0d43d801fe1987181f9b33a3a4254d1"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Vein_Sulfur_01_BC.uasset": {
+    "bytes": 15481944,
+    "sha256": "b14c4ce241704e846ae3baa11b24e41b5ac452009443acf7f64fdcfaa72c4fee"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Vein_Sulfur_01_N_DX.uasset": {
+    "bytes": 56075379,
+    "sha256": "bc4e18e42acb3a53bfdbbc973327c8d2f03309956714f45a476bf804208e2d5f"
+  },
+  "Unreal/Content/PSG_ResourceNodes/Textures/Sulfur/T_PSG_Vein_Sulfur_01_ORM.uasset": {
+    "bytes": 5626494,
+    "sha256": "4ac51ec889df093d6e76a98947aa2b46248457153ccaf3773aacce987114baf5"
+  },
+  "Unreal/DELIVERY_README.md": {
+    "bytes": 10830,
+    "sha256": "488395e6ff38a8a60db33b56e6e9dd14ed616c7678812c42ea74028eaa825527"
+  },
+  "Unreal/PSGResources.uproject": {
+    "bytes": 363,
+    "sha256": "13a55d4c80bd70f25cb097c0e7e03c4a5ebaa9b4bb4786ef25bd80ed7551a744"
+  },
+  "Unreal/README.md": {
+    "bytes": 442,
+    "sha256": "59797732e76666c5579c303c1c8e6971a6528a80595e971706d791ffe26dc0bc"
+  },
+  "Unreal/THIRD_PARTY_NOTICES.md": {
+    "bytes": 1219,
+    "sha256": "b79ec5a4c800ebffedb139e0ffa9cf92105985ba01b758ec698a76d7957f241a"
+  }
+}

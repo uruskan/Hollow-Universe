@@ -27,6 +27,9 @@ public sealed class FxLoop
     public double StopAt = double.MaxValue;
     public float Strength;
     public bool Stopping;
+    public bool Rendered;
+    public double ActivatedAt = double.NegativeInfinity;
+    public float RenderStrength;
     public MeshInstance3D? Flames;
     public OmniLight3D? Light;
     public float[] Accumulators = Array.Empty<float>();

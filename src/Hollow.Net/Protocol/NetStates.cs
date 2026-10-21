@@ -6,10 +6,8 @@ namespace Hollow.Net.Protocol;
 
 public partial struct CharacterNetState : INetState<CharacterNetState>
 {
-    static int INetState<CharacterNetState>.FullSize => FullBits;
 }
 
 public partial struct ShipNetState : INetState<ShipNetState>
 {
-    static int INetState<ShipNetState>.FullSize => FullBits;
 }

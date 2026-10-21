@@ -67,6 +67,7 @@ public static class StationConvert
             Station = (byte)st.Def.Index,
             Chosen = st.Chosen,
             Shots = st.Shots,
+            NextBarrel = (byte)st.NextBarrel,
             Limit = st.Limit,
             Barrels = barrels,
             Loaders = loaders,
@@ -86,6 +87,7 @@ public static class StationConvert
         BatteryDef battery = st.Def.Battery;
         st.Chosen = (byte)Math.Min(net.Chosen, Math.Max(0, battery.Ammo.Count - 1));
         st.Shots = net.Shots;
+        st.NextBarrel = Math.Clamp((int)net.NextBarrel, 0, st.Chambers.Length - 1);
         st.Limit = net.Limit;
         StationBarrelNet[] barrels = net.Barrels ?? Array.Empty<StationBarrelNet>();
         for (int b = 0; b < st.Chambers.Length; b++)
