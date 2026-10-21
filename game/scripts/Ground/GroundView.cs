@@ -87,7 +87,10 @@ public partial class GroundView : Node3D
     private float _lookDYaw, _lookDPitch;
 
     /// <summary>The camera's field of view when not zoomed (degrees, vertical): the console's fov, 75 by default.</summary>
-    public float FieldOfView => _settings.Fov;
+    public float FieldOfView => FovOverride ?? _settings.Fov;
+
+    /// <summary>A field of view for this run alone (<c>--fov</c>): pictures matched to a reference; null: the saved setting.</summary>
+    public float? FovOverride { get; init; }
 
     // The view's settings the console sets, and the F1 panel's model (GROUND.md §8.2).
     private ViewSettings _settings = new();

@@ -110,7 +110,7 @@ public sealed record GraphicsValues
     /// <summary>An index into <see cref="GraphicsSettings.FrameCaps"/> (0: none).</summary>
     public int FrameCap { get; set; }
 
-    /// <summary>Vertical field of view on foot, degrees (60–100); kept in ground-settings.cfg with the F1 console's fov.</summary>
+    /// <summary>Vertical field of view on foot, degrees (30–110); kept in ground-settings.cfg with the F1 console's fov.</summary>
     public float FieldOfView { get; set; } = 75;
 
     /// <summary>The interface scale preference (0.6–2), kept in settings.cfg as Ctrl + plus and minus keep it.</summary>
@@ -274,7 +274,7 @@ public static class GraphicsSettings
         var view = new ConfigFile();
         if (view.Load(ViewPath) == Error.Ok)
         {
-            saved = saved with { FieldOfView = Math.Clamp((float)view.GetValue("view", "fov", 75.0).AsDouble(), 60, 100) };
+            saved = saved with { FieldOfView = Math.Clamp((float)view.GetValue("view", "fov", 75.0).AsDouble(), 30, 110) };
         }
         var ui = new ConfigFile();
         if (ui.Load(InterfacePath) == Error.Ok)
@@ -422,7 +422,7 @@ public static class GraphicsSettings
     /// <summary>The field of view set elsewhere (the F1 console's fov, saved by it): shown and taken as saved.</summary>
     public static void SetFieldOfView(float degrees)
     {
-        float fov = Math.Clamp(degrees, 60, 100);
+        float fov = Math.Clamp(degrees, 30, 110);
         Saved = Saved with { FieldOfView = fov };
         Preview(Current with { FieldOfView = fov });
     }

@@ -141,7 +141,7 @@ public static class SettingRows
             v => v.FrameCap, (v, x) => v with { FrameCap = (int)x },
             Options: Array.ConvertAll(GraphicsSettings.FrameCaps, c => c == 0 ? "NONE" : c.ToString(CultureInfo.InvariantCulture))),
         new("FIELD OF VIEW", "How wide you see on foot, in vertical degrees.", SettingKind.Slider,
-            v => v.FieldOfView, (v, x) => v with { FieldOfView = x }, 60, 100, 1, Format: x => x.ToString("0", CultureInfo.InvariantCulture) + "°"),
+            v => v.FieldOfView, (v, x) => v with { FieldOfView = x }, 30, 110, 1, Format: x => x.ToString("0", CultureInfo.InvariantCulture) + "°"),
     };
 
     /// <summary>Shadow cost controls; quality, reach, cascades and local-light count remain independent.</summary>

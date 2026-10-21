@@ -295,6 +295,7 @@ public partial class GroundMode : Node
             TimeOverride = TimeOption(),
             // Screenshots from above (docs/WHOLE_WORLD.md §10.5): the camera lifted along up, looking down.
             CameraLift = (float)Number("lift", 0),
+            FovOverride = Options.ContainsKey("fov") ? Math.Clamp((float)Number("fov", 75), 20, 120) : null,
             ShotPitch = Options.ContainsKey("pitch") ? (float)Number("pitch", 0) * MathF.PI / 180 : null,
             ShotYaw = Options.ContainsKey("yaw") ? (float)Number("yaw", 0) * MathF.PI / 180 : null,
             Clouds = Options.ContainsKey("clouds") ? (float)Number("clouds", 0.35) : null,

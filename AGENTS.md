@@ -328,7 +328,8 @@ Client options (after `--`):
   cover), `--debug-sky <n>` (as the surface view's: 11 to 16 show the ground's material weights, normals, climate, lighting
   and face seams), `--time <UTC>` or `--hour <h>`
   (show another time of day: a universe time, or the next time it is h o'clock at the landing site, or at `--lat`/`--lon`;
-  this client's sky only), `--tour <folder>`
+  this client's sky only), `--fov <deg>` (this run's field of view, 20 to 120, unsaved: 40 matches a long lens for pictures
+  beside a reference; the F1 `fov` command and the settings slider take 30 to 110), `--tour <folder>`
   with `--tour-steps hud,berries,inventory,crafting,player,chop,mine,gun,build,base,charge,firefight,ship,world,bags,death,night,f1,f2,look,foundations,held,place,interact,map`
   (the screenshot run; `--tour guest` is its second player, which also joins the firefight, watches the ship and takes
   the team invite; `f1` checks the F1 console in the game, as the host and admin, and pictures its five tabs; `chop` and

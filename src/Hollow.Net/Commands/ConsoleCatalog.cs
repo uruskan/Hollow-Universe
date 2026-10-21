@@ -59,7 +59,7 @@ public static class ConsoleCatalog
         Def("quit", ["quit"], "Leaves the game (a hosted game saves and stops).", false, CommandSide.Client, [], "exit", "global.quit"),
         Def("fps", ["fps"], "Shows or hides the frame rate.", false, CommandSide.Client, [], "perf", "global.fps"),
         Def("netgraph", ["netgraph"], "Shows or hides the network graph (F3).", false, CommandSide.Client, [], "global.netgraph"),
-        Def("fov", ["fov [degrees]"], "The field of view, 60 to 100 degrees (75 by default); kept on this computer.", false, CommandSide.Client,
+        Def("fov", ["fov [degrees]"], "The field of view, 30 to 110 degrees (75 by default; 40 matches a long lens); kept on this computer.", false, CommandSide.Client,
             [ArgKind.Number], "graphics.fov"),
         Def("sensitivity", ["sensitivity [x]"], "Mouse sensitivity, 0.1 to 5 (1 by default); kept on this computer.", false, CommandSide.Client,
             [ArgKind.Number], "input.sensitivity"),

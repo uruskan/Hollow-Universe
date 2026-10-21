@@ -23,7 +23,7 @@ public sealed class ViewSettings
     private const string FilePath = "user://ground-settings.cfg";
 
     /// <summary>
-    /// Vertical field of view in degrees (60–100; 75 by default): the graphics settings' (GROUND.md §8.6), so the F1
+    /// Vertical field of view in degrees (30–110; 75 by default): the graphics settings' (GROUND.md §8.6), so the F1
     /// console's fov and the settings panel show and change the same value.
     /// </summary>
     public float Fov
@@ -46,7 +46,7 @@ public sealed class ViewSettings
         file.Load(FilePath);
         return new ViewSettings
         {
-            Fov = Math.Clamp((float)file.GetValue("view", "fov", 75.0).AsDouble(), 60, 100),
+            Fov = Math.Clamp((float)file.GetValue("view", "fov", 75.0).AsDouble(), 30, 110),
             Sensitivity = Math.Clamp((float)file.GetValue("view", "sensitivity", 1.0).AsDouble(), 0.1f, 5),
             NoclipSpeed = Math.Clamp((float)file.GetValue("view", "noclip_speed", 10.0).AsDouble(), 1, 200),
             ShowFps = file.GetValue("view", "fps", false).AsBool(),
@@ -283,7 +283,7 @@ public sealed partial class ClientConsole : IConsoleModel, IDisposable
                 Out(shown ? "The network graph shows at the top right (F3 hides it)." : "The network graph is hidden.");
                 break;
             case "fov":
-                Setting(args, "Field of view", Settings.Fov, 60, 100, "°", v => Settings.Fov = v);
+                Setting(args, "Field of view", Settings.Fov, 30, 110, "°", v => Settings.Fov = v);
                 break;
             case "sensitivity":
                 Setting(args, "Mouse sensitivity", Settings.Sensitivity, 0.1f, 5, "", v => Settings.Sensitivity = v);
