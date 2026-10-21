@@ -776,19 +776,32 @@ twice the fuel, heavy black smoke, the turbo screaming and the engine rocking ha
   2.5 dB louder.
 - **The engine rocking under torque** (`Hollow.Client.Vehicles.EngineRock`, `ShipView.Rock.cs`). This is presentation
   only. The engine module's model (the first module with power) leans about its crank, the vehicle's length through the
-  module's centre of mass. It rides a spring and damper of about 2.5 Hz toward 2.6° (0.045 rad) at full load, 1.7 times
+  module's centre of mass. It rides a spring and damper of about 2.5 Hz toward 4° (0.07 rad) at full load, 1.8 times
   that overboosted. So a stab of the throttle lurches it past its lean before it settles, and a gear change (the load let
-  go and taken up again) swings it back. At idle it shakes with a diesel's lope (two beats from the revs, roughest at
-  idle, 2.2 times harder overboosted). Standing still, a rise in the revs (a free rev, or the throttle on the handbrake)
-  twists the whole model about its length at the hubs' height, up to 0.8°, as a heavy flywheel does. The exhaust stacks
-  are the engine's, so the smoke rocks with it. The hull, the seats and the contacts don't move. Measured
-  (`TruckFeelTests`): standing at idle with a shake of 0.005 rad; a stab lurching to 0.056 rad before settling at 0.045;
-  0.076 overboosted; a gear change swinging it back 0.063; a free rev twisting the chassis 0.51° standing and 0.03°
-  rolling.
-- **Black smoke** (`VehicleSmoke.Black`, fx.json `exhaust.black`). Overboosted, each stack pours a heavy column over its
-  soot, by the overboost and the load (0.35 + 0.65 × load). It comes in as fast as the soot and clears over 1.1 s. It is
-  made of fewer, denser puffs rather than many thin ones (16 + 4 a second, with a spark now and then), because
-  see-through smoke is what costs a frame its time. A gear change overboosted throws a puff 1.6 times as big.
+  go and taken up again) swings it back. It shakes with a diesel's lope (two beats from the revs), roughest at idle and
+  harder under load. Overboosted it shakes 3.5 times harder with a slow 4.3 Hz heave, shaking its head, and the whole
+  vehicle shudders with it: 0.3 of the engine's shake, about its length. Standing still, a rise in the revs (a free rev,
+  or the throttle on the handbrake) twists the whole model about its length at the hubs' height, up to 1.1°, as a heavy
+  flywheel does. The exhaust stacks are the engine's, so the smoke rocks with it. The hull, the seats and the contacts
+  don't move. The owner, after the first pass: "I was expecting more proper locomotive like black smoke coming out with
+  heavy roaring shaking engine". Hence these numbers, the billows below and the louder roar.
+
+  Measured (`TruckFeelTests`):
+  - a stab lurches it to 0.087 rad, and it settles at 0.070;
+  - overboosted it leans 0.126 rad;
+  - a gear change swings it back 0.100 rad;
+  - its shake is 1.0° pulling and 4.4° overboosted, with the body shuddering 1.3°;
+  - a free rev twists the chassis standing, and hardly at all rolling.
+- **Black smoke** (`VehicleSmoke.Black`, fx.json `exhaust.black`). Overboosted, each stack pours a locomotive's column over
+  its soot, by the overboost and the load (0.35 + 0.65 × load). It is jet-black smoke shot 7–11 m/s out of the stack,
+  rolling over into a wider dark plume: 18 + 4 puffs a second, with sparks. It comes in as fast as the soot and clears over
+  1.1 s. The load's soot is denser too.
+- **Billows** (`VehicleSmoke.Billow`, fx.json `exhaust.billow`). Over the column, heavy round puffs of black smoke are thrown
+  high in the engine's rhythm: overboosted, one every 0.42 s at 1,500 rpm and sooner with the revs; pulling hard without
+  it, smaller ones half as often. Each carries a small camera shake within 14 m (one stack's, `exhaust.billow.quiet` for
+  the others), so the driver feels the engine rumble in the chase camera and the cockpit. The smoke batch holds 1,536
+  particles (it held 1,024): a TOGG overboosting pours about 600.
+- **The roar.** Overboosted, the whole engine plays 4.5 dB louder and the labouring twin-turbo layer 3 dB above that.
 - **Recorded diesel sounds** (`art/audio/truck_sounds.py`, `audio/vehicle/truck/`). The owner chose recordings, and to use
   them whatever their licence while nothing is sold; every source is credited in THIRD_PARTY.md. The loops' revs are
   read off their spectrograms, where the firing order's line gives rpm = 20 × Hz for a six:
@@ -831,12 +844,16 @@ twice the fuel, heavy black smoke, the turbo screaming and the engine rocking ha
   `python -I art/audio/sources.py --youtube <URL>`, then its cuts in `truck_sounds.py`.
 - **Tour step** `--tour-steps truck` (`GroundTour.Truck.cs`; `HOLLOW_TOUR_KIND=monster-togg` runs it on the monster;
   `HOLLOW_TOUR_NO_FX=1` runs it without the effects). It idles, revs on the handbrake, pulls away flat out (timed), brakes,
-  pulls away overboosted (timed), and lets go of Shift. It prints the revs, gear, turbo, overboost, the engine's lean, the
-  chassis's twist and the fuel at each stage.
+  pulls away overboosted (timed), lets go of Shift, and overboosts on the handbrake seen from ahead and to the right
+  (`GroundView.OrbitSeat`, as the right mouse turns the seat's camera). It prints the revs, gear, turbo, overboost, the
+  engine's lean, the chassis's twist and the fuel at each stage.
 - **Frame times not measured yet.** Both hosted runs overlapped other sessions' work: on the morning of 21 October another
   session's Godot, and in the afternoon another session's full test suite and Godot. They gave 70–78 ms a frame without
   the effects and 110–128 ms with them, against the monster tour's 19–21 ms the night before. That is not a measurement
   of this work. A run on a quiet machine (`--tour-steps truck`, with and without `HOLLOW_TOUR_NO_FX=1`) is still to do.
+  A third run, at 14:40 beside another Godot game holding 6.6 of the graphics card's 8 GB, drew the TOGG untextured
+  (white). Its textures and imports were unchanged since 20 October, and that morning's run without another game drew it
+  textured. The likely cause is graphics memory running out (not proven). Pictures need the machine to itself.
 
 ### 9.11 Builds changed in the game: running gear as modules, changed in the vehicle workbench's bay (21 October 2026)
 

@@ -943,10 +943,10 @@
       "cap": 24, "cull": 300, "hero": 0.8, "stage": "dirt",
       "loop": { "fadeIn": 0.15, "fadeOut": 0.6,
         "emit": [
-          { "batch": "smoke", "rate": 26, "at": [0.0, 0.0, 0.0], "jitter": 0.03, "size": [0.16, 0.26], "grow": 6, "life": [1.8, 3.2], "speed": [2.2, 4.0],
-            "dir": "up", "cone": 14, "color": [0.07, 0.065, 0.06], "vary": 0.1, "alpha": [0.35, 0.55] },
-          { "batch": "smoke", "rate": 8, "at": [0.0, 0.05, 0.0], "jitter": 0.05, "size": [0.24, 0.36], "grow": 5, "life": [3.0, 4.5], "speed": [1.4, 2.4],
-            "dir": "up", "cone": 20, "color": [0.2, 0.19, 0.18], "vary": 0.08, "alpha": [0.2, 0.3] }
+          { "batch": "smoke", "rate": 28, "at": [0.0, 0.0, 0.0], "jitter": 0.03, "size": [0.2, 0.3], "grow": 7, "life": [2.2, 3.8], "speed": [3.0, 5.5],
+            "dir": "up", "cone": 12, "color": [0.045, 0.042, 0.04], "vary": 0.1, "alpha": [0.45, 0.65] },
+          { "batch": "smoke", "rate": 7, "at": [0.0, 0.05, 0.0], "jitter": 0.05, "size": [0.3, 0.42], "grow": 5, "life": [3.5, 5.0], "speed": [1.6, 2.8],
+            "dir": "up", "cone": 20, "color": [0.15, 0.145, 0.14], "vary": 0.08, "alpha": [0.22, 0.32] }
         ] } },
     { "key": "exhaust.puff", "family": "ship",
       "about": "A diesel's black puff (at an Exhaust_<n> point; Scale: how hard): on starting, at a gear change and on a stab of the throttle.",
@@ -959,17 +959,38 @@
         { "batch": "ember", "count": [0, 2], "size": [0.012, 0.02], "life": [0.2, 0.45], "speed": [3, 5], "dir": "up", "cone": 12, "color": [1.0, 0.45, 0.12] }
       ] },
     { "key": "exhaust.black", "family": "ship",
-      "about": "A diesel overboosted (a loop on each Exhaust_<n> point, over its soot, VEHICLES.md §9.10; intensity: the overboost by the load): a heavy column of black smoke, few big dense puffs rather than many thin ones, and a spark now and then.",
-      "cap": 24, "cull": 300, "hero": 0.9, "stage": "dirt",
-      "loop": { "fadeIn": 0.2, "fadeOut": 0.8,
+      "about": "A diesel overboosted (a loop on each Exhaust_<n> point, over its soot, VEHICLES.md §9.10; intensity: the overboost by the load): a locomotive's column, jet-black smoke shot high out of the stack and rolling over into a wide dark plume, sparks now and then. The billows (exhaust.billow) come in the engine's rhythm over it.",
+      "cap": 24, "cull": 320, "hero": 0.9, "stage": "dirt",
+      "loop": { "fadeIn": 0.15, "fadeOut": 0.9,
         "emit": [
-          { "batch": "smoke", "rate": 16, "at": [0.0, 0.02, 0.0], "jitter": 0.04, "size": [0.22, 0.32], "grow": 6, "life": [2.2, 3.6], "speed": [3.2, 5.5],
-            "dir": "up", "cone": 12, "color": [0.035, 0.032, 0.03], "vary": 0.08, "alpha": [0.65, 0.85] },
-          { "batch": "smoke", "rate": 4, "at": [0.0, 0.1, 0.0], "jitter": 0.08, "size": [0.3, 0.4], "grow": 4.5, "life": [3.5, 5.0], "speed": [1.8, 3.0],
-            "dir": "up", "cone": 20, "color": [0.11, 0.105, 0.1], "vary": 0.06, "alpha": [0.25, 0.35] },
-          { "batch": "ember", "rate": 1.5, "at": [0.0, 0.0, 0.0], "size": [0.012, 0.02], "life": [0.2, 0.4], "speed": [4, 6], "dir": "up", "cone": 10,
+          { "batch": "smoke", "rate": 18, "at": [0.0, 0.02, 0.0], "jitter": 0.04, "size": [0.3, 0.42], "grow": 8, "life": [3.5, 5.5], "speed": [7.0, 11.0],
+            "dir": "up", "cone": 7, "color": [0.022, 0.02, 0.019], "vary": 0.06, "alpha": [0.82, 0.95] },
+          { "batch": "smoke", "rate": 4, "at": [0.0, 0.15, 0.0], "jitter": 0.1, "size": [0.45, 0.6], "grow": 6, "life": [5.0, 7.5], "speed": [2.5, 4.0],
+            "dir": "up", "cone": 18, "color": [0.07, 0.067, 0.064], "vary": 0.06, "alpha": [0.4, 0.55] },
+          { "batch": "ember", "rate": 3, "at": [0.0, 0.0, 0.0], "size": [0.012, 0.022], "life": [0.25, 0.5], "speed": [6, 9], "dir": "up", "cone": 10,
             "color": [1.0, 0.45, 0.12] }
         ] } },
+    { "key": "exhaust.billow", "family": "ship",
+      "about": "A locomotive's billow (at an Exhaust_<n> point; Scale: how hard, VEHICLES.md §9.10): a heavy round puff of jet-black smoke thrown high in the engine's rhythm, overboosted or pulling hard, with a rumble felt close by.",
+      "cap": 24, "cull": 320, "duration": 8, "hero": 0.8, "stage": "dirt",
+      "layers": [
+        { "batch": "smoke", "count": [2, 3], "size": [0.5, 0.7], "grow": 8, "life": [4.5, 7.0], "speed": [6.0, 10.0], "jitter": 0.08, "dir": "up", "cone": 9,
+          "color": [0.018, 0.017, 0.016], "vary": 0.06, "alpha": [0.85, 0.95] },
+        { "batch": "smoke", "count": 1, "size": [0.6, 0.8], "grow": 6, "life": [6.0, 8.0], "speed": [3.0, 5.0], "jitter": 0.12, "dir": "up", "cone": 16,
+          "color": [0.08, 0.077, 0.074], "vary": 0.05, "alpha": [0.45, 0.6] },
+        { "batch": "ember", "count": [0, 2], "size": [0.012, 0.022], "life": [0.25, 0.5], "speed": [6, 9], "dir": "up", "cone": 10, "color": [1.0, 0.45, 0.12] },
+        { "type": "shake", "strength": 0.1, "radius": 14, "duration": 0.45 }
+      ] },
+    { "key": "exhaust.billow.quiet", "family": "ship",
+      "about": "exhaust.billow without its rumble: the other stacks' billows (one stack's shake is enough).",
+      "cap": 24, "cull": 320, "duration": 8, "hero": 0.8, "stage": "dirt",
+      "layers": [
+        { "batch": "smoke", "count": [2, 3], "size": [0.5, 0.7], "grow": 8, "life": [4.5, 7.0], "speed": [6.0, 10.0], "jitter": 0.08, "dir": "up", "cone": 9,
+          "color": [0.018, 0.017, 0.016], "vary": 0.06, "alpha": [0.85, 0.95] },
+        { "batch": "smoke", "count": 1, "size": [0.6, 0.8], "grow": 6, "life": [6.0, 8.0], "speed": [3.0, 5.0], "jitter": 0.12, "dir": "up", "cone": 16,
+          "color": [0.08, 0.077, 0.074], "vary": 0.05, "alpha": [0.45, 0.6] },
+        { "batch": "ember", "count": [0, 2], "size": [0.012, 0.022], "life": [0.25, 0.5], "speed": [6, 9], "dir": "up", "cone": 10, "color": [1.0, 0.45, 0.12] }
+      ] },
     { "key": "dust.tyre", "family": "ship",
       "about": "Dust thrown up behind a tyre on the ground (a loop at its contact patch; Direction: behind it; Tint: the ground's dust; intensity: its speed and spin): a rolling cloud low behind it, grit and gravel kicked back.",
       "cap": 48, "cull": 160, "hero": 0.6, "stage": "dirt",

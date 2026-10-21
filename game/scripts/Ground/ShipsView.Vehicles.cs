@@ -12,7 +12,7 @@ namespace HollowUniverse.Ground;
 
 /// <summary>
 /// A ground vehicle's own effects (VEHICLES.md §9.9): its diesel's haze at idle, black soot under load, a heavy black column
-/// overboosted (§9.10) and a puff on starting, at a gear change and on a stab of the throttle (by its revs,
+/// and a locomotive's billows overboosted or pulling hard (§9.10) and a puff on starting, at a gear change and on a stab of the throttle (by its revs,
 /// <c>VehicleRevs</c>), out of every <c>Exhaust_&lt;n&gt;</c> point of its model
 /// (<see cref="VehicleSmoke"/>); dust behind each tyre on the ground, tinted by the ground under it, with grit and gravel,
 /// by its speed and its spin pulling away; and spray where a tyre runs through shallow water. Drawn within
@@ -57,7 +57,7 @@ public partial class ShipsView
         VehicleFx fx = d.Fx ??= new VehicleFx();
         float throttle = look.Thrust.Z;
         fx.Smoke.Update(look.Engines, throttle, d.Revs?.Load ?? MathF.Abs(throttle), d.Revs?.Shifted ?? false, (float)_delta,
-            d.Revs?.Overboost ?? (look.Boosting ? 1 : 0));
+            d.Revs?.Overboost ?? (look.Boosting ? 1 : 0), d.Revs?.Rpm ?? 0);
         Camera3D? camera = GetViewport()?.GetCamera3D();
         bool near = shown && (camera == null || camera.GlobalPosition.DistanceTo(d.View.GlobalPosition) < VehicleFxReach);
         Exhaust(fx, d.View, near);
@@ -86,6 +86,12 @@ public partial class ShipsView
             if (near && smoke.Puff > 0)
             {
                 FxDirector.Play("exhaust.puff", at.GlobalPosition, at.GlobalBasis.Y.Normalized(), new FxParams { Scale = smoke.Puff });
+            }
+            // A locomotive's billow, thrown up in the engine's rhythm, with a rumble felt close by (one stack shakes).
+            if (near && smoke.Billow > 0)
+            {
+                FxDirector.Play(i == 0 ? "exhaust.billow" : "exhaust.billow.quiet", at.GlobalPosition, at.GlobalBasis.Y.Normalized(),
+                    new FxParams { Scale = smoke.Billow });
             }
         }
     }

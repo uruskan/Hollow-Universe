@@ -109,6 +109,24 @@ public partial class GroundTour
         });
         TruckTrace($"Shift let go (the turbo's release heard: {released})", car);
         await Pilot(new ShipInput { Engines = true, Throttle = -1 }, 3);
+        await Pilot(new ShipInput { Engines = true }, 1.5);
+
+        // Overboosted on the handbrake, seen from ahead and to the right: the plume straight up, the billows, the engine heaving.
+        const float Round = MathF.PI - 0.65f;
+        View.OrbitSeat(Round, 0.05f, -2);
+        var standing = new ShipInput { Engines = true, Throttle = 1, Vertical = 1, Buttons = ShipButtons.Boost };
+        float heaveMost = 0;
+        await Pilot(standing, 2.6, () =>
+        {
+            heaveMost = MathF.Max(heaveMost, MathF.Abs(View.Ships.RockOf(car.NetId)?.Shake ?? 0));
+            return false;
+        });
+        TruckTrace($"overboosted on the handbrake (the engine shaking up to {heaveMost * 180 / MathF.PI:0.0}°)", car);
+        await Shot("truck-overboost-front", frames: 0);
+        await Pilot(standing, 1.2);
+        await Shot("truck-overboost-front-2", frames: 0);
+        View.OrbitSeat(-Round, -0.05f, 2);
+        await Pilot(new ShipInput { Engines = true }, 1);
 
         View.Scripted = null;
         Me.LeaveSeat();

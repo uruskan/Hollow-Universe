@@ -210,8 +210,9 @@ public static class FxBatches
             new() { ["tex"] = FxAssets.Texture("c4/dust_puff.png"), ["fade_in"] = 0.04f, ["fade_out"] = 0.7f, ["spin"] = 0.25f, ["softness"] = 0.12f,
                 ["growth_power"] = 0.45f, ["near_fade"] = 0.7f, ["vignette"] = 1f, ["albedo_boost"] = 1.45f },
             new() { ["gravity"] = 0.12f, ["drag"] = 2.6f, ["turbulence"] = 0.5f }, priority: 0);
-        // Smoke puffs: single late frames of the C4 smoke flipbook, lit with its normals, rising and spreading.
-        Add("smoke", 1024, 16f, "fx_smoke.gdshader",
+        // Smoke puffs: single late frames of the C4 smoke flipbook, lit with its normals, rising and spreading. 1,536 of them: a
+        // TOGG overboosting pours some 600 (VEHICLES.md §9.10).
+        Add("smoke", 1536, 16f, "fx_smoke.gdshader",
             new() { ["tex"] = FxAssets.Texture("c4/smoke_8x8.png"), ["normal_tex"] = FxAssets.Texture("c4/smoke_normal_8x8.png"),
                 ["frames"] = new Vector2(8, 8), ["animate"] = false, ["frame_range"] = new Vector2(30, 63), ["spin"] = 0.12f, ["fade_in"] = 0.03f,
                 ["fade_out"] = 0.7f, ["softness"] = 0.6f, ["near_fade"] = 0.9f, ["growth_power"] = 0.45f, ["vignette"] = 1f },

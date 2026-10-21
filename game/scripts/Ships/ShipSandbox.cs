@@ -551,7 +551,7 @@ public partial class ShipSandbox : Node3D
         bool landed = shown.Has(ShipFlags.Landed);
         _revs.Step(along, shown.Thrust.Z, shown.Has(ShipFlags.EnginesOn) && !_ship.Destroyed, landed, (float)delta, shown.Has(ShipFlags.Boosting));
         _rock.Step(_revs, along, (float)delta);
-        _shipView.ShowRock(_rock.Lean + _rock.Shake, _rock.Twist);
+        _shipView.ShowRock(_rock.Lean + _rock.Shake, _rock.Twist + _rock.Shudder);
         string surface = _content.Surfaces.Key(_content.Surfaces.AtGround(_zone.Surface, _zone.Frame, shown.Position));
         _vehicleSounds!.Update(_revs, shown.Velocity, shown.Rotation, landed, surface, _shipView.Visible, delta);
     }

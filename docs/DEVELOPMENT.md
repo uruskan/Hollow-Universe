@@ -1,5 +1,23 @@
 # Hollow Universe AB Test B
 
+## 21 October 2026 — Vehicles: the TOGG's locomotive smoke and its heavy shaking engine (VEHICLES.md §9.10)
+
+The owner, after the first pass: "I was expecting more proper locomotive like black smoke coming out with heavy roaring
+shaking engine".
+
+- **Smoke.** Overboosted, a jet-black column shot 7–11 m/s up and rolling into a wide plume (`exhaust.black`). Over it,
+  billows thrown in the engine's rhythm (`VehicleSmoke.Billow`, `exhaust.billow`): one every 0.42 s at 1,500 rpm,
+  sooner with the revs, smaller and half as often pulling hard. Each billow carries a small camera shake within 14 m.
+  The load's soot is denser. The smoke batch holds 1,536 particles (it held 1,024).
+- **The engine** (`EngineRock`): it leans 4° at full load and 7.2° overboosted, and kicks harder at a gear change. It
+  shakes harder under load, and overboosted 3.5 times harder with a 4.3 Hz heave, the whole vehicle shuddering with it.
+- **The roar:** overboosted, 4.5 dB louder, with the labouring layer 3 dB above that.
+- **Tour:** a three-quarter front view overboosting on the handbrake (`GroundView.OrbitSeat`).
+- **Checked:** `TruckFeelTests` 7/7 (billows by revs, the shake 4.4° overboosted with the body 1.3°), and
+  `VehicleSmoke`, `VehicleBoost`, `VehicleSound`, `Effect`, `ContentTests`, `GroundMotor` and `BikeRide`: 38/38.
+- **Not checked:** the hosted pictures. The run at 14:40 shared the graphics card with another game (6.6 of 8 GB) and
+  drew the TOGG untextured, so its pictures were not kept. That run did show the plume and the billows.
+
 ## 21 October 2026 — Vehicles: tyres, a lift kit and engines changed in the vehicle workbench's bay (VEHICLES.md §9.11)
 
 The owner asked how to change a car's engine or tyres. You couldn't: the build was fixed when the car was crafted, and its

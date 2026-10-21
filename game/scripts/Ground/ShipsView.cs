@@ -283,7 +283,7 @@ public partial class ShipsView : Node3D
         d.Revs.Step(along, look.Thrust.Z, look.Engines && !look.Destroyed, landed, (float)delta, look.Boosting);
         d.Rock ??= new EngineRock();
         d.Rock.Step(d.Revs, along, (float)delta);
-        d.View.ShowRock(d.Rock.Lean + d.Rock.Shake, d.Rock.Twist);
+        d.View.ShowRock(d.Rock.Lean + d.Rock.Shake, d.Rock.Twist + d.Rock.Shudder);
     }
 
     // The physical surface under a ground vehicle (contact-surfaces.json's), or "water" where it wades, a few times a second.

@@ -24,7 +24,7 @@ public sealed class VehicleSmoke
     public const float StabCooldown = 0.8f;
 
     private bool _running;
-    private float _lagged, _sinceStab = StabCooldown;
+    private float _lagged, _sinceStab = StabCooldown, _sinceBillow;
 
     /// <summary>0–1: the idle haze (thinner as the soot takes over).</summary>
     public float Haze { get; private set; }
@@ -45,12 +45,23 @@ public sealed class VehicleSmoke
     public const float BlackRelease = 1.1f;
 
     /// <summary>
-    /// One frame: <paramref name="throttle"/> −1 to 1 (backing up negative), <paramref name="load"/> 0–1,
-    /// <paramref name="overboost"/> 0–1 (the revs' <c>Overboost</c>).
+    /// How big a billow this step is (0: none): a locomotive's heavy round puff of black smoke thrown up in the engine's
+    /// rhythm (VEHICLES.md §9.10), about one a second under a hard pull and several a second overboosted, quicker with the
+    /// revs; the view throws fx.json's <c>exhaust.billow</c> with a rumble felt near it.
     /// </summary>
-    public void Update(bool running, float throttle, float load, bool shifted, float dt, float overboost = 0)
+    public float Billow { get; private set; }
+
+    /// <summary>A billow every this many seconds at <see cref="BillowRpm"/>, overboosted (sooner at higher revs); a hard pull's
+    /// come <see cref="PullBillowSlower"/> times less often.</summary>
+    public const float BillowEvery = 0.42f, BillowRpm = 1500f, PullBillowSlower = 2.2f;
+
+    /// <summary>
+    /// One frame: <paramref name="throttle"/> −1 to 1 (backing up negative), <paramref name="load"/> 0–1,
+    /// <paramref name="overboost"/> 0–1 (the revs' <c>Overboost</c>), <paramref name="rpm"/> the revs (0: unknown).
+    /// </summary>
+    public void Update(bool running, float throttle, float load, bool shifted, float dt, float overboost = 0, float rpm = 0)
     {
-        Puff = 0;
+        Puff = Billow = 0;
         dt = Math.Max(dt, 0);
         if (!running)
         {
@@ -85,6 +96,19 @@ public sealed class VehicleSmoke
         float black = overboost * (0.35f + 0.65f * load);
         Black = Approach(Black, black, dt, black > Black ? SootAttack : BlackRelease);
         Haze = 1f - 0.7f * Math.Max(Soot, Black);
+
+        // Billows: overboosted, or pulling hard, a heavy puff in the engine's rhythm.
+        _sinceBillow += dt;
+        bool boosted = Black > 0.3f, pulling = Soot > 0.8f;
+        if (boosted || pulling)
+        {
+            float every = BillowEvery * BillowRpm / Math.Max(rpm > 0 ? rpm : BillowRpm, 600f) * (boosted ? 1 : PullBillowSlower);
+            if (_sinceBillow >= Math.Clamp(every, 0.2f, 1.4f))
+            {
+                Billow = boosted ? 0.7f + 0.7f * Black : 0.5f;
+                _sinceBillow = 0;
+            }
+        }
     }
 
     // Toward a target over a time constant (exponential, steady whatever the frame rate).

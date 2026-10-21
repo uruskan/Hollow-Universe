@@ -1087,6 +1087,13 @@ public partial class GroundView : Node3D
     public (float Yaw, float Pitch, float Distance, bool Dragging) SeatOrbitState =>
         (_seatOrbit.Yaw, _seatOrbit.Pitch, _seatOrbit.Distance, _seatOrbit.Dragging);
 
+    /// <summary>Turns and zooms the seated third-person camera, as the right mouse and the wheel do (scripted runs).</summary>
+    public void OrbitSeat(float yaw, float pitch, float zoomSteps)
+    {
+        _seatOrbit.Drag(yaw, pitch);
+        _seatOrbit.Zoom(zoomSteps);
+    }
+
     /// <summary>The ships drawn, for scripted runs.</summary>
     public ShipsView Ships => _ships;
 

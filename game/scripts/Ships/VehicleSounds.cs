@@ -136,8 +136,8 @@ public sealed class VehicleSounds
         {
             return;
         }
-        // Overboosted it works harder: the whole engine a little louder.
-        float level = _e.Volume + Db(rise) + 2.5f * revs.Overboost;
+        // Overboosted it works harder: the whole engine louder, roaring.
+        float level = _e.Volume + Db(rise) + 4.5f * revs.Overboost;
         float rpm = Math.Max(revs.Rpm, 1);
         // On the throttle and off it, at equal power; the overrun's drag louder.
         float a = MathF.Pow(Math.Clamp(revs.Load, 0, 1), 0.75f) * MathF.PI * 0.5f;
@@ -199,7 +199,7 @@ public sealed class VehicleSounds
             {
                 _labour = Start(_e.Labour, _engine);
             }
-            Set(_labour, level - 2f + Db(labour), rpm / _e.LabourRpm * _e.Pitch, 0.15f);
+            Set(_labour, level + 1f + Db(labour), rpm / _e.LabourRpm * _e.Pitch, 0.15f);
             if (labour <= 0.01f && revs.Overboost < 0.01f)
             {
                 Stop(ref _labour, 0.3f);

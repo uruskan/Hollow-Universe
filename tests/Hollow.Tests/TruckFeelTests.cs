@@ -169,4 +169,63 @@ public static class TruckFeelTests
         }
         Assert.True(s.Black > 0.4f && s.Black < 0.9f, $"let go: the black clears slowly ({s.Black:0.00})");
     }
+
+    /// <summary>A locomotive's billows: overboosted several a second, quicker with the revs; pulling hard, fewer; idling, none.</summary>
+    [Test]
+    public static void BillowsComeInTheEnginesRhythm()
+    {
+        (int count, float biggest) Billows(float load, float overboost, float rpm)
+        {
+            var s = new VehicleSmoke();
+            int n = 0;
+            float most = 0;
+            for (int i = 0; i < 60 * 6; i++)
+            {
+                s.Update(true, load, load, false, Dt, overboost, rpm);
+                if (i >= 60 && s.Billow > 0)
+                {
+                    n++;
+                    most = MathF.Max(most, s.Billow);
+                }
+            }
+            return (n, most);
+        }
+        var boosted = Billows(1, 1, 1500);
+        var boostedHigh = Billows(1, 1, 2300);
+        var pulling = Billows(1, 0, 1500);
+        var idling = Billows(0, 0, 600);
+        Fixtures.Report($"five seconds: overboosted {boosted.count} billows at 1,500 rpm, {boostedHigh.count} at 2,300 (biggest {boosted.biggest:0.00}); pulling hard {pulling.count} ({pulling.biggest:0.00}); idling {idling.count}");
+        Assert.InRange(10, 14, boosted.count, "overboosted at 1,500 rpm: a billow every 0.42 s");
+        Assert.True(boostedHigh.count > boosted.count, "quicker with the revs");
+        Assert.True(pulling.count is > 0 && pulling.count < boosted.count / 2 + 1 && pulling.biggest < boosted.biggest, "pulling hard: fewer and smaller");
+        Assert.Equal(0, idling.count, "idling: none");
+    }
+
+    [Test]
+    public static void OverboostedTheEngineShakesHard()
+    {
+        float Most(float load, bool boosting, out float shudder)
+        {
+            var revs = new VehicleRevs(Diesel);
+            var rock = new EngineRock();
+            float most = 0;
+            shudder = 0;
+            for (int i = 0; i < 120; i++)
+            {
+                revs.Step(4, load, true, true, Dt, boosting);
+                rock.Step(revs, 4, Dt);
+                if (i >= 60)
+                {
+                    most = MathF.Max(most, MathF.Abs(rock.Shake));
+                    shudder = MathF.Max(shudder, MathF.Abs(rock.Shudder));
+                }
+            }
+            return most;
+        }
+        float idle = Most(0, false, out _), pulling = Most(1, false, out _), boosted = Most(1, true, out float shudder);
+        Fixtures.Report($"the engine's shake: idling {idle * 180 / MathF.PI:0.0}°, pulling {pulling * 180 / MathF.PI:0.0}°, overboosted {boosted * 180 / MathF.PI:0.0}° (the body {shudder * 180 / MathF.PI:0.0}°)");
+        Assert.True(pulling > idle * 1.3f, "it shakes harder pulling than idling");
+        Assert.True(boosted > pulling * 2.5f && boosted > 0.035f, "overboosted it shakes its head: two degrees and more");
+        Assert.True(shudder > 0.01f, "and the whole vehicle shudders with it");
+    }
 }
