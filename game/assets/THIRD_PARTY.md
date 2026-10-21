@@ -348,6 +348,35 @@ Earlier recordings remain credited below as provenance of the retained before/af
 | [3589](https://bigsoundbank.com/s3589.html) | Anvil #1 | https://bigsoundbank.com/UPLOAD/bwf-en/3589.wav (4,727,472 bytes) | `ebc51af2da517a3b3a2e21a7f7be1ce0c5942f3583a0a8702506af87d4ca10c0` |
 | [3590](https://bigsoundbank.com/s3590.html) | Anvil #2 | https://bigsoundbank.com/UPLOAD/bwf-en/3590.wav (3,170,872 bytes) | `62c4aa8d870f3a5a7b94825bd5cbf44261013f430169b589536a4402520367d1` |
 
+### The TOGG's recorded diesel (`audio/vehicle/truck/`, 21 October 2026)
+
+The owner asked for recorded truck sounds over synthesized ones (docs/VEHICLES.md §9.10). They chose to use them
+whatever their licence while nothing is sold ("do not think about licences as right now we are not selling anything").
+Each source is listed here with the licence its page gives, so the set can be swapped before any release. The files are
+freesound's public high-quality previews (MP3, about 190 kbps, no account), Pixabay's MP3s and two YouTube shorts the
+owner picked, downloaded by `D:\GameDev\Tools\yt-dlp`. Each is in `art/audio/sources.py` with its SHA-256
+(`freesound.json`, `pixabay.json`, `youtube.json`), under `D:\GameDev\Assets\Downloads\freesound-previews\`, `pixabay\`
+and `youtube\`. `art/audio/truck_sounds.py` cuts, pitches and filters them. A freesound original saved by hand into
+`freesound\` and recorded with `sources.py --adopt` replaces its preview (the same recording, the same cut times).
+Every candidate downloaded (35 freesound previews, 4 Pixabay files, 4 YouTube shorts, 8 more BigSoundBank WAVs) is in
+those rosters. The table lists only what the sounds use. The turbo's whistle under the recorded whine is our own
+synthesis (`art/audio/engines.py`).
+
+| Source | Recording (author) | Licence | File (bytes) | SHA-256 |
+|---|---|---|---|---|
+| [freesound 107039](https://freesound.org/people/Cameron%20Johnson/sounds/107039/) | Pegasus shifting.WAV (Cameron Johnson) | CC0 1.0 | preview https://cdn.freesound.org/previews/107/107039_938268-hq.mp3 (431,985 bytes) | `690925b8983e4a27755b524c13e727fb50d1ee50eb38dfcddee765891d441334` |
+| [freesound 165167](https://freesound.org/people/goose278/sounds/165167/) | tractor connecting to trailer with air brk.WAV (goose278) | CC0 1.0 | preview https://cdn.freesound.org/previews/165/165167_2994289-hq.mp3 (293,520 bytes) | `449fad830f945f42f1e3f6d98032c0219e7374d3413362bf6635a9aecdaa5d11` |
+| [freesound 435656](https://freesound.org/people/YellowJacketStudios/sounds/435656/) | FORD LTL 9000_engine start and idle.wav (YellowJacketStudios) | CC0 1.0 | preview https://cdn.freesound.org/previews/435/435656_2347916-hq.mp3 (1,037,088 bytes) | `18efb5d007e13f3d684f43080472fcf9777fd3d01388056da6f3bcf01078d8a2` |
+| [freesound 435667](https://freesound.org/people/YellowJacketStudios/sounds/435667/) | FORD LTL 9000_back up and engine shutdown.wav (YellowJacketStudios) | CC0 1.0 | preview https://cdn.freesound.org/previews/435/435667_2347916-hq.mp3 (1,658,208 bytes) | `e76eb7f218d40756f282c239cf1067b501e8684909bb8ecb8e68ccad564cabbf` |
+| [freesound 504865](https://freesound.org/people/rabbydaw/sounds/504865/) | air_brakes_loud_fade_out.wav (rabbydaw) | CC0 1.0 | preview https://cdn.freesound.org/previews/504/504865_7708176-hq.mp3 (127,680 bytes) | `0ea51edef294c8bc6ed5ce7d26ccf179a936035d7fb51166dd9463d2a3703365` |
+| [freesound 518294](https://freesound.org/people/lucasfuchs/sounds/518294/) | Tractor Engine (lucasfuchs) | CC0 1.0 | preview https://cdn.freesound.org/previews/518/518294_8270369-hq.mp3 (992,544 bytes) | `733ce5bea4254383a331c0db97cb9c660c7829bdab732108ba985a588bbd23aa` |
+| [freesound 637914](https://freesound.org/people/kyles/sounds/637914/) | truck big diesel engine work up a hill sustained rev and pass by2.flac (kyles) | CC0 1.0 | preview https://cdn.freesound.org/previews/637/637914_612689-hq.mp3 (551,904 bytes) | `dc700413027edbc1c84181f0705d7f833507518d69abecfc561505de27c5da54` |
+| [Pixabay 336362](https://pixabay.com/sound-effects/film-special-effects-turbo-flutter-336362/) | Turbo flutter (spinopel) | Pixabay Content License | https://cdn.pixabay.com/download/audio/2025/05/03/audio_5f6ebb6f52.mp3 (269,165 bytes) | `f0cdab565f6a95a69b214bc517356cf8ba79d5cccb7af61723994a3379af3246` |
+| [Pixabay 345714](https://pixabay.com/sound-effects/city-turbo-flutter-on-a-diesel-345714/) | Turbo flutter on a diesel (spinopel) | Pixabay Content License | https://cdn.pixabay.com/download/audio/2025/05/22/audio_22aa274d3c.mp3 (244,924 bytes) | `4f9db34d3837f8f5a2f9012ddf7c3bb5e292e26d9b112b1b5cd2bb508b4ba417` |
+| [Pixabay 63220](https://pixabay.com/sound-effects/city-truck-jake-brake-63220/) | truck jake brake (nuncaconoci (freesound_community)) | Pixabay Content License | https://cdn.pixabay.com/download/audio/2022/03/14/audio_1085375ceb.mp3 (409,920 bytes) | `7bfb868c652e4dbf081f7c3c655989be58582d9da695c198fc2880c757382d02` |
+| [YouTube DoC1_kqCoh0](https://www.youtube.com/shorts/DoC1_kqCoh0) | This Twin Turbo Power Stroke Diesel Tractor Is Epic! (The Journey HQ) | Standard YouTube licence (the owner's choice, 21 October 2026) | `DoC1_kqCoh0.webm` by yt-dlp (401,717 bytes) | `bb329ef058a7f2d9eb2b4a7d49b25c064e6e8dc99d46fdd104f79699ac1bf7ae` |
+| [YouTube rzCpNBSp7YY](https://www.youtube.com/shorts/rzCpNBSp7YY) | V12 COLD START!!! #v12 #coldstart #peterbilt (OL2STROKER) | Standard YouTube licence (the owner's choice, 21 October 2026) | `rzCpNBSp7YY.webm` by yt-dlp (1,005,536 bytes) | `06e39d52368101763a6586bcc6123f58ce6cb79d525d45eeea2970de6e26831a` |
+
 ## Animals (`animals/`, `audio/animals/`)
 
 All our own (G7, GROUND.md §6.9); nothing was downloaded for them:

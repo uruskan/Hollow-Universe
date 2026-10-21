@@ -76,6 +76,16 @@ public sealed class EngineSoundData
     /// <summary>A heavy vehicle's air brakes (VEHICLES.md §9.10): their hiss as it comes to rest after driving.</summary>
     public string? AirBrake { get; init; }
 
+    /// <summary>A Jake brake (the engine's own brake), played once hard on the brakes at high revs (VEHICLES.md §9.10).</summary>
+    public string? Jake { get; init; }
+
+    /// <summary>
+    /// The overboost's layer (VEHICLES.md §9.10): a loop of an engine labouring at full song, recorded at
+    /// <see cref="LabourRpm"/>, swelled by the overboost and the load over the engine's loops.
+    /// </summary>
+    public string? Labour { get; init; }
+    public float LabourRpm { get; init; } = 1800;
+
     /// <summary>The tyre loop for a surface: its own, else the hard ground's.</summary>
     public string? TyreFor(string surface) =>
         Tyres.TryGetValue(surface, out string? key) ? key : Tyres.TryGetValue("hard", out key) ? key : null;
@@ -88,7 +98,7 @@ public sealed class EngineSoundData
             yield return l.On;
             yield return l.Off;
         }
-        foreach (string? key in new[] { Turbo, Blowoff, Shift, SkidLoose, SkidHard, Knock, Creak, Land, Splash, AirBrake })
+        foreach (string? key in new[] { Turbo, Blowoff, Shift, SkidLoose, SkidHard, Knock, Creak, Land, Splash, AirBrake, Jake, Labour })
         {
             if (key != null)
             {

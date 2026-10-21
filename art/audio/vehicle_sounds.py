@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import engines as g  # noqa: E402
 import events as e  # noqa: E402
 import sources  # noqa: E402
+import truck_sounds  # noqa: E402
 from build import Out, Seg  # noqa: E402
 
 LOOP_S, LOOP_PRE = 6.0, 1.0
@@ -51,27 +52,35 @@ ENGINES = {
         "skidLoose": "veh.tyre.skid.loose", "skidHard": "veh.tyre.skid.hard",
         "knock": "veh.susp.knock.light", "creak": "veh.susp.creak.light", "land": "veh.susp.land.light",
         "splash": "veh.splash"},
-    # The TOGG: a 6.7 l turbo-diesel six, a heavy flywheel, a slow five-speed truck box; 20 m/s at 3,000 rpm in fifth.
+    # The TOGG as a heavy truck (VEHICLES.md §9.10): a turbo-diesel six heard from recordings (truck_sounds.py), idling at
+    # 600 like a Class-8 tractor, its redline 2,400; a heavy flywheel, a slow five-speed truck box, 20 m/s at the redline in
+    # fifth; the turbo's flutter, air brakes as it stops, a Jake brake hard on the brakes, a twin-turbo tractor's roar
+    # overboosted. (Its synthesized six, DIESEL above, stays built: veh.diesel.*.)
     "togg": {
-        "idle": 750, "redline": 3000, "limiter": 3100, "gears": [4.2, 7.0, 10.5, 15.0, 20.6], "reverse": 5.0,
+        "idle": 600, "redline": 2400, "limiter": 2500, "gears": [4.2, 7.0, 10.5, 15.0, 20.6], "reverse": 5.0,
         "response": 0.22, "upshift": 0.85, "downshift": 0.45, "shiftTime": 0.45, "launch": 0.42, "turboSpool": 0.8,
-        "pitch": 1.0, "volume": 0.0, "loops": _loops("diesel", DIESEL), "turbo": "veh.diesel.turbo",
-        "blowoff": "veh.diesel.release", "shift": "veh.diesel.shift",
+        "pitch": 1.0, "volume": 0.0, "loops": truck_sounds.loops(), "turbo": "veh.truck.turbo",
+        "blowoff": "veh.truck.flutter", "shift": "veh.truck.shift", "airBrake": "veh.truck.airbrake",
+        "jake": "veh.truck.jake", "labour": "veh.truck.labour", "labourRpm": truck_sounds.LABOUR_RPM,
         "tyres": TYRES, "tyreSpeed": 10.0, "tyrePitch": 0.8, "tyreDb": -3.0,
         "skidLoose": "veh.tyre.skid.loose", "skidHard": "veh.tyre.skid.hard",
         "knock": "veh.susp.knock.heavy", "creak": "veh.susp.creak.heavy", "land": "veh.susp.land.heavy",
         "splash": "veh.splash"},
 }
-# The monster TOGG (the vehicles session's kind): the TOGG's six, lower and louder, on bigger tyres.
-ENGINES["monster-togg"] = dict(ENGINES["togg"], pitch=0.86, volume=3.0, tyrePitch=0.7, tyreDb=-1.5)
+# The monster TOGG: the TOGG's, lower and louder, on bigger tyres, idling on a V12's lumpy cold idle; its gears reach its
+# 34 m/s.
+ENGINES["monster-togg"] = dict(ENGINES["togg"], pitch=0.86, volume=3.0, tyrePitch=0.7, tyreDb=-1.5,
+                               gears=[7.0, 11.7, 17.6, 25.1, 34.5], reverse=9.0,
+                               loops=[dict(ENGINES["togg"]["loops"][0], on="veh.truck.v12.idle", off="veh.truck.v12.idle")]
+                               + ENGINES["togg"]["loops"][1:])
 
 # sounds.json `items` roles (ShipSounds: the start and stop, a crash, the wreck). No `touchdown`: a vehicle's wheels leave
 # and meet the ground all the time; VehicleSounds lands it only after a jump, by how fast it fell.
 ROLES = {
     "zamazingo": {"start": "veh.single.start", "shutdown": "veh.single.stop", "crash": "ship.crash", "destroyed": "explosion"},
-    "togg": {"start": "veh.diesel.start", "shutdown": "veh.diesel.stop", "crash": "ship.crash", "destroyed": "explosion"},
+    "togg": {"start": "veh.truck.start", "shutdown": "veh.truck.stop", "crash": "ship.crash", "destroyed": "explosion"},
 }
-ROLES["monster-togg"] = dict(ROLES["togg"])
+ROLES["monster-togg"] = dict(ROLES["togg"], start="veh.truck.v12.start")
 
 V = "vehicle/"
 
@@ -88,6 +97,7 @@ def _shots(key, rels, paths, category, volume, unit, reach, priority=60, limit=3
 
 
 def recipes():
+    truck_sounds.recipes()
     # The single: idle, then on and off the throttle at each speed.
     for i, (rpm, _, _) in enumerate(SINGLE):
         if i == 0:

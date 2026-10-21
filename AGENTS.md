@@ -188,6 +188,8 @@ blender --background --factory-startup --python art/import/building_kit.py [-- t
 blender --background --factory-startup --python art/import/door_kit.py
 # The sounds (GROUND.md §4.9, §9.2; Python's standard library and ffmpeg, HOLLOW_FFMPEG):
 python -I art/audio/sources.py --fetch    # the CC0 downloads that are missing, each checked by SHA-256
+python -I art/audio/sources.py --youtube <URL>   # one video's audio by D:/GameDev/Tools/yt-dlp, recorded in youtube.json
+python -I art/audio/sources.py --adopt    # records freesound originals saved by hand into Downloads/freesound (VEHICLES.md §9.10)
 python -I art/audio/build.py              # sounds whose recipe changed → game/assets/audio, sounds.json, levels.json
                                           # (--only <path prefix>, --force, --credits); after Godot imports new files, run it again
 ```

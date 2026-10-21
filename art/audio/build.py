@@ -489,7 +489,8 @@ def write_catalogue(events_list, items, spaces=None, replace_prefixes=(), engine
                 raise SystemExit("items: %s %s plays %s, which isn't an event" % (item, role, key))
     for kind, engine in data["engines"].items():
         named = [l[k] for l in engine.get("loops", []) for k in ("on", "off")] + list(engine.get("tyres", {}).values())
-        named += [engine[k] for k in ("turbo", "blowoff", "shift", "skidLoose", "skidHard", "knock", "creak", "land", "splash") if engine.get(k)]
+        named += [engine[k] for k in ("turbo", "blowoff", "shift", "skidLoose", "skidHard", "knock", "creak", "land", "splash",
+                                                                  "airBrake", "jake", "labour") if engine.get(k)]
         for key in named:
             if key not in keys:
                 raise SystemExit("engines: %s plays %s, which isn't an event" % (kind, key))

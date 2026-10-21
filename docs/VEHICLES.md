@@ -788,10 +788,55 @@ twice the fuel, heavy black smoke, the turbo screaming and the engine rocking ha
   soot, by the overboost and the load (0.35 + 0.65 × load). It comes in as fast as the soot and clears over 1.1 s. It is
   made of fewer, denser puffs rather than many thin ones (16 + 4 a second, with a spark now and then), because
   see-through smoke is what costs a frame its time. A gear change overboosted throws a puff 1.6 times as big.
+- **Recorded diesel sounds** (`art/audio/truck_sounds.py`, `audio/vehicle/truck/`). The owner chose recordings, and to use
+  them whatever their licence while nothing is sold; every source is credited in THIRD_PARTY.md. The loops' revs are
+  read off their spectrograms, where the firing order's line gives rpm = 20 × Hz for a six:
+  - **Idle at 600 rpm:** a 1980s Ford LTL 9000 Class-8 tractor (freesound 435656, 29 Hz). The TOGG's revs became a
+    truck's: idle 600, redline 2,400, limiter 2,500, with the same gears.
+  - **On load at 1,700 rpm:** a big diesel working up a hill (freesound 637914, dead steady at 85 Hz). It is pitched down
+    for 1,200.
+  - **On load at 2,400 rpm:** a Fendt tractor from its cab (freesound 518294, 95 Hz), pitched up.
+  - **Off load** (the overrun) at 1,700: a semi cruising (Pixabay 63220). At 1,200 and 2,400 it is the on-load loop with
+    its combustion's bark filtered away.
+  - **The turbo:** the synthesized whistle with a real twin-turbo tractor's compressor whine under it (4–7 kHz, from
+    the owner's YouTube short DoC1_kqCoh0). Letting go at boost plays a diesel's turbo **flutter** (Pixabay; a stock
+    diesel has no blow-off valve).
+  - **Overboosted**, that tractor at full song is a **labouring layer** over the loops (`labour`, `labourRpm`), swelled
+    by the overboost and the load.
+  - **Gear changes:** a fifth wheel's and a 1929 truck's gearbox clunks.
+  - **Air brakes** (`airBrake`): a truck's release as it comes to rest after driving faster than 2.5 m/s.
+  - **The Jake brake** (`jake`): a semi's engine brake barking once when it is hard on the brakes above 0.55 of the
+    redline, at most every 6 s.
+  - **The start and the stop:** the same Ford.
+  - **The Monster TOGG** starts with a Peterbilt V12's cold start (the owner's short rzCpNBSp7YY: cranking, then
+    running) and idles on its lumpy, hunting idle. Its own gears (to 34.5 m/s) moved from a hand edit of sounds.json into
+    `vehicle_sounds.py`, so a rebuild keeps them.
+  - The synthesized six (`veh.diesel.*`) is still built.
+  - **Checked:** `--sound-check` (405 events, 1,887 files, 0 problems, true peak at most −1.14 dBTP). The hosted tour
+    with `--sound-trace` plays the start, the idle and the loops on and off load, the turbo, the labouring layer
+    overboosted, the flutter twice (off the throttle and off Shift), 12 gear changes, the Jake brake on braking from
+    70 km/h, the air brakes at rest and the stop.
+- **Better originals.** freesound's full-quality WAVs and FLACs need a (free) account, so the game uses its public
+  previews for now. To swap them in:
+  1. Sign in at freesound.org.
+  2. Open each used id at `https://freesound.org/s/<id>/`: 435656, 435667, 637914, 518294, 165167, 107039 and 504865
+     (THIRD_PARTY.md's table).
+  3. Press Download and save the file under the name freesound gives it, which starts with `<id>__`, into
+     `D:\GameDev\Assets\Downloads\freesound\`.
+  4. Run `python -I art/audio/sources.py --adopt`, which records each original's SHA-256.
+  5. Run `python -I art/audio/build.py --only vehicle/truck`, Godot's import, and the build once more.
+
+  The cut times hold, since the original is the same recording. More YouTube audio:
+  `python -I art/audio/sources.py --youtube <URL>`, then its cuts in `truck_sounds.py`.
 - **Tour step** `--tour-steps truck` (`GroundTour.Truck.cs`; `HOLLOW_TOUR_KIND=monster-togg` runs it on the monster;
   `HOLLOW_TOUR_NO_FX=1` runs it without the effects). It idles, revs on the handbrake, pulls away flat out (timed), brakes,
   pulls away overboosted (timed), and lets go of Shift. It prints the revs, gear, turbo, overboost, the engine's lean, the
   chassis's twist and the fuel at each stage.
+- **Frame times not measured yet.** Both hosted runs overlapped other sessions' work: on the morning of 21 October another
+  session's Godot, and in the afternoon another session's full test suite and Godot. They gave 70–78 ms a frame without
+  the effects and 110–128 ms with them, against the monster tour's 19–21 ms the night before. That is not a measurement
+  of this work. A run on a quiet machine (`--tour-steps truck`, with and without `HOLLOW_TOUR_NO_FX=1`) is still to do.
+
 
 ## 10. Crafting and progression
 

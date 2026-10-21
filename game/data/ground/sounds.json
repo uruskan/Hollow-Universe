@@ -127,8 +127,8 @@
     "horizontal-embrasure": {"place": "build.place.metal"},
     "vertical-embrasure": {"place": "build.place.metal"},
     "zamazingo": {"start": "veh.single.start", "shutdown": "veh.single.stop", "crash": "ship.crash", "destroyed": "explosion"},
-    "togg": {"start": "veh.diesel.start", "shutdown": "veh.diesel.stop", "crash": "ship.crash", "destroyed": "explosion"},
-    "monster-togg": {"start": "veh.diesel.start", "shutdown": "veh.diesel.stop", "crash": "ship.crash", "destroyed": "explosion"}
+    "togg": {"start": "veh.truck.start", "shutdown": "veh.truck.stop", "crash": "ship.crash", "destroyed": "explosion"},
+    "monster-togg": {"start": "veh.truck.v12.start", "shutdown": "veh.truck.stop", "crash": "ship.crash", "destroyed": "explosion"}
   },
   "engines": {
     "zamazingo": {
@@ -165,9 +165,9 @@
       "splash": "veh.splash"
     },
     "togg": {
-      "idle": 750,
-      "redline": 3000,
-      "limiter": 3100,
+      "idle": 600,
+      "redline": 2400,
+      "limiter": 2500,
       "gears": [4.2, 7.0, 10.5, 15.0, 20.6],
       "reverse": 5.0,
       "response": 0.22,
@@ -179,16 +179,18 @@
       "pitch": 1.0,
       "volume": 0.0,
       "loops": [
-        {"rpm": 750, "on": "veh.diesel.idle", "off": "veh.diesel.idle", "onDb": -4.0, "offDb": -4.0},
-        {"rpm": 1050, "on": "veh.diesel.on.1050", "off": "veh.diesel.off.1050", "onDb": -3.5, "offDb": -9.0},
-        {"rpm": 1450, "on": "veh.diesel.on.1450", "off": "veh.diesel.off.1450", "onDb": -2.5, "offDb": -8.0},
-        {"rpm": 1950, "on": "veh.diesel.on.1950", "off": "veh.diesel.off.1950", "onDb": -1.5, "offDb": -7.0},
-        {"rpm": 2500, "on": "veh.diesel.on.2500", "off": "veh.diesel.off.2500", "onDb": -0.5, "offDb": -6.0},
-        {"rpm": 3000, "on": "veh.diesel.on.3000", "off": "veh.diesel.off.3000", "onDb": 0.5, "offDb": -5.0}
+        {"rpm": 600, "on": "veh.truck.idle", "off": "veh.truck.idle", "onDb": -4.0, "offDb": -4.0},
+        {"rpm": 1200, "on": "veh.truck.on.1200", "off": "veh.truck.off.1200", "onDb": -3.0, "offDb": -9.0},
+        {"rpm": 1700, "on": "veh.truck.on.1700", "off": "veh.truck.off.1700", "onDb": -1.5, "offDb": -7.0},
+        {"rpm": 2400, "on": "veh.truck.on.2400", "off": "veh.truck.off.2400", "onDb": 0.0, "offDb": -6.0}
       ],
-      "turbo": "veh.diesel.turbo",
-      "blowoff": "veh.diesel.release",
-      "shift": "veh.diesel.shift",
+      "turbo": "veh.truck.turbo",
+      "blowoff": "veh.truck.flutter",
+      "shift": "veh.truck.shift",
+      "airBrake": "veh.truck.airbrake",
+      "jake": "veh.truck.jake",
+      "labour": "veh.truck.labour",
+      "labourRpm": 1900.0,
       "tyres": {"gravel": "veh.tyre.gravel", "dirt": "veh.tyre.dirt", "grass": "veh.tyre.grass", "sand": "veh.tyre.sand", "snow": "veh.tyre.snow", "rock": "veh.tyre.rock", "water": "veh.tyre.water", "hard": "veh.tyre.rock"},
       "tyreSpeed": 10.0,
       "tyrePitch": 0.8,
@@ -201,9 +203,9 @@
       "splash": "veh.splash"
     },
     "monster-togg": {
-      "idle": 750,
-      "redline": 3000,
-      "limiter": 3100,
+      "idle": 600,
+      "redline": 2400,
+      "limiter": 2500,
       "gears": [7.0, 11.7, 17.6, 25.1, 34.5],
       "reverse": 9.0,
       "response": 0.22,
@@ -215,16 +217,18 @@
       "pitch": 0.86,
       "volume": 3.0,
       "loops": [
-        {"rpm": 750, "on": "veh.diesel.idle", "off": "veh.diesel.idle", "onDb": -4.0, "offDb": -4.0},
-        {"rpm": 1050, "on": "veh.diesel.on.1050", "off": "veh.diesel.off.1050", "onDb": -3.5, "offDb": -9.0},
-        {"rpm": 1450, "on": "veh.diesel.on.1450", "off": "veh.diesel.off.1450", "onDb": -2.5, "offDb": -8.0},
-        {"rpm": 1950, "on": "veh.diesel.on.1950", "off": "veh.diesel.off.1950", "onDb": -1.5, "offDb": -7.0},
-        {"rpm": 2500, "on": "veh.diesel.on.2500", "off": "veh.diesel.off.2500", "onDb": -0.5, "offDb": -6.0},
-        {"rpm": 3000, "on": "veh.diesel.on.3000", "off": "veh.diesel.off.3000", "onDb": 0.5, "offDb": -5.0}
+        {"rpm": 600, "on": "veh.truck.v12.idle", "off": "veh.truck.v12.idle", "onDb": -4.0, "offDb": -4.0},
+        {"rpm": 1200, "on": "veh.truck.on.1200", "off": "veh.truck.off.1200", "onDb": -3.0, "offDb": -9.0},
+        {"rpm": 1700, "on": "veh.truck.on.1700", "off": "veh.truck.off.1700", "onDb": -1.5, "offDb": -7.0},
+        {"rpm": 2400, "on": "veh.truck.on.2400", "off": "veh.truck.off.2400", "onDb": 0.0, "offDb": -6.0}
       ],
-      "turbo": "veh.diesel.turbo",
-      "blowoff": "veh.diesel.release",
-      "shift": "veh.diesel.shift",
+      "turbo": "veh.truck.turbo",
+      "blowoff": "veh.truck.flutter",
+      "shift": "veh.truck.shift",
+      "airBrake": "veh.truck.airbrake",
+      "jake": "veh.truck.jake",
+      "labour": "veh.truck.labour",
+      "labourRpm": 1900.0,
       "tyres": {"gravel": "veh.tyre.gravel", "dirt": "veh.tyre.dirt", "grass": "veh.tyre.grass", "sand": "veh.tyre.sand", "snow": "veh.tyre.snow", "rock": "veh.tyre.rock", "water": "veh.tyre.water", "hard": "veh.tyre.rock"},
       "tyreSpeed": 10.0,
       "tyrePitch": 0.7,
@@ -6915,6 +6919,276 @@
         "res://assets/audio/kafa/twin_stop_01.ogg",
         "res://assets/audio/kafa/twin_stop_02.ogg",
         "res://assets/audio/kafa/twin_stop_03.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.idle",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 260.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/truck/idle.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.on.1200",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 340.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/truck/on_1200.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.off.1200",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 220.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/truck/off_1200.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.on.1700",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 340.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/truck/on_1700.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.off.1700",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 220.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/truck/off_1700.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.on.2400",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 340.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/truck/on_2400.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.off.2400",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 220.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/truck/off_2400.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.labour",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 360.0,
+      "priority": 70,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/truck/labour.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.turbo",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": -6.0,
+      "unitSize": 9.0,
+      "maxDistance": 140.0,
+      "priority": 56,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/truck/turbo.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.flutter",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -6.0,
+      "unitSize": 5.0,
+      "maxDistance": 110.0,
+      "priority": 56,
+      "limit": 2,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/truck/flutter_0.ogg",
+        "res://assets/audio/vehicle/truck/flutter_1.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.shift",
+      "category": "mechanism",
+      "bus": "SFX",
+      "volume": -3.0,
+      "unitSize": 4.0,
+      "maxDistance": 60.0,
+      "priority": 50,
+      "limit": 2,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/truck/shift_0.ogg",
+        "res://assets/audio/vehicle/truck/shift_1.ogg",
+        "res://assets/audio/vehicle/truck/shift_2.ogg",
+        "res://assets/audio/vehicle/truck/shift_3.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.airbrake",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -4.0,
+      "unitSize": 6.0,
+      "maxDistance": 140.0,
+      "priority": 58,
+      "limit": 2,
+      "pitch": [0.97, 1.03],
+      "jitter": 1.0,
+      "files": [
+        "res://assets/audio/vehicle/truck/airbrake_0.ogg",
+        "res://assets/audio/vehicle/truck/airbrake_1.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.jake",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 9.0,
+      "maxDistance": 320.0,
+      "priority": 64,
+      "limit": 1,
+      "pitch": [0.98, 1.02],
+      "jitter": 0.3,
+      "files": [
+        "res://assets/audio/vehicle/truck/jake.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.start",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 260.0,
+      "priority": 68,
+      "limit": 1,
+      "pitch": [0.99, 1.01],
+      "jitter": 0.3,
+      "files": [
+        "res://assets/audio/vehicle/truck/start.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.stop",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": -2.0,
+      "unitSize": 9.0,
+      "maxDistance": 200.0,
+      "priority": 68,
+      "limit": 1,
+      "pitch": [0.99, 1.01],
+      "jitter": 0.3,
+      "files": [
+        "res://assets/audio/vehicle/truck/stop.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.v12.start",
+      "category": "machine",
+      "bus": "SFX",
+      "volume": 1.0,
+      "unitSize": 10.0,
+      "maxDistance": 300.0,
+      "priority": 68,
+      "limit": 1,
+      "pitch": [0.99, 1.01],
+      "jitter": 0.3,
+      "files": [
+        "res://assets/audio/vehicle/truck/v12_start.ogg"
+      ]
+    },
+    {
+      "key": "veh.truck.v12.idle",
+      "category": "engine",
+      "bus": "SFX",
+      "volume": 0.0,
+      "unitSize": 9.0,
+      "maxDistance": 300.0,
+      "priority": 68,
+      "limit": 6,
+      "pitch": [1.0, 1.0],
+      "jitter": 0.0,
+      "loop": true,
+      "files": [
+        "res://assets/audio/vehicle/truck/v12_idle.ogg"
       ]
     },
     {

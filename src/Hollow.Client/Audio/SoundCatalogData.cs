@@ -375,6 +375,9 @@ public sealed class SoundCatalogData
             Land = Optional(v, "land"),
             Splash = Optional(v, "splash"),
             AirBrake = Optional(v, "airBrake"),
+            Jake = Optional(v, "jake"),
+            Labour = Optional(v, "labour"),
+            LabourRpm = (float)Num(v, "labourRpm", 1800),
         };
     }
 

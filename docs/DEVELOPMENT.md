@@ -1,5 +1,33 @@
 # Hollow Universe AB Test B
 
+## 21 October 2026 — Vehicles: the TOGG's recorded diesel (VEHICLES.md §9.10)
+
+The owner chose recorded truck sounds over synthesis and asked for every candidate to be downloaded, licences aside for
+now ("we are not selling anything"). They added four YouTube shorts of their own.
+
+- **Downloaded** (all through `art/audio/sources.py`, checked by SHA-256): 35 freesound previews (`freesound.json`;
+  the originals need an account), 4 Pixabay MP3s (`pixabay.json`; the page refuses scripts, so the browser found each
+  CDN address), the 4 shorts by the PC's own yt-dlp (`youtube.json`, `--youtube <URL>`), and 8 more BigSoundBank WAVs.
+  `--adopt` records a freesound original saved by hand, which then replaces its preview.
+- **Made** (`art/audio/truck_sounds.py`, 22 files in `audio/vehicle/truck/`):
+  - loops at 600, 1,200, 1,700 and 2,400 rpm on and off load, their revs read off spectrograms (a Class-8 Ford idling,
+    a truck working uphill, a Fendt tractor's cab, a semi cruising);
+  - the turbo, with a twin-turbo tractor's real whine under the synthesized whistle;
+  - a diesel's turbo flutter;
+  - gear clunks, air brakes, a Jake brake, the start and the stop;
+  - an overboost layer (the twin-turbo tractor);
+  - the Monster TOGG's V12 cold start and lumpy idle.
+- **The TOGG's revs** are now a truck's: idle 600, redline 2,400.
+- **New engine data** (`EngineSoundData`): `airBrake`, `jake`, `labour`, `labourRpm`, played by `VehicleSounds`.
+- **Checked:**
+  - `--sound-check`: 405 events, 1,887 files, 0 problems.
+  - A hosted tour with `--sound-trace`: every new event fires where it should.
+  - On HEAD with these changes (an export, since the shared checkout's tests are mid-edit by the lift session):
+    `VehicleSound`, `Sound`, `TruckFeel`, `VehicleBoost`, `GroundMotor`, `BikeRide`, `ContentTests` and `Effect`,
+    42/42.
+- **Not measured:** frame times. Both hosted runs overlapped other sessions' test suites and Godot runs (70–78 ms a
+  frame without the effects, 110–128 ms with them). A quiet run of `--tour-steps truck` is still to do.
+
 ## 21 October 2026 — Vehicles: the TOGG as a heavy truck (overboost, its engine rocking, black smoke; VEHICLES.md §9.10)
 
 The owner asked for the TOGG's diesel to be "super AAA, as if this was a trucking game". They chose an overboost on Left

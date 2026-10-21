@@ -13,8 +13,9 @@ namespace HollowUniverse.Ships;
 /// What a ground vehicle sounds like as it drives (VEHICLES.md §7.1), from its revs (<see cref="VehicleRevs"/>) and what
 /// every client sees of it: its engine as loops made at several revs, on the throttle and off it, each pitched to the revs
 /// and crossfaded with its neighbours (two speeds and the load at a time); the turbo's whistle by its boost and its
-/// release, louder and higher overboosted (VEHICLES.md §9.10); a clunk at each gear change; a heavy vehicle's air brakes
-/// hissing as it comes to rest; the tyres' loop of the ground under them (by its physical surface, or water),
+/// release, louder and higher overboosted (VEHICLES.md §9.10), with a labouring layer over the loops; a clunk at each
+/// gear change; a heavy vehicle's air brakes hissing as it comes to rest and its Jake brake hard on the brakes; the tyres'
+/// loop of the ground under them (by its physical surface, or water),
 /// pitched and swelled by speed; a skid when it slides sideways or spins its wheels on loose ground; the suspension's
 /// knock at a stop or a hard hit and its creaks as it works; a splash into water. Its start, stop and landing are the
 /// kind's roles in <see cref="ShipSounds"/>; their loops wait for the start's run-up. Everything comes from sounds.json's
@@ -32,12 +33,12 @@ public sealed class VehicleSounds
     private readonly Node3D _wheels;
     private readonly SoundHandle[] _on, _off;
     private readonly float[] _quietFor;
-    private SoundHandle _turbo, _tyre, _skid;
+    private SoundHandle _turbo, _labour, _tyre, _skid;
     private string? _tyreKey, _skidKey;
     private string _surface = "unknown";
     private bool _running, _known, _flying, _driven;
-    private float _fall;
-    private double _time, _loudFrom, _nextKnock, _nextCreak, _tyreQuiet, _skidQuiet, _airborneAt;
+    private float _fall, _overrunWas;
+    private double _time, _loudFrom, _nextJake, _nextKnock, _nextCreak, _tyreQuiet, _skidQuiet, _airborneAt;
 
     public VehicleSounds(ShipDef def, ShipView view, EngineSoundData engine)
     {
@@ -190,6 +191,27 @@ public sealed class VehicleSounds
             float over = revs.Overboost;
             Set(_turbo, level + Db(MathF.Pow(revs.Boost, 1.4f)) + 6f * over, (0.55f + 0.6f * revs.Boost + 0.18f * over) * _e.Pitch, 0.1f);
         }
+        // Overboosted, the engine labouring at full song over its loops (VEHICLES.md §9.10).
+        if (_e.Labour != null)
+        {
+            float labour = revs.Overboost * (0.3f + 0.7f * revs.Load);
+            if (labour > 0.01f && !_labour.IsValid)
+            {
+                _labour = Start(_e.Labour, _engine);
+            }
+            Set(_labour, level - 2f + Db(labour), rpm / _e.LabourRpm * _e.Pitch, 0.15f);
+            if (labour <= 0.01f && revs.Overboost < 0.01f)
+            {
+                Stop(ref _labour, 0.3f);
+            }
+        }
+        // Hard on the brakes at high revs: the Jake brake barks once.
+        if (_e.Jake != null && revs.Overrun > 0.7f && _overrunWas <= 0.7f && rpm > 0.55f * _e.Redline && _time >= _nextJake)
+        {
+            Sounds.At(_e.Jake, _engine.GlobalPosition, _e.Volume);
+            _nextJake = _time + 6;
+        }
+        _overrunWas = revs.Overrun;
         if (revs.Released)
         {
             Sounds.At(_e.Blowoff, _engine.GlobalPosition, _e.Volume + Db(0.4f + 0.6f * revs.Boost) + 3f * revs.Overboost);
@@ -240,6 +262,7 @@ public sealed class VehicleSounds
             Stop(ref _off[i], fade);
         }
         Stop(ref _turbo, fade);
+        Stop(ref _labour, fade);
     }
 
     // ---------------------------------------------------------------- the tyres and the ground
