@@ -22,7 +22,7 @@ internal sealed class ShipsReader : IContentReader
     {
         JsonFields f = r.Fields;
         GameContent.Loaded loaded = r.Loaded;
-        JsonElement root = r.Root("ships.json", "ships");
+        JsonElement root = r.Root("ships.json", "ships", "presets");
         JsonElement[] list = f.List(root, "ships", "ships.json");
         for (int i = 0; i < list.Length; i++)
         {
@@ -271,6 +271,7 @@ internal sealed class ShipsReader : IContentReader
                 WaterVolume = waterVolume,
                 Buoyancy = buoyancy,
                 Model = f.Text(e, "model", where, key),
+                Sound = key,
                 Interior = interior,
                 SkidPoints = skidPoints,
                 SkidStiffness = fl.Number(skids, "stiffness", where + ".skids"),
@@ -309,14 +310,19 @@ internal sealed class ShipsReader : IContentReader
                 HullRepair = hullRepair,
                 Sockets = sockets,
                 BuildHeight = f.Number(e, "buildHeight", where, 0),
-                DefaultBuildKeys = f.List(e, "build", where, required: false).Select(b =>
-                {
-                    f.OnlyKnown(b, where + ".build", "socket", "level", "module");
-                    return (f.Text(b, "socket", where + ".build"), f.Integer(b, "level", where + ".build", 1), f.Text(b, "module", where + ".build"));
-                }).ToArray(),
+                DefaultBuildKeys = BuildKeys(f, e, where),
             };
             def.ComputeBounds();
             loaded.Ships.Add(def);
+        }
+        // Presets (VEHICLES.md §9.11): an item that makes its kind with a build of its own, the kind's item still the kind's.
+        var presets = new Dictionary<string, (string, int, string)[]>(StringComparer.Ordinal);
+        foreach (JsonElement p in f.List(root, "presets", "ships.json", required: false))
+        {
+            string itemKey = f.Text(p, "item", "ships.json: presets");
+            string where = $"ships.json: presets {JsonFields.Quote(itemKey)}";
+            f.OnlyKnown(p, where, "item", "build");
+            presets[itemKey] = BuildKeys(f, p, where);
         }
         foreach (ItemDef item in loaded.Items)
         {
@@ -324,18 +330,30 @@ internal sealed class ShipsReader : IContentReader
             {
                 continue;
             }
+            if (presets.TryGetValue(item.Key, out (string, int, string)[]? preset))
+            {
+                item.ShipBuildKeys = preset;
+            }
             Ships.ShipDef? def = loaded.Ships.FirstOrDefault(s => s.Key == item.ShipKey);
             if (def == null)
             {
                 f.Problem($"items.json: {JsonFields.Quote(item.Key)}.ship", $"no ship \"{item.ShipKey}\" in ships.json");
             }
-            else if (def.Item != item)
+            else if (def.Item != item && item.ShipBuildKeys == null)
             {
-                f.Problem($"ships.json: {JsonFields.Quote(def.Key)}", $"its item is \"{def.Item.Key}\", but \"{item.Key}\" says it is that ship");
+                f.Problem($"ships.json: {JsonFields.Quote(def.Key)}", $"its item is \"{def.Item.Key}\", but \"{item.Key}\" says it is that ship (and is no preset)");
             }
             item.Ship = def;
         }
     }
+
+    // A build as ships.json names it (a kind's default, a preset's): [{ "socket", "level" (1 by default), "module" }].
+    private static (string, int, string)[] BuildKeys(JsonFields f, JsonElement e, string where) =>
+        f.List(e, "build", where, required: false).Select(b =>
+        {
+            f.OnlyKnown(b, where + ".build", "socket", "level", "module");
+            return (f.Text(b, "socket", where + ".build"), f.Integer(b, "level", where + ".build", 1), f.Text(b, "module", where + ".build"));
+        }).ToArray();
 
     // A ship's rotors as drawn (presentation only, docs/MINICOPTER.md §8): each a node, an axis, its turns a minute, its blur.
     private static List<Ships.ShipRotorLook> Rotors(JsonFields f, JsonElement e, string where)
@@ -396,15 +414,17 @@ internal sealed class ShipsReader : IContentReader
         {
             string key = f.Text(s, "key", where + ".sockets");
             string at = $"{where}.sockets {JsonFields.Quote(key)}";
-            f.OnlyKnown(s, at, "key", "at", "fits", "row", "levels");
+            f.OnlyKnown(s, at, "key", "name", "at", "fits", "row", "levels", "ground");
             sockets.Add(new Ships.Modules.ShipSocketDef
             {
                 Index = sockets.Count,
                 Key = key,
+                Name = f.Text(s, "name", at, key),
                 At = f.Vector(s, "at", at),
                 Fits = f.Texts(s, "fits", at).ToArray(),
                 Row = f.Text(s, "row", at, ""),
                 Levels = f.Integer(s, "levels", at, 1),
+                Ground = f.Flag(s, "ground", at, false),
             });
         }
         return sockets;

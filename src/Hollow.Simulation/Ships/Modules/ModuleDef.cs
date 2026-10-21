@@ -19,6 +19,9 @@ public sealed class ShipSocketDef
 
     public string Key { get; init; } = "";
 
+    /// <summary>What the vehicle screen calls it (ships.json <c>name</c>; its key by default).</summary>
+    public string Name { get; init; } = "";
+
     /// <summary>Where a level-1 module's frame starts, in the ship's frame.</summary>
     public Vector3 At { get; init; }
 
@@ -30,6 +33,12 @@ public sealed class ShipSocketDef
 
     /// <summary>How many levels it offers: 1, or 2 (a module on the roof of the one below, VEHICLES.md §3.3).</summary>
     public int Levels { get; init; } = 1;
+
+    /// <summary>
+    /// Its modules stand on the ground (ships.json <c>"ground": true</c>, VEHICLES.md §9.11): running gear and the arms that
+    /// carry it, left where they are when a lift kit raises the rest of the vehicle.
+    /// </summary>
+    public bool Ground { get; init; }
 
     public bool Takes(ModuleDef module) => module.Fits.Any(tag => Fits.Contains(tag, StringComparer.Ordinal));
 
@@ -106,6 +115,50 @@ public sealed class ModuleDef
 
     /// <summary>The model catalogue's key the views draw it with (by default its own key).</summary>
     public string Model { get; init; } = "";
+
+    /// <summary>
+    /// How far it lifts the vehicle's body over its running gear (modules.json <c>raise</c>, metres; VEHICLES.md §9.11: a lift
+    /// kit): the kind's own hull, seats, parts, lamps and centre of mass and every module not on a ground socket go up by the
+    /// build's sum.
+    /// </summary>
+    public float Raise { get; init; }
+
+    /// <summary>Tags one of the build's other modules must fit for this one to be fitted (monster tyres need the lift kit).</summary>
+    public IReadOnlyList<string> Needs { get; init; } = Array.Empty<string>();
+
+    /// <summary>Tags none of the build's other modules may fit while this one is (the stock tyres and the lift kit).</summary>
+    public IReadOnlyList<string> Excludes { get; init; } = Array.Empty<string>();
+
+    /// <summary>
+    /// The model the whole vehicle is drawn with while it is fitted (modules.json <c>frame</c>; "": the kind's): the frame
+    /// whose arms and wheels this running gear is (the lift kit's is the Monster TOGG's).
+    /// </summary>
+    public string Frame { get; init; } = "";
+
+    /// <summary>The kind the vehicle sounds like while it is fitted (modules.json <c>sound</c>, a key of sounds.json's ships; "": no change).</summary>
+    public string Sound { get; init; } = "";
+
+    /// <summary>Its own moments of inertia about its centre of mass, or null: a solid box of its hull's bounds.</summary>
+    public Vector3? Inertia { get; init; }
+
+    /// <summary>
+    /// The kind's numbers it replaces while fitted (modules.json <c>ground</c>, <c>drag</c>, <c>crash</c> and <c>fuelUse</c>
+    /// blocks, by name: "ground.topSpeed"), applied in the build's order (<see cref="ShipTuning"/>).
+    /// </summary>
+    public IReadOnlyList<(string Name, float Value)> Sets { get; init; } = Array.Empty<(string, float)>();
+
+    /// <summary>It fits one of these tags.</summary>
+    public bool FitsAny(IReadOnlyList<string> tags)
+    {
+        foreach (string tag in tags)
+        {
+            if (Fits.Contains(tag, StringComparer.Ordinal))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 
     public override string ToString() => Key;
 }

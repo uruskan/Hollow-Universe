@@ -65,7 +65,7 @@ public sealed class ShipDef
     public IShipMotor Motor { get; init; } = FlightMotor.Instance;
 
     /// <summary>How a vehicle on wheels drives (ships.json <c>ground</c>), or null: it doesn't.</summary>
-    public GroundDef? Ground { get; init; }
+    public GroundDef? Ground { get; internal set; }
 
     /// <summary>Its wheels (the kind's, then its modules', each where its socket puts it).</summary>
     public IReadOnlyList<WheelDef> Wheels { get; internal set; } = Array.Empty<WheelDef>();
@@ -133,13 +133,13 @@ public sealed class ShipDef
     public TurnAxis Roll { get; init; }
 
     /// <summary>Drag areas (Cd × m²) facing forward, sideways and from above; and the turning damping at sea-level air (1/s).</summary>
-    public float DragForward { get; init; }
+    public float DragForward { get; internal set; }
 
-    public float DragSide { get; init; }
+    public float DragSide { get; internal set; }
 
-    public float DragTop { get; init; }
+    public float DragTop { get; internal set; }
 
-    public float TurnDrag { get; init; }
+    public float TurnDrag { get; internal set; }
 
     /// <summary>
     /// Flight assist's level hold (ships.json <c>assist.level</c>, IRON_WAKE.md §5.4, IW3): the most pitch and roll from
@@ -169,7 +169,13 @@ public sealed class ShipDef
     public ShipBuoyancy? Buoyancy { get; init; }
 
     /// <summary>The model catalogue's key the views draw it with (ships.json <c>model</c>; by default its own key).</summary>
-    public string Model { get; init; } = "";
+    public string Model { get; internal set; } = "";
+
+    /// <summary>
+    /// The kind its sounds are looked up by (sounds.json's ships and engines): its own key, or the last module of its build that
+    /// names one (modules.json <c>sound</c>: the blown six sounds like the Monster TOGG in any TOGG; VEHICLES.md §9.11).
+    /// </summary>
+    public string Sound { get; internal set; } = "";
 
     /// <summary>The inside people walk in (ships.json <c>interior</c>, IRON_WAKE.md §4.3), or null: a ship people only sit in.</summary>
     public ShipInterior? Interior { get; init; }
@@ -183,7 +189,7 @@ public sealed class ShipDef
     public float LandingDescentPerMetre { get; init; } = 0.25f;
 
     /// <summary>The skids' contact points (the pads' undersides), springs and friction.</summary>
-    public IReadOnlyList<Vector3> SkidPoints { get; init; } = Array.Empty<Vector3>();
+    public IReadOnlyList<Vector3> SkidPoints { get; internal set; } = Array.Empty<Vector3>();
 
     public float SkidStiffness { get; init; }
 
@@ -194,11 +200,11 @@ public sealed class ShipDef
     public float SkidFriction { get; init; }
 
     /// <summary>Crash damage: impacts slower than this do none; above, (speed − safe)² × scale; the pilot takes this share.</summary>
-    public float CrashSafeSpeed { get; init; }
+    public float CrashSafeSpeed { get; internal set; }
 
-    public float CrashScale { get; init; }
+    public float CrashScale { get; internal set; }
 
-    public float CrashPilotShare { get; init; }
+    public float CrashPilotShare { get; internal set; }
 
     /// <summary>
     /// Rust's crash rule instead (ships.json crash <c>fatal</c>, docs/MINICOPTER.md M10), when above 0: an impact faster
@@ -265,9 +271,9 @@ public sealed class ShipDef
 
     public float FuelCapacity { get; internal set; }
 
-    public float FuelIdle { get; init; }
+    public float FuelIdle { get; internal set; }
 
-    public float FuelFull { get; init; }
+    public float FuelFull { get; internal set; }
 
     public float FuelBoost { get; init; } = 1;
 
@@ -484,16 +490,16 @@ public sealed class ShipDef
     }
 
     /// <summary>The nozzles (ships.json <c>nozzles</c>): where each is, its drive and its plume's size (presentation only).</summary>
-    public IReadOnlyList<ShipNozzle> Nozzles { get; init; } = Array.Empty<ShipNozzle>();
+    public IReadOnlyList<ShipNozzle> Nozzles { get; internal set; } = Array.Empty<ShipNozzle>();
 
     /// <summary>Its rotors as the views draw them (ships.json <c>rotors</c>, docs/MINICOPTER.md §8; presentation only).</summary>
     public IReadOnlyList<ShipRotorLook> Rotors { get; init; } = Array.Empty<ShipRotorLook>();
 
     /// <summary>The wake a ship throws in the water as it goes (ships.json <c>wake</c>; presentation only), or null.</summary>
-    public ShipWake? Wake { get; init; }
+    public ShipWake? Wake { get; internal set; }
 
     /// <summary>The lamps (ships.json <c>lights</c>, IRON_WAKE.md §9.4): data until IW6 draws them.</summary>
-    public IReadOnlyList<ShipLight> Lights { get; init; } = Array.Empty<ShipLight>();
+    public IReadOnlyList<ShipLight> Lights { get; internal set; } = Array.Empty<ShipLight>();
 
     /// <summary>
     /// The views' red, green and white flight glows at the hull's tips (ships.json <c>lights.nav</c>, true unless false: a
@@ -524,8 +530,18 @@ public sealed class ShipDef
     /// <summary>Where modules go on this kind (ships.json <c>sockets</c>): none for a kind that takes none.</summary>
     public IReadOnlyList<Modules.ShipSocketDef> Sockets { get; init; } = Array.Empty<Modules.ShipSocketDef>();
 
-    /// <summary>The tallest a build may stand over the ship's origin (ships.json <c>buildHeight</c>, metres; 0: no limit).</summary>
+    /// <summary>
+    /// The tallest a build may stand over the ship's origin (ships.json <c>buildHeight</c>, metres; 0: no limit), before a lift
+    /// kit raises it.
+    /// </summary>
     public float BuildHeight { get; init; }
+
+    /// <summary>
+    /// How far its modules lift its body over its running gear (their <c>raise</c> summed, VEHICLES.md §9.11; 0 for a kind as
+    /// read): every position of this layout but the ground sockets' modules and the kind's own wheels is that much higher
+    /// than the kind's data says.
+    /// </summary>
+    public float Raise { get; internal set; }
 
     /// <summary>The kind this layout is of: itself for a kind as read, the kind for one composed with modules.</summary>
     public ShipDef Kind => _kind ?? this;

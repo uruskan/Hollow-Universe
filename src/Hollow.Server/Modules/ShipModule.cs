@@ -175,6 +175,16 @@ public sealed class ShipModule : ServerModule
                 return result;
             });
         });
+        // A vehicle's build changed in the vehicle workbench's bay (VEHICLES.md §9.11): the server checks everything; the new
+        // build goes out with the ship's details.
+        handlers.On<ModuleIntent>((PlayerSession session, in ModuleIntent message) =>
+        {
+            ModuleIntent m = message;
+            Entity me = session.Entity;
+            Intent(session, m.Seq, () => m.Fit
+                ? Zone.Ships().FitModule(me, new EntityId(m.Station), new EntityId(m.Ship), m.Socket, m.Level, m.From, m.Slot)
+                : Zone.Ships().TakeModule(me, new EntityId(m.Station), new EntityId(m.Ship), m.Socket, m.Level));
+        });
         // A battery's shot (IW3), to everyone its ship is relevant to: its owner reconciles the complete attempt identity,
         // and observers play the authoritative muzzle and direction.
         Zone.Events.On<TurretFired>((in TurretFired e) =>

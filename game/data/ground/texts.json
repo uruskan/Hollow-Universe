@@ -117,6 +117,10 @@
     "Limit": "Limit: beyond its arcs",
     "Traversing": "Traversing: not on the mark yet",
     "HullBlocked": "Hull blocked: the ship is in the line of fire",
-    "NotOnWater": "Put it on the water"
+    "NotOnWater": "Put it on the water",
+    "DoesNotFit": "It doesn't fit there",
+    "TakeOffFirst": "Take off the {item|part in the way} first",
+    "FitFirst": "Fit the {item|right part} first",
+    "SomeoneAboard": "Everyone out of it first"
   }
 }

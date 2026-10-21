@@ -63,7 +63,9 @@ public static partial class Protocol
     // 45: a door carries its motion record (progress at a tick, which way it goes), so every machine poses its leaves alike.
     // 46: a ship's drive spool (a rotor's spin, docs/MINICOPTER.md §9) in its own state and everyone's view of it.
     // 47: a ship's details carry its build (VEHICLES.md §9.1: the modules in its sockets), so every client composes its layout.
-    public const uint Version = 47;
+    // 48: a vehicle's build changed in the vehicle workbench's bay (ModuleIntent, VEHICLES.md §9.11); an answer's code is 8 bits
+    //     (codes past 127).
+    public const uint Version = 48;
 
     /// <summary>Fixed upper bound for Hello, WorldOffer, WorldAccept and Welcome, including their type byte.</summary>
     public const int MaxWorldHandshakeBytes = 512;

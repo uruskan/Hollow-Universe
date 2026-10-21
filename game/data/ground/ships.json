@@ -329,77 +329,15 @@
       "wreck": [["metal-fragments", 200], ["refined-metal", 10]]
     },
     {
-      "key": "monster-togg",
-      "item": "monster-togg",
-      "model": "monster-togg-frame",
-      "motor": "ground",
-      "controls": "car",
-      "needsPilot": true,
-      "mass": 1300,
-      "inertia": [4500, 4900, 1400],
-      "centreOfMass": [0, 1.15, 1.6],
-      "health": 2500,
-      "repair": ["metal-fragments", 450],
-      "damage": { "melee": 0.15, "arrow": 0.05, "bullet": 0.35, "explosive": 0.8 },
-      "drag": { "forward": 1.6, "side": 4.0, "top": 5.0, "turn": 0.5 },
-      "crash": { "safe": 13, "scale": 1.8, "pilot": 0.2 },
-      "fuel": { "item": "lamp-oil", "capacity": 160, "idle": 0.02, "full": 0.28, "boost": 2.0, "placed": 30 },
-      "ground": {
-        "topSpeed": 34, "reverseSpeed": 9, "brake": 34000, "traction": 30000, "steer": 30, "steerFast": 7, "rolling": 0.02,
-        "handbrakeGrip": 0.5, "gripHeight": 0.7, "coast": 0.14, "righting": 40, "rightingDamping": 6,
-        "wheels": [
-          { "key": "front-left", "hub": [1.42, 0.85, 3.6], "radius": 0.85, "width": 0.62, "travel": 0.6, "stiffness": 14400, "damping": 2600, "grip": 1.15, "steers": true, "drives": true },
-          { "key": "front-right", "hub": [-1.42, 0.85, 3.6], "radius": 0.85, "width": 0.62, "travel": 0.6, "stiffness": 14400, "damping": 2600, "grip": 1.15, "steers": true, "drives": true },
-          { "key": "rear-left", "hub": [1.42, 0.85, 0], "radius": 0.85, "width": 0.62, "travel": 0.6, "stiffness": 14400, "damping": 2600, "grip": 1.15, "drives": true, "handbrake": true },
-          { "key": "rear-right", "hub": [-1.42, 0.85, 0], "radius": 0.85, "width": 0.62, "travel": 0.6, "stiffness": 14400, "damping": 2600, "grip": 1.15, "drives": true, "handbrake": true }
-        ]
-      },
-      "hull": [
-        { "centre": [0, 1.64, 1.45], "size": [1.0, 0.09, 3.0] },
-        { "centre": [0, 1.35, 1.8], "size": [0.35, 0.18, 1.6] },
-        { "centre": [0, 1.6, 4.33], "size": [1.0, 0.25, 0.12] },
-        { "centre": [0, 1.6, -1.43], "size": [1.0, 0.22, 0.12] },
-        { "centre": [1.42, 1.0, 3.6], "size": [0.31, 0.45, 0.6] },
-        { "centre": [-1.42, 1.0, 3.6], "size": [0.31, 0.45, 0.6] },
-        { "centre": [1.42, 1.0, 0], "size": [0.31, 0.45, 0.6] },
-        { "centre": [-1.42, 1.0, 0], "size": [0.31, 0.45, 0.6] }
-      ],
-      "sockets": [
-        { "key": "bay1", "at": [0, 1.73, -1.2], "fits": ["bay"], "row": "deck", "levels": 2 },
-        { "key": "bay2", "at": [0, 1.73, 0.2], "fits": ["bay"], "row": "deck", "levels": 2 },
-        { "key": "bay3", "at": [0, 1.73, 1.6], "fits": ["bay"], "row": "deck", "levels": 2 },
-        { "key": "nose", "at": [0, 1.73, 3.0], "fits": ["engine-mount"] }
-      ],
-      "buildHeight": 4.7,
-      "build": [{ "socket": "bay3", "module": "togg-cab-one" }, { "socket": "nose", "module": "monster-togg-engine" }],
-      "seats": [],
-      "doors": [],
-      "parts": [
-        { "key": "hull" },
-        { "key": "fuel", "name": "Fuel cap", "at": [0.9, 1.6, -1.3], "radius": 0.3, "capabilities": ["fuel"] }
-      ],
-      "lights": {
-        "lamps": [
-          { "key": "head-left", "at": [0.58, 2.05, 4.46], "direction": [0, -0.16, 1], "spot": true, "angle": 34, "colour": [1.0, 0.9, 0.72], "energy": 4, "range": 55 },
-          { "key": "head-right", "at": [-0.58, 2.05, 4.46], "direction": [0, -0.16, 1], "spot": true, "angle": 34, "colour": [1.0, 0.9, 0.72], "energy": 4, "range": 55 },
-          { "key": "tail", "at": [0, 1.59, -1.6], "colour": [1.0, 0.08, 0.04], "energy": 0.9, "range": 3 }
-        ],
-        "nav": false
-      },
-      "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 14, "sight": 0.5 },
-      "ceiling": 2,
-      "wreck": [["metal-fragments", 320], ["gears", 4], ["metal-pipe", 2]]
-    },
-    {
       "key": "togg",
       "item": "togg",
       "model": "togg-frame",
       "motor": "ground",
       "controls": "car",
       "needsPilot": true,
-      "mass": 650,
-      "inertia": [2000, 2240, 340],
-      "centreOfMass": [0, 0.75, 1.5],
+      "mass": 530,
+      "inertia": [1773.3, 1976.5, 273.8],
+      "centreOfMass": [0, 0.8111, 1.4321],
       "health": 1000,
       "repair": ["metal-fragments", 200],
       "damage": { "melee": 0.25, "arrow": 0.1, "bullet": 0.5, "explosive": 1.0 },
@@ -408,32 +346,26 @@
       "fuel": { "item": "lamp-oil", "capacity": 100, "idle": 0.01, "full": 0.08, "boost": 2.0, "placed": 20 },
       "ground": {
         "topSpeed": 20, "reverseSpeed": 6, "brake": 14000, "traction": 9000, "steer": 34, "steerFast": 8, "rolling": 0.015,
-        "handbrakeGrip": 0.45, "gripHeight": 0.55, "coast": 0.12,
-        "wheels": [
-          { "key": "front-left", "hub": [0.975, 0.48, 3.6], "radius": 0.48, "width": 0.32, "travel": 0.35, "stiffness": 15000, "damping": 1800, "steers": true, "drives": true },
-          { "key": "front-right", "hub": [-0.975, 0.48, 3.6], "radius": 0.48, "width": 0.32, "travel": 0.35, "stiffness": 15000, "damping": 1800, "steers": true, "drives": true },
-          { "key": "rear-left", "hub": [0.975, 0.48, 0], "radius": 0.48, "width": 0.32, "travel": 0.35, "stiffness": 15000, "damping": 1800, "drives": true, "handbrake": true },
-          { "key": "rear-right", "hub": [-0.975, 0.48, 0], "radius": 0.48, "width": 0.32, "travel": 0.35, "stiffness": 15000, "damping": 1800, "drives": true, "handbrake": true }
-        ]
+        "handbrakeGrip": 0.45, "gripHeight": 0.55, "coast": 0.12
       },
       "hull": [
         { "centre": [0, 0.89, 1.45], "size": [1.0, 0.09, 3.0] },
         { "centre": [0, 0.6, 1.8], "size": [0.35, 0.18, 1.6] },
         { "centre": [0, 0.85, 4.33], "size": [1.0, 0.25, 0.12] },
-        { "centre": [0, 0.85, -1.43], "size": [1.0, 0.22, 0.12] },
-        { "centre": [0.975, 0.55, 3.6], "size": [0.16, 0.3, 0.42] },
-        { "centre": [-0.975, 0.55, 3.6], "size": [0.16, 0.3, 0.42] },
-        { "centre": [0.975, 0.55, 0], "size": [0.16, 0.3, 0.42] },
-        { "centre": [-0.975, 0.55, 0], "size": [0.16, 0.3, 0.42] }
+        { "centre": [0, 0.85, -1.43], "size": [1.0, 0.22, 0.12] }
       ],
       "sockets": [
-        { "key": "bay1", "at": [0, 0.98, -1.2], "fits": ["bay"], "row": "deck", "levels": 2 },
-        { "key": "bay2", "at": [0, 0.98, 0.2], "fits": ["bay"], "row": "deck", "levels": 2 },
-        { "key": "bay3", "at": [0, 0.98, 1.6], "fits": ["bay"], "row": "deck", "levels": 2 },
-        { "key": "nose", "at": [0, 0.98, 3.0], "fits": ["engine-mount"] }
+        { "key": "bay1", "name": "Bay 1", "at": [0, 0.98, -1.2], "fits": ["bay"], "row": "deck", "levels": 2 },
+        { "key": "bay2", "name": "Bay 2", "at": [0, 0.98, 0.2], "fits": ["bay"], "row": "deck", "levels": 2 },
+        { "key": "bay3", "name": "Bay 3", "at": [0, 0.98, 1.6], "fits": ["bay"], "row": "deck", "levels": 2 },
+        { "key": "nose", "name": "Nose", "at": [0, 0.98, 3.0], "fits": ["engine-mount"] },
+        { "key": "suspension", "name": "Suspension", "at": [0, 0, 0], "fits": ["togg-lift"], "ground": true },
+        { "key": "wheels", "name": "Wheels", "at": [0, 0, 0], "fits": ["togg-wheels"], "ground": true }
       ],
       "buildHeight": 3.9,
-      "build": [{ "socket": "bay3", "module": "togg-cab-one" }, { "socket": "nose", "module": "togg-engine" }],
+      "build": [
+        { "socket": "bay3", "module": "togg-cab-one" }, { "socket": "nose", "module": "togg-engine" }, { "socket": "wheels", "module": "togg-tyres" }
+      ],
       "seats": [],
       "doors": [],
       "parts": [
@@ -502,6 +434,15 @@
       "placement": { "surfaces": ["terrain", "floor"], "maxSlope": 20, "reach": 8, "sight": 0.5 },
       "ceiling": 2,
       "wreck": [["metal-fragments", 60], ["gears", 1]]
+    }
+  ],
+  "presets": [
+    {
+      "item": "monster-togg",
+      "build": [
+        { "socket": "bay3", "module": "togg-cab-one" }, { "socket": "nose", "module": "monster-togg-engine" },
+        { "socket": "suspension", "module": "togg-lift-kit" }, { "socket": "wheels", "module": "monster-tyres" }
+      ]
     }
   ]
 }

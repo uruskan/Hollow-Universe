@@ -216,7 +216,7 @@ public sealed partial class ClientGroundUi
                     : TechNodeState.Open;
                 nodes[i] = new TechNodeView(node.Item.Key, node.Cost, node.Depth, node.After.Select(a => a.Item.Key).ToArray(), state);
             }
-            return _tree = new TechTreeView(tree.Workbench, nodes, salvage, tree.Station?.Item.Name);
+            return _tree = new TechTreeView(tree.Workbench, nodes, salvage, tree.Station?.Item.Name) { Bay = tree.Station?.Bay != null };
         }
     }
 

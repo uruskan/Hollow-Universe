@@ -248,8 +248,8 @@ public partial class GroundUi
         IReadOnlyList<ItemStack> slots = loot.Slots;
         // A take-only grid (a crate, a bag of dropped items) shows the rows its stacks fill: nothing goes into the rest.
         int cells = loot.Kind == ContainerKind.Crate ? FilledRows(slots) * 6 : slots.Count;
-        float y = loot.Kind == ContainerKind.Corpse || cells > 36 ? 70 : 191;
-        Section("LOOT", 1040, y);
+        float y = loot.Kind is ContainerKind.Corpse or ContainerKind.Vehicle || cells > 36 ? 70 : 191;
+        Section(loot.Kind == ContainerKind.Vehicle ? "VEHICLE BAY" : "LOOT", 1040, y);
         Rect(1040, y + 34, 475, 27, G.Panel);
         Text(loot.Title.ToUpperInvariant(), 1050, y + 34, 16, G.Ink, bold: true);
         void Cell(int index, float x, float top, float size = 75)
@@ -310,6 +310,9 @@ public partial class GroundUi
             }
             case ContainerKind.Recycler or ContainerKind.ResearchTable:
                 bottom = PaintMachine(loot, y, (i, x, top, size) => Cell(i, x, top, size));
+                break;
+            case ContainerKind.Vehicle:
+                bottom = PaintVehicle(loot, y, (i, x, top, size) => Cell(i, x, top, size));
                 break;
             default:
                 for (int i = 0; i < cells; i++)

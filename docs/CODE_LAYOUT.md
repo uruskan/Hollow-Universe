@@ -502,12 +502,13 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `ShipThrusters.cs` | 171 | ShipThrusters | Thrusters on every axis (GROUND.md §6.6), the Tin Finch's and the Iron Wake's drive and the default, with flight assist. |
 | `ShipStations.cs` | 662 | StationBarrel, ShipStationDef, StationInput, StationAim, LoaderState, StationState, StationRules, LoaderPoses [NodePose, HolderView] | A ship's stations (IRON_WAKE.md §6): defs, state, loader records, the mount and fire rules both sides run, the mechanism's poses. |
 
-### src/Hollow.Simulation/Ships/Modules (2 files, 508 lines)
+### src/Hollow.Simulation/Ships/Modules (3 files, 571 lines)
 
 | File | Lines | Types | What |
 |---|---|---|---|
 | `ModuleDef.cs` | 171 | ShipSocketDef, ModuleDef, Installed, ShipBuild, PlacedModule, ShipHold | A kind's sockets, a kind of module, one module installed, a ship's build (its entries in socket and level order, equal whatever order they came in), a module where it stands in a composed layout, a module's hold (VEHICLES.md §9.1). |
-| `ShipAssembler.cs` | 337 | BuildProblem, ShipAssembler | Checks a build against its kind's sockets (§3.3) and composes kind + build into one ShipDef, copied from the kind, made once per build: seats, doors, parts and hull boxes moved by their socket, one helm, mass, centre of mass, inertia, fuel, holds; makes untrusted builds sane. |
+| `ShipAssembler.cs` | 337 | BuildProblem, ShipAssembler | Checks a build against its kind's sockets (§3.3) and the rules between modules (needs, excludes; §9.11) and composes kind + build into one ShipDef, copied from the kind, made once per build: seats, doors, parts and hull boxes moved by their socket, the body raised by a lift kit, the frame model and sound a module names, one helm, mass, centre of mass, inertia, fuel, holds, the kind's numbers modules replace; makes untrusted builds sane. |
+| `ShipTuning.cs` | 63 | ShipTuning | The kind's numbers a module replaces while fitted (VEHICLES.md §9.11): its ground, drag, crash and fuelUse blocks by name ("ground.topSpeed"), the one table that names them. |
 
 ### src/Hollow.Simulation/Systems (45 files, 13,286 lines)
 
@@ -542,6 +543,7 @@ The rules of the ground game, engine-free: the zone host, its systems, entities,
 | `ShipSystem.Attitude.cs` | 33 | ShipSystem | ShipSystem's attitude hold: keeps or clears the held target rotation when the ship's engine, autopilot or pilot changes. |
 | `ShipSystem.Doors.cs` | 229 | ShipSystem | Doors (IRON_WAKE.md §5.3): a door is a part with a progress, 0 shut to 1 open, moved over its seconds by the ship's rules |
 | `ShipSystem.Engine.cs` | 33 | ShipSystem | ShipSystem's engine switch (SetEngine): the crew's on and off through the ship radial, refused without fuel or crew rights. |
+| `ShipSystem.Modules.cs` | 213 | ShipSystem | A vehicle's build changed in the vehicle workbench's bay (VEHICLES.md §9.11): FitModule and TakeModule, every rule the server's (the player near the bench or its bay, the vehicle in it, still, empty, its crew's, the assembler's check), the ship rebuilt, held in the bay without running gear. |
 | `ShipSystem.Parts.cs` | 333 | ShipSystem [ShipReceiver] | A ship's crew, lock and parts (IRON_WAKE.md §5.2, §5.5): its list of authorised players (the tool cupboard's verbs at its |
 | `ShipSystem.Seats.cs` | 523 | SeatRelease, ShipSystem, ShipSeats | Why a seat's occupant leaves it (IRON_WAKE.md §5.2): every way out goes through ShipSystem.Release. |
 | `ShipSystem.Spaces.cs` | 218 | ShipSystem | Ships people walk in (IRON_WAKE.md §4): who is aboard, a parked ship's body in the zone, and the one entry point that |
@@ -1030,6 +1032,7 @@ The Godot project (presentation only): the app, the galaxy and system maps, the 
 | `ClientDeveloper.cs` | 327 | ClientDeveloper | The F2 panel's model over the client (GROUND.md §8.5): the server's stats, sections and players as the client's dev |
 | `ClientGroundUi.Attachments.cs` | 56 | ClientGroundUi | ClientGroundUi's weapon attachments: the slots a gun offers, which are fitted, and moving an attachment between a gun and a container, or quick-moving it to a free slot |
 | `ClientGroundUi.Interaction.cs` | 243 | ClientGroundUi, InteractionRadial | The interact key in the view model (GROUND_SYSTEMS.md §5, GROUND.md §8.4): every frame the one targeting query says |
+| `ClientGroundUi.Vehicle.cs` | 190 | ClientGroundUi | The vehicle screen (VEHICLES.md §9.11): the vehicle in a workbench's bay by its sockets as the loot panel, a module dragged in fitted and out taken out through the bay's intents, what its build makes and why it can't change now. |
 | `ClientGroundUi.World.cs` | 470 | ClientGroundUi | The interface's G7 members over the client (GROUND.md §6.8): the zone's map and what is on it (the player, teammates, |
 | `ClientGroundUi.cs` | 720 | ClientGroundUi | The ground interface's view model over the client (GROUND.md §8.1): GroundUi reads the player's own |
 | `CompoundView.cs` | 110 | CompoundView [Rig] | Animates articulated deployables from replicated state (leaves, rotor, fitted locks), retaining each rig across state packets; Retire detaches its callbacks. |

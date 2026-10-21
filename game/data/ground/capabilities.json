@@ -28,6 +28,7 @@
     { "key": "nameable", "note": "A respawn point's owner may give it a plain-text label, retained on its prompt, map and respawn list." },
     {"key": "electric", "note": "Wired electricity generation, storage and consumption."},
     {"key": "defense", "note": "Powered installed-weapon or rocket defense."},
-    {"key": "gate", "note": "An articulated compound entrance."}
+    {"key": "gate", "note": "An articulated compound entrance."},
+    {"key": "vehicle-service", "note": "A deployable with a bay (the vehicle workbench, VEHICLES.md §9.11): EDIT VEHICLE opens the vehicle screen of the vehicle standing in its bay."}
   ]
 }

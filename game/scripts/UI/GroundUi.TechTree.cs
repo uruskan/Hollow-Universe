@@ -29,6 +29,16 @@ public partial class GroundUi
         Button("", 802, 0, 250, 60, () => Open(GroundScreen.Inventory), 30);
         Arrow(833, 33, -1);
         Text("INVENTORY", 869, 13, 30, G.Ink, bold: true, condensed: true);
+        if (tree is { Bay: true })
+        {
+            // The vehicle in the bench's bay (VEHICLES.md §9.11): its build changed beside the inventory.
+            Button("", 1062, 0, 250, 60, () =>
+            {
+                Model.OpenBayVehicle();
+                Open(GroundScreen.Inventory);
+            }, 30);
+            Text("VEHICLE IN BAY", 1092, 13, 30, G.Ink, bold: true, condensed: true);
+        }
 
         _o = CanvasFrame;
         Rect(87, 65, 1046, 690, G.Panel);

@@ -38,9 +38,11 @@ public static class ShipCodec
     /// 7: the drive's spool (a rotor's spin, docs/MINICOPTER.md §9), so a craft held hovering is still hovering after a restart.
     /// 8: one block right after its kind (VEHICLES.md §9.1): its build, so the layout its seats, doors and parts are numbered by
     /// is known before they are read, and its modules' holds, each by the socket and level of its module. An older version's
-    /// bytes are a version 8's without that block.
+    /// bytes are a version 8's without that block. 9: the same bytes, written once running gear became modules (VEHICLES.md
+    /// §9.11): an older vehicle on wheels has no tyres in its build, and is dropped (the owner, 21 October 2026: no old saves
+    /// while in development).
     /// </summary>
-    public const byte Version = 8;
+    public const byte Version = 9;
 
     /// <summary>Where version 8's block starts (after the version and the kind), and its size for a ship without modules.</summary>
     public const int ModulesAt = 3, NoModulesBytes = 2;
@@ -175,6 +177,11 @@ public static class ShipCodec
             throw new InvalidDataException($"ship version {version}; this build reads up to {Version}");
         }
         ShipDef? def = content.Ship(r.ReadUInt16());
+        if (version < 9 && def?.Ground != null)
+        {
+            // A vehicle on wheels saved before its running gear was modules (VEHICLES.md §9.11): not kept.
+            return null;
+        }
         var holds = new List<(byte Socket, byte Level, Container Stored)>();
         if (version >= 8)
         {

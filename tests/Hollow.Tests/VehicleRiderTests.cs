@@ -201,7 +201,7 @@ public static class VehicleRiderTests
     {
         using var y = new Yard("monster-togg");
         ShipDef d = y.Car.Def;
-        Assert.True(d.Kind?.Key == "monster-togg" && d.Helm.Key == "bay3.1.driver", "the monster with its cab's wheel");
+        Assert.True(d.Kind?.Key == "togg" && d.Model == "monster-togg-frame" && d.Helm.Key == "bay3.1.driver", "the monster (a TOGG with monster parts) with its cab's wheel");
         Assert.Near(450_000, d.EnginePower, 1e-3, "a blown six's power");
         int took = y.Settle();
         float deck = y.Zone.HeightAboveGround(y.Point(new Vector3(0, 1.73f, 1.0f)));

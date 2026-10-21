@@ -29,7 +29,9 @@ public static class GroundMotorTests
 
     private static Installed Engine => new(3, 1, C.ItemByKey("togg-engine").Id);
 
-    private static ShipDef Togg() => C.Compose(C.Ship("togg")!, new ShipBuild(new[] { Cab, Engine }));
+    private static Installed Tyres => new(5, 1, C.ItemByKey("togg-tyres").Id);
+
+    private static ShipDef Togg() => C.Compose(C.Ship("togg")!, new ShipBuild(new[] { Cab, Engine, Tyres }));
 
     /// <summary>The yaw that faces east (the zone's +X), where a test slope rises.</summary>
     private const float East = -MathF.PI / 2;
@@ -98,15 +100,15 @@ public static class GroundMotorTests
     public static void TheToggIsAKindOnWheels()
     {
         ShipDef kind = C.Ship("togg")!;
-        Assert.True(kind.Motor is GroundMotor && kind.Ground != null && kind.Wheels.Count == 4 && kind.NeedsPilot, "a ground motor, four wheels, a driver needed");
-        Assert.True(kind.Seats.Count == 0 && kind.Sockets.Count == 4, "its seats and engines come with its modules");
+        Assert.True(kind.Motor is GroundMotor && kind.Ground != null && kind.Wheels.Count == 0 && kind.NeedsPilot, "a ground motor, a driver needed");
+        Assert.True(kind.Seats.Count == 0 && kind.Sockets.Count == 6, "its seats, engines and running gear come with its modules (VEHICLES.md §9.11)");
         ShipDef d = Togg();
-        Assert.True(kind.DefaultBuild.Count == 2 && kind.DefaultBuild.Equals(d.Build), "made with its cab and engine by default");
+        Assert.True(kind.DefaultBuild.Count == 3 && kind.DefaultBuild.Equals(d.Build) && d.Wheels.Count == 4, "made with its cab, engine and four tyres by default");
         Assert.True(d.Helm.Key == "bay3.1.driver" && d.Helm.Flies, "the cab's seat drives");
         Assert.Near(90_000, d.EnginePower, 1e-3, "the engine's power");
-        Assert.Near(650 + 220 + 280, d.Mass, 1e-3, "the chassis, the cab and the engine");
+        Assert.Near(530 + 220 + 280 + 120, d.Mass, 1e-3, "the chassis, the cab, the engine and the tyres");
         // A second cab behind the first: the front one drives, the one behind rides.
-        ShipDef two = C.Compose(kind, new ShipBuild(new[] { Cab, Engine, new Installed(1, 1, Cab.Module) }));
+        ShipDef two = C.Compose(kind, new ShipBuild(new[] { Cab, Engine, Tyres, new Installed(1, 1, Cab.Module) }));
         Assert.True(two.Helm.Key == "bay3.1.driver" && two.Seats.Count == 2 && two.Seats[0].Role == SeatRole.Passenger, "the front cab drives");
     }
 
@@ -267,7 +269,7 @@ public static class GroundMotorTests
         rig.Server.Execute("ship Ada togg");
         rig.Run(1.0, (_, _) => default);
         Hollow.Client.RemoteShip car = ada.Ships().All.First();
-        Assert.True(car.Def is { Kind.Key: "togg" } d && d.Build.Count == 2 && d.Seats.Count == 1, "Ada's client composes the TOGG with its cab and engine");
+        Assert.True(car.Def is { Kind.Key: "togg" } d && d.Build.Count == 3 && d.Seats.Count == 1, "Ada's client composes the TOGG with its cab, engine and tyres");
         Vector3 door = car.PointOf(car.Def!.HatchPoint());
         Vector3 side = Vector3.Normalize(Vector3.Transform(Vector3.UnitX, car.Rotation));
         rig.Teleport("Ada", door + side * 1.2f);

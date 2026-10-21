@@ -289,7 +289,8 @@ public sealed partial class ShipSystem : ZoneSystem
             }
             // Its riders' weight, a landing's blow and a jump's push on its springs (ShipSystem.Riders.cs).
             Riders(ship);
-            ship.Events = ship.Def.Motor.Step(ref ship.State, input, ship.Def, context, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody);
+            ship.Events = HeldInBay(ship) ? default
+                : ship.Def.Motor.Step(ref ship.State, input, ship.Def, context, ship.ParkedBody == 0 ? ShipCollider.NoBody : ship.ParkedBody);
             ship.Fuel.Consume(ship.Events.FuelUsed);
             ship.SyncFuel();
             IdleByHand(ship);
@@ -351,7 +352,8 @@ public sealed partial class ShipSystem : ZoneSystem
     /// </summary>
     internal bool DeliverShip(Entity builder, Player p, Recipe recipe, ulong stationId)
     {
-        ShipDef def = recipe.Output.Ship!;
+        // What the item makes: its kind with its preset's build or the kind's default (VEHICLES.md §9.11), its space cleared as built.
+        ShipDef def = Content?.ShipMade(recipe.Output) ?? recipe.Output.Ship!;
         Vector3 at;
         float yaw;
         float maxSlope;
@@ -379,7 +381,7 @@ public sealed partial class ShipSystem : ZoneSystem
             if (_shipNotices.GetValueOrDefault(p.Id, long.MinValue / 2) + 30 * CharacterMotor.TickRate <= Tick)
             {
                 _shipNotices[p.Id] = Tick;
-                Events.Add(new Notice(Player: p.Id, Text: steep                         ? $"Your {def.Name} is ready, but the ground in front of the bench is too steep for it."                         : $"Your {def.Name} is ready: clear the space in front of the vehicle workbench."));
+                Events.Add(new Notice(Player: p.Id, Text: steep                         ? $"Your {recipe.Output.Name} is ready, but the ground in front of the bench is too steep for it."                         : $"Your {recipe.Output.Name} is ready: clear the space in front of the vehicle workbench."));
             }
             return false;
         }

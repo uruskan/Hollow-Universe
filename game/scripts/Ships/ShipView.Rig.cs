@@ -10,7 +10,7 @@ namespace HollowUniverse.Ships;
 /// steering turning the hubs, the tyres rolling; art/models/togg.py and zamazingo.py build the nodes). For each wheel of
 /// the data, by its key:
 /// <list type="bullet">
-/// <item><c>Wheel_&lt;key&gt;</c> at the hub, riding its spring; its <c>Steer</c> turns with the steering (what does not roll:
+/// <item><c>Wheel_&lt;key&gt;</c> (a module's wheel by its own key, VEHICLES.md §9.11) at the hub, riding its spring; its <c>Steer</c> turns with the steering (what does not roll:
 /// a knuckle, a caliper) and its <c>Spin</c> rolls (the tyre, the rim, the disc).</item>
 /// <item><c>Fork_&lt;key&gt;</c> (optional): steering about a raked axis, its own up along the axis; the wheel under it slides up
 /// that axis (a motorbike's fork), and its own <c>Steer</c> stays still.</item>
@@ -82,7 +82,9 @@ public partial class ShipView
     {
         foreach (WheelDef w in _def.Wheels)
         {
-            if (_model.FindChild($"Wheel_{w.Key}", true, false) is not Node3D hub)
+            // A module's wheel is keyed by its socket and level ("wheels.1.front-left"); its model names it as the wheel's own.
+            string key = w.Key[(w.Key.LastIndexOf('.') + 1)..];
+            if (_model.FindChild($"Wheel_{key}", true, false) is not Node3D hub)
             {
                 continue;
             }
@@ -91,7 +93,7 @@ public partial class ShipView
             wheel.Spin = (wheel.Steer != null ? Part(wheel.Steer, "Spin") : null) ?? Part(hub, "Spin");
             wheel.SteerRest = wheel.Steer?.Basis ?? Basis.Identity;
             wheel.SpinRest = wheel.Spin?.Basis ?? Basis.Identity;
-            if (_model.FindChild($"Fork_{w.Key}", true, false) is Node3D fork)
+            if (_model.FindChild($"Fork_{key}", true, false) is Node3D fork)
             {
                 wheel.Fork = fork;
                 wheel.ForkRest = fork.Basis;
@@ -100,19 +102,19 @@ public partial class ShipView
                 wheel.Slide = Vector3.Up / MathF.Max(axisInModel.Y, 0.3f);
             }
             Vector3 hubInModel = InModel(hub).Origin;
-            if (_model.FindChild($"Swing_{w.Key}", true, false) is Node3D swing)
+            if (_model.FindChild($"Swing_{key}", true, false) is Node3D swing)
             {
                 wheel.Carrier = Arm(swing, hubInModel);
             }
-            foreach (Node found in _model.FindChildren($"Arm_{w.Key}_*", "", true, false))
+            foreach (Node found in _model.FindChildren($"Arm_{key}_*", "", true, false))
             {
                 if (found is Node3D arm && Part(arm, "Tip") is { } tip)
                 {
                     wheel.Arms.Add(Arm(arm, InModel(tip).Origin));
                 }
             }
-            if (_model.FindChild($"Shock_{w.Key}", true, false) is Node3D shock
-                && _model.FindChild($"ShockLow_{w.Key}", true, false) is Node3D target)
+            if (_model.FindChild($"Shock_{key}", true, false) is Node3D shock
+                && _model.FindChild($"ShockLow_{key}", true, false) is Node3D target)
             {
                 _shocks.Add(Shock(shock, target));
             }

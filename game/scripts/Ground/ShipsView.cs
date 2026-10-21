@@ -273,7 +273,7 @@ public partial class ShipsView : Node3D
     {
         if (d.Revs == null)
         {
-            if (SoundLibrary.Data.Engine(def.Key) is not { } engine)
+            if (SoundLibrary.Data.Engine(def.Sound) is not { } engine)
             {
                 return;
             }

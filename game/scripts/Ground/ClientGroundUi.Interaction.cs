@@ -133,6 +133,10 @@ public sealed partial class ClientGroundUi
             {
                 _techBench = at;
             }
+            if (verb.Panel == VehiclePanel)
+            {
+                OpenVehicle(at);
+            }
             OpenPanel?.Invoke(verb.Panel);
         }
         else if (verb.Code)

@@ -261,7 +261,7 @@ public static class ModuleTests
             ship.Holds[top].Set(3, ItemStack.Of(C.ItemByKey("wood"), 250));
             ship.PartHealth[d.Placed[0].FirstPart] = 123;
             byte[] bytes = Hollow.Persistence.ShipCodec.Encode(ship, z.Frame, z.Tick);
-            Assert.Equal((byte)8, bytes[0], "version 8");
+            Assert.Equal(Hollow.Persistence.ShipCodec.Version, bytes[0], "the current version");
             Hollow.Persistence.StoredShip back = Hollow.Persistence.ShipCodec.Decode(ship.Id, bytes, C, z.Frame)!;
             Ship again = back.Ship;
             Assert.True(ReferenceEquals(again.Def, d), "the same composed layout");

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using Hollow.Simulation.Entities;
 using Hollow.Simulation.Items;
@@ -119,13 +120,13 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder, IAuthorisation
     public float[] Parts { get; }
 
     /// <summary>Who sits in each seat (<see cref="ShipDef.Seats"/>' order), or none.</summary>
-    public EntityId[] Occupants { get; }
+    public EntityId[] Occupants { get; private set; }
 
     /// <summary>Each door (<see cref="ShipDef.Doors"/>' order).</summary>
-    public ShipDoorState[] Doors { get; }
+    public ShipDoorState[] Doors { get; private set; }
 
     /// <summary>Each target part's health (<see cref="ShipDef.Parts"/>' order; 0 for one without health: a door's part takes its door's).</summary>
-    public float[] PartHealth { get; }
+    public float[] PartHealth { get; private set; }
 
     /// <summary>Its own physics, for a ship people walk in (null for one they only sit in): made with the ship, gone with it.</summary>
     public Physics.ShipSpace? Space { get; internal set; }
@@ -138,7 +139,7 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder, IAuthorisation
     /// <summary>How the world names it (GROUND_SYSTEMS.md §3.1).</summary>
     public TargetRef Ref => new(TargetFamily.Ship, Id.Value);
 
-    public ShipDef Def { get; }
+    public ShipDef Def { get; private set; }
 
     /// <summary>Who built it (or was given it): on its list from then on.</summary>
     public EntityId Owner
@@ -182,12 +183,78 @@ public sealed class Ship : ITargetable, IOwned, IContainerHolder, IAuthorisation
     /// </summary>
     public bool HandStarted { get; set; }
 
+    /// <summary>
+    /// The station whose bay its build was last changed in (the vehicle workbench, VEHICLES.md §9.11), or none: while it
+    /// stands there without running gear the bay holds it (<c>ShipSystem.HeldInBay</c>). The server's alone, not saved.
+    /// </summary>
+    public EntityId Bay { get; set; }
+
     public Container Cargo { get; }
 
     /// <summary>Its modules' holds (<see cref="ShipDef.Holds"/>' order, VEHICLES.md §9.1): each opened at its own part.</summary>
-    public Container[] Holds { get; }
+    public Container[] Holds { get; private set; }
 
-    public ShipFuel Fuel { get; }
+    public ShipFuel Fuel { get; private set; }
+
+    /// <summary>
+    /// Takes another layout of its kind (VEHICLES.md §9.11: a module fitted or taken out at the vehicle workbench's bay). The kind's own doors
+    /// and parts keep their states and health; each module still in the build keeps its own, and its hold, found by its socket
+    /// and level; a module new to it comes whole (its parts at <paramref name="fitted"/> of their health). Its seats start
+    /// empty (nobody sits in a vehicle whose build changes) and its tank keeps what it holds, up to the new
+    /// tank. Its centre of mass moves with the layout's, so the frame it is drawn in stays where it stands.
+    /// </summary>
+    public void Rebuild(ShipDef def, float fitted = 1)
+    {
+        ShipDef old = Def;
+        var doors = new ShipDoorState[def.Doors.Count];
+        var health = new float[def.Parts.Count];
+        var holds = new Container[def.Holds.Count];
+        for (int i = 0; i < old.Kind.Doors.Count && i < doors.Length; i++)
+        {
+            doors[i] = Doors[i];
+        }
+        for (int i = 0; i < old.Kind.Parts.Count && i < health.Length; i++)
+        {
+            health[i] = PartHealth[i];
+        }
+        foreach (Modules.PlacedModule placed in def.Placed)
+        {
+            Modules.PlacedModule? was = null;
+            foreach (Modules.PlacedModule p in old.Placed)
+            {
+                if (p.Entry == placed.Entry)
+                {
+                    was = p;
+                }
+            }
+            for (int d = 0; d < placed.Module.Doors.Count; d++)
+            {
+                doors[placed.FirstDoor + d] = was is { } w ? Doors[w.FirstDoor + d]
+                    : new ShipDoorState { Health = placed.Module.Doors[d].Health?.Max ?? 0 };
+            }
+            for (int p = 0; p < placed.Module.Parts.Count; p++)
+            {
+                health[placed.FirstPart + p] = was is { } w ? PartHealth[w.FirstPart + p] : (placed.Module.Parts[p].Health?.Max ?? 0) * fitted;
+            }
+        }
+        for (int i = 0; i < holds.Length; i++)
+        {
+            Modules.Installed entry = def.Placed[def.Holds[i].Module].Entry;
+            int kept = Array.FindIndex(old.Holds.ToArray(), h => old.Placed[h.Module].Entry == entry);
+            holds[i] = kept >= 0 ? Holds[kept] : new Container(ContainerKind.Box, def.Holds[i].Slots);
+        }
+        var fuel = new ShipFuel(def);
+        fuel.Restore(Fuel.Units, Fuel.Reserve);
+        State.Position += Vector3.Transform(def.CentreOfMass - old.CentreOfMass, State.Rotation);
+        State.RestTicks = 0;
+        Def = def;
+        Doors = doors;
+        PartHealth = health;
+        Holds = holds;
+        Fuel = fuel;
+        Occupants = new EntityId[def.Seats.Count];
+        SyncFuel();
+    }
 
     /// <summary>Updates the motor/prediction/HUD total from the inventory and its partly burned unit.</summary>
     public void SyncFuel() { State.Fuel = Fuel.Amount; State.FuelReserve = Fuel.Reserve; }

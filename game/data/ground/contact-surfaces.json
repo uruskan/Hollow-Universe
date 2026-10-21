@@ -33,7 +33,7 @@
     "fibre-plant":"grass", "tuber-plant":"grass", "red-berry-bush":"grass", "blue-berry-bush":"grass",
     "fir-tree":"wood", "birch-tree":"wood", "boulder":"rock", "high-grade-node":"rock"
   },
-  "ships": {"tin-finch":"hull", "iron-wake":"hull", "motorboat":"hull", "ka-fa-1500":"hull", "togg":"hull", "zamazingo":"hull", "monster-togg":"hull"},
+  "ships": {"tin-finch":"hull", "iron-wake":"hull", "motorboat":"hull", "ka-fa-1500":"hull", "togg":"hull", "zamazingo":"hull"},
   "shipParts": {},
   "deployableParts": {}
 }

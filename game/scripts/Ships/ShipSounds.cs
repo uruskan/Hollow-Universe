@@ -86,7 +86,7 @@ public sealed class ShipSounds
         return n > 0 ? sum / n : null;
     }
 
-    private string? Role(string role) => Sounds.Item(_def.Key, role);
+    private string? Role(string role) => Sounds.Item(_def.Sound, role);
 
     private static AudioDirector? Director => AudioDirector.Instance;
 

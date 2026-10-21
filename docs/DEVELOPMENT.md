@@ -1,5 +1,68 @@
 # Hollow Universe AB Test B
 
+## 21 October 2026 — Vehicles: tyres, a lift kit and engines changed in the vehicle workbench's bay (VEHICLES.md §9.11)
+
+The owner asked how to change a car's engine or tyres. You couldn't: the build was fixed when the car was crafted, and its
+tyres belonged to the kind. The owner also said the Monster TOGG is "just a togg fitted with bigger tyres and engine
+probably and a different chassis", and that the lift should be the vehicle workbench's.
+
+- **Running gear as modules.** A TOGG's `wheels` and `suspension` sockets stand on the ground. They take:
+  - the stock tyres (`togg-tyres`, 246);
+  - the monster tyres (`monster-tyres`, 247);
+  - the lift kit (`togg-lift-kit`, 248), the raised chassis.
+
+  `ShipAssembler.Compose` is still the one path. It now:
+  - raises the body 0.75 m for the kit, leaving the wheels where they are;
+  - keeps the rules between parts: the monster tyres need the kit, and the stock tyres exclude it;
+  - draws the vehicle with the kit's `frame` (`monster-togg-frame`, so the art is unchanged);
+  - takes the blown six's `sound`;
+  - takes the kind's numbers a module replaces (`ShipTuning`): the blown six's top speed and traction, the tyres' brakes
+    and steering, the kit's righting and drag.
+- **The Monster TOGG is a TOGG with monster parts** (ships.json `presets`; there is no `monster-togg` kind any more). Its
+  layout matches the old kind's numbers:
+  - 1,920 kg, with the same centre of mass and inertia;
+  - the same ground numbers, wheels, tank and lamps.
+
+  The stock TOGG's numbers are unchanged too.
+- **The vehicle workbench's bay is the lift.** A stopped vehicle standing in the bay the bench marks can have its build
+  changed. EDIT VEHICLE (held E) or the tech tree's VEHICLE IN BAY opens the vehicle screen beside the inventory: the
+  vehicle's sockets as slots, what the build makes, and why it can't change now. Drag a module in to fit it, out to take it
+  off. The server checks every rule (`ShipSystem.Modules.cs`, `ModuleIntent`, protocol 48):
+  - the player near the bench or its bay;
+  - the vehicle in the bay, still and empty;
+  - the player on its crew;
+  - the new build allowed.
+
+  Refusals get new lines ("Take off the monster tyres first", "Fit the togg lift kit first", EVERYONE OUT OF IT FIRST). An
+  answer's code is now 8 bits. A vehicle whose tyres are off is held where it stands in the bay.
+- **Saves** (`ShipCodec` 9): an older save's vehicle on wheels is dropped. The owner said: "do not think about old saves we
+  are in development".
+- **Crafting:** recipes and tree nodes for the cab, both engines, both sets of tyres and the lift kit.
+- **Checked:**
+  - `VehicleBayTests` 6/6, the network test among them;
+  - GroundMotor 8/8, Module 10/10, VehicleRider 6/6, VehicleBoost 5/5, TruckFeel 4/4, VehicleSound 4/4, ShipNet 2/2,
+    ContentTests 3/3;
+  - the full suite: 1,110 of 1,120 pass. The 10 failures are Earth and terrain tests that fail on other sessions'
+    uncommitted terrain work (`CliffKitPlacements.cs`, `TerrainBake.cs`, Earth's layout 6);
+  - a hosted run, `--tour-steps rebuild` (`GroundTour.Rebuild.cs`):
+    - a TOGG is set down and a vehicle workbench placed ahead of it (the ghost fits);
+    - the TOGG is driven into the bay, stopping 1.4 m from the bay's centre;
+    - the tech tree's VEHICLE IN BAY opens the screen;
+    - the five drags are each accepted;
+    - it leaves as `monster-togg-frame`, 1,920 kg, 450 kW, on 1.70 m tyres, the stock tyres and engine in the inventory;
+    - it backs out on them.
+- **Pictures** (`docs/images/vehicles/bay/`): `rebuild-togg.jpg`, `rebuild-techtree.jpg`, `rebuild-screen.jpg`,
+  `rebuild-screen-monster.jpg`, `rebuild-monster.jpg`, `rebuild-monster-out.jpg`, and the interface viewer's
+  `vehicle-screen.png`.
+- **Art** (`art/models/togg.py -- --parts`): item models and icons for the stock tyres, the monster tyres and the lift kit.
+  The blown six and the Monster TOGG got their missing icons. A fix to the monster's lower-arm skid plate reaches its frame
+  the next time `-- --monster` is built.
+- **Not yet:**
+  - a vehicle without tyres in a bay falls after a server restart;
+  - locking and naming at the bench;
+  - engine parts and their tiers;
+  - the bike's modules.
+
 ## 21 October 2026 — Vehicles: the TOGG's recorded diesel (VEHICLES.md §9.10)
 
 The owner chose recorded truck sounds over synthesis and asked for every candidate to be downloaded, licences aside for

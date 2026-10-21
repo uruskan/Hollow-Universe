@@ -771,7 +771,7 @@ public partial struct RespawnIntent
 public partial struct IntentResult
 {
     [VarInt] public uint Seq;
-    [Bits(7)] public OutcomeCode Code;
+    [Bits(8)] public OutcomeCode Code;
     [VarInt] public uint Detail;
 }
 
@@ -880,7 +880,7 @@ public partial struct StationNet
     [MaxCount(8)] public StationBarrelNet[] Barrels;
     [MaxCount(8)] public LoaderNet[] Loaders;
     [MaxCount(3)] public MagazineCountNet[] Counts;
-    [Bits(7)] public OutcomeCode Refused;
+    [Bits(8)] public OutcomeCode Refused;
     [VarInt] public uint RefusedDetail;
     public uint RefusedTick;
 }
@@ -1091,7 +1091,7 @@ public partial struct AttackResult
     [VarInt] public uint Session;
     [Bits(2)] public AttackDomain Kind;
     [VarInt] public uint Seq;
-    [Bits(7)] public OutcomeCode Code;
+    [Bits(8)] public OutcomeCode Code;
     public uint RequestedTick;
     public uint StartTick;
     public uint ContactTick;
@@ -1231,7 +1231,7 @@ public partial struct GunUpdate
 {
     [VarInt] public uint LastSeq;
     [VarInt] public uint RefusedSeq;
-    [Bits(7)] public OutcomeCode Refused;
+    [Bits(8)] public OutcomeCode Refused;
     [Bits(3)] public byte Slot;
     [VarInt] public uint Item;
     [VarInt] public uint Loaded;
@@ -1773,6 +1773,25 @@ public partial struct InteractIntent
     [VarInt] public uint Arg;
     [MaxLength(8)] public string Code;
     [MaxLength(192)] public string Text;
+}
+
+/// <summary>
+/// A vehicle's build changed in the vehicle workbench's bay (VEHICLES.md §9.11): the module in an inventory slot fitted into a
+/// socket and level (<see cref="Fit"/>), or the module there taken out into the inventory. The server checks the player, the
+/// station, the vehicle in its bay and the build's rules, and answers with <see cref="IntentResult"/>; the vehicle's new
+/// details follow.
+/// </summary>
+[NetMessage(233)]
+public partial struct ModuleIntent
+{
+    [VarInt] public uint Seq;
+    [VarInt] public ulong Station;
+    [VarInt] public ulong Ship;
+    public bool Fit;
+    public byte Socket;
+    [Bits(2)] public byte Level;
+    [Bits(3)] public ContainerRef From;
+    public byte Slot;
 }
 
 /// <summary>

@@ -531,7 +531,7 @@ public partial class ShipSandbox : Node3D
     {
         if (_revs == null)
         {
-            if (SoundLibrary.Data.Engine(_ship.Def.Key) is not { } engine)
+            if (SoundLibrary.Data.Engine(_ship.Def.Sound) is not { } engine)
             {
                 return;
             }

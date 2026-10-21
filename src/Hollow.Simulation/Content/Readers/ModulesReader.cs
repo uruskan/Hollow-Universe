@@ -30,7 +30,8 @@ internal sealed class ModulesReader : IContentReader
             string key = f.Text(e, "key", $"modules.json: modules[{i}]");
             string where = $"modules.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "key", "item", "fits", "span", "levels", "height", "carries", "mass", "centreOfMass", "hull", "seats", "doors",
-                "parts", "fuel", "hold", "model", "wheels", "power", "boost", "drive");
+                "parts", "fuel", "hold", "model", "wheels", "power", "boost", "drive", "raise", "needs", "excludes", "frame", "inertia", "ground", "drag",
+                "crash", "fuelUse", "sound");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             if (item == null)
             {
@@ -70,6 +71,13 @@ internal sealed class ModulesReader : IContentReader
                 Hold = f.Integer(e, "hold", where, 0),
                 HoldPart = parts.FindIndex(p => p.Capabilities.Has(container)),
                 Model = f.Text(e, "model", where, key),
+                Raise = f.Number(e, "raise", where, 0),
+                Needs = f.Texts(e, "needs", where),
+                Excludes = f.Texts(e, "excludes", where),
+                Frame = f.Text(e, "frame", where, ""),
+                Sound = f.Text(e, "sound", where, ""),
+                Inertia = f.Has(e, "inertia") ? f.Vector(e, "inertia", where) : null,
+                Sets = Tuning(f, e, where),
             });
             if (levels.Any(l => l is not (1 or 2)) || levels.Length == 0)
             {
@@ -95,6 +103,30 @@ internal sealed class ModulesReader : IContentReader
         }
     }
 
+    // The kind's numbers a module replaces (ShipTuning): its ground, drag, crash and fuelUse blocks, each { "<key>": number }.
+    private static List<(string, float)> Tuning(JsonFields f, JsonElement e, string where)
+    {
+        var sets = new List<(string, float)>();
+        foreach (string block in ShipTuning.Blocks)
+        {
+            if (!f.TryChild(e, block, out JsonElement numbers))
+            {
+                continue;
+            }
+            foreach (JsonProperty p in numbers.EnumerateObject())
+            {
+                string name = $"{block}.{p.Name}";
+                if (!ShipTuning.Knows(name) || p.Value.ValueKind != JsonValueKind.Number || !float.IsFinite((float)p.Value.GetDouble()))
+                {
+                    f.Problem($"{where}.{block}", $"\"{p.Name}\" is a number a module may set (ShipTuning)");
+                    continue;
+                }
+                sets.Add((name, (float)p.Value.GetDouble()));
+            }
+        }
+        return sets;
+    }
+
     // A module's drive numbers: { "<name>": number, ... }, summed by name over a build.
     private static Dictionary<string, float> DriveNumbers(JsonFields f, JsonElement e, string where)
     {
@@ -117,35 +149,58 @@ internal sealed class ModulesReader : IContentReader
         return numbers;
     }
 
+    // A build as ships.json names it on a kind, or null with the problem noted.
+    private static ShipBuild? Resolve(ContentChecking c, ShipDef kind, IReadOnlyList<(string Socket, int Level, string Module)> keys, string at)
+    {
+        GameContent.Loaded loaded = c.Loaded;
+        var entries = new List<Installed>();
+        foreach ((string socket, int level, string module) in keys)
+        {
+            int index = kind.Sockets.ToList().FindIndex(x => x.Key == socket);
+            ModuleDef? def = loaded.Modules.FirstOrDefault(m => m.Key == module);
+            if (index < 0 || def == null || level is not (1 or 2))
+            {
+                c.Problem(at, $"\"{socket}\" level {level}: \"{module}\" names a socket of the kind, level 1 or 2, and a module of modules.json");
+                return null;
+            }
+            entries.Add(new Installed((byte)index, (byte)level, def.Id));
+        }
+        var build = new ShipBuild(entries);
+        BuildProblem problem = ShipAssembler.Check(kind, build, id => loaded.Modules.FirstOrDefault(m => m.Id == id));
+        if (problem != BuildProblem.None)
+        {
+            c.Problem(at, $"the build can't be ({problem})");
+            return null;
+        }
+        return build;
+    }
+
     public void Check(ContentChecking c)
     {
         GameContent.Loaded loaded = c.Loaded;
         c.Duplicates("modules.json", loaded.Modules.Select(m => m.Key));
-        // Each kind's default build (ships.json build), resolved now the modules are read, and held to the sockets' rules.
+        // Each kind's default build (ships.json build) and each preset's (ships.json presets), resolved now the modules are
+        // read, and held to the sockets' rules.
         foreach (ShipDef kind in loaded.Ships.Where(s => s.DefaultBuildKeys.Count > 0))
         {
-            string at = $"ships.json: {JsonFields.Quote(kind.Key)}.build";
-            var entries = new List<Installed>();
-            foreach ((string socket, int level, string module) in kind.DefaultBuildKeys)
-            {
-                int index = kind.Sockets.ToList().FindIndex(x => x.Key == socket);
-                ModuleDef? def = loaded.Modules.FirstOrDefault(m => m.Key == module);
-                if (index < 0 || def == null || level is not (1 or 2))
-                {
-                    c.Problem(at, $"\"{socket}\" level {level}: \"{module}\" names a socket of the kind, level 1 or 2, and a module of modules.json");
-                    continue;
-                }
-                entries.Add(new Installed((byte)index, (byte)level, def.Id));
-            }
-            var build = new ShipBuild(entries);
-            BuildProblem problem = ShipAssembler.Check(kind, build, id => loaded.Modules.FirstOrDefault(m => m.Id == id));
-            if (problem != BuildProblem.None)
-            {
-                c.Problem(at, $"the default build can't be ({problem})");
-            }
-            else
+            if (Resolve(c, kind, kind.DefaultBuildKeys, $"ships.json: {JsonFields.Quote(kind.Key)}.build") is { } build)
             {
                 kind.DefaultBuild = build;
+            }
+        }
+        foreach (ItemDef item in loaded.Items.Where(i => i.ShipBuildKeys != null && i.Ship != null))
+        {
+            item.ShipBuild = Resolve(c, item.Ship!, item.ShipBuildKeys!, $"ships.json: presets {JsonFields.Quote(item.Key)}");
+        }
+        // A vehicle on wheels made without wheels of its own gets them from what it is made with (VEHICLES.md §9.11).
+        foreach (ItemDef item in loaded.Items.Where(i => i.Ship is { Ground: not null }))
+        {
+            ShipDef kind = item.Ship!;
+            ShipBuild made = item.ShipBuild ?? kind.DefaultBuild;
+            int wheels = kind.Wheels.Count + made.Entries.Sum(e => loaded.Modules.FirstOrDefault(m => m.Id == e.Module)?.Wheels.Count ?? 0);
+            if (wheels < 2)
+            {
+                c.Problem($"ships.json: {JsonFields.Quote(kind.Key)}", $"\"{item.Key}\" is made with {wheels} wheels: a vehicle on wheels needs 2 or more, its own or its running gear's");
             }
         }
         int seatCapability = loaded.Capabilities?.Index("seat") ?? -1, shipDoor = loaded.Capabilities?.Index("ship-door") ?? -1;
@@ -164,6 +219,18 @@ internal sealed class ModulesReader : IContentReader
                 m.Boost is < 1 or > 3)
             {
                 c.Problem(where, "fits a tag or more, spans 1 … 8 sockets, a height of 0 or more, a positive mass, fuel of 0 or more, a hold of 0 … 48 slots, power of 0 or more, an overboost of 1 … 3");
+            }
+            if (m.Raise is < 0 or > 2 || m.Inertia is { } inertia && (inertia.X <= 0 || inertia.Y <= 0 || inertia.Z <= 0))
+            {
+                c.Problem(where, "a raise of 0 … 2 m, and an inertia of three positive moments");
+            }
+            if (m.Frame.Length > 0 && m.Sets.Count == 0 && m.Raise == 0 && m.Wheels.Count == 0)
+            {
+                c.Problem(where + ".frame", "a module that changes the frame's model changes its running gear: its raise, wheels or numbers");
+            }
+            foreach (string tag in m.Needs.Concat(m.Excludes).Where(t => !loaded.Modules.Any(o => o != m && o.Fits.Contains(t, StringComparer.Ordinal))))
+            {
+                c.Problem(where, $"needs or excludes \"{tag}\", which no other module fits");
             }
             foreach (WheelDef w in m.Wheels.Where(w => w.Radius <= 0 || w.Width <= 0 || w.Travel <= 0 || w.Stiffness <= 0 || w.Damping <= 0 || w.Grip is <= 0 or > 2))
             {

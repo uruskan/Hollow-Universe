@@ -27,7 +27,13 @@ Written in the vehicle's frame (vehicle_kit.py: +X left, +Y up, +Z forward; the 
 origin, the data's own numbers). No downloaded meshes or pixels: one 2048 px atlas (vehicle_paint.togg), a perspex and the
 lamps' lenses; three hand-built LODs; vertex occlusion.
 
-    blender -b --factory-startup --python art/models/togg.py [-- --preview] [-- --monster]
+`-- --parts` writes only the running gear's and the lift kit's item models (modules.json's togg-tyres, monster-tyres and
+togg-lift-kit, whose art on the car is the frames'), from the same builders, for their icons and dropped items, and touches
+nothing else (the atlas and materials are used as the car's build left them): togg-tyres.glb, two TOGG wheels stacked flat;
+then, by running itself again with --monster, monster-tyres.glb, one flotation tyre standing, and togg-lift-kit.glb, the
+monster's coil-over with its remote reservoir and a corner's upper and lower arms laid on the ground.
+
+    blender -b --factory-startup --python art/models/togg.py [-- --preview] [-- --monster] [-- --parts]
 """
 from pathlib import Path
 import json
@@ -39,7 +45,7 @@ from mathutils import Matrix, Vector
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from hollow import WORLD, TEXTURES, REPO, script_args
+from hollow import WORLD, TEXTURES, REPO, MATERIALS as SHARED_MATERIALS, script_args
 from hollow.export import collection, export_glb, convex_hull
 from hollow.godot import write_material
 from hollow.textures import write_png, write_texture_import, normal_from_height
@@ -50,9 +56,10 @@ from vehicle_kit import (b, place, rotation, toward, beam, rod, block, disc, lat
 ARGS = script_args()
 PREVIEW = '--preview' in ARGS
 MONSTER = '--monster' in ARGS
+PARTS = '--parts' in ARGS
 KEY = 'togg'                                   # the atlas's and the materials' name: the monster wears the TOGG's
 NAME = 'monster-togg' if MONSTER else KEY      # the files'
-OUT = REPO / '.artifacts/itemart' / NAME
+OUT = REPO / '.artifacts/itemart' / (NAME + ('-parts' if PARTS else ''))
 OUT.mkdir(parents=True, exist_ok=True)
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -104,19 +111,27 @@ STACK_TOP = 1.62 if MONSTER else 1.18   # the engine's stacks' tops over its soc
 # ---------------------------------------------------------------- textures and materials
 
 paths = {key: TEXTURES / KEY / f'{KEY}_{key}.png' for key in ('albedo', 'orm', 'normal')}
-if not (MONSTER and all(p.exists() for p in paths.values())):
-    albedo, orm, height = paint.togg()
-    for key, pixels in [('albedo', albedo), ('orm', orm), ('normal', normal_from_height(height, 2.0))]:
-        paths[key] = write_png(TEXTURES / KEY / f'{KEY}_{key}.png', pixels)
-        write_texture_import(paths[key], normal_map=key == 'normal')
-MATERIALS = {
-    'M_Hollow_Togg': write_material('togg', 'M_Hollow_Togg', albedo=paths['albedo'], orm=paths['orm'], normal=paths['normal'],
-                                    normal_scale=.6, vertex_colour=True, vertex_colour_srgb=False),
-    'M_Hollow_Togg_Glass': write_material('togg_glass', 'M_Hollow_Togg_Glass', colour=(.70, .78, .76, .26), roughness=.12,
-                                          metallic=0, vertex_colour=False, transparent=True, extra=['cull_mode = 2']),
-    'M_Hollow_Togg_Lamps': write_material('togg_lamps', 'M_Hollow_Togg_Lamps', albedo=paths['albedo'], emission=paths['albedo'],
-                                          emission_energy=2.0, roughness=.12, vertex_colour=False),
-}
+if PARTS:
+    # The parts only use the atlas and the materials, as the car's own build wrote them.
+    MATERIALS = {'M_Hollow_Togg': SHARED_MATERIALS / 'togg.tres', 'M_Hollow_Togg_Glass': SHARED_MATERIALS / 'togg_glass.tres',
+                 'M_Hollow_Togg_Lamps': SHARED_MATERIALS / 'togg_lamps.tres'}
+    missing = [str(p) for p in list(paths.values()) + list(MATERIALS.values()) if not p.exists()]
+    if missing:
+        raise RuntimeError(f'--parts needs the TOGG built first (art/models/togg.py): {missing}')
+else:
+    if not (MONSTER and all(p.exists() for p in paths.values())):
+        albedo, orm, height = paint.togg()
+        for key, pixels in [('albedo', albedo), ('orm', orm), ('normal', normal_from_height(height, 2.0))]:
+            paths[key] = write_png(TEXTURES / KEY / f'{KEY}_{key}.png', pixels)
+            write_texture_import(paths[key], normal_map=key == 'normal')
+    MATERIALS = {
+        'M_Hollow_Togg': write_material('togg', 'M_Hollow_Togg', albedo=paths['albedo'], orm=paths['orm'], normal=paths['normal'],
+                                        normal_scale=.6, vertex_colour=True, vertex_colour_srgb=False),
+        'M_Hollow_Togg_Glass': write_material('togg_glass', 'M_Hollow_Togg_Glass', colour=(.70, .78, .76, .26), roughness=.12,
+                                              metallic=0, vertex_colour=False, transparent=True, extra=['cull_mode = 2']),
+        'M_Hollow_Togg_Lamps': write_material('togg_lamps', 'M_Hollow_Togg_Lamps', albedo=paths['albedo'], emission=paths['albedo'],
+                                              emission_energy=2.0, roughness=.12, vertex_colour=False),
+    }
 mat = bpy.data.materials.new('M_Hollow_Togg')
 glass_mat = bpy.data.materials.new('M_Hollow_Togg_Glass')
 lamp_mat = bpy.data.materials.new('M_Hollow_Togg_Lamps')
@@ -440,7 +455,10 @@ def lower_arm(mesh, s, z):
     block(mesh, 'ShockTab', (lx * s, ly - .01, z + .04), (.06, .06, .008), 'frame', bevel=.002)
     rod(mesh, 'ShockPin', (lx * s, ly, z - .05), (lx * s, ly, z + .05), .009, 'steel')
     if lod < 2:
-        grid_panel(mesh, 'ArmSkid', lambda u, v: (((px + .1) + (tx - px - .14) * u) * s, py - .03 - .02 * u, z + (LOWER_SPREAD * (1 - u) * .9 + .02) * (2 * v - 1)),
+        # Under the arm along its length (the monster's falls steeply from its lifted frame, and the skid with it).
+        drop = (ty - py) / (tx - px) if MONSTER else 0.0
+        grid_panel(mesh, 'ArmSkid', lambda u, v: (((px + .1) + (tx - px - .14) * u) * s, py - .03 - .02 * u + drop * (.1 + (tx - px - .14) * u),
+                                                  z + (LOWER_SPREAD * (1 - u) * .9 + .02) * (2 * v - 1)),
                    2, 1, 'frame', smooth=False, want=lambda c: Vector((0, 0, -1)))
     # The ball joint at the tip.
     disc(mesh, 'BallJoint', tip, .04 * THICK, .05, 'dark', axis='Y')
@@ -532,21 +550,24 @@ def knuckle(mesh, s, front):
         rod(mesh, 'TieRod', (ix - s * .05, -.07, -.18), (ix - s * .28, -.06, -.19), .013, 'steel')
 
 
-def wheel(mesh, s):
-    """A whole wheel about its hub (axle along X): the knobbed tyre, the cream beadlock rim, the brake disc."""
+def wheel(mesh, s, brake=True):
+    """A whole wheel about its hub (axle along X): the knobbed tyre, the cream beadlock rim, the brake disc (`brake` False:
+    the wheel off its hub, as the tyres' item)."""
     if MONSTER:
         # A flotation tyre's tall sidewall and deep lugs; an eight-stud beadlock; a big vented disc.
         tyre(mesh, WHEEL_R, WHEEL_W, RIM_R, knob=.05, side=s)
         steel_rim(mesh, RIM_R, WHEEL_W - .10, dish=.06, region='cream', side=s, bolt_count=8)
-        disc(mesh, 'BrakeDisc', (-s * .09, 0, 0), .28, .032, 'steel', axis='X', inner=.10)
-        if mesh.lod < 2:
-            disc(mesh, 'DiscHat', (-s * .06, 0, 0), .15, .04, 'dark', axis='X')
+        if brake:
+            disc(mesh, 'BrakeDisc', (-s * .09, 0, 0), .28, .032, 'steel', axis='X', inner=.10)
+            if mesh.lod < 2:
+                disc(mesh, 'DiscHat', (-s * .06, 0, 0), .15, .04, 'dark', axis='X')
         return
     tyre(mesh, WHEEL_R, WHEEL_W, RIM_R, knob=.026, side=s)
     steel_rim(mesh, RIM_R, WHEEL_W - .06, dish=.035, region='cream', side=s)
-    disc(mesh, 'BrakeDisc', (-s * .055, 0, 0), .165, .022, 'steel', axis='X', inner=.06)
-    if mesh.lod < 2:
-        disc(mesh, 'DiscHat', (-s * .035, 0, 0), .09, .03, 'dark', axis='X')
+    if brake:
+        disc(mesh, 'BrakeDisc', (-s * .055, 0, 0), .165, .022, 'steel', axis='X', inner=.06)
+        if mesh.lod < 2:
+            disc(mesh, 'DiscHat', (-s * .035, 0, 0), .09, .03, 'dark', axis='X')
 
 
 # ---------------------------------------------------------------- the one-seat cab (bay frame: rear centre on the deck)
@@ -900,6 +921,109 @@ report = {'asset': NAME, 'files': {}}
 
 def lods(builder, name, material=mat):
     return [kit_built(col, builder, name, material, REGIONS, lod) for lod in range(3)]
+
+
+# ---------------------------------------------------------------- -- --parts: the running gear's and the lift kit's items
+
+
+def lay(levels, matrix):
+    """Moves every level of a part by a transform of the vehicle's frame."""
+    for o in levels:
+        place(o, matrix)
+
+
+def extent(levels):
+    """The finest level's bounds in the vehicle's frame: (min, max)."""
+    pts = [(v.co.x, v.co.z, -v.co.y) for v in levels[0].data.vertices]
+    return [min(p[i] for p in pts) for i in range(3)], [max(p[i] for p in pts) for i in range(3)]
+
+
+def settle(levels, at=(0.0, 0.0)):
+    """Stands every level of a part on the ground (its finest's lowest point at y = 0), its middle at (x, z) = `at`."""
+    lo, hi = extent(levels)
+    lay(levels, Matrix.Translation((at[0] - (lo[0] + hi[0]) / 2, -lo[1], at[1] - (lo[2] + hi[2]) / 2)))
+
+
+def shaded(parts):
+    """Vertex occlusion: the parts' finest levels together on the ground, the coarser each alone."""
+    shade([levels[0] for levels in parts])
+    for levels in parts:
+        for o in levels[1:]:
+            shade([o], samples=3, distance=.2)
+
+
+def export_part(file, objects):
+    """An item's file: its parts' levels and a convex hull round the finest (its origin on the ground under its middle)."""
+    # Named by its file: two files in one run, two hulls (a repeated name would come out as `….001`, not a hull).
+    title = ''.join(w.capitalize() for w in file.removesuffix('.glb').split('-'))
+    hull = convex_hull([o for o in objects if o.name.endswith('_lod0')], f'{title}_hull0-convcolonly', col, max_faces=48)
+    path = export_glb(WORLD / file, objects + [hull], MATERIALS)
+    counts = tris(objects)
+    report['files'][path.name] = {f'lod{n}': sum(v for k, v in counts.items() if k.endswith(f'_lod{n}')) for n in range(3)}
+
+
+if PARTS:
+    if not MONSTER:
+        # togg-tyres: two TOGG wheels stacked flat, their beadlocks up; the upper (the same mesh) turned a little on the lower.
+        # (A right-hand wheel: its outer face, -X, is the one whose moulded name reads the right way round.)
+        low = lods(lambda m: wheel(m, -1, brake=False), 'WheelLow')
+        lay(low, rotation('Z', -90))
+        settle(low)
+        shaded([low])
+        lo, hi = extent(low)
+        high = []
+        for o in low:
+            c = o.copy()
+            col.objects.link(c)
+            c.name = o.name.replace('WheelLow', 'WheelHigh')
+            c.matrix_world = Matrix.Translation(b((0, hi[1] - lo[1] - .006, 0))) @ Matrix.Rotation(math.radians(17), 4, 'Z')
+            high.append(c)
+        bpy.context.view_layer.update()
+        export_part('togg-tyres.glb', low + high)
+    else:
+        # monster-tyres: one flotation tyre on its eight-stud beadlock, standing on its tread, the beadlock to the front.
+        big = lods(lambda m: wheel(m, -1, brake=False), 'Wheel')
+        lay(big, rotation('Y', 90))
+        settle(big)
+        shaded([big])
+        export_part('monster-tyres.glb', big)
+        # togg-lift-kit: a corner's long-travel coil-over (its remote reservoir up) and its upper and lower arms laid flat.
+        lower = lods(lambda m: lower_arm(m, 1, 0.0), 'LowerArm')
+        upper = lods(lambda m: upper_arm(m, 1, 0.0), 'UpperArm')
+        for levels, (pivot, tip) in ((lower, (ARM_LOWER, LOWER_TIP)), (upper, (ARM_UPPER, UPPER_TIP))):
+            # Turned about the line of its pivots until its tip lies level with them.
+            lay(levels, rotation('Z', -math.degrees(math.atan2(tip[1] - pivot[1], tip[0] - pivot[0]))))
+        rest = (Vector(ARM_SHOCK_TOP) - Vector(SHOCK_LOW)).length
+        length = round(rest * .5, 3)
+
+        def coil_over(mesh):
+            """The coil-over at its rest length, in the shock's frame (the top eye at the origin, along -Y)."""
+            shock_body(mesh, length)
+            n = len(mesh.parts)
+            shock_rod(mesh, rest, length)
+            for o in mesh.parts[n:]:
+                place(o, Matrix.Translation((0, -rest, 0)))
+            n = len(mesh.parts)
+            coil(mesh, rest - SPRING_TOP - SPRING_LOW)
+            for o in mesh.parts[n:]:
+                place(o, Matrix.Translation((0, -SPRING_TOP, 0)))
+        shock = lods(coil_over, 'CoilOver')
+        lay(shock, rotation('Z', 90))
+        settle(lower, (0, 0))
+        lay(upper, rotation('Y', 180 + 8))
+        settle(upper, (.06, -.47))
+        settle(shock, (-.02, .45))
+        shaded([lower, upper, shock])
+        export_part('togg-lift-kit.glb', lower + upper + shock)
+    bpy.ops.wm.save_as_mainfile(filepath=str(OUT / f'{NAME}-parts-source.blend'))
+    (OUT / 'geometry.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps(report['files']), flush=True)
+    if not MONSTER:
+        # The monster's parts are built by its own geometry: this script again with --monster.
+        import subprocess
+        subprocess.run([bpy.app.binary_path, '-b', '--factory-startup', '--python', str(Path(__file__).resolve()), '--',
+                        '--monster', '--parts'], check=True)
+    sys.exit(0)
 
 
 # The chassis and its lamps (the monster's lifted with all that is on them).

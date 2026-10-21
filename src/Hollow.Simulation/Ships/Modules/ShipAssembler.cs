@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 
@@ -39,6 +40,12 @@ public enum BuildProblem : byte
 
     /// <summary>More entries than a build holds.</summary>
     TooMany,
+
+    /// <summary>A module whose <see cref="ModuleDef.Needs"/> no other module of the build fits (monster tyres without the lift kit).</summary>
+    Needs,
+
+    /// <summary>A module and another its <see cref="ModuleDef.Excludes"/> names (the stock tyres and the lift kit).</summary>
+    Excludes,
 }
 
 /// <summary>
@@ -53,7 +60,28 @@ public static class ShipAssembler
 
     /// <summary>Why a build can't be on a kind, or <see cref="BuildProblem.None"/>.</summary>
     public static BuildProblem Check(ShipDef kind, ShipBuild build, Func<int, ModuleDef?> modules) =>
-        Arrange(kind.Kind, build, modules, out _, out _);
+        Check(kind, build, modules, out _, out _);
+
+    /// <summary>
+    /// Why a build can't be on a kind, with the modules it is about: <paramref name="module"/> the one whose rule fails (the
+    /// one standing where another is put for <see cref="BuildProblem.Taken"/>, the one that needs for
+    /// <see cref="BuildProblem.Needs"/>, the one that excludes for <see cref="BuildProblem.Excludes"/>) and
+    /// <paramref name="other"/> the one it excludes.
+    /// </summary>
+    public static BuildProblem Check(ShipDef kind, ShipBuild build, Func<int, ModuleDef?> modules, out ModuleDef? module, out ModuleDef? other)
+    {
+        other = null;
+        BuildProblem problem = Arrange(kind.Kind, build, modules, out ModuleDef[] defs, out _, out int culprit);
+        if (problem != BuildProblem.None)
+        {
+            module = culprit >= 0 ? defs[culprit] : null;
+            return problem;
+        }
+        problem = Relate(defs, out int a, out int b);
+        module = a >= 0 ? defs[a] : null;
+        other = b >= 0 ? defs[b] : null;
+        return problem;
+    }
 
     /// <summary>The layout of a kind with a build (the kind itself for none). The build must pass <see cref="Check"/>.</summary>
     public static ShipDef Compose(ShipDef kind, ShipBuild build, Func<int, ModuleDef?> modules)
@@ -70,7 +98,11 @@ public static class ShipAssembler
             {
                 return known;
             }
-            BuildProblem problem = Arrange(kind, build, modules, out ModuleDef[] defs, out Vector3[] origins);
+            BuildProblem problem = Arrange(kind, build, modules, out ModuleDef[] defs, out Vector3[] origins, out _);
+            if (problem == BuildProblem.None)
+            {
+                problem = Relate(defs, out _, out _);
+            }
             if (problem != BuildProblem.None)
             {
                 throw new ArgumentException($"{kind.Key}: build {build} can't be ({problem})", nameof(build));
@@ -83,7 +115,8 @@ public static class ShipAssembler
 
     /// <summary>
     /// A build read from untrusted bytes made sane on a kind: its entries in order, each kept only if the build so far stays
-    /// possible with it (a module the game lost, a socket the kind no longer has, a roof gone from under it are left out).
+    /// possible with it (a module the game lost, a socket the kind no longer has, a roof gone from under it are left out); then
+    /// a module whose needs aren't met, or that clashes with another, is left out until none is.
     /// </summary>
     public static ShipBuild Sane(ShipDef kind, IEnumerable<Installed> entries, Func<int, ModuleDef?> modules)
     {
@@ -92,21 +125,61 @@ public static class ShipAssembler
         foreach (Installed entry in new ShipBuild(entries).Entries)
         {
             ShipBuild with = build.With(entry);
-            if (Check(kind, with, modules) == BuildProblem.None)
+            if (Arrange(kind, with, modules, out _, out _, out _) == BuildProblem.None)
             {
                 build = with;
             }
         }
+        while (Arrange(kind, build, modules, out ModuleDef[] defs, out _, out _) == BuildProblem.None && Relate(defs, out int a, out _) != BuildProblem.None)
+        {
+            Installed drop = build.Entries[a];
+            build = build.Without(drop.Socket, drop.Level);
+        }
         return build;
     }
 
-    // Each entry's module and origin, and the first rule it breaks. Level 1 is placed before level 2, so a level-2 module meets
-    // every level-1 module under it already placed (a long one starting at the socket before, one at the socket after).
-    private static BuildProblem Arrange(ShipDef kind, ShipBuild build, Func<int, ModuleDef?> modules, out ModuleDef[] defs, out Vector3[] origins)
+    // The rules between modules (VEHICLES.md §9.11): each one's needs met by another, none it excludes fitted. The first
+    // broken, with the entry whose rule it is (a) and the one it excludes (b).
+    private static BuildProblem Relate(ModuleDef[] defs, out int a, out int b)
+    {
+        a = b = -1;
+        for (int i = 0; i < defs.Length; i++)
+        {
+            ModuleDef m = defs[i];
+            bool met = m.Needs.Count == 0;
+            for (int j = 0; j < defs.Length; j++)
+            {
+                if (j == i)
+                {
+                    continue;
+                }
+                met |= defs[j].FitsAny(m.Needs);
+                if (m.Excludes.Count > 0 && defs[j].FitsAny(m.Excludes))
+                {
+                    a = i;
+                    b = j;
+                    return BuildProblem.Excludes;
+                }
+            }
+            if (!met)
+            {
+                a = i;
+                return BuildProblem.Needs;
+            }
+        }
+        return BuildProblem.None;
+    }
+
+    // Each entry's module and origin, and the first rule it breaks (culprit: the entry already standing where one is put, or
+    // −1). Level 1 is placed before level 2, so a level-2 module meets every level-1 module under it already placed (a long one
+    // starting at the socket before, one at the socket after).
+    private static BuildProblem Arrange(ShipDef kind, ShipBuild build, Func<int, ModuleDef?> modules, out ModuleDef[] defs, out Vector3[] origins,
+        out int culprit)
     {
         IReadOnlyList<Installed> entries = build.Entries;
         defs = new ModuleDef[entries.Count];
         origins = new Vector3[entries.Count];
+        culprit = -1;
         if (entries.Count > ShipBuild.MostEntries)
         {
             return BuildProblem.TooMany;
@@ -169,6 +242,7 @@ public static class ShipAssembler
                 }
                 if (taken[s, e.Level - 1] >= 0)
                 {
+                    culprit = taken[s, e.Level - 1];
                     return BuildProblem.Taken;
                 }
                 if (e.Level == 2)
@@ -198,10 +272,46 @@ public static class ShipAssembler
 
     private static ShipDef Assemble(ShipDef kind, ShipBuild build, ModuleDef[] defs, Vector3[] origins)
     {
-        var seats = new List<ShipSeatDef>(kind.Seats);
+        // A lift kit raises the body over the running gear (VEHICLES.md §9.11): the kind's own positions and every module
+        // not on a ground socket go up together; the wheels and what stands on the ground stay.
+        float raise = 0;
+        foreach (ModuleDef m in defs)
+        {
+            raise += m.Raise;
+        }
+        Vector3 lift = new(0, raise, 0);
+        for (int i = 0; i < defs.Length; i++)
+        {
+            if (!kind.Sockets[build.Entries[i].Socket].Ground)
+            {
+                origins[i] += lift;
+            }
+        }
+        var seats = new List<ShipSeatDef>(kind.Seats.Count);
+        foreach (ShipSeatDef s in kind.Seats)
+        {
+            seats.Add(raise == 0 ? s : new ShipSeatDef
+            {
+                Index = s.Index, Key = s.Key, Name = s.Name, Role = s.Role, Station = s.Station, At = Moved(s.At, lift), Eye = Moved(s.Eye, lift),
+                Exits = s.Exits.ConvertAll(x => Moved(x, lift)), Exposed = s.Exposed, Sitters = s.Sitters, Works = s.Works, Verb = s.Verb,
+                VerbKey = s.VerbKey, Door = s.Door,
+            });
+        }
         var doors = new List<ShipDoorDef>(kind.Doors);
-        var parts = new List<ShipTargetPart>(kind.Parts);
-        var hull = new List<HullBox>(kind.Hull);
+        var parts = new List<ShipTargetPart>(kind.Parts.Count);
+        foreach (ShipTargetPart p in kind.Parts)
+        {
+            parts.Add(raise == 0 || !p.HasBall ? p : new ShipTargetPart
+            {
+                Index = p.Index, Key = p.Key, Name = p.Name, At = Moved(p.At, lift), Radius = p.Radius, Pieces = p.Pieces, Capabilities = p.Capabilities,
+                Seat = p.Seat, Door = p.Door, Through = p.Through, Health = p.Health, Station = p.Station,
+            });
+        }
+        var hull = new List<HullBox>(kind.Hull.Count);
+        foreach (HullBox box in kind.Hull)
+        {
+            hull.Add(box with { Centre = box.Centre + lift });
+        }
         var hullParts = new List<byte>();
         for (int b = 0; b < kind.Hull.Count; b++)
         {
@@ -217,12 +327,21 @@ public static class ShipAssembler
         float power = kind.EnginePower, boosted = kind.BoostPower;
         var sums = new SortedDictionary<string, float>(StringComparer.Ordinal);
         float mass = kind.Mass, water = kind.WaterVolume;
-        Vector3 moment = kind.Mass * kind.CentreOfMass;
+        Vector3 moment = kind.Mass * (kind.CentreOfMass + lift);
         float fuel = kind.FuelCapacity;
+        string model = kind.Model, sound = kind.Sound;
         for (int i = 0; i < defs.Length; i++)
         {
             ModuleDef m = defs[i];
             Installed entry = build.Entries[i];
+            if (m.Frame.Length > 0)
+            {
+                model = m.Frame;
+            }
+            if (m.Sound.Length > 0)
+            {
+                sound = m.Sound;
+            }
             Vector3 o = origins[i];
             string prefix = $"{kind.Sockets[entry.Socket].Key}.{entry.Level}.";
             int seat0 = seats.Count, door0 = doors.Count, part0 = parts.Count, box0 = hull.Count;
@@ -287,14 +406,28 @@ public static class ShipAssembler
             fuel += m.FuelCapacity;
         }
         Vector3 centre = moment / mass;
-        // The kind's inertia moved to the new centre of mass, and each module's as a solid box of its hull's bounds at its own.
-        Vector3 inertia = kind.Inertia + Shift(kind.Mass, kind.CentreOfMass - centre);
+        // The kind's inertia moved to the new centre of mass, and each module's (its own, or a solid box of its hull's bounds) at its own.
+        Vector3 inertia = kind.Inertia + Shift(kind.Mass, kind.CentreOfMass + lift - centre);
         for (int i = 0; i < defs.Length; i++)
         {
             ModuleDef m = defs[i];
-            inertia += BoxInertia(m) + Shift(m.Mass, origins[i] + m.CentreOfMass - centre);
+            inertia += (m.Inertia ?? BoxInertia(m)) + Shift(m.Mass, origins[i] + m.CentreOfMass - centre);
         }
         ShipDef composed = kind.CopyFor(build, placed, hullParts, holds, sums);
+        if (raise != 0)
+        {
+            composed.Raise = raise;
+            composed.Lights = kind.Lights.Select(l => l with { At = l.At + lift }).ToArray();
+            composed.SkidPoints = kind.SkidPoints.Select(p => p + lift).ToArray();
+            composed.Nozzles = kind.Nozzles.Select(n => n with { At = n.At + lift }).ToArray();
+            composed.Wake = kind.Wake is { } wake ? wake with { At = wake.At + lift } : null;
+        }
+        composed.Model = model;
+        composed.Sound = sound;
+        foreach (ModuleDef m in defs)
+        {
+            ShipTuning.Apply(composed, m.Sets);
+        }
         composed.Seats = seats;
         composed.Doors = doors;
         composed.Parts = parts;

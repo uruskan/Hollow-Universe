@@ -90,7 +90,13 @@
       { "item": "ka-fa-1500", "cost": 250 },
       { "item": "togg", "cost": 200 },
       { "item": "zamazingo", "cost": 125 },
-      { "item": "monster-togg", "cost": 600, "after": ["togg"] }
+      { "item": "monster-togg", "cost": 600, "after": ["togg"] },
+      { "item": "togg-cab-one", "cost": 75, "after": ["togg"] },
+      { "item": "togg-engine", "cost": 125, "after": ["togg"] },
+      { "item": "togg-tyres", "cost": 50, "after": ["togg"] },
+      { "item": "togg-lift-kit", "cost": 250, "after": ["togg"] },
+      { "item": "monster-tyres", "cost": 250, "after": ["togg-lift-kit"] },
+      { "item": "monster-togg-engine", "cost": 400, "after": ["togg-engine"] }
     ] },
     { "station": "engineering-workbench", "note": "CRAFT-01/02: separate unlevelled tree; technologies remain undefined in the design, so none are invented here.", "nodes": [] }
   ],

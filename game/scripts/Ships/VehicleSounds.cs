@@ -249,7 +249,7 @@ public sealed class VehicleSounds
 
     private float StartLength()
     {
-        string? key = Sounds.Item(_def.Key, "start");
+        string? key = Sounds.Item(_def.Sound, "start");
         SoundEventData? e = key != null ? SoundLibrary.Find(key) : null;
         return e is { Files.Count: > 0 } && SoundLibrary.Stream(e.Files[0]) is { } s ? (float)s.GetLength() : 0f;
     }

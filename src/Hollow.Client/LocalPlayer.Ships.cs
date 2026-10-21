@@ -1,6 +1,7 @@
 using System;
 using Hollow.Net.Protocol;
 using Hollow.Simulation.Entities;
+using Hollow.Simulation.Items;
 
 namespace Hollow.Client;
 
@@ -24,6 +25,24 @@ public sealed partial class LocalPlayer
 
     /// <summary>A gunner's Tab (IW3): their station's magazine opens as loot beside the inventory.</summary>
     public uint OpenMagazine(EntityId ship) => ShipAct(ShipAction.Magazine, ship);
+
+    /// <summary>
+    /// At the vehicle workbench (VEHICLES.md §9.11): fits the module in an inventory slot into a socket and level of the vehicle
+    /// in its bay. Not predicted: the vehicle's new build arrives with its details.
+    /// </summary>
+    public uint FitModule(EntityId station, EntityId ship, int socket, int level, ContainerRef from, int slot) =>
+        Intend(null, w => new ModuleIntent
+        {
+            Seq = _nextSeq, Station = station.Value, Ship = ship.Value, Fit = true, Socket = (byte)Math.Clamp(socket, 0, 255), Level = (byte)Math.Clamp(level, 0, 3),
+            From = from, Slot = (byte)Math.Clamp(slot, 0, 255),
+        }.WriteMessage(w));
+
+    /// <summary>At the vehicle workbench: takes the module at a socket and level of the vehicle in its bay out into the inventory.</summary>
+    public uint TakeModule(EntityId station, EntityId ship, int socket, int level) =>
+        Intend(null, w => new ModuleIntent
+        {
+            Seq = _nextSeq, Station = station.Value, Ship = ship.Value, Socket = (byte)Math.Clamp(socket, 0, 255), Level = (byte)Math.Clamp(level, 0, 3),
+        }.WriteMessage(w));
 
     private uint ShipAct(ShipAction action, EntityId ship, int arg = 0) =>
         Intend(null, w => new ShipIntent { Seq = _nextSeq, Ship = ship.Value, Action = action, Arg = (byte)Math.Clamp(arg, 0, 15) }.WriteMessage(w));

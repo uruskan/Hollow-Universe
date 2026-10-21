@@ -12,7 +12,7 @@ namespace HollowUniverse.UI.Viewer;
 /// <summary>
 /// The interface viewer (<c>--view ui</c>, GROUND.md §8): the ground interface on <see cref="MockGroundUi"/> over a
 /// plain backdrop, opened on one screen for a look or a screenshot. Options (after "--"):
-/// <c>--screen hud|hud-crafting|hud-crafting-next|inventory|loot|corpse|furnace|campfire|crafting|crafting-free|death|wheel|hammer|options|ammo|menu|map|techtree|recycler|research</c>,
+/// <c>--screen hud|hud-crafting|hud-crafting-next|inventory|loot|corpse|furnace|campfire|crafting|crafting-free|death|wheel|hammer|options|ammo|menu|map|techtree|recycler|research|vehicle</c>,
 /// the F1 panel's <c>console|console-info|console-net|console-items|console-tools|console-tools-stone</c>, the F2 panel's
 /// <c>developer|developer-players|developer-look|developer-draw|developer-log</c>, settings tabs
 /// <c>settings|settings-display|settings-shadows|settings-crosshair</c>, and
@@ -213,6 +213,12 @@ public partial class UiViewer : Node
                 _model.OpenMachine(ContainerKind.Recycler);
                 _ui.Open(GroundScreen.Inventory);
                 _ui.Select(new SlotRef(ContainerId.Loot, 2));
+                break;
+            case "vehicle":
+                // The vehicle workbench's bay (VEHICLES.md §9.11): a TOGG's sockets beside the inventory, the monster tyres picked.
+                _model.OpenVehicle();
+                _ui.Open(GroundScreen.Inventory);
+                _ui.Select(new SlotRef(ContainerId.Main, 2));
                 break;
             case "research":
                 _model.OpenMachine(ContainerKind.ResearchTable);

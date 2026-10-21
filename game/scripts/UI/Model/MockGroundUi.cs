@@ -363,6 +363,8 @@ public sealed partial class MockGroundUi : IGroundUi
         }
     }
 
+    public void OpenBayVehicle() => OpenVehicle();
+
     public void CloseLoot()
     {
         Loot = null;

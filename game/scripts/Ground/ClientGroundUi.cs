@@ -174,7 +174,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
         ContainerId.Main => Of(ContainerRef.Main, Me.Inventory.Main),
         ContainerId.Belt => Of(ContainerRef.Belt, Me.Inventory.Belt),
         ContainerId.Wear => Of(ContainerRef.Wear, Me.Inventory.Wear),
-        _ => LootSlots(),
+        _ => VehicleLoot()?.Slots ?? LootSlots(),
     };
 
     public int ActiveBelt => Me.HeldSlot;
@@ -191,6 +191,10 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     {
         get
         {
+            if (VehicleLoot() is { } vehicle)
+            {
+                return vehicle;
+            }
             if (Me.LootKind == LootKind.None || Me.Loot == null)
             {
                 return null;
@@ -435,7 +439,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public void Move(SlotRef from, SlotRef to, int amount)
     {
-        if (MoveSocket(from, to)) return;
+        if (MoveModule(from, to) || MoveSocket(from, to)) return;
         if (Resolve(from) is not var (a, i) || Resolve(to) is not var (b, j))
         {
             return;
@@ -521,6 +525,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
     public void QuickMove(SlotRef slot)
     {
         if (slot.Attachment >= 0) { QuickMoveSocket(slot); return; }
+        if (QuickMoveModule(slot)) return;
         if (Resolve(slot) is var (c, i))
         {
             Me.QuickMove(c, i);
@@ -548,6 +553,7 @@ public sealed partial class ClientGroundUi : IGroundUi, IDisposable
 
     public void CloseLoot()
     {
+        _bay = EntityId.None;
         if (Me.LootKind != LootKind.None)
         {
             Me.Close();

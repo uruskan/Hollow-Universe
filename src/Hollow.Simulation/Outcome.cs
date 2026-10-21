@@ -297,6 +297,21 @@ public enum OutcomeCode : byte
 
     /// <summary>A boat goes on the water (the sea, a lake, a stream), not on land (docs/MOTORBOAT.md §4).</summary>
     NotOnWater = 124,
+
+    /// <summary>A vehicle's module that doesn't go there: not a socket that takes it, no level, no room, no roof under it (VEHICLES.md §9.11).</summary>
+    DoesNotFit = 125,
+
+    /// <summary>
+    /// A vehicle's module in the way (<see cref="Outcome.Detail"/> its item): standing where another goes, clashing with it, or
+    /// needing the one being taken out.
+    /// </summary>
+    TakeOffFirst = 126,
+
+    /// <summary>A vehicle's module that needs another fitted first (<see cref="Outcome.Detail"/>: an item that would do).</summary>
+    FitFirst = 127,
+
+    /// <summary>Somebody sits in it: everyone out first (a vehicle in a workbench's bay, VEHICLES.md §9.11).</summary>
+    SomeoneAboard = 128,
 }
 
 /// <summary>

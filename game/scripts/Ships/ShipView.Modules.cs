@@ -8,7 +8,8 @@ namespace HollowUniverse.Ships;
 /// <summary>
 /// A ship's modules drawn (VEHICLES.md §9.5, docs/MINICOPTER.md §8): each installed module's own model (modules.json
 /// <c>model</c>, by default its key) under the ship's model, its frame's origin where the build put it (sockets don't turn
-/// modules). A module the catalogue has no model for is left to the blocks (ShipView.Blocks.cs). Mounted once: a view is
+/// modules). A module the catalogue has no model for is left to the blocks (ShipView.Blocks.cs); one whose model is "" (running
+/// gear: its wheels and arms are the frame's, VEHICLES.md §9.11) draws nothing of its own. Mounted once: a view is
 /// made for one composed layout, and a ship whose build changes gets a new view (ShipsView).
 /// </summary>
 public partial class ShipView
@@ -17,8 +18,7 @@ public partial class ShipView
     {
         foreach (PlacedModule placed in _def.Placed)
         {
-            string key = string.IsNullOrEmpty(placed.Module.Model) ? placed.Module.Key : placed.Module.Model;
-            if (ModelCatalog.Instantiate(key) is not { } model)
+            if (string.IsNullOrEmpty(placed.Module.Model) || ModelCatalog.Instantiate(placed.Module.Model) is not { } model)
             {
                 continue;
             }

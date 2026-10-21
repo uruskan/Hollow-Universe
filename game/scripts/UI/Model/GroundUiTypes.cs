@@ -87,6 +87,12 @@ public enum ContainerKind : byte
 
     /// <summary>G7: a world crate, take only.</summary>
     Crate,
+
+    /// <summary>
+    /// A vehicle in the vehicle workbench's bay (VEHICLES.md §9.11): a slot for each socket and level of its kind, the module there or empty; a
+    /// module dragged in is fitted, one dragged out is taken out.
+    /// </summary>
+    Vehicle,
 }
 
 /// <summary>The container the player has open.</summary>
@@ -107,6 +113,12 @@ public sealed record LootView(ContainerKind Kind, string Title, IReadOnlyList<It
     public int Cost { get; init; }
 
     public string? Reason { get; init; }
+
+    /// <summary>A vehicle: each slot's socket ("BAY 3", "BAY 3 ROOF", "WHEELS").</summary>
+    public IReadOnlyList<string> Labels { get; init; } = Array.Empty<string>();
+
+    /// <summary>A vehicle: what its build makes (mass, power, top speed, tyres, lift), and its warnings.</summary>
+    public IReadOnlyList<string> Lines { get; init; } = Array.Empty<string>();
 }
 
 /// <summary>Building rights where the player stands.</summary>

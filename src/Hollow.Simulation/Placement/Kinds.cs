@@ -318,10 +318,15 @@ internal sealed class ShipKind : PlaceableKind
 {
     public override string Name => "ship";
 
-    internal override ResolvedPlaceable? Resolve(string key, PlacementSources sources) =>
-        sources.Loaded.Ships.FirstOrDefault(s => s.Key == key) is { } def
-            ? new ResolvedPlaceable(def, def.Item, null, def.Key, def.Name, Array.Empty<PlacementCost>())
-            : null;
+    // A kind by its key, or a preset item that makes one with a build of its own (ships.json presets, VEHICLES.md §9.11: the
+    // Monster TOGG is a TOGG): the kind is the definition, the item says which build PutShip makes.
+    internal override ResolvedPlaceable? Resolve(string key, PlacementSources sources)
+    {
+        ShipDef? def = sources.Loaded.Ships.FirstOrDefault(s => s.Key == key);
+        ItemDef? item = def?.Item ?? sources.Loaded.Items.FirstOrDefault(i => i.Key == key && i.ShipKey != null && i.Ship != null);
+        def ??= item?.Ship;
+        return def != null && item != null ? new ResolvedPlaceable(def, item, null, key, item.Name, Array.Empty<PlacementCost>()) : null;
+    }
 
     internal override JsonElement Own(string key, PlacementSources sources) => sources.Own("ships.json", "ships", "key", key);
 

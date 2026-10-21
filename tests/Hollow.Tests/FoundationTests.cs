@@ -49,7 +49,7 @@ public static class FoundationTests
         Assert.Equal("Needs a level 2 workbench nearby", texts.Line(OutcomeCode.NeedsWorkbench.With(2)), "a level");
         Assert.True(OutcomeCode.Stale == new Outcome(OutcomeCode.Stale, 3) && !new Outcome(OutcomeCode.Stale).Ok && Outcome.Done.Ok,
             "an answer is its code, whatever its detail");
-        Assert.True((int)Enum.GetValues<OutcomeCode>().Max() < 128, "the codes fit IntentResult's 7 bits");
+        Assert.True((int)Enum.GetValues<OutcomeCode>().Max() < 256, "the codes fit IntentResult's 8 bits");
 
         Dictionary<string, string> files = GameContent.ReadTexts(ContentFixture.Folder);
         ulong hash = GameContent.FromTexts(files).Hash;

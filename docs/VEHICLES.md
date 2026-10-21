@@ -1,7 +1,8 @@
 # Ground vehicles: the modular car, the modular motorbike and the vehicle lift (design, 20 October 2026)
 
-Status: **design; the owner answered most of its questions on 20 October 2026 (R13 to R19), four remain (§12). Nothing is
-built.** Every rule is marked **Owner** (the owner asked for it on
+Status: **design, being built: the module core, the TOGG and the Zamazingo on the ground motor, their art and sounds
+(§9.5 onward), and since 21 October 2026 tyres, a lift kit and engines changed in the vehicle workbench's bay (§9.11). The
+owner answered most of its questions on 20 October 2026 (R13 to R19); four remain (§12).** Every rule is marked **Owner** (the owner asked for it on
 20 October 2026), **DESIGN.md** (already confirmed there) or is a **proposal** (everything unmarked). Numbers are starting
 values for tuning in play, not promises.
 
@@ -202,7 +203,7 @@ the same parts or one more slot. Which ones is content for later; the system nee
 
 ### 5.3 Where parts are changed
 
-- **At the lift**: everything.
+- **At the lift**: everything (as built, §9.11: modules, engines and running gear, in the vehicle workbench's bay).
 - **On the road** (R14): an authorised player opens a stopped vehicle's engine (hold E on it → OPEN ENGINE) and swaps parts
   by hand, so a broken spark plug far from home is a repair and not a walk. Modules and running gear are swapped only at the
   lift; damage anywhere is mended with the hammer (§5.5).
@@ -837,6 +838,132 @@ twice the fuel, heavy black smoke, the turbo screaming and the engine rocking ha
   the effects and 110–128 ms with them, against the monster tour's 19–21 ms the night before. That is not a measurement
   of this work. A run on a quiet machine (`--tour-steps truck`, with and without `HOLLOW_TOUR_NO_FX=1`) is still to do.
 
+### 9.11 Builds changed in the game: running gear as modules, changed in the vehicle workbench's bay (21 October 2026)
+
+The owner asked how to change a car's engine or tyres, and called the Monster TOGG "actually just a variant of togg". Until
+now a build was fixed when the car was crafted, and the tyres were the kind's own (ships.json `ground.wheels`).
+
+- **Running gear as modules.** A kind's socket may stand on the ground (ships.json socket `"ground": true`). Its modules
+  are the running gear and the arms that carry it, and their wheels (modules.json `wheels`, already read since V1) are the
+  vehicle's, at their own place. The TOGG's sockets now include `suspension` and `wheels`, and the kind has no wheels of
+  its own. Three items, numbered in this design's range:
+  - `togg-tyres` (246): the four 0.96 m tyres that were the kind's, with their wheel boxes, 120 kg.
+  - `monster-tyres` (247): the Monster TOGG's four 1.7 m tyres on a 2.84 m track, 400 kg.
+  - `togg-lift-kit` (248): long-travel arms and coil-overs, 370 kg.
+
+  The chassis is 530 kg, so the TOGG still weighs 1,150 kg.
+- **What a module may now say** (modules.json; read by `ModulesReader`, composed by `ShipAssembler.Compose`, the one path):
+  - `raise`: how far it lifts the body over the running gear (`ShipDef.Raise`). The lift kit's 0.75 m moves these up
+    together: the kind's own hull, seats, parts, lamps, skids, nozzles, wake and centre of mass, and every module not on a
+    ground socket. The wheels and what stands on the ground stay where they are.
+  - `needs` and `excludes`: tags another module of the build must fit, or must not fit (`BuildProblem.Needs` and
+    `Excludes` in `ShipAssembler.Check`). The monster tyres need the lift kit; the stock tyres exclude it. `Sane` leaves
+    out of an untrusted build whatever breaks these rules.
+  - `frame`: the model the whole vehicle is drawn with while the module is fitted. The lift kit's frame is
+    `monster-togg-frame`, whose arms and wheels are the monster's, so the art is unchanged. The rig finds a module's wheel
+    by its own key (`Wheel_front-left` for `wheels.1.front-left`). A module whose `model` is `""` draws nothing of its own.
+  - `sound`: the kind its sounds are looked up by (`ShipDef.Sound`). The blown six sounds like the Monster TOGG in any
+    TOGG.
+  - `inertia`: its own moments of inertia, used instead of a box of its hull's bounds.
+  - `ground`, `drag`, `crash` and `fuelUse` blocks: the kind's numbers it replaces while fitted; a later module wins. One
+    table names them (`Ships/Modules/ShipTuning.cs`):
+    - the blown six sets the top speed, reverse, traction, coasting and thirst;
+    - the monster tyres set the brakes, steering, rolling, handbrake grip and crash;
+    - the lift kit sets the grip's height, the righting and the drag.
+- **The Monster TOGG is a TOGG with monster parts** (ships.json `presets`). Item 244 makes the `togg` kind with the cab,
+  the blown six, the lift kit and the monster tyres; `monster-togg` is no longer a kind. `GameContent.Ship("monster-togg")`
+  and `ShipMade(item)` give its layout, and crafting, placing and the admin's `ship <name> monster-togg` make it. Composed,
+  it is the car it was:
+  - 1,920 kg;
+  - its centre of mass 1.52 m up and 2.10 m forward;
+  - its inertia 6,469, 6,387 and 2,231;
+  - its ground numbers, wheels, drag and crash, and 160 of fuel;
+  - its lamps 0.75 m higher, its frame and its sound.
+
+  It now takes the TOGG's hull health (1,000), damage shares and lamp brightness. The owner, 21 October 2026: "its just a
+  togg fitted with bigger tyres and engine probably and a different chassis"; the lift kit is that raised chassis.
+- **The lift is the vehicle workbench's bay** (the owner, 21 October 2026: "I guess vehicle lift can be integrated to
+  vehicle workbench right?"). There is no deployable of its own. A deployable with a `bay` (the vehicle workbench's: the
+  space its hazard paint and corner posts mark in front of it, `BayStats.Holds`) has the capability `vehicle-service`. Its
+  verb EDIT VEHICLE (interactions.json `edit-vehicle`, held E; tapping E still opens the tech tree) is a panel verb that
+  never reaches the server. The tech tree of a bench with a bay also shows a VEHICLE IN BAY button. Either opens the vehicle
+  screen beside the inventory, the way loot opens (`ClientGroundUi.Vehicle.cs`, the loot panel's `Vehicle` kind in
+  `GroundUi.Machines.cs`):
+  - a slot for each socket and level, labelled from ships.json socket `name`;
+  - what the build makes: mass, power, top speed, tyres, the lift, or a missing engine, wheels or driver's seat;
+  - why it can't be changed now.
+
+  A module dragged in is fitted; one dragged out, or right-clicked, is taken out. Nothing is predicted. The bay needs no
+  power (§8's 20 was for a lift of its own).
+- **The server decides** (`ShipSystem.Modules.cs`, one reliable `ModuleIntent` naming the station, message 233, protocol 48).
+  A change needs all of these:
+  - the player within 3 m of the bench or of its bay, and out of every seat;
+  - the vehicle's centre of mass in the bay;
+  - the vehicle still, with nobody in its seats;
+  - the player on its crew;
+  - the build after the change one the assembler allows;
+  - when taking a module out: its hold empty, the tank fitting the new capacity, and room in the inventory.
+
+  The refusals each have a line:
+  - IT DOESN'T FIT THERE;
+  - TAKE OFF THE … FIRST: the module standing there, the one it clashes with, or the one that needs it;
+  - FIT THE … FIRST: the lift kit before the monster tyres;
+  - EVERYONE OUT OF IT FIRST;
+  - the existing ones: not its crew, moving, out of reach, no room, and "Needs a vehicle workbench nearby" out of the bay.
+
+  An answer's code is 8 bits now: only three of 7 bits' codes were left.
+
+  A change rebuilds the ship (`Ship.Rebuild`):
+  - the kind's doors and parts keep their state;
+  - each module still fitted keeps its health and hold, found by socket and level;
+  - a new module comes whole;
+  - its centre of mass moves so its frame stays where it stands;
+  - its parked body is made again;
+  - its details go to every client that knows it, which composes the new layout and draws it anew.
+
+  A vehicle on wheels with no running gear stays where it is in the bay it was changed in, as on a lift's arms (`Ship.Bay`,
+  not saved), instead of dropping onto its belly.
+- **Saved** (`ShipCodec` 9, the same bytes as 8). An older save's vehicle on wheels, whose build lacks its running gear, is
+  dropped. The owner said, 21 October 2026: "do not think about old saves we are in development".
+- **Crafting** at the Vehicle Workbench, each learned in its tree. The recipes are in recipes.json; tyres are cloth and
+  metal until the game has rubber.
+
+  | Item | Tree cost | Needs |
+  |---|---:|---|
+  | One-seat cab | 75 | the TOGG |
+  | TOGG engine | 125 | the TOGG |
+  | Stock tyres | 50 | the TOGG |
+  | Lift kit | 250 | the TOGG |
+  | Monster tyres | 250 | the lift kit |
+  | Blown six | 400 | the TOGG engine |
+
+- **Checked** by `VehicleBayTests` (6):
+  - the preset's layout matches the old kind's numbers;
+  - the rules between parts;
+  - a stock TOGG made a monster in the bay, held up with its tyres off;
+  - every refusal;
+  - a rebuilt car saved and restored, and an old one dropped;
+  - the same changes over the network, both clients composing the new build.
+
+  `GroundMotorTests`, `ModuleTests` and `VehicleRiderTests` were updated for tyres as a module. In the hosted game,
+  `--tour-steps rebuild` (`GroundTour.Rebuild.cs`):
+  - sets a TOGG down and places a vehicle workbench ahead of it;
+  - drives the TOGG into the bay;
+  - opens the tech tree and its VEHICLE IN BAY;
+  - drags the stock tyres and engine out, and the lift kit, the monster tyres and the blown six in;
+  - pictures each step, and backs the monster out of the bay.
+- **Pictures** (`docs/images/vehicles/bay/`):
+  - [the TOGG in the bay](images/vehicles/bay/rebuild-togg.jpg);
+  - [the bench's tech tree with VEHICLE IN BAY](images/vehicles/bay/rebuild-techtree.jpg);
+  - the vehicle screen [before](images/vehicles/bay/rebuild-screen.jpg) and [after](images/vehicles/bay/rebuild-screen-monster.jpg);
+  - [the same TOGG made a monster](images/vehicles/bay/rebuild-monster.jpg) and [backing out](images/vehicles/bay/rebuild-monster-out.jpg);
+  - the screen in the interface viewer (`--view ui --screen vehicle`, [vehicle-screen.png](images/vehicles/bay/vehicle-screen.png)).
+- **Not yet:**
+  - a vehicle without running gear in a bay falls when the server restarts (the hold isn't saved);
+  - engine parts and their tiers;
+  - locking and naming at the bench;
+  - a raised bay;
+  - the bike's modules.
 
 ## 10. Crafting and progression
 
@@ -875,7 +1002,7 @@ wrecks to recover belong with the roads, later.
 | V1 (done, §9.5) | The module core: modules.json, sockets, the assembler, holds, the build saved (codec 8) and on the wire (protocol 47), the hull mended with the hammer; **shared** with the minicopter. The motor registry moves to V2 | `ModuleTests` (7) |
 | V2 (driving and run-overs done, §9.6) | The ground motor and the TOGG on its wheels, drawn as blocks in the ship sandbox (`--view ship --ship togg`); people run over. Left: a moving vehicle solid to people, animals run over, a hosted drive | `GroundMotorTests` (6); the sandbox pictures |
 | V3 | Seats, the car and bike control schemes, prediction of passengers, the HUD; the hosted game | Network tests; a hosted drive with a passenger |
-| V4 | The lift: item, power, the vehicle screen, locks; engine parts and tiers; crafting and the tree | `Lift`; `ContentTests`; the screen in `--view ui --screen vehicle` |
+| V4 (partly done, §9.11) | The lift: item, power, the vehicle screen, locks; engine parts and tiers; crafting and the tree. Done, the owner making the lift the vehicle workbench's bay: the vehicle screen, running gear and engines swapped in the bay, crafting and the tree. Left: locks and names, engine parts and tiers | `VehicleBayTests` (6); `ContentTests`; the screen in `--view ui --screen vehicle`; `--tour-steps rebuild` |
 | V5 | The car's modules and stacking; build zones aboard (beds and bags as respawn points, boxes); decay outside claims | `Modules`, `Decay`, `Respawn`; a camp built and driven |
 | V6 | The motorbike: frame, lean, crash, sidecars | `Bike` |
 | V7 | Tracks and the snow kit | `GroundMotor` slopes and snow |

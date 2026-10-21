@@ -188,6 +188,12 @@ public interface IGroundUi
     /// <summary>The player closed the loot panel.</summary>
     void CloseLoot();
 
+    /// <summary>
+    /// The tech tree's VEHICLE button at a bench with a bay (VEHICLES.md §9.11): opens the vehicle screen of the vehicle in its
+    /// bay as the loot panel.
+    /// </summary>
+    void OpenBayVehicle() { }
+
     void Say(string text);
 
     // ---------------------------------------------------------------- G7: the map, tech trees, teams (GROUND.md §6.8)

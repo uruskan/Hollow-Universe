@@ -209,6 +209,33 @@ public sealed partial class MockGroundUi
         Add("weapon-light", "Weapon light", "WEAPONS", 1, "A light on a gun's rail.");
         Add("tin-grenade", "Tin grenade", "WEAPONS", 10, "A can of gunpowder with a fuse. Throw it and run.");
         Add("bag-charge", "Bag charge", "WEAPONS", 10, "Four tin grenades in a bag. Sticks where it lands; now and then it fizzles.");
+        Add("togg-cab-one", "One-seat cab", "VEHICLES", 1, "A welded cab for one: the driver's seat when it is the front cab, a lookout on another's roof.");
+        Add("togg-engine", "TOGG engine", "VEHICLES", 1, "An open engine block for a bay or the nose mount.");
+        Add("monster-togg-engine", "Blown six", "VEHICLES", 1, "A supercharged six for a bay or the nose mount: five times a TOGG engine's power.");
+        Add("togg-tyres", "TOGG tyres", "VEHICLES", 1, "Four 0.96 m knobbed tyres on beadlock rims: the TOGG's own running gear.");
+        Add("monster-tyres", "Monster tyres", "VEHICLES", 1, "Four 1.7 m flotation tyres. They need a lift kit under them.");
+        Add("togg-lift-kit", "TOGG lift kit", "VEHICLES", 1, "Long-travel arms and coil-overs: stands a TOGG's body 0.75 m higher.");
+    }
+
+    /// <summary>
+    /// A TOGG in the vehicle workbench's bay being made a monster (VEHICLES.md §9.11): its cab, the blown six, the lift kit
+    /// fitted, the monster tyres in hand, its stock tyres and engine taken off into the inventory.
+    /// </summary>
+    public void OpenVehicle()
+    {
+        string[] labels = { "BAY 1", "BAY 1 ROOF", "BAY 2", "BAY 2 ROOF", "BAY 3", "BAY 3 ROOF", "NOSE", "SUSPENSION", "WHEELS" };
+        _loot = new ItemStack[labels.Length];
+        _loot[4] = new ItemStack("togg-cab-one", 1);
+        _loot[6] = new ItemStack("monster-togg-engine", 1);
+        _loot[7] = new ItemStack("togg-lift-kit", 1);
+        _main[0] = new ItemStack("togg-tyres", 1);
+        _main[1] = new ItemStack("togg-engine", 1);
+        _main[2] = new ItemStack("monster-tyres", 1);
+        Loot = new LootView(ContainerKind.Vehicle, "TOGG", _loot)
+        {
+            Labels = labels,
+            Lines = new[] { "MASS 1520 KG", "POWER 450 KW", "TOP SPEED 122 KM/H", "NO WHEELS", "LIFTED 0.75 M" },
+        };
     }
 
     /// <summary>Opens a recycler or a research table at work, with sample contents.</summary>

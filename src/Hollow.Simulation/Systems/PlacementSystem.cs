@@ -147,6 +147,11 @@ public sealed class PlacementSystem : ZoneSystem, IPlacementSite
     /// <summary>A ship from its item, set down where the checked candidate says, the player's, with the tank ships.json gives it.</summary>
     public Outcome PutShip(ulong player, ShipDef def, PlacementCandidate c)
     {
+        // The item placed makes its kind with its preset's build, or the kind's default (VEHICLES.md §9.11).
+        if (c.Placeable.Item is { } item && Content?.ShipMade(item) is { } made && made.Kind == def.Kind)
+        {
+            def = made;
+        }
         Ships.SpawnShip(def, c.Position, c.Yaw, new EntityId(player), def.PlacedFuel);
         return Outcome.Done;
     }

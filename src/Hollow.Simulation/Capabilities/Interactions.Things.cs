@@ -205,6 +205,42 @@ public static partial class CapabilityHandlers
     }
 
     /// <summary>
+    /// A station with a bay (deployables.json bay: the vehicle workbench, VEHICLES.md §9.11): EDIT VEHICLE (held E; the tech
+    /// tree stays its tap) opens the vehicle screen, the interface's panel, where the vehicle standing in its bay is changed
+    /// through <c>ShipSystem.FitModule</c> and <c>TakeModule</c> (each its own intent).
+    /// </summary>
+    private sealed class VehicleService : ICapability, IInteractCapability
+    {
+        private readonly VerbActions _verbs;
+        private readonly int _edit;
+
+        public VehicleService(InteractionData data)
+        {
+            _verbs = new VerbActions(data, ("edit-vehicle", Panel));
+            _edit = _verbs["edit-vehicle"];
+        }
+
+        public string Key => "vehicle-service";
+
+        public ViewerFlags Flags(object thing, in Viewer viewer) => ViewerFlags.None;
+
+        public IReadOnlyList<string> Verbs => _verbs.Keys;
+
+        public void Offer(in InteractContext ctx, List<InteractOption> into)
+        {
+            if (ctx.Facts.Deployable?.Bay != null)
+            {
+                into.Add(InteractOption.Can(_edit));
+            }
+        }
+
+        public Outcome Do(in InteractContext ctx, int verb, in InteractArgs args) => _verbs.Do(ctx, verb, args);
+
+        // The screen is the interface's to open: a panel's verb never reaches the server.
+        private static Outcome Panel(in InteractContext ctx, in InteractArgs args) => OutcomeCode.NotUsable;
+    }
+
+    /// <summary>
     /// A workbench (deployables.json workbench): its tech tree (the interface's panel, E's primary) and the tree's unlocks,
     /// which the panel sends with the recipe as the verb's argument.
     /// </summary>

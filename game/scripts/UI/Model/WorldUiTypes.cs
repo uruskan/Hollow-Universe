@@ -61,7 +61,11 @@ public enum TechNodeState : byte
 public sealed record TechNodeView(string Key, int Cost, int Depth, IReadOnlyList<string> After, TechNodeState State);
 
 /// <summary>The tech tree of the workbench in reach: its level, its nodes in order, the salvage the player has.</summary>
-public sealed record TechTreeView(int Workbench, IReadOnlyList<TechNodeView> Nodes, int Salvage, string? StationName = null);
+public sealed record TechTreeView(int Workbench, IReadOnlyList<TechNodeView> Nodes, int Salvage, string? StationName = null)
+{
+    /// <summary>Its station has a bay where a vehicle's build is changed (the vehicle workbench, VEHICLES.md §9.11).</summary>
+    public bool Bay { get; init; }
+}
 
 /// <summary>A member of the player's team.</summary>
 public sealed record TeamMemberInfo(string Id, string Name, bool Online, bool Leader, bool Me);

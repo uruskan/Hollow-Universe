@@ -24,7 +24,7 @@ namespace Hollow.Net.Protocol;
 public static partial class Protocol
 {
     /// <summary>A hash of every message layout: two builds speak the same protocol only if theirs match.</summary>
-    public const ulong SchemaHash = 0x24B5A958945B62CBUL;
+    public const ulong SchemaHash = 0xCF0FE80F0865D05EUL;
 }
 
 partial struct Hello : INetMessage<Hello>
@@ -2240,7 +2240,7 @@ partial struct IntentResult : INetMessage<IntentResult>
     public readonly void Write(BitWriter w)
     {
         w.WriteVarUInt(Seq);
-        w.WriteBits((uint)Code, 7);
+        w.WriteBits((uint)Code, 8);
         w.WriteVarUInt(Detail);
     }
 
@@ -2248,7 +2248,7 @@ partial struct IntentResult : INetMessage<IntentResult>
     {
         var v = new IntentResult();
         v.Seq = r.ReadVarUInt();
-        v.Code = (OutcomeCode)r.ReadBits(7);
+        v.Code = (OutcomeCode)r.ReadBits(8);
         v.Detail = r.ReadVarUInt();
         return v;
     }
@@ -2560,7 +2560,7 @@ partial struct StationNet
         {
             Counts![i].Write(w);
         }
-        w.WriteBits((uint)Refused, 7);
+        w.WriteBits((uint)Refused, 8);
         w.WriteVarUInt(RefusedDetail);
         w.WriteBits((uint)RefusedTick, 32);
     }
@@ -2606,7 +2606,7 @@ partial struct StationNet
         {
             v.Counts[i] = MagazineCountNet.Read(r);
         }
-        v.Refused = (OutcomeCode)r.ReadBits(7);
+        v.Refused = (OutcomeCode)r.ReadBits(8);
         v.RefusedDetail = r.ReadVarUInt();
         v.RefusedTick = (uint)r.ReadBits(32);
         return v;
@@ -3159,7 +3159,7 @@ partial struct AttackResult : INetMessage<AttackResult>
         w.WriteVarUInt(Session);
         w.WriteBits((uint)Kind, 2);
         w.WriteVarUInt(Seq);
-        w.WriteBits((uint)Code, 7);
+        w.WriteBits((uint)Code, 8);
         w.WriteBits((uint)RequestedTick, 32);
         w.WriteBits((uint)StartTick, 32);
         w.WriteBits((uint)ContactTick, 32);
@@ -3175,7 +3175,7 @@ partial struct AttackResult : INetMessage<AttackResult>
         v.Session = r.ReadVarUInt();
         v.Kind = (AttackDomain)r.ReadBits(2);
         v.Seq = r.ReadVarUInt();
-        v.Code = (OutcomeCode)r.ReadBits(7);
+        v.Code = (OutcomeCode)r.ReadBits(8);
         v.RequestedTick = (uint)r.ReadBits(32);
         v.StartTick = (uint)r.ReadBits(32);
         v.ContactTick = (uint)r.ReadBits(32);
@@ -3532,7 +3532,7 @@ partial struct GunUpdate : INetMessage<GunUpdate>
     {
         w.WriteVarUInt(LastSeq);
         w.WriteVarUInt(RefusedSeq);
-        w.WriteBits((uint)Refused, 7);
+        w.WriteBits((uint)Refused, 8);
         w.WriteBits((uint)Slot, 3);
         w.WriteVarUInt(Item);
         w.WriteVarUInt(Loaded);
@@ -3556,7 +3556,7 @@ partial struct GunUpdate : INetMessage<GunUpdate>
         var v = new GunUpdate();
         v.LastSeq = r.ReadVarUInt();
         v.RefusedSeq = r.ReadVarUInt();
-        v.Refused = (OutcomeCode)r.ReadBits(7);
+        v.Refused = (OutcomeCode)r.ReadBits(8);
         v.Slot = (byte)r.ReadBits(3);
         v.Item = r.ReadVarUInt();
         v.Loaded = r.ReadVarUInt();
@@ -5037,6 +5037,46 @@ partial struct InteractIntent : INetMessage<InteractIntent>
         v.Arg = r.ReadVarUInt();
         v.Code = r.ReadString(8);
         v.Text = r.ReadString(192);
+        return v;
+    }
+}
+
+partial struct ModuleIntent : INetMessage<ModuleIntent>
+{
+    public const byte TypeId = 233;
+
+    static byte INetMessage<ModuleIntent>.Id => TypeId;
+
+    /// <summary>The type byte, then the message.</summary>
+    public readonly void WriteMessage(BitWriter w)
+    {
+        w.WriteBits(TypeId, 8);
+        Write(w);
+    }
+
+    public readonly void Write(BitWriter w)
+    {
+        w.WriteVarUInt(Seq);
+        w.WriteVarULong(Station);
+        w.WriteVarULong(Ship);
+        w.WriteBool(Fit);
+        w.WriteBits((uint)Socket, 8);
+        w.WriteBits((uint)Level, 2);
+        w.WriteBits((uint)From, 3);
+        w.WriteBits((uint)Slot, 8);
+    }
+
+    public static ModuleIntent Read(BitReader r)
+    {
+        var v = new ModuleIntent();
+        v.Seq = r.ReadVarUInt();
+        v.Station = r.ReadVarULong();
+        v.Ship = r.ReadVarULong();
+        v.Fit = r.ReadBool();
+        v.Socket = (byte)r.ReadBits(8);
+        v.Level = (byte)r.ReadBits(2);
+        v.From = (ContainerRef)r.ReadBits(3);
+        v.Slot = (byte)r.ReadBits(8);
         return v;
     }
 }

@@ -285,13 +285,25 @@ public sealed partial class GameContent
 
     public LootTable? Loot(string key) => _loot.GetValueOrDefault(key);
 
-    public Ships.ShipDef? Ship(string key) => _ships.GetValueOrDefault(key);
+    /// <summary>
+    /// A ship kind by its key, or the layout a preset item makes (ships.json <c>presets</c>: "monster-togg" is a TOGG with
+    /// monster parts, VEHICLES.md §9.11); null for neither.
+    /// </summary>
+    public Ships.ShipDef? Ship(string key) =>
+        _ships.GetValueOrDefault(key) ?? (Item(key) is { ShipBuild: not null } preset ? ShipMade(preset) : null);
 
     /// <summary>The ship kind an item ID names (untrusted: null when it isn't one).</summary>
     public Ships.ShipDef? Ship(int itemId) => Item(itemId)?.Ship;
 
     /// <summary>The module an item ID names (untrusted: null when it isn't one).</summary>
     public Ships.Modules.ModuleDef? Module(int itemId) => Item(itemId)?.Module;
+
+    /// <summary>
+    /// The layout a ship item makes (crafted, placed, given): its kind with its preset's build (ships.json <c>presets</c>), or
+    /// with the kind's default build; null for an item that is no ship.
+    /// </summary>
+    public Ships.ShipDef? ShipMade(ItemDef item) =>
+        item.Ship is { } kind ? Compose(kind, item.ShipBuild ?? kind.DefaultBuild) : null;
 
     /// <summary>A kind's layout with a build (VEHICLES.md §9.1): the kind itself for none. The build must be possible.</summary>
     public Ships.ShipDef Compose(Ships.ShipDef kind, Ships.Modules.ShipBuild build) => global::Hollow.Simulation.Ships.Modules.ShipAssembler.Compose(kind, build, Module);

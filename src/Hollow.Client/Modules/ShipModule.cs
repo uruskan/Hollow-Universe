@@ -325,6 +325,7 @@ public sealed class ShipModule : ClientModule
     {
         RemoteShip ship = RemoteShipOf(m.Ship);
         int parts = ship.PartsVersion;
+        ShipDef? before = ship.Def;
         // Its build first (VEHICLES.md §9.1): the layout the seats, doors and parts below are numbered by.
         ship.Build = new ShipBuild(ShipConvert.BuildOf(m));
         if (ship.Def is { } known)
@@ -332,7 +333,8 @@ public sealed class ShipModule : ClientModule
             ship.Def = Composed(known.Kind, ship.Build);
         }
         ship.SetDetails(m);
-        if (ship.PartsVersion != parts && _parkedBodies.ContainsKey(m.Ship))
+        // A build changed at a lift (VEHICLES.md §9.11) is another hull: its parked body is made again as well.
+        if ((ship.PartsVersion != parts || ship.Def != before) && _parkedBodies.ContainsKey(m.Ship))
         {
             Unpark(m.Ship);
             Park(m.Ship, ship, ship.Newest);

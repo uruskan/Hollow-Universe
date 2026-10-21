@@ -66,7 +66,7 @@ public static partial class CapabilityHandlers
                      new Pickup(verbs), new Portable(verbs, data), new Station(verbs), new WoundedCapability(verbs), new CharacterCapability(verbs),
                      new DudCapability(verbs), new ArrowCapability(), new Standing(), new FireCapability(), new SeatCapability(verbs),
                      new ShipDoorCapability(verbs), new FuelCapability(verbs), new MagazineCapability(verbs), new Nameable(verbs),
-                     new ElectricCapability(verbs), new DefenseCapability(verbs), new GateCapability(verbs),
+                     new ElectricCapability(verbs), new DefenseCapability(verbs), new GateCapability(verbs), new VehicleService(verbs),
                  })
         {
             registry.Add(handler.Key, handler);

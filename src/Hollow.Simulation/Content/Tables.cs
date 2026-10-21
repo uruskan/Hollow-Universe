@@ -230,6 +230,20 @@ public sealed class BayStats
     public Vector3 Clear { get; init; }
 
     public float MaxSlopeDegrees { get; init; } = 20;
+
+    /// <summary>
+    /// A point in the bay of a station standing at a base point (its up and yaw): within its clear space across and along, from
+    /// half a metre under its ground to its clear height, grown by <paramref name="margin"/> across and along (VEHICLES.md
+    /// §9.11: a vehicle whose centre of mass is in it is the bay's; a player near it may work on it).
+    /// </summary>
+    public bool Holds(Vector3 basePoint, Vector3 up, float yaw, Vector3 point, float margin = 0)
+    {
+        (Vector3 right, Vector3 forward) = Combat.Geometry.Axes(up, yaw);
+        Vector3 d = point - (basePoint + right * At.X + up * At.Y + forward * At.Z);
+        float above = Vector3.Dot(d, up);
+        return MathF.Abs(Vector3.Dot(d, right)) <= Clear.X + margin && MathF.Abs(Vector3.Dot(d, forward)) <= Clear.Z + margin &&
+            above >= -0.5f && above <= Clear.Y * 2;
+    }
 }
 
 /// <summary>A loot table (loot.json).</summary>

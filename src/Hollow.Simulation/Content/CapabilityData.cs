@@ -144,6 +144,7 @@ public sealed class CapabilityData
         if (def.Power != null) set = set.With(Set("electric"));
         if (def.Defense != null) set = set.With(Set("defense"));
         if (def.Gate != null) set = set.With(Set("gate"));
+        if (def.Bay != null) set = set.With(Set("vehicle-service"));
         return set;
     }
 }
