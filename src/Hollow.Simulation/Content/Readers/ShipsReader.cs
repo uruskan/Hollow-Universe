@@ -71,11 +71,11 @@ internal sealed class ShipsReader : IContentReader
             // A vehicle on wheels (VEHICLES.md §6): its drive's numbers and its wheels.
             Ships.GroundDef? ground = null;
             List<Ships.WheelDef> wheels = new();
-            float enginePower = 0;
+            float enginePower = 0, boostPower = 0;
             if (f.TryChild(e, "ground", out JsonElement groundBlock))
             {
                 string gAt = where + ".ground";
-                f.OnlyKnown(groundBlock, gAt, "power", "topSpeed", "reverseSpeed", "brake", "traction", "steer", "steerFast", "rolling", "handbrakeGrip", "gripHeight",
+                f.OnlyKnown(groundBlock, gAt, "power", "boost", "topSpeed", "reverseSpeed", "brake", "traction", "steer", "steerFast", "rolling", "handbrakeGrip", "gripHeight",
                     "sideGripHeight", "coast", "balance", "righting", "rightingDamping", "wheels");
                 ground = new Ships.GroundDef(f.Number(groundBlock, "topSpeed", gAt), f.Number(groundBlock, "reverseSpeed", gAt),
                     f.Number(groundBlock, "brake", gAt), f.Number(groundBlock, "traction", gAt), f.Number(groundBlock, "steer", gAt) * MathF.PI / 180,
@@ -86,6 +86,12 @@ internal sealed class ShipsReader : IContentReader
                     Righting: f.Number(groundBlock, "righting", gAt, 0), RightingDamping: f.Number(groundBlock, "rightingDamping", gAt, 0));
                 wheels = Wheels(f, groundBlock, gAt);
                 enginePower = f.Number(groundBlock, "power", gAt, 0);
+                float overboost = f.Number(groundBlock, "boost", gAt, 1);
+                if (overboost is < 1 or > 3)
+                {
+                    f.Problem(gAt + ".boost", "overboosts its power by a factor of 1 … 3");
+                }
+                boostPower = enginePower * overboost;
             }
             // A ship without a boost or nozzles (a boat) leaves them out: none, nothing drawn.
             JsonElement boost = f.TryChild(e, "boost", out JsonElement boostBlock) ? boostBlock : Empty;
@@ -221,6 +227,7 @@ internal sealed class ShipsReader : IContentReader
                 Ground = ground,
                 Wheels = wheels,
                 EnginePower = enginePower,
+                BoostPower = boostPower,
                 Drive = drive,
                 Controls = f.Text(e, "controls", where, Ships.ShipDef.DefaultControls),
                 Mass = f.Number(e, "mass", where),

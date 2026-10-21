@@ -38,7 +38,7 @@ public static class GroundMotorTests
     /// The game's data with nothing growing on the stand-in ground (every natural kind's stand-in density 0): its trees and
     /// rocks stand everywhere past 9 m of the landing site, and a car driven into them crashes, as it should.
     /// </summary>
-    private static readonly Lazy<GameContent> Bare = new(() =>
+    internal static readonly Lazy<GameContent> Bare = new(() =>
     {
         Dictionary<string, string> texts = GameContent.ReadTexts(ContentFixture.Folder);
         texts["gather.json"] = Regex.Replace(texts["gather.json"], "\"perTile\": [0-9.]+", "\"perTile\": 0");
@@ -47,7 +47,7 @@ public static class GroundMotorTests
         return content;
     });
 
-    private sealed class Drive : IDisposable
+    internal sealed class Drive : IDisposable
     {
         public readonly Zone Zone;
         public readonly Ship Car;

@@ -20,8 +20,9 @@ namespace HollowUniverse.Ground;
 /// </summary>
 public partial class GroundTour
 {
-    // Drives flat out ahead for some seconds and prints the frame times (mean, the slowest twentieth, the worst).
-    private async Task DriveTimed(string label, double seconds)
+    // Drives flat out ahead for some seconds (or as <paramref name="input"/> says) and prints the frame times (mean, the
+    // slowest twentieth, the worst).
+    private async Task DriveTimed(string label, double seconds, ShipInput? input = null)
     {
         var frames = new System.Collections.Generic.List<double>();
         View.Timings.Clear();
@@ -32,7 +33,7 @@ public partial class GroundTour
         long corrections = Client.Ships().ShipPrediction?.Corrections ?? 0, replayed = Client.Ships().ShipPrediction?.Replayed ?? 0;
         while (Time.GetTicksMsec() / 1000.0 < until)
         {
-            View.Scripted = new InputFrame { Ship = new ShipInput { Engines = true, Throttle = 1 } };
+            View.Scripted = new InputFrame { Ship = input ?? new ShipInput { Engines = true, Throttle = 1 } };
             await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
             ulong now = Time.GetTicksUsec();
             frames.Add((now - last) / 1000.0);

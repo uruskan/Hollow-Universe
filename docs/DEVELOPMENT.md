@@ -1,5 +1,31 @@
 # Hollow Universe AB Test B
 
+## 21 October 2026 — Vehicles: the TOGG as a heavy truck (overboost, its engine rocking, black smoke; VEHICLES.md §9.10)
+
+The owner asked for the TOGG's diesel to be "super AAA, as if this was a trucking game". They chose an overboost on Left
+Shift (+40% power, twice the fuel, no time limit) and recorded CC0 truck sounds over synthesized ones.
+
+- **Overboost** (`GroundMotor.Overboosting`, `DriveForce(…, boosting)`, `ShipDef.BoostPower`). The car scheme sends
+  `ShipButtons.Boost` on Shift. An engine module's `boost` (modules.json; the TOGG's and the monster's engines 1.4) and a
+  kind's `ground.boost` set the power. The fuel block's existing `boost` sets the fuel (the TOGGs' 2.0). The ship's
+  `Boosting` flag goes on the wire. The HUD reads OVERBOOST with no timer.
+- **The revs** (`VehicleRevs.Overboost`): the turbo reaches full boost from lower revs and spools faster, and Shift let go
+  under load releases it. In the sounds the turbo is 6 dB louder and higher, the engine 2.5 dB louder, and the release
+  3 dB louder.
+- **The engine rocking** (`EngineRock`, `ShipView.Rock.cs`). Presentation only: the engine module leans about its crank on
+  a 2.5 Hz spring, lurching on a stab and swinging back at a gear change. It shakes at idle and leans 1.7 times harder
+  overboosted. The chassis twists on a free rev standing still.
+- **Black smoke** (`VehicleSmoke.Black`, fx.json `exhaust.black`): a dense column over the soot while overboosted, and
+  bigger puffs at a gear change.
+- **Air brakes** (`EngineSoundData.AirBrake`, sounds.json `airBrake`): a hiss when it comes to rest after driving.
+- **Tour step** `--tour-steps truck` (`GroundTour.Truck.cs`).
+- **Checked:** `VehicleBoostTests` 5/5 (power, fuel ×2, no time limit, the same bits, predicted and seen over the
+  loopback network with no correction); `TruckFeelTests` 4/4; `GroundMotor`, `VehicleSmoke`, `VehicleSound`,
+  `ContentTests` and `Effect` pass. The hosted tour (port 27163, 11:00, pictures in `docs/images/vehicles/truck`)
+  overboosted from standing: boosting, turbo 0.90, the engine leaning 4.9° at 70 km/h, 0.80 fuel in 4.5 s against
+  0.36, the turbo's release heard when Shift was let go, and the chassis twisting 0.49° revved on the handbrake. That
+  run's frame times overlapped another session's Godot and are not a measurement.
+
 ## 20 October 2026 (night) — Vehicles: the Zamazingo rideable, its bigger tyres
 
 The owner: the bike "is not rideable at all … too little power, it gets stuck". On a test world it had the power (0–50

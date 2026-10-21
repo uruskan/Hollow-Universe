@@ -343,7 +343,7 @@
       "damage": { "melee": 0.15, "arrow": 0.05, "bullet": 0.35, "explosive": 0.8 },
       "drag": { "forward": 1.6, "side": 4.0, "top": 5.0, "turn": 0.5 },
       "crash": { "safe": 13, "scale": 1.8, "pilot": 0.2 },
-      "fuel": { "item": "lamp-oil", "capacity": 160, "idle": 0.02, "full": 0.28, "placed": 30 },
+      "fuel": { "item": "lamp-oil", "capacity": 160, "idle": 0.02, "full": 0.28, "boost": 2.0, "placed": 30 },
       "ground": {
         "topSpeed": 34, "reverseSpeed": 9, "brake": 34000, "traction": 30000, "steer": 30, "steerFast": 7, "rolling": 0.02,
         "handbrakeGrip": 0.5, "gripHeight": 0.7, "coast": 0.14, "righting": 40, "rightingDamping": 6,
@@ -405,7 +405,7 @@
       "damage": { "melee": 0.25, "arrow": 0.1, "bullet": 0.5, "explosive": 1.0 },
       "drag": { "forward": 1.2, "side": 3.0, "top": 4.0, "turn": 0.4 },
       "crash": { "safe": 9, "scale": 2.5, "pilot": 0.3 },
-      "fuel": { "item": "lamp-oil", "capacity": 100, "idle": 0.01, "full": 0.08, "placed": 20 },
+      "fuel": { "item": "lamp-oil", "capacity": 100, "idle": 0.01, "full": 0.08, "boost": 2.0, "placed": 20 },
       "ground": {
         "topSpeed": 20, "reverseSpeed": 6, "brake": 14000, "traction": 9000, "steer": 34, "steerFast": 8, "rolling": 0.015,
         "handbrakeGrip": 0.45, "gripHeight": 0.55, "coast": 0.12,

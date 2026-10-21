@@ -315,6 +315,7 @@ crash, and it replays exactly.
 | A / D | Steer | Steer (it leans by itself) |
 | Space | **Get out** (R17), as from every seat | Same |
 | Left Ctrl | Handbrake (proposal) | Rear brake (proposal) |
+| Left Shift | Overboost while held (§9.10: the TOGGs) | Nothing (no boost in its data) |
 | Mouse | Look round (the camera orbits) | Same |
 | V | First person or chase camera | Same |
 | F | Lamps | Same |
@@ -742,6 +743,55 @@ and of the TOGG, its tyres don't turn and it should sound like a heavy diesel.
     reversing and running down, a turbo spooling and its release; and every ground vehicle kind's entry (its gears reach its
     top speed, its loops span idle to redline and are loops, tyres on every ground, its start and stop, its suspension's
     knock, creak and landing, and no `touchdown` role).
+
+### 9.10 The TOGG as a heavy truck: overboost, its engine rocking, black smoke (21 October 2026)
+
+The owner, 21 October 2026, asked for the TOGG's diesel to be "super AAA, as if this was a trucking game". That means turbo
+sounds, the engine "shaking its head from the torque", heavy black smoke and proper tractor-like diesel sounds when Left Shift
+is pressed, gear changes and the turbo spooling. They chose an **overboost** while Shift is held: about +40% power for about
+twice the fuel, heavy black smoke, the turbo screaming and the engine rocking harder, with no time limit. They also chose
+**recorded CC0 truck sounds** over synthesized ones.
+
+- **Overboost** (`GroundMotor.Overboosting`, `DriveForce(…, boosting)`). The car control scheme sends `ShipButtons.Boost`
+  while Left Shift is held (its hints: SHIFT boost). The motor overboosts while the engine runs, the throttle is forward and
+  the vehicle can overboost. The power is then `ShipDef.BoostPower` and the drive's traction cap rises by the same factor; each
+  tyre's grip still caps its wheel. The fuel burns `FuelBoost` times faster (ships.json `fuel.boost`, the flight boost's own
+  field). The ship's `Boosting` flag is set, which goes on the wire as `ShipNetFlags.Boosting`, so every client sees it.
+  There is no timer: it lasts while Shift is held. The server's step and the client's prediction call the same motor with
+  the same input, so a replay gives the same bits.
+- **As data**, not code per vehicle. An engine module's `boost` (modules.json, 1 … 3) is its power's factor overboosted, and
+  a kind with its own power takes `ground.boost`. The assembler adds them as it adds the power:
+  `BoostPower = Σ power × boost`. The TOGG's and the Monster TOGG's engines are 1.4 (90 → 126 kW, 450 → 630 kW). Both kinds'
+  fuel blocks have `boost` 2.0. The Zamazingo has none, so Shift does nothing on it.
+- **Measured** (`VehicleBoostTests`): the TOGG reaches 15 m/s in 1.73 s overboosted, against 2.13 s without, and covers
+  134 m against 128 m in eight seconds. Its top speed is unchanged: 20 m/s is a cap, not a power limit. Below about 10 m/s
+  the tyres' grip, not the power, limits the pull. Over ten seconds flat out it burns 1.6 units of fuel against 0.8, and
+  after a minute held it is still overboosting. The same boosted inputs give the same bits. Over the loopback network,
+  Ada's prediction overboosts with no correction, and Bo sees the flag.
+- **The revs** (`VehicleRevs.Step(…, boosting)`, `Overboost` 0–1, in over 0.25 s and out over 0.35 s). Overboosted, the
+  wastegate is held shut: the turbo reaches its full boost from lower revs (the turbo's floor falls from 0.3 to 0.15 of the
+  redline) and spools 45% faster. Letting go of Shift on the throttle is a release, like lifting off the throttle. The
+  sounds play the turbo 6 dB louder and pitched up by 0.18 overboosted, the release 3 dB louder, and the whole engine
+  2.5 dB louder.
+- **The engine rocking under torque** (`Hollow.Client.Vehicles.EngineRock`, `ShipView.Rock.cs`). This is presentation
+  only. The engine module's model (the first module with power) leans about its crank, the vehicle's length through the
+  module's centre of mass. It rides a spring and damper of about 2.5 Hz toward 2.6° (0.045 rad) at full load, 1.7 times
+  that overboosted. So a stab of the throttle lurches it past its lean before it settles, and a gear change (the load let
+  go and taken up again) swings it back. At idle it shakes with a diesel's lope (two beats from the revs, roughest at
+  idle, 2.2 times harder overboosted). Standing still, a rise in the revs (a free rev, or the throttle on the handbrake)
+  twists the whole model about its length at the hubs' height, up to 0.8°, as a heavy flywheel does. The exhaust stacks
+  are the engine's, so the smoke rocks with it. The hull, the seats and the contacts don't move. Measured
+  (`TruckFeelTests`): standing at idle with a shake of 0.005 rad; a stab lurching to 0.056 rad before settling at 0.045;
+  0.076 overboosted; a gear change swinging it back 0.063; a free rev twisting the chassis 0.51° standing and 0.03°
+  rolling.
+- **Black smoke** (`VehicleSmoke.Black`, fx.json `exhaust.black`). Overboosted, each stack pours a heavy column over its
+  soot, by the overboost and the load (0.35 + 0.65 × load). It comes in as fast as the soot and clears over 1.1 s. It is
+  made of fewer, denser puffs rather than many thin ones (16 + 4 a second, with a spark now and then), because
+  see-through smoke is what costs a frame its time. A gear change overboosted throws a puff 1.6 times as big.
+- **Tour step** `--tour-steps truck` (`GroundTour.Truck.cs`; `HOLLOW_TOUR_KIND=monster-togg` runs it on the monster;
+  `HOLLOW_TOUR_NO_FX=1` runs it without the effects). It idles, revs on the handbrake, pulls away flat out (timed), brakes,
+  pulls away overboosted (timed), and lets go of Shift. It prints the revs, gear, turbo, overboost, the engine's lean, the
+  chassis's twist and the fuel at each stage.
 
 ## 10. Crafting and progression
 

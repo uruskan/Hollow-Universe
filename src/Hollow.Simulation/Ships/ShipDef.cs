@@ -73,6 +73,16 @@ public sealed class ShipDef
     /// <summary>Its engines' power in watts (ships.json <c>ground.power</c> and its modules' <c>power</c>): a ground motor's drive.</summary>
     public float EnginePower { get; internal set; }
 
+    /// <summary>
+    /// Its engines' power overboosted (VEHICLES.md §9.10: Shift held; ships.json <c>ground.boost</c> and its modules'
+    /// <c>boost</c>, each a factor on its own power): the ground motor's drive while boosting, <see cref="EnginePower"/> when
+    /// nothing overboosts. The fuel burns <see cref="FuelBoost"/> times faster meanwhile.
+    /// </summary>
+    public float BoostPower { get; internal set; }
+
+    /// <summary>Shift held gives it more power than its engines' own.</summary>
+    public bool Overboosts => BoostPower > EnginePower;
+
     /// <summary>What its engines do each tick (ships.json <c>drive</c>, <see cref="ShipDrives"/>; by default thrusters).</summary>
     public IShipDrive Drive { get; internal set; } = ShipThrusters.Instance;
 

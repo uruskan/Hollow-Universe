@@ -30,7 +30,7 @@ internal sealed class ModulesReader : IContentReader
             string key = f.Text(e, "key", $"modules.json: modules[{i}]");
             string where = $"modules.json: {JsonFields.Quote(key)}";
             f.OnlyKnown(e, where, "key", "item", "fits", "span", "levels", "height", "carries", "mass", "centreOfMass", "hull", "seats", "doors",
-                "parts", "fuel", "hold", "model", "wheels", "power", "drive");
+                "parts", "fuel", "hold", "model", "wheels", "power", "boost", "drive");
             ItemDef? item = r.Resolve(f.Text(e, "item", where), where + ".item");
             if (item == null)
             {
@@ -64,6 +64,7 @@ internal sealed class ModulesReader : IContentReader
                 Parts = parts,
                 Wheels = ShipsReader.Wheels(f, e, where),
                 Power = f.Number(e, "power", where, 0),
+                Boost = f.Number(e, "boost", where, 1),
                 Drive = DriveNumbers(f, e, where),
                 FuelCapacity = f.Number(e, "fuel", where, 0),
                 Hold = f.Integer(e, "hold", where, 0),
@@ -159,9 +160,10 @@ internal sealed class ModulesReader : IContentReader
             {
                 c.Problem(where, $"item \"{m.Item.Key}\" is a module and nothing else");
             }
-            if (m.Fits.Count == 0 || m.Span is < 1 or > 8 || m.Height < 0 || m.Mass <= 0 || m.FuelCapacity < 0 || m.Hold is < 0 or > 48 || m.Power < 0)
+            if (m.Fits.Count == 0 || m.Span is < 1 or > 8 || m.Height < 0 || m.Mass <= 0 || m.FuelCapacity < 0 || m.Hold is < 0 or > 48 || m.Power < 0 ||
+                m.Boost is < 1 or > 3)
             {
-                c.Problem(where, "fits a tag or more, spans 1 … 8 sockets, a height of 0 or more, a positive mass, fuel of 0 or more, a hold of 0 … 48 slots, power of 0 or more");
+                c.Problem(where, "fits a tag or more, spans 1 … 8 sockets, a height of 0 or more, a positive mass, fuel of 0 or more, a hold of 0 … 48 slots, power of 0 or more, an overboost of 1 … 3");
             }
             foreach (WheelDef w in m.Wheels.Where(w => w.Radius <= 0 || w.Width <= 0 || w.Travel <= 0 || w.Stiffness <= 0 || w.Damping <= 0 || w.Grip is <= 0 or > 2))
             {

@@ -203,8 +203,8 @@ public sealed class RotorControls : IShipControlScheme
 /// <summary>
 /// Driving (VEHICLES.md §6.5), the TOGG's: W drives on, S brakes and then reverses (the ground motor knows which), A and D
 /// steer, the wheel turning toward full lock at a rate and back to centre faster when let go (the ramp is in the input, so
-/// the server and the prediction steer alike); Left Ctrl is the handbrake; the mouse looks round; Space gets out
-/// (<c>SeatKeys</c>, the owner's R17).
+/// the server and the prediction steer alike); Left Ctrl is the handbrake; Left Shift held overboosts an engine that can
+/// (VEHICLES.md §9.10); the mouse looks round; Space gets out (<c>SeatKeys</c>, the owner's R17).
 /// </summary>
 public sealed class CarControls : IShipControlScheme
 {
@@ -222,7 +222,7 @@ public sealed class CarControls : IShipControlScheme
     public bool Flies => false;
 
     public string Hints(bool cockpit) =>
-        "W drive · S brake, reverse · A/D steer · CTRL handbrake · " + (cockpit ? "Mouse look · V orbit" : "RMB drag orbit · Wheel zoom · V seat view") +
+        "W drive · S brake, reverse · A/D steer · SHIFT boost · CTRL handbrake · " + (cockpit ? "Mouse look · V orbit" : "RMB drag orbit · Wheel zoom · V seat view") +
         " · SPACE get out";
 
     public ShipInput Read(ShipControls controls, double delta, bool mouseSteering)
@@ -240,6 +240,7 @@ public sealed class CarControls : IShipControlScheme
             Throttle = controls.Throttle,
             Yaw = _steer,
             Vertical = Held(Godot.Key.Ctrl),
+            Buttons = Input.IsPhysicalKeyPressed(Godot.Key.Shift) ? ShipButtons.Boost : ShipButtons.None,
         };
     }
 }

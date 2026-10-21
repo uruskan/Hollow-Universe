@@ -20,7 +20,7 @@
     },
     {
       "key": "togg-engine", "item": "togg-engine", "fits": ["bay", "engine-mount"], "levels": [1], "height": 0.95,
-      "mass": 280, "centreOfMass": [0, 0.4, 0.6], "power": 90000,
+      "mass": 280, "centreOfMass": [0, 0.4, 0.6], "power": 90000, "boost": 1.4,
       "hull": [{ "centre": [0, 0.42, 0.6], "size": [0.9, 0.42, 0.58] }],
       "parts": [
         { "key": "engine", "name": "Engine", "at": [0, 0.5, 0.6], "radius": 0.6,
@@ -29,7 +29,7 @@
     },
     {
       "key": "monster-togg-engine", "item": "monster-togg-engine", "fits": ["bay", "engine-mount"], "levels": [1], "height": 1.45,
-      "mass": 400, "centreOfMass": [0, 0.45, 0.6], "power": 450000,
+      "mass": 400, "centreOfMass": [0, 0.45, 0.6], "power": 450000, "boost": 1.4,
       "hull": [{ "centre": [0, 0.5, 0.6], "size": [0.9, 0.5, 0.58] }],
       "parts": [
         { "key": "engine", "name": "Blown six", "at": [0, 0.6, 0.6], "radius": 0.65,

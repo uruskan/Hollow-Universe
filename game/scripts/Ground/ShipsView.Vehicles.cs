@@ -11,8 +11,9 @@ using Num = System.Numerics;
 namespace HollowUniverse.Ground;
 
 /// <summary>
-/// A ground vehicle's own effects (VEHICLES.md §9.9): its diesel's haze at idle, black soot under load and a puff on
-/// starting, at a gear change and on a stab of the throttle (by its revs, <c>VehicleRevs</c>), out of every <c>Exhaust_&lt;n&gt;</c> point of its model
+/// A ground vehicle's own effects (VEHICLES.md §9.9): its diesel's haze at idle, black soot under load, a heavy black column
+/// overboosted (§9.10) and a puff on starting, at a gear change and on a stab of the throttle (by its revs,
+/// <c>VehicleRevs</c>), out of every <c>Exhaust_&lt;n&gt;</c> point of its model
 /// (<see cref="VehicleSmoke"/>); dust behind each tyre on the ground, tinted by the ground under it, with grit and gravel,
 /// by its speed and its spin pulling away; and spray where a tyre runs through shallow water. Drawn within
 /// <see cref="VehicleFxReach"/> of the camera only.
@@ -22,7 +23,7 @@ public partial class ShipsView
     private sealed class VehicleFx
     {
         public readonly VehicleSmoke Smoke = new();
-        public FxHandle[] Haze = Array.Empty<FxHandle>(), Soot = Array.Empty<FxHandle>();
+        public FxHandle[] Haze = Array.Empty<FxHandle>(), Soot = Array.Empty<FxHandle>(), Black = Array.Empty<FxHandle>();
         public FxHandle[] Dust = Array.Empty<FxHandle>(), Spray = Array.Empty<FxHandle>();
         public string?[] Surface = Array.Empty<string?>();
         public float SurfaceAge;
@@ -55,7 +56,8 @@ public partial class ShipsView
         }
         VehicleFx fx = d.Fx ??= new VehicleFx();
         float throttle = look.Thrust.Z;
-        fx.Smoke.Update(look.Engines, throttle, d.Revs?.Load ?? MathF.Abs(throttle), d.Revs?.Shifted ?? false, (float)_delta);
+        fx.Smoke.Update(look.Engines, throttle, d.Revs?.Load ?? MathF.Abs(throttle), d.Revs?.Shifted ?? false, (float)_delta,
+            d.Revs?.Overboost ?? (look.Boosting ? 1 : 0));
         Camera3D? camera = GetViewport()?.GetCamera3D();
         bool near = shown && (camera == null || camera.GlobalPosition.DistanceTo(d.View.GlobalPosition) < VehicleFxReach);
         Exhaust(fx, d.View, near);
@@ -69,8 +71,10 @@ public partial class ShipsView
         {
             StopAll(fx.Haze);
             StopAll(fx.Soot);
+            StopAll(fx.Black);
             fx.Haze = new FxHandle[stacks.Count];
             fx.Soot = new FxHandle[stacks.Count];
+            fx.Black = new FxHandle[stacks.Count];
         }
         VehicleSmoke smoke = fx.Smoke;
         for (int i = 0; i < stacks.Count; i++)
@@ -78,6 +82,7 @@ public partial class ShipsView
             Node3D at = stacks[i];
             Loop(ref fx.Haze[i], "exhaust.diesel", near && smoke.Haze > 0.02f, at.GlobalPosition, at.GlobalBasis.Y, smoke.Haze, new FxParams { Follow = at });
             Loop(ref fx.Soot[i], "exhaust.soot", near && smoke.Soot > 0.03f, at.GlobalPosition, at.GlobalBasis.Y, smoke.Soot, new FxParams { Follow = at });
+            Loop(ref fx.Black[i], "exhaust.black", near && smoke.Black > 0.05f, at.GlobalPosition, at.GlobalBasis.Y, smoke.Black, new FxParams { Follow = at });
             if (near && smoke.Puff > 0)
             {
                 FxDirector.Play("exhaust.puff", at.GlobalPosition, at.GlobalBasis.Y.Normalized(), new FxParams { Scale = smoke.Puff });
@@ -202,6 +207,7 @@ public partial class ShipsView
         }
         StopAll(fx.Haze);
         StopAll(fx.Soot);
+        StopAll(fx.Black);
         StopAll(fx.Dust);
         StopAll(fx.Spray);
     }

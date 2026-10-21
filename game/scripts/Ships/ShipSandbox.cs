@@ -55,6 +55,7 @@ public partial class ShipSandbox : Node3D
     private Ship _ship = null!;
     private ShipView _shipView = null!;
     private VehicleRevs? _revs;
+    private readonly EngineRock _rock = new();
     private VehicleSounds? _vehicleSounds;
     private Deployable _bench = null!;
     private Node3D? _benchModel;
@@ -548,7 +549,9 @@ public partial class ShipSandbox : Node3D
             _vehicleSounds = new VehicleSounds(_ship.Def, _shipView, engine);
         }
         bool landed = shown.Has(ShipFlags.Landed);
-        _revs.Step(along, shown.Thrust.Z, shown.Has(ShipFlags.EnginesOn) && !_ship.Destroyed, landed, (float)delta);
+        _revs.Step(along, shown.Thrust.Z, shown.Has(ShipFlags.EnginesOn) && !_ship.Destroyed, landed, (float)delta, shown.Has(ShipFlags.Boosting));
+        _rock.Step(_revs, along, (float)delta);
+        _shipView.ShowRock(_rock.Lean + _rock.Shake, _rock.Twist);
         string surface = _content.Surfaces.Key(_content.Surfaces.AtGround(_zone.Surface, _zone.Frame, shown.Position));
         _vehicleSounds!.Update(_revs, shown.Velocity, shown.Rotation, landed, surface, _shipView.Visible, delta);
     }
@@ -827,7 +830,7 @@ public partial class ShipSandbox : Node3D
         GD.Print(FormattableString.Invariant(
             $"[trace] t={_clock:0.0}s frame={delta * 1000:0.0}ms fps={Engine.GetFramesPerSecond()} ticks={_tickMs:0.00}ms ship {s.Velocity.Length():0.0} m/s climb {Num.Vector3.Dot(s.Velocity, up):0.0} {over:0.0} m over ground pitch {pitch:0.0}° roll {roll:0.0}° thrust ({s.Thrust.X:0.00},{s.Thrust.Y:0.00},{s.Thrust.Z:0.00}) fuel {s.Fuel:0} hull {s.Health:0} {s.Flags} tiles={_surface.Terrain.DrawnTiles} pending={_surface.Terrain.Pending} ready={_surface.IsReady} exposure={ShipView.Exposure:0.###}")
             + (_revs != null ? FormattableString.Invariant(
-                $" revs {_revs.Rpm:0} gear {_revs.Gear} load {_revs.Load:0.00} overrun {_revs.Overrun:0.00} boost {_revs.Boost:0.00}") : ""));
+                $" revs {_revs.Rpm:0} gear {_revs.Gear} load {_revs.Load:0.00} overrun {_revs.Overrun:0.00} boost {_revs.Boost:0.00} overboost {_revs.Overboost:0.00} lean {_rock.Lean * 180 / MathF.PI:0.0}°") : ""));
     }
 
     // ---------------------------------------------------------------- input

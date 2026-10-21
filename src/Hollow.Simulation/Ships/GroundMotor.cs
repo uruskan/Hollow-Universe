@@ -162,8 +162,12 @@ public sealed class GroundMotor : IShipMotor
     public static float SteerAngle(GroundDef g, float speed) =>
         g.Steer + (g.SteerFast - g.Steer) * Math.Clamp(MathF.Abs(speed) / g.TopSpeed, 0, 1);
 
-    /// <summary>The drive's whole force for a throttle at a speed along the vehicle's way (N; signed as the throttle).</summary>
-    public static float DriveForce(ShipDef def, float throttle, float speed)
+    /// <summary>
+    /// The drive's whole force for a throttle at a speed along the vehicle's way (N; signed as the throttle). Overboosted
+    /// (<paramref name="boosting"/>, VEHICLES.md §9.10) the power is <see cref="ShipDef.BoostPower"/> and the drive's traction
+    /// cap rises with it; the tyres' grip still caps each wheel.
+    /// </summary>
+    public static float DriveForce(ShipDef def, float throttle, float speed, bool boosting = false)
     {
         GroundDef g = def.Ground!;
         if (throttle == 0 || def.EnginePower <= 0)
@@ -173,8 +177,16 @@ public sealed class GroundMotor : IShipMotor
         float top = throttle > 0 ? g.TopSpeed : g.ReverseSpeed;
         float along = throttle > 0 ? speed : -speed;
         float fade = Math.Clamp((top - along) / TopFade, 0, 1);
-        return throttle * fade * MathF.Min(def.EnginePower / MathF.Max(MathF.Abs(speed), LeastDriveSpeed), g.Traction);
+        float boost = boosting && def.Overboosts ? def.BoostPower / def.EnginePower : 1;
+        return throttle * fade * MathF.Min(def.EnginePower * boost / MathF.Max(MathF.Abs(speed), LeastDriveSpeed), g.Traction * boost);
     }
+
+    /// <summary>
+    /// Overboosting this tick (VEHICLES.md §9.10): the engine running, the driver holding boost (Shift) and driving forward,
+    /// on a vehicle whose engines overboost. No time limit: it lasts while held, at <see cref="ShipDef.FuelBoost"/> times the fuel.
+    /// </summary>
+    public static bool Overboosting(ShipDef def, in ShipInput input, bool engines, float throttle) =>
+        engines && throttle > 0 && def.Overboosts && input.Has(ShipButtons.Boost);
 
     public ShipEvents Step(ref ShipState s, in ShipInput input, ShipDef def, in ShipContext ctx, uint ignoreBody)
     {
@@ -216,16 +228,17 @@ public sealed class GroundMotor : IShipMotor
         float height = (float)(bodyPoint.Length - ctx.Surface.Radius);
         float density = ctx.AirDensity * (float)DMath.Exp(-Math.Max(height, 0) / Math.Max(ctx.ScaleHeight, 1));
         float airRatio = ctx.AirDensity > 0 ? density / ctx.AirDensity : 0;
-        Burn(ref s, def, engines, MathF.Abs(throttle), ref events);
+        bool boosting = Overboosting(def, input, engines, throttle);
+        Burn(ref s, def, engines, MathF.Abs(throttle), ref events, boosting);
         if (events.OutOfFuel)
         {
-            engines = false;
+            engines = boosting = false;
             throttle = 0;
         }
         bool handbrake = !engines || input.Vertical > 0.5f;
         s.Thrust = new Vector3(0, 0, throttle);
         s.Flags = (s.Flags & ~(ShipFlags.EnginesOn | ShipFlags.Boosting | ShipFlags.AtEdge | ShipFlags.Wet))
-            | (engines ? ShipFlags.EnginesOn : ShipFlags.None);
+            | (engines ? ShipFlags.EnginesOn : ShipFlags.None) | (boosting ? ShipFlags.Boosting : ShipFlags.None);
 
         float speed = s.Velocity.Length();
         float reach = def.BoundingRadius + speed * dt * 2 + 2;
@@ -324,7 +337,7 @@ public sealed class GroundMotor : IShipMotor
             // The tyres along their way: the drive shared by the driven wheels, the brakes against the motion, rolling, or
             // held still (no throttle and slow, or the handbrake on a wheel it holds), each within its grip.
             float along = Vector3.Dot(s.Velocity, bodyForward);
-            float drive = DriveForce(def, throttle, along) * (g.Balance ? Unloaded(wheels, loads[..loaded], m * ctx.Gravity, front: true) : 1);
+            float drive = DriveForce(def, throttle, along, boosting) * (g.Balance ? Unloaded(wheels, loads[..loaded], m * ctx.Gravity, front: true) : 1);
             float brakes = g.Balance ? Unloaded(wheels, loads[..loaded], m * ctx.Gravity, front: false) : 1;
             bool braking = throttle != 0 && throttle * along < -0.5f;
             bool hold = throttle == 0 && MathF.Abs(along) < HoldSpeed;
@@ -487,14 +500,15 @@ public sealed class GroundMotor : IShipMotor
         return other && weight > 0 ? Math.Clamp(on / (weight * WheelieShare), 0, 1) : 1;
     }
 
-    // An idle burn while the engine runs, more with the throttle (ships.json fuel: idle and full a second).
-    private static void Burn(ref ShipState s, ShipDef def, bool engines, float effort, ref ShipEvents events)
+    // An idle burn while the engine runs, more with the throttle (ships.json fuel: idle and full a second), boost times more
+    // overboosted.
+    private static void Burn(ref ShipState s, ShipDef def, bool engines, float effort, ref ShipEvents events, bool boosting = false)
     {
         if (!engines)
         {
             return;
         }
-        float requested = (def.FuelIdle + effort * (def.FuelFull - def.FuelIdle)) * CharacterMotor.DeltaTime;
+        float requested = (def.FuelIdle + effort * (def.FuelFull - def.FuelIdle)) * (boosting ? def.FuelBoost : 1) * CharacterMotor.DeltaTime;
         events.FuelUsed = Math.Min(s.Fuel, requested);
         ShipFuel.Split(s.Fuel, s.FuelReserve, out int units, out float reserve);
         ShipFuel.Burn(ref units, ref reserve, events.FuelUsed);

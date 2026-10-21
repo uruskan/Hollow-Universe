@@ -13,7 +13,8 @@ namespace HollowUniverse.Ships;
 /// What a ground vehicle sounds like as it drives (VEHICLES.md §7.1), from its revs (<see cref="VehicleRevs"/>) and what
 /// every client sees of it: its engine as loops made at several revs, on the throttle and off it, each pitched to the revs
 /// and crossfaded with its neighbours (two speeds and the load at a time); the turbo's whistle by its boost and its
-/// release; a clunk at each gear change; the tyres' loop of the ground under them (by its physical surface, or water),
+/// release, louder and higher overboosted (VEHICLES.md §9.10); a clunk at each gear change; a heavy vehicle's air brakes
+/// hissing as it comes to rest; the tyres' loop of the ground under them (by its physical surface, or water),
 /// pitched and swelled by speed; a skid when it slides sideways or spins its wheels on loose ground; the suspension's
 /// knock at a stop or a hard hit and its creaks as it works; a splash into water. Its start, stop and landing are the
 /// kind's roles in <see cref="ShipSounds"/>; their loops wait for the start's run-up. Everything comes from sounds.json's
@@ -34,7 +35,7 @@ public sealed class VehicleSounds
     private SoundHandle _turbo, _tyre, _skid;
     private string? _tyreKey, _skidKey;
     private string _surface = "unknown";
-    private bool _running, _known, _flying;
+    private bool _running, _known, _flying, _driven;
     private float _fall;
     private double _time, _loudFrom, _nextKnock, _nextCreak, _tyreQuiet, _skidQuiet, _airborneAt;
 
@@ -134,7 +135,8 @@ public sealed class VehicleSounds
         {
             return;
         }
-        float level = _e.Volume + Db(rise);
+        // Overboosted it works harder: the whole engine a little louder.
+        float level = _e.Volume + Db(rise) + 2.5f * revs.Overboost;
         float rpm = Math.Max(revs.Rpm, 1);
         // On the throttle and off it, at equal power; the overrun's drag louder.
         float a = MathF.Pow(Math.Clamp(revs.Load, 0, 1), 0.75f) * MathF.PI * 0.5f;
@@ -178,18 +180,19 @@ public sealed class VehicleSounds
             Set(_on[i], level + loop.OnDb + Db(w) + onDb, pitch);
             Set(_off[i], level + loop.OffDb + Db(w) + offDb, pitch);
         }
-        // The turbo's whistle by its boost; its release; a gear change's clunk.
+        // The turbo's whistle by its boost, louder and higher overboosted (VEHICLES.md §9.10); its release; a gear change's clunk.
         if (_e.Turbo != null)
         {
             if (!_turbo.IsValid)
             {
                 _turbo = Start(_e.Turbo, _engine);
             }
-            Set(_turbo, level + Db(MathF.Pow(revs.Boost, 1.4f)), (0.55f + 0.6f * revs.Boost) * _e.Pitch, 0.1f);
+            float over = revs.Overboost;
+            Set(_turbo, level + Db(MathF.Pow(revs.Boost, 1.4f)) + 6f * over, (0.55f + 0.6f * revs.Boost + 0.18f * over) * _e.Pitch, 0.1f);
         }
         if (revs.Released)
         {
-            Sounds.At(_e.Blowoff, _engine.GlobalPosition, _e.Volume + Db(0.4f + 0.6f * revs.Boost));
+            Sounds.At(_e.Blowoff, _engine.GlobalPosition, _e.Volume + Db(0.4f + 0.6f * revs.Boost) + 3f * revs.Overboost);
         }
         if (revs.Shifted)
         {
@@ -250,6 +253,20 @@ public sealed class VehicleSounds
             Sounds.At(_e.Splash, at, Db(Math.Clamp(speed / 8f, 0.4f, 1.3f)));
         }
         _surface = surface;
+
+        // A heavy vehicle's air brakes hiss as it comes to rest after driving (VEHICLES.md §9.10).
+        if (speed > 2.5f)
+        {
+            _driven = true;
+        }
+        else if (_driven && speed < 0.3f && landed)
+        {
+            _driven = false;
+            if (_known && revs.Running && _e.AirBrake != null)
+            {
+                Sounds.At(_e.AirBrake, at, _e.Volume);
+            }
+        }
 
         // Rolling: the ground's loop, swelled and pitched by speed; a new ground crossfades in.
         bool rolling = landed && speed > 0.3f;

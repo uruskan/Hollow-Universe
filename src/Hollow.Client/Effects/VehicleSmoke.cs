@@ -35,8 +35,20 @@ public sealed class VehicleSmoke
     /// <summary>How hard a puff this step is (0: none; 1.4 a start, about 1 a stab, less a gear change).</summary>
     public float Puff { get; private set; }
 
-    /// <summary>One frame: <paramref name="throttle"/> −1 to 1 (backing up negative), <paramref name="load"/> 0–1.</summary>
-    public void Update(bool running, float throttle, float load, bool shifted, float dt)
+    /// <summary>
+    /// 0–1: the heavy black smoke of an overboost (VEHICLES.md §9.10), by the overboost and the load: in as the soot comes,
+    /// gone more slowly than it.
+    /// </summary>
+    public float Black { get; private set; }
+
+    /// <summary>Seconds for the overboost's black smoke to clear.</summary>
+    public const float BlackRelease = 1.1f;
+
+    /// <summary>
+    /// One frame: <paramref name="throttle"/> −1 to 1 (backing up negative), <paramref name="load"/> 0–1,
+    /// <paramref name="overboost"/> 0–1 (the revs' <c>Overboost</c>).
+    /// </summary>
+    public void Update(bool running, float throttle, float load, bool shifted, float dt, float overboost = 0)
     {
         Puff = 0;
         dt = Math.Max(dt, 0);
@@ -46,6 +58,7 @@ public sealed class VehicleSmoke
             _lagged = 0;
             Haze = 0;
             Soot = Approach(Soot, 0, dt, SootRelease);
+            Black = Approach(Black, 0, dt, BlackRelease);
             return;
         }
         float gas = Math.Clamp(Math.Abs(throttle), 0, 1);
@@ -61,13 +74,17 @@ public sealed class VehicleSmoke
             Puff = Math.Max(Puff, 0.7f + 0.5f * gas);
             _sinceStab = 0;
         }
+        overboost = Math.Clamp(overboost, 0, 1);
         if (shifted)
         {
-            Puff = Math.Max(Puff, 0.4f + 0.5f * load);
+            // Overboosted, a gear change throws a bigger puff (the turbo's boost dumped and the fuel back on).
+            Puff = Math.Max(Puff, (0.4f + 0.5f * load) * (1 + 0.6f * overboost));
         }
         _lagged = Approach(_lagged, gas, dt, ThrottleLag);
         Soot = Approach(Soot, load, dt, load > Soot ? SootAttack : SootRelease);
-        Haze = 1f - 0.7f * Soot;
+        float black = overboost * (0.35f + 0.65f * load);
+        Black = Approach(Black, black, dt, black > Black ? SootAttack : BlackRelease);
+        Haze = 1f - 0.7f * Math.Max(Soot, Black);
     }
 
     // Toward a target over a time constant (exponential, steady whatever the frame rate).

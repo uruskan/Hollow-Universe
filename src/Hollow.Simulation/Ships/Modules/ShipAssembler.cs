@@ -214,7 +214,7 @@ public static class ShipAssembler
         int helm = kind.Seats.Exists(s => s.Flies) ? -1 : FrontHelm(defs, origins, build);
         int moduleSeats = 0;
         var wheels = new List<WheelDef>(kind.Wheels);
-        float power = kind.EnginePower;
+        float power = kind.EnginePower, boosted = kind.BoostPower;
         var sums = new SortedDictionary<string, float>(StringComparer.Ordinal);
         float mass = kind.Mass, water = kind.WaterVolume;
         Vector3 moment = kind.Mass * kind.CentreOfMass;
@@ -273,6 +273,7 @@ public static class ShipAssembler
                 wheels.Add(w.Moved(o, prefix));
             }
             power += m.Power;
+            boosted += m.Power * m.Boost;
             if (m.Power != 0)
             {
                 sums["power"] = sums.GetValueOrDefault("power") + m.Power;
@@ -305,6 +306,7 @@ public static class ShipAssembler
         composed.WaterVolume = water;
         composed.Wheels = wheels;
         composed.EnginePower = power;
+        composed.BoostPower = boosted;
         composed.ComputeBounds();
         return composed;
     }

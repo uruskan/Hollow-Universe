@@ -374,6 +374,7 @@ public sealed class SoundCatalogData
             Creak = Optional(v, "creak"),
             Land = Optional(v, "land"),
             Splash = Optional(v, "splash"),
+            AirBrake = Optional(v, "airBrake"),
         };
     }
 

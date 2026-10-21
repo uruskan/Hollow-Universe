@@ -50,6 +50,7 @@ public partial class ShipsView : Node3D
         // A ground vehicle with an engine's sounds (VEHICLES.md §7.1): its revs (read by its sounds, the HUD and the
         // exhaust), its engine, tyres and suspension heard, and the ground under it, looked up a few times a second.
         public VehicleRevs? Revs;
+        public EngineRock? Rock;
         public VehicleSounds? Vehicle;
         public string Surface = "unknown";
         public double SurfaceIn;
@@ -115,6 +116,9 @@ public partial class ShipsView : Node3D
 
     /// <summary>A ground vehicle's revs, gear, load and boost by its net ID, if drawn (its HUD, its exhaust).</summary>
     public VehicleRevs? RevsOf(uint netId) => _drawn.TryGetValue(netId, out Drawn? d) ? d.Revs : null;
+
+    /// <summary>A drawn ground vehicle's engine rocking on its mounts (VEHICLES.md §9.10), or null.</summary>
+    public EngineRock? RockOf(uint netId) => _drawn.TryGetValue(netId, out Drawn? d) ? d.Rock : null;
 
     /// <summary>Every frame, after the client's update: each ship where it is drawn, and what it sounds like.</summary>
     public void Refresh(double delta, float exposure)
@@ -262,7 +266,8 @@ public partial class ShipsView : Node3D
         mine ? Client.Ships().OwnShip.Has(ShipFlags.Landed) : ship.Has(ShipNetFlags.Landed);
 
     // A ground vehicle's revs (VEHICLES.md §7.1): one VehicleRevs for each drawn, stepped every frame by its speed along its
-    // nose, its throttle, its engine and its wheels on the ground, when its kind has an engine's sounds.
+    // nose, its throttle, its engine, its wheels on the ground and its overboost, when its kind has an engine's sounds; and
+    // its engine rocking on its mounts by them (§9.10).
     private static void Revs(Drawn d, ShipDef def, in ShipLook look, Num.Quaternion rotation, Num.Vector3 velocity, bool landed,
         double delta)
     {
@@ -275,7 +280,10 @@ public partial class ShipsView : Node3D
             d.Revs = new VehicleRevs(engine);
         }
         float along = Num.Vector3.Dot(velocity, Num.Vector3.Transform(Num.Vector3.UnitZ, rotation));
-        d.Revs.Step(along, look.Thrust.Z, look.Engines && !look.Destroyed, landed, (float)delta);
+        d.Revs.Step(along, look.Thrust.Z, look.Engines && !look.Destroyed, landed, (float)delta, look.Boosting);
+        d.Rock ??= new EngineRock();
+        d.Rock.Step(d.Revs, along, (float)delta);
+        d.View.ShowRock(d.Rock.Lean + d.Rock.Shake, d.Rock.Twist);
     }
 
     // The physical surface under a ground vehicle (contact-surfaces.json's), or "water" where it wades, a few times a second.

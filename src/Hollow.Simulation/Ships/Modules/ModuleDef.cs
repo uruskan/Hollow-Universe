@@ -89,6 +89,9 @@ public sealed class ModuleDef
     /// <summary>The power it adds to the ship's engines, in watts (an engine's): also the drive's "power".</summary>
     public float Power { get; init; }
 
+    /// <summary>Its power's factor overboosted (modules.json <c>boost</c>, 1 … 3; VEHICLES.md §9.10): Shift held, an engine gives this much more.</summary>
+    public float Boost { get; init; } = 1;
+
     /// <summary>What it adds to the ship's drive, by name (modules.json <c>drive</c>: a rotor's lift, its spool).</summary>
     public IReadOnlyDictionary<string, float> Drive { get; init; } = new Dictionary<string, float>();
 

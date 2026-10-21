@@ -73,6 +73,9 @@ public sealed class EngineSoundData
     public string? Land { get; init; }
     public string? Splash { get; init; }
 
+    /// <summary>A heavy vehicle's air brakes (VEHICLES.md §9.10): their hiss as it comes to rest after driving.</summary>
+    public string? AirBrake { get; init; }
+
     /// <summary>The tyre loop for a surface: its own, else the hard ground's.</summary>
     public string? TyreFor(string surface) =>
         Tyres.TryGetValue(surface, out string? key) ? key : Tyres.TryGetValue("hard", out key) ? key : null;
@@ -85,7 +88,7 @@ public sealed class EngineSoundData
             yield return l.On;
             yield return l.Off;
         }
-        foreach (string? key in new[] { Turbo, Blowoff, Shift, SkidLoose, SkidHard, Knock, Creak, Land, Splash })
+        foreach (string? key in new[] { Turbo, Blowoff, Shift, SkidLoose, SkidHard, Knock, Creak, Land, Splash, AirBrake })
         {
             if (key != null)
             {

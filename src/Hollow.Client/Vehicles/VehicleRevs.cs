@@ -42,6 +42,12 @@ public sealed class VehicleRevs
     /// <summary>0–1: the turbo's boost (0 without one).</summary>
     public float Boost { get; private set; }
 
+    /// <summary>
+    /// 0–1: how far into its overboost it is (VEHICLES.md §9.10: Shift held, the ship's Boosting flag), eased in and out: the
+    /// turbo pushed to its most, louder and higher, black smoke and the engine rocking harder.
+    /// </summary>
+    public float Overboost { get; private set; }
+
     /// <summary>True while it runs.</summary>
     public bool Running { get; private set; }
 
@@ -54,15 +60,21 @@ public sealed class VehicleRevs
     /// <summary>True on the step the throttle let go with the turbo spooled (its release).</summary>
     public bool Released { get; private set; }
 
+    /// <summary>Seconds for the overboost to come in, and to go when let go.</summary>
+    public const float OverboostIn = 0.25f, OverboostOut = 0.35f;
+
     /// <summary>
     /// One frame: <paramref name="speed"/> along the nose (m/s, negative backing up), <paramref name="throttle"/> as the
-    /// motor has it (-1 … 1; against the motion it brakes), whether the engine runs and the wheels touch the ground.
+    /// motor has it (-1 … 1; against the motion it brakes), whether the engine runs and the wheels touch the ground, and
+    /// whether it is overboosted (the ship's Boosting flag).
     /// </summary>
-    public void Step(float speed, float throttle, bool engines, bool grounded, float dt)
+    public void Step(float speed, float throttle, bool engines, bool grounded, float dt, bool boosting = false)
     {
         Shifted = Released = false;
         dt = Math.Clamp(dt, 1e-4f, 0.1f);
         _releaseCooldown = Math.Max(0, _releaseCooldown - dt);
+        float overboostWas = Overboost;
+        Overboost = Approach(Overboost, engines && boosting ? 1 : 0, dt, boosting ? OverboostIn : OverboostOut);
         if (!engines)
         {
             // Stopped: the revs run down, the turbo with them.
@@ -128,9 +140,15 @@ public sealed class VehicleRevs
         Overrun = Approach(Overrun, drag, dt, 0.12f);
         if (_e.TurboSpool > 0)
         {
-            float want = Load * Math.Clamp((Rpm - _e.Redline * 0.3f) / (_e.Redline * 0.45f), 0, 1);
-            Boost = Approach(Boost, want, dt, want > Boost ? _e.TurboSpool : _e.TurboSpool * 0.5f);
-            if (_gasWas > 0.6f && gas < 0.2f && Boost > 0.35f && _releaseCooldown <= 0)
+            // Overboosted the wastegate is held shut: the turbo goes to its most from lower revs, and spools faster.
+            float from = _e.Redline * (0.3f - 0.15f * Overboost);
+            float want = Load * Math.Clamp((Rpm - from) / (_e.Redline * 0.45f), 0, 1);
+            want = MathF.Max(want, Load * Overboost);
+            float spool = _e.TurboSpool * (1 - 0.45f * Overboost);
+            Boost = Approach(Boost, want, dt, want > Boost ? spool : _e.TurboSpool * 0.5f);
+            // Its release: the throttle let go with the turbo spooled, or the overboost let go under load.
+            bool lifted = _gasWas > 0.6f && gas < 0.2f || overboostWas > 0.6f && !boosting && gas > 0.2f;
+            if (lifted && Boost > 0.35f && _releaseCooldown <= 0)
             {
                 Released = true;
                 _releaseCooldown = 1.5f;

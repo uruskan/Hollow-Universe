@@ -391,7 +391,12 @@ public partial class ShipHud : Control
         {
             Status("AGROUND", "", G.Short);
         }
-        if (s.Has(ShipFlags.Boosting))
+        if (s.Has(ShipFlags.Boosting) && def.Ground != null)
+        {
+            // A vehicle's overboost (VEHICLES.md §9.10) has no timer: it lasts while Shift is held.
+            Status("OVERBOOST", "", G.Selected);
+        }
+        else if (s.Has(ShipFlags.Boosting))
         {
             Status("BOOST", N(s.BoostTicks / 30f, "0.0") + " s", G.Selected);
         }
